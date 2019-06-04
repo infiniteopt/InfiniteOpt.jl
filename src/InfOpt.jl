@@ -6,13 +6,16 @@ using MathOptInterface
 const MOI = MathOptInterface
 
 # Export user methods and datatypes.
-export InfiniteModel
+export InfiniteModel, @infinite_variable, @point_variable, @global_variable
 
 # Import all of the datatpyes, methods, and definitions.
 include("model.jl")
 include("variables.jl")
+include("expressions.jl")
+include("operators.jl")
 include("constraints.jl")
 include("objective.jl")
+include("macros.jl")
 include("show.jl")
 
 end # module

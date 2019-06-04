@@ -1,8 +1,24 @@
 """
+GeneralVariableRef <: JuMP.AbstractVariableRef
+A general DataType for all variable types used by `InfOpt`.
+**Fields**
+- `model::InfiniteModel` Flexibility model.
+- `index::Int` Index of variable in model.
+"""
+# struct GeneralVariableRef <: JuMP.AbstractVariableRef
+#     model::InfiniteModel # `model` owning the variable
+#     index::Int           # Index in `model.variables`
+# end
+
+"""
     FiniteVariableRef <: JuMP.AbstractVariableRef
 An abstract type to define new finite variable types.
 """
-abstract type FiniteVariableRef <: JuMP.AbstractVariableRef end
+abstract type FiniteVariableRef <: JuMP.AbstractVariableRef
+# struct FiniteVariableRef <: JuMP.AbstractVariableRef
+#     model::InfiniteModel # `model` owning the variable
+#     index::Int           # Index in `model.variables`
+# end
 
 """
 GlobalVariableRef <: JuMP.AbstractVariableRef
@@ -12,6 +28,7 @@ steady-state variables).
 - `model::InfiniteModel` Flexibility model.
 - `index::Int` Index of variable in model.
 """
+# const GlobalVariableRef = FiniteVariableRef
 struct GlobalVariableRef <: FiniteVariableRef
     model::InfiniteModel # `model` owning the variable
     index::Int           # Index in `model.variables`
@@ -25,6 +42,7 @@ variable at a particular scenario, dynamic variable at a discretized time point)
 - `model::InfiniteModel` Flexibility model.
 - `index::Int` Index of variable in model.
 """
+# const PointVariableRef = FiniteVariableRef
 struct PointVariableRef <: FiniteVariableRef
     model::InfiniteModel # `model` owning the variable
     index::Int           # Index in `model.variables`
@@ -38,6 +56,7 @@ variables, dynamic variables).
 - `model::InfiniteModel` Flexibility model.
 - `index::Int` Index of variable in model.
 """
+# const InfiniteVariableRef = GeneralVariableRef
 struct InfiniteVariableRef <: JuMP.AbstractVariableRef
     model::InfiniteModel # `model` owning the variable
     index::Int           # Index in `model.variables`
@@ -91,6 +110,12 @@ function JuMP.add_variable(m::InfiniteModel, v::InfOptVariable, name::String="")
 end
 
 """
+    JuMP.owner_model(vref::Union{FiniteVariableRef, InfiniteVariableRef})
+Extend the `JuMP.owner_model` function for our new variable types.
+"""
+JuMP.owner_model(vref::Union{FiniteVariableRef, InfiniteVariableRef}) = vref.model
+
+"""
     JuMP.delete(model::InfiniteModel, vref::Union{FiniteVariableRef, InfiniteVariableRef})
 Extend the `JuMP.delete` function to accomodate our new variable types.
 """
@@ -116,8 +141,8 @@ Extend the `JuMP.num_variables` function to accomodate our new variable types.
 JuMP.num_variables(m::InfiniteModel) = length(m.vars)
 
 # Internal functions
-variable_info(vref::Union{FiniteVariableRef, InfiniteVariableRef}) = vref.model.vars[vref.index].info
-function update_variable_info(vref::Union{FiniteVariableRef, InfiniteVariableRef}, info::JuMP.VariableInfo)
+_variable_info(vref::Union{FiniteVariableRef, InfiniteVariableRef}) = vref.model.vars[vref.index].info
+function _update_variable_info(vref::Union{FiniteVariableRef, InfiniteVariableRef}, info::JuMP.VariableInfo)
     vref.model.vars[vref.index] = InfOptVariable(info, vref.model.vars[vref.index].type)
     return
 end
@@ -126,7 +151,7 @@ end
     JuMP.has_lower_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef})
 Extend the `JuMP.has_lower_bound` function to accomodate our new variable types.
 """
-JuMP.has_lower_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef}) = variable_info(vref).has_lb
+JuMP.has_lower_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef}) = _variable_info(vref).has_lb
 
 """
     JuMP.lower_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef})::Float64
@@ -134,7 +159,7 @@ Extend the `JuMP.lower_bound` function to accomodate our new variable types.
 """
 function JuMP.lower_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef})::Float64
     @assert !JuMP.is_fixed(vref)
-    return variable_info(vref).lower_bound
+    return _variable_info(vref).lower_bound
 end
 
 """
@@ -142,13 +167,14 @@ end
 Extend the `JuMP.set_lower_bound` function to accomodate our new variable types.
 """
 function JuMP.set_lower_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef}, lower)
-    info = variable_info(vref)
-    update_variable_info(vref,
+    info = _variable_info(vref)
+    _update_variable_info(vref,
                          JuMP.VariableInfo(true, convert(Float64, lower),
                                            info.has_ub, info.upper_bound,
                                            info.has_fix, info.fixed_value,
                                            info.has_start, info.start,
                                            info.binary, info.integer))
+    return
 end
 
 """
@@ -156,20 +182,21 @@ end
 Extend the `JuMP.delete_lower_bound` function to accomodate our new variable types.
 """
 function JuMP.delete_lower_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef})
-    info = variable_info(vref)
-    update_variable_info(vref,
+    info = _variable_info(vref)
+    _update_variable_info(vref,
                          JuMP.VariableInfo(false, info.lower_bound,
                                            info.has_ub, info.upper_bound,
                                            info.has_fix, info.fixed_value,
                                            info.has_start, info.start,
                                            info.binary, info.integer))
+    return
 end
 
 """
     JuMP.has_upper_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef})
 Extend the `JuMP.has_upper_bound` function to accomodate our new variable types.
 """
-JuMP.has_upper_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef}) = variable_info(vref).has_ub
+JuMP.has_upper_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef}) = _variable_info(vref).has_ub
 
 """
     JuMP.upper_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef})
@@ -177,7 +204,7 @@ Extend the `JuMP.upper_bound` function to accomodate our new variable types.
 """
 function JuMP.upper_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef})::Float64
     @assert !JuMP.is_fixed(vref)
-    return variable_info(vref).upper_bound
+    return _variable_info(vref).upper_bound
 end
 
 """
@@ -185,13 +212,14 @@ end
 Extend the `JuMP.set_upper_bound` function to accomodate our new variable types.
 """
 function JuMP.set_upper_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef}, upper)
-    info = variable_info(vref)
-    update_variable_info(vref,
+    info = _variable_info(vref)
+    _update_variable_info(vref,
                          JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                            true, convert(Float64, upper),
                                            info.has_fix, info.fixed_value,
                                            info.has_start, info.start,
                                            info.binary, info.integer))
+    return
 end
 
 """
@@ -199,27 +227,28 @@ end
 Extend the `JuMP.delete_upper_bound` function to accomodate our new variable types.
 """
 function JuMP.delete_upper_bound(vref::Union{FiniteVariableRef, InfiniteVariableRef})
-    info = variable_info(vref)
-    update_variable_info(vref,
+    info = _variable_info(vref)
+    _update_variable_info(vref,
                          JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                            false, info.upper_bound,
                                            info.has_fix, info.fixed_value,
                                            info.has_start, info.start,
                                            info.binary, info.integer))
+    return
 end
 
 """
     JuMP.is_fixed(vref::Union{FiniteVariableRef, InfiniteVariableRef})
 Extend the `is_fixed` function to accomodate our new variable types.
 """
-JuMP.is_fixed(vref::Union{FiniteVariableRef, InfiniteVariableRef}) = variable_info(vref).has_fix
+JuMP.is_fixed(vref::Union{FiniteVariableRef, InfiniteVariableRef}) = _variable_info(vref).has_fix
 
 """
     JuMP.fix_value(vref::Union{FiniteVariableRef, InfiniteVariableRef})
 Extend the `JuMP.fix_value` function to accomodate our new variable types.
 """
 function JuMP.fix_value(vref::Union{FiniteVariableRef, InfiniteVariableRef})::Float64
-    return variable_info(vref).fixed_value
+    return _variable_info(vref).fixed_value
 end
 
 """
@@ -227,11 +256,11 @@ end
 Extend the `JuMP.fix` function to accomodate our new variable types.
 """
 function JuMP.fix(vref::Union{FiniteVariableRef, InfiniteVariableRef}, value; force::Bool = false)
-    info = variable_info(vref)
+    info = _variable_info(vref)
     if !force && (info.has_lb || info.has_ub)
         error("Unable to fix $(vref) to $(value) because it has existing bounds.")
     end
-    update_variable_info(vref, JuMP.VariableInfo(
+    _update_variable_info(vref, JuMP.VariableInfo(
         false, info.lower_bound, false, info.upper_bound, true, convert(Float64, value),
         info.has_start, info.start, info.binary, info.integer)
     )
@@ -243,13 +272,14 @@ end
 Extend the `JuMP.unfix` function to accomodate our new variable types.
 """
 function JuMP.unfix(vref::Union{FiniteVariableRef, InfiniteVariableRef})
-    info = variable_info(vref)
-    update_variable_info(vref,
+    info = _variable_info(vref)
+    _update_variable_info(vref,
                          JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                            info.has_ub, info.upper_bound,
                                            false, info.fixed_value,
                                            info.has_start, info.start,
                                            info.binary, info.integer))
+    return
 end
 
 """
@@ -257,7 +287,7 @@ end
 Extend the `JuMP.start_value` function to accomodate our new variable types.
 """
 function JuMP.start_value(vref::Union{FiniteVariableRef, InfiniteVariableRef})::Union{Nothing, Float64}
-    return variable_info(vref).start
+    return _variable_info(vref).start
 end
 
 """
@@ -265,20 +295,21 @@ end
 Extend the `JuMP.set_start_value` function to accomodate our new variable types.
 """
 function JuMP.set_start_value(vref::Union{FiniteVariableRef, InfiniteVariableRef}, start)
-    info = variable_info(vref)
-    update_variable_info(vref,
+    info = _variable_info(vref)
+    _update_variable_info(vref,
                          JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                            info.has_ub, info.upper_bound,
                                            info.has_fix, info.fixed_value,
                                            true, start,
                                            info.binary, info.integer))
+    return
 end
 
 """
     JuMP.is_binary(vref::Union{FiniteVariableRef, InfiniteVariableRef})
 Extend the `JuMP.is_binary` function to accomodate our new variable types.
 """
-JuMP.is_binary(vref::Union{FiniteVariableRef, InfiniteVariableRef}) = variable_info(vref).binary
+JuMP.is_binary(vref::Union{FiniteVariableRef, InfiniteVariableRef}) = _variable_info(vref).binary
 
 """
     JuMP.set_binary(vref::Union{FiniteVariableRef, InfiniteVariableRef})
@@ -286,13 +317,14 @@ Extend the `JuMP.set_binary` function to accomodate our new variable types.
 """
 function JuMP.set_binary(vref::Union{FiniteVariableRef, InfiniteVariableRef})
     @assert !JuMP.is_integer(vref)
-    info = variable_info(vref)
-    update_variable_info(vref,
+    info = _variable_info(vref)
+    _update_variable_info(vref,
                          JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                            info.has_ub, info.upper_bound,
                                            info.has_fix, info.fixed_value,
                                            info.has_start, info.start,
                                            true, info.integer))
+    return
 end
 
 """
@@ -300,20 +332,21 @@ end
 Extend the `JuMP.unset_binary` function to accomodate our new variable types.
 """
 function JuMP.unset_binary(vref::Union{FiniteVariableRef, InfiniteVariableRef})
-    info = variable_info(vref)
-    update_variable_info(vref,
+    info = _variable_info(vref)
+    _update_variable_info(vref,
                          JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                            info.has_ub, info.upper_bound,
                                            info.has_fix, info.fixed_value,
                                            info.has_start, info.start,
                                            false, info.integer))
+    return
 end
 
 """
     JuMP.is_integer(vref::Union{FiniteVariableRef, InfiniteVariableRef})
 Extend the `JuMP.is_integer` function to accomodate our new variable types.
 """
-JuMP.is_integer(vref::Union{FiniteVariableRef, InfiniteVariableRef}) = variable_info(vref).integer
+JuMP.is_integer(vref::Union{FiniteVariableRef, InfiniteVariableRef}) = _variable_info(vref).integer
 
 """
     JuMP.set_integer(vref::Union{FiniteVariableRef, InfiniteVariableRef})
@@ -321,13 +354,14 @@ Extend the `JuMP.set_integer` function to accomodate our new variable types.
 """
 function JuMP.set_integer(vref::Union{FiniteVariableRef, InfiniteVariableRef})
     @assert !JuMP.is_binary(vref)
-    info = variable_info(vref)
-    update_variable_info(vref,
+    info = _variable_info(vref)
+    _update_variable_info(vref,
                          JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                            info.has_ub, info.upper_bound,
                                            info.has_fix, info.fixed_value,
                                            info.has_start, info.start,
                                            info.binary, true))
+    return
 end
 
 """
@@ -335,13 +369,14 @@ end
 Extend the `JuMP.unset_integer` function to accomodate our new variable types.
 """
 function JuMP.unset_integer(vref::Union{FiniteVariableRef, InfiniteVariableRef})
-    info = variable_info(vref)
-    update_variable_info(vref,
+    info = _variable_info(vref)
+    _update_variable_info(vref,
                          JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                            info.has_ub, info.upper_bound,
                                            info.has_fix, info.fixed_value,
                                            info.has_start, info.start,
                                            info.binary, false))
+    return
 end
 
 """
@@ -357,6 +392,7 @@ Extend the `JuMP.set_name` function to accomodate our new variable types.
 function JuMP.set_name(vref::Union{FiniteVariableRef, InfiniteVariableRef}, name::String)
     vref.model.var_to_name[vref.index] = name
     vref.model.name_to_var = nothing
+    return
 end
 
 """

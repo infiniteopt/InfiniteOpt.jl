@@ -31,7 +31,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 
     # Constraint Data
     next_constr_index::Int                            # Next constraint index is nextconidx+1
-    constraints::Dict{Int, JuMP.AbstractConstraint}   # Map conidx -> variable
+    constrs::Dict{Int, JuMP.AbstractConstraint}   # Map conidx -> variable
     constr_to_name::Dict{Int, String}                 # Map conidx -> name
     name_to_constr::Union{Dict{String, Int}, Nothing} # Map name -> conidx
 

@@ -8,13 +8,13 @@ function JuMP.objective_function_string(print_mode, model::InfiniteModel)
 end
 _plural(n) = (isone(n) ? "" : "s")
 function JuMP.show_constraints_summary(io::IO, model::InfiniteModel)
-    n = length(model.constraints)
+    n = length(model.constrs)
     print(io, "Constraint", _plural(n), ": ", n)
 end
 function JuMP.constraints_string(print_mode, model::InfiniteModel)
     strings = String[]
     # Sort by creation order
-    constraints = sort(collect(model.constraints), by = c -> c.first)
+    constraints = sort(collect(model.constrs), by = c -> c.first)
     for (index, constraint) in constraints
         push!(strings, JuMP.constraint_string(print_mode, constraint))
     end
