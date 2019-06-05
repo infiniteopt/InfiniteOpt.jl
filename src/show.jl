@@ -20,3 +20,12 @@ function JuMP.constraints_string(print_mode, model::InfiniteModel)
     end
     return strings
 end
+function Base.show(io::IO, ref::GeneralConstraintRef)
+    print(io, JuMP.constraint_string(JuMP.REPLMode, ref))
+end
+function Base.show(io::IO, ::MIME"text/latex", ref::GeneralConstraintRef)
+    print(io, JuMP.constraint_string(JuMP.IJuliaMode, ref))
+end
+function JuMP.constraint_string(print_mode, ref::GeneralConstraintRef)
+    return JuMP.constraint_string(print_mode, JuMP.name(ref), JuMP.constraint_object(ref))
+end
