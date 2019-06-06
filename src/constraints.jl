@@ -1,8 +1,8 @@
 """
-    owner_model(cref::GeneralConstraintRef)
+    JuMP.owner_model(cref::GeneralConstraintRef)
 Extends the method `JuMP.owner_model` for our new constraints.
 """
-owner_model(cref::GeneralConstraintRef) = cref.model
+JuMP.owner_model(cref::GeneralConstraintRef) = cref.model
 
 # Extend Base and JuMP functions
 Base.:(==)(v::GeneralConstraintRef, w::GeneralConstraintRef) = v.model === w.model && v.index == w.index && v.shape == w.shape

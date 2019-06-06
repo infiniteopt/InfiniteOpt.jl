@@ -21,11 +21,13 @@ abstract type AbstractMeasureData end
 A DataType for measure abstraction data where the measure abstraction is of the
 form: ``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\frac{1}{N} \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
 **Fields**
+- 'name::String' Name of the measure that will be implemented.
 - `weight_func::Function` Weighting function ``w`` must map input of type `V` to a scalar value.
 - `coeffs::T` Coefficients ``\\alpha_i`` for the above measure abstraction.
 - `eval_points::V` Evaluation points ``\\tau_i`` for the above measure abstraction.
 """
 struct DiscretizeData{T <: AbstractVector, V <: AbstractArray} <: AbstractMeasureData
+    name::String
     weight_func::Function
     coeffs::T
     eval_points::V
@@ -35,12 +37,10 @@ end
     Measure{T <: JuMP.AbstractJuMPScalar, V <: AbstractMeasureData}
 A DataType for measure abstractions.
 **Fields**
-- `name::String` Measure name
 - `func::T` Infinite variable expression.
 - `data::V` Data of the abstraction as described in a `AbstractMeasureData` subtype.
 """
 struct Measure{T <: JuMP.AbstractJuMPScalar, V <: AbstractMeasureData}
-    name::String
     func::T
     data::V
 end
@@ -66,6 +66,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     vars::Dict{Int, InfOptVariable}                 # Map varidx -> variable
     var_to_name::Dict{Int, String}                  # Map varidx -> name
     name_to_var::Union{Dict{String, Int}, Nothing}  # Map varidx -> name
+    var_to_lower_bound::Dict{Int, Int}
 
     # Constraint Data
     next_constr_index::Int                            # Next constraint index is nextconidx+1
@@ -85,6 +86,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
         new(0, Dict{Int, Measure}(), Dict{Int, String}(), # Measures
             0, Dict{Int, JuMP.AbstractVariable}(),  # Variables
             Dict{Int, String}(), nothing,
+            Dict{Int, Int}(),
             0, Dict{Int, JuMP.AbstractConstraint}(),
             Dict{Int, String}(), nothing,            # Constraints
             MOI.FEASIBILITY_SENSE,
@@ -154,10 +156,15 @@ struct InfiniteVariableRef <: GeneralVariableRef
     index::Int           # Index in `model.variables`
 end
 
+# Define variable references without that aren't measures
+const InfOptVariableRef = Union{InfiniteVariableRef, PointVariableRef, GlobalVariableRef}
+
 # Define infinite expressions
-const InfiniteAffExpr = JuMP.GenericAffExpr{Float64, Union{InfiniteVariableRef, GeneralVariableRef}}
-const InfiniteQuadExpr = JuMP.GenericQuadExpr{Float64, Union{InfiniteVariableRef, GeneralVariableRef}}
-const InfiniteExpr = Union{InfiniteAffExpr, InfiniteQuadExpr, InfiniteVariableRef}
+const InfiniteExpr = Union{InfiniteVariableRef,
+                           JuMP.GenericAffExpr{Float64, InfiniteVariableRef},
+                           JuMP.GenericAffExpr{Float64, GeneralVariableRef},
+                           JuMP.GenericQuadExpr{Float64, InfiniteVariableRef},
+                           JuMP.GenericQuadExpr{Float64, GeneralVariableRef}}
 
 """
     MeasureRef <: JuMP.FiniteVariableRef
@@ -172,9 +179,11 @@ struct MeasureRef <: MeasureFiniteVariableRef
 end
 
 # Define finite measure expressions (note infinite expression take precedence)
-const MeasureAffExpr = JuMP.GenericAffExpr{Float64, Union{MeasureFiniteVariableRef, MeasureRef}}
-const MeasureQuadExpr = JuMP.GenericQuadExpr{Float64, Union{MeasureFiniteVariableRef, MeasureRef}}
-const MeasureExpr = Union{MeasureAffExpr, MeasureQuadExpr, MeasureRef}
+const MeasureExpr = Union{MeasureRef,
+                          JuMP.GenericAffExpr{Float64, MeasureRef},
+                          JuMP.GenericAffExpr{Float64, MeasureFiniteVariableRef},
+                          JuMP.GenericQuadExpr{Float64, MeasureRef},
+                          JuMP.GenericQuadExpr{Float64, MeasureFiniteVariableRef}}
 
 """
     GeneralConstraintRef

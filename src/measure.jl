@@ -14,21 +14,20 @@ end
 _w(t) = 1
 
 # Define constructor functions
-DiscretizeData() = DiscretizeData(_w, [], [])
-DiscretizeData(coeffs::Vector, pts::Array) = DiscretizeData(_w, coeffs, pts)
-Measure(func::InfiniteExpr, data::AbstractMeasureData) = Measure("measure", func, data)
+DiscretizeData() = DiscretizeData("measure", _w, [], [])
+DiscretizeData(coeffs::Vector, pts::Array) = DiscretizeData("measure", _w, coeffs, pts)
+DiscretizeData(name::String, coeffs::Vector, pts::Array) = DiscretizeData(name, _w, coeffs, pts)
 
-# Method for defining method on the fly
-function measure(name::String, expr::InfiniteExpr, data::AbstractMeasureData)
-    meas = Measure(name, expr, data)
-    model = _get_model_from_expr(expr)
-    return add_measure(model, meas)
-end
-
-# Method for defining method on the fly
-function measure(expr::InfiniteExpr, data::AbstractMeasureData)
+"""
+    measure(expr::Union{InfiniteExpr, MeasureRef}, data::AbstractMeasureData)
+Implement a measure in an expression in a similar fashion to the `sum` method in JuMP.
+"""
+function measure(expr::Union{InfiniteExpr, MeasureRef}, data::AbstractMeasureData)
     meas = Measure(expr, data)
     model = _get_model_from_expr(expr)
+    if model == nothing
+        error("Expression contains no variables.")
+    end
     return add_measure(model, meas)
 end
 
@@ -62,7 +61,7 @@ end
 
 # Parse the string for displaying a measure
 function _make_meas_name(meas::Measure)
-    return string(meas.name, "(", JuMP.function_string(JuMP.REPLMode, meas.func), ")")
+    return string(meas.data.name, "(", JuMP.function_string(JuMP.REPLMode, meas.func), ")")
 end
 
 """
