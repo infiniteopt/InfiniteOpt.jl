@@ -1,5 +1,5 @@
 """
-InfOptVariable{S, T, U, V} <: JuMP.AbstractVariable
+    InfOptVariable{S, T, U, V} <: JuMP.AbstractVariable
 A DataType for storing variable info
 **Fields**
 - `info::JuMP.VariableInfo{S, T, U, V}` Variable information.
@@ -11,7 +11,13 @@ struct InfOptVariable{S, T, U, V} <: JuMP.AbstractVariable
 end
 
 """
-    MeasureData{T <: AbstractVector, V <: AbstractArray}
+    AbstractMeasureData
+An abstract type to define data for measures as described by the `Measure` DataType.
+"""
+abstract type AbstractMeasureData end
+
+"""
+    MeasureData{T <: AbstractVector, V <: AbstractArray} <: AbstractMeasureData
 A DataType for measure abstraction data where the measure abstraction is of the
 form: ``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\frac{1}{N} \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
 **Fields**
@@ -19,24 +25,24 @@ form: ``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\frac{
 - `coeffs::T` Coefficients ``\\alpha_i`` for the above measure abstraction.
 - `eval_points::V` Evaluation points ``\\tau_i`` for the above measure abstraction.
 """
-struct MeasureData{T <: AbstractVector, V <: AbstractArray}
+struct DiscretizeData{T <: AbstractVector, V <: AbstractArray} <: AbstractMeasureData
     weight_func::Function
     coeffs::T
     eval_points::V
 end
 
 """
-    Measure{W <: JuMP.AbstractJuMPScalar, T, V}
+    Measure{T <: JuMP.AbstractJuMPScalar, V <: AbstractMeasureData}
 A DataType for measure abstractions.
 **Fields**
 - `name::String` Measure name
-- `func::W` Infinite variable expression.
-- `data::MeasureData{T, V}` Data of the abstraction described in `MeasureData`.
+- `func::T` Infinite variable expression.
+- `data::V` Data of the abstraction as described in a `AbstractMeasureData` subtype.
 """
-struct Measure{W <: JuMP.AbstractJuMPScalar, T, V}
+struct Measure{T <: JuMP.AbstractJuMPScalar, V <: AbstractMeasureData}
     name::String
-    func::W
-    data::MeasureData{T, V}
+    func::T
+    data::V
 end
 
 """
@@ -87,24 +93,30 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     end
 end
 
+# Define basic InfiniteModel extensions
 Base.broadcastable(model::InfiniteModel) = Ref(model)
-
 JuMP.object_dictionary(model::InfiniteModel) = model.obj_dict
 
 """
-GeneralVariableRef <: JuMP.AbstractVariableRef
+    GeneralVariableRef <: JuMP.AbstractVariableRef
 An abstract type to define new variable types.
 """
 abstract type GeneralVariableRef <: JuMP.AbstractVariableRef end
 
 """
-    FiniteVariableRef <: JuMP.AbstractVariableRef
-An abstract type to define new finite variable types.
+    MeasureFiniteVariableRef <: GeneralVariableRef
+An abstract type to define finite variable and measure types.
 """
-abstract type FiniteVariableRef <: GeneralVariableRef end
+abstract type MeasureFiniteVariableRef <: GeneralVariableRef end
 
 """
-GlobalVariableRef <: JuMP.FiniteVariableRef
+    FiniteVariableRef <: GeneralVariableRef
+An abstract type to define new finite variable types.
+"""
+abstract type FiniteVariableRef <: MeasureFiniteVariableRef end
+
+"""
+    GlobalVariableRef <: JuMP.FiniteVariableRef
 A DataType for finite fixed variables (e.g., first stage variables,
 steady-state variables).
 **Fields**
@@ -117,7 +129,7 @@ struct GlobalVariableRef <: FiniteVariableRef
 end
 
 """
-PointVariableRef <: JuMP.FiniteVariableRef
+    PointVariableRef <: JuMP.FiniteVariableRef
 A DataType for variables defined at a transcipted point (e.g., second stage
 variable at a particular scenario, dynamic variable at a discretized time point).
 **Fields**
@@ -130,7 +142,7 @@ struct PointVariableRef <: FiniteVariableRef
 end
 
 """
-InfiniteVariableRef <: JuMP.GeneralVariableRef
+    InfiniteVariableRef <: JuMP.GeneralVariableRef
 A DataType for untranscripted infinite dimensional variables (e.g., second stage
 variables, dynamic variables).
 **Fields**
@@ -147,7 +159,6 @@ const InfiniteAffExpr = JuMP.GenericAffExpr{Float64, Union{InfiniteVariableRef, 
 const InfiniteQuadExpr = JuMP.GenericQuadExpr{Float64, Union{InfiniteVariableRef, GeneralVariableRef}}
 const InfiniteExpr = Union{InfiniteAffExpr, InfiniteQuadExpr, InfiniteVariableRef}
 
-# TODO Rework MeasureRef type and constraint types to distinguish them
 """
     MeasureRef <: JuMP.FiniteVariableRef
 A DataType for referring to measure abstractions.
@@ -155,20 +166,25 @@ A DataType for referring to measure abstractions.
 - `model::InfiniteModel` Flexibility model.
 - `index::Int` Index of variable in model.
 """
-struct MeasureRef <: FiniteVariableRef
+struct MeasureRef <: MeasureFiniteVariableRef
     model::InfiniteModel # `model` owning the variable
     index::Int           # Index in `model.variables`
 end
 
+# Define finite measure expressions (note infinite expression take precedence)
+const MeasureAffExpr = JuMP.GenericAffExpr{Float64, Union{MeasureFiniteVariableRef, MeasureRef}}
+const MeasureQuadExpr = JuMP.GenericQuadExpr{Float64, Union{MeasureFiniteVariableRef, MeasureRef}}
+const MeasureExpr = Union{MeasureAffExpr, MeasureQuadExpr, MeasureRef}
+
 """
-GeneralConstraintRef
+    GeneralConstraintRef
 An abstract type to define new variable types.
 """
 abstract type GeneralConstraintRef end
 
 """
 InfiniteConstraintRef <: GeneralConstraintRef
-A DataType for constraints that contain infinite variables
+A DataType for constraints that contain infinite variables.
 **Fields**
 - `model::InfiniteModel` Flexibility model.
 - `index::Int` Index of constraint in model.
@@ -181,14 +197,28 @@ struct InfiniteConstraintRef <: GeneralConstraintRef
 end
 
 """
-FiniteConstraintRef <: GeneralConstraintRef
-A DataType for constraints that contain finite variables
+    FiniteConstraintRef <: GeneralConstraintRef
+A DataType for constraints that contain finite variables.
 **Fields**
 - `model::InfiniteModel` Flexibility model.
 - `index::Int` Index of constraint in model.
 - `shape::JuMP.AbstractShape` Shape of constraint
 """
 struct FiniteConstraintRef <: GeneralConstraintRef
+    model::InfiniteModel
+    index::Int
+    shape::JuMP.AbstractShape
+end
+
+"""
+    MeasureConstraintRef <: GeneralConstraintRef
+A DataType for constraints that contain finite variables and measures.
+**Fields**
+- `model::InfiniteModel` Flexibility model.
+- `index::Int` Index of constraint in model.
+- `shape::JuMP.AbstractShape` Shape of constraint
+"""
+struct MeasureConstraintRef <: GeneralConstraintRef
     model::InfiniteModel
     index::Int
     shape::JuMP.AbstractShape

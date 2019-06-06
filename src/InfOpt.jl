@@ -2,15 +2,29 @@ module InfOpt
 
 # Import the necessary packages.
 import JuMP
-using MathOptInterface
+import MathOptInterface
 const MOI = MathOptInterface
 
-# Export user methods and datatypes.
-export InfiniteModel, @infinite_variable, @point_variable, @global_variable,
-GeneralVariableRef, FiniteVariableRef, InfiniteVariableRef, PointVariableRef,
-GlobalVariableRef, InfOptVariable, GeneralConstraintRef, InfiniteConstraintRef,
-FiniteConstraintRef, Infinite, Global, Point, MeasureData, Measure, add_measure,
-measure
+# Export model object datatype
+export InfiniteModel
+
+# Export macros and constants
+export @infinite_variable, @point_variable, @global_variable, Infinite, Global,
+Point
+
+# Export variable datatypes
+export InfOptVariable, GeneralVariableRef, InfiniteVariableRef,
+MeasureFiniteVariableRef, FiniteVariableRef, PointVariableRef, GlobalVariableRef
+
+# Export constraint datatypes
+export GeneralConstraintRef, InfiniteConstraintRef, MeasureConstraintRef,
+FiniteConstraintRef
+
+# Export measure datatypes
+export AbstractMeasureData, DiscretizeData, Measure, MeasureRef
+
+# Export measure methods
+export add_measure, measure
 
 # Import all of the datatpyes, methods, and definitions.
 include("datatypes.jl")

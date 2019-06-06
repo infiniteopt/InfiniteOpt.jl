@@ -18,6 +18,8 @@ function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, n
     index = model.next_constr_index
     if c.func isa InfiniteExpr
         cref = InfiniteConstraintRef(model, index, JuMP.shape(c))
+    elseif c.func isa MeasureExpr
+        cref = MeasureConstraintRef(model, index, JuMP.shape(c))
     else
         cref = FiniteConstraintRef(model, index, JuMP.shape(c))
     end
@@ -93,8 +95,10 @@ function JuMP.constraint_by_name(model::InfiniteModel, name::String)
     elseif index == -1
         error("Multiple constraints have the name $name.")
     else
-        if model.constrs[index].func isa InfiniteAffExpr || model.constrs[index].func isa InfiniteQuadExpr
+        if model.constrs[index].func isa InfiniteExpr
             return InfiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
+        elseif model.constrs[index].func isa MeasureExpr
+            return MeasureConstraintRef(model, index, JuMP.shape(model.constrs[index]))
         else
             return FiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
         end

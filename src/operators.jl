@@ -1,3 +1,5 @@
+# TODO change operations to avoid nonlinear expressions obtained from operations done on measures
+
 # AbstractVariableRef--AbstractVariableRef
 function Base.:+(lhs::V, rhs::W) where {V <: JuMP.AbstractVariableRef, W <: JuMP.AbstractVariableRef}
     type = _var_type_parser(V, W)

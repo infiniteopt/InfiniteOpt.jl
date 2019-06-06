@@ -4,6 +4,8 @@ function _var_type_parser(V::Type{<: JuMP.AbstractVariableRef}, W::Type{<: JuMP.
         return V
     elseif V isa Type{<: FiniteVariableRef} && W isa Type{<: FiniteVariableRef}
         return FiniteVariableRef
+    elseif V isa Type{<: MeasureFiniteVariableRef} && W isa Type{<: MeasureFiniteVariableRef}
+        return MeasureFiniteVariableRef
     elseif V isa Type{<: GeneralVariableRef} && W isa Type{<: GeneralVariableRef}
         return GeneralVariableRef
     else
@@ -12,8 +14,8 @@ function _var_type_parser(V::Type{<: JuMP.AbstractVariableRef}, W::Type{<: JuMP.
 end
 
 # Extend handle mixed variable input
-function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr{C,Z}, new_coef::C,
-                                 new_var1::V, new_var2::W) where {C,Z<:JuMP.AbstractVariableRef,V,W}
+function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr{C, Z}, new_coef::C,
+                                 new_var1::V, new_var2::W) where {C, Z <: JuMP.AbstractVariableRef, V, W}
     type = _var_type_parser(Z, W)
     key = JuMP.UnorderedPair{type}(new_var1, new_var2)
     JuMP._add_or_set!(quad.terms, key, new_coef)

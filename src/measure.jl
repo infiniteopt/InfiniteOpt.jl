@@ -14,26 +14,50 @@ end
 _w(t) = 1
 
 # Define constructor functions
-MeasureData() = MeasureData(_w, [], [])
-MeasureData(coeffs::Vector, pts::Array) = MeasureData(_w, coeffs, pts)
-Measure(func::InfiniteExpr, data::MeasureData) = Measure("measure", func, data)
+DiscretizeData() = DiscretizeData(_w, [], [])
+DiscretizeData(coeffs::Vector, pts::Array) = DiscretizeData(_w, coeffs, pts)
+Measure(func::InfiniteExpr, data::AbstractMeasureData) = Measure("measure", func, data)
 
 # Method for defining method on the fly
-function measure(name::String, expr::InfiniteExpr, data::MeasureData)
+function measure(name::String, expr::InfiniteExpr, data::AbstractMeasureData)
     meas = Measure(name, expr, data)
-    if expr isa InfiniteVariableRef
-        model = expr.model
-    elseif expr isa InfiniteAffExpr
-        model = [k for k in keys(expr.terms)][1].model
-    else
+    model = _get_model_from_expr(expr)
+    return add_measure(model, meas)
+end
+
+# Method for defining method on the fly
+function measure(expr::InfiniteExpr, data::AbstractMeasureData)
+    meas = Measure(expr, data)
+    model = _get_model_from_expr(expr)
+    return add_measure(model, meas)
+end
+
+# Parse the model pertaining to an expression
+function _get_model_from_expr(expr::JuMP.AbstractJuMPScalar)
+    if expr isa JuMP.AbstractVariableRef
+        return expr.model
+    elseif expr isa JuMP.GenericAffExpr
         aff_vars = [k for k in keys(expr.terms)]
         if length(aff_vars) > 0
-            model = aff_vars[1].model
+            return aff_vars[1].model
         else
-            model = [k for k in keys(expr.terms)][1].a.model
+            return
         end
+    elseif expr isa JuMP.GenericQuadExpr
+        aff_vars = [k for k in keys(expr.aff.terms)]
+        if length(aff_vars) > 0
+            return aff_vars[1].model
+        else
+            var_pairs = [k for k in keys(expr.terms)]
+            if length(var_pairs) > 0
+                return var_pairs[1].a.model
+            else
+                return
+            end
+        end
+    else
+        return expr.m
     end
-    return add_measure(model, meas)
 end
 
 # Parse the string for displaying a measure
