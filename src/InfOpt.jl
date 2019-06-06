@@ -9,11 +9,13 @@ const MOI = MathOptInterface
 export InfiniteModel, @infinite_variable, @point_variable, @global_variable,
 GeneralVariableRef, FiniteVariableRef, InfiniteVariableRef, PointVariableRef,
 GlobalVariableRef, InfOptVariable, GeneralConstraintRef, InfiniteConstraintRef,
-FiniteConstraintRef
+FiniteConstraintRef, Infinite, Global, Point, MeasureData, Measure, add_measure,
+measure
 
 # Import all of the datatpyes, methods, and definitions.
-include("model.jl")
+include("datatypes.jl")
 include("variables.jl")
+include("measure.jl")
 include("expressions.jl")
 include("operators.jl")
 include("constraints.jl")

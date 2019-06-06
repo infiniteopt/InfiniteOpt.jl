@@ -6,7 +6,7 @@ it defines variables of type `InfiniteVariableRef`.
 macro infinite_variable(model, args...)
     code = quote
         @assert isa($model, InfiniteModel)
-        JuMP.@variable($model, ($(args...)), :Infinite)
+        JuMP.@variable($model, ($(args...)), variable_type = Infinite)
     end
     return esc(code)
 end
@@ -19,7 +19,7 @@ it defines variables of type `PointVariableRef`.
 macro point_variable(model, args...)
     code = quote
         @assert isa($model, InfiniteModel)
-        JuMP.@variable($model, ($(args...)), :Point)
+        JuMP.@variable($model, ($(args...)), variable_type = Point)
     end
     return esc(code)
 end
@@ -32,7 +32,7 @@ it defines variables of type `GlobalVariableRef`.
 macro global_variable(model, args...)
     code = quote
         @assert isa($model, InfiniteModel)
-        JuMP.@variable($model, ($(args...)), :Global)
+        JuMP.@variable($model, ($(args...)), variable_type = Global)
     end
     return esc(code)
 end

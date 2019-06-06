@@ -1,7 +1,3 @@
-# Define infinite expressions
-const InfiniteAffExpr = JuMP.GenericAffExpr{Float64, Union{InfiniteVariableRef, GeneralVariableRef}}
-const InfiniteQuadExpr = JuMP.GenericQuadExpr{Float64, Union{InfiniteVariableRef, GeneralVariableRef}}
-
 # Define type hierchical parser
 function _var_type_parser(V::Type{<: JuMP.AbstractVariableRef}, W::Type{<: JuMP.AbstractVariableRef})
     if V == W
@@ -17,7 +13,7 @@ end
 
 # Extend handle mixed variable input
 function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr{C,Z}, new_coef::C,
-                            new_var1::V, new_var2::W) where {C,Z<:JuMP.AbstractVariableRef,V,W}
+                                 new_var1::V, new_var2::W) where {C,Z<:JuMP.AbstractVariableRef,V,W}
     type = _var_type_parser(Z, W)
     key = JuMP.UnorderedPair{type}(new_var1, new_var2)
     JuMP._add_or_set!(quad.terms, key, new_coef)

@@ -1,53 +1,7 @@
-"""
-GeneralVariableRef <: JuMP.AbstractVariableRef
-An abstract type to define new variable types.
-"""
-abstract type GeneralVariableRef <: JuMP.AbstractVariableRef end
-
-"""
-    FiniteVariableRef <: JuMP.AbstractVariableRef
-An abstract type to define new finite variable types.
-"""
-abstract type FiniteVariableRef <: GeneralVariableRef end
-
-"""
-GlobalVariableRef <: JuMP.FiniteVariableRef
-A DataType for finite fixed variables (e.g., first stage variables,
-steady-state variables).
-**Fields**
-- `model::InfiniteModel` Flexibility model.
-- `index::Int` Index of variable in model.
-"""
-struct GlobalVariableRef <: FiniteVariableRef
-    model::InfiniteModel # `model` owning the variable
-    index::Int           # Index in `model.variables`
-end
-
-"""
-PointVariableRef <: JuMP.FiniteVariableRef
-A DataType for variables defined at a transcipted point (e.g., second stage
-variable at a particular scenario, dynamic variable at a discretized time point).
-**Fields**
-- `model::InfiniteModel` Flexibility model.
-- `index::Int` Index of variable in model.
-"""
-struct PointVariableRef <: FiniteVariableRef
-    model::InfiniteModel # `model` owning the variable
-    index::Int           # Index in `model.variables`
-end
-
-"""
-InfiniteVariableRef <: JuMP.GeneralVariableRef
-A DataType for untranscripted infinite dimensional variables (e.g., second stage
-variables, dynamic variables).
-**Fields**
-- `model::InfiniteModel` Flexibility model.
-- `index::Int` Index of variable in model.
-"""
-struct InfiniteVariableRef <: GeneralVariableRef
-    model::InfiniteModel # `model` owning the variable
-    index::Int           # Index in `model.variables`
-end
+# Define symbol inputs for different variable types
+const Infinite = :Infinite
+const Point = :Point
+const Global = :Global
 
 # Extend Base.copy for new variable types
 Base.copy(v::GeneralVariableRef) = v
@@ -62,6 +16,17 @@ Base.broadcastable(v::GeneralVariableRef) = Ref(v)
 # Extend JuMP functions
 JuMP.isequal_canonical(v::GeneralVariableRef, w::GeneralVariableRef) = v == w
 JuMP.variable_type(m::InfiniteModel) = GeneralVariableRef
+function JuMP.variable_type(m::InfiniteModel, type::Symbol)
+    if type == Infinite
+        return InfiniteVariableRef
+    elseif type == Point
+        return PointVariableRef
+    elseif type == Global
+        return GlobalVariableRef
+    else
+        error("Invalid variable type.")
+    end
+end
 
 """
     JuMP.add_variable((_error::Function, info::JuMP.VariableInfo, test_arg::Int; extra_kw_args...)
@@ -78,15 +43,16 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, var_type
     end
 end
 
+# TODO Add functionality to add variable bounds/types to constraints
 """
-    JuMP.add_variable(model::InfiniteModel, (v::JuMP.AbstractVariable, var_type::Symbol), name::String="")
+    JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String="")
 Extend the `JuMP.add_variable` function to accomodate our new variable types.
 """
 function JuMP.add_variable(m::InfiniteModel, v::InfOptVariable, name::String="")
     m.next_var_index += 1
-    if v.type == :Infinite
+    if v.type == Infinite
         vref = InfiniteVariableRef(m, m.next_var_index)
-    elseif v.type == :Point
+    elseif v.type == Point
         vref = PointVariableRef(m, m.next_var_index)
     else
         vref = GlobalVariableRef(m, m.next_var_index)

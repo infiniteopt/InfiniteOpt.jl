@@ -1,38 +1,4 @@
 """
-GeneralConstraintRef
-An abstract type to define new variable types.
-"""
-abstract type GeneralConstraintRef end
-
-"""
-InfiniteConstraintRef <: GeneralConstraintRef
-A DataType for constraints that contain infinite variables
-**Fields**
-- `model::InfiniteModel` Flexibility model.
-- `index::Int` Index of constraint in model.
-- `shape::JuMP.AbstractShape` Shape of constraint
-"""
-struct InfiniteConstraintRef <: GeneralConstraintRef
-    model::InfiniteModel
-    index::Int
-    shape::JuMP.AbstractShape
-end
-
-"""
-FiniteConstraintRef <: GeneralConstraintRef
-A DataType for constraints that contain finite variables
-**Fields**
-- `model::InfiniteModel` Flexibility model.
-- `index::Int` Index of constraint in model.
-- `shape::JuMP.AbstractShape` Shape of constraint
-"""
-struct FiniteConstraintRef <: GeneralConstraintRef
-    model::InfiniteModel
-    index::Int
-    shape::JuMP.AbstractShape
-end
-
-"""
     owner_model(cref::GeneralConstraintRef)
 Extends the method `JuMP.owner_model` for our new constraints.
 """
@@ -50,7 +16,7 @@ Extend the `JuMP.add_constraint` function to accomodate the `InfiniteModel` obje
 function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, name::String="")
     model.next_constr_index += 1
     index = model.next_constr_index
-    if c.func isa InfiniteAffExpr || c.func isa InfiniteQuadExpr
+    if c.func isa InfiniteExpr
         cref = InfiniteConstraintRef(model, index, JuMP.shape(c))
     else
         cref = FiniteConstraintRef(model, index, JuMP.shape(c))
@@ -68,6 +34,7 @@ function JuMP.delete(model::InfiniteModel, cref::GeneralConstraintRef)
     @assert JuMP.is_valid(model, cref)
     delete!(model.constrs, cref.index)
     delete!(model.constr_to_name, cref.index)
+    return
 end
 
 """
@@ -75,8 +42,7 @@ end
 Extend the `JuMP.is_valid` function to accomodate our new constraint types.
 """
 function JuMP.is_valid(model::InfiniteModel, cref::GeneralConstraintRef)
-    return (model === cref.model &&
-            cref.index in keys(model.constrs))
+    return (model === cref.model && cref.index in keys(model.constrs))
 end
 
 """
@@ -100,6 +66,7 @@ Extend the `JuMP.set_name` function to accomodate our new constraint types.
 function JuMP.set_name(cref::GeneralConstraintRef, name::String)
     cref.model.constr_to_name[cref.index] = name
     cref.model.name_to_constr = nothing
+    return
 end
 
 """
@@ -133,3 +100,5 @@ function JuMP.constraint_by_name(model::InfiniteModel, name::String)
         end
     end
 end
+
+# TODO Implement and extend the num_constraint, all_constraint, and list_of_constraint_types methods
