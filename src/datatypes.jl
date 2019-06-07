@@ -67,6 +67,10 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     var_to_name::Dict{Int, String}                  # Map varidx -> name
     name_to_var::Union{Dict{String, Int}, Nothing}  # Map varidx -> name
     var_to_lower_bound::Dict{Int, Int}
+    var_to_upper_bound::Dict{Int, Int}
+    var_to_fix::Dict{Int, Int}
+    var_to_zero_one::Dict{Int, Int}
+    var_to_integrality::Dict{Int, Int}
 
     # Constraint Data
     next_constr_index::Int                            # Next constraint index is nextconidx+1
@@ -86,7 +90,8 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
         new(0, Dict{Int, Measure}(), Dict{Int, String}(), # Measures
             0, Dict{Int, JuMP.AbstractVariable}(),  # Variables
             Dict{Int, String}(), nothing,
-            Dict{Int, Int}(),
+            Dict{Int, Int}(), Dict{Int, Int}(), Dict{Int, Int}(),
+            Dict{Int, Int}(), Dict{Int, Int}(),
             0, Dict{Int, JuMP.AbstractConstraint}(),
             Dict{Int, String}(), nothing,            # Constraints
             MOI.FEASIBILITY_SENSE,
@@ -199,10 +204,10 @@ A DataType for constraints that contain infinite variables.
 - `index::Int` Index of constraint in model.
 - `shape::JuMP.AbstractShape` Shape of constraint
 """
-struct InfiniteConstraintRef <: GeneralConstraintRef
+struct InfiniteConstraintRef{S <: JuMP.AbstractShape} <: GeneralConstraintRef
     model::InfiniteModel
     index::Int
-    shape::JuMP.AbstractShape
+    shape::S
 end
 
 """
@@ -213,10 +218,10 @@ A DataType for constraints that contain finite variables.
 - `index::Int` Index of constraint in model.
 - `shape::JuMP.AbstractShape` Shape of constraint
 """
-struct FiniteConstraintRef <: GeneralConstraintRef
+struct FiniteConstraintRe{S <: JuMP.AbstractShapef} <: GeneralConstraintRef
     model::InfiniteModel
     index::Int
-    shape::JuMP.AbstractShape
+    shape::S
 end
 
 """
@@ -227,8 +232,8 @@ A DataType for constraints that contain finite variables and measures.
 - `index::Int` Index of constraint in model.
 - `shape::JuMP.AbstractShape` Shape of constraint
 """
-struct MeasureConstraintRef <: GeneralConstraintRef
+struct MeasureConstraintRef{S <: JuMP.AbstractShape} <: GeneralConstraintRef
     model::InfiniteModel
     index::Int
-    shape::JuMP.AbstractShape
+    shape::S
 end

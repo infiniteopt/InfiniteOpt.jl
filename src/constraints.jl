@@ -4,6 +4,12 @@ Extends the method `JuMP.owner_model` for our new constraints.
 """
 JuMP.owner_model(cref::GeneralConstraintRef) = cref.model
 
+"""
+    JuMP.index(cref::GeneralConstraintRef)::Int
+Extent `JuMP.index` to return the index of a InfOpt constraint.
+"""
+JuMP.index(cref::GeneralConstraintRef) = cref.index
+
 # Extend Base and JuMP functions
 Base.:(==)(v::GeneralConstraintRef, w::GeneralConstraintRef) = v.model === w.model && v.index == w.index && v.shape == w.shape
 Base.broadcastable(cref::GeneralConstraintRef) = Ref(cref)
@@ -34,8 +40,8 @@ Extend the `JuMP.delete` function to accomodate our new constraint types.
 """
 function JuMP.delete(model::InfiniteModel, cref::GeneralConstraintRef)
     @assert JuMP.is_valid(model, cref)
-    delete!(model.constrs, cref.index)
-    delete!(model.constr_to_name, cref.index)
+    delete!(model.constrs, JuMP.index(cref))
+    delete!(model.constr_to_name, JuMP.index(cref))
     return
 end
 
@@ -44,7 +50,7 @@ end
 Extend the `JuMP.is_valid` function to accomodate our new constraint types.
 """
 function JuMP.is_valid(model::InfiniteModel, cref::GeneralConstraintRef)
-    return (model === cref.model && cref.index in keys(model.constrs))
+    return (model === JuMP.owner_model(cref) && JuMP.index(cref) in keys(model.constrs))
 end
 
 """
@@ -52,22 +58,22 @@ end
 Extend the `JuMP.constraint_object` function to accomodate our new constraint types.
 """
 function JuMP.constraint_object(cref::GeneralConstraintRef)
-    return cref.model.constrs[cref.index]
+    return JuMP.owner_model(cref).constrs[JuMP.index(cref)]
 end
 
 """
     JuMP.name(cref::GeneralConstraintRef)
 Extend the `JuMP.name` function to accomodate our new constraint types.
 """
-JuMP.name(cref::GeneralConstraintRef) = cref.model.constr_to_name[cref.index]
+JuMP.name(cref::GeneralConstraintRef) = JuMP.owner_model(cref).constr_to_name[JuMP.index(cref)]
 
 """
     JuMP.set_name(cref::GeneralConstraintRef, name::String)
 Extend the `JuMP.set_name` function to accomodate our new constraint types.
 """
 function JuMP.set_name(cref::GeneralConstraintRef, name::String)
-    cref.model.constr_to_name[cref.index] = name
-    cref.model.name_to_constr = nothing
+    JuMP.owner_model(cref).constr_to_name[JuMP.index(cref)] = name
+    JuMP.owner_model(cref).name_to_constr = nothing
     return
 end
 
