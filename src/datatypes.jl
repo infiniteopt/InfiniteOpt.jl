@@ -218,7 +218,7 @@ A DataType for constraints that contain finite variables.
 - `index::Int` Index of constraint in model.
 - `shape::JuMP.AbstractShape` Shape of constraint
 """
-struct FiniteConstraintRe{S <: JuMP.AbstractShapef} <: GeneralConstraintRef
+struct FiniteConstraintRef{S <: JuMP.AbstractShape} <: GeneralConstraintRef
     model::InfiniteModel
     index::Int
     shape::S

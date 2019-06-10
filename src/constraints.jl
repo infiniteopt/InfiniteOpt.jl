@@ -111,4 +111,103 @@ function JuMP.constraint_by_name(model::InfiniteModel, name::String)
     end
 end
 
-# TODO Implement and extend the num_constraint, all_constraint, and list_of_constraint_types methods
+"""
+    JuMP.num_constraints(model::InfiniteModel, function_type, set_type)::Int64
+Extend the `JuMP.num_constraints` function to accomodate our new constraint types.
+"""
+function JuMP.num_constraints(model::InfiniteModel, function_type::Type{<:JuMP.AbstractJuMPScalar},
+                              set_type::Type{<:MOI.AbstractSet})::Int64
+    counter = 0
+    for k in keys(model.constrs)
+        if typeof(model.constrs[k].func) <: function_type && typeof(model.constrs[k].set) <: set_type
+            counter += 1
+        end
+    end
+    return counter
+end
+
+"""
+    JuMP.num_constraints(model::InfiniteModel, function_type)::Int64
+Extend the `JuMP.num_constraints` function to search by function types for all MOI sets.
+"""
+function JuMP.num_constraints(model::InfiniteModel, function_type::Type{<:JuMP.AbstractJuMPScalar})
+    return JuMP.num_constraints(model, function_type, MOI.AbstractSet)
+end
+
+"""
+    JuMP.num_constraints(model::InfiniteModel, function_type)::Int64
+Extend the `JuMP.num_constraints` function to search by MOI set type for all function types.
+"""
+function JuMP.num_constraints(model::InfiniteModel, set_type::Type{<:MOI.AbstractSet})
+    return JuMP.num_constraints(model, JuMP.AbstractJuMPScalar, set_type)
+end
+
+"""
+    JuMP.num_constraints(model::InfiniteModel)::Int64
+Extend the `JuMP.num_constraints` function to return the total number of constraints.
+"""
+function JuMP.num_constraints(model::InfiniteModel)
+    return length(keys(model.constrs))
+end
+
+"""
+    JuMP.all_constraints(model::InfiniteModel, function_type, set_type)::Vector{<:GeneralConstraintRef}
+Extend the `JuMP.all_constraints` function to accomodate our new constraint types.
+"""
+function JuMP.all_constraints(model::InfiniteModel, function_type::Type{<:JuMP.AbstractJuMPScalar},
+                              set_type::Type{<:MOI.AbstractSet})::Vector{<:GeneralConstraintRef}
+    constr_list = Vector{GeneralConstraintRef}(undef, JuMP.num_constraints(model, function_type, set_type))
+    indexes = sort([index for index in keys(model.constrs)])
+    counter = 1
+    for index in indexes
+        if typeof(model.constrs[index].func) <: function_type && typeof(model.constrs[index].set) <: set_type
+            if model.constrs[index].func isa InfiniteExpr
+                constr_list[counter] = InfiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
+            elseif model.constrs[index].func isa MeasureExpr
+                constr_list[counter] = MeasureConstraintRef(model, index, JuMP.shape(model.constrs[index]))
+            else
+                constr_list[counter] = FiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
+            end
+            counter += 1
+        end
+    end
+    return constr_list
+end
+
+"""
+    JuMP.all_constraints(model::InfiniteModel, function_type)::Vector{<:GeneralConstraintRef}
+Extend the `JuMP.all_constraints` function to search by function types for all MOI sets.
+"""
+function JuMP.all_constraints(model::InfiniteModel, function_type::Type{<:JuMP.AbstractJuMPScalar})
+    return JuMP.all_constraints(model, function_type, MOI.AbstractSet)
+end
+
+"""
+    JuMP.all_constraints(model::InfiniteModel, function_type)::Vector{<:GeneralConstraintRef}
+Extend the `JuMP.all_constraints` function to search by MOI set type for all function types.
+"""
+function JuMP.all_constraints(model::InfiniteModel, set_type::Type{<:MOI.AbstractSet})
+    return JuMP.all_constraints(model, JuMP.AbstractJuMPScalar, set_type)
+end
+
+"""
+    JuMP.all_constraints(model::InfiniteModel)::Vector{<:GeneralConstraintRef}
+Extend the `JuMP.all_constraints` function to return the total number of constraints.
+"""
+function JuMP.all_constraints(model::InfiniteModel)
+    return JuMP.all_constraints(model, JuMP.AbstractJuMPScalar, MOI.AbstractSet)
+end
+
+"""
+    JuMP.list_of_constraint_types(model::InfiniteModel)
+Extend the `JuMP.list_of_constraint_types` function to accomodate our new constraint types.
+"""
+function JuMP.list_of_constraint_types(model::InfiniteModel)
+    type_list = Vector{Tuple{DataType, DataType}}(undef, JuMP.num_constraints(model))
+    counter = 1
+    for k in keys(model.constrs)
+        type_list[counter] = (typeof(model.constrs[k].func), typeof(model.constrs[k].set))
+        counter += 1
+    end
+    return unique(type_list)
+end
