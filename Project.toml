@@ -7,11 +7,13 @@ version = "0.1.0"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 
 [compat]
 julia = "1"
 JuMP = "0.19"
 MathOptInterface = "0.8"
+Distributions = "0.20"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

@@ -70,4 +70,4 @@ Extend the `JuMP.name` function to accomodate measure references.
 """
 JuMP.name(mref::MeasureRef) = mref.model.meas_to_name[mref.index]
 
-# TODO Add manipulation functions like variables have
+# TODO Add manipulation functions like variables have --> not sure makes sense as they arne't used.

@@ -4,6 +4,7 @@ module InfOpt
 import JuMP
 import MathOptInterface
 const MOI = MathOptInterface
+import Distributions
 
 # Export model object datatype
 export InfiniteModel
@@ -15,6 +16,12 @@ Point
 # Export variable datatypes
 export InfOptVariable, GeneralVariableRef, InfiniteVariableRef,
 MeasureFiniteVariableRef, FiniteVariableRef, PointVariableRef, GlobalVariableRef
+
+# Export infinite parameter set types
+export AbstractInfiniteSet, BoxSet, DistributionSet, DiscreteSet
+
+# Export infinite parameter functions
+export get_infinite_set, set_infinite_set, add_infinite_set
 
 # Export constraint datatypes
 export GeneralConstraintRef, InfiniteConstraintRef, MeasureConstraintRef,

@@ -1,13 +1,23 @@
 """
+    AbstractInfiniteSet
+An abstract type to define the sets describing infinite variable parameters.
+"""
+abstract type AbstractInfiniteSet end
+
+const InfiniteSets = Union{AbstractInfiniteSet, Vector{AbstractInfiniteSet}}
+
+"""
     InfOptVariable{S, T, U, V} <: JuMP.AbstractVariable
 A DataType for storing variable info
 **Fields**
 - `info::JuMP.VariableInfo{S, T, U, V}` Variable information.
 - `type::Symbol` Variable type (:Infinite, :Point, :Global).
+- `set::Union{Union{AbstractInfiniteSet, Vector{AbstractInfiniteSet}}, Nothing}` The set(s) with associated infinite parameters.
 """
 struct InfOptVariable{S, T, U, V} <: JuMP.AbstractVariable
     info::JuMP.VariableInfo{S, T, U, V}
     type::Symbol
+    set::Union{InfiniteSets, Nothing}
 end
 
 """
@@ -189,6 +199,49 @@ const MeasureExpr = Union{MeasureRef,
                           JuMP.GenericAffExpr{Float64, MeasureFiniteVariableRef},
                           JuMP.GenericQuadExpr{Float64, MeasureRef},
                           JuMP.GenericQuadExpr{Float64, MeasureFiniteVariableRef}}
+
+"""
+    BoxSet{T <: Union{Number, Vector{Number}}} <: AbstractInfiniteSet
+A DataType that stores the lower and upper bounds for infinite parameters that are
+rectangular and are associated with infinite variables.
+**Fields**
+- `param_name::String` The name of the infinite parameter.
+- `lower_bound::T` Lower bound(s) of the rectangular parameter(s).
+- `upper_bound::T` Upper bound(s) of the rectangular parameter(s).
+"""
+struct BoxSet{T <: Union{Number, Vector{Number}}} <: AbstractInfiniteSet
+    param_name::String
+    lower_bound::T
+    upper_bound::T
+end
+
+"""
+    DistributionSet{T <: Union{Distributions.NonMatrixDistribution,
+                    Vector{Distributions.NonMatrixDistribution}} <: AbstractInfiniteSet
+A DataType that stores the distribution(s) for infinite parameters that are
+random and are associated with infinite variables.
+**Fields**
+- `param_name::String` The name of the infinite parameter.
+- `distribution::T` Distribution(s) of the random parameter(s).
+"""
+struct DistributionSet{T <: Union{Distributions.NonMatrixDistribution,
+                       Vector{Distributions.NonMatrixDistribution}}} <: AbstractInfiniteSet
+    param_name::String
+    distribution::T
+end
+
+"""
+    DiscreteSet{T <: Vector} <: AbstractInfiniteSet
+A DataType that stores a dicrete set of points for infinite parameters that are
+associated with infinite variables.
+**Fields**
+- `param_name::String` The name of the infinite parameter.
+- `points::T` The discrete points that make up the set.
+"""
+struct DiscreteSet{T <: Vector} <: AbstractInfiniteSet
+    param_name::String
+    points::T
+end
 
 """
     GeneralConstraintRef

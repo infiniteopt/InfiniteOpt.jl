@@ -29,21 +29,27 @@ function JuMP.variable_type(m::InfiniteModel, type::Symbol)
 end
 
 """
-    JuMP.add_variable((_error::Function, info::JuMP.VariableInfo, test_arg::Int; extra_kw_args...)
+    JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, test_arg::Int;
+                        param_set::Union{AbstractInfiniteSet, Vector{AbstractInfiniteSet}} = EmptySet(),
+                        extra_kw_args...)
 Extend the `JuMP.build_variable` function to accomodate our new variable types.
 """
-function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, var_type::Symbol; extra_kw_args...)
+function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, var_type::Symbol;
+                             param_set::Union{InfiniteSets, Nothing} = nothing, extra_kw_args...)
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
-    if var_type in [:Infinite, :Point, :Global]
-        return InfOptVariable(info, var_type)
-    else
+    if !(var_type in [Infinite, Point, Global])
         _error("Unrecognized variable type $var_type, should be Inf, Point, or Global.")
+    end
+    if var_type != Infinite && param_set != nothing
+        _error("Cannot use the keyword argument param_set with point and global variables.")
+    else
+        return InfOptVariable(info, var_type, param_set)
     end
 end
 
-# TODO Add functionality to add variable bounds/types to constraints
+# TODO Add types/bound constraints if specified.
 """
     JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String="")
 Extend the `JuMP.add_variable` function to accomodate our new variable types.
@@ -58,7 +64,12 @@ function JuMP.add_variable(m::InfiniteModel, v::InfOptVariable, name::String="")
         vref = GlobalVariableRef(m, m.next_var_index)
     end
     m.vars[vref.index] = v
-    JuMP.set_name(vref, name)
+    # TODO Modify to accomodate multiple sets
+    if v.set == nothing
+        JuMP.set_name(vref, name)
+    else
+        JuMP.set_name(vref, string(name, "(", v.set.param_name, ")"))
+    end
     return vref
 end
 
@@ -102,7 +113,15 @@ JuMP.num_variables(m::InfiniteModel) = length(m.vars)
 # Internal functions
 _variable_info(vref::GeneralVariableRef) = JuMP.owner_model(vref).vars[JuMP.index(vref)].info
 function _update_variable_info(vref::InfOptVariableRef, info::JuMP.VariableInfo)
-    JuMP.owner_model(vref).vars[JuMP.index(vref)] = InfOptVariable(info, JuMP.owner_model(vref).vars[JuMP.index(vref)].type)
+    type = JuMP.owner_model(vref).vars[JuMP.index(vref)].type
+    set = JuMP.owner_model(vref).vars[JuMP.index(vref)].set
+    JuMP.owner_model(vref).vars[JuMP.index(vref)] = InfOptVariable(info, type, set)
+    return
+end
+function _update_variable_set(vref::InfOptVariableRef, set::InfiniteSets)
+    info = JuMP.owner_model(vref).vars[JuMP.index(vref)].info
+    type = JuMP.owner_model(vref).vars[JuMP.index(vref)].type
+    JuMP.owner_model(vref).vars[JuMP.index(vref)] = InfOptVariable(info, type, set)
     return
 end
 
@@ -591,6 +610,39 @@ function JuMP.set_name(vref::InfOptVariableRef, name::String)
     JuMP.owner_model(vref).var_to_name[JuMP.index(vref)] = name
     JuMP.owner_model(vref).name_to_var = nothing
     return
+end
+
+"""
+    get_infinite_set(vref::InfiniteVariableRef)
+Get the `AbstractInfiniteSet` associated with the infinite variable `vref`.
+"""
+function get_infinite_set(vref::InfiniteVariableRef)
+    return JuMP.owner_model(vref).vars[JuMP.index(vref)].set
+end
+
+"""
+    set_infinite_set(vref::InfiniteVariableRef, set::Union{AbstractInfiniteSet,
+                     Vector{AbstractInfiniteSet}}; force = false)
+Set the `AbstractInfiniteSet` associated with the infinite variable `vref`.
+"""
+function set_infinite_set(vref::InfiniteVariableRef, set::InfiniteSets; force = false)
+    if get_infinite_set(vref) != nothing && !force
+        error("A set is already assigned to $vref, use the keyword argument
+               force = true to overwrite it.")
+    end
+    _update_variable_set(vref, set)
+    return
+end
+
+"""
+    add_infinite_set(vref::InfiniteVariableRef, set::Union{AbstractInfiniteSet,
+                     Vector{AbstractInfiniteSet}})
+Add additional `AbstractInfiniteSet` sets to be associated with the infinite
+variable `vref`.
+"""
+function add_infinite_set(vref::InfiniteVariableRef, set::Union{AbstractInfiniteSet,
+                          Vector{AbstractInfiniteSet}})
+    return set_infinite_set(vref, [get_infinite_set(vref); set], force = true)
 end
 
 """

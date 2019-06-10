@@ -3,10 +3,10 @@
 A wrapper macro for the `JuMP.@variable` macro that behaves the same except that
 it defines variables of type `InfiniteVariableRef`.
 """
-macro infinite_variable(model, args...)
+macro infinite_variable(model, set, args...)
     code = quote
         @assert isa($model, InfiniteModel)
-        JuMP.@variable($model, ($(args...)), variable_type = Infinite)
+        JuMP.@variable($model, ($(args...)), variable_type = Infinite, param_set = $set)
     end
     return esc(code)
 end
