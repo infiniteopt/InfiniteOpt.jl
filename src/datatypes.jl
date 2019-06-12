@@ -4,7 +4,20 @@ An abstract type to define the sets describing infinite variable parameters.
 """
 abstract type AbstractInfiniteSet end
 
-const InfiniteSets = Union{AbstractInfiniteSet, Vector{AbstractInfiniteSet}}
+"""
+    InfOptParameter{T <: Union{AbstractInfiniteSet, Nothing}} <: JuMP.AbstractVariable
+A DataType for storing infinite parameter info
+**Fields**
+- `set::T` The set that contains the parameter.
+"""
+struct InfOptParameter{T <: Union{AbstractInfiniteSet, Nothing}} <: JuMP.AbstractVariable
+    set::T
+end
+
+# define for convenience
+const VariableRefOrGroup = Union{JuMP.AbstractVariableRef,
+                                   AbstractArray{<:JuMP.AbstractVariableRef},
+                                   Array{<:AbstractArray{<:JuMP.AbstractVariableRef}}}
 
 """
     InfOptVariable{S, T, U, V} <: JuMP.AbstractVariable
@@ -12,12 +25,12 @@ A DataType for storing variable info
 **Fields**
 - `info::JuMP.VariableInfo{S, T, U, V}` Variable information.
 - `type::Symbol` Variable type (:Infinite, :Point, :Global).
-- `set::Union{Union{AbstractInfiniteSet, Vector{AbstractInfiniteSet}}, Nothing}` The set(s) with associated infinite parameters.
+- `param::Union{VariableRefOrGroup, Nothing}` The infinite parameters(s) with associated the variable.
 """
 struct InfOptVariable{S, T, U, V} <: JuMP.AbstractVariable
     info::JuMP.VariableInfo{S, T, U, V}
     type::Symbol
-    set::Union{InfiniteSets, Nothing}
+    param::Union{VariableRefOrGroup, Nothing}
 end
 
 """
@@ -71,6 +84,11 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     measures::Dict{Int, Measure}
     meas_to_name::Dict{Int, String}
 
+    # Parameter Data
+    next_param_index::Int
+    params::Dict{Int, InfOptParameter}
+    param_to_name::Dict{Int, String}
+
     # Variable data
     next_var_index::Int                             # Next variable index is nextvaridx+1
     vars::Dict{Int, InfOptVariable}                 # Map varidx -> variable
@@ -98,6 +116,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     # Default constructor
     function InfiniteModel()
         new(0, Dict{Int, Measure}(), Dict{Int, String}(), # Measures
+            0, Dict{Int, InfOptParameter}(), Dict{Int, String}(), # Parameters
             0, Dict{Int, JuMP.AbstractVariable}(),  # Variables
             Dict{Int, String}(), nothing,
             Dict{Int, Int}(), Dict{Int, Int}(), Dict{Int, Int}(),
@@ -171,6 +190,22 @@ struct InfiniteVariableRef <: GeneralVariableRef
     index::Int           # Index in `model.variables`
 end
 
+"""
+    ParameterRef <: JuMP.GeneralVariableRef
+A DataType for untranscripted infinite dimensional parameters that parameterize
+the infinite variables.
+**Fields**
+- `model::InfiniteModel` Flexibility model.
+- `index::Int` Index of variable in model.
+"""
+struct ParameterRef <: GeneralVariableRef
+    model::InfiniteModel # `model` owning the variable
+    index::Int           # Index in `model.variables`
+end
+
+# Define type for convenience in dealing with infinite variables
+const InfiniteParams = Union{ParameterRef, AbstractArray{<:ParameterRef}, Vector{<:AbstractArray{<:ParameterRef}}}
+
 # Define variable references without that aren't measures
 const InfOptVariableRef = Union{InfiniteVariableRef, PointVariableRef, GlobalVariableRef}
 
@@ -201,32 +236,26 @@ const MeasureExpr = Union{MeasureRef,
                           JuMP.GenericQuadExpr{Float64, MeasureFiniteVariableRef}}
 
 """
-    BoxSet{T <: Union{Number, Vector{Number}}} <: AbstractInfiniteSet
+    BoxSet{T <: Number} <: AbstractInfiniteSet
 A DataType that stores the lower and upper bounds for infinite parameters that are
 rectangular and are associated with infinite variables.
 **Fields**
-- `param_name::String` The name of the infinite parameter.
-- `lower_bound::T` Lower bound(s) of the rectangular parameter(s).
-- `upper_bound::T` Upper bound(s) of the rectangular parameter(s).
+- `lower_bound::T` Lower bound of the infinite parameter.
+- `upper_bound::T` Upper bound of the infinite parameter.
 """
-struct BoxSet{T <: Union{Number, Vector{Number}}} <: AbstractInfiniteSet
-    param_name::String
+struct BoxSet{T <: Number} <: AbstractInfiniteSet
     lower_bound::T
     upper_bound::T
 end
 
 """
-    DistributionSet{T <: Union{Distributions.NonMatrixDistribution,
-                    Vector{Distributions.NonMatrixDistribution}} <: AbstractInfiniteSet
-A DataType that stores the distribution(s) for infinite parameters that are
+    DistributionSet{T <: Distributions.NonMatrixDistribution} <: AbstractInfiniteSet
+A DataType that stores the distribution for infinite parameters that are
 random and are associated with infinite variables.
 **Fields**
-- `param_name::String` The name of the infinite parameter.
-- `distribution::T` Distribution(s) of the random parameter(s).
+- `distribution::T` Distribution of the random parameter.
 """
-struct DistributionSet{T <: Union{Distributions.NonMatrixDistribution,
-                       Vector{Distributions.NonMatrixDistribution}}} <: AbstractInfiniteSet
-    param_name::String
+struct DistributionSet{T <: Distributions.NonMatrixDistribution} <: AbstractInfiniteSet
     distribution::T
 end
 
@@ -235,11 +264,9 @@ end
 A DataType that stores a dicrete set of points for infinite parameters that are
 associated with infinite variables.
 **Fields**
-- `param_name::String` The name of the infinite parameter.
 - `points::T` The discrete points that make up the set.
 """
 struct DiscreteSet{T <: Vector} <: AbstractInfiniteSet
-    param_name::String
     points::T
 end
 

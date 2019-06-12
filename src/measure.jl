@@ -1,11 +1,14 @@
+# Extend Base.copy for new variable types
+Base.copy(v::MeasureRef, new_model::InfiniteModel) = MeasureRef(new_model, v.index)
+
 """
     add_measure(model::InfiniteModel, v::Measure)
 Add a measure to the `InfiniteModel` object in an analagous way to `JuMP.add_variable`.
 """
-function add_measure(m::InfiniteModel, meas::Measure)
-    m.next_meas_index += 1
-    mref = MeasureRef(m, m.next_meas_index)
-    m.measures[mref.index] = meas
+function add_measure(model::InfiniteModel, meas::Measure)
+    model.next_meas_index += 1
+    mref = MeasureRef(model, model.next_meas_index)
+    model.measures[mref.index] = meas
     mref.model.meas_to_name[mref.index] = _make_meas_name(meas)
     return mref
 end

@@ -10,18 +10,22 @@ import Distributions
 export InfiniteModel
 
 # Export macros and constants
-export @infinite_variable, @point_variable, @global_variable, Infinite, Global,
-Point
+export @infinite_variable, @point_variable, @global_variable, @infinite_parameter,
+Infinite, Global, Point, Parameter
+
+# Export infinite parameter datatypes
+export InfOptParameter, ParameterRef
 
 # Export variable datatypes
 export InfOptVariable, GeneralVariableRef, InfiniteVariableRef,
-MeasureFiniteVariableRef, FiniteVariableRef, PointVariableRef, GlobalVariableRef
+MeasureFiniteVariableRef, FiniteVariableRef, PointVariableRef, GlobalVariableRef,
+InfOptVariableRef
 
 # Export infinite parameter set types
 export AbstractInfiniteSet, BoxSet, DistributionSet, DiscreteSet
 
 # Export infinite parameter functions
-export get_infinite_set, set_infinite_set, add_infinite_set
+export get_parameters, set_parameters, add_parameter
 
 # Export constraint datatypes
 export GeneralConstraintRef, InfiniteConstraintRef, MeasureConstraintRef,
@@ -35,6 +39,7 @@ export add_measure, measure
 
 # Import all of the datatpyes, methods, and definitions.
 include("datatypes.jl")
+include("parameters.jl")
 include("variables.jl")
 include("measure.jl")
 include("expressions.jl")

@@ -25,6 +25,13 @@ function JuMP.constraints_string(print_mode, model::InfiniteModel)
     for (index, constraint) in constraints
         push!(strings, JuMP.constraint_string(print_mode, constraint))
     end
+    # TODO print the infinite parameters with their sets
+    # params = sort(collect(model.params), by = c -> c.first)
+    # for (index, param) in params
+    #     push!(strings, string(model.param_to_name[index], " ",
+    #                           _math_symbol(print_mode, :in), " ",
+    #                           )
+    # end
     return strings
 end
 

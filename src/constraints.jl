@@ -15,6 +15,7 @@ Base.:(==)(v::GeneralConstraintRef, w::GeneralConstraintRef) = v.model === w.mod
 Base.broadcastable(cref::GeneralConstraintRef) = Ref(cref)
 JuMP.constraint_type(m::InfiniteModel) = GeneralConstraintRef
 
+# TODO Ensure no constraints purely contain parameters
 """
     JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, name::String="")
 Extend the `JuMP.add_constraint` function to accomodate the `InfiniteModel` object.
