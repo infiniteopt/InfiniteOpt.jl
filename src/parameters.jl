@@ -50,6 +50,8 @@ function JuMP.set_name(pref::ParameterRef, name::String)
     return
 end
 
+#TODO Add manipulation methods like variables.
+
 # Define functions to extract the names of parameters
 function _get_names(arr::AbstractArray{<:ParameterRef})
     if isa(arr, JuMP.Containers.SparseAxisArray)
@@ -59,28 +61,52 @@ function _get_names(arr::AbstractArray{<:ParameterRef})
     end
 end
 
-function _get_names(arr::Array{<:AbstractArray{<:ParameterRef}})
-    names = String[]
-    for a in arr
-        if isa(a, JuMP.Containers.SparseAxisArray)
-            names = [names; [JuMP.name(arr[k]) for k in keys(arr.data)]]
+function _get_root_names(param_refs::Tuple)
+    root_names = Vector{String}(undef, length(param_refs))
+    for i = 1:length(root_names)
+        if isa(param_refs[i], ParameterRef)
+            root_names[i] = JuMP.name(param_refs[i])
         else
-            names = [names; [JuMP.name(arr[k]) for k in CartesianIndices(arr)]]
+            names = _get_names(param_refs[i])
+            first_bracket = findfirst(isequal('['), names[1])
+            root_names[i] = names[1][1:first_bracket-1]
         end
     end
-    return names
+    return root_names
 end
 
-function _get_root_names(arr::Union{AbstractArray{<:ParameterRef}, Array{<:AbstractArray{<:ParameterRef}}})
+function _only_one_name(arr::AbstractArray{<:ParameterRef})
     names = _get_names(arr)
     root_names = Vector{String}(undef, length(names))
-    for i = 1:length(names)
+    for i = 1:length(root_names)
         first_bracket = findfirst(isequal('['), names[i])
-        if first_bracket == nothing
-            root_names[i] = names[i]
-        else
-            root_names[i] = names[i][1:first_bracket-1]
+        root_names[i] = names[i][1:first_bracket-1]
+    end
+    return length(unique(root_names)) == 1
+end
+
+_only_one_name(pref::ParameterRef) = true
+
+# Make check tuple check functions
+function _check_parameter_tuple(param_refs::Tuple)
+    types = [typeof(param) for param in param_refs]
+    num_params = length(types)
+    valid_types = zeros(Bool, num_params)
+    for i = 1:num_params
+        if types[i] == ParameterRef || types[i] <: AbstractArray{<:ParameterRef}
+            valid_types[i] = true
         end
     end
-    return unique(root_names)
+    if sum(valid_types) != num_params
+        error("Invalid parameter type(s) given.")
+    end
+    return
+end
+
+function _check_tuple_names(param_refs::Tuple)
+    valid_elements = [_only_one_name(param_refs[i]) for i = 1:length(param_refs)]
+    if sum(valid_elements) != length(param_refs)
+        error("Each paramter tuple element must have contain only one infinite parameter name.")
+    end
+    return
 end

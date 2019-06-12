@@ -17,15 +17,15 @@ Infinite, Global, Point, Parameter
 export InfOptParameter, ParameterRef
 
 # Export variable datatypes
-export InfOptVariable, GeneralVariableRef, InfiniteVariableRef,
-MeasureFiniteVariableRef, FiniteVariableRef, PointVariableRef, GlobalVariableRef,
-InfOptVariableRef
+export InfOptVariable, InfiniteVariable, PointVariable, GlobalVariable,
+GeneralVariableRef, InfiniteVariableRef, MeasureFiniteVariableRef,
+FiniteVariableRef, PointVariableRef, GlobalVariableRef, InfOptVariableRef
 
 # Export infinite parameter set types
-export AbstractInfiniteSet, BoxSet, DistributionSet, DiscreteSet
+export AbstractInfiniteSet, IntervalSet, DistributionSet, DiscreteSet
 
 # Export infinite parameter functions
-export get_parameters, set_parameters, add_parameter
+export get_parameter_ref, set_parameter_refs, add_parameter_ref
 
 # Export constraint datatypes
 export GeneralConstraintRef, InfiniteConstraintRef, MeasureConstraintRef,

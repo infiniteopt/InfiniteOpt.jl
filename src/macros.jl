@@ -1,4 +1,6 @@
-# TODO Clean up the parameter macro and add errors
+# TODO Clean up the parameter macro and add errors, and check for dimensionality with multivariate distribution
+# TODO Register names properly to prevent redefinition
+# TODO Process intervals and distributions directly
 """
     @infinite_parameter(model, set, name_expr)
 A macro for the defining parameters of type `ParameterRef`.
@@ -42,30 +44,37 @@ macro infinite_parameter(model, name_expr, set)
     end
 end
 
-# TODO Figure out a more robust type definition
+# TODO Enable expression parsing of the form var(params)
 """
-    @infinite_variable(model, set, args...)
+    @infinite_variable(model, param_refs, args...)
 A wrapper macro for the `JuMP.@variable` macro that behaves the same except that
 it defines variables of type `InfiniteVariableRef`.
 """
-macro infinite_variable(model, params, args...)
+macro infinite_variable(model, param_refs, args...)
     code = quote
         @assert isa($model, InfiniteModel)
-        @assert typeof($params) <: Union{ParameterRef, AbstractArray{<:ParameterRef}, Vector{<:AbstractArray{<:ParameterRef}}}
-        JuMP.@variable($model, ($(args...)), variable_type = Infinite, parameters = $params)
+        if $param_refs isa Tuple
+            InfOpt._check_parameter_tuple($param_refs)
+            InfOpt._check_tuple_names($param_refs)
+        else
+            @assert typeof($param_refs) <: Union{ParameterRef, AbstractArray{<:ParameterRef}}
+            @assert InfOpt._only_one_name($param_refs)
+        end
+        JuMP.@variable($model, ($(args...)), variable_type = Infinite, param_refs = $param_refs)
     end
     return esc(code)
 end
 
+# TODO Streamline inputs and do checks, perhaps implement expression parsing
 """
     @point_variable(model, args...)
 A wrapper macro for the `JuMP.@variable` macro that behaves the same except that
 it defines variables of type `PointVariableRef`.
 """
-macro point_variable(model, args...)
+macro point_variable(model, inf_var, index, args...)
     code = quote
         @assert isa($model, InfiniteModel)
-        JuMP.@variable($model, ($(args...)), variable_type = Point)
+        JuMP.@variable($model, ($(args...)), variable_type = Point, inf_var_ref = $inf_var, param_values = $index)
     end
     return esc(code)
 end

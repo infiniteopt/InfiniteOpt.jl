@@ -5,33 +5,20 @@ An abstract type to define the sets describing infinite variable parameters.
 abstract type AbstractInfiniteSet end
 
 """
-    InfOptParameter{T <: Union{AbstractInfiniteSet, Nothing}} <: JuMP.AbstractVariable
+    InfOptParameter{T <: AbstractInfiniteSet} <: JuMP.AbstractVariable
 A DataType for storing infinite parameter info
 **Fields**
 - `set::T` The set that contains the parameter.
 """
-struct InfOptParameter{T <: Union{AbstractInfiniteSet, Nothing}} <: JuMP.AbstractVariable
+struct InfOptParameter{T <: AbstractInfiniteSet} <: JuMP.AbstractVariable
     set::T
 end
 
-# define for convenience
-const VariableRefOrGroup = Union{JuMP.AbstractVariableRef,
-                                   AbstractArray{<:JuMP.AbstractVariableRef},
-                                   Array{<:AbstractArray{<:JuMP.AbstractVariableRef}}}
-
 """
-    InfOptVariable{S, T, U, V} <: JuMP.AbstractVariable
-A DataType for storing variable info
-**Fields**
-- `info::JuMP.VariableInfo{S, T, U, V}` Variable information.
-- `type::Symbol` Variable type (:Infinite, :Point, :Global).
-- `param::Union{VariableRefOrGroup, Nothing}` The infinite parameters(s) with associated the variable.
+    AbstractMeasureData
+An abstract type to define infinite, point, and global variables.
 """
-struct InfOptVariable{S, T, U, V} <: JuMP.AbstractVariable
-    info::JuMP.VariableInfo{S, T, U, V}
-    type::Symbol
-    param::Union{VariableRefOrGroup, Nothing}
-end
+abstract type InfOptVariable <: JuMP.AbstractVariable end
 
 """
     AbstractMeasureData
@@ -121,8 +108,8 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
             Dict{Int, String}(), nothing,
             Dict{Int, Int}(), Dict{Int, Int}(), Dict{Int, Int}(),
             Dict{Int, Int}(), Dict{Int, Int}(),
-            0, Dict{Int, JuMP.AbstractConstraint}(),
-            Dict{Int, String}(), nothing,            # Constraints
+            0, Dict{Int, JuMP.AbstractConstraint}(), # Constraints
+            Dict{Int, String}(), nothing,
             MOI.FEASIBILITY_SENSE,
             zero(JuMP.GenericAffExpr{Float64, FiniteVariableRef}),
             Dict{Symbol, Any}())
@@ -203,8 +190,41 @@ struct ParameterRef <: GeneralVariableRef
     index::Int           # Index in `model.variables`
 end
 
-# Define type for convenience in dealing with infinite variables
-const InfiniteParams = Union{ParameterRef, AbstractArray{<:ParameterRef}, Vector{<:AbstractArray{<:ParameterRef}}}
+"""
+    InfiniteVariable{S, T, U, V} <: InfOptVariable
+A DataType for storing infinite variable information
+**Fields**
+- `info::JuMP.VariableInfo{S, T, U, V}` Variable information.
+- `param_refs::Tuple` The infinite parameters(s) with associated the variable.
+"""
+struct InfiniteVariable{S, T, U, V} <: InfOptVariable
+    info::JuMP.VariableInfo{S, T, U, V}
+    param_refs::Tuple
+end
+
+"""
+    PointVariable{S, T, U, V} <: InfOptVariable
+A DataType for storing point variable information
+**Fields**
+- `info::JuMP.VariableInfo{S, T, U, V}` Variable information.
+- `inf_var_ref::InfiniteVariableRef`The infinite variable associated with the point variable.
+- `param_values::Tuple` The infinite parameter evaluate values defining the point.
+"""
+struct PointVariable{S, T, U, V} <: InfOptVariable
+    info::JuMP.VariableInfo{S, T, U, V}
+    inf_var_ref::InfiniteVariableRef
+    param_values::Tuple
+end
+
+"""
+    GlobalVariable{S, T, U, V} <: InfOptVariable
+A DataType for storing global variable information
+**Fields**
+- `info::JuMP.VariableInfo{S, T, U, V}` Variable information.
+"""
+struct GlobalVariable{S, T, U, V} <: InfOptVariable
+    info::JuMP.VariableInfo{S, T, U, V}
+end
 
 # Define variable references without that aren't measures
 const InfOptVariableRef = Union{InfiniteVariableRef, PointVariableRef, GlobalVariableRef}
@@ -236,14 +256,14 @@ const MeasureExpr = Union{MeasureRef,
                           JuMP.GenericQuadExpr{Float64, MeasureFiniteVariableRef}}
 
 """
-    BoxSet{T <: Number} <: AbstractInfiniteSet
+    IntervalSet{T <: Number} <: AbstractInfiniteSet
 A DataType that stores the lower and upper bounds for infinite parameters that are
 rectangular and are associated with infinite variables.
 **Fields**
 - `lower_bound::T` Lower bound of the infinite parameter.
 - `upper_bound::T` Upper bound of the infinite parameter.
 """
-struct BoxSet{T <: Number} <: AbstractInfiniteSet
+struct IntervalSet{T <: Number} <: AbstractInfiniteSet
     lower_bound::T
     upper_bound::T
 end
