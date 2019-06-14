@@ -29,7 +29,7 @@ function JuMP._set_lower_bound_or_error(_error::Function, info::_ParameterInfoEx
     info.has_dist && _error("Cannot specify parameter lower_bound and distribution")
     info.has_set && _error("Cannot specify parameter lower_bound and set")
     info.has_lb = true
-    info.lower_bound = lower
+    info.lower_bound = convert(Float64, lower)
 end
 
 function JuMP._set_upper_bound_or_error(_error::Function, info::_ParameterInfoExpr, upper)
@@ -37,7 +37,7 @@ function JuMP._set_upper_bound_or_error(_error::Function, info::_ParameterInfoEx
     info.has_dist && _error("Cannot specify parameter upper_bound and distribution")
     info.has_set && _error("Cannot specify parameter upper_bound and set")
     info.has_ub = true
-    info.upper_bound = upper
+    info.upper_bound = convert(Float64, upper)
 end
 
 function _dist_or_error(_error::Function, info::_ParameterInfoExpr, dist)
@@ -129,10 +129,189 @@ Extend the `JuMP.set_name` function to accomodate infinite parameters.
 """
 function JuMP.set_name(pref::ParameterRef, name::String)
     JuMP.owner_model(pref).param_to_name[JuMP.index(pref)] = name
+    JuMP.owner_model(pref).name_to_param = nothing
     return
 end
 
-#TODO Add manipulation methods like variables.
+"""
+    num_parameters(model::InfiniteModel)
+Return the number of infinite parameters.
+"""
+num_parameters(model::InfiniteModel) = length(model.params)
+
+# Internal functions
+_parameter_set(pref::ParameterRef) = JuMP.owner_model(pref).params[JuMP.index(pref)].set
+function _update_parameter_set(pref::ParameterRef, set::AbstractInfiniteSet)
+    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set)
+    return
+end
+
+"""
+    infinite_set(pref::ParameterRef)::AbstractInfiniteSet
+Return the infinite set of `pref`.
+"""
+function infinite_set(pref::ParameterRef)::AbstractInfiniteSet
+    return _parameter_set(pref)
+end
+
+"""
+    set_infinite_set(pref::ParameterRef, set::AbstractInfiniteSet)
+Specify the infinite set of `pref`.
+"""
+function set_infinite_set(pref::ParameterRef, set::AbstractInfiniteSet)
+    _update_parameter_set(pref, set)
+    return
+end
+
+"""
+    JuMP.has_lower_bound(pref::ParameterRef)
+Extend the `JuMP.has_lower_bound` function to accomodate infinite parameters.
+"""
+function JuMP.has_lower_bound(pref::ParameterRef)
+    set = _parameter_set(pref)
+    if isa(set, IntervalSet)
+        return true
+    elseif isa(set, DistributionSet)
+        if typeof(set.distribution) <: Distributions.UnivariateDistribution
+            return true
+        else
+            error("Only parameters with univariate distributions have well-defined lower bounds.")
+        end
+    else
+        type = typeof(set)
+        error("Undefined infinite set type $type for lower bound checking.")
+    end
+end
+
+"""
+    JuMP.lower_bound(pref::ParameterRef)::Number
+Extend the `JuMP.lower_bound` function to accomodate infinite parameters.
+"""
+function JuMP.lower_bound(pref::ParameterRef)::Number
+    set = _parameter_set(pref)
+    if !JuMP.has_lower_bound(pref)
+        error("Parameter $(pref) does not have a lower bound.")
+    end
+    if isa(set, IntervalSet)
+        return set.lower_bound
+    else isa(set, DistributionSet)
+        if typeof(set.distribution) <: Distributions.UnivariateDistribution
+            return Distributions.minimum(set.distribution)
+        end
+    end
+end
+
+"""
+    JuMP.set_lower_bound(pref::ParameterRef, lower::Number)
+Extend the `JuMP.set_lower_bound` function to accomodate infinite parameters.
+"""
+function JuMP.set_lower_bound(pref::ParameterRef, lower::Number)
+    set = _parameter_set(pref)
+    if isa(set, DistributionSet)
+        error("Cannot set the lower bound of a distribution, try using `Distributions.Truncated` instead.")
+    elseif !isa(set, IntervalSet)
+        error("Parameter $(pref) is not an interval set.")
+    end
+    _update_parameter_set(pref, IntervalSet(Float64(lower), set.upper_bound))
+    return
+end
+
+"""
+    JuMP.has_upper_bound(pref::ParameterRef)
+Extend the `JuMP.has_upper_bound` function to accomodate infinite parameters.
+"""
+function JuMP.has_upper_bound(pref::ParameterRef)
+    set = _parameter_set(pref)
+    if isa(set, IntervalSet)
+        return true
+    elseif isa(set, DistributionSet)
+        if typeof(set.distribution) <: Distributions.UnivariateDistribution
+            return true
+        else
+            error("Only parameters with univariate distributions have well-defined upper bounds.")
+        end
+    else
+        type = typeof(set)
+        error("Undefined infinite set type $type for lower upper checking.")
+    end
+end
+
+"""
+    JuMP.upper_bound(pref::ParameterRef)::Number
+Extend the `JuMP.upper_bound` function to accomodate infinite parameters.
+"""
+function JuMP.upper_bound(pref::ParameterRef)::Number
+    set = _parameter_set(pref)
+    if !JuMP.has_upper_bound(pref)
+        error("Parameter $(pref) does not have a upper bound.")
+    end
+    if isa(set, IntervalSet)
+        return set.upper_bound
+    else isa(set, DistributionSet)
+        if typeof(set.distribution) <: Distributions.UnivariateDistribution
+            return Distributions.maximum(set.distribution)
+        end
+    end
+end
+
+"""
+    JuMP.set_upper_bound(pref::ParameterRef, lower::Number)
+Extend the `JuMP.set_upper_bound` function to accomodate infinite parameters.
+"""
+function JuMP.set_upper_bound(pref::ParameterRef, upper::Number)
+    set = _parameter_set(pref)
+    if isa(set, DistributionSet)
+        error("Cannot set the upper bound of a distribution, try using `Distributions.Truncated` instead.")
+    elseif !isa(set, IntervalSet)
+        error("Parameter $(pref) is not an interval set.")
+    end
+    _update_parameter_set(pref, IntervalSet(set.lower_bound, Float64(upper)))
+    return
+end
+
+"""
+    parameter_by_name(model::InfiniteModel, name::String)
+Return the parameter reference assoociated with a parameter.
+"""
+function parameter_by_name(model::InfiniteModel, name::String)
+    if model.name_to_param === nothing
+        # Inspired from MOI/src/Utilities/model.jl
+        model.name_to_param = Dict{String, Int}()
+        for (param, param_name) in model.param_to_name
+            if haskey(model.name_to_param, param_name)
+                # -1 is a special value that means this string does not map to
+                # a unique variable name.
+                model.name_to_param[param_name] = -1
+            else
+                model.name_to_param[param_name] = param
+            end
+        end
+    end
+    index = get(model.name_to_param, name, nothing)
+    if index isa Nothing
+        return nothing
+    elseif index == -1
+        error("Multiple parameters have the name $name.")
+    else
+        return ParameterRef(model, index)
+    end
+    return
+end
+
+"""
+    all_parameters(model::InfiniteModel)
+Return all of the infinite parameters as a vector of type `ParameterRef`.
+"""
+function all_parameters(model::InfiniteModel)
+    param_list = Vector{ParameterRef}(undef, num_parameters(model))
+    indexes = sort([index for index in keys(model.params)])
+    counter = 1
+    for index in indexes
+        param_list[counter] = ParameterRef(model, index)
+        counter += 1
+    end
+    return param_list
+end
 
 # Define functions to extract the names of parameters
 function _get_names(arr::AbstractArray{<:ParameterRef})

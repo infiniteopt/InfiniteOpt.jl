@@ -75,6 +75,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     next_param_index::Int
     params::Dict{Int, InfOptParameter}
     param_to_name::Dict{Int, String}
+    name_to_param::Union{Dict{String, Int}, Nothing}
 
     # Variable data
     next_var_index::Int                             # Next variable index is nextvaridx+1
@@ -103,7 +104,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     # Default constructor
     function InfiniteModel()
         new(0, Dict{Int, Measure}(), Dict{Int, String}(), # Measures
-            0, Dict{Int, InfOptParameter}(), Dict{Int, String}(), # Parameters
+            0, Dict{Int, InfOptParameter}(), Dict{Int, String}(), nothing, # Parameters
             0, Dict{Int, JuMP.AbstractVariable}(),  # Variables
             Dict{Int, String}(), nothing,
             Dict{Int, Int}(), Dict{Int, Int}(), Dict{Int, Int}(),
@@ -263,9 +264,9 @@ rectangular and are associated with infinite variables.
 - `lower_bound::T` Lower bound of the infinite parameter.
 - `upper_bound::T` Upper bound of the infinite parameter.
 """
-struct IntervalSet{T <: Number} <: AbstractInfiniteSet
-    lower_bound::T
-    upper_bound::T
+struct IntervalSet <: AbstractInfiniteSet
+    lower_bound::Float64
+    upper_bound::Float64
 end
 
 """

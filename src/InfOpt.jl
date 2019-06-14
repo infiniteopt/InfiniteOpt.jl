@@ -25,7 +25,8 @@ FiniteVariableRef, PointVariableRef, GlobalVariableRef, InfOptVariableRef
 export AbstractInfiniteSet, IntervalSet, DistributionSet, DiscreteSet
 
 # Export infinite parameter methods
-export build_parameter, add_parameter
+export build_parameter, add_parameter, infinite_set, set_infinite_set,
+num_parameters, parameter_by_name, all_parameters
 
 # Export infinite variable functions
 export get_parameter_ref, set_parameter_refs, add_parameter_ref

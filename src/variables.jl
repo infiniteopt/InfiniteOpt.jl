@@ -38,28 +38,21 @@ Extend the `JuMP.build_variable` function to accomodate our new variable types.
 """
 function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, var_type::Symbol;
                              param_refs::Union{ParameterRef, Tuple, Nothing} = nothing,
-                             param_set::Union{AbstractInfiniteSet, Nothing} = nothing,
                              inf_var_ref::Union{InfiniteVariableRef, Nothing} = nothing,
                              param_values::Union{Tuple, Nothing} = nothing,
                              extra_kw_args...)
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
-    if !(var_type in [Infinite, Point, Global, Parameter])
-        _error("Unrecognized variable type $var_type, should be Inf, Point, Global, or Parameter.")
+    if !(var_type in [Infinite, Point, Global])
+        _error("Unrecognized variable type $var_type, should be Inf, Point, or Global.")
     end
-    if var_type != Parameter && param_set != nothing
-        _error("Can only use the keyword argument 'param_set' with infinite parameters.")
-    elseif var_type != Infinite && param_refs != nothing
-        _error("Can only use the keyword argument 'parameters' with infinite variables.")
+    if var_type != Infinite && param_refs != nothing
+        _error("Can only use the keyword argument 'param_refs' with infinite variables.")
     elseif var_type != Point && (inf_var_ref != nothing || param_values != nothing)
         _error("Can only use the keyword arguments 'infinite_var' and 'param_values' with point variables.")
-    elseif var_type == Parameter
-        if info.has_lb || info.has_lb || info.has_fix
-            _error("Cannot specify bounds or fix a parameter.")
-        end
-        return InfOptParameter(param_set)
     elseif var_type == Infinite
+        # TODO make sure param_refs are given
         if param_refs isa ParameterRef
             param_refs = (param_refs, )
         end
