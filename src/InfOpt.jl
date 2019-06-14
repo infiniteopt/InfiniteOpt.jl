@@ -24,7 +24,10 @@ FiniteVariableRef, PointVariableRef, GlobalVariableRef, InfOptVariableRef
 # Export infinite parameter set types
 export AbstractInfiniteSet, IntervalSet, DistributionSet, DiscreteSet
 
-# Export infinite parameter functions
+# Export infinite parameter methods
+export build_parameter, add_parameter
+
+# Export infinite variable functions
 export get_parameter_ref, set_parameter_refs, add_parameter_ref
 
 # Export constraint datatypes
@@ -41,7 +44,7 @@ export add_measure, measure
 include("datatypes.jl")
 include("parameters.jl")
 include("variables.jl")
-include("measure.jl")
+include("measures.jl")
 include("expressions.jl")
 include("operators.jl")
 include("constraints.jl")

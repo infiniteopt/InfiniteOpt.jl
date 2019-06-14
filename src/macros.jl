@@ -1,47 +1,161 @@
-# TODO Clean up the parameter macro and add errors, and check for dimensionality with multivariate distribution
-# TODO Register names properly to prevent redefinition
-# TODO Process intervals and distributions directly
+using Base.Meta
+using JuMP: _valid_model, _error_if_cannot_register, object_dictionary, variable_type
+
+function _parse_one_operator_parameter(
+    _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:<=}, Val{:≤}},
+    upper)
+    JuMP._set_upper_bound_or_error(_error, infoexpr, upper)
+end
+function _parse_one_operator_parameter(
+    _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:>=}, Val{:≥}},
+    lower)
+    JuMP._set_lower_bound_or_error(_error, infoexpr, lower)
+end
+function _parse_one_operator_parameter(
+    _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:in}, Val{:∈}}, value)
+    _dist_or_error(_error, infoexpr, value)
+end
+function _parse_one_operator_parameter(
+    _error::Function, infoexpr::_ParameterInfoExpr, ::Val{S}, value) where S
+    _error("Unknown sense $S.")
+end
+
+# In that case we assume the variable is the lhs.
+function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
+                        sense::Symbol, var, value)
+    _parse_one_operator_parameter(_error, infoexpr, Val(sense),
+                                JuMP._esc_non_constant(value))
+    return var
+end
+
+# If the lhs is a number and not the rhs, we can deduce that the rhs is
+# the variable.
+function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
+                        sense::Symbol, value::Number, var)
+    _parse_one_operator_parameter(_error, infoexpr, JuMP.reverse_sense(Val(sense)),
+                                JuMP._esc_non_constant(value))
+    return var
+end
+
+function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
+                                 ::Union{Val{:<=}, Val{:≤}}, lower,
+                                 ::Union{Val{:<=}, Val{:≤}}, upper)
+    JuMP._set_lower_bound_or_error(_error, infoexpr, lower)
+    JuMP._set_upper_bound_or_error(_error, infoexpr, upper)
+end
+function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
+                                 ::Union{Val{:>=}, Val{:≥}}, upper,
+                                 ::Union{Val{:>=}, Val{:≥}}, lower)
+    _parse_ternary_parameter(_error, infoexpr, Val(:≤), lower, Val(:≤), upper)
+end
+function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
+                                 ::Val, lvalue, ::Val, rvalue)
+    _error("Use the form lb <= ... <= ub.")
+end
+function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr, lvalue,
+                        lsign::Symbol, var, rsign::Symbol, rvalue)
+    # lvalue lsign var rsign rvalue
+    _parse_ternary_parameter(_error, infoexpr, Val(lsign),
+                           JuMP._esc_non_constant(lvalue), Val(rsign),
+                           JuMP._esc_non_constant(rvalue))
+    return var
+end
+
+# TODO Check for dimensionality with multivariate distribution
 """
-    @infinite_parameter(model, set, name_expr)
+    @infinite_parameter(model, args)
 A macro for the defining parameters of type `ParameterRef`.
 """
-macro infinite_parameter(model, name_expr, set)
-    if isa(name_expr, Symbol)
-        # easy case
-        code = quote
-            @assert isa($model, InfiniteModel)
-            @assert typeof($set) <: AbstractInfiniteSet
-            JuMP.@variable($model, ($(name_expr)), variable_type = Parameter, param_set = $set)
-        end
-        return esc(code)
+macro infinite_parameter(model, args...)
+    _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...), str...)
+
+    esc_model = esc(model)
+
+    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+
+    # if there is only a single non-keyword argument, this is an anonymous
+    # variable spec and the one non-kwarg is the model
+    if length(extra) == 0
+        x = gensym()
+        anon_singleton = true
     else
-        if !JuMP.isexpr(name_expr, :ref)
-            error("Syntax error: Expected $var to be of form var[...]")
-        end
-
-        model = esc(model)
-        set = esc(set)
-
-        variable = gensym()
-        refcall, idxvars, idxsets, condition = JuMP._build_ref_sets(name_expr, variable)
-        varname = JuMP._get_name(name_expr)
-        escvarname = esc(varname)
-
-        varstr = :(string($(string(varname)),"["))
-        for idxvar in idxvars
-            push!(varstr.args,:(string($(esc(idxvar)))))
-            push!(varstr.args,",")
-        end
-        deleteat!(varstr.args,length(varstr.args))
-        push!(varstr.args,"]")
-
-        code = :( $(refcall) = JuMP.add_variable($model, InfOptParameter($set), $varstr) )
-        looped = JuMP._get_looped_code(variable, code, condition, idxvars, idxsets, :ParameterRef, :Auto)
-        return quote
-            $looped
-            $escvarname = $variable
-        end
+        x = popfirst!(extra)
+        anon_singleton = false
     end
+
+    info_kw_args = filter(_is_param_keyword, kw_args)
+    extra_kw_args = filter(kw -> kw.args[1] != :base_name && !InfOpt._is_param_keyword(kw), kw_args)
+    base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
+    infoexpr = InfOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
+
+    # There are four cases to consider:
+    # x                                         | type of x | x.head
+    # ------------------------------------------+-----------+------------
+    # param                                     | Symbol    | NA
+    # param[1:2]                                | Expr      | :ref
+    # param <= ub or var[1:2] <= ub             | Expr      | :call
+    # lb <= param <= ub or lb <= var[1:2] <= ub | Expr      | :comparison
+    # In the two last cases, we call parse_variable
+    explicit_comparison = isexpr(x, :comparison) || isexpr(x, :call)
+    if explicit_comparison
+        param = InfOpt._parse_parameter(_error, infoexpr, x.args...)
+    else
+        param = x
+    end
+
+    anonvar = isexpr(param, :vect) || isexpr(param, :vcat) || anon_singleton
+    anonvar && explicit_comparison && _error("Cannot use explicit bounds via >=, <= with an anonymous parameter")
+    parameter = gensym()
+    name = JuMP._get_name(param)
+    if isempty(base_name_kw_args)
+        base_name = anonvar ? "" : string(name)
+    else
+        base_name = esc(base_name_kw_args[1].args[2])
+    end
+
+    if !isa(name, Symbol) && !anonvar
+        _error("Expression $name should not be used as a parameter name. Use the \"anonymous\" syntax $name = @infinite_parameter(model, ...) instead.")
+    end
+
+    set = InfOpt._constructor_set(_error, infoexpr)
+    if isa(param, Symbol)
+        # Easy case - a single variable
+        buildcall = :( build_parameter($_error, $set, $(extra...)) )
+        JuMP._add_kw_args(buildcall, extra_kw_args)
+        parametercall = :( add_parameter($esc_model, $buildcall, $base_name) )
+        # The looped code is trivial here since there is a single variable
+        creationcode = :($parameter = $parametercall)
+        final_parameter = parameter
+    else
+        isa(param, Expr) || _error("Expected $param to be a parameter name")
+        # We now build the code to generate the variables (and possibly the
+        # SparseAxisArray to contain them)
+        refcall, idxparams, idxsets, condition = JuMP._build_ref_sets(param, parameter)
+        clear_dependencies(i) = (JuMP.Containers.is_dependent(idxparams, idxsets[i], i) ? () : idxsets[i])
+
+        # Code to be used to create each variable of the container.
+        buildcall = :( build_parameter($_error, $set, $(extra...)) )
+        JuMP._add_kw_args(buildcall, extra_kw_args)
+        parametercall = :( add_parameter($esc_model, $buildcall, $(JuMP._name_call(base_name, idxparams))) )
+        code = :( $(refcall) = $parametercall )
+        # Determine the return type of add_variable. This is needed to create the container holding them.
+        vartype = :( variable_type($esc_model, Parameter) )
+        creationcode = JuMP._get_looped_code(parameter, code, condition, idxparams, idxsets, vartype, requestedcontainer)
+        final_parameter = parameter
+    end
+    if anonvar
+        # Anonymous variable, no need to register it in the model-level
+        # dictionary nor to assign it to a variable in the user scope.
+        # We simply return the variable
+        macro_code = JuMP._macro_return(creationcode, final_parameter)
+    else
+        # We register the variable reference to its name and
+        # we assign it to a variable in the local scope of this name
+        macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
+                                              final_variable=final_parameter,
+                                              model_for_registering = esc_model)
+    end
+    return JuMP._assert_valid_model(esc_model, macro_code)
 end
 
 # TODO Enable expression parsing of the form var(params)
@@ -51,6 +165,7 @@ A wrapper macro for the `JuMP.@variable` macro that behaves the same except that
 it defines variables of type `InfiniteVariableRef`.
 """
 macro infinite_variable(model, param_refs, args...)
+    # TODO properly implement error messages
     code = quote
         @assert isa($model, InfiniteModel)
         if $param_refs isa Tuple
