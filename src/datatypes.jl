@@ -196,11 +196,11 @@ end
 A DataType for storing infinite variable information
 **Fields**
 - `info::JuMP.VariableInfo{S, T, U, V}` Variable information.
-- `param_refs::Tuple` The infinite parameters(s) with associated the variable.
+- `parameter_refs::Tuple` The infinite parameters(s) with associated the variable.
 """
 struct InfiniteVariable{S, T, U, V} <: InfOptVariable
     info::JuMP.VariableInfo{S, T, U, V}
-    param_refs::Tuple
+    parameter_refs::Tuple
 end
 
 """
@@ -208,13 +208,13 @@ end
 A DataType for storing point variable information
 **Fields**
 - `info::JuMP.VariableInfo{S, T, U, V}` Variable information.
-- `inf_var_ref::InfiniteVariableRef`The infinite variable associated with the point variable.
-- `param_values::Tuple` The infinite parameter evaluate values defining the point.
+- `infinite_variable_ref::InfiniteVariableRef`The infinite variable associated with the point variable.
+- `parameter_values::Tuple` The infinite parameter evaluate values defining the point.
 """
 struct PointVariable{S, T, U, V} <: InfOptVariable
     info::JuMP.VariableInfo{S, T, U, V}
-    inf_var_ref::InfiniteVariableRef
-    param_values::Tuple
+    infinite_variable_ref::InfiniteVariableRef
+    parameter_values::Tuple
 end
 
 """

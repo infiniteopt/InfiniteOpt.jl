@@ -164,30 +164,25 @@ macro infinite_parameter(model, args...)
     return JuMP._assert_valid_model(esc_model, macro_code)
 end
 
-# TODO Enable expression parsing of the form var(params)
-# """
-#     @infinite_variable(model, param_refs, args...)
-# A wrapper macro for the `JuMP.@variable` macro that behaves the same except that
-# it defines variables of type `InfiniteVariableRef`.
-# """
-# macro infinite_variable(model, param_refs, args...)
-#     # TODO properly implement error messages
-#     code = quote
-#         @assert isa($model, InfiniteModel)
-#         if $param_refs isa Tuple
-#             InfOpt._check_parameter_tuple($param_refs)
-#             InfOpt._check_tuple_names($param_refs)
-#         else
-#             @assert typeof($param_refs) <: Union{ParameterRef, AbstractArray{<:ParameterRef}}
-#             @assert InfOpt._only_one_name($param_refs)
-#         end
-#         JuMP.@variable($model, ($(args...)), variable_type = Infinite, param_refs = $param_refs)
-#     end
-#     return esc(code)
-# end
+# Check rhs to to ensure is not a variable
+function _check_rhs(arg1, arg2)
+    if isexpr(arg2, :ref)
+        if isexpr(arg2, :kw)
+            temp = arg2
+            arg2 = arg1
+            arg1 = temp
+        end
+    elseif isexpr(arg2, :call)
+        temp = arg2
+        arg2 = arg1
+        arg1 = temp
+    end
+    return arg1, arg2
+end
 
 # Assume variable on lhs
 function _less_than_parse(arg1, arg2)
+    arg1, arg2 = _check_rhs(arg1, arg2)
     if isexpr(arg1, :call)
         return Expr(:call, :<=, arg1.args[1], arg2), Expr(:tuple, arg1.args[2:end]...)
     else
@@ -197,6 +192,7 @@ end
 
 # Assume variable on lhs
 function _greater_than_parse(arg1, arg2)
+    arg1, arg2 = _check_rhs(arg1, arg2)
     if isexpr(arg1, :call)
         return Expr(:call, :>=, arg1.args[1], arg2), Expr(:tuple, arg1.args[2:end]...)
     else
@@ -216,6 +212,7 @@ end
 
 # Assume variable on lhs
 function _equal_to_parse(arg1, arg2)
+    arg1, arg2 = _check_rhs(arg1, arg2)
     if isexpr(arg1, :call)
         return Expr(:call, :(==), arg1.args[1], arg2), Expr(:tuple, arg1.args[2:end]...)
     else
@@ -244,69 +241,133 @@ function _parse_parameters(_error::Function, head::Val{:call}, first, args)
     if !(typeof(first) <: Union{Val{:in}, Val{:∈}})
         return args[1], Expr(:tuple, args[2:end]...)
     else
-        _error("Bad in operator $first.")
+        _error("Invalid operator $first.")
     end
 end
 
-# TODO Make work with anonymous syntax, comparison heads, indexed bounds, and add checks
-macro infinite_variable(model, expr, args...)
+function _parse_parameters(_error::Function, head::Val{:comparison}, first, args)
+    if isexpr(args[3], :call)
+        return Expr(:comparison, args[1:2]..., args[3].args[1], args[4:5]...), Expr(:tuple, args[3].args[2:end]...)
+    else
+        return Expr(:comparison, args...), nothing
+    end
+end
+
+"""
+    @infinite_variable(model, args...)
+A wrapper macro for the `JuMP.@variable` macro that behaves the same except that
+it defines variables of type `InfiniteVariableRef` Support syntax
+@infinite_variable(m, x(params...), args...) or @infinite_variable(m, parameter_refs= (params)..., kwargs...).
+"""
+macro infinite_variable(model, args...)
     _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...), str...)
 
-    esc_model = esc(model)
-
-    # extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    param_kw_args = filter(kw -> kw.args[1] == :parameter_refs, kw_args)
 
     # Check for easy case if it is anonymous single variable
-    # if length(extra) == 0
-    #     code = quote
-    #         @assert isa($esc_model, InfiniteModel)
-    #         JuMP.@variable($esc_model, ($(args...)), variable_type = Infinite)
-    #     end
-    # else
-        # x = popfirst!(extra)
-
-    # There are several cases to consider:
-    # x                                                     | type of x | x.head
-    # ------------------------------------------------------+-----------+------------
-    # var                                                   | Symbol    | NA
-    # var[1:2]                                              | Expr      | :ref
-    # var(x, y)                                             | Expr      | :call
-    # var[1:2](x, y)                                        | Expr      | :call
-    # var <= ub or var[1:2] <= ub                           | Expr      | :call
-    # var(x, y) <= ub or var[1:2](x, y) <= ub               | Expr      | :call
-    # lb <= var <= ub or lb <= var[1:2] <= ub               | Expr      | :comparison
-    # lb <= var(x, y) <= ub or lb <= var[1:2](x, y) <= ub   | Expr      | :comparison
-    x = expr
-    if isexpr(x, :comparison) || isexpr(x, :call)
-        inf_expr, params = InfOpt._parse_parameters(_error, Val(x.head), Val(x.args[1]), x.args)
+    if length(extra) == 0
+        code = quote
+            @assert isa($model, InfiniteModel)
+            JuMP.@variable($model, ($(args...)), variable_type = Infinite, error = $_error)
+        end
     else
-        x = inf_expr
-        params = nothing
-    end
+        x = popfirst!(extra)
 
-    # new_args = (,)
-    # for i = 2:length(args)
-    #     new_args = (new_args..., args[i])
-    # end
-    # TODO make sure param_refs are not double specified
-    code = quote
-        @assert isa($model, InfiniteModel)
-        JuMP.@variable($model, ($(inf_expr)), ($(args...)), variable_type = Infinite, param_refs = $params)
+        # There are several cases to consider:
+        # x                                                     | type of x | x.head
+        # ------------------------------------------------------+-----------+------------
+        # var                                                   | Symbol    | NA
+        # var[1:2]                                              | Expr      | :ref
+        # var(x, y)                                             | Expr      | :call
+        # var[1:2](x, y)                                        | Expr      | :call
+        # var <= ub or var[1:2] <= ub                           | Expr      | :call
+        # var(x, y) <= ub or var[1:2](x, y) <= ub               | Expr      | :call
+        # lb <= var <= ub or lb <= var[1:2] <= ub               | Expr      | :comparison
+        # lb <= var(x, y) <= ub or lb <= var[1:2](x, y) <= ub   | Expr      | :comparison
+        if isexpr(x, :comparison) || isexpr(x, :call)
+            inf_expr, params = InfOpt._parse_parameters(_error, Val(x.head), Val(x.args[1]), x.args)
+        else
+            inf_expr = x
+            params = nothing
+        end
+
+        if length(param_kw_args) != 0 && params != nothing
+            _error("Cannot specify double specify the infinite parameter references.")
+        end
+
+        if length(args) == 1
+            if params == nothing
+                code = quote
+                    @assert isa($model, InfiniteModel)
+                    JuMP.@variable($model, ($(inf_expr)), variable_type = Infinite, error = $_error)
+                end
+            else
+                code = quote
+                    @assert isa($model, InfiniteModel)
+                    JuMP.@variable($model, ($(inf_expr)), variable_type = Infinite, parameter_refs = $params, error = $_error)
+                end
+            end
+        else
+            rest_args = [args[i] for i = 2:length(args)]
+            if params == nothing
+                code = quote
+                    @assert isa($model, InfiniteModel)
+                    JuMP.@variable($model, ($(inf_expr)), ($(rest_args...)), variable_type = Infinite, error = $_error)
+                end
+            else
+                code = quote
+                    @assert isa($model, InfiniteModel)
+                    JuMP.@variable($model, ($(inf_expr)), ($(rest_args...)), variable_type = Infinite, parameter_refs = $params, error = $_error)
+                end
+            end
+        end
     end
-    # end
     return esc(code)
 end
 
-# TODO Streamline inputs and do checks, perhaps implement expression parsing
 """
-    @point_variable(model, args...)
-A wrapper macro for the `JuMP.@variable` macro that behaves the same except that
-it defines variables of type `PointVariableRef`.
-"""
-macro point_variable(model, inf_var, index, args...)
-    code = quote
-        @assert isa($model, InfiniteModel)
-        JuMP.@variable($model, ($(args...)), variable_type = Point, inf_var_ref = $inf_var, param_values = $index)
+#     @point_variable(model, args...)
+# A wrapper macro for the `JuMP.@variable` macro that behaves the same except that
+# it defines variables of type `PointVariableRef` Support syntax
+@point_variable(m, inf_var(param_vals...), args...) or @point_variable(m, infinite_variable_ref = inf_var, parameter_values = param_vals, kw_args...).
+# """
+macro point_variable(model, args...)
+    _error(str...) = JuMP._macro_error(:point_parameter, (model, args...), str...)
+
+    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    param_kw_args = filter(kw -> kw.args[1] == :infinite_variable_ref || kw.args[1] == :parameter_values, kw_args)
+
+    # Check for easy case if it is anonymous single variable
+    if length(extra) == 0
+        code = quote
+            @assert isa($model, InfiniteModel)
+            JuMP.@variable($model, ($(args...)), variable_type = Point, error = $_error)
+        end
+    else
+        x = popfirst!(extra)
+
+        if isexpr(x, :call)
+            if length(param_kw_args) != 0
+                _error("Cannot double specify the infinite variable reference and/or its paramter values.")
+            elseif x.args[1] in [:in, :<=, :>=, :(==), :≥, :≤, ∈]
+                _error("Invalid input syntax.")
+            end
+            rest_args = [args[i] for i = 2:length(args)]
+            inf_var = x.args[1]
+            param_vals = Expr(:tuple, x.args[2:end]...)
+            code = quote
+                @assert isa($model, InfiniteModel)
+                JuMP.@variable($model, ($(rest_args...)), variable_type = Point, infinite_variable_ref = $inf_var, parameter_values = $param_vals, error = $_error)
+            end
+        elseif isexpr(x, :vect) && length(extra) == 1
+            code = quote
+                @assert isa($model, InfiniteModel)
+                JuMP.@variable($model, ($(args...)), variable_type = Point, error = $_error)
+            end
+        else
+            _error("Invalid input syntax.")
+        end
     end
     return esc(code)
 end
@@ -317,9 +378,10 @@ A wrapper macro for the `JuMP.@variable` macro that behaves the same except that
 it defines variables of type `GlobalVariableRef`.
 """
 macro global_variable(model, args...)
+    _error(str...) = JuMP._macro_error(:global_parameter, (model, args...), str...)
     code = quote
         @assert isa($model, InfiniteModel)
-        JuMP.@variable($model, ($(args...)), variable_type = Global)
+        JuMP.@variable($model, ($(args...)), variable_type = Global, error = $_error)
     end
     return esc(code)
 end

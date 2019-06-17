@@ -29,7 +29,7 @@ export build_parameter, add_parameter, infinite_set, set_infinite_set,
 num_parameters, parameter_by_name, all_parameters
 
 # Export infinite variable functions
-export get_parameter_ref, set_parameter_refs, add_parameter_ref
+export get_parameter_refs, set_parameter_refs, add_parameter_ref
 
 # Export constraint datatypes
 export GeneralConstraintRef, InfiniteConstraintRef, MeasureConstraintRef,

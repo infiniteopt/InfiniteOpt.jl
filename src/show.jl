@@ -25,6 +25,7 @@ function JuMP.constraints_string(print_mode, model::InfiniteModel)
     for (index, constraint) in constraints
         push!(strings, JuMP.constraint_string(print_mode, constraint))
     end
+    # TODO check that parameters are used
     # TODO print multivariate distributions with variables grouped together
     params = sort(collect(model.params), by = c -> c.first)
     for (index, param) in params

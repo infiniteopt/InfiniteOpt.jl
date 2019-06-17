@@ -347,27 +347,3 @@ function _only_one_name(arr::AbstractArray{<:ParameterRef})
 end
 
 _only_one_name(pref::ParameterRef) = true
-
-# Make check tuple check functions
-function _check_parameter_tuple(param_refs::Tuple)
-    types = [typeof(param) for param in param_refs]
-    num_params = length(types)
-    valid_types = zeros(Bool, num_params)
-    for i = 1:num_params
-        if types[i] == ParameterRef || types[i] <: AbstractArray{<:ParameterRef}
-            valid_types[i] = true
-        end
-    end
-    if sum(valid_types) != num_params
-        error("Invalid parameter type(s) given.")
-    end
-    return
-end
-
-function _check_tuple_names(param_refs::Tuple)
-    valid_elements = [_only_one_name(param_refs[i]) for i = 1:length(param_refs)]
-    if sum(valid_elements) != length(param_refs)
-        error("Each paramter tuple element must have contain only one infinite parameter name.")
-    end
-    return
-end
