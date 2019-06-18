@@ -185,11 +185,65 @@ Extent `JuMP.index` to return the index of a InfOpt variable.
 JuMP.index(v::GeneralVariableRef) = v.index
 
 """
+    used_by_constraint(vref::InfOptVariableRef)::Bool
+Return a Boolean indicating if `vref` is used by a constraint.
+"""
+function used_by_constraint(vref::InfOptVariableRef)::Bool
+    return haskey(JuMP.owner_model(vref).var_to_constrs, JuMP.index(vref))
+end
+
+"""
+    used_by_measure(vref::InfOptVariableRef)::Bool
+Return a Boolean indicating if `vref` is used by a measure.
+"""
+function used_by_measure(vref::InfOptVariableRef)::Bool
+    return haskey(JuMP.owner_model(vref).var_to_meas, JuMP.index(vref))
+end
+
+# TODO not deleting from measures properly...
+"""
     JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
 Extend the `JuMP.delete` function to accomodate our new variable types.
 """
 function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
     @assert JuMP.is_valid(model, vref)
+    if JuMP.has_lower_bound(vref)
+        JuMP.delete_lower_bound(vref)
+    end
+    if JuMP.has_upper_bound(vref)
+        JuMP.delete_upper_bound(vref)
+    end
+    if JuMP.is_fixed(vref)
+        JuMP.unfix(vref)
+    end
+    if JuMP.is_binary(vref)
+        JuMP.unset_binary(vref)
+    end
+    if JuMP.is_integer(vref)
+        JuMP.unset_integer(vref)
+    end
+    if used_by_measure(vref)
+        for mindex in model.var_to_meas[JuMP.index(vref)]
+            if isa(model.measures[mindex].func, InfOptVariableRef)
+                data = model.measures[mindex].set
+                model.measures[mindex].func = Measure(zero(JuMP.AffExpr), data)
+            else
+                _remove_variable(model.measures[mindex].func, vref)
+            end
+        end
+        delete!(model.var_to_meas, JuMP.index(vref))
+    end
+    if used_by_constraint(vref)
+        for cindex in model.var_to_constrs[JuMP.index(vref)]
+            if isa(model.constrs[cindex].func, InfOptVariableRef)
+                set = model.constrs[cindex].set
+                model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr), set)
+            else
+                _remove_variable(model.constrs[cindex].func, vref)
+            end
+        end
+        delete!(model.var_to_constrs, JuMP.index(vref))
+    end
     delete!(model.vars, JuMP.index(vref))
     delete!(model.var_to_name, JuMP.index(vref))
     return

@@ -61,6 +61,8 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     params::Dict{Int, InfOptParameter}
     param_to_name::Dict{Int, String}
     name_to_param::Union{Dict{String, Int}, Nothing}
+    param_to_constrs::Dict{Int, Vector{Int}}
+    param_to_meas::Dict{Int, Vector{Int}}
 
     # Variable data
     next_var_index::Int                             # Next variable index is nextvaridx+1
@@ -72,6 +74,8 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     var_to_fix::Dict{Int, Int}
     var_to_zero_one::Dict{Int, Int}
     var_to_integrality::Dict{Int, Int}
+    var_to_constrs::Dict{Int, Vector{Int}}
+    var_to_meas::Dict{Int, Vector{Int}}
 
     # Constraint Data
     next_constr_index::Int                            # Next constraint index is nextconidx+1
@@ -90,10 +94,12 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     function InfiniteModel()
         new(0, Dict{Int, Measure}(), Dict{Int, String}(), # Measures
             0, Dict{Int, InfOptParameter}(), Dict{Int, String}(), nothing, # Parameters
+            Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
             0, Dict{Int, JuMP.AbstractVariable}(),  # Variables
             Dict{Int, String}(), nothing,
             Dict{Int, Int}(), Dict{Int, Int}(), Dict{Int, Int}(),
-            Dict{Int, Int}(), Dict{Int, Int}(),
+            Dict{Int, Int}(), Dict{Int, Int}(), Dict{Int, Vector{Int}}(),
+            Dict{Int, Vector{Int}}(),
             0, Dict{Int, JuMP.AbstractConstraint}(), # Constraints
             Dict{Int, String}(), nothing,
             MOI.FEASIBILITY_SENSE,
@@ -238,25 +244,37 @@ end
     DiscreteMeasureData{T <: Union{ParameterRef, AbstractArray{<:ParameterRef}}} <: AbstractMeasureData
 A DataType for measure abstraction data where the measure abstraction is of the
 form: ``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\frac{1}{N} \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
-**Fields**
-- 'name::String' Name of the measure that will be implemented.
+
+# Fields
+- `name::String` Name of the measure that will be implemented.
 - `weight_function::Function` Weighting function ``w`` must map input of type `V` to a scalar value.
 - `coefficients::Vector{<:Number}` Coefficients ``\\alpha_i`` for the above measure abstraction.
-- `supports::AbstractArray{<:Number}` Support points ``\\tau_i`` for the above measure abstraction.
-- `parameter_refs::T` The infinite parameter over which the integration occurs.
+- `supports::Union{Vector{<:Number}, Array{<:AbstractArray{<:Number}}}` Support points ``\\tau_i`` for the above measure abstraction.
+- `parameter_ref::T` The infinite parameter over which the integration occurs.
 """
 struct DiscreteMeasureData{T <: Union{ParameterRef, AbstractArray{<:ParameterRef}}} <: AbstractMeasureData
     name::String
     weight_function::Function
     coefficients::Vector{<:Number}
-    supports::Array
-    parameter_refs::T
+    supports::Union{Vector{<:Number}, Array{<:AbstractArray{<:Number}}}
+    parameter_ref::T
     function DiscreteMeasureData(name::String, weight_func::Function,
                                  coeffs::Vector{<:Number},
-                                 supports::Array,
-                                 parameter_refs::T) where T <: Union{ParameterRef, AbstractArray{<:ParameterRef}}
-        # TODO add checks
-        return new(name, weight_func, coeffs, supports, parameter_refs)
+                                 supports::Union{Vector{<:Number}, Array{<:AbstractArray{<:Number}}},
+                                 parameter_ref::T) where T <: Union{ParameterRef, AbstractArray{<:ParameterRef}}
+        if length(coeffs) != length(supports)
+            error("The amount of coefficients must match the amount of support points.")
+        elseif isa(supports, Vector) != isa(parameter_ref, ParameterRef)
+            type = typeof(parameter_ref)
+            error("The parameter reference is of type $type and the supports must be of form `Array{<:T}` where T matches the parameter reference array type.")
+        elseif typeof(supports) <: Array{<:AbstractArray} && typeof(parameter_ref) <: AbstractArray
+            if isa(supports, Array{JuMP.Containers.SparseAxisArray}) && isa(parameter_ref, JuMP.Containers.SparseAxisArray)
+                @assert(keys(supports[1].data) == keys(parameter_ref.data))
+            else
+                @assert(size(supports[1]) == size(parameter_ref))
+            end
+        end
+        return new{typeof(parameter_ref)}(name, weight_func, coeffs, supports, parameter_ref)
     end
 end
 

@@ -127,11 +127,49 @@ function add_parameter(model::InfiniteModel, v::InfOptParameter, name::String=""
 end
 
 """
+    used_by_constraint(pref::ParameterRef)::Bool
+Return a Boolean indicating if `pref` is used by a constraint.
+"""
+function used_by_constraint(pref::ParameterRef)::Bool
+    return haskey(JuMP.owner_model(pref).param_to_constrs, JuMP.index(pref))
+end
+
+"""
+    used_by_measure(pref::ParameterRef)::Bool
+Return a Boolean indicating if `pref` is used by a measure.
+"""
+function used_by_measure(pref::ParameterRef)::Bool
+    return haskey(JuMP.owner_model(pref).param_to_meas, JuMP.index(pref))
+end
+
+"""
     JuMP.delete(model::InfiniteModel, pref::ParameterRef)
 Extend the `JuMP.delete` function to accomodate infinite parameters
 """
 function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
     @assert JuMP.is_valid(model, pref)
+    if used_by_measure(pref)
+        for mindex in model.param_to_meas[JuMP.index(pref)]
+            if isa(model.measures[mindex].func, ParameterRef)
+                data = model.measures[mindex].set
+                model.measures[mindex].func = Measure(zero(JuMP.AffExpr), data)
+            else
+                _remove_variable(model.measures[mindex].func, pref)
+            end
+        end
+        delete!(mode.param_to_meas, JuMP.index(pref))
+    end
+    if used_by_constraint(pref)
+        for cindex in model.param_to_constrs[JuMP.index(pref)]
+            if isa(model.constrs[cindex].func, ParameterRef)
+                set = model.constrs[cindex].set
+                model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr), set)
+            else
+                _remove_variable(model.constrs[cindex].func, pref)
+            end
+        end
+        delete!(mode.var_to_constrs, JuMP.index(pref))
+    end
     delete!(model.params, JuMP.index(pref))
     delete!(model.param_to_name, JuMP.index(pref))
     return
@@ -142,7 +180,7 @@ end
 Extend the `JuMP.is_valid` function to accomodate infinite parameters.
 """
 function JuMP.is_valid(model::InfiniteModel, pref::ParameterRef)
-        return (model === JuMP.owner_model(pref) && JuMP.index(pref) in keys(model.params))
+    return (model === JuMP.owner_model(pref) && JuMP.index(pref) in keys(model.params))
 end
 
 """

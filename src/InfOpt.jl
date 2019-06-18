@@ -27,7 +27,8 @@ export AbstractInfiniteSet, IntervalSet, DistributionSet
 # Export infinite parameter methods
 export build_parameter, add_parameter, infinite_set, set_infinite_set,
 num_parameters, parameter_by_name, all_parameters, num_supports, has_supports,
-set_supports, add_supports, delete_supports, supports
+set_supports, add_supports, delete_supports, supports, used_by_constraint,
+used_by_constraint
 
 # Export infinite variable functions
 export get_parameter_refs, set_parameter_refs, add_parameter_ref
@@ -42,16 +43,20 @@ export AbstractMeasureData, DiscreteMeasureData, Measure, MeasureRef
 # Export measure methods
 export add_measure, measure
 
+# Export transcription methods
+export generate_transcribed_model
+
 # Import all of the datatpyes, methods, and definitions.
 include("datatypes.jl")
 include("parameters.jl")
 include("variables.jl")
-include("measures.jl")
 include("expressions.jl")
+include("measures.jl")
 include("operators.jl")
 include("constraints.jl")
 include("objective.jl")
 include("macros.jl")
+include("transcribe.jl")
 include("show.jl")
 
 end # module

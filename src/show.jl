@@ -74,8 +74,3 @@ function JuMP.in_set_string(print_mode, set::DistributionSet)
     end
     return string(JuMP._math_symbol(print_mode, :in), " ", d_string)
 end
-
-function JuMP.in_set_string(print_mode, set::DiscreteSet)
-    return string(JuMP._math_symbol(print_mode, :in), " DiscreteSet(num_pts = ",
-                  length(set.points),")")
-end

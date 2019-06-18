@@ -15,14 +15,39 @@ Base.:(==)(v::GeneralConstraintRef, w::GeneralConstraintRef) = v.model === w.mod
 Base.broadcastable(cref::GeneralConstraintRef) = Ref(cref)
 JuMP.constraint_type(m::InfiniteModel) = GeneralConstraintRef
 
-# TODO Ensure no constraints purely contain parameters
+# Used to update the model.var_to_constrs field
+function _update_var_constr_mapping(vars::Vector{<:GeneralVariableRef}, index::Int)
+    for var in vars
+        model = JuMP.owner_model(var)
+        if isa(var, InfOptVariableRef)
+            if haskey(model.var_to_constrs, JuMP.index(var))
+                push!(model.var_to_constrs[JuMP.index(var)], index)
+            else
+                model.var_to_constrs[JuMP.index(var)] = [index]
+            end
+        elseif isa(var, ParameterRef)
+            if haskey(model.param_to_constrs, JuMP.index(var))
+                push!(model.param_to_constrs[JuMP.index(var)], index)
+            else
+                model.param_to_constrs[JuMP.index(var)] = [index]
+            end
+        end
+    end
+    return
+end
+
 """
     JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, name::String="")
 Extend the `JuMP.add_constraint` function to accomodate the `InfiniteModel` object.
 """
-function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, name::String="")
+function JuMP.add_constraint(model::InfiniteModel, c::JuMP.ScalarConstraint, name::String="")
     model.next_constr_index += 1
     index = model.next_constr_index
+    vars = _all_function_variables(c.func)
+    if isa(vars, Vector{ParameterRef})
+        error("Constraints cannot contain only parameters.")
+    end
+    _update_var_constr_mapping(vars, index)
     if c.func isa InfiniteExpr
         cref = InfiniteConstraintRef(model, index, JuMP.shape(c))
     elseif c.func isa MeasureExpr
@@ -41,6 +66,22 @@ Extend the `JuMP.delete` function to accomodate our new constraint types.
 """
 function JuMP.delete(model::InfiniteModel, cref::GeneralConstraintRef)
     @assert JuMP.is_valid(model, cref)
+    all_vars = _all_function_variables(model.constrs[JuMP.index(cref)].func)
+    for var in all_vars
+        if isa(var, InfOptVariableRef)
+            filter!(e -> e != JuMP.index(cref), model.var_to_constrs[JuMP.index(var)])
+            if length(model.var_to_constrs[JuMP.index(var)]) == 0
+                delete!(model.var_to_constrs, JuMP.index(var))
+            end
+        elseif isa(var, ParameterRef)
+            filter!(e -> e != JuMP.index(cref), model.param_to_constrs[JuMP.index(var)])
+            if length(model.param_to_constrs[JuMP.index(var)]) == 0
+                delete!(model.param_to_constrs, JuMP.index(var))
+            end
+        else
+            JuMP.delete(model, var)
+        end
+    end
     delete!(model.constrs, JuMP.index(cref))
     delete!(model.constr_to_name, JuMP.index(cref))
     return
