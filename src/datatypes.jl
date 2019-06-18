@@ -9,9 +9,11 @@ abstract type AbstractInfiniteSet end
 A DataType for storing infinite parameter info
 **Fields**
 - `set::T` The set that contains the parameter.
+- `supports::Vector{<:Number}` The support points used to discretize this variable.
 """
 struct InfOptParameter{T <: AbstractInfiniteSet} <: JuMP.AbstractVariable
     set::T
+    supports::Vector{<:Number}
 end
 
 """
@@ -25,23 +27,6 @@ abstract type InfOptVariable <: JuMP.AbstractVariable end
 An abstract type to define data for measures as described by the `Measure` DataType.
 """
 abstract type AbstractMeasureData end
-
-"""
-    MeasureData{T <: AbstractVector, V <: AbstractArray} <: AbstractMeasureData
-A DataType for measure abstraction data where the measure abstraction is of the
-form: ``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\frac{1}{N} \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
-**Fields**
-- 'name::String' Name of the measure that will be implemented.
-- `weight_func::Function` Weighting function ``w`` must map input of type `V` to a scalar value.
-- `coeffs::T` Coefficients ``\\alpha_i`` for the above measure abstraction.
-- `eval_points::V` Evaluation points ``\\tau_i`` for the above measure abstraction.
-"""
-struct DiscretizeData{T <: AbstractVector, V <: AbstractArray} <: AbstractMeasureData
-    name::String
-    weight_func::Function
-    coeffs::T
-    eval_points::V
-end
 
 """
     Measure{T <: JuMP.AbstractJuMPScalar, V <: AbstractMeasureData}
@@ -249,6 +234,32 @@ struct MeasureRef <: MeasureFiniteVariableRef
     index::Int           # Index in `model.variables`
 end
 
+"""
+    DiscreteMeasureData{T <: Union{ParameterRef, AbstractArray{<:ParameterRef}}} <: AbstractMeasureData
+A DataType for measure abstraction data where the measure abstraction is of the
+form: ``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\frac{1}{N} \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
+**Fields**
+- 'name::String' Name of the measure that will be implemented.
+- `weight_function::Function` Weighting function ``w`` must map input of type `V` to a scalar value.
+- `coefficients::Vector{<:Number}` Coefficients ``\\alpha_i`` for the above measure abstraction.
+- `supports::AbstractArray{<:Number}` Support points ``\\tau_i`` for the above measure abstraction.
+- `parameter_refs::T` The infinite parameter over which the integration occurs.
+"""
+struct DiscreteMeasureData{T <: Union{ParameterRef, AbstractArray{<:ParameterRef}}} <: AbstractMeasureData
+    name::String
+    weight_function::Function
+    coefficients::Vector{<:Number}
+    supports::Array
+    parameter_refs::T
+    function DiscreteMeasureData(name::String, weight_func::Function,
+                                 coeffs::Vector{<:Number},
+                                 supports::Array,
+                                 parameter_refs::T) where T <: Union{ParameterRef, AbstractArray{<:ParameterRef}}
+        # TODO add checks
+        return new(name, weight_func, coeffs, supports, parameter_refs)
+    end
+end
+
 # Define finite measure expressions (note infinite expression take precedence)
 const MeasureExpr = Union{MeasureRef,
                           JuMP.GenericAffExpr{Float64, MeasureRef},
@@ -257,12 +268,12 @@ const MeasureExpr = Union{MeasureRef,
                           JuMP.GenericQuadExpr{Float64, MeasureFiniteVariableRef}}
 
 """
-    IntervalSet{T <: Number} <: AbstractInfiniteSet
+    IntervalSet <: AbstractInfiniteSet
 A DataType that stores the lower and upper bounds for infinite parameters that are
 rectangular and are associated with infinite variables.
 **Fields**
-- `lower_bound::T` Lower bound of the infinite parameter.
-- `upper_bound::T` Upper bound of the infinite parameter.
+- `lower_bound::Float64` Lower bound of the infinite parameter.
+- `upper_bound::Float64` Upper bound of the infinite parameter.
 """
 struct IntervalSet <: AbstractInfiniteSet
     lower_bound::Float64
@@ -278,17 +289,6 @@ random and are associated with infinite variables.
 """
 struct DistributionSet{T <: Distributions.NonMatrixDistribution} <: AbstractInfiniteSet
     distribution::T
-end
-
-"""
-    DiscreteSet{T <: Vector} <: AbstractInfiniteSet
-A DataType that stores a dicrete set of points for infinite parameters that are
-associated with infinite variables.
-**Fields**
-- `points::T` The discrete points that make up the set.
-"""
-struct DiscreteSet{T <: Vector} <: AbstractInfiniteSet
-    points::T
 end
 
 """

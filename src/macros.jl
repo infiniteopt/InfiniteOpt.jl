@@ -89,8 +89,8 @@ macro infinite_parameter(model, args...)
         anon_singleton = false
     end
 
-    info_kw_args = filter(_is_param_keyword, kw_args)
-    extra_kw_args = filter(kw -> kw.args[1] != :base_name && !InfOpt._is_param_keyword(kw), kw_args)
+    info_kw_args = filter(_is_set_keyword, kw_args)
+    extra_kw_args = filter(kw -> kw.args[1] != :base_name && !InfOpt._is_set_keyword(kw), kw_args)
     base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
     infoexpr = InfOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
 

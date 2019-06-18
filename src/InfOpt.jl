@@ -11,7 +11,7 @@ export InfiniteModel
 
 # Export macros and constants
 export @infinite_variable, @point_variable, @global_variable, @infinite_parameter,
-Infinite, Global, Point, Parameter
+Infinite, Global, Point
 
 # Export infinite parameter datatypes
 export InfOptParameter, ParameterRef
@@ -22,11 +22,12 @@ GeneralVariableRef, InfiniteVariableRef, MeasureFiniteVariableRef,
 FiniteVariableRef, PointVariableRef, GlobalVariableRef, InfOptVariableRef
 
 # Export infinite parameter set types
-export AbstractInfiniteSet, IntervalSet, DistributionSet, DiscreteSet
+export AbstractInfiniteSet, IntervalSet, DistributionSet
 
 # Export infinite parameter methods
 export build_parameter, add_parameter, infinite_set, set_infinite_set,
-num_parameters, parameter_by_name, all_parameters
+num_parameters, parameter_by_name, all_parameters, num_supports, has_supports,
+set_supports, add_supports, delete_supports, supports
 
 # Export infinite variable functions
 export get_parameter_refs, set_parameter_refs, add_parameter_ref
@@ -36,7 +37,7 @@ export GeneralConstraintRef, InfiniteConstraintRef, MeasureConstraintRef,
 FiniteConstraintRef
 
 # Export measure datatypes
-export AbstractMeasureData, DiscretizeData, Measure, MeasureRef
+export AbstractMeasureData, DiscreteMeasureData, Measure, MeasureRef
 
 # Export measure methods
 export add_measure, measure

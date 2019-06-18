@@ -15,7 +15,7 @@ mutable struct _ParameterInfoExpr
     set::Any
 end
 
-function _is_param_keyword(kw::Expr)
+function _is_set_keyword(kw::Expr)
     return kw.args[1] in [:set, :lower_bound, :upper_bound, :distribution]
 end
 
@@ -75,15 +75,43 @@ function _constructor_set(_error::Function, info::_ParameterInfoExpr)
     end
 end
 
+function _check_supports_in_bounds(_error::Function,
+                                   supports::Union{Number, Vector{<:Number}},
+                                   set::AbstractInfiniteSet)
+    min_support = minimum(supports)
+    max_support = maximum(supports)
+    if isa(set, IntervalSet)
+       if min_support < set.lower_bound || max_support > set.upper_bound
+           _error("Support points violate the interval set bounds.")
+       end
+    elseif isa(set, DistributionSet)
+       if typeof(set.distribution) <: Distributions.UnivariateDistribution
+           if min_support < minimum(set.distribution) || max_support > maximum(set.distribution)
+               _error("Support points violate the distribution set bounds.")
+           end
+       end
+    end
+    return
+end
+
 """
     build_parameter(_error::Function, set::AbstractInfiniteSet, extra_kw_args...)
 Build an infinite parameter to the model in a manner similar to `JuMP.build_variable`.
 """
-function build_parameter(_error::Function, set::AbstractInfiniteSet, extra_kw_args...)
+function build_parameter(_error::Function, set::AbstractInfiniteSet;
+                         supports::Union{Number, Vector{<:Number}} = Number[],
+                         extra_kw_args...)
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
-    return InfOptParameter(set)
+    if length(supports) != 0
+        _check_supports_in_bounds(_error, supports, set)
+    end
+    unique_supports = unique(supports)
+    if length(unique_supports) != length(supports)
+        @warn("Support points are not unique, eliminating redundant points.")
+    end
+    return InfOptParameter(set, unique_supports)
 end
 
 """
@@ -141,8 +169,15 @@ num_parameters(model::InfiniteModel) = length(model.params)
 
 # Internal functions
 _parameter_set(pref::ParameterRef) = JuMP.owner_model(pref).params[JuMP.index(pref)].set
+_parameter_supports(pref::ParameterRef) = JuMP.owner_model(pref).params[JuMP.index(pref)].supports
 function _update_parameter_set(pref::ParameterRef, set::AbstractInfiniteSet)
-    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set)
+    supports = JuMP.owner_model(pref).params[JuMP.index(pref)].supports
+    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports)
+    return
+end
+function _update_parameter_supports(pref::ParameterRef, supports::Vector{<:Number})
+    set = JuMP.owner_model(pref).params[JuMP.index(pref)].set
+    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports)
     return
 end
 
@@ -196,7 +231,7 @@ function JuMP.lower_bound(pref::ParameterRef)::Number
         return set.lower_bound
     else isa(set, DistributionSet)
         if typeof(set.distribution) <: Distributions.UnivariateDistribution
-            return Distributions.minimum(set.distribution)
+            return minimum(set.distribution)
         end
     end
 end
@@ -249,7 +284,7 @@ function JuMP.upper_bound(pref::ParameterRef)::Number
         return set.upper_bound
     else isa(set, DistributionSet)
         if typeof(set.distribution) <: Distributions.UnivariateDistribution
-            return Distributions.maximum(set.distribution)
+            return maximum(set.distribution)
         end
     end
 end
@@ -266,6 +301,65 @@ function JuMP.set_upper_bound(pref::ParameterRef, upper::Number)
         error("Parameter $(pref) is not an interval set.")
     end
     _update_parameter_set(pref, IntervalSet(set.lower_bound, Float64(upper)))
+    return
+end
+
+"""
+    num_supports(pref::ParameterRef)
+Return the number of support points associated with `pref`.
+"""
+num_supports(pref::ParameterRef) = length(_parameter_supports(pref))
+
+"""
+    has_supports(pref::ParameterRef)
+Return true if `pref` has supports or false otherwise.
+"""
+has_supports(pref::ParameterRef) = num_supports(pref) > 0
+
+"""
+    supports(pref::ParameterRef)
+Return the support points associated with `pref`.
+"""
+function supports(pref::ParameterRef)
+    if !has_supports(pref)
+        error("Parameter $pref does not have supports.")
+    end
+    return _parameter_supports(pref)
+end
+
+"""
+    set_supports(pref::ParameterRef, supports::Vector{<:Number})
+Specify the support points for `pref`.
+"""
+function set_supports(pref::ParameterRef, supports::Vector{<:Number})
+    set = _parameter_set(pref)
+    _check_supports_in_bounds(error, supports, set)
+    unique_supports = unique(supports)
+    if length(unique_supports) != length(supports)
+        @warn("Support points are not unique, eliminating redundant points.")
+    end
+    _update_parameter_supports(pref, unique_supports)
+    return
+end
+
+"""
+    add_supports(pref::ParameterRef, supports::Union{Number, Vector{<:Number}})
+Add additional the support points for `pref`.
+"""
+function add_supports(pref::ParameterRef, supports::Union{Number, Vector{<:Number}})
+    set = _parameter_set(pref)
+    _check_supports_in_bounds(error, supports, set)
+    current_supports = _parameter_supports(pref)
+    _update_parameter_supports(pref, unique([current_supports; supports]))
+    return
+end
+
+"""
+    delete_supports(pref::ParameterRef)
+Delete the support points for `pref`.
+"""
+function delete_supports(pref::ParameterRef)
+    _update_parameter_supports(pref, Number[])
     return
 end
 

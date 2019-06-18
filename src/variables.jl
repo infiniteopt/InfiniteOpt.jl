@@ -68,9 +68,13 @@ function _check_tuple_shape(_error::Function, infinite_variable_ref::InfiniteVar
             _error("The dimensions and array type of the infinite parameter values must match those defined for the infinite variable.")
         elseif isa(param_refs[i], JuMP.Containers.SparseAxisArray) && !isa(values[i], JuMP.Containers.SparseAxisArray)
             _error("The dimensions and array type of the infinite parameter values must match those defined for the infinite variable.")
-        elseif typeof(param_refs[i]) <: AbstractArray
+        elseif typeof(param_refs[i]) <: Union{Array, JuMP.Containers.DenseAxisArray}
             if size(param_refs[i]) != size(values[i])
                 _error("The dimensions and array type of the infinite parameter values must match those defined for the infinite variable.")
+            end
+        elseif isa(param_refs[i], JuMP.Containers.SparseAxisArray)
+            if keys(param_refs[i].data) != keys(values[i].data)
+                _error("Index keys of infinite parameter values don't match those defined for the infinite variable.")
             end
         end
     end
