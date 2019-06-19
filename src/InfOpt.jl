@@ -28,7 +28,10 @@ export AbstractInfiniteSet, IntervalSet, DistributionSet
 export build_parameter, add_parameter, infinite_set, set_infinite_set,
 num_parameters, parameter_by_name, all_parameters, num_supports, has_supports,
 set_supports, add_supports, delete_supports, supports, used_by_constraint,
-used_by_constraint
+used_by_measure, used_by_variable
+
+# Export variable methods
+export used_by_objective
 
 # Export infinite variable functions
 export get_parameter_refs, set_parameter_refs, add_parameter_ref

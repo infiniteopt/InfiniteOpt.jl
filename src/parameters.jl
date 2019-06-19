@@ -143,21 +143,82 @@ function used_by_measure(pref::ParameterRef)::Bool
 end
 
 """
+    used_by_variable(pref::ParameterRef)::Bool
+Return a Boolean indicating if `pref` is used by an infinite variable.
+"""
+function used_by_variable(pref::ParameterRef)::Bool
+    return haskey(JuMP.owner_model(pref).param_to_vars, JuMP.index(pref))
+end
+
+# Define internal functions for deleting elements of parameter tuples
+function _remove_parameter(pref::ParameterRef, delete_pref::ParameterRef)
+    if pref == delete_pref
+        return
+    else
+        return pref
+    end
+end
+
+function _remove_parameter(arr::AbstractArray{<:ParameterRef}, delete_pref::ParameterRef)
+    if !isa(arr, JuMP.Containers.SparseAxisArray)
+        data = Dict(Tuple(k) => arr[k] for k in CartesianIndices(arr))
+        arr = JuMP.Containers.SparseAxisArray(data)
+    end
+    data = filter(v -> v.second != delete_pref, arr.data)
+    arr = JuMP.Containers.SparseAxisArray(data)
+    return length(arr) != 0 ? arr : nothing
+end
+
+function _remove_parameter(prefs::Tuple, delete_pref::ParameterRef)
+    pref_list = Any[_remove_parameter(pref, delete_pref) for pref in prefs]
+    filter!(x -> x != nothing, pref_list)
+    pref_tuple = ()
+    for pref in pref_list
+        pref_tuple = (pref_tuple..., pref)
+    end
+    return pref_tuple
+end
+
+function _get_root_name(vref::InfiniteVariableRef)
+    name = JuMP.name(vref)
+    return name[1:findfirst(isequal('('), name)-1]
+end
+
+"""
     JuMP.delete(model::InfiniteModel, pref::ParameterRef)
 Extend the `JuMP.delete` function to accomodate infinite parameters
 """
 function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
     @assert JuMP.is_valid(model, pref)
+    if used_by_variable(pref)
+        for vindex in model.param_to_vars[JuMP.index(pref)]
+            prefs = _remove_parameter(model.vars[vindex].parameter_refs, pref)
+            vref = InfiniteVariableRef(model, vindex)
+            _update_variable_param_refs(vref, prefs)
+            JuMP.set_name(vref, _get_root_name(vref))
+            if used_by_measure(vref)
+                for mindex in model.var_to_meas[JuMP.index(vref)]
+                    measure = model.measures[mindex]
+                    mref = MeasureRef(model, mindex)
+                    JuMP.set_name(mref, _make_meas_name(measure))
+                end
+            end
+        end
+        delete!(model.param_to_vars, JuMP.index(pref))
+    end
     if used_by_measure(pref)
         for mindex in model.param_to_meas[JuMP.index(pref)]
             if isa(model.measures[mindex].func, ParameterRef)
-                data = model.measures[mindex].set
-                model.measures[mindex].func = Measure(zero(JuMP.AffExpr), data)
+                data = model.measures[mindex].data
+                model.measures[mindex] = Measure(zero(JuMP.AffExpr), data)
             else
                 _remove_variable(model.measures[mindex].func, pref)
             end
+            measure = model.measures[mindex]
+            mref = MeasureRef(model, mindex)
+            JuMP.set_name(mref, _make_meas_name(measure))
         end
-        delete!(mode.param_to_meas, JuMP.index(pref))
+        delete!(model.param_to_meas, JuMP.index(pref))
     end
     if used_by_constraint(pref)
         for cindex in model.param_to_constrs[JuMP.index(pref)]
@@ -168,7 +229,7 @@ function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
                 _remove_variable(model.constrs[cindex].func, pref)
             end
         end
-        delete!(mode.var_to_constrs, JuMP.index(pref))
+        delete!(model.param_to_constrs, JuMP.index(pref))
     end
     delete!(model.params, JuMP.index(pref))
     delete!(model.param_to_name, JuMP.index(pref))
@@ -435,14 +496,14 @@ end
 Return all of the infinite parameters as a vector of type `ParameterRef`.
 """
 function all_parameters(model::InfiniteModel)
-    param_list = Vector{ParameterRef}(undef, num_parameters(model))
+    pref_list = Vector{ParameterRef}(undef, num_parameters(model))
     indexes = sort([index for index in keys(model.params)])
     counter = 1
     for index in indexes
-        param_list[counter] = ParameterRef(model, index)
+        pref_list[counter] = ParameterRef(model, index)
         counter += 1
     end
-    return param_list
+    return pref_list
 end
 
 # Define functions to extract the names of parameters
@@ -454,13 +515,13 @@ function _get_names(arr::AbstractArray{<:ParameterRef})
     end
 end
 
-function _get_root_names(param_refs::Tuple)
-    root_names = Vector{String}(undef, length(param_refs))
+function _get_root_names(prefs::Tuple)
+    root_names = Vector{String}(undef, length(prefs))
     for i = 1:length(root_names)
-        if isa(param_refs[i], ParameterRef)
-            root_names[i] = JuMP.name(param_refs[i])
+        if isa(prefs[i], ParameterRef)
+            root_names[i] = JuMP.name(prefs[i])
         else
-            names = _get_names(param_refs[i])
+            names = _get_names(prefs[i])
             first_bracket = findfirst(isequal('['), names[1])
             root_names[i] = names[1][1:first_bracket-1]
         end
@@ -479,3 +540,21 @@ function _only_one_name(arr::AbstractArray{<:ParameterRef})
 end
 
 _only_one_name(pref::ParameterRef) = true
+
+function _list_parameter_refs(prefs::Tuple)
+    list = ParameterRef[]
+    for pref in prefs
+        if isa(pref, ParameterRef)
+            push!(list, pref)
+        elseif isa(pref, JuMP.Containers.SparseAxisArray)
+            for k in keys(pref.data)
+                push!(list, pref[k])
+            end
+        else
+            for k in CartesianIndices(pref)
+                push!(list, pref[k])
+            end
+        end
+    end
+    return list
+end

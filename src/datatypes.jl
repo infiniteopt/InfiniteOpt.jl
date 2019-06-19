@@ -63,6 +63,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     name_to_param::Union{Dict{String, Int}, Nothing}
     param_to_constrs::Dict{Int, Vector{Int}}
     param_to_meas::Dict{Int, Vector{Int}}
+    param_to_vars::Dict{Int, Vector{Int}}
 
     # Variable data
     next_var_index::Int                             # Next variable index is nextvaridx+1
@@ -76,6 +77,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     var_to_integrality::Dict{Int, Int}
     var_to_constrs::Dict{Int, Vector{Int}}
     var_to_meas::Dict{Int, Vector{Int}}
+    var_in_objective::Dict{Int, Bool}
 
     # Constraint Data
     next_constr_index::Int                            # Next constraint index is nextconidx+1
@@ -94,12 +96,12 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     function InfiniteModel()
         new(0, Dict{Int, Measure}(), Dict{Int, String}(), # Measures
             0, Dict{Int, InfOptParameter}(), Dict{Int, String}(), nothing, # Parameters
-            Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
+            Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
             0, Dict{Int, JuMP.AbstractVariable}(),  # Variables
             Dict{Int, String}(), nothing,
             Dict{Int, Int}(), Dict{Int, Int}(), Dict{Int, Int}(),
             Dict{Int, Int}(), Dict{Int, Int}(), Dict{Int, Vector{Int}}(),
-            Dict{Int, Vector{Int}}(),
+            Dict{Int, Vector{Int}}(), Dict{Int, Bool}(),
             0, Dict{Int, JuMP.AbstractConstraint}(), # Constraints
             Dict{Int, String}(), nothing,
             MOI.FEASIBILITY_SENSE,
@@ -227,6 +229,9 @@ const InfiniteExpr = Union{InfiniteVariableRef,
                            JuMP.GenericAffExpr{Float64, GeneralVariableRef},
                            JuMP.GenericQuadExpr{Float64, InfiniteVariableRef},
                            JuMP.GenericQuadExpr{Float64, GeneralVariableRef}}
+const ParameterExpr = Union{ParameterRef,
+                           JuMP.GenericAffExpr{Float64, ParameterRef},
+                           JuMP.GenericQuadExpr{Float64, ParameterRef}}
 
 """
     MeasureRef <: JuMP.FiniteVariableRef

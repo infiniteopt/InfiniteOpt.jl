@@ -29,13 +29,13 @@ Base.convert(::Type{JuMP.UnorderedPair{T}}, x::JuMP.UnorderedPair) where {T} = J
 
 # Determine which variables are present in a function
 _all_function_variables(f::GeneralVariableRef) = [f]
-_all_function_variables(f::JuMP.GenericAffExpr) = [v for v in keys(f.terms)]
+_all_function_variables(f::JuMP.GenericAffExpr) = [vref for vref in keys(f.terms)]
 function _all_function_variables(f::JuMP.GenericQuadExpr)
-    aff_vars = _all_function_variables(f.aff)
-    var_pairs = [k for k in keys(f.terms)]
-    a_vars = [pair.a for pair in var_pairs]
-    b_vars = [pair.b for pair in var_pairs]
-    return unique([aff_vars; a_vars; b_vars])
+    aff_vrefs = _all_function_variables(f.aff)
+    vref_pairs = [k for k in keys(f.terms)]
+    a_vrefs = [pair.a for pair in vref_pairs]
+    b_vrefs = [pair.b for pair in vref_pairs]
+    return unique([aff_vrefs; a_vrefs; b_vrefs])
 end
 
 # delete variables from an expression
@@ -47,12 +47,12 @@ function _remove_variable(f::JuMP.GenericAffExpr, vref::GeneralVariableRef)
 end
 function _remove_variable(f::JuMP.GenericQuadExpr, vref::GeneralVariableRef)
     _remove_variable(f.aff, vref)
-    var_pairs = [k for k in keys(f.terms)]
-    for i = 1:length(var_pairs)
-        if var_pairs[i].a == vref
-            delete!(f.terms, var_pairs[i])
-        elseif var_pairs[i].b == vref
-            delete!(f.terms, var_pairs[i])
+    vref_pairs = [k for k in keys(f.terms)]
+    for i = 1:length(vref_pairs)
+        if vref_pairs[i].a == vref
+            delete!(f.terms, vref_pairs[i])
+        elseif vref_pairs[i].b == vref
+            delete!(f.terms, vref_pairs[i])
         end
     end
     return

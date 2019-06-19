@@ -1,24 +1,35 @@
+
+
 """
-    JuMP.set_objective(m::InfiniteModel, sense::MOI.OptimizationSense, f::JuMP.AbstractJuMPScalar)
+    JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense, f::JuMP.AbstractJuMPScalar)
 Extend the `JuMP.set_objective` function to accomodate `InfiniteModel` objects.
 """
-function JuMP.set_objective(m::InfiniteModel, sense::MOI.OptimizationSense,
+function JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense,
                             f::JuMP.AbstractJuMPScalar)
-    if f isa InfiniteExpr
-        error("Objective function cannot contain infinite variables.")
+    if f isa InfiniteExpr || f isa ParameterExpr
+        error("Objective function cannot contain infinite parameters/variables.")
     end
-    m.objective_sense = sense
-    m.objective_function = f
+    model.objective_sense = sense
+    model.objective_function = f
+    for vindex in keys(model.var_in_objective)
+        model.var_in_objective[vindex] = false
+    end
+    vrefs = _all_function_variables(f)
+    for vref in vrefs
+        if isa(vref, InfOptVariableRef)
+            model.var_in_objective[JuMP.index(vref)] = true
+        end
+    end
     return
 end
 
 """
-    JuMP.set_objective(m::InfiniteModel, sense::MOI.OptimizationSense, f::Real)
+    JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense, f::Real)
 Extend the `JuMP.set_objective` function to accomodate `InfiniteModel` objects.
 """
-function JuMP.set_objective(m::InfiniteModel, sense::MOI.OptimizationSense, f::Real)
-    m.objective_sense = sense
-    m.objective_function = JuMP.GenericAffExpr{Float64, GlobalVariableRef}(f)
+function JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense, f::Real)
+    model.objective_sense = sense
+    model.objective_function = JuMP.GenericAffExpr{Float64, GlobalVariableRef}(f)
     return
 end
 
@@ -29,7 +40,7 @@ Extend the `JuMP.objective_sense` function to accomodate `InfiniteModel` objects
 JuMP.objective_sense(model::InfiniteModel) = model.objective_sense
 
 """
-    JuMP.set_objective_sense(m::InfiniteModel, sense)
+    JuMP.set_objective_sense(model::InfiniteModel, sense)
 Extend the `JuMP.set_objective_sense` function to accomodate `InfiniteModel` objects.
 """
 function JuMP.set_objective_sense(model::InfiniteModel, sense)

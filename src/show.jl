@@ -1,3 +1,29 @@
+function Base.show(io::IO, model::InfiniteModel)
+    println(io, "An InfiniteOpt Model")
+    sense = JuMP.objective_sense(model)
+    if sense == MOI.MAX_SENSE
+        print(io, "Maximization")
+    elseif sense == MOI.MIN_SENSE
+        print(io, "Minimization")
+    else
+        print(io, "Feasibility")
+    end
+    println(io, " problem with:")
+    println(io, "Variable", _plural(JuMP.num_variables(model)), ": ",
+            JuMP.num_variables(model))
+    if sense != MOI.FEASIBILITY_SENSE
+        JuMP.show_objective_function_summary(io, model)
+    end
+    JuMP.show_constraints_summary(io, model)
+    JuMP.show_backend_summary(io, model)
+    names_in_scope = sort(collect(keys(JuMP.object_dictionary(model))))
+    if !isempty(names_in_scope)
+        println(io)
+        print(io, "Names registered in the model: ",
+              join(string.(names_in_scope), ", "))
+    end
+end
+
 function JuMP.show_backend_summary(io::IO, model::InfiniteModel) end
 
 function JuMP.show_objective_function_summary(io::IO, model::InfiniteModel)
@@ -25,13 +51,14 @@ function JuMP.constraints_string(print_mode, model::InfiniteModel)
     for (index, constraint) in constraints
         push!(strings, JuMP.constraint_string(print_mode, constraint))
     end
-    # TODO check that parameters are used
     # TODO print multivariate distributions with variables grouped together
     params = sort(collect(model.params), by = c -> c.first)
     for (index, param) in params
         pref = ParameterRef(model, index)
-        push!(strings, string(JuMP.function_string(print_mode, pref), " ",
-                              JuMP.in_set_string(print_mode, param.set)))
+        if used_by_variable(pref) || used_by_constraint(pref) || used_by_measure(pref)
+            push!(strings, string(JuMP.function_string(print_mode, pref), " ",
+                                  JuMP.in_set_string(print_mode, param.set)))
+        end
     end
     return strings
 end

@@ -7,20 +7,20 @@ function _make_meas_name(meas::Measure)
 end
 
 # Used to update the model.var_to_meas field
-function _update_var_meas_mapping(vars::Vector{<:GeneralVariableRef}, index::Int)
-    for var in vars
-        model = JuMP.owner_model(var)
-        if isa(var, InfOptVariableRef)
-            if haskey(model.var_to_meas, JuMP.index(var))
-                push!(model.var_to_meas[JuMP.index(var)], index)
+function _update_var_meas_mapping(vrefs::Vector{<:GeneralVariableRef}, mindex::Int)
+    for vref in vrefs
+        model = JuMP.owner_model(vref)
+        if isa(vref, InfOptVariableRef)
+            if haskey(model.var_to_meas, JuMP.index(vref))
+                push!(model.var_to_meas[JuMP.index(vref)], mindex)
             else
-                model.var_to_meas[JuMP.index(var)] = [index]
+                model.var_to_meas[JuMP.index(vref)] = [mindex]
             end
-        elseif isa(var, ParameterRef)
-            if haskey(model.param_to_meas, JuMP.index(var))
-                push!(model.param_to_meas[JuMP.index(var)], index)
+        elseif isa(vref, ParameterRef)
+            if haskey(model.param_to_meas, JuMP.index(vref))
+                push!(model.param_to_meas[JuMP.index(vref)], mindex)
             else
-                model.param_to_meas[JuMP.index(var)] = [index]
+                model.param_to_meas[JuMP.index(vref)] = [mindex]
             end
         end
     end
@@ -34,8 +34,8 @@ Add a measure to the `InfiniteModel` object in an analagous way to `JuMP.add_var
 function add_measure(model::InfiniteModel, meas::Measure)
     model.next_meas_index += 1
     index = model.next_meas_index
-    vars = _all_function_variables(meas.func)
-    _update_var_meas_mapping(vars, index)
+    vrefs = _all_function_variables(meas.func)
+    _update_var_meas_mapping(vrefs, index)
     mref = MeasureRef(model, model.next_meas_index)
     model.measures[mref.index] = meas
     JuMP.set_name(mref, _make_meas_name(meas))
@@ -44,9 +44,9 @@ end
 
 # Parse the model pertaining to an expression
 function _get_model_from_expr(expr::JuMP.AbstractJuMPScalar)
-    all_vars = _all_function_variables(expr)
-    if length(all_vars) > 0
-        return JuMP.owner_model(all_vars[1])
+    all_vrefs = _all_function_variables(expr)
+    if length(all_vrefs) > 0
+        return JuMP.owner_model(all_vrefs[1])
     else
         return
     end
