@@ -55,7 +55,7 @@ function JuMP.constraints_string(print_mode, model::InfiniteModel)
     params = sort(collect(model.params), by = c -> c.first)
     for (index, param) in params
         pref = ParameterRef(model, index)
-        if used_by_variable(pref) || used_by_constraint(pref) || used_by_measure(pref)
+        if is_used(pref)
             push!(strings, string(JuMP.function_string(print_mode, pref), " ",
                                   JuMP.in_set_string(print_mode, param.set)))
         end

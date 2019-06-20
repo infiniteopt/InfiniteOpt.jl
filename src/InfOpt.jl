@@ -28,7 +28,7 @@ export AbstractInfiniteSet, IntervalSet, DistributionSet
 export build_parameter, add_parameter, infinite_set, set_infinite_set,
 num_parameters, parameter_by_name, all_parameters, num_supports, has_supports,
 set_supports, add_supports, delete_supports, supports, used_by_constraint,
-used_by_measure, used_by_variable
+used_by_measure, used_by_variable, is_used
 
 # Export variable methods
 export used_by_objective
@@ -44,7 +44,7 @@ FiniteConstraintRef
 export AbstractMeasureData, DiscreteMeasureData, Measure, MeasureRef
 
 # Export measure methods
-export add_measure, measure
+export add_measure, measure, measure_function, measure_data
 
 # Export transcription methods
 export generate_transcribed_model

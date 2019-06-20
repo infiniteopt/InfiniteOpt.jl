@@ -150,6 +150,14 @@ function used_by_variable(pref::ParameterRef)::Bool
     return haskey(JuMP.owner_model(pref).param_to_vars, JuMP.index(pref))
 end
 
+"""
+    is_used(pref::ParameterRef)::Bool
+Return a Boolean indicating if `pref` is used in the model.
+"""
+function is_used(pref::ParameterRef)::Bool
+    return used_by_measure(pref) || used_by_constraint(pref) || used_by_variable(pref)
+end
+
 # Define internal functions for deleting elements of parameter tuples
 function _remove_parameter(pref::ParameterRef, delete_pref::ParameterRef)
     if pref == delete_pref

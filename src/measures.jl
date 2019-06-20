@@ -71,12 +71,50 @@ function DiscreteMeasureData(parameter_ref::Union{ParameterRef, AbstractArray{<:
     return DiscreteMeasureData(name, weight_function, coefficients, supports, parameter_ref)
 end
 
+# check a measure function for a particular parameter
+function _has_parameter(expr::Union{InfiniteExpr, MeasureRef}, pref::ParameterRef)
+    if _has_variable(expr, pref)
+        return true
+    end
+    model = JuMP.owner_model(pref)
+    relavent_vindices = model.param_to_vars[JuMP.index(pref)]
+    relavent_vrefs = [InfiniteVariableRef(model, vindex) for vindex in relavent_vindices]
+    for vref in relavent_vrefs
+        if _has_variable(expr, vref)
+            return true
+        end
+    end
+    return false
+end
+
+function _check_has_parameter(expr::Union{InfiniteExpr, MeasureRef}, pref::ParameterRef)
+    if isa(pref, ParameterRef)
+        if !_has_parameter(expr, pref)
+            error("Measure expression is not parameterized by the parameter specified in the measure data.")
+        end
+    elseif isa(pref, JuMP.Containers.SparseAxisArray)
+        for key in keys(pref.data)
+            if !_has_parameter(expr, pref.data[key])
+                error("Measure expression is not parameterized by the parameter specified in the measure data.")
+            end
+        end
+    else
+        for key in CartesianIndices(pref)
+            if !_has_parameter(expr, pref[key])
+                error("Measure expression is not parameterized by the parameter specified in the measure data.")
+            end
+        end
+    end
+    return
+end
+
 """
     measure(expr::Union{InfiniteExpr, MeasureRef}, data::AbstractMeasureData)
 Implement a measure in an expression in a similar fashion to the `sum` method in JuMP.
 """
-function measure(expr::Union{InfiniteExpr, MeasureRef}, data::AbstractMeasureData)
-    #TODO Check that variables have the correct parameters
+function measure(expr::Union{InfiniteExpr, MeasureRef}, data::DiscreteMeasureData)
+    pref = data.parameter_ref
+    _check_has_parameter(expr, pref)
     meas = Measure(expr, data)
     model = _get_model_from_expr(expr)
     if model == nothing
@@ -117,4 +155,20 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
     delete!(model.measures, JuMP.index(mref))
     delete!(model.meas_to_name, JuMP.index(mref))
     return
+end
+
+"""
+    measure_function(mref::MeasureRef)
+Return the function associated with a `mref`
+"""
+function measure_function(mref::MeasureRef)
+    return JuMP.owner_model(mref).measures[JuMP.index(mref)].func
+end
+
+"""
+    measure_data(mref::MeasureRef)
+Return the data associated with a `mref`
+"""
+function measure_data(mref::MeasureRef)
+    return JuMP.owner_model(mref).measures[JuMP.index(mref)].data
 end

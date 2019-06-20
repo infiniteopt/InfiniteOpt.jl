@@ -229,6 +229,14 @@ function used_by_objective(vref::InfOptVariableRef)::Bool
 end
 
 """
+    is_used(vref::InfOptVariableRef)::Bool
+Return a Boolean indicating if `vref` is used in the model.
+"""
+function is_used(vref::InfOptVariableRef)::Bool
+    return used_by_measure(vref) || used_by_constraint(vref) || used_by_objective(vref)
+end
+
+"""
     JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
 Extend the `JuMP.delete` function to accomodate our new variable types.
 """

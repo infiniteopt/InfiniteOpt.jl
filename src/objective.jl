@@ -30,6 +30,9 @@ Extend the `JuMP.set_objective` function to accomodate `InfiniteModel` objects.
 function JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense, f::Real)
     model.objective_sense = sense
     model.objective_function = JuMP.GenericAffExpr{Float64, GlobalVariableRef}(f)
+    for vindex in keys(model.var_in_objective)
+        model.var_in_objective[vindex] = false
+    end
     return
 end
 

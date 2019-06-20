@@ -57,3 +57,35 @@ function _remove_variable(f::JuMP.GenericQuadExpr, vref::GeneralVariableRef)
     end
     return
 end
+
+# Check expression for a particular variable type
+# function _has_variable(f::JuMP.AbstractJuMPScalar, vref::GeneralVariableRef)
+#     vrefs = _all_function_variables(f)
+#     if vref in vrefs
+#         return true
+#     end
+#     # search recursively along nested measures
+#     filter!(x -> isa(x, MeasureRef), vrefs)
+#     if length(vrefs) != 0
+#         for mref in vrefs
+#             print(mref)
+#             return _has_variable(measure_function(mref), vref)
+#         end
+#         return false
+#     else
+#         return false
+#     end
+# end
+
+# TODO make recursion work
+# Check expression for a particular variable type
+function _has_variable(f::JuMP.AbstractJuMPScalar, vref::GeneralVariableRef)
+    vrefs = _all_function_variables(f)
+    if ref == vref
+        return true
+    end
+    if isa(ref, MeasureRef)
+        print(ref)
+        return _has_variable(measure_function(ref), vref)
+    end
+end

@@ -279,6 +279,39 @@ struct DiscreteMeasureData{T <: Union{ParameterRef, AbstractArray{<:ParameterRef
                 @assert(size(supports[1]) == size(parameter_ref))
             end
         end
+        if isa(parameter_ref, ParameterRef)
+            if JuMP.has_lower_bound(parameter_ref)
+                if minimum(supports) < JuMP.lower_bound(parameter_ref) || maximum(supports) > JuMP.upper_bound(parameter_ref)
+                    error("Support points violate parameter bounds.")
+                end
+            end
+        else
+            if isa(parameter_ref, JuMP.Containers.SparseAxisArray)
+                for i = 1:length(supports)
+                    for key in keys(parameter_ref.data)
+                        support = supports[i].data[key]
+                        pref = parameter_ref.data[key]
+                        if JuMP.has_lower_bound(pref)
+                            if support < JuMP.lower_bound(pref) || support > JuMP.upper_bound(pref)
+                                error("Support points violate parameter bounds.")
+                            end
+                        end
+                    end
+                end
+            else
+                for i = 1:length(supports)
+                    for key in CartesianIndices(parameter_ref)
+                        support = supports[i][key]
+                        pref = parameter_ref[key]
+                        if JuMP.has_lower_bound(pref)
+                            if support < JuMP.lower_bound(pref) || support > JuMP.upper_bound(pref)
+                                error("Support points violate parameter bounds.")
+                            end
+                        end
+                    end
+                end
+            end
+        end
         return new{typeof(parameter_ref)}(name, weight_func, coeffs, supports, parameter_ref)
     end
 end
