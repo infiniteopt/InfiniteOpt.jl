@@ -2,7 +2,9 @@
 const Parameter = :Parameter
 
 # Extend Base.copy for new variable types
-Base.copy(v::ParameterRef, new_model::InfiniteModel) = ParameterRef(new_model, v.index)
+function Base.copy(v::ParameterRef, new_model::InfiniteModel)
+    return ParameterRef(new_model, v.index)
+end
 
 mutable struct _ParameterInfoExpr
     has_lb::Bool
@@ -19,22 +21,29 @@ function _is_set_keyword(kw::Expr)
     return kw.args[1] in [:set, :lower_bound, :upper_bound, :distribution]
 end
 
-function _ParameterInfoExpr(; lower_bound=NaN, upper_bound=NaN, distribution=NaN, set=NaN)
+function _ParameterInfoExpr(; lower_bound = NaN, upper_bound = NaN,
+                            distribution = NaN, set = NaN)
     # isnan(::Expr) is not defined so we need to do !== NaN
-    _ParameterInfoExpr(lower_bound !== NaN, lower_bound, upper_bound !== NaN, upper_bound, distribution !== NaN, distribution, set !== NaN, set)
+    _ParameterInfoExpr(lower_bound !== NaN, lower_bound, upper_bound !== NaN,
+                       upper_bound, distribution !== NaN, distribution,
+                       set !== NaN, set)
 end
 
-function JuMP._set_lower_bound_or_error(_error::Function, info::_ParameterInfoExpr, lower)
+function JuMP._set_lower_bound_or_error(_error::Function,
+                                        info::_ParameterInfoExpr, lower)
     info.has_lb && _error("Cannot specify parameter lower_bound twice")
-    info.has_dist && _error("Cannot specify parameter lower_bound and distribution")
+    info.has_dist && _error("Cannot specify parameter lower_bound and " *
+                            "distribution")
     info.has_set && _error("Cannot specify parameter lower_bound and set")
     info.has_lb = true
     info.lower_bound = convert(Float64, lower)
 end
 
-function JuMP._set_upper_bound_or_error(_error::Function, info::_ParameterInfoExpr, upper)
+function JuMP._set_upper_bound_or_error(_error::Function,
+                                        info::_ParameterInfoExpr, upper)
     info.has_ub && _error("Cannot specify parameter upper_bound twice")
-    info.has_dist && _error("Cannot specify parameter upper_bound and distribution")
+    info.has_dist && _error("Cannot specify parameter upper_bound and " *
+                            "distribution")
     info.has_set && _error("Cannot specify parameter upper_bound and set")
     info.has_ub = true
     info.upper_bound = convert(Float64, upper)
@@ -42,7 +51,8 @@ end
 
 function _dist_or_error(_error::Function, info::_ParameterInfoExpr, dist)
     info.has_dist && _error("Cannot specify parameter distribution twice")
-    (info.has_lb || info.has_ub) && _error("Cannot specify parameter distribution and upper/lower bounds")
+    (info.has_lb || info.has_ub) && _error("Cannot specify parameter " *
+                                           "distribution and upper/lower bounds")
     info.has_set && _error("Cannot specify parameter distribution and set")
     info.has_dist = true
     info.distribution = dist
@@ -50,7 +60,8 @@ end
 
 function _set_or_error(_error::Function, info::_ParameterInfoExpr, set)
     info.has_set && _error("Cannot specify variable fixed value twice")
-    (info.has_lb || info.has_ub) && _error("Cannot specify parameter set and upper/lower bounds")
+    (info.has_lb || info.has_ub) && _error("Cannot specify parameter set and " *
+                                           "upper/lower bounds")
     info.has_dist && _error("Cannot specify parameter set and distribution")
     info.has_set = true
     info.set = set
@@ -65,10 +76,10 @@ function _constructor_set(_error::Function, info::_ParameterInfoExpr)
         end
         return :(IntervalSet(convert(Float64, $(info.lower_bound)), convert(Float64, $(info.upper_bound))))
     elseif info.has_dist
-        check = :(typeof($(info.distribution)) <: Distributions.NonMatrixDistribution)
+        check = :(isa($(info.distribution), Distributions.NonMatrixDistribution))
         return :($(check) ? DistributionSet($(info.distribution)) : error("Distribution must be a subtype of Distributions.NonMatrixDistribution."))
     elseif info.has_set
-        check = :(typeof($(info.set)) <: AbstractInfiniteSet)
+        check = :(isa($(info.set), AbstractInfiniteSet))
         return :($(check) ? $(info.set) : error("Set must be a subtype of AbstractInfiniteSet."))
     else
         _error("Must specify upper/lower bounds, a distribution, or a set")
@@ -107,7 +118,7 @@ function build_parameter(_error::Function, set::AbstractInfiniteSet;
     if length(supports) != 0
         _check_supports_in_bounds(_error, supports, set)
     end
-    unique_supports = unique(supports)
+    unique_supports = sort(unique(supports))
     if length(unique_supports) != length(supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
@@ -167,11 +178,8 @@ function _remove_parameter(pref::ParameterRef, delete_pref::ParameterRef)
     end
 end
 
-function _remove_parameter(arr::AbstractArray{<:ParameterRef}, delete_pref::ParameterRef)
-    if !isa(arr, JuMP.Containers.SparseAxisArray)
-        data = Dict(Tuple(k) => arr[k] for k in CartesianIndices(arr))
-        arr = JuMP.Containers.SparseAxisArray(data)
-    end
+function _remove_parameter(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef},
+                           delete_pref::ParameterRef)
     data = filter(v -> v.second != delete_pref, arr.data)
     arr = JuMP.Containers.SparseAxisArray(data)
     return length(arr) != 0 ? arr : nothing
@@ -451,7 +459,7 @@ end
 
 """
     add_supports(pref::ParameterRef, supports::Union{Number, Vector{<:Number}})
-Add additional the support points for `pref`.
+Add additional support points for `pref`.
 """
 function add_supports(pref::ParameterRef, supports::Union{Number, Vector{<:Number}})
     set = _parameter_set(pref)
@@ -515,12 +523,8 @@ function all_parameters(model::InfiniteModel)
 end
 
 # Define functions to extract the names of parameters
-function _get_names(arr::AbstractArray{<:ParameterRef})
-    if isa(arr, JuMP.Containers.SparseAxisArray)
-        return [JuMP.name(arr[k]) for k in keys(arr.data)]
-    else
-        return [JuMP.name(arr[k]) for k in CartesianIndices(arr)]
-    end
+function _get_names(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
+    return [JuMP.name(arr[k]) for k in keys(arr.data)]
 end
 
 function _get_root_names(prefs::Tuple)
@@ -537,7 +541,7 @@ function _get_root_names(prefs::Tuple)
     return root_names
 end
 
-function _only_one_name(arr::AbstractArray{<:ParameterRef})
+function _only_one_name(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
     names = _get_names(arr)
     root_names = Vector{String}(undef, length(names))
     for i = 1:length(root_names)
@@ -554,12 +558,8 @@ function _list_parameter_refs(prefs::Tuple)
     for pref in prefs
         if isa(pref, ParameterRef)
             push!(list, pref)
-        elseif isa(pref, JuMP.Containers.SparseAxisArray)
-            for k in keys(pref.data)
-                push!(list, pref[k])
-            end
         else
-            for k in CartesianIndices(pref)
+            for k in keys(pref.data)
                 push!(list, pref[k])
             end
         end

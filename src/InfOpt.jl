@@ -31,10 +31,8 @@ set_supports, add_supports, delete_supports, supports, used_by_constraint,
 used_by_measure, used_by_variable, is_used
 
 # Export variable methods
-export used_by_objective
-
-# Export infinite variable functions
-export get_parameter_refs, set_parameter_refs, add_parameter_ref
+export used_by_objective, get_infinite_variable_ref, get_parameter_refs,
+set_parameter_refs, add_parameter_ref
 
 # Export constraint datatypes
 export GeneralConstraintRef, InfiniteConstraintRef, MeasureConstraintRef,
@@ -61,5 +59,6 @@ include("objective.jl")
 include("macros.jl")
 include("transcribe.jl")
 include("show.jl")
+include("utilities.jl")
 
 end # module

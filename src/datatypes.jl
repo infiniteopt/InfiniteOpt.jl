@@ -246,73 +246,80 @@ struct MeasureRef <: MeasureFiniteVariableRef
 end
 
 """
-    DiscreteMeasureData{T <: Union{ParameterRef, AbstractArray{<:ParameterRef}}} <: AbstractMeasureData
-A DataType for measure abstraction data where the measure abstraction is of the
-form: ``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\frac{1}{N} \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
+    DiscreteMeasureData <: AbstractMeasureData
+A DataType for one dimensional measure abstraction data where the measure
+abstraction is of the form:
+``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\frac{1}{N} \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
 
 # Fields
+- `parameter_ref::ParameterRef` The infinite parameter over which the integration occurs.
+- `coefficients::Vector{<:Number}` Coefficients ``\\alpha_i`` for the above measure abstraction.
+- `supports::Vector{<:Number}` Support points ``\\tau_i`` for the above measure abstraction.
 - `name::String` Name of the measure that will be implemented.
 - `weight_function::Function` Weighting function ``w`` must map input of type `V` to a scalar value.
-- `coefficients::Vector{<:Number}` Coefficients ``\\alpha_i`` for the above measure abstraction.
-- `supports::Union{Vector{<:Number}, Array{<:AbstractArray{<:Number}}}` Support points ``\\tau_i`` for the above measure abstraction.
-- `parameter_ref::T` The infinite parameter over which the integration occurs.
 """
-struct DiscreteMeasureData{T <: Union{ParameterRef, AbstractArray{<:ParameterRef}}} <: AbstractMeasureData
+struct DiscreteMeasureData <: AbstractMeasureData
+    parameter_ref::ParameterRef
+    coefficients::Vector{<:Number}
+    supports::Vector{<:Number}
     name::String
     weight_function::Function
-    coefficients::Vector{<:Number}
-    supports::Union{Vector{<:Number}, Array{<:AbstractArray{<:Number}}}
-    parameter_ref::T
-    function DiscreteMeasureData(name::String, weight_func::Function,
+    function DiscreteMeasureData(parameter_ref::ParameterRef,
                                  coeffs::Vector{<:Number},
-                                 supports::Union{Vector{<:Number}, Array{<:AbstractArray{<:Number}}},
-                                 parameter_ref::T) where T <: Union{ParameterRef, AbstractArray{<:ParameterRef}}
+                                 supports::Vector{<:Number},
+                                 name::String, weight_func::Function)
         if length(coeffs) != length(supports)
             error("The amount of coefficients must match the amount of support points.")
-        elseif isa(supports, Vector) != isa(parameter_ref, ParameterRef)
-            type = typeof(parameter_ref)
-            error("The parameter reference is of type $type and the supports must be of form `Array{<:T}` where T matches the parameter reference array type.")
-        elseif typeof(supports) <: Array{<:AbstractArray} && typeof(parameter_ref) <: AbstractArray
-            if isa(supports, Array{JuMP.Containers.SparseAxisArray}) && isa(parameter_ref, JuMP.Containers.SparseAxisArray)
-                @assert(keys(supports[1].data) == keys(parameter_ref.data))
-            else
-                @assert(size(supports[1]) == size(parameter_ref))
+        end
+        if JuMP.has_lower_bound(parameter_ref)
+            if minimum(supports) < JuMP.lower_bound(parameter_ref) || maximum(supports) > JuMP.upper_bound(parameter_ref)
+                error("Support points violate parameter bounds.")
             end
         end
-        if isa(parameter_ref, ParameterRef)
-            if JuMP.has_lower_bound(parameter_ref)
-                if minimum(supports) < JuMP.lower_bound(parameter_ref) || maximum(supports) > JuMP.upper_bound(parameter_ref)
-                    error("Support points violate parameter bounds.")
-                end
-            end
-        else
-            if isa(parameter_ref, JuMP.Containers.SparseAxisArray)
-                for i = 1:length(supports)
-                    for key in keys(parameter_ref.data)
-                        support = supports[i].data[key]
-                        pref = parameter_ref.data[key]
-                        if JuMP.has_lower_bound(pref)
-                            if support < JuMP.lower_bound(pref) || support > JuMP.upper_bound(pref)
-                                error("Support points violate parameter bounds.")
-                            end
-                        end
-                    end
-                end
-            else
-                for i = 1:length(supports)
-                    for key in CartesianIndices(parameter_ref)
-                        support = supports[i][key]
-                        pref = parameter_ref[key]
-                        if JuMP.has_lower_bound(pref)
-                            if support < JuMP.lower_bound(pref) || support > JuMP.upper_bound(pref)
-                                error("Support points violate parameter bounds.")
-                            end
-                        end
+        return new(parameter_ref, coeffs, supports, name, weight_func)
+    end
+end
+
+"""
+    MultiDiscreteMeasureData<: AbstractMeasureData
+A DataType for multi-dimensional measure abstraction data where the measure
+abstraction is of the form:
+``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\frac{1}{N} \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
+
+# Fields
+- `parameter_ref::JuMP.Containers.SparseAxisArray{<:ParameterRef}` The infinite parameters over which the integration occurs.
+- `coefficients::Vector{<:Number}` Coefficients ``\\alpha_i`` for the above measure abstraction.
+- `supports::Vector{<:JuMP.Containers.SparseAxisArray{<:Number}}` Support points ``\\tau_i`` for the above measure abstraction.
+- `name::String` Name of the measure that will be implemented.
+- `weight_function::Function` Weighting function ``w`` must map input of type `V` to a scalar value.
+"""
+struct MultiDiscreteMeasureData <: AbstractMeasureData
+    parameter_ref::JuMP.Containers.SparseAxisArray{<:ParameterRef}
+    coefficients::Vector{<:Number}
+    supports::Vector{<:JuMP.Containers.SparseAxisArray{<:Number}}
+    name::String
+    weight_function::Function
+    function MultiDiscreteMeasureData(parameter_ref::JuMP.Containers.SparseAxisArray{<:ParameterRef},
+                                      coeffs::Vector{<:Number},
+                                      supports::Vector{<:JuMP.Containers.SparseAxisArray{<:Number}},
+                                      name::String, weight_func::Function)
+        if length(coeffs) != length(supports)
+            error("The amount of coefficients must match the amount of support points.")
+        elseif keys(supports[1].data) != keys(parameter_ref.data)
+            error("The keys/dimensions of the support points and parameters do not match.")
+        end
+        for i = 1:length(supports)
+            for key in keys(parameter_ref.data)
+                support = supports[i].data[key]
+                pref = parameter_ref.data[key]
+                if JuMP.has_lower_bound(pref)
+                    if support < JuMP.lower_bound(pref) || support > JuMP.upper_bound(pref)
+                        error("Support points violate parameter bounds.")
                     end
                 end
             end
         end
-        return new{typeof(parameter_ref)}(name, weight_func, coeffs, supports, parameter_ref)
+        return new(parameter_ref, coeffs, supports, name, weight_func)
     end
 end
 

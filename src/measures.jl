@@ -56,53 +56,88 @@ end
 _w(t) = 1
 
 """
-    DiscreteMeasureData(parameter_ref::Union{ParameterRef, AbstractArray{<:ParameterRef}},
-                        coefficients::Vector{<:Number},
-                        supports::Union{Vector{<:Number}, Array{<:AbstractArray{<:Number}}};
-                        name::String = "measure",
+    DiscreteMeasureData(parameter_ref::ParameterRef, coefficients::Vector{<:Number},
+                        supports::Vector{<:Number}; name::String = "measure",
                         weight_function::Function = w(t) = 1)
 Constructor for DiscreteMeasureData.
 """
-function DiscreteMeasureData(parameter_ref::Union{ParameterRef, AbstractArray{<:ParameterRef}},
+function DiscreteMeasureData(parameter_ref::ParameterRef,
                              coefficients::Vector{<:Number},
-                             supports::Union{Vector{<:Number}, Array{<:AbstractArray{<:Number}}};
+                             supports::Vector{<:Number};
                              name::String = "measure",
                              weight_function::Function = _w)
-    return DiscreteMeasureData(name, weight_function, coefficients, supports, parameter_ref)
+    return DiscreteMeasureData(parameter_ref, coefficients, supports, name,
+                               weight_function)
+end
+
+"""
+    DiscreteMeasureData(parameter_ref::AbstractArray{<:ParameterRef},
+                        coefficients::Vector{<:Number},
+                        supports::Vector{<:AbstractArray{<:Number}};
+                        name::String = "measure",
+                        weight_function::Function = w(t) = 1)
+Constructor for MultiDiscreteMeasureData.
+"""
+function DiscreteMeasureData(parameter_ref::AbstractArray{<:ParameterRef},
+                             coefficients::Vector{<:Number},
+                             supports::Vector{<:AbstractArray{<:Number}};
+                             name::String = "measure",
+                             weight_function::Function = _w)
+    supports = [convert(JuMP.Containers.SparseAxisArray, s) for s in supports]
+    parameter_ref = convert(JuMP.Containers.SparseAxisArray, parameter_ref)
+    return MultiDiscreteMeasureData(parameter_ref, coefficients, supports, name,
+                                    weight_function)
 end
 
 # check a measure function for a particular parameter
-function _has_parameter(expr::Union{InfiniteExpr, MeasureRef}, pref::ParameterRef)
-    if _has_variable(expr, pref)
+function _has_parameter(vrefs::Vector{<:GeneralVariableRef}, pref::ParameterRef)
+    if _has_variable(vrefs, pref)
         return true
     end
     model = JuMP.owner_model(pref)
     relavent_vindices = model.param_to_vars[JuMP.index(pref)]
     relavent_vrefs = [InfiniteVariableRef(model, vindex) for vindex in relavent_vindices]
     for vref in relavent_vrefs
-        if _has_variable(expr, vref)
+        if _has_variable(vrefs, vref)
             return true
         end
     end
     return false
 end
 
-function _check_has_parameter(expr::Union{InfiniteExpr, MeasureRef}, pref::ParameterRef)
-    if isa(pref, ParameterRef)
-        if !_has_parameter(expr, pref)
-            error("Measure expression is not parameterized by the parameter specified in the measure data.")
+function _check_has_parameter(expr::Union{InfiniteExpr, MeasureExpr},
+                              pref::ParameterRef)
+    vrefs = _all_function_variables(expr)
+    if !_has_parameter(vrefs, pref)
+        error("Measure expression is not parameterized by the parameter " *
+              "specified in the measure data.")
+    end
+    return
+end
+
+function _check_has_parameter(expr::Union{InfiniteExpr, MeasureExpr},
+                              pref::JuMP.Containers.SparseAxisArray{<:ParameterRef})
+    vrefs = _all_function_variables(expr)
+    for key in keys(pref.data)
+        if !_has_parameter(vrefs, pref.data[key])
+            error("Measure expression is not parameterized by the parameter " *
+                  "specified in the measure data.")
         end
-    elseif isa(pref, JuMP.Containers.SparseAxisArray)
+    end
+    return
+end
+
+# Internal function for adding measure data supports directly to the parameter supports
+function _add_supports_to_parameters(pref::ParameterRef, supports::Vector{<:Number})
+    add_supports(pref, supports)
+    return
+end
+
+function _add_supports_to_parameters(pref::JuMP.Containers.SparseAxisArray{<:ParameterRef},
+                                     supports::Array{<:JuMP.Containers.SparseAxisArray{<:Number}})
+    for i = 1:length(supports)
         for key in keys(pref.data)
-            if !_has_parameter(expr, pref.data[key])
-                error("Measure expression is not parameterized by the parameter specified in the measure data.")
-            end
-        end
-    else
-        for key in CartesianIndices(pref)
-            if !_has_parameter(expr, pref[key])
-                error("Measure expression is not parameterized by the parameter specified in the measure data.")
-            end
+            add_supports(pref.data[key], supports[i].data[key])
         end
     end
     return
@@ -112,14 +147,15 @@ end
     measure(expr::Union{InfiniteExpr, MeasureRef}, data::AbstractMeasureData)
 Implement a measure in an expression in a similar fashion to the `sum` method in JuMP.
 """
-function measure(expr::Union{InfiniteExpr, MeasureRef}, data::DiscreteMeasureData)
+function measure(expr::Union{InfiniteExpr, MeasureExpr}, data::DiscreteMeasureData)
     pref = data.parameter_ref
     _check_has_parameter(expr, pref)
     meas = Measure(expr, data)
     model = _get_model_from_expr(expr)
-    if model == nothing
+    if model == nothing # --> Might not be necessary with above checks
         error("Expression contains no variables.")
     end
+    _add_supports_to_parameters(pref, data.supports)
     return add_measure(model, meas)
 end
 

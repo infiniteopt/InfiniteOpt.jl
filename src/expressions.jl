@@ -22,11 +22,6 @@ function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr{C, Z}, new_coef::C,
     return quad
 end
 
-# Extend convert to handle JuMP expression types
-Base.convert(::Type{JuMP.GenericAffExpr{C,V}}, x::JuMP.GenericAffExpr) where {C,V} = JuMP.GenericAffExpr{C,V}(x.constant, x.terms)
-Base.convert(::Type{JuMP.GenericQuadExpr{C,V}}, x::JuMP.GenericQuadExpr) where {C,V} = JuMP.GenericQuadExpr{C,V}(x.aff, x.terms)
-Base.convert(::Type{JuMP.UnorderedPair{T}}, x::JuMP.UnorderedPair) where {T} = JuMP.UnorderedPair{T}(x.a, x.b)
-
 # Determine which variables are present in a function
 _all_function_variables(f::GeneralVariableRef) = [f]
 _all_function_variables(f::JuMP.GenericAffExpr) = [vref for vref in keys(f.terms)]
@@ -58,34 +53,21 @@ function _remove_variable(f::JuMP.GenericQuadExpr, vref::GeneralVariableRef)
     return
 end
 
-# Check expression for a particular variable type
-# function _has_variable(f::JuMP.AbstractJuMPScalar, vref::GeneralVariableRef)
-#     vrefs = _all_function_variables(f)
-#     if vref in vrefs
-#         return true
-#     end
-#     # search recursively along nested measures
-#     filter!(x -> isa(x, MeasureRef), vrefs)
-#     if length(vrefs) != 0
-#         for mref in vrefs
-#             print(mref)
-#             return _has_variable(measure_function(mref), vref)
-#         end
-#         return false
-#     else
-#         return false
-#     end
-# end
-
-# TODO make recursion work
-# Check expression for a particular variable type
-function _has_variable(f::JuMP.AbstractJuMPScalar, vref::GeneralVariableRef)
-    vrefs = _all_function_variables(f)
-    if ref == vref
+# Check expression for a particular variable type via a recursive search
+function _has_variable(vrefs::Vector{<:GeneralVariableRef}, vref::GeneralVariableRef; prior=[])
+    if vrefs[1] == vref
         return true
-    end
-    if isa(ref, MeasureRef)
-        print(ref)
-        return _has_variable(measure_function(ref), vref)
+    elseif isa(vrefs[1], MeasureRef)
+        if length(vrefs) > 1
+            _has_variable(_all_function_variables(measure_function(vrefs[1])), vref, prior = GeneralVariableRef[prior; vrefs[2:end]])
+        else
+            _has_variable(_all_function_variables(measure_function(vrefs[1])), vref, prior = prior)
+        end
+    elseif length(vrefs) > 1
+        return _has_variable(vrefs[2:end], vref, prior = prior)
+    elseif length(prior) > 0
+        return _has_variable(prior, vref)
+    else
+        return false
     end
 end

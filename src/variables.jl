@@ -46,6 +46,19 @@ function _check_parameter_tuple(_error::Function, prefs::Tuple)
     return
 end
 
+function _make_formatted_tuple(prefs::Tuple)
+    converted_prefs = ()
+    for pref in prefs
+        if isa(pref, ParameterRef) || isa(pref, Number)
+            converted_prefs = (converted_prefs..., pref)
+        else
+            converted_prefs = (converted_prefs...,
+                               convert(JuMP.Containers.SparseAxisArray, pref))
+        end
+    end
+    return converted_prefs
+end
+
 function _check_tuple_names(_error::Function, prefs::Tuple)
     valid_elements = [_only_one_name(prefs[i]) for i = 1:length(prefs)]
     if sum(valid_elements) != length(prefs)
@@ -66,16 +79,8 @@ function _check_tuple_shape(_error::Function, infinite_variable_ref::InfiniteVar
     for i = 1:length(values)
         if isa(prefs[i], ParameterRef) && !(typeof(values[i]) <: Number)
             _error("The dimensions and array type of the infinite parameter values must match those defined for the infinite variable.")
-        elseif isa(prefs[i], Array) && !isa(values[i], Array)
-            _error("The dimensions and array type of the infinite parameter values must match those defined for the infinite variable.")
-        elseif isa(prefs[i], JuMP.Containers.DenseAxisArray) && !isa(values[i], JuMP.Containers.DenseAxisArray)
-            _error("The dimensions and array type of the infinite parameter values must match those defined for the infinite variable.")
         elseif isa(prefs[i], JuMP.Containers.SparseAxisArray) && !isa(values[i], JuMP.Containers.SparseAxisArray)
             _error("The dimensions and array type of the infinite parameter values must match those defined for the infinite variable.")
-        elseif typeof(prefs[i]) <: Union{Array, JuMP.Containers.DenseAxisArray}
-            if size(prefs[i]) != size(values[i])
-                _error("The dimensions and array type of the infinite parameter values must match those defined for the infinite variable.")
-            end
         elseif isa(prefs[i], JuMP.Containers.SparseAxisArray)
             if keys(prefs[i].data) != keys(values[i].data)
                 _error("Index keys of infinite parameter values don't match those defined for the infinite variable.")
@@ -97,7 +102,9 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, var_type
                              parameter_values::Union{Number, AbstractArray{<:Number}, Tuple, Nothing} = nothing,
                              error::Union{Function, Nothing} = nothing,
                              extra_kw_args...)
-    _error = error
+    if error == nothing
+        _error = error # replace with macro error function
+    end
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
@@ -116,6 +123,7 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, var_type
             parameter_refs = (parameter_refs, )
         end
         _check_parameter_tuple(_error, parameter_refs)
+        parameter_refs = _make_formatted_tuple(parameter_refs)
         _check_tuple_names(_error, parameter_refs)
         return InfiniteVariable(info, parameter_refs)
     elseif var_type == Point
@@ -125,6 +133,7 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, var_type
         if !isa(parameter_values, Tuple)
             parameter_values = (parameter_values, )
         end
+        parameter_values = _make_formatted_tuple(parameter_values)
         _check_tuple_shape(_error, infinite_variable_ref, parameter_values)
         return PointVariable(info, infinite_variable_ref, parameter_values)
     else
@@ -161,10 +170,6 @@ function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String
         vref = GlobalVariableRef(model, model.next_var_index)
     end
     model.vars[JuMP.index(vref)] = v
-    if isa(vref, PointVariableRef)
-        first_bracket = findfirst(isequal('('), JuMP.name(v.infinite_variable_ref))
-        name = JuMP.name(v.infinite_variable_ref)[1:first_bracket-1]
-    end
     JuMP.set_name(vref, name)
     if v.info.has_lb
         newset = MOI.GreaterThan(convert(Float64, v.info.lower_bound))
@@ -583,10 +588,11 @@ function JuMP.fix(vref::InfOptVariableRef, value::Number; force::Bool = false)
         JuMP.set_fix_index(vref, JuMP.index(cref))
     end
     info = _variable_info(vref)
-    _update_variable_info(vref, JuMP.VariableInfo(
-        false, info.lower_bound, false, info.upper_bound, true, convert(Float64, value),
-        info.has_start, info.start, info.binary, info.integer)
-    )
+    _update_variable_info(vref, JuMP.VariableInfo(false, info.lower_bound,
+                                                  false, info.upper_bound,
+                                                  true, convert(Float64, value),
+                                                  info.has_start, info.start,
+                                                  info.binary, info.integer))
     return
 end
 
@@ -822,12 +828,26 @@ function JuMP.set_name(vref::GlobalVariableRef, name::String)
 end
 
 """
+    get_infinite_variable_ref(vref::PointVariableRef)
+Get the `InfiniteVariableRef`associated with the point variable `vref`.
+"""
+function get_infinite_variable_ref(vref::PointVariableRef)
+    return JuMP.owner_model(vref).vars[JuMP.index(vref)].infinite_variable_ref
+end
+
+"""
     JuMP.set_name(vref::PointVariableRef, name::String)
 Extend the `JuMP.set_name` function to accomodate point and global variables.
 """
-function JuMP.set_name(vref::PointVariableRef, root_name::String)
-    parameter_values = JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
-    name = string(root_name, parameter_values)
+function JuMP.set_name(vref::PointVariableRef, name::String)
+    if length(name) == 0
+        inf_var_ref = get_infinite_variable_ref(vref::PointVariableRef)
+        first_bracket = findfirst(isequal('('), JuMP.name(inf_var_ref))
+        name = JuMP.name(inf_var_ref)[1:first_bracket-1]
+        # TODO do something about SparseAxisArrays
+        parameter_values = JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
+        name = string(name, parameter_values)
+    end
     JuMP.owner_model(vref).var_to_name[JuMP.index(vref)] = name
     JuMP.owner_model(vref).name_to_var = nothing
     return
@@ -849,16 +869,14 @@ function _update_variable_param_refs(vref::InfiniteVariableRef, prefs::Tuple)
 end
 
 """
-    set_parameter_refs(vref::InfiniteVariableRef, params::Tuple; force = false)
+    set_parameter_refs(vref::InfiniteVariableRef, prefs::Tuple)
 Set the `ParameterRef`(s) associated with the infinite variable `vref`.
 """
-function set_parameter_refs(vref::InfiniteVariableRef, params::Tuple; force = false)
-    _check_parameter_tuple(params)
-    if get_parameter_refs(vref) != nothing && !force
-        error("A parameter is already assigned to $vref, use the keyword argument
-               force = true to overwrite it.")
-    end
-    _update_variable_param_refs(vref, params)
+function set_parameter_refs(vref::InfiniteVariableRef, prefs::Tuple)
+    _check_parameter_tuple(error, prefs)
+    prefs = _make_formatted_tuple(prefs)
+    _check_tuple_names(error, prefs)
+    _update_variable_param_refs(vref, prefs)
     return
 end
 
@@ -868,7 +886,7 @@ Add additional `ParameterRef` to be associated with the infinite
 variable `vref`.
 """
 function add_parameter_ref(vref::InfiniteVariableRef, pref::Union{ParameterRef, AbstractArray{<:ParameterRef}})
-    return set_parameter_refs(vref, (get_parameter_refs(vref)..., pref), force = true)
+    return set_parameter_refs(vref, (get_parameter_refs(vref)..., pref))
 end
 
 """
