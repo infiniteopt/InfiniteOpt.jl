@@ -45,8 +45,8 @@ set_supports, add_supports, delete_supports, supports, used_by_constraint,
 used_by_measure, used_by_variable, is_used, group_id, is_correlated
 
 # Export variable methods
-export used_by_objective, get_infinite_variable_ref, get_parameter_refs,
-set_parameter_refs, add_parameter_ref
+export used_by_objective, infinite_variable_ref, parameter_refs,
+set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values
 
 # Export constraint datatypes
 export GeneralConstraintRef, InfiniteConstraintRef, MeasureConstraintRef,
@@ -59,7 +59,11 @@ Measure, MeasureRef
 # Export measure methods
 export add_measure, measure, measure_function, measure_data
 
+# Export transcription datatypes
+export TranscriptionData, TranscriptionModel
+
 # Export transcription methods
-export generate_transcribed_model
+export generate_transcribed_model, is_transcription_model, transcription_data,
+transcription_variable
 
 end # module

@@ -65,7 +65,7 @@ function _check_tuple_groups(_error::Function, prefs::Tuple)
         _error("Each parameter tuple element must have contain only one infinite parameters with the same group ID.")
     end
     #TODO modify this check so that uncorrelated parameters can be broken up.
-    groups = _get_groups(prefs)
+    groups = _groups(prefs)
     if length(unique(groups)) != length(groups)
         _error("Cannot double specify infinite parameter references.")
     end
@@ -73,7 +73,7 @@ function _check_tuple_groups(_error::Function, prefs::Tuple)
 end
 
 function _check_tuple_shape(_error::Function, infinite_variable_ref::InfiniteVariableRef, values::Tuple)
-    prefs = get_parameter_refs(infinite_variable_ref)
+    prefs = parameter_refs(infinite_variable_ref)
     if length(prefs) != length(values)
         _error("The dimensions of the infinite parameter values must match those defined for the infinite variable.")
     end
@@ -103,7 +103,7 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, var_type
                              parameter_values::Union{Number, AbstractArray{<:Number}, Tuple, Nothing} = nothing,
                              error::Union{Function, Nothing} = nothing,
                              extra_kw_args...)
-    if error == nothing
+    if error != nothing
         _error = error # replace with macro error function
     end
     for (kwarg, _) in extra_kw_args
@@ -158,7 +158,7 @@ end
 
 # Used to add point variable support to parameter supports if necessary
 function _update_param_supports(inf_vref::InfiniteVariableRef, param_values::Tuple)
-    prefs = get_parameter_refs(inf_vref)
+    prefs = parameter_refs(inf_vref)
     for i = 1:length(prefs)
         if isa(prefs[i], ParameterRef)
             add_supports(prefs[i], param_values[i])
@@ -250,12 +250,40 @@ function used_by_objective(vref::InfOptVariableRef)::Bool
     return JuMP.owner_model(vref).var_in_objective[JuMP.index(vref)]
 end
 
+
+
 """
     is_used(vref::InfOptVariableRef)::Bool
 Return a Boolean indicating if `vref` is used in the model.
 """
 function is_used(vref::InfOptVariableRef)::Bool
     return used_by_measure(vref) || used_by_constraint(vref) || used_by_objective(vref)
+end
+
+"""
+    used_by_point_variable(vref::InfiniteVariableRef)::Bool
+Return a Boolean indicating if `vref` is used by a point variable that is in use.
+"""
+function used_by_point_variable(vref::InfiniteVariableRef)::Bool
+    for (index, var) in JuMP.owner_model(vref).vars
+        if isa(var, PointVariable)
+            pvref = PointVariableRef(JuMP.owner_model(vref), index)
+            if is_used(pvref)
+                if infinite_variable_ref(pvref) == vref
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+"""
+    is_used(vref::InfiniteVariableRef)::Bool
+Return a Boolean indicating if `vref` is used in the model.
+"""
+function is_used(vref::InfiniteVariableRef)::Bool
+    return used_by_measure(vref) || used_by_constraint(vref) || used_by_objective(vref) || used_by_point_variable(vref)
 end
 
 """
@@ -311,7 +339,7 @@ function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
         end
     end
     if isa(vref, InfiniteVariableRef)
-        all_prefs = _list_parameter_refs(get_parameter_refs(vref))
+        all_prefs = _list_parameter_refs(parameter_refs(vref))
         for pref in all_prefs
             filter!(e -> e != JuMP.index(vref), model.param_to_vars[JuMP.index(pref)])
             if length(model.param_to_vars[JuMP.index(pref)]) == 0
@@ -845,11 +873,25 @@ function JuMP.set_name(vref::GlobalVariableRef, name::String)
 end
 
 """
-    get_infinite_variable_ref(vref::PointVariableRef)
+    infinite_variable_ref(vref::PointVariableRef)
 Get the `InfiniteVariableRef`associated with the point variable `vref`.
 """
-function get_infinite_variable_ref(vref::PointVariableRef)
+function infinite_variable_ref(vref::PointVariableRef)
     return JuMP.owner_model(vref).vars[JuMP.index(vref)].infinite_variable_ref
+end
+
+"""
+    support(vref::PointVariableRef)
+Get the support point associated with the point variable `vref`.
+"""
+function parameter_values(vref::PointVariableRef)
+    return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
+end
+
+# extract root name of infinite variables
+function _root_name(vref::InfiniteVariableRef)
+    first_bracket = findfirst(isequal('('), JuMP.name(vref))
+    return JuMP.name(vref)[1:first_bracket-1]
 end
 
 """
@@ -858,9 +900,8 @@ Extend the `JuMP.set_name` function to accomodate point and global variables.
 """
 function JuMP.set_name(vref::PointVariableRef, name::String)
     if length(name) == 0
-        inf_var_ref = get_infinite_variable_ref(vref::PointVariableRef)
-        first_bracket = findfirst(isequal('('), JuMP.name(inf_var_ref))
-        name = JuMP.name(inf_var_ref)[1:first_bracket-1]
+        inf_var_ref = infinite_variable_ref(vref::PointVariableRef)
+        name = _root_name(inf_var_ref)
         # TODO do something about SparseAxisArrays
         parameter_values = JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
         name = string(name, parameter_values)
@@ -871,10 +912,10 @@ function JuMP.set_name(vref::PointVariableRef, name::String)
 end
 
 """
-    get_parameter_refs(vref::InfiniteVariableRef)
+    parameter_refs(vref::InfiniteVariableRef)
 Get the `ParameterRef`(s) associated with the infinite variable `vref`.
 """
-function get_parameter_refs(vref::InfiniteVariableRef)
+function parameter_refs(vref::InfiniteVariableRef)
     return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_refs
 end
 
@@ -903,7 +944,7 @@ Add additional `ParameterRef` to be associated with the infinite
 variable `vref`.
 """
 function add_parameter_ref(vref::InfiniteVariableRef, pref::Union{ParameterRef, AbstractArray{<:ParameterRef}})
-    return set_parameter_refs(vref, (get_parameter_refs(vref)..., pref))
+    return set_parameter_refs(vref, (parameter_refs(vref)..., pref))
 end
 
 """
@@ -914,8 +955,8 @@ function JuMP.set_name(vref::InfiniteVariableRef, root_name::String)
     if length(root_name) == 0
         root_name = "noname"
     end
-    prefs = get_parameter_refs(vref)
-    param_names = _get_root_names(prefs)
+    prefs = parameter_refs(vref)
+    param_names = _root_names(prefs)
     param_name_tuple = "("
     for i = 1:length(param_names)
         if i != length(param_names)

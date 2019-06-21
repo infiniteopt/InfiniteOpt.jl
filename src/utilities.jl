@@ -14,8 +14,19 @@ function Base.convert(::Type{JuMP.Containers.SparseAxisArray}, arr::Array)
     data = Dict(Tuple(k) => arr[k] for k in CartesianIndices(arr))
     return JuMP.Containers.SparseAxisArray(data)
 end
-# TODO Recover axis names for DenseAxisArrays
+
 function Base.convert(::Type{JuMP.Containers.SparseAxisArray}, arr::JuMP.Containers.DenseAxisArray)
-    data = Dict(Tuple(k) => arr[k] for k in CartesianIndices(arr))
+    data = Dict(k.I => arr[k] for k in keys(arr))
     return JuMP.Containers.SparseAxisArray(data)
 end
+
+# function Base.convert(::Type{Array}, arr::JuMP.Containers.SparseAxisArray)
+#
+# end
+#
+# function Base.convert(::Type{JuMP.Containers.DenseAxisArray}, arr::JuMP.Containers.SparseAxisArray)
+#
+# end
+
+# Hack to make the keys function work for sparse arrays
+Base.keys(d::JuMP.Containers.SparseAxisArray) = keys(d.data)

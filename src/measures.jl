@@ -43,7 +43,7 @@ function add_measure(model::InfiniteModel, meas::Measure)
 end
 
 # Parse the model pertaining to an expression
-function _get_model_from_expr(expr::JuMP.AbstractJuMPScalar)
+function _model_from_expr(expr::JuMP.AbstractJuMPScalar)
     all_vrefs = _all_function_variables(expr)
     if length(all_vrefs) > 0
         return JuMP.owner_model(all_vrefs[1])
@@ -151,7 +151,7 @@ function measure(expr::Union{InfiniteExpr, MeasureExpr}, data::DiscreteMeasureDa
     pref = data.parameter_ref
     _check_has_parameter(expr, pref)
     meas = Measure(expr, data)
-    model = _get_model_from_expr(expr)
+    model = _model_from_expr(expr)
     if model == nothing # --> Might not be necessary with above checks
         error("Expression contains no variables.")
     end

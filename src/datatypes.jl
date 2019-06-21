@@ -406,3 +406,28 @@ struct MeasureConstraintRef{S <: JuMP.AbstractShape} <: GeneralConstraintRef
     index::Int
     shape::S
 end
+
+"""
+    TranscriptionData
+A DataType for storing the data mapping an `InfiniteModel` to a regular JuMP
+`Model`.
+**Fields**
+
+"""
+mutable struct TranscriptionData
+    # Variable mapping
+    infinite_to_vars::Dict{InfiniteVariableRef, Vector{JuMP.VariableRef}}
+    global_to_var::Dict{GlobalVariableRef, JuMP.VariableRef}
+    point_to_var::Dict{PointVariableRef, JuMP.VariableRef}
+
+    # Support data
+    infinite_to_supports::Dict{InfiniteVariableRef, Dict}
+
+    # Default constructor
+    function TranscriptionData()
+        return new(Dict{InfiniteVariableRef, Vector{JuMP.VariableRef}}(),
+                   Dict{GlobalVariableRef, JuMP.VariableRef}(),
+                   Dict{PointVariableRef, JuMP.VariableRef}(),
+                   Dict{InfiniteVariableRef, Dict}())
+    end
+end

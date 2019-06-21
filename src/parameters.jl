@@ -198,7 +198,7 @@ function _remove_parameter(prefs::Tuple, delete_pref::ParameterRef)
     return pref_tuple
 end
 
-function _get_root_name(vref::InfiniteVariableRef)
+function _root_name(vref::InfiniteVariableRef)
     name = JuMP.name(vref)
     return name[1:findfirst(isequal('('), name)-1]
 end
@@ -214,7 +214,7 @@ function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
             prefs = _remove_parameter(model.vars[vindex].parameter_refs, pref)
             vref = InfiniteVariableRef(model, vindex)
             _update_variable_param_refs(vref, prefs)
-            JuMP.set_name(vref, _get_root_name(vref))
+            JuMP.set_name(vref, _root_name(vref))
             if used_by_measure(vref)
                 for mindex in model.var_to_meas[JuMP.index(vref)]
                     measure = model.measures[mindex]
@@ -457,9 +457,8 @@ function supports(prefs::AbstractArray{<:ParameterRef})
     for (k, pref) in prefs.data
         !has_supports(pref) && error("Parameter $pref does not have supports.")
     end
-    # all_supports = [supports(pref) for pref in (k, pref) in prefs.data]
+    lengths = [num_supports(pref) for (k, pref) in prefs.data]
     if is_correlated(collect(values(prefs.data))[1])
-        lengths = [num_supports(pref) for (k, pref) in prefs.data]
         length(unique(lengths)) != 1 && error("Each correlated parameter must " *
                                               "have the same number of support " *
                                               "points.")
@@ -467,11 +466,18 @@ function supports(prefs::AbstractArray{<:ParameterRef})
         for i = 1:length(support_list)
             support_list[i] = JuMP.Containers.SparseAxisArray(Dict(k => supports(pref)[i] for (k, pref) in prefs.data))
         end
-        # TODO convert back to original array type
-        return support_list
     else
-        #TODO Implement other case
+        all_keys = collect(keys(prefs))
+        all_supports = [supports(pref) for (k, pref) in prefs.data]
+        support_list = Vector{JuMP.Containers.SparseAxisArray}(undef, prod(lengths))
+        counter = 1
+        for combo in Iterators.product(all_supports...)
+            support_list[counter] = JuMP.Containers.SparseAxisArray(Dict(all_keys[i] => combo[i] for i = 1:length(combo)))
+            counter += 1
+        end
     end
+    # TODO convert back to original array type
+    return support_list
 end
 
 """
@@ -571,17 +577,17 @@ function all_parameters(model::InfiniteModel)
 end
 
 # Define functions to extract the names of parameters
-function _get_names(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
+function _names(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
     return [JuMP.name(arr[k]) for k in keys(arr.data)]
 end
 
-function _get_root_names(prefs::Tuple)
+function _root_names(prefs::Tuple)
     root_names = Vector{String}(undef, length(prefs))
     for i = 1:length(root_names)
         if isa(prefs[i], ParameterRef)
             root_names[i] = JuMP.name(prefs[i])
         else
-            names = _get_names(prefs[i])
+            names = _names(prefs[i])
             first_bracket = findfirst(isequal('['), names[1])
             root_names[i] = names[1][1:first_bracket-1]
         end
@@ -590,7 +596,7 @@ function _get_root_names(prefs::Tuple)
 end
 
 function _only_one_name(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
-    names = _get_names(arr)
+    names = _names(arr)
     root_names = Vector{String}(undef, length(names))
     for i = 1:length(root_names)
         first_bracket = findfirst(isequal('['), names[i])
@@ -602,24 +608,24 @@ end
 _only_one_name(pref::ParameterRef) = true
 
 # Internal fucntions for group checking
-function _get_groups(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
+function _groups(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
     return [group_id(arr[k]) for k in keys(arr.data)]
 end
 
-function _get_groups(prefs::Tuple)
+function _groups(prefs::Tuple)
     groups = Vector{Int}(undef, length(prefs))
     for i = 1:length(groups)
         if isa(prefs[i], ParameterRef)
             groups[i] = group_id(prefs[i])
         else
-            groups[i] = _get_groups(prefs[i])[i]
+            groups[i] = _groups(prefs[i])[i]
         end
     end
     return groups
 end
 
 function _only_one_group(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
-    groups = _get_groups(arr)
+    groups = _groups(arr)
     return length(unique(groups)) == 1
 end
 
