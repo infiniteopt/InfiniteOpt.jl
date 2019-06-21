@@ -67,6 +67,15 @@ function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr, lvalue
     return var
 end
 
+function _assert_valid_model_call(m, macrocode)
+    # assumes m is already escaped
+    quote
+        JuMP._valid_model($m, $(quot(m.args[1])))
+        $(m).next_param_id += 1
+        $macrocode
+    end
+end
+
 # TODO Check for dimensionality with multivariate distribution
 """
     @infinite_parameter(model, args)
@@ -158,10 +167,10 @@ macro infinite_parameter(model, args...)
         # We register the variable reference to its name and
         # we assign it to a variable in the local scope of this name
         macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
-                                              final_variable=final_parameter,
+                                              final_variable = final_parameter,
                                               model_for_registering = esc_model)
     end
-    return JuMP._assert_valid_model(esc_model, macro_code)
+    return _assert_valid_model_call(esc_model, macro_code)
 end
 
 # Check rhs to to ensure is not a variable

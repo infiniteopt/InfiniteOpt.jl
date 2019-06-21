@@ -59,13 +59,14 @@ function _make_formatted_tuple(prefs::Tuple)
     return converted_prefs
 end
 
-function _check_tuple_names(_error::Function, prefs::Tuple)
-    valid_elements = [_only_one_name(prefs[i]) for i = 1:length(prefs)]
+function _check_tuple_groups(_error::Function, prefs::Tuple)
+    valid_elements = [_only_one_group(prefs[i]) for i = 1:length(prefs)]
     if sum(valid_elements) != length(prefs)
-        _error("Each parameter tuple element must have contain only one infinite parameter name.")
+        _error("Each parameter tuple element must have contain only one infinite parameters with the same group ID.")
     end
-    root_names = _get_root_names(prefs)
-    if length(unique(root_names)) != length(root_names)
+    #TODO modify this check so that uncorrelated parameters can be broken up.
+    groups = _get_groups(prefs)
+    if length(unique(groups)) != length(groups)
         _error("Cannot double specify infinite parameter references.")
     end
     return
@@ -124,7 +125,7 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, var_type
         end
         _check_parameter_tuple(_error, parameter_refs)
         parameter_refs = _make_formatted_tuple(parameter_refs)
-        _check_tuple_names(_error, parameter_refs)
+        _check_tuple_groups(_error, parameter_refs)
         return InfiniteVariable(info, parameter_refs)
     elseif var_type == Point
         if parameter_values == nothing || infinite_variable_ref == nothing
@@ -143,15 +144,30 @@ end
 
 # Used to update the model.param_to_vars field
 function _update_param_var_mapping(vref::InfiniteVariableRef, prefs::Tuple)
-        model = JuMP.owner_model(vref)
-        pref_list = _list_parameter_refs(prefs)
-        for pref in pref_list
-            if haskey(model.param_to_vars, JuMP.index(pref))
-                push!(model.param_to_vars[JuMP.index(pref)], JuMP.index(vref))
-            else
-                model.param_to_vars[JuMP.index(pref)] = [JuMP.index(vref)]
+    model = JuMP.owner_model(vref)
+    pref_list = _list_parameter_refs(prefs)
+    for pref in pref_list
+        if haskey(model.param_to_vars, JuMP.index(pref))
+            push!(model.param_to_vars[JuMP.index(pref)], JuMP.index(vref))
+        else
+            model.param_to_vars[JuMP.index(pref)] = [JuMP.index(vref)]
+        end
+    end
+    return
+end
+
+# Used to add point variable support to parameter supports if necessary
+function _update_param_supports(inf_vref::InfiniteVariableRef, param_values::Tuple)
+    prefs = get_parameter_refs(inf_vref)
+    for i = 1:length(prefs)
+        if isa(prefs[i], ParameterRef)
+            add_supports(prefs[i], param_values[i])
+        else
+            for (k, v) in prefs[i].data
+                add_supports(v, param_values[i].data[k])
             end
         end
+    end
     return
 end
 
@@ -166,6 +182,7 @@ function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String
         _update_param_var_mapping(vref, v.parameter_refs)
     elseif isa(v, PointVariable)
         vref = PointVariableRef(model, model.next_var_index)
+        _update_param_supports(v.infinite_variable_ref, v.parameter_values)
     else
         vref = GlobalVariableRef(model, model.next_var_index)
     end

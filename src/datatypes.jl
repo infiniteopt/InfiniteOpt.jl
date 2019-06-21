@@ -10,10 +10,12 @@ A DataType for storing infinite parameter info
 **Fields**
 - `set::T` The set that contains the parameter.
 - `supports::Vector{<:Number}` The support points used to discretize this variable.
+- `correlated::Bool` Indicates if parameter is part of correlated group.
 """
 struct InfOptParameter{T <: AbstractInfiniteSet} <: JuMP.AbstractVariable
     set::T
     supports::Vector{<:Number}
+    correlated::Bool
 end
 
 """
@@ -58,9 +60,11 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 
     # Parameter Data
     next_param_index::Int
+    next_param_id::Int
     params::Dict{Int, InfOptParameter}
     param_to_name::Dict{Int, String}
     name_to_param::Union{Dict{String, Int}, Nothing}
+    param_to_group_id::Dict{Int, Int}
     param_to_constrs::Dict{Int, Vector{Int}}
     param_to_meas::Dict{Int, Vector{Int}}
     param_to_vars::Dict{Int, Vector{Int}}
@@ -95,8 +99,9 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     # Default constructor
     function InfiniteModel()
         new(0, Dict{Int, Measure}(), Dict{Int, String}(), # Measures
-            0, Dict{Int, InfOptParameter}(), Dict{Int, String}(), nothing, # Parameters
-            Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
+            0, 0, Dict{Int, InfOptParameter}(), Dict{Int, String}(), nothing, # Parameters
+            Dict{Int, Int}(), Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
+            Dict{Int, Vector{Int}}(),
             0, Dict{Int, JuMP.AbstractVariable}(),  # Variables
             Dict{Int, String}(), nothing,
             Dict{Int, Int}(), Dict{Int, Int}(), Dict{Int, Int}(),

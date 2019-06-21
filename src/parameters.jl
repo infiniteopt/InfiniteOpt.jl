@@ -1,4 +1,4 @@
-# Define symbol input
+# Define symbol inputs for different variable types
 const Parameter = :Parameter
 
 # Extend Base.copy for new variable types
@@ -106,12 +106,14 @@ function _check_supports_in_bounds(_error::Function,
 end
 
 """
-    build_parameter(_error::Function, set::AbstractInfiniteSet, extra_kw_args...)
+build_parameter(_error::Function, set::AbstractInfiniteSet;
+                supports::Union{Number, Vector{<:Number}} = Number[],
+                correlated::Bool = false, extra_kw_args...)
 Build an infinite parameter to the model in a manner similar to `JuMP.build_variable`.
 """
 function build_parameter(_error::Function, set::AbstractInfiniteSet;
                          supports::Union{Number, Vector{<:Number}} = Number[],
-                         extra_kw_args...)
+                         correlated::Bool = false, extra_kw_args...)
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
@@ -122,7 +124,7 @@ function build_parameter(_error::Function, set::AbstractInfiniteSet;
     if length(unique_supports) != length(supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
-    return InfOptParameter(set, unique_supports)
+    return InfOptParameter(set, unique_supports, correlated)
 end
 
 """
@@ -132,7 +134,8 @@ Add an infinite parameter to the model in a manner similar to `JuMP.add_variable
 function add_parameter(model::InfiniteModel, v::InfOptParameter, name::String="")
     model.next_param_index += 1
     pref = ParameterRef(model, model.next_param_index)
-    model.params[pref.index] = v
+    model.params[JuMP.index(pref)] = v
+    model.param_to_group_id[JuMP.index(pref)] = model.next_param_id
     JuMP.set_name(pref, name)
     return pref
 end
@@ -249,6 +252,7 @@ function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
     end
     delete!(model.params, JuMP.index(pref))
     delete!(model.param_to_name, JuMP.index(pref))
+    delete!(model.param_to_group_id, JuMP.index(pref))
     return
 end
 
@@ -287,12 +291,14 @@ _parameter_set(pref::ParameterRef) = JuMP.owner_model(pref).params[JuMP.index(pr
 _parameter_supports(pref::ParameterRef) = JuMP.owner_model(pref).params[JuMP.index(pref)].supports
 function _update_parameter_set(pref::ParameterRef, set::AbstractInfiniteSet)
     supports = JuMP.owner_model(pref).params[JuMP.index(pref)].supports
-    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports)
+    correlated = JuMP.owner_model(pref).params[JuMP.index(pref)].correlated
+    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports, correlated)
     return
 end
 function _update_parameter_supports(pref::ParameterRef, supports::Vector{<:Number})
     set = JuMP.owner_model(pref).params[JuMP.index(pref)].set
-    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports)
+    correlated = JuMP.owner_model(pref).params[JuMP.index(pref)].correlated
+    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports, correlated)
     return
 end
 
@@ -436,10 +442,36 @@ has_supports(pref::ParameterRef) = num_supports(pref) > 0
 Return the support points associated with `pref`.
 """
 function supports(pref::ParameterRef)
-    if !has_supports(pref)
-        error("Parameter $pref does not have supports.")
-    end
+    !has_supports(pref) && error("Parameter $pref does not have supports.")
     return _parameter_supports(pref)
+end
+
+"""
+    supports(prefs::AbstractArray{<:ParameterRef})
+Return the support points associated with an array of `prefs`. Error if not from
+same group.
+"""
+function supports(prefs::AbstractArray{<:ParameterRef})
+    prefs = convert(JuMP.Containers.SparseAxisArray, prefs)
+    !_only_one_group(prefs) && error("Array contains parameters from multiple groups.")
+    for (k, pref) in prefs.data
+        !has_supports(pref) && error("Parameter $pref does not have supports.")
+    end
+    # all_supports = [supports(pref) for pref in (k, pref) in prefs.data]
+    if is_correlated(collect(values(prefs.data))[1])
+        lengths = [num_supports(pref) for (k, pref) in prefs.data]
+        length(unique(lengths)) != 1 && error("Each correlated parameter must " *
+                                              "have the same number of support " *
+                                              "points.")
+        support_list = Vector{JuMP.Containers.SparseAxisArray}(undef, lengths[1])
+        for i = 1:length(support_list)
+            support_list[i] = JuMP.Containers.SparseAxisArray(Dict(k => supports(pref)[i] for (k, pref) in prefs.data))
+        end
+        # TODO convert back to original array type
+        return support_list
+    else
+        #TODO Implement other case
+    end
 end
 
 """
@@ -449,7 +481,7 @@ Specify the support points for `pref`.
 function set_supports(pref::ParameterRef, supports::Vector{<:Number})
     set = _parameter_set(pref)
     _check_supports_in_bounds(error, supports, set)
-    unique_supports = unique(supports)
+    unique_supports = sort(unique(supports))
     if length(unique_supports) != length(supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
@@ -465,7 +497,7 @@ function add_supports(pref::ParameterRef, supports::Union{Number, Vector{<:Numbe
     set = _parameter_set(pref)
     _check_supports_in_bounds(error, supports, set)
     current_supports = _parameter_supports(pref)
-    _update_parameter_supports(pref, unique([current_supports; supports]))
+    _update_parameter_supports(pref, sort(unique([current_supports; supports])))
     return
 end
 
@@ -476,6 +508,22 @@ Delete the support points for `pref`.
 function delete_supports(pref::ParameterRef)
     _update_parameter_supports(pref, Number[])
     return
+end
+
+"""
+    group_id(pref::ParameterRef)::Int
+Return the group ID number for `pref`.
+"""
+function group_id(pref::ParameterRef)::Int
+    return JuMP.owner_model(pref).param_to_group_id[JuMP.index(pref)]
+end
+
+"""
+    is_correlated(pref::ParameterRef)::Bool
+Returns true for `pref` if it is correlated or false otherwise.
+"""
+function is_correlated(pref::ParameterRef)::Bool
+    return JuMP.owner_model(pref).params[JuMP.index(pref)].correlated
 end
 
 """
@@ -553,6 +601,31 @@ end
 
 _only_one_name(pref::ParameterRef) = true
 
+# Internal fucntions for group checking
+function _get_groups(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
+    return [group_id(arr[k]) for k in keys(arr.data)]
+end
+
+function _get_groups(prefs::Tuple)
+    groups = Vector{Int}(undef, length(prefs))
+    for i = 1:length(groups)
+        if isa(prefs[i], ParameterRef)
+            groups[i] = group_id(prefs[i])
+        else
+            groups[i] = _get_groups(prefs[i])[i]
+        end
+    end
+    return groups
+end
+
+function _only_one_group(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
+    groups = _get_groups(arr)
+    return length(unique(groups)) == 1
+end
+
+_only_one_group(pref::ParameterRef) = true
+
+# Internal function for extracting parameter references
 function _list_parameter_refs(prefs::Tuple)
     list = ParameterRef[]
     for pref in prefs

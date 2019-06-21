@@ -14,6 +14,7 @@ function Base.convert(::Type{JuMP.Containers.SparseAxisArray}, arr::Array)
     data = Dict(Tuple(k) => arr[k] for k in CartesianIndices(arr))
     return JuMP.Containers.SparseAxisArray(data)
 end
+# TODO Recover axis names for DenseAxisArrays
 function Base.convert(::Type{JuMP.Containers.SparseAxisArray}, arr::JuMP.Containers.DenseAxisArray)
     data = Dict(Tuple(k) => arr[k] for k in CartesianIndices(arr))
     return JuMP.Containers.SparseAxisArray(data)
