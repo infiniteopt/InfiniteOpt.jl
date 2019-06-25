@@ -151,27 +151,32 @@ function _map_point_variables(trans_model::JuMP.Model, inf_model::InfiniteModel)
     return
 end
 
-# Convert jump scalar expressions with InfOpt variables into transcribed relations
+## Convert jump scalar expressions with InfOpt variables into transcribed relations
+# InfiniteVariableRef, PointVariableRef, GlobalVariableRef
 function _make_transcription_function(vref::InfOptVariableRef,
                                       trans_model::JuMP.Model)
+    # TODO not sure if ok to return vector of vars for inf_var_refs
     return transcription_variable(trans_model, vref)
 end
 
+# ParameterRef
 function _make_transcription_function(pref::ParameterRef,
                                       trans_model::JuMP.Model)
+    # TODO not sure if ok to return vector of numbers...
     return supports(pref)
 end
 
+# MeasureRef
 function _make_transcription_function(mref::MeasureRef,
                                       trans_model::JuMP.Model)
     func = measure_function(mref)
     data = measure_data(mref)
-    new_func =  _expand_measure(func, data, trans_model)
-    # TODO transcribe properly
-    return
+    new_func = _expand_measure(func, data, trans_model)
+    # TODO there aren't functions for non FiniteVariableRef types
+    return _make_transcription_function(new_func, trans_model)
 end
 
-# TODO Implement for jump expressions
+# GenericAffExpr of FiniteVariableRefs
 function _make_transcription_function(expr::JuMP.GenericAffExpr{V, <:FiniteVariableRef},
                                       trans_model::JuMP.Model) where {V}
     constant = expr.constant
@@ -180,6 +185,7 @@ function _make_transcription_function(expr::JuMP.GenericAffExpr{V, <:FiniteVaria
                                JuMP._new_ordered_dict(JuMP.VariableRef, V, pairs))
 end
 
+# GenericQuadExpr of FiniteVariableRefs
 function _make_transcription_function(expr::JuMP.GenericQuadExpr{V, <:FiniteVariableRef},
                                       trans_model::JuMP.Model) where {V}
     pairs = Vector{Pair{JuMP.UnorderedPair{JuMP.VariableRef}, V}}(undef, length(expr.terms))
@@ -194,10 +200,19 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{V, <:FiniteVari
     return JuMP.GenericQuadExpr(aff, JuMP._new_ordered_dict(JuMP.UnorderedPair{JuMP.VariableRef}, V, pairs))
 end
 
+# TODO Implement for non FiniteVariableRef expressions
+
+# Fall back function for other jump objects
 function _make_transcription_function(expr::JuMP.AbstractJuMPScalar,
                                       trans_model::JuMP.Model)
     type = typeof(expr)
     error("Unsupported transcription of expression of type $type.")
+end
+
+# Construct the objective and error is contains non finite variables
+function _set_objective(trans_model::InfiniteModel, inf_model::JuMP.Model)
+    # TODO need to implement transcription function for MeasureFiniteVariableRef expressions
+    return
 end
 
 # TODO Make constraint intializer
