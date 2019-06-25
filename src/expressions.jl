@@ -22,6 +22,20 @@ function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr{C, Z}, new_coef::C,
     return quad
 end
 
+# Extend for mized aff expressions
+function JuMP.add_to_expression!(aff::JuMP.GenericAffExpr{C, V}, coef::Real,
+                                 other::JuMP.GenericAffExpr{C, W}) where {C, V <: JuMP.AbstractVariableRef, W}
+    type = _var_type_parser(V, W)
+    aff = JuMP.GenericAffExpr{C, type}(aff.constant, aff.terms)
+    other = JuMP.GenericAffExpr{C, type}(other.constant, other.terms)
+    JuMP.sizehint!(aff, length(JuMP.linear_terms(aff)) + length(JuMP.linear_terms(other)))
+    for (term_coef, var) in JuMP.linear_terms(other)
+        JuMP._add_or_set!(aff.terms, var, coef * term_coef)
+    end
+    aff.constant += coef * other.constant
+    return aff
+end
+
 # Determine which variables are present in a function
 _all_function_variables(f::GeneralVariableRef) = [f]
 _all_function_variables(f::JuMP.GenericAffExpr) = [vref for vref in keys(f.terms)]

@@ -607,7 +607,7 @@ end
 
 _only_one_name(pref::ParameterRef) = true
 
-# Internal fucntions for group checking
+# Internal functions for group checking
 function _groups(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
     return [group_id(arr[k]) for k in keys(arr.data)]
 end
@@ -618,7 +618,7 @@ function _groups(prefs::Tuple)
         if isa(prefs[i], ParameterRef)
             groups[i] = group_id(prefs[i])
         else
-            groups[i] = _groups(prefs[i])[i]
+            groups[i] = _groups(prefs[i])[1]
         end
     end
     return groups

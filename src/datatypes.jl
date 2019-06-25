@@ -109,7 +109,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
             Dict{Int, Vector{Int}}(), Dict{Int, Bool}(),
             0, Dict{Int, JuMP.AbstractConstraint}(), # Constraints
             Dict{Int, String}(), nothing,
-            MOI.FEASIBILITY_SENSE,
+            MOI.FEASIBILITY_SENSE,  # Objective
             zero(JuMP.GenericAffExpr{Float64, FiniteVariableRef}),
             Dict{Symbol, Any}())
     end
@@ -174,6 +174,14 @@ variables, dynamic variables).
 struct InfiniteVariableRef <: GeneralVariableRef
     model::InfiniteModel # `model` owning the variable
     index::Int           # Index in `model.variables`
+end
+
+# An internal object used to evaluate measures
+struct _ReducedInfiniteRef <: GeneralVariableRef
+    model::InfiniteModel # `model` owning the variable
+    index::Int           # Index in `model.variables`
+    original::InfiniteVariableRef
+    supports::Dict{Int, Union{Number, JuMP.Containers.SparseAxisArray{<:Number}}}
 end
 
 """
@@ -254,7 +262,7 @@ end
     DiscreteMeasureData <: AbstractMeasureData
 A DataType for one dimensional measure abstraction data where the measure
 abstraction is of the form:
-``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\frac{1}{N} \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
+``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
 
 # Fields
 - `parameter_ref::ParameterRef` The infinite parameter over which the integration occurs.
@@ -289,7 +297,7 @@ end
     MultiDiscreteMeasureData<: AbstractMeasureData
 A DataType for multi-dimensional measure abstraction data where the measure
 abstraction is of the form:
-``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\frac{1}{N} \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
+``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
 
 # Fields
 - `parameter_ref::JuMP.Containers.SparseAxisArray{<:ParameterRef}` The infinite parameters over which the integration occurs.
@@ -357,6 +365,23 @@ random and are associated with infinite variables.
 """
 struct DistributionSet{T <: Distributions.NonMatrixDistribution} <: AbstractInfiniteSet
     distribution::T
+end
+
+"""
+    BoundedScalarConstraint{F <: JuMP.AbstractJuMPScalar,
+                            S <: MOI.AbstractScalarSet} <: JuMP.AbstractConstraint
+A DataType that stores infinite constraints defined on a subset of the infinite
+parameters on  which they depend.
+**Fields**
+- `func::F` The JuMP object.
+- `set::S` The MOI set.
+- `bounds::Dict` A dictionary mapping parameter references to an interval set.
+"""
+struct BoundedScalarConstraint{F <: JuMP.AbstractJuMPScalar,
+                               S <: MOI.AbstractScalarSet} <: JuMP.AbstractConstraint
+    func::F
+    set::S
+    bounds::Dict
 end
 
 """

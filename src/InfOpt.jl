@@ -4,6 +4,7 @@ module InfOpt
 import JuMP
 import MathOptInterface
 const MOI = MathOptInterface
+const MOIU = MOI.Utilities
 import Distributions
 
 # Import all of the datatpyes, methods, macros, and definitions.
@@ -50,7 +51,7 @@ set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values
 
 # Export constraint datatypes
 export GeneralConstraintRef, InfiniteConstraintRef, MeasureConstraintRef,
-FiniteConstraintRef
+FiniteConstraintRef, BoundedScalarConstraint
 
 # Export measure datatypes
 export AbstractMeasureData, DiscreteMeasureData, MultiDiscreteMeasureData,
@@ -63,7 +64,7 @@ export add_measure, measure, measure_function, measure_data
 export TranscriptionData, TranscriptionModel
 
 # Export transcription methods
-export generate_transcribed_model, is_transcription_model, transcription_data,
+export generate_transcription_model, is_transcription_model, transcription_data,
 transcription_variable
 
 end # module

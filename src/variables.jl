@@ -888,12 +888,6 @@ function parameter_values(vref::PointVariableRef)
     return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
 end
 
-# extract root name of infinite variables
-function _root_name(vref::InfiniteVariableRef)
-    first_bracket = findfirst(isequal('('), JuMP.name(vref))
-    return JuMP.name(vref)[1:first_bracket-1]
-end
-
 """
     JuMP.set_name(vref::PointVariableRef, name::String)
 Extend the `JuMP.set_name` function to accomodate point and global variables.
@@ -935,6 +929,7 @@ function set_parameter_refs(vref::InfiniteVariableRef, prefs::Tuple)
     prefs = _make_formatted_tuple(prefs)
     _check_tuple_names(error, prefs)
     _update_variable_param_refs(vref, prefs)
+    JuMP.set_name(vref, _root_name(vref))
     return
 end
 
