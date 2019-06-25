@@ -75,9 +75,7 @@ Extend the `JuMP.add_constraint` function to accomodate the `InfiniteModel` obje
 function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, name::String="")
     isa(c, JuMP.VectorConstraint) && error("Vector constraints not supported.")
     vrefs = _all_function_variables(c.func)
-    if isa(vrefs, Vector{ParameterRef})
-        error("Constraints cannot contain only parameters.")
-    end
+    isa(vrefs, Vector{ParameterRef}) && error("Constraints cannot contain only parameters.")
     # TODO add checks for bounded constraints
     model.next_constr_index += 1
     index = model.next_constr_index

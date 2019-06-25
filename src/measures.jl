@@ -80,7 +80,7 @@ Constructor for MultiDiscreteMeasureData.
 """
 function DiscreteMeasureData(parameter_ref::AbstractArray{<:ParameterRef},
                              coefficients::Vector{<:Number},
-                             supports::Vector{<:AbstractArray{<:Number}};
+                             supports::Vector{<:AbstractArray};
                              name::String = "measure",
                              weight_function::Function = _w)
     supports = [convert(JuMP.Containers.SparseAxisArray, s) for s in supports]
@@ -147,7 +147,7 @@ end
     measure(expr::Union{InfiniteExpr, MeasureRef}, data::AbstractMeasureData)
 Implement a measure in an expression in a similar fashion to the `sum` method in JuMP.
 """
-function measure(expr::Union{InfiniteExpr, MeasureExpr}, data::DiscreteMeasureData)
+function measure(expr::Union{InfiniteExpr, MeasureExpr}, data::AbstractMeasureData)
     pref = data.parameter_ref
     _check_has_parameter(expr, pref)
     meas = Measure(expr, data)
@@ -227,17 +227,44 @@ end
 function _make_reduced_variable(ivref::InfiniteVariableRef, supports::Dict)
     inf_model = JuMP.owner_model(ivref)
     index = inf_model.next_var_index += 1
-    return _ReducedInfiniteRef(inf_model, index, ivref, supports)
+    return _ReducedInfiniteRef(inf_model, index, ivref, copy(supports))
 end
 
+# Attempt to convert variable type of GenericAffExpr if possible
+function _possible_convert(type::DataType,
+                           aff::JuMP.GenericAffExpr{C, V}) where {C, V}
+    valids = [k isa type for k in keys(aff.terms)]
+    if sum(valids) == length(keys(aff.terms))
+        return JuMP.GenericAffExpr{C, type}(aff.constant, aff.terms)
+    else
+        return aff
+    end
+end
 
-# Implement functions for expanding measures into regular expressions
-function _expand_measure_function(ivref::InfiniteVariableRef,
-                                  data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
-                                  trans_model::JuMP.Model)
+# Attempt to convert variable type of GenericQuadExpr if possible
+function _possible_convert(type::DataType,
+                           quad::JuMP.GenericQuadExpr{C, V}) where {C, V}
+    valids_a = [k.a isa type for k in keys(quad.terms)]
+    valids_b = [k.b isa type for k in keys(quad.terms)]
+    len_terms = length(keys(quad.terms))
+    aff = _possible_convert(type, quad.aff)
+    if sum(valids_a) == len_terms && sum(valids_b) == len_terms && isa(aff, JuMP.GenericAffExpr{C, type})
+        return JuMP.GenericQuadExpr{C, type}(aff, quad.terms)
+    else
+        return quad
+    end
+end
+
+## Implement functions for expanding measures into regular expressions
+# InfiniteVariableRef
+function _expand_measure(ivref::InfiniteVariableRef,
+                         data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
+                         trans_model::JuMP.Model)
+    # figure out the parameter groups
     prefs = parameter_refs(ivref)
     group = _groups((data.parameter_ref, ))[1]
     groups = _groups(prefs)
+    # treat variable as constant if doesn't have measure parameter
     if !(group in groups)
         aff = zero(JuMP.GenericAffExpr{Float64, InfiniteVariableRef})
         for i = 1:length(data.supports)
@@ -245,6 +272,7 @@ function _expand_measure_function(ivref::InfiniteVariableRef,
             weight = data.weight_function(data.supports[i])
             JuMP.add_to_expression!(aff, coef * weight, ivref)
         end
+    # convert variable into point variables if its only parameter is the the measure parameter
     elseif length(prefs) == 1
         aff = zero(JuMP.GenericAffExpr{Float64, PointVariableRef})
         for i = 1:length(data.supports)
@@ -255,6 +283,7 @@ function _expand_measure_function(ivref::InfiniteVariableRef,
             weight = data.weight_function(data.supports[i])
             JuMP.add_to_expression!(aff, coef * weight, pvref)
         end
+    # make reduced variables if the variable contains other parameters
     else
         tuple_loc = findfirst(isequal(group), groups)
         aff = zero(JuMP.GenericAffExpr{Float64, _ReducedInfiniteRef})
@@ -269,9 +298,11 @@ function _expand_measure_function(ivref::InfiniteVariableRef,
     return aff
 end
 
-function _expand_measure_function(rvref::_ReducedInfiniteRef,
-                                  data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
-                                  trans_model::JuMP.Model)
+# _ReducedInfiniteRef
+function _expand_measure(rvref::_ReducedInfiniteRef,
+                         data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
+                         trans_model::JuMP.Model)
+    # figure out the parameters used by the reduced infinite variable
     orig_prefs = parameter_refs(rvref.original)
     prefs = ()
     for i = 1:length(orig_prefs)
@@ -279,8 +310,10 @@ function _expand_measure_function(rvref::_ReducedInfiniteRef,
             prefs = (prefs..., orig_prefs[i])
         end
     end
+    # figure out the parameter groups
     group = _groups((data.parameter_ref, ))[1]
     groups = _groups(prefs)
+    # treat variable as constant if doesn't have measure parameter
     if !(group in groups)
         aff = zero(JuMP.GenericAffExpr{Float64, _ReducedInfiniteRef})
         for i = 1:length(data.supports)
@@ -288,6 +321,7 @@ function _expand_measure_function(rvref::_ReducedInfiniteRef,
             weight = data.weight_function(data.supports[i])
             JuMP.add_to_expression!(aff, coef * weight, rvref)
         end
+    # convert variable into point variables if its only parameter is the the measure parameter
     elseif length(prefs) == 1
         aff = zero(JuMP.GenericAffExpr{Float64, PointVariableRef})
         tuple_loc = findfirst(isequal(group), _groups(orig_prefs))
@@ -303,13 +337,12 @@ function _expand_measure_function(rvref::_ReducedInfiniteRef,
             weight = data.weight_function(data.supports[i])
             JuMP.add_to_expression!(aff, coef * weight, pvref)
         end
+    # make reduced variables if the variable contains other parameters
     else
         tuple_loc = findfirst(isequal(group), _groups(orig_prefs))
         aff = zero(JuMP.GenericAffExpr{Float64, _ReducedInfiniteRef})
         for i = 1:length(data.supports)
-            supports = Dict(k => rvref.supports[k] for k in keys(rvref.supports))
-            new_rvref = _make_reduced_variable(rvref.original, supports)
-            support = data.supports[i]
+            new_rvref = _make_reduced_variable(rvref.original, rvref.supports)
             new_rvref.supports[tuple_loc] = data.supports[i]
             coef = data.coefficients[i]
             weight = data.weight_function(data.supports[i])
@@ -319,10 +352,12 @@ function _expand_measure_function(rvref::_ReducedInfiniteRef,
     return aff
 end
 
-function _expand_measure_function(vref::FiniteVariableRef,
-                                  data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
-                                  trans_model::JuMP.Model) where {V}
+# FiniteVariableRef
+function _expand_measure(vref::FiniteVariableRef,
+                         data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
+                         trans_model::JuMP.Model) where {V}
     aff = zero(JuMP.GenericAffExpr{Float64, FiniteVariableRef})
+    # treat the variable as a contant
     for i = 1:length(data.supports)
         coef = data.coefficients[i]
         weight = data.weight_function(data.supports[i])
@@ -331,16 +366,19 @@ function _expand_measure_function(vref::FiniteVariableRef,
     return aff
 end
 
-function _expand_measure_function(pref::ParameterRef,
-                                  data::DiscreteMeasureData,
-                                  trans_model::JuMP.Model) where {V}
+# ParameterRef with scalar data
+function _expand_measure(pref::ParameterRef,
+                         data::DiscreteMeasureData,
+                         trans_model::JuMP.Model) where {V}
     aff = zero(JuMP.GenericAffExpr{Float64, PointVariableRef})
+    # replace the parameter with its value if it is the measure parameter
     if data.parameter_ref == pref
         for i = 1:length(data.supports)
             coef = data.coefficients[i]
             weight = data.weight_function(data.supports[i])
             JuMP.add_to_expression!(aff, coef * weight * data.supports[i])
         end
+    # treat the parameter as a constant otherwise
     else
         for i = 1:length(data.supports)
             coef = data.coefficients[i]
@@ -351,19 +389,23 @@ function _expand_measure_function(pref::ParameterRef,
     return aff
 end
 
-function _expand_measure_function(pref::ParameterRef,
-                                  data::MultiDiscreteMeasureData,
-                                  trans_model::JuMP.Model) where {V}
+# ParameterRef with vector data
+function _expand_measure(pref::ParameterRef,
+                         data::MultiDiscreteMeasureData,
+                         trans_model::JuMP.Model) where {V}
     aff = zero(JuMP.GenericAffExpr{Float64, FiniteVariableRef})
-    pref_vals = collect(values(data.parameter_ref.data))
-    pref_loc = findfirst(isequal(pref), pref_vals)
-    if pref_loc != nothing
-        key = collect(keys(data.parameter_ref.data))[pref_loc]
+    # determine if pref is part of the measure parameters
+    prefs = collect(values(data.parameter_ref.data))
+    pref_index = findfirst(isequal(pref), prefs)
+    # replace the parameter with its value if it is the measure parameter
+    if pref_index != nothing
+        key = collect(keys(data.parameter_ref.data))[pref_index]
         for i = 1:length(data.supports)
             coef = data.coefficients[i]
             weight = data.weight_function(data.supports[i])
             JuMP.add_to_expression!(aff, coef * weight * data.supports[i][key])
         end
+    # treat the parameter as a constant otherwise
     else
         for i = 1:length(data.supports)
             coef = data.coefficients[i]
@@ -374,14 +416,17 @@ function _expand_measure_function(pref::ParameterRef,
     return aff
 end
 
-function _expand_measure_function(expr::JuMP.GenericAffExpr,
-                                  data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
-                                  trans_model::JuMP.Model) where {V}
+# GenericAffExpr
+function _expand_measure(expr::JuMP.GenericAffExpr,
+                         data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
+                         trans_model::JuMP.Model) where {V}
     aff = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-    for k in keys(expr.terms)
-        var_expr = _expand_measure_function(k, data, trans_model)
-        JuMP.add_to_expression!(aff, expr.terms[k], var_expr)
+    # expand each variable independently and add all together
+    for (var, coef) in expr.terms
+        var_expr = _expand_measure(var, data, trans_model)
+        JuMP.add_to_expression!(aff, coef, var_expr)
     end
+    # expand over the cantant
     if expr.constant != 0
         for i = 1:length(data.supports)
             coef = data.coefficients[i]
@@ -389,16 +434,54 @@ function _expand_measure_function(expr::JuMP.GenericAffExpr,
             JuMP.add_to_expression!(aff, coef * weight * expr.constant)
         end
     end
-    return aff
+    return _possible_convert(FiniteVariableRef, aff)
 end
 
-function _expand_measure_function(mref::MeasureRef,
-                                  data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
-                                  trans_model::JuMP.Model) where {V}
+# GenericQuadExpr
+function _expand_measure(expr::JuMP.GenericQuadExpr,
+                         data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
+                         trans_model::JuMP.Model) where {V}
+    quad = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
+    # convert the GenericAffExpr
+    quad.aff = _expand_measure(expr.aff, data, trans_model)
+    for (pair, coef) in expr.terms
+        var_a = pair.a
+        var_b = pair.b
+        # expand on both variables
+        expr_a = _expand_measure(var_a, data, trans_model)
+        expr_b = _expand_measure(var_b, data, trans_model)
+        vars_a = collect(keys(expr_a.terms))
+        vars_b = collect(keys(expr_b.terms))
+        # combine both variable expressions using the coefficients from one of them
+        if length(vars_a) == length(vars_b)
+            # are same length therefore have same coefficients
+            for i = 1:length(vars_a)
+                JuMP.add_to_expression!(quad, coef * expr_a.terms[vars_a[i]], vars_a[i], vars_b[i])
+            end
+        elseif length(vars_a) == 1
+            # var_a was effectively a constant and var_b was't
+            for i = 1:length(vars_b)
+                JuMP.add_to_expression!(quad, coef * expr_b.terms[vars_b[i]], vars_a[1], vars_b[i])
+            end
+        else
+            # var_b was effectively a constant and var_a was't
+            for i = 1:length(vars_a)
+                JuMP.add_to_expression!(quad, coef * expr_a.terms[vars_a[i]], vars_a[i], vars_b[1])
+            end
+        end
+    end
+    return _possible_convert(FiniteVariableRef, quad)
+end
+
+# MeasureRef
+function _expand_measure(mref::MeasureRef,
+                         data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
+                         trans_model::JuMP.Model) where {V}
+    # determine function and data of the inner measure
     deeper_func = measure_function(mref)
     deeper_data = measure_data(mref)
-    new_func = _expand_measure_function(deeper_func, deeper_data, trans_model)
-    return _expand_measure_function(new_func, data, trans_model)
+    # expand the inner measure (note this is recursive for nested measures)
+    new_func = _expand_measure(deeper_func, deeper_data, trans_model)
+    # expand current level with the inner measure now expanded
+    return _expand_measure(new_func, data, trans_model)
 end
-
-# Expand for more functions

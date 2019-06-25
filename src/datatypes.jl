@@ -309,12 +309,12 @@ abstraction is of the form:
 struct MultiDiscreteMeasureData <: AbstractMeasureData
     parameter_ref::JuMP.Containers.SparseAxisArray{<:ParameterRef}
     coefficients::Vector{<:Number}
-    supports::Vector{<:JuMP.Containers.SparseAxisArray{<:Number}}
+    supports::Vector{<:JuMP.Containers.SparseAxisArray}
     name::String
     weight_function::Function
     function MultiDiscreteMeasureData(parameter_ref::JuMP.Containers.SparseAxisArray{<:ParameterRef},
                                       coeffs::Vector{<:Number},
-                                      supports::Vector{<:JuMP.Containers.SparseAxisArray{<:Number}},
+                                      supports::Vector{<:JuMP.Containers.SparseAxisArray},
                                       name::String, weight_func::Function)
         if length(coeffs) != length(supports)
             error("The amount of coefficients must match the amount of support points.")

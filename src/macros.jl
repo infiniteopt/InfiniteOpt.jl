@@ -266,7 +266,7 @@ end
     @infinite_variable(model, args...)
 A wrapper macro for the `JuMP.@variable` macro that behaves the same except that
 it defines variables of type `InfiniteVariableRef` Support syntax
-@infinite_variable(m, x(params...), args...) or @infinite_variable(m, parameter_refs= (params)..., kwargs...).
+@infinite_variable(m, x(params...), args...) or @infinite_variable(m, parameter_refs= (params...), kwargs...).
 """
 macro infinite_variable(model, args...)
     _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...), str...)

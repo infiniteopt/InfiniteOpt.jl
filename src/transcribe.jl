@@ -162,8 +162,17 @@ function _make_transcription_function(pref::ParameterRef,
     return supports(pref)
 end
 
+function _make_transcription_function(mref::MeasureRef,
+                                      trans_model::JuMP.Model)
+    func = measure_function(mref)
+    data = measure_data(mref)
+    new_func =  _expand_measure(func, data, trans_model)
+    # TODO transcribe properly
+    return
+end
+
 # TODO Implement for jump expressions
-function _make_transcription_function(expr::JuMP.GenericAffExpr{V, <:GeneralVariableRef},
+function _make_transcription_function(expr::JuMP.GenericAffExpr{V, <:FiniteVariableRef},
                                       trans_model::JuMP.Model) where {V}
     constant = expr.constant
     pairs = [transcription_variable(trans_model, k) => expr.terms[k] for k in keys(expr.terms)]
@@ -189,15 +198,6 @@ function _make_transcription_function(expr::JuMP.AbstractJuMPScalar,
                                       trans_model::JuMP.Model)
     type = typeof(expr)
     error("Unsupported transcription of expression of type $type.")
-end
-
-function _make_transcription_function(mref::MeasureRef,
-                                      trans_model::JuMP.Model)
-    func = measure_function(mref)
-    data = measure_data(mref)
-    new_func =  _expand_measure_function(func, data, trans_model)
-    # TODO transcribe properly
-    return
 end
 
 # TODO Make constraint intializer
