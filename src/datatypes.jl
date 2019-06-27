@@ -376,13 +376,13 @@ parameters on  which they depend.
 **Fields**
 - `func::F` The JuMP object.
 - `set::S` The MOI set.
-- `bounds::Dict` A dictionary mapping parameter references to an interval set.
+- `bounds::Dict{ParameterRef, IntervalSet}` A dictionary mapping parameter references to an interval set.
 """
 struct BoundedScalarConstraint{F <: JuMP.AbstractJuMPScalar,
                                S <: MOI.AbstractScalarSet} <: JuMP.AbstractConstraint
     func::F
     set::S
-    bounds::Dict
+    bounds::Dict{ParameterRef, IntervalSet}
 end
 
 """
