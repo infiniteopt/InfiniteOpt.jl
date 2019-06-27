@@ -66,6 +66,7 @@ end
 # Make jump variables and a dict mapping global vars to jump vars
 function _initialize_global_variables(trans_model::JuMP.Model,
                                       inf_model::InfiniteModel)
+    # search inf_model for global vars and make a jump var for one that is used
     for (index, var) in inf_model.vars
         if isa(var, GlobalVariable)
             gvref = GlobalVariableRef(inf_model, index)
@@ -104,6 +105,7 @@ end
 # Make jump variables and a dict mapping infinite/point vars to jump vars
 function _initialize_infinite_variables(trans_model::JuMP.Model,
                                         inf_model::InfiniteModel)
+    # search inf_model for infinite vars and make a jump var for all of its supports
     for (index, var) in inf_model.vars
         if isa(var, InfiniteVariable)
             ivref = InfiniteVariableRef(inf_model, index)
@@ -112,6 +114,7 @@ function _initialize_infinite_variables(trans_model::JuMP.Model,
                 transcription_data(trans_model).infinite_to_supports[ivref] = _make_support_indices(prefs)
                 vrefs = Vector{JuMP.VariableRef}(undef, length(keys(supports(trans_model, ivref))))
                 for i = 1:length(vrefs)
+                    # TODO Perhaps add different naming options...
                     name = _root_name(ivref)
                     vrefs[i] = JuMP.add_variable(trans_model,
                                                  JuMP.ScalarVariable(var.info),
@@ -137,8 +140,43 @@ function _update_point_mapping(trans_model::JuMP.Model, pvref::PointVariableRef,
     return
 end
 
+# Override the info of the jump variable with the point variable's if any is provided
+function _update_point_info(trans_model::JuMP.Model, pvref::PointVariableRef)
+    vref = transcription_variable(trans_model, pvref)
+    if JuMP.has_lower_bound(pvref)
+        if JuMP.is_fixed(vref)
+            JuMP.unfix(vref)
+        end
+        JuMP.set_lower_bound(vref, JuMP.lower_bound(pvref))
+    end
+    if JuMP.has_upper_bound(pvref)
+        if JuMP.is_fixed(vref)
+            JuMP.unfix(vref)
+        end
+        JuMP.set_upper_bound(vref, JuMP.upper_bound(pvref))
+    end
+    if JuMP.is_fixed(pvref)
+        JuMP.fix(vref, JuMP.fix_value(pvref), force = true)
+    end
+    if JuMP.is_binary(pvref)
+        if JuMP.is_integer(vref)
+            JuMP.unset_integer(vref)
+        end
+        JuMP.set_binary(vref)
+    elseif JuMP.is_integer(pvref)
+        if JuMP.is_binary(vref)
+            JuMP.unset_binary(vref)
+        end
+        JuMP.set_integer(vref)
+    end
+    if !(JuMP.start_value(pvref) === NaN)
+        JuMP.set_start_value(vref, JuMP.start_value(pvref))
+    end
+end
+
 # Map point variables to the correct transcribed infinite variable
 function _map_point_variables(trans_model::JuMP.Model, inf_model::InfiniteModel)
+    # search inf_model for point vars and map them to jump vars if they are used
     for (index, var) in inf_model.vars
         if isa(var, PointVariable)
             pvref = PointVariableRef(inf_model, index)
@@ -146,6 +184,7 @@ function _map_point_variables(trans_model::JuMP.Model, inf_model::InfiniteModel)
                 ivref = infinite_variable_ref(pvref)
                 support = parameter_values(pvref)
                 _update_point_mapping(trans_model, pvref, ivref, support)
+                _update_point_info(trans_model, pvref)
             end
         end
     end
@@ -156,8 +195,10 @@ end
 # GenericAffExpr
 function _expand_measures(expr::JuMP.GenericAffExpr{C, <:GeneralVariableRef},
                           trans_model::JuMP.Model) where {C}
+    # use a QuadExpr in case measures contain quadratic espressions
     quad = zero(JuMP.GenericQuadExpr{C,GeneralVariableRef})
     quad.aff.constant = expr.constant
+    # add the variables to the expr, converting measures into expanded exprs
     for (var, coef) in expr.terms
         if isa(var, MeasureRef)
             func = measure_function(var)
@@ -168,6 +209,7 @@ function _expand_measures(expr::JuMP.GenericAffExpr{C, <:GeneralVariableRef},
             JuMP.add_to_expression!(quad, coef, var)
         end
     end
+    # return a AffExpr if there are no quadratic terms
     if length(quad.terms) == 0
         return quad.aff
     else
@@ -181,6 +223,8 @@ function _expand_measures(expr::JuMP.GenericQuadExpr{C, <:GeneralVariableRef},
                           trans_model::JuMP.Model) where {C}
     quad = zero(JuMP.GenericQuadExpr{C, GeneralVariableRef})
     quad.aff = _expand_measures(expr.aff, trans_model)
+    # add the quadratic terms to the expr, converting measures into expanded exprs
+    # note that this will error if the expanded forms are not linear or quadratic
     for (pair, coef) in expr.terms
         var_a = pair.a
         var_b = pair.b
@@ -219,6 +263,7 @@ function _map_to_variable(ivref::InfiniteVariableRef, support::Tuple,
             return transcription_variable(trans_model, ivref)[index]
         end
     end
+    # this error can likely be eliminated
     error("Couldn't find JuMP variable corresponding to $ivref.")
 end
 
@@ -241,6 +286,7 @@ function _map_to_variable(rvref::_ReducedInfiniteRef, support::Tuple,
     end
     prefs = Tuple(pref for pref in prefs)
     support = Tuple(i for i in support)
+    # call the infinite variable function with the updated support and prefs
     return _map_to_variable(ivref, support, prefs, trans_model)
 end
 
@@ -259,45 +305,55 @@ function _map_to_variable(pref::ParameterRef, support::Tuple,
             end
         end
     end
+    # this error can likely be eliminated
     error("Couldn't find support corresponding to $pref.")
 end
 
 ## Convert jump scalar expressions with InfOpt variables into transcribed relations
-# InfiniteVariableRef, PointVariableRef, GlobalVariableRef
-function _make_transcription_function(vref::InfOptVariableRef,
+# PointVariableRef and GlobalVariableRef --> return scalar jump object
+function _make_transcription_function(vref::FiniteVariableRef,
                                       trans_model::JuMP.Model)
-    return transcription_variable(trans_model, vref), parameter_refs(ivref),
-           supports(trans_model, ivref)
+    return transcription_variable(trans_model, vref)
 end
 
-# ParameterRef
+# InfiniteVariableRef --> return vector of expressions, prefs, and support mapping
+function _make_transcription_function(vref::InfiniteVariableRef,
+                                      trans_model::JuMP.Model)
+    return transcription_variable(trans_model, vref), parameter_refs(vref),
+           supports(trans_model, vref)
+end
+
+# ParameterRef --> return vector of numbers, pref, and support mapping
 function _make_transcription_function(pref::ParameterRef,
                                       trans_model::JuMP.Model)
     return supports(pref), (pref, ),
            Dict(i => supports(pref)[i] for i = 1:length(supports(pref)))
 end
 
-# MeasureRef
+# MeasureRef --> return depends if finite or infinite
 function _make_transcription_function(mref::MeasureRef,
                                       trans_model::JuMP.Model)
     func = measure_function(mref)
     data = measure_data(mref)
     new_func = _possible_convert(FiniteVariableRef,
                                  _expand_measure(func, data, trans_model))
+    # will either call finite variable function or general variable function
     return _make_transcription_function(new_func, trans_model)
 end
 
-# GenericAffExpr of FiniteVariableRefs
+# GenericAffExpr of FiniteVariableRefs --> return scalar jump object
 function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:FiniteVariableRef},
                                       trans_model::JuMP.Model) where {C}
+    # replace finite vars with jump vars
     pairs = [transcription_variable(trans_model, var) => coef for (var, coef) in expr.terms]
     return JuMP.GenericAffExpr(expr.constant,
                                JuMP._new_ordered_dict(JuMP.VariableRef, C, pairs))
 end
 
-# GenericQuadExpr of FiniteVariableRefs
+# GenericQuadExpr of FiniteVariableRefs --> return scalar jump object
 function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:FiniteVariableRef},
                                       trans_model::JuMP.Model) where {C}
+    # replace finite vars with jump vars
     pairs = Vector{Pair{JuMP.UnorderedPair{JuMP.VariableRef}, C}}(undef, length(expr.terms))
     counter = 1
     for k in keys(expr.terms)
@@ -310,22 +366,39 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:FiniteVari
     return JuMP.GenericQuadExpr(aff, JuMP._new_ordered_dict(JuMP.UnorderedPair{JuMP.VariableRef}, C, pairs))
 end
 
-# GenericAffExpr of GeneralVariableRefs
+# GenericAffExpr of GeneralVariableRefs --> return vector of numbers, pref, and support mapping
 function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:GeneralVariableRef},
                                       trans_model::JuMP.Model) where {C}
+    # check if there is only 1 var to dispatch to that transcription method
+    if length(expr.terms) == 1
+        var = collect(keys(expr.terms))[1]
+        results = _make_transcription_function(var, trans_model)
+        # results is a tuple if the var is infinite or it is an expr otherwise
+        if isa(results, Tuple)
+            exprs = expr.terms[var] * results[1] + ones(length(results[1])) * expr.constant
+            return exprs, results[2], results[3]
+        else
+            return expr.terms[var] * results + expr.constant
+        end
+    end
+    # check to see if there are measures and expand them
     is_measure = [var isa MeasureRef for var in _all_function_variables(expr)]
     if any(is_measure)
         expr = _expand_measures(expr, trans_model)
     end
+    # dispatch to quadratic method if the measures contained quadratic terms
     if isa(expr, JuMP.GenericQuadExpr)
         return _make_transcription_function(expr, trans_model)
     end
+    # determine the common set of prefs and make all of the support combos
     prefs = _all_parameter_refs(expr)
     support_indices = _make_support_indices(prefs)
     exprs = [zero(JuMP.GenericAffExpr{C, JuMP.VariableRef}) for i = 1:length(support_indices)]
+    # make an expression for each support
     for i = 1:length(exprs)
         exprs[i].constant = expr.constant
         for (var, coef) in expr.terms
+            # replace each variable with appropriate jump var
             new_var = _map_to_variable(var, support_indices[i], prefs,
                                        trans_model)
             if isa(new_var, JuMP.VariableRef)
@@ -341,16 +414,32 @@ end
 # GenericQuadExpr of GeneralVariableRefs
 function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:GeneralVariableRef},
                                       trans_model::JuMP.Model) where {C}
+    # check if there is only 1 var to dispatch to that transcription method
+    if length(expr.terms) == 0 && length(expr.aff.terms) == 1
+      var = collect(keys(expr.aff.terms))[1]
+      results = _make_transcription_function(var, trans_model)
+      # results is a tuple if the var is infinite or it is an expr otherwise
+      if isa(results, Tuple)
+          exprs = expr.aff.terms[var] * results[1] + ones(length(results[1])) * expr.aff.constant
+          return exprs, results[2], results[3]
+      else
+          return expr.aff.terms[var] * results + expr.aff.constant
+      end
+    end
+    # check to see if there are measures and expand them
     is_measure = [var isa MeasureRef for var in _all_function_variables(expr)]
     if any(is_measure)
         expr = _expand_measures(expr, trans_model)
     end
+    # determine the common set of prefs and make all of the support combos
     prefs = _all_parameter_refs(expr)
     support_indices = _make_support_indices(prefs)
     exprs = [zero(JuMP.GenericQuadExpr{C, JuMP.VariableRef}) for i = 1:length(support_indices)]
+    # make an expression for each support
     for i = 1:length(exprs)
         exprs[i].aff.constant = expr.aff.constant
         for (var, coef) in expr.aff.terms
+            # replace each variable with appropriate jump var
             new_var = _map_to_variable(var, support_indices[i], prefs,
                                        trans_model)
             if isa(new_var, JuMP.VariableRef)
@@ -360,6 +449,7 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:GeneralVar
             end
         end
         for (pair, coef) in expr.terms
+            # replace each variable with appropriate jump var
             var_a = _map_to_variable(pair.a, support_indices[i], prefs,
                                      trans_model)
             var_b = _map_to_variable(pair.b, support_indices[i], prefs,
@@ -378,12 +468,18 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:GeneralVar
     return exprs, prefs, support_indices
 end
 
-# GenericAffExpr and GenericQuadExpr of MeasureFiniteVariableRefs
-function _make_transcription_function(expr::Union{JuMP.GenericAffExpr{C, MeasureFiniteVariableRef},
-                                      JuMP.GenericQuadExpr{C, MeasureFiniteVariableRef}},
+# GenericAffExpr and GenericQuadExpr of MeasureFiniteVariableRefs --> returns depends on whether finite
+function _make_transcription_function(expr::Union{JuMP.GenericAffExpr{C, <:MeasureFiniteVariableRef},
+                                      JuMP.GenericQuadExpr{C, <:MeasureFiniteVariableRef}},
                                       trans_model::JuMP.Model) where {C}
     expr = _possible_convert(FiniteVariableRef, _expand_measures(expr, trans_model))
     return _make_transcription_function(expr, trans_model)
+end
+
+# Empty jump variable expr (for constraints of form number <= number)
+function _make_transcription_function(expr::JuMP.GenericAffExpr{C, VariableRef},
+                                      trans_model::JuMP.Model) where {C}
+    return expr
 end
 
 # Fall back function for other jump objects

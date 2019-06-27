@@ -91,6 +91,53 @@ function _check_tuple_shape(_error::Function, infinite_variable_ref::InfiniteVar
     return
 end
 
+# Update point variable info to consider the infinite variable
+function _update_point_info(info::JuMP.VariableInfo, ivref::InfiniteVariableRef)
+    if JuMP.has_lower_bound(ivref) && !info.has_fix && !info.has_lb
+        info = JuMP.VariableInfo(true, JuMP.lower_bound(ivref),
+                                 info.has_ub, info.upper_bound,
+                                 info.has_fix, info.fixed_value,
+                                 info.has_start, info.start,
+                                 info.binary, info.integer)
+    end
+    if JuMP.has_upper_bound(ivref) && !info.has_fix && !info.has_ub
+        info = JuMP.VariableInfo(info.has_lb, info.lower_bound,
+                                 true, JuMP.upper_bound(ivref),
+                                 info.has_fix, info.fixed_value,
+                                 info.has_start, info.start,
+                                 info.binary, info.integer)
+    end
+    if JuMP.is_fixed(ivref) && !info.has_fix  && !info.has_lb  && !info.has_ub
+        info = JuMP.VariableInfo(info.has_lb, info.lower_bound,
+                                 info.has_ub, info.upper_bound,
+                                 true, JuMP.fix_value(ivref),
+                                 info.has_start, info.start,
+                                 info.binary, info.integer)
+    end
+    if !(JuMP.start_value(ivref) === NaN) && !info.has_start
+        info = JuMP.VariableInfo(info.has_lb, info.lower_bound,
+                                 info.has_ub, info.upper_bound,
+                                 info.has_fix, info.fixed_value,
+                                 true, JuMP.start_value(ivref),
+                                 info.binary, info.integer)
+    end
+    if JuMP.is_binary(ivref) && !info.integer
+        info = JuMP.VariableInfo(info.has_lb, info.lower_bound,
+                                 info.has_ub, info.upper_bound,
+                                 info.has_fix, info.fixed_value,
+                                 info.has_start, info.start,
+                                 true, info.integer)
+    end
+    if JuMP.is_integer(ivref) && !info.binary
+        info = JuMP.VariableInfo(info.has_lb, info.lower_bound,
+                                 info.has_ub, info.upper_bound,
+                                 info.has_fix, info.fixed_value,
+                                 info.has_start, info.start,
+                                 info.binary, true)
+    end
+    return info
+end
+
 """
     JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, test_arg::Int;
                         param_set::Union{AbstractInfiniteSet, Vector{AbstractInfiniteSet}} = EmptySet(),
@@ -136,6 +183,7 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, var_type
         end
         parameter_values = _make_formatted_tuple(parameter_values)
         _check_tuple_shape(_error, infinite_variable_ref, parameter_values)
+        info = _update_point_info(info, infinite_variable_ref)
         return PointVariable(info, infinite_variable_ref, parameter_values)
     else
         return GlobalVariable(info)

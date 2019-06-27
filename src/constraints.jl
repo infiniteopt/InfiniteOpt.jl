@@ -76,10 +76,15 @@ function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, n
     isa(c, JuMP.VectorConstraint) && error("Vector constraints not supported.")
     vrefs = _all_function_variables(c.func)
     isa(vrefs, Vector{ParameterRef}) && error("Constraints cannot contain only parameters.")
+    for vref in vrefs
+        JuMP.owner_model(vref) != model && error("Variable $vref does not belong to model.")
+    end
     # TODO add checks for bounded constraints
     model.next_constr_index += 1
     index = model.next_constr_index
-    _update_var_constr_mapping(vrefs, index)
+    if length(vrefs) != 0
+        _update_var_constr_mapping(vrefs, index)
+    end
     if c.func isa InfiniteExpr
         cref = InfiniteConstraintRef(model, index, JuMP.shape(c))
     elseif c.func isa MeasureExpr

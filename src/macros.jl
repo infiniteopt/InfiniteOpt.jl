@@ -76,7 +76,7 @@ function _assert_valid_model_call(m, macrocode)
     end
 end
 
-# TODO Check for dimensionality with multivariate distribution
+# TODO Check for dimensionality with multivariate distribution (can do with above function and checking the parameter index counter)
 """
     @infinite_parameter(model, args)
 A macro for the defining parameters of type `ParameterRef`.
