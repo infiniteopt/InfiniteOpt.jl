@@ -913,6 +913,13 @@ function parameter_refs(vref::InfiniteVariableRef)
     return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_refs
 end
 
+# Return the parameter references pertaining to a reduced infinite variable
+function parameter_refs(vref::_ReducedInfiniteRef)
+    orig_prefs = parameter_refs(vref.original)
+    prefs = Tuple(orig_prefs[i] for i = 1:length(orig_prefs) if !haskey(vref.supports, i))
+    return prefs
+end
+
 # Internal function
 function _update_variable_param_refs(vref::InfiniteVariableRef, prefs::Tuple)
     info = JuMP.owner_model(vref).vars[JuMP.index(vref)].info

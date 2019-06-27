@@ -525,6 +525,17 @@ function group_id(pref::ParameterRef)::Int
 end
 
 """
+    group_id(prefs::AbstractArray{<:ParameterRef})::Int
+Return the group ID number for a group of `prefs`. Error if contains multiple groups.
+"""
+function group_id(prefs::AbstractArray{<:ParameterRef})
+    prefs = convert(JuMP.Containers.SparseAxisArray, prefs)
+    groups = _groups(prefs)
+    length(unique(groups)) != 1 && error("Array contains parameters from multiple groups.")
+    return groups[1]
+end
+
+"""
     is_correlated(pref::ParameterRef)::Bool
 Returns true for `pref` if it is correlated or false otherwise.
 """
@@ -618,7 +629,7 @@ function _groups(prefs::Tuple)
         if isa(prefs[i], ParameterRef)
             groups[i] = group_id(prefs[i])
         else
-            groups[i] = _groups(prefs[i])[1]
+            groups[i] = group_id(prefs[i])
         end
     end
     return groups

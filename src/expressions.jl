@@ -22,19 +22,19 @@ function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr{C, Z}, new_coef::C,
     return quad
 end
 
-# Extend for mized aff expressions
-function JuMP.add_to_expression!(aff::JuMP.GenericAffExpr{C, V}, coef::Real,
-                                 other::JuMP.GenericAffExpr{C, W}) where {C, V <: JuMP.AbstractVariableRef, W}
-    type = _var_type_parser(V, W)
-    aff = JuMP.GenericAffExpr{C, type}(aff.constant, aff.terms)
-    other = JuMP.GenericAffExpr{C, type}(other.constant, other.terms)
-    JuMP.sizehint!(aff, length(JuMP.linear_terms(aff)) + length(JuMP.linear_terms(other)))
-    for (term_coef, var) in JuMP.linear_terms(other)
-        JuMP._add_or_set!(aff.terms, var, coef * term_coef)
-    end
-    aff.constant += coef * other.constant
-    return aff
-end
+# Extend for mixed aff expressions
+# function JuMP.add_to_expression!(aff::JuMP.GenericAffExpr{C, V}, coef::Real,
+#                                  other::JuMP.GenericAffExpr{C, W}) where {C, V <: JuMP.AbstractVariableRef, W}
+#     type = _var_type_parser(V, W)
+#     aff = JuMP.GenericAffExpr{C, type}(aff.constant, aff.terms)
+#     other = JuMP.GenericAffExpr{C, type}(other.constant, other.terms)
+#     JuMP.sizehint!(aff, length(JuMP.linear_terms(aff)) + length(JuMP.linear_terms(other)))
+#     for (term_coef, var) in JuMP.linear_terms(other)
+#         JuMP._add_or_set!(aff.terms, var, coef * term_coef)
+#     end
+#     aff.constant += coef * other.constant
+#     return aff
+# end
 
 # Determine which variables are present in a function
 _all_function_variables(f::GeneralVariableRef) = [f]
@@ -45,6 +45,40 @@ function _all_function_variables(f::JuMP.GenericQuadExpr)
     a_vrefs = [pair.a for pair in vref_pairs]
     b_vrefs = [pair.b for pair in vref_pairs]
     return unique([aff_vrefs; a_vrefs; b_vrefs])
+end
+
+# Return a tuple of the parameter references in an expr
+_all_parameter_refs(expr::FiniteVariableRef) = ()
+_all_parameter_refs(expr::InfiniteVariableRef) = parameter_refs(expr)
+_all_parameter_refs(expr::ParameterRef) = expr
+_all_parameter_refs(expr::_ReducedInfiniteRef) = parameter_refs(expr)
+function _all_parameter_refs(expr::JuMP.GenericAffExpr{C, <:GeneralVariableRef}) where {C}
+    pref_list = []
+    for (var, coef) in expr.terms
+        push!(pref_list, _all_parameter_refs(var)...)
+    end
+    groups = [group_id(pref) for pref in pref_list]
+    unique_groups = sort(unique(groups))
+    unique_indexes = zeros(Int64, length(unique_groups))
+    for i = 1:length(unique_indexes)
+        unique_indexes[i] = findfirst(isequal(unique_groups[i]), groups)
+    end
+    return Tuple(pref_list[i] for i in unique_indexes)
+end
+function _all_parameter_refs(expr::JuMP.GenericQuadExpr{C, <:GeneralVariableRef}) where {C}
+    pref_list = []
+    push!(pref_list, _all_parameter_refs(expr.aff)...)
+    for (pair, coef) in expr.terms
+        push!(pref_list, _all_parameter_refs(pair.a)...)
+        push!(pref_list, _all_parameter_refs(pair.b)...)
+    end
+    groups = [group_id(pref) for pref in pref_list]
+    unique_groups = sort(unique(groups))
+    unique_indexes = zeros(Int64, length(unique_groups))
+    for i = 1:length(unique_indexes)
+        unique_indexes[i] = findfirst(isequal(unique_groups[i]), groups)
+    end
+    return Tuple(pref_list[i] for i in unique_indexes)
 end
 
 # delete variables from an expression

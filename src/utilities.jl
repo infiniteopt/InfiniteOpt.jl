@@ -30,3 +30,28 @@ end
 
 # Hack to make the keys function work for sparse arrays
 Base.keys(d::JuMP.Containers.SparseAxisArray) = keys(d.data)
+
+# Attempt to convert variable type of GenericAffExpr if possible
+function _possible_convert(type::DataType,
+                           aff::JuMP.GenericAffExpr{C, V}) where {C, V}
+    valids = [k isa type for k in keys(aff.terms)]
+    if sum(valids) == length(keys(aff.terms))
+        return JuMP.GenericAffExpr{C, type}(aff.constant, aff.terms)
+    else
+        return aff
+    end
+end
+
+# Attempt to convert variable type of GenericQuadExpr if possible
+function _possible_convert(type::DataType,
+                           quad::JuMP.GenericQuadExpr{C, V}) where {C, V}
+    valids_a = [k.a isa type for k in keys(quad.terms)]
+    valids_b = [k.b isa type for k in keys(quad.terms)]
+    len_terms = length(keys(quad.terms))
+    aff = _possible_convert(type, quad.aff)
+    if sum(valids_a) == len_terms && sum(valids_b) == len_terms && isa(aff, JuMP.GenericAffExpr{C, type})
+        return JuMP.GenericQuadExpr{C, type}(aff, quad.terms)
+    else
+        return quad
+    end
+end
