@@ -59,8 +59,8 @@ end
 Return the supports associated `vref` in the transcribed model.
 """
 function supports(model::JuMP.Model, vref::InfiniteVariableRef)
-    !haskey(transcription_data(model).infinite_to_supports, vref) && error("Variable reference $vref not used in transcription model.")
-    return transcription_data(model).infinite_to_supports[vref]
+    !haskey(transcription_data(model).infvar_to_supports, vref) && error("Variable reference $vref not used in transcription model.")
+    return transcription_data(model).infvar_to_supports[vref]
 end
 
 # Make jump variables and a dict mapping global vars to jump vars
@@ -111,7 +111,7 @@ function _initialize_infinite_variables(trans_model::JuMP.Model,
             ivref = InfiniteVariableRef(inf_model, index)
             if is_used(ivref)
                 prefs = parameter_refs(ivref)
-                transcription_data(trans_model).infinite_to_supports[ivref] = _make_support_indices(prefs)
+                transcription_data(trans_model).infvar_to_supports[ivref] = _make_support_indices(prefs)
                 vrefs = Vector{JuMP.VariableRef}(undef, length(keys(supports(trans_model, ivref))))
                 for i = 1:length(vrefs)
                     # TODO Perhaps add different naming options...
@@ -477,7 +477,7 @@ function _make_transcription_function(expr::Union{JuMP.GenericAffExpr{C, <:Measu
 end
 
 # Empty jump variable expr (for constraints of form number <= number)
-function _make_transcription_function(expr::JuMP.GenericAffExpr{C, VariableRef},
+function _make_transcription_function(expr::JuMP.GenericAffExpr{C, JuMP.VariableRef},
                                       trans_model::JuMP.Model) where {C}
     return expr
 end
@@ -487,6 +487,7 @@ function _make_transcription_function(expr::JuMP.AbstractJuMPScalar,
                                       trans_model::JuMP.Model)
     type = typeof(expr)
     error("Unsupported transcription of expression of type $type.")
+    return
 end
 
 ## Construct the objective and error is contains non finite variables
@@ -499,20 +500,124 @@ function _set_objective(trans_model::JuMP.Model, inf_model::InfiniteModel)
     return
 end
 
-# TODO Make constraint intializer
+## Define helper functions for setting constraint mappings
+# InfiniteConstraintRef
+function _set_mapping(icref::InfiniteConstraintRef, crefs::Vector{JuMP.ConstraintRef})
+    transcription_data(JuMP.owner_model(crefs[1])).infinite_to_constr[icref] = crefs
+    return
+end
+
+# MeasureConstraintRef (infinite)
+function _set_mapping(mcref::MeasureConstraintRef, crefs::Vector{JuMP.ConstraintRef})
+    transcription_data(JuMP.owner_model(crefs[1])).measure_to_constr[mcref] = crefs
+    return
+end
+
+# MeasureConstraintRef (finite)
+function _set_mapping(mcref::MeasureConstraintRef, cref::JuMP.ConstraintRef)
+    transcription_data(JuMP.owner_model(cref)).measure_to_constr[mcref] = [cref]
+    return
+end
+
+# FiniteConstraintRef
+function _set_mapping(fcref::FiniteConstraintRef, cref::JuMP.ConstraintRef)
+    transcription_data(JuMP.owner_model(cref)).finite_to_constr[fcref] = cref
+    return
+end
+
+## Define helper functions for setting constraint supports
+# InfiniteConstraintRef
+function _set_supports(trans_model::JuMP.Model, icref::InfiniteConstraintRef,
+                       supports::Dict{})
+    transcription_data(trans_model).infconstr_to_supports[icref] = supports
+    return
+end
+
+# MeasureConstraintRef
+function _set_supports(trans_model::JuMP.Model, mcref::MeasureConstraintRef,
+                       supports::Dict{})
+    transcription_data(trans_model).measconstr_to_supports[mcref] = supports
+    return
+end
+
+## Define helper functions for setting constraint parameter reference tuples
+# InfiniteConstraintRef
+function _set_parameter_refs(trans_model::JuMP.Model, icref::InfiniteConstraintRef,
+                             prefs::Tuple)
+    transcription_data(trans_model).infconstr_to_params[icref] = prefs
+    return
+end
+
+# MeasureConstraintRef
+function _set_parameter_refs(trans_model::JuMP.Model, mcref::MeasureConstraintRef,
+                             prefs::Tuple)
+    transcription_data(trans_model).measconstr_to_params[icref] = prefs
+    return
+end
+
+# Extract the root name of a constraint
+function _root_name(cref::GeneralConstraintRef)
+    name = JuMP.name(cref)
+    if length(name) == 0
+        return "noname"
+    else
+        first_bracket = findfirst(isequal('['), name)
+        if first_bracket == nothing
+            return name
+        else
+            return name[1:first_bracket-1]
+        end
+    end
+end
+
+## leverage _make_transcription_function to transcribe the constraints
+function _set_constraints(trans_model::JuMP.Model, inf_model::InfiniteModel)
+    # transform and add constraints that haven't already been added through add_variable
+    for (index, constr) in inf_model.constrs
+        if !inf_model.constr_in_var_info[index]
+            # extract the reference and transcribe the jump object function
+            icref = _make_constraint_ref(inf_model, index)
+            results = _make_transcription_function(constr.func, trans_model)
+            # extract the name and create a transcribed constraint
+            root_name = _root_name(icref)
+            # Tuple results correspond to transcribed infinite constraints
+            if isa(results, Tuple)
+                crefs = Vector{JuMP.ConstraintRef}(undef, length(results[1]))
+                for i = 1:length(crefs)
+                    con = JuMP.ScalarConstraint(results[1][i], constr.set)
+                    # TODO Perhaps improve naming
+                    name = string(root_name, "(Support: ", i, ")")
+                    crefs[i] = JuMP.add_constraint(trans_model, con, name)
+                end
+                # update the mappings
+                _set_mapping(icref, crefs)
+                _set_parameter_refs(trans_model, icref, results[2])
+                _set_supports(trans_model, icref, results[3])
+            else
+                # We have a finite constraint, just add normally and update mapping.
+                con = JuMP.ScalarConstraint(results, constr.set)
+                cref = JuMP.add_constraint(trans_model, con, root_name)
+                _set_mapping(icref, cref)
+            end
+
+        end
+    end
+    return
+end
 
 """
-    generate_transcribed_model(model::InfiniteModel)
-Return a transcribed version of the model.
+    TranscriptionModel(model::InfiniteModel, args...)
+Return a transcribed version of the infinite model.
 """
-function generate_transcription_model(inf_model::InfiniteModel)
-    trans_model = TranscriptionModel()
+function TranscriptionModel(inf_model::InfiniteModel, args...)
+    # TODO insert relavent information into trans_model from inf_model
+    trans_model = TranscriptionModel(args...)
     _initialize_global_variables(trans_model, inf_model)
     _initialize_infinite_variables(trans_model, inf_model)
     _map_point_variables(trans_model, inf_model)
     if JuMP.objective_sense(inf_model) != MOI.FEASIBILITY_SENSE
         _set_objective(trans_model, inf_model)
     end
-    # TODO Add constraints if there are constraints
+    _set_constraints(trans_model, inf_model)
     return trans_model
 end

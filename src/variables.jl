@@ -64,7 +64,6 @@ function _check_tuple_groups(_error::Function, prefs::Tuple)
     if sum(valid_elements) != length(prefs)
         _error("Each parameter tuple element must have contain only one infinite parameters with the same group ID.")
     end
-    #TODO modify this check so that uncorrelated parameters can be broken up.
     groups = _groups(prefs)
     if length(unique(groups)) != length(groups)
         _error("Cannot double specify infinite parameter references.")
@@ -240,23 +239,28 @@ function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String
         newset = MOI.GreaterThan(convert(Float64, v.info.lower_bound))
         cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, newset))
         JuMP.set_lower_bound_index(vref, JuMP.index(cref))
+        model.constr_in_var_info[JuMP.index(cref)] = true
     end
     if v.info.has_ub
         newset = MOI.LessThan(convert(Float64, v.info.upper_bound))
         cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, newset))
         JuMP.set_upper_bound_index(vref, JuMP.index(cref))
+        model.constr_in_var_info[JuMP.index(cref)] = true
     end
     if v.info.has_fix
         newset = MOI.EqualTo(convert(Float64, v.info.fixed_value))
         cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(vref, newset))
         JuMP.set_fix_index(vref, JuMP.index(cref))
+        model.constr_in_var_info[JuMP.index(cref)] = true
     end
     if v.info.binary
         cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, MOI.ZeroOne()))
         JuMP.set_binary_index(vref, JuMP.index(cref))
+        model.constr_in_var_info[JuMP.index(cref)] = true
     elseif v.info.integer
         cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, MOI.Integer()))
         JuMP.set_integer_index(vref, JuMP.index(cref))
+        model.constr_in_var_info[JuMP.index(cref)] = true
     end
     model.var_in_objective[JuMP.index(vref)] = false
     return vref
@@ -297,8 +301,6 @@ Return a Boolean indicating if `vref` is used by the objective.
 function used_by_objective(vref::InfOptVariableRef)::Bool
     return JuMP.owner_model(vref).var_in_objective[JuMP.index(vref)]
 end
-
-
 
 """
     is_used(vref::InfOptVariableRef)::Bool
@@ -482,6 +484,7 @@ function JuMP.set_lower_bound(vref::InfOptVariableRef, lower::Number)
         @assert !JuMP.is_fixed(vref)
         cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, newset))
         JuMP.set_lower_bound_index(vref, JuMP.index(cref))
+        JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
     end
     info = _variable_info(vref)
     _update_variable_info(vref, JuMP.VariableInfo(true, convert(Float64, lower),
@@ -574,6 +577,7 @@ function JuMP.set_upper_bound(vref::InfOptVariableRef, upper::Number)
         @assert !JuMP.is_fixed(vref)
         cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, newset))
         JuMP.set_upper_bound_index(vref, JuMP.index(cref))
+        JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
     end
     info = _variable_info(vref)
     _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
@@ -679,6 +683,7 @@ function JuMP.fix(vref::InfOptVariableRef, value::Number; force::Bool = false)
         end
         cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(vref, new_set))
         JuMP.set_fix_index(vref, JuMP.index(cref))
+        JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
     end
     info = _variable_info(vref)
     _update_variable_info(vref, JuMP.VariableInfo(false, info.lower_bound,
@@ -782,6 +787,7 @@ function JuMP.set_binary(vref::InfOptVariableRef)
     end
     cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, MOI.ZeroOne()))
     JuMP.set_binary_index(vref, JuMP.index(cref))
+    JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
     info = _variable_info(vref)
     _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                                   info.has_ub, info.upper_bound,
@@ -862,6 +868,7 @@ function JuMP.set_integer(vref::InfOptVariableRef)
     end
     cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, MOI.Integer()))
     JuMP.set_integer_index(vref, JuMP.index(cref))
+    JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true 
     info = _variable_info(vref)
     _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                                   info.has_ub, info.upper_bound,

@@ -88,6 +88,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     constrs::Dict{Int, JuMP.AbstractConstraint}       # Map conidx -> variable
     constr_to_name::Dict{Int, String}                 # Map conidx -> name
     name_to_constr::Union{Dict{String, Int}, Nothing} # Map name -> conidx
+    constr_in_var_info::Dict{Int, Bool}
 
     # Objective Data
     objective_sense::MOI.OptimizationSense
@@ -108,7 +109,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
             Dict{Int, Int}(), Dict{Int, Int}(), Dict{Int, Vector{Int}}(),
             Dict{Int, Vector{Int}}(), Dict{Int, Bool}(),
             0, Dict{Int, JuMP.AbstractConstraint}(), # Constraints
-            Dict{Int, String}(), nothing,
+            Dict{Int, String}(), nothing, Dict{Int, Bool}(),
             MOI.FEASIBILITY_SENSE,  # Objective
             zero(JuMP.GenericAffExpr{Float64, FiniteVariableRef}),
             Dict{Symbol, Any}())
@@ -445,14 +446,32 @@ mutable struct TranscriptionData
     global_to_var::Dict{GlobalVariableRef, JuMP.VariableRef}
     point_to_var::Dict{PointVariableRef, JuMP.VariableRef}
 
-    # Support data
-    infinite_to_supports::Dict{InfiniteVariableRef, Dict}
+    # Variable support data
+    infvar_to_supports::Dict{InfiniteVariableRef, Dict}
+
+    # Constraint mapping
+    infinite_to_constr::Dict{InfiniteConstraintRef, Vector{JuMP.ConstraintRef}}
+    measure_to_constr::Dict{MeasureConstraintRef, Vector{JuMP.ConstraintRef}}
+    finite_to_constr::Dict{FiniteConstraintRef, JuMP.ConstraintRef}
+
+    # Constraint support data
+    infconstr_to_supports::Dict{InfiniteConstraintRef, Dict}
+    measconstr_to_supports::Dict{MeasureConstraintRef, Dict}
+    infconstr_to_params::Dict{InfiniteConstraintRef, Tuple}
+    measconstr_to_params::Dict{MeasureConstraintRef, Tuple}
 
     # Default constructor
     function TranscriptionData()
         return new(Dict{InfiniteVariableRef, Vector{JuMP.VariableRef}}(),
                    Dict{GlobalVariableRef, JuMP.VariableRef}(),
                    Dict{PointVariableRef, JuMP.VariableRef}(),
-                   Dict{InfiniteVariableRef, Dict}())
+                   Dict{InfiniteVariableRef, Dict}(),
+                   Dict{InfiniteConstraintRef, Vector{JuMP.ConstraintRef}}(),
+                   Dict{MeasureConstraintRef, Vector{JuMP.ConstraintRef}}(),
+                   Dict{FiniteConstraintRef, JuMP.ConstraintRef}(),
+                   Dict{InfiniteConstraintRef, Dict}(),
+                   Dict{MeasureConstraintRef, Dict}(),
+                   Dict{InfiniteConstraintRef, Tuple}(),
+                   Dict{MeasureConstraintRef, Tuple}())
     end
 end

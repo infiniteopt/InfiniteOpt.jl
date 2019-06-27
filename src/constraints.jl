@@ -94,6 +94,7 @@ function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, n
     end
     model.constrs[index] = c
     JuMP.set_name(cref, name)
+    model.constr_in_var_info[index] = false
     return cref
 end
 
@@ -121,6 +122,7 @@ function JuMP.delete(model::InfiniteModel, cref::GeneralConstraintRef)
     end
     delete!(model.constrs, JuMP.index(cref))
     delete!(model.constr_to_name, JuMP.index(cref))
+    delete!(model.constr_in_var_info, JuMP.index(cref))
     return
 end
 
@@ -156,6 +158,17 @@ function JuMP.set_name(cref::GeneralConstraintRef, name::String)
     return
 end
 
+# Return the appropriate constraint reference given the index and model
+function _make_constraint_ref(model::InfiniteModel, index::Int)
+    if model.constrs[index].func isa InfiniteExpr
+        return InfiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
+    elseif model.constrs[index].func isa MeasureExpr
+        return MeasureConstraintRef(model, index, JuMP.shape(model.constrs[index]))
+    else
+        return FiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
+    end
+end
+
 """
     JuMP.constraint_by_name(model::InfiniteModel, name::String)
 Extend the `JuMP.constraint_by_name` function to accomodate our new constraint types.
@@ -180,13 +193,7 @@ function JuMP.constraint_by_name(model::InfiniteModel, name::String)
     elseif index == -1
         error("Multiple constraints have the name $name.")
     else
-        if model.constrs[index].func isa InfiniteExpr
-            return InfiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-        elseif model.constrs[index].func isa MeasureExpr
-            return MeasureConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-        else
-            return FiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-        end
+        return _make_constraint_ref(model, index)
     end
 end
 
@@ -240,13 +247,7 @@ function JuMP.all_constraints(model::InfiniteModel, function_type::Type{<:JuMP.A
     counter = 1
     for index in indexes
         if typeof(model.constrs[index].func) <: function_type && typeof(model.constrs[index].set) <: set_type
-            if model.constrs[index].func isa InfiniteExpr
-                constr_list[counter] = InfiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-            elseif model.constrs[index].func isa MeasureExpr
-                constr_list[counter] = MeasureConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-            else
-                constr_list[counter] = FiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-            end
+            constr_list[counter] = _make_constraint_ref(model, index)
             counter += 1
         end
     end

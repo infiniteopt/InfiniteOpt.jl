@@ -64,7 +64,6 @@ export add_measure, measure, measure_function, measure_data
 export TranscriptionData, TranscriptionModel
 
 # Export transcription methods
-export generate_transcription_model, is_transcription_model, transcription_data,
-transcription_variable
+export generate_transcription_model, is_transcription_model, transcription_data
 
 end # module
