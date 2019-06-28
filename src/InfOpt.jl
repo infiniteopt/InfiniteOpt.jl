@@ -18,6 +18,7 @@ include("constraints.jl")
 include("objective.jl")
 include("macros.jl")
 include("transcribe.jl")
+include("solve.jl")
 include("show.jl")
 include("utilities.jl")
 
@@ -66,5 +67,8 @@ export TranscriptionData, TranscriptionModel
 # Export transcription methods
 export is_transcription_model, transcription_data, transcription_variable,
 transcription_constraint
+
+# Export optimize methods
+export solve_model, transcription_model, transcribe!, set_optimize_model
 
 end # module

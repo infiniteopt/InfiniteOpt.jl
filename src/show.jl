@@ -24,7 +24,10 @@ function Base.show(io::IO, model::InfiniteModel)
     end
 end
 
-function JuMP.show_backend_summary(io::IO, model::InfiniteModel) end
+function JuMP.show_backend_summary(io::IO, model::InfiniteModel)
+    JuMP.show_backend_summary(io, optimize_model(model))
+    return
+end
 
 function JuMP.show_objective_function_summary(io::IO, model::InfiniteModel)
     println(io, "Objective function type: ",
@@ -39,8 +42,11 @@ end
 _plural(n) = (isone(n) ? "" : "s")
 
 function JuMP.show_constraints_summary(io::IO, model::InfiniteModel)
-    n = length(model.constrs)
-    print(io, "Constraint", _plural(n), ": ", n)
+    for (F, S) in JuMP.list_of_constraint_types(model)
+        n_constraints = JuMP.num_constraints(model, F, S)
+        println(io, "`$F`-in-`$S`: $n_constraints constraint",
+                _plural(n_constraints))
+    end
     return
 end
 
@@ -73,6 +79,7 @@ function Base.show(io::IO, ::MIME"text/latex", ref::GeneralConstraintRef)
     return
 end
 
+# TODO show parameters bounds if specified
 function JuMP.constraint_string(print_mode, ref::GeneralConstraintRef)
     return JuMP.constraint_string(print_mode, JuMP.name(ref),
            JuMP.constraint_object(ref))

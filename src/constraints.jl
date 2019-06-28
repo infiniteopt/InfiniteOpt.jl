@@ -65,8 +65,10 @@ function _update_var_constr_mapping(vrefs::Vector{<:GeneralVariableRef}, cindex:
     return
 end
 
-# Extend the shape function for bounded constraints
+# Extend functions for bounded constraints
 JuMP.shape(c::BoundedScalarConstraint) = JuMP.shape(JuMP.ScalarConstraint(c.func, c.set))
+JuMP.jump_function(c::BoundedScalarConstraint) = c.func
+JuMP.moi_set(c::BoundedScalarConstraint) = c.set
 
 """
     JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, name::String="")
@@ -79,7 +81,7 @@ function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, n
     for vref in vrefs
         JuMP.owner_model(vref) != model && error("Variable $vref does not belong to model.")
     end
-    # TODO add checks for bounded constraints
+    # TODO add checks for bounded constraints, like check prefs are valid
     model.next_constr_index += 1
     index = model.next_constr_index
     if length(vrefs) != 0

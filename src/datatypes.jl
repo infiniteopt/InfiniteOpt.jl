@@ -97,6 +97,11 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     # Objects
     obj_dict::Dict{Symbol, Any} # Same that JuMP.Model's field `obj_dict`
 
+    # Optimize Data
+    optimizer_factory::Union{JuMP.OptimizerFactory, Nothing}
+    optimize_model_kwargs
+    optimize_model::JuMP.Model
+
     # Default constructor
     function InfiniteModel()
         new(0, Dict{Int, Measure}(), Dict{Int, String}(), # Measures
@@ -112,7 +117,25 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
             Dict{Int, String}(), nothing, Dict{Int, Bool}(),
             MOI.FEASIBILITY_SENSE,  # Objective
             zero(JuMP.GenericAffExpr{Float64, FiniteVariableRef}),
-            Dict{Symbol, Any}())
+            Dict{Symbol, Any}(),
+            nothing, nothing, TranscriptionModel())
+    end
+
+    # JuMP like constructor
+    function InfiniteModel(optimizer_factory::JuMP.OptimizerFactory; kwargs...)
+        model = InfiniteModel()
+        model.optimizer_factory = optimizer_factory
+        model.optimize_model_kwargs = kwargs
+        model.optimize_model = TranscriptionModel(optimizer_factory, kwargs...)
+        return model
+    end
+
+    # JuMP like constructor
+    function InfiniteModel(; kwargs...)
+        model = InfiniteModel()
+        model.optimize_model_kwargs = kwargs
+        model.optimize_model = TranscriptionModel(kwargs...)
+        return model
     end
 end
 

@@ -225,9 +225,11 @@ Extend the `JuMP.add_variable` function to accomodate our new variable types.
 function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String="")
     model.next_var_index += 1
     if isa(v, InfiniteVariable)
+        # TODO verify prefs valid
         vref = InfiniteVariableRef(model, model.next_var_index)
         _update_param_var_mapping(vref, v.parameter_refs)
     elseif isa(v, PointVariable)
+        # TODO verify ivref valid
         vref = PointVariableRef(model, model.next_var_index)
         _update_param_supports(v.infinite_variable_ref, v.parameter_values)
     else
@@ -868,7 +870,7 @@ function JuMP.set_integer(vref::InfOptVariableRef)
     end
     cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, MOI.Integer()))
     JuMP.set_integer_index(vref, JuMP.index(cref))
-    JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true 
+    JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
     info = _variable_info(vref)
     _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                                   info.has_ub, info.upper_bound,
@@ -1029,6 +1031,17 @@ function JuMP.set_name(vref::InfiniteVariableRef, root_name::String)
     return
 end
 
+# Make a variable reference
+function _make_variable_ref(model::InfiniteModel, index::Int)
+    if isa(model.vars[index], InfiniteVariable)
+        return InfiniteVariableRef(model, index)
+    elseif isa(model.vars[index], PointVariable)
+        return PointVariableRef(model, index)
+    else
+        return GlobalVariableRef(model, index)
+    end
+end
+
 """
     JuMP.variable_by_name(model::InfiniteModel, name::String)
 Extend the `JuMP.variable_by_name` function to accomodate `InfiniteModel` objects.
@@ -1053,13 +1066,7 @@ function JuMP.variable_by_name(model::InfiniteModel, name::String)
     elseif index == -1
         error("Multiple variables have the name $name.")
     else
-        if isa(model.vars[index], InfiniteVariable)
-            return InfiniteVariableRef(model, index)
-        elseif isa(model.vars[index], PointVariable)
-            return PointVariableRef(model, index)
-        else
-            return GlobalVariableRef(model, index)
-        end
+        return _make_variable_ref(model, index)
     end
     return
 end
@@ -1073,13 +1080,7 @@ function JuMP.all_variables(model::InfiniteModel)
     indexes = sort([index for index in keys(model.vars)])
     counter = 1
     for index in indexes
-        if isa(model.vars[index], InfiniteVariable)
-            vrefs_list[counter] = InfiniteVariableRef(model, index)
-        elseif isa(model.vars[index], PointVariable)
-            vrefs_list[counter] = PointVariableRef(model, index)
-        else
-            vrefs_list[counter] = GlobalVariableRef(model, index)
-        end
+        vrefs_list[counter] = _make_variable_ref(model, index)
         counter += 1
     end
     return vrefs_list

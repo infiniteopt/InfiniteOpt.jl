@@ -130,7 +130,9 @@ end
 function _initialize_global_variables(trans_model::JuMP.Model,
                                       inf_model::InfiniteModel)
     # search inf_model for global vars and make a jump var for one that is used
-    for (index, var) in inf_model.vars
+    ordered_indices = sort(collect(keys(inf_model.vars)))
+    for index in ordered_indices
+        var = inf_model.vars[index]
         if isa(var, GlobalVariable)
             gvref = GlobalVariableRef(inf_model, index)
             if is_used(gvref)
@@ -169,7 +171,9 @@ end
 function _initialize_infinite_variables(trans_model::JuMP.Model,
                                         inf_model::InfiniteModel)
     # search inf_model for infinite vars and make a jump var for all of its supports
-    for (index, var) in inf_model.vars
+    ordered_indices = sort(collect(keys(inf_model.vars)))
+    for index in ordered_indices
+        var = inf_model.vars[index]
         if isa(var, InfiniteVariable)
             ivref = InfiniteVariableRef(inf_model, index)
             if is_used(ivref)
@@ -622,7 +626,8 @@ end
 
 ## Construct the objective and error is contains non finite variables
 function _set_objective(trans_model::JuMP.Model, inf_model::InfiniteModel)
-    trans_obj, = _make_transcription_function(JuMP.objective_function(inf_model), trans_model)
+    trans_obj, = _make_transcription_function(JuMP.objective_function(inf_model),
+                                              trans_model)
     isa(trans_obj, Vector) && error("Objective is not finite, ensure all " *
                                     "infinite variables/parameters in measures " *
                                     "are evaluated completely.")
@@ -703,7 +708,9 @@ end
 ## leverage _make_transcription_function to transcribe the constraints
 function _set_constraints(trans_model::JuMP.Model, inf_model::InfiniteModel)
     # transform and add constraints that haven't already been added through add_variable
-    for (index, constr) in inf_model.constrs
+    ordered_indices = sort(collect(keys(inf_model.constrs)))
+    for index in ordered_indices
+        constr = inf_model.constrs[index]
         if !inf_model.constr_in_var_info[index]
             # extract the reference and transcribe the jump object function
             icref = _make_constraint_ref(inf_model, index)
@@ -739,6 +746,126 @@ function _set_constraints(trans_model::JuMP.Model, inf_model::InfiniteModel)
     return
 end
 
+## Helper functions for mapping InfOpt var info constrs to the transcribed ones
+# FiniteVariableRef
+function _map_info_constraints(fvref::FiniteVariableRef, trans_model::JuMP.Model)
+    vref = transcription_variable(trans_model, fvref)
+    # Check if both variables have a constraint and map if they do
+    if JuMP.has_lower_bound(fvref) && JuMP.has_lower_bound(vref)
+        _set_mapping(JuMP.LowerBoundRef(fvref), JuMP.LowerBoundRef(vref))
+    end
+    if JuMP.has_upper_bound(fvref) && JuMP.has_upper_bound(vref)
+        _set_mapping(JuMP.UpperBoundRef(fvref), JuMP.UpperBoundRef(vref))
+    end
+    if JuMP.is_fixed(fvref) && JuMP.is_fixed(vref)
+        _set_mapping(JuMP.FixRef(fvref), JuMP.FixRef(vref))
+    end
+    if JuMP.is_integer(fvref) && JuMP.is_integer(vref)
+        _set_mapping(JuMP.IntegerRef(fvref), JuMP.IntegerRef(vref))
+    end
+    if JuMP.is_binary(fvref) && JuMP.is_binary(vref)
+        _set_mapping(JuMP.BinaryRef(fvref), JuMP.BinaryRef(vref))
+    end
+    return
+end
+
+# InfiniteVariableRef
+function _map_info_constraints(ivref::InfiniteVariableRef, trans_model::JuMP.Model)
+    vrefs = transcription_variable(trans_model, ivref)
+    # Check if both variables have a constraint and map if they do
+    if JuMP.has_lower_bound(ivref)
+        crefs = JuMP.ConstraintRef[]
+        support_indices = Dict{Int, Tuple}()
+        counter = 1
+        for i = 1:length(vrefs)
+            if JuMP.has_lower_bound(vrefs[i])
+                push!(crefs, JuMP.LowerBoundRef(vrefs[i]))
+                support_indices[counter] = supports(trans_model, ivref)[i]
+                counter += 1
+            end
+        end
+        _set_mapping(JuMP.LowerBoundRef(ivref), crefs)
+        _set_parameter_refs(trans_model, JuMP.LowerBoundRef(ivref),
+                            parameter_refs(ivref))
+        _set_supports(trans_model, JuMP.LowerBoundRef(ivref), support_indices)
+    end
+    if JuMP.has_upper_bound(ivref)
+        crefs = JuMP.ConstraintRef[]
+        support_indices = Dict{Int, Tuple}()
+        counter = 1
+        for i = 1:length(vrefs)
+            if JuMP.has_upper_bound(vrefs[i])
+                push!(crefs, JuMP.UpperBoundRef(vrefs[i]))
+                support_indices[counter] = supports(trans_model, ivref)[i]
+                counter += 1
+            end
+        end
+        _set_mapping(JuMP.UpperBoundRef(ivref), crefs)
+        _set_parameter_refs(trans_model, JuMP.UpperBoundRef(ivref),
+                            parameter_refs(ivref))
+        _set_supports(trans_model, JuMP.UpperBoundRef(ivref), support_indices)
+    end
+    if JuMP.is_fixed(ivref)
+        crefs = JuMP.ConstraintRef[]
+        support_indices = Dict{Int, Tuple}()
+        counter = 1
+        for i = 1:length(vrefs)
+            if JuMP.is_fixed(vrefs[i])
+                push!(crefs, JuMP.FixRef(vrefs[i]))
+                support_indices[counter] = supports(trans_model, ivref)[i]
+                counter += 1
+            end
+        end
+        _set_mapping(JuMP.FixRef(ivref), crefs)
+        _set_parameter_refs(trans_model, JuMP.FixRef(ivref),
+                            parameter_refs(ivref))
+        _set_supports(trans_model, JuMP.FixRef(ivref), support_indices)
+    end
+    if JuMP.is_integer(ivref)
+        crefs = JuMP.ConstraintRef[]
+        support_indices = Dict{Int, Tuple}()
+        counter = 1
+        for i = 1:length(vrefs)
+            if JuMP.is_integer(vrefs[i])
+                push!(crefs, JuMP.IntegerRef(vrefs[i]))
+                support_indices[counter] = supports(trans_model, ivref)[i]
+                counter += 1
+            end
+        end
+        _set_mapping(JuMP.IntegerRef(ivref), crefs)
+        _set_parameter_refs(trans_model, JuMP.IntegerRef(ivref),
+                            parameter_refs(ivref))
+        _set_supports(trans_model, JuMP.IntegerRef(ivref), support_indices)
+    end
+    if JuMP.is_binary(ivref)
+        crefs = JuMP.ConstraintRef[]
+        support_indices = Dict{Int, Tuple}()
+        counter = 1
+        for i = 1:length(vrefs)
+            if JuMP.is_binary(vrefs[i])
+                push!(crefs, JuMP.BinaryRef(vrefs[i]))
+                support_indices[counter] = supports(trans_model, ivref)[i]
+                counter += 1
+            end
+        end
+        _set_mapping(JuMP.BinaryRef(ivref), crefs)
+        _set_parameter_refs(trans_model, JuMP.BinaryRef(ivref),
+                            parameter_refs(ivref))
+        _set_supports(trans_model, JuMP.BinaryRef(ivref), support_indices)
+    end
+    return
+end
+
+## Map the variable info constraints between the two models
+function _map_variable_info_constraints(trans_model::JuMP.Model,
+                                        inf_model::InfiniteModel)
+    for (index, var) in inf_model.vars
+        ivref = _make_variable_ref(inf_model, index)
+        _map_info_constraints(ivref, trans_model)
+    end
+    return
+end
+
 """
     TranscriptionModel(model::InfiniteModel, args...)
 Return a transcribed version of the infinite model.
@@ -751,7 +878,7 @@ function TranscriptionModel(inf_model::InfiniteModel, args...)
     if JuMP.objective_sense(inf_model) != MOI.FEASIBILITY_SENSE
         _set_objective(trans_model, inf_model)
     end
-    # TODO include var info constraints in mappings
+    _map_variable_info_constraints(trans_model, inf_model)
     _set_constraints(trans_model, inf_model)
     return trans_model
 end
