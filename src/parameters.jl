@@ -71,10 +71,8 @@ function _constructor_set(_error::Function, info::_ParameterInfoExpr)
     if (info.has_lb || info.has_ub) && !(info.has_lb && info.has_ub)
         _error("Must specify both an upper bound and a lower bound")
     elseif info.has_lb
-        if !(typeof(info.lower_bound) <: Number)
-            _error("Bounds must be a number.")
-        end
-        return :(IntervalSet(convert(Float64, $(info.lower_bound)), convert(Float64, $(info.upper_bound))))
+        check = :(isa($(info.lower_bound), Number))
+        return :($(check) ? IntervalSet(convert(Float64, $(info.lower_bound)), convert(Float64, $(info.upper_bound))) : error("Bounds must be a number."))
     elseif info.has_dist
         check = :(isa($(info.distribution), Distributions.NonMatrixDistribution))
         return :($(check) ? DistributionSet($(info.distribution)) : error("Distribution must be a subtype of Distributions.NonMatrixDistribution."))
@@ -106,25 +104,32 @@ function _check_supports_in_bounds(_error::Function,
 end
 
 """
-build_parameter(_error::Function, set::AbstractInfiniteSet;
+build_parameter(_error::Function, set::AbstractInfiniteSet, num_params::Int;
                 supports::Union{Number, Vector{<:Number}} = Number[],
-                correlated::Bool = false, extra_kw_args...)
+                independent::Bool = false, extra_kw_args...)
 Build an infinite parameter to the model in a manner similar to `JuMP.build_variable`.
 """
-function build_parameter(_error::Function, set::AbstractInfiniteSet;
+function build_parameter(_error::Function, set::AbstractInfiniteSet, num_params::Int;
                          supports::Union{Number, Vector{<:Number}} = Number[],
-                         correlated::Bool = true, extra_kw_args...)
+                         independent::Bool = false, extra_kw_args...)
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
     if length(supports) != 0
         _check_supports_in_bounds(_error, supports, set)
     end
+    if isa(set, DistributionSet)
+        if isa(set.distribution, Distributions.MultivariateDistribution)
+            if num_params != length(set.distribution)
+                _error("Multivariate distribution must match dimension of parameter.")
+            end
+        end
+    end
     unique_supports = sort(unique(supports))
     if length(unique_supports) != length(supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
-    return InfOptParameter(set, unique_supports, correlated)
+    return InfOptParameter(set, unique_supports, independent)
 end
 
 """
@@ -294,8 +299,8 @@ _parameter_set(pref::ParameterRef) = JuMP.owner_model(pref).params[JuMP.index(pr
 _parameter_supports(pref::ParameterRef) = JuMP.owner_model(pref).params[JuMP.index(pref)].supports
 function _update_parameter_set(pref::ParameterRef, set::AbstractInfiniteSet)
     supports = JuMP.owner_model(pref).params[JuMP.index(pref)].supports
-    correlated = JuMP.owner_model(pref).params[JuMP.index(pref)].correlated
-    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports, correlated)
+    independent = JuMP.owner_model(pref).params[JuMP.index(pref)].independent
+    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports, independent)
     if is_used(pref)
         set_optimizer_model_status(JuMP.owner_model(pref), false)
     end
@@ -303,8 +308,8 @@ function _update_parameter_set(pref::ParameterRef, set::AbstractInfiniteSet)
 end
 function _update_parameter_supports(pref::ParameterRef, supports::Vector{<:Number})
     set = JuMP.owner_model(pref).params[JuMP.index(pref)].set
-    correlated = JuMP.owner_model(pref).params[JuMP.index(pref)].correlated
-    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports, correlated)
+    independent = JuMP.owner_model(pref).params[JuMP.index(pref)].independent
+    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports, independent)
     if is_used(pref)
         set_optimizer_model_status(JuMP.owner_model(pref), false)
     end
@@ -467,8 +472,8 @@ function supports(prefs::AbstractArray{<:ParameterRef})
         !has_supports(pref) && error("Parameter $pref does not have supports.")
     end
     lengths = [num_supports(pref) for (k, pref) in prefs.data]
-    if is_correlated(collect(values(prefs.data))[1])
-        length(unique(lengths)) != 1 && error("Each correlated parameter must " *
+    if !is_independent(collect(values(prefs.data))[1])
+        length(unique(lengths)) != 1 && error("Each nonindependent parameter must " *
                                               "have the same number of support " *
                                               "points.")
         support_list = Vector{JuMP.Containers.SparseAxisArray}(undef, lengths[1])
@@ -544,11 +549,11 @@ function group_id(prefs::AbstractArray{<:ParameterRef})
 end
 
 """
-    is_correlated(pref::ParameterRef)::Bool
-Returns true for `pref` if it is correlated or false otherwise.
+    is_independent(pref::ParameterRef)::Bool
+Returns true for `pref` if it is independent or false otherwise.
 """
-function is_correlated(pref::ParameterRef)::Bool
-    return JuMP.owner_model(pref).params[JuMP.index(pref)].correlated
+function is_independent(pref::ParameterRef)::Bool
+    return JuMP.owner_model(pref).params[JuMP.index(pref)].independent
 end
 
 """

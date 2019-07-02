@@ -76,7 +76,6 @@ function _assert_valid_model_call(m, macrocode)
     end
 end
 
-# TODO Check for dimensionality with multivariate distribution (can do with above function and checking the parameter index counter)
 """
     @infinite_parameter(model, args)
 A macro for the defining parameters of type `ParameterRef`.
@@ -135,7 +134,7 @@ macro infinite_parameter(model, args...)
     set = InfOpt._constructor_set(_error, infoexpr)
     if isa(param, Symbol)
         # Easy case - a single variable
-        buildcall = :( build_parameter($_error, $set, $(extra...)) )
+        buildcall = :( build_parameter($_error, $set, 1, $(extra...)) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall, $base_name) )
         # The looped code is trivial here since there is a single variable
@@ -149,12 +148,13 @@ macro infinite_parameter(model, args...)
         clear_dependencies(i) = (JuMP.Containers.is_dependent(idxparams, idxsets[i], i) ? () : idxsets[i])
 
         # Code to be used to create each variable of the container.
-        buildcall = :( build_parameter($_error, $set, $(extra...)) )
+        vartype = :( variable_type($esc_model, Parameter) )
+        container_code, = JuMP.Containers.generate_container(vartype, idxparams, idxsets, requestedcontainer)
+        buildcall = :( build_parameter($_error, $set, length($container_code), $(extra...)) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall, $(JuMP._name_call(base_name, idxparams))) )
         code = :( $(refcall) = $parametercall )
         # Determine the return type of add_variable. This is needed to create the container holding them.
-        vartype = :( variable_type($esc_model, Parameter) )
         creationcode = JuMP._get_looped_code(parameter, code, condition, idxparams, idxsets, vartype, requestedcontainer)
         final_parameter = parameter
     end
@@ -167,8 +167,8 @@ macro infinite_parameter(model, args...)
         # We register the variable reference to its name and
         # we assign it to a variable in the local scope of this name
         macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
-                                              final_variable = final_parameter,
-                                              model_for_registering = esc_model)
+                                                   final_variable = final_parameter,
+                                                   model_for_registering = esc_model)
     end
     return _assert_valid_model_call(esc_model, macro_code)
 end

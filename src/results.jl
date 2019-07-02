@@ -45,23 +45,6 @@ return `false`. See also [`value`](@ref).
 JuMP.has_values(model::InfiniteModel) = JuMP.primal_status(model) != MOI.NO_SOLUTION
 
 """
-    map_value(vref::GeneralVariableRef, key)
-Map the value of `vref` to its counterpart in the optimizer model type distininguished
-by its extension key `key` as type `Val{ext_key_name}`.
-"""
-function map_value end
-
-"""
-    JuMP.value(vref::GeneralVariableRef)
-Get the value of this variable in the result returned by a solver. Use
-[`JuMP.has_values`](@ref) to check if a result exists before asking for values.
-"""
-function JuMP.value(vref::GeneralVariableRef)
-    return map_value(vref::GeneralVariableRef,
-                     Val(optimizer_model_key(JuMP.owner_model(vref))))
-end
-
-"""
     JuMP.objective_bound(model::InfiniteModel)::Float64
 Return the best known bound on the optimal objective value after a call to
 `optimize!(model)`.
@@ -76,4 +59,21 @@ Return the objective value after a call to `optimize!(model)`.
 """
 function JuMP.objective_value(model::InfiniteModel)::Float64
     return JuMP.objective_value(optimizer_model(model))
+end
+
+"""
+    map_value(vref::GeneralVariableRef, key)
+Map the value of `vref` to its counterpart in the optimizer model type distininguished
+by its extension key `key` as type `Val{ext_key_name}`.
+"""
+function map_value end
+
+"""
+    JuMP.value(vref::GeneralVariableRef)
+Get the value of this variable in the result returned by a solver. Use
+[`JuMP.has_values`](@ref) to check if a result exists before asking for values.
+"""
+function JuMP.value(vref::GeneralVariableRef)
+    return map_value(vref::GeneralVariableRef,
+                     Val(optimizer_model_key(JuMP.owner_model(vref))))
 end

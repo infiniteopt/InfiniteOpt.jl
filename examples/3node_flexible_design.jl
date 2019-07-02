@@ -23,7 +23,7 @@ m = InfiniteModel(with_optimizer(Clp.Optimizer))
 # Set the uncertainty parameters
 dist = MvNormal(θ_nom, covar)
 θs = rand(dist, num_samples)
-@infinite_parameter(m, θ[i = 1:n_θ] in dist, supports = θs[i, :], correlated = true)
+@infinite_parameter(m, θ[i = 1:n_θ] in dist, supports = θs[i, :])
 
 # Initialize the variables
 @infinite_variable(m, 0 <= y(θ) <= 1)

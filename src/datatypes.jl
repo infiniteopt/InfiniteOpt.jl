@@ -10,12 +10,12 @@ A DataType for storing infinite parameter info
 **Fields**
 - `set::T` The set that contains the parameter.
 - `supports::Vector{<:Number}` The support points used to discretize this variable.
-- `correlated::Bool` Indicates if parameter is part of correlated group.
+- `independent::Bool` Indicates if parameter is part of correlated group.
 """
 struct InfOptParameter{T <: AbstractInfiniteSet} <: JuMP.AbstractVariable
     set::T
     supports::Vector{<:Number}
-    correlated::Bool
+    independent::Bool
 end
 
 """
