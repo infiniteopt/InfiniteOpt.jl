@@ -36,7 +36,7 @@ function JuMP._set_lower_bound_or_error(_error::Function,
                             "distribution")
     info.has_set && _error("Cannot specify parameter lower_bound and set")
     info.has_lb = true
-    info.lower_bound = convert(Float64, lower)
+    info.lower_bound = lower
 end
 
 function JuMP._set_upper_bound_or_error(_error::Function,
@@ -46,7 +46,7 @@ function JuMP._set_upper_bound_or_error(_error::Function,
                             "distribution")
     info.has_set && _error("Cannot specify parameter upper_bound and set")
     info.has_ub = true
-    info.upper_bound = convert(Float64, upper)
+    info.upper_bound = upper
 end
 
 function _dist_or_error(_error::Function, info::_ParameterInfoExpr, dist)
@@ -113,7 +113,7 @@ Build an infinite parameter to the model in a manner similar to `JuMP.build_vari
 """
 function build_parameter(_error::Function, set::AbstractInfiniteSet;
                          supports::Union{Number, Vector{<:Number}} = Number[],
-                         correlated::Bool = false, extra_kw_args...)
+                         correlated::Bool = true, extra_kw_args...)
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
@@ -209,6 +209,9 @@ Extend the `JuMP.delete` function to accomodate infinite parameters
 """
 function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
     @assert JuMP.is_valid(model, pref)
+    if is_used(pref)
+        set_optimizer_model_status(model, false)
+    end
     if used_by_variable(pref)
         for vindex in model.param_to_vars[JuMP.index(pref)]
             prefs = _remove_parameter(model.vars[vindex].parameter_refs, pref)
@@ -293,12 +296,18 @@ function _update_parameter_set(pref::ParameterRef, set::AbstractInfiniteSet)
     supports = JuMP.owner_model(pref).params[JuMP.index(pref)].supports
     correlated = JuMP.owner_model(pref).params[JuMP.index(pref)].correlated
     JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports, correlated)
+    if is_used(pref)
+        set_optimizer_model_status(JuMP.owner_model(pref), false)
+    end
     return
 end
 function _update_parameter_supports(pref::ParameterRef, supports::Vector{<:Number})
     set = JuMP.owner_model(pref).params[JuMP.index(pref)].set
     correlated = JuMP.owner_model(pref).params[JuMP.index(pref)].correlated
     JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports, correlated)
+    if is_used(pref)
+        set_optimizer_model_status(JuMP.owner_model(pref), false)
+    end
     return
 end
 
@@ -331,7 +340,7 @@ function JuMP.has_lower_bound(pref::ParameterRef)
         if typeof(set.distribution) <: Distributions.UnivariateDistribution
             return true
         else
-            error("Only parameters with univariate distributions have well-defined lower bounds.")
+            false
         end
     else
         type = typeof(set)
@@ -384,7 +393,7 @@ function JuMP.has_upper_bound(pref::ParameterRef)
         if typeof(set.distribution) <: Distributions.UnivariateDistribution
             return true
         else
-            error("Only parameters with univariate distributions have well-defined upper bounds.")
+            false
         end
     else
         type = typeof(set)
@@ -476,7 +485,6 @@ function supports(prefs::AbstractArray{<:ParameterRef})
             counter += 1
         end
     end
-    # TODO convert back to original array type
     return support_list
 end
 
@@ -600,7 +608,12 @@ function _root_names(prefs::Tuple)
         else
             names = _names(prefs[i])
             first_bracket = findfirst(isequal('['), names[1])
-            root_names[i] = names[1][1:first_bracket-1]
+            # Hacky fix to handle invalid Unicode
+            try
+                root_names[i] = names[1][1:first_bracket-1]
+            catch
+                root_names[i] = names[1][1:first_bracket-2]
+            end
         end
     end
     return root_names

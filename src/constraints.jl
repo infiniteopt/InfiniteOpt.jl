@@ -65,6 +65,25 @@ function _update_var_constr_mapping(vrefs::Vector{<:GeneralVariableRef}, cindex:
     return
 end
 
+# Check that parameter_bounds argument is valid
+function _check_bounds(model::InfiniteModel, bounds::Dict)
+    prefs = collect(keys(bounds))
+    for pref in prefs
+        !JuMP.is_valid(model, pref) && error("Parameter bound reference $pref is invalid.")
+        if JuMP.has_lower_bound(pref)
+            if bounds[pref].lower_bound < JuMP.lower_bound(pref)
+                error("Specified parameter lower bound exceeds that defined for $pref.")
+            end
+        end
+        if JuMP.has_upper_bound(pref)
+            if bounds[pref].upper_bound > JuMP.upper_bound(pref)
+                error("Specified parameter upper bound exceeds that defined for $pref.")
+            end
+        end
+    end
+    return
+end
+
 # Extend functions for bounded constraints
 JuMP.shape(c::BoundedScalarConstraint) = JuMP.shape(JuMP.ScalarConstraint(c.func, c.set))
 JuMP.jump_function(c::BoundedScalarConstraint) = c.func
@@ -81,7 +100,9 @@ function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, n
     for vref in vrefs
         JuMP.owner_model(vref) != model && error("Variable $vref does not belong to model.")
     end
-    # TODO add checks for bounded constraints, like check prefs are valid
+    if isa(c, BoundedScalarConstraint)
+        _check_bounds(model, c.bounds)
+    end
     model.next_constr_index += 1
     index = model.next_constr_index
     if length(vrefs) != 0
@@ -97,6 +118,7 @@ function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, n
     model.constrs[index] = c
     JuMP.set_name(cref, name)
     model.constr_in_var_info[index] = false
+    set_optimizer_model_status(model, false)
     return cref
 end
 
@@ -125,6 +147,7 @@ function JuMP.delete(model::InfiniteModel, cref::GeneralConstraintRef)
     delete!(model.constrs, JuMP.index(cref))
     delete!(model.constr_to_name, JuMP.index(cref))
     delete!(model.constr_in_var_info, JuMP.index(cref))
+    set_optimizer_model_status(model, false)
     return
 end
 

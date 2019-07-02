@@ -15,17 +15,17 @@ function Base.show(io::IO, model::InfiniteModel)
         JuMP.show_objective_function_summary(io, model)
     end
     JuMP.show_constraints_summary(io, model)
-    JuMP.show_backend_summary(io, model)
     names_in_scope = sort(collect(keys(JuMP.object_dictionary(model))))
     if !isempty(names_in_scope)
-        println(io)
         print(io, "Names registered in the model: ",
-              join(string.(names_in_scope), ", "))
+              join(string.(names_in_scope), ", "), "\n")
     end
+    JuMP.show_backend_summary(io, model)
 end
 
 function JuMP.show_backend_summary(io::IO, model::InfiniteModel)
-    JuMP.show_backend_summary(io, optimize_model(model))
+    println(io, "Optimizer model backend information: ")
+    JuMP.show_backend_summary(io, optimizer_model(model))
     return
 end
 
@@ -54,6 +54,7 @@ function JuMP.constraints_string(print_mode, model::InfiniteModel)
     strings = String[]
     # Sort by creation order
     constraints = sort(collect(model.constrs), by = c -> c.first)
+    # TODO show parameters bounds
     for (index, constraint) in constraints
         push!(strings, JuMP.constraint_string(print_mode, constraint))
     end

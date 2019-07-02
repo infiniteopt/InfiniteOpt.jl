@@ -188,6 +188,7 @@ Extend the `JuMP.delete` function to accomodate measures
 """
 function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
     @assert JuMP.is_valid(model, mref)
+    set_optimizer_model_status(model, false)
     delete!(model.measures, JuMP.index(mref))
     delete!(model.meas_to_name, JuMP.index(mref))
     return
@@ -253,7 +254,7 @@ function _expand_measure(ivref::InfiniteVariableRef,
         for i = 1:length(data.supports)
             pvref = _make_point_variable(ivref)
             support = (data.supports[i],)
-            _update_point_mapping(trans_model, pvref, ivref, support)
+            TranscriptionOpt._update_point_mapping(trans_model, pvref, ivref, support)
             coef = data.coefficients[i]
             weight = data.weight_function(data.supports[i])
             JuMP.add_to_expression!(aff, coef * weight, pvref)
@@ -302,7 +303,7 @@ function _expand_measure(rvref::_ReducedInfiniteRef,
             for j = 1:length(rvref.supports)
                 support = (support..., rvref.supports[j])
             end
-            _update_point_mapping(trans_model, pvref, rvref.original, support)
+            TranscriptionOpt._update_point_mapping(trans_model, pvref, rvref.original, support)
             coef = data.coefficients[i]
             weight = data.weight_function(data.supports[i])
             JuMP.add_to_expression!(aff, coef * weight, pvref)

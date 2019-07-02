@@ -218,6 +218,16 @@ function _update_param_supports(inf_vref::InfiniteVariableRef, param_values::Tup
     return
 end
 
+# check the pref tuple contains only valid parameters
+function _check_parameters_valid(model::InfiniteModel, prefs::Tuple)
+    pref_list = _list_parameter_refs(prefs)
+    for pref in pref_list
+        !JuMP.is_valid(model, pref) && error("Parameter reference $pref " *
+                                             "is invalid.")
+    end
+    return
+end
+
 """
     JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String="")
 Extend the `JuMP.add_variable` function to accomodate our new variable types.
@@ -225,13 +235,15 @@ Extend the `JuMP.add_variable` function to accomodate our new variable types.
 function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String="")
     model.next_var_index += 1
     if isa(v, InfiniteVariable)
-        # TODO verify prefs valid
+        _check_parameters_valid(model, v.parameter_refs)
         vref = InfiniteVariableRef(model, model.next_var_index)
         _update_param_var_mapping(vref, v.parameter_refs)
     elseif isa(v, PointVariable)
-        # TODO verify ivref valid
+        ivref = v.infinite_variable_ref
+        !JuMP.is_valid(model, ivref) && error("Invalid infinite variable " *
+                                       "reference $ivref.")
         vref = PointVariableRef(model, model.next_var_index)
-        _update_param_supports(v.infinite_variable_ref, v.parameter_values)
+        _update_param_supports(ivref, v.parameter_values)
     else
         vref = GlobalVariableRef(model, model.next_var_index)
     end
@@ -344,6 +356,9 @@ Extend the `JuMP.delete` function to accomodate our new variable types.
 """
 function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
     @assert JuMP.is_valid(model, vref)
+    if is_used(vref)
+        set_optimizer_model_status(model, false)
+    end
     if JuMP.has_lower_bound(vref)
         JuMP.delete_lower_bound(vref)
     end
@@ -482,6 +497,7 @@ function JuMP.set_lower_bound(vref::InfOptVariableRef, lower::Number)
     if JuMP.has_lower_bound(vref)
         cindex = JuMP.lower_bound_index(vref)
         JuMP.owner_model(vref).constrs[cindex] = JuMP.ScalarConstraint(vref, newset)
+        set_optimizer_model_status(JuMP.owner_model(vref), false)
     else
         @assert !JuMP.is_fixed(vref)
         cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, newset))
@@ -575,6 +591,7 @@ function JuMP.set_upper_bound(vref::InfOptVariableRef, upper::Number)
     if JuMP.has_upper_bound(vref)
         cindex = JuMP.upper_bound_index(vref)
         JuMP.owner_model(vref).constrs[cindex] = JuMP.ScalarConstraint(vref, newset)
+        set_optimizer_model_status(JuMP.owner_model(vref), false)
     else
         @assert !JuMP.is_fixed(vref)
         cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, newset))
@@ -668,6 +685,7 @@ function JuMP.fix(vref::InfOptVariableRef, value::Number; force::Bool = false)
     if JuMP.is_fixed(vref)  # Update existing fixing constraint.
         cindex = JuMP.fix_index(vref)
         JuMP.owner_model(vref).constrs[cindex] = JuMP.ScalarConstraint(vref, new_set)
+        set_optimizer_model_status(JuMP.owner_model(vref), false)
     else  # Add a new fixing constraint.
         if  JuMP.has_upper_bound(vref) ||  JuMP.has_lower_bound(vref)
             if !force
@@ -742,6 +760,7 @@ Extend the `JuMP.set_start_value` function to accomodate our new variable types.
 """
 function JuMP.set_start_value(vref::InfOptVariableRef, value::Number)
     info = _variable_info(vref)
+    set_optimizer_model_status(JuMP.owner_model(vref), false)
     _update_variable_info(vref,
                          JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                            info.has_ub, info.upper_bound,
@@ -994,6 +1013,9 @@ function set_parameter_refs(vref::InfiniteVariableRef, prefs::Tuple)
     _check_tuple_names(error, prefs)
     _update_variable_param_refs(vref, prefs)
     JuMP.set_name(vref, _root_name(vref))
+    if is_used(vref)
+        set_optimizer_model_status(JuMP.owner_model(vref), false)
+    end
     return
 end
 

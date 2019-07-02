@@ -234,27 +234,22 @@ function _equal_to_parse(arg1::Number, arg2)
     return _equal_to_parse(arg2, arg1)
 end
 
-function _parse_parameters(_error::Function, head::Val{:call}, ::Union{Val{:<=}, Val{:≤}}, args)
-    return _less_than_parse(args[2], args[3])
-end
-
-function _parse_parameters(_error::Function, head::Val{:call}, ::Union{Val{:>=}, Val{:≥}}, args)
-    return _greater_than_parse(args[2], args[3])
-end
-
-function _parse_parameters(_error::Function, head::Val{:call}, ::Val{:(==)}, args)
-    return _equal_to_parse(args[2], args[3])
-end
-
-function _parse_parameters(_error::Function, head::Val{:call}, first, args)
-    if !(typeof(first) <: Union{Val{:in}, Val{:∈}})
+function _parse_parameters(_error::Function, head::Val{:call}, args)
+    if args[1] in [:<=, :≤]
+        return _less_than_parse(args[2], args[3])
+    elseif args[1] in [:>=, :≥]
+        return _greater_than_parse(args[2], args[3])
+    elseif args[1] == :(==)
+        return _equal_to_parse(args[2], args[3])
+    elseif !(args[1] in [:in, :∈])
         return args[1], Expr(:tuple, args[2:end]...)
     else
+        first = args[1]
         _error("Invalid operator $first.")
     end
 end
 
-function _parse_parameters(_error::Function, head::Val{:comparison}, first, args)
+function _parse_parameters(_error::Function, head::Val{:comparison}, args)
     if isexpr(args[3], :call)
         return Expr(:comparison, args[1:2]..., args[3].args[1], args[4:5]...), Expr(:tuple, args[3].args[2:end]...)
     else
@@ -295,7 +290,7 @@ macro infinite_variable(model, args...)
         # lb <= var <= ub or lb <= var[1:2] <= ub               | Expr      | :comparison
         # lb <= var(x, y) <= ub or lb <= var[1:2](x, y) <= ub   | Expr      | :comparison
         if isexpr(x, :comparison) || isexpr(x, :call)
-            inf_expr, params = InfOpt._parse_parameters(_error, Val(x.head), Val(x.args[1]), x.args)
+            inf_expr, params = InfOpt._parse_parameters(_error, Val(x.head), x.args)
         else
             inf_expr = x
             params = nothing
@@ -362,6 +357,7 @@ macro point_variable(model, args...)
             elseif x.args[1] in [:in, :<=, :>=, :(==), :≥, :≤, ∈]
                 _error("Invalid input syntax.")
             end
+            # TODO handle vectorized point variables with vector infinite vars
             rest_args = [args[i] for i = 2:length(args)]
             inf_var = x.args[1]
             param_vals = Expr(:tuple, x.args[2:end]...)
@@ -369,7 +365,7 @@ macro point_variable(model, args...)
                 @assert isa($model, InfiniteModel)
                 JuMP.@variable($model, ($(rest_args...)), variable_type = Point, infinite_variable_ref = $inf_var, parameter_values = $param_vals, error = $_error)
             end
-        elseif isexpr(x, :vect) && length(extra) == 1
+        elseif isexpr(x, :vect) && length(extra) == 0
             code = quote
                 @assert isa($model, InfiniteModel)
                 JuMP.@variable($model, ($(args...)), variable_type = Point, error = $_error)

@@ -99,11 +99,11 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 
     # Optimize Data
     optimizer_factory::Union{JuMP.OptimizerFactory, Nothing}
-    optimize_model_kwargs
-    optimize_model::JuMP.Model
+    optimizer_model::JuMP.Model
+    ready_to_optimize::Bool
 
     # Default constructor
-    function InfiniteModel()
+    function InfiniteModel(; kwargs...)
         new(0, Dict{Int, Measure}(), Dict{Int, String}(), # Measures
             0, 0, Dict{Int, InfOptParameter}(), Dict{Int, String}(), nothing, # Parameters
             Dict{Int, Int}(), Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
@@ -118,23 +118,14 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
             MOI.FEASIBILITY_SENSE,  # Objective
             zero(JuMP.GenericAffExpr{Float64, FiniteVariableRef}),
             Dict{Symbol, Any}(),
-            nothing, nothing, TranscriptionModel())
+            nothing, TranscriptionModel(kwargs...), false)
     end
 
     # JuMP like constructor
     function InfiniteModel(optimizer_factory::JuMP.OptimizerFactory; kwargs...)
         model = InfiniteModel()
         model.optimizer_factory = optimizer_factory
-        model.optimize_model_kwargs = kwargs
-        model.optimize_model = TranscriptionModel(optimizer_factory, kwargs...)
-        return model
-    end
-
-    # JuMP like constructor
-    function InfiniteModel(; kwargs...)
-        model = InfiniteModel()
-        model.optimize_model_kwargs = kwargs
-        model.optimize_model = TranscriptionModel(kwargs...)
+        model.optimizer_model = TranscriptionModel(optimizer_factory, kwargs...)
         return model
     end
 end
@@ -454,47 +445,4 @@ struct MeasureConstraintRef{S <: JuMP.AbstractShape} <: GeneralConstraintRef
     model::InfiniteModel
     index::Int
     shape::S
-end
-
-"""
-    TranscriptionData
-A DataType for storing the data mapping an `InfiniteModel` to a regular JuMP
-`Model`.
-**Fields**
-
-"""
-mutable struct TranscriptionData
-    # Variable mapping
-    infinite_to_vars::Dict{InfiniteVariableRef, Vector{JuMP.VariableRef}}
-    global_to_var::Dict{GlobalVariableRef, JuMP.VariableRef}
-    point_to_var::Dict{PointVariableRef, JuMP.VariableRef}
-
-    # Variable support data
-    infvar_to_supports::Dict{InfiniteVariableRef, Dict}
-
-    # Constraint mapping
-    infinite_to_constr::Dict{InfiniteConstraintRef, Vector{JuMP.ConstraintRef}}
-    measure_to_constr::Dict{MeasureConstraintRef, Vector{JuMP.ConstraintRef}}
-    finite_to_constr::Dict{FiniteConstraintRef, JuMP.ConstraintRef}
-
-    # Constraint support data
-    infconstr_to_supports::Dict{InfiniteConstraintRef, Dict}
-    measconstr_to_supports::Dict{MeasureConstraintRef, Dict}
-    infconstr_to_params::Dict{InfiniteConstraintRef, Tuple}
-    measconstr_to_params::Dict{MeasureConstraintRef, Tuple}
-
-    # Default constructor
-    function TranscriptionData()
-        return new(Dict{InfiniteVariableRef, Vector{JuMP.VariableRef}}(),
-                   Dict{GlobalVariableRef, JuMP.VariableRef}(),
-                   Dict{PointVariableRef, JuMP.VariableRef}(),
-                   Dict{InfiniteVariableRef, Dict}(),
-                   Dict{InfiniteConstraintRef, Vector{JuMP.ConstraintRef}}(),
-                   Dict{MeasureConstraintRef, Vector{JuMP.ConstraintRef}}(),
-                   Dict{FiniteConstraintRef, JuMP.ConstraintRef}(),
-                   Dict{InfiniteConstraintRef, Dict}(),
-                   Dict{MeasureConstraintRef, Dict}(),
-                   Dict{InfiniteConstraintRef, Tuple}(),
-                   Dict{MeasureConstraintRef, Tuple}())
-    end
 end

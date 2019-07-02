@@ -1,140 +1,12 @@
-"""
-    TranscriptionModel(args...)
-Return a JuMP `Model` with `TranscriptionData` included in the extension
-data field.
-"""
-function TranscriptionModel(args...)
-    model = JuMP.Model(args...)
-    model.ext[:TransData] = TranscriptionData()
-    return model
-end
-
-"""
-    is_transcription_model(model::JuMP.Model)
-Return true if JuMP `Model` is a `TranscriptionModel` or false otherwise.
-"""
-function is_transcription_model(model::JuMP.Model)
-    return haskey(model.ext, :TransData)
-end
-
-"""
-    transcription_data(model::JuMP.Model)
-Return the `TranscriptionData` from a `TranscriptionModel`. Error if it is not a
-a `TranscriptionModel`.
-"""
-function transcription_data(model::JuMP.Model)
-    !is_transcription_model(model) && error("Model is not a transcription model.")
-    return model.ext[:TransData]
-end
-
-"""
-    transcription_variable(model::JuMP.Model, vref::GlobalVariableRef)
-Return the transcribed variable reference corresponding to `vref`.
-"""
-function transcription_variable(model::JuMP.Model, vref::GlobalVariableRef)
-    !haskey(transcription_data(model).global_to_var, vref) && error("Variable reference $vref not used in transcription model.")
-    return transcription_data(model).global_to_var[vref]
-end
-
-"""
-    transcription_variable(model::JuMP.Model, vref::InfiniteVariableRef)
-Return the transcribed variable reference corresponding to `vref`.
-"""
-function transcription_variable(model::JuMP.Model, vref::InfiniteVariableRef)
-    !haskey(transcription_data(model).infinite_to_vars, vref) && error("Variable reference $vref not used in transcription model.")
-    return transcription_data(model).infinite_to_vars[vref]
-end
-
-"""
-    transcription_variable(model::JuMP.Model, vref::PointVariableRef)
-Return the transcribed variable reference corresponding to `vref`.
-"""
-function transcription_variable(model::JuMP.Model, vref::PointVariableRef)
-    !haskey(transcription_data(model).point_to_var, vref) && error("Variable reference $vref not used in transcription model.")
-    return transcription_data(model).point_to_var[vref]
-end
-
-"""
-    supports(model::JuMP.Model, vref::InfiniteVariableRef)
-Return the supports associated `vref` in the transcribed model.
-"""
-function supports(model::JuMP.Model, vref::InfiniteVariableRef)
-    !haskey(transcription_data(model).infvar_to_supports, vref) && error("Variable reference $vref not used in transcription model.")
-    return transcription_data(model).infvar_to_supports[vref]
-end
-
-"""
-    transcription_constraint(model::JuMP.Model, cref::InfiniteConstraintRef)
-Return the transcribed constraint reference(s) corresponding to `cref`.
-"""
-function transcription_constraint(model::JuMP.Model, cref::InfiniteConstraintRef)
-    !haskey(transcription_data(model).infinite_to_constr, cref) && error("Constraint reference $cref not used in transcription model.")
-    return transcription_data(model).infinite_to_constr[cref]
-end
-
-"""
-    transcription_constraint(model::JuMP.Model, cref::MeasureConstraintRef)
-Return the transcribed constraint reference(s) corresponding to `cref`.
-"""
-function transcription_constraint(model::JuMP.Model, cref::MeasureConstraintRef)
-    !haskey(transcription_data(model).measure_to_constr, cref) && error("Constraint reference $cref not used in transcription model.")
-    return transcription_data(model).measure_to_constr[cref]
-end
-
-"""
-    transcription_constraint(model::JuMP.Model, cref::FiniteConstraintRef)
-Return the transcribed constraint reference(s) corresponding to `cref`.
-"""
-function transcription_constraint(model::JuMP.Model, cref::FiniteConstraintRef)
-    !haskey(transcription_data(model).finite_to_constr, cref) && error("Constraint reference $cref not used in transcription model.")
-    return transcription_data(model).finite_to_constr[cref]
-end
-
-"""
-    supports(model::JuMP.Model, cref::InfiniteConstraintRef)
-Return the supports associated with `cref`.
-"""
-function supports(model::JuMP.Model, cref::InfiniteConstraintRef)
-    !haskey(transcription_data(model).infconstr_to_supports, cref) && error("Constraint reference $cref not used in transcription model.")
-    return transcription_data(model).infconstr_to_supports[cref]
-end
-
-"""
-    supports(model::JuMP.Model, cref::MeasureConstraintRef)
-Return the supports associated with `cref`.
-"""
-function supports(model::JuMP.Model, cref::MeasureConstraintRef)
-    !haskey(transcription_data(model).measconstr_to_supports, cref) && error("Constraint reference $cref not used in transcription model and/or is finite and doesn't have supports.")
-    return transcription_data(model).measconstr_to_supports[cref]
-end
-
-"""
-    parameter_refs(model::JuMP.Model, cref::InfiniteConstraintRef)
-Return the supports associated with `cref`.
-"""
-function parameter_refs(model::JuMP.Model, cref::InfiniteConstraintRef)
-    !haskey(transcription_data(model).infconstr_to_params, cref) && error("Constraint reference $cref not used in transcription model.")
-    return transcription_data(model).infconstr_to_params[cref]
-end
-
-"""
-    parameter_refs(model::JuMP.Model, cref::MeasureConstraintRef)
-Return the supports associated with `cref`.
-"""
-function parameter_refs(model::JuMP.Model, cref::MeasureConstraintRef)
-    !haskey(transcription_data(model).measconstr_to_params, cref) && error("Constraint reference $cref not used in transcription model and/or is finite and doesn't have parameter references.")
-    return transcription_data(model).measconstr_to_params[cref]
-end
-
 # Make jump variables and a dict mapping global vars to jump vars
 function _initialize_global_variables(trans_model::JuMP.Model,
-                                      inf_model::InfiniteModel)
+                                      inf_model::InfOpt.InfiniteModel)
     # search inf_model for global vars and make a jump var for one that is used
     ordered_indices = sort(collect(keys(inf_model.vars)))
     for index in ordered_indices
         var = inf_model.vars[index]
-        if isa(var, GlobalVariable)
-            gvref = GlobalVariableRef(inf_model, index)
+        if isa(var, InfOpt.GlobalVariable)
+            gvref = InfOpt.GlobalVariableRef(inf_model, index)
             if is_used(gvref)
                 vref = JuMP.add_variable(trans_model,
                                          JuMP.ScalarVariable(var.info),
@@ -150,7 +22,7 @@ end
 function _list_supports(prefs::Tuple)
     support_list = Vector{Array}(undef, length(prefs))
     for i = 1:length(prefs)
-        support_list[i] = supports(prefs[i])
+        support_list[i] = InfOpt.supports(prefs[i])
     end
     return support_list
 end
@@ -169,20 +41,20 @@ end
 
 # Make jump variables and a dict mapping infinite/point vars to jump vars
 function _initialize_infinite_variables(trans_model::JuMP.Model,
-                                        inf_model::InfiniteModel)
+                                        inf_model::InfOpt.InfiniteModel)
     # search inf_model for infinite vars and make a jump var for all of its supports
     ordered_indices = sort(collect(keys(inf_model.vars)))
     for index in ordered_indices
         var = inf_model.vars[index]
-        if isa(var, InfiniteVariable)
-            ivref = InfiniteVariableRef(inf_model, index)
-            if is_used(ivref)
-                prefs = parameter_refs(ivref)
+        if isa(var, InfOpt.InfiniteVariable)
+            ivref = InfOpt.InfiniteVariableRef(inf_model, index)
+            if InfOpt.is_used(ivref)
+                prefs = InfOpt.parameter_refs(ivref)
                 transcription_data(trans_model).infvar_to_supports[ivref] = _make_support_indices(prefs)
                 vrefs = Vector{JuMP.VariableRef}(undef, length(keys(supports(trans_model, ivref))))
                 for i = 1:length(vrefs)
                     # TODO Perhaps add different naming options...
-                    name = _root_name(ivref)
+                    name = InfOpt._root_name(ivref)
                     vrefs[i] = JuMP.add_variable(trans_model,
                                                  JuMP.ScalarVariable(var.info),
                                                  string(name, "(support: ", i, ")"))
@@ -195,9 +67,9 @@ function _initialize_infinite_variables(trans_model::JuMP.Model,
 end
 
 # Map the point variable reference to a transcribed variable based off of the support
-function _update_point_mapping(trans_model::JuMP.Model, pvref::PointVariableRef,
-                               ivref::InfiniteVariableRef, support::Tuple)
-    for (k, v) in supports(trans_model, ivref)
+function _update_point_mapping(trans_model::JuMP.Model, pvref::InfOpt.PointVariableRef,
+                               ivref::InfOpt.InfiniteVariableRef, support::Tuple)
+    for (k, v) in InfOpt.supports(trans_model, ivref)
        if v == support
            vrefs = transcription_variable(trans_model, ivref)
            transcription_data(trans_model).point_to_var[pvref] = vrefs[k]
@@ -208,7 +80,7 @@ function _update_point_mapping(trans_model::JuMP.Model, pvref::PointVariableRef,
 end
 
 # Override the info of the jump variable with the point variable's if any is provided
-function _update_point_info(trans_model::JuMP.Model, pvref::PointVariableRef)
+function _update_point_info(trans_model::JuMP.Model, pvref::InfOpt.PointVariableRef)
     vref = transcription_variable(trans_model, pvref)
     if JuMP.has_lower_bound(pvref)
         if JuMP.is_fixed(vref)
@@ -242,14 +114,14 @@ function _update_point_info(trans_model::JuMP.Model, pvref::PointVariableRef)
 end
 
 # Map point variables to the correct transcribed infinite variable
-function _map_point_variables(trans_model::JuMP.Model, inf_model::InfiniteModel)
+function _map_point_variables(trans_model::JuMP.Model, inf_model::InfOpt.InfiniteModel)
     # search inf_model for point vars and map them to jump vars if they are used
     for (index, var) in inf_model.vars
-        if isa(var, PointVariable)
-            pvref = PointVariableRef(inf_model, index)
-            if is_used(pvref)
-                ivref = infinite_variable_ref(pvref)
-                support = parameter_values(pvref)
+        if isa(var, InfOpt.PointVariable)
+            pvref = InfOpt.PointVariableRef(inf_model, index)
+            if InfOpt.is_used(pvref)
+                ivref = InfOpt.infinite_variable_ref(pvref)
+                support = InfOpt.parameter_values(pvref)
                 _update_point_mapping(trans_model, pvref, ivref, support)
                 _update_point_info(trans_model, pvref)
             end
@@ -260,17 +132,17 @@ end
 
 ## Helper functions for expanding the measure references in expressions
 # GenericAffExpr
-function _expand_measures(expr::JuMP.GenericAffExpr{C, <:GeneralVariableRef},
+function _expand_measures(expr::JuMP.GenericAffExpr{C, <:InfOpt.GeneralVariableRef},
                           trans_model::JuMP.Model) where {C}
     # use a QuadExpr in case measures contain quadratic espressions
-    quad = zero(JuMP.GenericQuadExpr{C,GeneralVariableRef})
+    quad = zero(JuMP.GenericQuadExpr{C, InfOpt.GeneralVariableRef})
     quad.aff.constant = expr.constant
     # add the variables to the expr, converting measures into expanded exprs
     for (var, coef) in expr.terms
-        if isa(var, MeasureRef)
-            func = measure_function(var)
-            data = measure_data(var)
-            new_func = _expand_measure(func, data, trans_model)
+        if isa(var, InfOpt.MeasureRef)
+            func = InfOpt.measure_function(var)
+            data = InfOpt.measure_data(var)
+            new_func = InfOpt._expand_measure(func, data, trans_model)
             JuMP.add_to_expression!(quad, coef, new_func)
         else
             JuMP.add_to_expression!(quad, coef, var)
@@ -286,24 +158,24 @@ end
 
 ## Helper functions for expanding the measure references in expressions
 # GenericQuadExpr
-function _expand_measures(expr::JuMP.GenericQuadExpr{C, <:GeneralVariableRef},
+function _expand_measures(expr::JuMP.GenericQuadExpr{C, <:InfOpt.GeneralVariableRef},
                           trans_model::JuMP.Model) where {C}
-    quad = zero(JuMP.GenericQuadExpr{C, GeneralVariableRef})
+    quad = zero(JuMP.GenericQuadExpr{C, InfOpt.GeneralVariableRef})
     quad.aff = _expand_measures(expr.aff, trans_model)
     # add the quadratic terms to the expr, converting measures into expanded exprs
     # note that this will error if the expanded forms are not linear or quadratic
     for (pair, coef) in expr.terms
         var_a = pair.a
         var_b = pair.b
-        if isa(var_a, MeasureRef)
-            func = measure_function(var_a)
-            data = measure_data(var_a)
-            var_a = _expand_measure(func, data, trans_model)
+        if isa(var_a, InfOpt.MeasureRef)
+            func = InfOpt.measure_function(var_a)
+            data = InfOpt.measure_data(var_a)
+            var_a = InfOpt._expand_measure(func, data, trans_model)
         end
-        if isa(var_b, MeasureRef)
-            func = measure_function(var_b)
-            data = measure_data(var_b)
-            var_b = _expand_measure(func, data, trans_model)
+        if isa(var_b, InfOpt.MeasureRef)
+            func = InfOpt.measure_function(var_b)
+            data = InfOpt.measure_data(var_b)
+            var_b = InfOpt._expand_measure(func, data, trans_model)
         end
         JuMP.add_to_expression!(quad, coef * var_a * var_b)
     end
@@ -311,10 +183,10 @@ function _expand_measures(expr::JuMP.GenericQuadExpr{C, <:GeneralVariableRef},
 end
 
 # Return the support value corresponding to a parameter reference
-function _parameter_value(pref::ParameterRef, support::Tuple, prefs::Tuple)
-    group = group_id(pref)
-    pref_index = findfirst(isequal(group), _groups(prefs))
-    if isa(prefs[pref_index], ParameterRef)
+function _parameter_value(pref::InfOpt.ParameterRef, support::Tuple, prefs::Tuple)
+    group = InfOpt.group_id(pref)
+    pref_index = findfirst(isequal(group), InfOpt._groups(prefs))
+    if isa(prefs[pref_index], InfOpt.ParameterRef)
         return support[pref_index]
     else
         for (k, v) in support[pref_index].data
@@ -328,20 +200,20 @@ end
 
 ## Helper function for mapping infinite variables to jump variables
 # FiniteVariableRef
-function _map_to_variable(fvref::FiniteVariableRef, support::Tuple,
+function _map_to_variable(fvref::InfOpt.FiniteVariableRef, support::Tuple,
                           prefs::Tuple, trans_model::JuMP.Model)
     return transcription_variable(trans_model, fvref)
 end
 
 # InfiniteVariableRef
-function _map_to_variable(ivref::InfiniteVariableRef, support::Tuple,
+function _map_to_variable(ivref::InfOpt.InfiniteVariableRef, support::Tuple,
                           prefs::Tuple, trans_model::JuMP.Model)
     # reduce support to only include the relavent parameter id groups
-    ivref_groups = _groups(parameter_refs(ivref))
-    support_groups = _groups(prefs)
+    ivref_groups = InfOpt._groups(InfOpt.parameter_refs(ivref))
+    support_groups = InfOpt._groups(prefs)
     reduced_support = Tuple(support[findfirst(isequal(group), support_groups)] for group in ivref_groups)
     # find the jump variable associated with the support
-    for (index, value) in supports(trans_model, ivref)
+    for (index, value) in InfOpt.supports(trans_model, ivref)
         if value == reduced_support
             return transcription_variable(trans_model, ivref)[index]
         end
@@ -351,12 +223,12 @@ function _map_to_variable(ivref::InfiniteVariableRef, support::Tuple,
 end
 
 # _ReducedInfiniteRef
-function _map_to_variable(rvref::_ReducedInfiniteRef, support::Tuple,
+function _map_to_variable(rvref::InfOpt._ReducedInfiniteRef, support::Tuple,
                           prefs::Tuple, trans_model::JuMP.Model)
     # parse the reduced parameters and modify the support to include them
     ivref = rvref.original
-    orig_groups = _groups(parameter_refs(ivref))
-    support_groups = _groups(prefs)
+    orig_groups = InfOpt._groups(InfOpt.parameter_refs(ivref))
+    support_groups = InfOpt._groups(prefs)
     support = [i for i in support]
     prefs = [pref for pref in prefs]
     for (index, value) in rvref.supports
@@ -364,7 +236,7 @@ function _map_to_variable(rvref::_ReducedInfiniteRef, support::Tuple,
             support[findfirst(isequal(orig_groups[index]), support_groups)] = value
         else
             push!(support, value)
-            push!(prefs, parameter_refs(ivref)[index])
+            push!(prefs, InfOpt.parameter_refs(ivref)[index])
         end
     end
     prefs = Tuple(pref for pref in prefs)
@@ -374,7 +246,7 @@ function _map_to_variable(rvref::_ReducedInfiniteRef, support::Tuple,
 end
 
 # ParameterRef
-function _map_to_variable(pref::ParameterRef, support::Tuple,
+function _map_to_variable(pref::InfOpt.ParameterRef, support::Tuple,
                           prefs::Tuple, trans_model::JuMP.Model)
     # find pref in prefs and return associated support value
     value = _parameter_value(pref, support, prefs)
@@ -412,58 +284,58 @@ end
 
 ## Convert jump scalar expressions with InfOpt variables into transcribed relations
 # PointVariableRef and GlobalVariableRef --> return scalar jump object
-function _make_transcription_function(vref::FiniteVariableRef,
+function _make_transcription_function(vref::InfOpt.FiniteVariableRef,
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict())
     return transcription_variable(trans_model, vref)
 end
 
 # InfiniteVariableRef --> return vector of expressions, prefs, and support mapping
-function _make_transcription_function(vref::InfiniteVariableRef,
+function _make_transcription_function(vref::InfOpt.InfiniteVariableRef,
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict())
     if length(bounds) != 0
-        new_supports, old_supports = _truncate_supports(supports(trans_model, vref),
-                                                        parameter_refs(vref),
+        new_supports, old_supports = _truncate_supports(InfOpt.supports(trans_model, vref),
+                                                        InfOpt.parameter_refs(vref),
                                                         bounds)
         ordered_indices = sort(collect(keys(old_supports)))
         return transcription_variable(trans_model, vref)[ordered_indices],
-               parameter_refs(vref), new_supports
+               InfOpt.parameter_refs(vref), new_supports
     else
-        return transcription_variable(trans_model, vref), parameter_refs(vref),
-               supports(trans_model, vref)
+        return transcription_variable(trans_model, vref), InfOpt.parameter_refs(vref),
+               InfOpt.supports(trans_model, vref)
     end
 end
 
 # ParameterRef --> return vector of numbers, pref, and support mapping
-function _make_transcription_function(pref::ParameterRef,
+function _make_transcription_function(pref::InfOpt.ParameterRef,
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict())
-    support_indices = Dict(i => supports(pref)[i] for i = 1:length(supports(pref)))
+    support_indices = Dict(i => InfOpt.supports(pref)[i] for i = 1:length(InfOpt.supports(pref)))
     if length(bounds) != 0
         new_supports, old_supports = _truncate_supports(support_indices,
                                                         (pref, ), bounds)
         ordered_indices = sort(collect(keys(old_supports)))
-        return supports(pref)[ordered_indices], (pref, ), new_supports
+        return InfOpt.supports(pref)[ordered_indices], (pref, ), new_supports
     else
-        return supports(pref), (pref, ), support_indices
+        return InfOpt.supports(pref), (pref, ), support_indices
     end
 end
 
 # MeasureRef --> return depends if finite or infinite
-function _make_transcription_function(mref::MeasureRef,
+function _make_transcription_function(mref::InfOpt.MeasureRef,
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict())
-    func = measure_function(mref)
-    data = measure_data(mref)
-    new_func = _possible_convert(FiniteVariableRef,
-                                 _expand_measure(func, data, trans_model))
+    func = InfOpt.measure_function(mref)
+    data = InfOpt.measure_data(mref)
+    new_func = InfOpt._possible_convert(InfOpt.FiniteVariableRef,
+                                 InfOpt._expand_measure(func, data, trans_model))
     # will either call finite variable function or general variable function
     return _make_transcription_function(new_func, trans_model, bounds)
 end
 
 # GenericAffExpr of FiniteVariableRefs --> return scalar jump object
-function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:FiniteVariableRef},
+function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:InfOpt.FiniteVariableRef},
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict()) where {C}
     # replace finite vars with jump vars
@@ -473,7 +345,7 @@ function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:FiniteVaria
 end
 
 # GenericQuadExpr of FiniteVariableRefs --> return scalar jump object
-function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:FiniteVariableRef},
+function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfOpt.FiniteVariableRef},
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict()) where {C}
     # replace finite vars with jump vars
@@ -490,7 +362,7 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:FiniteVari
 end
 
 # GenericAffExpr of GeneralVariableRefs --> return vector of numbers, pref, and support mapping
-function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:GeneralVariableRef},
+function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:InfOpt.GeneralVariableRef},
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict()) where {C}
     # check if there is only 1 var to dispatch to that transcription method
@@ -506,7 +378,7 @@ function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:GeneralVari
         end
     end
     # check to see if there are measures and expand them
-    is_measure = [var isa MeasureRef for var in _all_function_variables(expr)]
+    is_measure = [var isa InfOpt.MeasureRef for var in InfOpt._all_function_variables(expr)]
     if any(is_measure)
         expr = _expand_measures(expr, trans_model)
     end
@@ -515,7 +387,7 @@ function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:GeneralVari
         return _make_transcription_function(expr, trans_model, bounds)
     end
     # determine the common set of prefs and make all of the support combos
-    prefs = _all_parameter_refs(expr)
+    prefs = InfOpt._all_parameter_refs(expr)
     support_indices = _make_support_indices(prefs)
     if length(bounds) != 0
         support_indices =  _truncate_supports(support_indices, prefs, bounds)[1]
@@ -539,7 +411,7 @@ function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:GeneralVari
 end
 
 # GenericQuadExpr of GeneralVariableRefs
-function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:GeneralVariableRef},
+function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfOpt.GeneralVariableRef},
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict()) where {C}
     # check if there is only 1 var to dispatch to that transcription method
@@ -555,12 +427,12 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:GeneralVar
       end
     end
     # check to see if there are measures and expand them
-    is_measure = [var isa MeasureRef for var in _all_function_variables(expr)]
+    is_measure = [var isa MeasureRef for var in InfOpt._all_function_variables(expr)]
     if any(is_measure)
         expr = _expand_measures(expr, trans_model)
     end
     # determine the common set of prefs and make all of the support combos
-    prefs = _all_parameter_refs(expr)
+    prefs = InfOpt._all_parameter_refs(expr)
     support_indices = _make_support_indices(prefs)
     if length(bounds) != 0
         support_indices =  _truncate_supports(support_indices, prefs, bounds)[1]
@@ -600,11 +472,11 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:GeneralVar
 end
 
 # GenericAffExpr and GenericQuadExpr of MeasureFiniteVariableRefs --> returns depends on whether finite
-function _make_transcription_function(expr::Union{JuMP.GenericAffExpr{C, <:MeasureFiniteVariableRef},
-                                      JuMP.GenericQuadExpr{C, <:MeasureFiniteVariableRef}},
+function _make_transcription_function(expr::Union{JuMP.GenericAffExpr{C, <:InfOpt.MeasureFiniteVariableRef},
+                                      JuMP.GenericQuadExpr{C, <:InfOpt.MeasureFiniteVariableRef}},
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict()) where {C}
-    expr = _possible_convert(FiniteVariableRef, _expand_measures(expr, trans_model))
+    expr = InfOpt._possible_convert(FiniteVariableRef, _expand_measures(expr, trans_model))
     return _make_transcription_function(expr, trans_model, bounds)
 end
 
@@ -625,7 +497,7 @@ function _make_transcription_function(expr::JuMP.AbstractJuMPScalar,
 end
 
 ## Construct the objective and error is contains non finite variables
-function _set_objective(trans_model::JuMP.Model, inf_model::InfiniteModel)
+function _set_objective(trans_model::JuMP.Model, inf_model::InfOpt.InfiniteModel)
     trans_obj, = _make_transcription_function(JuMP.objective_function(inf_model),
                                               trans_model)
     isa(trans_obj, Vector) && error("Objective is not finite, ensure all " *
@@ -637,39 +509,39 @@ end
 
 ## Define helper functions for setting constraint mappings
 # InfiniteConstraintRef
-function _set_mapping(icref::InfiniteConstraintRef, crefs::Vector{JuMP.ConstraintRef})
+function _set_mapping(icref::InfOpt.InfiniteConstraintRef, crefs::Vector{JuMP.ConstraintRef})
     transcription_data(JuMP.owner_model(crefs[1])).infinite_to_constr[icref] = crefs
     return
 end
 
 # MeasureConstraintRef (infinite)
-function _set_mapping(mcref::MeasureConstraintRef, crefs::Vector{JuMP.ConstraintRef})
+function _set_mapping(mcref::InfOpt.MeasureConstraintRef, crefs::Vector{JuMP.ConstraintRef})
     transcription_data(JuMP.owner_model(crefs[1])).measure_to_constr[mcref] = crefs
     return
 end
 
 # MeasureConstraintRef (finite)
-function _set_mapping(mcref::MeasureConstraintRef, cref::JuMP.ConstraintRef)
+function _set_mapping(mcref::InfOpt.MeasureConstraintRef, cref::JuMP.ConstraintRef)
     transcription_data(JuMP.owner_model(cref)).measure_to_constr[mcref] = [cref]
     return
 end
 
 # FiniteConstraintRef
-function _set_mapping(fcref::FiniteConstraintRef, cref::JuMP.ConstraintRef)
+function _set_mapping(fcref::InfOpt.FiniteConstraintRef, cref::JuMP.ConstraintRef)
     transcription_data(JuMP.owner_model(cref)).finite_to_constr[fcref] = cref
     return
 end
 
 ## Define helper functions for setting constraint supports
 # InfiniteConstraintRef
-function _set_supports(trans_model::JuMP.Model, icref::InfiniteConstraintRef,
+function _set_supports(trans_model::JuMP.Model, icref::InfOpt.InfiniteConstraintRef,
                        supports::Dict{})
     transcription_data(trans_model).infconstr_to_supports[icref] = supports
     return
 end
 
 # MeasureConstraintRef
-function _set_supports(trans_model::JuMP.Model, mcref::MeasureConstraintRef,
+function _set_supports(trans_model::JuMP.Model, mcref::InfOpt.MeasureConstraintRef,
                        supports::Dict{})
     transcription_data(trans_model).measconstr_to_supports[mcref] = supports
     return
@@ -677,21 +549,21 @@ end
 
 ## Define helper functions for setting constraint parameter reference tuples
 # InfiniteConstraintRef
-function _set_parameter_refs(trans_model::JuMP.Model, icref::InfiniteConstraintRef,
+function _set_parameter_refs(trans_model::JuMP.Model, icref::InfOpt.InfiniteConstraintRef,
                              prefs::Tuple)
     transcription_data(trans_model).infconstr_to_params[icref] = prefs
     return
 end
 
 # MeasureConstraintRef
-function _set_parameter_refs(trans_model::JuMP.Model, mcref::MeasureConstraintRef,
+function _set_parameter_refs(trans_model::JuMP.Model, mcref::InfOpt.MeasureConstraintRef,
                              prefs::Tuple)
     transcription_data(trans_model).measconstr_to_params[icref] = prefs
     return
 end
 
 # Extract the root name of a constraint
-function _root_name(cref::GeneralConstraintRef)
+function InfOpt._root_name(cref::InfOpt.GeneralConstraintRef)
     name = JuMP.name(cref)
     if length(name) == 0
         return "noname"
@@ -706,14 +578,14 @@ function _root_name(cref::GeneralConstraintRef)
 end
 
 ## leverage _make_transcription_function to transcribe the constraints
-function _set_constraints(trans_model::JuMP.Model, inf_model::InfiniteModel)
+function _set_constraints(trans_model::JuMP.Model, inf_model::InfOpt.InfiniteModel)
     # transform and add constraints that haven't already been added through add_variable
     ordered_indices = sort(collect(keys(inf_model.constrs)))
     for index in ordered_indices
         constr = inf_model.constrs[index]
         if !inf_model.constr_in_var_info[index]
             # extract the reference and transcribe the jump object function
-            icref = _make_constraint_ref(inf_model, index)
+            icref = InfOpt._make_constraint_ref(inf_model, index)
             if isa(constr, BoundedScalarConstraint)
                 results = _make_transcription_function(constr.func, trans_model,
                                                        constr.bounds)
@@ -721,7 +593,7 @@ function _set_constraints(trans_model::JuMP.Model, inf_model::InfiniteModel)
                 results = _make_transcription_function(constr.func, trans_model)
             end
             # extract the name and create a transcribed constraint
-            root_name = _root_name(icref)
+            root_name = InfOpt._root_name(icref)
             # Tuple results correspond to transcribed infinite constraints
             if isa(results, Tuple)
                 crefs = Vector{JuMP.ConstraintRef}(undef, length(results[1]))
@@ -748,7 +620,7 @@ end
 
 ## Helper functions for mapping InfOpt var info constrs to the transcribed ones
 # FiniteVariableRef
-function _map_info_constraints(fvref::FiniteVariableRef, trans_model::JuMP.Model)
+function _map_info_constraints(fvref::InfOpt.FiniteVariableRef, trans_model::JuMP.Model)
     vref = transcription_variable(trans_model, fvref)
     # Check if both variables have a constraint and map if they do
     if JuMP.has_lower_bound(fvref) && JuMP.has_lower_bound(vref)
@@ -770,7 +642,7 @@ function _map_info_constraints(fvref::FiniteVariableRef, trans_model::JuMP.Model
 end
 
 # InfiniteVariableRef
-function _map_info_constraints(ivref::InfiniteVariableRef, trans_model::JuMP.Model)
+function _map_info_constraints(ivref::InfOpt.InfiniteVariableRef, trans_model::JuMP.Model)
     vrefs = transcription_variable(trans_model, ivref)
     # Check if both variables have a constraint and map if they do
     if JuMP.has_lower_bound(ivref)
@@ -780,13 +652,13 @@ function _map_info_constraints(ivref::InfiniteVariableRef, trans_model::JuMP.Mod
         for i = 1:length(vrefs)
             if JuMP.has_lower_bound(vrefs[i])
                 push!(crefs, JuMP.LowerBoundRef(vrefs[i]))
-                support_indices[counter] = supports(trans_model, ivref)[i]
+                support_indices[counter] = InfOpt.supports(trans_model, ivref)[i]
                 counter += 1
             end
         end
         _set_mapping(JuMP.LowerBoundRef(ivref), crefs)
         _set_parameter_refs(trans_model, JuMP.LowerBoundRef(ivref),
-                            parameter_refs(ivref))
+                            InfOpt.parameter_refs(ivref))
         _set_supports(trans_model, JuMP.LowerBoundRef(ivref), support_indices)
     end
     if JuMP.has_upper_bound(ivref)
@@ -796,13 +668,13 @@ function _map_info_constraints(ivref::InfiniteVariableRef, trans_model::JuMP.Mod
         for i = 1:length(vrefs)
             if JuMP.has_upper_bound(vrefs[i])
                 push!(crefs, JuMP.UpperBoundRef(vrefs[i]))
-                support_indices[counter] = supports(trans_model, ivref)[i]
+                support_indices[counter] = InfOpt.supports(trans_model, ivref)[i]
                 counter += 1
             end
         end
         _set_mapping(JuMP.UpperBoundRef(ivref), crefs)
         _set_parameter_refs(trans_model, JuMP.UpperBoundRef(ivref),
-                            parameter_refs(ivref))
+                            InfOpt.parameter_refs(ivref))
         _set_supports(trans_model, JuMP.UpperBoundRef(ivref), support_indices)
     end
     if JuMP.is_fixed(ivref)
@@ -812,13 +684,13 @@ function _map_info_constraints(ivref::InfiniteVariableRef, trans_model::JuMP.Mod
         for i = 1:length(vrefs)
             if JuMP.is_fixed(vrefs[i])
                 push!(crefs, JuMP.FixRef(vrefs[i]))
-                support_indices[counter] = supports(trans_model, ivref)[i]
+                support_indices[counter] = InfOpt.supports(trans_model, ivref)[i]
                 counter += 1
             end
         end
         _set_mapping(JuMP.FixRef(ivref), crefs)
         _set_parameter_refs(trans_model, JuMP.FixRef(ivref),
-                            parameter_refs(ivref))
+                            InfOpt.parameter_refs(ivref))
         _set_supports(trans_model, JuMP.FixRef(ivref), support_indices)
     end
     if JuMP.is_integer(ivref)
@@ -828,13 +700,13 @@ function _map_info_constraints(ivref::InfiniteVariableRef, trans_model::JuMP.Mod
         for i = 1:length(vrefs)
             if JuMP.is_integer(vrefs[i])
                 push!(crefs, JuMP.IntegerRef(vrefs[i]))
-                support_indices[counter] = supports(trans_model, ivref)[i]
+                support_indices[counter] = InfOpt.supports(trans_model, ivref)[i]
                 counter += 1
             end
         end
         _set_mapping(JuMP.IntegerRef(ivref), crefs)
         _set_parameter_refs(trans_model, JuMP.IntegerRef(ivref),
-                            parameter_refs(ivref))
+                            InfOpt.parameter_refs(ivref))
         _set_supports(trans_model, JuMP.IntegerRef(ivref), support_indices)
     end
     if JuMP.is_binary(ivref)
@@ -844,13 +716,13 @@ function _map_info_constraints(ivref::InfiniteVariableRef, trans_model::JuMP.Mod
         for i = 1:length(vrefs)
             if JuMP.is_binary(vrefs[i])
                 push!(crefs, JuMP.BinaryRef(vrefs[i]))
-                support_indices[counter] = supports(trans_model, ivref)[i]
+                support_indices[counter] = InfOpt.supports(trans_model, ivref)[i]
                 counter += 1
             end
         end
         _set_mapping(JuMP.BinaryRef(ivref), crefs)
         _set_parameter_refs(trans_model, JuMP.BinaryRef(ivref),
-                            parameter_refs(ivref))
+                            InfOpt.parameter_refs(ivref))
         _set_supports(trans_model, JuMP.BinaryRef(ivref), support_indices)
     end
     return
@@ -858,10 +730,12 @@ end
 
 ## Map the variable info constraints between the two models
 function _map_variable_info_constraints(trans_model::JuMP.Model,
-                                        inf_model::InfiniteModel)
+                                        inf_model::InfOpt.InfiniteModel)
     for (index, var) in inf_model.vars
-        ivref = _make_variable_ref(inf_model, index)
-        _map_info_constraints(ivref, trans_model)
+        ivref = InfOpt._make_variable_ref(inf_model, index)
+        if InfOpt.is_used(ivref)
+            _map_info_constraints(ivref, trans_model)
+        end
     end
     return
 end
@@ -870,8 +744,14 @@ end
     TranscriptionModel(model::InfiniteModel, args...)
 Return a transcribed version of the infinite model.
 """
-function TranscriptionModel(inf_model::InfiniteModel, args...)
-    trans_model = TranscriptionModel(args...)
+function TranscriptionModel(inf_model::InfOpt.InfiniteModel,
+                            optimizer_factory::Union{JuMP.OptimizerFactory, Nothing} = nothing;
+                            kwargs...)
+    if optimizer_factory == nothing
+        trans_model = TranscriptionModel(; kwargs...)
+    else
+        trans_model = TranscriptionModel(optimizer_factory; kwargs...)
+    end
     _initialize_global_variables(trans_model, inf_model)
     _initialize_infinite_variables(trans_model, inf_model)
     _map_point_variables(trans_model, inf_model)

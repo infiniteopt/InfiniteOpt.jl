@@ -1,0 +1,22 @@
+module TranscriptionOpt
+
+# Import the necessary packages.
+import JuMP
+import MathOptInterface
+const MOI = MathOptInterface
+const MOIU = MOI.Utilities
+using ..InfOpt
+
+include("model.jl")
+include("transcribe.jl")
+include("optimize.jl")
+include("results.jl")
+
+# Export transcription datatypes
+export TranscriptionData, TranscriptionModel
+
+# Export transcription methods
+export is_transcription_model, transcription_data, transcription_variable,
+transcription_constraint, transcription_model
+
+end # end module
