@@ -94,8 +94,10 @@ end
 function JuMP.in_set_string(print_mode, set::DistributionSet)
     d_string = string(set.distribution)
     first_bracket = findfirst(isequal('{'), d_string)
-    last_bracket = findall(isequal('}'), d_string)[end]
-    d_string = d_string[1:first_bracket-1] * d_string[last_bracket+1:end]
+    if first_bracket != nothing
+        last_bracket = findall(isequal('}'), d_string)[end]
+        d_string = d_string[1:first_bracket-1] * d_string[last_bracket+1:end]
+    end
     new_lines = findall(isequal('\n'), d_string)
     for i = 1:length(new_lines)
         if new_lines[1] == length(d_string)

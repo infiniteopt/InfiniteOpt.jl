@@ -1,6 +1,6 @@
 # include("C:/Users/puls446/.julia/dev/InfOpt/examples/3node_flexible_design.jl")
 
-using InfOpt, JuMP, Clp, Distributions
+using Revise, InfOpt, JuMP, Clp, Distributions
 
 # Set the covariance matrix for the uncertain parameters
 θ_nom = [0.; 60.; 10.]
@@ -15,7 +15,7 @@ n_d = 3
 c = ones(n_d) / sqrt(n_d)
 c_max = 5
 U = 10000
-num_samples = 1000
+num_samples = 10
 
 # Initialize the model
 m = InfiniteModel(with_optimizer(Clp.Optimizer))
@@ -54,7 +54,7 @@ expect_data = DiscreteMeasureData(θ, ones(num_samples) / num_samples, supports(
 @constraint(m, max_cost, sum(c[i] * d[i] for i = 1:n_d) <= c_max)
 
 # Solve and and obtain results
-status = optimize!(m)
+optimize!(m)
 if has_values(m)
     opt_y = value(y)
     opt_d = value.(d)

@@ -189,7 +189,7 @@ function _parameter_value(pref::InfOpt.ParameterRef, support::Tuple, prefs::Tupl
     if isa(prefs[pref_index], InfOpt.ParameterRef)
         return support[pref_index]
     else
-        for (k, v) in support[pref_index].data
+        for (k, v) in prefs[pref_index].data
             if v == pref
                 return support[pref_index].data[k]
             end
@@ -598,7 +598,7 @@ function _set_constraints(trans_model::JuMP.Model, inf_model::InfOpt.InfiniteMod
             if isa(results, Tuple)
                 crefs = Vector{JuMP.ConstraintRef}(undef, length(results[1]))
                 for i = 1:length(crefs)
-                    con = JuMP.ScalarConstraint(results[1][i], constr.set)
+                    con = JuMP.build_constraint(error, results[1][i], constr.set)
                     # TODO Perhaps improve naming
                     name = string(root_name, "(Support: ", i, ")")
                     crefs[i] = JuMP.add_constraint(trans_model, con, name)
@@ -609,7 +609,7 @@ function _set_constraints(trans_model::JuMP.Model, inf_model::InfOpt.InfiniteMod
                 _set_supports(trans_model, icref, results[3])
             else
                 # We have a finite constraint, just add normally and update mapping.
-                con = JuMP.ScalarConstraint(results, constr.set)
+                con = JuMP.build_constraint(error, results, constr.set)
                 cref = JuMP.add_constraint(trans_model, con, root_name)
                 _set_mapping(icref, cref)
             end
