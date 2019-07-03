@@ -1,6 +1,6 @@
 # include("C:/Users/puls446/.julia/dev/InfOpt/examples/hovercraft.jl")
 
-using InfOpt, JuMP, Ipopt, PyPlot
+using InfiniteOpt, JuMP, Ipopt, PyPlot
 
 # Set problem information
 max_time = 60

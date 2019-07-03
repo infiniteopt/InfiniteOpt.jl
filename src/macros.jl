@@ -98,9 +98,9 @@ macro infinite_parameter(model, args...)
     end
 
     info_kw_args = filter(_is_set_keyword, kw_args)
-    extra_kw_args = filter(kw -> kw.args[1] != :base_name && !InfOpt._is_set_keyword(kw), kw_args)
+    extra_kw_args = filter(kw -> kw.args[1] != :base_name && !InfiniteOpt._is_set_keyword(kw), kw_args)
     base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
-    infoexpr = InfOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
+    infoexpr = InfiniteOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
 
     # There are four cases to consider:
     # x                                         | type of x | x.head
@@ -112,7 +112,7 @@ macro infinite_parameter(model, args...)
     # In the two last cases, we call parse_variable
     explicit_comparison = isexpr(x, :comparison) || isexpr(x, :call)
     if explicit_comparison
-        param = InfOpt._parse_parameter(_error, infoexpr, x.args...)
+        param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
     else
         param = x
     end
@@ -131,7 +131,7 @@ macro infinite_parameter(model, args...)
         _error("Expression $name should not be used as a parameter name. Use the \"anonymous\" syntax $name = @infinite_parameter(model, ...) instead.")
     end
 
-    set = InfOpt._constructor_set(_error, infoexpr)
+    set = InfiniteOpt._constructor_set(_error, infoexpr)
     if isa(param, Symbol)
         # Easy case - a single variable
         buildcall = :( build_parameter($_error, $set, 1, $(extra...)) )
@@ -290,7 +290,7 @@ macro infinite_variable(model, args...)
         # lb <= var <= ub or lb <= var[1:2] <= ub               | Expr      | :comparison
         # lb <= var(x, y) <= ub or lb <= var[1:2](x, y) <= ub   | Expr      | :comparison
         if isexpr(x, :comparison) || isexpr(x, :call)
-            inf_expr, params = InfOpt._parse_parameters(_error, Val(x.head), x.args)
+            inf_expr, params = InfiniteOpt._parse_parameters(_error, Val(x.head), x.args)
         else
             inf_expr = x
             params = nothing

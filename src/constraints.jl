@@ -6,7 +6,7 @@ JuMP.owner_model(cref::GeneralConstraintRef) = cref.model
 
 """
     JuMP.index(cref::GeneralConstraintRef)::Int
-Extent `JuMP.index` to return the index of a InfOpt constraint.
+Extent `JuMP.index` to return the index of a InfiniteOpt constraint.
 """
 JuMP.index(cref::GeneralConstraintRef) = cref.index
 

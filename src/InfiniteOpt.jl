@@ -1,4 +1,4 @@
-module InfOpt
+module InfiniteOpt
 
 # Import the necessary packages.
 import JuMP

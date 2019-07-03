@@ -5,7 +5,7 @@ import JuMP
 import MathOptInterface
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
-using ..InfOpt
+using ..InfiniteOpt
 
 include("model.jl")
 include("transcribe.jl")
