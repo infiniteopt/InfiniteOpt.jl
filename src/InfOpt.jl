@@ -81,4 +81,7 @@ export map_value
 # Export functions that will be included in future JuMP releases
 export solve_time #, set_silent, unset_silent
 
+# Export printing methods
+export bound_string
+
 end # module

@@ -390,3 +390,7 @@ macro global_variable(model, args...)
     end
     return esc(code)
 end
+
+# TODO make custom constraint macro with better subset syntax (i.e. using form
+# @constraint(m, name[i = 1:2](t in [0,1], x[1] in [-1, 0], expr)))
+# TODO Add bridge constraints for chance constraints and derivatives.

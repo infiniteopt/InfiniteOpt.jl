@@ -54,15 +54,27 @@ function JuMP.constraints_string(print_mode, model::InfiniteModel)
     strings = String[]
     # Sort by creation order
     constraints = sort(collect(model.constrs), by = c -> c.first)
-    # TODO show parameters bounds
+    # produce a string for each constraint
     for (index, constraint) in constraints
         push!(strings, JuMP.constraint_string(print_mode, constraint))
     end
-    # TODO print multivariate distributions with variables grouped together
+    # produce the parameters that are used along with their sets
     params = sort(collect(model.params), by = c -> c.first)
+    ignore_groups = [] # used to indicate which groups should no longer be used
     for (index, param) in params
         pref = ParameterRef(model, index)
-        if is_used(pref)
+        if is_used(pref) && !(group_id(pref) in ignore_groups)
+            if isa(infinite_set(pref), DistributionSet)
+                # print multivariate distributions with variables grouped together
+                if isa(infinite_set(pref).distribution,
+                       Distributions.MultivariateDistribution)
+                    push!(ignore_groups, group_id(pref))
+                    push!(strings, string(_root_name(pref), " ",
+                                    JuMP.in_set_string(print_mode, param.set)))
+                    continue
+                end
+            end
+            # print parameter individually
             push!(strings, string(JuMP.function_string(print_mode, pref), " ",
                                   JuMP.in_set_string(print_mode, param.set)))
         end
@@ -80,15 +92,38 @@ function Base.show(io::IO, ::MIME"text/latex", ref::GeneralConstraintRef)
     return
 end
 
-# TODO show parameters bounds if specified
 function JuMP.constraint_string(print_mode, ref::GeneralConstraintRef)
     return JuMP.constraint_string(print_mode, JuMP.name(ref),
            JuMP.constraint_object(ref))
 end
 
+function JuMP.constraint_string(print_mode,
+                                constraint_object::BoundedScalarConstraint)
+    func_str = JuMP.function_string(print_mode, constraint_object)
+    in_set_str = JuMP.in_set_string(print_mode, constraint_object)
+    bound_str = bound_string(print_mode, constraint_object.bounds)
+    if print_mode == JuMP.REPLMode
+        lines = split(func_str, '\n')
+        lines[1 + div(length(lines), 2)] *= " " * in_set_str * ", " * bound_str
+        return join(lines, '\n')
+    else
+        return func_str * " " * in_set_str * ", " * bound_str
+    end
+end
+
+function bound_string(print_mode, bounds::Dict)
+    string_list = JuMP._math_symbol(print_mode, :for_all) * " "
+    for (pref, set) in bounds
+        string_list *= string(JuMP.function_string(print_mode, pref), " ",
+                              JuMP.in_set_string(print_mode, set), ", ")
+    end
+    return string_list[1:end-2]
+end
+
 function JuMP.in_set_string(print_mode, set::IntervalSet)
-    return string(JuMP._math_symbol(print_mode, :in), " [", set.lower_bound,
-                  ", ", set.upper_bound, "]")
+    return string(JuMP._math_symbol(print_mode, :in), " [",
+                  JuMP._string_round(set.lower_bound), ", ",
+                  JuMP._string_round(set.upper_bound), "]")
 end
 
 function JuMP.in_set_string(print_mode, set::DistributionSet)

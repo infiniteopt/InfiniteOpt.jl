@@ -605,20 +605,28 @@ function _names(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
     return [JuMP.name(arr[k]) for k in keys(arr.data)]
 end
 
+function _root_name(pref::ParameterRef)
+    name = JuMP.name(pref)
+    first_bracket = findfirst(isequal('['), name)
+    if first_bracket == nothing
+        return name
+    else
+        # Hacky fix to handle invalid Unicode
+        try
+            return name[1:first_bracket-1]
+        catch
+            return name[1:first_bracket-2]
+        end
+    end
+end
+
 function _root_names(prefs::Tuple)
     root_names = Vector{String}(undef, length(prefs))
     for i = 1:length(root_names)
         if isa(prefs[i], ParameterRef)
-            root_names[i] = JuMP.name(prefs[i])
+            root_names[i] = _root_name(prefs[i])
         else
-            names = _names(prefs[i])
-            first_bracket = findfirst(isequal('['), names[1])
-            # Hacky fix to handle invalid Unicode
-            try
-                root_names[i] = names[1][1:first_bracket-1]
-            catch
-                root_names[i] = names[1][1:first_bracket-2]
-            end
+            root_names[i] = _root_name(collect(values(prefs[i].data))[1])
         end
     end
     return root_names

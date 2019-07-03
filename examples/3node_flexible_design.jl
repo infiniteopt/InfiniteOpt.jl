@@ -15,7 +15,7 @@ n_d = 3
 c = ones(n_d) / sqrt(n_d)
 c_max = 5
 U = 10000
-num_samples = 10
+num_samples = 10000
 
 # Initialize the model
 m = InfiniteModel(with_optimizer(Clp.Optimizer))
