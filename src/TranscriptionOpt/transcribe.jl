@@ -70,7 +70,7 @@ end
 function _update_point_mapping(trans_model::JuMP.Model, pvref::InfiniteOpt.PointVariableRef,
                                ivref::InfiniteOpt.InfiniteVariableRef, support::Tuple)
     for (k, v) in InfiniteOpt.supports(trans_model, ivref)
-       if v == support
+       if isequal(v, support)
            vrefs = transcription_variable(trans_model, ivref)
            transcription_data(trans_model).point_to_var[pvref] = vrefs[k]
            break
@@ -214,7 +214,7 @@ function _map_to_variable(ivref::InfiniteOpt.InfiniteVariableRef, support::Tuple
     reduced_support = Tuple(support[findfirst(isequal(group), support_groups)] for group in ivref_groups)
     # find the jump variable associated with the support
     for (index, value) in InfiniteOpt.supports(trans_model, ivref)
-        if value == reduced_support
+        if isequal(value, reduced_support)
             return transcription_variable(trans_model, ivref)[index]
         end
     end
@@ -747,7 +747,7 @@ Return a transcribed version of the infinite model.
 function TranscriptionModel(inf_model::InfiniteOpt.InfiniteModel,
                             optimizer_factory::Union{JuMP.OptimizerFactory, Nothing} = nothing;
                             kwargs...)
-    if optimizer_factory == nothing
+    if isa(optimizer_factory, Nothing)
         trans_model = TranscriptionModel(; kwargs...)
     else
         trans_model = TranscriptionModel(optimizer_factory; kwargs...)

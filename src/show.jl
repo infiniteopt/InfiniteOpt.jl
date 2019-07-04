@@ -64,19 +64,16 @@ function JuMP.constraints_string(print_mode, model::InfiniteModel)
     for (index, param) in params
         pref = ParameterRef(model, index)
         if is_used(pref) && !(group_id(pref) in ignore_groups)
-            if isa(infinite_set(pref), DistributionSet)
+            if isa(infinite_set(pref), DistributionSet{<:Distributions.MultivariateDistribution})
                 # print multivariate distributions with variables grouped together
-                if isa(infinite_set(pref).distribution,
-                       Distributions.MultivariateDistribution)
-                    push!(ignore_groups, group_id(pref))
-                    push!(strings, string(_root_name(pref), " ",
-                                    JuMP.in_set_string(print_mode, param.set)))
-                    continue
-                end
+                push!(ignore_groups, group_id(pref))
+                push!(strings, string(_root_name(pref), " ",
+                                JuMP.in_set_string(print_mode, param.set)))
+            else
+                # print parameter individually
+                push!(strings, string(JuMP.function_string(print_mode, pref), " ",
+                                      JuMP.in_set_string(print_mode, param.set)))
             end
-            # print parameter individually
-            push!(strings, string(JuMP.function_string(print_mode, pref), " ",
-                                  JuMP.in_set_string(print_mode, param.set)))
         end
     end
     return strings

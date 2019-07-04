@@ -30,7 +30,7 @@ export InfiniteModel
 
 # Export macros and constants
 export @infinite_variable, @point_variable, @global_variable, @infinite_parameter,
-Infinite, Global, Point
+Infinite, Global, Point, Parameter
 
 # Export infinite parameter datatypes
 export InfOptParameter, ParameterRef
@@ -52,6 +52,9 @@ used_by_measure, used_by_variable, is_used, group_id, is_correlated
 # Export variable methods
 export used_by_objective, infinite_variable_ref, parameter_refs,
 set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values
+
+# Export expression datatypes
+export InfiniteExpr, ParameterExpr
 
 # Export constraint datatypes
 export GeneralConstraintRef, InfiniteConstraintRef, MeasureConstraintRef,

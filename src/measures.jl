@@ -27,31 +27,6 @@ function _update_var_meas_mapping(vrefs::Vector{<:GeneralVariableRef}, mindex::I
     return
 end
 
-"""
-    add_measure(model::InfiniteModel, v::Measure)
-Add a measure to the `InfiniteModel` object in an analagous way to `JuMP.add_variable`.
-"""
-function add_measure(model::InfiniteModel, meas::Measure)
-    model.next_meas_index += 1
-    index = model.next_meas_index
-    vrefs = _all_function_variables(meas.func)
-    _update_var_meas_mapping(vrefs, index)
-    mref = MeasureRef(model, model.next_meas_index)
-    model.measures[mref.index] = meas
-    JuMP.set_name(mref, _make_meas_name(meas))
-    return mref
-end
-
-# Parse the model pertaining to an expression
-function _model_from_expr(expr::JuMP.AbstractJuMPScalar)
-    all_vrefs = _all_function_variables(expr)
-    if length(all_vrefs) > 0
-        return JuMP.owner_model(all_vrefs[1])
-    else
-        return
-    end
-end
-
 # Set a default weight function
 _w(t) = 1
 
@@ -87,6 +62,31 @@ function DiscreteMeasureData(parameter_ref::AbstractArray{<:ParameterRef},
     parameter_ref = convert(JuMP.Containers.SparseAxisArray, parameter_ref)
     return MultiDiscreteMeasureData(parameter_ref, coefficients, supports, name,
                                     weight_function)
+end
+
+"""
+    add_measure(model::InfiniteModel, v::Measure)
+Add a measure to the `InfiniteModel` object in an analagous way to `JuMP.add_variable`.
+"""
+function add_measure(model::InfiniteModel, meas::Measure)
+    model.next_meas_index += 1
+    index = model.next_meas_index
+    vrefs = _all_function_variables(meas.func)
+    _update_var_meas_mapping(vrefs, index)
+    mref = MeasureRef(model, model.next_meas_index)
+    model.measures[mref.index] = meas
+    JuMP.set_name(mref, _make_meas_name(meas))
+    return mref
+end
+
+# Parse the model pertaining to an expression
+function _model_from_expr(expr::JuMP.AbstractJuMPScalar)
+    all_vrefs = _all_function_variables(expr)
+    if length(all_vrefs) > 0
+        return JuMP.owner_model(all_vrefs[1])
+    else
+        return
+    end
 end
 
 # check a measure function for a particular parameter

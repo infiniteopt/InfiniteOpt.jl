@@ -1,11 +1,7 @@
 # Define symbol inputs for different variable types
 const Parameter = :Parameter
 
-# Extend Base.copy for new variable types
-function Base.copy(v::ParameterRef, new_model::InfiniteModel)
-    return ParameterRef(new_model, v.index)
-end
-
+# Internal structure for building InfOptParameters
 mutable struct _ParameterInfoExpr
     has_lb::Bool
     lower_bound::Any
@@ -17,18 +13,22 @@ mutable struct _ParameterInfoExpr
     set::Any
 end
 
+# Default constructor
+function _ParameterInfoExpr(; lower_bound = NaN, upper_bound = NaN,
+                            distribution = NaN, set = NaN)
+    # isnan(::Expr) is not defined so we need to do !== NaN
+    return _ParameterInfoExpr(lower_bound !== NaN, lower_bound,
+                              upper_bound !== NaN, upper_bound,
+                              distribution !== NaN, distribution,
+                              set !== NaN, set)
+end
+
+# Internal function for use in processing valid key word arguments
 function _is_set_keyword(kw::Expr)
     return kw.args[1] in [:set, :lower_bound, :upper_bound, :distribution]
 end
 
-function _ParameterInfoExpr(; lower_bound = NaN, upper_bound = NaN,
-                            distribution = NaN, set = NaN)
-    # isnan(::Expr) is not defined so we need to do !== NaN
-    _ParameterInfoExpr(lower_bound !== NaN, lower_bound, upper_bound !== NaN,
-                       upper_bound, distribution !== NaN, distribution,
-                       set !== NaN, set)
-end
-
+# Extend to assist in building InfOptParameters
 function JuMP._set_lower_bound_or_error(_error::Function,
                                         info::_ParameterInfoExpr, lower)
     info.has_lb && _error("Cannot specify parameter lower_bound twice")
@@ -37,8 +37,10 @@ function JuMP._set_lower_bound_or_error(_error::Function,
     info.has_set && _error("Cannot specify parameter lower_bound and set")
     info.has_lb = true
     info.lower_bound = lower
+    return
 end
 
+# Extend to assist in building InfOptParameters
 function JuMP._set_upper_bound_or_error(_error::Function,
                                         info::_ParameterInfoExpr, upper)
     info.has_ub && _error("Cannot specify parameter upper_bound twice")
@@ -47,8 +49,10 @@ function JuMP._set_upper_bound_or_error(_error::Function,
     info.has_set && _error("Cannot specify parameter upper_bound and set")
     info.has_ub = true
     info.upper_bound = upper
+    return
 end
 
+# Extend to assist in building InfOptParameters
 function _dist_or_error(_error::Function, info::_ParameterInfoExpr, dist)
     info.has_dist && _error("Cannot specify parameter distribution twice")
     (info.has_lb || info.has_ub) && _error("Cannot specify parameter " *
@@ -56,8 +60,10 @@ function _dist_or_error(_error::Function, info::_ParameterInfoExpr, dist)
     info.has_set && _error("Cannot specify parameter distribution and set")
     info.has_dist = true
     info.distribution = dist
+    return
 end
 
+# Extend to assist in building InfOptParameters
 function _set_or_error(_error::Function, info::_ParameterInfoExpr, set)
     info.has_set && _error("Cannot specify variable fixed value twice")
     (info.has_lb || info.has_ub) && _error("Cannot specify parameter set and " *
@@ -65,14 +71,16 @@ function _set_or_error(_error::Function, info::_ParameterInfoExpr, set)
     info.has_dist && _error("Cannot specify parameter set and distribution")
     info.has_set = true
     info.set = set
+    return
 end
 
+# Construct an expression to build an infinite set (use with @infinite_macro)
 function _constructor_set(_error::Function, info::_ParameterInfoExpr)
     if (info.has_lb || info.has_ub) && !(info.has_lb && info.has_ub)
         _error("Must specify both an upper bound and a lower bound")
     elseif info.has_lb
         check = :(isa($(info.lower_bound), Number))
-        return :($(check) ? IntervalSet(convert(Float64, $(info.lower_bound)), convert(Float64, $(info.upper_bound))) : error("Bounds must be a number."))
+        return :($(check) ? IntervalSet($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a number."))
     elseif info.has_dist
         check = :(isa($(info.distribution), Distributions.NonMatrixDistribution))
         return :($(check) ? DistributionSet($(info.distribution)) : error("Distribution must be a subtype of Distributions.NonMatrixDistribution."))
@@ -82,8 +90,10 @@ function _constructor_set(_error::Function, info::_ParameterInfoExpr)
     else
         _error("Must specify upper/lower bounds, a distribution, or a set")
     end
+    return
 end
 
+# Check that supports don't violate the set bounds
 function _check_supports_in_bounds(_error::Function,
                                    supports::Union{Number, Vector{<:Number}},
                                    set::AbstractInfiniteSet)
@@ -93,23 +103,35 @@ function _check_supports_in_bounds(_error::Function,
        if min_support < set.lower_bound || max_support > set.upper_bound
            _error("Support points violate the interval set bounds.")
        end
-    elseif isa(set, DistributionSet)
-       if typeof(set.distribution) <: Distributions.UnivariateDistribution
-           if min_support < minimum(set.distribution) || max_support > maximum(set.distribution)
-               _error("Support points violate the distribution set bounds.")
-           end
+   elseif isa(set, DistributionSet{<:Distributions.UnivariateDistribution})
+       check1 = min_support < minimum(set.distribution)
+       check2 = max_support > maximum(set.distribution)
+       if check1 || check2
+           _error("Support points violate the distribution set bounds.")
        end
     end
     return
 end
 
 """
-build_parameter(_error::Function, set::AbstractInfiniteSet, num_params::Int;
-                supports::Union{Number, Vector{<:Number}} = Number[],
-                independent::Bool = false, extra_kw_args...)
-Build an infinite parameter to the model in a manner similar to `JuMP.build_variable`.
+    build_parameter(_error::Function, set::AbstractInfiniteSet, num_params::Int;
+                    [supports::Union{Number, Vector{<:Number}} = Number[],
+                    independent::Bool = false, extra_kw_args...])
+
+Returns a [`InfOptParameter`](@ref) given the appropriate information. This is
+analagous to `JuMP.build_variable`. Errors if supports violate the bounds
+associated `set`. Also errors if `set` contains a multivariate distribution with
+a different dimension than `num_params`. This is meant to primarily serve as a
+helper method for [`@infinite_parameter`](@ref).
+
+**Example**
+```julia
+julia> build_parameter(error, IntervalSet(0, 3), 1, supports = Vector(0:3))
+InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
+```
 """
-function build_parameter(_error::Function, set::AbstractInfiniteSet, num_params::Int;
+function build_parameter(_error::Function, set::AbstractInfiniteSet,
+                         num_params::Int;
                          supports::Union{Number, Vector{<:Number}} = Number[],
                          independent::Bool = false, extra_kw_args...)
     for (kwarg, _) in extra_kw_args
@@ -118,11 +140,10 @@ function build_parameter(_error::Function, set::AbstractInfiniteSet, num_params:
     if length(supports) != 0
         _check_supports_in_bounds(_error, supports, set)
     end
-    if isa(set, DistributionSet)
-        if isa(set.distribution, Distributions.MultivariateDistribution)
-            if num_params != length(set.distribution)
-                _error("Multivariate distribution must match dimension of parameter.")
-            end
+    if isa(set, DistributionSet{<:Distributions.MultivariateDistribution})
+        if num_params != length(set.distribution)
+            _error("Multivariate distribution dimension must match dimension " *
+                   "of parameter.")
         end
     end
     unique_supports = sort(unique(supports))
@@ -364,10 +385,8 @@ function JuMP.lower_bound(pref::ParameterRef)::Number
     end
     if isa(set, IntervalSet)
         return set.lower_bound
-    else isa(set, DistributionSet)
-        if typeof(set.distribution) <: Distributions.UnivariateDistribution
-            return minimum(set.distribution)
-        end
+    else
+        return minimum(set.distribution)
     end
 end
 
@@ -382,7 +401,7 @@ function JuMP.set_lower_bound(pref::ParameterRef, lower::Number)
     elseif !isa(set, IntervalSet)
         error("Parameter $(pref) is not an interval set.")
     end
-    _update_parameter_set(pref, IntervalSet(Float64(lower), set.upper_bound))
+    _update_parameter_set(pref, IntervalSet(lower, set.upper_bound))
     return
 end
 
@@ -417,10 +436,8 @@ function JuMP.upper_bound(pref::ParameterRef)::Number
     end
     if isa(set, IntervalSet)
         return set.upper_bound
-    else isa(set, DistributionSet)
-        if typeof(set.distribution) <: Distributions.UnivariateDistribution
-            return maximum(set.distribution)
-        end
+    else
+        return maximum(set.distribution)
     end
 end
 
@@ -435,7 +452,7 @@ function JuMP.set_upper_bound(pref::ParameterRef, upper::Number)
     elseif !isa(set, IntervalSet)
         error("Parameter $(pref) is not an interval set.")
     end
-    _update_parameter_set(pref, IntervalSet(set.lower_bound, Float64(upper)))
+    _update_parameter_set(pref, IntervalSet(set.lower_bound, upper))
     return
 end
 
