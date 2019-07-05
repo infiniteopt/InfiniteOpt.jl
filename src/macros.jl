@@ -14,7 +14,8 @@ function _parse_one_operator_parameter(
 end
 
 function _parse_one_operator_parameter(
-    _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:in}, Val{:∈}}, value)
+    _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:in}, Val{:∈}},
+    value)
     _dist_or_error(_error, infoexpr, value)
 end
 
@@ -25,7 +26,7 @@ end
 
 # In that case we assume the variable is the lhs.
 function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
-                        sense::Symbol, var, value)
+                          sense::Symbol, var, value)
     _parse_one_operator_parameter(_error, infoexpr, Val(sense),
                                 JuMP._esc_non_constant(value))
     return var
@@ -34,36 +35,37 @@ end
 # If the lhs is a number and not the rhs, we can deduce that the rhs is
 # the variable.
 function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
-                        sense::Symbol, value::Number, var)
-    _parse_one_operator_parameter(_error, infoexpr, JuMP.reverse_sense(Val(sense)),
-                                JuMP._esc_non_constant(value))
+                          sense::Symbol, value::Number, var)
+    _parse_one_operator_parameter(_error, infoexpr,
+                                  JuMP.reverse_sense(Val(sense)),
+                                  JuMP._esc_non_constant(value))
     return var
 end
 
 function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
-                                 ::Union{Val{:<=}, Val{:≤}}, lower,
-                                 ::Union{Val{:<=}, Val{:≤}}, upper)
+                                  ::Union{Val{:<=}, Val{:≤}}, lower,
+                                  ::Union{Val{:<=}, Val{:≤}}, upper)
     JuMP._set_lower_bound_or_error(_error, infoexpr, lower)
     JuMP._set_upper_bound_or_error(_error, infoexpr, upper)
 end
 
 function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
-                                 ::Union{Val{:>=}, Val{:≥}}, upper,
-                                 ::Union{Val{:>=}, Val{:≥}}, lower)
+                                  ::Union{Val{:>=}, Val{:≥}}, upper,
+                                  ::Union{Val{:>=}, Val{:≥}}, lower)
     _parse_ternary_parameter(_error, infoexpr, Val(:≤), lower, Val(:≤), upper)
 end
 
 function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
-                                 ::Val, lvalue, ::Val, rvalue)
+                                  ::Val, lvalue, ::Val, rvalue)
     _error("Use the form lb <= ... <= ub.")
 end
 
 function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr, lvalue,
-                        lsign::Symbol, var, rsign::Symbol, rvalue)
+                          lsign::Symbol, var, rsign::Symbol, rvalue)
     # lvalue lsign var rsign rvalue
     _parse_ternary_parameter(_error, infoexpr, Val(lsign),
-                           JuMP._esc_non_constant(lvalue), Val(rsign),
-                           JuMP._esc_non_constant(rvalue))
+                             JuMP._esc_non_constant(lvalue), Val(rsign),
+                             JuMP._esc_non_constant(rvalue))
     return var
 end
 
@@ -78,10 +80,12 @@ end
 
 """
     @infinite_parameter(model, args)
+
 A macro for the defining parameters of type `ParameterRef`.
 """
 macro infinite_parameter(model, args...)
-    _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...), str...)
+    _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...),
+                                       str...)
 
     esc_model = esc(model)
 
@@ -141,7 +145,7 @@ macro infinite_parameter(model, args...)
         creationcode = :($parameter = $parametercall)
         final_parameter = parameter
     else
-        isa(param, Expr) || _error("Expected $param to be a parameter name")
+        # isa(param, Expr) || _error("Expected $param to be a parameter name") --> not needed... I think
         # We now build the code to generate the variables (and possibly the
         # SparseAxisArray to contain them)
         refcall, idxparams, idxsets, condition = JuMP._build_ref_sets(param, parameter)
@@ -176,7 +180,7 @@ end
 # Check rhs to to ensure is not a variable
 function _check_rhs(arg1, arg2)
     if isexpr(arg2, :ref)
-        if isexpr(arg2, :kw)
+        if isexpr(arg2.head, :kw)
             temp = arg2
             arg2 = arg1
             arg1 = temp

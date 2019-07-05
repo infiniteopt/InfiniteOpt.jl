@@ -7,6 +7,8 @@ using Distributions
 using Ipopt
 using Test
 
+include("Utilities.jl")
+
 # Run unit tests
 println("-----------------------------------------")
 println("----------------UNIT TESTS---------------")
@@ -15,3 +17,5 @@ println("-----------------------------------------")
 println("")
 @time @testset "Parameter Methods" begin include("parameters.jl") end
 println("")
+
+# TODO add tests for supports(array) and deleting
