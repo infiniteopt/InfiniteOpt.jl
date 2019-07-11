@@ -1,6 +1,11 @@
 # Define symbol inputs for different variable types
 const Parameter = :Parameter
 
+# Extend Base.copy for infinite parameters
+function Base.copy(p::ParameterRef, new_model::InfiniteModel)::ParameterRef
+    return ParameterRef(new_model, p.index)
+end
+
 # Internal structure for building InfOptParameters
 mutable struct _ParameterInfoExpr
     has_lb::Bool
@@ -175,10 +180,13 @@ name
 ```
 """
 function add_parameter(model::InfiniteModel, p::InfOptParameter,
-                       name::String="")::ParameterRef
+                       name::String=""; macro_call = false)::ParameterRef
     model.next_param_index += 1
     pref = ParameterRef(model, model.next_param_index)
     model.params[JuMP.index(pref)] = p
+    if !macro_call
+        model.next_param_id += 1
+    end
     model.param_to_group_id[JuMP.index(pref)] = model.next_param_id
     JuMP.set_name(pref, name)
     return pref
@@ -268,11 +276,6 @@ function _remove_parameter(prefs::Tuple, delete_pref::ParameterRef)
         pref_tuple = (pref_tuple..., pref)
     end
     return pref_tuple
-end
-
-function _root_name(vref::InfiniteVariableRef)
-    name = JuMP.name(vref)
-    return name[1:findfirst(isequal('('), name)-1]
 end
 
 """
@@ -529,7 +532,8 @@ julia> lower_bound(t)
 function JuMP.set_lower_bound(pref::ParameterRef, lower::Number)
     set = _parameter_set(pref)
     if isa(set, DistributionSet)
-        error("Cannot set the lower bound of a distribution, try using `Distributions.Truncated` instead.")
+        error("Cannot set the lower bound of a distribution, try using " *
+              "`Distributions.Truncated` instead.")
     elseif !isa(set, IntervalSet)
         error("Parameter $(pref) is not an interval set.")
     end
@@ -609,7 +613,8 @@ julia> upper_bound(t)
 function JuMP.set_upper_bound(pref::ParameterRef, upper::Number)
     set = _parameter_set(pref)
     if isa(set, DistributionSet)
-        error("Cannot set the upper bound of a distribution, try using `Distributions.Truncated` instead.")
+        error("Cannot set the upper bound of a distribution, try using " *
+              "`Distributions.Truncated` instead.")
     elseif !isa(set, IntervalSet)
         error("Parameter $(pref) is not an interval set.")
     end
@@ -702,7 +707,7 @@ julia> supports(x)
   [1]  =  1
 ```
 """
-function supports(prefs::AbstractArray{<:ParameterRef})
+function supports(prefs::AbstractArray{<:ParameterRef})::Vector
     prefs = convert(JuMP.Containers.SparseAxisArray, prefs)
     !_only_one_group(prefs) && error("Array contains parameters from multiple" *
                                      " groups.")
@@ -863,6 +868,46 @@ function is_independent(pref::ParameterRef)::Bool
 end
 
 """
+    set_independent(pref::ParameterRef)
+
+Specify that `pref` be independent.
+
+**Example**
+```julia
+julia> set_independent(t)
+
+julia> is_independent(t)
+true
+```
+"""
+function set_independent(pref::ParameterRef)
+    old_param = JuMP.owner_model(pref).params[JuMP.index(pref)]
+    new_param = InfOptParameter(old_param.set, old_param.supports, true)
+    JuMP.owner_model(pref).params[JuMP.index(pref)] = new_param
+    return
+end
+
+"""
+    unset_independent(pref::ParameterRef)
+
+Specify that `pref` be not independent.
+
+**Example**
+```julia
+julia> unset_independent(t)
+
+julia> is_independent(t)
+false
+```
+"""
+function unset_independent(pref::ParameterRef)
+    old_param = JuMP.owner_model(pref).params[JuMP.index(pref)]
+    new_param = InfOptParameter(old_param.set, old_param.supports, false)
+    JuMP.owner_model(pref).params[JuMP.index(pref)] = new_param
+    return
+end
+
+"""
     parameter_by_name(model::InfiniteModel, name::String)::Union{ParameterRef,
                                                                  Nothing}
 
@@ -875,8 +920,8 @@ julia> parameter_by_name(model, "t")
 t
 ```
 """
-function parameter_by_name(model::InfiniteModel, name::String)::Union{ParameterRef,
-                                                                      Nothing}
+function parameter_by_name(model::InfiniteModel,
+                           name::String)::Union{ParameterRef, Nothing}
     if model.name_to_param === nothing
         # Inspired from MOI/src/Utilities/model.jl
         model.name_to_param = Dict{String, Int}()
@@ -926,11 +971,13 @@ function all_parameters(model::InfiniteModel)::Vector{ParameterRef}
     return pref_list
 end
 
-# Define functions to extract the names of parameters
+## Define functions to extract the names of parameters
+# Return vector of parameter names from a SparseAxisArray of parameter references
 function _names(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
     return [JuMP.name(arr[k]) for k in keys(arr.data)]
 end
 
+# Extract the root name of a parameter reference
 function _root_name(pref::ParameterRef)
     name = JuMP.name(pref)
     first_bracket = findfirst(isequal('['), name)
@@ -946,6 +993,7 @@ function _root_name(pref::ParameterRef)
     end
 end
 
+# Return the root names of a tuple parameter of references
 function _root_names(prefs::Tuple)
     root_names = Vector{String}(undef, length(prefs))
     for i = 1:length(root_names)
@@ -958,23 +1006,23 @@ function _root_names(prefs::Tuple)
     return root_names
 end
 
+# Return true if an array of parameter refernences only has one name
 function _only_one_name(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
     names = _names(arr)
-    root_names = Vector{String}(undef, length(names))
-    for i = 1:length(root_names)
-        first_bracket = findfirst(isequal('['), names[i])
-        root_names[i] = names[i][1:first_bracket-1]
-    end
+    root_names = [_root_name(v) for (k, v) in arr.data]
     return length(unique(root_names)) == 1
 end
 
+# Return true since a parameter reference can only have one name
 _only_one_name(pref::ParameterRef) = true
 
-# Internal functions for group checking
-function _groups(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
+## Internal functions for group checking
+# Return a vector of group IDs for a SparseAxisArray
+function _groups(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})::Vector
     return [v for (k, v) in group_id.(arr).data]
 end
 
+# Return a vector of the group ID for each element in a tuple
 function _groups(prefs::Tuple)
     groups = Vector{Int}(undef, length(prefs))
     for i = 1:length(groups)
@@ -987,14 +1035,17 @@ function _groups(prefs::Tuple)
     return groups
 end
 
-function _only_one_group(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
+# Return true if SparseAxisArray only has one group
+function _only_one_group(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})::Bool
     groups = _groups(arr)
     return length(unique(groups)) == 1
 end
 
-_only_one_group(pref::ParameterRef) = true
+# Return true to have one group ID since is singular
+_only_one_group(pref::ParameterRef)::Bool = true
 
-# Internal function for extracting parameter references
+## Internal function for extracting parameter references
+# Return a vector of parameter references from a tuple of references
 function _list_parameter_refs(prefs::Tuple)
     list = ParameterRef[]
     for pref in prefs

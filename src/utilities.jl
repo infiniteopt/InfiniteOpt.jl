@@ -1,21 +1,32 @@
-# Extend convert to handle JuMP expression types
-function Base.convert(::Type{JuMP.GenericAffExpr{C,V}}, x::JuMP.GenericAffExpr) where {C,V}
+## Extend convert to handle JuMP expression types
+# GenericAffExpr
+function Base.convert(::Type{JuMP.GenericAffExpr{C,V}},
+                      x::JuMP.GenericAffExpr) where {C,V}
     return JuMP.GenericAffExpr{C,V}(x.constant, x.terms)
 end
-function Base.convert(::Type{JuMP.GenericQuadExpr{C,V}}, x::JuMP.GenericQuadExpr) where {C,V}
+
+# GenericQuadExpr
+function Base.convert(::Type{JuMP.GenericQuadExpr{C,V}},
+                      x::JuMP.GenericQuadExpr) where {C,V}
     return JuMP.GenericQuadExpr{C,V}(x.aff, x.terms)
 end
-function Base.convert(::Type{JuMP.UnorderedPair{T}}, x::JuMP.UnorderedPair) where {T}
+
+# UnorderedPair
+function Base.convert(::Type{JuMP.UnorderedPair{T}},
+                      x::JuMP.UnorderedPair) where {T}
     return JuMP.UnorderedPair{T}(x.a, x.b)
 end
 
-# Extend convert to handle JuMP containers
+## Extend convert to handle JuMP containers
+# Array -> SparseAxisArray
 function Base.convert(::Type{JuMP.Containers.SparseAxisArray}, arr::Array)
     data = Dict(Tuple(k) => arr[k] for k in CartesianIndices(arr))
     return JuMP.Containers.SparseAxisArray(data)
 end
 
-function Base.convert(::Type{JuMP.Containers.SparseAxisArray}, arr::JuMP.Containers.DenseAxisArray)
+# DenseAxisArray -> SparseAxisArray
+function Base.convert(::Type{JuMP.Containers.SparseAxisArray},
+                      arr::JuMP.Containers.DenseAxisArray)
     data = Dict(k.I => arr[k] for k in keys(arr))
     return JuMP.Containers.SparseAxisArray(data)
 end
@@ -24,7 +35,8 @@ end
 #
 # end
 #
-# function Base.convert(::Type{JuMP.Containers.DenseAxisArray}, arr::JuMP.Containers.SparseAxisArray)
+# function Base.convert(::Type{JuMP.Containers.DenseAxisArray},
+#                       arr::JuMP.Containers.SparseAxisArray)
 #
 # end
 
@@ -49,7 +61,10 @@ function _possible_convert(type::DataType,
     valids_b = [k.b isa type for k in keys(quad.terms)]
     len_terms = length(keys(quad.terms))
     aff = _possible_convert(type, quad.aff)
-    if sum(valids_a) == len_terms && sum(valids_b) == len_terms && isa(aff, JuMP.GenericAffExpr{C, type})
+    check1 = sum(valids_a) == len_terms
+    check2 = sum(valids_b) == len_terms
+    check3 = isa(aff, JuMP.GenericAffExpr{C, type})
+    if check1 && check2 && check3
         return JuMP.GenericQuadExpr{C, type}(aff, quad.terms)
     else
         return quad

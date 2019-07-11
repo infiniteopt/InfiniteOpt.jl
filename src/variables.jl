@@ -3,14 +3,33 @@ const Infinite = :Infinite
 const Point = :Point
 const Global = :Global
 
-# Extend Base.copy for new variable types
+## Extend Base.copy for new variable types
+# GeneralVariableRef
 Base.copy(v::GeneralVariableRef) = v
-Base.copy(v::InfiniteVariableRef, new_model::InfiniteModel) = InfiniteVariableRef(new_model, v.index)
-Base.copy(v::GlobalVariableRef, new_model::InfiniteModel) = GlobalVariableRef(new_model, v.index)
-Base.copy(v::PointVariableRef, new_model::InfiniteModel) = PointVariableRef(new_model, v.index)
+
+# InfiniteVariableRef
+function Base.copy(v::InfiniteVariableRef,
+                   new_model::InfiniteModel)::InfiniteVariableRef
+    return InfiniteVariableRef(new_model, v.index)
+end
+
+# GlobalVariableRef
+function Base.copy(v::GlobalVariableRef,
+                   new_model::InfiniteModel)::GlobalVariableRef
+    return GlobalVariableRef(new_model, v.index)
+end
+
+# PointVariableRef
+function Base.copy(v::PointVariableRef,
+                   new_model::InfiniteModel)::PointVariableRef
+     return PointVariableRef(new_model, v.index)
+ end
 
 # Extend other Base functions
-Base.:(==)(v::GeneralVariableRef, w::GeneralVariableRef) = v.model === w.model && v.index == w.index
+function Base.:(==)(v::T, w::U)::Bool where {T <: GeneralVariableRef,
+                                             U <: GeneralVariableRef}
+    return v.model === w.model && v.index == w.index && T == U
+end
 Base.broadcastable(v::GeneralVariableRef) = Ref(v)
 
 # Extend JuMP functions
@@ -30,7 +49,7 @@ function JuMP.variable_type(model::InfiniteModel, type::Symbol)
     end
 end
 
-# Make check tuple check functions
+# Check parameter tuple, ensure all elements contain parameter references
 function _check_parameter_tuple(_error::Function, prefs::Tuple)
     types = [typeof(pref) for pref in prefs]
     num_params = length(types)
@@ -46,7 +65,8 @@ function _check_parameter_tuple(_error::Function, prefs::Tuple)
     return
 end
 
-function _make_formatted_tuple(prefs::Tuple)
+# Convert parameter tuple s.t. array elements are SparseAxisArrays
+function _make_formatted_tuple(prefs::Tuple)::Tuple
     converted_prefs = ()
     for pref in prefs
         if isa(pref, ParameterRef) || isa(pref, Number)
@@ -59,10 +79,12 @@ function _make_formatted_tuple(prefs::Tuple)
     return converted_prefs
 end
 
+# Ensure each element onyl contains parameters with same group ID
 function _check_tuple_groups(_error::Function, prefs::Tuple)
     valid_elements = [_only_one_group(prefs[i]) for i = 1:length(prefs)]
     if sum(valid_elements) != length(prefs)
-        _error("Each parameter tuple element must have contain only one infinite parameters with the same group ID.")
+        _error("Each parameter tuple element must have contain only infinite " *
+               "parameters with the same group ID.")
     end
     groups = _groups(prefs)
     if length(unique(groups)) != length(groups)
@@ -71,19 +93,56 @@ function _check_tuple_groups(_error::Function, prefs::Tuple)
     return
 end
 
-function _check_tuple_shape(_error::Function, infinite_variable_ref::InfiniteVariableRef, values::Tuple)
+# Ensure parameter values match shape of parameter reference tuple stored in the
+# infinite variable reference
+function _check_tuple_shape(_error::Function,
+                            infinite_variable_ref::InfiniteVariableRef,
+                            values::Tuple)
     prefs = parameter_refs(infinite_variable_ref)
+    container = JuMP.Containers.SparseAxisArray
     if length(prefs) != length(values)
-        _error("The dimensions of the infinite parameter values must match those defined for the infinite variable.")
+        _error("The dimensions of the infinite parameter values must match " *
+               "those defined for the infinite variable.")
     end
     for i = 1:length(values)
-        if isa(prefs[i], ParameterRef) && !(typeof(values[i]) <: Number)
-            _error("The dimensions and array type of the infinite parameter values must match those defined for the infinite variable.")
-        elseif isa(prefs[i], JuMP.Containers.SparseAxisArray) && !isa(values[i], JuMP.Containers.SparseAxisArray)
-            _error("The dimensions and array type of the infinite parameter values must match those defined for the infinite variable.")
-        elseif isa(prefs[i], JuMP.Containers.SparseAxisArray)
+        if isa(prefs[i], ParameterRef) && !(isa(values[i], Number))
+            _error("The dimensions and array type of the infinite parameter " *
+                   "values must match those defined for the infinite variable.")
+        elseif isa(prefs[i], container) && !isa(values[i], container)
+            _error("The dimensions and array type of the infinite parameter " *
+                   "values must match those defined for the infinite variable.")
+        elseif isa(prefs[i], container)
             if keys(prefs[i].data) != keys(values[i].data)
-                _error("Index keys of infinite parameter values don't match those defined for the infinite variable.")
+                _error("Index keys of infinite parameter values don't match " *
+                       "those defined for the infinite variable.")
+            end
+        end
+    end
+    return
+end
+
+# Used to ensure values don't violate parameter bounds
+function _check_tuple_values(_error::Function, inf_vref::InfiniteVariableRef,
+                             param_values::Tuple)
+    prefs = parameter_refs(inf_vref)
+    for i = 1:length(prefs)
+        if isa(prefs[i], ParameterRef)
+            if JuMP.has_lower_bound(prefs[i])
+                check1 = param_values[i] < JuMP.lower_bound(prefs[i])
+                check2 = param_values[i] > JuMP.upper_bound(prefs[i])
+                if check1 || check2
+                    _error("Parameter values violate parameter bounds.")
+                end
+            end
+        else
+            for (k, v) in prefs[i].data
+                if JuMP.has_lower_bound(v)
+                    check1 = param_values[i].data[k] < JuMP.lower_bound(v)
+                    check2 = param_values[i].data[k] > JuMP.upper_bound(v)
+                    if check1 || check2
+                        _error("Parameter values violate parameter bounds.")
+                    end
+                end
             end
         end
     end
@@ -138,15 +197,63 @@ function _update_point_info(info::JuMP.VariableInfo, ivref::InfiniteVariableRef)
 end
 
 """
-    JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, test_arg::Int;
-                        param_set::Union{AbstractInfiniteSet, Vector{AbstractInfiniteSet}} = EmptySet(),
+    JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
+                        var_type::Symbol;
+                        parameter_refs::Union{ParameterRef,
+                                              AbstractArray{<:ParameterRef},
+                                              Tuple, Nothing} = nothing,
+                        infinite_variable_ref::Union{InfiniteVariableRef,
+                                                     Nothing} = nothing,
+                        parameter_values::Union{Number, AbstractArray{<:Number},
+                                                Tuple, Nothing} = nothing,
+                        error::Union{Function, Nothing} = nothing,
                         extra_kw_args...)
-Extend the `JuMP.build_variable` function to accomodate our new variable types.
+
+Extend the [`JuMP.build_variable`](@ref) function to accomodate `InfiniteOpt`
+variable types. Returns the appropriate variable Datatype (i.e.,
+[`InfiniteVariable`](@ref), [`PointVariable`](@ref), and
+[`GlobalVariable`](@ref)). Primarily this method is to be used internally by the
+appropriate constructor macros [`@infinite_variable`](@ref),
+[`@point_variable`](@ref), and [`@global_variable`](@ref). However, it can be
+called manually to build `InfiniteOpt` variables. Errors if an unneeded keyword
+argument is given or if the keywoard arguments are formatted incorrectly (e.g.,
+`parameter_refs` contains repeated parameter references when an infinite variable
+is defined). Also errors if needed kewword arguments are negated.
+
+**Examples**
+```julia
+julia> @infinite_parameter(m, 0 <= t <= 1)
+t
+
+julia> info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false);
+
+julia> inf_var = build_variable(error, info, Infinite, parameter_refs = t)
+InfiniteVariable{Int64,Int64,Int64,Int64}(VariableInfo{Int64,Int64,Int64,Int64}
+(false, 0, false, 0, false, 0, false, 0, false, false), (t,))
+
+julia> ivref = add_variable(m, inf_var, "var_name")
+var_name(t)
+
+julia> pt_var = build_variable(error, info, Point, infinite_variable_ref = ivref,
+                               parameter_values = 0.5)
+PointVariable{Int64,Int64,Int64,Float64}(VariableInfo{Int64,Int64,Int64,Float64}
+(false, 0, false, 0, false, 0, true, 0.0, false, false), var_name(t), (0.5,))
+
+julia> gb_var = build_variable(error, info, Global)
+GlobalVariable{Int64,Int64,Int64,Int64}(VariableInfo{Int64,Int64,Int64,Int64}
+(false, 0, false, 0, false, 0, false, 0, false, false))
+```
 """
-function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, var_type::Symbol;
-                             parameter_refs::Union{ParameterRef, AbstractArray{<:ParameterRef}, Tuple, Nothing} = nothing,
-                             infinite_variable_ref::Union{InfiniteVariableRef, Nothing} = nothing,
-                             parameter_values::Union{Number, AbstractArray{<:Number}, Tuple, Nothing} = nothing,
+function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
+                             var_type::Symbol;
+                             parameter_refs::Union{ParameterRef,
+                                                   AbstractArray{<:ParameterRef},
+                                                   Tuple, Nothing} = nothing,
+                             infinite_variable_ref::Union{InfiniteVariableRef,
+                                                          Nothing} = nothing,
+                             parameter_values::Union{Number,
+                                                     AbstractArray{<:Number},
+                                                     Tuple, Nothing} = nothing,
                              error::Union{Function, Nothing} = nothing,
                              extra_kw_args...)
     if error != nothing
@@ -156,15 +263,19 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, var_type
         _error("Unrecognized keyword argument $kwarg")
     end
     if !(var_type in [Infinite, Point, Global])
-        _error("Unrecognized variable type $var_type, should be Inf, Point, or Global.")
+        _error("Unrecognized variable type $var_type, should be Infinite, " *
+               "Point, or Global.")
     end
     if var_type != Infinite && parameter_refs != nothing
-        _error("Can only use the keyword argument 'parameter_refs' with infinite variables.")
+        _error("Can only use the keyword argument 'parameter_refs' with " *
+               "infinite variables.")
     elseif var_type != Point && (infinite_variable_ref != nothing || parameter_values != nothing)
-        _error("Can only use the keyword arguments 'infinite_var' and 'parameter_values' with point variables.")
+        _error("Can only use the keyword arguments 'infinite_var' and " *
+               "'parameter_values' with point variables.")
     elseif var_type == Infinite
         if parameter_refs == nothing
-            _error("Parameter references not specified, use the var(params...) syntax or the parameter_refs keyword argument.")
+            _error("Parameter references not specified, use the var(params...) " *
+                   "syntax or the parameter_refs keyword argument.")
         end
         if !isa(parameter_refs, Tuple)
             parameter_refs = (parameter_refs, )
@@ -175,13 +286,15 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, var_type
         return InfiniteVariable(info, parameter_refs)
     elseif var_type == Point
         if parameter_values == nothing || infinite_variable_ref == nothing
-            _error("Must specify the infinite variable and the values of its infinite parameters")
+            _error("Must specify the infinite variable and the values of its " *
+                   "infinite parameters")
         end
         if !isa(parameter_values, Tuple)
             parameter_values = (parameter_values, )
         end
         parameter_values = _make_formatted_tuple(parameter_values)
         _check_tuple_shape(_error, infinite_variable_ref, parameter_values)
+        _check_tuple_values(_error, infinite_variable_ref, parameter_values)
         info = _update_point_info(info, infinite_variable_ref)
         return PointVariable(info, infinite_variable_ref, parameter_values)
     else
@@ -203,8 +316,19 @@ function _update_param_var_mapping(vref::InfiniteVariableRef, prefs::Tuple)
     return
 end
 
+# check the pref tuple contains only valid parameters
+function _check_parameters_valid(model::InfiniteModel, prefs::Tuple)
+    pref_list = _list_parameter_refs(prefs)
+    for pref in pref_list
+        !JuMP.is_valid(model, pref) && error("Invalid Parameter reference " *
+                                             "provided.")
+    end
+    return
+end
+
 # Used to add point variable support to parameter supports if necessary
-function _update_param_supports(inf_vref::InfiniteVariableRef, param_values::Tuple)
+function _update_param_supports(inf_vref::InfiniteVariableRef,
+                                param_values::Tuple)
     prefs = parameter_refs(inf_vref)
     for i = 1:length(prefs)
         if isa(prefs[i], ParameterRef)
@@ -218,19 +342,37 @@ function _update_param_supports(inf_vref::InfiniteVariableRef, param_values::Tup
     return
 end
 
-# check the pref tuple contains only valid parameters
-function _check_parameters_valid(model::InfiniteModel, prefs::Tuple)
-    pref_list = _list_parameter_refs(prefs)
-    for pref in pref_list
-        !JuMP.is_valid(model, pref) && error("Parameter reference $pref " *
-                                             "is invalid.")
-    end
-    return
-end
-
 """
     JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String="")
-Extend the `JuMP.add_variable` function to accomodate our new variable types.
+
+Extend the [`JuMP.add_variable`](@ref) function to accomodate `InfiniteOpt`
+variable types. Adds a variable to an infinite model `model` and returns an
+appropriate variable reference (i.e., [`InfiniteVariableRef`](@ref),
+[`PointVariableRef`](@ref), or [`GlobalVariableRef`](@ref)). Primarily intended
+to be an internal function of the constructor macros [`@infinite_variable`](@ref),
+[`@point_variable`](@ref), and [`@global_variable`](@ref). However, it can be used
+in combination with [`JuMP.build_variable`](@ref) to add variables to an infinite
+model object. Errors if invalid parameters reference(s) or an invalid infinite
+variable reference is included in `v`.
+
+**Examples**
+```julia
+julia> inf_var = build_variable(error, info, Infinite, parameter_refs = t);
+
+julia> ivref = add_variable(m, inf_var, "var_name")
+var_name(t)
+
+julia> pt_var = build_variable(error, info, Point, infinite_variable_ref = ivref,
+                               parameter_values = 0.5);
+
+julia> pvref = add_variable(m, pt_var, "var_alias")
+var_alias
+
+julia> gb_var = build_variable(error, info, Global)
+
+julia> gvref = add_variable(m, gb_var, "var_name")
+var_name
+```
 """
 function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String="")
     model.next_var_index += 1
@@ -241,7 +383,7 @@ function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String
     elseif isa(v, PointVariable)
         ivref = v.infinite_variable_ref
         !JuMP.is_valid(model, ivref) && error("Invalid infinite variable " *
-                                       "reference $ivref.")
+                                              "reference.")
         vref = PointVariableRef(model, model.next_var_index)
         _update_param_supports(ivref, v.parameter_values)
     else
@@ -251,13 +393,15 @@ function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String
     JuMP.set_name(vref, name)
     if v.info.has_lb
         newset = MOI.GreaterThan(convert(Float64, v.info.lower_bound))
-        cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, newset))
+        cref = JuMP.add_constraint(JuMP.owner_model(vref),
+                                   JuMP.ScalarConstraint(vref, newset))
         JuMP.set_lower_bound_index(vref, JuMP.index(cref))
         model.constr_in_var_info[JuMP.index(cref)] = true
     end
     if v.info.has_ub
         newset = MOI.LessThan(convert(Float64, v.info.upper_bound))
-        cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, newset))
+        cref = JuMP.add_constraint(JuMP.owner_model(vref),
+                                   JuMP.ScalarConstraint(vref, newset))
         JuMP.set_upper_bound_index(vref, JuMP.index(cref))
         model.constr_in_var_info[JuMP.index(cref)] = true
     end
@@ -268,11 +412,13 @@ function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String
         model.constr_in_var_info[JuMP.index(cref)] = true
     end
     if v.info.binary
-        cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, MOI.ZeroOne()))
+        cref = JuMP.add_constraint(JuMP.owner_model(vref),
+                                   JuMP.ScalarConstraint(vref, MOI.ZeroOne()))
         JuMP.set_binary_index(vref, JuMP.index(cref))
         model.constr_in_var_info[JuMP.index(cref)] = true
     elseif v.info.integer
-        cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, MOI.Integer()))
+        cref = JuMP.add_constraint(JuMP.owner_model(vref),
+                                   JuMP.ScalarConstraint(vref, MOI.Integer()))
         JuMP.set_integer_index(vref, JuMP.index(cref))
         model.constr_in_var_info[JuMP.index(cref)] = true
     end
@@ -281,16 +427,41 @@ function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String
 end
 
 """
-    JuMP.owner_model(vref::GeneralVariableRef)
-Extend the `JuMP.owner_model` function for our new variable types.
+    JuMP.owner_model(vref::GeneralVariableRef)::InfiniteModel
+
+Extend [`JuMP.owner_model`](@ref) function for `InfiniteOpt` variables. Returns
+the infinite model associated with `vref`.
+
+**Example**
+```julia
+julia> owner_model(vref)
+An InfiniteOpt Model
+Feasibility problem with:
+Variable: 1
+`GlobalVariableRef`-in-`MathOptInterface.LessThan{Float64}`: 1 constraint
+`GlobalVariableRef`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
+`GlobalVariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 1 constraint
+Names registered in the model: vref
+Optimizer model backend information:
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
+```
 """
-JuMP.owner_model(vref::GeneralVariableRef) = vref.model
+JuMP.owner_model(vref::GeneralVariableRef)::InfiniteModel = vref.model
 
 """
     JuMP.index(v::GeneralVariableRef::Int
-Extent `JuMP.index` to return the index of a InfOpt variable.
+
+Extent [`JuMP.index`](@ref) to return the index of a `InfiniteOpt` variable.
+
+**Example**
+```julia
+julia> index(vref)
+1
+```
 """
-JuMP.index(v::GeneralVariableRef) = v.index
+JuMP.index(v::GeneralVariableRef)::Int = v.index
 
 """
     used_by_constraint(vref::InfOptVariableRef)::Bool
@@ -420,11 +591,18 @@ function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
 end
 
 """
-    JuMP.is_valid(model::InfiniteModel, vref::InfOptVariableRef)
-Extend the `JuMP.is_valid` function to accomodate our new variable types.
+    JuMP.is_valid(model::InfiniteModel, vref::InfOptVariableRef)::Bool
+
+Extend [`JuMP.is_valid`](@ref) to accomodate `InfiniteOpt` variables.
+
+**Example**
+```julia
+julia> is_valid(model, ivref)
+true
+```
 """
-function JuMP.is_valid(model::InfiniteModel, vref::InfOptVariableRef)
-        return (model === JuMP.owner_model(vref) && JuMP.index(vref) in keys(model.vars))
+function JuMP.is_valid(model::InfiniteModel, vref::InfOptVariableRef)::Bool
+    return (model === JuMP.owner_model(vref) && JuMP.index(vref) in keys(model.vars))
 end
 
 """
@@ -433,514 +611,37 @@ Extend the `JuMP.num_variables` function to accomodate our new variable types.
 """
 JuMP.num_variables(model::InfiniteModel) = length(model.vars)
 
-# Internal functions
-_variable_info(vref::InfOptVariableRef) = JuMP.owner_model(vref).vars[JuMP.index(vref)].info
-function _update_variable_info(vref::InfiniteVariableRef, info::JuMP.VariableInfo)
-    parameter_refs = JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_refs
-    JuMP.owner_model(vref).vars[JuMP.index(vref)] = InfiniteVariable(info, parameter_refs)
-    return
+# Include all the extension functions for manipulating the properties associated
+# with VariableInfo
+include("variable_info.jl")
+
+"""
+    JuMP.name(vref::InfOptVariableRef)::String
+
+Extend [`JuMP.name`](@ref) to return the names of `InfiniteOpt` variables.
+
+**Example**
+```julia
+julia> name(vref)
+"var_name"
+```
+"""
+function JuMP.name(vref::InfOptVariableRef)::String
+    return JuMP.owner_model(vref).var_to_name[JuMP.index(vref)]
 end
-function _update_variable_info(vref::PointVariableRef, info::JuMP.VariableInfo)
-    infinite_variable_ref = JuMP.owner_model(vref).vars[JuMP.index(vref)].infinite_variable_ref
-    parameter_values = JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
-    JuMP.owner_model(vref).vars[JuMP.index(vref)] = PointVariable(info, infinite_variable_ref, parameter_values)
-    return
-end
-function _update_variable_info(vref::GlobalVariableRef, info::JuMP.VariableInfo)
-    JuMP.owner_model(vref).vars[JuMP.index(vref)] = GlobalVariable(info)
-    return
-end
-
-"""
-    JuMP.has_lower_bound(vref::InfOptVariableRef)
-Extend the `JuMP.has_lower_bound` function to accomodate our new variable types.
-"""
-JuMP.has_lower_bound(vref::InfOptVariableRef) = _variable_info(vref).has_lb
-
-"""
-    JuMP.lower_bound(vref::InfOptVariableRef)::Float64
-Extend the `JuMP.lower_bound` function to accomodate our new variable types.
-"""
-function JuMP.lower_bound(vref::InfOptVariableRef)::Float64
-    if !JuMP.has_lower_bound(vref)
-        error("Variable $(vref) does not have a lower bound.")
-    end
-    return _variable_info(vref).lower_bound
-end
-
-"""
-    JuMP.lower_bound_index(vref::InfOptVariableRef)
-Extend the `JuMP.lower_bound_index` function to accomodate our new variable types.
-"""
-function JuMP.lower_bound_index(vref::InfOptVariableRef)
-    if !JuMP.has_lower_bound(vref)
-        error("Variable $(vref) does not have a lower bound.")
-    end
-    return JuMP.owner_model(vref).var_to_lower_bound[JuMP.index(vref)]
-end
-
-"""
-    JuMP.set_lower_bound_index(vref::InfOptVariableRef, cindex::Int)
-Extend the `JuMP.set_lower_bound_index` function to accomodate our new variable types.
-"""
-function JuMP.set_lower_bound_index(vref::InfOptVariableRef, cindex::Int)
-    JuMP.owner_model(vref).var_to_lower_bound[JuMP.index(vref)] = cindex
-    return
-end
-
-"""
-    JuMP.set_lower_bound(vref::InfOptVariableRef, lower::Number)
-Extend the `JuMP.set_lower_bound` function to accomodate our new variable types.
-"""
-function JuMP.set_lower_bound(vref::InfOptVariableRef, lower::Number)
-    newset = MOI.GreaterThan(convert(Float64, lower))
-    if JuMP.has_lower_bound(vref)
-        cindex = JuMP.lower_bound_index(vref)
-        JuMP.owner_model(vref).constrs[cindex] = JuMP.ScalarConstraint(vref, newset)
-        set_optimizer_model_status(JuMP.owner_model(vref), false)
-    else
-        @assert !JuMP.is_fixed(vref)
-        cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, newset))
-        JuMP.set_lower_bound_index(vref, JuMP.index(cref))
-        JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
-    end
-    info = _variable_info(vref)
-    _update_variable_info(vref, JuMP.VariableInfo(true, convert(Float64, lower),
-                                                  info.has_ub, info.upper_bound,
-                                                  info.has_fix, info.fixed_value,
-                                                  info.has_start, info.start,
-                                                  info.binary, info.integer))
-    return
-end
-
-"""
-    JuMP.LowerBoundRef(vref::InfOptVariableRef)
-Extract a constraint reference for the lower bound.
-"""
-function JuMP.LowerBoundRef(vref::InfOptVariableRef)
-    index = JuMP.lower_bound_index(vref)
-    model = JuMP.owner_model(vref)
-    if model.constrs[index].func isa InfiniteExpr
-        return InfiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    elseif model.constrs[index].func isa MeasureExpr
-        return MeasureConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    else
-        return FiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    end
-end
-
-"""
-    JuMP.delete_lower_bound(vref::InfOptVariableRef)
-Extend the `JuMP.delete_lower_bound` function to accomodate our new variable types.
-"""
-function JuMP.delete_lower_bound(vref::InfOptVariableRef)
-    JuMP.delete(JuMP.owner_model(vref), JuMP.LowerBoundRef(vref))
-    delete!(JuMP.owner_model(vref).var_to_lower_bound, JuMP.index(vref))
-    info = _variable_info(vref)
-    _update_variable_info(vref, JuMP.VariableInfo(false, info.lower_bound,
-                                                  info.has_ub, info.upper_bound,
-                                                  info.has_fix, info.fixed_value,
-                                                  info.has_start, info.start,
-                                                  info.binary, info.integer))
-    return
-end
-
-"""
-    JuMP.has_upper_bound(vref::InfOptVariableRef
-Extend the `JuMP.has_upper_bound` function to accomodate our new variable types.
-"""
-JuMP.has_upper_bound(vref::InfOptVariableRef) = _variable_info(vref).has_ub
-
-"""
-    JuMP.upper_bound(vref::InfOptVariableRef)
-Extend the `JuMP.upper_bound` function to accomodate our new variable types.
-"""
-function JuMP.upper_bound(vref::InfOptVariableRef)::Float64
-    if !JuMP.has_upper_bound(vref)
-        error("Variable $(vref) does not have a upper bound.")
-    end
-    return _variable_info(vref).upper_bound
-end
-
-"""
-    JuMP.upper_bound_index(vref::InfOptVariableRef)
-Extend the `JuMP.upper_bound_index` function to accomodate our new variable types.
-"""
-function JuMP.upper_bound_index(vref::InfOptVariableRef)
-    if !JuMP.has_upper_bound(vref)
-        error("Variable $(vref) does not have a upper bound.")
-    end
-    return JuMP.owner_model(vref).var_to_upper_bound[JuMP.index(vref)]
-end
-
-"""
-    JuMP.set_upper_bound_index(vref::InfOptVariableRef, cindex::Int)
-Extend the `JuMP.set_upper_bound_index` function to accomodate our new variable types.
-"""
-function JuMP.set_upper_bound_index(vref::InfOptVariableRef, cindex::Int)
-    JuMP.owner_model(vref).var_to_upper_bound[JuMP.index(vref)] = cindex
-    return
-end
-
-"""
-    JuMP.set_upper_bound(vref::InfOptVariableRef, upper::Number)
-Extend the `JuMP.set_upper_bound` function to accomodate our new variable types.
-"""
-function JuMP.set_upper_bound(vref::InfOptVariableRef, upper::Number)
-    newset = MOI.LessThan(convert(Float64, upper))
-    if JuMP.has_upper_bound(vref)
-        cindex = JuMP.upper_bound_index(vref)
-        JuMP.owner_model(vref).constrs[cindex] = JuMP.ScalarConstraint(vref, newset)
-        set_optimizer_model_status(JuMP.owner_model(vref), false)
-    else
-        @assert !JuMP.is_fixed(vref)
-        cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, newset))
-        JuMP.set_upper_bound_index(vref, JuMP.index(cref))
-        JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
-    end
-    info = _variable_info(vref)
-    _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
-                                                  true, convert(Float64, upper),
-                                                  info.has_fix, info.fixed_value,
-                                                  info.has_start, info.start,
-                                                  info.binary, info.integer))
-    return
-end
-
-"""
-    JuMP.UpperBoundRef(vref::InfOptVariableRef)
-Extract a constraint reference for the upper bound.
-"""
-function JuMP.UpperBoundRef(vref::InfOptVariableRef)
-    index = JuMP.upper_bound_index(vref)
-    model = JuMP.owner_model(vref)
-    if model.constrs[index].func isa InfiniteExpr
-        return InfiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    elseif model.constrs[index].func isa MeasureExpr
-        return MeasureConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    else
-        return FiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    end
-end
-
-"""
-    JuMP.delete_upper_bound(vref::InfOptVariableRef)
-Extend the `JuMP.delete_upper_bound` function to accomodate our new variable types.
-"""
-function JuMP.delete_upper_bound(vref::InfOptVariableRef)
-    JuMP.delete(JuMP.owner_model(vref), JuMP.UpperBoundRef(vref))
-    delete!(JuMP.owner_model(vref).var_to_upper_bound, JuMP.index(vref))
-    info = _variable_info(vref)
-    _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
-                                                  false, info.upper_bound,
-                                                  info.has_fix, info.fixed_value,
-                                                  info.has_start, info.start,
-                                                  info.binary, info.integer))
-    return
-end
-
-"""
-    JuMP.is_fixed(vref::InfOptVariableRef)
-Extend the `is_fixed` function to accomodate our new variable types.
-"""
-JuMP.is_fixed(vref::InfOptVariableRef) = _variable_info(vref).has_fix
-
-"""
-    JuMP.fix_value(vref::InfOptVariableRef)
-Extend the `JuMP.fix_value` function to accomodate our new variable types.
-"""
-function JuMP.fix_value(vref::InfOptVariableRef)::Float64
-    if !JuMP.is_fixed(vref)
-        error("Variable $(vref) is not fixed.")
-    end
-    return _variable_info(vref).fixed_value
-end
-
-"""
-    JuMP.fix_index(vref::InfOptVariableRef)
-Extend the `JuMP.fix_index` function to accomodate our new variable types.
-"""
-function JuMP.fix_index(vref::InfOptVariableRef)
-    if !JuMP.is_fixed(vref)
-        error("Variable $(vref) is not fixed.")
-    end
-    return JuMP.owner_model(vref).var_to_fix[JuMP.index(vref)]
-end
-
-"""
-    JuMP.set_fix_index(vref::InfOptVariableRef, cindex::Int)
-Extend the `JuMP.set_fix_index` function to accomodate our new variable types.
-"""
-function JuMP.set_fix_index(vref::InfOptVariableRef, cindex::Int)
-    JuMP.owner_model(vref).var_to_fix[JuMP.index(vref)] = cindex
-end
-
-"""
-    JuMP.fix(vref::InfOptVariableRef, value::Number; force::Bool = false)
-Extend the `JuMP.fix` function to accomodate our new variable types.
-"""
-function JuMP.fix(vref::InfOptVariableRef, value::Number; force::Bool = false)
-    new_set = MOI.EqualTo(convert(Float64, value))
-    model = JuMP.owner_model(vref)
-    if JuMP.is_fixed(vref)  # Update existing fixing constraint.
-        cindex = JuMP.fix_index(vref)
-        JuMP.owner_model(vref).constrs[cindex] = JuMP.ScalarConstraint(vref, new_set)
-        set_optimizer_model_status(JuMP.owner_model(vref), false)
-    else  # Add a new fixing constraint.
-        if  JuMP.has_upper_bound(vref) ||  JuMP.has_lower_bound(vref)
-            if !force
-                error("Unable to fix $(vref) to $(value) because it has " *
-                      "existing variable bounds. Consider calling " *
-                      "`JuMP.fix(variable, value; force=true)` which will " *
-                      "delete existing bounds before fixing the variable.")
-            end
-            if  JuMP.has_upper_bound(vref)
-                 JuMP.delete_upper_bound(vref)
-            end
-            if  JuMP.has_lower_bound(vref)
-                 JuMP.delete_lower_bound(vref)
-            end
-        end
-        cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(vref, new_set))
-        JuMP.set_fix_index(vref, JuMP.index(cref))
-        JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
-    end
-    info = _variable_info(vref)
-    _update_variable_info(vref, JuMP.VariableInfo(false, info.lower_bound,
-                                                  false, info.upper_bound,
-                                                  true, convert(Float64, value),
-                                                  info.has_start, info.start,
-                                                  info.binary, info.integer))
-    return
-end
-
-"""
-    JuMP.FixRef(vref::InfOptVariableRef)
-Extend the `JuMP.FixRef` function for our new variable types.
-"""
-function JuMP.FixRef(vref::InfOptVariableRef)
-    index = JuMP.fix_index(vref)
-    model = JuMP.owner_model(vref)
-    if model.constrs[index].func isa InfiniteExpr
-        return InfiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    elseif model.constrs[index].func isa MeasureExpr
-        return MeasureConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    else
-        return FiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    end
-end
-
-"""
-    JuMP.unfix(vref::InfOptVariableRef)
-Extend the `JuMP.unfix` function to accomodate our new variable types.
-"""
-function JuMP.unfix(vref::InfOptVariableRef)
-    JuMP.delete(JuMP.owner_model(vref), JuMP.FixRef(vref))
-    delete!(JuMP.owner_model(vref).var_to_fix, JuMP.index(vref))
-    info = _variable_info(vref)
-    _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
-                                                  info.has_ub, info.upper_bound,
-                                                  false, info.fixed_value,
-                                                  info.has_start, info.start,
-                                                  info.binary, info.integer))
-    return
-end
-
-"""
-    JuMP.start_value(vref::InfOptVariableRef)
-Extend the `JuMP.start_value` function to accomodate our new variable types.
-"""
-function JuMP.start_value(vref::InfOptVariableRef)::Union{Nothing, Float64}
-    return _variable_info(vref).start
-end
-
-"""
-    JuMP.set_start_value(vref::InfOptVariableRef, value::Number)
-Extend the `JuMP.set_start_value` function to accomodate our new variable types.
-"""
-function JuMP.set_start_value(vref::InfOptVariableRef, value::Number)
-    info = _variable_info(vref)
-    set_optimizer_model_status(JuMP.owner_model(vref), false)
-    _update_variable_info(vref,
-                         JuMP.VariableInfo(info.has_lb, info.lower_bound,
-                                           info.has_ub, info.upper_bound,
-                                           info.has_fix, info.fixed_value,
-                                           true, Float64(value),
-                                           info.binary, info.integer))
-    return
-end
-
-"""
-    JuMP.is_binary(vref::InfOptVariableRef)
-Extend the `JuMP.is_binary` function to accomodate our new variable types.
-"""
-JuMP.is_binary(vref::InfOptVariableRef) = _variable_info(vref).binary
-
-"""
-    JuMP.binary_index(vref::InfOptVariableRef)
-Extend the `JuMP.binary_index` function to accomodate our new variable types.
-"""
-function JuMP.binary_index(vref::InfOptVariableRef)
-    if !JuMP.is_binary(vref)
-        error("Variable $(vref) is not binary.")
-    end
-    return JuMP.owner_model(vref).var_to_zero_one[JuMP.index(vref)]
-end
-
-"""
-    JuMP.set_binary_index(vref::InfOptVariableRef, cindex::Int)
-Extend the `JuMP.set_binary_index` function to accomodate our new variable types.
-"""
-function JuMP.set_binary_index(vref::InfOptVariableRef, cindex::Int)
-    JuMP.owner_model(vref).var_to_zero_one[JuMP.index(vref)] = cindex
-end
-
-"""
-    JuMP.set_binary(vref::InfOptVariableRef)
-Extend the `JuMP.set_binary` function to accomodate our new variable types.
-"""
-function JuMP.set_binary(vref::InfOptVariableRef)
-    if JuMP.is_binary(vref)
-        return
-    elseif JuMP.is_integer(vref)
-        error("Cannot set the variable_ref $(vref) to binary as it " *
-              "is already integer.")
-    end
-    cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, MOI.ZeroOne()))
-    JuMP.set_binary_index(vref, JuMP.index(cref))
-    JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
-    info = _variable_info(vref)
-    _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
-                                                  info.has_ub, info.upper_bound,
-                                                  info.has_fix, info.fixed_value,
-                                                  info.has_start, info.start,
-                                                  true, info.integer))
-    return
-end
-
-"""
-    JuMP.BinaryRef(vref::InfOptVariableRef)
-Return a constraint reference to the constraint constrainting `vref` to be binary.
-Errors if one does not exist.
-"""
-function JuMP.BinaryRef(vref::InfOptVariableRef)
-    index = JuMP.binary_index(vref)
-    model = JuMP.owner_model(vref)
-    if model.constrs[index].func isa InfiniteExpr
-        return InfiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    elseif model.constrs[index].func isa MeasureExpr
-        return MeasureConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    else
-        return FiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    end
-end
-
-"""
-    JuMP.unset_binary(vref::InfOptVariableRef)
-Extend the `JuMP.unset_binary` function to accomodate our new variable types.
-"""
-function JuMP.unset_binary(vref::InfOptVariableRef)
-    JuMP.delete(JuMP.owner_model(vref), JuMP.BinaryRef(vref))
-    delete!(JuMP.owner_model(vref).var_to_zero_one, JuMP.index(vref))
-    info = _variable_info(vref)
-    _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
-                                                  info.has_ub, info.upper_bound,
-                                                  info.has_fix, info.fixed_value,
-                                                  info.has_start, info.start,
-                                                  false, info.integer))
-    return
-end
-
-"""
-    JuMP.is_integer(vref::InfOptVariableRef)
-Extend the `JuMP.is_integer` function to accomodate our new variable types.
-"""
-JuMP.is_integer(vref::InfOptVariableRef) = _variable_info(vref).integer
-
-"""
-    JuMP.integer_index(vref::InfOptVariableRef)
-Extend the `JuMP.integer_index` function to accomodate our new variable types.
-"""
-function JuMP.integer_index(vref::InfOptVariableRef)
-    if !JuMP.is_integer(vref)
-        error("Variable $(vref) is not an integer.")
-    end
-    return JuMP.owner_model(vref).var_to_integrality[JuMP.index(vref)]
-end
-
-"""
-    JuMP.set_integer_index(vref::InfOptVariableRef, cindex::Int)
-Extend the `JuMP.set_integer_index` function to accomodate our new variable types.
-"""
-function JuMP.set_integer_index(vref::InfOptVariableRef, cindex::Int)
-    JuMP.owner_model(vref).var_to_integrality[JuMP.index(vref)] = cindex
-end
-
-"""
-    JuMP.set_integer(vref::InfOptVariableRef)
-Extend the `JuMP.set_integer` function to accomodate our new variable types.
-"""
-function JuMP.set_integer(vref::InfOptVariableRef)
-    if JuMP.is_integer(vref)
-        return
-    elseif JuMP.is_binary(vref)
-        error("Cannot set the variable_ref $(vref) to integer as it " *
-              "is already binary.")
-    end
-    cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, MOI.Integer()))
-    JuMP.set_integer_index(vref, JuMP.index(cref))
-    JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
-    info = _variable_info(vref)
-    _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
-                                                  info.has_ub, info.upper_bound,
-                                                  info.has_fix, info.fixed_value,
-                                                  info.has_start, info.start,
-                                                  info.binary, true))
-    return
-end
-
-"""
-    JuMP.IntegerRef(vref::InfOptVariableRef)
-Return a constraint reference to the constraint constrainting `vref` to be integer.
-Errors if one does not exist.
-"""
-function JuMP.IntegerRef(vref::InfOptVariableRef)
-    index = JuMP.integer_index(vref)
-    model = JuMP.owner_model(vref)
-    if model.constrs[index].func isa InfiniteExpr
-        return InfiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    elseif model.constrs[index].func isa MeasureExpr
-        return MeasureConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    else
-        return FiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
-    end
-end
-
-"""
-    JuMP.unset_integer(vref::InfOptVariableRef)
-Extend the `JuMP.unset_integer` function to accomodate our new variable types.
-"""
-function JuMP.unset_integer(vref::InfOptVariableRef)
-    JuMP.delete(JuMP.owner_model(vref), JuMP.IntegerRef(vref))
-    delete!(JuMP.owner_model(vref).var_to_integrality, JuMP.index(vref))
-    info = _variable_info(vref)
-    _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
-                                                  info.has_ub, info.upper_bound,
-                                                  info.has_fix, info.fixed_value,
-                                                  info.has_start, info.start,
-                                                  info.binary, false))
-    return
-end
-
-"""
-    JuMP.name(vref::InfOptVariableRef)
-Extend the `JuMP.name` function to accomodate our new variable types.
-"""
-JuMP.name(vref::InfOptVariableRef) = JuMP.owner_model(vref).var_to_name[JuMP.index(vref)]
 
 """
     JuMP.set_name(vref::GlobalVariableRef, name::String)
-Extend the `JuMP.set_name` function to accomodate point and global variables.
+
+Extend [`JuMP.set_name`](@ref) to set names of global variables.
+
+**Example**
+```julia
+julia> set_name(gvref, "var_name")
+
+julia> name(t)
+"var_name"
+```
 """
 function JuMP.set_name(vref::GlobalVariableRef, name::String)
     JuMP.owner_model(vref).var_to_name[JuMP.index(vref)] = name
@@ -949,10 +650,17 @@ function JuMP.set_name(vref::GlobalVariableRef, name::String)
 end
 
 """
-    infinite_variable_ref(vref::PointVariableRef)
-Get the `InfiniteVariableRef`associated with the point variable `vref`.
+    infinite_variable_ref(vref::PointVariableRef)::InfiniteVariableRef
+
+Return the `InfiniteVariableRef` associated with the point variable `vref`.
+
+**Example**
+```julia
+julia> infinite_variable_ref(vref)
+T(t, x)
+```
 """
-function infinite_variable_ref(vref::PointVariableRef)
+function infinite_variable_ref(vref::PointVariableRef)::InfiniteVariableRef
     return JuMP.owner_model(vref).vars[JuMP.index(vref)].infinite_variable_ref
 end
 
@@ -964,17 +672,35 @@ function parameter_values(vref::PointVariableRef)
     return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
 end
 
+# Get root name of infinite variable
+function _root_name(vref::InfiniteVariableRef)
+    name = JuMP.name(vref)
+    return name[1:findfirst(isequal('('), name)-1]
+end
+
 """
     JuMP.set_name(vref::PointVariableRef, name::String)
-Extend the `JuMP.set_name` function to accomodate point and global variables.
+
+Extend [`JuMP.set_name`](@ref) to set the names of point variables.
+
+**Example**
+```julia
+julia> name(vref)
+old_name
+
+julia> set_name(vref, "new_name")
+
+julia> name(vref)
+new_name
+```
 """
 function JuMP.set_name(vref::PointVariableRef, name::String)
     if length(name) == 0
         inf_var_ref = infinite_variable_ref(vref::PointVariableRef)
         name = _root_name(inf_var_ref)
         # TODO do something about SparseAxisArrays
-        parameter_values = JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
-        name = string(name, parameter_values)
+        values = JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
+        name = string(name, values)
     end
     JuMP.owner_model(vref).var_to_name[JuMP.index(vref)] = name
     JuMP.owner_model(vref).name_to_var = nothing
@@ -982,8 +708,18 @@ function JuMP.set_name(vref::PointVariableRef, name::String)
 end
 
 """
-    parameter_refs(vref::InfiniteVariableRef)
-Get the `ParameterRef`(s) associated with the infinite variable `vref`.
+    parameter_refs(vref::InfiniteVariableRef)::Tuple
+
+Return the `ParameterRef`(s) associated with the infinite variable `vref`. This
+is formatted as a Tuple of containing the parameter references as they inputted
+to define `vref`.
+
+**Example**
+```julia
+julia> parameter_refs(vref)
+(t,   [2]  =  x[2]
+  [1]  =  x[1])
+```
 """
 function parameter_refs(vref::InfiniteVariableRef)
     return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_refs
@@ -1005,6 +741,7 @@ end
 
 """
     set_parameter_refs(vref::InfiniteVariableRef, prefs::Tuple)
+
 Set the `ParameterRef`(s) associated with the infinite variable `vref`.
 """
 function set_parameter_refs(vref::InfiniteVariableRef, prefs::Tuple)
@@ -1030,7 +767,21 @@ end
 
 """
     JuMP.set_name(vref::InfiniteVariableRef, root_name::String)
-Extend the `JuMP.set_name` function to accomodate infinite variables.
+
+Extend [`JuMP.set_name`](@ref) to set names of infinite variables. Adds on to
+`root_name` the ending `(prefs...)` where the parameter reference names are
+listed in the same format as input in the parameter reference tuple.
+
+**Example**
+```julia
+julia> name(vref)
+old_name(t, x)
+
+julia> set_name(vref, "new_name")
+
+julia> name(vref)
+new_name(t, x)
+```
 """
 function JuMP.set_name(vref::InfiniteVariableRef, root_name::String)
     if length(root_name) == 0
@@ -1065,10 +816,24 @@ function _make_variable_ref(model::InfiniteModel, index::Int)
 end
 
 """
-    JuMP.variable_by_name(model::InfiniteModel, name::String)
-Extend the `JuMP.variable_by_name` function to accomodate `InfiniteModel` objects.
+    JuMP.variable_by_name(model::InfiniteModel,
+                          name::String)::Union{GeneralVariableRef, Nothing}
+
+Extend [`JuMP.variable_by_name`](@ref) for `InfiniteModel` objects. Return the
+varaible reference assoociated with a variable name. Errors if multiple
+variables have the same name. Returns nothing if no such name exists.
+
+**Examples**
+```julia
+julia> variable_by_name(m, "var_name")
+var_name
+
+julia> variable_by_name(m, "fake_name")
+
+```
 """
-function JuMP.variable_by_name(model::InfiniteModel, name::String)
+function JuMP.variable_by_name(model::InfiniteModel,
+                               name::String)::Union{GeneralVariableRef, Nothing}
     if model.name_to_var === nothing
         # Inspired from MOI/src/Utilities/model.jl
         model.name_to_var = Dict{String, Int}()

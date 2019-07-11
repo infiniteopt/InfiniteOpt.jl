@@ -333,11 +333,6 @@ struct ParameterRef <: GeneralVariableRef
     index::Int
 end
 
-# Extend Base.copy for new variable types
-function Base.copy(v::ParameterRef, new_model::InfiniteModel)
-    return ParameterRef(new_model, v.index)
-end
-
 """
     InfiniteVariable{S, T, U, V} <: InfOptVariable
 A DataType for storing core infinite variable information. Note each element of

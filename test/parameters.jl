@@ -1,3 +1,29 @@
+@testset "Base Extensions" begin
+    m = InfiniteModel()
+    m2 = InfiniteModel()
+    pref = ParameterRef(m, 1)
+    # variable compare
+    @testset "(==)" begin
+        @test pref == pref
+        @test pref == ParameterRef(m, 1)
+        @test !(pref == ParameterRef(m, 2))
+        @test !(pref == ParameterRef(m2, 1))
+        @test !(pref != ParameterRef(m, 1))
+    end
+    # copy(v)
+    @testset "copy(v)" begin
+        @test copy(pref) == pref
+    end
+    # copy(v, m)
+    @testset "copy(v, m)" begin
+        @test copy(pref, m2) == ParameterRef(m2, 1)
+    end
+    # broadcastable
+    @testset "broadcastable" begin
+        @test isa(Base.broadcastable(pref), Base.RefValue{ParameterRef})
+    end
+end
+
 # Test macro methods
 @testset "Macro Helpers" begin
     @testset "Symbol Methods" begin
@@ -138,6 +164,34 @@ end
     end
 end
 
+# Test name methods
+@testset "Name" begin
+    m = InfiniteModel()
+    param = InfOptParameter(IntervalSet(0, 1), Number[], false)
+    m.params[1] = param
+    m.param_to_name[1] = "test"
+    m.name_to_param = nothing
+    pref = ParameterRef(m, 1)
+    # JuMP.name
+    @testset "JuMP.name" begin
+        @test name(pref) == "test"
+    end
+    # JuMP.set_name
+    @testset "JuMP.set_name" begin
+        @test isa(set_name(pref, "new"), Nothing)
+        @test name(pref) == "new"
+    end
+    # parameter_by_name
+    @testset "parameter_by_name" begin
+        @test parameter_by_name(m, "new") == pref
+        @test isa(parameter_by_name(m, "test2"), Nothing)
+        m.params[2] = param
+        m.param_to_name[2] = "new"
+        m.name_to_param = nothing
+        @test_throws ErrorException parameter_by_name(m, "new")
+    end
+end
+
 # Test parameter definition methods
 @testset "Definition" begin
     # _check_supports_in_bounds
@@ -176,30 +230,7 @@ end
         expected = ParameterRef(m, 1)
         @test add_parameter(m, param) == expected
         @test m.params[1] isa InfOptParameter
-        @test m.param_to_group_id[1] == 0
-    end
-end
-
-# Test basic get/set methods
-@testset "Name" begin
-    m = InfiniteModel()
-    param = InfOptParameter(IntervalSet(0, 1), Number[], false)
-    pref = add_parameter(m, param, "test")
-    # JuMP.name
-    @testset "JuMP.name" begin
-        @test name(pref) == "test"
-    end
-    # JuMP.set_name
-    @testset "JuMP.set_name" begin
-        @test isa(set_name(pref, "new"), Nothing)
-        @test name(pref) == "new"
-    end
-    # parameter_by_name
-    @testset "parameter_by_name" begin
-        @test parameter_by_name(m, "new") == pref
-        @test isa(parameter_by_name(m, "test2"), Nothing)
-        pref2 = add_parameter(m, param, "new")
-        @test_throws ErrorException parameter_by_name(m, "new")
+        @test m.param_to_group_id[1] == 1
     end
 end
 
@@ -270,6 +301,7 @@ end
         @test_macro_throws ErrorException @infinite_parameter(m, j)
         @test_macro_throws ErrorException @infinite_parameter(m, j, foo = 42)
         @test_macro_throws ErrorException @infinite_parameter(m, j in Multinomial(3, 2))
+        @test_macro_throws ErrorException @infinite_parameter(m, 0 <= k <= 1, Int)
     end
 end
 
@@ -467,42 +499,141 @@ end
     end
 end
 
+# Test the independent manipulation functions
+@testset "Independent" begin
+    m = InfiniteModel()
+    param = InfOptParameter(IntervalSet(0, 1), Number[], false)
+    pref = add_parameter(m, param, "test")
+    # is_independent
+    @testset "is_indepentent" begin
+        @test !is_independent(pref)
+    end
+    # set_independent
+    @testset "set_indepentent" begin
+        @test isa(set_independent(pref), Nothing)
+        @test is_independent(pref)
+    end
+    # unset_independent
+    @testset "unset_indepentent" begin
+        @test isa(unset_independent(pref), Nothing)
+        @test !is_independent(pref)
+    end
+end
+
+# Test the internal helper functions
+@testset "Internal Helpers" begin
+    m = InfiniteModel()
+    param = InfOptParameter(IntervalSet(0, 1), Number[], false)
+    pref = add_parameter(m, param, "test")
+    pref2 = add_parameter(m, param, "θ")
+    prefs = @infinite_parameter(m, x[1:2], set = IntervalSet(0, 1),
+                                container = SparseAxisArray)
+    # group_id
+    @testset "group_id" begin
+        @test group_id(pref) == 1
+    end
+    # _groups
+    @testset "_groups" begin
+        @test InfiniteOpt._groups(prefs) == [3, 3]
+    end
+    # group_id (array)
+    @testset "group_id (array)" begin
+        @test group_id(prefs) == 3
+        @test_throws ErrorException group_id([pref; pref2])
+    end
+    # _groups (tuple)
+    @testset "_groups (tuple)" begin
+        @test InfiniteOpt._groups((prefs, pref)) == [3, 1]
+    end
+    # _only_one_group
+    @testset "_only_one_group" begin
+        @test InfiniteOpt._only_one_group(pref)
+        @test InfiniteOpt._only_one_group(prefs)
+        @test !InfiniteOpt._only_one_group(convert(JuMP.Containers.SparseAxisArray,
+                                                                 [pref2; pref]))
+    end
+    # _names
+    @testset "_names" begin
+        @test InfiniteOpt._names(prefs) isa Vector
+        result = InfiniteOpt._names(prefs)
+        @test length(result) == 2
+        @test result[1] == "x[1]" || result[1] == "x[2]"
+        @test result[2] == "x[1]" || result[2] == "x[2]"
+    end
+    # _root_name
+    @testset "_root_name" begin
+        @test InfiniteOpt._root_name(pref) == "test"
+        @test InfiniteOpt._root_name(prefs[1]) == "x"
+        @test InfiniteOpt._root_name(pref2) == "θ"
+    end
+    # _root_names
+    @testset "_root_names" begin
+        @test InfiniteOpt._root_names((pref, prefs)) == ["test", "x"]
+    end
+    # _only_one_group
+    @testset "_only_one_name" begin
+        @test InfiniteOpt._only_one_name(pref)
+        @test InfiniteOpt._only_one_name(prefs)
+        @test !InfiniteOpt._only_one_name(convert(JuMP.Containers.SparseAxisArray,
+                                                                 [pref2; pref]))
+    end
+    # _list_parameter_refs
+    @testset "_list_parameter_refs" begin
+        @test InfiniteOpt._list_parameter_refs((pref, prefs)) isa Vector
+        result = InfiniteOpt._list_parameter_refs((pref, prefs))
+        @test length(result) == 3
+        @test result[1] == pref
+        @test result[2] == prefs[1] || result[2] == prefs[2]
+        @test result[3] == prefs[1] || result[3] == prefs[2]
+    end
+end
+
 # Test everything else
 @testset "Other Queries" begin
     m = InfiniteModel()
     param = InfOptParameter(IntervalSet(0, 1), Number[], false)
     pref = add_parameter(m, param, "test")
+    prefs = @infinite_parameter(m, [1:2], set = IntervalSet(0, 1),
+                                container = SparseAxisArray)
     # JuMP.is_valid
     @testset "JuMP.is_valid" begin
         @test is_valid(m, pref)
         pref2 = ParameterRef(InfiniteModel(), 1)
         @test !is_valid(m, pref2)
-        pref3 = ParameterRef(m, 2)
+        pref3 = ParameterRef(m, 5)
         @test !is_valid(m, pref3)
+    end
+    # supports (array)
+    @testset "supports (array)" begin
+        @test_throws ErrorException supports(prefs)
+        @test_throws ErrorException supports([prefs[1]; pref])
+        set_supports(prefs[1], [0])
+        set_supports(prefs[2], [0, 1])
+        @test_throws ErrorException supports(prefs)
+        add_supports(prefs[1], [1])
+        expected = JuMP.Containers.SparseAxisArray[]
+        push!(expected, convert(JuMP.Containers.SparseAxisArray, [0; 0]))
+        push!(expected, convert(JuMP.Containers.SparseAxisArray, [1; 1]))
+        @test supports(prefs) == expected
+        expected = JuMP.Containers.SparseAxisArray[]
+        push!(expected, convert(JuMP.Containers.SparseAxisArray, [0; 0]))
+        push!(expected, convert(JuMP.Containers.SparseAxisArray, [0; 1]))
+        push!(expected, convert(JuMP.Containers.SparseAxisArray, [1; 0]))
+        push!(expected, convert(JuMP.Containers.SparseAxisArray, [1; 1]))
+        set_independent(prefs[1])
+        set_independent(prefs[2])
+        @test supports(prefs) == expected
     end
     # num_parameters
     @testset "num_parameters" begin
-        @test num_parameters(m) == 1
+        @test num_parameters(m) == 3
         delete!(m.params, JuMP.index(pref))
-        @test num_parameters(m) == 0
+        @test num_parameters(m) == 2
         m.params[JuMP.index(pref)] = param
     end
     # all_parameters
     @testset "all_parameters" begin
-        @test length(all_parameters(m)) == 1
+        @test length(all_parameters(m)) == 3
         @test all_parameters(m)[1] == pref
-    end
-    # is_independent
-    @testset "is_indepentent" begin
-        @test !is_independent(pref)
-    end
-    # group_id
-    @testset "group_id" begin
-        @test group_id(pref) == 0
-    end
-
-    # _groups
-    @testset "_groups" begin
-
     end
 end

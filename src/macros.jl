@@ -79,9 +79,63 @@ function _assert_valid_model_call(m, macrocode)
 end
 
 """
-    @infinite_parameter(model, args)
+    @infinite_parameter(model, kw_args...)
 
-A macro for the defining parameters of type `ParameterRef`.
+Add an *anonymous* infinite parameter to the model `model` described by the
+keyword arguments `kw_args` and returns the parameter reference.
+
+    @infinite_parameter(model, expr, kw_args...)
+
+Add a parameter to the model `model` described by the expression `expr`, the
+positional arguments `args` and the keyword arguments `kw_args`. (note that in
+the following the symbol `<=` can be used instead of `≤`, the symbol `>=`can
+be used instead of `≥`, and the symbo `in` can be used instead of `∈`) The
+expression `expr` can be of the form:
+- `paramexpr` creating parameters described by `paramexpr`.
+- `lb ≤ varexpr ≤ ub` creating parameters described by `paramexpr` characterized
+   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+- `paramexpr ∈ dist` creating parameters described by `paramexpr` characterized
+   by the `Distributions.jl` distribution object `dist`.
+
+The expression `varexpr` can be of the form:
+- `paramname` creating a scalar parameter of name `paramname`
+- `paramname[...]` or `[...]` creating a container of parameters
+
+The recognized keyword arguments in `kw_args` are the following:
+- `base_name`: Sets the name prefix used to generate parameter names. It
+  corresponds to the parameter name for scalar parameter, otherwise, the
+  parameter names are set to `base_name[...]` for each index `...` of the axes
+  `axes`.
+- `lower_bound`: Sets the value of the parameter lower bound for an interval set.
+- `upper_bound`: Sets the value of the parameter upper bound for an interval set.
+- `set`: The `InfiniteSet` characterizing the parameters see [`IntervalSet`](@ref)
+   and [`DistributionSet`](@ref).
+- `distribution`: Sets the `Distributions.jl` distribution object that characterizes
+  the parameters.
+- `supports`: Sets the support points for the parameters.
+- `independent`: Specifies if the each parameter is independent from each other
+  or not.
+- `container`: Specify the container type.
+
+ **Examples**
+ ```julia
+julia> @infinite_parameter(m, 0 <= x <= 1)
+x
+
+julia> supps = [[0, 1, 2], [-1, 1]];
+
+julia> @infinite_parameter(m, y[i = 1:2] in Normal(), supports = supps[i])
+2-element Array{ParameterRef,1}:
+ y[1]
+ y[2]
+
+julia> z = @infinite_parameter(m, ["a", "b"], distribution = Uniform(), independent = true)
+2-dimensional DenseAxisArray{ParameterRef,2,...} with index sets:
+    Dimension 1, "a"
+    Dimension 2, "b"
+And data, a 1×1 Array{ParameterRef,2}:
+ noname
+ ```
 """
 macro infinite_parameter(model, args...)
     _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...),
@@ -96,9 +150,13 @@ macro infinite_parameter(model, args...)
     if length(extra) == 0
         x = gensym()
         anon_singleton = true
-    else
+    elseif length(extra) == 1
         x = popfirst!(extra)
         anon_singleton = false
+    else
+        x = popfirst!(extra)
+        arg = popfirst!(extra)
+        _error("Unrecognized argument $arg provided.")
     end
 
     info_kw_args = filter(_is_set_keyword, kw_args)
@@ -122,7 +180,8 @@ macro infinite_parameter(model, args...)
     end
 
     anonvar = isexpr(param, :vect) || isexpr(param, :vcat) || anon_singleton
-    anonvar && explicit_comparison && _error("Cannot use explicit bounds via >=, <= with an anonymous parameter")
+    anonvar && explicit_comparison && _error("Cannot use explicit bounds via " *
+                                             ">=, <= with an anonymous parameter")
     parameter = gensym()
     name = JuMP._get_name(param)
     if isempty(base_name_kw_args)
@@ -132,7 +191,9 @@ macro infinite_parameter(model, args...)
     end
 
     if !isa(name, Symbol) && !anonvar
-        _error("Expression $name should not be used as a parameter name. Use the \"anonymous\" syntax $name = @infinite_parameter(model, ...) instead.")
+        _error("Expression $name should not be used as a parameter name. Use " *
+               "the \"anonymous\" syntax $name = @infinite_parameter(model, " *
+               "...) instead.")
     end
 
     set = InfiniteOpt._constructor_set(_error, infoexpr)
@@ -140,7 +201,8 @@ macro infinite_parameter(model, args...)
         # Easy case - a single variable
         buildcall = :( build_parameter($_error, $set, 1, $(extra...)) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
-        parametercall = :( add_parameter($esc_model, $buildcall, $base_name) )
+        parametercall = :( add_parameter($esc_model, $buildcall, $base_name,
+                                         macro_call = true) )
         # The looped code is trivial here since there is a single variable
         creationcode = :($parameter = $parametercall)
         final_parameter = parameter
@@ -148,18 +210,27 @@ macro infinite_parameter(model, args...)
         # isa(param, Expr) || _error("Expected $param to be a parameter name") --> not needed... I think
         # We now build the code to generate the variables (and possibly the
         # SparseAxisArray to contain them)
-        refcall, idxparams, idxsets, condition = JuMP._build_ref_sets(param, parameter)
-        clear_dependencies(i) = (JuMP.Containers.is_dependent(idxparams, idxsets[i], i) ? () : idxsets[i])
+        refcall, idxparams, idxsets, condition = JuMP._build_ref_sets(param,
+                                                                      parameter)
+        clear_dependencies(i) = (JuMP.Containers.is_dependent(idxparams,
+                                               idxsets[i], i) ? () : idxsets[i])
 
         # Code to be used to create each variable of the container.
         vartype = :( variable_type($esc_model, Parameter) )
-        container_code, = JuMP.Containers.generate_container(vartype, idxparams, idxsets, requestedcontainer)
-        buildcall = :( build_parameter($_error, $set, length($container_code), $(extra...)) )
+        container_code, = JuMP.Containers.generate_container(vartype, idxparams,
+                                                    idxsets, requestedcontainer)
+        buildcall = :( build_parameter($_error, $set, length($container_code),
+                                       $(extra...)) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
-        parametercall = :( add_parameter($esc_model, $buildcall, $(JuMP._name_call(base_name, idxparams))) )
+        parametercall = :( add_parameter($esc_model, $buildcall,
+                                         $(JuMP._name_call(base_name, idxparams)),
+                                         macro_call = true) )
         code = :( $(refcall) = $parametercall )
-        # Determine the return type of add_variable. This is needed to create the container holding them.
-        creationcode = JuMP._get_looped_code(parameter, code, condition, idxparams, idxsets, vartype, requestedcontainer)
+        # Determine the return type of add_variable. This is needed to create
+        # the container holding them.
+        creationcode = JuMP._get_looped_code(parameter, code, condition,
+                                             idxparams, idxsets, vartype,
+                                             requestedcontainer)
         final_parameter = parameter
     end
     if anonvar

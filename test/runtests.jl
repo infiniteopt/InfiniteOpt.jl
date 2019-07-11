@@ -15,7 +15,13 @@ println("----------------UNIT TESTS---------------")
 println("-----------------------------------------")
 @time @testset "Datatypes" begin include("datatypes.jl") end
 println("")
+@time @testset "Utilities" begin include("utility_tests.jl") end
+println("")
 @time @testset "Parameter Methods" begin include("parameters.jl") end
 println("")
+@time @testset "Optimize Methods" begin include("optimize.jl") end
+println("")
+@time @testset "Variable Methods" begin include("variables.jl") end
+println("")
 
-# TODO add tests for supports(array) and deleting
+# TODO add tests for deleting

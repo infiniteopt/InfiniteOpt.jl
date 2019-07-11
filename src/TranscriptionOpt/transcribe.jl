@@ -71,6 +71,7 @@ function _update_point_mapping(trans_model::JuMP.Model, pvref::InfiniteOpt.Point
                                ivref::InfiniteOpt.InfiniteVariableRef, support::Tuple)
     for (k, v) in InfiniteOpt.supports(trans_model, ivref)
        # if isequal(v, support)
+       # if isapprox(v, support)
        if v == support
            vrefs = transcription_variable(trans_model, ivref)
            transcription_data(trans_model).point_to_var[pvref] = vrefs[k]
@@ -217,6 +218,7 @@ function _map_to_variable(ivref::InfiniteOpt.InfiniteVariableRef, support::Tuple
     # find the jump variable associated with the support
     for (index, value) in InfiniteOpt.supports(trans_model, ivref)
         # if isequal(value, reduced_support)
+        # if isapprox(value, reduced_support)
         if value == reduced_support
             return transcription_variable(trans_model, ivref)[index]
         end
@@ -756,14 +758,14 @@ function TranscriptionModel(inf_model::InfiniteOpt.InfiniteModel,
         trans_model = TranscriptionModel(optimizer_factory; kwargs...)
     end
 
-    @time _initialize_global_variables(trans_model, inf_model)
-    @time _initialize_infinite_variables(trans_model, inf_model)
-    @time _map_point_variables(trans_model, inf_model)
+    _initialize_global_variables(trans_model, inf_model)
+    _initialize_infinite_variables(trans_model, inf_model)
+    _map_point_variables(trans_model, inf_model)
     if JuMP.objective_sense(inf_model) != MOI.FEASIBILITY_SENSE
-        @time _set_objective(trans_model, inf_model)
+        _set_objective(trans_model, inf_model)
     end
-    @time _map_variable_info_constraints(trans_model, inf_model)
+    _map_variable_info_constraints(trans_model, inf_model)
     # TODO optimize performance --> bottlenecked with _make_transcription_function
-    @time _set_constraints(trans_model, inf_model)
+    _set_constraints(trans_model, inf_model)
     return trans_model
 end
