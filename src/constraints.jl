@@ -118,7 +118,7 @@ function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, n
     model.constrs[index] = c
     JuMP.set_name(cref, name)
     model.constr_in_var_info[index] = false
-    set_optimizer_model_status(model, false)
+    set_optimizer_model_ready(model, false)
     return cref
 end
 
@@ -147,7 +147,7 @@ function JuMP.delete(model::InfiniteModel, cref::GeneralConstraintRef)
     delete!(model.constrs, JuMP.index(cref))
     delete!(model.constr_to_name, JuMP.index(cref))
     delete!(model.constr_in_var_info, JuMP.index(cref))
-    set_optimizer_model_status(model, false)
+    set_optimizer_model_ready(model, false)
     return
 end
 

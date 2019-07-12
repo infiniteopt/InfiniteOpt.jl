@@ -19,7 +19,7 @@ println("")
 println("")
 @time @testset "Parameter Methods" begin include("parameters.jl") end
 println("")
-@time @testset "Optimize Methods" begin include("optimize.jl") end
+@time @testset "Optimizer Setup Methods" begin include("optimizer_setup.jl") end
 println("")
 @time @testset "Variable Methods" begin include("variables.jl") end
 println("")

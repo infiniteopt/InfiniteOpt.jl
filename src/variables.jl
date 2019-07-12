@@ -528,7 +528,7 @@ Extend the `JuMP.delete` function to accomodate our new variable types.
 function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
     @assert JuMP.is_valid(model, vref)
     if is_used(vref)
-        set_optimizer_model_status(model, false)
+        set_optimizer_model_ready(model, false)
     end
     if JuMP.has_lower_bound(vref)
         JuMP.delete_lower_bound(vref)
@@ -751,7 +751,7 @@ function set_parameter_refs(vref::InfiniteVariableRef, prefs::Tuple)
     _update_variable_param_refs(vref, prefs)
     JuMP.set_name(vref, _root_name(vref))
     if is_used(vref)
-        set_optimizer_model_status(JuMP.owner_model(vref), false)
+        set_optimizer_model_ready(JuMP.owner_model(vref), false)
     end
     return
 end

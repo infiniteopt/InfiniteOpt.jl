@@ -1,8 +1,9 @@
 @testset "Base Extensions" begin
+    # Define test model and pref
     m = InfiniteModel()
     m2 = InfiniteModel()
     pref = ParameterRef(m, 1)
-    # variable compare
+    # test variable compare
     @testset "(==)" begin
         @test pref == pref
         @test pref == ParameterRef(m, 1)
@@ -10,15 +11,15 @@
         @test !(pref == ParameterRef(m2, 1))
         @test !(pref != ParameterRef(m, 1))
     end
-    # copy(v)
+    # test copy(v)
     @testset "copy(v)" begin
         @test copy(pref) == pref
     end
-    # copy(v, m)
+    # test copy(v, m)
     @testset "copy(v, m)" begin
         @test copy(pref, m2) == ParameterRef(m2, 1)
     end
-    # broadcastable
+    # test broadcastable
     @testset "broadcastable" begin
         @test isa(Base.broadcastable(pref), Base.RefValue{ParameterRef})
     end
@@ -30,17 +31,19 @@ end
         @test Parameter == :Parameter
         @test InfiniteOpt._is_set_keyword(:(lower_bound = 0))
     end
-    # ParameterInfoExpr datatype
+    # test ParameterInfoExpr datatype
     @testset "_ParameterInfoExpr" begin
         @test InfiniteOpt._ParameterInfoExpr isa DataType
         @test InfiniteOpt._ParameterInfoExpr(ones(Bool, 8)...).has_lb
         @test !InfiniteOpt._ParameterInfoExpr().has_lb
     end
-    # JuMP._set_lower_bound_or_error
+    # test JuMP._set_lower_bound_or_error
     @testset "JuMP._set_lower_bound_or_error" begin
         info = InfiniteOpt._ParameterInfoExpr()
+        # test normal operation
         @test isa(JuMP._set_lower_bound_or_error(error, info, 0), Nothing)
         @test info.has_lb && info.lower_bound == 0
+        # test double/lack of input errors
         @test_throws ErrorException JuMP._set_lower_bound_or_error(error,
                                                                    info, 0)
         info.has_lb = false; info.has_dist = true
@@ -50,11 +53,13 @@ end
         @test_throws ErrorException JuMP._set_lower_bound_or_error(error,
                                                                    info, 0)
     end
-    # JuMP._set_upper_bound_or_error
+    # test JuMP._set_upper_bound_or_error
     @testset "JuMP._set_upper_bound_or_error" begin
         info = InfiniteOpt._ParameterInfoExpr()
+        # test normal operation
         @test isa(JuMP._set_upper_bound_or_error(error, info, 0), Nothing)
         @test info.has_ub && info.upper_bound == 0
+        # test double/lack of input errors
         @test_throws ErrorException JuMP._set_upper_bound_or_error(error,
                                                                    info, 0)
         info.has_ub = false; info.has_dist = true
@@ -67,8 +72,10 @@ end
     # _dist_or_error
     @testset "_dist_or_error" begin
         info = InfiniteOpt._ParameterInfoExpr()
+        # test normal operation
         @test isa(InfiniteOpt._dist_or_error(error, info, 0), Nothing)
         @test info.has_dist && info.distribution == 0
+        # test double/lack of input errors
         @test_throws ErrorException InfiniteOpt._dist_or_error(error, info, 0)
         info.has_dist = false; info.has_lb = true
         @test_throws ErrorException InfiniteOpt._dist_or_error(error, info, 0)
@@ -78,8 +85,10 @@ end
     # _set_or_error
     @testset "_set_or_error" begin
         info = InfiniteOpt._ParameterInfoExpr()
+        # test normal operation
         @test isa(InfiniteOpt._set_or_error(error, info, 0), Nothing)
         @test info.has_set && info.set == 0
+        # test double/lack of input errors
         @test_throws ErrorException InfiniteOpt._set_or_error(error, info, 0)
         info.has_set = false; info.has_lb = true
         @test_throws ErrorException InfiniteOpt._set_or_error(error, info, 0)

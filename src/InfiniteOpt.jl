@@ -76,8 +76,8 @@ export is_transcription_model, transcription_data, transcription_variable,
 transcription_constraint, transcription_model
 
 # Export optimize methods
-export optimizer_model, set_optimizer_model, optimizer_model_status,
-set_optimizer_model_status, build_optimizer_model!, optimizer_model_key
+export optimizer_model, set_optimizer_model, optimizer_model_ready,
+set_optimizer_model_ready, build_optimizer_model!, optimizer_model_key
 
 # Export result query methods
 export map_value

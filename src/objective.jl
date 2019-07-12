@@ -20,7 +20,7 @@ function JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense,
             model.var_in_objective[JuMP.index(vref)] = true
         end
     end
-    set_optimizer_model_status(model, false)
+    set_optimizer_model_ready(model, false)
     return
 end
 
@@ -34,7 +34,7 @@ function JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense, 
     for vindex in keys(model.var_in_objective)
         model.var_in_objective[vindex] = false
     end
-    set_optimizer_model_status(model, false)
+    set_optimizer_model_ready(model, false)
     return
 end
 
@@ -50,7 +50,7 @@ Extend the `JuMP.set_objective_sense` function to accomodate `InfiniteModel` obj
 """
 function JuMP.set_objective_sense(model::InfiniteModel, sense)
     model.objective_sense = sense
-    set_optimizer_model_status(model, false)
+    set_optimizer_model_ready(model, false)
     return
 end
 

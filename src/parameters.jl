@@ -286,7 +286,7 @@ Extend the `JuMP.delete` function to accomodate infinite parameters
 function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
     @assert JuMP.is_valid(model, pref)
     if is_used(pref)
-        set_optimizer_model_status(model, false)
+        set_optimizer_model_ready(model, false)
     end
     if used_by_variable(pref)
         for vindex in model.param_to_vars[JuMP.index(pref)]
@@ -413,7 +413,7 @@ function _update_parameter_set(pref::ParameterRef, set::AbstractInfiniteSet)
     independent = JuMP.owner_model(pref).params[JuMP.index(pref)].independent
     JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports, independent)
     if is_used(pref)
-        set_optimizer_model_status(JuMP.owner_model(pref), false)
+        set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -422,7 +422,7 @@ function _update_parameter_supports(pref::ParameterRef, supports::Vector{<:Numbe
     independent = JuMP.owner_model(pref).params[JuMP.index(pref)].independent
     JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports, independent)
     if is_used(pref)
-        set_optimizer_model_status(JuMP.owner_model(pref), false)
+        set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
     return
 end

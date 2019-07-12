@@ -188,7 +188,7 @@ Extend the `JuMP.delete` function to accomodate measures
 """
 function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
     @assert JuMP.is_valid(model, mref)
-    set_optimizer_model_status(model, false)
+    set_optimizer_model_ready(model, false)
     delete!(model.measures, JuMP.index(mref))
     delete!(model.meas_to_name, JuMP.index(mref))
     return

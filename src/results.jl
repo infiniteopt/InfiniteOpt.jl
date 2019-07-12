@@ -1,5 +1,6 @@
 """
     JuMP.termination_status(model::InfiniteModel)
+
 Return the reason why the solver stopped (i.e., the MathOptInterface model
 attribute `TerminationStatus`).
 """
@@ -9,6 +10,7 @@ end
 
 """
      JuMP.primal_status(model::InfiniteModel)
+
 Return the status of the most recent primal solution of the solver (i.e., the
 MathOptInterface model attribute `PrimalStatus`).
 """
@@ -18,6 +20,7 @@ end
 
 """
     JuMP.dual_status(model::InfiniteModel)
+
 Return the status of the most recent dual solution of the solver (i.e., the
 MathOptInterface model attribute `DualStatus`).
 """
@@ -27,6 +30,7 @@ end
 
 """
     JuMP.solve_time(model::InfiniteModel)
+
 If available, returns the solve time reported by the solver.
 Returns "ArgumentError: ModelLike of type `Solver.Optimizer` does not support accessing
 the attribute MathOptInterface.SolveTime()" if the attribute is
@@ -39,6 +43,7 @@ end
 
 """
     has_values(model::InfiniteModel)
+
 Return `true` if the solver has a primal solution available to query, otherwise
 return `false`. See also [`value`](@ref).
 """
@@ -46,6 +51,7 @@ JuMP.has_values(model::InfiniteModel) = JuMP.primal_status(model) != MOI.NO_SOLU
 
 """
     JuMP.objective_bound(model::InfiniteModel)::Float64
+
 Return the best known bound on the optimal objective value after a call to
 `optimize!(model)`.
 """
@@ -54,7 +60,8 @@ function JuMP.objective_bound(model::InfiniteModel)::Float64
 end
 
 """
-    JuMP.objective_value(model::InfiniteModel)
+    JuMP.objective_value(model::InfiniteModel)::Float64
+
 Return the objective value after a call to `optimize!(model)`.
 """
 function JuMP.objective_value(model::InfiniteModel)::Float64
@@ -63,6 +70,7 @@ end
 
 """
     map_value(vref::GeneralVariableRef, key)
+
 Map the value of `vref` to its counterpart in the optimizer model type distininguished
 by its extension key `key` as type `Val{ext_key_name}`.
 """
@@ -70,6 +78,7 @@ function map_value end
 
 """
     JuMP.value(vref::GeneralVariableRef)
+    
 Get the value of this variable in the result returned by a solver. Use
 [`JuMP.has_values`](@ref) to check if a result exists before asking for values.
 """

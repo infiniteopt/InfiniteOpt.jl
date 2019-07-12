@@ -22,6 +22,6 @@ function InfiniteOpt.build_optimizer_model!(model::InfiniteOpt.InfiniteModel, ke
                            bridge_constraints = bridge_constrs)
     end
     InfiniteOpt.set_optimizer_model(model, trans_model)
-    InfiniteOpt.set_optimizer_model_status(model, true)
+    InfiniteOpt.set_optimizer_model_ready(model, true)
     return
 end
