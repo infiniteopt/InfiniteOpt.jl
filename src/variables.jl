@@ -343,7 +343,7 @@ function _update_param_supports(inf_vref::InfiniteVariableRef,
 end
 
 """
-    JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String="")
+    JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String = "")
 
 Extend the [`JuMP.add_variable`](@ref) function to accomodate `InfiniteOpt`
 variable types. Adds a variable to an infinite model `model` and returns an
@@ -374,7 +374,8 @@ julia> gvref = add_variable(m, gb_var, "var_name")
 var_name
 ```
 """
-function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String="")
+function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable,
+                           name::String = "")
     model.next_var_index += 1
     if isa(v, InfiniteVariable)
         _check_parameters_valid(model, v.parameter_refs)
@@ -465,7 +466,14 @@ JuMP.index(v::GeneralVariableRef)::Int = v.index
 
 """
     used_by_constraint(vref::InfOptVariableRef)::Bool
-Return a Boolean indicating if `vref` is used by a constraint.
+
+Return a `Bool` indicating if `vref` is used by a constraint.
+
+**Example**
+```julia
+julia> used_by_constraint(vref)
+false
+```
 """
 function used_by_constraint(vref::InfOptVariableRef)::Bool
     return haskey(JuMP.owner_model(vref).var_to_constrs, JuMP.index(vref))
@@ -473,7 +481,14 @@ end
 
 """
     used_by_measure(vref::InfOptVariableRef)::Bool
-Return a Boolean indicating if `vref` is used by a measure.
+
+Return a `Bool` indicating if `vref` is used by a measure.
+
+**Example**
+```julia
+julia> used_by_measure(vref)
+true
+```
 """
 function used_by_measure(vref::InfOptVariableRef)::Bool
     return haskey(JuMP.owner_model(vref).var_to_meas, JuMP.index(vref))
@@ -481,7 +496,14 @@ end
 
 """
     used_by_objective(vref::InfOptVariableRef)::Bool
-Return a Boolean indicating if `vref` is used by the objective.
+
+Return a `Bool` indicating if `vref` is used by the objective.
+
+**Example**
+```julia
+julia> used_by_objective(vref)
+true
+```
 """
 function used_by_objective(vref::InfOptVariableRef)::Bool
     return JuMP.owner_model(vref).var_in_objective[JuMP.index(vref)]
@@ -489,7 +511,14 @@ end
 
 """
     is_used(vref::InfOptVariableRef)::Bool
-Return a Boolean indicating if `vref` is used in the model.
+
+Return a `Bool` indicating if `vref` is used in the model.
+
+**Example**
+```julia
+julia> is_used(vref)
+true
+```
 """
 function is_used(vref::InfOptVariableRef)::Bool
     return used_by_measure(vref) || used_by_constraint(vref) || used_by_objective(vref)
@@ -497,7 +526,14 @@ end
 
 """
     used_by_point_variable(vref::InfiniteVariableRef)::Bool
-Return a Boolean indicating if `vref` is used by a point variable that is in use.
+
+Return a `Bool` indicating if `vref` is used by a point variable that is in use.
+
+**Example**
+```julia
+julia> used_by_point_variable(vref)
+false
+```
 """
 function used_by_point_variable(vref::InfiniteVariableRef)::Bool
     for (index, var) in JuMP.owner_model(vref).vars
@@ -515,10 +551,17 @@ end
 
 """
     is_used(vref::InfiniteVariableRef)::Bool
-Return a Boolean indicating if `vref` is used in the model.
+
+Return a `Bool` indicating if `vref` is used in the model.
+
+**Example**
+```julia
+julia> is_used(vref)
+false
+```
 """
 function is_used(vref::InfiniteVariableRef)::Bool
-    return used_by_measure(vref) || used_by_constraint(vref) || used_by_objective(vref) || used_by_point_variable(vref)
+    return used_by_measure(vref) || used_by_constraint(vref) || used_by_point_variable(vref)
 end
 
 """
@@ -606,10 +649,18 @@ function JuMP.is_valid(model::InfiniteModel, vref::InfOptVariableRef)::Bool
 end
 
 """
-    JuMP.num_variables(model::InfiniteModel)
-Extend the `JuMP.num_variables` function to accomodate our new variable types.
+    JuMP.num_variables(model::InfiniteModel)::Int
+
+Extend [`JuMP.num_variables`](@ref) to return the number of `InfiniteOpt`
+variables assigned to `model`.
+
+**Example**
+```julia
+julia> num_variables(model)
+3
+```
 """
-JuMP.num_variables(model::InfiniteModel) = length(model.vars)
+JuMP.num_variables(model::InfiniteModel)::Int = length(model.vars)
 
 # Include all the extension functions for manipulating the properties associated
 # with VariableInfo
@@ -665,10 +716,17 @@ function infinite_variable_ref(vref::PointVariableRef)::InfiniteVariableRef
 end
 
 """
-    support(vref::PointVariableRef)
-Get the support point associated with the point variable `vref`.
+    parameter_values(vref::PointVariableRef)::Tuple
+
+Return the support point associated with the point variable `vref`.
+
+**Example**
+```julia
+julia> parameter_values(vref)
+(0, )
+```
 """
-function parameter_values(vref::PointVariableRef)
+function parameter_values(vref::PointVariableRef)::Tuple
     return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
 end
 
@@ -732,7 +790,8 @@ function parameter_refs(vref::_ReducedInfiniteRef)
     return prefs
 end
 
-# Internal function
+# Internal function used to change the parameter reference tuple of an infinite
+# variable
 function _update_variable_param_refs(vref::InfiniteVariableRef, prefs::Tuple)
     info = JuMP.owner_model(vref).vars[JuMP.index(vref)].info
     JuMP.owner_model(vref).vars[JuMP.index(vref)] = InfiniteVariable(info, prefs)
@@ -742,12 +801,24 @@ end
 """
     set_parameter_refs(vref::InfiniteVariableRef, prefs::Tuple)
 
-Set the `ParameterRef`(s) associated with the infinite variable `vref`.
+Specify a new parameter reference tuple `prefs` for the infinite variable `vref`.
+Note each element must contain a single parameter reference or an array of
+parameter references. Errors if a parameter is double specified or if an element
+contains parameters with different group IDs.
+
+**Example**
+```julia
+julia> set_parameter_refs(vref, (t, x))
+
+julia> parameter_refs(vref)
+(t,   [2]  =  x[2]
+  [1]  =  x[1])
+```
 """
 function set_parameter_refs(vref::InfiniteVariableRef, prefs::Tuple)
     _check_parameter_tuple(error, prefs)
     prefs = _make_formatted_tuple(prefs)
-    _check_tuple_names(error, prefs)
+    _check_tuple_groups(error, prefs)
     _update_variable_param_refs(vref, prefs)
     JuMP.set_name(vref, _root_name(vref))
     if is_used(vref)
@@ -757,12 +828,28 @@ function set_parameter_refs(vref::InfiniteVariableRef, prefs::Tuple)
 end
 
 """
-    add_parameter_ref(vref::InfiniteVariableRef, pref::Union{ParameterRef, AbstractArray{<:ParameterRef}})
-Add additional `ParameterRef` to be associated with the infinite
-variable `vref`.
+    add_parameter_ref(vref::InfiniteVariableRef,
+                      pref::Union{ParameterRef, AbstractArray{<:ParameterRef}})
+
+Add additional parameter reference or group of parameter references to be
+associated with the infinite variable `vref`. Errors if the parameter references
+are already added to the variable or if the added parameters have different
+group IDs.
+
+```julia
+julia> name(vref)
+T(t)
+
+julia> add_parameter_ref(vref, x)
+
+julia> name(vref)
+T(t, x)
+```
 """
-function add_parameter_ref(vref::InfiniteVariableRef, pref::Union{ParameterRef, AbstractArray{<:ParameterRef}})
-    return set_parameter_refs(vref, (parameter_refs(vref)..., pref))
+function add_parameter_ref(vref::InfiniteVariableRef,
+                       pref::Union{ParameterRef, AbstractArray{<:ParameterRef}})
+    set_parameter_refs(vref, (parameter_refs(vref)..., pref))
+    return
 end
 
 """
@@ -805,7 +892,7 @@ function JuMP.set_name(vref::InfiniteVariableRef, root_name::String)
 end
 
 # Make a variable reference
-function _make_variable_ref(model::InfiniteModel, index::Int)
+function _make_variable_ref(model::InfiniteModel, index::Int)::GeneralVariableRef
     if isa(model.vars[index], InfiniteVariable)
         return InfiniteVariableRef(model, index)
     elseif isa(model.vars[index], PointVariable)
@@ -859,10 +946,22 @@ function JuMP.variable_by_name(model::InfiniteModel,
 end
 
 """
-    JuMP.all_variables(model::InfiniteModel)
-Extend the `JuMP.all_variables` function to accomodate `InfiniteModel` objects.
+    JuMP.all_variables(model::InfiniteModel)::Vector{GeneralVariableRef}
+
+Extend [`JuMP.all_variables`](@ref) to return a list of all the variable
+references associated with `model`.
+
+**Examples**
+```julia
+julia> all_variables(m)
+4-element Array{GeneralVariableRef,1}:
+ ivar(test, θ)
+ ivar2(test, x)
+ name
+ z
+```
 """
-function JuMP.all_variables(model::InfiniteModel)
+function JuMP.all_variables(model::InfiniteModel)::Vector{GeneralVariableRef}
     vrefs_list = Vector{GeneralVariableRef}(undef, JuMP.num_variables(model))
     indexes = sort([index for index in keys(model.vars)])
     counter = 1

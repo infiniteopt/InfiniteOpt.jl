@@ -1,24 +1,28 @@
 using Base.Meta
 using JuMP: _valid_model, _error_if_cannot_register, object_dictionary, variable_type
 
+# Parse raw input to define the upper bound for an interval set
 function _parse_one_operator_parameter(
     _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:<=}, Val{:≤}},
     upper)
     JuMP._set_upper_bound_or_error(_error, infoexpr, upper)
 end
 
+# Parse raw input to define the lower bound for an interval set
 function _parse_one_operator_parameter(
     _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:>=}, Val{:≥}},
     lower)
     JuMP._set_lower_bound_or_error(_error, infoexpr, lower)
 end
 
+# Parse raw input to define the distribution for a dist set
 function _parse_one_operator_parameter(
     _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:in}, Val{:∈}},
     value)
     _dist_or_error(_error, infoexpr, value)
 end
 
+# Default function for unrecognized operators
 function _parse_one_operator_parameter(
     _error::Function, infoexpr::_ParameterInfoExpr, ::Val{S}, value) where S
     _error("Unknown sense $S.")
@@ -42,6 +46,7 @@ function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
     return var
 end
 
+# Parse raw input to define the upper and lower bounds for an interval set
 function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
                                   ::Union{Val{:<=}, Val{:≤}}, lower,
                                   ::Union{Val{:<=}, Val{:≤}}, upper)
@@ -49,17 +54,20 @@ function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr
     JuMP._set_upper_bound_or_error(_error, infoexpr, upper)
 end
 
+# Parse raw input to define the upper and lower bounds for an interval set
 function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
                                   ::Union{Val{:>=}, Val{:≥}}, upper,
                                   ::Union{Val{:>=}, Val{:≥}}, lower)
     _parse_ternary_parameter(_error, infoexpr, Val(:≤), lower, Val(:≤), upper)
 end
 
+# Default for unrecognized operators
 function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
                                   ::Val, lvalue, ::Val, rvalue)
     _error("Use the form lb <= ... <= ub.")
 end
 
+# Interpret a param_expr from macro input
 function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr, lvalue,
                           lsign::Symbol, var, rsign::Symbol, rvalue)
     # lvalue lsign var rsign rvalue
@@ -69,6 +77,7 @@ function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr, lvalue
     return var
 end
 
+# Extend to increase the param group id
 function _assert_valid_model_call(m, macrocode)
     # assumes m is already escaped
     quote
@@ -248,37 +257,52 @@ macro infinite_parameter(model, args...)
     return _assert_valid_model_call(esc_model, macro_code)
 end
 
-# Check rhs to to ensure is not a variable
+## Define helper functions needed to parse infinite variable expressions
+# Check rhs to to ensure is not a variable as best we can
 function _check_rhs(arg1, arg2)
     if isexpr(arg2, :ref)
-        if isexpr(arg2.head, :kw)
+        if isexpr(arg2.args[2], :kw)
             temp = arg2
             arg2 = arg1
             arg1 = temp
         end
-    elseif isexpr(arg2, :call)
-        temp = arg2
-        arg2 = arg1
-        arg1 = temp
+    # elseif isexpr(arg2, :call) --> infinite loop if both sides are :calls
+    #     temp = arg2
+    #     arg2 = arg1
+    #     arg1 = temp
     end
     return arg1, arg2
 end
 
-# Assume variable on lhs
+# Assume variable on lhs, but check if swapped
 function _less_than_parse(arg1, arg2)
+    # check if swapped
+    arg1_orig = arg1
     arg1, arg2 = _check_rhs(arg1, arg2)
+    if arg1 != arg1_orig
+        return _greater_than_parse(arg1, arg2)
+    end
+    # check if has parameter tuple
     if isexpr(arg1, :call)
-        return Expr(:call, :<=, arg1.args[1], arg2), Expr(:tuple, arg1.args[2:end]...)
+        return Expr(:call, :<=, arg1.args[1], arg2),
+                    Expr(:tuple, arg1.args[2:end]...)
     else
         return Expr(:call, :<=, arg1, arg2), nothing
     end
 end
 
-# Assume variable on lhs
+# Assume variable on lhs, but check if swapped
 function _greater_than_parse(arg1, arg2)
+    # check if swapped
+    arg1_orig = arg1
     arg1, arg2 = _check_rhs(arg1, arg2)
+    if arg1 != arg1_orig
+        return _less_than_parse(arg1, arg2)
+    end
+    # check if has parameter tuple
     if isexpr(arg1, :call)
-        return Expr(:call, :>=, arg1.args[1], arg2), Expr(:tuple, arg1.args[2:end]...)
+        return Expr(:call, :>=, arg1.args[1], arg2),
+                    Expr(:tuple, arg1.args[2:end]...)
     else
         return Expr(:call, :>=, arg1, arg2), nothing
     end
@@ -298,7 +322,8 @@ end
 function _equal_to_parse(arg1, arg2)
     arg1, arg2 = _check_rhs(arg1, arg2)
     if isexpr(arg1, :call)
-        return Expr(:call, :(==), arg1.args[1], arg2), Expr(:tuple, arg1.args[2:end]...)
+        return Expr(:call, :(==), arg1.args[1], arg2),
+                    Expr(:tuple, arg1.args[2:end]...)
     else
         return Expr(:call, :(==), arg1, arg2), nothing
     end
@@ -309,6 +334,7 @@ function _equal_to_parse(arg1::Number, arg2)
     return _equal_to_parse(arg2, arg1)
 end
 
+# Return the tuple of form (var_expr, param_tuple_expr)
 function _parse_parameters(_error::Function, head::Val{:call}, args)
     if args[1] in [:<=, :≤]
         return _less_than_parse(args[2], args[3])
@@ -324,22 +350,72 @@ function _parse_parameters(_error::Function, head::Val{:call}, args)
     end
 end
 
+# Return the tuple of form (var_expr, param_tuple_expr)
 function _parse_parameters(_error::Function, head::Val{:comparison}, args)
     if isexpr(args[3], :call)
-        return Expr(:comparison, args[1:2]..., args[3].args[1], args[4:5]...), Expr(:tuple, args[3].args[2:end]...)
+        return Expr(:comparison, args[1:2]..., args[3].args[1], args[4:5]...),
+                    Expr(:tuple, args[3].args[2:end]...)
     else
         return Expr(:comparison, args...), nothing
     end
 end
 
 """
-    @infinite_variable(model, args...)
-A wrapper macro for the `JuMP.@variable` macro that behaves the same except that
-it defines variables of type `InfiniteVariableRef` Support syntax
-@infinite_variable(m, x(params...), args...) or @infinite_variable(m, parameter_refs= (params...), kwargs...).
+    @infinte_variable(model, kw_args...)
+
+Add an *anonymous* infinite variable to the model `model` described by the
+keyword arguments `kw_args` and returns the variable reference. Note that the
+`parameter_refs` keyword is required in this case.
+
+    @infinite_variable(model, varexpr, args..., kw_args...)
+
+Add an infinite variable to `model` described by the expression `var_expr`, the
+positional arguments `args` and the keyword arguments `kw_args`. The expression
+`varexpr` can either be (note that in the following the symbol `<=` can be used
+instead of `≤` and the symbol `>=`can be used instead of `≥`) of the form:
+
+- `varexpr` creating variables described by `varexpr`
+- `varexpr ≤ ub` (resp. `varexpr ≥ lb`) creating variables described by
+  `varexpr` with upper bounds given by `ub` (resp. lower bounds given by `lb`)
+- `varexpr == value` creating variables described by `varexpr` with fixed values
+   given by `value`
+- `lb ≤ varexpr ≤ ub` or `ub ≥ varexpr ≥ lb` creating variables described by
+  `varexpr` with lower bounds given by `lb` and upper bounds given by `ub`
+
+The expression `varexpr` can be of the form:
+
+- `varname` creating a scalar real variable of name `varname`
+- `varname(params...)` creating a scalar real variable of name `varname` with
+  infinite parameters `params...` see `parameter_refs` for format.
+- `varname[...]` or `[...]` creating a container of variables.
+- `varname[...](params...)` or `[...]` creating a container of variables with
+  infinite parameters `params...` in the first case.
+
+The recognized positional arguments in `args` are the following:
+
+- `Bin`: Sets the variable to be binary, i.e. either 0 or 1.
+- `Int`: Sets the variable to be integer, i.e. one of ..., -2, -1, 0, 1, 2, ...
+
+The recognized keyword arguments in `kw_args` are the following:
+
+- `parameter_refs`: This is mandatory if not specified in `varexpr`. Can be a
+  single parameter reference, a single parameter array with parameters defined
+  in the same call of [`@infinite_parameter`](@ref) (i.e., have same group ID),
+  or a tuple where each element is either of the first two options listed.
+- `base_name`: Sets the name prefix used to generate variable names. It
+  corresponds to the variable name for scalar variable, otherwise, the
+  variable names are set to `base_name[...]` for each index `...` of the axes
+  `axes`.
+- `lower_bound`: Sets the value of the variable lower bound.
+- `upper_bound`: Sets the value of the variable upper bound.
+- `start`: Sets the variable starting value used as initial guess in optimization.
+- `binary`: Sets whether the variable is binary or not.
+- `integer`: Sets whether the variable is integer or not.
+- `container`: Specify the container type.
 """
 macro infinite_variable(model, args...)
-    _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...), str...)
+    _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...),
+                                       str...)
 
     extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
     param_kw_args = filter(kw -> kw.args[1] == :parameter_refs, kw_args)
@@ -347,8 +423,9 @@ macro infinite_variable(model, args...)
     # Check for easy case if it is anonymous single variable
     if length(extra) == 0
         code = quote
-            @assert isa($model, InfiniteModel)
-            JuMP.@variable($model, ($(args...)), variable_type = Infinite, error = $_error)
+            @assert isa($model, InfiniteModel) "Model must be an `InfiniteModel`."
+            JuMP.@variable($model, ($(args...)), variable_type = Infinite,
+                           error = $_error)
         end
     else
         x = popfirst!(extra)
@@ -365,39 +442,51 @@ macro infinite_variable(model, args...)
         # lb <= var <= ub or lb <= var[1:2] <= ub               | Expr      | :comparison
         # lb <= var(x, y) <= ub or lb <= var[1:2](x, y) <= ub   | Expr      | :comparison
         if isexpr(x, :comparison) || isexpr(x, :call)
-            inf_expr, params = InfiniteOpt._parse_parameters(_error, Val(x.head), x.args)
+            inf_expr, params = InfiniteOpt._parse_parameters(_error, Val(x.head),
+                                                             x.args)
         else
             inf_expr = x
             params = nothing
         end
 
         if length(param_kw_args) != 0 && params != nothing
-            _error("Cannot specify double specify the infinite parameter references.")
+            _error("Cannot specify double specify the infinite parameter " *
+                   "references.")
         end
 
         if length(args) == 1
             if params == nothing
                 code = quote
-                    @assert isa($model, InfiniteModel)
-                    JuMP.@variable($model, ($(inf_expr)), variable_type = Infinite, error = $_error)
+                    @assert isa($model, InfiniteModel) "Model must be an " *
+                                                       "`InfiniteModel`."
+                    JuMP.@variable($model, ($(inf_expr)),
+                                   variable_type = Infinite, error = $_error)
                 end
             else
                 code = quote
-                    @assert isa($model, InfiniteModel)
-                    JuMP.@variable($model, ($(inf_expr)), variable_type = Infinite, parameter_refs = $params, error = $_error)
+                    @assert isa($model, InfiniteModel) "Model must be an " *
+                                                       "`InfiniteModel`."
+                    JuMP.@variable($model, ($(inf_expr)),
+                                   variable_type = Infinite,
+                                   parameter_refs = $params, error = $_error)
                 end
             end
         else
             rest_args = [args[i] for i = 2:length(args)]
             if params == nothing
                 code = quote
-                    @assert isa($model, InfiniteModel)
-                    JuMP.@variable($model, ($(inf_expr)), ($(rest_args...)), variable_type = Infinite, error = $_error)
+                    @assert isa($model, InfiniteModel) "Model must be an " *
+                                                       "`InfiniteModel`."
+                    JuMP.@variable($model, ($(inf_expr)), ($(rest_args...)),
+                                   variable_type = Infinite, error = $_error)
                 end
             else
                 code = quote
-                    @assert isa($model, InfiniteModel)
-                    JuMP.@variable($model, ($(inf_expr)), ($(rest_args...)), variable_type = Infinite, parameter_refs = $params, error = $_error)
+                    @assert isa($model, InfiniteModel) "Model must be an " *
+                                                       "`InfiniteModel`."
+                    JuMP.@variable($model, ($(inf_expr)), ($(rest_args...)),
+                                   variable_type = Infinite,
+                                   parameter_refs = $params, error = $_error)
                 end
             end
         end

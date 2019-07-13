@@ -33,10 +33,13 @@ end
 # Test JuMP extensions
 @testset "JuMP Extensions" begin
     m = InfiniteModel()
+    mockoptimizer = with_optimizer(MOIU.MockOptimizer,
+                                   JuMP._MOIModel{Float64}(),
+                                   eval_objective_value=false)
     # bridge_constraints
     @testset "JuMP.bridge_constraints" begin
         @test !bridge_constraints(m)
-        set_optimizer(optimizer_model(m), with_optimizer(Ipopt.Optimizer))
+        set_optimizer(optimizer_model(m), mockoptimizer)
         @test bridge_constraints(m)
     end
     # add_bridge
@@ -47,7 +50,7 @@ end
     # set_optimizer
     @testset "JuMP.set_optimizer" begin
         m = InfiniteModel()
-        @test isa(set_optimizer(m, with_optimizer(Ipopt.Optimizer)), Nothing)
+        @test isa(set_optimizer(m, mockoptimizer), Nothing)
     end
     # TODO add silent methods with implemented by JuMP
 end

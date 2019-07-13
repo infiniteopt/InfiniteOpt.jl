@@ -35,7 +35,10 @@ end
 @testset "InfiniteModel" begin
     @test InfiniteModel <: JuMP.AbstractModel
     @test InfiniteModel().next_var_index == 0
-    @test InfiniteModel(with_optimizer(Ipopt.Optimizer)).optimizer_factory.constructor == Ipopt.Optimizer
+    mockoptimizer = with_optimizer(MOIU.MockOptimizer,
+                                   JuMP._MOIModel{Float64}(),
+                                   eval_objective_value=false)
+    @test InfiniteModel(mockoptimizer).optimizer_factory.constructor == MOIU.MockOptimizer
     m = InfiniteModel();
     @test isa(Base.broadcastable(m), Base.RefValue{InfiniteModel})
     @test length(JuMP.object_dictionary(m)) == 0
