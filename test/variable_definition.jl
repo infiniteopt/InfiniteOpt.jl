@@ -251,6 +251,14 @@ end
         # test default
         @test isa(set_name(vref2, ""), Nothing)
         @test name(vref2) == "ivar(0.5, 0.5)"
+        # test other default
+        m.next_var_index = 3
+        ivref2 = add_variable(m, InfiniteVariable(info, (pref,)), "ivar2")
+        m.vars[5] = PointVariable(info, ivref2, (0.5,))
+        m.var_to_name[5] = "var42"
+        vref3 = PointVariableRef(m, 5)
+        @test isa(set_name(vref3, ""), Nothing)
+        @test name(vref3) == "ivar2(0.5)"
     end
     # _make_variable_ref
     @testset "_make_variable_ref" begin

@@ -758,7 +758,11 @@ function JuMP.set_name(vref::PointVariableRef, name::String)
         name = _root_name(inf_var_ref)
         # TODO do something about SparseAxisArrays
         values = JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
-        name = string(name, values)
+        if length(values) == 1
+            name = string(name, "(", values[1], ")")
+        else
+            name = string(name, values)
+        end
     end
     JuMP.owner_model(vref).var_to_name[JuMP.index(vref)] = name
     JuMP.owner_model(vref).name_to_var = nothing

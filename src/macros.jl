@@ -405,13 +405,37 @@ The recognized keyword arguments in `kw_args` are the following:
 - `base_name`: Sets the name prefix used to generate variable names. It
   corresponds to the variable name for scalar variable, otherwise, the
   variable names are set to `base_name[...]` for each index `...` of the axes
-  `axes`.
+  `axes`. Furthermore, the parameter reference tuple is appended on the end of
+  the name i.e., `base_name(params...)` or `base_name[...](params...)`.
 - `lower_bound`: Sets the value of the variable lower bound.
 - `upper_bound`: Sets the value of the variable upper bound.
 - `start`: Sets the variable starting value used as initial guess in optimization.
 - `binary`: Sets whether the variable is binary or not.
 - `integer`: Sets whether the variable is integer or not.
 - `container`: Specify the container type.
+
+**Examples**
+```julia
+julia> @infinite_parameter(model, 0 <= t <= 1)
+t
+
+julia> @infinite_parameter(model, w[1:2] in Normal())
+2-element Array{ParameterRef,1}:
+ w[1]
+ w[2]
+
+julia> @infinite_variable(model, x(t, w) >= 0)
+x(t, w)
+
+julia> x = @infinite_variable(model, parameter_refs = (t, w), base_name = "x",
+                              lower_bound = 0)
+x(t, w)
+
+julia> @infinite_variable(model, lb[i] <= y[i = 1:2](t) <= ub[i], Int)
+2-element Array{InfiniteVariableRef,1}:
+ y[1](t)
+ y[2](t)
+```
 """
 macro infinite_variable(model, args...)
     _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...),
@@ -449,31 +473,25 @@ macro infinite_variable(model, args...)
             params = nothing
         end
 
+        # check for double specification of parameters
         if length(param_kw_args) != 0 && params != nothing
             _error("Cannot specify double specify the infinite parameter " *
                    "references.")
         end
 
+        # easy case where we can don't need to parse extra args
         if length(args) == 1
-            if params == nothing
-                code = quote
-                    @assert isa($model, InfiniteModel) "Model must be an " *
-                                                       "`InfiniteModel`."
-                    JuMP.@variable($model, ($(inf_expr)),
-                                   variable_type = Infinite, error = $_error)
-                end
-            else
-                code = quote
-                    @assert isa($model, InfiniteModel) "Model must be an " *
-                                                       "`InfiniteModel`."
-                    JuMP.@variable($model, ($(inf_expr)),
-                                   variable_type = Infinite,
-                                   parameter_refs = $params, error = $_error)
-                end
+            code = quote
+                @assert isa($model, InfiniteModel) "Model must be an " *
+                                                   "`InfiniteModel`."
+                JuMP.@variable($model, ($(inf_expr)),
+                               variable_type = Infinite,
+                               parameter_refs = $params, error = $_error)
             end
+        # here we need to parse the extra args and include them in the call
         else
             rest_args = [args[i] for i = 2:length(args)]
-            if params == nothing
+            if isa(params, Nothing)
                 code = quote
                     @assert isa($model, InfiniteModel) "Model must be an " *
                                                        "`InfiniteModel`."
@@ -495,13 +513,118 @@ macro infinite_variable(model, args...)
 end
 
 """
-#     @point_variable(model, args...)
-# A wrapper macro for the `JuMP.@variable` macro that behaves the same except that
-# it defines variables of type `PointVariableRef` Support syntax
-@point_variable(m, inf_var(param_vals...), args...) or @point_variable(m, infinite_variable_ref = inf_var, parameter_values = param_vals, kw_args...).
-# """
+    @point_variable(model, kw_args...)
+
+Add an *anonymous* point variable to the model `model` described by the
+keyword arguments `kw_args` and returns the variable reference. Note that the
+`infinite_variable_ref` and `parameter_values` keywords are required in this
+case.
+
+    @point_variable(model, infvarexpr, varexpr, args..., kw_args...)
+
+Add a point variable to `model` described by the expression `varexpr`, the
+positional arguments `args`, and the keyword arguments `kw_args` and the
+infinite variable expr `infvarexpr`. The expression `infvarexpr` specifies the
+infinite variable this point variable corresponds to and the values at which the
+parameters are evaluated and must be of the form: `infvar(param_values...)`
+where the parameter values `param_values...` are listed in the same format as
+they are in teh definition of `infvar`. The expression `varexpr` is used to
+define variable specific bounds and whose name is used as an alias for the point
+variable which is simply the infinite variable evaluated at the values indicated.
+The expression `varexpr` can either be (note that in the following the symbol
+`<=` can be used instead of `≤` and the symbol `>=`can be used instead of `≥`)
+of the form:
+
+- `varexpr` creating variables described by `varexpr`
+- `varexpr ≤ ub` (resp. `varexpr ≥ lb`) creating variables described by
+  `varexpr` with upper bounds given by `ub` (resp. lower bounds given by `lb`)
+- `varexpr == value` creating variables described by `varexpr` with fixed values
+   given by `value`
+- `lb ≤ varexpr ≤ ub` or `ub ≥ varexpr ≥ lb` creating variables described by
+  `varexpr` with lower bounds given by `lb` and upper bounds given by `ub`
+
+ Note that be default a point variable inherits all of the same properties as
+ the infinite variable it corresponds to, but that these can be overwritten
+ by specifying properties such as lower bounds, fix values, etc.
+
+The expression `varexpr` can be of the form:
+
+- `varname` creating a scalar real variable of alias name `varname`
+- `varname[...]` or `[...]` creating a container of variables.
+
+The recognized positional arguments in `args` are the following:
+
+- `Bin`: Sets the variable to be binary, i.e. either 0 or 1.
+- `Int`: Sets the variable to be integer, i.e. one of ..., -2, -1, 0, 1, 2, ...
+
+The recognized keyword arguments in `kw_args` are the following:
+
+- `infinite_variable_ref`: Sets the infinite variable reference that the point
+  variable is associated with.
+- `parameter_refs`: Sets the values of the infinite parameters of the infinite
+  variable at which this poitn variable is evaluated at. Must be of the same
+  format of that specified for the parameters in the definition of the infinite
+  variable.
+- `base_name`: Sets the name prefix used to generate variable names. It
+  corresponds to the variable name for scalar variable, otherwise, the
+  variable names are set to `base_name[...]` for each index `...` of the axes
+  `axes`. This serves as the alias for `infvarexpr` (the infinite variable
+  evaluated at particular parameter values).
+- `lower_bound`: Sets the value of the variable lower bound.
+- `upper_bound`: Sets the value of the variable upper bound.
+- `start`: Sets the variable starting value used as initial guess in optimization.
+- `binary`: Sets whether the variable is binary or not.
+- `integer`: Sets whether the variable is integer or not.
+- `container`: Specify the container type.
+
+**Examples**
+```julia
+julia> @infinite_parameter(model, 0 <= t <= 1)
+t
+
+julia> @infinite_parameter(model, w[1:2] in Normal())
+2-element Array{ParameterRef,1}:
+ w[1]
+ w[2]
+
+julia> @infinite_variable(model, x(t, w) >= 0)
+x(t, w)
+
+julia> @point_variable(model, x(0, [0, 0]), x0 <= 1)
+x0
+
+julia> x0 = @point_variable(model, x(0, [0, 0]), upper_bound = 1, base_name = "x0")
+x0
+
+julia> x0 = @point_variable(model, upper_bound = 1, base_name = "x0",
+                            infinite_variable_ref = x, parameter_values = (0, [0, 0]))
+x0
+
+julia> @point_variable(model, x([0, 1][i], [0, 0]), xf[i = 1:2])
+2-element Array{PointVariableRef,1}:
+ xf[1]
+ xf[2]
+
+julia> @infinite_variable(model, lb[i] <= y[i = 1:2](t) <= ub[i], Int)
+2-element Array{InfiniteVariableRef,1}:
+y[1](t)
+y[2](t)
+
+julia> @point_variable(model, y[i](0), y0[i = 1:2], Bin)
+2-element Array{PointVariableRef,1}:
+ y0[1]
+ y0[2]
+
+ julia> y0 = @point_variable(model, [i = 1:2], binary = true, base_name = "y0",
+                             infinite_variable_ref = y[i], parameter_values = 0)
+ 2-element Array{PointVariableRef,1}:
+  y0[1]
+  y0[2]
+```
+"""
 macro point_variable(model, args...)
-    _error(str...) = JuMP._macro_error(:point_parameter, (model, args...), str...)
+    _error(str...) = JuMP._macro_error(:point_parameter,
+                                       (model, args...), str...)
 
     extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
     param_kw_args = filter(kw -> kw.args[1] == :infinite_variable_ref || kw.args[1] == :parameter_values, kw_args)
@@ -509,30 +632,37 @@ macro point_variable(model, args...)
     # Check for easy case if it is anonymous single variable
     if length(extra) == 0
         code = quote
-            @assert isa($model, InfiniteModel)
-            JuMP.@variable($model, ($(args...)), variable_type = Point, error = $_error)
+            @assert isa($model, InfiniteModel) "Model must be an " *
+                                               "`InfiniteModel`."
+            JuMP.@variable($model, ($(args...)), variable_type = Point,
+                           error = $_error)
         end
     else
         x = popfirst!(extra)
 
         if isexpr(x, :call)
             if length(param_kw_args) != 0
-                _error("Cannot double specify the infinite variable reference and/or its paramter values.")
+                _error("Cannot double specify the infinite variable reference " *
+                       "and/or its parameter values.")
             elseif x.args[1] in [:in, :<=, :>=, :(==), :≥, :≤, ∈]
                 _error("Invalid input syntax.")
             end
-            # TODO handle vectorized point variables with vector infinite vars
             rest_args = [args[i] for i = 2:length(args)]
             inf_var = x.args[1]
             param_vals = Expr(:tuple, x.args[2:end]...)
             code = quote
-                @assert isa($model, InfiniteModel)
-                JuMP.@variable($model, ($(rest_args...)), variable_type = Point, infinite_variable_ref = $inf_var, parameter_values = $param_vals, error = $_error)
+                @assert isa($model, InfiniteModel) "Model must be an " *
+                                                   "`InfiniteModel`."
+                JuMP.@variable($model, ($(rest_args...)), variable_type = Point,
+                               infinite_variable_ref = $inf_var,
+                               parameter_values = $param_vals, error = $_error)
             end
         elseif isexpr(x, :vect) && length(extra) == 0
             code = quote
-                @assert isa($model, InfiniteModel)
-                JuMP.@variable($model, ($(args...)), variable_type = Point, error = $_error)
+                @assert isa($model, InfiniteModel) "Model must be an " *
+                                                   "`InfiniteModel`."
+                JuMP.@variable($model, ($(args...)), variable_type = Point,
+                               error = $_error)
             end
         else
             _error("Invalid input syntax.")
@@ -542,15 +672,77 @@ macro point_variable(model, args...)
 end
 
 """
-    @global_variable(model, args...)
-A wrapper macro for the `JuMP.@variable` macro that behaves the same except that
-it defines variables of type `GlobalVariableRef`.
+    @global_variable(model, kw_args...)
+
+Add an *anonymous* global variable to the model `model` described by the
+keyword arguments `kw_args` and returns the variable reference.
+
+    @global_variable(model, varexpr, args..., kw_args...)
+
+Add a global variable to `model` described by the expression `varexpr`, the
+positional arguments `args` and the keyword arguments `kw_args`. The expression
+`varexpr` can either be (note that in the following the symbol `<=` can be used
+instead of `≤` and the symbol `>=`can be used instead of `≥`) of the form:
+
+- `varexpr` creating variables described by `varexpr`
+- `varexpr ≤ ub` (resp. `varexpr ≥ lb`) creating variables described by
+  `varexpr` with upper bounds given by `ub` (resp. lower bounds given by `lb`)
+- `varexpr == value` creating variables described by `varexpr` with fixed values
+   given by `value`
+- `lb ≤ varexpr ≤ ub` or `ub ≥ varexpr ≥ lb` creating variables described by
+  `varexpr` with lower bounds given by `lb` and upper bounds given by `ub`
+
+The expression `varexpr` can be of the form:
+
+- `varname` creating a scalar real variable of name `varname`
+- `varname[...]` or `[...]` creating a container of variables.
+
+The recognized positional arguments in `args` are the following:
+
+- `Bin`: Sets the variable to be binary, i.e. either 0 or 1.
+- `Int`: Sets the variable to be integer, i.e. one of ..., -2, -1, 0, 1, 2, ...
+
+The recognized keyword arguments in `kw_args` are the following:
+
+- `base_name`: Sets the name prefix used to generate variable names. It
+  corresponds to the variable name for scalar variable, otherwise, the
+  variable names are set to `base_name[...]` for each index `...` of the axes
+  `axes`.
+- `lower_bound`: Sets the value of the variable lower bound.
+- `upper_bound`: Sets the value of the variable upper bound.
+- `start`: Sets the variable starting value used as initial guess in optimization.
+- `binary`: Sets whether the variable is binary or not.
+- `integer`: Sets whether the variable is integer or not.
+- `container`: Specify the container type.
+
+**Examples**
+```julia
+julia> @global_variable(model, x)
+x
+
+julia> @global_variable(model, 0 <= y <= 4, Bin)
+y
+
+julia> y = @global_variable(model, lower_bound = 0, upper_bound = 4,
+                            binary = true, base_name = "y")
+y
+
+julia @global_variable(model, z[2:3] == 0)
+1-dimensional DenseAxisArray{GlobalVariableRef,1,...} with index sets:
+    Dimension 1, 2:3
+And data, a 2-element Array{GlobalVariableRef,1}:
+ z[2]
+ z[3]
+```
 """
 macro global_variable(model, args...)
-    _error(str...) = JuMP._macro_error(:global_parameter, (model, args...), str...)
+    _error(str...) = JuMP._macro_error(:global_parameter, (model, args...),
+                                       str...)
     code = quote
-        @assert isa($model, InfiniteModel)
-        JuMP.@variable($model, ($(args...)), variable_type = Global, error = $_error)
+        @assert isa($model, InfiniteModel) "Model must be an " *
+                                           "`InfiniteModel`."
+        JuMP.@variable($model, ($(args...)), variable_type = Global,
+                       error = $_error)
     end
     return esc(code)
 end

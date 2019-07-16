@@ -32,5 +32,8 @@ println("")
 println("")
 @time @testset "Variable Query Methods" begin include("variable_queries.jl") end
 println("")
+# TODO test expressions
+@time @testset "Operators" begin include("operators.jl") end
+println("")
 
 # TODO add tests for deleting
