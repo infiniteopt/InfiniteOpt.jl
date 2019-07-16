@@ -22,17 +22,16 @@ println("")
 println("")
 @time @testset "Optimizer Setup Methods" begin include("optimizer_setup.jl") end
 println("")
-@time @testset "Basic Variable Methods" begin include("variable_basics.jl") end
+@time @testset "Variable Methods" begin
+    @testset "Basic " begin include("variable_basics.jl") end
+    @testset "Info" begin include("variable_info.jl") end
+    @testset "Definition" begin include("variable_definition.jl") end
+    @testset "Macros" begin include("variable_macros.jl") end
+    @testset "Query" begin include("variable_queries.jl") end
+end
 println("")
-@time @testset "Variable Info Methods" begin include("variable_info.jl") end
+@time @testset "Expressions" begin include("expressions.jl") end
 println("")
-@time @testset "Variable Definition Methods" begin include("variable_definition.jl") end
-println("")
-@time @testset "Variable Macros" begin include("variable_macros.jl") end
-println("")
-@time @testset "Variable Query Methods" begin include("variable_queries.jl") end
-println("")
-# TODO test expressions
 @time @testset "Operators" begin include("operators.jl") end
 println("")
 

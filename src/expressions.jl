@@ -1,15 +1,14 @@
-# Define type hierchical parser
-function _var_type_parser(V::Type{<: JuMP.AbstractVariableRef}, W::Type{<: JuMP.AbstractVariableRef})
+# Define type hierchical parser for use in building expressions with mixed types
+function _var_type_parser(V::Type{<:GeneralVariableRef},
+                          W::Type{<:GeneralVariableRef})
     if V == W
         return V
-    elseif V isa Type{<: FiniteVariableRef} && W isa Type{<: FiniteVariableRef}
+    elseif V isa Type{<:FiniteVariableRef} && W isa Type{<:FiniteVariableRef}
         return FiniteVariableRef
-    elseif V isa Type{<: MeasureFiniteVariableRef} && W isa Type{<: MeasureFiniteVariableRef}
+    elseif V isa Type{<:MeasureFiniteVariableRef} && W isa Type{<:MeasureFiniteVariableRef}
         return MeasureFiniteVariableRef
-    elseif V isa Type{<: GeneralVariableRef} && W isa Type{<: GeneralVariableRef}
-        return GeneralVariableRef
     else
-        return JuMP.AbstractVariableRef
+        return GeneralVariableRef
     end
 end
 

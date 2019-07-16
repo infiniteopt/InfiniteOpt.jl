@@ -1,6 +1,6 @@
 # TODO change operations to avoid nonlinear expressions obtained from operations done on measures
 
-## AbstractVariableRef--AbstractVariableRef extensions for different types
+## GeneralVariableRef--GeneralVariableRef extensions for different types
 # var1 + var2
 function Base.:+(lhs::V, rhs::W) where {V <: GeneralVariableRef,
                                         W <: GeneralVariableRef}
@@ -25,7 +25,7 @@ function Base.:*(lhs::V, rhs::W) where {V <: GeneralVariableRef,
                                 JuMP.UnorderedPair{type}(lhs, rhs) => 1.0)
 end
 
-# AbstractVariableRef--GenericAffExpr
+# GeneralVariableRef--GenericAffExpr
 # var + aff
 function Base.:+(lhs::V, rhs::JuMP.GenericAffExpr{C, W}) where {C, V <: GeneralVariableRef,
                                                                 W <: GeneralVariableRef}
@@ -74,7 +74,27 @@ function Base.:*(lhs::V, rhs::JuMP.GenericAffExpr{C, W}) where {C, V <: GeneralV
     return result
 end
 
-## Extend operators for GenericAffExpr--AbstractVariableRef of different types
+# GeneralVariableRef--GenericQuadExpr
+# var + quad
+function Base.:+(v::V, q::JuMP.GenericQuadExpr{C, W}) where {C, V <: GeneralVariableRef,
+                                                             W <: GeneralVariableRef}
+    type = _var_type_parser(V, W)
+    new_q = convert(JuMP.GenericQuadExpr{C, type}, q)
+    return JuMP.GenericQuadExpr(v + new_q.aff, copy(new_q.terms))
+ end
+
+ # var - quad
+ function Base.:-(v::V, q::JuMP.GenericQuadExpr{C, W}) where {C, V <: GeneralVariableRef,
+                                                              W <: GeneralVariableRef}
+    type = _var_type_parser(V, W)
+    result = convert(JuMP.GenericQuadExpr{C, type}, -q)
+    # This makes an unnecessary copy of aff, but it's important for v to appear
+    # first.
+    result.aff = v + result.aff
+    return result
+end
+
+## Extend operators for GenericAffExpr--GeneralVariableRef of different types
 # aff + var
 function Base.:+(lhs::JuMP.GenericAffExpr{C, V},
                  rhs::W) where {C, V <: GeneralVariableRef,
@@ -116,8 +136,8 @@ function Base.:+(lhs::JuMP.GenericAffExpr{C, V},
                  rhs::JuMP.GenericAffExpr{C, W}) where {C, V <: GeneralVariableRef,
                                                         W <: GeneralVariableRef}
     if length(JuMP.linear_terms(lhs)) > 50 || length(JuMP.linear_terms(rhs)) > 50
-        if length(linear_terms(lhs)) > 1
-            operator_warn(JuMP.owner_model(first(JuMP.linear_terms(lhs))[2]))
+        if length(JuMP.linear_terms(lhs)) > 1
+            JuMP.operator_warn(JuMP.owner_model(first(JuMP.linear_terms(lhs))[2]))
         end
     end
     type = _var_type_parser(V, W)
@@ -151,13 +171,20 @@ function Base.:*(lhs::JuMP.GenericAffExpr{C, V},
     return result
 end
 
-# GenericAffExpr--GenericQuadExpr
-function Base.:+(lhs::JuMP.GenericAffExpr{C, V}, rhs::JuMP.GenericQuadExpr{C, W}) where {C, V <: GeneralVariableRef, W <: GeneralVariableRef}
+## Extend for operators on GenericAffExpr--GenericQuadExpr of different types
+# aff + quad
+function Base.:+(lhs::JuMP.GenericAffExpr{C, V},
+                 rhs::JuMP.GenericQuadExpr{C, W}) where {C, V <: GeneralVariableRef,
+                                                         W <: GeneralVariableRef}
     type = _var_type_parser(V, W)
-    return JuMP.GenericQuadExpr(lhs + rhs.aff, convert(JuMP.GenericQuadExpr{C, type}, rhs).terms)
+    return JuMP.GenericQuadExpr(lhs + rhs.aff,
+                                convert(JuMP.GenericQuadExpr{C, type}, rhs).terms)
 end
 
-function Base.:-(lhs::JuMP.GenericAffExpr{C, V}, rhs::JuMP.GenericQuadExpr{C, W}) where {C, V <: GeneralVariableRef, W <: GeneralVariableRef}
+# aff - quad
+function Base.:-(lhs::JuMP.GenericAffExpr{C, V},
+                 rhs::JuMP.GenericQuadExpr{C, W}) where {C, V <: GeneralVariableRef,
+                                                         W <: GeneralVariableRef}
     type = _var_type_parser(V, W)
     result = -convert(JuMP.GenericQuadExpr{C, type}, rhs)
     # This makes an unnecessary copy of aff, but it's important for a to appear
@@ -166,30 +193,48 @@ function Base.:-(lhs::JuMP.GenericAffExpr{C, V}, rhs::JuMP.GenericQuadExpr{C, W}
     return result
 end
 
-# GenericQuadExpr--AbstractVariableRef
-function Base.:+(lhs::JuMP.GenericQuadExpr{C, V}, rhs::W) where {C, V <: GeneralVariableRef, W <: GeneralVariableRef}
+## Extend operators for GenericQuadExpr--GeneralVariableRef with different types
+# quad + var
+function Base.:+(lhs::JuMP.GenericQuadExpr{C, V},
+                 rhs::W) where {C, V <: GeneralVariableRef,
+                                W <: GeneralVariableRef}
     type = _var_type_parser(V, W)
-    return JuMP.GenericQuadExpr(lhs.aff + rhs, convert(JuMP.GenericQuadExpr{C, type}, lhs).terms)
+    return JuMP.GenericQuadExpr(lhs.aff + rhs,
+                                convert(JuMP.GenericQuadExpr{C, type}, lhs).terms)
 end
 
-function Base.:-(lhs::JuMP.GenericQuadExpr{C, V}, rhs::W) where {C, V <: GeneralVariableRef, W <: GeneralVariableRef}
+# quad - var
+function Base.:-(lhs::JuMP.GenericQuadExpr{C, V},
+                 rhs::W) where {C, V <: GeneralVariableRef,
+                                W <: GeneralVariableRef}
     type = _var_type_parser(V, W)
-    return JuMP.GenericQuadExpr(lhs.aff - rhs, convert(JuMP.GenericQuadExpr{C, type}, lhs).terms)
+    return JuMP.GenericQuadExpr(lhs.aff - rhs,
+                                convert(JuMP.GenericQuadExpr{C, type}, lhs).terms)
 end
 
-# GenericQuadExpr--GenericAffExpr
-function Base.:+(lhs::JuMP.GenericQuadExpr{C, V}, rhs::JuMP.GenericAffExpr{C, W}) where {C, V <: GeneralVariableRef, W <: GeneralVariableRef}
+# Extend operators for GenericQuadExpr--GenericAffExpr with different types
+# quad + aff
+function Base.:+(lhs::JuMP.GenericQuadExpr{C, V},
+                 rhs::JuMP.GenericAffExpr{C, W}) where {C, V <: GeneralVariableRef,
+                                                        W <: GeneralVariableRef}
     type = _var_type_parser(V, W)
-    return JuMP.GenericQuadExpr(lhs.aff + rhs, convert(JuMP.GenericQuadExpr{C, type}, lhs).terms)
+    return JuMP.GenericQuadExpr(lhs.aff + rhs,
+                                convert(JuMP.GenericQuadExpr{C, type}, lhs).terms)
 end
 
-function Base.:-(lhs::JuMP.GenericQuadExpr{C, V}, rhs::JuMP.GenericAffExpr{C, W}) where {C, V <: GeneralVariableRef, W <: GeneralVariableRef}
+# quad - aff
+function Base.:-(lhs::JuMP.GenericQuadExpr{C, V},
+                 rhs::JuMP.GenericAffExpr{C, W}) where {C, V <: GeneralVariableRef,
+                                                        W <: GeneralVariableRef}
     type = _var_type_parser(V, W)
-    return JuMP.GenericQuadExpr(lhs.aff - rhs, convert(JuMP.GenericQuadExpr{C, type}, lhs).terms)
+    return JuMP.GenericQuadExpr(lhs.aff - rhs,
+                                convert(JuMP.GenericQuadExpr{C, type}, lhs).terms)
 end
 
 # GenericQuadExpr--GenericQuadExpr
-function Base.:+(lhs::JuMP.GenericQuadExpr{C, V}, rhs::JuMP.GenericQuadExpr{C, W}) where {C, V <: GeneralVariableRef, W <: GeneralVariableRef}
+function Base.:+(lhs::JuMP.GenericQuadExpr{C, V},
+                 rhs::JuMP.GenericQuadExpr{C, W}) where {C, V <: GeneralVariableRef,
+                                                         W <: GeneralVariableRef}
     type = _var_type_parser(V, W)
     result = convert(JuMP.GenericQuadExpr{C, type}, lhs)
     for (coef, var1, var2) in JuMP.quad_terms(rhs)
@@ -202,7 +247,9 @@ function Base.:+(lhs::JuMP.GenericQuadExpr{C, V}, rhs::JuMP.GenericQuadExpr{C, W
     return result
 end
 
-function Base.:-(lhs::JuMP.GenericQuadExpr{C, V}, rhs::JuMP.GenericQuadExpr{C, W}) where {C, V <: GeneralVariableRef, W <: GeneralVariableRef}
+function Base.:-(lhs::JuMP.GenericQuadExpr{C, V},
+                 rhs::JuMP.GenericQuadExpr{C, W}) where {C, V <: GeneralVariableRef,
+                                                         W <: GeneralVariableRef}
     type = _var_type_parser(V, W)
     result = convert(JuMP.GenericQuadExpr{C, type}, lhs)
     for (coef, var1, var2) in JuMP.quad_terms(rhs)
