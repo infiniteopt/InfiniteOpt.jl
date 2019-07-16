@@ -1,7 +1,71 @@
+# Test operator methods
+@testset "Internal Methods" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_variable(m, inf(par))
+    @point_variable(m, inf(0), pt)
+    @global_variable(m, glob)
+    meas = MeasureRef(m, 1)
+    m.meas_to_name[1] = "meas"
+    # test _var_type_parser
+    @testset "_var_type_parser" begin
+        # test same types
+        @test InfiniteOpt._var_type_parser(MeasureRef, MeasureRef) == MeasureRef
+        @test InfiniteOpt._var_type_parser(ParameterRef,
+                                           ParameterRef) == ParameterRef
+        @test InfiniteOpt._var_type_parser(InfiniteVariableRef,
+                                     InfiniteVariableRef) == InfiniteVariableRef
+        @test InfiniteOpt._var_type_parser(PointVariableRef,
+                                           PointVariableRef) == PointVariableRef
+        @test InfiniteOpt._var_type_parser(GlobalVariableRef,
+                                         GlobalVariableRef) == GlobalVariableRef
+        # test finite types
+        @test InfiniteOpt._var_type_parser(PointVariableRef,
+                                         GlobalVariableRef) == FiniteVariableRef
+        @test InfiniteOpt._var_type_parser(GlobalVariableRef,
+                                         FiniteVariableRef) == FiniteVariableRef
+        # test measure finite types
+        @test InfiniteOpt._var_type_parser(PointVariableRef,
+                                         MeasureRef) == MeasureFiniteVariableRef
+        @test InfiniteOpt._var_type_parser(GlobalVariableRef,
+                                         MeasureRef) == MeasureFiniteVariableRef
+        # test other combos
+        @test InfiniteOpt._var_type_parser(InfiniteVariableRef,
+                                               MeasureRef) == GeneralVariableRef
+        @test InfiniteOpt._var_type_parser(ParameterRef,
+                                           MeasureRef) == GeneralVariableRef
+        @test InfiniteOpt._var_type_parser(InfiniteVariableRef,
+                                           ParameterRef) == GeneralVariableRef
+        @test InfiniteOpt._var_type_parser(InfiniteVariableRef,
+                                         PointVariableRef) == GeneralVariableRef
+        @test InfiniteOpt._var_type_parser(ParameterRef,
+                                         PointVariableRef) == GeneralVariableRef
+        @test InfiniteOpt._var_type_parser(InfiniteVariableRef,
+                                        GlobalVariableRef) == GeneralVariableRef
+        @test InfiniteOpt._var_type_parser(ParameterRef,
+                                        GlobalVariableRef) == GeneralVariableRef
+    end
+    # test extension to add_to_expression!
+    @testset "JuMP.add_to_expression!" begin
+        # make expression
+        quad = pt^2 + 3glob + 2
+        # test with same types
+        @test isa(add_to_expression!(copy(quad), 1., glob, pt),
+                  GenericQuadExpr{Float64, FiniteVariableRef})
+        pair = UnorderedPair{FiniteVariableRef}(glob, pt)
+        @test add_to_expression!(copy(quad), 1., glob, pt).terms[pair] == 1
+        # test with different types
+        @test isa(add_to_expression!(copy(quad), 2., glob, inf),
+                  GenericQuadExpr{Float64, GeneralVariableRef})
+        pair = UnorderedPair{GeneralVariableRef}(glob, inf)
+        @test add_to_expression!(copy(quad), 2., glob, inf).terms[pair] == 2
+    end
+end
+
 # Test operations between 2 different variables
 @testset "Variable--Variable" begin
     # initialize model and references
-    m = InfiniteModel()
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))

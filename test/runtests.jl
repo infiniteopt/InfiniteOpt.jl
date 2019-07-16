@@ -30,9 +30,11 @@ println("")
     @testset "Query" begin include("variable_queries.jl") end
 end
 println("")
+@time @testset "Operators" begin include("operators.jl") end
+println("")
 @time @testset "Expressions" begin include("expressions.jl") end
 println("")
-@time @testset "Operators" begin include("operators.jl") end
+@time @testset "Measures" begin include("measures.jl") end
 println("")
 
 # TODO add tests for deleting

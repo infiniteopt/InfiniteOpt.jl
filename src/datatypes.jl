@@ -451,7 +451,7 @@ struct DiscreteMeasureData <: AbstractMeasureData
 end
 
 """
-    MultiDiscreteMeasureData<: AbstractMeasureData
+    MultiDiscreteMeasureData <: AbstractMeasureData
 
 A DataType for multi-dimensional measure abstraction data where the measure
 abstraction is of the form:
@@ -482,6 +482,8 @@ struct MultiDiscreteMeasureData <: AbstractMeasureData
         if length(coeffs) != length(supports)
             error("The amount of coefficients must match the amount of " *
                   "support points.")
+        elseif length(supports) == 0
+            error("Must specify at least one support.")
         elseif keys(supports[1].data) != keys(parameter_ref.data)
             error("The keys/dimensions of the support points and parameters " *
                   "do not match.")
