@@ -1,13 +1,46 @@
 # Extend Base.copy for new variable types
-Base.copy(v::MeasureRef, new_model::InfiniteModel) = MeasureRef(new_model, v.index)
+Base.copy(v::MeasureRef, new_model::InfiniteModel) = MeasureRef(new_model,
+                                                                v.index)
 
-# Parse the string for displaying a measure
-function _make_meas_name(meas::Measure)
-    return string(meas.data.name, "(", JuMP.function_string(JuMP.REPLMode, meas.func), ")")
+"""
+    JuMP.name(mref::MeasureRef)::String
+
+Extend [`JuMP.name`](@ref) to return the name associated with a measure
+reference.
+"""
+function JuMP.name(mref::MeasureRef)::String
+    return JuMP.owner_model(mref).meas_to_name[mref.index]
 end
 
-# Used to update the model.var_to_meas field
-function _update_var_meas_mapping(vrefs::Vector{<:GeneralVariableRef}, mindex::Int)
+"""
+    JuMP.set_name(mref::MeasureRef, name::String)
+
+Extend [`JuMP.set_name`](@ref) to specify the name of a measure reference.
+"""
+function JuMP.set_name(mref::MeasureRef, name::String)
+    JuMP.owner_model(mref).meas_to_name[JuMP.index(mref)] = name
+    return
+end
+
+"""
+    JuMP.is_valid(model::InfiniteModel, mref::MeasureRef)::Bool
+
+Extend [`JuMP.is_valid`](@ref) to return `Bool` whether `mref` is valid.
+"""
+function JuMP.is_valid(model::InfiniteModel, mref::MeasureRef)::Bool
+    return (model === JuMP.owner_model(mref) && JuMP.index(mref) in keys(model.measures))
+end
+
+# Parse the string for displaying a measure
+function _make_meas_name(meas::Measure)::String
+    return string(meas.data.name, "(", JuMP.function_string(JuMP.REPLMode,
+                                                            meas.func), ")")
+end
+
+# Used to update the model.var_to_meas and model.param_tomes fields
+# this is needed to update measures if variables are deleted
+function _update_var_meas_mapping(vrefs::Vector{<:GeneralVariableRef},
+                                  mindex::Int)
     for vref in vrefs
         model = JuMP.owner_model(vref)
         if isa(vref, InfOptVariableRef)
@@ -22,25 +55,63 @@ function _update_var_meas_mapping(vrefs::Vector{<:GeneralVariableRef}, mindex::I
             else
                 model.param_to_meas[JuMP.index(vref)] = [mindex]
             end
+        elseif isa(vref, MeasureRef)
+            if haskey(model.meas_to_meas, JuMP.index(vref))
+                push!(model.meas_to_meas[JuMP.index(vref)], mindex)
+            else
+                model.meas_to_meas[JuMP.index(vref)] = [mindex]
+            end
         end
     end
     return
+end
+
+"""
+    add_measure(model::InfiniteModel, meas::Measure)::MeasureRef
+
+Add a measure to `model` and return the corresponding measure reference. This
+operates in a manner similar to [`JuMP.add_variable`](@ref).
+"""
+function add_measure(model::InfiniteModel, meas::Measure)::MeasureRef
+    model.next_meas_index += 1
+    index = model.next_meas_index
+    vrefs = _all_function_variables(meas.func)
+    _update_var_meas_mapping(vrefs, index)
+    mref = MeasureRef(model, model.next_meas_index)
+    model.measures[mref.index] = meas
+    JuMP.set_name(mref, _make_meas_name(meas))
+    model.meas_in_objective[index] = false
+    return mref
 end
 
 # Set a default weight function
 _w(t) = 1
 
 """
-    DiscreteMeasureData(parameter_ref::ParameterRef, coefficients::Vector{<:Number},
+    DiscreteMeasureData(parameter_ref::ParameterRef,
+                        coefficients::Vector{<:Number},
                         supports::Vector{<:Number}; name::String = "measure",
-                        weight_function::Function = w(t) = 1)
-Constructor for DiscreteMeasureData.
+                        weight_function::Function = w(t) = 1)::DiscreteMeasureData
+
+Returns a `DiscreteMeasureData` object that can be utilized to define
+measures using [`measure`](@ref). This accepts input for a scalar (single)
+parameter. Note that `name` is used for printing purposes and a description of
+the other arguments is provided in the documentation for
+[`DiscreteMeasureData`](@ref). Errors if supports are out bounds or an unequal
+number of supports and coefficients are given.
+
+**Example**
+```julia
+julia> data = DiscreteMeasureData(pref, [0.5, 0.5], [1, 2], name = "example")
+DiscreteMeasureData(pref, [0.5, 0.5], [1, 2], "example", InfiniteOpt._w)
+```
 """
 function DiscreteMeasureData(parameter_ref::ParameterRef,
                              coefficients::Vector{<:Number},
                              supports::Vector{<:Number};
                              name::String = "measure",
-                             weight_function::Function = _w)
+                             weight_function::Function = _w
+                             )::DiscreteMeasureData
     return DiscreteMeasureData(parameter_ref, coefficients, supports, name,
                                weight_function)
 end
@@ -50,14 +121,31 @@ end
                         coefficients::Vector{<:Number},
                         supports::Vector{<:AbstractArray{<:Number}};
                         name::String = "measure",
-                        weight_function::Function = w(t) = 1)
-Constructor for MultiDiscreteMeasureData.
+                        weight_function::Function = w(t) = 1
+                        )::MultiDiscreteMeasureData
+
+Returns a `MultiDiscreteMeasureData` object that can be utilized to
+define measures using [`measure`](@ref). This accepts input for an array (multi)
+parameter. The inner arrays in the supports vector need to match the formatting
+of the array used for `parameter_ref`. Note that `name` is used for printing
+purposes and a description of the other arguments is provided in the
+documentation for [`MultiDiscreteMeasureData`](@ref). Errors if supports are out
+bounds, an unequal number of supports and coefficients are given, the array
+formats do not match, or the parameters have different group IDs.
+
+**Example**
+```julia
+julia> data = DiscreteMeasureData(prefs, [0.5, 0.5], [[1, 1], [2, 2]], name = "example");
+
+julia> typeof(data)
+MultiDiscreteMeasureData
 """
 function DiscreteMeasureData(parameter_ref::AbstractArray{<:ParameterRef},
                              coefficients::Vector{<:Number},
                              supports::Vector{<:AbstractArray};
                              name::String = "measure",
-                             weight_function::Function = _w)
+                             weight_function::Function = _w
+                             )::MultiDiscreteMeasureData
     supports = [convert(JuMP.Containers.SparseAxisArray, s) for s in supports]
     parameter_ref = convert(JuMP.Containers.SparseAxisArray, parameter_ref)
     return MultiDiscreteMeasureData(parameter_ref, coefficients, supports, name,
@@ -65,32 +153,26 @@ function DiscreteMeasureData(parameter_ref::AbstractArray{<:ParameterRef},
 end
 
 """
-    add_measure(model::InfiniteModel, v::Measure)
-Add a measure to the `InfiniteModel` object in an analagous way to `JuMP.add_variable`.
+    measure_function(mref::MeasureRef)::JuMP.AbstractJuMPScalar
+
+Return the function associated with `mref`.
 """
-function add_measure(model::InfiniteModel, meas::Measure)
-    model.next_meas_index += 1
-    index = model.next_meas_index
-    vrefs = _all_function_variables(meas.func)
-    _update_var_meas_mapping(vrefs, index)
-    mref = MeasureRef(model, model.next_meas_index)
-    model.measures[mref.index] = meas
-    JuMP.set_name(mref, _make_meas_name(meas))
-    return mref
+function measure_function(mref::MeasureRef)::JuMP.AbstractJuMPScalar
+    return JuMP.owner_model(mref).measures[JuMP.index(mref)].func
 end
 
-# Parse the model pertaining to an expression
-function _model_from_expr(expr::JuMP.AbstractJuMPScalar)
-    all_vrefs = _all_function_variables(expr)
-    if length(all_vrefs) > 0
-        return JuMP.owner_model(all_vrefs[1])
-    else
-        return
-    end
+"""
+    measure_data(mref::MeasureRef)::AbstractMeasureData
+
+Return the measure data associated with `mref`.
+"""
+function measure_data(mref::MeasureRef)::AbstractMeasureData
+    return JuMP.owner_model(mref).measures[JuMP.index(mref)].data
 end
 
-# check a measure function for a particular parameter
-function _has_parameter(vrefs::Vector{<:GeneralVariableRef}, pref::ParameterRef)
+# Check a measure function for a particular parameter and return Bool
+function _has_parameter(vrefs::Vector{<:GeneralVariableRef},
+                        pref::ParameterRef)::Bool
     if _has_variable(vrefs, pref)
         return true
     end
@@ -105,7 +187,9 @@ function _has_parameter(vrefs::Vector{<:GeneralVariableRef}, pref::ParameterRef)
     return false
 end
 
-function _check_has_parameter(expr::Union{InfiniteExpr, MeasureExpr},
+## Check if expr contains a parameter directly or via an infinite variable
+# scalar pref
+function _check_has_parameter(expr::JuMP.AbstractJuMPScalar,
                               pref::ParameterRef)
     vrefs = _all_function_variables(expr)
     if !_has_parameter(vrefs, pref)
@@ -115,7 +199,8 @@ function _check_has_parameter(expr::Union{InfiniteExpr, MeasureExpr},
     return
 end
 
-function _check_has_parameter(expr::Union{InfiniteExpr, MeasureExpr},
+# array pref
+function _check_has_parameter(expr::JuMP.AbstractJuMPScalar,
                               pref::JuMP.Containers.SparseAxisArray{<:ParameterRef})
     vrefs = _all_function_variables(expr)
     for key in keys(pref.data)
@@ -127,12 +212,25 @@ function _check_has_parameter(expr::Union{InfiniteExpr, MeasureExpr},
     return
 end
 
-# Internal function for adding measure data supports directly to the parameter supports
-function _add_supports_to_parameters(pref::ParameterRef, supports::Vector{<:Number})
+# Parse the model pertaining to an expression
+function _model_from_expr(expr::JuMP.AbstractJuMPScalar)
+    all_vrefs = _all_function_variables(expr)
+    if length(all_vrefs) > 0
+        return JuMP.owner_model(all_vrefs[1])
+    else
+        return
+    end
+end
+
+## Internal functions for adding measure data supports to the parameter supports
+# scalar pref
+function _add_supports_to_parameters(pref::ParameterRef,
+                                     supports::Vector{<:Number})
     add_supports(pref, supports)
     return
 end
 
+# array pref
 function _add_supports_to_parameters(pref::JuMP.Containers.SparseAxisArray{<:ParameterRef},
                                      supports::Array{<:JuMP.Containers.SparseAxisArray{<:Number}})
     for i = 1:length(supports)
@@ -144,42 +242,112 @@ function _add_supports_to_parameters(pref::JuMP.Containers.SparseAxisArray{<:Par
 end
 
 """
-    measure(expr::Union{InfiniteExpr, MeasureRef}, data::AbstractMeasureData)
-Implement a measure in an expression in a similar fashion to the `sum` method in JuMP.
+    measure(expr::JuMP.AbstractJuMPScalar, data::AbstractMeasureData)::MeasureRef
+
+Return a measure reference that evaluates `expr` using according to `data`. This
+is the preferred method for implementing measures which follow the form:
+``\\int_{p \\in P} expr(p) w(p) dp`` where ``p`` is an infinite parameter (scalar
+or vector) and ``w`` is the weight function. The measure data `data` determines
+how the measure is to be evaluated. Typically, the [`DiscreteMeasureData`](@ref)
+constructor can be used to for `data`. The variable expression `expr` can contain
+`InfiniteOpt` variables, infinite parameters, other measure references (meaning
+measures can be nested), and constants. Errors if `expr` does not contain
+infinite variables, infinite parameters, or measure references. Also errors if
+the measure parameter specified in `data` is not in `expr` and is not in any
+the nested measure references. Typically, this is called inside of
+[`JuMP.@expression`](@ref), [`JuMP.@objective`](@ref), and
+[`JuMP.@constraint`](@ref) in a manner similar to `sum`. Note measures are not
+explicitly evaluated until [`build_optimizer_model!`](@ref) is called.
+
+**Example**
+```julia
+julia> tdata = DiscreteMeasureData(t, [0.5, 0.5], [1, 2], name = "name1");
+
+julia> xdata = DiscreteMeasureData(xs, [0.5, 0.5], [[-1, -1], [1, 1]],
+                                   name = "name2");
+
+julia> constr_RHS = @expression(model, measure(g - s + 2, tdata) + s^2)
+name1(g(t) - s + 2) + s²
+
+julia> @objective(model, Min, measure(g - 1  + measure(T, xdata), tdata))
+name1(g(t) - 1 + name2(T(t, x)))
+```
 """
-function measure(expr::Union{InfiniteExpr, MeasureExpr}, data::AbstractMeasureData)
+function measure(expr::JuMP.AbstractJuMPScalar,
+                 data::AbstractMeasureData)::MeasureRef
+    if !isa(expr, Union{InfiniteExpr, MeasureExpr, ParameterExpr})
+        error("Expression must contain infinite variables, infinite " *
+              "parameters, or measure references")
+    end
+    model = _model_from_expr(expr)
+    if model == nothing
+        error("Expression contains no variables.")
+    end
     pref = data.parameter_ref
     _check_has_parameter(expr, pref)
     meas = Measure(expr, data)
-    model = _model_from_expr(expr)
-    if model == nothing # --> Might not be necessary with above checks
-        error("Expression contains no variables.")
-    end
     _add_supports_to_parameters(pref, data.supports)
     return add_measure(model, meas)
 end
 
 """
-    JuMP.name(mref::MeasureRef)
-Extend the `JuMP.name` function to accomodate measure references.
-"""
-JuMP.name(mref::MeasureRef) = mref.model.meas_to_name[mref.index]
+    used_by_constraint(mref::MeasureRef)::Bool
 
+Return a `Bool` indicating if `mref` is used by a constraint.
+
+**Example**
+```julia
+julia> used_by_constraint(mref)
+false
+```
 """
-    JuMP.set_name(mref::MeasureRef, name::String)
-Extend the `JuMP.set_name` function to accomodate measure references.
-"""
-function JuMP.set_name(mref::MeasureRef, name::String)
-    JuMP.owner_model(mref).meas_to_name[JuMP.index(mref)] = name
-    return
+function used_by_constraint(mref::MeasureRef)::Bool
+    return haskey(JuMP.owner_model(mref).meas_to_constrs, JuMP.index(mref))
 end
 
 """
-    JuMP.is_valid(model::InfiniteModel, mref::MeasureRef)
-Extend the `JuMP.is_valid` function to accomodate measures.
+    used_by_measure(mref::MeasureRef)::Bool
+
+Return a `Bool` indicating if `mref` is used by a measure.
+
+**Example**
+```julia
+julia> used_by_measure(mref)
+true
+```
 """
-function JuMP.is_valid(model::InfiniteModel, mref::MeasureRef)
-    return (model === JuMP.owner_model(mref) && JuMP.index(mref) in keys(model.measures))
+function used_by_measure(mref::MeasureRef)::Bool
+    return haskey(JuMP.owner_model(mref).meas_to_meas, JuMP.index(mref))
+end
+
+"""
+    used_by_objective(vmref::MeasureRef)::Bool
+
+Return a `Bool` indicating if `mref` is used by the objective.
+
+**Example**
+```julia
+julia> used_by_objective(mref)
+true
+```
+"""
+function used_by_objective(mref::MeasureRef)::Bool
+    return JuMP.owner_model(mref).meas_in_objective[JuMP.index(mref)]
+end
+
+"""
+    is_used(mref::MeasureRef)::Bool
+
+Return a `Bool` indicating if `mref` is used in the model.
+
+**Example**
+```julia
+julia> is_used(mref)
+true
+```
+"""
+function is_used(mref::MeasureRef)::Bool
+    return used_by_measure(mref) || used_by_constraint(mref) || used_by_objective(mref)
 end
 
 """
@@ -187,27 +355,74 @@ end
 Extend the `JuMP.delete` function to accomodate measures
 """
 function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
-    @assert JuMP.is_valid(model, mref)
-    set_optimizer_model_ready(model, false)
+    @assert JuMP.is_valid(model, mref) "Invalid measure reference."
+    # Reset the transcription status
+    if is_used(mref)
+        set_optimizer_model_ready(model, false)
+    end
+    # Remove from dependent measures if there are any
+    if used_by_measure(mref)
+        for mindex in model.meas_to_meas[JuMP.index(mref)]
+            if isa(model.measures[mindex].func, MeasureRef)
+                data = model.measures[mindex].data
+                model.measures[mindex] = Measure(zero(JuMP.AffExpr), data)
+            else
+                _remove_variable(model.measures[mindex].func, mref)
+            end
+            mref2 = MeasureRef(model, mindex)
+            JuMP.set_name(mref2, _make_meas_name(model.measures[mindex]))
+        end
+        delete!(model.meas_to_meas, JuMP.index(mref))
+    end
+    # Remove from dependent constraints if there are any
+    if used_by_constraint(mref)
+        for cindex in model.meas_to_constrs[JuMP.index(mref)]
+            if isa(model.constrs[cindex].func, MeasureRef)
+                set = model.constrs[cindex].set
+                model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr),
+                                                              set)
+            else
+                _remove_variable(model.constrs[cindex].func, mref)
+            end
+        end
+        delete!(model.meas_to_constrs, JuMP.index(mref))
+    end
+    # Remove from objective if used there
+    if used_by_objective(mref)
+        if isa(model.objective_function, MeasureRef)
+            model.objective_function = zero(JuMP.AffExpr)
+        else
+            _remove_variable(model.objective_function, mref)
+        end
+    end
+    # Update that the variable used by it are no longer used by it
+    vrefs = _all_function_variables(measure_function(mref))
+    for vref in vrefs
+        if isa(vref, InfOptVariableRef)
+            filter!(e -> e != JuMP.index(mref),
+                    model.var_to_meas[JuMP.index(vref)])
+            if length(model.var_to_meas[JuMP.index(vref)]) == 0
+                delete!(model.var_to_meas, JuMP.index(vref))
+            end
+        elseif isa(vref, ParameterRef)
+            filter!(e -> e != JuMP.index(mref),
+                    model.param_to_meas[JuMP.index(vref)])
+            if length(model.param_to_meas[JuMP.index(vref)]) == 0
+                delete!(model.param_to_meas, JuMP.index(vref))
+            end
+        elseif isa(vref, MeasureRef)
+            filter!(e -> e != JuMP.index(mref),
+                    model.meas_to_meas[JuMP.index(vref)])
+            if length(model.meas_to_meas[JuMP.index(vref)]) == 0
+                delete!(model.meas_to_meas, JuMP.index(vref))
+            end
+        end
+    end
+    # delete remaining measure information
+    delete!(model.meas_in_objective, JuMP.index(mref))
     delete!(model.measures, JuMP.index(mref))
     delete!(model.meas_to_name, JuMP.index(mref))
     return
-end
-
-"""
-    measure_function(mref::MeasureRef)
-Return the function associated with a `mref`
-"""
-function measure_function(mref::MeasureRef)
-    return JuMP.owner_model(mref).measures[JuMP.index(mref)].func
-end
-
-"""
-    measure_data(mref::MeasureRef)
-Return the data associated with a `mref`
-"""
-function measure_data(mref::MeasureRef)
-    return JuMP.owner_model(mref).measures[JuMP.index(mref)].data
 end
 
 # Helper function for making place holder point variables
@@ -217,14 +432,18 @@ function _make_point_variable(ivref::InfiniteVariableRef)
     return PointVariableRef(inf_model, index)
 end
 
-# Helper function for making place holder infinite variables
+## Helper function for making place holder infinite variables
+# first time reduction
 function _make_reduced_variable(ivref::InfiniteVariableRef, removed_index::Int,
-                                support::Union{Number, JuMP.Containers.SparseAxisArray{<:Number}})
+                                support::Union{Number,
+                                JuMP.Containers.SparseAxisArray{<:Number}})
     inf_model = JuMP.owner_model(ivref)
     index = inf_model.next_var_index += 1
-    return _ReducedInfiniteRef(inf_model, index, ivref, Dict(removed_index => support))
+    return _ReducedInfiniteRef(inf_model, index, ivref,
+                               Dict(removed_index => support))
 end
 
+# further reduce
 function _make_reduced_variable(ivref::InfiniteVariableRef, supports::Dict)
     inf_model = JuMP.owner_model(ivref)
     index = inf_model.next_var_index += 1
@@ -234,8 +453,10 @@ end
 ## Implement functions for expanding measures into regular expressions
 # InfiniteVariableRef
 function _expand_measure(ivref::InfiniteVariableRef,
-                         data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
-                         trans_model::JuMP.Model)
+                         data::Union{DiscreteMeasureData,
+                                     MultiDiscreteMeasureData},
+                         trans_model::JuMP.AbstractModel,
+                         point_mapper::Function)
     # figure out the parameter groups
     prefs = parameter_refs(ivref)
     group = _groups((data.parameter_ref, ))[1]
@@ -248,13 +469,15 @@ function _expand_measure(ivref::InfiniteVariableRef,
             weight = data.weight_function(data.supports[i])
             JuMP.add_to_expression!(aff, coef * weight, ivref)
         end
-    # convert variable into point variables if its only parameter is the the measure parameter
+    # convert variable into point variables if its only parameter is the
+    # measure parameter
     elseif length(prefs) == 1
         aff = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
         for i = 1:length(data.supports)
             pvref = _make_point_variable(ivref)
             support = (data.supports[i],)
-            TranscriptionOpt._update_point_mapping(trans_model, pvref, ivref, support)
+            # TranscriptionOpt._update_point_mapping(trans_model, pvref, ivref, support)
+            point_mapper(trans_model, pvref, ivref, support)
             coef = data.coefficients[i]
             weight = data.weight_function(data.supports[i])
             JuMP.add_to_expression!(aff, coef * weight, pvref)
@@ -277,7 +500,8 @@ end
 # _ReducedInfiniteRef
 function _expand_measure(rvref::_ReducedInfiniteRef,
                          data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
-                         trans_model::JuMP.Model)
+                         trans_model::JuMP.AbstractModel,
+                         point_mapper::Function)
     # figure out the parameters used by the reduced infinite variable
     orig_prefs = parameter_refs(rvref.original)
     prefs = parameter_refs(rvref)
@@ -303,7 +527,8 @@ function _expand_measure(rvref::_ReducedInfiniteRef,
             for j = 1:length(rvref.supports)
                 support = (support..., rvref.supports[j])
             end
-            TranscriptionOpt._update_point_mapping(trans_model, pvref, rvref.original, support)
+            # TranscriptionOpt._update_point_mapping(trans_model, pvref, rvref.original, support)
+            point_mapper(trans_model, pvref, rvref.original, support)
             coef = data.coefficients[i]
             weight = data.weight_function(data.supports[i])
             JuMP.add_to_expression!(aff, coef * weight, pvref)
@@ -326,7 +551,8 @@ end
 # FiniteVariableRef
 function _expand_measure(vref::FiniteVariableRef,
                          data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
-                         trans_model::JuMP.Model) where {V}
+                         trans_model::JuMP.AbstractModel,
+                         point_mapper::Function) where {V}
     aff = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     # treat the variable as a contant
     for i = 1:length(data.supports)
@@ -340,7 +566,8 @@ end
 # ParameterRef with scalar data
 function _expand_measure(pref::ParameterRef,
                          data::DiscreteMeasureData,
-                         trans_model::JuMP.Model) where {V}
+                         trans_model::JuMP.AbstractModel,
+                         point_mapper::Function) where {V}
     aff = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     # replace the parameter with its value if it is the measure parameter
     if data.parameter_ref == pref
@@ -363,7 +590,8 @@ end
 # ParameterRef with vector data
 function _expand_measure(pref::ParameterRef,
                          data::MultiDiscreteMeasureData,
-                         trans_model::JuMP.Model) where {V}
+                         trans_model::JuMP.AbstractModel,
+                         point_mapper::Function) where {V}
     aff = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     # determine if pref is part of the measure parameters
     prefs = collect(values(data.parameter_ref.data))
@@ -390,12 +618,13 @@ end
 # GenericAffExpr
 function _expand_measure(expr::JuMP.GenericAffExpr,
                          data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
-                         trans_model::JuMP.Model) where {V}
+                         trans_model::JuMP.AbstractModel,
+                         point_mapper::Function) where {V}
     # need to use a quadratic expression in case contains measures with quadratic expressions
     quad = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
     # expand each variable independently and add all together
     for (var, coef) in expr.terms
-        var_expr = _expand_measure(var, data, trans_model)
+        var_expr = _expand_measure(var, data, trans_model, point_mapper)
         JuMP.add_to_expression!(quad, coef, var_expr)
     end
     # expand over the cantant
@@ -416,16 +645,17 @@ end
 # GenericQuadExpr
 function _expand_measure(expr::JuMP.GenericQuadExpr,
                          data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
-                         trans_model::JuMP.Model) where {V}
+                         trans_model::JuMP.AbstractModel,
+                         point_mapper::Function) where {V}
     quad = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
     # convert the GenericAffExpr
-    quad.aff = _expand_measure(expr.aff, data, trans_model)
+    quad.aff = _expand_measure(expr.aff, data, trans_model, point_mapper)
     for (pair, coef) in expr.terms
         var_a = pair.a
         var_b = pair.b
         # expand on both variables
-        expr_a = _expand_measure(var_a, data, trans_model)
-        expr_b = _expand_measure(var_b, data, trans_model)
+        expr_a = _expand_measure(var_a, data, trans_model, point_mapper)
+        expr_b = _expand_measure(var_b, data, trans_model, point_mapper)
         vars_a = collect(keys(expr_a.terms))
         vars_b = collect(keys(expr_b.terms))
         # combine both variable expressions using the coefficients from one of them
@@ -452,12 +682,15 @@ end
 # MeasureRef
 function _expand_measure(mref::MeasureRef,
                          data::Union{DiscreteMeasureData, MultiDiscreteMeasureData},
-                         trans_model::JuMP.Model) where {V}
+                         trans_model::JuMP.AbstractModel,
+                         point_mapper::Function) where {V}
     # determine function and data of the inner measure
     deeper_func = measure_function(mref)
     deeper_data = measure_data(mref)
     # expand the inner measure (note this is recursive for nested measures)
-    new_func = _expand_measure(deeper_func, deeper_data, trans_model)
+    new_func = _expand_measure(deeper_func, deeper_data, trans_model, point_mapper)
     # expand current level with the inner measure now expanded
-    return _expand_measure(new_func, data, trans_model)
+    return _expand_measure(new_func, data, trans_model, point_mapper)
 end
+
+# TODO make public measure expansion function

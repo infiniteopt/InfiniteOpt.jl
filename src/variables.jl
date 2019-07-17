@@ -595,9 +595,8 @@ function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
             else
                 _remove_variable(model.measures[mindex].func, vref)
             end
-            measure = model.measures[mindex]
             mref = MeasureRef(model, mindex)
-            JuMP.set_name(mref, _make_meas_name(measure))
+            JuMP.set_name(mref, _make_meas_name(model.measures[mindex]))
         end
         delete!(model.var_to_meas, JuMP.index(vref))
     end

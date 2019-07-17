@@ -123,11 +123,11 @@ function _has_variable(vrefs::Vector{<:GeneralVariableRef},
         return true
     elseif isa(vrefs[1], MeasureRef)
         if length(vrefs) > 1
-            _has_variable(_all_function_variables(measure_function(vrefs[1])),
+            return _has_variable(_all_function_variables(measure_function(vrefs[1])),
                           vref, prior = GeneralVariableRef[prior; vrefs[2:end]])
         else
-            _has_variable(_all_function_variables(measure_function(vrefs[1])),
-                          vref, prior = prior)
+            return _has_variable(_all_function_variables(measure_function(vrefs[1])),
+                                 vref, prior = prior)
         end
     elseif length(vrefs) > 1
         return _has_variable(vrefs[2:end], vref, prior = prior)

@@ -60,6 +60,12 @@ function _update_var_constr_mapping(vrefs::Vector{<:GeneralVariableRef}, cindex:
             else
                 model.param_to_constrs[JuMP.index(vref)] = [cindex]
             end
+        elseif isa(vref, MeasureRef)
+            if haskey(model.meas_to_constrs, JuMP.index(vref))
+                push!(model.meas_to_constrs[JuMP.index(vref)], cindex)
+            else
+                model.meas_to_constrs[JuMP.index(vref)] = [cindex]
+            end
         end
     end
     return
@@ -140,8 +146,11 @@ function JuMP.delete(model::InfiniteModel, cref::GeneralConstraintRef)
             if length(model.param_to_constrs[JuMP.index(vref)]) == 0
                 delete!(model.param_to_constrs, JuMP.index(vref))
             end
-        # else
-        #     JuMP.delete(model, vref) --> Might not want to delete measures
+        elseif isa(vref, MeasureRef)
+            filter!(e -> e != JuMP.index(cref), model.meas_to_constrs[JuMP.index(vref)])
+            if length(model.meas_to_constrs[JuMP.index(vref)]) == 0
+                delete!(model.meas_to_constrs, JuMP.index(vref))
+            end
         end
     end
     delete!(model.constrs, JuMP.index(cref))

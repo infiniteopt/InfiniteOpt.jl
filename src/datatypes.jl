@@ -71,6 +71,11 @@ model an optmization problem with an infinite dimensional decision space.
 - `next_meas_index::Int` Index - 1 of next measure.
 - `measures::Dict{Int, Measure}` Measure indices to measure datatypes.
 - `meas_to_name::Dict{Int, String}` Measure indices to names.
+- `meas_to_constrs::Dict{Int, Vector{Int}}` Measure indices to dependent
+                                            constraint indices.
+- `meas_to_meas::Dict{Int, Vector{Int}}` Measure indices to dependent
+                                         measure indices.
+- `meas_in_objective::Dict{Int, Bool}` Measure indices to if used in objective.
 - `next_param_index::Int` Index - 1 of next infinite parameter.
 - `next_param_id::Int` Index - 1 of the next infinite parameter group.
 - `params::Dict{Int, InfOptParameter}` Infinite parameter indices to parameter
@@ -120,6 +125,9 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     next_meas_index::Int
     measures::Dict{Int, Measure}
     meas_to_name::Dict{Int, String}
+    meas_to_constrs::Dict{Int, Vector{Int}}
+    meas_to_meas::Dict{Int, Vector{Int}}
+    meas_in_objective::Dict{Int, Bool}
 
     # Parameter Data
     next_param_index::Int
@@ -190,6 +198,8 @@ Solver name: No optimizer attached.
 function InfiniteModel(; kwargs...)
     return InfiniteModel(# Measures
                          0, Dict{Int, Measure}(), Dict{Int, String}(),
+                         Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
+                         Dict{Int, Bool}(),
                          # Parameters
                          0, 0, Dict{Int, InfOptParameter}(), Dict{Int, String}(),
                          nothing, Dict{Int, Int}(), Dict{Int, Vector{Int}}(),
@@ -482,6 +492,8 @@ struct MultiDiscreteMeasureData <: AbstractMeasureData
         if length(coeffs) != length(supports)
             error("The amount of coefficients must match the amount of " *
                   "support points.")
+        elseif !_only_one_group(parameter_ref)
+            error("Parameters must all have same group ID.")
         elseif length(supports) == 0
             error("Must specify at least one support.")
         elseif keys(supports[1].data) != keys(parameter_ref.data)

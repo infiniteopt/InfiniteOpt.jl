@@ -14,10 +14,15 @@ function JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense,
     for vindex in keys(model.var_in_objective)
         model.var_in_objective[vindex] = false
     end
+    for mindex in keys(model.meas_in_objective)
+        model.meas_in_objective[mindex] = false
+    end
     vrefs = _all_function_variables(f)
     for vref in vrefs
         if isa(vref, InfOptVariableRef)
             model.var_in_objective[JuMP.index(vref)] = true
+        elseif isa(vref, MeasureRef)
+            model.meas_in_objective[JuMP.index(vref)] = true
         end
     end
     set_optimizer_model_ready(model, false)
@@ -33,6 +38,9 @@ function JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense, 
     model.objective_function = JuMP.GenericAffExpr{Float64, GlobalVariableRef}(f)
     for vindex in keys(model.var_in_objective)
         model.var_in_objective[vindex] = false
+    end
+    for mindex in keys(model.meas_in_objective)
+        model.meas_in_objective[mindex] = false
     end
     set_optimizer_model_ready(model, false)
     return

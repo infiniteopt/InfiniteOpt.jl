@@ -32,9 +32,9 @@ end
 println("")
 @time @testset "Operators" begin include("operators.jl") end
 println("")
-@time @testset "Expressions" begin include("expressions.jl") end
+@time @testset "Expression Methods" begin include("expressions.jl") end
 println("")
-@time @testset "Measures" begin include("measures.jl") end
+@time @testset "Measure Methods" begin include("measures.jl") end
 println("")
 
 # TODO add tests for deleting

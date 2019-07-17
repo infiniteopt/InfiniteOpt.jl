@@ -145,7 +145,7 @@ function _expand_measures(expr::JuMP.GenericAffExpr{C, <:InfiniteOpt.GeneralVari
         if isa(var, InfiniteOpt.MeasureRef)
             func = InfiniteOpt.measure_function(var)
             data = InfiniteOpt.measure_data(var)
-            new_func = InfiniteOpt._expand_measure(func, data, trans_model)
+            new_func = InfiniteOpt._expand_measure(func, data, trans_model, _update_point_mapping)
             JuMP.add_to_expression!(quad, coef, new_func)
         else
             JuMP.add_to_expression!(quad, coef, var)
@@ -173,12 +173,12 @@ function _expand_measures(expr::JuMP.GenericQuadExpr{C, <:InfiniteOpt.GeneralVar
         if isa(var_a, InfiniteOpt.MeasureRef)
             func = InfiniteOpt.measure_function(var_a)
             data = InfiniteOpt.measure_data(var_a)
-            var_a = InfiniteOpt._expand_measure(func, data, trans_model)
+            var_a = InfiniteOpt._expand_measure(func, data, trans_model, _update_point_mapping)
         end
         if isa(var_b, InfiniteOpt.MeasureRef)
             func = InfiniteOpt.measure_function(var_b)
             data = InfiniteOpt.measure_data(var_b)
-            var_b = InfiniteOpt._expand_measure(func, data, trans_model)
+            var_b = InfiniteOpt._expand_measure(func, data, trans_model, _update_point_mapping)
         end
         JuMP.add_to_expression!(quad, coef * var_a * var_b)
     end
@@ -334,7 +334,7 @@ function _make_transcription_function(mref::InfiniteOpt.MeasureRef,
     func = InfiniteOpt.measure_function(mref)
     data = InfiniteOpt.measure_data(mref)
     new_func = InfiniteOpt._possible_convert(InfiniteOpt.FiniteVariableRef,
-                                 InfiniteOpt._expand_measure(func, data, trans_model))
+                                 InfiniteOpt._expand_measure(func, data, trans_model, _update_point_mapping))
     # will either call finite variable function or general variable function
     return _make_transcription_function(new_func, trans_model, bounds)
 end

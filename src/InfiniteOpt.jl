@@ -55,7 +55,7 @@ export used_by_objective, infinite_variable_ref, parameter_refs,
 set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values
 
 # Export expression datatypes
-export InfiniteExpr, ParameterExpr
+export InfiniteExpr, ParameterExpr, MeasureExpr
 
 # Export constraint datatypes
 export GeneralConstraintRef, InfiniteConstraintRef, MeasureConstraintRef,
