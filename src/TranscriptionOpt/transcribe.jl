@@ -133,58 +133,6 @@ function _map_point_variables(trans_model::JuMP.Model, inf_model::InfiniteOpt.In
     return
 end
 
-## Helper functions for expanding the measure references in expressions
-# GenericAffExpr
-function _expand_measures(expr::JuMP.GenericAffExpr{C, <:InfiniteOpt.GeneralVariableRef},
-                          trans_model::JuMP.Model) where {C}
-    # use a QuadExpr in case measures contain quadratic espressions
-    quad = zero(JuMP.GenericQuadExpr{C, InfiniteOpt.GeneralVariableRef})
-    quad.aff.constant = expr.constant
-    # add the variables to the expr, converting measures into expanded exprs
-    for (var, coef) in expr.terms
-        if isa(var, InfiniteOpt.MeasureRef)
-            func = InfiniteOpt.measure_function(var)
-            data = InfiniteOpt.measure_data(var)
-            new_func = InfiniteOpt._expand_measure(func, data, trans_model, _update_point_mapping)
-            JuMP.add_to_expression!(quad, coef, new_func)
-        else
-            JuMP.add_to_expression!(quad, coef, var)
-        end
-    end
-    # return a AffExpr if there are no quadratic terms
-    if length(quad.terms) == 0
-        return quad.aff
-    else
-        return quad
-    end
-end
-
-## Helper functions for expanding the measure references in expressions
-# GenericQuadExpr
-function _expand_measures(expr::JuMP.GenericQuadExpr{C, <:InfiniteOpt.GeneralVariableRef},
-                          trans_model::JuMP.Model) where {C}
-    quad = zero(JuMP.GenericQuadExpr{C, InfiniteOpt.GeneralVariableRef})
-    quad.aff = _expand_measures(expr.aff, trans_model)
-    # add the quadratic terms to the expr, converting measures into expanded exprs
-    # note that this will error if the expanded forms are not linear or quadratic
-    for (pair, coef) in expr.terms
-        var_a = pair.a
-        var_b = pair.b
-        if isa(var_a, InfiniteOpt.MeasureRef)
-            func = InfiniteOpt.measure_function(var_a)
-            data = InfiniteOpt.measure_data(var_a)
-            var_a = InfiniteOpt._expand_measure(func, data, trans_model, _update_point_mapping)
-        end
-        if isa(var_b, InfiniteOpt.MeasureRef)
-            func = InfiniteOpt.measure_function(var_b)
-            data = InfiniteOpt.measure_data(var_b)
-            var_b = InfiniteOpt._expand_measure(func, data, trans_model, _update_point_mapping)
-        end
-        JuMP.add_to_expression!(quad, coef * var_a * var_b)
-    end
-    return quad
-end
-
 # Return the support value corresponding to a parameter reference
 function _parameter_value(pref::InfiniteOpt.ParameterRef, support::Tuple, prefs::Tuple)
     group = InfiniteOpt.group_id(pref)
@@ -385,7 +333,7 @@ function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:InfiniteOpt
     # check to see if there are measures and expand them
     is_measure = [var isa InfiniteOpt.MeasureRef for var in InfiniteOpt._all_function_variables(expr)]
     if any(is_measure)
-        expr = _expand_measures(expr, trans_model)
+        expr = InfiniteOpt._expand_measures(expr, trans_model, _update_point_mapping)
     end
     # dispatch to quadratic method if the measures contained quadratic terms
     if isa(expr, JuMP.GenericQuadExpr)
@@ -434,7 +382,7 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfiniteOp
     # check to see if there are measures and expand them
     is_measure = [var isa MeasureRef for var in InfiniteOpt._all_function_variables(expr)]
     if any(is_measure)
-        expr = _expand_measures(expr, trans_model)
+        expr = InfiniteOpt._expand_measures(expr, trans_model, _update_point_mapping)
     end
     # determine the common set of prefs and make all of the support combos
     prefs = InfiniteOpt._all_parameter_refs(expr)
@@ -481,7 +429,7 @@ function _make_transcription_function(expr::Union{JuMP.GenericAffExpr{C, <:Infin
                                       JuMP.GenericQuadExpr{C, <:InfiniteOpt.MeasureFiniteVariableRef}},
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict()) where {C}
-    expr = InfiniteOpt._possible_convert(FiniteVariableRef, _expand_measures(expr, trans_model))
+    expr = InfiniteOpt._possible_convert(FiniteVariableRef, InfiniteOpt._expand_measures(expr, trans_model, _update_point_mapping))
     return _make_transcription_function(expr, trans_model, bounds)
 end
 

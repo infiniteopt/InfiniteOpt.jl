@@ -21,16 +21,18 @@
         aff2 = zero(GenericAffExpr{Float64, GeneralVariableRef})
         # test expressions
         @test InfiniteOpt._all_function_variables(aff1) == [meas, par, glob]
-        @test InfiniteOpt._all_function_variables(aff2) == []
+        @test InfiniteOpt._all_function_variables(aff2) == GeneralVariableRef[]
     end
     # test for GenericQuadExpr
     @testset "QuadExpr" begin
         # make expressions
         quad1 = pt^2 + inf * pt - meas + 2par + glob
-        quad2 = zero(GenericQuadExpr{Float64, GeneralVariableRef})
+        quad2 = pt^2 + inf * pt
+        quad3 = zero(GenericQuadExpr{Float64, GeneralVariableRef})
         # test expressions
         @test InfiniteOpt._all_function_variables(quad1) == [meas, par, glob, pt, inf]
-        @test InfiniteOpt._all_function_variables(quad2) == []
+        @test InfiniteOpt._all_function_variables(quad2) == [pt, inf]
+        @test InfiniteOpt._all_function_variables(quad3) == GeneralVariableRef[]
     end
 end
 

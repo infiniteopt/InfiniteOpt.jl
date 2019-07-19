@@ -397,8 +397,10 @@ const InfOptVariableRef = Union{InfiniteVariableRef, PointVariableRef,
 const InfiniteExpr = Union{InfiniteVariableRef,
                            JuMP.GenericAffExpr{Float64, InfiniteVariableRef},
                            JuMP.GenericAffExpr{Float64, GeneralVariableRef},
+                           JuMP.GenericAffExpr{Float64, _ReducedInfiniteRef},
                            JuMP.GenericQuadExpr{Float64, InfiniteVariableRef},
-                           JuMP.GenericQuadExpr{Float64, GeneralVariableRef}}
+                           JuMP.GenericQuadExpr{Float64, GeneralVariableRef},
+                           JuMP.GenericQuadExpr{Float64, _ReducedInfiniteRef}}
 const ParameterExpr = Union{ParameterRef,
                             JuMP.GenericAffExpr{Float64, ParameterRef},
                             JuMP.GenericQuadExpr{Float64, ParameterRef}}

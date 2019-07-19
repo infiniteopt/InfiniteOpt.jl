@@ -80,6 +80,7 @@ end
     @test InfOptVariableRef <: GeneralVariableRef
     @test InfiniteExpr <: AbstractJuMPScalar
     @test ParameterExpr <: AbstractJuMPScalar
+    @test MeasureExpr <: AbstractJuMPScalar
 end
 
 # Test the constraint datatypes

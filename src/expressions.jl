@@ -13,16 +13,46 @@ function _var_type_parser(V::Type{<:GeneralVariableRef},
     end
 end
 
-# Extend handle mixed variable input
+## Extend add_to_expression! for some more functionality, tested in test/operators.jl
+# Mixed variable addition
 function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr{C, Z}, new_coef::C,
-                                 new_var1::V, new_var2::W)::JuMP.GenericQuadExpr where {C,
+                                 new_var1::V, new_var2::W
+                                 )::JuMP.GenericQuadExpr where {C,
                                  Z <: GeneralVariableRef, V <: GeneralVariableRef,
                                  W <: GeneralVariableRef}
-    type = _var_type_parser(Z, W)
+    type = _var_type_parser(Z, _var_type_parser(V, W))
     key = JuMP.UnorderedPair{type}(new_var1, new_var2)
     new_quad = convert(JuMP.GenericQuadExpr{C, type}, quad)
     JuMP._add_or_set!(new_quad.terms, key, new_coef)
     return new_quad
+end
+
+# var1 is a number
+function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr{C, Z},
+                                 new_coef::Number, new_var1::Number, new_var2::V
+                                 )::JuMP.GenericQuadExpr where {C,
+                                 Z <: GeneralVariableRef, V <: GeneralVariableRef}
+    type = _var_type_parser(Z, V)
+    new_quad = convert(JuMP.GenericQuadExpr{C, type}, quad)
+    return JuMP.add_to_expression!(new_quad, new_coef * new_var1, new_var2)
+end
+
+# var2 is a number
+function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr{C, Z},
+                                 new_coef::Number, new_var1::V, new_var2::Number
+                                 )::JuMP.GenericQuadExpr where {C,
+                                 Z <: GeneralVariableRef, V <: GeneralVariableRef}
+    type = _var_type_parser(Z, V)
+    new_quad = convert(JuMP.GenericQuadExpr{C, type}, quad)
+    return JuMP.add_to_expression!(new_quad, new_coef * new_var2, new_var1)
+end
+
+# var1 and var2 are numbers
+function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr, new_coef::Number,
+                                 new_var1::Number, new_var2::Number
+                                 )
+    JuMP.add_to_expression!(quad.aff, new_coef * new_var2 * new_var1)
+    return quad
 end
 
 ## Extend for better comparisons than default
@@ -57,16 +87,16 @@ function _all_function_variables(f::GeneralVariableRef)::Vector{<:GeneralVariabl
 end
 
 # GenericAffExpr
-function _all_function_variables(f::JuMP.GenericAffExpr)::Vector
-    return [vref for vref in keys(f.terms)]
+function _all_function_variables(f::JuMP.GenericAffExpr)::Vector{<:GeneralVariableRef}
+    return GeneralVariableRef[vref for vref in keys(f.terms)]
 end
 
 # GenericQuadExpr
-function _all_function_variables(f::JuMP.GenericQuadExpr)::Vector
+function _all_function_variables(f::JuMP.GenericQuadExpr)::Vector{<:GeneralVariableRef}
     aff_vrefs = _all_function_variables(f.aff)
     vref_pairs = [k for k in keys(f.terms)]
-    a_vrefs = [pair.a for pair in vref_pairs]
-    b_vrefs = [pair.b for pair in vref_pairs]
+    a_vrefs = GeneralVariableRef[pair.a for pair in vref_pairs]
+    b_vrefs = GeneralVariableRef[pair.b for pair in vref_pairs]
     return unique([aff_vrefs; a_vrefs; b_vrefs])
 end
 

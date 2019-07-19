@@ -46,8 +46,8 @@
         @test InfiniteOpt._var_type_parser(ParameterRef,
                                         GlobalVariableRef) == GeneralVariableRef
     end
-    # test extension to add_to_expression!
-    @testset "JuMP.add_to_expression!" begin
+    # test extension to add_to_expression! (mixed variable quadratic addition)
+    @testset "JuMP.add_to_expression! (Mixed)" begin
         # make expression
         quad = pt^2 + 3glob + 2
         # test with same types
@@ -60,6 +60,45 @@
                   GenericQuadExpr{Float64, GeneralVariableRef})
         pair = UnorderedPair{GeneralVariableRef}(glob, inf)
         @test add_to_expression!(copy(quad), 2., glob, inf).terms[pair] == 2
+    end
+    # test extension to add_to_expression! (variable + number quadratic addition)
+    @testset "JuMP.add_to_expression! (Number1)" begin
+        # make expression
+        quad = pt^2 + 3glob + pt + 3
+        # test with same types
+        @test isa(add_to_expression!(copy(quad), 1., 2, pt),
+                  GenericQuadExpr{Float64, FiniteVariableRef})
+        @test add_to_expression!(copy(quad), 1., 2, pt).aff.terms[pt] == 3
+        # test with different types
+        @test isa(add_to_expression!(copy(quad), 2., 3, inf),
+                  GenericQuadExpr{Float64, GeneralVariableRef})
+        @test add_to_expression!(copy(quad), 2., 3, inf).aff.terms[inf] == 6
+    end
+    # test extension to add_to_expression! (number + variable quadratic addition)
+    @testset "JuMP.add_to_expression! (Number2)" begin
+        # make expression
+        quad = pt^2 + 3glob + pt + 3
+        # test with same types
+        @test isa(add_to_expression!(copy(quad), 1., pt, 2),
+                  GenericQuadExpr{Float64, FiniteVariableRef})
+        @test add_to_expression!(copy(quad), 1., pt, 2).aff.terms[pt] == 3
+        # test with different types
+        @test isa(add_to_expression!(copy(quad), 2., inf, 2),
+                  GenericQuadExpr{Float64, GeneralVariableRef})
+        @test add_to_expression!(copy(quad), 2., inf, 2).aff.terms[inf] == 4
+    end
+    # test extension to add_to_expression! (number + number quadratic addition)
+    @testset "JuMP.add_to_expression! (Number3)" begin
+        # make expression
+        quad = pt^2 + 3glob + pt + 3
+        # test
+        @test isa(add_to_expression!(copy(quad), 1., 2, 2),
+                  GenericQuadExpr{Float64, FiniteVariableRef})
+        @test add_to_expression!(copy(quad), 1., 2, 2).aff.constant == 7
+        # another test
+        @test isa(add_to_expression!(copy(quad), 2., -3, 2),
+                  GenericQuadExpr{Float64, FiniteVariableRef})
+        @test add_to_expression!(copy(quad), 2., -3, 2).aff.constant == -9
     end
 end
 

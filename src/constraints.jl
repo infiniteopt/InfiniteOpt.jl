@@ -15,10 +15,14 @@ Base.:(==)(v::GeneralConstraintRef, w::GeneralConstraintRef) = v.model === w.mod
 Base.broadcastable(cref::GeneralConstraintRef) = Ref(cref)
 JuMP.constraint_type(m::InfiniteModel) = GeneralConstraintRef
 
+# Set default bounded set
+const default_bounds = Dict{ParameterRef, IntervalSet}()
+
 # This might not be necessary...
-function JuMP.build_constraint(_error::Function, v::InfiniteVariableRef,
+function JuMP.build_constraint(_error::Function,
+                               v::Union{InfiniteVariableRef, MeasureRef},
                                set::MOI.AbstractScalarSet;
-                               parameter_bounds::Dict{ParameterRef, IntervalSet} = Dict{ParameterRef, IntervalSet}())
+                               parameter_bounds::Dict{ParameterRef, IntervalSet} = default_bounds)
     if length(parameter_bounds) != 0
         return BoundedScalarConstraint(v, set, parameter_bounds)
     else
@@ -32,9 +36,10 @@ end
                           parameter_bounds::Dict{ParameterRef, IntervalSet} = Dict())
 Extent `JuMP.build_constraint` to accept the parameter_bounds argument.
 """
-function JuMP.build_constraint(_error::Function, expr::InfiniteExpr,
+function JuMP.build_constraint(_error::Function,
+                               expr::Union{InfiniteExpr, MeasureExpr},
                                set::MOI.AbstractScalarSet;
-                               parameter_bounds::Dict{ParameterRef, IntervalSet} = Dict{ParameterRef, IntervalSet}())
+                               parameter_bounds::Dict{ParameterRef, IntervalSet} = default_bounds)
     offset = JuMP.constant(expr)
     JuMP.add_to_expression!(expr, -offset)
     if length(parameter_bounds) != 0
@@ -102,6 +107,7 @@ Extend the `JuMP.add_constraint` function to accomodate the `InfiniteModel` obje
 function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, name::String="")
     isa(c, JuMP.VectorConstraint) && error("Vector constraints not supported.")
     vrefs = _all_function_variables(c.func)
+    # TODO do a better check (vrefs almost always GeneralVariableRef[])
     isa(vrefs, Vector{ParameterRef}) && error("Constraints cannot contain only parameters.")
     for vref in vrefs
         JuMP.owner_model(vref) != model && error("Variable $vref does not belong to model.")

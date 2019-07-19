@@ -16,6 +16,7 @@ include("measures.jl")
 include("operators.jl")
 include("constraints.jl")
 include("objective.jl")
+include("measure_expansions.jl")
 include("macros.jl")
 include("optimize.jl")
 include("results.jl")
@@ -66,7 +67,8 @@ export AbstractMeasureData, DiscreteMeasureData, MultiDiscreteMeasureData,
 Measure, MeasureRef
 
 # Export measure methods
-export add_measure, measure, measure_function, measure_data, expand
+export add_measure, measure, measure_function, measure_data, expand,
+expand_all_measures!
 
 # Export transcription datatypes
 export TranscriptionData, TranscriptionModel
