@@ -34,6 +34,36 @@
     end
 end
 
+# Test comparisons
+@testset "Comparisons" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, 0 <= par2 <= 1)
+    @infinite_variable(m, inf(par))
+    @infinite_variable(m, inf2(par, par2))
+    @point_variable(m, inf(0), pt)
+    @global_variable(m, glob)
+    red = InfiniteOpt._ReducedInfiniteRef(m, index(inf2), inf2, Dict(1 => 3))
+    # test AffExpr comparison
+    @testset "Base.:(==) AffExpr" begin
+        @test par + par2 + inf - 2 == par + (par2 + inf) - 2
+        @test 0.25red - inf == 0.25red - inf
+        @test red + 3 - inf != par + red
+        @test red + 3 - inf != red + 3 - glob
+    end
+    # test QuadExpr comparison
+    @testset "Base.:(==) QuadExpr" begin
+        @test par * inf + par2 + inf - 2 == par * inf + (par2 + inf) - 2
+        @test red * inf - inf == red * inf - inf
+        @test red * inf + 3 - inf != par * inf2 + red
+        @test par * par2 + inf * inf2 == par * par2 + inf * inf2
+        @test par * par2 + inf * inf2 != par * par2
+        @test par * par2 + 2 * inf * inf2 !=  par * par2 + inf * inf2
+        @test par * inf + par2 + inf - 2 != par * inf + (par2 + inf) - 3
+    end
+end
+
 # Test _all_parameter_refs
 @testset "_all_parameter_refs" begin
     # initialize model and references

@@ -66,7 +66,7 @@ export AbstractMeasureData, DiscreteMeasureData, MultiDiscreteMeasureData,
 Measure, MeasureRef
 
 # Export measure methods
-export add_measure, measure, measure_function, measure_data
+export add_measure, measure, measure_function, measure_data, expand
 
 # Export transcription datatypes
 export TranscriptionData, TranscriptionModel

@@ -997,11 +997,7 @@ end
 function _root_names(prefs::Tuple)
     root_names = Vector{String}(undef, length(prefs))
     for i = 1:length(root_names)
-        if isa(prefs[i], ParameterRef)
-            root_names[i] = _root_name(prefs[i])
-        else
-            root_names[i] = _root_name(collect(values(prefs[i].data))[1])
-        end
+        root_names[i] = _root_name(first(prefs[i]))
     end
     return root_names
 end
