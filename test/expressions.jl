@@ -34,6 +34,11 @@
         @test InfiniteOpt._all_function_variables(quad2) == [pt, inf]
         @test InfiniteOpt._all_function_variables(quad3) == GeneralVariableRef[]
     end
+    # test backup
+    @testset "Fallback" begin
+        @variable(Model(), x)
+        @test_throws ErrorException InfiniteOpt._all_function_variables(x)
+    end
 end
 
 # Test comparisons
@@ -46,7 +51,7 @@ end
     @infinite_variable(m, inf2(par, par2))
     @point_variable(m, inf(0), pt)
     @global_variable(m, glob)
-    red = InfiniteOpt._ReducedInfiniteRef(m, index(inf2), inf2, Dict(1 => 3))
+    red = InfiniteOpt.ReducedInfiniteVariableRef(m, index(inf2), inf2, Dict(1 => 3))
     # test AffExpr comparison
     @testset "Base.:(==) AffExpr" begin
         @test par + par2 + inf - 2 == par + (par2 + inf) - 2
@@ -76,7 +81,7 @@ end
     @infinite_variable(m, inf2(par, par2))
     @point_variable(m, inf(0), pt)
     @global_variable(m, glob)
-    red = InfiniteOpt._ReducedInfiniteRef(m, index(inf2), inf2, Dict(1 => 3))
+    red = InfiniteOpt.ReducedInfiniteVariableRef(m, index(inf2), inf2, Dict(1 => 3))
     # test for finite variable reference
     @testset "FiniteVariable" begin
         @test InfiniteOpt._all_parameter_refs(pt) == ()

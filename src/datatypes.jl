@@ -320,8 +320,23 @@ struct InfiniteVariableRef <: GeneralVariableRef
     index::Int           # Index in `model.variables`
 end
 
-# An internal object used to evaluate measures
-struct _ReducedInfiniteRef <: GeneralVariableRef
+"""
+    ReducedInfiniteVariableRef <: GeneralVariableRef
+
+A DataType for partially transcripted infinite dimensional variable references.
+This is used to expand measures that contain infinite variables that are not
+fully transcripted by the measure. This references corresponds to the infinite
+variable reference `original` evaluated with the parameter supports `supports`.
+
+**Fields**
+- `model::InfiniteModel` Infinite model.
+- `index::Int` Index of variable in model.
+- `original::InfiniteVariableRef` Original untranscripted infinite variable
+                                  reference
+- `supports::Dict{Int, Union{Number, JuMP.Containers.SparseAxisArray{<:Number}}}`
+  Mapping of parameter reference tuple indices to supports.
+"""
+struct ReducedInfiniteVariableRef <: GeneralVariableRef
     model::InfiniteModel
     index::Int
     original::InfiniteVariableRef
@@ -397,10 +412,10 @@ const InfOptVariableRef = Union{InfiniteVariableRef, PointVariableRef,
 const InfiniteExpr = Union{InfiniteVariableRef,
                            JuMP.GenericAffExpr{Float64, InfiniteVariableRef},
                            JuMP.GenericAffExpr{Float64, GeneralVariableRef},
-                           JuMP.GenericAffExpr{Float64, _ReducedInfiniteRef},
+                           JuMP.GenericAffExpr{Float64, ReducedInfiniteVariableRef},
                            JuMP.GenericQuadExpr{Float64, InfiniteVariableRef},
                            JuMP.GenericQuadExpr{Float64, GeneralVariableRef},
-                           JuMP.GenericQuadExpr{Float64, _ReducedInfiniteRef}}
+                           JuMP.GenericQuadExpr{Float64, ReducedInfiniteVariableRef}}
 const ParameterExpr = Union{ParameterRef,
                             JuMP.GenericAffExpr{Float64, ParameterRef},
                             JuMP.GenericQuadExpr{Float64, ParameterRef}}

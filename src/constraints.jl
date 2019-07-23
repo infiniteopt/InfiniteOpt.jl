@@ -1,17 +1,44 @@
 """
-    JuMP.owner_model(cref::GeneralConstraintRef)
-Extends the method `JuMP.owner_model` for our new constraints.
+    JuMP.owner_model(cref::GeneralConstraintRef)::InfiniteModel
+
+Extend [`JuMP.owner_model`](@ref) to return the infinite model associated with
+`cref`.
+
+**Example**
+```julia
+julia> model = owner_model(cref)
+An InfiniteOpt Model
+Minimization problem with:
+Variables: 3
+Objective function type: GlobalVariableRef
+`GenericAffExpr{Float64,FiniteVariableRef}`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
+Names registered in the model: g, t, h, x
+Optimizer model backend information:
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
+```
 """
-JuMP.owner_model(cref::GeneralConstraintRef) = cref.model
+JuMP.owner_model(cref::GeneralConstraintRef)::InfiniteModel = cref.model
 
 """
     JuMP.index(cref::GeneralConstraintRef)::Int
-Extent `JuMP.index` to return the index of a InfiniteOpt constraint.
+
+Extend [`JuMP.index`](@ref) to return the index of an `InfiniteOpt` constraint
+`cref`.
+
+**Example**
+```julia
+julia> index(cref)
+2
+```
 """
-JuMP.index(cref::GeneralConstraintRef) = cref.index
+JuMP.index(cref::GeneralConstraintRef)::Int = cref.index
 
 # Extend Base and JuMP functions
-Base.:(==)(v::GeneralConstraintRef, w::GeneralConstraintRef) = v.model === w.model && v.index == w.index && v.shape == w.shape
+function Base.:(==)(v::GeneralConstraintRef, w::GeneralConstraintRef)::Bool
+    return v.model === w.model && v.index == w.index && v.shape == w.shape && typeof(v) == typeof(w)
+end
 Base.broadcastable(cref::GeneralConstraintRef) = Ref(cref)
 JuMP.constraint_type(m::InfiniteModel) = GeneralConstraintRef
 
@@ -22,7 +49,8 @@ const default_bounds = Dict{ParameterRef, IntervalSet}()
 function JuMP.build_constraint(_error::Function,
                                v::Union{InfiniteVariableRef, MeasureRef},
                                set::MOI.AbstractScalarSet;
-                               parameter_bounds::Dict{ParameterRef, IntervalSet} = default_bounds)
+                               parameter_bounds::Dict{ParameterRef,
+                                                  IntervalSet} = default_bounds)
     if length(parameter_bounds) != 0
         return BoundedScalarConstraint(v, set, parameter_bounds)
     else
@@ -34,23 +62,39 @@ end
     JuMP.build_constraint(_error::Function, expr::InfiniteExpr,
                           set::MOI.AbstractScalarSet;
                           parameter_bounds::Dict{ParameterRef, IntervalSet} = Dict())
-Extent `JuMP.build_constraint` to accept the parameter_bounds argument.
+
+Extend [`JuMP.build_constraint`](@ref) to accept the parameter_bounds argument
+and return a [`BoundedScalarConstraint`](@ref) if the `parameter_bounds` keyword
+argument is specifed or return a [`ScalarConstraint`](@ref) otherwise. This is
+primarily intended to work as an internal function for constraint macros.
+
+**Example**
+```julia
+julia> constr = build_constraint(error, g + x, MOI.EqualTo(42.0),
+                               parameter_bounds = Dict(t => IntervalSet(0, 1)));
+
+julia> isa(constr, BoundedScalarConstraint)
+true
+```
 """
 function JuMP.build_constraint(_error::Function,
                                expr::Union{InfiniteExpr, MeasureExpr},
                                set::MOI.AbstractScalarSet;
-                               parameter_bounds::Dict{ParameterRef, IntervalSet} = default_bounds)
+                               parameter_bounds::Dict{ParameterRef,
+                                                  IntervalSet} = default_bounds)
     offset = JuMP.constant(expr)
     JuMP.add_to_expression!(expr, -offset)
     if length(parameter_bounds) != 0
-        return BoundedScalarConstraint(expr, MOIU.shift_constant(set, -offset), parameter_bounds)
+        return BoundedScalarConstraint(expr, MOIU.shift_constant(set, -offset),
+                                       parameter_bounds)
     else
         return JuMP.ScalarConstraint(expr, MOIU.shift_constant(set, -offset))
     end
 end
 
 # Used to update the model.var_to_constrs field
-function _update_var_constr_mapping(vrefs::Vector{<:GeneralVariableRef}, cindex::Int)
+function _update_var_constr_mapping(vrefs::Vector{<:GeneralVariableRef},
+                                    cindex::Int)
     for vref in vrefs
         model = JuMP.owner_model(vref)
         if isa(vref, InfOptVariableRef)
@@ -80,15 +124,18 @@ end
 function _check_bounds(model::InfiniteModel, bounds::Dict)
     prefs = collect(keys(bounds))
     for pref in prefs
-        !JuMP.is_valid(model, pref) && error("Parameter bound reference $pref is invalid.")
+        !JuMP.is_valid(model, pref) && error("Parameter bound reference " *
+                                             "is invalid.")
         if JuMP.has_lower_bound(pref)
             if bounds[pref].lower_bound < JuMP.lower_bound(pref)
-                error("Specified parameter lower bound exceeds that defined for $pref.")
+                error("Specified parameter lower bound exceeds that defined " *
+                      "for $pref.")
             end
         end
         if JuMP.has_upper_bound(pref)
             if bounds[pref].upper_bound > JuMP.upper_bound(pref)
-                error("Specified parameter upper bound exceeds that defined for $pref.")
+                error("Specified parameter upper bound exceeds that defined " *
+                      "for $pref.")
             end
         end
     end
@@ -101,16 +148,33 @@ JuMP.jump_function(c::BoundedScalarConstraint) = c.func
 JuMP.moi_set(c::BoundedScalarConstraint) = c.set
 
 """
-    JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, name::String="")
-Extend the `JuMP.add_constraint` function to accomodate the `InfiniteModel` object.
+    JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint,
+                        name::String = "")
+
+Extend [`JuMP.add_constraint`](@ref) to add a constraint `c` to an infinite model
+`model` with name `name`. Returns an appropriate constraint reference whose type
+depends on what variables are used to define the constraint. Errors if a vector
+constraint is used, the constraint only constains parameters, or if any
+variables do not belong to `model`. This is primarily used as an internal
+method for the cosntraint macros.
+
+**Example**
+```julia
+julia> constr = build_constraint(error, g + x, MOI.EqualTo(42));
+
+julia> cref = add_constraint(model, constr, "name")
+name : g(t) + x == 42.0
+```
 """
-function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint, name::String="")
+function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint,
+                             name::String = "")
     isa(c, JuMP.VectorConstraint) && error("Vector constraints not supported.")
     vrefs = _all_function_variables(c.func)
-    # TODO do a better check (vrefs almost always GeneralVariableRef[])
-    isa(vrefs, Vector{ParameterRef}) && error("Constraints cannot contain only parameters.")
+    isa(vrefs, Vector{ParameterRef}) && error("Constraints cannot contain " *
+                                              "only parameters.")
     for vref in vrefs
-        JuMP.owner_model(vref) != model && error("Variable $vref does not belong to model.")
+        JuMP.owner_model(vref) != model && error("Variable $vref does not " *
+                                                 "belong to model.")
     end
     if isa(c, BoundedScalarConstraint)
         _check_bounds(model, c.bounds)
@@ -183,14 +247,32 @@ function JuMP.constraint_object(cref::GeneralConstraintRef)
 end
 
 """
-    JuMP.name(cref::GeneralConstraintRef)
-Extend the `JuMP.name` function to accomodate our new constraint types.
+    JuMP.name(cref::GeneralConstraintRef)::String
+
+Extend [`JuMP.name`](@ref) to return the name of an `InfiniteOpt` constraint.
+
+**Example**
+```julia
+julia> name(cref)
+constr_name
+```
 """
-JuMP.name(cref::GeneralConstraintRef) = JuMP.owner_model(cref).constr_to_name[JuMP.index(cref)]
+function JuMP.name(cref::GeneralConstraintRef)::String
+    return JuMP.owner_model(cref).constr_to_name[JuMP.index(cref)]
+end
 
 """
     JuMP.set_name(cref::GeneralConstraintRef, name::String)
-Extend the `JuMP.set_name` function to accomodate our new constraint types.
+
+Extend [`JuMP.set_name`](@ref) to specify the name of a constraint `cref`.
+
+**Example**
+```julia
+julia> set_name(cref, "new_name")
+
+julia> name(cref)
+new_name
+```
 """
 function JuMP.set_name(cref::GeneralConstraintRef, name::String)
     JuMP.owner_model(cref).constr_to_name[JuMP.index(cref)] = name
@@ -199,19 +281,33 @@ function JuMP.set_name(cref::GeneralConstraintRef, name::String)
 end
 
 # Return the appropriate constraint reference given the index and model
-function _make_constraint_ref(model::InfiniteModel, index::Int)
+function _make_constraint_ref(model::InfiniteModel,
+                              index::Int)::GeneralConstraintRef
     if model.constrs[index].func isa InfiniteExpr
-        return InfiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
+        return InfiniteConstraintRef(model, index,
+                                     JuMP.shape(model.constrs[index]))
     elseif model.constrs[index].func isa MeasureExpr
-        return MeasureConstraintRef(model, index, JuMP.shape(model.constrs[index]))
+        return MeasureConstraintRef(model, index,
+                                    JuMP.shape(model.constrs[index]))
     else
-        return FiniteConstraintRef(model, index, JuMP.shape(model.constrs[index]))
+        return FiniteConstraintRef(model, index,
+                                   JuMP.shape(model.constrs[index]))
     end
 end
 
 """
-    JuMP.constraint_by_name(model::InfiniteModel, name::String)
-Extend the `JuMP.constraint_by_name` function to accomodate our new constraint types.
+    JuMP.constraint_by_name(model::InfiniteModel,
+                            name::String)::Union{GeneralConstraintRef, Nothing}
+
+Extend [`JuMP.constraint_by_name`](@ref) to return the constraint reference
+associated with `name` if one exists or returns nothing. Errors if more than
+one constraint uses the same name.
+
+**Example**
+```julia
+julia> constraint_by_name(model, "constr_name")
+constr_name : x + pt == 3.0
+```
 """
 function JuMP.constraint_by_name(model::InfiniteModel, name::String)
     if model.name_to_constr === nothing

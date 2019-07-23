@@ -36,11 +36,11 @@ println("")
 println("")
 @time @testset "Measure Methods" begin include("measures.jl") end
 println("")
-# @time @testset "Objective Methods" begin include("objective.jl") end
-# println("")
-# @time @testset "Constraint Methods" begin include("constraints.jl") end
-# println("")
-# @time @testset "Deletion Methods" begin include("delete.jl") end
+@time @testset "Objective Methods" begin include("objective.jl") end
 println("")
+@time @testset "Constraint Methods" begin include("constraints.jl") end
+println("")
+# @time @testset "Deletion Methods" begin include("delete.jl") end
+# println("")
 @time @testset "Expansion Methods" begin include("measure_expansions.jl") end
 println("")

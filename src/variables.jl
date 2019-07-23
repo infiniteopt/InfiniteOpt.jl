@@ -626,6 +626,7 @@ function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
                 delete!(model.param_to_vars, JuMP.index(pref))
             end
         end
+        # TODO delete reduced variables if there are any
     end
     delete!(model.vars, JuMP.index(vref))
     delete!(model.var_to_name, JuMP.index(vref))
@@ -784,13 +785,6 @@ julia> parameter_refs(vref)
 """
 function parameter_refs(vref::InfiniteVariableRef)
     return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_refs
-end
-
-# Return the parameter references pertaining to a reduced infinite variable
-function parameter_refs(vref::_ReducedInfiniteRef)
-    orig_prefs = parameter_refs(vref.original)
-    prefs = Tuple(orig_prefs[i] for i = 1:length(orig_prefs) if !haskey(vref.supports, i))
-    return prefs
 end
 
 # Internal function used to change the parameter reference tuple of an infinite

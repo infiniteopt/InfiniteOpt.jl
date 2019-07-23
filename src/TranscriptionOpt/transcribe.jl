@@ -175,8 +175,8 @@ function _map_to_variable(ivref::InfiniteOpt.InfiniteVariableRef, support::Tuple
     error("Couldn't find JuMP variable corresponding to $ivref.")
 end
 
-# _ReducedInfiniteRef
-function _map_to_variable(rvref::InfiniteOpt._ReducedInfiniteRef, support::Tuple,
+# ReducedInfiniteVariableRef
+function _map_to_variable(rvref::InfiniteOpt.ReducedInfiniteVariableRef, support::Tuple,
                           prefs::Tuple, trans_model::JuMP.Model)
     # parse the reduced parameters and modify the support to include them
     ivref = rvref.original

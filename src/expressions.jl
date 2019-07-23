@@ -50,7 +50,7 @@ end
 # var1 and var2 are numbers
 function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr, new_coef::Number,
                                  new_var1::Number, new_var2::Number
-                                 )
+                                 )::JuMP.GenericQuadExpr
     JuMP.add_to_expression!(quad.aff, new_coef * new_var2 * new_var1)
     return quad
 end
@@ -100,6 +100,12 @@ function _all_function_variables(f::JuMP.GenericQuadExpr)::Vector{<:GeneralVaria
     return unique([aff_vrefs; a_vrefs; b_vrefs])
 end
 
+# Fallback
+function _all_function_variables(f)
+    error("Can only use InfiniteOpt variables and expressions.")
+    return
+end
+
 ## Return a tuple of the parameter references in an expr
 # FiniteVariableRef
 _all_parameter_refs(expr::FiniteVariableRef) = ()
@@ -110,8 +116,8 @@ _all_parameter_refs(expr::InfiniteVariableRef) = parameter_refs(expr)
 # ParameterRef
 _all_parameter_refs(expr::ParameterRef) = (expr, )
 
-# _ReducedInfiniteRef
-_all_parameter_refs(expr::_ReducedInfiniteRef) = parameter_refs(expr)
+# ReducedInfiniteVariableRef
+_all_parameter_refs(expr::ReducedInfiniteVariableRef) = parameter_refs(expr)
 
 # GenericAffExpr
 function _all_parameter_refs(expr::JuMP.GenericAffExpr{C,

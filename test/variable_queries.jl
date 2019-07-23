@@ -148,15 +148,6 @@ end
     @testset "parameter_values" begin
         @test parameter_values(pvref) == (0.5, )
     end
-    # parameter_refs (reduced infinite variable)
-    @testset "parameter_refs (reduced infinite)" begin
-        # prepare test references
-        rvref1 = InfiniteOpt._ReducedInfiniteRef(m, 42, ivref, Dict(1 => 0.5))
-        rvref2 = InfiniteOpt._ReducedInfiniteRef(m, 42, ivref, Dict{Int, Int}())
-        # test the references
-        @test parameter_refs(rvref1) == ()
-        @test parameter_refs(rvref2) == (pref, )
-    end
     # _update_variable_param_refs
     @testset "_update_variable_param_refs" begin
         @test isa(InfiniteOpt._update_variable_param_refs(ivref, (pref2, )),

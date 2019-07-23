@@ -62,8 +62,8 @@ end
     @test InfiniteVariableRef(m, 1).index == 1
     ivref = InfiniteVariableRef(m, 1)
     # Reduced infinite variable refs
-    @test InfiniteOpt._ReducedInfiniteRef <: GeneralVariableRef
-    @test InfiniteOpt._ReducedInfiniteRef(m, 1, ivref,
+    @test ReducedInfiniteVariableRef <: GeneralVariableRef
+    @test ReducedInfiniteVariableRef(m, 1, ivref,
                                           Dict(2 => 3)).original == ivref
     # Parameter refs
     @test ParameterRef <: GeneralVariableRef

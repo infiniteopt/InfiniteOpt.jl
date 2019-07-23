@@ -64,7 +64,7 @@ FiniteConstraintRef, BoundedScalarConstraint
 
 # Export measure datatypes
 export AbstractMeasureData, DiscreteMeasureData, MultiDiscreteMeasureData,
-Measure, MeasureRef
+Measure, MeasureRef, ReducedInfiniteVariableRef
 
 # Export measure methods
 export add_measure, measure, measure_function, measure_data, expand,

@@ -173,7 +173,7 @@ end
     JuMP.has_upper_bound(vref::InfOptVariableRef)::Bool
 
 Extend [`JuMP.has_upper_bound`](@ref) to return a `Bool` whether an `InfiniteOpt`
-variable has an uper bound.
+variable has an upper bound.
 
 **Example**
 ```julia
@@ -321,7 +321,7 @@ julia> is_fixed(vref)
 true
 ```
 """
-JuMP.is_fixed(vref::InfOptVariableRef) = _variable_info(vref).has_fix
+JuMP.is_fixed(vref::InfOptVariableRef)::Bool = _variable_info(vref).has_fix
 
 """
     JuMP.fix_value(vref::InfOptVariableRef)::Float64
@@ -471,7 +471,7 @@ end
     JuMP.start_value(vref::InfOptVariableRef)::Union{Nothing, Float64}
 
 Extend [`JuMP.start_value`](@ref) to return starting value of `InfiniteOpt`
-variable if it ihas one. Returns `nothing` otherwise.
+variable if it has one. Returns `nothing` otherwise.
 
 **Example**
 ```julia
