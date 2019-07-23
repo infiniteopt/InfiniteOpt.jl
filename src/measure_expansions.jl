@@ -1,3 +1,8 @@
+# Helper function to get reduced variable info
+function _reduced_info(vref::ReducedInfiniteVariableRef)::ReducedInfiniteInfo
+    return JuMP.owner_model(vref).reduced_info[JuMP.index(vref)]
+end
+
 """
     infinite_variable_ref(vref::ReducedInfiniteVariableRef)::InfiniteVariableRef
 
@@ -11,7 +16,24 @@ g(t, x)
 ```
 """
 function infinite_variable_ref(vref::ReducedInfiniteVariableRef)::InfiniteVariableRef
-    return vref.original
+    return _reduced_info(vref).infinite_variable_ref
+end
+
+"""
+    eval_supports(vref::ReducedInfiniteVariableRef)::Dict
+
+Return the evaluation supports associated with the reduced infinite variable
+`vref`.
+
+**Example**
+```julia
+julia> eval_supports(vref)
+Dict{Int64,Float64} with 1 entry:
+  1 => 0.5
+```
+"""
+function eval_supports(vref::ReducedInfiniteVariableRef)::Dict
+    return _reduced_info(vref).eval_supports
 end
 
 """
@@ -31,7 +53,7 @@ julia> parameter_refs(vref)
 """
 function parameter_refs(vref::ReducedInfiniteVariableRef)
     orig_prefs = parameter_refs(infinite_variable_ref(vref))
-    prefs = Tuple(orig_prefs[i] for i = 1:length(orig_prefs) if !haskey(vref.supports, i))
+    prefs = Tuple(orig_prefs[i] for i = 1:length(orig_prefs) if !haskey(eval_supports(vref), i))
     return prefs
 end
 
@@ -51,7 +73,7 @@ function JuMP.name(vref::ReducedInfiniteVariableRef)::String
     root_name = _root_name(infinite_variable_ref(vref))
     prefs = parameter_refs(infinite_variable_ref(vref))
     param_names = _root_names(prefs)
-    for (k, v) in vref.supports
+    for (k, v) in eval_supports(vref)
         param_names[k] = string(v)
     end
     param_name_tuple = "("
@@ -402,6 +424,91 @@ function JuMP.IntegerRef(vref::ReducedInfiniteVariableRef)::GeneralConstraintRef
     return JuMP.IntegerRef(infinite_variable_ref(vref))
 end
 
+"""
+    used_by_constraint(vref::ReducedInfiniteVariableRef)::Bool
+
+Return a `Bool` indicating if `vref` is used by a constraint.
+
+**Example**
+```julia
+julia> used_by_constraint(vref)
+false
+```
+"""
+function used_by_constraint(vref::ReducedInfiniteVariableRef)::Bool
+    return haskey(JuMP.owner_model(vref).reduced_to_constrs, JuMP.index(vref))
+end
+
+"""
+    used_by_measure(vref::ReducedInfiniteVariableRef)::Bool
+
+Return a `Bool` indicating if `vref` is used by a measure.
+
+**Example**
+```julia
+julia> used_by_measure(vref)
+true
+```
+"""
+function used_by_measure(vref::ReducedInfiniteVariableRef)::Bool
+    return haskey(JuMP.owner_model(vref).reduced_to_meas, JuMP.index(vref))
+end
+
+"""
+    JuMP.is_valid(model::InfiniteModel, vref::ReducedInfiniteVariableRef)::Bool
+
+Extend [`JuMP.is_valid`](@ref) to accomodate reduced infinite variables.
+
+**Example**
+```julia
+julia> is_valid(model, vref)
+true
+```
+"""
+function JuMP.is_valid(model::InfiniteModel,
+                       vref::ReducedInfiniteVariableRef)::Bool
+    return (model === JuMP.owner_model(vref) && JuMP.index(vref) in keys(model.reduced_info))
+end
+
+"""
+    JuMP.delete(model::InfiniteModel, vref::ReducedInfiniteVariableRef)
+Extend the `JuMP.delete` function to accomodate our new variable types.
+"""
+function JuMP.delete(model::InfiniteModel, vref::ReducedInfiniteVariableRef)
+    # check valid reference
+    @assert JuMP.is_valid(model, vref) "Invalid variable reference."
+    # remove from measures if used
+    if used_by_measure(vref)
+        for mindex in model.reduced_to_meas[JuMP.index(vref)]
+            if isa(model.measures[mindex].func, ReducedInfiniteVariableRef)
+                data = model.measures[mindex].data
+                model.measures[mindex] = Measure(zero(JuMP.AffExpr), data)
+            else
+                _remove_variable(model.measures[mindex].func, vref)
+            end
+            mref = MeasureRef(model, mindex)
+            JuMP.set_name(mref, _make_meas_name(model.measures[mindex]))
+        end
+        delete!(model.reduced_to_meas, JuMP.index(vref))
+    end
+    # remove from constraints if used
+    if used_by_constraint(vref)
+        for cindex in model.reduced_to_constrs[JuMP.index(vref)]
+            if isa(model.constrs[cindex].func, ReducedInfiniteVariableRef)
+                set = model.constrs[cindex].set
+                model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr),
+                                                                   set)
+            else
+                _remove_variable(model.constrs[cindex].func, vref)
+            end
+        end
+        delete!(model.reduced_to_constrs, JuMP.index(vref))
+    end
+    # delete the info
+    delete!(model.reduced_info, JuMP.index(vref))
+    return
+end
+
 # Helper function for making place holder point variables
 function _make_point_variable(ivref::InfiniteVariableRef)::PointVariableRef
     inf_model = JuMP.owner_model(ivref)
@@ -417,8 +524,9 @@ function _make_reduced_variable(ivref::InfiniteVariableRef, removed_index::Int,
                                 )::ReducedInfiniteVariableRef
     inf_model = JuMP.owner_model(ivref)
     index = inf_model.next_var_index += 1
-    return ReducedInfiniteVariableRef(inf_model, index, ivref,
-                               Dict(removed_index => support))
+    inf_model.reduced_info[index] = ReducedInfiniteInfo(ivref,
+                                                 Dict(removed_index => support))
+    return ReducedInfiniteVariableRef(inf_model, index)
 end
 
 # further reduce
@@ -426,7 +534,8 @@ function _make_reduced_variable(ivref::InfiniteVariableRef,
                                 supports::Dict)::ReducedInfiniteVariableRef
     inf_model = JuMP.owner_model(ivref)
     index = inf_model.next_var_index += 1
-    return ReducedInfiniteVariableRef(inf_model, index, ivref, copy(supports))
+    inf_model.reduced_info[index] = ReducedInfiniteInfo(ivref, copy(supports))
+    return ReducedInfiniteVariableRef(inf_model, index)
 end
 
 ## Make helper functions for extracting evaluated parameter values
@@ -510,8 +619,8 @@ function _expand_measure(rvref::ReducedInfiniteVariableRef,
         tuple_loc = findfirst(isequal(group), _groups(orig_prefs))
         for i = 1:length(data.supports)
             pvref = _make_point_variable(infinite_variable_ref(rvref))
-            rvref.supports[tuple_loc] = data.supports[i]
-            support = Tuple(rvref.supports[j] for j = 1:length(rvref.supports))
+            _reduced_info(rvref).eval_supports[tuple_loc] = data.supports[i]
+            support = Tuple(eval_supports(rvref)[j] for j = 1:length(eval_supports(rvref)))
             point_mapper(trans_model, pvref, infinite_variable_ref(rvref), support)
             JuMP.add_to_expression!(aff, data.coefficients[i] *
                                     data.weight_function(data.supports[i]),
@@ -522,8 +631,8 @@ function _expand_measure(rvref::ReducedInfiniteVariableRef,
         tuple_loc = findfirst(isequal(group), _groups(orig_prefs))
         for i = 1:length(data.supports)
             new_rvref = _make_reduced_variable(infinite_variable_ref(rvref),
-                                               rvref.supports)
-            new_rvref.supports[tuple_loc] = data.supports[i]
+                                               eval_supports(rvref))
+            _reduced_info(new_rvref).eval_supports[tuple_loc] = data.supports[i]
             JuMP.add_to_expression!(aff, data.coefficients[i] *
                                     data.weight_function(data.supports[i]),
                                     new_rvref)

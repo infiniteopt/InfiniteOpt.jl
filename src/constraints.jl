@@ -61,7 +61,7 @@ end
 """
     JuMP.build_constraint(_error::Function, expr::InfiniteExpr,
                           set::MOI.AbstractScalarSet;
-                          parameter_bounds::Dict{ParameterRef, IntervalSet} = Dict())
+                          [parameter_bounds::Dict{ParameterRef, IntervalSet} = Dict()])
 
 Extend [`JuMP.build_constraint`](@ref) to accept the parameter_bounds argument
 and return a [`BoundedScalarConstraint`](@ref) if the `parameter_bounds` keyword
@@ -115,6 +115,12 @@ function _update_var_constr_mapping(vrefs::Vector{<:GeneralVariableRef},
             else
                 model.meas_to_constrs[JuMP.index(vref)] = [cindex]
             end
+        elseif isa(vref, ReducedInfiniteVariableRef)
+            if haskey(model.reduced_to_constrs, JuMP.index(vref))
+                push!(model.reduced_to_constrs[JuMP.index(vref)], cindex)
+            else
+                model.reduced_to_constrs[JuMP.index(vref)] = [cindex]
+            end
         end
     end
     return
@@ -149,7 +155,7 @@ JuMP.moi_set(c::BoundedScalarConstraint) = c.set
 
 """
     JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint,
-                        name::String = "")
+                        [name::String = ""])
 
 Extend [`JuMP.add_constraint`](@ref) to add a constraint `c` to an infinite model
 `model` with name `name`. Returns an appropriate constraint reference whose type
@@ -200,49 +206,99 @@ end
 
 """
     JuMP.delete(model::InfiniteModel, cref::GeneralConstraintRef)
-Extend the `JuMP.delete` function to accomodate our new constraint types.
+
+Extend [`JuMP.delete`](@ref) to delete an `InfiniteOpt` constraint and all
+associated information. Errors if `cref` is invalid.
+
+**Example**
+```julia
+julia> print(model)
+Min measure(g(t)*t) + z
+Subject to
+ z >= 0.0
+ g(t) + z >= 42.0
+ t in [0, 6]
+
+julia> delete(model, cref)
+
+julia> print(model)
+Min measure(g(t)*t) + z
+Subject to
+ z >= 0.0
+ t in [0, 6]
+```
 """
 function JuMP.delete(model::InfiniteModel, cref::GeneralConstraintRef)
-    @assert JuMP.is_valid(model, cref)
+    # check valid reference
+    @assert JuMP.is_valid(model, cref) "Invalid constraint reference."
+    # update variable dependencies
     all_vrefs = _all_function_variables(model.constrs[JuMP.index(cref)].func)
     for vref in all_vrefs
         if isa(vref, InfOptVariableRef)
-            filter!(e -> e != JuMP.index(cref), model.var_to_constrs[JuMP.index(vref)])
+            filter!(e -> e != JuMP.index(cref),
+                    model.var_to_constrs[JuMP.index(vref)])
             if length(model.var_to_constrs[JuMP.index(vref)]) == 0
                 delete!(model.var_to_constrs, JuMP.index(vref))
             end
         elseif isa(vref, ParameterRef)
-            filter!(e -> e != JuMP.index(cref), model.param_to_constrs[JuMP.index(vref)])
+            filter!(e -> e != JuMP.index(cref),
+                    model.param_to_constrs[JuMP.index(vref)])
             if length(model.param_to_constrs[JuMP.index(vref)]) == 0
                 delete!(model.param_to_constrs, JuMP.index(vref))
             end
         elseif isa(vref, MeasureRef)
-            filter!(e -> e != JuMP.index(cref), model.meas_to_constrs[JuMP.index(vref)])
+            filter!(e -> e != JuMP.index(cref),
+                    model.meas_to_constrs[JuMP.index(vref)])
             if length(model.meas_to_constrs[JuMP.index(vref)]) == 0
                 delete!(model.meas_to_constrs, JuMP.index(vref))
             end
+        elseif isa(vref, ReducedInfiniteVariableRef)
+            filter!(e -> e != JuMP.index(cref),
+                    model.reduced_to_constrs[JuMP.index(vref)])
+            if length(model.reduced_to_constrs[JuMP.index(vref)]) == 0
+                delete!(model.reduced_to_constrs, JuMP.index(vref))
+            end
         end
     end
+    # delete constraint information
     delete!(model.constrs, JuMP.index(cref))
     delete!(model.constr_to_name, JuMP.index(cref))
     delete!(model.constr_in_var_info, JuMP.index(cref))
+    # reset optimizer model status
     set_optimizer_model_ready(model, false)
     return
 end
 
 """
-    JuMP.is_valid(model::InfiniteModel, cref::GeneralConstraintRef)
-Extend the `JuMP.is_valid` function to accomodate our new constraint types.
+    JuMP.is_valid(model::InfiniteModel, cref::GeneralConstraintRef)::Bool
+
+Extend [`JuMP.is_valid`](@ref) to return `Bool` whether an `InfiniteOpt`
+constraint reference is valid.
+
+**Example**
+```julia
+julia> is_valid(model, cref)
+true
+```
 """
-function JuMP.is_valid(model::InfiniteModel, cref::GeneralConstraintRef)
+function JuMP.is_valid(model::InfiniteModel, cref::GeneralConstraintRef)::Bool
     return (model === JuMP.owner_model(cref) && JuMP.index(cref) in keys(model.constrs))
 end
 
 """
-    JuMP.constraint_object(model::InfiniteModel, cref::GeneralConstraintRef)
-Extend the `JuMP.constraint_object` function to accomodate our new constraint types.
+    JuMP.constraint_object(cref::GeneralConstraintRef)::JuMP.AbstractConstraint
+
+Extend [`JuMP.constraint_object`](@ref) to return the constraint object
+associated with `cref`.
+
+**Example**
+```julia
+julia> obj = constraint_object(cref)
+ScalarConstraint{GlobalVariableRef,MathOptInterface.LessThan{Float64}}(x,
+MathOptInterface.LessThan{Float64}(1.0))
+```
 """
-function JuMP.constraint_object(cref::GeneralConstraintRef)
+function JuMP.constraint_object(cref::GeneralConstraintRef)::JuMP.AbstractConstraint
     return JuMP.owner_model(cref).constrs[JuMP.index(cref)]
 end
 
@@ -334,14 +390,25 @@ function JuMP.constraint_by_name(model::InfiniteModel, name::String)
 end
 
 """
-    JuMP.num_constraints(model::InfiniteModel, function_type, set_type)::Int64
-Extend the `JuMP.num_constraints` function to accomodate our new constraint types.
+    JuMP.num_constraints(model::InfiniteModel,
+                         function_type::Type{<:JuMP.AbstractJuMPScalar},
+                         set_type::Type{<:MOI.AbstractSet})::Int
+
+Extend [`JuMP.num_constraints`](@ref) to return the number of constraints
+with a partiuclar function type and set type.
+
+**Example**
+```julia
+julia> num_constraints(model, GlobalVariableRef, MOI.LessThan)
+1
+```
 """
-function JuMP.num_constraints(model::InfiniteModel, function_type::Type{<:JuMP.AbstractJuMPScalar},
-                              set_type::Type{<:MOI.AbstractSet})::Int64
+function JuMP.num_constraints(model::InfiniteModel,
+                              function_type::Type{<:JuMP.AbstractJuMPScalar},
+                              set_type::Type{<:MOI.AbstractSet})::Int
     counter = 0
-    for k in keys(model.constrs)
-        if typeof(model.constrs[k].func) <: function_type && typeof(model.constrs[k].set) <: set_type
+    for (index, constr) in model.constrs
+        if isa(constr.func, function_type) && isa(constr.set, set_type)
             counter += 1
         end
     end
@@ -349,40 +416,80 @@ function JuMP.num_constraints(model::InfiniteModel, function_type::Type{<:JuMP.A
 end
 
 """
-    JuMP.num_constraints(model::InfiniteModel, function_type)::Int64
-Extend the `JuMP.num_constraints` function to search by function types for all MOI sets.
+    JuMP.num_constraints(model::InfiniteModel,
+                         function_type::Type{<:JuMP.AbstractJuMPScalar})::Int
+
+Extend [`JuMP.num_constraints`](@ref) to search by function types for all MOI
+sets and return the total number of constraints with a particular function type.
+
+```julia
+julia> num_constraints(model, GlobalVariableRef)
+3
+```
 """
-function JuMP.num_constraints(model::InfiniteModel, function_type::Type{<:JuMP.AbstractJuMPScalar})
+function JuMP.num_constraints(model::InfiniteModel,
+                            function_type::Type{<:JuMP.AbstractJuMPScalar})::Int
     return JuMP.num_constraints(model, function_type, MOI.AbstractSet)
 end
 
 """
-    JuMP.num_constraints(model::InfiniteModel, function_type)::Int64
-Extend the `JuMP.num_constraints` function to search by MOI set type for all function types.
+    JuMP.num_constraints(model::InfiniteModel,
+                         function_type::Type{<:MOI.AbstractSet})::Int
+
+Extend [`JuMP.num_constraints`](@ref) to search by MOI set type for all function
+types and return the total number of constraints that use a particular MOI set
+type.
+
+```julia
+julia> num_constraints(model, MOI.LessThan)
+2
+```
 """
-function JuMP.num_constraints(model::InfiniteModel, set_type::Type{<:MOI.AbstractSet})
+function JuMP.num_constraints(model::InfiniteModel,
+                              set_type::Type{<:MOI.AbstractSet})::Int
     return JuMP.num_constraints(model, JuMP.AbstractJuMPScalar, set_type)
 end
 
 """
-    JuMP.num_constraints(model::InfiniteModel)::Int64
-Extend the `JuMP.num_constraints` function to return the total number of constraints.
+    JuMP.num_constraints(model::InfiniteModel)::Int
+
+Extend [`JuMP.num_constraints`](@ref) to return the total number of constraints
+in an infinite model `model`.
+
+```julia
+julia> num_constraints(model)
+4
+```
 """
-function JuMP.num_constraints(model::InfiniteModel)
-    return length(keys(model.constrs))
+function JuMP.num_constraints(model::InfiniteModel)::Int
+    return length(model.constrs)
 end
 
 """
-    JuMP.all_constraints(model::InfiniteModel, function_type, set_type)::Vector{<:GeneralConstraintRef}
-Extend the `JuMP.all_constraints` function to accomodate our new constraint types.
+    JuMP.all_constraints(model::InfiniteModel,
+                         function_type::Type{<:JuMP.AbstractJuMPScalar},
+                         set_type::Type{<:MOI.AbstractSet}
+                         )::Vector{<:GeneralConstraintRef}
+
+Extend [`JuMP.all_constraints`](@ref) to return a list of all the constraints
+with a particular function type and set type.
+
+```julia
+julia> all_constraints(model, GlobalVariableRef, MOI.LessThan)
+1-element Array{GeneralConstraintRef,1}:
+ x <= 1.0
+```
 """
-function JuMP.all_constraints(model::InfiniteModel, function_type::Type{<:JuMP.AbstractJuMPScalar},
-                              set_type::Type{<:MOI.AbstractSet})::Vector{<:GeneralConstraintRef}
-    constr_list = Vector{GeneralConstraintRef}(undef, JuMP.num_constraints(model, function_type, set_type))
-    indexes = sort([index for index in keys(model.constrs)])
+function JuMP.all_constraints(model::InfiniteModel,
+                              function_type::Type{<:JuMP.AbstractJuMPScalar},
+                              set_type::Type{<:MOI.AbstractSet}
+                              )::Vector{<:GeneralConstraintRef}
+    constr_list = Vector{GeneralConstraintRef}(undef,
+                           JuMP.num_constraints(model, function_type, set_type))
+    indexes = sort(collect(keys(model.constrs)))
     counter = 1
     for index in indexes
-        if typeof(model.constrs[index].func) <: function_type && typeof(model.constrs[index].set) <: set_type
+        if isa(model.constrs[index].func, function_type) && isa(model.constrs[index].set, set_type)
             constr_list[counter] = _make_constraint_ref(model, index)
             counter += 1
         end
@@ -391,38 +498,91 @@ function JuMP.all_constraints(model::InfiniteModel, function_type::Type{<:JuMP.A
 end
 
 """
-    JuMP.all_constraints(model::InfiniteModel, function_type)::Vector{<:GeneralConstraintRef}
-Extend the `JuMP.all_constraints` function to search by function types for all MOI sets.
+    JuMP.all_constraints(model::InfiniteModel,
+                         function_type::Type{<:JuMP.AbstractJuMPScalar}
+                         )::Vector{<:GeneralConstraintRef}
+
+Extend [`JuMP.all_constraints`](@ref) to search by function types for all MOI
+sets and return a list of all constraints use a particular function type.
+
+```julia
+julia> all_constraints(model, GlobalVariableRef)
+3-element Array{GeneralConstraintRef,1}:
+ x >= 0.0
+ x <= 3.0
+ x integer
+```
 """
-function JuMP.all_constraints(model::InfiniteModel, function_type::Type{<:JuMP.AbstractJuMPScalar})
+function JuMP.all_constraints(model::InfiniteModel,
+                              function_type::Type{<:JuMP.AbstractJuMPScalar}
+                              )::Vector{<:GeneralConstraintRef}
     return JuMP.all_constraints(model, function_type, MOI.AbstractSet)
 end
 
 """
-    JuMP.all_constraints(model::InfiniteModel, function_type)::Vector{<:GeneralConstraintRef}
-Extend the `JuMP.all_constraints` function to search by MOI set type for all function types.
+    JuMP.all_constraints(model::InfiniteModel,
+                         set_type::Type{<:MOI.AbstractSet}
+                         )::Vector{<:GeneralConstraintRef}
+
+Extend [`JuMP.all_constraints`](@ref) to search by MOI set type for all function
+types and return a list of all constraints that use a particular set type.
+
+```julia
+julia> all_constraints(model, MOI.GreaterThan)
+3-element Array{GeneralConstraintRef,1}:
+ x >= 0.0
+ g(t) >= 0.0
+ g(0.5) >= 0.0
+```
 """
-function JuMP.all_constraints(model::InfiniteModel, set_type::Type{<:MOI.AbstractSet})
+function JuMP.all_constraints(model::InfiniteModel,
+                              set_type::Type{<:MOI.AbstractSet}
+                              )::Vector{<:GeneralConstraintRef}
     return JuMP.all_constraints(model, JuMP.AbstractJuMPScalar, set_type)
 end
 
 """
     JuMP.all_constraints(model::InfiniteModel)::Vector{<:GeneralConstraintRef}
-Extend the `JuMP.all_constraints` function to return the total number of constraints.
+
+Extend [`JuMP.all_constraints`](@ref) to return all a list of all the constraints
+in an infinite model `model`.
+
+```julia
+julia> all_constraints(model)
+5-element Array{GeneralConstraintRef,1}:
+ x >= 0.0
+ x <= 3.0
+ x integer
+ g(t) >= 0.0
+ g(0.5) >= 0.0
+```
 """
-function JuMP.all_constraints(model::InfiniteModel)
+function JuMP.all_constraints(model::InfiniteModel)::Vector{<:GeneralConstraintRef}
     return JuMP.all_constraints(model, JuMP.AbstractJuMPScalar, MOI.AbstractSet)
 end
 
 """
-    JuMP.list_of_constraint_types(model::InfiniteModel)
-Extend the `JuMP.list_of_constraint_types` function to accomodate our new constraint types.
+    JuMP.list_of_constraint_types(model::InfiniteModel)::Vector{Tuple)
+
+Extend [`JuMP.list_of_constraint_types`](@ref) to return a list of tuples that
+contain all the used combinations of function types and set types in the model.
+
+```julia
+julia> all_constraints(model)
+5-element Array{Tuple{DataType,DataType},1}:
+ (GlobalVariableRef, MathOptInterface.LessThan{Float64})
+ (PointVariableRef, MathOptInterface.GreaterThan{Float64})
+ (GlobalVariableRef, MathOptInterface.GreaterThan{Float64})
+ (GlobalVariableRef, MathOptInterface.Integer)
+ (InfiniteVariableRef, MathOptInterface.GreaterThan{Float64})
+```
 """
-function JuMP.list_of_constraint_types(model::InfiniteModel)
-    type_list = Vector{Tuple{DataType, DataType}}(undef, JuMP.num_constraints(model))
+function JuMP.list_of_constraint_types(model::InfiniteModel)::Vector{Tuple}
+    type_list = Vector{Tuple{DataType, DataType}}(undef,
+                                                  JuMP.num_constraints(model))
     counter = 1
-    for k in keys(model.constrs)
-        type_list[counter] = (typeof(model.constrs[k].func), typeof(model.constrs[k].set))
+    for (index, constr) in model.constrs
+        type_list[counter] = (typeof(constr.func), typeof(constr.set))
         counter += 1
     end
     return unique(type_list)

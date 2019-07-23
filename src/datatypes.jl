@@ -32,11 +32,18 @@ function Base.:(==)(p1::InfOptParameter, p2::InfOptParameter)
 end
 
 """
-    AbstractMeasureData
+    InfOptVariable <: JuMP.AbstractVariable
 
 An abstract type for infinite, point, and global variables.
 """
 abstract type InfOptVariable <: JuMP.AbstractVariable end
+
+"""
+    AbstractReducedInfo
+
+An abstract type reduced variable information.
+"""
+abstract type AbstractReducedInfo end
 
 """
     AbstractMeasureData
@@ -91,7 +98,8 @@ model an optmization problem with an infinite dimensional decision space.
 - `param_to_vars::Dict{Int, Vector{Int}}` Infinite parameter indices to list
                                           of dependent variable indices.
 - `next_var_index::Int` Index - 1 of next variable index.
-- `vars::Dict{Int, InfOptVariable}` Variable indices to variable datatype.
+- `vars::Dict{Int, Dict{Int, Union{InfOptVariable, ReducedVariable}}` Variable
+                                                  indices to variable datatype.
 - `var_to_name::Dict{Int, String}` Variable indices to names.
 - `name_to_var::Union{Dict{String, Int}, Nothing}` Variable names to indices.
 - `var_to_lower_bound::Dict{Int, Int}` Variable indices to lower bound index.
@@ -104,6 +112,12 @@ model an optmization problem with an infinite dimensional decision space.
 - `var_to_meas::Dict{Int, Vector{Int}}` Variable indices to dependent
                                         measure indices.
 - `var_in_objective::Dict{Int, Bool}` Variable indices to if used in objective.
+- `reduced_to_constrs::Dict{Int, Vector{Int}}` Reduced variable indices to dependent
+                                               constraint indices.
+- `reduced_to_meas::Dict{Int, Vector{Int}}` Reduced variable indices to dependent
+                                            measure indices.
+- `reduced_info::Dict{Int, AbstractReducedInfo}` Reduced variable indices to
+                                                 reduced variable information.
 - `next_constr_index::Int` Index - 1 of next constraint.
 - `constrs::Dict{Int, JuMP.AbstractConstraint}` Constraint indices to constraint
                                                 datatypes.
@@ -153,6 +167,11 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     var_to_constrs::Dict{Int, Vector{Int}}
     var_to_meas::Dict{Int, Vector{Int}}
     var_in_objective::Dict{Int, Bool}
+
+    # Placeholder
+    reduced_to_constrs::Dict{Int, Vector{Int}}
+    reduced_to_meas::Dict{Int, Vector{Int}}
+    reduced_info::Dict{Int, AbstractReducedInfo}
 
     # Constraint Data
     next_constr_index::Int
@@ -210,6 +229,9 @@ function InfiniteModel(; kwargs...)
                          Dict{Int, Int}(), Dict{Int, Int}(), Dict{Int, Int}(),
                          Dict{Int, Int}(), Dict{Int, Vector{Int}}(),
                          Dict{Int, Vector{Int}}(), Dict{Int, Bool}(),
+                         # Placeholder variables
+                         Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
+                         Dict{Int, Tuple}(),
                          # Constraints
                          0, Dict{Int, JuMP.AbstractConstraint}(),
                          Dict{Int, String}(), nothing, Dict{Int, Bool}(),
@@ -325,22 +347,15 @@ end
 
 A DataType for partially transcripted infinite dimensional variable references.
 This is used to expand measures that contain infinite variables that are not
-fully transcripted by the measure. This references corresponds to the infinite
-variable reference `original` evaluated with the parameter supports `supports`.
+fully transcripted by the measure.
 
 **Fields**
 - `model::InfiniteModel` Infinite model.
 - `index::Int` Index of variable in model.
-- `original::InfiniteVariableRef` Original untranscripted infinite variable
-                                  reference
-- `supports::Dict{Int, Union{Number, JuMP.Containers.SparseAxisArray{<:Number}}}`
-  Mapping of parameter reference tuple indices to supports.
 """
 struct ReducedInfiniteVariableRef <: GeneralVariableRef
     model::InfiniteModel
     index::Int
-    original::InfiniteVariableRef
-    supports::Dict{Int, Union{Number, JuMP.Containers.SparseAxisArray{<:Number}}}
 end
 
 """
@@ -402,6 +417,22 @@ A DataType for storing global variable information.
 """
 struct GlobalVariable{S, T, U, V} <: InfOptVariable
     info::JuMP.VariableInfo{S, T, U, V}
+end
+
+"""
+    ReducedInfiniteInfo <: AbstractReducedInfo
+
+A DataType for storing reduced infinite variable information.
+
+**Fields**
+- `infinite_variable_ref::InfiniteVariableRef` The original infinite variable.
+- `eval_supports::Dict{Int, Union{Number, JuMP.Containers.SparseAxisArray{<:Number}}}`
+  The original parameter tuple indices to the evaluation supports.
+"""
+struct ReducedInfiniteInfo <: AbstractReducedInfo
+    infinite_variable_ref::InfiniteVariableRef
+    eval_supports::Dict{Int, Union{Number,
+                                   JuMP.Containers.SparseAxisArray{<:Number}}}
 end
 
 # Define variable references without that aren't measures

@@ -10,56 +10,56 @@
         # test not used
         @test !used_by_constraint(vref)
         # prepare use case
-        m.var_to_constrs[index(vref)] = [1]
+        m.var_to_constrs[JuMP.index(vref)] = [1]
         # test used
         @test used_by_constraint(vref)
         # undo changes
-        delete!(m.var_to_constrs, index(vref))
+        delete!(m.var_to_constrs, JuMP.index(vref))
     end
     # used_by_measure
     @testset "used_by_measure" begin
         # test not used
         @test !used_by_measure(vref)
         # prepare use case
-        m.var_to_meas[index(vref)] = [1]
+        m.var_to_meas[JuMP.index(vref)] = [1]
         # test used
         @test used_by_measure(vref)
         # undo changes
-        delete!(m.var_to_meas, index(vref))
+        delete!(m.var_to_meas, JuMP.index(vref))
     end
     # used_by_objective
     @testset "used_by_objective" begin
         # test not used
         @test !used_by_objective(vref)
         # prepare use case
-        m.var_in_objective[index(vref)] = true
+        m.var_in_objective[JuMP.index(vref)] = true
         # test used
         @test used_by_objective(vref)
         # undo changes
-        m.var_in_objective[index(vref)] = false
+        m.var_in_objective[JuMP.index(vref)] = false
     end
     # is_used
     @testset "is_used" begin
         # test not used
         @test !is_used(vref)
         # prepare use case
-        m.var_to_constrs[index(vref)] = [1]
+        m.var_to_constrs[JuMP.index(vref)] = [1]
         # test used
         @test is_used(vref)
         # undo changes
-        delete!(m.var_to_constrs, index(vref))
+        delete!(m.var_to_constrs, JuMP.index(vref))
         # prepare use case
-        m.var_to_meas[index(vref)] = [1]
+        m.var_to_meas[JuMP.index(vref)] = [1]
         # test used
         @test is_used(vref)
         # undo changes
-        delete!(m.var_to_meas, index(vref))
+        delete!(m.var_to_meas, JuMP.index(vref))
         # prepare use case
-        m.var_in_objective[index(vref)] = true
+        m.var_in_objective[JuMP.index(vref)] = true
         # test used
         @test is_used(vref)
         # undo changes
-        m.var_in_objective[index(vref)] = false
+        m.var_in_objective[JuMP.index(vref)] = false
     end
     # initialize infinite variable to test infinite methods
     param = InfOptParameter(IntervalSet(0, 1), Number[], false)
@@ -74,34 +74,34 @@
         v = build_variable(error, info, Point, infinite_variable_ref = vref,
                            parameter_values = 0.5)
         pvref = add_variable(m, v, "name2")
-        m.var_in_objective[index(pvref)] = true
+        m.var_in_objective[JuMP.index(pvref)] = true
         # test used
         @test used_by_point_variable(vref)
         # undo changes
-        delete!(m.vars, index(pvref))
-        m.var_in_objective[index(pvref)] = false
+        delete!(m.vars, JuMP.index(pvref))
+        m.var_in_objective[JuMP.index(pvref)] = false
     end
     # is_used (infinite variable)
     @testset "is_used (infinite var)" begin
         # test not used
         @test !is_used(vref)
         # prepare use case
-        m.var_to_constrs[index(vref)] = [1]
+        m.var_to_constrs[JuMP.index(vref)] = [1]
         # test used
         @test is_used(vref)
         # undo changes
-        delete!(m.var_to_constrs, index(vref))
+        delete!(m.var_to_constrs, JuMP.index(vref))
         # prepare use case
-        m.var_to_meas[index(vref)] = [1]
+        m.var_to_meas[JuMP.index(vref)] = [1]
         # test used
         @test is_used(vref)
         # undo changes
-        delete!(m.var_to_meas, index(vref))
+        delete!(m.var_to_meas, JuMP.index(vref))
         # prepare use case
         v = build_variable(error, info, Point, infinite_variable_ref = vref,
                            parameter_values = 0.5)
         pvref = add_variable(m, v, "name2")
-        m.var_in_objective[index(pvref)] = true
+        m.var_in_objective[JuMP.index(pvref)] = true
         # test used
         @test is_used(vref)
     end
@@ -163,11 +163,11 @@ end
         # test double specify
         @test_throws ErrorException set_parameter_refs(ivref, (pref2, pref2))
         # test with used variable
-        m.var_to_meas[index(ivref)] = [1]
+        m.var_to_meas[JuMP.index(ivref)] = [1]
         @test isa(set_parameter_refs(ivref, (pref, )), Nothing)
         @test parameter_refs(ivref) == (pref, )
         @test name(ivref) == "name(test)"
-        delete!(m.var_to_meas, index(ivref))
+        delete!(m.var_to_meas, JuMP.index(ivref))
     end
     # add_parameter_ref
     @testset "add_parameter_ref" begin

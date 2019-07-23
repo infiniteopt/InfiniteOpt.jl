@@ -61,6 +61,12 @@ function _update_var_meas_mapping(vrefs::Vector{<:GeneralVariableRef},
             else
                 model.meas_to_meas[JuMP.index(vref)] = [mindex]
             end
+        elseif isa(vref, ReducedInfiniteVariableRef)
+            if haskey(model.reduced_to_meas, JuMP.index(vref))
+                push!(model.reduced_to_meas[JuMP.index(vref)], mindex)
+            else
+                model.reduced_to_meas[JuMP.index(vref)] = [mindex]
+            end
         end
     end
     return
@@ -415,6 +421,12 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
                     model.meas_to_meas[JuMP.index(vref)])
             if length(model.meas_to_meas[JuMP.index(vref)]) == 0
                 delete!(model.meas_to_meas, JuMP.index(vref))
+            end
+        elseif isa(vref, ReducedInfiniteVariableRef)
+            filter!(e -> e != JuMP.index(mref),
+                    model.reduced_to_meas[JuMP.index(vref)])
+            if length(model.reduced_to_meas[JuMP.index(vref)]) == 0
+                delete!(model.reduced_to_meas, JuMP.index(vref))
             end
         end
     end

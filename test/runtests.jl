@@ -40,7 +40,7 @@ println("")
 println("")
 @time @testset "Constraint Methods" begin include("constraints.jl") end
 println("")
-# @time @testset "Deletion Methods" begin include("delete.jl") end
-# println("")
+@time @testset "Deletion Methods" begin include("deletion.jl") end
+println("")
 @time @testset "Expansion Methods" begin include("measure_expansions.jl") end
 println("")

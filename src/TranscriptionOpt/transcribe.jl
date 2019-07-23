@@ -179,12 +179,12 @@ end
 function _map_to_variable(rvref::InfiniteOpt.ReducedInfiniteVariableRef, support::Tuple,
                           prefs::Tuple, trans_model::JuMP.Model)
     # parse the reduced parameters and modify the support to include them
-    ivref = rvref.original
+    ivref = InfiniteOpt.infinite_variable_ref(rvref)
     orig_groups = InfiniteOpt._groups(InfiniteOpt.parameter_refs(ivref))
     support_groups = InfiniteOpt._groups(prefs)
     support = [i for i in support]
     prefs = [pref for pref in prefs]
-    for (index, value) in rvref.supports
+    for (index, value) in InfiniteOpt.eval_supports(rvref)
         if orig_groups[index] in support_groups
             support[findfirst(isequal(orig_groups[index]), support_groups)] = value
         else

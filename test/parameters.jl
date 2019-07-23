@@ -165,7 +165,7 @@ end
     pref = ParameterRef(m, 1)
     # JuMP.index
     @testset "JuMP.index" begin
-        @test index(pref) == 1
+        @test JuMP.index(pref) == 1
     end
     # JuMP.owner_model
     @testset "JuMP.owner_model" begin
@@ -322,36 +322,36 @@ end
     # used_by_constraint
     @testset "used_by_constraint" begin
         @test !used_by_constraint(pref)
-        m.param_to_constrs[index(pref)] = [1]
+        m.param_to_constrs[JuMP.index(pref)] = [1]
         @test used_by_constraint(pref)
-        delete!(m.param_to_constrs, index(pref))
+        delete!(m.param_to_constrs, JuMP.index(pref))
     end
     # used_by_measure
     @testset "used_by_measure" begin
         @test !used_by_measure(pref)
-        m.param_to_meas[index(pref)] = [1]
+        m.param_to_meas[JuMP.index(pref)] = [1]
         @test used_by_measure(pref)
-        delete!(m.param_to_meas, index(pref))
+        delete!(m.param_to_meas, JuMP.index(pref))
     end
     # used_by_measure
     @testset "used_by_variable" begin
         @test !used_by_variable(pref)
-        m.param_to_vars[index(pref)] = [1]
+        m.param_to_vars[JuMP.index(pref)] = [1]
         @test used_by_variable(pref)
-        delete!(m.param_to_vars, index(pref))
+        delete!(m.param_to_vars, JuMP.index(pref))
     end
     # is_used
     @testset "is_used" begin
         @test !is_used(pref)
-        m.param_to_constrs[index(pref)] = [1]
+        m.param_to_constrs[JuMP.index(pref)] = [1]
         @test is_used(pref)
-        delete!(m.param_to_constrs, index(pref))
-        m.param_to_meas[index(pref)] = [1]
+        delete!(m.param_to_constrs, JuMP.index(pref))
+        m.param_to_meas[JuMP.index(pref)] = [1]
         @test is_used(pref)
-        delete!(m.param_to_meas, index(pref))
-        m.param_to_vars[index(pref)] = [1]
+        delete!(m.param_to_meas, JuMP.index(pref))
+        m.param_to_vars[JuMP.index(pref)] = [1]
         @test is_used(pref)
-        delete!(m.param_to_vars, index(pref))
+        delete!(m.param_to_vars, JuMP.index(pref))
     end
 end
 

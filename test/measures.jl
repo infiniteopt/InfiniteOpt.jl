@@ -148,6 +148,7 @@ end
     @global_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1], name = "test")
     meas = Measure(par + 2inf - x, data)
+    rv = ReducedInfiniteVariableRef(m, 42)
     # _make_meas_name
     @testset "_make_meas_name" begin
         @test InfiniteOpt._make_meas_name(meas) == "test(par + 2 inf(par) - x)"
@@ -156,34 +157,37 @@ end
     @testset "_update_var_meas_mapping" begin
         # retrieve variables and parameters
         mref = MeasureRef(m, 2)
-        vars = [par, inf, x, mref]
+        vars = [par, inf, x, mref, rv]
         # test initial reference
         @test isa(InfiniteOpt._update_var_meas_mapping(vars, 1), Nothing)
-        @test m.var_to_meas[index(inf)] == [1]
-        @test m.var_to_meas[index(x)] == [1]
-        @test m.param_to_meas[index(par)] == [1]
-        @test m.meas_to_meas[index(mref)] == [1]
+        @test m.var_to_meas[JuMP.index(inf)] == [1]
+        @test m.var_to_meas[JuMP.index(x)] == [1]
+        @test m.param_to_meas[JuMP.index(par)] == [1]
+        @test m.meas_to_meas[JuMP.index(mref)] == [1]
+        @test m.reduced_to_meas[JuMP.index(rv)] == [1]
         # test repeated reference
         @test isa(InfiniteOpt._update_var_meas_mapping(vars, 2), Nothing)
-        @test m.var_to_meas[index(inf)] == [1, 2]
-        @test m.var_to_meas[index(x)] == [1, 2]
-        @test m.param_to_meas[index(par)] == [1, 2]
-        @test m.meas_to_meas[index(mref)] == [1, 2]
+        @test m.var_to_meas[JuMP.index(inf)] == [1, 2]
+        @test m.var_to_meas[JuMP.index(x)] == [1, 2]
+        @test m.param_to_meas[JuMP.index(par)] == [1, 2]
+        @test m.meas_to_meas[JuMP.index(mref)] == [1, 2]
+        @test m.reduced_to_meas[JuMP.index(rv)] == [1, 2]
         # clear additions
-        delete!(m.var_to_meas, index(inf))
-        delete!(m.var_to_meas, index(x))
-        delete!(m.param_to_meas, index(par))
-        delete!(m.meas_to_meas, index(mref))
+        delete!(m.var_to_meas, JuMP.index(inf))
+        delete!(m.var_to_meas, JuMP.index(x))
+        delete!(m.param_to_meas, JuMP.index(par))
+        delete!(m.meas_to_meas, JuMP.index(mref))
+        delete!(m.reduced_to_meas, JuMP.index(rv))
     end
     # add_measure
     @testset "add_measure" begin
         mref = MeasureRef(m, 1)
         @test add_measure(m, meas) == mref
         @test name(mref) == "test(par + 2 inf(par) - x)"
-        @test m.var_to_meas[index(inf)] == [1]
-        @test m.var_to_meas[index(x)] == [1]
-        @test m.param_to_meas[index(par)] == [1]
-        @test !m.meas_in_objective[index(mref)]
+        @test m.var_to_meas[JuMP.index(inf)] == [1]
+        @test m.var_to_meas[JuMP.index(x)] == [1]
+        @test m.param_to_meas[JuMP.index(par)] == [1]
+        @test !m.meas_in_objective[JuMP.index(mref)]
     end
 end
 
@@ -392,61 +396,61 @@ end
     # initialize model and reference
     m = InfiniteModel()
     mref = MeasureRef(m, 1)
-    m.meas_in_objective[index(mref)] = false
+    m.meas_in_objective[JuMP.index(mref)] = false
     # used_by_constraint
     @testset "used_by_constraint" begin
         # test not used
         @test !used_by_constraint(mref)
         # prepare use case
-        m.meas_to_constrs[index(mref)] = [1]
+        m.meas_to_constrs[JuMP.index(mref)] = [1]
         # test used
         @test used_by_constraint(mref)
         # undo changes
-        delete!(m.meas_to_constrs, index(mref))
+        delete!(m.meas_to_constrs, JuMP.index(mref))
     end
     # used_by_measure
     @testset "used_by_measure" begin
         # test not used
         @test !used_by_measure(mref)
         # prepare use case
-        m.meas_to_meas[index(mref)] = [2]
+        m.meas_to_meas[JuMP.index(mref)] = [2]
         # test used
         @test used_by_measure(mref)
         # undo changes
-        delete!(m.meas_to_meas, index(mref))
+        delete!(m.meas_to_meas, JuMP.index(mref))
     end
     # used_by_objective
     @testset "used_by_objective" begin
         # test not used
         @test !used_by_objective(mref)
         # prepare use case
-        m.meas_in_objective[index(mref)] = true
+        m.meas_in_objective[JuMP.index(mref)] = true
         # test used
         @test used_by_objective(mref)
         # undo changes
-        m.meas_in_objective[index(mref)] = false
+        m.meas_in_objective[JuMP.index(mref)] = false
     end
     # is_used
     @testset "is_used" begin
         # test not used
         @test !is_used(mref)
         # prepare use case
-        m.meas_to_constrs[index(mref)] = [1]
+        m.meas_to_constrs[JuMP.index(mref)] = [1]
         # test used
         @test is_used(mref)
         # undo changes
-        delete!(m.meas_to_constrs, index(mref))
+        delete!(m.meas_to_constrs, JuMP.index(mref))
         # prepare use case
-        m.meas_to_meas[index(mref)] = [2]
+        m.meas_to_meas[JuMP.index(mref)] = [2]
         # test used
         @test is_used(mref)
         # undo changes
-        delete!(m.meas_to_meas, index(mref))
+        delete!(m.meas_to_meas, JuMP.index(mref))
         # prepare use case
-        m.meas_in_objective[index(mref)] = true
+        m.meas_in_objective[JuMP.index(mref)] = true
         # test used
         @test is_used(mref)
         # undo changes
-        m.meas_in_objective[index(mref)] = false
+        m.meas_in_objective[JuMP.index(mref)] = false
     end
 end

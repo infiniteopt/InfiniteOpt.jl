@@ -7,12 +7,26 @@
     @infinite_variable(m, 0 <= inf1(par1, par2) <= 1, Int)
     @infinite_variable(m, inf2(par1, par2) == 1, Bin, start = 0)
     index = m.next_var_index + 1
-    rvref1 = ReducedInfiniteVariableRef(m, index, inf1, Dict(1 => 1))
-    rvref2 = ReducedInfiniteVariableRef(m, index + 1, inf2, Dict(2 => 1))
+    rvref1 = ReducedInfiniteVariableRef(m, index)
+    m.reduced_info[index] = ReducedInfiniteInfo(inf1, Dict(1 => 1))
+    rvref2 = ReducedInfiniteVariableRef(m, index + 1)
+    m.reduced_info[index + 1] = ReducedInfiniteInfo(inf2, Dict(2 => 1))
+    # test _reduced_info
+    @testset "_reduced_info" begin
+        @test InfiniteOpt._reduced_info(rvref1).infinite_variable_ref == inf1
+        @test InfiniteOpt._reduced_info(rvref2).infinite_variable_ref == inf2
+        @test InfiniteOpt._reduced_info(rvref1).eval_supports == Dict(1 => 1)
+        @test InfiniteOpt._reduced_info(rvref2).eval_supports == Dict(2 => 1)
+    end
     # test infinite_variable_ref
     @testset "infinite_variable_ref" begin
         @test infinite_variable_ref(rvref1) == inf1
         @test infinite_variable_ref(rvref2) == inf2
+    end
+    # test eval_supports
+    @testset "eval_supports" begin
+        @test eval_supports(rvref1) == Dict(1 => 1)
+        @test eval_supports(rvref2) == Dict(2 => 1)
     end
     # test name
     @testset "JuMP.name" begin
@@ -119,6 +133,30 @@
         @test IntegerRef(rvref1) == IntegerRef(inf1)
         @test_throws ErrorException IntegerRef(rvref2)
     end
+    # used_by_constraint
+    @testset "used_by_constraint" begin
+        # test not used
+        @test !used_by_constraint(rvref1)
+        # prepare use case
+        m.reduced_to_constrs[JuMP.index(rvref1)] = [1]
+        # test used
+        @test used_by_constraint(rvref1)
+    end
+    # used_by_measure
+    @testset "used_by_measure" begin
+        # test not used
+        @test !used_by_measure(rvref1)
+        # prepare use case
+        m.reduced_to_meas[JuMP.index(rvref1)] = [1]
+        # test used
+        @test used_by_measure(rvref1)
+    end
+    # test is_valid
+    @testset "JuMP.is_valid" begin
+        @test is_valid(m, rvref1)
+        @test is_valid(m, rvref2)
+        @test !is_valid(m, ReducedInfiniteVariableRef(m, 100))
+    end
 end
 
 # Test variable reference makers
@@ -138,14 +176,18 @@ end
     # test _make_reduced_variable (from ivref)
     @testset "_make_reduced_variable (from ivref)" begin
         index = m.next_var_index + 1
-        rvref = ReducedInfiniteVariableRef(m, index, inf2, Dict(1 => 1))
+        rvref = ReducedInfiniteVariableRef(m, index)
         @test InfiniteOpt._make_reduced_variable(inf2, 1, 1) == rvref
+        @test m.reduced_info[index].infinite_variable_ref == inf2
+        @test m.reduced_info[index].eval_supports == Dict(1 => 1)
     end
     # test _make_reduced_variable (from rvref)
     @testset "_make_reduced_variable (from rvref)" begin
         index = m.next_var_index + 1
-        rvref = ReducedInfiniteVariableRef(m, index, inf2, Dict(1 => 1))
+        rvref = ReducedInfiniteVariableRef(m, index)
         @test InfiniteOpt._make_reduced_variable(inf2, Dict(1 => 1)) == rvref
+        @test m.reduced_info[index].infinite_variable_ref == inf2
+        @test m.reduced_info[index].eval_supports == Dict(1 => 1)
     end
 end
 
@@ -211,8 +253,10 @@ end
         @test InfiniteOpt._expand_measure(inf1, data2, map_args...) == expected
         # test single param infinite var with measure param and others
         index = m.next_var_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, index, inf2, Dict(1 => 1))
-        rv2 = ReducedInfiniteVariableRef(m, index + 1, inf2, Dict(1 => 2))
+        rv1 = ReducedInfiniteVariableRef(m, index)
+        m.reduced_info[index] = ReducedInfiniteInfo(inf2, Dict(1 => 1))
+        rv2 = ReducedInfiniteVariableRef(m, index + 1)
+        m.reduced_info[index + 1] = ReducedInfiniteInfo(inf2, Dict(1 => 2))
         expected = 0.5 * (rv1 + rv2)
         @test InfiniteOpt._expand_measure(inf2, data1, map_args...) == expected
         # test array param infinite var with measure param
@@ -227,16 +271,18 @@ end
         index = m.next_var_index + 1
         supp1 = convert(JuMP.Containers.SparseAxisArray, [1, 1])
         supp2 = convert(JuMP.Containers.SparseAxisArray, [2, 2])
-        rv1 = ReducedInfiniteVariableRef(m, index, inf5, Dict(1 => supp1))
-        rv2 = ReducedInfiniteVariableRef(m, index + 1, inf5,
-                                              Dict(1 => supp2))
+        rv1 = ReducedInfiniteVariableRef(m, index)
+        m.reduced_info[index] = ReducedInfiniteInfo(inf5, Dict(1 => supp1))
+        rv2 = ReducedInfiniteVariableRef(m, index + 1)
+        m.reduced_info[index + 1] = ReducedInfiniteInfo(inf5, Dict(1 => supp2))
         expected = rv1 + rv2
         @test InfiniteOpt._expand_measure(inf5, data3, map_args...) == expected
     end
     # test _expand_measure (reduced infinite variable)
     @testset "Reduced Variable" begin
         # test single param reduced var without measure param
-        rv = ReducedInfiniteVariableRef(m, -1, inf2, Dict(1 => 1))
+        rv = ReducedInfiniteVariableRef(m, -1)
+        m.reduced_info[-1] = ReducedInfiniteInfo(inf2, Dict(1 => 1))
         expected = 0.5 * (rv + rv)
         @test InfiniteOpt._expand_measure(rv, data1, map_args...) == expected
         # test single param reduced var with measure param
@@ -245,17 +291,20 @@ end
         expected = 1.5 * (pts[1] + pts[2])
         @test InfiniteOpt._expand_measure(rv, data2, map_args...) == expected
         # test single param reduced var with measure param and others
-        rv = ReducedInfiniteVariableRef(m, -2, inf7, Dict(1 => 1))
+        rv = ReducedInfiniteVariableRef(m, -2)
+        m.reduced_info[-2] = ReducedInfiniteInfo(inf7, Dict(1 => 1))
         index = m.next_var_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, index, inf7,
-                                              Dict(1 => 1, 2 => 1))
-        rv2 = ReducedInfiniteVariableRef(m, index + 1, inf7,
-                                              Dict(1 => 2, 2 => 1))
+        rv1 = ReducedInfiniteVariableRef(m, index)
+        m.reduced_info[index] = ReducedInfiniteInfo(inf7, Dict(1 => 1, 2 => 1))
+        rv2 = ReducedInfiniteVariableRef(m, index + 1)
+        m.reduced_info[index + 1] = ReducedInfiniteInfo(inf7,
+                                                         Dict(1 => 2, 2 => 1))
         expected = 1.5 * (rv1 + rv2)
         @test InfiniteOpt._expand_measure(rv, data2, map_args...) == expected
         # test array param reduced var without measure param
         supp1 = convert(JuMP.Containers.SparseAxisArray, [1, 1])
-        rv = ReducedInfiniteVariableRef(m, -1, inf5, Dict(1 => supp1))
+        rv = ReducedInfiniteVariableRef(m, -1)
+        m.reduced_info[-1] = ReducedInfiniteInfo(inf5, Dict(1 => supp1))
         expected = rv + rv
         @test InfiniteOpt._expand_measure(rv, data3, map_args...) == expected
         # test array param reduced var with measure param
@@ -264,14 +313,17 @@ end
         expected = 2 * (pts[1] + pts[2])
         @test InfiniteOpt._expand_measure(rv, data4, map_args...) == expected
         # test array param reduced var with measure param and others
-        rv = ReducedInfiniteVariableRef(m, -2, inf7, Dict(1 => 1))
+        rv = ReducedInfiniteVariableRef(m, -2)
+        m.reduced_info[-2] = ReducedInfiniteInfo(inf7, Dict(1 => 1))
         index = m.next_var_index + 1
         supp1 = convert(JuMP.Containers.SparseAxisArray, [1, 1])
         supp2 = convert(JuMP.Containers.SparseAxisArray, [2, 2])
-        rv1 = ReducedInfiniteVariableRef(m, index, inf7,
-                                              Dict(1 => 1, 3 => supp1))
-        rv2 = ReducedInfiniteVariableRef(m, index + 1, inf7,
-                                              Dict(1 => 2, 3 => supp2))
+        rv1 = ReducedInfiniteVariableRef(m, index)
+        m.reduced_info[index] = ReducedInfiniteInfo(inf7,
+                                                     Dict(1 => 1, 3 => supp1))
+        rv2 = ReducedInfiniteVariableRef(m, index + 1)
+        m.reduced_info[index + 1] = ReducedInfiniteInfo(inf7,
+                                                       Dict(1 => 2, 3 => supp2))
         expected = rv1 + rv2
         @test InfiniteOpt._expand_measure(rv, data3, map_args...) == expected
     end
@@ -338,8 +390,10 @@ end
         expr = 2 * inf1 * inf2 - inf3 * inf4 + x + 2
         index = m.next_var_index + 1
         pts = [PointVariableRef(m, index), PointVariableRef(m, index + 1)]
-        rv1 = ReducedInfiniteVariableRef(m, index + 2, inf2, Dict(1 => 1))
-        rv2 = ReducedInfiniteVariableRef(m, index + 3, inf2, Dict(1 => 2))
+        rv1 = ReducedInfiniteVariableRef(m, index + 2)
+        m.reduced_info[index + 2] = ReducedInfiniteInfo(inf2, Dict(1 => 1))
+        rv2 = ReducedInfiniteVariableRef(m, index + 3)
+        m.reduced_info[index + 3] = ReducedInfiniteInfo(inf2, Dict(1 => 2))
         expected = 0.5 * (2 * pts[1] * rv1 + 2 * pts[2] * rv2 - 2 * inf3 *
                           inf4 + 2x + 4)
         @test InfiniteOpt._expand_measure(expr, data1, map_args...) == expected
@@ -352,8 +406,10 @@ end
         # test single param QuadExpr with first variable integrated
         expr = 3 * inf2 * inf1 + pars1[1] + 1
         index = m.next_var_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, index, inf2, Dict(2 => 1))
-        rv2 = ReducedInfiniteVariableRef(m, index + 1, inf2, Dict(2 => 1))
+        rv1 = ReducedInfiniteVariableRef(m, index)
+        m.reduced_info[index] = ReducedInfiniteInfo(inf2, Dict(2 => 1))
+        rv2 = ReducedInfiniteVariableRef(m, index + 1)
+        m.reduced_info[index + 1] = ReducedInfiniteInfo(inf2, Dict(2 => 1))
         expected = 1.5 * (3 * rv1 * inf1 + 3 * rv2 * inf1 + 2pars1[1] + 2)
         @test InfiniteOpt._expand_measure(expr, data2, map_args...) == expected
         # test array param QuadExpr with both variables integrated
@@ -362,10 +418,10 @@ end
         pts = [PointVariableRef(m, index), PointVariableRef(m, index + 1)]
         supp1 = convert(JuMP.Containers.SparseAxisArray, [1, 1])
         supp2 = convert(JuMP.Containers.SparseAxisArray, [2, 2])
-        rv1 = ReducedInfiniteVariableRef(m, index + 2, inf5,
-                                              Dict(1 => supp1))
-        rv2 = ReducedInfiniteVariableRef(m, index + 3, inf5,
-                                              Dict(1 => supp2))
+        rv1 = ReducedInfiniteVariableRef(m, index + 2)
+        m.reduced_info[index + 2] = ReducedInfiniteInfo(inf5, Dict(1 => supp1))
+        rv2 = ReducedInfiniteVariableRef(m, index + 3)
+        m.reduced_info[index + 3] = ReducedInfiniteInfo(inf5, Dict(1 => supp2))
         expected = 2 * pts[1] * rv1 + 2 * pts[2] * rv2 - 2 * inf1 * inf2 + 2x + 4
         @test InfiniteOpt._expand_measure(expr, data3, map_args...) == expected
         # test array param QuadExpr with first variable not integrated
@@ -378,8 +434,10 @@ end
         expr = 3 * inf5 * inf1 + pars1[1] + 1
         index = m.next_var_index + 1
         supp = convert(JuMP.Containers.SparseAxisArray, [1, 1])
-        rv1 = ReducedInfiniteVariableRef(m, index, inf5, Dict(2 => supp))
-        rv2 = ReducedInfiniteVariableRef(m, index + 1, inf5, Dict(2 => supp))
+        rv1 = ReducedInfiniteVariableRef(m, index)
+        m.reduced_info[index] = ReducedInfiniteInfo(inf5, Dict(2 => supp))
+        rv2 = ReducedInfiniteVariableRef(m, index + 1)
+        m.reduced_info[index + 1] = ReducedInfiniteInfo(inf5, Dict(2 => supp))
         expected = 2 * (3 * rv1 * inf1 + 3 * rv2 * inf1 + 2pars1[1] + 2)
         @test InfiniteOpt._expand_measure(expr, data4, map_args...) == expected
     end
@@ -498,7 +556,7 @@ end
         @test isa(InfiniteOpt._add_mapped_point_variable(m, pref, inf1, (1,)),
                   Nothing)
         @test name(pref) == "inf1(1)"
-        @test haskey(m.vars, index(pref))
+        @test haskey(m.vars, JuMP.index(pref))
         @test lower_bound(pref) == 1
     end
     # test expand
@@ -506,8 +564,10 @@ end
         # test the first measure
         index = m.next_var_index + 1
         pts = [PointVariableRef(m, index), PointVariableRef(m, index + 1)]
-        rv1 = ReducedInfiniteVariableRef(m, index + 2, inf2, Dict(1 => 1))
-        rv2 = ReducedInfiniteVariableRef(m, index + 3, inf2, Dict(1 => 2))
+        rv1 = ReducedInfiniteVariableRef(m, index + 2)
+        m.reduced_info[index + 2] = ReducedInfiniteInfo(inf2, Dict(1 => 1))
+        rv2 = ReducedInfiniteVariableRef(m, index + 3)
+        m.reduced_info[index + 3] = ReducedInfiniteInfo(inf2, Dict(1 => 2))
         expected = 0.5 * (pts[1] + pts[2] + 6x - rv1 - rv2 + 2inf3 - 4)
         @test expand(meas1) == expected
         # test the second measure

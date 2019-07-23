@@ -39,7 +39,8 @@ export InfOptParameter, ParameterRef
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, PointVariable, GlobalVariable,
 GeneralVariableRef, InfiniteVariableRef, MeasureFiniteVariableRef,
-FiniteVariableRef, PointVariableRef, GlobalVariableRef, InfOptVariableRef
+FiniteVariableRef, PointVariableRef, GlobalVariableRef, InfOptVariableRef,
+ReducedInfiniteVariableRef, AbstractReducedInfo, ReducedInfiniteInfo
 
 # Export infinite parameter set types
 export AbstractInfiniteSet, IntervalSet, DistributionSet
@@ -53,7 +54,8 @@ set_independent, unset_independent
 
 # Export variable methods
 export used_by_objective, infinite_variable_ref, parameter_refs,
-set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values
+set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values,
+eval_supports
 
 # Export expression datatypes
 export InfiniteExpr, ParameterExpr, MeasureExpr
@@ -64,7 +66,7 @@ FiniteConstraintRef, BoundedScalarConstraint
 
 # Export measure datatypes
 export AbstractMeasureData, DiscreteMeasureData, MultiDiscreteMeasureData,
-Measure, MeasureRef, ReducedInfiniteVariableRef
+Measure, MeasureRef
 
 # Export measure methods
 export add_measure, measure, measure_function, measure_data, expand,

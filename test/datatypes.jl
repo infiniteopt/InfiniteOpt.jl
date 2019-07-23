@@ -21,6 +21,7 @@ sample_info = VariableInfo(zeros(Bool, 10)...)
     @test p1 == p2
     # Abstract variable
     @test InfOptVariable <: AbstractVariable
+    @test AbstractReducedInfo isa DataType
     # Infinite variable
     @test InfiniteVariable <: InfOptVariable
     @test InfiniteVariable(sample_info, (1, 2)).parameter_refs isa Tuple
@@ -29,6 +30,8 @@ sample_info = VariableInfo(zeros(Bool, 10)...)
     # Global variable
     @test GlobalVariable <: InfOptVariable
     @test GlobalVariable(sample_info).info isa VariableInfo
+    # Reduced variable info
+    @test ReducedInfiniteInfo <: AbstractReducedInfo
 end
 
 # Test the InfiniteModel datatype
@@ -63,8 +66,7 @@ end
     ivref = InfiniteVariableRef(m, 1)
     # Reduced infinite variable refs
     @test ReducedInfiniteVariableRef <: GeneralVariableRef
-    @test ReducedInfiniteVariableRef(m, 1, ivref,
-                                          Dict(2 => 3)).original == ivref
+    @test ReducedInfiniteVariableRef(m, 1).index == 1
     # Parameter refs
     @test ParameterRef <: GeneralVariableRef
     @test ParameterRef(m, 1).index == 1

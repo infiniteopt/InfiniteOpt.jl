@@ -281,7 +281,7 @@ end
 """
     JuMP.delete(model::InfiniteModel, pref::ParameterRef)
 
-Extend the `JuMP.delete` function to accomodate infinite parameters
+Extend [`JuMP.delete`](@ref) function to accomodate infinite parameters
 """
 function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
     @assert JuMP.is_valid(model, pref)
@@ -290,6 +290,7 @@ function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
     end
     if used_by_variable(pref)
         for vindex in model.param_to_vars[JuMP.index(pref)]
+            # TODO Update point and reduced variables
             prefs = _remove_parameter(model.vars[vindex].parameter_refs, pref)
             vref = InfiniteVariableRef(model, vindex)
             _update_variable_param_refs(vref, prefs)

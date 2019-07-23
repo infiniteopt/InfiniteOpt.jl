@@ -105,4 +105,10 @@ end
                                                       GlobalVariableRef}(3)
         @test objective_sense(m) == MOI.MAX_SENSE
     end
+    # test the objective macro
+    @testset "JuMP.@objective" begin
+        @test @objective(m, Min, meas + x) == meas + x
+        @test objective_function(m) == meas + x
+        @test objective_sense(m) == MOI.MIN_SENSE
+    end
 end

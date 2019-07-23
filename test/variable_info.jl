@@ -64,12 +64,12 @@ end
     @testset "_update_var_constr_mapping" begin
         # test normal with no previous constrs
         @test isa(InfiniteOpt._update_var_constr_mapping([vref2], 1), Nothing)
-        @test m.var_to_constrs[index(vref2)] == [1]
+        @test m.var_to_constrs[JuMP.index(vref2)] == [1]
         # test normal with previous constrs
         @test isa(InfiniteOpt._update_var_constr_mapping([vref2], 2), Nothing)
-        @test m.var_to_constrs[index(vref2)] == [1, 2]
+        @test m.var_to_constrs[JuMP.index(vref2)] == [1, 2]
         # undo changes
-        delete!(m.var_to_constrs, index(vref2))
+        delete!(m.var_to_constrs, JuMP.index(vref2))
     end
     # set_name
     @testset "JuMP.set_name" begin
@@ -88,7 +88,7 @@ end
         constr = ScalarConstraint(vref2, MOI.GreaterThan(0.))
         cref = FiniteConstraintRef(m, 1, JuMP.shape(constr))
         # test function
-        @test index(cref) == 1
+        @test JuMP.index(cref) == 1
     end
     # add_constraint
     @testset "JuMP.add_constraint" begin

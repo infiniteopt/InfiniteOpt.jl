@@ -1,18 +1,3 @@
-# Test basic queries
-@testset "Basic Queries" begin
-    # initialize the model, references, and other info
-    m = InfiniteModel()
-    cref = FiniteConstraintRef(m, 1, ScalarShape())
-    # owner_model
-    @testset "JuMP.owner_model" begin
-        @test owner_model(cref) == m
-    end
-    # index
-    @testset "JuMP.index" begin
-        @test index(cref) == 1
-    end
-end
-
 # Test basic extensions
 @testset "Basic Extensions" begin
     # initialize the model, references, and other info
@@ -21,6 +6,26 @@ end
     cref2 = InfiniteConstraintRef(m, 2, ScalarShape())
     con = BoundedScalarConstraint(zero(AffExpr), MOI.EqualTo(0.0),
                                   Dict{ParameterRef, IntervalSet}())
+    # owner_model
+    @testset "JuMP.owner_model" begin
+      @test owner_model(cref1) == m
+    end
+    # index
+    @testset "JuMP.index" begin
+      @test JuMP.index(cref1) == 1
+    end
+    # is_valid
+    @testset "JuMP.is_valid" begin
+      @test !is_valid(m, cref1)
+      m.constrs[1] = con
+      @test is_valid(m, cref1)
+    end
+    # constraint_object
+    @testset "JuMP.constraint_object" begin
+      @test constraint_object(cref1).func == con.func
+      @test constraint_object(cref1).set == con.set
+      @test constraint_object(cref1).bounds == con.bounds
+    end
     # test Base.:(==) of constraint references
     @testset "Base.:(==) References" begin
         @test !(cref1 == cref2)
@@ -110,6 +115,7 @@ end
     @global_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
     meas = measure(inf + par - x, data)
+    rv = ReducedInfiniteVariableRef(m, 42)
     # test build_constraint (single)
     @testset "JuMP.build_constraint (Single)" begin
         # test bounded constraint
@@ -145,21 +151,24 @@ end
     # test _update_var_constr_mapping
     @testset "_update_var_constr_mapping" begin
         # test initial use of variable
-        @test isa(InfiniteOpt._update_var_constr_mapping([inf, par, meas], 1),
+        @test isa(InfiniteOpt._update_var_constr_mapping([inf, par, meas, rv], 1),
                   Nothing)
-        @test m.var_to_constrs[index(inf)] == [1]
-        @test m.param_to_constrs[index(par)] == [1]
-        @test m.meas_to_constrs[index(meas)] == [1]
+        @test m.var_to_constrs[JuMP.index(inf)] == [1]
+        @test m.param_to_constrs[JuMP.index(par)] == [1]
+        @test m.meas_to_constrs[JuMP.index(meas)] == [1]
+        @test m.reduced_to_constrs[JuMP.index(rv)] == [1]
         # test secondary use of variable
-        @test isa(InfiniteOpt._update_var_constr_mapping([inf, par, meas], 2),
+        @test isa(InfiniteOpt._update_var_constr_mapping([inf, par, meas, rv], 2),
                   Nothing)
-        @test m.var_to_constrs[index(inf)] == [1, 2]
-        @test m.param_to_constrs[index(par)] == [1, 2]
-        @test m.meas_to_constrs[index(meas)] == [1, 2]
+        @test m.var_to_constrs[JuMP.index(inf)] == [1, 2]
+        @test m.param_to_constrs[JuMP.index(par)] == [1, 2]
+        @test m.meas_to_constrs[JuMP.index(meas)] == [1, 2]
+        @test m.reduced_to_constrs[JuMP.index(rv)] == [1, 2]
         # Undo changes
-        delete!(m.var_to_constrs, index(inf))
-        delete!(m.param_to_constrs, index(par))
-        delete!(m.meas_to_constrs, index(meas))
+        delete!(m.var_to_constrs, JuMP.index(inf))
+        delete!(m.param_to_constrs, JuMP.index(par))
+        delete!(m.meas_to_constrs, JuMP.index(meas))
+        delete!(m.reduced_to_constrs, JuMP.index(rv))
     end
     # test _check_bounds
     @testset "_check_bounds" begin
@@ -193,22 +202,126 @@ end
         # test bounded constraint
         con = BoundedScalarConstraint(inf + pt, MOI.EqualTo(42.0),
                                        Dict(par => IntervalSet(0, 1)))
-        @test add_constraint(m, con, "a") == InfiniteConstraintRef(m, 1, ScalarShape())
+        @test add_constraint(m, con, "a") == InfiniteConstraintRef(m, 1,
+                                                                  ScalarShape())
         # test bad bounded constraint
         con = BoundedScalarConstraint(inf + pt, MOI.EqualTo(42.0),
                                        Dict(par => IntervalSet(0, 2)))
         @test_throws ErrorException add_constraint(m, con, "a")
         # test infinite constraint
         con = ScalarConstraint(inf + pt, MOI.EqualTo(42.0))
-        @test add_constraint(m, con, "b") == InfiniteConstraintRef(m, 2, ScalarShape())
+        @test add_constraint(m, con, "b") == InfiniteConstraintRef(m, 2,
+                                                                  ScalarShape())
         # test measure constraint
         con = ScalarConstraint(x + meas, MOI.EqualTo(42.0))
-        @test add_constraint(m, con, "c") == MeasureConstraintRef(m, 3, ScalarShape())
+        @test add_constraint(m, con, "c") == MeasureConstraintRef(m, 3,
+                                                                  ScalarShape())
         # test finite constraint
         con = ScalarConstraint(x + pt, MOI.EqualTo(42.0))
-        @test add_constraint(m, con, "d") == FiniteConstraintRef(m, 4, ScalarShape())
+        @test add_constraint(m, con, "d") == FiniteConstraintRef(m, 4,
+                                                                  ScalarShape())
         @test name(FiniteConstraintRef(m, 4, ScalarShape())) == "d"
         @test !m.constr_in_var_info[4]
         @test !optimizer_model_ready(m)
     end
+    # test macro
+    @testset "JuMP.@constraint" begin
+        # test scalar constraint
+        @test @constraint(m, e, x + pt -2 <= 2) == FiniteConstraintRef(m, 5,
+                                                                  ScalarShape())
+        @test isa(m.constrs[5], ScalarConstraint)
+        # test bounded scalar constraint
+        @test @constraint(m, f, inf + meas <= 2,
+                          parameter_bounds = Dict(par => IntervalSet(0, 1))) == InfiniteConstraintRef(m, 6, ScalarShape())
+        @test isa(m.constrs[6], BoundedScalarConstraint)
+    end
+end
+
+# Test num_constraints extensions
+@testset "JuMP.num_constraints Extensions" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_variable(m, inf(par) >= 0)
+    @point_variable(m, inf(0.5), pt)
+    @global_variable(m, 0 <= x <= 1, Int)
+    # test search function type and set type
+    @testset "Function and Set" begin
+        @test num_constraints(m, GlobalVariableRef, MOI.LessThan) == 1
+        @test num_constraints(m, InfiniteVariableRef, MOI.GreaterThan) == 1
+    end
+    # test search function type
+    @testset "Function" begin
+        @test num_constraints(m, GlobalVariableRef) == 3
+        @test num_constraints(m, InfiniteVariableRef) == 1
+    end
+    # test search set type
+    @testset "Set" begin
+        @test num_constraints(m, MOI.LessThan) == 1
+        @test num_constraints(m, MOI.GreaterThan) == 3
+    end
+    # test search total
+    @testset "Total" begin
+        @test num_constraints(m) == 5
+    end
+end
+
+# Test all_constraints extensions
+@testset "JuMP.all_constraints Extensions" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_variable(m, inf(par) >= 0)
+    @point_variable(m, inf(0.5), pt)
+    @global_variable(m, 0 <= x <= 1, Int)
+    # test search function type and set type
+    @testset "Function and Set" begin
+        list = [FiniteConstraintRef(m, 4, ScalarShape())]
+        @test all_constraints(m, GlobalVariableRef, MOI.LessThan) == list
+        list = [InfiniteConstraintRef(m, 1, ScalarShape())]
+        @test all_constraints(m, InfiniteVariableRef, MOI.GreaterThan) == list
+    end
+    # test search function type
+    @testset "Function" begin
+        list = [FiniteConstraintRef(m, 3, ScalarShape()),
+                FiniteConstraintRef(m, 4, ScalarShape()),
+                FiniteConstraintRef(m, 5, ScalarShape())]
+        @test all_constraints(m, GlobalVariableRef) == list
+        list = [InfiniteConstraintRef(m, 1, ScalarShape())]
+        @test all_constraints(m, InfiniteVariableRef) == list
+    end
+    # test search set type
+    @testset "Set" begin
+        list = [FiniteConstraintRef(m, 4, ScalarShape())]
+        @test all_constraints(m, MOI.LessThan) == list
+        list = [InfiniteConstraintRef(m, 1, ScalarShape()),
+                FiniteConstraintRef(m, 2, ScalarShape()),
+                FiniteConstraintRef(m, 3, ScalarShape())]
+        @test all_constraints(m, MOI.GreaterThan) == list
+    end
+    # test search total
+    @testset "Total" begin
+        list = [InfiniteConstraintRef(m, 1, ScalarShape()),
+                FiniteConstraintRef(m, 2, ScalarShape()),
+                FiniteConstraintRef(m, 3, ScalarShape()),
+                FiniteConstraintRef(m, 4, ScalarShape()),
+                FiniteConstraintRef(m, 5, ScalarShape())]
+        @test all_constraints(m) == list
+    end
+end
+
+# Test list_of_constraint_types
+@testset "JuMP.list_of_constraint_types" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_variable(m, inf(par) >= 0)
+    @point_variable(m, inf(0.5), pt)
+    @global_variable(m, 0 <= x <= 1, Int)
+    expected = [(GlobalVariableRef,MOI.LessThan{Float64}),
+                (PointVariableRef, MOI.GreaterThan{Float64}),
+                (GlobalVariableRef, MOI.GreaterThan{Float64}),
+                (GlobalVariableRef, MOI.Integer),
+                (InfiniteVariableRef, MOI.GreaterThan{Float64})]
+    @test list_of_constraint_types(m) == expected
 end

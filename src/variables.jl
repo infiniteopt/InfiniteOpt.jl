@@ -626,8 +626,20 @@ function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
                 delete!(model.param_to_vars, JuMP.index(pref))
             end
         end
-        # TODO delete reduced variables if there are any
+        for (index, var) in model.vars
+            if isa(var, PointVariable)
+                if var.infinite_variable_ref == vref
+                    JuMP.delete(model, PointVariableRef(model, index))
+                end
+            end
+        end
+        for (index, info) in model.reduced_info
+            if info.infinite_variable_ref == vref
+                JuMP.delete(model, ReducedInfiniteVariableRef(model, index))
+            end
+        end
     end
+    delete!(model.var_in_objective, JuMP.index(vref))
     delete!(model.vars, JuMP.index(vref))
     delete!(model.var_to_name, JuMP.index(vref))
     return

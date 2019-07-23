@@ -82,7 +82,7 @@ end
     m.vars[1] = InfiniteVariable(info, (pref, ))
     # JuMP.index
     @testset "JuMP.index" begin
-        @test index(ivref) == 1
+        @test JuMP.index(ivref) == 1
     end
     # JuMP.owner_model
     @testset "JuMP.owner_model" begin
