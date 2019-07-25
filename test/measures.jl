@@ -144,9 +144,11 @@ end
     # initialize model and references
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, container = SparseAxisArray)
     @infinite_variable(m, inf(par))
     @global_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1], name = "test")
+    data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
     meas = Measure(par + 2inf - x, data)
     rv = ReducedInfiniteVariableRef(m, 42)
     # _make_meas_name
@@ -179,7 +181,40 @@ end
         delete!(m.meas_to_meas, JuMP.index(mref))
         delete!(m.reduced_to_meas, JuMP.index(rv))
     end
-    # add_measure
+    # test _update_param_data_mapping (scalar)
+    @testset "_update_param_data_mapping (scalar)" begin
+        # test first addition
+        @test isa(InfiniteOpt._update_param_data_mapping(m, data, 1), Nothing)
+        @test m.param_to_meas[JuMP.index(par)] == [1]
+        # test second addition
+        @test isa(InfiniteOpt._update_param_data_mapping(m, data, 2), Nothing)
+        @test m.param_to_meas[JuMP.index(par)] == [1, 2]
+        # clear additions
+        delete!(m.param_to_meas, JuMP.index(par))
+    end
+    # test _update_param_data_mapping (array)
+    @testset "_update_param_data_mapping (array)" begin
+        # test first addition
+        @test isa(InfiniteOpt._update_param_data_mapping(m, data2, 1), Nothing)
+        @test m.param_to_meas[JuMP.index(pars[1])] == [1]
+        @test m.param_to_meas[JuMP.index(pars[2])] == [1]
+        # test second addition
+        @test isa(InfiniteOpt._update_param_data_mapping(m, data2, 2), Nothing)
+        @test m.param_to_meas[JuMP.index(pars[1])] == [1, 2]
+        @test m.param_to_meas[JuMP.index(pars[2])] == [1, 2]
+        # clear additions
+        delete!(m.param_to_meas, JuMP.index(pars[1]))
+        delete!(m.param_to_meas, JuMP.index(pars[2]))
+    end
+    # test _update_param_data_mapping (fallback)
+    @testset "_update_param_data_mapping (fallback)" begin
+        struct other <: AbstractMeasureData end
+        warn = "Unable to map parameter dependence for measure data type " *
+               "other. Parameter deletion methods should not be used."
+        @test_logs (:warn, warn) InfiniteOpt._update_param_data_mapping(m,
+                                                                     other(), 1)
+    end
+    # test add_measure
     @testset "add_measure" begin
         mref = MeasureRef(m, 1)
         @test add_measure(m, meas) == mref

@@ -112,6 +112,10 @@ model an optmization problem with an infinite dimensional decision space.
 - `var_to_meas::Dict{Int, Vector{Int}}` Variable indices to dependent
                                         measure indices.
 - `var_in_objective::Dict{Int, Bool}` Variable indices to if used in objective.
+- `infinite_to_points::Dict{Int, Vector{Int}}` Infinite variable indices to
+                                               dependent point variable indices.
+- `infinite_to_reduced::Dict{Int, Vector{Int}}` Infinite variable indices to
+                                               dependent reduced variable indices.
 - `reduced_to_constrs::Dict{Int, Vector{Int}}` Reduced variable indices to dependent
                                                constraint indices.
 - `reduced_to_meas::Dict{Int, Vector{Int}}` Reduced variable indices to dependent
@@ -167,6 +171,8 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     var_to_constrs::Dict{Int, Vector{Int}}
     var_to_meas::Dict{Int, Vector{Int}}
     var_in_objective::Dict{Int, Bool}
+    infinite_to_points::Dict{Int, Vector{Int}}
+    infinite_to_reduced::Dict{Int, Vector{Int}}
 
     # Placeholder
     reduced_to_constrs::Dict{Int, Vector{Int}}
@@ -229,6 +235,7 @@ function InfiniteModel(; kwargs...)
                          Dict{Int, Int}(), Dict{Int, Int}(), Dict{Int, Int}(),
                          Dict{Int, Int}(), Dict{Int, Vector{Int}}(),
                          Dict{Int, Vector{Int}}(), Dict{Int, Bool}(),
+                         Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
                          # Placeholder variables
                          Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
                          Dict{Int, Tuple}(),

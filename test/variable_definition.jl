@@ -396,6 +396,21 @@ end
         @test supports(prefs[1]) == [0]
         @test supports(prefs[2]) == [1]
     end
+    # _update_infinite_point_mapping
+    @testset "_update_infinite_point_mapping" begin
+        # test first addition
+        pvref = PointVariableRef(m, 12)
+        @test isa(InfiniteOpt._update_infinite_point_mapping(pvref, ivref),
+                  Nothing)
+        @test m.infinite_to_points[JuMP.index(ivref)] == [12]
+        # test second addition
+        pvref = PointVariableRef(m, 42)
+        @test isa(InfiniteOpt._update_infinite_point_mapping(pvref, ivref),
+                  Nothing)
+        @test m.infinite_to_points[JuMP.index(ivref)] == [12, 42]
+        # undo changes
+        delete!( m.infinite_to_points, JuMP.index(ivref))
+    end
     # add_variable
     @testset "JuMP.add_variable" begin
         # prepare secondary model and infinite variable
@@ -415,6 +430,7 @@ end
         @test supports(pref) == [0, 0.5]
         @test supports(pref2) == [1]
         @test m.var_to_name[4] == "name"
+        @test m.infinite_to_points[JuMP.index(ivref)] == [4]
         # prepare infinite variable with all the possible info additions
         v = build_variable(error, info2, Point, infinite_variable_ref = ivref,
                            parameter_values = (0, 1))

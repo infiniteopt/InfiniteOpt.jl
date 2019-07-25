@@ -28,6 +28,7 @@ println("")
     @testset "Definition" begin include("variable_definition.jl") end
     @testset "Macros" begin include("variable_macros.jl") end
     @testset "Query" begin include("variable_queries.jl") end
+    @testset "Reduction Variables" begin include("reduction_variables.jl") end
 end
 println("")
 @time @testset "Operators" begin include("operators.jl") end

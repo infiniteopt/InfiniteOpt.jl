@@ -74,12 +74,17 @@
         v = build_variable(error, info, Point, infinite_variable_ref = vref,
                            parameter_values = 0.5)
         pvref = add_variable(m, v, "name2")
-        m.var_in_objective[JuMP.index(pvref)] = true
         # test used
         @test used_by_point_variable(vref)
-        # undo changes
-        delete!(m.vars, JuMP.index(pvref))
-        m.var_in_objective[JuMP.index(pvref)] = false
+    end
+    # used_by_reduced_variable
+    @testset "used_by_reduced_variable" begin
+        # test not used
+        @test !used_by_reduced_variable(vref)
+        # build reduced variable
+        m.infinite_to_reduced[JuMP.index(vref)] = [-1]
+        # test used
+        @test used_by_reduced_variable(vref)
     end
     # is_used (infinite variable)
     @testset "is_used (infinite var)" begin
@@ -98,12 +103,22 @@
         # undo changes
         delete!(m.var_to_meas, JuMP.index(vref))
         # prepare use case
-        v = build_variable(error, info, Point, infinite_variable_ref = vref,
-                           parameter_values = 0.5)
-        pvref = add_variable(m, v, "name2")
-        m.var_in_objective[JuMP.index(pvref)] = true
+        m.var_in_objective[m.next_var_index] = true
         # test used
         @test is_used(vref)
+        # undo changes
+        m.var_in_objective[m.next_var_index] = false
+        # prepare use case
+        m.reduced_to_constrs[-1] = [1]
+        # test used
+        @test is_used(vref)
+        # undo changes
+        delete!(m.reduced_to_constrs, -1)
+        # prepare use case
+        m.reduced_to_meas[-1] = [1]
+        # test used
+        @test is_used(vref)
+        @test m.infinite_to_reduced[JuMP.index(vref)] == [-1]
     end
 end
 
@@ -147,6 +162,12 @@ end
     # parameter_values
     @testset "parameter_values" begin
         @test parameter_values(pvref) == (0.5, )
+    end
+    # _update_variable_param_values
+    @testset "_update_variable_param_values" begin
+        @test isa(InfiniteOpt._update_variable_param_values(pvref, (0, )),
+                  Nothing)
+        @test parameter_values(pvref) == (0, )
     end
     # _update_variable_param_refs
     @testset "_update_variable_param_refs" begin

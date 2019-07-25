@@ -342,6 +342,18 @@ function _update_param_supports(inf_vref::InfiniteVariableRef,
     return
 end
 
+# Used to update mapping infinite_to_points
+function _update_infinite_point_mapping(pvref::PointVariableRef,
+                                        ivref::InfiniteVariableRef)
+    model = JuMP.owner_model(pvref)
+    if haskey(model.infinite_to_points, JuMP.index(ivref))
+        push!(model.infinite_to_points[JuMP.index(ivref)], JuMP.index(pvref))
+    else
+        model.infinite_to_points[JuMP.index(ivref)] = [JuMP.index(pvref)]
+    end
+    return
+end
+
 """
     JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String = "")
 
@@ -387,6 +399,7 @@ function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable,
                                               "reference.")
         vref = PointVariableRef(model, model.next_var_index)
         _update_param_supports(ivref, v.parameter_values)
+        _update_infinite_point_mapping(vref, ivref)
     else
         vref = GlobalVariableRef(model, model.next_var_index)
     end
@@ -527,7 +540,7 @@ end
 """
     used_by_point_variable(vref::InfiniteVariableRef)::Bool
 
-Return a `Bool` indicating if `vref` is used by a point variable that is in use.
+Return a `Bool` indicating if `vref` is used by a point variable.
 
 **Example**
 ```julia
@@ -536,17 +549,22 @@ false
 ```
 """
 function used_by_point_variable(vref::InfiniteVariableRef)::Bool
-    for (index, var) in JuMP.owner_model(vref).vars
-        if isa(var, PointVariable)
-            pvref = PointVariableRef(JuMP.owner_model(vref), index)
-            if is_used(pvref)
-                if infinite_variable_ref(pvref) == vref
-                    return true
-                end
-            end
-        end
-    end
-    return false
+    return haskey(JuMP.owner_model(vref).infinite_to_points, JuMP.index(vref))
+end
+
+"""
+    used_by_reduced_variable(vref::InfiniteVariableRef)::Bool
+
+Return a `Bool` indicating if `vref` is used by a reduced infinite variable.
+
+**Example**
+```julia
+julia> used_by_reduced_variable(vref)
+true
+```
+"""
+function used_by_reduced_variable(vref::InfiniteVariableRef)::Bool
+    return haskey(JuMP.owner_model(vref).infinite_to_reduced, JuMP.index(vref))
 end
 
 """
@@ -561,7 +579,25 @@ false
 ```
 """
 function is_used(vref::InfiniteVariableRef)::Bool
-    return used_by_measure(vref) || used_by_constraint(vref) || used_by_point_variable(vref)
+    if used_by_measure(vref) || used_by_constraint(vref)
+        return true
+    end
+    if used_by_point_variable(vref)
+        for vindex in JuMP.owner_model(vref).infinite_to_points[JuMP.index(vref)]
+            if is_used(PointVariableRef(JuMP.owner_model(vref), vindex))
+                return true
+            end
+        end
+    end
+    if used_by_reduced_variable(vref)
+        for rindex in JuMP.owner_model(vref).infinite_to_reduced[JuMP.index(vref)]
+            rvref = ReducedInfiniteVariableRef(JuMP.owner_model(vref), rindex)
+            if used_by_constraint(rvref) || used_by_measure(rvref)
+                return true
+            end
+        end
+    end
+    return false
 end
 
 """
@@ -604,7 +640,8 @@ function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
         for cindex in model.var_to_constrs[JuMP.index(vref)]
             if isa(model.constrs[cindex].func, InfOptVariableRef)
                 set = model.constrs[cindex].set
-                model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr), set)
+                model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr),
+                                                              set)
             else
                 _remove_variable(model.constrs[cindex].func, vref)
             end
@@ -621,22 +658,27 @@ function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
     if isa(vref, InfiniteVariableRef)
         all_prefs = _list_parameter_refs(parameter_refs(vref))
         for pref in all_prefs
-            filter!(e -> e != JuMP.index(vref), model.param_to_vars[JuMP.index(pref)])
+            filter!(e -> e != JuMP.index(vref),
+                    model.param_to_vars[JuMP.index(pref)])
             if length(model.param_to_vars[JuMP.index(pref)]) == 0
                 delete!(model.param_to_vars, JuMP.index(pref))
             end
         end
-        for (index, var) in model.vars
-            if isa(var, PointVariable)
-                if var.infinite_variable_ref == vref
-                    JuMP.delete(model, PointVariableRef(model, index))
-                end
-            end
+        for index in model.infinite_to_points[JuMP.index(vref)]
+            JuMP.delete(model, PointVariableRef(model, index))
         end
-        for (index, info) in model.reduced_info
-            if info.infinite_variable_ref == vref
-                JuMP.delete(model, ReducedInfiniteVariableRef(model, index))
-            end
+        delete!(model.infinite_to_points, JuMP.index(vref))
+        for index in model.infinite_to_reduced[JuMP.index(vref)]
+            JuMP.delete(model, ReducedInfiniteVariableRef(model, index))
+        end
+        delete!(model.infinite_to_reduced, JuMP.index(vref))
+    end
+    if isa(vref, PointVariableRef)
+        ivref = infinite_variable_ref(vref)
+        filter!(e -> e != JuMP.index(vref),
+                model.infinite_to_points[JuMP.index(ivref)])
+        if length(model.infinite_to_points[JuMP.index(ivref)]) == 0
+            delete!(model.infinite_to_points, JuMP.index(ivref))
         end
     end
     delete!(model.var_in_objective, JuMP.index(vref))
@@ -740,6 +782,15 @@ julia> parameter_values(vref)
 """
 function parameter_values(vref::PointVariableRef)::Tuple
     return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
+end
+
+# Internal function used to change the parameter value tuple of a point variable
+function _update_variable_param_values(vref::PointVariableRef, pref_vals::Tuple)
+    info = JuMP.owner_model(vref).vars[JuMP.index(vref)].info
+    ivref = JuMP.owner_model(vref).vars[JuMP.index(vref)].infinite_variable_ref
+    JuMP.owner_model(vref).vars[JuMP.index(vref)] = PointVariable(info, ivref,
+                                                                  pref_vals)
+    return
 end
 
 # Get root name of infinite variable

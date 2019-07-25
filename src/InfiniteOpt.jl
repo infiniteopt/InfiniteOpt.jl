@@ -11,6 +11,7 @@ import Distributions
 include("datatypes.jl")
 include("parameters.jl")
 include("variables.jl")
+include("reduced_variables.jl")
 include("expressions.jl")
 include("measures.jl")
 include("operators.jl")
@@ -55,7 +56,7 @@ set_independent, unset_independent
 # Export variable methods
 export used_by_objective, infinite_variable_ref, parameter_refs,
 set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values,
-eval_supports
+eval_supports, used_by_reduced_variable
 
 # Export expression datatypes
 export InfiniteExpr, ParameterExpr, MeasureExpr

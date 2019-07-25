@@ -72,6 +72,46 @@ function _update_var_meas_mapping(vrefs::Vector{<:GeneralVariableRef},
     return
 end
 
+## Used to add the measure index to param_to_meas for parameters that are used
+## in the evaluation data
+# DiscreteMeasureData
+function _update_param_data_mapping(model::InfiniteModel,
+                                    data::DiscreteMeasureData,
+                                    mindex::Int)
+    if haskey(model.param_to_meas, JuMP.index(data.parameter_ref))
+        if !(mindex in model.param_to_meas[JuMP.index(data.parameter_ref)])
+            push!(model.param_to_meas[JuMP.index(data.parameter_ref)], mindex)
+        end
+    else
+        model.param_to_meas[JuMP.index(data.parameter_ref)] = [mindex]
+    end
+    return
+end
+
+# MultiDiscreteMeasureData
+function _update_param_data_mapping(model::InfiniteModel,
+                                    data::MultiDiscreteMeasureData,
+                                    mindex::Int)
+    for pref in data.parameter_ref
+        if haskey(model.param_to_meas, JuMP.index(pref))
+            if !(mindex in model.param_to_meas[JuMP.index(pref)])
+                push!(model.param_to_meas[JuMP.index(pref)], mindex)
+            end
+        else
+            model.param_to_meas[JuMP.index(pref)] = [mindex]
+        end
+    end
+    return
+end
+
+# Fallback
+function _update_param_data_mapping(model::InfiniteModel, data::T,
+                                    mindex::Int) where {T <: AbstractMeasureData}
+    @warn "Unable to map parameter dependence for measure data type $T. " *
+          "Parameter deletion methods should not be used."
+    return
+end
+
 """
     add_measure(model::InfiniteModel, meas::Measure)::MeasureRef
 
@@ -83,6 +123,7 @@ function add_measure(model::InfiniteModel, meas::Measure)::MeasureRef
     index = model.next_meas_index
     vrefs = _all_function_variables(meas.func)
     _update_var_meas_mapping(vrefs, index)
+    _update_param_data_mapping(model, meas.data, index)
     mref = MeasureRef(model, model.next_meas_index)
     model.measures[mref.index] = meas
     JuMP.set_name(mref, _make_meas_name(meas))

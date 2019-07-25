@@ -252,30 +252,133 @@ function is_used(pref::ParameterRef)::Bool
     return used_by_measure(pref) || used_by_constraint(pref) || used_by_variable(pref)
 end
 
-# Define internal functions for deleting elements of parameter tuples
-function _remove_parameter(pref::ParameterRef, delete_pref::ParameterRef)
-    if pref == delete_pref
-        return
-    else
-        return pref
-    end
+## Check if parameter is used measure data and error if it is to prevent bad
+## deleting behavior
+# DiscreteMeasureData
+function _check_param_in_data(pref::ParameterRef, data::DiscreteMeasureData)
+    data.parameter_ref == pref && error("Unable to delete $pref since it is " *
+                                        "used to evaluate measures.")
+    return
 end
 
-function _remove_parameter(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef},
-                           delete_pref::ParameterRef)
-    data = filter(v -> v.second != delete_pref, arr.data)
-    arr = JuMP.Containers.SparseAxisArray(data)
-    return length(arr) != 0 ? arr : nothing
+# MultiDiscreteMeasureData
+function _check_param_in_data(pref::ParameterRef, data::MultiDiscreteMeasureData)
+    pref in data.parameter_ref && error("Unable to delete $pref since it is " *
+                                        "used to evaluate measures.")
+    return
 end
 
+# Fallback
+function _check_param_in_data(pref::ParameterRef, data::T) where {T}
+    error("Unable to delete parameters when using measure data type $T.")
+    return
+end
+
+## Determine if a tuple element contains a particular parameter
+# ParameterRef
+function _contains_pref(search_pref::ParameterRef, pref::ParameterRef)
+    return search_pref == pref
+end
+
+# SparseAxisArray
+function _contains_pref(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef},
+                        pref::ParameterRef)
+    return pref in collect(values(arr.data))
+end
+
+# Return parameter tuple without a particular parameter and return location of
+# where it was
 function _remove_parameter(prefs::Tuple, delete_pref::ParameterRef)
-    pref_list = Any[_remove_parameter(pref, delete_pref) for pref in prefs]
-    filter!(x -> x != nothing, pref_list)
-    pref_tuple = ()
-    for pref in pref_list
-        pref_tuple = (pref_tuple..., pref)
+    for i = 1:length(prefs)
+        if _contains_pref(prefs[i], delete_pref)
+            if isa(prefs[i], ParameterRef)
+                return Tuple(prefs[j] for j = 1:length(prefs) if j != i), (i, )
+            else
+                for (k, v) in prefs[i].data
+                    if v == delete_pref
+                        filter!(x -> x.second != delete_pref, prefs[i].data)
+                        if length(prefs[i]) != 0
+                            return prefs, (i, k)
+                        else
+                            return Tuple(prefs[j] for j = 1:length(prefs) if j != i), (i, )
+                        end
+                    end
+                end
+            end
+        end
     end
-    return pref_tuple
+end
+
+# Used to update infinite variable when one of its parameters is deleted
+function _update_infinite_variable(vref::InfiniteVariableRef, new_prefs::Tuple)
+    _update_variable_param_refs(vref, new_prefs)
+    JuMP.set_name(vref, _root_name(vref))
+    if used_by_measure(vref)
+        for mindex in model.var_to_meas[JuMP.index(vref)]
+            JuMP.set_name(MeasureRef(model, mindex),
+                          _make_meas_name(model.measures[mindex]))
+        end
+    end
+    return
+end
+
+# Return a parameter value tuple without element at a particular location
+function _remove_parameter_values(pref_vals::Tuple, location::Tuple)::Tuple
+    # removed parameter was a scalar parameter
+    if length(location) == 1
+        return Tuple(pref_vals for i = 1:length(pref_vals) if i != location[1])
+    # removed parameter was part of an array
+    else
+        filter!(x -> x.first != location[2], pref_vals[location[1]].data)
+        return pref_vals
+    end
+end
+
+# Update point variable for which a parameter is deleted
+function _update_point_variable(pvref::PointVariableRef, pref_vals::Tuple)
+    _update_variable_param_values(pvref, pref_vals)
+    # update name if no alias was provided
+    if !isa(findfirst(isequal('('), name(pvref)), Nothing)
+        JuMP.set_name(pvref, "")
+    end
+    if used_by_measure(pvref)
+        for mindex in model.var_to_meas[JuMP.index(pvref)]
+            JuMP.set_name(MeasureRef(model, mindex),
+                          _make_meas_name(model.measures[mindex]))
+        end
+    end
+    return
+end
+
+# Update a reduced variable associated with an infinite variable whose parameter
+# was removed
+function _update_reduced_variable(vref::ReducedInfiniteVariableRef,
+                                  location::Tuple)
+    eval_supports = eval_supports(vref)
+    # removed parameter was a scalar
+    if length(location) == 1
+        delete!(eval_supports, location)
+        new_supports = Dict{Int, Union{Number, JuMP.Containers.SparseAxisArray}}()
+        for (index, support) in eval_supports
+            if index < location[1]
+                new_supports[index] = support
+            else
+                new_support[index - 1] = support
+            end
+        end
+        JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = ReducedInfiniteInfo(infinite_variable_ref(vref), new_supports)
+    # removed parameter was part of an array and was reduced previously
+    elseif haskey(eval_supports, location[1])
+        filter!(x -> x.first != location[2], eval_supports[location[1]].data)
+        JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = ReducedInfiniteInfo(infinite_variable_ref(vref), eval_supports)
+    end
+    if used_by_measure(vref)
+        for mindex in model.reduced_to_meas[JuMP.index(vref)]
+            JuMP.set_name(MeasureRef(model, mindex),
+                          _make_meas_name(model.measures[mindex]))
+        end
+    end
+    return
 end
 
 """
@@ -288,42 +391,52 @@ function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
     if is_used(pref)
         set_optimizer_model_ready(model, false)
     end
+    if used_by_measure(pref)
+        # ensure deletion is okay
+        for mindex in model.param_to_meas[JuMP.index(pref)]
+            _check_param_in_data(pref, model.measures[mindex].data)
+        end
+        # delete dependence on of measures on pref
+        for mindex in model.param_to_meas[JuMP.index(pref)]
+            if isa(model.measures[mindex].func, ParameterRef)
+                model.measures[mindex] = Measure(zero(JuMP.AffExpr),
+                                                 model.measures[mindex].data)
+            else
+                _remove_variable(model.measures[mindex].func, pref)
+            end
+            JuMP.set_name(MeasureRef(model, mindex),
+                          _make_meas_name(model.measures[mindex]))
+        end
+        delete!(model.param_to_meas, JuMP.index(pref))
+    end
     if used_by_variable(pref)
         for vindex in model.param_to_vars[JuMP.index(pref)]
-            # TODO Update point and reduced variables
-            prefs = _remove_parameter(model.vars[vindex].parameter_refs, pref)
+            prefs, location = _remove_parameter(model.vars[vindex].parameter_refs,
+                                                pref)
             vref = InfiniteVariableRef(model, vindex)
-            _update_variable_param_refs(vref, prefs)
-            JuMP.set_name(vref, _root_name(vref))
-            if used_by_measure(vref)
-                for mindex in model.var_to_meas[JuMP.index(vref)]
-                    measure = model.measures[mindex]
-                    mref = MeasureRef(model, mindex)
-                    JuMP.set_name(mref, _make_meas_name(measure))
+            _update_infinite_variable(vref, prefs)
+            if used_by_point_variable(vref)
+                for pindex in model.infinite_to_points[vindex]
+                    pvref = PointVariableRef(model, pindex)
+                    pref_vals = _remove_parameter_values(parameter_values(pvref),
+                                                         location)
+                    _update_point_variable(pvref, pref_vals)
+                end
+            end
+            if used_by_reduced_variable(vref)
+                for rindex in model.infinite_to_reduced[vindex]
+                    rvref = ReducedInfiniteVariableRef(model, rindex)
+                    _update_reduced_variable(rvref, location)
                 end
             end
         end
         delete!(model.param_to_vars, JuMP.index(pref))
     end
-    if used_by_measure(pref)
-        for mindex in model.param_to_meas[JuMP.index(pref)]
-            if isa(model.measures[mindex].func, ParameterRef)
-                data = model.measures[mindex].data
-                model.measures[mindex] = Measure(zero(JuMP.AffExpr), data)
-            else
-                _remove_variable(model.measures[mindex].func, pref)
-            end
-            measure = model.measures[mindex]
-            mref = MeasureRef(model, mindex)
-            JuMP.set_name(mref, _make_meas_name(measure))
-        end
-        delete!(model.param_to_meas, JuMP.index(pref))
-    end
     if used_by_constraint(pref)
         for cindex in model.param_to_constrs[JuMP.index(pref)]
             if isa(model.constrs[cindex].func, ParameterRef)
-                set = model.constrs[cindex].set
-                model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr), set)
+                model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr),
+                                                      model.constrs[cindex].set)
             else
                 _remove_variable(model.constrs[cindex].func, pref)
             end
