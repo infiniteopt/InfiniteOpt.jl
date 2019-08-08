@@ -45,3 +45,8 @@ println("")
 println("")
 @time @testset "Expansion Methods" begin include("measure_expansions.jl") end
 println("")
+
+
+println("-----------------------------------------")
+println("-------------TESTING COMPLETE------------")
+println("-----------------------------------------")

@@ -34,12 +34,19 @@ end
     @infinite_parameter(m, 0 <= pars[1:2] <= 1, container = SparseAxisArray)
     @infinite_parameter(m, 0 <= par2 <= 1)
     @infinite_variable(m, inf(par))
+    @infinite_variable(m, inf2(par, par2))
+    @infinite_variable(m, inf3(par, pars))
+    @infinite_variable(m, inf4(par, par2, pars))
     @point_variable(m, inf(0.5), pt)
+    pt2 = @point_variable(m, inf2(0.5, 0.5))
     @global_variable(m, x)
+    rv = ReducedInfiniteVariableRef(m, -1)
+    m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(2 => 0.5))
     data = DiscreteMeasureData(par, [1], [1])
     data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
-    meas = measure(inf + par - x, data)
-    rv = ReducedInfiniteVariableRef(m, 42)
+    meas = measure(inf + par - x + rv, data)
+    meas2 = measure(inf3 - x + pt2, data2)
+
     # test _check_param_in_data (scalar)
     @testset "_check_param_in_data (Scalar)" begin
         @test_throws ErrorException InfiniteOpt._check_param_in_data(par, data)
@@ -86,5 +93,101 @@ end
         filter!(x -> x.second != new_pars[1], new_pars.data)
         @test InfiniteOpt._remove_parameter((par, new_pars),
                                             pars[2]) == ((par,), (2,))
+    end
+    # test _update_infinite_variable
+    @testset "_update_infinite_variable" begin
+        # test updating when used by measure
+        @test isa(InfiniteOpt._update_infinite_variable(inf3, (pars,)), Nothing)
+        @test parameter_refs(inf3) == (pars,)
+        @test name(inf3) == "inf3(pars)"
+        @test name(meas2) == "measure(inf3(pars) - x + inf2(0.5, 0.5))"
+        # Undo the changes
+        @test isa(InfiniteOpt._update_infinite_variable(inf3, (par, pars)),
+                  Nothing)
+        @test parameter_refs(inf3) == (par, pars)
+        @test name(inf3) == "inf3(par, pars)"
+        @test name(meas2) == "measure(inf3(par, pars) - x + inf2(0.5, 0.5))"
+    end
+    # test _remove_parameter_values
+    @testset "_remove_parameter_values" begin
+        # test remove single element
+        @test InfiniteOpt._remove_parameter_values((0, 1), (1,)) == (1,)
+        @test InfiniteOpt._remove_parameter_values((0, 1), (2,)) == (0,)
+        @test InfiniteOpt._remove_parameter_values(([0, 0],), (1,)) == ()
+        # test remove array element
+        arr = convert(JuMP.Containers.SparseAxisArray, [0, 1, 0])
+        arr2 = JuMP.Containers.SparseAxisArray(copy(arr.data))
+        filter!(x -> x.first != (2,), arr2.data)
+        @test InfiniteOpt._remove_parameter_values((arr, 3), (1, (2,))) == (arr2, 3)
+        filter!(x -> x.first != (1,), arr2.data)
+        @test InfiniteOpt._remove_parameter_values((arr,), (1, (1,))) == (arr2,)
+    end
+    # test _update_point_variable
+    @testset "_update_point_variable" begin
+        # test point variable with single parameter
+        @test isa(InfiniteOpt._update_point_variable(pt, ()), Nothing)
+        @test parameter_values(pt) == ()
+        @test name(pt) == "pt"
+        # Undo changes
+        @test isa(InfiniteOpt._update_point_variable(pt, (0.5,)), Nothing)
+        @test parameter_values(pt) == (0.5,)
+        @test name(pt) == "pt"
+        # test point variable with multiple parameters
+        @test isa(InfiniteOpt._update_point_variable(pt2, (0.5,)), Nothing)
+        @test parameter_values(pt2) == (0.5,)
+        @test name(pt2) == "inf2(0.5)"
+        @test name(meas2) == "measure(inf3(par, pars) - x + inf2(0.5))"
+        # Undo changes
+        @test isa(InfiniteOpt._update_point_variable(pt2, (0.5, 0.5)), Nothing)
+        @test parameter_values(pt2) == (0.5, 0.5)
+        @test name(pt2) == "inf2(0.5, 0.5)"
+        @test name(meas2) == "measure(inf3(par, pars) - x + inf2(0.5, 0.5))"
+    end
+    # test _update_reduced_variable
+    @testset "_update_reduced_variable" begin
+        # test removing single parameter that is not reduced
+        @test isa(InfiniteOpt._update_infinite_variable(inf4, (par2, pars)),
+                                                        Nothing)
+        @test isa(InfiniteOpt._update_reduced_variable(rv, (1, )), Nothing)
+        @test m.reduced_info[JuMP.index(rv)].infinite_variable_ref == inf4
+        @test m.reduced_info[JuMP.index(rv)].eval_supports == Dict(1 => 0.5)
+        @test name(rv) == "inf4(0.5, pars)"
+        @test name(meas) == "measure(inf(par) + par - x + inf4(0.5, pars))"
+        # Undo changes
+        m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(2 => 0.5))
+        @test isa(InfiniteOpt._update_infinite_variable(inf4, (par, par2, pars)),
+                                                        Nothing)
+        # test removing single parameter that is reduced
+        @test isa(InfiniteOpt._update_infinite_variable(inf4, (par, pars)),
+                                                        Nothing)
+        @test isa(InfiniteOpt._update_reduced_variable(rv, (2, )), Nothing)
+        @test m.reduced_info[JuMP.index(rv)].infinite_variable_ref == inf4
+        @test m.reduced_info[JuMP.index(rv)].eval_supports == Dict{Int,
+                               Union{Number, JuMP.Containers.SparseAxisArray}}()
+        @test name(rv) == "inf4(par, pars)"
+        @test name(meas) == "measure(inf(par) + par - x + inf4(par, pars))"
+        # Undo changes
+        m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(2 => 0.5))
+        @test isa(InfiniteOpt._update_infinite_variable(inf4, (par, par2, pars)),
+                                                        Nothing)
+        # prepare for removing array element
+        supp = convert(JuMP.Containers.SparseAxisArray, [0, 0])
+        m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(2 => 0.5, 3 => supp))
+        new_supp = JuMP.Containers.SparseAxisArray(copy(supp.data))
+        filter!(x -> x.first != (1,), new_supp.data)
+        # test removing array element
+        @test isa(InfiniteOpt._update_reduced_variable(rv, (3, (1,))), Nothing)
+        @test m.reduced_info[JuMP.index(rv)].infinite_variable_ref == inf4
+        @test m.reduced_info[JuMP.index(rv)].eval_supports == Dict(2 => 0.5, 3 => new_supp)
+        @test name(rv) == "inf4(par, 0.5, " * string(new_supp) * ")"
+        @test name(meas) == "measure(inf(par) + par - x + " * name(rv) * ")"
+        # Undo changes
+        m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(2 => 0.5))
+        @test isa(InfiniteOpt._update_infinite_variable(inf4, (par, par2, pars)),
+                                                        Nothing)
+    end
+    # test JuMP.delete for parameters
+    @testset "JuMP.delete (Parameters)" begin
+        # TODO test
     end
 end

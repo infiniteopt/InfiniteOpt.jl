@@ -252,7 +252,7 @@ function is_used(pref::ParameterRef)::Bool
     return used_by_measure(pref) || used_by_constraint(pref) || used_by_variable(pref)
 end
 
-## Check if parameter is used measure data and error if it is to prevent bad
+## Check if parameter is used by measure data and error if it is to prevent bad
 ## deleting behavior
 # DiscreteMeasureData
 function _check_param_in_data(pref::ParameterRef, data::DiscreteMeasureData)
@@ -314,9 +314,9 @@ function _update_infinite_variable(vref::InfiniteVariableRef, new_prefs::Tuple)
     _update_variable_param_refs(vref, new_prefs)
     JuMP.set_name(vref, _root_name(vref))
     if used_by_measure(vref)
-        for mindex in model.var_to_meas[JuMP.index(vref)]
-            JuMP.set_name(MeasureRef(model, mindex),
-                          _make_meas_name(model.measures[mindex]))
+        for mindex in JuMP.owner_model(vref).var_to_meas[JuMP.index(vref)]
+            JuMP.set_name(MeasureRef(JuMP.owner_model(vref), mindex),
+                       _make_meas_name(JuMP.owner_model(vref).measures[mindex]))
         end
     end
     return
@@ -326,7 +326,7 @@ end
 function _remove_parameter_values(pref_vals::Tuple, location::Tuple)::Tuple
     # removed parameter was a scalar parameter
     if length(location) == 1
-        return Tuple(pref_vals for i = 1:length(pref_vals) if i != location[1])
+        return Tuple(pref_vals[i] for i = 1:length(pref_vals) if i != location[1])
     # removed parameter was part of an array
     else
         filter!(x -> x.first != location[2], pref_vals[location[1]].data)
@@ -338,13 +338,13 @@ end
 function _update_point_variable(pvref::PointVariableRef, pref_vals::Tuple)
     _update_variable_param_values(pvref, pref_vals)
     # update name if no alias was provided
-    if !isa(findfirst(isequal('('), name(pvref)), Nothing)
+    if !isa(findfirst(isequal('('), JuMP.name(pvref)), Nothing)
         JuMP.set_name(pvref, "")
     end
     if used_by_measure(pvref)
-        for mindex in model.var_to_meas[JuMP.index(pvref)]
-            JuMP.set_name(MeasureRef(model, mindex),
-                          _make_meas_name(model.measures[mindex]))
+        for mindex in JuMP.owner_model(pvref).var_to_meas[JuMP.index(pvref)]
+            JuMP.set_name(MeasureRef(JuMP.owner_model(pvref), mindex),
+                      _make_meas_name(JuMP.owner_model(pvref).measures[mindex]))
         end
     end
     return
@@ -354,28 +354,28 @@ end
 # was removed
 function _update_reduced_variable(vref::ReducedInfiniteVariableRef,
                                   location::Tuple)
-    eval_supports = eval_supports(vref)
+    eval_supps = eval_supports(vref)
     # removed parameter was a scalar
     if length(location) == 1
-        delete!(eval_supports, location)
+        delete!(eval_supps, location[1])
         new_supports = Dict{Int, Union{Number, JuMP.Containers.SparseAxisArray}}()
-        for (index, support) in eval_supports
+        for (index, support) in eval_supps
             if index < location[1]
                 new_supports[index] = support
             else
-                new_support[index - 1] = support
+                new_supports[index - 1] = support
             end
         end
         JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = ReducedInfiniteInfo(infinite_variable_ref(vref), new_supports)
     # removed parameter was part of an array and was reduced previously
-    elseif haskey(eval_supports, location[1])
-        filter!(x -> x.first != location[2], eval_supports[location[1]].data)
-        JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = ReducedInfiniteInfo(infinite_variable_ref(vref), eval_supports)
+    elseif haskey(eval_supps, location[1])
+        filter!(x -> x.first != location[2], eval_supps[location[1]].data)
+        JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = ReducedInfiniteInfo(infinite_variable_ref(vref), eval_supps)
     end
     if used_by_measure(vref)
-        for mindex in model.reduced_to_meas[JuMP.index(vref)]
-            JuMP.set_name(MeasureRef(model, mindex),
-                          _make_meas_name(model.measures[mindex]))
+        for mindex in JuMP.owner_model(vref).reduced_to_meas[JuMP.index(vref)]
+            JuMP.set_name(MeasureRef(JuMP.owner_model(vref), mindex),
+                       _make_meas_name(JuMP.owner_model(vref).measures[mindex]))
         end
     end
     return
