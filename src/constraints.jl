@@ -175,13 +175,10 @@ name : g(t) + x == 42.0
 function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint,
                              name::String = "")
     isa(c, JuMP.VectorConstraint) && error("Vector constraints not supported.")
+    JuMP.check_belongs_to_model(c.func, model)
     vrefs = _all_function_variables(c.func)
     isa(vrefs, Vector{ParameterRef}) && error("Constraints cannot contain " *
                                               "only parameters.")
-    for vref in vrefs
-        JuMP.owner_model(vref) != model && error("Variable $vref does not " *
-                                                 "belong to model.")
-    end
     if isa(c, BoundedScalarConstraint)
         _check_bounds(model, c.bounds)
     end

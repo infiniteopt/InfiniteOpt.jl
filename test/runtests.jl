@@ -45,7 +45,19 @@ println("")
 println("")
 @time @testset "Expansion Methods" begin include("measure_expansions.jl") end
 println("")
+@time @testset "Printing Methods" begin include("show.jl") end
+println("")
+@time @testset "TranscriptionOpt" begin
 
+end
+println("")
+@time @testset "Solution Methods" begin include("optimizer.jl") end
+println("")
+@time @testset "Solution Queries" begin include("results.jl") end
+println("")
+
+# TODO add extension tests 
+# TODO add involved deletion tests
 
 println("-----------------------------------------")
 println("-------------TESTING COMPLETE------------")

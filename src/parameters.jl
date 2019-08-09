@@ -276,19 +276,19 @@ end
 
 ## Determine if a tuple element contains a particular parameter
 # ParameterRef
-function _contains_pref(search_pref::ParameterRef, pref::ParameterRef)
+function _contains_pref(search_pref::ParameterRef, pref::ParameterRef)::Bool
     return search_pref == pref
 end
 
 # SparseAxisArray
 function _contains_pref(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef},
-                        pref::ParameterRef)
+                        pref::ParameterRef)::Bool
     return pref in collect(values(arr.data))
 end
 
 # Return parameter tuple without a particular parameter and return location of
 # where it was
-function _remove_parameter(prefs::Tuple, delete_pref::ParameterRef)
+function _remove_parameter(prefs::Tuple, delete_pref::ParameterRef)::Tuple
     for i = 1:length(prefs)
         if _contains_pref(prefs[i], delete_pref)
             if isa(prefs[i], ParameterRef)
@@ -296,9 +296,12 @@ function _remove_parameter(prefs::Tuple, delete_pref::ParameterRef)
             else
                 for (k, v) in prefs[i].data
                     if v == delete_pref
-                        filter!(x -> x.second != delete_pref, prefs[i].data)
-                        if length(prefs[i]) != 0
-                            return prefs, (i, k)
+                        new_dict = filter(x -> x.second != delete_pref,
+                                         prefs[i].data)
+                        if length(new_dict) != 0
+                            pref_list = [prefs...]
+                            pref_list[i] = JuMP.Containers.SparseAxisArray(new_dict)
+                            return Tuple(pref_list[j] for j = 1:length(prefs)), (i, k)
                         else
                             return Tuple(prefs[j] for j = 1:length(prefs) if j != i), (i, )
                         end
@@ -329,8 +332,10 @@ function _remove_parameter_values(pref_vals::Tuple, location::Tuple)::Tuple
         return Tuple(pref_vals[i] for i = 1:length(pref_vals) if i != location[1])
     # removed parameter was part of an array
     else
-        filter!(x -> x.first != location[2], pref_vals[location[1]].data)
-        return pref_vals
+        new_dict = filter(x -> x.first != location[2], pref_vals[location[1]].data)
+        val_list = [pref_vals...]
+        val_list[location[1]] = JuMP.Containers.SparseAxisArray(new_dict)
+        return Tuple(val_list[i] for i = 1:length(pref_vals))
     end
 end
 
@@ -357,20 +362,21 @@ function _update_reduced_variable(vref::ReducedInfiniteVariableRef,
     eval_supps = eval_supports(vref)
     # removed parameter was a scalar
     if length(location) == 1
-        delete!(eval_supps, location[1])
         new_supports = Dict{Int, Union{Number, JuMP.Containers.SparseAxisArray}}()
         for (index, support) in eval_supps
             if index < location[1]
                 new_supports[index] = support
-            else
+            elseif index > location[1]
                 new_supports[index - 1] = support
             end
         end
         JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = ReducedInfiniteInfo(infinite_variable_ref(vref), new_supports)
     # removed parameter was part of an array and was reduced previously
     elseif haskey(eval_supps, location[1])
-        filter!(x -> x.first != location[2], eval_supps[location[1]].data)
-        JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = ReducedInfiniteInfo(infinite_variable_ref(vref), eval_supps)
+        new_dict = filter(x -> x.first != location[2], eval_supps[location[1]].data)
+        new_supports = copy(eval_supps)
+        new_supports[location[1]] = JuMP.Containers.SparseAxisArray(new_dict)
+        JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = ReducedInfiniteInfo(infinite_variable_ref(vref), new_supports)
     end
     if used_by_measure(vref)
         for mindex in JuMP.owner_model(vref).reduced_to_meas[JuMP.index(vref)]
@@ -384,19 +390,50 @@ end
 """
     JuMP.delete(model::InfiniteModel, pref::ParameterRef)
 
-Extend [`JuMP.delete`](@ref) function to accomodate infinite parameters
+Extend [`JuMP.delete`](@ref) to delete infinite parameters and their
+dependencies. All variables, constraints, and measure functions that depend on
+`pref` are updated to exclude it. Errors if the parameter is contained in an
+`AbstractMeasureData` datatype that is employed by a measure since the measure
+becomes invalid otherwise. Thus, measures that contain this dependency must
+be deleted first. Note that `_check_param_in_data(pref, measure_data)` needs to
+be extended to allow deletion of parameters when custom `AbstractMeasureData`
+datatypes are used.
+
+**Example**
+```julia
+julia> print(model)
+Min measure(g(t, x)*t + x) + z
+Subject to
+ z >= 0.0
+ g(t, x) + z >= 42.0
+ g(0.5, x) == 0
+ t in [0, 6]
+ x in [0, 1]
+
+julia> delete(model, x)
+
+julia> print(model)
+Min measure(g(t)*t) + z
+Subject to
+ g(t) + z >= 42.0
+ g(0.5) == 0
+ z >= 0.0
+ t in [0, 6]
+```
 """
 function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
-    @assert JuMP.is_valid(model, pref)
+    @assert JuMP.is_valid(model, pref) "Parameter reference is invalid."
+    # update optimizer model status
     if is_used(pref)
         set_optimizer_model_ready(model, false)
     end
+    # update measures
     if used_by_measure(pref)
-        # ensure deletion is okay
+        # ensure deletion is okay (pref isn't used by measure data)
         for mindex in model.param_to_meas[JuMP.index(pref)]
             _check_param_in_data(pref, model.measures[mindex].data)
         end
-        # delete dependence on of measures on pref
+        # delete dependence of measures on pref
         for mindex in model.param_to_meas[JuMP.index(pref)]
             if isa(model.measures[mindex].func, ParameterRef)
                 model.measures[mindex] = Measure(zero(JuMP.AffExpr),
@@ -407,14 +444,20 @@ function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
             JuMP.set_name(MeasureRef(model, mindex),
                           _make_meas_name(model.measures[mindex]))
         end
+        # delete mapping
         delete!(model.param_to_meas, JuMP.index(pref))
     end
+    # update variables
     if used_by_variable(pref)
+        # update infinite variables that depend on pref
         for vindex in model.param_to_vars[JuMP.index(pref)]
+            # find location of parameter in storage tuple
             prefs, location = _remove_parameter(model.vars[vindex].parameter_refs,
                                                 pref)
             vref = InfiniteVariableRef(model, vindex)
+            # remove the parameter dependence
             _update_infinite_variable(vref, prefs)
+            # update any point variables that depend on vref accordingly
             if used_by_point_variable(vref)
                 for pindex in model.infinite_to_points[vindex]
                     pvref = PointVariableRef(model, pindex)
@@ -423,16 +466,20 @@ function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
                     _update_point_variable(pvref, pref_vals)
                 end
             end
+            # update any reduced variables that depend on vref accordingly
             if used_by_reduced_variable(vref)
                 for rindex in model.infinite_to_reduced[vindex]
-                    rvref = ReducedInfiniteVariableRef(model, rindex)
-                    _update_reduced_variable(rvref, location)
+                    _update_reduced_variable(ReducedInfiniteVariableRef(model,
+                                                              rindex), location)
                 end
             end
         end
+        # delete mapping
         delete!(model.param_to_vars, JuMP.index(pref))
     end
+    # update constraints
     if used_by_constraint(pref)
+        # update constraints in mapping to remove the parameter
         for cindex in model.param_to_constrs[JuMP.index(pref)]
             if isa(model.constrs[cindex].func, ParameterRef)
                 model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr),
@@ -441,8 +488,10 @@ function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
                 _remove_variable(model.constrs[cindex].func, pref)
             end
         end
+        # delete mapping
         delete!(model.param_to_constrs, JuMP.index(pref))
     end
+    # delete parameter information stored in model
     delete!(model.params, JuMP.index(pref))
     delete!(model.param_to_name, JuMP.index(pref))
     delete!(model.param_to_group_id, JuMP.index(pref))

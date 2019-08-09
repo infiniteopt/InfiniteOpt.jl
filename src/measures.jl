@@ -121,6 +121,7 @@ operates in a manner similar to [`JuMP.add_variable`](@ref).
 function add_measure(model::InfiniteModel, meas::Measure)::MeasureRef
     model.next_meas_index += 1
     index = model.next_meas_index
+    JuMP.check_belongs_to_model(meas.func, model)
     vrefs = _all_function_variables(meas.func)
     _update_var_meas_mapping(vrefs, index)
     _update_param_data_mapping(model, meas.data, index)
@@ -224,11 +225,17 @@ function _has_parameter(vrefs::Vector{<:GeneralVariableRef},
         return true
     end
     model = JuMP.owner_model(pref)
-    relavent_vindices = model.param_to_vars[JuMP.index(pref)]
-    relavent_vrefs = [InfiniteVariableRef(model, vindex) for vindex in relavent_vindices]
-    for vref in relavent_vrefs
-        if _has_variable(vrefs, vref)
+    relavent_ivindices = model.param_to_vars[JuMP.index(pref)]
+    relavent_ivrefs = [InfiniteVariableRef(model, vindex) for vindex in relavent_ivindices]
+    for ivref in relavent_ivrefs
+        if _has_variable(vrefs, ivref)
             return true
+        elseif used_by_reduced_variable(ivref)
+            for index in model.infinite_to_reduced[JuMP.index(ivref)]
+                if _has_variable(vrefs, ReducedInfiniteVariableRef(model, index))
+                    return true
+                end
+            end
         end
     end
     return false
@@ -399,7 +406,32 @@ end
 
 """
     JuMP.delete(model::InfiniteModel, mref::MeasureRef)
-Extend the `JuMP.delete` function to accomodate measures
+
+Extend [`JuMP.delete`](@ref) to delete measures. Errors if measure is invalid,
+meaning it does not belong to the model or it has already been deleted.
+
+**Example**
+```julia
+julia> print(model)
+Min measure(g(t)*t) + z
+Subject to
+ z >= 0.0
+ measure(g(t)) == 0
+ g(t) + z >= 42.0
+ g(0.5) == 0
+ t in [0, 6]
+
+julia> delete(model, meas)
+
+julia> print(model)
+Min z
+Subject to
+ z >= 0.0
+ 0 == 0
+ g(t) + z >= 42.0
+ g(0.5) == 0
+ t in [0, 6]
+```
 """
 function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
     @assert JuMP.is_valid(model, mref) "Invalid measure reference."
@@ -416,8 +448,8 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
             else
                 _remove_variable(model.measures[mindex].func, mref)
             end
-            mref2 = MeasureRef(model, mindex)
-            JuMP.set_name(mref2, _make_meas_name(model.measures[mindex]))
+            JuMP.set_name(MeasureRef(model, mindex),
+                          _make_meas_name(model.measures[mindex]))
         end
         delete!(model.meas_to_meas, JuMP.index(mref))
     end
@@ -425,9 +457,8 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
     if used_by_constraint(mref)
         for cindex in model.meas_to_constrs[JuMP.index(mref)]
             if isa(model.constrs[cindex].func, MeasureRef)
-                set = model.constrs[cindex].set
                 model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr),
-                                                              set)
+                                                      model.constrs[cindex].set)
             else
                 _remove_variable(model.constrs[cindex].func, mref)
             end
@@ -442,7 +473,7 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
             _remove_variable(model.objective_function, mref)
         end
     end
-    # Update that the variable used by it are no longer used by it
+    # Update that the variables used by it are no longer used by it
     vrefs = _all_function_variables(measure_function(mref))
     for vref in vrefs
         if isa(vref, InfOptVariableRef)

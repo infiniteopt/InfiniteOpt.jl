@@ -472,7 +472,35 @@ end
 
 """
     JuMP.delete(model::InfiniteModel, vref::ReducedInfiniteVariableRef)
-Extend the `JuMP.delete` function to accomodate our new variable types.
+
+Extend [`JuMP.delete`](@ref) to delete reduced infinite variables and its
+dependencies. Errors if `vref` is invalid, meaning it has already been deleted
+or it belongs to another model.
+
+**Example**
+``julia
+julia> print(model)
+Min measure(g(0, t)*t + g(1, t)*t) + z
+Subject to
+ z >= 0.0
+ g(0, t) + g(1, t) == 0
+ g(x, t) + z >= 42.0
+ g(0.5, 0.5) == 0
+ t in [0, 6]
+ x in [0, 1]
+
+julia> delete(model, rvref1)
+
+julia> print(model)
+Min measure(t + g(1, t)*t) + z
+Subject to
+ z >= 0.0
+ g(1, t) == 0
+ g(x, t) + z >= 42.0
+ g(0.5, 0.5) == 0
+ t in [0, 6]
+ x in [0, 1]
+```
 """
 function JuMP.delete(model::InfiniteModel, vref::ReducedInfiniteVariableRef)
     # check valid reference
@@ -481,29 +509,31 @@ function JuMP.delete(model::InfiniteModel, vref::ReducedInfiniteVariableRef)
     if used_by_measure(vref)
         for mindex in model.reduced_to_meas[JuMP.index(vref)]
             if isa(model.measures[mindex].func, ReducedInfiniteVariableRef)
-                data = model.measures[mindex].data
-                model.measures[mindex] = Measure(zero(JuMP.AffExpr), data)
+                model.measures[mindex] = Measure(zero(JuMP.AffExpr),
+                                                 model.measures[mindex].data)
             else
                 _remove_variable(model.measures[mindex].func, vref)
             end
-            mref = MeasureRef(model, mindex)
-            JuMP.set_name(mref, _make_meas_name(model.measures[mindex]))
+            JuMP.set_name(MeasureRef(model, mindex),
+                          _make_meas_name(model.measures[mindex]))
         end
+        # delete mapping
         delete!(model.reduced_to_meas, JuMP.index(vref))
     end
     # remove from constraints if used
     if used_by_constraint(vref)
         for cindex in model.reduced_to_constrs[JuMP.index(vref)]
             if isa(model.constrs[cindex].func, ReducedInfiniteVariableRef)
-                set = model.constrs[cindex].set
                 model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr),
-                                                                   set)
+                                                      model.constrs[cindex].set)
             else
                 _remove_variable(model.constrs[cindex].func, vref)
             end
         end
+        # delete mapping
         delete!(model.reduced_to_constrs, JuMP.index(vref))
     end
+    # remove mapping to infinite variable
     ivref = infinite_variable_ref(vref)
     filter!(e -> e != JuMP.index(vref),
             model.infinite_to_reduced[JuMP.index(ivref)])

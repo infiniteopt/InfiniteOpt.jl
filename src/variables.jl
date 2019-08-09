@@ -602,13 +602,38 @@ end
 
 """
     JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
-Extend the `JuMP.delete` function to accomodate our new variable types.
+
+Extend [`JuMP.delete`](@ref) to delete `InfiniteOpt` variables and their
+dependencies. Errors if variable is invalid, meaning it has already been
+deleted or it belongs to another model.
+
+**Example**
+```julia
+julia> print(model)
+Min measure(g(t)*t) + z
+Subject to
+ z >= 0.0
+ g(t) + z >= 42.0
+ g(0.5) == 0
+ t in [0, 6]
+
+julia> delete(model, g)
+
+julia> print(model)
+Min measure(t) + z
+Subject to
+ z >= 0.0
+ z >= 42.0
+ t in [0, 6]
+```
 """
 function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
-    @assert JuMP.is_valid(model, vref)
+    @assert JuMP.is_valid(model, vref) "Variable is invalid."
+    # update the optimizer model status
     if is_used(vref)
         set_optimizer_model_ready(model, false)
     end
+    # remove variable info constraints associated with vref
     if JuMP.has_lower_bound(vref)
         JuMP.delete_lower_bound(vref)
     end
@@ -623,31 +648,35 @@ function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
     elseif JuMP.is_integer(vref)
         JuMP.unset_integer(vref)
     end
+    # remove dependencies from measures and update them
     if used_by_measure(vref)
         for mindex in model.var_to_meas[JuMP.index(vref)]
             if isa(model.measures[mindex].func, InfOptVariableRef)
-                data = model.measures[mindex].data
-                model.measures[mindex] = Measure(zero(JuMP.AffExpr), data)
+                model.measures[mindex] = Measure(zero(JuMP.AffExpr),
+                                                 model.measures[mindex].data)
             else
                 _remove_variable(model.measures[mindex].func, vref)
             end
-            mref = MeasureRef(model, mindex)
-            JuMP.set_name(mref, _make_meas_name(model.measures[mindex]))
+            JuMP.set_name(MeasureRef(model, mindex),
+                           _make_meas_name(model.measures[mindex]))
         end
+        # delete mapping
         delete!(model.var_to_meas, JuMP.index(vref))
     end
+    # remove dependencies from measures and update them
     if used_by_constraint(vref)
         for cindex in model.var_to_constrs[JuMP.index(vref)]
             if isa(model.constrs[cindex].func, InfOptVariableRef)
-                set = model.constrs[cindex].set
                 model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr),
-                                                              set)
+                                                      model.constrs[cindex].set)
             else
                 _remove_variable(model.constrs[cindex].func, vref)
             end
         end
+        # delete mapping
         delete!(model.var_to_constrs, JuMP.index(vref))
     end
+    # remove from objective if vref is in it
     if used_by_objective(vref)
         if isa(model.objective_function, InfOptVariableRef)
             model.objective_function = zero(JuMP.AffExpr)
@@ -655,7 +684,9 @@ function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
             _remove_variable(model.objective_function, vref)
         end
     end
+    # do specific updates if vref is infinite
     if isa(vref, InfiniteVariableRef)
+        # update parameter mapping
         all_prefs = _list_parameter_refs(parameter_refs(vref))
         for pref in all_prefs
             filter!(e -> e != JuMP.index(vref),
@@ -664,15 +695,22 @@ function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
                 delete!(model.param_to_vars, JuMP.index(pref))
             end
         end
-        for index in model.infinite_to_points[JuMP.index(vref)]
-            JuMP.delete(model, PointVariableRef(model, index))
+        # delete associated point variables and mapping
+        if used_by_point_variable(vref)
+            for index in model.infinite_to_points[JuMP.index(vref)]
+                JuMP.delete(model, PointVariableRef(model, index))
+            end
+            delete!(model.infinite_to_points, JuMP.index(vref))
         end
-        delete!(model.infinite_to_points, JuMP.index(vref))
-        for index in model.infinite_to_reduced[JuMP.index(vref)]
-            JuMP.delete(model, ReducedInfiniteVariableRef(model, index))
+        # delete associated reduced variables and mapping
+        if used_by_reduced_variable(vref)
+            for index in model.infinite_to_reduced[JuMP.index(vref)]
+                JuMP.delete(model, ReducedInfiniteVariableRef(model, index))
+            end
+            delete!(model.infinite_to_reduced, JuMP.index(vref))
         end
-        delete!(model.infinite_to_reduced, JuMP.index(vref))
     end
+    # update mappings if is point variable
     if isa(vref, PointVariableRef)
         ivref = infinite_variable_ref(vref)
         filter!(e -> e != JuMP.index(vref),
@@ -681,6 +719,7 @@ function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
             delete!(model.infinite_to_points, JuMP.index(ivref))
         end
     end
+    # delete the variable information
     delete!(model.var_in_objective, JuMP.index(vref))
     delete!(model.vars, JuMP.index(vref))
     delete!(model.var_to_name, JuMP.index(vref))
@@ -819,7 +858,7 @@ function JuMP.set_name(vref::PointVariableRef, name::String)
     if length(name) == 0
         inf_var_ref = infinite_variable_ref(vref::PointVariableRef)
         name = _root_name(inf_var_ref)
-        # TODO do something about SparseAxisArrays
+        # TODO do something about SparseAxisArrays (report array of values in order)
         values = JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
         if length(values) == 1
             name = string(name, "(", values[1], ")")

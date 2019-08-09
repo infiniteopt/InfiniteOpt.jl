@@ -223,6 +223,9 @@ end
         @test m.var_to_meas[JuMP.index(x)] == [1]
         @test m.param_to_meas[JuMP.index(par)] == [1]
         @test !m.meas_in_objective[JuMP.index(mref)]
+        # test errors
+        @test_throws VariableNotOwned add_measure(m, Measure(@variable(Model()),
+                                                             data))
     end
 end
 
@@ -258,6 +261,9 @@ end
     @infinite_variable(m, inf3(par2))
     @infinite_variable(m, inf4(pars))
     @global_variable(m, x)
+    m.reduced_info[-1] = ReducedInfiniteInfo(inf2, Dict(2 => 0.5))
+    m.infinite_to_reduced[JuMP.index(inf2)] = [-1]
+    rv = ReducedInfiniteVariableRef(m, -1)
     # prepare measures
     data = DiscreteMeasureData(par, [1], [1])
     data2 = DiscreteMeasureData(par2, [1], [1])
@@ -274,6 +280,8 @@ end
     mref5 = add_measure(m, meas5)
     meas6 = Measure(x + inf4, data3)
     mref6 = add_measure(m, meas6)
+    meas7 = Measure(rv, data)
+    mref7 = add_measure(m, meas7)
     # test _has_variable
     @testset "_has_variable" begin
         # test in vector
@@ -306,6 +314,7 @@ end
         @test InfiniteOpt._has_parameter([par], par)
         @test InfiniteOpt._has_parameter([x, par], par)
         @test InfiniteOpt._has_parameter([x, inf], par)
+        @test InfiniteOpt._has_parameter([x, rv], par)
         # test not in vector
         @test !InfiniteOpt._has_parameter([par], par2)
         @test !InfiniteOpt._has_parameter([x, par], par2)

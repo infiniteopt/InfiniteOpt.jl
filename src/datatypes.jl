@@ -447,7 +447,7 @@ const InfOptVariableRef = Union{InfiniteVariableRef, PointVariableRef,
                                 GlobalVariableRef}
 
 # Define infinite expressions
-const InfiniteExpr = Union{InfiniteVariableRef,
+const InfiniteExpr = Union{InfiniteVariableRef, ReducedInfiniteVariableRef,
                            JuMP.GenericAffExpr{Float64, InfiniteVariableRef},
                            JuMP.GenericAffExpr{Float64, GeneralVariableRef},
                            JuMP.GenericAffExpr{Float64, ReducedInfiniteVariableRef},

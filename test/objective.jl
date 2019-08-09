@@ -65,6 +65,42 @@ end
     @global_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
     meas = measure(inf + par - x, data)
+    # set_objective_sense
+    @testset "JuMP.set_objective_sense" begin
+        # test normal
+        @test isa(set_objective_sense(m, MOI.MAX_SENSE), Nothing)
+        @test objective_sense(m) == MOI.MAX_SENSE
+    end
+    # set_objective_function (expr)
+    @testset "JuMP.set_objective_function (Expr)" begin
+        # test first set
+        @test isa(set_objective_function(m, x + meas + pt), Nothing)
+        @test objective_function(m) == x + meas + pt
+        @test used_by_objective(x)
+        @test used_by_objective(pt)
+        @test used_by_objective(meas)
+        @test !optimizer_model_ready(m)
+        # test reset
+        @test isa(set_objective_function(m, pt), Nothing)
+        @test objective_function(m) == pt
+        @test !used_by_objective(x)
+        @test used_by_objective(pt)
+        @test !used_by_objective(meas)
+        # test errors
+        @test_throws ErrorException set_objective_function(m, inf + pt)
+        @test_throws ErrorException set_objective_function(m, par + pt)
+        @test_throws VariableNotOwned set_objective_function(m, @variable(Model()))
+    end
+    # set_objective_function (number)
+    @testset "JuMP.set_objective_function (Number)" begin
+        # test normal
+        @test isa(set_objective_function(m, 3), Nothing)
+        @test objective_function(m) == GenericAffExpr{Float64,
+                                                      GlobalVariableRef}(3)
+        @test !used_by_objective(x)
+        @test !used_by_objective(pt)
+        @test !used_by_objective(meas)
+    end
     # set_objective (expr)
     @testset "JuMP.set_objective (Expr)" begin
         # test first set
@@ -97,13 +133,9 @@ end
         @test !used_by_objective(pt)
         @test !used_by_objective(meas)
     end
-    # set_objective_sense
-    @testset "JuMP.set_objective_sense" begin
-        # test normal
-        @test isa(set_objective_sense(m, MOI.MAX_SENSE), Nothing)
-        @test objective_function(m) == GenericAffExpr{Float64,
-                                                      GlobalVariableRef}(3)
-        @test objective_sense(m) == MOI.MAX_SENSE
+    # set_objective (fallback)
+    @testset "JuMP.set_objective (Fallback)" begin
+        @test_throws ErrorException set_objective(m, MOI.MAX_SENSE, 1im)
     end
     # test the objective macro
     @testset "JuMP.@objective" begin

@@ -195,10 +195,10 @@ end
         # test rejects bad variables
         @variable(Model(), z)
         con = ScalarConstraint(z, MOI.EqualTo(42.0))
-        @test_throws ErrorException add_constraint(m, con, "a")
+        @test_throws VariableNotOwned add_constraint(m, con, "a")
         @global_variable(InfiniteModel(), g)
         con = ScalarConstraint(g, MOI.EqualTo(42.0))
-        @test_throws ErrorException add_constraint(m, con, "a")
+        @test_throws VariableNotOwned add_constraint(m, con, "a")
         # test bounded constraint
         con = BoundedScalarConstraint(inf + pt, MOI.EqualTo(42.0),
                                        Dict(par => IntervalSet(0, 1)))
