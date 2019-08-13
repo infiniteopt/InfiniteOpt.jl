@@ -26,6 +26,39 @@
     @test_throws AssertionError delete(m, cref)
 end
 
+# Test deleting variable information
+@testset "Variable Information" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_variable(m, 0 <= inf1(par) <= 1, Bin)
+    @infinite_variable(m, inf2(par) == 1, Int)
+    @point_variable(m, inf1(0.5), pt1)
+    @point_variable(m, inf2(0.5), pt2)
+    @global_variable(m, 0 <= gb1 <= 1, Bin)
+    @global_variable(m, gb2 == 1, Int)
+    # test delete_lower_bound
+    @testset "JuMP.delete_lower_bound" begin
+
+    end
+    # test delete_upper_bound
+    @testset "JuMP.delete_upper_bound" begin
+
+    end
+    # test unfix
+    @testset "JuMP.unfix" begin
+
+    end
+    # test unset_binary
+    @testset "JuMP.unset_binary" begin
+
+    end
+    # test unset_integer
+    @testset "JuMP.unset_integer" begin
+
+    end
+end
+
 # Test parameter deletion
 @testset "Parameters" begin
     # initialize model and references
@@ -89,7 +122,8 @@ end
         @test InfiniteOpt._remove_parameter((par,), par) == ((), (1,))
         @test InfiniteOpt._remove_parameter((par2, par), par) == ((par2,), (2,))
         # test removing element from array
-        new_pars = JuMP.Containers.SparseAxisArray(copy(pars.data))
+        new_pars = JuMP.Containers.SparseAxisArray(Dict((1,) => pars[1],
+                                                   (2,) => pars[2]))
         filter!(x -> x.second != new_pars[1], new_pars.data)
         @test InfiniteOpt._remove_parameter((pars,),
                                             pars[1]) == ((new_pars,), (1, (1,)))
@@ -97,7 +131,8 @@ end
                                         pars[1]) == ((par, new_pars), (2, (1,)))
         # test removing from array that becomes empty
         @test InfiniteOpt._remove_parameter((new_pars,), pars[2]) == ((), (1,))
-        new_pars = JuMP.Containers.SparseAxisArray(copy(pars.data))
+        new_pars = JuMP.Containers.SparseAxisArray(Dict((1,) => pars[1],
+                                                   (2,) => pars[2]))
         filter!(x -> x.second != new_pars[1], new_pars.data)
         @test InfiniteOpt._remove_parameter((par, new_pars),
                                             pars[2]) == ((par,), (2,))
@@ -124,7 +159,8 @@ end
         @test InfiniteOpt._remove_parameter_values(([0, 0],), (1,)) == ()
         # test remove array element
         arr = convert(JuMP.Containers.SparseAxisArray, [0, 1, 0])
-        arr2 = JuMP.Containers.SparseAxisArray(copy(arr.data))
+        arr2 = JuMP.Containers.SparseAxisArray(Dict((1,) => 0, (2,) => 1,
+                                                    (3,) => 0))
         filter!(x -> x.first != (2,), arr2.data)
         @test InfiniteOpt._remove_parameter_values((arr, 3), (1, (2,))) == (arr2, 3)
         arr3 = JuMP.Containers.SparseAxisArray(filter(x -> x.first != (1,),
@@ -194,7 +230,7 @@ end
         # prepare for removing array element
         supp = convert(JuMP.Containers.SparseAxisArray, [0, 0])
         m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(2 => 0.5, 3 => supp))
-        new_supp = JuMP.Containers.SparseAxisArray(copy(supp.data))
+        new_supp = JuMP.Containers.SparseAxisArray(Dict((1,) => 0, (2,) => 0))
         filter!(x -> x.first != (1,), new_supp.data)
         # test removing array element
         @test isa(InfiniteOpt._update_reduced_variable(rv, (3, (1,))), Nothing)
