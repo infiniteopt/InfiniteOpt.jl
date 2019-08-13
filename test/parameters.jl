@@ -628,7 +628,7 @@ end
         push!(expected, convert(JuMP.Containers.SparseAxisArray, [1; 1]))
         set_independent(prefs[1])
         set_independent(prefs[2])
-        @test supports(prefs) == expected
+        @test sort(supports(prefs)) == sort(expected)
     end
     # num_parameters
     @testset "num_parameters" begin

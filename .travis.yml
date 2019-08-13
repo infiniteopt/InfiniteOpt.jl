@@ -43,3 +43,5 @@ jobs:
           Pkg.instantiate();
           include("docs/make.jl");'
       after_success: skip
+  allow_failures:
+    - arch: x86
