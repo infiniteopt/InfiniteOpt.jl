@@ -361,6 +361,7 @@ end
     m = InfiniteModel()
     param = InfOptParameter(IntervalSet(0, 1), Number[], false)
     pref = add_parameter(m, param, "test")
+    m.param_to_vars[JuMP.index(pref)] = [1]
     # _parameter_set
     @testset "_parameter_set" begin
         @test InfiniteOpt._parameter_set(pref) == IntervalSet(0, 1)

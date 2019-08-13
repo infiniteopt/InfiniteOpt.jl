@@ -176,6 +176,18 @@ end
         @test name(rv) == "inf4(par, pars)"
         @test name(meas) == "measure(inf(par) + par - x + inf4(par, pars))"
         # Undo changes
+        @test isa(InfiniteOpt._update_infinite_variable(inf4, (par, par2, pars)),
+                                                        Nothing)
+        # test removing a different single parameter
+        m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(1 => 0.5, 2 => 0.5))
+        @test isa(InfiniteOpt._update_infinite_variable(inf4, (par, pars)),
+                                                        Nothing)
+        @test isa(InfiniteOpt._update_reduced_variable(rv, (2, )), Nothing)
+        @test m.reduced_info[JuMP.index(rv)].infinite_variable_ref == inf4
+        @test m.reduced_info[JuMP.index(rv)].eval_supports == Dict(1 => 0.5)
+        @test name(rv) == "inf4(0.5, pars)"
+        @test name(meas) == "measure(inf(par) + par - x + inf4(0.5, pars))"
+        # Undo changes
         m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(2 => 0.5))
         @test isa(InfiniteOpt._update_infinite_variable(inf4, (par, par2, pars)),
                                                         Nothing)

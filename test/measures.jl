@@ -209,7 +209,7 @@ end
     # test _update_param_data_mapping (fallback)
     @testset "_update_param_data_mapping (fallback)" begin
         warn = "Unable to map parameter dependence for measure data type " *
-               "other. Parameter deletion methods should not be used."
+               "BadData. Parameter deletion methods should not be used."
         @test_logs (:warn, warn) InfiniteOpt._update_param_data_mapping(m,
                                                                    BadData(), 1)
     end
