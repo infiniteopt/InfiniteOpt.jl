@@ -446,8 +446,7 @@ end
         @test has_lower_bound(pref)
         set_infinite_set(pref, DistributionSet(Multinomial(3, 2)))
         @test !has_lower_bound(pref)
-        struct test <: AbstractInfiniteSet end
-        set_infinite_set(pref, test())
+        set_infinite_set(pref, BadSet())
         @test_throws ErrorException has_lower_bound(pref)
     end
     # JuMP.lower_bound
@@ -462,8 +461,7 @@ end
     # JuMP.set_lower_bound
     @testset "JuMP.set_lower_bound" begin
         @test_throws ErrorException set_lower_bound(pref, 2)
-        struct test <: AbstractInfiniteSet end
-        set_infinite_set(pref, test())
+        set_infinite_set(pref, BadSet())
         @test_throws ErrorException set_lower_bound(pref, 2)
         set_infinite_set(pref, IntervalSet(0, 1))
         @test isa(set_lower_bound(pref, -1), Nothing)
@@ -483,8 +481,7 @@ end
         @test has_upper_bound(pref)
         set_infinite_set(pref, DistributionSet(Multinomial(3, 2)))
         @test !has_upper_bound(pref)
-        struct test <: AbstractInfiniteSet end
-        set_infinite_set(pref, test())
+        set_infinite_set(pref, BadSet())
         @test_throws ErrorException has_upper_bound(pref)
     end
     # JuMP.upper_bound
@@ -499,8 +496,7 @@ end
     # JuMP.set_upper_bound
     @testset "JuMP.set_upper_bound" begin
         @test_throws ErrorException set_upper_bound(pref, 2)
-        struct test <: AbstractInfiniteSet end
-        set_infinite_set(pref, test())
+        set_infinite_set(pref, BadSet())
         @test_throws ErrorException set_upper_bound(pref, 2)
         set_infinite_set(pref, IntervalSet(0, 1))
         @test isa(set_upper_bound(pref, 2), Nothing)

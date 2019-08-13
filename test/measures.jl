@@ -208,11 +208,10 @@ end
     end
     # test _update_param_data_mapping (fallback)
     @testset "_update_param_data_mapping (fallback)" begin
-        struct other <: AbstractMeasureData end
         warn = "Unable to map parameter dependence for measure data type " *
                "other. Parameter deletion methods should not be used."
         @test_logs (:warn, warn) InfiniteOpt._update_param_data_mapping(m,
-                                                                     other(), 1)
+                                                                   BadData(), 1)
     end
     # test add_measure
     @testset "add_measure" begin

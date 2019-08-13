@@ -8,7 +8,7 @@ using Distributions
 # using Ipopt
 using Test
 
-include("Utilities.jl")
+include("utilities.jl")
 
 # Run unit tests
 println("-----------------------------------------")
@@ -56,7 +56,7 @@ println("")
 @time @testset "Solution Queries" begin include("results.jl") end
 println("")
 
-# TODO add extension tests 
+# TODO add extension tests
 # TODO add involved deletion tests
 
 println("-----------------------------------------")

@@ -383,9 +383,8 @@ end
     @testset "Other" begin
         # prepare test
         @variable(trans_model, y)
-        struct new <: AbstractMeasureData end
         # test it
-        @test_throws ErrorException InfiniteOpt._expand_measure(y, new(),
+        @test_throws ErrorException InfiniteOpt._expand_measure(y, BadData(),
                                                                 map_args...)
     end
 end
@@ -437,8 +436,7 @@ end
         # test error
         m2 = Model()
         @variable(m2, y)
-        struct new <: AbstractMeasureData end
-        m.measures[1] = Measure(y, new())
+        m.measures[1] = Measure(y, BadData())
         @test_throws ErrorException expand(meas1)
     end
     # TODO test _expand_measures

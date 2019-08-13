@@ -44,8 +44,7 @@ end
     end
     # add_bridge
     @testset "JuMP.add_bridge" begin
-        struct test_bridge{C} <: MOI.Bridges.AbstractBridge where {C} end
-        @test isa(add_bridge(m, test_bridge), Nothing)
+        @test isa(add_bridge(m, TestBridge), Nothing)
     end
     # set_optimizer
     @testset "JuMP.set_optimizer" begin

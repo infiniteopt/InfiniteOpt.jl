@@ -16,3 +16,9 @@ macro test_macro_throws(errortype, m)
     # See https://discourse.julialang.org/t/test-throws-with-macros-after-pr-23533/5878
     :(@test_throws $errortype try @eval $m catch err; throw(err.error) end)
 end
+
+# Define test data structures
+struct BadSet <: AbstractInfiniteSet end
+struct TestBridge{C} <: MOI.Bridges.AbstractBridge where {C} end
+struct BadData <: AbstractMeasureData end
+struct Bad end

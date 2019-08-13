@@ -71,8 +71,7 @@ end
     end
     # test _check_param_in_data (fallback)
     @testset "_check_param_in_data (Fallback)" begin
-        struct bob end
-        @test_throws ErrorException InfiniteOpt._check_param_in_data(par, bob())
+        @test_throws ErrorException InfiniteOpt._check_param_in_data(par, Bad())
     end
     # test _contains_pref (scalar)
     @testset "_contains_pref (Scalar)" begin

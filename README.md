@@ -30,7 +30,7 @@ Please visit our [documentation pages](https://pulsipher.github.io/InfiniteOpt.j
 
 ## Project Status
 
-The package is tested against Julia `1.0`, `1.1`, and nightly on Linux, macOS, and Windows.
+The package is tested against Julia `1.0`, `1.1`, `1.2` and nightly on Linux, macOS, and Windows.
 
 ## Contributing
 `InfiniteOpt` is being actively developed and suggestions or other forms of contribution are encouraged.

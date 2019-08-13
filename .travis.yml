@@ -7,6 +7,7 @@ os:
 julia:
   - 1.0
   - 1.1
+  - 1.2
   - nightly
 matrix:
   allow_failures:
@@ -19,8 +20,24 @@ after_success:
   - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder())'
 jobs:
   include:
-    - stage: Documentation
+    - os: windows
+      arch: x86
       julia: 1.0
+      name: "Julia: 1.0 (32bit)"
+    - os: windows
+      arch: x86
+      julia: 1.1
+      name: "Julia: 1.1 (32bit)"
+    - os: windows
+      arch: x86
+      julia: 1.2
+      name: "Julia: 1.2 (32bit)"
+    - os: windows
+      arch: x86
+      julia: nightly
+      name: "Julia: nightly (32bit)"
+    - stage: Documentation
+      julia: 1.1
       script: julia --project=docs -e '
           using Pkg;
           Pkg.develop(PackageSpec(path=pwd()));
