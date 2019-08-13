@@ -155,7 +155,17 @@ end
 
 """
     JuMP.delete_lower_bound(vref::InfOptVariableRef)
-Extend the `JuMP.delete_lower_bound` function to accomodate our new variable types.
+
+Extend [`JuMP.delete_lower_bound`](@ref) to delete lower bound of `vref`. Errors
+if it doesn't have a lower bound.
+
+**Example**
+```julia
+julia> delete_lower_bound(vref)
+
+julia> has_lower_bound(vref)
+false
+```
 """
 function JuMP.delete_lower_bound(vref::InfOptVariableRef)
     JuMP.delete(JuMP.owner_model(vref), JuMP.LowerBoundRef(vref))
@@ -295,7 +305,17 @@ end
 
 """
     JuMP.delete_upper_bound(vref::InfOptVariableRef)
-Extend the `JuMP.delete_upper_bound` function to accomodate our new variable types.
+
+Extend [`JuMP.delete_upper_bound`](@ref) to delete the upper bound of `vref`.
+Errors if it doesn't have an upper bound.
+
+**Example**
+```julia
+julia> delete_upper_bound(vref)
+
+julia> has_upper_bound(vref)
+false
+```
 """
 function JuMP.delete_upper_bound(vref::InfOptVariableRef)
     JuMP.delete(JuMP.owner_model(vref), JuMP.UpperBoundRef(vref))
@@ -453,7 +473,16 @@ end
 
 """
     JuMP.unfix(vref::InfOptVariableRef)
-Extend `JuMP.unfix` function to accomodate our new variable types.
+
+Extend [`JuMP.unfix`](@ref) to unfix `vref`. Errors if it is not fixed.
+
+**Example**
+```julia
+julia> unfix(vref)
+
+julia> is_fixed(vref)
+false
+```
 """
 function JuMP.unfix(vref::InfOptVariableRef)
     JuMP.delete(JuMP.owner_model(vref), JuMP.FixRef(vref))
@@ -612,7 +641,16 @@ end
 
 """
     JuMP.unset_binary(vref::InfOptVariableRef)
-Extend the `JuMP.unset_binary` function to accomodate our new variable types.
+
+Extend [`JuMP.unset_binary`](@ref) to unset `vref` as a binary variable. Errors
+if it is not binary.
+
+```julia
+julia> unset_binary(vref)
+
+julia> is_binary(vref)
+false
+```
 """
 function JuMP.unset_binary(vref::InfOptVariableRef)
     JuMP.delete(JuMP.owner_model(vref), JuMP.BinaryRef(vref))
@@ -730,7 +768,16 @@ end
 
 """
     JuMP.unset_integer(vref::InfOptVariableRef)
-Extend the `JuMP.unset_integer` function to accomodate our new variable types.
+
+Extend [`JuMP.unset_integer`](@ref) to unset `vref` as an integer variable.
+Errors if it is not an integer variable.
+
+```julia
+julia> unset_integer(vref)
+
+julia> is_integer(vref)
+false
+```
 """
 function JuMP.unset_integer(vref::InfOptVariableRef)
     JuMP.delete(JuMP.owner_model(vref), JuMP.IntegerRef(vref))

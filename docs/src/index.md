@@ -87,10 +87,3 @@ end
 ## Acknowledgements
 We acknowledge our support from the Department of Energy under grant
 DE-SC0014114.
-
-```@index
-```
-
-```@autodocs
-Modules = [InfiniteOpt]
-```

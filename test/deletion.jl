@@ -39,23 +39,93 @@ end
     @global_variable(m, gb2 == 1, Int)
     # test delete_lower_bound
     @testset "JuMP.delete_lower_bound" begin
-
+        # test with infinite variable
+        @test has_lower_bound(inf1)
+        @test isa(delete_lower_bound(inf1), Nothing)
+        @test !has_lower_bound(inf1)
+        @test_throws ErrorException delete_lower_bound(inf2)
+        # test with point variable
+        @test has_lower_bound(pt1)
+        @test isa(delete_lower_bound(pt1), Nothing)
+        @test !has_lower_bound(pt1)
+        @test_throws ErrorException delete_lower_bound(pt2)
+        # test with global variable
+        @test has_lower_bound(gb1)
+        @test isa(delete_lower_bound(gb1), Nothing)
+        @test !has_lower_bound(gb1)
+        @test_throws ErrorException delete_lower_bound(gb2)
     end
     # test delete_upper_bound
     @testset "JuMP.delete_upper_bound" begin
-
+        # test with infinite variable
+        @test has_upper_bound(inf1)
+        @test isa(delete_upper_bound(inf1), Nothing)
+        @test !has_upper_bound(inf1)
+        @test_throws ErrorException delete_upper_bound(inf2)
+        # test with point variable
+        @test has_upper_bound(pt1)
+        @test isa(delete_upper_bound(pt1), Nothing)
+        @test !has_upper_bound(pt1)
+        @test_throws ErrorException delete_upper_bound(pt2)
+        # test with global variable
+        @test has_upper_bound(gb1)
+        @test isa(delete_upper_bound(gb1), Nothing)
+        @test !has_upper_bound(gb1)
+        @test_throws ErrorException delete_upper_bound(gb2)
     end
     # test unfix
     @testset "JuMP.unfix" begin
-
+        # test with infinite variable
+        @test is_fixed(inf2)
+        @test isa(unfix(inf2), Nothing)
+        @test !is_fixed(inf2)
+        @test_throws ErrorException unfix(inf1)
+        # test with point variable
+        @test is_fixed(pt2)
+        @test isa(unfix(pt2), Nothing)
+        @test !is_fixed(pt2)
+        @test_throws ErrorException unfix(pt1)
+        # test with global variable
+        @test is_fixed(gb2)
+        @test isa(unfix(gb2), Nothing)
+        @test !is_fixed(gb2)
+        @test_throws ErrorException unfix(gb1)
     end
     # test unset_binary
     @testset "JuMP.unset_binary" begin
-
+        # test with infinite variable
+        @test is_binary(inf1)
+        @test isa(unset_binary(inf1), Nothing)
+        @test !is_binary(inf1)
+        @test_throws ErrorException unset_binary(inf2)
+        # test with point variable
+        @test is_binary(pt1)
+        @test isa(unset_binary(pt1), Nothing)
+        @test !is_binary(pt1)
+        @test_throws ErrorException unset_binary(pt2)
+        # test with global variable
+        @test is_binary(gb1)
+        @test isa(unset_binary(gb1), Nothing)
+        @test !is_binary(gb1)
+        @test_throws ErrorException unset_binary(gb2)
     end
     # test unset_integer
     @testset "JuMP.unset_integer" begin
-
+        # test with infinite variable
+        @test is_integer(inf2)
+        @test isa(unset_integer(inf2), Nothing)
+        @test !is_integer(inf2)
+        @test_throws ErrorException unset_integer(inf1)
+        # test with point variable
+        @test is_integer(pt2)
+        @test isa(unset_integer(pt2), Nothing)
+        @test !is_integer(pt2)
+        @test_throws ErrorException unset_integer(pt1)
+        # test with global variable
+        @test is_integer(gb2)
+        @test isa(unset_integer(gb2), Nothing)
+        @test !is_integer(gb2)
+        @test_throws ErrorException unset_integer(gb1)
     end
 end
 
@@ -122,18 +192,13 @@ end
         @test InfiniteOpt._remove_parameter((par,), par) == ((), (1,))
         @test InfiniteOpt._remove_parameter((par2, par), par) == ((par2,), (2,))
         # test removing element from array
-        new_pars = JuMP.Containers.SparseAxisArray(Dict((1,) => pars[1],
-                                                   (2,) => pars[2]))
-        filter!(x -> x.second != new_pars[1], new_pars.data)
+        new_pars = JuMP.Containers.SparseAxisArray(Dict((2,) => pars[2]))
         @test InfiniteOpt._remove_parameter((pars,),
                                             pars[1]) == ((new_pars,), (1, (1,)))
         @test InfiniteOpt._remove_parameter((par, pars),
                                         pars[1]) == ((par, new_pars), (2, (1,)))
         # test removing from array that becomes empty
         @test InfiniteOpt._remove_parameter((new_pars,), pars[2]) == ((), (1,))
-        new_pars = JuMP.Containers.SparseAxisArray(Dict((1,) => pars[1],
-                                                   (2,) => pars[2]))
-        filter!(x -> x.second != new_pars[1], new_pars.data)
         @test InfiniteOpt._remove_parameter((par, new_pars),
                                             pars[2]) == ((par,), (2,))
     end

@@ -1,13 +1,13 @@
 # InfiniteOpt.jl
 
-<img src="logo.png" width="300"/>
+<img src="./docs/src/assets/logo.png" width="300"/>
 
 A JuMP extension for expressing and solving infinite dimensional optimization
 problems.
 
 | **Documentation**                                                               | **Build Status**                                                                                |
 |:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|
-| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable) | [![Build Status](https://travis-ci.com/pulsipher/InfiniteOpt.jl.svg?branch=v0.1.0)](https://travis-ci.com/pulsipher/InfiniteOpt.jl) [![Build Status2](https://ci.appveyor.com/api/projects/status/github/pulsipher/InfiniteOpt.jl?branch=master&svg=true)](https://ci.appveyor.com/project/pulsipher/InfiniteOpt-jl) [![codecov.io](http://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=master)](http://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=master) |
+| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable) | [![Build Status](https://travis-ci.com/pulsipher/InfiniteOpt.jl.svg?branch=master)](https://travis-ci.com/pulsipher/InfiniteOpt.jl) [![Build Status2](https://ci.appveyor.com/api/projects/status/github/pulsipher/InfiniteOpt.jl?branch=master&svg=true)](https://ci.appveyor.com/project/pulsipher/InfiniteOpt-jl) [![codecov.io](http://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=master)](http://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=master) |
 | [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/dev) | [![Build Status](https://travis-ci.com/pulsipher/InfiniteOpt.jl.svg?branch=master)](https://travis-ci.com/pulsipher/InfiniteOpt.jl) [![Build Status2](https://ci.appveyor.com/api/projects/status/github/pulsipher/InfiniteOpt.jl?branch=master&svg=true)](https://ci.appveyor.com/project/pulsipher/InfiniteOpt-jl) [![codecov.io](http://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=master)](http://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=master) |
 
 Comments, suggestions and improvements are welcome and appreciated.
