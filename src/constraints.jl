@@ -577,9 +577,11 @@ julia> all_constraints(model)
 function JuMP.list_of_constraint_types(model::InfiniteModel)::Vector{Tuple}
     type_list = Vector{Tuple{DataType, DataType}}(undef,
                                                   JuMP.num_constraints(model))
+    indexes = sort(collect(keys(model.constrs)))
     counter = 1
-    for (index, constr) in model.constrs
-        type_list[counter] = (typeof(constr.func), typeof(constr.set))
+    for index in indexes
+        type_list[counter] = (typeof(model.constrs[index].func),
+                              typeof(model.constrs[index].set))
         counter += 1
     end
     return unique(type_list)
