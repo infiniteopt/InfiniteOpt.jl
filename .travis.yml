@@ -21,7 +21,7 @@ jobs:
       julia: 1.2
       name: "Julia: 1.2"
     - os: windows
-    arch: x64
+      arch: x64
       julia: 1.2
       name: "Julia: 1.2"
     - os: windows
