@@ -1,6 +1,4 @@
-# InfiniteOpt.jl
-
-<img src="../../logo.png" width="300"/>
+![Logo](assets/full_logo.png)
 
 A JuMP extension for expressing and solving infinite dimensional optimization
 problems.

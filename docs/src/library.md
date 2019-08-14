@@ -1,8 +1,8 @@
-# Method, DataType, and Macro Index
+## Method, DataType, and Macro Index
 ```@index
 ```
 
-# Method, DataType, and Macro References
+## Method, DataType, and Macro References
 ```@autodocs
 Modules = [InfiniteOpt]
 ```

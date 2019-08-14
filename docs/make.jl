@@ -9,8 +9,7 @@ makedocs(;
     ],
     repo="https://github.com/pulsipher/InfiniteOpt.jl/blob/{commit}{path}#L{line}",
     sitename="InfiniteOpt.jl",
-    authors="Joshua Pulsipher",
-    assets=String[],
+    authors="Joshua Pulsipher"
 )
 
 deploydocs(;
