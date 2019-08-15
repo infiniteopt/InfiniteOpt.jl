@@ -400,9 +400,10 @@ function _expand_measures(expr::JuMP.GenericAffExpr{C, <:GeneralVariableRef},
     # add the variables to the expr, converting measures into expanded exprs
     for (var, coef) in expr.terms
         if isa(var, MeasureRef)
-            new_func = _expand_measure(measure_function(var), measure_data(var),
-                                       expand_model, point_mapper)
-            JuMP.add_to_expression!(quad, coef, new_func)
+            JuMP.add_to_expression!(quad, coef, _expand_measure(measure_function(var),
+                                                                measure_data(var),
+                                                                expand_model,
+                                                                point_mapper))
         else
             JuMP.add_to_expression!(quad, coef, var)
         end
@@ -418,7 +419,7 @@ end
 # GenericQuadExpr
 function _expand_measures(expr::JuMP.GenericQuadExpr{C, <:GeneralVariableRef},
                           expand_model::JuMP.AbstractModel,
-                          point_mapper::Function)::JuMP.AbstractJuMPScalar where {C}
+                          point_mapper::Function)::JuMP.GenericQuadExpr where {C}
     quad = zero(JuMP.GenericQuadExpr{C, GeneralVariableRef})
     quad.aff = _expand_measures(expr.aff, expand_model, point_mapper)
     # add the quadratic terms to the expr, converting measures into expanded exprs
@@ -491,15 +492,10 @@ function expand_all_measures!(model::InfiniteModel)
                                             "all infinite variables/parameters " *
                                             "in measures are evaluated " *
                                             "completely.")
-        JuMP.set_objective(model, JuMP.objective_sense(model), new_obj)
-    end
-    # extract indexes of constraints that contain measures
-    cindices = Int[]
-    for list in values(model.meas_to_constrs)
-        cindices = [cindices; list]
+        JuMP.set_objective_function(model, new_obj)
     end
     # expand all of the constraints that contain measures
-    for cindex in unique(cindices)
+    for cindex in sort(unique(vcat(values(model.meas_to_constrs)...)))
         # expand the expression
         new_func = _possible_convert(FiniteVariableRef,
                                  _expand_measures(model.constrs[cindex].func,
@@ -519,7 +515,7 @@ function expand_all_measures!(model::InfiniteModel)
             JuMP.add_constraint(model, JuMP.build_constraint(error, new_func,
                                 set, parameter_bounds = bounds), name)
         else
-            juMP.delete(model, cref)
+            JuMP.delete(model, cref)
             JuMP.add_constraint(model, JuMP.build_constraint(error, new_func,
                                 set), name)
         end
