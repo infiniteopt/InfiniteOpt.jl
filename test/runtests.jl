@@ -1,11 +1,10 @@
 # include("C:/Users/puls446/.julia/dev/InfiniteOpt/test/runtests.jl")
 
-using InfiniteOpt, JuMP
-using MathOptInterface
+using InfiniteOpt, JuMP, MathOptInterface, Distributions
 const MOI = MathOptInterface
 const MOIU = MathOptInterface.Utilities
-using Distributions
-# using Ipopt
+const JuMPC = JuMP.Containers
+const IOTO = InfiniteOpt.TranscriptionOpt
 using Test
 
 include("utilities.jl")
@@ -48,7 +47,10 @@ println("")
 @time @testset "Printing Methods" begin include("show.jl") end
 println("")
 @time @testset "TranscriptionOpt" begin
-
+    @testset "Model" begin include("TranscriptionOpt/model.jl") end
+    @testset "Transcribe" begin include("TranscriptionOpt/transcribe.jl") end
+    @testset "Optimize" begin include("TranscriptionOpt/optimize.jl") end
+    @testset "Results" begin include("TranscriptionOpt/results.jl") end
 end
 println("")
 @time @testset "Solution Methods" begin include("optimizer.jl") end

@@ -19,29 +19,33 @@ end
 
 ## Extend convert to handle JuMP containers
 # Array -> SparseAxisArray
-function Base.convert(::Type{JuMP.Containers.SparseAxisArray}, arr::Array)
+function Base.convert(::Type{JuMPC.SparseAxisArray}, arr::Array)
     data = Dict(Tuple(k) => arr[k] for k in CartesianIndices(arr))
-    return JuMP.Containers.SparseAxisArray(data)
+    return JuMPC.SparseAxisArray(data)
 end
 
 # DenseAxisArray -> SparseAxisArray
-function Base.convert(::Type{JuMP.Containers.SparseAxisArray},
-                      arr::JuMP.Containers.DenseAxisArray)
+function Base.convert(::Type{JuMPC.SparseAxisArray},
+                      arr::JuMPC.DenseAxisArray)
     data = Dict(k.I => arr[k] for k in keys(arr))
-    return JuMP.Containers.SparseAxisArray(data)
+    return JuMPC.SparseAxisArray(data)
 end
 
-# function Base.convert(::Type{Array}, arr::JuMP.Containers.SparseAxisArray)
+# function Base.convert(::Type{Array}, arr::JuMPC.SparseAxisArray)
 #
 # end
 #
-# function Base.convert(::Type{JuMP.Containers.DenseAxisArray},
-#                       arr::JuMP.Containers.SparseAxisArray)
+# function Base.convert(::Type{JuMPC.DenseAxisArray},
+#                       arr::JuMPC.SparseAxisArray)
 #
 # end
 
 # Hack to make the keys function work for sparse arrays
-Base.keys(d::JuMP.Containers.SparseAxisArray) = keys(d.data)
+Base.keys(d::JuMPC.SparseAxisArray) = keys(d.data)
+# Hacky fix to compare SparseAxisArrays
+function Base.isapprox(a::JuMPC.SparseAxisArray, b::JuMPC.SparseAxisArray)::Bool
+    return all(isapprox.(a, b))
+end
 
 # Attempt to convert variable type of GenericAffExpr if possible
 function _possible_convert(type::DataType,

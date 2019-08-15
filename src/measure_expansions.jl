@@ -9,7 +9,7 @@ end
 # first time reduction
 function _make_reduced_variable(ivref::InfiniteVariableRef, removed_index::Int,
                                 support::Union{Number,
-                                JuMP.Containers.SparseAxisArray{<:Number}}
+                                JuMPC.SparseAxisArray{<:Number}}
                                 )::ReducedInfiniteVariableRef
     inf_model = JuMP.owner_model(ivref)
     index = inf_model.next_var_index += 1

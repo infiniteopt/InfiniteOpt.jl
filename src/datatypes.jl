@@ -439,7 +439,7 @@ A DataType for storing reduced infinite variable information.
 struct ReducedInfiniteInfo <: AbstractReducedInfo
     infinite_variable_ref::InfiniteVariableRef
     eval_supports::Dict{Int, Union{Number,
-                                   JuMP.Containers.SparseAxisArray{<:Number}}}
+                                   JuMPC.SparseAxisArray{<:Number}}}
 end
 
 # Define variable references without that aren't measures
@@ -535,14 +535,14 @@ abstraction is of the form:
                               to a scalar value.
 """
 struct MultiDiscreteMeasureData <: AbstractMeasureData
-    parameter_ref::JuMP.Containers.SparseAxisArray{<:ParameterRef}
+    parameter_ref::JuMPC.SparseAxisArray{<:ParameterRef}
     coefficients::Vector{<:Number}
-    supports::Vector{<:JuMP.Containers.SparseAxisArray}
+    supports::Vector{<:JuMPC.SparseAxisArray}
     name::String
     weight_function::Function
-    function MultiDiscreteMeasureData(parameter_ref::JuMP.Containers.SparseAxisArray{<:ParameterRef},
+    function MultiDiscreteMeasureData(parameter_ref::JuMPC.SparseAxisArray{<:ParameterRef},
                                       coeffs::Vector{<:Number},
-                                      supports::Vector{<:JuMP.Containers.SparseAxisArray},
+                                      supports::Vector{<:JuMPC.SparseAxisArray},
                                       name::String, weight_func::Function)
         if length(coeffs) != length(supports)
             error("The amount of coefficients must match the amount of " *

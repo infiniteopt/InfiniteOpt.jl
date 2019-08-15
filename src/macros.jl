@@ -221,12 +221,12 @@ macro infinite_parameter(model, args...)
         # SparseAxisArray to contain them)
         refcall, idxparams, idxsets, condition = JuMP._build_ref_sets(param,
                                                                       parameter)
-        clear_dependencies(i) = (JuMP.Containers.is_dependent(idxparams,
+        clear_dependencies(i) = (JuMPC.is_dependent(idxparams,
                                                idxsets[i], i) ? () : idxsets[i])
 
         # Code to be used to create each variable of the container.
         vartype = :( variable_type($esc_model, Parameter) )
-        container_code, = JuMP.Containers.generate_container(vartype, idxparams,
+        container_code, = JuMPC.generate_container(vartype, idxparams,
                                                     idxsets, requestedcontainer)
         buildcall = :( build_parameter($_error, $set, length($container_code),
                                        $(extra...)) )

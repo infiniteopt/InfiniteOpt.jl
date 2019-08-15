@@ -2,8 +2,7 @@
 function _initialize_global_variables(trans_model::JuMP.Model,
                                       inf_model::InfiniteOpt.InfiniteModel)
     # search inf_model for global vars and make a jump var for one that is used
-    ordered_indices = sort(collect(keys(inf_model.vars)))
-    for index in ordered_indices
+    for index in sort(collect(keys(inf_model.vars)))
         var = inf_model.vars[index]
         if isa(var, InfiniteOpt.GlobalVariable)
             gvref = InfiniteOpt.GlobalVariableRef(inf_model, index)
@@ -19,42 +18,33 @@ function _initialize_global_variables(trans_model::JuMP.Model,
 end
 
 # Return a vector of arrays containing the supports
-function _list_supports(prefs::Tuple)
-    support_list = Vector{Array}(undef, length(prefs))
-    for i = 1:length(prefs)
-        support_list[i] = InfiniteOpt.supports(prefs[i])
-    end
-    return support_list
+function _list_supports(prefs::Tuple)::Vector
+    return [InfiniteOpt.supports(pref) for pref in prefs]
 end
 
 # Make an index mapping for parameter support combinations for an infinite variable
-function _make_support_indices(prefs::Tuple)
-    support_indices = Dict{Int, Tuple}()
+function _make_support_indices(prefs::Tuple)::Vector
     support_list = _list_supports(prefs)
-    index = 1
-    for combo in Iterators.product(support_list...)
-        support_indices[index] = combo
-        index += 1
-    end
-    return support_indices
+    combos = Iterators.product(support_list...)
+    return [combo for combo in Iterators.take(combos, length(combos))]
 end
 
 # Make jump variables and a dict mapping infinite/point vars to jump vars
 function _initialize_infinite_variables(trans_model::JuMP.Model,
                                         inf_model::InfiniteOpt.InfiniteModel)
     # search inf_model for infinite vars and make a jump var for all of its supports
-    ordered_indices = sort(collect(keys(inf_model.vars)))
-    for index in ordered_indices
+    for index in sort(collect(keys(inf_model.vars)))
         var = inf_model.vars[index]
         if isa(var, InfiniteOpt.InfiniteVariable)
             ivref = InfiniteOpt.InfiniteVariableRef(inf_model, index)
             if InfiniteOpt.is_used(ivref)
                 prefs = InfiniteOpt.parameter_refs(ivref)
-                transcription_data(trans_model).infvar_to_supports[ivref] = _make_support_indices(prefs)
-                vrefs = Vector{JuMP.VariableRef}(undef, length(keys(supports(trans_model, ivref))))
-                for i = 1:length(vrefs)
+                support_indices = _make_support_indices(prefs)
+                transcription_data(trans_model).infvar_to_supports[ivref] = support_indices
+                vrefs = Vector{JuMP.VariableRef}(undef, length(support_indices))
+                name = InfiniteOpt._root_name(ivref)
+                for i in eachindex(vrefs)
                     # TODO Perhaps add different naming options...
-                    name = InfiniteOpt._root_name(ivref)
                     vrefs[i] = JuMP.add_variable(trans_model,
                                                  JuMP.ScalarVariable(var.info),
                                                  string(name, "(support: ", i, ")"))
@@ -67,23 +57,27 @@ function _initialize_infinite_variables(trans_model::JuMP.Model,
 end
 
 # Map the point variable reference to a transcribed variable based off of the support
-function _update_point_mapping(trans_model::JuMP.Model, pvref::InfiniteOpt.PointVariableRef,
-                               ivref::InfiniteOpt.InfiniteVariableRef, support::Tuple)
-    for (k, v) in InfiniteOpt.supports(trans_model, ivref)
-       # if isequal(v, support)
-       # if isapprox(v, support)
-       if v == support
+function _update_point_mapping(trans_model::JuMP.Model,
+                               pvref::InfiniteOpt.PointVariableRef,
+                               ivref::InfiniteOpt.InfiniteVariableRef,
+                               support::Tuple)
+    supps = InfiniteOpt.supports(trans_model, ivref)
+    # search for the support and update mapping
+    for i in eachindex(supps)
+       if all(isapprox.(support, supps[i]))
            vrefs = transcription_variable(trans_model, ivref)
-           transcription_data(trans_model).point_to_var[pvref] = vrefs[k]
+           transcription_data(trans_model).point_to_var[pvref] = vrefs[i]
            return
        end
     end
+    # fallback that should not be needed
     error("Couldn't find variable to map $pvref to.")
     return
 end
 
 # Override the info of the jump variable with the point variable's if any is provided
-function _update_point_info(trans_model::JuMP.Model, pvref::InfiniteOpt.PointVariableRef)
+function _update_point_info(trans_model::JuMP.Model,
+                            pvref::InfiniteOpt.PointVariableRef)
     vref = transcription_variable(trans_model, pvref)
     if JuMP.has_lower_bound(pvref)
         if JuMP.is_fixed(vref)
@@ -114,10 +108,12 @@ function _update_point_info(trans_model::JuMP.Model, pvref::InfiniteOpt.PointVar
     if !(JuMP.start_value(pvref) === NaN)
         JuMP.set_start_value(vref, JuMP.start_value(pvref))
     end
+    return
 end
 
 # Map point variables to the correct transcribed infinite variable
-function _map_point_variables(trans_model::JuMP.Model, inf_model::InfiniteOpt.InfiniteModel)
+function _map_point_variables(trans_model::JuMP.Model,
+                              inf_model::InfiniteOpt.InfiniteModel)
     # search inf_model for point vars and map them to jump vars if they are used
     for (index, var) in inf_model.vars
         if isa(var, InfiniteOpt.PointVariable)
@@ -134,14 +130,15 @@ function _map_point_variables(trans_model::JuMP.Model, inf_model::InfiniteOpt.In
 end
 
 # Return the support value corresponding to a parameter reference
-function _parameter_value(pref::InfiniteOpt.ParameterRef, support::Tuple, prefs::Tuple)
+function _parameter_value(pref::InfiniteOpt.ParameterRef, support::Tuple,
+                          prefs::Tuple)
     group = InfiniteOpt.group_id(pref)
     pref_index = findfirst(isequal(group), InfiniteOpt._groups(prefs))
     if isa(prefs[pref_index], InfiniteOpt.ParameterRef)
         return support[pref_index]
     else
         for (k, v) in prefs[pref_index].data
-            if v == pref
+            if v == pref # TODO check this comparison
                 return support[pref_index].data[k]
             end
         end
@@ -162,13 +159,13 @@ function _map_to_variable(ivref::InfiniteOpt.InfiniteVariableRef, support::Tuple
     # reduce support to only include the relavent parameter id groups
     ivref_groups = InfiniteOpt._groups(InfiniteOpt.parameter_refs(ivref))
     support_groups = InfiniteOpt._groups(prefs)
-    reduced_support = Tuple(support[findfirst(isequal(group), support_groups)] for group in ivref_groups)
+    reduced_support = Tuple(support[findfirst(isequal(group), support_groups)]
+                            for group in ivref_groups)
     # find the jump variable associated with the support
-    for (index, value) in InfiniteOpt.supports(trans_model, ivref)
-        # if isequal(value, reduced_support)
-        # if isapprox(value, reduced_support)
-        if value == reduced_support
-            return transcription_variable(trans_model, ivref)[index]
+    supps = InfiniteOpt.supports(trans_model, ivref)
+    for i in eachindex(supps)
+        if all(isapprox.(reduced_support, supps[i]))
+            return transcription_variable(trans_model, ivref)[i]
         end
     end
     # this error can likely be eliminated
@@ -176,8 +173,8 @@ function _map_to_variable(ivref::InfiniteOpt.InfiniteVariableRef, support::Tuple
 end
 
 # ReducedInfiniteVariableRef
-function _map_to_variable(rvref::InfiniteOpt.ReducedInfiniteVariableRef, support::Tuple,
-                          prefs::Tuple, trans_model::JuMP.Model)
+function _map_to_variable(rvref::InfiniteOpt.ReducedInfiniteVariableRef,
+                          support::Tuple, prefs::Tuple, trans_model::JuMP.Model)
     # parse the reduced parameters and modify the support to include them
     ivref = InfiniteOpt.infinite_variable_ref(rvref)
     orig_groups = InfiniteOpt._groups(InfiniteOpt.parameter_refs(ivref))
@@ -208,6 +205,7 @@ function _map_to_variable(pref::InfiniteOpt.ParameterRef, support::Tuple,
     return value
 end
 
+# TODO figure out how to use array bounds
 # Return a truncated support dict based on the specified parameter bounds
 function _truncate_supports(supports::Dict, prefs::Tuple, bounds::Dict)
     old_support_indices = Dict{Int, Tuple}()
@@ -463,19 +461,19 @@ end
 ## Define helper functions for setting constraint mappings
 # InfiniteConstraintRef
 function _set_mapping(icref::InfiniteOpt.InfiniteConstraintRef, crefs::Vector{JuMP.ConstraintRef})
-    transcription_data(JuMP.owner_model(crefs[1])).infinite_to_constr[icref] = crefs
+    transcription_data(JuMP.owner_model(crefs[1])).infinite_to_constrs[icref] = crefs
     return
 end
 
 # MeasureConstraintRef (infinite)
 function _set_mapping(mcref::InfiniteOpt.MeasureConstraintRef, crefs::Vector{JuMP.ConstraintRef})
-    transcription_data(JuMP.owner_model(crefs[1])).measure_to_constr[mcref] = crefs
+    transcription_data(JuMP.owner_model(crefs[1])).measure_to_constrs[mcref] = crefs
     return
 end
 
 # MeasureConstraintRef (finite)
 function _set_mapping(mcref::InfiniteOpt.MeasureConstraintRef, cref::JuMP.ConstraintRef)
-    transcription_data(JuMP.owner_model(cref)).measure_to_constr[mcref] = [cref]
+    transcription_data(JuMP.owner_model(cref)).measure_to_constrs[mcref] = [cref]
     return
 end
 

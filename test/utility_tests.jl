@@ -34,34 +34,41 @@
     end
     # Array -> SparseAxisArray
     @testset "Array->Sparse" begin
-        @test convert(JuMP.Containers.SparseAxisArray,
-                      x) isa JuMP.Containers.SparseAxisArray
-        @test length(convert(JuMP.Containers.SparseAxisArray, x)) == length(x)
+        @test convert(JuMPC.SparseAxisArray,
+                      x) isa JuMPC.SparseAxisArray
+        @test length(convert(JuMPC.SparseAxisArray, x)) == length(x)
         inds = CartesianIndices(x)
-        @test convert(JuMP.Containers.SparseAxisArray,
+        @test convert(JuMPC.SparseAxisArray,
                       x)[inds[1][1]] == x[inds[1]]
-        @test convert(JuMP.Containers.SparseAxisArray,
+        @test convert(JuMPC.SparseAxisArray,
                       x)[inds[2][1]] == x[inds[2]]
     end
     # DenseAxisArray -> SparseAxisArray
     @testset "DenseArray->Sparse" begin
         @variable(m, y[2:3])
-        @test convert(JuMP.Containers.SparseAxisArray,
-                      y) isa JuMP.Containers.SparseAxisArray
-        @test length(convert(JuMP.Containers.SparseAxisArray, y)) == length(y)
+        @test convert(JuMPC.SparseAxisArray,
+                      y) isa JuMPC.SparseAxisArray
+        @test length(convert(JuMPC.SparseAxisArray, y)) == length(y)
         inds = collect(keys(y))
-        @test convert(JuMP.Containers.SparseAxisArray,
+        @test convert(JuMPC.SparseAxisArray,
                       y)[inds[1][1]] == y[inds[1]]
-        @test convert(JuMP.Containers.SparseAxisArray,
+        @test convert(JuMPC.SparseAxisArray,
                       y)[inds[2][1]] == y[inds[2]]
     end
 end
 
 # Test extension of keys
-@testset "keys" begin
+@testset "Base.keys" begin
     m = Model()
     @variable(m, x[1:2], container = SparseAxisArray)
     @test keys(x) == keys(x.data)
+end
+
+# Test extension of isapprox
+@testset "Base.isapprox" begin
+    a = JuMPC.SparseAxisArray(Dict((1,)=>-0, (3,)=>1.1))
+    b = JuMPC.SparseAxisArray(Dict((1,)=>-0, (3,)=>1.1 + 1e-30))
+    @test isapprox(a, b)
 end
 
 # Test the possible_convert functions

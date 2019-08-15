@@ -111,20 +111,24 @@ function Base.show(io::IO, ::MIME"text/latex", ref::GeneralConstraintRef)
     return
 end
 
+# Show the backend information associated with the optimizer model
 function JuMP.show_backend_summary(io::IO, model::InfiniteModel)
     println(io, "Optimizer model backend information: ")
     JuMP.show_backend_summary(io, optimizer_model(model))
     return
 end
 
+# Show the objective function type
 function JuMP.show_objective_function_summary(io::IO, model::InfiniteModel)
     println(io, "Objective function type: ",
             JuMP.objective_function_type(model))
     return
 end
 
+# Return "s" if n is greater than one
 _plural(n) = (isone(n) ? "" : "s")
 
+# Return constraint summary in JuMP like manner
 function JuMP.show_constraints_summary(io::IO, model::InfiniteModel)
     for (F, S) in JuMP.list_of_constraint_types(model)
         n_constraints = JuMP.num_constraints(model, F, S)

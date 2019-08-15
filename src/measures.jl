@@ -194,8 +194,8 @@ function DiscreteMeasureData(parameter_ref::AbstractArray{<:ParameterRef},
                              name::String = "measure",
                              weight_function::Function = _w
                              )::MultiDiscreteMeasureData
-    supports = [convert(JuMP.Containers.SparseAxisArray, s) for s in supports]
-    parameter_ref = convert(JuMP.Containers.SparseAxisArray, parameter_ref)
+    supports = [convert(JuMPC.SparseAxisArray, s) for s in supports]
+    parameter_ref = convert(JuMPC.SparseAxisArray, parameter_ref)
     return MultiDiscreteMeasureData(parameter_ref, coefficients, supports, name,
                                     weight_function)
 end
@@ -255,7 +255,7 @@ end
 
 # array pref
 function _check_has_parameter(expr::JuMP.AbstractJuMPScalar,
-                              pref::JuMP.Containers.SparseAxisArray{<:ParameterRef})
+                              pref::JuMPC.SparseAxisArray{<:ParameterRef})
     vrefs = _all_function_variables(expr)
     for key in keys(pref.data)
         if !_has_parameter(vrefs, pref.data[key])
@@ -285,8 +285,8 @@ function _add_supports_to_parameters(pref::ParameterRef,
 end
 
 # array pref
-function _add_supports_to_parameters(pref::JuMP.Containers.SparseAxisArray{<:ParameterRef},
-                                     supports::Array{<:JuMP.Containers.SparseAxisArray{<:Number}})
+function _add_supports_to_parameters(pref::JuMPC.SparseAxisArray{<:ParameterRef},
+                                     supports::Array{<:JuMPC.SparseAxisArray{<:Number}})
     for i = 1:length(supports)
         for key in keys(pref.data)
             add_supports(pref.data[key], supports[i].data[key])

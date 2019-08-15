@@ -5,6 +5,7 @@ import JuMP
 import MathOptInterface
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
+const JuMPC = JuMP.Containers
 import Distributions
 
 # Import all of the datatpyes, methods, macros, and definitions.

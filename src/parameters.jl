@@ -281,7 +281,7 @@ function _contains_pref(search_pref::ParameterRef, pref::ParameterRef)::Bool
 end
 
 # SparseAxisArray
-function _contains_pref(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef},
+function _contains_pref(arr::JuMPC.SparseAxisArray{<:ParameterRef},
                         pref::ParameterRef)::Bool
     return pref in collect(values(arr.data))
 end
@@ -300,7 +300,7 @@ function _remove_parameter(prefs::Tuple, delete_pref::ParameterRef)::Tuple
                                          prefs[i].data)
                         if length(new_dict) != 0
                             pref_list = [prefs...]
-                            pref_list[i] = JuMP.Containers.SparseAxisArray(new_dict)
+                            pref_list[i] = JuMPC.SparseAxisArray(new_dict)
                             return Tuple(pref_list[j] for j = 1:length(prefs)), (i, k)
                         else
                             return Tuple(prefs[j] for j = 1:length(prefs) if j != i), (i, )
@@ -334,7 +334,7 @@ function _remove_parameter_values(pref_vals::Tuple, location::Tuple)::Tuple
     else
         new_dict = filter(x -> x.first != location[2], pref_vals[location[1]].data)
         val_list = [pref_vals...]
-        val_list[location[1]] = JuMP.Containers.SparseAxisArray(new_dict)
+        val_list[location[1]] = JuMPC.SparseAxisArray(new_dict)
         return Tuple(val_list[i] for i = 1:length(pref_vals))
     end
 end
@@ -362,7 +362,7 @@ function _update_reduced_variable(vref::ReducedInfiniteVariableRef,
     eval_supps = eval_supports(vref)
     # removed parameter was a scalar
     if length(location) == 1
-        new_supports = Dict{Int, Union{Number, JuMP.Containers.SparseAxisArray}}()
+        new_supports = Dict{Int, Union{Number, JuMPC.SparseAxisArray}}()
         for (index, support) in eval_supps
             if index < location[1]
                 new_supports[index] = support
@@ -375,7 +375,7 @@ function _update_reduced_variable(vref::ReducedInfiniteVariableRef,
     elseif haskey(eval_supps, location[1])
         new_dict = filter(x -> x.first != location[2], eval_supps[location[1]].data)
         new_supports = copy(eval_supps)
-        new_supports[location[1]] = JuMP.Containers.SparseAxisArray(new_dict)
+        new_supports[location[1]] = JuMPC.SparseAxisArray(new_dict)
         JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = ReducedInfiniteInfo(infinite_variable_ref(vref), new_supports)
     end
     if used_by_measure(vref)
@@ -871,7 +871,7 @@ julia> supports(x)
 ```
 """
 function supports(prefs::AbstractArray{<:ParameterRef})::Vector
-    prefs = convert(JuMP.Containers.SparseAxisArray, prefs)
+    prefs = convert(JuMPC.SparseAxisArray, prefs)
     !_only_one_group(prefs) && error("Array contains parameters from multiple" *
                                      " groups.")
     for (k, pref) in prefs.data
@@ -882,18 +882,18 @@ function supports(prefs::AbstractArray{<:ParameterRef})::Vector
         length(unique(lengths)) != 1 && error("Each nonindependent parameter " *
                                               "must have the same number of " *
                                               "support points.")
-        support_list = Vector{JuMP.Containers.SparseAxisArray}(undef, lengths[1])
+        support_list = Vector{JuMPC.SparseAxisArray}(undef, lengths[1])
         for i = 1:length(support_list)
-            support_list[i] = JuMP.Containers.SparseAxisArray(Dict(k => supports(pref)[i] for (k, pref) in prefs.data))
+            support_list[i] = JuMPC.SparseAxisArray(Dict(k => supports(pref)[i] for (k, pref) in prefs.data))
         end
     else
         all_keys = collect(keys(prefs))
         all_supports = [supports(pref) for (k, pref) in prefs.data]
-        support_list = Vector{JuMP.Containers.SparseAxisArray}(undef,
+        support_list = Vector{JuMPC.SparseAxisArray}(undef,
                                                                prod(lengths))
         counter = 1
         for combo in Iterators.product(all_supports...)
-            support_list[counter] = JuMP.Containers.SparseAxisArray(Dict(all_keys[i] => combo[i] for i = 1:length(combo)))
+            support_list[counter] = JuMPC.SparseAxisArray(Dict(all_keys[i] => combo[i] for i = 1:length(combo)))
             counter += 1
         end
     end
@@ -1008,7 +1008,7 @@ julia> group_id([x[1], x[2]])
 ```
 """
 function group_id(prefs::AbstractArray{<:ParameterRef})::Int
-    prefs = convert(JuMP.Containers.SparseAxisArray, prefs)
+    prefs = convert(JuMPC.SparseAxisArray, prefs)
     groups = _groups(prefs)
     length(unique(groups)) != 1 && error("Array contains parameters from " *
                                          "multiple groups.")
@@ -1136,7 +1136,7 @@ end
 
 ## Define functions to extract the names of parameters
 # Return vector of parameter names from a SparseAxisArray of parameter references
-function _names(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
+function _names(arr::JuMPC.SparseAxisArray{<:ParameterRef})
     return [JuMP.name(arr[k]) for k in keys(arr.data)]
 end
 
@@ -1166,7 +1166,7 @@ function _root_names(prefs::Tuple)
 end
 
 # Return true if an array of parameter refernences only has one name
-function _only_one_name(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})
+function _only_one_name(arr::JuMPC.SparseAxisArray{<:ParameterRef})
     names = _names(arr)
     root_names = [_root_name(v) for (k, v) in arr.data]
     return length(unique(root_names)) == 1
@@ -1177,7 +1177,7 @@ _only_one_name(pref::ParameterRef) = true
 
 ## Internal functions for group checking
 # Return a vector of group IDs for a SparseAxisArray
-function _groups(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})::Vector
+function _groups(arr::JuMPC.SparseAxisArray{<:ParameterRef})::Vector
     return [v for (k, v) in group_id.(arr).data]
 end
 
@@ -1195,7 +1195,7 @@ function _groups(prefs::Tuple)
 end
 
 # Return true if SparseAxisArray only has one group
-function _only_one_group(arr::JuMP.Containers.SparseAxisArray{<:ParameterRef})::Bool
+function _only_one_group(arr::JuMPC.SparseAxisArray{<:ParameterRef})::Bool
     groups = _groups(arr)
     return length(unique(groups)) == 1
 end

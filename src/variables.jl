@@ -73,7 +73,7 @@ function _make_formatted_tuple(prefs::Tuple)::Tuple
             converted_prefs = (converted_prefs..., pref)
         else
             converted_prefs = (converted_prefs...,
-                               convert(JuMP.Containers.SparseAxisArray, pref))
+                               convert(JuMPC.SparseAxisArray, pref))
         end
     end
     return converted_prefs
@@ -99,7 +99,7 @@ function _check_tuple_shape(_error::Function,
                             infinite_variable_ref::InfiniteVariableRef,
                             values::Tuple)
     prefs = parameter_refs(infinite_variable_ref)
-    container = JuMP.Containers.SparseAxisArray
+    container = JuMPC.SparseAxisArray
     if length(prefs) != length(values)
         _error("The dimensions of the infinite parameter values must match " *
                "those defined for the infinite variable.")
