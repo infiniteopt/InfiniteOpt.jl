@@ -538,18 +538,22 @@ end
     @testset "group_id" begin
         @test group_id(pref) == 1
     end
-    # _groups
-    @testset "_groups" begin
-        @test InfiniteOpt._groups(prefs) == [3, 3]
+    # _group (Parameter)
+    @testset "_group (Parameter)" begin
+        @test InfiniteOpt._group(pref) == 1
+    end
+    # _group (Array)
+    @testset "_group (Array)" begin
+        @test InfiniteOpt._group(prefs) == 3
     end
     # group_id (array)
     @testset "group_id (array)" begin
         @test group_id(prefs) == 3
         @test_throws ErrorException group_id([pref; pref2])
     end
-    # _groups (tuple)
-    @testset "_groups (tuple)" begin
-        @test InfiniteOpt._groups((prefs, pref)) == [3, 1]
+    # _group (over Tuple)
+    @testset "_group (Tuple)" begin
+        @test InfiniteOpt._group.((prefs, pref)) == (3, 1)
     end
     # _only_one_group
     @testset "_only_one_group" begin
@@ -557,14 +561,6 @@ end
         @test InfiniteOpt._only_one_group(prefs)
         @test !InfiniteOpt._only_one_group(convert(JuMP.Containers.SparseAxisArray,
                                                                  [pref2; pref]))
-    end
-    # _names
-    @testset "_names" begin
-        @test InfiniteOpt._names(prefs) isa Vector
-        result = InfiniteOpt._names(prefs)
-        @test length(result) == 2
-        @test result[1] == "x[1]" || result[1] == "x[2]"
-        @test result[2] == "x[1]" || result[2] == "x[2]"
     end
     # _root_name
     @testset "_root_name" begin
@@ -574,14 +570,7 @@ end
     end
     # _root_names
     @testset "_root_names" begin
-        @test InfiniteOpt._root_names((pref, prefs)) == ["test", "x"]
-    end
-    # _only_one_group
-    @testset "_only_one_name" begin
-        @test InfiniteOpt._only_one_name(pref)
-        @test InfiniteOpt._only_one_name(prefs)
-        @test !InfiniteOpt._only_one_name(convert(JuMP.Containers.SparseAxisArray,
-                                                                 [pref2; pref]))
+        @test InfiniteOpt._root_names((pref, prefs, pref2)) == ("test", "x", "θ")
     end
     # _list_parameter_refs
     @testset "_list_parameter_refs" begin

@@ -59,7 +59,7 @@ function _expand_measure(ivref::InfiniteVariableRef,
                          point_mapper::Function)::JuMP.AbstractJuMPScalar
     # figure out the parameter groups
     group = group_id(first(data.parameter_ref))
-    groups = _groups(parameter_refs(ivref))
+    groups = _group.(parameter_refs(ivref))
     # prepare return AffExpr and get necessary information
     aff = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     # treat variable as constant if doesn't have measure parameter
@@ -102,7 +102,7 @@ function _expand_measure(rvref::ReducedInfiniteVariableRef,
     orig_prefs = parameter_refs(infinite_variable_ref(rvref))
     # figure out the parameter groups
     group = group_id(first(data.parameter_ref))
-    groups = _groups(parameter_refs(rvref))
+    groups = _group.(parameter_refs(rvref))
     # prepare return AffExpr and get necessary information
     aff = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     # treat variable as constant if doesn't have measure parameter
@@ -115,7 +115,7 @@ function _expand_measure(rvref::ReducedInfiniteVariableRef,
     # convert variable into point variables if its only parameter is the
     # measure parameter
     elseif length(parameter_refs(rvref)) == 1
-        tuple_loc = findfirst(isequal(group), _groups(orig_prefs))
+        tuple_loc = findfirst(isequal(group), _group.(orig_prefs))
         for i = 1:length(data.supports)
             pvref = _make_point_variable(infinite_variable_ref(rvref))
             _reduced_info(rvref).eval_supports[tuple_loc] = data.supports[i]
@@ -127,7 +127,7 @@ function _expand_measure(rvref::ReducedInfiniteVariableRef,
         end
     # make reduced variables if the variable contains other parameters
     else
-        tuple_loc = findfirst(isequal(group), _groups(orig_prefs))
+        tuple_loc = findfirst(isequal(group), _group.(orig_prefs))
         for i = 1:length(data.supports)
             new_rvref = _make_reduced_variable(infinite_variable_ref(rvref),
                                                eval_supports(rvref))

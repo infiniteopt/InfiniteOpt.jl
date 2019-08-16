@@ -72,7 +72,7 @@ g(1.25, x)
 function JuMP.name(vref::ReducedInfiniteVariableRef)::String
     root_name = _root_name(infinite_variable_ref(vref))
     prefs = parameter_refs(infinite_variable_ref(vref))
-    param_names = _root_names(prefs)
+    param_names = [_root_name(first(pref)) for pref in prefs]
     for (k, v) in eval_supports(vref)
         param_names[k] = string(v)
     end

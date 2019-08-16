@@ -35,11 +35,11 @@
     @testset "_list_supports" begin
         @test IOTO._list_supports((par, pars)) == [[0, 1], supports(pars)]
     end
-    # test _make_support_indices
-    @testset "_make_support_indices" begin
+    # test _make_supports
+    @testset "_make_supports" begin
         expected = sort([(0, 0), (0, 1), (1, 0), (1, 1)])
-        @test sort(IOTO._make_support_indices((par, par))) == expected
-        @test IOTO._make_support_indices((par, pars)) isa Vector
+        @test sort(IOTO._make_supports((par, par))) == expected
+        @test IOTO._make_supports((par, pars)) isa Vector
     end
     # test _initialize_infinite_variables
     @testset "_initialize_infinite_variables" begin
@@ -127,4 +127,52 @@
         @test is_integer(transcription_variable(tm, y0))
         @test start_value(transcription_variable(tm, y0)) == 0.
     end
+end
+
+# Test parameter search methods
+@testset "Parameter Search Methods" begin
+    # initialize model
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= x <= 1)
+    @infinite_parameter(m, 0 <= y <= 1)
+    @infinite_parameter(m, 0 <= z[1:3] <= 1, container = SparseAxisArray)
+    supp1 = (1, convert(JuMPC.SparseAxisArray, [2, 3, 4]))
+    tup1 = (y, z)
+    supp2 = (1, 2, convert(JuMPC.SparseAxisArray, [3, 4, 5]))
+    tup2 = (x, y, z)
+    supp3 = (1, 2, JuMPC.SparseAxisArray(Dict((1,) => 3, (3,) => 5)))
+    tup3 = (x, y, JuMPC.SparseAxisArray(Dict((1,) => z[1], (3,) => z[3])))
+    # test _parameter_tuple_index
+    @testset "_parameter_tuple_index" begin
+        @test IOTO._parameter_tuple_index(x, tup1) == -1
+        @test IOTO._parameter_tuple_index(x, tup2) == 1
+        @test IOTO._parameter_tuple_index(y, tup2) == 2
+        @test IOTO._parameter_tuple_index(z[2], tup2) == 3
+        @test IOTO._parameter_tuple_index(z[2], tup3) === 3
+        @test IOTO._parameter_tuple_index(z[3], tup3) == 3
+    end
+    # test _parameter_value
+    @testset "_parameter_value" begin
+        @test IOTO._parameter_value(x, supp1, tup1) === NaN
+        @test IOTO._parameter_value(x, supp2, tup2) == 1
+        @test IOTO._parameter_value(y, supp2, tup2) == 2
+        @test IOTO._parameter_value(z[2], supp2, tup2) == 4
+        @test IOTO._parameter_value(z[2], supp3, tup3) === NaN
+        @test IOTO._parameter_value(z[3], supp3, tup3) == 5
+    end
+end
+
+# Test "_map_to_variable"
+@testset "_map_to_variable" begin
+
+end
+
+# Test _support_in_bounds
+@testset "_support_in_bounds" begin
+
+end
+
+# Test _truncate_supports
+@testset "_make_transcription_function" begin
+
 end

@@ -1008,11 +1008,10 @@ julia> group_id([x[1], x[2]])
 ```
 """
 function group_id(prefs::AbstractArray{<:ParameterRef})::Int
-    prefs = convert(JuMPC.SparseAxisArray, prefs)
-    groups = _groups(prefs)
+    groups = group_id.(prefs)
     length(unique(groups)) != 1 && error("Array contains parameters from " *
                                          "multiple groups.")
-    return groups[1]
+    return first(groups)
 end
 
 """
@@ -1135,13 +1134,8 @@ function all_parameters(model::InfiniteModel)::Vector{ParameterRef}
 end
 
 ## Define functions to extract the names of parameters
-# Return vector of parameter names from a SparseAxisArray of parameter references
-function _names(arr::JuMPC.SparseAxisArray{<:ParameterRef})
-    return [JuMP.name(arr[k]) for k in keys(arr.data)]
-end
-
 # Extract the root name of a parameter reference
-function _root_name(pref::ParameterRef)
+function _root_name(pref::ParameterRef)::String
     name = JuMP.name(pref)
     first_bracket = findfirst(isequal('['), name)
     if first_bracket == nothing
@@ -1157,47 +1151,24 @@ function _root_name(pref::ParameterRef)
 end
 
 # Return the root names of a tuple parameter of references
-function _root_names(prefs::Tuple)
-    root_names = Vector{String}(undef, length(prefs))
-    for i = 1:length(root_names)
-        root_names[i] = _root_name(first(prefs[i]))
-    end
-    return root_names
+function _root_names(prefs::Tuple)::Tuple
+    return _root_name.(first.(prefs))
 end
-
-# Return true if an array of parameter refernences only has one name
-function _only_one_name(arr::JuMPC.SparseAxisArray{<:ParameterRef})
-    names = _names(arr)
-    root_names = [_root_name(v) for (k, v) in arr.data]
-    return length(unique(root_names)) == 1
-end
-
-# Return true since a parameter reference can only have one name
-_only_one_name(pref::ParameterRef) = true
 
 ## Internal functions for group checking
-# Return a vector of group IDs for a SparseAxisArray
-function _groups(arr::JuMPC.SparseAxisArray{<:ParameterRef})::Vector
-    return [v for (k, v) in group_id.(arr).data]
+# Return group id of ParameterRef
+function _group(pref::ParameterRef)::Int
+    return group_id(pref)
 end
 
-# Return a vector of the group ID for each element in a tuple
-function _groups(prefs::Tuple)
-    groups = Vector{Int}(undef, length(prefs))
-    for i = 1:length(groups)
-        if isa(prefs[i], ParameterRef)
-            groups[i] = group_id(prefs[i])
-        else
-            groups[i] = group_id(prefs[i])
-        end
-    end
-    return groups
+# Return the group if of the first element in an array (assuming all same)
+function _group(arr::AbstractArray{<:ParameterRef})::Int
+    return group_id(first(arr))
 end
 
 # Return true if SparseAxisArray only has one group
 function _only_one_group(arr::JuMPC.SparseAxisArray{<:ParameterRef})::Bool
-    groups = _groups(arr)
-    return length(unique(groups)) == 1
+    return length(unique(group_id.(arr))) == 1
 end
 
 # Return true to have one group ID since is singular

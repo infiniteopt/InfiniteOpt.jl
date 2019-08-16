@@ -23,7 +23,7 @@ function _list_supports(prefs::Tuple)::Vector
 end
 
 # Make an index mapping for parameter support combinations for an infinite variable
-function _make_support_indices(prefs::Tuple)::Vector
+function _make_supports(prefs::Tuple)::Vector
     support_list = _list_supports(prefs)
     combos = Iterators.product(support_list...)
     return [combo for combo in Iterators.take(combos, length(combos))]
@@ -39,9 +39,9 @@ function _initialize_infinite_variables(trans_model::JuMP.Model,
             ivref = InfiniteOpt.InfiniteVariableRef(inf_model, index)
             if InfiniteOpt.is_used(ivref)
                 prefs = InfiniteOpt.parameter_refs(ivref)
-                support_indices = _make_support_indices(prefs)
-                transcription_data(trans_model).infvar_to_supports[ivref] = support_indices
-                vrefs = Vector{JuMP.VariableRef}(undef, length(support_indices))
+                supports = _make_supports(prefs)
+                transcription_data(trans_model).infvar_to_supports[ivref] = supports
+                vrefs = Vector{JuMP.VariableRef}(undef, length(supports))
                 name = InfiniteOpt._root_name(ivref)
                 for i in eachindex(vrefs)
                     # TODO Perhaps add different naming options...
@@ -129,24 +129,38 @@ function _map_point_variables(trans_model::JuMP.Model,
     return
 end
 
-# Return the support value corresponding to a parameter reference
-function _parameter_value(pref::InfiniteOpt.ParameterRef, support::Tuple,
-                          prefs::Tuple)
+# Return the tuple index of a parameter based off of group_id
+function _parameter_tuple_index(pref::InfiniteOpt.ParameterRef,
+                                prefs::Tuple)::Int
     group = InfiniteOpt.group_id(pref)
-    pref_index = findfirst(isequal(group), InfiniteOpt._groups(prefs))
-    if isa(prefs[pref_index], InfiniteOpt.ParameterRef)
+    groups = InfiniteOpt._group.(prefs)
+    if !(group in groups)
+        return -1
+    else
+        return findfirst(isequal(group), groups)
+    end
+end
+
+# Return the support value corresponding to a parameter reference
+# return NaN is the parameter is not contained in prefs
+function _parameter_value(pref::InfiniteOpt.ParameterRef, support::Tuple,
+                          prefs::Tuple)::Number
+    pref_index = _parameter_tuple_index(pref, prefs)
+    if pref_index == -1
+        return NaN
+    elseif isa(prefs[pref_index], InfiniteOpt.ParameterRef)
         return support[pref_index]
     else
         for (k, v) in prefs[pref_index].data
-            if v == pref # TODO check this comparison
+            if v == pref
                 return support[pref_index].data[k]
             end
         end
     end
-    return
+    return NaN
 end
 
-## Helper function for mapping infinite variables to jump variables
+## Helper function for mapping InfiniteOpt variables to jump variables
 # FiniteVariableRef
 function _map_to_variable(fvref::InfiniteOpt.FiniteVariableRef, support::Tuple,
                           prefs::Tuple, trans_model::JuMP.Model)
@@ -168,7 +182,7 @@ function _map_to_variable(ivref::InfiniteOpt.InfiniteVariableRef, support::Tuple
             return transcription_variable(trans_model, ivref)[i]
         end
     end
-    # this error can likely be eliminated
+    # this shouldn't be needed, but provided as a backup
     error("Couldn't find JuMP variable corresponding to $ivref.")
 end
 
@@ -201,36 +215,22 @@ function _map_to_variable(pref::InfiniteOpt.ParameterRef, support::Tuple,
     # find pref in prefs and return associated support value
     value = _parameter_value(pref, support, prefs)
     # this error can likely be eliminated
-    isa(value, Nothing) && error("Couldn't find support corresponding to $pref.")
+    value === NaN && error("Couldn't find support corresponding to $pref.")
     return value
 end
 
-# TODO figure out how to use array bounds
-# Return a truncated support dict based on the specified parameter bounds
-function _truncate_supports(supports::Dict, prefs::Tuple, bounds::Dict)
-    old_support_indices = Dict{Int, Tuple}()
-    new_support_indices = Dict{Int, Tuple}()
-    eliminate_index = false
-    counter = 1
-    for (index, support) in supports
-        for (pref, set) in bounds
-            value = _parameter_value(pref, support, prefs)
-            if isa(value, Nothing)
-                continue
-            end
-            if value < set.lower_bound || value > set.upper_bound
-                eliminate_index = true
-                break
-            end
+# Return a Bool whether the support satisfies the bounds or not
+function _support_in_bounds(support::Tuple, prefs::Tuple, bounds::Dict)::Bool
+    for (pref, set) in bounds
+        value = _parameter_value(pref, support, prefs)
+        if value === NaN
+            continue
         end
-        if !eliminate_index
-            old_support_indices[index] = support
-            new_support_indices[counter] = support
-            counter += 1
+        if value < set.lower_bound || value > set.upper_bound
+            return false
         end
-        eliminate_index = false
     end
-    return new_support_indices, old_support_indices
+    return true
 end
 
 ## Convert jump scalar expressions with InfiniteOpt variables into transcribed relations
@@ -246,14 +246,15 @@ function _make_transcription_function(vref::InfiniteOpt.InfiniteVariableRef,
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict())
     if length(bounds) != 0
-        new_supports, old_supports = _truncate_supports(InfiniteOpt.supports(trans_model, vref),
-                                                        InfiniteOpt.parameter_refs(vref),
-                                                        bounds)
-        ordered_indices = sort(collect(keys(old_supports)))
-        return transcription_variable(trans_model, vref)[ordered_indices],
+        supports = InfiniteOpt.supports(trans_model, vref)
+        prefs = InfiniteOpt.parameter_refs(vref)
+        old_support_indices = _support_in_bounds.(supports, prefs, bounds)
+        new_supports = supports[old_support_indices]
+        return transcription_variable(trans_model, vref)[old_support_indices],
                InfiniteOpt.parameter_refs(vref), new_supports
     else
-        return transcription_variable(trans_model, vref), InfiniteOpt.parameter_refs(vref),
+        return transcription_variable(trans_model, vref),
+               InfiniteOpt.parameter_refs(vref),
                InfiniteOpt.supports(trans_model, vref)
     end
 end
@@ -262,14 +263,13 @@ end
 function _make_transcription_function(pref::InfiniteOpt.ParameterRef,
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict())
-    support_indices = Dict(i => InfiniteOpt.supports(pref)[i] for i = 1:length(InfiniteOpt.supports(pref)))
-    if length(bounds) != 0
-        new_supports, old_supports = _truncate_supports(support_indices,
-                                                        (pref, ), bounds)
-        ordered_indices = sort(collect(keys(old_supports)))
+    supports = InfiniteOpt.supports(pref)
+    if pref in keys(bounds)
+        old_support_indices = bounds[pref].lower_bound .<= supports .<= bounds[pref].upper_bound
+        new_supports = supports[old_support_indices]
         return InfiniteOpt.supports(pref)[ordered_indices], (pref, ), new_supports
     else
-        return InfiniteOpt.supports(pref), (pref, ), support_indices
+        return InfiniteOpt.supports(pref), (pref, ), supports
     end
 end
 
@@ -339,17 +339,18 @@ function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:InfiniteOpt
     end
     # determine the common set of prefs and make all of the support combos
     prefs = InfiniteOpt._all_parameter_refs(expr)
-    support_indices = _make_support_indices(prefs)
+    supports = _make_supports(prefs)
     if length(bounds) != 0
-        support_indices =  _truncate_supports(support_indices, prefs, bounds)[1]
+        old_support_indices = _support_in_bounds.(supports, prefs, bounds)
+        supports = supports[old_support_indices]
     end
-    exprs = [zero(JuMP.GenericAffExpr{C, JuMP.VariableRef}) for i = 1:length(support_indices)]
+    exprs = [zero(JuMP.GenericAffExpr{C, JuMP.VariableRef}) for i = 1:length(supports)]
     # make an expression for each support
     for i = 1:length(exprs)
         exprs[i].constant = expr.constant
         for (var, coef) in expr.terms
             # replace each variable with appropriate jump var
-            new_var = _map_to_variable(var, support_indices[i], prefs,
+            new_var = _map_to_variable(var, supports[i], prefs,
                                        trans_model)
             if isa(new_var, JuMP.VariableRef)
                 JuMP.add_to_expression!(exprs[i], coef, new_var)
@@ -358,7 +359,7 @@ function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:InfiniteOpt
             end
         end
     end
-    return exprs, prefs, support_indices
+    return exprs, prefs, supports
 end
 
 # GenericQuadExpr of GeneralVariableRefs
@@ -384,17 +385,18 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfiniteOp
     end
     # determine the common set of prefs and make all of the support combos
     prefs = InfiniteOpt._all_parameter_refs(expr)
-    support_indices = _make_support_indices(prefs)
+    supports = _make_supports(prefs)
     if length(bounds) != 0
-        support_indices =  _truncate_supports(support_indices, prefs, bounds)[1]
+        old_support_indices = _support_in_bounds.(supports, prefs, bounds)
+        supports = supports[old_support_indices]
     end
-    exprs = [zero(JuMP.GenericQuadExpr{C, JuMP.VariableRef}) for i = 1:length(support_indices)]
+    exprs = [zero(JuMP.GenericQuadExpr{C, JuMP.VariableRef}) for i = 1:length(supports)]
     # make an expression for each support
     for i = 1:length(exprs)
         exprs[i].aff.constant = expr.aff.constant
         for (var, coef) in expr.aff.terms
             # replace each variable with appropriate jump var
-            new_var = _map_to_variable(var, support_indices[i], prefs,
+            new_var = _map_to_variable(var, supports[i], prefs,
                                        trans_model)
             if isa(new_var, JuMP.VariableRef)
                 JuMP.add_to_expression!(exprs[i], coef, new_var)
@@ -404,9 +406,9 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfiniteOp
         end
         for (pair, coef) in expr.terms
             # replace each variable with appropriate jump var
-            var_a = _map_to_variable(pair.a, support_indices[i], prefs,
+            var_a = _map_to_variable(pair.a, supports[i], prefs,
                                      trans_model)
-            var_b = _map_to_variable(pair.b, support_indices[i], prefs,
+            var_b = _map_to_variable(pair.b, supports[i], prefs,
                                      trans_model)
             if isa(var_a, JuMP.VariableRef) && isa(var_b, JuMP.VariableRef)
                 JuMP.add_to_expression!(exprs[i], coef, var_a, var_b)
@@ -419,7 +421,7 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfiniteOp
             end
         end
     end
-    return exprs, prefs, support_indices
+    return exprs, prefs, supports
 end
 
 # GenericAffExpr and GenericQuadExpr of MeasureFiniteVariableRefs --> returns depends on whether finite
@@ -598,83 +600,73 @@ function _map_info_constraints(ivref::InfiniteOpt.InfiniteVariableRef, trans_mod
     # Check if both variables have a constraint and map if they do
     if JuMP.has_lower_bound(ivref)
         crefs = JuMP.ConstraintRef[]
-        support_indices = Dict{Int, Tuple}()
-        counter = 1
+        supports = []
         for i = 1:length(vrefs)
             if JuMP.has_lower_bound(vrefs[i])
                 push!(crefs, JuMP.LowerBoundRef(vrefs[i]))
-                support_indices[counter] = InfiniteOpt.supports(trans_model, ivref)[i]
-                counter += 1
+                push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
             end
         end
         _set_mapping(JuMP.LowerBoundRef(ivref), crefs)
         _set_parameter_refs(trans_model, JuMP.LowerBoundRef(ivref),
                             InfiniteOpt.parameter_refs(ivref))
-        _set_supports(trans_model, JuMP.LowerBoundRef(ivref), support_indices)
+        _set_supports(trans_model, JuMP.LowerBoundRef(ivref), supports)
     end
     if JuMP.has_upper_bound(ivref)
         crefs = JuMP.ConstraintRef[]
-        support_indices = Dict{Int, Tuple}()
-        counter = 1
+        supports = []
         for i = 1:length(vrefs)
             if JuMP.has_upper_bound(vrefs[i])
                 push!(crefs, JuMP.UpperBoundRef(vrefs[i]))
-                support_indices[counter] = InfiniteOpt.supports(trans_model, ivref)[i]
-                counter += 1
+                push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
             end
         end
         _set_mapping(JuMP.UpperBoundRef(ivref), crefs)
         _set_parameter_refs(trans_model, JuMP.UpperBoundRef(ivref),
                             InfiniteOpt.parameter_refs(ivref))
-        _set_supports(trans_model, JuMP.UpperBoundRef(ivref), support_indices)
+        _set_supports(trans_model, JuMP.UpperBoundRef(ivref), supports)
     end
     if JuMP.is_fixed(ivref)
         crefs = JuMP.ConstraintRef[]
-        support_indices = Dict{Int, Tuple}()
-        counter = 1
+        supports = []
         for i = 1:length(vrefs)
             if JuMP.is_fixed(vrefs[i])
                 push!(crefs, JuMP.FixRef(vrefs[i]))
-                support_indices[counter] = InfiniteOpt.supports(trans_model, ivref)[i]
-                counter += 1
+                push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
             end
         end
         _set_mapping(JuMP.FixRef(ivref), crefs)
         _set_parameter_refs(trans_model, JuMP.FixRef(ivref),
                             InfiniteOpt.parameter_refs(ivref))
-        _set_supports(trans_model, JuMP.FixRef(ivref), support_indices)
+        _set_supports(trans_model, JuMP.FixRef(ivref), supports)
     end
     if JuMP.is_integer(ivref)
         crefs = JuMP.ConstraintRef[]
-        support_indices = Dict{Int, Tuple}()
-        counter = 1
+        supports = []
         for i = 1:length(vrefs)
             if JuMP.is_integer(vrefs[i])
                 push!(crefs, JuMP.IntegerRef(vrefs[i]))
-                support_indices[counter] = InfiniteOpt.supports(trans_model, ivref)[i]
-                counter += 1
+                push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
             end
         end
         _set_mapping(JuMP.IntegerRef(ivref), crefs)
         _set_parameter_refs(trans_model, JuMP.IntegerRef(ivref),
                             InfiniteOpt.parameter_refs(ivref))
-        _set_supports(trans_model, JuMP.IntegerRef(ivref), support_indices)
+        _set_supports(trans_model, JuMP.IntegerRef(ivref), supports)
     end
     if JuMP.is_binary(ivref)
         crefs = JuMP.ConstraintRef[]
-        support_indices = Dict{Int, Tuple}()
-        counter = 1
+        supports = []
         for i = 1:length(vrefs)
             if JuMP.is_binary(vrefs[i])
                 push!(crefs, JuMP.BinaryRef(vrefs[i]))
-                support_indices[counter] = InfiniteOpt.supports(trans_model, ivref)[i]
-                counter += 1
+                push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
             end
         end
         _set_mapping(JuMP.BinaryRef(ivref), crefs)
         _set_parameter_refs(trans_model, JuMP.BinaryRef(ivref),
                             InfiniteOpt.parameter_refs(ivref))
-        _set_supports(trans_model, JuMP.BinaryRef(ivref), support_indices)
+        _set_supports(trans_model, JuMP.BinaryRef(ivref), suppors)
     end
     return
 end

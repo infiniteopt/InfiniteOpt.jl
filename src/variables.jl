@@ -81,12 +81,12 @@ end
 
 # Ensure each element onyl contains parameters with same group ID
 function _check_tuple_groups(_error::Function, prefs::Tuple)
-    valid_elements = [_only_one_group(prefs[i]) for i = 1:length(prefs)]
+    valid_elements = _only_one_group.(prefs)
     if sum(valid_elements) != length(prefs)
         _error("Each parameter tuple element must have contain only infinite " *
                "parameters with the same group ID.")
     end
-    groups = _groups(prefs)
+    groups = _group.(prefs)
     if length(unique(groups)) != length(groups)
         _error("Cannot double specify infinite parameter references.")
     end
