@@ -1,4 +1,4 @@
-# Test the optimizer model methods
+MOIU.Model# Test the optimizer model methods
 @testset "Optimizer Model" begin
     m = InfiniteModel()
     # optimizer_model
@@ -34,7 +34,7 @@ end
 @testset "JuMP Extensions" begin
     m = InfiniteModel()
     mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   JuMP._MOIModel{Float64}(),
+                                   MOIU.Model{Float64}(),
                                    eval_objective_value=false)
     # bridge_constraints
     @testset "JuMP.bridge_constraints" begin
@@ -44,7 +44,8 @@ end
     end
     # add_bridge
     @testset "JuMP.add_bridge" begin
-        @test isa(add_bridge(m, TestBridge), Nothing)
+        # @test isa(add_bridge(m, TestBridge), Nothing)
+        @test isa(add_bridge(m, MOIB.Variable.VectorizeBridge), Nothing)
     end
     # set_optimizer
     @testset "JuMP.set_optimizer" begin

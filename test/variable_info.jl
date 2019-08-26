@@ -117,15 +117,15 @@ end
         @test lower_bound(vref2) == 0
         @test_throws ErrorException lower_bound(vref1)
     end
-    # lower_bound_index
-    @testset "JuMP.lower_bound_index" begin
-        @test lower_bound_index(vref2) == 1
-        @test_throws ErrorException lower_bound_index(vref1)
+    # _lower_bound_index
+    @testset "JuMP._lower_bound_index" begin
+        @test JuMP._lower_bound_index(vref2) == 1
+        @test_throws ErrorException JuMP._lower_bound_index(vref1)
     end
     # set_lower_bound_index
     @testset "JuMP.set_lower_bound_index" begin
         # test function
-        @test isa(set_lower_bound_index(vref2, 2), Nothing)
+        @test isa(InfiniteOpt._set_lower_bound_index(vref2, 2), Nothing)
         @test m.var_to_lower_bound[2] == 2
         # undo changes
         m.var_to_lower_bound[2] = 1
@@ -215,15 +215,15 @@ end
         @test upper_bound(vref2) == 0
         @test_throws ErrorException upper_bound(vref1)
     end
-    # upper_bound_index
-    @testset "JuMP.upper_bound_index" begin
-        @test upper_bound_index(vref2) == 1
-        @test_throws ErrorException upper_bound_index(vref1)
+    # _upper_bound_index
+    @testset "JuMP._upper_bound_index" begin
+        @test JuMP._upper_bound_index(vref2) == 1
+        @test_throws ErrorException JuMP._upper_bound_index(vref1)
     end
-    # set_upper_bound_index
-    @testset "JuMP.set_upper_bound_index" begin
+    # _set_upper_bound_index
+    @testset "_set_upper_bound_index" begin
         # test function
-        @test isa(set_upper_bound_index(vref2, 2), Nothing)
+        @test isa(InfiniteOpt._set_upper_bound_index(vref2, 2), Nothing)
         @test m.var_to_upper_bound[2] == 2
         # undo changes
         m.var_to_upper_bound[2] = 1
@@ -316,15 +316,15 @@ end
         @test fix_value(vref2) == 0
         @test_throws ErrorException fix_value(vref1)
     end
-    # fix_index
-    @testset "JuMP.fix_index" begin
-        @test fix_index(vref2) == 1
-        @test_throws ErrorException fix_index(vref1)
+    # _fix_index
+    @testset "JuMP._fix_index" begin
+        @test JuMP._fix_index(vref2) == 1
+        @test_throws ErrorException JuMP._fix_index(vref1)
     end
-    # set_fix_index
-    @testset "JuMP.set_fix_index" begin
+    # _set_fix_index
+    @testset "_set_fix_index" begin
         # test function
-        @test isa(set_fix_index(vref2, 2), Nothing)
+        @test isa(InfiniteOpt._set_fix_index(vref2, 2), Nothing)
         @test m.var_to_fix[2] == 2
         # undo changes
         m.var_to_fix[2] = 1
@@ -447,15 +447,15 @@ end
         @test !is_binary(vref1)
         @test is_binary(vref2)
     end
-    # binary_index
-    @testset "JuMP.binary_index" begin
-        @test binary_index(vref2) == 1
-        @test_throws ErrorException binary_index(vref1)
+    # _binary_index
+    @testset "JuMP._binary_index" begin
+        @test JuMP.binary_index(vref2) == 1
+        @test_throws ErrorException JuMP.binary_index(vref1)
     end
-    # set_binary_index
-    @testset "JuMP.set_binary_index" begin
+    # _set_binary_index
+    @testset "_set_binary_index" begin
         # test function
-        @test isa(set_binary_index(vref2, 2), Nothing)
+        @test isa(InfiniteOpt._set_binary_index(vref2, 2), Nothing)
         @test m.var_to_zero_one[2] == 2
         # undo changes
         m.var_to_zero_one[2] = 1
@@ -538,15 +538,15 @@ end
         @test !is_integer(vref1)
         @test is_integer(vref2)
     end
-    # integer_index
-    @testset "JuMP.integer_index" begin
-        @test integer_index(vref2) == 1
-        @test_throws ErrorException integer_index(vref1)
+    # _integer_index
+    @testset "JuMP._integer_index" begin
+        @test JuMP._integer_index(vref2) == 1
+        @test_throws ErrorException JuMP._integer_index(vref1)
     end
-    # set_integer_index
-    @testset "JuMP.set_integer_index" begin
+    # _set_integer_index
+    @testset "_set_integer_index" begin
         # test function
-        @test isa(set_integer_index(vref2, 2), Nothing)
+        @test isa(InfiniteOpt._set_integer_index(vref2, 2), Nothing)
         @test m.var_to_integrality[2] == 2
         # undo changes
         m.var_to_integrality[2] = 1

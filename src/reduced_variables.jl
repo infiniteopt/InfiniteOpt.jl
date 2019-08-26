@@ -123,24 +123,13 @@ function JuMP.lower_bound(vref::ReducedInfiniteVariableRef)::Float64
     return JuMP.lower_bound(infinite_variable_ref(vref))
 end
 
-"""
-    JuMP.lower_bound_index(vref::ReducedInfiniteVariableRef)::Int
-
-Extend [`JuMP.lower_bound_index`](@ref) to return the index of the lower bound
-constraint associated with the original infinite variable of `vref`. Errors if
-`vref` does not have a lower bound.
-
-**Example**
-```julia
-julia> lower_bound_index(vref)
-2
-```
-"""
-function JuMP.lower_bound_index(vref::ReducedInfiniteVariableRef)::Int
+# Extend to return the index of the lower bound constraint associated with the
+# original infinite variable of `vref`.
+function JuMP._lower_bound_index(vref::ReducedInfiniteVariableRef)::Int
     if !JuMP.has_lower_bound(vref)
         error("Variable $(vref) does not have a lower bound.")
     end
-    return JuMP.lower_bound_index(infinite_variable_ref(vref))
+    return JuMP._lower_bound_index(infinite_variable_ref(vref))
 end
 
 """
@@ -194,24 +183,13 @@ function JuMP.upper_bound(vref::ReducedInfiniteVariableRef)::Float64
     return JuMP.upper_bound(infinite_variable_ref(vref))
 end
 
-"""
-    JuMP.upper_bound_index(vref::ReducedInfiniteVariableRef)::Int
-
-Extend [`JuMP.upper_bound_index`](@ref) to return the index of the upper bound
-constraint associated with the original infinite variable of `vref`. Errors if
-`vref` does not have a upper bound.
-
-**Example**
-```julia
-julia> upper_bound_index(vref)
-2
-```
-"""
-function JuMP.upper_bound_index(vref::ReducedInfiniteVariableRef)::Int
+# Extend to return the index of the upper bound constraint associated with the
+# original infinite variable of `vref`.
+function JuMP._upper_bound_index(vref::ReducedInfiniteVariableRef)::Int
     if !JuMP.has_upper_bound(vref)
         error("Variable $(vref) does not have a upper bound.")
     end
-    return JuMP.upper_bound_index(infinite_variable_ref(vref))
+    return JuMP._upper_bound_index(infinite_variable_ref(vref))
 end
 
 """
@@ -265,24 +243,13 @@ function JuMP.fix_value(vref::ReducedInfiniteVariableRef)::Float64
     return JuMP.fix_value(infinite_variable_ref(vref))
 end
 
-"""
-    JuMP.fix_index(vref::ReducedInfiniteVariableRef)::Int
-
-Extend [`JuMP.fix_index`](@ref) to return the index of the fix constraint
-associated with the original infinite variable of `vref`. Errors if `vref` is
-not fixed.
-
-**Example**
-```julia
-julia> fix_index(vref)
-2
-```
-"""
-function JuMP.fix_index(vref::ReducedInfiniteVariableRef)::Int
+# Extend to return the index of the fix constraint associated with the original
+# infinite variable of `vref`.
+function JuMP._fix_index(vref::ReducedInfiniteVariableRef)::Int
     if !JuMP.is_fixed(vref)
         error("Variable $(vref) is not fixed.")
     end
-    return JuMP.fix_index(infinite_variable_ref(vref))
+    return JuMP._fix_index(infinite_variable_ref(vref))
 end
 
 """
@@ -334,24 +301,13 @@ function JuMP.is_binary(vref::ReducedInfiniteVariableRef)::Bool
     return JuMP.is_binary(infinite_variable_ref(vref))
 end
 
-"""
-    JuMP.binary_index(vref::ReducedInfiniteVariableRef)::Int
-
-Extend [`JuMP.binary_index`](@ref) to return the index of the binary constraint
-associated with the original infinite variable of `vref`. Errors if `vref` is
-not binary.
-
-**Example**
-```julia
-julia> binary_index(vref)
-2
-```
-"""
-function JuMP.binary_index(vref::ReducedInfiniteVariableRef)::Int
+# Extend to return the index of the binary constraint associated with the
+# original infinite variable of `vref`.
+function JuMP._binary_index(vref::ReducedInfiniteVariableRef)::Int
     if !JuMP.is_binary(vref)
         error("Variable $(vref) is not binary.")
     end
-    return JuMP.binary_index(infinite_variable_ref(vref))
+    return JuMP._binary_index(infinite_variable_ref(vref))
 end
 
 """
@@ -387,24 +343,13 @@ function JuMP.is_integer(vref::ReducedInfiniteVariableRef)::Bool
     return JuMP.is_integer(infinite_variable_ref(vref))
 end
 
-"""
-    JuMP.integer_index(vref::ReducedInfiniteVariableRef)::Int
-
-Extend [`JuMP.integer_index`](@ref) to return the index of the integer constraint
-associated with the original infinite variable of `vref`. Errors if `vref` is
-not integer.
-
-**Example**
-```julia
-julia> integer_index(vref)
-2
-```
-"""
-function JuMP.integer_index(vref::ReducedInfiniteVariableRef)::Int
+# Extend to return the index of the integer constraint associated with the
+# original infinite variable of `vref`.
+function JuMP._integer_index(vref::ReducedInfiniteVariableRef)::Int
     if !JuMP.is_integer(vref)
         error("Variable $(vref) is not an integer.")
     end
-    return JuMP.integer_index(infinite_variable_ref(vref))
+    return JuMP._integer_index(infinite_variable_ref(vref))
 end
 
 """

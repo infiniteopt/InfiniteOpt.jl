@@ -62,32 +62,16 @@ function JuMP.lower_bound(vref::InfOptVariableRef)::Float64
     return _variable_info(vref).lower_bound
 end
 
-"""
-    JuMP.lower_bound_index(vref::InfOptVariableRef)::Int
-
-Extend [`JuMP.lower_bound_index`](@ref) to return the index of the lower bound
-constraint associated with `vref`. Errors if `vref` does not have a lower bound.
-
-**Example**
-```julia
-julia> lower_bound_index(vref)
-2
-```
-"""
-function JuMP.lower_bound_index(vref::InfOptVariableRef)::Int
+# Extend to return the index of the lower bound constraint associated with `vref`.
+function JuMP._lower_bound_index(vref::InfOptVariableRef)::Int
     if !JuMP.has_lower_bound(vref)
         error("Variable $(vref) does not have a lower bound.")
     end
     return JuMP.owner_model(vref).var_to_lower_bound[JuMP.index(vref)]
 end
 
-"""
-    JuMP.set_lower_bound_index(vref::InfOptVariableRef, cindex::Int)
-
-Extend [`JuMP.set_lower_bound_index`](@ref) to specify the index `cindex` of a
-lower bound constraint for `vref`. This is intended as an internal function.
-"""
-function JuMP.set_lower_bound_index(vref::InfOptVariableRef, cindex::Int)
+# Extend to specify the index `cindex` of a lower bound constraint for `vref`.
+function _set_lower_bound_index(vref::InfOptVariableRef, cindex::Int)
     JuMP.owner_model(vref).var_to_lower_bound[JuMP.index(vref)] = cindex
     return
 end
@@ -109,7 +93,7 @@ julia> lower_bound(vref)
 function JuMP.set_lower_bound(vref::InfOptVariableRef, lower::Number)
     newset = MOI.GreaterThan(convert(Float64, lower))
     if JuMP.has_lower_bound(vref)
-        cindex = JuMP.lower_bound_index(vref)
+        cindex = JuMP._lower_bound_index(vref)
         JuMP.owner_model(vref).constrs[cindex] = JuMP.ScalarConstraint(vref,
                                                                        newset)
         set_optimizer_model_ready(JuMP.owner_model(vref), false)
@@ -117,7 +101,7 @@ function JuMP.set_lower_bound(vref::InfOptVariableRef, lower::Number)
         @assert !JuMP.is_fixed(vref) "$vref is fixed, cannot set lower bound."
         cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                    JuMP.ScalarConstraint(vref, newset))
-        JuMP.set_lower_bound_index(vref, JuMP.index(cref))
+        _set_lower_bound_index(vref, JuMP.index(cref))
         JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
     end
     info = _variable_info(vref)
@@ -142,7 +126,7 @@ var >= 0.0
 ```
 """
 function JuMP.LowerBoundRef(vref::InfOptVariableRef)::GeneralConstraintRef
-    index = JuMP.lower_bound_index(vref)
+    index = JuMP._lower_bound_index(vref)
     model = JuMP.owner_model(vref)
     if model.constrs[index].func isa InfiniteExpr
         return InfiniteConstraintRef(model, index,
@@ -212,32 +196,16 @@ function JuMP.upper_bound(vref::InfOptVariableRef)::Float64
     return _variable_info(vref).upper_bound
 end
 
-"""
-    JuMP.upper_bound_index(vref::InfOptVariableRef)::Int
-
-Extend [`JuMP.upper_bound_index`](@ref) to return the index of the upper bound
-constraint associated with `vref`. Errors if `vref` does not have a upper bound.
-
-**Example**
-```julia
-julia> upper_bound_index(vref)
-2
-```
-"""
-function JuMP.upper_bound_index(vref::InfOptVariableRef)::Int
+# Extend to return the index of the upper bound constraint associated with `vref`.
+function JuMP._upper_bound_index(vref::InfOptVariableRef)::Int
     if !JuMP.has_upper_bound(vref)
         error("Variable $(vref) does not have a upper bound.")
     end
     return JuMP.owner_model(vref).var_to_upper_bound[JuMP.index(vref)]
 end
 
-"""
-    JuMP.set_upper_bound_index(vref::InfOptVariableRef, cindex::Int)
-
-Extend [`JuMP.set_upper_bound_index`](@ref) to specify the index `cindex` of a
-upper bound constraint for `vref`. This is intended as an internal function.
-"""
-function JuMP.set_upper_bound_index(vref::InfOptVariableRef, cindex::Int)
+# Extend to specify the index `cindex` of a upper bound constraint for `vref`
+function _set_upper_bound_index(vref::InfOptVariableRef, cindex::Int)
     JuMP.owner_model(vref).var_to_upper_bound[JuMP.index(vref)] = cindex
     return
 end
@@ -259,7 +227,7 @@ julia> upper_bound(vref)
 function JuMP.set_upper_bound(vref::InfOptVariableRef, upper::Number)
     newset = MOI.LessThan(convert(Float64, upper))
     if JuMP.has_upper_bound(vref)
-        cindex = JuMP.upper_bound_index(vref)
+        cindex = JuMP._upper_bound_index(vref)
         JuMP.owner_model(vref).constrs[cindex] = JuMP.ScalarConstraint(vref,
                                                                        newset)
         set_optimizer_model_ready(JuMP.owner_model(vref), false)
@@ -267,7 +235,7 @@ function JuMP.set_upper_bound(vref::InfOptVariableRef, upper::Number)
         @assert !JuMP.is_fixed(vref)
         cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                    JuMP.ScalarConstraint(vref, newset))
-        JuMP.set_upper_bound_index(vref, JuMP.index(cref))
+        _set_upper_bound_index(vref, JuMP.index(cref))
         JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
     end
     info = _variable_info(vref)
@@ -292,7 +260,7 @@ var <= 1.0
 ```
 """
 function JuMP.UpperBoundRef(vref::InfOptVariableRef)::GeneralConstraintRef
-    index = JuMP.upper_bound_index(vref)
+    index = JuMP._upper_bound_index(vref)
     model = JuMP.owner_model(vref)
     if model.constrs[index].func isa InfiniteExpr
         return InfiniteConstraintRef(model, index,
@@ -362,32 +330,16 @@ function JuMP.fix_value(vref::InfOptVariableRef)::Float64
     return _variable_info(vref).fixed_value
 end
 
-"""
-    JuMP.fix_index(vref::InfOptVariableRef)::Int
-
-Extend [`JuMP.fix_index`](@ref) to return the index of the fix constraint
-associated with `vref`. Errors if `vref` is not fixed.
-
-**Example**
-```julia
-julia> fix_index(vref)
-2
-```
-"""
-function JuMP.fix_index(vref::InfOptVariableRef)::Int
+# Extend to return the index of the fix constraint associated with `vref`.
+function JuMP._fix_index(vref::InfOptVariableRef)::Int
     if !JuMP.is_fixed(vref)
         error("Variable $(vref) is not fixed.")
     end
     return JuMP.owner_model(vref).var_to_fix[JuMP.index(vref)]
 end
 
-"""
-    JuMP.set_fix_index(vref::InfOptVariableRef, cindex::Int)
-
-Extend [`JuMP.set_fix_index`](@ref) to set the index of the fix constraint
-associated with `vref`. This is intended as an internal function.
-"""
-function JuMP.set_fix_index(vref::InfOptVariableRef, cindex::Int)
+# Extend to set the index of the fix constraintassociated with `vref`.
+function _set_fix_index(vref::InfOptVariableRef, cindex::Int)
     JuMP.owner_model(vref).var_to_fix[JuMP.index(vref)] = cindex
     return
 end
@@ -415,7 +367,7 @@ function JuMP.fix(vref::InfOptVariableRef, value::Number; force::Bool = false)
     new_set = MOI.EqualTo(convert(Float64, value))
     model = JuMP.owner_model(vref)
     if JuMP.is_fixed(vref)  # Update existing fixing constraint.
-        cindex = JuMP.fix_index(vref)
+        cindex = JuMP._fix_index(vref)
         JuMP.owner_model(vref).constrs[cindex] = JuMP.ScalarConstraint(vref,
                                                                        new_set)
         set_optimizer_model_ready(JuMP.owner_model(vref), false)
@@ -435,7 +387,7 @@ function JuMP.fix(vref::InfOptVariableRef, value::Number; force::Bool = false)
             end
         end
         cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(vref, new_set))
-        JuMP.set_fix_index(vref, JuMP.index(cref))
+        _set_fix_index(vref, JuMP.index(cref))
         JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
     end
     info = _variable_info(vref)
@@ -460,7 +412,7 @@ var == 1.0
 ```
 """
 function JuMP.FixRef(vref::InfOptVariableRef)::GeneralConstraintRef
-    index = JuMP.fix_index(vref)
+    index = JuMP._fix_index(vref)
     model = JuMP.owner_model(vref)
     if model.constrs[index].func isa InfiniteExpr
         return InfiniteConstraintRef(model, index,
@@ -552,32 +504,16 @@ true
 """
 JuMP.is_binary(vref::InfOptVariableRef)::Bool = _variable_info(vref).binary
 
-"""
-    JuMP.binary_index(vref::InfOptVariableRef)::Int
-
-Extend [`JuMP.binary_index`](@ref) to return the index of the binary constraint
-associated with `vref`. Errors if `vref` is not binary.
-
-**Example**
-```julia
-julia> binary_index(vref)
-2
-```
-"""
-function JuMP.binary_index(vref::InfOptVariableRef)::Int
+# Extend to return the index of the binary constraint associated with `vref`.
+function JuMP._binary_index(vref::InfOptVariableRef)::Int
     if !JuMP.is_binary(vref)
         error("Variable $(vref) is not binary.")
     end
     return JuMP.owner_model(vref).var_to_zero_one[JuMP.index(vref)]
 end
 
-"""
-    JuMP.set_binary_index(vref::InfOptVariableRef, cindex::Int)
-
-Extend [`JuMP.set_binary_index`](@ref) to specify the index of the binary
-constraint associated with `vref`. This is intended as an internal function.
-"""
-function JuMP.set_binary_index(vref::InfOptVariableRef, cindex::Int)
+# Extend to specify the index of the binary constraint associated with `vref`.
+function _set_binary_index(vref::InfOptVariableRef, cindex::Int)
     JuMP.owner_model(vref).var_to_zero_one[JuMP.index(vref)] = cindex
     return
 end
@@ -604,7 +540,7 @@ function JuMP.set_binary(vref::InfOptVariableRef)
               "is already integer.")
     end
     cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref, MOI.ZeroOne()))
-    JuMP.set_binary_index(vref, JuMP.index(cref))
+    _set_binary_index(vref, JuMP.index(cref))
     JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
     info = _variable_info(vref)
     _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
@@ -628,7 +564,7 @@ var binary
 ```
 """
 function JuMP.BinaryRef(vref::InfOptVariableRef)::GeneralConstraintRef
-    index = JuMP.binary_index(vref)
+    index = JuMP._binary_index(vref)
     model = JuMP.owner_model(vref)
     if model.constrs[index].func isa InfiniteExpr
         return InfiniteConstraintRef(model, index,
@@ -678,32 +614,16 @@ true
 """
 JuMP.is_integer(vref::InfOptVariableRef)::Bool = _variable_info(vref).integer
 
-"""
-    JuMP.integer_index(vref::InfOptVariableRef)::Int
-
-Extend [`JuMP.integer_index`](@ref) to return the index of the integer constraint
-associated with `vref`. Errors if `vref` is not integer.
-
-**Example**
-```julia
-julia> integer_index(vref)
-2
-```
-"""
-function JuMP.integer_index(vref::InfOptVariableRef)::Int
+# Extend to return the index of the integer constraintassociated with `vref`.
+function JuMP._integer_index(vref::InfOptVariableRef)::Int
     if !JuMP.is_integer(vref)
         error("Variable $(vref) is not an integer.")
     end
     return JuMP.owner_model(vref).var_to_integrality[JuMP.index(vref)]
 end
 
-"""
-    JuMP.set_integer_index(vref::InfOptVariableRef, cindex::Int)
-
-Extend [`JuMP.set_integer_index`](@ref) to specify the index of the integer
-constraint associated with `vref`. This is intended as an internal function.
-"""
-function JuMP.set_integer_index(vref::InfOptVariableRef, cindex::Int)
+# Extend to specify the index of the integer constraint associated with `vref`.
+function _set_integer_index(vref::InfOptVariableRef, cindex::Int)
     JuMP.owner_model(vref).var_to_integrality[JuMP.index(vref)] = cindex
     return
 end
@@ -731,7 +651,7 @@ function JuMP.set_integer(vref::InfOptVariableRef)
     end
     cref = JuMP.add_constraint(JuMP.owner_model(vref), JuMP.ScalarConstraint(vref,
                                MOI.Integer()))
-    JuMP.set_integer_index(vref, JuMP.index(cref))
+    _set_integer_index(vref, JuMP.index(cref))
     JuMP.owner_model(vref).constr_in_var_info[JuMP.index(cref)] = true
     info = _variable_info(vref)
     _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
@@ -755,7 +675,7 @@ var integer
 ```
 """
 function JuMP.IntegerRef(vref::InfOptVariableRef)::GeneralConstraintRef
-    index = JuMP.integer_index(vref)
+    index = JuMP._integer_index(vref)
     model = JuMP.owner_model(vref)
     if model.constrs[index].func isa InfiniteExpr
         return InfiniteConstraintRef(model, index,

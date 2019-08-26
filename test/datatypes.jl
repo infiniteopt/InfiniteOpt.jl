@@ -39,7 +39,7 @@ end
     @test InfiniteModel <: JuMP.AbstractModel
     @test InfiniteModel().next_var_index == 0
     mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   JuMP._MOIModel{Float64}(),
+                                   MOIU.Model{Float64}(),
                                    eval_objective_value=false)
     @test InfiniteModel(mockoptimizer).optimizer_factory.constructor == MOIU.MockOptimizer
     m = InfiniteModel();

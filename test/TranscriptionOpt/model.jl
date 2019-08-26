@@ -8,7 +8,7 @@ end
 @testset "Basic Definition and Queries" begin
     # initialize needed data
     mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   JuMP._MOIModel{Float64}(),
+                                   MOIU.Model{Float64}(),
                                    eval_objective_value=false)
     # test TranscriptionModel (no factory)
     @testset "TranscriptionModel (Default)" begin

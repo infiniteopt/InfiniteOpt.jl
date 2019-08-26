@@ -157,7 +157,7 @@ end
     @constraint(m, c3, x == 5,
                 parameter_bounds = Dict(par1 => IntervalSet(0, 0.5)))
     mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   JuMP._MOIModel{Float64}(),
+                                   MOIU.Model{Float64}(),
                                    eval_objective_value=false)
     # test Base.show (constraint in REPL)
     @testset "Base.show (REPL Constraint)" begin
