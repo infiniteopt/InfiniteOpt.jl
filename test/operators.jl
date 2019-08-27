@@ -20,6 +20,8 @@
                                            PointVariableRef) == PointVariableRef
         @test InfiniteOpt._var_type_parser(GlobalVariableRef,
                                          GlobalVariableRef) == GlobalVariableRef
+        @test InfiniteOpt._var_type_parser(ReducedInfiniteVariableRef,
+                       ReducedInfiniteVariableRef) == ReducedInfiniteVariableRef
         # test finite types
         @test InfiniteOpt._var_type_parser(PointVariableRef,
                                          GlobalVariableRef) == FiniteVariableRef

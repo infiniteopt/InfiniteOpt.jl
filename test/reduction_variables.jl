@@ -49,10 +49,10 @@
         @test lower_bound(rvref1) == 0
         @test_throws ErrorException lower_bound(rvref2)
     end
-    # lower_bound_index
-    @testset "JuMP.lower_bound_index" begin
-        @test lower_bound_index(rvref1) == lower_bound_index(inf1)
-        @test_throws ErrorException lower_bound_index(rvref2)
+    # _lower_bound_index
+    @testset "JuMP._lower_bound_index" begin
+        @test JuMP._lower_bound_index(rvref1) == JuMP._lower_bound_index(inf1)
+        @test_throws ErrorException JuMP._lower_bound_index(rvref2)
     end
     # LowerBoundRef
     @testset "JuMP.LowerBoundRef" begin
@@ -69,10 +69,10 @@
         @test upper_bound(rvref1) == 1
         @test_throws ErrorException upper_bound(rvref2)
     end
-    # upper_bound_index
-    @testset "JuMP.upper_bound_index" begin
-        @test upper_bound_index(rvref1) == upper_bound_index(inf1)
-        @test_throws ErrorException upper_bound_index(rvref2)
+    # _upper_bound_index
+    @testset "JuMP._upper_bound_index" begin
+        @test JuMP._upper_bound_index(rvref1) == JuMP._upper_bound_index(inf1)
+        @test_throws ErrorException JuMP._upper_bound_index(rvref2)
     end
     # UpperBoundRef
     @testset "JuMP.UpperBoundRef" begin
@@ -89,10 +89,10 @@
         @test fix_value(rvref2) == 1
         @test_throws ErrorException fix_value(rvref1)
     end
-    # fix_index
-    @testset "JuMP.fix_index" begin
-        @test fix_index(rvref2) == fix_index(inf2)
-        @test_throws ErrorException fix_index(rvref1)
+    # _fix_index
+    @testset "JuMP._fix_index" begin
+        @test JuMP._fix_index(rvref2) == JuMP._fix_index(inf2)
+        @test_throws ErrorException JuMP._fix_index(rvref1)
     end
     # FixRef
     @testset "JuMP.FixRef" begin
@@ -108,10 +108,10 @@
         @test is_binary(rvref2)
         @test !is_binary(rvref1)
     end
-    # binary_index
-    @testset "JuMP.binary_index" begin
-        @test binary_index(rvref2) == binary_index(inf2)
-        @test_throws ErrorException binary_index(rvref1)
+    # _binary_index
+    @testset "JuMP._binary_index" begin
+        @test JuMP._binary_index(rvref2) == JuMP._binary_index(inf2)
+        @test_throws ErrorException JuMP._binary_index(rvref1)
     end
     # BinaryRef
     @testset "JuMP.BinaryRef" begin
@@ -123,10 +123,10 @@
         @test is_integer(rvref1)
         @test !is_integer(rvref2)
     end
-    # integer_index
-    @testset "JuMP.integer_index" begin
-        @test integer_index(rvref1) == integer_index(inf1)
-        @test_throws ErrorException integer_index(rvref2)
+    # _integer_index
+    @testset "JuMP._integer_index" begin
+        @test JuMP._integer_index(rvref1) == JuMP._integer_index(inf1)
+        @test_throws ErrorException JuMP._integer_index(rvref2)
     end
     # IntegerRef
     @testset "JuMP.IntegerRef" begin

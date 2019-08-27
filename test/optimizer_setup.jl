@@ -45,7 +45,7 @@ end
     # add_bridge
     @testset "JuMP.add_bridge" begin
         # @test isa(add_bridge(m, TestBridge), Nothing)
-        @test isa(add_bridge(m, MOIB.Variable.VectorizeBridge), Nothing)
+        @test isa(add_bridge(m, MOI.Bridges.Variable.VectorizeBridge), Nothing)
     end
     # set_optimizer
     @testset "JuMP.set_optimizer" begin

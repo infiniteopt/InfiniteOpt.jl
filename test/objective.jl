@@ -142,5 +142,6 @@ end
         @test @objective(m, Min, meas + x) == meas + x
         @test objective_function(m) == meas + x
         @test objective_sense(m) == MOI.MIN_SENSE
+        @test @objective(m, Max, (meas + x) + (2x + 3)) == meas + 3x + 3
     end
 end

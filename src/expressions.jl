@@ -1,16 +1,51 @@
-# Define type hierchical parser for use in building expressions with mixed types
-# This is tested in test/operators.jl
+## Define type hierchical parser for use in building expressions with mixed types
+## This is tested in test/operators.jl
+# MeasureRef
+function _var_type_parser(V::T, W::T) where {T<:Type{<:MeasureRef}}
+    return MeasureRef
+end
+
+# ParameterRef
+function _var_type_parser(V::T, W::T) where {T<:Type{<:ParameterRef}}
+    return ParameterRef
+end
+
+# InfiniteVariableRef
+function _var_type_parser(V::T, W::T) where {T<:Type{<:InfiniteVariableRef}}
+    return InfiniteVariableRef
+end
+
+# PointVariableRef
+function _var_type_parser(V::T, W::T) where {T<:Type{<:PointVariableRef}}
+    return PointVariableRef
+end
+
+# GlobalVariableRef
+function _var_type_parser(V::T, W::T) where {T<:Type{<:GlobalVariableRef}}
+    return GlobalVariableRef
+end
+
+# ReducedInfiniteVariableRef
+function _var_type_parser(V::T, W::T) where {T<:Type{<:ReducedInfiniteVariableRef}}
+    return ReducedInfiniteVariableRef
+end
+
+# FiniteVariableRef
+function _var_type_parser(V::Type{<:FiniteVariableRef},
+                          W::Type{<:FiniteVariableRef})
+    return FiniteVariableRef
+end
+
+# MeasureFiniteVariableRef
+function _var_type_parser(V::Type{<:MeasureFiniteVariableRef},
+                          W::Type{<:MeasureFiniteVariableRef})
+    return MeasureFiniteVariableRef
+end
+
+# GeneralVariableRef
 function _var_type_parser(V::Type{<:GeneralVariableRef},
-                          W::Type{<:GeneralVariableRef})::Type{<:GeneralVariableRef}
-    if V == W
-        return V
-    elseif V isa Type{<:FiniteVariableRef} && W isa Type{<:FiniteVariableRef}
-        return FiniteVariableRef
-    elseif V isa Type{<:MeasureFiniteVariableRef} && W isa Type{<:MeasureFiniteVariableRef}
-        return MeasureFiniteVariableRef
-    else
-        return GeneralVariableRef
-    end
+                          W::Type{<:GeneralVariableRef})
+    return GeneralVariableRef
 end
 
 ## Extend add_to_expression! for some more functionality, tested in test/operators.jl
@@ -53,6 +88,16 @@ function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr, new_coef::Number,
                                  )::JuMP.GenericQuadExpr
     JuMP.add_to_expression!(quad.aff, new_coef * new_var2 * new_var1)
     return quad
+end
+
+## Extend destructive_add! as needed
+# Variable, constant, variable
+function JuMP.destructive_add!(ex::Z, c::C, x::V
+                               )::JuMP.GenericAffExpr where {Z <: GeneralVariableRef,
+                                                             V <: GeneralVariableRef,
+                                                             C <: JuMP.Constant}
+    type = _var_type_parser(Z, V)
+    return JuMP.GenericAffExpr{C, type}(0.0, ex => 1.0, x => JuMP._float(c))
 end
 
 ## Extend for better comparisons than default

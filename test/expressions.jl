@@ -157,3 +157,19 @@ end
         @test isa(InfiniteOpt._remove_variable(quad2, inf), Nothing)
     end
 end
+
+# Test destructive_add!
+@testset "JuMP.destructive_add!" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, 0 <= par2 <= 1)
+    @infinite_variable(m, inf(par))
+    @infinite_variable(m, inf2(par, par2))
+    @global_variable(m, glob)
+    # test variable, constant, variable
+    @testset "Var, Constant, Var" begin
+        @test destructive_add!(inf, 2., inf2) == inf + 2inf2
+        @test destructive_add!(inf, 2., glob) == inf + 2glob
+    end
+end

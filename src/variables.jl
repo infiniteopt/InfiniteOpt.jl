@@ -409,31 +409,31 @@ function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable,
         newset = MOI.GreaterThan(convert(Float64, v.info.lower_bound))
         cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                    JuMP.ScalarConstraint(vref, newset))
-        JuMP.set_lower_bound_index(vref, JuMP.index(cref))
+        _set_lower_bound_index(vref, JuMP.index(cref))
         model.constr_in_var_info[JuMP.index(cref)] = true
     end
     if v.info.has_ub
         newset = MOI.LessThan(convert(Float64, v.info.upper_bound))
         cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                    JuMP.ScalarConstraint(vref, newset))
-        JuMP.set_upper_bound_index(vref, JuMP.index(cref))
+        _set_upper_bound_index(vref, JuMP.index(cref))
         model.constr_in_var_info[JuMP.index(cref)] = true
     end
     if v.info.has_fix
         newset = MOI.EqualTo(convert(Float64, v.info.fixed_value))
         cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(vref, newset))
-        JuMP.set_fix_index(vref, JuMP.index(cref))
+        _set_fix_index(vref, JuMP.index(cref))
         model.constr_in_var_info[JuMP.index(cref)] = true
     end
     if v.info.binary
         cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                    JuMP.ScalarConstraint(vref, MOI.ZeroOne()))
-        JuMP.set_binary_index(vref, JuMP.index(cref))
+        _set_binary_index(vref, JuMP.index(cref))
         model.constr_in_var_info[JuMP.index(cref)] = true
     elseif v.info.integer
         cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                    JuMP.ScalarConstraint(vref, MOI.Integer()))
-        JuMP.set_integer_index(vref, JuMP.index(cref))
+        _set_integer_index(vref, JuMP.index(cref))
         model.constr_in_var_info[JuMP.index(cref)] = true
     end
     model.var_in_objective[JuMP.index(vref)] = false

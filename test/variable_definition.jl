@@ -180,25 +180,25 @@ end
         @test !optimizer_model_ready(m)
         # lower bound
         @test has_lower_bound(vref)
-        @test lower_bound_index(vref) == 1
+        @test JuMP._lower_bound_index(vref) == 1
         @test isa(m.constrs[1], ScalarConstraint{InfiniteVariableRef,
                                                  MOI.GreaterThan{Float64}})
         @test m.constr_in_var_info[1]
         # upper bound
         @test has_upper_bound(vref)
-        @test upper_bound_index(vref) == 2
+        @test JuMP._upper_bound_index(vref) == 2
         @test isa(m.constrs[2], ScalarConstraint{InfiniteVariableRef,
                                                  MOI.LessThan{Float64}})
         @test m.constr_in_var_info[2]
         # fix
         @test is_fixed(vref)
-        @test fix_index(vref) == 3
+        @test JuMP._fix_index(vref) == 3
         @test isa(m.constrs[3], ScalarConstraint{InfiniteVariableRef,
                                                  MOI.EqualTo{Float64}})
         @test m.constr_in_var_info[3]
         # binary
         @test is_binary(vref)
-        @test binary_index(vref) == 4
+        @test JuMP._binary_index(vref) == 4
         @test isa(m.constrs[4], ScalarConstraint{InfiniteVariableRef,
                                                  MOI.ZeroOne})
         @test m.constr_in_var_info[4]
@@ -210,7 +210,7 @@ end
         @test add_variable(m, v, "name") == vref
         @test !optimizer_model_ready(m)
         @test is_integer(vref)
-        @test integer_index(vref) == 8
+        @test JuMP._integer_index(vref) == 8
         @test isa(m.constrs[8], ScalarConstraint{InfiniteVariableRef,
                                                  MOI.Integer})
         @test m.constr_in_var_info[8]
@@ -440,25 +440,25 @@ end
         @test !optimizer_model_ready(m)
         # lower bound
         @test has_lower_bound(vref)
-        @test lower_bound_index(vref) == 1
+        @test JuMP._lower_bound_index(vref) == 1
         @test isa(m.constrs[1], ScalarConstraint{PointVariableRef,
                                                  MOI.GreaterThan{Float64}})
         @test m.constr_in_var_info[1]
         # upper bound
         @test has_upper_bound(vref)
-        @test upper_bound_index(vref) == 2
+        @test JuMP._upper_bound_index(vref) == 2
         @test isa(m.constrs[2], ScalarConstraint{PointVariableRef,
                                                  MOI.LessThan{Float64}})
         @test m.constr_in_var_info[2]
         # fix
         @test is_fixed(vref)
-        @test fix_index(vref) == 3
+        @test JuMP._fix_index(vref) == 3
         @test isa(m.constrs[3], ScalarConstraint{PointVariableRef,
                                                  MOI.EqualTo{Float64}})
         @test m.constr_in_var_info[3]
         # binary
         @test is_binary(vref)
-        @test binary_index(vref) == 4
+        @test JuMP._binary_index(vref) == 4
         @test isa(m.constrs[4], ScalarConstraint{PointVariableRef,
                                                  MOI.ZeroOne})
         @test m.constr_in_var_info[4]
@@ -471,7 +471,7 @@ end
         @test add_variable(m, v, "name") == vref
         @test !optimizer_model_ready(m)
         @test is_integer(vref)
-        @test integer_index(vref) == 8
+        @test JuMP._integer_index(vref) == 8
         @test isa(m.constrs[8], ScalarConstraint{PointVariableRef,
                                                  MOI.Integer})
         @test m.constr_in_var_info[8]
@@ -541,25 +541,25 @@ end
         @test !optimizer_model_ready(m)
         # lower bound
         @test has_lower_bound(vref)
-        @test lower_bound_index(vref) == 1
+        @test JuMP._lower_bound_index(vref) == 1
         @test isa(m.constrs[1], ScalarConstraint{GlobalVariableRef,
                                                  MOI.GreaterThan{Float64}})
         @test m.constr_in_var_info[1]
         # upper bound
         @test has_upper_bound(vref)
-        @test upper_bound_index(vref) == 2
+        @test JuMP._upper_bound_index(vref) == 2
         @test isa(m.constrs[2], ScalarConstraint{GlobalVariableRef,
                                                  MOI.LessThan{Float64}})
         @test m.constr_in_var_info[2]
         # fix
         @test is_fixed(vref)
-        @test fix_index(vref) == 3
+        @test JuMP._fix_index(vref) == 3
         @test isa(m.constrs[3], ScalarConstraint{GlobalVariableRef,
                                                  MOI.EqualTo{Float64}})
         @test m.constr_in_var_info[3]
         # binary
         @test is_binary(vref)
-        @test binary_index(vref) == 4
+        @test JuMP._binary_index(vref) == 4
         @test isa(m.constrs[4], ScalarConstraint{GlobalVariableRef,
                                                  MOI.ZeroOne})
         @test m.constr_in_var_info[4]
@@ -571,7 +571,7 @@ end
         @test add_variable(m, v, "name") == vref
         @test !optimizer_model_ready(m)
         @test is_integer(vref)
-        @test integer_index(vref) == 8
+        @test JuMP._integer_index(vref) == 8
         @test isa(m.constrs[8], ScalarConstraint{GlobalVariableRef,
                                                  MOI.Integer})
         @test m.constr_in_var_info[8]

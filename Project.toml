@@ -12,7 +12,7 @@ Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 [compat]
 julia = "1"
 JuMP = "≥ 0.20"
-MathOptInterface = "≥ 0.8"
+# add Distributions
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

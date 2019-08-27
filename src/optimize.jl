@@ -138,26 +138,24 @@ end
 """
     JuMP.set_silent(model::InfiniteModel)
 
-Takes precedence over any other attribute controlling verbosity
-and requires the solver to produce no output.
+Extend `JuMP.set_silent` for infinite models to take precedence over any other
+attribute controlling verbosity and requires the solver to produce no output.
 """
-# TODO include with next JuMP version
-# function JuMP.set_silent(model::InfiniteModel)
-#     MOI.set(backend(optimizer_model(model)), MOI.Silent(), true)
-#     return
-# end
+function JuMP.set_silent(model::InfiniteModel)
+    MOI.set(backend(optimizer_model(model)), MOI.Silent(), true)
+    return
+end
 
 """
     JuMP.unset_silent(model::InfiniteModel)
 
-Neutralize the effect of the `set_silent` function and let the solver
-attributes control the verbosity.
+Extend `JuMP.unset_silent` for infinite models to Neutralize the effect of the
+`set_silent` function and let the solver attributes control the verbosity.
 """
-# TODO include with next JuMP version
-# function JuMP.unset_silent(model::InfiniteModel)
-#     MOI.set(backend(optimizer_model(model)), MOI.Silent(), false)
-#     return
-# end
+function JuMP.unset_silent(model::InfiniteModel)
+    MOI.set(backend(optimizer_model(model)), MOI.Silent(), false)
+    return
+end
 
 # Extend the solve error function
 JuMP.solve(model::InfiniteModel) = JuMP.solve(optimizer_model(model))

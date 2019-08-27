@@ -62,6 +62,7 @@ function JuMP.lower_bound(vref::InfOptVariableRef)::Float64
     return _variable_info(vref).lower_bound
 end
 
+# TODO modify to eliminate dictionaries if possible like SingleVariable in MOI
 # Extend to return the index of the lower bound constraint associated with `vref`.
 function JuMP._lower_bound_index(vref::InfOptVariableRef)::Int
     if !JuMP.has_lower_bound(vref)

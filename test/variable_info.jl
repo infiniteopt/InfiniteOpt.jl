@@ -449,8 +449,8 @@ end
     end
     # _binary_index
     @testset "JuMP._binary_index" begin
-        @test JuMP.binary_index(vref2) == 1
-        @test_throws ErrorException JuMP.binary_index(vref1)
+        @test JuMP._binary_index(vref2) == 1
+        @test_throws ErrorException JuMP._binary_index(vref1)
     end
     # _set_binary_index
     @testset "_set_binary_index" begin
