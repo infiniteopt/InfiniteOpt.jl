@@ -164,15 +164,243 @@ end
 
 # Test "_map_to_variable"
 @testset "_map_to_variable" begin
-
+    # initialize models
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
+                        container = SparseAxisArray)
+    @infinite_variable(m, x(par) >= 0, Int)
+    @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
+    @point_variable(m, x(0), x0)
+    @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
+    @global_variable(m, 0 <= z <= 1, Bin)
+    @global_variable(m, w == 1, Int, start = 1)
+    index = m.next_var_index + 1
+    m.reduced_info[index] = ReducedInfiniteInfo(y, Dict(1 => 1))
+    yr = ReducedInfiniteVariableRef(m, index)
+    tm = optimizer_model(m)
+    @variable(tm, a)
+    @variable(tm, b)
+    @variable(tm, c)
+    @variable(tm, d)
+    @variable(tm, e)
+    @variable(tm, f)
+    @variable(tm, g)
+    @variable(tm, h)
+    supp1 = convert(JuMPC.SparseAxisArray, [0, 0])
+    supp2 = convert(JuMPC.SparseAxisArray, [1, 1])
+    # test for FiniteVariableRefs
+    @testset "FiniteVariableRef" begin
+        # test cannot find
+        @test_throws ErrorException IOTO._map_to_variable(x0, (), (), tm)
+        @test_throws ErrorException IOTO._map_to_variable(y0, (), (), tm)
+        @test_throws ErrorException IOTO._map_to_variable(z, (), (), tm)
+        @test_throws ErrorException IOTO._map_to_variable(w, (), (), tm)
+        # prepare transcrition model with mapped variables
+        tm.ext[:TransData].point_to_var[x0] = a
+        tm.ext[:TransData].point_to_var[y0] = b
+        tm.ext[:TransData].global_to_var[z] = c
+        tm.ext[:TransData].global_to_var[w] = d
+        # test the function
+        @test IOTO._map_to_variable(x0, (), (), tm) == a
+        @test IOTO._map_to_variable(y0, (), (), tm) == b
+        @test IOTO._map_to_variable(z, (), (), tm) == c
+        @test IOTO._map_to_variable(w, (), (), tm) == d
+    end
+    # test for InfiniteVariableRefs
+    @testset "InfiniteVariableRef" begin
+        # prepare transcrition model with mapped variables
+        tm.ext[:TransData].infinite_to_vars[x] = [a, e]
+        tm.ext[:TransData].infinite_to_vars[y] = [b, f, g, h]
+        tm.ext[:TransData].infvar_to_supports[x] = [(0,), (1,)]
+        tm.ext[:TransData].infvar_to_supports[y] = [(0, supp1), (0, supp2),
+                                                    (1, supp1), (1, supp2)]
+        # test cannot find
+        @test_throws ErrorException IOTO._map_to_variable(x, (0.5, supp1),
+                                                          (par, pars), tm)
+        @test_throws ErrorException IOTO._map_to_variable(y, (0.5, supp1),
+                                                          (par, pars), tm)
+        # test the function
+        @test IOTO._map_to_variable(x, (-0., supp1), (par, pars), tm) == a
+        @test IOTO._map_to_variable(x, (1., supp1), (par, pars), tm) == e
+        @test IOTO._map_to_variable(y, (-0., supp1), (par, pars), tm) == b
+        @test IOTO._map_to_variable(y, (0, supp2), (par, pars), tm) == f
+        @test IOTO._map_to_variable(y, (1., supp1), (par, pars), tm) == g
+        @test IOTO._map_to_variable(y, (1, supp2), (par, pars), tm) == h
+    end
+    # test for ReducedInfiniteVariableRefs
+    @testset "ReducedInfiniteVariableRef" begin
+        # test cannot find
+        supp3 = convert(JuMPC.SparseAxisArray, [0.5, 0.5])
+        @test_throws ErrorException IOTO._map_to_variable(yr, (0.5, supp3),
+                                                          (par, pars), tm)
+        # test the function
+        @test IOTO._map_to_variable(yr, (0., supp1), (par, pars), tm) == g
+        @test IOTO._map_to_variable(yr, (supp1,), (pars,), tm) == g
+        @test IOTO._map_to_variable(yr, (0., supp2), (par, pars), tm) == h
+        @test IOTO._map_to_variable(yr, (supp2,), (pars,), tm) == h
+    end
+    # test for ParameterRefs
+    @testset "ParameterRef" begin
+        # test cannot find
+        @test_throws ErrorException IOTO._map_to_variable(par, (supp1,),
+                                                          (pars,), tm)
+        # test the function
+        @test IOTO._map_to_variable(par, (0., supp1), (par, pars), tm) == 0
+        @test IOTO._map_to_variable(pars[2], (0., supp1), (par, pars), tm) == 0
+    end
 end
 
-# Test _support_in_bounds
-@testset "_support_in_bounds" begin
-
+# Test _support(s)_in_bounds
+@testset "Support Bound Checking" begin
+    # initialize models
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
+                        container = SparseAxisArray)
+    supp1 = convert(JuMPC.SparseAxisArray, [0, 0])
+    supp2 = convert(JuMPC.SparseAxisArray, [1, 1])
+    # test _support_in_bounds
+    @testset "_support_in_bounds" begin
+        # test in bounds
+        @test IOTO._support_in_bounds((0, supp1), (par, pars), Dict())
+        # test out of bounds
+        bounds = Dict(par => IntervalSet(0.5, 1))
+        @test !IOTO._support_in_bounds((0, supp1), (par, pars), bounds)
+        bounds = Dict(par => IntervalSet(0, 0.5))
+        @test !IOTO._support_in_bounds((.7, supp1), (par, pars), bounds)
+        # test parameter bounds not relavent
+        @test IOTO._support_in_bounds((supp1,), (pars,), bounds)
+    end
+    @testset "_supports_in_bounds" begin
+        supps = [(0, supp1), (0, supp2), (1, supp1), (1, supp2)]
+        bounds = Dict(par => IntervalSet(0.5, 1))
+        @test IOTO._supports_in_bounds(supps, (par, pars), bounds) == [false,
+                                                              false, true, true]
+    end
 end
 
 # Test _truncate_supports
 @testset "_make_transcription_function" begin
-
+    # initialize the models
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
+                        container = SparseAxisArray)
+    @infinite_variable(m, x(par) >= 0, Int)
+    @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
+    @point_variable(m, x(0), x0)
+    @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
+    @global_variable(m, 0 <= z <= 1, Bin)
+    @global_variable(m, w == 1, Int, start = 1)
+    m.next_var_index += 1
+    m.reduced_info[m.next_var_index] = ReducedInfiniteInfo(y, Dict(1 => 1))
+    yr = ReducedInfiniteVariableRef(m, m.next_var_index)
+    data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
+    meas1 = measure(x - w, data1)
+    meas2 = measure(y, data1)
+    tm = optimizer_model(m)
+    @variable(tm, a)
+    @variable(tm, b)
+    @variable(tm, c)
+    @variable(tm, d)
+    @variable(tm, e)
+    @variable(tm, f)
+    @variable(tm, g)
+    @variable(tm, h)
+    supp1 = convert(JuMPC.SparseAxisArray, [0, 0])
+    supp2 = convert(JuMPC.SparseAxisArray, [1, 1])
+    # transcribe the variables
+    tm.ext[:TransData].point_to_var[x0] = a
+    tm.ext[:TransData].point_to_var[y0] = b
+    tm.ext[:TransData].global_to_var[z] = c
+    tm.ext[:TransData].global_to_var[w] = d
+    tm.ext[:TransData].infinite_to_vars[x] = [a, e]
+    tm.ext[:TransData].infinite_to_vars[y] = [b, f, g, h]
+    tm.ext[:TransData].infvar_to_supports[x] = [(0,), (1,)]
+    tm.ext[:TransData].infvar_to_supports[y] = [(0, supp1), (0, supp2),
+                                                (1, supp1), (1, supp2)]
+    # test FiniteVariableRefs
+    @testset "FiniteVariableRef" begin
+        # test point variables
+        @test IOTO._make_transcription_function(x0, tm) == (a, ())
+        @test IOTO._make_transcription_function(y0, tm) == (b, ())
+        # test global variables
+        @test IOTO._make_transcription_function(z, tm) == (c, ())
+        @test IOTO._make_transcription_function(w, tm) == (d, ())
+    end
+    # test InfiniteVariableRefs
+    @testset "InfiniteVariableRef" begin
+        # test without bounds
+        @test IOTO._make_transcription_function(x, tm) == ([a, e], (par,),
+                                                           [(0,), (1,)])
+        @test IOTO._make_transcription_function(y, tm) == ([b, f, g, h],
+                                                           (par, pars),
+                                                           [(0, supp1), (0, supp2),
+                                                            (1, supp1), (1, supp2)])
+        # test with bounds
+        bounds = Dict(par => IntervalSet(0.5, 1))
+        @test IOTO._make_transcription_function(x, tm, bounds) == ([e], (par,),
+                                                                   [(1,)])
+        @test IOTO._make_transcription_function(y, tm, bounds) == ([g, h],
+                                                                   (par, pars),
+                                                                   [(1, supp1),
+                                                                   (1, supp2)])
+    end
+    # test ParameterRefs
+    @testset "ParameterRef" begin
+        # test without bounds
+        @test IOTO._make_transcription_function(par, tm) == ([0, 1], (par,), [0, 1])
+        @test IOTO._make_transcription_function(pars[1], tm) == ([0, 1], (pars[1],),
+                                                                 [0, 1])
+        # test with bounds
+        bounds = Dict(par => IntervalSet(0.5, 1))
+        @test IOTO._make_transcription_function(par, tm, bounds) == ([1], (par,),
+                                                                     [1])
+        @test IOTO._make_transcription_function(pars[1], tm, bounds) == ([0, 1],
+                                                             (pars[1],), [0, 1])
+    end
+    # test Finite GenericAffExprs
+    @testset "Finite AffExpr" begin
+        # prepare expressions
+        aff1 = x0 + 2z - 3
+        aff2 = 3z - w
+        # test expressions
+        @test IOTO._make_transcription_function(aff1, tm)[1] == a + 2c - 3
+        @test IOTO._make_transcription_function(aff2, tm)[1] == 3c - d
+    end
+    # test Finite GenericQuadExprs
+    @testset "Finite QuadExpr" begin
+        # prepare expressions
+        quad1 = x0^2 - y0 * w + 2z - 3
+        quad2 = 2z * w + 3z - w
+        # test expressions
+        @test IOTO._make_transcription_function(quad1, tm)[1] == a^2 - b * d + 2c - 3
+        @test IOTO._make_transcription_function(quad2, tm)[1] == 2c * d + 3c - d
+    end
+    # test General GenericAffExprs
+    @testset "General AffExpr" begin
+        # test only having 1 variable that is finite
+        @test IOTO._make_transcription_function(z - 2, tm)[1] == c - 2
+        @test IOTO._make_transcription_function(2w - w, tm)[1] == d + 0
+        # test having only 1 variable that is infinite
+        @test IOTO._make_transcription_function(x - 2, tm) == ([a - 2, e - 2],
+                                                           (par,), [(0,), (1,)])
+        @test IOTO._make_transcription_function(par - 2, tm) == ([-2., -1.],
+                                                                 (par,), [0, 1])
+        # test without bounds
+        expr = meas1 + 2x - par + z
+        expected = ([3a + e - 2d + c, a + 3e - 2d + c - 1], (par,), [(0,), (1,)])
+        @test IOTO._make_transcription_function(expr, tm) == expected
+        # test with bounds
+        bounds = Dict(par => IntervalSet(0.5, 1))
+        expr = meas2 + 2x - pars[2] + z
+        expected = ([b + g + 2e + c, f + h + 2e + c - 1], (par, pars),
+                    [(1, supp1), (1, supp2)])
+        @test IOTO._make_transcription_function(expr, tm, bounds) == expected
+    end
+    # test General GenericQuadExprs
+    @testset "General QuadExpr" begin
+        # TODO include test for affexpr dispatch
+    end
 end

@@ -153,49 +153,42 @@ end
 
 ## Return a tuple of the parameter references in an expr
 # FiniteVariableRef
-_all_parameter_refs(expr::FiniteVariableRef) = ()
+_all_parameter_refs(expr::FiniteVariableRef)::Tuple = ()
 
 # InfiniteVariableRef
-_all_parameter_refs(expr::InfiniteVariableRef) = parameter_refs(expr)
+_all_parameter_refs(expr::InfiniteVariableRef)::Tuple = parameter_refs(expr)
 
 # ParameterRef
-_all_parameter_refs(expr::ParameterRef) = (expr, )
+_all_parameter_refs(expr::ParameterRef)::Tuple = (expr, )
 
 # ReducedInfiniteVariableRef
-_all_parameter_refs(expr::ReducedInfiniteVariableRef) = parameter_refs(expr)
+_all_parameter_refs(expr::ReducedInfiniteVariableRef)::Tuple = parameter_refs(expr)
 
 # GenericAffExpr
 function _all_parameter_refs(expr::JuMP.GenericAffExpr{C,
-                              <:GeneralVariableRef}) where {C}
+                              <:GeneralVariableRef})::Tuple where {C}
     pref_list = []
-    for (var, coef) in expr.terms
+    for var in keys(expr.terms)
         push!(pref_list, _all_parameter_refs(var)...)
     end
-    groups = [group_id(pref) for pref in pref_list]
+    groups = _group.(pref_list)
     unique_groups = sort(unique(groups))
-    unique_indexes = zeros(Int64, length(unique_groups))
-    for i = 1:length(unique_indexes)
-        unique_indexes[i] = findfirst(isequal(unique_groups[i]), groups)
-    end
-    return Tuple(pref_list[i] for i in unique_indexes)
+    return Tuple(pref_list[findfirst(isequal(unique_groups[i]), groups)]
+                 for i in unique_groups)
 end
 
 # GenericQuadExpr
 function _all_parameter_refs(expr::JuMP.GenericQuadExpr{C,
-                             <:GeneralVariableRef}) where {C}
-    pref_list = []
-    push!(pref_list, _all_parameter_refs(expr.aff)...)
-    for (pair, coef) in expr.terms
+                             <:GeneralVariableRef})::Tuple where {C}
+    pref_list = [i for i in _all_parameter_refs(expr.aff)]
+    for pair in keys(expr.terms)
         push!(pref_list, _all_parameter_refs(pair.a)...)
         push!(pref_list, _all_parameter_refs(pair.b)...)
     end
-    groups = [group_id(pref) for pref in pref_list]
-    unique_groups = sort(unique(groups))
-    unique_indexes = zeros(Int64, length(unique_groups))
-    for i = 1:length(unique_indexes)
-        unique_indexes[i] = findfirst(isequal(unique_groups[i]), groups)
-    end
-    return Tuple(pref_list[i] for i in unique_indexes)
+    groups = _group.(pref_list)
+    unique_groups = unique(groups)
+    return Tuple(pref_list[findfirst(isequal(unique_groups[i]), groups)]
+                 for i in unique_groups)
 end
 
 ## Delete variables from an expression

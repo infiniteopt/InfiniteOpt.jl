@@ -163,16 +163,16 @@ end
 ## Helper function for mapping InfiniteOpt variables to jump variables
 # FiniteVariableRef
 function _map_to_variable(fvref::InfiniteOpt.FiniteVariableRef, support::Tuple,
-                          prefs::Tuple, trans_model::JuMP.Model)
+                          prefs::Tuple, trans_model::JuMP.Model)::JuMP.VariableRef
     return transcription_variable(trans_model, fvref)
 end
 
 # InfiniteVariableRef
 function _map_to_variable(ivref::InfiniteOpt.InfiniteVariableRef, support::Tuple,
-                          prefs::Tuple, trans_model::JuMP.Model)
+                          prefs::Tuple, trans_model::JuMP.Model)::JuMP.VariableRef
     # reduce support to only include the relavent parameter id groups
-    ivref_groups = InfiniteOpt._groups(InfiniteOpt.parameter_refs(ivref))
-    support_groups = InfiniteOpt._groups(prefs)
+    ivref_groups = InfiniteOpt._group.(InfiniteOpt.parameter_refs(ivref))
+    support_groups = InfiniteOpt._group.(prefs)
     reduced_support = Tuple(support[findfirst(isequal(group), support_groups)]
                             for group in ivref_groups)
     # find the jump variable associated with the support
@@ -188,13 +188,14 @@ end
 
 # ReducedInfiniteVariableRef
 function _map_to_variable(rvref::InfiniteOpt.ReducedInfiniteVariableRef,
-                          support::Tuple, prefs::Tuple, trans_model::JuMP.Model)
+                          support::Tuple, prefs::Tuple,
+                          trans_model::JuMP.Model)::JuMP.VariableRef
     # parse the reduced parameters and modify the support to include them
     ivref = InfiniteOpt.infinite_variable_ref(rvref)
-    orig_groups = InfiniteOpt._groups(InfiniteOpt.parameter_refs(ivref))
-    support_groups = InfiniteOpt._groups(prefs)
-    support = [i for i in support]
-    prefs = [pref for pref in prefs]
+    orig_groups = InfiniteOpt._group.(InfiniteOpt.parameter_refs(ivref))
+    support_groups = InfiniteOpt._group.(prefs)
+    support = Any[i for i in support]
+    prefs = Any[pref for pref in prefs]
     for (index, value) in InfiniteOpt.eval_supports(rvref)
         if orig_groups[index] in support_groups
             support[findfirst(isequal(orig_groups[index]), support_groups)] = value
@@ -211,10 +212,10 @@ end
 
 # ParameterRef
 function _map_to_variable(pref::InfiniteOpt.ParameterRef, support::Tuple,
-                          prefs::Tuple, trans_model::JuMP.Model)
+                          prefs::Tuple, trans_model::JuMP.Model)::Number
     # find pref in prefs and return associated support value
     value = _parameter_value(pref, support, prefs)
-    # this error can likely be eliminated
+    # this error is a backup that should not be needed
     value === NaN && error("Couldn't find support corresponding to $pref.")
     return value
 end
@@ -233,25 +234,33 @@ function _support_in_bounds(support::Tuple, prefs::Tuple, bounds::Dict)::Bool
     return true
 end
 
+# Return a bool array indicating which supports are in bounds
+function _supports_in_bounds(supports::Vector, prefs::Tuple, bounds::Dict)::Vector
+    return [_support_in_bounds(supports[i], prefs, bounds)
+            for i in eachindex(supports)]
+end
+
 ## Convert jump scalar expressions with InfiniteOpt variables into transcribed relations
 # PointVariableRef and GlobalVariableRef --> return scalar jump object
 function _make_transcription_function(vref::InfiniteOpt.FiniteVariableRef,
                                       trans_model::JuMP.Model,
-                                      bounds::Dict = Dict())
-    return transcription_variable(trans_model, vref)
+                                      bounds::Dict = Dict())::Tuple
+    return transcription_variable(trans_model, vref), ()
 end
 
-# InfiniteVariableRef --> return vector of expressions, prefs, and support mapping
+# InfiniteVariableRef --> return tuple of expressions, prefs, and support mapping
 function _make_transcription_function(vref::InfiniteOpt.InfiniteVariableRef,
                                       trans_model::JuMP.Model,
-                                      bounds::Dict = Dict())
+                                      bounds::Dict = Dict())::Tuple
+    # Update the supports to include only those in the bounds and return vars
     if length(bounds) != 0
         supports = InfiniteOpt.supports(trans_model, vref)
         prefs = InfiniteOpt.parameter_refs(vref)
-        old_support_indices = _support_in_bounds.(supports, prefs, bounds)
+        old_support_indices = _supports_in_bounds(supports, prefs, bounds)
         new_supports = supports[old_support_indices]
         return transcription_variable(trans_model, vref)[old_support_indices],
                InfiniteOpt.parameter_refs(vref), new_supports
+    # easy case just return the info
     else
         return transcription_variable(trans_model, vref),
                InfiniteOpt.parameter_refs(vref),
@@ -259,48 +268,56 @@ function _make_transcription_function(vref::InfiniteOpt.InfiniteVariableRef,
     end
 end
 
-# ParameterRef --> return vector of numbers, pref, and support mapping
+# ParameterRef --> return tuple of numbers, pref, and support mapping
 function _make_transcription_function(pref::InfiniteOpt.ParameterRef,
                                       trans_model::JuMP.Model,
-                                      bounds::Dict = Dict())
+                                      bounds::Dict = Dict())::Tuple
     supports = InfiniteOpt.supports(pref)
+    # truncate the supports if out of bounds
     if pref in keys(bounds)
         old_support_indices = bounds[pref].lower_bound .<= supports .<= bounds[pref].upper_bound
         new_supports = supports[old_support_indices]
-        return InfiniteOpt.supports(pref)[ordered_indices], (pref, ), new_supports
+        return new_supports, (pref, ), new_supports
+    # easy case just return the supports
     else
-        return InfiniteOpt.supports(pref), (pref, ), supports
+        return supports, (pref, ), supports
     end
 end
 
 # MeasureRef --> return depends if finite or infinite
 function _make_transcription_function(mref::InfiniteOpt.MeasureRef,
                                       trans_model::JuMP.Model,
-                                      bounds::Dict = Dict())
+                                      bounds::Dict = Dict())::Tuple
+    # expand the measure
     func = InfiniteOpt.measure_function(mref)
     data = InfiniteOpt.measure_data(mref)
     new_func = InfiniteOpt._possible_convert(InfiniteOpt.FiniteVariableRef,
-                                 InfiniteOpt._expand_measure(func, data, trans_model, _update_point_mapping))
+                                         InfiniteOpt._expand_measure(func, data,
+                                            trans_model, _update_point_mapping))
     # will either call finite variable function or general variable function
     return _make_transcription_function(new_func, trans_model, bounds)
 end
 
 # GenericAffExpr of FiniteVariableRefs --> return scalar jump object
-function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:InfiniteOpt.FiniteVariableRef},
+function _make_transcription_function(expr::JuMP.GenericAffExpr{C,
+                                               <:InfiniteOpt.FiniteVariableRef},
                                       trans_model::JuMP.Model,
-                                      bounds::Dict = Dict()) where {C}
+                                      bounds::Dict = Dict())::Tuple where {C}
     # replace finite vars with jump vars
-    pairs = [transcription_variable(trans_model, var) => coef for (var, coef) in expr.terms]
+    pairs = [transcription_variable(trans_model, var) => coef
+             for (var, coef) in expr.terms]
     return JuMP.GenericAffExpr(expr.constant,
-                               JuMP._new_ordered_dict(JuMP.VariableRef, C, pairs))
+                         JuMP._new_ordered_dict(JuMP.VariableRef, C, pairs)), ()
 end
 
 # GenericQuadExpr of FiniteVariableRefs --> return scalar jump object
-function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfiniteOpt.FiniteVariableRef},
+function _make_transcription_function(expr::JuMP.GenericQuadExpr{C,
+                                               <:InfiniteOpt.FiniteVariableRef},
                                       trans_model::JuMP.Model,
-                                      bounds::Dict = Dict()) where {C}
+                                      bounds::Dict = Dict())::Tuple where {C}
     # replace finite vars with jump vars
-    pairs = Vector{Pair{JuMP.UnorderedPair{JuMP.VariableRef}, C}}(undef, length(expr.terms))
+    pairs = Vector{Pair{JuMP.UnorderedPair{JuMP.VariableRef}, C}}(undef,
+                                                             length(expr.terms))
     counter = 1
     for k in keys(expr.terms)
         a = transcription_variable(trans_model, k.a)
@@ -308,30 +325,40 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfiniteOp
         pairs[counter] = JuMP.UnorderedPair(a, b) => expr.terms[k]
         counter += 1
     end
-    aff = _make_transcription_function(expr.aff, trans_model)
-    return JuMP.GenericQuadExpr(aff, JuMP._new_ordered_dict(JuMP.UnorderedPair{JuMP.VariableRef}, C, pairs))
+    aff = _make_transcription_function(expr.aff, trans_model)[1]
+    return JuMP.GenericQuadExpr(aff,
+     JuMP._new_ordered_dict(JuMP.UnorderedPair{JuMP.VariableRef}, C, pairs)), ()
 end
 
-# GenericAffExpr of GeneralVariableRefs --> return vector of numbers, pref, and support mapping
-function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:InfiniteOpt.GeneralVariableRef},
+# GenericAffExpr of GeneralVariableRefs --> return tuple of numbers, pref,
+# and support mapping
+function _make_transcription_function(expr::JuMP.GenericAffExpr{C,
+                                              <:InfiniteOpt.GeneralVariableRef},
                                       trans_model::JuMP.Model,
-                                      bounds::Dict = Dict()) where {C}
+                                      bounds::Dict = Dict())::Tuple where {C}
     # check if there is only 1 var to dispatch to that transcription method
     if length(expr.terms) == 1
-        var = collect(keys(expr.terms))[1]
+        var = first(keys(expr.terms))
         results = _make_transcription_function(var, trans_model, bounds)
-        # results is a tuple if the var is infinite or it is an expr otherwise
-        if isa(results, Tuple)
-            exprs = expr.terms[var] * results[1] + ones(length(results[1])) * expr.constant
+        # results[2] contains prefs if is infinite or it is empty otherwise
+        if length(results[2]) != 0
+            exprs = expr.terms[var] * results[1] .+ expr.constant
             return exprs, results[2], results[3]
         else
-            return expr.terms[var] * results + expr.constant
+            return expr.terms[var] * results[1] + expr.constant, ()
         end
     end
     # check to see if there are measures and expand them
-    is_measure = [var isa InfiniteOpt.MeasureRef for var in InfiniteOpt._all_function_variables(expr)]
-    if any(is_measure)
-        expr = InfiniteOpt._expand_measures(expr, trans_model, _update_point_mapping)
+    has_measure = false
+    for var in keys(expr.terms)
+        if var isa InfiniteOpt.MeasureRef
+            has_measure = true
+            break
+        end
+    end
+    if has_measure
+        expr = InfiniteOpt._expand_measures(expr, trans_model,
+                                            _update_point_mapping)
     end
     # dispatch to quadratic method if the measures contained quadratic terms
     if isa(expr, JuMP.GenericQuadExpr)
@@ -341,12 +368,13 @@ function _make_transcription_function(expr::JuMP.GenericAffExpr{C, <:InfiniteOpt
     prefs = InfiniteOpt._all_parameter_refs(expr)
     supports = _make_supports(prefs)
     if length(bounds) != 0
-        old_support_indices = _support_in_bounds.(supports, prefs, bounds)
+        old_support_indices = _supports_in_bounds(supports, prefs, bounds)
         supports = supports[old_support_indices]
     end
-    exprs = [zero(JuMP.GenericAffExpr{C, JuMP.VariableRef}) for i = 1:length(supports)]
+    exprs = [zero(JuMP.GenericAffExpr{C, JuMP.VariableRef})
+             for i in eachindex(supports)]
     # make an expression for each support
-    for i = 1:length(exprs)
+    for i in eachindex(exprs)
         exprs[i].constant = expr.constant
         for (var, coef) in expr.terms
             # replace each variable with appropriate jump var
@@ -365,17 +393,17 @@ end
 # GenericQuadExpr of GeneralVariableRefs
 function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfiniteOpt.GeneralVariableRef},
                                       trans_model::JuMP.Model,
-                                      bounds::Dict = Dict()) where {C}
+                                      bounds::Dict = Dict())::Tuple where {C}
     # check if there is only 1 var to dispatch to that transcription method
     if length(expr.terms) == 0 && length(expr.aff.terms) == 1
-      var = collect(keys(expr.aff.terms))[1]
+      var = first(keys(expr.aff.terms))
       results = _make_transcription_function(var, trans_model, bounds)
-      # results is a tuple if the var is infinite or it is an expr otherwise
-      if isa(results, Tuple)
+      # results[2] contains prefs if is infinite or it is empty otherwise
+      if length(results[2]) != 0
           exprs = expr.aff.terms[var] * results[1] + ones(length(results[1])) * expr.aff.constant
           return exprs, results[2], results[3]
       else
-          return expr.aff.terms[var] * results + expr.aff.constant
+          return expr.aff.terms[var] * results + expr.aff.constant, ()
       end
     end
     # check to see if there are measures and expand them
@@ -387,7 +415,7 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfiniteOp
     prefs = InfiniteOpt._all_parameter_refs(expr)
     supports = _make_supports(prefs)
     if length(bounds) != 0
-        old_support_indices = _support_in_bounds.(supports, prefs, bounds)
+        old_support_indices = _supports_in_bounds(supports, prefs, bounds)
         supports = supports[old_support_indices]
     end
     exprs = [zero(JuMP.GenericQuadExpr{C, JuMP.VariableRef}) for i = 1:length(supports)]
@@ -424,11 +452,11 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfiniteOp
     return exprs, prefs, supports
 end
 
-# GenericAffExpr and GenericQuadExpr of MeasureFiniteVariableRefs --> returns depends on whether finite
+# GenericAffExpr and GenericQuadExpr of MeasureFiniteVariableRefs --> return depends on whether finite
 function _make_transcription_function(expr::Union{JuMP.GenericAffExpr{C, <:InfiniteOpt.MeasureFiniteVariableRef},
                                       JuMP.GenericQuadExpr{C, <:InfiniteOpt.MeasureFiniteVariableRef}},
                                       trans_model::JuMP.Model,
-                                      bounds::Dict = Dict()) where {C}
+                                      bounds::Dict = Dict())::Tuple where {C}
     expr = InfiniteOpt._possible_convert(FiniteVariableRef, InfiniteOpt._expand_measures(expr, trans_model, _update_point_mapping))
     return _make_transcription_function(expr, trans_model, bounds)
 end
@@ -436,17 +464,16 @@ end
 # Empty jump variable expr (for constraints of form number <= number)
 function _make_transcription_function(expr::JuMP.GenericAffExpr{C, JuMP.VariableRef},
                                       trans_model::JuMP.Model,
-                                      bounds::Dict = Dict()) where {C}
-    return expr
+                                      bounds::Dict = Dict())::Tuple where {C}
+    return expr, ()
 end
 
 # Fall back function for other jump objects
 function _make_transcription_function(expr::JuMP.AbstractJuMPScalar,
                                       trans_model::JuMP.Model,
-                                      bounds::Dict = Dict())
+                                      bounds::Dict = Dict())::Tuple
     type = typeof(expr)
     error("Unsupported transcription of expression of type $type.")
-    return
 end
 
 ## Construct the objective and error is contains non finite variables
@@ -695,7 +722,6 @@ function TranscriptionModel(inf_model::InfiniteOpt.InfiniteModel,
     else
         trans_model = TranscriptionModel(optimizer_factory; kwargs...)
     end
-
     _initialize_global_variables(trans_model, inf_model)
     _initialize_infinite_variables(trans_model, inf_model)
     _map_point_variables(trans_model, inf_model)
