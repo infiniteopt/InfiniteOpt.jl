@@ -349,6 +349,7 @@ function _make_transcription_function(expr::JuMP.GenericAffExpr{C,
         end
     end
     # check to see if there are measures and expand them
+    # TODO rework paradigm so expressions don't need to be checked for measures
     has_measure = false
     for var in keys(expr.terms)
         if var isa InfiniteOpt.MeasureRef
@@ -391,7 +392,8 @@ function _make_transcription_function(expr::JuMP.GenericAffExpr{C,
 end
 
 # GenericQuadExpr of GeneralVariableRefs
-function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfiniteOpt.GeneralVariableRef},
+function _make_transcription_function(expr::JuMP.GenericQuadExpr{C,
+                                              <:InfiniteOpt.GeneralVariableRef},
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict())::Tuple where {C}
     # check if there is only 1 var to dispatch to that transcription method
@@ -400,16 +402,27 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfiniteOp
       results = _make_transcription_function(var, trans_model, bounds)
       # results[2] contains prefs if is infinite or it is empty otherwise
       if length(results[2]) != 0
-          exprs = expr.aff.terms[var] * results[1] + ones(length(results[1])) * expr.aff.constant
+          exprs = expr.aff.terms[var] * results[1] .+ expr.aff.constant
           return exprs, results[2], results[3]
       else
-          return expr.aff.terms[var] * results + expr.aff.constant, ()
+          return expr.aff.terms[var] * results[1] + expr.aff.constant, ()
       end
     end
     # check to see if there are measures and expand them
-    is_measure = [var isa MeasureRef for var in InfiniteOpt._all_function_variables(expr)]
-    if any(is_measure)
-        expr = InfiniteOpt._expand_measures(expr, trans_model, _update_point_mapping)
+    # TODO rework paradigm so expressions don't need to be checked for measures
+    all_variables = InfiniteOpt._all_function_variables(expr)
+    has_measure = false
+    for var in all_variables
+        if var isa InfiniteOpt.MeasureRef
+            has_measure = true
+            break
+        end
+    end
+    if has_measure
+        # TODO expand measures in place by deleting entry and appending to the end
+        # TODO thus the measure search can be done by expand measures
+        expr = InfiniteOpt._expand_measures(expr, trans_model,
+                                            _update_point_mapping)
     end
     # determine the common set of prefs and make all of the support combos
     prefs = InfiniteOpt._all_parameter_refs(expr)
@@ -418,9 +431,10 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfiniteOp
         old_support_indices = _supports_in_bounds(supports, prefs, bounds)
         supports = supports[old_support_indices]
     end
-    exprs = [zero(JuMP.GenericQuadExpr{C, JuMP.VariableRef}) for i = 1:length(supports)]
+    exprs = [zero(JuMP.GenericQuadExpr{C, JuMP.VariableRef})
+             for i in eachindex(supports)]
     # make an expression for each support
-    for i = 1:length(exprs)
+    for i in eachindex(exprs)
         exprs[i].aff.constant = expr.aff.constant
         for (var, coef) in expr.aff.terms
             # replace each variable with appropriate jump var
@@ -452,17 +466,23 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C, <:InfiniteOp
     return exprs, prefs, supports
 end
 
-# GenericAffExpr and GenericQuadExpr of MeasureFiniteVariableRefs --> return depends on whether finite
-function _make_transcription_function(expr::Union{JuMP.GenericAffExpr{C, <:InfiniteOpt.MeasureFiniteVariableRef},
-                                      JuMP.GenericQuadExpr{C, <:InfiniteOpt.MeasureFiniteVariableRef}},
+# GenericAffExpr and GenericQuadExpr of MeasureFiniteVariableRefs --> return
+# depends on whether finite
+function _make_transcription_function(expr::Union{JuMP.GenericAffExpr{C,
+                                        <:InfiniteOpt.MeasureFiniteVariableRef},
+                                        JuMP.GenericQuadExpr{C,
+                                        <:InfiniteOpt.MeasureFiniteVariableRef}},
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict())::Tuple where {C}
-    expr = InfiniteOpt._possible_convert(FiniteVariableRef, InfiniteOpt._expand_measures(expr, trans_model, _update_point_mapping))
+    expr = InfiniteOpt._possible_convert(FiniteVariableRef,
+                                         InfiniteOpt._expand_measures(expr,
+                                         trans_model, _update_point_mapping))
     return _make_transcription_function(expr, trans_model, bounds)
 end
 
 # Empty jump variable expr (for constraints of form number <= number)
-function _make_transcription_function(expr::JuMP.GenericAffExpr{C, JuMP.VariableRef},
+function _make_transcription_function(expr::JuMP.GenericAffExpr{C,
+                                                              JuMP.VariableRef},
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict())::Tuple where {C}
     return expr, ()

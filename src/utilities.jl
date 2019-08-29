@@ -51,7 +51,7 @@ end
 function _possible_convert(type::DataType,
                            aff::JuMP.GenericAffExpr{C, V}) where {C, V}
     valids = [k isa type for k in keys(aff.terms)]
-    if sum(valids) == length(keys(aff.terms))
+    if all(valids)
         return JuMP.GenericAffExpr{C, type}(aff.constant, aff.terms)
     else
         return aff
@@ -63,12 +63,9 @@ function _possible_convert(type::DataType,
                            quad::JuMP.GenericQuadExpr{C, V}) where {C, V}
     valids_a = [k.a isa type for k in keys(quad.terms)]
     valids_b = [k.b isa type for k in keys(quad.terms)]
-    len_terms = length(keys(quad.terms))
-    aff = _possible_convert(type, quad.aff)
-    check1 = sum(valids_a) == len_terms
-    check2 = sum(valids_b) == len_terms
-    check3 = isa(aff, JuMP.GenericAffExpr{C, type})
-    if check1 && check2 && check3
+    valids_aff = [k isa type for k in keys(quad.aff.terms)]
+    if all(valids_a) && all(valids_b) && all(valids_aff)
+        aff = convert(JuMP.GenericAffExpr{C, type}, quad.aff)
         return JuMP.GenericQuadExpr{C, type}(aff, quad.terms)
     else
         return quad

@@ -172,15 +172,15 @@ function _all_parameter_refs(expr::JuMP.GenericAffExpr{C,
         push!(pref_list, _all_parameter_refs(var)...)
     end
     groups = _group.(pref_list)
-    unique_groups = sort(unique(groups))
+    unique_groups = unique(groups)
     return Tuple(pref_list[findfirst(isequal(unique_groups[i]), groups)]
-                 for i in unique_groups)
+                 for i in eachindex(unique_groups))
 end
 
 # GenericQuadExpr
 function _all_parameter_refs(expr::JuMP.GenericQuadExpr{C,
                              <:GeneralVariableRef})::Tuple where {C}
-    pref_list = [i for i in _all_parameter_refs(expr.aff)]
+    pref_list = Any[i for i in _all_parameter_refs(expr.aff)]
     for pair in keys(expr.terms)
         push!(pref_list, _all_parameter_refs(pair.a)...)
         push!(pref_list, _all_parameter_refs(pair.b)...)
@@ -188,7 +188,7 @@ function _all_parameter_refs(expr::JuMP.GenericQuadExpr{C,
     groups = _group.(pref_list)
     unique_groups = unique(groups)
     return Tuple(pref_list[findfirst(isequal(unique_groups[i]), groups)]
-                 for i in unique_groups)
+                 for i in eachindex(unique_groups))
 end
 
 ## Delete variables from an expression

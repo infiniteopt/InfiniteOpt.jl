@@ -299,6 +299,7 @@ end
     data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
     meas1 = measure(x - w, data1)
     meas2 = measure(y, data1)
+    meas3 = measure(y^2 + z, data1)
     tm = optimizer_model(m)
     @variable(tm, a)
     @variable(tm, b)
@@ -395,12 +396,157 @@ end
         # test with bounds
         bounds = Dict(par => IntervalSet(0.5, 1))
         expr = meas2 + 2x - pars[2] + z
-        expected = ([b + g + 2e + c, f + h + 2e + c - 1], (par, pars),
-                    [(1, supp1), (1, supp2)])
+        expected = ([b + g + 2e + c, f + h + 2e + c - 1], (pars, par),
+                    [(supp1, 1), (supp2, 1)])
         @test IOTO._make_transcription_function(expr, tm, bounds) == expected
     end
     # test General GenericQuadExprs
     @testset "General QuadExpr" begin
-        # TODO include test for affexpr dispatch
+        # test only having 1 variable that is finite
+        expr = zero(GenericQuadExpr{Float64, GeneralVariableRef})
+        expr.aff = z - 2
+        @test IOTO._make_transcription_function(expr, tm)[1] == c - 2
+        expr.aff = 2w - w
+        @test IOTO._make_transcription_function(expr, tm)[1] == d + 0
+        # test having only 1 variable that is infinite
+        expr.aff = x - 2
+        @test IOTO._make_transcription_function(expr, tm) == ([a - 2, e - 2],
+                                                           (par,), [(0,), (1,)])
+        expr.aff = par - 2
+        @test IOTO._make_transcription_function(expr, tm) == ([-2., -1.], (par,),
+                                                              [0, 1])
+        # test without bounds
+        expr = x0^2 + 2 * z * y0 - par * x + w * par + 2 * par^2 - 2par + meas1 - 3
+        expected = ([a^2 + 2 * c * b + a + e - 2d - 3,
+                     a^2 + 2 * c * b + a + 0e - d - 3], (par,), [(0,), (1,)])
+        @test IOTO._make_transcription_function(expr, tm) == expected
+        # test without bounds
+        bounds = Dict(par => IntervalSet(0.5, 1))
+        expr = x0^2 + 2 * z * y0 - pars[1] * x + w * par + 2 * par^2 - 2par + meas2 - 3
+        expected = ([a^2 + 2 * c * b + b + g + d - 3,
+                     a^2 + 2 * c * b + f + h - e + d - 3], (par, pars),
+                     [(1, supp1), (1, supp2)])
+        @test IOTO._make_transcription_function(expr, tm, bounds) == expected
+        # test AffExpr dispatch to QuadExpr
+        bounds = Dict(par => IntervalSet(0.5, 1))
+        expr = 2meas3 - x + 2
+        expected = ([2 * (b^2 + g^2 + 2c) - e + 2, 2 * (f^2 + h^2 + 2c) - e + 2],
+                    (par, pars), [(1, supp1), (1, supp2)])
+        @test IOTO._make_transcription_function(expr, tm, bounds) == expected
     end
+    # test MeasureFiniteVariableRef Expressions
+    @testset "MeasureFiniteVariableRef Exprs" begin
+        # test finite AffExpr
+        expr = meas1 + z - 2w
+        expected = (a + e - 4d + c, ())
+        @test IOTO._make_transcription_function(expr, tm) == expected
+        # test infinite AffExpr
+        expr = meas1 + x - 2w
+        expected = ([2a + e - 4d, a + 2e - 4d], (par,), [(0,), (1,)])
+        @test IOTO._make_transcription_function(expr, tm) == expected
+        # test finite QuadExpr
+        expr = meas1 + z^2 - 2w
+        expected = (c^2 + a + e - 4d, ())
+        @test IOTO._make_transcription_function(expr, tm) == expected
+        # test infinite QuadExpr
+        expr = meas1 + x^2 - 2w
+        expected = ([a^2 + a + e - 4d, e^2 + a + e - 4d], (par,), [(0,), (1,)])
+        @test IOTO._make_transcription_function(expr, tm) == expected
+    end
+    # test numeric AffExpr
+    @testset "Numeric AffExpr" begin
+        expr = zero(AffExpr) + 42
+        @test IOTO._make_transcription_function(expr, tm) == (expr, ())
+    end
+    # test the fallback
+    @testset "Fallback" begin
+        expr = zero(QuadExpr)
+        @test_throws ErrorException IOTO._make_transcription_function(expr, tm)
+    end
+end
+
+# Test _set_objective
+@testset "_set_objective" begin
+    # initialize the models
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
+                        container = SparseAxisArray)
+    @infinite_variable(m, x(par) >= 0, Int)
+    @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
+    @global_variable(m, 0 <= z <= 1, Bin)
+    @global_variable(m, w == 1, Int, start = 1)
+    data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
+    meas1 = measure(x - w, data1)
+    meas2 = measure(y, data1)
+    tm = optimizer_model(m)
+    @variable(tm, a)
+    @variable(tm, b)
+    @variable(tm, c)
+    @variable(tm, d)
+    @variable(tm, e)
+    @variable(tm, f)
+    @variable(tm, g)
+    @variable(tm, h)
+    supp1 = convert(JuMPC.SparseAxisArray, [0, 0])
+    supp2 = convert(JuMPC.SparseAxisArray, [1, 1])
+    # transcribe the variables
+    tm.ext[:TransData].global_to_var[z] = c
+    tm.ext[:TransData].global_to_var[w] = d
+    tm.ext[:TransData].infinite_to_vars[x] = [a, e]
+    tm.ext[:TransData].infinite_to_vars[y] = [b, f, g, h]
+    tm.ext[:TransData].infvar_to_supports[x] = [(0,), (1,)]
+    tm.ext[:TransData].infvar_to_supports[y] = [(0, supp1), (0, supp2),
+                                                (1, supp1), (1, supp2)]
+    # test empty objective
+    @test isa(IOTO._set_objective(tm, m), Nothing)
+    @test objective_function(tm) == zero(AffExpr)
+    # test finite objective
+    @objective(m, Min, z - w)
+    @test isa(IOTO._set_objective(tm, m), Nothing)
+    @test objective_function(tm) == c - d
+    @test objective_sense(tm) == MOI.MIN_SENSE
+    # test measure objective
+    @objective(m, Max, z - 2meas1)
+    @test isa(IOTO._set_objective(tm, m), Nothing)
+    @test objective_function(tm) == c - 2a - 2e + 4d
+    @test objective_sense(tm) == MOI.MAX_SENSE
+    # test error with infinite objective
+    @objective(m, Max, z - 2meas2)
+    @test_throws ErrorException IOTO._set_objective(tm, m)
+end
+
+# Test _set_mapping
+@testset "_set_mapping" begin
+
+end
+
+# Test _set_supports
+@testset "_set_supports" begin
+
+end
+
+# Test _set_parameter_refs
+@testset "_set_parameter_refs" begin
+
+end
+
+# Test _root_name (constraints)
+@testset "_root_name (Constraints)" begin
+
+end
+
+# Test _set_constraints
+@testset "_set_constraints" begin
+
+end
+
+# Test variable info mappers
+@testset "Variable Info Mappers" begin
+
+end
+
+# Test TranscriptionModel constructor
+@testset "TranscriptionModel (Full Build)" begin
+
 end

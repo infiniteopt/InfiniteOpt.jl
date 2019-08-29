@@ -435,7 +435,8 @@ function _expand_measures(expr::JuMP.GenericQuadExpr{C, <:GeneralVariableRef},
             var_b = _expand_measure(measure_function(var_b), measure_data(var_b),
                                     expand_model, point_mapper)
         end
-        JuMP.add_to_expression!(quad, coef * var_a * var_b)
+        JuMP.add_to_expression!(quad, convert(JuMP.GenericQuadExpr{C,
+                                GeneralVariableRef}, coef * var_a * var_b))
     end
     return quad
 end
