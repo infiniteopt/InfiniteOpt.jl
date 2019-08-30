@@ -117,7 +117,7 @@ function Base.:(==)(quad1::JuMP.GenericQuadExpr{C, V},
     if length(pairs1) != length(pairs2)
         return false
     end
-    for i = 1:length(pairs1)
+    for i in eachindex(pairs1)
         if pairs1[i][1].a != pairs2[i][1].a || pairs1[i][1].b != pairs2[i][1].b || pairs1[i][2] != pairs2[i][2]
             return false
         end

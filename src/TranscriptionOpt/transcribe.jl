@@ -144,7 +144,7 @@ end
 # Return the support value corresponding to a parameter reference
 # return NaN is the parameter is not contained in prefs
 function _parameter_value(pref::InfiniteOpt.ParameterRef, support::Tuple,
-                          prefs::Tuple)::Number
+                          prefs::Tuple)::Float64
     pref_index = _parameter_tuple_index(pref, prefs)
     if pref_index == -1
         return NaN
@@ -212,7 +212,7 @@ end
 
 # ParameterRef
 function _map_to_variable(pref::InfiniteOpt.ParameterRef, support::Tuple,
-                          prefs::Tuple, trans_model::JuMP.Model)::Number
+                          prefs::Tuple, trans_model::JuMP.Model)::Float64
     # find pref in prefs and return associated support value
     value = _parameter_value(pref, support, prefs)
     # this error is a backup that should not be needed
@@ -497,7 +497,8 @@ function _make_transcription_function(expr::JuMP.AbstractJuMPScalar,
 end
 
 ## Construct the objective and error is contains non finite variables
-function _set_objective(trans_model::JuMP.Model, inf_model::InfiniteOpt.InfiniteModel)
+function _set_objective(trans_model::JuMP.Model,
+                        inf_model::InfiniteOpt.InfiniteModel)
     trans_obj, = _make_transcription_function(JuMP.objective_function(inf_model),
                                               trans_model)
     isa(trans_obj, Vector) && error("Objective is not finite, ensure all " *
@@ -509,56 +510,64 @@ end
 
 ## Define helper functions for setting constraint mappings
 # InfiniteConstraintRef
-function _set_mapping(icref::InfiniteOpt.InfiniteConstraintRef, crefs::Vector{JuMP.ConstraintRef})
+function _set_mapping(icref::InfiniteOpt.InfiniteConstraintRef,
+                      crefs::Vector{<:JuMP.ConstraintRef})
     transcription_data(JuMP.owner_model(crefs[1])).infinite_to_constrs[icref] = crefs
     return
 end
 
 # MeasureConstraintRef (infinite)
-function _set_mapping(mcref::InfiniteOpt.MeasureConstraintRef, crefs::Vector{JuMP.ConstraintRef})
+function _set_mapping(mcref::InfiniteOpt.MeasureConstraintRef,
+                      crefs::Vector{<:JuMP.ConstraintRef})
     transcription_data(JuMP.owner_model(crefs[1])).measure_to_constrs[mcref] = crefs
     return
 end
 
 # MeasureConstraintRef (finite)
-function _set_mapping(mcref::InfiniteOpt.MeasureConstraintRef, cref::JuMP.ConstraintRef)
+function _set_mapping(mcref::InfiniteOpt.MeasureConstraintRef,
+                      cref::JuMP.ConstraintRef)
     transcription_data(JuMP.owner_model(cref)).measure_to_constrs[mcref] = [cref]
     return
 end
 
 # FiniteConstraintRef
-function _set_mapping(fcref::InfiniteOpt.FiniteConstraintRef, cref::JuMP.ConstraintRef)
+function _set_mapping(fcref::InfiniteOpt.FiniteConstraintRef,
+                      cref::JuMP.ConstraintRef)
     transcription_data(JuMP.owner_model(cref)).finite_to_constr[fcref] = cref
     return
 end
 
 ## Define helper functions for setting constraint supports
 # InfiniteConstraintRef
-function _set_supports(trans_model::JuMP.Model, icref::InfiniteOpt.InfiniteConstraintRef,
-                       supports::Dict{})
+function _set_supports(trans_model::JuMP.Model,
+                       icref::InfiniteOpt.InfiniteConstraintRef,
+                       supports::Vector)
     transcription_data(trans_model).infconstr_to_supports[icref] = supports
     return
 end
 
 # MeasureConstraintRef
-function _set_supports(trans_model::JuMP.Model, mcref::InfiniteOpt.MeasureConstraintRef,
-                       supports::Dict{})
+function _set_supports(trans_model::JuMP.Model,
+                       mcref::InfiniteOpt.MeasureConstraintRef,
+                       supports::Vector)
     transcription_data(trans_model).measconstr_to_supports[mcref] = supports
     return
 end
 
 ## Define helper functions for setting constraint parameter reference tuples
 # InfiniteConstraintRef
-function _set_parameter_refs(trans_model::JuMP.Model, icref::InfiniteOpt.InfiniteConstraintRef,
+function _set_parameter_refs(trans_model::JuMP.Model,
+                             icref::InfiniteOpt.InfiniteConstraintRef,
                              prefs::Tuple)
     transcription_data(trans_model).infconstr_to_params[icref] = prefs
     return
 end
 
 # MeasureConstraintRef
-function _set_parameter_refs(trans_model::JuMP.Model, mcref::InfiniteOpt.MeasureConstraintRef,
+function _set_parameter_refs(trans_model::JuMP.Model,
+                             mcref::InfiniteOpt.MeasureConstraintRef,
                              prefs::Tuple)
-    transcription_data(trans_model).measconstr_to_params[icref] = prefs
+    transcription_data(trans_model).measconstr_to_params[mcref] = prefs
     return
 end
 
@@ -594,10 +603,10 @@ function _set_constraints(trans_model::JuMP.Model, inf_model::InfiniteOpt.Infini
             end
             # extract the name and create a transcribed constraint
             root_name = InfiniteOpt._root_name(icref)
-            # Tuple results correspond to transcribed infinite constraints
-            if isa(results, Tuple)
+            # results[2] contains prefs if is infinite or it is empty otherwise
+            if length(results[2]) != 0
                 crefs = Vector{JuMP.ConstraintRef}(undef, length(results[1]))
-                for i = 1:length(crefs)
+                for i in eachindex(crefs)
                     con = JuMP.build_constraint(error, results[1][i], constr.set)
                     # TODO Perhaps improve naming
                     name = string(root_name, "(Support: ", i, ")")
@@ -609,7 +618,7 @@ function _set_constraints(trans_model::JuMP.Model, inf_model::InfiniteOpt.Infini
                 _set_supports(trans_model, icref, results[3])
             else
                 # We have a finite constraint, just add normally and update mapping.
-                con = JuMP.build_constraint(error, results, constr.set)
+                con = JuMP.build_constraint(error, results[1], constr.set)
                 cref = JuMP.add_constraint(trans_model, con, root_name)
                 _set_mapping(icref, cref)
             end
@@ -620,8 +629,10 @@ end
 
 ## Helper functions for mapping InfiniteOpt var info constrs to the transcribed ones
 # FiniteVariableRef
-function _map_info_constraints(fvref::InfiniteOpt.FiniteVariableRef, trans_model::JuMP.Model)
+function _map_info_constraints(fvref::InfiniteOpt.FiniteVariableRef,
+                               trans_model::JuMP.Model)
     vref = transcription_variable(trans_model, fvref)
+    # TODO check if double check is necessary
     # Check if both variables have a constraint and map if they do
     if JuMP.has_lower_bound(fvref) && JuMP.has_lower_bound(vref)
         _set_mapping(JuMP.LowerBoundRef(fvref), JuMP.LowerBoundRef(vref))
@@ -642,18 +653,21 @@ function _map_info_constraints(fvref::InfiniteOpt.FiniteVariableRef, trans_model
 end
 
 # InfiniteVariableRef
-function _map_info_constraints(ivref::InfiniteOpt.InfiniteVariableRef, trans_model::JuMP.Model)
+function _map_info_constraints(ivref::InfiniteOpt.InfiniteVariableRef,
+                               trans_model::JuMP.Model)
     vrefs = transcription_variable(trans_model, ivref)
+    # TODO Prealocate the size
     # Check if both variables have a constraint and map if they do
     if JuMP.has_lower_bound(ivref)
         crefs = JuMP.ConstraintRef[]
         supports = []
-        for i = 1:length(vrefs)
+        for i in eachindex(vrefs)
             if JuMP.has_lower_bound(vrefs[i])
                 push!(crefs, JuMP.LowerBoundRef(vrefs[i]))
                 push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
             end
         end
+        # TODO check for possibility of empty crefs and if supports match
         _set_mapping(JuMP.LowerBoundRef(ivref), crefs)
         _set_parameter_refs(trans_model, JuMP.LowerBoundRef(ivref),
                             InfiniteOpt.parameter_refs(ivref))
@@ -662,7 +676,7 @@ function _map_info_constraints(ivref::InfiniteOpt.InfiniteVariableRef, trans_mod
     if JuMP.has_upper_bound(ivref)
         crefs = JuMP.ConstraintRef[]
         supports = []
-        for i = 1:length(vrefs)
+        for i in eachindex(vrefs)
             if JuMP.has_upper_bound(vrefs[i])
                 push!(crefs, JuMP.UpperBoundRef(vrefs[i]))
                 push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
@@ -676,7 +690,7 @@ function _map_info_constraints(ivref::InfiniteOpt.InfiniteVariableRef, trans_mod
     if JuMP.is_fixed(ivref)
         crefs = JuMP.ConstraintRef[]
         supports = []
-        for i = 1:length(vrefs)
+        for i in eachindex(vrefs)
             if JuMP.is_fixed(vrefs[i])
                 push!(crefs, JuMP.FixRef(vrefs[i]))
                 push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
@@ -690,7 +704,7 @@ function _map_info_constraints(ivref::InfiniteOpt.InfiniteVariableRef, trans_mod
     if JuMP.is_integer(ivref)
         crefs = JuMP.ConstraintRef[]
         supports = []
-        for i = 1:length(vrefs)
+        for i in eachindex(vrefs)
             if JuMP.is_integer(vrefs[i])
                 push!(crefs, JuMP.IntegerRef(vrefs[i]))
                 push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
@@ -704,7 +718,7 @@ function _map_info_constraints(ivref::InfiniteOpt.InfiniteVariableRef, trans_mod
     if JuMP.is_binary(ivref)
         crefs = JuMP.ConstraintRef[]
         supports = []
-        for i = 1:length(vrefs)
+        for i in eachindex(vrefs)
             if JuMP.is_binary(vrefs[i])
                 push!(crefs, JuMP.BinaryRef(vrefs[i]))
                 push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])

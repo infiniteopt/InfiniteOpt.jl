@@ -516,34 +516,172 @@ end
     @test_throws ErrorException IOTO._set_objective(tm, m)
 end
 
-# Test _set_mapping
-@testset "_set_mapping" begin
-
-end
-
-# Test _set_supports
-@testset "_set_supports" begin
-
-end
-
-# Test _set_parameter_refs
-@testset "_set_parameter_refs" begin
-
-end
-
-# Test _root_name (constraints)
-@testset "_root_name (Constraints)" begin
-
+# Test the helper functions for constraint transcription
+@testset "Constraint Helpers" begin
+    # initialize models
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_variable(m, x(par) >= 0, Int)
+    @global_variable(m, 0 <= z <= 1, Bin)
+    data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
+    meas1 = measure(x - z, data1)
+    tm = optimizer_model(m)
+    @variable(tm, xt[1:2])
+    @variable(tm, zt)
+    # Setup up the constraints
+    @constraint(m, c1, x + par - z == 0)
+    @constraint(m, c2, z >= -3)
+    @constraint(m, c3, meas1 + z == 0)
+    @constraint(tm, c1t[i = 1:2], xt[i] + supports(par)[i] - zt == 0)
+    @constraint(tm, c2t, zt >= -3)
+    @constraint(tm, c3t, xt[1] + xt[2] - 3zt == 0)
+    # Test _set_mapping (InfiniteConstraintRefs)
+    @testset "_set_mapping (Infinite)" begin
+        @test isa(IOTO._set_mapping(c1, c1t), Nothing)
+        @test tm.ext[:TransData].infinite_to_constrs[c1] == [c1t[1], c1t[2]]
+    end
+    # Test _set_mapping (MeasureConstraintRefs that are infinite)
+    @testset "_set_mapping (Infinite Measures)" begin
+        @test isa(IOTO._set_mapping(c3, [c3t]), Nothing)
+        @test tm.ext[:TransData].measure_to_constrs[c3] == [c3t]
+    end
+    # Test _set_mapping (MeasureConstraintRefs that are finite)
+    @testset "_set_mapping (Finite Measures)" begin
+        @test isa(IOTO._set_mapping(c3, c3t), Nothing)
+        @test tm.ext[:TransData].measure_to_constrs[c3] == [c3t]
+    end
+    # Test _set_mapping (FiniteConstraintRefs)
+    @testset "_set_mapping (Finite)" begin
+        @test isa(IOTO._set_mapping(c2, c2t), Nothing)
+        @test tm.ext[:TransData].finite_to_constr[c2] == c2t
+    end
+    # Test _set_supports (InfiniteConstraintRefs)
+    @testset "_set_supports (Infinite)" begin
+        @test isa(IOTO._set_supports(tm, c1, [(0,), (1,)]), Nothing)
+        @test tm.ext[:TransData].infconstr_to_supports[c1] == [(0,), (1,)]
+    end
+    # Test _set_supports (MeasureConstraintRefs)
+    @testset "_set_supports (Measure)" begin
+        @test isa(IOTO._set_supports(tm, c3, [(0,), (1,)]), Nothing)
+        @test tm.ext[:TransData].measconstr_to_supports[c3] == [(0,), (1,)]
+    end
+    # Test _set_parameter_refs (InfiniteConstraintRefs)
+    @testset "_set_parameter_refs (Infinite)" begin
+        @test isa(IOTO._set_parameter_refs(tm, c1, (par,)), Nothing)
+        @test tm.ext[:TransData].infconstr_to_params[c1] == (par,)
+    end
+    # Test _set_parameter_refs (MeasureConstraintRefs)
+    @testset "_set_parameter_refs (Measure)" begin
+        @test isa(IOTO._set_parameter_refs(tm, c3, (par,)), Nothing)
+        @test tm.ext[:TransData].measconstr_to_params[c3] == (par,)
+    end
+    # Test _root_name (constraints)
+    @testset "_root_name (Constraints)" begin
+        # test simple name return
+        @test InfiniteOpt._root_name(c1) == "c1"
+        # test anonymous name
+        @test InfiniteOpt._root_name(@constraint(m, z == 1)) == "noname"
+        # test array of constraints
+        @test InfiniteOpt._root_name(@constraint(m, a[1:2], z == 1)[1]) == "a"
+    end
 end
 
 # Test _set_constraints
 @testset "_set_constraints" begin
-
+    # initialize models
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
+                        container = SparseAxisArray)
+    @infinite_variable(m, x(par) >= 0, Int)
+    @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
+    @point_variable(m, x(0), x0)
+    @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
+    @global_variable(m, 0 <= z <= 1, Bin)
+    @global_variable(m, w == 1, Int, start = 1)
+    data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
+    meas1 = measure(x - w, data1)
+    meas2 = measure(y, data1)
+    tm = optimizer_model(m)
+    @variable(tm, a)
+    @variable(tm, b)
+    @variable(tm, c)
+    @variable(tm, d)
+    @variable(tm, e)
+    @variable(tm, f)
+    @variable(tm, g)
+    @variable(tm, h)
+    supp1 = convert(JuMPC.SparseAxisArray, [0, 0])
+    supp2 = convert(JuMPC.SparseAxisArray, [1, 1])
+    # transcribe the variables
+    tm.ext[:TransData].point_to_var[x0] = a
+    tm.ext[:TransData].point_to_var[y0] = b
+    tm.ext[:TransData].global_to_var[z] = c
+    tm.ext[:TransData].global_to_var[w] = d
+    tm.ext[:TransData].infinite_to_vars[x] = [a, e]
+    tm.ext[:TransData].infinite_to_vars[y] = [b, f, g, h]
+    tm.ext[:TransData].infvar_to_supports[x] = [(0,), (1,)]
+    tm.ext[:TransData].infvar_to_supports[y] = [(0, supp1), (0, supp2),
+                                                (1, supp1), (1, supp2)]
+    # Setup up the constraints
+    bounds = Dict(par => IntervalSet(0.5, 1))
+    @constraint(m, c1, x + par - z == 0)
+    @constraint(m, c2, z + x0 >= -3)
+    @constraint(m, c3, meas1 + z == 0)
+    @constraint(m, c4, meas2 - 2y0 + x <= 1, parameter_bounds = bounds)
+    @constraint(m, c5, meas2 == 0)
+    # test the main function
+    @test isa(IOTO._set_constraints(tm, m), Nothing)
+    @test length(list_of_constraint_types(tm)) == 3
+    @test constraint_object(tm.ext[:TransData].infinite_to_constrs[c1][1]).func == a - c
+    @test constraint_object(tm.ext[:TransData].infinite_to_constrs[c1][2]).func == e - c
+    @test constraint_object(tm.ext[:TransData].finite_to_constr[c2]).func == c + a
+    @test constraint_object(tm.ext[:TransData].infinite_to_constrs[c4][1]).func == -b + g + e
+    @test name(tm.ext[:TransData].finite_to_constr[c2]) == "c2"
+    @test name(tm.ext[:TransData].infinite_to_constrs[c1][1]) == "c1(Support: 1)"
+    @test tm.ext[:TransData].infconstr_to_params[c1] == (par, )
+    @test tm.ext[:TransData].infconstr_to_params[c4] == (pars, par)
+    @test tm.ext[:TransData].infconstr_to_supports[c1] == [(0,), (1,)]
+    @test tm.ext[:TransData].measconstr_to_params[c5] == (pars,)
 end
 
 # Test variable info mappers
 @testset "Variable Info Mappers" begin
+    # initialize models
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
+                        container = SparseAxisArray)
+    @infinite_variable(m, 1 >= x(par) >= 0, Int)
+    @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
+    @point_variable(m, x(0), x0)
+    @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
+    @global_variable(m, 0 <= z <= 1, Bin)
+    @global_variable(m, w == 1, Int, start = 1)
+    tm = optimizer_model(m)
+    IOTO._initialize_global_variables(tm, m)
+    IOTO._initialize_infinite_variables(tm, m)
+    IOTO._map_point_variables(tm, m)
+    xt = transcription_variable(tm, x)
+    yt = transcription_variable(tm, y)
+    zt = transcription_variable(tm, z)
+    wt = transcription_variable(tm, w)
+    # test _map_info_constraints (FiniteVariableRef)
+    @testset "_map_info_constraints (Finite)" begin
+        # test z
+        @test isa(IOTO._map_info_constraints(z, tm), Nothing)
+        @test tm.ext[:TransData].finite_to_constr[LowerBoundRef(z)] == LowerBoundRef(zt)
+        @test tm.ext[:TransData].finite_to_constr[UpperBoundRef(z)] == UpperBoundRef(zt)
+        @test tm.ext[:TransData].finite_to_constr[BinaryRef(z)] == BinaryRef(zt)
+        # test w
+        @test isa(IOTO._map_info_constraints(w, tm), Nothing)
+        @test tm.ext[:TransData].finite_to_constr[FixRef(w)] == FixRef(wt)
+        @test tm.ext[:TransData].finite_to_constr[IntegerRef(w)] == IntegerRef(wt)
+    end
+    # test _map_info_constraints (InfiniteVariableRef)
+    @testset "_map_info_constraints (Infinite)" begin
 
+    end
 end
 
 # Test TranscriptionModel constructor

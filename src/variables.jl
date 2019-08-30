@@ -54,12 +54,12 @@ function _check_parameter_tuple(_error::Function, prefs::Tuple)
     types = [typeof(pref) for pref in prefs]
     num_params = length(types)
     valid_types = zeros(Bool, num_params)
-    for i = 1:num_params
+    for i in eachindex(types)
         if types[i] == ParameterRef || types[i] <: AbstractArray{<:ParameterRef}
             valid_types[i] = true
         end
     end
-    if sum(valid_types) != num_params
+    if !all(valid_types)
         _error("Invalid parameter type(s) given.")
     end
     return
@@ -104,7 +104,7 @@ function _check_tuple_shape(_error::Function,
         _error("The dimensions of the infinite parameter values must match " *
                "those defined for the infinite variable.")
     end
-    for i = 1:length(values)
+    for i in eachindex(values)
         if isa(prefs[i], ParameterRef) && !(isa(values[i], Number))
             _error("The dimensions and array type of the infinite parameter " *
                    "values must match those defined for the infinite variable.")
@@ -125,7 +125,7 @@ end
 function _check_tuple_values(_error::Function, inf_vref::InfiniteVariableRef,
                              param_values::Tuple)
     prefs = parameter_refs(inf_vref)
-    for i = 1:length(prefs)
+    for i in eachindex(prefs)
         if isa(prefs[i], ParameterRef)
             if JuMP.has_lower_bound(prefs[i])
                 check1 = param_values[i] < JuMP.lower_bound(prefs[i])
@@ -330,7 +330,7 @@ end
 function _update_param_supports(inf_vref::InfiniteVariableRef,
                                 param_values::Tuple)
     prefs = parameter_refs(inf_vref)
-    for i = 1:length(prefs)
+    for i in eachindex(prefs)
         if isa(prefs[i], ParameterRef)
             add_supports(prefs[i], param_values[i])
         else

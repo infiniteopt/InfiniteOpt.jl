@@ -89,7 +89,7 @@ set_optimizer_model_ready, build_optimizer_model!, optimizer_model_key
 export map_value
 
 # Export functions that will be included in future JuMP releases
-export solve_time #, set_silent, unset_silent
+
 
 # Export printing methods
 export bound_string

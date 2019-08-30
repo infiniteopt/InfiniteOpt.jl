@@ -36,8 +36,7 @@ Returns "ArgumentError: ModelLike of type `Solver.Optimizer` does not support ac
 the attribute MathOptInterface.SolveTime()" if the attribute is
 not implemented.
 """
-# TODO include with next JuMP version
-function solve_time(model::InfiniteModel)
+function JuMP.solve_time(model::InfiniteModel)
     return MOI.get(optimizer_model(model), MOI.SolveTime())
 end
 
@@ -78,7 +77,7 @@ function map_value end
 
 """
     JuMP.value(vref::GeneralVariableRef)
-    
+
 Get the value of this variable in the result returned by a solver. Use
 [`JuMP.has_values`](@ref) to check if a result exists before asking for values.
 """

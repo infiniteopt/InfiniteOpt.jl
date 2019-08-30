@@ -555,7 +555,7 @@ struct MultiDiscreteMeasureData <: AbstractMeasureData
             error("The keys/dimensions of the support points and parameters " *
                   "do not match.")
         end
-        for i = 1:length(supports)
+        for i in eachindex(supports)
             for key in keys(parameter_ref.data)
                 support = supports[i].data[key]
                 pref = parameter_ref.data[key]
