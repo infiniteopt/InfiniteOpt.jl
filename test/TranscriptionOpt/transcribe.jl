@@ -453,6 +453,11 @@ end
         expected = ([a^2 + a + e - 4d, e^2 + a + e - 4d], (par,), [(0,), (1,)])
         @test IOTO._make_transcription_function(expr, tm) == expected
     end
+    # test MeasrureRefs
+    @testset "MeasureRef" begin
+        @test IOTO._make_transcription_function(meas1, tm)[1] == a + e - 2d
+        @test IOTO._make_transcription_function(meas2, tm)[1] == [b + g, f + h]
+    end
     # test numeric AffExpr
     @testset "Numeric AffExpr" begin
         expr = zero(AffExpr) + 42
