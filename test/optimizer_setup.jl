@@ -1,4 +1,4 @@
-MOIU.Model# Test the optimizer model methods
+# Test the optimizer model methods
 @testset "Optimizer Model" begin
     m = InfiniteModel()
     # optimizer_model
@@ -49,8 +49,21 @@ end
     end
     # set_optimizer
     @testset "JuMP.set_optimizer" begin
-        m = InfiniteModel()
-        @test isa(set_optimizer(m, mockoptimizer), Nothing)
+        m2 = InfiniteModel()
+        @test isa(set_optimizer(m2, mockoptimizer), Nothing)
     end
-    # TODO add silent methods with implemented by JuMP
+    # set_silent
+    @testset "JuMP.set_silent" begin
+        m2 = InfiniteModel()
+        @test isa(set_silent(m2), Nothing)
+    end
+    # unset_silent
+    @testset "JuMP.unset_silent" begin
+        m2 = InfiniteModel()
+        @test isa(unset_silent(m2), Nothing)
+    end
+    # solve
+    @testset "solve" begin
+        @test_throws ErrorException solve(m)
+    end
 end

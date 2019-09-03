@@ -79,33 +79,33 @@ end
 function _update_point_info(trans_model::JuMP.Model,
                             pvref::InfiniteOpt.PointVariableRef)
     vref = transcription_variable(trans_model, pvref)
-    if JuMP.has_lower_bound(pvref)
+    if JuMP.has_lower_bound(pvref) && !JuMP.has_lower_bound(vref)
         if JuMP.is_fixed(vref)
             JuMP.unfix(vref)
         end
         JuMP.set_lower_bound(vref, JuMP.lower_bound(pvref))
     end
-    if JuMP.has_upper_bound(pvref)
+    if JuMP.has_upper_bound(pvref) && !JuMP.has_upper_bound(vref)
         if JuMP.is_fixed(vref)
             JuMP.unfix(vref)
         end
         JuMP.set_upper_bound(vref, JuMP.upper_bound(pvref))
     end
-    if JuMP.is_fixed(pvref)
+    if JuMP.is_fixed(pvref) && !JuMP.is_fixed(vref)
         JuMP.fix(vref, JuMP.fix_value(pvref), force = true)
     end
-    if JuMP.is_binary(pvref)
+    if JuMP.is_binary(pvref) && !JuMP.is_binary(vref)
         if JuMP.is_integer(vref)
             JuMP.unset_integer(vref)
         end
         JuMP.set_binary(vref)
-    elseif JuMP.is_integer(pvref)
+    elseif JuMP.is_integer(pvref) && !JuMP.is_integer(vref)
         if JuMP.is_binary(vref)
             JuMP.unset_binary(vref)
         end
         JuMP.set_integer(vref)
     end
-    if !(JuMP.start_value(pvref) === NaN)
+    if JuMP.start_value(pvref) != JuMP.start_value(vref)
         JuMP.set_start_value(vref, JuMP.start_value(pvref))
     end
     return
@@ -632,21 +632,20 @@ end
 function _map_info_constraints(fvref::InfiniteOpt.FiniteVariableRef,
                                trans_model::JuMP.Model)
     vref = transcription_variable(trans_model, fvref)
-    # TODO check if double check is necessary
-    # Check if both variables have a constraint and map if they do
-    if JuMP.has_lower_bound(fvref) && JuMP.has_lower_bound(vref)
+    # Check if variables have info constraints and map if they do
+    if JuMP.has_lower_bound(fvref)
         _set_mapping(JuMP.LowerBoundRef(fvref), JuMP.LowerBoundRef(vref))
     end
-    if JuMP.has_upper_bound(fvref) && JuMP.has_upper_bound(vref)
+    if JuMP.has_upper_bound(fvref)
         _set_mapping(JuMP.UpperBoundRef(fvref), JuMP.UpperBoundRef(vref))
     end
-    if JuMP.is_fixed(fvref) && JuMP.is_fixed(vref)
+    if JuMP.is_fixed(fvref)
         _set_mapping(JuMP.FixRef(fvref), JuMP.FixRef(vref))
     end
-    if JuMP.is_integer(fvref) && JuMP.is_integer(vref)
+    if JuMP.is_integer(fvref)
         _set_mapping(JuMP.IntegerRef(fvref), JuMP.IntegerRef(vref))
     end
-    if JuMP.is_binary(fvref) && JuMP.is_binary(vref)
+    if JuMP.is_binary(fvref)
         _set_mapping(JuMP.BinaryRef(fvref), JuMP.BinaryRef(vref))
     end
     return
@@ -660,74 +659,83 @@ function _map_info_constraints(ivref::InfiniteOpt.InfiniteVariableRef,
     # Check if both variables have a constraint and map if they do
     if JuMP.has_lower_bound(ivref)
         crefs = JuMP.ConstraintRef[]
-        supports = []
+        supports = Tuple[]
         for i in eachindex(vrefs)
             if JuMP.has_lower_bound(vrefs[i])
                 push!(crefs, JuMP.LowerBoundRef(vrefs[i]))
                 push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
             end
         end
-        # TODO check for possibility of empty crefs and if supports match
-        _set_mapping(JuMP.LowerBoundRef(ivref), crefs)
-        _set_parameter_refs(trans_model, JuMP.LowerBoundRef(ivref),
-                            InfiniteOpt.parameter_refs(ivref))
-        _set_supports(trans_model, JuMP.LowerBoundRef(ivref), supports)
+        if length(crefs) != 0
+            _set_mapping(JuMP.LowerBoundRef(ivref), crefs)
+            _set_parameter_refs(trans_model, JuMP.LowerBoundRef(ivref),
+                                InfiniteOpt.parameter_refs(ivref))
+            _set_supports(trans_model, JuMP.LowerBoundRef(ivref), supports)
+        end
     end
     if JuMP.has_upper_bound(ivref)
         crefs = JuMP.ConstraintRef[]
-        supports = []
+        supports = Tuple[]
         for i in eachindex(vrefs)
             if JuMP.has_upper_bound(vrefs[i])
                 push!(crefs, JuMP.UpperBoundRef(vrefs[i]))
                 push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
             end
         end
-        _set_mapping(JuMP.UpperBoundRef(ivref), crefs)
-        _set_parameter_refs(trans_model, JuMP.UpperBoundRef(ivref),
-                            InfiniteOpt.parameter_refs(ivref))
-        _set_supports(trans_model, JuMP.UpperBoundRef(ivref), supports)
+        if length(crefs) != 0
+            _set_mapping(JuMP.UpperBoundRef(ivref), crefs)
+            _set_parameter_refs(trans_model, JuMP.UpperBoundRef(ivref),
+                                InfiniteOpt.parameter_refs(ivref))
+            _set_supports(trans_model, JuMP.UpperBoundRef(ivref), supports)
+        end
     end
     if JuMP.is_fixed(ivref)
         crefs = JuMP.ConstraintRef[]
-        supports = []
+        supports = Tuple[]
         for i in eachindex(vrefs)
             if JuMP.is_fixed(vrefs[i])
                 push!(crefs, JuMP.FixRef(vrefs[i]))
                 push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
             end
         end
-        _set_mapping(JuMP.FixRef(ivref), crefs)
-        _set_parameter_refs(trans_model, JuMP.FixRef(ivref),
-                            InfiniteOpt.parameter_refs(ivref))
-        _set_supports(trans_model, JuMP.FixRef(ivref), supports)
+        if length(crefs) != 0
+            _set_mapping(JuMP.FixRef(ivref), crefs)
+            _set_parameter_refs(trans_model, JuMP.FixRef(ivref),
+                                InfiniteOpt.parameter_refs(ivref))
+            _set_supports(trans_model, JuMP.FixRef(ivref), supports)
+        end
     end
     if JuMP.is_integer(ivref)
         crefs = JuMP.ConstraintRef[]
-        supports = []
+        supports = Tuple[]
         for i in eachindex(vrefs)
             if JuMP.is_integer(vrefs[i])
                 push!(crefs, JuMP.IntegerRef(vrefs[i]))
                 push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
             end
         end
-        _set_mapping(JuMP.IntegerRef(ivref), crefs)
-        _set_parameter_refs(trans_model, JuMP.IntegerRef(ivref),
-                            InfiniteOpt.parameter_refs(ivref))
-        _set_supports(trans_model, JuMP.IntegerRef(ivref), supports)
+        if length(crefs) != 0
+            _set_mapping(JuMP.IntegerRef(ivref), crefs)
+            _set_parameter_refs(trans_model, JuMP.IntegerRef(ivref),
+                                InfiniteOpt.parameter_refs(ivref))
+            _set_supports(trans_model, JuMP.IntegerRef(ivref), supports)
+        end
     end
     if JuMP.is_binary(ivref)
         crefs = JuMP.ConstraintRef[]
-        supports = []
+        supports = Tuple[]
         for i in eachindex(vrefs)
             if JuMP.is_binary(vrefs[i])
                 push!(crefs, JuMP.BinaryRef(vrefs[i]))
                 push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
             end
         end
-        _set_mapping(JuMP.BinaryRef(ivref), crefs)
-        _set_parameter_refs(trans_model, JuMP.BinaryRef(ivref),
-                            InfiniteOpt.parameter_refs(ivref))
-        _set_supports(trans_model, JuMP.BinaryRef(ivref), suppors)
+        if length(crefs) != 0
+            _set_mapping(JuMP.BinaryRef(ivref), crefs)
+            _set_parameter_refs(trans_model, JuMP.BinaryRef(ivref),
+                                InfiniteOpt.parameter_refs(ivref))
+            _set_supports(trans_model, JuMP.BinaryRef(ivref), supports)
+        end
     end
     return
 end
@@ -735,7 +743,7 @@ end
 ## Map the variable info constraints between the two models
 function _map_variable_info_constraints(trans_model::JuMP.Model,
                                         inf_model::InfiniteOpt.InfiniteModel)
-    for (index, var) in inf_model.vars
+    for index in keys(inf_model.vars)
         ivref = InfiniteOpt._make_variable_ref(inf_model, index)
         if InfiniteOpt.is_used(ivref)
             _map_info_constraints(ivref, trans_model)
@@ -746,11 +754,33 @@ end
 
 """
     TranscriptionModel(model::InfiniteModel, args...)
-Return a transcribed version of the infinite model.
+
+Return a `TranscriptionModel` of `model`. This transcribes all of the variables,
+constraints, and objective.
+
+**Example**
+```julia
+julia> TranscriptionModel(model)
+A JuMP Model
+Feasibility problem with:
+Variables: 130
+`GenericAffExpr{Float64,VariableRef}`-in-`MathOptInterface.EqualTo{Float64}`: 25 constraints
+`GenericAffExpr{Float64,VariableRef}`-in-`MathOptInterface.GreaterThan{Float64}`: 100 constraint
+`GenericAffExpr{Float64,VariableRef}`-in-`MathOptInterface.LessThan{Float64}`: 84 constraints
+`VariableRef`-in-`MathOptInterface.EqualTo{Float64}`: 40 constraints
+`VariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 40 constraints
+`VariableRef`-in-`MathOptInterface.LessThan{Float64}`: 25 constraints
+`VariableRef`-in-`MathOptInterface.Integer`: 40 constraints
+`VariableRef`-in-`MathOptInterface.ZeroOne`: 40 constraints
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
+```
 """
 function TranscriptionModel(inf_model::InfiniteOpt.InfiniteModel,
-                            optimizer_factory::Union{JuMP.OptimizerFactory, Nothing} = nothing;
-                            kwargs...)
+                            optimizer_factory::Union{JuMP.OptimizerFactory,
+                                                     Nothing} = nothing;
+                            kwargs...)::JuMP.Model
     if isa(optimizer_factory, Nothing)
         trans_model = TranscriptionModel(; kwargs...)
     else

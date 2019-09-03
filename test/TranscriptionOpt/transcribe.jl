@@ -680,11 +680,196 @@ end
     end
     # test _map_info_constraints (InfiniteVariableRef)
     @testset "_map_info_constraints (Infinite)" begin
-
+        # test x
+        @test isa(IOTO._map_info_constraints(x, tm), Nothing)
+        @test tm.ext[:TransData].infinite_to_constrs[LowerBoundRef(x)] == LowerBoundRef.(xt)
+        @test tm.ext[:TransData].infconstr_to_params[LowerBoundRef(x)] == parameter_refs(x)
+        @test tm.ext[:TransData].infconstr_to_supports[LowerBoundRef(x)] == [(0,), (1,)]
+        @test tm.ext[:TransData].infinite_to_constrs[UpperBoundRef(x)] == UpperBoundRef.(xt)
+        @test tm.ext[:TransData].infconstr_to_params[UpperBoundRef(x)] == parameter_refs(x)
+        @test tm.ext[:TransData].infconstr_to_supports[UpperBoundRef(x)] == [(0,), (1,)]
+        @test tm.ext[:TransData].infinite_to_constrs[IntegerRef(x)] == IntegerRef.(xt)
+        @test tm.ext[:TransData].infconstr_to_params[IntegerRef(x)] == parameter_refs(x)
+        @test tm.ext[:TransData].infconstr_to_supports[IntegerRef(x)] == [(0,), (1,)]
+        # test y
+        @test isa(IOTO._map_info_constraints(y, tm), Nothing)
+        @test tm.ext[:TransData].infinite_to_constrs[FixRef(y)] == FixRef.(yt)[2:end]
+        @test tm.ext[:TransData].infconstr_to_params[FixRef(y)] == parameter_refs(y)
+        @test tm.ext[:TransData].infconstr_to_supports[FixRef(y)] == supports(y)[2:end]
+        @test tm.ext[:TransData].infinite_to_constrs[BinaryRef(y)] == [BinaryRef(yt[i]) for i = 2:4]
+        @test tm.ext[:TransData].infconstr_to_params[BinaryRef(y)] == parameter_refs(y)
+        @test tm.ext[:TransData].infconstr_to_supports[BinaryRef(y)] == supports(y)[2:end]
     end
+end
+
+# Test _map_variable_info_constraints
+@testset "_map_variable_info_constraints" begin
+    # initialize models
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
+                        container = SparseAxisArray)
+    @infinite_variable(m, 1 >= x(par) >= 0, Int)
+    @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
+    @point_variable(m, x(0), x0)
+    @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
+    @global_variable(m, 0 <= z <= 1, Bin)
+    @global_variable(m, w == 1, Int, start = 1)
+    tm = optimizer_model(m)
+    IOTO._initialize_global_variables(tm, m)
+    IOTO._initialize_infinite_variables(tm, m)
+    IOTO._map_point_variables(tm, m)
+    xt = transcription_variable(tm, x)
+    yt = transcription_variable(tm, y)
+    zt = transcription_variable(tm, z)
+    wt = transcription_variable(tm, w)
+    # test running the function
+    @test isa(IOTO._map_variable_info_constraints(tm, m), Nothing)
+    # test z
+    @test tm.ext[:TransData].finite_to_constr[LowerBoundRef(z)] == LowerBoundRef(zt)
+    @test tm.ext[:TransData].finite_to_constr[UpperBoundRef(z)] == UpperBoundRef(zt)
+    @test tm.ext[:TransData].finite_to_constr[BinaryRef(z)] == BinaryRef(zt)
+    # test w
+    @test tm.ext[:TransData].finite_to_constr[FixRef(w)] == FixRef(wt)
+    @test tm.ext[:TransData].finite_to_constr[IntegerRef(w)] == IntegerRef(wt)
+    # test x0
+    @test tm.ext[:TransData].finite_to_constr[LowerBoundRef(x0)] == LowerBoundRef(xt[1])
+    @test tm.ext[:TransData].finite_to_constr[UpperBoundRef(x0)] == UpperBoundRef(xt[1])
+    @test tm.ext[:TransData].finite_to_constr[IntegerRef(x0)] == IntegerRef(xt[1])
+    # test y0
+    @test tm.ext[:TransData].finite_to_constr[LowerBoundRef(y0)] == LowerBoundRef(yt[1])
+    @test tm.ext[:TransData].finite_to_constr[UpperBoundRef(y0)] == UpperBoundRef(yt[1])
+    @test tm.ext[:TransData].finite_to_constr[IntegerRef(y0)] == IntegerRef(yt[1])
+    # test x
+    @test tm.ext[:TransData].infinite_to_constrs[LowerBoundRef(x)] == LowerBoundRef.(xt)
+    @test tm.ext[:TransData].infconstr_to_params[LowerBoundRef(x)] == parameter_refs(x)
+    @test tm.ext[:TransData].infconstr_to_supports[LowerBoundRef(x)] == [(0,), (1,)]
+    @test tm.ext[:TransData].infinite_to_constrs[UpperBoundRef(x)] == UpperBoundRef.(xt)
+    @test tm.ext[:TransData].infconstr_to_params[UpperBoundRef(x)] == parameter_refs(x)
+    @test tm.ext[:TransData].infconstr_to_supports[UpperBoundRef(x)] == [(0,), (1,)]
+    @test tm.ext[:TransData].infinite_to_constrs[IntegerRef(x)] == IntegerRef.(xt)
+    @test tm.ext[:TransData].infconstr_to_params[IntegerRef(x)] == parameter_refs(x)
+    @test tm.ext[:TransData].infconstr_to_supports[IntegerRef(x)] == [(0,), (1,)]
+    # test y
+    @test tm.ext[:TransData].infinite_to_constrs[FixRef(y)] == FixRef.(yt)[2:end]
+    @test tm.ext[:TransData].infconstr_to_params[FixRef(y)] == parameter_refs(y)
+    @test tm.ext[:TransData].infconstr_to_supports[FixRef(y)] == supports(y)[2:end]
+    @test tm.ext[:TransData].infinite_to_constrs[BinaryRef(y)] == [BinaryRef(yt[i]) for i = 2:4]
+    @test tm.ext[:TransData].infconstr_to_params[BinaryRef(y)] == parameter_refs(y)
+    @test tm.ext[:TransData].infconstr_to_supports[BinaryRef(y)] == supports(y)[2:end]
 end
 
 # Test TranscriptionModel constructor
 @testset "TranscriptionModel (Full Build)" begin
-
+    # initialize model
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
+                        container = SparseAxisArray)
+    @infinite_variable(m, 1 >= x(par) >= 0, Int)
+    @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
+    @point_variable(m, x(0), x0)
+    @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
+    @global_variable(m, 0 <= z <= 1, Bin)
+    @global_variable(m, w == 1, Int, start = 1)
+    data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
+    meas1 = measure(x - w, data1)
+    meas2 = measure(y, data1)
+    bounds = Dict(par => IntervalSet(0.5, 1))
+    @constraint(m, c1, x + par - z == 0)
+    @constraint(m, c2, z + x0 >= -3)
+    @constraint(m, c3, meas1 + z == 0)
+    @constraint(m, c4, meas2 - 2y0 + x <= 1, parameter_bounds = bounds)
+    @constraint(m, c5, meas2 == 0)
+    @objective(m, Min, x0 + meas1)
+    # test basic usage
+    @test isa(set_optimizer_model(m, TranscriptionModel(m)), Nothing)
+    tm = optimizer_model(m)
+    # test global variables
+    @test length(transcription_data(tm).global_to_var) == 2
+    @test transcription_variable(tm, z) isa VariableRef
+    @test transcription_variable(tm, w) isa VariableRef
+    @test name(transcription_variable(tm, z)) == name(z)
+    @test name(transcription_variable(tm, w)) == name(w)
+    @test has_lower_bound(transcription_variable(tm, z))
+    @test has_upper_bound(transcription_variable(tm, z))
+    @test is_binary(transcription_variable(tm, z))
+    @test is_fixed(transcription_variable(tm, w))
+    @test is_integer(transcription_variable(tm, w))
+    @test start_value(transcription_variable(tm, w)) == 1.
+    # test infinite variables
+    @test length(transcription_data(tm).infinite_to_vars) == 2
+    @test transcription_variable(tm, x) isa Vector{VariableRef}
+    @test transcription_variable(tm, y) isa Vector{VariableRef}
+    @test name(transcription_variable(tm, x)[1]) == "x(support: 1)"
+    @test name(transcription_variable(tm, y)[3]) == "y(support: 3)"
+    @test has_lower_bound(transcription_variable(tm, x)[1])
+    @test is_binary(transcription_variable(tm, y)[2])
+    @test is_fixed(transcription_variable(tm, y)[4])
+    @test is_integer(transcription_variable(tm, x)[2])
+    @test start_value(transcription_variable(tm, y)[1]) == 0.
+    @test supports(x) == [(0,), (1,)]
+    @test length(supports(y)) == 4
+    # test point variables
+    @test length(transcription_data(tm).infinite_to_vars) == 2
+    @test transcription_variable(tm, x0) isa VariableRef
+    @test transcription_variable(tm, y0) isa VariableRef
+    @test name(transcription_variable(tm, x0)) == "x(support: 1)"
+    @test name(transcription_variable(tm, y0)) == "y(support: 1)"
+    @test has_lower_bound(transcription_variable(tm, x0))
+    @test is_integer(transcription_variable(tm, x0))
+    @test has_lower_bound(transcription_variable(tm, y0))
+    @test has_upper_bound(transcription_variable(tm, y0))
+    @test is_integer(transcription_variable(tm, y0))
+    @test start_value(transcription_variable(tm, y0)) == 0.
+    # test objective
+    xt = transcription_variable(tm, x)
+    wt = transcription_variable(tm, w)
+    @test objective_function(tm) == 2xt[1] + xt[2] - 2wt
+    @test objective_sense(tm) == MOI.MIN_SENSE
+    # test constraints
+    zt = transcription_variable(tm, z)
+    yt = transcription_variable(tm, y)
+    @test constraint_object(tm.ext[:TransData].infinite_to_constrs[c1][1]).func == xt[1] - zt
+    @test constraint_object(tm.ext[:TransData].infinite_to_constrs[c1][2]).func == xt[2] - zt
+    @test constraint_object(tm.ext[:TransData].finite_to_constr[c2]).func == zt + xt[1]
+    @test constraint_object(tm.ext[:TransData].infinite_to_constrs[c4][1]).func == -yt[1] + yt[2] + xt[2]
+    @test name(tm.ext[:TransData].finite_to_constr[c2]) == "c2"
+    @test name(tm.ext[:TransData].infinite_to_constrs[c1][1]) == "c1(Support: 1)"
+    @test tm.ext[:TransData].infconstr_to_params[c1] == (par, )
+    @test tm.ext[:TransData].infconstr_to_params[c4] == (pars, par)
+    @test tm.ext[:TransData].infconstr_to_supports[c1] == [(0,), (1,)]
+    @test tm.ext[:TransData].measconstr_to_params[c5] == (pars,)
+    # test info constraints
+    @test tm.ext[:TransData].finite_to_constr[LowerBoundRef(z)] == LowerBoundRef(zt)
+    @test tm.ext[:TransData].finite_to_constr[UpperBoundRef(z)] == UpperBoundRef(zt)
+    @test tm.ext[:TransData].finite_to_constr[BinaryRef(z)] == BinaryRef(zt)
+    @test tm.ext[:TransData].finite_to_constr[FixRef(w)] == FixRef(wt)
+    @test tm.ext[:TransData].finite_to_constr[IntegerRef(w)] == IntegerRef(wt)
+    @test tm.ext[:TransData].finite_to_constr[LowerBoundRef(x0)] == LowerBoundRef(xt[1])
+    @test tm.ext[:TransData].finite_to_constr[UpperBoundRef(x0)] == UpperBoundRef(xt[1])
+    @test tm.ext[:TransData].finite_to_constr[IntegerRef(x0)] == IntegerRef(xt[1])
+    @test tm.ext[:TransData].finite_to_constr[LowerBoundRef(y0)] == LowerBoundRef(yt[1])
+    @test tm.ext[:TransData].finite_to_constr[UpperBoundRef(y0)] == UpperBoundRef(yt[1])
+    @test tm.ext[:TransData].finite_to_constr[IntegerRef(y0)] == IntegerRef(yt[1])
+    @test tm.ext[:TransData].infinite_to_constrs[LowerBoundRef(x)] == LowerBoundRef.(xt)
+    @test tm.ext[:TransData].infconstr_to_params[LowerBoundRef(x)] == parameter_refs(x)
+    @test tm.ext[:TransData].infconstr_to_supports[LowerBoundRef(x)] == [(0,), (1,)]
+    @test tm.ext[:TransData].infinite_to_constrs[UpperBoundRef(x)] == UpperBoundRef.(xt)
+    @test tm.ext[:TransData].infconstr_to_params[UpperBoundRef(x)] == parameter_refs(x)
+    @test tm.ext[:TransData].infconstr_to_supports[UpperBoundRef(x)] == [(0,), (1,)]
+    @test tm.ext[:TransData].infinite_to_constrs[IntegerRef(x)] == IntegerRef.(xt)
+    @test tm.ext[:TransData].infconstr_to_params[IntegerRef(x)] == parameter_refs(x)
+    @test tm.ext[:TransData].infconstr_to_supports[IntegerRef(x)] == [(0,), (1,)]
+    @test tm.ext[:TransData].infinite_to_constrs[FixRef(y)] == FixRef.(yt)[2:end]
+    @test tm.ext[:TransData].infconstr_to_params[FixRef(y)] == parameter_refs(y)
+    @test tm.ext[:TransData].infconstr_to_supports[FixRef(y)] == supports(y)[2:end]
+    @test tm.ext[:TransData].infinite_to_constrs[BinaryRef(y)] == [BinaryRef(yt[i]) for i = 2:4]
+    @test tm.ext[:TransData].infconstr_to_params[BinaryRef(y)] == parameter_refs(y)
+    @test tm.ext[:TransData].infconstr_to_supports[BinaryRef(y)] == supports(y)[2:end]
+    # test with solver
+    mockoptimizer = with_optimizer(MOIU.MockOptimizer,
+                                   MOIU.Model{Float64}(),
+                                   eval_objective_value=false)
+    @test isa(set_optimizer_model(m, TranscriptionModel(m, mockoptimizer)), Nothing)
 end
