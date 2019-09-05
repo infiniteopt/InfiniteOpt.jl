@@ -86,7 +86,7 @@ export optimizer_model, set_optimizer_model, optimizer_model_ready,
 set_optimizer_model_ready, build_optimizer_model!, optimizer_model_key
 
 # Export result query methods
-export map_value
+export map_value, map_optimizer_index, map_dual, map_shadow_price
 
 # Export functions that will be included in future JuMP releases
 

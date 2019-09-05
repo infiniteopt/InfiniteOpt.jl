@@ -333,6 +333,9 @@ function JuMP.set_name(cref::GeneralConstraintRef, name::String)
     return
 end
 
+# TODO Extend normalized RHS methods
+# TODO Extend normalized coefficient methods
+
 # Return the appropriate constraint reference given the index and model
 function _make_constraint_ref(model::InfiniteModel,
                               index::Int)::GeneralConstraintRef

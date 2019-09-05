@@ -55,12 +55,17 @@ end
     # set_silent
     @testset "JuMP.set_silent" begin
         m2 = InfiniteModel()
-        @test isa(set_silent(m2), Nothing)
+        @test set_silent(m2)
     end
     # unset_silent
     @testset "JuMP.unset_silent" begin
         m2 = InfiniteModel()
-        @test isa(unset_silent(m2), Nothing)
+        @test !unset_silent(m2)
+    end
+    # set_parameter
+    @testset "JuMP.set_parameter" begin
+        m2 = InfiniteModel()
+        @test set_parameter(m2, "setting", 42) == 42
     end
     # solve
     @testset "solve" begin
