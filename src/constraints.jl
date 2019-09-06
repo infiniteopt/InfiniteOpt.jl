@@ -333,8 +333,125 @@ function JuMP.set_name(cref::GeneralConstraintRef, name::String)
     return
 end
 
-# TODO Extend normalized RHS methods
-# TODO Extend normalized coefficient methods
+# Return a constraint set with an updated value
+function _set_set_value(set::S, value::Real) where {T, S <: Union{MOI.LessThan{T},
+                                            MOI.GreaterThan{T}, MOI.EqualTo{T}}}
+    return S(convert(T, value))
+end
+
+"""
+    JuMP.set_normalized_rhs(cref::GeneralConstraintRef, value::Real)
+
+Set the right-hand side term of `constraint` to `value`.
+Note that prior to this step, JuMP will aggregate all constant terms onto the
+right-hand side of the constraint. For example, given a constraint `2x + 1 <=
+2`, `set_normalized_rhs(con, 4)` will create the constraint `2x <= 4`, not `2x +
+1 <= 4`.
+
+```julia
+julia> @constraint(model, con, 2x + 1 <= 2)
+con : 2 x <= 1.0
+
+julia> set_normalized_rhs(con, 4)
+
+julia> con
+con : 2 x <= 4.0
+```
+"""
+function JuMP.set_normalized_rhs(cref::GeneralConstraintRef, value::Real)
+    old_constr = JuMP.constraint_object(cref)
+    new_set = _set_set_value(old_constr.set, value)
+    if old_constr isa BoundedScalarConstraint
+        new_constr = BoundedScalarConstraint(old_constr.func, new_set,
+                                             old_constr.bounds)
+    else
+        new_constr = JuMP.ScalarConstraint(old_constr.func, new_set)
+    end
+    JuMP.owner_model(cref).constrs[JuMP.index(cref)] = new_constr
+    return
+end
+
+"""
+    JuMP.normalized_rhs(cref::GeneralConstraintRef)::Number
+
+Return the right-hand side term of `cref` after JuMP has converted the
+constraint into its normalized form. See also [`set_normalized_rhs`](@ref).
+"""
+function JuMP.normalized_rhs(cref::GeneralConstraintRef)::Number
+    con = JuMP.constraint_object(cref)
+    return MOI.constant(con.set)
+end
+
+"""
+    JuMP.add_to_function_constant(cref::GeneralConstraintRef, value::Real)
+
+Add `value` to the function constant term.
+Note that for scalar constraints, JuMP will aggregate all constant terms onto the
+right-hand side of the constraint so instead of modifying the function, the set
+will be translated by `-value`. For example, given a constraint `2x <=
+3`, `add_to_function_constant(c, 4)` will modify it to `2x <= -1`.
+```
+"""
+function JuMP.add_to_function_constant(cref::GeneralConstraintRef, value::Real)
+    current_value = JuMP.normalized_rhs(cref)
+    JuMP.set_normalized_rhs(cref, current_value - value)
+    return
+end
+
+"""
+    JuMP.set_normalized_coefficient(cref::GeneralConstraintRef,
+                                    variable::GeneralVariableRef, value::Real)
+
+Set the coefficient of `variable` in the constraint `constraint` to `value`.
+Note that prior to this step, JuMP will aggregate multiple terms containing the
+same variable. For example, given a constraint `2x + 3x <= 2`,
+`set_normalized_coefficient(con, x, 4)` will create the constraint `4x <= 2`.
+
+```julia
+julia> con
+con : 5 x <= 2.0
+
+julia> set_normalized_coefficient(con, x, 4)
+
+julia> con
+con : 4 x <= 2.0
+```
+"""
+function JuMP.set_normalized_coefficient(cref::GeneralConstraintRef,
+                                         variable::GeneralVariableRef,
+                                         value::Real)
+    # update the constraint expression and update the constraint
+    old_constr = JuMP.constraint_object(cref)
+    new_expr = _set_variable_coefficient!(old_constr.func, variable, value)
+    if old_constr isa BoundedScalarConstraint
+        new_constr = BoundedScalarConstraint(new_expr, old_constr.set,
+                                             old_constr.bounds)
+    else
+        new_constr = JuMP.ScalarConstraint(new_expr, old_constr.set)
+    end
+    JuMP.owner_model(cref).constrs[JuMP.index(cref)] = new_constr
+    return
+end
+
+"""
+    JuMP.normalized_coefficient(cref::GeneralConstraintRef,
+                                variable::GeneralVariableRef)::Number
+
+Return the coefficient associated with `variable` in `constraint` after JuMP has
+normalized the constraint into its standard form. See also
+[`set_normalized_coefficient`](@ref).
+"""
+function JuMP.normalized_coefficient(cref::GeneralConstraintRef,
+                                     variable::GeneralVariableRef)::Number
+    con = JuMP.constraint_object(cref)
+    if con.func isa GeneralVariableRef && con.func == variable
+        return 1.0
+    elseif con.func isa GeneralVariableRef
+        return 0.0
+    else
+        return JuMP._affine_coefficient(con.func, variable)
+    end
+end
 
 # Return the appropriate constraint reference given the index and model
 function _make_constraint_ref(model::InfiniteModel,

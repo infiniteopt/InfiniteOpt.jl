@@ -145,3 +145,39 @@ end
         @test @objective(m, Max, (meas + x) + (2x + 3)) == meas + 3x + 3
     end
 end
+
+# Test modification methods
+@testset "Modification" begin
+    # initialize the model, references, and other info
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_variable(m, inf(par))
+    @point_variable(m, inf(0.5), pt)
+    @global_variable(m, x)
+    data = DiscreteMeasureData(par, [1], [1])
+    meas = measure(inf + par - x, data)
+    # test set_objective_coefficient
+    @testset "JuMP.set_objective_coefficient" begin
+        # test variable function
+        set_objective_function(m, pt)
+        @test isa(set_objective_coefficient(m, pt, 2), Nothing)
+        @test objective_function(m) == 2pt
+        @test isa(set_objective_coefficient(m, x, 2), Nothing)
+        @test objective_function(m) == 2pt + 2x
+        # test AffExpr
+        @test isa(set_objective_coefficient(m, pt, 3), Nothing)
+        @test objective_function(m) == 3pt + 2x
+        @test isa(set_objective_coefficient(m, meas, 2.5), Nothing)
+        @test objective_function(m) == 3pt + 2x + 2.5 * meas
+        # test QuadExpr
+        set_objective_function(m, pt^2 + pt)
+        @test isa(set_objective_coefficient(m, pt, 2), Nothing)
+        @test objective_function(m) == pt^2 + 2pt
+        @test isa(set_objective_coefficient(m, x, 2), Nothing)
+        @test objective_function(m) == pt^2 + 2pt + 2x
+        # test number
+        set_objective_function(m, 2)
+        @test isa(set_objective_coefficient(m, pt, 2), Nothing)
+        @test objective_function(m) == 2pt + 2
+    end
+end

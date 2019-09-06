@@ -214,6 +214,50 @@ function _remove_variable(f::JuMP.GenericQuadExpr, vref::GeneralVariableRef)
     return
 end
 
+## Modify linear coefficient of variable in expression
+# GeneralVariableRef
+function _set_variable_coefficient!(expr::GeneralVariableRef,
+                                    var::GeneralVariableRef,
+                                    coeff::Real)::JuMP.GenericAffExpr
+    # Determine if variable is that of the expression and change accordingly
+    if expr == var
+        return coeff * var
+    else
+        return expr + coeff * var
+    end
+end
+
+# GenericAffExpr
+function _set_variable_coefficient!(expr::JuMP.GenericAffExpr,
+                                    var::GeneralVariableRef,
+                                    coeff::Real)::JuMP.GenericAffExpr
+    # Determine if variable is in the expression and change accordingly
+    if haskey(expr.terms, var)
+        expr.terms[var] = coeff
+        return expr
+    else
+        return expr + coeff * var
+    end
+end
+
+# GenericQuadExpr
+function _set_variable_coefficient!(expr::JuMP.GenericQuadExpr,
+                                    var::GeneralVariableRef,
+                                    coeff::Real)::JuMP.GenericQuadExpr
+    # Determine if variable is in the expression and change accordingly
+    if haskey(expr.aff.terms, var)
+        expr.aff.terms[var] = coeff
+        return expr
+    else
+        return expr + coeff * var
+    end
+end
+
+# Fallback
+function _set_variable_coefficient!(expr, var::GeneralVariableRef, coeff::Real)
+    error("Unsupported function type for coefficient modification.")
+end
+
 # Check expression for a particular variable type via a recursive search
 # This is tested in test/measures.jl
 function _has_variable(vrefs::Vector{<:GeneralVariableRef},

@@ -178,3 +178,31 @@ function JuMP.objective_function(model::InfiniteModel, FT::Type)
     end
     return model.objective_function::FT
 end
+
+"""
+    JuMP.set_objective_coefficient(model::InfiniteModel,
+                                   variable::GeneralVariableRef,
+                                   coefficient::Real)
+
+Set the linear objective coefficient associated with `variable` to `coefficient`.
+Errors if the function type is unsupported.
+
+**Example**
+```julia
+julia> objective_function(model)
+x + y
+
+julia> set_objective_coefficient(model, y, 2)
+
+julia> objective_function(model)
+x + 2 y
+```
+"""
+function JuMP.set_objective_coefficient(model::InfiniteModel,
+                                        variable::GeneralVariableRef,
+                                        coeff::Real)
+    new_expr = _set_variable_coefficient!(JuMP.objective_function(model),
+                                          variable, coeff)
+    JuMP.set_objective_function(model, new_expr)
+    return
+end

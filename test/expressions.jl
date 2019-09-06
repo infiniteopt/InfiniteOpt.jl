@@ -173,3 +173,33 @@ end
         @test destructive_add!(inf, 2., glob) == inf + 2glob
     end
 end
+
+# Test _set_variable_coefficient!
+@testset "_set_variable_coefficient!" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, 0 <= par2 <= 1)
+    @infinite_variable(m, x(par))
+    @infinite_variable(m, y(par, par2))
+    @global_variable(m, z)
+    # test with GeneralVariableRef
+    @testset "GeneralVariableRef" begin
+        @test InfiniteOpt._set_variable_coefficient!(x, x, 2) == 2 * x
+        @test InfiniteOpt._set_variable_coefficient!(z, x, 2) == z + 2x
+    end
+    # test with GenericAffExpr
+    @testset "AffExpr" begin
+        @test InfiniteOpt._set_variable_coefficient!(x + z, x, 2) == 2x + z
+        @test InfiniteOpt._set_variable_coefficient!(x + z, y, 2) == x + z + 2y
+    end
+    # test with GenericQuadExpr
+    @testset "QuadExpr" begin
+        @test InfiniteOpt._set_variable_coefficient!(y ^2 + x, x, 2) == y^2 + 2x
+        @test InfiniteOpt._set_variable_coefficient!(y^2 + x, y, 2) == y^2 + x + 2y
+    end
+    # test fallabck
+    @testset "Fallback" begin
+        @test_throws ErrorException InfiniteOpt._set_variable_coefficient!(2, x, 2)
+    end
+end

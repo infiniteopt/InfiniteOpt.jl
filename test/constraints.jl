@@ -237,6 +237,72 @@ end
     end
 end
 
+# Test coefficient queries and modifications
+@testset "Coefficient Methods" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_variable(m, inf(par))
+    @point_variable(m, inf(0.5), pt)
+    @global_variable(m, x >= 0, Int)
+    @constraint(m, c1, inf + x == 0,
+                parameter_bounds = Dict(par => IntervalSet(0, 1)))
+    @constraint(m, c2, x * pt + x == 2)
+    # test set_normalized_coefficient
+    @testset "JuMP.set_normalized_coefficient" begin
+        @test isa(set_normalized_coefficient(c1, x, 2), Nothing)
+        @test isa(constraint_object(c1), BoundedScalarConstraint)
+        @test jump_function(constraint_object(c1)) == inf + 2x
+        @test isa(set_normalized_coefficient(c2, inf, 2), Nothing)
+        @test isa(constraint_object(c2),ScalarConstraint)
+        @test jump_function(constraint_object(c2)) == x * pt + x + 2inf
+    end
+    # test normalized_coefficient
+    @testset "JuMP.normalized_coefficient" begin
+        @test normalized_coefficient(c1, x) == 2.
+        @test normalized_coefficient(c1, pt) == 0.
+        @test normalized_coefficient(c2, inf) == 2.
+        @test normalized_coefficient(LowerBoundRef(x), x) == 1.
+        @test normalized_coefficient(LowerBoundRef(x), pt) == 0.
+    end
+    # test _set_set_value
+    @testset "_set_set_value" begin
+        @test InfiniteOpt._set_set_value(MOI.EqualTo(1.), 2) == MOI.EqualTo(2.)
+        @test InfiniteOpt._set_set_value(MOI.GreaterThan(1.), 2) == MOI.GreaterThan(2.)
+        @test InfiniteOpt._set_set_value(MOI.LessThan(1.), 2) == MOI.LessThan(2.)
+    end
+    # test set_normalized_rhs
+    @testset "JuMP.set_normalized_rhs" begin
+        @test isa(set_normalized_rhs(c1, 42), Nothing)
+        @test isa(constraint_object(c1), BoundedScalarConstraint)
+        @test constraint_object(c1).set == MOI.EqualTo(42.0)
+        @test isa(set_normalized_rhs(c2, 42), Nothing)
+        @test isa(constraint_object(c2), ScalarConstraint)
+        @test constraint_object(c2).set == MOI.EqualTo(42.0)
+        @test isa(set_normalized_rhs(LowerBoundRef(x), 42), Nothing)
+        @test isa(constraint_object(LowerBoundRef(x)), ScalarConstraint)
+        @test constraint_object(LowerBoundRef(x)).set == MOI.GreaterThan(42.0)
+    end
+    # test normalized_rhs
+    @testset "JuMP.normalized_rhs" begin
+        @test normalized_rhs(c1) == 42.
+        @test normalized_rhs(c2) == 42.
+        @test normalized_rhs(LowerBoundRef(x)) == 42.
+    end
+    # test add_to_function_constant
+    @testset "JuMP.add_to_function_constant" begin
+        @test isa(add_to_function_constant(c1, 4), Nothing)
+        @test isa(constraint_object(c1), BoundedScalarConstraint)
+        @test constraint_object(c1).set == MOI.EqualTo(38.0)
+        @test isa(add_to_function_constant(c2, 4), Nothing)
+        @test isa(constraint_object(c2), ScalarConstraint)
+        @test constraint_object(c2).set == MOI.EqualTo(38.0)
+        @test isa(add_to_function_constant(LowerBoundRef(x), 4), Nothing)
+        @test isa(constraint_object(LowerBoundRef(x)), ScalarConstraint)
+        @test constraint_object(LowerBoundRef(x)).set == MOI.GreaterThan(38.0)
+    end
+end
+
 # Test num_constraints extensions
 @testset "JuMP.num_constraints Extensions" begin
     # initialize model and references
