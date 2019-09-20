@@ -126,8 +126,8 @@ The recognized keyword arguments in `kw_args` are the following:
   or not.
 - `container`: Specify the container type.
 
- **Examples**
- ```julia
+**Examples**
+```julia
 julia> @infinite_parameter(m, 0 <= x <= 1)
 x
 
@@ -144,7 +144,7 @@ julia> z = @infinite_parameter(m, ["a", "b"], distribution = Uniform(), independ
     Dimension 2, "b"
 And data, a 1×1 Array{ParameterRef,2}:
  noname
- ```
+```
 """
 macro infinite_parameter(model, args...)
     _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...),

@@ -2,7 +2,10 @@
 ```@index
 ```
 
-## Method, DataType, and Macro References
-```@autodocs
-Modules = [InfiniteOpt]
+## JuMP Documentation
+```@docs
+Model
+Model()
+Model(::OptimizerFactory)
+with_optimizer
 ```

@@ -465,7 +465,7 @@ Solver name: No optimizer attached.
 JuMP.owner_model(vref::GeneralVariableRef)::InfiniteModel = vref.model
 
 """
-    JuMP.index(v::GeneralVariableRef::Int
+    JuMP.index(v::GeneralVariableRef)::Int
 
 Extent [`JuMP.index`](@ref) to return the index of a `InfiniteOpt` variable.
 

@@ -45,6 +45,9 @@ end
     m = InfiniteModel();
     @test isa(Base.broadcastable(m), Base.RefValue{InfiniteModel})
     @test length(JuMP.object_dictionary(m)) == 0
+    @test InfiniteModel(caching_mode = MOIU.MANUAL) isa JuMP.AbstractModel
+    @test InfiniteModel(mockoptimizer,
+                        caching_mode = MOIU.MANUAL) isa JuMP.AbstractModel
 end
 
 # Test reference variable datatypes

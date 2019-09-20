@@ -200,13 +200,16 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 end
 
 """
-    InfiniteModel(; [caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC])
+    InfiniteModel([optimizer_factory::JuMP.OptimizerFactory];
+                  [caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
+                  bridge_constraints::Bool = true])
 
-Return a new infinite model where no optimizer is specified. The
-optimizer can later be set with the [`JuMP.optimizer!`](@ref) call. By default
-the `optimizer_model` data field is initialized with a `TranscriptionModel`, but
-a different type of model can be assigned via [`set_optimizer_model`](@ref) as
-can be required by extensions.
+Return a new infinite model where an optimizer is specified if an
+`optimizer_factory` is given via [`JuMP.with_optimizer`](@ref). The optimizer
+can also later be set with the [`JuMP.optimize!`](@ref) call. By default
+the `optimizer_model` data field is initialized with a
+[`TranscriptionModel`](@ref), but a different type of model can be assigned via
+[`set_optimizer_model`](@ref) as can be required by extensions.
 
 **Example**
 ```julia
@@ -218,6 +221,15 @@ Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
+
+julia> model = InfiniteModel(with_optimizer(Gurobi.Optimizer))
+An InfiniteOpt Model
+Feasibility problem with:
+Variables: 0
+Optimizer model backend information:
+Model mode: AUTOMATIC
+CachingOptimizer state: EMPTY_OPTIMIZER
+Solver name: Gurobi
 ```
 """
 function InfiniteModel(; kwargs...)
@@ -248,34 +260,14 @@ function InfiniteModel(; kwargs...)
                          # Object dictionary
                          Dict{Symbol, Any}(),
                          # Optimize data
-                         nothing, TranscriptionModel(kwargs...), false)
+                         nothing, TranscriptionModel(;kwargs...), false)
 end
 
-"""
-    InfiniteModel(optimizer_factory::JuMP.OptimizerFactory;
-                  [caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
-                  bridge_constraints::Bool = true])
-
-Return a new infinite model using the optimizer factory `optimizer_factory` to
-create the optimizer. The optimizer factory can be created by the
-[`JuMP.with_optimizer`](@ref) function.
-
-**Example**
-```julia
-julia> model = InfiniteModel(with_optimizer(Ipopt.Optimizer))
-An InfiniteOpt Model
-Feasibility problem with:
-Variables: 0
-Optimizer model backend information:
-Model mode: AUTOMATIC
-CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: SolverName() attribute not implemented by the optimizer.
-```
-"""
+# Dispatch for InfiniteModel call with optimizer factory
 function InfiniteModel(optimizer_factory::JuMP.OptimizerFactory; kwargs...)
     model = InfiniteModel()
     model.optimizer_factory = optimizer_factory
-    model.optimizer_model = TranscriptionModel(optimizer_factory, kwargs...)
+    model.optimizer_model = TranscriptionModel(optimizer_factory; kwargs...)
     return model
 end
 
