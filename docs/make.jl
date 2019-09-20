@@ -1,4 +1,4 @@
-using Documenter, InfiniteOpt, JuMP, MathOptInterface
+using Documenter, InfiniteOpt, JuMP
 
 makedocs(;
     modules = [InfiniteOpt, InfiniteOpt.TranscriptionOpt, JuMP],
@@ -23,6 +23,6 @@ makedocs(;
     authors = "Joshua Pulsipher"
 )
 
-# deploydocs(;
-#     repo = "github.com/pulsipher/InfiniteOpt.jl",
-# )
+deploydocs(;
+    repo = "github.com/pulsipher/InfiniteOpt.jl",
+)
