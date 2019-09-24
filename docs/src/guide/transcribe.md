@@ -37,8 +37,8 @@ transcription_variable
 InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteVariableRef)
 InfiniteOpt.supports(::InfiniteOpt.InfiniteVariableRef)
 transcription_constraint
-InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.GeneralConstraintRef)
-InfiniteOpt.supports(::InfiniteOpt.GeneralConstraintRef)
-InfiniteOpt.parameter_refs(::JuMP.Model, ::InfiniteOpt.GeneralConstraintRef)
-InfiniteOpt.parameter_refs(::InfiniteOpt.GeneralConstraintRef)
+InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef)
+InfiniteOpt.supports(::InfiniteOpt.InfiniteConstraintRef)
+InfiniteOpt.parameter_refs(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef)
+InfiniteOpt.parameter_refs(::InfiniteOpt.InfiniteConstraintRef)
 ```
