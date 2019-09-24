@@ -93,7 +93,9 @@ end
 Add an *anonymous* infinite parameter to the model `model` described by the
 keyword arguments `kw_args` and returns the parameter reference.
 
-    @infinite_parameter(model, expr, kw_args...)
+```julia
+@infinite_parameter(model, expr, kw_args...)
+```
 
 Add a parameter to the model `model` described by the expression `expr`, the
 positional arguments `args` and the keyword arguments `kw_args`. (note that in
@@ -367,7 +369,9 @@ Add an *anonymous* infinite variable to the model `model` described by the
 keyword arguments `kw_args` and returns the variable reference. Note that the
 `parameter_refs` keyword is required in this case.
 
-    @infinite_variable(model, varexpr, args..., kw_args...)
+```julia
+@infinite_variable(model, varexpr, args..., kw_args...)
+```
 
 Add an infinite variable to `model` described by the expression `var_expr`, the
 positional arguments `args` and the keyword arguments `kw_args`. The expression
@@ -520,7 +524,9 @@ keyword arguments `kw_args` and returns the variable reference. Note that the
 `infinite_variable_ref` and `parameter_values` keywords are required in this
 case.
 
-    @point_variable(model, infvarexpr, varexpr, args..., kw_args...)
+```julia
+@point_variable(model, infvarexpr, varexpr, args..., kw_args...)
+```
 
 Add a point variable to `model` described by the expression `varexpr`, the
 positional arguments `args`, and the keyword arguments `kw_args` and the
@@ -677,7 +683,9 @@ end
 Add an *anonymous* global variable to the model `model` described by the
 keyword arguments `kw_args` and returns the variable reference.
 
-    @global_variable(model, varexpr, args..., kw_args...)
+```julia
+@global_variable(model, varexpr, args..., kw_args...)
+```
 
 Add a global variable to `model` described by the expression `varexpr`, the
 positional arguments `args` and the keyword arguments `kw_args`. The expression
@@ -727,7 +735,7 @@ julia> y = @global_variable(model, lower_bound = 0, upper_bound = 4,
                             binary = true, base_name = "y")
 y
 
-julia @global_variable(model, z[2:3] == 0)
+julia> @global_variable(model, z[2:3] == 0)
 1-dimensional DenseAxisArray{GlobalVariableRef,1,...} with index sets:
     Dimension 1, 2:3
 And data, a 2-element Array{GlobalVariableRef,1}:

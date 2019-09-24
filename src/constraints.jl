@@ -63,9 +63,9 @@ end
                           set::MOI.AbstractScalarSet;
                           [parameter_bounds::Dict{ParameterRef, IntervalSet} = Dict()])
 
-Extend [`JuMP.build_constraint`](@ref) to accept the parameter_bounds argument
-and return a [`BoundedScalarConstraint`](@ref) if the `parameter_bounds` keyword
-argument is specifed or return a [`ScalarConstraint`](@ref) otherwise. This is
+Extend [`JuMP.build_constraint`](@ref) to accept the ```parameter_bounds``` argument
+and return a [`BoundedScalarConstraint`](@ref) if the ```parameter_bounds``` keyword
+argument is specifed or return a [`JuMP.ScalarConstraint`](@ref) otherwise. This is
 primarily intended to work as an internal function for constraint macros.
 
 **Example**
@@ -375,7 +375,7 @@ end
     JuMP.normalized_rhs(cref::GeneralConstraintRef)::Number
 
 Return the right-hand side term of `cref` after JuMP has converted the
-constraint into its normalized form. See also [`set_normalized_rhs`](@ref).
+constraint into its normalized form. See also [`JuMP.set_normalized_rhs`](@ref).
 """
 function JuMP.normalized_rhs(cref::GeneralConstraintRef)::Number
     con = JuMP.constraint_object(cref)
@@ -439,7 +439,7 @@ end
 
 Return the coefficient associated with `variable` in `constraint` after JuMP has
 normalized the constraint into its standard form. See also
-[`set_normalized_coefficient`](@ref).
+[`JuMP.set_normalized_coefficient`](@ref).
 """
 function JuMP.normalized_coefficient(cref::GeneralConstraintRef,
                                      variable::GeneralVariableRef)::Number

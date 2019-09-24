@@ -38,7 +38,7 @@ PointVariableRef
 GlobalVariableRef
 ```
 
-## Methods
+## Methods/Macros
 ```@index
 Pages   = ["variable.md"]
 Modules = [InfiniteOpt, JuMP]

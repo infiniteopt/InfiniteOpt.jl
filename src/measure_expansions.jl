@@ -361,11 +361,14 @@ expansion is undefined for the measure data and/or the measure expression. If
 desired this can be used in combination with [`measure`](@ref) to expand measures
 on the fly.
 
-This is useful for extensions that employ a custom optimizer_model since it
+This is useful for extensions that employ a custom optimizer model since it
 can be used evaluate measures before expressions are translated to the new model.
 This method can also be extended to handle custom measure data types by extending
-`InfiniteOpt._expand_measure` which should be of the form
-`InfiniteOpt._expand_measure(::AbstractJuMPScalar, ::AbstractMeasureData, ::InfiniteModel, point_mapper::Function)`.
+```InfiniteOpt._expand_measure``` which should be of the form:
+```julia
+InfiniteOpt._expand_measure(expr::AbstractJuMPScalar, data::AbstractMeasureData,
+                            model::InfiniteModel, point_mapper::Function)
+```
 See the source code in InfiniteOpt/src/measures.jl for examples of how to do this.
 
 **Example**
@@ -451,11 +454,14 @@ point variables and reduced infinite variables are made as needed). Errors if
 expansion is undefined for the measure data and/or the measure expression. Also
 errors if the expanded objective function is not finite.
 
-This is useful for extensions that employ a custom optimizer_model since it
+This is useful for extensions that employ a custom optimizer model since it
 can be used evaluate measures before `model` is translated into the new model.
 This method can also be extended to handle custom measure data types by extending
-`InfiniteOpt._expand_measure` which should be of the form
-`InfiniteOpt._expand_measure(::AbstractJuMPScalar, ::AbstractMeasureData, ::InfiniteModel, point_mapper::Function)`.
+```InfiniteOpt._expand_measure``` which should be of the form:
+```julia
+InfiniteOpt._expand_measure(expr::AbstractJuMPScalar, data::AbstractMeasureData,
+                            model::InfiniteModel, point_mapper::Function)
+```
 See the source code in InfiniteOpt/src/measures.jl for examples of how to do this.
 
 **Example**

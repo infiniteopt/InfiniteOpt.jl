@@ -51,10 +51,10 @@ function JuMP.solve_time(model::InfiniteModel)
 end
 
 """
-    has_values(model::InfiniteModel)
+    JuMP.has_values(model::InfiniteModel)
 
 Return `true` if the solver has a primal solution available to query, otherwise
-return `false`. See also [`value`](@ref).
+return `false`. See also [`JuMP.value`](@ref).
 """
 JuMP.has_values(model::InfiniteModel) = JuMP.primal_status(model) != MOI.NO_SOLUTION
 
@@ -120,7 +120,7 @@ function map_optimizer_index end
     JuMP.optimizer_index(vref::GeneralVariableRef)
 
 Return the index of the variables that corresponds to `vref` in the optimizer model.
-It throws [`NoOptimizer`](@ref) if no optimizer is set and throws an
+It throws [`JuMP.NoOptimizer`](@ref) if no optimizer is set and throws an
 `ErrorException` if the optimizer is set but is not attached.
 """
 function JuMP.optimizer_index(vref::GeneralVariableRef)
@@ -132,7 +132,7 @@ end
     JuMP.optimizer_index(cref::GeneralConstraintRef)
 
 Return the index of the constraints that corresponds to `cref` in the optimizer model.
-It throws [`NoOptimizer`](@ref) if no optimizer is set and throws an
+It throws [`JuMP.NoOptimizer`](@ref) if no optimizer is set and throws an
 `ErrorException` if the optimizer is set but is not attached.
 """
 function JuMP.optimizer_index(cref::GeneralConstraintRef)
@@ -149,11 +149,11 @@ type distininguished by its extension key `key` as type `Val{ext_key_name}`.
 function map_dual end
 
 """
-    dual(cref::GeneralConstraintRef)
+    JuMP.dual(cref::GeneralConstraintRef)
 
 Get the dual value of this constraint in the result returned by a solver.
 Use `has_dual` to check if a result exists before asking for values.
-See also [`shadow_price`](@ref).
+See also [`JuMP.shadow_price`](@ref).
 """
 function JuMP.dual(cref::GeneralConstraintRef)
     return map_dual(cref, Val(optimizer_model_key(JuMP.owner_model(cref))))
@@ -179,7 +179,7 @@ function map_shadow_price end
     JuMP.shadow_price(cref::GeneralConstraintRef)
 
 The change in the objective from an infinitesimal relaxation of the constraint.
-This value is computed from [`dual`](@ref) and can be queried only when
+This value is computed from [`JuMP.dual`](@ref) and can be queried only when
 `has_duals` is `true` and the objective sense is `MIN_SENSE` or `MAX_SENSE`
 (not `FEASIBILITY_SENSE`). For linear constraints, the shadow prices differ at
 most in sign from the `dual` value depending on the objective sense.

@@ -1,8 +1,11 @@
 """
     TranscriptionData
 
-A DataType for storing the data mapping an `InfiniteModel` that has been
-transcribed to a regular JuMP `Model` that contains the transcribed variables.
+A DataType for storing the data mapping an [`InfiniteOpt.InfiniteModel`](@ref)
+that has been transcribed to a regular [`JuMP.Model`](@ref) that contains the
+transcribed variables. This is stored in the `ext` field of a `JuMP.Model` to
+make what is called a `TranscriptionModel` via the [`TranscriptionModel`](@ref)
+constructor.
 
 **Fields**
 - `infinite_to_vars::Dict{InfiniteOpt.InfiniteVariableRef,
@@ -72,10 +75,12 @@ mutable struct TranscriptionData
 end
 
 """
-    TranscriptionModel(args...)::JuMP.Model
+    TranscriptionModel([optimizer_factory::JuMP.OptimizerFactory];
+                       [caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
+                        bridge_constraints::Bool = true])::JuMP.Model
 
-Return a JuMP `Model` with `TranscriptionData` included in the extension
-data field. Accepts the same arguments as a typical JuMP `Model`.
+Return a [`JuMP.Model`](@ref) with [`TranscriptionData`](@ref) included in the
+`ext` data field. Accepts the same arguments as a typical JuMP `Model`.
 
 **Example**
 ```julia

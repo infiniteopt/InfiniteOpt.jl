@@ -31,7 +31,7 @@ InfOptParameter
 ParameterRef
 ```
 
-## Methods
+## Methods/Macros
 ```@index
 Pages   = ["parameter.md"]
 Modules = [InfiniteOpt, JuMP]

@@ -187,6 +187,7 @@ julia> data = DiscreteMeasureData(prefs, [0.5, 0.5], [[1, 1], [2, 2]], name = "e
 
 julia> typeof(data)
 MultiDiscreteMeasureData
+```
 """
 function DiscreteMeasureData(parameter_ref::AbstractArray{<:ParameterRef},
                              coefficients::Vector{<:Number},
@@ -311,7 +312,8 @@ the measure parameter specified in `data` is not in `expr` and is not in any
 the nested measure references. Typically, this is called inside of
 [`JuMP.@expression`](@ref), [`JuMP.@objective`](@ref), and
 [`JuMP.@constraint`](@ref) in a manner similar to `sum`. Note measures are not
-explicitly evaluated until [`build_optimizer_model!`](@ref) is called.
+explicitly evaluated until [`build_optimizer_model!`](@ref) is called or unless
+they are expanded via [`expand`](@ref) or [`expand_all_measures!`](@ref).
 
 **Example**
 ```julia

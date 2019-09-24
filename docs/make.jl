@@ -8,6 +8,7 @@ makedocs(;
                              "Infinite Models" => "guide/model.md",
                              "Infinite Parameters" => "guide/parameter.md",
                              "Variables" => "guide/variable.md",
+                             "Expressions" => "guide/expression.md",
                              "Measures" => "guide/measure.md",
                              "Objectives" => "guide/objective.md",
                              "Constraints" => "guide/constraint.md",
@@ -20,7 +21,8 @@ makedocs(;
             "Development" => "develop.md"],
     repo = "https://github.com/pulsipher/InfiniteOpt.jl/blob/{commit}{path}#L{line}",
     sitename = "InfiniteOpt.jl",
-    authors = "Joshua Pulsipher"
+    authors = "Joshua Pulsipher",
+    doctest = false
 )
 
 deploydocs(;

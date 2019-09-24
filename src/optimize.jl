@@ -35,7 +35,8 @@ function JuMP.bridge_constraints(model::InfiniteModel)::Bool
 end
 
 """
-    JuMP.add_bridge(model::Model, BridgeType::Type{<:MOI.Bridges.AbstractBridge})
+    JuMP.add_bridge(model::InfiniteModel,
+                    BridgeType::Type{<:MOI.Bridges.AbstractBridge})
 
 Extend [`JuMP.add_bridge`] to add `BridgeType` to the list of bridges that can
 be used by the optimizer model to transform unsupported constraints into an
@@ -156,11 +157,11 @@ function JuMP.unset_silent(model::InfiniteModel)
 end
 
 """
-    JuMP.set_parameter(model::Model, name, value)
+    JuMP.set_parameter(model::InfiniteModel, name, value)
 
 Sets solver-specific parameter identified by `name` to `value`.
 """
-function JuMP.set_parameter(model::InfiniteModel, name, value)
+function JuMP.set_parameter(model::InfiniteModel, name::Any, value::Any)
     return JuMP.set_parameter(optimizer_model(model), name, value)
 end
 
@@ -210,13 +211,13 @@ two models. The key argument should be be typed to `Val{ext_key_name}`.
  Extensions will need to implement their own version of the function
  `build_optimizer_model!(model::InfiniteModel, key::Val{ext_key_name})`.
 
- **Example**
- ```julia
+**Example**
+```julia
 julia> build_optimizer_model!(model)
 
 julia> optimizer_model_ready(model)
 true
- ```
+```
  """
   function build_optimizer_model!(model::InfiniteModel)
       key = optimizer_model_key(model)
@@ -226,7 +227,7 @@ true
 
 """
     JuMP.optimize!(model::InfiniteModel,
-                   optimizer_factory::Union{Nothing, OptimizerFactory} = nothing;
+                   optimizer_factory::Union{Nothing, JuMP.OptimizerFactory} = nothing;
                    bridge_constraints::Bool=true, kwargs...)
 
 Extend [`JuMP.optimize!`](@ref) to optimize infinite models using the internal

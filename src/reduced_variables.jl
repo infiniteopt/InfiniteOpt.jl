@@ -105,7 +105,7 @@ function JuMP.has_lower_bound(vref::ReducedInfiniteVariableRef)::Bool
 end
 
 """
-    JuMP.lower_bound(vref::ReducedInfiniteVariableRef::Float64
+    JuMP.lower_bound(vref::ReducedInfiniteVariableRef)::Float64
 
 Extend [`JuMP.lower_bound`](@ref) to return the lower bound of the original
 infinite variable of `vref`. Errors if `vref` doesn't have a lower bound.
@@ -423,7 +423,7 @@ dependencies. Errors if `vref` is invalid, meaning it has already been deleted
 or it belongs to another model.
 
 **Example**
-``julia
+```julia
 julia> print(model)
 Min measure(g(0, t)*t + g(1, t)*t) + z
 Subject to
