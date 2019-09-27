@@ -58,6 +58,7 @@ function JuMP.build_constraint(_error::Function,
     end
 end
 
+# TODO allow and transform bounds on AbstractArray of parameters
 """
     JuMP.build_constraint(_error::Function, expr::InfiniteExpr,
                           set::MOI.AbstractScalarSet;

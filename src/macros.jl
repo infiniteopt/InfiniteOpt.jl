@@ -755,6 +755,133 @@ macro global_variable(model, args...)
     return esc(code)
 end
 
-# TODO make custom constraint macro with better subset syntax (i.e. using form
-# @constraint(m, name[i = 1:2](t in [0,1], x[1] in [-1, 0], expr)))
+## Helper function for parsing the parameter bounds and the name expression
+# Check that name expression is in acceptable form or throw error
+function _parse_name_expression(_error::Function, expr)
+    if isexpr(expr, :ref) || isexpr(expr, :vect)|| isa(expr, Symbol)
+        return expr
+    else
+        # TODO Provide more information
+        _error("Unrecognized input format for name expression.")
+    end
+end
+
+# Return IntervalSet call given a :vect expression or error
+function _make_interval_set(_error::Function, expr::Expr)
+    if isexpr(expr, :vect) && length(expr.args) == 2
+        return Expr(:call, :IntervalSet, expr.args...)
+    else
+        # TODO Provide more information
+        _error("Unrecognized input format for parameter bounds.")
+    end
+
+end
+
+# TODO add support for t == 0 syntax
+# Return a bound pair of form param => IntervalSet(lb, ub) or error
+function _make_bound_pair(_error::Function, expr::Expr)
+    if isexpr(expr, :call) && expr.args[1] in [:in, :∈]
+        set = _make_interval_set(_error, expr.args[3])
+        return Expr(:call, :(=>), expr.args[2], set)
+    else
+        # TODO Provide more information
+        _error("Unrecognized input format for parameter bounds.")
+    end
+end
+
+# Return a dictionary of parameter bounds given raw vector of call expressions
+function _parse_parameter_bounds(_error::Function, args::Vector)
+    dict_args = [_make_bound_pair(_error, arg) for arg in args]
+    return Expr(:call, :Dict, dict_args...)
+end
+
+# Only 1 parameter bound is given thus dispatch as a vector to make dictionary
+function _parse_parameter_bounds(_error::Function, expr::Expr)
+    return _parse_parameter_bounds(_error, [expr])
+end
+
+## Return name expression and parameter dictionary expression separatedly
+# (:call) In this case we are not sure if a name expression is given
+function _extract_bounds(_error::Function, args::Vector, ::Val{:call})
+    # check if only one parameter bound was given and nothing else
+    if args[1] in [:in, :∈]
+        dict_arg = _make_bound_pair(_error, Expr(:call, :in, args[2:end]...))
+        return nothing, Expr(:call, :Dict, dict_arg)
+    # otherwise parameter bounds were given with a name expression
+    else
+        name_expr = _parse_name_expression(_error, args[1])
+        bounds = _parse_parameter_bounds(_error, args[2:end])
+        return name_expr, bounds
+    end
+end
+
+# (:tuple) In this case we know mulitple bounds are given with no name expression
+function _extract_bounds(_error::Function, args::Vector, ::Val{:tuple})
+    bounds = _parse_parameter_bounds(_error, args)
+    return nothing, bounds
+end
+
+# TODO add docstring, tests, and documentation
+"""
+    @BDconstraint(model::InfiniteModel, constr_info, expr)
+
+Define bounded constraints...
+"""
+macro BDconstraint(model, args...)
+    # define appropriate error message function
+    _error(str...) = JuMP._macro_error(:BDconstraint, (model, args...), str...)
+
+    # parse the arguments
+    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    bound_kw_args = filter(kw -> kw.args[1] == :parameter_bounds, kw_args)
+
+    # check for double specification of parameter bounds
+    if length(bound_kw_args) != 0
+        # TODO Provide more information
+        _error("Cannot double specify the parameter bounds.")
+    end
+
+    # check that enough arguments are given
+    if length(extra) != 2
+        _error("Incorrect amount of arguments. Must be of form " *
+               "@BDconstraint(model, name[i=..., ...](par in [lb, ub], " *
+               "...), expr).")
+    # otherwise we have a 3 argument form
+    else
+        # process the 2nd argument for the parameter bounds if provided
+        x = popfirst!(extra)
+        if isexpr(x, :ref) || isexpr(x, :vect) || isa(x, Symbol)
+            # TODO Provide more information
+            _error("Must specify at least one parameter bound.")
+        elseif isexpr(x, :call) || isexpr(x, :tuple)
+            name_expr, bounds = InfiniteOpt._extract_bounds(_error, x.args,
+                                                            Val(x.head))
+        else
+            # TODO Provide more information
+            _error("Unrecognized input format for name expression.")
+        end
+
+        # e have a single anonymous constraint
+        if isa(name_expr, Nothing)
+            code = quote
+                @assert isa($model, InfiniteModel) "Model must be an " *
+                                                   "`InfiniteModel`."
+                JuMP.@constraint($model, ($(extra[1])),
+                                 parameter_bounds = ($(bounds)), ($(kw_args...)),
+                                 container = ($(requestedcontainer)))
+            end
+        # we have some sort of name expression in our constraint
+        else
+            code = quote
+                @assert isa($model, InfiniteModel) "Model must be an " *
+                                                   "`InfiniteModel`."
+                JuMP.@constraint($model, ($(name_expr)), ($(extra[1])),
+                                 parameter_bounds = ($(bounds)), ($(kw_args...)),
+                                 container = ($(requestedcontainer)))
+            end
+        end
+    end
+    return esc(code)
+end
+
 # TODO Add bridge constraints for chance constraints and derivatives.

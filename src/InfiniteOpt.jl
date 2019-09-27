@@ -33,7 +33,7 @@ export InfiniteModel
 
 # Export macros and constants
 export @infinite_variable, @point_variable, @global_variable, @infinite_parameter,
-Infinite, Global, Point, Parameter
+@BDconstraint, Infinite, Global, Point, Parameter
 
 # Export infinite parameter datatypes
 export InfOptParameter, ParameterRef
