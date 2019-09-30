@@ -110,12 +110,29 @@ end
     # initialize model and references
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
     @global_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
     meas = measure(inf + par - x, data)
     rv = ReducedInfiniteVariableRef(m, 42)
+    # test _expand_parameter_dict(Dict{ParameterRef,IntervalSet}))
+    @testset "_expand_parameter_dict (acceptable Form)" begin
+        d = Dict(par => IntervalSet(0, 1))
+        @test InfiniteOpt._expand_parameter_dict(d) == d
+    end
+    # test _expand_parameter_dict(Dict{Any,IntervalSet}))
+    @testset "_expand_parameter_dict (Array Form)" begin
+        d = Dict(pars => IntervalSet(0, 1), par => IntervalSet(0, 1))
+        @test isa(InfiniteOpt._expand_parameter_dict(d),
+                  Dict{ParameterRef, IntervalSet})
+    end
+    # test _expand_parameter_dict(Dict))
+    @testset "_expand_parameter_dict (Fallback)" begin
+        d = Dict(pars => 1, par => 2)
+        @test_throws ErrorException InfiniteOpt._expand_parameter_dict(d)
+    end
     # test build_constraint (single)
     @testset "JuMP.build_constraint (Single)" begin
         # test bounded constraint
@@ -127,6 +144,10 @@ end
                parameter_bounds = Dict(par => IntervalSet(0, 1))).set == con.set
         @test build_constraint(error, inf, MOI.EqualTo(42.0),
          parameter_bounds = Dict(par => IntervalSet(0, 1))).bounds == con.bounds
+        # test bounded constraint with vector bound key
+        d = Dict(pars => IntervalSet(0, 1), par => IntervalSet(0, 1))
+        @test isa(build_constraint(error, inf, MOI.EqualTo(42.0),
+                  parameter_bounds = d).bounds, Dict{ParameterRef, IntervalSet})
         # test scalar constraint
         con = ScalarConstraint(inf, MOI.EqualTo(42.0))
         @test build_constraint(error, inf, MOI.EqualTo(42.0)).func == con.func
@@ -143,6 +164,10 @@ end
                parameter_bounds = Dict(par => IntervalSet(0, 1))).set == con.set
         @test build_constraint(error, inf + pt, MOI.EqualTo(42.0),
          parameter_bounds = Dict(par => IntervalSet(0, 1))).bounds == con.bounds
+        # test bounded constraint with vector bound key
+        d = Dict(pars => IntervalSet(0, 1), par => IntervalSet(0, 1))
+        @test isa(build_constraint(error, inf + pt, MOI.EqualTo(42.0),
+                  parameter_bounds = d).bounds, Dict{ParameterRef, IntervalSet})
         # test scalar constraint
         con = ScalarConstraint(inf + pt, MOI.EqualTo(42.0))
         @test build_constraint(error, inf + pt, MOI.EqualTo(42.0)).func == con.func
@@ -234,6 +259,50 @@ end
         @test @constraint(m, f, inf + meas <= 2,
                           parameter_bounds = Dict(par => IntervalSet(0, 1))) == InfiniteConstraintRef(m, 6, ScalarShape())
         @test isa(m.constrs[6], BoundedScalarConstraint)
+    end
+end
+
+# TODO finish tests
+# Test all the methods for bound constraint macros
+@testset "Bounded Constraint Macros" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+    @infinite_variable(m, inf(par))
+    @point_variable(m, inf(0.5), pt)
+    @global_variable(m, x)
+    # test _parse_name_expression
+    @testset "_parse_name_expression" begin
+
+    end
+    # test _make_interval_set
+    @testset "_make_interval_set" begin
+
+    end
+    # test _process_parameter
+    @testset "_process_parameter" begin
+
+    end
+    # test _parse_parameter_bounds (Vector)
+    @testset "_parse_parameter_bounds (Vector)" begin
+
+    end
+    # test _parse_parameter_bounds (Expr)
+    @testset "_parse_parameter_bounds (Expr)" begin
+
+    end
+    # test _extract_bounds (:call)
+    @testset "_extract_bounds (:call)" begin
+
+    end
+    # test _extract_bounds (:tuple)
+    @testset "_extract_bounds (:tuple)" begin
+
+    end
+    # test @BDconstraint
+    @testset "@BDconstraint" begin
+
     end
 end
 

@@ -102,3 +102,24 @@ end
                                  quad)) == GenericQuadExpr{Float64, VariableRef}
     end
 end
+
+# Test the _make_vector functions
+@testset "_make_vector" begin
+    x = [2, 4, 1, 8]
+    # test with JuMP containers
+    @testset "AbstractArray" begin
+        y = convert(JuMPC.SparseAxisArray, x)
+        @test sort(InfiniteOpt._make_vector(y)) == [1, 2, 4, 8]
+        y = JuMPC.DenseAxisArray(x, [1, 2, 3, 4])
+        @test InfiniteOpt._make_vector(y) == x
+    end
+    # test arrays
+    @testset "Array" begin
+        @test InfiniteOpt._make_vector(x) == x
+        @test InfiniteOpt._make_vector(ones(2, 2)) == ones(2, 2)
+    end
+    # test other stuff
+    @testset "Non-Array" begin
+        @test InfiniteOpt._make_vector(2) == 2
+    end
+end

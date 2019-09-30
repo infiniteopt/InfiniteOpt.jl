@@ -1,8 +1,13 @@
 # Extend to return of in set string for interval sets
 function JuMP.in_set_string(print_mode, set::IntervalSet)::String
-    return string(JuMP._math_symbol(print_mode, :in), " [",
-                  JuMP._string_round(set.lower_bound), ", ",
-                  JuMP._string_round(set.upper_bound), "]")
+    if set.lower_bound != set.upper_bound
+        return string(JuMP._math_symbol(print_mode, :in), " [",
+                      JuMP._string_round(set.lower_bound), ", ",
+                      JuMP._string_round(set.upper_bound), "]")
+    else
+        return string(JuMP._math_symbol(print_mode, :eq), " ",
+                      JuMP._string_round(set.lower_bound))
+    end
 end
 
 # Extend to return of in set string for distribution sets
