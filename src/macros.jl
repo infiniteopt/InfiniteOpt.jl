@@ -19,7 +19,13 @@ end
 function _parse_one_operator_parameter(
     _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:in}, Val{:∈}},
     value)
-    _dist_or_error(_error, infoexpr, value)
+    # check if interval set
+    if isexpr(value.args[1], :vect)
+        JuMP._set_lower_bound_or_error(_error, infoexpr, value.args[1].args[1])
+        JuMP._set_upper_bound_or_error(_error, infoexpr, value.args[1].args[2])
+    else
+        _dist_or_error(_error, infoexpr, value)
+    end
 end
 
 # Default function for unrecognized operators
@@ -103,7 +109,9 @@ the following the symbol `<=` can be used instead of `≤`, the symbol `>=`can
 be used instead of `≥`, and the symbo `in` can be used instead of `∈`) The
 expression `expr` can be of the form:
 - `paramexpr` creating parameters described by `paramexpr`.
-- `lb ≤ varexpr ≤ ub` creating parameters described by `paramexpr` characterized
+- `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
+   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+- `paramexpr ∈ [lb, ub]` creating parameters described by `paramexpr` characterized
    by a continuous interval set with lower bound `lb` and upper bound `ub`.
 - `paramexpr ∈ dist` creating parameters described by `paramexpr` characterized
    by the `Distributions.jl` distribution object `dist`.
@@ -175,14 +183,15 @@ macro infinite_parameter(model, args...)
     base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
     infoexpr = InfiniteOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
 
-    # There are four cases to consider:
+    # There are five cases to consider:
     # x                                         | type of x | x.head
     # ------------------------------------------+-----------+------------
-    # param                                     | Symbol    | NA
-    # param[1:2]                                | Expr      | :ref
-    # param <= ub or var[1:2] <= ub             | Expr      | :call
-    # lb <= param <= ub or lb <= var[1:2] <= ub | Expr      | :comparison
-    # In the two last cases, we call parse_variable
+    # param                                       | Symbol    | NA
+    # param[1:2]                                  | Expr      | :ref
+    # param <= ub or param[1:2] <= ub             | Expr      | :call
+    # param in [lb, ub]                           | Expr      | :call
+    # lb <= param <= ub or lb <= param[1:2] <= ub | Expr      | :comparison
+    # In the three last cases, we call parse_variable
     explicit_comparison = isexpr(x, :comparison) || isexpr(x, :call)
     if explicit_comparison
         param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)

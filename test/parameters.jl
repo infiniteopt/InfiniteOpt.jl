@@ -125,8 +125,12 @@ end
         @test info.has_lb && info.lower_bound == 0
         info = InfiniteOpt._ParameterInfoExpr()
         @test isa(InfiniteOpt._parse_one_operator_parameter(error, info,
-                                                          Val(:in), 0), Nothing)
-        @test info.has_dist && info.distribution == 0
+                                                          Val(:in), esc(0)), Nothing)
+        @test info.has_dist && info.distribution == esc(0)
+        info = InfiniteOpt._ParameterInfoExpr()
+        @test isa(InfiniteOpt._parse_one_operator_parameter(error, info,
+                                                          Val(:in), esc(:([0, 1]))), Nothing)
+        @test info.has_lb && info.has_ub
         @test_throws ErrorException InfiniteOpt._parse_one_operator_parameter(error, info,
                                                                               Val(:d), 0)
     end
