@@ -773,7 +773,7 @@ function _make_interval_set(_error::Function, expr::Expr)
         return Expr(:call, :IntervalSet, expr.args...)
     else
         _error("Unrecognized input format for parameter bounds. Must be of form " *
-        "par in [lb, ub] or par = value.")
+        "par in [lb, ub], lb <= par <= ub,  or par = value.")
     end
 end
 
@@ -782,19 +782,59 @@ function _process_parameter(arg)
     return Expr(:call, :(InfiniteOpt._make_vector), arg)
 end
 
-# Return a bound pair of form param => IntervalSet(lb, ub) or error
+## Return a bound pair of form param => IntervalSet(lb, ub) or error
+# Call expressions using :in
+function _make_bound_pair(_error::Function, expr::Expr,
+                          ::Union{Val{:in}, Val{:∈}})
+    set = _make_interval_set(_error, expr.args[3])
+    param = _process_parameter(expr.args[2])
+    return Expr(:call, :(=>), param, set)
+end
+
+# Call expressions using :(==)
+function _make_bound_pair(_error::Function, expr::Expr, ::Val{:(==)})
+    set = _make_interval_set(_error, Expr(:vect, expr.args[3], expr.args[3]))
+    param = _process_parameter(expr.args[2])
+    return Expr(:call, :(=>), param, set)
+end
+
+# Comparison expressions using something else
+function _make_bound_pair(_error::Function, expr::Expr, first)
+    _error("Invalid set format operators. Must be of form par in [lb, ub], " *
+           "lb <= par <= ub, or par = value.")
+end
+
+# Comparison expressions using :(<=)
+function _make_bound_pair(_error::Function, expr::Expr, ::Val{:(<=)},
+                          ::Val{:(<=)})
+    set = _make_interval_set(_error, Expr(:vect, expr.args[1], expr.args[5]))
+    param = _process_parameter(expr.args[3])
+    return Expr(:call, :(=>), param, set)
+end
+
+# Comparison expressions using :(>=)
+function _make_bound_pair(_error::Function, expr::Expr, ::Val{:(>=)},
+                          ::Val{:(>=)})
+    set = _make_interval_set(_error, Expr(:vect, expr.args[5], expr.args[1]))
+    param = _process_parameter(expr.args[3])
+    return Expr(:call, :(=>), param, set)
+end
+
+# Comparison expressions using something else
+function _make_bound_pair(_error::Function, expr::Expr, first, second)
+    _error("Invalid set format operators. Must be of form par in [lb, ub], " *
+           "lb <= par <= ub, or par = value.")
+end
+
+# General wrapper
 function _make_bound_pair(_error::Function, expr::Expr)
-    if isexpr(expr, :call) && expr.args[1] in [:in, :∈]
-        set = _make_interval_set(_error, expr.args[3])
-        param = _process_parameter(expr.args[2])
-        return Expr(:call, :(=>), param, set)
-    elseif isexpr(expr, :call) && expr.args[1] == :(==)
-        set = _make_interval_set(_error, Expr(:vect, expr.args[3], expr.args[3]))
-        param = _process_parameter(expr.args[2])
-        return Expr(:call, :(=>), param, set)
+    if isexpr(expr, :call)
+        return _make_bound_pair(_error, expr, Val(expr.args[1]))
+    elseif isexpr(expr, :comparison)
+        return _make_bound_pair(_error, expr, Val(expr.args[2]), Val(expr.args[4]))
     else
         _error("Unrecognized input format for parameter bounds. Must be of form " *
-        "par in [lb, ub] or par = value.")
+        "par in [lb, ub], lb <= par <= ub, or par = value.")
     end
 end
 
@@ -814,8 +854,8 @@ end
 function _extract_bounds(_error::Function, args::Vector, ::Val{:call})
     # check if only one parameter bound was given and nothing else
     if args[1] in [:in, :∈, :(==)]
-        dict_arg = _make_bound_pair(_error, Expr(:call, args...))
-        return nothing, Expr(:call, :Dict, dict_arg)
+        bounds = _parse_parameter_bounds(_error, Expr(:call, args...))
+        return nothing, bounds
     # otherwise parameter bounds were given with a name expression
     else
         name_expr = _parse_name_expression(_error, args[1])
@@ -827,6 +867,12 @@ end
 # (:tuple) In this case we know mulitple bounds are given with no name expression
 function _extract_bounds(_error::Function, args::Vector, ::Val{:tuple})
     bounds = _parse_parameter_bounds(_error, args)
+    return nothing, bounds
+end
+
+# (:comparison) In this case we have a single interval set and nothing else
+function _extract_bounds(_error::Function, args::Vector, ::Val{:comparison})
+    bounds = _parse_parameter_bounds(_error, Expr(:comparison, args...))
     return nothing, bounds
 end
 
@@ -856,13 +902,17 @@ this constraint over some sub-domain(s) via `bound_expr`. Here `(bound_expr)`
 can be of the form:
 
 - `(param in [lb, ub], ...)` enforcing `param` to be in a sub-domain from `lb`
-                             to `ub`
+                             to `ub` (note `∈` can be used in place of `in`)
 - `(params in [lb, ub], ...)` enforcing that all parameter references in `params`
+                              each be a in sub-domain from `lb` to `ub`
+- `(lb <= param <= ub, ...)` enforcing `param` to be in a sub-domain from `lb`
+                             to `ub`
+- `(lb <= params <= ub, ...)` enforcing that all parameter references in `params`
                               each be a in sub-domain from `lb` to `ub`
 - `(param == value, ...)` enforcing `param` to be equal to `value`
 - `(params == value, ...)` enforcing that all parameter references in `params`
                             each to be equal to `value`
-- Some combination of the above forms. Also, must be inside parentheses and comma
+- Any combination of the above forms. Must be inside parentheses and comma
   separated.
 
 Like typical constraints, the `container` keyword argument can be used to specify
@@ -919,7 +969,7 @@ macro BDconstraint(model, args...)
             _error("Must specify at least one parameter bound of the form " *
                    "@BDconstraint(model, name[i=..., ...](par in [lb, ub], " *
                    "par2 = value, ...), expr).")
-        elseif isexpr(x, :call) || isexpr(x, :tuple)
+        elseif isexpr(x, :call) || isexpr(x, :tuple) || isexpr(x, :comparison)
             name_expr, bounds = InfiniteOpt._extract_bounds(_error, x.args,
                                                             Val(x.head))
         else

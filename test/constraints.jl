@@ -262,47 +262,212 @@ end
     end
 end
 
-# TODO finish tests
 # Test all the methods for bound constraint macros
 @testset "Bounded Constraint Macros" begin
-    # initialize model and references
-    m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
-    @infinite_variable(m, inf(par))
-    @point_variable(m, inf(0.5), pt)
-    @global_variable(m, x)
     # test _parse_name_expression
     @testset "_parse_name_expression" begin
-
+        @test InfiniteOpt._parse_name_expression(error, :bob) == :bob
+        @test InfiniteOpt._parse_name_expression(error, :([i = 1:2])) == :([i = 1:2])
+        @test InfiniteOpt._parse_name_expression(error, :(bob[i = 1:2])) == :(bob[i = 1:2])
+        @test_throws ErrorException InfiniteOpt._parse_name_expression(error, :((2, 3)))
     end
     # test _make_interval_set
     @testset "_make_interval_set" begin
-
+        expected = :(IntervalSet(0, 1))
+        @test InfiniteOpt._make_interval_set(error, :([0, 1])) == expected
+        @test_throws ErrorException InfiniteOpt._make_interval_set(error, :([0]))
     end
     # test _process_parameter
     @testset "_process_parameter" begin
-
+        @test InfiniteOpt._process_parameter(:x) == :(InfiniteOpt._make_vector(x))
+    end
+    # test _make_bound_pair (in)
+    @testset "_make_bound_pair (in)" begin
+        expr = :(t in [0, 1])
+        set = :(IntervalSet(0, 1))
+        tp = :(InfiniteOpt._make_vector(t))
+        @test InfiniteOpt._make_bound_pair(error, expr,
+                                           Val(:in)) == :($(tp) => $(set))
+    end
+    # test _make_bound_pair (==)
+    @testset "_make_bound_pair (==)" begin
+        expr = :(t == 0)
+        set = :(IntervalSet(0, 0))
+        tp = :(InfiniteOpt._make_vector(t))
+        @test InfiniteOpt._make_bound_pair(error, expr,
+                                           Val(:(==))) == :($(tp) => $(set))
+    end
+    # test _make_bound_pair (comparison with <=)
+    @testset "_make_bound_pair (<=)" begin
+        expr = :(0 <= t <= 1)
+        set = :(IntervalSet(0, 1))
+        tp = :(InfiniteOpt._make_vector(t))
+        @test InfiniteOpt._make_bound_pair(error, expr, Val(:(<=)),
+                                           Val(:(<=))) == :($(tp) => $(set))
+    end
+    # test _make_bound_pair (comparison with >=)
+    @testset "_make_bound_pair (>=)" begin
+        expr = :(1 >= t >= 0)
+        set = :(IntervalSet(0, 1))
+        tp = :(InfiniteOpt._make_vector(t))
+        @test InfiniteOpt._make_bound_pair(error, expr, Val(:(>=)),
+                                           Val(:(>=))) == :($(tp) => $(set))
+    end
+    # test _make_bound_pair (comparison fallback)
+    @testset "_make_bound_pair (Fallback)" begin
+        expr = :(t <= 0)
+        @test_throws ErrorException InfiniteOpt._make_bound_pair(error, expr,
+                                                                 Val(:(<=)))
+        @test_throws ErrorException InfiniteOpt._make_bound_pair(error, expr,
+                                                         Val(:(<=)), Val(:(>=)))
+    end
+    # test _make_bound_pair (wrapper)
+    @testset "_make_bound_pair (Wrapper)" begin
+        # test :call expression
+        expr = :(t in [0, 1])
+        set = :(IntervalSet(0, 1))
+        tp = :(InfiniteOpt._make_vector(t))
+        @test InfiniteOpt._make_bound_pair(error, expr,
+                                           Val(:in)) == :($(tp) => $(set))
+        # test :compariosn expression
+        expr = :(0 <= t <= 1)
+        @test InfiniteOpt._make_bound_pair(error, expr, Val(:(<=)),
+                                           Val(:(<=))) == :($(tp) => $(set))
+        # test error
+        expr = :([2, 3])
+        @test_throws ErrorException InfiniteOpt._make_bound_pair(error, expr)
     end
     # test _parse_parameter_bounds (Vector)
     @testset "_parse_parameter_bounds (Vector)" begin
-
+        args = [:(t in [0, 1]), :(0 <= t <= 1)]
+        set = :(IntervalSet(0, 1))
+        tp = :(InfiniteOpt._make_vector(t))
+        dict_arg = :($(tp) => $(set))
+        dict = :(Dict($(dict_arg), $(dict_arg)))
+        @test InfiniteOpt._parse_parameter_bounds(error, args) == dict
     end
     # test _parse_parameter_bounds (Expr)
     @testset "_parse_parameter_bounds (Expr)" begin
-
+        expr = :(t in [0, 1])
+        set = :(IntervalSet(0, 1))
+        tp = :(InfiniteOpt._make_vector(t))
+        dict_arg = :($(tp) => $(set))
+        dict = :(Dict($(dict_arg)))
+        @test InfiniteOpt._parse_parameter_bounds(error, expr) == dict
     end
     # test _extract_bounds (:call)
     @testset "_extract_bounds (:call)" begin
-
+        # test single anonymous bound
+        args = [:in, :t, :([0, 1])]
+        set = :(IntervalSet(0, 1))
+        tp = :(InfiniteOpt._make_vector(t))
+        dict_arg = :($(tp) => $(set))
+        bounds = :(Dict($(dict_arg)))
+        @test InfiniteOpt._extract_bounds(error, args,
+                                          Val(:call)) == (nothing, bounds)
+        # test with name expression
+        args = [:(bob[i = 1:2]), :(t in [0, 1])]
+        @test InfiniteOpt._extract_bounds(error, args,
+                                          Val(:call)) == (args[1], bounds)
     end
     # test _extract_bounds (:tuple)
     @testset "_extract_bounds (:tuple)" begin
-
+        args = [:(t in [0, 1]), :(0 <= t <= 1)]
+        set = :(IntervalSet(0, 1))
+        tp = :(InfiniteOpt._make_vector(t))
+        dict_arg = :($(tp) => $(set))
+        bounds = :(Dict($(dict_arg), $(dict_arg)))
+        @test InfiniteOpt._extract_bounds(error, args,
+                                          Val(:tuple)) == (nothing, bounds)
+    end
+    # test _extract_bounds (:comparison)
+    @testset "_extract_bounds (:comparison)" begin
+        args = [0, :(<=), :t, :(<=), 1]
+        set = :(IntervalSet(0, 1))
+        tp = :(InfiniteOpt._make_vector(t))
+        dict_arg = :($(tp) => $(set))
+        bounds = :(Dict($(dict_arg)))
+        @test InfiniteOpt._extract_bounds(error, args,
+                                          Val(:comparison)) == (nothing, bounds)
     end
     # test @BDconstraint
     @testset "@BDconstraint" begin
-
+        # initialize model and references
+        m = InfiniteModel()
+        @infinite_parameter(m, 0 <= par <= 10)
+        @infinite_parameter(m, 0 <= pars[1:2] <= 10)
+        @infinite_variable(m, inf(par))
+        @point_variable(m, inf(0.5), pt)
+        @global_variable(m, x)
+        bounds1 = Dict(par => IntervalSet(0, 1))
+        m2 = Model()
+        # test errors
+        @test_macro_throws ErrorException @BDconstraint(m, par = 0, inf == 0,
+                                                     parameter_bounds = bounds1)
+        @test_macro_throws ErrorException @BDconstraint(m, inf == 0)
+        @test_macro_throws ErrorException @BDconstraint(m, con, inf == 0)
+        @test_macro_throws ErrorException @BDconstraint(m, con[1:2], inf == 0)
+        @test_macro_throws ErrorException @BDconstraint(m, [1:2], inf == 0)
+        @test_macro_throws ErrorException @BDconstraint(m, con, inf == 0)
+        @test_macro_throws ErrorException @BDconstraint(m, par = 2, inf == 0)
+        @test_macro_throws ErrorException @BDconstraint(m2, par == 0, inf == 0)
+        @test_macro_throws ErrorException @BDconstraint(m2, con(par == 0), inf == 0)
+        # test anonymous constraint with set
+        cref = InfiniteConstraintRef(m, 1, ScalarShape())
+        @test @BDconstraint(m, par in [0, 1], inf + x == 2) == cref
+        @test m.constrs[1].bounds == bounds1
+        # test anonymous constraint with comparison
+        cref = InfiniteConstraintRef(m, 2, ScalarShape())
+        @test @BDconstraint(m, 0 <= par <= 1, inf + x == 2) == cref
+        @test m.constrs[2].bounds == bounds1
+        # test anonymous constraint with equality
+        cref = InfiniteConstraintRef(m, 3, ScalarShape())
+        @test @BDconstraint(m, par == 0, inf + x == 2) == cref
+        @test m.constrs[3].bounds == Dict(par => IntervalSet(0, 0))
+        # test anonymous multiple constraint
+        cref1 = InfiniteConstraintRef(m, 4, ScalarShape())
+        cref2 = InfiniteConstraintRef(m, 5, ScalarShape())
+        @test @BDconstraint(m, [1:2](par == 0), inf + x == 2) == [cref1, cref2]
+        @test m.constrs[4].bounds == Dict(par => IntervalSet(0, 0))
+        @test m.constrs[5].bounds == Dict(par => IntervalSet(0, 0))
+        # test anonymous multiple bounds
+        cref = InfiniteConstraintRef(m, 6, ScalarShape())
+        @test @BDconstraint(m, (par == 0, pars[1] in [0, 1]), inf + x == 2) == cref
+        @test m.constrs[6].bounds == Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(0, 1))
+        # test anonymous multiple bounds with vector input
+        cref = InfiniteConstraintRef(m, 7, ScalarShape())
+        @test @BDconstraint(m, (par == 0, pars in [0, 1]), inf + x == 2) == cref
+        @test m.constrs[7].bounds == Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(0, 1),
+                                          pars[2] => IntervalSet(0, 1))
+        # test named constraint
+        cref = InfiniteConstraintRef(m, 8, ScalarShape())
+        @test @BDconstraint(m, c1(par in [0, 1]), inf + x == 2) == cref
+        @test m.constrs[8].bounds == bounds1
+        # test named constraint with other vector type
+        cref = InfiniteConstraintRef(m, 9, ScalarShape())
+        @test @BDconstraint(m, c2(par in [0, 1], 0 <= pars <= 1), inf + x == 2) == cref
+        @test m.constrs[9].bounds == Dict(par => IntervalSet(0, 1), pars[1] => IntervalSet(0, 1),
+                                          pars[2] => IntervalSet(0, 1))
+        # test named constraints
+        cref1 = InfiniteConstraintRef(m, 10, ScalarShape())
+        cref2 = InfiniteConstraintRef(m, 11, ScalarShape())
+        @test @BDconstraint(m, c3[1:2](par == 0), inf + x == 2) == [cref1, cref2]
+        @test m.constrs[10].bounds == Dict(par => IntervalSet(0, 0))
+        @test m.constrs[11].bounds == Dict(par => IntervalSet(0, 0))
+        # test different container type
+        cref1 = InfiniteConstraintRef(m, 12, ScalarShape())
+        cref2 = InfiniteConstraintRef(m, 13, ScalarShape())
+        expected = convert(JuMPC.SparseAxisArray, [cref1, cref2])
+        @test @BDconstraint(m, c4[1:2](par == 0), inf + x == 2,
+                            container = SparseAxisArray) == expected
+        @test m.constrs[12].bounds == Dict(par => IntervalSet(0, 0))
+        @test m.constrs[13].bounds == Dict(par => IntervalSet(0, 0))
+        # test with SparseAxisArray input
+        cref = InfiniteConstraintRef(m, 14, ScalarShape())
+        pars = convert(JuMPC.SparseAxisArray, pars)
+        @test @BDconstraint(m, c5(pars in [0, 1]), inf + x == 2) == cref
+        @test m.constrs[14].bounds == Dict(pars[1] => IntervalSet(0, 1),
+                                           pars[2] => IntervalSet(0, 1))
     end
 end
 
