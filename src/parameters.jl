@@ -120,7 +120,7 @@ end
 
 """
     build_parameter(_error::Function, set::AbstractInfiniteSet,
-                    [num_params::Int = 1;
+                    [num_params::Int64 = 1;
                     supports::Union{Number, Vector{<:Number}} = Number[],
                     independent::Bool = false])::InfOptParameter
 
@@ -137,15 +137,25 @@ InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
 ```
 """
 function build_parameter(_error::Function, set::AbstractInfiniteSet,
-                         num_params::Int = 1;
+                         num_params::Int64 = 1;
+                         num_pts::Int64 = 0,
                          supports::Union{Number, Vector{<:Number}} = Number[],
                          independent::Bool = false,
                          extra_kw_args...)::InfOptParameter
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
-    if length(supports) != 0
-        _check_supports_in_bounds(_error, supports, set)
+    if num_pts == 0
+        if length(supports) != 0
+            _check_supports_in_bounds(_error, supports, set)
+        end
+    else
+        if length(supports) != 0
+            @warn("Ignoring num_pts since supports is not empty.")
+        else
+            supports = generate_supports(set, num_pts)
+            _check_supports_in_bounds(_error, supports, set)
+        end
     end
     if isa(set, DistributionSet{<:Distributions.MultivariateDistribution})
         if num_params != length(set.distribution)
@@ -362,7 +372,7 @@ function _update_reduced_variable(vref::ReducedInfiniteVariableRef,
     eval_supps = eval_supports(vref)
     # removed parameter was a scalar
     if length(location) == 1
-        new_supports = Dict{Int, Union{Number, JuMPC.SparseAxisArray}}()
+        new_supports = Dict{Int64, Union{Number, JuMPC.SparseAxisArray}}()
         for (index, support) in eval_supps
             if index < location[1]
                 new_supports[index] = support
@@ -554,7 +564,7 @@ function JuMP.set_name(pref::ParameterRef, name::String)
 end
 
 """
-    num_parameters(model::InfiniteModel)::Int
+    num_parameters(model::InfiniteModel)::Int64
 
 Return the number of infinite parameters currently present in `model`.
 
@@ -564,7 +574,7 @@ julia> num_parameters(model)
 1
 ```
 """
-function num_parameters(model::InfiniteModel)::Int
+function num_parameters(model::InfiniteModel)::Int64
     return length(model.params)
 end
 
@@ -786,7 +796,7 @@ function JuMP.set_upper_bound(pref::ParameterRef, upper::Number)
 end
 
 """
-    num_supports(pref::ParameterRef)::Int
+    num_supports(pref::ParameterRef)::Int64
 
 Return the number of support points associated with `pref`.
 
@@ -796,7 +806,7 @@ julia> num_supports(t)
 1
 ```
 """
-function num_supports(pref::ParameterRef)::Int
+function num_supports(pref::ParameterRef)::Int64
     return length(_parameter_supports(pref))
 end
 
@@ -981,7 +991,39 @@ function delete_supports(pref::ParameterRef)
 end
 
 """
-    group_id(pref::ParameterRef)::Int
+    fill_in_supports!(model::InfiniteModel)
+"""
+function fill_in_supports!(model::InfiniteModel; num_pts::Int64 = 50)
+    prefs = all_parameters(model)
+    for pref in prefs
+        fill_in_supports!(pref, num_pts)
+    end
+end
+
+function fill_in_supports!(pref::ParameterRef; num_pts::Int64 = 50)
+    p = JuMP.owner_model(pref).params[JuMP.index(pref)]
+    if length(p.supports) == 0 && !isa(p.set.distribution,
+                                         Distributions.MultivariateDistribution)
+        supports = generate_supports(p.set, num_pts)
+        add_supports(pref, supports)
+    end
+end
+
+function generate_supports(set::IntervalSet, num_pts::Int64)::Vector{Float64}
+    lb = set.lower_bound
+    ub = set.upper_bound
+    return collect(range(lb, stop = ub, length = num_pts))
+end
+
+function generate_supports(set::DistributionSet, num_pts::Int64)::Vector{Float64}
+    if isa(set.distribution, Distributions.MultivariateDistribution)
+        error("Support generation for multivariate distribution not supported.")
+    end
+    return rand(set.distribution, num_pts)
+end
+
+"""
+    group_id(pref::ParameterRef)::Int64
 
 Return the group ID number for `pref`.
 
@@ -991,12 +1033,12 @@ julia> group_id(t)
 1
 ```
 """
-function group_id(pref::ParameterRef)::Int
+function group_id(pref::ParameterRef)::Int64
     return JuMP.owner_model(pref).param_to_group_id[JuMP.index(pref)]
 end
 
 """
-    group_id(prefs::AbstractArray{<:ParameterRef})::Int
+    group_id(prefs::AbstractArray{<:ParameterRef})::Int64
 
 Return the group ID number for a group of `prefs`. Error if contains multiple
 groups.
@@ -1007,7 +1049,7 @@ julia> group_id([x[1], x[2]])
 2
 ```
 """
-function group_id(prefs::AbstractArray{<:ParameterRef})::Int
+function group_id(prefs::AbstractArray{<:ParameterRef})::Int64
     groups = group_id.(prefs)
     length(unique(groups)) != 1 && error("Array contains parameters from " *
                                          "multiple groups.")
@@ -1086,7 +1128,7 @@ function parameter_by_name(model::InfiniteModel,
                            name::String)::Union{ParameterRef, Nothing}
     if model.name_to_param === nothing
         # Inspired from MOI/src/Utilities/model.jl
-        model.name_to_param = Dict{String, Int}()
+        model.name_to_param = Dict{String, Int64}()
         for (param, param_name) in model.param_to_name
             if haskey(model.name_to_param, param_name)
                 # -1 is a special value that means this string does not map to
@@ -1157,12 +1199,12 @@ end
 
 ## Internal functions for group checking
 # Return group id of ParameterRef
-function _group(pref::ParameterRef)::Int
+function _group(pref::ParameterRef)::Int64
     return group_id(pref)
 end
 
 # Return the group if of the first element in an array (assuming all same)
-function _group(arr::AbstractArray{<:ParameterRef})::Int
+function _group(arr::AbstractArray{<:ParameterRef})::Int64
     return group_id(first(arr))
 end
 

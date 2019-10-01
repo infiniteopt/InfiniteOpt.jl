@@ -369,7 +369,7 @@ the infinite variables.
 """
 struct ParameterRef <: GeneralVariableRef
     model::InfiniteModel
-    index::Int
+    index::Int64
 end
 
 """

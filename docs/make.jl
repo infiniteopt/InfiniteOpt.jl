@@ -24,7 +24,8 @@ makedocs(;
     authors = "Joshua Pulsipher",
     doctest = false
 )
-
+#= Comment this out for testing
 deploydocs(;
     repo = "github.com/pulsipher/InfiniteOpt.jl",
 )
+=#
