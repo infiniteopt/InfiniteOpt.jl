@@ -138,22 +138,22 @@ InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
 """
 function build_parameter(_error::Function, set::AbstractInfiniteSet,
                          num_params::Int64 = 1;
-                         num_pts::Int64 = 0,
+                         num_supports::Int64 = 0,
                          supports::Union{Number, Vector{<:Number}} = Number[],
                          independent::Bool = false,
                          extra_kw_args...)::InfOptParameter
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
-    if num_pts == 0
+    if num_supports == 0
         if length(supports) != 0
             _check_supports_in_bounds(_error, supports, set)
         end
     else
         if length(supports) != 0
-            @warn("Ignoring num_pts since supports is not empty.")
+            @warn("Ignoring num_supports since supports is not empty.")
         else
-            supports = generate_supports(set, num_pts)
+            supports = generate_supports(set, num_supports)
             _check_supports_in_bounds(_error, supports, set)
         end
     end
@@ -991,36 +991,135 @@ function delete_supports(pref::ParameterRef)
 end
 
 """
-    fill_in_supports!(model::InfiniteModel)
+    fill_in_supports!(model::InfiniteModel, num_supports::Int64 = 50)
+
+Automatically generate support points for all infinite parameters in model
+except for parameters in multivariate distributions, where we require that the
+user inputs the supports.
+
+**Example**
+```julia
+julia> x = @infinite_parameter(m, 0 <= x <= 1);
+
+julia> fill_in_supports!(m)
+
+julia> supports(x)
+50-element Array{Number,1}:
+ 0.0
+ 0.02041
+ 0.04082
+ 0.06122
+ 0.08163
+ 0.10204
+ 0.12245
+ 0.14286
+ 0.16327
+ 0.18367
+ ⋮
+ 0.83673
+ 0.85714
+ 0.87755
+ 0.89796
+ 0.91837
+ 0.93878
+ 0.95918
+ 0.97959
+ 1.0
+```
 """
-function fill_in_supports!(model::InfiniteModel, num_pts::Int64 = 50)
+function fill_in_supports!(model::InfiniteModel, num_supports::Int64 = 50)
     prefs = all_parameters(model)
     for pref in prefs
-        fill_in_supports!(pref, num_pts)
+        fill_in_supports!(pref, num_supports)
     end
 end
 
-function fill_in_supports!(pref::ParameterRef, num_pts::Int64 = 50)
+"""
+    fill_in_supports!(pref::Parameter, num_supports::Int64 = 50)
+
+Automatically generate support points for all infinite parameters in model
+except for parameters in multivariate distributions, where we require that the
+user inputs the supports.
+
+**Example**
+```julia
+julia> fill_in_supports!(x)
+
+julia> supports(x)
+50-element Array{Number,1}:
+ 0.0
+ 0.02041
+ 0.04082
+ 0.06122
+ 0.08163
+ 0.10204
+ 0.12245
+ 0.14286
+ 0.16327
+ 0.18367
+ ⋮
+ 0.83673
+ 0.85714
+ 0.87755
+ 0.89796
+ 0.91837
+ 0.93878
+ 0.95918
+ 0.97959
+ 1.0
+
+```
+"""
+
+function fill_in_supports!(pref::ParameterRef, num_supports::Int64 = 50)
     p = JuMP.owner_model(pref).params[JuMP.index(pref)]
     if length(p.supports) == 0 &&
        !(isa(p.set, DistributionSet) &&
          isa(p.set.distribution, Distributions.MultivariateDistribution))
-        supports = generate_supports(p.set, num_pts)
+        supports = generate_supports(p.set, num_supports)
         add_supports(pref, supports)
     end
 end
 
-function generate_supports(set::IntervalSet, num_pts::Int64)::Vector{Float64}
+"""
+    generate_supports(set::AbstractInfiniteSet, num_supports::Int64 = 50)::Vector{Float64}
+
+Return a vector of auto-generated support points for set of length num_supports.
+If set is an IntervalSet, supports are generated uniformly. If set is a
+DistributionSet, supports are sampled from the distribution of the set.
+
+**Example**
+```julia
+julia> dist_set = DistributionSet(Normal(0,1))
+DistributionSet{Normal{Float64}}(Normal{Float64}(μ=0.0, σ=1.0))
+
+julia> generate_supports(dist_set, 10)
+10-element Array{Float64,1}:
+ -0.67525
+ -1.50759
+  0.88388
+  0.63601
+  0.28196
+  2.17573
+  0.32762
+  0.91162
+  0.32664
+  0.36676
+
+```
+"""
+
+function generate_supports(set::IntervalSet, num_supports::Int64)::Vector{Float64}
     lb = set.lower_bound
     ub = set.upper_bound
-    return collect(range(lb, stop = ub, length = num_pts))
+    return round.(collect(range(lb, stop = ub, length = num_supports)), digits = 5)
 end
 
-function generate_supports(set::DistributionSet, num_pts::Int64)::Vector{Float64}
+function generate_supports(set::DistributionSet, num_supports::Int64)::Vector{Float64}
     if isa(set.distribution, Distributions.MultivariateDistribution)
         error("Support generation for multivariate distribution not supported.")
     end
-    return rand(set.distribution, num_pts)
+    return round.(rand(set.distribution, num_supports), digits = 5)
 end
 
 """
