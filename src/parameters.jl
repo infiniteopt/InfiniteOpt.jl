@@ -993,17 +993,18 @@ end
 """
     fill_in_supports!(model::InfiniteModel)
 """
-function fill_in_supports!(model::InfiniteModel; num_pts::Int64 = 50)
+function fill_in_supports!(model::InfiniteModel, num_pts::Int64 = 50)
     prefs = all_parameters(model)
     for pref in prefs
         fill_in_supports!(pref, num_pts)
     end
 end
 
-function fill_in_supports!(pref::ParameterRef; num_pts::Int64 = 50)
+function fill_in_supports!(pref::ParameterRef, num_pts::Int64 = 50)
     p = JuMP.owner_model(pref).params[JuMP.index(pref)]
-    if length(p.supports) == 0 && !isa(p.set.distribution,
-                                         Distributions.MultivariateDistribution)
+    if length(p.supports) == 0 &&
+       !(isa(p.set, DistributionSet) &&
+         isa(p.set.distribution, Distributions.MultivariateDistribution))
         supports = generate_supports(p.set, num_pts)
         add_supports(pref, supports)
     end

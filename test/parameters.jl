@@ -305,7 +305,6 @@ end
     @testset "Errors" begin
         @test_macro_throws ErrorException @infinite_parameter(m, 0 <= [1:2] <= 1)
         @test_macro_throws ErrorException @infinite_parameter(m, 0 <= "bob" <= 1)
-        @test_macro_throws ErrorException @infinite_parameter(m, 0 <= a <= 1)
         @test_macro_throws ErrorException @infinite_parameter(m, 0 <= j)
         @test_macro_throws ErrorException @infinite_parameter(m, j)
         @test_macro_throws ErrorException @infinite_parameter(m, j, foo = 42)
@@ -631,4 +630,24 @@ end
         @test length(all_parameters(m)) == 3
         @test all_parameters(m)[1] == pref
     end
+end
+
+# Test support flll-in and geneartion functions
+@testset "Support Fill-in and Generation" begin
+    m = InfiniteModel()
+    dist1 = Normal(0., 1.)
+    dist2 = MvNormal([0.; 0.], [1. 0.;0. 2.])
+    pref_a = @infinite_parameter(m, 0 <= a <= 1)
+    prefs_b = @infinite_parameter(m, 1 <= b[1:2] <= 2)
+    pref_c = @infinite_parameter(m, c in dist1)
+    prefs_d = @infinite_parameter(m, d[1:2] in dist2)
+    pref_e = @infinite_parameter(m, 2 <= e <= 3, supports = [2.3, 2.7])
+    fill_in_supports!(m, 10)
+    @test length(supports(pref_a)) == 10
+    @test length(supports(prefs_b[1])) == 10
+    @test length(supports(prefs_b[2])) == 10
+    @test length(supports(pref_c)) == 10
+    @test_throws ErrorException length(supports(prefs_d[1])) == 0
+    @test_throws ErrorException length(supports(prefs_d[2])) == 0
+    @test supports(pref_e) == [2.3, 2.7]
 end

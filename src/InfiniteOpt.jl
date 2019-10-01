@@ -94,4 +94,7 @@ export map_value, map_optimizer_index, map_dual, map_shadow_price
 # Export printing methods
 export bound_string
 
+# Export support generation and fill-in methods
+export fill_in_supports!, generate_supports
+
 end # module
