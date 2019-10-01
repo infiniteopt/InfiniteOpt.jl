@@ -1109,13 +1109,13 @@ julia> generate_supports(dist_set, 10)
 ```
 """
 
-function generate_supports(set::IntervalSet, num_supports::Int64)::Vector{Float64}
+function generate_supports(set::IntervalSet, num_supports::Int64 = 50)::Vector{Float64}
     lb = set.lower_bound
     ub = set.upper_bound
     return round.(collect(range(lb, stop = ub, length = num_supports)), digits = 5)
 end
 
-function generate_supports(set::DistributionSet, num_supports::Int64)::Vector{Float64}
+function generate_supports(set::DistributionSet, num_supports::Int64 = 50)::Vector{Float64}
     if isa(set.distribution, Distributions.MultivariateDistribution)
         error("Support generation for multivariate distribution not supported.")
     end
