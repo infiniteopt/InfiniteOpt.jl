@@ -34,6 +34,12 @@ using JuMP: REPLMode, IJuliaMode
         @test in_set_string(REPLMode, set) == str
         str = JuMP._math_symbol(IJuliaMode, :in) * " [0.1, 1.3]"
         @test in_set_string(IJuliaMode, set) == str
+        # test finite case
+        set = IntervalSet(0.1, 0.1)
+        str = JuMP._math_symbol(REPLMode, :eq) * " 0.1"
+        @test in_set_string(REPLMode, set) == str
+        str = JuMP._math_symbol(IJuliaMode, :eq) * " 0.1"
+        @test in_set_string(IJuliaMode, set) == str
     end
     # test in_set_string (Distribution)
     @testset "JuMP.in_set_string (Distribution)" begin

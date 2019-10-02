@@ -71,3 +71,19 @@ function _possible_convert(type::DataType,
         return quad
     end
 end
+
+## Define functions to convert a JuMP array into a vector (need for @BDconstraint)
+# AbstractArray
+function _make_vector(arr::AbstractArray)
+    return [arr[i] for i in keys(arr)]
+end
+
+# Array (no nothing)
+function _make_vector(arr::Array)
+    return arr
+end
+
+# Something else
+function _make_vector(arr)
+    return arr
+end

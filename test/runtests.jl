@@ -1,4 +1,4 @@
-# include("C:/Users/puls446/.julia/dev/InfiniteOpt/test/runtests.jl")
+# include("C:/Users/pulsipher/.julia/dev/InfiniteOpt/test/runtests.jl")
 
 using InfiniteOpt, JuMP, MathOptInterface, Distributions
 const MOI = MathOptInterface

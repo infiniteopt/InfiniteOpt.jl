@@ -125,8 +125,12 @@ end
         @test info.has_lb && info.lower_bound == 0
         info = InfiniteOpt._ParameterInfoExpr()
         @test isa(InfiniteOpt._parse_one_operator_parameter(error, info,
-                                                          Val(:in), 0), Nothing)
-        @test info.has_dist && info.distribution == 0
+                                                          Val(:in), esc(0)), Nothing)
+        @test info.has_dist && info.distribution == esc(0)
+        info = InfiniteOpt._ParameterInfoExpr()
+        @test isa(InfiniteOpt._parse_one_operator_parameter(error, info,
+                                                          Val(:in), esc(:([0, 1]))), Nothing)
+        @test info.has_lb && info.has_ub
         @test_throws ErrorException InfiniteOpt._parse_one_operator_parameter(error, info,
                                                                               Val(:d), 0)
     end
@@ -265,41 +269,45 @@ end
         pref = ParameterRef(m, 5)
         @test @infinite_parameter(m, set = IntervalSet(0, 1)) == pref
         @test name(pref) == ""
+        pref = ParameterRef(m, 6)
+        @test @infinite_parameter(m, z in [0, 1]) == pref
+        @test m.params[6].set == IntervalSet(0, 1)
+        @test name(pref) == "z"
     end
     # multiple parameters
     @testset "Array" begin
-        prefs = [ParameterRef(m, 6), ParameterRef(m, 7)]
+        prefs = [ParameterRef(m, 7), ParameterRef(m, 8)]
         @test @infinite_parameter(m, 0 <= e[1:2] <= 1) == prefs
-        @test m.params[6].set == IntervalSet(0, 1)
         @test m.params[7].set == IntervalSet(0, 1)
-        prefs = [ParameterRef(m, 8), ParameterRef(m, 9)]
+        @test m.params[8].set == IntervalSet(0, 1)
+        prefs = [ParameterRef(m, 9), ParameterRef(m, 10)]
         @test @infinite_parameter(m, [1:2], set = IntervalSet(0, 1)) == prefs
         @test m.params[8].set == IntervalSet(0, 1)
-        @test m.params[9].set == IntervalSet(0, 1)
-        prefs = [ParameterRef(m, 10), ParameterRef(m, 11)]
+        @test m.params[10].set == IntervalSet(0, 1)
+        prefs = [ParameterRef(m, 11), ParameterRef(m, 12)]
         sets = [IntervalSet(0, 1), IntervalSet(-1, 2)]
         @test @infinite_parameter(m, f[i = 1:2], set = sets[i]) == prefs
-        @test m.params[10].set == IntervalSet(0, 1)
-        @test m.params[11].set == IntervalSet(-1, 2)
-        prefs = [ParameterRef(m, 12), ParameterRef(m, 13)]
+        @test m.params[11].set == IntervalSet(0, 1)
+        @test m.params[12].set == IntervalSet(-1, 2)
+        prefs = [ParameterRef(m, 13), ParameterRef(m, 14)]
         @test @infinite_parameter(m, [i = 1:2], set = sets[i]) == prefs
-        @test m.params[12].set == IntervalSet(0, 1)
-        @test m.params[13].set == IntervalSet(-1, 2)
-        prefs = [ParameterRef(m, 14), ParameterRef(m, 15)]
+        @test m.params[13].set == IntervalSet(0, 1)
+        @test m.params[14].set == IntervalSet(-1, 2)
+        prefs = [ParameterRef(m, 15), ParameterRef(m, 16)]
         @test @infinite_parameter(m, [0, -1][i] <= g[i = 1:2] <= [1, 2][i]) == prefs
-        @test m.params[14].set == IntervalSet(0, 1)
-        @test m.params[15].set == IntervalSet(-1, 2)
-        prefs = [ParameterRef(m, 16), ParameterRef(m, 17)]
+        @test m.params[15].set == IntervalSet(0, 1)
+        @test m.params[16].set == IntervalSet(-1, 2)
+        prefs = [ParameterRef(m, 17), ParameterRef(m, 18)]
         @test @infinite_parameter(m, 0 <= h[1:2] <= 1,
                                   independent = true) == prefs
-        @test m.params[16].independent
         @test m.params[17].independent
-        prefs = [ParameterRef(m, 18), ParameterRef(m, 19)]
+        @test m.params[18].independent
+        prefs = [ParameterRef(m, 19), ParameterRef(m, 20)]
         prefs = convert(JuMP.Containers.SparseAxisArray, prefs)
         @test @infinite_parameter(m, 0 <= i[1:2] <= 1,
                                   container = SparseAxisArray) == prefs
-        @test m.params[18].set == IntervalSet(0, 1)
         @test m.params[19].set == IntervalSet(0, 1)
+        @test m.params[20].set == IntervalSet(0, 1)
     end
     # test for errors
     @testset "Errors" begin

@@ -34,6 +34,7 @@ Modules = [InfiniteOpt, JuMP]
 Order   = [:macro, :function]
 ```
 ```@docs
+@BDconstraint
 JuMP.build_constraint(::Function, ::InfiniteExpr, ::MOI.AbstractScalarSet)
 JuMP.add_constraint(::InfiniteModel, ::JuMP.AbstractConstraint)
 JuMP.owner_model(::GeneralConstraintRef)

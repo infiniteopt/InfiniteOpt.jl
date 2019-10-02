@@ -45,12 +45,45 @@ JuMP.constraint_type(m::InfiniteModel) = GeneralConstraintRef
 # Set default bounded set
 const default_bounds = Dict{ParameterRef, IntervalSet}()
 
+## Modify parameter dictionary to expand any multidimensional parameter keys
+# Case where dictionary is already in correct form
+function _expand_parameter_dict(param_bounds::Dict{ParameterRef,
+                                                   IntervalSet})::Dict
+    return param_bounds
+end
+
+# Case where dictionary contains vectors
+function _expand_parameter_dict(param_bounds::Dict{<:Any, IntervalSet})::Dict
+    # Initialize new dictionary
+    new_dict = Dict{ParameterRef, IntervalSet}()
+    # Find vector keys and expand
+    for (key, set) in param_bounds
+        # expand over the array of parameters if this is
+        if isa(key, AbstractArray)
+            for param in values(key)
+                new_dict[param] = set
+            end
+        # otherwise we have parameter reference
+        else
+            new_dict[key] = set
+        end
+    end
+    return new_dict
+end
+
+# Case where dictionary contains vectors
+function _expand_parameter_dict(param_bounds::Dict)
+    error("Invalid parameter bound dictionary format.")
+end
+
 # This might not be necessary...
 function JuMP.build_constraint(_error::Function,
                                v::Union{InfiniteVariableRef, MeasureRef},
                                set::MOI.AbstractScalarSet;
-                               parameter_bounds::Dict{ParameterRef,
-                                                  IntervalSet} = default_bounds)
+                               parameter_bounds::Dict = default_bounds)
+    # expand the bounds if necessary
+    parameter_bounds = _expand_parameter_dict(parameter_bounds)
+    # make the constraint
     if length(parameter_bounds) != 0
         return BoundedScalarConstraint(v, set, parameter_bounds)
     else
@@ -80,8 +113,10 @@ true
 function JuMP.build_constraint(_error::Function,
                                expr::Union{InfiniteExpr, MeasureExpr},
                                set::MOI.AbstractScalarSet;
-                               parameter_bounds::Dict{ParameterRef,
-                                                  IntervalSet} = default_bounds)
+                               parameter_bounds::Dict = default_bounds)
+    # expand the bounds if necessary
+    parameter_bounds = _expand_parameter_dict(parameter_bounds)
+    # make the constraint
     offset = JuMP.constant(expr)
     JuMP.add_to_expression!(expr, -offset)
     if length(parameter_bounds) != 0
