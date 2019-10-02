@@ -160,6 +160,8 @@ function DiscreteMeasureData(parameter_ref::ParameterRef,
                              name::String = "measure",
                              weight_function::Function = _w
                              )::DiscreteMeasureData
+    is_finite_parameter(parameter_ref) && error("Measure parameter cannot be " *
+                                                "finite.")
     return DiscreteMeasureData(parameter_ref, coefficients, supports, name,
                                weight_function)
 end
@@ -195,6 +197,8 @@ function DiscreteMeasureData(parameter_ref::AbstractArray{<:ParameterRef},
                              name::String = "measure",
                              weight_function::Function = _w
                              )::MultiDiscreteMeasureData
+    any(is_finite_parameter.(parameter_ref)) && error("Measure parameter cannot " *
+                                                      " be finite.")
     supports = [convert(JuMPC.SparseAxisArray, s) for s in supports]
     parameter_ref = convert(JuMPC.SparseAxisArray, parameter_ref)
     return MultiDiscreteMeasureData(parameter_ref, coefficients, supports, name,

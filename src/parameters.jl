@@ -981,6 +981,62 @@ function delete_supports(pref::ParameterRef)
 end
 
 """
+    is_finite_parameter(pref::ParameterRef)::Bool
+
+Return a `Bool` indicating if `pref` is a finite parameter.
+
+**Example**
+```julia
+julia> is_finite_parameter(cost)
+true
+```
+"""
+function is_finite_parameter(pref::ParameterRef)::Bool
+    set = infinite_set(pref)
+    if isa(set, IntervalSet)
+        if set.lower_bound == set.upper_bound
+            return true
+        end
+    end
+    return false
+end
+
+"""
+    JuMP.value(pref::ParameterRef)::Number
+
+Return the value of `pref` so long as it is a finite parameter. Errors if it is
+an infinite parameter.
+
+**Example**
+```julia
+julia> value(cost)
+42.0
+```
+"""
+function JuMP.value(pref::ParameterRef)::Number
+    !is_finite_parameter(pref) && error("$pref is an infinite parameter.")
+    return supports(pref)[1]
+end
+
+"""
+    JuMP.set_value(pref::ParameterRef, value::Number)
+
+Set the value of `pref` so long as it is a finite parameter. Errors if it is
+an infinite parameter.
+
+**Example**
+```julia
+julia> set_value(cost, 27)
+27.0
+```
+"""
+function JuMP.set_value(pref::ParameterRef, value::Number)
+    !is_finite_parameter(pref) && error("$pref is an infinite parameter.")
+    set_supports(pref, [value])
+    return
+end
+
+"""
     group_id(pref::ParameterRef)::Int
 
 Return the group ID number for `pref`.

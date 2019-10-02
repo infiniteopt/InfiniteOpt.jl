@@ -640,3 +640,26 @@ end
         @test all_parameters(m)[1] == pref
     end
 end
+
+# TODO Finish tests 
+# Test methods for finite parameters
+@testset "Finite Parameters" begin
+    # initialize the model
+    m = InfiniteModel()
+    # test @finite_parameter
+    @testset "@finite_parameter" begin
+
+    end
+    # test is_finite_parameter
+    @testset "is_finite_parameter" begin
+
+    end
+    # test JuMP.value
+    @testset "JuMP.value" begin
+
+    end
+    # test JuMP.set_value
+    @testset "JuMP.set_value" begin
+
+    end
+end
