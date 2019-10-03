@@ -163,21 +163,27 @@ end
 
 # Check that parameter_bounds argument is valid
 function _check_bounds(model::InfiniteModel, bounds::Dict)
-    prefs = collect(keys(bounds))
-    for pref in prefs
+    for (pref, set) in bounds
+        # check validity
         !JuMP.is_valid(model, pref) && error("Parameter bound reference " *
                                              "is invalid.")
+        # check that respects lower bound
         if JuMP.has_lower_bound(pref)
             if bounds[pref].lower_bound < JuMP.lower_bound(pref)
                 error("Specified parameter lower bound exceeds that defined " *
                       "for $pref.")
             end
         end
+        # check that respects upper bound
         if JuMP.has_upper_bound(pref)
             if bounds[pref].upper_bound > JuMP.upper_bound(pref)
                 error("Specified parameter upper bound exceeds that defined " *
                       "for $pref.")
             end
+        end
+        # ensure has a support if a point constraint was given
+        if set.lower_bound == set.upper_bound
+            add_supports(pref, set.lower_bound)
         end
     end
     return
