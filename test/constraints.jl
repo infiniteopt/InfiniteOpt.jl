@@ -204,7 +204,7 @@ end
         @test supports(par) == [0.5, 1.]
         @test isa(InfiniteOpt._check_bounds(m, Dict(par => IntervalSet(0, 0))),
                                                                         Nothing)
-        @test supports(par) == [0., 0.5, 1.]
+        @test supports(par) == [0.5, 1., 0.]
         # test errors
         par2 = ParameterRef(InfiniteModel(), 2)
         @test_throws ErrorException InfiniteOpt._check_bounds(m,
@@ -414,7 +414,7 @@ end
         @test_macro_throws ErrorException @BDconstraint(m, con[1:2], inf == 0)
         @test_macro_throws ErrorException @BDconstraint(m, [1:2], inf == 0)
         @test_macro_throws ErrorException @BDconstraint(m, con, inf == 0)
-        @test_macro_throws ErrorException @BDconstraint(m, [0 0; 0 0], inf == 0)
+        @test_macro_throws ErrorException @BDconstraint(m, a.b, inf == 0)
         @test_macro_throws ErrorException @BDconstraint(m2, par == 0, inf == 0)
         @test_macro_throws ErrorException @BDconstraint(m2, con(par == 0), inf == 0)
         # test anonymous constraint with set

@@ -80,6 +80,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+    @finite_parameter(m, fpar, 42)
     # test default weight function
     @testset "_w" begin
         @test InfiniteOpt._w(42) == 1
@@ -95,6 +96,7 @@ end
         # test errors
         @test_throws ErrorException DiscreteMeasureData(par, [1], Int[])
         @test_throws ErrorException DiscreteMeasureData(par, [1], [2])
+        @test_throws ErrorException DiscreteMeasureData(fpar, [1], [1])
     end
     # test MultiDiscreteMeasureData constructor for array parameters
     @testset "DiscreteMeasureData (array)" begin
@@ -110,6 +112,8 @@ end
         pars2 = JuMP.Containers.SparseAxisArray(Dict((1,) => pars[1],
                                                   (2,) => pars[2], (3,) => par))
         @test_throws ErrorException DiscreteMeasureData(pars2, [1], [[0, 0, 0]])
+        @test_throws ErrorException DiscreteMeasureData([fpar, fpar], [1],
+                                                        [[1, 1]])
     end
 end
 

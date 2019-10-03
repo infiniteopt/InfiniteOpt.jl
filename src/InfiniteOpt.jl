@@ -33,7 +33,7 @@ export InfiniteModel
 
 # Export macros and constants
 export @infinite_variable, @point_variable, @global_variable, @infinite_parameter,
-@BDconstraint, Infinite, Global, Point, Parameter
+@BDconstraint, @finite_parameter, Infinite, Global, Point, Parameter
 
 # Export infinite parameter datatypes
 export InfOptParameter, ParameterRef
@@ -52,7 +52,7 @@ export build_parameter, add_parameter, infinite_set, set_infinite_set,
 num_parameters, parameter_by_name, all_parameters, num_supports, has_supports,
 set_supports, add_supports, delete_supports, supports, used_by_constraint,
 used_by_measure, used_by_variable, is_used, group_id, is_independent,
-set_independent, unset_independent
+set_independent, unset_independent, is_finite_parameter
 
 # Export variable methods
 export used_by_objective, infinite_variable_ref, parameter_refs,

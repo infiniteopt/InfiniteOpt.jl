@@ -777,6 +777,7 @@ end
     @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
     @global_variable(m, 0 <= z <= 1, Bin)
     @global_variable(m, w == 1, Int, start = 1)
+    @finite_parameter(m, fin, 0)
     data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
     meas1 = measure(x - w, data1)
     meas2 = measure(y, data1)
@@ -784,7 +785,7 @@ end
     @constraint(m, c1, x + par - z == 0)
     @constraint(m, c2, z + x0 >= -3)
     @constraint(m, c3, meas1 + z == 0)
-    @constraint(m, c4, meas2 - 2y0 + x <= 1, parameter_bounds = bounds)
+    @constraint(m, c4, meas2 - 2y0 + x + fin <= 1, parameter_bounds = bounds)
     @constraint(m, c5, meas2 == 0)
     @objective(m, Min, x0 + meas1)
     # test basic usage
@@ -842,7 +843,7 @@ end
     @test name(tm.ext[:TransData].finite_to_constr[c2]) == "c2"
     @test name(tm.ext[:TransData].infinite_to_constrs[c1][1]) == "c1(Support: 1)"
     @test tm.ext[:TransData].infconstr_to_params[c1] == (par, )
-    @test tm.ext[:TransData].infconstr_to_params[c4] == (pars, par)
+    @test tm.ext[:TransData].infconstr_to_params[c4] == (pars, par, fin)
     @test tm.ext[:TransData].infconstr_to_supports[c1] == [(0,), (1,)]
     @test tm.ext[:TransData].measconstr_to_params[c5] == (pars,)
     # test info constraints
