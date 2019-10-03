@@ -39,7 +39,6 @@ Order   = [:macro, :function]
 ```
 ```@docs
 @infinite_parameter
-@finite_parameter
 IntervalSet(::Number, ::Number)
 add_parameter
 build_parameter
@@ -67,9 +66,6 @@ supports(::AbstractArray{<:ParameterRef})
 set_supports(::ParameterRef, ::Vector{<:Number})
 add_supports(::ParameterRef, ::Union{Number, Vector{<:Number}})
 delete_supports(::ParameterRef)
-is_finite_parameter
-JuMP.value(::ParameterRef)
-JuMP.set_value(::ParameterRef, ::Number)
 group_id(::ParameterRef)
 group_id(::AbstractArray{<:ParameterRef})
 is_independent(::ParameterRef)
