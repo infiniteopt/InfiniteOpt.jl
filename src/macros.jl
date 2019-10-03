@@ -1077,7 +1077,7 @@ macro BDconstraint(model, args...)
     else
         # process the 2nd argument for the parameter bounds if provided
         x = popfirst!(extra)
-        if isexpr(x, :ref) || isexpr(x, :vect) || isa(x, Symbol) ||
+        if isexpr(x, :ref) || isexpr(x, :vect) || isa(x, Symbol) || isexpr(x, :vcat)
             _error("Must specify at least one parameter bound of the form " *
                    "@BDconstraint(model, name[i=..., ...](par in [lb, ub], " *
                    "par2 = value, ...), expr).")

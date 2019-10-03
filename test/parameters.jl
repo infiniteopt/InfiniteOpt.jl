@@ -423,18 +423,19 @@ end
     end
     # set_supports
     @testset "set_supports" begin
-        @test isa(set_supports(pref, [0, 1]), Nothing)
+        @test isa(set_supports(pref, [0, 1], force = true), Nothing)
         @test supports(pref) == [0, 1]
         @test_throws ErrorException set_supports(pref, [2, 3])
         warn = "Support points are not unique, eliminating redundant points."
-        @test_logs (:warn, warn) set_supports(pref, [1, 1])
+        @test_logs (:warn, warn) set_supports(pref, [1, 1], force = true)
+        @test_throws ErrorException set_supports(pref, [0.5])
     end
     # add_supports
     @testset "add_supports" begin
         @test isa(add_supports(pref, 0.5), Nothing)
-        @test supports(pref) == [0.5, 1]
+        @test supports(pref) == [1, 0.5]
         @test isa(add_supports(pref, [0, 0.25, 1]), Nothing)
-        @test supports(pref) == [0, 0.25, 0.5, 1]
+        @test supports(pref) == [1, 0.5, 0, 0.25]
     end
     # delete_supports
     @testset "delete_supports" begin
@@ -641,25 +642,68 @@ end
     end
 end
 
-# TODO Finish tests 
+# TODO Finish tests
 # Test methods for finite parameters
 @testset "Finite Parameters" begin
     # initialize the model
     m = InfiniteModel()
     # test @finite_parameter
     @testset "@finite_parameter" begin
-
+        m2 = Model()
+        # test errors
+        @test_macro_throws ErrorException @finite_parameter(m)
+        @test_macro_throws ErrorException @finite_parameter(m, a, 2, 3)
+        @test_macro_throws ErrorException @finite_parameter(m, (2, 3, 4), 2)
+        @test_macro_throws ErrorException @finite_parameter(m2, 2)
+        @test_macro_throws ErrorException @finite_parameter(m, "bob")
+        @test_macro_throws ErrorException @finite_parameter(m2, test, 2)
+        @test_macro_throws ErrorException @finite_parameter(m, test, 2, bob = 2)
+        # test anonymous definition
+        pref = ParameterRef(m, 1)
+        @test @finite_parameter(m, 42) == pref
+        @test supports(pref) == [42]
+        @test infinite_set(pref) == IntervalSet(42, 42)
+        # test vector anonymous definition
+        prefs = [ParameterRef(m, 2), ParameterRef(m, 3)]
+        @test @finite_parameter(m, [1:2], 42, base_name = "a") == prefs
+        @test supports(prefs[1]) == [42]
+        @test infinite_set(prefs[2]) == IntervalSet(42, 42)
+        @test name.(prefs) == ["a[1]", "a[2]"]
+        # test named definition
+        pref = ParameterRef(m, 4)
+        @test @finite_parameter(m, b, 42) == pref
+        @test supports(pref) == [42]
+        @test infinite_set(pref) == IntervalSet(42, 42)
+        @test name(pref) == "b"
+        # test named vector definition
+        prefs = [ParameterRef(m, 5), ParameterRef(m, 6)]
+        prefs = convert(JuMPC.SparseAxisArray, prefs)
+        @test @finite_parameter(m, c[i = 1:2], [3, 7][i],
+                                container = SparseAxisArray) == prefs
+        @test supports(prefs[2]) == [7]
+        @test infinite_set(prefs[1]) == IntervalSet(3, 3)
+        @test name(prefs[2]) == "c[2]"
     end
     # test is_finite_parameter
     @testset "is_finite_parameter" begin
-
+        @infinite_parameter(m, 0 <= d <= 1)
+        @finite_parameter(m, e, 1)
+        @test !is_finite_parameter(d)
+        @test is_finite_parameter(e)
     end
     # test JuMP.value
     @testset "JuMP.value" begin
-
+        @infinite_parameter(m, 0 <= f <= 1)
+        @finite_parameter(m, g, 1)
+        @test value(g) == 1
+        @test_throws ErrorException value(f)
     end
     # test JuMP.set_value
     @testset "JuMP.set_value" begin
-
+        @infinite_parameter(m, 0 <= h <= 1)
+        @finite_parameter(m, i, 1)
+        @test isa(set_value(i, 42), Nothing)
+        @test value(i) == 42
+        @test_throws ErrorException set_value(h, 42)
     end
 end

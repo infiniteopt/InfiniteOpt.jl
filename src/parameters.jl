@@ -153,7 +153,7 @@ function build_parameter(_error::Function, set::AbstractInfiniteSet,
                    "of parameter.")
         end
     end
-    unique_supports = sort(unique(supports))
+    unique_supports = unique(supports)
     if length(unique_supports) != length(supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
@@ -901,11 +901,12 @@ function supports(prefs::AbstractArray{<:ParameterRef})::Vector
 end
 
 """
-    set_supports(pref::ParameterRef, supports::Vector{<:Number})
+    set_supports(pref::ParameterRef, supports::Vector{<:Number}; force = false)
 
 Specify the support points for `pref`. Errors if the supports violate the bounds
-associated with the infinite set. Warns if the points are not unique. Note that
-this will overwrite existing supports.
+associated with the infinite set. Warns if the points are not unique. If `force`
+this will overwrite exisiting supports otherwise it will error if there are
+existing supports.
 
 **Example**
 ```julia
@@ -917,10 +918,16 @@ julia> supports(t)
  1
 ```
 """
-function set_supports(pref::ParameterRef, supports::Vector{<:Number})
+function set_supports(pref::ParameterRef, supports::Vector{<:Number};
+                      force = false)
     set = _parameter_set(pref)
     _check_supports_in_bounds(error, supports, set)
-    unique_supports = sort(unique(supports))
+    if has_supports(pref) && !force
+        error("Unable set supports for $pref since it already has supports." *
+              " Consider using `add_supports` or use set `force = true` to " *
+              "overwrite the existing supports.")
+    end
+    unique_supports = unique(supports)
     if length(unique_supports) != length(supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
@@ -958,7 +965,7 @@ function add_supports(pref::ParameterRef, supports::Union{Number,
     set = _parameter_set(pref)
     _check_supports_in_bounds(error, supports, set)
     current_supports = _parameter_supports(pref)
-    _update_parameter_supports(pref, sort(unique([current_supports; supports])))
+    _update_parameter_supports(pref, unique([current_supports; supports]))
     return
 end
 
@@ -976,7 +983,7 @@ ERROR: Parameter test does not have supports.
 ```
 """
 function delete_supports(pref::ParameterRef)
-    _update_parameter_supports(pref, Number[])
+    _update_parameter_supports(pref, Int64[])
     return
 end
 
@@ -1032,7 +1039,8 @@ julia> set_value(cost, 27)
 """
 function JuMP.set_value(pref::ParameterRef, value::Number)
     !is_finite_parameter(pref) && error("$pref is an infinite parameter.")
-    set_supports(pref, [value])
+    set_infinite_set(pref, IntervalSet(value, value))
+    set_supports(pref, [value], force = true)
     return
 end
 

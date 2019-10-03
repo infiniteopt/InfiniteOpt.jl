@@ -409,7 +409,7 @@ end
         @test_macro_throws ErrorException @BDconstraint(m, con[1:2], inf == 0)
         @test_macro_throws ErrorException @BDconstraint(m, [1:2], inf == 0)
         @test_macro_throws ErrorException @BDconstraint(m, con, inf == 0)
-        @test_macro_throws ErrorException @BDconstraint(m, par = 2, inf == 0)
+        @test_macro_throws ErrorException @BDconstraint(m, a.b, inf == 0)
         @test_macro_throws ErrorException @BDconstraint(m2, par == 0, inf == 0)
         @test_macro_throws ErrorException @BDconstraint(m2, con(par == 0), inf == 0)
         # test anonymous constraint with set
