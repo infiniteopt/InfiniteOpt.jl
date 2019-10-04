@@ -13,7 +13,7 @@ A guide and manual to the definition and use of finite parameters in
 
 ## Methods/Macros
 ```@index
-Pages   = ["parameter.md"]
+Pages   = ["finite_parameter.md"]
 Modules = [InfiniteOpt, JuMP]
 Order   = [:macro, :function]
 ```
