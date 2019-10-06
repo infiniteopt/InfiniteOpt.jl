@@ -427,7 +427,7 @@ end
                            parameter_values = (0, 1))
         @test add_variable(m, v, "name") == PointVariableRef(m, 4)
         @test haskey(m.vars, 4)
-        @test supports(pref) == [0, 0.5]
+        @test supports(pref) == [0.5, 0]
         @test supports(pref2) == [1]
         @test m.var_to_name[4] == "name"
         @test m.infinite_to_points[JuMP.index(ivref)] == [4]

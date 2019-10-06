@@ -131,14 +131,17 @@ a different dimension than `num_params`. This is meant to primarily serve as a
 helper method for [`@infinite_parameter`](@ref).
 
 **Example**
-```julia
+```jldoctest
 julia> build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
 InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
 ```
 """
 function build_parameter(_error::Function, set::AbstractInfiniteSet,
                          num_params::Int64 = 1;
+<<<<<<< HEAD
                          num_supports::Int64 = 0,
+=======
+>>>>>>> e7533b7c5230309658256f60fdb8eb9e259a61da
                          supports::Union{Number, Vector{<:Number}} = Number[],
                          independent::Bool = false,
                          extra_kw_args...)::InfOptParameter
@@ -172,7 +175,7 @@ end
 
 """
     add_parameter(model::InfiniteModel, p::InfOptParameter,
-                  name::String="")::ParameterRef
+                  [name::String = ""])::ParameterRef
 
 Returns a [`ParameterRef`](@ref) associated with the parameter `p` that is added
 to `model`. This adds a parameter to the model in a manner similar to
@@ -181,7 +184,7 @@ to `model`. This adds a parameter to the model in a manner similar to
 construct `p`.
 
 **Example**
-```julia
+```jldoctest; :(using InfiniteOpt; model = InfiniteModel())
 julia> p = build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
 InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
 
@@ -400,14 +403,14 @@ end
 """
     JuMP.delete(model::InfiniteModel, pref::ParameterRef)
 
-Extend [`JuMP.delete`](@ref) to delete infinite parameters and their
-dependencies. All variables, constraints, and measure functions that depend on
-`pref` are updated to exclude it. Errors if the parameter is contained in an
-`AbstractMeasureData` datatype that is employed by a measure since the measure
-becomes invalid otherwise. Thus, measures that contain this dependency must
-be deleted first. Note that `_check_param_in_data(pref, measure_data)` needs to
-be extended to allow deletion of parameters when custom `AbstractMeasureData`
-datatypes are used.
+Extend [`JuMP.delete`](@ref JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)) to delete
+infinite parameters and their dependencies. All variables, constraints, and
+measure functions that depend on `pref` are updated to exclude it. Errors if the
+parameter is contained in an `AbstractMeasureData` datatype that is employed by
+a measure since the measure becomes invalid otherwise. Thus, measures that
+contain this dependency must be deleted first. Note that
+```_check_param_in_data(pref, measure_data)``` needs to be extended to allow
+deletion of parameters when custom `AbstractMeasureData` datatypes are used.
 
 **Example**
 ```julia
@@ -511,12 +514,13 @@ end
 """
     JuMP.is_valid(model::InfiniteModel, pref::ParameterRef)::Bool
 
-Extend the [`JuMP.is_valid`](@ref) function to accomodate infinite parameters.
+Extend the [`JuMP.is_valid`](@ref JuMP.is_valid(::JuMP.Model, ::JuMP.VariableRef))
+function to accomodate infinite parameters.
 Returns true if the `InfiniteModel` stored in `pref` matches `model` and if
 the parameter index is used by `model`. It returns false otherwise.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> is_valid(model, t)
 true
 ```
@@ -530,11 +534,11 @@ end
 """
     JuMP.name(pref::ParameterRef)::String
 
-Extend the `JuMP.name` function to accomodate infinite parameters. Returns the
-name string associated with `pref`.
+Extend the [`JuMP.name`](@ref JuMP.name(::JuMP.VariableRef)) function to
+accomodate infinite parameters. Returns the name string associated with `pref`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> name(t)
 "t"
 ```
@@ -546,11 +550,12 @@ end
 """
     JuMP.set_name(pref::ParameterRef, name::String)
 
-Extend the `JuMP.set_name` function to accomodate infinite parameters. Set a new
-base name to be associated with `pref`.
+Extend the [`JuMP.set_name`](@ref JuMP.set_name(::JuMP.VariableRef, ::String))
+function to accomodate infinite parameters. Set a new base name to be associated
+with `pref`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> set_name(t, "time")
 
 julia> name(t)
@@ -569,7 +574,7 @@ end
 Return the number of infinite parameters currently present in `model`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> num_parameters(model)
 1
 ```
@@ -606,9 +611,9 @@ end
 Return the infinite set associated with `pref`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> infinite_set(t)
-IntervalSet(0.0, 3.0)
+IntervalSet(0.0, 1.0)
 ```
 """
 function infinite_set(pref::ParameterRef)::AbstractInfiniteSet
@@ -621,11 +626,11 @@ end
 Specify the infinite set of `pref`.
 
 **Example**
-```julia
-julia> set_infinite_set(t, IntervalSet(0, 1))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> set_infinite_set(t, IntervalSet(0, 2))
 
 julia> infinite_set(t)
-IntervalSet(0.0, 1.0)
+IntervalSet(0.0, 2.0)
 ```
 """
 function set_infinite_set(pref::ParameterRef, set::AbstractInfiniteSet)
@@ -641,7 +646,7 @@ Return true if the set associated with `pref` has a defined lower bound or if a
 lower bound can be found.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> has_lower_bound(t)
 true
 ```
@@ -670,7 +675,7 @@ Returns the lower bound associated with the infinite set. Errors if such a bound
 is not well-defined.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> lower_bound(t)
 0.0
 ```
@@ -695,7 +700,7 @@ Updates the infinite set lower bound if and only if it is an IntervalSet. Errors
 otherwise.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> set_lower_bound(t, -1)
 
 julia> lower_bound(t)
@@ -722,7 +727,7 @@ Return true if the set associated with `pref` has a defined upper bound or if a
 upper bound can be found.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> has_upper_bound(t)
 true
 ```
@@ -751,7 +756,7 @@ Returns the upper bound associated with the infinite set. Errors if such a bound
 is not well-defined.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> upper_bound(t)
 1.0
 ```
@@ -776,7 +781,7 @@ Updates the infinite set upper bound if and only if it is an IntervalSet. Errors
 otherwise.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> set_upper_bound(t, 2)
 
 julia> upper_bound(t)
@@ -801,9 +806,9 @@ end
 Return the number of support points associated with `pref`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> num_supports(t)
-1
+2
 ```
 """
 function num_supports(pref::ParameterRef)::Int64
@@ -816,7 +821,7 @@ end
 Return true if `pref` has supports or false otherwise.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> has_supports(t)
 true
 ```
@@ -830,9 +835,10 @@ Return the support points associated with `pref`. Errors if there are no
 supports.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> supports(t)
-1-element Array{Int64,1}:
+2-element Array{Int64,1}:
+ 0
  1
 ```
 """
@@ -857,7 +863,7 @@ supports. Warning this operation is computationally expensive if there exist a
 large number of combinations.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
 julia> x = @infinite_parameter(model, [i = 1:2], set = IntervalSet(-1, 1),
                                base_name = "x", independent = true)
 2-element Array{ParameterRef,1}:
@@ -911,14 +917,15 @@ function supports(prefs::AbstractArray{<:ParameterRef})::Vector
 end
 
 """
-    set_supports(pref::ParameterRef, supports::Vector{<:Number})
+    set_supports(pref::ParameterRef, supports::Vector{<:Number}; [force = false])
 
 Specify the support points for `pref`. Errors if the supports violate the bounds
-associated with the infinite set. Warns if the points are not unique. Note that
-this will overwrite existing supports.
+associated with the infinite set. Warns if the points are not unique. If `force`
+this will overwrite exisiting supports otherwise it will error if there are
+existing supports.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> set_supports(t, [0, 1])
 
 julia> supports(t)
@@ -927,9 +934,18 @@ julia> supports(t)
  1
 ```
 """
-function set_supports(pref::ParameterRef, supports::Vector{<:Number})
+function set_supports(pref::ParameterRef, supports::Vector{<:Number};
+                      force = false)
     set = _parameter_set(pref)
     _check_supports_in_bounds(error, supports, set)
+<<<<<<< HEAD
+=======
+    if has_supports(pref) && !force
+        error("Unable set supports for $pref since it already has supports." *
+              " Consider using `add_supports` or use set `force = true` to " *
+              "overwrite the existing supports.")
+    end
+>>>>>>> e7533b7c5230309658256f60fdb8eb9e259a61da
     unique_supports = unique(supports)
     if length(unique_supports) != length(supports)
         @warn("Support points are not unique, eliminating redundant points.")
@@ -944,23 +960,23 @@ end
 Add additional support points for `pref`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> add_supports(t, 0.5)
 
 julia> supports(t)
 3-element Array{Float64,1}:
  0.0
- 0.5
  1.0
+ 0.5
 
 julia> add_supports(t, [0.25, 1])
 
 julia> supports(t)
 4-element Array{Float64,1}:
  0.0
- 0.25
- 0.5
  1.0
+ 0.5
+ 0.25
 ```
 """
 function add_supports(pref::ParameterRef, supports::Union{Number,
@@ -978,7 +994,7 @@ end
 Delete the support points for `pref`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> delete_supports(t)
 
 julia> supports(t)
@@ -986,11 +1002,71 @@ ERROR: Parameter test does not have supports.
 ```
 """
 function delete_supports(pref::ParameterRef)
-    _update_parameter_supports(pref, Number[])
+    _update_parameter_supports(pref, Int64[])
     return
 end
 
 """
+    is_finite_parameter(pref::ParameterRef)::Bool
+
+Return a `Bool` indicating if `pref` is a finite parameter.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @finite_parameter(model, cost, 42))
+julia> is_finite_parameter(cost)
+true
+```
+"""
+function is_finite_parameter(pref::ParameterRef)::Bool
+    set = infinite_set(pref)
+    if isa(set, IntervalSet)
+        if set.lower_bound == set.upper_bound
+            return true
+        end
+    end
+    return false
+end
+
+"""
+    JuMP.value(pref::ParameterRef)::Number
+
+Return the value of `pref` so long as it is a finite parameter. Errors if it is
+an infinite parameter.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @finite_parameter(model, cost, 42))
+julia> value(cost)
+42
+```
+"""
+function JuMP.value(pref::ParameterRef)::Number
+    !is_finite_parameter(pref) && error("$pref is an infinite parameter.")
+    return supports(pref)[1]
+end
+
+"""
+    JuMP.set_value(pref::ParameterRef, value::Number)
+
+Set the value of `pref` so long as it is a finite parameter. Errors if it is
+an infinite parameter.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @finite_parameter(model, cost, 42))
+julia> set_value(cost, 27)
+
+julia> value(cost)
+27
+```
+"""
+function JuMP.set_value(pref::ParameterRef, value::Number)
+    !is_finite_parameter(pref) && error("$pref is an infinite parameter.")
+    set_infinite_set(pref, IntervalSet(value, value))
+    set_supports(pref, [value], force = true)
+    return
+end
+
+"""
+<<<<<<< HEAD
     fill_in_supports!(model::InfiniteModel, num_supports::Int64 = 50, prec::Int64 = 5)
 
 Automatically generate support points for all infinite parameters in model
@@ -1153,12 +1229,14 @@ function generate_supports(set::DistributionSet, num_supports::Int64 = 50,
 end
 
 """
+=======
+>>>>>>> e7533b7c5230309658256f60fdb8eb9e259a61da
     group_id(pref::ParameterRef)::Int64
 
 Return the group ID number for `pref`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> group_id(t)
 1
 ```
@@ -1192,7 +1270,7 @@ end
 Returns true for `pref` if it is independent or false otherwise.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> is_independent(t)
 false
 ```
@@ -1207,7 +1285,7 @@ end
 Specify that `pref` be independent.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> set_independent(t)
 
 julia> is_independent(t)
@@ -1227,7 +1305,7 @@ end
 Specify that `pref` be not independent.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> unset_independent(t)
 
 julia> is_independent(t)
@@ -1249,7 +1327,7 @@ Return the parameter reference assoociated with a parameter name. Errors if
 multiple parameters have the same name. Returns nothing if no such name exists.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> parameter_by_name(model, "t")
 t
 ```

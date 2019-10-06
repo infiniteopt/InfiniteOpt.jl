@@ -12,7 +12,7 @@ model backend.
 
 ## Basic Usage
 Infinite models can be initialized with no arguments by default:
-```julia
+```jldoctest
 julia> using InfiniteOpt, JuMP
 
 julia> model = InfiniteModel()
@@ -27,17 +27,17 @@ Solver name: No optimizer attached.
 
 The optimizer that will be used to solve the model can also be specified at
 model definition using `JuMP`'s [`with_optimizer`](@ref) constructor:
-```julia
-julia> using InfiniteOpt, JuMP, Gurobi
+```jldoctest
+julia> using InfiniteOpt, JuMP, Ipopt
 
-julia> model = InfiniteModel(with_optimizer(Gurobi.Optimizer, OutputFlag = 0))
+julia> model = InfiniteModel(with_optimizer(Ipopt.Optimizer))
 An InfiniteOpt Model
 Feasibility problem with:
 Variables: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Gurobi
+Solver name: Ipopt
 ```
 Note that any optimizer currently supported by `JuMP v0.19.0` or newer is
 supported for use in `InfiniteOpt`. For completeness, the table of currently
@@ -64,12 +64,12 @@ argument supported by [`JuMP.Model`](@ref) can be passed on to the optimizer
 model by including it in the `InfiniteModel` constructor. For example, we can
 specify the `caching_mode` keyword argument in the `InfiniteModel` call to use
 in the definition of the optimizer model:
-```julia
-julia> using InfiniteOpt, JuMP, Gurobi, MathOptInterface
+```jldoctest
+julia> using InfiniteOpt, JuMP, Ipopt, MathOptInterface
 
-julia> const MOIU = MathOptInterface.Utilities
+julia> const MOIU = MathOptInterface.Utilities;
 
-julia> model = InfiniteModel(with_optimizer(Gurobi.Optimizer),
+julia> model = InfiniteModel(with_optimizer(Ipopt.Optimizer),
                              caching_mode = MOIU.MANUAL)
 An InfiniteOpt Model
 Feasibility problem with:
@@ -77,7 +77,7 @@ Variables: 0
 Optimizer model backend information:
 Model mode: MANUAL
 CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Gurobi
+Solver name: Ipopt
 ```
 Notice that the model mode of the optimizer model is now `MANUAL`.
 
