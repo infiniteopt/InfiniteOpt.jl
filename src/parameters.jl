@@ -138,10 +138,7 @@ InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
 """
 function build_parameter(_error::Function, set::AbstractInfiniteSet,
                          num_params::Int64 = 1;
-<<<<<<< HEAD
                          num_supports::Int64 = 0,
-=======
->>>>>>> e7533b7c5230309658256f60fdb8eb9e259a61da
                          supports::Union{Number, Vector{<:Number}} = Number[],
                          independent::Bool = false,
                          extra_kw_args...)::InfOptParameter
@@ -938,14 +935,11 @@ function set_supports(pref::ParameterRef, supports::Vector{<:Number};
                       force = false)
     set = _parameter_set(pref)
     _check_supports_in_bounds(error, supports, set)
-<<<<<<< HEAD
-=======
     if has_supports(pref) && !force
         error("Unable set supports for $pref since it already has supports." *
               " Consider using `add_supports` or use set `force = true` to " *
               "overwrite the existing supports.")
     end
->>>>>>> e7533b7c5230309658256f60fdb8eb9e259a61da
     unique_supports = unique(supports)
     if length(unique_supports) != length(supports)
         @warn("Support points are not unique, eliminating redundant points.")
