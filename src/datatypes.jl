@@ -213,7 +213,7 @@ the `optimizer_model` data field is initialized with a
 
 **Example**
 ```jldoctest
-julia> using InfiniteOpt, JuMP, Ipopt
+julia> using InfiniteOpt, JuMP, Ipopt;
 
 julia> model = InfiniteModel()
 An InfiniteOpt Model
@@ -224,7 +224,7 @@ Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
 
-julia> model = InfiniteModel(with_optimizer(Gurobi.Optimizer))
+julia> model = InfiniteModel(with_optimizer(Ipopt.Optimizer))
 An InfiniteOpt Model
 Feasibility problem with:
 Variables: 0

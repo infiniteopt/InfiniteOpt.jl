@@ -158,7 +158,7 @@ end
     @constraint(m, con, inf2 + inf4 - par2 <= 0)
     m.constrs[-1] = ScalarConstraint(par3, MOI.GreaterThan(0.))
     m.param_to_constrs[JuMP.index(par3)] = [-1]
-    con2 = InfiniteConstraintRef(m, -1, JuMP.shape(m.constrs[-1]))
+    con2 = InfiniteConstraintRef(m, Int64(-1), JuMP.shape(m.constrs[-1]))
     set_name(con2, "")
 
     # test _check_param_in_data (scalar)
@@ -396,7 +396,7 @@ end
      @constraint(m, con, x + rv <= 0)
      m.constrs[-1] = ScalarConstraint(rv2, MOI.GreaterThan(0.))
      m.reduced_to_constrs[JuMP.index(rv2)] = [-1]
-     con2 = InfiniteConstraintRef(m, -1, JuMP.shape(m.constrs[-1]))
+     con2 = InfiniteConstraintRef(m, Int64(-1), JuMP.shape(m.constrs[-1]))
      set_name(con2, "")
      # test normal deletion
      @test isa(delete(m, rv), Nothing)
