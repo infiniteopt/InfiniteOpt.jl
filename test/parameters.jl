@@ -305,6 +305,7 @@ end
     @testset "Errors" begin
         @test_macro_throws ErrorException @infinite_parameter(m, 0 <= [1:2] <= 1)
         @test_macro_throws ErrorException @infinite_parameter(m, 0 <= "bob" <= 1)
+        @test_macro_throws ErrorException @infinite_parameter(m, 0 <= a <= 1)
         @test_macro_throws ErrorException @infinite_parameter(m, 0 <= j)
         @test_macro_throws ErrorException @infinite_parameter(m, j)
         @test_macro_throws ErrorException @infinite_parameter(m, j, foo = 42)
@@ -634,20 +635,44 @@ end
 
 # Test support flll-in and geneartion functions
 @testset "Support Fill-in and Generation" begin
-    m = InfiniteModel()
-    dist1 = Normal(0., 1.)
-    dist2 = MvNormal([0.; 0.], [1. 0.;0. 2.])
-    pref_a = @infinite_parameter(m, 0 <= a <= 1)
-    prefs_b = @infinite_parameter(m, 1 <= b[1:2] <= 2)
-    pref_c = @infinite_parameter(m, c in dist1)
-    prefs_d = @infinite_parameter(m, d[1:2] in dist2)
-    pref_e = @infinite_parameter(m, 2 <= e <= 3, supports = [2.3, 2.7])
-    fill_in_supports!(m, 10)
-    @test length(supports(pref_a)) == 10
-    @test length(supports(prefs_b[1])) == 10
-    @test length(supports(prefs_b[2])) == 10
-    @test length(supports(pref_c)) == 10
-    @test_throws ErrorException length(supports(prefs_d[1])) == 0
-    @test_throws ErrorException length(supports(prefs_d[2])) == 0
-    @test supports(pref_e) == [2.3, 2.7]
+    # fill_in_supports! (InfiniteModel)
+    @testset "fill_in_supports! (InfiniteModel)" begin
+        m = InfiniteModel()
+        dist1 = Normal(0., 1.)
+        dist2 = MvNormal([0.; 0.], [1. 0.;0. 2.])
+        pref_a = @infinite_parameter(m, 0 <= a <= 1)
+        prefs_b = @infinite_parameter(m, 1 <= b[1:2] <= 2)
+        pref_c = @infinite_parameter(m, c in dist1)
+        prefs_d = @infinite_parameter(m, d[1:2] in dist2)
+        pref_e = @infinite_parameter(m, 2 <= e <= 3, supports = [2.3, 2.7])
+        @test fill_in_supports!(m, 10) isa Nothing
+        @test length(supports(pref_a)) == 10
+        @test length(supports(prefs_b[1])) == 10
+        @test length(supports(prefs_b[2])) == 10
+        @test length(supports(pref_c)) == 10
+        @test_throws ErrorException length(supports(prefs_d[1])) == 0
+        @test_throws ErrorException length(supports(prefs_d[2])) == 0
+        @test supports(pref_e) == [2.3, 2.7]
+    end
+    # fill_in_supports! (ParameterRef)
+    @testset "fill_in_supports! (ParameterRef)" begin
+        m = InfiniteModel()
+        pref1 = @infinite_parameter(m, 0 <= a <= 1)
+        pref2 = @infinite_parameter(m, 0 <= b <= 1)
+        dist = Normal(0.,1.)
+        pref3 = @infinite_parameter(m, c in dist)
+        @test fill_in_supports!(pref1, 11, 3) isa Nothing
+    end
+    @testset "generate_supports (IntervalSet)" begin
+        set = IntervalSet(0., 1.)
+        @test supports = generate_supports(set, 10, 3) isa Nothing
+        @test supports[2] == 0.111
+        @test supports[2] != 1/11
+        @test length(supports) == 10
+    end
+    @testset "generate_supports (DistributionSet)" begin
+        set = Normal(0., 1.)
+        @test supports = generate_supports(set, 10, 3) isa Nothing
+        @test length(supports) == 10
+    end
 end

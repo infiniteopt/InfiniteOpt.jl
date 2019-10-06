@@ -163,7 +163,7 @@ function build_parameter(_error::Function, set::AbstractInfiniteSet,
                    "of parameter.")
         end
     end
-    unique_supports = sort(unique(supports))
+    unique_supports = unique(supports)
     if length(unique_supports) != length(supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
@@ -930,7 +930,7 @@ julia> supports(t)
 function set_supports(pref::ParameterRef, supports::Vector{<:Number})
     set = _parameter_set(pref)
     _check_supports_in_bounds(error, supports, set)
-    unique_supports = sort(unique(supports))
+    unique_supports = unique(supports)
     if length(unique_supports) != length(supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
@@ -968,7 +968,7 @@ function add_supports(pref::ParameterRef, supports::Union{Number,
     set = _parameter_set(pref)
     _check_supports_in_bounds(error, supports, set)
     current_supports = _parameter_supports(pref)
-    _update_parameter_supports(pref, sort(unique([current_supports; supports])))
+    _update_parameter_supports(pref, unique([current_supports; supports]))
     return
 end
 
@@ -991,11 +991,12 @@ function delete_supports(pref::ParameterRef)
 end
 
 """
-    fill_in_supports!(model::InfiniteModel, num_supports::Int64 = 50)
+    fill_in_supports!(model::InfiniteModel, num_supports::Int64 = 50, prec::Int64 = 5)
 
 Automatically generate support points for all infinite parameters in model
 except for parameters in multivariate distributions, where we require that the
-user inputs the supports.
+user inputs the supports. User can specify the number of digits kept after
+decimal point for the auto-generated supports wtih `prec`.
 
 **Example**
 ```julia
@@ -1027,7 +1028,7 @@ julia> supports(x)
  1.0
 ```
 """
-function fill_in_supports!(model::InfiniteModel, num_supports::Int64 = 50)
+function fill_in_supports!(model::InfiniteModel, num_supports::Int64 = 50, prec::Int64 = 5)
     prefs = all_parameters(model)
     for pref in prefs
         fill_in_supports!(pref, num_supports)
@@ -1035,11 +1036,12 @@ function fill_in_supports!(model::InfiniteModel, num_supports::Int64 = 50)
 end
 
 """
-    fill_in_supports!(pref::Parameter, num_supports::Int64 = 50)
+    fill_in_supports!(pref::Parameter, num_supports::Int64 = 50, prec::Int64)
 
 Automatically generate support points for all infinite parameters in model
 except for parameters in multivariate distributions, where we require that the
-user inputs the supports.
+user inputs the supports. User can specify the number of digits kept after
+decimal point for the auto-generated supports wtih `prec`.
 
 **Example**
 ```julia
@@ -1070,8 +1072,7 @@ julia> supports(x)
 
 ```
 """
-
-function fill_in_supports!(pref::ParameterRef, num_supports::Int64 = 50)
+function fill_in_supports!(pref::ParameterRef, num_supports::Int64 = 50, prec::Int64 = 5)
     p = JuMP.owner_model(pref).params[JuMP.index(pref)]
     if length(p.supports) == 0 &&
        !(isa(p.set, DistributionSet) &&
@@ -1082,11 +1083,47 @@ function fill_in_supports!(pref::ParameterRef, num_supports::Int64 = 50)
 end
 
 """
-    generate_supports(set::AbstractInfiniteSet, num_supports::Int64 = 50)::Vector{Float64}
+    generate_supports(set::IntervalSet, num_supports::Int64 = 50,
+                      prec::Int64 = 5)::Vector{Float64}
 
 Return a vector of auto-generated support points for set of length num_supports.
-If set is an IntervalSet, supports are generated uniformly. If set is a
-DistributionSet, supports are sampled from the distribution of the set.
+For IntervalSet, supports are generated uniformly. User can specify the number
+of digits kept after decimal point for the auto-generated supports wtih `prec`.
+
+**Example**
+```julia
+julia> set = IntervalSet(0.,1.)
+IntervalSet(0.0, 1.0)
+
+julia> generate_supports(set, 10)
+10-element Array{Float64,1}:
+ 0.0
+ 0.11111
+ 0.22222
+ 0.33333
+ 0.44444
+ 0.55556
+ 0.66667
+ 0.77778
+ 0.88889
+ 1.0
+```
+"""
+function generate_supports(set::IntervalSet, num_supports::Int64 = 50,
+                           prec::Int64 = 5)::Vector{Float64}
+    lb = set.lower_bound
+    ub = set.upper_bound
+    return round.(collect(range(lb, stop = ub, length = num_supports)), digits = prec)
+end
+
+"""
+    generate_supports(set::IntervalSet, num_supports::Int64 = 50,
+                      prec::Int64 = 5)::Vector{Float64}
+
+Return a vector of auto-generated support points for set of length num_supports.
+For DistributionSet, supports are sampled from the distribution of the set.
+Multivariate distribution is not supported. User can specify the number of
+digits kept after decimal point for the auto-generated supports wtih `prec`.
 
 **Example**
 ```julia
@@ -1105,21 +1142,14 @@ julia> generate_supports(dist_set, 10)
   0.91162
   0.32664
   0.36676
-
 ```
 """
-
-function generate_supports(set::IntervalSet, num_supports::Int64 = 50)::Vector{Float64}
-    lb = set.lower_bound
-    ub = set.upper_bound
-    return round.(collect(range(lb, stop = ub, length = num_supports)), digits = 5)
-end
-
-function generate_supports(set::DistributionSet, num_supports::Int64 = 50)::Vector{Float64}
+function generate_supports(set::DistributionSet, num_supports::Int64 = 50,
+                           prec::Int64 = 5)::Vector{Float64}
     if isa(set.distribution, Distributions.MultivariateDistribution)
         error("Support generation for multivariate distribution not supported.")
     end
-    return round.(rand(set.distribution, num_supports), digits = 5)
+    return round.(rand(set.distribution, num_supports), digits = prec)
 end
 
 """

@@ -786,6 +786,7 @@ function TranscriptionModel(inf_model::InfiniteOpt.InfiniteModel,
     else
         trans_model = TranscriptionModel(optimizer_factory; kwargs...)
     end
+    # fill in supports before transcription
     _initialize_global_variables(trans_model, inf_model)
     _initialize_infinite_variables(trans_model, inf_model)
     _map_point_variables(trans_model, inf_model)

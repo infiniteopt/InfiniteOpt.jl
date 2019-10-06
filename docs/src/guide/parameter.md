@@ -66,9 +66,10 @@ supports(::AbstractArray{<:ParameterRef})
 set_supports(::ParameterRef, ::Vector{<:Number})
 add_supports(::ParameterRef, ::Union{Number, Vector{<:Number}})
 delete_supports(::ParameterRef)
-fill_in_supports!(::InfiniteModel, ::Int64)
-fill_in_supports!(::Parameter, ::Int64)
-generate_supports(::AbstractInfiniteSet, ::Int64)::Vector{Float64}
+fill_in_supports!(::InfiniteModel, ::Int64, ::Int64)
+fill_in_supports!(::Parameter, ::Int64, ::Int64)
+generate_supports(::IntervalSet, ::Int64, ::Int64)::Vector{Float64}
+generate_supports(::DistributionSet, ::Int64, ::Int64)::Vector{Float64}
 group_id(::ParameterRef)
 group_id(::AbstractArray{<:ParameterRef})
 is_independent(::ParameterRef)
