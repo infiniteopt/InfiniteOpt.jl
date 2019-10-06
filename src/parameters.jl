@@ -1222,8 +1222,6 @@ function generate_supports(set::DistributionSet, num_supports::Int64 = 50,
 end
 
 """
-=======
->>>>>>> e7533b7c5230309658256f60fdb8eb9e259a61da
     group_id(pref::ParameterRef)::Int64
 
 Return the group ID number for `pref`.
