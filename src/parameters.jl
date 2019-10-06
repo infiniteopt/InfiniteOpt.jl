@@ -1060,7 +1060,6 @@ function JuMP.set_value(pref::ParameterRef, value::Number)
 end
 
 """
-<<<<<<< HEAD
     fill_in_supports!(model::InfiniteModel, num_supports::Int64 = 50, prec::Int64 = 5)
 
 Automatically generate support points for all infinite parameters in model
