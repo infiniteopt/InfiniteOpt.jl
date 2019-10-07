@@ -120,7 +120,7 @@ end
 
 """
     build_parameter(_error::Function, set::AbstractInfiniteSet,
-                    [num_params::Int64 = 1;
+                    [num_params::Int = 1;
                     supports::Union{Number, Vector{<:Number}} = Number[],
                     independent::Bool = false])::InfOptParameter
 
@@ -137,7 +137,7 @@ InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
 ```
 """
 function build_parameter(_error::Function, set::AbstractInfiniteSet,
-                         num_params::Int64 = 1;
+                         num_params::Int = 1;
                          supports::Union{Number, Vector{<:Number}} = Number[],
                          independent::Bool = false,
                          extra_kw_args...)::InfOptParameter
