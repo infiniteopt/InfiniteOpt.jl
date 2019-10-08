@@ -40,8 +40,8 @@ julia> supports(t)
  1.0
 ```
 Here only 4 supports are specified for the sake of example. Alternatively, we
-could have specified initialized the parameter and added supports in just one
-step using the `supports` keyword argument:
+could have initialized the parameter and added supports in just one step using
+the `supports` keyword argument:
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10], supports = [0, 0.25, 0.75, 1])
 t
@@ -112,6 +112,7 @@ steps:
 - Add the `InfOptParameter` object to an `InfiniteModel` and assign a name
 - Create a [`ParameterRef`](@ref) that points to the parameter object
 
+### Manual Definition
 Infinite set definition is described above in [Infinite Sets](@ref). The
 supports should be a vector of finite numbers that are drawn from the domain of
 the infinite set. These supports will be used to transcribe the `InfiniteModel`
@@ -139,6 +140,11 @@ and assign it the name of `t`:
 julia> t_ref = add_parameter(model, t_param, "t")
 t
 ```  
+
+### Macro Definition
+
+## Supports
+
 
 ## Parameter Queries
 
@@ -197,8 +203,6 @@ add_supports(::ParameterRef, ::Union{Number, Vector{<:Number}})
 delete_supports(::ParameterRef)
 fill_in_supports!(::InfiniteModel, ::Int64, ::Int64)
 fill_in_supports!(::ParameterRef, ::Int64, ::Int64)
-generate_supports(::IntervalSet, ::Int64, ::Int64)::Vector{Float64}
-generate_supports(::DistributionSet, ::Int64, ::Int64)::Vector{Float64}
 group_id(::ParameterRef)
 group_id(::AbstractArray{<:ParameterRef})
 is_independent(::ParameterRef)

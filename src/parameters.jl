@@ -137,10 +137,11 @@ InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
 ```
 """
 function build_parameter(_error::Function, set::AbstractInfiniteSet,
-                         num_params::Int64 = 1;
-                         num_supports::Int64 = 0,
+                         num_params::Int = 1;
+                         num_supports::Int = 0,
                          supports::Union{Number, Vector{<:Number}} = Number[],
                          independent::Bool = false,
+                         sig_fig::Int = 5,
                          extra_kw_args...)::InfOptParameter
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
@@ -152,8 +153,11 @@ function build_parameter(_error::Function, set::AbstractInfiniteSet,
         @warn("Ignoring num_supports since supports is not empty.")
         _check_supports_in_bounds(_error, supports, set)
     elseif num_supports != 0 && length_supports == 0
-        supports = generate_supports(set, num_supports)
-        _check_supports_in_bounds(_error, supports, set)
+        if isa(set, DistributionSet{<:Distributions.MultivariateDistribution})
+            _error("Support generation is not available for multivariate " *
+                   "distributions.")
+        end
+        supports = _support_values(set, num_supports = num_supports, sig_fig = sig_fig)
     end
     if isa(set, DistributionSet{<:Distributions.MultivariateDistribution})
         if num_params != length(set.distribution)
@@ -370,7 +374,7 @@ function _update_reduced_variable(vref::ReducedInfiniteVariableRef,
     eval_supps = eval_supports(vref)
     # removed parameter was a scalar
     if length(location) == 1
-        new_supports = Dict{Int64, Union{Number, JuMPC.SparseAxisArray}}()
+        new_supports = Dict{Int, Union{Number, JuMPC.SparseAxisArray}}()
         for (index, support) in eval_supps
             if index < location[1]
                 new_supports[index] = support
@@ -564,7 +568,7 @@ function JuMP.set_name(pref::ParameterRef, name::String)
 end
 
 """
-    num_parameters(model::InfiniteModel)::Int64
+    num_parameters(model::InfiniteModel)::Int
 
 Return the number of infinite parameters currently present in `model`.
 
@@ -574,7 +578,7 @@ julia> num_parameters(model)
 1
 ```
 """
-function num_parameters(model::InfiniteModel)::Int64
+function num_parameters(model::InfiniteModel)::Int
     return length(model.params)
 end
 
@@ -796,7 +800,7 @@ function JuMP.set_upper_bound(pref::ParameterRef, upper::Number)
 end
 
 """
-    num_supports(pref::ParameterRef)::Int64
+    num_supports(pref::ParameterRef)::Int
 
 Return the number of support points associated with `pref`.
 
@@ -806,7 +810,7 @@ julia> num_supports(t)
 2
 ```
 """
-function num_supports(pref::ParameterRef)::Int64
+function num_supports(pref::ParameterRef)::Int
     return length(_parameter_supports(pref))
 end
 
@@ -832,7 +836,7 @@ supports.
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> supports(t)
-2-element Array{Int64,1}:
+2-element Array{Int,1}:
  0
  1
 ```
@@ -924,7 +928,7 @@ existing supports.
 julia> set_supports(t, [0, 1])
 
 julia> supports(t)
-2-element Array{Int64,1}:
+2-element Array{Int,1}:
  0
  1
 ```
@@ -994,7 +998,7 @@ ERROR: Parameter t does not have supports.
 ```
 """
 function delete_supports(pref::ParameterRef)
-    _update_parameter_supports(pref, Int64[])
+    _update_parameter_supports(pref, Int[])
     return
 end
 
@@ -1058,8 +1062,8 @@ function JuMP.set_value(pref::ParameterRef, value::Number)
 end
 
 """
-    fill_in_supports!(model::InfiniteModel, num_supports::Int64 = 50,
-                      sig_fig::Int64 = 5)
+    fill_in_supports!(model::InfiniteModel; num_supports::Int = 50,
+                      sig_fig::Int = 5)
 
 Automatically generate support points for all infinite parameters in model
 except for parameters in multivariate distributions, where we require that the
@@ -1067,45 +1071,28 @@ user inputs the supports. User can specify the number of significant figures
 kept after decimal point for the auto-generated supports wtih `sig_fig`.
 
 **Example**
-```julia
-julia> x = @infinite_parameter(m, 0 <= x <= 1);
-
-julia> fill_in_supports!(m)
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(m, 0 <= x <= 1);)
+julia> fill_in_supports!(model, num_supports = 4, sig_fig = 3)
 
 julia> supports(x)
-50-element Array{Number,1}:
+4-element Array{Number,1}:
  0.0
- 0.02041
- 0.04082
- 0.06122
- 0.08163
- 0.10204
- 0.12245
- 0.14286
- 0.16327
- 0.18367
- ⋮
- 0.83673
- 0.85714
- 0.87755
- 0.89796
- 0.91837
- 0.93878
- 0.95918
- 0.97959
+ 0.333
+ 0.667
  1.0
 ```
 """
-function fill_in_supports!(model::InfiniteModel, num_supports::Int64 = 50,
-                           sig_fig::Int64 = 5)
+function fill_in_supports!(model::InfiniteModel; num_supports::Int = 50,
+                           sig_fig::Int = 5)
     for key in keys(model.params)
         pref = ParameterRef(model, key)
-        fill_in_supports!(pref, num_supports, sig_fig)
+        fill_in_supports!(pref, num_supports = num_supports, sig_fig = sig_fig)
     end
+    return
 end
 
 """
-    fill_in_supports!(pref::ParameterRef, num_supports::Int64 = 50, sig_fig::Int64)
+    fill_in_supports!(pref::ParameterRef; num_supports::Int = 50, sig_fig::Int)
 
 Automatically generate support points for all infinite parameters in model
 except for parameters in multivariate distributions, where we require that the
@@ -1113,118 +1100,70 @@ user inputs the supports. User can specify the number of digits kept after
 decimal point for the auto-generated supports wtih `sig_fig`.
 
 **Example**
-```julia
-julia> fill_in_supports!(x)
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(m, 0 <= x <= 1);)
+julia> fill_in_supports!(x, num_supports = 4, sig_fig = 3)
 
 julia> supports(x)
-50-element Array{Number,1}:
+4-element Array{Number,1}:
  0.0
- 0.02041
- 0.04082
- 0.06122
- 0.08163
- 0.10204
- 0.12245
- 0.14286
- 0.16327
- 0.18367
- ⋮
- 0.83673
- 0.85714
- 0.87755
- 0.89796
- 0.91837
- 0.93878
- 0.95918
- 0.97959
+ 0.333
+ 0.667
  1.0
 
 ```
 """
-function fill_in_supports!(pref::ParameterRef, num_supports::Int64 = 50,
-                           sig_fig::Int64 = 5)
+function fill_in_supports!(pref::ParameterRef; num_supports::Int = 50,
+                           sig_fig::Int = 5)
     p = JuMP.owner_model(pref).params[JuMP.index(pref)]
-    if length(p.supports) == 0 &&
-       !(isa(p.set, DistributionSet) &&
-         isa(p.set.distribution, Distributions.MultivariateDistribution))
-        supports = generate_supports(p.set, num_supports, sig_fig)
-        add_supports(pref, supports)
+    if length(p.supports) == 0
+        _generate_supports(pref, p.set, num_supports = num_supports, sig_fig = sig_fig)
+    else
+#        @warn("No supports generated for $(pref) since $(pref) has existing " *
+#              "supports.")
     end
+    return
 end
 
-"""
-    generate_supports(set::IntervalSet, num_supports::Int64 = 50,
-                      sig_fig::Int64 = 5)::Vector{Float64}
+function _generate_supports(pref::ParameterRef, set::AbstractInfiniteSet;
+                           num_supports::Int = 50, sig_fig::Int = 5)
+    add_supports(pref, _support_values(set, num_supports = num_supports,
+                                       sig_fig = sig_fig))
+    return
+end
 
-Return a vector of auto-generated support points for set of length num_supports.
-For IntervalSet, supports are generated uniformly. User can specify the number
-of digits kept after decimal point for the auto-generated supports wtih `sig_fig`.
+function _generate_supports(pref::ParameterRef,
+                           set::DistributionSet{<:Distributions.MultivariateDistribution};
+                           num_supports::Int = 50, sig_fig::Int = 5)
+    pref_group_id = group_id(pref)
+    model = JuMP.owner_model(pref)
+    associated_p_index = sort([i for i in 1:length(model.params)
+                               if model.param_to_group_id[i] == pref_group_id])
+    new_supports = _support_values(set, num_supports = num_supports, sig_fig = sig_fig)
 
-**Example**
-```julia
-julia> set = IntervalSet(0.,1.)
-IntervalSet(0.0, 1.0)
+    for i in 1:length(associated_p_index)
+        pref_i = ParameterRef(model, associated_p_index[i])
+        add_supports(pref_i, new_supports[i, :])
+    end
+    return
+end
 
-julia> generate_supports(set, 10)
-10-element Array{Float64,1}:
- 0.0
- 0.11111
- 0.22222
- 0.33333
- 0.44444
- 0.55556
- 0.66667
- 0.77778
- 0.88889
- 1.0
-```
-"""
-function generate_supports(set::IntervalSet, num_supports::Int64 = 50,
-                           sig_fig::Int64 = 5)::Vector{Float64}
+function _support_values(set::IntervalSet; num_supports::Int = 50,
+                         sig_fig::Int = 5)::Vector
     lb = set.lower_bound
     ub = set.upper_bound
-    return round.(collect(range(lb, stop = ub, length = num_supports)),
-                  sigdigits = sig_fig)
+    new_supports = round.(collect(range(lb, stop = ub, length = num_supports)),
+                          sigdigits = sig_fig)
+    return new_supports
+end
+
+function _support_values(set::DistributionSet; num_supports::Int = 50,
+                         sig_fig::Int = 5)::Array
+    new_supports = round.(rand(set.distribution, num_supports), sigdigits = sig_fig)
+    return new_supports
 end
 
 """
-    generate_supports(set::IntervalSet, num_supports::Int64 = 50,
-                      sig_fig::Int64 = 5)::Vector{Float64}
-
-Return a vector of auto-generated support points for set of length num_supports.
-For DistributionSet, supports are sampled from the distribution of the set.
-Multivariate distribution is not supported. User can specify the number of
-digits kept after decimal point for the auto-generated supports wtih `precision`.
-
-**Example**
-```julia
-julia> dist_set = DistributionSet(Normal(0,1))
-DistributionSet{Normal{Float64}}(Normal{Float64}(μ=0.0, σ=1.0))
-
-julia> generate_supports(dist_set, 10)
-10-element Array{Float64,1}:
- -0.67525
- -1.50759
-  0.88388
-  0.63601
-  0.28196
-  2.17573
-  0.32762
-  0.91162
-  0.32664
-  0.36676
-```
-"""
-function generate_supports(set::DistributionSet, num_supports::Int64 = 50,
-                           sig_fig::Int64 = 5)::Vector{Float64}
-    if isa(set.distribution, Distributions.MultivariateDistribution)
-        error("Support generation for multivariate distribution not supported.")
-    end
-    return round.(rand(set.distribution, num_supports), sigdigits = sig_fig)
-end
-
-"""
-    group_id(pref::ParameterRef)::Int64
+    group_id(pref::ParameterRef)::Int
 
 Return the group ID number for `pref`.
 
@@ -1234,12 +1173,12 @@ julia> group_id(t)
 1
 ```
 """
-function group_id(pref::ParameterRef)::Int64
+function group_id(pref::ParameterRef)::Int
     return JuMP.owner_model(pref).param_to_group_id[JuMP.index(pref)]
 end
 
 """
-    group_id(prefs::AbstractArray{<:ParameterRef})::Int64
+    group_id(prefs::AbstractArray{<:ParameterRef})::Int
 
 Return the group ID number for a group of `prefs`. Error if contains multiple
 groups.
@@ -1250,7 +1189,7 @@ julia> group_id([x[1], x[2]])
 2
 ```
 """
-function group_id(prefs::AbstractArray{<:ParameterRef})::Int64
+function group_id(prefs::AbstractArray{<:ParameterRef})::Int
     groups = group_id.(prefs)
     length(unique(groups)) != 1 && error("Array contains parameters from " *
                                          "multiple groups.")
@@ -1329,7 +1268,7 @@ function parameter_by_name(model::InfiniteModel,
                            name::String)::Union{ParameterRef, Nothing}
     if model.name_to_param === nothing
         # Inspired from MOI/src/Utilities/model.jl
-        model.name_to_param = Dict{String, Int64}()
+        model.name_to_param = Dict{String, Int}()
         for (param, param_name) in model.param_to_name
             if haskey(model.name_to_param, param_name)
                 # -1 is a special value that means this string does not map to
@@ -1400,12 +1339,12 @@ end
 
 ## Internal functions for group checking
 # Return group id of ParameterRef
-function _group(pref::ParameterRef)::Int64
+function _group(pref::ParameterRef)::Int
     return group_id(pref)
 end
 
 # Return the group if of the first element in an array (assuming all same)
-function _group(arr::AbstractArray{<:ParameterRef})::Int64
+function _group(arr::AbstractArray{<:ParameterRef})::Int
     return group_id(first(arr))
 end
 

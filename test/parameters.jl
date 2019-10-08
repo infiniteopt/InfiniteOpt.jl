@@ -720,13 +720,13 @@ end
         pref_c = @infinite_parameter(m, c in dist1)
         prefs_d = @infinite_parameter(m, d[1:2] in dist2)
         pref_e = @infinite_parameter(m, 2 <= e <= 3, supports = [2.3, 2.7])
-        @test fill_in_supports!(m, 10) isa Nothing
-        @test length(supports(pref_a)) == 10
-        @test length(supports(prefs_b[1])) == 10
-        @test length(supports(prefs_b[2])) == 10
+        @test fill_in_supports!(m, num_supports = 10) isa Nothing
+        @test supports(pref_a) == round.(collect(range(0., stop = 1., step = 1/9)), sigdigits = 5)
+        @test supports(prefs_b[1]) == round.(collect(range(1., stop = 2., step = 1/9)), sigdigits = 5)
+        @test supports(prefs_b[2]) == round.(collect(range(1., stop = 2., step = 1/9)), sigdigits = 5)
         @test length(supports(pref_c)) == 10
-        @test_throws ErrorException length(supports(prefs_d[1])) == 0
-        @test_throws ErrorException length(supports(prefs_d[2])) == 0
+        @test length(supports(prefs_d[1])) == 10
+        @test length(supports(prefs_d[2])) == 10
         @test supports(pref_e) == [2.3, 2.7]
     end
     # fill_in_supports! (ParameterRef)
@@ -734,22 +734,57 @@ end
         m = InfiniteModel()
         pref1 = @infinite_parameter(m, 0 <= a <= 1)
         pref2 = @infinite_parameter(m, 0 <= b[1:2] <= 1)
-        @test fill_in_supports!(pref1, 11, 3) isa Nothing
-        @test_throws MethodError fill_in_supports!(pref2, 11, 3) isa Nothing
+        dist = Normal(0., 1.)
+        pref3 = @infinite_parameter(m, c in dist, supports = [-0.5, 0.5])
+        @test fill_in_supports!(pref1, num_supports = 11, sig_fig = 3) isa Nothing
+        @test fill_in_supports!.(pref2, num_supports = 11, sig_fig = 3) isa Array{Nothing}
+        @test fill_in_supports!(pref3, num_supports = 11, sig_fig = 3) isa Nothing
+        @test length(supports(pref1)) == 11
+        @test length(supports(pref2[1])) == 11
+        @test length(supports(pref2[2])) == 11
+        @test supports(pref3) == [-0.5, 0.5]
+        @test fill_in_supports!(pref1, num_supports = 20) isa Nothing
+        @test length(supports(pref1)) == 11
     end
-    @testset "generate_supports (IntervalSet)" begin
+    @testset "_generate_supports (AbstractInfiniteSet)" begin
+        m = InfiniteModel()
+        pref1 = @infinite_parameter(m, 0 <= a <= 1)
+        set1 = JuMP.owner_model(pref1).params[JuMP.index(pref1)].set
+        dist = Normal(0., 1.)
+        pref2 = @infinite_parameter(m, c in dist)
+        set2 = JuMP.owner_model(pref2).params[JuMP.index(pref2)].set
+        @test InfiniteOpt._generate_supports(pref1, set1, num_supports = 10) isa Nothing
+        @test InfiniteOpt._generate_supports(pref2, set2, num_supports = 10) isa Nothing
+        @test length(supports(pref1)) == 10
+        @test length(supports(pref2)) == 10
+    end
+    @testset "_generate_supports (Multivariate DistributionSet)" begin
+        m = InfiniteModel()
+        dist = MvNormal([0.; 0.], [1. 0.; 0. 2.])
+        prefs = @infinite_parameter(m, x[1:2] in dist)
+        set = JuMP.owner_model(prefs[1]).params[JuMP.index(prefs[1])].set
+        @test InfiniteOpt._generate_supports(prefs[1], set, num_supports = 10) isa Nothing
+        @test length(supports(prefs[1])) == 10
+        @test length(supports(prefs[2])) == 10
+    end
+    @testset "_support_values (IntervalSet)" begin
         set = IntervalSet(0., 1.)
-        supp = generate_supports(set, 10, 3)
-        @test supp isa Vector{Float64}
+        supp = InfiniteOpt._support_values(set, num_supports = 10, sig_fig = 3)
+        @test supp isa Vector{<:Number}
         @test supp[2] == 0.111
         @test supp[2] != 1/11
         @test length(supp) == 10
     end
-    @testset "generate_supports (DistributionSet)" begin
-        dist = Normal(0., 1.)
-        set = DistributionSet(dist)
-        supp = generate_supports(set, 10, 3)
-        @test supp isa Vector{Float64}
-        @test length(supp) == 10
+    @testset "_support_values (DistributionSet)" begin
+        dist1 = Normal(0., 1.)
+        dist2 = MvNormal([0.; 0.], [1. 0.; 0. 2.])
+        set1 = DistributionSet(dist1)
+        set2 = DistributionSet(dist2)
+        supp1 = InfiniteOpt._support_values(set1, num_supports = 10)
+        supp2 = InfiniteOpt._support_values(set2, num_supports = 10)
+        @test supp1 isa Vector{<:Number}
+        @test supp2 isa Array{<:Number, 2}
+        @test length(supp1) == 10
+        @test size(supp2) == (2, 10)
     end
 end
