@@ -556,7 +556,7 @@ function JuMP.set_name(pref::ParameterRef, name::String)
 end
 
 """
-    num_parameters(model::InfiniteModel)::Int64
+    num_parameters(model::InfiniteModel)::Int
 
 Return the number of infinite parameters currently present in `model`.
 
@@ -566,7 +566,7 @@ julia> num_parameters(model)
 1
 ```
 """
-function num_parameters(model::InfiniteModel)::Int64
+function num_parameters(model::InfiniteModel)::Int
     return length(model.params)
 end
 
@@ -788,7 +788,7 @@ function JuMP.set_upper_bound(pref::ParameterRef, upper::Number)
 end
 
 """
-    num_supports(pref::ParameterRef)::Int64
+    num_supports(pref::ParameterRef)::Int
 
 Return the number of support points associated with `pref`.
 
@@ -798,7 +798,7 @@ julia> num_supports(t)
 2
 ```
 """
-function num_supports(pref::ParameterRef)::Int64
+function num_supports(pref::ParameterRef)::Int
     return length(_parameter_supports(pref))
 end
 
@@ -1050,7 +1050,7 @@ function JuMP.set_value(pref::ParameterRef, value::Number)
 end
 
 """
-    group_id(pref::ParameterRef)::Int64
+    group_id(pref::ParameterRef)::Int
 
 Return the group ID number for `pref`.
 
@@ -1060,12 +1060,12 @@ julia> group_id(t)
 1
 ```
 """
-function group_id(pref::ParameterRef)::Int64
+function group_id(pref::ParameterRef)::Int
     return JuMP.owner_model(pref).param_to_group_id[JuMP.index(pref)]
 end
 
 """
-    group_id(prefs::AbstractArray{<:ParameterRef})::Int64
+    group_id(prefs::AbstractArray{<:ParameterRef})::Int
 
 Return the group ID number for a group of `prefs`. Error if contains multiple
 groups.

@@ -2,8 +2,8 @@
 @testset "Basic Extensions" begin
     # initialize the model, references, and other info
     m = InfiniteModel()
-    cref1 = FiniteConstraintRef(m, Int64(1), ScalarShape())
-    cref2 = InfiniteConstraintRef(m, Int64(2), ScalarShape())
+    cref1 = FiniteConstraintRef(m, 1, ScalarShape())
+    cref2 = InfiniteConstraintRef(m, 2, ScalarShape())
     con = BoundedScalarConstraint(zero(AffExpr), MOI.EqualTo(0.0),
                                   Dict{ParameterRef, IntervalSet}())
     # owner_model
@@ -29,9 +29,9 @@
     # test Base.:(==) of constraint references
     @testset "Base.:(==) References" begin
         @test !(cref1 == cref2)
-        @test cref1 == FiniteConstraintRef(m, Int64(1), ScalarShape())
-        @test cref1 != FiniteConstraintRef(m, Int64(2), ScalarShape())
-        @test cref1 != FiniteConstraintRef(InfiniteModel(), Int64(1), ScalarShape())
+        @test cref1 == FiniteConstraintRef(m, 1, ScalarShape())
+        @test cref1 != FiniteConstraintRef(m, 2, ScalarShape())
+        @test cref1 != FiniteConstraintRef(InfiniteModel(), 1, ScalarShape())
     end
     # test broadcastable
     @testset "Base.broadcastable Reference" begin
@@ -80,16 +80,16 @@ end
     @testset "_make_constraint_ref" begin
         # prepare for infinite constraint
         m.constrs[1] = ScalarConstraint(inf + par, MOI.LessThan(1.0))
-        @test InfiniteOpt._make_constraint_ref(m, Int64(1)) == InfiniteConstraintRef(m,
-                                                        Int64(1), ScalarShape())
+        @test InfiniteOpt._make_constraint_ref(m, 1) == InfiniteConstraintRef(m,
+                                                        1, ScalarShape())
         # prepare for measure constraint
         m.constrs[1] = ScalarConstraint(pt + meas, MOI.LessThan(1.0))
-        @test InfiniteOpt._make_constraint_ref(m, Int64(1)) == MeasureConstraintRef(m,
-                                                        Int64(1), ScalarShape())
+        @test InfiniteOpt._make_constraint_ref(m, 1) == MeasureConstraintRef(m,
+                                                        1, ScalarShape())
         # prepare for finite constraint
         m.constrs[1] = ScalarConstraint(pt + x, MOI.LessThan(1.0))
-        @test InfiniteOpt._make_constraint_ref(m, Int64(1)) == FiniteConstraintRef(m,
-                                                        Int64(1), ScalarShape())
+        @test InfiniteOpt._make_constraint_ref(m, 1) == FiniteConstraintRef(m,
+                                                        1, ScalarShape())
     end
     # constraint_by_name
     @testset "JuMP.constraint_by_name" begin
@@ -584,36 +584,36 @@ end
     @global_variable(m, 0 <= x <= 1, Int)
     # test search function type and set type
     @testset "Function and Set" begin
-        list = [FiniteConstraintRef(m, Int64(4), ScalarShape())]
+        list = [FiniteConstraintRef(m, 4, ScalarShape())]
         @test all_constraints(m, GlobalVariableRef, MOI.LessThan) == list
-        list = [InfiniteConstraintRef(m, Int64(1), ScalarShape())]
+        list = [InfiniteConstraintRef(m, 1, ScalarShape())]
         @test all_constraints(m, InfiniteVariableRef, MOI.GreaterThan) == list
     end
     # test search function type
     @testset "Function" begin
-        list = [FiniteConstraintRef(m, Int64(3), ScalarShape()),
-                FiniteConstraintRef(m, Int64(4), ScalarShape()),
-                FiniteConstraintRef(m, Int64(5), ScalarShape())]
+        list = [FiniteConstraintRef(m, 3, ScalarShape()),
+                FiniteConstraintRef(m, 4, ScalarShape()),
+                FiniteConstraintRef(m, 5, ScalarShape())]
         @test all_constraints(m, GlobalVariableRef) == list
-        list = [InfiniteConstraintRef(m, Int64(1), ScalarShape())]
+        list = [InfiniteConstraintRef(m, 1, ScalarShape())]
         @test all_constraints(m, InfiniteVariableRef) == list
     end
     # test search set type
     @testset "Set" begin
-        list = [FiniteConstraintRef(m, Int64(4), ScalarShape())]
+        list = [FiniteConstraintRef(m, 4, ScalarShape())]
         @test all_constraints(m, MOI.LessThan) == list
-        list = [InfiniteConstraintRef(m, Int64(1), ScalarShape()),
-                FiniteConstraintRef(m, Int64(2), ScalarShape()),
-                FiniteConstraintRef(m, Int64(3), ScalarShape())]
+        list = [InfiniteConstraintRef(m, 1, ScalarShape()),
+                FiniteConstraintRef(m, 2, ScalarShape()),
+                FiniteConstraintRef(m, 3, ScalarShape())]
         @test all_constraints(m, MOI.GreaterThan) == list
     end
     # test search total
     @testset "Total" begin
-        list = [InfiniteConstraintRef(m, Int64(1), ScalarShape()),
-                FiniteConstraintRef(m, Int64(2), ScalarShape()),
-                FiniteConstraintRef(m, Int64(3), ScalarShape()),
-                FiniteConstraintRef(m, Int64(4), ScalarShape()),
-                FiniteConstraintRef(m, Int64(5), ScalarShape())]
+        list = [InfiniteConstraintRef(m, 1, ScalarShape()),
+                FiniteConstraintRef(m, 2, ScalarShape()),
+                FiniteConstraintRef(m, 3, ScalarShape()),
+                FiniteConstraintRef(m, 4, ScalarShape()),
+                FiniteConstraintRef(m, 5, ScalarShape())]
         @test all_constraints(m) == list
     end
 end
