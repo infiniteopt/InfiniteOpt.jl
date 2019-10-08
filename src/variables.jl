@@ -1,7 +1,7 @@
 # Define symbol inputs for different variable types
 const Infinite = :Infinite
 const Point = :Point
-const Global = :Global
+const Hold = :Hold
 
 ## Extend Base.copy for new variable types
 # GeneralVariableRef
@@ -13,10 +13,10 @@ function Base.copy(v::InfiniteVariableRef,
     return InfiniteVariableRef(new_model, v.index)
 end
 
-# GlobalVariableRef
-function Base.copy(v::GlobalVariableRef,
-                   new_model::InfiniteModel)::GlobalVariableRef
-    return GlobalVariableRef(new_model, v.index)
+# HoldVariableRef
+function Base.copy(v::HoldVariableRef,
+                   new_model::InfiniteModel)::HoldVariableRef
+    return HoldVariableRef(new_model, v.index)
 end
 
 # PointVariableRef
@@ -40,8 +40,8 @@ function JuMP.variable_type(model::InfiniteModel, type::Symbol)
         return InfiniteVariableRef
     elseif type == Point
         return PointVariableRef
-    elseif type == Global
-        return GlobalVariableRef
+    elseif type == Hold
+        return HoldVariableRef
     elseif type == Parameter
         return ParameterRef
     else
@@ -196,6 +196,7 @@ function _update_point_info(info::JuMP.VariableInfo, ivref::InfiniteVariableRef)
     return info
 end
 
+# TODO modify to handle hold variables with subdomains
 """
     JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
                         var_type::Symbol;
@@ -212,9 +213,9 @@ end
 Extend the [`JuMP.build_variable`](@ref) function to accomodate `InfiniteOpt`
 variable types. Returns the appropriate variable Datatype (i.e.,
 [`InfiniteVariable`](@ref), [`PointVariable`](@ref), and
-[`GlobalVariable`](@ref)). Primarily this method is to be used internally by the
+[`HoldVariable`](@ref)). Primarily this method is to be used internally by the
 appropriate constructor macros [`@infinite_variable`](@ref),
-[`@point_variable`](@ref), and [`@global_variable`](@ref). However, it can be
+[`@point_variable`](@ref), and [`@hold_variable`](@ref). However, it can be
 called manually to build `InfiniteOpt` variables. Errors if an unneeded keyword
 argument is given or if the keywoard arguments are formatted incorrectly (e.g.,
 `parameter_refs` contains repeated parameter references when an infinite variable
@@ -239,8 +240,8 @@ julia> pt_var = build_variable(error, info, Point, infinite_variable_ref = ivref
 PointVariable{Int64,Int64,Int64,Float64}(VariableInfo{Int64,Int64,Int64,Float64}
 (false, 0, false, 0, false, 0, true, 0.0, false, false), var_name(t), (0.5,))
 
-julia> gb_var = build_variable(error, info, Global)
-GlobalVariable{Int64,Int64,Int64,Int64}(VariableInfo{Int64,Int64,Int64,Int64}
+julia> gb_var = build_variable(error, info, Hold)
+HoldVariable{Int64,Int64,Int64,Int64}(VariableInfo{Int64,Int64,Int64,Int64}
 (false, 0, false, 0, false, 0, false, 0, false, false))
 ```
 """
@@ -262,9 +263,9 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
-    if !(var_type in [Infinite, Point, Global])
+    if !(var_type in [Infinite, Point, Hold])
         _error("Unrecognized variable type $var_type, should be Infinite, " *
-               "Point, or Global.")
+               "Point, or Hold.")
     end
     if var_type != Infinite && parameter_refs != nothing
         _error("Can only use the keyword argument 'parameter_refs' with " *
@@ -298,7 +299,7 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
         info = _update_point_info(info, infinite_variable_ref)
         return PointVariable(info, infinite_variable_ref, parameter_values)
     else
-        return GlobalVariable(info)
+        return HoldVariable(info)
     end
 end
 
@@ -360,9 +361,9 @@ end
 Extend the [`JuMP.add_variable`](@ref) function to accomodate `InfiniteOpt`
 variable types. Adds a variable to an infinite model `model` and returns an
 appropriate variable reference (i.e., [`InfiniteVariableRef`](@ref),
-[`PointVariableRef`](@ref), or [`GlobalVariableRef`](@ref)). Primarily intended
+[`PointVariableRef`](@ref), or [`HoldVariableRef`](@ref)). Primarily intended
 to be an internal function of the constructor macros [`@infinite_variable`](@ref),
-[`@point_variable`](@ref), and [`@global_variable`](@ref). However, it can be used
+[`@point_variable`](@ref), and [`@hold_variable`](@ref). However, it can be used
 in combination with [`JuMP.build_variable`](@ref) to add variables to an infinite
 model object. Errors if invalid parameters reference(s) or an invalid infinite
 variable reference is included in `v`.
@@ -380,7 +381,7 @@ julia> pt_var = build_variable(error, info, Point, infinite_variable_ref = ivref
 julia> pvref = add_variable(m, pt_var, "var_alias")
 var_alias
 
-julia> gb_var = build_variable(error, info, Global)
+julia> gb_var = build_variable(error, info, Hold)
 
 julia> gvref = add_variable(m, gb_var, "var_name")
 var_name
@@ -401,7 +402,7 @@ function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable,
         _update_param_supports(ivref, v.parameter_values)
         _update_infinite_point_mapping(vref, ivref)
     else
-        vref = GlobalVariableRef(model, model.next_var_index)
+        vref = HoldVariableRef(model, model.next_var_index)
     end
     model.vars[JuMP.index(vref)] = v
     JuMP.set_name(vref, name)
@@ -452,9 +453,9 @@ julia> owner_model(vref)
 An InfiniteOpt Model
 Feasibility problem with:
 Variable: 1
-`GlobalVariableRef`-in-`MathOptInterface.LessThan{Float64}`: 1 constraint
-`GlobalVariableRef`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
-`GlobalVariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 1 constraint
+`HoldVariableRef`-in-`MathOptInterface.LessThan{Float64}`: 1 constraint
+`HoldVariableRef`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
+`HoldVariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 1 constraint
 Names registered in the model: vref
 Optimizer model backend information:
 Model mode: AUTOMATIC
@@ -775,9 +776,9 @@ function JuMP.name(vref::InfOptVariableRef)::String
 end
 
 """
-    JuMP.set_name(vref::GlobalVariableRef, name::String)
+    JuMP.set_name(vref::HoldVariableRef, name::String)
 
-Extend [`JuMP.set_name`](@ref) to set names of global variables.
+Extend [`JuMP.set_name`](@ref) to set names of hold variables.
 
 **Example**
 ```julia
@@ -787,7 +788,7 @@ julia> name(t)
 "var_name"
 ```
 """
-function JuMP.set_name(vref::GlobalVariableRef, name::String)
+function JuMP.set_name(vref::HoldVariableRef, name::String)
     JuMP.owner_model(vref).var_to_name[JuMP.index(vref)] = name
     JuMP.owner_model(vref).name_to_var = nothing
     return
@@ -997,7 +998,7 @@ function _make_variable_ref(model::InfiniteModel, index::Int)::GeneralVariableRe
     elseif isa(model.vars[index], PointVariable)
         return PointVariableRef(model, index)
     else
-        return GlobalVariableRef(model, index)
+        return HoldVariableRef(model, index)
     end
 end
 

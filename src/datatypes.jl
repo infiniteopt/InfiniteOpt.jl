@@ -34,7 +34,7 @@ end
 """
     InfOptVariable <: JuMP.AbstractVariable
 
-An abstract type for infinite, point, and global variables.
+An abstract type for infinite, point, and hold variables.
 """
 abstract type InfOptVariable <: JuMP.AbstractVariable end
 
@@ -299,7 +299,7 @@ An abstract type to define new finite variable references.
 abstract type FiniteVariableRef <: MeasureFiniteVariableRef end
 
 """
-    GlobalVariableRef <: FiniteVariableRef
+    HoldVariableRef <: FiniteVariableRef
 
 A DataType for finite fixed variable references (e.g., first stage variables,
 steady-state variables).
@@ -308,7 +308,7 @@ steady-state variables).
 - `model::InfiniteModel` Infinite model.
 - `index::Int` Index of variable in model.
 """
-struct GlobalVariableRef <: FiniteVariableRef
+struct HoldVariableRef <: FiniteVariableRef
     model::InfiniteModel
     index::Int
 end
@@ -375,6 +375,57 @@ struct ParameterRef <: GeneralVariableRef
 end
 
 """
+    MeasureRef <: FiniteVariableRef
+
+A DataType for referring to measure abstractions.
+
+**Fields**
+- `model::InfiniteModel` Infinite model.
+- `index::Int` Index of variable in model.
+"""
+struct MeasureRef <: MeasureFiniteVariableRef
+    model::InfiniteModel
+    index::Int
+end
+
+"""
+    IntervalSet <: AbstractInfiniteSet
+
+A DataType that stores the lower and upper interval bounds for infinite
+parameters that are continuous over a certain that interval.
+
+**Fields**
+- `lower_bound::Float64` Lower bound of the infinite parameter.
+- `upper_bound::Float64` Upper bound of the infinite parameter.
+"""
+struct IntervalSet <: AbstractInfiniteSet
+    lower_bound::Float64
+    upper_bound::Float64
+end
+
+"""
+    IntervalSet(lower_bound::Number, upper_bound::Number)
+
+A constructor for [`IntervalSet`](@ref) that converts values of type `Number` to
+values of type `Float64` as required by `IntervalSet`.
+"""
+IntervalSet(lb::Number, ub::Number) = IntervalSet(convert(Float64, lb),
+                                                  convert(Float64, ub))
+
+"""
+    DistributionSet{T <: Distributions.NonMatrixDistribution} <: AbstractInfiniteSet
+
+A DataType that stores the distribution characterizing infinite parameters that
+are random.
+
+**Fields**
+- `distribution::T` Distribution of the random parameter.
+"""
+struct DistributionSet{T <: Distributions.NonMatrixDistribution} <: AbstractInfiniteSet
+    distribution::T
+end
+
+"""
     InfiniteVariable{S, T, U, V} <: InfOptVariable
 A DataType for storing core infinite variable information. Note each element of
 the parameter reference tuple must contain either a single
@@ -410,14 +461,16 @@ struct PointVariable{S, T, U, V} <: InfOptVariable
 end
 
 """
-    GlobalVariable{S, T, U, V} <: InfOptVariable
-A DataType for storing global variable information.
+    HoldVariable{S, T, U, V} <: InfOptVariable
+A DataType for storing hold variable information.
 
 **Fields**
 - `info::JuMP.VariableInfo{S, T, U, V}` JuMP variable information.
+- `parameter_bounds::Dict(ParameterRef, IntervalSet)` Valid parameter sub-domains
 """
-struct GlobalVariable{S, T, U, V} <: InfOptVariable
+struct HoldVariable{S, T, U, V} <: InfOptVariable
     info::JuMP.VariableInfo{S, T, U, V}
+    parameter_bounds::Dict(ParameterRef, IntervalSet)
 end
 
 """
@@ -436,9 +489,13 @@ struct ReducedInfiniteInfo <: AbstractReducedInfo
                                    JuMPC.SparseAxisArray{<:Number}}}
 end
 
-# Define variable references without that aren't measures
+"""
+    InfOptVariableRef
+
+A union type for infinite, point, and hold variable references.
+"""
 const InfOptVariableRef = Union{InfiniteVariableRef, PointVariableRef,
-                                GlobalVariableRef}
+                                HoldVariableRef}
 
 # Define infinite expressions
 const InfiniteExpr = Union{InfiniteVariableRef, ReducedInfiniteVariableRef,
@@ -451,20 +508,6 @@ const InfiniteExpr = Union{InfiniteVariableRef, ReducedInfiniteVariableRef,
 const ParameterExpr = Union{ParameterRef,
                             JuMP.GenericAffExpr{Float64, ParameterRef},
                             JuMP.GenericQuadExpr{Float64, ParameterRef}}
-
-"""
-    MeasureRef <: FiniteVariableRef
-
-A DataType for referring to measure abstractions.
-
-**Fields**
-- `model::InfiniteModel` Infinite model.
-- `index::Int` Index of variable in model.
-"""
-struct MeasureRef <: MeasureFiniteVariableRef
-    model::InfiniteModel
-    index::Int
-end
 
 """
     DiscreteMeasureData <: AbstractMeasureData
@@ -572,43 +615,6 @@ const MeasureExpr = Union{MeasureRef,
                           JuMP.GenericAffExpr{Float64, MeasureFiniteVariableRef},
                           JuMP.GenericQuadExpr{Float64, MeasureRef},
                           JuMP.GenericQuadExpr{Float64, MeasureFiniteVariableRef}}
-
-"""
-    IntervalSet <: AbstractInfiniteSet
-
-A DataType that stores the lower and upper interval bounds for infinite
-parameters that are continuous over a certain that interval.
-
-**Fields**
-- `lower_bound::Float64` Lower bound of the infinite parameter.
-- `upper_bound::Float64` Upper bound of the infinite parameter.
-"""
-struct IntervalSet <: AbstractInfiniteSet
-    lower_bound::Float64
-    upper_bound::Float64
-end
-
-"""
-    IntervalSet(lower_bound::Number, upper_bound::Number)
-
-A constructor for [`IntervalSet`](@ref) that converts values of type `Number` to
-values of type `Float64` as required by `IntervalSet`.
-"""
-IntervalSet(lb::Number, ub::Number) = IntervalSet(convert(Float64, lb),
-                                                  convert(Float64, ub))
-
-"""
-    DistributionSet{T <: Distributions.NonMatrixDistribution} <: AbstractInfiniteSet
-
-A DataType that stores the distribution characterizing infinite parameters that
-are random.
-
-**Fields**
-- `distribution::T` Distribution of the random parameter.
-"""
-struct DistributionSet{T <: Distributions.NonMatrixDistribution} <: AbstractInfiniteSet
-    distribution::T
-end
 
 """
     BoundedScalarConstraint{F <: JuMP.AbstractJuMPScalar,

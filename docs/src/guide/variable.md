@@ -15,7 +15,7 @@ design variables).
 ## Basic Usage
 Infinite, point, and global variables are typically defined via their respective
 macros: [`@infinite_variable`](@ref), [`@point_variable`](@ref), and
-[`@global_variable`](@ref). 
+[`@global_variable`](@ref).
 
 ## Infinite Variable Definition
 
@@ -39,13 +39,14 @@ Order   = [:type]
 InfOptVariable
 InfiniteVariable
 PointVariable
-GlobalVariable
+HoldVariable
+InfOptVariableRef
 GeneralVariableRef
 MeasureFiniteVariableRef
 FiniteVariableRef
 InfiniteVariableRef
 PointVariableRef
-GlobalVariableRef
+HoldVariableRef
 ```
 
 ## Methods/Macros
@@ -59,7 +60,7 @@ JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Symbol)
 JuMP.add_variable(::InfiniteModel, ::InfOptVariable, ::String)
 @infinite_variable
 @point_variable
-@global_variable
+@hold_variable
 JuMP.owner_model(::GeneralVariableRef)
 JuMP.index(::GeneralVariableRef)
 used_by_constraint(::InfOptVariableRef)
@@ -100,7 +101,7 @@ JuMP.unset_integer(::InfOptVariableRef)
 JuMP.name(::InfOptVariableRef)
 JuMP.set_name(::InfiniteVariableRef, ::String)
 JuMP.set_name(::PointVariableRef, ::String)
-JuMP.set_name(::GlobalVariableRef, ::String)
+JuMP.set_name(::HoldVariableRef, ::String)
 parameter_refs(::InfiniteVariableRef)
 set_parameter_refs(::InfiniteVariableRef, ::Tuple)
 add_parameter_ref(::InfiniteVariableRef,::Union{ParameterRef, AbstractArray{<:ParameterRef}})
