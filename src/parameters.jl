@@ -120,7 +120,7 @@ end
 
 """
     build_parameter(_error::Function, set::AbstractInfiniteSet,
-                    [num_params::Int64 = 1;
+                    [num_params::Int = 1;
                     supports::Union{Number, Vector{<:Number}} = Number[],
                     independent::Bool = false])::InfOptParameter
 
@@ -131,7 +131,7 @@ a different dimension than `num_params`. This is meant to primarily serve as a
 helper method for [`@infinite_parameter`](@ref).
 
 **Example**
-```jldoctest
+```jldoctest; setup = :(using InfiniteOpt)
 julia> build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
 InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
 ```
@@ -179,7 +179,7 @@ to `model`. This adds a parameter to the model in a manner similar to
 construct `p`.
 
 **Example**
-```jldoctest; :(using InfiniteOpt; model = InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> p = build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
 InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
 
@@ -990,7 +990,7 @@ Delete the support points for `pref`.
 julia> delete_supports(t)
 
 julia> supports(t)
-ERROR: Parameter test does not have supports.
+ERROR: Parameter t does not have supports.
 ```
 """
 function delete_supports(pref::ParameterRef)

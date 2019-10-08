@@ -94,7 +94,7 @@ defining an array of parameters with equivalent dimensions. For example, let's
 make a `DistributionSet` that depends on a Beta distribution:
 ```jldoctest; setup = :(using InfiniteOpt, Distributions)
 julia> set = DistributionSet(Beta(2,2))
-DistributionSet{Beta{Float64}}(Beta{Float64}(α=2.0, β=2.0))
+DistributionSet{Beta{Float64}}(Distributions.Beta{Float64}(α=2.0, β=2.0))
 ```
 User-defined distributions are also permissible so long as they are created in
 accordance with `Distributions.jl`.
