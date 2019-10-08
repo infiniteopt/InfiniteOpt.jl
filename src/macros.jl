@@ -304,7 +304,7 @@ The recognized keyword arguments in `kw_args` are the following:
 - `container`: Specify the container type.
 
 **Examples**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
 julia> par = @finite_parameter(model, 2)
 noname
 

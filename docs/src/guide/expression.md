@@ -5,6 +5,9 @@ used in `InfiniteOpt`.
 ## Overview
 
 
+## Datatype Hierarchy
+
+
 ## Affine Expressions
 
 

@@ -2,10 +2,20 @@
 A guide and manual for the definition and use of variables in `InfiniteOpt`.
 
 ## Overview
-
+Decision variables are at the very core of `InfiniteOpt` as its name alludes
+to mathematical programs that entail infinite decision spaces (i.e., contain
+infinite decision variables). Principally, three variable types are employed:
+infinite, point, and global. Infinite variables encompass any decision variable
+that is parameterized by an infinite parameter (e.g., space-time variables and
+recourse variables). Point variables are infinite variables at a particular
+infinite parameter value (point). Finally, global variables are decisions that
+are made irrespective of the infinite domain (e.g., first stage variables and
+design variables).
 
 ## Basic Usage
-
+Infinite, point, and global variables are typically defined via their respective
+macros: [`@infinite_variable`](@ref), [`@point_variable`](@ref), and
+[`@global_variable`](@ref). 
 
 ## Infinite Variable Definition
 
