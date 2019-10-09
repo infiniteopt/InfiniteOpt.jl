@@ -555,7 +555,7 @@ julia> @infinite_variable(model, lb[i] <= y[i = 1:2](t) <= ub[i], Int)
 ```
 """
 macro infinite_variable(model, args...)
-    _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...),
+    _error(str...) = JuMP._macro_error(:infinite_variable, (model, args...),
                                        str...)
 
     extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
@@ -742,7 +742,7 @@ julia> @point_variable(model, y[i](0), y0[i = 1:2], Bin)
 ```
 """
 macro point_variable(model, args...)
-    _error(str...) = JuMP._macro_error(:point_parameter,
+    _error(str...) = JuMP._macro_error(:point_variable,
                                        (model, args...), str...)
 
     extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
@@ -791,16 +791,16 @@ macro point_variable(model, args...)
 end
 
 """
-    @global_variable(model, kw_args...)
+    @hold_variable(model, kw_args...)
 
-Add an *anonymous* global variable to the model `model` described by the
+Add an *anonymous* hold variable to the model `model` described by the
 keyword arguments `kw_args` and returns the variable reference.
 
 ```julia
-@global_variable(model, varexpr, args..., kw_args...)
+@hold_variable(model, varexpr, args..., kw_args...)
 ```
 
-Add a global variable to `model` described by the expression `varexpr`, the
+Add a hold variable to `model` described by the expression `varexpr`, the
 positional arguments `args` and the keyword arguments `kw_args`. The expression
 `varexpr` can either be (note that in the following the symbol `<=` can be used
 instead of `≤` and the symbol `>=`can be used instead of `≥`) of the form:
@@ -823,7 +823,26 @@ The recognized positional arguments in `args` are the following:
 - `Bin`: Sets the variable to be binary, i.e. either 0 or 1.
 - `Int`: Sets the variable to be integer, i.e. one of ..., -2, -1, 0, 1, 2, ...
 
-The recognized keyword arguments in `kw_args` are the following:
+Specifiying a hold variable which applies only to sub-domain of the model's
+infinite parameter(s) domain can be done via the `parameter_bounds` keyword
+argument. It is specified as a tuple of parameter bound expressions which can
+be of the form:
+
+- `(param in [lb, ub], ...)` enforcing `param` to be in a sub-domain from `lb`
+                             to `ub` (note `∈` can be used in place of `in`)
+- `(params in [lb, ub], ...)` enforcing that all parameter references in `params`
+                              each be a in sub-domain from `lb` to `ub`
+- `(lb <= param <= ub, ...)` enforcing `param` to be in a sub-domain from `lb`
+                             to `ub`
+- `(lb <= params <= ub, ...)` enforcing that all parameter references in `params`
+                              each be a in sub-domain from `lb` to `ub`
+- `(param == value, ...)` enforcing `param` to be equal to `value`
+- `(params == value, ...)` enforcing that all parameter references in `params`
+                            each to be equal to `value`
+- Any combination of the above forms. Must be inside parentheses and comma
+  separated.
+
+The other recognized keyword arguments in `kw_args` are the following:
 
 - `base_name`: Sets the name prefix used to generate variable names. It
   corresponds to the variable name for scalar variable, otherwise, the
@@ -838,32 +857,58 @@ The recognized keyword arguments in `kw_args` are the following:
 
 **Examples**
 ```julia
-julia> @global_variable(model, x)
+julia> @hold_variable(model, x)
 x
 
-julia> @global_variable(model, 0 <= y <= 4, Bin)
+julia> @hold_variable(model, 0 <= y <= 4, Bin)
 y
 
-julia> y = @global_variable(model, lower_bound = 0, upper_bound = 4,
+julia> y = @hold_variable(model, lower_bound = 0, upper_bound = 4,
                             binary = true, base_name = "y")
 y
 
-julia> @global_variable(model, z[2:3] == 0)
-1-dimensional DenseAxisArray{GlobalVariableRef,1,...} with index sets:
+julia> @hold_variable(model, z[2:3] == 0)
+1-dimensional DenseAxisArray{HoldVariableRef,1,...} with index sets:
     Dimension 1, 2:3
-And data, a 2-element Array{GlobalVariableRef,1}:
+And data, a 2-element Array{HoldVariableRef,1}:
  z[2]
  z[3]
 ```
 """
-macro global_variable(model, args...)
-    _error(str...) = JuMP._macro_error(:global_parameter, (model, args...),
+macro hold_variable(model, args...)
+    _error(str...) = JuMP._macro_error(:hold_variable, (model, args...),
                                        str...)
-    code = quote
-        @assert isa($model, InfiniteModel) "Model must be an " *
-                                           "`InfiniteModel`."
-        JuMP.@variable($model, ($(args...)), variable_type = Global,
-                       error = $_error)
+    # parse the arguments
+    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    bound_kw_args = filter(kw -> kw.args[1] == :parameter_bounds, kw_args)
+
+    # no bounds given so we don't need to do anything
+    if length(bound_kw_args) == 0
+        code = quote
+            @assert isa($model, InfiniteModel) "Model must be an " *
+                                               "`InfiniteModel`."
+            JuMP.@variable($model, ($(args...)), variable_type = Hold,
+                           error = $_error)
+        end
+    else
+        x = bound_kw_args[1].args[2]
+        if isexpr(x, :call) || isexpr(x, :tuple) || isexpr(x, :comparison)
+           name_expr, bounds = InfiniteOpt._extract_bounds(_error, x.args,
+                                                           Val(x.head))
+        else
+           _error("Unrecognized input format for parameter bounds. Must be of " *
+                  "tuple with elements of form: par(s) in [lb, ub] or " *
+                  "par(s) = value.")
+        end
+        extra_kw_args = filter(kw -> kw.args[1] != :parameter_bounds, kw_args)
+        code = quote
+            @assert isa($model, InfiniteModel) "Model must be an " *
+                                               "`InfiniteModel`."
+            JuMP.@variable($model, ($(extra...)), variable_type = Hold,
+                           parameter_bounds = ($(bounds)), error = $_error,
+                           container = ($(requestedcontainer)),
+                           ($(extra_kw_args...)))
+        end
     end
     return esc(code)
 end
@@ -1112,3 +1157,5 @@ macro BDconstraint(model, args...)
     end
     return esc(code)
 end
+
+# TODO Make @set_parameter_bounds and @add_parameter_bounds

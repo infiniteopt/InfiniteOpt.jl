@@ -84,7 +84,7 @@ end
     @infinite_variable(m, inf5(pars1, pars2))
     @infinite_variable(m, inf6(pars2))
     @infinite_variable(m, inf7(par1, par2, pars1))
-    @global_variable(m, x)
+    @hold_variable(m, x)
     # prepare measures
     w(t) = 3
     data1 = DiscreteMeasureData(par1, [0.5, 0.5], [1, 2])
@@ -400,7 +400,7 @@ end
     @infinite_variable(m, inf2(par1, par2))
     @infinite_variable(m, inf3(par2))
     @infinite_variable(m, inf4(pars1))
-    @global_variable(m, x)
+    @hold_variable(m, x)
     # prepare measures
     data1 = DiscreteMeasureData(par1, [0.5, 0.5], [1, 2])
     data2 = DiscreteMeasureData(pars1, [1, 1], [[1, 1], [2, 2]])
@@ -501,7 +501,7 @@ end
     @infinite_variable(m, inf2(par1, par2) >= 0)
     @infinite_variable(m, inf3(par2))
     @infinite_variable(m, inf4(pars1))
-    @global_variable(m, x >= 0)
+    @hold_variable(m, x >= 0)
     # prepare measures
     data1 = DiscreteMeasureData(par1, [0.5, 0.5], [1, 2])
     data2 = DiscreteMeasureData(pars1, [1, 1], [[1, 1], [2, 2]])

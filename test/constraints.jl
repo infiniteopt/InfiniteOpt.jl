@@ -62,7 +62,7 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
-    @global_variable(m, x)
+    @hold_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
     meas = measure(inf + par - x, data)
     cref = FiniteConstraintRef(m, 1, ScalarShape())
@@ -113,26 +113,10 @@ end
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
-    @global_variable(m, x)
+    @hold_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
     meas = measure(inf + par - x, data)
     rv = ReducedInfiniteVariableRef(m, 42)
-    # test _expand_parameter_dict(Dict{ParameterRef,IntervalSet}))
-    @testset "_expand_parameter_dict (acceptable Form)" begin
-        d = Dict(par => IntervalSet(0, 1))
-        @test InfiniteOpt._expand_parameter_dict(d) == d
-    end
-    # test _expand_parameter_dict(Dict{Any,IntervalSet}))
-    @testset "_expand_parameter_dict (Array Form)" begin
-        d = Dict(pars => IntervalSet(0, 1), par => IntervalSet(0, 1))
-        @test isa(InfiniteOpt._expand_parameter_dict(d),
-                  Dict{ParameterRef, IntervalSet})
-    end
-    # test _expand_parameter_dict(Dict))
-    @testset "_expand_parameter_dict (Fallback)" begin
-        d = Dict(pars => 1, par => 2)
-        @test_throws ErrorException InfiniteOpt._expand_parameter_dict(d)
-    end
     # test build_constraint (single)
     @testset "JuMP.build_constraint (Single)" begin
         # test bounded constraint
@@ -226,7 +210,7 @@ end
         @variable(Model(), z)
         con = ScalarConstraint(z, MOI.EqualTo(42.0))
         @test_throws VariableNotOwned add_constraint(m, con, "a")
-        @global_variable(InfiniteModel(), g)
+        @hold_variable(InfiniteModel(), g)
         con = ScalarConstraint(g, MOI.EqualTo(42.0))
         @test_throws VariableNotOwned add_constraint(m, con, "a")
         # test bounded constraint
@@ -405,7 +389,7 @@ end
         @infinite_parameter(m, 0 <= pars[1:2] <= 10)
         @infinite_variable(m, inf(par))
         @point_variable(m, inf(0.5), pt)
-        @global_variable(m, x)
+        @hold_variable(m, x)
         bounds1 = Dict(par => IntervalSet(0, 1))
         m2 = Model()
         # test errors
@@ -479,6 +463,37 @@ end
     end
 end
 
+# TODO Finish tests once have tests for helper access functions
+# Test the hold variable macro with bounds
+# @testset "@hold_variable (With Bounds)" begin
+#     # initialize model
+#     m = InfiniteModel()
+#     @infinite_parameter(m, t in [0, 10])
+#     @infinite_parameter(m, x[1:3] in [-2, 2])
+#     # test regular
+#     vref = HoldVariableRef(m, 1)
+#     @test @hold_variable(m, x >= 1, Bin, parameter_bounds = t == 0) == vref
+#     @test name(vref) == "x"
+#     @test lower_bound(vref) == 1
+#     @test is_binary(vref)
+#     # test anan
+#     vref = HoldVariableRef(m, 2)
+#     @test @hold_variable(m, binary = true, lower_bound = 1,
+#                            base_name = "x") == vref
+#     @test name(vref) == "x"
+#     @test lower_bound(vref) == 1
+#     @test is_binary(vref)
+#     # test array
+#     vrefs = [HoldVariableRef(m, 3), HoldVariableRef(m, 4)]
+#     @test @hold_variable(m, y[1:2] == 2, Int) == vrefs
+#     @test name(vrefs[1]) == "y[1]"
+#     @test fix_value(vrefs[2]) == 2
+#     @test is_integer(vrefs[1])
+#     # test errors
+#     @test_throws AssertionError @hold_variable(Model(), z >= 1, Bin)
+#     @test_macro_throws ErrorException @hold_variable(m, x >= 1, Bin)
+# end
+
 # Test coefficient queries and modifications
 @testset "Coefficient Methods" begin
     # initialize model and references
@@ -486,7 +501,7 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
-    @global_variable(m, x >= 0, Int)
+    @hold_variable(m, x >= 0, Int)
     @constraint(m, c1, inf + x == 0,
                 parameter_bounds = Dict(par => IntervalSet(0, 1)))
     @constraint(m, c2, x * pt + x == 2)
@@ -552,15 +567,15 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par) >= 0)
     @point_variable(m, inf(0.5), pt)
-    @global_variable(m, 0 <= x <= 1, Int)
+    @hold_variable(m, 0 <= x <= 1, Int)
     # test search function type and set type
     @testset "Function and Set" begin
-        @test num_constraints(m, GlobalVariableRef, MOI.LessThan) == 1
+        @test num_constraints(m, HoldVariableRef, MOI.LessThan) == 1
         @test num_constraints(m, InfiniteVariableRef, MOI.GreaterThan) == 1
     end
     # test search function type
     @testset "Function" begin
-        @test num_constraints(m, GlobalVariableRef) == 3
+        @test num_constraints(m, HoldVariableRef) == 3
         @test num_constraints(m, InfiniteVariableRef) == 1
     end
     # test search set type
@@ -581,11 +596,11 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par) >= 0)
     @point_variable(m, inf(0.5), pt)
-    @global_variable(m, 0 <= x <= 1, Int)
+    @hold_variable(m, 0 <= x <= 1, Int)
     # test search function type and set type
     @testset "Function and Set" begin
         list = [FiniteConstraintRef(m, 4, ScalarShape())]
-        @test all_constraints(m, GlobalVariableRef, MOI.LessThan) == list
+        @test all_constraints(m, HoldVariableRef, MOI.LessThan) == list
         list = [InfiniteConstraintRef(m, 1, ScalarShape())]
         @test all_constraints(m, InfiniteVariableRef, MOI.GreaterThan) == list
     end
@@ -594,7 +609,7 @@ end
         list = [FiniteConstraintRef(m, 3, ScalarShape()),
                 FiniteConstraintRef(m, 4, ScalarShape()),
                 FiniteConstraintRef(m, 5, ScalarShape())]
-        @test all_constraints(m, GlobalVariableRef) == list
+        @test all_constraints(m, HoldVariableRef) == list
         list = [InfiniteConstraintRef(m, 1, ScalarShape())]
         @test all_constraints(m, InfiniteVariableRef) == list
     end
@@ -625,11 +640,11 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par) >= 0)
     @point_variable(m, inf(0.5), pt)
-    @global_variable(m, 0 <= x <= 1, Int)
+    @hold_variable(m, 0 <= x <= 1, Int)
     expected = [(InfiniteVariableRef, MOI.GreaterThan{Float64}),
                 (PointVariableRef, MOI.GreaterThan{Float64}),
-                (GlobalVariableRef, MOI.GreaterThan{Float64}),
-                (GlobalVariableRef, MOI.LessThan{Float64}),
-                (GlobalVariableRef, MOI.Integer)]
+                (HoldVariableRef, MOI.GreaterThan{Float64}),
+                (HoldVariableRef, MOI.LessThan{Float64}),
+                (HoldVariableRef, MOI.Integer)]
     @test list_of_constraint_types(m) == expected
 end

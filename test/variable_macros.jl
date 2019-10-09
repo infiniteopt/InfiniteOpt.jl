@@ -389,30 +389,31 @@ end
     end
 end
 
-# Test the global variable macro
-@testset "Global" begin
+# Test the hold variable macro if no bounds are provided
+# The bounded case is tested after @BDconstraint in constraints.jl
+@testset "Hold (No Bounds)" begin
     # initialize model
     m = InfiniteModel()
     # test regular
-    vref = GlobalVariableRef(m, 1)
-    @test @global_variable(m, x >= 1, Bin) == vref
+    vref = HoldVariableRef(m, 1)
+    @test @hold_variable(m, x >= 1, Bin) == vref
     @test name(vref) == "x"
     @test lower_bound(vref) == 1
     @test is_binary(vref)
     # test anan
-    vref = GlobalVariableRef(m, 2)
-    @test @global_variable(m, binary = true, lower_bound = 1,
+    vref = HoldVariableRef(m, 2)
+    @test @hold_variable(m, binary = true, lower_bound = 1,
                            base_name = "x") == vref
     @test name(vref) == "x"
     @test lower_bound(vref) == 1
     @test is_binary(vref)
     # test array
-    vrefs = [GlobalVariableRef(m, 3), GlobalVariableRef(m, 4)]
-    @test @global_variable(m, y[1:2] == 2, Int) == vrefs
+    vrefs = [HoldVariableRef(m, 3), HoldVariableRef(m, 4)]
+    @test @hold_variable(m, y[1:2] == 2, Int) == vrefs
     @test name(vrefs[1]) == "y[1]"
     @test fix_value(vrefs[2]) == 2
     @test is_integer(vrefs[1])
     # test errors
-    @test_throws AssertionError @global_variable(Model(), z >= 1, Bin)
-    @test_macro_throws ErrorException @global_variable(m, x >= 1, Bin)
+    @test_throws AssertionError @hold_variable(Model(), z >= 1, Bin)
+    @test_macro_throws ErrorException @hold_variable(m, x >= 1, Bin)
 end

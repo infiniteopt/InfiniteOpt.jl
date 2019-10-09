@@ -5,7 +5,7 @@
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
-    @global_variable(m, x)
+    @hold_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
     meas = measure(inf + par - x, data)
     rv = ReducedInfiniteVariableRef(m, 42)
@@ -35,8 +35,8 @@ end
     @infinite_variable(m, inf2(par) == 1, Int)
     @point_variable(m, inf1(0.5), pt1)
     @point_variable(m, inf2(0.5), pt2)
-    @global_variable(m, 0 <= gb1 <= 1, Bin)
-    @global_variable(m, gb2 == 1, Int)
+    @hold_variable(m, 0 <= gb1 <= 1, Bin)
+    @hold_variable(m, gb2 == 1, Int)
     # test delete_lower_bound
     @testset "JuMP.delete_lower_bound" begin
         # test with infinite variable
@@ -49,7 +49,7 @@ end
         @test isa(delete_lower_bound(pt1), Nothing)
         @test !has_lower_bound(pt1)
         @test_throws ErrorException delete_lower_bound(pt2)
-        # test with global variable
+        # test with hold variable
         @test has_lower_bound(gb1)
         @test isa(delete_lower_bound(gb1), Nothing)
         @test !has_lower_bound(gb1)
@@ -67,7 +67,7 @@ end
         @test isa(delete_upper_bound(pt1), Nothing)
         @test !has_upper_bound(pt1)
         @test_throws ErrorException delete_upper_bound(pt2)
-        # test with global variable
+        # test with hold variable
         @test has_upper_bound(gb1)
         @test isa(delete_upper_bound(gb1), Nothing)
         @test !has_upper_bound(gb1)
@@ -85,7 +85,7 @@ end
         @test isa(unfix(pt2), Nothing)
         @test !is_fixed(pt2)
         @test_throws ErrorException unfix(pt1)
-        # test with global variable
+        # test with hold variable
         @test is_fixed(gb2)
         @test isa(unfix(gb2), Nothing)
         @test !is_fixed(gb2)
@@ -103,7 +103,7 @@ end
         @test isa(unset_binary(pt1), Nothing)
         @test !is_binary(pt1)
         @test_throws ErrorException unset_binary(pt2)
-        # test with global variable
+        # test with hold variable
         @test is_binary(gb1)
         @test isa(unset_binary(gb1), Nothing)
         @test !is_binary(gb1)
@@ -121,7 +121,7 @@ end
         @test isa(unset_integer(pt2), Nothing)
         @test !is_integer(pt2)
         @test_throws ErrorException unset_integer(pt1)
-        # test with global variable
+        # test with hold variable
         @test is_integer(gb2)
         @test isa(unset_integer(gb2), Nothing)
         @test !is_integer(gb2)
@@ -144,7 +144,7 @@ end
     @point_variable(m, inf(0.5), pt)
     pt2 = @point_variable(m, inf2(0.5, 0.5))
     @point_variable(m, inf3(0, [0, 0]), pt3)
-    @global_variable(m, x)
+    @hold_variable(m, x)
     m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(2 => 0.5))
     m.infinite_to_reduced[JuMP.index(inf4)] = [-1]
     rv = ReducedInfiniteVariableRef(m, -1)
@@ -383,7 +383,7 @@ end
      @infinite_parameter(m, 0 <= par2 <= 1)
      @infinite_variable(m, inf(par, par2))
      @point_variable(m, inf(0.5, 0.5), pt)
-     @global_variable(m, x)
+     @hold_variable(m, x)
      m.reduced_info[-1] = ReducedInfiniteInfo(inf, Dict(2 => 0.5))
      m.infinite_to_reduced[JuMP.index(inf)] = [-1]
      rv = ReducedInfiniteVariableRef(m, -1)
@@ -420,12 +420,12 @@ end
  end
 
  # Test variable deletion
- @testset "JuMP.delete (Global Variables)" begin
+ @testset "JuMP.delete (Hold Variables)" begin
      # intialize the model
      m = InfiniteModel()
      @infinite_parameter(m, 0 <= par <= 1)
-     @global_variable(m, 0 <= x <= 1, Bin)
-     @global_variable(m, y == 1, Int)
+     @hold_variable(m, 0 <= x <= 1, Bin)
+     @hold_variable(m, y == 1, Int)
      data = DiscreteMeasureData(par, [1], [1])
      meas1 = measure(x + y + par, data)
      meas2 = add_measure(m, Measure(y, data))

@@ -10,7 +10,7 @@ julia> model = owner_model(cref)
 An InfiniteOpt Model
 Minimization problem with:
 Variables: 3
-Objective function type: GlobalVariableRef
+Objective function type: HoldVariableRef
 `GenericAffExpr{Float64,FiniteVariableRef}`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
 Names registered in the model: g, t, h, x
 Optimizer model backend information:
@@ -41,40 +41,6 @@ function Base.:(==)(v::GeneralConstraintRef, w::GeneralConstraintRef)::Bool
 end
 Base.broadcastable(cref::GeneralConstraintRef) = Ref(cref)
 JuMP.constraint_type(m::InfiniteModel) = GeneralConstraintRef
-
-# Set default bounded set
-const default_bounds = Dict{ParameterRef, IntervalSet}()
-
-## Modify parameter dictionary to expand any multidimensional parameter keys
-# Case where dictionary is already in correct form
-function _expand_parameter_dict(param_bounds::Dict{ParameterRef,
-                                                   IntervalSet})::Dict
-    return param_bounds
-end
-
-# Case where dictionary contains vectors
-function _expand_parameter_dict(param_bounds::Dict{<:Any, IntervalSet})::Dict
-    # Initialize new dictionary
-    new_dict = Dict{ParameterRef, IntervalSet}()
-    # Find vector keys and expand
-    for (key, set) in param_bounds
-        # expand over the array of parameters if this is
-        if isa(key, AbstractArray)
-            for param in values(key)
-                new_dict[param] = set
-            end
-        # otherwise we have parameter reference
-        else
-            new_dict[key] = set
-        end
-    end
-    return new_dict
-end
-
-# Case where dictionary contains vectors
-function _expand_parameter_dict(param_bounds::Dict)
-    error("Invalid parameter bound dictionary format.")
-end
 
 # This might not be necessary...
 function JuMP.build_constraint(_error::Function,
@@ -332,7 +298,7 @@ associated with `cref`.
 **Example**
 ```julia
 julia> obj = constraint_object(cref)
-ScalarConstraint{GlobalVariableRef,MathOptInterface.LessThan{Float64}}(x,
+ScalarConstraint{HoldVariableRef,MathOptInterface.LessThan{Float64}}(x,
 MathOptInterface.LessThan{Float64}(1.0))
 ```
 """
@@ -373,6 +339,9 @@ function JuMP.set_name(cref::GeneralConstraintRef, name::String)
     JuMP.owner_model(cref).name_to_constr = nothing
     return
 end
+
+# TODO implement is_bounded_constraint, parameter_bounds, set_parameter_bounds,
+# add_parameter_bound
 
 # Return a constraint set with an updated value
 function _set_set_value(set::S, value::Real) where {T, S <: Union{MOI.LessThan{T},
@@ -557,7 +526,7 @@ with a partiuclar function type and set type.
 
 **Example**
 ```julia
-julia> num_constraints(model, GlobalVariableRef, MOI.LessThan)
+julia> num_constraints(model, HoldVariableRef, MOI.LessThan)
 1
 ```
 """
@@ -581,7 +550,7 @@ Extend [`JuMP.num_constraints`](@ref) to search by function types for all MOI
 sets and return the total number of constraints with a particular function type.
 
 ```julia
-julia> num_constraints(model, GlobalVariableRef)
+julia> num_constraints(model, HoldVariableRef)
 3
 ```
 """
@@ -633,7 +602,7 @@ Extend [`JuMP.all_constraints`](@ref) to return a list of all the constraints
 with a particular function type and set type.
 
 ```julia
-julia> all_constraints(model, GlobalVariableRef, MOI.LessThan)
+julia> all_constraints(model, HoldVariableRef, MOI.LessThan)
 1-element Array{GeneralConstraintRef,1}:
  x <= 1.0
 ```
@@ -664,7 +633,7 @@ Extend [`JuMP.all_constraints`](@ref) to search by function types for all MOI
 sets and return a list of all constraints use a particular function type.
 
 ```julia
-julia> all_constraints(model, GlobalVariableRef)
+julia> all_constraints(model, HoldVariableRef)
 3-element Array{GeneralConstraintRef,1}:
  x >= 0.0
  x <= 3.0
@@ -728,10 +697,10 @@ contain all the used combinations of function types and set types in the model.
 ```julia
 julia> all_constraints(model)
 5-element Array{Tuple{DataType,DataType},1}:
- (GlobalVariableRef, MathOptInterface.LessThan{Float64})
+ (HoldVariableRef, MathOptInterface.LessThan{Float64})
  (PointVariableRef, MathOptInterface.GreaterThan{Float64})
- (GlobalVariableRef, MathOptInterface.GreaterThan{Float64})
- (GlobalVariableRef, MathOptInterface.Integer)
+ (HoldVariableRef, MathOptInterface.GreaterThan{Float64})
+ (HoldVariableRef, MathOptInterface.Integer)
  (InfiniteVariableRef, MathOptInterface.GreaterThan{Float64})
 ```
 """

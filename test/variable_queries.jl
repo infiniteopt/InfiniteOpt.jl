@@ -3,7 +3,7 @@
     # initialize model, parameter, and variable
     m = InfiniteModel()
     info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false)
-    v = build_variable(error, info, Global)
+    v = build_variable(error, info, Hold)
     vref = add_variable(m, v, "name")
     # used_by_constraint
     @testset "used_by_constraint" begin
@@ -134,15 +134,15 @@ end
     v = build_variable(error, info, Point, infinite_variable_ref = ivref,
                        parameter_values = 0.5)
     pvref = add_variable(m, v, "name2")
-    v = build_variable(error, info, Global)
-    gvref = add_variable(m, v, "name")
+    v = build_variable(error, info, Hold)
+    hvref = add_variable(m, v, "name")
     # num_variables
     @testset "JuMP.num_variables" begin
         @test num_variables(m) == 3
     end
     # all_variables
     @testset "JuMP.all_variables" begin
-        @test all_variables(m) == [ivref, pvref, gvref]
+        @test all_variables(m) == [ivref, pvref, hvref]
     end
 end
 

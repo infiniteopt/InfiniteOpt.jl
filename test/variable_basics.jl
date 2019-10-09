@@ -5,16 +5,16 @@
     m2 = InfiniteModel()
     ivref = InfiniteVariableRef(m, 1)
     pvref = PointVariableRef(m, 2)
-    gvref = GlobalVariableRef(m, 3)
+    hvref = HoldVariableRef(m, 3)
     pref = ParameterRef(m, 1)
     # variable compare
     @testset "(==)" begin
         @test ivref == ivref
         @test pvref == pvref
-        @test gvref == gvref
+        @test hvref == hvref
         @test ivref == InfiniteVariableRef(m, 1)
         @test pvref == PointVariableRef(m, 2)
-        @test gvref == GlobalVariableRef(m, 3)
+        @test hvref == HoldVariableRef(m, 3)
         @test !(ivref == InfiniteVariableRef(m, 2))
         @test !(ivref == InfiniteVariableRef(m2, 1))
         @test !(ivref != InfiniteVariableRef(m, 1))
@@ -24,19 +24,19 @@
     @testset "copy(v)" begin
         @test copy(ivref) == ivref
         @test copy(pvref) == pvref
-        @test copy(gvref) == gvref
+        @test copy(hvref) == hvref
     end
     # copy(v, m)
     @testset "copy(v, m)" begin
         @test copy(ivref, m2) == InfiniteVariableRef(m2, 1)
         @test copy(pvref, m2) == PointVariableRef(m2, 2)
-        @test copy(gvref, m2) == GlobalVariableRef(m2, 3)
+        @test copy(hvref, m2) == HoldVariableRef(m2, 3)
     end
     # broadcastable
     @testset "broadcastable" begin
         @test isa(Base.broadcastable(ivref), Base.RefValue{InfiniteVariableRef})
         @test isa(Base.broadcastable(pvref), Base.RefValue{PointVariableRef})
-        @test isa(Base.broadcastable(gvref), Base.RefValue{GlobalVariableRef})
+        @test isa(Base.broadcastable(hvref), Base.RefValue{HoldVariableRef})
     end
 end
 
@@ -47,13 +47,13 @@ end
     m2 = InfiniteModel()
     ivref = InfiniteVariableRef(m, 1)
     pvref = PointVariableRef(m, 2)
-    gvref = GlobalVariableRef(m, 3)
+    hvref = HoldVariableRef(m, 3)
     pref = ParameterRef(m, 1)
     # isequal_canonical
     @testset "JuMP.isequal_canonical" begin
         @test isequal_canonical(ivref, ivref)
         @test isequal_canonical(pvref, pvref)
-        @test isequal_canonical(gvref, gvref)
+        @test isequal_canonical(hvref, hvref)
         @test !isequal_canonical(ivref, InfiniteVariableRef(m2, 1))
         @test !isequal_canonical(ivref, InfiniteVariableRef(m, 2))
     end
@@ -65,7 +65,7 @@ end
     @testset "JuMP.variable_type(m, t)" begin
         @test variable_type(m, Infinite) == InfiniteVariableRef
         @test variable_type(m, Point) == PointVariableRef
-        @test variable_type(m, Global) == GlobalVariableRef
+        @test variable_type(m, Hold) == HoldVariableRef
         @test variable_type(m, Parameter) == ParameterRef
         @test_throws ErrorException variable_type(m, :bad)
     end

@@ -8,7 +8,7 @@ using JuMP: REPLMode, IJuliaMode
     @infinite_parameter(m, pars[1:2] in MvNormal([1, 1], 1))
     @infinite_variable(m, x(par1))
     @infinite_variable(m, z(pars))
-    @global_variable(m, y)
+    @hold_variable(m, y)
     @objective(m, Min, 2 + y)
     @constraint(m, c1, x + y -2 <= 0)
     @constraint(m, c2, y^2 - 3 == 0)
@@ -156,7 +156,7 @@ end
     @infinite_parameter(m, pars[1:2] in MvNormal([1, 1], 1))
     @infinite_variable(m, x(par1))
     @infinite_variable(m, z(pars))
-    @global_variable(m, y)
+    @hold_variable(m, y)
     @objective(m, Min, 2 + y)
     @constraint(m, c1, x + y -2 <= 0)
     @constraint(m, c2, y^2 - 3 == 0)
@@ -204,7 +204,7 @@ end
     end
     # test show_objective_function_summary
     @testset "JuMP.show_objective_function_summary" begin
-        str = "Objective function type: GenericAffExpr{Float64,GlobalVariableRef}\n"
+        str = "Objective function type: GenericAffExpr{Float64,HoldVariableRef}\n"
         io_test(show_objective_function_summary, str, m)
     end
     # test show_constraints_summary
@@ -215,7 +215,7 @@ end
         # test the main function
         str = "`GenericAffExpr{Float64,GeneralVariableRef}`-in-`MathOptInter" *
               "face.LessThan{Float64}`: 1 constraint\n`GenericQuadExpr{" *
-              "Float64,GlobalVariableRef}`-in-`MathOptInterface.EqualTo{" *
+              "Float64,HoldVariableRef}`-in-`MathOptInterface.EqualTo{" *
               "Float64}`: 1 constraint\n`GenericAffExpr{Float64,Infinite" *
               "VariableRef}`-in-`MathOptInterface.EqualTo{Float64}`: 1 " *
               "constraint\n"
@@ -225,10 +225,10 @@ end
     @testset "Base.show (InfiniteModel)" begin
         # test minimization
         str = "An InfiniteOpt Model\nMinimization problem with:\nVariables: " *
-              "3\nObjective function type: GenericAffExpr{Float64,Global" *
+              "3\nObjective function type: GenericAffExpr{Float64,Hold" *
               "VariableRef}\n`GenericAffExpr{Float64,GeneralVariableRef}`-in-" *
               "`MathOptInterface.LessThan{Float64}`: 1 constraint\n`Generic" *
-              "QuadExpr{Float64,GlobalVariableRef}`-in-`MathOptInterface.Equal" *
+              "QuadExpr{Float64,HoldVariableRef}`-in-`MathOptInterface.Equal" *
               "To{Float64}`: 1 constraint\n`GenericAffExpr{Float64,Infinite" *
               "VariableRef}`-in-`MathOptInterface.EqualTo{Float64}`: 1 " *
               "constraint\nNames registered in the model: c1, c2, c3, par1, " *
@@ -239,10 +239,10 @@ end
         # test maximization
         set_objective_sense(m, MOI.MAX_SENSE)
         str = "An InfiniteOpt Model\nMaximization problem with:\nVariables: " *
-              "3\nObjective function type: GenericAffExpr{Float64,Global" *
+              "3\nObjective function type: GenericAffExpr{Float64,Hold" *
               "VariableRef}\n`GenericAffExpr{Float64,GeneralVariableRef}`-in-" *
               "`MathOptInterface.LessThan{Float64}`: 1 constraint\n`Generic" *
-              "QuadExpr{Float64,GlobalVariableRef}`-in-`MathOptInterface.Equal" *
+              "QuadExpr{Float64,HoldVariableRef}`-in-`MathOptInterface.Equal" *
               "To{Float64}`: 1 constraint\n`GenericAffExpr{Float64,Infinite" *
               "VariableRef}`-in-`MathOptInterface.EqualTo{Float64}`: 1 " *
               "constraint\nNames registered in the model: c1, c2, c3, par1, " *
@@ -255,7 +255,7 @@ end
         str = "An InfiniteOpt Model\nFeasibility problem with:\nVariables: 3" *
               "\n`GenericAffExpr{Float64,GeneralVariableRef}`-in-`MathOpt" *
               "Interface.LessThan{Float64}`: 1 constraint\n`GenericQuadExpr{" *
-              "Float64,GlobalVariableRef}`-in-`MathOptInterface.EqualTo{" *
+              "Float64,HoldVariableRef}`-in-`MathOptInterface.EqualTo{" *
               "Float64}`: 1 constraint\n`GenericAffExpr{Float64,Infinite" *
               "VariableRef}`-in-`MathOptInterface.EqualTo{Float64}`: 1 " *
               "constraint\nNames registered in the model: c1, c2, c3, par1, " *

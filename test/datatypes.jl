@@ -27,9 +27,10 @@ sample_info = VariableInfo(zeros(Bool, 10)...)
     @test InfiniteVariable(sample_info, (1, 2)).parameter_refs isa Tuple
     # Point variable
     @test PointVariable <: InfOptVariable
-    # Global variable
-    @test GlobalVariable <: InfOptVariable
-    @test GlobalVariable(sample_info).info isa VariableInfo
+    # Hold variable
+    @test HoldVariable <: InfOptVariable
+    @test HoldVariable(sample_info,
+                       Dict{ParameterRef, IntervalSet}()).info isa VariableInfo
     # Reduced variable info
     @test ReducedInfiniteInfo <: AbstractReducedInfo
 end
@@ -57,9 +58,9 @@ end
     @test GeneralVariableRef <: JuMP.AbstractVariableRef
     @test MeasureFiniteVariableRef <: GeneralVariableRef
     @test FiniteVariableRef <: MeasureFiniteVariableRef
-    # Global variable refs
-    @test GlobalVariableRef <: FiniteVariableRef
-    @test GlobalVariableRef(m, 1).index == 1
+    # Hold variable refs
+    @test HoldVariableRef <: FiniteVariableRef
+    @test HoldVariableRef(m, 1).index == 1
     # Point variable refs
     @test PointVariableRef <: FiniteVariableRef
     @test PointVariableRef(m, 1).index == 1

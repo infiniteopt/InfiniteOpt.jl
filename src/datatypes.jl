@@ -470,7 +470,7 @@ A DataType for storing hold variable information.
 """
 struct HoldVariable{S, T, U, V} <: InfOptVariable
     info::JuMP.VariableInfo{S, T, U, V}
-    parameter_bounds::Dict(ParameterRef, IntervalSet)
+    parameter_bounds::Dict{ParameterRef, IntervalSet}
 end
 
 """

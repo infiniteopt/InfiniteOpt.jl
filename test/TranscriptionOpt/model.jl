@@ -37,17 +37,17 @@ end
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_variable(m, x(par))
     @point_variable(m, x(0), x0)
-    @global_variable(m, y)
+    @hold_variable(m, y)
     tm = optimizer_model(m)
     @variable(tm, a)
     @variable(tm, b)
     @variable(tm, c)
-    # test transcription_variable (GlobalVariableRef)
-    @testset "transcription_variable (Global)" begin
+    # test transcription_variable (HoldVariableRef)
+    @testset "transcription_variable (Hold)" begin
         # test error
         @test_throws ErrorException transcription_variable(tm, y)
         # test normal
-        tm.ext[:TransData].global_to_var[y] = a
+        tm.ext[:TransData].hold_to_var[y] = a
         @test transcription_variable(tm, y) == a
     end
     # test transcription_variable (InfiniteVariableRef)
@@ -93,7 +93,7 @@ end
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_variable(m, x(par))
     @point_variable(m, x(0), x0)
-    @global_variable(m, y)
+    @hold_variable(m, y)
     data = DiscreteMeasureData(par, [0.5, 0.5], [0, 1])
     @constraint(m, c1, x + y - 2 <= 0)
     @constraint(m, c2, measure(x, data) == 0)

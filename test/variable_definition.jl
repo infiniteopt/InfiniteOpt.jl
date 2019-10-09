@@ -480,14 +480,15 @@ end
 end
 
 # Test name methods
-@testset "Global Variable Name" begin
+@testset "Hold Variable Name" begin
     # initialize model and variable
     m = InfiniteModel()
     info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false)
-    var = GlobalVariable(info)
+    dict = Dict{ParameterRef, IntervalSet}()
+    var = HoldVariable(info, dict)
     m.vars[1] = var
     m.var_to_name[1] = "test"
-    vref = GlobalVariableRef(m, 1)
+    vref = HoldVariableRef(m, 1)
     # JuMP.name
     @testset "JuMP.name" begin
         @test name(vref) == "test"
@@ -516,63 +517,84 @@ end
 end
 
 # Test variable definition methods
-@testset "Global Variable Definition" begin
+@testset "Hold Variable Definition" begin
     # initialize model and info
     m = InfiniteModel()
     info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false)
     info2 = VariableInfo(true, 0, true, 0, true, 0, true, 0, true, false)
     info3 = VariableInfo(true, 0, true, 0, true, 0, true, 0, false, true)
+    dict = Dict{ParameterRef, IntervalSet}()
+    # test _expand_parameter_dict(Dict{ParameterRef,IntervalSet}))
+    @testset "_expand_parameter_dict (acceptable Form)" begin
+        d = Dict(par => IntervalSet(0, 1))
+        @test InfiniteOpt._expand_parameter_dict(d) == d
+    end
+    # test _expand_parameter_dict(Dict{Any,IntervalSet}))
+    @testset "_expand_parameter_dict (Array Form)" begin
+        d = Dict(pars => IntervalSet(0, 1), par => IntervalSet(0, 1))
+        @test isa(InfiniteOpt._expand_parameter_dict(d),
+                  Dict{ParameterRef, IntervalSet})
+    end
+    # test _expand_parameter_dict(Dict))
+    @testset "_expand_parameter_dict (Fallback)" begin
+        d = Dict(pars => 1, par => 2)
+        @test_throws ErrorException InfiniteOpt._expand_parameter_dict(d)
+    end
     # build_variable
     @testset "JuMP.build_variable" begin
-        expected = GlobalVariable(info)
-        @test build_variable(error, info, Global) == expected
+        # test normal
+        expected = HoldVariable(info, dict)
+        @test build_variable(error, info, Hold).info == expected.info
+        # test errors
+        @test_throws ErrorException build_variable(error, info, Point,
+                                                   parameter_bounds = dict)
     end
     # add_variable
     @testset "JuMP.add_variable" begin
-        v = build_variable(error, info, Global)
-        @test add_variable(m, v, "name") == GlobalVariableRef(m, 1)
+        v = build_variable(error, info, Hold)
+        @test add_variable(m, v, "name") == HoldVariableRef(m, 1)
         @test haskey(m.vars, 1)
         @test m.var_to_name[1] == "name"
         # prepare infinite variable with all the possible info additions
-        v = build_variable(error, info2, Global)
+        v = build_variable(error, info2, Hold)
         # test info addition functions
-        vref = GlobalVariableRef(m, 2)
+        vref = HoldVariableRef(m, 2)
         @test add_variable(m, v, "name") == vref
         @test !optimizer_model_ready(m)
         # lower bound
         @test has_lower_bound(vref)
         @test JuMP._lower_bound_index(vref) == 1
-        @test isa(m.constrs[1], ScalarConstraint{GlobalVariableRef,
+        @test isa(m.constrs[1], ScalarConstraint{HoldVariableRef,
                                                  MOI.GreaterThan{Float64}})
         @test m.constr_in_var_info[1]
         # upper bound
         @test has_upper_bound(vref)
         @test JuMP._upper_bound_index(vref) == 2
-        @test isa(m.constrs[2], ScalarConstraint{GlobalVariableRef,
+        @test isa(m.constrs[2], ScalarConstraint{HoldVariableRef,
                                                  MOI.LessThan{Float64}})
         @test m.constr_in_var_info[2]
         # fix
         @test is_fixed(vref)
         @test JuMP._fix_index(vref) == 3
-        @test isa(m.constrs[3], ScalarConstraint{GlobalVariableRef,
+        @test isa(m.constrs[3], ScalarConstraint{HoldVariableRef,
                                                  MOI.EqualTo{Float64}})
         @test m.constr_in_var_info[3]
         # binary
         @test is_binary(vref)
         @test JuMP._binary_index(vref) == 4
-        @test isa(m.constrs[4], ScalarConstraint{GlobalVariableRef,
+        @test isa(m.constrs[4], ScalarConstraint{HoldVariableRef,
                                                  MOI.ZeroOne})
         @test m.constr_in_var_info[4]
         @test m.var_to_constrs[2] == [1, 2, 3, 4]
         # prepare infinite variable with integer info addition
-        v = build_variable(error, info3, Global)
+        v = build_variable(error, info3, Hold)
         # test integer addition functions
-        vref = GlobalVariableRef(m, 3)
+        vref = HoldVariableRef(m, 3)
         @test add_variable(m, v, "name") == vref
         @test !optimizer_model_ready(m)
         @test is_integer(vref)
         @test JuMP._integer_index(vref) == 8
-        @test isa(m.constrs[8], ScalarConstraint{GlobalVariableRef,
+        @test isa(m.constrs[8], ScalarConstraint{HoldVariableRef,
                                                  MOI.Integer})
         @test m.constr_in_var_info[8]
         @test m.var_to_constrs[3] == [5, 6, 7, 8]

@@ -20,9 +20,9 @@ function _var_type_parser(V::T, W::T) where {T<:Type{<:PointVariableRef}}
     return PointVariableRef
 end
 
-# GlobalVariableRef
-function _var_type_parser(V::T, W::T) where {T<:Type{<:GlobalVariableRef}}
-    return GlobalVariableRef
+# HoldVariableRef
+function _var_type_parser(V::T, W::T) where {T<:Type{<:HoldVariableRef}}
+    return HoldVariableRef
 end
 
 # ReducedInfiniteVariableRef
