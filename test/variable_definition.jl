@@ -92,6 +92,34 @@ end
         @test_throws ErrorException InfiniteOpt._check_tuple_groups(error,
                                                                    (pref, pref))
     end
+    # _make_variable
+    @testset "_make_variable" begin
+        # test for each error message
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Infinite),
+                                                   bob = 42)
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, :bad)
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Infinite))
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Infinite),
+                                                   parameter_refs = (pref, 2))
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Infinite),
+                                                  parameter_refs = (pref, pref))
+        # defined expected output
+        expected = InfiniteVariable(info, (pref,))
+        # test for expected output
+        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+                             parameter_refs = pref).info == expected.info
+        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+                parameter_refs = pref).parameter_refs == expected.parameter_refs
+        # test various types of param tuples
+        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+                 parameter_refs = (pref, pref2)).parameter_refs == (pref, pref2)
+        tuple = InfiniteOpt._make_formatted_tuple((pref, prefs))
+        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+                         parameter_refs = (pref, prefs)).parameter_refs == tuple
+        tuple = InfiniteOpt._make_formatted_tuple((prefs,))
+        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+                             parameter_refs = prefs).parameter_refs == tuple
+    end
     # build_variable
     @testset "JuMP.build_variable" begin
         # test for each error message
@@ -154,6 +182,25 @@ end
         @test_throws ErrorException InfiniteOpt._check_parameters_valid(m, tuple)
         # test normal
         @test isa(InfiniteOpt._check_parameters_valid(m, (pref, pref2)), Nothing)
+    end
+    # _check_make_variable_ref
+    @testset "_check_make_variable_ref" begin
+        # prepare secondary model and parameter and variable
+        m2 = InfiniteModel()
+        param = InfOptParameter(IntervalSet(0, 1), Number[], false)
+        pref3 = add_parameter(m2, param, "test")
+        v = build_variable(error, info, Infinite,
+                           parameter_refs = pref3)
+        # test for error of invalid variable
+        @test_throws ErrorException InfiniteOpt._check_make_variable_ref(m, v)
+        # prepare normal variable
+        v = build_variable(error, info, Infinite, parameter_refs = pref)
+        # test normal
+        @test InfiniteOpt._check_make_variable_ref(m, v) == InfiniteVariableRef(m, 0)
+        @test m.param_to_vars[1] == [0]
+        delete!(m.param_to_vars, 1)
+        # test with other variable object
+        @test_throws ErrorException InfiniteOpt._check_make_variable_ref(m, :bad)
     end
     # add_variable
     @testset "JuMP.add_variable" begin
@@ -351,6 +398,36 @@ end
         # undo info changes
         InfiniteOpt._update_variable_info(ivref, info)
     end
+    # test _make_variable
+    @testset "_make_variable" begin
+        # test for all errors
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info,
+                                              Val(Point), parameter_refs = pref)
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info,
+                                                               Val(Point))
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info,
+                                      Val(Point), infinite_variable_ref = ivref)
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info,
+                                               Val(Point), parameter_values = 3)
+        # test a variety of builds
+        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref,
+                   parameter_values = (0.5, 0.5)).infinite_variable_ref == ivref
+        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref,
+                   parameter_values = (0.5, 0.5)).parameter_values == (0.5, 0.5)
+        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref,
+                             parameter_values = (0.5, 0.5)).info == info
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Point),
+                                                  infinite_variable_ref = ivref,
+                                                  parameter_values = (0.5, 2))
+        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref2,
+               parameter_values = (0.5, [0, 0])).infinite_variable_ref == ivref2
+        tuple = InfiniteOpt._make_formatted_tuple((0.5, [0, 0]))
+        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref2,
+                     parameter_values = (0.5, [0, 0])).parameter_values == tuple
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Point),
+                                            infinite_variable_ref = ivref2,
+                                            parameter_values = (0.5, [0, 0, 0]))
+    end
     # build_variable
     @testset "JuMP.build_variable" begin
         # test for all errors
@@ -410,6 +487,26 @@ end
         @test m.infinite_to_points[JuMP.index(ivref)] == [12, 42]
         # undo changes
         delete!( m.infinite_to_points, JuMP.index(ivref))
+    end
+    # _check_make_variable_ref
+    @testset "_check_make_variable_ref" begin
+        # prepare secondary model and infinite variable
+        m2 = InfiniteModel()
+        pref3 = add_parameter(m2, param, "test")
+        ivar3 = InfiniteVariable(info, (pref3,))
+        ivref3 = add_variable(m2, ivar3, "ivar")
+        v = build_variable(error, info, Point, infinite_variable_ref = ivref3,
+                           parameter_values = 0.5)
+        # test for invalid variable error
+        @test_throws ErrorException InfiniteOpt._check_make_variable_ref(m, v)
+        # test normal
+        v = build_variable(error, info, Point, infinite_variable_ref = ivref,
+                           parameter_values = (0, 1))
+        @test InfiniteOpt._check_make_variable_ref(m, v) == PointVariableRef(m, 2)
+        @test supports(pref) == [0.5, 0]
+        @test supports(pref2) == [1]
+        @test m.infinite_to_points[JuMP.index(ivref)] == [2]
+        delete!(m.infinite_to_points, JuMP.index(ivref))
     end
     # add_variable
     @testset "JuMP.add_variable" begin
@@ -524,6 +621,19 @@ end
     info2 = VariableInfo(true, 0, true, 0, true, 0, true, 0, true, false)
     info3 = VariableInfo(true, 0, true, 0, true, 0, true, 0, false, true)
     dict = Dict{ParameterRef, IntervalSet}()
+    @infinite_parameter(m, 0 <= par <= 10)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 10)
+    # test _check_bounds
+    @testset "_check_bounds" begin
+        # test normal
+        @test isa(InfiniteOpt._check_bounds(Dict(par => IntervalSet(0, 1))),
+                                                                        Nothing)
+        # test errors
+        @test_throws ErrorException InfiniteOpt._check_bounds(
+                                                Dict(par => IntervalSet(-1, 1)))
+        @test_throws ErrorException InfiniteOpt._check_bounds(
+                                                Dict(par => IntervalSet(0, 11)))
+    end
     # test _expand_parameter_dict(Dict{ParameterRef,IntervalSet}))
     @testset "_expand_parameter_dict (acceptable Form)" begin
         d = Dict(par => IntervalSet(0, 1))
@@ -540,6 +650,15 @@ end
         d = Dict(pars => 1, par => 2)
         @test_throws ErrorException InfiniteOpt._expand_parameter_dict(d)
     end
+    # _make_variable
+    @testset "_make_variable" begin
+        # test normal
+        expected = HoldVariable(info, dict)
+        @test InfiniteOpt._make_variable(error, info, Val(Hold)).info == expected.info
+        # test errors
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info,
+                                                Val(Hold), parameter_values = 3)
+    end
     # build_variable
     @testset "JuMP.build_variable" begin
         # test normal
@@ -548,6 +667,31 @@ end
         # test errors
         @test_throws ErrorException build_variable(error, info, Point,
                                                    parameter_bounds = dict)
+    end
+    # _validate_bounds
+    @testset "_validate_bounds" begin
+        # test normal
+        @test isa(InfiniteOpt._validate_bounds(m, Dict(par => IntervalSet(0, 1))),
+                  Nothing)
+        # test error
+        par2 = ParameterRef(InfiniteModel(), 1)
+        @test_throws ErrorException InfiniteOpt._validate_bounds(m,
+                                                Dict(par2 => IntervalSet(0, 1)))
+        # test support addition
+        @test isa(InfiniteOpt._validate_bounds(m, Dict(par => IntervalSet(0, 0))),
+                  Nothing)
+        @test supports(par) == [0]
+    end
+    # _check_make_variable_ref
+    @testset "_check_make_variable_ref" begin
+        # test normal
+        v = build_variable(error, info, Hold)
+        @test InfiniteOpt._check_make_variable_ref(m, v) == HoldVariableRef(m, 0)
+        # test bad bounds
+        @infinite_parameter(InfiniteModel(), par2 in [0, 2])
+        v = build_variable(error, info, Hold,
+                           parameter_bounds = Dict(par2 => IntervalSet(0, 1)))
+        @test_throws ErrorException InfiniteOpt._check_make_variable_ref(m, v)
     end
     # add_variable
     @testset "JuMP.add_variable" begin

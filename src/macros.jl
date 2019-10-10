@@ -566,7 +566,7 @@ macro infinite_variable(model, args...)
         code = quote
             @assert isa($model, InfiniteModel) "Model must be an `InfiniteModel`."
             JuMP.@variable($model, ($(args...)), variable_type = Infinite,
-                           error = $_error)
+                           macro_error = $_error)
         end
     else
         x = popfirst!(extra)
@@ -603,7 +603,8 @@ macro infinite_variable(model, args...)
                                                    "`InfiniteModel`."
                 JuMP.@variable($model, ($(inf_expr)),
                                variable_type = Infinite,
-                               parameter_refs = $params, error = $_error)
+                               parameter_refs = $params,
+                               macro_error = $_error)
             end
         # here we need to parse the extra args and include them in the call
         else
@@ -613,7 +614,8 @@ macro infinite_variable(model, args...)
                     @assert isa($model, InfiniteModel) "Model must be an " *
                                                        "`InfiniteModel`."
                     JuMP.@variable($model, ($(inf_expr)), ($(rest_args...)),
-                                   variable_type = Infinite, error = $_error)
+                                   variable_type = Infinite,
+                                   macro_error = $_error)
                 end
             else
                 code = quote
@@ -621,7 +623,8 @@ macro infinite_variable(model, args...)
                                                        "`InfiniteModel`."
                     JuMP.@variable($model, ($(inf_expr)), ($(rest_args...)),
                                    variable_type = Infinite,
-                                   parameter_refs = $params, error = $_error)
+                                   parameter_refs = $params,
+                                   macro_error = $_error)
                 end
             end
         end
@@ -754,7 +757,7 @@ macro point_variable(model, args...)
             @assert isa($model, InfiniteModel) "Model must be an " *
                                                "`InfiniteModel`."
             JuMP.@variable($model, ($(args...)), variable_type = Point,
-                           error = $_error)
+                           macro_error = $_error)
         end
     else
         x = popfirst!(extra)
@@ -774,14 +777,15 @@ macro point_variable(model, args...)
                                                    "`InfiniteModel`."
                 JuMP.@variable($model, ($(rest_args...)), variable_type = Point,
                                infinite_variable_ref = $inf_var,
-                               parameter_values = $param_vals, error = $_error)
+                               parameter_values = $param_vals,
+                               macro_error = $_error)
             end
         elseif isexpr(x, :vect) && length(extra) == 0
             code = quote
                 @assert isa($model, InfiniteModel) "Model must be an " *
                                                    "`InfiniteModel`."
                 JuMP.@variable($model, ($(args...)), variable_type = Point,
-                               error = $_error)
+                               macro_error = $_error)
             end
         else
             _error("Invalid input syntax.")
@@ -888,7 +892,7 @@ macro hold_variable(model, args...)
             @assert isa($model, InfiniteModel) "Model must be an " *
                                                "`InfiniteModel`."
             JuMP.@variable($model, ($(args...)), variable_type = Hold,
-                           error = $_error)
+                           macro_error = $_error)
         end
     else
         x = bound_kw_args[1].args[2]
@@ -905,7 +909,7 @@ macro hold_variable(model, args...)
             @assert isa($model, InfiniteModel) "Model must be an " *
                                                "`InfiniteModel`."
             JuMP.@variable($model, ($(extra...)), variable_type = Hold,
-                           parameter_bounds = ($(bounds)), error = $_error,
+                           parameter_bounds = ($(bounds)), macro_error = $_error,
                            container = ($(requestedcontainer)),
                            ($(extra_kw_args...)))
         end

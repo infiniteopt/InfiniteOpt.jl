@@ -36,7 +36,7 @@ export @infinite_variable, @point_variable, @hold_variable, @infinite_parameter,
 @BDconstraint, @finite_parameter
 
 # Export constants
-Infinite, Hold, Point, Parameter
+export Infinite, Hold, Point, Parameter
 
 # Export infinite parameter datatypes
 export InfOptParameter, ParameterRef

@@ -128,24 +128,20 @@ function _update_var_constr_mapping(vrefs::Vector{<:GeneralVariableRef},
 end
 
 # Check that parameter_bounds argument is valid
-function _check_bounds(model::InfiniteModel, bounds::Dict)
+function _check_bounds2(model::InfiniteModel, bounds::Dict)
     for (pref, set) in bounds
         # check validity
         !JuMP.is_valid(model, pref) && error("Parameter bound reference " *
                                              "is invalid.")
         # check that respects lower bound
-        if JuMP.has_lower_bound(pref)
-            if bounds[pref].lower_bound < JuMP.lower_bound(pref)
+        if JuMP.has_lower_bound(pref) && (bounds[pref].lower_bound < JuMP.lower_bound(pref))
                 error("Specified parameter lower bound exceeds that defined " *
                       "for $pref.")
-            end
         end
         # check that respects upper bound
-        if JuMP.has_upper_bound(pref)
-            if bounds[pref].upper_bound > JuMP.upper_bound(pref)
+        if JuMP.has_upper_bound(pref) && (bounds[pref].upper_bound > JuMP.upper_bound(pref))
                 error("Specified parameter upper bound exceeds that defined " *
                       "for $pref.")
-            end
         end
         # ensure has a support if a point constraint was given
         if set.lower_bound == set.upper_bound
@@ -187,7 +183,7 @@ function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint,
     isa(vrefs, Vector{ParameterRef}) && error("Constraints cannot contain " *
                                               "only parameters.")
     if isa(c, BoundedScalarConstraint)
-        _check_bounds(model, c.bounds)
+        _check_bounds2(model, c.bounds)
     end
     model.next_constr_index += 1
     index = model.next_constr_index

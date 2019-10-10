@@ -126,13 +126,11 @@ function _check_tuple_values(_error::Function, inf_vref::InfiniteVariableRef,
                              param_values::Tuple)
     prefs = parameter_refs(inf_vref)
     for i in eachindex(prefs)
-        if isa(prefs[i], ParameterRef)
-            if JuMP.has_lower_bound(prefs[i])
-                check1 = param_values[i] < JuMP.lower_bound(prefs[i])
-                check2 = param_values[i] > JuMP.upper_bound(prefs[i])
-                if check1 || check2
-                    _error("Parameter values violate parameter bounds.")
-                end
+        if isa(prefs[i], ParameterRef) && JuMP.has_lower_bound(prefs[i])
+            check1 = param_values[i] < JuMP.lower_bound(prefs[i])
+            check2 = param_values[i] > JuMP.upper_bound(prefs[i])
+            if check1 || check2
+                _error("Parameter values violate parameter bounds.")
             end
         else
             for (k, v) in prefs[i].data
@@ -225,12 +223,107 @@ function _expand_parameter_dict(param_bounds::Dict{<:Any, IntervalSet})::Dict
     return new_dict
 end
 
+# Check that parameter_bounds argument is valid
+function _check_bounds(bounds::Dict)
+    for (pref, set) in bounds
+        # check that respects lower bound
+        if JuMP.has_lower_bound(pref) && (bounds[pref].lower_bound < JuMP.lower_bound(pref))
+                error("Specified parameter lower bound exceeds that defined " *
+                      "for $pref.")
+        end
+        # check that respects upper bound
+        if JuMP.has_upper_bound(pref) && (bounds[pref].upper_bound > JuMP.upper_bound(pref))
+                error("Specified parameter upper bound exceeds that defined " *
+                      "for $pref.")
+        end
+    end
+    return
+end
+
 # Case where dictionary contains vectors
 function _expand_parameter_dict(param_bounds::Dict)
     error("Invalid parameter bound dictionary format.")
 end
 
-# TODO Dispatch off of the type
+## Check to ensure correct inputs and build variables and return
+# InfiniteVariable
+function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Infinite};
+                        parameter_refs::Union{ParameterRef,
+                                              AbstractArray{<:ParameterRef},
+                                              Tuple, Nothing} = nothing,
+                        extra_kw_args...)::InfiniteVariable
+    # check for unneeded keywords
+    for (kwarg, _) in extra_kw_args
+        _error("Keyword argument $kwarg is not for use with infinite variables.")
+    end
+    # check that we have been given parameter references
+    if parameter_refs == nothing
+        _error("Parameter references not specified, use the var(params...) " *
+               "syntax or the parameter_refs keyword argument.")
+    end
+    # make sure the parameters are in a tuple
+    if !isa(parameter_refs, Tuple)
+        parameter_refs = (parameter_refs, )
+    end
+    # check tuple for validity and format
+    _check_parameter_tuple(_error, parameter_refs)
+    parameter_refs = _make_formatted_tuple(parameter_refs)
+    _check_tuple_groups(_error, parameter_refs)
+    # make the variable and return
+    return InfiniteVariable(info, parameter_refs)
+end
+
+# PointVariable
+function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Point};
+                        infinite_variable_ref::Union{InfiniteVariableRef,
+                                                     Nothing} = nothing,
+                        parameter_values::Union{Number,
+                                                AbstractArray{<:Number},
+                                                Tuple, Nothing} = nothing,
+                        extra_kw_args...)::PointVariable
+    # check for unneeded keywords
+    for (kwarg, _) in extra_kw_args
+        _error("Keyword argument $kwarg is not for use with point variables.")
+    end
+    # ensure the needed arguments are given
+    if parameter_values == nothing || infinite_variable_ref == nothing
+        _error("Must specify the infinite variable and the values of its " *
+               "infinite parameters")
+    end
+    # format as tuple if needed
+    if !isa(parameter_values, Tuple)
+        parameter_values = (parameter_values, )
+    end
+    # check information and prepare format
+    parameter_values = _make_formatted_tuple(parameter_values)
+    _check_tuple_shape(_error, infinite_variable_ref, parameter_values)
+    _check_tuple_values(_error, infinite_variable_ref, parameter_values)
+    info = _update_point_info(info, infinite_variable_ref)
+    # make variable and return
+    return PointVariable(info, infinite_variable_ref, parameter_values)
+end
+
+# HoldVariable
+function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Hold};
+                        parameter_bounds::Dict = default_bounds,
+                        extra_kw_args...)::HoldVariable
+    # check for unneeded keywords
+    for (kwarg, _) in extra_kw_args
+        _error("Keyword argument $kwarg is not for use with hold variables.")
+    end
+    # check that the bounds don't violate parameter domains
+    _check_bounds(parameter_bounds)
+    # make variable and return
+    return HoldVariable(info, _expand_parameter_dict(parameter_bounds))
+end
+
+# Fallback method
+function _make_variable(_error::Function, info::JuMP.VariableInfo, type;
+                        extra_kw_args...)
+    _error("Unrecognized variable type $type, should be Infinite, " *
+           "Point, or Hold.")
+end
+
 """
     JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
                         var_type::Symbol;
@@ -243,7 +336,6 @@ end
                                                 Tuple, Nothing} = nothing,
                         parameter_bounds::Union{Dict{ParameterRef, IntervalSet},
                                                 Nothing} = nothing,
-                        error::Union{Function, Nothing} = nothing,
                         extra_kw_args...)
 
 Extend the [`JuMP.build_variable`](@ref) function to accomodate `InfiniteOpt`
@@ -258,7 +350,7 @@ argument is given or if the keywoard arguments are formatted incorrectly (e.g.,
 is defined). Also errors if needed kewword arguments are negated.
 
 **Examples**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel())
 julia> @infinite_parameter(m, 0 <= t <= 1)
 t
 
@@ -283,73 +375,13 @@ HoldVariable{Int64,Int64,Int64,Int64}(VariableInfo{Int64,Int64,Int64,Int64}
 """
 function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
                              var_type::Symbol;
-                             parameter_refs::Union{ParameterRef,
-                                                   AbstractArray{<:ParameterRef},
-                                                   Tuple, Nothing} = nothing,
-                             infinite_variable_ref::Union{InfiniteVariableRef,
-                                                          Nothing} = nothing,
-                             parameter_values::Union{Number,
-                                                     AbstractArray{<:Number},
-                                                     Tuple, Nothing} = nothing,
-                             parameter_bounds::Union{Dict, Nothing} = nothing,
-                             error::Union{Function, Nothing} = nothing,
-                             extra_kw_args...)
-    if error != nothing
-        _error = error # replace with macro error function
+                             macro_error::Union{Function, Nothing} = nothing,
+                             kw_args...)
+    if macro_error != nothing
+        _error = macro_error # replace with macro error function
     end
-    # check for unknown keywords
-    for (kwarg, _) in extra_kw_args
-        _error("Unrecognized keyword argument $kwarg")
-    end
-    # check for valid input
-    if !(var_type in [Infinite, Point, Hold])
-        _error("Unrecognized variable type $var_type, should be Infinite, " *
-               "Point, or Hold.")
-    end
-    if var_type != Infinite && parameter_refs != nothing
-        _error("Can only use the keyword argument 'parameter_refs' with " *
-               "infinite variables.")
-    elseif var_type != Point && (infinite_variable_ref != nothing || parameter_values != nothing)
-        _error("Can only use the keyword arguments 'infinite_var' and " *
-               "'parameter_values' with point variables.")
-    elseif var_type != Hold && parameter_bounds != nothing
-        _error("Can only use the keyword argument 'parameter_bounds' with " *
-               "hold variables.")
-    # we need to make an infinite variable
-    elseif var_type == Infinite
-        if parameter_refs == nothing
-            _error("Parameter references not specified, use the var(params...) " *
-                   "syntax or the parameter_refs keyword argument.")
-        end
-        if !isa(parameter_refs, Tuple)
-            parameter_refs = (parameter_refs, )
-        end
-        _check_parameter_tuple(_error, parameter_refs)
-        parameter_refs = _make_formatted_tuple(parameter_refs)
-        _check_tuple_groups(_error, parameter_refs)
-        return InfiniteVariable(info, parameter_refs)
-    # we need to make a point variable
-    elseif var_type == Point
-        if parameter_values == nothing || infinite_variable_ref == nothing
-            _error("Must specify the infinite variable and the values of its " *
-                   "infinite parameters")
-        end
-        if !isa(parameter_values, Tuple)
-            parameter_values = (parameter_values, )
-        end
-        parameter_values = _make_formatted_tuple(parameter_values)
-        _check_tuple_shape(_error, infinite_variable_ref, parameter_values)
-        _check_tuple_values(_error, infinite_variable_ref, parameter_values)
-        info = _update_point_info(info, infinite_variable_ref)
-        return PointVariable(info, infinite_variable_ref, parameter_values)
-    # we need to make a hold variable
-    else
-        if isa(parameter_bounds, Nothing)
-            parameter_bounds = default_bounds
-        end
-        # TODO Use _check_bounds function
-        return HoldVariable(info, _expand_parameter_dict(parameter_bounds))
-    end
+    # make the variable and conduct necessary checks
+    return _make_variable(_error, info, Val(var_type); kw_args...)
 end
 
 # Used to update the model.param_to_vars field
@@ -404,8 +436,57 @@ function _update_infinite_point_mapping(pvref::PointVariableRef,
     return
 end
 
+# Validate parameter bounds and add support(s) if needed
+function _validate_bounds(model::InfiniteModel, bounds::Dict)
+    for (pref, set) in bounds
+        # check validity
+        !JuMP.is_valid(model, pref) && error("Parameter bound reference " *
+                                             "is invalid.")
+        # ensure has a support if a point constraint was given
+        if set.lower_bound == set.upper_bound
+            add_supports(pref, set.lower_bound)
+        end
+    end
+    return
+end
+
+## Make the variable reference and do checks/mapping updates
+# InfiniteVariable
+function _check_make_variable_ref(model::InfiniteModel,
+                                  v::InfiniteVariable)::InfiniteVariableRef
+    _check_parameters_valid(model, v.parameter_refs)
+    vref = InfiniteVariableRef(model, model.next_var_index)
+    _update_param_var_mapping(vref, v.parameter_refs)
+    return vref
+end
+
+# PointVariable
+function _check_make_variable_ref(model::InfiniteModel,
+                                  v::PointVariable)::PointVariableRef
+    ivref = v.infinite_variable_ref
+    !JuMP.is_valid(model, ivref) && error("Invalid infinite variable " *
+                                          "reference.")
+    vref = PointVariableRef(model, model.next_var_index)
+    _update_param_supports(ivref, v.parameter_values)
+    _update_infinite_point_mapping(vref, ivref)
+    return vref
+end
+
+# HoldVariable
+function _check_make_variable_ref(model::InfiniteModel,
+                                  v::HoldVariable)::HoldVariableRef
+    _validate_bounds(model, v.parameter_bounds)
+    vref = HoldVariableRef(model, model.next_var_index)
+    return vref
+end
+
+# Fallback
+function _check_make_variable_ref(model::InfiniteModel, v)
+    error("Invalid variable object type.")
+end
+
 """
-    JuMP.add_variable(model::InfiniteModel, v::InfOptVariable, name::String = "")
+    JuMP.add_variable(model::InfiniteModel, var::InfOptVariable, name::String = "")
 
 Extend the [`JuMP.add_variable`](@ref) function to accomodate `InfiniteOpt`
 variable types. Adds a variable to an infinite model `model` and returns an
@@ -415,10 +496,12 @@ to be an internal function of the constructor macros [`@infinite_variable`](@ref
 [`@point_variable`](@ref), and [`@hold_variable`](@ref). However, it can be used
 in combination with [`JuMP.build_variable`](@ref) to add variables to an infinite
 model object. Errors if invalid parameters reference(s) or an invalid infinite
-variable reference is included in `v`.
+variable reference is included in `var`.
 
 **Examples**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel())
+julia> @infinite_parameter(m, t in [0, 10]);
+
 julia> inf_var = build_variable(error, info, Infinite, parameter_refs = t);
 
 julia> ivref = add_variable(m, inf_var, "var_name")
@@ -436,51 +519,38 @@ julia> hvref = add_variable(m, hd_var, "var_name")
 var_name
 ```
 """
-function JuMP.add_variable(model::InfiniteModel, v::InfOptVariable,
+function JuMP.add_variable(model::InfiniteModel, var::InfOptVariable,
                            name::String = "")
     model.next_var_index += 1
-    if isa(v, InfiniteVariable)
-        _check_parameters_valid(model, v.parameter_refs)
-        vref = InfiniteVariableRef(model, model.next_var_index)
-        _update_param_var_mapping(vref, v.parameter_refs)
-    elseif isa(v, PointVariable)
-        ivref = v.infinite_variable_ref
-        !JuMP.is_valid(model, ivref) && error("Invalid infinite variable " *
-                                              "reference.")
-        vref = PointVariableRef(model, model.next_var_index)
-        _update_param_supports(ivref, v.parameter_values)
-        _update_infinite_point_mapping(vref, ivref)
-    else
-        vref = HoldVariableRef(model, model.next_var_index)
-    end
-    model.vars[JuMP.index(vref)] = v
+    vref = _check_make_variable_ref(model, var)
+    model.vars[JuMP.index(vref)] = var
     JuMP.set_name(vref, name)
-    if v.info.has_lb
-        newset = MOI.GreaterThan(convert(Float64, v.info.lower_bound))
+    if var.info.has_lb
+        newset = MOI.GreaterThan(convert(Float64, var.info.lower_bound))
         cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                    JuMP.ScalarConstraint(vref, newset))
         _set_lower_bound_index(vref, JuMP.index(cref))
         model.constr_in_var_info[JuMP.index(cref)] = true
     end
-    if v.info.has_ub
-        newset = MOI.LessThan(convert(Float64, v.info.upper_bound))
+    if var.info.has_ub
+        newset = MOI.LessThan(convert(Float64, var.info.upper_bound))
         cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                    JuMP.ScalarConstraint(vref, newset))
         _set_upper_bound_index(vref, JuMP.index(cref))
         model.constr_in_var_info[JuMP.index(cref)] = true
     end
-    if v.info.has_fix
-        newset = MOI.EqualTo(convert(Float64, v.info.fixed_value))
+    if var.info.has_fix
+        newset = MOI.EqualTo(convert(Float64, var.info.fixed_value))
         cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(vref, newset))
         _set_fix_index(vref, JuMP.index(cref))
         model.constr_in_var_info[JuMP.index(cref)] = true
     end
-    if v.info.binary
+    if var.info.binary
         cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                    JuMP.ScalarConstraint(vref, MOI.ZeroOne()))
         _set_binary_index(vref, JuMP.index(cref))
         model.constr_in_var_info[JuMP.index(cref)] = true
-    elseif v.info.integer
+    elseif var.info.integer
         cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                    JuMP.ScalarConstraint(vref, MOI.Integer()))
         _set_integer_index(vref, JuMP.index(cref))
