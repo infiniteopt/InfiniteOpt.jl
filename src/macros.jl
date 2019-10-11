@@ -917,6 +917,8 @@ macro hold_variable(model, args...)
     return esc(code)
 end
 
+# TODO make @finite_variable macro
+
 ## Helper function for parsing the parameter bounds and the name expression
 # Check that name expression is in acceptable form or throw error
 function _parse_name_expression(_error::Function, expr)

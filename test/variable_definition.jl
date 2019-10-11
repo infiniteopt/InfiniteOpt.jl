@@ -287,6 +287,19 @@ end
     @testset "infinite_variable_ref" begin
         @test infinite_variable_ref(vref) == ivref
     end
+    # _make_str_value (Number)
+    @testset "_make_str_value (Number)" begin
+        @test InfiniteOpt._make_str_value(1.0) == "1"
+    end
+    # _make_str_value (Array)
+    @testset "_make_str_value (Array)" begin
+        # test short array
+        values = convert(JuMPC.SparseAxisArray, [1., 2., 3.])
+        @test InfiniteOpt._make_str_value(values) == "[1, 2, 3]"
+        # test long array
+        values = convert(JuMPC.SparseAxisArray, [1., 2., 3., 4., 5., 6.])
+        @test InfiniteOpt._make_str_value(values) == "[1, ..., 6]"
+    end
     # JuMP.set_name
     @testset "JuMP.set_name" begin
         # prepare a secondary point variable

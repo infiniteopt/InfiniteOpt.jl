@@ -179,25 +179,6 @@ end
         delete!(m.meas_to_constrs, JuMP.index(meas))
         delete!(m.reduced_to_constrs, JuMP.index(rv))
     end
-    # test _check_bounds2
-    @testset "_check_bounds2" begin
-        # test normal
-        @test isa(InfiniteOpt._check_bounds2(m, Dict(par => IntervalSet(0, 1))),
-                                                                        Nothing)
-        # test adding support
-        @test supports(par) == [0.5, 1.]
-        @test isa(InfiniteOpt._check_bounds2(m, Dict(par => IntervalSet(0, 0))),
-                                                                        Nothing)
-        @test supports(par) == [0.5, 1., 0.]
-        # test errors
-        par2 = ParameterRef(InfiniteModel(), 2)
-        @test_throws ErrorException InfiniteOpt._check_bounds2(m,
-                                                Dict(par2 => IntervalSet(0, 1)))
-        @test_throws ErrorException InfiniteOpt._check_bounds2(m,
-                                                Dict(par => IntervalSet(-1, 1)))
-        @test_throws ErrorException InfiniteOpt._check_bounds2(m,
-                                                 Dict(par => IntervalSet(0, 2)))
-    end
     # test add_constraint
     @testset "JuMP.add_constraint" begin
         # test reject vector constraint
@@ -219,10 +200,6 @@ end
                                        Dict(par => IntervalSet(0, 1)))
         @test add_constraint(m, con, "a") == InfiniteConstraintRef(m, index,
                                                                   ScalarShape())
-        # test bad bounded constraint
-        con = BoundedScalarConstraint(inf + pt, MOI.EqualTo(42.0),
-                                       Dict(par => IntervalSet(0, 2)))
-        @test_throws ErrorException add_constraint(m, con, "a")
         # test infinite constraint
         con = ScalarConstraint(inf + pt, MOI.EqualTo(42.0))
         @test add_constraint(m, con, "b") == InfiniteConstraintRef(m, index + 1,

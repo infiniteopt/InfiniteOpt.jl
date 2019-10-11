@@ -314,7 +314,7 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Hold};
     # check that the bounds don't violate parameter domains
     _check_bounds(parameter_bounds)
     # make variable and return
-    return HoldVariable(info, _expand_parameter_dict(parameter_bounds))
+    return HoldVariable(info, _expand_parameter_dict(copy(parameter_bounds)))
 end
 
 # Fallback method
@@ -357,20 +357,17 @@ t
 julia> info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false);
 
 julia> inf_var = build_variable(error, info, Infinite, parameter_refs = t)
-InfiniteVariable{Int64,Int64,Int64,Int64}(VariableInfo{Int64,Int64,Int64,Int64}
-(false, 0, false, 0, false, 0, false, 0, false, false), (t,))
+InfiniteVariable{Int64,Int64,Int64,Int64}(VariableInfo{Int64,Int64,Int64,Int64}(false, 0, false, 0, false, 0, false, 0, false, false), (t,))
 
 julia> ivref = add_variable(m, inf_var, "var_name")
 var_name(t)
 
 julia> pt_var = build_variable(error, info, Point, infinite_variable_ref = ivref,
                                parameter_values = 0.5)
-PointVariable{Int64,Int64,Int64,Float64}(VariableInfo{Int64,Int64,Int64,Float64}
-(false, 0, false, 0, false, 0, true, 0.0, false, false), var_name(t), (0.5,))
+PointVariable{Int64,Int64,Int64,Float64}(VariableInfo{Int64,Int64,Int64,Float64}(false, 0, false, 0, false, 0, true, 0.0, false, false), var_name(t), (0.5,))
 
 julia> hd_var = build_variable(error, info, Hold)
-HoldVariable{Int64,Int64,Int64,Int64}(VariableInfo{Int64,Int64,Int64,Int64}
-(false, 0, false, 0, false, 0, false, 0, false, false))
+HoldVariable{Int64,Int64,Int64,Int64}(VariableInfo{Int64,Int64,Int64,Int64}(false, 0, false, 0, false, 0, false, 0, false, false), Dict{ParameterRef,IntervalSet}())
 ```
 """
 function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
@@ -501,6 +498,8 @@ variable reference is included in `var`.
 **Examples**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel())
 julia> @infinite_parameter(m, t in [0, 10]);
+
+julia> info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false);
 
 julia> inf_var = build_variable(error, info, Infinite, parameter_refs = t);
 
@@ -958,6 +957,33 @@ function _root_name(vref::InfiniteVariableRef)
     return name[1:findfirst(isequal('('), name)-1]
 end
 
+## Return the parameter value as an appropriate string
+# Number
+function _make_str_value(value::Number)::String
+    return string(JuMP._string_round(value))
+end
+
+# AbstractArray
+function _make_str_value(value::AbstractArray)::String
+    if length(keys(value)) <= 4
+        str_value = "["
+        counter = 1
+        for key in sort(collect(keys(value)))
+            if counter != length(keys(value))
+                str_value *= JuMP._string_round(value[key]) * ", "
+            else
+                str_value *= JuMP._string_round(value[key]) * "]"
+            end
+            counter += 1
+        end
+        return string(str_value)
+    else
+        value = [value[key] for key in sort(collect(keys(value)))]
+        return string("[", JuMP._string_round(first(value)), ", ..., ",
+                      JuMP._string_round(last(value)), "]")
+    end
+end
+
 """
     JuMP.set_name(vref::PointVariableRef, name::String)
 
@@ -978,13 +1004,14 @@ function JuMP.set_name(vref::PointVariableRef, name::String)
     if length(name) == 0
         inf_var_ref = infinite_variable_ref(vref::PointVariableRef)
         name = _root_name(inf_var_ref)
-        # TODO do something about SparseAxisArrays (report array of values in order)
-        # TODO list as vector and use ... like REPL if there are a lot
         values = JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
-        if length(values) == 1
-            name = string(name, "(", values[1], ")")
-        else
-            name = string(name, values)
+        name = string(name, "(")
+        for i in eachindex(values)
+            if i != length(values)
+                name *= _make_str_value(values[i]) * ", "
+            else
+                name *= _make_str_value(values[i]) * ")"
+            end
         end
     end
     JuMP.owner_model(vref).var_to_name[JuMP.index(vref)] = name
@@ -1081,7 +1108,7 @@ Return the `parameter_bounds` dictionary associated with the hold variable
 that defines a sub-domain for `vref` relative to that parameter reference.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10])
 t
 
@@ -1104,7 +1131,7 @@ Return a `Bool` indicating if `vref` is limited to a sub-domain as defined
 by parameter bound.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10])
 t
 
@@ -1116,7 +1143,12 @@ true
 ```
 """
 function has_parameter_bounds(vref::HoldVariableRef)::Bool
-    return length(parameter_bounds) != 0
+    return length(parameter_bounds(vref)) != 0
+end
+
+# Other variable types
+function has_parameter_bounds(vref::GeneralVariableRef)::Bool
+    return false
 end
 
 # Internal function used to change the parameter bounds of a hold variable
@@ -1137,7 +1169,7 @@ This is meant to be primarily used by [`@set_parameter_bounds`](@ref) which
 provides a more intuitive syntax.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10])
 t
 
@@ -1158,11 +1190,15 @@ function set_parameter_bounds(vref::HoldVariableRef, bounds::Dict{ParameterRef,
               "`add_parameter_bounds` or overwriting them by setting " *
               "the keyword argument `force = true`")
     else
-        # TODO add checks
-        # TODO Use _check_bounds function
+        # check that bounds are valid and add support(s) if necessary
+        _check_bounds(bounds)
+        _validate_bounds(JuMP.owner_model(vref), bounds)
+        # set the new bounds
         _update_variable_param_bounds(vref, bounds)
+        # update status
         if is_used(vref)
             set_optimizer_model_ready(JuMP.owner_model(vref), false)
+            # TODO update constraints and check measures
         end
     end
     return
@@ -1176,7 +1212,7 @@ Add an additional parameter bound to `vref` such that it is defined over the
 sub-domain based on `pref` from `lower` to `upper`. This is primarily meant to be
 used by [`@add_parameter_bounds`](@ref).
 
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10])
 t
 
@@ -1192,8 +1228,17 @@ Dict{ParameterRef,IntervalSet} with 1 entry:
 """
 function add_parameter_bound(vref::HoldVariableRef, pref::ParameterRef,
                              lower::Number, upper::Number)
-    # TODO add checks
+    # check the new bounds
+    new_bounds = Dict(pref => IntervalSet(lower, upper))
+    _check_bounds(new_bounds)
+    _validate_bounds(new_bounds)
+    # add the bounds
     parameter_bounds(vref)[vref] = IntervalSet(lower, upper)
+    # update the optimizer model status
+    if is_used(vref)
+        set_optimizer_model_ready(JuMP.owner_model(vref), false)
+        # TODO update constraints and measures
+    end
     return
 end
 

@@ -123,6 +123,7 @@ function add_measure(model::InfiniteModel, meas::Measure)::MeasureRef
     index = model.next_meas_index
     JuMP.check_belongs_to_model(meas.func, model)
     vrefs = _all_function_variables(meas.func)
+    # TODO check for hold variable bounds
     _update_var_meas_mapping(vrefs, index)
     _update_param_data_mapping(model, meas.data, index)
     mref = MeasureRef(model, model.next_meas_index)
