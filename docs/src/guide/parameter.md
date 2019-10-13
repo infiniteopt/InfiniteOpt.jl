@@ -140,10 +140,187 @@ and assign it the name of `t`:
 julia> t_ref = add_parameter(model, t_param, "t")
 t
 ```  
+We can also create an anonymous infinite parameter by dropping the name from
+the `add_parameter` function call. For example:
+```jldoctest time_define
+julia> t_ref_noname = add_parameter(model, t_param)
+noname
+```
+Now suppose we want to create an infinite parameter that is a random variable
+with a given distribution. We follow the same procedure as above, except we use
+distributions from `Distributions.jl` to define [`DistributionSet`](@ref). For
+example, let's consider a random variable ``x \in \mathcal{N}(0,1)`` with
+supports `[-0.5, 0.5]`:
+```jldoctest rand_define; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
+julia> dist = Normal(0., 1.)
+Normal{Float64}(μ=0.0, σ=1.0)
+
+julia> set = DistributionSet(dist)
+DistributionSet{Normal{Float64}}(Normal{Float64}(μ=0.0, σ=1.0))
+
+julia> x_param = build_parameter(error, set, supports = [-0.5, 0.5])
+InfOptParameter{DistributionSet{Normal{Float64}}}(DistributionSet{Normal{Float64}}(Normal{Float64}(μ=0.0, σ=1.0)), [-0.5, 0.5], false)
+```
+Again, we use [`add_parameter](@ref) to add `x_param` to the `InfiniteModel` and
+assign it the name `x`:
+```jldoctest rand_define
+julia> x_ref = add_parameter(model, x_param, "x")
+x
+```
 
 ### Macro Definition
+One user-friendly way of defining infinite parameters is by macro
+[`@infinite_parameter`](@ref). Again, let's consider a time parameter
+``t \in [0, 10]`` with supports `[0, 2, 5, 7, 10]`. Similar to
+[`JuMP.@variable`](@ref), we can use comparison operators to set lower bounds
+and upper bounds for the infinite parameter:
+```jldoctest time_macro_define; setup = :(using InfiniteOpt; model = InfiniteModel())
+julia> @infinite_parameter(model, 0 <= t <= 10, supports = [0, 2, 5, 7, 10])
+t
+```
+More generally, we use `in` to define the set that an infinite parameter is
+subject to. The set could be an interval set, or a distribution set. For example,
+we can define the same parameter `t` as above in the following way:
+```jldoctest time_macro_define_in; setup = :(using InfiniteOpt; model = InfiniteModel())
+julia> @infinite_parameter(model, t in [0, 10], supports = [0, 2, 5, 7, 10])
+t
+```
+In a similar way, we can define a random infinite parameter subject to some
+distribution. For example, a Gaussian infinite parameter with mean 0 and
+standard deviation 1 can be defined by
+```jldoctest rand_macro_define; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
+julia> dist = Normal(0., 1.)
+Normal{Float64}(μ=0.0, σ=1.0)
+
+julia> @infinite_parameter(model, x in dist, supports = [-0.5, 0.5])
+x
+```
+
+
+
+things to add: containers, independent, num_supports (cases of error), base_name,
+(non)anonymous (keywords, expression forms), multi-dim definition, mechanism
+of macro (makes parameter, defines julia variable, register)
 
 ## Supports
+For an infinite parameter, its supports are a finite set of points that the
+parameter will take (or possibly take, if the parameter is random). During the
+transcription stage, the supports specified will become part of the grid points
+that approximate all functions parameterized by the infinite parameter.
+
+Once an infinite parameter is defined, users can access the supports using
+[`supports`](@ref) function:
+```jldoctest time_macro_define
+julia> supports(t_ref)
+5-element Array{Int64,1}:
+  0
+  2
+  5
+  7
+ 10
+
+```
+We also provide functions that access other related information about the
+supports. For example, [`has_supports`](@ref) checks whether a parameter has
+supports, while [`num_supports`](@ref) gives the number of supports associated
+with a parameter:
+```jldoctest time_macro_define
+julia> has_supports(t_ref)
+true
+
+julia> num_supports(t_ref)
+5
+
+```
+Now suppose we want to add more supports to the `t`, which is already assigned
+with some supports. We can use [`add_supports`](@ref) function to achieve this
+goal:
+```jldoctest time_macro_define
+julia> add_supports(t_ref, [3, 8])
+
+julia> supports(t_ref)
+7-element Array{Int64,1}:
+  0
+  2
+  5
+  7
+ 10
+  3
+  8
+
+```
+At times we might want to change the supports completely. In those cases, the
+function [`set_supports`](@ref) resets the supports for a certain parameter with
+new supports provided:
+```jldoctest time_macro_define
+julia> set_supports(t_ref, [0,3,5,8,10], force = true)
+
+julia> supports(t_ref)
+5-element Array{Int64,1}:
+  0
+  3
+  5
+  8
+ 10
+
+```
+Note that the keyword argument [`force`] must be set as [`true`] if the
+parameter has been assigned with supports.
+
+### Automatic Support Generation During Parameter Definition
+For the examples in the [Parameter Definition](@ref), we have seen how to
+manually add supports to an infinite parameter. For a quick automatic
+generation of support points, though, users do not have to input the support
+points. Instead, the number of support points generated is supplied.
+
+For an infinite parameter subject to an `IntervalSet`, uniformly spaced supports
+including both ends are generated across the interval. For example, defining a
+time parameter ``t \in [0, 10]`` with 4 supports using `build_parameter` gives
+```jldoctest; setup = :(using InfiniteOpt)
+julia> set = IntervalSet(0, 10)
+IntervalSet(0.0, 10.0)
+
+julia> t_param = build_parameter(error, set, num_supports = 4, sig_fig = 3)
+InfOptParameter{IntervalSet}(IntervalSet(0.0, 10.0), [0.0, 3.33, 6.67, 10.0], false)
+```  
+Using macro definition we have
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
+julia> @infinite_parameter(model, 0 <= t <= 10, num_supports = 4, sig_fig = 3)
+t
+
+julia> supports(t)
+4-element Array{Float64,1}:
+  0.0   
+  3.33
+  6.67
+ 10.0   
+
+```
+Note that the user can use the keyword argument `sig_fig` to dictate the
+significant figures for the supports. The default value of `sig_fig` is 5.
+
+For an infinite parameter that follows a univariate distribution,
+supports are sampled from the underlying distribution. For example, we can
+define an infinite parameter subject to a normal distribution with mean 0 and
+variance 1:
+```jldoctest; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel(); dist = Normal(0., 1.))
+julia> @infinite_parameter(model, x in dist, num_supports = 4)
+x
+
+julia> supports(x)
+4-element Array{Float64,1}:
+  0.51125
+  0.94272
+ -0.75805
+  0.72906
+
+```
+For multivariate distributions, though, we require support points are provided
+in the definition. However, we can use [`fill_in_supports!`](@ref) to generate
+supports for parameters following multivariate distributions. See
+[Automatic Support Generation For Defined Parameters](@ref) for details.
+
+### Automatic Support Generation For Defined Parameters
 
 
 ## Parameter Queries
