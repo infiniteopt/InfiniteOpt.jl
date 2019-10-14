@@ -37,6 +37,25 @@ function _make_meas_name(meas::Measure)::String
                                                             meas.func), ")")
 end
 
+## Internal functions for adding measure data supports to the parameter supports
+# scalar pref
+function _add_supports_to_parameters(pref::ParameterRef,
+                                     supports::Vector{<:Number})
+    add_supports(pref, supports)
+    return
+end
+
+# array pref
+function _add_supports_to_parameters(pref::JuMPC.SparseAxisArray{<:ParameterRef},
+                                     supports::Array{<:JuMPC.SparseAxisArray{<:Number}})
+    for i = eachindex(supports)
+        for key in keys(pref.data)
+            add_supports(pref.data[key], supports[i].data[key])
+        end
+    end
+    return
+end
+
 # Used to update the model.var_to_meas and model.param_tomes fields
 # this is needed to update measures if variables are deleted
 function _update_var_meas_mapping(vrefs::Vector{<:GeneralVariableRef},
@@ -122,8 +141,8 @@ function add_measure(model::InfiniteModel, meas::Measure)::MeasureRef
     model.next_meas_index += 1
     index = model.next_meas_index
     JuMP.check_belongs_to_model(meas.func, model)
+    _add_supports_to_parameters(meas.data.parameter_ref, meas.data.supports)
     vrefs = _all_function_variables(meas.func)
-    # TODO check for hold variable bounds
     _update_var_meas_mapping(vrefs, index)
     _update_param_data_mapping(model, meas.data, index)
     mref = MeasureRef(model, model.next_meas_index)
@@ -249,9 +268,8 @@ end
 
 ## Check if expr contains a parameter directly or via an infinite variable
 # scalar pref
-function _check_has_parameter(expr::JuMP.AbstractJuMPScalar,
+function _check_has_parameter(vrefs::Vector{<:GeneralVariableRef},
                               pref::ParameterRef)
-    vrefs = _all_function_variables(expr)
     if !_has_parameter(vrefs, pref)
         error("Measure expression is not parameterized by the parameter " *
               "specified in the measure data.")
@@ -260,9 +278,8 @@ function _check_has_parameter(expr::JuMP.AbstractJuMPScalar,
 end
 
 # array pref
-function _check_has_parameter(expr::JuMP.AbstractJuMPScalar,
+function _check_has_parameter(vrefs::Vector{<:GeneralVariableRef},
                               pref::JuMPC.SparseAxisArray{<:ParameterRef})
-    vrefs = _all_function_variables(expr)
     for key in keys(pref.data)
         if !_has_parameter(vrefs, pref.data[key])
             error("Measure expression is not parameterized by the parameter " *
@@ -273,31 +290,61 @@ function _check_has_parameter(expr::JuMP.AbstractJuMPScalar,
 end
 
 # Parse the model pertaining to an expression
-function _model_from_expr(expr::JuMP.AbstractJuMPScalar)
-    all_vrefs = _all_function_variables(expr)
-    if length(all_vrefs) > 0
-        return JuMP.owner_model(all_vrefs[1])
+function _model_from_expr(vrefs::Vector{<:GeneralVariableRef})
+    if length(vrefs) > 0
+        return JuMP.owner_model(vrefs[1])
     else
         return
     end
 end
 
-## Internal functions for adding measure data supports to the parameter supports
-# scalar pref
-function _add_supports_to_parameters(pref::ParameterRef,
-                                     supports::Vector{<:Number})
-    add_supports(pref, supports)
+## Check that variables don't violate the parameter bounds
+# GeneralVariableRef
+function _check_var_bounds(vref::GeneralVariableRef, data::AbstractMeasureData)
     return
 end
 
-# array pref
-function _add_supports_to_parameters(pref::JuMPC.SparseAxisArray{<:ParameterRef},
-                                     supports::Array{<:JuMPC.SparseAxisArray{<:Number}})
-    for i = 1:length(supports)
-        for key in keys(pref.data)
-            add_supports(pref.data[key], supports[i].data[key])
+# HoldVariableRef (single parameter)
+function _check_var_bounds(vref::HoldVariableRef, data::DiscreteMeasureData)
+    bounds = parameter_bounds(vref)
+    pref = data.parameter_ref
+    supports = data.supports
+    if haskey(bounds, pref)
+        if bounds[pref].lower_bound > minimum(supports) || bounds[pref].upper_bound < maximum(supports)
+            error("Measure bounds violate hold variable bounds.")
         end
     end
+    return
+end
+
+# HoldVariableRef (multiple parameters)
+function _check_var_bounds(vref::HoldVariableRef, data::MultiDiscreteMeasureData)
+    bounds = parameter_bounds(vref)
+    prefs = data.parameter_ref
+    supports = data.supports
+    mins = minimum(supports)
+    maxs = maximum(supports)
+    for key in keys(prefs)
+        if haskey(bounds, prefs[key])
+            if bounds[prefs[key]].lower_bound > mins[key] || bounds[prefs[key]].upper_bound < maxs[key]
+                error("Measure bounds violate hold variable bounds.")
+            end
+        end
+    end
+    return
+end
+
+# HoldVariableRef (fallback)
+function _check_var_bounds(vref::HoldVariableRef, data::AbstractMeasureData)
+    @warn "Unable to check if hold variables bounds are valid in measure with" *
+          " custom measure data type."
+    return
+end
+
+# MeasureRef
+function _check_var_bounds(mref::MeasureRef, data::AbstractMeasureData)
+    vrefs = _all_function_variables(measure_function(mref))
+    _check_var_bounds.(vrefs, data)
     return
 end
 
@@ -340,14 +387,17 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         error("Expression must contain infinite variables, infinite " *
               "parameters, or measure references")
     end
-    model = _model_from_expr(expr)
+    vrefs = _all_function_variables(expr)
+    model = _model_from_expr(vrefs)
     if model == nothing
         error("Expression contains no variables.")
     end
     pref = data.parameter_ref
-    _check_has_parameter(expr, pref)
+    _check_has_parameter(vrefs, pref)
+    if model.has_hold_bounds
+        _check_var_bounds.(vrefs, data)
+    end
     meas = Measure(expr, data)
-    _add_supports_to_parameters(pref, data.supports)
     return add_measure(model, meas)
 end
 

@@ -1164,4 +1164,77 @@ macro BDconstraint(model, args...)
     return esc(code)
 end
 
-# TODO Make @set_parameter_bounds and @add_parameter_bounds
+"""
+    @set_parameter_bounds(ref, bound_expr; [force = false])
+
+Specify new parameter bounds for a constraint reference or hold variable
+reference `ref`.
+"""
+macro set_parameter_bounds(ref, bound_expr, args...)
+    # define appropriate error message function
+    _error(str...) = JuMP._macro_error(:set_parameter_bounds,
+                                       (ref, bound_expr, args...), str...)
+
+    # parse the arguments
+    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    extra_kw_args = filter(kw -> kw.args[1] != :force, kw_args)
+    if length(extra) != 0
+        _error("Too many positional arguments.")
+    elseif length(extra_kw_args) != 0
+        _error("Unrecognized keyword arguments.")
+    end
+
+    # parse the bounds
+    x = bound_expr
+    if isexpr(x, :call) || isexpr(x, :tuple) || isexpr(x, :comparison)
+       name_expr, bounds = InfiniteOpt._extract_bounds(_error, x.args,
+                                                       Val(x.head))
+    else
+       _error("Unrecognized input format for parameter bounds. Must be of " *
+              "tuple with elements of form: par(s) in [lb, ub] or " *
+              "par(s) = value.")
+    end
+    # prepare the code
+    code = quote
+        @assert(isa($ref, Union{GeneralConstraintRef, HoldVariableRef}),
+                "Reference must correspond to a constraint or hold variable.")
+        new_bounds = InfiniteOpt._expand_parameter_dict($bounds)
+        set_parameter_bounds($ref, new_bounds; ($(args...)), _error = $_error)
+    end
+    return esc(code)
+end
+
+# TODO Make @add_parameter_bounds
+"""
+    @add_parameter_bounds(ref, bound_expr)
+
+Add new parameter bounds for a constraint reference or hold variable
+reference `ref`.
+"""
+macro add_parameter_bounds(ref, bound_expr)
+    # define appropriate error message function
+    _error(str...) = JuMP._macro_error(:add_parameter_bounds,
+                                       (ref, bound_expr), str...)
+
+    # parse the bounds
+    x = bound_expr
+    if isexpr(x, :call) || isexpr(x, :tuple) || isexpr(x, :comparison)
+       name_expr, bounds = InfiniteOpt._extract_bounds(_error, x.args,
+                                                       Val(x.head))
+    else
+       _error("Unrecognized input format for parameter bounds. Must be of " *
+              "tuple with elements of form: par(s) in [lb, ub] or " *
+              "par(s) = value.")
+    end
+    # prepare the code
+    code = quote
+        @assert(isa($ref, Union{GeneralConstraintRef, HoldVariableRef}),
+                "Reference must correspond to a constraint or hold variable.")
+        new_bounds = InfiniteOpt._expand_parameter_dict($bounds)
+        for (pref, set) in new_bounds
+            add_parameter_bound($ref, pref, set.lower_bound, set.upper_bound,
+                                 _error = $_error)
+        end
+    end
+    return esc(code)
+end

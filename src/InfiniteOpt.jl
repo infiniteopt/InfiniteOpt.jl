@@ -33,7 +33,7 @@ export InfiniteModel
 
 # Export macros
 export @infinite_variable, @point_variable, @hold_variable, @infinite_parameter,
-@BDconstraint, @finite_parameter
+@BDconstraint, @finite_parameter, @set_parameter_bounds, @add_parameter_bounds
 
 # Export constants
 export Infinite, Hold, Point, Parameter

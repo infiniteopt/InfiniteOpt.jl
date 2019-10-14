@@ -217,6 +217,25 @@ end
         @test_logs (:warn, warn) InfiniteOpt._update_param_data_mapping(m,
                                                                    BadData(), 1)
     end
+    # test _add_supports_to_parameters (scalar)
+    @testset "_add_supports_to_parameters (scalar)" begin
+        # test functionality
+        @test isa(InfiniteOpt._add_supports_to_parameters(par, [1]), Nothing)
+        @test supports(par) == [1]
+        # clear supports
+        delete_supports(par)
+    end
+    # test _add_supports_to_parameters (array)
+    @testset "_add_supports_to_parameters (array)" begin
+        # test functionality
+        supp = convert(JuMP.Containers.SparseAxisArray, [1, 1])
+        @test isa(InfiniteOpt._add_supports_to_parameters(pars, [supp]), Nothing)
+        @test supports(pars[1]) == [1]
+        @test supports(pars[2]) == [1]
+        # clear supports
+        delete_supports(pars[1])
+        delete_supports(pars[2])
+    end
     # test add_measure
     @testset "add_measure" begin
         mref = MeasureRef(m, 1)
@@ -337,31 +356,31 @@ end
     # _check_has_parameter (scalar)
     @testset "_check_has_parameter (scalar)" begin
         # test that is has the parameter
-        @test isa(InfiniteOpt._check_has_parameter(par, par), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter(inf, par), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter(x - inf, par), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter(x + mref2 + mref4, par),
+        @test isa(InfiniteOpt._check_has_parameter([par], par), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([inf], par), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([x, inf], par), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([x, mref2, mref4], par),
                   Nothing)
         # test is does not have the parameter
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(par, par2)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(inf, par2)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(x - inf,
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([par], par2)
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([inf], par2)
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([x, inf],
                                                                      par2)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(x + mref1 +
-                                                                    mref5, par2)
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([x, mref1,
+                                                                    mref5], par2)
     end
     # _check_has_parameter (array)
     @testset "_check_has_parameter (array)" begin
         # test that is has the parameter
-        @test isa(InfiniteOpt._check_has_parameter(pars[1] + pars[2], pars), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter(inf4, pars), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter(x - inf4, pars), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter(x + mref6, pars), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([pars[1], pars[2]], pars), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([inf4], pars), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([x, inf4], pars), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([x, mref6], pars), Nothing)
         # test is does not have the parameter
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(pars[1], pars)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(inf2, pars)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(x + mref1 +
-                                                                    mref5, pars)
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([pars[1]], pars)
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([inf2], pars)
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([x, mref1,
+                                                                    mref5], pars)
     end
 end
 
@@ -383,30 +402,10 @@ end
     data3 = DiscreteMeasureData(pars, [1], [[1, 1]], name = "c")
     # test _model_from_expr
     @testset "_model_from_expr" begin
-        @test InfiniteOpt._model_from_expr(par) == m
-        @test InfiniteOpt._model_from_expr(inf + par) == m
-        @test InfiniteOpt._model_from_expr(inf^2) == m
-        @test isa(InfiniteOpt._model_from_expr(zero(GenericAffExpr{Float64,
-                                                 GeneralVariableRef})), Nothing)
-    end
-    # test _add_supports_to_parameters (scalar)
-    @testset "_add_supports_to_parameters (scalar)" begin
-        # test functionality
-        @test isa(InfiniteOpt._add_supports_to_parameters(par, [1]), Nothing)
-        @test supports(par) == [1]
-        # clear supports
-        delete_supports(par)
-    end
-    # test _add_supports_to_parameters (array)
-    @testset "_add_supports_to_parameters (array)" begin
-        # test functionality
-        supp = convert(JuMP.Containers.SparseAxisArray, [1, 1])
-        @test isa(InfiniteOpt._add_supports_to_parameters(pars, [supp]), Nothing)
-        @test supports(pars[1]) == [1]
-        @test supports(pars[2]) == [1]
-        # clear supports
-        delete_supports(pars[1])
-        delete_supports(pars[2])
+        @test InfiniteOpt._model_from_expr([par]) == m
+        @test InfiniteOpt._model_from_expr([inf, par]) == m
+        @test InfiniteOpt._model_from_expr([inf]) == m
+        @test isa(InfiniteOpt._model_from_expr(GeneralVariableRef[]), Nothing)
     end
     # test measure
     @testset "measure" begin

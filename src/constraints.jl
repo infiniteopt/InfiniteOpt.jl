@@ -135,7 +135,7 @@ const NoHoldRefs = Union{ParameterRef, MeasureRef, InfiniteVariableRef,
                          ReducedInfiniteVariableRef, PointVariableRef}
 
 # Update the current bounds to overlap with the new bounds if possible
-function _update_bounds(bounds1::Dict, bounds2::Dict)
+function _update_bounds(bounds1::Dict, bounds2::Dict; _error = error)
     # check each new bound
     for (pref, set) in bounds2
         # we have a new bound
@@ -143,7 +143,7 @@ function _update_bounds(bounds1::Dict, bounds2::Dict)
             bounds1[pref] = set
         # the previous set and the new one do not overlap
         elseif set.lower_bound > bounds1[pref].upper_bound || set.upper_bound < bounds1[pref].lower_bound
-            error("Sub-domains of constraint and/or hold variable(s) do not" *
+            _error("Sub-domains of constraint and/or hold variable(s) do not" *
                    "overlap. Consider changing the parameter bounds of the" *
                    "constraint and/or hold variable(s).")
         # we have an existing bound
@@ -160,6 +160,27 @@ function _update_bounds(bounds1::Dict, bounds2::Dict)
     return
 end
 
+## Update the variable bounds if it has any
+# GeneralVariableRef
+function _update_var_bounds(vref::GeneralVariableRef, constr_bounds::Dict)
+    return
+end
+
+# HoldVariableRef
+function _update_var_bounds(vref::HoldVariableRef, constr_bounds::Dict)
+    if has_parameter_bounds(vref)
+        _update_bounds(constr_bounds, parameter_bounds(vref))
+    end
+    return
+end
+
+# MeasureRef
+function _update_var_bounds(mref::MeasureRef, constr_bounds::Dict)
+    vrefs = _all_function_variables(measure_function(mref))
+    _update_var_bounds.(vrefs, constr_bounds)
+    return
+end
+
 ## Perfrom bound checks and update them if needed, then return the updated constraint
 # BoundedScalarConstraint with no hold variables
 function _check_and_update_bounds(model::InfiniteModel, c::BoundedScalarConstraint,
@@ -172,14 +193,10 @@ end
 function _check_and_update_bounds(model::InfiniteModel, c::BoundedScalarConstraint,
                                   vrefs::Vector)::JuMP.AbstractConstraint
     # look for bounded hold variables and update bounds
-    for vref in vrefs
-        if has_parameter_bounds(vref)
-            _update_bounds(c.bounds, parameter_bounds(vref))
-        end
-    end
+    _update_var_bounds(vrefs, c.bounds)
     # now validate and return
     _validate_bounds(model, c.bounds)
-    # TODO should we check that bounds don't violate point variables
+    # TODO should we check that bounds don't violate point variables?
     return c
 end
 
@@ -193,18 +210,13 @@ end
 function _check_and_update_bounds(model::InfiniteModel, c::JuMP.ScalarConstraint,
                                   vrefs::Vector)::JuMP.AbstractConstraint
     # check for bounded hold variables and build the intersection of the bounds
-    bounds = copy(default_bounds)
-    for vref in vrefs
-        if has_parameter_bounds(vref)
-            _update_bounds(bounds, parameter_bounds(vref))
-        end
-    end
+    _update_var_bounds(vrefs, bounds)
     # if we added bounds, change to a bounded constraint and validate
     if length(bounds) != 0
         c = BoundedScalarConstraint(c.func, c.set, bounds)
         _validate_bounds(model, c.bounds)
     end
-    # TODO should we check that bounds don't violate point variables
+    # TODO should we check that bounds don't violate point variables?
     return c
 end
 
@@ -239,7 +251,11 @@ function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint,
     vrefs = _all_function_variables(c.func)
     isa(vrefs, Vector{ParameterRef}) && error("Constraints cannot contain " *
                                               "only parameters.")
-    c = _check_and_update_bounds(model, c, vrefs)
+    if model.has_hold_bounds
+        c = _check_and_update_bounds(model, c, vrefs)
+    elseif c isa BoundedScalarConstraint
+        _validate_bounds(model, c.bounds)
+    end
     model.next_constr_index += 1
     index = model.next_constr_index
     if length(vrefs) != 0
@@ -460,15 +476,15 @@ Dict{ParameterRef,IntervalSet} with 1 entry:
 ```
 """
 function set_parameter_bounds(cref::GeneralConstraintRef, bounds::Dict{ParameterRef,
-                              IntervalSet}; force = false)
+                              IntervalSet}; force = false, _error = error)
     if has_parameter_bounds(cref) && !force
-        error("$cref already has parameter bounds. Consider adding more using " *
-              "`add_parameter_bounds` or overwriting them by setting " *
-              "the keyword argument `force = true`")
+        _error("$cref already has parameter bounds. Consider adding more using " *
+               "`add_parameter_bounds` or overwriting them by setting " *
+               "the keyword argument `force = true`")
     else
         # check that bounds are valid and add support(s) if necessary
-        _check_bounds(bounds)
-        _validate_bounds(JuMP.owner_model(cref), bounds)
+        _check_bounds(bounds, _error = _error)
+        _validate_bounds(JuMP.owner_model(cref), bounds, _error = _error)
         # set the new bounds
         _update_constr_param_bounds(cref, bounds)
         # TODO maybe check with hold variables...
@@ -495,13 +511,17 @@ Dict{ParameterRef,IntervalSet} with 1 entry:
 ```
 """
 function add_parameter_bound(cref::GeneralConstraintRef, pref::ParameterRef,
-                             lower::Number, upper::Number)
+                             lower::Number, upper::Number; _error = error)
     # check the new bounds
     new_bounds = Dict(pref => IntervalSet(lower, upper))
-    _check_bounds(new_bounds)
-    _validate_bounds(new_bounds)
+    _check_bounds(new_bounds, _error = _error)
+    _validate_bounds(new_bounds, _error = _error)
     # add the bounds
-    _update_bounds(parameter_bounds(cref), new_bounds)
+    if has_parameter_bounds(cref)
+        _update_bounds(parameter_bounds(cref), new_bounds, _error = _error)
+    else
+        _update_constr_param_bounds(cref, new_bounds)
+    end
     # update the optimizer model status
     set_optimizer_model_ready(JuMP.owner_model(cref), false)
     return

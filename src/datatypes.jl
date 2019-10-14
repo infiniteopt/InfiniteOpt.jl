@@ -116,6 +116,7 @@ model an optmization problem with an infinite dimensional decision space.
                                                dependent point variable indices.
 - `infinite_to_reduced::Dict{Int, Vector{Int}}` Infinite variable indices to
                                                dependent reduced variable indices.
+- `has_hold_bounds::Bool` Have hold variables with bounds been added to the model
 - `reduced_to_constrs::Dict{Int, Vector{Int}}` Reduced variable indices to dependent
                                                constraint indices.
 - `reduced_to_meas::Dict{Int, Vector{Int}}` Reduced variable indices to dependent
@@ -173,6 +174,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     var_in_objective::Dict{Int, Bool}
     infinite_to_points::Dict{Int, Vector{Int}}
     infinite_to_reduced::Dict{Int, Vector{Int}}
+    has_hold_bounds::Bool
 
     # Placeholder
     reduced_to_constrs::Dict{Int, Vector{Int}}
@@ -250,6 +252,7 @@ function InfiniteModel(; kwargs...)
                          Dict{Int, Int}(), Dict{Int, Vector{Int}}(),
                          Dict{Int, Vector{Int}}(), Dict{Int, Bool}(),
                          Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
+                         false,
                          # Placeholder variables
                          Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
                          Dict{Int, Tuple}(),
@@ -592,16 +595,15 @@ struct MultiDiscreteMeasureData <: AbstractMeasureData
             error("The keys/dimensions of the support points and parameters " *
                   "do not match.")
         end
-        for i in eachindex(supports)
-            for key in keys(parameter_ref.data)
-                support = supports[i].data[key]
-                pref = parameter_ref.data[key]
-                if JuMP.has_lower_bound(pref)
-                    check1 = support < JuMP.lower_bound(pref)
-                    check2 = support > JuMP.upper_bound(pref)
-                    if check1 || check2
-                        error("Support points violate parameter bounds.")
-                    end
+        mins = minimum(supports)
+        maxs = maximum(supports)
+        for key in keys(parameter_ref.data)
+            pref = parameter_ref.data[key]
+            if JuMP.has_lower_bound(pref)
+                check1 = mins[key] < JuMP.lower_bound(pref)
+                check2 = maxs[key] > JuMP.upper_bound(pref)
+                if check1 || check2
+                    error("Support points violate parameter bounds.")
                 end
             end
         end
