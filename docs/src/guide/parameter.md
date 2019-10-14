@@ -167,13 +167,20 @@ assign it the name `x`:
 julia> x_ref = add_parameter(model, x_param, "x")
 x
 ```
+Note that `add_parameter` does not register the name of the parameters into the
+model that it adds to. As shown in [Macro Definition](@ref), the macro definition
+does not allow for multiple parameters sharing the same name and will throw an
+error if it happens.
 
 ### Macro Definition
+#### One-Dimensional Parameters
 One user-friendly way of defining infinite parameters is by macro
-[`@infinite_parameter`](@ref). Again, let's consider a time parameter
-``t \in [0, 10]`` with supports `[0, 2, 5, 7, 10]`. Similar to
-[`JuMP.@variable`](@ref), we can use comparison operators to set lower bounds
-and upper bounds for the infinite parameter:
+[`@infinite_parameter`](@ref). The macro executes the same process as the
+manual definition (steps listed in [Parameter Definition](@ref)), but allows
+the users to manipulate several features of the defined infinite parameters.
+Again, let's consider a time parameter ``t \in [0, 10]`` with supports
+`[0, 2, 5, 7, 10]`. Similar to [`JuMP.@variable`](@ref), we can use comparison
+operators to set lower bounds and upper bounds for the infinite parameter:
 ```jldoctest time_macro_define; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, 0 <= t <= 10, supports = [0, 2, 5, 7, 10])
 t
@@ -195,12 +202,168 @@ Normal{Float64}(μ=0.0, σ=1.0)
 julia> @infinite_parameter(model, x in dist, supports = [-0.5, 0.5])
 x
 ```
+Additional ways of defining infinite parameters are provided using keyword
+arguments. For example, we can use `lower_bound` and `upper_bound` to define an
+infinite parameter in an interval set:
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
+julia> @infinite_parameter(model, t, lower_bound = 0, upper_bound = 10, supports = [0, 2, 5, 7, 10])
+t
+```
+A bit more generally, we can also use `set` to directly input the
+`AbstractInfiniteSet` that the parameter is in. For example:
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
+julia> @infinite_parameter(model, t, set = IntervalSet(0, 10), supports = [0, 2, 5, 7, 10])
+t
+```
+The parameter definition methods using keyword arguments will be useful later
+when we introduce how to define anonymous parameters. See
+[Anonymous Parameter Definition](@ref) for more details.
 
+All the definitions above return a [`ParameterRef`](@ref) that refer to the
+defined parameter. Note that we can also ignore the `supports` keyword argument
+and the macro will define an empty array of supports for that parameter.
 
+#### Multi-Dimensional Parameter
+Using macro definition, we can also define multi-dimensional infinite parameters
+in a concise way. For example, consider a position parameter `x` in a
+3-dimensional space constrained in a unit cube (i.e. in the interval `[0, 1]`  
+for all dimensions). This parameter can be defined in one line as follows:
+```jldoctest 3d_macro; setup = :(using InfiniteOpt; model= InfiniteModel())
+julia> @infinite_parameter(model, x[1:3] in [0, 1], supports = [0.3, 0.7])
+3-element Array{ParameterRef,1}:
+ x[1]
+ x[2]
+ x[3]
+```
+Note that we can set different supports to different dimension using an index
+inside the macro similar to [`JuMP.variable`](@ref). For example,
+```jldoctest; setup = :(using InfiniteOpt; model= InfiniteModel())
+julia> points = [0.2 0.8; 0.3 0.7]
+2×2 Array{Float64,2}:
+ 0.2  0.8
+ 0.3  0.7
 
-things to add: containers, independent, num_supports (cases of error), base_name,
-(non)anonymous (keywords, expression forms), multi-dim definition, mechanism
-of macro (makes parameter, defines julia variable, register)
+julia> @infinite_parameter(model, a[i = 1:2] in [0, 1], supports = points[i,:])
+2-element Array{ParameterRef,1}:
+ a[1]
+ a[2]
+
+julia> supports(a[1])
+2-element Array{Float64,1}:
+ 0.2
+ 0.8
+```
+In a similar way we can define an infinite parameter subject to a multivariate
+distribution. For example, a 2-dimensional parameter `xi` subject to a
+2-D normal distribution can be created as follows:
+```jldoctest; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
+julia> dist = MvNormal([0., 0.], [1. 0.; 0. 2.])
+FullNormal(
+dim: 2
+μ: [0.0, 0.0]
+Σ: [1.0 0.0; 0.0 2.0]
+)
+
+julia> @infinite_parameter(model, xi[1:2] in dist)
+2-element Array{ParameterRef,1}:
+ xi[1]
+ xi[2]
+```
+
+#### Containers for Multi-Dimensional Parameters
+Note that for all the cases of multi-dimensional parameter definition above, the
+macro always returns an `Array` of [`ParameterRef`](@ref). For most cases this is
+true. However, we can explicitly dictate the kind of containers we want to hold
+the defined parameters using the keyword `container`. For example, we use
+[`SparseAxisArray`](@ref) from the [`JuMP`](@ref) package for the space
+parameter `x`:
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model= InfiniteModel())
+julia> @infinite_parameter(model, x[1:3] in [0, 1], container = SparseAxisArray)
+JuMP.Containers.SparseAxisArray{ParameterRef,1,Tuple{Any}} with 3 entries:
+  [3]  =  x[3]
+  [2]  =  x[2]
+  [1]  =  x[1]
+```
+
+#### `independent` for Multi-Dimensional Parameters
+For examples up to now we did not specify the value for the keyword
+`independent`, which is set as `false` by default. The keyword `independent`
+applies to multi-dimensional infinite parameters and dictates whether the
+supports for different dimensions are independent. Setting `independent` as
+`true` would be useful if the users want to generate a grid of supports for
+a multi-dimensional parameter. For example, consider the position parameter `x`
+in a 3D space. Say `x` is bounded in `[0, 1]` in all three dimensions, and the
+user wants to generate grid points with interval `0.5` in all three dimensions.
+In this case, we can define `x` in the following way:
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model= InfiniteModel())
+julia> pts = collect(range(0, stop = 1, length = 3))
+3-element Array{Float64,1}:
+ 0.0
+ 0.5
+ 1.0
+
+julia> @infinite_parameter(model, x[1:3] in [0, 1], supports = pts, independent = true)
+3-element Array{ParameterRef,1}:
+ x[1]
+ x[2]
+ x[3]
+```
+If `independent` is set as `false`, the transcription step will generate
+JuMP variables for values of any variable parameterized by `x` at `[0.0, 0.0, 0.0]`,
+`[0.5, 0.5, 0.5]` and `[1.0, 1.0, 1.0]`, a total of 3 transcribed variables.
+Instead, if `independent` is set as `true`, the transcription step will obtain
+a unique permutation of these supports and each transcribe parameterized
+variable accordingly, leading to a total of 27 transcribed variables in this
+case.
+
+#### Anonymous Parameter Definition and `base_name`
+As mentioned above, we can define anonymous parameters using keyword arguments
+in the macro [`@infinite_parameter`](@ref). For instance, we can create an
+anonymous position parameter in a 3D space, referred to by a list of [`ParameterRef`](@ref)
+called `x`:
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
+julia> x = @infinite_parameter(m, [1:3], lower_bound = 0, upper_bound = 1)
+3-element Array{ParameterRef,1}:
+ noname
+ noname
+ noname
+
+julia> typeof(x)
+Array{ParameterRef,1}
+
+julia> name(x[1])
+""
+```
+This syntax creates a 1D parameter if the part `[1:3]` is neglected.
+
+Note that this macro definition automatically assigns an empty string to the
+`base_name`. We can also assign a nontrivial base name to an anonymous parameter
+using the keyword argument `base_name`. For example,
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
+julia> @infinite_parameter(m, [1:3], lower_bound = 0, upper_bound = 1, base_name = "x")
+3-element Array{ParameterRef,1}:
+ x[1]
+ x[2]
+ x[3]
+
+julia> @infinite_parameter(m, [1:3], lower_bound = -1, upper_bound = 0, base_name = "x")
+3-element Array{ParameterRef,1}:
+ x[1]
+ x[2]
+ x[3]
+```
+We can see that anonymous parameter definition allows for multiple parameters
+sharing the same base name. This is not permitted with non-anonymous parameter
+definition. In fact, in anonymous parameter definition, the macro does not
+register the name of the parameters in the model, so when the model checks for
+repeated names it will not detect the `x`. Refer to
+[Detailed Mechanism of Macro Definition](@ref) if more details are desired.
+
+#### Detailed Mechanism of Macro Definition
+
+things to add:
+num_supports (cases of error)
+mechanism of macro (makes parameter, defines julia variable, register)
 
 ## Supports
 For an infinite parameter, its supports are a finite set of points that the
@@ -210,35 +373,36 @@ that approximate all functions parameterized by the infinite parameter.
 
 Once an infinite parameter is defined, users can access the supports using
 [`supports`](@ref) function:
-```jldoctest time_macro_define
-julia> supports(t_ref)
+```jldoctest supports; setup = :(using InfiniteOpt; model = InfiniteModel())
+julia> @infinite_parameter(model, 0 <= t <= 10, supports = [0, 2, 5, 7, 10])
+t
+
+julia> supports(t)
 5-element Array{Int64,1}:
   0
   2
   5
   7
  10
-
 ```
 We also provide functions that access other related information about the
 supports. For example, [`has_supports`](@ref) checks whether a parameter has
 supports, while [`num_supports`](@ref) gives the number of supports associated
 with a parameter:
-```jldoctest time_macro_define
-julia> has_supports(t_ref)
+```jldoctest supports
+julia> has_supports(t)
 true
 
-julia> num_supports(t_ref)
+julia> num_supports(t)
 5
-
 ```
 Now suppose we want to add more supports to the `t`, which is already assigned
 with some supports. We can use [`add_supports`](@ref) function to achieve this
 goal:
-```jldoctest time_macro_define
-julia> add_supports(t_ref, [3, 8])
+```jldoctest supports
+julia> add_supports(t, [3, 8])
 
-julia> supports(t_ref)
+julia> supports(t)
 7-element Array{Int64,1}:
   0
   2
@@ -247,22 +411,20 @@ julia> supports(t_ref)
  10
   3
   8
-
 ```
 At times we might want to change the supports completely. In those cases, the
 function [`set_supports`](@ref) resets the supports for a certain parameter with
 new supports provided:
-```jldoctest time_macro_define
-julia> set_supports(t_ref, [0,3,5,8,10], force = true)
+```jldoctest supports
+julia> set_supports(t, [0,3,5,8,10], force = true)
 
-julia> supports(t_ref)
+julia> supports(t)
 5-element Array{Int64,1}:
   0
   3
   5
   8
  10
-
 ```
 Note that the keyword argument [`force`] must be set as [`true`] if the
 parameter has been assigned with supports.
