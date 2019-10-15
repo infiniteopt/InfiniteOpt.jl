@@ -317,6 +317,7 @@ function _check_var_bounds(vref::HoldVariableRef, data::DiscreteMeasureData)
     return
 end
 
+# TODO add tests
 # HoldVariableRef (multiple parameters)
 function _check_var_bounds(vref::HoldVariableRef, data::MultiDiscreteMeasureData)
     bounds = parameter_bounds(vref)

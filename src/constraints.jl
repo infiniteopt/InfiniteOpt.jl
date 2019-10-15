@@ -134,32 +134,6 @@ end
 const NoHoldRefs = Union{ParameterRef, MeasureRef, InfiniteVariableRef,
                          ReducedInfiniteVariableRef, PointVariableRef}
 
-# Update the current bounds to overlap with the new bounds if possible
-function _update_bounds(bounds1::Dict, bounds2::Dict; _error = error)
-    # check each new bound
-    for (pref, set) in bounds2
-        # we have a new bound
-        if !haskey(bounds1, pref)
-            bounds1[pref] = set
-        # the previous set and the new one do not overlap
-        elseif set.lower_bound > bounds1[pref].upper_bound || set.upper_bound < bounds1[pref].lower_bound
-            _error("Sub-domains of constraint and/or hold variable(s) do not" *
-                   "overlap. Consider changing the parameter bounds of the" *
-                   "constraint and/or hold variable(s).")
-        # we have an existing bound
-        else
-            # we have a new stricter lower bound to update with
-            if set.lower_bound > bounds1[pref].lower_bound
-                bounds1[pref] = IntervalSet(set.lower_bound, bounds1[pref].upper_bound)
-            # we have a new stricter upper bound to update with
-            elseif set.upper_bound < bounds1[pref].upper_bound
-                bounds1[pref] = IntervalSet(bounds1[pref].lower_bound, set.upper_bound)
-            end
-        end
-    end
-    return
-end
-
 ## Update the variable bounds if it has any
 # GeneralVariableRef
 function _update_var_bounds(vref::GeneralVariableRef, constr_bounds::Dict)
@@ -177,7 +151,9 @@ end
 # MeasureRef
 function _update_var_bounds(mref::MeasureRef, constr_bounds::Dict)
     vrefs = _all_function_variables(measure_function(mref))
-    _update_var_bounds.(vrefs, constr_bounds)
+    for vref in vrefs
+        _update_var_bounds(vref, constr_bounds)
+    end
     return
 end
 
@@ -193,7 +169,9 @@ end
 function _check_and_update_bounds(model::InfiniteModel, c::BoundedScalarConstraint,
                                   vrefs::Vector)::JuMP.AbstractConstraint
     # look for bounded hold variables and update bounds
-    _update_var_bounds(vrefs, c.bounds)
+    for vref in vrefs
+        _update_var_bounds(vref, c.bounds)
+    end
     # now validate and return
     _validate_bounds(model, c.bounds)
     # TODO should we check that bounds don't violate point variables?
@@ -209,8 +187,11 @@ end
 # ScalarConstraint with hold variables
 function _check_and_update_bounds(model::InfiniteModel, c::JuMP.ScalarConstraint,
                                   vrefs::Vector)::JuMP.AbstractConstraint
+    bounds = copy(default_bounds)
     # check for bounded hold variables and build the intersection of the bounds
-    _update_var_bounds(vrefs, bounds)
+    for vref in vrefs
+        _update_var_bounds(vref, bounds)
+    end
     # if we added bounds, change to a bounded constraint and validate
     if length(bounds) != 0
         c = BoundedScalarConstraint(c.func, c.set, bounds)

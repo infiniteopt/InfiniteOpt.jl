@@ -860,7 +860,7 @@ The other recognized keyword arguments in `kw_args` are the following:
 - `container`: Specify the container type.
 
 **Examples**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 10]))
 julia> @hold_variable(model, x)
 x
 
@@ -877,6 +877,9 @@ julia> @hold_variable(model, z[2:3] == 0)
 And data, a 2-element Array{HoldVariableRef,1}:
  z[2]
  z[3]
+
+julia> @hold_variable(model, d, parameter_bounds = (t in [0, 5]))
+d
 ```
 """
 macro hold_variable(model, args...)
@@ -1204,7 +1207,6 @@ macro set_parameter_bounds(ref, bound_expr, args...)
     return esc(code)
 end
 
-# TODO Make @add_parameter_bounds
 """
     @add_parameter_bounds(ref, bound_expr)
 

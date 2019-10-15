@@ -700,6 +700,12 @@ end
         # test normal
         v = build_variable(error, info, Hold)
         @test InfiniteOpt._check_make_variable_ref(m, v) == HoldVariableRef(m, 0)
+        # test with bounds
+        bounds = Dict(par => IntervalSet(0, 2))
+        v = build_variable(error, info, Hold, parameter_bounds = bounds)
+        @test InfiniteOpt._check_make_variable_ref(m, v) == HoldVariableRef(m, 0)
+        @test m.has_hold_bounds
+        m.has_hold_bounds = false
         # test bad bounds
         @infinite_parameter(InfiniteModel(), par2 in [0, 2])
         v = build_variable(error, info, Hold,

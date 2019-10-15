@@ -223,6 +223,11 @@ function _expand_parameter_dict(param_bounds::Dict{<:Any, IntervalSet})::Dict
     return new_dict
 end
 
+# Case where dictionary contains vectors
+function _expand_parameter_dict(param_bounds::Dict)
+    error("Invalid parameter bound dictionary format.")
+end
+
 # Check that parameter_bounds argument is valid
 function _check_bounds(bounds::Dict; _error = error)
     for (pref, set) in bounds
@@ -238,11 +243,6 @@ function _check_bounds(bounds::Dict; _error = error)
         end
     end
     return
-end
-
-# Case where dictionary contains vectors
-function _expand_parameter_dict(param_bounds::Dict)
-    error("Invalid parameter bound dictionary format.")
 end
 
 ## Check to ensure correct inputs and build variables and return
@@ -312,9 +312,10 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Hold};
         _error("Keyword argument $kwarg is not for use with hold variables.")
     end
     # check that the bounds don't violate parameter domains
+    parameter_bounds = _expand_parameter_dict(parameter_bounds)
     _check_bounds(parameter_bounds)
     # make variable and return
-    return HoldVariable(info, _expand_parameter_dict(copy(parameter_bounds)))
+    return HoldVariable(info, copy(parameter_bounds))
 end
 
 # Fallback method
@@ -515,7 +516,7 @@ julia> pt_var = build_variable(error, info, Point, infinite_variable_ref = ivref
 julia> pvref = add_variable(m, pt_var, "var_alias")
 var_alias
 
-julia> hd_var = build_variable(error, info, Hold)
+julia> hd_var = build_variable(error, info, Hold);
 
 julia> hvref = add_variable(m, hd_var, "var_name")
 var_name
@@ -1162,18 +1163,20 @@ function _update_variable_param_bounds(vref::HoldVariableRef, bounds::Dict)
 end
 
 ## Check that the bounds dictionary is compadable with existing dependent measures
-# FiniteMeasureData
-function _check_meas_bounds(bounds::Dict, data::DiscreteMeasureData)
+# DiscreteMeasureData
+function _check_meas_bounds(bounds::Dict, data::DiscreteMeasureData;
+                            _error = error)
     pref = data.parameter_ref
     supports = data.supports
     if haskey(bounds, pref)
         if bounds[pref].lower_bound > minimum(supports) || bounds[pref].upper_bound < maximum(supports)
-            _error("New bounds violate exisiting dependent measure bounds.")
+            _error("New bounds don't span exisiting dependent measure bounds.")
         end
     end
+    return
 end
 
-# MultiFiniteMeasureData
+# MultiDiscreteMeasureData
 function _check_meas_bounds(bounds::Dict, data::MultiDiscreteMeasureData;
                             _error = error)
     prefs = data.parameter_ref
@@ -1183,10 +1186,11 @@ function _check_meas_bounds(bounds::Dict, data::MultiDiscreteMeasureData;
     for key in keys(prefs)
         if haskey(bounds, prefs[key])
             if bounds[prefs[key]].lower_bound > mins[key] || bounds[prefs[key]].upper_bound < maxs[key]
-                _error("New bounds violate exisiting dependent measure bounds.")
+                _error("New bounds don't span exisiting dependent measure bounds.")
             end
         end
     end
+    return
 end
 
 # Fallback
@@ -1194,6 +1198,33 @@ function _check_meas_bounds(bounds::Dict, data::AbstractMeasureData;
                             _error = error)
     @warn "Unable to check if hold variables bounds are valid in measure with" *
           " custom measure data type."
+    return
+end
+
+# Update the current bounds to overlap with the new bounds if possible
+function _update_bounds(bounds1::Dict, bounds2::Dict; _error = error)
+    # check each new bound
+    for (pref, set) in bounds2
+        # we have a new bound
+        if !haskey(bounds1, pref)
+            bounds1[pref] = set
+        # the previous set and the new one do not overlap
+        elseif set.lower_bound > bounds1[pref].upper_bound || set.upper_bound < bounds1[pref].lower_bound
+            _error("Sub-domains of constraint and/or hold variable(s) do not" *
+                   " overlap. Consider changing the parameter bounds of the" *
+                   " constraint and/or hold variable(s).")
+        # we have an existing bound
+        else
+            # we have a new stricter lower bound to update with
+            if set.lower_bound > bounds1[pref].lower_bound
+                bounds1[pref] = IntervalSet(set.lower_bound, bounds1[pref].upper_bound)
+            end
+            # we have a new stricter upper bound to update with
+            if set.upper_bound < bounds1[pref].upper_bound
+                bounds1[pref] = IntervalSet(bounds1[pref].lower_bound, set.upper_bound)
+            end
+        end
+    end
     return
 end
 
@@ -1253,11 +1284,12 @@ function set_parameter_bounds(vref::HoldVariableRef, bounds::Dict{ParameterRef,
                 meas = JuMP.owner_model(vref).measures[mindex]
                 _check_meas_bounds(bounds, meas.data, _error = _error)
                 if used_by_constraint(MeasureRef(JuMP.owner_model(vref), mindex))
-                    push!(meas_cindices, mindex)
+                    indices = JuMP.owner_model(vref).meas_to_constrs[mindex]
+                    meas_cindices = [meas_cindices; indices]
                 end
             end
         end
-        # check and update dependend constraints
+        # check and update dependent constraints
         if used_by_constraint(vref) || length(meas_cindices) != 0
             for cindex in unique([meas_cindices; JuMP.owner_model(vref).var_to_constrs[JuMP.index(vref)]])
                 constr = JuMP.owner_model(vref).constrs[cindex]
@@ -1311,11 +1343,12 @@ function add_parameter_bound(vref::HoldVariableRef, pref::ParameterRef,
             meas = JuMP.owner_model(vref).measures[mindex]
             _check_meas_bounds(new_bounds, meas.data, _error = _error)
             if used_by_constraint(MeasureRef(JuMP.owner_model(vref), mindex))
-                push!(meas_cindices, mindex)
+                indices = JuMP.owner_model(vref).meas_to_constrs[mindex]
+                meas_cindices = [meas_cindices; indices]
             end
         end
     end
-    # check and update dependend constraints
+    # check and update dependent constraints
     if used_by_constraint(vref) || length(meas_cindices) != 0
         for cindex in unique([meas_cindices; JuMP.owner_model(vref).var_to_constrs[JuMP.index(vref)]])
             constr = JuMP.owner_model(vref).constrs[cindex]

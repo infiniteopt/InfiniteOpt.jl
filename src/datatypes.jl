@@ -391,6 +391,7 @@ struct MeasureRef <: MeasureFiniteVariableRef
     index::Int
 end
 
+# TODO Enforce that bounds make sense
 """
     IntervalSet <: AbstractInfiniteSet
 
