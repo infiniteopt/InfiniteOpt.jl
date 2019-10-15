@@ -321,8 +321,8 @@ As mentioned above, we can define anonymous parameters using keyword arguments
 in the macro [`@infinite_parameter`](@ref). For instance, we can create an
 anonymous position parameter in a 3D space, referred to by a list of [`ParameterRef`](@ref)
 called `x`:
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> x = @infinite_parameter(m, [1:3], lower_bound = 0, upper_bound = 1)
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+julia> x = @infinite_parameter(model, [1:3], lower_bound = 0, upper_bound = 1)
 3-element Array{ParameterRef,1}:
  noname
  noname
@@ -340,13 +340,13 @@ Note that this macro definition automatically assigns an empty string to the
 `base_name`. We can also assign a nontrivial base name to an anonymous parameter
 using the keyword argument `base_name`. For example,
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> @infinite_parameter(m, [1:3], lower_bound = 0, upper_bound = 1, base_name = "x")
+julia> @infinite_parameter(model, [1:3], lower_bound = 0, upper_bound = 1, base_name = "x")
 3-element Array{ParameterRef,1}:
  x[1]
  x[2]
  x[3]
 
-julia> @infinite_parameter(m, [1:3], lower_bound = -1, upper_bound = 0, base_name = "x")
+julia> @infinite_parameter(model, [1:3], lower_bound = -1, upper_bound = 0, base_name = "x")
 3-element Array{ParameterRef,1}:
  x[1]
  x[2]
@@ -360,6 +360,12 @@ repeated names it will not detect the `x`. Refer to
 [Detailed Mechanism of Macro Definition](@ref) if more details are desired.
 
 #### Detailed Mechanism of Macro Definition
+This section is for people who wish to know more about how the macro
+[@infinite_parameter](@ref) works in the backend. Users who only want to learn
+about the setting up the model can skip over this part.
+
+In general, the macro [@infinite_parameter](@ref) follows the same steps as
+the manual definition.
 
 things to add:
 num_supports (cases of error)
@@ -471,10 +477,10 @@ x
 
 julia> supports(x)
 4-element Array{Float64,1}:
-  0.51125
-  0.94272
- -0.75805
-  0.72906
+  0.67911
+  0.82841
+ -0.35301
+ -0.13485
 
 ```
 For multivariate distributions, though, we require support points are provided

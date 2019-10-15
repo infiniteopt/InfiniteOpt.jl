@@ -7,6 +7,7 @@ const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 const JuMPC = JuMP.Containers
 import Distributions
+import Random
 
 # Import all of the datatpyes, methods, macros, and definitions.
 include("datatypes.jl")
