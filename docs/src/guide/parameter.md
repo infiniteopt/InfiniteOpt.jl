@@ -489,7 +489,89 @@ supports for parameters following multivariate distributions. See
 [Automatic Support Generation For Defined Parameters](@ref) for details.
 
 ### Automatic Support Generation For Defined Parameters
+So far, we have seen that in both definition methods it is allowed to initialize
+a parameter with no supports. This is done by not specifying `supports` and
+`num_supports`. However, infinite parameters would not be allowed at the
+transcription step since it needs information about how to discretize the
+infinite parameters. In previous examples, we have shown that users can add
+supports to a defined parameter using methods [`add_supports`](@ref) and
+[`set_supports`](@ref).
 
+In this section we introduce automatic support generation for defined
+parameters with no associated supports. This can be done using the
+[`fill_in_supports!`](@ref) functions. [`fill_in_supports!`](@ref) can take as
+argument a [`ParameterRef`](@ref), in which case it will generate
+supports for the associated infinite parameter. Alternatively,
+[`fill_in_supports!`](@ref) can also take an [`InfiniteModel`](@ref) as an
+argument, in which case it will generate supports for all infinite parameters
+of the [`InfiniteModel`](@ref) with no supports.
+
+The [`fill_in_supports!`](@ref) method allows users to specify integer keyword
+arguments [`num_supports`] and [`sig_fig`]. [`num_supports`] dictates the
+number of supports to be generated, and [`sig_fig`] dictates the significant
+figures of generated supports desired. The default values are 50 and 5,
+respectively.
+
+The ways by which supports are automatically generated are as follows. If the
+parameter is in an [`IntervalSet`](@ref), then we generate an array of supports
+that are uniformly distributed along the interval, including the two ends. For
+example, consider a 3D position parameter `x` distributed in the unit cube
+`[0, 1]`. We can generate supports for that point in the following way:
+```jldoctest supp_gen_defined; setup = :(using InfiniteOpt, JuMP, Distributions; model = InfiniteModel())
+julia> @infinite_parameter(model, x[1:3] in [0, 1], independent = true);
+
+julia> fill_in_supports!.(x, num_supports = 3);
+
+julia> supports.(x)
+3-element Array{Array{Number,1},1}:
+ [0.0, 0.5, 1.0]
+ [0.0, 0.5, 1.0]
+ [0.0, 0.5, 1.0]
+```
+Note that the dot syntax because [`fill_in_supports!`](@ref) takes single
+[`ParameterRef`](@ref) as argument. In each dimension, three equally spaced
+supports (`[0.0, 0.5, 1.0]`) are generated. Since the `independent` keyword is
+set as `true`, the transcription stage will create a three-dimensional grid for
+all variables parameterized by `x`, with each point separated by 0.5 units in
+each dimension.
+
+If the parameter is in a [`DistributionSet`](@ref), [`fill_in_supports!`](@ref)
+samples `num_supports` supports from the distribution. Recall that support
+generation is not allowed for parameters under multivariate distribution in
+[`Automatic Support Generation During Parameter Definition`](@ref). However, if
+the parameter is defined first without supports, [`fill_in_supports!`](@ref)
+allows for supports generation. For example, for a 2D random variable `xi`
+under a multivariate Gaussian distribution, we can generate supports for it in
+the following way:
+```jldoctest supp_gen_defined
+julia> dist = MvNormal([0., 0.], [1. 0.; 0. 2.])
+FullNormal(
+dim: 2
+μ: [0.0, 0.0]
+Σ: [1.0 0.0; 0.0 2.0]
+)
+
+
+julia> @infinite_parameter(model, xi[1:2] in dist);
+
+julia> fill_in_supports!(xi[1], num_supports = 3)
+
+julia> supports.(xi)
+2-element Array{Array{Number,1},1}:
+ [0.67911, -0.35301, 0.58662]
+ [1.1716, -0.19071, 0.4205]
+```
+Note that for parameters under multivariate distribution, the users do not have
+to call [`fill_in_supports!`](@ref) for all [`ParameterRef`](@ref) associated
+with that parameter. [`fill_in_supports!`](@ref), once called upon one
+[`ParameterRef`](@ref), would search for the other [`ParameterRef`](@ref)
+and fill in supports for them if they, together with the original
+[`ParameterRef`](@ref), make up for the same multi-dimensional parameter under
+a multivariate distribution.
+
+Also, [`fill_in_supports!`](@ref) only fill in supports for parameters with no
+associated supports. To modify the supports of parameters already associated
+with some supports, refer to [Supports](@ref) for how to do that.
 
 ## Parameter Queries
 
