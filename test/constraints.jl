@@ -179,6 +179,49 @@ end
         delete!(m.meas_to_constrs, JuMP.index(meas))
         delete!(m.reduced_to_constrs, JuMP.index(rv))
     end
+    # test _update_var_bounds (GeneralVariableRef)
+    @testset "_update_var_bounds (General)" begin
+        @test isa(InfiniteOpt._update_var_bounds(inf, Dict()), Nothing)
+    end
+    # test _update_var_bounds (HoldVariableRef)
+    @testset "_update_var_bounds (Hold)" begin
+        dict = copy(InfiniteOpt.default_bounds)
+        @set_parameter_bounds(x, par == 1)
+        @test isa(InfiniteOpt._update_var_bounds(x, dict), Nothing)
+        @test dict[par] == IntervalSet(1, 1)
+    end
+    # test _update_var_bounds (MeasureRef)
+    @testset "_update_var_bounds (Measure)" begin
+        dict = copy(InfiniteOpt.default_bounds)
+        @test isa(InfiniteOpt._update_var_bounds(meas, dict), Nothing)
+        @test dict[par] == IntervalSet(1, 1)
+    end
+    # test _check_and_update_bounds (BoundedScalarConstraint with no hold variables)
+    @testset "_check_and_update_bounds (Bounded no Hold)" begin
+        c = BoundedScalarConstraint(inf, MOI.EqualTo(0.0),
+                                    InfiniteOpt.default_bounds)
+        @test InfiniteOpt._check_and_update_bounds(m, c, [inf]).bounds == c.bounds
+    end
+    # test _check_and_update_bounds (BoundedScalarConstraint with hold variables)
+    @testset "_check_and_update_bounds (Bounded with Hold)" begin
+        dict = copy(InfiniteOpt.default_bounds)
+        c = BoundedScalarConstraint(x + inf, MOI.EqualTo(0.0), dict)
+        @test InfiniteOpt._check_and_update_bounds(m, c,
+                                      [x, inf]).bounds[par] == IntervalSet(1, 1)
+    end
+    # test _check_and_update_bounds (ScalarConstraint with no hold variables)
+    @testset "_check_and_update_bounds (Scalar no Hold)" begin
+        c = JuMP.ScalarConstraint(inf, MOI.EqualTo(0.0))
+        @test InfiniteOpt._check_and_update_bounds(m, c, [inf]) == c
+    end
+    # test _check_and_update_bounds (ScalarConstraint with hold variables)
+    @testset "_check_and_update_bounds (Scalar with Hold)" begin
+        c = JuMP.ScalarConstraint(inf + x, MOI.EqualTo(0.0))
+        @test InfiniteOpt._check_and_update_bounds(m, c,
+                                      [x, inf]).bounds[par] == IntervalSet(1, 1)
+        set_parameter_bounds(x, copy(InfiniteOpt.default_bounds), force = true)
+        m.has_hold_bounds = false
+    end
     # test add_constraint
     @testset "JuMP.add_constraint" begin
         # test reject vector constraint
@@ -212,9 +255,16 @@ end
         con = ScalarConstraint(x + pt, MOI.EqualTo(42.0))
         @test add_constraint(m, con, "d") == FiniteConstraintRef(m, index + 3,
                                                                   ScalarShape())
-        @test name(FiniteConstraintRef(m, 4, ScalarShape())) == "d"
-        @test !m.constr_in_var_info[4]
+        @test name(FiniteConstraintRef(m, index + 3, ScalarShape())) == "d"
+        @test !m.constr_in_var_info[index + 3]
         @test !optimizer_model_ready(m)
+        # test with bounded hold variables
+        @set_parameter_bounds(x, par == 1)
+        con = ScalarConstraint(inf + pt + x, MOI.EqualTo(42.0))
+        @test add_constraint(m, con, "b") == InfiniteConstraintRef(m, index + 4,
+                                                                  ScalarShape())
+        @test m.constrs[index + 4].bounds[par] == IntervalSet(1, 1)
+        set_parameter_bounds(x, copy(InfiniteOpt.default_bounds), force = true)
     end
     # test macro
     @testset "JuMP.@constraint" begin
@@ -222,11 +272,11 @@ end
         index = m.next_constr_index + 1
         @test @constraint(m, e, x + pt -2 <= 2) == FiniteConstraintRef(m, index,
                                                                   ScalarShape())
-        @test isa(m.constrs[5], ScalarConstraint)
+        @test isa(m.constrs[index], ScalarConstraint)
         # test bounded scalar constraint
         @test @constraint(m, f, inf + meas <= 2,
                           parameter_bounds = Dict(par => IntervalSet(0, 1))) == InfiniteConstraintRef(m, index + 1, ScalarShape())
-        @test isa(m.constrs[6], BoundedScalarConstraint)
+        @test isa(m.constrs[index + 1], BoundedScalarConstraint)
     end
 end
 
@@ -336,6 +386,80 @@ end
     end
 end
 
+# Test parameter bound methods
+@testset "Parameter Bounds" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 10)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 10)
+    @infinite_variable(m, inf(par))
+    @point_variable(m, inf(0.5), pt)
+    @hold_variable(m, x >= 0, Int)
+    @BDconstraint(m, c1(par in [0, 1]), inf + x == 0)
+    @constraint(m, c2, x * pt + x == 2)
+    # test has_parameter_bounds
+    @testset "has_parameter_bounds" begin
+        @test has_parameter_bounds(c1)
+        @test !has_parameter_bounds(c2)
+    end
+    # test parameter_bounds
+    @testset "parameter_bounds" begin
+        @test_throws ErrorException parameter_bounds(c2)
+        @test parameter_bounds(c1) == Dict(par => IntervalSet(0, 1))
+    end
+    # test _update_constr_param_bounds
+    @testset "_update_constr_param_bounds" begin
+        dict = Dict(par => IntervalSet(0, 5))
+        @test isa(InfiniteOpt._update_constr_param_bounds(c1, dict), Nothing)
+        @test parameter_bounds(c1) == dict
+    end
+    # test set_parameter_bounds
+    @testset "set_parameter_bounds" begin
+        # test force error
+        dict = Dict(par => IntervalSet(0, 1))
+        @test_throws ErrorException set_parameter_bounds(c1, dict)
+        # test normal
+        @test isa(set_parameter_bounds(c2, dict), Nothing)
+        @test parameter_bounds(c2) == dict
+        @test !optimizer_model_ready(m)
+        # test test error with bounds
+        dict = Dict(par => IntervalSet(-1, 1))
+        @test_throws ErrorException set_parameter_bounds(c1, dict, force = true)
+    end
+    # test add_parameter_bound
+    @testset "add_parameter_bound" begin
+        # test already has bounds
+        @test isa(add_parameter_bound(c1, par, 0, 1), Nothing)
+        @test parameter_bounds(c1) == Dict(par => IntervalSet(0, 1))
+        # test doesn't have bounds
+        @constraint(m, c3, inf + pt == 0)
+        @test isa(add_parameter_bound(c3, par, 0, 1), Nothing)
+        @test parameter_bounds(c3) == Dict(par => IntervalSet(0, 1))
+    end
+    # test @set_parameter_bounds
+    @testset "@set_parameter_bounds" begin
+        # Note errors were already checked with hold variables
+        # test force error
+        @test_macro_throws ErrorException @set_parameter_bounds(c1, par == 1)
+        # test with single
+        @test isa(@set_parameter_bounds(c1, par == 1, force = true), Nothing)
+        @test parameter_bounds(c1) == Dict(par => IntervalSet(1, 1))
+        # test multiple
+        @test isa(@set_parameter_bounds(c1, pars == 0, force = true), Nothing)
+        @test parameter_bounds(c1)[pars[2]] == IntervalSet(0, 0)
+    end
+    # test @add_parameter_bounds
+    @testset "@add_parameter_bounds" begin
+        # Note errors were already checked with hold variables
+        # test bounds error
+        @test_macro_throws ErrorException @add_parameter_bounds(c3, par in [-1, 1])
+        # test with multiple
+        @test isa(@add_parameter_bounds(c2, (pars == 0, par in [0, 1])), Nothing)
+        @test parameter_bounds(c2)[pars[2]] == IntervalSet(0, 0)
+        @test parameter_bounds(c2)[par] == IntervalSet(0, 1)
+    end
+end
+
 # Test coefficient queries and modifications
 @testset "Coefficient Methods" begin
     # initialize model and references
@@ -344,8 +468,7 @@ end
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
     @hold_variable(m, x >= 0, Int)
-    @constraint(m, c1, inf + x == 0,
-                parameter_bounds = Dict(par => IntervalSet(0, 1)))
+    @BDconstraint(m, c1(par in [0, 1]), inf + x == 0)
     @constraint(m, c2, x * pt + x == 2)
     # test set_normalized_coefficient
     @testset "JuMP.set_normalized_coefficient" begin

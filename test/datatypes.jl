@@ -5,6 +5,7 @@
     # IntervalSet
     @test IntervalSet <: AbstractInfiniteSet
     @test IntervalSet(0, 1) == IntervalSet(0.0, 1.0)
+    @test_throws ErrorException IntervalSet(1, 0)
     # DistributionSet
     @test DistributionSet <: AbstractInfiniteSet
     @test DistributionSet(Normal()) isa DistributionSet{<:Normal}

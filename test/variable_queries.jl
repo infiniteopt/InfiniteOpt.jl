@@ -211,13 +211,14 @@ end
     @hold_variable(m, y, parameter_bounds = par == 0)
     # test parameter_bounds
     @testset "parameter_bounds" begin
-        @test parameter_bounds(x) == InfiniteOpt.default_bounds
+        @test parameter_bounds(x) == copy(InfiniteOpt.default_bounds)
         @test parameter_bounds(y) == Dict(par => IntervalSet(0, 0))
     end
     # test has_parameter_bounds
     @testset "has_parameter_bounds" begin
         @test !has_parameter_bounds(x)
         @test has_parameter_bounds(y)
+        @test !has_parameter_bounds(InfiniteVariableRef(m, -2))
     end
     # test _update_variable_param_bounds
     @testset "_update_variable_param_bounds" begin
@@ -350,12 +351,80 @@ end
         @test isa(add_parameter_bound(y, par, 0, 0), Nothing)
         @test parameter_bounds(y) == Dict(par => IntervalSet(0, 0))
     end
+end
+
+# Test Parameter Bound Macros
+@testset "Parameter Bound Macros" begin
+    # initialize the model and other needed information
+    m = InfiniteModel()
+    @infinite_parameter(m, par in [0, 10])
+    @infinite_parameter(m, pars[1:2] in [0, 10], container = SparseAxisArray)
+    @hold_variable(m, x)
+    @hold_variable(m, y, parameter_bounds = par == 0)
     # test @set_parameter_bounds
     @testset "@set_parameter_bounds" begin
-
+        dict1 = Dict(pars[1] => IntervalSet(0, 1))
+        # test force error
+        @test_macro_throws ErrorException @set_parameter_bounds(y, pars[1] in [0, 1])
+        # test bad arguments
+        @test_macro_throws ErrorException @set_parameter_bounds(x, x, 23)
+        @test_macro_throws ErrorException @set_parameter_bounds(x, pars[1] == 0,
+                                                                bad = 42)
+        # test bad input format
+        @test_macro_throws ErrorException @set_parameter_bounds(x, pars[1] = 0)
+        @test_macro_throws ErrorException @set_parameter_bounds(par, pars[1] == 0)
+        # prepare for main test
+        data = DiscreteMeasureData(par, [1, 1], [1, 3], "", InfiniteOpt._w)
+        mindex = -1; cindex1 = 42; cindex2 = -42; vindex = JuMP.index(x);
+        m.measures[mindex] = Measure(x, data)
+        m.var_to_meas[JuMP.index(x)] = [mindex]
+        m.meas_to_constrs[mindex] = [cindex1]
+        mref = MeasureRef(m, mindex)
+        m.constrs[cindex1] = BoundedScalarConstraint(mref, MOI.EqualTo(0.0), dict1)
+        m.var_to_constrs[vindex] = [cindex2]
+        m.constrs[cindex2] = JuMP.ScalarConstraint(x, MOI.EqualTo(0.0))
+        # test measure error
+        dict = Dict(par => IntervalSet(1, 2))
+        @test_macro_throws ErrorException @set_parameter_bounds(x, par in [1, 2])
+        # test constr error
+        dict = Dict(pars[1] => IntervalSet(2, 3))
+        @test_macro_throws ErrorException @set_parameter_bounds(x, pars[1] in [2, 3])
+        # test normal
+        dict = Dict(par => IntervalSet(0, 5), pars[1] => IntervalSet(0.5, 2))
+        @test isa(@set_parameter_bounds(x, (par in [0, 5], pars[1] in [0.5, 2])),
+                  Nothing)
+        @test parameter_bounds(x) == dict
+        @test m.has_hold_bounds
+        @test !optimizer_model_ready(m)
+        expected = Dict(par => IntervalSet(0, 5), pars[1] => IntervalSet(0.5, 1))
+        @test m.constrs[cindex1].bounds == expected
+        @test m.constrs[cindex2].bounds == dict
+        # test forced
+        dict = Dict(par => IntervalSet(1, 1))
+        @test isa(@set_parameter_bounds(y, par == 1, force = true), Nothing)
+        @test parameter_bounds(y) == Dict(par => IntervalSet(1, 1))
     end
     # test @add_parameter_bounds
     @testset "@add_parameter_bounds" begin
-
-    end 
+        mindex = -1; cindex1 = 42; cindex2 = -42; vindex = JuMP.index(x);
+        # test adding normally
+        @test isa(@add_parameter_bounds(x, pars[2] in [0, 5]), Nothing)
+        dict = Dict(par => IntervalSet(0, 5), pars[1] => IntervalSet(0.5, 2),
+                    pars[2] => IntervalSet(0, 5))
+        @test parameter_bounds(x) == dict
+        expected = Dict(par => IntervalSet(0, 5), pars[1] => IntervalSet(0.5, 1),
+                        pars[2] => IntervalSet(0, 5))
+        @test m.constrs[cindex1].bounds == expected
+        @test m.constrs[cindex2].bounds == dict
+        # test measure error
+        @test_macro_throws ErrorException @add_parameter_bounds(x, par in [1, 2])
+        # test constr error
+        @test_macro_throws ErrorException @add_parameter_bounds(x, pars[1] in [2, 3])
+        # test bad input format
+        @test_macro_throws ErrorException @add_parameter_bounds(x, pars[1] = 0)
+        @test_macro_throws ErrorException @add_parameter_bounds(par, pars[1] == 0)
+        # test overwritting existing
+        @test isa(@add_parameter_bounds(y, par == 0), Nothing)
+        @test parameter_bounds(y) == Dict(par => IntervalSet(0, 0))
+    end
 end

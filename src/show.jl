@@ -104,6 +104,8 @@ function JuMP.objective_function_string(print_mode, model::InfiniteModel)
     return JuMP.function_string(print_mode, JuMP.objective_function(model))
 end
 
+# TODO show hold variables better
+
 # Show constraint in REPLMode
 function Base.show(io::IO, ref::GeneralConstraintRef)
     print(io, JuMP.constraint_string(JuMP.REPLMode, ref))

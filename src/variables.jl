@@ -1170,7 +1170,7 @@ function _check_meas_bounds(bounds::Dict, data::DiscreteMeasureData;
     supports = data.supports
     if haskey(bounds, pref)
         if bounds[pref].lower_bound > minimum(supports) || bounds[pref].upper_bound < maximum(supports)
-            _error("New bounds don't span exisiting dependent measure bounds.")
+            _error("New bounds don't span existing dependent measure bounds.")
         end
     end
     return
@@ -1186,7 +1186,7 @@ function _check_meas_bounds(bounds::Dict, data::MultiDiscreteMeasureData;
     for key in keys(prefs)
         if haskey(bounds, prefs[key])
             if bounds[prefs[key]].lower_bound > mins[key] || bounds[prefs[key]].upper_bound < maxs[key]
-                _error("New bounds don't span exisiting dependent measure bounds.")
+                _error("New bounds don't span existing dependent measure bounds.")
             end
         end
     end
@@ -1366,6 +1366,8 @@ function add_parameter_bound(vref::HoldVariableRef, pref::ParameterRef,
     end
     return
 end
+
+# TODO add parameter bound deletion
 
 
 """

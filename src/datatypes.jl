@@ -405,6 +405,13 @@ parameters that are continuous over a certain that interval.
 struct IntervalSet <: AbstractInfiniteSet
     lower_bound::Float64
     upper_bound::Float64
+    function IntervalSet(lower::Float64, upper::Float64)
+        if lower > upper
+            error("Invalid interval bounds, lower bound is greater than " *
+                  "upper bound.")
+        end
+        return new(lower, upper)
+    end
 end
 
 """
@@ -474,7 +481,7 @@ A DataType for storing hold variable information.
 """
 struct HoldVariable{S, T, U, V} <: InfOptVariable
     info::JuMP.VariableInfo{S, T, U, V}
-    parameter_bounds::Dict{ParameterRef, IntervalSet}
+    parameter_bounds::Dict{ParameterRef, IntervalSet} # TODO replace with datatype
 end
 
 """
@@ -636,7 +643,7 @@ struct BoundedScalarConstraint{F <: JuMP.AbstractJuMPScalar,
                                S <: MOI.AbstractScalarSet} <: JuMP.AbstractConstraint
     func::F
     set::S
-    bounds::Dict{ParameterRef, IntervalSet}
+    bounds::Dict{ParameterRef, IntervalSet} # TODO replace with datatype
 end
 
 """

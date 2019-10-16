@@ -1167,11 +1167,59 @@ macro BDconstraint(model, args...)
     return esc(code)
 end
 
+# TODO add looping capability for multi-dimensional refs
 """
     @set_parameter_bounds(ref, bound_expr; [force = false])
 
 Specify new parameter bounds for a constraint reference or hold variable
-reference `ref`.
+reference `ref`. These bounds correspond to bounding a constraint in an
+equivalent way to using [`@BDconstraint`](@ref) or to limiting the scope of a
+hold variable in an equivalent way to using the `parameter_bounds` keyword
+argument in [`@hold_variable`](@ref). Here `(bound_expr)` can be of the form:
+
+- `(param in [lb, ub], ...)` enforcing `param` to be in a sub-domain from `lb`
+                             to `ub` (note `∈` can be used in place of `in`)
+- `(params in [lb, ub], ...)` enforcing that all parameter references in `params`
+                              each be a in sub-domain from `lb` to `ub`
+- `(lb <= param <= ub, ...)` enforcing `param` to be in a sub-domain from `lb`
+                             to `ub`
+- `(lb <= params <= ub, ...)` enforcing that all parameter references in `params`
+                              each be a in sub-domain from `lb` to `ub`
+- `(param == value, ...)` enforcing `param` to be equal to `value`
+- `(params == value, ...)` enforcing that all parameter references in `params`
+                            each to be equal to `value`
+- Any combination of the above forms. Must be inside parentheses and comma
+  separated.
+
+Errors if the constraint or variable corresponding to `ref` already has bounds.
+However, using `force = true` can be used ignore the current bounds and
+overwrite them with new ones. Also, note that bounds on dependent constraints
+of hold variables will be updated to account for changes in hold variable bounds.
+
+**Examples**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+julia> @infinite_parameter(model, t in [0, 10])
+t
+
+julia> @infinite_variable(model, x(t))
+x(t)
+
+julia> @hold_variable(model, y)
+y
+
+julia> @constraint(model, con, x + y == 0)
+con : x(t) + y == 0.0
+
+julia> @set_parameter_bounds(y, t in [0, 5])
+
+julia> con
+con : x(t) + y == 0.0, for all t in [0, 5]
+
+julia> @set_parameter_bounds(con, t == 0, force = true)
+
+julia> con
+con : x(t) + y == 0.0, for all t == 0
+```
 """
 macro set_parameter_bounds(ref, bound_expr, args...)
     # define appropriate error message function
@@ -1211,7 +1259,57 @@ end
     @add_parameter_bounds(ref, bound_expr)
 
 Add new parameter bounds for a constraint reference or hold variable
-reference `ref`.
+reference `ref`. These bounds correspond to bounding a constraint in an
+equivalent way to using [`@BDconstraint`](@ref) or to limiting the scope of a
+hold variable in an equivalent way to using the `parameter_bounds` keyword
+argument in [`@hold_variable`](@ref). Here `(bound_expr)` can be of the form:
+
+- `(param in [lb, ub], ...)` enforcing `param` to be in a sub-domain from `lb`
+                             to `ub` (note `∈` can be used in place of `in`)
+- `(params in [lb, ub], ...)` enforcing that all parameter references in `params`
+                              each be a in sub-domain from `lb` to `ub`
+- `(lb <= param <= ub, ...)` enforcing `param` to be in a sub-domain from `lb`
+                             to `ub`
+- `(lb <= params <= ub, ...)` enforcing that all parameter references in `params`
+                              each be a in sub-domain from `lb` to `ub`
+- `(param == value, ...)` enforcing `param` to be equal to `value`
+- `(params == value, ...)` enforcing that all parameter references in `params`
+                            each to be equal to `value`
+- Any combination of the above forms. Must be inside parentheses and comma
+  separated.
+
+Errors if the new bounds cause irreconcilable differences with existing measures
+and constraints. For example, this occurs when adding hold variable bounds
+that are outside the domain of a bounded constraint that uses that hold variable.
+Also, note that bounds on dependent constraints of hold variables will be
+updated to account for changes in hold variable bounds.
+
+**Examples**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+julia> @infinite_parameter(model, t in [0, 10])
+t
+
+julia> @infinite_parameter(model, q in [-2, 2])
+
+julia> @infinite_variable(model, x(t, q))
+x(t, q)
+
+julia> @hold_variable(model, y)
+y
+
+julia> @constraint(model, con, x + y == 0)
+con : x(t, q) + y == 0.0
+
+julia> @add_parameter_bounds(y, t in [0, 5])
+
+julia> con
+con : x(t, q) + y == 0.0, for all t in [0, 5]
+
+julia> @add_parameter_bounds(con, q == 0)
+
+julia> con
+con : x(t, q) + y == 0.0, for all t in [0, 5], q == 0
+```
 """
 macro add_parameter_bounds(ref, bound_expr)
     # define appropriate error message function

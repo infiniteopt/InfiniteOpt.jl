@@ -106,6 +106,8 @@ JuMP.set_name(::HoldVariableRef, ::String)
 parameter_refs(::InfiniteVariableRef)
 set_parameter_refs(::InfiniteVariableRef, ::Tuple)
 add_parameter_ref(::InfiniteVariableRef,::Union{ParameterRef, AbstractArray{<:ParameterRef}})
+@set_parameter_bounds
+@add_parameter_bounds
 has_parameter_bounds(::HoldVariableRef)
 parameter_bounds(::HoldVariableRef)
 set_parameter_bounds(::HoldVariableRef, ::Dict{ParameterRef, IntervalSet})

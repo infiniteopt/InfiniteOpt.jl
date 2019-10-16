@@ -388,7 +388,6 @@ function JuMP.set_name(cref::GeneralConstraintRef, name::String)
     return
 end
 
-# TODO add tests and docs
 """
     has_parameter_bounds(cref::GeneralConstraintRef)::Bool
 
@@ -496,9 +495,9 @@ function add_parameter_bound(cref::GeneralConstraintRef, pref::ParameterRef,
     # check the new bounds
     new_bounds = Dict(pref => IntervalSet(lower, upper))
     _check_bounds(new_bounds, _error = _error)
-    _validate_bounds(new_bounds, _error = _error)
+    _validate_bounds(JuMP.owner_model(cref), new_bounds, _error = _error)
     # add the bounds
-    if has_parameter_bounds(cref)
+    if JuMP.constraint_object(cref) isa BoundedScalarConstraint
         _update_bounds(parameter_bounds(cref), new_bounds, _error = _error)
     else
         _update_constr_param_bounds(cref, new_bounds)
@@ -507,6 +506,8 @@ function add_parameter_bound(cref::GeneralConstraintRef, pref::ParameterRef,
     set_optimizer_model_ready(JuMP.owner_model(cref), false)
     return
 end
+
+# TODO add parameter bound deletion
 
 # Return a constraint set with an updated value
 function _set_set_value(set::S, value::Real) where {T, S <: Union{MOI.LessThan{T},

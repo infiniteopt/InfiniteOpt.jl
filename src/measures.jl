@@ -317,7 +317,6 @@ function _check_var_bounds(vref::HoldVariableRef, data::DiscreteMeasureData)
     return
 end
 
-# TODO add tests
 # HoldVariableRef (multiple parameters)
 function _check_var_bounds(vref::HoldVariableRef, data::MultiDiscreteMeasureData)
     bounds = parameter_bounds(vref)
@@ -337,15 +336,18 @@ end
 
 # HoldVariableRef (fallback)
 function _check_var_bounds(vref::HoldVariableRef, data::AbstractMeasureData)
+    type = typeof(data)
     @warn "Unable to check if hold variables bounds are valid in measure with" *
-          " custom measure data type."
+          " custom measure data type $type."
     return
 end
 
 # MeasureRef
 function _check_var_bounds(mref::MeasureRef, data::AbstractMeasureData)
     vrefs = _all_function_variables(measure_function(mref))
-    _check_var_bounds.(vrefs, data)
+    for vref in vrefs
+        _check_var_bounds(vref, data)
+    end
     return
 end
 
@@ -396,7 +398,9 @@ function measure(expr::JuMP.AbstractJuMPScalar,
     pref = data.parameter_ref
     _check_has_parameter(vrefs, pref)
     if model.has_hold_bounds
-        _check_var_bounds.(vrefs, data)
+        for vref in vrefs
+            _check_var_bounds(vref, data)
+        end
     end
     meas = Measure(expr, data)
     return add_measure(model, meas)
