@@ -1158,8 +1158,7 @@ end
 
 function _support_values(set::DistributionSet; num_supports::Int = 50,
                          sig_fig::Int = 5)::Array
-    seed = Random.MersenneTwister(0)
-    new_supports = round.(rand(seed, set.distribution, num_supports), sigdigits = sig_fig)
+    new_supports = round.(Distributions.rand(set.distribution, num_supports), sigdigits = sig_fig)
     return new_supports
 end
 
