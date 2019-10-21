@@ -101,11 +101,11 @@ end
     @test GeneralConstraintRef isa DataType
     # Infinite constraint refs
     @test InfiniteConstraintRef <: GeneralConstraintRef
-    @test InfiniteConstraintRef(m, Int64(1), JuMP.ScalarShape()).index == 1
+    @test InfiniteConstraintRef(m, 1, JuMP.ScalarShape()).index == 1
     # Finite constraint refs
     @test FiniteConstraintRef <: GeneralConstraintRef
-    @test FiniteConstraintRef(m, Int64(1), JuMP.ScalarShape()).index == 1
+    @test FiniteConstraintRef(m, 1, JuMP.ScalarShape()).index == 1
     # Measure constraint refs
     @test MeasureConstraintRef <: GeneralConstraintRef
-    @test MeasureConstraintRef(m, Int64(1), JuMP.ScalarShape()).index == 1
+    @test MeasureConstraintRef(m, 1, JuMP.ScalarShape()).index == 1
 end
