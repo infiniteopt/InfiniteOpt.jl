@@ -153,15 +153,15 @@ example, let's consider a random variable ``x \in \mathcal{N}(0,1)`` with
 supports `[-0.5, 0.5]`:
 ```jldoctest rand_define; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
 julia> dist = Normal(0., 1.)
-Normal{Float64}(μ=0.0, σ=1.0)
+Distributions.Normal{Float64}(μ=0.0, σ=1.0)
 
 julia> set = DistributionSet(dist)
-DistributionSet{Normal{Float64}}(Normal{Float64}(μ=0.0, σ=1.0))
+DistributionSet{Normal{Float64}}(Distributions.Normal{Float64}(μ=0.0, σ=1.0))
 
 julia> x_param = build_parameter(error, set, supports = [-0.5, 0.5])
-InfOptParameter{DistributionSet{Normal{Float64}}}(DistributionSet{Normal{Float64}}(Normal{Float64}(μ=0.0, σ=1.0)), [-0.5, 0.5], false)
+InfOptParameter{DistributionSet{Normal{Float64}}}(DistributionSet{Normal{Float64}}(Distributions.Normal{Float64}(μ=0.0, σ=1.0)), [-0.5, 0.5], false)
 ```
-Again, we use [`add_parameter](@ref) to add `x_param` to the `InfiniteModel` and
+Again, we use [`add_parameter`](@ref) to add `x_param` to the `InfiniteModel` and
 assign it the name `x`:
 ```jldoctest rand_define
 julia> x_ref = add_parameter(model, x_param, "x")
@@ -216,8 +216,8 @@ julia> @infinite_parameter(model, t, set = IntervalSet(0, 10), supports = [0, 2,
 t
 ```
 The parameter definition methods using keyword arguments will be useful later
-when we introduce how to define anonymous parameters. See
-[Anonymous Parameter Definition](@ref) for more details.
+when we introduce how to define anonymous parameters. See the part for
+anonymous parameter definition for more details.
 
 All the definitions above return a [`ParameterRef`](@ref) that refer to the
 defined parameter. Note that we can also ignore the `supports` keyword argument
@@ -241,7 +241,7 @@ and [`add_parameter`](@ref) and creates looped codes that construct separate
 parameters and references for each dimension. If an array of supports is
 provided, the macro will assign that array of supports to all dimensions.
 Otherwise, the indexed syntax can be used to feed in different array of
-supports to each dimension, similar to [`JuMP.variable`](@ref). For example:
+supports to each dimension, similar to [`JuMP.@variable`](@ref). For example:
 ```jldoctest; setup = :(using InfiniteOpt; model= InfiniteModel())
 julia> points = [0.2 0.8; 0.3 0.7]
 2×2 Array{Float64,2}:
@@ -286,7 +286,7 @@ Note that for all the cases of multi-dimensional parameter definition above, the
 macro always returns an `Array` of [`ParameterRef`](@ref). For most cases this is
 true. However, we can explicitly dictate the kind of containers we want to hold
 the defined parameters using the keyword `container`. For example, we use
-[`SparseAxisArray`](@ref) from the [`JuMP`](@ref) package for the space
+`SparseAxisArray` from the `JuMP` package for the space
 parameter `x`:
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model= InfiniteModel())
 julia> @infinite_parameter(model, x[1:3] in [0, 1], container = SparseAxisArray)
@@ -372,10 +372,10 @@ repeated names it will not detect the `x`. Refer to
 
 #### Detailed Mechanism of Macro Definition
 This section is for people who wish to know more about how the macro
-[@infinite_parameter](@ref) works in the backend. Users who only want to learn
+[`@infinite_parameter`](@ref) works in the backend. Users who only want to learn
 about the setting up the model can skip over this part.
 
-In general, the macro [@infinite_parameter](@ref) follows the same steps as
+In general, the macro [`@infinite_parameter`](@ref) follows the same steps as
 the manual definition. First, it parses the arguments and identifies any
 recognizable keyword arguments. Specifically, the first argument must be the
 model, and the second argument, if exists, must be an expression that declares
@@ -394,7 +394,7 @@ check this behavior and throw an error if this happens. For example,
 julia> @infinite_parameter(model,  y in [0, 1], lower_bound = 0, upper_bound = 1)
 ERROR: LoadError
 
-julia> @infinite_parameter(m,  y in [0, 1], set = IntervalSet(0, 1))
+julia> @infinite_parameter(model,  y in [0, 1], set = IntervalSet(0, 1))
 ERROR: LoadError
 ```
 
@@ -840,8 +840,8 @@ Order   = [:macro, :function]
 ```@docs
 @infinite_parameter
 IntervalSet(::Number, ::Number)
-build_parameter
-add_parameter
+build_parameter(::Function, ::AbstractInfiniteSet)
+add_parameter(::InfiniteModel, ::InfOptParameter)
 used_by_constraint(::ParameterRef)
 used_by_measure(::ParameterRef)
 used_by_variable(::ParameterRef)

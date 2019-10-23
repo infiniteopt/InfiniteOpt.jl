@@ -301,7 +301,7 @@ end
 # Return parameter tuple without a particular parameter and return location of
 # where it was
 function _remove_parameter(prefs::Tuple, delete_pref::ParameterRef)::Tuple
-    for i = 1:length(prefs)
+    for i in eachindex(prefs)
         if _contains_pref(prefs[i], delete_pref)
             if isa(prefs[i], ParameterRef)
                 return Tuple(prefs[j] for j = 1:length(prefs) if j != i), (i, )
@@ -341,13 +341,13 @@ end
 function _remove_parameter_values(pref_vals::Tuple, location::Tuple)::Tuple
     # removed parameter was a scalar parameter
     if length(location) == 1
-        return Tuple(pref_vals[i] for i = 1:length(pref_vals) if i != location[1])
+        return Tuple(pref_vals[i] for i in eachindex(pref_vals) if i != location[1])
     # removed parameter was part of an array
     else
         new_dict = filter(x -> x.first != location[2], pref_vals[location[1]].data)
         val_list = [pref_vals...]
         val_list[location[1]] = JuMPC.SparseAxisArray(new_dict)
-        return Tuple(val_list[i] for i = 1:length(pref_vals))
+        return Tuple(val_list[i] for i in eachindex(pref_vals))
     end
 end
 
@@ -836,7 +836,7 @@ supports.
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> supports(t)
-2-element Array{Int,1}:
+2-element Array{Int64,1}:
  0
  1
 ```
@@ -898,7 +898,7 @@ function supports(prefs::AbstractArray{<:ParameterRef})::Vector
                                               "must have the same number of " *
                                               "support points.")
         support_list = Vector{JuMPC.SparseAxisArray}(undef, lengths[1])
-        for i = 1:length(support_list)
+        for i in eachindex(support_list)
             support_list[i] = JuMPC.SparseAxisArray(Dict(k => supports(pref)[i] for (k, pref) in prefs.data))
         end
     else
@@ -908,7 +908,7 @@ function supports(prefs::AbstractArray{<:ParameterRef})::Vector
                                                                prod(lengths))
         counter = 1
         for combo in Iterators.product(all_supports...)
-            support_list[counter] = JuMPC.SparseAxisArray(Dict(all_keys[i] => combo[i] for i = 1:length(combo)))
+            support_list[counter] = JuMPC.SparseAxisArray(Dict(all_keys[i] => combo[i] for i in eachindex(combo)))
             counter += 1
         end
     end
@@ -928,7 +928,7 @@ existing supports.
 julia> set_supports(t, [0, 1])
 
 julia> supports(t)
-2-element Array{Int,1}:
+2-element Array{Int64,1}:
  0
  1
 ```
