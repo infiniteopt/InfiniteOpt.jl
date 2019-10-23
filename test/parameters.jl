@@ -235,6 +235,14 @@ end
         warn = "Support points are not unique, eliminating redundant points."
         @test_logs (:warn, warn) build_parameter(error, set, 2,
                                                  supports = ones(3))
+        warn = "Ignoring num_supports since supports is not empty."
+        @test_logs (:warn, warn) build_parameter(error, set, 2, supports = [1, 2],
+                                                 num_supports = 1)
+        @test_throws ErrorException build_parameter(error, set, 2,
+                                                    num_supports = 3)
+        set = IntervalSet(0, 1)
+        expected = InfOptParameter(set, [0., 0.5, 1.], false)
+        @test build_parameter(error, set, num_supports = 3) == expected
     end
     # add_parameter
     @testset "add_parameter" begin

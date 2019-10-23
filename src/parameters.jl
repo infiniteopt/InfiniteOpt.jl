@@ -120,9 +120,10 @@ end
 
 """
     build_parameter(_error::Function, set::AbstractInfiniteSet,
-                    [num_params::Int = 1;
+                    [num_params::Int = 1; num_supports::Int = 0,
                     supports::Union{Number, Vector{<:Number}} = Number[],
-                    independent::Bool = false])::InfOptParameter
+                    independent::Bool = false,
+                    sig_fig::Int = 5])::InfOptParameter
 
 Returns a [`InfOptParameter`](@ref) given the appropriate information. This is
 analagous to `JuMP.build_variable`. Errors if supports violate the bounds
@@ -1071,7 +1072,7 @@ user inputs the supports. User can specify the number of significant figures
 kept after decimal point for the auto-generated supports wtih `sig_fig`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(m, 0 <= x <= 1);)
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
 julia> fill_in_supports!(model, num_supports = 4, sig_fig = 3)
 
 julia> supports(x)
@@ -1100,7 +1101,7 @@ user inputs the supports. User can specify the number of digits kept after
 decimal point for the auto-generated supports wtih `sig_fig`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(m, 0 <= x <= 1);)
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
 julia> fill_in_supports!(x, num_supports = 4, sig_fig = 3)
 
 julia> supports(x)

@@ -48,6 +48,8 @@ end
     @test InfiniteModel(caching_mode = MOIU.MANUAL) isa JuMP.AbstractModel
     @test InfiniteModel(mockoptimizer,
                         caching_mode = MOIU.MANUAL) isa JuMP.AbstractModel
+    m = InfiniteModel(seed = true)
+    @test reinterpret(Int32, Random.GLOBAL_RNG.seed)[1] == 0
 end
 
 # Test reference variable datatypes
