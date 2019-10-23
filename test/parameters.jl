@@ -763,7 +763,7 @@ end
         dist = MvNormal([0.; 0.], [1. 0.; 0. 2.])
         prefs = @infinite_parameter(m, x[1:2] in dist)
         set = JuMP.owner_model(prefs[1]).params[JuMP.index(prefs[1])].set
-        @test InfiniteOpt._generate_supports(prefs[1], set, num_supports = 10) isa Nothing
+        @test InfiniteOpt._generate_supports(prefs[1], set, num_supports = 10, sig_fig = 7) isa Nothing
         @test length(supports(prefs[1])) == 10
         @test length(supports(prefs[2])) == 10
     end
