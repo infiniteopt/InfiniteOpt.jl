@@ -920,8 +920,6 @@ macro hold_variable(model, args...)
     return esc(code)
 end
 
-# TODO make @finite_variable macro
-
 ## Helper function for parsing the parameter bounds and the name expression
 # Check that name expression is in acceptable form or throw error
 function _parse_name_expression(_error::Function, expr)
@@ -1000,7 +998,7 @@ function _make_bound_pair(_error::Function, expr::Expr)
         return _make_bound_pair(_error, expr, Val(expr.args[2]), Val(expr.args[4]))
     else
         _error("Unrecognized input format for parameter bounds. Must be of form " *
-        "par in [lb, ub], lb <= par <= ub, or par = value.")
+               "par in [lb, ub], lb <= par <= ub, or par = value.")
     end
 end
 

@@ -391,7 +391,6 @@ struct MeasureRef <: MeasureFiniteVariableRef
     index::Int
 end
 
-# TODO Enforce that bounds make sense
 """
     IntervalSet <: AbstractInfiniteSet
 
@@ -407,7 +406,7 @@ struct IntervalSet <: AbstractInfiniteSet
     upper_bound::Float64
     function IntervalSet(lower::Float64, upper::Float64)
         if lower > upper
-            error("Invalid interval bounds, lower bound is greater than " *
+            error("Invalid interval set bounds, lower bound is greater than " *
                   "upper bound.")
         end
         return new(lower, upper)
@@ -471,6 +470,21 @@ struct PointVariable{S, T, U, V} <: InfOptVariable
     parameter_values::Tuple
 end
 
+
+# TODO Replace bound dictionaries with this datatype
+"""
+    ParameterBounds
+A DataType for storing intervaled bounds of parameters. This is used to define
+subdomains of [`HoldVariable`](@ref)s and [`BoundedScalarConstraint`](@ref)s.
+
+**Fields**
+- `intervals::Dict{ParameterRef, IntervalSet}` A dictionary of parameter intervals
+that are tighter than those already associated those paraticular parameters.
+"""
+struct ParameterBounds
+    intervals::Dict{ParameterRef, IntervalSet}
+end
+
 """
     HoldVariable{S, T, U, V} <: InfOptVariable
 A DataType for storing hold variable information.
@@ -481,7 +495,7 @@ A DataType for storing hold variable information.
 """
 struct HoldVariable{S, T, U, V} <: InfOptVariable
     info::JuMP.VariableInfo{S, T, U, V}
-    parameter_bounds::Dict{ParameterRef, IntervalSet} # TODO replace with datatype
+    parameter_bounds::Dict{ParameterRef, IntervalSet} # TODO replace with ParameterBounds
 end
 
 """

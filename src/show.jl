@@ -104,6 +104,28 @@ function JuMP.objective_function_string(print_mode, model::InfiniteModel)
     return JuMP.function_string(print_mode, JuMP.objective_function(model))
 end
 
+# Make ParameterBound string
+function parameter_bounds_string(print_mode, bounds::ParameterBounds)::String
+    str = bound_string(print_mode, bounds.intervals)
+    cut_length = length(JuMP._math_symbol(print_mode, :for_all))
+    return str[cut_length+2:end]
+end
+
+# TODO make list following group_id and use ... when necessary
+# Show ParameterBounds in REPLMode
+function Base.show(io::IO, bounds::ParameterBounds)
+    print(io, "Subdomain bounds: ", parameter_bounds_string(JuMP.REPLMode,
+                                                            bounds))
+    return
+end
+
+# Show ParameterBounds in IJuliaMode
+function Base.show(io::IO, ::MIME"text/latex", bounds::ParameterBounds)
+    print(io, "Subdomain bounds: ", parameter_bounds_string(JuMP.IJuliaMode,
+                                                            bounds))
+    return
+end
+
 # TODO show hold variables better
 
 # Show constraint in REPLMode

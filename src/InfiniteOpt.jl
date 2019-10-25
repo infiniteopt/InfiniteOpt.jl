@@ -55,7 +55,8 @@ set_independent, unset_independent, is_finite_parameter
 export InfOptVariable, InfiniteVariable, PointVariable, HoldVariable,
 GeneralVariableRef, InfiniteVariableRef, MeasureFiniteVariableRef,
 FiniteVariableRef, PointVariableRef, HoldVariableRef, InfOptVariableRef,
-ReducedInfiniteVariableRef, AbstractReducedInfo, ReducedInfiniteInfo
+ReducedInfiniteVariableRef, AbstractReducedInfo, ReducedInfiniteInfo,
+ParameterBounds
 
 # Export variable methods
 export used_by_objective, infinite_variable_ref, parameter_refs,
@@ -96,6 +97,6 @@ export map_value, map_optimizer_index, map_dual, map_shadow_price
 
 
 # Export printing methods
-export bound_string
+export bound_string, parameter_bounds_string
 
 end # module

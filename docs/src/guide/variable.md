@@ -40,6 +40,7 @@ Order   = [:type]
 InfOptVariable
 InfiniteVariable
 PointVariable
+ParameterBounds
 HoldVariable
 InfOptVariableRef
 GeneralVariableRef
