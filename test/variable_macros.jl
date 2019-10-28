@@ -491,7 +491,8 @@ end
         tp = :(InfiniteOpt._make_vector(t))
         dict_arg = :($(tp) => $(set))
         dict = :(Dict($(dict_arg), $(dict_arg)))
-        @test InfiniteOpt._parse_parameter_bounds(error, args) == dict
+        bounds = :(ParameterBounds($dict))
+        @test InfiniteOpt._parse_parameter_bounds(error, args) == bounds
     end
     # test _parse_parameter_bounds (Expr)
     @testset "_parse_parameter_bounds (Expr)" begin
@@ -500,7 +501,8 @@ end
         tp = :(InfiniteOpt._make_vector(t))
         dict_arg = :($(tp) => $(set))
         dict = :(Dict($(dict_arg)))
-        @test InfiniteOpt._parse_parameter_bounds(error, expr) == dict
+        bounds = :(ParameterBounds($dict))
+        @test InfiniteOpt._parse_parameter_bounds(error, expr) == bounds
     end
     # test _extract_bounds (:call)
     @testset "_extract_bounds (:call)" begin
@@ -509,7 +511,7 @@ end
         set = :(IntervalSet(0, 1))
         tp = :(InfiniteOpt._make_vector(t))
         dict_arg = :($(tp) => $(set))
-        bounds = :(Dict($(dict_arg)))
+        bounds = :(ParameterBounds(Dict($(dict_arg))))
         @test InfiniteOpt._extract_bounds(error, args,
                                           Val(:call)) == (nothing, bounds)
     end
@@ -519,7 +521,7 @@ end
         set = :(IntervalSet(0, 1))
         tp = :(InfiniteOpt._make_vector(t))
         dict_arg = :($(tp) => $(set))
-        bounds = :(Dict($(dict_arg), $(dict_arg)))
+        bounds = :(ParameterBounds(Dict($(dict_arg), $(dict_arg))))
         @test InfiniteOpt._extract_bounds(error, args,
                                           Val(:tuple)) == (nothing, bounds)
     end
@@ -529,7 +531,7 @@ end
         set = :(IntervalSet(0, 1))
         tp = :(InfiniteOpt._make_vector(t))
         dict_arg = :($(tp) => $(set))
-        bounds = :(Dict($(dict_arg)))
+        bounds = :(ParameterBounds(Dict($(dict_arg))))
         @test InfiniteOpt._extract_bounds(error, args,
                                           Val(:comparison)) == (nothing, bounds)
     end
@@ -546,7 +548,7 @@ end
         @test lower_bound(vref) == 1
         @test is_binary(vref)
         @test m.has_hold_bounds
-        @test m.vars[5].parameter_bounds == Dict(par => IntervalSet(0, 0))
+        @test m.vars[5].parameter_bounds == ParameterBounds(Dict(par => IntervalSet(0, 0)))
         @test supports(par) == [0]
         # test regular tuple
         vref = HoldVariableRef(m, 6)
@@ -555,14 +557,14 @@ end
         @test name(vref) == "yb"
         dict = Dict(pars[1] => IntervalSet(0, 0), pars[2] => IntervalSet(0, 0),
                     par => IntervalSet(0, 1))
-        @test m.vars[6].parameter_bounds == dict
+        @test m.vars[6].parameter_bounds == ParameterBounds(dict)
         @test supports(pars[1]) == [0]
         # test comparison
         vref = HoldVariableRef(m, 7)
         @test @hold_variable(m, zb, parameter_bounds = (0 <= par <= 1),
                              base_name = "bob") == vref
         @test name(vref) == "bob"
-        @test m.vars[7].parameter_bounds == Dict(par => IntervalSet(0, 1))
+        @test m.vars[7].parameter_bounds == ParameterBounds(Dict(par => IntervalSet(0, 1)))
         # test unrecognized format
         @test_macro_throws ErrorException @hold_variable(m, parameter_bounds = par)
         # test container specification
@@ -571,7 +573,7 @@ end
         @test @hold_variable(m, [i = 1:2], parameter_bounds = (pars[i] == 0),
                              container = SparseAxisArray) == vrefs
         @test name(vrefs[1]) == ""
-        @test m.vars[9].parameter_bounds == Dict(pars[2] => IntervalSet(0, 0))
+        @test m.vars[9].parameter_bounds == ParameterBounds(Dict(pars[2] => IntervalSet(0, 0)))
         # test wrong model type
         @test_macro_throws ErrorException @hold_variable(Model(),
                                                   parameter_bounds = (par == 0))

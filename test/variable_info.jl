@@ -9,7 +9,7 @@
     var = InfiniteVariable(info, (pref,))
     m.vars[1] = var
     vref = InfiniteVariableRef(m, 1)
-    dict = Dict{ParameterRef, IntervalSet}()
+    bounds = ParameterBounds()
     # _variable_info
     @testset "_variable_info" begin
         @test InfiniteOpt._variable_info(vref) == info
@@ -32,7 +32,7 @@
     # _update_variable_info (Hold)
     @testset "_update_variable_info (Hold)" begin
         # initialize hold variable
-        var = HoldVariable(info, dict)
+        var = HoldVariable(info, bounds)
         m.vars[3] = var
         vref = HoldVariableRef(m, 3)
         # test function
@@ -48,10 +48,10 @@ end
     info1 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, false)
     info2 = VariableInfo(true, 0., false, 0., false, 0., false, 0., false, false)
     info3 = VariableInfo(false, 0., false, 0., true, 0., false, 0., false, false)
-    dict = Dict{ParameterRef, IntervalSet}()
-    var1 = HoldVariable(info1, dict)
-    var2 = HoldVariable(info2, dict)
-    var3 = HoldVariable(info3, dict)
+    bounds = ParameterBounds()
+    var1 = HoldVariable(info1, bounds)
+    var2 = HoldVariable(info2, bounds)
+    var3 = HoldVariable(info3, bounds)
     m.vars[1] = var1
     m.vars[2] = var2
     m.vars[3] = var3
@@ -182,10 +182,10 @@ end
     info1 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, false)
     info2 = VariableInfo(false, 0., true, 0., false, 0., false, 0., false, false)
     info3 = VariableInfo(false, 0., false, 0., true, 0., false, 0., false, false)
-    dict = Dict{ParameterRef, IntervalSet}()
-    var1 = HoldVariable(info1, dict)
-    var2 = HoldVariable(info2, dict)
-    var3 = HoldVariable(info3, dict)
+    bounds = ParameterBounds()
+    var1 = HoldVariable(info1, bounds)
+    var2 = HoldVariable(info2, bounds)
+    var3 = HoldVariable(info3, bounds)
     m.vars[1] = var1
     m.vars[2] = var2
     m.vars[3] = var3
@@ -280,11 +280,11 @@ end
     m = InfiniteModel()
     info1 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, false)
     info2 = VariableInfo(false, 0., false, 0., true, 0., false, 0., false, false)
-    dict = Dict{ParameterRef, IntervalSet}()
-    var1 = HoldVariable(info1, dict)
-    var2 = HoldVariable(info2, dict)
-    var3 = HoldVariable(info1, dict)
-    var4 = HoldVariable(info1, dict)
+    bounds = ParameterBounds()
+    var1 = HoldVariable(info1, bounds)
+    var2 = HoldVariable(info2, bounds)
+    var3 = HoldVariable(info1, bounds)
+    var4 = HoldVariable(info1, bounds)
     m.vars[1] = var1
     m.vars[2] = var2
     m.vars[3] = var3
@@ -399,8 +399,8 @@ end
     # initialize model and 4 test variables
     m = InfiniteModel()
     info1 = VariableInfo(false, 0., false, 0., false, 0., true, 0., false, false)
-    dict = Dict{ParameterRef, IntervalSet}()
-    var = HoldVariable(info1, dict)
+    bounds = ParameterBounds()
+    var = HoldVariable(info1, bounds)
     m.vars[1] = var
     vref = HoldVariableRef(m, 1)
     # start_value
@@ -422,10 +422,10 @@ end
     info1 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, false)
     info2 = VariableInfo(false, 0., false, 0., false, 0., false, 0., true, false)
     info3 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, true)
-    dict = Dict{ParameterRef, IntervalSet}()
-    var1 = HoldVariable(info1, dict)
-    var2 = HoldVariable(info2, dict)
-    var3 = HoldVariable(info3, dict)
+    bounds = ParameterBounds()
+    var1 = HoldVariable(info1, bounds)
+    var2 = HoldVariable(info2, bounds)
+    var3 = HoldVariable(info3, bounds)
     m.vars[1] = var1
     m.vars[2] = var2
     m.vars[3] = var3
@@ -514,10 +514,10 @@ end
     info1 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, false)
     info2 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, true)
     info3 = VariableInfo(false, 0., false, 0., false, 0., false, 0., true, false)
-    dict = Dict{ParameterRef, IntervalSet}()
-    var1 = HoldVariable(info1, dict)
-    var2 = HoldVariable(info2, dict)
-    var3 = HoldVariable(info3, dict)
+    bounds = ParameterBounds()
+    var1 = HoldVariable(info1, bounds)
+    var2 = HoldVariable(info2, bounds)
+    var3 = HoldVariable(info3, bounds)
     m.vars[1] = var1
     m.vars[2] = var2
     m.vars[3] = var3

@@ -194,9 +194,6 @@ function _update_point_info(info::JuMP.VariableInfo, ivref::InfiniteVariableRef)
     return info
 end
 
-# Set default bounded set
-const default_bounds = Dict{ParameterRef, IntervalSet}()
-
 ## Modify parameter dictionary to expand any multidimensional parameter keys
 # Case where dictionary is already in correct form
 function _expand_parameter_dict(param_bounds::Dict{ParameterRef,
@@ -229,15 +226,15 @@ function _expand_parameter_dict(param_bounds::Dict)
 end
 
 # Check that parameter_bounds argument is valid
-function _check_bounds(bounds::Dict; _error = error)
-    for (pref, set) in bounds
+function _check_bounds(bounds::ParameterBounds; _error = error)
+    for (pref, set) in bounds.intervals
         # check that respects lower bound
-        if JuMP.has_lower_bound(pref) && (bounds[pref].lower_bound < JuMP.lower_bound(pref))
+        if JuMP.has_lower_bound(pref) && (set.lower_bound < JuMP.lower_bound(pref))
                 _error("Specified parameter lower bound exceeds that defined " *
                        "for $pref.")
         end
         # check that respects upper bound
-        if JuMP.has_upper_bound(pref) && (bounds[pref].upper_bound > JuMP.upper_bound(pref))
+        if JuMP.has_upper_bound(pref) && (set.upper_bound > JuMP.upper_bound(pref))
                 _error("Specified parameter upper bound exceeds that defined " *
                        "for $pref.")
         end
@@ -305,17 +302,18 @@ end
 
 # HoldVariable
 function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Hold};
-                        parameter_bounds::Dict = default_bounds,
+                        parameter_bounds::ParameterBounds = ParameterBounds(),
                         extra_kw_args...)::HoldVariable
     # check for unneeded keywords
     for (kwarg, _) in extra_kw_args
         _error("Keyword argument $kwarg is not for use with hold variables.")
     end
     # check that the bounds don't violate parameter domains
-    parameter_bounds = _expand_parameter_dict(parameter_bounds)
+    new_intervals = _expand_parameter_dict(parameter_bounds.intervals)
+    parameter_bounds = ParameterBounds(new_intervals)
     _check_bounds(parameter_bounds)
     # make variable and return
-    return HoldVariable(info, copy(parameter_bounds))
+    return HoldVariable(info, parameter_bounds)
 end
 
 # Fallback method
@@ -368,7 +366,7 @@ julia> pt_var = build_variable(error, info, Point, infinite_variable_ref = ivref
 PointVariable{Int64,Int64,Int64,Float64}(VariableInfo{Int64,Int64,Int64,Float64}(false, 0, false, 0, false, 0, true, 0.0, false, false), var_name(t), (0.5,))
 
 julia> hd_var = build_variable(error, info, Hold)
-HoldVariable{Int64,Int64,Int64,Int64}(VariableInfo{Int64,Int64,Int64,Int64}(false, 0, false, 0, false, 0, false, 0, false, false), Dict{ParameterRef,IntervalSet}())
+HoldVariable{Int64,Int64,Int64,Int64}(VariableInfo{Int64,Int64,Int64,Int64}(false, 0, false, 0, false, 0, false, 0, false, false), Subdomain bounds (0): )
 ```
 """
 function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
@@ -435,8 +433,8 @@ function _update_infinite_point_mapping(pvref::PointVariableRef,
 end
 
 # Validate parameter bounds and add support(s) if needed
-function _validate_bounds(model::InfiniteModel, bounds::Dict; _error = error)
-    for (pref, set) in bounds
+function _validate_bounds(model::InfiniteModel, bounds::ParameterBounds; _error = error)
+    for (pref, set) in bounds.intervals
         # check validity
         !JuMP.is_valid(model, pref) && _error("Parameter bound reference " *
                                               "is invalid.")
@@ -1105,11 +1103,12 @@ end
 
 # TODO implement test for all of these new methods and include in docs
 """
-    parameter_bounds(vref::HoldVariableRef)::Dict
+    parameter_bounds(vref::HoldVariableRef)::ParameterBounds
 
-Return the `parameter_bounds` dictionary associated with the hold variable
-`vref`. Each key is a `ParameterRef` which points to an `IntervalSet` that
-that defines a sub-domain for `vref` relative to that parameter reference.
+Return the [`ParameterBounds`](@ref) object associated with the hold variable
+`vref`. It contains a dictionary where each key is a `ParameterRef` which points
+to an `IntervalSet` that that defines a sub-domain for `vref` relative to that
+parameter reference.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
@@ -1120,11 +1119,10 @@ julia> @hold_variable(model, vref, parameter_bounds = (t in [0, 2]))
 vref
 
 julia> parameter_bounds(vref)
-Dict{ParameterRef,IntervalSet} with 1 entry:
-  t => IntervalSet(0.0, 2.0)
+Subdomain bounds (1): t ∈ [0, 2]
 ```
 """
-function parameter_bounds(vref::HoldVariableRef)::Dict
+function parameter_bounds(vref::HoldVariableRef)::ParameterBounds
     return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_bounds
 end
 
@@ -1147,7 +1145,7 @@ true
 ```
 """
 function has_parameter_bounds(vref::HoldVariableRef)::Bool
-    return length(parameter_bounds(vref)) != 0
+    return length(parameter_bounds.intervals(vref)) != 0
 end
 
 # Other variable types
@@ -1156,7 +1154,8 @@ function has_parameter_bounds(vref::GeneralVariableRef)::Bool
 end
 
 # Internal function used to change the parameter bounds of a hold variable
-function _update_variable_param_bounds(vref::HoldVariableRef, bounds::Dict)
+function _update_variable_param_bounds(vref::HoldVariableRef,
+                                       bounds::ParameterBounds)
     info = JuMP.owner_model(vref).vars[JuMP.index(vref)].info
     JuMP.owner_model(vref).vars[JuMP.index(vref)] = HoldVariable(info, bounds)
     return
@@ -1164,12 +1163,13 @@ end
 
 ## Check that the bounds dictionary is compadable with existing dependent measures
 # DiscreteMeasureData
-function _check_meas_bounds(bounds::Dict, data::DiscreteMeasureData;
+function _check_meas_bounds(bounds::ParameterBounds, data::DiscreteMeasureData;
                             _error = error)
     pref = data.parameter_ref
     supports = data.supports
-    if haskey(bounds, pref)
-        if bounds[pref].lower_bound > minimum(supports) || bounds[pref].upper_bound < maximum(supports)
+    if haskey(bounds.intervals, pref)
+        if bounds.intervals[pref].lower_bound > minimum(supports) ||
+            bounds.intrevals[pref].upper_bound < maximum(supports)
             _error("New bounds don't span existing dependent measure bounds.")
         end
     end
@@ -1177,15 +1177,16 @@ function _check_meas_bounds(bounds::Dict, data::DiscreteMeasureData;
 end
 
 # MultiDiscreteMeasureData
-function _check_meas_bounds(bounds::Dict, data::MultiDiscreteMeasureData;
-                            _error = error)
+function _check_meas_bounds(bounds::ParameterBounds,
+                            data::MultiDiscreteMeasureData; _error = error)
     prefs = data.parameter_ref
     supports = data.supports
     mins = minimum(supports)
     maxs = maximum(supports)
     for key in keys(prefs)
-        if haskey(bounds, prefs[key])
-            if bounds[prefs[key]].lower_bound > mins[key] || bounds[prefs[key]].upper_bound < maxs[key]
+        if haskey(bounds.intervals, prefs[key])
+            if bounds.intervals[prefs[key]].lower_bound > mins[key] ||
+                bounds.intervals[prefs[key]].upper_bound < maxs[key]
                 _error("New bounds don't span existing dependent measure bounds.")
             end
         end
@@ -1194,7 +1195,7 @@ function _check_meas_bounds(bounds::Dict, data::MultiDiscreteMeasureData;
 end
 
 # Fallback
-function _check_meas_bounds(bounds::Dict, data::AbstractMeasureData;
+function _check_meas_bounds(bounds::ParameterBounds, data::AbstractMeasureData;
                             _error = error)
     @warn "Unable to check if hold variables bounds are valid in measure with" *
           " custom measure data type."
@@ -1230,24 +1231,25 @@ end
 
 ## Check and update the constraint bounds (don't change in case of error)
 # BoundedScalarConstraint
-function _update_constr_bounds(bounds::Dict, c::BoundedScalarConstraint;
+function _update_constr_bounds(bounds::ParameterBounds, c::BoundedScalarConstraint;
                                _error = error)
-    new_bounds = copy(c.bounds)
-    _update_bounds(new_bounds, bounds, _error = _error)
-    return BoundedScalarConstraint(c.func, c.set, new_bounds)
+    new_bounds_dict = copy(c.bounds.intervals)
+    _update_bounds(new_bounds_dict, bounds.intervals, _error = _error)
+    return BoundedScalarConstraint(c.func, c.set, ParameterBounds(new_bounds_dict))
 end
 
 # ScalarConstraint
-function _update_constr_bounds(bounds::Dict, c::JuMP.ScalarConstraint;
+function _update_constr_bounds(bounds::ParameterBounds, c::JuMP.ScalarConstraint;
                                _error = error)
     return BoundedScalarConstraint(c.func, c.set, bounds)
 end
 
 """
-    set_parameter_bounds(vref::HoldVariableRef, bounds::Dict{ParameterRef,
-                         IntervalSet}; [force = false])
+    set_parameter_bounds(vref::HoldVariableRef, bounds::ParameterBounds;
+                         [force = false])
 
 Specify a new dictionary of parameter bounds `bounds` for the hold variable `vref`.
+These are stored in a [`ParameterBounds`](@ref) object which contains a dictionary.
 Note the dictionary keys must be `ParameterRef`s and the values must be
 `IntervalSet`s that indicate a particular sub-domain for which `vref` is defined.
 This is meant to be primarily used by [`@set_parameter_bounds`](@ref) which
@@ -1261,11 +1263,10 @@ t
 julia> @hold_variable(model, vref)
 vref
 
-julia> set_parameter_bounds(vref, Dict(t => IntervalSet(0, 2)))
+julia> set_parameter_bounds(vref, ParameterBounds(Dict(t => IntervalSet(0, 2))))
 
 julia> parameter_bounds(vref)
-Dict{ParameterRef,IntervalSet} with 1 entry:
-  t => IntervalSet(0.0, 2.0)
+Subdomain bounds (1): t ∈ [0, 2]
 ```
 """
 function set_parameter_bounds(vref::HoldVariableRef, bounds::Dict{ParameterRef,
@@ -1327,14 +1328,13 @@ vref
 julia> add_parameter_bound(vref, t, 0, 2)
 
 julia> parameter_bounds(vref)
-Dict{ParameterRef,IntervalSet} with 1 entry:
-  t => IntervalSet(0.0, 2.0)
+Subdomain bounds (1): t ∈ [0, 2]
 ```
 """
 function add_parameter_bound(vref::HoldVariableRef, pref::ParameterRef,
                              lower::Number, upper::Number; _error = error)
     # check the new bounds
-    new_bounds = Dict(pref => IntervalSet(lower, upper))
+    new_bounds = ParameterBounds(Dict(pref => IntervalSet(lower, upper)))
     _check_bounds(new_bounds, _error = _error)
     # check dependent measures
     meas_cindices = []
@@ -1358,7 +1358,7 @@ function add_parameter_bound(vref::HoldVariableRef, pref::ParameterRef,
     end
     _validate_bounds(JuMP.owner_model(vref), new_bounds, _error = _error)
     # add the bounds
-    parameter_bounds(vref)[pref] = IntervalSet(lower, upper)
+    parameter_bounds(vref).intervals[pref] = IntervalSet(lower, upper)
     # update status
     JuMP.owner_model(vref).has_hold_bounds = true
     if is_used(vref)

@@ -594,8 +594,8 @@ end
     # initialize model and variable
     m = InfiniteModel()
     info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false)
-    dict = Dict{ParameterRef, IntervalSet}()
-    var = HoldVariable(info, dict)
+    bounds = ParameterBounds()
+    var = HoldVariable(info, bounds)
     m.vars[1] = var
     m.var_to_name[1] = "test"
     vref = HoldVariableRef(m, 1)
@@ -633,19 +633,19 @@ end
     info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false)
     info2 = VariableInfo(true, 0, true, 0, true, 0, true, 0, true, false)
     info3 = VariableInfo(true, 0, true, 0, true, 0, true, 0, false, true)
-    dict = Dict{ParameterRef, IntervalSet}()
+    bounds = ParameterBounds()
     @infinite_parameter(m, 0 <= par <= 10)
     @infinite_parameter(m, 0 <= pars[1:2] <= 10)
     # test _check_bounds
     @testset "_check_bounds" begin
         # test normal
-        @test isa(InfiniteOpt._check_bounds(Dict(par => IntervalSet(0, 1))),
+        @test isa(InfiniteOpt._check_bounds(ParameterBounds(Dict(par => IntervalSet(0, 1)))),
                                                                         Nothing)
         # test errors
         @test_throws ErrorException InfiniteOpt._check_bounds(
-                                                Dict(par => IntervalSet(-1, 1)))
+                                ParameterBounds(Dict(par => IntervalSet(-1, 1))))
         @test_throws ErrorException InfiniteOpt._check_bounds(
-                                                Dict(par => IntervalSet(0, 11)))
+                                ParameterBounds(Dict(par => IntervalSet(0, 11))))
     end
     # test _expand_parameter_dict(Dict{ParameterRef,IntervalSet}))
     @testset "_expand_parameter_dict (acceptable Form)" begin
@@ -679,20 +679,20 @@ end
         @test build_variable(error, info, Hold).info == expected.info
         # test errors
         @test_throws ErrorException build_variable(error, info, Point,
-                                                   parameter_bounds = dict)
+                                                   parameter_bounds = bounds)
     end
     # _validate_bounds
     @testset "_validate_bounds" begin
         # test normal
-        @test isa(InfiniteOpt._validate_bounds(m, Dict(par => IntervalSet(0, 1))),
-                  Nothing)
+        @test isa(InfiniteOpt._validate_bounds(m,
+                      ParameterBounds(Dict(par => IntervalSet(0, 1)))), Nothing)
         # test error
         par2 = ParameterRef(InfiniteModel(), 1)
         @test_throws ErrorException InfiniteOpt._validate_bounds(m,
-                                                Dict(par2 => IntervalSet(0, 1)))
+                               ParameterBounds(Dict(par2 => IntervalSet(0, 1))))
         # test support addition
-        @test isa(InfiniteOpt._validate_bounds(m, Dict(par => IntervalSet(0, 0))),
-                  Nothing)
+        @test isa(InfiniteOpt._validate_bounds(m,
+                      ParameterBounds(Dict(par => IntervalSet(0, 0)))), Nothing)
         @test supports(par) == [0]
     end
     # _check_make_variable_ref
@@ -701,7 +701,7 @@ end
         v = build_variable(error, info, Hold)
         @test InfiniteOpt._check_make_variable_ref(m, v) == HoldVariableRef(m, 0)
         # test with bounds
-        bounds = Dict(par => IntervalSet(0, 2))
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 2)))
         v = build_variable(error, info, Hold, parameter_bounds = bounds)
         @test InfiniteOpt._check_make_variable_ref(m, v) == HoldVariableRef(m, 0)
         @test m.has_hold_bounds
@@ -709,7 +709,7 @@ end
         # test bad bounds
         @infinite_parameter(InfiniteModel(), par2 in [0, 2])
         v = build_variable(error, info, Hold,
-                           parameter_bounds = Dict(par2 => IntervalSet(0, 1)))
+            parameter_bounds = ParameterBounds(Dict(par2 => IntervalSet(0, 1))))
         @test_throws ErrorException InfiniteOpt._check_make_variable_ref(m, v)
     end
     # add_variable

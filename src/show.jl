@@ -111,18 +111,18 @@ function parameter_bounds_string(print_mode, bounds::ParameterBounds)::String
     return str[cut_length+2:end]
 end
 
-# TODO make list following group_id and use ... when necessary
+# TODO make list following group_id and use ... when necessary --> Subdomain bounds: t in [0, 1], x[1] == 0, x[2] == 0, ... x[6] == 0, a in [2, 3]
 # Show ParameterBounds in REPLMode
 function Base.show(io::IO, bounds::ParameterBounds)
-    print(io, "Subdomain bounds: ", parameter_bounds_string(JuMP.REPLMode,
-                                                            bounds))
+    print(io, "Subdomain bounds (", length(bounds.intervals), "): ",
+          parameter_bounds_string(JuMP.REPLMode, bounds))
     return
 end
 
 # Show ParameterBounds in IJuliaMode
 function Base.show(io::IO, ::MIME"text/latex", bounds::ParameterBounds)
-    print(io, "Subdomain bounds: ", parameter_bounds_string(JuMP.IJuliaMode,
-                                                            bounds))
+    print(io, "Subdomain bounds (", length(bounds.intervals), "): ",
+          parameter_bounds_string(JuMP.IJuliaMode, bounds))
     return
 end
 

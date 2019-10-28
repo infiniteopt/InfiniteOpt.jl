@@ -471,7 +471,6 @@ struct PointVariable{S, T, U, V} <: InfOptVariable
 end
 
 
-# TODO Replace bound dictionaries with this datatype
 """
     ParameterBounds
 A DataType for storing intervaled bounds of parameters. This is used to define
@@ -485,17 +484,22 @@ struct ParameterBounds
     intervals::Dict{ParameterRef, IntervalSet}
 end
 
+# Default method
+function ParameterBounds()
+    return ParameterBounds(Dict{ParameterRef, IntervalSet}())
+end
+
 """
     HoldVariable{S, T, U, V} <: InfOptVariable
 A DataType for storing hold variable information.
 
 **Fields**
 - `info::JuMP.VariableInfo{S, T, U, V}` JuMP variable information.
-- `parameter_bounds::Dict(ParameterRef, IntervalSet)` Valid parameter sub-domains
+- `parameter_bounds::ParameterBounds` Valid parameter sub-domains
 """
 struct HoldVariable{S, T, U, V} <: InfOptVariable
     info::JuMP.VariableInfo{S, T, U, V}
-    parameter_bounds::Dict{ParameterRef, IntervalSet} # TODO replace with ParameterBounds
+    parameter_bounds::ParameterBounds
 end
 
 """
@@ -650,14 +654,14 @@ parameters on which they depend.
 **Fields**
 - `func::F` The JuMP object.
 - `set::S` The MOI set.
-- `bounds::Dict{ParameterRef, IntervalSet}` A dictionary mapping parameter
-                                            references to an interval set.
+- `bounds::ParameterBounds` Set of valid parameter sub-domains that further bound
+                            constraint.
 """
 struct BoundedScalarConstraint{F <: JuMP.AbstractJuMPScalar,
                                S <: MOI.AbstractScalarSet} <: JuMP.AbstractConstraint
     func::F
     set::S
-    bounds::Dict{ParameterRef, IntervalSet} # TODO replace with datatype
+    bounds::ParameterBounds
 end
 
 """

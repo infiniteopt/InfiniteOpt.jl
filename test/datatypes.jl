@@ -29,9 +29,11 @@ sample_info = VariableInfo(zeros(Bool, 10)...)
     # Point variable
     @test PointVariable <: InfOptVariable
     # Hold variable
+    @test ParameterBounds isa DataType
+    @test ParameterBounds().intervals = Dict{ParameterRef, IntervalSet}()
     @test HoldVariable <: InfOptVariable
     @test HoldVariable(sample_info,
-                       Dict{ParameterRef, IntervalSet}()).info isa VariableInfo
+                       ParameterBounds()).info isa VariableInfo
     # Reduced variable info
     @test ReducedInfiniteInfo <: AbstractReducedInfo
 end
@@ -98,7 +100,7 @@ end
     pref = ParameterRef(m, 1);
     dict = Dict(pref => IntervalSet(0, 1));
     @test BoundedScalarConstraint(zero(AffExpr), MOI.Integer(),
-                                  dict).bounds[pref].lower_bound == 0.0
+                ParameterBounds(dict)).bounds.intervals[pref].lower_bound == 0.0
     # Abstract cosntraint refs
     @test GeneralConstraintRef isa DataType
     # Infinite constraint refs

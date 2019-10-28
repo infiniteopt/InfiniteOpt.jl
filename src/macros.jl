@@ -1005,7 +1005,7 @@ end
 # Return a dictionary of parameter bounds given raw vector of call expressions
 function _parse_parameter_bounds(_error::Function, args::Vector)
     dict_args = [_make_bound_pair(_error, arg) for arg in args]
-    return Expr(:call, :Dict, dict_args...)
+    return Expr(:call, :ParameterBounds, Expr(:call, :Dict, dict_args...))
 end
 
 # Only 1 parameter bound is given thus dispatch as a vector to make dictionary
@@ -1247,8 +1247,9 @@ macro set_parameter_bounds(ref, bound_expr, args...)
     code = quote
         @assert(isa($ref, Union{GeneralConstraintRef, HoldVariableRef}),
                 "Reference must correspond to a constraint or hold variable.")
-        new_bounds = InfiniteOpt._expand_parameter_dict($bounds)
-        set_parameter_bounds($ref, new_bounds; ($(args...)), _error = $_error)
+        new_bounds = InfiniteOpt._expand_parameter_dict(($(bounds)).intervals)
+        set_parameter_bounds($ref, ParameterBounds(new_bounds); ($(args...)),
+                             _error = $_error)
     end
     return esc(code)
 end
@@ -1328,7 +1329,7 @@ macro add_parameter_bounds(ref, bound_expr)
     code = quote
         @assert(isa($ref, Union{GeneralConstraintRef, HoldVariableRef}),
                 "Reference must correspond to a constraint or hold variable.")
-        new_bounds = InfiniteOpt._expand_parameter_dict($bounds)
+        new_bounds = InfiniteOpt._expand_parameter_dict(($(bounds)).intervals)
         for (pref, set) in new_bounds
             add_parameter_bound($ref, pref, set.lower_bound, set.upper_bound,
                                  _error = $_error)

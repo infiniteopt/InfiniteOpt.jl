@@ -211,8 +211,8 @@ end
     @hold_variable(m, y, parameter_bounds = par == 0)
     # test parameter_bounds
     @testset "parameter_bounds" begin
-        @test parameter_bounds(x) == copy(InfiniteOpt.default_bounds)
-        @test parameter_bounds(y) == Dict(par => IntervalSet(0, 0))
+        @test parameter_bounds(x) == ParameterBounds()
+        @test parameter_bounds(y) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
     end
     # test has_parameter_bounds
     @testset "has_parameter_bounds" begin
@@ -223,21 +223,22 @@ end
     # test _update_variable_param_bounds
     @testset "_update_variable_param_bounds" begin
         dict = Dict(par => IntervalSet(0, 1))
-        @test isa(InfiniteOpt._update_variable_param_bounds(y, dict), Nothing)
-        @test parameter_bounds(y) == dict
+        bounds = ParameterBounds(dict)
+        @test isa(InfiniteOpt._update_variable_param_bounds(y, bounds), Nothing)
+        @test parameter_bounds(y) == bounds
     end
     # test _check_meas_bounds (DiscreteMeasureData)
     @testset "_check_meas_bounds (DiscreteMeasureData)" begin
         data = DiscreteMeasureData(par, [1, 1], [1, 3], "", InfiniteOpt._w)
         # test ok
-        dict = Dict(par => IntervalSet(0, 5))
-        @test isa(InfiniteOpt._check_meas_bounds(dict, data), Nothing)
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 5)))
+        @test isa(InfiniteOpt._check_meas_bounds(bounds, data), Nothing)
         # test lower bad
-        dict = Dict(par => IntervalSet(2, 5))
-        @test_throws ErrorException InfiniteOpt._check_meas_bounds(dict, data)
+        bounds = ParameterBounds(Dict(par => IntervalSet(2, 5)))
+        @test_throws ErrorException InfiniteOpt._check_meas_bounds(bounds, data)
         # test upper bad
-        dict = Dict(par => IntervalSet(0, 2))
-        @test_throws ErrorException InfiniteOpt._check_meas_bounds(dict, data)
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 2)))
+        @test_throws ErrorException InfiniteOpt._check_meas_bounds(bounds, data)
     end
     # test _check_meas_bounds (MultiDiscreteMeasureData)
     @testset "_check_meas_bounds (Multi)" begin
@@ -245,20 +246,21 @@ end
                  convert(JuMPC.SparseAxisArray, [3, 3])]
         data = MultiDiscreteMeasureData(pars, [0, 0], supps, "", InfiniteOpt._w)
         # test ok
-        dict = Dict(pars[1] => IntervalSet(0, 5))
-        @test isa(InfiniteOpt._check_meas_bounds(dict, data), Nothing)
+        bounds = ParameterBounds(Dict(pars[1] => IntervalSet(0, 5)))
+        @test isa(InfiniteOpt._check_meas_bounds(bounds, data), Nothing)
         # test lower bad
-        dict = Dict(pars[1] => IntervalSet(2, 5))
-        @test_throws ErrorException InfiniteOpt._check_meas_bounds(dict, data)
+        bounds = ParameterBounds(Dict(pars[1] => IntervalSet(2, 5)))
+        @test_throws ErrorException InfiniteOpt._check_meas_bounds(bounds, data)
         # test upper bad
-        dict = Dict(pars[2] => IntervalSet(0, 2))
-        @test_throws ErrorException InfiniteOpt._check_meas_bounds(dict, data)
+        bounds = ParameterBounds(Dict(pars[2] => IntervalSet(0, 2)))
+        @test_throws ErrorException InfiniteOpt._check_meas_bounds(bounds, data)
     end
     # test _check_meas_bounds (Fallback)
     @testset "_check_meas_bounds (Fallback)" begin
         warn = "Unable to check if hold variables bounds are valid in measure " *
                "with custom measure data type."
-        @test_logs (:warn, warn) InfiniteOpt._check_meas_bounds(Dict(), BadData())
+        @test_logs (:warn, warn) InfiniteOpt._check_meas_bounds(ParameterBounds(),
+                                                                BadData())
     end
     # test _update_bounds
     @testset "_update_bounds" begin
@@ -281,26 +283,26 @@ end
     @testset "_update_constr_bounds (Bounded)" begin
         dict1 = Dict(pars[1] => IntervalSet(0, 1))
         dict2 = Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(1.1, 1.5))
-        constr = BoundedScalarConstraint(par, MOI.EqualTo(0.0), copy(dict1))
+        constr = BoundedScalarConstraint(par, MOI.EqualTo(0.0), ParameterBounds(copy(dict1)))
         # test error
-        @test_throws ErrorException InfiniteOpt._update_constr_bounds(dict2, constr)
-        @test constr.bounds == dict1
+        @test_throws ErrorException InfiniteOpt._update_constr_bounds(ParameterBounds(dict2), constr)
+        @test constr.bounds == ParameterBounds(dict1)
         # test normal
         dict2 = Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(0.5, 1.5))
         dict = Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(0.5, 1))
-        @test InfiniteOpt._update_constr_bounds(dict2, constr).bounds == dict
+        @test InfiniteOpt._update_constr_bounds(ParameterBounds(dict2), constr).bounds == ParameterBounds(dict)
     end
     # test _update_constr_bounds (ScalarConstraint)
     @testset "_update_constr_bounds (Scalar)" begin
-        dict1 = Dict(pars[1] => IntervalSet(0, 1))
+        bounds = ParameterBounds(Dict(pars[1] => IntervalSet(0, 1)))
         constr = JuMP.ScalarConstraint(par, MOI.EqualTo(0.0))
-        @test InfiniteOpt._update_constr_bounds(dict1, constr).bounds == dict1
+        @test InfiniteOpt._update_constr_bounds(bounds, constr).bounds == bounds
     end
     # test set_parameter_bounds
     @testset "set_parameter_bounds" begin
-        dict1 = Dict(pars[1] => IntervalSet(0, 1))
+        bounds1 = ParameterBounds(Dict(pars[1] => IntervalSet(0, 1)))
         # test force error
-        @test_throws ErrorException set_parameter_bounds(y, dict1)
+        @test_throws ErrorException set_parameter_bounds(y, bounds1)
         # prepare for main test
         data = DiscreteMeasureData(par, [1, 1], [1, 3], "", InfiniteOpt._w)
         mindex = -1; cindex1 = 42; cindex2 = -42; vindex = JuMP.index(x);
@@ -308,48 +310,52 @@ end
         m.var_to_meas[JuMP.index(x)] = [mindex]
         m.meas_to_constrs[mindex] = [cindex1]
         mref = MeasureRef(m, mindex)
-        m.constrs[cindex1] = BoundedScalarConstraint(mref, MOI.EqualTo(0.0), dict1)
+        m.constrs[cindex1] = BoundedScalarConstraint(mref, MOI.EqualTo(0.0), bounds1)
         m.var_to_constrs[vindex] = [cindex2]
         m.constrs[cindex2] = JuMP.ScalarConstraint(x, MOI.EqualTo(0.0))
         # test measure error
-        dict = Dict(par => IntervalSet(1, 2))
-        @test_throws ErrorException set_parameter_bounds(x, dict)
+        bounds = ParameterBounds(Dict(par => IntervalSet(1, 2)))
+        @test_throws ErrorException set_parameter_bounds(x, bounds)
         # test constr error
-        dict = Dict(pars[1] => IntervalSet(2, 3))
-        @test_throws ErrorException set_parameter_bounds(x, dict)
+        bounds = ParameterBounds(Dict(pars[1] => IntervalSet(2, 3)))
+        @test_throws ErrorException set_parameter_bounds(x, bounds)
         # test normal
-        dict = Dict(par => IntervalSet(0, 5), pars[1] => IntervalSet(0.5, 2))
-        @test isa(set_parameter_bounds(x, dict), Nothing)
-        @test parameter_bounds(x) == dict
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 5),
+                                      pars[1] => IntervalSet(0.5, 2)))
+        @test isa(set_parameter_bounds(x, bounds), Nothing)
+        @test parameter_bounds(x) == bounds
         @test m.has_hold_bounds
         @test !optimizer_model_ready(m)
-        expected = Dict(par => IntervalSet(0, 5), pars[1] => IntervalSet(0.5, 1))
+        expected = ParameterBounds(Dict(par => IntervalSet(0, 5),
+                                        pars[1] => IntervalSet(0.5, 1)))
         @test m.constrs[cindex1].bounds == expected
-        @test m.constrs[cindex2].bounds == dict
+        @test m.constrs[cindex2].bounds == bounds
         # test forced
-        dict = Dict(par => IntervalSet(1, 1))
-        @test isa(set_parameter_bounds(y, dict, force = true), Nothing)
-        @test parameter_bounds(y) == Dict(par => IntervalSet(1, 1))
+        bounds = ParameterBounds(Dict(par => IntervalSet(1, 1)))
+        @test isa(set_parameter_bounds(y, bounds, force = true), Nothing)
+        @test parameter_bounds(y) == ParameterBounds(Dict(par => IntervalSet(1, 1)))
     end
     # test add_parameter_bound
     @testset "add_parameter_bound" begin
         mindex = -1; cindex1 = 42; cindex2 = -42; vindex = JuMP.index(x);
         # test adding normally
         @test isa(add_parameter_bound(x, pars[2], 0, 5), Nothing)
-        dict = Dict(par => IntervalSet(0, 5), pars[1] => IntervalSet(0.5, 2),
-                    pars[2] => IntervalSet(0, 5))
-        @test parameter_bounds(x) == dict
-        expected = Dict(par => IntervalSet(0, 5), pars[1] => IntervalSet(0.5, 1),
-                        pars[2] => IntervalSet(0, 5))
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 5),
+                                      pars[1] => IntervalSet(0.5, 2),
+                                      pars[2] => IntervalSet(0, 5)))
+        @test parameter_bounds(x) == bounds
+        expected = ParameterBounds(Dict(par => IntervalSet(0, 5),
+                                        pars[1] => IntervalSet(0.5, 1),
+                                        pars[2] => IntervalSet(0, 5)))
         @test m.constrs[cindex1].bounds == expected
-        @test m.constrs[cindex2].bounds == dict
+        @test m.constrs[cindex2].bounds == bounds
         # test measure error
         @test_throws ErrorException add_parameter_bound(x, par, 1, 2)
         # test constr error
         @test_throws ErrorException add_parameter_bound(x, pars[1], 2, 3)
         # test overwritting existing
         @test isa(add_parameter_bound(y, par, 0, 0), Nothing)
-        @test parameter_bounds(y) == Dict(par => IntervalSet(0, 0))
+        @test parameter_bounds(y) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
     end
 end
 
@@ -363,7 +369,7 @@ end
     @hold_variable(m, y, parameter_bounds = par == 0)
     # test @set_parameter_bounds
     @testset "@set_parameter_bounds" begin
-        dict1 = Dict(pars[1] => IntervalSet(0, 1))
+        bounds1 = ParameterBounds(Dict(pars[1] => IntervalSet(0, 1)))
         # test force error
         @test_macro_throws ErrorException @set_parameter_bounds(y, pars[1] in [0, 1])
         # test bad arguments
@@ -380,29 +386,28 @@ end
         m.var_to_meas[JuMP.index(x)] = [mindex]
         m.meas_to_constrs[mindex] = [cindex1]
         mref = MeasureRef(m, mindex)
-        m.constrs[cindex1] = BoundedScalarConstraint(mref, MOI.EqualTo(0.0), dict1)
+        m.constrs[cindex1] = BoundedScalarConstraint(mref, MOI.EqualTo(0.0), bounds1)
         m.var_to_constrs[vindex] = [cindex2]
         m.constrs[cindex2] = JuMP.ScalarConstraint(x, MOI.EqualTo(0.0))
         # test measure error
-        dict = Dict(par => IntervalSet(1, 2))
         @test_macro_throws ErrorException @set_parameter_bounds(x, par in [1, 2])
         # test constr error
-        dict = Dict(pars[1] => IntervalSet(2, 3))
         @test_macro_throws ErrorException @set_parameter_bounds(x, pars[1] in [2, 3])
         # test normal
-        dict = Dict(par => IntervalSet(0, 5), pars[1] => IntervalSet(0.5, 2))
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 5),
+                                      pars[1] => IntervalSet(0.5, 2)))
         @test isa(@set_parameter_bounds(x, (par in [0, 5], pars[1] in [0.5, 2])),
                   Nothing)
-        @test parameter_bounds(x) == dict
+        @test parameter_bounds(x) == bounds
         @test m.has_hold_bounds
         @test !optimizer_model_ready(m)
-        expected = Dict(par => IntervalSet(0, 5), pars[1] => IntervalSet(0.5, 1))
+        expected = ParameterBounds(Dict(par => IntervalSet(0, 5),
+                                        pars[1] => IntervalSet(0.5, 1)))
         @test m.constrs[cindex1].bounds == expected
-        @test m.constrs[cindex2].bounds == dict
+        @test m.constrs[cindex2].bounds == bounds
         # test forced
-        dict = Dict(par => IntervalSet(1, 1))
         @test isa(@set_parameter_bounds(y, par == 1, force = true), Nothing)
-        @test parameter_bounds(y) == Dict(par => IntervalSet(1, 1))
+        @test parameter_bounds(y) == ParameterBounds(Dict(par => IntervalSet(1, 1)))
     end
     # test @add_parameter_bounds
     @testset "@add_parameter_bounds" begin
@@ -411,11 +416,11 @@ end
         @test isa(@add_parameter_bounds(x, pars[2] in [0, 5]), Nothing)
         dict = Dict(par => IntervalSet(0, 5), pars[1] => IntervalSet(0.5, 2),
                     pars[2] => IntervalSet(0, 5))
-        @test parameter_bounds(x) == dict
+        @test parameter_bounds(x) == ParameterBounds(dict)
         expected = Dict(par => IntervalSet(0, 5), pars[1] => IntervalSet(0.5, 1),
                         pars[2] => IntervalSet(0, 5))
-        @test m.constrs[cindex1].bounds == expected
-        @test m.constrs[cindex2].bounds == dict
+        @test m.constrs[cindex1].bounds == ParameterBounds(expected)
+        @test m.constrs[cindex2].bounds == ParameterBounds(dict)
         # test measure error
         @test_macro_throws ErrorException @add_parameter_bounds(x, par in [1, 2])
         # test constr error
@@ -425,6 +430,6 @@ end
         @test_macro_throws ErrorException @add_parameter_bounds(par, pars[1] == 0)
         # test overwritting existing
         @test isa(@add_parameter_bounds(y, par == 0), Nothing)
-        @test parameter_bounds(y) == Dict(par => IntervalSet(0, 0))
+        @test parameter_bounds(y) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
     end
 end
