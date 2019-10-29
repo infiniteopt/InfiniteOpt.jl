@@ -629,11 +629,10 @@ end
     tm.ext[:TransData].infvar_to_supports[y] = [(0, supp1), (0, supp2),
                                                 (1, supp1), (1, supp2)]
     # Setup up the constraints
-    bounds = Dict(par => IntervalSet(0.5, 1))
     @constraint(m, c1, x + par - z == 0)
     @constraint(m, c2, z + x0 >= -3)
     @constraint(m, c3, meas1 + z == 0)
-    @constraint(m, c4, meas2 - 2y0 + x <= 1, parameter_bounds = bounds)
+    @BDconstraint(m, c4(par in [0.5, 1]), meas2 - 2y0 + x <= 1)
     @constraint(m, c5, meas2 == 0)
     # test the main function
     @test isa(IOTO._set_constraints(tm, m), Nothing)
@@ -781,11 +780,11 @@ end
     data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
     meas1 = measure(x - w, data1)
     meas2 = measure(y, data1)
-    bounds = Dict(par => IntervalSet(0.5, 1))
+    @set_parameter_bounds(z, (pars == 0, par == 0))
     @constraint(m, c1, x + par - z == 0)
     @constraint(m, c2, z + x0 >= -3)
     @constraint(m, c3, meas1 + z == 0)
-    @constraint(m, c4, meas2 - 2y0 + x + fin <= 1, parameter_bounds = bounds)
+    @BDconstraint(m, c4(par in [0.5, 1]), meas2 - 2y0 + x + fin <= 1)
     @constraint(m, c5, meas2 == 0)
     @objective(m, Min, x0 + meas1)
     # test basic usage
@@ -837,14 +836,13 @@ end
     zt = transcription_variable(tm, z)
     yt = transcription_variable(tm, y)
     @test constraint_object(tm.ext[:TransData].infinite_to_constrs[c1][1]).func == xt[1] - zt
-    @test constraint_object(tm.ext[:TransData].infinite_to_constrs[c1][2]).func == xt[2] - zt
     @test constraint_object(tm.ext[:TransData].finite_to_constr[c2]).func == zt + xt[1]
     @test constraint_object(tm.ext[:TransData].infinite_to_constrs[c4][1]).func == -yt[1] + yt[2] + xt[2]
     @test name(tm.ext[:TransData].finite_to_constr[c2]) == "c2"
     @test name(tm.ext[:TransData].infinite_to_constrs[c1][1]) == "c1(Support: 1)"
     @test tm.ext[:TransData].infconstr_to_params[c1] == (par, )
     @test tm.ext[:TransData].infconstr_to_params[c4] == (pars, par, fin)
-    @test tm.ext[:TransData].infconstr_to_supports[c1] == [(0,), (1,)]
+    @test tm.ext[:TransData].infconstr_to_supports[c1] == [(0,)]
     @test tm.ext[:TransData].measconstr_to_params[c5] == (pars,)
     # test info constraints
     @test tm.ext[:TransData].finite_to_constr[LowerBoundRef(z)] == LowerBoundRef(zt)

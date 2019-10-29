@@ -57,6 +57,34 @@
     end
 end
 
+# Test ParameterBounds extensions
+@testset "Parameter Bounds" begin
+    # setup
+    m = InfiniteModel()
+    m.params[1] = InfOptParameter(IntervalSet(0, 10), Number[], false)
+    m.params[2] = InfOptParameter(IntervalSet(0, 10), Number[], false)
+    m.params[3] = InfOptParameter(IntervalSet(0, 10), Number[], false)
+    par = ParameterRef(m, 1)
+    pars = [ParameterRef(m, 2), ParameterRef(m, 3)]
+    # test length
+    @testset "Base.length" begin
+        @test length(ParameterBounds()) == 0
+        @test length(ParameterBounds(Dict(par => IntervalSet(0,0)))) == 1
+    end
+    # test :(==)
+    @testset "Base.:(==)" begin
+        dict = Dict(par => IntervalSet(0,0))
+        @test ParameterBounds() == ParameterBounds()
+        @test ParameterBounds() != ParameterBounds(dict)
+        @test ParameterBounds(dict) == ParameterBounds(dict)
+    end
+    # test copy
+    @testset "Base.copy" begin
+        dict = Dict(par => IntervalSet(0,0))
+        @test ParameterBounds(dict) == copy(ParameterBounds(dict))
+    end
+end
+
 # Test extension of keys
 @testset "Base.keys" begin
     m = Model()

@@ -47,13 +47,12 @@ function JuMP.build_constraint(_error::Function,
                                v::Union{InfiniteVariableRef,
                                         ReducedInfiniteVariableRef, MeasureRef},
                                set::MOI.AbstractScalarSet;
-                               parameter_bounds::Dict = default_bounds)
-    # expand the bounds if necessary
-    parameter_bounds = _expand_parameter_dict(parameter_bounds)
+                               parameter_bounds::ParameterBounds = ParameterBounds())
     # make the constraint
     if length(parameter_bounds) != 0
         _check_bounds(parameter_bounds)
-        return BoundedScalarConstraint(v, set, parameter_bounds)
+        return BoundedScalarConstraint(v, set, parameter_bounds,
+                                       copy(parameter_bounds))
     else
         return JuMP.ScalarConstraint(v, set)
     end
@@ -62,7 +61,7 @@ end
 """
     JuMP.build_constraint(_error::Function, expr::InfiniteExpr,
                           set::MOI.AbstractScalarSet;
-                          [parameter_bounds::Dict{ParameterRef, IntervalSet} = Dict()])
+                          [parameter_bounds::ParameterBounds = ParameterBounds()])
 
 Extend [`JuMP.build_constraint`](@ref) to accept the ```parameter_bounds``` argument
 and return a [`BoundedScalarConstraint`](@ref) if the ```parameter_bounds``` keyword
@@ -72,7 +71,7 @@ primarily intended to work as an internal function for constraint macros.
 **Example**
 ```julia
 julia> constr = build_constraint(error, g + x, MOI.EqualTo(42.0),
-                               parameter_bounds = Dict(t => IntervalSet(0, 1)));
+              parameter_bounds = ParameterBounds(Dict(t => IntervalSet(0, 1))));
 
 julia> isa(constr, BoundedScalarConstraint)
 true
@@ -81,16 +80,14 @@ true
 function JuMP.build_constraint(_error::Function,
                                expr::Union{InfiniteExpr, MeasureExpr},
                                set::MOI.AbstractScalarSet;
-                               parameter_bounds::Dict = default_bounds)
-    # expand the bounds if necessary
-    parameter_bounds = _expand_parameter_dict(parameter_bounds)
+                               parameter_bounds::ParameterBounds = ParameterBounds())
     # make the constraint
     offset = JuMP.constant(expr)
     JuMP.add_to_expression!(expr, -offset)
     if length(parameter_bounds) != 0
         _check_bounds(parameter_bounds)
         return BoundedScalarConstraint(expr, MOIU.shift_constant(set, -offset),
-                                       parameter_bounds)
+                                       parameter_bounds, copy(parameter_bounds))
     else
         return JuMP.ScalarConstraint(expr, MOIU.shift_constant(set, -offset))
     end
@@ -136,20 +133,23 @@ const NoHoldRefs = Union{ParameterRef, MeasureRef, InfiniteVariableRef,
 
 ## Update the variable bounds if it has any
 # GeneralVariableRef
-function _update_var_bounds(vref::GeneralVariableRef, constr_bounds::Dict)
+function _update_var_bounds(vref::GeneralVariableRef,
+                            constr_bounds::ParameterBounds)
     return
 end
 
 # HoldVariableRef
-function _update_var_bounds(vref::HoldVariableRef, constr_bounds::Dict)
+function _update_var_bounds(vref::HoldVariableRef,
+                            constr_bounds::ParameterBounds)
     if has_parameter_bounds(vref)
-        _update_bounds(constr_bounds, parameter_bounds(vref))
+        _update_bounds(constr_bounds.intervals, parameter_bounds(vref).intervals)
     end
     return
 end
 
 # MeasureRef
-function _update_var_bounds(mref::MeasureRef, constr_bounds::Dict)
+function _update_var_bounds(mref::MeasureRef,
+                            constr_bounds::ParameterBounds)
     vrefs = _all_function_variables(measure_function(mref))
     for vref in vrefs
         _update_var_bounds(vref, constr_bounds)
@@ -187,14 +187,14 @@ end
 # ScalarConstraint with hold variables
 function _check_and_update_bounds(model::InfiniteModel, c::JuMP.ScalarConstraint,
                                   vrefs::Vector)::JuMP.AbstractConstraint
-    bounds = copy(default_bounds)
+    bounds = ParameterBounds()
     # check for bounded hold variables and build the intersection of the bounds
     for vref in vrefs
         _update_var_bounds(vref, bounds)
     end
     # if we added bounds, change to a bounded constraint and validate
     if length(bounds) != 0
-        c = BoundedScalarConstraint(c.func, c.set, bounds)
+        c = BoundedScalarConstraint(c.func, c.set, bounds, ParameterBounds())
         _validate_bounds(model, c.bounds)
     end
     # TODO should we check that bounds don't violate point variables?
@@ -392,7 +392,7 @@ end
     has_parameter_bounds(cref::GeneralConstraintRef)::Bool
 
 Return a `Bool` indicating if `cref` is limited to a sub-domain as defined
-by parameter bound(s).
+by a [`ParameterBounds`](@ref) object.
 
 **Example**
 ```julia
@@ -409,54 +409,50 @@ function has_parameter_bounds(cref::GeneralConstraintRef)::Bool
 end
 
 """
-    parameter_bounds(cref::GeneralConstraintRef)::Dict
+    parameter_bounds(cref::GeneralConstraintRef)::ParameterBounds
 
-Return the `parameter_bounds` dictionary associated with the constraint
-`cref`. Each key is a `ParameterRef` which points to an `IntervalSet` that
-that defines a sub-domain for `cref` relative to that parameter reference.
-Errors if `cref` does not have parameter bounds.
+Return the [`ParameterBounds`](@ref) object associated with the constraint
+`cref`. Errors if `cref` does not have parameter bounds.
 
 **Example**
 ```julia
 julia> parameter_bounds(cref)
-Dict{ParameterRef,IntervalSet} with 1 entry:
-  t => IntervalSet(0.0, 2.0)
+Subdomain bounds (1): t ∈ [0, 2]
 ```
 """
-function parameter_bounds(cref::GeneralConstraintRef)::Dict
+function parameter_bounds(cref::GeneralConstraintRef)::ParameterBounds
     !has_parameter_bounds(cref) && error("$cref does not have parameter bounds.")
     return JuMP.constraint_object(cref).bounds
 end
 
 # Internal function used to change the parameter bounds of a constraint
-function _update_constr_param_bounds(cref::GeneralConstraintRef, bounds::Dict)
+function _update_constr_param_bounds(cref::GeneralConstraintRef,
+                                     bounds::ParameterBounds,
+                                     orig_bounds::ParameterBounds)
     c = JuMP.constraint_object(cref)
     JuMP.owner_model(cref).constrs[JuMP.index(cref)] = BoundedScalarConstraint(c.func,
-                                                                  c.set, bounds)
+                                                     c.set, bounds, orig_bounds)
     return
 end
 
 """
-    set_parameter_bounds(cref::GeneralConstraintRef, bounds::Dict{ParameterRef,
-                         IntervalSet}; [force = false])
+    set_parameter_bounds(cref::GeneralConstraintRef, bounds:ParameterBounds;
+                         [force = false])
 
-Specify a new dictionary of parameter bounds `bounds` for the constraint `cref`.
-Note the dictionary keys must be `ParameterRef`s and the values must be
-`IntervalSet`s that indicate a particular sub-domain for which `cref` is defined.
+Specify a new [`ParameterBounds`](@ref) object `bounds` for the constraint `cref`.
 This is meant to be primarily used by [`@set_parameter_bounds`](@ref) which
 provides a more intuitive syntax.
 
 **Example**
 ```julia
-julia> set_parameter_bounds(cref, Dict(t => IntervalSet(0, 2)))
+julia> set_parameter_bounds(cref, ParameterBounds(Dict(t => IntervalSet(0, 2))))
 
 julia> parameter_bounds(cref)
-Dict{ParameterRef,IntervalSet} with 1 entry:
-  t => IntervalSet(0.0, 2.0)
+Subdomain bounds (1): t ∈ [0, 2]
 ```
 """
-function set_parameter_bounds(cref::GeneralConstraintRef, bounds::Dict{ParameterRef,
-                              IntervalSet}; force = false, _error = error)
+function set_parameter_bounds(cref::GeneralConstraintRef, bounds::ParameterBounds;
+                              force = false, _error = error)
     if has_parameter_bounds(cref) && !force
         _error("$cref already has parameter bounds. Consider adding more using " *
                "`add_parameter_bounds` or overwriting them by setting " *
@@ -465,9 +461,14 @@ function set_parameter_bounds(cref::GeneralConstraintRef, bounds::Dict{Parameter
         # check that bounds are valid and add support(s) if necessary
         _check_bounds(bounds, _error = _error)
         _validate_bounds(JuMP.owner_model(cref), bounds, _error = _error)
+        # consider hold variables
+        orig_bounds = copy(bounds)
+        vrefs = _all_function_variables(JuMP.constraint_object(cref).func)
+        for vref in vrefs
+            _update_var_bounds(vref, bounds)
+        end
         # set the new bounds
-        _update_constr_param_bounds(cref, bounds)
-        # TODO maybe check with hold variables...
+        _update_constr_param_bounds(cref, bounds, orig_bounds)
         # update status
         set_optimizer_model_ready(JuMP.owner_model(cref), false)
     end
@@ -486,21 +487,23 @@ used by [`@add_parameter_bounds`](@ref).
 julia> add_parameter_bound(cref, t, 0, 2)
 
 julia> parameter_bounds(cref)
-Dict{ParameterRef,IntervalSet} with 1 entry:
-  t => IntervalSet(0.0, 2.0)
+Subdomain bounds (1): t ∈ [0, 2]
 ```
 """
 function add_parameter_bound(cref::GeneralConstraintRef, pref::ParameterRef,
                              lower::Number, upper::Number; _error = error)
     # check the new bounds
-    new_bounds = Dict(pref => IntervalSet(lower, upper))
+    new_bounds = ParameterBounds(Dict(pref => IntervalSet(lower, upper)))
     _check_bounds(new_bounds, _error = _error)
     _validate_bounds(JuMP.owner_model(cref), new_bounds, _error = _error)
     # add the bounds
     if JuMP.constraint_object(cref) isa BoundedScalarConstraint
-        _update_bounds(parameter_bounds(cref), new_bounds, _error = _error)
+        _update_bounds(parameter_bounds(cref).intervals, new_bounds.intervals,
+                        _error = _error)
+        _update_bounds(JuMP.constraint_object(cref).orig_bounds.intervals,
+                       new_bounds.intervals, _error = _error)
     else
-        _update_constr_param_bounds(cref, new_bounds)
+        _update_constr_param_bounds(cref, new_bounds, copy(new_bounds))
     end
     # update the optimizer model status
     set_optimizer_model_ready(JuMP.owner_model(cref), false)
@@ -539,7 +542,8 @@ function JuMP.set_normalized_rhs(cref::GeneralConstraintRef, value::Real)
     new_set = _set_set_value(old_constr.set, value)
     if old_constr isa BoundedScalarConstraint
         new_constr = BoundedScalarConstraint(old_constr.func, new_set,
-                                             old_constr.bounds)
+                                             old_constr.bounds,
+                                             old_constr.orig_bounds)
     else
         new_constr = JuMP.ScalarConstraint(old_constr.func, new_set)
     end
@@ -601,7 +605,8 @@ function JuMP.set_normalized_coefficient(cref::GeneralConstraintRef,
     new_expr = _set_variable_coefficient!(old_constr.func, variable, value)
     if old_constr isa BoundedScalarConstraint
         new_constr = BoundedScalarConstraint(new_expr, old_constr.set,
-                                             old_constr.bounds)
+                                             old_constr.bounds,
+                                             old_constr.orig_bounds)
     else
         new_constr = JuMP.ScalarConstraint(new_expr, old_constr.set)
     end

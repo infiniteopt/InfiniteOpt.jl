@@ -194,37 +194,6 @@ function _update_point_info(info::JuMP.VariableInfo, ivref::InfiniteVariableRef)
     return info
 end
 
-## Modify parameter dictionary to expand any multidimensional parameter keys
-# Case where dictionary is already in correct form
-function _expand_parameter_dict(param_bounds::Dict{ParameterRef,
-                                                   IntervalSet})::Dict
-    return param_bounds
-end
-
-# Case where dictionary contains vectors
-function _expand_parameter_dict(param_bounds::Dict{<:Any, IntervalSet})::Dict
-    # Initialize new dictionary
-    new_dict = Dict{ParameterRef, IntervalSet}()
-    # Find vector keys and expand
-    for (key, set) in param_bounds
-        # expand over the array of parameters if this is
-        if isa(key, AbstractArray)
-            for param in values(key)
-                new_dict[param] = set
-            end
-        # otherwise we have parameter reference
-        else
-            new_dict[key] = set
-        end
-    end
-    return new_dict
-end
-
-# Case where dictionary contains vectors
-function _expand_parameter_dict(param_bounds::Dict)
-    error("Invalid parameter bound dictionary format.")
-end
-
 # Check that parameter_bounds argument is valid
 function _check_bounds(bounds::ParameterBounds; _error = error)
     for (pref, set) in bounds.intervals
@@ -309,8 +278,6 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Hold};
         _error("Keyword argument $kwarg is not for use with hold variables.")
     end
     # check that the bounds don't violate parameter domains
-    new_intervals = _expand_parameter_dict(parameter_bounds.intervals)
-    parameter_bounds = ParameterBounds(new_intervals)
     _check_bounds(parameter_bounds)
     # make variable and return
     return HoldVariable(info, parameter_bounds)
@@ -473,7 +440,7 @@ function _check_make_variable_ref(model::InfiniteModel,
                                   v::HoldVariable)::HoldVariableRef
     _validate_bounds(model, v.parameter_bounds)
     vref = HoldVariableRef(model, model.next_var_index)
-    if length(v.parameter_bounds) != 0
+    if length(v.parameter_bounds.intervals) != 0
         model.has_hold_bounds = true
     end
     return vref
@@ -1145,7 +1112,7 @@ true
 ```
 """
 function has_parameter_bounds(vref::HoldVariableRef)::Bool
-    return length(parameter_bounds.intervals(vref)) != 0
+    return length(parameter_bounds(vref)) != 0
 end
 
 # Other variable types
@@ -1169,7 +1136,7 @@ function _check_meas_bounds(bounds::ParameterBounds, data::DiscreteMeasureData;
     supports = data.supports
     if haskey(bounds.intervals, pref)
         if bounds.intervals[pref].lower_bound > minimum(supports) ||
-            bounds.intrevals[pref].upper_bound < maximum(supports)
+            bounds.intervals[pref].upper_bound < maximum(supports)
             _error("New bounds don't span existing dependent measure bounds.")
         end
     end
@@ -1235,13 +1202,14 @@ function _update_constr_bounds(bounds::ParameterBounds, c::BoundedScalarConstrai
                                _error = error)
     new_bounds_dict = copy(c.bounds.intervals)
     _update_bounds(new_bounds_dict, bounds.intervals, _error = _error)
-    return BoundedScalarConstraint(c.func, c.set, ParameterBounds(new_bounds_dict))
+    return BoundedScalarConstraint(c.func, c.set, ParameterBounds(new_bounds_dict),
+                                   c.orig_bounds)
 end
 
 # ScalarConstraint
 function _update_constr_bounds(bounds::ParameterBounds, c::JuMP.ScalarConstraint;
                                _error = error)
-    return BoundedScalarConstraint(c.func, c.set, bounds)
+    return BoundedScalarConstraint(c.func, c.set, bounds, ParameterBounds())
 end
 
 """
@@ -1269,8 +1237,8 @@ julia> parameter_bounds(vref)
 Subdomain bounds (1): t ∈ [0, 2]
 ```
 """
-function set_parameter_bounds(vref::HoldVariableRef, bounds::Dict{ParameterRef,
-                              IntervalSet}; force = false, _error = error)
+function set_parameter_bounds(vref::HoldVariableRef, bounds::ParameterBounds;
+                              force = false, _error = error)
     if has_parameter_bounds(vref) && !force
         _error("$vref already has parameter bounds. Consider adding more using " *
                "`add_parameter_bounds` or overwriting them by setting " *

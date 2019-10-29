@@ -283,7 +283,8 @@ end
     @testset "_update_constr_bounds (Bounded)" begin
         dict1 = Dict(pars[1] => IntervalSet(0, 1))
         dict2 = Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(1.1, 1.5))
-        constr = BoundedScalarConstraint(par, MOI.EqualTo(0.0), ParameterBounds(copy(dict1)))
+        constr = BoundedScalarConstraint(par, MOI.EqualTo(0.0), ParameterBounds(copy(dict1)),
+                                         ParameterBounds(copy(dict1)))
         # test error
         @test_throws ErrorException InfiniteOpt._update_constr_bounds(ParameterBounds(dict2), constr)
         @test constr.bounds == ParameterBounds(dict1)
@@ -310,7 +311,8 @@ end
         m.var_to_meas[JuMP.index(x)] = [mindex]
         m.meas_to_constrs[mindex] = [cindex1]
         mref = MeasureRef(m, mindex)
-        m.constrs[cindex1] = BoundedScalarConstraint(mref, MOI.EqualTo(0.0), bounds1)
+        m.constrs[cindex1] = BoundedScalarConstraint(mref, MOI.EqualTo(0.0),
+                                                     bounds1, bounds1)
         m.var_to_constrs[vindex] = [cindex2]
         m.constrs[cindex2] = JuMP.ScalarConstraint(x, MOI.EqualTo(0.0))
         # test measure error
@@ -386,7 +388,8 @@ end
         m.var_to_meas[JuMP.index(x)] = [mindex]
         m.meas_to_constrs[mindex] = [cindex1]
         mref = MeasureRef(m, mindex)
-        m.constrs[cindex1] = BoundedScalarConstraint(mref, MOI.EqualTo(0.0), bounds1)
+        m.constrs[cindex1] = BoundedScalarConstraint(mref, MOI.EqualTo(0.0),
+                                                     bounds1, bounds1)
         m.var_to_constrs[vindex] = [cindex2]
         m.constrs[cindex2] = JuMP.ScalarConstraint(x, MOI.EqualTo(0.0))
         # test measure error

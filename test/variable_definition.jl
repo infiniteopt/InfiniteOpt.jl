@@ -647,26 +647,10 @@ end
         @test_throws ErrorException InfiniteOpt._check_bounds(
                                 ParameterBounds(Dict(par => IntervalSet(0, 11))))
     end
-    # test _expand_parameter_dict(Dict{ParameterRef,IntervalSet}))
-    @testset "_expand_parameter_dict (acceptable Form)" begin
-        d = Dict(par => IntervalSet(0, 1))
-        @test InfiniteOpt._expand_parameter_dict(d) == d
-    end
-    # test _expand_parameter_dict(Dict{Any,IntervalSet}))
-    @testset "_expand_parameter_dict (Array Form)" begin
-        d = Dict(pars => IntervalSet(0, 1), par => IntervalSet(0, 1))
-        @test isa(InfiniteOpt._expand_parameter_dict(d),
-                  Dict{ParameterRef, IntervalSet})
-    end
-    # test _expand_parameter_dict(Dict))
-    @testset "_expand_parameter_dict (Fallback)" begin
-        d = Dict(pars => 1, par => 2)
-        @test_throws ErrorException InfiniteOpt._expand_parameter_dict(d)
-    end
     # _make_variable
     @testset "_make_variable" begin
         # test normal
-        expected = HoldVariable(info, dict)
+        expected = HoldVariable(info, bounds)
         @test InfiniteOpt._make_variable(error, info, Val(Hold)).info == expected.info
         # test errors
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
@@ -675,7 +659,7 @@ end
     # build_variable
     @testset "JuMP.build_variable" begin
         # test normal
-        expected = HoldVariable(info, dict)
+        expected = HoldVariable(info, bounds)
         @test build_variable(error, info, Hold).info == expected.info
         # test errors
         @test_throws ErrorException build_variable(error, info, Point,

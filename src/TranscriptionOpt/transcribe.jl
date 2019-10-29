@@ -597,7 +597,7 @@ function _set_constraints(trans_model::JuMP.Model, inf_model::InfiniteOpt.Infini
             icref = InfiniteOpt._make_constraint_ref(inf_model, index)
             if isa(constr, BoundedScalarConstraint)
                 results = _make_transcription_function(constr.func, trans_model,
-                                                       constr.bounds)
+                                                       constr.bounds.intervals)
             else
                 results = _make_transcription_function(constr.func, trans_model)
             end

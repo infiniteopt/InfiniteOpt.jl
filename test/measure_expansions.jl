@@ -553,8 +553,7 @@ end
         @constraint(m, c1, inf1 + x >= 42.)
         @constraint(m, c2, 2x - measure(measure(inf1 * x + par1 + inf2, data1),
                                         data3) == 0.)
-        @constraint(m, c3, measure(inf2, data1) + inf1 >= 0.,
-                    parameter_bounds = Dict(par2 => IntervalSet(1, 1.5)))
+        @BDconstraint(m, c3(par2 in [1, 1.5]), measure(inf2, data1) + inf1 >= 0.)
         @constraint(m, c4, measure(inf4, data2) <= 3.)
         # prepare comparison expressions
         idx = m.next_var_index + 1
@@ -594,6 +593,6 @@ end
         @test isa(m.constrs[JuMP.index(c2)], ScalarConstraint)
         @test isa(m.constrs[JuMP.index(c3)], BoundedScalarConstraint)
         @test isa(m.constrs[JuMP.index(c4)], ScalarConstraint)
-        @test m.constrs[JuMP.index(c3)].bounds == Dict(par2 => IntervalSet(1, 1.5))
+        @test m.constrs[JuMP.index(c3)].bounds.intervals == Dict(par2 => IntervalSet(1, 1.5))
     end
 end

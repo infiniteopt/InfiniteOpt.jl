@@ -309,8 +309,9 @@ function _check_var_bounds(vref::HoldVariableRef, data::DiscreteMeasureData)
     bounds = parameter_bounds(vref)
     pref = data.parameter_ref
     supports = data.supports
-    if haskey(bounds, pref)
-        if bounds[pref].lower_bound > minimum(supports) || bounds[pref].upper_bound < maximum(supports)
+    if haskey(bounds.intervals, pref)
+        if bounds.intervals[pref].lower_bound > minimum(supports) ||
+            bounds.intervals[pref].upper_bound < maximum(supports)
             error("Measure bounds violate hold variable bounds.")
         end
     end
@@ -325,8 +326,9 @@ function _check_var_bounds(vref::HoldVariableRef, data::MultiDiscreteMeasureData
     mins = minimum(supports)
     maxs = maximum(supports)
     for key in keys(prefs)
-        if haskey(bounds, prefs[key])
-            if bounds[prefs[key]].lower_bound > mins[key] || bounds[prefs[key]].upper_bound < maxs[key]
+        if haskey(bounds.intervals, prefs[key])
+            if bounds.intervals[prefs[key]].lower_bound > mins[key] ||
+                bounds.intervals[prefs[key]].upper_bound < maxs[key]
                 error("Measure bounds violate hold variable bounds.")
             end
         end

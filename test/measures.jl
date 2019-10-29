@@ -420,7 +420,7 @@ end
         # test error
         add_parameter_bound(x, par, 0, 0)
         @test_throws ErrorException InfiniteOpt._check_var_bounds(x, data)
-        set_parameter_bounds(x, copy(InfiniteOpt.default_bounds), force = true)
+        set_parameter_bounds(x, ParameterBounds(), force = true)
         delete_supports(par)
     end
     # test _check_var_bounds (HoldVariableRef with MultiDiscreteMeasureData)
@@ -431,7 +431,7 @@ end
         # test error
         @add_parameter_bounds(x, pars == 0)
         @test_throws ErrorException InfiniteOpt._check_var_bounds(x, data3)
-        set_parameter_bounds(x, copy(InfiniteOpt.default_bounds), force = true)
+        set_parameter_bounds(x, ParameterBounds(), force = true)
         delete_supports.(pars)
     end
     # test _check_var_bounds (HoldVariableRef Fallback)
@@ -452,7 +452,7 @@ end
         @test isa(InfiniteOpt._check_var_bounds(mref1, data), Nothing)
         @test isa(InfiniteOpt._check_var_bounds(mref2, data), Nothing)
         delete_supports(par)
-        set_parameter_bounds(x, copy(InfiniteOpt.default_bounds), force = true)
+        set_parameter_bounds(x, ParameterBounds(), force = true)
     end
     # test measure
     @testset "measure" begin
@@ -489,7 +489,7 @@ end
         @test_throws ErrorException measure(par2, data)
         @test_throws ErrorException measure(inf4 + measure(inf + x, data3), data)
         # test with bad variable bounds
-        InfiniteOpt._update_variable_param_bounds(x, Dict(par => IntervalSet(0, 0)))
+        InfiniteOpt._update_variable_param_bounds(x, ParameterBounds(Dict(par => IntervalSet(0, 0))))
         @test_throws ErrorException measure(inf + x, data)
     end
 end

@@ -97,6 +97,6 @@ export map_value, map_optimizer_index, map_dual, map_shadow_price
 
 
 # Export printing methods
-export bound_string, parameter_bounds_string
+export bound_string
 
 end # module

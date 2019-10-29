@@ -23,14 +23,6 @@ struct InfOptParameter{T <: AbstractInfiniteSet} <: JuMP.AbstractVariable
     independent::Bool
 end
 
-# Extend to handle InfOptParameters correctly
-function Base.:(==)(p1::InfOptParameter, p2::InfOptParameter)
-    check1 = p1.set == p2.set
-    check2 = isequal(p1.supports, p2.supports)
-    check3 = p1.independent == p2.independent
-    return (check1 && check2 && check3)
-end
-
 """
     InfOptVariable <: JuMP.AbstractVariable
 
@@ -470,6 +462,36 @@ struct PointVariable{S, T, U, V} <: InfOptVariable
     parameter_values::Tuple
 end
 
+## Modify parameter dictionary to expand any multidimensional parameter keys
+# Case where dictionary is already in correct form
+function _expand_parameter_dict(param_bounds::Dict{ParameterRef,
+                                                   IntervalSet})::Dict
+    return param_bounds
+end
+
+# Case where dictionary contains vectors
+function _expand_parameter_dict(param_bounds::Dict{<:Any, IntervalSet})::Dict
+    # Initialize new dictionary
+    new_dict = Dict{ParameterRef, IntervalSet}()
+    # Find vector keys and expand
+    for (key, set) in param_bounds
+        # expand over the array of parameters if this is
+        if isa(key, AbstractArray)
+            for param in values(key)
+                new_dict[param] = set
+            end
+        # otherwise we have parameter reference
+        else
+            new_dict[key] = set
+        end
+    end
+    return new_dict
+end
+
+# Case where dictionary contains vectors
+function _expand_parameter_dict(param_bounds::Dict)
+    error("Invalid parameter bound dictionary format.")
+end
 
 """
     ParameterBounds
@@ -482,6 +504,9 @@ that are tighter than those already associated those paraticular parameters.
 """
 struct ParameterBounds
     intervals::Dict{ParameterRef, IntervalSet}
+    function ParameterBounds(intervals::Dict)
+        return new(_expand_parameter_dict(intervals))
+    end
 end
 
 # Default method
@@ -656,12 +681,15 @@ parameters on which they depend.
 - `set::S` The MOI set.
 - `bounds::ParameterBounds` Set of valid parameter sub-domains that further bound
                             constraint.
+- `orig_bounds::ParameterBounds` Set of the constraint's original parameter
+                                 sub-domains (not considering hold variables)
 """
 struct BoundedScalarConstraint{F <: JuMP.AbstractJuMPScalar,
                                S <: MOI.AbstractScalarSet} <: JuMP.AbstractConstraint
     func::F
     set::S
     bounds::ParameterBounds
+    orig_bounds::ParameterBounds
 end
 
 """

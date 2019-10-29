@@ -28,11 +28,10 @@ end
     data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
     meas1 = measure(x - w, data1)
     meas2 = measure(y, data1)
-    bounds = Dict(par => IntervalSet(0.5, 1))
     @constraint(m, c1, x + par - z == 0)
     @constraint(m, c2, z + x0 >= -3)
     @constraint(m, c3, meas1 + z == 0)
-    @constraint(m, c4, meas2 - 2y0 + x <= 1, parameter_bounds = bounds)
+    @BDconstraint(m, c4(par in [0.5, 1]), meas2 - 2y0 + x <= 1)
     @constraint(m, c5, meas2 == 0)
     @objective(m, Min, x0 + meas1)
     # test normal usage
