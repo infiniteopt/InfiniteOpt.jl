@@ -131,32 +131,6 @@ end
 const NoHoldRefs = Union{ParameterRef, MeasureRef, InfiniteVariableRef,
                          ReducedInfiniteVariableRef, PointVariableRef}
 
-## Update the variable bounds if it has any
-# GeneralVariableRef
-function _update_var_bounds(vref::GeneralVariableRef,
-                            constr_bounds::ParameterBounds)
-    return
-end
-
-# HoldVariableRef
-function _update_var_bounds(vref::HoldVariableRef,
-                            constr_bounds::ParameterBounds)
-    if has_parameter_bounds(vref)
-        _update_bounds(constr_bounds.intervals, parameter_bounds(vref).intervals)
-    end
-    return
-end
-
-# MeasureRef
-function _update_var_bounds(mref::MeasureRef,
-                            constr_bounds::ParameterBounds)
-    vrefs = _all_function_variables(measure_function(mref))
-    for vref in vrefs
-        _update_var_bounds(vref, constr_bounds)
-    end
-    return
-end
-
 ## Perfrom bound checks and update them if needed, then return the updated constraint
 # BoundedScalarConstraint with no hold variables
 function _check_and_update_bounds(model::InfiniteModel, c::BoundedScalarConstraint,

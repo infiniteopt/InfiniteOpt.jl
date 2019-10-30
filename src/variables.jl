@@ -1068,7 +1068,6 @@ function add_parameter_ref(vref::InfiniteVariableRef,
     return
 end
 
-# TODO implement test for all of these new methods and include in docs
 """
     parameter_bounds(vref::HoldVariableRef)::ParameterBounds
 
@@ -1196,20 +1195,54 @@ function _update_bounds(bounds1::Dict, bounds2::Dict; _error = error)
     return
 end
 
-## Check and update the constraint bounds (don't change in case of error)
+## Update the variable bounds if it has any
+# GeneralVariableRef
+function _update_var_bounds(vref::GeneralVariableRef,
+                            constr_bounds::ParameterBounds)
+    return
+end
+
+# HoldVariableRef
+function _update_var_bounds(vref::HoldVariableRef,
+                            constr_bounds::ParameterBounds)
+    if has_parameter_bounds(vref)
+        _update_bounds(constr_bounds.intervals, parameter_bounds(vref).intervals)
+    end
+    return
+end
+
+# MeasureRef
+function _update_var_bounds(mref::MeasureRef,
+                            constr_bounds::ParameterBounds)
+    vrefs = _all_function_variables(measure_function(mref))
+    for vref in vrefs
+        _update_var_bounds(vref, constr_bounds)
+    end
+    return
+end
+
+## Rebuild the constraint bounds (don't change in case of error)
 # BoundedScalarConstraint
-function _update_constr_bounds(bounds::ParameterBounds, c::BoundedScalarConstraint;
-                               _error = error)
-    new_bounds_dict = copy(c.bounds.intervals)
-    _update_bounds(new_bounds_dict, bounds.intervals, _error = _error)
-    return BoundedScalarConstraint(c.func, c.set, ParameterBounds(new_bounds_dict),
-                                   c.orig_bounds)
+function _rebuild_constr_bounds(c::BoundedScalarConstraint,
+                                var_bounds::ParameterBounds; _error = error)
+    # prepare new constraint
+    vrefs = _all_function_variables(c.func)
+    c_new = BoundedScalarConstraint(c.func, c.set, copy(c.orig_bounds), c.orig_bounds)
+    # look for bounded hold variables and update bounds
+    for vref in vrefs
+        _update_var_bounds(vref, c_new.bounds)
+    end
+    # check if the constraint bounds have and update if doesn't
+    if length(c_new.bounds) == 0
+        c_new = JuMP.ScalarConstraint(c.func, c.set)
+    end
+    return c_new
 end
 
 # ScalarConstraint
-function _update_constr_bounds(bounds::ParameterBounds, c::JuMP.ScalarConstraint;
-                               _error = error)
-    return BoundedScalarConstraint(c.func, c.set, bounds, ParameterBounds())
+function _rebuild_constr_bounds(c::JuMP.ScalarConstraint,
+                                var_bounds::ParameterBounds; _error = error)
+    return BoundedScalarConstraint(c.func, c.set, var_bounds, ParameterBounds())
 end
 
 """
@@ -1258,17 +1291,18 @@ function set_parameter_bounds(vref::HoldVariableRef, bounds::ParameterBounds;
                 end
             end
         end
+        # set the new bounds
+        _validate_bounds(JuMP.owner_model(vref), bounds, _error = _error)
+        _update_variable_param_bounds(vref, bounds)
         # check and update dependent constraints
         if used_by_constraint(vref) || length(meas_cindices) != 0
             for cindex in unique([meas_cindices; JuMP.owner_model(vref).var_to_constrs[JuMP.index(vref)]])
                 constr = JuMP.owner_model(vref).constrs[cindex]
-                new_constr = _update_constr_bounds(bounds, constr, _error = _error)
+                new_constr = _rebuild_constr_bounds(constr, bounds,
+                                                    _error = _error)
                 JuMP.owner_model(vref).constrs[cindex] = new_constr
             end
         end
-        _validate_bounds(JuMP.owner_model(vref), bounds, _error = _error)
-        # set the new bounds
-        _update_variable_param_bounds(vref, bounds)
         # update status
         JuMP.owner_model(vref).has_hold_bounds = true
         if is_used(vref)
@@ -1276,6 +1310,22 @@ function set_parameter_bounds(vref::HoldVariableRef, bounds::ParameterBounds;
         end
     end
     return
+end
+
+## Check and update the constraint bounds (don't change in case of error)
+# BoundedScalarConstraint
+function _update_constr_bounds(bounds::ParameterBounds, c::BoundedScalarConstraint;
+                               _error = error)
+    new_bounds_dict = copy(c.bounds.intervals)
+    _update_bounds(new_bounds_dict, bounds.intervals, _error = _error)
+    return BoundedScalarConstraint(c.func, c.set, ParameterBounds(new_bounds_dict),
+                                   c.orig_bounds)
+end
+
+# ScalarConstraint
+function _update_constr_bounds(bounds::ParameterBounds, c::JuMP.ScalarConstraint;
+                               _error = error)
+    return BoundedScalarConstraint(c.func, c.set, bounds, ParameterBounds())
 end
 
 """
@@ -1335,8 +1385,76 @@ function add_parameter_bound(vref::HoldVariableRef, pref::ParameterRef,
     return
 end
 
-# TODO add parameter bound deletion
+# TODO finish docs and tests
+"""
+    delete_parameter_bound(vref::HoldVariableRef, pref::ParameterRef)
 
+Delete the parameter bound of the hold variable `vref` associated with the
+infinite parameter `pref` if `vref` has such a bound. Note that any other
+parameter bounds will be unaffected. Any constraints that employ `vref` will
+be updated accordingly.
+"""
+function delete_parameter_bound(vref::HoldVariableRef, pref::ParameterRef)
+    # get the current bounds
+    bounds = parameter_bounds(vref)
+    # check if there are bounds for pref and act accordingly
+    if haskey(bounds.intervals, pref)
+        delete!(bounds.intervals, pref)
+        # check for dependent measures that are used by constraints
+        meas_cindices = []
+        if used_by_measure(vref)
+            for mindex in JuMP.owner_model(vref).var_to_meas[JuMP.index(vref)]
+                if used_by_constraint(MeasureRef(JuMP.owner_model(vref), mindex))
+                    indices = JuMP.owner_model(vref).meas_to_constrs[mindex]
+                    meas_cindices = [meas_cindices; indices]
+                end
+            end
+        end
+        # check and update dependent constraints
+        if used_by_constraint(vref) || length(meas_cindices) != 0
+            for cindex in unique([meas_cindices; JuMP.owner_model(vref).var_to_constrs[JuMP.index(vref)]])
+                constr = JuMP.owner_model(vref).constrs[cindex]
+                new_constr = _rebuild_constr_bounds(constr, bounds)
+                JuMP.owner_model(vref).constrs[cindex] = new_constr
+            end
+        end
+    end
+    return
+end
+
+"""
+    delete_parameter_bounds(vref::HoldVariableRef)
+
+Delete all the parameter bounds of the hold variable `vref`. Any constraints
+that employ `vref` will be updated accordingly.
+"""
+function delete_parameter_bounds(vref::HoldVariableRef)
+    # get the current bounds
+    bounds = parameter_bounds(vref)
+    # check if there are bounds and act accordingly
+    if length(bounds) > 0
+        _update_variable_param_bounds(vref, ParameterBounds())
+        # check for dependent measures that are used by constraints
+        meas_cindices = []
+        if used_by_measure(vref)
+            for mindex in JuMP.owner_model(vref).var_to_meas[JuMP.index(vref)]
+                if used_by_constraint(MeasureRef(JuMP.owner_model(vref), mindex))
+                    indices = JuMP.owner_model(vref).meas_to_constrs[mindex]
+                    meas_cindices = [meas_cindices; indices]
+                end
+            end
+        end
+        # check and update dependent constraints
+        if used_by_constraint(vref) || length(meas_cindices) != 0
+            for cindex in unique([meas_cindices; JuMP.owner_model(vref).var_to_constrs[JuMP.index(vref)]])
+                constr = JuMP.owner_model(vref).constrs[cindex]
+                new_constr = _rebuild_constr_bounds(constr, bounds)
+                JuMP.owner_model(vref).constrs[cindex] = new_constr
+            end
+        end
+    end
+    return
+end
 
 """
     JuMP.set_name(vref::InfiniteVariableRef, root_name::String)

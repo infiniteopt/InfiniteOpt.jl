@@ -1141,8 +1141,8 @@ macro BDconstraint(model, args...)
                    "form @BDconstraint(model, name[i=..., ...](par in [lb, ub], " *
                    "par2 = value, ...), expr).")
         end
-
-        # e have a single anonymous constraint
+        # TODO check the expression type somewhere...
+        # we have a single anonymous constraint
         if isa(name_expr, Nothing)
             code = quote
                 @assert isa($model, InfiniteModel) "Model must be an " *

@@ -62,7 +62,8 @@ ParameterBounds
 export used_by_objective, infinite_variable_ref, parameter_refs,
 set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values,
 eval_supports, used_by_reduced_variable, has_parameter_bounds, parameter_bounds,
-set_parameter_bounds, add_parameter_bound
+set_parameter_bounds, add_parameter_bound, delete_parameter_bound,
+delete_parameter_bounds
 
 # Export expression datatypes
 export InfiniteExpr, ParameterExpr, MeasureExpr

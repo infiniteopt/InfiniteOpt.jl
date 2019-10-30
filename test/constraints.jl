@@ -174,23 +174,6 @@ end
         delete!(m.meas_to_constrs, JuMP.index(meas))
         delete!(m.reduced_to_constrs, JuMP.index(rv))
     end
-    # test _update_var_bounds (GeneralVariableRef)
-    @testset "_update_var_bounds (General)" begin
-        @test isa(InfiniteOpt._update_var_bounds(inf, ParameterBounds()), Nothing)
-    end
-    # test _update_var_bounds (HoldVariableRef)
-    @testset "_update_var_bounds (Hold)" begin
-        bounds = ParameterBounds()
-        @set_parameter_bounds(x, par == 1)
-        @test isa(InfiniteOpt._update_var_bounds(x, bounds), Nothing)
-        @test bounds.intervals[par] == IntervalSet(1, 1)
-    end
-    # test _update_var_bounds (MeasureRef)
-    @testset "_update_var_bounds (Measure)" begin
-        bounds = ParameterBounds()
-        @test isa(InfiniteOpt._update_var_bounds(meas, bounds), Nothing)
-        @test bounds.intervals[par] == IntervalSet(1, 1)
-    end
     # test _check_and_update_bounds (BoundedScalarConstraint with no hold variables)
     @testset "_check_and_update_bounds (Bounded no Hold)" begin
         c = BoundedScalarConstraint(inf, MOI.EqualTo(0.0), ParameterBounds(),

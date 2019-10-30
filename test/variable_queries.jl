@@ -207,8 +207,11 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 10])
     @infinite_parameter(m, pars[1:2] in [0, 10], container = SparseAxisArray)
+    @infinite_variable(m, inf(par))
     @hold_variable(m, x)
     @hold_variable(m, y, parameter_bounds = par == 0)
+    data = DiscreteMeasureData(par, [1], [1])
+    meas = measure(inf + par - x, data)
     # test parameter_bounds
     @testset "parameter_bounds" begin
         @test parameter_bounds(x) == ParameterBounds()
@@ -279,26 +282,33 @@ end
         new_dict = Dict(par => IntervalSet(-1, -1))
         @test_throws ErrorException InfiniteOpt._update_bounds(dict1, new_dict)
     end
-    # test _update_constr_bounds (BoundedScalarConstraint)
-    @testset "_update_constr_bounds (Bounded)" begin
-        dict1 = Dict(pars[1] => IntervalSet(0, 1))
-        dict2 = Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(1.1, 1.5))
-        constr = BoundedScalarConstraint(par, MOI.EqualTo(0.0), ParameterBounds(copy(dict1)),
-                                         ParameterBounds(copy(dict1)))
-        # test error
-        @test_throws ErrorException InfiniteOpt._update_constr_bounds(ParameterBounds(dict2), constr)
-        @test constr.bounds == ParameterBounds(dict1)
-        # test normal
-        dict2 = Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(0.5, 1.5))
-        dict = Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(0.5, 1))
-        @test InfiniteOpt._update_constr_bounds(ParameterBounds(dict2), constr).bounds == ParameterBounds(dict)
+    test _update_var_bounds (GeneralVariableRef)
+    @testset "_update_var_bounds (General)" begin
+        @test isa(InfiniteOpt._update_var_bounds(inf, ParameterBounds()), Nothing)
     end
-    # test _update_constr_bounds (ScalarConstraint)
-    @testset "_update_constr_bounds (Scalar)" begin
-        bounds = ParameterBounds(Dict(pars[1] => IntervalSet(0, 1)))
-        constr = JuMP.ScalarConstraint(par, MOI.EqualTo(0.0))
-        @test InfiniteOpt._update_constr_bounds(bounds, constr).bounds == bounds
+    # test _update_var_bounds (HoldVariableRef)
+    @testset "_update_var_bounds (Hold)" begin
+        bounds = ParameterBounds()
+        InfiniteOpt._update_variable_param_bounds(x, ParameterBounds(Dict(par => IntervalSet(1, 1))))
+        @test isa(InfiniteOpt._update_var_bounds(x, bounds), Nothing)
+        @test bounds.intervals[par] == IntervalSet(1, 1)
     end
+    # test _update_var_bounds (MeasureRef)
+    @testset "_update_var_bounds (Measure)" begin
+        bounds = ParameterBounds()
+        @test isa(InfiniteOpt._update_var_bounds(meas, bounds), Nothing)
+        @test bounds.intervals[par] == IntervalSet(1, 1)
+        InfiniteOpt._update_variable_param_bounds(x, ParameterBounds())
+    end
+    # test _rebuild_constr_bounds (BoundedScalarConstraint)
+    @testset "_rebuild_constr_bounds (Bounded)" begin
+        # TODO finish
+    end
+    # test _rebuild_constr_bounds (ScalarConstraint)
+    @testset "_rebuild_constr_bounds (Scalar)" begin
+        # TODO finish
+    end
+    # TODO fix this
     # test set_parameter_bounds
     @testset "set_parameter_bounds" begin
         bounds1 = ParameterBounds(Dict(pars[1] => IntervalSet(0, 1)))
@@ -336,6 +346,26 @@ end
         bounds = ParameterBounds(Dict(par => IntervalSet(1, 1)))
         @test isa(set_parameter_bounds(y, bounds, force = true), Nothing)
         @test parameter_bounds(y) == ParameterBounds(Dict(par => IntervalSet(1, 1)))
+    end
+    # test _update_constr_bounds (BoundedScalarConstraint)
+    @testset "_update_constr_bounds (Bounded)" begin
+        dict1 = Dict(pars[1] => IntervalSet(0, 1))
+        dict2 = Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(1.1, 1.5))
+        constr = BoundedScalarConstraint(par, MOI.EqualTo(0.0), ParameterBounds(copy(dict1)),
+                                         ParameterBounds(copy(dict1)))
+        # test error
+        @test_throws ErrorException InfiniteOpt._update_constr_bounds(ParameterBounds(dict2), constr)
+        @test constr.bounds == ParameterBounds(dict1)
+        # test normal
+        dict2 = Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(0.5, 1.5))
+        dict = Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(0.5, 1))
+        @test InfiniteOpt._update_constr_bounds(ParameterBounds(dict2), constr).bounds == ParameterBounds(dict)
+    end
+    # test _update_constr_bounds (ScalarConstraint)
+    @testset "_update_constr_bounds (Scalar)" begin
+        bounds = ParameterBounds(Dict(pars[1] => IntervalSet(0, 1)))
+        constr = JuMP.ScalarConstraint(par, MOI.EqualTo(0.0))
+        @test InfiniteOpt._update_constr_bounds(bounds, constr).bounds == bounds
     end
     # test add_parameter_bound
     @testset "add_parameter_bound" begin
