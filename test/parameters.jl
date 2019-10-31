@@ -234,12 +234,19 @@ end
         @test_throws ErrorException build_parameter(error, set, 1)
         warn = "Support points are not unique, eliminating redundant points."
         @test_logs (:warn, warn) build_parameter(error, set, 2,
-                                                 supports = ones(3))
+                                                 supports = ones(3),
+                                                 independent = true)
         warn = "Ignoring num_supports since supports is not empty."
         @test_logs (:warn, warn) build_parameter(error, set, 2, supports = [1, 2],
                                                  num_supports = 1)
         @test_throws ErrorException build_parameter(error, set, 2,
                                                     num_supports = 3)
+        repeated_supps = [1, 1]
+        expected = InfOptParameter(set, [1, 1], false)
+        @test build_parameter(error, set, 2, supports = repeated_supps) == expected
+        expected = InfOptParameter(set, [1], true)
+        @test build_parameter(error, set, 2, supports = repeated_supps,
+                              independent = true) == expected
         set = IntervalSet(0, 1)
         expected = InfOptParameter(set, [0., 0.5, 1.], false)
         @test build_parameter(error, set, num_supports = 3) == expected
@@ -404,6 +411,7 @@ end
     m = InfiniteModel()
     param = InfOptParameter(IntervalSet(0, 1), Number[], false)
     pref = add_parameter(m, param, "test")
+    prefs = @infinite_parameter(m, x[1:3] in [0, 1])
     # _parameter_supports
     @testset "_parameter_supports" begin
         @test InfiniteOpt._parameter_supports(pref) == Number[]
@@ -437,6 +445,8 @@ end
         warn = "Support points are not unique, eliminating redundant points."
         @test_logs (:warn, warn) set_supports(pref, [1, 1], force = true)
         @test_throws ErrorException set_supports(pref, [0.5])
+        @test set_supports(prefs[1], [1, 1]) isa Nothing
+        @test supports(prefs[1]) == [1, 1]
     end
     # add_supports
     @testset "add_supports" begin
@@ -444,6 +454,8 @@ end
         @test supports(pref) == [1, 0.5]
         @test isa(add_supports(pref, [0, 0.25, 1]), Nothing)
         @test supports(pref) == [1, 0.5, 0, 0.25]
+        @test add_supports(prefs[2], [1, 1]) isa Nothing
+        @test supports(prefs[2]) == [1, 1]
     end
     # delete_supports
     @testset "delete_supports" begin

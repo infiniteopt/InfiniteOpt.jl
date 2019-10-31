@@ -166,11 +166,30 @@ function build_parameter(_error::Function, set::AbstractInfiniteSet,
                    "of parameter.")
         end
     end
-    unique_supports = unique(supports)
-    if length(unique_supports) != length(supports)
-        @warn("Support points are not unique, eliminating redundant points.")
+    if num_params == 1 || independent # double check num_params for other types of containers
+        unique_supports = unique(supports)
+        if length(unique_supports) != length(supports)
+            @warn("Support points are not unique, eliminating redundant points.")
+        end
+        return InfOptParameter(set, unique_supports, independent)
     end
-    return InfOptParameter(set, unique_supports, independent)
+    if isa(supports, Number)
+        supports = [supports]
+    end
+    return InfOptParameter(set, supports, independent)
+end
+
+#
+function _check_supports_dimensions(model::InfiniteModel, p::InfOptParameter,
+    index::Int)
+    if haskey(model.params, index - 1) &&
+       model.param_to_group_id[index - 1] == model.next_param_id
+        if length(p.supports) != length(model.params[index - 1].supports)
+            error("Support dimension mismatch. Make sure support dimension of " *
+                  "each parameter element match.")
+        end
+    end
+    return
 end
 
 """
@@ -193,17 +212,21 @@ name
 ```
 """
 function add_parameter(model::InfiniteModel, p::InfOptParameter,
-                       name::String=""; macro_call = false)::ParameterRef
-    model.next_param_index += 1
-    pref = ParameterRef(model, model.next_param_index)
-    model.params[JuMP.index(pref)] = p
+                       name::String=""; multi_dim = false,
+                       macro_call = false)::ParameterRef
+    index = model.next_param_index += 1
+    pref = ParameterRef(model, index)
     if !macro_call
         model.next_param_id += 1
+    elseif !(p.independent) && multi_dim
+        _check_supports_dimensions(model, p, index)
     end
+    model.params[JuMP.index(pref)] = p
     model.param_to_group_id[JuMP.index(pref)] = model.next_param_id
     JuMP.set_name(pref, name)
     return pref
 end
+
 
 """
     used_by_constraint(pref::ParameterRef)::Bool
@@ -902,6 +925,10 @@ function supports(prefs::AbstractArray{<:ParameterRef})::Vector
         for i in eachindex(support_list)
             support_list[i] = JuMPC.SparseAxisArray(Dict(k => supports(pref)[i] for (k, pref) in prefs.data))
         end
+        # unique-nize support_list using the dictionary unique method
+        # TODO: make it work with JuMPC.SparseAxisArray
+        dict_list = unique([arr.data for arr in support_list])
+        support_list = [JuMPC.SparseAxisArray(dict) for dict in dict_list]
     else
         all_keys = collect(keys(prefs))
         all_supports = [supports(pref) for (k, pref) in prefs.data]
@@ -943,11 +970,16 @@ function set_supports(pref::ParameterRef, supports::Vector{<:Number};
               " Consider using `add_supports` or use set `force = true` to " *
               "overwrite the existing supports.")
     end
-    unique_supports = unique(supports)
-    if length(unique_supports) != length(supports)
-        @warn("Support points are not unique, eliminating redundant points.")
+    if !(is_independent(pref)) &&
+       sum(values(pref.model.param_to_group_id) .== group_id(pref)) > 1
+        _update_parameter_supports(pref, supports)
+    else
+        unique_supports = unique(supports)
+        if length(unique_supports) != length(supports)
+            @warn("Support points are not unique, eliminating redundant points.")
+        end
+        _update_parameter_supports(pref, unique_supports)
     end
-    _update_parameter_supports(pref, unique_supports)
     return
 end
 
@@ -981,7 +1013,13 @@ function add_supports(pref::ParameterRef, supports::Union{Number,
     set = _parameter_set(pref)
     _check_supports_in_bounds(error, supports, set)
     current_supports = _parameter_supports(pref)
-    _update_parameter_supports(pref, unique([current_supports; supports]))
+    if !(is_independent(pref)) &&
+       sum(values(pref.model.param_to_group_id) .== group_id(pref)) > 1
+        new_supports = [current_supports; supports]
+    else
+        new_supports = unique([current_supports; supports])
+    end
+    _update_parameter_supports(pref, new_supports)
     return
 end
 

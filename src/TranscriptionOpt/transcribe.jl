@@ -272,7 +272,7 @@ end
 function _make_transcription_function(pref::InfiniteOpt.ParameterRef,
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict())::Tuple
-    supports = InfiniteOpt.supports(pref)
+    supports = unique(InfiniteOpt.supports(pref))
     # truncate the supports if out of bounds
     if pref in keys(bounds)
         old_support_indices = bounds[pref].lower_bound .<= supports .<= bounds[pref].upper_bound
@@ -786,7 +786,7 @@ function TranscriptionModel(inf_model::InfiniteOpt.InfiniteModel,
     else
         trans_model = TranscriptionModel(optimizer_factory; kwargs...)
     end
-    fill_in_supports!(inf_model)
+    InfiniteOpt.fill_in_supports!(inf_model)
     _initialize_global_variables(trans_model, inf_model)
     _initialize_infinite_variables(trans_model, inf_model)
     _map_point_variables(trans_model, inf_model)
