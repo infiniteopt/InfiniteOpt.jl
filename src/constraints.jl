@@ -404,8 +404,13 @@ function _update_constr_param_bounds(cref::GeneralConstraintRef,
                                      bounds::ParameterBounds,
                                      orig_bounds::ParameterBounds)
     c = JuMP.constraint_object(cref)
-    JuMP.owner_model(cref).constrs[JuMP.index(cref)] = BoundedScalarConstraint(c.func,
-                                                     c.set, bounds, orig_bounds)
+    if length(bounds) != 0
+        JuMP.owner_model(cref).constrs[JuMP.index(cref)] = BoundedScalarConstraint(
+                                             c.func, c.set, bounds, orig_bounds)
+    else
+        JuMP.owner_model(cref).constrs[JuMP.index(cref)] = JuMP.ScalarConstraint(
+                                                                  c.func, c.set)
+    end
     return
 end
 
@@ -484,7 +489,74 @@ function add_parameter_bound(cref::GeneralConstraintRef, pref::ParameterRef,
     return
 end
 
-# TODO add parameter bound deletion
+"""
+    delete_parameter_bound(cref::GeneralConstraintRef, pref::ParameterRef)
+
+Delete the parameter bound of the constraint `cref` associated with the
+infinite parameter `pref` if `cref` has such a bound. Note that any other
+parameter bounds will be unaffected. Note any bounds that are needed for
+hold variables inside in `cref` will be unaffected.
+
+**Example**
+```julia
+julia> @BDconstraint(model, c1(x == 0), y <= 42)
+c1 : y(x) <= 42, for all x[1] == 0, x[2] == 0
+
+julia> delete_parameter_bounds(c1, x[2])
+
+julia> c1
+c1 : y(x) <= 42, for all x[1] == 0
+```
+"""
+function delete_parameter_bound(cref::GeneralConstraintRef, pref::ParameterRef)
+    # check if has bounds on pref from the constraint
+    constr = JuMP.constraint_object(cref)
+    if has_parameter_bounds(cref) && haskey(constr.orig_bounds.intervals, pref)
+        delete!(constr.orig_bounds.intervals, pref)
+        # consider hold variables
+        new_bounds = copy(constr.orig_bounds)
+        vrefs = _all_function_variables(constr.func)
+        for vref in vrefs
+            _update_var_bounds(vref, new_bounds)
+        end
+        # set the new bounds
+        _update_constr_param_bounds(cref, new_bounds, constr.orig_bounds)
+    end
+    return
+end
+
+"""
+    delete_parameter_bounds(cref::GeneralConstraintRef)
+
+Delete all the parameter bounds of the constraint `cref`. Note any bounds that
+are needed for hold variables inside in `cref` will be unaffected.
+
+**Example**
+```julia
+julia> @BDconstraint(model, c1(x == 0), y <= 42)
+c1 : y(x) <= 42, for all x[1] == 0, x[2] == 0
+
+julia> delete_parameter_bounds(c1)
+
+julia> c1
+c1 : y(x) <= 42
+```
+"""
+function delete_parameter_bounds(cref::GeneralConstraintRef)
+    # check if has bounds on pref from the constraint
+    constr = JuMP.constraint_object(cref)
+    if has_parameter_bounds(cref) && length(constr.orig_bounds) != 0
+        # consider hold variables
+        new_bounds = ParameterBounds()
+        vrefs = _all_function_variables(constr.func)
+        for vref in vrefs
+            _update_var_bounds(vref, new_bounds)
+        end
+        # set the new bounds
+        _update_constr_param_bounds(cref, new_bounds, ParameterBounds())
+    end
+    return
+end
 
 # Return a constraint set with an updated value
 function _set_set_value(set::S, value::Real) where {T, S <: Union{MOI.LessThan{T},

@@ -282,14 +282,16 @@ end
         new_dict = Dict(par => IntervalSet(-1, -1))
         @test_throws ErrorException InfiniteOpt._update_bounds(dict1, new_dict)
     end
-    test _update_var_bounds (GeneralVariableRef)
+    # test _update_var_bounds (GeneralVariableRef)
     @testset "_update_var_bounds (General)" begin
-        @test isa(InfiniteOpt._update_var_bounds(inf, ParameterBounds()), Nothing)
+        @test isa(InfiniteOpt._update_var_bounds(inf, ParameterBounds()),
+                  Nothing)
     end
     # test _update_var_bounds (HoldVariableRef)
     @testset "_update_var_bounds (Hold)" begin
         bounds = ParameterBounds()
-        InfiniteOpt._update_variable_param_bounds(x, ParameterBounds(Dict(par => IntervalSet(1, 1))))
+        InfiniteOpt._update_variable_param_bounds(x,
+                                ParameterBounds(Dict(par => IntervalSet(1, 1))))
         @test isa(InfiniteOpt._update_var_bounds(x, bounds), Nothing)
         @test bounds.intervals[par] == IntervalSet(1, 1)
     end
@@ -302,13 +304,27 @@ end
     end
     # test _rebuild_constr_bounds (BoundedScalarConstraint)
     @testset "_rebuild_constr_bounds (Bounded)" begin
-        # TODO finish
+        # test addition
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 2)))
+        c = BoundedScalarConstraint(y + inf, MOI.EqualTo(0.), copy(bounds),
+                                    copy(bounds))
+        expected = ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        @test InfiniteOpt._rebuild_constr_bounds(c, bounds).bounds == expected
+        # test deletion
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        c = BoundedScalarConstraint(y + inf, MOI.EqualTo(0.), bounds,
+                                    ParameterBounds())
+        InfiniteOpt._update_variable_param_bounds(y, ParameterBounds())
+        @test isa(InfiniteOpt._rebuild_constr_bounds(c, bounds),
+                  ScalarConstraint)
+        InfiniteOpt._update_variable_param_bounds(y, bounds)
     end
     # test _rebuild_constr_bounds (ScalarConstraint)
     @testset "_rebuild_constr_bounds (Scalar)" begin
-        # TODO finish
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        c = ScalarConstraint(y + inf, MOI.EqualTo(0.))
+        @test InfiniteOpt._rebuild_constr_bounds(c, bounds).bounds == bounds
     end
-    # TODO fix this
     # test set_parameter_bounds
     @testset "set_parameter_bounds" begin
         bounds1 = ParameterBounds(Dict(pars[1] => IntervalSet(0, 1)))
@@ -331,6 +347,7 @@ end
         # test constr error
         bounds = ParameterBounds(Dict(pars[1] => IntervalSet(2, 3)))
         @test_throws ErrorException set_parameter_bounds(x, bounds)
+        InfiniteOpt._update_variable_param_bounds(x, ParameterBounds())
         # test normal
         bounds = ParameterBounds(Dict(par => IntervalSet(0, 5),
                                       pars[1] => IntervalSet(0.5, 2)))
@@ -388,6 +405,40 @@ end
         # test overwritting existing
         @test isa(add_parameter_bound(y, par, 0, 0), Nothing)
         @test parameter_bounds(y) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
+    end
+    # test delete_parameter_bound
+    @testset "delete_parameter_bound" begin
+        cindex1 = 42; cindex2 = -42;
+        # test normal
+        @test isa(delete_parameter_bound(x, pars[1]), Nothing)
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 5),
+                                      pars[2] => IntervalSet(0, 5)))
+        @test parameter_bounds(x) == bounds
+        expected = ParameterBounds(Dict(par => IntervalSet(0, 5),
+                                        pars[1] => IntervalSet(0, 1),
+                                        pars[2] => IntervalSet(0, 5)))
+        @test m.constrs[cindex1].bounds == expected
+        @test m.constrs[cindex2].bounds == bounds
+        # test already gone
+        @test isa(delete_parameter_bound(x, pars[1]), Nothing)
+        @test parameter_bounds(x) == bounds
+        @test m.constrs[cindex1].bounds == expected
+        @test m.constrs[cindex2].bounds == bounds
+    end
+    # test delete_parameter_bounds
+    @testset "delete_parameter_bounds" begin
+        cindex1 = 42; cindex2 = -42;
+        # test normal
+        @test isa(delete_parameter_bounds(x), Nothing)
+        @test parameter_bounds(x) == ParameterBounds()
+        expected = ParameterBounds(Dict(pars[1] => IntervalSet(0, 1)))
+        @test m.constrs[cindex1].bounds == expected
+        @test isa(m.constrs[cindex2], ScalarConstraint)
+        # test already gone
+        @test isa(delete_parameter_bounds(x), Nothing)
+        @test parameter_bounds(x) == ParameterBounds()
+        @test m.constrs[cindex1].bounds == expected
+        @test isa(m.constrs[cindex2], ScalarConstraint)
     end
 end
 

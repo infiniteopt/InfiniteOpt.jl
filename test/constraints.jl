@@ -114,7 +114,7 @@ end
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
-    @hold_variable(m, x)
+    @hold_variable(m, x, parameter_bounds = (par == 1))
     data = DiscreteMeasureData(par, [1], [1])
     meas = measure(inf + par - x, data)
     rv = ReducedInfiniteVariableRef(m, 42)
@@ -399,6 +399,12 @@ end
     end
     # test _update_constr_param_bounds
     @testset "_update_constr_param_bounds" begin
+        # test empty bounds
+        bounds = ParameterBounds()
+        @test isa(InfiniteOpt._update_constr_param_bounds(c1, bounds, bounds),
+                  Nothing)
+        @test isa(constraint_object(c1), ScalarConstraint)
+        # test normalized_coefficient
         bounds = ParameterBounds(Dict(par => IntervalSet(0, 5)))
         @test isa(InfiniteOpt._update_constr_param_bounds(c1, bounds, bounds),
                   Nothing)
@@ -427,6 +433,39 @@ end
         @test isa(add_parameter_bound(c3, par, 0, 1), Nothing)
         @test parameter_bounds(c3) == ParameterBounds(Dict(par => IntervalSet(0, 1)))
     end
+    # test delete_parameter_bound
+    @testset "delete_parameter_bound" begin
+        # test partial deletion
+        @test isa(add_parameter_bound(c1, pars[1], 0, 1), Nothing)
+        @add_parameter_bounds(x, par == 0)
+        @test isa(delete_parameter_bound(c1, par), Nothing)
+        expected = ParameterBounds(Dict(par => IntervalSet(0, 0),
+                                   pars[1] => IntervalSet(0, 1)))
+        @test parameter_bounds(c1) == expected
+        # test again without hold bounds
+        delete_parameter_bounds(x)
+        expected = ParameterBounds(Dict(pars[1] => IntervalSet(0, 1)))
+        @test parameter_bounds(c1) == expected
+        # test already gone
+        @test isa(delete_parameter_bound(c1, par), Nothing)
+        @test parameter_bounds(c1) == expected
+    end
+    # test delete_parameter_bounds
+    @testset "delete_parameter_bounds" begin
+        # test partial deletion
+        @test isa(add_parameter_bound(c1, pars[1], 0, 1), Nothing)
+        @add_parameter_bounds(x, par == 0)
+        @test isa(delete_parameter_bounds(c1), Nothing)
+        expected = ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        @test parameter_bounds(c1) == expected
+        # test again without hold bounds
+        delete_parameter_bounds(x)
+        @test isa(constraint_object(c1), ScalarConstraint)
+        # test already gone
+        @test isa(delete_parameter_bounds(c1), Nothing)
+        @test isa(constraint_object(c1), ScalarConstraint)
+    end
+    # test
     # test @set_parameter_bounds
     @testset "@set_parameter_bounds" begin
         # Note errors were already checked with hold variables

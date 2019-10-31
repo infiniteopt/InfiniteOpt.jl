@@ -1385,7 +1385,6 @@ function add_parameter_bound(vref::HoldVariableRef, pref::ParameterRef,
     return
 end
 
-# TODO finish docs and tests
 """
     delete_parameter_bound(vref::HoldVariableRef, pref::ParameterRef)
 
@@ -1393,6 +1392,22 @@ Delete the parameter bound of the hold variable `vref` associated with the
 infinite parameter `pref` if `vref` has such a bound. Note that any other
 parameter bounds will be unaffected. Any constraints that employ `vref` will
 be updated accordingly.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+julia> @infinite_parameter(model, x[1:2] in [0, 10])
+2-element Array{ParameterRef,1}:
+ x[1]
+ x[2]
+
+julia> @hold_variable(model, z, parameter_bounds = (x in [0, 1]))
+z
+
+julia> delete_parameter_bound(z, x[2])
+
+julia> parameter_bounds(z)
+Subdomain bounds (1): x[1] ∈ [0, 1]
+```
 """
 function delete_parameter_bound(vref::HoldVariableRef, pref::ParameterRef)
     # get the current bounds
@@ -1427,6 +1442,22 @@ end
 
 Delete all the parameter bounds of the hold variable `vref`. Any constraints
 that employ `vref` will be updated accordingly.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+julia> @infinite_parameter(model, x[1:2] in [0, 10])
+2-element Array{ParameterRef,1}:
+ x[1]
+ x[2]
+
+julia> @hold_variable(model, z, parameter_bounds = (x in [0, 1]))
+z
+
+julia> delete_parameter_bounds(z)
+
+julia> parameter_bounds(z)
+Subdomain bounds (0):
+```
 """
 function delete_parameter_bounds(vref::HoldVariableRef)
     # get the current bounds
