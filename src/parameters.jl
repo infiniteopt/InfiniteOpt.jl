@@ -120,9 +120,10 @@ end
 
 """
     build_parameter(_error::Function, set::AbstractInfiniteSet,
-                    [num_params::Int = 1;
+                    [num_params::Int = 1; num_supports::Int = 0,
                     supports::Union{Number, Vector{<:Number}} = Number[],
-                    independent::Bool = false])::InfOptParameter
+                    independent::Bool = false,
+                    sig_fig::Int = 5])::InfOptParameter
 
 Returns a [`InfOptParameter`](@ref) given the appropriate information. This is
 analagous to `JuMP.build_variable`. Errors if supports violate the bounds
@@ -138,14 +139,26 @@ InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
 """
 function build_parameter(_error::Function, set::AbstractInfiniteSet,
                          num_params::Int = 1;
+                         num_supports::Int = 0,
                          supports::Union{Number, Vector{<:Number}} = Number[],
                          independent::Bool = false,
+                         sig_fig::Int = 5,
                          extra_kw_args...)::InfOptParameter
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
-    if length(supports) != 0
+    length_supports = length(supports)
+    if num_supports == 0 && length_supports != 0
         _check_supports_in_bounds(_error, supports, set)
+    elseif num_supports != 0 && length_supports != 0
+        @warn("Ignoring num_supports since supports is not empty.")
+        _check_supports_in_bounds(_error, supports, set)
+    elseif num_supports != 0 && length_supports == 0
+        if isa(set, DistributionSet{<:Distributions.MultivariateDistribution})
+            _error("Support generation is not available for multivariate " *
+                   "distributions.")
+        end
+        supports = _support_values(set, num_supports = num_supports, sig_fig = sig_fig)
     end
     if isa(set, DistributionSet{<:Distributions.MultivariateDistribution})
         if num_params != length(set.distribution)
@@ -153,11 +166,31 @@ function build_parameter(_error::Function, set::AbstractInfiniteSet,
                    "of parameter.")
         end
     end
-    unique_supports = unique(supports)
-    if length(unique_supports) != length(supports)
-        @warn("Support points are not unique, eliminating redundant points.")
+    if num_params == 1 || independent # double check num_params for other types of containers
+        unique_supports = unique(supports)
+        if length(unique_supports) != length(supports)
+            @warn("Support points are not unique, eliminating redundant points.")
+        end
+        return InfOptParameter(set, unique_supports, independent)
     end
-    return InfOptParameter(set, unique_supports, independent)
+    if isa(supports, Number)
+        supports = [supports]
+    end
+    return InfOptParameter(set, supports, independent)
+end
+
+# Check the number of supports of one dimension matches the other dimension
+# within the same multi-dimensional parameter
+function _check_supports_dimensions(model::InfiniteModel, p::InfOptParameter,
+    index::Int)
+    if haskey(model.params, index - 1) &&
+       model.param_to_group_id[index - 1] == model.next_param_id
+        if length(p.supports) != length(model.params[index - 1].supports)
+            error("Support dimension mismatch. Make sure support dimension of " *
+                  "each parameter element match.")
+        end
+    end
+    return
 end
 
 """
@@ -180,17 +213,21 @@ name
 ```
 """
 function add_parameter(model::InfiniteModel, p::InfOptParameter,
-                       name::String=""; macro_call = false)::ParameterRef
-    model.next_param_index += 1
-    pref = ParameterRef(model, model.next_param_index)
-    model.params[JuMP.index(pref)] = p
+                       name::String=""; multi_dim = false,
+                       macro_call = false)::ParameterRef
+    index = model.next_param_index += 1
+    pref = ParameterRef(model, index)
     if !macro_call
         model.next_param_id += 1
+    elseif !(p.independent) && multi_dim
+        _check_supports_dimensions(model, p, index)
     end
+    model.params[JuMP.index(pref)] = p
     model.param_to_group_id[JuMP.index(pref)] = model.next_param_id
     JuMP.set_name(pref, name)
     return pref
 end
+
 
 """
     used_by_constraint(pref::ParameterRef)::Bool
@@ -289,7 +326,7 @@ end
 # Return parameter tuple without a particular parameter and return location of
 # where it was
 function _remove_parameter(prefs::Tuple, delete_pref::ParameterRef)::Tuple
-    for i = 1:length(prefs)
+    for i in eachindex(prefs)
         if _contains_pref(prefs[i], delete_pref)
             if isa(prefs[i], ParameterRef)
                 return Tuple(prefs[j] for j = 1:length(prefs) if j != i), (i, )
@@ -329,13 +366,13 @@ end
 function _remove_parameter_values(pref_vals::Tuple, location::Tuple)::Tuple
     # removed parameter was a scalar parameter
     if length(location) == 1
-        return Tuple(pref_vals[i] for i = 1:length(pref_vals) if i != location[1])
+        return Tuple(pref_vals[i] for i in eachindex(pref_vals) if i != location[1])
     # removed parameter was part of an array
     else
         new_dict = filter(x -> x.first != location[2], pref_vals[location[1]].data)
         val_list = [pref_vals...]
         val_list[location[1]] = JuMPC.SparseAxisArray(new_dict)
-        return Tuple(val_list[i] for i = 1:length(pref_vals))
+        return Tuple(val_list[i] for i in eachindex(pref_vals))
     end
 end
 
@@ -886,9 +923,13 @@ function supports(prefs::AbstractArray{<:ParameterRef})::Vector
                                               "must have the same number of " *
                                               "support points.")
         support_list = Vector{JuMPC.SparseAxisArray}(undef, lengths[1])
-        for i = 1:length(support_list)
+        for i in eachindex(support_list)
             support_list[i] = JuMPC.SparseAxisArray(Dict(k => supports(pref)[i] for (k, pref) in prefs.data))
         end
+        # unique-nize support_list using the dictionary unique method
+        # TODO: make it work with JuMPC.SparseAxisArray
+        dict_list = unique([arr.data for arr in support_list])
+        support_list = [JuMPC.SparseAxisArray(dict) for dict in dict_list]
     else
         all_keys = collect(keys(prefs))
         all_supports = [supports(pref) for (k, pref) in prefs.data]
@@ -896,7 +937,7 @@ function supports(prefs::AbstractArray{<:ParameterRef})::Vector
                                                                prod(lengths))
         counter = 1
         for combo in Iterators.product(all_supports...)
-            support_list[counter] = JuMPC.SparseAxisArray(Dict(all_keys[i] => combo[i] for i = 1:length(combo)))
+            support_list[counter] = JuMPC.SparseAxisArray(Dict(all_keys[i] => combo[i] for i in eachindex(combo)))
             counter += 1
         end
     end
@@ -930,11 +971,16 @@ function set_supports(pref::ParameterRef, supports::Vector{<:Number};
               " Consider using `add_supports` or use set `force = true` to " *
               "overwrite the existing supports.")
     end
-    unique_supports = unique(supports)
-    if length(unique_supports) != length(supports)
-        @warn("Support points are not unique, eliminating redundant points.")
+    if !(is_independent(pref)) &&
+       sum(values(pref.model.param_to_group_id) .== group_id(pref)) > 1
+        _update_parameter_supports(pref, supports)
+    else
+        unique_supports = unique(supports)
+        if length(unique_supports) != length(supports)
+            @warn("Support points are not unique, eliminating redundant points.")
+        end
+        _update_parameter_supports(pref, unique_supports)
     end
-    _update_parameter_supports(pref, unique_supports)
     return
 end
 
@@ -968,7 +1014,13 @@ function add_supports(pref::ParameterRef, supports::Union{Number,
     set = _parameter_set(pref)
     _check_supports_in_bounds(error, supports, set)
     current_supports = _parameter_supports(pref)
-    _update_parameter_supports(pref, unique([current_supports; supports]))
+    if !(is_independent(pref)) &&
+       sum(values(pref.model.param_to_group_id) .== group_id(pref)) > 1
+        new_supports = [current_supports; supports]
+    else
+        new_supports = unique([current_supports; supports])
+    end
+    _update_parameter_supports(pref, new_supports)
     return
 end
 
@@ -986,7 +1038,7 @@ ERROR: Parameter t does not have supports.
 ```
 """
 function delete_supports(pref::ParameterRef)
-    _update_parameter_supports(pref, Int64[])
+    _update_parameter_supports(pref, Int[])
     return
 end
 
@@ -1047,6 +1099,107 @@ function JuMP.set_value(pref::ParameterRef, value::Number)
     set_infinite_set(pref, IntervalSet(value, value))
     set_supports(pref, [value], force = true)
     return
+end
+
+"""
+    fill_in_supports!(model::InfiniteModel; num_supports::Int = 50,
+                      sig_fig::Int = 5)
+
+Automatically generate support points for all infinite parameters in model
+except for parameters in multivariate distributions, where we require that the
+user inputs the supports. User can specify the number of significant figures
+kept after decimal point for the auto-generated supports wtih `sig_fig`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
+julia> fill_in_supports!(model, num_supports = 4, sig_fig = 3)
+
+julia> supports(x)
+4-element Array{Number,1}:
+ 0.0
+ 0.333
+ 0.667
+ 1.0
+```
+"""
+function fill_in_supports!(model::InfiniteModel; num_supports::Int = 50,
+                           sig_fig::Int = 5)
+    for key in keys(model.params)
+        pref = ParameterRef(model, key)
+        fill_in_supports!(pref, num_supports = num_supports, sig_fig = sig_fig)
+    end
+    return
+end
+
+"""
+    fill_in_supports!(pref::ParameterRef; num_supports::Int = 50, sig_fig::Int)
+
+Automatically generate support points for all infinite parameters in model
+except for parameters in multivariate distributions, where we require that the
+user inputs the supports. User can specify the number of digits kept after
+decimal point for the auto-generated supports wtih `sig_fig`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
+julia> fill_in_supports!(x, num_supports = 4, sig_fig = 3)
+
+julia> supports(x)
+4-element Array{Number,1}:
+ 0.0
+ 0.333
+ 0.667
+ 1.0
+
+```
+"""
+function fill_in_supports!(pref::ParameterRef; num_supports::Int = 50,
+                           sig_fig::Int = 5)
+    p = JuMP.owner_model(pref).params[JuMP.index(pref)]
+    if length(p.supports) == 0
+        _generate_supports(pref, p.set, num_supports = num_supports, sig_fig = sig_fig)
+    else
+#        @warn("No supports generated for $(pref) since $(pref) has existing " *
+#              "supports.")
+    end
+    return
+end
+
+function _generate_supports(pref::ParameterRef, set::AbstractInfiniteSet;
+                           num_supports::Int = 50, sig_fig::Int = 5)
+    add_supports(pref, _support_values(set, num_supports = num_supports,
+                                       sig_fig = sig_fig))
+    return
+end
+
+function _generate_supports(pref::ParameterRef,
+                           set::DistributionSet{<:Distributions.MultivariateDistribution};
+                           num_supports::Int = 50, sig_fig::Int = 5)
+    pref_group_id = group_id(pref)
+    model = JuMP.owner_model(pref)
+    associated_p_index = sort([i for i in 1:length(model.params)
+                               if model.param_to_group_id[i] == pref_group_id])
+    new_supports = _support_values(set, num_supports = num_supports, sig_fig = sig_fig)
+
+    for i in 1:length(associated_p_index)
+        pref_i = ParameterRef(model, associated_p_index[i])
+        add_supports(pref_i, new_supports[i, :])
+    end
+    return
+end
+
+function _support_values(set::IntervalSet; num_supports::Int = 50,
+                         sig_fig::Int = 5)::Vector
+    lb = set.lower_bound
+    ub = set.upper_bound
+    new_supports = round.(collect(range(lb, stop = ub, length = num_supports)),
+                          sigdigits = sig_fig)
+    return new_supports
+end
+
+function _support_values(set::DistributionSet; num_supports::Int = 50,
+                         sig_fig::Int = 5)::Array
+    new_supports = round.(Distributions.rand(set.distribution, num_supports), sigdigits = sig_fig)
+    return new_supports
 end
 
 """

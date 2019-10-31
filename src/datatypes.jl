@@ -228,7 +228,10 @@ CachingOptimizer state: EMPTY_OPTIMIZER
 Solver name: Ipopt
 ```
 """
-function InfiniteModel(; kwargs...)
+function InfiniteModel(; seed = false, kwargs...)
+    if seed
+        Random.seed!(0)
+    end
     return InfiniteModel(# Measures
                          0, Dict{Int, Measure}(), Dict{Int, String}(),
                          Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
