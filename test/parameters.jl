@@ -224,7 +224,7 @@ end
     end
     # build_parameter
     @testset "build_parameter" begin
-        set = DistributionSet(Multinomial(3, 2))
+        set = DistributionSet(Multinomial(3, [1/3, 1/3]))
         supps = Vector(0:1)
         expected = InfOptParameter(set, supps, false)
         @test build_parameter(error, set, 2, supports = supps) == expected
@@ -332,7 +332,7 @@ end
         @test_macro_throws ErrorException @infinite_parameter(m, 0 <= j)
         @test_macro_throws ErrorException @infinite_parameter(m, j)
         @test_macro_throws ErrorException @infinite_parameter(m, j, foo = 42)
-        @test_macro_throws ErrorException @infinite_parameter(m, j in Multinomial(3, 2))
+        @test_macro_throws ErrorException @infinite_parameter(m, j in Multinomial(3, [1/3, 1/3]))
         @test_macro_throws ErrorException @infinite_parameter(m, 0 <= k <= 1, Int)
     end
 end
@@ -474,14 +474,14 @@ end
         @test has_lower_bound(pref)
         set_infinite_set(pref, DistributionSet(Normal()))
         @test has_lower_bound(pref)
-        set_infinite_set(pref, DistributionSet(Multinomial(3, 2)))
+        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/3, 1/3])))
         @test !has_lower_bound(pref)
         set_infinite_set(pref, BadSet())
         @test_throws ErrorException has_lower_bound(pref)
     end
     # JuMP.lower_bound
     @testset "JuMP.lower_bound" begin
-        set_infinite_set(pref, DistributionSet(Multinomial(3, 2)))
+        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/3, 1/3])))
         @test_throws ErrorException lower_bound(pref)
         set_infinite_set(pref, IntervalSet(0, 1))
         @test lower_bound(pref) == 0
@@ -509,14 +509,14 @@ end
         @test has_upper_bound(pref)
         set_infinite_set(pref, DistributionSet(Normal()))
         @test has_upper_bound(pref)
-        set_infinite_set(pref, DistributionSet(Multinomial(3, 2)))
+        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/3, 1/3])))
         @test !has_upper_bound(pref)
         set_infinite_set(pref, BadSet())
         @test_throws ErrorException has_upper_bound(pref)
     end
     # JuMP.upper_bound
     @testset "JuMP.upper_bound" begin
-        set_infinite_set(pref, DistributionSet(Multinomial(3, 2)))
+        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/3, 1/3])))
         @test_throws ErrorException upper_bound(pref)
         set_infinite_set(pref, IntervalSet(0, 1))
         @test upper_bound(pref) == 1
