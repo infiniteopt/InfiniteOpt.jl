@@ -251,6 +251,25 @@ end
         expected = InfOptParameter(set, [0., 0.5, 1.], false)
         @test build_parameter(error, set, num_supports = 3) == expected
     end
+    # _check_supports_dimensions
+    @testset "_check_supports_dimensions" begin
+        model = InfiniteModel()
+        param1 = InfOptParameter(IntervalSet(0, 1), Number[], false)
+        param2 = InfOptParameter(IntervalSet(0, 1), [0], false)
+        model.param_to_group_id[1] = 1
+        model.param_to_group_id[2] = 1
+        model.params[1] = param1
+        model.params[2] = param2
+        model.next_param_id = 1
+        @test InfiniteOpt._check_supports_dimensions(model, param1, 1) isa Nothing
+        @test_throws ErrorException InfiniteOpt._check_supports_dimensions(model, param2, 2)
+        model.param_to_group_id[3] = 2
+        model.params[3] = param1
+        model.next_param_id = 2
+        @test InfiniteOpt._check_supports_dimensions(model, param1, 3) isa Nothing
+        model.params[1] = param2
+        @test InfiniteOpt._check_supports_dimensions(model, param2, 2) isa Nothing
+    end
     # add_parameter
     @testset "add_parameter" begin
         m = InfiniteModel()

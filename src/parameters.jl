@@ -179,7 +179,8 @@ function build_parameter(_error::Function, set::AbstractInfiniteSet,
     return InfOptParameter(set, supports, independent)
 end
 
-#
+# Check the number of supports of one dimension matches the other dimension
+# within the same multi-dimensional parameter
 function _check_supports_dimensions(model::InfiniteModel, p::InfOptParameter,
     index::Int)
     if haskey(model.params, index - 1) &&
