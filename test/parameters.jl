@@ -234,7 +234,41 @@ end
         @test_throws ErrorException build_parameter(error, set, 1)
         warn = "Support points are not unique, eliminating redundant points."
         @test_logs (:warn, warn) build_parameter(error, set, 2,
-                                                 supports = ones(3))
+                                                 supports = ones(3),
+                                                 independent = true)
+        warn = "Ignoring num_supports since supports is not empty."
+        @test_logs (:warn, warn) build_parameter(error, set, 2, supports = [1, 2],
+                                                 num_supports = 1)
+        @test_throws ErrorException build_parameter(error, set, 2,
+                                                    num_supports = 3)
+        repeated_supps = [1, 1]
+        expected = InfOptParameter(set, [1, 1], false)
+        @test build_parameter(error, set, 2, supports = repeated_supps) == expected
+        expected = InfOptParameter(set, [1], true)
+        @test build_parameter(error, set, 2, supports = repeated_supps,
+                              independent = true) == expected
+        set = IntervalSet(0, 1)
+        expected = InfOptParameter(set, [0., 0.5, 1.], false)
+        @test build_parameter(error, set, num_supports = 3) == expected
+    end
+    # _check_supports_dimensions
+    @testset "_check_supports_dimensions" begin
+        model = InfiniteModel()
+        param1 = InfOptParameter(IntervalSet(0, 1), Number[], false)
+        param2 = InfOptParameter(IntervalSet(0, 1), [0], false)
+        model.param_to_group_id[1] = 1
+        model.param_to_group_id[2] = 1
+        model.params[1] = param1
+        model.params[2] = param2
+        model.next_param_id = 1
+        @test InfiniteOpt._check_supports_dimensions(model, param1, 1) isa Nothing
+        @test_throws ErrorException InfiniteOpt._check_supports_dimensions(model, param2, 2)
+        model.param_to_group_id[3] = 2
+        model.params[3] = param1
+        model.next_param_id = 2
+        @test InfiniteOpt._check_supports_dimensions(model, param1, 3) isa Nothing
+        model.params[1] = param2
+        @test InfiniteOpt._check_supports_dimensions(model, param2, 2) isa Nothing
     end
     # add_parameter
     @testset "add_parameter" begin
@@ -396,6 +430,7 @@ end
     m = InfiniteModel()
     param = InfOptParameter(IntervalSet(0, 1), Number[], false)
     pref = add_parameter(m, param, "test")
+    prefs = @infinite_parameter(m, x[1:3] in [0, 1])
     # _parameter_supports
     @testset "_parameter_supports" begin
         @test InfiniteOpt._parameter_supports(pref) == Number[]
@@ -429,6 +464,8 @@ end
         warn = "Support points are not unique, eliminating redundant points."
         @test_logs (:warn, warn) set_supports(pref, [1, 1], force = true)
         @test_throws ErrorException set_supports(pref, [0.5])
+        @test set_supports(prefs[1], [1, 1]) isa Nothing
+        @test supports(prefs[1]) == [1, 1]
     end
     # add_supports
     @testset "add_supports" begin
@@ -436,6 +473,8 @@ end
         @test supports(pref) == [1, 0.5]
         @test isa(add_supports(pref, [0, 0.25, 1]), Nothing)
         @test supports(pref) == [1, 0.5, 0, 0.25]
+        @test add_supports(prefs[2], [1, 1]) isa Nothing
+        @test supports(prefs[2]) == [1, 1]
     end
     # delete_supports
     @testset "delete_supports" begin
@@ -705,5 +744,86 @@ end
         @test isa(set_value(i, 42), Nothing)
         @test value(i) == 42
         @test_throws ErrorException set_value(h, 42)
+    end
+end
+
+# Test support flll-in and geneartion functions
+@testset "Support Fill-in and Generation" begin
+    # fill_in_supports! (InfiniteModel)
+    @testset "fill_in_supports! (InfiniteModel)" begin
+        m = InfiniteModel()
+        dist1 = Normal(0., 1.)
+        dist2 = MvNormal([0.; 0.], [1. 0.;0. 2.])
+        pref_a = @infinite_parameter(m, 0 <= a <= 1)
+        prefs_b = @infinite_parameter(m, 1 <= b[1:2] <= 2)
+        pref_c = @infinite_parameter(m, c in dist1)
+        prefs_d = @infinite_parameter(m, d[1:2] in dist2)
+        pref_e = @infinite_parameter(m, 2 <= e <= 3, supports = [2.3, 2.7])
+        @test fill_in_supports!(m, num_supports = 10) isa Nothing
+        @test supports(pref_a) == round.(collect(range(0., stop = 1., step = 1/9)), sigdigits = 5)
+        @test supports(prefs_b[1]) == round.(collect(range(1., stop = 2., step = 1/9)), sigdigits = 5)
+        @test supports(prefs_b[2]) == round.(collect(range(1., stop = 2., step = 1/9)), sigdigits = 5)
+        @test length(supports(pref_c)) == 10
+        @test length(supports(prefs_d[1])) == 10
+        @test length(supports(prefs_d[2])) == 10
+        @test supports(pref_e) == [2.3, 2.7]
+    end
+    # fill_in_supports! (ParameterRef)
+    @testset "fill_in_supports! (ParameterRef)" begin
+        m = InfiniteModel()
+        pref1 = @infinite_parameter(m, 0 <= a <= 1)
+        pref2 = @infinite_parameter(m, 0 <= b[1:2] <= 1)
+        dist = Normal(0., 1.)
+        pref3 = @infinite_parameter(m, c in dist, supports = [-0.5, 0.5])
+        @test fill_in_supports!(pref1, num_supports = 11, sig_fig = 3) isa Nothing
+        @test fill_in_supports!.(pref2, num_supports = 11, sig_fig = 3) isa Array{Nothing}
+        @test fill_in_supports!(pref3, num_supports = 11, sig_fig = 3) isa Nothing
+        @test length(supports(pref1)) == 11
+        @test length(supports(pref2[1])) == 11
+        @test length(supports(pref2[2])) == 11
+        @test supports(pref3) == [-0.5, 0.5]
+        @test fill_in_supports!(pref1, num_supports = 20) isa Nothing
+        @test length(supports(pref1)) == 11
+    end
+    @testset "_generate_supports (AbstractInfiniteSet)" begin
+        m = InfiniteModel()
+        pref1 = @infinite_parameter(m, 0 <= a <= 1)
+        set1 = JuMP.owner_model(pref1).params[JuMP.index(pref1)].set
+        dist = Normal(0., 1.)
+        pref2 = @infinite_parameter(m, c in dist)
+        set2 = JuMP.owner_model(pref2).params[JuMP.index(pref2)].set
+        @test InfiniteOpt._generate_supports(pref1, set1, num_supports = 10) isa Nothing
+        @test InfiniteOpt._generate_supports(pref2, set2, num_supports = 10) isa Nothing
+        @test length(supports(pref1)) == 10
+        @test length(supports(pref2)) == 10
+    end
+    @testset "_generate_supports (Multivariate DistributionSet)" begin
+        m = InfiniteModel()
+        dist = MvNormal([0.; 0.], [1. 0.; 0. 2.])
+        prefs = @infinite_parameter(m, x[1:2] in dist)
+        set = JuMP.owner_model(prefs[1]).params[JuMP.index(prefs[1])].set
+        @test InfiniteOpt._generate_supports(prefs[1], set, num_supports = 10, sig_fig = 7) isa Nothing
+        @test length(supports(prefs[1])) == 10
+        @test length(supports(prefs[2])) == 10
+    end
+    @testset "_support_values (IntervalSet)" begin
+        set = IntervalSet(0., 1.)
+        supp = InfiniteOpt._support_values(set, num_supports = 10, sig_fig = 3)
+        @test supp isa Vector{<:Number}
+        @test supp[2] == 0.111
+        @test supp[2] != 1/11
+        @test length(supp) == 10
+    end
+    @testset "_support_values (DistributionSet)" begin
+        dist1 = Normal(0., 1.)
+        dist2 = MvNormal([0.; 0.], [1. 0.; 0. 2.])
+        set1 = DistributionSet(dist1)
+        set2 = DistributionSet(dist2)
+        supp1 = InfiniteOpt._support_values(set1, num_supports = 10)
+        supp2 = InfiniteOpt._support_values(set2, num_supports = 10)
+        @test supp1 isa Vector{<:Number}
+        @test supp2 isa Array{<:Number, 2}
+        @test length(supp1) == 10
+        @test size(supp2) == (2, 10)
     end
 end

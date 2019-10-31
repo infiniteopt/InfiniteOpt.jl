@@ -26,7 +26,8 @@ makedocs(;
     authors = "Joshua Pulsipher and Weiqi Zhang",
     doctest = true # TODO need to implement jldoctest
 )
-
+#= Comment this out for testing
 deploydocs(;
     repo = "github.com/pulsipher/InfiniteOpt.jl",
 )
+=#

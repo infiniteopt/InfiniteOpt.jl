@@ -48,6 +48,12 @@ end
     @test InfiniteModel(caching_mode = MOIU.MANUAL) isa JuMP.AbstractModel
     @test InfiniteModel(mockoptimizer,
                         caching_mode = MOIU.MANUAL) isa JuMP.AbstractModel
+    m = InfiniteModel(seed = true)
+    #@test reinterpret(Int32, Random.GLOBAL_RNG.seed)[1] == 0 # this test does not work on travis nightly julia
+    rand_num1 = rand()
+    m = InfiniteModel(seed = true)
+    rand_num2 = rand()
+    @test rand_num1 == rand_num2
 end
 
 # Test reference variable datatypes

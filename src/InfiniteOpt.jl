@@ -7,6 +7,7 @@ const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 const JuMPC = JuMP.Containers
 import Distributions
+import Random
 
 # Import all of the datatpyes, methods, macros, and definitions.
 include("datatypes.jl")
@@ -93,5 +94,8 @@ export map_value, map_optimizer_index, map_dual, map_shadow_price
 
 # Export printing methods
 export bound_string
+
+# Export support generation and fill-in methods
+export fill_in_supports!, generate_supports
 
 end # module
