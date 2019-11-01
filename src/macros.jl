@@ -1306,7 +1306,7 @@ con : x(t, q) + y = 0.0, ∀ t ∈ [0, 5]
 julia> @add_parameter_bounds(con, q == 0)
 
 julia> con
-con : x(t, q) + y = 0.0, ∀ t ∈ [0, 5], q = 0
+con : x(t, q) + y = 0.0, ∀ q = 0, t ∈ [0, 5]
 ```
 """
 macro add_parameter_bounds(ref, bound_expr)
