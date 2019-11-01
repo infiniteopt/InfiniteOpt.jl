@@ -150,7 +150,7 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1, container = SparseAxisArray)
     @infinite_variable(m, inf(par))
-    @global_variable(m, x)
+    @hold_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1], name = "test")
     data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
     meas = Measure(par + 2inf - x, data)
@@ -217,11 +217,31 @@ end
         @test_logs (:warn, warn) InfiniteOpt._update_param_data_mapping(m,
                                                                    BadData(), 1)
     end
+    # test _add_supports_to_parameters (scalar)
+    @testset "_add_supports_to_parameters (scalar)" begin
+        # test functionality
+        @test isa(InfiniteOpt._add_supports_to_parameters(par, [1]), Nothing)
+        @test supports(par) == [1]
+        # clear supports
+        delete_supports(par)
+    end
+    # test _add_supports_to_parameters (array)
+    @testset "_add_supports_to_parameters (array)" begin
+        # test functionality
+        supp = convert(JuMP.Containers.SparseAxisArray, [1, 1])
+        @test isa(InfiniteOpt._add_supports_to_parameters(pars, [supp]), Nothing)
+        @test supports(pars[1]) == [1]
+        @test supports(pars[2]) == [1]
+        # clear supports
+        delete_supports(pars[1])
+        delete_supports(pars[2])
+    end
     # test add_measure
     @testset "add_measure" begin
         mref = MeasureRef(m, 1)
         @test add_measure(m, meas) == mref
         @test name(mref) == "test(par + 2 inf(par) - x)"
+        @test supports(par) == [1]
         @test m.var_to_meas[JuMP.index(inf)] == [1]
         @test m.var_to_meas[JuMP.index(x)] == [1]
         @test m.param_to_meas[JuMP.index(par)] == [1]
@@ -238,7 +258,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
-    @global_variable(m, x)
+    @hold_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
     meas = Measure(par + 2inf - x, data)
     mref = add_measure(m, meas)
@@ -263,7 +283,7 @@ end
     @infinite_variable(m, inf2(par, par2))
     @infinite_variable(m, inf3(par2))
     @infinite_variable(m, inf4(pars))
-    @global_variable(m, x)
+    @hold_variable(m, x)
     m.reduced_info[-1] = ReducedInfiniteInfo(inf2, Dict(2 => 0.5))
     m.infinite_to_reduced[JuMP.index(inf2)] = [-1]
     rv = ReducedInfiniteVariableRef(m, -1)
@@ -337,31 +357,31 @@ end
     # _check_has_parameter (scalar)
     @testset "_check_has_parameter (scalar)" begin
         # test that is has the parameter
-        @test isa(InfiniteOpt._check_has_parameter(par, par), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter(inf, par), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter(x - inf, par), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter(x + mref2 + mref4, par),
+        @test isa(InfiniteOpt._check_has_parameter([par], par), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([inf], par), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([x, inf], par), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([x, mref2, mref4], par),
                   Nothing)
         # test is does not have the parameter
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(par, par2)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(inf, par2)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(x - inf,
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([par], par2)
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([inf], par2)
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([x, inf],
                                                                      par2)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(x + mref1 +
-                                                                    mref5, par2)
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([x, mref1,
+                                                                    mref5], par2)
     end
     # _check_has_parameter (array)
     @testset "_check_has_parameter (array)" begin
         # test that is has the parameter
-        @test isa(InfiniteOpt._check_has_parameter(pars[1] + pars[2], pars), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter(inf4, pars), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter(x - inf4, pars), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter(x + mref6, pars), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([pars[1], pars[2]], pars), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([inf4], pars), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([x, inf4], pars), Nothing)
+        @test isa(InfiniteOpt._check_has_parameter([x, mref6], pars), Nothing)
         # test is does not have the parameter
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(pars[1], pars)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(inf2, pars)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter(x + mref1 +
-                                                                    mref5, pars)
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([pars[1]], pars)
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([inf2], pars)
+        @test_throws ErrorException InfiniteOpt._check_has_parameter([x, mref1,
+                                                                    mref5], pars)
     end
 end
 
@@ -376,65 +396,101 @@ end
     @infinite_variable(m, inf2(par, par2))
     @infinite_variable(m, inf3(par2))
     @infinite_variable(m, inf4(pars))
-    @global_variable(m, x)
+    @hold_variable(m, x)
     # prepare measure data
     data = DiscreteMeasureData(par, [1], [1], name = "a")
     data2 = DiscreteMeasureData(par2, [1], [1], name = "b")
     data3 = DiscreteMeasureData(pars, [1], [[1, 1]], name = "c")
     # test _model_from_expr
     @testset "_model_from_expr" begin
-        @test InfiniteOpt._model_from_expr(par) == m
-        @test InfiniteOpt._model_from_expr(inf + par) == m
-        @test InfiniteOpt._model_from_expr(inf^2) == m
-        @test isa(InfiniteOpt._model_from_expr(zero(GenericAffExpr{Float64,
-                                                 GeneralVariableRef})), Nothing)
+        @test InfiniteOpt._model_from_expr([par]) == m
+        @test InfiniteOpt._model_from_expr([inf, par]) == m
+        @test InfiniteOpt._model_from_expr([inf]) == m
+        @test isa(InfiniteOpt._model_from_expr(GeneralVariableRef[]), Nothing)
     end
-    # test _add_supports_to_parameters (scalar)
-    @testset "_add_supports_to_parameters (scalar)" begin
-        # test functionality
-        @test isa(InfiniteOpt._add_supports_to_parameters(par, [1]), Nothing)
-        @test supports(par) == [1]
-        # clear supports
+    # test _check_var_bounds (GeneralVariableRef)
+    @testset "_check_var_bounds (General)" begin
+        @test isa(InfiniteOpt._check_var_bounds(inf, data), Nothing)
+    end
+    # test _check_var_bounds (HoldVariableRef with DiscreteMeasureData)
+    @testset "_check_var_bounds (Hold with Discrete)" begin
+        # test normal
+        @set_parameter_bounds(x, par == 1)
+        @test isa(InfiniteOpt._check_var_bounds(x, data), Nothing)
+        # test error
+        add_parameter_bound(x, par, 0, 0)
+        @test_throws ErrorException InfiniteOpt._check_var_bounds(x, data)
+        set_parameter_bounds(x, ParameterBounds(), force = true)
         delete_supports(par)
     end
-    # test _add_supports_to_parameters (array)
-    @testset "_add_supports_to_parameters (array)" begin
-        # test functionality
-        supp = convert(JuMP.Containers.SparseAxisArray, [1, 1])
-        @test isa(InfiniteOpt._add_supports_to_parameters(pars, [supp]), Nothing)
-        @test supports(pars[1]) == [1]
-        @test supports(pars[2]) == [1]
-        # clear supports
-        delete_supports(pars[1])
-        delete_supports(pars[2])
+    # test _check_var_bounds (HoldVariableRef with MultiDiscreteMeasureData)
+    @testset "_check_var_bounds (Hold with Multi)" begin
+        # test normal
+        @set_parameter_bounds(x, pars == 1)
+        @test isa(InfiniteOpt._check_var_bounds(x, data3), Nothing)
+        # test error
+        @add_parameter_bounds(x, pars == 0)
+        @test_throws ErrorException InfiniteOpt._check_var_bounds(x, data3)
+        set_parameter_bounds(x, ParameterBounds(), force = true)
+        delete_supports.(pars)
+    end
+    # test _check_var_bounds (HoldVariableRef Fallback)
+    @testset "_check_var_bounds (Hold Fallback)" begin
+        warn = "Unable to check if hold variables bounds are valid in measure " *
+               "with custom measure data type BadData."
+        @test_logs (:warn, warn) InfiniteOpt._check_var_bounds(x, BadData())
+    end
+    # test _check_var_bounds (MeasureRef)
+    @testset "_check_var_bounds (Measure)" begin
+        # make some measures
+        meas1 = Measure(par, data)
+        mref1 = add_measure(m, meas1)
+        meas2 = Measure(x - mref1, data)
+        mref2 = add_measure(m, meas2)
+        # test normal
+        @set_parameter_bounds(x, par == 1)
+        @test isa(InfiniteOpt._check_var_bounds(mref1, data), Nothing)
+        @test isa(InfiniteOpt._check_var_bounds(mref2, data), Nothing)
+        delete_supports(par)
+        set_parameter_bounds(x, ParameterBounds(), force = true)
     end
     # test measure
     @testset "measure" begin
         # test single use
-        mref = MeasureRef(m, 1)
+        index = m.next_meas_index
+        mref = MeasureRef(m, index + 1)
         @test measure(inf + x, data) == mref
         @test name(mref) == "a(inf(par) + x)"
         @test supports(par) == [1]
-        @test !m.meas_in_objective[1]
+        @test !m.meas_in_objective[index + 1]
         # test nested use
-        mref2 = MeasureRef(m, 2)
-        mref3 = MeasureRef(m, 3)
+        mref2 = MeasureRef(m, index + 2)
+        mref3 = MeasureRef(m, index + 3)
         @test measure(inf + measure(inf2 + x, data2), data) == mref3
         @test name(mref3) == "a(inf(par) + b(inf2(par, par2) + x))"
         @test supports(par) == [1]
         @test supports(par2) == [1]
         # test vector parameter
-        mref4 = MeasureRef(m, 4)
+        mref4 = MeasureRef(m, index + 4)
         @test measure(inf4 + x, data3) == mref4
         @test name(mref4) == "c(inf4(pars) + x)"
         @test supports(pars[1]) == [1]
         @test supports(pars[2]) == [1]
+        # test with hold bounds
+        @set_parameter_bounds(x, par == 1)
+        mref = MeasureRef(m, index + 5)
+        @test measure(inf + x, data) == mref
+        @test name(mref) == "a(inf(par) + x)"
+        @test supports(par) == [1]
         # test errors
         @test_throws ErrorException measure(x, data)
         @test_throws ErrorException measure(zero(GenericAffExpr{Float64,
                                                      GeneralVariableRef}), data)
         @test_throws ErrorException measure(par2, data)
         @test_throws ErrorException measure(inf4 + measure(inf + x, data3), data)
+        # test with bad variable bounds
+        InfiniteOpt._update_variable_param_bounds(x, ParameterBounds(Dict(par => IntervalSet(0, 0))))
+        @test_throws ErrorException measure(inf + x, data)
     end
 end
 

@@ -1,16 +1,16 @@
-# Make jump variables and a dict mapping global vars to jump vars
-function _initialize_global_variables(trans_model::JuMP.Model,
+# Make jump variables and a dict mapping hold vars to jump vars
+function _initialize_hold_variables(trans_model::JuMP.Model,
                                       inf_model::InfiniteOpt.InfiniteModel)
-    # search inf_model for global vars and make a jump var for one that is used
+    # search inf_model for hold vars and make a jump var for one that is used
     for index in sort(collect(keys(inf_model.vars)))
         var = inf_model.vars[index]
-        if isa(var, InfiniteOpt.GlobalVariable)
-            gvref = InfiniteOpt.GlobalVariableRef(inf_model, index)
-            if is_used(gvref)
+        if isa(var, InfiniteOpt.HoldVariable)
+            hvref = InfiniteOpt.HoldVariableRef(inf_model, index)
+            if is_used(hvref)
                 vref = JuMP.add_variable(trans_model,
                                          JuMP.ScalarVariable(var.info),
-                                         JuMP.name(gvref))
-                transcription_data(trans_model).global_to_var[gvref] = vref
+                                         JuMP.name(hvref))
+                transcription_data(trans_model).hold_to_var[hvref] = vref
             end
         end
     end
@@ -241,7 +241,7 @@ function _supports_in_bounds(supports::Vector, prefs::Tuple, bounds::Dict)::Vect
 end
 
 ## Convert jump scalar expressions with InfiniteOpt variables into transcribed relations
-# PointVariableRef and GlobalVariableRef --> return scalar jump object
+# PointVariableRef and HoldVariableRef --> return scalar jump object
 function _make_transcription_function(vref::InfiniteOpt.FiniteVariableRef,
                                       trans_model::JuMP.Model,
                                       bounds::Dict = Dict())::Tuple
@@ -597,7 +597,7 @@ function _set_constraints(trans_model::JuMP.Model, inf_model::InfiniteOpt.Infini
             icref = InfiniteOpt._make_constraint_ref(inf_model, index)
             if isa(constr, BoundedScalarConstraint)
                 results = _make_transcription_function(constr.func, trans_model,
-                                                       constr.bounds)
+                                                       constr.bounds.intervals)
             else
                 results = _make_transcription_function(constr.func, trans_model)
             end
@@ -787,7 +787,7 @@ function TranscriptionModel(inf_model::InfiniteOpt.InfiniteModel,
         trans_model = TranscriptionModel(optimizer_factory; kwargs...)
     end
     InfiniteOpt.fill_in_supports!(inf_model)
-    _initialize_global_variables(trans_model, inf_model)
+    _initialize_hold_variables(trans_model, inf_model)
     _initialize_infinite_variables(trans_model, inf_model)
     _map_point_variables(trans_model, inf_model)
     if JuMP.objective_sense(inf_model) != MOI.FEASIBILITY_SENSE

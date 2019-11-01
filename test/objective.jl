@@ -5,7 +5,7 @@
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
-    @global_variable(m, x)
+    @hold_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
     meas = measure(inf + par - x, data)
     # test objective_sense
@@ -51,7 +51,7 @@
                                     FiniteVariableRef}) == zero(GenericAffExpr{Float64,
                                                                 FiniteVariableRef})
         # test new sense
-        @test_throws InexactError objective_function(m, GlobalVariableRef)
+        @test_throws InexactError objective_function(m, HoldVariableRef)
     end
 end
 
@@ -62,7 +62,7 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
-    @global_variable(m, x)
+    @hold_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
     meas = measure(inf + par - x, data)
     # set_objective_sense
@@ -96,7 +96,7 @@ end
         # test normal
         @test isa(set_objective_function(m, 3), Nothing)
         @test objective_function(m) == GenericAffExpr{Float64,
-                                                      GlobalVariableRef}(3)
+                                                      HoldVariableRef}(3)
         @test !used_by_objective(x)
         @test !used_by_objective(pt)
         @test !used_by_objective(meas)
@@ -127,7 +127,7 @@ end
         # test normal
         @test isa(set_objective(m, MOI.MIN_SENSE, 3), Nothing)
         @test objective_function(m) == GenericAffExpr{Float64,
-                                                      GlobalVariableRef}(3)
+                                                      HoldVariableRef}(3)
         @test objective_sense(m) == MOI.MIN_SENSE
         @test !used_by_objective(x)
         @test !used_by_objective(pt)
@@ -153,7 +153,7 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
-    @global_variable(m, x)
+    @hold_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
     meas = measure(inf + par - x, data)
     # test set_objective_coefficient

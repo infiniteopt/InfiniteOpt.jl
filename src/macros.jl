@@ -555,7 +555,7 @@ julia> @infinite_variable(model, lb[i] <= y[i = 1:2](t) <= ub[i], Int)
 ```
 """
 macro infinite_variable(model, args...)
-    _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...),
+    _error(str...) = JuMP._macro_error(:infinite_variable, (model, args...),
                                        str...)
 
     extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
@@ -566,7 +566,7 @@ macro infinite_variable(model, args...)
         code = quote
             @assert isa($model, InfiniteModel) "Model must be an `InfiniteModel`."
             JuMP.@variable($model, ($(args...)), variable_type = Infinite,
-                           error = $_error)
+                           macro_error = $_error)
         end
     else
         x = popfirst!(extra)
@@ -603,7 +603,8 @@ macro infinite_variable(model, args...)
                                                    "`InfiniteModel`."
                 JuMP.@variable($model, ($(inf_expr)),
                                variable_type = Infinite,
-                               parameter_refs = $params, error = $_error)
+                               parameter_refs = $params,
+                               macro_error = $_error)
             end
         # here we need to parse the extra args and include them in the call
         else
@@ -613,7 +614,8 @@ macro infinite_variable(model, args...)
                     @assert isa($model, InfiniteModel) "Model must be an " *
                                                        "`InfiniteModel`."
                     JuMP.@variable($model, ($(inf_expr)), ($(rest_args...)),
-                                   variable_type = Infinite, error = $_error)
+                                   variable_type = Infinite,
+                                   macro_error = $_error)
                 end
             else
                 code = quote
@@ -621,7 +623,8 @@ macro infinite_variable(model, args...)
                                                        "`InfiniteModel`."
                     JuMP.@variable($model, ($(inf_expr)), ($(rest_args...)),
                                    variable_type = Infinite,
-                                   parameter_refs = $params, error = $_error)
+                                   parameter_refs = $params,
+                                   macro_error = $_error)
                 end
             end
         end
@@ -742,7 +745,7 @@ julia> @point_variable(model, y[i](0), y0[i = 1:2], Bin)
 ```
 """
 macro point_variable(model, args...)
-    _error(str...) = JuMP._macro_error(:point_parameter,
+    _error(str...) = JuMP._macro_error(:point_variable,
                                        (model, args...), str...)
 
     extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
@@ -754,7 +757,7 @@ macro point_variable(model, args...)
             @assert isa($model, InfiniteModel) "Model must be an " *
                                                "`InfiniteModel`."
             JuMP.@variable($model, ($(args...)), variable_type = Point,
-                           error = $_error)
+                           macro_error = $_error)
         end
     else
         x = popfirst!(extra)
@@ -774,14 +777,15 @@ macro point_variable(model, args...)
                                                    "`InfiniteModel`."
                 JuMP.@variable($model, ($(rest_args...)), variable_type = Point,
                                infinite_variable_ref = $inf_var,
-                               parameter_values = $param_vals, error = $_error)
+                               parameter_values = $param_vals,
+                               macro_error = $_error)
             end
         elseif isexpr(x, :vect) && length(extra) == 0
             code = quote
                 @assert isa($model, InfiniteModel) "Model must be an " *
                                                    "`InfiniteModel`."
                 JuMP.@variable($model, ($(args...)), variable_type = Point,
-                               error = $_error)
+                               macro_error = $_error)
             end
         else
             _error("Invalid input syntax.")
@@ -791,16 +795,16 @@ macro point_variable(model, args...)
 end
 
 """
-    @global_variable(model, kw_args...)
+    @hold_variable(model, kw_args...)
 
-Add an *anonymous* global variable to the model `model` described by the
+Add an *anonymous* hold variable to the model `model` described by the
 keyword arguments `kw_args` and returns the variable reference.
 
 ```julia
-@global_variable(model, varexpr, args..., kw_args...)
+@hold_variable(model, varexpr, args..., kw_args...)
 ```
 
-Add a global variable to `model` described by the expression `varexpr`, the
+Add a hold variable to `model` described by the expression `varexpr`, the
 positional arguments `args` and the keyword arguments `kw_args`. The expression
 `varexpr` can either be (note that in the following the symbol `<=` can be used
 instead of `≤` and the symbol `>=`can be used instead of `≥`) of the form:
@@ -823,7 +827,26 @@ The recognized positional arguments in `args` are the following:
 - `Bin`: Sets the variable to be binary, i.e. either 0 or 1.
 - `Int`: Sets the variable to be integer, i.e. one of ..., -2, -1, 0, 1, 2, ...
 
-The recognized keyword arguments in `kw_args` are the following:
+Specifiying a hold variable which applies only to sub-domain of the model's
+infinite parameter(s) domain can be done via the `parameter_bounds` keyword
+argument. It is specified as a tuple of parameter bound expressions which can
+be of the form:
+
+- `(param in [lb, ub], ...)` enforcing `param` to be in a sub-domain from `lb`
+                             to `ub` (note `∈` can be used in place of `in`)
+- `(params in [lb, ub], ...)` enforcing that all parameter references in `params`
+                              each be a in sub-domain from `lb` to `ub`
+- `(lb <= param <= ub, ...)` enforcing `param` to be in a sub-domain from `lb`
+                             to `ub`
+- `(lb <= params <= ub, ...)` enforcing that all parameter references in `params`
+                              each be a in sub-domain from `lb` to `ub`
+- `(param == value, ...)` enforcing `param` to be equal to `value`
+- `(params == value, ...)` enforcing that all parameter references in `params`
+                            each to be equal to `value`
+- Any combination of the above forms. Must be inside parentheses and comma
+  separated.
+
+The other recognized keyword arguments in `kw_args` are the following:
 
 - `base_name`: Sets the name prefix used to generate variable names. It
   corresponds to the variable name for scalar variable, otherwise, the
@@ -837,33 +860,62 @@ The recognized keyword arguments in `kw_args` are the following:
 - `container`: Specify the container type.
 
 **Examples**
-```julia
-julia> @global_variable(model, x)
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 10]))
+julia> @hold_variable(model, x)
 x
 
-julia> @global_variable(model, 0 <= y <= 4, Bin)
+julia> @hold_variable(model, 0 <= y <= 4, Bin)
 y
 
-julia> y = @global_variable(model, lower_bound = 0, upper_bound = 4,
+julia> y = @hold_variable(model, lower_bound = 0, upper_bound = 4,
                             binary = true, base_name = "y")
 y
 
-julia> @global_variable(model, z[2:3] == 0)
-1-dimensional DenseAxisArray{GlobalVariableRef,1,...} with index sets:
+julia> @hold_variable(model, z[2:3] == 0)
+1-dimensional DenseAxisArray{HoldVariableRef,1,...} with index sets:
     Dimension 1, 2:3
-And data, a 2-element Array{GlobalVariableRef,1}:
+And data, a 2-element Array{HoldVariableRef,1}:
  z[2]
  z[3]
+
+julia> @hold_variable(model, d, parameter_bounds = (t in [0, 5]))
+d
 ```
 """
-macro global_variable(model, args...)
-    _error(str...) = JuMP._macro_error(:global_parameter, (model, args...),
+macro hold_variable(model, args...)
+    _error(str...) = JuMP._macro_error(:hold_variable, (model, args...),
                                        str...)
-    code = quote
-        @assert isa($model, InfiniteModel) "Model must be an " *
-                                           "`InfiniteModel`."
-        JuMP.@variable($model, ($(args...)), variable_type = Global,
-                       error = $_error)
+    # parse the arguments
+    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    bound_kw_args = filter(kw -> kw.args[1] == :parameter_bounds, kw_args)
+
+    # no bounds given so we don't need to do anything
+    if length(bound_kw_args) == 0
+        code = quote
+            @assert isa($model, InfiniteModel) "Model must be an " *
+                                               "`InfiniteModel`."
+            JuMP.@variable($model, ($(args...)), variable_type = Hold,
+                           macro_error = $_error)
+        end
+    else
+        x = bound_kw_args[1].args[2]
+        if isexpr(x, :call) || isexpr(x, :tuple) || isexpr(x, :comparison)
+           name_expr, bounds = InfiniteOpt._extract_bounds(_error, x.args,
+                                                           Val(x.head))
+        else
+           _error("Unrecognized input format for parameter bounds. Must be of " *
+                  "tuple with elements of form: par(s) in [lb, ub] or " *
+                  "par(s) = value.")
+        end
+        extra_kw_args = filter(kw -> kw.args[1] != :parameter_bounds, kw_args)
+        code = quote
+            @assert isa($model, InfiniteModel) "Model must be an " *
+                                               "`InfiniteModel`."
+            JuMP.@variable($model, ($(extra...)), variable_type = Hold,
+                           parameter_bounds = ($(bounds)), macro_error = $_error,
+                           container = ($(requestedcontainer)),
+                           ($(extra_kw_args...)))
+        end
     end
     return esc(code)
 end
@@ -946,14 +998,14 @@ function _make_bound_pair(_error::Function, expr::Expr)
         return _make_bound_pair(_error, expr, Val(expr.args[2]), Val(expr.args[4]))
     else
         _error("Unrecognized input format for parameter bounds. Must be of form " *
-        "par in [lb, ub], lb <= par <= ub, or par = value.")
+               "par in [lb, ub], lb <= par <= ub, or par = value.")
     end
 end
 
 # Return a dictionary of parameter bounds given raw vector of call expressions
 function _parse_parameter_bounds(_error::Function, args::Vector)
     dict_args = [_make_bound_pair(_error, arg) for arg in args]
-    return Expr(:call, :Dict, dict_args...)
+    return Expr(:call, :ParameterBounds, Expr(:call, :Dict, dict_args...))
 end
 
 # Only 1 parameter bound is given thus dispatch as a vector to make dictionary
@@ -1089,8 +1141,8 @@ macro BDconstraint(model, args...)
                    "form @BDconstraint(model, name[i=..., ...](par in [lb, ub], " *
                    "par2 = value, ...), expr).")
         end
-
-        # e have a single anonymous constraint
+        # TODO check the expression type somewhere...
+        # we have a single anonymous constraint
         if isa(name_expr, Nothing)
             code = quote
                 @assert isa($model, InfiniteModel) "Model must be an " *
@@ -1108,6 +1160,177 @@ macro BDconstraint(model, args...)
                                  parameter_bounds = ($(bounds)), ($(kw_args...)),
                                  container = ($(requestedcontainer)))
             end
+        end
+    end
+    return esc(code)
+end
+
+# TODO add looping capability for multi-dimensional refs
+"""
+    @set_parameter_bounds(ref, bound_expr; [force = false])
+
+Specify new parameter bounds for a constraint reference or hold variable
+reference `ref`. These bounds correspond to bounding a constraint in an
+equivalent way to using [`@BDconstraint`](@ref) or to limiting the scope of a
+hold variable in an equivalent way to using the `parameter_bounds` keyword
+argument in [`@hold_variable`](@ref). Here `(bound_expr)` can be of the form:
+
+- `(param in [lb, ub], ...)` enforcing `param` to be in a sub-domain from `lb`
+                             to `ub` (note `∈` can be used in place of `in`)
+- `(params in [lb, ub], ...)` enforcing that all parameter references in `params`
+                              each be a in sub-domain from `lb` to `ub`
+- `(lb <= param <= ub, ...)` enforcing `param` to be in a sub-domain from `lb`
+                             to `ub`
+- `(lb <= params <= ub, ...)` enforcing that all parameter references in `params`
+                              each be a in sub-domain from `lb` to `ub`
+- `(param == value, ...)` enforcing `param` to be equal to `value`
+- `(params == value, ...)` enforcing that all parameter references in `params`
+                            each to be equal to `value`
+- Any combination of the above forms. Must be inside parentheses and comma
+  separated.
+
+Errors if the constraint or variable corresponding to `ref` already has bounds.
+However, using `force = true` can be used ignore the current bounds and
+overwrite them with new ones. Also, note that bounds on dependent constraints
+of hold variables will be updated to account for changes in hold variable bounds.
+
+**Examples**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+julia> @infinite_parameter(model, t in [0, 10])
+t
+
+julia> @infinite_variable(model, x(t))
+x(t)
+
+julia> @hold_variable(model, y)
+y
+
+julia> @constraint(model, con, x + y == 0)
+con : x(t) + y = 0.0
+
+julia> @set_parameter_bounds(y, t in [0, 5])
+
+julia> con
+con : x(t) + y = 0.0, ∀ t ∈ [0, 5]
+
+julia> @set_parameter_bounds(con, t == 0, force = true)
+
+julia> con
+con : x(t) + y = 0.0, ∀ t = 0
+```
+"""
+macro set_parameter_bounds(ref, bound_expr, args...)
+    # define appropriate error message function
+    _error(str...) = JuMP._macro_error(:set_parameter_bounds,
+                                       (ref, bound_expr, args...), str...)
+
+    # parse the arguments
+    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    extra_kw_args = filter(kw -> kw.args[1] != :force, kw_args)
+    if length(extra) != 0
+        _error("Too many positional arguments.")
+    elseif length(extra_kw_args) != 0
+        _error("Unrecognized keyword arguments.")
+    end
+
+    # parse the bounds
+    x = bound_expr
+    if isexpr(x, :call) || isexpr(x, :tuple) || isexpr(x, :comparison)
+       name_expr, bounds = InfiniteOpt._extract_bounds(_error, x.args,
+                                                       Val(x.head))
+    else
+       _error("Unrecognized input format for parameter bounds. Must be of " *
+              "tuple with elements of form: par(s) in [lb, ub] or " *
+              "par(s) = value.")
+    end
+    # prepare the code
+    code = quote
+        @assert(isa($ref, Union{GeneralConstraintRef, HoldVariableRef}),
+                "Reference must correspond to a constraint or hold variable.")
+        set_parameter_bounds($ref, $bounds; ($(args...)), _error = $_error)
+    end
+    return esc(code)
+end
+
+"""
+    @add_parameter_bounds(ref, bound_expr)
+
+Add new parameter bounds for a constraint reference or hold variable
+reference `ref`. These bounds correspond to bounding a constraint in an
+equivalent way to using [`@BDconstraint`](@ref) or to limiting the scope of a
+hold variable in an equivalent way to using the `parameter_bounds` keyword
+argument in [`@hold_variable`](@ref). Here `(bound_expr)` can be of the form:
+
+- `(param in [lb, ub], ...)` enforcing `param` to be in a sub-domain from `lb`
+                             to `ub` (note `∈` can be used in place of `in`)
+- `(params in [lb, ub], ...)` enforcing that all parameter references in `params`
+                              each be a in sub-domain from `lb` to `ub`
+- `(lb <= param <= ub, ...)` enforcing `param` to be in a sub-domain from `lb`
+                             to `ub`
+- `(lb <= params <= ub, ...)` enforcing that all parameter references in `params`
+                              each be a in sub-domain from `lb` to `ub`
+- `(param == value, ...)` enforcing `param` to be equal to `value`
+- `(params == value, ...)` enforcing that all parameter references in `params`
+                            each to be equal to `value`
+- Any combination of the above forms. Must be inside parentheses and comma
+  separated.
+
+Errors if the new bounds cause irreconcilable differences with existing measures
+and constraints. For example, this occurs when adding hold variable bounds
+that are outside the domain of a bounded constraint that uses that hold variable.
+Also, note that bounds on dependent constraints of hold variables will be
+updated to account for changes in hold variable bounds.
+
+**Examples**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+julia> @infinite_parameter(model, t in [0, 10])
+t
+
+julia> @infinite_parameter(model, q in [-2, 2])
+q
+
+julia> @infinite_variable(model, x(t, q))
+x(t, q)
+
+julia> @hold_variable(model, y)
+y
+
+julia> @constraint(model, con, x + y == 0)
+con : x(t, q) + y = 0.0
+
+julia> @add_parameter_bounds(y, t in [0, 5])
+
+julia> con
+con : x(t, q) + y = 0.0, ∀ t ∈ [0, 5]
+
+julia> @add_parameter_bounds(con, q == 0)
+
+julia> con
+con : x(t, q) + y = 0.0, ∀ t ∈ [0, 5], q = 0
+```
+"""
+macro add_parameter_bounds(ref, bound_expr)
+    # define appropriate error message function
+    _error(str...) = JuMP._macro_error(:add_parameter_bounds,
+                                       (ref, bound_expr), str...)
+
+    # parse the bounds
+    x = bound_expr
+    if isexpr(x, :call) || isexpr(x, :tuple) || isexpr(x, :comparison)
+       name_expr, bounds = InfiniteOpt._extract_bounds(_error, x.args,
+                                                       Val(x.head))
+    else
+       _error("Unrecognized input format for parameter bounds. Must be of " *
+              "tuple with elements of form: par(s) in [lb, ub] or " *
+              "par(s) = value.")
+    end
+    # prepare the code
+    code = quote
+        @assert(isa($ref, Union{GeneralConstraintRef, HoldVariableRef}),
+                "Reference must correspond to a constraint or hold variable.")
+        for (pref, set) in ($(bounds)).intervals
+            add_parameter_bound($ref, pref, set.lower_bound, set.upper_bound,
+                                 _error = $_error)
         end
     end
     return esc(code)

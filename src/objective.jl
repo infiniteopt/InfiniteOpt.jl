@@ -59,7 +59,7 @@ julia> objective_function(model)
 """
 function JuMP.set_objective_function(model::InfiniteModel, func::Real)
     # update function
-    model.objective_function = JuMP.GenericAffExpr{Float64, GlobalVariableRef}(func)
+    model.objective_function = JuMP.GenericAffExpr{Float64, HoldVariableRef}(func)
     # delete old mappings
     for vindex in keys(model.var_in_objective)
         model.var_in_objective[vindex] = false

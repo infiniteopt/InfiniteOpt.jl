@@ -31,6 +31,18 @@ function Base.convert(::Type{JuMPC.SparseAxisArray},
     return JuMPC.SparseAxisArray(data)
 end
 
+## Extensions for ParameterBounds
+# length
+Base.length(bounds::ParameterBounds)::Int = length(bounds.intervals)
+
+# equal to
+function Base.:(==)(bounds1::ParameterBounds, bounds2::ParameterBounds)::Bool
+    return bounds1.intervals == bounds2.intervals
+end
+
+# copy
+Base.copy(bounds::ParameterBounds) = ParameterBounds(copy(bounds.intervals))
+
 # function Base.convert(::Type{Array}, arr::JuMPC.SparseAxisArray)
 #
 # end
@@ -39,6 +51,14 @@ end
 #                       arr::JuMPC.SparseAxisArray)
 #
 # end
+
+# Extend to handle InfOptParameters correctly
+function Base.:(==)(p1::InfOptParameter, p2::InfOptParameter)
+    check1 = p1.set == p2.set
+    check2 = isequal(p1.supports, p2.supports)
+    check3 = p1.independent == p2.independent
+    return (check1 && check2 && check3)
+end
 
 # Hack to make the keys function work for sparse arrays
 Base.keys(d::JuMPC.SparseAxisArray) = keys(d.data)

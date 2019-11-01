@@ -4,14 +4,14 @@
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_variable(m, inf(par))
-    @global_variable(m, g)
+    @hold_variable(m, g)
     # setup the mock solved transcription model
     tm = transcription_model(m)
     @variable(tm, x)
     @variable(tm, y)
     @objective(tm, Min, x^2)
     @constraint(tm, c1, 2 * x * y <= 1)
-    tm.ext[:TransData].global_to_var[g] = x
+    tm.ext[:TransData].hold_to_var[g] = x
     tm.ext[:TransData].infinite_to_vars[inf] = [x, y]
     modelstring = """
     variables: x, y
@@ -64,14 +64,14 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_variable(m, inf(par))
-    @global_variable(m, g)
+    @hold_variable(m, g)
     # setup the mock solved transcription model
     tm = transcription_model(m)
     @variable(tm, x)
     @variable(tm, y)
     @objective(tm, Min, x^2)
     @constraint(tm, c1, 2 * x * y <= 1)
-    tm.ext[:TransData].global_to_var[g] = x
+    tm.ext[:TransData].hold_to_var[g] = x
     tm.ext[:TransData].infinite_to_vars[inf] = [x, y]
     modelstring = """
     variables: x, y
@@ -107,14 +107,14 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_variable(m, inf(par))
-    @global_variable(m, g)
+    @hold_variable(m, g)
     # setup the mock solved transcription model
     tm = transcription_model(m)
     @variable(tm, x)
     @variable(tm, y)
     @objective(tm, Min, x^2)
     @constraint(tm, c1, x <= 0)
-    tm.ext[:TransData].global_to_var[g] = x
+    tm.ext[:TransData].hold_to_var[g] = x
     tm.ext[:TransData].infinite_to_vars[inf] = [x, y]
     modelstring = """
     variables: x, y
@@ -161,7 +161,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_variable(m, inf(par))
-    @global_variable(m, g)
+    @hold_variable(m, g)
     @constraint(m, c1, g <= 0)
     @constraint(m, c2, inf >= 0)
     # setup the mock solved transcription model
@@ -173,7 +173,7 @@ end
     @constraint(tm, c3, x <= 0)
     @constraint(tm, c4, y >= 0)
     @constraint(tm, c5, z >= 0)
-    tm.ext[:TransData].global_to_var[g] = x
+    tm.ext[:TransData].hold_to_var[g] = x
     tm.ext[:TransData].infinite_to_vars[inf] = [y, z]
     tm.ext[:TransData].finite_to_constr[c1] = c3
     tm.ext[:TransData].infinite_to_constrs[c2] = [c4, c5]

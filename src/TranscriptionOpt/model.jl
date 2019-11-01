@@ -10,7 +10,7 @@ constructor.
 **Fields**
 - `infinite_to_vars::Dict{InfiniteOpt.InfiniteVariableRef,
    Vector{JuMP.VariableRef}}`: Infinite variables to their transcribed variables.
-- `global_to_var::Dict{InfiniteOpt.GlobalVariableRef, JuMP.VariableRef}`: Global
+- `hold_to_var::Dict{InfiniteOpt.HoldVariableRef, JuMP.VariableRef}`: Hold
   variables to model variables.
 - `point_to_var::Dict{InfiniteOpt.PointVariableRef, JuMP.VariableRef}`: Point
   variables to model variables.
@@ -36,7 +36,7 @@ mutable struct TranscriptionData
     # Variable mapping
     infinite_to_vars::Dict{InfiniteOpt.InfiniteVariableRef,
                            Vector{JuMP.VariableRef}}
-    global_to_var::Dict{InfiniteOpt.GlobalVariableRef, JuMP.VariableRef}
+    hold_to_var::Dict{InfiniteOpt.HoldVariableRef, JuMP.VariableRef}
     point_to_var::Dict{InfiniteOpt.PointVariableRef, JuMP.VariableRef}
 
     # Variable support data
@@ -59,7 +59,7 @@ mutable struct TranscriptionData
     function TranscriptionData()
         return new(Dict{InfiniteOpt.InfiniteVariableRef,
                    Vector{JuMP.VariableRef}}(),
-                   Dict{InfiniteOpt.GlobalVariableRef, JuMP.VariableRef}(),
+                   Dict{InfiniteOpt.HoldVariableRef, JuMP.VariableRef}(),
                    Dict{InfiniteOpt.PointVariableRef, JuMP.VariableRef}(),
                    Dict{InfiniteOpt.InfiniteVariableRef, Vector{Tuple}}(),
                    Dict{InfiniteOpt.InfiniteConstraintRef,
@@ -153,12 +153,12 @@ gbvar
 function transcription_variable end
 
 ## Define the variable mapping functions
-# GlobalVariableRef
+# HoldVariableRef
 function transcription_variable(model::JuMP.Model,
-                                vref::InfiniteOpt.GlobalVariableRef)::JuMP.VariableRef
-    !haskey(transcription_data(model).global_to_var, vref) && error("Variable " *
+                                vref::InfiniteOpt.HoldVariableRef)::JuMP.VariableRef
+    !haskey(transcription_data(model).hold_to_var, vref) && error("Variable " *
                              "reference $vref not used in transcription model.")
-    return transcription_data(model).global_to_var[vref]
+    return transcription_data(model).hold_to_var[vref]
 end
 # InfiniteVariableRef
 function transcription_variable(model::JuMP.Model,

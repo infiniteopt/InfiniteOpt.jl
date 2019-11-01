@@ -23,9 +23,11 @@ function _update_variable_info(vref::PointVariableRef, info::JuMP.VariableInfo)
     return
 end
 
-# Set info for global variables
-function _update_variable_info(vref::GlobalVariableRef, info::JuMP.VariableInfo)
-    JuMP.owner_model(vref).vars[JuMP.index(vref)] = GlobalVariable(info)
+# Set info for hold variables
+function _update_variable_info(vref::HoldVariableRef, info::JuMP.VariableInfo)
+    parameter_bounds = JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_bounds
+    JuMP.owner_model(vref).vars[JuMP.index(vref)] = HoldVariable(info,
+                                                               parameter_bounds)
     return
 end
 

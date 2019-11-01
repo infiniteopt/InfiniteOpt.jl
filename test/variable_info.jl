@@ -9,6 +9,7 @@
     var = InfiniteVariable(info, (pref,))
     m.vars[1] = var
     vref = InfiniteVariableRef(m, 1)
+    bounds = ParameterBounds()
     # _variable_info
     @testset "_variable_info" begin
         @test InfiniteOpt._variable_info(vref) == info
@@ -28,12 +29,12 @@
         @test isa(InfiniteOpt._update_variable_info(vref, new_info), Nothing)
         @test InfiniteOpt._variable_info(vref) == new_info
     end
-    # _update_variable_info (Global)
-    @testset "_update_variable_info (Global)" begin
-        # initialize global variable
-        var = GlobalVariable(info)
+    # _update_variable_info (Hold)
+    @testset "_update_variable_info (Hold)" begin
+        # initialize hold variable
+        var = HoldVariable(info, bounds)
         m.vars[3] = var
-        vref = GlobalVariableRef(m, 3)
+        vref = HoldVariableRef(m, 3)
         # test function
         @test isa(InfiniteOpt._update_variable_info(vref, new_info), Nothing)
         @test InfiniteOpt._variable_info(vref) == new_info
@@ -47,9 +48,10 @@ end
     info1 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, false)
     info2 = VariableInfo(true, 0., false, 0., false, 0., false, 0., false, false)
     info3 = VariableInfo(false, 0., false, 0., true, 0., false, 0., false, false)
-    var1 = GlobalVariable(info1)
-    var2 = GlobalVariable(info2)
-    var3 = GlobalVariable(info3)
+    bounds = ParameterBounds()
+    var1 = HoldVariable(info1, bounds)
+    var2 = HoldVariable(info2, bounds)
+    var3 = HoldVariable(info3, bounds)
     m.vars[1] = var1
     m.vars[2] = var2
     m.vars[3] = var3
@@ -57,9 +59,9 @@ end
     m.var_to_name[2] = "var2"
     m.var_to_name[3] = "var3"
     m.var_to_lower_bound[2] = 1
-    vref1 = GlobalVariableRef(m, 1)
-    vref2 = GlobalVariableRef(m, 2)
-    vref3 = GlobalVariableRef(m, 3)
+    vref1 = HoldVariableRef(m, 1)
+    vref2 = HoldVariableRef(m, 2)
+    vref3 = HoldVariableRef(m, 3)
     # _update_var_constr_mapping
     @testset "_update_var_constr_mapping" begin
         # test normal with no previous constrs
@@ -180,9 +182,10 @@ end
     info1 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, false)
     info2 = VariableInfo(false, 0., true, 0., false, 0., false, 0., false, false)
     info3 = VariableInfo(false, 0., false, 0., true, 0., false, 0., false, false)
-    var1 = GlobalVariable(info1)
-    var2 = GlobalVariable(info2)
-    var3 = GlobalVariable(info3)
+    bounds = ParameterBounds()
+    var1 = HoldVariable(info1, bounds)
+    var2 = HoldVariable(info2, bounds)
+    var3 = HoldVariable(info3, bounds)
     m.vars[1] = var1
     m.vars[2] = var2
     m.vars[3] = var3
@@ -190,9 +193,9 @@ end
     m.var_to_name[2] = "var2"
     m.var_to_name[3] = "var3"
     m.var_to_upper_bound[2] = 1
-    vref1 = GlobalVariableRef(m, 1)
-    vref2 = GlobalVariableRef(m, 2)
-    vref3 = GlobalVariableRef(m, 3)
+    vref1 = HoldVariableRef(m, 1)
+    vref2 = HoldVariableRef(m, 2)
+    vref3 = HoldVariableRef(m, 3)
     # add_constraint
     @testset "JuMP.add_constraint" begin
         # prepare constraint reference
@@ -277,10 +280,11 @@ end
     m = InfiniteModel()
     info1 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, false)
     info2 = VariableInfo(false, 0., false, 0., true, 0., false, 0., false, false)
-    var1 = GlobalVariable(info1)
-    var2 = GlobalVariable(info2)
-    var3 = GlobalVariable(info1)
-    var4 = GlobalVariable(info1)
+    bounds = ParameterBounds()
+    var1 = HoldVariable(info1, bounds)
+    var2 = HoldVariable(info2, bounds)
+    var3 = HoldVariable(info1, bounds)
+    var4 = HoldVariable(info1, bounds)
     m.vars[1] = var1
     m.vars[2] = var2
     m.vars[3] = var3
@@ -290,10 +294,10 @@ end
     m.var_to_name[3] = "var3"
     m.var_to_name[4] = "var4"
     m.var_to_fix[2] = 1
-    vref1 = GlobalVariableRef(m, 1)
-    vref2 = GlobalVariableRef(m, 2)
-    vref3 = GlobalVariableRef(m, 3)
-    vref4 = GlobalVariableRef(m, 4)
+    vref1 = HoldVariableRef(m, 1)
+    vref2 = HoldVariableRef(m, 2)
+    vref3 = HoldVariableRef(m, 3)
+    vref4 = HoldVariableRef(m, 4)
     # add_constraint
     @testset "JuMP.add_constraint" begin
         # prepare constraint reference
@@ -395,9 +399,10 @@ end
     # initialize model and 4 test variables
     m = InfiniteModel()
     info1 = VariableInfo(false, 0., false, 0., false, 0., true, 0., false, false)
-    var = GlobalVariable(info1)
+    bounds = ParameterBounds()
+    var = HoldVariable(info1, bounds)
     m.vars[1] = var
-    vref = GlobalVariableRef(m, 1)
+    vref = HoldVariableRef(m, 1)
     # start_value
     @testset "JuMP.start_value" begin
         @test start_value(vref) == 0
@@ -417,9 +422,10 @@ end
     info1 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, false)
     info2 = VariableInfo(false, 0., false, 0., false, 0., false, 0., true, false)
     info3 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, true)
-    var1 = GlobalVariable(info1)
-    var2 = GlobalVariable(info2)
-    var3 = GlobalVariable(info3)
+    bounds = ParameterBounds()
+    var1 = HoldVariable(info1, bounds)
+    var2 = HoldVariable(info2, bounds)
+    var3 = HoldVariable(info3, bounds)
     m.vars[1] = var1
     m.vars[2] = var2
     m.vars[3] = var3
@@ -427,9 +433,9 @@ end
     m.var_to_name[2] = "var2"
     m.var_to_name[3] = "var3"
     m.var_to_zero_one[2] = 1
-    vref1 = GlobalVariableRef(m, 1)
-    vref2 = GlobalVariableRef(m, 2)
-    vref3 = GlobalVariableRef(m, 3)
+    vref1 = HoldVariableRef(m, 1)
+    vref2 = HoldVariableRef(m, 2)
+    vref3 = HoldVariableRef(m, 3)
     # add_constraint
     @testset "JuMP.add_constraint" begin
         # prepare constraint reference
@@ -508,9 +514,10 @@ end
     info1 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, false)
     info2 = VariableInfo(false, 0., false, 0., false, 0., false, 0., false, true)
     info3 = VariableInfo(false, 0., false, 0., false, 0., false, 0., true, false)
-    var1 = GlobalVariable(info1)
-    var2 = GlobalVariable(info2)
-    var3 = GlobalVariable(info3)
+    bounds = ParameterBounds()
+    var1 = HoldVariable(info1, bounds)
+    var2 = HoldVariable(info2, bounds)
+    var3 = HoldVariable(info3, bounds)
     m.vars[1] = var1
     m.vars[2] = var2
     m.vars[3] = var3
@@ -518,9 +525,9 @@ end
     m.var_to_name[2] = "var2"
     m.var_to_name[3] = "var3"
     m.var_to_integrality[2] = 1
-    vref1 = GlobalVariableRef(m, 1)
-    vref2 = GlobalVariableRef(m, 2)
-    vref3 = GlobalVariableRef(m, 3)
+    vref1 = HoldVariableRef(m, 1)
+    vref2 = HoldVariableRef(m, 2)
+    vref3 = HoldVariableRef(m, 3)
     # add_constraint
     @testset "JuMP.add_constraint" begin
         # prepare constraint reference

@@ -8,18 +8,18 @@
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)
     @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
-    @global_variable(m, 0 <= z <= 1, Bin)
-    @global_variable(m, w == 1, Int, start = 1)
+    @hold_variable(m, 0 <= z <= 1, Bin)
+    @hold_variable(m, w == 1, Int, start = 1)
     data = DiscreteMeasureData(par, [0.5, 0.5], [0, 1])
     @constraint(m, c1, x + z - 2 <= 0)
     @constraint(m, c2, measure(x + y, data) - w == 0)
     @constraint(m, c3, x0 + y0 == 5)
     tm = optimizer_model(m)
-    # test _initialize_global_variables
-    @testset "_initialize_global_variables" begin
-        @global_variable(m)
-        @test isa(IOTO._initialize_global_variables(tm, m), Nothing)
-        @test length(transcription_data(tm).global_to_var) == 2
+    # test _initialize_hold_variables
+    @testset "_initialize_hold_variables" begin
+        @hold_variable(m)
+        @test isa(IOTO._initialize_hold_variables(tm, m), Nothing)
+        @test length(transcription_data(tm).hold_to_var) == 2
         @test transcription_variable(tm, z) isa VariableRef
         @test transcription_variable(tm, w) isa VariableRef
         @test name(transcription_variable(tm, z)) == name(z)
@@ -173,8 +173,8 @@ end
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)
     @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
-    @global_variable(m, 0 <= z <= 1, Bin)
-    @global_variable(m, w == 1, Int, start = 1)
+    @hold_variable(m, 0 <= z <= 1, Bin)
+    @hold_variable(m, w == 1, Int, start = 1)
     index = m.next_var_index + 1
     m.reduced_info[index] = ReducedInfiniteInfo(y, Dict(1 => 1))
     yr = ReducedInfiniteVariableRef(m, index)
@@ -199,8 +199,8 @@ end
         # prepare transcrition model with mapped variables
         tm.ext[:TransData].point_to_var[x0] = a
         tm.ext[:TransData].point_to_var[y0] = b
-        tm.ext[:TransData].global_to_var[z] = c
-        tm.ext[:TransData].global_to_var[w] = d
+        tm.ext[:TransData].hold_to_var[z] = c
+        tm.ext[:TransData].hold_to_var[w] = d
         # test the function
         @test IOTO._map_to_variable(x0, (), (), tm) == a
         @test IOTO._map_to_variable(y0, (), (), tm) == b
@@ -291,8 +291,8 @@ end
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)
     @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
-    @global_variable(m, 0 <= z <= 1, Bin)
-    @global_variable(m, w == 1, Int, start = 1)
+    @hold_variable(m, 0 <= z <= 1, Bin)
+    @hold_variable(m, w == 1, Int, start = 1)
     m.next_var_index += 1
     m.reduced_info[m.next_var_index] = ReducedInfiniteInfo(y, Dict(1 => 1))
     yr = ReducedInfiniteVariableRef(m, m.next_var_index)
@@ -314,8 +314,8 @@ end
     # transcribe the variables
     tm.ext[:TransData].point_to_var[x0] = a
     tm.ext[:TransData].point_to_var[y0] = b
-    tm.ext[:TransData].global_to_var[z] = c
-    tm.ext[:TransData].global_to_var[w] = d
+    tm.ext[:TransData].hold_to_var[z] = c
+    tm.ext[:TransData].hold_to_var[w] = d
     tm.ext[:TransData].infinite_to_vars[x] = [a, e]
     tm.ext[:TransData].infinite_to_vars[y] = [b, f, g, h]
     tm.ext[:TransData].infvar_to_supports[x] = [(0,), (1,)]
@@ -326,7 +326,7 @@ end
         # test point variables
         @test IOTO._make_transcription_function(x0, tm) == (a, ())
         @test IOTO._make_transcription_function(y0, tm) == (b, ())
-        # test global variables
+        # test hold variables
         @test IOTO._make_transcription_function(z, tm) == (c, ())
         @test IOTO._make_transcription_function(w, tm) == (d, ())
     end
@@ -479,8 +479,8 @@ end
                         container = SparseAxisArray)
     @infinite_variable(m, x(par) >= 0, Int)
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
-    @global_variable(m, 0 <= z <= 1, Bin)
-    @global_variable(m, w == 1, Int, start = 1)
+    @hold_variable(m, 0 <= z <= 1, Bin)
+    @hold_variable(m, w == 1, Int, start = 1)
     data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
     meas1 = measure(x - w, data1)
     meas2 = measure(y, data1)
@@ -496,8 +496,8 @@ end
     supp1 = convert(JuMPC.SparseAxisArray, [0, 0])
     supp2 = convert(JuMPC.SparseAxisArray, [1, 1])
     # transcribe the variables
-    tm.ext[:TransData].global_to_var[z] = c
-    tm.ext[:TransData].global_to_var[w] = d
+    tm.ext[:TransData].hold_to_var[z] = c
+    tm.ext[:TransData].hold_to_var[w] = d
     tm.ext[:TransData].infinite_to_vars[x] = [a, e]
     tm.ext[:TransData].infinite_to_vars[y] = [b, f, g, h]
     tm.ext[:TransData].infvar_to_supports[x] = [(0,), (1,)]
@@ -527,7 +527,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_variable(m, x(par) >= 0, Int)
-    @global_variable(m, 0 <= z <= 1, Bin)
+    @hold_variable(m, 0 <= z <= 1, Bin)
     data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
     meas1 = measure(x - z, data1)
     tm = optimizer_model(m)
@@ -602,8 +602,8 @@ end
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)
     @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
-    @global_variable(m, 0 <= z <= 1, Bin)
-    @global_variable(m, w == 1, Int, start = 1)
+    @hold_variable(m, 0 <= z <= 1, Bin)
+    @hold_variable(m, w == 1, Int, start = 1)
     data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
     meas1 = measure(x - w, data1)
     meas2 = measure(y, data1)
@@ -621,19 +621,18 @@ end
     # transcribe the variables
     tm.ext[:TransData].point_to_var[x0] = a
     tm.ext[:TransData].point_to_var[y0] = b
-    tm.ext[:TransData].global_to_var[z] = c
-    tm.ext[:TransData].global_to_var[w] = d
+    tm.ext[:TransData].hold_to_var[z] = c
+    tm.ext[:TransData].hold_to_var[w] = d
     tm.ext[:TransData].infinite_to_vars[x] = [a, e]
     tm.ext[:TransData].infinite_to_vars[y] = [b, f, g, h]
     tm.ext[:TransData].infvar_to_supports[x] = [(0,), (1,)]
     tm.ext[:TransData].infvar_to_supports[y] = [(0, supp1), (0, supp2),
                                                 (1, supp1), (1, supp2)]
     # Setup up the constraints
-    bounds = Dict(par => IntervalSet(0.5, 1))
     @constraint(m, c1, x + par - z == 0)
     @constraint(m, c2, z + x0 >= -3)
     @constraint(m, c3, meas1 + z == 0)
-    @constraint(m, c4, meas2 - 2y0 + x <= 1, parameter_bounds = bounds)
+    @BDconstraint(m, c4(par in [0.5, 1]), meas2 - 2y0 + x <= 1)
     @constraint(m, c5, meas2 == 0)
     # test the main function
     @test isa(IOTO._set_constraints(tm, m), Nothing)
@@ -661,10 +660,10 @@ end
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)
     @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
-    @global_variable(m, 0 <= z <= 1, Bin)
-    @global_variable(m, w == 1, Int, start = 1)
+    @hold_variable(m, 0 <= z <= 1, Bin)
+    @hold_variable(m, w == 1, Int, start = 1)
     tm = optimizer_model(m)
-    IOTO._initialize_global_variables(tm, m)
+    IOTO._initialize_hold_variables(tm, m)
     IOTO._initialize_infinite_variables(tm, m)
     IOTO._map_point_variables(tm, m)
     xt = transcription_variable(tm, x)
@@ -718,10 +717,10 @@ end
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)
     @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
-    @global_variable(m, 0 <= z <= 1, Bin)
-    @global_variable(m, w == 1, Int, start = 1)
+    @hold_variable(m, 0 <= z <= 1, Bin)
+    @hold_variable(m, w == 1, Int, start = 1)
     tm = optimizer_model(m)
-    IOTO._initialize_global_variables(tm, m)
+    IOTO._initialize_hold_variables(tm, m)
     IOTO._initialize_infinite_variables(tm, m)
     IOTO._map_point_variables(tm, m)
     xt = transcription_variable(tm, x)
@@ -775,24 +774,24 @@ end
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)
     @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
-    @global_variable(m, 0 <= z <= 1, Bin)
-    @global_variable(m, w == 1, Int, start = 1)
+    @hold_variable(m, 0 <= z <= 1, Bin)
+    @hold_variable(m, w == 1, Int, start = 1)
     @finite_parameter(m, fin, 0)
     data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
     meas1 = measure(x - w, data1)
     meas2 = measure(y, data1)
-    bounds = Dict(par => IntervalSet(0.5, 1))
+    @set_parameter_bounds(z, (pars == 0, par == 0))
     @constraint(m, c1, x + par - z == 0)
     @constraint(m, c2, z + x0 >= -3)
     @constraint(m, c3, meas1 + z == 0)
-    @constraint(m, c4, meas2 - 2y0 + x + fin <= 1, parameter_bounds = bounds)
+    @BDconstraint(m, c4(par in [0.5, 1]), meas2 - 2y0 + x + fin <= 1)
     @constraint(m, c5, meas2 == 0)
     @objective(m, Min, x0 + meas1)
     # test basic usage
     @test isa(set_optimizer_model(m, TranscriptionModel(m)), Nothing)
     tm = optimizer_model(m)
-    # test global variables
-    @test length(transcription_data(tm).global_to_var) == 2
+    # test hold variables
+    @test length(transcription_data(tm).hold_to_var) == 2
     @test transcription_variable(tm, z) isa VariableRef
     @test transcription_variable(tm, w) isa VariableRef
     @test name(transcription_variable(tm, z)) == name(z)
@@ -837,14 +836,13 @@ end
     zt = transcription_variable(tm, z)
     yt = transcription_variable(tm, y)
     @test constraint_object(tm.ext[:TransData].infinite_to_constrs[c1][1]).func == xt[1] - zt
-    @test constraint_object(tm.ext[:TransData].infinite_to_constrs[c1][2]).func == xt[2] - zt
     @test constraint_object(tm.ext[:TransData].finite_to_constr[c2]).func == zt + xt[1]
     @test constraint_object(tm.ext[:TransData].infinite_to_constrs[c4][1]).func == -yt[1] + yt[2] + xt[2]
     @test name(tm.ext[:TransData].finite_to_constr[c2]) == "c2"
     @test name(tm.ext[:TransData].infinite_to_constrs[c1][1]) == "c1(Support: 1)"
     @test tm.ext[:TransData].infconstr_to_params[c1] == (par, )
     @test tm.ext[:TransData].infconstr_to_params[c4] == (pars, par, fin)
-    @test tm.ext[:TransData].infconstr_to_supports[c1] == [(0,), (1,)]
+    @test tm.ext[:TransData].infconstr_to_supports[c1] == [(0,)]
     @test tm.ext[:TransData].measconstr_to_params[c5] == (pars,)
     # test info constraints
     @test tm.ext[:TransData].finite_to_constr[LowerBoundRef(z)] == LowerBoundRef(zt)

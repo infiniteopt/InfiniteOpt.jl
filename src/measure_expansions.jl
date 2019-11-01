@@ -517,10 +517,10 @@ function expand_all_measures!(model::InfiniteModel)
         model.next_constr_index = cindex - 1
         if isa(model.constrs[cindex], BoundedScalarConstraint) && isa(new_func,
                                                                    InfiniteExpr)
-            bounds = model.constrs[cindex].bounds
+            orig_bounds = model.constrs[cindex].orig_bounds
             JuMP.delete(model, cref)
             JuMP.add_constraint(model, JuMP.build_constraint(error, new_func,
-                                set, parameter_bounds = bounds), name)
+                                set; parameter_bounds = orig_bounds), name)
         else
             JuMP.delete(model, cref)
             JuMP.add_constraint(model, JuMP.build_constraint(error, new_func,

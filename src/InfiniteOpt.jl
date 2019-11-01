@@ -32,18 +32,15 @@ using .TranscriptionOpt
 # Export model object datatype
 export InfiniteModel
 
-# Export macros and constants
-export @infinite_variable, @point_variable, @global_variable, @infinite_parameter,
-@BDconstraint, @finite_parameter, Infinite, Global, Point, Parameter
+# Export macros
+export @infinite_variable, @point_variable, @hold_variable, @infinite_parameter,
+@BDconstraint, @finite_parameter, @set_parameter_bounds, @add_parameter_bounds
+
+# Export constants
+export Infinite, Hold, Point, Parameter
 
 # Export infinite parameter datatypes
 export InfOptParameter, ParameterRef
-
-# Export variable datatypes
-export InfOptVariable, InfiniteVariable, PointVariable, GlobalVariable,
-GeneralVariableRef, InfiniteVariableRef, MeasureFiniteVariableRef,
-FiniteVariableRef, PointVariableRef, GlobalVariableRef, InfOptVariableRef,
-ReducedInfiniteVariableRef, AbstractReducedInfo, ReducedInfiniteInfo
 
 # Export infinite parameter set types
 export AbstractInfiniteSet, IntervalSet, DistributionSet
@@ -55,10 +52,19 @@ set_supports, add_supports, delete_supports, supports, used_by_constraint,
 used_by_measure, used_by_variable, is_used, group_id, is_independent,
 set_independent, unset_independent, is_finite_parameter
 
+# Export variable datatypes
+export InfOptVariable, InfiniteVariable, PointVariable, HoldVariable,
+GeneralVariableRef, InfiniteVariableRef, MeasureFiniteVariableRef,
+FiniteVariableRef, PointVariableRef, HoldVariableRef, InfOptVariableRef,
+ReducedInfiniteVariableRef, AbstractReducedInfo, ReducedInfiniteInfo,
+ParameterBounds
+
 # Export variable methods
 export used_by_objective, infinite_variable_ref, parameter_refs,
 set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values,
-eval_supports, used_by_reduced_variable
+eval_supports, used_by_reduced_variable, has_parameter_bounds, parameter_bounds,
+set_parameter_bounds, add_parameter_bound, delete_parameter_bound,
+delete_parameter_bounds
 
 # Export expression datatypes
 export InfiniteExpr, ParameterExpr, MeasureExpr

@@ -37,9 +37,9 @@ function JuMP.in_set_string(print_mode, set::DistributionSet)::String
 end
 
 # Return contraint parameter bounds as a string
-function bound_string(print_mode, bounds::Dict)::String
-    string_list = JuMP._math_symbol(print_mode, :for_all) * " "
-    for (pref, set) in bounds
+function bound_string(print_mode, bounds::ParameterBounds)::String
+    string_list = ""
+    for (pref, set) in bounds.intervals
         string_list *= string(JuMP.function_string(print_mode, pref), " ",
                               JuMP.in_set_string(print_mode, set), ", ")
     end
@@ -56,10 +56,13 @@ function JuMP.constraint_string(print_mode,
     # modify as needed
     if print_mode == JuMP.REPLMode
         lines = split(func_str, '\n')
-        lines[1 + div(length(lines), 2)] *= " " * in_set_str * ", " * bound_str
+        lines[1 + div(length(lines), 2)] *= " " * in_set_str * ", " *
+                                       JuMP._math_symbol(print_mode, :for_all) *
+                                       " " * bound_str
         return join(lines, '\n')
     else
-        return func_str * " " * in_set_str * ", " * bound_str
+        return func_str * " " * in_set_str * ", " *
+               JuMP._math_symbol(print_mode, :for_all) * " " * bound_str
     end
 end
 
@@ -104,6 +107,22 @@ function JuMP.objective_function_string(print_mode, model::InfiniteModel)
     return JuMP.function_string(print_mode, JuMP.objective_function(model))
 end
 
+# TODO make list following group_id and use ... when necessary --> Subdomain bounds: t in [0, 1], x[1] == 0, x[2] == 0, ... x[6] == 0, a in [2, 3]
+# Show ParameterBounds in REPLMode
+function Base.show(io::IO, bounds::ParameterBounds)
+    print(io, "Subdomain bounds (", length(bounds), "): ",
+          bound_string(JuMP.REPLMode, bounds))
+    return
+end
+
+# Show ParameterBounds in IJuliaMode
+function Base.show(io::IO, ::MIME"text/latex", bounds::ParameterBounds)
+    print(io, "Subdomain bounds (", length(bounds), "): ",
+          bound_string(JuMP.IJuliaMode, bounds))
+end
+
+# TODO show hold variables better
+
 # Show constraint in REPLMode
 function Base.show(io::IO, ref::GeneralConstraintRef)
     print(io, JuMP.constraint_string(JuMP.REPLMode, ref))
@@ -113,7 +132,6 @@ end
 # Show constraint in IJuliaMode
 function Base.show(io::IO, ::MIME"text/latex", ref::GeneralConstraintRef)
     print(io, JuMP.constraint_string(JuMP.IJuliaMode, ref))
-    return
 end
 
 # Show the backend information associated with the optimizer model

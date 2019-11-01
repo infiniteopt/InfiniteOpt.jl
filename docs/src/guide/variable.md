@@ -5,17 +5,18 @@ A guide and manual for the definition and use of variables in `InfiniteOpt`.
 Decision variables are at the very core of `InfiniteOpt` as its name alludes
 to mathematical programs that entail infinite decision spaces (i.e., contain
 infinite decision variables). Principally, three variable types are employed:
-infinite, point, and global. Infinite variables encompass any decision variable
+infinite, point, and hold. Infinite variables encompass any decision variable
 that is parameterized by an infinite parameter (e.g., space-time variables and
 recourse variables). Point variables are infinite variables at a particular
-infinite parameter value (point). Finally, global variables are decisions that
+infinite parameter value (point). Finally, hold variables are decisions that
 are made irrespective of the infinite domain (e.g., first stage variables and
-design variables).
+design variables). Or in other words they hold a particular over the infinite
+domain or some sub-domain of it.
 
 ## Basic Usage
 Infinite, point, and global variables are typically defined via their respective
 macros: [`@infinite_variable`](@ref), [`@point_variable`](@ref), and
-[`@global_variable`](@ref). 
+[`@hold_variable`](@ref).
 
 ## Infinite Variable Definition
 
@@ -39,13 +40,15 @@ Order   = [:type]
 InfOptVariable
 InfiniteVariable
 PointVariable
-GlobalVariable
+ParameterBounds
+HoldVariable
+InfOptVariableRef
 GeneralVariableRef
 MeasureFiniteVariableRef
 FiniteVariableRef
 InfiniteVariableRef
 PointVariableRef
-GlobalVariableRef
+HoldVariableRef
 ```
 
 ## Methods/Macros
@@ -59,7 +62,7 @@ JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Symbol)
 JuMP.add_variable(::InfiniteModel, ::InfOptVariable, ::String)
 @infinite_variable
 @point_variable
-@global_variable
+@hold_variable
 JuMP.owner_model(::GeneralVariableRef)
 JuMP.index(::GeneralVariableRef)
 used_by_constraint(::InfOptVariableRef)
@@ -100,10 +103,18 @@ JuMP.unset_integer(::InfOptVariableRef)
 JuMP.name(::InfOptVariableRef)
 JuMP.set_name(::InfiniteVariableRef, ::String)
 JuMP.set_name(::PointVariableRef, ::String)
-JuMP.set_name(::GlobalVariableRef, ::String)
+JuMP.set_name(::HoldVariableRef, ::String)
 parameter_refs(::InfiniteVariableRef)
 set_parameter_refs(::InfiniteVariableRef, ::Tuple)
 add_parameter_ref(::InfiniteVariableRef,::Union{ParameterRef, AbstractArray{<:ParameterRef}})
+@set_parameter_bounds
+@add_parameter_bounds
+has_parameter_bounds(::HoldVariableRef)
+parameter_bounds(::HoldVariableRef)
+set_parameter_bounds(::HoldVariableRef, ::ParameterBounds)
+add_parameter_bound(::HoldVariableRef, ::ParameterRef, ::Number, ::Number)
+delete_parameter_bound(::HoldVariableRef, ::ParameterRef)
+delete_parameter_bounds(::HoldVariableRef)
 infinite_variable_ref(::PointVariableRef)
 parameter_values(::PointVariableRef)
 JuMP.variable_by_name(::InfiniteModel, ::String)
