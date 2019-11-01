@@ -253,7 +253,7 @@ macro infinite_parameter(model, args...)
         JuMP._add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall,
                                          $(JuMP._name_call(base_name, idxparams)),
-                                         macro_call = true) )
+                                         macro_call = true, multi_dim = true) )
         code = :( $(refcall) = $parametercall )
         # Determine the return type of add_variable. This is needed to create
         # the container holding them.

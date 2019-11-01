@@ -6,6 +6,7 @@ const MOIU = MathOptInterface.Utilities
 const JuMPC = JuMP.Containers
 const IOTO = InfiniteOpt.TranscriptionOpt
 using Test
+using Random
 
 include("utilities.jl")
 
