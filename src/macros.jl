@@ -1206,17 +1206,17 @@ julia> @hold_variable(model, y)
 y
 
 julia> @constraint(model, con, x + y == 0)
-con : x(t) + y == 0.0
+con : x(t) + y = 0.0
 
 julia> @set_parameter_bounds(y, t in [0, 5])
 
 julia> con
-con : x(t) + y == 0.0, for all t in [0, 5]
+con : x(t) + y = 0.0, ∀ t ∈ [0, 5]
 
 julia> @set_parameter_bounds(con, t == 0, force = true)
 
 julia> con
-con : x(t) + y == 0.0, for all t == 0
+con : x(t) + y = 0.0, ∀ t = 0
 ```
 """
 macro set_parameter_bounds(ref, bound_expr, args...)
@@ -1287,6 +1287,7 @@ julia> @infinite_parameter(model, t in [0, 10])
 t
 
 julia> @infinite_parameter(model, q in [-2, 2])
+q
 
 julia> @infinite_variable(model, x(t, q))
 x(t, q)
@@ -1295,17 +1296,17 @@ julia> @hold_variable(model, y)
 y
 
 julia> @constraint(model, con, x + y == 0)
-con : x(t, q) + y == 0.0
+con : x(t, q) + y = 0.0
 
 julia> @add_parameter_bounds(y, t in [0, 5])
 
 julia> con
-con : x(t, q) + y == 0.0, for all t in [0, 5]
+con : x(t, q) + y = 0.0, ∀ t ∈ [0, 5]
 
 julia> @add_parameter_bounds(con, q == 0)
 
 julia> con
-con : x(t, q) + y == 0.0, for all t in [0, 5], q == 0
+con : x(t, q) + y = 0.0, ∀ t ∈ [0, 5], q = 0
 ```
 """
 macro add_parameter_bounds(ref, bound_expr)

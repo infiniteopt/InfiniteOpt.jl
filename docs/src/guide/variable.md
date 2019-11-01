@@ -111,7 +111,7 @@ add_parameter_ref(::InfiniteVariableRef,::Union{ParameterRef, AbstractArray{<:Pa
 @add_parameter_bounds
 has_parameter_bounds(::HoldVariableRef)
 parameter_bounds(::HoldVariableRef)
-set_parameter_bounds(::HoldVariableRef, ::Dict{ParameterRef, IntervalSet})
+set_parameter_bounds(::HoldVariableRef, ::ParameterBounds)
 add_parameter_bound(::HoldVariableRef, ::ParameterRef, ::Number, ::Number)
 delete_parameter_bound(::HoldVariableRef, ::ParameterRef)
 delete_parameter_bounds(::HoldVariableRef)

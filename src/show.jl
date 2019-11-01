@@ -119,7 +119,6 @@ end
 function Base.show(io::IO, ::MIME"text/latex", bounds::ParameterBounds)
     print(io, "Subdomain bounds (", length(bounds), "): ",
           bound_string(JuMP.IJuliaMode, bounds))
-    return
 end
 
 # TODO show hold variables better
@@ -133,7 +132,6 @@ end
 # Show constraint in IJuliaMode
 function Base.show(io::IO, ::MIME"text/latex", ref::GeneralConstraintRef)
     print(io, JuMP.constraint_string(JuMP.IJuliaMode, ref))
-    return
 end
 
 # Show the backend information associated with the optimizer model
