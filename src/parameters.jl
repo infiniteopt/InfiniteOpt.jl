@@ -1102,8 +1102,8 @@ function JuMP.set_value(pref::ParameterRef, value::Number)
 end
 
 """
-    fill_in_supports!(model::InfiniteModel; num_supports::Int = 50,
-                      sig_fig::Int = 5)
+    fill_in_supports!(model::InfiniteModel; [num_supports::Int = 50,
+                      sig_fig::Int = 5])
 
 Automatically generate support points for all infinite parameters in model
 except for parameters in multivariate distributions, where we require that the
@@ -1132,7 +1132,8 @@ function fill_in_supports!(model::InfiniteModel; num_supports::Int = 50,
 end
 
 """
-    fill_in_supports!(pref::ParameterRef; num_supports::Int = 50, sig_fig::Int)
+    fill_in_supports!(pref::ParameterRef; [num_supports::Int = 50,
+                                           sig_fig::Int = 5])
 
 Automatically generate support points for all infinite parameters in model
 except for parameters in multivariate distributions, where we require that the

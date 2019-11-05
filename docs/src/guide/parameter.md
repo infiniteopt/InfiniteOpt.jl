@@ -9,7 +9,7 @@ corresponds to time and in stochastic optimization this to uncertain parameters
 that follow a certain underlying statistical distribution. `InfiniteOpt`
 considers principally two kinds of infinite parameters, ones defined over
 continuous intervals and ones characterized by a distribution (others can be
-added by defining a custom type). These can be used to parameterize
+added by defining a user-defined type). These can be used to parameterize
 infinite variables, point variables, measures, and can be used directly inside
 constraints.
 
@@ -26,27 +26,47 @@ julia> @infinite_parameter(model, t in [0, 10])
 t
 ```
 Now `t` is a Julia variable that stores a [`ParameterRef`](@ref) which points to
-where the time parameter is stored in `model`. We should also specify supports
-that will later be used to discretized the time domain. This can be accomplished
-with [`add_supports`](@ref):
+where the time parameter is stored in `model`. It can now be used with infinite
+variables, measures, and constraints as described in the appropriate
+sections.
+
+When the model is optimized, `t` will be transcribed (discretized) over its domain
+following its support points. If none are specified by the user than 50
+support points are generated that are equidistant over the interval. However,
+users may wish to employ their own support scheme. This can be done by using the
+`num_supports` or `supports` keyword arguments. For example, if we desire to
+have only 10 equidistant supports then we could have instead defined `t`:
+```jldoctest; setup = :(using JuMP, InfiniteOpt; model = InfiniteModel())
+julia> @infinite_parameter(model, t in [0, 10], num_supports = 10)
+t
+```
+More complex support schemes can be specified via `supports` such as:
+```jldoctest; setup = :(using JuMP, InfiniteOpt; model = InfiniteModel())
+julia> @infinite_parameter(model, t in [0, 10], supports = [0; 2; 7; 10])
+t
+```
+Where we specified `t` to use 4 supports: 0, 2, 7, and 10.
+
+We can also add supports after `t` has been initialized. This can be accomplished
+with [`add_supports`](@ref). For example, consider the initial case where `t` has
+no supports and we now wish to add 4 supports:
 ```jldoctest basic
-julia> add_supports(t, [0, 0.25, 0.75, 1])
+julia> add_supports(t, [0., 2.5, 7.5, 10.])
 
 julia> supports(t)
 4-element Array{Number,1}:
- 0.0
- 0.25
- 0.75
- 1.0
+  0.0
+  2.5
+  7.5
+ 10.0
 ```
 Here only 4 supports are specified for the sake of example. Alternatively, we
 could have initialized the parameter and added supports in just one step using
 the `supports` keyword argument:
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
-julia> @infinite_parameter(model, t in [0, 10], supports = [0, 0.25, 0.75, 1])
+julia> @infinite_parameter(model, t in [0, 10], supports = [0., 2.5, 7.5, 10.])
 t
 ```
-
 
 We could also define a random parameter described by a statistical
 distribution. This can be accomplished using [`@infinite_parameter`](@ref) in
@@ -64,10 +84,12 @@ julia> @infinite_parameter(model, xi[i = 1:3] in Normal())
  xi[3]
 ```
 Note that we could have used `i` as an index to assign a different distribution
-to each parameter. Supports should also be added for each parameter as shown
-above. Now we have infinite parameters `t` and `xi` that are ready to be used
-in defining infinite variables and constraints. We also mention here that the
-[`@infinite_parameter`](@ref) macro is designed to closely emulate
+to each parameter. Supports can also be specified for each parameter as shown
+above. The key difference is that by default 50 supports are generated randomly
+following the distribution. Similarly, the `num_supports` keyword is used to
+generate random supports. Now we have infinite parameters `t` and `xi` that are
+ready to be used in defining infinite variables and constraints. We also mention
+here that the [`@infinite_parameter`](@ref) macro is designed to closely emulate
 [`JuMP.@variable`](@ref) and thus handles arrays and keyword arguments in the
 same way. This is described in more detail below.
 

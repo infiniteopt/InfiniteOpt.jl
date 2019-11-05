@@ -132,18 +132,20 @@ The recognized keyword arguments in `kw_args` are the following:
 - `distribution`: Sets the `Distributions.jl` distribution object that characterizes
   the parameters.
 - `supports`: Sets the support points for the parameters.
+- `num_supports`: Specifies the number of supports to be automatically generated.
+                  Note that `supports` takes precedence. Defaults to 50.
+- `sig_figs`: Specifies the number of significant digits that should be used
+              in automatic support generation. Defaults to 5.
 - `independent`: Specifies if the each parameter is independent from each other
-  or not.
-- `container`: Specify the container type.
+  or not. Defaults to false.
+- `container`: Specify the container type. Defaults to automatic
 
 **Examples**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel())
 julia> @infinite_parameter(m, 0 <= x <= 1)
 x
 
-julia> supps = [[0, 1, 2], [-1, 1]];
-
-julia> @infinite_parameter(m, y[i = 1:2] in Normal(), supports = supps[i])
+julia> @infinite_parameter(m, y[i = 1:2] in Normal(), num_supports = 10)
 2-element Array{ParameterRef,1}:
  y[1]
  y[2]
