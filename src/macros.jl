@@ -141,7 +141,7 @@ The recognized keyword arguments in `kw_args` are the following:
 - `container`: Specify the container type. Defaults to automatic
 
 **Examples**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; m = InfiniteModel())
 julia> @infinite_parameter(m, 0 <= x <= 1)
 x
 
@@ -1308,7 +1308,7 @@ con : x(t, q) + y = 0.0, ∀ t ∈ [0, 5]
 julia> @add_parameter_bounds(con, q == 0)
 
 julia> con
-con : x(t, q) + y = 0.0, ∀ q = 0, t ∈ [0, 5]
+con : x(t, q) + y = 0.0, ∀ t ∈ [0, 5], q = 0
 ```
 """
 macro add_parameter_bounds(ref, bound_expr)
