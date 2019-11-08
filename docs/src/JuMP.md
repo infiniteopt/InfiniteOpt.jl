@@ -18,5 +18,6 @@ JuMP.NoOptimizer
 JuMP.delete(::Model, ::VariableRef)
 JuMP.is_valid(::JuMP.Model, ::JuMP.VariableRef)
 JuMP.set_name(::VariableRef, ::String)
+JuMP.add_variable
 JuMP.@variable
 ```

@@ -293,7 +293,7 @@ end
 """
     JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
                         var_type::Symbol;
-                        parameter_refs::Union{ParameterRef,
+                        [parameter_refs::Union{ParameterRef,
                                               AbstractArray{<:ParameterRef},
                                               Tuple, Nothing} = nothing,
                         infinite_variable_ref::Union{InfiniteVariableRef,
@@ -301,10 +301,9 @@ end
                         parameter_values::Union{Number, AbstractArray{<:Number},
                                                 Tuple, Nothing} = nothing,
                         parameter_bounds::Union{Dict{ParameterRef, IntervalSet},
-                                                Nothing} = nothing,
-                        extra_kw_args...)
+                                                Nothing} = nothing])
 
-Extend the [`JuMP.build_variable`](@ref) function to accomodate `InfiniteOpt`
+Extend the `JuMP.build_variable` function to accomodate `InfiniteOpt`
 variable types. Returns the appropriate variable Datatype (i.e.,
 [`InfiniteVariable`](@ref), [`PointVariable`](@ref), and
 [`HoldVariable`](@ref)). Primarily this method is to be used internally by the
@@ -452,17 +451,18 @@ function _check_make_variable_ref(model::InfiniteModel, v)
 end
 
 """
-    JuMP.add_variable(model::InfiniteModel, var::InfOptVariable, name::String = "")
+    JuMP.add_variable(model::InfiniteModel, var::InfOptVariable, [name::String = ""])
 
-Extend the [`JuMP.add_variable`](@ref) function to accomodate `InfiniteOpt`
-variable types. Adds a variable to an infinite model `model` and returns an
-appropriate variable reference (i.e., [`InfiniteVariableRef`](@ref),
-[`PointVariableRef`](@ref), or [`HoldVariableRef`](@ref)). Primarily intended
-to be an internal function of the constructor macros [`@infinite_variable`](@ref),
-[`@point_variable`](@ref), and [`@hold_variable`](@ref). However, it can be used
-in combination with [`JuMP.build_variable`](@ref) to add variables to an infinite
-model object. Errors if invalid parameters reference(s) or an invalid infinite
-variable reference is included in `var`.
+Extend the [`JuMP.add_variable`](@ref JuMP.add_variable(::JuMP.Model, ::JuMP.ScalarVariable))
+function to accomodate `InfiniteOpt` variable types. Adds a variable to an
+infinite model `model` and returns an appropriate variable reference (i.e.,
+[`InfiniteVariableRef`](@ref), [`PointVariableRef`](@ref), or
+[`HoldVariableRef`](@ref)). Primarily intended to be an internal function of the
+constructor macros [`@infinite_variable`](@ref), [`@point_variable`](@ref), and
+[`@hold_variable`](@ref). However, it can be used in combination with
+[`JuMP.build_variable`](@ref) to add variables to an infinite model object.
+Errors if invalid parameters reference(s) or an invalid infinite variable
+reference is included in `var`.
 
 **Examples**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel())

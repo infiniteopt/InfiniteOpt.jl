@@ -1,6 +1,7 @@
 # Infinite Parameters
 A guide and manual to the definition and use of infinite parameters in
-`InfiniteOpt`.
+`InfiniteOpt`. The Datatypes and Methods sections at the end comprise the manual,
+and the above sections comprise the guide.  
 
 ## Overview
 Infinite parameters are what parameterize the infinite decision spaces for
