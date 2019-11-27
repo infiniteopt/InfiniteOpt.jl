@@ -534,7 +534,7 @@ The recognized keyword arguments in `kw_args` are the following:
 - `container`: Specify the container type.
 
 **Examples**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; model = InfiniteModel())
 julia> @infinite_parameter(model, 0 <= t <= 1)
 t
 
@@ -702,7 +702,7 @@ The recognized keyword arguments in `kw_args` are the following:
 - `container`: Specify the container type.
 
 **Examples**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; model = InfiniteModel())
 julia> @infinite_parameter(model, 0 <= t <= 1)
 t
 
@@ -739,11 +739,11 @@ julia> @point_variable(model, y[i](0), y0[i = 1:2], Bin)
  y0[1]
  y0[2]
 
- julia> y0 = @point_variable(model, [i = 1:2], binary = true, base_name = "y0",
+julia> y0 = @point_variable(model, [i = 1:2], binary = true, base_name = "y0",
                              infinite_variable_ref = y[i], parameter_values = 0)
- 2-element Array{PointVariableRef,1}:
-  y0[1]
-  y0[2]
+2-element Array{PointVariableRef,1}:
+ y0[1]
+ y0[2]
 ```
 """
 macro point_variable(model, args...)

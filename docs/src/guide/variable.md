@@ -193,7 +193,7 @@ are not repeated. Anonymous macro calls forgo this step and exactly follow the
 process described above. This section will highlight the details of using these
 macros.
 
-### General Usage
+### [General Usage] (@id var_macro_gen_usage)
 Here we discuss the features that the variable macros have in common (generally
 these pertain to `JuMP`-like features). To illustrate this via example, let's
 setup a model with a variety of infinite parameters ``t \in [0,10]``,
@@ -237,7 +237,7 @@ information can be specified via the appropriate keywords which include:
 - `lower_bound::Number`: specifies lower bound
 - `upper_bound::Number`: specifies upper bound
 - `start::Number`: specifies the initial guess value the solver will use
-- `binary::Bool`: specified if is binary variable
+- `binary::Bool`: specifies if is binary variable
 - `integer::Bool`: specifies if is integer variable.
 Anonymous variables must use these keyword arguments since symbolic definition
 is only permitted for non-anonymous macro calls. For example, let's define a
@@ -325,9 +325,65 @@ julia> var_refs2 = @hold_variable(model, [a:b], base_name = "d", container = Arr
 ```
 
 Now that we have a foundation with anonymous variable macro calls, let's focus
-on non-anonymous calls which offer a much more straightforward syntax.
+on non-anonymous calls which offer a much more straightforward syntax. These calls
+can still implement all of the same keyword arguments. Moreover, they automatically
+create a Julia variable with the variable name provided and register this name
+to ensure subsequent automatic Julia variables do not overwrite it.
 
-TO BE CONTINUED...
+The supported symbolic syntax principally implements the following keyword
+arguments:
+- `base_name`
+- `lower_bound`
+- `upper_bound`
+- `integer`
+- `binary`
+- `parameter_refs` (for infinite variables)
+- `infinite_variable_ref` (for point variables)
+- `parameter_values` (for point variables).
+These are implemented via the syntax
+`@[type]_variable(model, expr, integrality_arg, keyword_args...)`. Here `expr`
+specifies the name, bounds, and/or variable specific keyword arguments. It can
+use the following forms (note that in the following the symbol `<=` can be used
+instead of `≤` and the symbol `>=`can be used instead of `≥`):
+- `varexpr` creating variables described by `varexpr`
+- `varexpr ≤ ub` (resp. `varexpr ≥ lb`) creating variables described by
+  `varexpr` with upper bounds given by `ub` (resp. lower bounds given by `lb`)
+- `varexpr == value` creating variables described by `varexpr` with fixed values
+   given by `value`
+- `lb ≤ varexpr ≤ ub` or `ub ≥ varexpr ≥ lb` creating variables described by
+  `varexpr` with lower bounds given by `lb` and upper bounds given by `ub`
+Thus, providing an intuitive means to specify bounds. The expressions `varexpr`
+specifies the name, dimensions, and/or type specific keywords and can be of the
+form:
+- `varname` creating a scalar real variable of name `varname`
+- `varname[...]` creating a container of variables with indices `...`
+- `varname(params)` creating an infinite variable dependent on `params`
+- `varname[...](params)` creating infinite variables dependent on `params`.
+The `integrality_arg` optionally is used to indicate if the variable(s) is/are
+integer or binary using `Int` or `Bin`, respectively.  
+
+For example, let's define a hold variable ``0 \leq d \leq 3`` that is integer:
+```jldoctest var_macro
+julia> @hold_variable(model, 0 <= d <= 3, Int)
+d
+```
+Note this is equivalent to
+```jldoctest var_macro
+julia> d = @hold_variable(model, base_name = "d", lower_bound = 0, upper_bound = 3,
+                          integer = true)
+d
+```
+with the exception that the non-anonymous definition registers `d` as variable
+name that cannot be duplicated. For one more example let's define a vector of
+variables ``a \in \mathbb{R}_+^3`` with starting values of 0:
+```jldoctest var_macro
+julia> @hold_variable(model, a[1:3] >= 0, start = 0)
+3-element Array{HoldVariableRef,1}:
+ a[1]
+ a[2]
+ a[3]
+```
+Thus, highlighting how keyword arguments can still be used.
 
 ### Infinite Variables
 Infinite variables entail decision variables that depend on infinite parameter(s).
@@ -337,7 +393,7 @@ with this additional consideration.
 Let's first consider a basic anonymous definition of an infinite variable
 ``y(t, x)``:
 ```jldoctest var_macro
-julia> yref = @infinite_variable(model, parameter_refs = (t, x), base_name = "y")
+julia> y = @infinite_variable(model, parameter_refs = (t, x), base_name = "y")
 y(t, x)
 ```
 Here we created an infinite variable with the base name ``y`` that depends on
@@ -348,15 +404,102 @@ specify what parameterizes the infinite variable. Because we used an anonymous
 call, we can still make another variable with the same name. For example let's
 define another infinite variable also called ``y`` that only depends on ``t``:
 ```jldoctest var_macro
-julia> yref2 = @infinite_variable(model, parameter_refs = (t), base_name = "y")
+julia> y2 = @infinite_variable(model, parameter_refs = (t), base_name = "y")
 y(t)
 ```
 
-### Point Variables
+More conveniently, we can equivalently define ``y(t, x)`` symbolically:
+```jldoctest var_macro
+julia> @infinite_variable(model, y(t, x))
+y(t, x)
+```
+We can also use this symbolic syntax to add constraint information as described
+in the previous section. For example, let's define a vector of infinite variables
+``z(t) \in \{0, 1, 2\}^3``:
+```jldoctest var_macro
+julia> @infinite_variable(model, 0 <= z[1:3](t) <= 2, Int)
+3-element Array{InfiniteVariableRef,1}:
+ z[1](t)
+ z[2](t)
+ z[3](t)
+```
 
+### Point Variables
+Point variables denote infinite variables evaluated at a particular point in the
+infinite decision space (i.e., particular infinite parameter values). These
+are commonly employed when using initial and terminal conditions, and to build
+discrete characterizations of complex operators such as derivatives. The
+[`@point_variable`](@ref) macro is employed to define such variables. Principally,
+it follows the general variable definition paradigm, but allows us to specify
+the infinite variable it refers to and the parameter values it is evaluated at.
+Also, note that by default it inherits the characteristics of the infinite variable
+(e.g., bounds), but these are overwritten as specified in the point variable
+macro.
+
+To begin let's consider defining a boundary point ``y(0, -1)`` based on the
+infinite variable ``y(t, x)`` and enforce that it be nonnegative. Note that
+-1 need be a 3 element vector in this case to match the dimensions of ``x``.
+The anonymous syntax would be:
+```jldoctest var_macro
+julia> y0 = @point_variable(model, infinite_variable_ref = y,
+                            parameter_values = (0, [-1, -1, -1]), lower_bound = 0)
+y(0, [-1, -1, -1])
+```
+This creates a point variable `y(0, [-1, -1, -1]) ≥ 0` that is added to `model`
+and assigns to the associated [`PointVariableRef`](@ref) to the Julia variable
+`y0`. Equivalently, this can accomplished much more conveniently via:
+```jldoctest var_macro
+julia> @point_variable(model, y(0, [-1, -1, -1]), y0 >= 0)
+y0
+```
+Here the 2nd argument specifies the infinite variable and parameter values, and
+the next argument is used to provide a convenient alias that can be used in
+combination with the typical symbolic variable syntax described in the previous
+sections. Let's also demonstrate how this works for multi-dimensional infinite
+variables. For example consider defining ``z(0) = 0`` for
+``z(t) \in \{0, 1, 2\}^3``:
+```jldoctest var_macro
+julia> @point_variable(model, z[i](0), z0[i = 1:3] == 0)
+3-element Array{PointVariableRef,1}:
+ z0[1]
+ z0[2]
+ z0[3]
+```
 
 ### Hold Variables
+Hold variables denote decision variables that are constant (agnostic) over the
+infinite domain or some sub-domain of it. This is accomplished via the
+[`@hold_variable`](@ref) macro as demonstrated in the
+[General Usage](@ref var_macro_gen_usage) section. By default and as shown in
+the above examples, hold variables are valid over the entire infinite domain.
+However, this scope can be limited via the `parameter_bounds` keyword argument.
 
+For example, let's define a hold variable ``b \in \{0, 1\}`` that is valid over
+the entire infinite domain (any infinite parameter value):
+```jldoctest var_macro
+julia> @hold_variable(model, b, Bin)
+b
+```
+Again, this follows the methodology outlined above. Now let's suppose we want to
+define a hold variable ``0 \leq c \leq 42`` that is only valid over the time
+interval ``t \in [0, 5]`` which is a subset of the entire range being considered.
+This can be accomplished via `parameter_bounds`:
+```jldoctest var_macro
+julia> @hold_variable(model, 0 <= c <= 42, parameter_bounds = (t in [0, 5]))
+c
+```
+Thus, we defined `c` and it can only be used in constraints and measures in
+accordance with this limited sub-domain. When such a limited hold variable is
+used in a constraint, the constraint parameter bounds be overlapped with those of
+`c` if possible. Otherwise, an error will be thrown. This is further explained
+on the [Constraints](@ref) page.
+
+Any number of parameters can be specified in a hold variable's sub-domain. For
+example, let's define `e` such over the domain ``t \in [0, 1]``, ``x = -1``:
+```jldoctest var_macro
+julia> @hold_variable(model, e, parameter_bounds = (t in [0, 1], x == -1))
+e
+```
 
 ## Manipulation
 

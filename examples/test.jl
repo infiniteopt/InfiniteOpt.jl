@@ -27,7 +27,7 @@ q = @infinite_variable(m, parameter_refs = (t, x, xi))
 
 @point_variable(m, T(6, [-1, -1, -1]), Tf == 1)
 
-@global_variable(m, 0 <= z <= 42)
+@hold_variable(m, 0 <= z <= 42)
 
 tdata = DiscreteMeasureData(t, ones(3) * 0.5, [0, 2, 6])
 rdata = DiscreteMeasureData(xi, ones(length(samples)), supports(xi), name = "E")
@@ -36,7 +36,7 @@ xdata = DiscreteMeasureData(x, ones(length(supports(x))) * 2, supports(x), name 
 @objective(m, Min, measure(measure(T^2, xdata) - 3g, tdata) + measure(w, rdata) + 3z -2)
 
 @constraint(m, Tf + z <= 10)
-@constraint(m, T == measure(T + 3, tdata), parameter_bounds = Dict(t => IntervalSet(0, 2)))
+@BDconstraint(m, (t in [0, 2]), T == measure(T + 3, tdata))
 @constraint(m, w <= g * xi)
 expr = @expression(m, measure(2w + measure(measure(q + T, tdata), xdata), rdata))
 @constraint(m, expr == 0)
