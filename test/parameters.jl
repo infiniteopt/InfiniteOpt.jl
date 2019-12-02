@@ -224,7 +224,7 @@ end
     end
     # build_parameter
     @testset "build_parameter" begin
-        set = DistributionSet(Multinomial(3, [1/3, 1/3]))
+        set = DistributionSet(Multinomial(3, [1/2, 1/2]))
         supps = Vector(0:1)
         expected = InfOptParameter(set, supps, false)
         @test build_parameter(error, set, 2, supports = supps) == expected
@@ -245,8 +245,9 @@ end
         expected = InfOptParameter(set, [1, 1], false)
         @test build_parameter(error, set, 2, supports = repeated_supps) == expected
         expected = InfOptParameter(set, [1], true)
-        @test build_parameter(error, set, 2, supports = repeated_supps,
-                              independent = true) == expected
+        warn = "Support points are not unique, eliminating redundant points."
+        @test_logs (:warn, warn) build_parameter(error, set, 2,
+                       supports = repeated_supps,independent = true) == expected
         set = IntervalSet(0, 1)
         expected = InfOptParameter(set, [0., 0.5, 1.], false)
         @test build_parameter(error, set, num_supports = 3) == expected
@@ -493,14 +494,14 @@ end
         @test has_lower_bound(pref)
         set_infinite_set(pref, DistributionSet(Normal()))
         @test has_lower_bound(pref)
-        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/3, 1/3])))
+        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/2, 1/2])))
         @test !has_lower_bound(pref)
         set_infinite_set(pref, BadSet())
         @test_throws ErrorException has_lower_bound(pref)
     end
     # JuMP.lower_bound
     @testset "JuMP.lower_bound" begin
-        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/3, 1/3])))
+        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/2, 1/2])))
         @test_throws ErrorException lower_bound(pref)
         set_infinite_set(pref, IntervalSet(0, 1))
         @test lower_bound(pref) == 0
@@ -528,14 +529,14 @@ end
         @test has_upper_bound(pref)
         set_infinite_set(pref, DistributionSet(Normal()))
         @test has_upper_bound(pref)
-        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/3, 1/3])))
+        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/2, 1/2])))
         @test !has_upper_bound(pref)
         set_infinite_set(pref, BadSet())
         @test_throws ErrorException has_upper_bound(pref)
     end
     # JuMP.upper_bound
     @testset "JuMP.upper_bound" begin
-        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/3, 1/3])))
+        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/2, 1/2])))
         @test_throws ErrorException upper_bound(pref)
         set_infinite_set(pref, IntervalSet(0, 1))
         @test upper_bound(pref) == 1
