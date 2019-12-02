@@ -22,8 +22,7 @@ time_data = DiscreteMeasureData(t, ones(num_supports(t)), supports(t), name = "s
 @objective(m, Min, measure(u[1]^2 + u[2]^2, time_data))
 
 # Set the initial conditions
-initial_time = Dict(t => IntervalSet(0, 0))
-@constraint(m, initial_velocity[i = 1:2], v[i] == 0, parameter_bounds = initial_time)
+@BDconstraint(m, initial_velocity[i = 1:2](t == 0), v[i] == 0)
 
 # Newton equations
 for time in 0:max_time-1
@@ -38,8 +37,7 @@ end
 
 # Hit all the waypoints
 for i = 1:length(times)
-    time_bound = Dict(t => IntervalSet(times[i], times[i]))
-    @constraint(m, [j = 1:2], x[j] == xw[j, i], parameter_bounds = time_bound)
+    @BDconstraint(m, [j = 1:2](t == times[i]), x[j] == xw[j, i])
 end
 
 # Optimize the model

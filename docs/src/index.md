@@ -11,58 +11,56 @@ stochastic programming. InfiniteOpt.jl is meant to facilitate intuitive model
 definition, automatic transcription into solvable models, permit a wide range
 of user-defined extensions/behavior, and more. Currently, its capabilities
 include:
-- JuMP-like macro based parameter and variable definition
-- JuMP-like macro based objective and constraint definition
-- Extensions to all JuMP modification methods (e.g., delete)
-- Measure abstractions and definition
-- Automatic model transcription and solution
-- Much more.
+- `JuMP`-like symbolic macro interface
+- Infinite parameter support and parameterization of variables/constraints
+- Finite parameters support(similar to `ParameterJuMP`)
+- Direct support of infinite, point, and hold variables
+- Symbolic measure (integral) expression
+- Infinite/finite constraint definition
+- Ordinary differential equation support (coming soon)
+- Automated model transcription/reformulation and solution
+- Readily extendable to accommodate user defined abstractions and solution techniques
 
 !!! note
     Currently, InfiniteOpt only accepts linear and quadratic expressions.
     Development is underway to allow for general nonlinear constraints.  
 
 ## Installation
-`InfiniteOpt.jl` is still in its early stages of development but can be
+`InfiniteOpt.jl` is still under development but can be
 installed by entering the following in the package manager.
 
 ```julia
-(v1.1) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
+(v1.3) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
 ```
 
 ## Quick Start
 Below is a brief example of the high-level API.
 
 ```julia
-using Revise, InfiniteOpt, JuMP, Clp, Distributions
+using Revise, InfiniteOpt, JuMP, Ipopt, Distributions
 
 # Set the problem information
 θ_nom, covar = [0.; 60.; 10.], [80. 0 0; 0 80. 0; 0 0 120.]
 n_z, n_θ, n_d = 3, 3, 3
-c = ones(n_d) / sqrt(n_d)
-num_samples = 100
 
 # Initialize the model
-m = InfiniteModel(with_optimizer(Clp.Optimizer))
+m = InfiniteModel(with_optimizer(Ipopt.Optimizer))
 
 # Set the uncertainty parameters
 dist = MvNormal(θ_nom, covar)
-θs = rand(dist, num_samples)
-@infinite_parameter(m, θ[i = 1:n_θ] in dist, supports = θs[i, :])
-@infinite_parameter(m, 0 <= t <= 10, supports = Vector(0:10))
+@infinite_parameter(m, θ[i = 1:n_θ] in dist, num_supports = 100)
+@infinite_parameter(m, 0 <= t <= 10)
 
 # Initialize the variables
 @infinite_variable(m, z[1:n_z](θ, t))
 @infinite_variable(m, 0 <= y(θ) <= 100)
-@global_variable(m, d[1:n_d] >= 0)
+@hold_variable(m, d[1:n_d] >= 0)
 
 # Set objective function
-expect_data = DiscreteMeasureData(θ, ones(num_samples) / num_samples,
-                                  supports(θ), name = "expect")
-@objective(m, Min, measure(1 - y, expect_data))
+@objective(m, Min, expect(1 - y, θ))
 
 # Set first stage constraints
-@constraint(m, max_cost, sum(c[i] * d[i] for i = 1:n_d) <= 5)
+@constraint(m, max_cost, sum(1 / 3 * d[i] for i = 1:n_d) <= 5)
 
 # Set the second stage constraints
 @constraint(m, f1, -z[1] - 35 - d[1] + y <= 0)

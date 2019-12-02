@@ -29,7 +29,7 @@ dist = MvNormal(θ_nom, covar)
 @infinite_variable(m, 0 <= y(θ) <= 1)
 # @infinite_variable(m, y(θ), Bin)
 @infinite_variable(m, z[1:n_z](θ))
-@global_variable(m, d[1:n_d] >= 0)
+@hold_variable(m, d[1:n_d] >= 0)
 
 # Set objective function
 expect_data = DiscreteMeasureData(θ, ones(num_samples) / num_samples, supports(θ), name = "expect")

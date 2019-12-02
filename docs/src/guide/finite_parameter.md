@@ -1,6 +1,7 @@
 # Finite Parameters
 A guide and manual to the definition and use of finite parameters in
-`InfiniteOpt`.
+`InfiniteOpt`. The Datatypes and Methods sections at the end comprise the manual,
+and the above sections comprise the guide.  
 
 ## Overview
 Often a mathematical model needs to be optimized several times in accordance

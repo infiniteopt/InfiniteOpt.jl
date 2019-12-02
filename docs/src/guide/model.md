@@ -1,6 +1,7 @@
 # Infinite Models
 A guide and manual for initializing infinite models and understanding how
-they work.
+they work. The Datatypes and Methods sections at the end comprise the manual,
+and the above sections comprise the guide.  
 
 ## Overview
 Infinite models are expressed via the [`InfiniteModel`](@ref) datatype which is at the
