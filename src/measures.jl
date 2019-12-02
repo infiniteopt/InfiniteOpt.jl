@@ -1,3 +1,6 @@
+const MC = :MC
+const GaussLegendre = :GaussLegendre
+
 # Extend Base.copy for new variable types
 Base.copy(v::MeasureRef, new_model::InfiniteModel) = MeasureRef(new_model,
                                                                 v.index)
@@ -406,6 +409,137 @@ function measure(expr::JuMP.AbstractJuMPScalar,
     end
     meas = Measure(expr, data)
     return add_measure(model, meas)
+end
+
+"""
+    measure(expr::JuMP.AbstractJuMPScalar,
+            params::Union{ParameterRef, Vector{ParameterRef}},
+            lb::Union{Float64, Vector{Float64}},
+            ub::Union{Float64, Vector{Float64}};
+            eval_method::Function, num_supports::Int, weight_func::Function,
+            use_existing_supports::Bool = false)::MeasureRef
+
+Returns a measure reference that evaluates `expr` without using an object of
+[`AbstractMeasureData`](@ref) type. Similar to the main [`measure`](@ref)
+method, this function aims to implement measures of the form:
+``\\int_{p \\in P} expr(p) w(p) dp`` where ``p`` is an infinite parameter (scalar
+or vector) and ``w`` is the weight function. This function will serve as a
+flexible interface where users only have to provide necessary data about the
+integration. Instead of taking an [`AbstractMeasureData`](@ref) object as input,
+this function constructs the [`AbstractMeasureData`](@ref) object using some
+default numerical integration schemes.
+
+**Example**
+```julia
+
+```
+"""
+# Measure function that takes non-AbstractMeasureData types
+function measure(expr::JuMP.AbstractJuMPScalar,
+                 params::Union{ParameterRef, Vector{ParameterRef}, Nothing} = nothing,
+                 lb::Union{Float64, Vector{Float64}} = Float64[],
+                 ub::Union{Float64, Vector{Float64}} = Float64[];
+                 eval_method::Function = MC_sampling, num_supports::Int = 50,
+                 weight_func::Function = _w,
+                 use_existing_supports::Bool = false)::MeasureRef
+
+    # Default: try to collect all parameters in expr.
+    if isa(params, Nothing)
+        params = _all_parameter_refs(expr)
+        if length(params) == 0
+            error("No infinite parameters in the expression.")
+        end
+    end
+
+    # Check if the parameters are empty
+    if isa(params, Vector)
+        if length(params) == 0
+            error("Parameters cannot be empty.")
+        end
+        num_params = length(params)
+    else
+        num_params = 1
+    end
+
+    # Check if the parameters belong to multiple groups
+    ids = unique(group_id.(params))
+    if length(ids) > 1
+        error("Multiple groups of parameters in the expression. Need to " *
+              "specify the parameters to integrate over.")
+    end
+
+    # Fill in lower bounds and upper bounds if not given
+    if length(lb) == 0
+        params_have_lower_bounds = all(JuMP.has_lower_bound.(params))
+        if !params_have_lower_bounds
+            error("Some parameter(s) do not have lower bounds. Need to manually " *
+                  "input the lower bound values.")
+        end
+        lb = JuMP.lower_bound.(params)
+    end
+    if length(ub) == 0
+        params_have_upper_bounds = all(JuMP.has_upper_bound.(params))
+        if !params_have_upper_bounds
+            error("Some parameter(s) do not have upper bounds. Need to manually " *
+                  "input the upper bound values.")
+        end
+        ub = JuMP.upper_bound.(params)
+    end
+
+    # Check the dimension of lb and ub matches number of parameters
+    if length(lb) != num_params || length(ub) != num_params
+        error("Number of parameters do not match number of lower bounds or " *
+              "upper bounds.")
+    end
+
+    # Check the input lower bounds and upper bounds are reasonable
+    for i in eachindex(lb)
+        if lb[i] >= ub[i]
+            error("Lower bound is not less than upper bound for parameter $(params[i])")
+        end
+    end
+    # construct AbstractMeasureData as data
+    if use_existing_supports
+        supports = support(params)
+        # TODO: think about how to generate reasonable coefficients for given supports
+        if num_params == 1
+            data = DiscreteMeasureData(params[1], ones(size(supports)), supports)
+        else
+            data = MultiDiscreteMeasureData(params, ones(size(supports)), supports)
+        end
+    else
+        data = generate_measure_data(params, lb, ub, num_supports, method = eval_method)
+    end
+
+    # call measure function to construct the measure
+    return measure(expr, data)
+end
+
+# expectation measure
+# TODO: sample from distribution (Distributions package)
+function expect(expr::JuMP.AbstractJuMPScalar,
+                params::Union{ParameterRef, Vector{ParameterRef}, Nothing} = nothing;
+                num_supports::Int = 50)::MeasureRef    
+    if use_existing_supports
+        weight(x) = 1 / length(supports(x));
+    else
+        weight(x) = 1 / num_supports;
+    end
+    return measure(expr, params, lb, ub; eval_method = eval_method,
+                   num_supports = num_supports, weight_func = weight,
+                   use_existing_supports = use_existing_supports)
+end
+
+# sum measure
+function sum(expr::JuMP.AbstractJuMPScalar,
+             params::Union{ParameterRef, Vector{ParameterRef}, Nothing} = nothing,
+             lb::Union{Float64, Vector{Float64}} = Float64[],
+             ub::Union{Float64, Vector{Float64}} = Float64[];
+             eval_method::Function = MC_sampling, num_supports::Int = 50,
+             use_existing_supports::Bool = false)::MeasureRef
+    return measure(expr, params, lb, ub; eval_method = eval_method,
+                   num_supports = num_supports,
+                   use_existing_supports = use_existing_supports)
 end
 
 """

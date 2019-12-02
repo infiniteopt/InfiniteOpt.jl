@@ -7,6 +7,9 @@ const JuMPC = JuMP.Containers
 const IOTO = InfiniteOpt.TranscriptionOpt
 using Test
 using Random
+const MEM = InfiniteOpt.MeasureEvalMethod
+using FastGaussQuadrature
+const FGQ = FastGaussQuadrature
 
 include("utilities.jl")
 
@@ -36,6 +39,10 @@ println("")
 @time @testset "Expression Methods" begin include("expressions.jl") end
 println("")
 @time @testset "Measure Methods" begin include("measures.jl") end
+println("")
+@time @testset "Measure Evaluation Methods" begin
+    include("MeasureEvalMethod/methods.jl")
+end
 println("")
 @time @testset "Objective Methods" begin include("objective.jl") end
 println("")
