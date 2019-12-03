@@ -82,7 +82,7 @@ Measure, MeasureRef
 
 # Export measure methods
 export add_measure, measure, measure_function, measure_data, expand,
-expand_all_measures!
+expand_all_measures!, expect
 
 # Export measure evaluation functions
 export generate_measure_data, MC_sampling, Gauss_Legendre, Gauss_Hermite,

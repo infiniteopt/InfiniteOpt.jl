@@ -20,11 +20,11 @@ end
 # MC sampling from uniform distribution over the interval [lb, ub]
 function MC_sampling(lb::Float64, ub::Float64, num_supports::Int)::Tuple
     if lb == -Inf || ub == Inf
-        (samples, _) = infinite_transform(lb, ub, num_supports)
+        return infinite_transform(lb, ub, num_supports)
     else
         samples = rand(num_supports) .* (ub - lb) .+ lb
+        return (samples, ones(num_supports) / num_supports * (ub - lb))
     end
-    return (samples, ones(num_supports) / num_supports * (ub - lb))
 end
 
 # MC sampling - multi-dim version
@@ -82,8 +82,8 @@ function infinite_transform(lb::Float64, ub::Float64, num_supports::Int;
                             transform_x::Function = _default_x,
                             transform_dx::Function = _default_dx,
                             t_lb::Float64 = -convert(Float64, lb == -Inf && ub == Inf),
-                            t_ub::Float64 = 1)::Tuple
-    if lb != -Inf || ub != Inf
+                            t_ub::Float64 = 1.)::Tuple
+    if lb != -Inf && ub != Inf
         error("The range is not (semi-)infinite. Use evaluation methods for " *
               "bounded domains.")
     end
@@ -114,3 +114,4 @@ function _default_dx(t::Float64, lb::Float64, ub::Float64)::Float64
 end
 
 # TODO: consider truncated distribution
+# TODO: consider adding uniform grids

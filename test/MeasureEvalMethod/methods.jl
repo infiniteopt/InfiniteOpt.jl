@@ -7,6 +7,9 @@
         @test weights == 0.4 * ones(5)
         @test all(supports .>= 0.)
         @test all(supports .<= 2.)
+        (supports, weights) = MC_sampling(-Inf, Inf, 5)
+        @test length(supports) == 5
+        @test length(weights) == 5
     end
 
     # test multivariate Monte Carlo sampling
@@ -22,7 +25,7 @@
     end
 end
 
-@testset "Default Quadrature Methods" begin
+@testset "Quadrature Methods" begin
     # test Gauss-Legendre method for bounded interval
     @testset "Gauss_Legendre" begin
         (supports, weights) = Gauss_Legendre(1., 5., 5)
@@ -65,17 +68,51 @@ end
         @test supports == expect_supports
         @test weights == expect_weights
     end
+end
 
-    # test the function that transform (semi-)infinite domain to finite domain
+# test the function that transform (semi-)infinite domain to finite domain
+# with the default transform function
+@testset "Infinite transform for (semi-)infinite domain" begin
     @testset "infinite_transform" begin
         @test_throws ErrorException infinite_transform(0., 1., 5)
+        # Infinite domain
         (supports, weights) = infinite_transform(-Inf, Inf, 5,
                                                  sub_method = Gauss_Legendre)
         (expect_supports, expect_weights) = gausslegendre(5)
-        expect_supports = MEM._default_x.(expect_supports, -Inf, Inf)
-        expect_weights = expect_weights .* MEM._default_dx.(expect_weights,
+        expect_weights = expect_weights .* MEM._default_dx.(expect_supports,
                                                             -Inf, Inf)
+        expect_supports = MEM._default_x.(expect_supports, -Inf, Inf)
         @test supports == expect_supports
         @test weights == expect_weights
+        # Lower bounded semi-infinite domain
+        (supports, weights) = infinite_transform(0., Inf, 5,
+                                                 sub_method = Gauss_Legendre)
+        (expect_supports, expect_weights) = gausslegendre(5)
+        expect_supports = (expect_supports .+ 1) ./ 2
+        expect_weights = expect_weights ./ 2
+        expect_weights = expect_weights .* MEM._default_dx.(expect_supports,
+                                                            0., Inf)
+        expect_supports = MEM._default_x.(expect_supports, 0., Inf)
+        @test supports == expect_supports
+        @test weights == expect_weights
+        # Upper bounded semi-infinite domain
+        (supports, weights) = infinite_transform(-Inf, 0., 5,
+                                                 sub_method = Gauss_Legendre)
+        (expect_supports, expect_weights) = gausslegendre(5)
+        expect_supports = (expect_supports .+ 1) ./ 2
+        expect_weights = expect_weights ./ 2
+        expect_weights = expect_weights .* MEM._default_dx.(expect_supports,
+                                                            -Inf, 0.)
+        expect_supports = MEM._default_x.(expect_supports, -Inf, 0.)
+        @test supports == expect_supports
+        @test weights == expect_weights
+    end
+end
+
+@testset "Data Generation" begin
+    @testset "generate_measure_data (univariate)" begin
+    end
+
+    @testset "generate_measure_data (multivariate)" begin
     end
 end

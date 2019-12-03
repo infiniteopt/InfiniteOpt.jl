@@ -445,7 +445,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
 
     # Default: try to collect all parameters in expr.
     if isa(params, Nothing)
-        params = _all_parameter_refs(expr)
+        params = collect(_all_parameter_refs(expr))
         if length(params) == 0
             error("No infinite parameters in the expression.")
         end
@@ -457,6 +457,9 @@ function measure(expr::JuMP.AbstractJuMPScalar,
             error("Parameters cannot be empty.")
         end
         num_params = length(params)
+        if num_params == 1
+            params = params[1]
+        end
     else
         num_params = 1
     end
@@ -475,7 +478,10 @@ function measure(expr::JuMP.AbstractJuMPScalar,
             error("Some parameter(s) do not have lower bounds. Need to manually " *
                   "input the lower bound values.")
         end
-        lb = JuMP.lower_bound.(params)
+        lb = collect(JuMP.lower_bound.(params))
+        if num_params == 1
+            lb = lb[1]
+        end
     end
     if length(ub) == 0
         params_have_upper_bounds = all(JuMP.has_upper_bound.(params))
@@ -483,7 +489,10 @@ function measure(expr::JuMP.AbstractJuMPScalar,
             error("Some parameter(s) do not have upper bounds. Need to manually " *
                   "input the upper bound values.")
         end
-        ub = JuMP.upper_bound.(params)
+        ub = collect(JuMP.upper_bound.(params))
+        if num_params == 1
+            ub = ub[1]
+        end
     end
 
     # Check the dimension of lb and ub matches number of parameters
@@ -519,7 +528,7 @@ end
 # TODO: sample from distribution (Distributions package)
 function expect(expr::JuMP.AbstractJuMPScalar,
                 params::Union{ParameterRef, Vector{ParameterRef}, Nothing} = nothing;
-                num_supports::Int = 50)::MeasureRef    
+                num_supports::Int = 50)::MeasureRef
     if use_existing_supports
         weight(x) = 1 / length(supports(x));
     else
@@ -531,7 +540,7 @@ function expect(expr::JuMP.AbstractJuMPScalar,
 end
 
 # sum measure
-function sum(expr::JuMP.AbstractJuMPScalar,
+function Base.sum(expr::JuMP.GenericAffExpr{Float64, },
              params::Union{ParameterRef, Vector{ParameterRef}, Nothing} = nothing,
              lb::Union{Float64, Vector{Float64}} = Float64[],
              ub::Union{Float64, Vector{Float64}} = Float64[];
