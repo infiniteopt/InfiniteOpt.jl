@@ -34,11 +34,11 @@ end
 """
     JuMP.has_lower_bound(vref::InfOptVariableRef)::Bool
 
-Extend [`JuMP.has_lower_bound`](@ref) to return a `Bool` whether an `InfiniteOpt`
-variable has a lower bound.
+Extend [`JuMP.has_lower_bound`](@ref JuMP.has_lower_bound(::VariableRef)) to
+return a `Bool` whether an `InfiniteOpt` variable has a lower bound.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 <= vref))
 julia> has_lower_bound(vref)
 true
 ```
@@ -48,11 +48,12 @@ JuMP.has_lower_bound(vref::InfOptVariableRef)::Bool = _variable_info(vref).has_l
 """
     JuMP.lower_bound(vref::InfOptVariableRef)::Float64
 
-Extend [`JuMP.lower_bound`](@ref) to return the lower bound of an `InfiniteOpt`
-variable. Errors if `vref` doesn't have a lower bound.
+Extend [`JuMP.lower_bound`](@ref JuMP.lower_bound(::VariableRef)) to return the
+lower bound of an `InfiniteOpt` variable. Errors if `vref` doesn't have a lower
+bound.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 <= vref))
 julia> lower_bound(vref)
 0.0
 ```
@@ -82,11 +83,12 @@ end
 """
     JuMP.set_lower_bound(vref::InfOptVariableRef, lower::Number)
 
-Extend [`JuMP.set_lower_bound`](@ref) to specify the lower bound of an
-`InfiniteOpt` variable `vref`. Errors if `vref` is fixed.
+Extend [`JuMP.set_lower_bound`](@ref JuMP.set_lower_bound(::VariableRef, ::Number))
+to specify the lower bound of an `InfiniteOpt` variable `vref`. Errors if `vref`
+is fixed.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 <= vref))
 julia> set_lower_bound(vref, -1)
 
 julia> lower_bound(vref)
@@ -119,13 +121,13 @@ end
 """
     JuMP.LowerBoundRef(vref::InfOptVariableRef)::GeneralConstraintRef
 
-Extend [`JuMP.LowerBoundRef`](@ref) to extract a constraint reference for the
-lower bound of `vref`.
+Extend [`JuMP.LowerBoundRef`](@ref JuMP.LowerBoundRef(::VariableRef)) to extract
+a constraint reference for the lower bound of `vref`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 <= vref))
 julia> cref = LowerBoundRef(vref)
-var >= 0.0
+var ≥ 0.0
 ```
 """
 function JuMP.LowerBoundRef(vref::InfOptVariableRef)::GeneralConstraintRef
@@ -143,11 +145,11 @@ end
 """
     JuMP.delete_lower_bound(vref::InfOptVariableRef)
 
-Extend [`JuMP.delete_lower_bound`](@ref) to delete lower bound of `vref`. Errors
-if it doesn't have a lower bound.
+Extend [`JuMP.delete_lower_bound`](@ref JuMP.delete_lower_bound(::VariableRef))
+to delete lower bound of `vref`. Errors if it doesn't have a lower bound.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 <= vref))
 julia> delete_lower_bound(vref)
 
 julia> has_lower_bound(vref)
@@ -169,11 +171,11 @@ end
 """
     JuMP.has_upper_bound(vref::InfOptVariableRef)::Bool
 
-Extend [`JuMP.has_upper_bound`](@ref) to return a `Bool` whether an `InfiniteOpt`
-variable has an upper bound.
+Extend [`JuMP.has_upper_bound`](@ref JuMP.has_upper_bound(::VariableRef)) to
+return a `Bool` whether an `InfiniteOpt` variable has an upper bound.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 >= vref))
 julia> has_upper_bound(vref)
 true
 ```
@@ -183,11 +185,11 @@ JuMP.has_upper_bound(vref::InfOptVariableRef)::Bool = _variable_info(vref).has_u
 """
     JuMP.upper_bound(vref::InfOptVariableRef)::Float64
 
-Extend [`JuMP.upper_bound`](@ref) to return the upper bound of an `InfiniteOpt`
-variable. Errors if `vref` doesn't have a upper bound.
+Extend [`JuMP.upper_bound`](@ref JuMP.upper_bound(::VariableRef)) to return the
+upper bound of an `InfiniteOpt` variable. Errors if `vref` doesn't have a upper bound.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 >= vref))
 julia> upper_bound(vref)
 0.0
 ```
@@ -216,11 +218,12 @@ end
 """
     JuMP.set_upper_bound(vref::InfOptVariableRef, upper::Number)
 
-Extend [`JuMP.set_upper_bound`](@ref) to specify the upper bound of an
-`InfiniteOpt` variable `vref`. Errors if `vref` is fixed.
+Extend [`JuMP.set_upper_bound`](@ref JuMP.set_upper_bound(::VariableRef, ::Number))
+to specify the upper bound of an `InfiniteOpt` variable `vref`. Errors if `vref`
+is fixed.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 >= vref))
 julia> set_upper_bound(vref, 1)
 
 julia> upper_bound(vref)
@@ -253,13 +256,13 @@ end
 """
     JuMP.UpperBoundRef(vref::InfOptVariableRef)::GeneralConstraintRef
 
-Extend [`JuMP.UpperBoundRef`](@ref) to extract a constraint reference for the
-upper bound of `vref`.
+Extend [`JuMP.UpperBoundRef`](@ref JuMP.UpperBoundRef(::VariableRef)) to extract
+a constraint reference for the upper bound of `vref`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 >= vref))
 julia> cref = UpperBoundRef(vref)
-var <= 1.0
+var ≤ 1.0
 ```
 """
 function JuMP.UpperBoundRef(vref::InfOptVariableRef)::GeneralConstraintRef
@@ -277,11 +280,11 @@ end
 """
     JuMP.delete_upper_bound(vref::InfOptVariableRef)
 
-Extend [`JuMP.delete_upper_bound`](@ref) to delete the upper bound of `vref`.
-Errors if it doesn't have an upper bound.
+Extend [`JuMP.delete_upper_bound`](@ref JuMP.delete_upper_bound(::VariableRef))
+to delete the upper bound of `vref`. Errors if it doesn't have an upper bound.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 >= vref))
 julia> delete_upper_bound(vref)
 
 julia> has_upper_bound(vref)
@@ -303,11 +306,11 @@ end
 """
     JuMP.is_fixed(vref::InfOptVariableRef)::Bool
 
-Extend [`JuMP.is_fixed`](@ref) to return `Bool` whether an `InfiniteOpt`
-variable is fixed.
+Extend [`JuMP.is_fixed`](@ref JuMP.is_fixed(::VariableRef)) to return `Bool`
+whether an `InfiniteOpt` variable is fixed.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref == 0))
 julia> is_fixed(vref)
 true
 ```
@@ -317,11 +320,11 @@ JuMP.is_fixed(vref::InfOptVariableRef)::Bool = _variable_info(vref).has_fix
 """
     JuMP.fix_value(vref::InfOptVariableRef)::Float64
 
-Extend [`JuMP.fix_value`](@ref) to return the fix value of an `InfiniteOpt`
-variable. Errors if variable is not fixed.
+Extend [`JuMP.fix_value`](@ref JuMP.fix_value(::VariableRef)) to return the fix
+value of an `InfiniteOpt` variable. Errors if variable is not fixed.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref == 0))
 julia> fix_value(vref)
 0.0
 ```
@@ -350,11 +353,12 @@ end
 """
     JuMP.fix(vref::InfOptVariableRef, value::Number; force::Bool = false)
 
-Extend [`JuMP.fix`](@ref) to fix the value of an `InfiniteOpt` variable. Errors
-if variable has lower/upper bound unless `force = true`.
+Extend [`JuMP.fix`](@ref JuMP.fix(::VariableRef, ::Number)) to fix the value of
+an `InfiniteOpt` variable. Errors if variable has a lower and/or an upper
+bound(s) unless `force = true`.
 
 **Examples**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref == 0); @hold_variable(m, vref2 <= 0))
 julia> fix(vref, 3)
 
 julia> fix_value(vref)
@@ -405,13 +409,14 @@ end
 """
     JuMP.FixRef(vref::InfOptVariableRef)::GeneralConstraintRef
 
-Extend [`JuMP.FixRef`](@ref) to return the constraint reference of the fix
-constraint associated with `vref`. Errors `vref` is not fixed.
+Extend [`JuMP.FixRef`](@ref JuMP.FixRef(::VariableRef)) to return the constraint
+reference of the fix constraint associated with `vref`. Errors `vref` is not
+fixed.
 
 **Examples**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref == 0))
 julia> cref = FixRef(vref)
-var == 1.0
+var = 1.0
 ```
 """
 function JuMP.FixRef(vref::InfOptVariableRef)::GeneralConstraintRef
@@ -429,10 +434,11 @@ end
 """
     JuMP.unfix(vref::InfOptVariableRef)
 
-Extend [`JuMP.unfix`](@ref) to unfix `vref`. Errors if it is not fixed.
+Extend [`JuMP.unfix`](@ref JuMP.unfix(::VariableRef)) to unfix `vref`. Errors
+if it is not fixed.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref == 0))
 julia> unfix(vref)
 
 julia> is_fixed(vref)
@@ -454,11 +460,11 @@ end
 """
     JuMP.start_value(vref::InfOptVariableRef)::Union{Nothing, Float64}
 
-Extend [`JuMP.start_value`](@ref) to return starting value of `InfiniteOpt`
-variable if it has one. Returns `nothing` otherwise.
+Extend [`JuMP.start_value`](@ref JuMP.start_value(::VariableRef)) to return
+starting value of `InfiniteOpt` variable if it has one. Returns `nothing` otherwise.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref, start = 0))
 julia> start_value(vref)
 0.0
 ```
@@ -470,11 +476,11 @@ end
 """
     JuMP.set_start_value(vref::InfOptVariableRef, value::Number)
 
-Extend [`JuMP.set_start_value`](@ref) to specify the start value of `InfiniteOpt`
-variables.
+Extend [`JuMP.set_start_value`](@ref JuMP.set_start_value(::VariableRef, ::Number))
+to specify the start value of `InfiniteOpt` variables.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref, start = 0))
 julia> set_start_value(vref, 1)
 
 julia> start_value(vref)
@@ -496,11 +502,11 @@ end
 """
     JuMP.is_binary(vref::InfOptVariableRef)::Bool
 
-Extend [`JuMP.is_binary`](@ref) to return `Bool` whether an `InfiniteOpt`
-variable is binary.
+Extend [`JuMP.is_binary`](@ref JuMP.is_binary(::VariableRef)) to return `Bool`
+whether an `InfiniteOpt` variable is binary.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref, Bin))
 julia> is_binary(vref)
 true
 ```
@@ -524,11 +530,12 @@ end
 """
     JuMP.set_binary(vref::InfOptVariableRef)
 
-Extend [`JuMP.set_binary`](@ref) to specify an `InfiniteOpt` variable as a
-binary variable. Errors if `vref` is an integer variable.
+Extend [`JuMP.set_binary`](@ref JuMP.set_binary(::VariableRef)) to specify an
+`InfiniteOpt` variable as a binary variable. Errors if `vref` is an integer
+variable.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref, Bin))
 julia> set_binary(vref)
 
 julia> is_binary(vref)
@@ -557,11 +564,12 @@ end
 """
     JuMP.BinaryRef(vref::InfOptVariableRef)::GeneralConstraintRef
 
-Extend [`JuMP.BinaryRef`](@ref) to return a constraint reference to the
-constraint constrainting `vref` to be binary. Errors if one does not exist.
+Extend [`JuMP.BinaryRef`](@ref JuMP.BinaryRef(::VariableRef)) to return a
+constraint reference to the constraint constrainting `vref` to be binary. Errors
+if one does not exist.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref, Bin))
 julia> cref = BinaryRef(vref)
 var binary
 ```
@@ -581,10 +589,10 @@ end
 """
     JuMP.unset_binary(vref::InfOptVariableRef)
 
-Extend [`JuMP.unset_binary`](@ref) to unset `vref` as a binary variable. Errors
-if it is not binary.
+Extend [`JuMP.unset_binary`](@ref JuMP.unset_binary(::VariableRef)) to unset
+`vref` as a binary variable. Errors if it is not binary.
 
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref, Bin))
 julia> unset_binary(vref)
 
 julia> is_binary(vref)
@@ -606,11 +614,11 @@ end
 """
     JuMP.is_integer(vref::InfOptVariableRef)::Bool
 
-Extend [`JuMP.is_integer`](@ref) to return `Bool` whether an `InfiniteOpt`
-variable is integer.
+Extend [`JuMP.is_integer`](@ref JuMP.is_integer(::VariableRef)) to return `Bool`
+whether an `InfiniteOpt` variable is integer.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref, Int))
 julia> is_integer(vref)
 true
 ```
@@ -634,11 +642,12 @@ end
 """
     JuMP.set_integer(vref::InfOptVariableRef)
 
-Extend [`JuMP.set_integer`](@ref) to specify an `InfiniteOpt` variable as a
-integer variable. Errors if `vref` is an binary variable.
+Extend [`JuMP.set_integer`](@ref JuMP.set_integer(::VariableRef)) to specify an
+`InfiniteOpt` variable as a integer variable. Errors if `vref` is an binary
+variable.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref, Int))
 julia> set_integery(vref)
 
 julia> is_integer(vref)
@@ -668,11 +677,12 @@ end
 """
     JuMP.IntegerRef(vref::InfOptVariableRef)::GeneralConstraintRef
 
-Extend [`JuMP.IntegerRef`](@ref) to return a constraint reference to the
-constraint constrainting `vref` to be integer. Errors if one does not exist.
+Extend [`JuMP.IntegerRef`](@ref JuMP.IntegerRef(::VariableRef)) to return a
+constraint reference to the constraint constrainting `vref` to be integer.
+Errors if one does not exist.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref, Int))
 julia> cref = IntegerRef(vref)
 var integer
 ```
@@ -692,10 +702,10 @@ end
 """
     JuMP.unset_integer(vref::InfOptVariableRef)
 
-Extend [`JuMP.unset_integer`](@ref) to unset `vref` as an integer variable.
-Errors if it is not an integer variable.
+Extend [`JuMP.unset_integer`](@ref JuMP.unset_integer(::VariableRef)) to unset
+`vref` as an integer variable. Errors if it is not an integer variable.
 
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref, Int))
 julia> unset_integer(vref)
 
 julia> is_integer(vref)

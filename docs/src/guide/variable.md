@@ -12,7 +12,7 @@ that is parameterized by an infinite parameter (e.g., space-time variables and
 recourse variables). Point variables are infinite variables at a particular
 infinite parameter value (point). Finally, hold variables are decisions that
 are made irrespective of the infinite domain (e.g., first stage variables and
-design variables). Or in other words they hold a particular value over the
+design variables). Or in other words, they hold a particular value over the
 infinite domain or some sub-domain of it.
 
 ## Basic Usage
@@ -23,7 +23,7 @@ except that they each employ additional syntax capabilities to employ their
 respective variable type.
 
 Let's first setup a simple space-time model with infinite parameters time `t` and
-spacial position `x`:
+spatial position `x`:
 ```jldoctest var_basic
 julia> using InfiniteOpt, JuMP
 
@@ -576,7 +576,7 @@ such constraint exists). For example, the upper bound constraint of `d` can be
 obtained via [`UpperBoundRef`](@ref JuMP.UpperBoundRef(::InfOptVariableRef)):
 ```jldoctest var_macro
 julia> UpperBoundRef(d)
-d <= 3.0
+d ≤ 3.0
 ```
 The other methods are [`LowerBoundRef`](@ref JuMP.LowerBoundRef(::InfOptVariableRef)),
 [`FixRef`](@ref JuMP.FixRef(::InfOptVariableRef)),

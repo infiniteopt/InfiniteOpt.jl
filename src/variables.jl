@@ -531,18 +531,17 @@ end
 """
     JuMP.owner_model(vref::GeneralVariableRef)::InfiniteModel
 
-Extend [`JuMP.owner_model`](@ref) function for `InfiniteOpt` variables. Returns
-the infinite model associated with `vref`.
+Extend [`JuMP.owner_model`](@ref JuMP.owner_model(::JuMP.AbstractVariableRef)) function
+for `InfiniteOpt` variables. Returns the infinite model associated with `vref`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 <= vref <= 1))
 julia> owner_model(vref)
 An InfiniteOpt Model
 Feasibility problem with:
 Variable: 1
-`HoldVariableRef`-in-`MathOptInterface.LessThan{Float64}`: 1 constraint
-`HoldVariableRef`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
 `HoldVariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 1 constraint
+`HoldVariableRef`-in-`MathOptInterface.LessThan{Float64}`: 1 constraint
 Names registered in the model: vref
 Optimizer model backend information:
 Model mode: AUTOMATIC
@@ -555,10 +554,11 @@ JuMP.owner_model(vref::GeneralVariableRef)::InfiniteModel = vref.model
 """
     JuMP.index(v::GeneralVariableRef)::Int
 
-Extent [`JuMP.index`](@ref) to return the index of a `InfiniteOpt` variable.
+Extent [`JuMP.index`](@ref JuMP.index(::VariableRef)) to return the index of a
+`InfiniteOpt` variable.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref))
 julia> index(vref)
 1
 ```
@@ -571,7 +571,7 @@ JuMP.index(v::GeneralVariableRef)::Int = v.index
 Return a `Bool` indicating if `vref` is used by a constraint.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref))
 julia> used_by_constraint(vref)
 false
 ```
@@ -586,7 +586,7 @@ end
 Return a `Bool` indicating if `vref` is used by a measure.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref); m.var_to_meas[1] = [1])
 julia> used_by_measure(vref)
 true
 ```
@@ -601,7 +601,7 @@ end
 Return a `Bool` indicating if `vref` is used by the objective.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref); m.var_in_objective[1] = true)
 julia> used_by_objective(vref)
 true
 ```
@@ -616,7 +616,7 @@ end
 Return a `Bool` indicating if `vref` is used in the model.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 <= vref))
 julia> is_used(vref)
 true
 ```
@@ -631,7 +631,7 @@ end
 Return a `Bool` indicating if `vref` is used by a point variable.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @infinite_variable(m, vref(@infinite_parameter(m, t in [0, 1]))))
 julia> used_by_point_variable(vref)
 false
 ```
@@ -646,9 +646,9 @@ end
 Return a `Bool` indicating if `vref` is used by a reduced infinite variable.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @infinite_variable(m, vref(@infinite_parameter(m, t in [0, 1]))))
 julia> used_by_reduced_variable(vref)
-true
+false
 ```
 """
 function used_by_reduced_variable(vref::InfiniteVariableRef)::Bool
@@ -661,7 +661,7 @@ end
 Return a `Bool` indicating if `vref` is used in the model.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @infinite_variable(m, vref(@infinite_parameter(m, t in [0, 1]))))
 julia> is_used(vref)
 false
 ```
@@ -691,28 +691,28 @@ end
 """
     JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
 
-Extend [`JuMP.delete`](@ref) to delete `InfiniteOpt` variables and their
-dependencies. Errors if variable is invalid, meaning it has already been
-deleted or it belongs to another model.
+Extend [`JuMP.delete`](@ref JuMP.delete(::Model, ::VariableRef)) to delete
+`InfiniteOpt` variables and their dependencies. Errors if variable is invalid,
+meaning it has already been deleted or it belongs to another model.
 
 **Example**
 ```julia
 julia> print(model)
 Min measure(g(t)*t) + z
 Subject to
- z >= 0.0
- g(t) + z >= 42.0
- g(0.5) == 0
- t in [0, 6]
+ z ≥ 0.0
+ g(t) + z ≥ 42.0
+ g(0.5) = 0
+ t ∈ [0, 6]
 
 julia> delete(model, g)
 
 julia> print(model)
 Min measure(t) + z
 Subject to
- z >= 0.0
- z >= 42.0
- t in [0, 6]
+ z ≥ 0.0
+ z ≥ 42.0
+ t ∈ [0, 6]
 ```
 """
 function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
@@ -817,11 +817,12 @@ end
 """
     JuMP.is_valid(model::InfiniteModel, vref::InfOptVariableRef)::Bool
 
-Extend [`JuMP.is_valid`](@ref) to accomodate `InfiniteOpt` variables.
+Extend [`JuMP.is_valid`](@ref JuMP.is_valid(::JuMP.Model, ::JuMP.VariableRef))
+to accomodate `InfiniteOpt` variables.
 
 **Example**
-```julia
-julia> is_valid(model, ivref)
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref))
+julia> is_valid(model, vref)
 true
 ```
 """
@@ -832,11 +833,11 @@ end
 """
     JuMP.num_variables(model::InfiniteModel)::Int
 
-Extend [`JuMP.num_variables`](@ref) to return the number of `InfiniteOpt`
-variables assigned to `model`.
+Extend [`JuMP.num_variables`](@ref JuMP.num_variables(::Model)) to return the
+number of `InfiniteOpt` variables assigned to `model`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @hold_variable(model, vref[1:3]))
 julia> num_variables(model)
 3
 ```
@@ -850,10 +851,11 @@ include("variable_info.jl")
 """
     JuMP.name(vref::InfOptVariableRef)::String
 
-Extend [`JuMP.name`](@ref) to return the names of `InfiniteOpt` variables.
+Extend [`JuMP.name`](@ref JuMP.name(::VariableRef)) to return the names of
+`InfiniteOpt` variables.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref, base_name = "var_name"))
 julia> name(vref)
 "var_name"
 ```
@@ -865,13 +867,14 @@ end
 """
     JuMP.set_name(vref::HoldVariableRef, name::String)
 
-Extend [`JuMP.set_name`](@ref) to set names of hold variables.
+Extend [`JuMP.set_name`](@ref JuMP.set_name(::VariableRef, ::String)) to set
+names of hold variables.
 
 **Example**
-```julia
-julia> set_name(hvref, "var_name")
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref))
+julia> set_name(vref, "var_name")
 
-julia> name(t)
+julia> name(vref)
 "var_name"
 ```
 """
@@ -887,9 +890,15 @@ end
 Return the `InfiniteVariableRef` associated with the point variable `vref`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> @infinite_variable(model, T(t))
+T(t)
+
+julia> vref = @point_variable(model, T(0))
+T(0)
+
 julia> infinite_variable_ref(vref)
-T(t, x)
+T(t)
 ```
 """
 function infinite_variable_ref(vref::PointVariableRef)::InfiniteVariableRef
@@ -902,7 +911,13 @@ end
 Return the support point associated with the point variable `vref`.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> @infinite_variable(model, T(t))
+T(t)
+
+julia> vref = @point_variable(model, T(0))
+T(0)
+
 julia> parameter_values(vref)
 (0, )
 ```
@@ -956,17 +971,21 @@ end
 """
     JuMP.set_name(vref::PointVariableRef, name::String)
 
-Extend [`JuMP.set_name`](@ref) to set the names of point variables.
+Extend [`JuMP.set_name`](@ref JuMP.set_name(::VariableRef, ::String)) to set
+the names of point variables.
 
 **Example**
-```julia
-julia> name(vref)
-old_name
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> @infinite_variable(model, T(t))
+T(t)
+
+julia> vref = @point_variable(model, T(0))
+T(0)
 
 julia> set_name(vref, "new_name")
 
 julia> name(vref)
-new_name
+"new_name"
 ```
 """
 function JuMP.set_name(vref::PointVariableRef, name::String)
@@ -996,10 +1015,12 @@ is formatted as a Tuple of containing the parameter references as they inputted
 to define `vref`.
 
 **Example**
-```julia
-julia> parameter_refs(vref)
-(t,   [2]  =  x[2]
-  [1]  =  x[1])
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> @infinite_variable(model, T(t))
+T(t)
+
+julia> parameter_refs(T)
+(t, )
 ```
 """
 function parameter_refs(vref::InfiniteVariableRef)
@@ -1023,10 +1044,18 @@ parameter references. Errors if a parameter is double specified or if an element
 contains parameters with different group IDs.
 
 **Example**
-```julia
-julia> set_parameter_refs(vref, (t, x))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> @infinite_variable(model, T(t))
+T(t)
 
-julia> parameter_refs(vref)
+julia> @infinite_parameter(model, x[1:2] in [-1, 1])
+2-element Array{ParameterRef,1}:
+ x[1]
+ x[2]
+
+julia> set_parameter_refs(T, (t, x))
+
+julia> parameter_refs(T)
 (t,   [2]  =  x[2]
   [1]  =  x[1])
 ```
@@ -1052,13 +1081,18 @@ associated with the infinite variable `vref`. Errors if the parameter references
 are already added to the variable or if the added parameters have different
 group IDs.
 
-```julia
-julia> name(vref)
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> @infinite_variable(model, T(t))
 T(t)
 
-julia> add_parameter_ref(vref, x)
+julia> @infinite_parameter(model, x[1:2] in [-1, 1])
+2-element Array{ParameterRef,1}:
+ x[1]
+ x[2]
 
-julia> name(vref)
+julia> add_parameter_ref(T, x)
+
+julia> name(T)
 T(t, x)
 ```
 """
@@ -1490,19 +1524,20 @@ end
 """
     JuMP.set_name(vref::InfiniteVariableRef, root_name::String)
 
-Extend [`JuMP.set_name`](@ref) to set names of infinite variables. Adds on to
-`root_name` the ending `(prefs...)` where the parameter reference names are
-listed in the same format as input in the parameter reference tuple.
+Extend [`JuMP.set_name`](@ref JuMP.set_name(::VariableRef, ::String)) to set
+names of infinite variables. Adds on to `root_name` the ending `(prefs...)`
+where the parameter reference names are listed in the same format as input in
+the parameter reference tuple.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @infinite_variable(m, vref(@infinite_parameter(m, t in [0, 1]))))
 julia> name(vref)
-old_name(t, x)
+"vref(t)"
 
 julia> set_name(vref, "new_name")
 
 julia> name(vref)
-new_name(t, x)
+"new_name(t)"
 ```
 """
 function JuMP.set_name(vref::InfiniteVariableRef, root_name::String)
@@ -1543,12 +1578,13 @@ end
     JuMP.variable_by_name(model::InfiniteModel,
                           name::String)::Union{GeneralVariableRef, Nothing}
 
-Extend [`JuMP.variable_by_name`](@ref) for `InfiniteModel` objects. Return the
-varaible reference assoociated with a variable name. Errors if multiple
-variables have the same name. Returns nothing if no such name exists.
+Extend [`JuMP.variable_by_name`](@ref JuMP.variable_by_name(::Model, ::String))
+for `InfiniteModel` objects. Return the variable reference assoociated with a
+variable name. Errors if multiple variables have the same name. Returns nothing
+if no such name exists.
 
 **Examples**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, base_name = "var_name"))
 julia> variable_by_name(m, "var_name")
 var_name
 
@@ -1585,16 +1621,16 @@ end
 """
     JuMP.all_variables(model::InfiniteModel)::Vector{GeneralVariableRef}
 
-Extend [`JuMP.all_variables`](@ref) to return a list of all the variable
-references associated with `model`.
+Extend [`JuMP.all_variables`](@ref JuMP.all_variables(::Model)) to return a
+list of all the variable references associated with `model`.
 
 **Examples**
 ```julia
-julia> all_variables(m)
+julia> all_variables(model)
 4-element Array{GeneralVariableRef,1}:
- ivar(test, θ)
- ivar2(test, x)
- name
+ y(t)
+ w(t, x)
+ y(0)
  z
 ```
 """

@@ -550,6 +550,8 @@ julia> x = @infinite_variable(model, parameter_refs = (t, w), base_name = "x",
                               lower_bound = 0)
 x(t, w)
 
+julia> lb = [0, 1]; ub = [10, 12];
+
 julia> @infinite_variable(model, lb[i] <= y[i = 1:2](t) <= ub[i], Int)
 2-element Array{InfiniteVariableRef,1}:
  y[1](t)
@@ -728,6 +730,8 @@ julia> @point_variable(model, x([0, 1][i], [0, 0]), xf[i = 1:2])
 2-element Array{PointVariableRef,1}:
  xf[1]
  xf[2]
+
+julia> lb = [0, 1]; ub = [10, 12];
 
 julia> @infinite_variable(model, lb[i] <= y[i = 1:2](t) <= ub[i], Int)
 2-element Array{InfiniteVariableRef,1}:
