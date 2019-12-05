@@ -554,7 +554,7 @@ JuMP.owner_model(vref::GeneralVariableRef)::InfiniteModel = vref.model
 """
     JuMP.index(v::GeneralVariableRef)::Int
 
-Extent [`JuMP.index`](@ref JuMP.index(::VariableRef)) to return the index of a
+Extent [`JuMP.index`](@ref JuMP.index(::JuMP.VariableRef)) to return the index of a
 `InfiniteOpt` variable.
 
 **Example**
@@ -691,7 +691,7 @@ end
 """
     JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
 
-Extend [`JuMP.delete`](@ref JuMP.delete(::Model, ::VariableRef)) to delete
+Extend [`JuMP.delete`](@ref JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)) to delete
 `InfiniteOpt` variables and their dependencies. Errors if variable is invalid,
 meaning it has already been deleted or it belongs to another model.
 
@@ -821,7 +821,7 @@ Extend [`JuMP.is_valid`](@ref JuMP.is_valid(::JuMP.Model, ::JuMP.VariableRef))
 to accomodate `InfiniteOpt` variables.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @hold_variable(model, vref))
 julia> is_valid(model, vref)
 true
 ```
@@ -833,7 +833,7 @@ end
 """
     JuMP.num_variables(model::InfiniteModel)::Int
 
-Extend [`JuMP.num_variables`](@ref JuMP.num_variables(::Model)) to return the
+Extend [`JuMP.num_variables`](@ref JuMP.num_variables(::JuMP.Model)) to return the
 number of `InfiniteOpt` variables assigned to `model`.
 
 **Example**
@@ -851,7 +851,7 @@ include("variable_info.jl")
 """
     JuMP.name(vref::InfOptVariableRef)::String
 
-Extend [`JuMP.name`](@ref JuMP.name(::VariableRef)) to return the names of
+Extend [`JuMP.name`](@ref JuMP.name(::JuMP.VariableRef)) to return the names of
 `InfiniteOpt` variables.
 
 **Example**
@@ -867,7 +867,7 @@ end
 """
     JuMP.set_name(vref::HoldVariableRef, name::String)
 
-Extend [`JuMP.set_name`](@ref JuMP.set_name(::VariableRef, ::String)) to set
+Extend [`JuMP.set_name`](@ref JuMP.set_name(::JuMP.VariableRef, ::String)) to set
 names of hold variables.
 
 **Example**
@@ -919,7 +919,7 @@ julia> vref = @point_variable(model, T(0))
 T(0)
 
 julia> parameter_values(vref)
-(0, )
+(0,)
 ```
 """
 function parameter_values(vref::PointVariableRef)::Tuple
@@ -971,7 +971,7 @@ end
 """
     JuMP.set_name(vref::PointVariableRef, name::String)
 
-Extend [`JuMP.set_name`](@ref JuMP.set_name(::VariableRef, ::String)) to set
+Extend [`JuMP.set_name`](@ref JuMP.set_name(::JuMP.VariableRef, ::String)) to set
 the names of point variables.
 
 **Example**
@@ -1020,7 +1020,7 @@ julia> @infinite_variable(model, T(t))
 T(t)
 
 julia> parameter_refs(T)
-(t, )
+(t,)
 ```
 """
 function parameter_refs(vref::InfiniteVariableRef)
@@ -1093,7 +1093,7 @@ julia> @infinite_parameter(model, x[1:2] in [-1, 1])
 julia> add_parameter_ref(T, x)
 
 julia> name(T)
-T(t, x)
+"T(t, x)"
 ```
 """
 function add_parameter_ref(vref::InfiniteVariableRef,
@@ -1524,7 +1524,7 @@ end
 """
     JuMP.set_name(vref::InfiniteVariableRef, root_name::String)
 
-Extend [`JuMP.set_name`](@ref JuMP.set_name(::VariableRef, ::String)) to set
+Extend [`JuMP.set_name`](@ref JuMP.set_name(::JuMP.VariableRef, ::String)) to set
 names of infinite variables. Adds on to `root_name` the ending `(prefs...)`
 where the parameter reference names are listed in the same format as input in
 the parameter reference tuple.
@@ -1578,7 +1578,7 @@ end
     JuMP.variable_by_name(model::InfiniteModel,
                           name::String)::Union{GeneralVariableRef, Nothing}
 
-Extend [`JuMP.variable_by_name`](@ref JuMP.variable_by_name(::Model, ::String))
+Extend [`JuMP.variable_by_name`](@ref JuMP.variable_by_name(::JuMP.Model, ::String))
 for `InfiniteModel` objects. Return the variable reference assoociated with a
 variable name. Errors if multiple variables have the same name. Returns nothing
 if no such name exists.
@@ -1621,7 +1621,7 @@ end
 """
     JuMP.all_variables(model::InfiniteModel)::Vector{GeneralVariableRef}
 
-Extend [`JuMP.all_variables`](@ref JuMP.all_variables(::Model)) to return a
+Extend [`JuMP.all_variables`](@ref JuMP.all_variables(::JuMP.Model)) to return a
 list of all the variable references associated with `model`.
 
 **Examples**

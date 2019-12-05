@@ -735,8 +735,8 @@ julia> lb = [0, 1]; ub = [10, 12];
 
 julia> @infinite_variable(model, lb[i] <= y[i = 1:2](t) <= ub[i], Int)
 2-element Array{InfiniteVariableRef,1}:
-y[1](t)
-y[2](t)
+ y[1](t)
+ y[2](t)
 
 julia> @point_variable(model, y[i](0), y0[i = 1:2], Bin)
 2-element Array{PointVariableRef,1}:
