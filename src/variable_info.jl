@@ -125,7 +125,7 @@ Extend [`JuMP.LowerBoundRef`](@ref JuMP.LowerBoundRef(::JuMP.VariableRef)) to ex
 a constraint reference for the lower bound of `vref`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 <= var)
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); vref = @hold_variable(m, 0 <= var))
 julia> cref = LowerBoundRef(vref)
 var ≥ 0.0
 ```
@@ -260,7 +260,7 @@ Extend [`JuMP.UpperBoundRef`](@ref JuMP.UpperBoundRef(::JuMP.VariableRef)) to ex
 a constraint reference for the upper bound of `vref`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 >= var))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); vref = @hold_variable(m, 0 >= var))
 julia> cref = UpperBoundRef(vref)
 var ≤ 1.0
 ```
@@ -414,7 +414,7 @@ reference of the fix constraint associated with `vref`. Errors `vref` is not
 fixed.
 
 **Examples**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, var == 0))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); vref = @hold_variable(m, var == 0))
 julia> cref = FixRef(vref)
 var = 1.0
 ```
@@ -569,7 +569,7 @@ constraint reference to the constraint constrainting `vref` to be binary. Errors
 if one does not exist.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, var, Bin))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); vref = @hold_variable(m, var, Bin))
 julia> cref = BinaryRef(vref)
 var binary
 ```
@@ -682,7 +682,7 @@ constraint reference to the constraint constrainting `vref` to be integer.
 Errors if one does not exist.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, var, Int))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); vref = @hold_variable(m, var, Int))
 julia> cref = IntegerRef(vref)
 var integer
 ```
