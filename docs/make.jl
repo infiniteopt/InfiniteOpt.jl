@@ -1,8 +1,6 @@
 using Documenter, InfiniteOpt, JuMP
 
 makedocs(;
-    # modules = [InfiniteOpt, InfiniteOpt.TranscriptionOpt, JuMP],
-    format = Documenter.HTML(assets = ["assets/custom.css"]),
     pages = ["Home" => "index.md",
             "User Guide" => ["Installation" => "guide/install.md",
                              "Infinite Models" => "guide/model.md",
@@ -24,7 +22,8 @@ makedocs(;
     repo = "https://github.com/pulsipher/InfiniteOpt.jl/blob/{commit}{path}#L{line}",
     sitename = "InfiniteOpt.jl",
     authors = "Joshua Pulsipher and Weiqi Zhang",
-    doctest = true # TODO need to implement jldoctest
+    doctest = true,
+    linkcheck = true
 )
 
 deploydocs(;

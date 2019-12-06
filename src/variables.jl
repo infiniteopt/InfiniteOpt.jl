@@ -453,7 +453,7 @@ end
 """
     JuMP.add_variable(model::InfiniteModel, var::InfOptVariable, [name::String = ""])
 
-Extend the [`JuMP.add_variable`](@ref JuMP.add_variable(::JuMP.Model, ::JuMP.ScalarVariable))
+Extend the [`JuMP.add_variable`](@ref JuMP.add_variable(::JuMP.Model, ::JuMP.ScalarVariable, ::String))
 function to accomodate `InfiniteOpt` variable types. Adds a variable to an
 infinite model `model` and returns an appropriate variable reference (i.e.,
 [`InfiniteVariableRef`](@ref), [`PointVariableRef`](@ref), or

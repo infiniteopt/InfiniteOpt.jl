@@ -7,25 +7,22 @@ end
 
 # JuMP Documentation
 
+## Model
 ```@docs
 JuMP.Model
 JuMP.Model()
 JuMP.Model(::OptimizerFactory)
 JuMP.with_optimizer
-JuMP.@expression
-JuMP.add_to_expression!
-JuMP.@objective
-JuMP.ScalarConstraint
-JuMP.@constraint
-JuMP.SecondOrderCone
-JuMP.RotatedSecondOrderCone
-JuMP.PSDCone
 JuMP.NoOptimizer
+```
+
+## Variables
+```@docs
+JuMP.add_variable
+JuMP.@variable
 JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)
 JuMP.is_valid(::JuMP.Model, ::JuMP.VariableRef)
 JuMP.set_name(::JuMP.VariableRef, ::String)
-JuMP.add_variable
-JuMP.@variable
 JuMP.owner_model(::AbstractVariableRef)
 JuMP.index(::JuMP.VariableRef)
 JuMP.num_variables(::JuMP.Model)
@@ -57,4 +54,16 @@ JuMP.is_integer(::JuMP.VariableRef)
 JuMP.set_integer(::JuMP.VariableRef)
 JuMP.IntegerRef(::JuMP.VariableRef)
 JuMP.unset_integer(::JuMP.VariableRef)
+```
+
+## Expressions 
+```@docs
+JuMP.@expression
+JuMP.add_to_expression!
+JuMP.@objective
+JuMP.ScalarConstraint
+JuMP.@constraint
+JuMP.SecondOrderCone
+JuMP.RotatedSecondOrderCone
+JuMP.PSDCone
 ```

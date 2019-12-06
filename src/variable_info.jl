@@ -260,7 +260,7 @@ Extend [`JuMP.UpperBoundRef`](@ref JuMP.UpperBoundRef(::JuMP.VariableRef)) to ex
 a constraint reference for the upper bound of `vref`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); vref = @hold_variable(m, 0 >= var))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); vref = @hold_variable(m, 1 >= var))
 julia> cref = UpperBoundRef(vref)
 var ≤ 1.0
 ```
@@ -414,7 +414,7 @@ reference of the fix constraint associated with `vref`. Errors `vref` is not
 fixed.
 
 **Examples**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); vref = @hold_variable(m, var == 0))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); vref = @hold_variable(m, var == 1))
 julia> cref = FixRef(vref)
 var = 1.0
 ```
