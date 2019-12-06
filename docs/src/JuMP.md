@@ -18,6 +18,7 @@ JuMP.NoOptimizer
 
 ## Variables
 ```@docs
+JuMP.AbstractVariableRef
 JuMP.add_variable
 JuMP.@variable
 JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)
@@ -56,7 +57,7 @@ JuMP.IntegerRef(::JuMP.VariableRef)
 JuMP.unset_integer(::JuMP.VariableRef)
 ```
 
-## Expressions 
+## Expressions
 ```@docs
 JuMP.@expression
 JuMP.add_to_expression!
