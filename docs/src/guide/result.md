@@ -18,7 +18,7 @@ A guide and manual to querying optimized `InfiniteOpt` models.
 
 ## Methods
 ```@index
-Pages   = ["optimize.md"]
+Pages   = ["result.md"]
 Modules = [JuMP, InfiniteOpt, InfiniteOpt.TranscriptionOpt]
 Order   = [:function]
 ```

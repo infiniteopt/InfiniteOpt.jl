@@ -61,10 +61,20 @@ JuMP.unset_integer(::JuMP.VariableRef)
 ```@docs
 JuMP.@expression
 JuMP.add_to_expression!
-JuMP.@objective
 JuMP.ScalarConstraint
 JuMP.@constraint
 JuMP.SecondOrderCone
 JuMP.RotatedSecondOrderCone
 JuMP.PSDCone
+```
+
+## Objectives
+```@docs
+JuMP.@objective
+JuMP.set_objective_function
+JuMP.set_objective_sense(::JuMP.Model, ::MOI.OptimizationSense)
+JuMP.objective_function(::JuMP.Model)
+JuMP.objective_function_type(::JuMP.Model)
+JuMP.objective_sense(::JuMP.Model)
+JuMP.set_objective_coefficient(::JuMP.Model, ::JuMP.VariableRef, ::Real)
 ```
