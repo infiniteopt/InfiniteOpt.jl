@@ -1,13 +1,13 @@
 ![Logo](assets/full_logo.png)
 
-A JuMP extension for expressing and solving infinite dimensional optimization
+A `JuMP` extension for expressing and solving infinite dimensional optimization
 problems.
 
 ## Overview
-InfiniteOpt.jl provides a mathematical interface to express and solve
+`InfiniteOpt.jl` provides a mathematical interface to express and solve
 optimization problems that entail an infinite dimensional decision space. Such
 problems stem from areas such as dynamic programming, state-space models, and
-stochastic programming. InfiniteOpt.jl is meant to facilitate intuitive model
+stochastic programming. `InfiniteOpt` is meant to facilitate intuitive model
 definition, automatic transcription into solvable models, permit a wide range
 of user-defined extensions/behavior, and more. Currently, its capabilities
 include:
@@ -22,7 +22,7 @@ include:
 - Readily extendable to accommodate user defined abstractions and solution techniques
 
 !!! note
-    Currently, InfiniteOpt only accepts linear and quadratic expressions.
+    Currently, `InfiniteOpt` only accepts linear and quadratic expressions.
     Development is underway to allow for general nonlinear constraints.  
 
 ## Installation

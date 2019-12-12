@@ -12,7 +12,7 @@ that is parameterized by an infinite parameter (e.g., space-time variables and
 recourse variables). Point variables are infinite variables at a particular
 infinite parameter value (point). Finally, hold variables are decisions that
 are made irrespective of the infinite domain (e.g., first stage variables and
-design variables). Or in other words they hold a particular value over the
+design variables). Or in other words, they hold a particular value over the
 infinite domain or some sub-domain of it.
 
 ## Basic Usage
@@ -23,7 +23,7 @@ except that they each employ additional syntax capabilities to employ their
 respective variable type.
 
 Let's first setup a simple space-time model with infinite parameters time `t` and
-spacial position `x`:
+spatial position `x`:
 ```jldoctest var_basic
 julia> using InfiniteOpt, JuMP
 
@@ -501,8 +501,255 @@ julia> @hold_variable(model, e, parameter_bounds = (t in [0, 1], x == -1))
 e
 ```
 
-## Manipulation
+## Queries
+`InfiniteOpt` contains a large suite of methods to query information about
+variables. This suite is comprised of extensions to all current `JuMP` query
+methods and many more that are specific to `InfiniteOpt`. A number of the more
+commonly used ones are explained in this section, but all of the available methods
+are explained in the [Methods/Macros](@ref var_methods) section (i.e., the
+manual) below.
 
+### General Information
+Here we describe some methods used to query general variable information such as
+the name. Variable names can be extracted via [`name`](@ref JuMP.name(::InfOptVariableRef))
+which returns the
+name of a variable. The index of a variable (where it is stored in the infinite
+model) is accessed via [`index`](@ref JuMP.index(::GeneralVariableRef)) and the
+infinite model it belongs to is
+given by [`owner_model`](@ref JuMP.owner_model(::GeneralVariableRef)). These methods
+are demonstrated below:
+```jldoctest var_macro
+julia> name(y)
+"y(t, x)"
+
+julia> index(y)
+33
+
+julia> model_where_stored = owner_model(y);
+```
+
+Also, [`num_variables`](@ref) is useful in returning the total number variables
+currently stored in an infinite model:
+```jldoctest var_macro
+julia> num_variables(model)
+44
+```
+Similarly, [`all_variables`](@ref) returns a list of all the variables currently
+added to the model.
+
+Finally, [`variable_by_name`](@ref) can be employed to return the appropriate
+explicit type of [`GeneralVariableRef`](@ref) based off of the variable name if
+it is unique. Errors if such a name cannot be found or it is not unique. For
+example, we can request the reference associated with `"c"`:
+```jldoctest var_macro
+julia> variable_by_name(model, "c")
+c
+```
+
+### Variable Constraint Info
+As described above, variables in `InfiniteOpt` can have constraints associated
+with them like `JuMP` variables. These constraints include:
+- lower bounds
+- upper bounds
+- fixed values
+- binary specifications
+- integer specifications.
+Thus, a number of methods exist to query information about these constraints.
+
+First, the ```[has/is]_[variable constraint type]``` methods indicate whether or not a
+variable has that particular constraint type. For example, to query if a variable
+`d` has a lower bound we can use
+[`has_lower_bound`](@ref JuMP.has_lower_bound(::InfOptVariableRef)):
+```jldoctest var_macro
+julia> has_lower_bound(d)
+true
+```
+Thus, `d` does have a lower bound. The other methods are
+[`has_upper_bound`](@ref JuMP.has_upper_bound(::InfOptVariableRef)),
+[`is_fixed`](@ref JuMP.is_fixed(::InfOptVariableRef)),
+[`is_binary`](@ref JuMP.is_binary(::InfOptVariableRef)), and
+[`is_integer`](@ref JuMP.is_integer(::InfOptVariableRef)).
+
+Next, the ```[ConstraintType]Ref``` methods return an appropriate explicit type
+[`GeneralConstraintRef`](@ref) that points to the constraint (errors if no
+such constraint exists). For example, the upper bound constraint of `d` can be
+obtained via [`UpperBoundRef`](@ref JuMP.UpperBoundRef(::InfOptVariableRef)):
+```jldoctest var_macro
+julia> UpperBoundRef(d)
+d ≤ 3.0
+```
+The other methods are [`LowerBoundRef`](@ref JuMP.LowerBoundRef(::InfOptVariableRef)),
+[`FixRef`](@ref JuMP.FixRef(::InfOptVariableRef)),
+[`BinaryRef`](@ref JuMP.BinaryRef(::InfOptVariableRef)), and
+[`IntegerRef`](@ref JuMP.IntegerRef(::InfOptVariableRef)).
+
+Finally, variable constraints that entail values (i.e., lower bounds, upper
+bounds, and fixed values) have their values queried via the appropriate method.
+For example, the lower bound value of `d` is obtained via
+[`lower_bound`](@ref JuMP.lower_bound(::InfOptVariableRef)):
+```jldoctest var_macro
+julia> lower_bound(d)
+0.0
+```
+Note these methods error when no such constraint is associated with the variable.
+The other methods are [`upper_bound`](@ref JuMP.upper_bound(::InfOptVariableRef))
+and [`fix_value`](@ref JuMP.fix_value(::InfOptVariableRef)).
+
+### Variable Use
+`InfiniteOpt` defines a number of methods to track if and how variables are used
+in an infinite model. For example,
+[`used_by_constraint`](@ref used_by_constraint(::InfOptVariableRef)) is used to
+determine if a variable is used by a constraint. For example, let's see if `c`
+is used by a constraint:
+```jldoctest var_macro
+julia> used_by_constraint(c)
+true
+```
+Other methods include [`used_by_measure`](@ref used_by_measure(::InfOptVariableRef))
+and [`used_by_objective`](@ref used_by_objective(::InfOptVariableRef)).
+For infinite variables, [`used_by_point_variable`](@ref) can also be used in a
+similar manner.
+
+Finally, in general [`is_used`](@ref is_used(::InfOptVariableRef)) can be used
+to determine if a variable is
+used at all in the infinite model or not. For example, if we check `e` using
+`is_used` we find that it isn't:
+```jldoctest var_macro
+julia> is_used(e)
+false
+```
+
+### Type Specific
+`InfiniteOpt` also employs a few methods for specific variable types that return
+information pertaining to that particular variable type. For infinite variables,
+[`parameter_refs`](@ref parameter_refs(::InfiniteVariableRef)) returns the tuple
+of infinite parameters that the variable depends on. For example, consider
+`y(t, x)`:
+```jldoctest var_macro
+julia> parameter_refs(y)
+(t,   [3]  =  x[3]
+  [2]  =  x[2]
+  [1]  =  x[1])
+```
+
+For point variables,
+[`infinite_variable_ref`](@ref infinite_variable_ref(::PointVariableRef)) and
+[`parameter_values`](@ref parameter_values(::PointVariableRef))
+return the infinite variable it depends on and the infinite parameter point
+values, respectively. For example, consider the point variable `y0`:
+```jldoctest var_macro
+julia> infinite_variable_ref(y0)
+y(t, x)
+
+julia> parameter_values(y0)
+(0,   [3]  =  -1
+  [2]  =  -1
+  [1]  =  -1)
+```
+
+For hold variables,
+[`has_parameter_bounds`](@ref has_parameter_bounds(::HoldVariableRef)) returns
+if a hold variable has parameter bounds (i.e., a specified sub-domain) and
+[`parameter_bounds`](@ref parameter_bounds(::HoldVariableRef))
+returns those bounds if there are any. For example, consider `c`:
+```jldoctest var_macro
+julia> has_parameter_bounds(c)
+true
+
+julia> parameter_bounds(c)
+Subdomain bounds (1): t ∈ [0, 5]
+```
+
+## Modification
+`InfiniteOpt` employs a wide variety of methods to modify/delete variables.
+These are comprised of `JuMP` extensions and methods native only to `InfiniteOpt`.
+This section will highlight some of the more commonly used ones. All of the
+methods/macros are detailed in the [Methods/Macros](@ref var_methods) section
+(i.e., the manual) below.
+
+### Deletion
+Like `JuMP v0.19+`, `InfiniteOpt` fully supports deletion throughout its data
+types. Any variable and its dependencies can be deleted via
+[`delete`](@ref JuMP.delete(::InfiniteModel, ::InfOptVariableRef)). Thus, when `delete`
+is invoked any bound/type constraints associated with the variable will be removed
+and it will be removed from any other constraints, measures, and/or objectives.
+For example, if we delete `y(t, x)` it will be removed along with its bounds and
+the point variable `y0` will also be removed since it is a dependent:
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @hold_variable(model, y))
+julia> delete(model, y)
+```
+
+Another class of deletion methods correspond to variable constraints. For example,
+[`delete_lower_bound`](@ref JuMP.delete_lower_bound(::InfOptVariableRef)) is
+used to delete a lower bound associated with a
+variable if it has one. Let's illustrate this by deleting the lower bound of
+`d`:
+```jldoctest var_macro
+julia> delete_lower_bound(d)
+
+julia> has_lower_bound(d)
+false
+```
+Other similar methods are
+[`delete_upper_bound`](@ref JuMP.delete_upper_bound(::InfOptVariableRef)),
+[`unfix`](@ref JuMP.unfix(::InfOptVariableRef)),
+[`unset_binary`](@ref JuMP.unset_binary(::InfOptVariableRef)), and
+[`unset_integer`](@ref JuMP.unset_integer(::InfOptVariableRef)).
+
+Finally, [`delete_parameter_bounds`](@ref delete_parameter_bounds(::HoldVariableRef))
+and [`delete_parameter_bound`](@ref delete_parameter_bound(::HoldVariableRef, ::ParameterRef))
+can be used on hold variables to delete all of their parameter bounds or a
+particular one. For example, let's delete all of the parameter bounds associated
+with `c`:
+```jldoctest var_macro
+julia> parameter_bounds(c)
+Subdomain bounds (1): t ∈ [0, 5]
+
+julia> delete_parameter_bounds(c)
+
+julia> has_parameter_bounds(c)
+false
+```
+
+### Variable Constraints
+Another class of methods seek to add/modify variable constraints such as
+bounds. For example, [`set_lower_bound`](@ref JuMP.set_lower_bound(::InfOptVariableRef, ::Number))
+specifies the lower bound of a
+variable. We can add a lower bound of 0 to `c` by:
+```jldoctest var_macro
+julia> set_lower_bound(c, 0)
+
+julia> lower_bound(c)
+0.0
+```
+Thus, adding a lower bound to `c`. Furthermore, we can later modify the lower
+bound using the same method:
+```jldoctest var_macro
+julia> set_lower_bound(c, -2)
+
+julia> lower_bound(c)
+-2.0
+```
+Other similar methods are
+[`set_upper_bound`](@ref JuMP.set_upper_bound(::InfOptVariableRef, ::Number)),
+[`fix`](@ref JuMP.fix(::InfOptVariableRef, ::Number)),
+[`set_binary`](@ref JuMP.set_binary(::InfOptVariableRef)), and
+[`set_integer`](@ref JuMP.set_integer(::InfOptVariableRef)).
+
+### Type Specific
+Finally, we consider methods unique to `InfiniteOpt` that exist to modify
+specific variable types. For infinite variables, [`add_parameter_ref`](@ref)
+and [`set_parameter_refs`](@ref) are used to add an infinite parameter and
+overwrite the infinite parameters, respectively.
+
+For hold variables, the parameter bounds can be modified via
+[`@add_parameter_bounds`](@ref) and [`@set_parameter_bounds`](@ref) which
+facilitate an intuitive symbolic syntax to add and/or overwrite existing
+parameter bounds for a hold variable. For example, let's add the bounds
+``t \in [0, 5]`` and ``x = 0`` to `c`:
+```jldoctest var_macro
+julia> @add_parameter_bounds(c, (t in [0, 5], x == 0))
+```
 
 ## Datatypes
 ```@index
@@ -525,7 +772,7 @@ PointVariableRef
 HoldVariableRef
 ```
 
-## Methods/Macros
+## [Methods/Macros] (@id var_methods)
 ```@index
 Pages   = ["variable.md"]
 Modules = [InfiniteOpt, JuMP]
