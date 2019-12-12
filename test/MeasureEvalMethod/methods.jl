@@ -14,14 +14,14 @@
 
     # test multivariate Monte Carlo sampling
     @testset "MC_sampling (multivariate)" begin
-        (supports, weights) = MC_sampling([0., 0.], [1., 4.], 5)
-        @test size(supports)[2] == 5
+        lb = convert(JuMPC.SparseAxisArray, [0., 0.])
+        ub = convert(JuMPC.SparseAxisArray, [1., 4.])
+        (supports, weights) = MC_sampling(lb, ub, 5)
+        @test length(supports) == 5
         @test length(weights) == 5
         @test weights == 0.8 * ones(5)
-        @test all(supports[1, :] .>= 0.)
-        @test all(supports[1, :] .<= 1.)
-        @test all(supports[2, :] .>= 0.)
-        @test all(supports[2, :] .<= 4.)
+        @test all([i >= lb for i in supports])
+        @test all([i <= ub for i in supports])
     end
 end
 
@@ -37,6 +37,7 @@ end
     end
 
     # test Gauss-Hermite method for infinite interval
+    # at the compiling step FGQ.gausshermite creates huge allocation
     @testset "Gauss_Hermite" begin
         @test_throws ErrorException Gauss_Hermite(0., Inf, 5)
         @test_throws ErrorException Gauss_Hermite(-Inf, 0., 5)
@@ -44,7 +45,7 @@ end
         @test_throws ErrorException Gauss_Hermite(0., 1., 5)
         (supports, weights) = Gauss_Hermite(-Inf, Inf, 5)
         @test length(supports) == 5
-        (expect_supports, expect_weights) = gausshermite(5)
+        (expect_supports, expect_weights) = FGQ.gausshermite(5)
         expect_weights = expect_weights .* exp.(expect_supports.^2)
         @test length(expect_weights) == 5
         @test supports == expect_supports
@@ -110,9 +111,23 @@ end
 end
 
 @testset "Data Generation" begin
+    m = InfiniteModel()
+    @infinite_parameter(m, x in [0., 1.])
+    @infinite_parameter(m, y[1:2] in [0., 1.])
     @testset "generate_measure_data (univariate)" begin
+        @test_throws ErrorException generate_measure_data(x, 1., 2., 10)
+        measure_data = generate_measure_data(x, 0.3, 0.7, 10, method = Gauss_Legendre)
+        (expect_supports, expect_weights) = Gauss_Legendre(0.3, 0.7, 10)
+        @test measure_data.supports == expect_supports
+        @test measure_data.coefficients == expect_weights
     end
 
     @testset "generate_measure_data (multivariate)" begin
+        lb = convert(JuMPC.SparseAxisArray, [0.3, 0.2])
+        ub = convert(JuMPC.SparseAxisArray, [0.5, 0.9])
+        measure_data = generate_measure_data(y, lb, ub, 10)
+        @test length(measure_data.supports) == 10
+        @test length(measure_data.coefficients) == 10
+        @test sum(measure_data.coefficients) == 0.14
     end
 end

@@ -82,11 +82,11 @@ Measure, MeasureRef
 
 # Export measure methods
 export add_measure, measure, measure_function, measure_data, expand,
-expand_all_measures!, expect
+expand_all_measures!, expect, support_sum
 
 # Export measure evaluation functions
 export generate_measure_data, MC_sampling, Gauss_Legendre, Gauss_Hermite,
-Gauss_Laguerre, infinite_transform
+Gauss_Laguerre, infinite_transform, support_formatting
 
 # Export transcription datatypes
 export TranscriptionData, TranscriptionModel
