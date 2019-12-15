@@ -514,6 +514,15 @@ function measure(expr::JuMP.AbstractJuMPScalar,
                   "upper bounds.")
         end
 
+        if num_params == 1
+            if isa(lb, AbstractArray)
+                lb = lb[findfirst(x->isa(x, Number), lb)]
+            end
+            if isa(ub, AbstractArray)
+                ub = ub[findfirst(x->isa(x, Number), ub)]
+            end
+        end
+
         # Check the input lower bounds and upper bounds are reasonable
         for i in eachindex(lb)
             if lb[i] >= ub[i]

@@ -610,6 +610,15 @@ end
         meas5 = measure(inf6, use_existing_supports = true)
         @test measure_data(meas4).supports == measure_data(meas5).supports
 
+        add_supports(pars3[1], [0.3, 0.7])
+        add_supports(pars3[2], [0.3, 0.7])
+        meas6 = measure(inf7, pars3, 0.5, 1.0, use_existing_supports = true)
+        @test measure_data(meas6).supports == [JuMPC.SparseAxisArray(
+                                                Dict([((1,),0.7), ((2,), 0.7)]))]
+        meas6 = measure(inf7, pars3, [0.5, 0.5], [1.0, 1.0], use_existing_supports = true)
+        @test measure_data(meas6).supports == [JuMPC.SparseAxisArray(
+                                                Dict([((1,),0.7), ((2,), 0.7)]))]
+
         # test errors
         @test_throws ErrorException measure(x)
         @test_throws ErrorException measure(inf, ParameterRef[])
@@ -619,7 +628,7 @@ end
         @test_throws ErrorException measure(inf2, par, [0., 1.])
         @test_throws ErrorException measure(inf2, par, 0., [1., 1.])
         @test_throws ErrorException measure(inf2, par, 0.5, 0.)
-        @test_throws ErrorException measure(inf7, use_existing_supports = true)
+        @test_throws ErrorException measure(inf8, use_existing_supports = true)
         @test_throws ErrorException measure(meas1)
     end
     # test support_sum
@@ -628,8 +637,6 @@ end
         @test measure_data(sum1).parameter_ref == par2
         @test measure_data(sum1).supports == [0.3, 0.7]
         @test name(sum1) == "sum(inf2(par, par2))"
-        add_supports(pars3[1], [0.3, 0.7])
-        add_supports(pars3[2], [0.3, 0.7])
         sum2 = support_sum(inf7)
         @test pars3[1] in measure_data(sum2).parameter_ref
         @test pars3[2] in measure_data(sum2).parameter_ref
