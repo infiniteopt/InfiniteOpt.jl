@@ -596,6 +596,8 @@ end
         @test measure_data(meas2).supports == [0.3, 0.7]
         meas2 = measure(inf2, par2, 0.5, 0.9, use_existing_supports = true)
         @test measure_data(meas2).supports == [0.7]
+        meas2 = measure(inf2, [par2], [0.5], [0.9], use_existing_supports = true)
+        @test measure_data(meas2).supports == [0.7]
 
         meas3 = measure(inf4, num_supports = 5)
         @test pars1[1] in measure_data(meas3).parameter_ref
@@ -612,6 +614,7 @@ end
         @test_throws ErrorException measure(x)
         @test_throws ErrorException measure(inf, ParameterRef[])
         @test_throws ErrorException measure(inf2)
+        @test_throws ErrorException measure(inf2, [par, par2])
         @test_throws ErrorException measure(inf2, par, 1., 3.)
         @test_throws ErrorException measure(inf2, par, [0., 1.])
         @test_throws ErrorException measure(inf2, par, 0., [1., 1.])
