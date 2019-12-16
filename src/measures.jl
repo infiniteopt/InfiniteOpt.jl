@@ -410,25 +410,45 @@ end
 
 """
     measure(expr::JuMP.AbstractJuMPScalar,
-            params::Union{ParameterRef, Vector{ParameterRef}},
-            lb::Union{Number, Vector{Number}},
-            ub::Union{Number, Vector{Number}};
-            eval_method::Function, num_supports::Int, weight_func::Function,
-            use_existing_supports::Bool = false)::MeasureRef
+            [params::Union{ParameterRef, AbstractArray{<:ParameterRef},
+                          Nothing} = nothing,
+            lb::Union{Number, AbstractArray{<:Number}, Nothing},
+            ub::Union{Number, AbstractArray{<:Number}, Nothing}];
+            [eval_method::Function = MC_sampling, num_supports::Int = 50,
+            weight_func::Function = _w, name = "",
+            use_existing_supports::Bool = false,
+            call_from_expect::Bool = false])::MeasureRef
 
 Returns a measure reference that evaluates `expr` without using an object of
 [`AbstractMeasureData`](@ref) type. Similar to the main [`measure`](@ref)
 method, this function aims to implement measures of the form:
 ``\\int_{p \\in P} expr(p) w(p) dp`` where ``p`` is an infinite parameter (scalar
-or vector) and ``w`` is the weight function. This function will serve as a
-flexible interface where users only have to provide necessary data about the
+or vector) and ``w`` is the weight function. This function serves as a flexible
+interface where users only have to provide necessary data about the
 integration. Instead of taking an [`AbstractMeasureData`](@ref) object as input,
 this function constructs the [`AbstractMeasureData`](@ref) object using some
-default numerical integration schemes.
+default numerical integration schemes. By default, the function will generate
+points by Monte Carlo sampling from the interval if the parameter is in an
+[`IntervalSet`](@ref), or from the underlying distribution if the parameter is
+in a [`DistributionSet`](@ref). If the expression involves multiple groups of
+parameters, the user needs to specify the parameter. The user can also specify
+lower bounds and upper bounds for the parameters, number of supports to
+generate, and the function to generate the supports with. The last option makes
+the method extendible for more schemes to generate supports.
 
 **Example**
-```julia
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(seed = true))
+julia> @infinite_parameter(model, x in [0., 1.])
+x
 
+julia> @infinite_variable(model, f(x))
+f(x)
+
+julia> meas = measure(f, num_supports = 5)
+(f(x))
+
+julia> expand(meas)
+0.2 f(0.8236475079774124) + 0.2 f(0.9103565379264364) + 0.2 f(0.16456579813368521) + 0.2 f(0.17732884646626457) + 0.2 f(0.278880109331201)
 ```
 """
 # Measure function that takes non-AbstractMeasureData types
@@ -550,6 +570,32 @@ function measure(expr::JuMP.AbstractJuMPScalar,
     return measure(expr, data)
 end
 
+"""
+    expect(expr::JuMP.AbstractJuMPScalar,
+           [params::Union{ParameterRef, AbstractArray{<:ParameterRef},
+                          Nothing} = nothing];
+           [num_supports::Int = 50,
+            use_existing_supports::Bool = false])::MeasureRef
+
+Creates a measure that represents the expected value of an expression in
+a random parameter involved in the expression. Return the [`MeasureRef`](@ref)
+of the created measure.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; model = InfiniteModel(seed = true))
+julia> @infinite_parameter(model, x in Normal(0., 1.))
+x
+
+julia> @infinite_variable(model, f(x))
+f(x)
+
+julia> meas = expect(f, num_supports = 2)
+expect(f(x))
+
+julia> expand(meas)
+0.5 f(0.6791074260357777) + 0.5 f(0.8284134829000359)
+```
+"""
 # expectation measure
 function expect(expr::JuMP.AbstractJuMPScalar,
                 params::Union{ParameterRef, AbstractArray{<:ParameterRef},
@@ -561,6 +607,30 @@ function expect(expr::JuMP.AbstractJuMPScalar,
                    call_from_expect = true)
 end
 
+"""
+    support_sum(expr::JuMP.AbstractJuMPScalar,
+                [params::Union{ParameterRef, AbstractArray{<:ParameterRef},
+                               Nothing} = nothing])::MeasureRef
+
+Creates a measure that represents the sum of the expression over a parameter
+using its existing supports. Return the [`MeasureRef`](@ref) of the created
+measure.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+julia> @infinite_parameter(model, x in [0, 1], supports = [0.3, 0.7])
+x
+
+julia> @infinite_variable(model, f(x))
+f(x)
+
+julia> meas = support_sum(f)
+sum(f(x))
+
+julia> expand(meas)
+f(0.3) + f(0.7)
+```
+"""
 # sum measure
 function support_sum(expr::JuMP.AbstractJuMPScalar,
                      params::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}
