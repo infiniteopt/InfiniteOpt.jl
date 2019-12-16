@@ -7,7 +7,7 @@ const JuMPC = JuMP.Containers
 const IOTO = InfiniteOpt.TranscriptionOpt
 using Test
 using Random
-const MEM = InfiniteOpt.MeasureEvalMethod
+const MEM = InfiniteOpt.MeasureEvalMethods
 using FastGaussQuadrature
 const FGQ = FastGaussQuadrature
 
@@ -17,6 +17,7 @@ include("utilities.jl")
 println("-----------------------------------------")
 println("----------------UNIT TESTS---------------")
 println("-----------------------------------------")
+#=
 @time @testset "Datatypes" begin include("datatypes.jl") end
 println("")
 @time @testset "Utilities" begin include("utility_tests.jl") end
@@ -38,12 +39,14 @@ println("")
 println("")
 @time @testset "Expression Methods" begin include("expressions.jl") end
 println("")
-@time @testset "Measure Methods" begin include("measures.jl") end
-println("")
+=#
 @time @testset "Measure Evaluation Methods" begin
-    include("MeasureEvalMethod/methods.jl")
+    include("MeasureEvalMethods/methods.jl")
 end
 println("")
+@time @testset "Measure Methods" begin include("measures.jl") end
+println("")
+#=
 @time @testset "Objective Methods" begin include("objective.jl") end
 println("")
 @time @testset "Constraint Methods" begin include("constraints.jl") end
@@ -68,7 +71,7 @@ println("")
 
 # TODO add extension tests
 # TODO add involved deletion tests
-
+=#
 println("-----------------------------------------")
 println("-------------TESTING COMPLETE------------")
 println("-----------------------------------------")

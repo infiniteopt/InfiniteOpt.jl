@@ -114,20 +114,40 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, x in [0., 1.])
     @infinite_parameter(m, y[1:2] in [0., 1.])
+    dist1 = Normal(0., 1.)
+    dist2 = MvNormal([0., 0.], [1. 0.;0. 10.])
+    @infinite_parameter(m, β in dist1)
+    @infinite_parameter(m, ω[1:2] in dist2)
     @testset "generate_measure_data (univariate)" begin
-        @test_throws ErrorException generate_measure_data(x, 1., 2., 10)
-        measure_data = generate_measure_data(x, 0.3, 0.7, 10, method = Gauss_Legendre)
+        @test_throws ErrorException generate_measure_data(x, 10, 1., 2.)
+        measure_data = generate_measure_data(x, 10, 0.3, 0.7, method = Gauss_Legendre)
         (expect_supports, expect_weights) = Gauss_Legendre(0.3, 0.7, 10)
         @test measure_data.supports == expect_supports
         @test measure_data.coefficients == expect_weights
+        measure_data = generate_measure_data(β, 10, -1., Inf)
+        @test length(measure_data.supports) == 10
+        @test all([i >= -1. for i in measure_data.supports])
+        measure_data = generate_measure_data(β, 10, -Inf, 1.)
+        @test length(measure_data.supports) == 10
+        @test all([i <= 1. for i in measure_data.supports])
     end
 
     @testset "generate_measure_data (multivariate)" begin
         lb = convert(JuMPC.SparseAxisArray, [0.3, 0.2])
         ub = convert(JuMPC.SparseAxisArray, [0.5, 0.9])
-        measure_data = generate_measure_data(y, lb, ub, 10)
+        measure_data = generate_measure_data(y, 10, lb, ub)
         @test length(measure_data.supports) == 10
         @test length(measure_data.coefficients) == 10
         @test sum(measure_data.coefficients) == 0.14
+        warn = "Truncated distribution for multivariate distribution is " *
+               "not supported. Lower bounds and upper bounds are ignored."
+        @test_logs (:warn, warn) generate_measure_data(ω, 10,
+                                  convert(JuMPC.SparseAxisArray, [-1., -10.]),
+                                  convert(JuMPC.SparseAxisArray, [1., 10.]))
+    end
+
+    @testset "measure_dispatch for unextended types" begin
+        @test_throws ErrorException measure_dispatch(BadSet(), x, 10,
+                                                     0., 1., MC_sampling)
     end
 end

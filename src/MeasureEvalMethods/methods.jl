@@ -1,44 +1,69 @@
-function generate_measure_data(param::InfiniteOpt.ParameterRef,
-                               lb::Union{Number, Nothing},
-                               ub::Union{Number, Nothing}, num_supports::Int;
+function generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
+                               AbstractArray{<:InfiniteOpt.ParameterRef}},
+                               num_supports::Int,
+                               lb::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing,
+                               ub::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing;
                                method::Function = MC_sampling, name::String = "",
-                               weight_func::Function = InfiniteOpt._w
-                               )::InfiniteOpt.DiscreteMeasureData
-    set = InfiniteOpt._parameter_set(param)
-    if isa(set, DistributionSet)
-        (supports, coeffs) = method(set.distribution, num_supports)
+                               weight_func::Function = InfiniteOpt._w, kwargs...
+                               )::InfiniteOpt.AbstractMeasureData
+    if isa(params, InfiniteOpt.ParameterRef)
+        set = InfiniteOpt._parameter_set(params)
     else
-        (supports, coeffs) = method(lb, ub, num_supports)
+        params = convert(JuMPC.SparseAxisArray, params)
+        set = InfiniteOpt._parameter_set(first(params))
     end
-    return InfiniteOpt.DiscreteMeasureData(param, coeffs, supports,
-                                           name = name, weight_function = weight_func)
-end
-
-#function generate_measure_data(params::JuMPC.SparseAxisArray{<:InfiniteOpt.ParameterRef},
-function generate_measure_data(params::AbstractArray{<:InfiniteOpt.ParameterRef},
-                               lb::Union{JuMPC.SparseAxisArray, Nothing},
-                               ub::Union{JuMPC.SparseAxisArray, Nothing},
-                               num_supports::Int;
-                               method::Function = MC_sampling, name::String = "",
-                               weight_func::Function = InfiniteOpt._w
-                               )::InfiniteOpt.MultiDiscreteMeasureData
-    params = convert(JuMPC.SparseAxisArray, params)
-    set = 1;
-    for i in params
-        set = InfiniteOpt._parameter_set(i)
-        break
-    end
-    if isa(set, DistributionSet)
-        (supports, coeffs) = method(set.distribution, params, num_supports)
-    else
-        (supports, coeffs) = method(lb, ub, num_supports)
-    end
+    (supports, coeffs) = measure_dispatch(set, params, num_supports, lb, ub, method; kwargs...)
     return InfiniteOpt.DiscreteMeasureData(params, coeffs, supports,
                                            name = name, weight_function = weight_func)
 end
 
+function measure_dispatch(set::InfiniteOpt.IntervalSet,
+                          params::Union{InfiniteOpt.ParameterRef,
+                          AbstractArray{<:InfiniteOpt.ParameterRef}},
+                          num_supports::Int,
+                          lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                          ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                          method::Function; kwargs...)::Tuple
+    return method(lb, ub, num_supports; kwargs...)
+end
+
+function measure_dispatch(set::InfiniteOpt.DistributionSet,
+                          params::Union{InfiniteOpt.ParameterRef,
+                          AbstractArray{<:InfiniteOpt.ParameterRef}},
+                          num_supports::Int,
+                          lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                          ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                          method::Function; kwargs...)::Tuple
+    dist = set.distribution
+    # create truncated distribution if necessary
+    if !isa(lb, Nothing) || !isa(ub, Nothing)
+        if isa(dist, Distributions.MultivariateDistribution)
+            @warn("Truncated distribution for multivariate distribution is " *
+                  "not supported. Lower bounds and upper bounds are ignored.")
+        else
+            isa(lb, Number) ? temp_lb = lb : temp_lb = -Inf
+            isa(ub, Number) ? temp_ub = ub : temp_ub = Inf
+            dist = Distributions.Truncated(dist, temp_lb, temp_ub)
+        end
+    end
+    return method(dist, params, num_supports; kwargs...)
+end
+
+# fallback
+function measure_dispatch(set::InfiniteOpt.AbstractInfiniteSet,
+                          params::Union{InfiniteOpt.ParameterRef,
+                          AbstractArray{<:InfiniteOpt.ParameterRef}},
+                          num_supports::Int,
+                          lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                          ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                          method::Function; kwargs...)::Tuple
+    error("Measure dispatch function is not extended for parameters in sets " *
+          "of type $(typeof(set)).")
+    return
+end
+
 # MC sampling from uniform distribution over the interval [lb, ub]
-function MC_sampling(lb::Number, ub::Number, num_supports::Int)::Tuple
+function MC_sampling(lb::Number, ub::Number, num_supports::Int; kwargs...)::Tuple
     if lb == -Inf || ub == Inf
         return infinite_transform(lb, ub, num_supports)
     else
@@ -49,30 +74,30 @@ end
 
 # MC sampling - multi-dim version
 function MC_sampling(lb::JuMPC.SparseAxisArray, ub::JuMPC.SparseAxisArray,
-                     num_supports::Int)::Tuple
+                     num_supports::Int; kwargs...)::Tuple
     samples_dict = Dict()
     for i in eachindex(lb)
         (samples_dict[i], _) = MC_sampling(lb[i], ub[i], num_supports)
     end
-    samples = Array{JuMPC.SparseAxisArray, 1}()
+    samples = Array{JuMPC.SparseAxisArray, 1}(undef, num_supports)
     for j in 1:num_supports
-        append!(samples, [JuMP.Containers.SparseAxisArray(Dict(k => samples_dict[k][j]
-                          for k in eachindex(lb)))])
+        samples[j] = JuMP.Containers.SparseAxisArray(Dict(k => samples_dict[k][j]
+                                                        for k in eachindex(lb)))
     end
     return (samples, ones(num_supports) / num_supports * prod(ub .- lb))
-
 end
 
 # MC sampling - Distribution Set
 function MC_sampling(dist::Distributions.UnivariateDistribution,
-                     num_supports::Int)::Tuple
+                     param::InfiniteOpt.ParameterRef,
+                     num_supports::Int; kwargs...)::Tuple
     samples = rand(dist, num_supports)
     return (samples, ones(num_supports) / num_supports)
 end
 
 function MC_sampling(dist::Distributions.MultivariateDistribution,
                      params::AbstractArray{<:InfiniteOpt.ParameterRef},
-                     num_supports::Int)::Tuple
+                     num_supports::Int; kwargs...)::Tuple
     samples_matrix = rand(dist, num_supports)
     ordered_pairs = sort(collect(params.data), by=x->x.second.index)
     samples_dict = Dict()
@@ -88,7 +113,7 @@ function MC_sampling(dist::Distributions.MultivariateDistribution,
     return (samples, ones(num_supports) / num_supports)
 end
 # default Gaussian quadrature method for bounded domain
-function Gauss_Legendre(lb::Number, ub::Number, num_supports::Int)::Tuple
+function Gauss_Legendre(lb::Number, ub::Number, num_supports::Int; kwargs...)::Tuple
     (supports, coeffs) = FastGaussQuadrature.gausslegendre(num_supports)
     supports = (ub - lb) / 2 * supports .+ (ub + lb) / 2
     coeffs = (ub - lb) / 2 * coeffs
@@ -96,7 +121,7 @@ function Gauss_Legendre(lb::Number, ub::Number, num_supports::Int)::Tuple
 end
 
 # default Gaussian quadrature method for infinite domain
-function Gauss_Hermite(lb::Number, ub::Number, num_supports::Int)::Tuple
+function Gauss_Hermite(lb::Number, ub::Number, num_supports::Int; kwargs...)::Tuple
     if lb != -Inf || ub != Inf
         error("Lower/upper bound is not infinity. Use other measure evaluation " *
               "methods.")
@@ -107,7 +132,7 @@ function Gauss_Hermite(lb::Number, ub::Number, num_supports::Int)::Tuple
 end
 
 # default Gaussian quadrature method for semi-infinite domain
-function Gauss_Laguerre(lb::Number, ub::Number, num_supports::Int)::Tuple
+function Gauss_Laguerre(lb::Number, ub::Number, num_supports::Int; kwargs...)::Tuple
     if ub == Inf
         if lb == -Inf
             error("The range is infinite. Use other measure evaluation methods.")
@@ -132,7 +157,7 @@ function infinite_transform(lb::Number, ub::Number, num_supports::Int;
                             transform_x::Function = _default_x,
                             transform_dx::Function = _default_dx,
                             t_lb::Number = -convert(Number, lb == -Inf && ub == Inf),
-                            t_ub::Number = 1.)::Tuple
+                            t_ub::Number = 1., kwargs...)::Tuple
     if lb != -Inf && ub != Inf
         error("The range is not (semi-)infinite. Use evaluation methods for " *
               "bounded domains.")

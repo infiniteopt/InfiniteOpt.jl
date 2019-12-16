@@ -464,11 +464,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         if num_params == 0
             error("No infinite parameter is provided.")
         elseif num_params == 1
-            temp = 1
-            for a in params
-                temp = a
-            end
-            params = temp
+            params = first(params)
         else
             ids = unique(group_id.(params))
             if length(ids) > 1
@@ -484,12 +480,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         end
     end
 
-    set = 1;
-    for a in params
-        set = _parameter_set(a)
-        break
-    end
-
+    set = _parameter_set(first(params))
     if num_params > 1
         if isa(lb, Number)
             lb = JuMPC.SparseAxisArray(Dict(k => lb for k in keys(params)))
@@ -552,7 +543,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
     end
 
     # construct AbstractMeasureData as data
-    data = generate_measure_data(params, lb, ub, num_supports, method = eval_method,
+    data = generate_measure_data(params, num_supports, lb, ub, method = eval_method,
                                  name = name, weight_func = weight_func)
 
     # call measure function to construct the measure

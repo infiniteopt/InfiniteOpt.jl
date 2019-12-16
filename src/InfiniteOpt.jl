@@ -29,8 +29,8 @@ include("utilities.jl")
 include("TranscriptionOpt/TranscriptionOpt.jl")
 using .TranscriptionOpt
 
-include("MeasureEvalMethod/MeasureEvalMethod.jl")
-using .MeasureEvalMethod
+include("MeasureEvalMethods/MeasureEvalMethods.jl")
+using .MeasureEvalMethods
 
 # Export model object datatype
 export InfiniteModel
@@ -86,7 +86,7 @@ expand_all_measures!, expect, support_sum
 
 # Export measure evaluation functions
 export generate_measure_data, MC_sampling, Gauss_Legendre, Gauss_Hermite,
-Gauss_Laguerre, infinite_transform, support_formatting
+Gauss_Laguerre, infinite_transform, support_formatting, measure_dispatch
 
 # Export transcription datatypes
 export TranscriptionData, TranscriptionModel
