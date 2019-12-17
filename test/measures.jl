@@ -557,3 +557,103 @@ end
         m.meas_in_objective[JuMP.index(mref)] = false
     end
 end
+@testset "User Definition w/o Measure Data" begin
+    m = InfiniteModel()
+    dist1 = Normal(0., 1.)
+    dist2 = MvNormal([0., 0.], [1. 0.;0. 10.])
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, 0 <= par2 <= 1)
+    @infinite_parameter(m, 0 <= par3 <= 1)
+    @infinite_parameter(m, 0 <= pars1[1:2] <= 1, container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars2[("a", "b")] <= 1)
+    @infinite_parameter(m, 0 <= pars3[1:2] <= 1)
+    @infinite_parameter(m, rp in dist1)
+    @infinite_parameter(m, rp2[1:2] in dist2)
+    @infinite_variable(m, inf(par))
+    @infinite_variable(m, inf2(par, par2))
+    @infinite_variable(m, inf3(par3))
+    @infinite_variable(m, inf4(pars1))
+    @infinite_variable(m, inf5(pars1, pars2))
+    @infinite_variable(m, inf6(pars2))
+    @infinite_variable(m, inf7(pars3))
+    @infinite_variable(m, inf8(rp))
+    @infinite_variable(m, inf9(rp2))
+    @infinite_variable(m, inf10(rp, rp2))
+    @hold_variable(m, x)
+
+    # test measure that does not use AbstractMeasureData inputs
+    @testset "measure (no AbstractMeasureData)" begin
+        meas1 = measure(inf, num_supports = 5, eval_method = Gauss_Legendre)
+        (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
+        expected_supps = expected_supps .* 0.5 .+ 0.5
+        expected_coeffs = expected_coeffs .* 0.5
+        @test all(measure_data(meas1).supports .== expected_supps)
+        @test all(measure_data(meas1).coefficients .== expected_coeffs)
+
+        add_supports(par2, [0.3, 0.7])
+        meas2 = measure(inf2, par2, use_existing_supports = true)
+        @test measure_data(meas2).parameter_ref == par2
+        @test measure_data(meas2).supports == [0.3, 0.7]
+        meas2 = measure(inf2, par2, 0.5, 0.9, use_existing_supports = true)
+        @test measure_data(meas2).supports == [0.7]
+        meas2 = measure(inf2, [par2], [0.5], [0.9], use_existing_supports = true)
+        @test measure_data(meas2).supports == [0.7]
+
+        meas3 = measure(inf4, num_supports = 5)
+        @test pars1[1] in measure_data(meas3).parameter_ref
+        @test pars1[2] in measure_data(meas3).parameter_ref
+
+        meas4 = measure(inf5, pars2, num_supports = 5)
+        @test pars2["a"] in measure_data(meas4).parameter_ref
+        @test pars2["b"] in measure_data(meas4).parameter_ref
+
+        meas5 = measure(inf6, use_existing_supports = true)
+        @test measure_data(meas4).supports == measure_data(meas5).supports
+
+        add_supports(pars3[1], [0.3, 0.7])
+        add_supports(pars3[2], [0.3, 0.7])
+        meas6 = measure(inf7, pars3, 0.5, 1.0, use_existing_supports = true)
+        @test measure_data(meas6).supports == [JuMPC.SparseAxisArray(
+                                                Dict([((1,),0.7), ((2,), 0.7)]))]
+        meas6 = measure(inf7, pars3, [0.5, 0.5], [1.0, 1.0], use_existing_supports = true)
+        @test measure_data(meas6).supports == [JuMPC.SparseAxisArray(
+                                                Dict([((1,),0.7), ((2,), 0.7)]))]
+
+        # test errors
+        @test_throws ErrorException measure(x)
+        @test_throws ErrorException measure(inf, ParameterRef[])
+        @test_throws ErrorException measure(inf2)
+        @test_throws ErrorException measure(inf2, [par, par2])
+        @test_throws ErrorException measure(inf2, par, 1., 3.)
+        @test_throws ErrorException measure(inf2, par, [0., 1.])
+        @test_throws ErrorException measure(inf2, par, 0., [1., 1.])
+        @test_throws ErrorException measure(inf2, par, 0.5, 0.)
+        @test_throws ErrorException measure(inf8, use_existing_supports = true)
+        @test_throws ErrorException measure(meas1)
+    end
+    # test support_sum
+    @testset "support_sum" begin
+        sum1 = support_sum(inf2, par2)
+        @test measure_data(sum1).parameter_ref == par2
+        @test measure_data(sum1).supports == [0.3, 0.7]
+        @test name(sum1) == "sum(inf2(par, par2))"
+        sum2 = support_sum(inf7)
+        @test pars3[1] in measure_data(sum2).parameter_ref
+        @test pars3[2] in measure_data(sum2).parameter_ref
+        supps = [JuMPC.SparseAxisArray(Dict([((1,),0.3), ((2,), 0.3)])),
+                 JuMPC.SparseAxisArray(Dict([((1,),0.7), ((2,), 0.7)]))]
+        @test measure_data(sum2).supports == supps
+    end
+    # test expectation measure
+    @testset "expect" begin
+        expect1 = expect(inf8, num_supports = 5)
+        expect2 = expect(inf9, num_supports = 5)
+        @test_throws ErrorException expect(inf10)
+        expect3 = expect(inf10, rp, use_existing_supports = true)
+        check1 = expect(inf8, use_existing_supports = true)
+        check2 = expect(inf9, use_existing_supports = true)
+        @test measure_data(expect1).supports == measure_data(check1).supports
+        @test measure_data(expect2).supports == measure_data(check2).supports
+        @test measure_data(expect3).supports == measure_data(expect1).supports
+    end
+end

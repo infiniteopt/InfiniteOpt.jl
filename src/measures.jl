@@ -409,6 +409,236 @@ function measure(expr::JuMP.AbstractJuMPScalar,
 end
 
 """
+    measure(expr::JuMP.AbstractJuMPScalar,
+            [params::Union{ParameterRef, AbstractArray{<:ParameterRef},
+                          Nothing} = nothing,
+            lb::Union{Number, AbstractArray{<:Number}, Nothing},
+            ub::Union{Number, AbstractArray{<:Number}, Nothing}];
+            [eval_method::Function = MC_sampling, num_supports::Int = 50,
+            weight_func::Function = _w, name = "",
+            use_existing_supports::Bool = false,
+            call_from_expect::Bool = false])::MeasureRef
+
+Returns a measure reference that evaluates `expr` without using an object of
+[`AbstractMeasureData`](@ref) type. Similar to the main [`measure`](@ref)
+method, this function aims to implement measures of the form:
+``\\int_{p \\in P} expr(p) w(p) dp`` where ``p`` is an infinite parameter (scalar
+or vector) and ``w`` is the weight function. This function serves as a flexible
+interface where users only have to provide necessary data about the
+integration. Instead of taking an [`AbstractMeasureData`](@ref) object as input,
+this function constructs the [`AbstractMeasureData`](@ref) object using some
+default numerical integration schemes. By default, the function will generate
+points by Monte Carlo sampling from the interval if the parameter is in an
+[`IntervalSet`](@ref), or from the underlying distribution if the parameter is
+in a [`DistributionSet`](@ref). If the expression involves multiple groups of
+parameters, the user needs to specify the parameter. The user can also specify
+lower bounds and upper bounds for the parameters, number of supports to
+generate, and the function to generate the supports with. The last option makes
+the method extendible for more schemes to generate supports.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(seed = true))
+julia> @infinite_parameter(model, x in [0., 1.])
+x
+
+julia> @infinite_variable(model, f(x))
+f(x)
+
+julia> meas = measure(f, num_supports = 5)
+(f(x))
+
+julia> expand(meas)
+0.2 f(0.8236475079774124) + 0.2 f(0.9103565379264364) + 0.2 f(0.16456579813368521) + 0.2 f(0.17732884646626457) + 0.2 f(0.278880109331201)
+```
+"""
+# Measure function that takes non-AbstractMeasureData types
+function measure(expr::JuMP.AbstractJuMPScalar,
+                 params::Union{ParameterRef, AbstractArray{<:ParameterRef},
+                                                             Nothing} = nothing,
+                 lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
+                 ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing;
+                 eval_method::Function = MC_sampling, num_supports::Int = 50,
+                 weight_func::Function = _w, name = "",
+                 use_existing_supports::Bool = false,
+                 call_from_expect::Bool = false)::MeasureRef
+
+    if isa(params, Nothing)
+        if isa(expr, MeasureRef)
+            error("Nested call of measure must specify parameters.")
+        end
+        params = _all_parameter_refs(expr)
+        if length(params) == 0
+            error("No infinite parameters in the expression.")
+        elseif length(params) == 1
+            params = params[1]
+        else
+            error("Multiple groups of parameters are in the expression. Need to " *
+                  "specify one group of parameters only.")
+        end
+    end
+
+    if isa(params, ParameterRef)
+        num_params = 1
+    else
+        num_params = length(params)
+        if num_params == 0
+            error("No infinite parameter is provided.")
+        elseif num_params == 1
+            params = first(params)
+        else
+            ids = unique(group_id.(params))
+            if length(ids) > 1
+                error("Multiple groups of parameters are specified.")
+            end
+            params = convert(JuMPC.SparseAxisArray, params)
+            if isa(lb, AbstractArray)
+                lb = convert(JuMPC.SparseAxisArray, lb)
+            end
+            if isa(ub, AbstractArray)
+                ub = convert(JuMPC.SparseAxisArray, ub)
+            end
+        end
+    end
+
+    set = _parameter_set(first(params))
+    if num_params > 1
+        if isa(lb, Number)
+            lb = JuMPC.SparseAxisArray(Dict(k => lb for k in keys(params)))
+        end
+        if isa(ub, Number)
+            ub = JuMPC.SparseAxisArray(Dict(k => ub for k in keys(params)))
+        end
+    end
+
+    if isa(set, IntervalSet)
+        # Fill in lower bounds and upper bounds if not given
+        if isa(lb, Nothing) || length(lb) == 0
+            lb = JuMP.lower_bound.(params)
+        end
+        if isa(ub, Nothing) || length(ub) == 0
+            ub = JuMP.upper_bound.(params)
+        end
+
+        # Check the dimension of lb and ub matches number of parameters
+        if length(lb) != num_params || length(ub) != num_params
+            error("Number of parameters do not match number of lower bounds or " *
+                  "upper bounds.")
+        end
+
+        if num_params == 1
+            if isa(lb, AbstractArray)
+                lb = lb[findfirst(x->isa(x, Number), lb)]
+            end
+            if isa(ub, AbstractArray)
+                ub = ub[findfirst(x->isa(x, Number), ub)]
+            end
+        end
+
+        # Check the input lower bounds and upper bounds are reasonable
+        for i in eachindex(lb)
+            if lb[i] >= ub[i]
+                error("Lower bound is not less than upper bound for some parameter." *
+                      " Please check the input lower bounds and upper bounds.")
+            end
+        end
+    end
+
+    # construct data and return measure if we use existing supports
+    if use_existing_supports
+        support = supports(params)
+        if !isa(lb, Nothing) && !isa(ub, Nothing)
+            support = [i for i in support if all(i .>= lb) && all(i .<= ub)]
+        end
+
+        # TODO: generate reasonable coefficients for given supports
+        len = length(support)
+        if call_from_expect
+            data = DiscreteMeasureData(params, ones(len) ./ len, support,
+                                       name = name, weight_function = weight_func)
+        else
+            data = DiscreteMeasureData(params, ones(len), support,
+                                       name = name, weight_function = weight_func)
+        end
+        return measure(expr, data)
+    end
+
+    # construct AbstractMeasureData as data
+    data = generate_measure_data(params, num_supports, lb, ub, method = eval_method,
+                                 name = name, weight_func = weight_func)
+
+    # call measure function to construct the measure
+    return measure(expr, data)
+end
+
+"""
+    expect(expr::JuMP.AbstractJuMPScalar,
+           [params::Union{ParameterRef, AbstractArray{<:ParameterRef},
+                          Nothing} = nothing];
+           [num_supports::Int = 50,
+            use_existing_supports::Bool = false])::MeasureRef
+
+Creates a measure that represents the expected value of an expression in
+a random parameter involved in the expression. Return the [`MeasureRef`](@ref)
+of the created measure.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; model = InfiniteModel(seed = true))
+julia> @infinite_parameter(model, x in Normal(0., 1.))
+x
+
+julia> @infinite_variable(model, f(x))
+f(x)
+
+julia> meas = expect(f, num_supports = 2)
+expect(f(x))
+
+julia> expand(meas)
+0.5 f(0.6791074260357777) + 0.5 f(0.8284134829000359)
+```
+"""
+# expectation measure
+function expect(expr::JuMP.AbstractJuMPScalar,
+                params::Union{ParameterRef, AbstractArray{<:ParameterRef},
+                              Nothing} = nothing;
+                num_supports::Int = 50,
+                use_existing_supports::Bool = false)::MeasureRef
+    return measure(expr, params, num_supports = num_supports,
+                   name = "expect", use_existing_supports = use_existing_supports,
+                   call_from_expect = true)
+end
+
+"""
+    support_sum(expr::JuMP.AbstractJuMPScalar,
+                [params::Union{ParameterRef, AbstractArray{<:ParameterRef},
+                               Nothing} = nothing])::MeasureRef
+
+Creates a measure that represents the sum of the expression over a parameter
+using its existing supports. Return the [`MeasureRef`](@ref) of the created
+measure.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+julia> @infinite_parameter(model, x in [0, 1], supports = [0.3, 0.7])
+x
+
+julia> @infinite_variable(model, f(x))
+f(x)
+
+julia> meas = support_sum(f)
+sum(f(x))
+
+julia> expand(meas)
+f(0.3) + f(0.7)
+```
+"""
+# sum measure
+function support_sum(expr::JuMP.AbstractJuMPScalar,
+                     params::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}
+                     = nothing)::MeasureRef
+    return measure(expr, params, use_existing_supports = true, name = "sum")
+end
+
+"""
     used_by_constraint(mref::MeasureRef)::Bool
 
 Return a `Bool` indicating if `mref` is used by a constraint.

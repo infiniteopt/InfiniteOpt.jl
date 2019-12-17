@@ -66,7 +66,7 @@ julia> objective_function(model)
 0.5 x[1] + 0.5 x[2] + expect(y(ξ)² - y(ξ))
 
 julia> objective_function_type(model)
-GenericQuadExpr{Float64,MeasureFiniteVariableRef}
+GenericAffExpr{Float64,MeasureFiniteVariableRef}
 ```
 The objective sense can be one of three possibilities: `MIN_SENSE`, `MAX_SENSE`,
 or `FEASIBILITY_SENSE`. The later sense applies to models that contain no
@@ -94,7 +94,7 @@ macro. The objective function is specified via [`set_objective_function`](@ref J
 simply updates the expression stored in the objective. For example, let's update
 out objective to simply be ``0.5x_1 + 0.5x_2``:
 ```jldoctest obj
-julia> set_objective_function(model, 0.5 x[1] + 0.5 x[2])
+julia> set_objective_function(model, 0.5x[1] + 0.5x[2])
 
 julia> objective_function(model)
 0.5 x[1] + 0.5 x[2]
