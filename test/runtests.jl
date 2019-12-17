@@ -17,7 +17,6 @@ include("utilities.jl")
 println("-----------------------------------------")
 println("----------------UNIT TESTS---------------")
 println("-----------------------------------------")
-#=
 @time @testset "Datatypes" begin include("datatypes.jl") end
 println("")
 @time @testset "Utilities" begin include("utility_tests.jl") end
@@ -39,14 +38,12 @@ println("")
 println("")
 @time @testset "Expression Methods" begin include("expressions.jl") end
 println("")
-=#
 @time @testset "Measure Evaluation Methods" begin
     include("MeasureEvalMethods/methods.jl")
 end
 println("")
 @time @testset "Measure Methods" begin include("measures.jl") end
 println("")
-#=
 @time @testset "Objective Methods" begin include("objective.jl") end
 println("")
 @time @testset "Constraint Methods" begin include("constraints.jl") end
@@ -71,7 +68,6 @@ println("")
 
 # TODO add extension tests
 # TODO add involved deletion tests
-=#
 println("-----------------------------------------")
 println("-------------TESTING COMPLETE------------")
 println("-----------------------------------------")
