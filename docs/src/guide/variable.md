@@ -323,6 +323,8 @@ julia> var_refs2 = @hold_variable(model, [a:b], base_name = "d", container = Arr
  d[2]
  d[3]
 ```
+For more information on `JuMP` containers please visit their page
+[here](http://www.juliaopt.org/JuMP.jl/stable/containers/).
 
 Now that we have a foundation with anonymous variable macro calls, let's focus
 on non-anonymous calls which offer a much more straightforward syntax. These calls
@@ -492,7 +494,7 @@ Thus, we defined `c` and it can only be used in constraints and measures in
 accordance with this limited sub-domain. When such a limited hold variable is
 used in a constraint, the constraint parameter bounds be overlapped with those of
 `c` if possible. Otherwise, an error will be thrown. This is further explained
-on the [Constraints](@ref) page.
+on the [Constraints](@ref constr_page) page.
 
 Any number of parameters can be specified in a hold variable's sub-domain. For
 example, let's define `e` such over the domain ``t \in [0, 1]``, ``x = -1``:

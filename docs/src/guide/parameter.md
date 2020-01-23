@@ -191,11 +191,11 @@ julia> x_ref = add_parameter(model, x_param, "x")
 x
 ```
 Note that `add_parameter` does not register the name of the parameters into the
-model that it adds to. As shown in [Macro Definition](@ref), the macro definition
+model that it adds to. As shown in [Macro Definition](@ref param_macro), the macro definition
 does not allow for multiple parameters sharing the same name and will throw an
 error if it happens.
 
-### Macro Definition
+### [Macro Definition] (@id param_macro)
 #### One-Dimensional Parameters
 One user-friendly way of defining infinite parameters is by macro
 [`@infinite_parameter`](@ref). The macro executes the same process as the

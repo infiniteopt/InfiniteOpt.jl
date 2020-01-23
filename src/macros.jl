@@ -1092,23 +1092,23 @@ macro errors if `bound_expr` is ommited or if some unrecognized syntax is used.
 **Examples**
 ```julia
 julia> @BDconstraint(model, c1(t in [0, 1]), T^2 + z <= 1)
-c1 : T(x, t)² + z <= 1.0, for all t in [0, 1]
+c1 : T(x, t)² + z ≤ 1.0, ∀ t ∈ [0, 1]
 
 julia> @BDconstraint(model, c2[i = 1:3](x[i] in [0, 1]), T^2 + z + x[i] <= 1)
 3-element Array{GeneralConstraintRef,1}:
- c2[1] : T(x, t)² + z + x[1] <= 1.0, for all x[1] in [0, 1]
- c2[2] : T(x, t)² + z + x[2] <= 1.0, for all x[2] in [0, 1]
- c2[3] : T(x, t)² + z + x[3] <= 1.0, for all x[3] in [0, 1]
+ c2[1] : T(x, t)² + z + x[1] ≤ 1.0, ∀ x[1] ∈ [0, 1]
+ c2[2] : T(x, t)² + z + x[2] ≤ 1.0, ∀ x[2] ∈ [0, 1]
+ c2[3] : T(x, t)² + z + x[3] ≤ 1.0, ∀ x[3] ∈ [0, 1]
 
 julia> @BDconstraint(model, (x == 0, t == 0), T^2 + z <= 1)
-T(x, t)² + z <= 1.0, for all x[2] == 0, x[3] == 0, t == 0, x[1] == 0
+T(x, t)² + z ≤ 1.0, ∀ x[2] = 0, x[3] = 0, t = 0, x[1] = 0
 
 julia> @BDconstraint(model, [i = 1:3](x[i] == 0), T^2 + z <= 1,
                      container = SparseAxisArray)
 JuMP.Containers.SparseAxisArray{GeneralConstraintRef,1,Tuple{Any}} with 3 entries:
-  [3]  =  T(x, t)² + z <= 1.0, for all x[3] == 0
-  [2]  =  T(x, t)² + z <= 1.0, for all x[2] == 0
-  [1]  =  T(x, t)² + z <= 1.0, for all x[1] == 0
+  [3]  =  T(x, t)² + z ≤ 1.0, ∀ x[3] = 0
+  [2]  =  T(x, t)² + z ≤ 1.0, ∀ x[2] = 0
+  [1]  =  T(x, t)² + z ≤ 1.0, ∀ x[1] = 0
 ```
 """
 macro BDconstraint(model, args...)

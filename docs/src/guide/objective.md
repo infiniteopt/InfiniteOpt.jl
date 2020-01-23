@@ -1,10 +1,10 @@
 # Objectives
 A guide and manual for specifying and modifying objective functions in
-`InfiniteOpt`. The Methods section at the end comprise the manual, and the
+`InfiniteOpt`. The Methods section at the end comprises the manual, and the
 above sections comprise the guide.
 
 ## Overview
-Naturally, objective functions are key aspect of optimization problems in
+Naturally, objective functions serve as a key aspect of optimization problems in
 general and this is certainly the case with infinite dimensional ones. In
 `InfiniteOpt` objectives are defined in much the same way they are in `JuMP`.
 One key idea to keep in mind is that the objective must evaluate to a finite
@@ -37,10 +37,10 @@ expressed `Min` for minimization problems and `Max` for maximization problems.
 The objective function (expression) must be finite containing only hold variables,
 point variables, and/or measures. Also, any included measures must fully
 integrate over all the infinite parameters contained in its input function.
-For example, if we define had an infinite variable ``z(ξ, t)`` then the measure
-``expect(z, ξ)`` could not be included since the resulting expression would still
-be infinite with respect to ``t``. However, adding a measure for ``t`` would result
-in a valid object to add to an objective: ``measure(expect(z, ξ), t)``.
+For example, if we define had an infinite variable `z(ξ, t)` then the measure
+`expect(z, ξ)` could not be included since the resulting expression would still
+be infinite with respect to `t`. However, adding a measure for `t` would result
+in a valid object to add to an objective: `measure(expect(z, ξ), t)`.
 
 Now we can add objectives to our infinite models. For more detailed information,
 please review the information below.  

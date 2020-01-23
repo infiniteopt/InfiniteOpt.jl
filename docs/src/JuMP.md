@@ -61,11 +61,6 @@ JuMP.unset_integer(::JuMP.VariableRef)
 ```@docs
 JuMP.@expression
 JuMP.add_to_expression!
-JuMP.ScalarConstraint
-JuMP.@constraint
-JuMP.SecondOrderCone
-JuMP.RotatedSecondOrderCone
-JuMP.PSDCone
 ```
 
 ## Objectives
@@ -77,4 +72,25 @@ JuMP.objective_function(::JuMP.Model)
 JuMP.objective_function_type(::JuMP.Model)
 JuMP.objective_sense(::JuMP.Model)
 JuMP.set_objective_coefficient(::JuMP.Model, ::JuMP.VariableRef, ::Real)
+```
+
+## Constraints
+```@docs
+JuMP.ScalarConstraint
+JuMP.add_constraint(::JuMP.Model, ::JuMP.AbstractConstraint, ::String)
+JuMP.@constraint
+JuMP.owner_model(::JuMP.ConstraintRef)
+JuMP.index(::JuMP.ConstraintRef)
+JuMP.delete(::JuMP.Model, ::JuMP.ConstraintRef{JuMP.Model})
+JuMP.is_valid(::JuMP.Model, ::JuMP.ConstraintRef{JuMP.Model})
+JuMP.constraint_object
+JuMP.name(::JuMP.ConstraintRef{JuMP.Model,<:JuMP._MOICON})
+JuMP.set_name(::JuMP.ConstraintRef{JuMP.Model,<:JuMP._MOICON}, ::String)
+JuMP.constraint_by_name
+JuMP.num_constraints(::JuMP.Model, ::Type{<:Union{JuMP.AbstractJuMPScalar, Vector{<:JuMP.AbstractJuMPScalar}}}, ::Type{<:MOI.AbstractSet})
+JuMP.all_constraints(::JuMP.Model, ::Type{<:Union{JuMP.AbstractJuMPScalar, Vector{<:JuMP.AbstractJuMPScalar}}}, ::Type{<:MOI.AbstractSet})
+JuMP.list_of_constraint_types(::JuMP.Model)
+JuMP.SecondOrderCone
+JuMP.RotatedSecondOrderCone
+JuMP.PSDCone
 ```

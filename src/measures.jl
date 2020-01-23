@@ -415,7 +415,7 @@ end
             lb::Union{Number, AbstractArray{<:Number}, Nothing},
             ub::Union{Number, AbstractArray{<:Number}, Nothing}];
             [eval_method::Function = MC_sampling, num_supports::Int = 50,
-            weight_func::Function = _w, name = "",
+            weight_func::Function = _w, name = "measure",
             use_existing_supports::Bool = false,
             call_from_expect::Bool = false])::MeasureRef
 
@@ -458,7 +458,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
                  lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
                  ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing;
                  eval_method::Function = MC_sampling, num_supports::Int = 50,
-                 weight_func::Function = _w, name = "",
+                 weight_func::Function = _w, name = "measure",
                  use_existing_supports::Bool = false,
                  call_from_expect::Bool = false)::MeasureRef
 
