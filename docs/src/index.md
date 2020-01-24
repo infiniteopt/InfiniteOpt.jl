@@ -49,7 +49,7 @@ m = InfiniteModel(with_optimizer(Ipopt.Optimizer))
 # Set the uncertainty parameters
 dist = MvNormal(θ_nom, covar)
 @infinite_parameter(m, θ[i = 1:n_θ] in dist, num_supports = 100)
-@infinite_parameter(m, 0 <= t <= 10)
+@infinite_parameter(m, t in [0, 10])
 
 # Initialize the variables
 @infinite_variable(m, z[1:n_z](θ, t))
