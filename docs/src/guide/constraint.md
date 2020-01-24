@@ -99,7 +99,7 @@ the second argument. To illustrate this, let's define an anonymous constraint
 for ``2T^2(t, x) + w \geq 3, \ \forall t = 0, \ x \in [-1, 1]^2``:
 ```jldoctest constrs
 julia> cref = @BDconstraint(model, (t == 0, x in [-1, 1]), 2T^2 + w >= 3)
-2 T(t, x)² + w >= 3.0, ∀ x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], t = 0
+2 T(t, x)² + w ≥ 3.0, ∀ x[2] ∈ [-1, 1], t = 0, x[1] ∈ [-1, 1]
 ```
 where `cref` contains the corresponding constraint reference.
 
@@ -238,21 +238,21 @@ The `(bound expr)` can be of the form:
                             each to be equal to `value`
 - Any combination of the above forms. Must be inside parentheses and comma
   separated.
- Please refer to the Basic Usage section and the manual for examples.
+Please refer to the Basic Usage section and the manual for examples.
 
- Finally, the [`@constraint`](@ref) and [`@BDconstraint`](@ref) macros allow
- the user to specify the `container` keyword argument when defining an array
- of constraints. For example, we can force a group of bounded constraint
- references to be stored in a `JuMP.SparseAxisArray`:
- ```jldoctest constrs
- julia> @BDconstraint(model, [i = 1:2](x[i] == 0), T^2 + z[i] <= 1,
-                      container = SparseAxisArray)
- JuMP.Containers.SparseAxisArray{GeneralConstraintRef,1,Tuple{Any}} with 2 entries:
-   [2]  =  T(t, x)² + z[2] ≤ 1.0, ∀ x[2] = 0
-   [1]  =  T(t, x)² + z[1] ≤ 1.0, ∀ x[1] = 0
+Finally, the [`@constraint`](@ref) and [`@BDconstraint`](@ref) macros allow
+the user to specify the `container` keyword argument when defining an array
+of constraints. For example, we can force a group of bounded constraint
+references to be stored in a `JuMP.SparseAxisArray`:
+```jldoctest constrs
+julia> @BDconstraint(model, [i = 1:2](x[i] == 0), T^2 + z[i] <= 1,
+                     container = SparseAxisArray)
+JuMP.Containers.SparseAxisArray{GeneralConstraintRef,1,Tuple{Any}} with 2 entries:
+  [2]  =  T(t, x)² + z[2] ≤ 1.0, ∀ x[2] = 0
+  [1]  =  T(t, x)² + z[1] ≤ 1.0, ∀ x[1] = 0
 ```
- For more information on `JuMP` containers please visit their page
- [here](http://www.juliaopt.org/JuMP.jl/stable/containers/).
+For more information on `JuMP` containers please visit their page
+[here](http://www.juliaopt.org/JuMP.jl/stable/containers/).
 
 ## Queries
 In this section, we describe a variety of methods to extract constraint

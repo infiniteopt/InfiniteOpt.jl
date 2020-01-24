@@ -37,7 +37,7 @@ installed by entering the following in the package manager.
 Below is a brief example of the high-level API.
 
 ```julia
-using Revise, InfiniteOpt, JuMP, Ipopt, Distributions
+using InfiniteOpt, JuMP, Ipopt, Distributions
 
 # Set the problem information
 θ_nom, covar = [0.; 60.; 10.], [80. 0 0; 0 80. 0; 0 0 120.]
