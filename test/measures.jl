@@ -583,7 +583,7 @@ end
 
     # test measure that does not use AbstractMeasureData inputs
     @testset "measure (no AbstractMeasureData)" begin
-        meas1 = measure(inf, num_supports = 5, eval_method = Gauss_Legendre)
+        meas1 = measure(inf, num_supports = 5, eval_method = gauss_legendre)
         (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
         expected_supps = expected_supps .* 0.5 .+ 0.5
         expected_coeffs = expected_coeffs .* 0.5

@@ -1,4 +1,4 @@
-using Documenter, InfiniteOpt, JuMP
+using Documenter, InfiniteOpt, JuMP, Distributions
 
 makedocs(;
     pages = ["Home" => "index.md",

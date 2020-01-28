@@ -1,5 +1,7 @@
 # Measures
 A guide and manual for defining and using measures in `InfiniteOpt`.
+The Datatypes and Methods sections at the end comprise the manual, and the
+above sections comprise the guide.  
 
 ## Overview
 
@@ -46,9 +48,12 @@ Modules = [InfiniteOpt, JuMP]
 Order   = [:function]
 ```
 ```@docs
+expect
+support_sum
+measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})
 DiscreteMeasureData(::ParameterRef, ::Vector{<:Number}, ::Vector{<:Number})
 DiscreteMeasureData(::AbstractArray{<:ParameterRef}, ::Vector{<:Number}, ::Vector{<:AbstractArray})
-measure
+measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)
 add_measure
 measure_function
 measure_data
@@ -84,4 +89,21 @@ used_by_constraint(::ReducedInfiniteVariableRef)
 used_by_measure(::ReducedInfiniteVariableRef)
 JuMP.is_valid(::InfiniteModel, ::ReducedInfiniteVariableRef)
 JuMP.delete(::InfiniteModel, ::ReducedInfiniteVariableRef)
+```
+
+## MeasureEvalMethods Methods
+```@index
+Pages   = ["measure.md"]
+Modules = [InfiniteOpt.MeasureEvalMethods]
+Order   = [:function]
+```
+
+```@docs
+InfiniteOpt.MeasureEvalMethods.generate_measure_data
+InfiniteOpt.MeasureEvalMethods.mc_sampling(::Number, ::Number, ::Int)
+InfiniteOpt.MeasureEvalMethods.mc_sampling(::Distributions.UnivariateDistribution, ::InfiniteOpt.ParameterRef, ::Int)
+InfiniteOpt.MeasureEvalMethods.gauss_legendre
+InfiniteOpt.MeasureEvalMethods.gauss_hermite
+InfiniteOpt.MeasureEvalMethods.gauss_laguerre
+InfiniteOpt.MeasureEvalMethods.infinite_transform
 ```

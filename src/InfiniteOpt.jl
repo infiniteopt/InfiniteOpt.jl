@@ -30,7 +30,12 @@ include("TranscriptionOpt/TranscriptionOpt.jl")
 using .TranscriptionOpt
 
 include("MeasureEvalMethods/MeasureEvalMethods.jl")
-using .MeasureEvalMethods
+using .MeasureEvalMethods: generate_measure_data, mc_sampling, gauss_legendre,
+gauss_hermite, gauss_laguerre, infinite_transform, measure_dispatch
+
+# Export the measure eval stuff
+export generate_measure_data, mc_sampling, gauss_legendre, gauss_hermite,
+gauss_laguerre, infinite_transform, measure_dispatch
 
 # Export model object datatype
 export InfiniteModel

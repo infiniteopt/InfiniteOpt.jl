@@ -414,7 +414,7 @@ end
                           Nothing} = nothing,
             lb::Union{Number, AbstractArray{<:Number}, Nothing},
             ub::Union{Number, AbstractArray{<:Number}, Nothing}];
-            [eval_method::Function = MC_sampling, num_supports::Int = 50,
+            [eval_method::Function = mc_sampling, num_supports::Int = 50,
             weight_func::Function = _w, name = "measure",
             use_existing_supports::Bool = false,
             call_from_expect::Bool = false])::MeasureRef
@@ -451,17 +451,16 @@ julia> expand(meas)
 0.2 f(0.8236475079774124) + 0.2 f(0.9103565379264364) + 0.2 f(0.16456579813368521) + 0.2 f(0.17732884646626457) + 0.2 f(0.278880109331201)
 ```
 """
-# Measure function that takes non-AbstractMeasureData types
 function measure(expr::JuMP.AbstractJuMPScalar,
                  params::Union{ParameterRef, AbstractArray{<:ParameterRef},
                                                              Nothing} = nothing,
                  lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
                  ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing;
-                 eval_method::Function = MC_sampling, num_supports::Int = 50,
+                 eval_method::Function = mc_sampling, num_supports::Int = 50,
                  weight_func::Function = _w, name = "measure",
                  use_existing_supports::Bool = false,
                  call_from_expect::Bool = false)::MeasureRef
-
+    # Measure function that takes non-AbstractMeasureData types
     if isa(params, Nothing)
         if isa(expr, MeasureRef)
             error("Nested call of measure must specify parameters.")
@@ -596,12 +595,12 @@ julia> expand(meas)
 0.5 f(0.6791074260357777) + 0.5 f(0.8284134829000359)
 ```
 """
-# expectation measure
 function expect(expr::JuMP.AbstractJuMPScalar,
                 params::Union{ParameterRef, AbstractArray{<:ParameterRef},
                               Nothing} = nothing;
                 num_supports::Int = 50,
                 use_existing_supports::Bool = false)::MeasureRef
+    # expectation measure
     return measure(expr, params, num_supports = num_supports,
                    name = "expect", use_existing_supports = use_existing_supports,
                    call_from_expect = true)
@@ -631,10 +630,10 @@ julia> expand(meas)
 f(0.3) + f(0.7)
 ```
 """
-# sum measure
 function support_sum(expr::JuMP.AbstractJuMPScalar,
                      params::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}
                      = nothing)::MeasureRef
+    # sum measure
     return measure(expr, params, use_existing_supports = true, name = "sum")
 end
 
