@@ -94,3 +94,13 @@ JuMP.SecondOrderCone
 JuMP.RotatedSecondOrderCone
 JuMP.PSDCone
 ```
+
+## Optimization
+```@docs
+JuMP.optimize!(::JuMP.Model, ::Union{Nothing, JuMP.OptimizerFactory})
+JuMP.set_parameter(::JuMP.Model, ::Any, ::Any)
+JuMP.set_silent(::JuMP.Model)
+JuMP.unset_silent(::JuMP.Model)
+JuMP.bridge_constraints(::JuMP.Model)
+JuMP.add_bridge(::JuMP.Model, ::Type{<:MOI.Bridges.AbstractBridge})
+```

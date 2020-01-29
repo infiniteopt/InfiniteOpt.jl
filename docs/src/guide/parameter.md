@@ -94,7 +94,7 @@ here that the [`@infinite_parameter`](@ref) macro is designed to closely emulate
 [`JuMP.@variable`](@ref) and thus handles arrays and keyword arguments in the
 same way. This is described in more detail below.
 
-## Infinite Sets
+## [Infinite Sets] (@id infinite_sets_normal)
 The domain of a given infinite parameter is described by an infinite set
 inherited from [`AbstractInfiniteSet`](@ref). `InfiniteOpt` natively supports
 two such sets. The first is [`IntervalSet`](@ref) which describes a continuous
@@ -117,7 +117,7 @@ defining an array of parameters with equivalent dimensions. For example, let's
 make a `DistributionSet` that depends on a Beta distribution:
 ```jldoctest; setup = :(using InfiniteOpt, Distributions)
 julia> set = DistributionSet(Beta(2,2))
-DistributionSet{Beta{Float64}}(Distributions.Beta{Float64}(α=2.0, β=2.0))
+DistributionSet{Beta{Float64}}(Beta{Float64}(α=2.0, β=2.0))
 ```
 User-defined distributions are also permissible so long as they are created in
 accordance with `Distributions.jl`.
@@ -136,7 +136,8 @@ steps:
 - Create a [`ParameterRef`](@ref) that points to the parameter object
 
 ### Manual Definition
-Infinite set definition is described above in [Infinite Sets](@ref). The
+Infinite set definition is described above in the
+[Infinite Sets](@ref infinite_sets_normal) section. The
 supports should be a vector of finite numbers that are drawn from the domain of
 the infinite set. These supports will be used to transcribe the `InfiniteModel`
 in preparation for it to be optimized. If desired, the supports can be specified
@@ -176,13 +177,13 @@ example, let's consider a random variable ``x \in \mathcal{N}(0,1)`` with
 supports `[-0.5, 0.5]`:
 ```jldoctest rand_define; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
 julia> dist = Normal(0., 1.)
-Distributions.Normal{Float64}(μ=0.0, σ=1.0)
+Normal{Float64}(μ=0.0, σ=1.0)
 
 julia> set = DistributionSet(dist)
-DistributionSet{Normal{Float64}}(Distributions.Normal{Float64}(μ=0.0, σ=1.0))
+DistributionSet{Normal{Float64}}(Normal{Float64}(μ=0.0, σ=1.0))
 
 julia> x_param = build_parameter(error, set, supports = [-0.5, 0.5])
-InfOptParameter{DistributionSet{Normal{Float64}}}(DistributionSet{Normal{Float64}}(Distributions.Normal{Float64}(μ=0.0, σ=1.0)), [-0.5, 0.5], false)
+InfOptParameter{DistributionSet{Normal{Float64}}}(DistributionSet{Normal{Float64}}(Normal{Float64}(μ=0.0, σ=1.0)), [-0.5, 0.5], false)
 ```
 Again, we use [`add_parameter`](@ref) to add `x_param` to the `InfiniteModel` and
 assign it the name `x`:
@@ -220,7 +221,7 @@ distribution. For example, a Gaussian infinite parameter with mean 0 and
 standard deviation 1 can be defined by
 ```jldoctest rand_macro_define; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
 julia> dist = Normal(0., 1.)
-Distributions.Normal{Float64}(μ=0.0, σ=1.0)
+Normal{Float64}(μ=0.0, σ=1.0)
 
 julia> @infinite_parameter(model, x in dist, supports = [-0.5, 0.5])
 x

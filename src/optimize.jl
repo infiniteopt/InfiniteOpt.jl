@@ -19,7 +19,8 @@ optimizer_model(model::InfiniteModel)::JuMP.Model = model.optimizer_model
 """
     JuMP.bridge_constraints(model::InfiniteModel)::Bool
 
-Extend [`JuMP.bridge_constraints`](@ref) to return if an infinite model `model`
+Extend [`JuMP.bridge_constraints`](@ref JuMP.bridge_constraints(::JuMP.Model))
+to return if an infinite model `model`
 has an optimizer model where the optimizer is set and unsupported constraints
 are automatically bridged to equivalent supported constraints when an
 appropriate transformation is available.
@@ -38,7 +39,8 @@ end
     JuMP.add_bridge(model::InfiniteModel,
                     BridgeType::Type{<:MOI.Bridges.AbstractBridge})
 
-Extend [`JuMP.add_bridge`] to add `BridgeType` to the list of bridges that can
+Extend [`JuMP.add_bridge`](@ref JuMP.add_bridge(::JuMP.Model, ::Type{<:MOI.Bridges.AbstractBridge}))
+to add `BridgeType` to the list of bridges that can
 be used by the optimizer model to transform unsupported constraints into an
 equivalent formulation using only constraints supported by the optimizer.
 """
@@ -112,7 +114,7 @@ end
                        optimizer_factory::JuMP.OptimizerFactory;
                        bridge_constraints::Bool=true)
 
-Extend [`JuMP.set_optimizer`](@ref) to set optimizer of infinite models.
+Extend `JuMP.set_optimizer` to set optimizer of infinite models.
 Specifically, the optimizer of the optimizer model is modified.
 
 **Example**
@@ -139,7 +141,8 @@ end
 """
     JuMP.set_silent(model::InfiniteModel)
 
-Extend `JuMP.set_silent` for infinite models to take precedence over any other
+Extend [`JuMP.set_silent`](@ref JuMP.set_silent(::JuMP.Model)) for infinite
+models to take precedence over any other
 attribute controlling verbosity and requires the solver to produce no output.
 """
 function JuMP.set_silent(model::InfiniteModel)
@@ -149,7 +152,8 @@ end
 """
     JuMP.unset_silent(model::InfiniteModel)
 
-Extend `JuMP.unset_silent` for infinite models to Neutralize the effect of the
+Extend [`JuMP.unset_silent`](@ref JuMP.unset_silent(::JuMP.Model)) for infinite
+models to Neutralize the effect of the
 `set_silent` function and let the solver attributes control the verbosity.
 """
 function JuMP.unset_silent(model::InfiniteModel)
@@ -206,8 +210,10 @@ two models. The key argument should be be typed to `Val{ext_key_name}`.
  Build the optimizer model stored in `model` such that it can be
  treated as a normal JuMP model. Specifically, translate the variables and
  constraints stored in `model` into ones that are stored in the optimizer model
- and can be solved. This is build generally to accomodate extensions that use
+ and can be solved. This is provided generally to accomodate extensions that use
  custom optimizer model types in accordance with [`optimizer_model_key`](@ref).
+ However, it may be useful in certain applications when the user desires to
+ force a build without calling `optimize!`.
  Extensions will need to implement their own version of the function
  `build_optimizer_model!(model::InfiniteModel, key::Val{ext_key_name})`.
 
@@ -230,7 +236,8 @@ true
                    optimizer_factory::Union{Nothing, JuMP.OptimizerFactory} = nothing;
                    bridge_constraints::Bool=true, kwargs...)
 
-Extend [`JuMP.optimize!`](@ref) to optimize infinite models using the internal
+Extend [`JuMP.optimize!`](@ref JuMP.optimize!(::JuMP.Model, ::Union{Nothing, JuMP.OptimizerFactory}))
+to optimize infinite models using the internal
 optimizer model. Will call [`build_optimizer_model!`](@ref) if the optimizer
 model isn't up to date. The `kwargs` correspond to keyword arguments passed to
 [`build_optimizer_model!`](@ref) if any are defined.
