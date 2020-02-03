@@ -26,8 +26,9 @@ Comments, suggestions and improvements are welcome and appreciated.
 `InfiniteOpt` is licensed under the [MIT "Expat" license](./LICENSE).
 
 ## Installation
-`InfiniteOpt.jl` is still in its early stages of development but can be
-installed by entering the following in the package manager.
+`InfiniteOpt.jl` is not yet a registered package, but it will be soon. In
+the meantime it can be installed by entering the following in the package
+manager.
 
 ```julia
 (v1.3) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
@@ -36,7 +37,7 @@ installed by entering the following in the package manager.
 ## Documentation
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/dev)
 
-Please visit our [documentation pages](https://pulsipher.github.io/InfiniteOpt.jl/dev) to learn more. Note these are still under development and will be much more extensive soon.
+Please visit our [documentation pages](https://pulsipher.github.io/InfiniteOpt.jl/dev) to learn more. Note these are still under development and will be complete soon.
 
 ## Project Status
 

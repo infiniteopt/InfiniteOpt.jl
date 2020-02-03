@@ -26,7 +26,7 @@ include:
     Development is underway to allow for general nonlinear constraints.  
 
 ## Installation
-`InfiniteOpt.jl` is still under development but can be
+`InfiniteOpt.jl` is still under initial development but can be
 installed by entering the following in the package manager.
 
 ```julia

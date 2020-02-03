@@ -45,7 +45,7 @@ be used by the optimizer model to transform unsupported constraints into an
 equivalent formulation using only constraints supported by the optimizer.
 """
 function JuMP.add_bridge(model::InfiniteModel,
-                    BridgeType::Type{<:MOI.Bridges.AbstractBridge})
+                         BridgeType::Type{<:MOI.Bridges.AbstractBridge})
     JuMP.add_bridge(optimizer_model(model), BridgeType)
     return
 end
