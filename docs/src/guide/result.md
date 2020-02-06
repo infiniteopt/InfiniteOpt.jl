@@ -1,20 +1,269 @@
 # Results
-A guide and manual to querying optimized `InfiniteOpt` models.
+A guide and manual to querying optimized `InfiniteOpt` models. The Methods
+section at the bottom comprises the manual and the above sections form the
+guide.
 
 ## Overview
-
+So far we have covered defining, transforming, and optimizing `InfiniteModel`s.
+Now comes the point to extract information from our optimized model. This is done
+following extended versions of `JuMP`s querying functions in combination with
+the mapping information stored in the optimizer model. Thus, this page will
+walk through the use of these result query functions.
 
 ## Basic Usage
+Let's revisit the example from the optimization page to get us started:
+```jldoctest results
+julia> using InfiniteOpt, JuMP, Ipopt;
 
+julia> model = InfiniteModel(with_optimizer(Ipopt.Optimizer, print_level = 0));
+
+julia> @infinite_parameter(model, t in [0, 10], num_supports = 10);
+
+julia> @infinite_variable(model, x(t) >= 0);
+
+julia> @hold_variable(model, z >= 0);
+
+julia> @objective(model, Min, 2z);
+
+julia> @constraint(model, c1, z >= x);
+
+julia> @BDconstraint(model, c2(t == 0), x == 42);
+
+julia> print(model)
+Min 2 z
+Subject to
+ x(t) ≥ 0.0
+ z ≥ 0.0
+ z - x(t) ≥ 0.0
+ x(t) = 42.0, ∀ t = 0
+ t ∈ [0, 10]
+
+julia> optimize!(model)
+```
+Now that the model has been optimized, let's find out what happened. To determine
+why the optimizer stopped, we can use
+[`termination_status`](@ref JuMP.termination_status(::InfiniteModel)) to report
+the corresponding `MathOptInterface` termination code (possible codes are explained
+[here](http://www.juliaopt.org/JuMP.jl/stable/solutions/#MathOptInterface.TerminationStatusCode).
+```jldoctest results
+julia> termination_status(model)
+LOCALLY_SOLVED::TerminationStatusCode = 4
+```
+Here we see that our model was locally solved via Ipopt and that is why it
+stopped. Furthermore, we can query the primal and dual problem optimalities via
+[`primal_status`](@ref JuMP.primal_status(::InfiniteModel)) and
+[`dual_status`](@ref JuMP.dual_status(::InfiniteModel)), respectively.
+```jldoctest results
+julia> primal_status(model)
+FEASIBLE_POINT::ResultStatusCode = 1
+
+julia> dual_status(model)
+FEASIBLE_POINT::ResultStatusCode = 1
+```
+The possible statuses are detailed [here](http://www.juliaopt.org/JuMP.jl/stable/solutions/#MathOptInterface.ResultStatusCode).
+These results are useful in knowing if information can be drawn from the primal
+and/or dual and what it means. We can also verify that we indeed have answers
+via [`has_values`](@ref JuMP.has_values(::InfiniteModel)) which indicates if our
+model has optimized variable values.
+```jldoctest results
+julia> has_values(model)
+true
+```
+And indeed we do have values.
+
+Now we can query the objective value via
+[`objective_value`](@ref JuMP.objective_value(::InfiniteModel)) which reports
+the optimal objective value.
+```jldoctest results
+julia> objective_value(model)
+83.99999998250514
+```
+Great now we can inquire about variable values via
+[`value`](@ref JuMP.value(::GeneralVariableRef)). First, let's retrieve the value
+of `z`:
+```jldoctest results
+julia> value(z)
+41.99999999125257
+```
+We get a single value since `z` is a `HoldVariable` and therefore finite. Now
+let's retrieve the "value" of `x(t)` which is infinite with respect to `t`:
+```jldoctest results
+julia> value(x)
+10-element Array{Float64,1}:
+ 42.0
+ 20.999999995633615
+ 20.999999995633615
+ 20.999999995633615
+ 20.999999995633615
+ 20.999999995633615
+ 20.999999995633615
+ 20.999999995633615
+ 20.999999995633615
+ 20.999999995633615
+```
+Notice here we obtain an array a values since these correspond to the
+transcribed finite (discretized) variables used to solve the problem. We obtain
+the corresponding support (discretized `t`) values via `supports`:
+```jldoctest results
+julia> supports(x)
+10-element Array{Tuple{Float64},1}:
+ (0.0,)
+ (1.1111,)
+ (2.2222,)
+ (3.3333,)
+ (4.4444,)
+ (5.5556,)
+ (6.6667,)
+ (7.7778,)
+ (8.8889,)
+ (10.0,)
+```
+There is 1-to-1 correspondence between these supports and the values reported
+above. Note that these are stored in tuples to facilitate multiple infinite
+parameter dependencies.
+
+!!! note
+    The values for an array of variables is obtained via the vectorized call
+    of `value` following the syntax:
+    ```julia
+    value.(::AbstractArray{<:GeneralVariableRef})
+    ```
+    This also holds true for many other methods in `InfiniteOpt`. For example,
+    adding the dot also vectorizes `dual` and `set_binary`.
+
+We can also query the dual of a constraint via
+[`dual`](@ref JuMP.dual(::GeneralConstraintRef)) if a model has duals available
+as indicated by [`has_duals`](@ref JuMP.has_duals(::InfiniteModel)):
+```jldoctest results
+julia> has_duals(model)
+true
+
+julia> dual(c1)
+10-element Array{Float64,1}:
+ 1.9999999988666093
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+```
+`c1` is an infinite constraint and thus we obtain the duals of its transcribed
+versions. The underlying infinite parameter(s) and support values are queried
+via `parameter_refs` and `supports`:
+```jldoctest results
+julia> parameter_refs(c1)
+(t,)
+
+julia> supports(c1)
+10-element Array{Tuple{Float64},1}:
+ (0.0,)
+ (1.1111,)
+ (2.2222,)
+ (3.3333,)
+ (4.4444,)
+ (5.5556,)
+ (6.6667,)
+ (7.7778,)
+ (8.8889,)
+ (10.0,)
+```
+These again all have a 1-to-1 correspondence.
 
 ## Termination Queries
+Termination queries are those that question about how the infinite model was
+solved and what its optimized state entails. Programmatically, such queries on
+the `InfiniteModel` are simply routed to its optimizer model.
 
+The commonly used queries include
+[`termination_status`](@ref JuMP.termination_status(::InfiniteModel)),
+[`primal_status`](@ref JuMP.primal_status(::InfiniteModel)),
+[`dual_status`](@ref JuMP.dual_status(::InfiniteModel)),
+[`objective_value`](@ref JuMP.objective_value(::InfiniteModel)), and
+[`solve_time`](@ref JuMP.solve_time(::InfiniteModel)). The first four are well
+exemplified in the Basic Usage section above and are helpful in quickly
+understanding the optimality status of a given model following the many possible
+statuses reported by `MathOptInterface` which are documented
+[here](http://www.juliaopt.org/MathOptInterface.jl/stable/apimanual/#Solving-and-retrieving-the-results-1).
+We use `solve_time` to determine the time in seconds used by the optimizer until
+it terminated its search.
+```julia-repl
+julia> solve_time(model)
+0.004999876022338867
+```
+Note that this query might not be supported with all solvers.
+
+The above status queries are designed to report information in a consistent
+format irrespective of the chosen optimizer. However,
+[`raw_status`](@ref JuMP.raw_status(::InfiniteModel)) will provide the optimality
+status verbatim as reported by the optimizer. Thus, following our example with
+Ipopt we obtain:
+```jldoctest results
+julia> raw_status(model)
+"Solve_Succeeded"
+```
+
+Also, we obtain the best objective bound via
+[`objective_bound`](@ref JuMP.objective_bound(::InfiniteModel)) which becomes
+particularly useful solutions that are suboptimal. However, this method is not
+supported by all optimizers and in this case Ipopt one such optimizer.
 
 ## Variable Queries
+Information about the optimized variables is gathered consistently in comparison
+to typical `JuMP` models. With `InfiniteModel`s this is done by querying the
+optimizer model and using its stored variable mappings to return the correct
+information. Thus, here the queries are extended to work with the specifics of
+the optimizer model to return the appropriate info.
 
+First, we should verify that the optimized model in fact has variable values
+via [`has_values`](@ref JuMP.has_values(::InfiniteModel)). In our example,
+we have:
+```jldoctest results
+julia> has_values(model)
+true
+```
+So we have values readily available to be extracted.
+
+Now [`value`](@ref JuMP.value(::GeneralVariableRef)) can be used to query the
+values as shown above in the Basic Usage section. This works by calling the
+appropriate [`map_value`](@ref) defined by the optimizer model. For
+`TranscriptionModel`s
+[`map_value`](@ref InfiniteOpt.map_value(::InfiniteOpt.FiniteVariableRef, ::Val{:TransData})) and/or
+[`map_value`](@ref InfiniteOpt.map_value(::InfiniteOpt.InfiniteVariableRef, ::Val{:TransData}))
+are used. Details on how to extend these methods for user-defined optimizer
+models is explained on the Extensions page.
+
+Finally, the optimizer index of a variable is queried via
+[`optimizer_index`](@ref JuMP.optimizer_index(::GeneralVariableRef)) which
+reports back the index of the variable as used in the `MathOptInterface`
+backend:
+```jldoctest results
+julia> optimizer_index(z)
+MathOptInterface.VariableIndex(1)
+
+julia> optimizer_index(x)
+10-element Array{MathOptInterface.VariableIndex,1}:
+ MathOptInterface.VariableIndex(2)
+ MathOptInterface.VariableIndex(3)
+ MathOptInterface.VariableIndex(4)
+ MathOptInterface.VariableIndex(5)
+ MathOptInterface.VariableIndex(6)
+ MathOptInterface.VariableIndex(7)
+ MathOptInterface.VariableIndex(8)
+ MathOptInterface.VariableIndex(9)
+ MathOptInterface.VariableIndex(10)
+ MathOptInterface.VariableIndex(11)
+```
+As noted previously, an array is returned for `x(t)` in accordance with its
+transcription variables. In similar manner to `value`, this is enabled by
+appropriate versions of [`map_optimizer_index`](@ref) enabled by
+`TranscriptionOpt`.
 
 ## Constraint Queries
-
+Like variables, a variety of information can be queried about constraints.
 
 ## Methods
 ```@index
@@ -29,6 +278,7 @@ JuMP.primal_status(::InfiniteModel)
 JuMP.dual_status(::InfiniteModel)
 JuMP.solve_time(::InfiniteModel)
 JuMP.has_values(::InfiniteModel)
+JuMP.has_duals(::InfiniteModel)
 JuMP.objective_bound(::InfiniteModel)
 JuMP.objective_value(::InfiniteModel)
 JuMP.value(::GeneralVariableRef)

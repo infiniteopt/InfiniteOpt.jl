@@ -54,9 +54,17 @@ end
     JuMP.has_values(model::InfiniteModel)
 
 Return `true` if the solver has a primal solution available to query, otherwise
-return `false`. See also [`JuMP.value`](@ref).
+return `false`.
 """
 JuMP.has_values(model::InfiniteModel) = JuMP.primal_status(model) != MOI.NO_SOLUTION
+
+"""
+    JuMP.has_duals(model::InfiniteModel)
+
+Return `true` if the solver has a dual solution available to query, otherwise
+return `false`.
+"""
+JuMP.has_duals(model::InfiniteModel) = JuMP.dual_status(model) != MOI.NO_SOLUTION
 
 """
     JuMP.objective_bound(model::InfiniteModel)::Float64
