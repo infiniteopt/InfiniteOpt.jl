@@ -235,7 +235,7 @@ variable of `vref`. Errors if variable is not fixed.
 julia> fix_value(vref)
 0.0
 ```
-```julia-repl
+"""
 function JuMP.fix_value(vref::ReducedInfiniteVariableRef)::Float64
     if !JuMP.is_fixed(vref)
         error("Variable $(vref) is not fixed.")

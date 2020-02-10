@@ -66,6 +66,12 @@ end
         tm.ext[:TransData].point_to_var[x0] = b
         @test transcription_variable(tm, x0) == b
     end
+    # test transcription_variable (Single argument)
+    @testset "transcription_variable (Single)" begin
+        @test transcription_variable(y) == a
+        @test transcription_variable(x) == [b, c]
+        @test transcription_variable(x0) == b
+    end
     # test supports for infinite variable with 2 inputs
     @testset "supports (Model, Infinite Variable)" begin
         # test error
@@ -129,6 +135,12 @@ end
         # test normal
         tm.ext[:TransData].finite_to_constr[c3] = tc4
         @test transcription_constraint(tm, c3) == tc4
+    end
+    # test transcription_constraint (Single argument)
+    @testset "transcription_constraint (Single)" begin
+        @test transcription_constraint(c1) == [tc1, tc2]
+        @test transcription_constraint(c2) == [tc3]
+        @test transcription_constraint(c3) == tc4
     end
     # test supports for infinite constraint with 2 inputs
     @testset "supports (Model, Infinite)" begin

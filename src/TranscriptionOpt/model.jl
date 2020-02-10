@@ -137,7 +137,11 @@ end
                            vref::InfiniteOpt.InfOptVariableRef)
 
 Return the transcribed variable reference(s) corresponding to `vref`. Errors
-if no transcription variable is found.
+if no transcription variable is found. Also can query via the syntax:
+```julia
+transcription_variable(vref::InfiniteOpt.InfOptVariableRef)
+```
+If the infinite model contains a built transcription model.
 
 **Example**
 ```julia-repl
@@ -146,7 +150,15 @@ julia> transcription_variable(trans_model, infvar)
  infvar(support: 1)
  infvar(support: 2)
 
-julia> transcription_variable(trans_model, gbvar)
+julia> transcription_variable(trans_model, hdvar)
+gbvar
+
+julia> transcription_variable(infvar)
+2-element Array{VariableRef,1}:
+ infvar(support: 1)
+ infvar(support: 2)
+
+julia> transcription_variable(hdvar)
 gbvar
 ```
 """
@@ -173,6 +185,11 @@ function transcription_variable(model::JuMP.Model,
     !haskey(transcription_data(model).point_to_var, vref) && error("Variable " *
                              "reference $vref not used in transcription model.")
     return transcription_data(model).point_to_var[vref]
+end
+# Dispatch for internal models
+function transcription_variable(vref::InfiniteOpt.InfOptVariableRef)
+    trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(vref))
+    return transcription_variable(trans_model, vref)
 end
 
 """
@@ -215,11 +232,18 @@ end
                              cref::InfiniteOpt.GeneralConstraintRef)
 
 Return the transcribed constraint reference(s) corresponding to `cref`. Errors
-if `cref` has not been transcribed.
+if `cref` has not been transcribed. Also can query via the syntax:
+```julia
+transcription_constraint(cref::InfiniteOpt.GeneralConstraintRef)
+```
+If the infinite model contains a built transcription model.
 
 **Example**
 ```julia-repl
 julia> transcription_constraint(trans_model, fin_con)
+fin_con : x(support: 1) - y <= 3.0
+
+julia> transcription_constraint(fin_con)
 fin_con : x(support: 1) - y <= 3.0
 ```
 """
@@ -251,6 +275,11 @@ function transcription_constraint(model::JuMP.Model,
         error("Constraint reference $cref not used in transcription model.")
     end
     return transcription_data(model).finite_to_constr[cref]
+end
+# Dispatch for internal models
+function transcription_constraint(cref::InfiniteOpt.GeneralConstraintRef)
+    trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(cref))
+    return transcription_constraint(trans_model, cref)
 end
 
 """
