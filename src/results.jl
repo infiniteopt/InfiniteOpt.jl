@@ -97,7 +97,8 @@ function map_value end
     JuMP.value(vref::GeneralVariableRef)
 
 Get the value of this variable in the result returned by a solver. Use
-[`JuMP.has_values`](@ref) to check if a result exists before asking for values.
+[`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check if a result
+exists before asking for values.
 """
 function JuMP.value(vref::GeneralVariableRef)
     return map_value(vref, Val(optimizer_model_key(JuMP.owner_model(vref))))
@@ -107,7 +108,8 @@ end
     JuMP.value(cref::GeneralConstraintRef)
 
 Get the value of this constraint in the result returned by a solver. Use
-[`JuMP.has_values`](@ref) to check if a result exists before asking for values.
+[`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check if a result
+exists before asking for values.
 This returns the primal value of the constraint function.
 """
 function JuMP.value(cref::GeneralConstraintRef)
@@ -161,7 +163,7 @@ function map_dual end
 
 Get the dual value of this constraint in the result returned by a solver.
 Use `has_dual` to check if a result exists before asking for values.
-See also [`JuMP.shadow_price`](@ref).
+See also [`JuMP.shadow_price`](@ref JuMP.shadow_price(::GeneralConstraintRef)).
 """
 function JuMP.dual(cref::GeneralConstraintRef)
     return map_dual(cref, Val(optimizer_model_key(JuMP.owner_model(cref))))
@@ -187,7 +189,8 @@ function map_shadow_price end
     JuMP.shadow_price(cref::GeneralConstraintRef)
 
 The change in the objective from an infinitesimal relaxation of the constraint.
-This value is computed from [`JuMP.dual`](@ref) and can be queried only when
+This value is computed from [`JuMP.dual`](@ref JuMP.dual(::GeneralConstraintRef))
+and can be queried only when
 `has_duals` is `true` and the objective sense is `MIN_SENSE` or `MAX_SENSE`
 (not `FEASIBILITY_SENSE`). For linear constraints, the shadow prices differ at
 most in sign from the `dual` value depending on the objective sense.

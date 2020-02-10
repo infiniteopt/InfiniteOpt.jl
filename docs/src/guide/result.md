@@ -101,7 +101,7 @@ julia> value(x)
  20.999999995633615
  20.999999995633615
 ```
-Notice here we obtain an array a values since these correspond to the
+Notice here we obtain an array of values since these correspond to the
 transcribed finite (discretized) variables used to solve the problem. We obtain
 the corresponding support (discretized `t`) values via `supports`:
 ```jldoctest results
@@ -209,7 +209,7 @@ julia> raw_status(model)
 Also, we obtain the best objective bound via
 [`objective_bound`](@ref JuMP.objective_bound(::InfiniteModel)) which becomes
 particularly useful solutions that are suboptimal. However, this method is not
-supported by all optimizers and in this case Ipopt one such optimizer.
+supported by all optimizers and in this case Ipopt is one such optimizer.
 
 ## Variable Queries
 Information about the optimized variables is gathered consistently in comparison
@@ -264,6 +264,100 @@ appropriate versions of [`map_optimizer_index`](@ref) enabled by
 
 ## Constraint Queries
 Like variables, a variety of information can be queried about constraints.
+
+First, recall that constraints are stored in the form `function-in-set` where
+generally `function` contains the variables and coefficients and the set contains
+the relational operator and the constant value. With this understanding, we
+query the value of a constraint's `function` via
+[`value`](@ref JuMP.value(::GeneralConstraintRef)):
+```jldoctest results
+julia> constraint_object(c1).func # show the function expression of c1
+z - x(t)
+
+julia> value(c1)
+10-element Array{Float64,1}:
+ -8.747427671096375e-9
+ 20.999999995618957
+ 20.999999995618957
+ 20.999999995618957
+ 20.999999995618957
+ 20.999999995618957
+ 20.999999995618957
+ 20.999999995618957
+ 20.999999995618957
+ 20.999999995618957
+```
+Again, we obtain an array of values since `c1` is infinite due to its dependence
+on `x(t)`. Behind the scenes this is implemented via the appropriate extensions
+of [`map_value`](@ref) in `TranscriptionOpt` by default.
+
+Next the optimizer index(es) of the transcribed constraints in the
+`MathOptInterface` backend provided via
+[`optimizer_index`](@ref JuMP.optimizer_index(::GeneralConstraintRef)).
+```jldoctest results
+julia> optimizer_index(c1)
+10-element Array{MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}},1}:
+ MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(1)
+ MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(2)
+ MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(3)
+ MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(4)
+ MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(5)
+ MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(6)
+ MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(7)
+ MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(8)
+ MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(9)
+ MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(10)
+```
+Here 10 indices are given in accordance with the transcription constraints.
+The mapping between these and the original infinite constraints is managed via
+the appropriate extensions of [`map_optimizer_index`](@ref) in `TranscriptionOpt`.
+
+We can also query dual information from our constraints if it is available.
+First, we should verify that dual information is available via
+[`has_duals`](@ref JuMP.has_duals(::InfiniteModel)):
+```jldoctest results
+julia> has_duals(model)
+true
+```
+Now we can query the duals via [`dual`](@ref JuMP.dual(::GeneralConstraintRef)).
+```jldoctest results
+julia> dual(c1)
+10-element Array{Float64,1}:
+ 1.9999999988666093
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+ 1.1930560126841273e-10
+```
+Here we obtain the optimal dual values for each transcribed version of `c1`. This
+is enabled via the proper extensions of [`map_dual`](@ref) in `TranscriptionOpt`
+by default.
+
+Finally, we query the shadow price of a constraint via
+[`shadow_price`](@ref JuMP.shadow_price(::GeneralConstraintRef)). This denotes
+the change in the objective value due to an infinitesimal relaxation of the
+constraint. For `c1` we get:
+```jldoctest results
+julia> shadow_price(c1)
+10-element Array{Float64,1}:
+ -1.9999999988666093
+ -1.1930560126841273e-10
+ -1.1930560126841273e-10
+ -1.1930560126841273e-10
+ -1.1930560126841273e-10
+ -1.1930560126841273e-10
+ -1.1930560126841273e-10
+ -1.1930560126841273e-10
+ -1.1930560126841273e-10
+ -1.1930560126841273e-10
+```
+Similarly, the mapping to the transcription constraints is enabled via the
+appropriate version of [`map_shadow_price`](@ref).
 
 ## Methods
 ```@index
