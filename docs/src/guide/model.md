@@ -1,4 +1,4 @@
-# Infinite Models
+# [Infinite Models] (@id infinite_model_docs)
 A guide and manual for initializing infinite models and understanding how
 they work. The Datatypes and Methods sections at the end comprise the manual,
 and the above sections comprise the guide.  

@@ -1090,7 +1090,7 @@ the `JuMP` container type used to store the constraint references. Note this
 macro errors if `bound_expr` is ommited or if some unrecognized syntax is used.
 
 **Examples**
-```julia
+```julia-repl
 julia> @BDconstraint(model, c1(t in [0, 1]), T^2 + z <= 1)
 c1 : T(x, t)² + z ≤ 1.0, ∀ t ∈ [0, 1]
 

@@ -235,7 +235,7 @@ end
 Return true if `pref` is used by a constraint or false otherwise.
 
 **Example**
-```julia
+```julia-repl
 julia> used_by_constraint(t)
 true
 ```
@@ -250,7 +250,7 @@ end
 Return true if `pref` is used by a measure or false otherwise.
 
 **Example**
-```julia
+```julia-repl
 julia> used_by_measure(t)
 false
 ```
@@ -265,7 +265,7 @@ end
 Return true if `pref` is used by an infinite variable or false otherwise.
 
 **Example**
-```julia
+```julia-repl
 julia> used_by_variable(t)
 true
 ```
@@ -280,7 +280,7 @@ end
 Return true if `pref` is used in the model or false otherwise.
 
 **Example**
-```julia
+```julia-repl
 julia> is_used(t)
 true
 ```
@@ -437,7 +437,7 @@ contain this dependency must be deleted first. Note that
 deletion of parameters when custom `AbstractMeasureData` datatypes are used.
 
 **Example**
-```julia
+```julia-repl
 julia> print(model)
 Min measure(g(t, x)*t + x) + z
 Subject to
@@ -1225,7 +1225,7 @@ Return the group ID number for a group of `prefs`. Error if contains multiple
 groups.
 
 **Example**
-```julia
+```julia-repl
 julia> group_id([x[1], x[2]])
 2
 ```
@@ -1337,7 +1337,7 @@ end
 Return all of the infinite parameter references currently in `model`.
 
 **Example**
-```julia
+```julia-repl
 julia> all_parameters(model)
 3-element Array{ParameterRef,1}:
  t

@@ -213,6 +213,10 @@ end
         @test isa(optimizer_index(c1), MOI.ConstraintIndex)
         @test isa(optimizer_index(c2), Vector{<:MOI.ConstraintIndex})
     end
+    # test has_values
+    @testset "JuMP.has_duals" begin
+        @test has_duals(m)
+    end
     # test dual
     @testset "JuMP.dual" begin
         @test dual(c1) == -1.

@@ -22,7 +22,7 @@ makedocs(;
     repo = "https://github.com/pulsipher/InfiniteOpt.jl/blob/{commit}{path}#L{line}",
     sitename = "InfiniteOpt.jl",
     authors = "Joshua Pulsipher and Weiqi Zhang",
-    doctest = true,
+    doctest = false,
     linkcheck = true
 )
 

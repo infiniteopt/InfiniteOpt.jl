@@ -8,7 +8,8 @@ All infinite models need to be reformulated in such a way that they can be solve
 using traditional optimization methods. Typically, this involves discretization
 of the infinite domain via particular parameter support points. By default,
 `InfiniteOpt` employs this methodology via the use of transcription models (which
-comprise the `optimizer_model` as discussed in the [Infinite Models](@ref) section).
+comprise the `optimizer_model` as discussed in the
+[Infinite Models](@ref infinite_model_docs) section).
 `InfiniteOpt` is built modularly to readily accept other user defined techniques
 and this is discussed in further detail on the [Extensions](@ref) page. This
 page will detail transcription models based in `InfiniteOpt.TranscriptionOpt`

@@ -5,7 +5,7 @@ Extend [`JuMP.owner_model`](@ref JuMP.owner_model(::JuMP.ConstraintRef)) to
 return the infinite model associated with `cref`.
 
 **Example**
-```julia
+```julia-repl
 julia> model = owner_model(cref)
 An InfiniteOpt Model
 Minimization problem with:
@@ -251,7 +251,7 @@ to delete an `InfiniteOpt` constraint and all associated information. Errors
 if `cref` is invalid.
 
 **Example**
-```julia
+```julia-repl
 julia> print(model)
 Min measure(g(t)*t) + z
 Subject to
@@ -391,7 +391,7 @@ Return a `Bool` indicating if `cref` is limited to a sub-domain as defined
 by a [`ParameterBounds`](@ref) object.
 
 **Example**
-```julia
+```julia-repl
 julia> has_parameter_bounds(cref)
 true
 ```
@@ -411,7 +411,7 @@ Return the [`ParameterBounds`](@ref) object associated with the constraint
 `cref`. Errors if `cref` does not have parameter bounds.
 
 **Example**
-```julia
+```julia-repl
 julia> parameter_bounds(cref)
 Subdomain bounds (1): t ∈ [0, 2]
 ```
@@ -445,7 +445,7 @@ This is meant to be primarily used by [`@set_parameter_bounds`](@ref) which
 provides a more intuitive syntax.
 
 **Example**
-```julia
+```julia-repl
 julia> set_parameter_bounds(cref, ParameterBounds(Dict(t => IntervalSet(0, 2))))
 
 julia> parameter_bounds(cref)
@@ -484,7 +484,7 @@ Add an additional parameter bound to `cref` such that it is defined over the
 sub-domain based on `pref` from `lower` to `upper`. This is primarily meant to be
 used by [`@add_parameter_bounds`](@ref).
 
-```julia
+```julia-repl
 julia> add_parameter_bound(cref, t, 0, 2)
 
 julia> parameter_bounds(cref)
@@ -520,7 +520,7 @@ parameter bounds will be unaffected. Note any bounds that are needed for
 hold variables inside in `cref` will be unaffected.
 
 **Example**
-```julia
+```julia-repl
 julia> @BDconstraint(model, c1(x == 0), y <= 42)
 c1 : y(x) ≤ 42, ∀ x[1] = 0, x[2] = 0
 
@@ -554,7 +554,7 @@ Delete all the parameter bounds of the constraint `cref`. Note any bounds that
 are needed for hold variables inside in `cref` will be unaffected.
 
 **Example**
-```julia
+```julia-repl
 julia> @BDconstraint(model, c1(x == 0), y <= 42)
 c1 : y(x) ≤ 42, ∀ x[1] = 0, x[2] = 0
 
@@ -595,7 +595,7 @@ right-hand side of the constraint. For example, given a constraint `2x + 1 <=
 2`, `set_normalized_rhs(con, 4)` will create the constraint `2x <= 4`, not `2x +
 1 <= 4`.
 
-```julia
+```julia-repl
 julia> @constraint(model, con, 2x + 1 <= 2)
 con : 2 x ≤ 1.0
 
@@ -655,7 +655,7 @@ Note that prior to this step, JuMP will aggregate multiple terms containing the
 same variable. For example, given a constraint `2x + 3x <= 2`,
 `set_normalized_coefficient(con, x, 4)` will create the constraint `4x <= 2`.
 
-```julia
+```julia-repl
 julia> con
 con : 5 x ≤ 2.0
 
@@ -726,7 +726,7 @@ associated with `name` if one exists or returns nothing. Errors if more than
 one constraint uses the same name.
 
 **Example**
-```julia
+```julia-repl
 julia> constraint_by_name(model, "constr_name")
 constr_name : x + pt = 3.0
 ```
@@ -765,7 +765,7 @@ to return the number of constraints
 with a partiuclar function type and set type.
 
 **Example**
-```julia
+```julia-repl
 julia> num_constraints(model, HoldVariableRef, MOI.LessThan)
 1
 ```
@@ -790,7 +790,7 @@ Extend [`JuMP.num_constraints`](@ref JuMP.num_constraints(::JuMP.Model, ::Type{<
 to search by function types for all MOI
 sets and return the total number of constraints with a particular function type.
 
-```julia
+```julia-repl
 julia> num_constraints(model, HoldVariableRef)
 3
 ```
@@ -809,7 +809,7 @@ to search by MOI set type for all function
 types and return the total number of constraints that use a particular MOI set
 type.
 
-```julia
+```julia-repl
 julia> num_constraints(model, MOI.LessThan)
 2
 ```
@@ -826,7 +826,7 @@ Extend [`JuMP.num_constraints`](@ref JuMP.num_constraints(::JuMP.Model, ::Type{<
 to return the total number of constraints
 in an infinite model `model`.
 
-```julia
+```julia-repl
 julia> num_constraints(model)
 4
 ```
@@ -844,7 +844,7 @@ end
 Extend [`JuMP.all_constraints`](@ref JuMP.all_constraints(::JuMP.Model, ::Type{<:Union{JuMP.AbstractJuMPScalar, Vector{<:JuMP.AbstractJuMPScalar}}}, ::Type{<:MOI.AbstractSet}))
 to return a list of all the constraints with a particular function type and set type.
 
-```julia
+```julia-repl
 julia> all_constraints(model, HoldVariableRef, MOI.LessThan)
 1-element Array{GeneralConstraintRef,1}:
  x ≤ 1.0
@@ -876,7 +876,7 @@ Extend [`JuMP.all_constraints`](@ref JuMP.all_constraints(::JuMP.Model, ::Type{<
 to search by function types for all MOI
 sets and return a list of all constraints use a particular function type.
 
-```julia
+```julia-repl
 julia> all_constraints(model, HoldVariableRef)
 3-element Array{GeneralConstraintRef,1}:
  x ≥ 0.0
@@ -899,7 +899,7 @@ Extend [`JuMP.all_constraints`](@ref JuMP.all_constraints(::JuMP.Model, ::Type{<
 to search by MOI set type for all function
 types and return a list of all constraints that use a particular set type.
 
-```julia
+```julia-repl
 julia> all_constraints(model, MOI.GreaterThan)
 3-element Array{GeneralConstraintRef,1}:
  x ≥ 0.0
@@ -920,7 +920,7 @@ Extend [`JuMP.all_constraints`](@ref JuMP.all_constraints(::JuMP.Model, ::Type{<
 to return all a list of all the constraints
 in an infinite model `model`.
 
-```julia
+```julia-repl
 julia> all_constraints(model)
 5-element Array{GeneralConstraintRef,1}:
  x ≥ 0.0
@@ -941,7 +941,7 @@ Extend [`JuMP.list_of_constraint_types`](@ref JuMP.list_of_constraint_types(::Ju
 to return a list of tuples that
 contain all the used combinations of function types and set types in the model.
 
-```julia
+```julia-repl
 julia> all_constraints(model)
 5-element Array{Tuple{DataType,DataType},1}:
  (HoldVariableRef, MathOptInterface.LessThan{Float64})

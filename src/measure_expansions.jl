@@ -372,7 +372,7 @@ InfiniteOpt._expand_measure(expr::AbstractJuMPScalar, data::AbstractMeasureData,
 See the source code in InfiniteOpt/src/measures.jl for examples of how to do this.
 
 **Example**
-```julia
+```julia-repl
 julia> tdata = DiscreteMeasureData(t, [0.5, 0.5], [0, 1])
 
 julia> expr = expand(measure(g + z + T - h - 2, tdata))
@@ -465,7 +465,7 @@ InfiniteOpt._expand_measure(expr::AbstractJuMPScalar, data::AbstractMeasureData,
 See the source code in InfiniteOpt/src/measures.jl for examples of how to do this.
 
 **Example**
-```julia
+```julia-repl
 julia> print(model)
 Min measure(g(t)*t) + z
 Subject to

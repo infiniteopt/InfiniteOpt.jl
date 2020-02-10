@@ -1,4 +1,4 @@
-# Finite Parameters
+# [Finite Parameters] (@id finite_param_docs)
 A guide and manual to the definition and use of finite parameters in
 `InfiniteOpt`. The Datatypes and Methods sections at the end comprise the manual,
 and the above sections comprise the guide.  

@@ -759,7 +759,7 @@ Return a `TranscriptionModel` of `model`. This transcribes all of the variables,
 constraints, and objective.
 
 **Example**
-```julia
+```julia-repl
 julia> TranscriptionModel(model)
 A JuMP Model
 Feasibility problem with:

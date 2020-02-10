@@ -426,7 +426,7 @@ constr : 2.5 g(t) - z[1] ≤ -1.0
     In many cases, it may be more convenient to dynamically modify coefficients
     and other values via the use of finite parameters. This provides an avenue
     to update parameters without having to be concerned about the normalized form.
-    For more information, see the [Finite Parameters](@ref) page.
+    For more information, see the [Finite Parameters](@ref finite_param_docs) page.
 
 ### Parameter Bounds
 Parameter bounds can be added to, modified, or removed from any constraint in

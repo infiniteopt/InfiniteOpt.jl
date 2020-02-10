@@ -169,7 +169,7 @@ the other arguments is provided in the documentation for
 number of supports and coefficients are given.
 
 **Example**
-```julia
+```julia-repl
 julia> data = DiscreteMeasureData(pref, [0.5, 0.5], [1, 2], name = "example")
 DiscreteMeasureData(pref, [0.5, 0.5], [1, 2], "example", InfiniteOpt._w)
 ```
@@ -204,7 +204,7 @@ bounds, an unequal number of supports and coefficients are given, the array
 formats do not match, or the parameters have different group IDs.
 
 **Example**
-```julia
+```julia-repl
 julia> data = DiscreteMeasureData(prefs, [0.5, 0.5], [[1, 1], [2, 2]], name = "example");
 
 julia> typeof(data)
@@ -373,7 +373,7 @@ explicitly evaluated until [`build_optimizer_model!`](@ref) is called or unless
 they are expanded via [`expand`](@ref) or [`expand_all_measures!`](@ref).
 
 **Example**
-```julia
+```julia-repl
 julia> tdata = DiscreteMeasureData(t, [0.5, 0.5], [1, 2], name = "name1");
 
 julia> xdata = DiscreteMeasureData(xs, [0.5, 0.5], [[-1, -1], [1, 1]],
@@ -643,7 +643,7 @@ end
 Return a `Bool` indicating if `mref` is used by a constraint.
 
 **Example**
-```julia
+```julia-repl
 julia> used_by_constraint(mref)
 false
 ```
@@ -658,7 +658,7 @@ end
 Return a `Bool` indicating if `mref` is used by a measure.
 
 **Example**
-```julia
+```julia-repl
 julia> used_by_measure(mref)
 true
 ```
@@ -673,7 +673,7 @@ end
 Return a `Bool` indicating if `mref` is used by the objective.
 
 **Example**
-```julia
+```julia-repl
 julia> used_by_objective(mref)
 true
 ```
@@ -688,7 +688,7 @@ end
 Return a `Bool` indicating if `mref` is used in the model.
 
 **Example**
-```julia
+```julia-repl
 julia> is_used(mref)
 true
 ```
@@ -704,7 +704,7 @@ Extend [`JuMP.delete`](@ref) to delete measures. Errors if measure is invalid,
 meaning it does not belong to the model or it has already been deleted.
 
 **Example**
-```julia
+```julia-repl
 julia> print(model)
 Min measure(g(t)*t) + z
 Subject to

@@ -10,7 +10,7 @@ Return the `InfiniteVariableRef` associated with the reduced infinite variable
 `vref`.
 
 **Example**
-```julia
+```julia-repl
 julia> infinite_variable_ref(vref)
 g(t, x)
 ```
@@ -26,7 +26,7 @@ Return the evaluation supports associated with the reduced infinite variable
 `vref`.
 
 **Example**
-```julia
+```julia-repl
 julia> eval_supports(vref)
 Dict{Int64,Float64} with 1 entry:
   1 => 0.5
@@ -45,7 +45,7 @@ they were inputted to define the untracripted infinite variable except, the
 evaluated parameters are excluded.
 
 **Example**
-```julia
+```julia-repl
 julia> parameter_refs(vref)
 (t,   [2]  =  x[2]
   [1]  =  x[1])
@@ -64,7 +64,7 @@ Extend `JuMP.name` to return name of reduced infinite variable references. This
 is used when displaying measure expansions that contain such variables.
 
 **Exanple**
-```julia
+```julia-repl
 julia> name(rvref)
 g(1.25, x)
 ```
@@ -95,7 +95,7 @@ Extend [`JuMP.has_lower_bound`](@ref) to return a `Bool` whether the original
 infinite variable of `vref` has a lower bound.
 
 **Example**
-```julia
+```julia-repl
 julia> has_lower_bound(vref)
 true
 ```
@@ -111,7 +111,7 @@ Extend [`JuMP.lower_bound`](@ref) to return the lower bound of the original
 infinite variable of `vref`. Errors if `vref` doesn't have a lower bound.
 
 **Example**
-```julia
+```julia-repl
 julia> lower_bound(vref)
 0.0
 ```
@@ -139,7 +139,7 @@ Extend [`JuMP.LowerBoundRef`](@ref) to extract a constraint reference for the
 lower bound of the original infinite variable of `vref`.
 
 **Example**
-```julia
+```julia-repl
 julia> cref = LowerBoundRef(vref)
 var >= 0.0
 ```
@@ -155,7 +155,7 @@ Extend [`JuMP.has_upper_bound`](@ref) to return a `Bool` whether the original
 infinite variable of `vref` has an upper bound.
 
 **Example**
-```julia
+```julia-repl
 julia> has_upper_bound(vref)
 true
 ```
@@ -171,7 +171,7 @@ Extend [`JuMP.upper_bound`](@ref) to return the upper bound of the original
 infinite variable of `vref`. Errors if `vref` doesn't have a upper bound.
 
 **Example**
-```julia
+```julia-repl
 julia> upper_bound(vref)
 0.0
 ```
@@ -199,7 +199,7 @@ Extend [`JuMP.UpperBoundRef`](@ref) to extract a constraint reference for the
 upper bound of the original infinite variable of `vref`.
 
 **Example**
-```julia
+```julia-repl
 julia> cref = UpperBoundRef(vref)
 var <= 1.0
 ```
@@ -215,7 +215,7 @@ Extend [`JuMP.is_fixed`](@ref) to return `Bool` whether the original infinite
 variable of `vref` is fixed.
 
 **Example**
-```julia
+```julia-repl
 julia> is_fixed(vref)
 true
 ```
@@ -231,11 +231,11 @@ Extend [`JuMP.fix_value`](@ref) to return the fix value of the original infinite
 variable of `vref`. Errors if variable is not fixed.
 
 **Example**
-```julia
+```julia-repl
 julia> fix_value(vref)
 0.0
 ```
-"""
+```julia-repl
 function JuMP.fix_value(vref::ReducedInfiniteVariableRef)::Float64
     if !JuMP.is_fixed(vref)
         error("Variable $(vref) is not fixed.")
@@ -260,7 +260,7 @@ constraint associated with the original infinite variable of `vref`. Errors
 `vref` is not fixed.
 
 **Examples**
-```julia
+```julia-repl
 julia> cref = FixRef(vref)
 var == 1.0
 ```
@@ -276,7 +276,7 @@ Extend [`JuMP.start_value`](@ref) to return starting value of the original
 infinite variable of `vref` if it has one. Returns `nothing` otherwise.
 
 **Example**
-```julia
+```julia-repl
 julia> start_value(vref)
 0.0
 ```
@@ -292,7 +292,7 @@ Extend [`JuMP.is_binary`](@ref) to return `Bool` whether the original infinite
 variable of `vref` is binary.
 
 **Example**
-```julia
+```julia-repl
 julia> is_binary(vref)
 true
 ```
@@ -318,7 +318,7 @@ constraint constrainting the original infinite variable of `vref` to be binary.
 Errors if one does not exist.
 
 **Example**
-```julia
+```julia-repl
 julia> cref = BinaryRef(vref)
 var binary
 ```
@@ -334,7 +334,7 @@ Extend [`JuMP.is_integer`](@ref) to return `Bool` whether the original infinite
 variable of `vref` is integer.
 
 **Example**
-```julia
+```julia-repl
 julia> is_integer(vref)
 true
 ```
@@ -360,7 +360,7 @@ constraint constrainting the original infinite variable of `vref` to be integer.
 Errors if one does not exist.
 
 **Example**
-```julia
+```julia-repl
 julia> cref = IntegerRef(vref)
 var integer
 ```
@@ -375,7 +375,7 @@ end
 Return a `Bool` indicating if `vref` is used by a constraint.
 
 **Example**
-```julia
+```julia-repl
 julia> used_by_constraint(vref)
 false
 ```
@@ -390,7 +390,7 @@ end
 Return a `Bool` indicating if `vref` is used by a measure.
 
 **Example**
-```julia
+```julia-repl
 julia> used_by_measure(vref)
 true
 ```
@@ -405,7 +405,7 @@ end
 Extend [`JuMP.is_valid`](@ref) to accomodate reduced infinite variables.
 
 **Example**
-```julia
+```julia-repl
 julia> is_valid(model, vref)
 true
 ```

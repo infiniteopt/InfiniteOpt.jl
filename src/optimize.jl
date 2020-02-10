@@ -4,7 +4,7 @@
 Return the JuMP model stored in `model` that is used to solve it.
 
 **Example**
-```julia
+```julia-repl
 julia> opt_model = optimizer_model(model)
 A JuMP Model
 Feasibility problem with:
@@ -26,7 +26,7 @@ are automatically bridged to equivalent supported constraints when an
 appropriate transformation is available.
 
 **Example**
-```julia
+```julia-repl
 julia> bridge_constraints(model)
 false
 ```
@@ -56,7 +56,7 @@ end
 Return `Bool` if the optimizer model is up to date with `model`.
 
 **Example**
-```julia
+```julia-repl
 julia> optimizer_model_ready(model)
 false
 ```
@@ -70,7 +70,7 @@ Set the status of the optimizer model to whether it is up to date or not. Note
 is more intended as an internal function, but is useful for extensions.
 
 **Example**
-```julia
+```julia-repl
 julia> set_optimizer_model_ready(model, true)
 
 julia> optimizer_model_ready(model)
@@ -91,7 +91,7 @@ data to allow it to map to `inf_model` in a manner similar to
 [`TranscriptionModel`](@ref).
 
 **Example**
-```julia
+```julia-repl
 julia> set_optimizer_model(model, TranscriptionModel())
 
 julia> optimizer_model(model)
@@ -118,7 +118,7 @@ Extend `JuMP.set_optimizer` to set optimizer of infinite models.
 Specifically, the optimizer of the optimizer model is modified.
 
 **Example**
-```julia
+```julia-repl
 julia> set_optimizer(model, with_optimizer(Clp.Optimizer))
 
 julia> optimizer_model(model)
@@ -144,6 +144,12 @@ end
 Extend [`JuMP.set_silent`](@ref JuMP.set_silent(::JuMP.Model)) for infinite
 models to take precedence over any other
 attribute controlling verbosity and requires the solver to produce no output.
+
+**Example**
+```julia-repl
+julia> set_silent(model)
+true
+```
 """
 function JuMP.set_silent(model::InfiniteModel)
     return JuMP.set_silent(optimizer_model(model))
@@ -155,6 +161,12 @@ end
 Extend [`JuMP.unset_silent`](@ref JuMP.unset_silent(::JuMP.Model)) for infinite
 models to Neutralize the effect of the
 `set_silent` function and let the solver attributes control the verbosity.
+
+**Example**
+```julia-repl
+julia> unset_silent(model)
+false
+```
 """
 function JuMP.unset_silent(model::InfiniteModel)
     return JuMP.unset_silent(optimizer_model(model))
@@ -164,6 +176,12 @@ end
     JuMP.set_parameter(model::InfiniteModel, name, value)
 
 Sets solver-specific parameter identified by `name` to `value`.
+
+**Example**
+```julia-repl
+julia> set_parameter(model, "max_cpu_time", 60.) # using Ipopt
+60.0
+```
 """
 function JuMP.set_parameter(model::InfiniteModel, name::Any, value::Any)
     return JuMP.set_parameter(optimizer_model(model), name, value)
@@ -181,7 +199,7 @@ use and extensions. For extensions this is used to dispatch to the appropriate
 optmizer model functions such as extensions to [`build_optimizer_model!`](@ref).
 
 **Example**
-```julia
+```julia-repl
 julia> optimizer_model_key(model)
 :TransData
 ```
@@ -218,7 +236,7 @@ two models. The key argument should be be typed to `Val{ext_key_name}`.
  `build_optimizer_model!(model::InfiniteModel, key::Val{ext_key_name})`.
 
 **Example**
-```julia
+```julia-repl
 julia> build_optimizer_model!(model)
 
 julia> optimizer_model_ready(model)
@@ -243,7 +261,7 @@ model isn't up to date. The `kwargs` correspond to keyword arguments passed to
 [`build_optimizer_model!`](@ref) if any are defined.
 
 **Example**
-```julia
+```julia-repl
 julia> optimize!(model, with_optimizer(Clp.Optimizer))
 
 julia> has_values(model)

@@ -696,7 +696,7 @@ Extend [`JuMP.delete`](@ref JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)) to de
 meaning it has already been deleted or it belongs to another model.
 
 **Example**
-```julia
+```julia-repl
 julia> print(model)
 Min measure(g(t)*t) + z
 Subject to
@@ -1625,7 +1625,7 @@ Extend [`JuMP.all_variables`](@ref JuMP.all_variables(::JuMP.Model)) to return a
 list of all the variable references associated with `model`.
 
 **Examples**
-```julia
+```julia-repl
 julia> all_variables(model)
 4-element Array{GeneralVariableRef,1}:
  y(t)

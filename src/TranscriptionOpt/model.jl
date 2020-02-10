@@ -83,7 +83,7 @@ Return a [`JuMP.Model`](@ref) with [`TranscriptionData`](@ref) included in the
 `ext` data field. Accepts the same arguments as a typical JuMP `Model`.
 
 **Example**
-```julia
+```julia-repl
 julia> TranscriptionModel()
 A JuMP Model
 Feasibility problem with:
@@ -112,7 +112,7 @@ end
 Return true if `model` is a `TranscriptionModel` or false otherwise.
 
 **Example**
-```julia
+```julia-repl
 julia> is_transcription_model(model)
 true
 ```
@@ -140,7 +140,7 @@ Return the transcribed variable reference(s) corresponding to `vref`. Errors
 if no transcription variable is found.
 
 **Example**
-```julia
+```julia-repl
 julia> transcription_variable(trans_model, infvar)
 2-element Array{VariableRef,1}:
  infvar(support: 1)
@@ -198,7 +198,7 @@ model. Errors if the infinite model does not contain a transcription model or if
 `vref` is not transcribed.
 
 **Example**
-```julia
+```julia-repl
 julia> supports(vref)
 Dict{Int64,Tuple{Float64}} with 2 entries:
   2 => (1.0,)
@@ -218,7 +218,7 @@ Return the transcribed constraint reference(s) corresponding to `cref`. Errors
 if `cref` has not been transcribed.
 
 **Example**
-```julia
+```julia-repl
 julia> transcription_constraint(trans_model, fin_con)
 fin_con : x(support: 1) - y <= 3.0
 ```
@@ -284,7 +284,7 @@ Return the support alias mappings associated with `cref`. Errors if `cref` is
 not transcribed or if the infinite model does not have a transcription model.
 
 **Example**
-```julia
+```julia-repl
 julia> supports(cref)
 Dict{Int64,Tuple{Float64}} with 2 entries:
   2 => (1.0,)
@@ -334,7 +334,7 @@ Return the a parameter reference tuple of all the parameters that parameterize
 or if the infinite model does not have a transcription model associated with it.
 
 **Example**
-```julia
+```julia-repl
 julia> parameter_refs(cref)
 (t, x)
 ```
