@@ -72,6 +72,12 @@ end
         @test transcription_variable(x) == [b, c]
         @test transcription_variable(x0) == b
     end
+    # test optimizer_model_variable extension
+    @testset "optimizer_model_variable" begin
+        @test optimizer_model_variable(y, Val(:TransData)) == a
+        @test optimizer_model_variable(x, Val(:TransData)) == [b, c]
+        @test optimizer_model_variable(x0, Val(:TransData)) == b
+    end
     # test supports for infinite variable with 2 inputs
     @testset "supports (Model, Infinite Variable)" begin
         # test error
@@ -141,6 +147,12 @@ end
         @test transcription_constraint(c1) == [tc1, tc2]
         @test transcription_constraint(c2) == [tc3]
         @test transcription_constraint(c3) == tc4
+    end
+    # test optimizer_model_constraint extension
+    @testset "optimizer_model_constraint" begin
+        @test optimizer_model_constraint(c1, Val(:TransData)) == [tc1, tc2]
+        @test optimizer_model_constraint(c2, Val(:TransData)) == [tc3]
+        @test optimizer_model_constraint(c3, Val(:TransData)) == tc4
     end
     # test supports for infinite constraint with 2 inputs
     @testset "supports (Model, Infinite)" begin

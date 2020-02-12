@@ -159,7 +159,7 @@ end
     JuMP.unset_silent(model::InfiniteModel)
 
 Extend [`JuMP.unset_silent`](@ref JuMP.unset_silent(::JuMP.Model)) for infinite
-models to Neutralize the effect of the
+models to neutralize the effect of the
 `set_silent` function and let the solver attributes control the verbosity.
 
 **Example**
@@ -207,13 +207,13 @@ julia> optimizer_model_key(model)
 function optimizer_model_key(model::InfiniteModel)::Any
     key = collect(keys(optimizer_model(model).ext))
     if length(key) != 1
-        error("Optimizer models should only have 1 extension key.")
+        error("Optimizer models should have 1 and only 1 extension key.")
     end
     return key[1]
 end
 
 """
-    build_optimizer_model!(model::InfiniteModel, key; kwargs...)
+    build_optimizer_model!(model::InfiniteModel, key; [kwargs...])
 
 Build the optimizer model stored in `model` such that it can be
 treated as a normal JuMP model, where the `Model.ext` field contains a key
@@ -223,7 +223,7 @@ two models. The key argument should be be typed to `Val{ext_key_name}`.
  function build_optimizer_model! end
 
  """
-     build_optimizer_model!(model::InfiniteModel)
+     build_optimizer_model!(model::InfiniteModel; [kwargs...])
 
  Build the optimizer model stored in `model` such that it can be
  treated as a normal JuMP model. Specifically, translate the variables and
@@ -233,7 +233,7 @@ two models. The key argument should be be typed to `Val{ext_key_name}`.
  However, it may be useful in certain applications when the user desires to
  force a build without calling `optimize!`.
  Extensions will need to implement their own version of the function
- `build_optimizer_model!(model::InfiniteModel, key::Val{ext_key_name})`.
+ `build_optimizer_model!(model::InfiniteModel, key::Val{ext_key_name}; kwargs...)`.
 
 **Example**
 ```julia-repl
@@ -242,17 +242,98 @@ julia> build_optimizer_model!(model)
 julia> optimizer_model_ready(model)
 true
 ```
- """
-  function build_optimizer_model!(model::InfiniteModel)
-      key = optimizer_model_key(model)
-      build_optimizer_model!(model, Val(key))
-      return
-  end
+"""
+function build_optimizer_model!(model::InfiniteModel; kwargs...)
+  key = optimizer_model_key(model)
+  build_optimizer_model!(model, Val(key); kwargs...)
+  return
+end
+
+"""
+    optimizer_model_variable(vref::InfOptVariableRef, key; [kwargs...])
+
+Return the reformulation variable(s) stored in the optimizer model that correspond
+to `vref`. This needs to be defined for extensions that implement a custom
+optimizer model type. Principally, this is accomplished by typed the `key`
+argument to `Val{ext_key_name}`. Keyword arguments can be added as needed.
+"""
+function optimizer_model_variable end
+
+# Fallback for unextended keys
+function optimizer_model_variable(vref::InfOptVariableRef, key; kwargs...)
+    error("`optimizer_model_variable` not implemented for optimizer model
+          key $key.")
+    return
+end
+
+"""
+    optimizer_model_variable(vref::InfOptVariableRef; [kwargs...])
+
+Return the reformulation variable(s) stored in the optimizer model that correspond
+to `vref`. By default, no keyword arguments `kwargs` are employed by
+`TranscriptionOpt`, but extensions may employ `kwargs` in accordance with
+their implementation of [`optimizer_model_variable`](@ref). Errors if such an
+extension has not been written. Also errors if no such variable can be found in
+the optimizer model.
+
+**Example**
+```julia-repl
+julia> optimizer_model_variable(x) # infinite variable
+2-element Array{VariableRef,1}:
+ x(support: 1)
+ x(support: 2)
+
+julia> optimizer_model_variable(z) # hold variable
+z
+```
+"""
+function optimizer_model_variable(vref::InfOptVariableRef; kwargs...)
+    key = optimizer_model_key(JuMP.owner_model(vref))
+    return optimizer_model_variable(vref, Val(key); kwargs...)
+end
+
+"""
+    optimizer_model_constraint(cref::GeneralConstraintRef, key; [kwargs...])
+
+Return the reformulation constraint(s) stored in the optimizer model that correspond
+to `cref`. This needs to be defined for extensions that implement a custom
+optimizer model type. Principally, this is accomplished by typed the `key`
+argument to `Val{ext_key_name}`. Keyword arguments can be added as needed.
+"""
+function optimizer_model_constraint end
+
+# Fallback for unextended keys
+function optimizer_model_constraint(cref::GeneralConstraintRef, key; kwargs...)
+    error("`optimizer_model_constraint` not implemented for optimizer model
+          key $key.")
+    return
+end
+
+"""
+    optimizer_model_constraint(cref::GeneralConstraintRef; [kwargs...])
+
+Return the reformulation constraint(s) stored in the optimizer model that correspond
+to `cref`. By default, no keyword arguments `kwargs` are employed by
+`TranscriptionOpt`, but extensions may employ `kwargs` in accordance with
+their implementation of [`optimizer_model_constraint`](@ref). Errors if such an
+extension has not been written. Also errors if no such constraint can be found in
+the optimizer model.
+
+**Example**
+```julia-repl
+julia> optimizer_model_constraint(c1) # finite constraint
+c1 : x(support: 1) - y <= 3.0
+```
+"""
+function optimizer_model_constraint(cref::GeneralConstraintRef; kwargs...)
+    key = optimizer_model_key(JuMP.owner_model(cref))
+    return optimizer_model_constraint(cref, Val(key); kwargs...)
+end
 
 """
     JuMP.optimize!(model::InfiniteModel,
-                   optimizer_factory::Union{Nothing, JuMP.OptimizerFactory} = nothing;
-                   bridge_constraints::Bool=true, kwargs...)
+                   [optimizer_factory::Union{Nothing, JuMP.OptimizerFactory} = nothing;
+                   bridge_constraints::Bool=true, kwargs...])
 
 Extend [`JuMP.optimize!`](@ref JuMP.optimize!(::JuMP.Model, ::Union{Nothing, JuMP.OptimizerFactory}))
 to optimize infinite models using the internal
@@ -273,9 +354,8 @@ function JuMP.optimize!(model::InfiniteModel,
                                                JuMP.OptimizerFactory} = nothing;
                         bridge_constraints::Bool = true,
                         kwargs...)
-    key = optimizer_model_key(model)
     if !optimizer_model_ready(model)
-        build_optimizer_model!(model, Val(key), kwargs...)
+        build_optimizer_model!(model; kwargs...)
     end
     JuMP.optimize!(optimizer_model(model), optimizer_factory,
                    bridge_constraints = bridge_constraints)

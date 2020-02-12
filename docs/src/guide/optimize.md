@@ -31,9 +31,9 @@ julia> @hold_variable(model, z >= 0);
 
 julia> @objective(model, Min, 2z);
 
-julia> @constraint(model, z >= x);
+julia> @constraint(model, c1, z >= x);
 
-julia> @BDconstraint(model, t == 0, x == 42);
+julia> @BDconstraint(model, c2(t == 0), x == 42);
 
 julia> print(model)
 Min 2 z
@@ -105,6 +105,48 @@ CachingOptimizer state: ATTACHED_OPTIMIZER
 Solver name: Ipopt
 ```
 
+The `JuMP` variable(s) stored in the optimizer model that correspond to a
+particular `InfiniteOpt` variable can be queried via
+[`optimizer_model_variable`](@ref optimizer_model_variable(::InfOptVariableRef)).
+Using a `TranscriptionModel` this equivalent to calling
+[`transcription_variable`](@ref). Thus, using going example we get:
+```jldoctest optimize
+julia> optimizer_model_variable(x) # infinite variable
+10-element Array{VariableRef,1}:
+ x(support: 1)
+ x(support: 2)
+ x(support: 3)
+ x(support: 4)
+ x(support: 5)
+ x(support: 6)
+ x(support: 7)
+ x(support: 8)
+ x(support: 9)
+ x(support: 10)
+
+julia> optimizer_model_variable(z) # hold variable
+z
+```
+In like manner, we get the `JuMP` constraints corresponding to a particular
+`InfiniteOpt` constraint via
+[`optimizer_model_constraint`](@ref optimizer_model_constraint(::GeneralConstraintRef)).
+Using a `TranscriptionModel` this equivalent to calling
+[`transcription_constraint`](@ref). Thus, using going example we get:
+```jldoctest optimize
+julia> optimizer_model_constraint(c1) # infinite constraint
+10-element Array{ConstraintRef,1}:
+ c1(Support: 1) : z - x(support: 1) >= 0.0
+ c1(Support: 2) : z - x(support: 2) >= 0.0
+ c1(Support: 3) : z - x(support: 3) >= 0.0
+ c1(Support: 4) : z - x(support: 4) >= 0.0
+ c1(Support: 5) : z - x(support: 5) >= 0.0
+ c1(Support: 6) : z - x(support: 6) >= 0.0
+ c1(Support: 7) : z - x(support: 7) >= 0.0
+ c1(Support: 8) : z - x(support: 8) >= 0.0
+ c1(Support: 9) : z - x(support: 9) >= 0.0
+ c1(Support: 10) : z - x(support: 10) >= 0.0
+```
+
 The purpose of this `optimizer_model` structure is to readily enable user-defined
 reformulation extensions (e.g., using polynomial chaos expansion theory). However,
 this is all handled behind the scenes such that most users can interact with
@@ -145,6 +187,10 @@ set_optimizer_model
 optimizer_model_key
 build_optimizer_model!(::InfiniteModel)
 build_optimizer_model!
+optimizer_model_variable(::InfOptVariableRef)
+optimizer_model_variable
+optimizer_model_constraint(::GeneralConstraintRef)
+optimizer_model_constraint
 optimizer_model_ready
 set_optimizer_model_ready
 JuMP.bridge_constraints(::InfiniteModel)

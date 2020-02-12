@@ -211,6 +211,10 @@ Also, we obtain the best objective bound via
 particularly useful solutions that are suboptimal. However, this method is not
 supported by all optimizers and in this case Ipopt is one such optimizer.
 
+Finally, we get the best dual objective value via
+[`dual_objective_value`](@ref JuMP.dual_objective_value(::InfiniteModel)) if the
+optimizer supplies this information which again Ipopt does not.
+
 ## Variable Queries
 Information about the optimized variables is gathered consistently in comparison
 to typical `JuMP` models. With `InfiniteModel`s this is done by querying the
@@ -375,26 +379,15 @@ JuMP.has_values(::InfiniteModel)
 JuMP.has_duals(::InfiniteModel)
 JuMP.objective_bound(::InfiniteModel)
 JuMP.objective_value(::InfiniteModel)
+JuMP.dual_objective_value(::InfiniteModel)
 JuMP.value(::GeneralVariableRef)
 JuMP.value(::GeneralConstraintRef)
-map_value
-InfiniteOpt.map_value(::InfiniteOpt.FiniteVariableRef, ::Val{:TransData})
-InfiniteOpt.map_value(::InfiniteOpt.InfiniteVariableRef, ::Val{:TransData})
-InfiniteOpt.map_value(::InfiniteOpt.FiniteConstraintRef, ::Val{:TransData})
-InfiniteOpt.map_value(::InfiniteOpt.GeneralConstraintRef, ::Val{:TransData})
 JuMP.optimizer_index(::GeneralVariableRef)
 JuMP.optimizer_index(::GeneralConstraintRef)
-map_optimizer_index
-InfiniteOpt.map_optimizer_index(::InfiniteOpt.FiniteVariableRef, ::Val{:TransData})
-InfiniteOpt.map_optimizer_index(::InfiniteOpt.InfiniteVariableRef, ::Val{:TransData})
-InfiniteOpt.map_optimizer_index(::InfiniteOpt.FiniteConstraintRef, ::Val{:TransData})
-InfiniteOpt.map_optimizer_index(::InfiniteOpt.GeneralConstraintRef, ::Val{:TransData})
 JuMP.dual(::GeneralConstraintRef)
-map_dual
-InfiniteOpt.map_dual(::InfiniteOpt.FiniteConstraintRef, ::Val{:TransData})
-InfiniteOpt.map_dual(::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData})
 JuMP.shadow_price(::GeneralConstraintRef)
+map_value
+map_optimizer_index
+map_dual
 map_shadow_price
-InfiniteOpt.map_shadow_price(::InfiniteOpt.FiniteConstraintRef, ::Val{:TransData})
-InfiniteOpt.map_shadow_price(::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData})
 ```

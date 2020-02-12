@@ -1,8 +1,8 @@
 """
     JuMP.termination_status(model::InfiniteModel)
 
-Return the reason why the solver stopped (i.e., the MathOptInterface model
-attribute `TerminationStatus`).
+Extend [`termination_status`](@ref JuMP.termination_status(::JuMP.Model)) to
+return the `MOI.TerminationStatus` in accordance with the optimizer model.
 
 **Example**
 ```julia-repl
@@ -17,8 +17,8 @@ end
 """
     JuMP.raw_status(model::InfiniteModel)
 
-Return the reason why the solver stopped in its own words (i.e., the
-MathOptInterface model attribute `RawStatusString`).
+Extend [`raw_status`](@ref JuMP.raw_status(::JuMP.Model)) to return the status
+reported by the solver in accordance with the optimizer model.
 
 **Example**
 ```julia-repl
@@ -33,8 +33,8 @@ end
 """
      JuMP.primal_status(model::InfiniteModel)
 
-Return the status of the most recent primal solution of the solver (i.e., the
-MathOptInterface model attribute `PrimalStatus`).
+Extend [`primal_status`](@ref JuMP.primal_status(::JuMP.Model)) to return the
+`MOI.PrimalStatus` reported in accordance with the optimizer model.
 
 **Example**
 ```julia-repl
@@ -49,8 +49,8 @@ end
 """
     JuMP.dual_status(model::InfiniteModel)
 
-Return the status of the most recent dual solution of the solver (i.e., the
-MathOptInterface model attribute `DualStatus`).
+Extend [`dual_status`](@ref JuMP.dual_status(::JuMP.Model)) to return the
+`MOI.DualStatus` reported in accordance with the optimizer model.
 
 **Example**
 ```julia-repl
@@ -65,10 +65,9 @@ end
 """
     JuMP.solve_time(model::InfiniteModel)
 
-If available, returns the solve time (in seconds) reported by the solver.
-Returns "ArgumentError: ModelLike of type `Solver.Optimizer` does not support accessing
-the attribute MathOptInterface.SolveTime()" if the attribute is
-not implemented.
+Extend [`solve_time`](@ref JuMP.solve_time(::JuMP.Model)) to return the
+time used by the solver to terminate reported in accordance with the optimizer
+model. This will error if not supported by the solver.
 
 **Example**
 ```julia-repl
@@ -83,8 +82,8 @@ end
 """
     JuMP.has_values(model::InfiniteModel)
 
-Return `true` if the solver has a primal solution available to query, otherwise
-return `false`.
+Extend [`has_values`](@ref JuMP.has_values(::JuMP.Model)) to return a `Bool`
+whether variable values are available in accordance with the optimizer model.
 
 **Example**
 ```julia-repl
@@ -97,8 +96,8 @@ JuMP.has_values(model::InfiniteModel) = JuMP.primal_status(model) != MOI.NO_SOLU
 """
     JuMP.has_duals(model::InfiniteModel)
 
-Return `true` if the solver has a dual solution available to query, otherwise
-return `false`.
+Extend [`has_duals`](@ref JuMP.has_duals(::JuMP.Model)) to return a `Bool`
+whether constraint duals are available in accordance with the optimizer model.
 
 **Example**
 ```julia-repl
@@ -111,8 +110,8 @@ JuMP.has_duals(model::InfiniteModel) = JuMP.dual_status(model) != MOI.NO_SOLUTIO
 """
     JuMP.objective_bound(model::InfiniteModel)::Float64
 
-Return the best known bound on the optimal objective value after a call to
-`optimize!(model)`.
+Extend [`objective_bound`](@ref JuMP.objective_bound(::JuMP.Model)) to return
+the objective bound in accordance with the optimizer model.
 
 **Example**
 ```julia-repl
@@ -127,7 +126,8 @@ end
 """
     JuMP.objective_value(model::InfiniteModel)::Float64
 
-Return the objective value after a call to `optimize!(model)`.
+Extend [`objective_value`](@ref JuMP.objective_value(::JuMP.Model)) to return
+the objective value in accordance with the optimizer model.
 
 **Example**
 ```julia-repl
@@ -140,19 +140,66 @@ function JuMP.objective_value(model::InfiniteModel)::Float64
 end
 
 """
-    map_value(vref::GeneralVariableRef, key)
+    JuMP.dual_objective_value(model::InfiniteModel)::Float64
 
-Map the value of `vref` to its counterpart in the optimizer model type is
+Extend [`dual_objective_value`](@ref JuMP.dual_objective_value(::JuMP.Model)) to
+return the dual objective value in accordance with the optimizer model. Errors
+if the solver does not support this.
+
+**Example**
+```julia-repl
+julia> dual_objective_value(model)
+42.0
+```
+"""
+function JuMP.dual_objective_value(model::InfiniteModel)::Float64
+    return JuMP.dual_objective_value(optimizer_model(model))
+end
+
+"""
+    map_value(ref, key)
+
+Map the value(s) of `ref` to its counterpart in the optimizer model type that is
 distininguished by its extension key `key` as type `Val{ext_key_name}`.
+Here `ref` need refer to methods for both variable references and constraint
+references. This only needs to be defined for reformulation extensions that cannot
+readily extend `optimizer_model_variable` and `optimizer_model_constraint`.
+Such as is the case with reformuations that do not have a direct mapping between
+variables and/or constraints in the original infinite form. Otherwise,
+`optimizer_model_variable` and `optimizer_model_constraint` are used to make
+these mappings by default.
 """
 function map_value end
 
-"""
-    JuMP.value(vref::GeneralVariableRef)
+# Default method that depends on optimizer_model_variable --> making extensions easier
+function map_value(vref::GeneralVariableRef, key)
+    opt_vref = optimizer_model_variable(vref, key)
+    if opt_vref isa AbstractArray
+        return JuMP.value.(opt_vref)
+    else
+        return JuMP.value(opt_vref)
+    end
+end
 
-Get the value of this variable in the result returned by a solver. Use
-[`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check if a result
-exists before asking for values.
+# Default method that depends on optimizer_model_constraint --> making extensions easier
+function map_value(cref::GeneralConstraintRef, key)
+    opt_cref = optimizer_model_constraint(cref)
+    if opt_cref isa AbstractArray
+        return JuMP.value.(opt_cref)
+    else
+        return JuMP.value(opt_cref)
+    end
+end
+
+"""
+    JuMP.value(vref::InfOptVariableRef)
+
+Extend [`JuMP.value`](@ref JuMP.value(::JuMP.VariableRef)) to return the value(s)
+of `vref` in accordance with its reformulation variable(s) stored in the optimizer
+model. Use [`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check
+if a result exists before asking for values. For extensions, this only works if
+[`optimizer_model_variable`](@ref) has been extended correctly and/or
+[`map_value`](@ref) has been extended for variables.
 
 **Example**
 ```julia-repl
@@ -160,17 +207,19 @@ julia> value(z)
 42.0
 ```
 """
-function JuMP.value(vref::GeneralVariableRef)
+function JuMP.value(vref::InfOptVariableRef)
     return map_value(vref, Val(optimizer_model_key(JuMP.owner_model(vref))))
 end
 
 """
     JuMP.value(cref::GeneralConstraintRef)
 
-Get the value of this constraint in the result returned by a solver. Use
-[`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check if a result
-exists before asking for values.
-This returns the primal value of the constraint function.
+Extend [`JuMP.value`](@ref JuMP.value(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
+to return the value(s) of `cref` in accordance with its reformulation constraint(s)
+stored in the optimizer model. Use [`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel))
+to check if a result exists before asking for values. For extensions, this only
+works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
+[`map_value`](@ref) has been extended for constraints.
 
 **Example**
 ```julia-repl
@@ -189,19 +238,46 @@ end
 """
     map_optimizer_index(ref, key)
 
-Map the optimizer index of `ref` to its counterpart in the optimizer model
-type distininguished by its extension key `key` as type `Val{ext_key_name}`.
+Map the `MathOptInterface` index(es) of `ref` to its counterpart in the optimizer
+model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
 Here `ref` need refer to methods for both variable references and constraint
-references.
+references. This only needs to be defined for reformulation extensions that cannot
+readily extend `optimizer_model_variable` and `optimizer_model_constraint`.
+Such as is the case with reformuations that do not have a direct mapping between
+variables and/or constraints in the original infinite form. Otherwise,
+`optimizer_model_variable` and `optimizer_model_constraint` are used to make
+these mappings by default.
 """
 function map_optimizer_index end
 
-"""
-    JuMP.optimizer_index(vref::GeneralVariableRef)
+# Default method that depends on optimizer_model_variable --> making extensions easier
+function map_optimizer_index(vref::GeneralVariableRef, key)
+    opt_vref = optimizer_model_variable(vref, key)
+    if opt_vref isa AbstractArray
+        return JuMP.optimizer_index.(opt_vref)
+    else
+        return JuMP.optimizer_index(opt_vref)
+    end
+end
 
-Return the index of the variables that corresponds to `vref` in the optimizer model.
-It throws [`JuMP.NoOptimizer`](@ref) if no optimizer is set and throws an
-`ErrorException` if the optimizer is set but is not attached.
+# Default method that depends on optimizer_model_constraint --> making extensions easier
+function map_optimizer_index(cref::GeneralConstraintRef, key)
+    opt_cref = optimizer_model_constraint(cref)
+    if opt_cref isa AbstractArray
+        return JuMP.optimizer_index.(opt_cref)
+    else
+        return JuMP.optimizer_index(opt_cref)
+    end
+end
+
+"""
+    JuMP.optimizer_index(vref::InfOptVariableRef)
+
+Extend [`JuMP.optimizer_index`](@ref JuMP.optimizer_index(::JuMP.VariableRef)) to
+return the `MathOptInterface` index(es) of `vref` in accordance with its
+reformulation variable(s) stored in the optimizer model. For extensions, this
+only works if [`optimizer_model_variable`](@ref) has been extended correctly
+and/or [`map_optimizer_index`](@ref) has been extended for variables.
 
 **Example**
 ```julia-repl
@@ -213,17 +289,18 @@ julia> optimizer_index(x)
  MathOptInterface.VariableIndex(5)
 ```
 """
-function JuMP.optimizer_index(vref::GeneralVariableRef)
-    return map_optimizer_index(vref,
-                               Val(optimizer_model_key(JuMP.owner_model(vref))))
+function JuMP.optimizer_index(vref::InfOptVariableRef)
+    return map_optimizer_index(vref, Val(optimizer_model_key(JuMP.owner_model(vref))))
 end
 
 """
     JuMP.optimizer_index(cref::GeneralConstraintRef)
 
-Return the index of the constraints that corresponds to `cref` in the optimizer model.
-It throws [`JuMP.NoOptimizer`](@ref) if no optimizer is set and throws an
-`ErrorException` if the optimizer is set but is not attached.
+Extend [`JuMP.optimizer_index`](@ref JuMP.optimizer_index(::JuMP.ConstraintRef{JuMP.Model}))
+to return the `MathOptInterface` index(es) of `cref` in accordance with its
+reformulation constraints(s) stored in the optimizer model. For extensions, this
+only works if [`optimizer_model_constraint`](@ref) has been extended correctly
+and/or [`map_optimizer_index`](@ref) has been extended for constraints.
 
 **Example**
 ```julia-repl
@@ -236,24 +313,43 @@ julia> optimizer_index(c1)
 ```
 """
 function JuMP.optimizer_index(cref::GeneralConstraintRef)
-    return map_optimizer_index(cref,
-                               Val(optimizer_model_key(JuMP.owner_model(cref))))
+    return map_optimizer_index(cref, Val(optimizer_model_key(JuMP.owner_model(cref))))
 end
 
 """
     map_dual(cref::GeneralConstraintRef, key)
 
-Map the dual of `cref` to its counterpart in the optimizer model
-type distininguished by its extension key `key` as type `Val{ext_key_name}`.
+Map the dual(s) of `cref` to its counterpart in the optimizer
+model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
+Here `ref` need refer to methods for both variable references and constraint
+references. This only needs to be defined for reformulation extensions that cannot
+readily extend `optimizer_model_variable` and `optimizer_model_constraint`.
+Such as is the case with reformuations that do not have a direct mapping between
+variables and/or constraints in the original infinite form. Otherwise,
+`optimizer_model_variable` and `optimizer_model_constraint` are used to make
+these mappings by default.
 """
 function map_dual end
+
+# Default method that depends on optimizer_model_constraint --> making extensions easier
+function map_dual(cref::GeneralConstraintRef, key)
+    opt_cref = optimizer_model_constraint(cref)
+    if opt_cref isa AbstractArray
+        return JuMP.dual.(opt_cref)
+    else
+        return JuMP.dual(opt_cref)
+    end
+end
 
 """
     JuMP.dual(cref::GeneralConstraintRef)
 
-Get the dual value of this constraint in the result returned by a solver.
-Use `has_dual` to check if a result exists before asking for values.
-See also [`JuMP.shadow_price`](@ref JuMP.shadow_price(::GeneralConstraintRef)).
+Extend [`JuMP.dual`](@ref JuMP.dual(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
+to return the dual(s) of `cref` in accordance with its reformulation constraint(s)
+stored in the optimizer model. Use [`JuMP.has_duals`](@ref JuMP.has_duals(::InfiniteModel))
+to check if a result exists before asking for duals. For extensions, this only
+works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
+[`map_dual`](@ref) has been extended for constraints.
 
 **Example**
 ```julia-repl
@@ -271,29 +367,42 @@ end
 
 # Error redriect dor variable call
 function JuMP.dual(vref::GeneralVariableRef)
-    error("To query the dual variables associated with a variable bound, first " *
-          "obtain a constraint reference using one of `UpperBoundRef`, `LowerBoundRef`, " *
-          "or `FixRef`, and then call `dual` on the returned constraint reference.\nFor " *
-          "example, if `x <= 1`, instead of `dual(x)`, call `dual(UpperBoundRef(x))`.")
+    return JuMP.dual(JuMP.VariableRef(JuMP.Model(), MOI.VariableIndex(1)))
 end
 
 """
     map_shadow_price(cref::GeneralConstraintRef, key)
 
-Map the shadow price of `cref` to its counterpart in the optimizer model
-type distininguished by its extension key `key` as type `Val{ext_key_name}`.
+Map the shadow price(s) of `cref` to its counterpart in the optimizer
+model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
+Here `ref` need refer to methods for both variable references and constraint
+references. This only needs to be defined for reformulation extensions that cannot
+readily extend `optimizer_model_variable` and `optimizer_model_constraint`.
+Such as is the case with reformuations that do not have a direct mapping between
+variables and/or constraints in the original infinite form. Otherwise,
+`optimizer_model_variable` and `optimizer_model_constraint` are used to make
+these mappings by default.
 """
 function map_shadow_price end
+
+# Default method that depends on optimizer_model_constraint --> making extensions easier
+function map_shadow_price(cref::GeneralConstraintRef, key)
+    opt_cref = optimizer_model_constraint(cref)
+    if opt_cref isa AbstractArray
+        return JuMP.shadow_price.(opt_cref)
+    else
+        return JuMP.shadow_price(opt_cref)
+    end
+end
 
 """
     JuMP.shadow_price(cref::GeneralConstraintRef)
 
-The change in the objective from an infinitesimal relaxation of the constraint.
-This value is computed from [`JuMP.dual`](@ref JuMP.dual(::GeneralConstraintRef))
-and can be queried only when
-`has_duals` is `true` and the objective sense is `MIN_SENSE` or `MAX_SENSE`
-(not `FEASIBILITY_SENSE`). For linear constraints, the shadow prices differ at
-most in sign from the `dual` value depending on the objective sense.
+Extend [`JuMP.shadow_price`](@ref JuMP.shadow_price(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
+to return the shadow price(s) of `cref` in accordance with its reformulation constraint(s)
+stored in the optimizer model. Use [`JuMP.has_duals`](@ref JuMP.has_duals(::InfiniteModel))
+to check if a result exists before asking for duals. For extensions, this only
+works if [`optimizer_model_constraint`](@ref) has been extended correctly.
 
 **Example**
 ```julia-repl
@@ -306,6 +415,7 @@ julia> shadow_price(c1)
 ```
 """
 function JuMP.shadow_price(cref::GeneralConstraintRef)
-    return map_shadow_price(cref,
-                            Val(optimizer_model_key(JuMP.owner_model(cref))))
+    return map_shadow_price(cref, Val(optimizer_model_key(JuMP.owner_model(cref))))
 end
+
+# TODO add new functions

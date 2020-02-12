@@ -151,7 +151,7 @@ julia> transcription_variable(trans_model, infvar)
  infvar(support: 2)
 
 julia> transcription_variable(trans_model, hdvar)
-gbvar
+hdvar
 
 julia> transcription_variable(infvar)
 2-element Array{VariableRef,1}:
@@ -159,7 +159,7 @@ julia> transcription_variable(infvar)
  infvar(support: 2)
 
 julia> transcription_variable(hdvar)
-gbvar
+hdvar
 ```
 """
 function transcription_variable end
@@ -175,7 +175,7 @@ end
 # InfiniteVariableRef
 function transcription_variable(model::JuMP.Model,
                                 vref::InfiniteOpt.InfiniteVariableRef)::Vector
-    !haskey(transcription_data(model).infinite_to_vars, vref) && error("Variable" *
+    !haskey(transcription_data(model).infinite_to_vars, vref) && error("Variable " *
                              "reference $vref not used in transcription model.")
     return transcription_data(model).infinite_to_vars[vref]
 end
@@ -190,6 +190,18 @@ end
 function transcription_variable(vref::InfiniteOpt.InfOptVariableRef)
     trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(vref))
     return transcription_variable(trans_model, vref)
+end
+
+"""
+    InfiniteOpt.optimizer_model_variable(vref::InfiniteOpt.InfOptVariableRef,
+                                         ::Val{:TransData})
+
+Proper extension of [`InfiniteOpt.optimizer_model_variable`](@ref) for
+`TranscriptionModel`s. This simply dispatches to [`transcription_variable`](@ref).
+"""
+function InfiniteOpt.optimizer_model_variable(vref::InfiniteOpt.InfOptVariableRef,
+                                              ::Val{:TransData})
+    return transcription_variable(vref)
 end
 
 """
@@ -280,6 +292,18 @@ end
 function transcription_constraint(cref::InfiniteOpt.GeneralConstraintRef)
     trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(cref))
     return transcription_constraint(trans_model, cref)
+end
+
+"""
+    InfiniteOpt.optimizer_model_constraint(cref::InfiniteOpt.GeneralConstraintRef,
+                                         ::Val{:TransData})
+
+Proper extension of [`InfiniteOpt.optimizer_model_constraint`](@ref) for
+`TranscriptionModel`s. This simply dispatches to [`transcription_constraint`](@ref).
+"""
+function InfiniteOpt.optimizer_model_constraint(cref::InfiniteOpt.GeneralConstraintRef,
+                                                ::Val{:TransData})
+    return transcription_constraint(cref)
 end
 
 """

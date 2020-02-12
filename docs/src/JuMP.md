@@ -104,3 +104,23 @@ JuMP.unset_silent(::JuMP.Model)
 JuMP.bridge_constraints(::JuMP.Model)
 JuMP.add_bridge(::JuMP.Model, ::Type{<:MOI.Bridges.AbstractBridge})
 ```
+
+## Queries
+```@docs
+JuMP.termination_status(::JuMP.Model)
+JuMP.raw_status(::JuMP.Model)
+JuMP.primal_status(::JuMP.Model)
+JuMP.dual_status(::JuMP.Model)
+JuMP.solve_time(::JuMP.Model)
+JuMP.has_values(::JuMP.Model)
+JuMP.has_duals(::JuMP.Model)
+JuMP.objective_bound(::JuMP.Model)
+JuMP.objective_value(::JuMP.Model)
+JuMP.dual_objective_value(::JuMP.Model)
+JuMP.value(::JuMP.VariableRef)
+JuMP.value(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON})
+JuMP.dual(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON})
+JuMP.shadow_price(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON})
+JuMP.optimizer_index(::JuMP.VariableRef)
+JuMP.optimizer_index(::JuMP.ConstraintRef{JuMP.Model})
+```

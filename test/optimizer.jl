@@ -26,6 +26,45 @@
     @test num_variables(optimizer_model(m)) == 8
 end
 
+# Test optimizer_model_variable
+@testset "optimizer_model_variable" begin
+    # initialize model
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_variable(m, x(par) >= 0)
+    @point_variable(m, x(0), x0)
+    @hold_variable(m, z >= 0)
+    build_optimizer_model!(m)
+    # test normal usage
+    @test optimizer_model_variable(x) == transcription_variable(x)
+    @test optimizer_model_variable(x0) == transcription_variable(x0)
+    @test optimizer_model_variable(z) == transcription_variable(z)
+    # test fallback
+    @test_throws ErrorException optimizer_model_variable(x, Val(:Bad))
+end
+
+# Test optimizer_model_constraint
+@testset "optimizer_model_constraint" begin
+    # initialize model
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_variable(m, x(par))
+    @point_variable(m, x(0), x0)
+    @hold_variable(m, z)
+    data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
+    meas1 = measure(x - z, data1)
+    @constraint(m, c1, x + par - z == 0)
+    @constraint(m, c2, z + x0 >= -3)
+    @constraint(m, c3, meas1 + z == 0)
+    build_optimizer_model!(m)
+    # test normal usage
+    @test optimizer_model_constraint(c1) == transcription_constraint(c1)
+    @test optimizer_model_constraint(c2) == transcription_constraint(c2)
+    @test optimizer_model_constraint(c3) == transcription_constraint(c3)
+    # test fallback
+    @test_throws ErrorException optimizer_model_constraint(c1, Val(:Bad))
+end
+
 # Test optimize!
 @testset "JuMP.optimize!" begin
     # initialize model

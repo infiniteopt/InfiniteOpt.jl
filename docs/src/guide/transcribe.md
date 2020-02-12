@@ -451,9 +451,11 @@ TranscriptionModel(::InfiniteModel)
 is_transcription_model
 transcription_data
 transcription_variable
+InfiniteOpt.optimizer_model_variable(::InfiniteOpt.InfOptVariableRef, ::Val{:TransData})
 InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteVariableRef)
 InfiniteOpt.supports(::InfiniteOpt.InfiniteVariableRef)
 transcription_constraint
+InfiniteOpt.optimizer_model_constraint(::InfiniteOpt.GeneralConstraintRef, ::Val{:TransData})
 InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef)
 InfiniteOpt.supports(::InfiniteOpt.InfiniteConstraintRef)
 InfiniteOpt.parameter_refs(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef)

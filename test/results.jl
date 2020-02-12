@@ -139,10 +139,20 @@ end
     @testset "JuMP.has_values" begin
         @test has_values(m)
     end
+    # test map_value
+    @testset "map_value" begin
+        @test map_value(inf, Val(:TransData)) == [1., 0.]
+        @test map_value(g, Val(:TransData)) == 1.
+    end
     # test value
     @testset "JuMP.value" begin
         @test value(inf) == [1., 0.]
         @test value(g) == 1.
+    end
+    # test map_optimizer_index
+    @testset "map_optimizer_index" begin
+        @test isa(map_optimizer_index(g, Val(:TransData)), MOI.VariableIndex)
+        @test isa(map_optimizer_index(inf, Val(:TransData)), Vector{MOI.VariableIndex})
     end
     # test optimizer_index
     @testset "JuMP.optimizer_index" begin
@@ -203,10 +213,20 @@ end
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c3), -1.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c4), 0.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c5), 1.0)
+    # test map_value
+    @testset "map_value" begin
+        @test map_value(c1, Val(:TransData)) == -1.
+        @test map_value(c2, Val(:TransData)) == [0., 1.]
+    end
     # test value
     @testset "JuMP.value" begin
         @test value(c1) == -1.
         @test value(c2) == [0., 1.]
+    end
+    # test map_optimizer_index
+    @testset "map_optimizer_index" begin
+        @test isa(map_optimizer_index(c1, Val(:TransData)), MOI.ConstraintIndex)
+        @test isa(map_optimizer_index(c2, Val(:TransData)), Vector{<:MOI.ConstraintIndex})
     end
     # test optimizer_index
     @testset "JuMP.optimizer_index" begin
@@ -217,10 +237,20 @@ end
     @testset "JuMP.has_duals" begin
         @test has_duals(m)
     end
+    # test map_dual
+    @testset "map_dual" begin
+        @test map_dual(c1, Val(:TransData)) == -1.
+        @test map_dual(c2, Val(:TransData)) == [0., 1.]
+    end
     # test dual
     @testset "JuMP.dual" begin
         @test dual(c1) == -1.
         @test dual(c2) == [0., 1.]
+    end
+    # test map_shadow_price
+    @testset "map_shadow_price" begin
+        @test map_shadow_price(c1, Val(:TransData)) == -1.
+        @test map_shadow_price(c2, Val(:TransData)) == [-0., -1.]
     end
     # test shadow_price
     @testset "JuMP.shadow_price" begin
