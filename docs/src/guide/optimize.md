@@ -167,6 +167,21 @@ julia> unset_silent(model)
 false
 ```
 
+We can also adjust the time limit in a solver independent fashion via
+[`set_time_limit_sec`](@ref JuMP.set_time_limit_sec(::InfiniteModel, ::Any)),
+[`unset_time_limit_sec`](@ref JuMP.unset_time_limit_sec(::InfiniteModel)), and
+[`time_limit_sec`](@ref JuMP.time_limit_sec(::InfiniteModel)). These methods
+are illustrated below:
+```jldoctest optimize
+julia> set_time_limit_sec(model, 100)
+100
+
+julia> time_limit_sec(model)
+100
+
+julia> unset_time_limit_sec(model)
+```
+
 Other optimizer specific settings can be set via
 [`set_parameter`](@ref JuMP.set_parameter(::InfiniteModel, ::Any, ::Any)).
 For example, let's set the maximum CPU time for Ipopt:
@@ -198,6 +213,9 @@ JuMP.add_bridge(::InfiniteModel, ::Type{<:MOI.Bridges.AbstractBridge})
 JuMP.set_optimizer(::InfiniteModel, ::JuMP.OptimizerFactory)
 JuMP.set_silent(::InfiniteModel)
 JuMP.unset_silent(::InfiniteModel)
+JuMP.set_time_limit_sec(::InfiniteModel, ::Any)
+JuMP.unset_time_limit_sec(::InfiniteModel)
+JuMP.time_limit_sec(::InfiniteModel)
 JuMP.set_parameter(::InfiniteModel, ::Any, ::Any)
 JuMP.optimize!(::InfiniteModel, ::Union{Nothing, JuMP.OptimizerFactory})
 ```

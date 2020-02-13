@@ -62,6 +62,21 @@ end
         m2 = InfiniteModel()
         @test !unset_silent(m2)
     end
+    # set_time_limit_sec
+    @testset "JuMP.set_time_limit_sec" begin
+        m2 = InfiniteModel()
+        @test set_time_limit_sec(m2, 100) == 100
+    end
+    # unset_time_limit_sec
+    @testset "JuMP.unset_time_limit_sec" begin
+        m2 = InfiniteModel()
+        @test isa(unset_time_limit_sec(m2), Nothing)
+    end
+    # time_limit_sec
+    @testset "JuMP.time_limit_sec" begin
+        m2 = InfiniteModel()
+        @test_throws ErrorException time_limit_sec(m2)
+    end
     # set_parameter
     @testset "JuMP.set_parameter" begin
         m2 = InfiniteModel()

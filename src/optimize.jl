@@ -173,6 +173,55 @@ function JuMP.unset_silent(model::InfiniteModel)
 end
 
 """
+    JuMP.set_time_limit_sec(model::InfiniteModel, limit)
+
+Extend [`set_time_limit_sec`](@ref JuMP.set_time_limit_sec(::JuMP.Model, ::Any))
+to set the time limit (in seconds) of the solver.
+Can be unset using `unset_time_limit_sec` or with `limit` set to `nothing`.
+
+**Example**
+```julia-repl
+julia> set_time_limit_sec(model, 100)
+100
+```
+"""
+function JuMP.set_time_limit_sec(model::InfiniteModel, limit)
+    return JuMP.set_time_limit_sec(optimizer_model(model), limit)
+end
+
+"""
+    JuMP.unset_time_limit_sec(model::InfiniteModel)
+
+Extend [`unset_time_limit_sec`](@ref JuMP.unset_time_limit_sec(::JuMP.Model)) to
+unset the time limit of the solver. Can be set using `set_time_limit_sec`.
+
+**Example**
+```julia-repl
+julia> unset_time_limit_sec(model)
+```
+"""
+function JuMP.unset_time_limit_sec(model::InfiniteModel)
+    return JuMP.unset_time_limit_sec(optimizer_model(model))
+end
+
+"""
+    JuMP.time_limit_sec(model::InfiniteModel)
+
+Extend [`time_limit_sec`](@ref JuMP.time_limit_sec(::JuMP.Model) to get the time
+limit (in seconds) of the solve used by the optimizer model (`nothing` if unset).
+Can be set using `set_time_limit_sec`.
+
+**Example**
+```julia-repl
+julia> time_limit_sec(model)
+100
+```
+"""
+function JuMP.time_limit_sec(model::InfiniteModel)
+    return JuMP.time_limit_sec(optimizer_model(model))
+end
+
+"""
     JuMP.set_parameter(model::InfiniteModel, name, value)
 
 Sets solver-specific parameter identified by `name` to `value`.

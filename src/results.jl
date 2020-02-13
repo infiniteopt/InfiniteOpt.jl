@@ -402,7 +402,8 @@ Extend [`JuMP.shadow_price`](@ref JuMP.shadow_price(::JuMP.ConstraintRef{JuMP.Mo
 to return the shadow price(s) of `cref` in accordance with its reformulation constraint(s)
 stored in the optimizer model. Use [`JuMP.has_duals`](@ref JuMP.has_duals(::InfiniteModel))
 to check if a result exists before asking for duals. For extensions, this only
-works if [`optimizer_model_constraint`](@ref) has been extended correctly.
+works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
+[`map_shadow_price`](@ref) has been extended for constraints.
 
 **Example**
 ```julia-repl
@@ -418,4 +419,94 @@ function JuMP.shadow_price(cref::GeneralConstraintRef)
     return map_shadow_price(cref, Val(optimizer_model_key(JuMP.owner_model(cref))))
 end
 
-# TODO add new functions
+"""
+    map_lp_rhs_perturbation_range(cref::GeneralConstraintRef, key)
+
+Map the RHS perturbation range of `cref` to its counterpart in the optimizer
+model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
+Here `cref` need refer to methods for both variable references and constraint
+references. This only needs to be defined for reformulation extensions that cannot
+readily extend `optimizer_model_constraint`.
+Such as is the case with reformuations that do not have a direct mapping between
+variables and/or constraints in the original infinite form. Otherwise,
+`optimizer_model_constraint` is used to make these mappings by default.
+"""
+function map_lp_rhs_perturbation_range end
+
+# Default method that depends on optimizer_model_constraint --> making extensions easier
+function map_lp_rhs_perturbation_range(cref::GeneralConstraintRef, key)
+    opt_cref = optimizer_model_constraint(cref)
+    if opt_cref isa AbstractArray
+        return JuMP.lp_rhs_perturbation_range.(opt_cref)
+    else
+        return JuMP.lp_rhs_perturbation_range(opt_cref)
+    end
+end
+
+"""
+    JuMP.lp_rhs_perturbation_range(cref::GeneralConstraintRef)
+
+Extend [`JuMP.lp_rhs_perturbation_range`](@ref JuMP.lp_rhs_perturbation_range(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
+to return the range(s) of the RHS of `cref` for which the shadow price(s) are valid
+in accordance with its reformulation constraint(s)
+stored in the optimizer model. For extensions, this only
+works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
+[`map_lp_rhs_perturbation_range`](@ref) has been implemented.
+
+**Example**
+```julia-repl
+julia> lp_rhs_perturbation_range(c1)
+4-element Array{Tuple{Float64,Float64},1}:
+ (-42.0, Inf)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+```
+"""
+function JuMP.lp_rhs_perturbation_range(cref::GeneralConstraintRef)
+    return map_lp_rhs_perturbation_range(cref, Val(optimizer_model_key(JuMP.owner_model(cref))))
+end
+
+"""
+    map_lp_objective_perturbation_range(vref::InfOptVariableRef, key)
+
+Map the reduced cost range(s) of `vref` to its counterpart in the optimizer
+model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
+Here `vref` need refer to methods for both variable references and constraint
+references. This only needs to be defined for reformulation extensions that cannot
+readily extend `optimizer_model_variable`.
+Such as is the case with reformuations that do not have a direct mapping between
+variables and/or constraints in the original infinite form. Otherwise,
+`optimizer_model_variable` is used to make these mappings by default.
+"""
+function map_lp_objective_perturbation_range end
+
+# Default method that depends on optimizer_model_constraint --> making extensions easier
+function map_lp_objective_perturbation_range(vref::GeneralVariableRef, key)
+    opt_vref = optimizer_model_variable(vref)
+    if opt_vref isa AbstractArray
+        return JuMP.lp_objective_perturbation_range.(opt_vref)
+    else
+        return JuMP.lp_objective_perturbation_range(opt_vref)
+    end
+end
+
+"""
+    JuMP.lp_objective_perturbation_range(vref::InfOptVariableRef)
+
+Extend [`JuMP.lp_objective_perturbation_range`](@ref JuMP.lp_objective_perturbation_range(::JuMP.VariableRef))
+to return the range(s) that the reduced cost(s) of `vref` remain valid
+in accordance with its reformulation variables(s)
+stored in the optimizer model. For extensions, this only
+works if [`optimizer_model_variable`](@ref) has been extended correctly and/or
+if [`map_lp_objective_perturbation_range`](@ref) has been implemented.
+
+**Example**
+```julia-repl
+julia> lp_objective_perturbation_range(z)
+(-2.0, Inf)
+```
+"""
+function JuMP.lp_objective_perturbation_range(vref::GeneralVariableRef)
+    return map_lp_objective_perturbation_range(vref, Val(optimizer_model_key(JuMP.owner_model(vref))))
+end

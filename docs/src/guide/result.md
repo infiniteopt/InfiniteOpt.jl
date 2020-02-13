@@ -390,4 +390,6 @@ map_value
 map_optimizer_index
 map_dual
 map_shadow_price
+map_lp_rhs_perturbation_range
+map_lp_objective_perturbation_range
 ```

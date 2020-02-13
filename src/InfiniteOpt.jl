@@ -106,7 +106,8 @@ set_optimizer_model_ready, build_optimizer_model!, optimizer_model_key,
 optimizer_model_variable, optimizer_model_constraint
 
 # Export result query methods
-export map_value, map_optimizer_index, map_dual, map_shadow_price
+export map_value, map_optimizer_index, map_dual, map_shadow_price,
+map_lp_rhs_perturbation_range, map_lp_objective_perturbation_range
 
 # Export functions that will be included in future JuMP releases
 
