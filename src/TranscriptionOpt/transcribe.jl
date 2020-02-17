@@ -72,7 +72,6 @@ function _update_point_mapping(trans_model::JuMP.Model,
     end
     # fallback that should not be needed
     error("Couldn't find variable to map $pvref to.")
-    return
 end
 
 # Override the info of the jump variable with the point variable's if any is provided

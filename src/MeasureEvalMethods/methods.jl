@@ -84,7 +84,6 @@ function measure_dispatch(set::InfiniteOpt.AbstractInfiniteSet,
                           method::Function; kwargs...)::Tuple
     error("Measure dispatch function is not extended for parameters in sets " *
           "of type $(typeof(set)).")
-    return
 end
 
 """

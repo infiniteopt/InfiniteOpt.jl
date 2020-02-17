@@ -106,6 +106,9 @@ JuMP.unset_time_limit_sec(::JuMP.Model)
 JuMP.time_limit_sec(::JuMP.Model)
 JuMP.bridge_constraints(::JuMP.Model)
 JuMP.add_bridge(::JuMP.Model, ::Type{<:MOI.Bridges.AbstractBridge})
+JuMP.backend(::JuMP.Model)
+JuMP.mode(::JuMP.Model)
+JuMP.solver_name(::JuMP.Model)
 ```
 
 ## Queries

@@ -82,6 +82,18 @@ end
         m2 = InfiniteModel()
         @test set_parameter(m2, "setting", 42) == 42
     end
+    # solver_name
+    @testset "JuMP.solver_name" begin
+        @test solver_name(m) == "Mock"
+    end
+    # backend
+    @testset "JuMP.backend" begin
+        @test backend(m) == backend(optimizer_model(m))
+    end
+    # mode
+    @testset "JuMP.mode" begin
+        @test JuMP.mode(m) == JuMP.mode(optimizer_model(m))
+    end
     # solve
     @testset "solve" begin
         @test_throws ErrorException solve(m)

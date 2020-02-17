@@ -148,7 +148,6 @@ end
 # Fallback
 function _all_function_variables(f)
     error("Can only use InfiniteOpt variables and expressions.")
-    return
 end
 
 ## Return a tuple of the parameter references in an expr

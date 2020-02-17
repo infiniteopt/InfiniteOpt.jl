@@ -217,5 +217,8 @@ JuMP.set_time_limit_sec(::InfiniteModel, ::Any)
 JuMP.unset_time_limit_sec(::InfiniteModel)
 JuMP.time_limit_sec(::InfiniteModel)
 JuMP.set_parameter(::InfiniteModel, ::Any, ::Any)
+JuMP.solver_name(model::InfiniteModel)
+JuMP.backend(model::InfiniteModel)
+JuMP.mode(model::InfiniteModel)
 JuMP.optimize!(::InfiniteModel, ::Union{Nothing, JuMP.OptimizerFactory})
 ```

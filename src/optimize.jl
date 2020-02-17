@@ -135,6 +135,7 @@ function JuMP.set_optimizer(model::InfiniteModel,
                             bridge_constraints::Bool=true)
     JuMP.set_optimizer(optimizer_model(model), optimizer_factory,
                        bridge_constraints = bridge_constraints)
+    model.optimizer_factory = optimizer_factory
     return
 end
 
@@ -312,7 +313,6 @@ function optimizer_model_variable end
 function optimizer_model_variable(vref::InfOptVariableRef, key; kwargs...)
     error("`optimizer_model_variable` not implemented for optimizer model
           key $key.")
-    return
 end
 
 """
@@ -355,7 +355,6 @@ function optimizer_model_constraint end
 function optimizer_model_constraint(cref::GeneralConstraintRef, key; kwargs...)
     error("`optimizer_model_constraint` not implemented for optimizer model
           key $key.")
-    return
 end
 
 """
@@ -377,6 +376,55 @@ c1 : x(support: 1) - y <= 3.0
 function optimizer_model_constraint(cref::GeneralConstraintRef; kwargs...)
     key = optimizer_model_key(JuMP.owner_model(cref))
     return optimizer_model_constraint(cref, Val(key); kwargs...)
+end
+
+"""
+    JuMP.solver_name(model::InfiniteModel)
+
+Extend [`solver_name`](@ref JuMP.solver_name(::JuMP.Model)) to return the name
+of the solver being used if there is an optimizer selected and it has a name
+attribute. Otherwise, an error is thrown.
+
+**Example**
+```julia-repl
+julia> solver_name(model)
+"Gurobi"
+```
+"""
+function JuMP.solver_name(model::InfiniteModel)
+    return JuMP.solver_name(optimizer_model(model))
+end
+
+"""
+    JuMP.backend(model::InfiniteModel)
+
+Extend [`backend`](@ref JuMP.backend(::JuMP.Model)) to return the
+`MathOptInterface` backend associated with the optimizer model. Note this will
+be empty if the optimizer model has not been build yet.
+
+**Example**
+```julia-repl
+julia> moi_model = backend(model);
+```
+"""
+function JuMP.backend(model::InfiniteModel)
+    return JuMP.backend(optimizer_model(model))
+end
+
+"""
+    JuMP.mode(model::InfiniteModel)
+
+Extend [`mode`](@ref JuMP.mode(::JuMP.Model)) to return the `MathOptInterface`
+mode the optimizer model is in.
+
+**Example**
+```julia-repl
+julia> mode(model)
+AUTOMATIC::ModelMode = 0
+```
+"""
+function JuMP.mode(model::InfiniteModel)
+    return JuMP.mode(optimizer_model(model))
 end
 
 """
@@ -406,7 +454,8 @@ function JuMP.optimize!(model::InfiniteModel,
     if !optimizer_model_ready(model)
         build_optimizer_model!(model; kwargs...)
     end
-    JuMP.optimize!(optimizer_model(model), optimizer_factory,
-                   bridge_constraints = bridge_constraints)
+    JuMP.set_optimizer(model, optimizer_factory,
+                       bridge_constraints = bridge_constraints)
+    JuMP.optimize!(optimizer_model(model))
     return
 end
