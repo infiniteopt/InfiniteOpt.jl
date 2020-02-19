@@ -447,7 +447,7 @@ Order   = [:function]
 transcription_model
 build_optimizer_model!(::InfiniteModel,::Val{:TransData})
 TranscriptionModel()
-TranscriptionModel(::InfiniteModel)
+TranscriptionModel(::InfiniteModel, ::Any)
 is_transcription_model
 transcription_data
 transcription_variable

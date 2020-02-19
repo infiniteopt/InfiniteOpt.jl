@@ -159,9 +159,8 @@ end
     @constraint(m, c2, y^2 - 3 == 0)
     bounds = ParameterBounds(Dict(par1 => IntervalSet(0.1, 1)))
     @BDconstraint(m, c3(par1 in [0, 0.5]), x == 5)
-    mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   MOIU.Model{Float64}(),
-                                   eval_objective_value=false)
+    mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                             eval_objective_value=false)
     # test Base.show (constraint in REPL)
     @testset "Base.show (REPL Constraint)" begin
         # test normal

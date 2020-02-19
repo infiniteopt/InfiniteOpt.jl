@@ -210,7 +210,7 @@ optimizer_model_ready
 set_optimizer_model_ready
 JuMP.bridge_constraints(::InfiniteModel)
 JuMP.add_bridge(::InfiniteModel, ::Type{<:MOI.Bridges.AbstractBridge})
-JuMP.set_optimizer(::InfiniteModel, ::JuMP.OptimizerFactory)
+JuMP.set_optimizer(::InfiniteModel, ::Any)
 JuMP.set_silent(::InfiniteModel)
 JuMP.unset_silent(::InfiniteModel)
 JuMP.set_time_limit_sec(::InfiniteModel, ::Any)
@@ -220,5 +220,5 @@ JuMP.set_parameter(::InfiniteModel, ::Any, ::Any)
 JuMP.solver_name(model::InfiniteModel)
 JuMP.backend(model::InfiniteModel)
 JuMP.mode(model::InfiniteModel)
-JuMP.optimize!(::InfiniteModel, ::Union{Nothing, JuMP.OptimizerFactory})
+JuMP.optimize!(::InfiniteModel)
 ```

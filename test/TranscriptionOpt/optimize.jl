@@ -12,9 +12,8 @@ end
 # Test build_optimizer_model!
 @testset "build_optimizer_model!" begin
     # initialize model
-    mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   MOIU.Model{Float64}(),
-                                   eval_objective_value=false)
+    mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                             eval_objective_value=false)
     m = InfiniteModel(mockoptimizer)
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],

@@ -7,14 +7,13 @@ end
 # Test basic definition and queries
 @testset "Basic Definition and Queries" begin
     # initialize needed data
-    mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   MOIU.Model{Float64}(),
-                                   eval_objective_value=false)
-    # test TranscriptionModel (no factory)
+    mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                             eval_objective_value=false)
+    # test TranscriptionModel (no optimizer)
     @testset "TranscriptionModel (Default)" begin
         @test haskey(TranscriptionModel().ext, :TransData)
     end
-    # test TranscriptionModel (with factory)
+    # test TranscriptionModel (with optimizer)
     @testset "TranscriptionModel (Optimizer)" begin
         @test haskey(TranscriptionModel(mockoptimizer).ext, :TransData)
     end

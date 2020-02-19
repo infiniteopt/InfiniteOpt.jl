@@ -33,9 +33,8 @@ end
 # Test JuMP extensions
 @testset "JuMP Extensions" begin
     m = InfiniteModel()
-    mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   MOIU.Model{Float64}(),
-                                   eval_objective_value=false)
+    mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                             eval_objective_value=false)
     # bridge_constraints
     @testset "JuMP.bridge_constraints" begin
         @test !bridge_constraints(m)
@@ -51,6 +50,7 @@ end
     @testset "JuMP.set_optimizer" begin
         m2 = InfiniteModel()
         @test isa(set_optimizer(m2, mockoptimizer), Nothing)
+        @test m2.optimizer_constructor == mockoptimizer
     end
     # set_silent
     @testset "JuMP.set_silent" begin

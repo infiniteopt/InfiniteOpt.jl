@@ -161,7 +161,7 @@ And data, a 1×1 Array{ParameterRef,2}:
 macro infinite_parameter(model, args...)
     esc_model = esc(model)
 
-    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
 
     # check to see if error_args are provided define error function
     error_args = filter(kw -> kw.args[1] == :error_args, kw_args)
@@ -214,7 +214,7 @@ macro infinite_parameter(model, args...)
     anonvar && explicit_comparison && _error("Cannot use explicit bounds via " *
                                              ">=, <= with an anonymous parameter")
     parameter = gensym()
-    name = JuMP._get_name(param)
+    name = JuMPC._get_name(param)
     if isempty(base_name_kw_args)
         base_name = anonvar ? "" : string(name)
     else
@@ -236,44 +236,30 @@ macro infinite_parameter(model, args...)
                                          macro_call = true) )
         # The looped code is trivial here since there is a single variable
         creationcode = :($parameter = $parametercall)
-        final_parameter = parameter
     else
         # isa(param, Expr) || _error("Expected $param to be a parameter name") --> not needed... I think
         # We now build the code to generate the variables (and possibly the
         # SparseAxisArray to contain them)
-        refcall, idxparams, idxsets, condition = JuMP._build_ref_sets(param,
-                                                                      parameter)
-        clear_dependencies(i) = (JuMPC.is_dependent(idxparams,
-                                               idxsets[i], i) ? () : idxsets[i])
-
-        # Code to be used to create each variable of the container.
-        vartype = :( variable_type($esc_model, Parameter) )
-        container_code, = JuMPC.generate_container(vartype, idxparams,
-                                                    idxsets, requestedcontainer)
+        # TODO finish updating
+        idxparams, indices = JuMPC._build_ref_sets(param)
         buildcall = :( build_parameter($_error, $set, length($container_code),
                                        $(extra...)) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall,
                                          $(JuMP._name_call(base_name, idxparams)),
                                          macro_call = true, multi_dim = true) )
-        code = :( $(refcall) = $parametercall )
-        # Determine the return type of add_variable. This is needed to create
-        # the container holding them.
-        creationcode = JuMP._get_looped_code(parameter, code, condition,
-                                             idxparams, idxsets, vartype,
+        creationcode = JuMPC.containers_code(idxparams, indices, parametercall,
                                              requestedcontainer)
-        final_parameter = parameter
     end
     if anonvar
         # Anonymous variable, no need to register it in the model-level
         # dictionary nor to assign it to a variable in the user scope.
         # We simply return the variable
-        macro_code = JuMP._macro_return(creationcode, final_parameter)
+        macro_code = creationcode
     else
         # We register the variable reference to its name and
         # we assign it to a variable in the local scope of this name
         macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
-                                                   final_variable = final_parameter,
                                                    model_for_registering = esc_model)
     end
     return _assert_valid_model_call(esc_model, macro_code)
@@ -326,7 +312,7 @@ macro finite_parameter(model, args...)
     _error(str...) = JuMP._macro_error(:finite_parameter, (model, args...),
                                        str...)
     # parse the arguments
-    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
 
     # check number of arguments
     if length(extra) == 0 || length(extra) > 2
@@ -562,7 +548,7 @@ macro infinite_variable(model, args...)
     _error(str...) = JuMP._macro_error(:infinite_variable, (model, args...),
                                        str...)
 
-    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     param_kw_args = filter(kw -> kw.args[1] == :parameter_refs, kw_args)
 
     # Check for easy case if it is anonymous single variable
@@ -754,7 +740,7 @@ macro point_variable(model, args...)
     _error(str...) = JuMP._macro_error(:point_variable,
                                        (model, args...), str...)
 
-    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     param_kw_args = filter(kw -> kw.args[1] == :infinite_variable_ref || kw.args[1] == :parameter_values, kw_args)
 
     # Check for easy case if it is anonymous single variable
@@ -892,7 +878,7 @@ macro hold_variable(model, args...)
     _error(str...) = JuMP._macro_error(:hold_variable, (model, args...),
                                        str...)
     # parse the arguments
-    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     bound_kw_args = filter(kw -> kw.args[1] == :parameter_bounds, kw_args)
 
     # no bounds given so we don't need to do anything
@@ -1116,7 +1102,7 @@ macro BDconstraint(model, args...)
     _error(str...) = JuMP._macro_error(:BDconstraint, (model, args...), str...)
 
     # parse the arguments
-    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     bound_kw_args = filter(kw -> kw.args[1] == :parameter_bounds, kw_args)
 
     # check for double specification of parameter bounds
@@ -1231,7 +1217,7 @@ macro set_parameter_bounds(ref, bound_expr, args...)
                                        (ref, bound_expr, args...), str...)
 
     # parse the arguments
-    extra, kw_args, requestedcontainer = JuMP._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     extra_kw_args = filter(kw -> kw.args[1] != :force, kw_args)
     if length(extra) != 0
         _error("Too many positional arguments.")

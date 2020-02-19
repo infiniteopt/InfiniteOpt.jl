@@ -1,7 +1,9 @@
 # Test general queries
 @testset "General Queries" begin
     # Setup the infinite model
-    m = InfiniteModel()
+    optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                         eval_objective_value=false)
+    m = InfiniteModel(optimizer)
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_variable(m, inf(par))
     @hold_variable(m, g)
@@ -21,9 +23,7 @@
     model = MOIU.Model{Float64}()
     MOIU.loadfromstring!(model, modelstring)
     MOIU.test_models_equal(JuMP.backend(tm).model_cache, model, ["x","y"], ["c1"])
-    JuMP.optimize!(tm, with_optimizer(MOIU.MockOptimizer,
-                                     MOIU.Model{Float64}(),
-                                     eval_objective_value=false))
+    JuMP.optimize!(tm)
 
     mockoptimizer = JuMP.backend(tm).optimizer.model
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
@@ -61,7 +61,9 @@ end
 # Test objective queries
 @testset "Objective Queries" begin
     # Setup the infinite model
-    m = InfiniteModel()
+    optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                         eval_objective_value=false)
+    m = InfiniteModel(optimizer)
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_variable(m, inf(par))
     @hold_variable(m, g)
@@ -81,9 +83,7 @@ end
     model = MOIU.Model{Float64}()
     MOIU.loadfromstring!(model, modelstring)
     MOIU.test_models_equal(JuMP.backend(tm).model_cache, model, ["x","y"], ["c1"])
-    JuMP.optimize!(tm, with_optimizer(MOIU.MockOptimizer,
-                                     MOIU.Model{Float64}(),
-                                     eval_objective_value=false))
+    JuMP.optimize!(tm)
 
     mockoptimizer = JuMP.backend(tm).optimizer.model
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
@@ -110,7 +110,9 @@ end
 # Test variable queries
 @testset "Variable Queries" begin
     # Setup the infinite model
-    m = InfiniteModel()
+    optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                         eval_objective_value=false)
+    m = InfiniteModel(optimizer)
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_variable(m, inf(par))
     @hold_variable(m, g)
@@ -130,9 +132,7 @@ end
     model = MOIU.Model{Float64}()
     MOIU.loadfromstring!(model, modelstring)
     # MOIU.test_models_equal(JuMP.backend(tm).model_cache, model, ["x","y"], ["c1"])
-    JuMP.optimize!(tm, with_optimizer(MOIU.MockOptimizer,
-                                     MOIU.Model{Float64}(),
-                                     eval_objective_value=false))
+    JuMP.optimize!(tm)
 
     mockoptimizer = JuMP.backend(tm).optimizer.model
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
@@ -174,7 +174,9 @@ end
 # Test constraint queries
 @testset "Constraint Queries" begin
     # Setup the infinite model
-    m = InfiniteModel()
+    optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                         eval_objective_value=false)
+    m = InfiniteModel(optimizer)
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_variable(m, inf(par))
     @hold_variable(m, g)
@@ -204,9 +206,7 @@ end
     MOIU.loadfromstring!(model, modelstring)
     # MOIU.test_models_equal(JuMP.backend(tm).model_cache, model, ["x","y","z"],
     #                        ["c3", "c4", "c5"])
-    JuMP.optimize!(tm, with_optimizer(MOIU.MockOptimizer,
-                                     MOIU.Model{Float64}(),
-                                     eval_objective_value=false))
+    JuMP.optimize!(tm)
 
     mockoptimizer = JuMP.backend(tm).optimizer.model
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
@@ -268,7 +268,9 @@ end
 # Test LP sensitivity methods
 @testset "LP Sensitivities" begin
     # Setup the infinite model
-    m = InfiniteModel()
+    optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                         eval_objective_value=false)
+    m = InfiniteModel(optimizer)
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_variable(m, inf(par))
     @hold_variable(m, g)
@@ -298,9 +300,7 @@ end
     MOIU.loadfromstring!(model, modelstring);
     # MOIU.test_models_equal(JuMP.backend(tm).model_cache, model, ["x","y","z"],
     #                        ["c3", "c4", "c5"])
-    JuMP.optimize!(tm, with_optimizer(MOIU.MockOptimizer,
-                                     MOIU.Model{Float64}(),
-                                     eval_objective_value=false))
+    JuMP.optimize!(tm)
 
     mockoptimizer = JuMP.backend(tm).optimizer.model;
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)

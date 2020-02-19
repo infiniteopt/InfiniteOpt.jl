@@ -111,15 +111,15 @@ end
 
 """
     JuMP.set_optimizer(model::InfiniteModel,
-                       optimizer_factory::JuMP.OptimizerFactory;
-                       bridge_constraints::Bool=true)
+                       [optimizer_constructor;
+                       bridge_constraints::Bool = true])
 
 Extend `JuMP.set_optimizer` to set optimizer of infinite models.
 Specifically, the optimizer of the optimizer model is modified.
 
 **Example**
 ```julia-repl
-julia> set_optimizer(model, with_optimizer(Clp.Optimizer))
+julia> set_optimizer(model, Clp.Optimizer)
 
 julia> optimizer_model(model)
 A JuMP Model
@@ -131,11 +131,11 @@ Solver name: SolverName() attribute not implemented by the optimizer.
 ```
 """
 function JuMP.set_optimizer(model::InfiniteModel,
-                            optimizer_factory::JuMP.OptimizerFactory;
-                            bridge_constraints::Bool=true)
-    JuMP.set_optimizer(optimizer_model(model), optimizer_factory,
+                            optimizer_constructor;
+                            bridge_constraints::Bool = true)
+    JuMP.set_optimizer(optimizer_model(model), optimizer_constructor,
                        bridge_constraints = bridge_constraints)
-    model.optimizer_factory = optimizer_factory
+    _set_optimizer_constructor(model, optimizer_constructor)
     return
 end
 
@@ -428,11 +428,10 @@ function JuMP.mode(model::InfiniteModel)
 end
 
 """
-    JuMP.optimize!(model::InfiniteModel,
-                   [optimizer_factory::Union{Nothing, JuMP.OptimizerFactory} = nothing;
+    JuMP.optimize!(model::InfiniteModel;
                    bridge_constraints::Bool=true, kwargs...])
 
-Extend [`JuMP.optimize!`](@ref JuMP.optimize!(::JuMP.Model, ::Union{Nothing, JuMP.OptimizerFactory}))
+Extend [`JuMP.optimize!`](@ref JuMP.optimize!(::JuMP.Model, ::Any))
 to optimize infinite models using the internal
 optimizer model. Will call [`build_optimizer_model!`](@ref) if the optimizer
 model isn't up to date. The `kwargs` correspond to keyword arguments passed to
@@ -440,22 +439,18 @@ model isn't up to date. The `kwargs` correspond to keyword arguments passed to
 
 **Example**
 ```julia-repl
-julia> optimize!(model, with_optimizer(Clp.Optimizer))
+julia> optimize!(model)
 
 julia> has_values(model)
 true
 ```
 """
-function JuMP.optimize!(model::InfiniteModel,
-                        optimizer_factory::Union{Nothing,
-                                               JuMP.OptimizerFactory} = nothing;
+function JuMP.optimize!(model::InfiniteModel;
                         bridge_constraints::Bool = true,
                         kwargs...)
     if !optimizer_model_ready(model)
         build_optimizer_model!(model; kwargs...)
     end
-    JuMP.set_optimizer(model, optimizer_factory,
-                       bridge_constraints = bridge_constraints)
     JuMP.optimize!(optimizer_model(model))
     return
 end

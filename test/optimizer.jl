@@ -68,7 +68,9 @@ end
 # Test optimize!
 @testset "JuMP.optimize!" begin
     # initialize model
-    m = InfiniteModel()
+    mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                             eval_objective_value=false)
+    m = InfiniteModel(mockoptimizer)
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
     @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
                         container = SparseAxisArray)
@@ -88,10 +90,7 @@ end
     @constraint(m, c5, meas2 == 0)
     @objective(m, Min, x0 + meas1)
     # test normal usage
-    mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   MOIU.Model{Float64}(),
-                                   eval_objective_value=false)
-    @test isa(optimize!(m, mockoptimizer), Nothing)
+    @test isa(optimize!(m), Nothing)
     @test optimizer_model_ready(m)
     @test num_variables(optimizer_model(m)) == 8
 end

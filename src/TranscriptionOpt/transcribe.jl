@@ -752,7 +752,9 @@ function _map_variable_info_constraints(trans_model::JuMP.Model,
 end
 
 """
-    TranscriptionModel(model::InfiniteModel, args...)
+    TranscriptionModel(model::InfiniteModel, [optimizer_constructor;
+                       caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
+                       bridge_constraints::Bool = true])
 
 Return a `TranscriptionModel` of `model`. This transcribes all of the variables,
 constraints, and objective.
@@ -777,13 +779,12 @@ Solver name: No optimizer attached.
 ```
 """
 function TranscriptionModel(inf_model::InfiniteOpt.InfiniteModel,
-                            optimizer_factory::Union{JuMP.OptimizerFactory,
-                                                     Nothing} = nothing;
+                            optimizer_constructor = nothing;
                             kwargs...)::JuMP.Model
-    if isa(optimizer_factory, Nothing)
+    if isa(optimizer_constructor, Nothing)
         trans_model = TranscriptionModel(; kwargs...)
     else
-        trans_model = TranscriptionModel(optimizer_factory; kwargs...)
+        trans_model = TranscriptionModel(optimizer_constructor; kwargs...)
     end
     InfiniteOpt.fill_in_supports!(inf_model)
     _initialize_hold_variables(trans_model, inf_model)

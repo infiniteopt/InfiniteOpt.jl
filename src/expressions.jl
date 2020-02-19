@@ -92,13 +92,13 @@ end
 
 ## Extend destructive_add! as needed
 # Variable, constant, variable
-function JuMP.destructive_add!(ex::Z, c::C, x::V
-                               )::JuMP.GenericAffExpr where {Z <: GeneralVariableRef,
-                                                             V <: GeneralVariableRef,
-                                                             C <: JuMP.Constant}
-    type = _var_type_parser(Z, V)
-    return JuMP.GenericAffExpr{C, type}(0.0, ex => 1.0, x => JuMP._float(c))
-end
+# function JuMP.destructive_add!(ex::Z, c::C, x::V
+#                                )::JuMP.GenericAffExpr where {Z <: GeneralVariableRef,
+#                                                              V <: GeneralVariableRef,
+#                                                              C <: JuMP.Constant}
+#     type = _var_type_parser(Z, V)
+#     return JuMP.GenericAffExpr{C, type}(0.0, ex => 1.0, x => JuMP._float(c))
+# end
 
 ## Extend for better comparisons than default
 # GenericAffExpr

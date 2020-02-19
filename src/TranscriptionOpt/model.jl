@@ -75,9 +75,9 @@ mutable struct TranscriptionData
 end
 
 """
-    TranscriptionModel([optimizer_factory::JuMP.OptimizerFactory];
-                       [caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
-                        bridge_constraints::Bool = true])::JuMP.Model
+    TranscriptionModel([optimizer_constructor;
+                       caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
+                       bridge_constraints::Bool = true])::JuMP.Model
 
 Return a [`JuMP.Model`](@ref) with [`TranscriptionData`](@ref) included in the
 `ext` data field. Accepts the same arguments as a typical JuMP `Model`.
@@ -99,9 +99,9 @@ function TranscriptionModel(; kwargs...)::JuMP.Model
     return model
 end
 # Accept optimizer_factorys
-function TranscriptionModel(optimizer_factory::JuMP.OptimizerFactory;
+function TranscriptionModel(optimizer_constructor;
                             kwargs...)::JuMP.Model
-    model = JuMP.Model(optimizer_factory; kwargs...)
+    model = JuMP.Model(optimizer_constructor; kwargs...)
     model.ext[:TransData] = TranscriptionData()
     return model
 end

@@ -872,8 +872,7 @@ end
     @test tm.ext[:TransData].infconstr_to_params[BinaryRef(y)] == parameter_refs(y)
     @test tm.ext[:TransData].infconstr_to_supports[BinaryRef(y)] == supports(y)[2:end]
     # test with solver
-    mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   MOIU.Model{Float64}(),
-                                   eval_objective_value=false)
+    mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                             eval_objective_value=false)
     @test isa(set_optimizer_model(m, TranscriptionModel(m, mockoptimizer)), Nothing)
 end

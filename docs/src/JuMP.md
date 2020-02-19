@@ -97,7 +97,7 @@ JuMP.PSDCone
 
 ## Optimization
 ```@docs
-JuMP.optimize!(::JuMP.Model, ::Union{Nothing, JuMP.OptimizerFactory})
+JuMP.optimize!(::JuMP.Model, ::Any)
 JuMP.set_parameter(::JuMP.Model, ::Any, ::Any)
 JuMP.set_silent(::JuMP.Model)
 JuMP.unset_silent(::JuMP.Model)
