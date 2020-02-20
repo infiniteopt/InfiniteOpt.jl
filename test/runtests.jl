@@ -38,6 +38,8 @@ println("")
 println("")
 @time @testset "Expression Methods" begin include("expressions.jl") end
 println("")
+# @time @testset "Macro Expressions" begin include("macro_expressions.jl") end
+println("")
 @time @testset "Measure Evaluation Methods" begin
     include("MeasureEvalMethods/methods.jl")
 end

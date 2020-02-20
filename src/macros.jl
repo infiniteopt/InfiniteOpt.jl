@@ -1,5 +1,6 @@
 using Base.Meta
 using JuMP: _valid_model, _error_if_cannot_register, object_dictionary, variable_type
+using JuMP.Containers
 
 # Parse raw input to define the upper bound for an interval set
 function _parse_one_operator_parameter(
@@ -234,21 +235,20 @@ macro infinite_parameter(model, args...)
         JuMP._add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall, $base_name,
                                          macro_call = true) )
-        # The looped code is trivial here since there is a single variable
         creationcode = :($parameter = $parametercall)
     else
         # isa(param, Expr) || _error("Expected $param to be a parameter name") --> not needed... I think
         # We now build the code to generate the variables (and possibly the
         # SparseAxisArray to contain them)
         # TODO finish updating
-        idxparams, indices = JuMPC._build_ref_sets(param)
-        buildcall = :( build_parameter($_error, $set, length($container_code),
+        idxvars, indices = JuMPC._build_ref_sets(_error, param)
+        buildcall = :( build_parameter($_error, $set, length(collect($indices)),
                                        $(extra...)) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall,
-                                         $(JuMP._name_call(base_name, idxparams)),
+                                         $(JuMP._name_call(base_name, idxvars)),
                                          macro_call = true, multi_dim = true) )
-        creationcode = JuMPC.containers_code(idxparams, indices, parametercall,
+        creationcode = JuMPC.container_code(idxvars, indices, parametercall,
                                              requestedcontainer)
     end
     if anonvar

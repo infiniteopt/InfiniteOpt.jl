@@ -90,14 +90,89 @@ function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr, new_coef::Number,
     return quad
 end
 
-## Extend destructive_add! as needed
-# Variable, constant, variable
-# function JuMP.destructive_add!(ex::Z, c::C, x::V
-#                                )::JuMP.GenericAffExpr where {Z <: GeneralVariableRef,
-#                                                              V <: GeneralVariableRef,
-#                                                              C <: JuMP.Constant}
-#     type = _var_type_parser(Z, V)
-#     return JuMP.GenericAffExpr{C, type}(0.0, ex => 1.0, x => JuMP._float(c))
+# TODO add tests
+# mixed aff + constant * var
+function JuMP.add_to_expression!(aff::JuMP.GenericAffExpr{C,V},
+                                 new_coef::JuMP._Constant,
+                                 new_var::W) where {C,V <: GeneralVariableRef,
+                                                    W <: GeneralVariableRef}
+    type = _var_type_parser(W, V)
+    new_aff = convert(JuMP.GenericAffExpr{C, type}, aff)
+    JuMP._add_or_set!(new_aff.terms, new_var,
+                      convert(C, JuMP._constant_to_number(new_coef)))
+    return new_aff
+end
+#
+# # mixed aff + aff
+# function JuMP.add_to_expression!(aff::JuMP.GenericAffExpr{C,V},
+#                                  other::JuMP.GenericAffExpr{C,W}) where {C,V <: GeneralVariableRef,
+#                                                                          W <: GeneralVariableRef}
+#     # Note: merge!() doesn't appear to call sizehint!(). Is this important?
+#     type = _var_type_parser(W, V)
+#     new_aff = convert(JuMP.GenericAffExpr{C, type}, aff)
+#     merge!(+, new_aff.terms, other.terms)
+#     new_aff.constant += other.constant
+#     return new_aff
+# end
+#
+# # mixed aff + number * aff
+# function JuMP.add_to_expression!(aff::JuMP.GenericAffExpr{C,V},
+#                                  coef::JuMP._Constant,
+#                                  other::JuMP.GenericAffExpr{C,W}) where {C,V <: GeneralVariableRef,
+#                                                                          W <: GeneralVariableRef}
+#     type = _var_type_parser(W, V)
+#     new_aff = convert(JuMP.GenericAffExpr{C, type}, aff)
+#     sizehint!(new_aff, length(JuMP.linear_terms(new_aff)) + length(JuMP.linear_terms(other)))
+#     for (term_coef, var) in JuMP.linear_terms(other)
+#         JuMP._add_or_set!(new_aff.terms, var, coef * term_coef)
+#     end
+#     new_aff.constant += coef * other.constant
+#     return new_aff
+# end
+#
+# # mixed quad + aff
+# function JuMP.add_to_expression!(q::JuMP.GenericQuadExpr{T,V},
+#                                  other::JuMP.GenericAffExpr{T,W}) where {T,V <: GeneralVariableRef,
+#                                                                      W <: GeneralVariableRef}
+#     type = _var_type_parser(W, V)
+#     new_q = convert(JuMP.GenericQuadExpr{T, type}, q)
+#     new_q.aff = JuMP.add_to_expression!(new_q.aff, other)
+#     return new_q
+# end
+#
+# function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr{C, V},
+#                             new_coef::JuMP._Constant,
+#                             new_aff::JuMP.GenericAffExpr{C, W}) where {C,V <: GeneralVariableRef,
+#                                                                 W <: GeneralVariableRef}
+#     type = _var_type_parser(W, V)
+#     new_quad = convert(JuMP.GenericQuadExpr{C, type}, quad)
+#     new_quad.aff = JuMP.add_to_expression!(new_quad.aff, new_coef, new_aff)
+#     return new_quad
+# end
+#
+# # mixed quad + number * quad
+# function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr{C, V},
+#                                  coef::JuMP._Constant,
+#                                  other::JuMP.GenericQuadExpr{C, W}) where {C, V <: GeneralVariableRef,
+#                                                                            W <: GeneralVariableRef}
+#     type = _var_type_parser(W, V)
+#     new_quad = convert(JuMP.GenericQuadExpr{C, type}, quad)
+#     new_other = convert(JuMP.GenericQuadExpr{C, type}, other)
+#     for (key, term_coef) in new_other.terms
+#         JuMP._add_or_set!(new_quad.terms, key, coef * term_coef)
+#     end
+#     return JuMP.add_to_expression!(new_quad, coef, new_other.aff)
+# end
+#
+# # mixed quad + quad
+# function JuMP.add_to_expression!(q::JuMP.GenericQuadExpr{T,V},
+#                                  other::JuMP.GenericQuadExpr{T,W}) where {T,V <: GeneralVariableRef,
+#                                                                           W <: GeneralVariableRef}
+#     type = _var_type_parser(W, V)
+#     new_q = convert(JuMP.GenericQuadExpr{T, type}, q)
+#     merge!(+, new_q.terms, other.terms)
+#     new_q.aff = JuMP.add_to_expression!(new_q.aff, other.aff)
+#     return new_q
 # end
 
 ## Extend for better comparisons than default
