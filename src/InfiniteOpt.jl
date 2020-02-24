@@ -3,11 +3,13 @@ module InfiniteOpt
 # Import the necessary packages.
 import JuMP
 import MathOptInterface
+import Distributions
+import Random
+import MutableArithmetics
+const _MA = MutableArithmetics
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 const JuMPC = JuMP.Containers
-import Distributions
-import Random
 
 # Import all of the datatpyes, methods, macros, and definitions.
 include("datatypes.jl")
@@ -15,6 +17,7 @@ include("parameters.jl")
 include("variables.jl")
 include("reduced_variables.jl")
 include("expressions.jl")
+include("mutable_arithmetics.jl")
 include("measures.jl")
 include("operators.jl")
 include("constraints.jl")

@@ -46,7 +46,7 @@
         @test isa(@expression(m, par - meas), GenericAffExpr{Float64, GeneralVariableRef})
         # test same
         @test isa(@expression(m, meas - meas), GenericAffExpr{Float64, MeasureRef})
-        @test @expression(m, meas - meas).terms[meas] == 0
+        @test @expression(m, meas - meas) == zero(GenericAffExpr{Float64, MeasureRef})
         @test isa(@expression(m, inf - inf), GenericAffExpr{Float64, InfiniteVariableRef})
         @test isa(@expression(m, pt - pt), GenericAffExpr{Float64, PointVariableRef})
     end

@@ -152,7 +152,7 @@ end
         @test isa(par - meas, GenericAffExpr{Float64, GeneralVariableRef})
         # test same
         @test isa(meas - meas, GenericAffExpr{Float64, MeasureRef})
-        @test (meas - meas).terms[meas] == 0
+        @test (meas - meas) == zero(GenericAffExpr{Float64, MeasureRef})
         @test isa(inf - inf, GenericAffExpr{Float64, InfiniteVariableRef})
         @test isa(pt - pt, GenericAffExpr{Float64, PointVariableRef})
     end
