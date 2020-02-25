@@ -14,14 +14,16 @@ reformulation strategies can readily be implemented as described in the
 [Optimizer Models](@ref extend_optimizer_model) section on the extensions page.
 
 ## Basic Usage
-For most users, [`optimize!`](@ref JuMP.optimize!(::InfiniteModel, ::Union{Nothing, JuMP.OptimizerFactory}))
-is the method required to optimize an `InfiniteModel`. This is exactly analogous
+For most users, [`optimize!`](@ref JuMP.optimize!(::InfiniteModel)) is the only
+method required to optimize an `InfiniteModel`. This is exactly analogous
 to that of any `JuMP.Model` and is designed to provide a similar user experience.
 Let's first define an `InfiniteModel` with an appropriate optimizer:
 ```jldoctest optimize
 julia> using InfiniteOpt, JuMP, Ipopt;
 
-julia> model = InfiniteModel(with_optimizer(Ipopt.Optimizer, print_level = 0));
+julia> model = InfiniteModel(Ipopt.Optimizer);
+
+julia> set_optimizer_attribute(model, "print_level", 0);
 
 julia> @infinite_parameter(model, t in [0, 10], num_supports = 10);
 
@@ -57,7 +59,7 @@ solution is explained on the [Results](@ref) page.
 If no optimizer has been specified for the `InfiniteModel`, one can be provided
 via [`set_optimizer`](@ref):
 ```jldoctest; setup = :(using InfiniteOpt, JuMP, Ipopt; model = InfiniteModel())
-julia> set_optimizer(model, with_optimizer(Ipopt.Optimizer))
+julia> set_optimizer(model, Ipopt.Optimizer)
 ```
 
 A number of methods also exist to adjust the optimizer settings such as
@@ -79,14 +81,14 @@ The process for optimizing an `InfiniteModel` is summarized in the following
 steps:
  - fully define the `InfiniteModel`
  - build the optimizer model via [`build_optimizer_model!`](@ref)
- - optimize the `optimizer_model` via [`optimize!`](@ref JuMP.optimize!(::JuMP.Model, ::Union{Nothing, JuMP.OptimizerFactory})).
+ - optimize the `optimizer_model` via [`optimize!`](@ref JuMP.optimize!(::JuMP.Model)).
 
 Here `build_optimizer_model!` creates a reformulated finite version of the
 `InfiniteModel`, stores it in `InfiniteModel.optimizer_model` via
 [`set_optimizer_model`](@ref), and indicates that the optimizer model is ready
 via [`set_optimizer_model_ready`](@ref). These steps are all automated when
-[`optimize!`](@ref JuMP.optimize!(::InfiniteModel, ::Union{Nothing, JuMP.OptimizerFactory}))
-is invoked on the `InfiniteModel`.
+[`optimize!`](@ref JuMP.optimize!(::InfiniteModel)) is invoked on the
+`InfiniteModel`.
 
 The `optimizer_model` can be queried/extracted at any time from an `InfiniteModel`
 via [`optimizer_model`](@ref). For example, let's extract the optimizer model
@@ -174,21 +176,36 @@ We can also adjust the time limit in a solver independent fashion via
 are illustrated below:
 ```jldoctest optimize
 julia> set_time_limit_sec(model, 100)
-100
+100.0
 
 julia> time_limit_sec(model)
-100
+100.0
 
 julia> unset_time_limit_sec(model)
 ```
 
 Other optimizer specific settings can be set via
-[`set_parameter`](@ref JuMP.set_parameter(::InfiniteModel, ::Any, ::Any)).
+[`set_optimizer_attribute`](@ref JuMP.set_optimizer_attribute(::InfiniteModel, ::String, ::Any)).
 For example, let's set the maximum CPU time for Ipopt:
 ```jldoctest optimize
-julia> set_parameter(model, "max_cpu_time", 60.)
+julia> set_optimizer_attribute(model, "max_cpu_time", 60.)
 60.0
 ```
+Multiple settings  can be specified via
+[`set_optimizer_attributes`](@ref JuMP.set_optimizer_attributes(::InfiniteModel,::Pair)).
+For example, let's specify the tolerance and the maximum number of iterations:
+```jldoctest optimize
+julia> set_optimizer_attributes(model, "tol" => 1e-4, "max_iter" => 100)
+```
+
+Finally, we can query optimizer settings via
+[`get_optimizer_attribute`](@ref JuMP.get_optimizer_attribute(::InfiniteModel, ::String)).
+For example, let's query the maximum number of iterations:
+```jldoctest optimize
+julia> get_optimizer_attribute(model, "max_iter")
+100
+```
+Note this only works if the attribute has been previously specified.
 
 ## Methods
 ```@index
@@ -197,6 +214,21 @@ Modules = [InfiniteOpt, JuMP]
 Order   = [:function]
 ```
 ```@docs
+JuMP.optimize!(::InfiniteModel)
+JuMP.set_optimizer(::InfiniteModel, ::Any)
+JuMP.set_silent(::InfiniteModel)
+JuMP.unset_silent(::InfiniteModel)
+JuMP.set_time_limit_sec(::InfiniteModel, ::Any)
+JuMP.unset_time_limit_sec(::InfiniteModel)
+JuMP.time_limit_sec(::InfiniteModel)
+JuMP.set_optimizer_attribute(::InfiniteModel, ::String, ::Any)
+JuMP.set_optimizer_attribute(::InfiniteModel,::MOI.AbstractOptimizerAttribute,::Any)
+JuMP.set_optimizer_attributes(::InfiniteModel, ::Pair)
+JuMP.get_optimizer_attribute(::InfiniteModel, ::String)
+JuMP.get_optimizer_attribute(::InfiniteModel,::MOI.AbstractOptimizerAttribute)
+JuMP.solver_name(model::InfiniteModel)
+JuMP.backend(model::InfiniteModel)
+JuMP.mode(model::InfiniteModel)
 optimizer_model
 set_optimizer_model
 optimizer_model_key
@@ -210,15 +242,4 @@ optimizer_model_ready
 set_optimizer_model_ready
 JuMP.bridge_constraints(::InfiniteModel)
 JuMP.add_bridge(::InfiniteModel, ::Type{<:MOI.Bridges.AbstractBridge})
-JuMP.set_optimizer(::InfiniteModel, ::Any)
-JuMP.set_silent(::InfiniteModel)
-JuMP.unset_silent(::InfiniteModel)
-JuMP.set_time_limit_sec(::InfiniteModel, ::Any)
-JuMP.unset_time_limit_sec(::InfiniteModel)
-JuMP.time_limit_sec(::InfiniteModel)
-JuMP.set_parameter(::InfiniteModel, ::Any, ::Any)
-JuMP.solver_name(model::InfiniteModel)
-JuMP.backend(model::InfiniteModel)
-JuMP.mode(model::InfiniteModel)
-JuMP.optimize!(::InfiniteModel)
 ```

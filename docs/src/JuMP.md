@@ -11,8 +11,7 @@ end
 ```@docs
 JuMP.Model
 JuMP.Model()
-JuMP.Model(::OptimizerFactory)
-JuMP.with_optimizer
+JuMP.Model(::Any)
 JuMP.NoOptimizer
 ```
 
@@ -98,7 +97,6 @@ JuMP.PSDCone
 ## Optimization
 ```@docs
 JuMP.optimize!(::JuMP.Model, ::Any)
-JuMP.set_parameter(::JuMP.Model, ::Any, ::Any)
 JuMP.set_silent(::JuMP.Model)
 JuMP.unset_silent(::JuMP.Model)
 JuMP.set_time_limit_sec(::JuMP.Model, ::Any)
@@ -109,6 +107,12 @@ JuMP.add_bridge(::JuMP.Model, ::Type{<:MOI.Bridges.AbstractBridge})
 JuMP.backend(::JuMP.Model)
 JuMP.mode(::JuMP.Model)
 JuMP.solver_name(::JuMP.Model)
+JuMP.set_optimizer_attribute(::JuMP.Model, ::String, ::Any)
+JuMP.set_optimizer_attribute(::JuMP.Model, ::MOI.AbstractOptimizerAttribute, ::Any)
+JuMP.set_optimizer_attributes(::JuMP.Model, ::Pair)
+JuMP.get_optimizer_attribute(::JuMP.Model, ::String)
+JuMP.get_optimizer_attribute(::JuMP.Model, ::MOI.AbstractOptimizerAttribute)
+JuMP.result_count(::JuMP.Model)
 ```
 
 ## Queries

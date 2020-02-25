@@ -1156,9 +1156,9 @@ function fill_in_supports!(pref::ParameterRef; num_supports::Int = 50,
     p = JuMP.owner_model(pref).params[JuMP.index(pref)]
     if length(p.supports) == 0
         _generate_supports(pref, p.set, num_supports = num_supports, sig_fig = sig_fig)
-    else
-#        @warn("No supports generated for $(pref) since $(pref) has existing " *
-#              "supports.")
+    # else
+        # @warn("No supports generated for $(pref) since $(pref) has existing " *
+        #       "supports.")
     end
     return
 end

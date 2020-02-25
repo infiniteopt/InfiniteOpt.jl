@@ -94,3 +94,18 @@ end
     @test optimizer_model_ready(m)
     @test num_variables(optimizer_model(m)) == 8
 end
+
+# Test JuMP.result_count
+@testset "JuMP.result_count" begin
+    # Setup the infinite model
+    optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                         eval_objective_value=false)
+    m = InfiniteModel(optimizer)
+    tm = optimizer_model(m)
+    model = MOIU.Model{Float64}()
+    JuMP.optimize!(tm)
+    mockoptimizer = JuMP.backend(tm).optimizer.model
+    MOI.set(mockoptimizer, MOI.ResultCount(), 2)
+    MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
+    @test result_count(m) == 2
+end

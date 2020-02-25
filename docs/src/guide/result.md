@@ -15,7 +15,9 @@ Let's revisit the example from the optimization page to get us started:
 ```jldoctest results
 julia> using InfiniteOpt, JuMP, Ipopt;
 
-julia> model = InfiniteModel(with_optimizer(Ipopt.Optimizer, print_level = 0));
+julia> model = InfiniteModel(Ipopt.Optimizer);
+
+julia> set_optimizer_attribute(model, "print_level", 0);
 
 julia> @infinite_parameter(model, t in [0, 10], num_supports = 10);
 
@@ -182,12 +184,23 @@ The commonly used queries include
 [`termination_status`](@ref JuMP.termination_status(::InfiniteModel)),
 [`primal_status`](@ref JuMP.primal_status(::InfiniteModel)),
 [`dual_status`](@ref JuMP.dual_status(::InfiniteModel)),
-[`objective_value`](@ref JuMP.objective_value(::InfiniteModel)), and
+[`objective_value`](@ref JuMP.objective_value(::InfiniteModel)),
+[`result_count`](@ref JuMP.result_count(::InfiniteModel))
 [`solve_time`](@ref JuMP.solve_time(::InfiniteModel)). The first four are well
 exemplified in the Basic Usage section above and are helpful in quickly
 understanding the optimality status of a given model following the many possible
 statuses reported by `MathOptInterface` which are documented
 [here](http://www.juliaopt.org/MathOptInterface.jl/stable/apimanual/#Solving-and-retrieving-the-results-1).
+We use `result_count` to determine how many solutions are recorded in the
+optimizer.
+```jldoctest results
+julia> result_count(model)
+1
+```
+This is useful since it informs what results there are which can be specified
+via the `result` keyword argument in many methods such as `primal_status`,
+`dual_status`, `objective_value`, `value`, `dual`, and more.
+
 We use `solve_time` to determine the time in seconds used by the optimizer until
 it terminated its search.
 ```julia-repl
@@ -233,11 +246,9 @@ So we have values readily available to be extracted.
 
 Now [`value`](@ref JuMP.value(::GeneralVariableRef)) can be used to query the
 values as shown above in the Basic Usage section. This works by calling the
-appropriate [`map_value`](@ref) defined by the optimizer model. For
-`TranscriptionModel`s
-[`map_value`](@ref InfiniteOpt.map_value(::InfiniteOpt.FiniteVariableRef, ::Val{:TransData})) and/or
-[`map_value`](@ref InfiniteOpt.map_value(::InfiniteOpt.InfiniteVariableRef, ::Val{:TransData}))
-are used. Details on how to extend these methods for user-defined optimizer
+appropriate [`map_value`](@ref) defined by the optimizer model. By default this,
+employs the `map_value` fallback which uses `optimizer_model_variable` to do the
+mapping. Details on how to extend these methods for user-defined optimizer
 models is explained on the Extensions page.
 
 Finally, the optimizer index of a variable is queried via
@@ -263,8 +274,7 @@ julia> optimizer_index(x)
 ```
 As noted previously, an array is returned for `x(t)` in accordance with its
 transcription variables. In similar manner to `value`, this is enabled by
-appropriate versions of [`map_optimizer_index`](@ref) enabled by
-`TranscriptionOpt`.
+appropriate versions of [`map_optimizer_index`](@ref).
 
 ## Constraint Queries
 Like variables, a variety of information can be queried about constraints.
@@ -293,7 +303,7 @@ julia> value(c1)
 ```
 Again, we obtain an array of values since `c1` is infinite due to its dependence
 on `x(t)`. Behind the scenes this is implemented via the appropriate extensions
-of [`map_value`](@ref) in `TranscriptionOpt` by default.
+of [`map_value`](@ref).
 
 Next the optimizer index(es) of the transcribed constraints in the
 `MathOptInterface` backend provided via
@@ -314,7 +324,7 @@ julia> optimizer_index(c1)
 ```
 Here 10 indices are given in accordance with the transcription constraints.
 The mapping between these and the original infinite constraints is managed via
-the appropriate extensions of [`map_optimizer_index`](@ref) in `TranscriptionOpt`.
+the appropriate extensions of [`map_optimizer_index`](@ref).
 
 We can also query dual information from our constraints if it is available.
 First, we should verify that dual information is available via
@@ -339,8 +349,7 @@ julia> dual(c1)
  1.1930560126841273e-10
 ```
 Here we obtain the optimal dual values for each transcribed version of `c1`. This
-is enabled via the proper extensions of [`map_dual`](@ref) in `TranscriptionOpt`
-by default.
+is enabled via the proper extensions of [`map_dual`](@ref).
 
 Finally, we query the shadow price of a constraint via
 [`shadow_price`](@ref JuMP.shadow_price(::GeneralConstraintRef)). This denotes
@@ -363,6 +372,10 @@ julia> shadow_price(c1)
 Similarly, the mapping to the transcription constraints is enabled via the
 appropriate version of [`map_shadow_price`](@ref).
 
+## LP Sensitivity
+See [`lp_rhs_perturbation_range`](@ref JuMP.lp_rhs_perturbation_range(::GeneralConstraintRef))
+and [`lp_objective_perturbation_range`](@ref JuMP.lp_objective_perturbation_range(::GeneralVariableRef)).
+
 ## Methods
 ```@index
 Pages   = ["result.md"]
@@ -380,12 +393,15 @@ JuMP.has_duals(::InfiniteModel)
 JuMP.objective_bound(::InfiniteModel)
 JuMP.objective_value(::InfiniteModel)
 JuMP.dual_objective_value(::InfiniteModel)
+JuMP.result_count(::InfiniteModel)
 JuMP.value(::GeneralVariableRef)
 JuMP.value(::GeneralConstraintRef)
 JuMP.optimizer_index(::GeneralVariableRef)
 JuMP.optimizer_index(::GeneralConstraintRef)
 JuMP.dual(::GeneralConstraintRef)
 JuMP.shadow_price(::GeneralConstraintRef)
+JuMP.lp_rhs_perturbation_range(::GeneralConstraintRef)
+JuMP.lp_objective_perturbation_range(::GeneralVariableRef)
 map_value
 map_optimizer_index
 map_dual

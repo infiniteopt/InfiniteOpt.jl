@@ -33,8 +33,11 @@ end
     @BDconstraint(m, c4(par in [0.5, 1]), meas2 - 2y0 + x <= 1)
     @constraint(m, c5, meas2 == 0)
     @objective(m, Min, x0 + meas1)
+    set_silent(m)
+    set_time_limit_sec(m, 42)
     # test normal usage
     @test isa(build_optimizer_model!(m, Val(:TransData)), Nothing)
     @test optimizer_model_ready(m)
     @test num_variables(optimizer_model(m)) == 8
+    @test time_limit_sec(optimizer_model(m)) == 42
 end

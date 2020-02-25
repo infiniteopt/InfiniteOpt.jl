@@ -223,18 +223,100 @@ function JuMP.time_limit_sec(model::InfiniteModel)
 end
 
 """
-    JuMP.set_parameter(model::InfiniteModel, name, value)
+    JuMP.set_optimizer_attribute(model::InfiniteModel, name::String, value)
 
-Sets solver-specific parameter identified by `name` to `value`.
+Extend [`set_optimizer_attribute`](@ref JuMP.set_optimizer_attribute(::JuMP.Model, ::String, ::Any))
+to specify a solver-specific attribute identified by `name` to `value`.
 
 **Example**
 ```julia-repl
-julia> set_parameter(model, "max_cpu_time", 60.) # using Ipopt
-60.0
+julia> set_optimizer_attribute(model, "SolverSpecificAttributeName", true)
+true
 ```
 """
-function JuMP.set_parameter(model::InfiniteModel, name::Any, value::Any)
-    return JuMP.set_parameter(optimizer_model(model), name, value)
+function JuMP.set_optimizer_attribute(model::InfiniteModel, name::String, value)
+    return JuMP.set_optimizer_attribute(optimizer_model(model), name, value)
+end
+
+"""
+    JuMP.set_optimizer_attribute(model::InfiniteModel,
+                                 attr::MOI.AbstractOptimizerAttribute,
+                                 value)
+
+Extend [`set_optimizer_attribute`](@ref JuMP.set_optimizer_attribute(::JuMP.Model, ::MOI.AbstractOptimizerAttribute, ::Any))
+to set the solver-specific attribute `attr` in `model` to `value`.
+
+**Example**
+```julia-repl
+julia> set_optimizer_attribute(model, MOI.Silent(), true)
+true
+```
+"""
+function JuMP.set_optimizer_attribute(model::InfiniteModel,
+                                      attr::MOI.AbstractOptimizerAttribute,
+                                      value)
+    return MOI.set(optimizer_model(model), attr, value)
+end
+
+"""
+    JuMP.set_optimizer_attributes(model::InfiniteModel, pairs::Pair...)
+
+Extend [`set_optimizer_attributes`](@ref JuMP.set_optimizer_attributes(::JuMP.Model, ::Pair))
+to set multiple solver attributes given a list of `attribute => value` pairs.
+Calls `set_optimizer_attribute(model, attribute, value)` for each pair.
+
+**Example**
+```julia-repl
+julia> model = Model(Ipopt.Optimizer);
+
+julia> set_optimizer_attributes(model, "tol" => 1e-4, "max_iter" => 100)
+```
+is equivalent to:
+```julia-repl
+julia> set_optimizer_attribute(model, "tol", 1e-4);
+
+julia> set_optimizer_attribute(model, "max_iter", 100);
+```
+"""
+function JuMP.set_optimizer_attributes(model::InfiniteModel, pairs::Pair...)
+    for (name, value) in pairs
+        JuMP.set_optimizer_attribute(model, name, value)
+    end
+    return
+end
+
+"""
+    JuMP.get_optimizer_attribute(model::InfiniteModel, name::String)
+
+Extend [`get_optimizer_attribute`](@ref JuMP.get_optimizer_attribute(::JuMP.Model, ::String))
+to return the value associated with the solver-specific attribute named `name`.
+
+**Example**
+```julia-repl
+julia> get_optimizer_attribute(model, "tol")
+0.0001
+````
+"""
+function JuMP.get_optimizer_attribute(model::InfiniteModel, name::String)
+    return JuMP.get_optimizer_attribute(optimizer_model(model), name)
+end
+
+"""
+    JuMP.get_optimizer_attribute(model::InfiniteModel,
+                                 attr::MOI.AbstractOptimizerAttribute)
+
+Extend [`get_optimizer_attribute`](@ref JuMP.get_optimizer_attribute(::JuMP.Model, ::MOI.AbstractOptimizerAttribute))
+to return the value of the solver-specific attribute `attr` in `model`.
+
+**Example**
+```julia-repl
+julia> get_optimizer_attribute(model, MOI.Silent())
+true
+````
+"""
+function JuMP.get_optimizer_attribute(model::InfiniteModel,
+                                      attr::MOI.AbstractOptimizerAttribute)
+    return MOI.get(optimizer_model(model), attr)
 end
 
 # Extend the solve error function
@@ -453,4 +535,20 @@ function JuMP.optimize!(model::InfiniteModel;
     end
     JuMP.optimize!(optimizer_model(model))
     return
+end
+
+"""
+    JuMP.result_count(model::InfiniteModel)
+
+Extend [`result_count`](@ref JuMP.result_count(::JuMP.Model)) to return the
+number of results available to query after a call to `optimize!`.
+
+**Example**
+```julia-repla
+julia> result_count(model)
+1
+```
+"""
+function JuMP.result_count(model::InfiniteModel)::Int
+    return MOI.get(optimizer_model(model), MOI.ResultCount())
 end

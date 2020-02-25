@@ -28,13 +28,11 @@
     mockoptimizer = JuMP.backend(tm).optimizer.model
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
     MOI.set(mockoptimizer, MOI.RawStatusString(), "solver specific string")
-    MOI.set(mockoptimizer, MOI.ObjectiveValue(), -1.0)
-    MOI.set(mockoptimizer, MOI.ResultCount(), 1)
-    MOI.set(mockoptimizer, MOI.PrimalStatus(), MOI.FEASIBLE_POINT)
-    MOI.set(mockoptimizer, MOI.DualStatus(), MOI.FEASIBLE_POINT)
-    MOI.set(mockoptimizer, MOI.VariablePrimal(), JuMP.optimizer_index(x), 1.0)
-    MOI.set(mockoptimizer, MOI.VariablePrimal(), JuMP.optimizer_index(y), 0.0)
-    MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c1), -1.0)
+    MOI.set(mockoptimizer, MOI.ResultCount(), 2)
+    MOI.set(mockoptimizer, MOI.PrimalStatus(1), MOI.FEASIBLE_POINT)
+    MOI.set(mockoptimizer, MOI.DualStatus(1), MOI.FEASIBLE_POINT)
+    MOI.set(mockoptimizer, MOI.PrimalStatus(2), MOI.FEASIBLE_POINT)
+    MOI.set(mockoptimizer, MOI.DualStatus(2), MOI.FEASIBLE_POINT)
     MOI.set(mockoptimizer, MOI.SolveTime(), 0.42)
     # test termination_status
     @testset "JuMP.termination_status" begin
@@ -43,10 +41,12 @@
     # test primal_status
     @testset "JuMP.primal_status" begin
         @test primal_status(m) == MOI.FEASIBLE_POINT
+        @test primal_status(m, result = 2) == MOI.FEASIBLE_POINT
     end
     # test dual_status
     @testset "JuMP.dual_status" begin
         @test dual_status(m) == MOI.FEASIBLE_POINT
+        @test dual_status(m, result = 2) == MOI.FEASIBLE_POINT
     end
     # test solve_time
     @testset "JuMP.solve_time" begin
@@ -137,18 +137,17 @@ end
     mockoptimizer = JuMP.backend(tm).optimizer.model
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
     MOI.set(mockoptimizer, MOI.ResultCount(), 1)
-    MOI.set(mockoptimizer, MOI.PrimalStatus(), MOI.FEASIBLE_POINT)
-    MOI.set(mockoptimizer, MOI.DualStatus(), MOI.FEASIBLE_POINT)
-    MOI.set(mockoptimizer, MOI.VariablePrimal(), JuMP.optimizer_index(x), 1.0)
-    MOI.set(mockoptimizer, MOI.VariablePrimal(), JuMP.optimizer_index(y), 0.0)
+    MOI.set(mockoptimizer, MOI.PrimalStatus(1), MOI.FEASIBLE_POINT)
+    MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(x), 1.0)
+    MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(y), 0.0)
     # test has_values
     @testset "JuMP.has_values" begin
         @test has_values(m)
     end
     # test map_value
     @testset "map_value" begin
-        @test map_value(inf, Val(:TransData)) == [1., 0.]
-        @test map_value(g, Val(:TransData)) == 1.
+        @test map_value(inf, Val(:TransData), 1) == [1., 0.]
+        @test map_value(g, Val(:TransData), 1) == 1.
     end
     # test value
     @testset "JuMP.value" begin
@@ -221,8 +220,8 @@ end
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c5), 1.0)
     # test map_value
     @testset "map_value" begin
-        @test map_value(c1, Val(:TransData)) == -1.
-        @test map_value(c2, Val(:TransData)) == [0., 1.]
+        @test map_value(c1, Val(:TransData), 1) == -1.
+        @test map_value(c2, Val(:TransData), 1) == [0., 1.]
     end
     # test value
     @testset "JuMP.value" begin
@@ -245,8 +244,8 @@ end
     end
     # test map_dual
     @testset "map_dual" begin
-        @test map_dual(c1, Val(:TransData)) == -1.
-        @test map_dual(c2, Val(:TransData)) == [0., 1.]
+        @test map_dual(c1, Val(:TransData), 1) == -1.
+        @test map_dual(c2, Val(:TransData), 1) == [0., 1.]
     end
     # test dual
     @testset "JuMP.dual" begin
@@ -319,9 +318,9 @@ end
     MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c5), MOI.NONBASIC)
     # test map_lp_rhs_perturbation_range
     @testset "map_lp_rhs_perturbation_range" begin
-        @test map_lp_rhs_perturbation_range(c1, Val(:TransData)) == (-Inf, Inf)
-        @test map_lp_rhs_perturbation_range(c2, Val(:TransData)) == [(-Inf, Inf),
-                                                                     (-Inf, Inf)]
+        @test map_lp_rhs_perturbation_range(c1, Val(:TransData), 1e-8) == (-Inf, Inf)
+        @test map_lp_rhs_perturbation_range(c2, Val(:TransData), 1e-8) == [(-Inf, Inf),
+                                                                           (-Inf, Inf)]
     end
     # test lp_rhs_perturbation_range
     @testset "JuMP.lp_rhs_perturbation_range" begin
@@ -330,9 +329,9 @@ end
     end
     # test map_lp_objective_perturbation_range
     @testset "map_lp_objective_perturbation_rangee" begin
-        @test map_lp_objective_perturbation_range(g, Val(:TransData)) == (-2.0, Inf)
-        @test map_lp_objective_perturbation_range(inf, Val(:TransData)) == [(-Inf, 0.0),
-                                                                     (-Inf, 0.0)]
+        @test map_lp_objective_perturbation_range(g, Val(:TransData), 1e-8) == (-2.0, Inf)
+        @test map_lp_objective_perturbation_range(inf, Val(:TransData), 1e-8) == [(-Inf, 0.0),
+                                                                                  (-Inf, 0.0)]
     end
     # test lp_objective_perturbation_range
     @testset "JuMP.lp_objective_perturbation_range" begin

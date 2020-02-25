@@ -19,7 +19,7 @@ which provide the default transcription (reformulation) capabilities of
 ## Basic Usage
 Most users will not need to employ the capabilities of `TranscriptionOpt` directly
 since they are employed implicitly with the call of
-[`optimize!`](@ref JuMP.optimize!(::InfiniteModel, ::Union{Nothing, JuMP.OptimizerFactory}))
+[`optimize!`](@ref JuMP.optimize!(::InfiniteModel))
 on an infinite model. This occurs since `TranscriptionModel`s are the default
 optimizer model type that is employed.
 
@@ -348,7 +348,7 @@ constructors such as specifying the optimizer. The first constructor is what
 `InfiniteOpt` uses to initialize the default `optimizer_model` attribute of
 `InfiniteModel`s. The second constructor is used to build the optimizer model
 when [`build_optimizer_model!`](@ref) is called directly or by
-[`optimize!`](@ref JuMP.optimize!(::InfiniteModel, ::Union{Nothing, JuMP.OptimizerFactory})).
+[`optimize!`](@ref JuMP.optimize!(::InfiniteModel)).
 Thus, second constructor serves as the principle tool for transcribing infinite
 models as it encapsulates all of the methods to transcribe measures, variables,
 and constraints.
@@ -416,7 +416,7 @@ julia> supports(trans_model, g)
 Again, the first argument can be dropped if this the `TranscriptionModel` of
 interest is stored in the `optimizer_model` field of the `InfiniteModel` as is
 the case when [`build_optimizer_model!`](@ref) or
-[`optimize!`](@ref JuMP.optimize!(::InfiniteModel, ::Union{Nothing, JuMP.OptimizerFactory}))
+[`optimize!`](@ref JuMP.optimize!(::InfiniteModel))
 is invoked.
 
 Likewise, [`transcription_constraint`](@ref) and
