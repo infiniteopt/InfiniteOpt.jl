@@ -1,3 +1,7 @@
+# Define symbol inputs for general measure method types
+const Sampling = :Sampling
+const Quad = :Quad
+
 # Extend Base.copy for new variable types
 Base.copy(v::MeasureRef, new_model::InfiniteModel) = MeasureRef(new_model,
                                                                 v.index)
@@ -456,7 +460,8 @@ function measure(expr::JuMP.AbstractJuMPScalar,
                                                              Nothing} = nothing,
                  lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
                  ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing;
-                 eval_method::Function = mc_sampling, num_supports::Int = 50,
+                 eval_method::Union{Function, Symbol, Nothing} = nothing,
+                 num_supports::Int = 50,
                  weight_func::Function = _w, name = "measure",
                  use_existing_supports::Bool = false,
                  call_from_expect::Bool = false)::MeasureRef
@@ -544,6 +549,11 @@ function measure(expr::JuMP.AbstractJuMPScalar,
 
     # construct data and return measure if we use existing supports
     if use_existing_supports
+        if eval_method == Quad || eval_method == gauss_legendre ||
+           eval_method == gauss_hermite || eval_method == gauss_laguerre
+            @warn("Quadrature method will not be used becuase use_existing_supports " *
+                  "is set as true.")
+        end
         support = supports(params)
         if !isa(lb, Nothing) && !isa(ub, Nothing)
             support = [i for i in support if all(i .>= lb) && all(i .<= ub)]
@@ -559,6 +569,22 @@ function measure(expr::JuMP.AbstractJuMPScalar,
                                        name = name, weight_function = weight_func)
         end
         return measure(expr, data)
+    end
+
+    if eval_method == nothing || eval_method == Sampling
+        eval_method = mc_sampling
+    elseif eval_method == Quad
+        if num_params > 1
+            error("Quadrature method is not supported for multivariate measures.")
+        end
+        inf_bound_num = (lb == -Inf) + (ub == Inf)
+        if inf_bound_num == 0
+            eval_method = gauss_legendre
+        elseif inf_bound_num == 1
+            eval_method = gauss_laguerre
+        else
+            eval_method = gauss_hermite
+        end
     end
 
     # construct AbstractMeasureData as data

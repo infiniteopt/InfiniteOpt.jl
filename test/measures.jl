@@ -569,6 +569,10 @@ end
     @infinite_parameter(m, 0 <= pars3[1:2] <= 1)
     @infinite_parameter(m, rp in dist1)
     @infinite_parameter(m, rp2[1:2] in dist2)
+    @infinite_parameter(m, 0 <= par4 <= 1)
+    @infinite_parameter(m, 0 <= par5 <= 1)
+    @infinite_parameter(m, par6 in [0, Inf])
+    @infinite_parameter(m, par7 in [-Inf, Inf])
     @infinite_variable(m, inf(par))
     @infinite_variable(m, inf2(par, par2))
     @infinite_variable(m, inf3(par3))
@@ -579,6 +583,10 @@ end
     @infinite_variable(m, inf8(rp))
     @infinite_variable(m, inf9(rp2))
     @infinite_variable(m, inf10(rp, rp2))
+    @infinite_variable(m, inf11(par4))
+    @infinite_variable(m, inf12(par5))
+    @infinite_variable(m, inf13(par6))
+    @infinite_variable(m, inf14(par7))
     @hold_variable(m, x)
 
     # test measure that does not use AbstractMeasureData inputs
@@ -599,7 +607,7 @@ end
         meas2 = measure(inf2, [par2], [0.5], [0.9], use_existing_supports = true)
         @test measure_data(meas2).supports == [0.7]
 
-        meas3 = measure(inf4, num_supports = 5)
+        meas3 = measure(inf4, num_supports = 5, eval_method = Sampling)
         @test pars1[1] in measure_data(meas3).parameter_ref
         @test pars1[2] in measure_data(meas3).parameter_ref
 
@@ -619,6 +627,33 @@ end
         @test measure_data(meas6).supports == [JuMPC.SparseAxisArray(
                                                 Dict([((1,),0.7), ((2,), 0.7)]))]
 
+
+        meas7 = measure(inf11, par4, num_supports = 5, eval_method = Quad)
+        (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
+        expected_supps = expected_supps .* 0.5 .+ 0.5
+        expected_coeffs = expected_coeffs .* 0.5
+        @test all(measure_data(meas7).supports .== expected_supps)
+        @test all(measure_data(meas7).coefficients .== expected_coeffs)
+
+        add_supports(par5, [0.3, 0.7])
+        warn = "Quadrature method will not be used becuase use_existing_supports " *
+               "is set as true."
+        @test_logs (:warn, warn) measure(inf12, par5,
+                               use_existing_supports = true, eval_method = Quad)
+
+        meas8 = measure(inf13, par6, num_supports = 5, eval_method = Quad)
+        (expected_supps, expected_coeffs) = FGQ.gausslaguerre(5)
+        expected_coeffs = expected_coeffs .* exp.(expected_supps)
+        @test all(measure_data(meas8).supports .== expected_supps)
+        @test all(measure_data(meas8).coefficients .== expected_coeffs)
+
+        meas9 = measure(inf14, par7, num_supports = 5, eval_method = Quad)
+        (expected_supps, expected_coeffs) = FGQ.gausshermite(5)
+        expected_coeffs = expected_coeffs .* exp.(expected_supps.^2)
+        @test all(measure_data(meas9).supports .== expected_supps)
+        @test all(measure_data(meas9).coefficients .== expected_coeffs)
+
+
         # test errors
         @test_throws ErrorException measure(x)
         @test_throws ErrorException measure(inf, ParameterRef[])
@@ -630,6 +665,7 @@ end
         @test_throws ErrorException measure(inf2, par, 0.5, 0.)
         @test_throws ErrorException measure(inf8, use_existing_supports = true)
         @test_throws ErrorException measure(meas1)
+        @test_throws ErrorException measure(inf4, pars1, eval_method = Quad)
     end
     # test support_sum
     @testset "support_sum" begin
