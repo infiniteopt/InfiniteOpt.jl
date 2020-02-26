@@ -13,6 +13,7 @@ JuMP.Model
 JuMP.Model()
 JuMP.Model(::Any)
 JuMP.NoOptimizer
+JuMP.optimizer_with_attributes(::Any, ::Pair)
 ```
 
 ## Variables
@@ -73,7 +74,7 @@ JuMP.objective_sense(::JuMP.Model)
 JuMP.set_objective_coefficient(::JuMP.Model, ::JuMP.VariableRef, ::Real)
 ```
 
-## Constraints
+## [Constraints] (@id jump_constrs)
 ```@docs
 JuMP.ScalarConstraint
 JuMP.add_constraint(::JuMP.Model, ::JuMP.AbstractConstraint, ::String)

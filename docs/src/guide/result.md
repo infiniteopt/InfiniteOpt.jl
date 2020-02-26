@@ -81,7 +81,7 @@ julia> objective_value(model)
 83.99999998250514
 ```
 Great now we can inquire about variable values via
-[`value`](@ref JuMP.value(::GeneralVariableRef)). First, let's retrieve the value
+[`value`](@ref JuMP.value(::InfOptVariableRef)). First, let's retrieve the value
 of `z`:
 ```jldoctest results
 julia> value(z)
@@ -244,7 +244,7 @@ true
 ```
 So we have values readily available to be extracted.
 
-Now [`value`](@ref JuMP.value(::GeneralVariableRef)) can be used to query the
+Now [`value`](@ref JuMP.value(::InfOptVariableRef)) can be used to query the
 values as shown above in the Basic Usage section. This works by calling the
 appropriate [`map_value`](@ref) defined by the optimizer model. By default this,
 employs the `map_value` fallback which uses `optimizer_model_variable` to do the
@@ -252,7 +252,7 @@ mapping. Details on how to extend these methods for user-defined optimizer
 models is explained on the Extensions page.
 
 Finally, the optimizer index of a variable is queried via
-[`optimizer_index`](@ref JuMP.optimizer_index(::GeneralVariableRef)) which
+[`optimizer_index`](@ref JuMP.optimizer_index(::InfOptVariableRef)) which
 reports back the index of the variable as used in the `MathOptInterface`
 backend:
 ```jldoctest results
@@ -373,8 +373,36 @@ Similarly, the mapping to the transcription constraints is enabled via the
 appropriate version of [`map_shadow_price`](@ref).
 
 ## LP Sensitivity
-See [`lp_rhs_perturbation_range`](@ref JuMP.lp_rhs_perturbation_range(::GeneralConstraintRef))
-and [`lp_objective_perturbation_range`](@ref JuMP.lp_objective_perturbation_range(::GeneralVariableRef)).
+We also conduct sensitivity analysis for linear problems using
+[`lp_rhs_perturbation_range`](@ref JuMP.lp_rhs_perturbation_range(::GeneralConstraintRef))
+and [`lp_objective_perturbation_range`](@ref JuMP.lp_objective_perturbation_range(::GeneralVariableRef)). These methods will
+return the ranges indicating how much a constraint RHS constant or a objective
+coefficient can be changed without violating the feasibility of the solution.
+This is further explained in the JuMP documentation
+[here](https://www.juliaopt.org/JuMP.jl/stable/solutions/#Sensitivity-analysis-for-LP-1).
+Furthermore, these methods can only be employed for a solver that implements
+`MOI.ConstraintBasisStatus`. In our running example up above, `Ipopt.jl` does not
+support this A solver like `Gurobi.jl` does.
+```julia-repl
+julia> lp_rhs_perturbation_range(c1)
+10-element Array{Tuple{Float64,Float64},1}:
+ (-42.0, Inf)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+
+julia> lp_objective_perturbation_range(z)
+(-2.0, Inf)
+```
+Note that like other query methods, an array of ranges will be provided with
+testing the sensitivity of an infinite constraint RHS in accordance with the
+discretization scheme.
 
 ## Methods
 ```@index
@@ -394,9 +422,9 @@ JuMP.objective_bound(::InfiniteModel)
 JuMP.objective_value(::InfiniteModel)
 JuMP.dual_objective_value(::InfiniteModel)
 JuMP.result_count(::InfiniteModel)
-JuMP.value(::GeneralVariableRef)
+JuMP.value(::InfOptVariableRef)
 JuMP.value(::GeneralConstraintRef)
-JuMP.optimizer_index(::GeneralVariableRef)
+JuMP.optimizer_index(::InfOptVariableRef)
 JuMP.optimizer_index(::GeneralConstraintRef)
 JuMP.dual(::GeneralConstraintRef)
 JuMP.shadow_price(::GeneralConstraintRef)

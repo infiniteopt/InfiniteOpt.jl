@@ -80,10 +80,10 @@ Solver name: No optimizer attached.
 julia> print(trans_model)
 Min 2 z + g(support: 1) + g(support: 2) + g(support: 3)
 Subject to
- g(support: 1) = 1.0
- g(support: 1)² - z ≤ 42.0
- g(support: 2)² - z ≤ 42.0
- g(support: 3)² - z ≤ 42.0
+ initial(Support: 1) : g(support: 1) = 1.0
+ constr(Support: 1) : g(support: 1)² - z ≤ 42.0
+ constr(Support: 2) : g(support: 2)² - z ≤ 42.0
+ constr(Support: 3) : g(support: 3)² - z ≤ 42.0
  g(support: 1) ≥ 0.0
  g(support: 2) ≥ 0.0
  g(support: 3) ≥ 0.0
@@ -270,17 +270,17 @@ julia> trans_model = TranscriptionModel(inf_model);
 julia> print(trans_model)
 Min y(support: 1)² + y(support: 2)²
 Subject to
- y(support: 1) = 1.0
- g(support: 1) + g(support: 3) + g(support: 5) + g(support: 7) = 42.0
- g(support: 2) + g(support: 4) + g(support: 6) + g(support: 8) = 42.0
- y(support: 1)² + 3 g(support: 1) ≤ 2.0
- y(support: 2)² + 3 g(support: 2) ≤ 2.0
- y(support: 1)² + 3 g(support: 3) ≤ 2.0
- y(support: 2)² + 3 g(support: 4) ≤ 2.0
- y(support: 1)² + 3 g(support: 5) ≤ 2.0
- y(support: 2)² + 3 g(support: 6) ≤ 2.0
- y(support: 1)² + 3 g(support: 7) ≤ 2.0
- y(support: 2)² + 3 g(support: 8) ≤ 2.0
+ noname(Support: 1) : y(support: 1) = 1.0
+ noname(Support: 1) : g(support: 1) + g(support: 3) + g(support: 5) + g(support: 7) = 42.0
+ noname(Support: 2) : g(support: 2) + g(support: 4) + g(support: 6) + g(support: 8) = 42.0
+ noname(Support: 1) : y(support: 1)² + 3 g(support: 1) ≤ 2.0
+ noname(Support: 2) : y(support: 2)² + 3 g(support: 2) ≤ 2.0
+ noname(Support: 3) : y(support: 1)² + 3 g(support: 3) ≤ 2.0
+ noname(Support: 4) : y(support: 2)² + 3 g(support: 4) ≤ 2.0
+ noname(Support: 5) : y(support: 1)² + 3 g(support: 5) ≤ 2.0
+ noname(Support: 6) : y(support: 2)² + 3 g(support: 6) ≤ 2.0
+ noname(Support: 7) : y(support: 1)² + 3 g(support: 7) ≤ 2.0
+ noname(Support: 8) : y(support: 2)² + 3 g(support: 8) ≤ 2.0
 ```
 This precisely matches what we found analytically. Note that the unique support
 combinations are determined automatically and are represented visually as

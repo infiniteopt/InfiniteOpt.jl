@@ -137,16 +137,16 @@ Using a `TranscriptionModel` this equivalent to calling
 ```jldoctest optimize
 julia> optimizer_model_constraint(c1) # infinite constraint
 10-element Array{ConstraintRef,1}:
- c1(Support: 1) : z - x(support: 1) >= 0.0
- c1(Support: 2) : z - x(support: 2) >= 0.0
- c1(Support: 3) : z - x(support: 3) >= 0.0
- c1(Support: 4) : z - x(support: 4) >= 0.0
- c1(Support: 5) : z - x(support: 5) >= 0.0
- c1(Support: 6) : z - x(support: 6) >= 0.0
- c1(Support: 7) : z - x(support: 7) >= 0.0
- c1(Support: 8) : z - x(support: 8) >= 0.0
- c1(Support: 9) : z - x(support: 9) >= 0.0
- c1(Support: 10) : z - x(support: 10) >= 0.0
+ c1(Support: 1) : z - x(support: 1) ≥ 0.0
+ c1(Support: 2) : z - x(support: 2) ≥ 0.0
+ c1(Support: 3) : z - x(support: 3) ≥ 0.0
+ c1(Support: 4) : z - x(support: 4) ≥ 0.0
+ c1(Support: 5) : z - x(support: 5) ≥ 0.0
+ c1(Support: 6) : z - x(support: 6) ≥ 0.0
+ c1(Support: 7) : z - x(support: 7) ≥ 0.0
+ c1(Support: 8) : z - x(support: 8) ≥ 0.0
+ c1(Support: 9) : z - x(support: 9) ≥ 0.0
+ c1(Support: 10) : z - x(support: 10) ≥ 0.0
 ```
 
 The purpose of this `optimizer_model` structure is to readily enable user-defined
@@ -176,7 +176,7 @@ We can also adjust the time limit in a solver independent fashion via
 are illustrated below:
 ```jldoctest optimize
 julia> set_time_limit_sec(model, 100)
-100.0
+100
 
 julia> time_limit_sec(model)
 100.0
