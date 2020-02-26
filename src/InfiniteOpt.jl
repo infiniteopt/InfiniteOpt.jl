@@ -3,11 +3,13 @@ module InfiniteOpt
 # Import the necessary packages.
 import JuMP
 import MathOptInterface
+import Distributions
+import Random
+import MutableArithmetics
+const _MA = MutableArithmetics
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 const JuMPC = JuMP.Containers
-import Distributions
-import Random
 
 # Import all of the datatpyes, methods, macros, and definitions.
 include("datatypes.jl")
@@ -15,6 +17,7 @@ include("parameters.jl")
 include("variables.jl")
 include("reduced_variables.jl")
 include("expressions.jl")
+include("mutable_arithmetics.jl")
 include("measures.jl")
 include("operators.jl")
 include("constraints.jl")
@@ -102,10 +105,12 @@ transcription_constraint, transcription_model
 
 # Export optimize methods
 export optimizer_model, set_optimizer_model, optimizer_model_ready,
-set_optimizer_model_ready, build_optimizer_model!, optimizer_model_key
+set_optimizer_model_ready, build_optimizer_model!, optimizer_model_key,
+optimizer_model_variable, optimizer_model_constraint
 
 # Export result query methods
-export map_value, map_optimizer_index, map_dual, map_shadow_price
+export map_value, map_optimizer_index, map_dual, map_shadow_price,
+map_lp_rhs_perturbation_range, map_lp_objective_perturbation_range
 
 # Export functions that will be included in future JuMP releases
 

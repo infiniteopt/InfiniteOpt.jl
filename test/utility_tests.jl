@@ -5,6 +5,7 @@
     # GenericAffExpr -> GenericAffExpr
     @testset "Aff->Aff" begin
         aff = x[1] - 3 * x[2] - 2
+        @test convert(GenericAffExpr{Float64, VariableRef}, aff) == aff
         @test typeof(convert(GenericAffExpr{Float64, AbstractVariableRef},
                            aff)) == GenericAffExpr{Float64, AbstractVariableRef}
         @test convert(GenericAffExpr{Float64, AbstractVariableRef},
@@ -15,6 +16,7 @@
     # GenericQuadExpr -> GenericQuadExpr
     @testset "Quad->Quad" begin
         quad = 2 * x[1] * x[2] + x[1] - 1
+        @test convert(GenericQuadExpr{Float64, VariableRef}, quad) == quad
         @test typeof(convert(GenericQuadExpr{Float64, AbstractVariableRef},
                          quad)) == GenericQuadExpr{Float64, AbstractVariableRef}
         @test convert(GenericQuadExpr{Float64, AbstractVariableRef},
@@ -27,6 +29,7 @@
     # UnorderedPair -> UnorderedPair
     @testset "UoPair->UoPair" begin
         pair = UnorderedPair(x[1], x[2])
+        @test convert(UnorderedPair{VariableRef}, pair) == pair
         @test typeof(convert(UnorderedPair{AbstractVariableRef},
                                     pair)) == UnorderedPair{AbstractVariableRef}
         @test convert(UnorderedPair{AbstractVariableRef}, pair).a == pair.a

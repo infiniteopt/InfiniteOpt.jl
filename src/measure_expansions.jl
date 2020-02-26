@@ -328,7 +328,6 @@ function _expand_measure(expr, data, trans_model::JuMP.AbstractModel,
     error("Undefined behavior to expand expression of type $expr_type with " *
           "measure data $data_type. If this functionality is needed consider " *
           "extending `_expand_measure`.")
-    return
 end
 
 # Map temp point variable references to actual variables by adding a variable to

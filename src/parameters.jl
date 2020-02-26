@@ -95,7 +95,6 @@ function _constructor_set(_error::Function, info::_ParameterInfoExpr)
     else
         _error("Must specify upper/lower bounds, a distribution, or a set")
     end
-    return
 end
 
 # Check that supports don't violate the set bounds
@@ -308,7 +307,6 @@ end
 # Fallback
 function _check_param_in_data(pref::ParameterRef, data::T) where {T}
     error("Unable to delete parameters when using measure data type $T.")
-    return
 end
 
 ## Determine if a tuple element contains a particular parameter
@@ -1158,9 +1156,9 @@ function fill_in_supports!(pref::ParameterRef; num_supports::Int = 50,
     p = JuMP.owner_model(pref).params[JuMP.index(pref)]
     if length(p.supports) == 0
         _generate_supports(pref, p.set, num_supports = num_supports, sig_fig = sig_fig)
-    else
-#        @warn("No supports generated for $(pref) since $(pref) has existing " *
-#              "supports.")
+    # else
+        # @warn("No supports generated for $(pref) since $(pref) has existing " *
+        #       "supports.")
     end
     return
 end
@@ -1328,7 +1326,6 @@ function parameter_by_name(model::InfiniteModel,
     else
         return ParameterRef(model, index)
     end
-    return
 end
 
 """

@@ -291,7 +291,7 @@ And data, a 3-element Array{HoldVariableRef,1}:
  d[Z]
 
 julia> var_refs3 = @hold_variable(model, [i=1:2, j=i:2], base_name = "d")
-JuMP.Containers.SparseAxisArray{HoldVariableRef,2,Tuple{Any,Any}} with 3 entries:
+JuMP.Containers.SparseAxisArray{HoldVariableRef,2,Tuple{Int64,Int64}} with 3 entries:
   [1, 2]  =  d[1,2]
   [2, 2]  =  d[2,2]
   [1, 1]  =  d[1,1]

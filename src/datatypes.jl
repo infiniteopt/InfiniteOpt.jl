@@ -126,10 +126,10 @@ model an optmization problem with an infinite dimensional decision space.
 - `objective_sense::MOI.OptimizationSense` Objective sense.
 - `objective_function::JuMP.AbstractJuMPScalar` Finite scalar function.
 - `obj_dict::Dict{Symbol, Any}` Store Julia symbols used with `InfiniteModel`
-- `optimizer_factory::Union{JuMP.OptimizerFactory, Nothing}` Optimizer
-                                                             information.
+- `optimizer_constructor` MOI optimizer constructor (e.g., Gurobi.Optimizer).
 - `optimizer_model::JuMP.Model` Model used to solve `InfiniteModel`
 - `ready_to_optimize::Bool` Is the optimizer_model up to date.
+- `ext::Dict{Symbol, Any}` Store abitrary extension information.
 """
 mutable struct InfiniteModel <: JuMP.AbstractModel
     # Measure Data
@@ -188,19 +188,23 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     obj_dict::Dict{Symbol, Any}
 
     # Optimize Data
-    optimizer_factory::Union{JuMP.OptimizerFactory, Nothing}
+    optimizer_constructor
     optimizer_model::JuMP.Model
     ready_to_optimize::Bool
+
+    # Extensions
+    ext::Dict{Symbol, Any}
 end
 
 """
-    InfiniteModel([optimizer_factory::JuMP.OptimizerFactory];
-                  [caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
+    InfiniteModel([optimizer_constructor; seed = false,
+                  caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
                   bridge_constraints::Bool = true])
 
 Return a new infinite model where an optimizer is specified if an
-`optimizer_factory` is given via [`JuMP.with_optimizer`](@ref). The optimizer
-can also later be set with the [`JuMP.optimize!`](@ref) call. By default
+`optimizer_constructor` is given. The `seed` argument indicates if the stochastic
+sampling used in conjunction with the model should be seeded. The optimizer
+can also later be set with the [`JuMP.set_optimizer`](@ref) call. By default
 the `optimizer_model` data field is initialized with a
 [`TranscriptionModel`](@ref), but a different type of model can be assigned via
 [`set_optimizer_model`](@ref) as can be required by extensions.
@@ -218,7 +222,7 @@ Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
 
-julia> model = InfiniteModel(with_optimizer(Ipopt.Optimizer))
+julia> model = InfiniteModel(Ipopt.Optimizer)
 An InfiniteOpt Model
 Feasibility problem with:
 Variables: 0
@@ -260,14 +264,30 @@ function InfiniteModel(; seed = false, kwargs...)
                          # Object dictionary
                          Dict{Symbol, Any}(),
                          # Optimize data
-                         nothing, TranscriptionModel(;kwargs...), false)
+                         nothing, TranscriptionModel(;kwargs...), false,
+                         # Extensions
+                         Dict{Symbol, Any}())
+end
+
+## Set the optimizer_constructor depending on what it is
+# MOI.OptimizerWithAttributes
+function _set_optimizer_constructor(model::InfiniteModel,
+                                    constructor::MOI.OptimizerWithAttributes)
+    model.optimizer_constructor = constructor.optimizer_constructor
+    return
+end
+
+# No attributes
+function _set_optimizer_constructor(model::InfiniteModel, constructor)
+    model.optimizer_constructor = constructor
+    return
 end
 
 # Dispatch for InfiniteModel call with optimizer factory
-function InfiniteModel(optimizer_factory::JuMP.OptimizerFactory; kwargs...)
-    model = InfiniteModel()
-    model.optimizer_factory = optimizer_factory
-    model.optimizer_model = TranscriptionModel(optimizer_factory; kwargs...)
+function InfiniteModel(optimizer_constructor; seed = false, kwargs...)
+    model = InfiniteModel(seed = seed)
+    model.optimizer_model = TranscriptionModel(optimizer_constructor; kwargs...)
+    _set_optimizer_constructor(model, optimizer_constructor)
     return model
 end
 

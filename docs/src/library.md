@@ -1,18 +1,9 @@
 # Source Code Library
 
 ## Infinite Models
-### Datatypes
 ```@index
 Pages   = ["guide/model.md"]
 Modules = [InfiniteOpt]
-Order   = [:type]
-```
-
-### Methods
-```@index
-Pages   = ["guide/model.md"]
-Modules = [InfiniteOpt]
-Order   = [:function]
 ```
 
 ## Infinite Parameters
@@ -87,7 +78,7 @@ Order   = [:macro, :function]
 ### Datatypes
 ```@index
 Pages   = ["guide/transcribe.md"]
-Modules = [InfiniteOpt]
+Modules = [InfiniteOpt, InfiniteOpt.TranscriptionOpt]
 Order   = [:type]
 ```
 

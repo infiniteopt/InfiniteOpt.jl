@@ -1615,7 +1615,6 @@ function JuMP.variable_by_name(model::InfiniteModel,
     else
         return _make_variable_ref(model, index)
     end
-    return
 end
 
 """

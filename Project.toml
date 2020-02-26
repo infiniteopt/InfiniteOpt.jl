@@ -10,10 +10,12 @@ MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
+MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 
 [compat]
 julia = "1"
-JuMP = "≥ 0.20"
+JuMP = "≥ 0.21.0"
+FastGaussQuadrature = "≥ 0.3.2"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

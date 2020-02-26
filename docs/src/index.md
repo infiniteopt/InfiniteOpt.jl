@@ -44,7 +44,7 @@ using InfiniteOpt, JuMP, Ipopt, Distributions
 n_z, n_θ, n_d = 3, 3, 3
 
 # Initialize the model
-m = InfiniteModel(with_optimizer(Ipopt.Optimizer))
+m = InfiniteModel(Ipopt.Optimizer)
 
 # Set the uncertainty parameters
 dist = MvNormal(θ_nom, covar)
