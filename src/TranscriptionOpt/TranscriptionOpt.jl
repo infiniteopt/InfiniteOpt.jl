@@ -10,7 +10,6 @@ using ..InfiniteOpt
 include("model.jl")
 include("transcribe.jl")
 include("optimize.jl")
-include("results.jl")
 
 # Export transcription datatypes
 export TranscriptionData, TranscriptionModel

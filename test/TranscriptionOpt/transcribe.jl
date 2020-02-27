@@ -418,7 +418,8 @@ end
         # test without bounds
         expr = x0^2 + 2 * z * y0 - par * x + w * par + 2 * par^2 - 2par + meas1 - 3
         expected = ([a^2 + 2 * c * b + a + e - 2d - 3,
-                     a^2 + 2 * c * b + a + 0e - d - 3], (par,), [(0,), (1,)])
+                     a^2 + 2 * c * b + a + 2e - d - 3], (par,), [(0,), (1,)])
+        expected[1][2].aff.terms[e] = 0. # hack to get 0e
         @test IOTO._make_transcription_function(expr, tm) == expected
         # test without bounds
         bounds = Dict(par => IntervalSet(0.5, 1))
@@ -872,8 +873,7 @@ end
     @test tm.ext[:TransData].infconstr_to_params[BinaryRef(y)] == parameter_refs(y)
     @test tm.ext[:TransData].infconstr_to_supports[BinaryRef(y)] == supports(y)[2:end]
     # test with solver
-    mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   MOIU.Model{Float64}(),
-                                   eval_objective_value=false)
+    mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                             eval_objective_value=false)
     @test isa(set_optimizer_model(m, TranscriptionModel(m, mockoptimizer)), Nothing)
 end

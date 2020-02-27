@@ -61,7 +61,7 @@ an additional argument before the constraint expression. For example,
 let's define ``3z[i] - 14 == 0, \forall i \in \{1,2\}``:
 ```jldoctest constrs
 julia> crefs = @constraint(model, [i = 1:2], 3z[i] - 14 == 0)
-2-element Array{GeneralConstraintRef,1}:
+2-element Array{FiniteConstraintRef{ScalarShape},1}:
  3 z[1] = 14.0
  3 z[2] = 14.0
 ```
@@ -99,7 +99,7 @@ the second argument. To illustrate this, let's define an anonymous constraint
 for ``2T^2(t, x) + w \geq 3, \ \forall t = 0, \ x \in [-1, 1]^2``:
 ```jldoctest constrs
 julia> cref = @BDconstraint(model, (t == 0, x in [-1, 1]), 2T^2 + w >= 3)
-2 T(t, x)² + w ≥ 3.0, ∀ x[2] ∈ [-1, 1], t = 0, x[1] ∈ [-1, 1]
+2 T(t, x)² + w ≥ 3.0,  ∀ x[2] ∈ [-1, 1], x[1] ∈ [-1, 1], t = 0
 ```
 where `cref` contains the corresponding constraint reference.
 
@@ -186,18 +186,18 @@ The indexing expression can be used to produce an array of constraints as shown
 below (notice this is equivalent to looping over individual `@constraint` calls):
 ```jldoctest constrs
 julia> crefs = @constraint(model, [i = 1:2], 2z[i] - g == 0)
-2-element Array{GeneralConstraintRef,1}:
+2-element Array{InfiniteConstraintRef{ScalarShape},1}:
  2 z[1] - g(t) = 0.0
  2 z[2] - g(t) = 0.0
 
-julia> crefs = Vector{GeneralConstraintRef}(undef, 2);
+julia> crefs = Vector{InfiniteConstraintRef{ScalarShape}}(undef, 2);
 
 julia> for i = 1:2
            crefs[i] = @constraint(model, 2z[i] - g == 0)
        end
 
 julia> crefs
-2-element Array{GeneralConstraintRef,1}:
+2-element Array{InfiniteConstraintRef{ScalarShape},1}:
  2 z[1] - g(t) = 0.0
  2 z[2] - g(t) = 0.0
 ```
@@ -247,7 +247,7 @@ references to be stored in a `JuMP.SparseAxisArray`:
 ```jldoctest constrs
 julia> @BDconstraint(model, [i = 1:2](x[i] == 0), T^2 + z[i] <= 1,
                      container = SparseAxisArray)
-JuMP.Containers.SparseAxisArray{GeneralConstraintRef,1,Tuple{Any}} with 2 entries:
+JuMP.Containers.SparseAxisArray{InfiniteConstraintRef{ScalarShape},1,Tuple{Int64}} with 2 entries:
   [2]  =  T(t, x)² + z[2] ≤ 1.0, ∀ x[2] = 0
   [1]  =  T(t, x)² + z[1] ≤ 1.0, ∀ x[1] = 0
 ```

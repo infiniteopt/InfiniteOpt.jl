@@ -7,14 +7,13 @@ end
 # Test basic definition and queries
 @testset "Basic Definition and Queries" begin
     # initialize needed data
-    mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   MOIU.Model{Float64}(),
-                                   eval_objective_value=false)
-    # test TranscriptionModel (no factory)
+    mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                             eval_objective_value=false)
+    # test TranscriptionModel (no optimizer)
     @testset "TranscriptionModel (Default)" begin
         @test haskey(TranscriptionModel().ext, :TransData)
     end
-    # test TranscriptionModel (with factory)
+    # test TranscriptionModel (with optimizer)
     @testset "TranscriptionModel (Optimizer)" begin
         @test haskey(TranscriptionModel(mockoptimizer).ext, :TransData)
     end
@@ -71,6 +70,12 @@ end
         @test transcription_variable(y) == a
         @test transcription_variable(x) == [b, c]
         @test transcription_variable(x0) == b
+    end
+    # test optimizer_model_variable extension
+    @testset "optimizer_model_variable" begin
+        @test optimizer_model_variable(y, Val(:TransData)) == a
+        @test optimizer_model_variable(x, Val(:TransData)) == [b, c]
+        @test optimizer_model_variable(x0, Val(:TransData)) == b
     end
     # test supports for infinite variable with 2 inputs
     @testset "supports (Model, Infinite Variable)" begin
@@ -141,6 +146,12 @@ end
         @test transcription_constraint(c1) == [tc1, tc2]
         @test transcription_constraint(c2) == [tc3]
         @test transcription_constraint(c3) == tc4
+    end
+    # test optimizer_model_constraint extension
+    @testset "optimizer_model_constraint" begin
+        @test optimizer_model_constraint(c1, Val(:TransData)) == [tc1, tc2]
+        @test optimizer_model_constraint(c2, Val(:TransData)) == [tc3]
+        @test optimizer_model_constraint(c3, Val(:TransData)) == tc4
     end
     # test supports for infinite constraint with 2 inputs
     @testset "supports (Model, Infinite)" begin

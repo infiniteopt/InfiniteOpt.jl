@@ -1,5 +1,3 @@
-# include("C:/Users/pulsipher/.julia/dev/InfiniteOpt/test/runtests.jl")
-
 using InfiniteOpt, JuMP, MathOptInterface, Distributions
 const MOI = MathOptInterface
 const MOIU = MathOptInterface.Utilities
@@ -10,6 +8,8 @@ using Random
 const MEM = InfiniteOpt.MeasureEvalMethods
 using FastGaussQuadrature
 const FGQ = FastGaussQuadrature
+using MutableArithmetics
+const MA = MutableArithmetics
 
 include("utilities.jl")
 
@@ -38,6 +38,10 @@ println("")
 println("")
 @time @testset "Expression Methods" begin include("expressions.jl") end
 println("")
+@time @testset "MutableArithmetics Methods" begin include("mutable_arithmetics.jl") end
+println("")
+@time @testset "Macro Expressions" begin include("macro_expressions.jl") end
+println("")
 @time @testset "Measure Evaluation Methods" begin
     include("MeasureEvalMethods/methods.jl")
 end
@@ -58,7 +62,6 @@ println("")
     @testset "Model" begin include("TranscriptionOpt/model.jl") end
     @testset "Transcribe" begin include("TranscriptionOpt/transcribe.jl") end
     @testset "Optimize" begin include("TranscriptionOpt/optimize.jl") end
-    @testset "Results" begin include("TranscriptionOpt/results.jl") end
 end
 println("")
 @time @testset "Solution Methods" begin include("optimizer.jl") end

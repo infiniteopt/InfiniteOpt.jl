@@ -33,9 +33,14 @@ end
 # Test JuMP extensions
 @testset "JuMP Extensions" begin
     m = InfiniteModel()
-    mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   MOIU.Model{Float64}(),
-                                   eval_objective_value=false)
+    mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                             eval_objective_value=false)
+     # set_optimizer
+     @testset "JuMP.set_optimizer" begin
+         m2 = InfiniteModel()
+         @test isa(set_optimizer(m2, mockoptimizer), Nothing)
+         @test m2.optimizer_constructor == mockoptimizer
+     end
     # bridge_constraints
     @testset "JuMP.bridge_constraints" begin
         @test !bridge_constraints(m)
@@ -47,25 +52,59 @@ end
         # @test isa(add_bridge(m, TestBridge), Nothing)
         @test isa(add_bridge(m, MOI.Bridges.Variable.VectorizeBridge), Nothing)
     end
-    # set_optimizer
-    @testset "JuMP.set_optimizer" begin
-        m2 = InfiniteModel()
-        @test isa(set_optimizer(m2, mockoptimizer), Nothing)
-    end
     # set_silent
     @testset "JuMP.set_silent" begin
-        m2 = InfiniteModel()
-        @test set_silent(m2)
+        @test set_silent(m)
     end
     # unset_silent
     @testset "JuMP.unset_silent" begin
-        m2 = InfiniteModel()
-        @test !unset_silent(m2)
+        @test !unset_silent(m)
     end
-    # set_parameter
-    @testset "JuMP.set_parameter" begin
-        m2 = InfiniteModel()
-        @test set_parameter(m2, "setting", 42) == 42
+    # set_time_limit_sec
+    @testset "JuMP.set_time_limit_sec" begin
+        @test set_time_limit_sec(m, 100) == 100
+    end
+    # unset_time_limit_sec
+    @testset "JuMP.unset_time_limit_sec" begin
+        @test isa(unset_time_limit_sec(m), Nothing)
+    end
+    # time_limit_sec
+    @testset "JuMP.time_limit_sec" begin
+        @test time_limit_sec(m) == nothing
+    end
+    # set_optimizer_attribute
+    @testset "JuMP.set_optimizer_attribute (String)" begin
+        @test set_optimizer_attribute(m, "mine", 42) == 42
+    end
+    # set_optimizer_attribute
+    @testset "JuMP.set_optimizer_attribute (MOI)" begin
+        @test set_optimizer_attribute(m, MOI.Silent(), true)
+    end
+    # set_optimizer_attributes
+    @testset "JuMP.set_optimizer_attributes" begin
+        @test isa(set_optimizer_attributes(m, MOI.Silent() => false, "mine" => 1), Nothing)
+        @test !MOI.get(optimizer_model(m), MOI.Silent())
+        @test MOI.get(optimizer_model(m), MOI.RawParameter("mine")) == 1
+    end
+    # get_optimizer_attribute
+    @testset "JuMP.get_optimizer_attribute (String)" begin
+        @test get_optimizer_attribute(m, "mine") == 1
+    end
+    # get_optimizer_attribute
+    @testset "JuMP.get_optimizer_attribute (MOI)" begin
+        @test !get_optimizer_attribute(m, MOI.Silent())
+    end
+    # solver_name
+    @testset "JuMP.solver_name" begin
+        @test solver_name(m) == "Mock"
+    end
+    # backend
+    @testset "JuMP.backend" begin
+        @test backend(m) == backend(optimizer_model(m))
+    end
+    # mode
+    @testset "JuMP.mode" begin
+        @test JuMP.mode(m) == JuMP.mode(optimizer_model(m))
     end
     # solve
     @testset "solve" begin

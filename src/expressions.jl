@@ -90,16 +90,6 @@ function JuMP.add_to_expression!(quad::JuMP.GenericQuadExpr, new_coef::Number,
     return quad
 end
 
-## Extend destructive_add! as needed
-# Variable, constant, variable
-function JuMP.destructive_add!(ex::Z, c::C, x::V
-                               )::JuMP.GenericAffExpr where {Z <: GeneralVariableRef,
-                                                             V <: GeneralVariableRef,
-                                                             C <: JuMP.Constant}
-    type = _var_type_parser(Z, V)
-    return JuMP.GenericAffExpr{C, type}(0.0, ex => 1.0, x => JuMP._float(c))
-end
-
 ## Extend for better comparisons than default
 # GenericAffExpr
 function Base.:(==)(aff1::JuMP.GenericAffExpr{C, V},
@@ -148,7 +138,6 @@ end
 # Fallback
 function _all_function_variables(f)
     error("Can only use InfiniteOpt variables and expressions.")
-    return
 end
 
 ## Return a tuple of the parameter references in an expr

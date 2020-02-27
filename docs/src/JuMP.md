@@ -11,9 +11,9 @@ end
 ```@docs
 JuMP.Model
 JuMP.Model()
-JuMP.Model(::OptimizerFactory)
-JuMP.with_optimizer
+JuMP.Model(::Any)
 JuMP.NoOptimizer
+JuMP.optimizer_with_attributes(::Any, ::Pair)
 ```
 
 ## Variables
@@ -74,7 +74,7 @@ JuMP.objective_sense(::JuMP.Model)
 JuMP.set_objective_coefficient(::JuMP.Model, ::JuMP.VariableRef, ::Real)
 ```
 
-## Constraints
+## [Constraints] (@id jump_constrs)
 ```@docs
 JuMP.ScalarConstraint
 JuMP.add_constraint(::JuMP.Model, ::JuMP.AbstractConstraint, ::String)
@@ -97,10 +97,43 @@ JuMP.PSDCone
 
 ## Optimization
 ```@docs
-JuMP.optimize!(::JuMP.Model, ::Union{Nothing, JuMP.OptimizerFactory})
-JuMP.set_parameter(::JuMP.Model, ::Any, ::Any)
+JuMP.optimize!(::JuMP.Model, ::Any)
 JuMP.set_silent(::JuMP.Model)
 JuMP.unset_silent(::JuMP.Model)
+JuMP.set_time_limit_sec(::JuMP.Model, ::Any)
+JuMP.unset_time_limit_sec(::JuMP.Model)
+JuMP.time_limit_sec(::JuMP.Model)
 JuMP.bridge_constraints(::JuMP.Model)
 JuMP.add_bridge(::JuMP.Model, ::Type{<:MOI.Bridges.AbstractBridge})
+JuMP.backend(::JuMP.Model)
+JuMP.mode(::JuMP.Model)
+JuMP.solver_name(::JuMP.Model)
+JuMP.set_optimizer_attribute(::JuMP.Model, ::String, ::Any)
+JuMP.set_optimizer_attribute(::JuMP.Model, ::MOI.AbstractOptimizerAttribute, ::Any)
+JuMP.set_optimizer_attributes(::JuMP.Model, ::Pair)
+JuMP.get_optimizer_attribute(::JuMP.Model, ::String)
+JuMP.get_optimizer_attribute(::JuMP.Model, ::MOI.AbstractOptimizerAttribute)
+JuMP.result_count(::JuMP.Model)
+```
+
+## Queries
+```@docs
+JuMP.termination_status(::JuMP.Model)
+JuMP.raw_status(::JuMP.Model)
+JuMP.primal_status(::JuMP.Model)
+JuMP.dual_status(::JuMP.Model)
+JuMP.solve_time(::JuMP.Model)
+JuMP.has_values(::JuMP.Model)
+JuMP.has_duals(::JuMP.Model)
+JuMP.objective_bound(::JuMP.Model)
+JuMP.objective_value(::JuMP.Model)
+JuMP.dual_objective_value(::JuMP.Model)
+JuMP.value(::JuMP.VariableRef)
+JuMP.value(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON})
+JuMP.dual(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON})
+JuMP.shadow_price(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON})
+JuMP.optimizer_index(::JuMP.VariableRef)
+JuMP.optimizer_index(::JuMP.ConstraintRef{JuMP.Model})
+JuMP.lp_rhs_perturbation_range(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON})
+JuMP.lp_objective_perturbation_range(::JuMP.VariableRef)
 ```

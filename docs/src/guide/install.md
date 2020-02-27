@@ -49,7 +49,7 @@ Now Ipopt can be used as the optimizer (solver) for an infinite model by running
 ```julia-repl
 julia> using InfiniteOpt, JuMP, Ipopt
 
-julia> model = InfiniteModel(with_optimizer(Ipopt.Optimizer))
+julia> model = InfiniteModel(Ipopt.Optimizer)
 ```
 Most solver packages follow the `ModuleName.Optimizer` naming convention, but
 this may not always be the case. See [Infinite Models](@ref infinite_model_docs)

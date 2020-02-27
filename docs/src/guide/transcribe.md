@@ -19,7 +19,7 @@ which provide the default transcription (reformulation) capabilities of
 ## Basic Usage
 Most users will not need to employ the capabilities of `TranscriptionOpt` directly
 since they are employed implicitly with the call of
-[`optimize!`](@ref JuMP.optimize!(::InfiniteModel, ::Union{Nothing, JuMP.OptimizerFactory}))
+[`optimize!`](@ref JuMP.optimize!(::InfiniteModel))
 on an infinite model. This occurs since `TranscriptionModel`s are the default
 optimizer model type that is employed.
 
@@ -80,10 +80,10 @@ Solver name: No optimizer attached.
 julia> print(trans_model)
 Min 2 z + g(support: 1) + g(support: 2) + g(support: 3)
 Subject to
- g(support: 1) = 1.0
- g(support: 1)² - z ≤ 42.0
- g(support: 2)² - z ≤ 42.0
- g(support: 3)² - z ≤ 42.0
+ initial(Support: 1) : g(support: 1) = 1.0
+ constr(Support: 1) : g(support: 1)² - z ≤ 42.0
+ constr(Support: 2) : g(support: 2)² - z ≤ 42.0
+ constr(Support: 3) : g(support: 3)² - z ≤ 42.0
  g(support: 1) ≥ 0.0
  g(support: 2) ≥ 0.0
  g(support: 3) ≥ 0.0
@@ -270,17 +270,17 @@ julia> trans_model = TranscriptionModel(inf_model);
 julia> print(trans_model)
 Min y(support: 1)² + y(support: 2)²
 Subject to
- y(support: 1) = 1.0
- g(support: 1) + g(support: 3) + g(support: 5) + g(support: 7) = 42.0
- g(support: 2) + g(support: 4) + g(support: 6) + g(support: 8) = 42.0
- y(support: 1)² + 3 g(support: 1) ≤ 2.0
- y(support: 2)² + 3 g(support: 2) ≤ 2.0
- y(support: 1)² + 3 g(support: 3) ≤ 2.0
- y(support: 2)² + 3 g(support: 4) ≤ 2.0
- y(support: 1)² + 3 g(support: 5) ≤ 2.0
- y(support: 2)² + 3 g(support: 6) ≤ 2.0
- y(support: 1)² + 3 g(support: 7) ≤ 2.0
- y(support: 2)² + 3 g(support: 8) ≤ 2.0
+ noname(Support: 1) : y(support: 1) = 1.0
+ noname(Support: 1) : g(support: 1) + g(support: 3) + g(support: 5) + g(support: 7) = 42.0
+ noname(Support: 2) : g(support: 2) + g(support: 4) + g(support: 6) + g(support: 8) = 42.0
+ noname(Support: 1) : y(support: 1)² + 3 g(support: 1) ≤ 2.0
+ noname(Support: 2) : y(support: 2)² + 3 g(support: 2) ≤ 2.0
+ noname(Support: 3) : y(support: 1)² + 3 g(support: 3) ≤ 2.0
+ noname(Support: 4) : y(support: 2)² + 3 g(support: 4) ≤ 2.0
+ noname(Support: 5) : y(support: 1)² + 3 g(support: 5) ≤ 2.0
+ noname(Support: 6) : y(support: 2)² + 3 g(support: 6) ≤ 2.0
+ noname(Support: 7) : y(support: 1)² + 3 g(support: 7) ≤ 2.0
+ noname(Support: 8) : y(support: 2)² + 3 g(support: 8) ≤ 2.0
 ```
 This precisely matches what we found analytically. Note that the unique support
 combinations are determined automatically and are represented visually as
@@ -348,7 +348,7 @@ constructors such as specifying the optimizer. The first constructor is what
 `InfiniteOpt` uses to initialize the default `optimizer_model` attribute of
 `InfiniteModel`s. The second constructor is used to build the optimizer model
 when [`build_optimizer_model!`](@ref) is called directly or by
-[`optimize!`](@ref JuMP.optimize!(::InfiniteModel, ::Union{Nothing, JuMP.OptimizerFactory})).
+[`optimize!`](@ref JuMP.optimize!(::InfiniteModel)).
 Thus, second constructor serves as the principle tool for transcribing infinite
 models as it encapsulates all of the methods to transcribe measures, variables,
 and constraints.
@@ -416,7 +416,7 @@ julia> supports(trans_model, g)
 Again, the first argument can be dropped if this the `TranscriptionModel` of
 interest is stored in the `optimizer_model` field of the `InfiniteModel` as is
 the case when [`build_optimizer_model!`](@ref) or
-[`optimize!`](@ref JuMP.optimize!(::InfiniteModel, ::Union{Nothing, JuMP.OptimizerFactory}))
+[`optimize!`](@ref JuMP.optimize!(::InfiniteModel))
 is invoked.
 
 Likewise, [`transcription_constraint`](@ref) and
@@ -447,13 +447,15 @@ Order   = [:function]
 transcription_model
 build_optimizer_model!(::InfiniteModel,::Val{:TransData})
 TranscriptionModel()
-TranscriptionModel(::InfiniteModel)
+TranscriptionModel(::InfiniteModel, ::Any)
 is_transcription_model
 transcription_data
 transcription_variable
+InfiniteOpt.optimizer_model_variable(::InfiniteOpt.InfOptVariableRef, ::Val{:TransData})
 InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteVariableRef)
 InfiniteOpt.supports(::InfiniteOpt.InfiniteVariableRef)
 transcription_constraint
+InfiniteOpt.optimizer_model_constraint(::InfiniteOpt.GeneralConstraintRef, ::Val{:TransData})
 InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef)
 InfiniteOpt.supports(::InfiniteOpt.InfiniteConstraintRef)
 InfiniteOpt.parameter_refs(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef)

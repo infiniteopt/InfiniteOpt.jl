@@ -111,15 +111,15 @@ end
 
 """
     JuMP.set_optimizer(model::InfiniteModel,
-                       optimizer_factory::JuMP.OptimizerFactory;
-                       bridge_constraints::Bool=true)
+                       [optimizer_constructor;
+                       bridge_constraints::Bool = true])
 
 Extend `JuMP.set_optimizer` to set optimizer of infinite models.
 Specifically, the optimizer of the optimizer model is modified.
 
 **Example**
 ```julia-repl
-julia> set_optimizer(model, with_optimizer(Clp.Optimizer))
+julia> set_optimizer(model, Clp.Optimizer)
 
 julia> optimizer_model(model)
 A JuMP Model
@@ -131,10 +131,11 @@ Solver name: SolverName() attribute not implemented by the optimizer.
 ```
 """
 function JuMP.set_optimizer(model::InfiniteModel,
-                            optimizer_factory::JuMP.OptimizerFactory;
-                            bridge_constraints::Bool=true)
-    JuMP.set_optimizer(optimizer_model(model), optimizer_factory,
+                            optimizer_constructor;
+                            bridge_constraints::Bool = true)
+    JuMP.set_optimizer(optimizer_model(model), optimizer_constructor,
                        bridge_constraints = bridge_constraints)
+    _set_optimizer_constructor(model, optimizer_constructor)
     return
 end
 
@@ -159,7 +160,7 @@ end
     JuMP.unset_silent(model::InfiniteModel)
 
 Extend [`JuMP.unset_silent`](@ref JuMP.unset_silent(::JuMP.Model)) for infinite
-models to Neutralize the effect of the
+models to neutralize the effect of the
 `set_silent` function and let the solver attributes control the verbosity.
 
 **Example**
@@ -173,18 +174,149 @@ function JuMP.unset_silent(model::InfiniteModel)
 end
 
 """
-    JuMP.set_parameter(model::InfiniteModel, name, value)
+    JuMP.set_time_limit_sec(model::InfiniteModel, limit)
 
-Sets solver-specific parameter identified by `name` to `value`.
+Extend [`set_time_limit_sec`](@ref JuMP.set_time_limit_sec(::JuMP.Model, ::Any))
+to set the time limit (in seconds) of the solver.
+Can be unset using `unset_time_limit_sec` or with `limit` set to `nothing`.
 
 **Example**
 ```julia-repl
-julia> set_parameter(model, "max_cpu_time", 60.) # using Ipopt
-60.0
+julia> set_time_limit_sec(model, 100)
+100
 ```
 """
-function JuMP.set_parameter(model::InfiniteModel, name::Any, value::Any)
-    return JuMP.set_parameter(optimizer_model(model), name, value)
+function JuMP.set_time_limit_sec(model::InfiniteModel, limit)
+    return JuMP.set_time_limit_sec(optimizer_model(model), limit)
+end
+
+"""
+    JuMP.unset_time_limit_sec(model::InfiniteModel)
+
+Extend [`unset_time_limit_sec`](@ref JuMP.unset_time_limit_sec(::JuMP.Model)) to
+unset the time limit of the solver. Can be set using `set_time_limit_sec`.
+
+**Example**
+```julia-repl
+julia> unset_time_limit_sec(model)
+```
+"""
+function JuMP.unset_time_limit_sec(model::InfiniteModel)
+    return JuMP.unset_time_limit_sec(optimizer_model(model))
+end
+
+"""
+    JuMP.time_limit_sec(model::InfiniteModel)
+
+Extend [`time_limit_sec`](@ref JuMP.time_limit_sec(::JuMP.Model) to get the time
+limit (in seconds) of the solve used by the optimizer model (`nothing` if unset).
+Can be set using `set_time_limit_sec`.
+
+**Example**
+```julia-repl
+julia> time_limit_sec(model)
+100
+```
+"""
+function JuMP.time_limit_sec(model::InfiniteModel)
+    return JuMP.time_limit_sec(optimizer_model(model))
+end
+
+"""
+    JuMP.set_optimizer_attribute(model::InfiniteModel, name::String, value)
+
+Extend [`set_optimizer_attribute`](@ref JuMP.set_optimizer_attribute(::JuMP.Model, ::String, ::Any))
+to specify a solver-specific attribute identified by `name` to `value`.
+
+**Example**
+```julia-repl
+julia> set_optimizer_attribute(model, "SolverSpecificAttributeName", true)
+true
+```
+"""
+function JuMP.set_optimizer_attribute(model::InfiniteModel, name::String, value)
+    return JuMP.set_optimizer_attribute(optimizer_model(model), name, value)
+end
+
+"""
+    JuMP.set_optimizer_attribute(model::InfiniteModel,
+                                 attr::MOI.AbstractOptimizerAttribute,
+                                 value)
+
+Extend [`set_optimizer_attribute`](@ref JuMP.set_optimizer_attribute(::JuMP.Model, ::MOI.AbstractOptimizerAttribute, ::Any))
+to set the solver-specific attribute `attr` in `model` to `value`.
+
+**Example**
+```julia-repl
+julia> set_optimizer_attribute(model, MOI.Silent(), true)
+true
+```
+"""
+function JuMP.set_optimizer_attribute(model::InfiniteModel,
+                                      attr::MOI.AbstractOptimizerAttribute,
+                                      value)
+    return MOI.set(optimizer_model(model), attr, value)
+end
+
+"""
+    JuMP.set_optimizer_attributes(model::InfiniteModel, pairs::Pair...)
+
+Extend [`set_optimizer_attributes`](@ref JuMP.set_optimizer_attributes(::JuMP.Model, ::Pair))
+to set multiple solver attributes given a list of `attribute => value` pairs.
+Calls `set_optimizer_attribute(model, attribute, value)` for each pair.
+
+**Example**
+```julia-repl
+julia> model = Model(Ipopt.Optimizer);
+
+julia> set_optimizer_attributes(model, "tol" => 1e-4, "max_iter" => 100)
+```
+is equivalent to:
+```julia-repl
+julia> set_optimizer_attribute(model, "tol", 1e-4);
+
+julia> set_optimizer_attribute(model, "max_iter", 100);
+```
+"""
+function JuMP.set_optimizer_attributes(model::InfiniteModel, pairs::Pair...)
+    for (name, value) in pairs
+        JuMP.set_optimizer_attribute(model, name, value)
+    end
+    return
+end
+
+"""
+    JuMP.get_optimizer_attribute(model::InfiniteModel, name::String)
+
+Extend [`get_optimizer_attribute`](@ref JuMP.get_optimizer_attribute(::JuMP.Model, ::String))
+to return the value associated with the solver-specific attribute named `name`.
+
+**Example**
+```julia-repl
+julia> get_optimizer_attribute(model, "tol")
+0.0001
+````
+"""
+function JuMP.get_optimizer_attribute(model::InfiniteModel, name::String)
+    return JuMP.get_optimizer_attribute(optimizer_model(model), name)
+end
+
+"""
+    JuMP.get_optimizer_attribute(model::InfiniteModel,
+                                 attr::MOI.AbstractOptimizerAttribute)
+
+Extend [`get_optimizer_attribute`](@ref JuMP.get_optimizer_attribute(::JuMP.Model, ::MOI.AbstractOptimizerAttribute))
+to return the value of the solver-specific attribute `attr` in `model`.
+
+**Example**
+```julia-repl
+julia> get_optimizer_attribute(model, MOI.Silent())
+true
+````
+"""
+function JuMP.get_optimizer_attribute(model::InfiniteModel,
+                                      attr::MOI.AbstractOptimizerAttribute)
+    return MOI.get(optimizer_model(model), attr)
 end
 
 # Extend the solve error function
@@ -207,13 +339,13 @@ julia> optimizer_model_key(model)
 function optimizer_model_key(model::InfiniteModel)::Any
     key = collect(keys(optimizer_model(model).ext))
     if length(key) != 1
-        error("Optimizer models should only have 1 extension key.")
+        error("Optimizer models should have 1 and only 1 extension key.")
     end
     return key[1]
 end
 
 """
-    build_optimizer_model!(model::InfiniteModel, key; kwargs...)
+    build_optimizer_model!(model::InfiniteModel, key; [kwargs...])
 
 Build the optimizer model stored in `model` such that it can be
 treated as a normal JuMP model, where the `Model.ext` field contains a key
@@ -223,7 +355,7 @@ two models. The key argument should be be typed to `Val{ext_key_name}`.
  function build_optimizer_model! end
 
  """
-     build_optimizer_model!(model::InfiniteModel)
+     build_optimizer_model!(model::InfiniteModel; [kwargs...])
 
  Build the optimizer model stored in `model` such that it can be
  treated as a normal JuMP model. Specifically, translate the variables and
@@ -233,7 +365,7 @@ two models. The key argument should be be typed to `Val{ext_key_name}`.
  However, it may be useful in certain applications when the user desires to
  force a build without calling `optimize!`.
  Extensions will need to implement their own version of the function
- `build_optimizer_model!(model::InfiniteModel, key::Val{ext_key_name})`.
+ `build_optimizer_model!(model::InfiniteModel, key::Val{ext_key_name}; kwargs...)`.
 
 **Example**
 ```julia-repl
@@ -242,19 +374,146 @@ julia> build_optimizer_model!(model)
 julia> optimizer_model_ready(model)
 true
 ```
- """
-  function build_optimizer_model!(model::InfiniteModel)
-      key = optimizer_model_key(model)
-      build_optimizer_model!(model, Val(key))
-      return
-  end
+"""
+function build_optimizer_model!(model::InfiniteModel; kwargs...)
+  key = optimizer_model_key(model)
+  build_optimizer_model!(model, Val(key); kwargs...)
+  return
+end
 
 """
-    JuMP.optimize!(model::InfiniteModel,
-                   optimizer_factory::Union{Nothing, JuMP.OptimizerFactory} = nothing;
-                   bridge_constraints::Bool=true, kwargs...)
+    optimizer_model_variable(vref::InfOptVariableRef, key; [kwargs...])
 
-Extend [`JuMP.optimize!`](@ref JuMP.optimize!(::JuMP.Model, ::Union{Nothing, JuMP.OptimizerFactory}))
+Return the reformulation variable(s) stored in the optimizer model that correspond
+to `vref`. This needs to be defined for extensions that implement a custom
+optimizer model type. Principally, this is accomplished by typed the `key`
+argument to `Val{ext_key_name}`. Keyword arguments can be added as needed.
+"""
+function optimizer_model_variable end
+
+# Fallback for unextended keys
+function optimizer_model_variable(vref::InfOptVariableRef, key; kwargs...)
+    error("`optimizer_model_variable` not implemented for optimizer model
+          key $key.")
+end
+
+"""
+    optimizer_model_variable(vref::InfOptVariableRef; [kwargs...])
+
+Return the reformulation variable(s) stored in the optimizer model that correspond
+to `vref`. By default, no keyword arguments `kwargs` are employed by
+`TranscriptionOpt`, but extensions may employ `kwargs` in accordance with
+their implementation of [`optimizer_model_variable`](@ref). Errors if such an
+extension has not been written. Also errors if no such variable can be found in
+the optimizer model.
+
+**Example**
+```julia-repl
+julia> optimizer_model_variable(x) # infinite variable
+2-element Array{VariableRef,1}:
+ x(support: 1)
+ x(support: 2)
+
+julia> optimizer_model_variable(z) # hold variable
+z
+```
+"""
+function optimizer_model_variable(vref::InfOptVariableRef; kwargs...)
+    key = optimizer_model_key(JuMP.owner_model(vref))
+    return optimizer_model_variable(vref, Val(key); kwargs...)
+end
+
+"""
+    optimizer_model_constraint(cref::GeneralConstraintRef, key; [kwargs...])
+
+Return the reformulation constraint(s) stored in the optimizer model that correspond
+to `cref`. This needs to be defined for extensions that implement a custom
+optimizer model type. Principally, this is accomplished by typed the `key`
+argument to `Val{ext_key_name}`. Keyword arguments can be added as needed.
+"""
+function optimizer_model_constraint end
+
+# Fallback for unextended keys
+function optimizer_model_constraint(cref::GeneralConstraintRef, key; kwargs...)
+    error("`optimizer_model_constraint` not implemented for optimizer model
+          key $key.")
+end
+
+"""
+    optimizer_model_constraint(cref::GeneralConstraintRef; [kwargs...])
+
+Return the reformulation constraint(s) stored in the optimizer model that correspond
+to `cref`. By default, no keyword arguments `kwargs` are employed by
+`TranscriptionOpt`, but extensions may employ `kwargs` in accordance with
+their implementation of [`optimizer_model_constraint`](@ref). Errors if such an
+extension has not been written. Also errors if no such constraint can be found in
+the optimizer model.
+
+**Example**
+```julia-repl
+julia> optimizer_model_constraint(c1) # finite constraint
+c1 : x(support: 1) - y <= 3.0
+```
+"""
+function optimizer_model_constraint(cref::GeneralConstraintRef; kwargs...)
+    key = optimizer_model_key(JuMP.owner_model(cref))
+    return optimizer_model_constraint(cref, Val(key); kwargs...)
+end
+
+"""
+    JuMP.solver_name(model::InfiniteModel)
+
+Extend [`solver_name`](@ref JuMP.solver_name(::JuMP.Model)) to return the name
+of the solver being used if there is an optimizer selected and it has a name
+attribute. Otherwise, an error is thrown.
+
+**Example**
+```julia-repl
+julia> solver_name(model)
+"Gurobi"
+```
+"""
+function JuMP.solver_name(model::InfiniteModel)
+    return JuMP.solver_name(optimizer_model(model))
+end
+
+"""
+    JuMP.backend(model::InfiniteModel)
+
+Extend [`backend`](@ref JuMP.backend(::JuMP.Model)) to return the
+`MathOptInterface` backend associated with the optimizer model. Note this will
+be empty if the optimizer model has not been build yet.
+
+**Example**
+```julia-repl
+julia> moi_model = backend(model);
+```
+"""
+function JuMP.backend(model::InfiniteModel)
+    return JuMP.backend(optimizer_model(model))
+end
+
+"""
+    JuMP.mode(model::InfiniteModel)
+
+Extend [`mode`](@ref JuMP.mode(::JuMP.Model)) to return the `MathOptInterface`
+mode the optimizer model is in.
+
+**Example**
+```julia-repl
+julia> mode(model)
+AUTOMATIC::ModelMode = 0
+```
+"""
+function JuMP.mode(model::InfiniteModel)
+    return JuMP.mode(optimizer_model(model))
+end
+
+"""
+    JuMP.optimize!(model::InfiniteModel;
+                   bridge_constraints::Bool=true, kwargs...])
+
+Extend [`JuMP.optimize!`](@ref JuMP.optimize!(::JuMP.Model, ::Any))
 to optimize infinite models using the internal
 optimizer model. Will call [`build_optimizer_model!`](@ref) if the optimizer
 model isn't up to date. The `kwargs` correspond to keyword arguments passed to
@@ -262,22 +521,34 @@ model isn't up to date. The `kwargs` correspond to keyword arguments passed to
 
 **Example**
 ```julia-repl
-julia> optimize!(model, with_optimizer(Clp.Optimizer))
+julia> optimize!(model)
 
 julia> has_values(model)
 true
 ```
 """
-function JuMP.optimize!(model::InfiniteModel,
-                        optimizer_factory::Union{Nothing,
-                                               JuMP.OptimizerFactory} = nothing;
+function JuMP.optimize!(model::InfiniteModel;
                         bridge_constraints::Bool = true,
                         kwargs...)
-    key = optimizer_model_key(model)
     if !optimizer_model_ready(model)
-        build_optimizer_model!(model, Val(key), kwargs...)
+        build_optimizer_model!(model; kwargs...)
     end
-    JuMP.optimize!(optimizer_model(model), optimizer_factory,
-                   bridge_constraints = bridge_constraints)
+    JuMP.optimize!(optimizer_model(model))
     return
+end
+
+"""
+    JuMP.result_count(model::InfiniteModel)
+
+Extend [`result_count`](@ref JuMP.result_count(::JuMP.Model)) to return the
+number of results available to query after a call to `optimize!`.
+
+**Example**
+```julia-repla
+julia> result_count(model)
+1
+```
+"""
+function JuMP.result_count(model::InfiniteModel)::Int
+    return MOI.get(optimizer_model(model), MOI.ResultCount())
 end

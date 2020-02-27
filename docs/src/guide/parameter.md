@@ -314,7 +314,7 @@ the defined parameters using the keyword `container`. For example, we use
 parameter `x`:
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model= InfiniteModel())
 julia> @infinite_parameter(model, x[1:3] in [0, 1], container = SparseAxisArray)
-JuMP.Containers.SparseAxisArray{ParameterRef,1,Tuple{Any}} with 3 entries:
+JuMP.Containers.SparseAxisArray{ParameterRef,1,Tuple{Int64}} with 3 entries:
   [3]  =  x[3]
   [2]  =  x[2]
   [1]  =  x[1]

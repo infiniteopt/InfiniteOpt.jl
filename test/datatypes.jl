@@ -40,12 +40,16 @@ end
 
 # Test the InfiniteModel datatype
 @testset "InfiniteModel" begin
+    # test basic
     @test InfiniteModel <: JuMP.AbstractModel
     @test InfiniteModel().next_var_index == 0
-    mockoptimizer = with_optimizer(MOIU.MockOptimizer,
-                                   MOIU.Model{Float64}(),
-                                   eval_objective_value=false)
-    @test InfiniteModel(mockoptimizer).optimizer_factory.constructor == MOIU.MockOptimizer
+    # prepare optimizer constructor
+    mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                             eval_objective_value=false)
+    mockattributes = MOI.OptimizerWithAttributes(mockoptimizer, MOI.Silent() => true)
+    # test optimizer constructors
+    @test InfiniteModel(mockoptimizer).optimizer_constructor == mockoptimizer
+    @test InfiniteModel(mockattributes).optimizer_constructor == mockoptimizer
     m = InfiniteModel();
     @test isa(Base.broadcastable(m), Base.RefValue{InfiniteModel})
     @test length(JuMP.object_dictionary(m)) == 0

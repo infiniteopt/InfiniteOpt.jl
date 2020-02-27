@@ -27,11 +27,11 @@ Solver name: No optimizer attached.
 ```
 
 The optimizer that will be used to solve the model can also be specified at
-model definition using `JuMP`'s [`with_optimizer`](@ref) constructor:
+model definition:
 ```jldoctest
 julia> using InfiniteOpt, JuMP, Ipopt
 
-julia> model = InfiniteModel(with_optimizer(Ipopt.Optimizer))
+julia> model = InfiniteModel(Ipopt.Optimizer)
 An InfiniteOpt Model
 Feasibility problem with:
 Variables: 0
@@ -43,6 +43,23 @@ Solver name: Ipopt
 Note that any optimizer currently supported by `JuMP v0.19.0` or newer is
 supported for use in `InfiniteOpt`. For completeness, the table of currently
 supported optimizers is provided below in [Supported Optimizers](@ref).
+
+We can also specify optimizer attributes via
+[`optimizer_with_attributes`](@ref JuMP.optimizer_with_attributes(::Any, ::Pair))
+which allows us to append as many attributes as we like, for example:
+```jldoctest
+julia> using InfiniteOpt, JuMP, Ipopt
+
+julia> model = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer,
+                                                       "output_level" => 0))
+An InfiniteOpt Model
+Feasibility problem with:
+Variables: 0
+Optimizer model backend information:
+Model mode: AUTOMATIC
+CachingOptimizer state: EMPTY_OPTIMIZER
+Solver name: Ipopt
+```
 
 Now you have an initialized `InfiniteModel` that is ready for your mathematical
 model to be defined and optimized!
@@ -70,7 +87,7 @@ julia> using InfiniteOpt, JuMP, Ipopt, MathOptInterface
 
 julia> const MOIU = MathOptInterface.Utilities;
 
-julia> model = InfiniteModel(with_optimizer(Ipopt.Optimizer),
+julia> model = InfiniteModel(Ipopt.Optimizer,
                              caching_mode = MOIU.MANUAL)
 An InfiniteOpt Model
 Feasibility problem with:
@@ -89,28 +106,32 @@ supported by [`JuMP.jl`](https://github.com/JuliaOpt/JuMP.jl) is provided below.
 This information comes directly from their documentation pages. Please refer to
 `JuMP` documentation for additional optimizer information on installation and use.
 
-| Solver                                                                         | Julia Package                                                                    | License | Supports                           |
-| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- | ------- | ---------------------------------- |
-| [Artelys Knitro](https://www.artelys.com/solvers/knitro/)                      | [KNITRO.jl](https://github.com/JuliaOpt/KNITRO.jl)                               | Comm.   | LP, MILP, SOCP, MISOCP, NLP, MINLP |
-| [Cbc](https://projects.coin-or.org/Cbc)                                        | [Cbc.jl](https://github.com/JuliaOpt/Cbc.jl)                                     | EPL     | MILP                               |
-| [CDCS](https://github.com/oxfordcontrol/CDCS)                                  | [CDCS.jl](https://github.com/oxfordcontrol/CDCS.jl)                              | GPL     | LP, SOCP, SDP                      |
-| [Clp](https://projects.coin-or.org/Clp)                                        | [Clp.jl](https://github.com/JuliaOpt/Clp.jl)                                     | EPL     | LP                                 |
-| [COSMO](https://github.com/oxfordcontrol/COSMO.jl)                             | [COSMO.jl](https://github.com/oxfordcontrol/COSMO.jl)                            | Apache  | LP, QP, SOCP, SDP                  |
-| [CPLEX](https://www.ibm.com/analytics/cplex-optimizer)                         | [CPLEX.jl](https://github.com/JuliaOpt/CPLEX.jl)                                 | Comm.   | LP, MILP, SOCP, MISOCP             |
-| [CSDP](https://github.com/coin-or/csdp/                                        | [CSDP.jl](https://github.com/JuliaOpt/CSDP.jl)                                   | EPL     | LP, SDP                            |
-| [ECOS](https://github.com/embotech/ecos)                                       | [ECOS.jl](https://github.com/JuliaOpt/ECOS.jl)                                   | GPL     | LP, SOCP                           |
-| [FICO Xpress](https://www.fico.com/en/products/fico-xpress-optimization)       | [Xpress.jl](https://github.com/JuliaOpt/Xpress.jl)                               | Comm.   | LP, MILP, SOCP, MISOCP             |
-| [GLPK](http://www.gnu.org/software/glpk/)                                      | [GLPK.jl](https://github.com/JuliaOpt/GLPK.jl)                                   | GPL     | LP, MILP                           |
-| [Gurobi](https://www.gurobi.com)                                               | [Gurobi.jl](https://github.com/JuliaOpt/Gurobi.jl)                               | Comm.   | LP, MILP, SOCP, MISOCP             |
-| [Ipopt](https://projects.coin-or.org/Ipopt)                                    | [Ipopt.jl](https://github.com/JuliaOpt/Ipopt.jl)                                 | EPL     | LP, QP, NLP                        |
-| [Juniper](https://github.com/lanl-ansi/Juniper.jl)                             | [Juniper.jl](https://github.com/lanl-ansi/Juniper.jl)                            | MIT     | MISOCP, MINLP                      |
-| [MOSEK](https://www.mosek.com/)                                                | [MosekTools.jl](https://github.com/JuliaOpt/MosekTools.jl)                       | Comm.   | LP, MILP, SOCP, MISOCP, SDP        |
-| [OSQP](https://osqp.org/)                                                      | [OSQP.jl](https://github.com/oxfordcontrol/OSQP.jl)                              | Apache  | LP, QP                             |
-| [ProxSDP](https://github.com/mariohsouto/ProxSDP.jl)                           | [ProxSDP.jl](https://github.com/mariohsouto/ProxSDP.jl)                          | MIT     | LP, SOCP, SDP                      |
-| [SCIP](https://scip.zib.de/)                                                   | [SCIP.jl](https://github.com/SCIP-Interfaces/SCIP.jl)                            | ZIB     | MILP, MINLP                        |
-| [SCS](https://github.com/cvxgrp/scs)                                           | [SCS.jl](https://github.com/JuliaOpt/SCS.jl)                                     | MIT     | LP, SOCP, SDP                      |
-| [SDPA](http://sdpa.sourceforge.net/)                                           | [SDPA.jl](https://github.com/JuliaOpt/SDPA.jl)                                   | GPL     | LP, SDP                            |
-| SeDuMi                                                                         | [SeDuMi.jl](https://github.com/JuliaOpt/SeDuMi.jl)                               | GPL     | LP, SOCP, SDP                      |
+| Solver                                                                         | Julia Package                                                                    | License  | Supports                           |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- | -------- | ---------------------------------- |
+| [Artelys Knitro](https://www.artelys.com:443/solvers/knitro/)                  | [KNITRO.jl](https://github.com/JuliaOpt/KNITRO.jl)                               | Comm.    | LP, MILP, SOCP, MISOCP, NLP, MINLP |
+| [Cbc](https://projects.coin-or.org/Cbc)                                        | [Cbc.jl](https://github.com/JuliaOpt/Cbc.jl)                                     | EPL      | MILP                               |
+| [CDCS](https://github.com/oxfordcontrol/CDCS)                                  | [CDCS.jl](https://github.com/oxfordcontrol/CDCS.jl)                              | GPL      | LP, SOCP, SDP                      |
+| [CDD](https://github.com/cddlib/cddlib)                                        | [CDDLib.jl](https://github.com/JuliaPolyhedra/CDDLib.jl)                         | GPL      | LP                                 |
+| [Clp](https://projects.coin-or.org/Clp)                                        | [Clp.jl](https://github.com/JuliaOpt/Clp.jl)                                     | EPL      | LP                                 |
+| [COSMO](https://github.com/oxfordcontrol/COSMO.jl)                             | [COSMO.jl](https://github.com/oxfordcontrol/COSMO.jl)                            | Apache   | LP, QP, SOCP, SDP                  |
+| [CPLEX](https://www.ibm.com/analytics/cplex-optimizer)                         | [CPLEX.jl](https://github.com/JuliaOpt/CPLEX.jl)                                 | Comm.    | LP, MILP, SOCP, MISOCP             |
+| [CSDP](https://github.com/coin-or/csdp/)                                       | [CSDP.jl](https://github.com/JuliaOpt/CSDP.jl)                                   | EPL      | LP, SDP                            |
+| [ECOS](https://github.com/embotech/ecos)                                       | [ECOS.jl](https://github.com/JuliaOpt/ECOS.jl)                                   | GPL      | LP, SOCP                           |
+| [FICO Xpress](https://www.fico.com/en/products/fico-xpress-optimization)       | [Xpress.jl](https://github.com/JuliaOpt/Xpress.jl)                               | Comm.    | LP, MILP, SOCP, MISOCP             |
+| [GLPK](http://www.gnu.org/software/glpk/)                                      | [GLPK.jl](https://github.com/JuliaOpt/GLPK.jl)                                   | GPL      | LP, MILP                           |
+| [Gurobi](https://www.gurobi.com/)                                              | [Gurobi.jl](https://github.com/JuliaOpt/Gurobi.jl)                               | Comm.    | LP, MILP, SOCP, MISOCP             |
+| [Ipopt](https://projects.coin-or.org/Ipopt)                                    | [Ipopt.jl](https://github.com/JuliaOpt/Ipopt.jl)                                 | EPL      | LP, QP, NLP                        |
+| [Juniper](https://github.com/lanl-ansi/Juniper.jl)                             | [Juniper.jl](https://github.com/lanl-ansi/Juniper.jl)                            | MIT      | MISOCP, MINLP                      |
+| [MOSEK](https://www.mosek.com/)                                                | [MosekTools.jl](https://github.com/JuliaOpt/MosekTools.jl)                       | Comm.    | LP, MILP, SOCP, MISOCP, SDP        |
+| [OSQP](https://osqp.org/)                                                      | [OSQP.jl](https://github.com/oxfordcontrol/OSQP.jl)                              | Apache   | LP, QP                             |
+| [ProxSDP](https://github.com/mariohsouto/ProxSDP.jl)                           | [ProxSDP.jl](https://github.com/mariohsouto/ProxSDP.jl)                          | MIT      | LP, SOCP, SDP                      |
+| [SCIP](https://scip.zib.de/)                                                   | [SCIP.jl](https://github.com/SCIP-Interfaces/SCIP.jl)                            | ZIB      | MILP, MINLP                        |
+| [SCS](https://github.com/cvxgrp/scs)                                           | [SCS.jl](https://github.com/JuliaOpt/SCS.jl)                                     | MIT      | LP, SOCP, SDP                      |
+| [SDPA](http://sdpa.sourceforge.net/)                                           | [SDPA.jl](https://github.com/JuliaOpt/SDPA.jl), [SDPAFamily.jl](https://github.com/ericphanson/SDPAFamily.jl)                                   | GPL      | LP, SDP                            |
+| [SDPNAL](https://blog.nus.edu.sg/mattohkc/softwares/sdpnalplus/)               | [SDPNAL.jl](https://github.com/JuliaOpt/SDPNAL.jl)                               | CC BY-SA | LP, SDP                            |
+| [SDPT3](https://blog.nus.edu.sg/mattohkc/softwares/sdpt3/)                     | [SDPT3.jl](https://github.com/JuliaOpt/SDPT3.jl)                                 | GPL      | LP, SOCP, SDP                      |
+| SeDuMi                                                                         | [SeDuMi.jl](https://github.com/JuliaOpt/SeDuMi.jl)                               | GPL      | LP, SOCP, SDP                      |
+| [Tulip](https://github.com/ds4dm/Tulip.jl)                                     | [Tulip.jl](https://github.com/ds4dm/Tulip.jl)                                    | MPL-2    | LP                                 |
 
 
 Where:

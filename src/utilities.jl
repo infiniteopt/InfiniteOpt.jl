@@ -1,20 +1,32 @@
 ## Extend convert to handle JuMP expression types
 # GenericAffExpr
-function Base.convert(::Type{JuMP.GenericAffExpr{C,V}},
-                      x::JuMP.GenericAffExpr) where {C,V}
-    return JuMP.GenericAffExpr{C,V}(x.constant, x.terms)
+function Base.convert(::Type{JuMP.GenericAffExpr{C, V}},
+                      x::JuMP.GenericAffExpr{C, W}) where {C, V, W}
+    if V != W
+        return JuMP.GenericAffExpr{C,V}(x.constant, x.terms)
+    else
+        return x
+    end
 end
 
 # GenericQuadExpr
-function Base.convert(::Type{JuMP.GenericQuadExpr{C,V}},
-                      x::JuMP.GenericQuadExpr) where {C,V}
-    return JuMP.GenericQuadExpr{C,V}(x.aff, x.terms)
+function Base.convert(::Type{JuMP.GenericQuadExpr{C, V}},
+                      x::JuMP.GenericQuadExpr{C, W}) where {C, V, W}
+    if V != W
+        return JuMP.GenericQuadExpr{C, V}(x.aff, x.terms)
+    else
+        return x
+    end
 end
 
 # UnorderedPair
-function Base.convert(::Type{JuMP.UnorderedPair{T}},
-                      x::JuMP.UnorderedPair) where {T}
-    return JuMP.UnorderedPair{T}(x.a, x.b)
+function Base.convert(::Type{JuMP.UnorderedPair{V}},
+                      x::JuMP.UnorderedPair{W}) where {V, W}
+    if V != W
+        return JuMP.UnorderedPair{V}(x.a, x.b)
+    else
+        return x
+    end
 end
 
 ## Extend convert to handle JuMP containers
