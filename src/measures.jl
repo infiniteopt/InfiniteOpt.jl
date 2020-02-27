@@ -421,7 +421,7 @@ end
             [eval_method::Function = mc_sampling, num_supports::Int = 50,
             weight_func::Function = _w, name = "measure",
             use_existing_supports::Bool = false,
-            call_from_expect::Bool = false])::MeasureRef
+            call_from_expect::Bool = false, kwargs...])::MeasureRef
 
 Returns a measure reference that evaluates `expr` without using an object of
 [`AbstractMeasureData`](@ref) type. Similar to the main [`measure`](@ref)
@@ -464,7 +464,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
                  num_supports::Int = 50,
                  weight_func::Function = _w, name = "measure",
                  use_existing_supports::Bool = false,
-                 call_from_expect::Bool = false)::MeasureRef
+                 call_from_expect::Bool = false, kwargs...)::MeasureRef
     # Measure function that takes non-AbstractMeasureData types
     if isa(params, Nothing)
         if isa(expr, MeasureRef)
@@ -541,8 +541,9 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         # Check the input lower bounds and upper bounds are reasonable
         for i in eachindex(lb)
             if lb[i] >= ub[i]
-                error("Lower bound is not less than upper bound for some parameter." *
-                      " Please check the input lower bounds and upper bounds.")
+                error("Lower bound is not less than upper bound for some " *
+                      "parameter. Please check the input lower bounds " *
+                      "and upper bounds.")
             end
         end
     end
@@ -551,8 +552,8 @@ function measure(expr::JuMP.AbstractJuMPScalar,
     if use_existing_supports
         if eval_method == Quad || eval_method == gauss_legendre ||
            eval_method == gauss_hermite || eval_method == gauss_laguerre
-            @warn("Quadrature method will not be used becuase use_existing_supports " *
-                  "is set as true.")
+            @warn("Quadrature method will not be used because " *
+                  "use_existing_supports is set as true.")
         end
         support = supports(params)
         if !isa(lb, Nothing) && !isa(ub, Nothing)
@@ -589,10 +590,90 @@ function measure(expr::JuMP.AbstractJuMPScalar,
 
     # construct AbstractMeasureData as data
     data = generate_measure_data(params, num_supports, lb, ub, method = eval_method,
-                                 name = name, weight_func = weight_func)
+                                 name = name, weight_func = weight_func, kwargs...)
 
     # call measure function to construct the measure
     return measure(expr, data)
+end
+
+"""
+    set_measure_default(model::InfiniteModel; kwargs...)
+
+Set the default keyword argument settings for measures of the specified model.
+The keyword arguments of this function will be recorded in the default keyword
+argument values of the model. If the keyword argument has been defined in the
+model default, it will be overwritten with the new keyword argument value.
+Otherwise, the default will record the new keyword argument and its value for
+measures. The default values will be used by measures constructed from
+[`measure_default`](@ref) function calls.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
+julia> m.meas_default
+Dict{Symbol,Any} with 6 entries:
+  :num_supports          => 50
+  :call_from_expect      => false
+  :eval_method           => nothing
+  :name                  => "measure"
+  :weight_func           => _w
+  :use_existing_supports => false
+
+julia> dct = Dict(:eval_method => Quad, :num_supports => 5, :new_kwarg => true)
+Dict{Symbol,Any} with 3 entries:
+  :num_supports => 5
+  :eval_method  => :Quad
+  :new_kwarg    => true
+
+julia> set_measure_default(m; dct...)
+
+julia> m.meas_default
+Dict{Symbol,Any} with 6 entries:
+  :new_kwarg             => true
+  :num_supports          => 5
+  :call_from_expect      => false
+  :eval_method           => :Quad
+  :name                  => "measure"
+  :weight_func           => _w
+  :use_existing_supports => false
+
+"""
+function set_measure_default(model::InfiniteModel; kwargs...)
+    for i in keys(kwargs)
+        model.meas_default[i] = kwargs[i]
+    end
+    return
+end
+
+"""
+    measure_default(expr::JuMP.AbstractJuMPScalar,
+                    params::Union{ParameterRef,
+                                  AbstractArray{<:ParameterRef}, Nothing},
+                    lb::Union{Number, AbstractArray{<:Number}, Nothing},
+                    ub::Union{Number, AbstractArray{<:Number}, Nothing};
+                    kwargs...)::MeasureRef
+
+Creates a measure that uses the default keyword arguments stored in the model.
+Return the [`MeasureRef`](@ref) of the created measure with the default
+parameters of the model.
+"""
+function measure_default(expr::JuMP.AbstractJuMPScalar,
+                         params::Union{ParameterRef,
+                                       AbstractArray{<:ParameterRef},
+                                       Nothing} = nothing,
+                         lb::Union{Number,
+                                   AbstractArray{<:Number},
+                                   Nothing} = nothing,
+                         ub::Union{Number,
+                                   AbstractArray{<:Number},
+                                   Nothing} = nothing; kwargs...)::MeasureRef
+    if params == nothing
+        params = _all_parameter_refs(expr)
+    end
+    model = _model_from_expr(params)
+    if model == nothing
+        error("Expression contains no infinite parameters.")
+    end
+    return measure(expr, params, lb, ub; model.meas_default..., kwargs...)
 end
 
 """
@@ -657,8 +738,8 @@ f(0.3) + f(0.7)
 ```
 """
 function support_sum(expr::JuMP.AbstractJuMPScalar,
-                     params::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}
-                     = nothing)::MeasureRef
+                     params::Union{ParameterRef, AbstractArray{<:ParameterRef},
+                                   Nothing} = nothing)::MeasureRef
     # sum measure
     return measure(expr, params, use_existing_supports = true, name = "sum")
 end

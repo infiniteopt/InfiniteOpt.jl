@@ -91,7 +91,8 @@ expand_all_measures!, expect, support_sum
 
 # Export measure evaluation functions
 export generate_measure_data, MC_sampling, Gauss_Legendre, Gauss_Hermite,
-Gauss_Laguerre, infinite_transform, support_formatting, measure_dispatch
+Gauss_Laguerre, infinite_transform, support_formatting, measure_dispatch,
+set_measure_default
 
 # Export transcription datatypes
 export TranscriptionData, TranscriptionModel

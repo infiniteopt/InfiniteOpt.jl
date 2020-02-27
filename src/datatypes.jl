@@ -75,6 +75,7 @@ model an optmization problem with an infinite dimensional decision space.
 - `meas_to_meas::Dict{Int, Vector{Int}}` Measure indices to dependent
                                          measure indices.
 - `meas_in_objective::Dict{Int, Bool}` Measure indices to if used in objective.
+- `meas_default::Dict{Symbol}` Default keyword argument settings for measures.
 - `next_param_index::Int` Index - 1 of next infinite parameter.
 - `next_param_id::Int` Index - 1 of the next infinite parameter group.
 - `params::Dict{Int, InfOptParameter}` Infinite parameter indices to parameter
@@ -139,6 +140,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     meas_to_constrs::Dict{Int, Vector{Int}}
     meas_to_meas::Dict{Int, Vector{Int}}
     meas_in_objective::Dict{Int, Bool}
+    meas_default::Dict{Symbol}
 
     # Parameter Data
     next_param_index::Int
@@ -236,6 +238,12 @@ function InfiniteModel(; seed = false, kwargs...)
                          0, Dict{Int, Measure}(), Dict{Int, String}(),
                          Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
                          Dict{Int, Bool}(),
+                         Dict(Symbol("eval_method") => nothing,
+                              Symbol("num_supports") => 50,
+                              Symbol("weight_func") => _w,
+                              Symbol("name") => "measure",
+                              Symbol("use_existing_supports") => false,
+                              Symbol("call_from_expect") => false),
                          # Parameters
                          0, 0, Dict{Int, InfOptParameter}(), Dict{Int, String}(),
                          nothing, Dict{Int, Int}(), Dict{Int, Vector{Int}}(),
