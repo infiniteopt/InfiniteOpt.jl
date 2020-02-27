@@ -12,10 +12,7 @@ above sections comprise the guide.
 ## Theoretical Abstraction
 
 
-## Preset Evaluations
-
-
-## Custom Evaluations
+## Evaluation Methods
 
 
 ## Expansion

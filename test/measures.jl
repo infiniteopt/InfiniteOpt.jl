@@ -636,8 +636,7 @@ end
         @test all(measure_data(meas7).coefficients .== expected_coeffs)
 
         add_supports(par5, [0.3, 0.7])
-        warn = "Quadrature method will not be used becuase use_existing_supports " *
-               "is set as true."
+        warn = "Quadrature method will not be used because use_existing_supports is set as true."
         @test_logs (:warn, warn) measure(inf12, par5,
                                use_existing_supports = true, eval_method = Quad)
 
@@ -679,6 +678,31 @@ end
         supps = [JuMPC.SparseAxisArray(Dict([((1,),0.3), ((2,), 0.3)])),
                  JuMPC.SparseAxisArray(Dict([((1,),0.7), ((2,), 0.7)]))]
         @test measure_data(sum2).supports == supps
+    end
+    # test set_measure_default
+    @testset "set_measure_default" begin
+        set_measure_default(m, num_supports = 5, eval_method = Quad,
+                            new_kwarg = true)
+        @test m.meas_default[:num_supports] == 5
+        @test m.meas_default[:call_from_expect] == false
+        @test m.meas_default[:eval_method] == Quad
+        @test m.meas_default[:name] == "measure"
+        @test m.meas_default[:weight_func] == InfiniteOpt._w
+        @test m.meas_default[:use_existing_supports] == false
+        @test m.meas_default[:new_kwarg] == true
+    end
+    # test measure with default keyword argument values
+    @testset "measure_default" begin
+        null_expr = JuMP.GenericAffExpr{Float64, ParameterRef}()
+        @test_throws ErrorException measure_default(null_expr)
+        set_measure_default(m, num_supports = 5, eval_method = Quad)
+
+        meas = measure_default(inf)
+        (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
+        expected_supps = expected_supps .* 0.5 .+ 0.5
+        expected_coeffs = expected_coeffs .* 0.5
+        @test all(measure_data(meas).supports .== expected_supps)
+        @test all(measure_data(meas).coefficients .== expected_coeffs)
     end
     # test expectation measure
     @testset "expect" begin

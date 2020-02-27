@@ -418,13 +418,14 @@ end
                           Nothing} = nothing,
             lb::Union{Number, AbstractArray{<:Number}, Nothing},
             ub::Union{Number, AbstractArray{<:Number}, Nothing}];
-            [eval_method::Function = mc_sampling, num_supports::Int = 50,
+            [eval_method::Union{Function, Symbol, Nothing} = nothing,
+            num_supports::Int = 50,
             weight_func::Function = _w, name = "measure",
             use_existing_supports::Bool = false,
             call_from_expect::Bool = false, kwargs...])::MeasureRef
 
 Returns a measure reference that evaluates `expr` without using an object of
-[`AbstractMeasureData`](@ref) type. Similar to the main [`measure`](@ref)
+[`AbstractMeasureData`](@ref) type. Similar to the basic [`measure`](@ref)
 method, this function aims to implement measures of the form:
 ``\\int_{p \\in P} expr(p) w(p) dp`` where ``p`` is an infinite parameter (scalar
 or vector) and ``w`` is the weight function. This function serves as a flexible
@@ -437,8 +438,9 @@ points by Monte Carlo sampling from the interval if the parameter is in an
 in a [`DistributionSet`](@ref). If the expression involves multiple groups of
 parameters, the user needs to specify the parameter. The user can also specify
 lower bounds and upper bounds for the parameters, number of supports to
-generate, and the function to generate the supports with. The last option makes
-the method extendible for more schemes to generate supports.
+generate, and the function to generate the supports with. The user can also
+input the keyword argument [`eval_method = Quad`] to construct points using
+appropriate quadrature methods based on the lower and upper bounds.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(seed = true))
@@ -590,7 +592,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
 
     # construct AbstractMeasureData as data
     data = generate_measure_data(params, num_supports, lb, ub, method = eval_method,
-                                 name = name, weight_func = weight_func, kwargs...)
+                                 name = name, weight_func = weight_func; kwargs...)
 
     # call measure function to construct the measure
     return measure(expr, data)
@@ -618,13 +620,7 @@ Dict{Symbol,Any} with 6 entries:
   :weight_func           => _w
   :use_existing_supports => false
 
-julia> dct = Dict(:eval_method => Quad, :num_supports => 5, :new_kwarg => true)
-Dict{Symbol,Any} with 3 entries:
-  :num_supports => 5
-  :eval_method  => :Quad
-  :new_kwarg    => true
-
-julia> set_measure_default(m; dct...)
+julia> set_measure_default(m, num_supports = 5, eval_method = Quad, new_kwarg = true)
 
 julia> m.meas_default
 Dict{Symbol,Any} with 6 entries:
@@ -635,6 +631,7 @@ Dict{Symbol,Any} with 6 entries:
   :name                  => "measure"
   :weight_func           => _w
   :use_existing_supports => false
+```
 
 """
 function set_measure_default(model::InfiniteModel; kwargs...)
@@ -655,6 +652,24 @@ end
 Creates a measure that uses the default keyword arguments stored in the model.
 Return the [`MeasureRef`](@ref) of the created measure with the default
 parameters of the model.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+julia> set_measure_default(m, num_supports = 5, eval_method = Quad, new_kwarg = true)
+
+julia> @infinite_parameter(m, x in [0,1]); @infinite_variable(m, f(x));
+
+julia> mref = measure_default(f)
+measure(f(x))
+
+julia> measure_data(mref).supports
+5-element Array{Float64,1}:
+ 0.04691007703066802
+ 0.23076534494715845
+ 0.5
+ 0.7692346550528415
+ 0.9530899229693319
+```
 """
 function measure_default(expr::JuMP.AbstractJuMPScalar,
                          params::Union{ParameterRef,
@@ -666,12 +681,12 @@ function measure_default(expr::JuMP.AbstractJuMPScalar,
                          ub::Union{Number,
                                    AbstractArray{<:Number},
                                    Nothing} = nothing; kwargs...)::MeasureRef
-    if params == nothing
-        params = _all_parameter_refs(expr)
-    end
-    model = _model_from_expr(params)
+
+
+    vrefs = _all_function_variables(expr)
+    model = _model_from_expr(vrefs)
     if model == nothing
-        error("Expression contains no infinite parameters.")
+        error("Expression contains no variables.")
     end
     return measure(expr, params, lb, ub; model.meas_default..., kwargs...)
 end
