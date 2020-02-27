@@ -1,13 +1,40 @@
 # Measures
-A guide and manual for defining and using measures in `InfiniteOpt`.
+A guide and manual for the definition and use of measures in `InfiniteOpt`.
 The Datatypes and Methods sections at the end comprise the manual, and the
 above sections comprise the guide.  
 
 ## Overview
 
+Measures are objects that capture the integration of an expression with respect
+to parameters, which is a distinct feature of optimization problems with
+infinite decision spaces. In dynamic optimization measures can represent integral
+terms such as the total cost over time, and in stochastic optimization measures
+can represent integrals over the uncertain parameters, such as expectation. In
+`InfiniteOpt`, measures are evaluated by some discretization scheme, which
+evaluates the expression at a set of points over the parameter space and
+approximates the measures based on the expression values at these points.
 
 ## Basic Usage
 
+First, we consider a dynamic optimization problem with the time parameter `t`
+from 0 to 10. We also consider a state variable `x(t)` and a control variable
+`u(t)` that are parameterized by `t`:
+```jldoctest basic
+julia> using InfiniteOpt, JuMP
+
+julia> model = InfiniteModel();
+
+julia> @infinite_parameter(model, t in [0, 10])
+t
+
+julia> @infinite_variable(model, x(t))
+x(t)
+
+julia> @infinite_variable(model, u(t))
+u(t)
+```
+
+Now suppose we want
 
 ## Theoretical Abstraction
 
