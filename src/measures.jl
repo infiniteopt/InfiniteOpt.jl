@@ -1,3 +1,7 @@
+# Define symbol inputs for general measure method types
+const Sampling = :Sampling
+const Quad = :Quad
+
 # Extend Base.copy for new variable types
 Base.copy(v::MeasureRef, new_model::InfiniteModel) = MeasureRef(new_model,
                                                                 v.index)
@@ -412,29 +416,35 @@ end
     measure(expr::JuMP.AbstractJuMPScalar,
             [params::Union{ParameterRef, AbstractArray{<:ParameterRef},
                           Nothing} = nothing,
-            lb::Union{Number, AbstractArray{<:Number}, Nothing},
-            ub::Union{Number, AbstractArray{<:Number}, Nothing}];
-            [eval_method::Function = mc_sampling, num_supports::Int = 50,
+            lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
+            ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing];
+            [eval_method::Union{Function, Symbol},
+            num_supports::Int = 50,
             weight_func::Function = _w, name = "measure",
             use_existing_supports::Bool = false,
-            call_from_expect::Bool = false])::MeasureRef
+            call_from_expect::Bool = false, kwargs...])::MeasureRef
 
 Returns a measure reference that evaluates `expr` without using an object of
-[`AbstractMeasureData`](@ref) type. Similar to the main [`measure`](@ref)
+[`AbstractMeasureData`](@ref) type. Similar to the basic [`measure`](@ref)
 method, this function aims to implement measures of the form:
 ``\\int_{p \\in P} expr(p) w(p) dp`` where ``p`` is an infinite parameter (scalar
 or vector) and ``w`` is the weight function. This function serves as a flexible
 interface where users only have to provide necessary data about the
 integration. Instead of taking an [`AbstractMeasureData`](@ref) object as input,
 this function constructs the [`AbstractMeasureData`](@ref) object using some
-default numerical integration schemes. By default, the function will generate
+default numerical integration schemes. The lower and upper bounds of measure
+can be specified through `lb` and `ub` arguments. If not specified, the function
+will take the full range as the default domain. By default, the function generates
 points by Monte Carlo sampling from the interval if the parameter is in an
 [`IntervalSet`](@ref), or from the underlying distribution if the parameter is
 in a [`DistributionSet`](@ref). If the expression involves multiple groups of
 parameters, the user needs to specify the parameter. The user can also specify
 lower bounds and upper bounds for the parameters, number of supports to
-generate, and the function to generate the supports with. The last option makes
-the method extendible for more schemes to generate supports.
+generate, and the function to generate the supports with. The user can also
+input the keyword argument [`eval_method = Quad`] to construct points using
+appropriate quadrature methods based on the lower and upper bounds. See
+[`set_measure_defaults`](@ref) to update the default keyword argument values
+for all measure calls.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(seed = true))
@@ -456,11 +466,9 @@ function measure(expr::JuMP.AbstractJuMPScalar,
                                                              Nothing} = nothing,
                  lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
                  ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing;
-                 eval_method::Function = mc_sampling, num_supports::Int = 50,
-                 weight_func::Function = _w, name = "measure",
-                 use_existing_supports::Bool = false,
-                 call_from_expect::Bool = false)::MeasureRef
-    # Measure function that takes non-AbstractMeasureData types
+                 kwargs...)::MeasureRef
+
+    # collect parameters from expression if they are not provided
     if isa(params, Nothing)
         if isa(expr, MeasureRef)
             error("Nested call of measure must specify parameters.")
@@ -476,11 +484,13 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         end
     end
 
+    # count number of parameters
     if isa(params, ParameterRef)
         num_params = 1
     else
         num_params = length(params)
         if num_params == 0
+            # error if empty ParameterRef array is provided
             error("No infinite parameter is provided.")
         elseif num_params == 1
             params = first(params)
@@ -489,6 +499,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
             if length(ids) > 1
                 error("Multiple groups of parameters are specified.")
             end
+            # Use SparseAxisArray for params, lb, ub if multiple parameters
             params = convert(JuMPC.SparseAxisArray, params)
             if isa(lb, AbstractArray)
                 lb = convert(JuMPC.SparseAxisArray, lb)
@@ -498,6 +509,22 @@ function measure(expr::JuMP.AbstractJuMPScalar,
             end
         end
     end
+
+    # collect model of the measure
+    if isa(params, ParameterRef)
+        model = params.model
+    else
+        model = first(params).model
+    end
+
+    # collect keyword arguments
+    kwargs = merge(model.meas_defaults, kwargs)
+    eval_method = kwargs[:eval_method]
+    num_supports = kwargs[:num_supports]
+    name = kwargs[:name]
+    weight_func = kwargs[:weight_func]
+    use_existing_supports = kwargs[:use_existing_supports]
+    call_from_expect = kwargs[:call_from_expect]
 
     set = _parameter_set(first(params))
     if num_params > 1
@@ -536,14 +563,20 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         # Check the input lower bounds and upper bounds are reasonable
         for i in eachindex(lb)
             if lb[i] >= ub[i]
-                error("Lower bound is not less than upper bound for some parameter." *
-                      " Please check the input lower bounds and upper bounds.")
+                error("Lower bound is not less than upper bound for some " *
+                      "parameter. Please check the input lower bounds " *
+                      "and upper bounds.")
             end
         end
     end
 
     # construct data and return measure if we use existing supports
     if use_existing_supports
+        if eval_method == Quad || eval_method == gauss_legendre ||
+           eval_method == gauss_hermite || eval_method == gauss_laguerre
+            @warn("Quadrature method will not be used because " *
+                  "use_existing_supports is set as true.")
+        end
         support = supports(params)
         if !isa(lb, Nothing) && !isa(ub, Nothing)
             support = [i for i in support if all(i .>= lb) && all(i .<= ub)]
@@ -561,12 +594,80 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         return measure(expr, data)
     end
 
+    if eval_method == Sampling
+        kwargs[:eval_method] = mc_sampling
+    elseif eval_method == Quad || eval_method == gauss_legendre ||
+           eval_method == gauss_hermite || eval_method == gauss_laguerre
+        if num_params > 1
+            error("Quadrature method is not supported for multivariate measures.")
+        end
+        inf_bound_num = (lb == -Inf) + (ub == Inf)
+        if inf_bound_num == 0
+            kwargs[:eval_method] = gauss_legendre
+        elseif inf_bound_num == 1
+            kwargs[:eval_method] = gauss_laguerre
+        else
+            kwargs[:eval_method] = gauss_hermite
+        end
+    end
+
     # construct AbstractMeasureData as data
-    data = generate_measure_data(params, num_supports, lb, ub, method = eval_method,
-                                 name = name, weight_func = weight_func)
+    data = generate_measure_data(params, num_supports, lb, ub; kwargs...)
 
     # call measure function to construct the measure
     return measure(expr, data)
+end
+
+"""
+    get_measure_defaults(model::InfiniteModel)
+
+Get the default keyword argument values from model.
+
+"""
+function get_measure_defaults(model::InfiniteModel)
+    return model.meas_defaults;
+end
+
+"""
+    set_measure_defaults(model::InfiniteModel; kwargs...)
+
+Set the default keyword argument settings for measures of the specified model.
+The keyword arguments of this function will be recorded in the default keyword
+argument values of the model. If the keyword argument has been defined in the
+model default, it will be overwritten with the new keyword argument value.
+Otherwise, the default will record the new keyword argument and its value for
+measures. The default values will be used by measures constructed from
+[`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}))
+function calls. 
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
+julia> m.meas_default
+Dict{Symbol,Any} with 6 entries:
+  :num_supports          => 50
+  :call_from_expect      => false
+  :eval_method           => nothing
+  :name                  => "measure"
+  :weight_func           => _w
+  :use_existing_supports => false
+
+julia> set_measure_default(m, num_supports = 5, eval_method = Quad, new_kwarg = true)
+
+julia> get_measure_defaults(m)
+Dict{Symbol,Any} with 6 entries:
+  :new_kwarg             => true
+  :num_supports          => 5
+  :call_from_expect      => false
+  :eval_method           => :Quad
+  :name                  => "measure"
+  :weight_func           => _w
+  :use_existing_supports => false
+```
+
+"""
+function set_measure_defaults(model::InfiniteModel; kwargs...)
+    merge!(model.meas_defaults, kwargs)
+    return
 end
 
 """
@@ -631,8 +732,8 @@ f(0.3) + f(0.7)
 ```
 """
 function support_sum(expr::JuMP.AbstractJuMPScalar,
-                     params::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}
-                     = nothing)::MeasureRef
+                     params::Union{ParameterRef, AbstractArray{<:ParameterRef},
+                                   Nothing} = nothing)::MeasureRef
     # sum measure
     return measure(expr, params, use_existing_supports = true, name = "sum")
 end
