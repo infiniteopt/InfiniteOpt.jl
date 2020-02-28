@@ -39,10 +39,7 @@ Now suppose we want
 ## Theoretical Abstraction
 
 
-## Preset Evaluations
-
-
-## Custom Evaluations
+## Evaluation Methods
 
 
 ## Expansion
@@ -78,6 +75,8 @@ Order   = [:function]
 expect
 support_sum
 measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})
+get_measure_defaults
+set_measure_defaults
 DiscreteMeasureData(::ParameterRef, ::Vector{<:Number}, ::Vector{<:Number})
 DiscreteMeasureData(::AbstractArray{<:ParameterRef}, ::Vector{<:Number}, ::Vector{<:AbstractArray})
 measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)
