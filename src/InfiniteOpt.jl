@@ -36,7 +36,7 @@ include("MeasureEvalMethods/MeasureEvalMethods.jl")
 using .MeasureEvalMethods: generate_measure_data, mc_sampling, gauss_legendre,
 gauss_hermite, gauss_laguerre, infinite_transform, measure_dispatch
 
-# Export the measure eval stuff
+# Export the measure eval functions
 export generate_measure_data, mc_sampling, gauss_legendre, gauss_hermite,
 gauss_laguerre, infinite_transform, measure_dispatch
 

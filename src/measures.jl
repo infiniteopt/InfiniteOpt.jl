@@ -416,9 +416,9 @@ end
     measure(expr::JuMP.AbstractJuMPScalar,
             [params::Union{ParameterRef, AbstractArray{<:ParameterRef},
                           Nothing} = nothing,
-            lb::Union{Number, AbstractArray{<:Number}, Nothing},
-            ub::Union{Number, AbstractArray{<:Number}, Nothing}];
-            [eval_method::Union{Function, Symbol, Nothing} = nothing,
+            lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
+            ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing];
+            [eval_method::Union{Function, Symbol},
             num_supports::Int = 50,
             weight_func::Function = _w, name = "measure",
             use_existing_supports::Bool = false,
@@ -442,7 +442,9 @@ parameters, the user needs to specify the parameter. The user can also specify
 lower bounds and upper bounds for the parameters, number of supports to
 generate, and the function to generate the supports with. The user can also
 input the keyword argument [`eval_method = Quad`] to construct points using
-appropriate quadrature methods based on the lower and upper bounds.
+appropriate quadrature methods based on the lower and upper bounds. See
+[`set_measure_defaults`](@ref) to update the default keyword argument values
+for all measure calls.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(seed = true))
@@ -516,13 +518,13 @@ function measure(expr::JuMP.AbstractJuMPScalar,
     end
 
     # collect keyword arguments
-    key_args = merge(copy(model.meas_defaults), kwargs)
-    eval_method = key_args[:eval_method]
-    num_supports = key_args[:num_supports]
-    name = key_args[:name]
-    weight_func = key_args[:weight_func]
-    use_existing_supports = key_args[:use_existing_supports]
-    call_from_expect = key_args[:call_from_expect]
+    kwargs = merge(model.meas_defaults, kwargs)
+    eval_method = kwargs[:eval_method]
+    num_supports = kwargs[:num_supports]
+    name = kwargs[:name]
+    weight_func = kwargs[:weight_func]
+    use_existing_supports = kwargs[:use_existing_supports]
+    call_from_expect = kwargs[:call_from_expect]
 
     set = _parameter_set(first(params))
     if num_params > 1
@@ -593,7 +595,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
     end
 
     if eval_method == Sampling
-        key_args[:eval_method] = mc_sampling
+        kwargs[:eval_method] = mc_sampling
     elseif eval_method == Quad || eval_method == gauss_legendre ||
            eval_method == gauss_hermite || eval_method == gauss_laguerre
         if num_params > 1
@@ -601,16 +603,16 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         end
         inf_bound_num = (lb == -Inf) + (ub == Inf)
         if inf_bound_num == 0
-            key_args[:eval_method] = gauss_legendre
+            kwargs[:eval_method] = gauss_legendre
         elseif inf_bound_num == 1
-            key_args[:eval_method] = gauss_laguerre
+            kwargs[:eval_method] = gauss_laguerre
         else
-            key_args[:eval_method] = gauss_hermite
+            kwargs[:eval_method] = gauss_hermite
         end
     end
 
     # construct AbstractMeasureData as data
-    data = generate_measure_data(params, num_supports, lb, ub; key_args...)
+    data = generate_measure_data(params, num_supports, lb, ub; kwargs...)
 
     # call measure function to construct the measure
     return measure(expr, data)
@@ -635,7 +637,8 @@ argument values of the model. If the keyword argument has been defined in the
 model default, it will be overwritten with the new keyword argument value.
 Otherwise, the default will record the new keyword argument and its value for
 measures. The default values will be used by measures constructed from
-[`measure_default`](@ref) function calls.
+[`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}))
+function calls. 
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
@@ -663,9 +666,7 @@ Dict{Symbol,Any} with 6 entries:
 
 """
 function set_measure_defaults(model::InfiniteModel; kwargs...)
-    for i in keys(kwargs)
-        model.meas_defaults[i] = kwargs[i]
-    end
+    merge!(model.meas_defaults, kwargs)
     return
 end
 
