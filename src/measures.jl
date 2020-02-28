@@ -432,7 +432,9 @@ or vector) and ``w`` is the weight function. This function serves as a flexible
 interface where users only have to provide necessary data about the
 integration. Instead of taking an [`AbstractMeasureData`](@ref) object as input,
 this function constructs the [`AbstractMeasureData`](@ref) object using some
-default numerical integration schemes. By default, the function will generate
+default numerical integration schemes. The lower and upper bounds of measure
+can be specified through `lb` and `ub` arguments. If not specified, the function
+will take the full range as the default domain. By default, the function generates
 points by Monte Carlo sampling from the interval if the parameter is in an
 [`IntervalSet`](@ref), or from the underlying distribution if the parameter is
 in a [`DistributionSet`](@ref). If the expression involves multiple groups of
@@ -462,12 +464,9 @@ function measure(expr::JuMP.AbstractJuMPScalar,
                                                              Nothing} = nothing,
                  lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
                  ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing;
-                 eval_method::Union{Function, Symbol, Nothing} = nothing,
-                 num_supports::Int = 50,
-                 weight_func::Function = _w, name = "measure",
-                 use_existing_supports::Bool = false,
-                 call_from_expect::Bool = false, kwargs...)::MeasureRef
-    # Measure function that takes non-AbstractMeasureData types
+                 kwargs...)::MeasureRef
+
+    # collect parameters from expression if they are not provided
     if isa(params, Nothing)
         if isa(expr, MeasureRef)
             error("Nested call of measure must specify parameters.")
@@ -483,11 +482,13 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         end
     end
 
+    # count number of parameters
     if isa(params, ParameterRef)
         num_params = 1
     else
         num_params = length(params)
         if num_params == 0
+            # error if empty ParameterRef array is provided
             error("No infinite parameter is provided.")
         elseif num_params == 1
             params = first(params)
@@ -496,6 +497,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
             if length(ids) > 1
                 error("Multiple groups of parameters are specified.")
             end
+            # Use SparseAxisArray for params, lb, ub if multiple parameters
             params = convert(JuMPC.SparseAxisArray, params)
             if isa(lb, AbstractArray)
                 lb = convert(JuMPC.SparseAxisArray, lb)
@@ -505,6 +507,22 @@ function measure(expr::JuMP.AbstractJuMPScalar,
             end
         end
     end
+
+    # collect model of the measure
+    if isa(params, ParameterRef)
+        model = params.model
+    else
+        model = first(params).model
+    end
+
+    # collect keyword arguments
+    key_args = merge(copy(model.meas_defaults), kwargs)
+    eval_method = key_args[:eval_method]
+    num_supports = key_args[:num_supports]
+    name = key_args[:name]
+    weight_func = key_args[:weight_func]
+    use_existing_supports = key_args[:use_existing_supports]
+    call_from_expect = key_args[:call_from_expect]
 
     set = _parameter_set(first(params))
     if num_params > 1
@@ -574,32 +592,42 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         return measure(expr, data)
     end
 
-    if eval_method == nothing || eval_method == Sampling
-        eval_method = mc_sampling
-    elseif eval_method == Quad
+    if eval_method == Sampling
+        key_args[:eval_method] = mc_sampling
+    elseif eval_method == Quad || eval_method == gauss_legendre ||
+           eval_method == gauss_hermite || eval_method == gauss_laguerre
         if num_params > 1
             error("Quadrature method is not supported for multivariate measures.")
         end
         inf_bound_num = (lb == -Inf) + (ub == Inf)
         if inf_bound_num == 0
-            eval_method = gauss_legendre
+            key_args[:eval_method] = gauss_legendre
         elseif inf_bound_num == 1
-            eval_method = gauss_laguerre
+            key_args[:eval_method] = gauss_laguerre
         else
-            eval_method = gauss_hermite
+            key_args[:eval_method] = gauss_hermite
         end
     end
 
     # construct AbstractMeasureData as data
-    data = generate_measure_data(params, num_supports, lb, ub, method = eval_method,
-                                 name = name, weight_func = weight_func; kwargs...)
+    data = generate_measure_data(params, num_supports, lb, ub; key_args...)
 
     # call measure function to construct the measure
     return measure(expr, data)
 end
 
 """
-    set_measure_default(model::InfiniteModel; kwargs...)
+    get_measure_defaults(model::InfiniteModel)
+
+Get the default keyword argument values from model.
+
+"""
+function get_measure_defaults(model::InfiniteModel)
+    return model.meas_defaults;
+end
+
+"""
+    set_measure_defaults(model::InfiniteModel; kwargs...)
 
 Set the default keyword argument settings for measures of the specified model.
 The keyword arguments of this function will be recorded in the default keyword
@@ -622,7 +650,7 @@ Dict{Symbol,Any} with 6 entries:
 
 julia> set_measure_default(m, num_supports = 5, eval_method = Quad, new_kwarg = true)
 
-julia> m.meas_default
+julia> get_measure_defaults(m)
 Dict{Symbol,Any} with 6 entries:
   :new_kwarg             => true
   :num_supports          => 5
@@ -634,61 +662,11 @@ Dict{Symbol,Any} with 6 entries:
 ```
 
 """
-function set_measure_default(model::InfiniteModel; kwargs...)
+function set_measure_defaults(model::InfiniteModel; kwargs...)
     for i in keys(kwargs)
-        model.meas_default[i] = kwargs[i]
+        model.meas_defaults[i] = kwargs[i]
     end
     return
-end
-
-"""
-    measure_default(expr::JuMP.AbstractJuMPScalar,
-                    params::Union{ParameterRef,
-                                  AbstractArray{<:ParameterRef}, Nothing},
-                    lb::Union{Number, AbstractArray{<:Number}, Nothing},
-                    ub::Union{Number, AbstractArray{<:Number}, Nothing};
-                    kwargs...)::MeasureRef
-
-Creates a measure that uses the default keyword arguments stored in the model.
-Return the [`MeasureRef`](@ref) of the created measure with the default
-parameters of the model.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
-julia> set_measure_default(m, num_supports = 5, eval_method = Quad, new_kwarg = true)
-
-julia> @infinite_parameter(m, x in [0,1]); @infinite_variable(m, f(x));
-
-julia> mref = measure_default(f)
-measure(f(x))
-
-julia> measure_data(mref).supports
-5-element Array{Float64,1}:
- 0.04691007703066802
- 0.23076534494715845
- 0.5
- 0.7692346550528415
- 0.9530899229693319
-```
-"""
-function measure_default(expr::JuMP.AbstractJuMPScalar,
-                         params::Union{ParameterRef,
-                                       AbstractArray{<:ParameterRef},
-                                       Nothing} = nothing,
-                         lb::Union{Number,
-                                   AbstractArray{<:Number},
-                                   Nothing} = nothing,
-                         ub::Union{Number,
-                                   AbstractArray{<:Number},
-                                   Nothing} = nothing; kwargs...)::MeasureRef
-
-
-    vrefs = _all_function_variables(expr)
-    model = _model_from_expr(vrefs)
-    if model == nothing
-        error("Expression contains no variables.")
-    end
-    return measure(expr, params, lb, ub; model.meas_default..., kwargs...)
 end
 
 """

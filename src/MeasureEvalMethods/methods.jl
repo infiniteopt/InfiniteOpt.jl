@@ -28,7 +28,7 @@ function generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
                                num_supports::Int,
                                lb::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing,
                                ub::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing;
-                               method::Function = mc_sampling, name::String = "",
+                               eval_method::Function = mc_sampling, name::String = "",
                                weight_func::Function = InfiniteOpt._w, kwargs...
                                )::InfiniteOpt.AbstractMeasureData
     if isa(params, InfiniteOpt.ParameterRef)
@@ -37,7 +37,7 @@ function generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
         params = convert(JuMPC.SparseAxisArray, params)
         set = InfiniteOpt._parameter_set(first(params))
     end
-    (supports, coeffs) = measure_dispatch(set, params, num_supports, lb, ub, method; kwargs...)
+    (supports, coeffs) = measure_dispatch(set, params, num_supports, lb, ub, eval_method; kwargs...)
     return InfiniteOpt.DiscreteMeasureData(params, coeffs, supports,
                                            name = name, weight_function = weight_func)
 end

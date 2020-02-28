@@ -120,7 +120,7 @@ end
     @infinite_parameter(m, ω[1:2] in dist2)
     @testset "generate_measure_data (univariate)" begin
         @test_throws ErrorException generate_measure_data(x, 10, 1., 2.)
-        measure_data = generate_measure_data(x, 10, 0.3, 0.7, method = gauss_legendre)
+        measure_data = generate_measure_data(x, 10, 0.3, 0.7, eval_method = gauss_legendre)
         (expect_supports, expect_weights) = gauss_legendre(0.3, 0.7, 10)
         @test measure_data.supports == expect_supports
         @test measure_data.coefficients == expect_weights
