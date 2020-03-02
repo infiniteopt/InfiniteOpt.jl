@@ -21,6 +21,8 @@ println("-----------------------------------------")
 println("")
 @time @testset "Utilities" begin include("utility_tests.jl") end
 println("")
+@time @testset "Infinite Set Methods" begin include("infinite_sets.jl") end
+println("")
 @time @testset "Parameter Methods" begin include("parameters.jl") end
 println("")
 @time @testset "Optimizer Setup Methods" begin include("optimizer_setup.jl") end

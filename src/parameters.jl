@@ -101,18 +101,8 @@ end
 function _check_supports_in_bounds(_error::Function,
                                    supports::Union{Number, Vector{<:Number}},
                                    set::AbstractInfiniteSet)
-    min_support = minimum(supports)
-    max_support = maximum(supports)
-    if isa(set, IntervalSet)
-       if min_support < set.lower_bound || max_support > set.upper_bound
-           _error("Support points violate the interval set bounds.")
-       end
-   elseif isa(set, DistributionSet{<:Distributions.UnivariateDistribution})
-       check1 = min_support < minimum(set.distribution)
-       check2 = max_support > maximum(set.distribution)
-       if check1 || check2
-           _error("Support points violate the distribution set bounds.")
-       end
+    if !supports_in_set(supports, set)
+        _error("Supports violate the set domain bounds.")
     end
     return
 end
@@ -665,7 +655,8 @@ end
 
 Extend the `JuMP.has_lower_bound` function to accomodate infinite parameters.
 Return true if the set associated with `pref` has a defined lower bound or if a
-lower bound can be found.
+lower bound can be found. Extensions with user-defined infinite set types
+should extend `JuMP.has_lower_bound(set::NewType)`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
@@ -675,18 +666,7 @@ true
 """
 function JuMP.has_lower_bound(pref::ParameterRef)::Bool
     set = _parameter_set(pref)
-    if isa(set, IntervalSet)
-        return true
-    elseif isa(set, DistributionSet)
-        if typeof(set.distribution) <: Distributions.UnivariateDistribution
-            return true
-        else
-            false
-        end
-    else
-        type = typeof(set)
-        error("Undefined infinite set type $type for lower bound checking.")
-    end
+    return JuMP.has_lower_bound(set)
 end
 
 """
@@ -707,19 +687,16 @@ function JuMP.lower_bound(pref::ParameterRef)::Number
     if !JuMP.has_lower_bound(pref)
         error("Parameter $(pref) does not have a lower bound.")
     end
-    if isa(set, IntervalSet)
-        return set.lower_bound
-    else
-        return minimum(set.distribution)
-    end
+    return JuMP.lower_bound(set)
 end
 
 """
     JuMP.set_lower_bound(pref::ParameterRef, lower::Number)
 
 Extend the `JuMP.set_lower_bound` function to accomodate infinite parameters.
-Updates the infinite set lower bound if and only if it is an IntervalSet. Errors
-otherwise.
+Updates the infinite set lower bound if such an operation is supported. Set
+extensions that seek to employ this should extend
+`JuMP.set_lower_bound(set::NewType, lower::Number)`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
@@ -731,13 +708,8 @@ julia> lower_bound(t)
 """
 function JuMP.set_lower_bound(pref::ParameterRef, lower::Number)
     set = _parameter_set(pref)
-    if isa(set, DistributionSet)
-        error("Cannot set the lower bound of a distribution, try using " *
-              "`Distributions.Truncated` instead.")
-    elseif !isa(set, IntervalSet)
-        error("Parameter $(pref) is not an interval set.")
-    end
-    _update_parameter_set(pref, IntervalSet(lower, set.upper_bound))
+    new_set = JuMP.set_lower_bound(set, lower)
+    _update_parameter_set(pref, new_set)
     return
 end
 
@@ -746,7 +718,8 @@ end
 
 Extend the `JuMP.has_upper_bound` function to accomodate infinite parameters.
 Return true if the set associated with `pref` has a defined upper bound or if a
-upper bound can be found.
+upper bound can be found. Extensions with user-defined sets should extend
+`JuMP.has_upper_bound(set::NewType)`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
@@ -756,18 +729,7 @@ true
 """
 function JuMP.has_upper_bound(pref::ParameterRef)::Bool
     set = _parameter_set(pref)
-    if isa(set, IntervalSet)
-        return true
-    elseif isa(set, DistributionSet)
-        if typeof(set.distribution) <: Distributions.UnivariateDistribution
-            return true
-        else
-            false
-        end
-    else
-        type = typeof(set)
-        error("Undefined infinite set type $type for lower upper checking.")
-    end
+    return JuMP.has_upper_bound(set)
 end
 
 """
@@ -775,7 +737,9 @@ end
 
 Extend the `JuMP.upper_bound` function to accomodate infinite parameters.
 Returns the upper bound associated with the infinite set. Errors if such a bound
-is not well-defined.
+is not well-defined. Extensions with user-defined set types should extend
+`JuMP.has_upper_bound(set::NewType)` and `JuMP.upper_bound(set::NewType)` if
+appropriate.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
@@ -788,11 +752,7 @@ function JuMP.upper_bound(pref::ParameterRef)::Number
     if !JuMP.has_upper_bound(pref)
         error("Parameter $(pref) does not have a upper bound.")
     end
-    if isa(set, IntervalSet)
-        return set.upper_bound
-    else
-        return maximum(set.distribution)
-    end
+    return JuMP.upper_bound(set)
 end
 
 """
@@ -800,7 +760,8 @@ end
 
 Extend the `JuMP.set_upper_bound` function to accomodate infinite parameters.
 Updates the infinite set upper bound if and only if it is an IntervalSet. Errors
-otherwise.
+otherwise. Extensions with user-defined infinite sets should extend
+`JuMP.set_upper_bound(set::NewType, upper::Number)` if appropriate.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
@@ -812,13 +773,8 @@ julia> upper_bound(t)
 """
 function JuMP.set_upper_bound(pref::ParameterRef, upper::Number)
     set = _parameter_set(pref)
-    if isa(set, DistributionSet)
-        error("Cannot set the upper bound of a distribution, try using " *
-              "`Distributions.Truncated` instead.")
-    elseif !isa(set, IntervalSet)
-        error("Parameter $(pref) is not an interval set.")
-    end
-    _update_parameter_set(pref, IntervalSet(set.lower_bound, upper))
+    new_set = JuMP.set_upper_bound(set, upper)
+    _update_parameter_set(pref, new_set)
     return
 end
 
@@ -1053,10 +1009,8 @@ true
 """
 function is_finite_parameter(pref::ParameterRef)::Bool
     set = infinite_set(pref)
-    if isa(set, IntervalSet)
-        if set.lower_bound == set.upper_bound
-            return true
-        end
+    if isa(set, IntervalSet) && set.lower_bound == set.upper_bound
+        return true
     end
     return false
 end
@@ -1163,6 +1117,7 @@ function fill_in_supports!(pref::ParameterRef; num_supports::Int = 50,
     return
 end
 
+# TODO make this more extendable
 function _generate_supports(pref::ParameterRef, set::AbstractInfiniteSet;
                            num_supports::Int = 50, sig_fig::Int = 5)
     add_supports(pref, _support_values(set, num_supports = num_supports,

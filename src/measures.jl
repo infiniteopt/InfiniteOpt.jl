@@ -536,6 +536,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         end
     end
 
+    # TODO check extendability
     if isa(set, IntervalSet)
         # Fill in lower bounds and upper bounds if not given
         if isa(lb, Nothing) || length(lb) == 0
@@ -638,7 +639,7 @@ model default, it will be overwritten with the new keyword argument value.
 Otherwise, the default will record the new keyword argument and its value for
 measures. The default values will be used by measures constructed from
 [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}))
-function calls. 
+function calls.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())

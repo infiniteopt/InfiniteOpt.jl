@@ -13,6 +13,7 @@ const JuMPC = JuMP.Containers
 
 # Import all of the datatpyes, methods, macros, and definitions.
 include("datatypes.jl")
+include("infinite_sets.jl")
 include("parameters.jl")
 include("variables.jl")
 include("reduced_variables.jl")
@@ -61,7 +62,7 @@ export build_parameter, add_parameter, infinite_set, set_infinite_set,
 num_parameters, parameter_by_name, all_parameters, num_supports, has_supports,
 set_supports, add_supports, delete_supports, supports, used_by_constraint,
 used_by_measure, used_by_variable, is_used, group_id, is_independent,
-set_independent, unset_independent, is_finite_parameter
+set_independent, unset_independent, is_finite_parameter, supports_in_set
 
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, PointVariable, HoldVariable,

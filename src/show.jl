@@ -1,3 +1,4 @@
+# TODO extend to allow for other set types
 # Extend to return of in set string for interval sets
 function JuMP.in_set_string(print_mode, set::IntervalSet)::String
     if set.lower_bound != set.upper_bound

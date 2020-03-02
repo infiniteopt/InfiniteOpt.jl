@@ -497,7 +497,7 @@ end
         set_infinite_set(pref, DistributionSet(Multinomial(3, [1/2, 1/2])))
         @test !has_lower_bound(pref)
         set_infinite_set(pref, BadSet())
-        @test_throws ErrorException has_lower_bound(pref)
+        @test !has_lower_bound(pref)
     end
     # JuMP.lower_bound
     @testset "JuMP.lower_bound" begin
@@ -532,7 +532,7 @@ end
         set_infinite_set(pref, DistributionSet(Multinomial(3, [1/2, 1/2])))
         @test !has_upper_bound(pref)
         set_infinite_set(pref, BadSet())
-        @test_throws ErrorException has_upper_bound(pref)
+        @test !has_upper_bound(pref)
     end
     # JuMP.upper_bound
     @testset "JuMP.upper_bound" begin

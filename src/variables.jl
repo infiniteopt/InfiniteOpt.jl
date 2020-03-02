@@ -126,20 +126,14 @@ function _check_tuple_values(_error::Function, inf_vref::InfiniteVariableRef,
                              param_values::Tuple)
     prefs = parameter_refs(inf_vref)
     for i in eachindex(prefs)
-        if isa(prefs[i], ParameterRef) && JuMP.has_lower_bound(prefs[i])
-            check1 = param_values[i] < JuMP.lower_bound(prefs[i])
-            check2 = param_values[i] > JuMP.upper_bound(prefs[i])
-            if check1 || check2
+        if isa(prefs[i], ParameterRef)
+            if !supports_in_set(param_values[i], infinite_set(prefs[i]))
                 _error("Parameter values violate parameter bounds.")
             end
         else
-            for (k, v) in prefs[i].data
-                if JuMP.has_lower_bound(v)
-                    check1 = param_values[i].data[k] < JuMP.lower_bound(v)
-                    check2 = param_values[i].data[k] > JuMP.upper_bound(v)
-                    if check1 || check2
-                        _error("Parameter values violate parameter bounds.")
-                    end
+            for (k, pref) in prefs[i].data
+                if !supports_in_set(param_values[i].data[k], infinite_set(pref))
+                    _error("Parameter values violate parameter bounds.")
                 end
             end
         end
