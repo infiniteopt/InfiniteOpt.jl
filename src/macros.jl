@@ -240,7 +240,6 @@ macro infinite_parameter(model, args...)
         # isa(param, Expr) || _error("Expected $param to be a parameter name") --> not needed... I think
         # We now build the code to generate the variables (and possibly the
         # SparseAxisArray to contain them)
-        # TODO finish updating
         idxvars, indices = JuMPC._build_ref_sets(_error, param)
         buildcall = :( build_parameter($_error, $set, length(collect($indices)),
                                        $(extra...)) )

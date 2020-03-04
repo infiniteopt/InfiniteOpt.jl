@@ -62,7 +62,8 @@ export build_parameter, add_parameter, infinite_set, set_infinite_set,
 num_parameters, parameter_by_name, all_parameters, num_supports, has_supports,
 set_supports, add_supports, delete_supports, supports, used_by_constraint,
 used_by_measure, used_by_variable, is_used, group_id, is_independent,
-set_independent, unset_independent, is_finite_parameter, supports_in_set
+set_independent, unset_independent, is_finite_parameter, supports_in_set,
+generate_and_add_supports!, generate_support_values
 
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, PointVariable, HoldVariable,

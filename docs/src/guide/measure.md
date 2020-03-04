@@ -99,6 +99,7 @@ Order   = [:function]
 
 ```@docs
 InfiniteOpt.MeasureEvalMethods.generate_measure_data
+InfiniteOpt.MeasureEvalMethods.measure_dispatch
 InfiniteOpt.MeasureEvalMethods.mc_sampling(::Number, ::Number, ::Int)
 InfiniteOpt.MeasureEvalMethods.mc_sampling(::Distributions.UnivariateDistribution, ::InfiniteOpt.ParameterRef, ::Int)
 InfiniteOpt.MeasureEvalMethods.gauss_legendre

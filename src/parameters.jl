@@ -123,7 +123,7 @@ helper method for [`@infinite_parameter`](@ref).
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt)
 julia> build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
+InfOptParameter{IntervalSet}([0, 3], [0, 1, 2, 3], false)
 ```
 """
 function build_parameter(_error::Function, set::AbstractInfiniteSet,
@@ -147,7 +147,8 @@ function build_parameter(_error::Function, set::AbstractInfiniteSet,
             _error("Support generation is not available for multivariate " *
                    "distributions.")
         end
-        supports = _support_values(set, num_supports = num_supports, sig_fig = sig_fig)
+        supports = generate_support_values(set, num_supports = num_supports,
+                                           sig_fig = sig_fig)
     end
     if isa(set, DistributionSet{<:Distributions.MultivariateDistribution})
         if num_params != length(set.distribution)
@@ -195,7 +196,7 @@ construct `p`.
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> p = build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
+InfOptParameter{IntervalSet}([0, 3], [0, 1, 2, 3], false)
 
 julia> param_ref = add_parameter(model, p, "name")
 name
@@ -625,7 +626,7 @@ Return the infinite set associated with `pref`.
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> infinite_set(t)
-IntervalSet(0.0, 1.0)
+[0, 1]
 ```
 """
 function infinite_set(pref::ParameterRef)::AbstractInfiniteSet
@@ -642,7 +643,7 @@ Specify the infinite set of `pref`.
 julia> set_infinite_set(t, IntervalSet(0, 2))
 
 julia> infinite_set(t)
-IntervalSet(0.0, 2.0)
+[0, 2]
 ```
 """
 function set_infinite_set(pref::ParameterRef, set::AbstractInfiniteSet)
@@ -887,8 +888,7 @@ function supports(prefs::AbstractArray{<:ParameterRef})::Vector
     else
         all_keys = collect(keys(prefs))
         all_supports = [supports(pref) for (k, pref) in prefs.data]
-        support_list = Vector{JuMPC.SparseAxisArray}(undef,
-                                                               prod(lengths))
+        support_list = Vector{JuMPC.SparseAxisArray}(undef, prod(lengths))
         counter = 1
         for combo in Iterators.product(all_supports...)
             support_list[counter] = JuMPC.SparseAxisArray(Dict(all_keys[i] => combo[i] for i in eachindex(combo)))
@@ -1057,10 +1057,12 @@ end
     fill_in_supports!(model::InfiniteModel; [num_supports::Int = 50,
                       sig_fig::Int = 5])
 
-Automatically generate support points for all infinite parameters in model
-except for parameters in multivariate distributions, where we require that the
-user inputs the supports. User can specify the number of significant figures
-kept after decimal point for the auto-generated supports wtih `sig_fig`.
+Automatically generate support points for all infinite parameters in model. User
+can specify the number of significant figures kept after decimal point for the
+auto-generated supports wtih `sig_fig`. This calls
+[`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef)) for each parameter
+in the model. See [`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef))
+for more information. Errors if one of the infinite set types is unrecognized.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
@@ -1087,10 +1089,15 @@ end
     fill_in_supports!(pref::ParameterRef; [num_supports::Int = 50,
                                            sig_fig::Int = 5])
 
-Automatically generate support points for all infinite parameters in model
-except for parameters in multivariate distributions, where we require that the
-user inputs the supports. User can specify the number of digits kept after
-decimal point for the auto-generated supports wtih `sig_fig`.
+Automatically generate support points for a particular infinite parameter `pref`.
+Generating `num_supports` for the parameter. The supports are generated uniformly
+if the underlying infinite set is an `IntervalSet` or they are generating randomly
+accordingly to the distribution if the set is a `DistributionSet`.
+User can specify the number of digits kept after decimal point for the
+auto-generated supports wtih `sig_fig`. Extensions that use user defined
+set types should extend [`generate_and_add_supports!`](@ref) and/or
+[`generate_support_values`](@ref) as needed. Errors if the infinite set type is
+not recognized.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
@@ -1109,51 +1116,49 @@ function fill_in_supports!(pref::ParameterRef; num_supports::Int = 50,
                            sig_fig::Int = 5)
     p = JuMP.owner_model(pref).params[JuMP.index(pref)]
     if length(p.supports) == 0
-        _generate_supports(pref, p.set, num_supports = num_supports, sig_fig = sig_fig)
-    # else
-        # @warn("No supports generated for $(pref) since $(pref) has existing " *
-        #       "supports.")
+        generate_and_add_supports!(pref, p.set, num_supports = num_supports,
+                                   sig_fig = sig_fig)
     end
     return
 end
 
-# TODO make this more extendable
-function _generate_supports(pref::ParameterRef, set::AbstractInfiniteSet;
-                           num_supports::Int = 50, sig_fig::Int = 5)
-    add_supports(pref, _support_values(set, num_supports = num_supports,
+"""
+    generate_and_add_supports!(pref::ParameterRef, set::AbstractInfiniteSet;
+                               [num_supports::Int = 50, sig_fig::Int = 5])
+
+Generate supports for `pref` via [`generate_support_values`](@ref) and add them
+to `pref`. This is intended as an extendable internal method for
+[`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef)). Note that if
+`pref` is part of a `DistributionSet` that features a multivariate distribution,
+all the associated parameters with `pref` will also have supports added to them.
+Most extensions that empoy user-defined infinite sets can typically enable this
+by extending [`generate_support_values`](@ref). However, in some cases it may be
+necessary to extend this when more complex operations need to take place then just
+adding supports to a single infinite parameter (e.g., how we enable multivariate
+distribution sets). Errors if the infinite set type is not recognized.
+"""
+function generate_and_add_supports!(pref::ParameterRef, set::AbstractInfiniteSet;
+                                    num_supports::Int = 50, sig_fig::Int = 5)
+    add_supports(pref, generate_support_values(set, num_supports = num_supports,
                                        sig_fig = sig_fig))
     return
 end
 
-function _generate_supports(pref::ParameterRef,
-                           set::DistributionSet{<:Distributions.MultivariateDistribution};
-                           num_supports::Int = 50, sig_fig::Int = 5)
+# Multivariate distribution sets
+function generate_and_add_supports!(pref::ParameterRef,
+                                    set::DistributionSet{<:Distributions.MultivariateDistribution};
+                                    num_supports::Int = 50, sig_fig::Int = 5)
     pref_group_id = group_id(pref)
     model = JuMP.owner_model(pref)
     associated_p_index = sort([i for i in 1:length(model.params)
                                if model.param_to_group_id[i] == pref_group_id])
-    new_supports = _support_values(set, num_supports = num_supports, sig_fig = sig_fig)
+    new_supports = generate_support_values(set, num_supports = num_supports, sig_fig = sig_fig)
 
     for i in 1:length(associated_p_index)
         pref_i = ParameterRef(model, associated_p_index[i])
         add_supports(pref_i, new_supports[i, :])
     end
     return
-end
-
-function _support_values(set::IntervalSet; num_supports::Int = 50,
-                         sig_fig::Int = 5)::Vector
-    lb = set.lower_bound
-    ub = set.upper_bound
-    new_supports = round.(collect(range(lb, stop = ub, length = num_supports)),
-                          sigdigits = sig_fig)
-    return new_supports
-end
-
-function _support_values(set::DistributionSet; num_supports::Int = 50,
-                         sig_fig::Int = 5)::Array
-    new_supports = round.(Distributions.rand(set.distribution, num_supports), sigdigits = sig_fig)
-    return new_supports
 end
 
 """

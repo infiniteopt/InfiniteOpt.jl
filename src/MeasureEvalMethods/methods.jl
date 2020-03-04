@@ -7,6 +7,7 @@
                           method::Function = mc_sampling, name::String = "",
                           weight_func::Function = InfiniteOpt._w, kwargs...
                           )::InfiniteOpt.AbstractMeasureData
+
 Generate an [`AbstractMeasureData`](@ref) object that automatically generate
 supports based on a set of given information. The information is required to
 include parameters and number of supports. Other optional information to input
@@ -42,6 +43,24 @@ function generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
                                            name = name, weight_function = weight_func)
 end
 
+# TODO consider case that `method` is not valid for a particular set type
+"""
+    measure_dispatch(set::InfiniteOpt.AbstractInfiniteSet,
+                     params::Union{InfiniteOpt.ParameterRef,
+                     AbstractArray{<:InfiniteOpt.ParameterRef}},
+                     num_supports::Int,
+                     lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                     ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                     method::Function; [kwargs...])::Tuple
+
+Call `method` to generate supports and coefficients using the arguments and
+`kwargs` as appropriate. This will dispatch to `method` in accordance with the
+type of `set`. This is intended as an internal method for
+[`generate_measure_data`](@ref InfiniteOpt.MeasureEvalMethods.generate_measure_data)
+and will need to be extended for user-defined
+infinite set types. Extensions will also need to consider whether there are
+appropriate methods for `method` and extend those as needed.
+"""
 function measure_dispatch(set::InfiniteOpt.IntervalSet,
                           params::Union{InfiniteOpt.ParameterRef,
                           AbstractArray{<:InfiniteOpt.ParameterRef}},
@@ -52,6 +71,7 @@ function measure_dispatch(set::InfiniteOpt.IntervalSet,
     return method(lb, ub, num_supports; kwargs...)
 end
 
+# DistributionSet
 function measure_dispatch(set::InfiniteOpt.DistributionSet,
                           params::Union{InfiniteOpt.ParameterRef,
                           AbstractArray{<:InfiniteOpt.ParameterRef}},

@@ -69,3 +69,27 @@ end
         @test_throws ErrorException set_upper_bound(set3, 2)
     end
 end
+
+# Test support generation
+@testset "generate_support_values" begin
+    @testset "IntervalSet" begin
+        set = IntervalSet(0., 1.)
+        @test generate_support_values(set, num_supports = 10, sig_fig = 3) isa Vector{<:Number}
+        @test generate_support_values(set, num_supports = 10, sig_fig = 3)[2] == 0.111
+        @test generate_support_values(set, num_supports = 10, sig_fig = 3)[2] != 1/11
+        @test length(generate_support_values(set, num_supports = 10, sig_fig = 3)) == 10
+    end
+    @testset "DistributionSet" begin
+        dist1 = Normal(0., 1.)
+        dist2 = MvNormal([0.; 0.], [1. 0.; 0. 2.])
+        set1 = DistributionSet(dist1)
+        set2 = DistributionSet(dist2)
+        @test generate_support_values(set1, num_supports = 10) isa Vector{<:Number}
+        @test generate_support_values(set2, num_supports = 10) isa Array{<:Number, 2}
+        @test length(generate_support_values(set1, num_supports = 10)) == 10
+        @test size(generate_support_values(set2, num_supports = 10)) == (2, 10)
+    end
+    @testset "Fallback" begin
+        @test_throws ErrorException generate_support_values(BadSet())
+    end
+end

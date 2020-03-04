@@ -108,7 +108,7 @@ User-defined set types should extend this if appropriate.
 julia> set = InfiniteSet(0, 1);
 
 julia> set_lower_bound(set, 0.5)
-IntervalSet(0.5, 1.0)
+[0.5, 1]
 ```
 """
 function JuMP.set_lower_bound(set::AbstractInfiniteSet, lower::Number) # fallback
@@ -194,7 +194,7 @@ User-defined set types should extend this if appropriate.
 julia> set = InfiniteSet(0, 1);
 
 julia> set_upper_bound(set, 0.5)
-IntervalSet(0.0, 0.5)
+[0, 0.5]
 ```
 """
 function JuMP.set_upper_bound(set::AbstractInfiniteSet, upper::Number) # fallback
@@ -211,4 +211,41 @@ end
 function JuMP.set_upper_bound(set::DistributionSet, lower::Number)
     error("Cannot set the upper bound of a distribution, try using " *
           "`Distributions.Truncated` instead.")
+end
+
+"""
+    generate_support_values(set::AbstractInfiniteSet; [num_supports::Int = 50,
+                            sig_fig::Int = 5])
+
+Generate `num_supports` support values with `sig_figs` significant digits in
+accordance with `set` and return them. `IntervalSet`s generate supports
+uniformly and `DistributionSet`s generate them randomly accordingly to the
+underlyign distribution. Extensions that employ user-defined infinite set types
+should extend according to the new set type. Errors if the `set` is a type that
+has not been explicitly extended. This is intended as an internal method to be
+used by [`generate_and_add_supports!`](@ref) and [`build_parameter`](@ref).
+"""
+function generate_support_values(set::AbstractInfiniteSet; num_supports::Int = 0,
+                                 sig_fig::Int = 1)
+    type = typeof(set)
+    error("Unable to generate support values for unrecognized infinite set " *
+          "type $type")
+end
+
+# IntervalSet
+function generate_support_values(set::IntervalSet; num_supports::Int = 50,
+                         sig_fig::Int = 5)::Vector
+    lb = set.lower_bound
+    ub = set.upper_bound
+    new_supports = round.(collect(range(lb, stop = ub, length = num_supports)),
+                          sigdigits = sig_fig)
+    return new_supports
+end
+
+# DistributionSet
+function generate_support_values(set::DistributionSet; num_supports::Int = 50,
+                         sig_fig::Int = 5)::Array
+    new_supports = round.(Distributions.rand(set.distribution, num_supports),
+                          sigdigits = sig_fig)
+    return new_supports
 end
