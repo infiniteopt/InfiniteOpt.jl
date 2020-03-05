@@ -90,8 +90,9 @@ function _constructor_set(_error::Function, info::_ParameterInfoExpr)
         check = :(isa($(info.distribution), Distributions.NonMatrixDistribution))
         return :($(check) ? DistributionSet($(info.distribution)) : error("Distribution must be a subtype of Distributions.NonMatrixDistribution."))
     elseif info.has_set
-        check = :(isa($(info.set), AbstractInfiniteSet))
-        return :($(check) ? $(info.set) : error("Set must be a subtype of AbstractInfiniteSet."))
+        check1 = :(isa($(info.set), AbstractInfiniteSet))
+        check2 = :(isa($(info.set), Distributions.NonMatrixDistribution))
+        return :($(check1) ? $(info.set) : ($(check2) ? DistributionSet($(info.set)) : error("Set must be a subtype of AbstractInfiniteSet.")))
     else
         _error("Must specify upper/lower bounds, a distribution, or a set")
     end

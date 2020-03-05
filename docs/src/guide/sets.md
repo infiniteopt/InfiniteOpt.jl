@@ -16,7 +16,8 @@ However, for convenience below we summary the infinite sets associated with
 | Set Type        | Domain              |
 |:---------------:|:-------------------:|
 | IntervalSet     | ``[lb, ub]``        |
-| DistributionSet | ``\sim \mathcal{D}``|  
+| DistributionSet | ``\sim \mathcal{D}``|
+
 
 ## IntervalSets
 The domain of a given infinite parameter is described by an infinite set

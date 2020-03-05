@@ -110,8 +110,9 @@ end
         expected = :($(check) ? DistributionSet($(info.distribution)) : error("Distribution must be a subtype of Distributions.NonMatrixDistribution."))
         @test InfiniteOpt._constructor_set(error, info) == expected
         info = InfiniteOpt._ParameterInfoExpr(set = IntervalSet(0, 1))
-        check = :(isa($(info.set), AbstractInfiniteSet))
-        expected = :($(check) ? $(info.set) : error("Set must be a subtype of AbstractInfiniteSet."))
+        check1 = :(isa($(info.set), AbstractInfiniteSet))
+        check2 = :(isa($(info.set), Distributions.NonMatrixDistribution))
+        expected = :($(check1) ? $(info.set) : ($(check2) ? DistributionSet($(info.set)) : error("Set must be a subtype of AbstractInfiniteSet.")))
         @test InfiniteOpt._constructor_set(error, info) == expected
     end
     # _parse_one_operator_parameter
@@ -126,7 +127,7 @@ end
         info = InfiniteOpt._ParameterInfoExpr()
         @test isa(InfiniteOpt._parse_one_operator_parameter(error, info,
                                                           Val(:in), esc(0)), Nothing)
-        @test info.has_dist && info.distribution == esc(0)
+        @test info.has_set && info.set == esc(0)
         info = InfiniteOpt._ParameterInfoExpr()
         @test isa(InfiniteOpt._parse_one_operator_parameter(error, info,
                                                           Val(:in), esc(:([0, 1]))), Nothing)
@@ -296,7 +297,8 @@ end
         @test m.params[2].set == DistributionSet(Normal())
         @test m.params[2].supports == [1, 2]
         pref = ParameterRef(m, 3)
-        @test @infinite_parameter(m, c, set = IntervalSet(0, 1)) == pref
+        @test @infinite_parameter(m, c in IntervalSet(0, 1)) == pref
+        @test m.params[3].set == IntervalSet(0, 1)
         pref = ParameterRef(m, 4)
         @test @infinite_parameter(m, set = IntervalSet(0, 1),
                                   base_name = "d") == pref

@@ -526,7 +526,6 @@ function measure(expr::JuMP.AbstractJuMPScalar,
     use_existing_supports = kwargs[:use_existing_supports]
     call_from_expect = kwargs[:call_from_expect]
 
-    set = _parameter_set(first(params))
     if num_params > 1
         if isa(lb, Number)
             lb = JuMPC.SparseAxisArray(Dict(k => lb for k in keys(params)))
@@ -536,8 +535,8 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         end
     end
 
-    # TODO check extendability
-    if isa(set, IntervalSet)
+    set = _parameter_set(first(params))
+    if JuMP.has_lower_bound(set)
         # Fill in lower bounds and upper bounds if not given
         if isa(lb, Nothing) || length(lb) == 0
             lb = JuMP.lower_bound.(params)

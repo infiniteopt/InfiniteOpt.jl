@@ -618,6 +618,7 @@ struct DiscreteMeasureData <: AbstractMeasureData
     supports::Vector{<:Number}
     name::String
     weight_function::Function
+    # Constructor
     function DiscreteMeasureData(parameter_ref::ParameterRef,
                                  coeffs::Vector{<:Number},
                                  supports::Vector{<:Number},
@@ -626,12 +627,10 @@ struct DiscreteMeasureData <: AbstractMeasureData
             error("The amount of coefficients must match the amount of " *
                   "support points.")
         end
-        if JuMP.has_lower_bound(parameter_ref)
-            check1 = minimum(supports) < JuMP.lower_bound(parameter_ref)
-            check2 = maximum(supports) > JuMP.upper_bound(parameter_ref)
-            if check1 || check2
-                error("Support points violate parameter bounds.")
-            end
+        set = infinite_set(parameter_ref)
+        # set = parameter_ref.model.params[parameter_ref.index].set
+        if !supports_in_set(supports, set)
+            error("Support points violate parameter domain.")
         end
         return new(parameter_ref, coeffs, supports, name, weight_func)
     end
@@ -662,6 +661,7 @@ struct MultiDiscreteMeasureData <: AbstractMeasureData
     supports::Vector{<:JuMPC.SparseAxisArray}
     name::String
     weight_function::Function
+    # Constructor
     function MultiDiscreteMeasureData(parameter_ref::JuMPC.SparseAxisArray{<:ParameterRef},
                                       coeffs::Vector{<:Number},
                                       supports::Vector{<:JuMPC.SparseAxisArray},
@@ -677,15 +677,11 @@ struct MultiDiscreteMeasureData <: AbstractMeasureData
             error("The keys/dimensions of the support points and parameters " *
                   "do not match.")
         end
-        mins = minimum(supports)
-        maxs = maximum(supports)
         for key in keys(parameter_ref.data)
-            pref = parameter_ref.data[key]
-            if JuMP.has_lower_bound(pref)
-                check1 = mins[key] < JuMP.lower_bound(pref)
-                check2 = maxs[key] > JuMP.upper_bound(pref)
-                if check1 || check2
-                    error("Support points violate parameter bounds.")
+            set = infinite_set(parameter_ref.data[key])
+            for supp in supports
+                if !supports_in_set(supp.data[key], set)
+                    error("Support points violate parameter domain.")
                 end
             end
         end

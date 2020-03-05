@@ -117,7 +117,7 @@ function JuMP.set_lower_bound(set::AbstractInfiniteSet, lower::Number) # fallbac
 end
 
 # IntervalSet
-function JuMP.set_lower_bound(set::IntervalSet, lower::Number)
+function JuMP.set_lower_bound(set::IntervalSet, lower::Number)::IntervalSet
     return IntervalSet(lower, set.upper_bound)
 end
 

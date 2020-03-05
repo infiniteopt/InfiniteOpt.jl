@@ -97,12 +97,12 @@ same way. This is described in more detail below.
 ## Parameter Definition
 Defining/initializing an infinite parameter principally involves the following
 steps:
-- Define an [`AbstractInfiniteSet`](@ref)
-- Define support points within the set to later discretize the parameter
-- Specify if parameter is independent (only for multi-dimensional parameter groups)
-- Construct an [`InfOptParameter`](@ref) to store this information
-- Add the `InfOptParameter` object to an `InfiniteModel` and assign a name
-- Create a [`ParameterRef`](@ref) that points to the parameter object
+1. Define an [`AbstractInfiniteSet`](@ref)
+2. Define support points within the set to later discretize the parameter
+3. Specify if parameter is independent (only for multi-dimensional parameter groups)
+4. Construct an [`InfOptParameter`](@ref) to store this information
+5. Add the `InfOptParameter` object to an `InfiniteModel` and assign a name
+6. Create a [`ParameterRef`](@ref) that points to the parameter object
 
 ### Manual Definition
 Infinite set definition is described above in the

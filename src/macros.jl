@@ -25,7 +25,7 @@ function _parse_one_operator_parameter(
         JuMP._set_lower_bound_or_error(_error, infoexpr, value.args[1].args[1])
         JuMP._set_upper_bound_or_error(_error, infoexpr, value.args[1].args[2])
     else
-        _dist_or_error(_error, infoexpr, value)
+        _set_or_error(_error, infoexpr, value)
     end
 end
 

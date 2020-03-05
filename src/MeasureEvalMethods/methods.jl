@@ -65,8 +65,8 @@ function measure_dispatch(set::InfiniteOpt.IntervalSet,
                           params::Union{InfiniteOpt.ParameterRef,
                           AbstractArray{<:InfiniteOpt.ParameterRef}},
                           num_supports::Int,
-                          lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                          ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                          lb::Union{Number, JuMPC.SparseAxisArray},
+                          ub::Union{Number, JuMPC.SparseAxisArray},
                           method::Function; kwargs...)::Tuple
     return method(lb, ub, num_supports; kwargs...)
 end

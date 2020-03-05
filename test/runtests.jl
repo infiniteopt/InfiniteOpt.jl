@@ -70,8 +70,9 @@ println("")
 println("")
 @time @testset "Solution Queries" begin include("results.jl") end
 println("")
+@time @testset "Extensions" begin include("extensions.jl") end
+println("")
 
-# TODO add extension tests
 # TODO add involved deletion tests
 println("-----------------------------------------")
 println("-------------TESTING COMPLETE------------")
