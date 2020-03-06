@@ -14,7 +14,7 @@ can represent integrals over the uncertain parameters, such as expectation. In
 evaluates the expression at a set of points over the parameter space and
 approximates the measures based on the expression values at these points.
 
-## Basic Usage
+## [Basic Usage] (@id measure_basic_usage)
 
 First, we consider a dynamic optimization problem with the time parameter `t`
 from 0 to 10. We also consider a state variable `y(t)` and a control variable
@@ -210,7 +210,7 @@ that records the value at each dimension, and the measure data type is
 [`AbstractMeasureData`](@ref) that's specifically for multivariate parameters.
 
 The [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) function called
-in [Basic usage](@ref) above is a dispatch of the basic [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)) function which does
+in [Basic Usage](@ref measure_basic_usage) above is a dispatch of the basic [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)) function which does
 not require explicit construction of the measure data object. Instead, the
 function constructs the appropriate measure data object according to the values
 of the positional and keyword arguments.
@@ -282,7 +282,7 @@ do not have corresponding point variables yet.
 Sometimes for extension purposes, one might want to expand a specific measure
 before reaching the transcription stage. This can be done using the [`expand`](@ref)
 function, which takes a [`MeasureRef`](@ref) object and returns a `JuMP.AbstractJuMPScalar`
-based on the ['AbstractMeasureData'](@ref). For example, suppose we want to
+based on the [`AbstractMeasureData`](@ref). For example, suppose we want to
 integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``.
 We can set up and expand this measure as follows:
 ```jldoctest meas_basic
