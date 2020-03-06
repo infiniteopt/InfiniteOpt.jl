@@ -130,7 +130,7 @@ model an optmization problem with an infinite dimensional decision space.
 - `optimizer_constructor` MOI optimizer constructor (e.g., Gurobi.Optimizer).
 - `optimizer_model::JuMP.Model` Model used to solve `InfiniteModel`
 - `ready_to_optimize::Bool` Is the optimizer_model up to date.
-- `ext::Dict{Symbol, Any}` Store abitrary extension information.
+- `ext::Dict{Symbol, Any}` Store arbitrary extension information.
 """
 mutable struct InfiniteModel <: JuMP.AbstractModel
     # Measure Data
