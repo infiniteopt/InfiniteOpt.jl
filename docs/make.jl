@@ -25,8 +25,7 @@ makedocs(;
     doctest = true,
     linkcheck = true
 )
-#=
+
 deploydocs(;
     repo = "github.com/pulsipher/InfiniteOpt.jl",
 )
-=#
