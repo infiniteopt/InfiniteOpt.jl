@@ -153,14 +153,19 @@ information below.
 
 ## Theoretical Abstraction
 In `InfiniteOpt`, measures represent integrals of the form
-``\int_{\tau \in \mathcal{T}} f(\tau)w(\tau) d\tau``, where ``\tau`` is a
+```math
+\int_{\tau \in \mathcal{T}} f(\tau)w(\tau) d\tau
+```
+where ``\tau`` is a
 (possibly multivariate) infinite parameter, ``f(\tau)`` is an expression
 parameterized by ``\tau``, ``w(\tau)`` is a weight function, and ``\mathcal{T}``
 is a subset of the domain of ``\tau``. The measures approximate the integrals
-by taking a discretization scheme ``\int_{\tau \in \mathcal{T}} f(\tau)w(\tau)
-d\tau \approx \sum_{i=1}^N \alpha_i f(\tau_i) w(\tau_i)``, where ``\tau_i`` are
-the grid points where the expression ``f(\tau)`` is evaluated, and ``N`` is the
-total number of points taken.
+by taking a discretization scheme
+```math
+\int_{\tau \in \mathcal{T}} f(\tau)w(\tau) d\tau \approx \sum_{i=1}^N \alpha_i f(\tau_i) w(\tau_i)
+```
+where ``\tau_i`` are the grid points where the expression ``f(\tau)`` is
+evaluated, and ``N`` is the total number of points taken.
 
 ## Measure Data Generation
 The most general form of [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)) takes two arguments: the expression to integrate and
@@ -184,6 +189,13 @@ value that is well defined for the integrated infinite parameter. The data type
 is [`DiscreteMeasureData`](@ref), which is a subtype of the abstract data type
 [`AbstractMeasureData`](@ref).
 
+With [`DiscreteMeasureData`](@ref), a measure can be generated in a custom and
+quick manner. For example, using the measure data above, we can define a measure
+for ``y^2`` as follows:
+```jldoctest meas_basic
+julia> mref = measure(y^2, md_t)
+measure(y(t)²)
+```
 In the same way, we can define measure data for multivariate infinite parameter.
 For example, we can define a discretization scheme for a 2D position parameter
 ``x \in [0, 1] \times [0, 1]`` as follows:
@@ -280,7 +292,9 @@ expansion process if the measure is evaluated at infinite parameter points that
 do not have corresponding point variables yet.
 
 Sometimes for extension purposes, one might want to expand a specific measure
-before reaching the transcription stage. This can be done using the [`expand`](@ref)
+before reaching the transcription stage. Alternatively, one might want to use
+custom reformulation instead of the transcription encoded in this package, in
+which expanding measures will also be useful. This can be done using the [`expand`](@ref)
 function, which takes a [`MeasureRef`](@ref) object and returns a `JuMP.AbstractJuMPScalar`
 based on the [`AbstractMeasureData`](@ref). For example, suppose we want to
 integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``.
@@ -353,6 +367,8 @@ julia> eval_supports(T1)
 Dict{Int64,Union{Number, JuMP.Containers.SparseAxisArray{#s56,N,K} where K<:Tuple{Vararg{Any,N}} where N where #s56<:Number}} with 1 entry:
   2 => 2.5
 ```
+All the `JuMP` functions extended for infinite variables are also extended for
+reduced infinite variables, e.g. [`JuMP.lower_bound`](@ref JuMP.lower_bound(::ReducedInfiniteVariableRef)).
 
 ## Datatypes
 ```@index
