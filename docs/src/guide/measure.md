@@ -272,7 +272,7 @@ introduction to the mathematics of Gaussian quadrature methods, see
 In a model, each measure records the integrand expression and an evaluation
 scheme that details the discretization scheme to approximate the integral.
 The model will not expand the measures until the transcription stage, at which
-a [JuMP.AbstractJuMPScalar](@ref) is created for each measure to represent how
+a `JuMP.AbstractJuMPScalar` is created for each measure to represent how
 the measure is modeled in a transcription model based on the stored
 discretization scheme (see [Model Transcription](@ref transcription_docs) for
 details on transcription). Additional point variables will be created in the
@@ -281,12 +281,12 @@ do not have corresponding point variables yet.
 
 Sometimes for extension purposes, one might want to expand a specific measure
 before reaching the transcription stage. This can be done using the [`expand`](@ref)
-function, which takes a [`MeasureRef`](@ref) object and returns a [JuMP.AbstractJuMPScalar](@ref)
+function, which takes a [`MeasureRef`](@ref) object and returns a `JuMP.AbstractJuMPScalar`
 based on the ['AbstractMeasureData'](@ref). For example, suppose we want to
 integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``.
 We can set up and expand this measure as follows:
 ```jldoctest meas_basic
-julia> tdata = DiscreteMeasureData(t, [0.5, 0.5], [0, 1])
+julia> tdata = DiscreteMeasureData(t, [5, 5], [2.5, 7.5])
 DiscreteMeasureData(t, [5, 5], [2.5, 7.5], "measure", InfiniteOpt._w)
 
 julia> mref3 = measure(y^2, tdata)
@@ -332,7 +332,7 @@ the value of `t` is fixed. The expanded measure now looks like this:
 julia> expanded_measure = expand(mref4)
 5 T(x, 2.5) + 5 T(x, 7.5)
 ```
-where the expanded measure is a [`JuMP.GenericAffExpr`](@ref) that takes
+where the expanded measure is a `JuMP.GenericAffExpr` that takes
 [`ReducedInfiniteVariableRef`](@ref) in its terms. [`ReducedInfiniteVariableRef`](@ref)
 refers to the information of the reduced infinite variable stored in its model,
 in the type of [`ReducedInfiniteInfo`](@ref). Each [`ReducedInfiniteInfo`](@ref)
