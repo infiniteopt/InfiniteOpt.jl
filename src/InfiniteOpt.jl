@@ -34,11 +34,13 @@ using .TranscriptionOpt
 
 include("MeasureEvalMethods/MeasureEvalMethods.jl")
 using .MeasureEvalMethods: generate_measure_data, mc_sampling, gauss_legendre,
-gauss_hermite, gauss_laguerre, infinite_transform, measure_dispatch
+gauss_hermite, gauss_laguerre, infinite_transform, generate_supports_and_coeffs,
+default_set_types, default_methods, get_method_registry, set_method_registry
 
 # Export the measure eval functions
 export generate_measure_data, mc_sampling, gauss_legendre, gauss_hermite,
-gauss_laguerre, infinite_transform, measure_dispatch
+gauss_laguerre, infinite_transform, measure_dispatch,
+generate_supports_and_coeffs, get_method_registry, set_method_registry
 
 # Export model object datatype
 export InfiniteModel
@@ -48,7 +50,8 @@ export @infinite_variable, @point_variable, @hold_variable, @infinite_parameter,
 @BDconstraint, @finite_parameter, @set_parameter_bounds, @add_parameter_bounds
 
 # Export constants
-export Infinite, Hold, Point, Parameter, Sampling, Quad
+export Infinite, Hold, Point, Parameter, Sampling, Quad, default_set_types,
+default_methods
 
 # Export infinite parameter datatypes
 export InfOptParameter, ParameterRef

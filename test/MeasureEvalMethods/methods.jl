@@ -110,6 +110,32 @@ end
     end
 end
 
+@testset "Registry functions" begin
+    struct NotASetType end
+    struct NewSet <: AbstractInfiniteSet end
+    function new_fn end
+    m = InfiniteModel()
+    @testset "_set_type" begin
+        @test MEM._set_type(m, NewSet()) == nothing
+        @test MEM._set_type(m, IntervalSet(0., 1.)) == IntervalSet
+    end
+    @testset "_set_method_check" begin
+        @test_throws ErrorException MEM._set_method_check(m, NewSet(), new_fn)
+        @test_throws ErrorException MEM._set_method_check(m, IntervalSet(0., 1.),
+                                                          new_fn)
+    end
+    @testset "set_method_registry" begin
+        @test_throws ErrorException set_method_registry(m, NotASetType,
+                                                        mc_sampling)
+        @test set_method_registry(m, NewSet, [new_fn, mc_sampling]) == nothing
+        @test set_method_registry(m, DistributionSet, new_fn) == nothing
+        @test m.meas_method_registry[DistributionSet] ==
+              Set{Function}([new_fn, mc_sampling])
+        @test m.meas_method_registry[NewSet] ==
+              Set{Function}([new_fn, mc_sampling])
+    end
+end
+
 @testset "Data Generation" begin
     m = InfiniteModel()
     @infinite_parameter(m, x in [0., 1.])
@@ -146,8 +172,8 @@ end
                                   convert(JuMPC.SparseAxisArray, [1., 10.]))
     end
 
-    @testset "measure_dispatch for unextended types" begin
-        @test_throws ErrorException measure_dispatch(BadSet(), x, 10,
-                                                     0., 1., mc_sampling)
+    @testset "generate_supports_and_coeffs for unextended types" begin
+        @test_throws ErrorException generate_supports_and_coeffs(
+                                    BadSet(), x, 10, 0., 1., mc_sampling)
     end
 end

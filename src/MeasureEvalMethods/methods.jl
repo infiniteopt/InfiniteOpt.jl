@@ -1,4 +1,69 @@
 """
+    get_method_registry(model::InfiniteOpt.InfiniteModel
+                       )::Dict{Type, Set{Function}}
+Return the registry of the model that records which measure evaluation methods
+are valid for different [`AbstractInfiniteSet`](@ref).
+"""
+function get_method_registry(model::InfiniteOpt.InfiniteModel
+                            )::Dict{Type, Set{Function}}
+    return model.meas_method_registry
+end
+
+"""
+    set_method_registry(model::InfiniteOpt.InfiniteModel,
+                        set_type::Type,
+                        methods::Union{Function, Array{Function, 1}})
+Set the registry of the model that records which measure evaluation methods
+are valid for different [`AbstractInfiniteSet`](@ref). This function allows for
+addition of new set types and modification of acceptable methods for existing
+types.
+"""
+function set_method_registry(model::InfiniteOpt.InfiniteModel,
+                             set_type::Type,
+                             methods::Union{Function, Array{Function, 1}})
+    if !(set_type <: InfiniteOpt.AbstractInfiniteSet)
+        error("Set type must be a subtype of AbstractInfiniteSet.")
+    end
+    if methods isa Function
+        methods = [methods]
+    end
+    if set_type in keys(model.meas_method_registry)
+        union!(model.meas_method_registry[set_type], Set{Function}(methods))
+    else
+        model.meas_method_registry[set_type] = Set{Function}(methods)
+    end
+    return
+end
+
+# check if a method is valid for a set
+function _set_method_check(model::InfiniteOpt.InfiniteModel,
+                           set::InfiniteOpt.AbstractInfiniteSet,
+                           method::Function)
+    registry = get_method_registry(model)
+    set_type = _set_type(model, set)
+    if !(set_type in keys(registry))
+        error("The parameter set type $(typeof(set)) does not have valid " *
+              "measure evaluation methods.")
+    end
+    if !(method in registry[set_type])
+        error("Method $(method) is not valid for set type $(typeof(set)).")
+    end
+    return
+end
+
+# return parameterized set type without parameters
+# this is needed because typeof() returns parameterized set type with parameters
+function _set_type(model::InfiniteOpt.InfiniteModel,
+                   set::InfiniteOpt.AbstractInfiniteSet)::Union{Type, Nothing}
+    for i in keys(model.meas_method_registry)
+        if isa(set, i)
+            return i
+        end
+    end
+    return nothing
+end
+
+"""
     generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
                           AbstractArray{<:InfiniteOpt.ParameterRef}},
                           num_supports::Int,
@@ -33,32 +98,35 @@ function generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
                                )::InfiniteOpt.AbstractMeasureData
     if isa(params, InfiniteOpt.ParameterRef)
         set = InfiniteOpt._parameter_set(params)
+        model = params.model
     else
         params = convert(JuMPC.SparseAxisArray, params)
         set = InfiniteOpt._parameter_set(first(params))
+        model = first(params).model
     end
-    (supports, coeffs) = measure_dispatch(set, params, num_supports, lb, ub, eval_method; kwargs...)
+    _set_method_check(model, set, eval_method)
+    (supports, coeffs) = generate_supports_and_coeffs(set, params, num_supports, lb, ub, eval_method; kwargs...)
     return InfiniteOpt.DiscreteMeasureData(params, coeffs, supports,
                                            name = name, weight_function = weight_func)
 end
 
-function measure_dispatch(set::InfiniteOpt.IntervalSet,
-                          params::Union{InfiniteOpt.ParameterRef,
-                          AbstractArray{<:InfiniteOpt.ParameterRef}},
-                          num_supports::Int,
-                          lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                          ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                          method::Function; kwargs...)::Tuple
+function generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
+                                      params::Union{InfiniteOpt.ParameterRef,
+                                      AbstractArray{<:InfiniteOpt.ParameterRef}},
+                                      num_supports::Int,
+                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      method::Function; kwargs...)::Tuple
     return method(lb, ub, num_supports; kwargs...)
 end
 
-function measure_dispatch(set::InfiniteOpt.DistributionSet,
-                          params::Union{InfiniteOpt.ParameterRef,
-                          AbstractArray{<:InfiniteOpt.ParameterRef}},
-                          num_supports::Int,
-                          lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                          ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                          method::Function; kwargs...)::Tuple
+function generate_supports_and_coeffs(set::InfiniteOpt.DistributionSet,
+                                      params::Union{InfiniteOpt.ParameterRef,
+                                      AbstractArray{<:InfiniteOpt.ParameterRef}},
+                                      num_supports::Int,
+                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      method::Function; kwargs...)::Tuple
     dist = set.distribution
     # create truncated distribution if necessary
     if !isa(lb, Nothing) || !isa(ub, Nothing)
@@ -75,13 +143,13 @@ function measure_dispatch(set::InfiniteOpt.DistributionSet,
 end
 
 # fallback
-function measure_dispatch(set::InfiniteOpt.AbstractInfiniteSet,
-                          params::Union{InfiniteOpt.ParameterRef,
-                          AbstractArray{<:InfiniteOpt.ParameterRef}},
-                          num_supports::Int,
-                          lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                          ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                          method::Function; kwargs...)::Tuple
+function generate_supports_and_coeffs(set::InfiniteOpt.AbstractInfiniteSet,
+                                      params::Union{InfiniteOpt.ParameterRef,
+                                      AbstractArray{<:InfiniteOpt.ParameterRef}},
+                                      num_supports::Int,
+                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      method::Function; kwargs...)::Tuple
     error("Measure dispatch function is not extended for parameters in sets " *
           "of type $(typeof(set)).")
 end
@@ -342,6 +410,11 @@ function _default_dx(t::Number, lb::Number, ub::Number)::Number
         return (1 + t^2) / (1 - t^2)^2
     end
 end
+
+# Default method registration
+const default_set_types = [InfiniteOpt.IntervalSet, InfiniteOpt.DistributionSet]
+const default_methods = [[mc_sampling, gauss_legendre, gauss_laguerre, gauss_hermite],
+                         [mc_sampling]]
 
 # TODO: consider truncated distribution
 # TODO: consider adding uniform grids
