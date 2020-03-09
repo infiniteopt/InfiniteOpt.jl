@@ -1141,7 +1141,7 @@ distribution sets). Errors if the infinite set type is not recognized.
 function generate_and_add_supports!(pref::ParameterRef, set::AbstractInfiniteSet;
                                     num_supports::Int = 50, sig_fig::Int = 5)
     add_supports(pref, generate_support_values(set, num_supports = num_supports,
-                                       sig_fig = sig_fig))
+                                               sig_fig = sig_fig))
     return
 end
 

@@ -14,14 +14,14 @@ end
 function InfiniteOpt.supports_in_set(supports::Union{Number, Vector{<:Number}},
                                      set::MyNewSet)::Bool
     # DETERMINE IF SUPPORTS ARE IN THE DOMAIN OF `set`
-    in_set = set.attr1 <= minimum(supports) && maximum(supports) <= set.attr2 # REPLACE WITH ACTUAL CHECK
+    in_set = all(set.attr1 .<= supports .<= set.attr2) # REPLACE WITH ACTUAL CHECK
     return in_set
 end
 
 # Extend generate_support_values if possible
 function InfiniteOpt.generate_support_values(set::MyNewSet;
-                                            num_supports::Int = 50,
-                                            sig_fig::Int = 5)::Array
+                                             num_supports::Int = 50,
+                                             sig_fig::Int = 5)::Array
     # REPLACE BELOW WITH METHODS TO GENERATE `num_samples` with `sig_fig`
     supports = collect(range(set.attr1, stop = set.attr2, length = num_supports))
     return round.(supports, sigdigits = sig_fig)
