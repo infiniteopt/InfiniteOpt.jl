@@ -22,3 +22,7 @@ struct BadSet <: AbstractInfiniteSet end
 struct TestBridge{C} <: MOI.Bridges.AbstractBridge where {C} end
 struct BadData <: AbstractMeasureData end
 struct Bad end
+struct NotASetType end
+
+# Define test functions
+function new_fn end

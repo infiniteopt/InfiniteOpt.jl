@@ -47,7 +47,7 @@ end
 function _get_param_value_list(pref::ParameterRef,
                                data::MultiDiscreteMeasureData)
     key = first(filter(p -> p[2] == pref, data.parameter_ref.data))[1]
-    return [data.supports[i][key] for i = 1:length(data.supports)]
+    return [data.supports[i][key] for i in eachindex(data.supports)]
 end
 
 ## Implement functions for expanding measures into regular expressions
@@ -64,7 +64,7 @@ function _expand_measure(ivref::InfiniteVariableRef,
     aff = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     # treat variable as constant if doesn't have measure parameter
     if !(group in groups)
-        for i = 1:length(data.supports)
+        for i in eachindex(data.supports)
             JuMP.add_to_expression!(aff, data.coefficients[i] *
                                     data.weight_function(data.supports[i]),
                                     ivref)
@@ -72,7 +72,7 @@ function _expand_measure(ivref::InfiniteVariableRef,
     # convert variable into point variables if its only parameter is the
     # measure parameter
     elseif length(parameter_refs(ivref)) == 1
-        for i = 1:length(data.supports)
+        for i in eachindex(data.supports)
             pvref = _make_point_variable(ivref)
             point_mapper(trans_model, pvref, ivref, (data.supports[i],))
             JuMP.add_to_expression!(aff, data.coefficients[i] *
@@ -82,7 +82,7 @@ function _expand_measure(ivref::InfiniteVariableRef,
     # make reduced variables if the variable contains other parameters
     else
         tuple_loc = findfirst(isequal(group), groups)
-        for i = 1:length(data.supports)
+        for i in eachindex(data.supports)
             rvref = _make_reduced_variable(ivref, tuple_loc, data.supports[i])
             JuMP.add_to_expression!(aff, data.coefficients[i] *
                                     data.weight_function(data.supports[i]),
@@ -107,7 +107,7 @@ function _expand_measure(rvref::ReducedInfiniteVariableRef,
     aff = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     # treat variable as constant if doesn't have measure parameter
     if !(group in groups)
-        for i = 1:length(data.supports)
+        for i in eachindex(data.supports)
             JuMP.add_to_expression!(aff, data.coefficients[i] *
                                     data.weight_function(data.supports[i]),
                                     rvref)
@@ -116,10 +116,10 @@ function _expand_measure(rvref::ReducedInfiniteVariableRef,
     # measure parameter
     elseif length(parameter_refs(rvref)) == 1
         tuple_loc = findfirst(isequal(group), _group.(orig_prefs))
-        for i = 1:length(data.supports)
+        for i in eachindex(data.supports)
             pvref = _make_point_variable(infinite_variable_ref(rvref))
             _reduced_info(rvref).eval_supports[tuple_loc] = data.supports[i]
-            support = Tuple(eval_supports(rvref)[j] for j = 1:length(eval_supports(rvref)))
+            support = Tuple(eval_supports(rvref)[j] for j in eachindex(eval_supports(rvref)))
             point_mapper(trans_model, pvref, infinite_variable_ref(rvref), support)
             JuMP.add_to_expression!(aff, data.coefficients[i] *
                                     data.weight_function(data.supports[i]),
@@ -128,7 +128,7 @@ function _expand_measure(rvref::ReducedInfiniteVariableRef,
     # make reduced variables if the variable contains other parameters
     else
         tuple_loc = findfirst(isequal(group), _group.(orig_prefs))
-        for i = 1:length(data.supports)
+        for i in eachindex(data.supports)
             new_rvref = _make_reduced_variable(infinite_variable_ref(rvref),
                                                eval_supports(rvref))
             _reduced_info(new_rvref).eval_supports[tuple_loc] = data.supports[i]
@@ -148,7 +148,7 @@ function _expand_measure(vref::FiniteVariableRef,
                          point_mapper::Function)::JuMP.AbstractJuMPScalar
     aff = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     # treat the variable as a constant
-    for i = 1:length(data.supports)
+    for i in eachindex(data.supports)
         JuMP.add_to_expression!(aff, data.coefficients[i] *
                                 data.weight_function(data.supports[i]),
                                 vref)
@@ -164,14 +164,14 @@ function _expand_measure(pref::ParameterRef,
     aff = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     # replace the parameter with its value if it is the measure parameter
     if data.parameter_ref == pref
-        for i = 1:length(data.supports)
+        for i in eachindex(data.supports)
             JuMP.add_to_expression!(aff, data.coefficients[i] *
                                     data.weight_function(data.supports[i]) *
                                     data.supports[i])
         end
     # treat the parameter as a constant otherwise
     else
-        for i = 1:length(data.supports)
+        for i in eachindex(data.supports)
             JuMP.add_to_expression!(aff, data.coefficients[i] *
                                     data.weight_function(data.supports[i]),
                                     pref)
@@ -190,14 +190,14 @@ function _expand_measure(pref::ParameterRef,
     pref_dict = filter(p -> p[2] == pref, data.parameter_ref.data)
     # replace the parameter with its value if it is the measure parameter
     if length(pref_dict) != 0
-        for i = 1:length(data.supports)
+        for i in eachindex(data.supports)
             JuMP.add_to_expression!(aff, data.coefficients[i] *
                                     data.weight_function(data.supports[i]) *
                                     data.supports[i][collect(keys(pref_dict))[1]])
         end
     # treat the parameter as a constant otherwise
     else
-        for i = 1:length(data.supports)
+        for i in eachindex(data.supports)
             JuMP.add_to_expression!(aff, data.coefficients[i] *
                                     data.weight_function(data.supports[i]),
                                     pref)
@@ -223,7 +223,7 @@ function _expand_measure(expr::JuMP.GenericAffExpr,
     end
     # expand over the constant
     if expr.constant != 0
-        for i = 1:length(data.supports)
+        for i in eachindex(data.supports)
             JuMP.add_to_expression!(quad, data.coefficients[i] *
                                     data.weight_function(data.supports[i]) *
                                     expr.constant)
@@ -256,19 +256,19 @@ function _expand_measure(expr::JuMP.GenericQuadExpr,
         # check for case that a variable was a parameter converted to a number
         if length(vars_a) == 0
             vars_a = _get_param_value_list(pair.a, data)
-            terms = [data.coefficients[i] * data.weight_function(data.supports[i]) for i = 1:length(data.supports)]
+            terms = [data.coefficients[i] * data.weight_function(data.supports[i]) for i in eachindex(data.supports)]
             alt_terms = true
         end
         if length(vars_b) == 0
             vars_b = _get_param_value_list(pair.b, data)
-            terms = [data.coefficients[i] * data.weight_function(data.supports[i]) for i = 1:length(data.supports)]
+            terms = [data.coefficients[i] * data.weight_function(data.supports[i]) for i in eachindex(data.supports)]
             alt_terms = true
         end
         # combine both variable expressions using the coefficients from one
         # of them
         if length(vars_a) == length(vars_b)
             # are same length therefore have same coefficients
-            for i = 1:length(vars_a)
+            for i in eachindex(vars_a)
                 if alt_terms
                     JuMP.add_to_expression!(quad, coef * terms[i], vars_a[i],
                                             vars_b[i])
@@ -279,7 +279,7 @@ function _expand_measure(expr::JuMP.GenericQuadExpr,
             end
         elseif length(vars_a) == 1
             # var_a was effectively a constant and var_b was't
-            for i = 1:length(vars_b)
+            for i in eachindex(vars_b)
                 if alt_terms
                     JuMP.add_to_expression!(quad, coef * terms[i], vars_a[1],
                                             vars_b[i])
@@ -290,7 +290,7 @@ function _expand_measure(expr::JuMP.GenericQuadExpr,
             end
         else
             # var_b was effectively a constant and var_a was't
-            for i = 1:length(vars_a)
+            for i in eachindex(vars_a)
                 if alt_terms
                     JuMP.add_to_expression!(quad, coef * terms[i], vars_a[i],
                                             vars_b[1])
