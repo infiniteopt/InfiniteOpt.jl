@@ -31,7 +31,7 @@ end
 # Here we'll assume generate_support_values is sufficient
 
 # Extend measure_dispatch in enable measure() with methods
-function InfiniteOpt.MeasureEvalMethods.measure_dispatch(
+function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
     set::MyNewSet,
     params::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}},
     num_supports::Int,
