@@ -1,4 +1,4 @@
-# Model Transcription
+# [Model Transcription] (@id transcription_docs)
 A guide and manual for transcribing infinite models using `InfiniteOpt`.
 The Datatypes and Methods sections at the end comprise the manual, and the
 above sections comprise the guide.

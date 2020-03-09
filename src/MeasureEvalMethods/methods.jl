@@ -1,4 +1,69 @@
 """
+    eval_method_registry(model::InfiniteOpt.InfiniteModel
+                         )::Dict{Type, Set{Function}}
+Return the registry of the model that records which measure evaluation methods
+are valid for different [`AbstractInfiniteSet`](@ref).
+"""
+function eval_method_registry(model::InfiniteOpt.InfiniteModel
+                              )::Dict{Type, Set{Function}}
+    return model.meas_method_registry
+end
+
+"""
+    register_eval_method(model::InfiniteOpt.InfiniteModel,
+                         set_type::Type,
+                         methods::Union{Function, Array{Function, 1}})
+Set the registry of the model that records which measure evaluation methods
+are valid for different [`AbstractInfiniteSet`](@ref). This function allows for
+addition of new set types and modification of acceptable methods for existing
+types.
+"""
+function register_eval_method(model::InfiniteOpt.InfiniteModel,
+                              set_type::Type,
+                              methods::Union{Function, Array{Function, 1}})
+    if !(set_type <: InfiniteOpt.AbstractInfiniteSet)
+        error("Set type must be a subtype of AbstractInfiniteSet.")
+    end
+    if methods isa Function
+        methods = [methods]
+    end
+    if set_type in keys(model.meas_method_registry)
+        union!(model.meas_method_registry[set_type], Set{Function}(methods))
+    else
+        model.meas_method_registry[set_type] = Set{Function}(methods)
+    end
+    return
+end
+
+# check if a method is valid for a set
+function _set_method_check(model::InfiniteOpt.InfiniteModel,
+                           set::InfiniteOpt.AbstractInfiniteSet,
+                           method::Function)
+    registry = eval_method_registry(model)
+    set_type = _set_type(model, set)
+    if !(set_type in keys(registry))
+        error("The parameter set type $(typeof(set)) does not have valid " *
+              "measure evaluation methods.")
+    end
+    if !(method in registry[set_type])
+        error("Method $(method) is not valid for set type $(typeof(set)).")
+    end
+    return
+end
+
+# return parameterized set type without parameters
+# this is needed because typeof() returns parameterized set type with parameters
+function _set_type(model::InfiniteOpt.InfiniteModel,
+                   set::InfiniteOpt.AbstractInfiniteSet)::Union{Type, Nothing}
+    for i in keys(model.meas_method_registry)
+        if isa(set, i)
+            return i
+        end
+    end
+    return nothing
+end
+
+"""
     generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
                           AbstractArray{<:InfiniteOpt.ParameterRef}},
                           num_supports::Int,
@@ -34,51 +99,35 @@ function generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
                                )::InfiniteOpt.AbstractMeasureData
     if isa(params, InfiniteOpt.ParameterRef)
         set = InfiniteOpt._parameter_set(params)
+        model = params.model
     else
         params = convert(JuMPC.SparseAxisArray, params)
         set = InfiniteOpt._parameter_set(first(params))
+        model = first(params).model
     end
-    (supports, coeffs) = measure_dispatch(set, params, num_supports, lb, ub, eval_method; kwargs...)
+    _set_method_check(model, set, eval_method)
+    (supports, coeffs) = generate_supports_and_coeffs(set, params, num_supports, lb, ub, eval_method; kwargs...)
     return InfiniteOpt.DiscreteMeasureData(params, coeffs, supports,
                                            name = name, weight_function = weight_func)
 end
 
-# TODO consider case that `method` is not valid for a particular set type
-"""
-    measure_dispatch(set::InfiniteOpt.AbstractInfiniteSet,
-                     params::Union{InfiniteOpt.ParameterRef,
-                     AbstractArray{<:InfiniteOpt.ParameterRef}},
-                     num_supports::Int,
-                     lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                     ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                     method::Function; [kwargs...])::Tuple
-
-Call `method` to generate supports and coefficients using the arguments and
-`kwargs` as appropriate. This will dispatch to `method` in accordance with the
-type of `set`. This is intended as an internal method for
-[`generate_measure_data`](@ref InfiniteOpt.MeasureEvalMethods.generate_measure_data)
-and will need to be extended for user-defined
-infinite set types. Extensions will also need to consider whether there are
-appropriate methods for `method` and extend those as needed.
-"""
-function measure_dispatch(set::InfiniteOpt.IntervalSet,
-                          params::Union{InfiniteOpt.ParameterRef,
-                          AbstractArray{<:InfiniteOpt.ParameterRef}},
-                          num_supports::Int,
-                          lb::Union{Number, JuMPC.SparseAxisArray},
-                          ub::Union{Number, JuMPC.SparseAxisArray},
-                          method::Function; kwargs...)::Tuple
-    return method(lb, ub, num_supports; kwargs...)
+function generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
+                                      params::Union{InfiniteOpt.ParameterRef,
+                                      AbstractArray{<:InfiniteOpt.ParameterRef}},
+                                      num_supports::Int,
+                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      method::Function; kwargs...)::Tuple
+    return method(lb, ub, num_supports)
 end
 
-# DistributionSet
-function measure_dispatch(set::InfiniteOpt.DistributionSet,
-                          params::Union{InfiniteOpt.ParameterRef,
-                          AbstractArray{<:InfiniteOpt.ParameterRef}},
-                          num_supports::Int,
-                          lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                          ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                          method::Function; kwargs...)::Tuple
+function generate_supports_and_coeffs(set::InfiniteOpt.DistributionSet,
+                                      params::Union{InfiniteOpt.ParameterRef,
+                                      AbstractArray{<:InfiniteOpt.ParameterRef}},
+                                      num_supports::Int,
+                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      method::Function; kwargs...)::Tuple
     dist = set.distribution
     # create truncated distribution if necessary
     if !isa(lb, Nothing) || !isa(ub, Nothing)
@@ -91,17 +140,17 @@ function measure_dispatch(set::InfiniteOpt.DistributionSet,
             dist = Distributions.Truncated(dist, temp_lb, temp_ub)
         end
     end
-    return method(dist, params, num_supports; kwargs...)
+    return method(dist, params, num_supports)
 end
 
 # fallback
-function measure_dispatch(set::InfiniteOpt.AbstractInfiniteSet,
-                          params::Union{InfiniteOpt.ParameterRef,
-                          AbstractArray{<:InfiniteOpt.ParameterRef}},
-                          num_supports::Int,
-                          lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                          ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                          method::Function; kwargs...)::Tuple
+function generate_supports_and_coeffs(set::InfiniteOpt.AbstractInfiniteSet,
+                                      params::Union{InfiniteOpt.ParameterRef,
+                                      AbstractArray{<:InfiniteOpt.ParameterRef}},
+                                      num_supports::Int,
+                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      method::Function; kwargs...)::Tuple
     error("Measure dispatch function is not extended for parameters in sets " *
           "of type $(typeof(set)).")
 end
@@ -109,7 +158,7 @@ end
 """
     mc_sampling(lb::Union{JuMPC.SparseAxisArray, Number},
                 ub::Union{JuMPC.SparseAxisArray, Number},
-                num_supports::Int; kwargs...)::Tuple
+                num_supports::Int)::Tuple
 
 Return a tuple that contains supports and coefficients generated by Monte Carlo
 sampling from a uniform distribution between the lower and upper bounds provided.
@@ -128,7 +177,7 @@ julia> supps
  0.278880109331201
 ```
 """
-function mc_sampling(lb::Number, ub::Number, num_supports::Int; kwargs...)::Tuple
+function mc_sampling(lb::Number, ub::Number, num_supports::Int)::Tuple
     # MC sampling from uniform distribution over the interval [lb, ub]
     if lb == -Inf || ub == Inf
         return infinite_transform(lb, ub, num_supports)
@@ -140,7 +189,7 @@ end
 
 # MC sampling - multi-dim version
 function mc_sampling(lb::JuMPC.SparseAxisArray, ub::JuMPC.SparseAxisArray,
-                     num_supports::Int; kwargs...)::Tuple
+                     num_supports::Int)::Tuple
     samples_dict = Dict()
     for i in eachindex(lb)
         (samples_dict[i], _) = mc_sampling(lb[i], ub[i], num_supports)
@@ -175,7 +224,7 @@ julia> mc_sampling(dist, x, 10)
 """
 function mc_sampling(dist::Distributions.UnivariateDistribution,
                      param::InfiniteOpt.ParameterRef,
-                     num_supports::Int; kwargs...)::Tuple
+                     num_supports::Int)::Tuple
     # MC sampling - Distribution Set
     samples = rand(dist, num_supports)
     return (samples, ones(num_supports) / num_supports)
@@ -200,7 +249,7 @@ function mc_sampling(dist::Distributions.MultivariateDistribution,
 end
 
 """
-    gauss_legendre(lb::Number, ub::Number, num_supports::Int; kwargs...)::Tuple
+    gauss_legendre(lb::Number, ub::Number, num_supports::Int)::Tuple
 
 Return a tuple that contains supports and coefficients generated using
 Gauss-Legendre quadrature method. This is useful for univariate parameter in a
@@ -220,7 +269,7 @@ julia> supps
  0.9530899229693319
 ```
 """
-function gauss_legendre(lb::Number, ub::Number, num_supports::Int; kwargs...)::Tuple
+function gauss_legendre(lb::Number, ub::Number, num_supports::Int)::Tuple
     # default Gaussian quadrature method for infinite domain
     (supports, coeffs) = FastGaussQuadrature.gausslegendre(num_supports)
     supports = (ub - lb) / 2 * supports .+ (ub + lb) / 2
@@ -229,7 +278,7 @@ function gauss_legendre(lb::Number, ub::Number, num_supports::Int; kwargs...)::T
 end
 
 """
-    gauss_hermite(lb::Number, ub::Number, num_supports::Int; kwargs...)::Tuple
+    gauss_hermite(lb::Number, ub::Number, num_supports::Int)::Tuple
 
 Return a tuple that contains supports and coefficients generated using
 Gauss-Hermite quadrature method. This is useful for univariate parameter in an
@@ -249,7 +298,7 @@ julia> supps
   2.0201828704560856
 ```
 """
-function gauss_hermite(lb::Number, ub::Number, num_supports::Int; kwargs...)::Tuple
+function gauss_hermite(lb::Number, ub::Number, num_supports::Int)::Tuple
     # default Gaussian quadrature method for infinite domain
     if lb != -Inf || ub != Inf
         error("Lower/upper bound is not infinity. Use other measure evaluation " *
@@ -261,7 +310,7 @@ function gauss_hermite(lb::Number, ub::Number, num_supports::Int; kwargs...)::Tu
 end
 
 """
-    gauss_laguerre(lb::Number, ub::Number, num_supports::Int; kwargs...)::Tuple
+    gauss_laguerre(lb::Number, ub::Number, num_supports::Int)::Tuple
 
 Return a tuple that contains supports and coefficients generated using
 Gauss-Laguerre quadrature method. This is useful for univariate parameter in a
@@ -281,7 +330,7 @@ julia> supps
  -12.640800844275773
 ```
 """
-function gauss_laguerre(lb::Number, ub::Number, num_supports::Int; kwargs...)::Tuple
+function gauss_laguerre(lb::Number, ub::Number, num_supports::Int)::Tuple
     # default Gaussian quadrature method for semi-infinite domain
     if ub == Inf
         if lb == -Inf
@@ -331,7 +380,7 @@ function infinite_transform(lb::Number, ub::Number, num_supports::Int;
                             transform_x::Function = _default_x,
                             transform_dx::Function = _default_dx,
                             t_lb::Number = -convert(Number, lb == -Inf && ub == Inf),
-                            t_ub::Number = 1., kwargs...)::Tuple
+                            t_ub::Number = 1.)::Tuple
     # transform (semi-)infinite domain to finite domain
     if lb != -Inf && ub != Inf
         error("The range is not (semi-)infinite. Use evaluation methods for " *
@@ -362,6 +411,11 @@ function _default_dx(t::Number, lb::Number, ub::Number)::Number
         return (1 + t^2) / (1 - t^2)^2
     end
 end
+
+# Default method registration
+const default_set_types = [InfiniteOpt.IntervalSet, InfiniteOpt.DistributionSet]
+const default_methods = [[mc_sampling, gauss_legendre, gauss_laguerre, gauss_hermite],
+                         [mc_sampling]]
 
 # TODO: consider truncated distribution
 # TODO: consider adding uniform grids

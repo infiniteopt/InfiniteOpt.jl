@@ -76,6 +76,7 @@ model an optmization problem with an infinite dimensional decision space.
                                          measure indices.
 - `meas_in_objective::Dict{Int, Bool}` Measure indices to if used in objective.
 - `meas_defaults::Dict{Symbol}` Default keyword argument settings for measures.
+- `meas_method_registry::Dict{Type, Set{Function}}` Measure method registry.
 - `next_param_index::Int` Index - 1 of next infinite parameter.
 - `next_param_id::Int` Index - 1 of the next infinite parameter group.
 - `params::Dict{Int, InfOptParameter}` Infinite parameter indices to parameter
@@ -130,7 +131,7 @@ model an optmization problem with an infinite dimensional decision space.
 - `optimizer_constructor` MOI optimizer constructor (e.g., Gurobi.Optimizer).
 - `optimizer_model::JuMP.Model` Model used to solve `InfiniteModel`
 - `ready_to_optimize::Bool` Is the optimizer_model up to date.
-- `ext::Dict{Symbol, Any}` Store abitrary extension information.
+- `ext::Dict{Symbol, Any}` Store arbitrary extension information.
 """
 mutable struct InfiniteModel <: JuMP.AbstractModel
     # Measure Data
@@ -141,6 +142,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     meas_to_meas::Dict{Int, Vector{Int}}
     meas_in_objective::Dict{Int, Bool}
     meas_defaults::Dict{Symbol}
+    meas_method_registry::Dict{Type, Set{Function}}
 
     # Parameter Data
     next_param_index::Int
@@ -248,6 +250,8 @@ function InfiniteModel(; seed = false, kwargs...)
                               :name => "measure",
                               :use_existing_supports => false,
                               :call_from_expect => false),
+                         Dict(default_set_types[i] => Set(default_methods[i])
+                              for i in eachindex(default_set_types)),
                          # Parameters
                          0, 0, Dict{Int, InfOptParameter}(), Dict{Int, String}(),
                          nothing, Dict{Int, Int}(), Dict{Int, Vector{Int}}(),

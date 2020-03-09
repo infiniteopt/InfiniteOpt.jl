@@ -74,7 +74,7 @@ variables and constraints). By default, `InfiniteModel`s use a
 [`TranscriptionModel`](@ref) optimizer model backend which will store a
 transcribed (discretized) version of the infinite model. More information on
 the internal use of `TranscriptionModel`s is provided in
-[Model Transcription](@ref).
+[Model Transcription](@ref transcription_docs).
 
 All the arguments used with the `InfiniteModel` constructor (e.g., the optimizer)
 are simply passed on and stored in the optimizer model backend. Thus, any
