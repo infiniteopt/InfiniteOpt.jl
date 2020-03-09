@@ -35,12 +35,12 @@ using .TranscriptionOpt
 include("MeasureEvalMethods/MeasureEvalMethods.jl")
 using .MeasureEvalMethods: generate_measure_data, mc_sampling, gauss_legendre,
 gauss_hermite, gauss_laguerre, infinite_transform, generate_supports_and_coeffs,
-default_set_types, default_methods, get_method_registry, set_method_registry
+default_set_types, default_methods, eval_method_registry, register_eval_method
 
 # Export the measure eval functions
 export generate_measure_data, mc_sampling, gauss_legendre, gauss_hermite,
 gauss_laguerre, infinite_transform, measure_dispatch,
-generate_supports_and_coeffs, get_method_registry, set_method_registry
+generate_supports_and_coeffs, eval_method_registry, register_eval_method
 
 # Export model object datatype
 export InfiniteModel

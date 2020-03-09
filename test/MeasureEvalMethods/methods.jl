@@ -111,27 +111,24 @@ end
 end
 
 @testset "Registry functions" begin
-    struct NotASetType end
-    struct NewSet <: AbstractInfiniteSet end
-    function new_fn end
     m = InfiniteModel()
     @testset "_set_type" begin
-        @test MEM._set_type(m, NewSet()) == nothing
+        @test MEM._set_type(m, BadSet()) == nothing
         @test MEM._set_type(m, IntervalSet(0., 1.)) == IntervalSet
     end
     @testset "_set_method_check" begin
-        @test_throws ErrorException MEM._set_method_check(m, NewSet(), new_fn)
+        @test_throws ErrorException MEM._set_method_check(m, BadSet(), new_fn)
         @test_throws ErrorException MEM._set_method_check(m, IntervalSet(0., 1.),
                                                           new_fn)
     end
-    @testset "set_method_registry" begin
-        @test_throws ErrorException set_method_registry(m, NotASetType,
+    @testset "register_eval_method" begin
+        @test_throws ErrorException register_eval_method(m, NotASetType,
                                                         mc_sampling)
-        @test set_method_registry(m, NewSet, [new_fn, mc_sampling]) == nothing
-        @test set_method_registry(m, DistributionSet, new_fn) == nothing
+        @test register_eval_method(m, BadSet, [new_fn, mc_sampling]) == nothing
+        @test register_eval_method(m, DistributionSet, new_fn) == nothing
         @test m.meas_method_registry[DistributionSet] ==
               Set{Function}([new_fn, mc_sampling])
-        @test m.meas_method_registry[NewSet] ==
+        @test m.meas_method_registry[BadSet] ==
               Set{Function}([new_fn, mc_sampling])
     end
 end
