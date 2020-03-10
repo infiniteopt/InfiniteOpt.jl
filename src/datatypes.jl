@@ -249,7 +249,8 @@ function InfiniteModel(; seed = false, kwargs...)
                               :weight_func => _w,
                               :name => "measure",
                               :use_existing_supports => false,
-                              :call_from_expect => false),
+                              :call_from_expect => false,
+                              :check_method => true),
                          Dict(default_set_types[i] => Set(default_methods[i])
                               for i in eachindex(default_set_types)),
                          # Parameters

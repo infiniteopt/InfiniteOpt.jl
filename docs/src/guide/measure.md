@@ -449,6 +449,8 @@ Order   = [:function]
 ```@docs
 InfiniteOpt.MeasureEvalMethods.generate_measure_data
 InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs
+InfiniteOpt.MeasureEvalMethods.eval_method_registry
+InfiniteOpt.MeasureEvalMethods.register_eval_method
 InfiniteOpt.MeasureEvalMethods.mc_sampling(::Number, ::Number, ::Int)
 InfiniteOpt.MeasureEvalMethods.mc_sampling(::Distributions.UnivariateDistribution, ::InfiniteOpt.ParameterRef, ::Int)
 InfiniteOpt.MeasureEvalMethods.gauss_legendre

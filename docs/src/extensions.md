@@ -18,7 +18,7 @@ following steps employed are:
 1. Define the new `struct` infinite set type (only thing required as bare minimum)
 2. Extend [`InfiniteOpt.supports_in_set`](@ref) (enables error checking of supports)
 3. Extend [`InfiniteOpt.generate_support_values`](@ref) (enables support generation via `num_supports` keyword arguments)
-4. Extend [`InfiniteOpt.MeasureEvalMethods.measure_dispatch`](@ref) (enables measure evaluation methods)
+4. Extend [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref) and register the new set type via [`register_eval_method`](@ref) (enables measure evaluation methods)
 5. If a lower bound and upper bound can be reported, extend `JuMP` lower bound and upper bound methods
 
 As an example, let's create a disjoint interval set as an infinite set type.
@@ -33,7 +33,7 @@ struct DisjointSet <: InfiniteOpt.AbstractInfiniteSet
     lb2::Float64
     ub2::Float64
     # constructor
-    function DisjointSet(lb1, ub1, lb2, ub2)
+    function DisjointSet(lb1::Number, ub1::Number, lb2::Number, ub2::Number)
         if lb1 > ub1 || lb2 > ub2 || ub1 > lb2
             error("Invalid bounds")
         end
@@ -129,7 +129,9 @@ Next we can enable typical measure definition by extending
 new set type. This function creates support values and corresponding coefficients
 for a measure using the `method` argument if appropriate. Also, if the `method`
 argument is used then we'll need to register valid method calls for our new set
-via [`register_eval_method`](@ref). Continuing our example, we obtain:
+via [`register_eval_method`](@ref). If we wish to ignore the `method` then we'll
+need to set `check_method = false` when calling [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}))
+or using [`set_measure_defaults`](@ref). Continuing our example, we obtain:
 ```jldoctest set_ext
 const JuMPC = JuMP.Containers
 
@@ -152,9 +154,23 @@ register_eval_method(model, DisjointSet, [mc_sampling, gauss_legendre])
 ```
 Now we can define measures as normal:
 ```jldoctest set_ext
-julia> mref = measure(t^2, t, 0, 4)
+julia> mref = measure(t^2, t)
 measure(t²)
 ```
+
+Finally, we can extend the appropriate `JuMP` upper and lower bound functions
+if desired which are:
+- [`JuMP.has_lower_bound`](@ref JuMP.has_lower_bound(::AbstractInfiniteSet))
+- [`JuMP.lower_bound`](@ref JuMP.lower_bound(::AbstractInfiniteSet))
+- [`JuMP.set_lower_bound`](@ref JuMP.set_lower_bound(::AbstractInfiniteSet, ::Number))
+- [`JuMP.has_upper_bound`](@ref JuMP.has_upper_bound(::AbstractInfiniteSet))
+- [`JuMP.upper_bound`](@ref JuMP.upper_bound(::AbstractInfiniteSet))
+- [`JuMP.set_upper_bound`](@ref JuMP.set_upper_bound(::AbstractInfiniteSet, ::Number))
+However, if we want `has_lower_bound = false` and `has_upper_bound = false` then
+no extension is needed. For our current, example we won't do this since lower
+and upper bounds aren't exactly clear for a disjoint interval. Please refer to
+the template in `./InfiniteOpt/test/extensions/infinite_set.jl` to see how this
+is done.
 
 ## Measure Evaluation Techniques
 

@@ -112,9 +112,17 @@ end
 
 @testset "Registry functions" begin
     m = InfiniteModel()
+    @testset "eval_method_registry" begin
+        @test eval_method_registry(m) isa Dict
+    end
+    @testset "_itr_string" begin
+        str = "mc_sampling, gauss_legendre, gauss_laguerre, gauss_hermite"
+        @test MEM._itr_string(eval_method_registry(m)[IntervalSet]...) == str
+    end
     @testset "_set_type" begin
-        @test MEM._set_type(m, BadSet()) == nothing
-        @test MEM._set_type(m, IntervalSet(0., 1.)) == IntervalSet
+        @test MEM._set_type(eval_method_registry(m), IntervalSet(0, 1)) == IntervalSet
+        @test MEM._set_type(eval_method_registry(m), DistributionSet(Uniform())) == DistributionSet
+        @test MEM._set_type(eval_method_registry(m), BadSet()) == BadSet
     end
     @testset "_set_method_check" begin
         @test_throws ErrorException MEM._set_method_check(m, BadSet(), new_fn)

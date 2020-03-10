@@ -422,7 +422,8 @@ end
             num_supports::Int = 50,
             weight_func::Function = _w, name = "measure",
             use_existing_supports::Bool = false,
-            call_from_expect::Bool = false, kwargs...])::MeasureRef
+            call_from_expect::Bool = false,
+            check_method::Bool = true, kwargs...])::MeasureRef
 
 Returns a measure reference that evaluates `expr` without using an object of
 [`AbstractMeasureData`](@ref) type. Similar to the basic [`measure`](@ref)
@@ -531,6 +532,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
     delete!(kwargs, :call_from_expect)
     delete!(kwargs, :num_supports)
 
+    # make bounds arrays if needed
     if num_params > 1
         if isa(lb, Number)
             lb = JuMPC.SparseAxisArray(Dict(k => lb for k in keys(params)))
@@ -540,6 +542,24 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         end
     end
 
+    # check lower bounds
+    bounds_valid = true
+    if isa(lb, Number)
+        bounds_valid = supports_in_set(lb, _parameter_set(first(params)))
+    elseif isa(lb, JuMPC.SparseAxisArray)
+        bounds_valid = all(supports_in_set.(lb, _parameter_set.(params)))
+    end
+    bounds_valid || error("Lower bound(s) violate(s) the infinite set domain.")
+
+    # check upper bounds
+    if isa(ub, Number)
+        bounds_valid = supports_in_set(ub, _parameter_set(first(params)))
+    elseif isa(ub, JuMPC.SparseAxisArray)
+        bounds_valid = all(supports_in_set.(ub, _parameter_set.(params)))
+    end
+    bounds_valid || error("Upper bound(s) violate(s) the infinite set domain.")
+
+    # fill in bounds if needed
     set = _parameter_set(first(params))
     if JuMP.has_lower_bound(set)
         # Fill in lower bounds and upper bounds if not given
@@ -630,7 +650,7 @@ Get the default keyword argument values from model.
 
 """
 function measure_defaults(model::InfiniteModel)
-    return model.meas_defaults;
+    return model.meas_defaults
 end
 
 """

@@ -31,8 +31,7 @@ time and/or spatial position. For example, to define a position interval
 julia> set = IntervalSet(-2, 2)
 [-2, 2]
 ```
-In principle infinite bounds are acceptable, but are not actively supported at
-the moment.
+Note that infinite bounds are acceptable.
 
 ## DistributionSets
 The second kind of set is that of [`DistributionSet`](@ref) which contains

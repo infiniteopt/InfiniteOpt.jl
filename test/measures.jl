@@ -573,6 +573,8 @@ end
     @infinite_parameter(m, 0 <= par5 <= 1)
     @infinite_parameter(m, par6 in [0, Inf])
     @infinite_parameter(m, par7 in [-Inf, Inf])
+    sets = [IntervalSet(0,1), DistributionSet(Uniform())]
+    @infinite_parameter(m, pars4[i = 1:2], set = sets[i])
     @infinite_variable(m, inf(par))
     @infinite_variable(m, inf2(par, par2))
     @infinite_variable(m, inf3(par3))
@@ -652,7 +654,6 @@ end
         @test all(measure_data(meas9).supports .== expected_supps)
         @test all(measure_data(meas9).coefficients .== expected_coeffs)
 
-
         # test errors
         @test_throws ErrorException measure(x)
         @test_throws ErrorException measure(inf, ParameterRef[])
@@ -665,6 +666,11 @@ end
         @test_throws ErrorException measure(inf8, use_existing_supports = true)
         @test_throws ErrorException measure(meas1)
         @test_throws ErrorException measure(inf4, pars1, eval_method = Quad)
+        @test_throws ErrorException measure(inf, par, -1)
+        @test_throws ErrorException measure(inf, par, 0, 2)
+        @test_throws ErrorException measure(inf4, pars1, -1)
+        @test_throws ErrorException measure(inf4, pars1, 0, 2)
+        @test_throws ErrorException measure(x, pars4)
     end
     # test support_sum
     @testset "support_sum" begin
