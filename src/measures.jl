@@ -526,6 +526,11 @@ function measure(expr::JuMP.AbstractJuMPScalar,
     use_existing_supports = kwargs[:use_existing_supports]
     call_from_expect = kwargs[:call_from_expect]
 
+    # delete unneeded keyword arguments
+    delete!(kwargs, :use_existing_supports)
+    delete!(kwargs, :call_from_expect)
+    delete!(kwargs, :num_supports)
+
     if num_params > 1
         if isa(lb, Number)
             lb = JuMPC.SparseAxisArray(Dict(k => lb for k in keys(params)))
@@ -619,12 +624,12 @@ function measure(expr::JuMP.AbstractJuMPScalar,
 end
 
 """
-    get_measure_defaults(model::InfiniteModel)
+    measure_defaults(model::InfiniteModel)
 
 Get the default keyword argument values from model.
 
 """
-function get_measure_defaults(model::InfiniteModel)
+function measure_defaults(model::InfiniteModel)
     return model.meas_defaults;
 end
 

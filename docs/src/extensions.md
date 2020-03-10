@@ -139,22 +139,21 @@ function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
     num_supports::Int,
     lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
     ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-    method::Function; kwargs...)::Tuple
-    return method(lb, ub, num_supports)
+    method::Function)::Tuple
     length_ratio = (set.ub1 - set.lb1) / (set.ub1 - set.lb1 + set.ub2 - set.lb2)
     num_supports1 = Int64(ceil(length_ratio * num_supports))
     num_supports2 = num_supports - num_supports1
-    supports1, coeffs1 = method(lb, set.ub1, num_supports1)
-    supports2, coeffs2 = method(set.lb2, ub, num_supports2)
+    supports1, coeffs1 = method(set.lb1, set.ub1, num_supports1)
+    supports2, coeffs2 = method(set.lb2, set.ub2, num_supports2)
     return ([supports1; supports2], [coeffs1; coeffs2])
 end
 
-register_eval_method(model, DisjointSet, [mc_sampling, guass_legendre])
+register_eval_method(model, DisjointSet, [mc_sampling, gauss_legendre])
 ```
 Now we can define measures as normal:
 ```jldoctest set_ext
 julia> mref = measure(t^2, t, 0, 4)
-
+measure(t²)
 ```
 
 ## Measure Evaluation Techniques

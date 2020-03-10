@@ -37,7 +37,8 @@
     x = m[:x]
 
     # test measures
-    @test measure(x^2 + par, par, num_supports = 2, method = gauss_legendre) isa MeasureRef
+    register_eval_method(m, MyNewSet, default_methods[1])
+    @test measure(x^2 + par, par, num_supports = 2, eval_method = gauss_legendre) isa MeasureRef
 
     # test constraints
     @test @constraint(m, x + par <= 0) isa GeneralConstraintRef

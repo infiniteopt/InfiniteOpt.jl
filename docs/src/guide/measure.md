@@ -397,7 +397,7 @@ Order   = [:function]
 expect
 support_sum
 measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})
-get_measure_defaults
+measure_defaults
 set_measure_defaults
 DiscreteMeasureData(::ParameterRef, ::Vector{<:Number}, ::Vector{<:Number})
 DiscreteMeasureData(::AbstractArray{<:ParameterRef}, ::Vector{<:Number}, ::Vector{<:AbstractArray})
@@ -448,7 +448,7 @@ Order   = [:function]
 
 ```@docs
 InfiniteOpt.MeasureEvalMethods.generate_measure_data
-InfiniteOpt.MeasureEvalMethods.measure_dispatch
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs
 InfiniteOpt.MeasureEvalMethods.mc_sampling(::Number, ::Number, ::Int)
 InfiniteOpt.MeasureEvalMethods.mc_sampling(::Distributions.UnivariateDistribution, ::InfiniteOpt.ParameterRef, ::Int)
 InfiniteOpt.MeasureEvalMethods.gauss_legendre

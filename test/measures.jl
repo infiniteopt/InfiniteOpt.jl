@@ -695,7 +695,7 @@ end
     @testset "set_measure_defaults" begin
         set_measure_defaults(m, num_supports = 5, eval_method = Quad,
                             new_kwarg = true)
-        def_vals = get_measure_defaults(m)
+        def_vals = measure_defaults(m)
         @test def_vals[:num_supports] == 5
         @test def_vals[:call_from_expect] == false
         @test def_vals[:eval_method] == Quad
@@ -706,6 +706,7 @@ end
     end
     # test measure with default keyword argument values
     @testset "default measure" begin
+        delete!(measure_defaults(m), :new_kwarg)
         meas = measure(inf)
         (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
         expected_supps = expected_supps .* 0.5 .+ 0.5

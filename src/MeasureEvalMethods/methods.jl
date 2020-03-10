@@ -1,8 +1,3 @@
-# Default method registration
-const default_set_types = [InfiniteOpt.IntervalSet, InfiniteOpt.DistributionSet]
-const default_methods = [[mc_sampling, gauss_legendre, gauss_laguerre, gauss_hermite],
-                         [mc_sampling]]
-
 """
     eval_method_registry(model::InfiniteOpt.InfiniteModel
                          )::Dict{Type, Set{Function}}
@@ -74,7 +69,7 @@ end
                           num_supports::Int,
                           lb::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing,
                           ub::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing;
-                          method::Function = mc_sampling, name::String = "",
+                          eval_method::Function = mc_sampling, name::String = "",
                           weight_func::Function = InfiniteOpt._w, kwargs...
                           )::InfiniteOpt.AbstractMeasureData
 
@@ -140,7 +135,7 @@ function generate_supports_and_coeffs(set::InfiniteOpt.AbstractInfiniteSet,
                                       lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
                                       ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
                                       method::Function; kwargs...)::Tuple
-    error("Measure dispatch function is not extended for parameters in sets " *
+    error("`generate_supports_and_coeffs` is not extended for parameters in sets " *
           "of type $(typeof(set)).")
 end
 
@@ -175,7 +170,7 @@ function generate_supports_and_coeffs(set::InfiniteOpt.DistributionSet,
             dist = Distributions.Truncated(dist, temp_lb, temp_ub)
         end
     end
-    return method(dist, params, num_supports)
+    return method(dist, params, num_supports; kwargs...)
 end
 
 """
@@ -255,7 +250,7 @@ end
 
 function mc_sampling(dist::Distributions.MultivariateDistribution,
                      params::AbstractArray{<:InfiniteOpt.ParameterRef},
-                     num_supports::Int; kwargs...)::Tuple
+                     num_supports::Int)::Tuple
     samples_matrix = rand(dist, num_supports)
     ordered_pairs = sort(collect(params.data), by=x->x.second.index)
     samples_dict = Dict()
@@ -434,6 +429,11 @@ function _default_dx(t::Number, lb::Number, ub::Number)::Number
         return (1 + t^2) / (1 - t^2)^2
     end
 end
+
+# Default method registration
+const default_set_types = [InfiniteOpt.IntervalSet, InfiniteOpt.DistributionSet]
+const default_methods = [[mc_sampling, gauss_legendre, gauss_laguerre, gauss_hermite],
+                         [mc_sampling]]
 
 # TODO: consider truncated distribution
 # TODO: consider adding uniform grids

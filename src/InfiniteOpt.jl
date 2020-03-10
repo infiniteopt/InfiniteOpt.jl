@@ -34,16 +34,14 @@ include("TranscriptionOpt/TranscriptionOpt.jl")
 using .TranscriptionOpt
 
 include("MeasureEvalMethods/MeasureEvalMethods.jl")
-# using .MeasureEvalMethods: generate_measure_data, mc_sampling, gauss_legendre,
-# gauss_hermite, gauss_laguerre, infinite_transform, generate_supports_and_coeffs,
-# default_set_types, default_methods, eval_method_registry, register_eval_method
-
-using .MeasureEvalMethods
+using .MeasureEvalMethods: generate_measure_data, mc_sampling, gauss_legendre,
+gauss_hermite, gauss_laguerre, infinite_transform, generate_supports_and_coeffs,
+default_set_types, default_methods, eval_method_registry, register_eval_method
 
 # Export the measure eval functions
-# export generate_measure_data, mc_sampling, gauss_legendre, gauss_hermite,
-# gauss_laguerre, infinite_transform, measure_dispatch,
-# generate_supports_and_coeffs, eval_method_registry, register_eval_method
+export generate_measure_data, mc_sampling, gauss_legendre, gauss_hermite,
+gauss_laguerre, infinite_transform, measure_dispatch,
+generate_supports_and_coeffs, eval_method_registry, register_eval_method
 
 # Export model object datatype
 export InfiniteModel
@@ -102,7 +100,7 @@ expand_all_measures!, expect, support_sum
 # Export measure evaluation functions
 export generate_measure_data, MC_sampling, Gauss_Legendre, Gauss_Hermite,
 Gauss_Laguerre, infinite_transform, support_formatting, measure_dispatch,
-set_measure_defaults, get_measure_defaults
+set_measure_defaults, measure_defaults
 
 # Export transcription datatypes
 export TranscriptionData, TranscriptionModel
