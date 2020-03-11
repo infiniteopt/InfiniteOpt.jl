@@ -280,25 +280,14 @@ function is_used(pref::ParameterRef)::Bool
     return used_by_measure(pref) || used_by_constraint(pref) || used_by_variable(pref)
 end
 
-## Check if parameter is used by measure data and error if it is to prevent bad
-## deleting behavior
-# DiscreteMeasureData
-function _check_param_in_data(pref::ParameterRef, data::DiscreteMeasureData)
-    data.parameter_ref == pref && error("Unable to delete $pref since it is " *
-                                        "used to evaluate measures.")
+# Check if parameter is used by measure data and error if it is to prevent bad
+# deleting behavior
+function _check_param_in_data(pref::ParameterRef, data::AbstractMeasureData)
+    prefs = parameter_refs(data)
+    if (pref == prefs || pref in prefs)
+        error("Unable to delete `$pref` since it is used to evaluate measures.")
+    end
     return
-end
-
-# MultiDiscreteMeasureData
-function _check_param_in_data(pref::ParameterRef, data::MultiDiscreteMeasureData)
-    pref in data.parameter_ref && error("Unable to delete $pref since it is " *
-                                        "used to evaluate measures.")
-    return
-end
-
-# Fallback
-function _check_param_in_data(pref::ParameterRef, data::T) where {T}
-    error("Unable to delete parameters when using measure data type $T.")
 end
 
 ## Determine if a tuple element contains a particular parameter

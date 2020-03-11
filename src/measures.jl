@@ -35,127 +35,6 @@ function JuMP.is_valid(model::InfiniteModel, mref::MeasureRef)::Bool
     return (model === JuMP.owner_model(mref) && JuMP.index(mref) in keys(model.measures))
 end
 
-# Parse the string for displaying a measure
-function _make_meas_name(meas::Measure)::String
-    return string(meas.data.name, "(", JuMP.function_string(JuMP.REPLMode,
-                                                            meas.func), ")")
-end
-
-## Internal functions for adding measure data supports to the parameter supports
-# scalar pref
-function _add_supports_to_parameters(pref::ParameterRef,
-                                     supports::Vector{<:Number})
-    add_supports(pref, supports)
-    return
-end
-
-# array pref
-function _add_supports_to_parameters(pref::JuMPC.SparseAxisArray{<:ParameterRef},
-                                     supports::Array{<:JuMPC.SparseAxisArray{<:Number}})
-    for i = eachindex(supports)
-        for key in keys(pref.data)
-            add_supports(pref.data[key], supports[i].data[key])
-        end
-    end
-    return
-end
-
-# Used to update the model.var_to_meas and model.param_tomes fields
-# this is needed to update measures if variables are deleted
-function _update_var_meas_mapping(vrefs::Vector{<:GeneralVariableRef},
-                                  mindex::Int)
-    for vref in vrefs
-        model = JuMP.owner_model(vref)
-        if isa(vref, InfOptVariableRef)
-            if haskey(model.var_to_meas, JuMP.index(vref))
-                push!(model.var_to_meas[JuMP.index(vref)], mindex)
-            else
-                model.var_to_meas[JuMP.index(vref)] = [mindex]
-            end
-        elseif isa(vref, ParameterRef)
-            if haskey(model.param_to_meas, JuMP.index(vref))
-                push!(model.param_to_meas[JuMP.index(vref)], mindex)
-            else
-                model.param_to_meas[JuMP.index(vref)] = [mindex]
-            end
-        elseif isa(vref, MeasureRef)
-            if haskey(model.meas_to_meas, JuMP.index(vref))
-                push!(model.meas_to_meas[JuMP.index(vref)], mindex)
-            else
-                model.meas_to_meas[JuMP.index(vref)] = [mindex]
-            end
-        elseif isa(vref, ReducedInfiniteVariableRef)
-            if haskey(model.reduced_to_meas, JuMP.index(vref))
-                push!(model.reduced_to_meas[JuMP.index(vref)], mindex)
-            else
-                model.reduced_to_meas[JuMP.index(vref)] = [mindex]
-            end
-        end
-    end
-    return
-end
-
-## Used to add the measure index to param_to_meas for parameters that are used
-## in the evaluation data
-# DiscreteMeasureData
-function _update_param_data_mapping(model::InfiniteModel,
-                                    data::DiscreteMeasureData,
-                                    mindex::Int)
-    if haskey(model.param_to_meas, JuMP.index(data.parameter_ref))
-        if !(mindex in model.param_to_meas[JuMP.index(data.parameter_ref)])
-            push!(model.param_to_meas[JuMP.index(data.parameter_ref)], mindex)
-        end
-    else
-        model.param_to_meas[JuMP.index(data.parameter_ref)] = [mindex]
-    end
-    return
-end
-
-# MultiDiscreteMeasureData
-function _update_param_data_mapping(model::InfiniteModel,
-                                    data::MultiDiscreteMeasureData,
-                                    mindex::Int)
-    for pref in data.parameter_ref
-        if haskey(model.param_to_meas, JuMP.index(pref))
-            if !(mindex in model.param_to_meas[JuMP.index(pref)])
-                push!(model.param_to_meas[JuMP.index(pref)], mindex)
-            end
-        else
-            model.param_to_meas[JuMP.index(pref)] = [mindex]
-        end
-    end
-    return
-end
-
-# Fallback
-function _update_param_data_mapping(model::InfiniteModel, data::T,
-                                    mindex::Int) where {T <: AbstractMeasureData}
-    @warn "Unable to map parameter dependence for measure data type $T. " *
-          "Parameter deletion methods should not be used."
-    return
-end
-
-"""
-    add_measure(model::InfiniteModel, meas::Measure)::MeasureRef
-
-Add a measure to `model` and return the corresponding measure reference. This
-operates in a manner similar to [`JuMP.add_variable`](@ref).
-"""
-function add_measure(model::InfiniteModel, meas::Measure)::MeasureRef
-    model.next_meas_index += 1
-    index = model.next_meas_index
-    JuMP.check_belongs_to_model(meas.func, model)
-    _add_supports_to_parameters(meas.data.parameter_ref, meas.data.supports)
-    vrefs = _all_function_variables(meas.func)
-    _update_var_meas_mapping(vrefs, index)
-    _update_param_data_mapping(model, meas.data, index)
-    mref = MeasureRef(model, model.next_meas_index)
-    model.measures[mref.index] = meas
-    JuMP.set_name(mref, _make_meas_name(meas))
-    model.meas_in_objective[index] = false
-    return mref
-end
-
 # Set a default weight function
 _w(t) = 1
 
@@ -227,6 +106,176 @@ function DiscreteMeasureData(parameter_ref::AbstractArray{<:ParameterRef},
     parameter_ref = convert(JuMPC.SparseAxisArray, parameter_ref)
     return MultiDiscreteMeasureData(parameter_ref, coefficients, supports, name,
                                     weight_function)
+end
+
+"""
+    measure_name(data::AbstractMeasureData)::String
+
+Return the measure name string stored in `data`. This is intended as an internal
+function to be used with measure addition. User-defined measure data types will
+need to extend this function otherwise the measure names default to `"measure"`.
+"""
+function measure_name(data::AbstractMeasureData)::String
+    return "measure"
+end
+
+# DiscreteMeasureData and MultiDiscreteMeasureData
+function measure_name(data::Union{DiscreteMeasureData, MultiDiscreteMeasureData})::String
+    return data.name
+end
+
+"""
+    parameter_refs(data::AbstractMeasureData)::Union{ParameterRef,
+                                                     AbstractArray{<:ParameterRef}}
+
+Return the infinite parameter reference(s) in `data`. This is intended as an
+internal function to be used with measure addition. User-defined measure data types
+will need to extend this function otherwise an error is thrown.
+"""
+function parameter_refs(data::AbstractMeasureData)
+    error("Function `parameter_refs` not extended for measure data of type $(typeof(data)).")
+end
+
+# DiscreteMeasureData and MultiDiscreteMeasureData
+function parameter_refs(data::Union{DiscreteMeasureData, MultiDiscreteMeasureData})
+    return data.parameter_ref
+end
+
+"""
+    supports(data::AbstractMeasureData)::Vector
+
+Return the supports stored in `data` associated with its infinite parameters.
+This is intended as en internal method for measure creation and ensures any
+new supports are added to parameters. User-defined measure data types should
+extend this function if appropriate, otherwise an empty vector is returned.
+"""
+function supports(data::AbstractMeasureData)::Vector
+    return Number[]
+end
+
+# DiscreteMeasureData and MultiDiscreteMeasureData
+function supports(data::Union{DiscreteMeasureData, MultiDiscreteMeasureData})::Vector
+    return data.supports
+end
+
+# Parse the string for displaying a measure
+function _make_meas_name(meas::Measure)::String
+    return string(measure_name(meas.data), "(", JuMP.function_string(JuMP.REPLMode,
+                                                            meas.func), ")")
+end
+
+# Used to update the model.var_to_meas and model.param_tomes fields
+# this is needed to update measures if variables are deleted
+function _update_var_meas_mapping(vrefs::Vector{<:GeneralVariableRef},
+                                  mindex::Int)
+    for vref in vrefs
+        model = JuMP.owner_model(vref)
+        if isa(vref, InfOptVariableRef)
+            if haskey(model.var_to_meas, JuMP.index(vref))
+                push!(model.var_to_meas[JuMP.index(vref)], mindex)
+            else
+                model.var_to_meas[JuMP.index(vref)] = [mindex]
+            end
+        elseif isa(vref, ParameterRef)
+            if haskey(model.param_to_meas, JuMP.index(vref))
+                push!(model.param_to_meas[JuMP.index(vref)], mindex)
+            else
+                model.param_to_meas[JuMP.index(vref)] = [mindex]
+            end
+        elseif isa(vref, MeasureRef)
+            if haskey(model.meas_to_meas, JuMP.index(vref))
+                push!(model.meas_to_meas[JuMP.index(vref)], mindex)
+            else
+                model.meas_to_meas[JuMP.index(vref)] = [mindex]
+            end
+        elseif isa(vref, ReducedInfiniteVariableRef)
+            if haskey(model.reduced_to_meas, JuMP.index(vref))
+                push!(model.reduced_to_meas[JuMP.index(vref)], mindex)
+            else
+                model.reduced_to_meas[JuMP.index(vref)] = [mindex]
+            end
+        end
+    end
+    return
+end
+
+## Used to add the measure index to param_to_meas for parameters that are used
+## in the evaluation data
+# DiscreteMeasureData
+function _update_param_data_mapping(model::InfiniteModel,
+                                    pref::ParameterRef,
+                                    mindex::Int)
+    if haskey(model.param_to_meas, JuMP.index(pref))
+        if !(mindex in model.param_to_meas[JuMP.index(pref)])
+            push!(model.param_to_meas[JuMP.index(pref)], mindex)
+        end
+    else
+        model.param_to_meas[JuMP.index(pref)] = [mindex]
+    end
+    return
+end
+
+# MultiDiscreteMeasureData
+function _update_param_data_mapping(model::InfiniteModel,
+                                    prefs::AbstractArray{<:ParameterRef},
+                                    mindex::Int)
+    for pref in prefs
+        if haskey(model.param_to_meas, JuMP.index(pref))
+            if !(mindex in model.param_to_meas[JuMP.index(pref)])
+                push!(model.param_to_meas[JuMP.index(pref)], mindex)
+            end
+        else
+            model.param_to_meas[JuMP.index(pref)] = [mindex]
+        end
+    end
+    return
+end
+
+## Internal functions for adding measure data supports to the parameter supports
+# scalar pref
+function _add_supports_to_parameters(pref::ParameterRef,
+                                     supports::Vector{<:Number})
+    add_supports(pref, supports)
+    return
+end
+
+# array pref
+function _add_supports_to_parameters(prefs::AbstractArray{<:ParameterRef},
+                                     supports::Array{<:AbstractArray{<:Number}})
+    for i = eachindex(supports)
+        for key in keys(prefs)
+            add_supports(prefs[key], supports[i][key])
+        end
+    end
+    return
+end
+
+"""
+    add_measure(model::InfiniteModel, meas::Measure)::MeasureRef
+
+Add a measure to `model` and return the corresponding measure reference. This
+operates in a manner similar to [`JuMP.add_variable`](@ref). Note this intended
+as an internal method.
+"""
+function add_measure(model::InfiniteModel, meas::Measure)::MeasureRef
+    model.next_meas_index += 1
+    index = model.next_meas_index
+    JuMP.check_belongs_to_model(meas.func, model)
+    prefs = parameter_refs(meas.data)
+    supps = supports(meas.data)
+    all(JuMP.is_valid.(model, prefs)) || error("Invalid parameter dependence in " *
+                                               "measure data")
+    if length(supps) != 0
+        _add_supports_to_parameters(prefs, supps)
+    end
+    vrefs = _all_function_variables(meas.func)
+    _update_var_meas_mapping(vrefs, index)
+    _update_param_data_mapping(model, prefs, index)
+    mref = MeasureRef(model, model.next_meas_index)
+    model.measures[mref.index] = meas
+    JuMP.set_name(mref, _make_meas_name(meas))
+    model.meas_in_objective[index] = false
+    return mref
 end
 
 """
@@ -302,6 +351,52 @@ function _model_from_expr(vrefs::Vector{<:GeneralVariableRef})
     end
 end
 
+"""
+    measure_data_in_hold_bounds(data::AbstractMeasureData,
+                                bounds::ParameterBounds)::Bool
+
+Return a `Bool` whether the domain of `data` is valid in accordance with
+`bounds`. This is intended as an internal method and is used to check hold
+variables used in measures. User-defined measure data types will need to
+extend this function to enable this error checking, otherwise it is skipped and
+a warning is given.
+"""
+function measure_data_in_hold_bounds(data::AbstractMeasureData,
+                                     bounds::ParameterBounds)::Bool
+    @warn "Unable to check if hold variables bounds are valid in measure " *
+           "with measure data type `$(typeof(data))`. This can be resolved by " *
+           "extending `measure_data_in_hold_bounds`."
+    return true
+end
+
+# DiscreteMeasureData
+function measure_data_in_hold_bounds(data::DiscreteMeasureData,
+                                     bounds::ParameterBounds)::Bool
+    pref = parameter_refs(data)
+    supps = supports(data)
+    if haskey(bounds.intervals, pref)
+        return supports_in_set(supps, bounds.intervals[pref])
+    end
+    return true
+end
+
+# MultiDiscreteMeasureData
+function measure_data_in_hold_bounds(data::MultiDiscreteMeasureData,
+                                     bounds::ParameterBounds)::Bool
+    prefs = parameter_refs(data)
+    supps = supports(data)
+    for i in eachindex(supps)
+        for key in keys(prefs)
+            if haskey(bounds.intervals, prefs[key])
+                if !supports_in_set(supps[i][key], bounds.intervals[prefs[key]])
+                    return false
+                end
+            end
+        end
+    end
+    return true
+end
+
 ## Check that variables don't violate the parameter bounds
 # GeneralVariableRef
 function _check_var_bounds(vref::GeneralVariableRef, data::AbstractMeasureData)
@@ -309,42 +404,11 @@ function _check_var_bounds(vref::GeneralVariableRef, data::AbstractMeasureData)
 end
 
 # HoldVariableRef (single parameter)
-function _check_var_bounds(vref::HoldVariableRef, data::DiscreteMeasureData)
-    bounds = parameter_bounds(vref)
-    pref = data.parameter_ref
-    supports = data.supports
-    if haskey(bounds.intervals, pref)
-        if bounds.intervals[pref].lower_bound > minimum(supports) ||
-            bounds.intervals[pref].upper_bound < maximum(supports)
-            error("Measure bounds violate hold variable bounds.")
-        end
-    end
-    return
-end
-
-# HoldVariableRef (multiple parameters)
-function _check_var_bounds(vref::HoldVariableRef, data::MultiDiscreteMeasureData)
-    bounds = parameter_bounds(vref)
-    prefs = data.parameter_ref
-    supports = data.supports
-    mins = minimum(supports)
-    maxs = maximum(supports)
-    for key in keys(prefs)
-        if haskey(bounds.intervals, prefs[key])
-            if bounds.intervals[prefs[key]].lower_bound > mins[key] ||
-                bounds.intervals[prefs[key]].upper_bound < maxs[key]
-                error("Measure bounds violate hold variable bounds.")
-            end
-        end
-    end
-    return
-end
-
-# HoldVariableRef (fallback)
 function _check_var_bounds(vref::HoldVariableRef, data::AbstractMeasureData)
-    type = typeof(data)
-    @warn "Unable to check if hold variables bounds are valid in measure with" *
-          " custom measure data type $type."
+    bounds = parameter_bounds(vref)
+    if !measure_data_in_hold_bounds(data, bounds)
+        error("Measure bounds violate hold variable bounds.")
+    end
     return
 end
 
@@ -392,17 +456,17 @@ name1(g(t) - 1 + name2(T(t, x)))
 """
 function measure(expr::JuMP.AbstractJuMPScalar,
                  data::AbstractMeasureData)::MeasureRef
-    if !isa(expr, Union{InfiniteExpr, MeasureExpr, ParameterExpr})
+    if !isa(expr, Union{InfiniteExpr, MeasureExpr, ParameterExpr}) # TODO maybe remove this?
         error("Expression must contain infinite variables, infinite " *
               "parameters, or measure references")
     end
     vrefs = _all_function_variables(expr)
     model = _model_from_expr(vrefs)
     if model == nothing
-        error("Expression contains no variables.")
+        error("Expression contains no variables or parameters.")
     end
-    pref = data.parameter_ref
-    _check_has_parameter(vrefs, pref)
+    pref = parameter_refs(data)
+    _check_has_parameter(vrefs, pref) # TODO is this needed?
     if model.has_hold_bounds
         for vref in vrefs
             _check_var_bounds(vref, data)
@@ -636,7 +700,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         end
     end
 
-    # construct AbstractMeasureData as data
+    # construct DiscreteMeasureData as data
     data = generate_measure_data(params, num_supports, lb, ub; kwargs...)
 
     # call measure function to construct the measure
@@ -646,8 +710,18 @@ end
 """
     measure_defaults(model::InfiniteModel)
 
-Get the default keyword argument values from model.
+Get the default keyword argument values for defining measures in `model`.
 
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
+julia> measure_defaults(model)
+Dict{Symbol,Any} with 6 entries:
+  :num_supports          => 50
+  :call_from_expect      => false
+  :eval_method           => nothing
+  :name                  => "measure"
+  :weight_func           => _w
+  :use_existing_supports => false
+```
 """
 function measure_defaults(model::InfiniteModel)
     return model.meas_defaults
@@ -667,7 +741,7 @@ function calls.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> m.meas_default
+julia> measure_defaults(model)
 Dict{Symbol,Any} with 6 entries:
   :num_supports          => 50
   :call_from_expect      => false
@@ -678,7 +752,7 @@ Dict{Symbol,Any} with 6 entries:
 
 julia> set_measure_default(m, num_supports = 5, eval_method = Quad, new_kwarg = true)
 
-julia> get_measure_defaults(m)
+julia> measure_defaults(m)
 Dict{Symbol,Any} with 6 entries:
   :new_kwarg             => true
   :num_supports          => 5
@@ -688,7 +762,6 @@ Dict{Symbol,Any} with 6 entries:
   :weight_func           => _w
   :use_existing_supports => false
 ```
-
 """
 function set_measure_defaults(model::InfiniteModel; kwargs...)
     merge!(model.meas_defaults, kwargs)
@@ -890,6 +963,18 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
             model.objective_function = zero(JuMP.AffExpr)
         else
             _remove_variable(model.objective_function, mref)
+        end
+    end
+    # Update that the parameters from the data are no longer dependent
+    prefs = parameter_refs(measure_data(mref))
+    if prefs isa ParameterRef
+        prefs = [prefs]
+    end
+    for pref in prefs
+        filter!(e -> e != JuMP.index(mref),
+                model.param_to_meas[JuMP.index(pref)])
+        if length(model.param_to_meas[JuMP.index(pref)]) == 0
+            delete!(model.param_to_meas, JuMP.index(pref))
         end
     end
     # Update that the variables used by it are no longer used by it

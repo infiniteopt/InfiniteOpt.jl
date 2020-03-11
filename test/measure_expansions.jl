@@ -6,44 +6,43 @@
     @infinite_parameter(m, 1 <= par2 <= 2)
     @infinite_variable(m, inf1(par1))
     @infinite_variable(m, inf2(par1, par2))
-    # test _make_point_variable
-    @testset "_make_point_variable" begin
+    # test make_point_variable_ref
+    @testset "make_point_variable_ref" begin
         idx = m.next_var_index + 1
-        @test InfiniteOpt._make_point_variable(inf1) == PointVariableRef(m,
-                                                                         idx)
+        @test make_point_variable_ref(inf1) == PointVariableRef(m, idx)
     end
-    # test _make_reduced_variable (from ivref)
-    @testset "_make_reduced_variable (from ivref)" begin
+    # test make_reduced_variable_ref (from ivref)
+    @testset "make_reduced_variable_ref (from ivref)" begin
         # test first addition
         idx = m.next_var_index + 1
         rvref = ReducedInfiniteVariableRef(m, idx)
-        @test InfiniteOpt._make_reduced_variable(inf2, 1, 1) == rvref
+        @test make_reduced_variable_ref(inf2, 1, 1) == rvref
         @test m.reduced_info[idx].infinite_variable_ref == inf2
         @test m.reduced_info[idx].eval_supports == Dict(1 => 1)
         @test m.infinite_to_reduced[JuMP.index(inf2)] == [idx]
         # test second addition
         idx = m.next_var_index + 1
         rvref = ReducedInfiniteVariableRef(m, idx)
-        @test InfiniteOpt._make_reduced_variable(inf2, 1, 1) == rvref
+        @test make_reduced_variable_ref(inf2, 1, 1) == rvref
         @test m.reduced_info[idx].infinite_variable_ref == inf2
         @test m.reduced_info[idx].eval_supports == Dict(1 => 1)
         @test m.infinite_to_reduced[JuMP.index(inf2)] == [idx - 1, idx]
         # undo changes
         delete!(m.infinite_to_reduced, JuMP.index(inf2))
     end
-    # test _make_reduced_variable (from rvref)
-    @testset "_make_reduced_variable (from rvref)" begin
+    # test make_reduced_variable_ref (from rvref)
+    @testset "make_reduced_variable_ref (from rvref)" begin
         # test first addition
         idx = m.next_var_index + 1
         rvref = ReducedInfiniteVariableRef(m, idx)
-        @test InfiniteOpt._make_reduced_variable(inf2, Dict(1 => 1)) == rvref
+        @test make_reduced_variable_ref(inf2, Dict(1 => 1)) == rvref
         @test m.reduced_info[idx].infinite_variable_ref == inf2
         @test m.reduced_info[idx].eval_supports == Dict(1 => 1)
         @test m.infinite_to_reduced[JuMP.index(inf2)] == [idx]
         # test second addition
         idx = m.next_var_index + 1
         rvref = ReducedInfiniteVariableRef(m, idx)
-        @test InfiniteOpt._make_reduced_variable(inf2, Dict(1 => 1)) == rvref
+        @test make_reduced_variable_ref(inf2, Dict(1 => 1)) == rvref
         @test m.reduced_info[idx].infinite_variable_ref == inf2
         @test m.reduced_info[idx].eval_supports == Dict(1 => 1)
         @test m.infinite_to_reduced[JuMP.index(inf2)] == [idx - 1, idx]
@@ -70,7 +69,7 @@ end
 end
 
 # Test measure expansion methods
-@testset "_expand_measure" begin
+@testset "expand_measure" begin
     # initialize model and references
     m = InfiniteModel()
     @infinite_parameter(m, 1 <= par1 <= 2)
@@ -100,16 +99,16 @@ end
     end
     trans_model = Model()
     map_args = (trans_model, mapper)
-    # test _expand_measure (infinite variable)
+    # test expand_measure (infinite variable)
     @testset "Infinite Variable" begin
         # test single param infinite var with measure param
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = 0.5 * (pts[1] + pts[2])
-        @test InfiniteOpt._expand_measure(inf1, data1, map_args...) == expected
+        @test expand_measure(inf1, data1, map_args...) == expected
         # test single param infinite var without measure param
         expected = 3inf1
-        @test InfiniteOpt._expand_measure(inf1, data2, map_args...) == expected
+        @test expand_measure(inf1, data2, map_args...) == expected
         # test single param infinite var with measure param and others
         idx = m.next_var_index + 1
         rv1 = ReducedInfiniteVariableRef(m, idx)
@@ -117,15 +116,15 @@ end
         rv2 = ReducedInfiniteVariableRef(m, idx + 1)
         m.reduced_info[idx + 1] = ReducedInfiniteInfo(inf2, Dict(1 => 2))
         expected = 0.5 * (rv1 + rv2)
-        @test InfiniteOpt._expand_measure(inf2, data1, map_args...) == expected
+        @test expand_measure(inf2, data1, map_args...) == expected
         # test array param infinite var with measure param
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = pts[1] + pts[2]
-        @test InfiniteOpt._expand_measure(inf4, data3, map_args...) == expected
+        @test expand_measure(inf4, data3, map_args...) == expected
         # test array param infinite var without measure param
         expected = 4inf4
-        @test InfiniteOpt._expand_measure(inf4, data4, map_args...) == expected
+        @test expand_measure(inf4, data4, map_args...) == expected
         # test array param infinite var with measure param and others
         idx = m.next_var_index + 1
         supp1 = convert(JuMP.Containers.SparseAxisArray, [1, 1])
@@ -135,20 +134,20 @@ end
         rv2 = ReducedInfiniteVariableRef(m, idx + 1)
         m.reduced_info[idx + 1] = ReducedInfiniteInfo(inf5, Dict(1 => supp2))
         expected = rv1 + rv2
-        @test InfiniteOpt._expand_measure(inf5, data3, map_args...) == expected
+        @test expand_measure(inf5, data3, map_args...) == expected
     end
-    # test _expand_measure (reduced infinite variable)
+    # test expand_measure (reduced infinite variable)
     @testset "Reduced Variable" begin
         # test single param reduced var without measure param
         rv = ReducedInfiniteVariableRef(m, -1)
         m.reduced_info[-1] = ReducedInfiniteInfo(inf2, Dict(1 => 1))
         expected = 0.5 * (rv + rv)
-        @test InfiniteOpt._expand_measure(rv, data1, map_args...) == expected
+        @test expand_measure(rv, data1, map_args...) == expected
         # test single param reduced var with measure param
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = 1.5 * (pts[1] + pts[2])
-        @test InfiniteOpt._expand_measure(rv, data2, map_args...) == expected
+        @test expand_measure(rv, data2, map_args...) == expected
         # test single param reduced var with measure param and others
         rv = ReducedInfiniteVariableRef(m, -2)
         m.reduced_info[-2] = ReducedInfiniteInfo(inf7, Dict(1 => 1))
@@ -159,18 +158,18 @@ end
         m.reduced_info[idx + 1] = ReducedInfiniteInfo(inf7,
                                                          Dict(1 => 2, 2 => 1))
         expected = 1.5 * (rv1 + rv2)
-        @test InfiniteOpt._expand_measure(rv, data2, map_args...) == expected
+        @test expand_measure(rv, data2, map_args...) == expected
         # test array param reduced var without measure param
         supp1 = convert(JuMP.Containers.SparseAxisArray, [1, 1])
         rv = ReducedInfiniteVariableRef(m, -1)
         m.reduced_info[-1] = ReducedInfiniteInfo(inf5, Dict(1 => supp1))
         expected = rv + rv
-        @test InfiniteOpt._expand_measure(rv, data3, map_args...) == expected
+        @test expand_measure(rv, data3, map_args...) == expected
         # test array param reduced var with measure param
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = 2 * (pts[1] + pts[2])
-        @test InfiniteOpt._expand_measure(rv, data4, map_args...) == expected
+        @test expand_measure(rv, data4, map_args...) == expected
         # test array param reduced var with measure param and others
         rv = ReducedInfiniteVariableRef(m, -2)
         m.reduced_info[-2] = ReducedInfiniteInfo(inf7, Dict(1 => 1))
@@ -184,66 +183,66 @@ end
         m.reduced_info[idx + 1] = ReducedInfiniteInfo(inf7,
                                                        Dict(1 => 2, 3 => supp2))
         expected = rv1 + rv2
-        @test InfiniteOpt._expand_measure(rv, data3, map_args...) == expected
+        @test expand_measure(rv, data3, map_args...) == expected
     end
-    # test _expand_measure (finite variable)
+    # test expand_measure (finite variable)
     @testset "Finite Variable" begin
         # test with single parameter measure
         expected = 0.5 * (x + x)
-        @test InfiniteOpt._expand_measure(x, data1, map_args...) == expected
+        @test expand_measure(x, data1, map_args...) == expected
         # test with multi parameter measure
         expected = x + x
-        @test InfiniteOpt._expand_measure(x, data3, map_args...) == expected
+        @test expand_measure(x, data3, map_args...) == expected
     end
-    # test _expand_measure (parameter)
+    # test expand_measure (parameter)
     @testset "Parameter" begin
         # test with different parameter
         expected = 1.5 * (par1 + par1)
-        @test InfiniteOpt._expand_measure(par1, data2, map_args...) == expected
+        @test expand_measure(par1, data2, map_args...) == expected
         # test with same parameter
         expected = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
         expected.constant = 0.5 * (1 + 2)
-        @test InfiniteOpt._expand_measure(par1, data1, map_args...) == expected
+        @test expand_measure(par1, data1, map_args...) == expected
     end
-    # test _expand_measure (multi measure data with parameter)
+    # test expand_measure (multi measure data with parameter)
     @testset "MultiMeasureData Parameter" begin
         # test with different parameter
         expected = par1 + par1
-        @test InfiniteOpt._expand_measure(par1, data3, map_args...) == expected
+        @test expand_measure(par1, data3, map_args...) == expected
         # test with same parameter
         expected = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
         expected.constant = 1 + 2
-        @test InfiniteOpt._expand_measure(pars1[2], data3, map_args...) == expected
+        @test expand_measure(pars1[2], data3, map_args...) == expected
     end
-    # test _expand_measure (AffExpr)
+    # test expand_measure (AffExpr)
     @testset "AffExpr" begin
         # test single param AffExpr, no measures
         expr = 2inf1 + par1 - x + 3par2 - 3
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = 0.5 * (2pts[1] + 2pts[2] + 1 + 2 - x - x + 3par2 + 3par2 - 6)
-        @test InfiniteOpt._expand_measure(expr, data1, map_args...) == expected
+        @test expand_measure(expr, data1, map_args...) == expected
         # test single param AffExpr, with measures
         expr = meas2 - x + par1
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = 0.5 * (6 * (pts[1] * x + pts[2] * x) - 2x - 6)
-        @test InfiniteOpt._expand_measure(expr, data1, map_args...) == expected
+        @test expand_measure(expr, data1, map_args...) == expected
         # test array param AffExpr, no measures
         expr = inf4 + par1 - x + 3pars1[2] - 1
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = pts[1] + pts[2] + 2par1 - 2x + 9 - 2
-        @test InfiniteOpt._expand_measure(expr, data3, map_args...) == expected
+        @test expand_measure(expr, data3, map_args...) == expected
         # test array param AffExpr, with measures
         expr = meas2 - x + par1 - inf4
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1),
                PointVariableRef(m, idx + 2), PointVariableRef(m, idx + 3)]
         expected = 6 * (pts[1] * x + pts[2] * x) - 4par1 - 2x - pts[3] - pts[4]
-        @test InfiniteOpt._expand_measure(expr, data3, map_args...) == expected
+        @test expand_measure(expr, data3, map_args...) == expected
     end
-    # test _expand_measure (QuadExpr)
+    # test expand_measure (QuadExpr)
     @testset "QuadExpr" begin
         # test single param QuadExpr with both variables integrated or not
         expr = 2 * inf1 * inf2 - inf3 * inf4 + x + 2
@@ -255,13 +254,13 @@ end
         m.reduced_info[idx + 3] = ReducedInfiniteInfo(inf2, Dict(1 => 2))
         expected = 0.5 * (2 * pts[1] * rv1 + 2 * pts[2] * rv2 - 2 * inf3 *
                           inf4 + 2x + 4)
-        @test InfiniteOpt._expand_measure(expr, data1, map_args...) == expected
+        @test expand_measure(expr, data1, map_args...) == expected
         # test single param QuadExpr with first variable not integrated
         expr = 3 * inf3 * inf1 + pars1[1] - 1
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = 0.5 * (3 * inf3 * pts[1] + 3 * inf3 * pts[2] + 2pars1[1] - 2)
-        @test InfiniteOpt._expand_measure(expr, data1, map_args...) == expected
+        @test expand_measure(expr, data1, map_args...) == expected
         # test single param QuadExpr with first variable integrated
         expr = 3 * inf2 * inf1 + pars1[1] + 1
         idx = m.next_var_index + 1
@@ -270,7 +269,7 @@ end
         rv2 = ReducedInfiniteVariableRef(m, idx + 1)
         m.reduced_info[idx + 1] = ReducedInfiniteInfo(inf2, Dict(2 => 1))
         expected = 1.5 * (3 * rv1 * inf1 + 3 * rv2 * inf1 + 2pars1[1] + 2)
-        @test InfiniteOpt._expand_measure(expr, data2, map_args...) == expected
+        @test expand_measure(expr, data2, map_args...) == expected
         # test array param QuadExpr with both variables integrated
         expr = 2 * inf4 * inf5 - inf1 * inf2 + x + 2
         idx = m.next_var_index + 1
@@ -282,13 +281,13 @@ end
         rv2 = ReducedInfiniteVariableRef(m, idx + 3)
         m.reduced_info[idx + 3] = ReducedInfiniteInfo(inf5, Dict(1 => supp2))
         expected = 2 * pts[1] * rv1 + 2 * pts[2] * rv2 - 2 * inf1 * inf2 + 2x + 4
-        @test InfiniteOpt._expand_measure(expr, data3, map_args...) == expected
+        @test expand_measure(expr, data3, map_args...) == expected
         # test array param QuadExpr with first variable not integrated
         expr = 3 * inf1 * inf4 + par1 - 1
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = 3 * inf1 * pts[1] + 3 * inf1 * pts[2] + 2par1 - 2
-        @test InfiniteOpt._expand_measure(expr, data3, map_args...) == expected
+        @test expand_measure(expr, data3, map_args...) == expected
         # test array param QuadExpr with first variable integrated
         expr = 3 * inf5 * inf1 + pars1[1] + 1
         idx = m.next_var_index + 1
@@ -298,9 +297,9 @@ end
         rv2 = ReducedInfiniteVariableRef(m, idx + 1)
         m.reduced_info[idx + 1] = ReducedInfiniteInfo(inf5, Dict(2 => supp))
         expected = 2 * (3 * rv1 * inf1 + 3 * rv2 * inf1 + 2pars1[1] + 2)
-        @test InfiniteOpt._expand_measure(expr, data4, map_args...) == expected
+        @test expand_measure(expr, data4, map_args...) == expected
     end
-    # test _expand_measure (QuadExpr) with parameter quadratics that become numbers
+    # test expand_measure (QuadExpr) with parameter quadratics that become numbers
     @testset "QuadExpr with Number Quadratics" begin
         # test single parameter with first quadratic term becomes number
         expr = par1 * inf1 + 2
@@ -308,84 +307,83 @@ end
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
         expected.aff = 0.5 * (pts[1] + 2 * pts[2] + 4)
-        @test InfiniteOpt._expand_measure(expr, data1, map_args...)== expected
+        @test expand_measure(expr, data1, map_args...)== expected
         # test single parameter with first quadratic term becomes number, 2nd constant
         expr = par1 * x + 2
         expected = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
         expected.aff = 0.5 * (x + 2 * x + 4)
-        @test InfiniteOpt._expand_measure(expr, data1, map_args...) == expected
+        @test expand_measure(expr, data1, map_args...) == expected
         # test single parameter with both quadratic terms become numbers
         expr = par1 * par1 + 2
         expected = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
         expected.aff = 0.5 * (1 + 2 * 2 + 4)
-        @test InfiniteOpt._expand_measure(expr, data1, map_args...) == expected
+        @test expand_measure(expr, data1, map_args...) == expected
         # test single parameter with 2nd quadratic term becomes number
         expr = inf1 * par1 + 2
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
         expected.aff = 0.5 * (pts[1] + 2 * pts[2] + 4)
-        @test InfiniteOpt._expand_measure(expr, data1, map_args...) == expected
+        @test expand_measure(expr, data1, map_args...) == expected
         # test single parameter with 2nd quadratic term becomes number, 1st constant
         expr = x * par1 + 2
         expected = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
         expected.aff = 0.5 * (x + 2 * x + 4)
-        @test InfiniteOpt._expand_measure(expr, data1, map_args...) == expected
+        @test expand_measure(expr, data1, map_args...) == expected
         # test array parameter with first quadratic term becomes number
         expr = pars1[1] * inf4 + 2
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
         expected.aff = pts[1] + 2 * pts[2] + 4
-        @test InfiniteOpt._expand_measure(expr, data3, map_args...) == expected
+        @test expand_measure(expr, data3, map_args...) == expected
         # test array parameter with first quadratic term becomes number, 2nd constant
         expr = pars1[1] * x + 2
         expected = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
         expected.aff = x + 2 * x + 4
-        @test InfiniteOpt._expand_measure(expr, data3, map_args...) == expected
+        @test expand_measure(expr, data3, map_args...) == expected
         # test array parameter with both quadratic terms become numbers
         expr = pars1[1] * pars1[2] + 2
         expected = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
         expected.aff = 1 + 2 * 2 + 4
-        @test InfiniteOpt._expand_measure(expr, data3, map_args...) == expected
+        @test expand_measure(expr, data3, map_args...) == expected
         # test array parameter with 2nd quadratic term becomes number
         expr = inf4 * pars1[1] + 2
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
         expected.aff = pts[1] + 2 * pts[2] + 4
-        @test InfiniteOpt._expand_measure(expr, data3, map_args...) == expected
+        @test expand_measure(expr, data3, map_args...) == expected
         # test array parameter with 2nd quadratic term becomes number, 1st constant
         expr = x * pars1[1] + 2
         expected = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
         expected.aff = x + 2 * x + 4
-        @test InfiniteOpt._expand_measure(expr, data3, map_args...) == expected
+        @test expand_measure(expr, data3, map_args...) == expected
     end
-    # test _expand_measure (measure)
+    # test expand_measure (measure)
     @testset "Measure" begin
         # test single param measure
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = 0.5 * (pts[1] + pts[2])
-        @test InfiniteOpt._expand_measure(meas1, data1, map_args...) == expected
+        @test expand_measure(meas1, data1, map_args...) == expected
         # test another single param
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = 0.5 * (6 * pts[1] * x + 6 * pts[2] * x - 3 * (1 + 2))
-        @test InfiniteOpt._expand_measure(meas2, data1, map_args...) == expected
+        @test expand_measure(meas2, data1, map_args...) == expected
         # test array param measure
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         expected = pts[1] + pts[2]
-        @test InfiniteOpt._expand_measure(meas1, data3, map_args...) == expected
+        @test expand_measure(meas1, data3, map_args...) == expected
     end
-    # test _expand_measure (other)
+    # test expand_measure (other)
     @testset "Other" begin
         # prepare test
         @variable(trans_model, y)
         # test it
-        @test_throws ErrorException InfiniteOpt._expand_measure(y, BadData(),
-                                                                map_args...)
+        @test_throws ErrorException expand_measure(y, BadData(), map_args...)
     end
 end
 
@@ -511,7 +509,7 @@ end
     # test _add_mapped_point_variable
     @testset "_add_mapped_point_variable" begin
         # prepare the partially made point variable reference
-        pref = InfiniteOpt._make_point_variable(inf1)
+        pref = InfiniteOpt.make_point_variable_ref(inf1)
         # try mapping/adding it
         @test isa(InfiniteOpt._add_mapped_point_variable(m, pref, inf1, (1,)),
                   Nothing)

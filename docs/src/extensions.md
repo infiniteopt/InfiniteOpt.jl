@@ -14,7 +14,7 @@ Infinite sets are used to characterize the behavior of infinite parameters and
 used to govern the behavior of supports in `InfiniteOpt`. Here we walk through
 how user-defined sets can be added to various degrees of functionality. A
 template is provided in `./InfiniteOpt/test/extensions/infinite_set.jl`. The
-following steps employed are:
+extension steps employed are:
 1. Define the new `struct` infinite set type (only thing required as bare minimum)
 2. Extend [`InfiniteOpt.supports_in_set`](@ref) (enables error checking of supports)
 3. Extend [`InfiniteOpt.generate_support_values`](@ref) (enables support generation via `num_supports` keyword arguments)
@@ -24,7 +24,7 @@ following steps employed are:
 As an example, let's create a disjoint interval set as an infinite set type.
 This corresponds to the set ``[lb_1, ub_1] \cup [lb_2, ub_2]`` where
 ``ub_1 \leq lb_2``. First, we need to create the `DataType` with inheritance from [`AbstractInfiniteSet`](@ref):
-```jldoctest set_ext
+```jldoctest set_ext; output = false
 using InfiniteOpt, JuMP
 
 struct DisjointSet <: InfiniteOpt.AbstractInfiniteSet
@@ -41,6 +41,10 @@ struct DisjointSet <: InfiniteOpt.AbstractInfiniteSet
                    convert(Float64, lb2), convert(Float64, ub2))
     end
 end
+
+# output
+
+
 ```
 Notice that we also define the constructor function to error check and convert as
 needed (this is recommended, but not required). For basic functionality this is
@@ -69,11 +73,15 @@ as outlined above.
 To enable support domain checking which is useful to avoid strange bugs, we will
 extend [`InfiniteOpt.supports_in_set`](@ref). This returns a `Bool` to indicate
 if a vector of supports are in the set's domain:
-```jldoctest set_ext
+```jldoctest set_ext; output = false
 function InfiniteOpt.supports_in_set(supports::Union{Number, Vector{<:Number}},
                                      set::DisjointSet)::Bool
     return all((set.lb1 .<= supports .<= set.ub1) .| (set.lb2 .<= supports .<= set.ub2))
 end
+
+# output
+
+
 ```
 Now the checks are enabled so, the following would yield an error because the
 support is not in the set domain:
@@ -83,9 +91,9 @@ ERROR: In `@infinite_parameter(model, set = DisjointSet(0, 1, 3, 4), supports = 
 ```
 
 To enable automatic support generation via the `num_supports` keyword and with
-functions such as [`fill_in_supports`](@ref), we will extend
+functions such as [`fill_in_supports!`](@ref), we will extend
 [`InfiniteOpt.generate_support_values`](@ref):
-```jldoctest set_ext
+```jldoctest set_ext; output = false
 function InfiniteOpt.generate_support_values(set::DisjointSet;
                                              num_supports::Int = 50,
                                              sig_fig::Int = 5)::Array
@@ -96,6 +104,10 @@ function InfiniteOpt.generate_support_values(set::DisjointSet;
     supports2 = collect(range(set.lb2, stop = set.ub2, length = num_supports2))
     return round.([supports1; supports2], sigdigits = sig_fig)
 end
+
+# output
+
+
 ```
 Now automatic support generation is enabled, for example:
 ```jldoctest set_ext
@@ -132,7 +144,7 @@ argument is used then we'll need to register valid method calls for our new set
 via [`register_eval_method`](@ref). If we wish to ignore the `method` then we'll
 need to set `check_method = false` when calling [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}))
 or using [`set_measure_defaults`](@ref). Continuing our example, we obtain:
-```jldoctest set_ext
+```jldoctest set_ext; output = false
 const JuMPC = JuMP.Containers
 
 function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
@@ -151,6 +163,10 @@ function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
 end
 
 register_eval_method(model, DisjointSet, [mc_sampling, gauss_legendre])
+
+# output
+
+
 ```
 Now we can define measures as normal:
 ```jldoctest set_ext
@@ -175,6 +191,22 @@ is done.
 ## Measure Evaluation Techniques
 
 ## Measure Data
+Measures are used to evaluate over infinite domains. Users may wish to employ
+measures that are strictly integrals and thus may wish to extend `InfiniteOpt`'s
+measure framework to accommodate other paradigms. This can be accomplished my
+implementing a user-defined measure data structure that inherits from
+[`AbstractMeasureData`](@ref). A template for how such an extension is
+accomplished is provided in `./InfiniteOpt/test/extensions/measure_data.jl`. The
+extension steps employed are:
+1. Define the new data struct inheriting from [`AbstractMeasureData`](@ref) (required)
+2. Extend [`InfiniteOpt.parameter_refs`](@ref parameter_refs(::AbstractMeasureData)) (required)
+3. Extend [`InfiniteOpt.expand_measure`](@ref) (required)
+4. Extend [`InfiniteOpt.supports`](@ref supports(::AbstractMeasureData)) (required if parameter supports are employed in any way)
+5. Extend [`InfiniteOpt.measure_data_in_hold_bounds`](@ref) (enables hold variable bound checking with measures)
+6. Extend [`InfiniteOpt.measure_name`](@ref) (enables meaningful measure naming)
+7. Make simple measure constructor wrapper of [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)) to ease definition
+
+TODO: Provide an extension example using CVaR.
 
 ## [Optimizer Models] (@id extend_optimizer_model)
 

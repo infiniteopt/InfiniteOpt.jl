@@ -291,7 +291,7 @@ function _make_transcription_function(mref::InfiniteOpt.MeasureRef,
     func = InfiniteOpt.measure_function(mref)
     data = InfiniteOpt.measure_data(mref)
     new_func = InfiniteOpt._possible_convert(InfiniteOpt.FiniteVariableRef,
-                                         InfiniteOpt._expand_measure(func, data,
+                                         InfiniteOpt.expand_measure(func, data,
                                             trans_model, _update_point_mapping))
     # will either call finite variable function or general variable function
     return _make_transcription_function(new_func, trans_model, bounds)

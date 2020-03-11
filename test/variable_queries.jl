@@ -261,7 +261,8 @@ end
     # test _check_meas_bounds (Fallback)
     @testset "_check_meas_bounds (Fallback)" begin
         warn = "Unable to check if hold variables bounds are valid in measure " *
-               "with custom measure data type."
+               "with measure data type `BadData`. This can be resolved by " *
+               "extending `measure_data_in_hold_bounds`."
         @test_logs (:warn, warn) InfiniteOpt._check_meas_bounds(ParameterBounds(),
                                                                 BadData())
     end
