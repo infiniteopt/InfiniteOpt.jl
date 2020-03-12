@@ -353,7 +353,7 @@ where the expanded measure is a `JuMP.GenericAffExpr` that takes
 refers to the information of the reduced infinite variable stored in its model,
 in the type of [`ReducedInfiniteInfo`](@ref). Each [`ReducedInfiniteInfo`](@ref)
 records a reference for its original infinite variable, and the value of the
-fixed infinite parameter. One can query these information using
+fixed infinite parameter. One can query this information using
 [`infinite_variable_ref`](@ref) and [`eval_supports`](@ref) function as follows:
 ```jldoctest meas_basic
 julia> T1 = first(keys(expanded_measure.terms))

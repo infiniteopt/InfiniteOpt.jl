@@ -12,10 +12,10 @@ matrix:
  allow_failures:
  - platform: x86
 
-branches:
-  only:
-    - master
-    - /release-.*/
+# branches:
+#   only:
+#     - master
+#     - /release-.*/
 
 notifications:
   - provider: Email

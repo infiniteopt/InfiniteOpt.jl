@@ -183,7 +183,7 @@ if desired which are:
 - [`JuMP.upper_bound`](@ref JuMP.upper_bound(::AbstractInfiniteSet))
 - [`JuMP.set_upper_bound`](@ref JuMP.set_upper_bound(::AbstractInfiniteSet, ::Number))
 However, if we want `has_lower_bound = false` and `has_upper_bound = false` then
-no extension is needed. For our current, example we won't do this since lower
+no extension is needed. For our current example we won't do this since lower
 and upper bounds aren't exactly clear for a disjoint interval. Please refer to
 the template in `./InfiniteOpt/test/extensions/infinite_set.jl` to see how this
 is done.
