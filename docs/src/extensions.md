@@ -192,7 +192,8 @@ is done.
 
 ## Measure Data
 Measures are used to evaluate over infinite domains. Users may wish to employ
-measures that are strictly integrals and thus may wish to extend `InfiniteOpt`'s
+measure abstractions that cannot be readily represented with coefficients and
+discretized supports, and thus may wish to extend `InfiniteOpt`'s
 measure framework to accommodate other paradigms. This can be accomplished my
 implementing a user-defined measure data structure that inherits from
 [`AbstractMeasureData`](@ref). A template for how such an extension is
@@ -204,9 +205,153 @@ extension steps employed are:
 4. Extend [`InfiniteOpt.supports`](@ref supports(::AbstractMeasureData)) (required if parameter supports are employed in any way)
 5. Extend [`InfiniteOpt.measure_data_in_hold_bounds`](@ref) (enables hold variable bound checking with measures)
 6. Extend [`InfiniteOpt.measure_name`](@ref) (enables meaningful measure naming)
-7. Make simple measure constructor wrapper of [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)) to ease definition
+7. Make simple measure constructor wrapper of [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)) to ease definition.
 
-TODO: Provide an extension example using CVaR.
+To illustrate how this process can be done, let's consider extending `InfiniteOpt`
+to include measure for assessing the variance of random expressions. The
+variance of an expression ``f(x, \xi)`` where ``x \in \mathbb{R}^n`` are hold
+variables and ``\xi \in \mathbb{R}^m`` are random infinite parameters is defined:
+```math
+\mathbb{V}[f(x, \xi)] = \mathbb{E}\left[(f(x, \xi) - \mathbb{E}[f(x, \xi)])^2 \right].
+```
+Note, we could just accomplish this by nested use of [`expect`](@ref), but we
+implement this example to illustrate the mechanics of extension.
+
+First, let's define our new `struct` inheriting from `AbstractMeasureData`:
+```jldoctest measure_data; output = false
+using InfiniteOpt, JuMP, Distributions
+
+const JuMPC = JuMP.Containers
+
+struct DiscreteVarianceData <: AbstractMeasureData
+    parameter_refs::Union{ParameterRef, JuMPC.SparseAxisArray{<:ParameterRef}}
+    supports::Vector
+    name::String
+    # constructor
+    function DiscreteVarianceData(
+        parameter_refs::Union{ParameterRef, AbstractArray{<:ParameterRef}},
+        supports::Vector, name::String = "Var")
+        # convert input as necessary to proper array format
+        if parameter_refs isa AbstractArray
+            parameter_refs = convert(JuMPC.SparseAxisArray, parameter_refs)
+            supports = [convert(JuMPC.SparseAxisArray, arr) for arr in supports]
+        end
+        return new(parameter_refs, supports, name)
+    end
+end
+
+# output
+
+
+```
+
+We have defined our data type, so let's extend the measure data query
+methods to enable its definition. These include
+[`parameter_refs`](@ref parameter_refs(::AbstractMeasureData)),
+[`supports`](@ref supports(::AbstractMeasureData)), and
+[`measure_name`](@ref) (optional):
+```jldoctest measure_data; output = false
+function InfiniteOpt.parameter_refs(data::DiscreteVarianceData)
+    return data.parameter_refs
+end
+
+function InfiniteOpt.supports(data::DiscreteVarianceData)::Vector
+    return data.supports
+end
+
+function InfiniteOpt.measure_name(data::DiscreteVarianceData)::String
+    return data.name
+end
+
+# output
+
+
+```
+Note that extending `supports` is not needed for abstractions that don't involve
+discretization of the infinite parameter(s), such as the case for outer certain
+outer approximation techniques. Our extension is now sufficiently constructor to
+allow us to define out new variance measure via
+[`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)). For
+example,
+```jldoctest measure_data; setup = :(using Random; Random.seed!(42))
+# Setup the infinite model
+model = InfiniteModel()
+@infinite_parameter(model, xi in Normal(), num_supports = 2) # few for simplicity
+@infinite_variable(model, y(xi))
+@hold_variable(model, z)
+
+# Define out new variance measure
+data = DiscreteVarianceData(xi, supports(xi))
+mref = measure(2y + z, data)
+
+# output
+Var(2 y(xi) + z)
+```
+Thus, we can define measure references that employ this our new data type.
+
+We can define variance measures now, but now let's extend
+[`expand_measure`](@ref) so that they can be expanded into finite expressions:
+```jldoctest measure_data; output = false
+function InfiniteOpt.expand_measure(expr::JuMP.AbstractJuMPScalar,
+                                    data::DiscreteVarianceData,
+                                    write_model::JuMP.AbstractModel,
+                                    point_mapper::Function)::JuMP.AbstractJuMPScalar
+    # define the expectation data
+    expect_data = DiscreteMeasureData(
+                      data.parameter_refs,
+                      1 / length(data.supports) * ones(length(data.supports)),
+                      data.supports, name = data.name)
+    # define the mean
+    mean = measure(expr, expect_data)
+    # return the expansion of the variance using the data mean
+    return expand_measure((copy(expr) - mean)^2, expect_data, write_model, point_mapper)
+end
+
+# output
+
+
+```
+Notice that we reformulated our abstraction in terms of measures with
+[`DiscreteMeasureData`](@ref) so that we could leverage the existing
+[`expand_measure`](@ref) library. Now, new measure type can be expanded and
+moreover infinite models using this new type can be optimized. Let's try
+expanding the measure we already defined:
+```jldoctest measure_data
+julia> expand(mref)
+2 y(-0.55603)² + 2 y(-0.44438)² + 2 z*y(-0.55603) + 2 z*y(-0.44438) - 4 y(-0.55603)² - 4 y(-0.44438)*y(-0.55603) - 4 z*y(-0.55603) + 0 z² - 2 y(-0.55603)*z - 2 y(-0.44438)*z + y(-0.55603)² + y(-0.44438)²
+```
+
+Finally, as per recommendation let's make a wrapper method to make defining
+variance measures more convenient:
+```jldoctest measure_data; output = false
+function variance(expr::JuMP.AbstractJuMPScalar,
+                  params::Union{ParameterRef, AbstractArray{<:ParameterRef}};
+                  name::String = "Var", num_supports::Int = 10,
+                  use_existing::Bool = false)::MeasureRef
+    # get the supports
+    if use_existing
+        supps = supports.(params)
+    else
+        supps = generate_support_values(infinite_set(first(params)),
+                                           num_supports = num_supports)
+    end
+    # make the data
+    data = DiscreteVarianceData(params, supps, name)
+    # built the measure
+    return measure(expr, data)
+end
+
+# output
+
+
+```
+Now let's use our constructor to repeat the above example:
+```jldoctest measure_data
+julia> expand(variance(2y + z, xi, use_existing = true))
+2 y(-0.55603)² + 2 y(-0.44438)² + 2 z*y(-0.55603) + 2 z*y(-0.44438) - 4 y(-0.55603)² - 4 y(-0.44438)*y(-0.55603) - 4 z*y(-0.55603) + 0 z² - 2 y(-0.55603)*z - 2 y(-0.44438)*z + y(-0.55603)² + y(-0.44438)²
+```
+
+We have done it! Now go and extend away!
 
 ## [Optimizer Models] (@id extend_optimizer_model)
 
