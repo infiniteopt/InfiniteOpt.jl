@@ -4,6 +4,7 @@ makedocs(;
     pages = ["Home" => "index.md",
             "User Guide" => ["Installation" => "guide/install.md",
                              "Infinite Models" => "guide/model.md",
+                             "Infinite Sets" => "guide/sets.md",
                              "Infinite Parameters" => "guide/parameter.md",
                              "Finite Parameters" => "guide/finite_parameter.md",
                              "Variables" => "guide/variable.md",

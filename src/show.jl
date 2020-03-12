@@ -1,3 +1,9 @@
+## Return in set strings of infinite sets
+# Fallback
+function JuMP.in_set_string(print_mode, set::AbstractInfiniteSet)::String
+    return string(JuMP._math_symbol(print_mode, :in), " ", set)
+end
+
 # Extend to return of in set string for interval sets
 function JuMP.in_set_string(print_mode, set::IntervalSet)::String
     if set.lower_bound != set.upper_bound
@@ -105,6 +111,30 @@ end
 # Return the objective string
 function JuMP.objective_function_string(print_mode, model::InfiniteModel)
     return JuMP.function_string(print_mode, JuMP.objective_function(model))
+end
+
+# Show IntervalSets in REPLMode
+function Base.show(io::IO, set::IntervalSet)
+    print(io, "[", JuMP._string_round(set.lower_bound), ", ",
+          JuMP._string_round(set.upper_bound), "]")
+    return
+end
+
+# Show IntervalSets in IJuliaMode
+function Base.show(io::IO, ::MIME"text/latex", set::IntervalSet)
+    print(io, "[", JuMP._string_round(set.lower_bound), ", ",
+          JuMP._string_round(set.upper_bound), "]")
+end
+
+# Show IntervalSets in REPLMode
+function Base.show(io::IO, set::DistributionSet)
+    print(io, set.distribution)
+    return
+end
+
+# Show IntervalSets in IJuliaMode
+function Base.show(io::IO, ::MIME"text/latex", set::DistributionSet)
+    print(io, set.distribution)
 end
 
 # TODO make list following group_id and use ... when necessary --> Subdomain bounds: t in [0, 1], x[1] == 0, x[2] == 0, ... x[6] == 0, a in [2, 3]

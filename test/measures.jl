@@ -143,6 +143,52 @@ end
     end
 end
 
+# Test data access methods
+@testset "Data Queries" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, container = SparseAxisArray)
+    data = DiscreteMeasureData(par, [1], [1], name = "test")
+    data2 = DiscreteMeasureData(pars, [1], [[1, 1]], name = "cat")
+    # measure_name (DiscreteMeasureData)
+    @testset "measure_name (Single)" begin
+        @test measure_name(data) == "test"
+    end
+    # measure_name (MultiDiscreteMeasureData)
+    @testset "measure_name (Multi)" begin
+        @test measure_name(data2) == "cat"
+    end
+    # measure_name (Fallback)
+    @testset "measure_name (Fallback)" begin
+        @test measure_name(BadData()) == "measure"
+    end
+    # parameter_refs (DiscreteMeasureData)
+    @testset "parameter_refs (Single)" begin
+        @test parameter_refs(data) == par
+    end
+    # parameter_refs (MultiDiscreteMeasureData)
+    @testset "parameter_refs (Multi)" begin
+        @test parameter_refs(data2) == pars
+    end
+    # parameter_refs (Fallback)
+    @testset "parameter_refs (Fallback)" begin
+        @test_throws ErrorException parameter_refs(BadData())
+    end
+    # supports (DiscreteMeasureData)
+    @testset "supports (Single)" begin
+        @test supports(data) == [1]
+    end
+    # supports (MultiDiscreteMeasureData)
+    @testset "supports (Multi)" begin
+        @test supports(data2) == [convert(JuMPC.SparseAxisArray, [1, 1])]
+    end
+    # supports (Fallback)
+    @testset "supports (Fallback)" begin
+        @test supports(BadData()) == Number[]
+    end
+end
+
 # Test measure definition
 @testset "Definition" begin
     # initialize model and references
@@ -188,10 +234,10 @@ end
     # test _update_param_data_mapping (scalar)
     @testset "_update_param_data_mapping (scalar)" begin
         # test first addition
-        @test isa(InfiniteOpt._update_param_data_mapping(m, data, 1), Nothing)
+        @test isa(InfiniteOpt._update_param_data_mapping(m, par, 1), Nothing)
         @test m.param_to_meas[JuMP.index(par)] == [1]
         # test second addition
-        @test isa(InfiniteOpt._update_param_data_mapping(m, data, 2), Nothing)
+        @test isa(InfiniteOpt._update_param_data_mapping(m, par, 2), Nothing)
         @test m.param_to_meas[JuMP.index(par)] == [1, 2]
         # clear additions
         delete!(m.param_to_meas, JuMP.index(par))
@@ -199,23 +245,16 @@ end
     # test _update_param_data_mapping (array)
     @testset "_update_param_data_mapping (array)" begin
         # test first addition
-        @test isa(InfiniteOpt._update_param_data_mapping(m, data2, 1), Nothing)
+        @test isa(InfiniteOpt._update_param_data_mapping(m, pars, 1), Nothing)
         @test m.param_to_meas[JuMP.index(pars[1])] == [1]
         @test m.param_to_meas[JuMP.index(pars[2])] == [1]
         # test second addition
-        @test isa(InfiniteOpt._update_param_data_mapping(m, data2, 2), Nothing)
+        @test isa(InfiniteOpt._update_param_data_mapping(m, pars, 2), Nothing)
         @test m.param_to_meas[JuMP.index(pars[1])] == [1, 2]
         @test m.param_to_meas[JuMP.index(pars[2])] == [1, 2]
         # clear additions
         delete!(m.param_to_meas, JuMP.index(pars[1]))
         delete!(m.param_to_meas, JuMP.index(pars[2]))
-    end
-    # test _update_param_data_mapping (fallback)
-    @testset "_update_param_data_mapping (fallback)" begin
-        warn = "Unable to map parameter dependence for measure data type " *
-               "BadData. Parameter deletion methods should not be used."
-        @test_logs (:warn, warn) InfiniteOpt._update_param_data_mapping(m,
-                                                                   BadData(), 1)
     end
     # test _add_supports_to_parameters (scalar)
     @testset "_add_supports_to_parameters (scalar)" begin
@@ -412,6 +451,39 @@ end
     @testset "_check_var_bounds (General)" begin
         @test isa(InfiniteOpt._check_var_bounds(inf, data), Nothing)
     end
+    # test measure_data_in_hold_bounds (DiscreteMeasureData)
+    @testset "measure_data_in_hold_bounds (Discrete)" begin
+        # test empty bounds
+        @test measure_data_in_hold_bounds(data, ParameterBounds())
+        # test in domain
+        @set_parameter_bounds(x, par == 1)
+        @test measure_data_in_hold_bounds(data, parameter_bounds(x))
+        # test outside domain
+        add_parameter_bound(x, par, 0, 0)
+        @test !measure_data_in_hold_bounds(data, parameter_bounds(x))
+        set_parameter_bounds(x, ParameterBounds(), force = true)
+        delete_supports(par)
+    end
+    # test measure_data_in_hold_bounds (MultiDiscreteMeasureData)
+    @testset "measure_data_in_hold_bounds (Multi)" begin
+        # test empty bounds
+        @test measure_data_in_hold_bounds(data3, ParameterBounds())
+        # test in domain
+        @set_parameter_bounds(x, pars == 1)
+        @test measure_data_in_hold_bounds(data3, parameter_bounds(x))
+        # test not in the domain
+        @add_parameter_bounds(x, pars == 0)
+        @test !measure_data_in_hold_bounds(data3, parameter_bounds(x))
+        set_parameter_bounds(x, ParameterBounds(), force = true)
+        delete_supports.(pars)
+    end
+    # test measure_data_in_hold_bounds (Fallback)
+    @testset "measure_data_in_hold_bounds (Fallback)" begin
+        warn = "Unable to check if hold variables bounds are valid in measure " *
+               "with measure data type `BadData`. This can be resolved by " *
+               "extending `measure_data_in_hold_bounds`."
+        @test_logs (:warn, warn) measure_data_in_hold_bounds(BadData(), ParameterBounds())
+    end
     # test _check_var_bounds (HoldVariableRef with DiscreteMeasureData)
     @testset "_check_var_bounds (Hold with Discrete)" begin
         # test normal
@@ -433,12 +505,6 @@ end
         @test_throws ErrorException InfiniteOpt._check_var_bounds(x, data3)
         set_parameter_bounds(x, ParameterBounds(), force = true)
         delete_supports.(pars)
-    end
-    # test _check_var_bounds (HoldVariableRef Fallback)
-    @testset "_check_var_bounds (Hold Fallback)" begin
-        warn = "Unable to check if hold variables bounds are valid in measure " *
-               "with custom measure data type BadData."
-        @test_logs (:warn, warn) InfiniteOpt._check_var_bounds(x, BadData())
     end
     # test _check_var_bounds (MeasureRef)
     @testset "_check_var_bounds (Measure)" begin
@@ -491,6 +557,9 @@ end
         # test with bad variable bounds
         InfiniteOpt._update_variable_param_bounds(x, ParameterBounds(Dict(par => IntervalSet(0, 0))))
         @test_throws ErrorException measure(inf + x, data)
+        # test invalid parameter
+        delete!(m.params, JuMP.index(par))
+        @test_throws ErrorException measure(inf, data)
     end
 end
 
@@ -573,6 +642,8 @@ end
     @infinite_parameter(m, 0 <= par5 <= 1)
     @infinite_parameter(m, par6 in [0, Inf])
     @infinite_parameter(m, par7 in [-Inf, Inf])
+    sets = [IntervalSet(0,1), DistributionSet(Uniform())]
+    @infinite_parameter(m, pars4[i = 1:2], set = sets[i])
     @infinite_variable(m, inf(par))
     @infinite_variable(m, inf2(par, par2))
     @infinite_variable(m, inf3(par3))
@@ -652,7 +723,6 @@ end
         @test all(measure_data(meas9).supports .== expected_supps)
         @test all(measure_data(meas9).coefficients .== expected_coeffs)
 
-
         # test errors
         @test_throws ErrorException measure(x)
         @test_throws ErrorException measure(inf, ParameterRef[])
@@ -665,6 +735,11 @@ end
         @test_throws ErrorException measure(inf8, use_existing_supports = true)
         @test_throws ErrorException measure(meas1)
         @test_throws ErrorException measure(inf4, pars1, eval_method = Quad)
+        @test_throws ErrorException measure(inf, par, -1)
+        @test_throws ErrorException measure(inf, par, 0, 2)
+        @test_throws ErrorException measure(inf4, pars1, -1)
+        @test_throws ErrorException measure(inf4, pars1, 0, 2)
+        @test_throws ErrorException measure(x, pars4)
     end
     # test support_sum
     @testset "support_sum" begin
@@ -695,7 +770,7 @@ end
     @testset "set_measure_defaults" begin
         set_measure_defaults(m, num_supports = 5, eval_method = Quad,
                             new_kwarg = true)
-        def_vals = get_measure_defaults(m)
+        def_vals = measure_defaults(m)
         @test def_vals[:num_supports] == 5
         @test def_vals[:call_from_expect] == false
         @test def_vals[:eval_method] == Quad
@@ -706,6 +781,7 @@ end
     end
     # test measure with default keyword argument values
     @testset "default measure" begin
+        delete!(measure_defaults(m), :new_kwarg)
         meas = measure(inf)
         (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
         expected_supps = expected_supps .* 0.5 .+ 0.5

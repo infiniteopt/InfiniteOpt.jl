@@ -16,6 +16,14 @@ design variables). Or in other words, they hold a particular value over the
 infinite domain or some sub-domain of it.
 
 ## Basic Usage
+Infinite, point, and hold variables are summarized in the following table:
+
+| Variable Type | Description                                    | Examples                               |
+|:-------------:|:----------------------------------------------:|:--------------------------------------:|
+| Infinite      | Parameterized by infinite sets                 | ``y(t)``, ``y(\xi)``, ``y(t, x)``      |
+| Point         | Infinite variable evaluated at parameter point | ``y(0)``, ``y(t_0, x_0)``              |
+| Hold          | Held constant over infinite domain             | ``z`` (design and 1st stage variables) |
+
 Infinite, point, and hold variables are typically defined via their respective
 macros: [`@infinite_variable`](@ref), [`@point_variable`](@ref), and
 [`@hold_variable`](@ref). These macros generally emulate [`JuMP.@variable`](@ref)
@@ -124,10 +132,10 @@ The [`@infinite_variable`](@ref), [`@point_variable`](@ref), and
 [`@hold_variable`](@ref) macros all follow a similar methodology behind the
 scenes and these commonalities are discussed in this section for conciseness.
 Defining/initializing a variable principally involves the following steps:
-- Define the variable information pertaining to `JuMP.VariableInfo` (e.g., bounds, indicate if it is integer, etc.)
-- Construct a concrete subtype of [`InfOptVariable`](@ref) to store the variable information
-- Add the `InfOptVariable` object to an `InfiniteModel` and assign a name
-- Create a concrete subtype of [`InfOptVariableRef`](@ref) that points to the variable object stored in the model
+1. Define the variable information pertaining to `JuMP.VariableInfo` (e.g., bounds, indicate if it is integer, etc.)
+2. Construct a concrete subtype of [`InfOptVariable`](@ref) to store the variable information
+3. Add the `InfOptVariable` object to an `InfiniteModel` and assign a name
+4. Create a concrete subtype of [`InfOptVariableRef`](@ref) that points to the variable object stored in the model
 
 The `JuMP.VariableInfo` data structure stores the following variable information:
 - `has_lb::Bool`: Specifies a `Bool` it has a lower bound

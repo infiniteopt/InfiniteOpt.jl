@@ -90,8 +90,9 @@ function _constructor_set(_error::Function, info::_ParameterInfoExpr)
         check = :(isa($(info.distribution), Distributions.NonMatrixDistribution))
         return :($(check) ? DistributionSet($(info.distribution)) : error("Distribution must be a subtype of Distributions.NonMatrixDistribution."))
     elseif info.has_set
-        check = :(isa($(info.set), AbstractInfiniteSet))
-        return :($(check) ? $(info.set) : error("Set must be a subtype of AbstractInfiniteSet."))
+        check1 = :(isa($(info.set), AbstractInfiniteSet))
+        check2 = :(isa($(info.set), Distributions.NonMatrixDistribution))
+        return :($(check1) ? $(info.set) : ($(check2) ? DistributionSet($(info.set)) : error("Set must be a subtype of AbstractInfiniteSet.")))
     else
         _error("Must specify upper/lower bounds, a distribution, or a set")
     end
@@ -101,18 +102,8 @@ end
 function _check_supports_in_bounds(_error::Function,
                                    supports::Union{Number, Vector{<:Number}},
                                    set::AbstractInfiniteSet)
-    min_support = minimum(supports)
-    max_support = maximum(supports)
-    if isa(set, IntervalSet)
-       if min_support < set.lower_bound || max_support > set.upper_bound
-           _error("Support points violate the interval set bounds.")
-       end
-   elseif isa(set, DistributionSet{<:Distributions.UnivariateDistribution})
-       check1 = min_support < minimum(set.distribution)
-       check2 = max_support > maximum(set.distribution)
-       if check1 || check2
-           _error("Support points violate the distribution set bounds.")
-       end
+    if !supports_in_set(supports, set)
+        _error("Supports violate the set domain bounds.")
     end
     return
 end
@@ -133,7 +124,7 @@ helper method for [`@infinite_parameter`](@ref).
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt)
 julia> build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
+InfOptParameter{IntervalSet}([0, 3], [0, 1, 2, 3], false)
 ```
 """
 function build_parameter(_error::Function, set::AbstractInfiniteSet,
@@ -157,7 +148,8 @@ function build_parameter(_error::Function, set::AbstractInfiniteSet,
             _error("Support generation is not available for multivariate " *
                    "distributions.")
         end
-        supports = _support_values(set, num_supports = num_supports, sig_fig = sig_fig)
+        supports = generate_support_values(set, num_supports = num_supports,
+                                           sig_fig = sig_fig)
     end
     if isa(set, DistributionSet{<:Distributions.MultivariateDistribution})
         if num_params != length(set.distribution)
@@ -205,7 +197,7 @@ construct `p`.
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> p = build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-InfOptParameter{IntervalSet}(IntervalSet(0.0, 3.0), [0, 1, 2, 3], false)
+InfOptParameter{IntervalSet}([0, 3], [0, 1, 2, 3], false)
 
 julia> param_ref = add_parameter(model, p, "name")
 name
@@ -288,25 +280,14 @@ function is_used(pref::ParameterRef)::Bool
     return used_by_measure(pref) || used_by_constraint(pref) || used_by_variable(pref)
 end
 
-## Check if parameter is used by measure data and error if it is to prevent bad
-## deleting behavior
-# DiscreteMeasureData
-function _check_param_in_data(pref::ParameterRef, data::DiscreteMeasureData)
-    data.parameter_ref == pref && error("Unable to delete $pref since it is " *
-                                        "used to evaluate measures.")
+# Check if parameter is used by measure data and error if it is to prevent bad
+# deleting behavior
+function _check_param_in_data(pref::ParameterRef, data::AbstractMeasureData)
+    prefs = parameter_refs(data)
+    if (pref == prefs || pref in prefs)
+        error("Unable to delete `$pref` since it is used to evaluate measures.")
+    end
     return
-end
-
-# MultiDiscreteMeasureData
-function _check_param_in_data(pref::ParameterRef, data::MultiDiscreteMeasureData)
-    pref in data.parameter_ref && error("Unable to delete $pref since it is " *
-                                        "used to evaluate measures.")
-    return
-end
-
-# Fallback
-function _check_param_in_data(pref::ParameterRef, data::T) where {T}
-    error("Unable to delete parameters when using measure data type $T.")
 end
 
 ## Determine if a tuple element contains a particular parameter
@@ -635,7 +616,7 @@ Return the infinite set associated with `pref`.
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> infinite_set(t)
-IntervalSet(0.0, 1.0)
+[0, 1]
 ```
 """
 function infinite_set(pref::ParameterRef)::AbstractInfiniteSet
@@ -652,7 +633,7 @@ Specify the infinite set of `pref`.
 julia> set_infinite_set(t, IntervalSet(0, 2))
 
 julia> infinite_set(t)
-IntervalSet(0.0, 2.0)
+[0, 2]
 ```
 """
 function set_infinite_set(pref::ParameterRef, set::AbstractInfiniteSet)
@@ -665,7 +646,8 @@ end
 
 Extend the `JuMP.has_lower_bound` function to accomodate infinite parameters.
 Return true if the set associated with `pref` has a defined lower bound or if a
-lower bound can be found.
+lower bound can be found. Extensions with user-defined infinite set types
+should extend `JuMP.has_lower_bound(set::NewType)`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
@@ -675,18 +657,7 @@ true
 """
 function JuMP.has_lower_bound(pref::ParameterRef)::Bool
     set = _parameter_set(pref)
-    if isa(set, IntervalSet)
-        return true
-    elseif isa(set, DistributionSet)
-        if typeof(set.distribution) <: Distributions.UnivariateDistribution
-            return true
-        else
-            false
-        end
-    else
-        type = typeof(set)
-        error("Undefined infinite set type $type for lower bound checking.")
-    end
+    return JuMP.has_lower_bound(set)
 end
 
 """
@@ -707,19 +678,16 @@ function JuMP.lower_bound(pref::ParameterRef)::Number
     if !JuMP.has_lower_bound(pref)
         error("Parameter $(pref) does not have a lower bound.")
     end
-    if isa(set, IntervalSet)
-        return set.lower_bound
-    else
-        return minimum(set.distribution)
-    end
+    return JuMP.lower_bound(set)
 end
 
 """
     JuMP.set_lower_bound(pref::ParameterRef, lower::Number)
 
 Extend the `JuMP.set_lower_bound` function to accomodate infinite parameters.
-Updates the infinite set lower bound if and only if it is an IntervalSet. Errors
-otherwise.
+Updates the infinite set lower bound if such an operation is supported. Set
+extensions that seek to employ this should extend
+`JuMP.set_lower_bound(set::NewType, lower::Number)`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
@@ -731,13 +699,8 @@ julia> lower_bound(t)
 """
 function JuMP.set_lower_bound(pref::ParameterRef, lower::Number)
     set = _parameter_set(pref)
-    if isa(set, DistributionSet)
-        error("Cannot set the lower bound of a distribution, try using " *
-              "`Distributions.Truncated` instead.")
-    elseif !isa(set, IntervalSet)
-        error("Parameter $(pref) is not an interval set.")
-    end
-    _update_parameter_set(pref, IntervalSet(lower, set.upper_bound))
+    new_set = JuMP.set_lower_bound(set, lower)
+    _update_parameter_set(pref, new_set)
     return
 end
 
@@ -746,7 +709,8 @@ end
 
 Extend the `JuMP.has_upper_bound` function to accomodate infinite parameters.
 Return true if the set associated with `pref` has a defined upper bound or if a
-upper bound can be found.
+upper bound can be found. Extensions with user-defined sets should extend
+`JuMP.has_upper_bound(set::NewType)`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
@@ -756,18 +720,7 @@ true
 """
 function JuMP.has_upper_bound(pref::ParameterRef)::Bool
     set = _parameter_set(pref)
-    if isa(set, IntervalSet)
-        return true
-    elseif isa(set, DistributionSet)
-        if typeof(set.distribution) <: Distributions.UnivariateDistribution
-            return true
-        else
-            false
-        end
-    else
-        type = typeof(set)
-        error("Undefined infinite set type $type for lower upper checking.")
-    end
+    return JuMP.has_upper_bound(set)
 end
 
 """
@@ -775,7 +728,9 @@ end
 
 Extend the `JuMP.upper_bound` function to accomodate infinite parameters.
 Returns the upper bound associated with the infinite set. Errors if such a bound
-is not well-defined.
+is not well-defined. Extensions with user-defined set types should extend
+`JuMP.has_upper_bound(set::NewType)` and `JuMP.upper_bound(set::NewType)` if
+appropriate.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
@@ -788,11 +743,7 @@ function JuMP.upper_bound(pref::ParameterRef)::Number
     if !JuMP.has_upper_bound(pref)
         error("Parameter $(pref) does not have a upper bound.")
     end
-    if isa(set, IntervalSet)
-        return set.upper_bound
-    else
-        return maximum(set.distribution)
-    end
+    return JuMP.upper_bound(set)
 end
 
 """
@@ -800,7 +751,8 @@ end
 
 Extend the `JuMP.set_upper_bound` function to accomodate infinite parameters.
 Updates the infinite set upper bound if and only if it is an IntervalSet. Errors
-otherwise.
+otherwise. Extensions with user-defined infinite sets should extend
+`JuMP.set_upper_bound(set::NewType, upper::Number)` if appropriate.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
@@ -812,13 +764,8 @@ julia> upper_bound(t)
 """
 function JuMP.set_upper_bound(pref::ParameterRef, upper::Number)
     set = _parameter_set(pref)
-    if isa(set, DistributionSet)
-        error("Cannot set the upper bound of a distribution, try using " *
-              "`Distributions.Truncated` instead.")
-    elseif !isa(set, IntervalSet)
-        error("Parameter $(pref) is not an interval set.")
-    end
-    _update_parameter_set(pref, IntervalSet(set.lower_bound, upper))
+    new_set = JuMP.set_upper_bound(set, upper)
+    _update_parameter_set(pref, new_set)
     return
 end
 
@@ -931,8 +878,7 @@ function supports(prefs::AbstractArray{<:ParameterRef})::Vector
     else
         all_keys = collect(keys(prefs))
         all_supports = [supports(pref) for (k, pref) in prefs.data]
-        support_list = Vector{JuMPC.SparseAxisArray}(undef,
-                                                               prod(lengths))
+        support_list = Vector{JuMPC.SparseAxisArray}(undef, prod(lengths))
         counter = 1
         for combo in Iterators.product(all_supports...)
             support_list[counter] = JuMPC.SparseAxisArray(Dict(all_keys[i] => combo[i] for i in eachindex(combo)))
@@ -1053,10 +999,8 @@ true
 """
 function is_finite_parameter(pref::ParameterRef)::Bool
     set = infinite_set(pref)
-    if isa(set, IntervalSet)
-        if set.lower_bound == set.upper_bound
-            return true
-        end
+    if isa(set, IntervalSet) && set.lower_bound == set.upper_bound
+        return true
     end
     return false
 end
@@ -1103,10 +1047,12 @@ end
     fill_in_supports!(model::InfiniteModel; [num_supports::Int = 50,
                       sig_fig::Int = 5])
 
-Automatically generate support points for all infinite parameters in model
-except for parameters in multivariate distributions, where we require that the
-user inputs the supports. User can specify the number of significant figures
-kept after decimal point for the auto-generated supports wtih `sig_fig`.
+Automatically generate support points for all infinite parameters in model. User
+can specify the number of significant figures kept after decimal point for the
+auto-generated supports wtih `sig_fig`. This calls
+[`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef)) for each parameter
+in the model. See [`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef))
+for more information. Errors if one of the infinite set types is unrecognized.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
@@ -1133,10 +1079,15 @@ end
     fill_in_supports!(pref::ParameterRef; [num_supports::Int = 50,
                                            sig_fig::Int = 5])
 
-Automatically generate support points for all infinite parameters in model
-except for parameters in multivariate distributions, where we require that the
-user inputs the supports. User can specify the number of digits kept after
-decimal point for the auto-generated supports wtih `sig_fig`.
+Automatically generate support points for a particular infinite parameter `pref`.
+Generating `num_supports` for the parameter. The supports are generated uniformly
+if the underlying infinite set is an `IntervalSet` or they are generating randomly
+accordingly to the distribution if the set is a `DistributionSet`.
+User can specify the number of digits kept after decimal point for the
+auto-generated supports wtih `sig_fig`. Extensions that use user defined
+set types should extend [`generate_and_add_supports!`](@ref) and/or
+[`generate_support_values`](@ref) as needed. Errors if the infinite set type is
+not recognized.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
@@ -1155,50 +1106,49 @@ function fill_in_supports!(pref::ParameterRef; num_supports::Int = 50,
                            sig_fig::Int = 5)
     p = JuMP.owner_model(pref).params[JuMP.index(pref)]
     if length(p.supports) == 0
-        _generate_supports(pref, p.set, num_supports = num_supports, sig_fig = sig_fig)
-    # else
-        # @warn("No supports generated for $(pref) since $(pref) has existing " *
-        #       "supports.")
+        generate_and_add_supports!(pref, p.set, num_supports = num_supports,
+                                   sig_fig = sig_fig)
     end
     return
 end
 
-function _generate_supports(pref::ParameterRef, set::AbstractInfiniteSet;
-                           num_supports::Int = 50, sig_fig::Int = 5)
-    add_supports(pref, _support_values(set, num_supports = num_supports,
-                                       sig_fig = sig_fig))
+"""
+    generate_and_add_supports!(pref::ParameterRef, set::AbstractInfiniteSet;
+                               [num_supports::Int = 50, sig_fig::Int = 5])
+
+Generate supports for `pref` via [`generate_support_values`](@ref) and add them
+to `pref`. This is intended as an extendable internal method for
+[`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef)). Note that if
+`pref` is part of a `DistributionSet` that features a multivariate distribution,
+all the associated parameters with `pref` will also have supports added to them.
+Most extensions that empoy user-defined infinite sets can typically enable this
+by extending [`generate_support_values`](@ref). However, in some cases it may be
+necessary to extend this when more complex operations need to take place then just
+adding supports to a single infinite parameter (e.g., how we enable multivariate
+distribution sets). Errors if the infinite set type is not recognized.
+"""
+function generate_and_add_supports!(pref::ParameterRef, set::AbstractInfiniteSet;
+                                    num_supports::Int = 50, sig_fig::Int = 5)
+    add_supports(pref, generate_support_values(set, num_supports = num_supports,
+                                               sig_fig = sig_fig))
     return
 end
 
-function _generate_supports(pref::ParameterRef,
-                           set::DistributionSet{<:Distributions.MultivariateDistribution};
-                           num_supports::Int = 50, sig_fig::Int = 5)
+# Multivariate distribution sets
+function generate_and_add_supports!(pref::ParameterRef,
+                                    set::DistributionSet{<:Distributions.MultivariateDistribution};
+                                    num_supports::Int = 50, sig_fig::Int = 5)
     pref_group_id = group_id(pref)
     model = JuMP.owner_model(pref)
     associated_p_index = sort([i for i in 1:length(model.params)
                                if model.param_to_group_id[i] == pref_group_id])
-    new_supports = _support_values(set, num_supports = num_supports, sig_fig = sig_fig)
+    new_supports = generate_support_values(set, num_supports = num_supports, sig_fig = sig_fig)
 
     for i in 1:length(associated_p_index)
         pref_i = ParameterRef(model, associated_p_index[i])
         add_supports(pref_i, new_supports[i, :])
     end
     return
-end
-
-function _support_values(set::IntervalSet; num_supports::Int = 50,
-                         sig_fig::Int = 5)::Vector
-    lb = set.lower_bound
-    ub = set.upper_bound
-    new_supports = round.(collect(range(lb, stop = ub, length = num_supports)),
-                          sigdigits = sig_fig)
-    return new_supports
-end
-
-function _support_values(set::DistributionSet; num_supports::Int = 50,
-                         sig_fig::Int = 5)::Array
-    new_supports = round.(Distributions.rand(set.distribution, num_supports), sigdigits = sig_fig)
-    return new_supports
 end
 
 """

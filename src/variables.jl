@@ -126,20 +126,14 @@ function _check_tuple_values(_error::Function, inf_vref::InfiniteVariableRef,
                              param_values::Tuple)
     prefs = parameter_refs(inf_vref)
     for i in eachindex(prefs)
-        if isa(prefs[i], ParameterRef) && JuMP.has_lower_bound(prefs[i])
-            check1 = param_values[i] < JuMP.lower_bound(prefs[i])
-            check2 = param_values[i] > JuMP.upper_bound(prefs[i])
-            if check1 || check2
+        if isa(prefs[i], ParameterRef)
+            if !supports_in_set(param_values[i], infinite_set(prefs[i]))
                 _error("Parameter values violate parameter bounds.")
             end
         else
-            for (k, v) in prefs[i].data
-                if JuMP.has_lower_bound(v)
-                    check1 = param_values[i].data[k] < JuMP.lower_bound(v)
-                    check2 = param_values[i].data[k] > JuMP.upper_bound(v)
-                    if check1 || check2
-                        _error("Parameter values violate parameter bounds.")
-                    end
+            for (k, pref) in prefs[i].data
+                if !supports_in_set(param_values[i].data[k], infinite_set(pref))
+                    _error("Parameter values violate parameter bounds.")
                 end
             end
         end
@@ -1162,43 +1156,11 @@ function _update_variable_param_bounds(vref::HoldVariableRef,
 end
 
 ## Check that the bounds dictionary is compadable with existing dependent measures
-# DiscreteMeasureData
-function _check_meas_bounds(bounds::ParameterBounds, data::DiscreteMeasureData;
-                            _error = error)
-    pref = data.parameter_ref
-    supports = data.supports
-    if haskey(bounds.intervals, pref)
-        if bounds.intervals[pref].lower_bound > minimum(supports) ||
-            bounds.intervals[pref].upper_bound < maximum(supports)
-            _error("New bounds don't span existing dependent measure bounds.")
-        end
-    end
-    return
-end
-
-# MultiDiscreteMeasureData
-function _check_meas_bounds(bounds::ParameterBounds,
-                            data::MultiDiscreteMeasureData; _error = error)
-    prefs = data.parameter_ref
-    supports = data.supports
-    mins = minimum(supports)
-    maxs = maximum(supports)
-    for key in keys(prefs)
-        if haskey(bounds.intervals, prefs[key])
-            if bounds.intervals[prefs[key]].lower_bound > mins[key] ||
-                bounds.intervals[prefs[key]].upper_bound < maxs[key]
-                _error("New bounds don't span existing dependent measure bounds.")
-            end
-        end
-    end
-    return
-end
-
-# Fallback
 function _check_meas_bounds(bounds::ParameterBounds, data::AbstractMeasureData;
                             _error = error)
-    @warn "Unable to check if hold variables bounds are valid in measure with" *
-          " custom measure data type."
+    if !measure_data_in_hold_bounds(data, bounds)
+        _error("New bounds don't span existing dependent measure bounds.")
+    end
     return
 end
 

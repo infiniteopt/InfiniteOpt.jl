@@ -1,4 +1,4 @@
-# Infinite Parameters
+# [Infinite Parameters] (@id inf_par_page)
 A guide and manual to the definition and use of infinite parameters in
 `InfiniteOpt`. The Datatypes and Methods sections at the end comprise the manual,
 and the above sections comprise the guide.  
@@ -94,46 +94,15 @@ here that the [`@infinite_parameter`](@ref) macro is designed to closely emulate
 [`JuMP.@variable`](@ref) and thus handles arrays and keyword arguments in the
 same way. This is described in more detail below.
 
-## [Infinite Sets] (@id infinite_sets_normal)
-The domain of a given infinite parameter is described by an infinite set
-inherited from [`AbstractInfiniteSet`](@ref). `InfiniteOpt` natively supports
-two such sets. The first is [`IntervalSet`](@ref) which describes a continuous
-interval from some lower bound up to some upper bound. Typically, this range
-is inclusive of the bounds. Such sets often arise for parameters that pertain to
-time and/or spatial position. For example, to define a position interval
-``[-2, 2]`` we would use:
-```jldoctest; setup = :(using InfiniteOpt)
-julia> set = IntervalSet(-2, 2)
-IntervalSet(-2.0, 2.0)
-```
-In principle infinite bounds are acceptable, but are not actively supported at
-the moment.
-
-The second kind of set is that of [`DistributionSet`](@ref) which contains
-distribution from [`Distributions.jl`](https://github.com/JuliaStats/Distributions.jl)
-that characterizes an infinite parameter. Univariate and multivariate
-distributions can be used, but multivariate distributions are only valid when
-defining an array of parameters with equivalent dimensions. For example, let's
-make a `DistributionSet` that depends on a Beta distribution:
-```jldoctest; setup = :(using InfiniteOpt, Distributions)
-julia> set = DistributionSet(Beta(2,2))
-DistributionSet{Beta{Float64}}(Beta{Float64}(α=2.0, β=2.0))
-```
-User-defined distributions are also permissible so long as they are created in
-accordance with `Distributions.jl`.
-
-Furthermore, custom infinite sets that inherit `AbstractInfiniteSet` can also
-be defined. See [Extensions](@ref) for more information.
-
 ## Parameter Definition
 Defining/initializing an infinite parameter principally involves the following
 steps:
-- Define an [`AbstractInfiniteSet`](@ref)
-- Define support points within the set to later discretize the parameter
-- Specify if parameter is independent (only for multi-dimensional parameter groups)
-- Construct an [`InfOptParameter`](@ref) to store this information
-- Add the `InfOptParameter` object to an `InfiniteModel` and assign a name
-- Create a [`ParameterRef`](@ref) that points to the parameter object
+1. Define an [`AbstractInfiniteSet`](@ref)
+2. Define support points within the set to later discretize the parameter
+3. Specify if parameter is independent (only for multi-dimensional parameter groups)
+4. Construct an [`InfOptParameter`](@ref) to store this information
+5. Add the `InfOptParameter` object to an `InfiniteModel` and assign a name
+6. Create a [`ParameterRef`](@ref) that points to the parameter object
 
 ### Manual Definition
 Infinite set definition is described above in the
@@ -148,10 +117,10 @@ For example, let's create a time parameter ``t \in [0, 10]`` with supports
 `[0, 2, 5, 7, 10]`:
 ```jldoctest time_define; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> set = IntervalSet(0, 10)
-IntervalSet(0.0, 10.0)
+[0, 10]
 
 julia> t_param = build_parameter(error, set, supports = [0, 2, 5, 7, 10])
-InfOptParameter{IntervalSet}(IntervalSet(0.0, 10.0), [0, 2, 5, 7, 10], false)
+InfOptParameter{IntervalSet}([0, 10], [0, 2, 5, 7, 10], false)
 ```  
 Now we have a `InfOptParameter` that contains an `IntervalSet` and supports.
 Note that the `num_params` and `independent` arguments are primarily meant to be
@@ -180,10 +149,10 @@ julia> dist = Normal(0., 1.)
 Normal{Float64}(μ=0.0, σ=1.0)
 
 julia> set = DistributionSet(dist)
-DistributionSet{Normal{Float64}}(Normal{Float64}(μ=0.0, σ=1.0))
+Normal{Float64}(μ=0.0, σ=1.0)
 
 julia> x_param = build_parameter(error, set, supports = [-0.5, 0.5])
-InfOptParameter{DistributionSet{Normal{Float64}}}(DistributionSet{Normal{Float64}}(Normal{Float64}(μ=0.0, σ=1.0)), [-0.5, 0.5], false)
+InfOptParameter{DistributionSet{Normal{Float64}}}(Normal{Float64}(μ=0.0, σ=1.0), [-0.5, 0.5], false)
 ```
 Again, we use [`add_parameter`](@ref) to add `x_param` to the `InfiniteModel` and
 assign it the name `x`:
@@ -511,10 +480,10 @@ defining a time parameter ``t \in [0, 10]`` with 4 supports using
 [`build_parameter`](@ref) gives
 ```jldoctest; setup = :(using InfiniteOpt)
 julia> set = IntervalSet(0, 10)
-IntervalSet(0.0, 10.0)
+[0, 10]
 
 julia> t_param = build_parameter(error, set, num_supports = 4, sig_fig = 3)
-InfOptParameter{IntervalSet}(IntervalSet(0.0, 10.0), [0.0, 3.33, 6.67, 10.0], false)
+InfOptParameter{IntervalSet}([0, 10], [0.0, 3.33, 6.67, 10.0], false)
 ```  
 Using macro definition we have
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
@@ -682,7 +651,7 @@ parameter is in. This is given by [`infinite_set`](@ref), which takes a
 [`ParameterRef`] as argument. For example, we have
 ```jldoctest param_queries
 julia> infinite_set(x)
-IntervalSet(0.0, 1.0)
+[0, 1]
 ```
 [`infinite_set`](@ref) might be more useful if the infinite parameter is in a
 [`DistributionSet`](@ref), by which users can access information about the
@@ -794,7 +763,7 @@ t
 julia> set_infinite_set(t, IntervalSet(0, 5))
 
 julia> infinite_set(t)
-IntervalSet(0.0, 5.0)
+[0, 5]
 ```
 
 For parameters in an [`IntervalSet`](@ref), we extend
@@ -806,7 +775,7 @@ julia> JuMP.set_lower_bound(t, 1)
 julia> JuMP.set_upper_bound(t, 4)
 
 julia> infinite_set(t)
-IntervalSet(1.0, 4.0)
+[1, 4]
 ```
 We do not support setting lower bounds and upper bounds for random parameters
 in a [`DistributionSet`](@ref) and will throw an error if users attempt to do
@@ -848,9 +817,6 @@ Modules = [InfiniteOpt]
 Order   = [:type]
 ```
 ```@docs
-AbstractInfiniteSet
-IntervalSet
-DistributionSet
 InfOptParameter
 ParameterRef
 ```
@@ -863,7 +829,6 @@ Order   = [:macro, :function]
 ```
 ```@docs
 @infinite_parameter
-IntervalSet(::Number, ::Number)
 build_parameter(::Function, ::AbstractInfiniteSet)
 add_parameter(::InfiniteModel, ::InfOptParameter)
 used_by_constraint(::ParameterRef)
@@ -892,6 +857,7 @@ add_supports(::ParameterRef, ::Union{Number, Vector{<:Number}})
 delete_supports(::ParameterRef)
 fill_in_supports!(::InfiniteModel)
 fill_in_supports!(::ParameterRef)
+generate_and_add_supports!
 group_id(::ParameterRef)
 group_id(::AbstractArray{<:ParameterRef})
 is_independent(::ParameterRef)

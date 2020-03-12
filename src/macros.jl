@@ -25,7 +25,7 @@ function _parse_one_operator_parameter(
         JuMP._set_lower_bound_or_error(_error, infoexpr, value.args[1].args[1])
         JuMP._set_upper_bound_or_error(_error, infoexpr, value.args[1].args[2])
     else
-        _dist_or_error(_error, infoexpr, value)
+        _set_or_error(_error, infoexpr, value)
     end
 end
 
@@ -240,7 +240,6 @@ macro infinite_parameter(model, args...)
         # isa(param, Expr) || _error("Expected $param to be a parameter name") --> not needed... I think
         # We now build the code to generate the variables (and possibly the
         # SparseAxisArray to contain them)
-        # TODO finish updating
         idxvars, indices = JuMPC._build_ref_sets(_error, param)
         buildcall = :( build_parameter($_error, $set, length(collect($indices)),
                                        $(extra...)) )

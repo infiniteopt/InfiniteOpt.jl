@@ -21,6 +21,8 @@ println("-----------------------------------------")
 println("")
 @time @testset "Utilities" begin include("utility_tests.jl") end
 println("")
+@time @testset "Infinite Set Methods" begin include("infinite_sets.jl") end
+println("")
 @time @testset "Parameter Methods" begin include("parameters.jl") end
 println("")
 @time @testset "Optimizer Setup Methods" begin include("optimizer_setup.jl") end
@@ -68,8 +70,9 @@ println("")
 println("")
 @time @testset "Solution Queries" begin include("results.jl") end
 println("")
+@time @testset "Extensions" begin include("extensions.jl") end
+println("")
 
-# TODO add extension tests
 # TODO add involved deletion tests
 println("-----------------------------------------")
 println("-------------TESTING COMPLETE------------")

@@ -94,35 +94,37 @@ the same keyword argument values. We don't have to input the keyword argument
 values every time we construct a new measure. Instead, we can modify the
 default values of measure keyword arguments for that model, and construct
 measures using the new default values. To do that, we use the functions
-[`set_measure_defaults`](@ref) and [`get_measure_defaults`](@ref). For example,
+[`set_measure_defaults`](@ref) and [`measure_defaults`](@ref). For example,
 suppose we want to change the default number of supports to 10, and for some
 reason we want to add a new keyword argument called `a` to the measure function,
 with value of 1. Then we can do the following:
 ```jldoctest meas_basic
-julia> get_measure_defaults(model)
-Dict{Symbol,Any} with 6 entries:
+julia> measure_defaults(model)
+Dict{Symbol,Any} with 7 entries:
   :num_supports          => 50
   :call_from_expect      => false
   :eval_method           => :Sampling
   :name                  => "measure"
+  :check_method          => true
   :weight_func           => _w
   :use_existing_supports => false
 
 julia> set_measure_defaults(model, num_supports = 10, a = 1)
 
-julia> get_measure_defaults(model)
-Dict{Symbol,Any} with 7 entries:
+julia> measure_defaults(model)
+Dict{Symbol,Any} with 8 entries:
   :a                     => 1
   :num_supports          => 10
   :call_from_expect      => false
   :eval_method           => :Sampling
   :name                  => "measure"
+  :check_method          => true
   :weight_func           => _w
   :use_existing_supports => false
 ```
-[`get_measure_defaults`](@ref) returns the current default keyword argument
+[`measure_defaults`](@ref) returns the current default keyword argument
 values for measures for the model, and [`set_measure_defaults`](@ref) set new
-keyword argument values. The first [`get_measure_defaults`](@ref) call above
+keyword argument values. The first [`measure_defaults`](@ref) call above
 shows the default values at model initialization. Note that
 [`set_measure_defaults`](@ref) can not only modify values of existing keyword
 arguments, but also add new keyword arguments with a specified value. This is
@@ -133,7 +135,7 @@ See the extension page for more details.
 Now that we change the default number of supports to 10, all measures
 created later will have 10 supports by default. The users can still overwrite
 the default for specific measures as follows, shown as follows:
-```jldoctest meas_basic
+```jldoctest meas_basic; setup = :(delete!(measure_defaults(model), :a))
 julia> mref1 = measure(y^2)
 measure(y(t)²)
 
@@ -364,7 +366,7 @@ julia> infinite_variable_ref(T1)
 T(x, t)
 
 julia> eval_supports(T1)
-Dict{Int64,Union{Number, JuMP.Containers.SparseAxisArray{#s56,N,K} where K<:Tuple{Vararg{Any,N}} where N where #s56<:Number}} with 1 entry:
+Dict{Int64,Union{Number, JuMP.Containers.SparseAxisArray{#s57,N,K} where K<:Tuple{Vararg{Any,N}} where N where #s57<:Number}} with 1 entry:
   2 => 2.5
 ```
 All the `JuMP` functions extended for infinite variables are also extended for
@@ -397,7 +399,7 @@ Order   = [:function]
 expect
 support_sum
 measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})
-get_measure_defaults
+measure_defaults
 set_measure_defaults
 DiscreteMeasureData(::ParameterRef, ::Vector{<:Number}, ::Vector{<:Number})
 DiscreteMeasureData(::AbstractArray{<:ParameterRef}, ::Vector{<:Number}, ::Vector{<:AbstractArray})
@@ -415,6 +417,14 @@ JuMP.name(::MeasureRef)
 JuMP.set_name(::MeasureRef, ::String)
 expand
 expand_all_measures!
+measure_name
+parameter_refs(::AbstractMeasureData)
+supports(::AbstractMeasureData)
+measure_data_in_hold_bounds
+expand_measure
+make_point_variable_ref
+make_reduced_variable_ref(::InfiniteVariableRef, ::Int, ::Union{Number,JuMP.Containers.SparseAxisArray{<:Number}})
+make_reduced_variable_ref(::InfiniteVariableRef, ::Dict)
 infinite_variable_ref(::ReducedInfiniteVariableRef)
 eval_supports(::ReducedInfiniteVariableRef)
 parameter_refs(::ReducedInfiniteVariableRef)
@@ -448,6 +458,9 @@ Order   = [:function]
 
 ```@docs
 InfiniteOpt.MeasureEvalMethods.generate_measure_data
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs
+InfiniteOpt.MeasureEvalMethods.eval_method_registry
+InfiniteOpt.MeasureEvalMethods.register_eval_method
 InfiniteOpt.MeasureEvalMethods.mc_sampling(::Number, ::Number, ::Int)
 InfiniteOpt.MeasureEvalMethods.mc_sampling(::Distributions.UnivariateDistribution, ::InfiniteOpt.ParameterRef, ::Int)
 InfiniteOpt.MeasureEvalMethods.gauss_legendre

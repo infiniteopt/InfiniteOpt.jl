@@ -13,6 +13,7 @@ const JuMPC = JuMP.Containers
 
 # Import all of the datatpyes, methods, macros, and definitions.
 include("datatypes.jl")
+include("infinite_sets.jl")
 include("parameters.jl")
 include("variables.jl")
 include("reduced_variables.jl")
@@ -64,7 +65,8 @@ export build_parameter, add_parameter, infinite_set, set_infinite_set,
 num_parameters, parameter_by_name, all_parameters, num_supports, has_supports,
 set_supports, add_supports, delete_supports, supports, used_by_constraint,
 used_by_measure, used_by_variable, is_used, group_id, is_independent,
-set_independent, unset_independent, is_finite_parameter
+set_independent, unset_independent, is_finite_parameter, supports_in_set,
+generate_and_add_supports!, generate_support_values
 
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, PointVariable, HoldVariable,
@@ -93,12 +95,13 @@ Measure, MeasureRef
 
 # Export measure methods
 export add_measure, measure, measure_function, measure_data, expand,
-expand_all_measures!, expect, support_sum
+expand_all_measures!, expect, support_sum, measure_name, measure_data_in_hold_bounds,
+make_point_variable_ref, make_reduced_variable_ref, expand_measure
 
 # Export measure evaluation functions
 export generate_measure_data, MC_sampling, Gauss_Legendre, Gauss_Hermite,
 Gauss_Laguerre, infinite_transform, support_formatting, measure_dispatch,
-set_measure_defaults, get_measure_defaults
+set_measure_defaults, measure_defaults
 
 # Export transcription datatypes
 export TranscriptionData, TranscriptionModel

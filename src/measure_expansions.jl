@@ -1,13 +1,30 @@
-# Helper function for making place holder point variables
-function _make_point_variable(ivref::InfiniteVariableRef)::PointVariableRef
+"""
+    make_point_variable_ref(ivref::InfiniteVariableRef)::PointVariableRef
+
+Internal method for measure expansion that returns a `PointVariableRef` with
+a unique index. This is useful for writing extensions to [`expand_measure`](@ref).
+"""
+function make_point_variable_ref(ivref::InfiniteVariableRef)::PointVariableRef
     inf_model = JuMP.owner_model(ivref)
     index = inf_model.next_var_index += 1
     return PointVariableRef(inf_model, index)
 end
 
 ## Helper function for making place holder infinite variables
-# first time reduction
-function _make_reduced_variable(ivref::InfiniteVariableRef, removed_index::Int,
+"""
+    make_reduced_variable_ref(ivref::InfiniteVariableRef, removed_index::Int,
+                              support::Union{Number,
+                              JuMPC.SparseAxisArray{<:Number}}
+                              )::ReducedInfiniteVariableRef
+
+Internal method for measure expansion that returns a `ReducedInfiniteVariableRef`
+and that is connected with `ivref.model`. This method is intended for intial
+reduction of an infinite variable. Here `removed_index` is the index of the
+reduced parameter in `parameter_refs(ivref)` and `support` is the value that will
+support that particular infinite parameter. This is useful for writing
+extensions to [`expand_measure`](@ref).
+"""
+function make_reduced_variable_ref(ivref::InfiniteVariableRef, removed_index::Int,
                                 support::Union{Number,
                                 JuMPC.SparseAxisArray{<:Number}}
                                 )::ReducedInfiniteVariableRef
@@ -23,9 +40,19 @@ function _make_reduced_variable(ivref::InfiniteVariableRef, removed_index::Int,
     return ReducedInfiniteVariableRef(inf_model, index)
 end
 
-# further reduce
-function _make_reduced_variable(ivref::InfiniteVariableRef,
-                                supports::Dict)::ReducedInfiniteVariableRef
+"""
+    make_reduced_variable_ref(ivref::InfiniteVariableRef,
+                              supports::Dict)::ReducedInfiniteVariableRef
+
+Internal method for measure expansion that returns a `ReducedInfiniteVariableRef`
+and that is connected with `ivref.model`. This method is intended for further
+reduction of an infinite variable based on an existing reduced infinite variable.
+Here `supports` is a dictionary mapping the indices of parameters in
+`parameter_refs(ivref)` to their supports values. This is useful for writing
+extensions to [`expand_measure`](@ref).
+"""
+function make_reduced_variable_ref(ivref::InfiniteVariableRef,
+                                    supports::Dict)::ReducedInfiniteVariableRef
     inf_model = JuMP.owner_model(ivref)
     index = inf_model.next_var_index += 1
     inf_model.reduced_info[index] = ReducedInfiniteInfo(ivref, copy(supports))
@@ -40,19 +67,40 @@ end
 ## Make helper functions for extracting evaluated parameter values
 # DiscreteMeasureData
 function _get_param_value_list(pref::ParameterRef, data::DiscreteMeasureData)
-    return data.supports
+    return supports(data)
 end
 
 # MultiDiscreteMeasureData
 function _get_param_value_list(pref::ParameterRef,
                                data::MultiDiscreteMeasureData)
-    key = first(filter(p -> p[2] == pref, data.parameter_ref.data))[1]
-    return [data.supports[i][key] for i in eachindex(data.supports)]
+    key = first(filter(p -> p[2] == pref, parameter_refs(data).data))[1]
+    return [supports(data)[i][key] for i in eachindex(supports(data))]
 end
 
-## Implement functions for expanding measures into regular expressions
+
+"""
+    expand_measure(expr, data::AbstractMeasureData,
+                   write_model::JuMP.AbstractModel,
+                   point_mapper::Function)::JuMP.AbstractJuMPScalar
+
+Return the finite reformulation of a measure containing a variable/parameter
+expression `expr` with measure data `data`. Here `write_model` is the target
+model where this expanded expression will be used. Thus, any variables that need
+to be created will be added to `write_model`. The function `point_mapper` should
+be called to make and map point variables via the syntax:
+`point_mapper(write_model, pvref, ivref, support)`. Here `ivref` denotes the
+`InfiniteVariableRef` that the point variable will be based on at `support` where
+`support` is a `Tuple` of values that matches the format of `parameter_refs(ivref)`.
+`pvref` is the pre-made `ParameterRef` that should be created via
+[`make_point_variable_ref`](@ref). [`make_reduced_variable_ref`](@ref) may also
+be helpful. Note this is intended as an internal function,
+but will need to be extended for unsupported `expr` types and for user-defined
+measure data types.
+"""
+function expand_measure end
+
 # InfiniteVariableRef
-function _expand_measure(ivref::InfiniteVariableRef,
+function expand_measure(ivref::InfiniteVariableRef,
                          data::Union{DiscreteMeasureData,
                                      MultiDiscreteMeasureData},
                          trans_model::JuMP.AbstractModel,
@@ -73,7 +121,7 @@ function _expand_measure(ivref::InfiniteVariableRef,
     # measure parameter
     elseif length(parameter_refs(ivref)) == 1
         for i in eachindex(data.supports)
-            pvref = _make_point_variable(ivref)
+            pvref = make_point_variable_ref(ivref)
             point_mapper(trans_model, pvref, ivref, (data.supports[i],))
             JuMP.add_to_expression!(aff, data.coefficients[i] *
                                     data.weight_function(data.supports[i]),
@@ -83,7 +131,7 @@ function _expand_measure(ivref::InfiniteVariableRef,
     else
         tuple_loc = findfirst(isequal(group), groups)
         for i in eachindex(data.supports)
-            rvref = _make_reduced_variable(ivref, tuple_loc, data.supports[i])
+            rvref = make_reduced_variable_ref(ivref, tuple_loc, data.supports[i])
             JuMP.add_to_expression!(aff, data.coefficients[i] *
                                     data.weight_function(data.supports[i]),
                                     rvref)
@@ -93,7 +141,7 @@ function _expand_measure(ivref::InfiniteVariableRef,
 end
 
 # ReducedInfiniteVariableRef
-function _expand_measure(rvref::ReducedInfiniteVariableRef,
+function expand_measure(rvref::ReducedInfiniteVariableRef,
                          data::Union{DiscreteMeasureData,
                                      MultiDiscreteMeasureData},
                          trans_model::JuMP.AbstractModel,
@@ -117,7 +165,7 @@ function _expand_measure(rvref::ReducedInfiniteVariableRef,
     elseif length(parameter_refs(rvref)) == 1
         tuple_loc = findfirst(isequal(group), _group.(orig_prefs))
         for i in eachindex(data.supports)
-            pvref = _make_point_variable(infinite_variable_ref(rvref))
+            pvref = make_point_variable_ref(infinite_variable_ref(rvref))
             _reduced_info(rvref).eval_supports[tuple_loc] = data.supports[i]
             support = Tuple(eval_supports(rvref)[j] for j in eachindex(eval_supports(rvref)))
             point_mapper(trans_model, pvref, infinite_variable_ref(rvref), support)
@@ -129,7 +177,7 @@ function _expand_measure(rvref::ReducedInfiniteVariableRef,
     else
         tuple_loc = findfirst(isequal(group), _group.(orig_prefs))
         for i in eachindex(data.supports)
-            new_rvref = _make_reduced_variable(infinite_variable_ref(rvref),
+            new_rvref = make_reduced_variable_ref(infinite_variable_ref(rvref),
                                                eval_supports(rvref))
             _reduced_info(new_rvref).eval_supports[tuple_loc] = data.supports[i]
             JuMP.add_to_expression!(aff, data.coefficients[i] *
@@ -141,7 +189,7 @@ function _expand_measure(rvref::ReducedInfiniteVariableRef,
 end
 
 # FiniteVariableRef
-function _expand_measure(vref::FiniteVariableRef,
+function expand_measure(vref::FiniteVariableRef,
                          data::Union{DiscreteMeasureData,
                                      MultiDiscreteMeasureData},
                          trans_model::JuMP.AbstractModel,
@@ -157,7 +205,7 @@ function _expand_measure(vref::FiniteVariableRef,
 end
 
 # ParameterRef with scalar data
-function _expand_measure(pref::ParameterRef,
+function expand_measure(pref::ParameterRef,
                          data::DiscreteMeasureData,
                          trans_model::JuMP.AbstractModel,
                          point_mapper::Function)::JuMP.AbstractJuMPScalar
@@ -181,7 +229,7 @@ function _expand_measure(pref::ParameterRef,
 end
 
 # ParameterRef with vector data
-function _expand_measure(pref::ParameterRef,
+function expand_measure(pref::ParameterRef,
                          data::MultiDiscreteMeasureData,
                          trans_model::JuMP.AbstractModel,
                          point_mapper::Function)::JuMP.AbstractJuMPScalar
@@ -207,7 +255,7 @@ function _expand_measure(pref::ParameterRef,
 end
 
 # GenericAffExpr
-function _expand_measure(expr::JuMP.GenericAffExpr,
+function expand_measure(expr::JuMP.GenericAffExpr,
                          data::Union{DiscreteMeasureData,
                                      MultiDiscreteMeasureData},
                          trans_model::JuMP.AbstractModel,
@@ -217,7 +265,7 @@ function _expand_measure(expr::JuMP.GenericAffExpr,
     quad = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
     # expand each variable independently and add all together
     for (var, coef) in expr.terms
-        JuMP.add_to_expression!(quad, coef, _expand_measure(var, data,
+        JuMP.add_to_expression!(quad, coef, expand_measure(var, data,
                                                             trans_model,
                                                             point_mapper))
     end
@@ -238,18 +286,18 @@ function _expand_measure(expr::JuMP.GenericAffExpr,
 end
 
 # GenericQuadExpr
-function _expand_measure(expr::JuMP.GenericQuadExpr,
+function expand_measure(expr::JuMP.GenericQuadExpr,
                          data::Union{DiscreteMeasureData,
                                      MultiDiscreteMeasureData},
                          trans_model::JuMP.AbstractModel,
                          point_mapper::Function)::JuMP.AbstractJuMPScalar
     quad = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
     # convert the GenericAffExpr
-    quad.aff = _expand_measure(expr.aff, data, trans_model, point_mapper)
+    quad.aff = expand_measure(expr.aff, data, trans_model, point_mapper)
     for (pair, coef) in expr.terms
         # expand on both variables
-        expr_a = _expand_measure(pair.a, data, trans_model, point_mapper)
-        expr_b = _expand_measure(pair.b, data, trans_model, point_mapper)
+        expr_a = expand_measure(pair.a, data, trans_model, point_mapper)
+        expr_b = expand_measure(pair.b, data, trans_model, point_mapper)
         vars_a = collect(keys(expr_a.terms))
         vars_b = collect(keys(expr_b.terms))
         alt_terms = false
@@ -305,7 +353,7 @@ function _expand_measure(expr::JuMP.GenericQuadExpr,
 end
 
 # MeasureRef
-function _expand_measure(mref::MeasureRef,
+function expand_measure(mref::MeasureRef,
                          data::Union{DiscreteMeasureData,
                                      MultiDiscreteMeasureData},
                          trans_model::JuMP.AbstractModel,
@@ -314,20 +362,21 @@ function _expand_measure(mref::MeasureRef,
     deeper_func = measure_function(mref)
     deeper_data = measure_data(mref)
     # expand the inner measure (note this is recursive for nested measures)
-    new_func = _expand_measure(deeper_func, deeper_data, trans_model,
+    new_func = expand_measure(deeper_func, deeper_data, trans_model,
                                point_mapper)
     # expand current level with the inner measure now expanded
-    return _expand_measure(new_func, data, trans_model, point_mapper)
+    return expand_measure(new_func, data, trans_model, point_mapper)
 end
 
 # Catch all method for undefined behavior
-function _expand_measure(expr, data, trans_model::JuMP.AbstractModel,
+function expand_measure(expr, data::AbstractMeasureData,
+                         trans_model::JuMP.AbstractModel,
                          point_mapper::Function)
     expr_type = typeof(expr)
     data_type = typeof(data)
-    error("Undefined behavior to expand expression of type $expr_type with " *
-          "measure data $data_type. If this functionality is needed consider " *
-          "extending `_expand_measure`.")
+    error("Undefined behavior to expand expression of type `$expr_type` with " *
+          "measure data `$data_type`. If this functionality is needed consider " *
+          "extending `expand_measure`.")
 end
 
 # Map temp point variable references to actual variables by adding a variable to
@@ -363,12 +412,12 @@ on the fly.
 This is useful for extensions that employ a custom optimizer model since it
 can be used evaluate measures before expressions are translated to the new model.
 This method can also be extended to handle custom measure data types by extending
-```InfiniteOpt._expand_measure``` which should be of the form:
+```expand_measure``` which should be of the form:
 ```julia
-InfiniteOpt._expand_measure(expr::AbstractJuMPScalar, data::AbstractMeasureData,
-                            model::InfiniteModel, point_mapper::Function)
+expand_measure(expr::AbstractJuMPScalar, data::AbstractMeasureData,
+                model::JuMP.AbstractModel, point_mapper::Function)
 ```
-See the source code in InfiniteOpt/src/measures.jl for examples of how to do this.
+See [`expand_measure`](@ref) for more information.
 
 **Example**
 ```julia-repl
@@ -379,7 +428,7 @@ julia> expr = expand(measure(g + z + T - h - 2, tdata))
 ```
 """
 function expand(mref::MeasureRef)::JuMP.AbstractJuMPScalar
-    return _expand_measure(measure_function(mref), measure_data(mref),
+    return expand_measure(measure_function(mref), measure_data(mref),
                            JuMP.owner_model(mref), _add_mapped_point_variable)
 end
 
@@ -388,7 +437,7 @@ end
 function _expand_measures(mref::MeasureRef,
                           expand_model::JuMP.AbstractModel,
                           point_mapper::Function)::JuMP.AbstractJuMPScalar
-    return _expand_measure(measure_function(mref), measure_data(mref),
+    return expand_measure(measure_function(mref), measure_data(mref),
                            expand_model, point_mapper)
 end
 
@@ -402,7 +451,7 @@ function _expand_measures(expr::JuMP.GenericAffExpr{C, <:GeneralVariableRef},
     # add the variables to the expr, converting measures into expanded exprs
     for (var, coef) in expr.terms
         if isa(var, MeasureRef)
-            JuMP.add_to_expression!(quad, coef, _expand_measure(measure_function(var),
+            JuMP.add_to_expression!(quad, coef, expand_measure(measure_function(var),
                                                                 measure_data(var),
                                                                 expand_model,
                                                                 point_mapper))
@@ -430,11 +479,11 @@ function _expand_measures(expr::JuMP.GenericQuadExpr{C, <:GeneralVariableRef},
         var_a = pair.a
         var_b = pair.b
         if isa(var_a, MeasureRef)
-            var_a = _expand_measure(measure_function(var_a), measure_data(var_a),
+            var_a = expand_measure(measure_function(var_a), measure_data(var_a),
                                     expand_model, point_mapper)
         end
         if isa(var_b, MeasureRef)
-            var_b = _expand_measure(measure_function(var_b), measure_data(var_b),
+            var_b = expand_measure(measure_function(var_b), measure_data(var_b),
                                     expand_model, point_mapper)
         end
         JuMP.add_to_expression!(quad, convert(JuMP.GenericQuadExpr{C,
@@ -456,12 +505,12 @@ errors if the expanded objective function is not finite.
 This is useful for extensions that employ a custom optimizer model since it
 can be used evaluate measures before `model` is translated into the new model.
 This method can also be extended to handle custom measure data types by extending
-```InfiniteOpt._expand_measure``` which should be of the form:
+```expand_measure``` which should be of the form:
 ```julia
-InfiniteOpt._expand_measure(expr::AbstractJuMPScalar, data::AbstractMeasureData,
-                            model::InfiniteModel, point_mapper::Function)
+expand_measure(expr::AbstractJuMPScalar, data::AbstractMeasureData,
+                model::JuMP.AbstractModel, point_mapper::Function)
 ```
-See the source code in InfiniteOpt/src/measures.jl for examples of how to do this.
+See [`expand_measure`](@ref) for more information.
 
 **Example**
 ```julia-repl

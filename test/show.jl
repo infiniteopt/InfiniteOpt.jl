@@ -57,6 +57,14 @@ using JuMP: REPLMode, IJuliaMode
                  "[1.0], Σ: [1.0])"
         @test in_set_string(IJuliaMode, set) == str
     end
+    # test in_set_string (Fallback)
+    @testset "JuMP.in_set_string (Fallback)" begin
+        set = BadSet()
+        in1 = JuMP._math_symbol(REPLMode, :in)
+        in2 = JuMP._math_symbol(IJuliaMode, :in)
+        @test in_set_string(REPLMode, set) == in1 * " BadSet()"
+        @test in_set_string(IJuliaMode, set) == in2 * " BadSet()"
+    end
     # test bound_string
     @testset "bound_string" begin
         # test with single bound
@@ -198,6 +206,28 @@ end
         str = "Subdomain bounds (1): par1 " * JuMP._math_symbol(IJuliaMode, :in) *
               " [0.1, 1]"
         show_test(IJuliaMode, bounds, str)
+    end
+    # test Base.show (IntervalSet in REPL)
+    @testset "Base.show (REPL IntervalSet)" begin
+        # test normal
+        show_test(REPLMode, IntervalSet(0, 1), "[0, 1]")
+    end
+    # test Base.show (IntervalSet in IJulia)
+    @testset "Base.show (IJulia IntervalSet)" begin
+        # test normal
+        show_test(IJuliaMode, IntervalSet(0, 1), "[0, 1]")
+    end
+    # test Base.show (DistributionSet in REPL)
+    @testset "Base.show (REPL IntervalSet)" begin
+        # test normal
+        show_test(REPLMode, DistributionSet(Uniform()),
+                  "Uniform{Float64}(a=0.0, b=1.0)")
+    end
+    # test Base.show (DistributionSet in IJulia)
+    @testset "Base.show (IJulia IntervalSet)" begin
+        # test normal
+        show_test(IJuliaMode, DistributionSet(Uniform()),
+                  "Uniform{Float64}(a=0.0, b=1.0)")
     end
     # test show_backend_summary
     @testset "JuMP.show_backend_summary" begin

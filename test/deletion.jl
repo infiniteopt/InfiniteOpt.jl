@@ -174,7 +174,7 @@ end
     end
     # test _check_param_in_data (fallback)
     @testset "_check_param_in_data (Fallback)" begin
-        @test_throws ErrorException InfiniteOpt._check_param_in_data(par, Bad())
+        @test_throws ErrorException InfiniteOpt._check_param_in_data(par, BadData())
     end
     # test _contains_pref (scalar)
     @testset "_contains_pref (Scalar)" begin
@@ -572,6 +572,8 @@ end
      m = InfiniteModel()
      @infinite_parameter(m, 0 <= par <= 1)
      @infinite_parameter(m, 0 <= par2 <= 1)
+     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+     @infinite_variable(m, w(pars))
      @infinite_variable(m, x(par))
      @infinite_variable(m, y(par2))
      @point_variable(m, x(0), x0)
@@ -579,11 +581,13 @@ end
      m.infinite_to_reduced[JuMP.index(x)] = [-1]
      rv = ReducedInfiniteVariableRef(m, -1)
      data = DiscreteMeasureData(par, [1], [1])
+     data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
      meas = measure(x, data)
      meas1 = measure(x + x0 + rv + par + meas + y + par2, data)
      meas2 = measure(x + x0 + rv + par + y + par2, data)
      meas3 = measure(meas1 + x0, data)
      meas4 = measure(meas2, data)
+     meas5 = measure(w, data2)
      @constraint(m, con1, x0 + meas1 <= 0)
      con2 = add_constraint(m, ScalarConstraint(meas2, MOI.LessThan(0.)))
      @objective(m, Min, meas1 + x0)
@@ -619,6 +623,10 @@ end
      @test !haskey(m.meas_in_objective, JuMP.index(meas2))
      @test !haskey(m.measures, JuMP.index(meas2))
      @test !haskey(m.meas_to_name, JuMP.index(meas2))
+     # test deletion of meas5
+     @test isa(delete(m, meas5), Nothing)
+     @test !haskey(m.param_to_meas, JuMP.index(pars[1]))
+     @test !haskey(m.param_to_meas, JuMP.index(pars[2]))
      # test errors
      @test_throws AssertionError delete(m, meas1)
      @test_throws AssertionError delete(m, meas2)

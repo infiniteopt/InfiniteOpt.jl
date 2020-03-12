@@ -1,6 +1,6 @@
 """
-    eval_method_registry(model::InfiniteOpt.InfiniteModel
-                         )::Dict{Type, Set{Function}}
+    eval_method_registry(model::InfiniteOpt.InfiniteModel)::Dict{Type, Set{Function}}
+
 Return the registry of the model that records which measure evaluation methods
 are valid for different [`AbstractInfiniteSet`](@ref).
 """
@@ -13,6 +13,7 @@ end
     register_eval_method(model::InfiniteOpt.InfiniteModel,
                          set_type::Type,
                          methods::Union{Function, Array{Function, 1}})
+
 Set the registry of the model that records which measure evaluation methods
 are valid for different [`AbstractInfiniteSet`](@ref). This function allows for
 addition of new set types and modification of acceptable methods for existing
@@ -35,32 +36,41 @@ function register_eval_method(model::InfiniteOpt.InfiniteModel,
     return
 end
 
+# print iterators in pretty way
+function _itr_string(args...)
+    str = ""
+    for arg in args
+        str *= string(arg) * ", "
+    end
+    return str[1:end-2]
+end
+
+# get the set type (for parametric types)
+function _set_type(registry::Dict, set::InfiniteOpt.AbstractInfiniteSet)
+    for key in keys(registry)
+        if typeof(set) <: key
+            return key
+        end
+    end
+    return typeof(set)
+end
+
 # check if a method is valid for a set
 function _set_method_check(model::InfiniteOpt.InfiniteModel,
                            set::InfiniteOpt.AbstractInfiniteSet,
                            method::Function)
     registry = eval_method_registry(model)
-    set_type = _set_type(model, set)
-    if !(set_type in keys(registry))
-        error("The parameter set type $(typeof(set)) does not have valid " *
-              "measure evaluation methods.")
+    set_type = _set_type(registry, set)
+    if !haskey(registry, set_type)
+        error("The parameter set type `$(set_type)` does not have valid " *
+              "measure evaluation methods. See `register_eval_method` to " *
+              "rectify this if needed.")
     end
     if !(method in registry[set_type])
-        error("Method $(method) is not valid for set type $(typeof(set)).")
+        error("Evaluation method `$(method)` is not valid for set type " *
+              "`$(set_type)`. Valid methods are $(_itr_string(registry[set_type]...)).")
     end
     return
-end
-
-# return parameterized set type without parameters
-# this is needed because typeof() returns parameterized set type with parameters
-function _set_type(model::InfiniteOpt.InfiniteModel,
-                   set::InfiniteOpt.AbstractInfiniteSet)::Union{Type, Nothing}
-    for i in keys(model.meas_method_registry)
-        if isa(set, i)
-            return i
-        end
-    end
-    return nothing
 end
 
 """
@@ -69,9 +79,11 @@ end
                           num_supports::Int,
                           lb::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing,
                           ub::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing;
-                          method::Function = mc_sampling, name::String = "",
-                          weight_func::Function = InfiniteOpt._w, kwargs...
+                          eval_method::Function = mc_sampling, name::String = "",
+                          weight_func::Function = InfiniteOpt._w,
+                          check_method::Bool = true, kwargs...
                           )::InfiniteOpt.AbstractMeasureData
+
 Generate an [`AbstractMeasureData`](@ref) object that automatically generate
 supports based on a set of given information. The information is required to
 include parameters and number of supports. Other optional information to input
@@ -94,7 +106,8 @@ function generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
                                lb::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing,
                                ub::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing;
                                eval_method::Function = mc_sampling, name::String = "",
-                               weight_func::Function = InfiniteOpt._w, kwargs...
+                               weight_func::Function = InfiniteOpt._w,
+                               check_method::Bool = true, kwargs...
                                )::InfiniteOpt.AbstractMeasureData
     if isa(params, InfiniteOpt.ParameterRef)
         set = InfiniteOpt._parameter_set(params)
@@ -102,14 +115,50 @@ function generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
     else
         params = convert(JuMPC.SparseAxisArray, params)
         set = InfiniteOpt._parameter_set(first(params))
+        sets = InfiniteOpt._parameter_set.(params)
+        if any(typeof(set) != typeof(s) for s in sets)
+            error("Automatic measure data generation for multi-dimensional " *
+                  "parameters with mixed set types is not supported.")
+        end
         model = first(params).model
     end
-    _set_method_check(model, set, eval_method)
+    if check_method
+        _set_method_check(model, set, eval_method)
+    end
     (supports, coeffs) = generate_supports_and_coeffs(set, params, num_supports, lb, ub, eval_method; kwargs...)
     return InfiniteOpt.DiscreteMeasureData(params, coeffs, supports,
                                            name = name, weight_function = weight_func)
 end
 
+"""
+    generate_supports_and_coeffs(set::InfiniteOpt.AbstractInfiniteSet,
+                                 params::Union{InfiniteOpt.ParameterRef,
+                                 AbstractArray{<:InfiniteOpt.ParameterRef}},
+                                 num_supports::Int,
+                                 lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                 ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                 method::Function; [kwargs...])::Tuple
+
+Call `method` to generate supports and coefficients using the arguments and
+`kwargs` as appropriate. This will dispatch to `method` in accordance with the
+type of `set`. This is intended as an internal method for
+[`generate_measure_data`](@ref InfiniteOpt.MeasureEvalMethods.generate_measure_data)
+and will need to be extended for user-defined
+infinite set types. Extensions will also need to consider whether there are
+appropriate methods for `method` and extend those as needed.
+"""
+function generate_supports_and_coeffs(set::InfiniteOpt.AbstractInfiniteSet,
+                                      params::Union{InfiniteOpt.ParameterRef,
+                                      AbstractArray{<:InfiniteOpt.ParameterRef}},
+                                      num_supports::Int,
+                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      method::Function; kwargs...)::Tuple
+    error("`generate_supports_and_coeffs` is not extended for parameters in sets " *
+          "of type $(typeof(set)).")
+end
+
+# IntervalSet
 function generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
                                       params::Union{InfiniteOpt.ParameterRef,
                                       AbstractArray{<:InfiniteOpt.ParameterRef}},
@@ -117,9 +166,10 @@ function generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
                                       lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
                                       ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
                                       method::Function; kwargs...)::Tuple
-    return method(lb, ub, num_supports)
+    return method(lb, ub, num_supports; kwargs...)
 end
 
+# DistributionSet
 function generate_supports_and_coeffs(set::InfiniteOpt.DistributionSet,
                                       params::Union{InfiniteOpt.ParameterRef,
                                       AbstractArray{<:InfiniteOpt.ParameterRef}},
@@ -139,19 +189,7 @@ function generate_supports_and_coeffs(set::InfiniteOpt.DistributionSet,
             dist = Distributions.Truncated(dist, temp_lb, temp_ub)
         end
     end
-    return method(dist, params, num_supports)
-end
-
-# fallback
-function generate_supports_and_coeffs(set::InfiniteOpt.AbstractInfiniteSet,
-                                      params::Union{InfiniteOpt.ParameterRef,
-                                      AbstractArray{<:InfiniteOpt.ParameterRef}},
-                                      num_supports::Int,
-                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                      method::Function; kwargs...)::Tuple
-    error("Measure dispatch function is not extended for parameters in sets " *
-          "of type $(typeof(set)).")
+    return method(dist, params, num_supports; kwargs...)
 end
 
 """
@@ -204,7 +242,7 @@ end
 """
     mc_sampling(dist::Distributions.NonMatrixDistribution,
                 param::InfiniteOpt.ParameterRef,
-                num_supports::Int; kwargs...)::Tuple
+                num_supports::Int)::Tuple
 
 Return a tuple that contains supports and coefficients generated by Monte Carlo
 sampling from a given distribution.
@@ -231,7 +269,7 @@ end
 
 function mc_sampling(dist::Distributions.MultivariateDistribution,
                      params::AbstractArray{<:InfiniteOpt.ParameterRef},
-                     num_supports::Int; kwargs...)::Tuple
+                     num_supports::Int)::Tuple
     samples_matrix = rand(dist, num_supports)
     ordered_pairs = sort(collect(params.data), by=x->x.second.index)
     samples_dict = Dict()
