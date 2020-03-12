@@ -12,6 +12,14 @@ walk through the use of these result query functions.
 
 ## Basic Usage
 Let's revisit the example from the optimization page to get us started:
+```@meta
+DocTestSetup = quote
+    using JuMP, Ipopt
+    m = Model(Ipopt.Optimizer)
+    @variable(m)
+    optimize!(m)
+end
+```
 ```jldoctest results
 julia> using InfiniteOpt, JuMP, Ipopt;
 
@@ -41,6 +49,9 @@ Subject to
  t ∈ [0, 10]
 
 julia> optimize!(model)
+```
+```@meta
+DocTestSetup = nothing
 ```
 Now that the model has been optimized, let's find out what happened. To determine
 why the optimizer stopped, we can use
