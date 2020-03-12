@@ -59,7 +59,7 @@ end
     @infinite_variable(m, x(t) >= 0)
     @hold_variable(m, z, parameter_bounds = (t in [0, 5]))
     data1 = generate_measure_data(t, 2, 0, 5, eval_method = gauss_legendre)
-    data2 = generate_measure_data(t, 4, 0, 10)
+    data2 = generate_measure_data(t, 4, 0, 10, eval_method = gauss_legendre)
 
     # test definition
     @test NewMeasureData("test", data1) isa NewMeasureData
