@@ -324,7 +324,7 @@ julia> expand(mref)
 Finally, as per recommendation let's make a wrapper method to make defining
 variance measures more convenient:
 ```jldoctest measure_data; output = false
-function variance(expr::JuMP.AbstractJuMPScalar,
+function variance(expr::Union{JuMP.GenericAffExpr, GeneralVariableRef},
                   params::Union{ParameterRef, AbstractArray{<:ParameterRef}};
                   name::String = "Var", num_supports::Int = 10,
                   use_existing::Bool = false)::MeasureRef
@@ -343,9 +343,14 @@ end
 
 # output
 
-
+variance (generic function with 1 method)
 ```
-Now let's use our constructor to repeat the above example:
+Notice in this case that we only permit linear expressions for `expr` since
+it will be squared by our new measure and we currently only support quadratic
+expressions. (This could be overcome by defining place a place holder variable
+for `expr`.
+
+Now let's use our constructor to repeat the above measure example:
 ```jldoctest measure_data
 julia> expand(variance(2y + z, xi, use_existing = true))
 2 y(-0.55603)² + 2 y(-0.44438)² + 2 z*y(-0.55603) + 2 z*y(-0.44438) - 4 y(-0.55603)² - 4 y(-0.44438)*y(-0.55603) - 4 z*y(-0.55603) + 0 z² - 2 y(-0.55603)*z - 2 y(-0.44438)*z + y(-0.55603)² + y(-0.44438)²
@@ -354,5 +359,15 @@ julia> expand(variance(2y + z, xi, use_existing = true))
 We have done it! Now go and extend away!
 
 ## [Optimizer Models] (@id extend_optimizer_model)
+`InfiniteOpt` provides a convenient interface and abstraction for modeling
+infinite dimensional optimization problems. By default, `InfiniteModel`s are
+reformulated into a solvable `JuMP.Model` (referred to as an optimizer model)
+via `TranscriptionOpt` which discretizes the model in accordance with the
+infinite parameter supports. However, uses my wish to employ some other
+reformulation method to produce the optimizer model. This section will explain
+how this can be done in `InfiniteOpt`. A template for implementing this
+extension is provided in `./InfiniteOpt/test/extensions/optimizer_model.jl`.
+Our default sub-package `InfiniteOpt.TranscriptionOpt` also serves as a good
+example. 
 
 ## Wrapper Packages

@@ -236,8 +236,14 @@ build_optimizer_model!(::InfiniteModel)
 build_optimizer_model!
 optimizer_model_variable(::InfOptVariableRef)
 optimizer_model_variable
+supports(::InfiniteVariableRef)
+variable_supports
 optimizer_model_constraint(::GeneralConstraintRef)
 optimizer_model_constraint
+supports(::GeneralConstraintRef)
+constraint_supports
+parameter_refs(::GeneralConstraintRef)
+constraint_parameter_refs
 optimizer_model_ready
 set_optimizer_model_ready
 JuMP.bridge_constraints(::InfiniteModel)

@@ -95,9 +95,9 @@ Thus, we have a transcribed `JuMP` model. To be precise this actually a
 constraints and their infinite counterparts. Notice, that multiple finite variables
 have been introduced to discretize `g(t)` at supports 1, 2, and 3 which correspond
 to 0, 5, and 10 as can be queried by
-[`supports`](@ref InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteVariableRef)):
+[`variable_supports`](@ref InfiniteOpt.variable_supports(::JuMP.Model, ::InfiniteOpt.InfiniteVariableRef, ::Val{:TransData})):
 ```jldoctest transcribe
-julia> supports(trans_model, g)
+julia> variable_supports(trans_model, g)
 3-element Array{Tuple{Float64},1}:
  (0.0,)
  (5.0,)
@@ -120,8 +120,8 @@ z
 Similarly, the transcription constraints associated with infinite model constraints
 can be queried via [`transcription_constraint`](@ref) and the associated supports
 and infinite parameters can be found via
-[`supports`](@ref InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef))
-and [`parameter_refs`](@ref InfiniteOpt.parameter_refs(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef)):
+[`constraint_supports`](@ref InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData}))
+and [`constraint_parameter_refs`](@ref InfiniteOpt.parameter_refs(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData})):
 ```jldoctest transcribe
 julia> transcription_constraint(trans_model, initial)
 1-element Array{ConstraintRef,1}:
@@ -284,14 +284,14 @@ Subject to
 ```
 This precisely matches what we found analytically. Note that the unique support
 combinations are determined automatically and are represented visually as
-`support: #`. The precise support values can be looked up via `supports`:
+`support: #`. The precise support values can be looked up via `variable_supports`:
 ```jldoctest trans_example
-julia> supports(trans_model, y)
+julia> variable_supports(trans_model, y)
 2-element Array{Tuple{Float64},1}:
  (0.0,)
  (10.0,)
 
-julia> supports(trans_model, g)
+julia> variable_supports(trans_model, g)
 8-element Array{Tuple{Float64,JuMP.Containers.SparseAxisArray{Int64,1,Tuple{Int64}}},1}:
  (0.0,   [2]  =  -1
   [1]  =  -1)
@@ -405,9 +405,9 @@ externally.
 
 Similarly, the parameter supports corresponding to the transcription variables
 (in the case of transcribed infinite variables) can be queried via
-[`supports`](@ref InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteVariableRef)):
+[`variable_supports`](@ref InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteVariableRef, ::Val{:TransData})):
 ```jldoctest transcribe
-julia> supports(trans_model, g)
+julia> variable_supports(trans_model, g)
 3-element Array{Tuple{Float64},1}:
  (0.0,)
  (5.0,)
@@ -420,11 +420,11 @@ the case when [`build_optimizer_model!`](@ref) or
 is invoked.
 
 Likewise, [`transcription_constraint`](@ref) and
-[`supports`](@ref InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef))
+[`constraint_supports`](@ref InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData}))
 can be used with constraints to find their transcribed equivalents in the
 `JuMP` model and determine their supports. In the case of infinite constraints,
 their parameter references can be determined
-[`parameter_refs`](@ref InfiniteOpt.parameter_refs(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef))
+[`constraint_parameter_refs`](@ref InfiniteOpt.parameter_refs(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData}))
 just like infinite variables.
 
 ## Datatypes
@@ -452,12 +452,9 @@ is_transcription_model
 transcription_data
 transcription_variable
 InfiniteOpt.optimizer_model_variable(::InfiniteOpt.InfOptVariableRef, ::Val{:TransData})
-InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteVariableRef)
-InfiniteOpt.supports(::InfiniteOpt.InfiniteVariableRef)
+InfiniteOpt.variable_supports(::JuMP.Model, ::InfiniteOpt.InfiniteVariableRef, ::Val{:TransData})
 transcription_constraint
 InfiniteOpt.optimizer_model_constraint(::InfiniteOpt.GeneralConstraintRef, ::Val{:TransData})
-InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef)
-InfiniteOpt.supports(::InfiniteOpt.InfiniteConstraintRef)
-InfiniteOpt.parameter_refs(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef)
-InfiniteOpt.parameter_refs(::InfiniteOpt.InfiniteConstraintRef)
+InfiniteOpt.constraint_supports(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData})
+InfiniteOpt.constraint_parameter_refs(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData})
 ```

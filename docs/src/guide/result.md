@@ -14,10 +14,10 @@ walk through the use of these result query functions.
 Let's revisit the example from the optimization page to get us started:
 ```@meta
 DocTestSetup = quote
-    using JuMP, Ipopt
-    m = Model(Ipopt.Optimizer)
-    @variable(m)
-    optimize!(m)
+    using JuMP, Ipopt;
+    m = Model(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0);
+    @variable(m);
+    optimize!(m);
 end
 ```
 ```jldoctest results
