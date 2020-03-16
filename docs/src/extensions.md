@@ -278,7 +278,45 @@ julia> expand(g_meas)
 0.3333333333333333 g([0, 0]) + 0.3333333333333333 g([0.5, 0.5]) + 0.3333333333333333 g([1, 1])
 ```
 Here we go! We can freely use `uniform_grid` for infinite parameters in
-[`IntervalSet`](@ref) now. 
+[`IntervalSet`](@ref) now.
+
+For the example above, we are writing `uniform_grid` function to be callable
+from the [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) that does not
+involve creating an [`AbstractMeasureData`](@ref). However, users are free to
+write `uniform_grid` function that outputs an [`AbstractMeasureData`](@ref), and
+then construct measures using [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)). For instance, we can rewrite the univariate version of
+`uniform_grid` functions above as follows to return a measure data object:
+
+```jldoctest measure_eval; output = false
+function uniform_grid(param::ParameterRef, lb::Number, ub::Number, num_supports::Int, name::String = "measure")::DiscreteMeasureData
+    increment = (ub - lb) / (num_supports - 1)
+    supps = [lb + (i - 1) * increment for i in 1:num_supports]
+    coeffs = ones(num_supports) / num_supports * (ub - lb)
+    return DiscreteMeasureData(param, coeffs, supps, name = name)
+end
+
+# output
+
+```
+Note that we don't have to call [`register_eval_method`](@ref) here because the
+measure construction does not involve creating measure data objects under the
+hood. Also, it is necessary to pass infinite parameter reference since the
+construction of measure data object needs parameter information. Now we can use
+`uniform_grid` to construct a [`DiscreteMeasureData`](@ref) and create a
+measure using the measure data, as shown below:
+
+```jldoctest measure_eval
+julia> tdata = uniform_grid(t, 0, 5, 6)
+DiscreteMeasureData(t, [0.8333333333333333, 0.8333333333333333, 0.8333333333333333, 0.8333333333333333, 0.8333333333333333, 0.8333333333333333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], "measure", InfiniteOpt._w)
+
+julia> f_meas = measure(f, tdata)
+measure(f(t))
+
+julia> expand(f_meas)
+0.8333333333333333 f(0) + 0.8333333333333333 f(1) + 0.8333333333333333 f(2) + 0.8333333333333333 f(3) + 0.8333333333333333 f(4) + 0.8333333333333333 f(5)
+
+```
+
 
 ## Measure Data
 Measures are used to evaluate over infinite domains. Users may wish to employ
