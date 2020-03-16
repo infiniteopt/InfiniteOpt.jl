@@ -189,6 +189,96 @@ the template in `./InfiniteOpt/test/extensions/infinite_set.jl` to see how this
 is done.
 
 ## Measure Evaluation Techniques
+Measure evaluation methods are used to dictate how to evaluate measures. Users
+may wish to apply evaluation methods other than Monte Carlo sampling and/or
+Gaussian quadrature methods. To create multiple measures using the same new
+evaluation methods, users may want to embed the new evaluation method under the
+[`mesaure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) function that
+does not require explicit construction of [`AbstractMeasureData`](@ref).
+This could be done by writing new functions that are compatible with the
+intended [`AbstractInfiniteSet`](@ref). The extension steps employed are:
+1. Define the new function compatible with the intended [`AbstractInfiniteSet`](@ref) (required)
+2. Make sure the input and output data types of the new function are compatible with [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref) (required if the new function will be applied to existing [`AbstractInfiniteSet`](@ref) in [`InfiniteOpt`])
+3. Register the new set type via [`register_eval_method`](@ref) (required)
+
+To illustrate the process above, let's consider defining a function that
+enables the definition of a uniform grid for a univariate or multivariate
+infinite parameter in [`IntervalSet`](@ref). The function generates uniform grid
+points as supports for univariate parameter and each component of independent
+multivariate parameter. The new functions are defined as follows:
+```jldoctest measure_eval; output = false
+using JuMP, InfiniteOpt
+const JuMPC = JuMP.Containers
+
+function uniform_grid(lb::Number, ub::Number, num_supports::Int)::Tuple
+    increment = (ub - lb) / (num_supports - 1)
+    supports = [lb + (i - 1) * increment for i in 1:num_supports]
+    return (supports, ones(num_supports) / num_supports * (ub - lb))
+end
+
+function uniform_grid(lb::JuMPC.SparseAxisArray, ub::JuMPC.SparseAxisArray,
+                      num_supports::Int; independent::Bool = true)::Tuple
+    if !independent
+        @warn("The method is implemented for independent multivariate parameters.")
+    end
+    supports_dict = Dict()
+    for i in eachindex(lb)
+        (supports_dict[i], _) = uniform_grid(lb[i], ub[i], num_supports)
+    end
+    supports = Array{JuMPC.SparseAxisArray, 1}(undef, num_supports)
+    for j in 1:num_supports
+        supports[j] = JuMP.Containers.SparseAxisArray(Dict(k => supports_dict[k][j] for k in eachindex(lb)))
+    end
+    return (supports, ones(num_supports) / num_supports * prod(ub .- lb))
+end
+
+register_eval_method(model, IntervalSet, uniform_grid)
+
+# output
+
+```
+Note that separate versions of `uniform_grid` are defined for univariate and
+multivariate parameters in [`IntervalSet`](@ref). Each version has arguments
+that align with the method call structure and possible data types for
+positional arguments in the [`generate_supports_and_coeffs`](@ref) function.
+
+Also notice that users are free to pass keyword arguments for their new
+functions in addition to the required positional arguments. This might be needed
+in case if the new evaluation method requires additional information not
+captured in the default positional arguments. For example, the multivariate
+parameter version above needs to know if the multivariate parameter is
+independent in order to throw a warning when needed.
+
+Now let's apply the new `uniform_grid` function to infinite parameters in
+intervals. We consider a time parameter `t` and 2D space parameter `x`, and
+two variables `f(t)` and `g(x)` parameterized by `t` and `x`, respectively:
+```jldoctest measure_eval
+julia> m = InfiniteModel();
+
+julia> @infinite_parameter(m, t in [0, 5]);
+
+julia> @infinite_parameter(m, x[1:2] in [0, 1]);
+
+julia> @infinite_variable(m, f(t));
+
+julia> @infinite_variable(m, g(x));
+```
+We create measure for `f` and `g` using the `uniform_grid` method
+```jldoctest measure_eval
+julia> f_meas = measure(f, t, num_supports = 6, eval_method = NewEvalMethod)
+measure(f(t))
+
+julia> g_meas = measure(g, x, num_supports = 3, eval_method = NewEvalMethod)
+measure(g(x))
+
+julia> expand(f_meas)
+0.8333333333333333 f(0) + 0.8333333333333333 f(1) + 0.8333333333333333 f(2) + 0.8333333333333333 f(3) + 0.8333333333333333 f(4) + 0.8333333333333333 f(5)
+
+julia> expand(g_meas)
+0.3333333333333333 g([0, 0]) + 0.3333333333333333 g([0.5, 0.5]) + 0.3333333333333333 g([1, 1])
+```
+Here we go! We can freely use `uniform_grid` for infinite parameters in
+[`IntervalSet`](@ref) now. 
 
 ## Measure Data
 Measures are used to evaluate over infinite domains. Users may wish to employ
