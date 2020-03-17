@@ -583,13 +583,12 @@ optimize!(model)
 print(optimizer_model(model))
 
 # output
-Min x + y[1](xi) + y[2](xi)
+Min x + y[1](ξ) + y[2](ξ)
 Subject to
- x + 2 y[1](xi) <= 42.0
- y[2](xi)² == 1.5
- y[1](xi) >= 0.0
- y[2](xi) >= 0.0
- x binary
+ 2 y[1](ξ) - x ≤ 42.0
+ y[2](ξ)² = 1.5
+ y[1](ξ) ≥ 0.0
+ y[2](ξ) ≥ 0.0
 ```
 Note that batter variable naming could be used with the reformulated infinite
 variables. Moreover, in general extensions of [`build_optimizer_model!`](@ref)
