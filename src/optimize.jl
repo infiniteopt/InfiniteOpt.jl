@@ -351,22 +351,48 @@ end
 Build the optimizer model stored in `model` such that it can be
 treated as a normal JuMP model, where the `Model.ext` field contains a key
 that points to a datastructure that appropriately maps the data between the
-two models. The key argument should be be typed to `Val{ext_key_name}`.
+two models. The key argument should be be typed to `Val{ext_key_name}`. This
+should also use [`add_infinite_model_optimizer`](@ref) to transfer the optimizer
+stored in `model`. Ultimately, [`set_optimizer_model`](@ref) should be called
+to insert the build optimizer model into `model` and [`set_optimizer_model_ready`](@ref)
+should be used to update the optimizer model's status.
 """
- function build_optimizer_model! end
+function build_optimizer_model! end
 
- """
-     build_optimizer_model!(model::InfiniteModel; [kwargs...])
+"""
+    add_infinite_model_optimizer(inf_model::InfiniteModel, opt_model::JuMP.Model)
 
- Build the optimizer model stored in `model` such that it can be
- treated as a normal JuMP model. Specifically, translate the variables and
- constraints stored in `model` into ones that are stored in the optimizer model
- and can be solved. This is provided generally to accomodate extensions that use
- custom optimizer model types in accordance with [`optimizer_model_key`](@ref).
- However, it may be useful in certain applications when the user desires to
- force a build without calling `optimize!`.
- Extensions will need to implement their own version of the function
- `build_optimizer_model!(model::InfiniteModel, key::Val{ext_key_name}; kwargs...)`.
+Parse the current optimizer and its attributes associated with `model` and load
+them into `opt_model`. This is intended to be used as an internal method
+for implementations of [`build_optimizer_model!`](@ref).
+"""
+function add_infinite_model_optimizer(inf_model::InfiniteModel,
+                                      opt_model::JuMP.Model)
+    if !isa(inf_model.optimizer_constructor, Nothing)
+        bridge_constrs = JuMP.bridge_constraints(inf_model)
+        JuMP.set_optimizer(opt_model, inf_model.optimizer_constructor,
+                           bridge_constraints = bridge_constrs)
+        # parse the attributes
+        for attr in MOI.get(JuMP.backend(inf_model).model_cache,
+                            MOI.ListOfOptimizerAttributesSet())
+            value = MOI.get(JuMP.backend(inf_model), attr)
+            MOI.set(opt_model, attr, value)
+        end
+    end
+end
+
+"""
+    build_optimizer_model!(model::InfiniteModel; [kwargs...])
+
+Build the optimizer model stored in `model` such that it can be
+treated as a normal JuMP model. Specifically, translate the variables and
+constraints stored in `model` into ones that are stored in the optimizer model
+and can be solved. This is provided generally to accomodate extensions that use
+custom optimizer model types in accordance with [`optimizer_model_key`](@ref).
+However, it may be useful in certain applications when the user desires to
+force a build without calling `optimize!`.
+Extensions will need to implement their own version of the function
+`build_optimizer_model!(model::InfiniteModel, key::Val{ext_key_name}; kwargs...)`.
 
 **Example**
 ```julia-repl
@@ -631,6 +657,27 @@ AUTOMATIC::ModelMode = 0
 """
 function JuMP.mode(model::InfiniteModel)
     return JuMP.mode(optimizer_model(model))
+end
+
+"""
+    add_previous_optimizer(inf_model::InfiniteModel, opt_model::JuMP.Model)
+
+Parse the current optimizer and its attributes associated with `model` and load
+them into `opt_model`. This is intended to be used as an internal method
+for implementations of [`build_optimizer_model!`](@ref).
+"""
+function add_previous_optimizer(inf_model::InfiniteModel, opt_model::JuMP.Model)
+    if !isa(inf_model.optimizer_constructor, Nothing)
+        bridge_constrs = JuMP.bridge_constraints(inf_model)
+        JuMP.set_optimizer(opt_model, inf_model.optimizer_constructor,
+                           bridge_constraints = bridge_constrs)
+        # parse the attributes
+        for attr in MOI.get(JuMP.backend(inf_model).model_cache,
+                            MOI.ListOfOptimizerAttributesSet())
+            value = MOI.get(JuMP.backend(inf_model), attr)
+            MOI.set(opt_model, attr, value)
+        end
+    end
 end
 
 """

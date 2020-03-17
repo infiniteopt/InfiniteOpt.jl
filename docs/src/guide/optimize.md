@@ -234,6 +234,7 @@ set_optimizer_model
 optimizer_model_key
 build_optimizer_model!(::InfiniteModel)
 build_optimizer_model!
+add_infinite_model_optimizer
 optimizer_model_variable(::InfOptVariableRef)
 optimizer_model_variable
 supports(::InfiniteVariableRef)

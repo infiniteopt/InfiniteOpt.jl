@@ -25,16 +25,8 @@ function InfiniteOpt.build_optimizer_model!(model::InfiniteOpt.InfiniteModel,
     # build the model
     trans_model = TranscriptionModel(model, caching_mode = mode)
     # add the optimizer
-    if !isa(model.optimizer_constructor, Nothing)
-        bridge_constrs = JuMP.bridge_constraints(model)
-        JuMP.set_optimizer(trans_model, model.optimizer_constructor,
-                           bridge_constraints = bridge_constrs)
-        # parse the attributes
-        for attr in MOI.get(JuMP.backend(model).model_cache, MOI.ListOfOptimizerAttributesSet())
-            value = MOI.get(JuMP.backend(model), attr)
-            MOI.set(trans_model, attr, value)
-        end
-    end
+    InfiniteOpt.add_infinite_model_optimizer(model, trans_model)
+    # add the the built optimizer model to the infinite model
     InfiniteOpt.set_optimizer_model(model, trans_model)
     InfiniteOpt.set_optimizer_model_ready(model, true)
     return

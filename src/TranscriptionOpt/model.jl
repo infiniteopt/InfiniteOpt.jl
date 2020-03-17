@@ -44,9 +44,9 @@ mutable struct TranscriptionData
 
     # Constraint mapping
     infinite_to_constrs::Dict{InfiniteOpt.InfiniteConstraintRef,
-                             Vector{JuMP.ConstraintRef}}
+                              Vector{JuMP.ConstraintRef}}
     measure_to_constrs::Dict{InfiniteOpt.MeasureConstraintRef,
-                            Vector{JuMP.ConstraintRef}}
+                             Vector{JuMP.ConstraintRef}}
     finite_to_constr::Dict{InfiniteOpt.FiniteConstraintRef, JuMP.ConstraintRef}
 
     # Constraint support data
