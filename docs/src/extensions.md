@@ -387,13 +387,16 @@ extended using the following steps:
     - [`map_lp_rhs_perturbation_range`](@ref) (enables `JuMP.lp_rhs_perturbation_range`)
     - [`map_lp_objective_perturbation_range`](@ref) (enables `JuMP.lp_objective_perturbation_range`)
 
-To exemplify this process, let's consider the simple method of replacing each
-random parameter with its mean to convert a stochastic program into its mean
-valued deterministic counterpart. Thus, here we'll only consider stochastic
-problems (i.e., an infinite model that only uses `DistributionSet`s and does not
-use point variables explicitly). However, the steps involved to implement
-this will apply to any optimizer model extension.
+For the sake of example, let's suppose we want to define a reformulation method
+for `InfiniteModel`s that are 2-stage stochastic programs (i.e., only
+`DistributionSet`s are used, infinite variables are random 2nd stage variables,
+and hold variables are 1st stage variables). In particular, let's make a simple
+method that replaces the infinite parameters with their mean values, giving us
+the deterministic mean-valued problem.
 
+First, let's define the `mutable struct` that will be used to store our variable
+and constraint mappings. This this case it is quite simple since our deterministic
+model will have a 1-to-1 mapping:
 ```jldoctest opt_model; output = false
 using InfiniteOpt, JuMP, Distributions
 
@@ -412,6 +415,8 @@ end
 
 ```
 
+Now let's define a constructor for optimizer models that will use
+`DeterministicData` and let's define a method to access that data:
 ```jldoctest opt_model; output = false
 function DeterministicModel(args...; kwargs...)::Model
     # initialize the JuMP Model
@@ -430,6 +435,56 @@ deterministic_data (generic function with 1 method)
 
 ```
 
+!!! note
+    The use of an extension key such as `:DetermData` is key since it used to
+    dispatch reformulation and querying methods making optimizer model
+    extensions possible.
+
+With the constructor we can now specify that a given `InfiniteModel` uses a
+`DeterministicModel` instead of a `TranscriptionModel` using the `OptimizerModel`
+keyword argument or via [`set_optimizer_model`](@ref):
+```jldoctest opt_model; output = false
+using Ipopt
+
+# Make model using Ipopt and DeterministicModels
+model = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0),
+                      OptimizerModel = DeterministicModel)
+
+# Or equivalently
+model = InfiniteModel()
+set_optimizer_model(model, DeterministicModel())
+set_optimizer(model, optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0))
+
+# output
+
+```
+Now `model` uses a `DeterministicModel` as its optimizer model! With that we can
+build our `InfiniteModel` as normal, for example:
+```jldoctest opt_model
+@infinite_parameter(model, ξ in Uniform())
+@infinite_variable(model, y[1:2](ξ) >= 0)
+@hold_variable(model, x)
+@objective(model, Min, x + expect(y[1] + y[2], ξ))
+@constraint(model, 2y[1] - x <= 42)
+@constraint(model, y[2]^2 + ξ == 2)
+print(model)
+
+# output
+Min x + expect(y[1](ξ) + y[2](ξ))
+Subject to
+ y[1](ξ) ≥ 0.0
+ y[2](ξ) ≥ 0.0
+ 2 y[1](ξ) - x ≤ 42.0
+ y[2](ξ)² + ξ = 2.0
+ ξ ∈ Uniform(a=0.0, b=1.0)
+```
+
+We have defined our `InfiniteModel`, but now we need to specify how to
+reformulate it into a `DeterministicModel`. This is accomplished by extending
+[`build_optimizer_model!`](@ref). This will enable the use of `optimize!`. First,
+let's define an internal function `_make_expression` that will use dispatch to
+convert and `InfiniteOpt` expression into a `JuMP` expression using the mappings
+stored in `opt_model` in its `DeterministicData`:
 ```jldoctest opt_model; output = false
 ## Make dispatch methods for converting InfiniteOpt expressions
 # ParameterRef
@@ -468,20 +523,33 @@ end
 _make_expression (generic function with 5 methods)
 
 ```
+For simplicity in example, above we assume that only `DistributionSet`s are used,
+there are `PointVariableRef`s, and all `MeasureRef`s correspond to expectations.
+Naturally, a full extension should include checks to enforce that such assumptions
+hold.
 
+Now let's extend [`build_optimizer_model!`](@ref) for `DeterministicModel`s.
+Such extensions should build an optimizer model in place and in general should
+employ the following:
+- [`clear_optimizer_model_build!`](@ref )
+- [`set_optimizer_model_ready`](@ref).
+In place builds without the use of `clear_optimizer_model_build!` are also
+possible, but will require some sort of active mapping scheme to update in
+accordance with the `InfiniteModel` in the case that the
+optimizer model is built more than once. Thus, for simplicity we extend
+`build_optimizer_model!` below using an initial clearing scheme:
 ```jldoctest opt_model; output = false
 function InfiniteOpt.build_optimizer_model!(model::InfiniteModel,
                                             key::Val{:DetermData})
     # TODO check that `model` is a stochastic model
-    # initialize the optimizer model
-    mode = JuMP.backend(optimizer_model(model)).mode
-    determ_model = DeterministicModel(caching_mode = mode)
+    # clear the model for a build/rebuild
+    determ_model = clear_optimizer_model_build!(model)
 
     # add variables
     for vref in all_variables(model)
         new_vref = add_variable(determ_model,
                                 ScalarVariable(model.vars[index(vref)].info),
-                                name(vref))
+                                name(vref)) # TODO update infinite variable names
         deterministic_data(determ_model).infvar_to_detvar[vref] = new_vref
     end
 
@@ -500,10 +568,7 @@ function InfiniteOpt.build_optimizer_model!(model::InfiniteModel,
         end
     end
 
-    # add the optimizer and its attributes
-    add_infinite_model_optimizer(model, determ_model)
-    # add the the built optimizer model to the infinite model
-    set_optimizer_model(model, determ_model)
+    # update the status
     set_optimizer_model_ready(model, true)
     return
 end
@@ -511,7 +576,34 @@ end
 # output
 
 ```
+Now we can build our optimizer model to obtain a `DeterministicModel` which can
+be leveraged to call `optimize!`
+```jldoctest opt_model
+optimize!(model)
+print(optimizer_model(model))
 
+# output
+Min x + y[1](xi) + y[2](xi)
+Subject to
+ x + 2 y[1](xi) <= 42.0
+ y[2](xi)² == 1.5
+ y[1](xi) >= 0.0
+ y[2](xi) >= 0.0
+ x binary
+```
+Note that batter variable naming could be used with the reformulated infinite
+variables. Moreover, in general extensions of [`build_optimizer_model!`](@ref)
+should account for the possibility that `InfiniteModel` contains `HoldVariable`s
+and/or `ScalarConstraint`s that contain [`ParameterBounds`](@ref) as accessed via
+[`parameter_bounds`](@ref).
+
+Now that we have optimized out `InfiniteModel` via the use the of a
+`DeterministicModel`, we probably will want to access the results. All queries
+are enabled when we extend [`optimizer_model_variable`](@ref) and
+[`optimizer_model_constraint`](@ref) return the variable(s)/constraint(s) in the
+optimizer model corresponding to their `InfiniteModel` counterparts. These will
+use the `mutable struct` of mapping data and should error if no mapping can be
+found, Let's continue our example using `DeterministicModel`s:
 ```jldoctest opt_model; output = false
 function InfiniteOpt.optimizer_model_variable(vref::InfOptVariableRef,
                                               key::Val{:DetermData})
@@ -532,28 +624,44 @@ end
 # output
 
 ```
-
+With these extensions we can now access all the result queries. For example,
 ```jldoctest opt_model
-model = InfiniteModel()
-set_optimizer_model(model, DeterministicModel())
-@infinite_parameter(model, xi in Uniform())
-@infinite_variable(model, y[1:2](xi) >= 0)
-@hold_variable(model, x, Bin)
-@objective(model, Min, x + measure(y[1] + y[2], xi))
-@constraint(model, x + 2y[1] <= 42)
-@constraint(model, y[2]^2 + xi == 2)
+julia> termination_status(model)
+LOCALLY_SOLVED::TerminationStatusCode = 4
 
-build_optimizer_model!(model)
-print(optimizer_model(model))
+julia> result_count(model)
+1
 
-# output
-Min x + y[1](xi) + y[2](xi)
-Subject to
- x + 2 y[1](xi) <= 42.0
- y[2](xi)² == 1.5
- y[1](xi) >= 0.0
- y[2](xi) >= 0.0
- x binary
+julia> value.(y)
+2-element Array{Float64,1}:
+ 0.0
+ 1.224744871391589
+
+julia> optimizer_index(x)
+MathOptInterface.VariableIndex(3)
 ```
 
+!!! note
+    If [`optimizer_model_variable`](@ref) and [`optimizer_model_constraint`](@ref)
+    cannot be extended due to the nature of the reformulation then please refer
+    to step 8 of the extension steps listed at the beginning of this section.
+
+Furthermore, if appropriate for the given reformulation the following should be
+extended:
+- [`variable_supports`](@ref) to enable [`supports`](@ref supports(::InfiniteVariableRef))
+- [`constraint_supports`](@ref) to enable [`supports`](@ref supports(::GeneralConstraintRef))
+- [`constraint_parameter_refs`](@ref) to enable [`parameter_refs`](@ref parameter_refs(::GeneralConstraintRef))
+
+That's it!
+
 ## Wrapper Packages
+`InfiniteOpt` provides a convenient modular interface for defining infinite
+dimensional optimization problems, implementing many tedious `JuMP` extensions
+such as facilitating mixed variable expressions. Thus, `InfiniteOpt` can serve
+as a base package for specific types of infinite dimensional problems and/or
+solution techniques. These extension packages can implement any of the extensions
+shown above and likely will want to introduce wrapper functions and macros to
+use package specific terminology (e.g., using random variables instead of
+infinite variables).
+
+TODO refer to example packages that do this (e.g., an update of FlexibilityAnalysis.jl)

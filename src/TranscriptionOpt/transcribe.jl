@@ -751,6 +751,22 @@ function _map_variable_info_constraints(trans_model::JuMP.Model,
     return
 end
 
+# Fill in a given trans_model with the reformulation of the inf_model
+# This assumes that trans_model is empty
+function _build_transcription_model!(trans_model::JuMP.Model,
+                                     inf_model::InfiniteModel)
+    InfiniteOpt.fill_in_supports!(inf_model)
+    _initialize_hold_variables(trans_model, inf_model)
+    _initialize_infinite_variables(trans_model, inf_model)
+    _map_point_variables(trans_model, inf_model)
+    if JuMP.objective_sense(inf_model) != MOI.FEASIBILITY_SENSE
+        _set_objective(trans_model, inf_model)
+    end
+    _map_variable_info_constraints(trans_model, inf_model)
+    # TODO optimize performance --> bottlenecked with _make_transcription_function
+    _set_constraints(trans_model, inf_model)
+end
+
 """
     TranscriptionModel(model::InfiniteModel, [optimizer_constructor;
                        caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
@@ -786,15 +802,6 @@ function TranscriptionModel(inf_model::InfiniteOpt.InfiniteModel,
     else
         trans_model = TranscriptionModel(optimizer_constructor; kwargs...)
     end
-    InfiniteOpt.fill_in_supports!(inf_model)
-    _initialize_hold_variables(trans_model, inf_model)
-    _initialize_infinite_variables(trans_model, inf_model)
-    _map_point_variables(trans_model, inf_model)
-    if JuMP.objective_sense(inf_model) != MOI.FEASIBILITY_SENSE
-        _set_objective(trans_model, inf_model)
-    end
-    _map_variable_info_constraints(trans_model, inf_model)
-    # TODO optimize performance --> bottlenecked with _make_transcription_function
-    _set_constraints(trans_model, inf_model)
+    _build_transcription_model!(trans_model, inf_model)
     return trans_model
 end

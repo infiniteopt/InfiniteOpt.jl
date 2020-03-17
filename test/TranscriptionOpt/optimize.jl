@@ -9,21 +9,6 @@
     @test_throws ErrorException transcription_model(m)
 end
 
-# Test add_infinite_model_optimizer
-@testset "add_infinite_model_optimizer" begin
-    # initialize model
-    mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
-                                             eval_objective_value=false)
-    m = InfiniteModel(mockoptimizer)
-    set_silent(m)
-    set_time_limit_sec(m, 42)
-    # test normal
-    tm = Model()
-    @test add_infinite_model_optimizer(m, tm) isa Nothing
-    @test time_limit_sec(tm) == 42
-    @test get_optimizer_attribute(tm, MOI.Silent())
-end
-
 # Test build_optimizer_model!
 @testset "build_optimizer_model!" begin
     # initialize model

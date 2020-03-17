@@ -231,9 +231,12 @@ JuMP.backend(model::InfiniteModel)
 JuMP.mode(model::InfiniteModel)
 optimizer_model
 set_optimizer_model
-optimizer_model_key
+optimizer_model_key(::InfiniteModel)
+optimizer_model_key(::JuMP.Model)
 build_optimizer_model!(::InfiniteModel)
-build_optimizer_model!
+build_optimizer_model!(::JuMP.Model)
+clear_optimizer_model_build!(::InfiniteModel)
+clear_optimizer_model_build!
 add_infinite_model_optimizer
 optimizer_model_variable(::InfOptVariableRef)
 optimizer_model_variable

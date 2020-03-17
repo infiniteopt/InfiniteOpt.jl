@@ -133,13 +133,13 @@ julia> transcription_constraint(trans_model, constr)
  constr(Support: 2) : g(support: 2)² - z ≤ 42.0
  constr(Support: 3) : g(support: 3)² - z ≤ 42.0
 
-julia> supports(trans_model, constr)
+julia> constraint_supports(trans_model, constr)
 3-element Array{Tuple{Float64},1}:
  (0.0,)
  (5.0,)
  (10.0,)
 
-julia> parameter_refs(trans_model, constr)
+julia> constraint_parameter_refs(trans_model, constr)
 (t,)
 ```
 Note the parameter reference tuple corresponds to the support tuples.

@@ -83,12 +83,39 @@ function set_optimizer_model_ready(model::InfiniteModel, status::Bool)
 end
 
 """
-    set_optimizer_model(inf_model::InfiniteModel, opt_model::JuMP.Model)
+    add_infinite_model_optimizer(opt_model::JuMP.Model, inf_model::InfiniteModel)
+
+Parse the current optimizer and its attributes associated with `model` and load
+them into `opt_model`. This is intended to be used as an internal method
+for [`set_optimizer_model`](@ref).
+"""
+function add_infinite_model_optimizer(opt_model::JuMP.Model,
+                                      inf_model::InfiniteModel)
+    if !isa(inf_model.optimizer_constructor, Nothing)
+        bridge_constrs = JuMP.bridge_constraints(inf_model)
+        JuMP.set_optimizer(opt_model, inf_model.optimizer_constructor,
+                           bridge_constraints = bridge_constrs)
+    end
+    # parse the attributes
+    for attr in MOI.get(JuMP.backend(inf_model).model_cache,
+                        MOI.ListOfOptimizerAttributesSet())
+        value = MOI.get(JuMP.backend(inf_model), attr)
+        MOI.set(opt_model, attr, value)
+    end
+    return
+end
+
+"""
+    set_optimizer_model(inf_model::InfiniteModel, opt_model::JuMP.Model;
+                        inherit_optimizer::Bool = true)
 
 Specify the JuMP model that is used to solve `inf_model`. This is intended for
 internal use and extensions. Note that `opt_model` should contain extension
 data to allow it to map to `inf_model` in a manner similar to
-[`TranscriptionModel`](@ref).
+[`TranscriptionModel`](@ref). `inherit_optimizer` indicates whether
+[`add_infinite_model_optimizer`](@ref) should be invoked on the new optimizer
+mode to inherit the optimizer constuctor and attributes currently stored in
+`inf_model`.
 
 **Example**
 ```julia-repl
@@ -103,7 +130,11 @@ CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
 ```
 """
-function set_optimizer_model(inf_model::InfiniteModel, opt_model::JuMP.Model)
+function set_optimizer_model(inf_model::InfiniteModel, opt_model::JuMP.Model;
+                             inherit_optimizer::Bool = true)
+    if inherit_optimizer
+        add_infinite_model_optimizer(opt_model, inf_model)
+    end
     inf_model.optimizer_model = opt_model
     set_optimizer_model_ready(inf_model, false)
     return
@@ -323,6 +354,25 @@ end
 JuMP.solve(model::InfiniteModel) = JuMP.solve(optimizer_model(model))
 
 """
+    optimizer_model_key(model::JuMP.Model)::Any
+
+Return the extension key used in the optimizer model `model`. Errors if
+`model.ext` contains more than one key. This is intended for internal
+use and extensions. For extensions this is used to dispatch to the appropriate
+optmizer model functions such as extensions to [`build_optimizer_model!`](@ref).
+This is intended as an internal method. See [`optimizer_model_key`](@ref optimizer_model_key(::InfiniteModel))
+for the public method
+"""
+function optimizer_model_key(model::JuMP.Model)::Any
+    key = collect(keys(model.ext))
+    if length(key) != 1
+        error("Optimizer models should have 1 and only 1 extension key of the " *
+              "form `Model.ext[:my_ext_key] = MyExtData`.")
+    end
+    return key[1]
+end
+
+"""
     optimizer_model_key(model::InfiniteModel)::Any
 
 Return the extension key used in the optimizer model of `model`. Errors if
@@ -337,11 +387,7 @@ julia> optimizer_model_key(model)
 ```
 """
 function optimizer_model_key(model::InfiniteModel)::Any
-    key = collect(keys(optimizer_model(model).ext))
-    if length(key) != 1
-        error("Optimizer models should have 1 and only 1 extension key.")
-    end
-    return key[1]
+    return optimizer_model_key(optimizer_model(model))
 end
 
 """
@@ -360,25 +406,34 @@ should be used to update the optimizer model's status.
 function build_optimizer_model! end
 
 """
-    add_infinite_model_optimizer(inf_model::InfiniteModel, opt_model::JuMP.Model)
+    clear_optimizer_model_build!(model::JuMP.Model)::JuMP.Model
 
-Parse the current optimizer and its attributes associated with `model` and load
-them into `opt_model`. This is intended to be used as an internal method
-for implementations of [`build_optimizer_model!`](@ref).
+Empty the optimizer model using appropriate calls of `Base.empty!`. This
+effectively resets `model` except the optimizer, its attributes, and an an emptied
+optimizer model data struct are maintained. This is intended as an internal
+method for use by [`build_optimizer_model!`](@ref).
 """
-function add_infinite_model_optimizer(inf_model::InfiniteModel,
-                                      opt_model::JuMP.Model)
-    if !isa(inf_model.optimizer_constructor, Nothing)
-        bridge_constrs = JuMP.bridge_constraints(inf_model)
-        JuMP.set_optimizer(opt_model, inf_model.optimizer_constructor,
-                           bridge_constraints = bridge_constrs)
-        # parse the attributes
-        for attr in MOI.get(JuMP.backend(inf_model).model_cache,
-                            MOI.ListOfOptimizerAttributesSet())
-            value = MOI.get(JuMP.backend(inf_model), attr)
-            MOI.set(opt_model, attr, value)
-        end
-    end
+function clear_optimizer_model_build!(model::JuMP.Model)::JuMP.Model
+    MOI.empty!(model.moi_backend)
+    empty!(model.shapes)
+    model.nlp_data = nothing
+    empty!(model.obj_dict)
+    key = optimizer_model_key(model)
+    data_type = typeof(model.ext[key])
+    model.ext[key] = data_type() # assumes a constructor has been implemented.
+    return model
+end
+
+"""
+    clear_optimizer_model_build!(model::InfiniteModel)::JuMP.Model
+
+Empty the optimizer model using appropriate calls of `Base.empty!`. This
+effectively resets `model.optimizer_model` except the optimizer, its attributes,
+and an an emptied optimizer model data struct are maintained. This is intended
+as an internal method for use by [`build_optimizer_model!`](@ref).
+"""
+function clear_optimizer_model_build!(model::InfiniteModel)::JuMP.Model
+    return clear_optimizer_model_build!(optimizer_model(model))
 end
 
 """
@@ -657,27 +712,6 @@ AUTOMATIC::ModelMode = 0
 """
 function JuMP.mode(model::InfiniteModel)
     return JuMP.mode(optimizer_model(model))
-end
-
-"""
-    add_previous_optimizer(inf_model::InfiniteModel, opt_model::JuMP.Model)
-
-Parse the current optimizer and its attributes associated with `model` and load
-them into `opt_model`. This is intended to be used as an internal method
-for implementations of [`build_optimizer_model!`](@ref).
-"""
-function add_previous_optimizer(inf_model::InfiniteModel, opt_model::JuMP.Model)
-    if !isa(inf_model.optimizer_constructor, Nothing)
-        bridge_constrs = JuMP.bridge_constraints(inf_model)
-        JuMP.set_optimizer(opt_model, inf_model.optimizer_constructor,
-                           bridge_constraints = bridge_constrs)
-        # parse the attributes
-        for attr in MOI.get(JuMP.backend(inf_model).model_cache,
-                            MOI.ListOfOptimizerAttributesSet())
-            value = MOI.get(JuMP.backend(inf_model), attr)
-            MOI.set(opt_model, attr, value)
-        end
-    end
 end
 
 """

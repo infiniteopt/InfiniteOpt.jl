@@ -201,9 +201,10 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 end
 
 """
-    InfiniteModel([optimizer_constructor; seed = false,
+    InfiniteModel([optimizer_constructor; seed::Bool = false,
+                  OptimizerModel::Function = TranscriptionModel,
                   caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
-                  bridge_constraints::Bool = true])
+                  bridge_constraints::Bool = true, optimizer_model_kwargs...])
 
 Return a new infinite model where an optimizer is specified if an
 `optimizer_constructor` is given. The `seed` argument indicates if the stochastic
@@ -236,7 +237,8 @@ CachingOptimizer state: EMPTY_OPTIMIZER
 Solver name: Ipopt
 ```
 """
-function InfiniteModel(; seed = false, kwargs...)
+function InfiniteModel(; seed::Bool = false,
+                       OptimizerModel::Function = TranscriptionModel, kwargs...)
     if seed
         Random.seed!(0)
     end
@@ -277,7 +279,7 @@ function InfiniteModel(; seed = false, kwargs...)
                          # Object dictionary
                          Dict{Symbol, Any}(),
                          # Optimize data
-                         nothing, TranscriptionModel(;kwargs...), false,
+                         nothing, OptimizerModel(;kwargs...), false,
                          # Extensions
                          Dict{Symbol, Any}())
 end
@@ -296,10 +298,11 @@ function _set_optimizer_constructor(model::InfiniteModel, constructor)
     return
 end
 
-# Dispatch for InfiniteModel call with optimizer factory
-function InfiniteModel(optimizer_constructor; seed = false, kwargs...)
+# Dispatch for InfiniteModel call with optimizer constructor
+function InfiniteModel(optimizer_constructor; seed::Bool = false,
+                       OptimizerModel::Function = TranscriptionModel, kwargs...)
     model = InfiniteModel(seed = seed)
-    model.optimizer_model = TranscriptionModel(optimizer_constructor; kwargs...)
+    model.optimizer_model = OptimizerModel(optimizer_constructor; kwargs...)
     _set_optimizer_constructor(model, optimizer_constructor)
     return model
 end

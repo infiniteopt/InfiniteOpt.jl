@@ -24,6 +24,10 @@
     @test isa(build_optimizer_model!(m), Nothing)
     @test optimizer_model_ready(m)
     @test num_variables(optimizer_model(m)) == 8
+    # test repeated build 
+    @test isa(build_optimizer_model!(m), Nothing)
+    @test optimizer_model_ready(m)
+    @test num_variables(optimizer_model(m)) == 8
 end
 
 # Test optimizer model querying methods

@@ -53,25 +53,22 @@ end
 function InfiniteOpt.build_optimizer_model!(model::InfiniteModel,
                                             key::Val{:ReformData}; # INSERT NEW KEY
                                             my_kwarg::Bool = true) # ADD KEYWORD ARGUMENTS AS NEEDED
-    # retrieve model mode
-    mode = JuMP.backend(optimizer_model(model)).mode
+    # clear the model for a build/rebuild
+    reform_model = clear_optimizer_model_build!(model)
 
     # IT MAY BE USEFUL TO CALL expand_all_measures! TO HANDLE MEASURES FIRST
 
-    # REPLACE LINES 60-67 WITH OPERATIONS TO BUILD A NewReformModel BASED ON `model`
-    reform_model = TranscriptionModel(model, caching_mode = mode)
-    reform_data = NewReformData()
+    # REPLACE LINES 62-69 WITH OPERATIONS TO BUILD A NewReformModel BASED ON `model`
+    reform_model.ext[:TransData] = TranscriptionData()
+    InfiniteOpt.TranscriptionOpt._build_transcription_model!(reform_model, model)
+    reform_data = reform_model.ext[:ReformData]
     for i in eachindex(fieldnames(TranscriptionData))
-         value = copy(getfield(transcription_data(reform_model), fieldnames(TranscriptionData)[i]))
+        value = copy(getfield(transcription_data(reform_model), fieldnames(TranscriptionData)[i]))
         setfield!(reform_data, fieldnames(NewReformData)[i], value)
     end
     delete!(reform_model.ext, :TransData)
-    reform_model.ext[:ReformData] = reform_data
 
-    # add the optimizer and its attributes
-    add_infinite_model_optimizer(model, reform_model) # REPLACE reform_model WITH ACTUAL
-    # add the the built optimizer model to the infinite model
-    set_optimizer_model(model, reform_model) # REPLACE reform_model WITH ACTUAL
+    # update the optimizer model status
     set_optimizer_model_ready(model, true)
     return
 end
