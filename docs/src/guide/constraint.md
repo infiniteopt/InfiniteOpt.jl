@@ -99,7 +99,7 @@ the second argument. To illustrate this, let's define an anonymous constraint
 for ``2T^2(t, x) + w \geq 3, \ \forall t = 0, \ x \in [-1, 1]^2``:
 ```jldoctest constrs
 julia> cref = @BDconstraint(model, (t == 0, x in [-1, 1]), 2T^2 + w >= 3)
-2 T(t, x)² + w ≥ 3.0,  ∀ x[2] ∈ [-1, 1], x[1] ∈ [-1, 1], t = 0
+2 T(t, x)² + w ≥ 3.0, ∀ x[2] ∈ [-1, 1], x[1] ∈ [-1, 1], t = 0
 ```
 where `cref` contains the corresponding constraint reference.
 

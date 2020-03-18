@@ -61,7 +61,7 @@ function _update_point_mapping(trans_model::JuMP.Model,
                                pvref::InfiniteOpt.PointVariableRef,
                                ivref::InfiniteOpt.InfiniteVariableRef,
                                support::Tuple)
-    supps = InfiniteOpt.supports(trans_model, ivref)
+    supps = InfiniteOpt.variable_supports(trans_model, ivref)
     # search for the support and update mapping
     for i in eachindex(supps)
        if all(isapprox.(support, supps[i]))
@@ -175,7 +175,7 @@ function _map_to_variable(ivref::InfiniteOpt.InfiniteVariableRef, support::Tuple
     reduced_support = Tuple(support[findfirst(isequal(group), support_groups)]
                             for group in ivref_groups)
     # find the jump variable associated with the support
-    supps = InfiniteOpt.supports(trans_model, ivref)
+    supps = InfiniteOpt.variable_supports(trans_model, ivref)
     for i in eachindex(supps)
         if all(isapprox.(reduced_support, supps[i]))
             return transcription_variable(trans_model, ivref)[i]
@@ -253,7 +253,7 @@ function _make_transcription_function(vref::InfiniteOpt.InfiniteVariableRef,
                                       bounds::Dict = Dict())::Tuple
     # Update the supports to include only those in the bounds and return vars
     if length(bounds) != 0
-        supports = InfiniteOpt.supports(trans_model, vref)
+        supports = InfiniteOpt.variable_supports(trans_model, vref)
         prefs = InfiniteOpt.parameter_refs(vref)
         old_support_indices = _supports_in_bounds(supports, prefs, bounds)
         new_supports = supports[old_support_indices]
@@ -263,7 +263,7 @@ function _make_transcription_function(vref::InfiniteOpt.InfiniteVariableRef,
     else
         return transcription_variable(trans_model, vref),
                InfiniteOpt.parameter_refs(vref),
-               InfiniteOpt.supports(trans_model, vref)
+               InfiniteOpt.variable_supports(trans_model, vref)
     end
 end
 
@@ -662,7 +662,7 @@ function _map_info_constraints(ivref::InfiniteOpt.InfiniteVariableRef,
         for i in eachindex(vrefs)
             if JuMP.has_lower_bound(vrefs[i])
                 push!(crefs, JuMP.LowerBoundRef(vrefs[i]))
-                push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
+                push!(supports, InfiniteOpt.variable_supports(trans_model, ivref)[i])
             end
         end
         if length(crefs) != 0
@@ -678,7 +678,7 @@ function _map_info_constraints(ivref::InfiniteOpt.InfiniteVariableRef,
         for i in eachindex(vrefs)
             if JuMP.has_upper_bound(vrefs[i])
                 push!(crefs, JuMP.UpperBoundRef(vrefs[i]))
-                push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
+                push!(supports, InfiniteOpt.variable_supports(trans_model, ivref)[i])
             end
         end
         if length(crefs) != 0
@@ -694,7 +694,7 @@ function _map_info_constraints(ivref::InfiniteOpt.InfiniteVariableRef,
         for i in eachindex(vrefs)
             if JuMP.is_fixed(vrefs[i])
                 push!(crefs, JuMP.FixRef(vrefs[i]))
-                push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
+                push!(supports, InfiniteOpt.variable_supports(trans_model, ivref)[i])
             end
         end
         if length(crefs) != 0
@@ -710,7 +710,7 @@ function _map_info_constraints(ivref::InfiniteOpt.InfiniteVariableRef,
         for i in eachindex(vrefs)
             if JuMP.is_integer(vrefs[i])
                 push!(crefs, JuMP.IntegerRef(vrefs[i]))
-                push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
+                push!(supports, InfiniteOpt.variable_supports(trans_model, ivref)[i])
             end
         end
         if length(crefs) != 0
@@ -726,7 +726,7 @@ function _map_info_constraints(ivref::InfiniteOpt.InfiniteVariableRef,
         for i in eachindex(vrefs)
             if JuMP.is_binary(vrefs[i])
                 push!(crefs, JuMP.BinaryRef(vrefs[i]))
-                push!(supports, InfiniteOpt.supports(trans_model, ivref)[i])
+                push!(supports, InfiniteOpt.variable_supports(trans_model, ivref)[i])
             end
         end
         if length(crefs) != 0
@@ -749,6 +749,22 @@ function _map_variable_info_constraints(trans_model::JuMP.Model,
         end
     end
     return
+end
+
+# Fill in a given trans_model with the reformulation of the inf_model
+# This assumes that trans_model is empty
+function _build_transcription_model!(trans_model::JuMP.Model,
+                                     inf_model::InfiniteOpt.InfiniteModel)
+    InfiniteOpt.fill_in_supports!(inf_model)
+    _initialize_hold_variables(trans_model, inf_model)
+    _initialize_infinite_variables(trans_model, inf_model)
+    _map_point_variables(trans_model, inf_model)
+    if JuMP.objective_sense(inf_model) != MOI.FEASIBILITY_SENSE
+        _set_objective(trans_model, inf_model)
+    end
+    _map_variable_info_constraints(trans_model, inf_model)
+    # TODO optimize performance --> bottlenecked with _make_transcription_function
+    _set_constraints(trans_model, inf_model)
 end
 
 """
@@ -786,15 +802,6 @@ function TranscriptionModel(inf_model::InfiniteOpt.InfiniteModel,
     else
         trans_model = TranscriptionModel(optimizer_constructor; kwargs...)
     end
-    InfiniteOpt.fill_in_supports!(inf_model)
-    _initialize_hold_variables(trans_model, inf_model)
-    _initialize_infinite_variables(trans_model, inf_model)
-    _map_point_variables(trans_model, inf_model)
-    if JuMP.objective_sense(inf_model) != MOI.FEASIBILITY_SENSE
-        _set_objective(trans_model, inf_model)
-    end
-    _map_variable_info_constraints(trans_model, inf_model)
-    # TODO optimize performance --> bottlenecked with _make_transcription_function
-    _set_constraints(trans_model, inf_model)
+    _build_transcription_model!(trans_model, inf_model)
     return trans_model
 end
