@@ -754,7 +754,7 @@ end
 # Fill in a given trans_model with the reformulation of the inf_model
 # This assumes that trans_model is empty
 function _build_transcription_model!(trans_model::JuMP.Model,
-                                     inf_model::InfiniteModel)
+                                     inf_model::InfiniteOpt.InfiniteModel)
     InfiniteOpt.fill_in_supports!(inf_model)
     _initialize_hold_variables(trans_model, inf_model)
     _initialize_infinite_variables(trans_model, inf_model)
