@@ -44,9 +44,9 @@ mutable struct TranscriptionData
 
     # Constraint mapping
     infinite_to_constrs::Dict{InfiniteOpt.InfiniteConstraintRef,
-                             Vector{JuMP.ConstraintRef}}
+                              Vector{JuMP.ConstraintRef}}
     measure_to_constrs::Dict{InfiniteOpt.MeasureConstraintRef,
-                            Vector{JuMP.ConstraintRef}}
+                             Vector{JuMP.ConstraintRef}}
     finite_to_constr::Dict{InfiniteOpt.FiniteConstraintRef, JuMP.ConstraintRef}
 
     # Constraint support data
@@ -205,38 +205,20 @@ function InfiniteOpt.optimizer_model_variable(vref::InfiniteOpt.InfOptVariableRe
 end
 
 """
-    InfiniteOpt.supports(model::JuMP.Model,
-                         vref::InfiniteOpt.InfiniteVariableRef)::Vector
+    InfiniteOpt.variable_supports(model::JuMP.Model,
+                                  vref::InfiniteOpt.InfiniteVariableRef,
+                                  key::Val{:TransData} = Val(:TransData))::Vector
 
 Return the support alias mapping associated with `vref` in the transcribed model.
 Errors if `vref` does not have transcribed variables.
 """
-function InfiniteOpt.supports(model::JuMP.Model,
-                              vref::InfiniteOpt.InfiniteVariableRef)::Vector
+function InfiniteOpt.variable_supports(model::JuMP.Model,
+                                       vref::InfiniteOpt.InfiniteVariableRef,
+                                       key::Val{:TransData} = Val(:TransData))::Vector
     if !haskey(transcription_data(model).infvar_to_supports, vref)
         error("Variable reference $vref not used in transcription model.")
     end
     return transcription_data(model).infvar_to_supports[vref]
-end
-
-"""
-    InfiniteOpt.supports(vref::InfiniteOpt.InfiniteVariableRef)::Vector
-
-Return the support alias mapping associated with `vref` in the transcription
-model. Errors if the infinite model does not contain a transcription model or if
-`vref` is not transcribed.
-
-**Example**
-```julia-repl
-julia> supports(vref)
-Dict{Int64,Tuple{Float64}} with 2 entries:
-  2 => (1.0,)
-  1 => (0.0,)
-```
-"""
-function InfiniteOpt.supports(vref::InfiniteOpt.InfiniteVariableRef)::Vector
-    model = InfiniteOpt.optimizer_model(JuMP.owner_model(vref))
-    return InfiniteOpt.supports(model, vref)
 end
 
 """
@@ -296,7 +278,7 @@ end
 
 """
     InfiniteOpt.optimizer_model_constraint(cref::InfiniteOpt.GeneralConstraintRef,
-                                         ::Val{:TransData})
+                                           ::Val{:TransData})
 
 Proper extension of [`InfiniteOpt.optimizer_model_constraint`](@ref) for
 `TranscriptionModel`s. This simply dispatches to [`transcription_constraint`](@ref).
@@ -307,22 +289,25 @@ function InfiniteOpt.optimizer_model_constraint(cref::InfiniteOpt.GeneralConstra
 end
 
 """
-    InfiniteOpt.supports(model::JuMP.Model,
-                         cref::InfiniteOpt.GeneralConstraintRef)::Vector
+    InfiniteOpt.constraint_supports(model::JuMP.Model,
+                                    cref::InfiniteOpt.GeneralConstraintRef,
+                                    key::Val{:TransData} = Val(:TransData))::Vector
 
 Return the support alias mappings associated with `cref`. Errors if `cref` is
 not transcribed.
 """
-function InfiniteOpt.supports(model::JuMP.Model,
-                              cref::InfiniteOpt.InfiniteConstraintRef)::Vector
+function InfiniteOpt.constraint_supports(model::JuMP.Model,
+                                         cref::InfiniteOpt.InfiniteConstraintRef,
+                                         key::Val{:TransData} = Val(:TransData))::Vector
     if !haskey(transcription_data(model).infconstr_to_supports, cref)
         error("Constraint reference $cref not used in transcription model.")
     end
     return transcription_data(model).infconstr_to_supports[cref]
 end
 # MeasureConstraintRef
-function InfiniteOpt.supports(model::JuMP.Model,
-                              cref::InfiniteOpt.MeasureConstraintRef)::Vector
+function InfiniteOpt.constraint_supports(model::JuMP.Model,
+                                         cref::InfiniteOpt.MeasureConstraintRef,
+                                         key::Val{:TransData} = Val(:TransData))::Vector
     if !haskey(transcription_data(model).measconstr_to_supports, cref)
         error("Constraint reference $cref not used in transcription model " *
               "and/or is finite and doesn't have supports.")
@@ -331,38 +316,16 @@ function InfiniteOpt.supports(model::JuMP.Model,
 end
 
 """
-    InfiniteOpt.supports(cref::InfiniteOpt.GeneralConstraintRef)::Vector
-
-Return the support alias mappings associated with `cref`. Errors if `cref` is
-not transcribed or if the infinite model does not have a transcription model.
-
-**Example**
-```julia-repl
-julia> supports(cref)
-Dict{Int64,Tuple{Float64}} with 2 entries:
-  2 => (1.0,)
-  1 => (0.0,)
-```
-"""
-function InfiniteOpt.supports(cref::InfiniteOpt.InfiniteConstraintRef)::Vector
-    model = InfiniteOpt.optimizer_model(JuMP.owner_model(cref))
-    return InfiniteOpt.supports(model, cref)
-end
-# MeasureConstraintRef
-function InfiniteOpt.supports(cref::InfiniteOpt.MeasureConstraintRef)::Vector
-    model = InfiniteOpt.optimizer_model(JuMP.owner_model(cref))
-    return InfiniteOpt.supports(model, cref)
-end
-
-"""
-    InfiniteOpt.parameter_refs(model::JuMP.Model,
-                               cref::InfiniteOpt.GeneralConstraintRef)::Tuple
+    InfiniteOpt.constraint_parameter_refs(model::JuMP.Model,
+                                          cref::InfiniteOpt.GeneralConstraintRef,
+                                          key::Val{:TransData} = Val(:TransData))::Tuple
 
 Return the a parameter reference tuple of all the parameters that parameterize
 `cref` and correspond to the supports. Errors if `cref` has not been transcribed.
 """
-function InfiniteOpt.parameter_refs(model::JuMP.Model,
-                                    cref::InfiniteOpt.InfiniteConstraintRef)::Tuple
+function InfiniteOpt.constraint_parameter_refs(model::JuMP.Model,
+                                               cref::InfiniteOpt.InfiniteConstraintRef,
+                                               key::Val{:TransData} = Val(:TransData))::Tuple
     if !haskey(transcription_data(model).infconstr_to_params, cref)
         error("Constraint reference $cref not used in transcription model " *
               "and/or is finite and doesn't have parameter references.")
@@ -370,34 +333,12 @@ function InfiniteOpt.parameter_refs(model::JuMP.Model,
     return transcription_data(model).infconstr_to_params[cref]
 end
 # MeasureConstraintRef
-function InfiniteOpt.parameter_refs(model::JuMP.Model,
-                                    cref::InfiniteOpt.MeasureConstraintRef)::Tuple
+function InfiniteOpt.constraint_parameter_refs(model::JuMP.Model,
+                                               cref::InfiniteOpt.MeasureConstraintRef,
+                                               key::Val{:TransData} = Val(:TransData))::Tuple
     if !haskey(transcription_data(model).measconstr_to_params, cref)
         error("Constraint reference $cref not used in transcription model " *
               "and/or is finite and doesn't have parameter references.")
     end
     return transcription_data(model).measconstr_to_params[cref]
-end
-
-"""
-    InfiniteOpt.parameter_refs(cref::InfiniteOpt.GeneralConstraintRef)::Tuple
-
-Return the a parameter reference tuple of all the parameters that parameterize
-`cref` and correspond to the supports. Errors if `cref` has not been transcribed
-or if the infinite model does not have a transcription model associated with it.
-
-**Example**
-```julia-repl
-julia> parameter_refs(cref)
-(t, x)
-```
-"""
-function InfiniteOpt.parameter_refs(cref::InfiniteOpt.InfiniteConstraintRef)::Tuple
-    model = InfiniteOpt.optimizer_model(JuMP.owner_model(cref))
-    return InfiniteOpt.parameter_refs(model, cref)
-end
-# MeasureConstraintRef
-function InfiniteOpt.parameter_refs(cref::InfiniteOpt.MeasureConstraintRef)::Tuple
-    model = InfiniteOpt.optimizer_model(JuMP.owner_model(cref))
-    return InfiniteOpt.parameter_refs(model, cref)
 end

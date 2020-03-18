@@ -77,13 +77,13 @@ end
         @test optimizer_model_variable(x, Val(:TransData)) == [b, c]
         @test optimizer_model_variable(x0, Val(:TransData)) == b
     end
-    # test supports for infinite variable with 2 inputs
-    @testset "supports (Model, Infinite Variable)" begin
+    # test variable_supports for infinite variable with 2 inputs
+    @testset "variable_supports (Model, Infinite Variable)" begin
         # test error
-        @test_throws ErrorException supports(tm, x)
+        @test_throws ErrorException variable_supports(tm, x)
         # test normal
         tm.ext[:TransData].infvar_to_supports[x] = [(0.,), (1.,)]
-        @test supports(tm, x) == [(0.,), (1.,)]
+        @test variable_supports(tm, x) == [(0.,), (1.,)]
         # undo changes
         delete!(tm.ext[:TransData].infvar_to_supports, x)
     end
@@ -153,13 +153,13 @@ end
         @test optimizer_model_constraint(c2, Val(:TransData)) == [tc3]
         @test optimizer_model_constraint(c3, Val(:TransData)) == tc4
     end
-    # test supports for infinite constraint with 2 inputs
-    @testset "supports (Model, Infinite)" begin
+    # test constraint_supports for infinite constraint with 2 inputs
+    @testset "constraint_supports (Model, Infinite)" begin
         # test error
-        @test_throws ErrorException supports(tm, c1)
+        @test_throws ErrorException constraint_supports(tm, c1)
         # test normal
         tm.ext[:TransData].infconstr_to_supports[c1] = [(0.,), (1.,)]
-        @test supports(tm, c1) == [(0.,), (1.,)]
+        @test constraint_supports(tm, c1) == [(0.,), (1.,)]
         # undo changes
         delete!(tm.ext[:TransData].infconstr_to_supports, c1)
     end
@@ -172,12 +172,12 @@ end
         @test supports(c1) == [(0.,), (1.,)]
     end
     # test supports for measure constraint with 2 inputs
-    @testset "supports (Model, Measure)" begin
+    @testset "constraint_supports (Model, Measure)" begin
         # test error
-        @test_throws ErrorException supports(tm, c2)
+        @test_throws ErrorException constraint_supports(tm, c2)
         # test normal
         tm.ext[:TransData].measconstr_to_supports[c2] = [(0.,), (1.,)]
-        @test supports(tm, c2) == [(0.,), (1.,)]
+        @test constraint_supports(tm, c2) == [(0.,), (1.,)]
         # undo changes
         delete!(tm.ext[:TransData].measconstr_to_supports, c2)
     end
@@ -189,13 +189,13 @@ end
         tm.ext[:TransData].measconstr_to_supports[c2] = [(0.,), (1.,)]
         @test supports(c2) == [(0.,), (1.,)]
     end
-    # test parameter_refs for infinite constraint with 2 inputs
-    @testset "parameter_refs (Model, Infinite)" begin
+    # test constraint_parameter_refs for infinite constraint with 2 inputs
+    @testset "constraint_parameter_refs (Model, Infinite)" begin
         # test error
-        @test_throws ErrorException parameter_refs(tm, c1)
+        @test_throws ErrorException constraint_parameter_refs(tm, c1)
         # test normal
         tm.ext[:TransData].infconstr_to_params[c1] = (par,)
-        @test parameter_refs(tm, c1) == (par,)
+        @test constraint_parameter_refs(tm, c1) == (par,)
         # undo changes
         delete!(tm.ext[:TransData].infconstr_to_params, c1)
     end
@@ -207,13 +207,13 @@ end
         tm.ext[:TransData].infconstr_to_params[c1] = (par,)
         @test parameter_refs(c1) == (par,)
     end
-    # test parameter_refs for measure constraint with 2 inputs
-    @testset "parameter_refs (Model, Measure)" begin
+    # test constraint_parameter_refs for measure constraint with 2 inputs
+    @testset "constraint_parameter_refs (Model, Measure)" begin
         # test error
-        @test_throws ErrorException parameter_refs(tm, c2)
+        @test_throws ErrorException constraint_parameter_refs(tm, c2)
         # test normal
         tm.ext[:TransData].measconstr_to_params[c2] = (par,)
-        @test parameter_refs(tm, c2) == (par,)
+        @test constraint_parameter_refs(tm, c2) == (par,)
         # undo changes
         delete!(tm.ext[:TransData].measconstr_to_params, c2)
     end

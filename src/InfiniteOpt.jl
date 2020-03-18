@@ -113,7 +113,9 @@ transcription_constraint, transcription_model
 # Export optimize methods
 export optimizer_model, set_optimizer_model, optimizer_model_ready,
 set_optimizer_model_ready, build_optimizer_model!, optimizer_model_key,
-optimizer_model_variable, optimizer_model_constraint
+optimizer_model_variable, optimizer_model_constraint, variable_supports,
+constraint_supports, constraint_parameter_refs, add_infinite_model_optimizer,
+clear_optimizer_model_build!
 
 # Export result query methods
 export map_value, map_optimizer_index, map_dual, map_shadow_price,

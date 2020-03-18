@@ -1,6 +1,23 @@
+# Test add_infinite_model_optimizer
+@testset "add_infinite_model_optimizer" begin
+    # initialize model
+    mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                             eval_objective_value=false)
+    m = InfiniteModel(mockoptimizer)
+    set_silent(m)
+    set_time_limit_sec(m, 42)
+    # test normal
+    tm = Model()
+    @test add_infinite_model_optimizer(tm, m) isa Nothing
+    @test time_limit_sec(tm) == 42
+    @test get_optimizer_attribute(tm, MOI.Silent())
+end
+
 # Test the optimizer model methods
 @testset "Optimizer Model" begin
-    m = InfiniteModel()
+    mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                                             eval_objective_value=false)
+    m = InfiniteModel(mockoptimizer)
     # optimizer_model
     @testset "optimizer_model" begin
         @test isa(optimizer_model(m), Model)
@@ -18,15 +35,59 @@
     end
     # set_optimizer_model
     @testset "set_optimizer_model" begin
+        # test with inheritance
+        set_time_limit_sec(optimizer_model(m), 42)
         @test isa(set_optimizer_model(m, Model()), Nothing)
         @test length(optimizer_model(m).ext) == 0
+        @test time_limit_sec(optimizer_model(m)) == 42
+        @test optimize!(optimizer_model(m)) isa Nothing
+        # test without inheritance
+        @test isa(set_optimizer_model(m, Model(), inherit_optimizer = false), Nothing)
+        @test length(optimizer_model(m).ext) == 0
+        @test_throws ErrorException time_limit_sec(optimizer_model(m))
+        @test_throws NoOptimizer optimize!(optimizer_model(m))
     end
-    # optimizer_model_key
-    @testset "optimizer_model_key" begin
+    # optimizer_model_key (optimizer models)
+    @testset "optimizer_model_key (Model)" begin
+        m = InfiniteModel()
+        @test optimizer_model_key(optimizer_model(m)) == :TransData
+        optimizer_model(m).ext[:extra] = 42
+        @test_throws ErrorException optimizer_model_key(optimizer_model(m))
+    end
+    # optimizer_model_key (InfiniteModel)
+    @testset "optimizer_model_key (InfiniteModel)" begin
         m = InfiniteModel()
         @test optimizer_model_key(m) == :TransData
         optimizer_model(m).ext[:extra] = 42
         @test_throws ErrorException optimizer_model_key(m)
+    end
+    # clear_optimizer_model_build! (optimizer models)
+    @testset "clear_optimizer_model_build! (Model)" begin
+        # setup
+        m = TranscriptionModel(mockoptimizer)
+        set_time_limit_sec(m, 42)
+        @variable(m, t)
+        # test
+        @test clear_optimizer_model_build!(m) isa Model
+        @test num_variables(m) == 0
+        @test length(m.ext) == 1
+        @test time_limit_sec(m) == 42
+        # test add variable again
+        @test @variable(m, t) isa VariableRef
+    end
+    # clear_optimizer_model_build! (InfiniteModel)
+    @testset "clear_optimizer_model_build! (InfiniteModel)" begin
+        # setup
+        m = InfiniteModel(mockoptimizer)
+        set_time_limit_sec(optimizer_model(m), 42)
+        @variable(optimizer_model(m), t)
+        # test
+        @test clear_optimizer_model_build!(m) isa Model
+        @test num_variables(optimizer_model(m)) == 0
+        @test length(optimizer_model(m).ext) == 1
+        @test time_limit_sec(optimizer_model(m)) == 42
+        # test add variable again
+        @test @variable(optimizer_model(m), t) isa VariableRef
     end
 end
 

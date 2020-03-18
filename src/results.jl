@@ -167,7 +167,7 @@ function JuMP.dual_objective_value(model::InfiniteModel; result::Int = 1)::Float
 end
 
 """
-    map_value(ref, key, result::Int)
+    map_value(ref, key::Val{ext_key_name}, result::Int)
 
 Map the value(s) of `ref` to its counterpart in the optimizer model type that is
 distininguished by its extension key `key` as type `Val{ext_key_name}`.
@@ -248,7 +248,7 @@ function JuMP.value(cref::GeneralConstraintRef; result::Int = 1)
 end
 
 """
-    map_optimizer_index(ref, key)
+    map_optimizer_index(ref, key::Val{ext_key_name})
 
 Map the `MathOptInterface` index(es) of `ref` to its counterpart in the optimizer
 model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
@@ -329,7 +329,7 @@ function JuMP.optimizer_index(cref::GeneralConstraintRef)
 end
 
 """
-    map_dual(cref::GeneralConstraintRef, key, result::Int)
+    map_dual(cref::GeneralConstraintRef, key::Val{ext_key_name}, result::Int)
 
 Map the dual(s) of `cref` to its counterpart in the optimizer
 model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
@@ -385,7 +385,7 @@ function JuMP.dual(vref::GeneralVariableRef; result::Int = 1)
 end
 
 """
-    map_shadow_price(cref::GeneralConstraintRef, key)
+    map_shadow_price(cref::GeneralConstraintRef, key::Val{ext_key_name})
 
 Map the shadow price(s) of `cref` to its counterpart in the optimizer
 model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
@@ -434,7 +434,8 @@ function JuMP.shadow_price(cref::GeneralConstraintRef)
 end
 
 """
-    map_lp_rhs_perturbation_range(cref::GeneralConstraintRef, key, toler::Float64)
+    map_lp_rhs_perturbation_range(cref::GeneralConstraintRef,
+                                  key::Val{ext_key_name}, toler::Float64)
 
 Map the RHS perturbation range of `cref` to its counterpart in the optimizer
 model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
@@ -489,7 +490,8 @@ function JuMP.lp_rhs_perturbation_range(cref::GeneralConstraintRef;
 end
 
 """
-    map_lp_objective_perturbation_range(vref::InfOptVariableRef, key, toler::Float64)
+    map_lp_objective_perturbation_range(vref::InfOptVariableRef,
+                                        key::Val{ext_key_name}, toler::Float64)
 
 Map the reduced cost range(s) of `vref` to its counterpart in the optimizer
 model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
