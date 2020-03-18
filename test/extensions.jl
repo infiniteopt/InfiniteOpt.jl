@@ -103,6 +103,33 @@ end
     @test delete(m, t) isa Nothing
 end
 
+# Test extensions of measure evaluation methods
+@testset "Measure Evaluation" begin
+    # load in the extension
+    include("./extensions/measure_eval.jl")
+
+    # set up the model
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 5])
+    @infinite_parameter(m, x[1:2] in [0, 1], independent = true)
+    @infinite_parameter(m, xi in Normal(0., 1.))
+    @infinite_variable(m, y(t) >= 0)
+    @infinite_variable(m, f(x))
+    @test_throws ErrorException measure(y^2 + t, t, 0, 4, num_supports = 5,
+                                        eval_method = NewEvalMethod)
+    register_eval_method(m, IntervalSet, NewEvalMethod)
+    mref = measure(y^2 + t, t, 0, 4, num_supports = 5, eval_method = NewEvalMethod)
+    @test supports(measure_data(mref)) == Array([0., 1., 2., 3., 4.])
+    warn = "The method is implemented for independent multivariate parameters."
+    @test_logs (:warn, warn) measure(f, x, num_supports = 3,
+                                     eval_method = NewEvalMethod,
+                                     independent = false)
+    mref2 = measure(f, x, num_supports = 3, eval_method = NewEvalMethod,
+                    independent = is_independent(x[1]))
+    @test supports(measure_data(mref2)) == [JuMPC.SparseAxisArray(Dict((1,) => i * 0.5, (2,) => i * 0.5)) for i in 0:2]
+    @test_throws ErrorException measure(xi^2, eval_method = NewEvalMethod)
+end
+
 # Test otpimizer model extensions
 @testset "Optimizer Model" begin
     # load in the extension
