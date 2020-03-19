@@ -142,7 +142,6 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     meas_to_meas::Dict{Int, Vector{Int}}
     meas_in_objective::Dict{Int, Bool}
     meas_defaults::Dict{Symbol}
-    meas_method_registry::Dict{Type, Set{Function}}
 
     # Parameter Data
     next_param_index::Int
@@ -247,14 +246,11 @@ function InfiniteModel(; seed::Bool = false,
                          Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
                          Dict{Int, Bool}(),
                          Dict(:eval_method => Sampling,
-                              :num_supports => 50,
+                              :num_supports => 10,
                               :weight_func => _w,
                               :name => "measure",
                               :use_existing_supports => false,
-                              :call_from_expect => false,
                               :check_method => true),
-                         Dict(default_set_types[i] => Set(default_methods[i])
-                              for i in eachindex(default_set_types)),
                          # Parameters
                          0, 0, Dict{Int, InfOptParameter}(), Dict{Int, String}(),
                          nothing, Dict{Int, Int}(), Dict{Int, Vector{Int}}(),

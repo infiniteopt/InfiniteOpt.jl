@@ -37,7 +37,6 @@
     x = m[:x]
 
     # test measures
-    register_eval_method(m, MyNewSet, default_methods[1])
     @test measure(x^2 + par, par, num_supports = 2, eval_method = gauss_legendre) isa MeasureRef
 
     # test constraints
@@ -115,9 +114,6 @@ end
     @infinite_parameter(m, xi in Normal(0., 1.))
     @infinite_variable(m, y(t) >= 0)
     @infinite_variable(m, f(x))
-    @test_throws ErrorException measure(y^2 + t, t, 0, 4, num_supports = 5,
-                                        eval_method = NewEvalMethod)
-    register_eval_method(m, IntervalSet, NewEvalMethod)
     mref = measure(y^2 + t, t, 0, 4, num_supports = 5, eval_method = NewEvalMethod)
     @test supports(measure_data(mref)) == Array([0., 1., 2., 3., 4.])
     warn = "The method is implemented for independent multivariate parameters."

@@ -1,13 +1,17 @@
+m = InfiniteModel();
+@infinite_parameter(m, t in [-Inf, Inf])
+@infinite_parameter(m, x[1:2] in [-Inf, Inf])
+
 @testset "Default Monte Carlo Sampling" begin
     # test univariate Monte Carlo sampling
     @testset "mc_sampling (univariate)" begin
-        (supports, weights) = mc_sampling(0., 2., 5)
+        (supports, weights) = generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 5, 0., 2., Val(mc_sampling))
         @test length(supports) == 5
         @test length(weights) == 5
         @test weights == 0.4 * ones(5)
         @test all(supports .>= 0.)
         @test all(supports .<= 2.)
-        (supports, weights) = mc_sampling(-Inf, Inf, 5)
+        (supports, weights) = generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 5, -Inf, Inf, Val(mc_sampling))
         @test length(supports) == 5
         @test length(weights) == 5
     end
@@ -16,7 +20,8 @@
     @testset "mc_sampling (multivariate)" begin
         lb = convert(JuMPC.SparseAxisArray, [0., 0.])
         ub = convert(JuMPC.SparseAxisArray, [1., 4.])
-        (supports, weights) = mc_sampling(lb, ub, 5)
+        (supports, weights) = generate_supports_and_coeffs(
+                                  IntervalSet(-Inf, Inf), x, 5, lb, ub, Val(mc_sampling))
         @test length(supports) == 5
         @test length(weights) == 5
         @test weights == 0.8 * ones(5)
@@ -28,7 +33,8 @@ end
 @testset "Quadrature Methods" begin
     # test Gauss-Legendre method for bounded interval
     @testset "gauss_legendre" begin
-        (supports, weights) = gauss_legendre(1., 5., 5)
+        (supports, weights) = generate_supports_and_coeffs(
+                               IntervalSet(-Inf, Inf), t, 5, 1., 5., Val(gauss_legendre))
         (expect_supports, expect_weights) = FGQ.gausslegendre(5)
         expect_supports = expect_supports * 2 .+ 3
         expect_weights = expect_weights * 2
@@ -39,11 +45,12 @@ end
     # test Gauss-Hermite method for infinite interval
     # at the compiling step FGQ.gausshermite creates huge allocation
     @testset "gauss_hermite" begin
-        @test_throws ErrorException gauss_hermite(0., Inf, 5)
-        @test_throws ErrorException gauss_hermite(-Inf, 0., 5)
-        @test_throws ErrorException gauss_hermite(Inf, Inf, 5)
-        @test_throws ErrorException gauss_hermite(0., 1., 5)
-        (supports, weights) = gauss_hermite(-Inf, Inf, 5)
+        @test_throws ErrorException generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 5, 0., Inf, Val(gauss_hermite))
+        @test_throws ErrorException generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 5, -Inf, 0., Val(gauss_hermite))
+        @test_throws ErrorException generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 5, Inf, Inf, Val(gauss_hermite))
+        @test_throws ErrorException generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 5, 0., 1., Val(gauss_hermite))
+        (supports, weights) = generate_supports_and_coeffs(
+                             IntervalSet(-Inf, Inf), t, 5, -Inf, Inf, Val(gauss_hermite))
         @test length(supports) == 5
         (expect_supports, expect_weights) = FGQ.gausshermite(5)
         expect_weights = expect_weights .* exp.(expect_supports.^2)
@@ -54,15 +61,15 @@ end
 
     # test Gauss-Laguerre method for semi-infinite interval
     @testset "gauss_laguerre" begin
-        @test_throws ErrorException gauss_laguerre(-Inf, Inf, 5)
-        @test_throws ErrorException gauss_laguerre(0., 1., 5)
-        (supports, weights) = gauss_laguerre(1., Inf, 5)
+        @test_throws ErrorException generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 5, -Inf, Inf, Val(gauss_laguerre))
+        @test_throws ErrorException generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 5, 0., 1., Val(gauss_laguerre))
+        (supports, weights) = generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 5, 1., Inf, Val(gauss_laguerre))
         (expect_supports, expect_weights) = gausslaguerre(5)
         expect_weights = expect_weights .* exp.(expect_supports)
         expect_supports = expect_supports .+ 1.
         @test supports == expect_supports
         @test weights == expect_weights
-        (supports, weights) = gauss_laguerre(-Inf, 1., 5)
+        (supports, weights) = generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 5, -Inf, 1., Val(gauss_laguerre))
         (expect_supports, expect_weights) = gausslaguerre(5)
         expect_weights = expect_weights .* exp.(expect_supports)
         expect_supports = -expect_supports .+ 1.
@@ -71,14 +78,22 @@ end
     end
 end
 
+@testset "trapezoid Rule" begin
+    (supports, weights) = generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 3, 0., 2., Val(trapezoid))
+    @test length(supports) == 3
+    @test length(weights) == 3
+    @test weights == [0.5, 1., 0.5]
+    @test supports == [0., 1., 2.]
+end
+
 # test the function that transform (semi-)infinite domain to finite domain
 # with the default transform function
 @testset "Infinite transform for (semi-)infinite domain" begin
     @testset "infinite_transform" begin
-        @test_throws ErrorException infinite_transform(0., 1., 5)
+        @test_throws ErrorException infinite_transform(IntervalSet(-Inf, Inf), t, 5, 0., 1.)
         # Infinite domain
-        (supports, weights) = infinite_transform(-Inf, Inf, 5,
-                                                 sub_method = gauss_legendre)
+        (supports, weights) = infinite_transform(IntervalSet(-Inf, Inf), t, 5, -Inf, Inf,
+                                                 Val(gauss_legendre))
         (expect_supports, expect_weights) = gausslegendre(5)
         expect_weights = expect_weights .* MEM._default_dx.(expect_supports,
                                                             -Inf, Inf)
@@ -86,8 +101,8 @@ end
         @test supports == expect_supports
         @test weights == expect_weights
         # Lower bounded semi-infinite domain
-        (supports, weights) = infinite_transform(0., Inf, 5,
-                                                 sub_method = gauss_legendre)
+        (supports, weights) = infinite_transform(IntervalSet(-Inf, Inf), t, 5, 0., Inf,
+                                                 Val(gauss_legendre))
         (expect_supports, expect_weights) = gausslegendre(5)
         expect_supports = (expect_supports .+ 1) ./ 2
         expect_weights = expect_weights ./ 2
@@ -97,8 +112,8 @@ end
         @test supports == expect_supports
         @test weights == expect_weights
         # Upper bounded semi-infinite domain
-        (supports, weights) = infinite_transform(-Inf, 0., 5,
-                                                 sub_method = gauss_legendre)
+        (supports, weights) = infinite_transform(IntervalSet(-Inf, Inf), t, 5, -Inf, 0.,
+                                                 Val(gauss_legendre))
         (expect_supports, expect_weights) = gausslegendre(5)
         expect_supports = (expect_supports .+ 1) ./ 2
         expect_weights = expect_weights ./ 2
@@ -107,36 +122,6 @@ end
         expect_supports = MEM._default_x.(expect_supports, -Inf, 0.)
         @test supports == expect_supports
         @test weights == expect_weights
-    end
-end
-
-@testset "Registry functions" begin
-    m = InfiniteModel()
-    @testset "eval_method_registry" begin
-        @test eval_method_registry(m) isa Dict
-    end
-    @testset "_itr_string" begin
-        @test MEM._itr_string(eval_method_registry(m)[IntervalSet]...) isa String
-    end
-    @testset "_set_type" begin
-        @test MEM._set_type(eval_method_registry(m), IntervalSet(0, 1)) == IntervalSet
-        @test MEM._set_type(eval_method_registry(m), DistributionSet(Uniform())) == DistributionSet
-        @test MEM._set_type(eval_method_registry(m), BadSet()) == BadSet
-    end
-    @testset "_set_method_check" begin
-        @test_throws ErrorException MEM._set_method_check(m, BadSet(), new_fn)
-        @test_throws ErrorException MEM._set_method_check(m, IntervalSet(0., 1.),
-                                                          new_fn)
-    end
-    @testset "register_eval_method" begin
-        @test_throws ErrorException register_eval_method(m, NotASetType,
-                                                        mc_sampling)
-        @test register_eval_method(m, BadSet, [new_fn, mc_sampling]) == nothing
-        @test register_eval_method(m, DistributionSet, new_fn) == nothing
-        @test m.meas_method_registry[DistributionSet] ==
-              Set{Function}([new_fn, mc_sampling])
-        @test m.meas_method_registry[BadSet] ==
-              Set{Function}([new_fn, mc_sampling])
     end
 end
 
@@ -151,7 +136,7 @@ end
     @testset "generate_measure_data (univariate)" begin
         @test_throws ErrorException generate_measure_data(x, 10, 1., 2.)
         measure_data = generate_measure_data(x, 10, 0.3, 0.7, eval_method = gauss_legendre)
-        (expect_supports, expect_weights) = gauss_legendre(0.3, 0.7, 10)
+        (expect_supports, expect_weights) = generate_supports_and_coeffs(IntervalSet(0., 1.), x, 10, 0.3, 0.7, Val(gauss_legendre))
         @test measure_data.supports == expect_supports
         @test measure_data.coefficients == expect_weights
         measure_data = generate_measure_data(β, 10, -1., Inf)
@@ -178,6 +163,6 @@ end
 
     @testset "generate_supports_and_coeffs for unextended types" begin
         @test_throws ErrorException generate_supports_and_coeffs(
-                                    BadSet(), x, 10, 0., 1., mc_sampling)
+                                    BadSet(), x, 10, 0., 1., Val(mc_sampling))
     end
 end

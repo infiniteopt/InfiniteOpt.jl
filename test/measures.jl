@@ -772,7 +772,6 @@ end
                             new_kwarg = true)
         def_vals = measure_defaults(m)
         @test def_vals[:num_supports] == 5
-        @test def_vals[:call_from_expect] == false
         @test def_vals[:eval_method] == Quad
         @test def_vals[:name] == "measure"
         @test def_vals[:weight_func] == InfiniteOpt._w

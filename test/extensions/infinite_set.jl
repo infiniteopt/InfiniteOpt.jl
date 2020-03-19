@@ -37,10 +37,11 @@ function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
     num_supports::Int,
     lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
     ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-    method::Function; kwargs...
+    method::Val; kwargs...
     )::Tuple
     # ADD CHECKS IF NEEDED
-    return method(lb, ub, num_supports; kwargs...) # REPLACE WITH PROPER DISPATCH
+    return generate_supports_and_coeffs(IntervalSet(set.attr1, set.attr2), params,
+                                        num_supports, lb, ub, method) # REPLACE WITH PROPER DISPATCH
 end
 
 # Extend JuMP.has_lower_bound (optional if the answer is always false)

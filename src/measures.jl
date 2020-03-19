@@ -589,11 +589,9 @@ function measure(expr::JuMP.AbstractJuMPScalar,
     name = kwargs[:name]
     weight_func = kwargs[:weight_func]
     use_existing_supports = kwargs[:use_existing_supports]
-    call_from_expect = kwargs[:call_from_expect]
 
     # delete unneeded keyword arguments
     delete!(kwargs, :use_existing_supports)
-    delete!(kwargs, :call_from_expect)
     delete!(kwargs, :num_supports)
 
     # make bounds arrays if needed
@@ -673,7 +671,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
 
         # TODO: generate reasonable coefficients for given supports
         len = length(support)
-        if call_from_expect
+        if isa(set, DistributionSet)
             data = DiscreteMeasureData(params, ones(len) ./ len, support,
                                        name = name, weight_function = weight_func)
         else
@@ -715,7 +713,7 @@ Get the default keyword argument values for defining measures in `model`.
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> measure_defaults(model)
 Dict{Symbol,Any} with 6 entries:
-  :num_supports          => 50
+  :num_supports          => 10
   :call_from_expect      => false
   :eval_method           => nothing
   :name                  => "measure"
@@ -743,7 +741,7 @@ function calls.
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> measure_defaults(model)
 Dict{Symbol,Any} with 6 entries:
-  :num_supports          => 50
+  :num_supports          => 10
   :call_from_expect      => false
   :eval_method           => nothing
   :name                  => "measure"
@@ -797,12 +795,11 @@ julia> expand(meas)
 function expect(expr::JuMP.AbstractJuMPScalar,
                 params::Union{ParameterRef, AbstractArray{<:ParameterRef},
                               Nothing} = nothing;
-                num_supports::Int = 50,
+                num_supports::Int = 10,
                 use_existing_supports::Bool = false)::MeasureRef
     # expectation measure
     return measure(expr, params, num_supports = num_supports,
-                   name = "expect", use_existing_supports = use_existing_supports,
-                   call_from_expect = true)
+                   name = "expect", use_existing_supports = use_existing_supports)
 end
 
 """

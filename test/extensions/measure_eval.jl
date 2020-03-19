@@ -1,6 +1,14 @@
 # Define the new measure evaluation method
 # myNewEval for univariate IntervalSet
-function NewEvalMethod(lb::Number, ub::Number, num_supports::Int)::Tuple # REPLACE WITH ACTUAL ARGUMENTS
+const NewEvalMethod = :NewEvalMethod
+function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
+    set::InfiniteOpt.IntervalSet,
+    params::Union{InfiniteOpt.ParameterRef,
+    AbstractArray{<:InfiniteOpt.ParameterRef}},
+    num_supports::Int,
+    lb::Number,
+    ub::Number,
+    method::Val{NewEvalMethod})::Tuple
     # REPLACE WITH ACTUAL FUNCTIONALITY
     increment = (ub - lb) / (num_supports - 1)
     supports = [lb + (i - 1) * increment for i in 1:num_supports]
@@ -8,16 +16,22 @@ function NewEvalMethod(lb::Number, ub::Number, num_supports::Int)::Tuple # REPLA
     return (supports, ones(num_supports) / num_supports * (ub - lb))
 end
 
-# myNewEval multivariate IntervalSet
-function NewEvalMethod(lb::JuMPC.SparseAxisArray, ub::JuMPC.SparseAxisArray,
-                       num_supports::Int; independent::Bool = true)::Tuple # REPLACE WITH ACTUAL ARGUMENTS
+function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
+    set::InfiniteOpt.IntervalSet,
+    params::Union{InfiniteOpt.ParameterRef,
+    AbstractArray{<:InfiniteOpt.ParameterRef}},
+    num_supports::Int,
+    lb::JuMPC.SparseAxisArray,
+    ub::JuMPC.SparseAxisArray,
+    method::Val{NewEvalMethod}; independent::Bool = true)::Tuple # REPLACE WITH ACTUAL ARGUMENTS
     # REPLACE WITH ACTUAL FUNCTIONALITY
     if !independent
         @warn("The method is implemented for independent multivariate parameters.")
     end
     supports_dict = Dict()
     for i in eachindex(lb)
-        (supports_dict[i], _) = NewEvalMethod(lb[i], ub[i], num_supports)
+        (supports_dict[i], _) = generate_supports_and_coeffs(set, params,
+                                 num_supports, lb[i], ub[i], Val(NewEvalMethod))
     end
     supports = Array{JuMPC.SparseAxisArray, 1}(undef, num_supports)
     for j in 1:num_supports

@@ -79,7 +79,7 @@ measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
 julia> measure_data(mref3)
-DiscreteMeasureData(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.96407, 8.73581, 6.54922, 5.86712, 6.32696, 7.35004, 5.48342, 4.76883, 6.02375, 7.91346], "measure", InfiniteOpt._w)
+DiscreteMeasureData(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [5.858115517433243, 5.392892841426182, 2.6003585026904785, 9.100465413510111, 1.6703619444214968, 6.5544841269991245, 5.7588739485003675, 8.682787096942047, 9.677995536192, 7.676903325581188], "measure", InfiniteOpt._w)
 ```
 For more details on the measure data object, refer to [Measure Data Generation](@ref).
 
@@ -100,22 +100,20 @@ reason we want to add a new keyword argument called `a` to the measure function,
 with value of 1. Then we can do the following:
 ```jldoctest meas_basic
 julia> measure_defaults(model)
-Dict{Symbol,Any} with 7 entries:
-  :num_supports          => 50
-  :call_from_expect      => false
+Dict{Symbol,Any} with 6 entries:
+  :num_supports          => 10
   :eval_method           => :Sampling
   :name                  => "measure"
   :check_method          => true
   :weight_func           => _w
   :use_existing_supports => false
 
-julia> set_measure_defaults(model, num_supports = 10, a = 1)
+julia> set_measure_defaults(model, num_supports = 20, a = 1)
 
 julia> measure_defaults(model)
-Dict{Symbol,Any} with 8 entries:
+Dict{Symbol,Any} with 7 entries:
   :a                     => 1
-  :num_supports          => 10
-  :call_from_expect      => false
+  :num_supports          => 20
   :eval_method           => :Sampling
   :name                  => "measure"
   :check_method          => true
@@ -132,21 +130,21 @@ very useful if users want to extend the measure functions with their custom
 discretization/evaluation schemes that take additional arguments.
 See the extension page for more details.
 
-Now that we change the default number of supports to 10, all measures
-created later will have 10 supports by default. The users can still overwrite
+Now that we change the default number of supports to 20, all measures
+created later will have 20 supports by default. The users can still overwrite
 the default for specific measures as follows, shown as follows:
 ```jldoctest meas_basic; setup = :(delete!(measure_defaults(model), :a))
 julia> mref1 = measure(y^2)
 measure(y(t)²)
 
 julia> length(measure_data(mref1).supports)
-10
+20
 
-julia> mref2 = measure(y^2, num_supports = 20)
+julia> mref2 = measure(y^2, num_supports = 5)
 measure(y(t)²)
 
 julia> length(measure_data(mref2).supports)
-20
+5
 ```
 
 Now we can add integrals to the constraints and objective functions in our
@@ -239,21 +237,24 @@ and upper bound, and returns a measure data object of type
 
 [`generate_measure_data`](@ref) calls integral evaluation methods that are
 encoded in this package, which is specified through the `eval_method` keyword
-argument in measure function calls. `eval_method` takes a function that returns
-a tuple containing the supports and coefficients, which is will be used by
+argument in measure function calls. The evaluation methods are encoded in
+various dispatches of [`generate_supports_and_coeffs`](@ref)
+for different parameter set types and evaluation methods. Each [`generate_supports_and_coeffs`](@ref)
+implements the specified `eval_method` and returns
+a tuple containing the supports and coefficients, which will be used by
 [`generate_measure_data`](@ref) to construct the measure data object.
 A table of available `eval_method` options in our package is listed below.
 Each method is limited on the dimension of parameter and/or the type of set
-that it can apply for. `eval_method` can be overwritten by self-defined
-functions as long as they preserve the same input and output argument types.
+that it can apply for.
 
 | `eval_method` | Uni/multi-variate? | Type of set |
 | --- | --- | --- |
-| [`mc_sampling`](@ref mc_sampling(::Number, ::Number, ::Int)) | Both | [`IntervalSet`](@ref) |
-| [`mc_sampling`](@ref mc_sampling(::Distributions.UnivariateDistribution, ::InfiniteOpt.ParameterRef, ::Int)) | Both | [`DistributionSet`](@ref) |
-| [`gauss_legendre`](@ref) | Univariate | Finite [`IntervalSet`](@ref) |
-| [`gauss_laguerre`](@ref) | Univariate | Semi-infinite [`IntervalSet`](@ref) |
-| [`gauss_hermite`](@ref) | Univariate | Infinite [`IntervalSet`](@ref) |
+| [`mc_sampling`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{mc_sampling})) | Both | [`IntervalSet`](@ref) |
+| [`mc_sampling`](@ref generate_supports_and_coeffs(::InfiniteOpt.DistributionSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{mc_sampling})) | Both | [`DistributionSet`](@ref) |
+| [`gauss_legendre`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_legendre})) | Univariate | Finite [`IntervalSet`](@ref) |
+| [`gauss_laguerre`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_laguerre})) | Univariate | Semi-infinite [`IntervalSet`](@ref) |
+| [`gauss_hermite`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_hermite})) | Univariate | Infinite [`IntervalSet`](@ref) |
+| [`trapezoid`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{trapezoid})) | Univariate | Infinite [`IntervalSet`](@ref) |
 
 The default evaluation method is MC sampling.
 If the integrated parameter is defined on a finite interval set
@@ -273,14 +274,17 @@ If the integrated infinite parameter is a random variable defined in a
 underlying distribution.
 
 For univariate infinite parameters, this package also supports basic Gaussian
-quadrature schemes. Specifically, [`gauss_legendre`](@ref) generates supports
-and coefficients based on Gauss-Legendre quadrature method for parameters in
-finite interval. [`gauss_laguerre`](@ref) generates supports and coefficients
-based on Gauss-Laguerre quadrature method for parameters in semi-infinite
-interval. [`gauss_hermite`](@ref) generates supports and coefficients based
-on Gauss-Hermite quadrature method for parameters infinite interval. For an
-introduction to the mathematics of Gaussian quadrature methods, see
+quadrature schemes and trapezoid rule. Specifically, `gauss_legendre`
+generates supports and coefficients based on Gauss-Legendre quadrature method
+for parameters in finite interval. `gauss_laguerre` generates supports
+and coefficients based on Gauss-Laguerre quadrature method for parameters in
+semi-infinite interval. `gauss_hermite` generates supports and
+coefficients based on Gauss-Hermite quadrature method for parameters infinite
+interval. For an introduction to the mathematics of Gaussian quadrature methods, see
 [here](https://en.wikipedia.org/wiki/Gaussian_quadrature).
+
+For extension purposes, users may define their own [`generate_supports_and_coeffs`](@ref)
+to encode custom evaluation methods. See [Extensions](@ref) for more details.
 
 ## Expansion
 In a model, each measure records the integrand expression and an evaluation
@@ -366,7 +370,7 @@ julia> infinite_variable_ref(T1)
 T(x, t)
 
 julia> eval_supports(T1)
-Dict{Int64,Union{Number, SparseAxisArray{#s57,N,K} where K<:Tuple{Vararg{Any,N}} where N where #s57<:Number}} with 1 entry:
+Dict{Int64,Union{Number, JuMP.Containers.SparseAxisArray{#s56,N,K} where K<:Tuple{Vararg{Any,N}} where N where #s56<:Number}} with 1 entry:
   2 => 2.5
 ```
 All the `JuMP` functions extended for infinite variables are also extended for
@@ -458,13 +462,12 @@ Order   = [:function]
 
 ```@docs
 InfiniteOpt.MeasureEvalMethods.generate_measure_data
-InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs
-InfiniteOpt.MeasureEvalMethods.eval_method_registry
-InfiniteOpt.MeasureEvalMethods.register_eval_method
-InfiniteOpt.MeasureEvalMethods.mc_sampling(::Number, ::Number, ::Int)
-InfiniteOpt.MeasureEvalMethods.mc_sampling(::Distributions.UnivariateDistribution, ::InfiniteOpt.ParameterRef, ::Int)
-InfiniteOpt.MeasureEvalMethods.gauss_legendre
-InfiniteOpt.MeasureEvalMethods.gauss_hermite
-InfiniteOpt.MeasureEvalMethods.gauss_laguerre
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.AbstractInfiniteSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMPC.SparseAxisArray, Nothing}, ::Union{Number, JuMPC.SparseAxisArray, Nothing}, ::Val{eval_method})
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMPC.SparseAxisArray, Nothing}, ::Union{Number, JuMPC.SparseAxisArray, Nothing}, ::Val{mc_sampling})
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.DistributionSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{mc_sampling})
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_legendre}))
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_laguerre}))
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_hermite}))
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{trapezoid}))
 InfiniteOpt.MeasureEvalMethods.infinite_transform
 ```

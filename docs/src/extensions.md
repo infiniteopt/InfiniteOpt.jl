@@ -18,7 +18,7 @@ extension steps employed are:
 1. Define the new `struct` infinite set type (only thing required as bare minimum)
 2. Extend [`InfiniteOpt.supports_in_set`](@ref) (enables error checking of supports)
 3. Extend [`InfiniteOpt.generate_support_values`](@ref) (enables support generation via `num_supports` keyword arguments)
-4. Extend [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref) and register the new set type via [`register_eval_method`](@ref) (enables measure evaluation methods)
+4. Extend [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref) (enables measure evaluation methods)
 5. If a lower bound and upper bound can be reported, extend `JuMP` lower bound and upper bound methods
 
 As an example, let's create a disjoint interval set as an infinite set type.
@@ -139,10 +139,8 @@ dependent infinite parameter.
 Next we can enable typical measure definition by extending
 [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref) for our
 new set type. This function creates support values and corresponding coefficients
-for a measure using the `method` argument if appropriate. Also, if the `method`
-argument is used then we'll need to register valid method calls for our new set
-via [`register_eval_method`](@ref). If we wish to ignore the `method` then we'll
-need to set `check_method = false` when calling [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}))
+for a measure using the `method` argument if appropriate. If we wish to ignore
+the `method` then we'll need to set `check_method = false` when calling [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}))
 or using [`set_measure_defaults`](@ref). Continuing our example, we obtain:
 ```jldoctest set_ext; output = false
 const JuMPC = JuMP.Containers
@@ -153,16 +151,14 @@ function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
     num_supports::Int,
     lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
     ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-    method::Function)::Tuple
+    method::Val)::Tuple
     length_ratio = (set.ub1 - set.lb1) / (set.ub1 - set.lb1 + set.ub2 - set.lb2)
     num_supports1 = Int64(ceil(length_ratio * num_supports))
     num_supports2 = num_supports - num_supports1
-    supports1, coeffs1 = method(set.lb1, set.ub1, num_supports1)
-    supports2, coeffs2 = method(set.lb2, set.ub2, num_supports2)
+    supports1, coeffs1 = generate_supports_and_coeffs(IntervalSet(set.lb1, set.ub1), params, num_supports1, set.lb1, set.ub1, method)
+    supports2, coeffs2 = generate_supports_and_coeffs(IntervalSet(set.lb2, set.ub2), params, num_supports2, set.lb2, set.ub2, method)
     return ([supports1; supports2], [coeffs1; coeffs2])
 end
-
-register_eval_method(model, DisjointSet, [mc_sampling, gauss_legendre])
 
 # output
 
@@ -195,61 +191,30 @@ Gaussian quadrature methods. To create multiple measures using the same new
 evaluation methods, users may want to embed the new evaluation method under the
 [`mesaure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) function that
 does not require explicit construction of [`AbstractMeasureData`](@ref).
-This could be done by writing new functions that are compatible with the
-intended [`AbstractInfiniteSet`](@ref). The extension steps employed are:
-1. Define the new function compatible with the intended [`AbstractInfiniteSet`](@ref) (required)
-2. Make sure the input and output data types of the new function are compatible with [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref) (required if the new function will be applied to existing [`AbstractInfiniteSet`](@ref) in [`InfiniteOpt`])
-3. Register the new set type via [`register_eval_method`](@ref) (required)
 
-To illustrate the process above, let's consider defining a function that
+The basic way to do that is to write a function that creates [`AbstractMeasureData`](@ref)
+object, and pass the object to the [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)). For instance, let's consider defining a function that
 enables the definition of a uniform grid for a univariate or multivariate
-infinite parameter in [`IntervalSet`](@ref). The function generates uniform grid
-points as supports for univariate parameter and each component of independent
-multivariate parameter. The new functions are defined as follows:
-```jldoctest measure_eval; output = false
-using JuMP, InfiniteOpt
-const JuMPC = JuMP.Containers
+infinite parameter in [`IntervalSet`](@ref). The function, denoted `uniform_grid`,
+generates uniform grid points as supports for univariate parameter and each component of
+independent multivariate parameter. The univariate version of this function
+can be defined as follows:
 
-function uniform_grid(lb::Number, ub::Number, num_supports::Int)::Tuple
+```jldoctest measure_eval; output = false, setup = :(using JuMP, InfiniteOpt)
+function uniform_grid(param::ParameterRef, lb::Number, ub::Number, num_supports::Int; name::String = "measure")::DiscreteMeasureData
     increment = (ub - lb) / (num_supports - 1)
-    supports = [lb + (i - 1) * increment for i in 1:num_supports]
-    return (supports, ones(num_supports) / num_supports * (ub - lb))
+    supps = [lb + (i - 1) * increment for i in 1:num_supports]
+    coeffs = ones(num_supports) / num_supports * (ub - lb)
+    return DiscreteMeasureData(param, coeffs, supps, name = name)
 end
-
-function uniform_grid(lb::JuMPC.SparseAxisArray, ub::JuMPC.SparseAxisArray,
-                      num_supports::Int; independent::Bool = true)::Tuple
-    if !independent
-        @warn("The method is implemented for independent multivariate parameters.")
-    end
-    supports_dict = Dict()
-    for i in eachindex(lb)
-        (supports_dict[i], _) = uniform_grid(lb[i], ub[i], num_supports)
-    end
-    supports = Array{JuMPC.SparseAxisArray, 1}(undef, num_supports)
-    for j in 1:num_supports
-        supports[j] = JuMP.Containers.SparseAxisArray(Dict(k => supports_dict[k][j] for k in eachindex(lb)))
-    end
-    return (supports, ones(num_supports) / num_supports * prod(ub .- lb))
-end
-
-register_eval_method(model, IntervalSet, uniform_grid)
 
 # output
+uniform_grid (generic function with 1 method)
 
 ```
-Note that separate versions of `uniform_grid` are defined for univariate and
-multivariate parameters in [`IntervalSet`](@ref). Each version has arguments
-that align with the method call structure and possible data types for
-positional arguments in the [`generate_supports_and_coeffs`](@ref) function.
-
-Also notice that users are free to pass keyword arguments for their new
-functions in addition to the required positional arguments. This might be needed
-in case if the new evaluation method requires additional information not
-captured in the default positional arguments. For example, the multivariate
-parameter version above needs to know if the multivariate parameter is
-independent in order to throw a warning when needed.
-
-Now let's apply the new `uniform_grid` function to infinite parameters in
+It is necessary to pass infinite parameter reference since the
+construction of measure data object needs parameter information. Now let's
+apply the new `uniform_grid` function to infinite parameters in
 intervals. We consider a time parameter `t` and 2D space parameter `x`, and
 two variables `f(t)` and `g(x)` parameterized by `t` and `x`, respectively:
 ```jldoctest measure_eval
@@ -263,47 +228,8 @@ julia> @infinite_variable(m, f(t));
 
 julia> @infinite_variable(m, g(x));
 ```
-We create measure for `f` and `g` using the `uniform_grid` method
-```jldoctest measure_eval
-julia> f_meas = measure(f, t, num_supports = 6, eval_method = NewEvalMethod)
-measure(f(t))
-
-julia> g_meas = measure(g, x, num_supports = 3, eval_method = NewEvalMethod)
-measure(g(x))
-
-julia> expand(f_meas)
-0.8333333333333333 f(0) + 0.8333333333333333 f(1) + 0.8333333333333333 f(2) + 0.8333333333333333 f(3) + 0.8333333333333333 f(4) + 0.8333333333333333 f(5)
-
-julia> expand(g_meas)
-0.3333333333333333 g([0, 0]) + 0.3333333333333333 g([0.5, 0.5]) + 0.3333333333333333 g([1, 1])
-```
-Here we go! We can freely use `uniform_grid` for infinite parameters in
-[`IntervalSet`](@ref) now.
-
-For the example above, we are writing `uniform_grid` function to be callable
-from the [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) that does not
-involve creating an [`AbstractMeasureData`](@ref). However, users are free to
-write `uniform_grid` function that outputs an [`AbstractMeasureData`](@ref), and
-then construct measures using [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)). For instance, we can rewrite the univariate version of
-`uniform_grid` functions above as follows to return a measure data object:
-
-```jldoctest measure_eval; output = false
-function uniform_grid(param::ParameterRef, lb::Number, ub::Number, num_supports::Int, name::String = "measure")::DiscreteMeasureData
-    increment = (ub - lb) / (num_supports - 1)
-    supps = [lb + (i - 1) * increment for i in 1:num_supports]
-    coeffs = ones(num_supports) / num_supports * (ub - lb)
-    return DiscreteMeasureData(param, coeffs, supps, name = name)
-end
-
-# output
-
-```
-Note that we don't have to call [`register_eval_method`](@ref) here because the
-measure construction does not involve creating measure data objects under the
-hood. Also, it is necessary to pass infinite parameter reference since the
-construction of measure data object needs parameter information. Now we can use
-`uniform_grid` to construct a [`DiscreteMeasureData`](@ref) and create a
-measure using the measure data, as shown below:
+Now we can use `uniform_grid` to construct a [`DiscreteMeasureData`](@ref) and
+create a measure using the measure data, as shown below:
 
 ```jldoctest measure_eval
 julia> tdata = uniform_grid(t, 0, 5, 6)
@@ -317,6 +243,93 @@ julia> expand(f_meas)
 
 ```
 
+An alternate way of extending new measure evaluation methods is to extend
+[`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref). The will
+allow users to use their custom measure evaluation methods in the
+[`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}))
+function that does not explicitly require a measure data object.
+
+In general, such an extension can be created as follows:
+1. Define a new symbol (e.g. `my_new_fn`) that dispatches your function
+2. Extend [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref),
+where `method` is of the type `Val{my_new_fn}`, and `set` needs to be a subtype
+of [`AbstractInfiniteSet`](@ref) that you wish to apply the new evalution method
+to.
+
+For example, an extension of [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref)
+that implements uniform grid for univariate and multivariate parameters in
+[`IntervalSet`](@ref) can be created as follows:
+
+```jldoctest measure_eval; output = false
+const JuMPC = JuMP.Containers
+const unif_grid = :unif_grid
+function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
+    set::InfiniteOpt.IntervalSet,
+    params::Union{InfiniteOpt.ParameterRef,
+    AbstractArray{<:InfiniteOpt.ParameterRef}},
+    num_supports::Int,
+    lb::Number,
+    ub::Number,
+    method::Val{unif_grid})::Tuple
+    increment = (ub - lb) / (num_supports - 1)
+    supports = [lb + (i - 1) * increment for i in 1:num_supports]
+    return (supports, ones(num_supports) / num_supports * (ub - lb))
+end
+
+function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
+            set::InfiniteOpt.IntervalSet,
+            params::Union{InfiniteOpt.ParameterRef,
+                AbstractArray{<:InfiniteOpt.ParameterRef}},
+            num_supports::Int,
+            lb::JuMPC.SparseAxisArray,
+            ub::JuMPC.SparseAxisArray,
+            method::Val{unif_grid}; independent::Bool = true)::Tuple
+    if !independent
+        @warn("The method is implemented for independent multivariate parameters.")
+    end
+    supports_dict = Dict()
+    for i in eachindex(lb)
+        (supports_dict[i], _) = generate_supports_and_coeffs(IntervalSet(lb[i], ub[i]), params[i], num_supports, lb[i], ub[i], Val(unif_grid))
+    end
+    supports = Array{JuMPC.SparseAxisArray, 1}(undef, num_supports)
+    for j in 1:num_supports
+        supports[j] = JuMPC.SparseAxisArray(Dict(k => supports_dict[k][j] for k in eachindex(lb)))
+    end
+    return (supports, ones(num_supports) / num_supports * prod(ub .- lb))
+end
+
+# output
+
+```
+The `unif_grid` symbol defined at the beginning helps [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) dispatch to the custom function.
+Note that separate extensions are defined for univariate and
+multivariate parameters in [`IntervalSet`](@ref). Each version has arguments
+that align with the method call structure and possible data types for
+positional arguments in the [`generate_measure_data`](@ref) function.
+
+Also notice that users are free to pass keyword arguments for their new
+functions in addition to the required positional arguments. This might be needed
+in case if the new evaluation method requires additional information not
+captured in the default positional arguments. For example, the multivariate
+parameter version above needs to know if the multivariate parameter is
+independent in order to throw a warning when needed.
+
+We create measure for `f` and `g` using the `uniform_grid` method
+```jldoctest measure_eval
+julia> f_meas = measure(f, t, num_supports = 6, eval_method = unif_grid)
+measure(f(t))
+
+julia> g_meas = measure(g, x, num_supports = 3, eval_method = unif_grid)
+measure(g(x))
+
+julia> expand(f_meas)
+0.8333333333333333 f(0) + 0.8333333333333333 f(1) + 0.8333333333333333 f(2) + 0.8333333333333333 f(3) + 0.8333333333333333 f(4) + 0.8333333333333333 f(5)
+
+julia> expand(g_meas)
+0.3333333333333333 g([0, 0]) + 0.3333333333333333 g([0.5, 0.5]) + 0.3333333333333333 g([1, 1])
+```
+Here we go! We can freely use `unif_grid` for infinite parameters in
+[`IntervalSet`](@ref) now.
 
 ## Measure Data
 Measures are used to evaluate over infinite domains. Users may wish to employ
