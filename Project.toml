@@ -1,6 +1,6 @@
 name = "InfiniteOpt"
 uuid = "20393b10-9daf-11e9-18c9-8db751c92c57"
-authors = ["Joshua Pulsipher"]
+authors = ["Joshua Pulsipher and Weiqi Zhang"]
 version = "0.1.0"
 
 [deps]
@@ -14,7 +14,7 @@ MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 
 [compat]
 julia = "1"
-JuMP = "≥ 0.21.0"
+JuMP = "~0.21"
 FastGaussQuadrature = "≥ 0.3.2"
 
 [extras]

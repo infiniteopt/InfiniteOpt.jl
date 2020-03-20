@@ -17,6 +17,13 @@ matrix:
 #     - master
 #     - /release-.*/
 
+skip_commits:
+  files:
+    - *.md
+    - ./.github/*
+    - ./docs/*
+    - ./examples/*
+
 notifications:
   - provider: Email
     on_build_success: false

@@ -170,12 +170,12 @@ println("Expected Profit: \$", round(profit, digits = 2))
 
 # output
 
-Land Allocations: [55.67, 173.59, 269.13]
-Expected Profit: $31367.58
+Land Allocations: [224.58, 83.63, 191.88]
+Expected Profit: $47840.01
 ```
 ```
-Land Allocations: [55.67, 173.59, 269.13]
-Expected Profit: $31367.58
+Land Allocations: [224.58, 83.63, 191.88]
+Expected Profit: $47840.01
 ```
 
 ## Optimal Control

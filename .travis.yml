@@ -35,5 +35,6 @@ jobs:
       after_success: skip
   allow_failures:
     # - arch: x86
+    - os: osx # Travis client sometimes fails erroneously on Mac
     - julia: nightly
   fast_finish: true
