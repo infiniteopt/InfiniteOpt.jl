@@ -79,7 +79,7 @@ measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
 julia> measure_data(mref3)
-DiscreteMeasureData(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [5.858115517433243, 5.392892841426182, 2.6003585026904785, 9.100465413510111, 1.6703619444214968, 6.5544841269991245, 5.7588739485003675, 8.682787096942047, 9.677995536192, 7.676903325581188], "measure", InfiniteOpt._w)
+DiscreteMeasureData(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [5.85812, 5.39289, 2.60036, 9.10047, 1.67036, 6.55448, 5.75887, 8.68279, 9.678, 7.6769], "measure", InfiniteOpt._w)
 ```
 For more details on the measure data object, refer to [Measure Data Generation](@ref).
 
@@ -370,7 +370,7 @@ julia> infinite_variable_ref(T1)
 T(x, t)
 
 julia> eval_supports(T1)
-Dict{Int64,Union{Number, JuMP.Containers.SparseAxisArray{#s56,N,K} where K<:Tuple{Vararg{Any,N}} where N where #s56<:Number}} with 1 entry:
+Dict{Int64,Union{Number, SparseAxisArray{#s56,N,K} where K<:Tuple{Vararg{Any,N}} where N where #s56<:Number}} with 1 entry:
   2 => 2.5
 ```
 All the `JuMP` functions extended for infinite variables are also extended for
