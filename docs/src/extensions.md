@@ -13,8 +13,8 @@ might be imperfect and comments/suggestions are welcomed to help us improve this
 Infinite sets are used to characterize the behavior of infinite parameters and
 used to govern the behavior of supports in `InfiniteOpt`. Here we walk through
 how user-defined sets can be added to various degrees of functionality. A
-template is provided in `./InfiniteOpt/test/extensions/infinite_set.jl`. The
-extension steps employed are:
+template is provided in [`./test/extensions/infinite_set.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/infinite_set.jl).
+The extension steps employed are:
 1. Define the new `struct` infinite set type (only thing required as bare minimum)
 2. Extend [`InfiniteOpt.supports_in_set`](@ref) (enables error checking of supports)
 3. Extend [`InfiniteOpt.generate_support_values`](@ref) (enables support generation via `num_supports` keyword arguments)
@@ -197,8 +197,8 @@ discretized supports, and thus may wish to extend `InfiniteOpt`'s
 measure framework to accommodate other paradigms. This can be accomplished my
 implementing a user-defined measure data structure that inherits from
 [`AbstractMeasureData`](@ref). A template for how such an extension is
-accomplished is provided in `./InfiniteOpt/test/extensions/measure_data.jl`. The
-extension steps employed are:
+accomplished is provided in [`./test/extensions/measure_data.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/measure_data.jl).
+The extension steps employed are:
 1. Define the new data struct inheriting from [`AbstractMeasureData`](@ref) (required)
 2. Extend [`InfiniteOpt.parameter_refs`](@ref parameter_refs(::AbstractMeasureData)) (required)
 3. Extend [`InfiniteOpt.expand_measure`](@ref) (required)
@@ -366,7 +366,7 @@ via `TranscriptionOpt` which discretizes the model in accordance with the
 infinite parameter supports. However, users may wish to employ some other
 reformulation method to produce the optimizer model. This section will explain
 how this can be done in `InfiniteOpt`. A template for implementing this
-extension is provided in `./InfiniteOpt/test/extensions/optimizer_model.jl`.
+extension is provided in [`./test/extensions/optimizer_model.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/optimizer_model.jl).
 Our default sub-package `InfiniteOpt.TranscriptionOpt` also serves as a good
 example.
 
@@ -531,7 +531,7 @@ hold.
 Now let's extend [`build_optimizer_model!`](@ref) for `DeterministicModel`s.
 Such extensions should build an optimizer model in place and in general should
 employ the following:
-- [`clear_optimizer_model_build!`](@ref )
+- [`clear_optimizer_model_build!`](@ref clear_optimizer_model_build!(::InfiniteModel))
 - [`set_optimizer_model_ready`](@ref).
 In place builds without the use of `clear_optimizer_model_build!` are also
 possible, but will require some sort of active mapping scheme to update in
