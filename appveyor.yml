@@ -20,9 +20,9 @@ matrix:
 skip_commits:
   files:
     - *.md
-    - ./.github/*
-    - ./docs/*
-    - ./examples/*
+    - .github/*
+    - docs/*
+    - examples/*
 
 notifications:
   - provider: Email
