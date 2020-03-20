@@ -400,21 +400,6 @@ function _mc_sampling(lb::Number, ub::Number, num_supports::Int)::Tuple
     end
 end
 
-# MC sampling for multivariate IntervalSet
-function _mc_sampling(lb::JuMPC.SparseAxisArray, ub::JuMPC.SparseAxisArray,
-                      num_supports::Int)::Tuple
-    samples_dict = Dict()
-    for i in eachindex(lb)
-        (samples_dict[i], _) = _mc_sampling(lb[i], ub[i], num_supports)
-    end
-    samples = Array{JuMPC.SparseAxisArray, 1}(undef, num_supports)
-    for j in 1:num_supports
-        samples[j] = JuMP.Containers.SparseAxisArray(Dict(k => samples_dict[k][j]
-                                                        for k in eachindex(lb)))
-    end
-    return (samples, ones(num_supports) / num_supports * prod(ub .- lb))
-end
-
 # MC sampling for univariate DistributionSet
 function _mc_sampling(dist::Distributions.UnivariateDistribution,
                      param::InfiniteOpt.ParameterRef,

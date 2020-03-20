@@ -11,7 +11,10 @@ m = InfiniteModel();
         @test weights == 0.4 * ones(5)
         @test all(supports .>= 0.)
         @test all(supports .<= 2.)
-        (supports, weights) = generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 5, -Inf, Inf, Val(mc_sampling))
+        (supports, weights) = generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 5, -Inf, 0, Val(mc_sampling))
+        @test length(supports) == 5
+        @test length(weights) == 5
+        (supports, weights) = generate_supports_and_coeffs(IntervalSet(-Inf, Inf), t, 5, 0, Inf, Val(mc_sampling))
         @test length(supports) == 5
         @test length(weights) == 5
     end
