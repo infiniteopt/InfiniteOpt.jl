@@ -17,12 +17,12 @@ matrix:
 #     - master
 #     - /release-.*/
 
-skip_commits:
-  files:
-    - *.md
-    - .github/*
-    - docs/*
-    - examples/*
+# skip_commits: --> this doesn't work
+#   files:
+#     - *.md
+#     - .github/*
+#     - docs/*
+#     - examples/*
 
 notifications:
   - provider: Email
