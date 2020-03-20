@@ -32,12 +32,12 @@ u(t)
 
 Now suppose we want to evaluate the integral ``\int_{2}^{8}y(t)^2 + u(t)^2 dt``.
 We can construct a measure to represent this integral using the
-[`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) function
+[`integral`](@ref) function
 ```jldoctest meas_basic
-julia> mref1 = measure(y^2 + u^2, t, 2, 8)
+julia> mref1 = integral(y^2 + u^2, t, 2, 8)
 measure(y(t)² + u(t)²)
 ```
-The four positional arguments of [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) are the integrand expression, the the parameter of integration, the lower bound, and the upper
+The four positional arguments of [`integral`](@ref) are the integrand expression, the the parameter of integration, the lower bound, and the upper
 bound. If the lower and upper bounds are not specified, then the integration will
 be over the entire domain, which is [0, 10] in this case. In addition, if the
 parameter of integration is not specified, the measure will search for the
@@ -48,9 +48,9 @@ multiple groups of infinite parameters.
 The measure function uses Monte Carlo (MC) sampling method as the default
 discretization scheme. However, for integration over univariate parameter,
 the user can also use quadrature methods by setting the keyword argument
-`eval_method` as `Quad`:
+`eval_method` as `quadrature`:
 ```jldoctest meas_basic
-julia> mref2 = measure(y^2 + u^2, eval_method = Quad)
+julia> mref2 = integral(y^2 + u^2, eval_method = quadrature)
 measure(y(t)² + u(t)²)
 ```
 
@@ -58,7 +58,7 @@ The measure function also for specifying the number of points for the
 discretization scheme using the keyword argument `num_supports`. The default
 value of `num_supports` is 50.
 ```jldoctest meas_basic
-julia> mref3 = measure(y^2 + u^2, num_supports = 10)
+julia> mref3 = integral(y^2 + u^2, num_supports = 10)
 measure(y(t)² + u(t)²)
 ```
 
@@ -68,7 +68,7 @@ relevant infinite parameter. The use can choose to evaluate a new integral over
 points that already exist in the support list by setting the keyword argument
 `use_existing_supports` as `true`:
 ```jldoctest meas_basic
-julia> mref4 = measure(y^2 + u^2, use_existing_supports = true)
+julia> mref4 = integral(y^2 + u^2, use_existing_supports = true)
 measure(y(t)² + u(t)²)
 ```
 Note that by setting `use_existing_supports = true`, the measure function will
@@ -102,7 +102,7 @@ with value of 1. Then we can do the following:
 julia> measure_defaults(model)
 Dict{Symbol,Any} with 6 entries:
   :num_supports          => 10
-  :eval_method           => :Sampling
+  :eval_method           => :sampling
   :name                  => "measure"
   :check_method          => true
   :weight_func           => _w
@@ -114,7 +114,7 @@ julia> measure_defaults(model)
 Dict{Symbol,Any} with 7 entries:
   :a                     => 1
   :num_supports          => 20
-  :eval_method           => :Sampling
+  :eval_method           => :sampling
   :name                  => "measure"
   :check_method          => true
   :weight_func           => _w
@@ -134,13 +134,13 @@ Now that we change the default number of supports to 20, all measures
 created later will have 20 supports by default. The users can still overwrite
 the default for specific measures as follows, shown as follows:
 ```jldoctest meas_basic; setup = :(delete!(measure_defaults(model), :a))
-julia> mref1 = measure(y^2)
+julia> mref1 = integral(y^2)
 measure(y(t)²)
 
 julia> length(measure_data(mref1).supports)
 20
 
-julia> mref2 = measure(y^2, num_supports = 5)
+julia> mref2 = integral(y^2, num_supports = 5)
 measure(y(t)²)
 
 julia> length(measure_data(mref2).supports)
@@ -221,15 +221,14 @@ that records the value at each dimension, and the measure data type is
 [`MultiDiscreteMeasureData`](@ref), again a subtype of
 [`AbstractMeasureData`](@ref) that's specifically for multivariate parameters.
 
-The [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) function called
-in [Basic Usage](@ref measure_basic_usage) above is a dispatch of the basic [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)) function which does
+The [`integral`](@ref) function called
+in [Basic Usage](@ref measure_basic_usage) above is calls the [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)) function which does
 not require explicit construction of the measure data object. Instead, the
 function constructs the appropriate measure data object according to the values
 of the positional and keyword arguments.
 
 ## Evaluation Methods
-If the users call [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) without giving the measure data object but giving enough
-information, the function calls [`generate_measure_data`](@ref) under the hood
+The [`integral`](@ref) function calls [`generate_measure_data`](@ref) under the hood
 to construct the measure data object. [`generate_measure_data`](@ref) takes as
 positional arguments the integrated parameter, number of supports, lower bound
 and upper bound, and returns a measure data object of type
@@ -402,7 +401,7 @@ Order   = [:function]
 ```@docs
 expect
 support_sum
-measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})
+integral(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})
 measure_defaults
 set_measure_defaults
 DiscreteMeasureData(::ParameterRef, ::Vector{<:Number}, ::Vector{<:Number})
@@ -462,7 +461,7 @@ Order   = [:function]
 
 ```@docs
 InfiniteOpt.MeasureEvalMethods.generate_measure_data
-InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.AbstractInfiniteSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{eval_method})
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs
 InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{mc_sampling})
 InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.DistributionSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{mc_sampling})
 InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_legendre}))

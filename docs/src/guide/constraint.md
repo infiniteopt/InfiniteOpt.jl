@@ -71,7 +71,7 @@ constraint references to the `Julia` variable `crefs`.
 Named constraints are defined by including a name as part of the second argument.
 For example, let's add the constraint ``\int_0^10 g(t) dt == 4``:
 ```jldoctest constrs
-julia> @constraint(model, measure_constr, measure(g, t) == 4)
+julia> @constraint(model, measure_constr, integral(g, t) == 4)
 measure_constr : measure(g(t)) = 4.0
 ```
 Thus, we added another constraint named `measure_constr` and created a `Julia`

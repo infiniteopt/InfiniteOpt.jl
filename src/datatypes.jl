@@ -76,7 +76,6 @@ model an optmization problem with an infinite dimensional decision space.
                                          measure indices.
 - `meas_in_objective::Dict{Int, Bool}` Measure indices to if used in objective.
 - `meas_defaults::Dict{Symbol}` Default keyword argument settings for measures.
-- `meas_method_registry::Dict{Type, Set{Function}}` Measure method registry.
 - `next_param_index::Int` Index - 1 of next infinite parameter.
 - `next_param_id::Int` Index - 1 of the next infinite parameter group.
 - `params::Dict{Int, InfOptParameter}` Infinite parameter indices to parameter
@@ -245,7 +244,7 @@ function InfiniteModel(; seed::Bool = false,
                          0, Dict{Int, Measure}(), Dict{Int, String}(),
                          Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
                          Dict{Int, Bool}(),
-                         Dict(:eval_method => Sampling,
+                         Dict(:eval_method => sampling,
                               :num_supports => 10,
                               :weight_func => _w,
                               :name => "measure",

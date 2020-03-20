@@ -214,7 +214,7 @@ function JuMP.set_upper_bound(set::DistributionSet, lower::Number)
 end
 
 """
-    generate_support_values(set::AbstractInfiniteSet; [num_supports::Int = 50,
+    generate_support_values(set::AbstractInfiniteSet; [num_supports::Int = 10,
                             sig_fig::Int = 5])
 
 Generate `num_supports` support values with `sig_figs` significant digits in
@@ -233,7 +233,7 @@ function generate_support_values(set::AbstractInfiniteSet; num_supports::Int = 0
 end
 
 # IntervalSet
-function generate_support_values(set::IntervalSet; num_supports::Int = 50,
+function generate_support_values(set::IntervalSet; num_supports::Int = 10,
                          sig_fig::Int = 5)::Vector
     lb = set.lower_bound
     ub = set.upper_bound
@@ -243,7 +243,7 @@ function generate_support_values(set::IntervalSet; num_supports::Int = 50,
 end
 
 # DistributionSet
-function generate_support_values(set::DistributionSet; num_supports::Int = 50,
+function generate_support_values(set::DistributionSet; num_supports::Int = 10,
                          sig_fig::Int = 5)::Array
     new_supports = round.(Distributions.rand(set.distribution, num_supports),
                           sigdigits = sig_fig)

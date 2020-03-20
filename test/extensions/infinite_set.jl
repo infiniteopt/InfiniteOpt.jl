@@ -20,7 +20,7 @@ end
 
 # Extend generate_support_values if possible
 function InfiniteOpt.generate_support_values(set::MyNewSet;
-                                             num_supports::Int = 50,
+                                             num_supports::Int = 10,
                                              sig_fig::Int = 5)::Array
     # REPLACE BELOW WITH METHODS TO GENERATE `num_samples` with `sig_fig`
     supports = collect(range(set.attr1, stop = set.attr2, length = num_supports))

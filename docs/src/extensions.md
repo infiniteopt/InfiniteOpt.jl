@@ -140,8 +140,9 @@ Next we can enable typical measure definition by extending
 [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref) for our
 new set type. This function creates support values and corresponding coefficients
 for a measure using the `method` argument if appropriate. If we wish to ignore
-the `method` then we'll need to set `check_method = false` when calling [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}))
-or using [`set_measure_defaults`](@ref). Continuing our example, we obtain:
+the `method` then we'll need to set `check_method = false` when calling
+[`measure`](@ref) or using [`set_measure_defaults`](@ref). Continuing our
+example, we obtain:
 ```jldoctest set_ext; output = false
 const JuMPC = JuMP.Containers
 
@@ -166,7 +167,7 @@ end
 ```
 Now we can define measures as normal:
 ```jldoctest set_ext
-julia> mref = measure(t^2, t)
+julia> mref = integral(t^2, t)
 measure(t²)
 ```
 
@@ -189,7 +190,7 @@ Measure evaluation methods are used to dictate how to evaluate measures. Users
 may wish to apply evaluation methods other than Monte Carlo sampling and/or
 Gaussian quadrature methods. To create multiple measures using the same new
 evaluation methods, users may want to embed the new evaluation method under the
-[`mesaure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) function that
+[`integral`](@ref) function that
 does not require explicit construction of [`AbstractMeasureData`](@ref).
 
 The basic way to do that is to write a function that creates [`AbstractMeasureData`](@ref)
@@ -246,10 +247,10 @@ julia> expand(f_meas)
 An alternate way of extending new measure evaluation methods is to extend
 [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref). The will
 allow users to use their custom measure evaluation methods in the
-[`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}))
-function that does not explicitly require a measure data object.
-
-In general, such an extension can be created as follows:
+[`integral`](@ref) function that does not explicitly require a measure data
+object. A template for how such an extension is accomplished is provided in
+`./InfiniteOpt/test/extensions/measure_eval.jl`. In general, such an extension
+can be created as follows:
 1. Define a new symbol (e.g. `my_new_fn`) that dispatches your function
 2. Extend [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref),
 where `method` is of the type `Val{my_new_fn}`, and `set` needs to be a subtype
@@ -301,7 +302,8 @@ end
 # output
 
 ```
-The `unif_grid` symbol defined at the beginning helps [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) dispatch to the custom function.
+The `unif_grid` symbol defined at the beginning helps [`integral`](@ref)
+dispatch to the custom function.
 Note that separate extensions are defined for univariate and
 multivariate parameters in [`IntervalSet`](@ref). Each version has arguments
 that align with the method call structure and possible data types for
@@ -316,10 +318,10 @@ independent in order to throw a warning when needed.
 
 We create measure for `f` and `g` using the `uniform_grid` method
 ```jldoctest measure_eval
-julia> f_meas = measure(f, t, num_supports = 6, eval_method = unif_grid)
+julia> f_meas = integral(f, t, num_supports = 6, eval_method = unif_grid)
 measure(f(t))
 
-julia> g_meas = measure(g, x, num_supports = 3, eval_method = unif_grid)
+julia> g_meas = integral(g, x, num_supports = 3, eval_method = unif_grid)
 measure(g(x))
 
 julia> expand(f_meas)

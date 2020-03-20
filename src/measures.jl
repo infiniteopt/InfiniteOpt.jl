@@ -1,6 +1,6 @@
 # Define symbol inputs for general measure method types
-const Sampling = :Sampling
-const Quad = :Quad
+const sampling = :sampling
+const quadrature = :quadrature
 
 # Extend Base.copy for new variable types
 Base.copy(v::MeasureRef, new_model::InfiniteModel) = MeasureRef(new_model,
@@ -477,20 +477,20 @@ function measure(expr::JuMP.AbstractJuMPScalar,
 end
 
 """
-    measure(expr::JuMP.AbstractJuMPScalar,
-            [params::Union{ParameterRef, AbstractArray{<:ParameterRef},
-                          Nothing} = nothing,
-            lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
-            ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing];
-            [eval_method::Union{Function, Symbol},
-            num_supports::Int = 50,
-            weight_func::Function = _w, name = "measure",
-            use_existing_supports::Bool = false,
-            call_from_expect::Bool = false,
-            check_method::Bool = true, kwargs...])::MeasureRef
+    integral(expr::JuMP.AbstractJuMPScalar,
+             [params::Union{ParameterRef, AbstractArray{<:ParameterRef},
+                            Nothing} = nothing,
+             lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
+             ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing];
+             [eval_method::Union{Function, Symbol},
+             num_supports::Int = 10,
+             weight_func::Function = _w, name = "measure",
+             use_existing_supports::Bool = false,
+             call_from_expect::Bool = false,
+             check_method::Bool = true, kwargs...])::MeasureRef
 
-Returns a measure reference that evaluates `expr` without using an object of
-[`AbstractMeasureData`](@ref) type. Similar to the basic [`measure`](@ref)
+Returns a measure reference that evaluates and integral of `expr`
+Similar to the basic [`measure`](@ref)
 method, this function aims to implement measures of the form:
 ``\\int_{p \\in P} expr(p) w(p) dp`` where ``p`` is an infinite parameter (scalar
 or vector) and ``w`` is the weight function. This function serves as a flexible
@@ -506,7 +506,7 @@ in a [`DistributionSet`](@ref). If the expression involves multiple groups of
 parameters, the user needs to specify the parameter. The user can also specify
 lower bounds and upper bounds for the parameters, number of supports to
 generate, and the function to generate the supports with. The user can also
-input the keyword argument [`eval_method = Quad`] to construct points using
+input the keyword argument [`eval_method = quadrature`] to construct points using
 appropriate quadrature methods based on the lower and upper bounds. See
 [`set_measure_defaults`](@ref) to update the default keyword argument values
 for all measure calls.
@@ -526,12 +526,12 @@ julia> expand(meas)
 0.2 f(0.8236475079774124) + 0.2 f(0.9103565379264364) + 0.2 f(0.16456579813368521) + 0.2 f(0.17732884646626457) + 0.2 f(0.278880109331201)
 ```
 """
-function measure(expr::JuMP.AbstractJuMPScalar,
-                 params::Union{ParameterRef, AbstractArray{<:ParameterRef},
-                                                             Nothing} = nothing,
-                 lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
-                 ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing;
-                 kwargs...)::MeasureRef
+function integral(expr::JuMP.AbstractJuMPScalar,
+                  params::Union{ParameterRef, AbstractArray{<:ParameterRef},
+                                                            Nothing} = nothing,
+                  lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
+                  ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing;
+                  kwargs...)::MeasureRef
 
     # collect parameters from expression if they are not provided
     if isa(params, Nothing)
@@ -589,6 +589,10 @@ function measure(expr::JuMP.AbstractJuMPScalar,
     name = kwargs[:name]
     weight_func = kwargs[:weight_func]
     use_existing_supports = kwargs[:use_existing_supports]
+
+    if eval_method == sampling
+        kwargs[:eval_method] = mc_sampling
+    end
 
     # delete unneeded keyword arguments
     delete!(kwargs, :use_existing_supports)
@@ -659,7 +663,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
 
     # construct data and return measure if we use existing supports
     if use_existing_supports
-        if eval_method == Quad || eval_method == gauss_legendre ||
+        if eval_method == quadrature || eval_method == gauss_legendre ||
            eval_method == gauss_hermite || eval_method == gauss_laguerre
             @warn("Quadrature method will not be used because " *
                   "use_existing_supports is set as true.")
@@ -674,17 +678,19 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         if isa(set, DistributionSet)
             data = DiscreteMeasureData(params, ones(len) ./ len, support,
                                        name = name, weight_function = weight_func)
+        elseif isa(set, IntervalSet) && eval_method == mc_sampling
+            coeffs = ones(len) / len * prod(ub .- lb)
+            data = DiscreteMeasureData(params, coeffs, support, name = name,
+                                       weight_function = weight_func)
         else
-            data = DiscreteMeasureData(params, ones(len), support,
-                                       name = name, weight_function = weight_func)
+            data = DiscreteMeasureData(params, ones(len), support, name = name,
+                                       weight_function = weight_func)
         end
         return measure(expr, data)
     end
 
-    if eval_method == Sampling
-        kwargs[:eval_method] = mc_sampling
-    elseif eval_method == Quad || eval_method == gauss_legendre ||
-           eval_method == gauss_hermite || eval_method == gauss_laguerre
+    if eval_method == quadrature || eval_method == gauss_legendre ||
+       eval_method == gauss_hermite || eval_method == gauss_laguerre
         if num_params > 1
             error("Quadrature method is not supported for multivariate measures.")
         end
@@ -770,7 +776,7 @@ end
     expect(expr::JuMP.AbstractJuMPScalar,
            [params::Union{ParameterRef, AbstractArray{<:ParameterRef},
                           Nothing} = nothing];
-           [num_supports::Int = 50,
+           [num_supports::Int = 10,
             use_existing_supports::Bool = false])::MeasureRef
 
 Creates a measure that represents the expected value of an expression in
@@ -798,8 +804,8 @@ function expect(expr::JuMP.AbstractJuMPScalar,
                 num_supports::Int = 10,
                 use_existing_supports::Bool = false)::MeasureRef
     # expectation measure
-    return measure(expr, params, num_supports = num_supports,
-                   name = "expect", use_existing_supports = use_existing_supports)
+    return integral(expr, params, num_supports = num_supports,
+                    name = "expect", use_existing_supports = use_existing_supports)
 end
 
 """
@@ -830,7 +836,7 @@ function support_sum(expr::JuMP.AbstractJuMPScalar,
                      params::Union{ParameterRef, AbstractArray{<:ParameterRef},
                                    Nothing} = nothing)::MeasureRef
     # sum measure
-    return measure(expr, params, use_existing_supports = true, name = "sum")
+    return integral(expr, params, use_existing_supports = true, name = "sum")
 end
 
 """

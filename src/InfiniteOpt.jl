@@ -51,8 +51,7 @@ export @infinite_variable, @point_variable, @hold_variable, @infinite_parameter,
 @BDconstraint, @finite_parameter, @set_parameter_bounds, @add_parameter_bounds
 
 # Export constants
-export Infinite, Hold, Point, Parameter, Sampling, Quad, default_set_types,
-default_methods
+export Infinite, Hold, Point, Parameter, sampling, quadrature
 
 # Export infinite parameter datatypes
 export InfOptParameter, ParameterRef
@@ -96,7 +95,7 @@ Measure, MeasureRef
 # Export measure methods
 export add_measure, measure, measure_function, measure_data, expand,
 expand_all_measures!, expect, support_sum, measure_name, measure_data_in_hold_bounds,
-make_point_variable_ref, make_reduced_variable_ref, expand_measure
+make_point_variable_ref, make_reduced_variable_ref, expand_measure, integral
 
 # Export measure evaluation functions
 export generate_measure_data, MC_sampling, Gauss_Legendre, Gauss_Hermite,

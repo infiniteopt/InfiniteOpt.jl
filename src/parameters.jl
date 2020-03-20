@@ -1044,7 +1044,7 @@ function JuMP.set_value(pref::ParameterRef, value::Number)
 end
 
 """
-    fill_in_supports!(model::InfiniteModel; [num_supports::Int = 50,
+    fill_in_supports!(model::InfiniteModel; [num_supports::Int = 10,
                       sig_fig::Int = 5])
 
 Automatically generate support points for all infinite parameters in model. User
@@ -1066,7 +1066,7 @@ julia> supports(x)
  1.0
 ```
 """
-function fill_in_supports!(model::InfiniteModel; num_supports::Int = 50,
+function fill_in_supports!(model::InfiniteModel; num_supports::Int = 10,
                            sig_fig::Int = 5)
     for key in keys(model.params)
         pref = ParameterRef(model, key)
@@ -1076,7 +1076,7 @@ function fill_in_supports!(model::InfiniteModel; num_supports::Int = 50,
 end
 
 """
-    fill_in_supports!(pref::ParameterRef; [num_supports::Int = 50,
+    fill_in_supports!(pref::ParameterRef; [num_supports::Int = 10,
                                            sig_fig::Int = 5])
 
 Automatically generate support points for a particular infinite parameter `pref`.
@@ -1102,7 +1102,7 @@ julia> supports(x)
 
 ```
 """
-function fill_in_supports!(pref::ParameterRef; num_supports::Int = 50,
+function fill_in_supports!(pref::ParameterRef; num_supports::Int = 10,
                            sig_fig::Int = 5)
     p = JuMP.owner_model(pref).params[JuMP.index(pref)]
     if length(p.supports) == 0
@@ -1114,7 +1114,7 @@ end
 
 """
     generate_and_add_supports!(pref::ParameterRef, set::AbstractInfiniteSet;
-                               [num_supports::Int = 50, sig_fig::Int = 5])
+                               [num_supports::Int = 10, sig_fig::Int = 5])
 
 Generate supports for `pref` via [`generate_support_values`](@ref) and add them
 to `pref`. This is intended as an extendable internal method for
@@ -1128,7 +1128,7 @@ adding supports to a single infinite parameter (e.g., how we enable multivariate
 distribution sets). Errors if the infinite set type is not recognized.
 """
 function generate_and_add_supports!(pref::ParameterRef, set::AbstractInfiniteSet;
-                                    num_supports::Int = 50, sig_fig::Int = 5)
+                                    num_supports::Int = 10, sig_fig::Int = 5)
     add_supports(pref, generate_support_values(set, num_supports = num_supports,
                                                sig_fig = sig_fig))
     return
@@ -1137,7 +1137,7 @@ end
 # Multivariate distribution sets
 function generate_and_add_supports!(pref::ParameterRef,
                                     set::DistributionSet{<:Distributions.MultivariateDistribution};
-                                    num_supports::Int = 50, sig_fig::Int = 5)
+                                    num_supports::Int = 10, sig_fig::Int = 5)
     pref_group_id = group_id(pref)
     model = JuMP.owner_model(pref)
     associated_p_index = sort([i for i in 1:length(model.params)
