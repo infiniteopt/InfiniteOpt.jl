@@ -462,8 +462,8 @@ Order   = [:function]
 
 ```@docs
 InfiniteOpt.MeasureEvalMethods.generate_measure_data
-InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.AbstractInfiniteSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMPC.SparseAxisArray, Nothing}, ::Union{Number, JuMPC.SparseAxisArray, Nothing}, ::Val{eval_method})
-InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMPC.SparseAxisArray, Nothing}, ::Union{Number, JuMPC.SparseAxisArray, Nothing}, ::Val{mc_sampling})
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.AbstractInfiniteSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{eval_method})
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{mc_sampling})
 InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.DistributionSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{mc_sampling})
 InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_legendre}))
 InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_laguerre}))
