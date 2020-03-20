@@ -129,16 +129,11 @@ function generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
                                       method::Val{mc_sampling})::Tuple
     _nothing_test(method, lb, ub)
     if isa(params, InfiniteOpt.ParameterRef)
-        if lb == -Inf || ub == Inf
-            return infinite_transform(set, params, num_supports, lb, ub, method)
-        else
-            samples = rand(num_supports) .* (ub - lb) .+ lb
-            return (samples, ones(num_supports) / num_supports * (ub - lb))
-        end
+        return _mc_sampling(set, params, num_supports, lb, ub)
     else
         samples_dict = Dict()
         for i in eachindex(lb)
-            (samples_dict[i], _) = _mc_sampling(lb[i], ub[i], num_supports)
+            (samples_dict[i], _) = _mc_sampling(set, params, num_supports, lb[i], ub[i])
         end
         samples = Array{JuMPC.SparseAxisArray, 1}(undef, num_supports)
         for j in 1:num_supports
@@ -390,10 +385,14 @@ function _trapezoid_univ(lb::Number, ub::Number, num_supports::Int)::Tuple
 end
 
 # MC sampling for univariate IntervalSet
-function _mc_sampling(lb::Number, ub::Number, num_supports::Int)::Tuple
+function _mc_sampling(set::InfiniteOpt.IntervalSet,
+                      params::Union{InfiniteOpt.ParameterRef,
+                      AbstractArray{<:InfiniteOpt.ParameterRef}},
+                      num_supports::Int,
+                      lb::Number, ub::Number)::Tuple
     # MC sampling from uniform distribution over the interval [lb, ub]
     if lb == -Inf || ub == Inf
-        return infinite_transform(lb, ub, num_supports)
+        return infinite_transform(set, params, num_supports, lb, ub, Val(mc_sampling))
     else
         samples = rand(num_supports) .* (ub - lb) .+ lb
         return (samples, ones(num_supports) / num_supports * (ub - lb))
