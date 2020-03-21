@@ -462,6 +462,7 @@ function _make_transcription_function(expr::JuMP.GenericQuadExpr{C,
             end
         end
     end
+    # TODO Check if there are still quadratic terms and convert to AffExpr if necessary
     return exprs, prefs, supports
 end
 

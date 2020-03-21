@@ -1,11 +1,11 @@
 ![Logo](assets/full_logo.png)
 
-A `JuMP` extension for expressing and solving infinite dimensional optimization
+A `JuMP` extension for expressing and solving infinite-dimensional optimization
 problems.
 
 ## Overview
 `InfiniteOpt.jl` provides a mathematical interface to express and solve
-optimization problems that entail an infinite dimensional decision space. Such
+optimization problems that entail an infinite-dimensional decision space. Such
 problems stem from areas such as dynamic programming, state-space models, and
 stochastic programming. `InfiniteOpt` is meant to facilitate intuitive model
 definition, automatic transcription into solvable models, permit a wide range
@@ -23,62 +23,54 @@ include:
 
 !!! note
     Currently, `InfiniteOpt` only accepts linear and quadratic expressions.
-    Development is underway to allow for general nonlinear constraints.  
+    Development is underway to allow for general nonlinear constraints. Please
+    visit [Expressions](@ref expr_page) for more details.
 
 ## Installation
-`InfiniteOpt.jl` is still under initial development but can be
-installed by entering the following in the package manager.
+`InfiniteOpt.jl` is a registered `Julia` and can be added simply by inputting
+the following in the package manager:
+```julia
+(v1.3) pkg> add InfiniteOpt
+```
+Please visit our [Installation Guide](@ref) for more details and information
+on how to get started.
 
+Moreover, `InfiniteOpt` under constant develop with new features being added often.
+Thus, the latest pre-release experimental version can be obtained via the
+following command:
 ```julia
 (v1.3) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
 ```
 
-## Quick Start
-Below is a brief example of the high-level API.
+## Usage
+`InfiniteOpt` is intended to serve both as a high-level interface for
+infinite-dimensional optimization and as a highly customizable/extendable
+platform for implementing advanced techniques. With this in mind, we provide the
+`User Guide` sections to walk through the ins and outs of `InfiniteOpt`. Each
+page in the `User Guide` typically contains the following:
+- An `Overview` section describing the purpose of the page (at the top)
+- A `Basic Usage` section to guide using `InfiniteOpt` at a high level (near the top)
+- `Methods` and/or `DataTypes` sections serving as a technical manual for all the public methods and datatypes (at the bottom)
+- Other sections offering more in-depth information/guidance beyond basic usage (in the middle)
 
-```julia
-using InfiniteOpt, JuMP, Ipopt, Distributions
+Details, instructions, templates, and tutorials on how to write user-defined
+extensions in `InfiniteOpt` are provided on the [Extensions](@ref) page.
 
-# Set the problem information
-θ_nom, covar = [0.; 60.; 10.], [80. 0 0; 0 80. 0; 0 0 120.]
-n_z, n_θ, n_d = 3, 3, 3
+Finally, case study examples are provided on the [Examples](@ref) page.
 
-# Initialize the model
-m = InfiniteModel(Ipopt.Optimizer)
+## Contribution
+`InfiniteOpt` is a powerful tool with a broad scope lending to a large realm of
+possible feature additions and enhancements. So, we are thrilled to support anyone
+who would like to contribute to this project in any way big or small.
 
-# Set the uncertainty parameters
-dist = MvNormal(θ_nom, covar)
-@infinite_parameter(m, θ[i = 1:n_θ] in dist, num_supports = 100)
-@infinite_parameter(m, t in [0, 10])
+For small documentation fixes (such as typos or wording clarifications) please
+do the following:
+1. Click on `Edit on GitHub` at the top of the documentation page
+2. Make the desired changes
+3. Submit a pull request
 
-# Initialize the variables
-@infinite_variable(m, z[1:n_z](θ, t))
-@infinite_variable(m, 0 <= y(θ) <= 100)
-@hold_variable(m, d[1:n_d] >= 0)
-
-# Set objective function
-@objective(m, Min, expect(1 - y, θ))
-
-# Set first stage constraints
-@constraint(m, max_cost, sum(1 / 3 * d[i] for i = 1:n_d) <= 5)
-
-# Set the second stage constraints
-@constraint(m, f1, -z[1] - 35 - d[1] + y <= 0)
-@constraint(m, f2, z[1] - 35 - d[1] + y <= 0)
-@constraint(m, f3, -z[2] - 50 - d[2] + y <= 0)
-@constraint(m, f4, z[1] - 50 - d[2] + y <= 0)
-@constraint(m, h1, z[1] - θ[1] == 0)
-@constraint(m, h2, -z[1] -z[2] + z[3] - θ[2] == 0)
-@constraint(m, h3, z[2] - θ[3] == 0)
-
-# Solve and and obtain results
-optimize!(m)
-if has_values(m)
-    opt_y = value(y)
-    opt_d = value.(d)
-    opt_obj = objective_value(m)
-end
-```
+For other contributions, please visit our [Developers Guide](@ref) for step by
+step instructions and to review our style guide.
 
 ## Acknowledgements
 We acknowledge our support from the Department of Energy under grant

@@ -456,17 +456,12 @@ name1(g(t) - 1 + name2(T(t, x)))
 """
 function measure(expr::JuMP.AbstractJuMPScalar,
                  data::AbstractMeasureData)::MeasureRef
-    if !isa(expr, Union{InfiniteExpr, MeasureExpr, ParameterExpr}) # TODO maybe remove this?
-        error("Expression must contain infinite variables, infinite " *
-              "parameters, or measure references")
-    end
     vrefs = _all_function_variables(expr)
     model = _model_from_expr(vrefs)
     if model == nothing
         error("Expression contains no variables or parameters.")
     end
     pref = parameter_refs(data)
-    _check_has_parameter(vrefs, pref) # TODO is this needed?
     if model.has_hold_bounds
         for vref in vrefs
             _check_var_bounds(vref, data)

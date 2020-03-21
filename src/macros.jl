@@ -22,8 +22,10 @@ function _parse_one_operator_parameter(
     value)
     # check if interval set
     if isexpr(value.args[1], :vect)
-        JuMP._set_lower_bound_or_error(_error, infoexpr, value.args[1].args[1])
-        JuMP._set_upper_bound_or_error(_error, infoexpr, value.args[1].args[2])
+        JuMP._set_lower_bound_or_error(_error, infoexpr,
+                                  JuMP._esc_non_constant(value.args[1].args[1]))
+        JuMP._set_upper_bound_or_error(_error, infoexpr,
+                                  JuMP._esc_non_constant(value.args[1].args[2]))
     else
         _set_or_error(_error, infoexpr, value)
     end

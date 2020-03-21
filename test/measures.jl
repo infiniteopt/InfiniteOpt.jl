@@ -548,12 +548,13 @@ end
         @test measure(inf + x, data) == mref
         @test name(mref) == "a(inf(par) + x)"
         @test supports(par) == [1]
-        # test errors
-        @test_throws ErrorException measure(x, data)
+        # test no variables
         @test_throws ErrorException measure(zero(GenericAffExpr{Float64,
                                                      GeneralVariableRef}), data)
-        @test_throws ErrorException measure(par2, data)
-        @test_throws ErrorException measure(inf4 + measure(inf + x, data3), data)
+        # test not dependent
+        @test measure(x, data) isa MeasureRef
+        @test measure(par2, data) isa MeasureRef
+        @test measure(inf4 + measure(inf + x, data3), data) isa MeasureRef
         # test with bad variable bounds
         InfiniteOpt._update_variable_param_bounds(x, ParameterBounds(Dict(par => IntervalSet(0, 0))))
         @test_throws ErrorException measure(inf + x, data)

@@ -1,44 +1,40 @@
-# include("C:/Users/puls446/.julia/dev/InfOpt/examples/hovercraft.jl")
+"""
+Dynamic path planning problem of hovercraft trying to minimize thrust usage
+to hit all the waypoints at the alotted target times.
+"""
 
-using InfiniteOpt, JuMP, Ipopt, PyPlot
+using InfiniteOpt, JuMP, Ipopt, Plots
 
 # Set problem information
 max_time = 60
 time_points = Vector(0:max_time)
-xw = [1 4 6 1; 1 3 0 1]
-times = [0; 20; 50; 60]
+xw = [1 4 6 1; 1 3 0 1] # waypoints
+times = [0; 25; 50; 60]
 
 # Initialize the model
-m = InfiniteModel(with_optimizer(Ipopt.Optimizer, print_level = 0))
+m = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0))
 
 # Set the parameters and variables
-@infinite_parameter(m, 0 <= t <= max_time, supports = time_points)
-@infinite_variable(m, x[1:2](t)) # position
-@infinite_variable(m, v[1:2](t)) # velocity
-@infinite_variable(m, u[1:2](t)) # thruster input
-
-# Specify the objective
-time_data = DiscreteMeasureData(t, ones(num_supports(t)), supports(t), name = "sum")
-@objective(m, Min, measure(u[1]^2 + u[2]^2, time_data))
+@infinite_parameter(m, t in [0, max_time])
+@infinite_variable(m, x[1:2](t), start = 1) # position
+@infinite_variable(m, v[1:2](t), start = 0) # velocity
+@infinite_variable(m, u[1:2](t), start = 0) # thruster input
 
 # Set the initial conditions
 @BDconstraint(m, initial_velocity[i = 1:2](t == 0), v[i] == 0)
 
-# Newton equations
-for time in 0:max_time-1
-    x_curr = @point_variable(m, [i = 1:2], infinite_variable_ref = x[i], parameter_values = time)
-    x_next = @point_variable(m, [i = 1:2], infinite_variable_ref = x[i], parameter_values = time + 1)
-    v_curr = @point_variable(m, [i = 1:2], infinite_variable_ref = v[i], parameter_values = time)
-    v_next = @point_variable(m, [i = 1:2], infinite_variable_ref = v[i], parameter_values = time + 1)
-    u_curr = @point_variable(m, [i = 1:2], infinite_variable_ref = u[i], parameter_values = time)
-    @constraint(m, [i = 1:2], x_next[i] == x_curr[i] + v_curr[i])
-    @constraint(m, [i = 1:2], v_next[i] == v_curr[i] + u_curr[i])
-end
+# Manually implement euler scheme for motion equations
+@point_variable(m, x[i](time_points[j]), xp[i = 1:2, j = 1:length(time_points)])
+@point_variable(m, v[i](time_points[j]), vp[i = 1:2, j = 1:length(time_points)])
+@point_variable(m, u[i](time_points[j]), up[i = 1:2, j = 1:length(time_points)])
+@constraint(m, [i = 1:2, j = 1:length(time_points)-1], xp[i, j+1] == xp[i, j] + vp[i, j])
+@constraint(m, [i = 1:2, j = 1:length(time_points)-1], vp[i, j+1] == vp[i, j] + up[i, j])
 
 # Hit all the waypoints
-for i = 1:length(times)
-    @BDconstraint(m, [j = 1:2](t == times[i]), x[j] == xw[j, i])
-end
+@BDconstraint(m, [i = 1:2, j = 1:length(times)](t == times[j]), x[i] == xw[i, j])
+
+# Specify the objective
+@objective(m, Min, support_sum(u[1]^2 + u[2]^2, t))
 
 # Optimize the model
 optimize!(m)
@@ -53,8 +49,7 @@ if has_values(m)
 end
 
 # Plot the results
-figure()
-plot(x_opt[1,:], x_opt[2,:], "b.-", markersize=4 )
-plot( xw[1,:], xw[2,:], "r.", markersize=12 )
-axis("equal");
-axis((1.,8.,-.5,3.5));
+scatter(xw[1,:], xw[2,:], label = "Waypoints")
+plot!(x_opt[1,:], x_opt[2,:], label = "Trajectory")
+xlabel!("x1")
+ylabel!("x2")

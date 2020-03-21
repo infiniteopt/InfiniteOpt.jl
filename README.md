@@ -45,10 +45,5 @@ The package is tested against Julia `1.0`, `1.1`, `1.2`, `1.3`, and nightly on L
 
 ## Contributing
 `InfiniteOpt` is being actively developed and suggestions or other forms of contribution are encouraged.
-There are many ways to contribute to this package:
-
-- Suggest new/improved functionality
-- Report an issue if you encounter some odd behavior, or if you have suggestions to improve the package.
-- Contribute with code addressing some open issues, that add new functionality or that improve the performance.
-- When contributing with code, add docstrings and comments, so others may understand the methods implemented.
-- Contribute by updating and improving the documentation.
+There are many ways to contribute to this package. For more information please
+visit [CONTRIBUTING](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/CONTRIBUTING.md).

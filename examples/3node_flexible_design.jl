@@ -1,15 +1,18 @@
-# include("C:/Users/puls446/.julia/dev/InfOpt/examples/3node_flexible_design.jl")
+"""
+A stochastic flexibility design problem featuring a rounding strategy. Inspired
+on an example problem from Pulsipher JL, Zavala VM. A scalable stochastic
+programming approach for the design of flexible systems. Computers & Chemical
+Engineering. 2019 Sep 2;128:69-76.
+"""
 
-using Revise, InfiniteOpt, JuMP, Clp, Distributions
+using InfiniteOpt, JuMP, Clp, Distributions
 
 # Set the covariance matrix for the uncertain parameters
 θ_nom = [0.; 60.; 10.]
 covar = [80. 0 0; 0 80. 0; 0 0 120.]
 
 # Set the dimensions
-n_z = 3
-n_θ = 3
-n_d = 3
+n_z = 3; n_θ = 3; n_d = 3
 
 # Set the problem parameters
 c = ones(n_d) / sqrt(n_d)
@@ -18,12 +21,11 @@ U = 10000
 num_samples = 100
 
 # Initialize the model
-m = InfiniteModel(with_optimizer(Clp.Optimizer))
+m = InfiniteModel(Clp.Optimizer, seed = true) # use seed to get same samples
+set_silent(m)
 
 # Set the uncertainty parameters
-dist = MvNormal(θ_nom, covar)
-θs = rand(dist, num_samples)
-@infinite_parameter(m, θ[i = 1:n_θ] in dist, supports = θs[i, :])
+@infinite_parameter(m, θ[i = 1:n_θ] in MvNormal(θ_nom, covar))
 
 # Initialize the variables
 @infinite_variable(m, 0 <= y(θ) <= 1)
@@ -32,8 +34,7 @@ dist = MvNormal(θ_nom, covar)
 @hold_variable(m, d[1:n_d] >= 0)
 
 # Set objective function
-expect_data = DiscreteMeasureData(θ, ones(num_samples) / num_samples, supports(θ), name = "expect")
-@objective(m, Max, measure(1 - y, expect_data))
+@objective(m, Max, expect(1 - y, θ, num_supports = num_samples))
 
 # Set the line capacity constraints
 @constraint(m, f1, -z[1] - 35 - d[1] <= y * U)

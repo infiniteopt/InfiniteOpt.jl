@@ -1,4 +1,4 @@
-# Expressions
+# [Expressions] (@id expr_page)
 A guide for the defining and understanding the variable expressions
 used in `InfiniteOpt`.
 
