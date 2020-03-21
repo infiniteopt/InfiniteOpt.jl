@@ -261,7 +261,7 @@ m = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0)
 @BDconstraint(m, [i = 1:2, j = 1:length(tw)](t == tw[j]), x[i] == xw[i, j])
 
 # Specify the objective
-@objective(m, Min, measure(u[1]^2 + u[2]^2, t, use_existing_supports = true))
+@objective(m, Min, integral(u[1]^2 + u[2]^2, t, use_existing_supports = true))
 
 # Optimize the model
 optimize!(m)
