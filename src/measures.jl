@@ -482,34 +482,46 @@ end
                             Nothing} = nothing,
              lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
              ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing];
-             [eval_method::Union{Function, Symbol},
+             [eval_method::Symbol = sampling,
              num_supports::Int = 10,
-             weight_func::Function = _w, name = "measure",
+             weight_func::Function = _w,
+             name = "integral",
              use_existing_supports::Bool = false,
-             call_from_expect::Bool = false,
-             check_method::Bool = true, kwargs...])::MeasureRef
+             kwargs...])::MeasureRef
 
-Returns a measure reference that evaluates and integral of `expr`
-Similar to the basic [`measure`](@ref)
-method, this function aims to implement measures of the form:
-``\\int_{p \\in P} expr(p) w(p) dp`` where ``p`` is an infinite parameter (scalar
-or vector) and ``w`` is the weight function. This function serves as a flexible
-interface where users only have to provide necessary data about the
-integration. Instead of taking an [`AbstractMeasureData`](@ref) object as input,
-this function constructs the [`AbstractMeasureData`](@ref) object using some
-default numerical integration schemes. The lower and upper bounds of measure
-can be specified through `lb` and `ub` arguments. If not specified, the function
-will take the full range as the default domain. By default, the function generates
-points by Monte Carlo sampling from the interval if the parameter is in an
-[`IntervalSet`](@ref), or from the underlying distribution if the parameter is
-in a [`DistributionSet`](@ref). If the expression involves multiple groups of
-parameters, the user needs to specify the parameter. The user can also specify
-lower bounds and upper bounds for the parameters, number of supports to
-generate, and the function to generate the supports with. The user can also
-input the keyword argument [`eval_method = quadrature`] to construct points using
-appropriate quadrature methods based on the lower and upper bounds. See
-[`set_measure_defaults`](@ref) to update the default keyword argument values
-for all measure calls.
+Returns a measure reference that evaluates the integral of `expr` with respect
+to infinite parameter(s) from `lb` to `ub`. This thus considers integrals of the
+form: ``\\int_{p \\in P} expr(p) w(p) dp`` where ``p`` is an infinite parameter
+(scalar or vector) and ``w`` is the weight function is 1 by default. This
+function provides a high-level interface that ultimately constructs a
+[`DiscreteMeasureData`](@ref) via `eval_method` that is used to call
+[`measure`](@ref).
+
+The arugments are as follows:
+- `params`: the integral infinite parameter(s) in ``dp``
+- `lb` & `ub`: integral upper and lower bounds (defaults to entire parameter domain)
+Note that `params` is required if `expr` contains multiple parameters.
+
+The keyword arguments are as follows:
+- `eval_method`: method tha generates the supports and coefficients
+    - `sampling` --> dispatch to appropriate sampling method (default)
+    - `quadrature` --> dispatch to appropriate quadrature method
+    - `mc_sampling` --> Monte Carlo sampling
+    - `gauss_hermite` --> Gaussian Hermite quadrature (infinite interval)
+    - `gauss_legendre` --> Gaussian Legendre quadrature (finite interval)
+    - `gauss_laguerre` --> Gaussian Laguerre quadrature (semi-infinite interval)
+    - `trapezoid` --> trapezoidal quadrature (finite interval)
+- `num_supports`: The number of supports to be generated
+- `weight_func`: ``w(p)`` above with parameter value inputs and scalar output
+- `name`: the name used in printing
+- `use_existing_supports`: Use all supports currently stored in `params`
+Note that `mc_sampling` samples from the parameter interval for [`IntervalSet`](@ref)s,
+and from the underlying distribution for [`DistributionSet`](@ref)s. Also,
+`use_existing_supports` is useful for subsequent integral calls when using
+`mc_sampling` such that all the measures use the same supports.
+
+See [`set_integral_defaults`](@ref) to update the default keyword argument values
+for all integral calls.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(seed = true))
@@ -519,10 +531,10 @@ x
 julia> @infinite_variable(model, f(x))
 f(x)
 
-julia> meas = measure(f, num_supports = 5)
+julia> int = integral(f, num_supports = 5)
 (f(x))
 
-julia> expand(meas)
+julia> expand(int)
 0.2 f(0.8236475079774124) + 0.2 f(0.9103565379264364) + 0.2 f(0.16456579813368521) + 0.2 f(0.17732884646626457) + 0.2 f(0.278880109331201)
 ```
 """
@@ -712,63 +724,62 @@ function integral(expr::JuMP.AbstractJuMPScalar,
 end
 
 """
-    measure_defaults(model::InfiniteModel)
+    integral_defaults(model::InfiniteModel)
 
-Get the default keyword argument values for defining measures in `model`.
+Get the default keyword argument values for defining integral in `model`.
 
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> measure_defaults(model)
+julia> integral_defaults(model)
 Dict{Symbol,Any} with 6 entries:
   :num_supports          => 10
   :call_from_expect      => false
   :eval_method           => nothing
-  :name                  => "measure"
+  :name                  => "integral"
   :weight_func           => _w
   :use_existing_supports => false
 ```
 """
-function measure_defaults(model::InfiniteModel)
-    return model.meas_defaults
+function integral_defaults(model::InfiniteModel)
+    return model.integral_defaults
 end
 
 """
-    set_measure_defaults(model::InfiniteModel; kwargs...)
+    set_integral_defaults(model::InfiniteModel; kwargs...)
 
-Set the default keyword argument settings for measures of the specified model.
+Set the default keyword argument settings for integrals of the specified model.
 The keyword arguments of this function will be recorded in the default keyword
 argument values of the model. If the keyword argument has been defined in the
 model default, it will be overwritten with the new keyword argument value.
 Otherwise, the default will record the new keyword argument and its value for
-measures. The default values will be used by measures constructed from
-[`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}))
-function calls.
+measures. The default values will be used by integrals constructed from
+[`integral`](@ref) calls.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> measure_defaults(model)
+julia> integral_defaults(model)
 Dict{Symbol,Any} with 6 entries:
   :num_supports          => 10
   :call_from_expect      => false
   :eval_method           => nothing
-  :name                  => "measure"
+  :name                  => "integral"
   :weight_func           => _w
   :use_existing_supports => false
 
-julia> set_measure_default(m, num_supports = 5, eval_method = Quad, new_kwarg = true)
+julia> set_integral_default(m, num_supports = 5, eval_method = quadrature, new_kwarg = true)
 
-julia> measure_defaults(m)
+julia> integral_defaults(m)
 Dict{Symbol,Any} with 6 entries:
   :new_kwarg             => true
   :num_supports          => 5
   :call_from_expect      => false
-  :eval_method           => :Quad
-  :name                  => "measure"
+  :eval_method           => :quadrature
+  :name                  => "integral"
   :weight_func           => _w
   :use_existing_supports => false
 ```
 """
-function set_measure_defaults(model::InfiniteModel; kwargs...)
-    merge!(model.meas_defaults, kwargs)
+function set_integral_defaults(model::InfiniteModel; kwargs...)
+    merge!(model.integral_defaults, kwargs)
     return
 end
 

@@ -10,10 +10,10 @@ const trapezoid = :trapezoid
                           num_supports::Int,
                           lb::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing,
                           ub::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing;
-                          eval_method::Function = mc_sampling, name::String = "",
+                          eval_method::Symbol = mc_sampling,
+                          name::String = "measure",
                           weight_func::Function = InfiniteOpt._w,
-                          check_method::Bool = true, kwargs...
-                          )::InfiniteOpt.AbstractMeasureData
+                          kwargs...)::InfiniteOpt.AbstractMeasureData
 
 Generate an [`AbstractMeasureData`](@ref) object that automatically generate
 supports based on a set of given information. The information is required to
@@ -35,10 +35,10 @@ function generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
                                num_supports::Int,
                                lb::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing,
                                ub::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing;
-                               eval_method::Symbol = mc_sampling, name::String = "",
+                               eval_method::Symbol = mc_sampling,
+                               name::String = "measure",
                                weight_func::Function = InfiniteOpt._w,
-                               check_method::Bool = true, kwargs...
-                               )::InfiniteOpt.AbstractMeasureData
+                               kwargs...)::InfiniteOpt.AbstractMeasureData
     if isa(params, InfiniteOpt.ParameterRef)
         set = InfiniteOpt._parameter_set(params)
     else
@@ -71,7 +71,7 @@ type of `set`. This is intended as an internal method for
 and will need to be extended for user-defined
 infinite set types. The output tuple should consists of two data objects, the
 first being the supports and the second being the coefficients. Supports must
-be a `Vector` of `Number` or of `AbstractArray{:Number}`, and coefficients
+be a `Vector` of `Number` or of `AbstractArray{<:Number}`, and coefficients
 must be a `Vector` of `Number`. Extensions will be needed to implement their
 own version of function `generate_supports_and_coeffs(set::AbstractInfiniteSet, params, num_supports, lb, ub, method::Val{my_method};kwargs...)`.
 Refer to the other dispatches of `generate_supports_and_coeffs` for details of
