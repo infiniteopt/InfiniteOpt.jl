@@ -603,6 +603,7 @@ function integral(expr::JuMP.AbstractJuMPScalar,
     use_existing_supports = kwargs[:use_existing_supports]
 
     if eval_method == sampling
+        eval_method = mc_sampling
         kwargs[:eval_method] = mc_sampling
     end
 
