@@ -140,9 +140,8 @@ Next we can enable typical measure definition by extending
 [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref) for our
 new set type. This function creates support values and corresponding coefficients
 for a measure using the `method` argument if appropriate. If we wish to ignore
-the `method` then we'll need to set `check_method = false` when calling
-[`measure`](@ref) or using [`set_measure_defaults`](@ref). Continuing our
-example, we obtain:
+the `method` then we'll need to set `method::Any = Nothing` when extending this
+function. Continuing our example, we obtain:
 ```jldoctest set_ext; output = false
 const JuMPC = JuMP.Containers
 
@@ -168,7 +167,7 @@ end
 Now we can define measures as normal:
 ```jldoctest set_ext
 julia> mref = integral(t^2, t)
-measure(t²)
+integral(t²)
 ```
 
 Finally, we can extend the appropriate `JuMP` upper and lower bound functions
@@ -194,7 +193,8 @@ evaluation methods, users may want to embed the new evaluation method under the
 does not require explicit construction of [`AbstractMeasureData`](@ref).
 
 The basic way to do that is to write a function that creates [`AbstractMeasureData`](@ref)
-object, and pass the object to the [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)). For instance, let's consider defining a function that
+object, and pass the object to the [`measure`](@ref). For instance, let's
+consider defining a function that
 enables the definition of a uniform grid for a univariate or multivariate
 infinite parameter in [`IntervalSet`](@ref). The function, denoted `uniform_grid`,
 generates uniform grid points as supports for univariate parameter and each component of
@@ -216,7 +216,7 @@ uniform_grid (generic function with 1 method)
 It is necessary to pass infinite parameter reference since the
 construction of measure data object needs parameter information. Now let's
 apply the new `uniform_grid` function to infinite parameters in
-intervals. We consider a time parameter `t` and 2D space parameter `x`, and
+intervals. We consider a time parameter `t` and 2D spatial parameter `x`, and
 two variables `f(t)` and `g(x)` parameterized by `t` and `x`, respectively:
 ```jldoctest measure_eval
 julia> m = InfiniteModel();
@@ -249,12 +249,12 @@ An alternate way of extending new measure evaluation methods is to extend
 allow users to use their custom measure evaluation methods in the
 [`integral`](@ref) function that does not explicitly require a measure data
 object. A template for how such an extension is accomplished is provided in
-`./InfiniteOpt/test/extensions/measure_eval.jl`. In general, such an extension
-can be created as follows:
+[`./test/extensions/measure_eval.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/measure_eval.jl).
+In general, such an extension can be created as follows:
 1. Define a new symbol (e.g. `my_new_fn`) that dispatches your function
 2. Extend [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref),
 where `method` is of the type `Val{my_new_fn}`, and `set` needs to be a subtype
-of [`AbstractInfiniteSet`](@ref) that you wish to apply the new evalution method
+of [`AbstractInfiniteSet`](@ref) that you wish to apply the new evaluation method
 to.
 
 For example, an extension of [`InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs`](@ref)
@@ -318,16 +318,16 @@ independent in order to throw a warning when needed.
 
 We create measure for `f` and `g` using the `uniform_grid` method
 ```jldoctest measure_eval
-julia> f_meas = integral(f, t, num_supports = 6, eval_method = unif_grid)
-measure(f(t))
+julia> f_int = integral(f, t, num_supports = 6, eval_method = unif_grid)
+integral(f(t))
 
-julia> g_meas = integral(g, x, num_supports = 3, eval_method = unif_grid)
-measure(g(x))
+julia> g_int = integral(g, x, num_supports = 3, eval_method = unif_grid)
+integral(g(x))
 
-julia> expand(f_meas)
+julia> expand(f_int)
 0.8333333333333333 f(0) + 0.8333333333333333 f(1) + 0.8333333333333333 f(2) + 0.8333333333333333 f(3) + 0.8333333333333333 f(4) + 0.8333333333333333 f(5)
 
-julia> expand(g_meas)
+julia> expand(g_int)
 0.3333333333333333 g([0, 0]) + 0.3333333333333333 g([0.5, 0.5]) + 0.3333333333333333 g([1, 1])
 ```
 Here we go! We can freely use `unif_grid` for infinite parameters in
@@ -348,7 +348,7 @@ extension steps employed are:
 4. Extend [`InfiniteOpt.supports`](@ref supports(::AbstractMeasureData)) (required if parameter supports are employed in any way)
 5. Extend [`InfiniteOpt.measure_data_in_hold_bounds`](@ref) (enables hold variable bound checking with measures)
 6. Extend [`InfiniteOpt.measure_name`](@ref) (enables meaningful measure naming)
-7. Make simple measure constructor wrapper of [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)) to ease definition.
+7. Make simple measure constructor wrapper of [`measure`](@ref) to ease definition.
 
 To illustrate how this process can be done, let's consider extending `InfiniteOpt`
 to include measure for assessing the variance of random expressions. The
@@ -414,8 +414,7 @@ Note that extending `supports` is not needed for abstractions that don't involve
 discretization of the infinite parameter(s), such as the case for outer certain
 outer approximation techniques. Our extension is now sufficiently constructor to
 allow us to define out new variance measure via
-[`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)). For
-example,
+[`measure`](@ref). For example,
 ```jldoctest measure_data; setup = :(using Random; Random.seed!(42))
 # Setup the infinite model
 model = InfiniteModel()

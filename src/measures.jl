@@ -548,7 +548,7 @@ function integral(expr::JuMP.AbstractJuMPScalar,
     # collect parameters from expression if they are not provided
     if isa(params, Nothing)
         if isa(expr, MeasureRef)
-            error("Nested call of measure must specify parameters.")
+            error("Nested call of intregral must specify parameters.")
         end
         params = _all_parameter_refs(expr)
         if length(params) == 0
@@ -595,7 +595,7 @@ function integral(expr::JuMP.AbstractJuMPScalar,
     end
 
     # collect keyword arguments
-    kwargs = merge(model.meas_defaults, kwargs)
+    kwargs = merge(model.integral_defaults, kwargs)
     eval_method = kwargs[:eval_method]
     num_supports = kwargs[:num_supports]
     name = kwargs[:name]
@@ -727,13 +727,12 @@ end
 """
     integral_defaults(model::InfiniteModel)
 
-Get the default keyword argument values for defining integral in `model`.
+Get the default keyword argument values for defining integrals in `model`.
 
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> integral_defaults(model)
 Dict{Symbol,Any} with 6 entries:
   :num_supports          => 10
-  :call_from_expect      => false
   :eval_method           => nothing
   :name                  => "integral"
   :weight_func           => _w
@@ -760,7 +759,6 @@ measures. The default values will be used by integrals constructed from
 julia> integral_defaults(model)
 Dict{Symbol,Any} with 6 entries:
   :num_supports          => 10
-  :call_from_expect      => false
   :eval_method           => nothing
   :name                  => "integral"
   :weight_func           => _w
@@ -772,7 +770,6 @@ julia> integral_defaults(m)
 Dict{Symbol,Any} with 6 entries:
   :new_kwarg             => true
   :num_supports          => 5
-  :call_from_expect      => false
   :eval_method           => :quadrature
   :name                  => "integral"
   :weight_func           => _w
@@ -848,7 +845,8 @@ function support_sum(expr::JuMP.AbstractJuMPScalar,
                      params::Union{ParameterRef, AbstractArray{<:ParameterRef},
                                    Nothing} = nothing)::MeasureRef
     # sum measure
-    return integral(expr, params, use_existing_supports = true, name = "sum")
+    return integral(expr, params, use_existing_supports = true, name = "sum",
+                    eval_method = :not_default)
 end
 
 """

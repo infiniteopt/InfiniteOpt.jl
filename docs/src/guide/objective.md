@@ -40,7 +40,7 @@ integrate over all the infinite parameters contained in its input function.
 For example, if we define had an infinite variable `z(ξ, t)` then the measure
 `expect(z, ξ)` could not be included since the resulting expression would still
 be infinite with respect to `t`. However, adding a measure for `t` would result
-in a valid object to add to an objective: `measure(expect(z, ξ), t)`.
+in a valid object to add to an objective: `integral(expect(z, ξ), t)`.
 
 Now we can add objectives to our infinite models. For more detailed information,
 please review the information below.  

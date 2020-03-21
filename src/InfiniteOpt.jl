@@ -95,12 +95,8 @@ Measure, MeasureRef
 # Export measure methods
 export add_measure, measure, measure_function, measure_data, expand,
 expand_all_measures!, expect, support_sum, measure_name, measure_data_in_hold_bounds,
-make_point_variable_ref, make_reduced_variable_ref, expand_measure, integral
-
-# Export measure evaluation functions
-export generate_measure_data, MC_sampling, Gauss_Legendre, Gauss_Hermite,
-Gauss_Laguerre, infinite_transform, support_formatting, measure_dispatch,
-set_measure_defaults, measure_defaults
+make_point_variable_ref, make_reduced_variable_ref, expand_measure, integral,
+set_integral_defaults, integral_defaults
 
 # Export transcription datatypes
 export TranscriptionData, TranscriptionModel

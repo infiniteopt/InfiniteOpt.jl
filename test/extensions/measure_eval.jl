@@ -1,14 +1,15 @@
-# Define the new measure evaluation method
-# myNewEval for univariate IntervalSet
-const NewEvalMethod = :NewEvalMethod
+## Define the new measure evaluation method
+# Make alias for our new method
+const NewEvalMethod = :NewEvalMethod # REPLACE WITH ACTUAL
+
+# Extend generate_supports_and_coeffs for scalar params
 function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
     set::InfiniteOpt.IntervalSet,
-    params::Union{InfiniteOpt.ParameterRef,
-    AbstractArray{<:InfiniteOpt.ParameterRef}},
+    params::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}},
     num_supports::Int,
     lb::Number,
     ub::Number,
-    method::Val{NewEvalMethod})::Tuple
+    method::Val{NewEvalMethod})::Tuple # REPLACE WITH ACTUAL ALIAS
     # REPLACE WITH ACTUAL FUNCTIONALITY
     increment = (ub - lb) / (num_supports - 1)
     supports = [lb + (i - 1) * increment for i in 1:num_supports]
@@ -16,10 +17,10 @@ function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
     return (supports, ones(num_supports) / num_supports * (ub - lb))
 end
 
+# Extend generate_supports_and_coeffs for multi-dimensional params
 function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
     set::InfiniteOpt.IntervalSet,
-    params::Union{InfiniteOpt.ParameterRef,
-    AbstractArray{<:InfiniteOpt.ParameterRef}},
+    params::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}},
     num_supports::Int,
     lb::JuMPC.SparseAxisArray,
     ub::JuMPC.SparseAxisArray,

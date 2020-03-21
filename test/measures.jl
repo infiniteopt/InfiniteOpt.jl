@@ -660,8 +660,8 @@ end
     @infinite_variable(m, inf14(par7))
     @hold_variable(m, x)
 
-    # test measure that does not use AbstractMeasureData inputs
-    @testset "measure (no AbstractMeasureData)" begin
+    # test integral
+    @testset "integral" begin
         meas1 = integral(inf, num_supports = 5, eval_method = gauss_legendre)
         (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
         expected_supps = expected_supps .* 0.5 .+ 0.5
@@ -766,21 +766,21 @@ end
         @test measure_data(expect2).supports == measure_data(check2).supports
         @test measure_data(expect3).supports == measure_data(expect1).supports
     end
-    # test set_measure_default
-    @testset "set_measure_defaults" begin
-        set_measure_defaults(m, num_supports = 5, eval_method = quadrature,
+    # test set_integral_defaults
+    @testset "set_integral_defaults" begin
+        set_integral_defaults(m, num_supports = 5, eval_method = quadrature,
                             new_kwarg = true)
-        def_vals = measure_defaults(m)
+        def_vals = integral_defaults(m)
         @test def_vals[:num_supports] == 5
         @test def_vals[:eval_method] == quadrature
-        @test def_vals[:name] == "measure"
+        @test def_vals[:name] == "integral"
         @test def_vals[:weight_func] == InfiniteOpt._w
         @test def_vals[:use_existing_supports] == false
         @test def_vals[:new_kwarg] == true
     end
     # test measure with default keyword argument values
     @testset "default measure" begin
-        delete!(measure_defaults(m), :new_kwarg)
+        delete!(integral_defaults(m), :new_kwarg)
         meas = integral(inf)
         (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
         expected_supps = expected_supps .* 0.5 .+ 0.5

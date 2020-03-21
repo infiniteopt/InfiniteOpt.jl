@@ -30,7 +30,7 @@ end
 # Extend generate_and_add_supports! if supports are not generated for parameters individually
 # Here we'll assume generate_support_values is sufficient
 
-# Extend generate_supports_and_coeffs in enable measure() with methods
+# Extend generate_supports_and_coeffs in enable integral() with methods
 function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
     set::MyNewSet,
     params::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}},
