@@ -660,9 +660,9 @@ end
     @infinite_variable(m, inf14(par7))
     @hold_variable(m, x)
 
-    # test measure that does not use AbstractMeasureData inputs
-    @testset "measure (no AbstractMeasureData)" begin
-        meas1 = measure(inf, num_supports = 5, eval_method = gauss_legendre)
+    # test integral
+    @testset "integral" begin
+        meas1 = integral(inf, num_supports = 5, eval_method = gauss_legendre)
         (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
         expected_supps = expected_supps .* 0.5 .+ 0.5
         expected_coeffs = expected_coeffs .* 0.5
@@ -670,36 +670,36 @@ end
         @test all(measure_data(meas1).coefficients .== expected_coeffs)
 
         add_supports(par2, [0.3, 0.7])
-        meas2 = measure(inf2, par2, use_existing_supports = true)
+        meas2 = integral(inf2, par2, use_existing_supports = true)
         @test measure_data(meas2).parameter_ref == par2
         @test measure_data(meas2).supports == [0.3, 0.7]
-        meas2 = measure(inf2, par2, 0.5, 0.9, use_existing_supports = true)
+        meas2 = integral(inf2, par2, 0.5, 0.9, use_existing_supports = true)
         @test measure_data(meas2).supports == [0.7]
-        meas2 = measure(inf2, [par2], [0.5], [0.9], use_existing_supports = true)
+        meas2 = integral(inf2, [par2], [0.5], [0.9], use_existing_supports = true)
         @test measure_data(meas2).supports == [0.7]
 
-        meas3 = measure(inf4, num_supports = 5, eval_method = Sampling)
+        meas3 = integral(inf4, num_supports = 5, eval_method = sampling)
         @test pars1[1] in measure_data(meas3).parameter_ref
         @test pars1[2] in measure_data(meas3).parameter_ref
 
-        meas4 = measure(inf5, pars2, num_supports = 5)
+        meas4 = integral(inf5, pars2, num_supports = 5)
         @test pars2["a"] in measure_data(meas4).parameter_ref
         @test pars2["b"] in measure_data(meas4).parameter_ref
 
-        meas5 = measure(inf6, use_existing_supports = true)
+        meas5 = integral(inf6, use_existing_supports = true)
         @test measure_data(meas4).supports == measure_data(meas5).supports
 
         add_supports(pars3[1], [0.3, 0.7])
         add_supports(pars3[2], [0.3, 0.7])
-        meas6 = measure(inf7, pars3, 0.5, 1.0, use_existing_supports = true)
+        meas6 = integral(inf7, pars3, 0.5, 1.0, use_existing_supports = true)
         @test measure_data(meas6).supports == [JuMPC.SparseAxisArray(
                                                 Dict([((1,),0.7), ((2,), 0.7)]))]
-        meas6 = measure(inf7, pars3, [0.5, 0.5], [1.0, 1.0], use_existing_supports = true)
+        meas6 = integral(inf7, pars3, [0.5, 0.5], [1.0, 1.0], use_existing_supports = true)
         @test measure_data(meas6).supports == [JuMPC.SparseAxisArray(
                                                 Dict([((1,),0.7), ((2,), 0.7)]))]
 
 
-        meas7 = measure(inf11, par4, num_supports = 5, eval_method = Quad)
+        meas7 = integral(inf11, par4, num_supports = 5, eval_method = quadrature)
         (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
         expected_supps = expected_supps .* 0.5 .+ 0.5
         expected_coeffs = expected_coeffs .* 0.5
@@ -708,38 +708,38 @@ end
 
         add_supports(par5, [0.3, 0.7])
         warn = "Quadrature method will not be used because use_existing_supports is set as true."
-        @test_logs (:warn, warn) measure(inf12, par5,
-                               use_existing_supports = true, eval_method = Quad)
+        @test_logs (:warn, warn) integral(inf12, par5,
+                               use_existing_supports = true, eval_method = quadrature)
 
-        meas8 = measure(inf13, par6, num_supports = 5, eval_method = Quad)
+        meas8 = integral(inf13, par6, num_supports = 5, eval_method = quadrature)
         (expected_supps, expected_coeffs) = FGQ.gausslaguerre(5)
         expected_coeffs = expected_coeffs .* exp.(expected_supps)
         @test all(measure_data(meas8).supports .== expected_supps)
         @test all(measure_data(meas8).coefficients .== expected_coeffs)
 
-        meas9 = measure(inf14, par7, num_supports = 5, eval_method = Quad)
+        meas9 = integral(inf14, par7, num_supports = 5, eval_method = quadrature)
         (expected_supps, expected_coeffs) = FGQ.gausshermite(5)
         expected_coeffs = expected_coeffs .* exp.(expected_supps.^2)
         @test all(measure_data(meas9).supports .== expected_supps)
         @test all(measure_data(meas9).coefficients .== expected_coeffs)
 
         # test errors
-        @test_throws ErrorException measure(x)
-        @test_throws ErrorException measure(inf, ParameterRef[])
-        @test_throws ErrorException measure(inf2)
-        @test_throws ErrorException measure(inf2, [par, par2])
-        @test_throws ErrorException measure(inf2, par, 1., 3.)
-        @test_throws ErrorException measure(inf2, par, [0., 1.])
-        @test_throws ErrorException measure(inf2, par, 0., [1., 1.])
-        @test_throws ErrorException measure(inf2, par, 0.5, 0.)
-        @test_throws ErrorException measure(inf8, use_existing_supports = true)
-        @test_throws ErrorException measure(meas1)
-        @test_throws ErrorException measure(inf4, pars1, eval_method = Quad)
-        @test_throws ErrorException measure(inf, par, -1)
-        @test_throws ErrorException measure(inf, par, 0, 2)
-        @test_throws ErrorException measure(inf4, pars1, -1)
-        @test_throws ErrorException measure(inf4, pars1, 0, 2)
-        @test_throws ErrorException measure(x, pars4)
+        @test_throws ErrorException integral(x)
+        @test_throws ErrorException integral(inf, ParameterRef[])
+        @test_throws ErrorException integral(inf2)
+        @test_throws ErrorException integral(inf2, [par, par2])
+        @test_throws ErrorException integral(inf2, par, 1., 3.)
+        @test_throws ErrorException integral(inf2, par, [0., 1.])
+        @test_throws ErrorException integral(inf2, par, 0., [1., 1.])
+        @test_throws ErrorException integral(inf2, par, 0.5, 0.)
+        @test_throws ErrorException integral(inf8, use_existing_supports = true)
+        @test_throws ErrorException integral(meas1)
+        @test_throws ErrorException integral(inf4, pars1, eval_method = quadrature)
+        @test_throws ErrorException integral(inf, par, -1)
+        @test_throws ErrorException integral(inf, par, 0, 2)
+        @test_throws ErrorException integral(inf4, pars1, -1)
+        @test_throws ErrorException integral(inf4, pars1, 0, 2)
+        @test_throws ErrorException integral(x, pars4)
     end
     # test support_sum
     @testset "support_sum" begin
@@ -766,23 +766,22 @@ end
         @test measure_data(expect2).supports == measure_data(check2).supports
         @test measure_data(expect3).supports == measure_data(expect1).supports
     end
-    # test set_measure_default
-    @testset "set_measure_defaults" begin
-        set_measure_defaults(m, num_supports = 5, eval_method = Quad,
+    # test set_integral_defaults
+    @testset "set_integral_defaults" begin
+        set_integral_defaults(m, num_supports = 5, eval_method = quadrature,
                             new_kwarg = true)
-        def_vals = measure_defaults(m)
+        def_vals = integral_defaults(m)
         @test def_vals[:num_supports] == 5
-        @test def_vals[:call_from_expect] == false
-        @test def_vals[:eval_method] == Quad
-        @test def_vals[:name] == "measure"
+        @test def_vals[:eval_method] == quadrature
+        @test def_vals[:name] == "integral"
         @test def_vals[:weight_func] == InfiniteOpt._w
         @test def_vals[:use_existing_supports] == false
         @test def_vals[:new_kwarg] == true
     end
     # test measure with default keyword argument values
     @testset "default measure" begin
-        delete!(measure_defaults(m), :new_kwarg)
-        meas = measure(inf)
+        delete!(integral_defaults(m), :new_kwarg)
+        meas = integral(inf)
         (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
         expected_supps = expected_supps .* 0.5 .+ 0.5
         expected_coeffs = expected_coeffs .* 0.5

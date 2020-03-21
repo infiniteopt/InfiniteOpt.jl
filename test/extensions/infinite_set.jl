@@ -20,7 +20,7 @@ end
 
 # Extend generate_support_values if possible
 function InfiniteOpt.generate_support_values(set::MyNewSet;
-                                             num_supports::Int = 50,
+                                             num_supports::Int = 10,
                                              sig_fig::Int = 5)::Array
     # REPLACE BELOW WITH METHODS TO GENERATE `num_samples` with `sig_fig`
     supports = collect(range(set.attr1, stop = set.attr2, length = num_supports))
@@ -30,17 +30,18 @@ end
 # Extend generate_and_add_supports! if supports are not generated for parameters individually
 # Here we'll assume generate_support_values is sufficient
 
-# Extend generate_supports_and_coeffs in enable measure() with methods
+# Extend generate_supports_and_coeffs in enable integral() with methods
 function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
     set::MyNewSet,
     params::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}},
     num_supports::Int,
     lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
     ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-    method::Function; kwargs...
+    method::Val; kwargs...
     )::Tuple
     # ADD CHECKS IF NEEDED
-    return method(lb, ub, num_supports; kwargs...) # REPLACE WITH PROPER DISPATCH
+    return generate_supports_and_coeffs(IntervalSet(set.attr1, set.attr2), params,
+                                        num_supports, lb, ub, method) # REPLACE WITH PROPER DISPATCH
 end
 
 # Extend JuMP.has_lower_bound (optional if the answer is always false)

@@ -36,12 +36,12 @@ using .TranscriptionOpt
 include("MeasureEvalMethods/MeasureEvalMethods.jl")
 using .MeasureEvalMethods: generate_measure_data, mc_sampling, gauss_legendre,
 gauss_hermite, gauss_laguerre, infinite_transform, generate_supports_and_coeffs,
-default_set_types, default_methods, eval_method_registry, register_eval_method
+trapezoid
 
-# Export the measure eval functions
+# Export the measure eval functions and constants
 export generate_measure_data, mc_sampling, gauss_legendre, gauss_hermite,
-gauss_laguerre, infinite_transform, measure_dispatch,
-generate_supports_and_coeffs, eval_method_registry, register_eval_method
+gauss_laguerre, trapezoid, infinite_transform, measure_dispatch,
+generate_supports_and_coeffs
 
 # Export model object datatype
 export InfiniteModel
@@ -51,8 +51,7 @@ export @infinite_variable, @point_variable, @hold_variable, @infinite_parameter,
 @BDconstraint, @finite_parameter, @set_parameter_bounds, @add_parameter_bounds
 
 # Export constants
-export Infinite, Hold, Point, Parameter, Sampling, Quad, default_set_types,
-default_methods
+export Infinite, Hold, Point, Parameter, sampling, quadrature
 
 # Export infinite parameter datatypes
 export InfOptParameter, ParameterRef
@@ -96,12 +95,8 @@ Measure, MeasureRef
 # Export measure methods
 export add_measure, measure, measure_function, measure_data, expand,
 expand_all_measures!, expect, support_sum, measure_name, measure_data_in_hold_bounds,
-make_point_variable_ref, make_reduced_variable_ref, expand_measure
-
-# Export measure evaluation functions
-export generate_measure_data, MC_sampling, Gauss_Legendre, Gauss_Hermite,
-Gauss_Laguerre, infinite_transform, support_formatting, measure_dispatch,
-set_measure_defaults, measure_defaults
+make_point_variable_ref, make_reduced_variable_ref, expand_measure, integral,
+set_integral_defaults, integral_defaults
 
 # Export transcription datatypes
 export TranscriptionData, TranscriptionModel

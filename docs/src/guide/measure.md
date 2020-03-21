@@ -4,7 +4,6 @@ The Datatypes and Methods sections at the end comprise the manual, and the
 above sections comprise the guide.  
 
 ## Overview
-
 Measures are objects that capture the integration of an expression with respect
 to parameters, which is a distinct feature of optimization problems with
 infinite decision spaces. In dynamic optimization measures can represent integral
@@ -15,7 +14,6 @@ evaluates the expression at a set of points over the parameter space and
 approximates the measures based on the expression values at these points.
 
 ## [Basic Usage] (@id measure_basic_usage)
-
 First, we consider a dynamic optimization problem with the time parameter `t`
 from 0 to 10. We also consider a state variable `y(t)` and a control variable
 `u(t)` that are parameterized by `t`:
@@ -32,12 +30,12 @@ u(t)
 
 Now suppose we want to evaluate the integral ``\int_{2}^{8}y(t)^2 + u(t)^2 dt``.
 We can construct a measure to represent this integral using the
-[`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) function
+[`integral`](@ref) function
 ```jldoctest meas_basic
-julia> mref1 = measure(y^2 + u^2, t, 2, 8)
-measure(y(t)² + u(t)²)
+julia> mref1 = integral(y^2 + u^2, t, 2, 8)
+integral(y(t)² + u(t)²)
 ```
-The four positional arguments of [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) are the integrand expression, the the parameter of integration, the lower bound, and the upper
+The four positional arguments of [`integral`](@ref) are the integrand expression, the parameter of integration, the lower bound, and the upper
 bound. If the lower and upper bounds are not specified, then the integration will
 be over the entire domain, which is [0, 10] in this case. In addition, if the
 parameter of integration is not specified, the measure will search for the
@@ -48,18 +46,18 @@ multiple groups of infinite parameters.
 The measure function uses Monte Carlo (MC) sampling method as the default
 discretization scheme. However, for integration over univariate parameter,
 the user can also use quadrature methods by setting the keyword argument
-`eval_method` as `Quad`:
+`eval_method` as `quadrature`:
 ```jldoctest meas_basic
-julia> mref2 = measure(y^2 + u^2, eval_method = Quad)
-measure(y(t)² + u(t)²)
+julia> mref2 = integral(y^2 + u^2, eval_method = quadrature)
+integral(y(t)² + u(t)²)
 ```
 
 The measure function also for specifying the number of points for the
 discretization scheme using the keyword argument `num_supports`. The default
 value of `num_supports` is 50.
 ```jldoctest meas_basic
-julia> mref3 = measure(y^2 + u^2, num_supports = 10)
-measure(y(t)² + u(t)²)
+julia> mref3 = integral(y^2 + u^2, num_supports = 10)
+integral(y(t)² + u(t)²)
 ```
 
 Every time a measure function is called for an infinite parameter, the points
@@ -68,8 +66,8 @@ relevant infinite parameter. The use can choose to evaluate a new integral over
 points that already exist in the support list by setting the keyword argument
 `use_existing_supports` as `true`:
 ```jldoctest meas_basic
-julia> mref4 = measure(y^2 + u^2, use_existing_supports = true)
-measure(y(t)² + u(t)²)
+julia> mref4 = integral(y^2 + u^2, use_existing_supports = true)
+integral(y(t)² + u(t)²)
 ```
 Note that by setting `use_existing_supports = true`, the measure function will
 ignore the values of `eval_method` and `num_supports`.
@@ -79,7 +77,7 @@ measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
 julia> measure_data(mref3)
-DiscreteMeasureData(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.96407, 8.73581, 6.54922, 5.86712, 6.32696, 7.35004, 5.48342, 4.76883, 6.02375, 7.91346], "measure", InfiniteOpt._w)
+DiscreteMeasureData(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [5.85812, 5.39289, 2.60036, 9.10047, 1.67036, 6.55448, 5.75887, 8.68279, 9.678, 7.6769], "integral", InfiniteOpt._w)
 ```
 For more details on the measure data object, refer to [Measure Data Generation](@ref).
 
@@ -94,59 +92,55 @@ the same keyword argument values. We don't have to input the keyword argument
 values every time we construct a new measure. Instead, we can modify the
 default values of measure keyword arguments for that model, and construct
 measures using the new default values. To do that, we use the functions
-[`set_measure_defaults`](@ref) and [`measure_defaults`](@ref). For example,
+[`set_integral_defaults`](@ref) and [`integral_defaults`](@ref). For example,
 suppose we want to change the default number of supports to 10, and for some
 reason we want to add a new keyword argument called `a` to the measure function,
 with value of 1. Then we can do the following:
 ```jldoctest meas_basic
-julia> measure_defaults(model)
-Dict{Symbol,Any} with 7 entries:
-  :num_supports          => 50
-  :call_from_expect      => false
-  :eval_method           => :Sampling
-  :name                  => "measure"
-  :check_method          => true
+julia> integral_defaults(model)
+Dict{Symbol,Any} with 5 entries:
+  :num_supports          => 10
+  :eval_method           => :sampling
+  :name                  => "integral"
   :weight_func           => _w
   :use_existing_supports => false
 
-julia> set_measure_defaults(model, num_supports = 10, a = 1)
+julia> set_integral_defaults(model, num_supports = 20, a = 1)
 
-julia> measure_defaults(model)
-Dict{Symbol,Any} with 8 entries:
+julia> integral_defaults(model)
+Dict{Symbol,Any} with 6 entries:
   :a                     => 1
-  :num_supports          => 10
-  :call_from_expect      => false
-  :eval_method           => :Sampling
-  :name                  => "measure"
-  :check_method          => true
+  :num_supports          => 20
+  :eval_method           => :sampling
+  :name                  => "integral"
   :weight_func           => _w
   :use_existing_supports => false
 ```
-[`measure_defaults`](@ref) returns the current default keyword argument
-values for measures for the model, and [`set_measure_defaults`](@ref) set new
-keyword argument values. The first [`measure_defaults`](@ref) call above
+[`integral_defaults`](@ref) returns the current default keyword argument
+values for measures for the model, and [`set_integral_defaults`](@ref) set new
+keyword argument values. The first [`integral_defaults`](@ref) call above
 shows the default values at model initialization. Note that
-[`set_measure_defaults`](@ref) can not only modify values of existing keyword
+[`set_integral_defaults`](@ref) can not only modify values of existing keyword
 arguments, but also add new keyword arguments with a specified value. This is
 very useful if users want to extend the measure functions with their custom
 discretization/evaluation schemes that take additional arguments.
 See the extension page for more details.
 
-Now that we change the default number of supports to 10, all measures
-created later will have 10 supports by default. The users can still overwrite
+Now that we change the default number of supports to 20, all measures
+created later will have 20 supports by default. The users can still overwrite
 the default for specific measures as follows, shown as follows:
-```jldoctest meas_basic; setup = :(delete!(measure_defaults(model), :a))
-julia> mref1 = measure(y^2)
-measure(y(t)²)
+```jldoctest meas_basic; setup = :(delete!(integral_defaults(model), :a))
+julia> mref1 = integral(y^2)
+integral(y(t)²)
 
 julia> length(measure_data(mref1).supports)
-10
+20
 
-julia> mref2 = measure(y^2, num_supports = 20)
-measure(y(t)²)
+julia> mref2 = integral(y^2, num_supports = 5)
+integral(y(t)²)
 
 julia> length(measure_data(mref2).supports)
-20
+5
 ```
 
 Now we can add integrals to the constraints and objective functions in our
@@ -170,7 +164,7 @@ where ``\tau_i`` are the grid points where the expression ``f(\tau)`` is
 evaluated, and ``N`` is the total number of points taken.
 
 ## Measure Data Generation
-The most general form of [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)) takes two arguments: the expression to integrate and
+The most general form of [`measure`](@ref) takes two arguments: the expression to integrate and
 a measure data object that contains the details of the discretization scheme.
 Measure data objects can be constructed using [`DiscreteMeasureData`](@ref DiscreteMeasureData(::ParameterRef, ::Vector{<:Number}, ::Vector{<:Number})),
 where the parameter of integration, the coefficients ``\alpha_i``, and the
@@ -223,15 +217,14 @@ that records the value at each dimension, and the measure data type is
 [`MultiDiscreteMeasureData`](@ref), again a subtype of
 [`AbstractMeasureData`](@ref) that's specifically for multivariate parameters.
 
-The [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) function called
-in [Basic Usage](@ref measure_basic_usage) above is a dispatch of the basic [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)) function which does
+The [`integral`](@ref) function called
+in [Basic Usage](@ref measure_basic_usage) above is calls the [`measure`](@ref) function which does
 not require explicit construction of the measure data object. Instead, the
 function constructs the appropriate measure data object according to the values
 of the positional and keyword arguments.
 
 ## Evaluation Methods
-If the users call [`measure`](@ref measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})) without giving the measure data object but giving enough
-information, the function calls [`generate_measure_data`](@ref) under the hood
+The [`integral`](@ref) function calls [`generate_measure_data`](@ref) under the hood
 to construct the measure data object. [`generate_measure_data`](@ref) takes as
 positional arguments the integrated parameter, number of supports, lower bound
 and upper bound, and returns a measure data object of type
@@ -239,21 +232,24 @@ and upper bound, and returns a measure data object of type
 
 [`generate_measure_data`](@ref) calls integral evaluation methods that are
 encoded in this package, which is specified through the `eval_method` keyword
-argument in measure function calls. `eval_method` takes a function that returns
-a tuple containing the supports and coefficients, which is will be used by
+argument in measure function calls. The evaluation methods are encoded in
+various dispatches of [`generate_supports_and_coeffs`](@ref)
+for different parameter set types and evaluation methods. Each [`generate_supports_and_coeffs`](@ref)
+implements the specified `eval_method` and returns
+a tuple containing the supports and coefficients, which will be used by
 [`generate_measure_data`](@ref) to construct the measure data object.
 A table of available `eval_method` options in our package is listed below.
 Each method is limited on the dimension of parameter and/or the type of set
-that it can apply for. `eval_method` can be overwritten by self-defined
-functions as long as they preserve the same input and output argument types.
+that it can apply for.
 
 | `eval_method` | Uni/multi-variate? | Type of set |
 | --- | --- | --- |
-| [`mc_sampling`](@ref mc_sampling(::Number, ::Number, ::Int)) | Both | [`IntervalSet`](@ref) |
-| [`mc_sampling`](@ref mc_sampling(::Distributions.UnivariateDistribution, ::InfiniteOpt.ParameterRef, ::Int)) | Both | [`DistributionSet`](@ref) |
-| [`gauss_legendre`](@ref) | Univariate | Finite [`IntervalSet`](@ref) |
-| [`gauss_laguerre`](@ref) | Univariate | Semi-infinite [`IntervalSet`](@ref) |
-| [`gauss_hermite`](@ref) | Univariate | Infinite [`IntervalSet`](@ref) |
+| [`mc_sampling`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{mc_sampling})) | Both | [`IntervalSet`](@ref) |
+| [`mc_sampling`](@ref generate_supports_and_coeffs(::InfiniteOpt.DistributionSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{mc_sampling})) | Both | [`DistributionSet`](@ref) |
+| [`gauss_legendre`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_legendre})) | Univariate | Finite [`IntervalSet`](@ref) |
+| [`gauss_laguerre`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_laguerre})) | Univariate | Semi-infinite [`IntervalSet`](@ref) |
+| [`gauss_hermite`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_hermite})) | Univariate | Infinite [`IntervalSet`](@ref) |
+| [`trapezoid`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{trapezoid})) | Univariate | Infinite [`IntervalSet`](@ref) |
 
 The default evaluation method is MC sampling.
 If the integrated parameter is defined on a finite interval set
@@ -262,7 +258,7 @@ a uniform distribution over that interval. For (semi-)infinite domains, the
 MC sampling method will map the domain into a finite domain and do uniform
 sampling on that finite domain. The mapping is based on a change of variable
 that preserves the same integral value as follows, which is encoded in
-the [`infinite_transform`](@ref) function:
+the [`infinite_transform`](@ref InfiniteOpt.MeasureEvalMethods.infinite_transform) function:
 ```math
 \int_{-\infty}^{\infty} f(x) dx = \int_{-1}^{1}f\left(\frac{t}{1-t^2}\right)\frac{1+t^2}{(1-t^2)^2}dt \\
 \int_{a}^{\infty} f(x) dx = \int_{0}^{1}f\left(a + \frac{t}{1-t}\right)\frac{dt}{(1-t)^2} \\
@@ -273,14 +269,17 @@ If the integrated infinite parameter is a random variable defined in a
 underlying distribution.
 
 For univariate infinite parameters, this package also supports basic Gaussian
-quadrature schemes. Specifically, [`gauss_legendre`](@ref) generates supports
-and coefficients based on Gauss-Legendre quadrature method for parameters in
-finite interval. [`gauss_laguerre`](@ref) generates supports and coefficients
-based on Gauss-Laguerre quadrature method for parameters in semi-infinite
-interval. [`gauss_hermite`](@ref) generates supports and coefficients based
-on Gauss-Hermite quadrature method for parameters infinite interval. For an
-introduction to the mathematics of Gaussian quadrature methods, see
+quadrature schemes and trapezoid rule. Specifically, `gauss_legendre`
+generates supports and coefficients based on Gauss-Legendre quadrature method
+for parameters in finite interval. `gauss_laguerre` generates supports
+and coefficients based on Gauss-Laguerre quadrature method for parameters in
+semi-infinite interval. `gauss_hermite` generates supports and
+coefficients based on Gauss-Hermite quadrature method for parameters infinite
+interval. For an introduction to the mathematics of Gaussian quadrature methods, see
 [here](https://en.wikipedia.org/wiki/Gaussian_quadrature).
+
+For extension purposes, users may define their own [`generate_supports_and_coeffs`](@ref)
+to encode custom evaluation methods. See [Extensions](@ref) for more details.
 
 ## Expansion
 In a model, each measure records the integrand expression and an evaluation
@@ -366,7 +365,7 @@ julia> infinite_variable_ref(T1)
 T(x, t)
 
 julia> eval_supports(T1)
-Dict{Int64,Union{Number, SparseAxisArray{#s57,N,K} where K<:Tuple{Vararg{Any,N}} where N where #s57<:Number}} with 1 entry:
+Dict{Int64,Union{Number, SparseAxisArray{#s56,N,K} where K<:Tuple{Vararg{Any,N}} where N where #s56<:Number}} with 1 entry:
   2 => 2.5
 ```
 All the `JuMP` functions extended for infinite variables are also extended for
@@ -398,12 +397,12 @@ Order   = [:function]
 ```@docs
 expect
 support_sum
-measure(::JuMP.AbstractJuMPScalar, ::Union{ParameterRef, AbstractArray{<:ParameterRef}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing}, ::Union{Number, AbstractArray{<:Number}, Nothing})
-measure_defaults
-set_measure_defaults
+integral
+integral_defaults
+set_integral_defaults
 DiscreteMeasureData(::ParameterRef, ::Vector{<:Number}, ::Vector{<:Number})
 DiscreteMeasureData(::AbstractArray{<:ParameterRef}, ::Vector{<:Number}, ::Vector{<:AbstractArray})
-measure(::JuMP.AbstractJuMPScalar, ::AbstractMeasureData)
+measure
 add_measure
 measure_function
 measure_data
@@ -459,12 +458,11 @@ Order   = [:function]
 ```@docs
 InfiniteOpt.MeasureEvalMethods.generate_measure_data
 InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs
-InfiniteOpt.MeasureEvalMethods.eval_method_registry
-InfiniteOpt.MeasureEvalMethods.register_eval_method
-InfiniteOpt.MeasureEvalMethods.mc_sampling(::Number, ::Number, ::Int)
-InfiniteOpt.MeasureEvalMethods.mc_sampling(::Distributions.UnivariateDistribution, ::InfiniteOpt.ParameterRef, ::Int)
-InfiniteOpt.MeasureEvalMethods.gauss_legendre
-InfiniteOpt.MeasureEvalMethods.gauss_hermite
-InfiniteOpt.MeasureEvalMethods.gauss_laguerre
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{:mc_sampling})
+InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.DistributionSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{:mc_sampling})
+generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{trapezoid})
+generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_legendre})
+generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_hermite})
+generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_laguerre})
 InfiniteOpt.MeasureEvalMethods.infinite_transform
 ```
