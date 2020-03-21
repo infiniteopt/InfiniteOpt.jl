@@ -291,7 +291,6 @@ Return a tuple that contains supports and coefficients generated using
 Gauss-Laguerre quadrature method. This is useful for univariate parameter in a
 semi-infinite interval.
 
-
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [-Inf, 0])

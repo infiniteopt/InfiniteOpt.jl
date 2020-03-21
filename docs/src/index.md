@@ -12,18 +12,19 @@ definition, automatic transcription into solvable models, permit a wide range
 of user-defined extensions/behavior, and more. Currently, its capabilities
 include:
 - `JuMP`-like symbolic macro interface
-- Infinite parameter support and parameterization of variables/constraints
-- Finite parameters support(similar to `ParameterJuMP`)
+- Infinite set abstractions for parameterization of variables/constraints
+- Finite parameters support and use (similar to `ParameterJuMP`)
 - Direct support of infinite, point, and hold variables
 - Symbolic measure (integral) expression
 - Infinite/finite constraint definition
 - Ordinary differential equation support (coming soon)
 - Automated model transcription/reformulation and solution
-- Readily extendable to accommodate user defined abstractions and solution techniques
+- Compatible with all [JuMP-supported solvers](https://www.juliaopt.org/JuMP.jl/dev/installation/#Getting-Solvers-1)
+- Readily extendable to accommodate user defined abstractions and solution techniques.
 
 !!! note
     Currently, `InfiniteOpt` only accepts linear and quadratic expressions.
-    Development is underway to allow for general nonlinear constraints. Please
+    Development is underway to allow for general nonlinear expressions. Please
     visit [Expressions](@ref expr_page) for more details.
 
 ## Installation
@@ -42,7 +43,7 @@ following command:
 (v1.3) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
 ```
 
-## Usage
+## How to Use the Documentation
 `InfiniteOpt` is intended to serve both as a high-level interface for
 infinite-dimensional optimization and as a highly customizable/extendable
 platform for implementing advanced techniques. With this in mind, we provide the

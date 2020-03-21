@@ -3,6 +3,8 @@
 such we warmly welcome and encourage contributions. This page serves as the guide
 of how contributions can be made and how we prefer that they be carried out.
 
+Before starting please review our [Code of Conduct](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/CODE_OF_CONDUCT.md).
+
 ## Contribution Roadmap
 This section will provide a birds-eye view on how to make a contribution to this
 project. More precise details such as the preferred style are detailed in the

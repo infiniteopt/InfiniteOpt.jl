@@ -15,7 +15,10 @@ MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 [compat]
 julia = "1"
 JuMP = "~0.21"
-FastGaussQuadrature = "≥ 0.3.2"
+FastGaussQuadrature = "^0.3.2, ~0.4"
+Distributions = "~0.19, ~0.20, ~0.21, ~0.22, ~0.23"
+MathOptInterface = "~0.9.11"
+MutableArithmetics = "~0.2"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

@@ -3,8 +3,7 @@ const sampling = :sampling
 const quadrature = :quadrature
 
 # Extend Base.copy for new variable types
-Base.copy(v::MeasureRef, new_model::InfiniteModel) = MeasureRef(new_model,
-                                                                v.index)
+Base.copy(v::MeasureRef, new_model::InfiniteModel) = MeasureRef(new_model, v.index)
 
 """
     JuMP.name(mref::MeasureRef)::String
