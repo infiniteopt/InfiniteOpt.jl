@@ -11,6 +11,10 @@ const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 const JuMPC = JuMP.Containers
 
+# Import the Collections module
+include("Collections/Collections.jl")
+using .Collections
+
 # Import all of the datatpyes, methods, macros, and definitions.
 include("datatypes.jl")
 include("infinite_sets.jl")
@@ -30,6 +34,7 @@ include("results.jl")
 include("show.jl")
 include("utilities.jl")
 
+# Import the other submodules
 include("TranscriptionOpt/TranscriptionOpt.jl")
 using .TranscriptionOpt
 

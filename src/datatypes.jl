@@ -461,6 +461,13 @@ struct DistributionSet{T <: Distributions.NonMatrixDistribution} <: AbstractInfi
 end
 
 """
+
+"""
+struct ParameterDependencies
+    a
+end
+
+"""
     InfiniteVariable{S, T, U, V} <: InfOptVariable
 A DataType for storing core infinite variable information. Note each element of
 the parameter reference tuple must contain either a single
