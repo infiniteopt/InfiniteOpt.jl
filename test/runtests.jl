@@ -1,22 +1,31 @@
-using InfiniteOpt, JuMP, MathOptInterface, Distributions
+# Load in the dependencies
+using InfiniteOpt, JuMP, MathOptInterface, Distributions, Random,
+FastGaussQuadrature, MutableArithmetics
+
+# load the test module
+using Test
+
+# Define convenient aliases
+const IC = InfiniteOpt.Collections
+const MEM = InfiniteOpt.MeasureEvalMethods
+const IOTO = InfiniteOpt.TranscriptionOpt
+const JuMPC = JuMP.Containers
 const MOI = MathOptInterface
 const MOIU = MathOptInterface.Utilities
-const JuMPC = JuMP.Containers
-const IOTO = InfiniteOpt.TranscriptionOpt
-using Test
-using Random
-const MEM = InfiniteOpt.MeasureEvalMethods
-using FastGaussQuadrature
 const FGQ = FastGaussQuadrature
-using MutableArithmetics
 const MA = MutableArithmetics
 
+# Load in testing utilities
 include("utilities.jl")
 
 # Run unit tests
 println("-----------------------------------------")
 println("----------------UNIT TESTS---------------")
 println("-----------------------------------------")
+@time @testset "Collections" begin
+    include("Collections/VectorTuple.jl")
+end
+println("")
 @time @testset "Datatypes" begin include("datatypes.jl") end
 println("")
 @time @testset "Utilities" begin include("utility_tests.jl") end

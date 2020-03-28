@@ -764,7 +764,7 @@ julia> @add_parameter_bounds(c, (t in [0, 5], x == 0))
 ## Datatypes
 ```@index
 Pages   = ["variable.md"]
-Modules = [InfiniteOpt]
+Modules = [InfiniteOpt, InfiniteOpt.Collections]
 Order   = [:type]
 ```
 ```@docs
@@ -780,6 +780,7 @@ FiniteVariableRef
 InfiniteVariableRef
 PointVariableRef
 HoldVariableRef
+VectorTuple
 ```
 
 ## [Methods/Macros] (@id var_methods)

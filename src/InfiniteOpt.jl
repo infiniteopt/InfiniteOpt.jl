@@ -13,7 +13,10 @@ const JuMPC = JuMP.Containers
 
 # Import the Collections module
 include("Collections/Collections.jl")
-using .Collections
+using .Collections: VectorTuple, tuple_length
+
+# Export the collections and methods  from Collections
+export VectorTuple, tuple_length
 
 # Import all of the datatpyes, methods, macros, and definitions.
 include("datatypes.jl")
