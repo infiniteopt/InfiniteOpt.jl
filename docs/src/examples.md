@@ -285,3 +285,186 @@ xlabel!("x1")
 ylabel!("x2")
 ```
 ![answer](./assets/hovercraft.png)
+
+## Optimal Control of a Distillation Column
+The following example demonstrates the use of `InfiniteOpt` to model and optimize
+the control of a binary distillation in a 30 stage distillation column. In
+defining the objective function, our goal will be to minimize the deviation
+between the instantaneous distillate purity (``y_{A,1}``) and the desired purity (``\bar{y}``). Along with this, we will add an economic consideration by
+minimizing the deviation of the instantaneous reflux ratio (``u``) from the 
+steady-state reflux ratio (``\bar{u}``). To simplify the analysis, the assumption
+of constant molal overflow will be implemented, creating constant flowrates
+between stages. Similarly, we will simplify equilibrium constraints within the
+column by assuming that the relative volatility (``\alpha_{A,B}``) of the two
+species is constant at each stage. With these assumptions, material and
+equilibrium constraints in the condenser, reboiler, feed stage, and the stripping
+and rectifying sections may be translated into a mathematical model for
+optimization as described below.
+```math
+\begin{aligned}
+&&\text{min} &&& \int_{t_{0}}^{t_{f}} (y_{A,1}-\bar{y})^2+(u-\bar{u})^2 dt \\
+&&\text{s.t.} &&& \frac{d  x_{A, 0} }{d t} = \frac{1}{A_{c}}V(y_{A, 1}-x_{A, 0})\\
+	&&&&&  \frac{d  x_{A, i} }{d t} = \frac{1}{A_{t}}(L_{1}(y_{A, i-1}-x_{A, i})-V(y_{A, i}-y_{A, i+1})), &&  i \in {1, ..., FT-1}\\
+	&&&&&  \frac{d  x_{A, FT} }{d t} = \frac{1}{A_{t}}(Fx_{A, f}+L_{1}x_{A,FT-1}-L_{2}x_{A,FT}-V(y_{A, FT}-y_{A, FT+1}))\\
+	&&&&&  \frac{d  x_{A, i} }{d t} = \frac{1}{A_{t}}(L_{2}(y_{A, i-1}-x_{A, i})-V(y_{A, i}-y_{A, i+1})), && i \in {FT+1, ..., NT}\\
+	&&&&&  \frac{d  x_{A, NT+1} }{d t} = \frac{1}{A_{r}}(L_{2}x_{A,NT}-(F-D)x_{A,NT+1}-Vy_{A,NT+1})\\
+	&&&&& x_{A,i}=x_{0_{A,i}}, && i \in {0, ...,NT+1}\\
+	&&&&& V=L_{1}+D,\hspace{1cm} L_{2}=L_{1}+F,\hspace{1cm} u=\frac{L_{1}}{D}\\
+	&&&&& \alpha_{A,B}=\frac{y_{A}(1-x_{A})}{x_{A}(1-y_{A})}
+	\end{aligned}
+```
+Within these equations, ``x_{A,i}`` and ``y_{A,i}`` are the liquid and vapor mole fractions of component A in the ``i^{th}`` equilibrium stage. ``F`` and ``D`` are
+the flowrates of the feed and distillate. ``V``is the vapor flow through the
+column.  ``L_{1}`` and ``L_{2}`` are the liquid flows in the rectifying and
+stripping sections. Finally, ``A_{c}``, `` A_{t}``, and ``A_{r}`` are defined as
+the total molar hold up in the condenser, trays, and reboiler. By choosing the
+feed stage (``FT``) to be 17, we now have a mathematical model that we can
+optimize. To do so, we’ll use `infiniteopt`!
+
+We will begin by defining our constants and inputing the data within the script.
+Since the objective function is quadratic, we will use `Ipopt` as our solver.
+```jldoctest hovercraft; output = false
+# Optimal Control of 30 Tray Distillation Column
+
+using InfiniteOpt, JuMP, Ipopt, Plots
+
+# Define General Parameters
+
+F = 0.4                      # Feed flow rate (kmol/min)
+x_A_Feed = 0.5               # Mole fraction of component A in the feed
+NT = 30                      # Number of trays in distillation column
+FT = 17                      # Feed tray for the distillation column
+alpha_AB = 1.6               # Relative volatility of component A and B (assumed to be constant)
+t_initial = 0                # Initial time (min)
+t_final = 40                 # Final time (min)
+Ac = 0.5                     # Total molar hold up in the condensor (kmol)
+At = 0.25                    # Total molar hold up in the trays (kmol)
+Ar = 1                       # Total molar hold up in the reboiler (kmol)
+D = 0.2                      # Distillate flow rate (kmol/min)
+u_bar = 2                    # Objective reflux ratio
+y_bar = 0.8958               # Objective purity of distillate
+init_cond=ones(32,1)*0.6     # Initial Condition
+num=15;
+# output
+
+```
+Next, we need to initialize the model. For this case, I have defined it as `Control`.
+```jldoctest hovercraft; output = false
+# Initialize the Model
+
+Control = InfiniteModel(Ipopt.Optimizer)
+# output
+Control = InfiniteModel(Ipopt.Optimizer)
+An InfiniteOpt Model
+Feasibility problem with:
+Variables: 0
+Optimizer model backend information:
+Model mode: AUTOMATIC
+CachingOptimizer state: EMPTY_OPTIMIZER
+Solver name: Ipopt
+```
+We need to define our infinite parameter and our infinite variables. For this
+problem, our mole fractions, rectifying and stripping liquid flows, vapor flow,
+and reflux ratio will be time dependent infinite variables, while time will be
+our infinite parameter.
+```jldoctest hovercraft; output = false
+# Define time as the infinite parameter
+
+@infinite_parameter(Control, t in [0, 40])
+
+# Define infinite variables as functions of time
+# Note: 0 = Condensor; 31 = Reboiler
+
+@infinite_variable(Control, 0 <= x_A[i=0:NT+1](t) <= 1, start = 0.5)
+@infinite_variable(Control, 0 <= y_A[i=0:NT+1](t) <= 1, start = 0.5)
+@infinite_variable(Control, V(t) >= 0, start = 0.3)
+@infinite_variable(Control, L1(t) >= 0, start = 0.1)
+@infinite_variable(Control, u(t) >= 0, start = 2)
+@infinite_variable(Control, L2(t) >= 0, start = 0.5)
+# output
+L2(t)
+```
+With our infinite parameter and variables defined, we need to address the issue
+of the differential equations within the model. To do this, we will reformulate
+the expressions by separating and integrating. This requires us to define initial
+and final point variables for each differential equation.
+```jldoctest hovercraft; output = false
+# Define point variables
+
+@point_variable(Control, x_A[i](t_initial), x_A_0[i = 0:NT+1])
+@point_variable(Control, x_A[i](t_final), x_A_F[i = 0:NT+1])
+# output
+1-dimensional DenseAxisArray{PointVariableRef,1,...} with index sets:
+    Dimension 1, 0:31
+And data, a 32-element Array{PointVariableRef,1}:
+ x_A_F[0]
+ x_A_F[1]
+ x_A_F[2]
+ x_A_F[3]
+ x_A_F[4]
+ ⋮        
+ x_A_F[28]
+ x_A_F[29]
+ x_A_F[30]
+ x_A_F[31]
+```
+Now that we have defined our point variables, we can define our constraints. We
+will evaluate the differential constraints using the integral function. Along
+with this, we will provide an initial condition.
+```jldoctest hovercraft; output = false
+# Set Integral Default for Integral Functions
+
+set_integral_defaults(Control, eval_method = gauss_legendre, num_supports = num)
+
+# Define Constraints
+
+# (20b) Condenser Constraint
+@constraint(Control, x_A_F[0] - x_A_0[0] == integral(1/Ac * V * (y_A[1]-x_A[0]), t))
+# (20c) Rectifying Section Constraint
+@constraint(Control, [i=1:FT-1], x_A_F[i] - x_A_0[i] == integral(1/At * (L1 * (y_A[i-1] - x_A[i]) - V * (y_A[i]-y_A[i+1])), t))
+# (20d) Feed Tray Constraints
+@constraint(Control, x_A_F[FT] - x_A_0[FT] == integral(1/At * (F * x_A_Feed + L1 * x_A[FT-1] - L2 * x_A[FT] - V * (y_A[FT] - y_A[FT+1])), t))
+# (20e) Stripping Section Constraints
+@constraint(Control,[i=FT+1:NT], x_A_F[i] - x_A_0[i] == integral(1/At * (L2 * (y_A[i-1] - x_A[i]) - V * (y_A[i] - y_A[i+1])),  t))
+# (20f) Reboiler Constraint
+@constraint(Control, x_A_F[NT+1] - x_A_0[NT+1] == integral(1/Ar * (L2 * x_A[NT] - (F-D) * x_A[NT+1] - V * y_A[NT+1]),t))
+# (20g) Initial Condition
+@BDconstraint(Control, initial[i in 0:NT+1](t==0), x_A[i] == init_cond[i+1])
+# (20h) Material Balance Constraints
+@constraint(Control, V == L1 + D)
+@constraint(Control, L2 == L1 + F)
+@constraint(Control, u * D == L1)
+# (20i) Equilibrium Constraint
+@constraint(Control,[i=0:NT+1], alpha_AB * (x_A[i] * (1 - y_A[i])) == y_A[i] * (1 - x_A[i]))
+
+# output
+1-dimensional DenseAxisArray{InfiniteConstraintRef{ScalarShape},1,...} with index sets:
+    Dimension 1, 0:31
+And data, a 32-element Array{InfiniteConstraintRef{ScalarShape},1}:
+ -0.6000000000000001 y_A[0](t)*x_A[0](t) + 1.6 x_A[0](t) - y_A[0](t) = 0.0    
+ -0.6000000000000001 y_A[1](t)*x_A[1](t) + 1.6 x_A[1](t) - y_A[1](t) = 0.0    
+ -0.6000000000000001 y_A[2](t)*x_A[2](t) + 1.6 x_A[2](t) - y_A[2](t) = 0.0    
+ -0.6000000000000001 y_A[3](t)*x_A[3](t) + 1.6 x_A[3](t) - y_A[3](t) = 0.0    
+ -0.6000000000000001 y_A[4](t)*x_A[4](t) + 1.6 x_A[4](t) - y_A[4](t) = 0.0    
+ ⋮                                                                            
+ -0.6000000000000001 y_A[28](t)*x_A[28](t) + 1.6 x_A[28](t) - y_A[28](t) = 0.0
+ -0.6000000000000001 y_A[29](t)*x_A[29](t) + 1.6 x_A[29](t) - y_A[29](t) = 0.0
+ -0.6000000000000001 y_A[30](t)*x_A[30](t) + 1.6 x_A[30](t) - y_A[30](t) = 0.0
+ -0.6000000000000001 y_A[31](t)*x_A[31](t) + 1.6 x_A[31](t) - y_A[31](t) = 0.0
+```
+With our constraints defined, we need to define our objective function.
+```jldoctest hovercraft; output = false
+# Define the objective function
+
+@objective(Control, Min, integral((y_A[1] - y_bar) ^ 2 + (u - u_bar) ^ 2, t))
+# output
+integral(y_A[1](t)² + u(t)² - 1.7916 y_A[1](t) - 4 u(t) + 4.80245764)
+```
+With that, the entire model is specified. All we need to do is optimize!
+```jldoctest hovercraft; output = false
+# Optimize the model
+
+optimize!(Control)
+# output
+4
+```
