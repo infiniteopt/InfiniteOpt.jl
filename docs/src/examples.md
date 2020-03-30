@@ -291,7 +291,7 @@ The following example demonstrates the use of `InfiniteOpt` to model and optimiz
 the control of a binary distillation in a 30 stage distillation column. In
 defining the objective function, our goal will be to minimize the deviation
 between the instantaneous distillate purity (``y_{A,1}``) and the desired purity (``\bar{y}``). Along with this, we will add an economic consideration by
-minimizing the deviation of the instantaneous reflux ratio (``u``) from the 
+minimizing the deviation of the instantaneous reflux ratio (``u``) from the
 steady-state reflux ratio (``\bar{u}``). To simplify the analysis, the assumption
 of constant molal overflow will be implemented, creating constant flowrates
 between stages. Similarly, we will simplify equilibrium constraints within the
@@ -452,7 +452,7 @@ And data, a 32-element Array{InfiniteConstraintRef{ScalarShape},1}:
  -0.6000000000000001 y_A[30](t)*x_A[30](t) + 1.6 x_A[30](t) - y_A[30](t) = 0.0
  -0.6000000000000001 y_A[31](t)*x_A[31](t) + 1.6 x_A[31](t) - y_A[31](t) = 0.0
 ```
-With our constraints defined, we need to define our objective function.
+With our constraints defined, we need to create our objective function.
 ```jldoctest hovercraft; output = false
 # Define the objective function
 
