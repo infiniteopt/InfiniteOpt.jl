@@ -8,6 +8,7 @@ const MOIU = MOI.Utilities
 using ..InfiniteOpt
 
 include("model.jl")
+include("measures.jl")
 include("transcribe.jl")
 include("optimize.jl")
 

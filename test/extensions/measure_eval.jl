@@ -34,7 +34,7 @@ function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
         (supports_dict[i], _) = generate_supports_and_coeffs(set, params,
                                  num_supports, lb[i], ub[i], Val(NewEvalMethod))
     end
-    supports = Array{JuMPC.SparseAxisArray, 1}(undef, num_supports)
+    supports = Array{JuMPC.SparseAxisArray{Float64}, 1}(undef, num_supports)
     for j in 1:num_supports
         supports[j] = JuMP.Containers.SparseAxisArray(Dict(k => supports_dict[k][j]
                                                         for k in eachindex(lb)))

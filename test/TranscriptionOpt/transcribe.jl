@@ -167,16 +167,15 @@ end
     # initialize models
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
-                        container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1])
     @infinite_variable(m, x(par) >= 0, Int)
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)
     @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
     @hold_variable(m, 0 <= z <= 1, Bin)
     @hold_variable(m, w == 1, Int, start = 1)
-    index = m.next_var_index + 1
-    m.reduced_info[index] = ReducedInfiniteInfo(y, Dict(1 => 1))
+    index = m.next_reduced_index + 1
+    m.reduced_info[index] = ReducedInfiniteInfo(y, Dict{Int, Float64}(1 => 1))
     yr = ReducedInfiniteVariableRef(m, index)
     tm = optimizer_model(m)
     @variable(tm, a)
@@ -187,8 +186,8 @@ end
     @variable(tm, f)
     @variable(tm, g)
     @variable(tm, h)
-    supp1 = convert(JuMPC.SparseAxisArray, [0, 0])
-    supp2 = convert(JuMPC.SparseAxisArray, [1, 1])
+    supp1 = Float64[0, 0]
+    supp2 = Float64[1, 1]
     # test for FiniteVariableRefs
     @testset "FiniteVariableRef" begin
         # test cannot find
@@ -231,7 +230,7 @@ end
     # test for ReducedInfiniteVariableRefs
     @testset "ReducedInfiniteVariableRef" begin
         # test cannot find
-        supp3 = convert(JuMPC.SparseAxisArray, [0.5, 0.5])
+        supp3 = Float64[0.5, 0.5]
         @test_throws ErrorException IOTO._map_to_variable(yr, (0.5, supp3),
                                                           (par, pars), tm)
         # test the function
@@ -239,6 +238,10 @@ end
         @test IOTO._map_to_variable(yr, (supp1,), (pars,), tm) == g
         @test IOTO._map_to_variable(yr, (0., supp2), (par, pars), tm) == h
         @test IOTO._map_to_variable(yr, (supp2,), (pars,), tm) == h
+        # test partial transcription failure (temporary for now)
+        m.reduced_info[index] = ReducedInfiniteInfo(y, Dict{Int, Float64}(1 => 1, 2=> 1))
+        @test_throws ErrorException IOTO._map_to_variable(yr, (0., supp1),
+                                                          (par, pars), tm)
     end
     # test for ParameterRefs
     @testset "ParameterRef" begin
@@ -256,24 +259,23 @@ end
     # initialize models
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
-                        container = SparseAxisArray)
-    supp1 = convert(JuMPC.SparseAxisArray, [0, 0])
-    supp2 = convert(JuMPC.SparseAxisArray, [1, 1])
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1])
+    supp1 = Float64[0, 0]
+    supp2 = Float64[1, 1]
     # test _support_in_bounds
     @testset "_support_in_bounds" begin
         # test in bounds
-        @test IOTO._support_in_bounds((0, supp1), (par, pars), Dict())
+        @test IOTO._support_in_bounds((0., supp1), (par, pars), Dict())
         # test out of bounds
         bounds = Dict(par => IntervalSet(0.5, 1))
-        @test !IOTO._support_in_bounds((0, supp1), (par, pars), bounds)
+        @test !IOTO._support_in_bounds((0., supp1), (par, pars), bounds)
         bounds = Dict(par => IntervalSet(0, 0.5))
         @test !IOTO._support_in_bounds((.7, supp1), (par, pars), bounds)
         # test parameter bounds not relavent
         @test IOTO._support_in_bounds((supp1,), (pars,), bounds)
     end
     @testset "_supports_in_bounds" begin
-        supps = [(0, supp1), (0, supp2), (1, supp1), (1, supp2)]
+        supps = [(0., supp1), (0., supp2), (1., supp1), (1., supp2)]
         bounds = Dict(par => IntervalSet(0.5, 1))
         @test IOTO._supports_in_bounds(supps, (par, pars), bounds) == [false,
                                                               false, true, true]
@@ -285,17 +287,16 @@ end
     # initialize the models
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
-                        container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1])
     @infinite_variable(m, x(par) >= 0, Int)
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)
     @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
     @hold_variable(m, 0 <= z <= 1, Bin)
     @hold_variable(m, w == 1, Int, start = 1)
-    m.next_var_index += 1
-    m.reduced_info[m.next_var_index] = ReducedInfiniteInfo(y, Dict(1 => 1))
-    yr = ReducedInfiniteVariableRef(m, m.next_var_index)
+    m.next_reduced_index += 1
+    m.reduced_info[m.next_reduced_index] = ReducedInfiniteInfo(y, Dict(1 => 1))
+    yr = ReducedInfiniteVariableRef(m, m.next_reduced_index)
     data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
     meas1 = measure(x - w, data1)
     meas2 = measure(y, data1)
@@ -309,8 +310,8 @@ end
     @variable(tm, f)
     @variable(tm, g)
     @variable(tm, h)
-    supp1 = convert(JuMPC.SparseAxisArray, [0, 0])
-    supp2 = convert(JuMPC.SparseAxisArray, [1, 1])
+    supp1 = Float64[0, 0]
+    supp2 = Float64[1, 1]
     # transcribe the variables
     tm.ext[:TransData].point_to_var[x0] = a
     tm.ext[:TransData].point_to_var[y0] = b
@@ -341,9 +342,9 @@ end
                                                             (1, supp1), (1, supp2)])
         # test with bounds
         bounds = Dict(par => IntervalSet(0.5, 1))
-        @test IOTO._make_transcription_function(x, tm, bounds) == ([e], (par,),
+        @test IOTO._make_transcription_function(x, tm, false, bounds) == ([e], (par,),
                                                                    [(1,)])
-        @test IOTO._make_transcription_function(y, tm, bounds) == ([g, h],
+        @test IOTO._make_transcription_function(y, tm, false, bounds) == ([g, h],
                                                                    (par, pars),
                                                                    [(1, supp1),
                                                                    (1, supp2)])
@@ -356,9 +357,9 @@ end
                                                                  [0, 1])
         # test with bounds
         bounds = Dict(par => IntervalSet(0.5, 1))
-        @test IOTO._make_transcription_function(par, tm, bounds) == ([1], (par,),
+        @test IOTO._make_transcription_function(par, tm, false, bounds) == ([1], (par,),
                                                                      [1])
-        @test IOTO._make_transcription_function(pars[1], tm, bounds) == ([0, 1],
+        @test IOTO._make_transcription_function(pars[1], tm, false, bounds) == ([0, 1],
                                                              (pars[1],), [0, 1])
     end
     # test Finite GenericAffExprs
@@ -392,13 +393,13 @@ end
         # test without bounds
         expr = meas1 + 2x - par + z
         expected = ([3a + e - 2d + c, a + 3e - 2d + c - 1], (par,), [(0,), (1,)])
-        @test IOTO._make_transcription_function(expr, tm) == expected
+        @test IOTO._make_transcription_function(expr, tm, true) == expected
         # test with bounds
         bounds = Dict(par => IntervalSet(0.5, 1))
         expr = meas2 + 2x - pars[2] + z
         expected = ([b + g + 2e + c, f + h + 2e + c - 1], (pars, par),
                     [(supp1, 1), (supp2, 1)])
-        @test IOTO._make_transcription_function(expr, tm, bounds) == expected
+        @test IOTO._make_transcription_function(expr, tm, true, bounds) == expected
     end
     # test General GenericQuadExprs
     @testset "General QuadExpr" begin
@@ -420,39 +421,39 @@ end
         expected = ([a^2 + 2 * c * b + a + e - 2d - 3,
                      a^2 + 2 * c * b + a + 2e - d - 3], (par,), [(0,), (1,)])
         expected[1][2].aff.terms[e] = 0. # hack to get 0e
-        @test IOTO._make_transcription_function(expr, tm) == expected
+        @test IOTO._make_transcription_function(expr, tm, true) == expected
         # test without bounds
         bounds = Dict(par => IntervalSet(0.5, 1))
         expr = x0^2 + 2 * z * y0 - pars[1] * x + w * par + 2 * par^2 - 2par + meas2 - 3
         expected = ([a^2 + 2 * c * b + b + g + d - 3,
                      a^2 + 2 * c * b + f + h - e + d - 3], (par, pars),
                      [(1, supp1), (1, supp2)])
-        @test IOTO._make_transcription_function(expr, tm, bounds) == expected
+        @test IOTO._make_transcription_function(expr, tm, true, bounds) == expected
         # test AffExpr dispatch to QuadExpr
         bounds = Dict(par => IntervalSet(0.5, 1))
         expr = 2meas3 - x + 2
         expected = ([2 * (b^2 + g^2 + 2c) - e + 2, 2 * (f^2 + h^2 + 2c) - e + 2],
                     (par, pars), [(1, supp1), (1, supp2)])
-        @test IOTO._make_transcription_function(expr, tm, bounds) == expected
+        @test IOTO._make_transcription_function(expr, tm, true, bounds) == expected
     end
     # test MeasureFiniteVariableRef Expressions
     @testset "MeasureFiniteVariableRef Exprs" begin
         # test finite AffExpr
         expr = meas1 + z - 2w
         expected = (a + e - 4d + c, ())
-        @test IOTO._make_transcription_function(expr, tm) == expected
+        @test IOTO._make_transcription_function(expr, tm, true) == expected
         # test infinite AffExpr
         expr = meas1 + x - 2w
         expected = ([2a + e - 4d, a + 2e - 4d], (par,), [(0,), (1,)])
-        @test IOTO._make_transcription_function(expr, tm) == expected
+        @test IOTO._make_transcription_function(expr, tm, true) == expected
         # test finite QuadExpr
         expr = meas1 + z^2 - 2w
         expected = (c^2 + a + e - 4d, ())
-        @test IOTO._make_transcription_function(expr, tm) == expected
+        @test IOTO._make_transcription_function(expr, tm, true) == expected
         # test infinite QuadExpr
         expr = meas1 + x^2 - 2w
         expected = ([a^2 + a + e - 4d, e^2 + a + e - 4d], (par,), [(0,), (1,)])
-        @test IOTO._make_transcription_function(expr, tm) == expected
+        @test IOTO._make_transcription_function(expr, tm, true) == expected
     end
     # test MeasrureRefs
     @testset "MeasureRef" begin
@@ -476,8 +477,7 @@ end
     # initialize the models
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
-                        container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1])
     @infinite_variable(m, x(par) >= 0, Int)
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @hold_variable(m, 0 <= z <= 1, Bin)
@@ -494,8 +494,8 @@ end
     @variable(tm, f)
     @variable(tm, g)
     @variable(tm, h)
-    supp1 = convert(JuMPC.SparseAxisArray, [0, 0])
-    supp2 = convert(JuMPC.SparseAxisArray, [1, 1])
+    supp1 = Float64[0, 0]
+    supp2 = Float64[1, 1]
     # transcribe the variables
     tm.ext[:TransData].hold_to_var[z] = c
     tm.ext[:TransData].hold_to_var[w] = d
@@ -597,8 +597,7 @@ end
     # initialize models
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
-                        container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1])
     @infinite_variable(m, x(par) >= 0, Int)
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)
@@ -617,8 +616,8 @@ end
     @variable(tm, f)
     @variable(tm, g)
     @variable(tm, h)
-    supp1 = convert(JuMPC.SparseAxisArray, [0, 0])
-    supp2 = convert(JuMPC.SparseAxisArray, [1, 1])
+    supp1 = Float64[0, 0]
+    supp2 = Float64[1, 1]
     # transcribe the variables
     tm.ext[:TransData].point_to_var[x0] = a
     tm.ext[:TransData].point_to_var[y0] = b
@@ -655,8 +654,7 @@ end
     # initialize models
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
-                        container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1])
     @infinite_variable(m, 1 >= x(par) >= 0, Int)
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)
@@ -712,8 +710,7 @@ end
     # initialize models
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
-                        container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1])
     @infinite_variable(m, 1 >= x(par) >= 0, Int)
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)
@@ -769,8 +766,7 @@ end
     # initialize model
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
-                        container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1])
     @infinite_variable(m, 1 >= x(par) >= 0, Int)
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)

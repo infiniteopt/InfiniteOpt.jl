@@ -14,6 +14,9 @@ constructor.
   variables to model variables.
 - `point_to_var::Dict{InfiniteOpt.PointVariableRef, JuMP.VariableRef}`: Point
   variables to model variables.
+- `next_var_index::Int` Index for generating measure expansion variables.
+- `reduced_info::Dict{Int, InfiniteOpt.ReducedInfiniteInfo}` Reduced variables
+                                                   made by measure expansion.
 - `infvar_to_supports::Dict{InfiniteOpt.InfiniteVariableRef, Dict}`: Infinite
   variables to transcribed supports indexed by their numeric aliases.
 - `infinite_to_constrs::Dict{InfiniteOpt.InfiniteConstraintRef,
@@ -39,6 +42,10 @@ mutable struct TranscriptionData
     hold_to_var::Dict{InfiniteOpt.HoldVariableRef, JuMP.VariableRef}
     point_to_var::Dict{InfiniteOpt.PointVariableRef, JuMP.VariableRef}
 
+    # Measure variables
+    next_var_index::Int
+    reduced_info::Dict{Int, InfiniteOpt.ReducedInfiniteInfo}
+
     # Variable support data
     infvar_to_supports::Dict{InfiniteOpt.InfiniteVariableRef, Vector{<:Tuple}}
 
@@ -61,6 +68,7 @@ mutable struct TranscriptionData
                    Vector{JuMP.VariableRef}}(),
                    Dict{InfiniteOpt.HoldVariableRef, JuMP.VariableRef}(),
                    Dict{InfiniteOpt.PointVariableRef, JuMP.VariableRef}(),
+                   0, Dict{Int, InfiniteOpt.ReducedInfiniteInfo}(),
                    Dict{InfiniteOpt.InfiniteVariableRef, Vector{Tuple}}(),
                    Dict{InfiniteOpt.InfiniteConstraintRef,
                         Vector{JuMP.ConstraintRef}}(),

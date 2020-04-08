@@ -11,12 +11,23 @@
     m.reduced_info[index] = ReducedInfiniteInfo(inf1, Dict(1 => 1))
     rvref2 = ReducedInfiniteVariableRef(m, index + 1)
     m.reduced_info[index + 1] = ReducedInfiniteInfo(inf2, Dict(2 => 1))
+    tm = optimizer_model(m)
+    rvref3 = ReducedInfiniteVariableRef(m, -1)
+    tm.ext[:TransData].reduced_info[-1] = ReducedInfiniteInfo(inf2, Dict(2 => 1))
+    # test reduction_info
+    @testset "reduction_info" begin
+        @test_throws ErrorException reduction_info(rvref1, Val(:bad))
+    end
     # test _reduced_info
     @testset "_reduced_info" begin
+        # test reduced in the infinite model
         @test InfiniteOpt._reduced_info(rvref1).infinite_variable_ref == inf1
         @test InfiniteOpt._reduced_info(rvref2).infinite_variable_ref == inf2
         @test InfiniteOpt._reduced_info(rvref1).eval_supports == Dict(1 => 1)
         @test InfiniteOpt._reduced_info(rvref2).eval_supports == Dict(2 => 1)
+        # test using reduction info
+        @test InfiniteOpt._reduced_info(rvref3).infinite_variable_ref == inf2
+        @test InfiniteOpt._reduced_info(rvref3).eval_supports == Dict(2 => 1)
     end
     # test infinite_variable_ref
     @testset "infinite_variable_ref" begin
@@ -33,11 +44,23 @@
         @test name(rvref1) == "inf1(1, par2)"
         @test name(rvref2) == "inf2(par1, 1)"
     end
+    # raw_parameter_refs
+    @testset "raw_parameter_refs" begin
+        # test the references
+        @test raw_parameter_refs(rvref1) == VectorTuple(par2)
+        @test raw_parameter_refs(rvref2) == VectorTuple(par1)
+    end
     # parameter_refs (reduced infinite variable)
-    @testset "parameter_refs (reduced infinite)" begin
+    @testset "parameter_refs" begin
         # test the references
         @test parameter_refs(rvref1) == (par2, )
         @test parameter_refs(rvref2) == (par1, )
+    end
+    # parameter_list (reduced infinite variable)
+    @testset "parameter_list" begin
+        # test the references
+        @test parameter_list(rvref1) == [par2]
+        @test parameter_list(rvref2) == [par1]
     end
     # has_lower_bound
     @testset "JuMP.has_lower_bound" begin

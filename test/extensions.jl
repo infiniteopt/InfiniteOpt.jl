@@ -73,6 +73,10 @@ end
     @test measure_name(new_data2) == "test"
     @test supports(new_data1) == supports(data1)
     @test supports(new_data2) == supports(data2)
+    @test coefficients(new_data1) == coefficients(data1)
+    @test coefficients(new_data2) == coefficients(data2)
+    @test weight_function(new_data1) == weight_function(data1)
+    @test weight_function(new_data2) == weight_function(data2)
     @test measure_data_in_hold_bounds(data1, ParameterBounds())
     @test measure_data_in_hold_bounds(data1, parameter_bounds(z))
     @test !measure_data_in_hold_bounds(data2, parameter_bounds(z))
@@ -123,7 +127,7 @@ end
                                       independent = false)
     mref2 = integral(f, x, num_supports = 3, eval_method = NewEvalMethod,
                      independent = is_independent(x[1]))
-    @test supports(measure_data(mref2)) == [JuMPC.SparseAxisArray(Dict((1,) => i * 0.5, (2,) => i * 0.5)) for i in 0:2]
+    @test supports(measure_data(mref2)) == Float64[0 0.5 1; 0 0.5 1]
     @test_throws ErrorException integral(xi^2, eval_method = NewEvalMethod)
 end
 

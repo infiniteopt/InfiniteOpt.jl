@@ -25,7 +25,6 @@ sample_info = VariableInfo(zeros(Bool, 10)...)
     @test AbstractReducedInfo isa DataType
     # Infinite variable
     @test InfiniteVariable <: InfOptVariable
-    @test InfiniteVariable(sample_info, (1, 2)).parameter_refs isa Tuple
     # Point variable
     @test PointVariable <: InfOptVariable
     # Hold variable

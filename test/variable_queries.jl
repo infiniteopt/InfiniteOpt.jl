@@ -156,22 +156,27 @@ end
     info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false)
     v = build_variable(error, info, Infinite, parameter_refs = (pref, ))
     ivref = add_variable(m, v, "name")
-    v = build_variable(error, info, Point, infinite_variable_ref = ivref,
+    ivref2 = add_variable(m, v, "name")
+    v = build_variable(error, info, Point, infinite_variable_ref = ivref2,
                        parameter_values = 0.5)
     pvref = add_variable(m, v, "name2")
+    # raw_parameter_values
+    @testset "raw_parameter_values" begin
+        @test raw_parameter_values(pvref) == VectorTuple{Float64}(0.5, )
+    end
     # parameter_values
     @testset "parameter_values" begin
-        @test parameter_values(pvref) == (0.5, )
+        @test parameter_values(pvref) == (Float64(0.5), )
     end
     # _update_variable_param_values
     @testset "_update_variable_param_values" begin
-        @test isa(InfiniteOpt._update_variable_param_values(pvref, (0, )),
+        @test isa(InfiniteOpt._update_variable_param_values(pvref, VectorTuple{Float64}(0)),
                   Nothing)
-        @test parameter_values(pvref) == (0, )
+        @test parameter_values(pvref) == (Float64(0), )
     end
     # _update_variable_param_refs
     @testset "_update_variable_param_refs" begin
-        @test isa(InfiniteOpt._update_variable_param_refs(ivref, (pref2, )),
+        @test isa(InfiniteOpt._update_variable_param_refs(ivref, VectorTuple(pref2)),
                   Nothing)
         @test parameter_refs(ivref) == (pref2, )
     end
@@ -189,15 +194,36 @@ end
         @test parameter_refs(ivref) == (pref, )
         @test name(ivref) == "name(test)"
         delete!(m.var_to_meas, JuMP.index(ivref))
+        # test used by point variable
+        m.infinite_to_points[JuMP.index(ivref)] = [1]
+        @test_throws ErrorException set_parameter_refs(ivref, (pref, ))
+        delete!(m.infinite_to_points, JuMP.index(ivref))
+        # test used by reduced variable
+        m.infinite_to_reduced[JuMP.index(ivref)] = [1]
+        @test_throws ErrorException set_parameter_refs(ivref, (pref, ))
+        delete!(m.infinite_to_reduced, JuMP.index(ivref))
     end
     # add_parameter_ref
     @testset "add_parameter_ref" begin
+        # test used by point variable
+        m.infinite_to_points[JuMP.index(ivref)] = [1]
+        @test_throws ErrorException add_parameter_ref(ivref, pref2)
+        delete!(m.infinite_to_points, JuMP.index(ivref))
+        # test used by reduced variable
+        m.infinite_to_reduced[JuMP.index(ivref)] = [1]
+        @test_throws ErrorException add_parameter_ref(ivref, pref2)
+        delete!(m.infinite_to_reduced, JuMP.index(ivref))
         # test normal use
+        m.var_to_meas[JuMP.index(ivref)] = [1]
         @test isa(add_parameter_ref(ivref, pref2), Nothing)
         @test parameter_refs(ivref) == (pref, pref2)
         @test name(ivref) == "name(test, θ)"
         # test duplication error
         @test_throws ErrorException add_parameter_ref(ivref, pref2)
+        #test bad array error
+        @test_throws ErrorException add_parameter_ref(ivref, [pref2, pref])
+        # reset
+        delete!(m.var_to_meas, JuMP.index(ivref))
     end
 end
 
@@ -206,7 +232,7 @@ end
     # initialize the model and other needed information
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 10])
-    @infinite_parameter(m, pars[1:2] in [0, 10], container = SparseAxisArray)
+    @infinite_parameter(m, pars[1:2] in [0, 10])
     @infinite_variable(m, inf(par))
     @hold_variable(m, x)
     @hold_variable(m, y, parameter_bounds = par == 0)
@@ -232,7 +258,7 @@ end
     end
     # test _check_meas_bounds (DiscreteMeasureData)
     @testset "_check_meas_bounds (DiscreteMeasureData)" begin
-        data = DiscreteMeasureData(par, [1, 1], [1, 3], "", InfiniteOpt._w)
+        data = DiscreteMeasureData(par, [1, 1], [1, 3], "", default_weight)
         # test ok
         bounds = ParameterBounds(Dict(par => IntervalSet(0, 5)))
         @test isa(InfiniteOpt._check_meas_bounds(bounds, data), Nothing)
@@ -245,9 +271,8 @@ end
     end
     # test _check_meas_bounds (MultiDiscreteMeasureData)
     @testset "_check_meas_bounds (Multi)" begin
-        supps = [convert(JuMPC.SparseAxisArray, [1, 1]),
-                 convert(JuMPC.SparseAxisArray, [3, 3])]
-        data = MultiDiscreteMeasureData(pars, [0, 0], supps, "", InfiniteOpt._w)
+        supps = [1 1; 3 3]
+        data = MultiDiscreteMeasureData(pars, [0, 0], supps, "", default_weight)
         # test ok
         bounds = ParameterBounds(Dict(pars[1] => IntervalSet(0, 5)))
         @test isa(InfiniteOpt._check_meas_bounds(bounds, data), Nothing)
@@ -332,10 +357,10 @@ end
         # test force error
         @test_throws ErrorException set_parameter_bounds(y, bounds1)
         # prepare for main test
-        data = DiscreteMeasureData(par, [1, 1], [1, 3], "", InfiniteOpt._w)
+        data = DiscreteMeasureData(par, [1, 1], [1, 3], "", default_weight)
         mindex = -1; cindex1 = 42; cindex2 = -42; vindex = JuMP.index(x);
         m.measures[mindex] = Measure(x, data)
-        m.var_to_meas[JuMP.index(x)] = [mindex]
+        m.var_to_meas[vindex] = [mindex]
         m.meas_to_constrs[mindex] = [cindex1]
         mref = MeasureRef(m, mindex)
         m.constrs[cindex1] = BoundedScalarConstraint(mref, MOI.EqualTo(0.0),
@@ -360,6 +385,14 @@ end
                                         pars[1] => IntervalSet(0.5, 1)))
         @test m.constrs[cindex1].bounds == expected
         @test m.constrs[cindex2].bounds == bounds
+        # Retest with empty constraint mapping
+        delete!(m.var_to_constrs, vindex)
+        @test isa(set_parameter_bounds(x, bounds, force = true), Nothing)
+        @test parameter_bounds(x) == bounds
+        @test m.has_hold_bounds
+        @test !optimizer_model_ready(m)
+        @test m.constrs[cindex1].bounds == expected
+        m.var_to_constrs[vindex] = [cindex2]
         # test forced
         bounds = ParameterBounds(Dict(par => IntervalSet(1, 1)))
         @test isa(set_parameter_bounds(y, bounds, force = true), Nothing)
@@ -464,7 +497,7 @@ end
         @test_macro_throws ErrorException @set_parameter_bounds(x, pars[1] = 0)
         @test_macro_throws ErrorException @set_parameter_bounds(par, pars[1] == 0)
         # prepare for main test
-        data = DiscreteMeasureData(par, [1, 1], [1, 3], "", InfiniteOpt._w)
+        data = DiscreteMeasureData(par, [1, 1], [1, 3], "", default_weight)
         mindex = -1; cindex1 = 42; cindex2 = -42; vindex = JuMP.index(x);
         m.measures[mindex] = Measure(x, data)
         m.var_to_meas[JuMP.index(x)] = [mindex]

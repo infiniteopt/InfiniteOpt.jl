@@ -11,6 +11,13 @@ const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 const JuMPC = JuMP.Containers
 
+# Import the Collections module
+include("Collections/Collections.jl")
+using .Collections: VectorTuple, same_structure
+
+# Export the collections and methods  from Collections
+export VectorTuple, same_structure
+
 # Import all of the datatpyes, methods, macros, and definitions.
 include("datatypes.jl")
 include("infinite_sets.jl")
@@ -30,6 +37,7 @@ include("results.jl")
 include("show.jl")
 include("utilities.jl")
 
+# Import the other submodules
 include("TranscriptionOpt/TranscriptionOpt.jl")
 using .TranscriptionOpt
 
@@ -79,7 +87,7 @@ export used_by_objective, infinite_variable_ref, parameter_refs,
 set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values,
 eval_supports, used_by_reduced_variable, has_parameter_bounds, parameter_bounds,
 set_parameter_bounds, add_parameter_bound, delete_parameter_bound,
-delete_parameter_bounds
+delete_parameter_bounds, parameter_list, raw_parameter_refs, raw_parameter_values
 
 # Export expression datatypes
 export InfiniteExpr, ParameterExpr, MeasureExpr
@@ -96,7 +104,9 @@ Measure, MeasureRef
 export add_measure, measure, measure_function, measure_data, expand,
 expand_all_measures!, expect, support_sum, measure_name, measure_data_in_hold_bounds,
 make_point_variable_ref, make_reduced_variable_ref, expand_measure, integral,
-set_integral_defaults, integral_defaults
+set_integral_defaults, integral_defaults, coefficients, weight_function,
+default_weight, add_measure_variable, delete_reduced_variable,
+delete_internal_reduced_variable, expand_measures, reduction_info
 
 # Export transcription datatypes
 export TranscriptionData, TranscriptionModel

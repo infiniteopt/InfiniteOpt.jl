@@ -602,10 +602,6 @@ end
         @test group_id(prefs) == 3
         @test_throws ErrorException group_id([pref; pref2])
     end
-    # _group (over Tuple)
-    @testset "_group (Tuple)" begin
-        @test InfiniteOpt._group.((prefs, pref)) == (3, 1)
-    end
     # _only_one_group
     @testset "_only_one_group" begin
         @test InfiniteOpt._only_one_group(pref)
@@ -618,19 +614,6 @@ end
         @test InfiniteOpt._root_name(pref) == "test"
         @test InfiniteOpt._root_name(prefs[1]) == "x"
         @test InfiniteOpt._root_name(pref2) == "θ"
-    end
-    # _root_names
-    @testset "_root_names" begin
-        @test InfiniteOpt._root_names((pref, prefs, pref2)) == ("test", "x", "θ")
-    end
-    # _list_parameter_refs
-    @testset "_list_parameter_refs" begin
-        @test InfiniteOpt._list_parameter_refs((pref, prefs)) isa Vector
-        result = InfiniteOpt._list_parameter_refs((pref, prefs))
-        @test length(result) == 3
-        @test result[1] == pref
-        @test result[2] == prefs[1] || result[2] == prefs[2]
-        @test result[3] == prefs[1] || result[3] == prefs[2]
     end
 end
 

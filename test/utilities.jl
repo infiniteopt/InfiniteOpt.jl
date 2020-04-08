@@ -1,3 +1,5 @@
+using JuMP: REPLMode, IJuliaMode
+
 macro test_expression(expr)
     esc(quote
             @test JuMP.isequal_canonical(@expression(m, $expr), $expr)
@@ -26,3 +28,20 @@ struct NotASetType end
 
 # Define test functions
 function new_fn end
+
+# Helper function to test IO methods work correctly
+function show_test(mode, obj, exp_str; repl=:both)
+    if mode == REPLMode
+        repl != :show  && @test sprint(print, obj) == exp_str
+        repl != :print && @test sprint(show,  obj) == exp_str
+    else
+        @test sprint(show, "text/latex", obj) == exp_str
+    end
+end
+
+# Make another helper function for other io methods
+io_test(f::Function, exp_str::String, args...) = begin
+    io = IOBuffer()
+    f(io, args...)
+    @test String(take!(io)) == exp_str
+end

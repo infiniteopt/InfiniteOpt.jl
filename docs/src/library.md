@@ -6,6 +6,21 @@ Pages   = ["guide/model.md"]
 Modules = [InfiniteOpt]
 ```
 
+## Infinite Sets
+### Datatypes
+```@index
+Pages   = ["guide/sets.md"]
+Modules = [InfiniteOpt]
+Order   = [:type]
+```
+
+### Methods
+```@index
+Pages   = ["guide/sets.md"]
+Modules = [InfiniteOpt, JuMP]
+Order   = [:macro, :function]
+```
+
 ## Infinite Parameters
 ### Datatypes
 ```@index
@@ -33,7 +48,7 @@ Order   = [:macro, :function]
 ### Datatypes
 ```@index
 Pages   = ["guide/variable.md"]
-Modules = [InfiniteOpt]
+Modules = [InfiniteOpt, InfiniteOpt.Collections]
 Order   = [:type]
 ```
 

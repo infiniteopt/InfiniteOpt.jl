@@ -57,15 +57,25 @@ function InfiniteOpt.build_optimizer_model!(model::InfiniteModel,
     reform_model = clear_optimizer_model_build!(model)
 
     # IT MAY BE USEFUL TO CALL expand_all_measures! TO HANDLE MEASURES FIRST
+    # otherwise can extend add_measure_variable and delete_reduced_variable to
+    # expand in place without modifying the infinite model
 
-    # REPLACE LINES 62-69 WITH OPERATIONS TO BUILD A NewReformModel BASED ON `model`
+    # REPLACE LINES 65-79 WITH OPERATIONS TO BUILD A NewReformModel BASED ON `model`
+    # these lines are just to hackily implement TranscriptionOpt
+    delete!(reform_model.ext, :ReformData)
     reform_model.ext[:TransData] = TranscriptionData()
     InfiniteOpt.TranscriptionOpt._build_transcription_model!(reform_model, model)
-    reform_data = reform_model.ext[:ReformData]
+    reform_data = NewReformData()
     for i in eachindex(fieldnames(TranscriptionData))
-        value = copy(getfield(transcription_data(reform_model), fieldnames(TranscriptionData)[i]))
-        setfield!(reform_data, fieldnames(NewReformData)[i], value)
+        if i < 4
+            value = copy(getfield(transcription_data(reform_model), fieldnames(TranscriptionData)[i]))
+            setfield!(reform_data, fieldnames(NewReformData)[i], value)
+        elseif i > 5
+            value = copy(getfield(transcription_data(reform_model), fieldnames(TranscriptionData)[i]))
+            setfield!(reform_data, fieldnames(NewReformData)[i - 2], value)
+        end
     end
+    reform_model.ext[:ReformData] = reform_data
     delete!(reform_model.ext, :TransData)
 
     # update the optimizer model status

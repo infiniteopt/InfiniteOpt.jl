@@ -17,7 +17,7 @@ include:
 - Direct support of infinite, point, and hold variables
 - Symbolic measure (integral) expression
 - Infinite/finite constraint definition
-- Ordinary differential equation support (coming soon)
+- Ordinary differential equation support (coming soon with `v0.2.0`)
 - Automated model transcription/reformulation and solution
 - Compatible with all [JuMP-supported solvers](https://www.juliaopt.org/JuMP.jl/dev/installation/#Getting-Solvers-1)
 - Readily extendable to accommodate user defined abstractions and solution techniques.
@@ -31,7 +31,7 @@ include:
 `InfiniteOpt.jl` is a registered `Julia` and can be added simply by inputting
 the following in the package manager:
 ```julia
-(v1.3) pkg> add InfiniteOpt
+(v1.4) pkg> add InfiniteOpt
 ```
 Please visit our [Installation Guide](@ref) for more details and information
 on how to get started.
@@ -40,7 +40,7 @@ Moreover, `InfiniteOpt` under constant develop with new features being added oft
 Thus, the latest pre-release experimental version can be obtained via the
 following command:
 ```julia
-(v1.3) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
+(v1.4) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
 ```
 
 ## How to Use the Documentation

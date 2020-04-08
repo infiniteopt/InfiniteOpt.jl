@@ -280,8 +280,7 @@ end
         @test @point_variable(m, infinite_variable_ref = z,
                               parameter_values = (0, [0, 0])) == vref
         @test infinite_variable_ref(vref) == z
-        pt = convert(JuMP.Containers.SparseAxisArray, zeros(2))
-        @test parameter_values(vref) == (0, pt)
+        @test parameter_values(vref) == (0, [0, 0])
         @test is_integer(vref)
         @test lower_bound(vref) == 0
         # test anon with changes to fixed
@@ -289,7 +288,7 @@ end
         @test @point_variable(m, infinite_variable_ref = z, lower_bound = -5,
                           parameter_values = (0, [0, 0]), binary = true) == vref
         @test infinite_variable_ref(vref) == z
-        @test parameter_values(vref) == (0, pt)
+        @test parameter_values(vref) == (0, [0, 0])
         @test !is_integer(vref)
         @test is_binary(vref)
         @test lower_bound(vref) == -5
@@ -297,7 +296,7 @@ end
         vref = PointVariableRef(m, 6)
         @test @point_variable(m, z(0, [0, 0]), z0, Bin) == vref
         @test infinite_variable_ref(vref) == z
-        @test parameter_values(vref) == (0, pt)
+        @test parameter_values(vref) == (0, [0, 0])
         @test is_binary(vref)
         @test lower_bound(vref) == 0
         @test name(vref) == "z0"
@@ -306,7 +305,7 @@ end
         @test @point_variable(m, z(0, [0, 0]), base_name = "z0",
                               binary = true) == vref
         @test infinite_variable_ref(vref) == z
-        @test parameter_values(vref) == (0, pt)
+        @test parameter_values(vref) == (0, [0, 0])
         @test is_binary(vref)
         @test lower_bound(vref) == 0
         @test name(vref) == "z0"
@@ -318,8 +317,7 @@ end
         @test @point_variable(m, [1:2], infinite_variable_ref = z,
                               parameter_values = (0, [0, 0])) == vrefs
         @test infinite_variable_ref(vrefs[1]) == z
-        pt = convert(JuMP.Containers.SparseAxisArray, zeros(2))
-        @test parameter_values(vrefs[2]) == (0, pt)
+        @test parameter_values(vrefs[2]) == (0, [0, 0])
         @test is_integer(vrefs[1])
         @test lower_bound(vrefs[2]) == 0
         # test anon array with different inf vars
@@ -335,7 +333,7 @@ end
         vrefs = [PointVariableRef(m, 12), PointVariableRef(m, 13)]
         @test @point_variable(m, z(0, [0, 0]), a[1:2], Bin) == vrefs
         @test infinite_variable_ref(vrefs[1]) == z
-        @test parameter_values(vrefs[2]) == (0, pt)
+        @test parameter_values(vrefs[2]) == (0, [0, 0])
         @test is_binary(vrefs[1])
         @test lower_bound(vrefs[2]) == 0
         @test name(vrefs[1]) == "a[1]"

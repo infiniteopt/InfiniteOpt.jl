@@ -1,11 +1,6 @@
 # Define symbol inputs for different variable types
 const Parameter = :Parameter
 
-# Extend Base.copy for infinite parameters
-function Base.copy(p::ParameterRef, new_model::InfiniteModel)::ParameterRef
-    return ParameterRef(new_model, p.index)
-end
-
 # Internal structure for building InfOptParameters
 mutable struct _ParameterInfoExpr
     has_lb::Bool
@@ -290,47 +285,8 @@ function _check_param_in_data(pref::ParameterRef, data::AbstractMeasureData)
     return
 end
 
-## Determine if a tuple element contains a particular parameter
-# ParameterRef
-function _contains_pref(search_pref::ParameterRef, pref::ParameterRef)::Bool
-    return search_pref == pref
-end
-
-# SparseAxisArray
-function _contains_pref(arr::JuMPC.SparseAxisArray{<:ParameterRef},
-                        pref::ParameterRef)::Bool
-    return pref in collect(values(arr.data))
-end
-
-# Return parameter tuple without a particular parameter and return location of
-# where it was
-function _remove_parameter(prefs::Tuple, delete_pref::ParameterRef)::Tuple
-    for i in eachindex(prefs)
-        if _contains_pref(prefs[i], delete_pref)
-            if isa(prefs[i], ParameterRef)
-                return Tuple(prefs[j] for j = 1:length(prefs) if j != i), (i, )
-            else
-                for (k, v) in prefs[i].data
-                    if v == delete_pref
-                        new_dict = filter(x -> x.second != delete_pref,
-                                         prefs[i].data)
-                        if length(new_dict) != 0
-                            pref_list = [prefs...]
-                            pref_list[i] = JuMPC.SparseAxisArray(new_dict)
-                            return Tuple(pref_list[j] for j = 1:length(prefs)), (i, k)
-                        else
-                            return Tuple(prefs[j] for j = 1:length(prefs) if j != i), (i, )
-                        end
-                    end
-                end
-            end
-        end
-    end
-end
-
 # Used to update infinite variable when one of its parameters is deleted
-function _update_infinite_variable(vref::InfiniteVariableRef, new_prefs::Tuple)
-    _update_variable_param_refs(vref, new_prefs)
+function _update_infinite_variable(vref::InfiniteVariableRef)
     JuMP.set_name(vref, _root_name(vref))
     if used_by_measure(vref)
         for mindex in JuMP.owner_model(vref).var_to_meas[JuMP.index(vref)]
@@ -341,23 +297,8 @@ function _update_infinite_variable(vref::InfiniteVariableRef, new_prefs::Tuple)
     return
 end
 
-# Return a parameter value tuple without element at a particular location
-function _remove_parameter_values(pref_vals::Tuple, location::Tuple)::Tuple
-    # removed parameter was a scalar parameter
-    if length(location) == 1
-        return Tuple(pref_vals[i] for i in eachindex(pref_vals) if i != location[1])
-    # removed parameter was part of an array
-    else
-        new_dict = filter(x -> x.first != location[2], pref_vals[location[1]].data)
-        val_list = [pref_vals...]
-        val_list[location[1]] = JuMPC.SparseAxisArray(new_dict)
-        return Tuple(val_list[i] for i in eachindex(pref_vals))
-    end
-end
-
 # Update point variable for which a parameter is deleted
-function _update_point_variable(pvref::PointVariableRef, pref_vals::Tuple)
-    _update_variable_param_values(pvref, pref_vals)
+function _update_point_variable(pvref::PointVariableRef)
     # update name if no alias was provided
     if !isa(findfirst(isequal('('), JuMP.name(pvref)), Nothing)
         JuMP.set_name(pvref, "")
@@ -374,26 +315,19 @@ end
 # Update a reduced variable associated with an infinite variable whose parameter
 # was removed
 function _update_reduced_variable(vref::ReducedInfiniteVariableRef,
-                                  location::Tuple)
+                                  delete_index::Int)
     eval_supps = eval_supports(vref)
-    # removed parameter was a scalar
-    if length(location) == 1
-        new_supports = Dict{Int, Union{Number, JuMPC.SparseAxisArray}}()
-        for (index, support) in eval_supps
-            if index < location[1]
-                new_supports[index] = support
-            elseif index > location[1]
-                new_supports[index - 1] = support
-            end
+    new_supports = Dict{Int, Number}()
+    for (index, support) in eval_supps
+        if index < delete_index
+            new_supports[index] = support
+        elseif index > delete_index
+            new_supports[index - 1] = support
         end
-        JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = ReducedInfiniteInfo(infinite_variable_ref(vref), new_supports)
-    # removed parameter was part of an array and was reduced previously
-    elseif haskey(eval_supps, location[1])
-        new_dict = filter(x -> x.first != location[2], eval_supps[location[1]].data)
-        new_supports = copy(eval_supps)
-        new_supports[location[1]] = JuMPC.SparseAxisArray(new_dict)
-        JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = ReducedInfiniteInfo(infinite_variable_ref(vref), new_supports)
     end
+    new_info = ReducedInfiniteInfo(infinite_variable_ref(vref), new_supports)
+    JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = new_info
+    # update measure dependencies
     if used_by_measure(vref)
         for mindex in JuMP.owner_model(vref).reduced_to_meas[JuMP.index(vref)]
             JuMP.set_name(MeasureRef(JuMP.owner_model(vref), mindex),
@@ -412,8 +346,9 @@ measure functions that depend on `pref` are updated to exclude it. Errors if the
 parameter is contained in an `AbstractMeasureData` datatype that is employed by
 a measure since the measure becomes invalid otherwise. Thus, measures that
 contain this dependency must be deleted first. Note that
-```_check_param_in_data(pref, measure_data)``` needs to be extended to allow
-deletion of parameters when custom `AbstractMeasureData` datatypes are used.
+[`parameter_refs`](@ref parameter_refs(::AbstractMeasureData)) needs to be
+extended to allow deletion of parameters when custom `AbstractMeasureData`
+datatypes are used.
 
 **Example**
 ```julia-repl
@@ -467,26 +402,25 @@ function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
     if used_by_variable(pref)
         # update infinite variables that depend on pref
         for vindex in model.param_to_vars[JuMP.index(pref)]
-            # find location of parameter in storage tuple
-            prefs, location = _remove_parameter(model.vars[vindex].parameter_refs,
-                                                pref)
-            vref = InfiniteVariableRef(model, vindex)
             # remove the parameter dependence
-            _update_infinite_variable(vref, prefs)
+            vref = InfiniteVariableRef(model, vindex)
+            prefs = raw_parameter_refs(vref)
+            delete_index = findfirst(isequal(pref), prefs)
+            deleteat!(prefs, delete_index)
+            _update_infinite_variable(vref)
             # update any point variables that depend on vref accordingly
             if used_by_point_variable(vref)
                 for pindex in model.infinite_to_points[vindex]
                     pvref = PointVariableRef(model, pindex)
-                    pref_vals = _remove_parameter_values(parameter_values(pvref),
-                                                         location)
-                    _update_point_variable(pvref, pref_vals)
+                    deleteat!(raw_parameter_values(pvref), delete_index)
+                    _update_point_variable(pvref)
                 end
             end
             # update any reduced variables that depend on vref accordingly
             if used_by_reduced_variable(vref)
                 for rindex in model.infinite_to_reduced[vindex]
-                    _update_reduced_variable(ReducedInfiniteVariableRef(model,
-                                                              rindex), location)
+                    rvref = ReducedInfiniteVariableRef(model,rindex)
+                    _update_reduced_variable(rvref, delete_index)
                 end
             end
         end
@@ -812,7 +746,7 @@ julia> supports(t)
 ```
 """
 function supports(pref::ParameterRef)::Vector
-    !has_supports(pref) && error("Parameter $pref does not have supports.")
+    has_supports(pref) || error("Parameter $pref does not have supports.")
     return _parameter_supports(pref)
 end
 
@@ -820,16 +754,17 @@ end
     supports(prefs::AbstractArray{<:ParameterRef})::Vector
 
 Return the support points associated with an array of `prefs` formatted as a
-vector of SparseAxisArrays following the format of the input array. If the
+vector of supports following the format of the input array. If the
 parameters are not independent then the supports of each parameter are simply
-spliced together. Alternatively can call `supports.` to more efficiently obtain
+spliced together. Alternatively can call `supports.()` to more efficiently obtain
 an array of the same input format whose parameter references have been replaced
-with their supports. Errors if all the parameter references do not have the same
+with their supports (so long as the prefs are not independent). Errors if all
+the parameter references do not have the same
 group ID number (were intialized together as an array) or if the nonindependent
 parameters have support vectors of different lengths. If the parameters are
 independent then all the unique combinations are identified and returned as
-supports. Warning this operation is computationally expensive if there exist a
-large number of combinations.
+supports. Warning this operation is computationally very expensive if there
+exist a large number of combinations.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
@@ -839,53 +774,34 @@ julia> x = @infinite_parameter(model, [i = 1:2], set = IntervalSet(-1, 1),
  x[1]
  x[2]
 
-julia> for i = 1:length(x)
-           set_supports(x[i], [-1, 1])
-       end
+julia> set_supports.(x, [[-1, 1], [-1, 1]]);
 
 julia> supports(x)
-4-element Array{JuMP.Containers.SparseAxisArray,1}:
-   [2]  =  -1
-  [1]  =  -1
-   [2]  =  1
-  [1]  =  -1
-   [2]  =  -1
-  [1]  =  1
-   [2]  =  1
-  [1]  =  1
+4-element Array{Array{Int64,1},1}:
+ [-1, -1]
+ [1, -1]
+ [-1, 1]
+ [1, 1]
 ```
 """
 function supports(prefs::AbstractArray{<:ParameterRef})::Vector
-    prefs = convert(JuMPC.SparseAxisArray, prefs)
-    !_only_one_group(prefs) && error("Array contains parameters from multiple" *
-                                     " groups.")
-    for (k, pref) in prefs.data
-        !has_supports(pref) && error("Parameter $pref does not have supports.")
-    end
-    lengths = [num_supports(pref) for (k, pref) in prefs.data]
-    if !is_independent(collect(values(prefs.data))[1])
-        length(unique(lengths)) != 1 && error("Each nonindependent parameter " *
-                                              "must have the same number of " *
-                                              "support points.")
-        support_list = Vector{JuMPC.SparseAxisArray}(undef, lengths[1])
-        for i in eachindex(support_list)
-            support_list[i] = JuMPC.SparseAxisArray(Dict(k => supports(pref)[i] for (k, pref) in prefs.data))
-        end
-        # unique-nize support_list using the dictionary unique method
-        # TODO: make it work with JuMPC.SparseAxisArray
-        dict_list = unique([arr.data for arr in support_list])
-        support_list = [JuMPC.SparseAxisArray(dict) for dict in dict_list]
+    _allequal(group_id.(prefs)) || error("Array contains parameters from multiple" *
+                                         " groups.")
+    all(has_supports(prefs[k]) for k in keys(prefs)) || error("Not all parameters have supports.")
+    lengths = [num_supports(prefs[k]) for k in keys(prefs)]
+    indices = Collections._get_indices(prefs)
+    prefs = Collections._make_ordered(prefs, indices)
+    if !is_independent(first(prefs))
+        _allequal(lengths) || error("Each nonindependent parameter must have " *
+                                    "the same number of support points.")
+        support_list = unique([[supports(prefs[k])[i] for k in keys(prefs)] for i in 1:lengths[1]])
     else
-        all_keys = collect(keys(prefs))
-        all_supports = [supports(pref) for (k, pref) in prefs.data]
-        support_list = Vector{JuMPC.SparseAxisArray}(undef, prod(lengths))
-        counter = 1
-        for combo in Iterators.product(all_supports...)
-            support_list[counter] = JuMPC.SparseAxisArray(Dict(all_keys[i] => combo[i] for i in eachindex(combo)))
-            counter += 1
-        end
+        all_supports = [supports(prefs[k]) for k in keys(prefs)]
+        combos = Iterators.product(all_supports...)
+        support_list = [[combo...] for combo in Iterators.take(combos, length(combos))]
     end
-    return support_list
+    range = 1:length(prefs)
+    return [Collections._make_array(supp, range, indices) for supp in support_list]
 end
 
 """
@@ -1018,7 +934,7 @@ julia> value(cost)
 ```
 """
 function JuMP.value(pref::ParameterRef)::Number
-    !is_finite_parameter(pref) && error("$pref is an infinite parameter.")
+    is_finite_parameter(pref) || error("$pref is an infinite parameter.")
     return supports(pref)[1]
 end
 
@@ -1037,7 +953,7 @@ julia> value(cost)
 ```
 """
 function JuMP.set_value(pref::ParameterRef, value::Number)
-    !is_finite_parameter(pref) && error("$pref is an infinite parameter.")
+    is_finite_parameter(pref) || error("$pref is an infinite parameter.")
     set_infinite_set(pref, IntervalSet(value, value))
     set_supports(pref, [value], force = true)
     return
@@ -1179,9 +1095,8 @@ julia> group_id([x[1], x[2]])
 ```
 """
 function group_id(prefs::AbstractArray{<:ParameterRef})::Int
-    groups = group_id.(prefs)
-    length(unique(groups)) != 1 && error("Array contains parameters from " *
-                                         "multiple groups.")
+    groups = [group_id(pref) for pref in prefs]
+    _allequal(groups) || error("Array contains parameters from multiple groups.")
     return first(groups)
 end
 
@@ -1320,11 +1235,6 @@ function _root_name(pref::ParameterRef)::String
     end
 end
 
-# Return the root names of a tuple parameter of references
-function _root_names(prefs::Tuple)::Tuple
-    return _root_name.(first.(prefs))
-end
-
 ## Internal functions for group checking
 # Return group id of ParameterRef
 function _group(pref::ParameterRef)::Int
@@ -1343,19 +1253,3 @@ end
 
 # Return true to have one group ID since is singular
 _only_one_group(pref::ParameterRef)::Bool = true
-
-## Internal function for extracting parameter references
-# Return a vector of parameter references from a tuple of references
-function _list_parameter_refs(prefs::Tuple)
-    list = ParameterRef[]
-    for pref in prefs
-        if isa(pref, ParameterRef)
-            push!(list, pref)
-        else
-            for k in keys(pref.data)
-                push!(list, pref[k])
-            end
-        end
-    end
-    return list
-end

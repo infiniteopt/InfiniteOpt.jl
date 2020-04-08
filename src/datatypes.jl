@@ -110,6 +110,7 @@ model an optmization problem with an infinite dimensional decision space.
 - `infinite_to_reduced::Dict{Int, Vector{Int}}` Infinite variable indices to
                                                dependent reduced variable indices.
 - `has_hold_bounds::Bool` Have hold variables with bounds been added to the model
+- `next_reduced_index::Int` Index - 1 of next reduced variable index
 - `reduced_to_constrs::Dict{Int, Vector{Int}}` Reduced variable indices to dependent
                                                constraint indices.
 - `reduced_to_meas::Dict{Int, Vector{Int}}` Reduced variable indices to dependent
@@ -124,6 +125,8 @@ model an optmization problem with an infinite dimensional decision space.
                                                       indices.
 - `constr_in_var_info::Dict{Int, Bool}` Constraint indices to if related to
                                         variable information constraints.
+- `constr_to_meas::Dict{Int, Vector{Int}}` Constraint indices to measures it
+                                           depends on.
 - `objective_sense::MOI.OptimizationSense` Objective sense.
 - `objective_function::JuMP.AbstractJuMPScalar` Finite scalar function.
 - `obj_dict::Dict{Symbol, Any}` Store Julia symbols used with `InfiniteModel`
@@ -171,6 +174,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     has_hold_bounds::Bool
 
     # Placeholder
+    next_reduced_index::Int
     reduced_to_constrs::Dict{Int, Vector{Int}}
     reduced_to_meas::Dict{Int, Vector{Int}}
     reduced_info::Dict{Int, AbstractReducedInfo}
@@ -181,6 +185,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     constr_to_name::Dict{Int, String}
     name_to_constr::Union{Dict{String, Int}, Nothing}
     constr_in_var_info::Dict{Int, Bool}
+    constr_to_meas::Dict{Int, Vector{Int}}
 
     # Objective Data
     objective_sense::MOI.OptimizationSense
@@ -246,7 +251,7 @@ function InfiniteModel(; seed::Bool = false,
                          Dict{Int, Bool}(),
                          Dict(:eval_method => sampling,
                               :num_supports => 10,
-                              :weight_func => _w,
+                              :weight_func => default_weight,
                               :name => "integral",
                               :use_existing_supports => false),
                          # Parameters
@@ -262,11 +267,12 @@ function InfiniteModel(; seed::Bool = false,
                          Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
                          false,
                          # Placeholder variables
-                         Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
+                         0, Dict{Int, Vector{Int}}(), Dict{Int, Vector{Int}}(),
                          Dict{Int, Tuple}(),
                          # Constraints
                          0, Dict{Int, JuMP.AbstractConstraint}(),
                          Dict{Int, String}(), nothing, Dict{Int, Bool}(),
+                        Dict{Int, Vector{Int}}(),
                          # Objective
                          MOI.FEASIBILITY_SENSE,
                          zero(JuMP.GenericAffExpr{Float64, FiniteVariableRef}),
@@ -462,6 +468,7 @@ end
 
 """
     InfiniteVariable{S, T, U, V} <: InfOptVariable
+
 A DataType for storing core infinite variable information. Note each element of
 the parameter reference tuple must contain either a single
 [`ParameterRef`](@ref) or an `AbstractArray` of `ParameterRef`s where each
@@ -469,16 +476,17 @@ the parameter reference tuple must contain either a single
 
 **Fields**
 - `info::JuMP.VariableInfo{S, T, U, V}` JuMP variable information.
-- `parameter_refs::Tuple` The infinite parameters(s) that parameterize the
-                          variable.
+- `parameter_refs::VectorTuple{<:ParameterRef}` The infinite parameters(s) that
+                                                 parameterize the variable.
 """
 struct InfiniteVariable{S, T, U, V} <: InfOptVariable
     info::JuMP.VariableInfo{S, T, U, V}
-    parameter_refs::Tuple
+    parameter_refs::VectorTuple{<:ParameterRef}
 end
 
 """
     PointVariable{S, T, U, V} <: InfOptVariable
+
 A DataType for storing point variable information. Note that the elements
 `parameter_values` field must match the format of the parameter reference tuple
 defined in [`InfiniteVariable`](@ref)
@@ -487,12 +495,13 @@ defined in [`InfiniteVariable`](@ref)
 - `info::JuMP.VariableInfo{S, T, U, V}` JuMP Variable information.
 - `infinite_variable_ref::InfiniteVariableRef` The infinite variable associated
                                                with the point variable.
-- `parameter_values::Tuple` The infinite parameter values defining the point.
+- `parameter_values::VectorTuple{Float64}` The infinite parameter values
+                                            defining the point.
 """
 struct PointVariable{S, T, U, V} <: InfOptVariable
     info::JuMP.VariableInfo{S, T, U, V}
     infinite_variable_ref::InfiniteVariableRef
-    parameter_values::Tuple
+    parameter_values::VectorTuple{Float64}
 end
 
 ## Modify parameter dictionary to expand any multidimensional parameter keys
@@ -528,6 +537,7 @@ end
 
 """
     ParameterBounds
+
 A DataType for storing intervaled bounds of parameters. This is used to define
 subdomains of [`HoldVariable`](@ref)s and [`BoundedScalarConstraint`](@ref)s.
 
@@ -549,6 +559,7 @@ end
 
 """
     HoldVariable{S, T, U, V} <: InfOptVariable
+
 A DataType for storing hold variable information.
 
 **Fields**
@@ -567,13 +578,12 @@ A DataType for storing reduced infinite variable information.
 
 **Fields**
 - `infinite_variable_ref::InfiniteVariableRef` The original infinite variable.
-- `eval_supports::Dict{Int, Union{Number, JuMP.Containers.SparseAxisArray{<:Number}}}`
-  The original parameter tuple indices to the evaluation supports.
+- `eval_supports::Dict{Int, Float64}` The original parameter tuple linear indices
+                                     to the evaluation supports.
 """
 struct ReducedInfiniteInfo <: AbstractReducedInfo
     infinite_variable_ref::InfiniteVariableRef
-    eval_supports::Dict{Int, Union{Number,
-                                   JuMPC.SparseAxisArray{<:Number}}}
+    eval_supports::Dict{Int, Float64}
 end
 
 """
@@ -606,9 +616,9 @@ abstraction is of the form:
 **Fields**
 - `parameter_ref::ParameterRef` The infinite parameter over which the
                                 integration occurs.
-- `coefficients::Vector{<:Number}` Coefficients ``\\alpha_i`` for the above
+- `coefficients::Vector{Float64}` Coefficients ``\\alpha_i`` for the above
                                    measure abstraction.
-- `supports::Vector{<:Number}` Support points ``\\tau_i`` for the above
+- `supports::Vector{Float64}` Support points ``\\tau_i`` for the above
                                measure abstraction.
 - `name::String` Name of the measure that will be implemented.
 - `weight_function::Function` Weighting function ``w`` must map support value
@@ -616,26 +626,10 @@ abstraction is of the form:
 """
 struct DiscreteMeasureData <: AbstractMeasureData
     parameter_ref::ParameterRef
-    coefficients::Vector{<:Number}
-    supports::Vector{<:Number}
+    coefficients::Vector{Float64}
+    supports::Vector{Float64}
     name::String
     weight_function::Function
-    # Constructor
-    function DiscreteMeasureData(parameter_ref::ParameterRef,
-                                 coeffs::Vector{<:Number},
-                                 supports::Vector{<:Number},
-                                 name::String, weight_func::Function)
-        if length(coeffs) != length(supports)
-            error("The amount of coefficients must match the amount of " *
-                  "support points.")
-        end
-        set = infinite_set(parameter_ref)
-        # set = parameter_ref.model.params[parameter_ref.index].set
-        if !supports_in_set(supports, set)
-            error("Support points violate parameter domain.")
-        end
-        return new(parameter_ref, coeffs, supports, name, weight_func)
-    end
 end
 
 """
@@ -646,49 +640,23 @@ abstraction is of the form:
 ``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
 
 **Fields**
-- `parameter_ref::JuMP.Containers.SparseAxisArray{<:ParameterRef}` The infinite
+- `parameter_refs::Vector{ParameterRef}` The infinite
    parameters over which the integration occurs.
-- `coefficients::Vector{<:Number}` Coefficients ``\\alpha_i`` for the above
+- `coefficients::Vector{Float64}` Coefficients ``\\alpha_i`` for the above
                                    measure abstraction.
-- `supports::Vector{<:JuMP.Containers.SparseAxisArray{<:Number}}` Support points
-   ``\\tau_i`` for the above measure abstraction.
+- `supports::Array{Float64, 2}` Support points (column-wise) ``\\tau_i`` for the
+                                above measure abstraction.
 - `name::String` Name of the measure that will be implemented.
 - `weight_function::Function` Weighting function ``w`` must map a numerical
                               support of type `JuMP.Containers.SparseAxisArray`
                               to a scalar value.
 """
 struct MultiDiscreteMeasureData <: AbstractMeasureData
-    parameter_ref::JuMPC.SparseAxisArray{<:ParameterRef}
-    coefficients::Vector{<:Number}
-    supports::Vector{<:JuMPC.SparseAxisArray}
+    parameter_refs::Vector{ParameterRef}
+    coefficients::Vector{Float64}
+    supports::Array{Float64, 2} # rows parameters, columns supports
     name::String
     weight_function::Function
-    # Constructor
-    function MultiDiscreteMeasureData(parameter_ref::JuMPC.SparseAxisArray{<:ParameterRef},
-                                      coeffs::Vector{<:Number},
-                                      supports::Vector{<:JuMPC.SparseAxisArray},
-                                      name::String, weight_func::Function)
-        if length(coeffs) != length(supports)
-            error("The amount of coefficients must match the amount of " *
-                  "support points.")
-        elseif !_only_one_group(parameter_ref)
-            error("Parameters must all have same group ID.")
-        elseif length(supports) == 0
-            error("Must specify at least one support.")
-        elseif keys(supports[1].data) != keys(parameter_ref.data)
-            error("The keys/dimensions of the support points and parameters " *
-                  "do not match.")
-        end
-        for key in keys(parameter_ref.data)
-            set = infinite_set(parameter_ref.data[key])
-            for supp in supports
-                if !supports_in_set(supp.data[key], set)
-                    error("Support points violate parameter domain.")
-                end
-            end
-        end
-        return new(parameter_ref, coeffs, supports, name, weight_func)
-    end
 end
 
 # Define finite measure expressions (note infinite expression take precedence)
