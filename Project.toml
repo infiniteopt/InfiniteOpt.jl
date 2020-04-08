@@ -1,7 +1,7 @@
 name = "InfiniteOpt"
 uuid = "20393b10-9daf-11e9-18c9-8db751c92c57"
 authors = ["Joshua Pulsipher and Weiqi Zhang"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
