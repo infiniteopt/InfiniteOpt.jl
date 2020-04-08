@@ -147,13 +147,13 @@ end
 _all_parameter_refs(expr::FiniteVariableRef)::Tuple = ()
 
 # InfiniteVariableRef
-_all_parameter_refs(expr::InfiniteVariableRef)::Tuple = parameter_refs(expr)
+_all_parameter_refs(expr::InfiniteVariableRef)::Tuple = Tuple(raw_parameter_refs(expr), use_indices = false)
 
 # ParameterRef
 _all_parameter_refs(expr::ParameterRef)::Tuple = (expr, )
 
 # ReducedInfiniteVariableRef
-_all_parameter_refs(expr::ReducedInfiniteVariableRef)::Tuple = parameter_refs(expr)
+_all_parameter_refs(expr::ReducedInfiniteVariableRef)::Tuple = Tuple(raw_parameter_refs(expr), use_indices = false)
 
 # GenericAffExpr
 function _all_parameter_refs(expr::JuMP.GenericAffExpr{C,

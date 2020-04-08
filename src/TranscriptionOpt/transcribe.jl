@@ -38,7 +38,7 @@ function _initialize_infinite_variables(trans_model::JuMP.Model,
         if isa(var, InfiniteOpt.InfiniteVariable)
             ivref = InfiniteOpt.InfiniteVariableRef(inf_model, index)
             if InfiniteOpt.is_used(ivref)
-                prefs = InfiniteOpt.parameter_refs(ivref)
+                prefs = Tuple(InfiniteOpt.raw_parameter_refs(ivref), use_indices = false)
                 supports = _make_supports(prefs)
                 transcription_data(trans_model).infvar_to_supports[ivref] = supports
                 vrefs = Vector{JuMP.VariableRef}(undef, length(supports))
@@ -119,7 +119,7 @@ function _map_point_variables(trans_model::JuMP.Model,
             pvref = InfiniteOpt.PointVariableRef(inf_model, index)
             if InfiniteOpt.is_used(pvref)
                 ivref = InfiniteOpt.infinite_variable_ref(pvref)
-                support = InfiniteOpt.parameter_values(pvref)
+                support = Tuple(InfiniteOpt.raw_parameter_values(pvref), use_indices = false)
                 _update_point_mapping(trans_model, pvref, ivref, support)
                 _update_point_info(trans_model, pvref)
             end
@@ -202,7 +202,7 @@ function _map_to_variable(rvref::InfiniteOpt.ReducedInfiniteVariableRef,
     for i in 1:length(orig_groups)
         if all(orig_prefs.ranges[i][j] in keys(eval_supps) for j in 1:length(orig_prefs.ranges[i]))
             values = [eval_supps[j] for j in orig_prefs.ranges[i]]
-            formatted_dict[i] = InfiniteOpt.Collections._make_array(values, orig_prefs.ranges[i], orig_prefs.indices[i])
+            formatted_dict[i] = InfiniteOpt.Collections._make_array(values, 1:length(values), orig_prefs.indices[i])
         elseif any(orig_prefs.ranges[i][j] in keys(eval_supps) for j in 1:length(orig_prefs.ranges[i]))
             error("Partial transcription of multi-dimensional parameters in " *
                   "not currently supported by TranscriptionOpt.")

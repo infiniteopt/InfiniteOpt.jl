@@ -234,7 +234,7 @@ create a measure using the measure data, as shown below:
 
 ```jldoctest measure_eval
 julia> tdata = uniform_grid(t, 0, 5, 6)
-DiscreteMeasureData(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], "measure", InfiniteOpt._w)
+DiscreteMeasureData(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], "measure", InfiniteOpt.default_weight)
 
 julia> f_meas = measure(f, tdata)
 measure(f(t))
@@ -462,7 +462,7 @@ moreover infinite models using this new type can be optimized. Let's try
 expanding the measure we already defined:
 ```jldoctest measure_data
 julia> expand(mref)
-2 y(-0.55603)² + 2 y(-0.44438)² + 2 z*y(-0.55603) + 2 z*y(-0.44438) - 4 y(-0.55603)² - 4 y(-0.44438)*y(-0.55603) - 4 z*y(-0.55603) + 0 z² - 2 y(-0.55603)*z - 2 y(-0.44438)*z + y(-0.55603)² + y(-0.44438)²
+2 y(-0.55603)² + 2 z*y(-0.55603) - 2 y(-0.55603)² - 2 y(-0.44438)*y(-0.55603) - 2 z*y(-0.55603) + 0 z² - y(-0.55603)*z - y(-0.44438)*z + 0.5 y(-0.55603)² + 0.5 y(-0.55603)*y(-0.44438) + 0.5 y(-0.55603)*z + 0.5 y(-0.44438)*y(-0.55603) + 0.5 y(-0.44438)² + 0.5 y(-0.44438)*z + 0.5 z*y(-0.55603) + 0.5 z*y(-0.44438) + 2 y(-0.44438)² + 2 z*y(-0.44438) - 2 y(-0.55603)*y(-0.44438) - 2 y(-0.44438)² - 2 z*y(-0.44438) - y(-0.55603)*z - y(-0.44438)*z + 0.5 y(-0.55603)² + 0.5 y(-0.55603)*y(-0.44438) + 0.5 y(-0.55603)*z + 0.5 y(-0.44438)*y(-0.55603) + 0.5 y(-0.44438)² + 0.5 y(-0.44438)*z + 0.5 z*y(-0.55603) + 0.5 z*y(-0.44438)
 ```
 
 Finally, as per recommendation let's make a wrapper method to make defining
@@ -497,7 +497,7 @@ for `expr`.
 Now let's use our constructor to repeat the above measure example:
 ```jldoctest measure_data
 julia> expand(variance(2y + z, xi, use_existing = true))
-2 y(-0.55603)² + 2 y(-0.44438)² + 2 z*y(-0.55603) + 2 z*y(-0.44438) - 4 y(-0.55603)² - 4 y(-0.44438)*y(-0.55603) - 4 z*y(-0.55603) + 0 z² - 2 y(-0.55603)*z - 2 y(-0.44438)*z + y(-0.55603)² + y(-0.44438)²
+2 y(-0.55603)² + 2 z*y(-0.55603) - 2 y(-0.55603)² - 2 y(-0.44438)*y(-0.55603) - 2 z*y(-0.55603) + 0 z² - y(-0.55603)*z - y(-0.44438)*z + 0.5 y(-0.55603)² + 0.5 y(-0.55603)*y(-0.44438) + 0.5 y(-0.55603)*z + 0.5 y(-0.44438)*y(-0.55603) + 0.5 y(-0.44438)² + 0.5 y(-0.44438)*z + 0.5 z*y(-0.55603) + 0.5 z*y(-0.44438) + 2 y(-0.44438)² + 2 z*y(-0.44438) - 2 y(-0.55603)*y(-0.44438) - 2 y(-0.44438)² - 2 z*y(-0.44438) - y(-0.55603)*z - y(-0.44438)*z + 0.5 y(-0.55603)² + 0.5 y(-0.55603)*y(-0.44438) + 0.5 y(-0.55603)*z + 0.5 y(-0.44438)*y(-0.55603) + 0.5 y(-0.44438)² + 0.5 y(-0.44438)*z + 0.5 z*y(-0.55603) + 0.5 z*y(-0.44438)
 ```
 
 We have done it! Now go and extend away!

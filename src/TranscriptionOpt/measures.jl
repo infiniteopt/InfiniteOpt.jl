@@ -18,7 +18,7 @@ function InfiniteOpt.add_measure_variable(model::JuMP.Model,
     # make the reference and map it to a transcription variable
     ivref = var.infinite_variable_ref
     pvref = InfiniteOpt.PointVariableRef(JuMP.owner_model(ivref), index)
-    _update_point_mapping(model, pvref, ivref, Tuple(var.parameter_values))
+    _update_point_mapping(model, pvref, ivref, Tuple(var.parameter_values, use_indices = false))
     return pvref
 end
 

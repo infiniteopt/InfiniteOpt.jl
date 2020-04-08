@@ -238,7 +238,7 @@ inf_model = InfiniteModel()
 @infinite_variable(inf_model, y(t))
 @infinite_variable(inf_model, g(t, x))
 
-# Set the objective (using suuport_sum for the integral given our simple example)
+# Set the objective (using support_sum for the integral given our simple example)
 # Note: In real problems measure should be used
 @objective(inf_model, Min, support_sum(y^2, t))
 
@@ -292,23 +292,15 @@ julia> variable_supports(trans_model, y)
  (10.0,)
 
 julia> variable_supports(trans_model, g)
-8-element Array{Tuple{Float64,JuMP.Containers.SparseAxisArray{Int64,1,Tuple{Int64}}},1}:
- (0.0,   [2]  =  -1
-  [1]  =  -1)
- (10.0,   [2]  =  -1
-  [1]  =  -1)
- (0.0,   [2]  =  1
-  [1]  =  -1)
- (10.0,   [2]  =  1
-  [1]  =  -1)
- (0.0,   [2]  =  -1
-  [1]  =  1)
- (10.0,   [2]  =  -1
-  [1]  =  1)
- (0.0,   [2]  =  1
-  [1]  =  1)
- (10.0,   [2]  =  1
-  [1]  =  1)
+8-element Array{Tuple{Float64,Array{Float64,1}},1}:
+ (0.0, [-1.0, -1.0])
+ (10.0, [-1.0, -1.0])
+ (0.0, [1.0, -1.0])
+ (10.0, [1.0, -1.0])
+ (0.0, [-1.0, 1.0])
+ (10.0, [-1.0, 1.0])
+ (0.0, [1.0, 1.0])
+ (10.0, [1.0, 1.0])
 ```
 
 ## TranscriptionOpt
@@ -457,7 +449,7 @@ transcription_constraint
 InfiniteOpt.optimizer_model_constraint(::InfiniteOpt.GeneralConstraintRef, ::Val{:TransData})
 InfiniteOpt.constraint_supports(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData})
 InfiniteOpt.constraint_parameter_refs(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData})
-Infiniteopt.add_measure_variable(::JuMP.Model,::InfiniteOpt.PointVariable,::Val{:TransData})
+InfiniteOpt.add_measure_variable(::JuMP.Model,::InfiniteOpt.PointVariable,::Val{:TransData})
 InfiniteOpt.add_measure_variable(::JuMP.Model,::InfiniteOpt.ReducedInfiniteInfo,::Val{:TransData})
 InfiniteOpt.delete_reduced_variable(::JuMP.Model,::InfiniteOpt.ReducedInfiniteVariableRef,::Val{:TransData})
 InfiniteOpt.reduction_info(::InfiniteOpt.ReducedInfiniteVariableRef,::Val{:TransData})

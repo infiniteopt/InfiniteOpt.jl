@@ -512,7 +512,7 @@ function expand_measure(expr::JuMP.GenericQuadExpr{C, <:GeneralVariableRef},
     new_expr = expand_measure(expr.aff, data, write_model)
     # expand the quadratic terms
     for i in eachindex(coeffs)
-        # make viable data objects so we can multiply the terms 
+        # make viable data objects so we can multiply the terms
         coef_data = DiscreteMeasureData(pref, [coeffs[i]], [supps[i]], name, w)
         simple_data = DiscreteMeasureData(pref, [1], [supps[i]], name,
                                           default_weight)

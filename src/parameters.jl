@@ -787,16 +787,16 @@ julia> supports(x)
 function supports(prefs::AbstractArray{<:ParameterRef})::Vector
     _allequal(group_id.(prefs)) || error("Array contains parameters from multiple" *
                                          " groups.")
-    all(has_supports.(prefs)) || error("Not all parameters have supports.")
-    lengths = [num_supports(pref) for pref in prefs]
+    all(has_supports(prefs[k]) for k in keys(prefs)) || error("Not all parameters have supports.")
+    lengths = [num_supports(prefs[k]) for k in keys(prefs)]
     indices = Collections._get_indices(prefs)
     prefs = Collections._make_ordered(prefs, indices)
     if !is_independent(first(prefs))
         _allequal(lengths) || error("Each nonindependent parameter must have " *
                                     "the same number of support points.")
-        support_list = unique([[supports(pref)[i] for pref in prefs] for i in 1:lengths[1]])
+        support_list = unique([[supports(prefs[k])[i] for k in keys(prefs)] for i in 1:lengths[1]])
     else
-        all_supports = [supports(pref) for pref in prefs]
+        all_supports = [supports(prefs[k]) for k in keys(prefs)]
         combos = Iterators.product(all_supports...)
         support_list = [[combo...] for combo in Iterators.take(combos, length(combos))]
     end

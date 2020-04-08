@@ -637,9 +637,7 @@ of infinite parameters that the variable depends on. For example, consider
 `y(t, x)`:
 ```jldoctest var_macro
 julia> parameter_refs(y)
-(t,   [3]  =  x[3]
-  [2]  =  x[2]
-  [1]  =  x[1])
+(t, ParameterRef[x[1], x[2], x[3]])
 ```
 
 For point variables,
@@ -652,9 +650,7 @@ julia> infinite_variable_ref(y0)
 y(t, x)
 
 julia> parameter_values(y0)
-(0,   [3]  =  -1
-  [2]  =  -1
-  [1]  =  -1)
+(0.0, [-1.0, -1.0, -1.0])
 ```
 
 For hold variables,
