@@ -1286,14 +1286,14 @@ function set_parameter_bounds(vref::HoldVariableRef, bounds::ParameterBounds;
         # check that bounds are valid and add support(s) if necessary
         _check_bounds(bounds, _error = _error)
         # check dependent measures
-        meas_cindices = []
+        cindices = Int[]
         if used_by_measure(vref)
             for mindex in JuMP.owner_model(vref).var_to_meas[JuMP.index(vref)]
                 meas = JuMP.owner_model(vref).measures[mindex]
                 _check_meas_bounds(bounds, meas.data, _error = _error)
                 if used_by_constraint(MeasureRef(JuMP.owner_model(vref), mindex))
                     indices = JuMP.owner_model(vref).meas_to_constrs[mindex]
-                    meas_cindices = [meas_cindices; indices]
+                    push!(cindices, indices...)
                 end
             end
         end
@@ -1301,13 +1301,13 @@ function set_parameter_bounds(vref::HoldVariableRef, bounds::ParameterBounds;
         _validate_bounds(JuMP.owner_model(vref), bounds, _error = _error)
         _update_variable_param_bounds(vref, bounds)
         # check and update dependent constraints
-        if used_by_constraint(vref) || length(meas_cindices) != 0
-            for cindex in unique([meas_cindices; JuMP.owner_model(vref).var_to_constrs[JuMP.index(vref)]])
-                constr = JuMP.owner_model(vref).constrs[cindex]
-                new_constr = _rebuild_constr_bounds(constr, bounds,
-                                                    _error = _error)
-                JuMP.owner_model(vref).constrs[cindex] = new_constr
-            end
+        if used_by_constraint(vref)
+            union!(cindices, JuMP.owner_model(vref).var_to_constrs[JuMP.index(vref)])
+        end
+        for cindex in cindices
+            constr = JuMP.owner_model(vref).constrs[cindex]
+            new_constr = _rebuild_constr_bounds(constr, bounds, _error = _error)
+            JuMP.owner_model(vref).constrs[cindex] = new_constr
         end
         # update status
         JuMP.owner_model(vref).has_hold_bounds = true

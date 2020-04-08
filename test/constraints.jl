@@ -176,8 +176,10 @@ end
         delete!(m.var_to_constrs, JuMP.index(inf))
         delete!(m.param_to_constrs, JuMP.index(par))
         delete!(m.meas_to_constrs, JuMP.index(meas))
+        delete!(m.meas_to_constrs, JuMP.index(meas2))
         delete!(m.reduced_to_constrs, JuMP.index(rv))
-        empty!(m.constr_to_mea)
+        delete!(m.constr_to_meas, 1)
+        delete!(m.constr_to_meas, 2)
     end
     # test _check_and_update_bounds (BoundedScalarConstraint with no hold variables)
     @testset "_check_and_update_bounds (Bounded no Hold)" begin

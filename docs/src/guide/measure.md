@@ -422,9 +422,9 @@ expand_measure
 expand_measures
 make_point_variable_ref
 make_reduced_variable_ref
-add_measure_variable
+add_measure_variable(::JuMP.Model, ::Any, ::Any)
 delete_internal_reduced_variable
-delete_reduced_variable
+delete_reduced_variable(::JuMP.Model, ::Any, ::Any)
 reduction_info(::ReducedInfiniteVariableRef, ::Any)
 infinite_variable_ref(::ReducedInfiniteVariableRef)
 eval_supports(::ReducedInfiniteVariableRef)

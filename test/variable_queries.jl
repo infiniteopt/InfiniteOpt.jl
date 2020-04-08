@@ -360,7 +360,7 @@ end
         data = DiscreteMeasureData(par, [1, 1], [1, 3], "", default_weight)
         mindex = -1; cindex1 = 42; cindex2 = -42; vindex = JuMP.index(x);
         m.measures[mindex] = Measure(x, data)
-        m.var_to_meas[JuMP.index(x)] = [mindex]
+        m.var_to_meas[vindex] = [mindex]
         m.meas_to_constrs[mindex] = [cindex1]
         mref = MeasureRef(m, mindex)
         m.constrs[cindex1] = BoundedScalarConstraint(mref, MOI.EqualTo(0.0),
@@ -385,6 +385,14 @@ end
                                         pars[1] => IntervalSet(0.5, 1)))
         @test m.constrs[cindex1].bounds == expected
         @test m.constrs[cindex2].bounds == bounds
+        # Retest with empty constraint mapping
+        delete!(m.var_to_constrs, vindex)
+        @test isa(set_parameter_bounds(x, bounds, force = true), Nothing)
+        @test parameter_bounds(x) == bounds
+        @test m.has_hold_bounds
+        @test !optimizer_model_ready(m)
+        @test m.constrs[cindex1].bounds == expected
+        m.var_to_constrs[vindex] = [cindex2]
         # test forced
         bounds = ParameterBounds(Dict(par => IntervalSet(1, 1)))
         @test isa(set_parameter_bounds(y, bounds, force = true), Nothing)
