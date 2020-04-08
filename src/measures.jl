@@ -163,11 +163,11 @@ function DiscreteMeasureData(parameter_refs::AbstractArray{<:ParameterRef},
               "support points.")
     elseif !_allequal(group_id.(parameter_refs))
         error("Parameters must all have same group ID.")
-    elseif length(supports) == 0
-        error("Must specify at least one support.")
-    elseif size(supports, 1) != length(parameter_refs)
-        error("The dimensions of the support points and parameters " *
-              "do not match.")
+    # elseif length(supports) == 0
+    #     error("Must specify at least one support.")
+    # elseif size(supports, 1) != length(parameter_refs)
+    #     error("The dimensions of the support points and parameters " *
+    #           "do not match.")
     end
     for i in eachindex(parameter_refs)
         set = infinite_set(parameter_refs[i])

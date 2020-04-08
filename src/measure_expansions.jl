@@ -9,9 +9,9 @@ the `write_model`, and return the `PointVariableRef`. This is an internal method
 for point variables produced by expanding measures via [`expand_measure`](@ref).
 This is also useful for those writing extension optimizer models and wish to
 expand measures without modifiying the `InfiniteModel`. In such cases, `write_model`
-should be the optimizer model and [`add_measure_variable`](@ref) should be
-extended appropriately for point variables. Errors if `write_model` is an
-optimizer model and `add_measure_variable` is not properly extended.
+should be the optimizer model and [`add_measure_variable`](@ref add_measure_variable(::JuMP.Model, ::Any, ::Any))
+should be extended appropriately for point variables. Errors if `write_model` is
+an optimizer model and `add_measure_variable` is not properly extended.
 """
 function make_point_variable_ref(write_model::InfiniteModel,
                                  ivref::InfiniteVariableRef,
@@ -73,9 +73,9 @@ the `write_model`, and return the `ReducedInfiniteVariableRef`. This is an inter
 for reduced variables produced by expanding measures via [`expand_measure`](@ref).
 This is also useful for those writing extension optimizer models and wish to
 expand measures without modifiying the `InfiniteModel`. In such cases, `write_model`
-should be the optimizer model and [`add_measure_variable`](@ref) should be
-extended appropriately for reduced variables. Errors if `write_model` is an
-optimizer model and `add_measure_variable` is not properly extended.
+should be the optimizer model and [`add_measure_variable`](@ref add_measure_variable(::JuMP.Model, ::Any, ::Any))
+should be extended appropriately for reduced variables. Errors if `write_model`
+is an optimizer model and `add_measure_variable` is not properly extended.
 """
 function make_reduced_variable_ref(write_model::InfiniteModel,
                                    ivref::InfiniteVariableRef,
@@ -111,7 +111,8 @@ end
 
 Delete the variable associated with `rvref` from `write_model` if it is purely
 an internal variable only used for measure expansion and is no longer needed.
-For `write_model`s that are an optimizer model, [`delete_reduced_variable`](@ref)
+For `write_model`s that are an optimizer model,
+[`delete_reduced_variable`](@ref delete_reduced_variable(::JuMP.Model, ::Any,::Any))
 will need to be extended for this this to work. Otherwise, a warning will be thrown.
 Note that this is intended as an internal method to assist with extensions to
 [`expand_measure`](@ref).

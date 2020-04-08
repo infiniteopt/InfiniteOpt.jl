@@ -125,6 +125,7 @@ end
         @test_throws ErrorException DiscreteMeasureData(pars2, [1], [[0, 0, 0]])
         @test_throws ErrorException DiscreteMeasureData([fpar, fpar], [1],
                                                         [[1, 1]])
+        @test_throws ErrorException DiscreteMeasureData([par, pars[1]], [1], [[1, 1]])
     end
 end
 
