@@ -6,7 +6,7 @@
     new_info = VariableInfo(true, 0., true, 0., true, 0., true, 0., true, false)
     param = InfOptParameter(IntervalSet(0, 1), Number[], false)
     pref = add_parameter(m, param)
-    var = InfiniteVariable(info, (pref,))
+    var = InfiniteVariable(info, VectorTuple(pref))
     m.vars[1] = var
     vref = InfiniteVariableRef(m, 1)
     bounds = ParameterBounds()
@@ -22,7 +22,7 @@
     # _update_variable_info (Point)
     @testset "_update_variable_info (Point)" begin
         # initialize point variable
-        var = PointVariable(info, vref, (0,))
+        var = PointVariable(info, vref, VectorTuple{Float64}(0))
         m.vars[2] = var
         vref = PointVariableRef(m, 2)
         # test function
@@ -162,7 +162,7 @@ end
         # prepare infinite variable
         param = InfOptParameter(IntervalSet(0, 1), Number[], false)
         pref = add_parameter(m, param)
-        var = InfiniteVariable(info1, (pref,))
+        var = InfiniteVariable(info1, VectorTuple(pref))
         m.vars[4] = var
         m.var_to_name[4] = "var"
         vref = InfiniteVariableRef(m, 4)
@@ -261,7 +261,7 @@ end
         # prepare infinite variable
         param = InfOptParameter(IntervalSet(0, 1), Number[], false)
         pref = add_parameter(m, param)
-        var = InfiniteVariable(info1, (pref,))
+        var = InfiniteVariable(info1, VectorTuple(pref))
         m.vars[4] = var
         m.var_to_name[4] = "var"
         vref = InfiniteVariableRef(m, 4)
@@ -381,7 +381,7 @@ end
         # prepare infinite variable
         param = InfOptParameter(IntervalSet(0, 1), Number[], false)
         pref = add_parameter(m, param)
-        var = InfiniteVariable(info1, (pref,))
+        var = InfiniteVariable(info1, VectorTuple(pref))
         m.vars[5] = var
         m.var_to_name[5] = "var"
         vref = InfiniteVariableRef(m, 5)
@@ -494,7 +494,7 @@ end
         # prepare infinite variable
         param = InfOptParameter(IntervalSet(0, 1), Number[], false)
         pref = add_parameter(m, param)
-        var = InfiniteVariable(info1, (pref,))
+        var = InfiniteVariable(info1, VectorTuple(pref))
         m.vars[4] = var
         m.var_to_name[4] = "var"
         vref = InfiniteVariableRef(m, 4)
@@ -586,7 +586,7 @@ end
         # prepare infinite variable
         param = InfOptParameter(IntervalSet(0, 1), Number[], false)
         pref = add_parameter(m, param)
-        var = InfiniteVariable(info1, (pref,))
+        var = InfiniteVariable(info1, VectorTuple(pref))
         m.vars[4] = var
         m.var_to_name[4] = "var"
         vref = InfiniteVariableRef(m, 4)

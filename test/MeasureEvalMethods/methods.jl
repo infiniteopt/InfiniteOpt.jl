@@ -154,7 +154,7 @@ end
         lb = convert(JuMPC.SparseAxisArray, [0.3, 0.2])
         ub = convert(JuMPC.SparseAxisArray, [0.5, 0.9])
         measure_data = generate_measure_data(y, 10, lb, ub)
-        @test length(measure_data.supports) == 10
+        @test size(measure_data.supports) == (2, 10)
         @test length(measure_data.coefficients) == 10
         @test sum(measure_data.coefficients) == 0.14
         warn = "Truncated distribution for multivariate distribution is " *

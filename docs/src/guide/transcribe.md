@@ -457,4 +457,8 @@ transcription_constraint
 InfiniteOpt.optimizer_model_constraint(::InfiniteOpt.GeneralConstraintRef, ::Val{:TransData})
 InfiniteOpt.constraint_supports(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData})
 InfiniteOpt.constraint_parameter_refs(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData})
+Infiniteopt.add_measure_variable(::JuMP.Model,::InfiniteOpt.PointVariable,::Val{:TransData})
+InfiniteOpt.add_measure_variable(::JuMP.Model,::InfiniteOpt.ReducedInfiniteInfo,::Val{:TransData})
+InfiniteOpt.delete_reduced_variable(::JuMP.Model,::InfiniteOpt.ReducedInfiniteVariableRef,::Val{:TransData})
+InfiniteOpt.reduction_info(::InfiniteOpt.ReducedInfiniteVariableRef,::Val{:TransData})
 ```

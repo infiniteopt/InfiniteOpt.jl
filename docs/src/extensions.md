@@ -292,7 +292,7 @@ function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
     for i in eachindex(lb)
         (supports_dict[i], _) = generate_supports_and_coeffs(IntervalSet(lb[i], ub[i]), params[i], num_supports, lb[i], ub[i], Val(unif_grid))
     end
-    supports = Array{JuMPC.SparseAxisArray, 1}(undef, num_supports)
+    supports = Array{JuMPC.SparseAxisArray{Float64}, 1}(undef, num_supports)
     for j in 1:num_supports
         supports[j] = JuMPC.SparseAxisArray(Dict(k => supports_dict[k][j] for k in eachindex(lb)))
     end
@@ -348,7 +348,9 @@ The extension steps employed are:
 4. Extend [`InfiniteOpt.supports`](@ref supports(::AbstractMeasureData)) (required if parameter supports are employed in any way)
 5. Extend [`InfiniteOpt.measure_data_in_hold_bounds`](@ref) (enables hold variable bound checking with measures)
 6. Extend [`InfiniteOpt.measure_name`](@ref) (enables meaningful measure naming)
-7. Make simple measure constructor wrapper of [`measure`](@ref) to ease definition.
+7. Extend [`InfiniteOpt.coefficients`](@ref) (useful getter method if applicable)
+8. Extend [`InfiniteOpt.weight_function`](@ref) (useful getter method if applicable)
+9. Make simple measure constructor wrapper of [`measure`](@ref) to ease definition.
 
 To illustrate how this process can be done, let's consider extending `InfiniteOpt`
 to include measure for assessing the variance of random expressions. The
@@ -436,8 +438,8 @@ We can define variance measures now, but now let's extend
 ```jldoctest measure_data; output = false
 function InfiniteOpt.expand_measure(expr::JuMP.AbstractJuMPScalar,
                                     data::DiscreteVarianceData,
-                                    write_model::JuMP.AbstractModel,
-                                    point_mapper::Function)::JuMP.AbstractJuMPScalar
+                                    write_model::JuMP.AbstractModel
+                                    )::JuMP.AbstractJuMPScalar
     # define the expectation data
     expect_data = DiscreteMeasureData(
                       data.parameter_refs,
@@ -446,7 +448,7 @@ function InfiniteOpt.expand_measure(expr::JuMP.AbstractJuMPScalar,
     # define the mean
     mean = measure(expr, expect_data)
     # return the expansion of the variance using the data mean
-    return expand_measure((copy(expr) - mean)^2, expect_data, write_model, point_mapper)
+    return expand_measure((copy(expr) - mean)^2, expect_data, write_model)
 end
 
 # output
@@ -528,6 +530,8 @@ extended using the following steps:
     - [`map_shadow_price`](@ref) (enables `JuMP.shadow_price`)
     - [`map_lp_rhs_perturbation_range`](@ref) (enables `JuMP.lp_rhs_perturbation_range`)
     - [`map_lp_objective_perturbation_range`](@ref) (enables `JuMP.lp_objective_perturbation_range`)
+9. Extend [`add_measure_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model
+10. Extend [`delete_reduced_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model and delete unneeded reduced variables.
 
 For the sake of example, let's suppose we want to define a reformulation method
 for `InfiniteModel`s that are 2-stage stochastic programs (i.e., only

@@ -18,11 +18,11 @@ end
 # Extend expand_measure to return the finite reformulation of a measure using NewMeasureData
 function InfiniteOpt.expand_measure(expr::JuMP.AbstractJuMPScalar,
                                     data::NewMeasureData,
-                                    write_model::JuMP.AbstractModel,
-                                    point_mapper::Function)::JuMP.AbstractJuMPScalar
-    # INSERT APPROPRIATE METHODS HERE USING point_mapper AS APPROPRIATE
+                                    write_model::JuMP.AbstractModel
+                                    )::JuMP.AbstractJuMPScalar
+    # INSERT APPROPRIATE METHODS HERE
     # USING make_point_variable_ref AND make_reduced_variable_ref MAY BE USEFUL
-    return expand_measure(expr, data.attr2, write_model, point_mapper) # REPLACE ACTUAL RESULT
+    return expand_measure(expr, data.attr2, write_model) # REPLACE ACTUAL RESULT
 end
 
 # Extend supports to return any infinite parameter supports employed by NewMeasureData
@@ -44,6 +44,18 @@ end
 # This is optional (uses "measure" otherwise)
 function InfiniteOpt.measure_name(data::NewMeasureData)::String
     return data.attr1 # REPLACE WITH ACTUAL NAME LOCATION
+end
+
+# Extend coefficients to return the coefficients stored in NewMeasureData if appropriate
+# This is optional (returns empty vector otherwise)
+function InfiniteOpt.coefficients(data::NewMeasureData)::Vector{Float64}
+    return data.attr2.coefficients # REPLACE WITH ACTUAL LOCATION
+end
+
+# Extend weight_function to return the weight function stored in NewMeasureData if appropriate
+# This is optional (returns default_weight otherwise)
+function InfiniteOpt.weight_function(data::NewMeasureData)::Function
+    return data.attr2.weight_function # REPLACE WITH ACTUAL LOCATION
 end
 
 # Make a convenient measure constructor function for our new measure type

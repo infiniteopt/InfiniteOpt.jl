@@ -5,6 +5,20 @@ const quadrature = :quadrature
 # Extend Base.copy for new variable types
 Base.copy(v::MeasureRef, new_model::InfiniteModel) = MeasureRef(new_model, v.index)
 
+# Extend Base.copy for DiscreteMeasureData
+function Base.copy(data::DiscreteMeasureData)::DiscreteMeasureData
+    return DiscreteMeasureData(copy(data.parameter_ref), copy(data.coefficients),
+                               copy(data.supports), data.name,
+                               data.weight_function)
+end
+
+# Extend Base.copy for MultiDiscreteMeasureData
+function Base.copy(data::MultiDiscreteMeasureData)::MultiDiscreteMeasureData
+    return MultiDiscreteMeasureData(copy(data.parameter_refs), copy(data.coefficients),
+                                    copy(data.supports), data.name,
+                                    data.weight_function)
+end
+
 """
     JuMP.name(mref::MeasureRef)::String
 
@@ -34,14 +48,19 @@ function JuMP.is_valid(model::InfiniteModel, mref::MeasureRef)::Bool
     return (model === JuMP.owner_model(mref) && JuMP.index(mref) in keys(model.measures))
 end
 
-# Set a default weight function
-_w(t) = 1
+"""
+    default_weight(t)
+
+Default weight function for [`DiscreteMeasureData`](@ref) and
+[`MultiDiscreteMeasureData`](@ref). Returns 1 regardless of the input value.
+"""
+default_weight(t) = 1
 
 """
     DiscreteMeasureData(parameter_ref::ParameterRef,
-                        coefficients::Vector{<:Number},
-                        supports::Vector{<:Number}; name::String = "measure",
-                        weight_function::Function = w(t) = 1)::DiscreteMeasureData
+                        coefficients::Vector{<:Real},
+                        supports::Vector{<:Real}; name::String = "measure",
+                        weight_function::Function = [`default_weight`](@ref))::DiscreteMeasureData
 
 Returns a `DiscreteMeasureData` object that can be utilized to define
 measures using [`measure`](@ref). This accepts input for a scalar (single)
@@ -53,33 +72,69 @@ number of supports and coefficients are given.
 **Example**
 ```julia-repl
 julia> data = DiscreteMeasureData(pref, [0.5, 0.5], [1, 2], name = "example")
-DiscreteMeasureData(pref, [0.5, 0.5], [1, 2], "example", InfiniteOpt._w)
+DiscreteMeasureData(pref, [0.5, 0.5], [1.0, 2.0], "example", default_weight)
 ```
 """
 function DiscreteMeasureData(parameter_ref::ParameterRef,
-                             coefficients::Vector{<:Number},
-                             supports::Vector{<:Number};
+                             coefficients::Vector{<:Real},
+                             supports::Vector{<:Real};
                              name::String = "measure",
-                             weight_function::Function = _w
+                             weight_function::Function = default_weight
                              )::DiscreteMeasureData
     is_finite_parameter(parameter_ref) && error("Measure parameter cannot be " *
                                                 "finite.")
+    if length(coefficients) != length(supports)
+        error("The amount of coefficients must match the amount of " *
+              "support points.")
+    end
+    set = infinite_set(parameter_ref)
+    if !supports_in_set(supports, set)
+        error("Support points violate parameter domain.")
+    end
     return DiscreteMeasureData(parameter_ref, coefficients, supports, name,
                                weight_function)
 end
 
+## Define function to intelligently format prefs and supports properly
+# Vector
+function _convert_param_refs_and_supports(parameter_refs::Vector{ParameterRef},
+                                          supports::Vector{<:Vector{<:Real}})::Tuple
+    return parameter_refs, reduce(hcat, supports)
+end
+
+# Array
+function _convert_param_refs_and_supports(parameter_refs::Array{ParameterRef},
+                                          supports::Vector{<:Array{<:Real}})::Tuple
+    return [parameter_refs...], [supp[i] for i in eachindex(supports[1]), supp in supports]
+end
+
+# DenseAxisArray
+function _convert_param_refs_and_supports(parameter_refs::JuMPC.DenseAxisArray{ParameterRef},
+                                          supports::Vector{<:JuMPC.DenseAxisArray{<:Real}})::Tuple
+    return [parameter_refs...], [supp[i] for i in eachindex(first(supports)), supp in supports]
+end
+
+# SparseAxisArray
+function _convert_param_refs_and_supports(parameter_refs::JuMPC.SparseAxisArray{ParameterRef},
+                                          supports::Vector{<:JuMPC.SparseAxisArray{<:Real}})::Tuple
+    indices = Collections._get_indices(parameter_refs)
+    parameter_refs = Collections._make_ordered(parameter_refs, indices)
+    supports = [Collections._make_ordered(supp, indices) for supp in supports]
+    return _convert_param_refs_and_supports(parameter_refs, supports)
+end
+
 """
-    DiscreteMeasureData(parameter_ref::AbstractArray{<:ParameterRef},
-                        coefficients::Vector{<:Number},
-                        supports::Vector{<:AbstractArray{<:Number}};
+    DiscreteMeasureData(parameter_refs::AbstractArray{<:ParameterRef},
+                        coefficients::Vector{<:Real},
+                        supports::Vector{<:AbstractArray{<:Real}};
                         name::String = "measure",
-                        weight_function::Function = w(t) = 1
+                        weight_function::Function = [`default_weight`](@ref)
                         )::MultiDiscreteMeasureData
 
 Returns a `MultiDiscreteMeasureData` object that can be utilized to
 define measures using [`measure`](@ref). This accepts input for an array (multi)
 parameter. The inner arrays in the supports vector need to match the formatting
-of the array used for `parameter_ref`. Note that `name` is used for printing
+of the array used for `parameter_refs`. Note that `name` is used for printing
 purposes and a description of the other arguments is provided in the
 documentation for [`MultiDiscreteMeasureData`](@ref). Errors if supports are out
 bounds, an unequal number of supports and coefficients are given, the array
@@ -93,17 +148,34 @@ julia> typeof(data)
 MultiDiscreteMeasureData
 ```
 """
-function DiscreteMeasureData(parameter_ref::AbstractArray{<:ParameterRef},
-                             coefficients::Vector{<:Number},
-                             supports::Vector{<:AbstractArray};
+function DiscreteMeasureData(parameter_refs::AbstractArray{<:ParameterRef},
+                             coefficients::Vector{<:Real},
+                             supports::Vector{<:AbstractArray{<:Real}};
                              name::String = "measure",
-                             weight_function::Function = _w
+                             weight_function::Function = default_weight
                              )::MultiDiscreteMeasureData
-    any(is_finite_parameter.(parameter_ref)) && error("Measure parameter cannot " *
-                                                      " be finite.")
-    supports = [convert(JuMPC.SparseAxisArray, s) for s in supports]
-    parameter_ref = convert(JuMPC.SparseAxisArray, parameter_ref)
-    return MultiDiscreteMeasureData(parameter_ref, coefficients, supports, name,
+    any(is_finite_parameter.(parameter_refs)) && error("Measure parameter cannot be finite.")
+    keys(parameter_refs) == keys(first(supports)) || error("Parameter references and supports must " *
+                                                           "use same container type.")
+    parameter_refs, supports = _convert_param_refs_and_supports(parameter_refs, supports)
+    if length(coefficients) != size(supports, 2)
+        error("The amount of coefficients must match the amount of " *
+              "support points.")
+    elseif !_allequal(group_id.(parameter_refs))
+        error("Parameters must all have same group ID.")
+    elseif length(supports) == 0
+        error("Must specify at least one support.")
+    elseif size(supports, 1) != length(parameter_refs)
+        error("The dimensions of the support points and parameters " *
+              "do not match.")
+    end
+    for i in eachindex(parameter_refs)
+        set = infinite_set(parameter_refs[i])
+        if !supports_in_set(supports[i, :], set)
+            error("Support points violate parameter domain.")
+        end
+    end
+    return MultiDiscreteMeasureData(parameter_refs, coefficients, supports, name,
                                     weight_function)
 end
 
@@ -135,9 +207,14 @@ function parameter_refs(data::AbstractMeasureData)
     error("Function `parameter_refs` not extended for measure data of type $(typeof(data)).")
 end
 
-# DiscreteMeasureData and MultiDiscreteMeasureData
-function parameter_refs(data::Union{DiscreteMeasureData, MultiDiscreteMeasureData})
+# DiscreteMeasureData
+function parameter_refs(data::DiscreteMeasureData)::ParameterRef
     return data.parameter_ref
+end
+
+# MultiDiscreteMeasureData
+function parameter_refs(data::MultiDiscreteMeasureData)::Vector{ParameterRef}
+    return data.parameter_refs
 end
 
 """
@@ -148,13 +225,54 @@ This is intended as en internal method for measure creation and ensures any
 new supports are added to parameters. User-defined measure data types should
 extend this function if appropriate, otherwise an empty vector is returned.
 """
-function supports(data::AbstractMeasureData)::Vector
-    return Number[]
+function supports(data::AbstractMeasureData)::Vector{Float64}
+    return Float64[]
+end
+
+# DiscreteMeasureData
+function supports(data::DiscreteMeasureData)::Vector{Float64}
+    return data.supports
+end
+
+# MultiDiscreteMeasureData
+function supports(data::MultiDiscreteMeasureData)::Array{Float64, 2}
+    return data.supports
+end
+
+"""
+    coefficients(data::AbstractMeasureData)::Vector
+
+Return the coefficients stored in `data` associated with its expansion abstraction.
+This is intended as en internal method for measure creation. User-defined measure
+data types should extend this function if appropriate, otherwise an empty vector
+is returned.
+"""
+function coefficients(data::AbstractMeasureData)::Vector{Float64}
+    return Float64[]
 end
 
 # DiscreteMeasureData and MultiDiscreteMeasureData
-function supports(data::Union{DiscreteMeasureData, MultiDiscreteMeasureData})::Vector
-    return data.supports
+function coefficients(data::Union{DiscreteMeasureData,
+                                  MultiDiscreteMeasureData})::Vector{Float64}
+    return data.coefficients
+end
+
+"""
+    weight_function(data::AbstractMeasureData)::Function
+
+Return the weight function stored in `data` associated with its expansion abstraction.
+This is intended as en internal method for measure creation. User-defined measure
+data types should extend this function if appropriate, otherwise the default
+function [`default_weight`](@ref) is returned.
+"""
+function weight_function(data::AbstractMeasureData)::Function
+    return default_weight
+end
+
+# DiscreteMeasureData and MultiDiscreteMeasureData
+function weight_function(data::Union{DiscreteMeasureData,
+                                     MultiDiscreteMeasureData})::Function
+    return data.weight_function
 end
 
 # Parse the string for displaying a measure
@@ -238,7 +356,16 @@ function _add_supports_to_parameters(pref::ParameterRef,
     return
 end
 
-# array pref
+# array pref (from MultiDiscreteMeasureData)
+function _add_supports_to_parameters(prefs::Vector{ParameterRef},
+                                     supports::Array{<:Number})
+    for i = eachindex(prefs)
+        add_supports(prefs[i], supports[i, :])
+    end
+    return
+end
+
+# array fallback for extensions
 function _add_supports_to_parameters(prefs::AbstractArray{<:ParameterRef},
                                      supports::Array{<:AbstractArray{<:Number}})
     for i = eachindex(supports)
@@ -295,6 +422,7 @@ function measure_data(mref::MeasureRef)::AbstractMeasureData
     return JuMP.owner_model(mref).measures[JuMP.index(mref)].data
 end
 
+# TODO this is not used, but should be used when adding analytic measure checks
 # Check a measure function for a particular parameter and return Bool
 function _has_parameter(vrefs::Vector{<:GeneralVariableRef},
                         pref::ParameterRef)::Bool
@@ -331,9 +459,9 @@ end
 
 # array pref
 function _check_has_parameter(vrefs::Vector{<:GeneralVariableRef},
-                              pref::JuMPC.SparseAxisArray{<:ParameterRef})
-    for key in keys(pref.data)
-        if !_has_parameter(vrefs, pref.data[key])
+                              prefs::AbstractArray{<:ParameterRef})
+    for pref in prefs
+        if !_has_parameter(vrefs, pref)
             error("Measure expression is not parameterized by the parameter " *
                   "specified in the measure data.")
         end
@@ -384,12 +512,10 @@ function measure_data_in_hold_bounds(data::MultiDiscreteMeasureData,
                                      bounds::ParameterBounds)::Bool
     prefs = parameter_refs(data)
     supps = supports(data)
-    for i in eachindex(supps)
-        for key in keys(prefs)
-            if haskey(bounds.intervals, prefs[key])
-                if !supports_in_set(supps[i][key], bounds.intervals[prefs[key]])
-                    return false
-                end
+    for i in eachindex(prefs)
+        if haskey(bounds.intervals, prefs[i])
+            if !supports_in_set(supps[i, :], bounds.intervals[prefs[i]])
+                return false
             end
         end
     end
@@ -478,7 +604,7 @@ end
              ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing];
              [eval_method::Symbol = sampling,
              num_supports::Int = 10,
-             weight_func::Function = _w,
+             weight_func::Function = [`default_weight`](@ref),
              name = "integral",
              use_existing_supports::Bool = false,
              kwargs...])::MeasureRef
@@ -555,38 +681,31 @@ function integral(expr::JuMP.AbstractJuMPScalar,
         end
     end
 
-    # count number of parameters
-    if isa(params, ParameterRef)
-        num_params = 1
+    # count number of parameters check array formatting
+    num_params = length(params)
+    if num_params == 0
+        # error if empty ParameterRef array is provided
+        error("No infinite parameter is provided.")
+    elseif num_params == 1
+        params = first(params)
     else
-        num_params = length(params)
-        if num_params == 0
-            # error if empty ParameterRef array is provided
-            error("No infinite parameter is provided.")
-        elseif num_params == 1
-            params = first(params)
-        else
-            ids = unique(group_id.(params))
-            if length(ids) > 1
-                error("Multiple groups of parameters are specified.")
-            end
-            # Use SparseAxisArray for params, lb, ub if multiple parameters
-            params = convert(JuMPC.SparseAxisArray, params)
-            if isa(lb, AbstractArray)
-                lb = convert(JuMPC.SparseAxisArray, lb)
-            end
-            if isa(ub, AbstractArray)
-                ub = convert(JuMPC.SparseAxisArray, ub)
-            end
+        # check that all parameters are from the same group
+        _allequal(group_id.(params)) || error("Multiple groups of parameters " *
+                                              "are specified.")
+        # Use SparseAxisArray for params, lb, ub if multiple parameters
+        # TODO change this so it doesn't have to needlessly convert to a SparseAxisArray
+        # and do so via typed functions
+        params = convert(JuMPC.SparseAxisArray, params)
+        if isa(lb, AbstractArray)
+            lb = convert(JuMPC.SparseAxisArray, lb)
+        end
+        if isa(ub, AbstractArray)
+            ub = convert(JuMPC.SparseAxisArray, ub)
         end
     end
 
     # collect model of the measure
-    if isa(params, ParameterRef)
-        model = params.model
-    else
-        model = first(params).model
-    end
+    model = JuMP.owner_model(first(params))
 
     # collect keyword arguments
     kwargs = merge(model.integral_defaults, kwargs)
@@ -596,6 +715,7 @@ function integral(expr::JuMP.AbstractJuMPScalar,
     weight_func = kwargs[:weight_func]
     use_existing_supports = kwargs[:use_existing_supports]
 
+    # parse the sampling key if given
     if eval_method == sampling
         eval_method = mc_sampling
         kwargs[:eval_method] = mc_sampling
@@ -615,7 +735,7 @@ function integral(expr::JuMP.AbstractJuMPScalar,
         end
     end
 
-    # check lower bounds
+    # check lower bounds TODO replace with typed functions
     bounds_valid = true
     if isa(lb, Number)
         bounds_valid = supports_in_set(lb, _parameter_set(first(params)))
@@ -624,7 +744,7 @@ function integral(expr::JuMP.AbstractJuMPScalar,
     end
     bounds_valid || error("Lower bound(s) violate(s) the infinite set domain.")
 
-    # check upper bounds
+    # check upper bounds TODO replace with typed functions
     if isa(ub, Number)
         bounds_valid = supports_in_set(ub, _parameter_set(first(params)))
     elseif isa(ub, JuMPC.SparseAxisArray)
@@ -681,6 +801,7 @@ function integral(expr::JuMP.AbstractJuMPScalar,
         end
 
         # TODO: generate reasonable coefficients for given supports
+        # TODO replace with typed functions
         len = length(support)
         if isa(set, DistributionSet)
             data = DiscreteMeasureData(params, ones(len) ./ len, support,
@@ -729,7 +850,7 @@ Dict{Symbol,Any} with 6 entries:
   :num_supports          => 10
   :eval_method           => nothing
   :name                  => "integral"
-  :weight_func           => _w
+  :weight_func           => default_weight
   :use_existing_supports => false
 ```
 """
@@ -755,7 +876,7 @@ Dict{Symbol,Any} with 6 entries:
   :num_supports          => 10
   :eval_method           => nothing
   :name                  => "integral"
-  :weight_func           => _w
+  :weight_func           => default_weight
   :use_existing_supports => false
 
 julia> set_integral_default(m, num_supports = 5, eval_method = quadrature, new_kwarg = true)
@@ -766,7 +887,7 @@ Dict{Symbol,Any} with 6 entries:
   :num_supports          => 5
   :eval_method           => :quadrature
   :name                  => "integral"
-  :weight_func           => _w
+  :weight_func           => default_weight
   :use_existing_supports => false
 ```
 """

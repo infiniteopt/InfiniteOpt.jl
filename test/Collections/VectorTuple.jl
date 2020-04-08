@@ -45,34 +45,63 @@
             # test simple
             @test VectorTuple((a,)) isa VectorTuple
             @test VectorTuple((a,)).values == [a]
-            @test VectorTuple((a,)).starts == [1]
-            @test VectorTuple((a,)).ends == [1]
+            @test VectorTuple((a,)).ranges == [1:1]
             @test VectorTuple((a,)).indices == [nothing]
             # test complicated
             tuple = (a, b, c, c2, d)
             @test sort(VectorTuple(tuple).values) == sort([(tuple...)...])
-            @test VectorTuple(tuple).starts == [1, 2, 5, 9, 13]
-            @test VectorTuple(tuple).ends == [1, 4, 8, 12, 15]
+            @test VectorTuple(tuple).ranges == [1:1, 2:4, 5:8, 9:12, 13:15]
             expected = [nothing, CartesianIndices(b), CartesianIndices(c),
                         (CartesianIndices(c2), axes(c2)), [(1, 1), (2, 1), (2, 2)]]
             @test VectorTuple(tuple).indices == expected
+        end
+        # VectorTuple constructor from Tuple with type specification
+        @testset "Constructor (Typed Tuple)" begin
+            # test empty
+            @test VectorTuple{Any}(()) isa VectorTuple
+            @test VectorTuple{Int64}(()).values == Int64[]
+            # test simple
+            @test VectorTuple{Any}((a,)) isa VectorTuple
+            @test VectorTuple{Float64}((a,)).values == Float64[a]
+            @test VectorTuple{Float64}((a,)).ranges == [1:1]
+            @test VectorTuple{Float64}((a,)).indices == [nothing]
+            # test complicated
+            tuple = (a, b, c, c2, d)
+            @test sort(VectorTuple{Float64}(tuple).values) == sort([(tuple...)...])
+            @test VectorTuple{Float64}(tuple).ranges == [1:1, 2:4, 5:8, 9:12, 13:15]
+            expected = [nothing, CartesianIndices(b), CartesianIndices(c),
+                        (CartesianIndices(c2), axes(c2)), [(1, 1), (2, 1), (2, 2)]]
+            @test VectorTuple{Float64}(tuple).indices == expected
         end
         # VectorTuple constructor from args...
         @testset "Constructor (items...)" begin
             # test simple
             @test VectorTuple(a) isa VectorTuple
             @test VectorTuple(a).values == [a]
-            @test VectorTuple(a).starts == [1]
-            @test VectorTuple(a).ends == [1]
+            @test VectorTuple(a).ranges == [1:1]
             @test VectorTuple(a).indices == [nothing]
             # test complicated
             tuple = (a, b, c, c2, d)
             @test sort(VectorTuple(tuple...).values) == sort([(tuple...)...])
-            @test VectorTuple(tuple...).starts == [1, 2, 5, 9, 13]
-            @test VectorTuple(tuple...).ends == [1, 4, 8, 12, 15]
+            @test VectorTuple(tuple...).ranges == [1:1, 2:4, 5:8, 9:12, 13:15]
             expected = [nothing, CartesianIndices(b), CartesianIndices(c),
                         (CartesianIndices(c2), axes(c2)), [(1, 1), (2, 1), (2, 2)]]
             @test VectorTuple(tuple...).indices == expected
+        end
+        # VectorTuple constructor from args... with type specification
+        @testset "Constructor (Typed items...)" begin
+            # test simple
+            @test VectorTuple{Float64}(a) isa VectorTuple
+            @test VectorTuple{Float64}(a).values == Float64[a]
+            @test VectorTuple{Float64}(a).ranges == [1:1]
+            @test VectorTuple{Float64}(a).indices == [nothing]
+            # test complicated
+            tuple = (a, b, c, c2, d)
+            @test sort(VectorTuple{Float64}(tuple...).values) == sort([(tuple...)...])
+            @test VectorTuple{Float64}(tuple...).ranges == [1:1, 2:4, 5:8, 9:12, 13:15]
+            expected = [nothing, CartesianIndices(b), CartesianIndices(c),
+                        (CartesianIndices(c2), axes(c2)), [(1, 1), (2, 1), (2, 2)]]
+            @test VectorTuple{Float64}(tuple...).indices == expected
         end
         # Base.:(==)
         @testset "Base.:(==)" begin
@@ -82,16 +111,47 @@
         end
         # VectorTuple constructor default
         @testset "Constructor (Default)" begin
-            @test VectorTuple() == VectorTuple(Any[], Int64[], Int64[], Any[])
+            @test VectorTuple() == VectorTuple(Any[], UnitRange{Int}[], Any[])
+        end
+        # VectorTuple constructor default with type specification
+        @testset "Constructor (Typed Default)" begin
+            @test VectorTuple{Float64}() == VectorTuple(Float64[], UnitRange{Int}[], Any[])
+        end
+        # test same_structure
+        @testset "same_structure" begin
+            vt1 = VectorTuple(a, b, c2)
+            vt2 = VectorTuple(a, b, c)
+            vt3 = VectorTuple(a, b, d)
+            vt4 = VectorTuple(a, b, b)
+            vt5 = VectorTuple('a', ['d', 't', 'q'], ['b' 'a'; 'd' 'f'])
+            # test with indices
+            @test same_structure(vt2, vt5)
+            @test !same_structure(vt1, vt2)
+            @test !same_structure(vt2, vt3)
+            @test !same_structure(vt3, vt4)
+            @test !same_structure(vt1, vt5)
+            # test without indices
+            @test same_structure(vt2, vt5, use_indices = false)
+            @test same_structure(vt1, vt2, use_indices = false)
+            @test same_structure(vt3, vt4, use_indices = false)
+            @test !same_structure(vt2, vt3, use_indices = false)
+            @test !same_structure(vt4, vt5, use_indices = false)
+            @test same_structure(vt1, vt5, use_indices = false)
+        end
+        # VectorTuple copying
+        @testset "Base.Copy" begin
+            vt1 = VectorTuple(a, b, c2)
+            @test copy(vt1) == vt1
         end
     end
 
     @testset "Indexing" begin
         vt = VectorTuple(b, a, c2, d)
         values = copy(vt.values)
-        # test tuple_length
-        @testset "tuple_length" begin
-            @test tuple_length(vt) == 4
+        # test size
+        @testset "Base.size" begin
+            @test size(vt, 1) == 4
+            @test_throws ArgumentError size(vt, 2)
         end
         # test firstindex
         @testset "Base.firstindex" begin
@@ -103,7 +163,7 @@
         @testset "Base.lastindex" begin
             @test lastindex(vt) == 11
             @test lastindex(vt, 1) == 4
-            @test_throws ErrorException lastindex(vt, 2)
+            @test_throws ArgumentError lastindex(vt, 2)
         end
         # test getindex (linear indexing)
         @testset "Base.getindex (Linear)" begin
@@ -231,6 +291,10 @@
             @test -1 in vt
             @test !(92 in vt)
         end
+        # test iterate
+        @testset "Base.iterate" begin
+            @test [i for i in vt] == vt.values
+        end
     end
 
     @testset "Modification" begin
@@ -239,8 +303,7 @@
             vt = VectorTuple(b, a, c2)
             @test empty!(vt) == VectorTuple()
             @test isempty(vt)
-            @test isempty(vt.starts)
-            @test isempty(vt.ends)
+            @test isempty(vt.ranges)
             @test isempty(vt.indices)
         end
         # test push! (single item)
@@ -273,8 +336,8 @@
             inds = IC._get_indices(c)
             @test IC._update_indices(inds, 2) == [(1, 1), (1, 2), (2, 2)]
         end
-        # test delete!
-        @testset "Base.delete!" begin
+        # test deleteat!
+        @testset "Base.deleteat!" begin
             # test with tuple index
             vt = VectorTuple(b, a, c2)
             @test deleteat!(vt, 2, tuple_index = true) == VectorTuple(b, c2)
@@ -307,31 +370,64 @@
             new_d = JuMPC.SparseAxisArray(delete!(copy(d.data), (1, 1)))
             @test deleteat!(vt, 1) == VectorTuple(new_d, c2, a)
         end
+        # test deleteat! (Boolean List)
+        @testset "Base.deleteat! (Boolean)" begin
+            # test with tuple index
+            vt = VectorTuple(b, a, c2)
+            @test deleteat!(vt, [true, false, true], tuple_index = true) == VectorTuple(a)
+            vt = VectorTuple(b, a, c2)
+            @test deleteat!(vt, [false, false, true], tuple_index = true) == VectorTuple(b, a)
+            vt = VectorTuple(a, b, c2)
+            @test deleteat!(vt, [true, false, false], tuple_index = true) == VectorTuple(b, c2)
+            vt = VectorTuple(b, a, c2)
+            @test deleteat!(vt, [true, true, true], tuple_index = true) == VectorTuple()
+            # test with linear indexing with simple results
+            vt = VectorTuple(b, a)
+            @test deleteat!(vt, [true, true, true, true]) == VectorTuple()
+            vt = VectorTuple(b, a)
+            @test deleteat!(vt, [true, true, true, false]) == VectorTuple(a)
+            vt = VectorTuple(c2, a)
+            @test deleteat!(vt, [false, false, false, false, true]) == VectorTuple(c2)
+            # test with linear indexing and array reduction
+            vt = VectorTuple(d, a, c)
+            new_d = JuMPC.SparseAxisArray(delete!(copy(d.data), (1, 1)))
+            inds = CartesianIndices(c)
+            cs = JuMPC.SparseAxisArray(Dict(Tuple(inds[k]) => c[inds[k]] for k = [1, 4]))
+            delete_inds = [true, false, false, false, false, true, true, false]
+            @test deleteat!(vt, delete_inds) == VectorTuple(new_d, a, cs)
+            # test with linear indexing and array reduction again
+            vt = VectorTuple(a, c, d)
+            new_d = JuMPC.SparseAxisArray(delete!(copy(d.data), (2, 1)))
+            inds = CartesianIndices(c)
+            cs = JuMPC.SparseAxisArray(Dict(Tuple(inds[k]) => c[inds[k]] for k = [2, 4]))
+            delete_inds = [true, true, false, true, false, false, true, false]
+            @test deleteat!(vt, delete_inds) == VectorTuple(cs, new_d)
+        end
     end
 
     @testset "Tuple Creation" begin
         # test _make_array (Array)
         @testset "_make_array (Array)" begin
             vt = VectorTuple(b, a, c)
-            @test IC._make_array(vt.values, 1, 3, vt.indices[1]) == b
-            @test IC._make_array(vt.values, 5, 8, vt.indices[3]) == c
+            @test IC._make_array(vt.values, 1:3, vt.indices[1]) == b
+            @test IC._make_array(vt.values, 5:8, vt.indices[3]) == c
         end
         # test _make_array (DenseAxisArray)
         @testset "_make_array (DenseAxisArray)" begin
             vt = VectorTuple(c2, a)
-            @test IC._make_array(vt.values, 1, 4, vt.indices[1]) == c2
+            @test IC._make_array(vt.values, 1:4, vt.indices[1]) == c2
         end
         # test _make_array (SparseAxisArray)
         @testset "_make_array (SparseAxisArray)" begin
             vt = VectorTuple(a, d)
-            @test IC._make_array(vt.values, 2, 4, vt.indices[2]) == d
+            @test IC._make_array(vt.values, 2:4, vt.indices[2]) == d
         end
         # test _make_array (Fallback)
         @testset "_make_array (Fallback)" begin
             vt = VectorTuple(a, d)
-            @test IC._make_array(vt.values, 1, 1, vt.indices[1]) == a
+            @test IC._make_array(vt.values, 1:1, vt.indices[1]) == a
             vt = VectorTuple(b, (1, 2))
-            @test IC._make_array(vt.values, 4, 5, vt.indices[2]) == [1, 2]
+            @test IC._make_array(vt.values, 4:5, vt.indices[2]) == [1, 2]
         end
         # test Tuple
         @testset "Base.Tuple" begin

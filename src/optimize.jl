@@ -477,7 +477,7 @@ function optimizer_model_variable end
 # Fallback for unextended keys
 function optimizer_model_variable(vref::InfOptVariableRef, key; kwargs...)
     error("`optimizer_model_variable` not implemented for optimizer model
-          key `$key`.")
+          key `$(typeof(key).parameters[1])`.")
 end
 
 """
@@ -520,7 +520,7 @@ function variable_supports end
 # fallback for unextended keys
 function variable_supports(optimizer_model::JuMP.Model, vref::InfiniteVariableRef,
                            key; kwargs...)
-  error("`variable_supports` not implemented for optimizer model key `$key`.")
+  error("`variable_supports` not implemented for optimizer model key `$(typeof(key).parameters[1])`.")
 end
 
 """
@@ -559,7 +559,7 @@ function optimizer_model_constraint end
 # Fallback for unextended keys
 function optimizer_model_constraint(cref::GeneralConstraintRef, key; kwargs...)
     error("`optimizer_model_constraint` not implemented for optimizer model
-          key `$key`.")
+          key `$(typeof(key).parameters[1])`.")
 end
 
 """
@@ -598,7 +598,7 @@ function constraint_supports end
 function constraint_supports(optimizer_model::JuMP.Model,
                              cref::GeneralConstraintRef,
                              key; kwargs...)
-  error("`constraint_supports` not implemented for optimizer model key `$key` " *
+  error("`constraint_supports` not implemented for optimizer model key `$(typeof(key).parameters[1])`` " *
         "and/or constraint type `$(typeof(cref))`.")
 end
 
@@ -641,7 +641,7 @@ function constraint_parameter_refs end
 function constraint_parameter_refs(optimizer_model::JuMP.Model,
                                    cref::GeneralConstraintRef,
                                    key; kwargs...)
-  error("`constraint_parameter_refs` not implemented for optimizer model key `$key` " *
+  error("`constraint_parameter_refs` not implemented for optimizer model key `$(typeof(key).parameters[1])` " *
         "and/or constraint type `$(typeof(cref))`.")
 end
 

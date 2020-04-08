@@ -115,6 +115,8 @@ function Base.:(==)(quad1::JuMP.GenericQuadExpr{C, V},
     return quad1.aff == quad2.aff
 end
 
+# TODO make variable iterator by extending Base.iterate with a custom type
+# TODO see https://docs.julialang.org/en/latest/manual/interfaces/#man-interface-iteration-1
 ## Determine which variables are present in a function
 # GeneralVariableRef
 function _all_function_variables(f::GeneralVariableRef)::Vector{<:GeneralVariableRef}
@@ -193,7 +195,7 @@ end
 function _remove_variable(f::JuMP.GenericQuadExpr, vref::GeneralVariableRef)
     _remove_variable(f.aff, vref)
     vref_pairs = [k for k in keys(f.terms)]
-    for i = 1:length(vref_pairs)
+    for i in eachindex(vref_pairs) # TODO retain the good variable in pair
         if vref_pairs[i].a == vref
             delete!(f.terms, vref_pairs[i])
         elseif vref_pairs[i].b == vref

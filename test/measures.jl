@@ -3,7 +3,7 @@
     # initialize model and references
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     # test AbstractMeasureData
     @testset "AbstractMeasureData" begin
         @test AbstractMeasureData isa DataType
@@ -12,52 +12,24 @@
     @testset "DiscreteMeasureData" begin
         # type and normal usage
         @test DiscreteMeasureData <: AbstractMeasureData
-        @test DiscreteMeasureData(par, [1], [1], "", InfiniteOpt._w).name == ""
+        @test DiscreteMeasureData(par, [1], [1], "", default_weight).name == ""
         @test DiscreteMeasureData(par, [1], [1], "",
-                                  InfiniteOpt._w).parameter_ref == par
-        # test errors
-        @test_throws ErrorException DiscreteMeasureData(par, Int[], [1], "",
-                                                        InfiniteOpt._w)
-        @test_throws ErrorException DiscreteMeasureData(par, [1], [2], "",
-                                                        InfiniteOpt._w)
-        @test_throws ErrorException DiscreteMeasureData(par, [1], [-1], "",
-                                                        InfiniteOpt._w)
+                                  default_weight).parameter_ref == par
     end
     # test MultiDiscreteMeasureData
     @testset "MultiDiscreteMeasureData" begin
         # test normal usage and type
         @test MultiDiscreteMeasureData <: AbstractMeasureData
-        supp = convert(JuMP.Containers.SparseAxisArray, [0, 0])
-        @test MultiDiscreteMeasureData(pars, [1], [supp], "",
-                                       InfiniteOpt._w).name == ""
-        @test MultiDiscreteMeasureData(pars, [1], [supp], "",
-                                       InfiniteOpt._w).parameter_ref == pars
-        # test errors
-        @test_throws ErrorException MultiDiscreteMeasureData(pars, [1],
-                          JuMP.Containers.SparseAxisArray[], "", InfiniteOpt._w)
-        @test_throws ErrorException MultiDiscreteMeasureData(pars, Int[],
-                          JuMP.Containers.SparseAxisArray[], "", InfiniteOpt._w)
-        supp = convert(JuMP.Containers.SparseAxisArray, [0, 0, 0])
-        @test_throws ErrorException MultiDiscreteMeasureData(pars, [1], [supp],
-                                                             "", InfiniteOpt._w)
-        supp = convert(JuMP.Containers.SparseAxisArray, [-1, 0])
-        @test_throws ErrorException MultiDiscreteMeasureData(pars, [1], [supp],
-                                                             "", InfiniteOpt._w)
-        supp = convert(JuMP.Containers.SparseAxisArray, [2, 0])
-        @test_throws ErrorException MultiDiscreteMeasureData(pars, [1], [supp],
-                                                             "", InfiniteOpt._w)
-        supp = convert(JuMP.Containers.SparseAxisArray, [0, 0, 0])
-        pars2 = JuMP.Containers.SparseAxisArray(Dict((1,) => pars[1],
-                                                  (2,) => pars[2], (3,) => par))
-        @test_throws ErrorException MultiDiscreteMeasureData(pars2, [1], [supp],
-                                                             "", InfiniteOpt._w)
+        @test MultiDiscreteMeasureData(pars, [1], zeros(2, 1), "",
+                                       default_weight).name == ""
+        @test MultiDiscreteMeasureData(pars, [1], zeros(2, 1), "",
+                                       default_weight).parameter_refs == pars
     end
     # test Measure
     @testset "Measure" begin
         # prepare data
-        data1 = DiscreteMeasureData(par, [1], [1], "", InfiniteOpt._w)
-        supp = convert(JuMP.Containers.SparseAxisArray, [0, 0])
-        data2 =  MultiDiscreteMeasureData(pars, [1], [supp], "", InfiniteOpt._w)
+        data1 = DiscreteMeasureData(par, [1], [1], "", default_weight)
+        data2 =  MultiDiscreteMeasureData(pars, [1], zeros(2, 1), "", default_weight)
         # run tests
         @test Measure isa UnionAll
         @test isa(Measure(par, data1), Measure)
@@ -72,19 +44,32 @@
         mref = MeasureRef(m, 1)
         @test copy(mref, m2) == MeasureRef(m2, 1)
     end
+    # test Base.copy for DiscreteMeasureData
+    @testset "Base.copy (DiscreteMeasureData)" begin
+        data = DiscreteMeasureData(par, [1], [1], "", default_weight)
+        @test copy(data) isa DiscreteMeasureData
+    end
+    # test Base.copy for MultiDiscreteMeasureData
+    @testset "Base.copy (MultiDiscreteMeasureData)" begin
+        data = MultiDiscreteMeasureData(pars, [1], zeros(2, 1), "", default_weight)
+        @test copy(data) isa MultiDiscreteMeasureData
+    end
 end
 
 # Test measure data constructors
 @testset "Measure Data Constructors" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+    @infinite_parameter(m, par in [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1]) # Vector
+    @infinite_parameter(m, pars2[1:2, 1:3] in [0, 1]) # Matrix
+    @infinite_parameter(m, pars3[2:3] in [0, 1]) # DenseAxisArray
+    @infinite_parameter(m, pars4[i = 1:2, j = 1:2; i <= j] in [0, 1]) # SparseAxisArray
     @finite_parameter(m, fpar, 42)
     # test default weight function
-    @testset "_w" begin
-        @test InfiniteOpt._w(42) == 1
-        @test InfiniteOpt._w(zeros(10)) == 1
+    @testset "default_weight" begin
+        @test default_weight(42) == 1
+        @test default_weight(zeros(10)) == 1
     end
     # test DiscreteMeasureData constructor for scalar parameters
     @testset "DiscreteMeasureData (scalar)" begin
@@ -97,6 +82,32 @@ end
         @test_throws ErrorException DiscreteMeasureData(par, [1], Int[])
         @test_throws ErrorException DiscreteMeasureData(par, [1], [2])
         @test_throws ErrorException DiscreteMeasureData(fpar, [1], [1])
+    end
+    # test _convert_param_refs_and_supports (Vector)
+    @testset "_convert_param_refs_and_supports (Vector)" begin
+        supp = [[0, 0], [1, 1]]
+        expected = (pars, [0 1; 0 1])
+        @test InfiniteOpt._convert_param_refs_and_supports(pars, supp) == expected
+    end
+    # test _convert_param_refs_and_supports (Array)
+    @testset "_convert_param_refs_and_supports (Array)" begin
+        supp = [zeros(2, 3), ones(2, 3)]
+        expected = ([pars2...], [zeros(6, 1) ones(6, 1)])
+        @test InfiniteOpt._convert_param_refs_and_supports(pars2, supp) == expected
+    end
+    # test _convert_param_refs_and_supports (DenseAxisArray)
+    @testset "_convert_param_refs_and_supports (DenseAxisArray)" begin
+        supp = [JuMPC.DenseAxisArray([0, 0], axes(pars3)),
+                JuMPC.DenseAxisArray([1, 1], axes(pars3))]
+        expected = ([pars3[2], pars3[3]], [0 1; 0 1])
+        @test InfiniteOpt._convert_param_refs_and_supports(pars3, supp) == expected
+    end
+    # test _convert_param_refs_and_supports (SparseAxisArray)
+    @testset "_convert_param_refs_and_supports (SparseAxisArray)" begin
+        supp = [JuMPC.SparseAxisArray(Dict(k => 0 for k in keys(pars4))),
+                JuMPC.SparseAxisArray(Dict(k => 1 for k in keys(pars4)))]
+        expected = ([pars4[1, 1], pars4[1, 2], pars4[2, 2]], [0 1; 0 1; 0 1])
+        @test InfiniteOpt._convert_param_refs_and_supports(pars4, supp) == expected
     end
     # test MultiDiscreteMeasureData constructor for array parameters
     @testset "DiscreteMeasureData (array)" begin
@@ -148,7 +159,7 @@ end
     # initialize model and references
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     data = DiscreteMeasureData(par, [1], [1], name = "test")
     data2 = DiscreteMeasureData(pars, [1], [[1, 1]], name = "cat")
     # measure_name (DiscreteMeasureData)
@@ -177,15 +188,39 @@ end
     end
     # supports (DiscreteMeasureData)
     @testset "supports (Single)" begin
-        @test supports(data) == [1]
+        @test supports(data) == Float64[1]
     end
     # supports (MultiDiscreteMeasureData)
     @testset "supports (Multi)" begin
-        @test supports(data2) == [convert(JuMPC.SparseAxisArray, [1, 1])]
+        @test supports(data2) == ones(Float64, 2, 1)
     end
     # supports (Fallback)
     @testset "supports (Fallback)" begin
-        @test supports(BadData()) == Number[]
+        @test supports(BadData()) == Float64[]
+    end
+    # coefficients (DiscreteMeasureData)
+    @testset "coefficients (Single)" begin
+        @test coefficients(data) == Float64[1]
+    end
+    # coefficients (MultiDiscreteMeasureData)
+    @testset "coefficients (Multi)" begin
+        @test coefficients(data2) == Float64[1]
+    end
+    # coefficients (Fallback)
+    @testset "coefficients (Fallback)" begin
+        @test coefficients(BadData()) == Float64[]
+    end
+    # weight_function (DiscreteMeasureData)
+    @testset "weight_function (Single)" begin
+        @test weight_function(data) == default_weight
+    end
+    # weight_function (MultiDiscreteMeasureData)
+    @testset "weight_function (Multi)" begin
+        @test weight_function(data2) == default_weight
+    end
+    # weight_function (Fallback)
+    @testset "weight_function (Fallback)" begin
+        @test weight_function(BadData()) == default_weight
     end
 end
 
@@ -194,7 +229,7 @@ end
     # initialize model and references
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     @infinite_variable(m, inf(par))
     @hold_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1], name = "test")
@@ -264,11 +299,20 @@ end
         # clear supports
         delete_supports(par)
     end
-    # test _add_supports_to_parameters (array)
-    @testset "_add_supports_to_parameters (array)" begin
+    # test _add_supports_to_parameters (Array from MultiDiscreteMeasureData)
+    @testset "_add_supports_to_parameters (multi array)" begin
         # test functionality
-        supp = convert(JuMP.Containers.SparseAxisArray, [1, 1])
-        @test isa(InfiniteOpt._add_supports_to_parameters(pars, [supp]), Nothing)
+        @test isa(InfiniteOpt._add_supports_to_parameters(pars, [0 1; 0 1]), Nothing)
+        @test supports(pars[1]) == [0, 1]
+        @test supports(pars[2]) == [0, 1]
+        # clear supports
+        delete_supports(pars[1])
+        delete_supports(pars[2])
+    end
+    # test _add_supports_to_parameters (array fallback)
+    @testset "_add_supports_to_parameters (array fallback)" begin
+        # test functionality
+        @test isa(InfiniteOpt._add_supports_to_parameters(pars, [[1, 1]]), Nothing)
         @test supports(pars[1]) == [1]
         @test supports(pars[2]) == [1]
         # clear supports
@@ -317,7 +361,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= par2 <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     @infinite_variable(m, inf(par))
     @infinite_variable(m, inf2(par, par2))
     @infinite_variable(m, inf3(par2))
@@ -430,7 +474,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= par2 <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     @infinite_variable(m, inf(par))
     @infinite_variable(m, inf2(par, par2))
     @infinite_variable(m, inf3(par2))
@@ -680,12 +724,12 @@ end
         @test measure_data(meas2).supports == [0.7]
 
         meas3 = integral(inf4, num_supports = 5, eval_method = sampling)
-        @test pars1[1] in measure_data(meas3).parameter_ref
-        @test pars1[2] in measure_data(meas3).parameter_ref
+        @test pars1[1] in measure_data(meas3).parameter_refs
+        @test pars1[2] in measure_data(meas3).parameter_refs
 
         meas4 = integral(inf5, pars2, num_supports = 5)
-        @test pars2["a"] in measure_data(meas4).parameter_ref
-        @test pars2["b"] in measure_data(meas4).parameter_ref
+        @test pars2["a"] in measure_data(meas4).parameter_refs
+        @test pars2["b"] in measure_data(meas4).parameter_refs
 
         meas5 = integral(inf6, use_existing_supports = true)
         @test measure_data(meas4).supports == measure_data(meas5).supports
@@ -693,12 +737,9 @@ end
         add_supports(pars3[1], [0.3, 0.7])
         add_supports(pars3[2], [0.3, 0.7])
         meas6 = integral(inf7, pars3, 0.5, 1.0, use_existing_supports = true)
-        @test measure_data(meas6).supports == [JuMPC.SparseAxisArray(
-                                                Dict([((1,),0.7), ((2,), 0.7)]))]
+        @test measure_data(meas6).supports == ones(Float64, 2, 1) * 0.7
         meas6 = integral(inf7, pars3, [0.5, 0.5], [1.0, 1.0], use_existing_supports = true)
-        @test measure_data(meas6).supports == [JuMPC.SparseAxisArray(
-                                                Dict([((1,),0.7), ((2,), 0.7)]))]
-
+        @test measure_data(meas6).supports == ones(Float64, 2, 1) * 0.7
 
         meas7 = integral(inf11, par4, num_supports = 5, eval_method = quadrature)
         (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
@@ -749,11 +790,9 @@ end
         @test measure_data(sum1).supports == [0.3, 0.7]
         @test name(sum1) == "sum(inf2(par, par2))"
         sum2 = support_sum(inf7)
-        @test pars3[1] in measure_data(sum2).parameter_ref
-        @test pars3[2] in measure_data(sum2).parameter_ref
-        supps = [JuMPC.SparseAxisArray(Dict([((1,),0.3), ((2,), 0.3)])),
-                 JuMPC.SparseAxisArray(Dict([((1,),0.7), ((2,), 0.7)]))]
-        @test measure_data(sum2).supports == supps
+        @test pars3[1] in measure_data(sum2).parameter_refs
+        @test pars3[2] in measure_data(sum2).parameter_refs
+        @test measure_data(sum2).supports == Float64[0.3 0.7; 0.3 0.7]
     end
     # test expectation measure
     @testset "expect" begin
@@ -775,7 +814,7 @@ end
         @test def_vals[:num_supports] == 5
         @test def_vals[:eval_method] == quadrature
         @test def_vals[:name] == "integral"
-        @test def_vals[:weight_func] == InfiniteOpt._w
+        @test def_vals[:weight_func] == default_weight
         @test def_vals[:use_existing_supports] == false
         @test def_vals[:new_kwarg] == true
     end
