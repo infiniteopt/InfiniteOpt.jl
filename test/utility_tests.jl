@@ -109,6 +109,8 @@ end
     # GenericAffExpr conversions
     @testset "GenericAffExpr" begin
         aff = x[1] - 3 * x[2] - 2
+        @test typeof(InfiniteOpt._possible_convert(VariableRef,
+                                   aff)) == GenericAffExpr{Float64, VariableRef}
         @test typeof(InfiniteOpt._possible_convert(AbstractVariableRef,
                            aff)) == GenericAffExpr{Float64, AbstractVariableRef}
         @test InfiniteOpt._possible_convert(AbstractVariableRef,
@@ -121,6 +123,9 @@ end
     # GenericQuadExpr conversions
     @testset "GenericQuadExpr" begin
         quad = 2 * x[1] * x[2] + x[1] - 1
+        quad2 = zero(JuMP.QuadExpr) + x[1] - 3
+        @test typeof(InfiniteOpt._possible_convert(VariableRef,
+                                 quad)) == GenericQuadExpr{Float64, VariableRef}
         @test typeof(InfiniteOpt._possible_convert(AbstractVariableRef,
                          quad)) == GenericQuadExpr{Float64, AbstractVariableRef}
         @test InfiniteOpt._possible_convert(AbstractVariableRef,
@@ -131,6 +136,8 @@ end
                                             quad).terms == quad.terms
         @test typeof(InfiniteOpt._possible_convert(GeneralVariableRef,
                                  quad)) == GenericQuadExpr{Float64, VariableRef}
+        @test typeof(InfiniteOpt._possible_convert(GeneralVariableRef,
+                                 quad2)) == GenericQuadExpr{Float64, VariableRef}
     end
 end
 
@@ -153,4 +160,12 @@ end
     @testset "Non-Array" begin
         @test InfiniteOpt._make_vector(2) == 2
     end
+end
+
+# Test allequal
+@testset "allequal" begin
+    @test InfiniteOpt._allequal([1])
+    @test !InfiniteOpt._allequal([1, 2])
+    @test InfiniteOpt._allequal([1, 1])
+    @test InfiniteOpt._allequal([1 1; 1 1])
 end

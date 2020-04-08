@@ -66,14 +66,13 @@ Base.copy(bounds::ParameterBounds) = ParameterBounds(copy(bounds.intervals))
 
 # Extend to handle InfOptParameters correctly
 function Base.:(==)(p1::InfOptParameter, p2::InfOptParameter)
-    check1 = p1.set == p2.set
-    check2 = isequal(p1.supports, p2.supports)
-    check3 = p1.independent == p2.independent
-    return (check1 && check2 && check3)
+    return (p1.set == p2.set && isequal(p1.supports, p2.supports) &&
+            p1.independent == p2.independent)
 end
 
 # Hack to make the keys function work for sparse arrays
 Base.keys(d::JuMPC.SparseAxisArray) = keys(d.data)
+
 # Hacky fix to compare SparseAxisArrays
 function Base.isapprox(a::JuMPC.SparseAxisArray, b::JuMPC.SparseAxisArray)::Bool
     return all(isapprox.(a, b))
@@ -82,26 +81,35 @@ end
 # Attempt to convert variable type of GenericAffExpr if possible
 function _possible_convert(type::DataType,
                            aff::JuMP.GenericAffExpr{C, V}) where {C, V}
-    valids = [k isa type for k in keys(aff.terms)]
-    if all(valids)
-        return JuMP.GenericAffExpr{C, type}(aff.constant, aff.terms)
-    else
+    if V == type
         return aff
     end
+    for k in keys(aff.terms)
+        if !(k isa type)
+            return aff
+        end
+    end
+    return JuMP.GenericAffExpr{C, type}(aff.constant, aff.terms)
 end
 
 # Attempt to convert variable type of GenericQuadExpr if possible
 function _possible_convert(type::DataType,
                            quad::JuMP.GenericQuadExpr{C, V}) where {C, V}
-    valids_a = [k.a isa type for k in keys(quad.terms)]
-    valids_b = [k.b isa type for k in keys(quad.terms)]
-    valids_aff = [k isa type for k in keys(quad.aff.terms)]
-    if all(valids_a) && all(valids_b) && all(valids_aff)
-        aff = convert(JuMP.GenericAffExpr{C, type}, quad.aff)
-        return JuMP.GenericQuadExpr{C, type}(aff, quad.terms)
-    else
-        return quad
+    if V == type
+       return quad
     end
+    for k in keys(quad.terms)
+        if !(k.a isa type && k.b isa type)
+            return quad
+        end
+    end
+    for k in keys(quad.aff.terms)
+        if !(k isa type)
+            return quad
+        end
+    end
+    aff = convert(JuMP.GenericAffExpr{C, type}, quad.aff)
+    return JuMP.GenericQuadExpr{C, type}(aff, quad.terms)
 end
 
 ## Define functions to convert a JuMP array into a vector (need for @BDconstraint)
@@ -110,7 +118,7 @@ function _make_vector(arr::AbstractArray)
     return [arr[i] for i in keys(arr)]
 end
 
-# Array (no nothing)
+# Array (do nothing)
 function _make_vector(arr::Array)
     return arr
 end
@@ -118,4 +126,15 @@ end
 # Something else
 function _make_vector(arr)
     return arr
+end
+
+## Define efficient function to check if all elements in array are equal
+# method found at https://stackoverflow.com/questions/47564825/check-if-all-the-elements-of-a-julia-array-are-equal/47578613
+@inline function _allequal(x::AbstractArray)
+    length(x) < 2 && return true
+    e1 = first(x)
+    for value in x
+        value == e1 || return false
+    end
+    return true
 end

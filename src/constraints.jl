@@ -122,6 +122,11 @@ function _update_var_constr_mapping(vrefs::Vector{<:GeneralVariableRef},
             else
                 model.meas_to_constrs[JuMP.index(vref)] = [cindex]
             end
+            if haskey(model.constr_to_meas, cindex)
+                push!(model.constr_to_meas[cindex], JuMP.index(vref))
+            else
+                model.constr_to_meas[cindex] = [JuMP.index(vref)]
+            end
         elseif isa(vref, ReducedInfiniteVariableRef)
             if haskey(model.reduced_to_constrs, JuMP.index(vref))
                 push!(model.reduced_to_constrs[JuMP.index(vref)], cindex)
@@ -304,6 +309,7 @@ function JuMP.delete(model::InfiniteModel, cref::GeneralConstraintRef)
     delete!(model.constrs, JuMP.index(cref))
     delete!(model.constr_to_name, JuMP.index(cref))
     delete!(model.constr_in_var_info, JuMP.index(cref))
+    delete!(model.constr_to_meas, JuMP.index(cref))
     # reset optimizer model status
     set_optimizer_model_ready(model, false)
     return

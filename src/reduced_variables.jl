@@ -1,6 +1,28 @@
+"""
+    reduction_info(vref::ReducedInfiniteVariableRef,
+                   key::Val{:my_ext_key}
+                   )::ReducedInfiniteInfo)
+
+Return the reduction info of `vref` that is stored in the optimizer model with
+key `:my_ext_key` if it is in fact stored there. This is an internal method that
+should be extended in combination with an extension of
+[`add_measure_variable`](@ref).
+"""
+function reduction_info(vref::ReducedInfiniteVariableRef, key)::ReducedInfiniteInfo
+    error("Cannot find reduction information in the InfiniteModel and " *
+          "`reduction_info` is not extended for optimizer models with " *
+          "key $(typeof(key).parameters[1]) so we cannot check there either.")
+end
+
 # Helper function to get reduced variable info
 function _reduced_info(vref::ReducedInfiniteVariableRef)::ReducedInfiniteInfo
-    return JuMP.owner_model(vref).reduced_info[JuMP.index(vref)]
+    if haskey(JuMP.owner_model(vref).reduced_info, JuMP.index(vref))
+        return JuMP.owner_model(vref).reduced_info[JuMP.index(vref)]
+    else
+        # get reduced info from the optimizer model if it is stored there
+        key = optimizer_model_key(JuMP.owner_model(vref))
+        return reduction_info(vref, Val(key))
+    end
 end
 
 """
@@ -37,24 +59,50 @@ function eval_supports(vref::ReducedInfiniteVariableRef)::Dict
 end
 
 """
+    raw_parameter_refs(vref::ReducedInfiniteVariableRef)::VectorTuple{ParameterRef}
+
+Return the raw [`VectorTuple`](@ref) of the parameter references that `vref`
+depends on. This is primarily an internal method where
+[`parameter_refs`](@ref parameter_refs(vref::ReducedInfiniteVariableRef))
+is intended as the preferred user function.
+"""
+function raw_parameter_refs(vref::ReducedInfiniteVariableRef)::VectorTuple{ParameterRef}
+    orig_prefs = raw_parameter_refs(infinite_variable_ref(vref))
+    eval_supps = eval_supports(vref)
+    delete_indices = [haskey(eval_supps, i) for i = 1:length(orig_prefs)]
+    return deleteat!(copy(orig_prefs), delete_indices)
+end
+
+"""
     parameter_refs(vref::ReducedInfiniteVariableRef)::Tuple
 
 Return the `ParameterRef`(s) associated with the reduced infinite variable
 `vref`. This is formatted as a Tuple of containing the parameter references as
-they were inputted to define the untracripted infinite variable except, the
+they were inputted to define the untranscripted infinite variable except, the
 evaluated parameters are excluded.
 
 **Example**
 ```julia-repl
 julia> parameter_refs(vref)
-(t,   [2]  =  x[2]
-  [1]  =  x[1])
+(t, [x[1], x[2]])
 ```
 """
-function parameter_refs(vref::ReducedInfiniteVariableRef)
-    orig_prefs = parameter_refs(infinite_variable_ref(vref))
-    prefs = Tuple(orig_prefs[i] for i = 1:length(orig_prefs) if !haskey(eval_supports(vref), i))
-    return prefs
+function parameter_refs(vref::ReducedInfiniteVariableRef)::Tuple
+    return Tuple(raw_parameter_refs(vref))
+end
+
+"""
+    parameter_list(vref::ReducedInfiniteVariableRef)::Vector{ParameterRef}
+
+Return a vector of the parameter references that `vref` depends on. This is
+primarily an internal method where [`parameter_refs`](@ref parameter_refs(vref::ReducedInfiniteVariableRef))
+is intended as the preferred user function.
+"""
+function parameter_list(vref::ReducedInfiniteVariableRef)::Vector{ParameterRef}
+    orig_prefs = raw_parameter_refs(infinite_variable_ref(vref))
+    eval_supps = eval_supports(vref)
+    indices = [!haskey(eval_supps, i) for i in eachindex(orig_prefs)]
+    return orig_prefs[indices]
 end
 
 """
@@ -66,25 +114,23 @@ is used when displaying measure expansions that contain such variables.
 **Exanple**
 ```julia-repl
 julia> name(rvref)
-g(1.25, x)
+g(1.25, [x[1], x[2]])
 ```
 """
 function JuMP.name(vref::ReducedInfiniteVariableRef)::String
     root_name = _root_name(infinite_variable_ref(vref))
-    prefs = parameter_refs(infinite_variable_ref(vref))
-    param_names = [_root_name(first(pref)) for pref in prefs]
-    for (k, v) in eval_supports(vref)
-        param_names[k] = string(v)
-    end
+    prefs = raw_parameter_refs(infinite_variable_ref(vref))
+    eval_supps = eval_supports(vref)
+    raw_list = [i in keys(eval_supps) ? eval_supps[i] : prefs[i] for i in eachindex(prefs)]
     param_name_tuple = "("
-    for i = 1:length(param_names)
-        if i != length(param_names)
-            param_name_tuple *= string(param_names[i], ", ")
+    for i in 1:size(prefs, 1)
+        value = raw_list[prefs.ranges[i]]
+        if i != size(prefs, 1)
+            param_name_tuple *= string(_make_str_value(value), ", ")
         else
-            param_name_tuple *= string(param_names[i])
+            param_name_tuple *= string(_make_str_value(value), ")")
         end
     end
-    param_name_tuple *= ")"
     return string(root_name, param_name_tuple)
 end
 
@@ -412,7 +458,7 @@ true
 """
 function JuMP.is_valid(model::InfiniteModel,
                        vref::ReducedInfiniteVariableRef)::Bool
-    return (model === JuMP.owner_model(vref) && JuMP.index(vref) in keys(model.reduced_info))
+    return (model === JuMP.owner_model(vref)) && haskey(model.reduced_info, JuMP.index(vref))
 end
 
 """

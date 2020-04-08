@@ -12,7 +12,7 @@ const trapezoid = :trapezoid
                           ub::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing;
                           eval_method::Symbol = mc_sampling,
                           name::String = "measure",
-                          weight_func::Function = InfiniteOpt._w,
+                          weight_func::Function = InfiniteOpt.default_weight,
                           kwargs...)::InfiniteOpt.AbstractMeasureData
 
 Generate an [`AbstractMeasureData`](@ref) object that automatically generate
@@ -27,7 +27,7 @@ for their custom support generation methods.
 julia> @infinite_parameter(m, x in [0., 1.]);
 
 julia> measure_data = generate_measure_data(x, 3, 0.3, 0.7, method = gauss_legendre)
-DiscreteMeasureData(x, [0.1111111111111111, 0.17777777777777776, 0.1111111111111111], [0.3450806661517033, 0.5, 0.6549193338482967], "", InfiniteOpt._w)
+DiscreteMeasureData(x, [0.1111111111111111, 0.17777777777777776, 0.1111111111111111], [0.3450806661517033, 0.5, 0.6549193338482967], "", InfiniteOpt.default_weight)
 ```
 """
 function generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
@@ -37,7 +37,7 @@ function generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
                                ub::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing;
                                eval_method::Symbol = mc_sampling,
                                name::String = "measure",
-                               weight_func::Function = InfiniteOpt._w,
+                               weight_func::Function = InfiniteOpt.default_weight,
                                kwargs...)::InfiniteOpt.AbstractMeasureData
     if isa(params, InfiniteOpt.ParameterRef)
         set = InfiniteOpt._parameter_set(params)
@@ -131,15 +131,8 @@ function generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
     if isa(params, InfiniteOpt.ParameterRef)
         return _mc_sampling(set, params, num_supports, lb, ub)
     else
-        samples_dict = Dict()
-        for i in eachindex(lb)
-            (samples_dict[i], _) = _mc_sampling(set, params, num_supports, lb[i], ub[i])
-        end
-        samples = Array{JuMPC.SparseAxisArray, 1}(undef, num_supports)
-        for j in 1:num_supports
-            samples[j] = JuMPC.SparseAxisArray(Dict(k => samples_dict[k][j]
-                                                    for k in eachindex(lb)))
-        end
+        samples_dict = Dict(i => _mc_sampling(set, params, num_supports, lb[i], ub[i])[1] for i in eachindex(lb))
+        samples = [JuMPC.SparseAxisArray(Dict(k => samples_dict[k][j] for k in eachindex(lb))) for j in 1:num_supports]
         return (samples, ones(num_supports) / num_supports * prod(ub .- lb))
     end
 end
@@ -413,16 +406,8 @@ function _mc_sampling(dist::Distributions.MultivariateDistribution,
                      num_supports::Int)::Tuple
     samples_matrix = rand(dist, num_supports)
     ordered_pairs = sort(collect(params.data), by=x->x.second.index)
-    samples_dict = Dict()
-    for i in eachindex(ordered_pairs)
-        samples_dict[ordered_pairs[i].first] = samples_matrix[i, :]
-    end
-    samples = Array{JuMPC.SparseAxisArray, 1}()
-    for j in 1:num_supports
-        append!(samples, [JuMP.Containers.SparseAxisArray(
-                          Dict(k.first => samples_dict[k.first][j]
-                          for k in ordered_pairs))])
-    end
+    samples_dict = Dict(ordered_pairs[i].first => samples_matrix[i, :] for i in eachindex(ordered_pairs))
+    samples = [JuMP.Containers.SparseAxisArray(Dict(k.first => samples_dict[k.first][j] for k in ordered_pairs)) for j in 1:num_supports]
     return (samples, ones(num_supports) / num_supports)
 end
 

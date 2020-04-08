@@ -117,6 +117,7 @@ end
     @hold_variable(m, x, parameter_bounds = (par == 1))
     data = DiscreteMeasureData(par, [1], [1])
     meas = measure(inf + par - x, data)
+    meas2 = measure(inf - x, data)
     rv = ReducedInfiniteVariableRef(m, 42)
     # test build_constraint (single)
     @testset "JuMP.build_constraint (Single)" begin
@@ -155,12 +156,14 @@ end
     # test _update_var_constr_mapping
     @testset "_update_var_constr_mapping" begin
         # test initial use of variable
-        @test isa(InfiniteOpt._update_var_constr_mapping([inf, par, meas, rv], 1),
+        @test isa(InfiniteOpt._update_var_constr_mapping([inf, par, meas, meas2, rv], 1),
                   Nothing)
         @test m.var_to_constrs[JuMP.index(inf)] == [1]
         @test m.param_to_constrs[JuMP.index(par)] == [1]
         @test m.meas_to_constrs[JuMP.index(meas)] == [1]
+        @test m.meas_to_constrs[JuMP.index(meas2)] == [1]
         @test m.reduced_to_constrs[JuMP.index(rv)] == [1]
+        @test m.constr_to_meas[1] == [JuMP.index(meas), JuMP.index(meas2)]
         # test secondary use of variable
         @test isa(InfiniteOpt._update_var_constr_mapping([inf, par, meas, rv], 2),
                   Nothing)
@@ -168,11 +171,15 @@ end
         @test m.param_to_constrs[JuMP.index(par)] == [1, 2]
         @test m.meas_to_constrs[JuMP.index(meas)] == [1, 2]
         @test m.reduced_to_constrs[JuMP.index(rv)] == [1, 2]
+        @test m.constr_to_meas[2] == [JuMP.index(meas)]
         # Undo changes
         delete!(m.var_to_constrs, JuMP.index(inf))
         delete!(m.param_to_constrs, JuMP.index(par))
         delete!(m.meas_to_constrs, JuMP.index(meas))
+        delete!(m.meas_to_constrs, JuMP.index(meas2))
         delete!(m.reduced_to_constrs, JuMP.index(rv))
+        delete!(m.constr_to_meas, 1)
+        delete!(m.constr_to_meas, 2)
     end
     # test _check_and_update_bounds (BoundedScalarConstraint with no hold variables)
     @testset "_check_and_update_bounds (Bounded no Hold)" begin

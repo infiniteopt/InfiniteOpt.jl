@@ -16,8 +16,7 @@ end
                                              eval_objective_value=false)
     m = InfiniteModel(mockoptimizer)
     @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1],
-                        container = SparseAxisArray)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1])
     @infinite_variable(m, 1 >= x(par) >= 0, Int)
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)

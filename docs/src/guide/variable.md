@@ -637,9 +637,7 @@ of infinite parameters that the variable depends on. For example, consider
 `y(t, x)`:
 ```jldoctest var_macro
 julia> parameter_refs(y)
-(t,   [3]  =  x[3]
-  [2]  =  x[2]
-  [1]  =  x[1])
+(t, ParameterRef[x[1], x[2], x[3]])
 ```
 
 For point variables,
@@ -652,9 +650,7 @@ julia> infinite_variable_ref(y0)
 y(t, x)
 
 julia> parameter_values(y0)
-(0,   [3]  =  -1
-  [2]  =  -1
-  [1]  =  -1)
+(0.0, [-1.0, -1.0, -1.0])
 ```
 
 For hold variables,
@@ -764,7 +760,7 @@ julia> @add_parameter_bounds(c, (t in [0, 5], x == 0))
 ## Datatypes
 ```@index
 Pages   = ["variable.md"]
-Modules = [InfiniteOpt]
+Modules = [InfiniteOpt, InfiniteOpt.Collections]
 Order   = [:type]
 ```
 ```@docs
@@ -780,6 +776,7 @@ FiniteVariableRef
 InfiniteVariableRef
 PointVariableRef
 HoldVariableRef
+VectorTuple
 ```
 
 ## [Methods/Macros] (@id var_methods)
@@ -836,6 +833,8 @@ JuMP.set_name(::InfiniteVariableRef, ::String)
 JuMP.set_name(::PointVariableRef, ::String)
 JuMP.set_name(::HoldVariableRef, ::String)
 parameter_refs(::InfiniteVariableRef)
+parameter_list(::InfiniteVariableRef)
+raw_parameter_refs(::InfiniteVariableRef)
 set_parameter_refs(::InfiniteVariableRef, ::Tuple)
 add_parameter_ref(::InfiniteVariableRef,::Union{ParameterRef, AbstractArray{<:ParameterRef}})
 @set_parameter_bounds
@@ -848,6 +847,7 @@ delete_parameter_bound(::HoldVariableRef, ::ParameterRef)
 delete_parameter_bounds(::HoldVariableRef)
 infinite_variable_ref(::PointVariableRef)
 parameter_values(::PointVariableRef)
+raw_parameter_values(::PointVariableRef)
 JuMP.variable_by_name(::InfiniteModel, ::String)
 JuMP.all_variables(::InfiniteModel)
 ```

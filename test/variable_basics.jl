@@ -38,6 +38,12 @@
         @test isa(Base.broadcastable(pvref), Base.RefValue{PointVariableRef})
         @test isa(Base.broadcastable(hvref), Base.RefValue{HoldVariableRef})
     end
+    # length
+    @testset "length" begin
+        @test length(ivref) == 1
+        @test length(pvref) == 1
+        @test length(hvref) == 1
+    end
 end
 
 # Test core JuMP methods
@@ -79,7 +85,7 @@ end
     info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false)
     param = InfOptParameter(IntervalSet(0, 1), Number[], false)
     pref = add_parameter(m, param, "test")
-    m.vars[1] = InfiniteVariable(info, (pref, ))
+    m.vars[1] = InfiniteVariable(info, VectorTuple(pref))
     # JuMP.index
     @testset "JuMP.index" begin
         @test JuMP.index(ivref) == 1

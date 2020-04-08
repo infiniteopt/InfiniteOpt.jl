@@ -63,8 +63,9 @@ IntervalSet
 DistributionSet
 ```
 
+## Methods
 ```@index
-Pages   = ["parameter.md"]
+Pages   = ["sets.md"]
 Modules = [InfiniteOpt, JuMP]
 Order   = [:macro, :function]
 ```

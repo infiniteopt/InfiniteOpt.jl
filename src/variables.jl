@@ -4,33 +4,26 @@ const Point = :Point
 const Hold = :Hold
 
 ## Extend Base.copy for new variable types
-# GeneralVariableRef
+# No new model
 Base.copy(v::GeneralVariableRef) = v
 
-# InfiniteVariableRef
-function Base.copy(v::InfiniteVariableRef,
-                   new_model::InfiniteModel)::InfiniteVariableRef
-    return InfiniteVariableRef(new_model, v.index)
+# With new model
+function Base.copy(v::T, new_model::InfiniteModel)::GeneralVariableRef where {T <: GeneralVariableRef}
+    return T(new_model, v.index)
 end
 
-# HoldVariableRef
-function Base.copy(v::HoldVariableRef,
-                   new_model::InfiniteModel)::HoldVariableRef
-    return HoldVariableRef(new_model, v.index)
-end
-
-# PointVariableRef
-function Base.copy(v::PointVariableRef,
-                   new_model::InfiniteModel)::PointVariableRef
-     return PointVariableRef(new_model, v.index)
- end
-
-# Extend other Base functions
+## Extend other Base functions
+# Base.:(==)
 function Base.:(==)(v::T, w::U)::Bool where {T <: GeneralVariableRef,
                                              U <: GeneralVariableRef}
     return v.model === w.model && v.index == w.index && T == U
 end
+
+# Base.broadcastable
 Base.broadcastable(v::GeneralVariableRef) = Ref(v)
+
+# Base.length
+Base.length(v::GeneralVariableRef) = 1
 
 # Extend JuMP functions
 JuMP.isequal_canonical(v::GeneralVariableRef, w::GeneralVariableRef) = v == w
@@ -50,45 +43,27 @@ function JuMP.variable_type(model::InfiniteModel, type::Symbol)
 end
 
 # Check parameter tuple, ensure all elements contain parameter references
-function _check_parameter_tuple(_error::Function, prefs::Tuple)
-    types = [typeof(pref) for pref in prefs]
-    num_params = length(types)
-    valid_types = zeros(Bool, num_params)
-    for i in eachindex(types)
-        if types[i] == ParameterRef || types[i] <: AbstractArray{<:ParameterRef}
-            valid_types[i] = true
-        end
-    end
-    if !all(valid_types)
-        _error("Invalid parameter type(s) given.")
-    end
+function _check_parameter_tuple(_error::Function, prefs::VectorTuple{T}) where {T}
+    T <: ParameterRef || _error("Invalid parameter type(s) given.")
     return
 end
 
-# Convert parameter tuple s.t. array elements are SparseAxisArrays
-function _make_formatted_tuple(prefs::Tuple)::Tuple
-    converted_prefs = ()
-    for pref in prefs
-        if isa(pref, ParameterRef) || isa(pref, Number)
-            converted_prefs = (converted_prefs..., pref)
-        else
-            converted_prefs = (converted_prefs...,
-                               convert(JuMPC.SparseAxisArray, pref))
+# Ensure each tuple element only contains parameters with same group ID
+function _check_tuple_groups(_error::Function, prefs::VectorTuple)
+    # check that each tuple element has a unique group ID
+    groups = [group_id(pref) for pref in prefs[:, 1]]
+    allunique(groups) || _error("Cannot double specify infinite parameter references.")
+    # check that each tuple element array contains parameters with same group ID
+    for i in eachindex(size(prefs, 1))
+        if length(prefs[i, :]) > 1
+            first_group = groups[i]
+            for j in 2:length(prefs[i, :])
+                if group_id(prefs[i, j]) != first_group
+                    _error("Each parameter tuple element must have contain only " *
+                           "infinite parameters with the same group ID.")
+                end
+            end
         end
-    end
-    return converted_prefs
-end
-
-# Ensure each element onyl contains parameters with same group ID
-function _check_tuple_groups(_error::Function, prefs::Tuple)
-    valid_elements = _only_one_group.(prefs)
-    if sum(valid_elements) != length(prefs)
-        _error("Each parameter tuple element must have contain only infinite " *
-               "parameters with the same group ID.")
-    end
-    groups = _group.(prefs)
-    if length(unique(groups)) != length(groups)
-        _error("Cannot double specify infinite parameter references.")
     end
     return
 end
@@ -96,46 +71,24 @@ end
 # Ensure parameter values match shape of parameter reference tuple stored in the
 # infinite variable reference
 function _check_tuple_shape(_error::Function,
-                            infinite_variable_ref::InfiniteVariableRef,
-                            values::Tuple)
-    prefs = parameter_refs(infinite_variable_ref)
-    container = JuMPC.SparseAxisArray
-    if length(prefs) != length(values)
-        _error("The dimensions of the infinite parameter values must match " *
-               "those defined for the infinite variable.")
-    end
-    for i in eachindex(values)
-        if isa(prefs[i], ParameterRef) && !(isa(values[i], Number))
-            _error("The dimensions and array type of the infinite parameter " *
-                   "values must match those defined for the infinite variable.")
-        elseif isa(prefs[i], container) && !isa(values[i], container)
-            _error("The dimensions and array type of the infinite parameter " *
-                   "values must match those defined for the infinite variable.")
-        elseif isa(prefs[i], container)
-            if keys(prefs[i].data) != keys(values[i].data)
-                _error("Index keys of infinite parameter values don't match " *
-                       "those defined for the infinite variable.")
-            end
-        end
+                            ivref::InfiniteVariableRef,
+                            values::VectorTuple)
+    prefs = raw_parameter_refs(ivref)
+    if !same_structure(prefs, values)
+        _error("The dimensions and array formatting of the infinite parameter " *
+               "values must match those of the parameter references for the " *
+               "infinite variable.")
     end
     return
 end
 
 # Used to ensure values don't violate parameter bounds
-function _check_tuple_values(_error::Function, inf_vref::InfiniteVariableRef,
-                             param_values::Tuple)
-    prefs = parameter_refs(inf_vref)
+function _check_tuple_values(_error::Function, ivref::InfiniteVariableRef,
+                             param_values::VectorTuple)
+    prefs = raw_parameter_refs(ivref)
     for i in eachindex(prefs)
-        if isa(prefs[i], ParameterRef)
-            if !supports_in_set(param_values[i], infinite_set(prefs[i]))
-                _error("Parameter values violate parameter bounds.")
-            end
-        else
-            for (k, pref) in prefs[i].data
-                if !supports_in_set(param_values[i].data[k], infinite_set(pref))
-                    _error("Parameter values violate parameter bounds.")
-                end
-            end
+        if !supports_in_set(param_values[i], infinite_set(prefs[i]))
+            _error("Parameter values violate parameter bounds.")
         end
     end
     return
@@ -221,13 +174,10 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Infinit
         _error("Parameter references not specified, use the var(params...) " *
                "syntax or the parameter_refs keyword argument.")
     end
-    # make sure the parameters are in a tuple
-    if !isa(parameter_refs, Tuple)
-        parameter_refs = (parameter_refs, )
-    end
+    # format parameter_refs into a VectorTuple
+    parameter_refs = VectorTuple(parameter_refs)
     # check tuple for validity and format
     _check_parameter_tuple(_error, parameter_refs)
-    parameter_refs = _make_formatted_tuple(parameter_refs)
     _check_tuple_groups(_error, parameter_refs)
     # make the variable and return
     return InfiniteVariable(info, parameter_refs)
@@ -250,12 +200,9 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Point};
         _error("Must specify the infinite variable and the values of its " *
                "infinite parameters")
     end
-    # format as tuple if needed
-    if !isa(parameter_values, Tuple)
-        parameter_values = (parameter_values, )
-    end
+    # format tuple as VectorTuple
+    parameter_values = VectorTuple{Float64}(parameter_values)
     # check information and prepare format
-    parameter_values = _make_formatted_tuple(parameter_values)
     _check_tuple_shape(_error, infinite_variable_ref, parameter_values)
     _check_tuple_values(_error, infinite_variable_ref, parameter_values)
     info = _update_point_info(info, infinite_variable_ref)
@@ -340,11 +287,19 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
     return _make_variable(_error, info, Val(var_type); kw_args...)
 end
 
+# check the pref tuple contains only valid parameters
+function _check_parameters_valid(model::InfiniteModel, prefs::VectorTuple)
+    for pref in prefs
+        JuMP.is_valid(model, pref) || error("Invalid Parameter reference " *
+                                            "provided.")
+    end
+    return
+end
+
 # Used to update the model.param_to_vars field
-function _update_param_var_mapping(vref::InfiniteVariableRef, prefs::Tuple)
+function _update_param_var_mapping(vref::InfiniteVariableRef, prefs::VectorTuple)
     model = JuMP.owner_model(vref)
-    pref_list = _list_parameter_refs(prefs)
-    for pref in pref_list
+    for pref in prefs
         if haskey(model.param_to_vars, JuMP.index(pref))
             push!(model.param_to_vars[JuMP.index(pref)], JuMP.index(vref))
         else
@@ -354,28 +309,12 @@ function _update_param_var_mapping(vref::InfiniteVariableRef, prefs::Tuple)
     return
 end
 
-# check the pref tuple contains only valid parameters
-function _check_parameters_valid(model::InfiniteModel, prefs::Tuple)
-    pref_list = _list_parameter_refs(prefs)
-    for pref in pref_list
-        !JuMP.is_valid(model, pref) && error("Invalid Parameter reference " *
-                                             "provided.")
-    end
-    return
-end
-
 # Used to add point variable support to parameter supports if necessary
-function _update_param_supports(inf_vref::InfiniteVariableRef,
-                                param_values::Tuple)
-    prefs = parameter_refs(inf_vref)
+function _update_param_supports(ivref::InfiniteVariableRef,
+                                param_values::VectorTuple)
+    prefs = raw_parameter_refs(ivref)
     for i in eachindex(prefs)
-        if isa(prefs[i], ParameterRef)
-            add_supports(prefs[i], param_values[i])
-        else
-            for (k, v) in prefs[i].data
-                add_supports(v, param_values[i].data[k])
-            end
-        end
+        add_supports(prefs[i], param_values[i])
     end
     return
 end
@@ -393,11 +332,12 @@ function _update_infinite_point_mapping(pvref::PointVariableRef,
 end
 
 # Validate parameter bounds and add support(s) if needed
-function _validate_bounds(model::InfiniteModel, bounds::ParameterBounds; _error = error)
+function _validate_bounds(model::InfiniteModel, bounds::ParameterBounds;
+                          _error = error)
     for (pref, set) in bounds.intervals
         # check validity
-        !JuMP.is_valid(model, pref) && _error("Parameter bound reference " *
-                                              "is invalid.")
+        JuMP.is_valid(model, pref) || _error("Parameter bound reference " *
+                                             "is invalid.")
         # ensure has a support if a point constraint was given
         if set.lower_bound == set.upper_bound
             add_supports(pref, set.lower_bound)
@@ -408,8 +348,8 @@ end
 
 ## Make the variable reference and do checks/mapping updates
 # InfiniteVariable
-function _check_make_variable_ref(model::InfiniteModel,
-                                  v::InfiniteVariable)::InfiniteVariableRef
+function _check_and_make_variable_ref(model::InfiniteModel,
+                                      v::InfiniteVariable)::InfiniteVariableRef
     _check_parameters_valid(model, v.parameter_refs)
     vref = InfiniteVariableRef(model, model.next_var_index)
     _update_param_var_mapping(vref, v.parameter_refs)
@@ -417,11 +357,10 @@ function _check_make_variable_ref(model::InfiniteModel,
 end
 
 # PointVariable
-function _check_make_variable_ref(model::InfiniteModel,
-                                  v::PointVariable)::PointVariableRef
+function _check_and_make_variable_ref(model::InfiniteModel,
+                                      v::PointVariable)::PointVariableRef
     ivref = v.infinite_variable_ref
-    !JuMP.is_valid(model, ivref) && error("Invalid infinite variable " *
-                                          "reference.")
+    JuMP.is_valid(model, ivref) || error("Invalid infinite variable reference.")
     vref = PointVariableRef(model, model.next_var_index)
     _update_param_supports(ivref, v.parameter_values)
     _update_infinite_point_mapping(vref, ivref)
@@ -429,8 +368,8 @@ function _check_make_variable_ref(model::InfiniteModel,
 end
 
 # HoldVariable
-function _check_make_variable_ref(model::InfiniteModel,
-                                  v::HoldVariable)::HoldVariableRef
+function _check_and_make_variable_ref(model::InfiniteModel,
+                                      v::HoldVariable)::HoldVariableRef
     _validate_bounds(model, v.parameter_bounds)
     vref = HoldVariableRef(model, model.next_var_index)
     if length(v.parameter_bounds.intervals) != 0
@@ -440,8 +379,8 @@ function _check_make_variable_ref(model::InfiniteModel,
 end
 
 # Fallback
-function _check_make_variable_ref(model::InfiniteModel, v)
-    error("Invalid variable object type.")
+function _check_and_make_variable_ref(model::InfiniteModel, v::T) where {T}
+    throw(ArgumentError("Invalid variable object type `$T`."))
 end
 
 """
@@ -484,7 +423,7 @@ var_name
 function JuMP.add_variable(model::InfiniteModel, var::InfOptVariable,
                            name::String = "")
     model.next_var_index += 1
-    vref = _check_make_variable_ref(model, var)
+    vref = _check_and_make_variable_ref(model, var)
     model.vars[JuMP.index(vref)] = var
     JuMP.set_name(vref, name)
     if var.info.has_lb
@@ -769,7 +708,7 @@ function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
     # do specific updates if vref is infinite
     if isa(vref, InfiniteVariableRef)
         # update parameter mapping
-        all_prefs = _list_parameter_refs(parameter_refs(vref))
+        all_prefs = parameter_list(vref)
         for pref in all_prefs
             filter!(e -> e != JuMP.index(vref),
                     model.param_to_vars[JuMP.index(pref)])
@@ -900,6 +839,17 @@ function infinite_variable_ref(vref::PointVariableRef)::InfiniteVariableRef
 end
 
 """
+    raw_parameter_values(vref::PointVariableRef)::VectorTuple{<:Number}
+
+Return the raw [`VectorTuple`](@ref) support point associated with the
+point variable `vref`.
+```
+"""
+function raw_parameter_values(vref::PointVariableRef)::VectorTuple{<:Number}
+    return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
+end
+
+"""
     parameter_values(vref::PointVariableRef)::Tuple
 
 Return the support point associated with the point variable `vref`.
@@ -917,11 +867,12 @@ julia> parameter_values(vref)
 ```
 """
 function parameter_values(vref::PointVariableRef)::Tuple
-    return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
+    return Tuple(raw_parameter_values(vref))
 end
 
 # Internal function used to change the parameter value tuple of a point variable
-function _update_variable_param_values(vref::PointVariableRef, pref_vals::Tuple)
+function _update_variable_param_values(vref::PointVariableRef,
+                                       pref_vals::VectorTuple)
     info = JuMP.owner_model(vref).vars[JuMP.index(vref)].info
     ivref = JuMP.owner_model(vref).vars[JuMP.index(vref)].infinite_variable_ref
     JuMP.owner_model(vref).vars[JuMP.index(vref)] = PointVariable(info, ivref,
@@ -937,28 +888,30 @@ end
 
 ## Return the parameter value as an appropriate string
 # Number
-function _make_str_value(value::Number)::String
+function _make_str_value(value)::String
     return string(JuMP._string_round(value))
 end
 
-# AbstractArray
-function _make_str_value(value::AbstractArray)::String
-    if length(keys(value)) <= 4
+# Array{<:Number}
+function _make_str_value(values::Array)::String
+    if length(values) == 1
+        return _make_str_value(first(values))
+    end
+    if length(values) <= 4
         str_value = "["
         counter = 1
-        for key in sort(collect(keys(value)))
-            if counter != length(keys(value))
-                str_value *= JuMP._string_round(value[key]) * ", "
+        for value in values
+            if counter != length(values)
+                str_value *= JuMP._string_round(value) * ", "
             else
-                str_value *= JuMP._string_round(value[key]) * "]"
+                str_value *= JuMP._string_round(value) * "]"
             end
             counter += 1
         end
         return string(str_value)
     else
-        value = [value[key] for key in sort(collect(keys(value)))]
-        return string("[", JuMP._string_round(first(value)), ", ..., ",
-                      JuMP._string_round(last(value)), "]")
+        return string("[", JuMP._string_round(first(values)), ", ..., ",
+                      JuMP._string_round(last(values)), "]")
     end
 end
 
@@ -984,21 +937,33 @@ julia> name(vref)
 """
 function JuMP.set_name(vref::PointVariableRef, name::String)
     if length(name) == 0
-        inf_var_ref = infinite_variable_ref(vref::PointVariableRef)
-        name = _root_name(inf_var_ref)
+        ivref = infinite_variable_ref(vref::PointVariableRef)
+        name = _root_name(ivref)
         values = JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
         name = string(name, "(")
-        for i in eachindex(values)
-            if i != length(values)
-                name *= _make_str_value(values[i]) * ", "
+        for i in 1:size(values, 1)
+            if i != size(values, 1)
+                name *= _make_str_value(values[i, :]) * ", "
             else
-                name *= _make_str_value(values[i]) * ")"
+                name *= _make_str_value(values[i, :]) * ")"
             end
         end
     end
     JuMP.owner_model(vref).var_to_name[JuMP.index(vref)] = name
     JuMP.owner_model(vref).name_to_var = nothing
     return
+end
+
+"""
+    raw_parameter_refs(vref::InfiniteVariableRef)::VectorTuple{ParameterRef}
+
+Return the raw [`VectorTuple`](@ref) of the parameter references that `vref`
+depends on. This is primarily an internal method where
+[`parameter_refs`](@ref parameter_refs(vref::InfiniteVariableRef))
+is intended as the preferred user function.
+"""
+function raw_parameter_refs(vref::InfiniteVariableRef)::VectorTuple{ParameterRef}
+    return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_refs
 end
 
 """
@@ -1017,13 +982,29 @@ julia> parameter_refs(T)
 (t,)
 ```
 """
-function parameter_refs(vref::InfiniteVariableRef)
-    return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_refs
+function parameter_refs(vref::InfiniteVariableRef)::Tuple
+    return Tuple(raw_parameter_refs(vref))
+end
+
+"""
+    parameter_list(vref::InfiniteVariableRef)::Vector{ParameterRef}
+
+Return a vector of the parameter references that `vref` depends on. This is
+primarily an internal method where [`parameter_refs`](@ref parameter_refs(vref::InfiniteVariableRef))
+is intended as the preferred user function.
+"""
+function parameter_list(vref::InfiniteVariableRef)::Vector{ParameterRef}
+    return raw_parameter_refs(vref).values
+end
+
+# get parameter list from raw VectorTuple
+function parameter_list(prefs::VectorTuple{ParameterRef})::Vector{ParameterRef}
+    return prefs.values
 end
 
 # Internal function used to change the parameter reference tuple of an infinite
 # variable
-function _update_variable_param_refs(vref::InfiniteVariableRef, prefs::Tuple)
+function _update_variable_param_refs(vref::InfiniteVariableRef, prefs::VectorTuple)
     info = JuMP.owner_model(vref).vars[JuMP.index(vref)].info
     JuMP.owner_model(vref).vars[JuMP.index(vref)] = InfiniteVariable(info, prefs)
     return
@@ -1034,8 +1015,9 @@ end
 
 Specify a new parameter reference tuple `prefs` for the infinite variable `vref`.
 Note each element must contain a single parameter reference or an array of
-parameter references. Errors if a parameter is double specified or if an element
-contains parameters with different group IDs.
+parameter references. Errors if a parameter is double specified, if an element
+contains parameters with different group IDs, or if there are point variables
+that depend on `vref`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
@@ -1050,13 +1032,16 @@ julia> @infinite_parameter(model, x[1:2] in [-1, 1])
 julia> set_parameter_refs(T, (t, x))
 
 julia> parameter_refs(T)
-(t,   [2]  =  x[2]
-  [1]  =  x[1])
+(t, [x[1], x[2]])
 ```
 """
 function set_parameter_refs(vref::InfiniteVariableRef, prefs::Tuple)
+    if used_by_point_variable(vref) || used_by_reduced_variable(vref)
+        error("Cannot modify parameter dependencies if infinite variable has " *
+              "dependent point variables and/or reduced infinite variables.")
+    end
+    prefs = VectorTuple(prefs)
     _check_parameter_tuple(error, prefs)
-    prefs = _make_formatted_tuple(prefs)
     _check_tuple_groups(error, prefs)
     _update_variable_param_refs(vref, prefs)
     JuMP.set_name(vref, _root_name(vref))
@@ -1072,8 +1057,8 @@ end
 
 Add additional parameter reference or group of parameter references to be
 associated with the infinite variable `vref`. Errors if the parameter references
-are already added to the variable or if the added parameters have different
-group IDs.
+are already added to the variable, if the added parameters have different
+group IDs, or if `vref` has point variable dependencies.
 
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
 julia> @infinite_variable(model, T(t))
@@ -1092,7 +1077,32 @@ julia> name(T)
 """
 function add_parameter_ref(vref::InfiniteVariableRef,
                        pref::Union{ParameterRef, AbstractArray{<:ParameterRef}})
-    set_parameter_refs(vref, (parameter_refs(vref)..., pref))
+    if used_by_point_variable(vref) || used_by_reduced_variable(vref)
+       error("Cannot modify parameter dependencies if infinite variable has " *
+             "dependent point variables and/or reduced infinite variables.")
+    end
+    # check that array only contains one group ID
+    if pref isa AbstractArray
+        first_group = group_id(first(pref))
+        for i in 2:length(pref)
+            if group_id(pref[i]) == first_group
+                error("Each parameter tuple element must have contain only " *
+                      "infinite parameters with the same group ID.")
+            end
+        end
+    end
+    # check that new group is unique from old ones
+    prefs = raw_parameter_refs(vref)
+    if !allunique(group_id.([prefs[:, 1]; first(pref)]))
+        error("Cannot double specify infinite parameter references.")
+    end
+    # add the new parameter(s)
+    prefs = push!(prefs, pref)
+    _update_variable_param_refs(vref, prefs)
+    JuMP.set_name(vref, _root_name(vref))
+    if is_used(vref)
+        set_optimizer_model_ready(JuMP.owner_model(vref), false)
+    end
     return
 end
 
@@ -1276,14 +1286,14 @@ function set_parameter_bounds(vref::HoldVariableRef, bounds::ParameterBounds;
         # check that bounds are valid and add support(s) if necessary
         _check_bounds(bounds, _error = _error)
         # check dependent measures
-        meas_cindices = []
+        cindices = Int[]
         if used_by_measure(vref)
             for mindex in JuMP.owner_model(vref).var_to_meas[JuMP.index(vref)]
                 meas = JuMP.owner_model(vref).measures[mindex]
                 _check_meas_bounds(bounds, meas.data, _error = _error)
                 if used_by_constraint(MeasureRef(JuMP.owner_model(vref), mindex))
                     indices = JuMP.owner_model(vref).meas_to_constrs[mindex]
-                    meas_cindices = [meas_cindices; indices]
+                    push!(cindices, indices...)
                 end
             end
         end
@@ -1291,13 +1301,13 @@ function set_parameter_bounds(vref::HoldVariableRef, bounds::ParameterBounds;
         _validate_bounds(JuMP.owner_model(vref), bounds, _error = _error)
         _update_variable_param_bounds(vref, bounds)
         # check and update dependent constraints
-        if used_by_constraint(vref) || length(meas_cindices) != 0
-            for cindex in unique([meas_cindices; JuMP.owner_model(vref).var_to_constrs[JuMP.index(vref)]])
-                constr = JuMP.owner_model(vref).constrs[cindex]
-                new_constr = _rebuild_constr_bounds(constr, bounds,
-                                                    _error = _error)
-                JuMP.owner_model(vref).constrs[cindex] = new_constr
-            end
+        if used_by_constraint(vref)
+            union!(cindices, JuMP.owner_model(vref).var_to_constrs[JuMP.index(vref)])
+        end
+        for cindex in cindices
+            constr = JuMP.owner_model(vref).constrs[cindex]
+            new_constr = _rebuild_constr_bounds(constr, bounds, _error = _error)
+            JuMP.owner_model(vref).constrs[cindex] = new_constr
         end
         # update status
         JuMP.owner_model(vref).has_hold_bounds = true
@@ -1506,12 +1516,10 @@ function JuMP.set_name(vref::InfiniteVariableRef, root_name::String)
     if length(root_name) == 0
         root_name = "noname"
     end
-    # TODO do something about SparseAxisArrays (report array of values in order)
-    # TODO list as vector and use ... like REPL if there are a lot
-    prefs = parameter_refs(vref)
-    param_names = _root_names(prefs)
+    prefs = raw_parameter_refs(vref)
+    param_names = [_root_name(pref) for pref in prefs[:, 1]]
     param_name_tuple = "("
-    for i = 1:length(param_names)
+    for i in eachindex(param_names)
         if i != length(param_names)
             param_name_tuple *= string(param_names[i], ", ")
         else

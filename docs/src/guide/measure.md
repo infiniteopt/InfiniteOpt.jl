@@ -77,7 +77,7 @@ measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
 julia> measure_data(mref3)
-DiscreteMeasureData(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [5.85812, 5.39289, 2.60036, 9.10047, 1.67036, 6.55448, 5.75887, 8.68279, 9.678, 7.6769], "integral", InfiniteOpt._w)
+DiscreteMeasureData(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [5.85812, 5.39289, 2.60036, 9.10047, 1.67036, 6.55448, 5.75887, 8.68279, 9.678, 7.6769], "integral", InfiniteOpt.default_weight)
 ```
 For more details on the measure data object, refer to [Measure Data Generation](@ref).
 
@@ -102,7 +102,7 @@ Dict{Symbol,Any} with 5 entries:
   :num_supports          => 10
   :eval_method           => :sampling
   :name                  => "integral"
-  :weight_func           => _w
+  :weight_func           => default_weight
   :use_existing_supports => false
 
 julia> set_integral_defaults(model, num_supports = 20, a = 1)
@@ -113,7 +113,7 @@ Dict{Symbol,Any} with 6 entries:
   :num_supports          => 20
   :eval_method           => :sampling
   :name                  => "integral"
-  :weight_func           => _w
+  :weight_func           => default_weight
   :use_existing_supports => false
 ```
 [`integral_defaults`](@ref) returns the current default keyword argument
@@ -174,9 +174,9 @@ can construct the following measure data object to record this discretization
 scheme:
 ```jldoctest meas_basic
 julia> md_t = DiscreteMeasureData(t, ones(10), [i for i in 1:10])
-DiscreteMeasureData(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "measure", InfiniteOpt._w)
+DiscreteMeasureData(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], "measure", InfiniteOpt.default_weight)
 ```
-The arguments of [`DiscreteMeasureData`](@ref DiscreteMeasureData(::ParameterRef, ::Vector{<:Number}, ::Vector{<:Number})) are parameter, coefficients, and
+The arguments of [`DiscreteMeasureData`](@ref DiscreteMeasureData(::ParameterRef, ::Vector{<:Real}, ::Vector{<:Real})) are parameter, coefficients, and
 supports. Users can define a name for the measure data object using the `name`
 keyword argument. The default weight function is ``w(\tau) = 1`` for
 any ``\tau``, which can be overwritten by the keyword argument `weight_function`.
@@ -202,12 +202,7 @@ julia> @infinite_parameter(model, x[1:2] in [0, 1])
  x[2]
 
 julia> md_x = DiscreteMeasureData(x, 0.25 * ones(4), [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75]])
-MultiDiscreteMeasureData(  [2]  =  x[2]
-  [1]  =  x[1], [0.25, 0.25, 0.25, 0.25], JuMP.Containers.SparseAxisArray{Float64,1,Tuple{Int64}}[  [2]  =  0.25
-  [1]  =  0.25,   [2]  =  0.75
-  [1]  =  0.25,   [2]  =  0.25
-  [1]  =  0.75,   [2]  =  0.75
-  [1]  =  0.75], "measure", InfiniteOpt._w)
+MultiDiscreteMeasureData(ParameterRef[x[1], x[2]], [0.25, 0.25, 0.25, 0.25], [0.25 0.25 0.75 0.75; 0.25 0.75 0.25 0.75], "measure", InfiniteOpt.default_weight)
 ```
 where `md_x` cuts the domain into four 0.5-by-0.5 squares, and evaluates the
 integrand on the center of these squares.
@@ -302,7 +297,7 @@ integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``.
 We can set up and expand this measure as follows:
 ```jldoctest meas_basic
 julia> tdata = DiscreteMeasureData(t, [5, 5], [2.5, 7.5])
-DiscreteMeasureData(t, [5, 5], [2.5, 7.5], "measure", InfiniteOpt._w)
+DiscreteMeasureData(t, [5.0, 5.0], [2.5, 7.5], "measure", InfiniteOpt.default_weight)
 
 julia> mref3 = measure(y^2, tdata)
 measure(y(t)²)
@@ -311,7 +306,7 @@ julia> expanded_measure = expand(mref3)
 5 y(2.5)² + 5 y(7.5)²
 
 julia> typeof(expanded_measure)
-GenericQuadExpr{Float64,GeneralVariableRef}
+GenericQuadExpr{Float64,PointVariableRef}
 ```
 In the expand call, two point variables, `y(2.5)` and `y(7.5)`, are created
 because they are not defined in the model before the expand call. One can use
@@ -345,7 +340,7 @@ reduced infinite variable for `T` should only be parameterized by `x` since
 the value of `t` is fixed. The expanded measure now looks like this:
 ```jldoctest meas_basic
 julia> expanded_measure = expand(mref4)
-5 T(x, 2.5) + 5 T(x, 7.5)
+5 T([x[1], x[2]], 2.5) + 5 T([x[1], x[2]], 7.5)
 ```
 where the expanded measure is a `JuMP.GenericAffExpr` that takes
 [`ReducedInfiniteVariableRef`](@ref) in its terms. [`ReducedInfiniteVariableRef`](@ref)
@@ -356,7 +351,7 @@ fixed infinite parameter. One can query this information using
 [`infinite_variable_ref`](@ref) and [`eval_supports`](@ref) function as follows:
 ```jldoctest meas_basic
 julia> T1 = first(keys(expanded_measure.terms))
-T(x, 2.5)
+T([x[1], x[2]], 2.5)
 
 julia> typeof(T1)
 ReducedInfiniteVariableRef
@@ -365,8 +360,8 @@ julia> infinite_variable_ref(T1)
 T(x, t)
 
 julia> eval_supports(T1)
-Dict{Int64,Union{Number, SparseAxisArray{#s56,N,K} where K<:Tuple{Vararg{Any,N}} where N where #s56<:Number}} with 1 entry:
-  2 => 2.5
+Dict{Int64,Float64} with 1 entry:
+  3 => 2.5
 ```
 All the `JuMP` functions extended for infinite variables are also extended for
 reduced infinite variables, e.g. [`JuMP.lower_bound`](@ref JuMP.lower_bound(::ReducedInfiniteVariableRef)).
@@ -400,8 +395,9 @@ support_sum
 integral
 integral_defaults
 set_integral_defaults
-DiscreteMeasureData(::ParameterRef, ::Vector{<:Number}, ::Vector{<:Number})
-DiscreteMeasureData(::AbstractArray{<:ParameterRef}, ::Vector{<:Number}, ::Vector{<:AbstractArray})
+default_weight
+DiscreteMeasureData(::ParameterRef, ::Vector{<:Real}, ::Vector{<:Real})
+DiscreteMeasureData(::AbstractArray{<:ParameterRef}, ::Vector{<:Real}, ::Vector{<:AbstractArray{<:Real}})
 measure
 add_measure
 measure_function
@@ -419,14 +415,22 @@ expand_all_measures!
 measure_name
 parameter_refs(::AbstractMeasureData)
 supports(::AbstractMeasureData)
+coefficients
+weight_function
 measure_data_in_hold_bounds
 expand_measure
+expand_measures
 make_point_variable_ref
-make_reduced_variable_ref(::InfiniteVariableRef, ::Int, ::Union{Number,JuMP.Containers.SparseAxisArray{<:Number}})
-make_reduced_variable_ref(::InfiniteVariableRef, ::Dict)
+make_reduced_variable_ref
+add_measure_variable(::JuMP.Model, ::Any, ::Any)
+delete_internal_reduced_variable
+delete_reduced_variable(::JuMP.Model, ::Any, ::Any)
+reduction_info(::ReducedInfiniteVariableRef, ::Any)
 infinite_variable_ref(::ReducedInfiniteVariableRef)
 eval_supports(::ReducedInfiniteVariableRef)
 parameter_refs(::ReducedInfiniteVariableRef)
+parameter_list(::ReducedInfiniteVariableRef)
+raw_parameter_refs(::ReducedInfiniteVariableRef)
 JuMP.name(::ReducedInfiniteVariableRef)
 JuMP.has_lower_bound(::ReducedInfiniteVariableRef)
 JuMP.lower_bound(::ReducedInfiniteVariableRef)
