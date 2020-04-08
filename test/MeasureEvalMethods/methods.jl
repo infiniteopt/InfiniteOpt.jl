@@ -43,6 +43,12 @@ end
         expect_weights = expect_weights * 2
         @test supports == expect_supports
         @test weights == expect_weights
+        lb = convert(JuMPC.SparseAxisArray, [0., 0.])
+        ub = convert(JuMPC.SparseAxisArray, [1., 4.])
+        @test_throws ErrorException  generate_supports_and_coeffs(IntervalSet(0, 0),
+                                       t, 5, nothing, nothing, Val(gauss_legendre))
+        @test_throws ErrorException  generate_supports_and_coeffs(IntervalSet(0, 0),
+                                       t, 5, lb, ub, Val(gauss_legendre))
     end
 
     # test Gauss-Hermite method for infinite interval
