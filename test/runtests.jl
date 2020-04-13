@@ -1,6 +1,6 @@
 # Load in the dependencies
 using InfiniteOpt, JuMP, MathOptInterface, Distributions, Random,
-FastGaussQuadrature, MutableArithmetics, DataStructures
+FastGaussQuadrature, DataStructures
 
 # load the test module
 using Test
@@ -14,7 +14,6 @@ const MOI = MathOptInterface
 const MOIU = MathOptInterface.Utilities
 const MOIUC = MathOptInterface.Utilities.CleverDicts
 const FGQ = FastGaussQuadrature
-const MA = MutableArithmetics
 
 # Load in testing utilities
 include("utilities.jl")

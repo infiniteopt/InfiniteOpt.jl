@@ -449,26 +449,6 @@ function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
 end
 
 """
-    JuMP.is_valid(model::InfiniteModel, pref::ParameterRef)::Bool
-
-Extend the [`JuMP.is_valid`](@ref JuMP.is_valid(::JuMP.Model, ::JuMP.VariableRef))
-function to accomodate infinite parameters.
-Returns true if the `InfiniteModel` stored in `pref` matches `model` and if
-the parameter index is used by `model`. It returns false otherwise.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> is_valid(model, t)
-true
-```
-"""
-function JuMP.is_valid(model::InfiniteModel, pref::ParameterRef)::Bool
-    check1 = model === JuMP.owner_model(pref)
-    check2 = JuMP.index(pref) in keys(model.params)
-    return check1 && check2
-end
-
-"""
     JuMP.name(pref::ParameterRef)::String
 
 Extend the [`JuMP.name`](@ref JuMP.name(::JuMP.VariableRef)) function to
