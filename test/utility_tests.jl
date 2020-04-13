@@ -2,39 +2,6 @@
 @testset "Convert Extensions" begin
     m = Model()
     @variable(m, x[1:2])
-    # GenericAffExpr -> GenericAffExpr
-    @testset "Aff->Aff" begin
-        aff = x[1] - 3 * x[2] - 2
-        @test convert(GenericAffExpr{Float64, VariableRef}, aff) == aff
-        @test typeof(convert(GenericAffExpr{Float64, AbstractVariableRef},
-                           aff)) == GenericAffExpr{Float64, AbstractVariableRef}
-        @test convert(GenericAffExpr{Float64, AbstractVariableRef},
-                      aff).terms == aff.terms
-        @test convert(GenericAffExpr{Float64, AbstractVariableRef},
-                      aff).constant == aff.constant
-    end
-    # GenericQuadExpr -> GenericQuadExpr
-    @testset "Quad->Quad" begin
-        quad = 2 * x[1] * x[2] + x[1] - 1
-        @test convert(GenericQuadExpr{Float64, VariableRef}, quad) == quad
-        @test typeof(convert(GenericQuadExpr{Float64, AbstractVariableRef},
-                         quad)) == GenericQuadExpr{Float64, AbstractVariableRef}
-        @test convert(GenericQuadExpr{Float64, AbstractVariableRef},
-                      quad).aff.terms == quad.aff.terms
-        @test convert(GenericQuadExpr{Float64, AbstractVariableRef},
-                      quad).aff.constant == quad.aff.constant
-        @test convert(GenericQuadExpr{Float64, AbstractVariableRef},
-                      quad).terms == quad.terms
-    end
-    # UnorderedPair -> UnorderedPair
-    @testset "UoPair->UoPair" begin
-        pair = UnorderedPair(x[1], x[2])
-        @test convert(UnorderedPair{VariableRef}, pair) == pair
-        @test typeof(convert(UnorderedPair{AbstractVariableRef},
-                                    pair)) == UnorderedPair{AbstractVariableRef}
-        @test convert(UnorderedPair{AbstractVariableRef}, pair).a == pair.a
-        @test convert(UnorderedPair{AbstractVariableRef}, pair).b == pair.b
-    end
     # Array -> SparseAxisArray
     @testset "Array->Sparse" begin
         @test convert(JuMPC.SparseAxisArray,
@@ -64,11 +31,7 @@ end
 @testset "Parameter Bounds" begin
     # setup
     m = InfiniteModel()
-    m.params[1] = InfOptParameter(IntervalSet(0, 10), Number[], false)
-    m.params[2] = InfOptParameter(IntervalSet(0, 10), Number[], false)
-    m.params[3] = InfOptParameter(IntervalSet(0, 10), Number[], false)
-    par = ParameterRef(m, 1)
-    pars = [ParameterRef(m, 2), ParameterRef(m, 3)]
+    par = GeneralVariableRef(m, 1, IndependentParameterIndex)
     # test length
     @testset "Base.length" begin
         @test length(ParameterBounds()) == 0
@@ -100,45 +63,6 @@ end
     a = JuMPC.SparseAxisArray(Dict((1,)=>-0, (3,)=>1.1))
     b = JuMPC.SparseAxisArray(Dict((1,)=>-0, (3,)=>1.1 + 1e-30))
     @test isapprox(a, b)
-end
-
-# Test the possible_convert functions
-@testset "_possible_convert" begin
-    m = Model()
-    @variable(m, x[1:2])
-    # GenericAffExpr conversions
-    @testset "GenericAffExpr" begin
-        aff = x[1] - 3 * x[2] - 2
-        @test typeof(InfiniteOpt._possible_convert(VariableRef,
-                                   aff)) == GenericAffExpr{Float64, VariableRef}
-        @test typeof(InfiniteOpt._possible_convert(AbstractVariableRef,
-                           aff)) == GenericAffExpr{Float64, AbstractVariableRef}
-        @test InfiniteOpt._possible_convert(AbstractVariableRef,
-                                            aff).terms == aff.terms
-        @test InfiniteOpt._possible_convert(AbstractVariableRef,
-                                            aff).constant == aff.constant
-        @test typeof(InfiniteOpt._possible_convert(GeneralVariableRef,
-                                   aff)) == GenericAffExpr{Float64, VariableRef}
-    end
-    # GenericQuadExpr conversions
-    @testset "GenericQuadExpr" begin
-        quad = 2 * x[1] * x[2] + x[1] - 1
-        quad2 = zero(JuMP.QuadExpr) + x[1] - 3
-        @test typeof(InfiniteOpt._possible_convert(VariableRef,
-                                 quad)) == GenericQuadExpr{Float64, VariableRef}
-        @test typeof(InfiniteOpt._possible_convert(AbstractVariableRef,
-                         quad)) == GenericQuadExpr{Float64, AbstractVariableRef}
-        @test InfiniteOpt._possible_convert(AbstractVariableRef,
-                                            quad).aff.terms == quad.aff.terms
-        @test InfiniteOpt._possible_convert(AbstractVariableRef,
-                                         quad).aff.constant == quad.aff.constant
-        @test InfiniteOpt._possible_convert(AbstractVariableRef,
-                                            quad).terms == quad.terms
-        @test typeof(InfiniteOpt._possible_convert(GeneralVariableRef,
-                                 quad)) == GenericQuadExpr{Float64, VariableRef}
-        @test typeof(InfiniteOpt._possible_convert(GeneralVariableRef,
-                                 quad2)) == GenericQuadExpr{Float64, VariableRef}
-    end
 end
 
 # Test the _make_vector functions

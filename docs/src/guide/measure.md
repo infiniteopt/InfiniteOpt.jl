@@ -377,9 +377,11 @@ AbstractMeasureData
 DiscreteMeasureData
 MultiDiscreteMeasureData
 Measure
+MeasureIndex
+MeasureData
 MeasureRef
-AbstractReducedInfo
-ReducedInfiniteInfo
+ReducedInfiniteVariable
+ReducedInfiniteVariableIndex
 ReducedInfiniteVariableRef
 ```
 

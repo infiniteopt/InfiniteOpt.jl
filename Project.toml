@@ -1,7 +1,7 @@
 name = "InfiniteOpt"
 uuid = "20393b10-9daf-11e9-18c9-8db751c92c57"
 authors = ["Joshua Pulsipher and Weiqi Zhang"]
-version = "0.1.1"
+version = "0.2.0"
 
 [deps]
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
@@ -11,6 +11,7 @@ Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
 MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 
 [compat]
 julia = "1"
@@ -19,6 +20,7 @@ FastGaussQuadrature = "^0.3.2, ~0.4"
 Distributions = "~0.19, ~0.20, ~0.21, ~0.22, ~0.23"
 MathOptInterface = "~0.9.11"
 MutableArithmetics = "~0.2"
+DataStructures = "^0.14.2, ~0.15, ~0.16, ~0.17"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

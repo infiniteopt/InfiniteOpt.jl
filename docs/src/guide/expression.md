@@ -11,7 +11,7 @@ types and methods principally pertaining to affine and quadratic mathematical
 expressions. An natively supported abstraction for general nonlinear expressions
 is currently under development since that of `JuMP` is not readily extendable.
 
-## Datatype Hierarchy
+## Variable Hierarchy
 Expressions employ variable reference types inherited from
 [`JuMP.AbstractVariableRef`](@ref) to form expression objects. `InfiniteOpt`
 uses a hierarchy of such types to organize the complexities associated with
@@ -174,3 +174,123 @@ methods in `JuMP` are not yet extended for `InfiniteOpt`. This is because
 `JuMP` no longer readily supports nonlinear extensions, but a native nonlinear
 implementation is currently under development and should be released in the near
 future.
+
+## DataTypes
+```@index
+Pages   = ["expression.md"]
+Modules = [InfiniteOpt]
+Order   = [:type]
+```
+```@docs
+GeneralVariableRef
+DispatchVariableRef
+MeasureFiniteVariableRef
+FiniteVariableRef
+```
+
+## User Methods
+```@docs
+JuMP.index(::GeneralVariableRef)
+JuMP.index(::DispatchVariableRef)
+JuMP.owner_model(::GeneralVariableRef)
+JuMP.owner_model(::DispatchVariableRef)
+dispatch_variable_ref(::GeneralVariableRef)
+JuMP.name(::GeneralVariableRef)
+JuMP.set_name(::GeneralVariableRef, ::String)
+JuMP.is_valid(::InfiniteModel,::GeneralVariableRef)
+used_by_infinite_variable(::GeneralVariableRef)
+used_by_point_variable(::GeneralVariableRef)
+used_by_measure(::GeneralVariableRef)
+used_by_objective(::GeneralVariableRef)
+used_by_constraint(::GeneralVariableRef)
+is_used(::GeneralVariableRef)
+JuMP.delete(::InfiniteModel, ::GeneralVariableRef)
+JuMP.has_lower_bound(::GeneralVariableRef)
+JuMP.lower_bound(::GeneralVariableRef)
+JuMP.set_lower_bound(::GeneralVariableRef,::Real)
+JuMP.LowerBoundRef(::GeneralVariableRef)
+JuMP.delete_lower_bound(::GeneralVariableRef)
+JuMP.has_upper_bound(::GeneralVariableRef)
+JuMP.upper_bound(::GeneralVariableRef)
+JuMP.set_upper_bound(::GeneralVariableRef,::Real)
+JuMP.UpperBoundRef(::GeneralVariableRef)
+JuMP.delete_upper_bound(::GeneralVariableRef)
+JuMP.is_fixed(::GeneralVariableRef)
+JuMP.fix_value(::GeneralVariableRef)
+JuMP.fix(::GeneralVariableRef, ::Real)
+JuMP.FixRef(::GeneralVariableRef)
+JuMP.unfix(::GeneralVariableRef)
+JuMP.start_value(::GeneralVariableRef)
+JuMP.set_start_value(::GeneralVariableRef, ::Real)
+JuMP.is_binary(::GeneralVariableRef)
+JuMP.set_binary(::GeneralVariableRef)
+JuMP.BinaryRef(::GeneralVariableRef)
+JuMP.unset_binary(::GeneralVariableRef)
+JuMP.is_integer(::GeneralVariableRef)
+JuMP.set_integer(::GeneralVariableRef)
+JuMP.IntegerRef(::GeneralVariableRef)
+JuMP.unset_integer(::GeneralVariableRef)
+```
+
+## Developer Docs
+```@index
+Pages   = ["expression.md"]
+Modules = [InfiniteOpt, JuMP]
+Order   = [:macro, :function]
+```
+```@docs
+dispatch_variable_ref
+_add_data_object
+_data_dictionary
+_data_object
+_delete_data_object
+JuMP.name(::DispatchVariableRef)
+JuMP.set_name(::DispatchVariableRef,::String)
+JuMP.is_valid(::InfiniteModel, ::DispatchVariableRef)
+_core_variable_object
+_core_variable_object(::GeneralVariableRef)
+_set_core_variable_object
+_infinite_variable_dependencies
+_infinite_variable_dependencies(::GeneralVariableRef)
+_reduced_variable_dependencies
+_reduced_variable_dependencies(::GeneralVariableRef)
+_point_variable_dependencies
+_point_variable_dependencies(::GeneralVariableRef)
+_measure_dependencies
+_measure_dependencies(::GeneralVariableRef)
+_constraint_dependencies
+_constraint_dependencies(::GeneralVariableRef)
+used_by_infinite_variable(::DispatchVariableRef)
+used_by_reduced_variable(::DispatchVariableRef)
+used_by_point_variable(::DispatchVariableRef)
+used_by_measure(::DispatchVariableRef)
+used_by_objective(::DispatchVariableRef)
+used_by_constraint(::DispatchVariableRef)
+is_used(::DispatchVariableRef)
+JuMP.delete(::InfiniteModel, ::DispatchVariableRef)
+JuMP.has_lower_bound(::DispatchVariableRef)
+JuMP.lower_bound(::DispatchVariableRef)
+JuMP.set_lower_bound(::DispatchVariableRef,::Real)
+JuMP.LowerBoundRef(::DispatchVariableRef)
+JuMP.delete_lower_bound(::DispatchVariableRef)
+JuMP.has_upper_bound(::DispatchVariableRef)
+JuMP.upper_bound(::DispatchVariableRef)
+JuMP.set_upper_bound(::DispatchVariableRef,::Real)
+JuMP.UpperBoundRef(::DispatchVariableRef)
+JuMP.delete_upper_bound(::DispatchVariableRef)
+JuMP.is_fixed(::DispatchVariableRef)
+JuMP.fix_value(::DispatchVariableRef)
+JuMP.fix(::DispatchVariableRef, ::Real)
+JuMP.FixRef(::DispatchVariableRef)
+JuMP.unfix(::DispatchVariableRef)
+JuMP.start_value(::DispatchVariableRef)
+JuMP.set_start_value(::DispatchVariableRef, ::Real)
+JuMP.is_binary(::DispatchVariableRef)
+JuMP.set_binary(::DispatchVariableRef)
+JuMP.BinaryRef(::DispatchVariableRef)
+JuMP.unset_binary(::DispatchVariableRef)
+JuMP.is_integer(::DispatchVariableRef)
+JuMP.set_integer(::DispatchVariableRef)
+JuMP.IntegerRef(::DispatchVariableRef)
+JuMP.unset_integer(::DispatchVariableRef)
+```

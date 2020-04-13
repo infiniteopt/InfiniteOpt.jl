@@ -769,10 +769,10 @@ InfiniteVariable
 PointVariable
 ParameterBounds
 HoldVariable
-InfOptVariableRef
-GeneralVariableRef
-MeasureFiniteVariableRef
-FiniteVariableRef
+VariableData
+InfiniteVariableIndex
+PointVariableIndex
+HoldVariableIndex
 InfiniteVariableRef
 PointVariableRef
 HoldVariableRef

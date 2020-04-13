@@ -589,26 +589,6 @@ end
     @testset "group_id" begin
         @test group_id(pref) == 1
     end
-    # _group (Parameter)
-    @testset "_group (Parameter)" begin
-        @test InfiniteOpt._group(pref) == 1
-    end
-    # _group (Array)
-    @testset "_group (Array)" begin
-        @test InfiniteOpt._group(prefs) == 3
-    end
-    # group_id (array)
-    @testset "group_id (array)" begin
-        @test group_id(prefs) == 3
-        @test_throws ErrorException group_id([pref; pref2])
-    end
-    # _only_one_group
-    @testset "_only_one_group" begin
-        @test InfiniteOpt._only_one_group(pref)
-        @test InfiniteOpt._only_one_group(prefs)
-        @test !InfiniteOpt._only_one_group(convert(JuMP.Containers.SparseAxisArray,
-                                                                 [pref2; pref]))
-    end
     # _root_name
     @testset "_root_name" begin
         @test InfiniteOpt._root_name(pref) == "test"

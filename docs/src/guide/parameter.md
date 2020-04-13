@@ -818,7 +818,16 @@ Order   = [:type]
 ```
 ```@docs
 InfOptParameter
-ParameterRef
+ScalarParameter
+IndependentParameter
+DependentParameters
+ScalarParameterData
+MultiParameterData
+IndependentParameterIndex
+DependentParametersIndex
+DependentParameterIndex
+IndependentParameterRef
+DependentParameterRef
 ```
 
 ## Methods/Macros

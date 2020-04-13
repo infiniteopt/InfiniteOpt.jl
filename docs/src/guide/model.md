@@ -155,6 +155,9 @@ Such solvers include [Bonmin](https://projects.coin-or.org/Bonmin) and
 ## Datatypes
 ```@docs
 InfiniteModel
+AbstractDataObject
+AbstractInfOptIndex
+ObjectIndex
 ```
 
 ## Methods

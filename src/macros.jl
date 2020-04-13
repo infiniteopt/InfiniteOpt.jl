@@ -896,7 +896,7 @@ macro hold_variable(model, args...)
            name_expr, bounds = InfiniteOpt._extract_bounds(_error, x.args,
                                                            Val(x.head))
         else
-           _error("Unrecognized input format for parameter bounds. Must be of " *
+           _error("Unrecognized input format for parameter bounds. Must be " *
                   "tuple with elements of form: par(s) in [lb, ub] or " *
                   "par(s) = value.")
         end

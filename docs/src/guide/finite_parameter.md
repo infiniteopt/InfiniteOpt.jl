@@ -79,6 +79,17 @@ bound value (also ensuring the bounds match) and
 [`JuMP.set_value`](@ref JuMP.set_value(::ParameterRef, ::Number)) updates the
 the `IntervalSet` and updates the support value.
 
+## Datatypes
+```@index
+Pages   = ["finite_parameter.md"]
+Modules = [InfiniteOpt]
+Order   = [:type]
+```
+```@docs
+FiniteParameter
+FiniteParameterRef
+```
+
 ## Methods/Macros
 ```@index
 Pages   = ["finite_parameter.md"]

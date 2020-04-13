@@ -16,7 +16,7 @@ However, for convenience below we summary the infinite sets associated with
 | Set Type        | Domain              |
 |:---------------:|:-------------------:|
 | IntervalSet     | ``[lb, ub]``        |
-| DistributionSet | ``\sim \mathcal{D}``|
+| UniDistributionSet | ``\sim \mathcal{D}``|
 
 
 ## IntervalSets
@@ -33,15 +33,15 @@ julia> set = IntervalSet(-2, 2)
 ```
 Note that infinite bounds are acceptable.
 
-## DistributionSets
-The second kind of set is that of [`DistributionSet`](@ref) which contains
+## UniDistributionSets
+The second kind of set is that of [`UniDistributionSet`](@ref) which contains
 distribution from [`Distributions.jl`](https://github.com/JuliaStats/Distributions.jl)
 that characterizes an infinite parameter. Univariate and multivariate
 distributions can be used, but multivariate distributions are only valid when
 defining an array of parameters with equivalent dimensions. For example, let's
-make a `DistributionSet` that depends on a Beta distribution:
+make a `UniDistributionSet` that depends on a Beta distribution:
 ```jldoctest; setup = :(using InfiniteOpt, Distributions)
-julia> set = DistributionSet(Beta(2,2))
+julia> set = UniDistributionSet(Beta(2,2))
 Beta{Float64}(α=2.0, β=2.0)
 ```
 User-defined distributions are also permissible so long as they are created in
@@ -59,8 +59,12 @@ Order   = [:type]
 ```
 ```@docs
 AbstractInfiniteSet
+InfiniteScalarSet
 IntervalSet
-DistributionSet
+UniDistributionSet
+InfiniteArraySet
+MultiDistributionSet
+CollectionSet
 ```
 
 ## Methods

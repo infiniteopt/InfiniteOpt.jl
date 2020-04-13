@@ -3,31 +3,7 @@ const Infinite = :Infinite
 const Point = :Point
 const Hold = :Hold
 
-## Extend Base.copy for new variable types
-# No new model
-Base.copy(v::GeneralVariableRef) = v
-
-# With new model
-function Base.copy(v::T, new_model::InfiniteModel)::GeneralVariableRef where {T <: GeneralVariableRef}
-    return T(new_model, v.index)
-end
-
-## Extend other Base functions
-# Base.:(==)
-function Base.:(==)(v::T, w::U)::Bool where {T <: GeneralVariableRef,
-                                             U <: GeneralVariableRef}
-    return v.model === w.model && v.index == w.index && T == U
-end
-
-# Base.broadcastable
-Base.broadcastable(v::GeneralVariableRef) = Ref(v)
-
-# Base.length
-Base.length(v::GeneralVariableRef) = 1
-
-# Extend JuMP functions
-JuMP.isequal_canonical(v::GeneralVariableRef, w::GeneralVariableRef) = v == w
-JuMP.variable_type(model::InfiniteModel) = GeneralVariableRef
+# Extend JuMP.variable_type to dispatch the correct type
 function JuMP.variable_type(model::InfiniteModel, type::Symbol)
     if type == Infinite
         return InfiniteVariableRef

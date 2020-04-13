@@ -1234,22 +1234,3 @@ function _root_name(pref::ParameterRef)::String
         end
     end
 end
-
-## Internal functions for group checking
-# Return group id of ParameterRef
-function _group(pref::ParameterRef)::Int
-    return group_id(pref)
-end
-
-# Return the group if of the first element in an array (assuming all same)
-function _group(arr::AbstractArray{<:ParameterRef})::Int
-    return group_id(first(arr))
-end
-
-# Return true if SparseAxisArray only has one group
-function _only_one_group(arr::JuMPC.SparseAxisArray{<:ParameterRef})::Bool
-    return length(unique(group_id.(arr))) == 1
-end
-
-# Return true to have one group ID since is singular
-_only_one_group(pref::ParameterRef)::Bool = true

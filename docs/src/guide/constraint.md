@@ -507,10 +507,11 @@ Order   = [:type]
 ```
 ```@docs
 BoundedScalarConstraint
-GeneralConstraintRef
+CosntraintData
+ConstraintIndex
+InfOptConstraintRef
 InfiniteConstraintRef
 FiniteConstraintRef
-MeasureConstraintRef
 ```
 
 ## Methods/Macros

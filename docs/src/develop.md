@@ -38,7 +38,7 @@ through step by step how this should be done.
      computer. This needs to be done via the `dev` command in the package manager
      so you can edit it. The syntax is as follows:
      ```julia
-     (v1.3) pkg> dev https://github.com/username-here/InfiniteOpt.jl
+     (v1.4) pkg> dev https://github.com/username-here/InfiniteOpt.jl
      ```
      We also recommend you install [`Revise.jl`](https://github.com/timholy/Revise.jl)
      which is very useful when developing packages in Julia.
@@ -179,7 +179,7 @@ In addition, we adopt the following practices:
    end
    ```
  - All function arguments and struct elements should be typed. Also, function
-   outputs should be typed where possible unless nothing is returned.   
+   outputs should be typed where possible.   
    This is bad:
    ```julia
    function my_new_function(arg1, arg2)
@@ -203,7 +203,7 @@ In addition, we adopt the following practices:
  - Type dispatch should be used instead of conditional statements based on type:
    This is bad:
    ```julia
-   function my_new_function(arg::AbstractType)
+   function my_new_function(arg::AbstractType)::ReturnType
      if arg isa Type1
          temp = arg + 1
      elseif arg isa Type2
@@ -217,20 +217,19 @@ In addition, we adopt the following practices:
    ```julia
    ## Internal dispatch for my_new_function
    # Type1
-   function _my_internal_function(arg::Type1)
+   function _my_internal_function(arg::Type1)::Int
        return arg + 1
    end
    # Type2
-   function _my_internal_function(arg::Type1)
+   function _my_internal_function(arg::Type1)::Int
        return 0
    end
    # Fallback
    function _my_internal_function(arg::AbstractType)
        error("Unrecognized type...")
-       return
    end
    # Main method
-   function my_new_function(arg::AbstractType)
+   function my_new_function(arg::AbstractType)::ReturnType
      temp = _my_internal_function(arg)
      # do more stuff with temp
      return temp

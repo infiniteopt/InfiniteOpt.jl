@@ -17,7 +17,7 @@ function JuMP.in_set_string(print_mode, set::IntervalSet)::String
 end
 
 # Extend to return of in set string for distribution sets
-function JuMP.in_set_string(print_mode, set::DistributionSet)::String
+function JuMP.in_set_string(print_mode, set::UniDistributionSet)::String
     # get distribution string
     d_string = string(set.distribution)
     # remove number type
@@ -73,7 +73,7 @@ function JuMP.constraint_string(print_mode,
 end
 
 # Return a string for a constraint reference
-function JuMP.constraint_string(print_mode, ref::GeneralConstraintRef)
+function JuMP.constraint_string(print_mode, ref::InfOptConstraintRef)
     return JuMP.constraint_string(print_mode, JuMP.name(ref),
            JuMP.constraint_object(ref))
 end
