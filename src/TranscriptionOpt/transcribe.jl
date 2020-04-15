@@ -17,6 +17,23 @@ function _initialize_hold_variables(trans_model::JuMP.Model,
     return
 end
 
+"""
+Product via CartesianIndices
+```
+julia> a = ([1, 5], [3, 6, 8], [-1, 1]);
+
+julia> ranges = Tuple(UnitRange(1, length(i)) for i in a);
+
+julia> inds = CartesianIndices(ntuple(i -> ranges[i], length(a)));
+
+julia> d = Vector{Vector{Int}}(undef, length(inds));
+
+julia> for i in eachindex(d)
+       d[i] = [a[j][inds[i][j]] for j in 1:length(a)]
+       end
+```
+"""
+
 # Return a vector of arrays containing the supports
 function _list_supports(prefs::Tuple)::Vector
     return [InfiniteOpt.supports(pref) for pref in prefs]

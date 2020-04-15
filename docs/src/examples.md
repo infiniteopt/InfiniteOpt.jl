@@ -77,10 +77,13 @@ ybar3 = 0           # no upper bound on the other crops
 ```
 Great now we can formulate and solve the problem using `InfiniteOpt`:
 ```jldoctest 2-stage; output = false
-using InfiniteOpt, JuMP, Ipopt
+using InfiniteOpt, JuMP, Ipopt, Random
+
+# Seed for repeatability
+Random.seed!(0)
 
 # Initialize the model
-model = InfiniteModel(Ipopt.Optimizer, seed = true) # seed to test output
+model = InfiniteModel(Ipopt.Optimizer) # seed to test output
 set_optimizer_attribute(model, "print_level", 0)
 
 # Define the random parameters

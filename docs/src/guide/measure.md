@@ -17,7 +17,7 @@ approximates the measures based on the expression values at these points.
 First, we consider a dynamic optimization problem with the time parameter `t`
 from 0 to 10. We also consider a state variable `y(t)` and a control variable
 `u(t)` that are parameterized by `t`:
-```jldoctest meas_basic; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(seed = true))
+```jldoctest meas_basic; setup = :(using InfiniteOpt, JuMP, Random; Random.seed!(0); model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10])
 t
 

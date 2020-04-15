@@ -4,12 +4,9 @@ module InfiniteOpt
 import JuMP
 import MathOptInterface
 import Distributions
-import Random
-import MutableArithmetics
 import DataStructures
 
 # Make useful aliases
-const _MA = MutableArithmetics
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 const JuMPC = JuMP.Containers
