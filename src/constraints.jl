@@ -218,7 +218,8 @@ name : g(t) + x = 42.0
 ```
 """
 function JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint,
-                             name::String = "")
+                             name::String = "";
+                             is_info_constr::Bool = false) # TODO implement this keyword
     isa(c, JuMP.VectorConstraint) && error("Vector constraints not supported.")
     JuMP.check_belongs_to_model(c.func, model)
     vrefs = _all_function_variables(c.func)

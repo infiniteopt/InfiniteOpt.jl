@@ -378,6 +378,10 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
 
 **Fields**
 - `parameter::P`: The scalar parameter.
+- `object_num::Int`: The location of the corresponding `ObjectIndex` in
+    `InfiniteModel.param_object_indices` (given by `InfiniteModel.last_object_num`).
+- `parameter_num::Int`: Given by `InfiniteModel.last_param_num` (updated when
+                        prior parameters are deleted)
 - `name::String`: The name used for printing.
 - `infinite_var_indices::Vector{InfiniteVariableIndex}`: Indices of dependent
    infinite variables.
@@ -386,15 +390,19 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
 """
 mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     parameter::P
+    object_num::Int
+    parameter_num::Int
     name::String
     infinite_var_indices::Vector{InfiniteVariableIndex}
     measure_indices::Vector{MeasureIndex}
     constraint_indices::Vector{ConstraintIndex}
     function ScalarParameterData(param::P,
+                                 object_num::Int,
+                                 parameter_num::Int,
                                  name::String = ""
                                  ) where {P <: ScalarParameter}
-        return new{P}(param, name, InfiniteVariableIndex[], MeasureIndex[],
-                   ConstraintIndex[])
+        return new{P}(param, object_num, parameter_num, name,
+                      InfiniteVariableIndex[], MeasureIndex[], ConstraintIndex[])
     end
 end
 
@@ -405,6 +413,10 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 
 **Fields**
 - `parameters::DependentParametersP`: The parameter collection.
+- `object_num::Int`: The location of the corresponding `ObjectIndex` in
+   `InfiniteModel.param_object_indices` (given by `InfiniteModel.last_object_num`).
+- `parameter_nums::UnitRange{Int}`: Given by `InfiniteModel.last_param_num`
+                                    (updated when prior parameters are deleted)
 - `names::Vector{String}`: The names used for printing each parameter.
 - `infinite_var_indices::Vector{Vector{InfiniteVariableIndex}}`: Indices of
    dependent infinite variables.
@@ -414,17 +426,21 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 """
 mutable struct MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
     parameters::DependentParameters{T}
+    object_num::Int
+    parameter_nums::UnitRange{Int}
     names::Vector{String}
     infinite_var_indices::Vector{Vector{InfiniteVariableIndex}}
     measure_indices::Vector{Vector{MeasureIndex}}
     constraint_indices::Vector{Vector{ConstraintIndex}}
     function MultiParameterData(params::DependentParameters{T},
-                                names::Vector{String}
+                                object_num::Int,
+                                parameter_nums::UnitRange{Int},
+                                names::Vector{String},
                                 ) where {T <: InfiniteArraySet}
-        return new{T}(params, names,
-                   [InfiniteVariableIndex[] for i in eachindex(names)],
-                   [MeasureIndex[] for i in eachindex(names)],
-                   [ConstraintIndex[] for i in eachindex(names)])
+        return new{T}(params, object_num, parameter_nums, names,
+                      [InfiniteVariableIndex[] for i in eachindex(names)],
+                      [MeasureIndex[] for i in eachindex(names)],
+                      [ConstraintIndex[] for i in eachindex(names)])
     end
 end
 
@@ -464,13 +480,17 @@ that refer to the same dependent parameter group must be in the same tuple eleme
 Also, the variable reference type `P` must pertain to infinite parameters.
 
 **Fields**
-- `info::JuMP.VariableInfo{S, T, U, V}` JuMP variable information.
-- `parameter_refs::VectorTuple{P}` The infinite parameter references that
+- `info::JuMP.VariableInfo{S, T, U, V}`: JuMP variable information.
+- `parameter_refs::VectorTuple{P}`: The infinite parameter references that
                                     parameterize the variable.
+- `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
+- `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
 """
 struct InfiniteVariable{S, T, U, V, P <: JuMP.AbstractVariableRef} <: InfOptVariable
     info::JuMP.VariableInfo{S, T, U, V}
     parameter_refs::VectorTuple{P}
+    parameter_nums::Vector{Int}
+    object_nums::Vector{Int}
 end
 
 """
@@ -480,13 +500,16 @@ A `DataType` for storing reduced infinite variables which partially support an
 infinite variable.
 
 **Fields**
-- `infinite_variable_index::I` The original infinite variable.
-- `eval_supports::Dict{Int, Float64}` The original parameter tuple linear indices
+- `infinite_variable_index::I`: The original infinite variable.
+- `eval_supports::Dict{Int, Float64}`: The original parameter tuple linear indices
                                      to the evaluation supports.
+- `object_nums::Vector{Int}`: The parameter object numbers associated with the
+                              reduced `parameter_refs`.
 """
 struct ReducedInfiniteVariable{I <: JuMP.AbstractVariableRef} <: InfOptVariable
     infinite_variable_ref::I
     eval_supports::Dict{Int, Float64}
+    object_nums::Vector{Int}
 end
 
 """
@@ -500,13 +523,13 @@ defined in [`InfiniteVariable`](@ref)
 - `info::JuMP.VariableInfo{S, T, U, V}` JuMP Variable information.
 - `infinite_variable_ref::I` The infinite variable reference
     associated with the point variable.
-- `parameter_values::VectorTuple{Float64}` The infinite parameter values
+- `parameter_values::Vector{Float64}` The infinite parameter values
     defining the point.
 """
 struct PointVariable{S, T, U, V, I <: JuMP.AbstractVariableRef} <: InfOptVariable
     info::JuMP.VariableInfo{S, T, U, V}
     infinite_variable_ref::I
-    parameter_values::VectorTuple{Float64} # TODO maybe replace with Vector
+    parameter_values::Vector{Float64}
 end
 
 """
@@ -639,13 +662,18 @@ A `DataType` for measure abstractions.
 - `func::T` Infinite variable expression.
 - `data::V` Data of the abstraction as described in a `AbstractMeasureData`
             subtype.
+- `object_nums::Vector{Int}`: The parameter object numbers of the evaluated
+                              measure expression.
+- `parameter_nums::Vector{Int}`: The parameter numbers that parameterize the evaluated
+                                 measure expression.
 """
 struct Measure{T <: JuMP.AbstractJuMPScalar, V <: AbstractMeasureData}
     func::T
     data::V
+    object_nums::Vector{Int}
+    parameter_nums::Vector{Int}
 end
 
-# TODO store the transcription parameter indices in an appropriate way
 """
     MeasureData{T <: JuMP.AbstractJuMPScalar,
                 V <: AbstractMeasureData} <: AbstractDataObject
@@ -704,7 +732,6 @@ struct BoundedScalarConstraint{F <: JuMP.AbstractJuMPScalar,
     orig_bounds::ParameterBounds{P}
 end
 
-# TODO store the transcription parameter indices in an appropriate way
 """
     ConstraintData{C <: JuMP.AbstractConstraint} <: AbstractDataObject
 
@@ -712,20 +739,18 @@ A mutable `DataType` for storing constraints and their data.
 
 **Fields**
 - `constraint::C`: The scalar constraint.
+- `object_nums::Vector{Int}`: The object numbers of the parameter objects that the
+                              constraint depends on.
 - `name::String`: The name used for printing.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `is_info_constraint::Bool`: Is this is constraint based on variable info (e.g., lower bound)
 """
 mutable struct ConstraintData{C <: JuMP.AbstractConstraint} <: AbstractDataObject
     constraint::C
+    object_nums::Vector{Int}
     name::String
     measure_indices::Vector{MeasureIndex}
     is_info_constraint::Bool
-    function ConstraintData(constraint::C,
-                            name::String
-                            ) where {C <: JuMP.AbstractConstraint}
-        return new{C}(constraint, name, MeasureIndex[], false)
-    end
 end
 
 ################################################################################
@@ -746,6 +771,10 @@ model an optmization problem with an infinite-dimensional decision space.
    The finite parameters and their mapping information.
 - `name_to_param::Union{Dict{String, AbstractInfOptIndex}, Nothing}`:
    Field to help find a parameter given the name.
+- `last_object_num::Int`: The last parameter object number to be used.
+- `last_param_num::Int`: The last parameter number to be used.
+- `param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}`:
+  The collection of parameter object indices in creation order.
 - `infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable}}`:
    The infinite variables and their mapping information.
 - `reduced_vars::MOIUC.CleverDict{ReducedInfiniteVariableIndex, VariableData{ReducedInfiniteVariable}}`:
@@ -780,8 +809,11 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     dependent_params::MOIUC.CleverDict{DependentParameterIndex, MultiParameterData}
     finite_params::MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}
     name_to_param::Union{Dict{String, AbstractInfOptIndex}, Nothing}
+    last_object_num::Int
+    last_param_num::Int
+    param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
 
-    # Variable Data
+    # Variable Data # TODO make concrete types by modifying JuMP.VariableInfo
     infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable}}
     reduced_vars::MOIUC.CleverDict{ReducedInfiniteVariableIndex, VariableData{ReducedInfiniteVariable}}
     point_vars::MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable}}
@@ -816,14 +848,13 @@ end
 const sampling = :sampling # TODO REMOVE THIS WHEN MEASURES.JL IS IMPLEMENTED AGAIN
 default_weight(t) = 1 # TODO REMOVE THIS WHEN MEASURES.JL IS IMPLEMENTED AGAIN
 """
-    InfiniteModel([optimizer_constructor; seed::Bool = false,
+    InfiniteModel([optimizer_constructor;
                   OptimizerModel::Function = TranscriptionModel,
                   caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
                   bridge_constraints::Bool = true, optimizer_model_kwargs...])
 
 Return a new infinite model where an optimizer is specified if an
-`optimizer_constructor` is given. The `seed` argument indicates if the stochastic
-sampling used in conjunction with the model should be seeded. The optimizer
+`optimizer_constructor` is given. The optimizer
 can also later be set with the [`JuMP.set_optimizer`](@ref) call. By default
 the `optimizer_model` data field is initialized with a
 [`TranscriptionModel`](@ref), but a different type of model can be assigned via
@@ -852,17 +883,14 @@ CachingOptimizer state: EMPTY_OPTIMIZER
 Solver name: Ipopt
 ```
 """
-function InfiniteModel(; seed::Bool = false,
-                       OptimizerModel::Function = TranscriptionModel,
+function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                        kwargs...)::InfiniteModel
-    if seed
-        Random.seed!(0)
-    end
     return InfiniteModel(# Parameters
                          MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{IndependentParameter}}(),
                          MOIUC.CleverDict{DependentParameterIndex, MultiParameterData}(),
                          MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
-                         nothing,
+                         nothing, 0, 0,
+                         Union{IndependentParameterIndex, DependentParametersIndex}[],
                          # Variables
                          MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable}}(),
                          MOIUC.CleverDict{ReducedInfiniteVariableIndex, VariableData{ReducedInfiniteVariable}}(),
@@ -907,10 +935,9 @@ end
 
 # Dispatch for InfiniteModel call with optimizer constructor
 function InfiniteModel(optimizer_constructor;
-                       seed::Bool = false,
                        OptimizerModel::Function = TranscriptionModel,
                        kwargs...)::InfiniteModel
-    model = InfiniteModel(seed = seed)
+    model = InfiniteModel()
     model.optimizer_model = OptimizerModel(optimizer_constructor; kwargs...)
     _set_optimizer_constructor(model, optimizer_constructor)
     return model
@@ -919,6 +946,11 @@ end
 # Define basic InfiniteModel extensions
 Base.broadcastable(model::InfiniteModel) = Ref(model)
 JuMP.object_dictionary(model::InfiniteModel)::Dict{Symbol, Any} = model.obj_dict
+
+# Define basic accessors
+_last_object_num(model::InfiniteModel)::Int = model.last_object_num
+_last_param_num(model::InfiniteModel)::Int = model.last_param_num
+_param_object_indices(model::InfiniteModel) = model.param_object_indices
 
 ################################################################################
 #                             OBJECT REFERENCES
@@ -1095,6 +1127,13 @@ struct FiniteParameterRef <: FiniteVariableRef
     index::FiniteParameterIndex
 end
 
+## Define convenient aliases
+const DecisionVariableRef = Union{InfiniteVariableRef, ReducedInfiniteVariableRef,
+                                  PointVariableRef, HoldVariableRef}
+
+const UserDecisionVariableRef = Union{InfiniteVariableRef, PointVariableRef,
+                                      HoldVariableRef}
+
 """
     InfOptConstraintRef
 
@@ -1139,16 +1178,16 @@ end
 ################################################################################
 ## Modify parameter dictionary to expand any multidimensional parameter keys
 # Case where dictionary is already in correct form
-function _expand_parameter_dict(
-    param_bounds::Dict{GeneralVariableRef, IntervalSet}
-    )::Dict{GeneralVariableRef, IntervalSet}
-    return param_bounds
+function _expand_parameter_tuple(
+    param_bounds::NTuple{N, Pair{GeneralVariableRef, IntervalSet}}
+    )::Dict{GeneralVariableRef, IntervalSet} where {N}
+    return Dict(param_bounds...)
 end
 
 # Case where dictionary contains vectors
 function _expand_parameter_dict(
-    param_bounds::Dict{<:Any, IntervalSet}
-    )::Dict{GeneralVariableRef, IntervalSet}
+    param_bounds::NTuple{N, Pair{<:Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}, IntervalSet}}
+    )::Dict{GeneralVariableRef, IntervalSet} where {N}
     # Initialize new dictionary
     new_dict = Dict{GeneralVariableRef, IntervalSet}()
     # Find vector keys and expand
@@ -1167,12 +1206,13 @@ function _expand_parameter_dict(
 end
 
 # Case where dictionary contains vectors
-function _expand_parameter_dict(param_bounds::Dict)
+function _expand_parameter_dict(param_bounds::Tuple)
     error("Invalid parameter bound dictionary format.")
 end
 
 # Constructor for expanding array parameters
-function ParameterBounds(intervals::Dict)::ParameterBounds{GeneralVariableRef}
+function ParameterBounds(intervals::NTuple{N, Pair}
+                         )::ParameterBounds{GeneralVariableRef} where {N}
     return ParameterBounds(_expand_parameter_dict(intervals))
 end
 
@@ -1181,4 +1221,44 @@ function ParameterBounds()::ParameterBounds{GeneralVariableRef}
     return ParameterBounds(Dict{GeneralVariableRef, IntervalSet}())
 end
 
-# TODO Extend Base methods
+# Make dictionary accessor
+function intervals(pb::ParameterBounds{P})::Dict{P, IntervalSet} where {P}
+    return pb.intervals
+end
+
+# Extend Base.length
+Base.length(bounds::ParameterBounds)::Int = length(intervals(bounds))
+
+# Extend Base.:(==)
+function Base.:(==)(bounds1::ParameterBounds, bounds2::ParameterBounds)::Bool
+    return intervals(bounds1) == intervals(bounds2)
+end
+
+# Extend Base.copy
+Base.copy(bounds::ParameterBounds) = ParameterBounds(copy(intervals(bounds)))
+
+# Extend Base.getindex
+function Base.getindex(pb::ParameterBounds{P}, index::P)::IntervalSet where {P}
+    return intervals(pb)[index]
+end
+
+# Extend Base.setindex!
+function Base.setindex!(pb::ParameterBounds{P}, value::IntervalSet,
+                        index::P)::IntervalSet where {P}
+    return intervals(pb)[index] = value
+end
+
+# Extend Base.haskey
+function Base.haskey(pb::ParameterBounds{P}, key::P)::Bool where {P}
+    return haskey(intervals(pb), key)
+end
+
+# Extend Base.iterate
+function Base.iterate(pb::ParameterBounds{P}
+                      )::Union{Nothing, Tuple{Pair{P, IntervalSet}, Int}} where {P}
+    return iterate(intervals(pb))
+end
+function Base.iterate(pb::ParameterBounds{P}, state
+                      )::Union{Nothing, Tuple{Pair{P, IntervalSet}, Int}} where {P}
+    return iterate(intervals(pb), state)
+end

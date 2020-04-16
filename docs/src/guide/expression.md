@@ -190,10 +190,8 @@ FiniteVariableRef
 
 ## User Methods
 ```@docs
-JuMP.index(::GeneralVariableRef)
-JuMP.index(::DispatchVariableRef)
 JuMP.owner_model(::GeneralVariableRef)
-JuMP.owner_model(::DispatchVariableRef)
+JuMP.index(::GeneralVariableRef)
 dispatch_variable_ref(::GeneralVariableRef)
 JuMP.name(::GeneralVariableRef)
 JuMP.set_name(::GeneralVariableRef, ::String)
@@ -239,6 +237,8 @@ Modules = [InfiniteOpt, JuMP]
 Order   = [:macro, :function]
 ```
 ```@docs
+JuMP.index(::DispatchVariableRef)
+JuMP.owner_model(::DispatchVariableRef)
 dispatch_variable_ref
 _add_data_object
 _data_dictionary
@@ -268,6 +268,10 @@ used_by_objective(::DispatchVariableRef)
 used_by_constraint(::DispatchVariableRef)
 is_used(::DispatchVariableRef)
 JuMP.delete(::InfiniteModel, ::DispatchVariableRef)
+_parameter_number
+_parameter_number(::GeneralVariableRef)
+_object_number
+_object_number(::GeneralVariableRef)
 JuMP.has_lower_bound(::DispatchVariableRef)
 JuMP.lower_bound(::DispatchVariableRef)
 JuMP.set_lower_bound(::DispatchVariableRef,::Real)

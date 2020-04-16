@@ -110,12 +110,12 @@ end
                               zeros(1, 1), [Set([:all])]).set isa CollectionSet
     # test ScalarParameterData
     @test ScalarParameterData <: AbstractDataObject
-    @test ScalarParameterData(FiniteParameter(42), "bob").name == "bob"
+    @test ScalarParameterData(FiniteParameter(42), 1, 1, "bob").name == "bob"
     # test MultiParameterData
     @test MultiParameterData <: AbstractDataObject
     params = DependentParameters(CollectionSet([IntervalSet(0, 1)]),
                                  zeros(1, 1), [Set([:all])])
-    @test MultiParameterData(params, ["par[1]"]) isa MultiParameterData{CollectionSet{IntervalSet}}
+    @test MultiParameterData(params, 1, 1:1, ["par[1]"]) isa MultiParameterData{CollectionSet{IntervalSet}}
 end
 
 # Test the InfiniteModel datatype
@@ -136,12 +136,10 @@ end
     @test InfiniteModel(caching_mode = MOIU.MANUAL) isa JuMP.AbstractModel
     @test InfiniteModel(mockoptimizer,
                         caching_mode = MOIU.MANUAL) isa JuMP.AbstractModel
-    m = InfiniteModel(seed = true)
-    #@test reinterpret(Int32, Random.GLOBAL_RNG.seed)[1] == 0 # this test does not work on travis nightly julia
-    rand_num1 = rand()
-    m = InfiniteModel(seed = true)
-    rand_num2 = rand()
-    @test rand_num1 == rand_num2
+    # test accessors
+    @test InfiniteOpt._last_object_num(m) == 0
+    @test InfiniteOpt._last_param_num(m) == 0
+    @test InfiniteOpt._param_object_indices(m) isa Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
 end
 
 # Test reference variable datatypes
@@ -218,27 +216,62 @@ end
     end
     # test _expand_parameter_dict(Dict{ParameterRef,IntervalSet}))
     @testset "_expand_parameter_dict (acceptable Form)" begin
-        d = Dict(par3 => IntervalSet(0, 1))
-        @test InfiniteOpt._expand_parameter_dict(d) == d
+        d = (par3 => IntervalSet(0, 1),)
+        @test InfiniteOpt._expand_parameter_dict(d) == Dict(d...)
     end
     # test _expand_parameter_dict(Dict{Any,IntervalSet}))
     @testset "_expand_parameter_dict (Array Form)" begin
-        d = Dict(pars => IntervalSet(0, 1), par3 => IntervalSet(0, 1))
+        d = (pars => IntervalSet(0, 1), par3 => IntervalSet(0, 1))
         @test isa(InfiniteOpt._expand_parameter_dict(d),
                   Dict{GeneralVariableRef, IntervalSet})
     end
     # test _expand_parameter_dict(Dict))
     @testset "_expand_parameter_dict (Fallback)" begin
-        d = Dict(pars => 1, par3 => 2)
+        d = (pars => 1, par3 => 2)
         @test_throws ErrorException InfiniteOpt._expand_parameter_dict(d)
     end
     # test expansion definition
     @testset "ParameterBounds Expansion" begin
-        d = Dict(par3 => IntervalSet(0, 1))
-        @test ParameterBounds(d).intervals == d
-        d = Dict(pars => IntervalSet(0, 1), par3 => IntervalSet(0, 1))
+        d = (par3 => IntervalSet(0, 1),)
+        @test ParameterBounds(d).intervals == Dict(d...)
+        d = (pars => IntervalSet(0, 1), par3 => IntervalSet(0, 1))
         @test isa(ParameterBounds(d).intervals,
                   Dict{GeneralVariableRef, IntervalSet})
+    end
+    pb = ParameterBounds((par3 => IntervalSet(0, 1),))
+    # test intervals
+    @testset "intervals" begin
+        @test intervals(pb) == pb.intervals
+    end
+    # test Base.length
+    @testset "Base.length" begin
+        @test length(pb) == 1
+    end
+    # test Base.:(==)
+    @testset "Base.:(==)" begin
+        @test pb == ParameterBounds((par3 => IntervalSet(0, 1),))
+        @test pb != ParameterBounds()
+    end
+    # test Base.copy
+    @testset "Base.copy" begin
+        @test copy(pb) == pb
+    end
+    # test Base.getindex
+    @testset "Base.getindex" begin
+        @test pb[par3] == IntervalSet(0, 1)
+    end
+    # test Base.setindex!
+    @testset "Base.setindex!" begin
+        @test (pb[par3] = IntervalSet(0, 2)) == IntervalSet(0, 2)
+    end
+    # test Base.haskey
+    @testset "Base.haskey" begin
+        @test haskey(pb, par3)
+        @test !haskey(pb, par2)
+    end
+    # test Base.iterate
+    @testset "Base.iterate" begin
+        @test [p for p in pb] == [par3 => IntervalSet(0, 2)]
     end
 end
 
@@ -253,13 +286,13 @@ end
     @test InfOptVariable <: AbstractVariable
     # Infinite variable
     @test InfiniteVariable <: InfOptVariable
-    @test InfiniteVariable(sample_info, VectorTuple(pref)) isa InfiniteVariable
+    @test InfiniteVariable(sample_info, VectorTuple(pref), [1], [1]) isa InfiniteVariable
     # Reduced variable
     @test ReducedInfiniteVariable <: InfOptVariable
-    @test ReducedInfiniteVariable(vref, Dict(1 => Float64(2))) isa ReducedInfiniteVariable
+    @test ReducedInfiniteVariable(vref, Dict(1 => Float64(2)), [1]) isa ReducedInfiniteVariable
     # Point variable
     @test PointVariable <: InfOptVariable
-    @test PointVariable(sample_info, vref, VectorTuple{Float64}(1)) isa PointVariable
+    @test PointVariable(sample_info, vref, Float64[1]) isa PointVariable
     # Hold variable
     @test HoldVariable <: InfOptVariable
     @test HoldVariable(sample_info, ParameterBounds()) isa HoldVariable
@@ -285,11 +318,12 @@ end
     # Measure
     @test Measure isa UnionAll
     @test Measure(zero(AffExpr),
-                  DiscreteMeasureData(pref, Float64[1], :all, "", w)) isa Measure
+                  DiscreteMeasureData(pref, Float64[1], :all, "", w),
+                  [1], [1]) isa Measure
     # MeasureData
     @test MeasureData <: AbstractDataObject
     @test MeasureData(Measure(zero(AffExpr), DiscreteMeasureData(pref,
-                      Float64[1], :all, "", w)), "") isa MeasureData
+                      Float64[1], :all, "", w), [1], [1]), "") isa MeasureData
 end
 
 # Test the constraint datatypes
@@ -304,5 +338,6 @@ end
                 bounds, bounds).bounds.intervals[pref].lower_bound == 0.0
     # ConstraintData
     @test ConstraintData <: AbstractDataObject
-    @test ConstraintData(ScalarConstraint(zero(AffExpr), MOI.Integer()), "") isa ConstraintData
+    @test ConstraintData(ScalarConstraint(zero(AffExpr), MOI.Integer()), [1], "",
+                         MeasureIndex[], false) isa ConstraintData
 end

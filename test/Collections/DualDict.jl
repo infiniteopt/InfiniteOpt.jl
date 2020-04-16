@@ -118,8 +118,8 @@ end
 
 # test Base.show
 @testset "Showing" begin
-    dd1 = DualDict{String, Int, Symbol}()
-    dd2 = DualDict{String, Int, Symbol}(3 => :w)
+    dd1 = DualDict{String, Int64, Symbol}()
+    dd2 = DualDict{String, Int64, Symbol}(Int64(3) => :w)
     # test show_string
     @testset "show_string" begin
         @test IC.show_string(dd1) == "DualDict{String,Int64,Symbol} with 0 entries:"

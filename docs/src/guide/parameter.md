@@ -505,7 +505,7 @@ For an infinite parameter that follows a univariate distribution,
 supports are sampled from the underlying distribution. For example, we can
 define an infinite parameter subject to a normal distribution with mean 0 and
 variance 1:
-```jldoctest; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel(seed = true); dist = Normal(0., 1.))
+```jldoctest; setup = :(using InfiniteOpt, Distributions, Random; Random.seed!(0); model = InfiniteModel(); dist = Normal(0., 1.))
 julia> @infinite_parameter(model, x in dist, num_supports = 4)
 x
 
@@ -551,7 +551,7 @@ parameter is in an [`IntervalSet`](@ref), then we generate an array of supports
 that are uniformly distributed along the interval, including the two ends. For
 example, consider a 3D position parameter `x` distributed in the unit cube
 `[0, 1]`. We can generate supports for that point in the following way:
-```jldoctest supp_gen_defined; setup = :(using InfiniteOpt, JuMP, Distributions; model = InfiniteModel(seed = true))
+```jldoctest supp_gen_defined; setup = :(using InfiniteOpt, JuMP, Distributions, Random; Random.seed!(0); model = InfiniteModel())
 julia> @infinite_parameter(model, x[1:3] in [0, 1], independent = true);
 
 julia> fill_in_supports!.(x, num_supports = 3);

@@ -35,7 +35,7 @@ Otherwise, an error is thrown for unextended variable and/or optimizer model typ
 """
 function add_measure_variable(model::JuMP.Model, var, key)
     error("`add_measure_variable` not defined for variable of type `$(typeof(var))` " *
-          "and an optimizer model with key `$key`.")
+          "and an optimizer model with key `$(typeof(key).parameters[1])`.")
 end
 
 # Store/add the variable to the optimizer model via add_measure_variable

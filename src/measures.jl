@@ -583,7 +583,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
                  data::AbstractMeasureData)::MeasureRef
     vrefs = _all_function_variables(expr)
     model = _model_from_expr(vrefs)
-    if model == nothing
+    if model === nothing
         error("Expression contains no variables or parameters.")
     end
     pref = parameter_refs(data)
@@ -644,7 +644,7 @@ See [`set_integral_defaults`](@ref) to update the default keyword argument value
 for all integral calls.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(seed = true))
+```jldoctest; setup = :(using InfiniteOpt, JuMP, Random; Random.seed!(0); model = InfiniteModel())
 julia> @infinite_parameter(model, x in [0., 1.])
 x
 
@@ -908,7 +908,7 @@ a random parameter involved in the expression. Return the [`MeasureRef`](@ref)
 of the created measure.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; model = InfiniteModel(seed = true))
+```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions, Random; Random.seed!(0); model = InfiniteModel())
 julia> @infinite_parameter(model, x in Normal(0., 1.))
 x
 

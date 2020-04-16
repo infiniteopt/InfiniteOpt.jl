@@ -27,30 +27,6 @@
     end
 end
 
-# Test ParameterBounds extensions
-@testset "Parameter Bounds" begin
-    # setup
-    m = InfiniteModel()
-    par = GeneralVariableRef(m, 1, IndependentParameterIndex)
-    # test length
-    @testset "Base.length" begin
-        @test length(ParameterBounds()) == 0
-        @test length(ParameterBounds(Dict(par => IntervalSet(0,0)))) == 1
-    end
-    # test :(==)
-    @testset "Base.:(==)" begin
-        dict = Dict(par => IntervalSet(0,0))
-        @test ParameterBounds() == ParameterBounds()
-        @test ParameterBounds() != ParameterBounds(dict)
-        @test ParameterBounds(dict) == ParameterBounds(dict)
-    end
-    # test copy
-    @testset "Base.copy" begin
-        dict = Dict(par => IntervalSet(0,0))
-        @test ParameterBounds(dict) == copy(ParameterBounds(dict))
-    end
-end
-
 # Test extension of keys
 @testset "Base.keys" begin
     m = Model()
