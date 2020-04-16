@@ -216,27 +216,62 @@ end
     end
     # test _expand_parameter_dict(Dict{ParameterRef,IntervalSet}))
     @testset "_expand_parameter_dict (acceptable Form)" begin
-        d = Dict(par3 => IntervalSet(0, 1))
-        @test InfiniteOpt._expand_parameter_dict(d) == d
+        d = (par3 => IntervalSet(0, 1),)
+        @test InfiniteOpt._expand_parameter_dict(d) == Dict(d...)
     end
     # test _expand_parameter_dict(Dict{Any,IntervalSet}))
     @testset "_expand_parameter_dict (Array Form)" begin
-        d = Dict(pars => IntervalSet(0, 1), par3 => IntervalSet(0, 1))
+        d = (pars => IntervalSet(0, 1), par3 => IntervalSet(0, 1))
         @test isa(InfiniteOpt._expand_parameter_dict(d),
                   Dict{GeneralVariableRef, IntervalSet})
     end
     # test _expand_parameter_dict(Dict))
     @testset "_expand_parameter_dict (Fallback)" begin
-        d = Dict(pars => 1, par3 => 2)
+        d = (pars => 1, par3 => 2)
         @test_throws ErrorException InfiniteOpt._expand_parameter_dict(d)
     end
     # test expansion definition
     @testset "ParameterBounds Expansion" begin
-        d = Dict(par3 => IntervalSet(0, 1))
-        @test ParameterBounds(d).intervals == d
-        d = Dict(pars => IntervalSet(0, 1), par3 => IntervalSet(0, 1))
+        d = (par3 => IntervalSet(0, 1),)
+        @test ParameterBounds(d).intervals == Dict(d...)
+        d = (pars => IntervalSet(0, 1), par3 => IntervalSet(0, 1))
         @test isa(ParameterBounds(d).intervals,
                   Dict{GeneralVariableRef, IntervalSet})
+    end
+    pb = ParameterBounds((par3 => IntervalSet(0, 1),))
+    # test intervals
+    @testset "intervals" begin
+        @test intervals(pb) == pb.intervals
+    end
+    # test Base.length
+    @testset "Base.length" begin
+        @test length(pb) == 1
+    end
+    # test Base.:(==)
+    @testset "Base.:(==)" begin
+        @test pb == ParameterBounds((par3 => IntervalSet(0, 1),))
+        @test pb != ParameterBounds()
+    end
+    # test Base.copy
+    @testset "Base.copy" begin
+        @test copy(pb) == pb
+    end
+    # test Base.getindex
+    @testset "Base.getindex" begin
+        @test pb[par3] == IntervalSet(0, 1)
+    end
+    # test Base.setindex!
+    @testset "Base.setindex!" begin
+        @test (pb[par3] = IntervalSet(0, 2)) == IntervalSet(0, 2)
+    end
+    # test Base.haskey
+    @testset "Base.haskey" begin
+        @test haskey(pb, par3)
+        @test !haskey(pb, par2)
+    end
+    # test Base.iterate
+    @testset "Base.iterate" begin
+        @test [p for p in pb] == [par3 => IntervalSet(0, 2)]
     end
 end
 

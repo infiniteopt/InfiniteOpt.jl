@@ -12,28 +12,6 @@ function Base.convert(::Type{JuMPC.SparseAxisArray},
     return JuMPC.SparseAxisArray(data)
 end
 
-# TODO extend Base.convert using the methods built-in to VectorTuple.jl
-# function Base.convert(::Type{Array}, arr::JuMPC.SparseAxisArray)
-#
-# end
-#
-# function Base.convert(::Type{JuMPC.DenseAxisArray},
-#                       arr::JuMPC.SparseAxisArray)
-#
-# end
-
-## Extensions for ParameterBounds
-# length
-Base.length(bounds::ParameterBounds)::Int = length(bounds.intervals)
-
-# equal to
-function Base.:(==)(bounds1::ParameterBounds, bounds2::ParameterBounds)::Bool
-    return bounds1.intervals == bounds2.intervals
-end
-
-# copy
-Base.copy(bounds::ParameterBounds) = ParameterBounds(copy(bounds.intervals))
-
 # Hack to make the keys function work for sparse arrays
 Base.keys(d::JuMPC.SparseAxisArray) = keys(d.data)
 

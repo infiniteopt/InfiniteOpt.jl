@@ -24,7 +24,10 @@ include("datatypes.jl")
 # include("infinite_sets.jl")
 include("general_variables.jl")
 # include("parameters.jl")
-# include("variables.jl")
+# include("variable_basics.jl")
+# include("infinite_variables.jl")
+# include("point_variables.jl")
+# include("hold_variables.jl")
 # include("reduced_variables.jl")
 # include("expressions.jl")
 # include("measures.jl")
@@ -89,14 +92,16 @@ used_by_measure, used_by_infinite_variable, is_used, generate_and_add_supports!
 export InfOptVariable, InfiniteVariable, ReducedInfiniteVariable,
 PointVariable, HoldVariable, ParameterBounds, VariableData, GeneralVariableRef,
 DispatchVariableRef, InfiniteVariableRef, ReducedInfiniteVariableRef,
-MeasureFiniteVariableRef, FiniteVariableRef, PointVariableRef, HoldVariableRef
+MeasureFiniteVariableRef, FiniteVariableRef, PointVariableRef, HoldVariableRef,
+DecisionVariableRef, UserDecisionVariableRef
 
 # Export variable methods
 export used_by_objective, infinite_variable_ref, parameter_refs,
 set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values,
 eval_supports, used_by_reduced_variable, has_parameter_bounds, parameter_bounds,
 set_parameter_bounds, add_parameter_bound, delete_parameter_bound,
-delete_parameter_bounds, parameter_list, raw_parameter_refs, raw_parameter_values
+delete_parameter_bounds, parameter_list, raw_parameter_refs, raw_parameter_values,
+intervals
 
 # Export measure datatypes
 export AbstractMeasureData, DiscreteMeasureData, MultiDiscreteMeasureData,

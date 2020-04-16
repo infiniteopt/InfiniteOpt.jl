@@ -38,6 +38,12 @@ JuMP.variable_type(model::InfiniteModel)::DataType = GeneralVariableRef
 
 Extend [`JuMP.index`](@ref JuMP.index(::JuMP.VariableRef)) to return the
 appropriate index of `vref`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref))
+julia> index(vref)
+HoldVariableIndex(1)
+```
 """
 function JuMP.index(vref::GeneralVariableRef)::AbstractInfOptIndex
     if vref.index_type == DependentParameterIndex
@@ -63,6 +69,21 @@ end
 
 Extend [`JuMP.owner_model`](@ref JuMP.owner_model(::JuMP.AbstractVariableRef)) to
 return the model where `vref` is stored.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 <= vref <= 1))
+julia> owner_model(vref)
+An InfiniteOpt Model
+Feasibility problem with:
+Variable: 1
+`HoldVariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 1 constraint
+`HoldVariableRef`-in-`MathOptInterface.LessThan{Float64}`: 1 constraint
+Names registered in the model: vref
+Optimizer model backend information:
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
+```
 """
 function JuMP.owner_model(vref::GeneralVariableRef)::InfiniteModel
     return vref.model
@@ -218,6 +239,12 @@ end
 
 Extend [`JuMP.is_valid`](@ref JuMP.is_valid(::JuMP.Model, ::JuMP.VariableRef)) to
 return `Bool` if `vref` is a valid reference.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @hold_variable(model, vref))
+julia> is_valid(model, vref)
+true
+```
 """
 function JuMP.is_valid(model::InfiniteModel, vref::GeneralVariableRef)::Bool
     return JuMP.is_valid(dispatch_variable_ref(vref))
@@ -522,7 +549,7 @@ end
     JuMP.delete(model::InfiniteModel, vref::DispatchVariableRef)::Nothing
 
 Extend [`JuMP.delete`](@ref JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)) to
-delete `vref` and its dependencies. This needs to be extended for the
+delete `vref` and its dependencies. This needs to be defined for the
 type of `vref`. This should use the appropriate getter methods to access information
 as needed and should invoke `_delete_data_object` at the end.
 """
@@ -546,7 +573,45 @@ end
 ################################################################################
 #                              PARAMETER METHODS
 ################################################################################
+"""
+    _parameter_number(vref::DispatchVariableRef)::Int
 
+Return the parameter creation number for `vref` assuming it is an infinite
+parameter. This needs to be defined for the type of `vref`. This should use
+the `_data_object` to get the number.
+"""
+function _parameter_number(vref::DispatchVariableRef) end
+
+"""
+    _parameter_number(vref::GeneralVariableRef)::Int
+
+Return the parameter creation number for `vref` assuming it is an infinite
+parameter. It relies on `_parameter_number` being properly defined for the
+underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
+"""
+function _parameter_number(vref::GeneralVariableRef)::Int
+    return _parameter_number(dispatch_variable_ref(vref))
+end
+
+"""
+    _object_number(vref::DispatchVariableRef)::Int
+
+Return the object number for `vref` assuming it is an infinite
+parameter. This needs to be defined for the type of `vref`. This should use
+the `_data_object` to get the number.
+"""
+function _object_number(vref::DispatchVariableRef) end
+
+"""
+    _object_number(vref::GeneralVariableRef)::Int
+
+Return the object number for `vref` assuming it is an infinite
+parameter. It relies on `_object_number` being properly defined for the
+underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
+"""
+function _object_number(vref::GeneralVariableRef)::Int
+    return _object_number(dispatch_variable_ref(vref))
+end
 
 ################################################################################
 #                              VARIABLE METHODS

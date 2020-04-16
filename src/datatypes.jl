@@ -813,7 +813,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     last_param_num::Int
     param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
 
-    # Variable Data
+    # Variable Data # TODO make concrete types by modifying JuMP.VariableInfo
     infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable}}
     reduced_vars::MOIUC.CleverDict{ReducedInfiniteVariableIndex, VariableData{ReducedInfiniteVariable}}
     point_vars::MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable}}
@@ -1127,6 +1127,13 @@ struct FiniteParameterRef <: FiniteVariableRef
     index::FiniteParameterIndex
 end
 
+## Define convenient aliases
+const DecisionVariableRef = Union{InfiniteVariableRef, ReducedInfiniteVariableRef,
+                                  PointVariableRef, HoldVariableRef}
+
+const UserDecisionVariableRef = Union{InfiniteVariableRef, PointVariableRef,
+                                      HoldVariableRef}
+
 """
     InfOptConstraintRef
 
@@ -1171,16 +1178,16 @@ end
 ################################################################################
 ## Modify parameter dictionary to expand any multidimensional parameter keys
 # Case where dictionary is already in correct form
-function _expand_parameter_dict(
-    param_bounds::Dict{GeneralVariableRef, IntervalSet}
-    )::Dict{GeneralVariableRef, IntervalSet}
-    return param_bounds
+function _expand_parameter_tuple(
+    param_bounds::NTuple{N, Pair{GeneralVariableRef, IntervalSet}}
+    )::Dict{GeneralVariableRef, IntervalSet} where {N}
+    return Dict(param_bounds...)
 end
 
 # Case where dictionary contains vectors
 function _expand_parameter_dict(
-    param_bounds::Dict{<:Any, IntervalSet}
-    )::Dict{GeneralVariableRef, IntervalSet}
+    param_bounds::NTuple{N, Pair{<:Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}, IntervalSet}}
+    )::Dict{GeneralVariableRef, IntervalSet} where {N}
     # Initialize new dictionary
     new_dict = Dict{GeneralVariableRef, IntervalSet}()
     # Find vector keys and expand
@@ -1199,12 +1206,13 @@ function _expand_parameter_dict(
 end
 
 # Case where dictionary contains vectors
-function _expand_parameter_dict(param_bounds::Dict)
+function _expand_parameter_dict(param_bounds::Tuple)
     error("Invalid parameter bound dictionary format.")
 end
 
 # Constructor for expanding array parameters
-function ParameterBounds(intervals::Dict)::ParameterBounds{GeneralVariableRef}
+function ParameterBounds(intervals::NTuple{N, Pair}
+                         )::ParameterBounds{GeneralVariableRef} where {N}
     return ParameterBounds(_expand_parameter_dict(intervals))
 end
 
@@ -1213,4 +1221,44 @@ function ParameterBounds()::ParameterBounds{GeneralVariableRef}
     return ParameterBounds(Dict{GeneralVariableRef, IntervalSet}())
 end
 
-# TODO Extend Base methods
+# Make dictionary accessor
+function intervals(pb::ParameterBounds{P})::Dict{P, IntervalSet} where {P}
+    return pb.intervals
+end
+
+# Extend Base.length
+Base.length(bounds::ParameterBounds)::Int = length(intervals(bounds))
+
+# Extend Base.:(==)
+function Base.:(==)(bounds1::ParameterBounds, bounds2::ParameterBounds)::Bool
+    return intervals(bounds1) == intervals(bounds2)
+end
+
+# Extend Base.copy
+Base.copy(bounds::ParameterBounds) = ParameterBounds(copy(intervals(bounds)))
+
+# Extend Base.getindex
+function Base.getindex(pb::ParameterBounds{P}, index::P)::IntervalSet where {P}
+    return intervals(pb)[index]
+end
+
+# Extend Base.setindex!
+function Base.setindex!(pb::ParameterBounds{P}, value::IntervalSet,
+                        index::P)::IntervalSet where {P}
+    return intervals(pb)[index] = value
+end
+
+# Extend Base.haskey
+function Base.haskey(pb::ParameterBounds{P}, key::P)::Bool where {P}
+    return haskey(intervals(pb), key)
+end
+
+# Extend Base.iterate
+function Base.iterate(pb::ParameterBounds{P}
+                      )::Union{Nothing, Tuple{Pair{P, IntervalSet}, Int}} where {P}
+    return iterate(intervals(pb))
+end
+function Base.iterate(pb::ParameterBounds{P}, state
+                      )::Union{Nothing, Tuple{Pair{P, IntervalSet}, Int}} where {P}
+    return iterate(intervals(pb), state)
+end
