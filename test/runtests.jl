@@ -31,12 +31,12 @@ println("")
 println("")
 @time @testset "Utilities" begin include("utility_tests.jl") end
 println("")
-# @time @testset "Infinite Set Methods" begin include("infinite_sets.jl") end
-# println("")
-@time @testset "Common General Variable Methods" begin
-    include("standalone_general_variable_methods.jl")
-end
+@time @testset "Infinite Set Methods" begin include("infinite_sets.jl") end
 println("")
+# @time @testset "Common General Variable Methods" begin
+#     include("standalone_general_variable_methods.jl")
+# end
+# println("")
 # @time @testset "Parameter Methods" begin include("parameters.jl") end
 # println("")
 # @time @testset "Optimizer Setup Methods" begin include("optimizer_setup.jl") end
@@ -50,10 +50,10 @@ println("")
 #     @testset "Reduction Variables" begin include("reduction_variables.jl") end
 # end
 # println("")
-@time @testset "General Variable Methods" begin
-    include("general_variables.jl")
-end
-println("")
+# @time @testset "General Variable Methods" begin
+#     include("general_variables.jl")
+# end
+# println("")
 # @time @testset "Operators" begin include("operators.jl") end
 # println("")
 # @time @testset "Expression Methods" begin include("expressions.jl") end

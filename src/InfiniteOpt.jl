@@ -24,7 +24,7 @@ export VectorTuple, same_structure, DualDict
 
 # Import all of the datatpyes, methods, macros, and definitions.
 include("datatypes.jl")
-# include("infinite_sets.jl")
+include("infinite_sets.jl")
 include("general_variables.jl")
 # include("parameters.jl")
 # include("variables.jl")
@@ -75,7 +75,7 @@ export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
 UniDistributionSet, MultiDistributionSet, CollectionSet
 
 # Export infinite set methods
-export supports_in_set, generate_support_values
+export collection_sets, supports_in_set, generate_support_values
 
 # Export parameter datatypes
 export InfOptParameter, ScalarParameter, IndependentParameter, FiniteParameter,

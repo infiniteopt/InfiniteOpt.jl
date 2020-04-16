@@ -122,13 +122,13 @@ julia> build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
 InfOptParameter{IntervalSet}([0, 3], [0, 1, 2, 3], false)
 ```
 """
-function build_parameter(_error::Function, set::AbstractInfiniteSet,
+function build_parameter(_error::Function, set::InfiniteScalarSet,
                          num_params::Int = 1;
+                         label::Set{Symbol} = Set{Symbol}(),
                          num_supports::Int = 0,
                          supports::Union{Number, Vector{<:Number}} = Number[],
-                         independent::Bool = false,
                          sig_fig::Int = 5,
-                         extra_kw_args...)::InfOptParameter
+                         extra_kw_args...)::IndependentParameter
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
@@ -139,30 +139,30 @@ function build_parameter(_error::Function, set::AbstractInfiniteSet,
         @warn("Ignoring num_supports since supports is not empty.")
         _check_supports_in_bounds(_error, supports, set)
     elseif num_supports != 0 && length_supports == 0
-        if isa(set, DistributionSet{<:Distributions.MultivariateDistribution})
+        if isa(set, MultiDistributionSet)
             _error("Support generation is not available for multivariate " *
                    "distributions.")
         end
         supports = generate_support_values(set, num_supports = num_supports,
                                            sig_fig = sig_fig)
     end
-    if isa(set, DistributionSet{<:Distributions.MultivariateDistribution})
+    if isa(set, MultiDistributionSet)
         if num_params != length(set.distribution)
             _error("Multivariate distribution dimension must match dimension " *
                    "of parameter.")
         end
     end
-    if num_params == 1 || independent # double check num_params for other types of containers
+    if num_params == 1 || isa(set, InfiniteScalarSet) # double check num_params for other types of containers
         unique_supports = unique(supports)
         if length(unique_supports) != length(supports)
             @warn("Support points are not unique, eliminating redundant points.")
         end
-        return InfOptParameter(set, unique_supports, independent)
+        return IndependentParameter(set, unique_supports)
     end
     if isa(supports, Number)
         supports = [supports]
     end
-    return InfOptParameter(set, supports, independent)
+    return DependentParameters(set, supports)
 end
 
 # Check the number of supports of one dimension matches the other dimension
