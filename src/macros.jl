@@ -97,13 +97,13 @@ function _assert_valid_model_call(m, macrocode)
 end
 
 """
-    @infinite_parameter(model, kw_args...)
+    @independent_parameter(model, kw_args...)
 
 Add an *anonymous* infinite parameter to the model `model` described by the
 keyword arguments `kw_args` and returns the parameter reference.
 
 ```julia
-@infinite_parameter(model, expr, kw_args...)
+@independent_parameter(model, expr, kw_args...)
 ```
 
 Add a parameter to the model `model` described by the expression `expr`, the
@@ -161,7 +161,7 @@ And data, a 1×1 Array{ParameterRef,2}:
  noname
 ```
 """
-macro infinite_parameter(model, args...)
+macro independent_parameter(model, args...)
     esc_model = esc(model)
 
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
@@ -359,6 +359,13 @@ macro finite_parameter(model, args...)
                "@finite_parameter(model, name[i =..., ...], value_expr).")
     end
     esc(code)
+end
+
+"""
+
+"""
+macro dependent_parameters(model, args...)
+    return esc(model)
 end
 
 ## Define helper functions needed to parse infinite variable expressions

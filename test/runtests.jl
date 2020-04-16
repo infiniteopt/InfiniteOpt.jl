@@ -33,12 +33,15 @@ println("")
 println("")
 @time @testset "Infinite Set Methods" begin include("infinite_sets.jl") end
 println("")
-# @time @testset "Common General Variable Methods" begin
-#     include("standalone_general_variable_methods.jl")
-# end
-# println("")
-# @time @testset "Parameter Methods" begin include("parameters.jl") end
-# println("")
+@time @testset "Common General Variable Methods" begin
+    include("standalone_general_variable_methods.jl")
+end
+println("")
+@time @testset "Parameter Methods" begin
+    @testset "Scalar" begin include("scalar_parameters.jl") end
+    @testset "Array" begin include("array_parameters.jl") end
+end
+println("")
 # @time @testset "Optimizer Setup Methods" begin include("optimizer_setup.jl") end
 # println("")
 # @time @testset "Variable Methods" begin

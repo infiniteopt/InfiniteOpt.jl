@@ -1,30 +1,3 @@
-@testset "Base Extensions" begin
-    # Define test model and pref
-    m = InfiniteModel()
-    m2 = InfiniteModel()
-    pref = ParameterRef(m, 1)
-    # test variable compare
-    @testset "(==)" begin
-        @test pref == pref
-        @test pref == ParameterRef(m, 1)
-        @test !(pref == ParameterRef(m, 2))
-        @test !(pref == ParameterRef(m2, 1))
-        @test !(pref != ParameterRef(m, 1))
-    end
-    # test copy(v)
-    @testset "copy(v)" begin
-        @test copy(pref) == pref
-    end
-    # test copy(v, m)
-    @testset "copy(v, m)" begin
-        @test copy(pref, m2) == ParameterRef(m2, 1)
-    end
-    # test broadcastable
-    @testset "broadcastable" begin
-        @test isa(Base.broadcastable(pref), Base.RefValue{ParameterRef})
-    end
-end
-
 # Test macro methods
 @testset "Macro Helpers" begin
     @testset "Symbol Methods" begin
