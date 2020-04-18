@@ -205,8 +205,7 @@ end
         @test_throws ErrorException build_parameter(error, set, bob = 42)
         warn = "Support points are not unique, eliminating redundant points."
         @test_logs (:warn, warn) build_independent_parameter(error, set,
-                                                             supports = ones(3),
-                                                             independent = true)
+                                                             supports = ones(3))
         warn = "Ignoring num_supports since supports is not empty."
         @test_logs (:warn, warn) build_independent_parameter(error, set,
                                             supports = [1, 2], num_supports = 2)
@@ -216,9 +215,15 @@ end
         @test_logs (:warn, warn) build_independent_parameter(error, set, supports = repeated_supps) == expected
         set = UniDistributionSet(Normal())
         param = build_independent_parameter(error, set, num_supports = 5)
-        @test
-
+        @test length(param.supports) == 5
     end
+    # build_finite_parameter
+    @testset "build_finite_parameter" begin
+        @test_throws ErrorException build_finite_parameter(error, 1, bob = 42)
+        expected = FiniteParameter(1)
+        @test build_finite_parameter(error, 1) == expected
+    end
+#=
     # _check_supports_dimensions
     @testset "_check_supports_dimensions" begin
         model = InfiniteModel()
@@ -238,6 +243,7 @@ end
         model.params[1] = param2
         @test InfiniteOpt._check_supports_dimensions(model, param2, 2) isa Nothing
     end
+=#
     # add_parameter
     @testset "add_parameter" begin
         m = InfiniteModel()

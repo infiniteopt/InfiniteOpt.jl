@@ -16,13 +16,13 @@ end
 
 # Extend _add_data_object
 function _add_data_object(model::InfiniteModel,
-                          object::ScalarParameterData{IndependentParameter}
+                          object::ScalarParameterData{<:IndependentParameter}
                           )::IndependentParameterIndex
     return MOIUC.add_item(model.independent_params, object)
 end
 
 function _add_data_object(model::InfiniteModel,
-                          object::ScalarParameterData{FiniteParameter}
+                          object::ScalarParameterData{<:FiniteParameter}
                           )::FiniteParameterIndex
     return MOIUC.add_item(model.finite_params, object)
 end
@@ -150,7 +150,7 @@ end
 """
     build_independent_parameter(_error::Function, set::InfiniteScalarSet,
                            [num_params::Int = 1; num_supports::Int = 0,
-                           supports::Union{Number, Vector{<:Number}} = Number[],
+                           supports::Union{Real, Vector{<:Real}} = Number[],
                            independent::Bool = false,
                            sig_fig::Int = 5])::InfOptParameter
 
@@ -161,8 +161,8 @@ helper method for [`@independent_parameter`](@ref).
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt)
-julia> build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-InfOptParameter{IntervalSet}([0, 3], [0, 1, 2, 3], false)
+julia> build_independent_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
+IndependentParameter{IntervalSet}([0, 3], [0, 1, 2, 3])
 ```
 """
 function build_independent_parameter(_error::Function, set::InfiniteScalarSet;
@@ -187,22 +187,37 @@ function build_independent_parameter(_error::Function, set::InfiniteScalarSet;
     if isa(supports, Number)
         supports = [supports]
     end
-    supports_dict = DataStructures.SortedDict(i => Set{Symbol}()
-                                                              for i in supports)
+    supports_dict = DataStructures.SortedDict{Float64, Set{Symbol}}(
+                                           i => Set{Symbol}() for i in supports)
     if length(supports_dict) != length(supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
-    return IndependentParameter(set, unique_supports)
+    return IndependentParameter(set, supports_dict)
 end
 
-function build_finite_parameter(_error::Function, value::Float64;
+"""
+    build_finite_parameter(_error::Function, value::Real)::FiniteParameter
+
+Returns a [`FiniteParameter`](@ref) given the appropriate information.
+This is analagous to `JuMP.build_variable`. This is meant to primarily serve as
+a helper method for [`@finite_parameter`](@ref).
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt)
+julia> build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
+InfOptParameter{IntervalSet}([0, 3], [0, 1, 2, 3], false)
+```
+"""
+
+function build_finite_parameter(_error::Function, value::Real;
                                 extra_kw_args...)::FiniteParameter
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
     return FiniteParameter(value)
 end
-
+#=
+# not sure if this is needed...
 # Check the number of supports of one dimension matches the other dimension
 # within the same multi-dimensional parameter
 function _check_supports_dimensions(model::InfiniteModel, p::InfOptParameter,
@@ -216,7 +231,7 @@ function _check_supports_dimensions(model::InfiniteModel, p::InfOptParameter,
     end
     return
 end
-
+=#
 """
     add_parameter(model::InfiniteModel, p::InfOptParameter,
                   [name::String = ""])::ParameterRef
@@ -236,23 +251,19 @@ julia> param_ref = add_parameter(model, p, "name")
 name
 ```
 """
-function add_parameter(model::InfiniteModel, p::InfOptParameter,
-                       name::String=""; multi_dim = false,
-                       macro_call = false)::ParameterRef
-    index = model.next_param_index += 1
-    pref = ParameterRef(model, index)
-    if !macro_call
-        model.next_param_id += 1
-    elseif !(p.independent) && multi_dim
-        _check_supports_dimensions(model, p, index)
+function add_parameter(model::InfiniteModel, p::ScalarParameter,
+                       name::String="")::Union{IndependentParameterRef, FiniteParameterRef}
+    obj_num = model.last_object_num += 1
+    param_num = model.last_param_num += 1
+    data_object = ScalarParameterData(p, obj_num, param_num, name)
+    obj_index = _add_data_object(model, data_object)
+    if isa(p, FiniteParameter)
+        return FiniteParameterRef(model, obj_index)
+    else
+        return IndependentParameterRef(model, obj_index)
     end
-    model.params[JuMP.index(pref)] = p
-    model.param_to_group_id[JuMP.index(pref)] = model.next_param_id
-    JuMP.set_name(pref, name)
-    return pref
 end
-
-
+#=
 """
     used_by_constraint(pref::ParameterRef)::Bool
 
@@ -264,7 +275,7 @@ julia> used_by_constraint(t)
 true
 ```
 """
-function used_by_constraint(pref::ParameterRef)::Bool
+function used_by_constraint(pref::)::Bool
     return haskey(JuMP.owner_model(pref).param_to_constrs, JuMP.index(pref))
 end
 
@@ -1076,3 +1087,4 @@ function all_parameters(model::InfiniteModel)::Vector{ParameterRef}
     end
     return pref_list
 end
+=#

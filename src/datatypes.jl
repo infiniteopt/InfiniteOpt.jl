@@ -805,7 +805,7 @@ model an optmization problem with an infinite-dimensional decision space.
 """
 mutable struct InfiniteModel <: JuMP.AbstractModel
     # Parameter Data
-    independent_params::MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{IndependentParameter}}
+    independent_params::MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}
     dependent_params::MOIUC.CleverDict{DependentParameterIndex, MultiParameterData}
     finite_params::MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}
     name_to_param::Union{Dict{String, AbstractInfOptIndex}, Nothing}
@@ -886,7 +886,7 @@ Solver name: Ipopt
 function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                        kwargs...)::InfiniteModel
     return InfiniteModel(# Parameters
-                         MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{IndependentParameter}}(),
+                         MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}(),
                          MOIUC.CleverDict{DependentParameterIndex, MultiParameterData}(),
                          MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
                          nothing, 0, 0,
