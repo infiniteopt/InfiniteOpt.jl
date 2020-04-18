@@ -23,7 +23,8 @@ export VectorTuple, same_structure, DualDict
 include("datatypes.jl")
 include("infinite_sets.jl")
 include("general_variables.jl")
-# include("parameters.jl")
+# include("scalar_parameters.jl")
+# include("array_parameters.jl")
 # include("variable_basics.jl")
 # include("infinite_variables.jl")
 # include("point_variables.jl")
@@ -62,7 +63,7 @@ export @infinite_variable, @point_variable, @hold_variable, @infinite_parameter,
 @BDconstraint, @finite_parameter, @set_parameter_bounds, @add_parameter_bounds
 
 # Export constants
-export Infinite, Hold, Point, Parameter, sampling, quadrature
+export Infinite, Hold, Point, sampling, quadrature
 
 # Export index types
 export AbstractInfOptIndex, ObjectIndex, IndependentParameterIndex,
@@ -72,7 +73,8 @@ HoldVariableIndex, MeasureIndex, ConstraintIndex, InfiniteParameterIndex
 
 # Export infinite set types
 export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
-UniDistributionSet, MultiDistributionSet, CollectionSet
+UniDistributionSet, MultiDistributionSet, CollectionSet, UserDefined,
+McSample, UniformGrid, Mixture
 
 # Export infinite set methods
 export collection_sets, supports_in_set, generate_support_values

@@ -409,25 +409,25 @@
         # test _make_array (Array)
         @testset "_make_array (Array)" begin
             vt = VectorTuple(b, a, c)
-            @test IC._make_array(vt.values, 1:3, vt.indices[1]) == b
-            @test IC._make_array(vt.values, 5:8, vt.indices[3]) == c
+            @test IC._make_array(vt.values[1:3], vt.indices[1]) == b
+            @test IC._make_array(vt.values[5:8], vt.indices[3]) == c
         end
         # test _make_array (DenseAxisArray)
         @testset "_make_array (DenseAxisArray)" begin
             vt = VectorTuple(c2, a)
-            @test IC._make_array(vt.values, 1:4, vt.indices[1]) == c2
+            @test IC._make_array(vt.values[1:4], vt.indices[1]) == c2
         end
         # test _make_array (SparseAxisArray)
         @testset "_make_array (SparseAxisArray)" begin
             vt = VectorTuple(a, d)
-            @test IC._make_array(vt.values, 2:4, vt.indices[2]) == d
+            @test IC._make_array(vt.values[2:4], vt.indices[2]) == d
         end
         # test _make_array (Fallback)
         @testset "_make_array (Fallback)" begin
             vt = VectorTuple(a, d)
-            @test IC._make_array(vt.values, 1:1, vt.indices[1]) == a
+            @test IC._make_array(vt.values[1:1], vt.indices[1]) == a
             vt = VectorTuple(b, (1, 2))
-            @test IC._make_array(vt.values, 4:5, vt.indices[2]) == [1, 2]
+            @test IC._make_array(vt.values[4:5], vt.indices[2]) == [1, 2]
         end
         # test Tuple
         @testset "Base.Tuple" begin

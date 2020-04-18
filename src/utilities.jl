@@ -22,17 +22,17 @@ end
 
 ## Define functions to convert a JuMP array into a vector (need for @BDconstraint)
 # AbstractArray
-function _make_vector(arr::AbstractArray)
-    return [arr[i] for i in keys(arr)]
+function _make_vector(arr::AbstractArray{T})::Vector{T} where {T}
+    return [arr...]
 end
 
 # Array (do nothing)
-function _make_vector(arr::Array)
+function _make_vector(arr::Vector{T})::Vector{T} where {T}
     return arr
 end
 
 # Something else
-function _make_vector(arr)
+function _make_vector(arr::T)::T where {T}
     return arr
 end
 

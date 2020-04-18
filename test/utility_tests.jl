@@ -54,7 +54,7 @@ end
     # test arrays
     @testset "Array" begin
         @test InfiniteOpt._make_vector(x) == x
-        @test InfiniteOpt._make_vector(ones(2, 2)) == ones(2, 2)
+        @test InfiniteOpt._make_vector(ones(2, 2)) == ones(4)
     end
     # test other stuff
     @testset "Non-Array" begin
