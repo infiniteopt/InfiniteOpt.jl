@@ -23,6 +23,14 @@ end
         @test !supports_in_set(-1, set)
         @test !supports_in_set(2, set)
     end
+    # supports_in_set (MultivariateDistribution set)
+    @testset "Multivariate Distribution" begin
+        set = MultiDistributionSet(MvNormal(ones(2)))
+        @test supports_in_set(ones(2), set)
+        @test supports_in_set(ones(2, 10), set)
+        bad_supports = [1 1; 2 2; 3 3];
+        @test_throws ErrorException supports_in_set(bad_supports, set)
+    end
     # supports_in_set (CollectionSet)
     @testset "CollectionSet" begin
         set1 = IntervalSet(0, 1)
@@ -118,29 +126,64 @@ end
 @testset "generate_support_values" begin
     @testset "IntervalSet" begin
         set = IntervalSet(0., 1.)
-        @test generate_support_values(set, num_supports = 10, sig_fig = 3) isa Vector{<:Number}
-        @test generate_support_values(set, num_supports = 10, sig_fig = 3)[2] == 0.111
-        @test generate_support_values(set, num_supports = 10, sig_fig = 3)[2] != 1/11
-        @test length(generate_support_values(set, num_supports = 10, sig_fig = 3)) == 10
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1] isa Vector{<:Number}
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[2] == Set([UniformGrid])
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1][2] == 0.111
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1][2] != 1/11
+        @test length(generate_support_values(set, num_supports = 10, sig_figs = 3)[1]) == 10
     end
     @testset "Distribution Sets" begin
         dist1 = Normal(0., 1.)
         dist2 = MvNormal([0.; 0.], [1. 0.; 0. 2.])
         set1 = UniDistributionSet(dist1)
         set2 = MultiDistributionSet(dist2)
-        @test generate_support_values(set1, num_supports = 10) isa Vector{<:Number}
-        @test generate_support_values(set2, num_supports = 10) isa Array{<:Number, 2}
-        @test length(generate_support_values(set1, num_supports = 10)) == 10
-        @test size(generate_support_values(set2, num_supports = 10)) == (2, 10)
+        @test generate_support_values(set1, num_supports = 10)[1] isa Vector{<:Number}
+        @test generate_support_values(set2, num_supports = 10)[1] isa Array{<:Number, 2}
+        @test generate_support_values(set2, num_supports = 10)[2] == Set([McSample])
+        @test length(generate_support_values(set1, num_supports = 10)[1]) == 10
+        @test size(generate_support_values(set2, num_supports = 10)[1]) == (2, 10)
     end
-    @testset "CollectionSet" begin
+    @testset "Matrix Distribution Sets" begin
+        dist = MatrixBeta(2, 2, 2)
+        set = MultiDistributionSet(dist)
+        @test generate_support_values(set, num_supports = 10)[1] isa Array{<:Number, 2}
+        @test generate_support_values(set, num_supports = 10)[2] == Set([McSample])
+        @test size(generate_support_values(set, num_supports = 10)[1]) == (4, 10)
+    end
+    @testset "_generate_collection_supports" begin
         set1 = IntervalSet(0., 1.)
         set2 = IntervalSet(0., 1.)
         set = CollectionSet([set1, set2])
-        @test generate_support_values(set, num_supports = 10, sig_fig = 3) isa Array{<:Number, 2}
-        @test generate_support_values(set, num_supports = 10, sig_fig = 3)[2, 2] == 0.111
-        @test generate_support_values(set, num_supports = 10, sig_fig = 3)[2, 2] != 1/11
-        @test size(generate_support_values(set, num_supports = 10, sig_fig = 3)) == (2, 10)
+        @test InfiniteOpt._generate_collection_supports(set, 10, 3) isa Array{<:Number, 2}
+        @test InfiniteOpt._generate_collection_supports(set, 10, 3)[2, 2] == 0.111
+        @test InfiniteOpt._generate_collection_supports(set, 10, 3)[2, 2] != 1/11
+        @test size(InfiniteOpt._generate_collection_supports(set, 10, 3)) == (2, 10)
+    end
+    @testset "CollectionSet (IntervalSets)" begin
+        set1 = IntervalSet(0., 1.)
+        set2 = IntervalSet(0., 1.)
+        set = CollectionSet([set1, set2])
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1] isa Array{<:Number, 2}
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[2] == Set([UniformGrid])
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1][2, 2] == 0.111
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1][2, 2] != 1/11
+        @test size(generate_support_values(set, num_supports = 10, sig_figs = 3)[1]) == (2, 10)
+    end
+    @testset "CollectionSet (UniDistributionSets)" begin
+        set1 = UniDistributionSet(Normal())
+        set2 = UniDistributionSet(Normal())
+        set = CollectionSet([set1, set2])
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1] isa Array{<:Number, 2}
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[2] == Set([McSample])
+        @test size(generate_support_values(set, num_supports = 10, sig_figs = 3)[1]) == (2, 10)
+    end
+    @testset "CollectionSet (InfiniteScalarSets)" begin
+        set1 = UniDistributionSet(Normal())
+        set2 = IntervalSet(0., 1.)
+        set = CollectionSet([set1, set2])
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1] isa Array{<:Number, 2}
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[2] == Set([Mixture])
+        @test size(generate_support_values(set, num_supports = 10, sig_figs = 3)[1]) == (2, 10)
     end
     @testset "Fallback" begin
         @test_throws ErrorException generate_support_values(BadSet())

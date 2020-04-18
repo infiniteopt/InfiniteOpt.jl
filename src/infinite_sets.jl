@@ -1,3 +1,6 @@
+################################################################################
+#                              ACCESSER METHODS
+################################################################################
 """
     collection_sets(set::AbstractInfiniteSet)
 
@@ -8,11 +11,16 @@ function collection_sets(set::AbstractInfiniteSet)
     type = typeof(set)
     error("`collection_sets` not defined for infinite set of type $type.")
 end
+function collection_sets(set::CollectionSet{S}
+                         )::Vector{S} where {S <: InfiniteScalarSet}
+    return set.sets
+end
 
-collection_sets(set::CollectionSet{<:InfiniteScalarSet})::Vector{<:InfiniteScalarSet} = set.sets
-
+################################################################################
+#                           SUPPORT VALIDITY METHODS
+################################################################################
 """
-    supports_in_set(supports::Union{Number, Vector{<:Number}, Array{<:Number, 2}},
+    supports_in_set(supports::Union{Real, Vector{<:Real}, Array{<:Real, 2}},
                     set::AbstractInfiniteSet)::Bool
 
 Used to check if `supports` are in the domain of `set`. Returns `true` if
@@ -25,7 +33,7 @@ that an error won't be thrown.
 function supports_in_set end
 
 # IntervalSet
-function supports_in_set(supports::Union{Number, Vector{<:Number}},
+function supports_in_set(supports::Union{Real, Vector{<:Real}},
                          set::IntervalSet)::Bool
     min_support = minimum(supports)
     max_support = maximum(supports)
@@ -36,27 +44,30 @@ function supports_in_set(supports::Union{Number, Vector{<:Number}},
 end
 
 # UnivariateDistribution set
-function supports_in_set(supports::Union{Number, Vector{<:Number}},
+function supports_in_set(supports::Union{Real, Vector{<:Real}},
                          set::UniDistributionSet)::Bool
-    min_support = minimum(supports)
-    max_support = maximum(supports)
-    check1 = min_support < minimum(set.distribution)
-    check2 = max_support > maximum(set.distribution)
-    if check1 || check2
-        return false
+    return all(Distributions.insupport(set.distribution, supports))
+end
+
+# MultivariateDistribution set
+function supports_in_set(
+    supports::Array{<:Real},
+    set::MultiDistributionSet{<:Distributions.MultivariateDistribution{S}}
+    )::Bool where {S <: Distributions.ValueSupport}
+    if length(set.distribution) != size(supports, 1)
+        error("Support dimensions does not match distribution dimensions.")
     end
-    return true
+    return all(Distributions.insupport(set.distribution, supports))
 end
 
 # CollectionSet
-function supports_in_set(supports::Array{<:Number, 2}, set::CollectionSet)::Bool
-    support_dim = size(supports)[1]
+function supports_in_set(supports::Array{<:Real, 2}, set::CollectionSet)::Bool
     sets = collection_sets(set)
-    if length(sets) != support_dim
-        error("Supports dimension does not match CollectionSet dimension.")
+    if length(sets) != size(supports, 1)
+        error("Support dimensions does not match CollectionSet dimensions.")
     end
-    for i in axes(supports)[1]
-        if !supports_in_set(supports[i,:], sets[i])
+    for i in eachindex(sets)
+        if !supports_in_set(supports[i, :], sets[i])
             return false
         end
     end
@@ -64,11 +75,13 @@ function supports_in_set(supports::Array{<:Number, 2}, set::CollectionSet)::Bool
 end
 
 # Fallback
-function supports_in_set(supports::Union{Number, Vector{<:Number}, Array{<:Number, 2}},
-                         set::AbstractInfiniteSet)::Bool
+function supports_in_set(supports, set::AbstractInfiniteSet)::Bool
     return true
 end
 
+################################################################################
+#                              LOWER BOUND METHODS
+################################################################################
 """
     JuMP.has_lower_bound(set::AbstractInfiniteSet)::Bool
 
@@ -96,8 +109,8 @@ JuMP.has_lower_bound(set::UniDistributionSet)::Bool = true
 
 # CollectionSet
 function JuMP.has_lower_bound(set::CollectionSet)::Bool
-    for i in collection_sets(set)
-        if !JuMP.has_lower_bound(i)
+    for s in collection_sets(set)
+        if !JuMP.has_lower_bound(s)
             return false
         end
     end
@@ -105,7 +118,7 @@ function JuMP.has_lower_bound(set::CollectionSet)::Bool
 end
 
 """
-    JuMP.lower_bound(set::AbstractInfiniteSet)::Union{Number, Vector{<:Number}}
+    JuMP.lower_bound(set::AbstractInfiniteSet)::Union{Real, Vector{<:Real}}
 
 Return the lower bound of `set` if one exists. This should be extended for
 user-defined infinite sets if appropriate. Errors if `JuMP.has_lower_bound`
@@ -126,21 +139,21 @@ function JuMP.lower_bound(set::AbstractInfiniteSet) # fallback
 end
 
 # IntervalSet
-JuMP.lower_bound(set::IntervalSet)::Number = set.lower_bound
+JuMP.lower_bound(set::IntervalSet)::Float64 = set.lower_bound
 
 # DistributionSet (Univariate)
-function JuMP.lower_bound(set::UniDistributionSet)::Number
+function JuMP.lower_bound(set::UniDistributionSet)::Real
     return minimum(set.distribution)
 end
 
 # CollectionSet
-function JuMP.lower_bound(set::CollectionSet)::Vector{<:Number}
+function JuMP.lower_bound(set::CollectionSet)::Vector{<:Real}
     return [JuMP.lower_bound(i) for i in collection_sets(set)]
 end
 
 """
     JuMP.set_lower_bound(set::AbstractInfiniteSet,
-                         lower::Union{Number, Vector{<:Number}})::AbstractInfiniteSet
+                         lower::Union{Real, Vector{<:Real}})::AbstractInfiniteSet
 
 Set and return the lower bound of `set` if such an aoperation makes sense. Errors
 if the type of `set` does not support this operation or has not been extended.
@@ -155,30 +168,34 @@ julia> set_lower_bound(set, 0.5)
 ```
 """
 function JuMP.set_lower_bound(set::AbstractInfiniteSet,
-                              lower::Union{Number, Vector{<:Number}}) # fallback
+                              lower::Union{Real, Vector{<:Real}}) # fallback
     type = typeof(set)
     error("`JuMP.set_lower_bound` not defined for infinite set of type $type.")
 end
 
 # IntervalSet
-function JuMP.set_lower_bound(set::IntervalSet, lower::Number)::IntervalSet
+function JuMP.set_lower_bound(set::IntervalSet, lower::Real)::IntervalSet
     return IntervalSet(lower, set.upper_bound)
 end
 
 # DistributionSet
 function JuMP.set_lower_bound(set::Union{UniDistributionSet,
                                          MultiDistributionSet},
-                              lower::Union{Number, Vector{<:Number}})
+                              lower::Union{Real, Vector{<:Real}})
     error("Cannot set the lower bound of a distribution, try using " *
           "`Distributions.Truncated` instead.")
 end
 
 # CollectionSet
-function JuMP.set_lower_bound(set::CollectionSet, lower::Vector{<:Number})::CollectionSet
+function JuMP.set_lower_bound(set::CollectionSet, lower::Vector{<:Real})::CollectionSet
     sets = collection_sets(set)
     new_sets = [JuMP.set_lower_bound(sets[i], lower[i]) for i in eachindex(sets)]
     return CollectionSet(new_sets)
 end
+
+################################################################################
+#                              UPPER BOUND METHODS
+################################################################################
 """
     JuMP.has_upper_bound(set::AbstractInfiniteSet)::Bool
 
@@ -215,7 +232,7 @@ function JuMP.has_upper_bound(set::CollectionSet)::Bool
 end
 
 """
-    JuMP.upper_bound(set::AbstractInfiniteSet)::Number
+    JuMP.upper_bound(set::AbstractInfiniteSet)::Union{Real, Vector{<:Real}}
 
 Return the upper bound of `set` if one exists. This should be extended for
 user-defined infinite sets if appropriate. Errors if `JuMP.has_upper_bound`
@@ -236,22 +253,22 @@ function JuMP.upper_bound(set::AbstractInfiniteSet) # fallback
 end
 
 # IntervalSet
-JuMP.upper_bound(set::IntervalSet)::Number = set.upper_bound
+JuMP.upper_bound(set::IntervalSet)::Float64 = set.upper_bound
 
 # DistributionSet (Univariate)
-function JuMP.upper_bound(set::UniDistributionSet)::Number
+function JuMP.upper_bound(set::UniDistributionSet)::Real
     return maximum(set.distribution)
 end
 
 # CollectionSet
-function JuMP.upper_bound(set::CollectionSet)::Vector{<:Number}
+function JuMP.upper_bound(set::CollectionSet)::Vector{<:Real}
     return [JuMP.upper_bound(i) for i in collection_sets(set)]
 end
 
 
 """
     JuMP.set_upper_bound(set::AbstractInfiniteSet,
-                         upper::Number)::AbstractInfiniteSet
+                         upper::Real)::AbstractInfiniteSet
 
 Set and return the upper bound of `set` if such an aoperation makes sense. Errors
 if the type of `set` does not support this operation or has not been extended.
@@ -265,78 +282,135 @@ julia> set_upper_bound(set, 0.5)
 [0, 0.5]
 ```
 """
-function JuMP.set_upper_bound(set::AbstractInfiniteSet, upper::Number) # fallback
+function JuMP.set_upper_bound(set::AbstractInfiniteSet, upper::Real) # fallback
     type = typeof(set)
     error("`JuMP.set_lower_bound` not defined for infinite set of type $type.")
 end
 
 # IntervalSet
-function JuMP.set_upper_bound(set::IntervalSet, upper::Number)::IntervalSet
+function JuMP.set_upper_bound(set::IntervalSet, upper::Real)::IntervalSet
     return IntervalSet(set.lower_bound, upper)
 end
 
 # DistributionSet
 function JuMP.set_upper_bound(set::Union{UniDistributionSet,
-                                         MultiDistributionSet}, lower::Number)
+                                         MultiDistributionSet}, lower::Real)
     error("Cannot set the upper bound of a distribution, try using " *
           "`Distributions.Truncated` instead.")
 end
 
 # CollectionSet
-function JuMP.set_upper_bound(set::CollectionSet, lower::Vector{<:Number})::CollectionSet
+function JuMP.set_upper_bound(set::CollectionSet, lower::Vector{<:Real})::CollectionSet
     sets = collection_sets(set)
     new_sets = [JuMP.set_upper_bound(sets[i], lower[i]) for i in eachindex(sets)]
     return CollectionSet(new_sets)
 end
 
+################################################################################
+#                        SUPPORT AND LABEL GENERATION
+################################################################################
+# Define generation labels to be stored with supports
+const UserDefined = :user_defined
+const McSample = :mc_sample
+const UniformGrid = :uniform_grid
+const Mixture = :mixture
+
 """
     generate_support_values(set::AbstractInfiniteSet; [num_supports::Int = 10,
-                            sig_fig::Int = 5])
+                            sig_figs::Int = 5])::Tuple{Array{<:Real}, Set{Symbol}}
 
 Generate `num_supports` support values with `sig_figs` significant digits in
-accordance with `set` and return them. `IntervalSet`s generate supports
-uniformly and `DistributionSet`s generate them randomly accordingly to the
-underlyign distribution. Extensions that employ user-defined infinite set types
+accordance with `set` and return them along with the correct generation label(s).
+`IntervalSet`s generate supports uniformly with label `Grid` and
+distribution sets generate them randomly accordingly to the
+underlying distribution. Extensions that employ user-defined infinite set types
 should extend according to the new set type. Errors if the `set` is a type that
 has not been explicitly extended. This is intended as an internal method to be
 used by [`generate_and_add_supports!`](@ref) and [`build_parameter`](@ref).
 """
-function generate_support_values(set::AbstractInfiniteSet; num_supports::Int = 0,
-                                 sig_fig::Int = 1)
-    type = typeof(set)
+function generate_support_values(set::AbstractInfiniteSet;
+                                 num_supports::Int = 0,
+                                 sig_figs::Int = 1)
     error("Unable to generate support values for unrecognized infinite set " *
-          "type $type")
+          "type $(typeof(set))")
 end
 
 # IntervalSet
-function generate_support_values(set::IntervalSet; num_supports::Int = 10,
-                                 sig_fig::Int = 5)::Vector{Float64}
-    lb = set.lower_bound
-    ub = set.upper_bound
-    new_supports = round.(collect(range(lb, stop = ub, length = num_supports)),
-                          sigdigits = sig_fig)
-    return new_supports
-end
-
-# DistributionSet
-function generate_support_values(set::Union{UniDistributionSet,
-                                            MultiDistributionSet};
+function generate_support_values(set::IntervalSet;
                                  num_supports::Int = 10,
-                                 sig_fig::Int = 5)::Array{Float64}
-    new_supports = round.(Distributions.rand(set.distribution, num_supports),
-                          sigdigits = sig_fig)
-    return new_supports
+                                 sig_figs::Int = 5
+                                 )::Tuple{Vector{<:Real}, Set{Symbol}}
+    lb = JuMP.lower_bound(set)
+    ub = JuMP.upper_bound(set)
+    new_supports = round.(range(lb, stop = ub, length = num_supports),
+                          sigdigits = sig_figs)
+    return new_supports, Set([UniformGrid])
 end
 
-# CollectionSet
-function generate_support_values(set::CollectionSet; num_supports::Int = 10,
-                                 sig_fig::Int = 5)::Array{Float64}
-    sets = collection_sets(set)
-    new_supports = Array{Float64, 2}(undef, length(sets), num_supports)
-    for i in eachindex(sets)
-        new_supports[i,:] = generate_support_values(sets[i],
-                                                    num_supports = num_supports,
-                                                    sig_fig = sig_fig)
+# UniDistributionSet and MultiDistributionSet (with multivariate only)
+function generate_support_values(
+    set::Union{UniDistributionSet, MultiDistributionSet{<:Distributions.MultivariateDistribution}};
+    num_supports::Int = 10,
+    sig_figs::Int = 5
+    )::Tuple{Array{<:Real}, Set{Symbol}}
+    dist = set.distribution
+    new_supports = round.(Distributions.rand(dist, num_supports),
+                          sigdigits = sig_figs)
+    return new_supports, Set([McSample])
+end
+
+# MultiDistributionSet (matrix-variate distribution)
+function generate_support_values(
+    set::MultiDistributionSet{<:Distributions.MatrixDistribution};
+    num_supports::Int = 10,
+    sig_figs::Int = 5
+    )::Tuple{Array{Float64, 2}, Set{Symbol}}
+    dist = set.distribution
+    raw_supports = Distributions.rand(dist, num_supports)
+    new_supports = Array{Float64}(undef, length(dist), num_supports)
+    for i in 1:size(new_supports, 2)
+        new_supports[:, i] = round.([raw_supports[i]...], sigdigits = sig_figs)
     end
-    return new_supports
+    return new_supports, Set([McSample])
+end
+
+# Generate the supports for a collection set
+function _generate_collection_supports(set::CollectionSet, num_supports::Int,
+                                       sig_figs::Int)::Array{Float64, 2}
+    sets = collection_sets(set)
+    # build the support array transpose to fill in column order (leverage locality)
+    trans_supports = Array{Float64, 2}(undef, num_supports, length(sets))
+    for i in eachindex(sets)
+        @inbounds trans_supports[:, i] = generate_support_values(sets[i],
+                                                   num_supports = num_supports,
+                                                   sig_figs = sig_figs)[1]
+    end
+    return collect(transpose(trans_supports))
+end
+
+# CollectionSet (IntervalSets)
+function generate_support_values(set::CollectionSet{IntervalSet};
+                                 num_supports::Int = 10,
+                                 sig_figs::Int = 5
+                                 )::Tuple{Array{<:Real}, Set{Symbol}}
+    new_supports = _generate_collection_supports(set, num_supports, sig_figs)
+    return new_supports, Set([UniformGrid])
+end
+
+# CollectionSet (UniDistributionSets)
+function generate_support_values(set::CollectionSet{<:UniDistributionSet};
+                                 num_supports::Int = 10,
+                                 sig_figs::Int = 5
+                                 )::Tuple{Array{<:Real}, Set{Symbol}}
+    new_supports = _generate_collection_supports(set, num_supports, sig_figs)
+    return new_supports, Set([McSample])
+end
+
+# CollectionSet (InfiniteScalarSets)
+function generate_support_values(set::CollectionSet;
+                                 num_supports::Int = 10,
+                                 sig_figs::Int = 5
+                                 )::Tuple{Array{<:Real}, Set{Symbol}}
+    new_supports = _generate_collection_supports(set, num_supports, sig_figs)
+    return new_supports, Set([Mixture])
 end

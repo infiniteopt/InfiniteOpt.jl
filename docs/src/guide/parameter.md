@@ -840,6 +840,7 @@ Order   = [:macro, :function]
 @infinite_parameter
 build_parameter(::Function, ::AbstractInfiniteSet)
 add_parameter(::InfiniteModel, ::InfOptParameter)
+add_parameters
 used_by_constraint(::ParameterRef)
 used_by_measure(::ParameterRef)
 used_by_variable(::ParameterRef)

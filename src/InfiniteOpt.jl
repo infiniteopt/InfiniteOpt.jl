@@ -64,7 +64,7 @@ export @infinite_variable, @point_variable, @hold_variable, @infinite_parameter,
 @BDconstraint, @finite_parameter, @set_parameter_bounds, @add_parameter_bounds
 
 # Export constants
-export Infinite, Hold, Point, Parameter, sampling, quadrature
+export Infinite, Hold, Point, sampling, quadrature
 
 # Export index types
 export AbstractInfOptIndex, ObjectIndex, IndependentParameterIndex,
@@ -74,7 +74,8 @@ HoldVariableIndex, MeasureIndex, ConstraintIndex, InfiniteParameterIndex
 
 # Export infinite set types
 export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
-UniDistributionSet, MultiDistributionSet, CollectionSet
+UniDistributionSet, MultiDistributionSet, CollectionSet, UserDefined,
+McSample, UniformGrid, Mixture
 
 # Export infinite set methods
 export collection_sets, supports_in_set, generate_support_values

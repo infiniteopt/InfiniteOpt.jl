@@ -1,20 +1,224 @@
 ################################################################################
 #                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
 ################################################################################
+# Extend dispatch_variable_ref
+function dispatch_variable_ref(model::InfiniteModel,
+                               index::DependentParameterIndex
+                               )::DependentParameterRef
+    return DependentParameterRef(model, index)
+end
 
+# Extend _add_data_object
+function _add_data_object(model::InfiniteModel,
+                          object::MultiParameterData{<:DependentParameters}
+                          )::DependentParametersIndex
+    return MOIUC.add_item(model.dependent_params, object)
+end
+
+# Extend _data_dictionary
+function _data_dictionary(pref::DependentParameterRef)::MOIUC.CleverDict
+    return model.dependent_params
+end
+
+# Extend _data_object
+function _data_object(pref::DependentParameterRef
+                      )::MultiParameterData{<:DependentParameters}
+    return _data_dictionary(pref)[JuMP.index(pref)]
+end
+
+# Extend _core_variable_object
+function _core_variable_object(pref::DependentParameterRef)::DependentParameters
+    return _data_object(pref).parameters
+end
 
 ################################################################################
 #                             PARAMETER DEFINITION
 ################################################################################
-function build_parameter(_error::Function, set::InfiniteArraySet;
-                         label::Set{Symbol} = Set{Symbol}(),
-                         num_supports::Int = 0,
-                         supports::Union{Number, Vector{<:Number}} = Number[],
-                         sig_fig::Int = 5,
-                         extra_kw_args...)::DependentParameters
-    return nothing
+# Store partially processed individual dependent parameters
+struct _DependentParameter{S <: AbstractInfiniteSet}
+    set::S
+    supports::Vector{Float64}
+    name::String
+    function _DependentParameter(set::S, name::String;
+        supports::Union{Vector{<:Real}, Real} = Float64[]
+        )::_DependentParameter{S} where {S <: AbstractInfiniteSet}
+        if supports isa Real
+            return new{S}(set, [supports], name)
+        else
+            return new{S}(set, supports, name)
+        end
+    end
 end
 
+## Use type dispatch to efficiently check the set(s)
+# All InfiniteScalarSets
+function _check_param_sets(_error::Function,
+    params::AbstractArray{<:_DependentParameter{<:InfiniteScalarSet}}
+    )::Nothing
+    return
+end
+
+# All MultiDistributionSet with non SparseAxisArray
+function _check_param_sets(_error::Function,
+    params::AbstractArray{<:_DependentParameter{<:MultiDistributionSet}}
+    )::Nothing
+    dist = first(params).set.distribution
+    set_type = typeof(first(params).set)
+    if size(dist) != size(params)
+        _error("The dimensions of the parameters and the multi-dimensional " *
+               "distribution $dist.")
+    elseif !(params isa AbstractArray{<:_DependentParameter{<:set_type}})
+        _error("Cannot specify multiple multi-dimensional distributions sets for one " *
+               "set of dependent infinite parameters.")
+    end
+    return
+end
+
+# All MultiDistributionSet with SparseAxisArray
+function _check_param_sets(_error::Function,
+    params::JuMPC.SparseAxisArray{<:_DependentParameter{<:MultiDistributionSet}}
+    )
+    _error("Cannot specify multiple-dimensional distribution set with a " *
+           "`SparseAxisArray` of dependent infinite parameters.")
+end
+
+# All CollectionSet
+function _check_param_sets(_error::Function,
+    params::AbstractArray{<:_DependentParameter{<:CollectionSet}}
+    )::Nothing
+    sets = collection_sets(first(params).set)
+    set_type = typeof(first(params).set)
+    if length(sets) != length(params)
+        _error("The dimensions of the parameters and the specified CollectionSet " *
+               "do not match.")
+    elseif !(params isa AbstractArray{<:_DependentParameter{<:set_type}})
+        _error("Cannot specify multiple `CollectionSet`s for one group of " *
+               "dependent infinite parameters.")
+    elseif params isa JuMPC.SparseAxisArray
+        @warn("CollectionSet order may not match the given `SparseAxisArray` " *
+              "of specified dependent infinite parameters, consider instead " *
+              "specifying the `InfiniteScalarSet` for each parameter using " *
+              "the `set` keyword and the appropriate indices.")
+    end
+    return
+end
+
+# All some InfiniteArraySet (for extensions)
+function _check_param_sets(_error::Function,
+    params::AbstractArray{<:_DependentParameter{<:InfiniteArraySet}}
+    )::Nothing
+    set_type = typeof(first(params).set)
+    if !(params isa AbstractArray{<:_DependentParameter{<:set_type}})
+        _error("Cannot specify multiple `InfiniteArraySet`s for one group of " *
+               "dependent infinite parameters.")
+    end
+    return
+end
+
+# Fallback
+function _check_param_sets(_error::Function, params)
+    _error("Unrecognized infinite set input.")
+end
+
+## Use set type dispatch to make the proper InfiniteArraySet
+# InfiniteArraySet
+function _make_array_set(params::Vector{<:_DependentParameter{T}
+                         )::T where {T <: InfiniteArraySet}
+    return first(params).set
+end
+
+# InfiniteScalarSets
+function _make_array_set(params::Vector{<:_DependentParameter{T}
+                         )::CollectionSet{T} where {T <: InfiniteScalarSet}
+    return CollectionSet([p.set for p in params])
+end
+
+# Build a DependentParameters object given an array of _DependentParameters
+function _build_parameters(_error::Function,
+                           params::AbstractArray{<:_DependentParameter};
+                           num_supports::Int = 0, sig_figs::Int = 5,
+                           extra_kw_args...)
+    # error with extra keywords
+    for (kwarg, _) in extra_kw_args
+       _error("Unrecognized keyword argument $kwarg")
+    end
+    # check the formatting
+    _check_param_sets(_error, params)
+    # vectorize the parameter array
+    indices = Collections._get_indices(params)
+    ordered_params = Collections._make_ordered(params, indices)
+    vector_params = _make_vector(ordered_params)
+    # make the set
+    set = _make_array_set(vector_params)
+    # make the supports and labels
+    lens = [length(p.supports) for p in vector_params]
+    _allequal(lens) || _error("Inconsistent support dimensions.")
+    # we have supports
+    if first(lens) != 0
+        # build the support array transpose to fill in column order (leverage locality)
+        trans_supps = Array{Float64}(undef, first(lens), length(vector_params))
+        for i in 1:size(trans_supps, 2)
+            trans_supps[:, i] = vector_params[i].supports
+        end
+        supps = collect(transpose(trans_supps))
+        supports_in_set(supps, set) || _error("Supports violate infinite set domain.")
+        labels = [Set([UserDefined]) for i in 1:size(supps, 2)]
+    # we want to generate supports
+    elseif num_supports != 0
+        supps, label = generate_support_values(set, num_supports = num_supports,
+                                               sig_figs = sig_figs)
+        labels = [label for i in 1:num_supports]
+    # no supports are specified
+    else
+        supps = zeros(Float64, length(vector_params), 0)
+        labels = Set{Symbol}[]
+    end
+    # make the parameter object
+    names = [param.name for param in vector_params]
+    return DependentParameters(set, supps, labels), indices, names
+end
+
+"""
+    add_parameters(model::InfiniteModel,
+                   params::DependentParameters,
+                   names::Vector{String} = ["noname", "noname", ...];
+                   indices = nothing
+                   )::AbstractArray{<:GeneralVariableRef}
+
+Add `params` to `model` and return an appropriate container of the dependent
+infinite parameter references.
+"""
+function add_parameters(model::InfiniteModel,
+                        params::DependentParameters,
+                        names::Vector{String} = String[];
+                        indices = nothing
+                        )::AbstractArray{<:GeneralVariableRef}
+    # get the number of parameters
+    num_params = size(params.supports, 1)
+    # process the names
+    if isempty(names)
+        names = ["noname" for i in 1:num_params]
+    end
+    # process the indices
+    if indices === nothing
+        indices = CartesianIndices(1:num_params)
+    end
+    # make the parameter model object
+    obj_num = model.last_object_num += 1
+    first_param_num = model.last_param_num + 1
+    last_param_num = model.last_param_num += num_params
+    param_nums = first_param_num:last_param_num
+    data_object = MultiParameterData(params, obj_num, param_nums, names)
+    # add the data object to the model and make the references
+    obj_index = _add_data_object(model, data_object)
+    prefs = [GeneralVariableRef(model, obj_index.value, DependentParameterIndex, i)
+             for i in 1:num_params]
+    return Collections._make_array(prefs, indices)
+end
+
+################################################################################
+#                             OTHER STUFF
+################################################################################
 """
     supports(prefs::AbstractArray{<:ParameterRef})::Vector
 

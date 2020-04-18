@@ -74,13 +74,13 @@ Modules = [InfiniteOpt, JuMP]
 Order   = [:macro, :function]
 ```
 ```@docs
-IntervalSet(::Number, ::Number)
+collection_sets
 JuMP.has_lower_bound(::AbstractInfiniteSet)
 JuMP.lower_bound(::AbstractInfiniteSet)
-JuMP.set_lower_bound(::AbstractInfiniteSet, ::Number)
+JuMP.set_lower_bound(::AbstractInfiniteSet, ::Real)
 JuMP.has_upper_bound(::AbstractInfiniteSet)
 JuMP.upper_bound(::AbstractInfiniteSet)
-JuMP.set_upper_bound(::AbstractInfiniteSet, ::Number)
+JuMP.set_upper_bound(::AbstractInfiniteSet, ::Real)
 supports_in_set
 generate_support_values
 ```

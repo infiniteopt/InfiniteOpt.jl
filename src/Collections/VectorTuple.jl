@@ -381,32 +381,31 @@ end
 
 ## Make the original array for a particular tuple element
 # Array
-function _make_array(values::Vector, range::UnitRange{Int},
-                     indices::CartesianIndices)
-    return [values[range][i] for i in LinearIndices(indices)]
+function _make_array(values::Vector, indices::CartesianIndices)
+    return [values[i] for i in LinearIndices(indices)]
 end
 
 # DenseAxisArray
-function _make_array(values::Vector, range::UnitRange{Int}, indices::Tuple)
-    array = _make_array(values, range, indices[1])
+function _make_array(values::Vector, indices::Tuple)
+    array = _make_array(values, indices[1])
     return JuMPC.DenseAxisArray(array, indices[2]...)
 end
 
 # SparseAxisArray
-function _make_array(values::Vector, range::UnitRange{Int}, indices::Vector)
-    data = Dict(indices[i] => values[range][i] for i in eachindex(indices))
+function _make_array(values::Vector, indices::Vector)
+    data = Dict(indices[i] => values[i] for i in eachindex(indices))
     return JuMPC.SparseAxisArray(data)
 end
 
 # Other
-function _make_array(values::Vector, range::UnitRange{Int}, indices::Nothing)
-    return length(range) == 1 ? values[range.start] : values[range]
+function _make_array(values::Vector, indices::Nothing)
+    return length(values) == 1 ? first(values) : values
 end
 
 # Define Tuple construction from a VectorTuple
 function Base.Tuple(vt::VectorTuple; use_indices = true)::Tuple
     if use_indices
-        return Tuple(_make_array(vt.values, vt.ranges[i], vt.indices[i])
+        return Tuple(_make_array(vt.values[vt.ranges[i]], vt.indices[i])
                      for i in eachindex(vt.ranges))
     else
         return Tuple(length(vt.ranges[i]) == 1 ? vt.values[vt.ranges[i].start] : vt.values[vt.ranges[i]]
