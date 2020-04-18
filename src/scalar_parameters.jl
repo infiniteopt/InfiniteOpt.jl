@@ -1,7 +1,46 @@
 ################################################################################
 #                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
 ################################################################################
+# Extend dispatch_variable_ref
+function dispatch_variable_ref(model::InfiniteModel,
+                               index::IndependentParameterIndex
+                               )::IndependentParameterRef
+    return IndependentParameterRef(model, index)
+end
 
+function dispatch_variable_ref(model::InfiniteModel,
+                               index::FiniteParameterIndex
+                               )::FiniteParameterRef
+    return FiniteParameterRef(model, index)
+end
+
+# Extend _add_data_object
+function _add_data_object(model::InfiniteModel,
+                          object::ScalarParameterData{IndependentParameter}
+                          )::IndependentParameterIndex
+    return MOIUC.add_item(model.independent_params, object)
+end
+
+function _add_data_object(model::InfiniteModel,
+                          object::ScalarParameterData{FiniteParameter}
+                          )::FiniteParameterIndex
+    return MOIUC.add_item(model.finite_params, object)
+end
+
+# Extend _data_dictionary
+function _data_dictionary(pref::IndependentParameterRef)::MOIUC.CleverDict
+    return model.independent_params
+end
+
+function _data_dictionary(pref::FiniteParameterRef)::MOIUC.CleverDict
+    return model.finite_params
+end
+
+# Extend _data_object
+function _data_object(pref::Union{IndependentParameterRef, FiniteParameterRef}
+                     )::ScalarParameterData
+    return _data_dictionary(pref)[JuMP.index(pref)]
+end
 
 ################################################################################
 #                             PARAMETER DEFINITION
@@ -9,11 +48,11 @@
 # Internal structure for building InfOptParameters
 mutable struct _ParameterInfoExpr
     has_lb::Bool
-    lower_bound::Any
+    lower_bound::Float64
     has_ub::Bool
-    upper_bound::Any
+    upper_bound::Float64
     has_dist::Bool
-    distribution::Any
+    distribution::Float64
     has_set::Bool
     set::Any
 end
@@ -87,12 +126,12 @@ function _constructor_set(_error::Function, info::_ParameterInfoExpr)
         check = :(isa($(info.lower_bound), Number))
         return :($(check) ? IntervalSet($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a number."))
     elseif info.has_dist
-        check = :(isa($(info.distribution), Distributions.NonMatrixDistribution))
-        return :($(check) ? DistributionSet($(info.distribution)) : error("Distribution must be a subtype of Distributions.NonMatrixDistribution."))
+        check = :(isa($(info.distribution), Distributions.UnivariateDistribution))
+        return :($(check) ? UniDistributionSet($(info.distribution)) : error("Distribution must be a Distributions.UnivariateDistribution."))
     elseif info.has_set
-        check1 = :(isa($(info.set), AbstractInfiniteSet))
-        check2 = :(isa($(info.set), Distributions.NonMatrixDistribution))
-        return :($(check1) ? $(info.set) : ($(check2) ? DistributionSet($(info.set)) : error("Set must be a subtype of AbstractInfiniteSet.")))
+        check1 = :(isa($(info.set), InfiniteScalarSet))
+        check2 = :(isa($(info.set), Distributions.UnivariateDistribution))
+        return :($(check1) ? $(info.set) : ($(check2) ? UniDistributionSet($(info.set)) : error("Set must be a subtype of InfiniteScalarSet.")))
     else
         _error("Must specify upper/lower bounds, a distribution, or a set")
     end
@@ -109,17 +148,16 @@ function _check_supports_in_bounds(_error::Function,
 end
 
 """
-    build_parameter(_error::Function, set::InfiniteScalarSet,
-                    [num_params::Int = 1; num_supports::Int = 0,
-                    supports::Union{Number, Vector{<:Number}} = Number[],
-                    independent::Bool = false,
-                    sig_fig::Int = 5])::InfOptParameter
+    build_independent_parameter(_error::Function, set::InfiniteScalarSet,
+                           [num_params::Int = 1; num_supports::Int = 0,
+                           supports::Union{Number, Vector{<:Number}} = Number[],
+                           independent::Bool = false,
+                           sig_fig::Int = 5])::InfOptParameter
 
-Returns a [`InfOptParameter`](@ref) given the appropriate information. This is
-analagous to `JuMP.build_variable`. Errors if supports violate the bounds
-associated `set`. Also errors if `set` contains a multivariate distribution with
-a different dimension than `num_params`. This is meant to primarily serve as a
-helper method for [`@infinite_parameter`](@ref).
+Returns a [`IndependentParameter`](@ref) given the appropriate information.
+This is analagous to `JuMP.build_variable`. Errors if supports violate the
+bounds associated with `set`. This is meant to primarily serve as a
+helper method for [`@independent_parameter`](@ref).
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt)
@@ -127,12 +165,12 @@ julia> build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
 InfOptParameter{IntervalSet}([0, 3], [0, 1, 2, 3], false)
 ```
 """
-function build_parameter(_error::Function, set::InfiniteScalarSet;
-                         label::Set{Symbol} = Set{Symbol}(),
-                         num_supports::Int = 0,
-                         supports::Union{Number, Vector{<:Number}} = Number[],
-                         sig_fig::Int = 5,
-                         extra_kw_args...)::IndependentParameter
+function build_independent_parameter(_error::Function, set::InfiniteScalarSet;
+                                     num_supports::Int = 0,
+                                     supports::Union{Real, Vector{<:Real}}
+                                                                       = Real[],
+                                     sig_fig::Int = 5,
+                                     extra_kw_args...)::IndependentParameter
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
@@ -143,30 +181,26 @@ function build_parameter(_error::Function, set::InfiniteScalarSet;
         @warn("Ignoring num_supports since supports is not empty.")
         _check_supports_in_bounds(_error, supports, set)
     elseif num_supports != 0 && length_supports == 0
-        if isa(set, MultiDistributionSet)
-            _error("Support generation is not available for multivariate " *
-                   "distributions.")
-        end
         supports = generate_support_values(set, num_supports = num_supports,
                                            sig_fig = sig_fig)
-    end
-    if isa(set, MultiDistributionSet)
-        if num_params != length(set.distribution)
-            _error("Multivariate distribution dimension must match dimension " *
-                   "of parameter.")
-        end
-    end
-    if num_params == 1 || isa(set, InfiniteScalarSet) # double check num_params for other types of containers
-        unique_supports = unique(supports)
-        if length(unique_supports) != length(supports)
-            @warn("Support points are not unique, eliminating redundant points.")
-        end
-        return IndependentParameter(set, unique_supports)
     end
     if isa(supports, Number)
         supports = [supports]
     end
-    return DependentParameters(set, supports)
+    supports_dict = DataStructures.SortedDict(i => Set{Symbol}()
+                                                              for i in supports)
+    if length(supports_dict) != length(supports)
+        @warn("Support points are not unique, eliminating redundant points.")
+    end
+    return IndependentParameter(set, unique_supports)
+end
+
+function build_finite_parameter(_error::Function, value::Float64;
+                                extra_kw_args...)::FiniteParameter
+    for (kwarg, _) in extra_kw_args
+        _error("Unrecognized keyword argument $kwarg")
+    end
+    return FiniteParameter(value)
 end
 
 # Check the number of supports of one dimension matches the other dimension
