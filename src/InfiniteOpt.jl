@@ -35,7 +35,7 @@ include("array_parameters.jl")
 # include("constraints.jl")
 # include("objective.jl")
 # include("measure_expansions.jl")
-# include("macros.jl")
+include("macros.jl")
 # include("optimize.jl")
 # include("results.jl")
 # include("show.jl")
@@ -59,7 +59,8 @@ generate_supports_and_coeffs
 export AbstractDataObject, InfiniteModel
 
 # Export macros
-export @infinite_variable, @point_variable, @hold_variable, @infinite_parameter,
+export @independent_parameter, @finite_parameter, @infinite_variable,
+@point_variable, @hold_variable, @infinite_parameter,
 @BDconstraint, @finite_parameter, @set_parameter_bounds, @add_parameter_bounds
 
 # Export constants
@@ -85,7 +86,7 @@ DependentParameters, ScalarParameterData, MultiParameterData,
 IndependentParameterRef, DependentParameterRef, FiniteParameterRef
 
 # Export parameter methods
-export build_independent_parameter, build_finite_parameter, add_parameter,
+export build_parameter, add_parameter,
 infinite_set, set_infinite_set, num_parameters, parameter_by_name,
 all_parameters, num_supports, has_supports,
 set_supports, add_supports, delete_supports, supports, used_by_constraint,
