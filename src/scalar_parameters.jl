@@ -29,11 +29,11 @@ end
 
 # Extend _data_dictionary
 function _data_dictionary(pref::IndependentParameterRef)::MOIUC.CleverDict
-    return model.independent_params
+    return pref.model.independent_params
 end
 
 function _data_dictionary(pref::FiniteParameterRef)::MOIUC.CleverDict
-    return model.finite_params
+    return pref.model.finite_params
 end
 
 # Extend _data_object
@@ -48,11 +48,11 @@ end
 # Internal structure for building InfOptParameters
 mutable struct _ParameterInfoExpr
     has_lb::Bool
-    lower_bound::Float64
+    lower_bound::Any
     has_ub::Bool
-    upper_bound::Float64
+    upper_bound::Any
     has_dist::Bool
-    distribution::Float64
+    distribution::Any
     has_set::Bool
     set::Any
 end
@@ -174,6 +174,7 @@ function build_independent_parameter(_error::Function, set::InfiniteScalarSet;
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
+    label = Set{Symbol}()
     length_supports = length(supports)
     if num_supports == 0 && length_supports != 0
         _check_supports_in_bounds(_error, supports, set)
@@ -181,14 +182,14 @@ function build_independent_parameter(_error::Function, set::InfiniteScalarSet;
         @warn("Ignoring num_supports since supports is not empty.")
         _check_supports_in_bounds(_error, supports, set)
     elseif num_supports != 0 && length_supports == 0
-        supports = generate_support_values(set, num_supports = num_supports,
-                                           sig_fig = sig_fig)
+        supports, label = generate_support_values(set, num_supports = num_supports,
+                                                  sig_figs = sig_fig)
     end
     if isa(supports, Number)
         supports = [supports]
     end
     supports_dict = DataStructures.SortedDict{Float64, Set{Symbol}}(
-                                           i => Set{Symbol}() for i in supports)
+                                                   i => label for i in supports)
     if length(supports_dict) != length(supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end

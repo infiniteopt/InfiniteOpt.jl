@@ -87,6 +87,7 @@
         expected = :($(check1) ? $(info.set) : ($(check2) ? UniDistributionSet($(info.set)) : error("Set must be a subtype of InfiniteScalarSet.")))
         @test InfiniteOpt._constructor_set(error, info) == expected
     end
+    #=
     # _parse_one_operator_parameter
     @testset "_parse_one_operator_parameter" begin
         info = InfiniteOpt._ParameterInfoExpr()
@@ -134,8 +135,9 @@
         @test info.has_ub && info.upper_bound == 0
         @test info.has_lb && info.lower_bound == 0
     end
+    =#
 end
-
+#=
 # Test precursor functions needed for add_parameter
 @testset "Basic Reference Queries" begin
     m = InfiniteModel()
@@ -177,7 +179,7 @@ end
         @test_throws ErrorException parameter_by_name(m, "new")
     end
 end
-
+=#
 # Test parameter definition methods
 @testset "Definition" begin
     # _check_supports_in_bounds
@@ -188,7 +190,7 @@ end
                                                                         -1, set)
         @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
                                                                          2, set)
-        set = DistributionSet(Uniform())
+        set = UniDistributionSet(Uniform())
         @test isa(InfiniteOpt._check_supports_in_bounds(error, 0, set), Nothing)
         @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
                                                                         -1, set)
@@ -198,19 +200,17 @@ end
     # build_independent_parameter
     @testset "build_independent_parameter" begin
         set = IntervalSet(0, 1)
-        supps = [0,1]
-        supps_dict = SortedDict(i => Set{Symbol}() for i in [0.,1.])
-        expected = IndependentParameter(set, supps_dict)
-        @test build_independent_parameter(error, set, supports = supps) == expected
-        @test_throws ErrorException build_parameter(error, set, bob = 42)
-        warn = "Support points are not unique, eliminating redundant points."
-        @test_logs (:warn, warn) build_independent_parameter(error, set,
-                                                             supports = ones(3))
+        supps = 0.
+        supps_dict = SortedDict{Float64, Set{Symbol}}(0. => Set{Symbol}())
+        param = build_independent_parameter(error, set, supports = supps)
+        @test param.set == set
+        @test param.supports == supps_dict
+        @test_throws ErrorException build_independent_parameter(error, set, bob = 42)
         warn = "Ignoring num_supports since supports is not empty."
         @test_logs (:warn, warn) build_independent_parameter(error, set,
-                                            supports = [1, 2], num_supports = 2)
+                                            supports = [0, 1], num_supports = 2)
         repeated_supps = [1, 1]
-        expected = IndependentParameter(set, Dict(1. => Set{Symbol}()))
+        expected = IndependentParameter(set, SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}()))
         warn = "Support points are not unique, eliminating redundant points."
         @test_logs (:warn, warn) build_independent_parameter(error, set, supports = repeated_supps) == expected
         set = UniDistributionSet(Normal())
@@ -247,14 +247,20 @@ end
     # add_parameter
     @testset "add_parameter" begin
         m = InfiniteModel()
-        param = InfOptParameter(IntervalSet(0, 1), Number[], false)
-        expected = ParameterRef(m, 1)
+        param = IndependentParameter(IntervalSet(0, 1),
+                                             SortedDict{Float64, Set{Symbol}}())
+        expected = IndependentParameterRef(m, IndependentParameterIndex(1))
         @test add_parameter(m, param) == expected
-        @test m.params[1] isa InfOptParameter
-        @test m.param_to_group_id[1] == 1
+        @test m.independent_params[IndependentParameterIndex(1)] ==
+                                              InfiniteOpt._data_object(expected)
+        param = FiniteParameter(1.5)
+        expected = FiniteParameterRef(m, FiniteParameterIndex(1))
+        @test add_parameter(m, param) == expected
+        @test m.finite_params[FiniteParameterIndex(1)] ==
+                                              InfiniteOpt._data_object(expected)
     end
 end
-
+#=
 # Test the parameter macro
 @testset "Macro" begin
     m = InfiniteModel()
@@ -744,3 +750,4 @@ end
         @test supports(pref_e) == [2.3, 2.7]
     end
 end
+=#

@@ -37,10 +37,10 @@ println("")
     include("standalone_general_variable_methods.jl")
 end
 println("")
-# @time @testset "Parameter Methods" begin
-#     @testset "Scalar" begin include("scalar_parameters.jl") end
+@time @testset "Parameter Methods" begin
+     @testset "Scalar" begin include("scalar_parameters.jl") end
 #     @testset "Array" begin include("array_parameters.jl") end
-# end
+end
 # println("")
 # @time @testset "Optimizer Setup Methods" begin include("optimizer_setup.jl") end
 # println("")

@@ -201,11 +201,10 @@ macro independent_parameter(model, args...)
     # x                                         | type of x | x.head
     # ------------------------------------------+-----------+------------
     # param                                       | Symbol    | NA
-    # param[1:2]                                  | Expr      | :ref
-    # param <= ub or param[1:2] <= ub             | Expr      | :call
+    # param <= ub                                 | Expr      | :call
     # param in [lb, ub]                           | Expr      | :call
-    # lb <= param <= ub or lb <= param[1:2] <= ub | Expr      | :comparison
-    # In the three last cases, we call parse_variable
+    # lb <= param <= ub                           | Expr      | :comparison
+    # In the two last cases, we call parse_variable
     explicit_comparison = isexpr(x, :comparison) || isexpr(x, :call)
     if explicit_comparison
         param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
