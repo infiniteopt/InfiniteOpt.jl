@@ -90,7 +90,8 @@ export build_independent_parameter, build_finite_parameter, add_parameter,
 infinite_set, set_infinite_set, num_parameters, parameter_by_name,
 all_parameters, num_supports, has_supports,
 set_supports, add_supports, delete_supports, supports, used_by_constraint,
-used_by_measure, used_by_infinite_variable, is_used, generate_and_add_supports!
+used_by_measure, used_by_infinite_variable, is_used, generate_and_add_supports!,
+add_parameters
 
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, ReducedInfiniteVariable,

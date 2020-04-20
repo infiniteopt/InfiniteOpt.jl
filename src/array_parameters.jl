@@ -39,8 +39,9 @@ struct _DependentParameter{S <: AbstractInfiniteSet}
     set::S
     supports::Vector{Float64}
     name::String
-    function _DependentParameter(set::S, name::String;
-        supports::Union{Vector{<:Real}, Real} = Float64[]
+    function _DependentParameter(set::S,
+        supports::Union{Vector{<:Real}, Real},
+        name::Strin
         )::_DependentParameter{S} where {S <: AbstractInfiniteSet}
         if supports isa Real
             return new{S}(set, [supports], name)
@@ -175,13 +176,13 @@ function _build_parameters(_error::Function,
     end
     # make the parameter object
     names = [param.name for param in vector_params]
-    return DependentParameters(set, supps, labels), indices, names
+    return DependentParameters(set, supps, labels), names, indices
 end
 
 """
     add_parameters(model::InfiniteModel,
                    params::DependentParameters,
-                   names::Vector{String} = ["noname", "noname", ...];
+                   names::Vector{String} = ["noname", "noname", ...],
                    indices = nothing
                    )::AbstractArray{<:GeneralVariableRef}
 
@@ -190,7 +191,7 @@ infinite parameter references.
 """
 function add_parameters(model::InfiniteModel,
                         params::DependentParameters,
-                        names::Vector{String} = String[];
+                        names::Vector{String} = String[],
                         indices = nothing
                         )::AbstractArray{<:GeneralVariableRef}
     # get the number of parameters
@@ -214,6 +215,25 @@ function add_parameters(model::InfiniteModel,
     prefs = [GeneralVariableRef(model, obj_index.value, DependentParameterIndex, i)
              for i in 1:num_params]
     return Collections._make_array(prefs, indices)
+end
+
+# Construct an expression to build an infinite set(s) (use with @dependent_parameters)
+function _construct_array_set(_error::Function, info::_ParameterInfoExpr)
+    if (info.has_lb || info.has_ub) && !(info.has_lb && info.has_ub)
+        _error("Must specify both an upper bound and a lower bound")
+    elseif info.has_lb
+        check = :(isa($(info.lower_bound), Number))
+        return :($(check) ? IntervalSet($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a number."))
+    elseif info.has_dist
+        check = :(isa($(info.distribution), Distributions.UnivariateDistribution))
+        return :($(check) ? UniDistributionSet($(info.distribution)) : MultiDistributionSet($(info.distribution)))
+    elseif info.has_set
+        check1 = :(isa($(info.set), AbstractInfiniteSet))
+        check2 = :(isa($(info.set), Distributions.UnivariateDistribution))
+        return :($(check1) ? $(info.set) : ($(check2) ? UniDistributionSet($(info.set)) : MultiDistributionSet($(info.set))))
+    else
+        _error("Must specify upper/lower bounds, a distribution, or a set")
+    end
 end
 
 ################################################################################

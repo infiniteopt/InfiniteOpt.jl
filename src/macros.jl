@@ -361,10 +361,133 @@ macro finite_parameter(model, args...)
 end
 
 """
+    @dependent_parameters(model, kw_args...)
+
+Add *anonymous* dependent infinite parameters to the model `model` described by
+the keyword arguments `kw_args` and returns the container of parameter references.
+
+```julia
+@dependent_parameters(model, expr, kw_args...)
+```
 
 """
 macro dependent_parameters(model, args...)
-    return esc(model)
+    # extract the raw arguments
+    esc_model = esc(model)
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+
+    # check to see if error_args are provided define error function
+    error_args = filter(kw -> kw.args[1] == :error_args, kw_args)
+    if length(error_args) != 0
+        new_args = error_args[1].args[2]
+        macro_name = :infinite_parameter
+    else
+        new_args = args
+        macro_name = :dependent_parameters
+    end
+    _error(str...) = JuMP._macro_error(macro_name, (model, new_args...), str...)
+
+    # there must be one extra positional argument to specify the dimensions
+    if length(extra) == 1
+        x = popfirst!(extra)
+    elseif length(extra) == 0
+        _error("Must specify more than one dependent parameter.")
+    else
+        x = popfirst!(extra)
+        arg = popfirst!(extra)
+        _error("Unrecognized argument $arg provided.")
+    end
+
+    # parse the keyword arguments
+    info_kw_args = filter(_is_set_keyword, kw_args)
+    supports_kw_arg = filter(kw -> kw.args[1] == :supports, kw_args)
+    extra_kw_args = filter(kw -> kw.args[1] != :base_name &&
+                           !InfiniteOpt._is_set_keyword(kw) &&
+                           kw.args[1] != :error_args, kw_args &&
+                           kw.args[1] != :supports)
+    base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
+    infoexpr = InfiniteOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
+
+    # There are six cases to consider:
+    # x                                         | type of x | x.head
+    # ------------------------------------------+-----------+------------
+    # param                                       | Symbol    | NA
+    # [1:2]                                       | Expr      | :vect
+    # param[1:2]                                  | Expr      | :ref
+    # param[1:2] <= ub                            | Expr      | :call
+    # param[1:2] in [lb, ub] (other sets)         | Expr      | :call
+    # lb <= param[1:2] <= ub                      | Expr      | :comparison
+    # In the three last cases, we call parse_variable
+    symbolic_set = isexpr(x, :comparison) || isexpr(x, :call)
+    if symbolic_set
+        param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
+    elseif isa(x, Symbol)
+        _error("Must specify more than one dependent parameter.")
+    else
+        param = x
+    end
+
+    # determine it is an anonymous call
+    anonparam = isexpr(param, :vect) || isexpr(param, :vcat)
+    anonparam && symbolic_set && _error("Cannot use symbolic infinite defintion" *
+                                        "with an anonymous parameter")
+    # process the parameter name
+    parameter = gensym()
+    name = JuMPC._get_name(param)
+    if isempty(base_name_kw_args)
+        base_name = anonparam ? "" : string(name)
+    else
+        base_name = esc(base_name_kw_args[1].args[2])
+    end
+    if !isa(name, Symbol) && !anonparam
+        _error("Expression $name should not be used as a parameter name. Use " *
+               "the \"anonymous\" syntax $name = @dependent_parameters(model, " *
+               "...) instead.")
+    end
+
+    # process the supports
+    if isempty(supports_kw_arg)
+        supports = :(Float64[])
+    else
+        supports = esc(supports_kw_arg[1].args[2])
+    end
+
+    # arse the infinite set(s)
+    set = InfiniteOpt._construct_array_set(_error, infoexpr)
+
+    # make code to build the DependentParameters object and the references
+    idxvars, indices = JuMPC._build_ref_sets(_error, param)
+    namecode = JuMP._name_call(base_name, idxvars)
+    parambuildcall = :( InfiniteOpt._DependentParameter($set, $supports, $namecode) )
+    param_containter_call = JuMPC.container_code(idxvars, indices, parambuildcall,
+                                                 requestedcontainer)
+    buildcall = :( InfiniteOpt._build_parameters($_error, $param_container_call) )
+    JuMP._add_kw_args(buildcall, extra_kw_args)
+    creationcode = :( add_parameters($esc_model, $(buildcall)...)
+
+    # make the final return code based on if it is anonymous or not
+    if anonparam
+        macro_code = creationcode
+    else
+        macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
+                                                   model_for_registering = esc_model)
+    end
+    return JuMP._assert_valid_model(esc_model, macro_code)
+end
+
+"""
+    @infinite_parameter(model, kw_args...)
+
+Add *anonymous* infinite parameter to the model `model` described by
+the keyword arguments `kw_args` and returns the parameter reference.
+
+```julia
+@infinite_parameter(model, expr, kw_args...)
+```
+
+"""
+macro infinite_parameter(model, args...) # TODO finish this (a wrapper for the above)
+    return
 end
 
 ## Define helper functions needed to parse infinite variable expressions
