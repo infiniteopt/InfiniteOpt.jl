@@ -1,7 +1,78 @@
 ################################################################################
 #                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
 ################################################################################
+# Extend dispatch_variable_ref
+function dispatch_variable_ref(model::InfiniteModel,
+                               index::IndependentParameterIndex
+                               )::IndependentParameterRef
+    return IndependentParameterRef(model, index)
+end
 
+function dispatch_variable_ref(model::InfiniteModel,
+                               index::FiniteParameterIndex
+                               )::FiniteParameterRef
+    return FiniteParameterRef(model, index)
+end
+
+# Extend _add_data_object
+function _add_data_object(model::InfiniteModel,
+                          object::ScalarParameterData{<:IndependentParameter}
+                          )::IndependentParameterIndex
+    return MOIUC.add_item(model.independent_params, object)
+end
+
+function _add_data_object(model::InfiniteModel,
+                          object::ScalarParameterData{<:FiniteParameter}
+                          )::FiniteParameterIndex
+    return MOIUC.add_item(model.finite_params, object)
+end
+
+# Extend _data_dictionary
+function _data_dictionary(pref::IndependentParameterRef)::MOIUC.CleverDict
+    return JuMP.owner_model(pref).independent_params
+end
+
+function _data_dictionary(pref::FiniteParameterRef)::MOIUC.CleverDict
+    return JuMP.owner_model(pref).finite_params
+end
+
+# Extend _data_object
+function _data_object(pref::ScalarParameterRef
+                     )::ScalarParameterData
+    return _data_dictionary(pref)[JuMP.index(pref)]
+end
+
+################################################################################
+#                             CORE OBJECT METHODS
+################################################################################
+"""
+    _core_variable_object(vref::DispatchVariableRef)::Union{InfOptParameter, InfOptVariable}
+
+Return the core object that `vref` points to. This needs to be extended for type
+of `vref`. This should use `_data_object` to access the data object where the
+variable object is stored.
+"""
+function _core_variable_object end
+
+"""
+    _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable}
+
+Return the core object that `vref` points to. This is enabled
+with appropriate definitions of `_core_variable_object` for the
+underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
+"""
+function _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable}
+    return _core_variable_object(dispatch_variable_ref(vref))
+end
+
+"""
+    _set_core_variable_object(vref::DispatchVariableRef, object)::Nothing
+
+Sets the core object that `vref` points to `object`. This needs to be extended
+for types of `vref` and `object`. This should use `_data_object` to access the
+data object where the variable object is stored.
+"""
+function _set_core_variable_object end
 
 ################################################################################
 #                             PARAMETER DEFINITION
@@ -87,12 +158,12 @@ function _constructor_set(_error::Function, info::_ParameterInfoExpr)
         check = :(isa($(info.lower_bound), Number))
         return :($(check) ? IntervalSet($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a number."))
     elseif info.has_dist
-        check = :(isa($(info.distribution), Distributions.NonMatrixDistribution))
-        return :($(check) ? DistributionSet($(info.distribution)) : error("Distribution must be a subtype of Distributions.NonMatrixDistribution."))
+        check = :(isa($(info.distribution), Distributions.UnivariateDistribution))
+        return :($(check) ? UniDistributionSet($(info.distribution)) : error("Distribution must be a Distributions.UnivariateDistribution."))
     elseif info.has_set
-        check1 = :(isa($(info.set), AbstractInfiniteSet))
-        check2 = :(isa($(info.set), Distributions.NonMatrixDistribution))
-        return :($(check1) ? $(info.set) : ($(check2) ? DistributionSet($(info.set)) : error("Set must be a subtype of AbstractInfiniteSet.")))
+        check1 = :(isa($(info.set), InfiniteScalarSet))
+        check2 = :(isa($(info.set), Distributions.UnivariateDistribution))
+        return :($(check1) ? $(info.set) : ($(check2) ? UniDistributionSet($(info.set)) : error("Set must be a subtype of InfiniteScalarSet.")))
     else
         _error("Must specify upper/lower bounds, a distribution, or a set")
     end
@@ -100,7 +171,7 @@ end
 
 # Check that supports don't violate the set bounds
 function _check_supports_in_bounds(_error::Function,
-                                   supports::Union{Number, Vector{<:Number}},
+                                   supports::Union{Real, Vector{<:Real}},
                                    set::AbstractInfiniteSet)
     if !supports_in_set(supports, set)
         _error("Supports violate the set domain bounds.")
@@ -110,81 +181,74 @@ end
 
 """
     build_parameter(_error::Function, set::InfiniteScalarSet,
-                    [num_params::Int = 1; num_supports::Int = 0,
-                    supports::Union{Number, Vector{<:Number}} = Number[],
-                    independent::Bool = false,
-                    sig_fig::Int = 5])::InfOptParameter
+                           [num_params::Int = 1; num_supports::Int = 0,
+                           supports::Union{Real, Vector{<:Real}} = Number[],
+                           independent::Bool = false,
+                           sig_fig::Int = 5])::IndependentParameter
 
-Returns a [`InfOptParameter`](@ref) given the appropriate information. This is
-analagous to `JuMP.build_variable`. Errors if supports violate the bounds
-associated `set`. Also errors if `set` contains a multivariate distribution with
-a different dimension than `num_params`. This is meant to primarily serve as a
-helper method for [`@infinite_parameter`](@ref).
+Returns a [`IndependentParameter`](@ref) given the appropriate information.
+This is analagous to `JuMP.build_variable`. Errors if supports violate the
+bounds associated with `set`. This is meant to primarily serve as a
+helper method for [`@independent_parameter`](@ref).
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt)
 julia> build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-InfOptParameter{IntervalSet}([0, 3], [0, 1, 2, 3], false)
+IndependentParameter{IntervalSet}(IntervalSet(0.0, 3.0), DataStructures.SortedDict(0.0 => Set([]),1.0 => Set([]),2.0 => Set([]),3.0 => Set([])))
 ```
 """
-function build_parameter(_error::Function, set::InfiniteScalarSet;
-                         label::Set{Symbol} = Set{Symbol}(),
-                         num_supports::Int = 0,
-                         supports::Union{Number, Vector{<:Number}} = Number[],
-                         sig_fig::Int = 5,
-                         extra_kw_args...)::IndependentParameter
+function build_parameter(_error::Function,
+    set::S;
+    num_supports::Int = 0,
+    supports::Union{Real, Vector{<:Real}} = Real[],
+    sig_fig::Int = 5,
+    extra_kw_args...
+    )::IndependentParameter{S} where {S <: InfiniteScalarSet}
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
+    label = Set{Symbol}(UserDefined)
     length_supports = length(supports)
-    if num_supports == 0 && length_supports != 0
+    if length_supports != 0
         _check_supports_in_bounds(_error, supports, set)
-    elseif num_supports != 0 && length_supports != 0
-        @warn("Ignoring num_supports since supports is not empty.")
-        _check_supports_in_bounds(_error, supports, set)
-    elseif num_supports != 0 && length_supports == 0
-        if isa(set, MultiDistributionSet)
-            _error("Support generation is not available for multivariate " *
-                   "distributions.")
-        end
-        supports = generate_support_values(set, num_supports = num_supports,
-                                           sig_fig = sig_fig)
+        num_supports == 0 || @warn("Ignoring num_supports since supports is not empty.")
+    elseif num_supports != 0
+        supports, label = generate_support_values(set, num_supports = num_supports,
+                                                  sig_figs = sig_fig)
     end
-    if isa(set, MultiDistributionSet)
-        if num_params != length(set.distribution)
-            _error("Multivariate distribution dimension must match dimension " *
-                   "of parameter.")
-        end
+    supports_dict = DataStructures.SortedDict{Float64, Set{Symbol}}(
+                                                   i => label for i in supports)
+    if length(supports_dict) != length_supports
+        @warn("Support points are not unique, eliminating redundant points.")
     end
-    if num_params == 1 || isa(set, InfiniteScalarSet) # double check num_params for other types of containers
-        unique_supports = unique(supports)
-        if length(unique_supports) != length(supports)
-            @warn("Support points are not unique, eliminating redundant points.")
-        end
-        return IndependentParameter(set, unique_supports)
-    end
-    if isa(supports, Number)
-        supports = [supports]
-    end
-    return DependentParameters(set, supports)
-end
-
-# Check the number of supports of one dimension matches the other dimension
-# within the same multi-dimensional parameter
-function _check_supports_dimensions(model::InfiniteModel, p::InfOptParameter,
-    index::Int)
-    if haskey(model.params, index - 1) &&
-       model.param_to_group_id[index - 1] == model.next_param_id
-        if length(p.supports) != length(model.params[index - 1].supports)
-            error("Support dimension mismatch. Make sure support dimension of " *
-                  "each parameter element match.")
-        end
-    end
-    return
+    return IndependentParameter(set, supports_dict)
 end
 
 """
-    add_parameter(model::InfiniteModel, p::InfOptParameter,
+    build_parameter(_error::Function, value::Real)::FiniteParameter
+
+Returns a [`FiniteParameter`](@ref) given the appropriate information.
+This is analagous to `JuMP.build_variable`. This is meant to primarily serve as
+a helper method for [`@finite_parameter`](@ref).
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt)
+julia> build_finite_parameter(error, 1)
+FiniteParameter(1.0)
+```
+"""
+
+function build_parameter(_error::Function, value::Real;
+                         extra_kw_args...)::FiniteParameter
+    for (kwarg, _) in extra_kw_args
+        _error("Unrecognized keyword argument $kwarg")
+    end
+    return FiniteParameter(value)
+end
+
+"""
+    add_parameter(model::InfiniteModel,
+                  p::Union{IndependentParameterRef, FiniteParameterRef},
                   [name::String = ""])::ParameterRef
 
 Returns a [`ParameterRef`](@ref) associated with the parameter `p` that is added
@@ -195,32 +259,24 @@ construct `p`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> p = build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-InfOptParameter{IntervalSet}([0, 3], [0, 1, 2, 3], false)
+julia> p = build_independent_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
+IndependentParameter{IntervalSet}(IntervalSet(0.0, 3.0), DataStructures.SortedDict(0.0 => Set([]),1.0 => Set([]),2.0 => Set([]),3.0 => Set([])))
 
 julia> param_ref = add_parameter(model, p, "name")
 name
 ```
 """
-function add_parameter(model::InfiniteModel, p::InfOptParameter,
-                       name::String=""; multi_dim = false,
-                       macro_call = false)::ParameterRef
-    index = model.next_param_index += 1
-    pref = ParameterRef(model, index)
-    if !macro_call
-        model.next_param_id += 1
-    elseif !(p.independent) && multi_dim
-        _check_supports_dimensions(model, p, index)
-    end
-    model.params[JuMP.index(pref)] = p
-    model.param_to_group_id[JuMP.index(pref)] = model.next_param_id
-    JuMP.set_name(pref, name)
-    return pref
+function add_parameter(model::InfiniteModel, p::ScalarParameter,
+                       name::String="")::GeneralVariableRef
+    obj_num = model.last_object_num += 1
+    param_num = model.last_param_num += 1
+    data_object = ScalarParameterData(p, obj_num, param_num, name)
+    obj_index = _add_data_object(model, data_object)
+    return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
 end
 
-
 """
-    used_by_constraint(pref::ParameterRef)::Bool
+    used_by_constraint(pref::Union{IndependentParameterRef, FiniteParameterRef})::Bool
 
 Return true if `pref` is used by a constraint or false otherwise.
 
@@ -230,12 +286,12 @@ julia> used_by_constraint(t)
 true
 ```
 """
-function used_by_constraint(pref::ParameterRef)::Bool
-    return haskey(JuMP.owner_model(pref).param_to_constrs, JuMP.index(pref))
+function used_by_constraint(pref::ScalarParameterRef)::Bool
+    return length(_data_object.constraint_indices)
 end
 
 """
-    used_by_measure(pref::ParameterRef)::Bool
+    used_by_measure(pref::Union{IndependentParameterRef, FiniteParameterRef})::Bool
 
 Return true if `pref` is used by a measure or false otherwise.
 
@@ -245,12 +301,12 @@ julia> used_by_measure(t)
 false
 ```
 """
-function used_by_measure(pref::ParameterRef)::Bool
-    return haskey(JuMP.owner_model(pref).param_to_meas, JuMP.index(pref))
+function used_by_measure(pref::ScalarParameterRef)::Bool
+    return length(_data_object.measure_indices)
 end
 
 """
-    used_by_variable(pref::ParameterRef)::Bool
+    used_by_variable(pref::Union{IndependentParameterRef, FiniteParameterRef})::Bool
 
 Return true if `pref` is used by an infinite variable or false otherwise.
 
@@ -260,12 +316,12 @@ julia> used_by_variable(t)
 true
 ```
 """
-function used_by_variable(pref::ParameterRef)::Bool
-    return haskey(JuMP.owner_model(pref).param_to_vars, JuMP.index(pref))
+function used_by_variable(pref::ScalarParameterRef)::Bool
+    return length(_data_object.infinite_var_indices)
 end
 
 """
-    is_used(pref::ParameterRef)::Bool
+    is_used(pref::Union{IndependentParameterRef, FiniteParameterRef})::Bool
 
 Return true if `pref` is used in the model or false otherwise.
 
@@ -275,9 +331,627 @@ julia> is_used(t)
 true
 ```
 """
-function is_used(pref::ParameterRef)::Bool
+function is_used(pref::ScalarParameterRef)::Bool
     return used_by_measure(pref) || used_by_constraint(pref) || used_by_variable(pref)
 end
+
+
+"""
+    JuMP.name(pref::Union{IndependentParameterRef, FiniteParameterRef})::String
+
+Extend the [`JuMP.name`](@ref JuMP.name(::JuMP.VariableRef)) function to
+accomodate infinite parameters. Returns the name string associated with `pref`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1]))
+julia> name(t)
+"t"
+```
+"""
+function JuMP.name(pref::ScalarParameterRef)::String
+    return _data_object(pref).name
+end
+
+"""
+    JuMP.set_name(pref::ScalarParameterRef, name::String)
+
+Extend the [`JuMP.set_name`](@ref JuMP.set_name(::JuMP.VariableRef, ::String))
+function to accomodate infinite parameters. Set a new base name to be associated
+with `pref`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1]))
+julia> set_name(t, "time")
+
+julia> name(t)
+"time"
+```
+"""
+function JuMP.set_name(pref::ScalarParameterRef, name::String)
+    _data_object(pref).name = name
+    return
+end
+
+"""
+    num_parameters(model::InfiniteModel)::Int
+
+Return the number of scalar parameters currently present in `model`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> num_parameters(model)
+1
+```
+"""
+function num_parameters(model::InfiniteModel)::Int
+    return num_independent_parameters(model) + num_finite_parameters(model)
+end
+
+"""
+    num_independent_parameters(model::InfiniteModel)::Int
+
+Return the number of independent parameters currently present in `model`.
+"""
+function num_independent_parameters(model::InfiniteModel)::Int
+    return length(model.independent_params)
+end
+
+"""
+    num_finite_parameters(model::InfiniteModel)::Int
+
+Return the number of finite parameters currently present in `model`.
+"""
+function num_finite_parameters(model::InfiniteModel)::Int
+    return length(model.finite_params)
+end
+
+# Internal functions
+_parameter_set(pref::IndependentParameterRef) = _data_object(pref).parameter.set
+_parameter_supports(pref::IndependentParameterRef) = _data_object(pref).parameter.supports
+function _update_parameter_set(pref::IndependentParameterRef, set::AbstractInfiniteSet)
+    param_data_obj = _data_object(pref)
+    supports = param_data_obj.parameter.supports
+    _data_object(pref).parameter = IndependentParameter(set, supports)
+    if is_used(pref)
+        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+    end
+    return
+end
+function _update_parameter_supports(pref::IndependentParameterRef,
+                                    supports::DataStructures.SortedDict{Float64, Set{Symbol}})
+    param_data_obj = _data_object(pref)
+    set = param_data_obj.parameter.set
+    _data_object(pref).parameter = IndependentParameter(set, supports)
+    if is_used(pref)
+        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+    end
+    return
+end
+
+"""
+    infinite_set(pref::IndependentParameterRef)::AbstractInfiniteSet
+
+Return the infinite set associated with `pref`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> infinite_set(t)
+[0, 1]
+```
+"""
+function infinite_set(pref::IndependentParameterRef)::AbstractInfiniteSet
+    return _parameter_set(pref)
+end
+
+"""
+    set_infinite_set(pref::IndependentParameterRef, set::AbstractInfiniteSet)
+
+Specify the infinite set of `pref`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> set_infinite_set(t, IntervalSet(0, 2))
+
+julia> infinite_set(t)
+[0, 2]
+```
+"""
+function set_infinite_set(pref::IndependentParameterRef, set::AbstractInfiniteSet)
+    _update_parameter_set(pref, set)
+    return
+end
+
+"""
+    JuMP.has_lower_bound(pref::IndependentParameterRef)::Bool
+
+Extend the `JuMP.has_lower_bound` function to accomodate infinite parameters.
+Return true if the set associated with `pref` has a defined lower bound or if a
+lower bound can be found. Extensions with user-defined infinite set types
+should extend `JuMP.has_lower_bound(set::NewType)`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> has_lower_bound(t)
+true
+```
+"""
+function JuMP.has_lower_bound(pref::IndependentParameterRef)::Bool
+    set = _parameter_set(pref)
+    return JuMP.has_lower_bound(set)
+end
+
+"""
+    JuMP.lower_bound(pref::IndependentParameterRef)::Number
+
+Extend the `JuMP.lower_bound` function to accomodate infinite parameters.
+Returns the lower bound associated with the infinite set. Errors if such a bound
+is not well-defined.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> lower_bound(t)
+0.0
+```
+"""
+function JuMP.lower_bound(pref::IndependentParameterRef)::Number
+    set = _parameter_set(pref)
+    if !JuMP.has_lower_bound(pref)
+        error("Parameter $(pref) does not have a lower bound.")
+    end
+    return JuMP.lower_bound(set)
+end
+
+"""
+    JuMP.set_lower_bound(pref::IndependentParameterRef, lower::Number)
+
+Extend the `JuMP.set_lower_bound` function to accomodate infinite parameters.
+Updates the infinite set lower bound if such an operation is supported. Set
+extensions that seek to employ this should extend
+`JuMP.set_lower_bound(set::NewType, lower::Number)`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> set_lower_bound(t, -1)
+
+julia> lower_bound(t)
+-1.0
+```
+"""
+function JuMP.set_lower_bound(pref::IndependentParameterRef, lower::Number)
+    set = _parameter_set(pref)
+    new_set = JuMP.set_lower_bound(set, lower)
+    _update_parameter_set(pref, new_set)
+    return
+end
+
+"""
+    JuMP.has_upper_bound(pref::IndependentParameterRef)::Bool
+
+Extend the `JuMP.has_upper_bound` function to accomodate infinite parameters.
+Return true if the set associated with `pref` has a defined upper bound or if a
+upper bound can be found. Extensions with user-defined sets should extend
+`JuMP.has_upper_bound(set::NewType)`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> has_upper_bound(t)
+true
+```
+"""
+function JuMP.has_upper_bound(pref::IndependentParameterRef)::Bool
+    set = _parameter_set(pref)
+    return JuMP.has_upper_bound(set)
+end
+
+"""
+    JuMP.upper_bound(pref::IndependentParameterRef)::Number
+
+Extend the `JuMP.upper_bound` function to accomodate infinite parameters.
+Returns the upper bound associated with the infinite set. Errors if such a bound
+is not well-defined. Extensions with user-defined set types should extend
+`JuMP.has_upper_bound(set::NewType)` and `JuMP.upper_bound(set::NewType)` if
+appropriate.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> upper_bound(t)
+1.0
+```
+"""
+function JuMP.upper_bound(pref::IndependentParameterRef)::Number
+    set = _parameter_set(pref)
+    if !JuMP.has_upper_bound(pref)
+        error("Parameter $(pref) does not have a upper bound.")
+    end
+    return JuMP.upper_bound(set)
+end
+
+"""
+    JuMP.set_upper_bound(pref::IndependentParameterRef, lower::Number)
+
+Extend the `JuMP.set_upper_bound` function to accomodate infinite parameters.
+Updates the infinite set upper bound if and only if it is an IntervalSet. Errors
+otherwise. Extensions with user-defined infinite sets should extend
+`JuMP.set_upper_bound(set::NewType, upper::Number)` if appropriate.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> set_upper_bound(t, 2)
+
+julia> upper_bound(t)
+2.0
+```
+"""
+function JuMP.set_upper_bound(pref::IndependentParameterRef, upper::Number)
+    set = _parameter_set(pref)
+    new_set = JuMP.set_upper_bound(set, upper)
+    _update_parameter_set(pref, new_set)
+    return
+end
+
+"""
+    num_supports(pref::IndependentParameterRef)::Int
+
+Return the number of support points associated with `pref`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
+julia> num_supports(t)
+2
+```
+"""
+function num_supports(pref::IndependentParameterRef)::Int
+    return length(_parameter_supports(pref))
+end
+
+"""
+    has_supports(pref::IndependentParameterRef)::Bool
+
+Return true if `pref` has supports or false otherwise.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
+julia> has_supports(t)
+true
+```
+"""
+has_supports(pref::IndependentParameterRef)::Bool = num_supports(pref) > 0
+
+"""
+    supports(pref::IndependentParameterRef)::Vector
+
+Return the support points associated with `pref`. Errors if there are no
+supports.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
+julia> supports(t)
+2-element Array{Int64,1}:
+ 0
+ 1
+```
+"""
+function supports(pref::IndependentParameterRef)::Vector
+    has_supports(pref) || error("Parameter $pref does not have supports.")
+    return _parameter_supports(pref)
+end
+
+"""
+    set_supports(pref::IndependentParameterRef, supports::Vector{<:Number}; [force = false])
+
+Specify the support points for `pref`. Errors if the supports violate the bounds
+associated with the infinite set. Warns if the points are not unique. If `force`
+this will overwrite exisiting supports otherwise it will error if there are
+existing supports.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+julia> set_supports(t, [0, 1])
+
+julia> supports(t)
+2-element Array{Int64,1}:
+ 0
+ 1
+```
+"""
+function set_supports(pref::IndependentParameterRef, supports::Vector{<:Number};
+                      force = false)
+    set = _parameter_set(pref)
+    _check_supports_in_bounds(error, supports, set)
+    if has_supports(pref) && !force
+        error("Unable set supports for $pref since it already has supports." *
+              " Consider using `add_supports` or use set `force = true` to " *
+              "overwrite the existing supports.")
+    end
+    if !(is_independent(pref)) &&
+       sum(values(pref.model.param_to_group_id) .== group_id(pref)) > 1
+        _update_parameter_supports(pref, supports)
+    else
+        unique_supports = unique(supports)
+        if length(unique_supports) != length(supports)
+            @warn("Support points are not unique, eliminating redundant points.")
+        end
+        _update_parameter_supports(pref, unique_supports)
+    end
+    return
+end
+
+"""
+    add_supports(pref::IndependentParameterRef, supports::Union{Number, Vector{<:Number}})
+
+Add additional support points for `pref`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
+julia> add_supports(t, 0.5)
+
+julia> supports(t)
+3-element Array{Float64,1}:
+ 0.0
+ 1.0
+ 0.5
+
+julia> add_supports(t, [0.25, 1])
+
+julia> supports(t)
+4-element Array{Float64,1}:
+ 0.0
+ 1.0
+ 0.5
+ 0.25
+```
+"""
+function add_supports(pref::IndependentParameterRef, supports::Union{Number,
+                                                          Vector{<:Number}})
+    set = _parameter_set(pref)
+    _check_supports_in_bounds(error, supports, set)
+    current_supports = _parameter_supports(pref)
+    if !(is_independent(pref)) &&
+       sum(values(pref.model.param_to_group_id) .== group_id(pref)) > 1
+        new_supports = [current_supports; supports]
+    else
+        new_supports = unique([current_supports; supports])
+    end
+    _update_parameter_supports(pref, new_supports)
+    return
+end
+
+"""
+    delete_supports(pref::IndependentParameterRef)
+
+Delete the support points for `pref`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
+julia> delete_supports(t)
+
+julia> supports(t)
+ERROR: Parameter t does not have supports.
+```
+"""
+function delete_supports(pref::IndependentParameterRef)
+    _update_parameter_supports(pref, Int[])
+    return
+end
+
+"""
+    is_finite_parameter(pref::IndependentParameterRef)::Bool
+
+Return a `Bool` indicating if `pref` is a finite parameter.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @finite_parameter(model, cost, 42))
+julia> is_finite_parameter(cost)
+true
+```
+"""
+function is_finite_parameter(pref::IndependentParameterRef)::Bool
+    set = infinite_set(pref)
+    if isa(set, IntervalSet) && set.lower_bound == set.upper_bound
+        return true
+    end
+    return false
+end
+
+"""
+    JuMP.value(pref::IndependentParameterRef)::Number
+
+Return the value of `pref` so long as it is a finite parameter. Errors if it is
+an infinite parameter.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @finite_parameter(model, cost, 42))
+julia> value(cost)
+42
+```
+"""
+function JuMP.value(pref::IndependentParameterRef)::Number
+    is_finite_parameter(pref) || error("$pref is an infinite parameter.")
+    return supports(pref)[1]
+end
+
+"""
+    JuMP.set_value(pref::IndependentParameterRef, value::Number)
+
+Set the value of `pref` so long as it is a finite parameter. Errors if it is
+an infinite parameter.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @finite_parameter(model, cost, 42))
+julia> set_value(cost, 27)
+
+julia> value(cost)
+27
+```
+"""
+function JuMP.set_value(pref::IndependentParameterRef, value::Number)
+    is_finite_parameter(pref) || error("$pref is an infinite parameter.")
+    set_infinite_set(pref, IntervalSet(value, value))
+    set_supports(pref, [value], force = true)
+    return
+end
+
+"""
+    fill_in_supports!(model::InfiniteModel; [num_supports::Int = 10,
+                      sig_fig::Int = 5])
+
+Automatically generate support points for all infinite parameters in model. User
+can specify the number of significant figures kept after decimal point for the
+auto-generated supports wtih `sig_fig`. This calls
+[`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef)) for each parameter
+in the model. See [`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef))
+for more information. Errors if one of the infinite set types is unrecognized.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
+julia> fill_in_supports!(model, num_supports = 4, sig_fig = 3)
+
+julia> supports(x)
+4-element Array{Number,1}:
+ 0.0
+ 0.333
+ 0.667
+ 1.0
+```
+"""
+function fill_in_supports!(model::InfiniteModel; num_supports::Int = 10,
+                           sig_fig::Int = 5)
+    for key in keys(model.params)
+        pref = ParameterRef(model, key)
+        fill_in_supports!(pref, num_supports = num_supports, sig_fig = sig_fig)
+    end
+    return
+end
+
+"""
+    fill_in_supports!(pref::IndependentParameterRef; [num_supports::Int = 10,
+                                           sig_fig::Int = 5])
+
+Automatically generate support points for a particular infinite parameter `pref`.
+Generating `num_supports` for the parameter. The supports are generated uniformly
+if the underlying infinite set is an `IntervalSet` or they are generating randomly
+accordingly to the distribution if the set is a `DistributionSet`.
+User can specify the number of digits kept after decimal point for the
+auto-generated supports wtih `sig_fig`. Extensions that use user defined
+set types should extend [`generate_and_add_supports!`](@ref) and/or
+[`generate_support_values`](@ref) as needed. Errors if the infinite set type is
+not recognized.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
+julia> fill_in_supports!(x, num_supports = 4, sig_fig = 3)
+
+julia> supports(x)
+4-element Array{Number,1}:
+ 0.0
+ 0.333
+ 0.667
+ 1.0
+
+```
+"""
+function fill_in_supports!(pref::IndependentParameterRef;
+                           num_supports::Int = 10, sig_fig::Int = 5)
+    p = JuMP.owner_model(pref).params[JuMP.index(pref)]
+    if length(p.supports) == 0
+        generate_and_add_supports!(pref, p.set, num_supports = num_supports,
+                                   sig_fig = sig_fig)
+    end
+    return
+end
+
+"""
+    generate_and_add_supports!(pref::IndependentParameterRef,
+                               set::AbstractInfiniteSet;
+                               [num_supports::Int = 10, sig_fig::Int = 5])
+
+Generate supports for `pref` via [`generate_support_values`](@ref) and add them
+to `pref`. This is intended as an extendable internal method for
+[`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef)). Note that if
+`pref` is part of a `DistributionSet` that features a multivariate distribution,
+all the associated parameters with `pref` will also have supports added to them.
+Most extensions that empoy user-defined infinite sets can typically enable this
+by extending [`generate_support_values`](@ref). However, in some cases it may be
+necessary to extend this when more complex operations need to take place then just
+adding supports to a single infinite parameter (e.g., how we enable multivariate
+distribution sets). Errors if the infinite set type is not recognized.
+"""
+function generate_and_add_supports!(pref::IndependentParameterRef,
+                                    set::AbstractInfiniteSet;
+                                    num_supports::Int = 10, sig_fig::Int = 5)
+    add_supports(pref, generate_support_values(set, num_supports = num_supports,
+                                               sig_fig = sig_fig))
+    return
+end
+#=
+"""
+    parameter_by_name(model::InfiniteModel, name::String)::Union{ParameterRef,
+                                                                 Nothing}
+
+Return the parameter reference assoociated with a parameter name. Errors if
+multiple parameters have the same name. Returns nothing if no such name exists.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
+julia> parameter_by_name(model, "t")
+t
+```
+"""
+function parameter_by_name(model::InfiniteModel,
+                           name::String)::Union{ParameterRef, Nothing}
+    if model.name_to_param === nothing
+        # Inspired from MOI/src/Utilities/model.jl
+        model.name_to_param = Dict{String, Int}()
+        for (param, param_name) in model.param_to_name
+            if haskey(model.name_to_param, param_name)
+                # -1 is a special value that means this string does not map to
+                # a unique variable name.
+                model.name_to_param[param_name] = -1
+            else
+                model.name_to_param[param_name] = param
+            end
+        end
+    end
+    index = get(model.name_to_param, name, nothing)
+    if index isa Nothing
+        return
+    elseif index == -1
+        error("Multiple parameters have the name $name.")
+    else
+        return ParameterRef(model, index)
+    end
+end
+
+"""
+    all_parameters(model::InfiniteModel)::Vector{ParameterRef}
+
+Return all of the infinite parameter references currently in `model`.
+
+**Example**
+```julia-repl
+julia> all_parameters(model)
+3-element Array{ParameterRef,1}:
+ t
+ x[1]
+ x[2]
+```
+"""
+function all_parameters(model::InfiniteModel)::Vector{ParameterRef}
+    pref_list = Vector{ParameterRef}(undef, num_parameters(model))
+    indexes = sort([index for index in keys(model.params)])
+    counter = 1
+    for index in indexes
+        pref_list[counter] = ParameterRef(model, index)
+        counter += 1
+    end
+    return pref_list
+end
+=#
+#=
+################################################################################
+#                               DELETE FUNCTIONS
+################################################################################
+
 
 # Check if parameter is used by measure data and error if it is to prevent bad
 # deleting behavior
@@ -451,594 +1125,4 @@ function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
     delete!(model.param_to_group_id, JuMP.index(pref))
     return
 end
-
-"""
-    JuMP.name(pref::ParameterRef)::String
-
-Extend the [`JuMP.name`](@ref JuMP.name(::JuMP.VariableRef)) function to
-accomodate infinite parameters. Returns the name string associated with `pref`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> name(t)
-"t"
-```
-"""
-function JuMP.name(pref::ParameterRef)::String
-    return JuMP.owner_model(pref).param_to_name[JuMP.index(pref)]
-end
-
-"""
-    JuMP.set_name(pref::ParameterRef, name::String)
-
-Extend the [`JuMP.set_name`](@ref JuMP.set_name(::JuMP.VariableRef, ::String))
-function to accomodate infinite parameters. Set a new base name to be associated
-with `pref`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> set_name(t, "time")
-
-julia> name(t)
-"time"
-```
-"""
-function JuMP.set_name(pref::ParameterRef, name::String)
-    JuMP.owner_model(pref).param_to_name[JuMP.index(pref)] = name
-    JuMP.owner_model(pref).name_to_param = nothing
-    return
-end
-
-"""
-    num_parameters(model::InfiniteModel)::Int
-
-Return the number of infinite parameters currently present in `model`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> num_parameters(model)
-1
-```
-"""
-function num_parameters(model::InfiniteModel)::Int
-    return length(model.params)
-end
-
-# Internal functions
-_parameter_set(pref::ParameterRef) = JuMP.owner_model(pref).params[JuMP.index(pref)].set
-_parameter_supports(pref::ParameterRef) = JuMP.owner_model(pref).params[JuMP.index(pref)].supports
-function _update_parameter_set(pref::ParameterRef, set::AbstractInfiniteSet)
-    supports = JuMP.owner_model(pref).params[JuMP.index(pref)].supports
-    independent = JuMP.owner_model(pref).params[JuMP.index(pref)].independent
-    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports, independent)
-    if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
-    end
-    return
-end
-function _update_parameter_supports(pref::ParameterRef, supports::Vector{<:Number})
-    set = JuMP.owner_model(pref).params[JuMP.index(pref)].set
-    independent = JuMP.owner_model(pref).params[JuMP.index(pref)].independent
-    JuMP.owner_model(pref).params[JuMP.index(pref)] = InfOptParameter(set, supports, independent)
-    if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
-    end
-    return
-end
-
-"""
-    infinite_set(pref::ParameterRef)::AbstractInfiniteSet
-
-Return the infinite set associated with `pref`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> infinite_set(t)
-[0, 1]
-```
-"""
-function infinite_set(pref::ParameterRef)::AbstractInfiniteSet
-    return _parameter_set(pref)
-end
-
-"""
-    set_infinite_set(pref::ParameterRef, set::AbstractInfiniteSet)
-
-Specify the infinite set of `pref`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> set_infinite_set(t, IntervalSet(0, 2))
-
-julia> infinite_set(t)
-[0, 2]
-```
-"""
-function set_infinite_set(pref::ParameterRef, set::AbstractInfiniteSet)
-    _update_parameter_set(pref, set)
-    return
-end
-
-"""
-    JuMP.has_lower_bound(pref::ParameterRef)::Bool
-
-Extend the `JuMP.has_lower_bound` function to accomodate infinite parameters.
-Return true if the set associated with `pref` has a defined lower bound or if a
-lower bound can be found. Extensions with user-defined infinite set types
-should extend `JuMP.has_lower_bound(set::NewType)`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> has_lower_bound(t)
-true
-```
-"""
-function JuMP.has_lower_bound(pref::ParameterRef)::Bool
-    set = _parameter_set(pref)
-    return JuMP.has_lower_bound(set)
-end
-
-"""
-    JuMP.lower_bound(pref::ParameterRef)::Number
-
-Extend the `JuMP.lower_bound` function to accomodate infinite parameters.
-Returns the lower bound associated with the infinite set. Errors if such a bound
-is not well-defined.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> lower_bound(t)
-0.0
-```
-"""
-function JuMP.lower_bound(pref::ParameterRef)::Number
-    set = _parameter_set(pref)
-    if !JuMP.has_lower_bound(pref)
-        error("Parameter $(pref) does not have a lower bound.")
-    end
-    return JuMP.lower_bound(set)
-end
-
-"""
-    JuMP.set_lower_bound(pref::ParameterRef, lower::Number)
-
-Extend the `JuMP.set_lower_bound` function to accomodate infinite parameters.
-Updates the infinite set lower bound if such an operation is supported. Set
-extensions that seek to employ this should extend
-`JuMP.set_lower_bound(set::NewType, lower::Number)`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> set_lower_bound(t, -1)
-
-julia> lower_bound(t)
--1.0
-```
-"""
-function JuMP.set_lower_bound(pref::ParameterRef, lower::Number)
-    set = _parameter_set(pref)
-    new_set = JuMP.set_lower_bound(set, lower)
-    _update_parameter_set(pref, new_set)
-    return
-end
-
-"""
-    JuMP.has_upper_bound(pref::ParameterRef)::Bool
-
-Extend the `JuMP.has_upper_bound` function to accomodate infinite parameters.
-Return true if the set associated with `pref` has a defined upper bound or if a
-upper bound can be found. Extensions with user-defined sets should extend
-`JuMP.has_upper_bound(set::NewType)`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> has_upper_bound(t)
-true
-```
-"""
-function JuMP.has_upper_bound(pref::ParameterRef)::Bool
-    set = _parameter_set(pref)
-    return JuMP.has_upper_bound(set)
-end
-
-"""
-    JuMP.upper_bound(pref::ParameterRef)::Number
-
-Extend the `JuMP.upper_bound` function to accomodate infinite parameters.
-Returns the upper bound associated with the infinite set. Errors if such a bound
-is not well-defined. Extensions with user-defined set types should extend
-`JuMP.has_upper_bound(set::NewType)` and `JuMP.upper_bound(set::NewType)` if
-appropriate.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> upper_bound(t)
-1.0
-```
-"""
-function JuMP.upper_bound(pref::ParameterRef)::Number
-    set = _parameter_set(pref)
-    if !JuMP.has_upper_bound(pref)
-        error("Parameter $(pref) does not have a upper bound.")
-    end
-    return JuMP.upper_bound(set)
-end
-
-"""
-    JuMP.set_upper_bound(pref::ParameterRef, lower::Number)
-
-Extend the `JuMP.set_upper_bound` function to accomodate infinite parameters.
-Updates the infinite set upper bound if and only if it is an IntervalSet. Errors
-otherwise. Extensions with user-defined infinite sets should extend
-`JuMP.set_upper_bound(set::NewType, upper::Number)` if appropriate.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> set_upper_bound(t, 2)
-
-julia> upper_bound(t)
-2.0
-```
-"""
-function JuMP.set_upper_bound(pref::ParameterRef, upper::Number)
-    set = _parameter_set(pref)
-    new_set = JuMP.set_upper_bound(set, upper)
-    _update_parameter_set(pref, new_set)
-    return
-end
-
-"""
-    num_supports(pref::ParameterRef)::Int
-
-Return the number of support points associated with `pref`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
-julia> num_supports(t)
-2
-```
-"""
-function num_supports(pref::ParameterRef)::Int
-    return length(_parameter_supports(pref))
-end
-
-"""
-    has_supports(pref::ParameterRef)::Bool
-
-Return true if `pref` has supports or false otherwise.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
-julia> has_supports(t)
-true
-```
-"""
-has_supports(pref::ParameterRef)::Bool = num_supports(pref) > 0
-
-"""
-    supports(pref::ParameterRef)::Vector
-
-Return the support points associated with `pref`. Errors if there are no
-supports.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
-julia> supports(t)
-2-element Array{Int64,1}:
- 0
- 1
-```
-"""
-function supports(pref::ParameterRef)::Vector
-    has_supports(pref) || error("Parameter $pref does not have supports.")
-    return _parameter_supports(pref)
-end
-
-"""
-    set_supports(pref::ParameterRef, supports::Vector{<:Number}; [force = false])
-
-Specify the support points for `pref`. Errors if the supports violate the bounds
-associated with the infinite set. Warns if the points are not unique. If `force`
-this will overwrite exisiting supports otherwise it will error if there are
-existing supports.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> set_supports(t, [0, 1])
-
-julia> supports(t)
-2-element Array{Int64,1}:
- 0
- 1
-```
-"""
-function set_supports(pref::ParameterRef, supports::Vector{<:Number};
-                      force = false)
-    set = _parameter_set(pref)
-    _check_supports_in_bounds(error, supports, set)
-    if has_supports(pref) && !force
-        error("Unable set supports for $pref since it already has supports." *
-              " Consider using `add_supports` or use set `force = true` to " *
-              "overwrite the existing supports.")
-    end
-    if !(is_independent(pref)) &&
-       sum(values(pref.model.param_to_group_id) .== group_id(pref)) > 1
-        _update_parameter_supports(pref, supports)
-    else
-        unique_supports = unique(supports)
-        if length(unique_supports) != length(supports)
-            @warn("Support points are not unique, eliminating redundant points.")
-        end
-        _update_parameter_supports(pref, unique_supports)
-    end
-    return
-end
-
-"""
-    add_supports(pref::ParameterRef, supports::Union{Number, Vector{<:Number}})
-
-Add additional support points for `pref`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
-julia> add_supports(t, 0.5)
-
-julia> supports(t)
-3-element Array{Float64,1}:
- 0.0
- 1.0
- 0.5
-
-julia> add_supports(t, [0.25, 1])
-
-julia> supports(t)
-4-element Array{Float64,1}:
- 0.0
- 1.0
- 0.5
- 0.25
-```
-"""
-function add_supports(pref::ParameterRef, supports::Union{Number,
-                                                          Vector{<:Number}})
-    set = _parameter_set(pref)
-    _check_supports_in_bounds(error, supports, set)
-    current_supports = _parameter_supports(pref)
-    if !(is_independent(pref)) &&
-       sum(values(pref.model.param_to_group_id) .== group_id(pref)) > 1
-        new_supports = [current_supports; supports]
-    else
-        new_supports = unique([current_supports; supports])
-    end
-    _update_parameter_supports(pref, new_supports)
-    return
-end
-
-"""
-    delete_supports(pref::ParameterRef)
-
-Delete the support points for `pref`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
-julia> delete_supports(t)
-
-julia> supports(t)
-ERROR: Parameter t does not have supports.
-```
-"""
-function delete_supports(pref::ParameterRef)
-    _update_parameter_supports(pref, Int[])
-    return
-end
-
-"""
-    is_finite_parameter(pref::ParameterRef)::Bool
-
-Return a `Bool` indicating if `pref` is a finite parameter.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @finite_parameter(model, cost, 42))
-julia> is_finite_parameter(cost)
-true
-```
-"""
-function is_finite_parameter(pref::ParameterRef)::Bool
-    set = infinite_set(pref)
-    if isa(set, IntervalSet) && set.lower_bound == set.upper_bound
-        return true
-    end
-    return false
-end
-
-"""
-    JuMP.value(pref::ParameterRef)::Number
-
-Return the value of `pref` so long as it is a finite parameter. Errors if it is
-an infinite parameter.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @finite_parameter(model, cost, 42))
-julia> value(cost)
-42
-```
-"""
-function JuMP.value(pref::ParameterRef)::Number
-    is_finite_parameter(pref) || error("$pref is an infinite parameter.")
-    return supports(pref)[1]
-end
-
-"""
-    JuMP.set_value(pref::ParameterRef, value::Number)
-
-Set the value of `pref` so long as it is a finite parameter. Errors if it is
-an infinite parameter.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @finite_parameter(model, cost, 42))
-julia> set_value(cost, 27)
-
-julia> value(cost)
-27
-```
-"""
-function JuMP.set_value(pref::ParameterRef, value::Number)
-    is_finite_parameter(pref) || error("$pref is an infinite parameter.")
-    set_infinite_set(pref, IntervalSet(value, value))
-    set_supports(pref, [value], force = true)
-    return
-end
-
-"""
-    fill_in_supports!(model::InfiniteModel; [num_supports::Int = 10,
-                      sig_fig::Int = 5])
-
-Automatically generate support points for all infinite parameters in model. User
-can specify the number of significant figures kept after decimal point for the
-auto-generated supports wtih `sig_fig`. This calls
-[`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef)) for each parameter
-in the model. See [`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef))
-for more information. Errors if one of the infinite set types is unrecognized.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
-julia> fill_in_supports!(model, num_supports = 4, sig_fig = 3)
-
-julia> supports(x)
-4-element Array{Number,1}:
- 0.0
- 0.333
- 0.667
- 1.0
-```
-"""
-function fill_in_supports!(model::InfiniteModel; num_supports::Int = 10,
-                           sig_fig::Int = 5)
-    for key in keys(model.params)
-        pref = ParameterRef(model, key)
-        fill_in_supports!(pref, num_supports = num_supports, sig_fig = sig_fig)
-    end
-    return
-end
-
-"""
-    fill_in_supports!(pref::ParameterRef; [num_supports::Int = 10,
-                                           sig_fig::Int = 5])
-
-Automatically generate support points for a particular infinite parameter `pref`.
-Generating `num_supports` for the parameter. The supports are generated uniformly
-if the underlying infinite set is an `IntervalSet` or they are generating randomly
-accordingly to the distribution if the set is a `DistributionSet`.
-User can specify the number of digits kept after decimal point for the
-auto-generated supports wtih `sig_fig`. Extensions that use user defined
-set types should extend [`generate_and_add_supports!`](@ref) and/or
-[`generate_support_values`](@ref) as needed. Errors if the infinite set type is
-not recognized.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
-julia> fill_in_supports!(x, num_supports = 4, sig_fig = 3)
-
-julia> supports(x)
-4-element Array{Number,1}:
- 0.0
- 0.333
- 0.667
- 1.0
-
-```
-"""
-function fill_in_supports!(pref::ParameterRef; num_supports::Int = 10,
-                           sig_fig::Int = 5)
-    p = JuMP.owner_model(pref).params[JuMP.index(pref)]
-    if length(p.supports) == 0
-        generate_and_add_supports!(pref, p.set, num_supports = num_supports,
-                                   sig_fig = sig_fig)
-    end
-    return
-end
-
-"""
-    generate_and_add_supports!(pref::ParameterRef, set::AbstractInfiniteSet;
-                               [num_supports::Int = 10, sig_fig::Int = 5])
-
-Generate supports for `pref` via [`generate_support_values`](@ref) and add them
-to `pref`. This is intended as an extendable internal method for
-[`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef)). Note that if
-`pref` is part of a `DistributionSet` that features a multivariate distribution,
-all the associated parameters with `pref` will also have supports added to them.
-Most extensions that empoy user-defined infinite sets can typically enable this
-by extending [`generate_support_values`](@ref). However, in some cases it may be
-necessary to extend this when more complex operations need to take place then just
-adding supports to a single infinite parameter (e.g., how we enable multivariate
-distribution sets). Errors if the infinite set type is not recognized.
-"""
-function generate_and_add_supports!(pref::ParameterRef, set::AbstractInfiniteSet;
-                                    num_supports::Int = 10, sig_fig::Int = 5)
-    add_supports(pref, generate_support_values(set, num_supports = num_supports,
-                                               sig_fig = sig_fig))
-    return
-end
-
-"""
-    parameter_by_name(model::InfiniteModel, name::String)::Union{ParameterRef,
-                                                                 Nothing}
-
-Return the parameter reference assoociated with a parameter name. Errors if
-multiple parameters have the same name. Returns nothing if no such name exists.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
-julia> parameter_by_name(model, "t")
-t
-```
-"""
-function parameter_by_name(model::InfiniteModel,
-                           name::String)::Union{ParameterRef, Nothing}
-    if model.name_to_param === nothing
-        # Inspired from MOI/src/Utilities/model.jl
-        model.name_to_param = Dict{String, Int}()
-        for (param, param_name) in model.param_to_name
-            if haskey(model.name_to_param, param_name)
-                # -1 is a special value that means this string does not map to
-                # a unique variable name.
-                model.name_to_param[param_name] = -1
-            else
-                model.name_to_param[param_name] = param
-            end
-        end
-    end
-    index = get(model.name_to_param, name, nothing)
-    if index isa Nothing
-        return
-    elseif index == -1
-        error("Multiple parameters have the name $name.")
-    else
-        return ParameterRef(model, index)
-    end
-end
-
-"""
-    all_parameters(model::InfiniteModel)::Vector{ParameterRef}
-
-Return all of the infinite parameter references currently in `model`.
-
-**Example**
-```julia-repl
-julia> all_parameters(model)
-3-element Array{ParameterRef,1}:
- t
- x[1]
- x[2]
-```
-"""
-function all_parameters(model::InfiniteModel)::Vector{ParameterRef}
-    pref_list = Vector{ParameterRef}(undef, num_parameters(model))
-    indexes = sort([index for index in keys(model.params)])
-    counter = 1
-    for index in indexes
-        pref_list[counter] = ParameterRef(model, index)
-        counter += 1
-    end
-    return pref_list
-end
+=#

@@ -86,16 +86,6 @@ function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr, lvalue
     return var
 end
 
-# Extend to increase the param group id
-function _assert_valid_model_call(m, macrocode)
-    # assumes m is already escaped
-    quote
-        JuMP._valid_model($m, $(quot(m.args[1])))
-        $(m).next_param_id += 1
-        $macrocode
-    end
-end
-
 """
     @independent_parameter(model, kw_args...)
 
@@ -170,13 +160,12 @@ macro independent_parameter(model, args...)
     error_args = filter(kw -> kw.args[1] == :error_args, kw_args)
     if length(error_args) != 0
         new_args = error_args[1].args[2]
-        macro_name = :finite_parameter
+        macro_name = :infinite_parameter
     else
         new_args = args
-        macro_name = :infinite_parameter
+        macro_name = :independent_parameter
     end
-    _error(str...) = JuMP._macro_error(macro_name, (model, new_args...),
-                                       str...)
+    _error(str...) = JuMP._macro_error(macro_name, (model, new_args...), str...)
 
     # if there is only a single non-keyword argument, this is an anonymous
     # variable spec and the one non-kwarg is the model
@@ -201,11 +190,10 @@ macro independent_parameter(model, args...)
     # x                                         | type of x | x.head
     # ------------------------------------------+-----------+------------
     # param                                       | Symbol    | NA
-    # param[1:2]                                  | Expr      | :ref
-    # param <= ub or param[1:2] <= ub             | Expr      | :call
+    # param <= ub                                 | Expr      | :call
     # param in [lb, ub]                           | Expr      | :call
-    # lb <= param <= ub or lb <= param[1:2] <= ub | Expr      | :comparison
-    # In the three last cases, we call parse_variable
+    # lb <= param <= ub                           | Expr      | :comparison
+    # In the two last cases, we call parse_variable
     explicit_comparison = isexpr(x, :comparison) || isexpr(x, :call)
     if explicit_comparison
         param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
@@ -233,22 +221,19 @@ macro independent_parameter(model, args...)
     set = InfiniteOpt._constructor_set(_error, infoexpr)
     if isa(param, Symbol)
         # Easy case - a single variable
-        buildcall = :( build_parameter($_error, $set, 1, $(extra...)) )
+        buildcall = :( build_parameter($_error, $set) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
-        parametercall = :( add_parameter($esc_model, $buildcall, $base_name,
-                                         macro_call = true) )
+        parametercall = :( add_parameter($esc_model, $buildcall, $base_name) )
         creationcode = :($parameter = $parametercall)
     else
         # isa(param, Expr) || _error("Expected $param to be a parameter name") --> not needed... I think
         # We now build the code to generate the variables (and possibly the
         # SparseAxisArray to contain them)
         idxvars, indices = JuMPC._build_ref_sets(_error, param)
-        buildcall = :( build_parameter($_error, $set, length(collect($indices)),
-                                       $(extra...)) )
+        buildcall = :( build_parameter($_error, $set) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall,
-                                         $(JuMP._name_call(base_name, idxvars)),
-                                         macro_call = true, multi_dim = true) )
+                                         $(JuMP._name_call(base_name, idxvars))) )
         creationcode = JuMPC.container_code(idxvars, indices, parametercall,
                                              requestedcontainer)
     end
@@ -263,7 +248,7 @@ macro independent_parameter(model, args...)
         macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
                                                    model_for_registering = esc_model)
     end
-    return _assert_valid_model_call(esc_model, macro_code)
+    return _assert_valid_model(esc_model, macro_code)
 end
 
 """
