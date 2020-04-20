@@ -1134,6 +1134,8 @@ const DecisionVariableRef = Union{InfiniteVariableRef, ReducedInfiniteVariableRe
 const UserDecisionVariableRef = Union{InfiniteVariableRef, PointVariableRef,
                                       HoldVariableRef}
 
+const ScalarParameterRef = Union{IndependentParameterRef, FiniteParameterRef}
+
 """
     InfOptConstraintRef
 

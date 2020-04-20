@@ -97,7 +97,7 @@ export InfOptVariable, InfiniteVariable, ReducedInfiniteVariable,
 PointVariable, HoldVariable, ParameterBounds, VariableData, GeneralVariableRef,
 DispatchVariableRef, InfiniteVariableRef, ReducedInfiniteVariableRef,
 MeasureFiniteVariableRef, FiniteVariableRef, PointVariableRef, HoldVariableRef,
-DecisionVariableRef, UserDecisionVariableRef
+DecisionVariableRef, UserDecisionVariableRef, ScalarParameterRef
 
 # Export variable methods
 export used_by_objective, infinite_variable_ref, parameter_refs,
