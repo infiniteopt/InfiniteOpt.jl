@@ -361,6 +361,7 @@ macro finite_parameter(model, args...)
     esc(code)
 end
 
+# TODO finish the docstring
 """
     @dependent_parameters(model, kw_args...)
 

@@ -41,7 +41,7 @@ struct _DependentParameter{S <: AbstractInfiniteSet}
     name::String
     function _DependentParameter(set::S,
         supports::Union{Vector{<:Real}, Real},
-        name::Strin
+        name::String
         )::_DependentParameter{S} where {S <: AbstractInfiniteSet}
         if supports isa Real
             return new{S}(set, [supports], name)
@@ -138,7 +138,7 @@ end
 function _build_parameters(_error::Function,
                            params::AbstractArray{<:_DependentParameter};
                            num_supports::Int = 0, sig_figs::Int = 5,
-                           extra_kw_args...)
+                           extra_kw_args...)::DependentParameters
     # error with extra keywords
     for (kwarg, _) in extra_kw_args
        _error("Unrecognized keyword argument $kwarg")
