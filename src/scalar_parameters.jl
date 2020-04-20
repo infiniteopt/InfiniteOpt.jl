@@ -152,7 +152,7 @@ end
                            [num_params::Int = 1; num_supports::Int = 0,
                            supports::Union{Real, Vector{<:Real}} = Number[],
                            independent::Bool = false,
-                           sig_fig::Int = 5])::InfOptParameter
+                           sig_fig::Int = 5])::IndependentParameter
 
 Returns a [`IndependentParameter`](@ref) given the appropriate information.
 This is analagous to `JuMP.build_variable`. Errors if supports violate the
@@ -162,7 +162,7 @@ helper method for [`@independent_parameter`](@ref).
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt)
 julia> build_independent_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-IndependentParameter{IntervalSet}([0, 3], [0, 1, 2, 3])
+IndependentParameter{IntervalSet}(IntervalSet(0.0, 3.0), DataStructures.SortedDict(0.0 => Set([]),1.0 => Set([]),2.0 => Set([]),3.0 => Set([])))
 ```
 """
 function build_independent_parameter(_error::Function, set::InfiniteScalarSet;
@@ -205,8 +205,8 @@ a helper method for [`@finite_parameter`](@ref).
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt)
-julia> build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-InfOptParameter{IntervalSet}([0, 3], [0, 1, 2, 3], false)
+julia> build_finite_parameter(error, 1)
+FiniteParameter(1.0)
 ```
 """
 
@@ -245,8 +245,8 @@ construct `p`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> p = build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-InfOptParameter{IntervalSet}([0, 3], [0, 1, 2, 3], false)
+julia> p = build_independent_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
+IndependentParameter{IntervalSet}(IntervalSet(0.0, 3.0), DataStructures.SortedDict(0.0 => Set([]),1.0 => Set([]),2.0 => Set([]),3.0 => Set([])))
 
 julia> param_ref = add_parameter(model, p, "name")
 name
