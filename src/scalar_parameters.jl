@@ -45,34 +45,29 @@ end
 ################################################################################
 #                             CORE OBJECT METHODS
 ################################################################################
-"""
-    _core_variable_object(vref::DispatchVariableRef)::Union{InfOptParameter, InfOptVariable}
-
-Return the core object that `vref` points to. This needs to be extended for type
-of `vref`. This should use `_data_object` to access the data object where the
-variable object is stored.
-"""
-function _core_variable_object end
-
-"""
-    _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable}
-
-Return the core object that `vref` points to. This is enabled
-with appropriate definitions of `_core_variable_object` for the
-underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
-"""
-function _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable}
-    return _core_variable_object(dispatch_variable_ref(vref))
+# Extend _core_variable_object for IndependentParameterRefs
+function _core_variable_object(pref::IndependentParameterRef)::IndependentParameter
+    return _data_object(pref).parameter
 end
 
-"""
-    _set_core_variable_object(vref::DispatchVariableRef, object)::Nothing
+# Extend _core_variable_object for FiniteParameterRefs
+function _core_variable_object(pref::FiniteParameterRef)::FiniteParameter
+    return _data_object(pref).parameter
+end
 
-Sets the core object that `vref` points to `object`. This needs to be extended
-for types of `vref` and `object`. This should use `_data_object` to access the
-data object where the variable object is stored.
-"""
-function _set_core_variable_object end
+# Extend _set_core_variable_object for IndependentParameterRefs
+function _set_core_variable_object(pref::IndependentParameterRef,
+                                   param::IndependentParameter)::Nothing
+    _data_object(pref).parameter = param
+    return
+end
+
+# Extend _set_core_variable_object for FiniteParameterRefs
+function _set_core_variable_object(pref::FiniteParameterRef,
+                                   param::FiniteParameter)::Nothing
+    _data_object(pref).parameter = param
+    return
+end
 
 ################################################################################
 #                             PARAMETER DEFINITION

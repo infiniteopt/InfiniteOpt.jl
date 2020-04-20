@@ -123,13 +123,13 @@ end
 
 ## Use set type dispatch to make the proper InfiniteArraySet
 # InfiniteArraySet
-function _make_array_set(params::Vector{<:_DependentParameter{T}
+function _make_array_set(params::Vector{<:_DependentParameter{T}}
                          )::T where {T <: InfiniteArraySet}
     return first(params).set
 end
 
 # InfiniteScalarSets
-function _make_array_set(params::Vector{<:_DependentParameter{T}
+function _make_array_set(params::Vector{<:_DependentParameter{T}}
                          )::CollectionSet{T} where {T <: InfiniteScalarSet}
     return CollectionSet([p.set for p in params])
 end
@@ -137,7 +137,8 @@ end
 # Build a DependentParameters object given an array of _DependentParameters
 function _build_parameters(_error::Function,
                            params::AbstractArray{<:_DependentParameter};
-                           num_supports::Int = 0, sig_figs::Int = 5,
+                           num_supports::Int = 0,
+                           sig_figs::Int = 5,
                            extra_kw_args...)::DependentParameters
     # error with extra keywords
     for (kwarg, _) in extra_kw_args
@@ -187,7 +188,22 @@ end
                    )::AbstractArray{<:GeneralVariableRef}
 
 Add `params` to `model` and return an appropriate container of the dependent
-infinite parameter references.
+infinite parameter references. This is intended as an internal method for use
+with [`@dependent_parameters`](@ref). However, if desired users can use this
+to create a container of infinite dependent parameter without the use of a
+macro. `names` denote the name of each parameter and `indices` denote the
+indices of the expected container as used by `Containers._make_array`
+(implemented by `VectorTuple`s), by default a `Vector` is returned.
+
+**Example**
+```julia-repl
+julia> set = MultiDistributionSet(MvNormal(ones(3))); # 3 dimensional
+
+julia> params = DependentParameters(set, rand(set, 10), [Set([McSample] for i = 1:10)]);
+
+julia> prefs = add_parameters(model, params, ["par1", "par2", "par3"])
+
+```
 """
 function add_parameters(model::InfiniteModel,
                         params::DependentParameters,
@@ -273,75 +289,75 @@ julia> supports(x)
  [1, 1]
 ```
 """
-function supports(prefs::AbstractArray{<:ParameterRef})::Vector
-    _allequal(group_id.(prefs)) || error("Array contains parameters from multiple" *
-                                         " groups.")
-    all(has_supports(prefs[k]) for k in keys(prefs)) || error("Not all parameters have supports.")
-    lengths = [num_supports(prefs[k]) for k in keys(prefs)]
-    indices = Collections._get_indices(prefs)
-    prefs = Collections._make_ordered(prefs, indices)
-    if !is_independent(first(prefs))
-        _allequal(lengths) || error("Each nonindependent parameter must have " *
-                                    "the same number of support points.")
-        support_list = unique([[supports(prefs[k])[i] for k in keys(prefs)] for i in 1:lengths[1]])
-    else
-        all_supports = [supports(prefs[k]) for k in keys(prefs)]
-        combos = Iterators.product(all_supports...)
-        support_list = [[combo...] for combo in Iterators.take(combos, length(combos))]
-    end
-    range = 1:length(prefs)
-    return [Collections._make_array(supp, range, indices) for supp in support_list]
-end
-
-
-"""
-    delete_supports(pref::ParameterRef)
-
-Delete the support points for `pref`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
-julia> delete_supports(t)
-
-julia> supports(t)
-ERROR: Parameter t does not have supports.
-```
-"""
-function delete_supports(pref::ParameterRef)
-    _update_parameter_supports(pref, Int[])
-    return
-end
-
-# Multivariate distribution sets
-function generate_and_add_supports!(pref::ParameterRef,
-                                    set::DistributionSet{<:Distributions.MultivariateDistribution};
-                                    num_supports::Int = 10, sig_fig::Int = 5)
-    pref_group_id = group_id(pref)
-    model = JuMP.owner_model(pref)
-    associated_p_index = sort([i for i in 1:length(model.params)
-                               if model.param_to_group_id[i] == pref_group_id])
-    new_supports = generate_support_values(set, num_supports = num_supports, sig_fig = sig_fig)
-
-    for i in 1:length(associated_p_index)
-        pref_i = ParameterRef(model, associated_p_index[i])
-        add_supports(pref_i, new_supports[i, :])
-    end
-    return
-end
-
-## Define functions to extract the names of parameters
-# Extract the root name of a parameter reference
-function _root_name(pref::ParameterRef)::String
-    name = JuMP.name(pref)
-    first_bracket = findfirst(isequal('['), name)
-    if first_bracket == nothing
-        return name
-    else
-        # Hacky fix to handle invalid Unicode
-        try
-            return name[1:first_bracket-1]
-        catch
-            return name[1:first_bracket-2]
-        end
-    end
-end
+# function supports(prefs::AbstractArray{<:ParameterRef})::Vector
+#     _allequal(group_id.(prefs)) || error("Array contains parameters from multiple" *
+#                                          " groups.")
+#     all(has_supports(prefs[k]) for k in keys(prefs)) || error("Not all parameters have supports.")
+#     lengths = [num_supports(prefs[k]) for k in keys(prefs)]
+#     indices = Collections._get_indices(prefs)
+#     prefs = Collections._make_ordered(prefs, indices)
+#     if !is_independent(first(prefs))
+#         _allequal(lengths) || error("Each nonindependent parameter must have " *
+#                                     "the same number of support points.")
+#         support_list = unique([[supports(prefs[k])[i] for k in keys(prefs)] for i in 1:lengths[1]])
+#     else
+#         all_supports = [supports(prefs[k]) for k in keys(prefs)]
+#         combos = Iterators.product(all_supports...)
+#         support_list = [[combo...] for combo in Iterators.take(combos, length(combos))]
+#     end
+#     range = 1:length(prefs)
+#     return [Collections._make_array(supp, range, indices) for supp in support_list]
+# end
+#
+#
+# """
+#     delete_supports(pref::ParameterRef)
+#
+# Delete the support points for `pref`.
+#
+# **Example**
+# ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
+# julia> delete_supports(t)
+#
+# julia> supports(t)
+# ERROR: Parameter t does not have supports.
+# ```
+# """
+# function delete_supports(pref::ParameterRef)
+#     _update_parameter_supports(pref, Int[])
+#     return
+# end
+#
+# # Multivariate distribution sets
+# function generate_and_add_supports!(pref::ParameterRef,
+#                                     set::DistributionSet{<:Distributions.MultivariateDistribution};
+#                                     num_supports::Int = 10, sig_fig::Int = 5)
+#     pref_group_id = group_id(pref)
+#     model = JuMP.owner_model(pref)
+#     associated_p_index = sort([i for i in 1:length(model.params)
+#                                if model.param_to_group_id[i] == pref_group_id])
+#     new_supports = generate_support_values(set, num_supports = num_supports, sig_fig = sig_fig)
+#
+#     for i in 1:length(associated_p_index)
+#         pref_i = ParameterRef(model, associated_p_index[i])
+#         add_supports(pref_i, new_supports[i, :])
+#     end
+#     return
+# end
+#
+# ## Define functions to extract the names of parameters
+# # Extract the root name of a parameter reference
+# function _root_name(pref::ParameterRef)::String
+#     name = JuMP.name(pref)
+#     first_bracket = findfirst(isequal('['), name)
+#     if first_bracket == nothing
+#         return name
+#     else
+#         # Hacky fix to handle invalid Unicode
+#         try
+#             return name[1:first_bracket-1]
+#         catch
+#             return name[1:first_bracket-2]
+#         end
+#     end
+# end
