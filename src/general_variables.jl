@@ -144,6 +144,17 @@ needs to be defined for the type of `vref`.
 function _data_dictionary end
 
 """
+    _data_dictionary(vref::GeneralVariableRef)::MOIUC.CleverDict
+
+Return the `CleverDict` that stores data objects for the type of `vref`. It
+relies on `_data_dictionary` being defined
+for the underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
+"""
+function _data_dictionary(vref::GeneralVariableRef)::MOIUC.CleverDict
+    return _data_dictionary(dispatch_variable_ref(vref))
+end
+
+"""
     _data_object(vref::DispatchVariableRef)::AbstractDataObject
 
 Return the data object associated with `vref`, in other words the object its
@@ -152,6 +163,17 @@ of `vref`. This should use `_data_dictionary` to access the `CleverDict` that
 the object is stored in.
 """
 function _data_object end
+
+"""
+    _data_object(vref::GeneralVariableRef)::AbstractDataObject
+
+Return the data object associated with `vref`, in other words the object its
+index points to in the `InfiniteModel`. It relies on `_data_object` being defined
+for the underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
+"""
+function _data_object(vref::GeneralVariableRef)::AbstractDataObject
+    return _data_object(dispatch_variable_ref(vref))
+end
 
 """
     _delete_data_object(vref::DispatchVariableRef)::Nothing

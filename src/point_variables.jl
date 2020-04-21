@@ -17,7 +17,7 @@ end
 
 # Extend _data_dictionary
 function _data_dictionary(vref::PointVariableRef)::MOIUC.CleverDict
-    return model.infinite_vars
+    return JuMP.owner_model(vref).infinite_vars
 end
 
 # Extend _data_object

@@ -244,7 +244,7 @@ end
     JuMP.set_name(vref::DecisionVariableRef, name::String)::Nothing
 
 Extend [`JuMP.set_name`](@ref JuMP.set_name(::JuMP.VariableRef, ::String)) to set
-names of hold variables.
+names of decision variables.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref))
