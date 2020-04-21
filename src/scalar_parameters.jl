@@ -261,11 +261,18 @@ julia> param_ref = add_parameter(model, p, "name")
 name
 ```
 """
-function add_parameter(model::InfiniteModel, p::ScalarParameter,
+function add_parameter(model::InfiniteModel, p::IndependentParameter,
                        name::String="")::GeneralVariableRef
     obj_num = model.last_object_num += 1
     param_num = model.last_param_num += 1
     data_object = ScalarParameterData(p, obj_num, param_num, name)
+    obj_index = _add_data_object(model, data_object)
+    return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
+end
+
+function add_parameter(model::InfiniteModel, p::FiniteParameter,
+                       name::String="")::GeneralVariableRef
+    data_object = ScalarParameterData(p, -1, -1, name)
     obj_index = _add_data_object(model, data_object)
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
 end
@@ -401,12 +408,13 @@ function num_finite_parameters(model::InfiniteModel)::Int
 end
 
 # Internal functions
-_parameter_set(pref::IndependentParameterRef) = _data_object(pref).parameter.set
-_parameter_supports(pref::IndependentParameterRef) = _data_object(pref).parameter.supports
+_parameter_set(pref::IndependentParameterRef) = _core_variable_object(pref).set
+_parameter_supports(pref::IndependentParameterRef) = _core_variable_object(pref).supports
 function _update_parameter_set(pref::IndependentParameterRef, set::AbstractInfiniteSet)
-    param_data_obj = _data_object(pref)
-    supports = param_data_obj.parameter.supports
-    _data_object(pref).parameter = IndependentParameter(set, supports)
+    param = _core_variable_object(pref)
+    supports = param.supports
+    new_param = IndependentParameter(set, supports)
+    _set_core_variable_object(pref, new_param)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
@@ -414,9 +422,10 @@ function _update_parameter_set(pref::IndependentParameterRef, set::AbstractInfin
 end
 function _update_parameter_supports(pref::IndependentParameterRef,
                                     supports::DataStructures.SortedDict{Float64, Set{Symbol}})
-    param_data_obj = _data_object(pref)
-    set = param_data_obj.parameter.set
-    _data_object(pref).parameter = IndependentParameter(set, supports)
+    param = _core_variable_object(pref)
+    set = param.set
+    new_param = IndependentParameter(set, supports)
+    _set_core_variable_object(pref, new_param)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end

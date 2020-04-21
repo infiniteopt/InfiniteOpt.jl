@@ -212,7 +212,7 @@ macro independent_parameter(model, args...)
 
     if !isa(name, Symbol) && !anonvar
         _error("Expression $name should not be used as a parameter name. Use " *
-               "the \"anonymous\" syntax $name = @infinite_parameter(model, " *
+               "the \"anonymous\" syntax $name = @independent_parameter(model, " *
                "...) instead.")
     end
 
@@ -292,56 +292,83 @@ par2
 ```
 """
 macro finite_parameter(model, args...)
-    # define error message function
-    _error(str...) = JuMP._macro_error(:finite_parameter, (model, args...),
-                                       str...)
-    # parse the arguments
+    esc_model = esc(model)
+
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
 
-    # check number of arguments
-    if length(extra) == 0 || length(extra) > 2
-        _error("Incorrect number of arguments. Must be of form " *
-               "@finite_parameter(model, name_expr, value).")
-    end
+    _error(str...) = JuMP._macro_error(macro_name, (model, args...), str...)
 
-    # ensure unsupported keywords are not given
-    # if length(kw_args) != 0
-    #     _error("Unrecognized keyword arguments given. Only the container " *
-    #            "keyword is recognized.")
-    # end
-
-    # parse the input information from `extra`
-    x = popfirst!(extra)
-    # we have a single anonymous expression
-    if length(extra) == 0
-        code = quote
-            @assert isa($model, InfiniteModel) "Model must be an " *
-                                               "`InfiniteModel`."
-            value = $x
-            @assert isa(value, Number) "Value must be a number."
-            @infinite_parameter($model, lower_bound = value, upper_bound = value,
-                                supports = value, error_args = $args,
-                                container = $requestedcontainer, ($(kw_args...)))
-        end
-    # we have a some sort of name expression or vector expression
-    elseif isa(x, Symbol) || isexpr(x, :vect) || isexpr(x, :vcat) || isexpr(x, :ref)
-        name_expr = x
-        value_expr = extra[1]
-        code = quote
-            @assert isa($model, InfiniteModel) "Model must be an " *
-                                               "`InfiniteModel`."
-            @infinite_parameter($model, $name_expr, lower_bound = $value_expr,
-                                upper_bound = $value_expr, supports = $value_expr,
-                                container = $requestedcontainer, ($(kw_args...)),
-                                error_args = $args)
-        end
-    # we have some other syntax
+    # if there is only a single non-keyword argument, this is an anonymous
+    # variable spec and the one non-kwarg is the model
+    if length(extra) == 1
+        value = popfirst!(extra)
+        anon_singleton = true
+    elseif length(extra) == 2
+        x = popfirst!(extra)
+        value = popfirst!(extra)
+        anon_singleton = false
+        param = x
     else
-        _error("Unrecognized input format. Must be of form " *
-               "@finite_parameter(model, value) or " *
-               "@finite_parameter(model, name[i =..., ...], value_expr).")
+        _error("Incorrect number of arguments. Must be of form " *
+       "@finite_parameter(model, name_expr, value).")
     end
-    esc(code)
+
+    extra_kw_args = filter(kw -> kw.args[1] != :base_name && !InfiniteOpt._is_set_keyword(kw) && kw.args[1] != :error_args, kw_args)
+    base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
+
+    # There are five cases to consider:
+    # x                                         | type of x | x.head
+    # ------------------------------------------+-----------+------------
+    # param                                       | Symbol    | NA
+    # param in [lb, ub]                           | Expr      | :call
+    # lb <= param <= ub                           | Expr      | :comparison
+
+    anonvar = isexpr(param, :vect) || isexpr(param, :vcat) || anon_singleton
+
+    parameter = gensym()
+    name = JuMPC._get_name(param)
+    if isempty(base_name_kw_args)
+        base_name = anonvar ? "" : string(name)
+    else
+        base_name = esc(base_name_kw_args[1].args[2])
+    end
+
+    if !isa(name, Symbol) && !anonvar
+        _error("Expression $name should not be used as a parameter name. Use " *
+               "the \"anonymous\" syntax $name = @finite_parameter(model, " *
+               "...) instead.")
+    end
+
+    if length(extra) == 0
+        # Easy case - a single variable
+        buildcall = :( build_parameter($_error, $set) )
+        JuMP._add_kw_args(buildcall, extra_kw_args)
+        parametercall = :( add_parameter($esc_model, $buildcall, $base_name) )
+        creationcode = :($parameter = $parametercall)
+    else
+        # isa(param, Expr) || _error("Expected $param to be a parameter name") --> not needed... I think
+        # We now build the code to generate the variables (and possibly the
+        # SparseAxisArray to contain them)
+        idxvars, indices = JuMPC._build_ref_sets(_error, param)
+        buildcall = :( build_parameter($_error, $set) )
+        JuMP._add_kw_args(buildcall, extra_kw_args)
+        parametercall = :( add_parameter($esc_model, $buildcall,
+                                         $(JuMP._name_call(base_name, idxvars))) )
+        creationcode = JuMPC.container_code(idxvars, indices, parametercall,
+                                             requestedcontainer)
+    end
+    if anonvar
+        # Anonymous variable, no need to register it in the model-level
+        # dictionary nor to assign it to a variable in the user scope.
+        # We simply return the variable
+        macro_code = creationcode
+    else
+        # We register the variable reference to its name and
+        # we assign it to a variable in the local scope of this name
+        macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
+                                                   model_for_registering = esc_model)
+    end
+    return JuMP._assert_valid_model(esc_model, macro_code)
 end
 
 # TODO finish the docstring
