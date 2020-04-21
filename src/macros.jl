@@ -96,10 +96,10 @@ keyword arguments `kw_args` and returns the parameter reference.
 @independent_parameter(model, expr, kw_args...)
 ```
 
-Add a parameter to the model `model` described by the expression `expr`, the
-positional arguments `args` and the keyword arguments `kw_args`. (note that in
+Add a parameter to the model `model` described by the expression `expr`
+and the keyword arguments `kw_args`. (note that in
 the following the symbol `<=` can be used instead of `≤`, the symbol `>=`can
-be used instead of `≥`, and the symbo `in` can be used instead of `∈`) The
+be used instead of `≥`, and the symbol `in` can be used instead of `∈`) The
 expression `expr` can be of the form:
 - `paramexpr` creating parameters described by `paramexpr`.
 - `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
@@ -126,29 +126,28 @@ The recognized keyword arguments in `kw_args` are the following:
   the parameters.
 - `supports`: Sets the support points for the parameters.
 - `num_supports`: Specifies the number of supports to be automatically generated.
-                  Note that `supports` takes precedence. Defaults to 50.
+                  Note that `supports` takes precedence. Defaults to 10.
 - `sig_figs`: Specifies the number of significant digits that should be used
               in automatic support generation. Defaults to 5.
-- `independent`: Specifies if the each parameter is independent from each other
-  or not. Defaults to false.
-- `container`: Specify the container type. Defaults to automatic
+- `container`: Specify the container type. Defaults to `automatic`
 
 **Examples**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; m = InfiniteModel())
-julia> @infinite_parameter(m, 0 <= x <= 1)
+julia> @independent_parameter(m, x in [0, 1])
 x
 
-julia> @infinite_parameter(m, y[i = 1:2] in Normal(), num_supports = 10)
-2-element Array{ParameterRef,1}:
+julia> @independent_parameter(m, y[i = 1:2] in Normal(), num_supports = 10)
+2-element Array{GeneralVariableRef,1}:
  y[1]
  y[2]
 
-julia> z = @infinite_parameter(m, ["a", "b"], distribution = Uniform(), independent = true)
-2-dimensional DenseAxisArray{ParameterRef,2,...} with index sets:
-    Dimension 1, "a"
-    Dimension 2, "b"
-And data, a 1×1 Array{ParameterRef,2}:
- noname
+julia> z = @independent_parameter(m, [["a", "b"]], lower_bound = 0,
+                                  upper_bound = 1, supports = [0, 0.5, 1])
+1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
+   Dimension 1, ["a", "b"]
+And data, a 2-element Array{GeneralVariableRef,1}:
+noname[a]
+noname[b]
 ```
 """
 macro independent_parameter(model, args...)
@@ -357,7 +356,7 @@ the keyword arguments `kw_args` and returns the container of parameter reference
 Add a container of dependent infinite parameters to the model `model` described
 by the expression `expr`, and the keyword arguments `kw_args`. (note that in
 the following the symbol `<=` can be used instead of `≤`, the symbol `>=`can
-be used instead of `≥`, and the symbo `in` can be used instead of `∈`) The
+be used instead of `≥`, and the symbol `in` can be used instead of `∈`) The
 expression `expr` can be of the form:
 - `paramexpr` creating parameters described by `paramexpr`.
 - `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
@@ -527,9 +526,11 @@ the keyword arguments `kw_args` and returns the parameter reference.
 ```
 
 Add an infinite parameter to the model `model` described by the expression `expr`,
-and the keyword arguments `kw_args`. (note that in
+and the keyword arguments `kw_args`. This is just a wrapper macro that will make
+the appropriate call to either [`@independent_parameter`](@ref) or
+[`@dependent_parameters`](@ref). (Note that in
 the following the symbol `<=` can be used instead of `≤`, the symbol `>=`can
-be used instead of `≥`, and the symbo `in` can be used instead of `∈`) The
+be used instead of `≥`, and the symbol `in` can be used instead of `∈`) The
 expression `expr` can be of the form:
 - `paramexpr` creating parameters described by `paramexpr`.
 - `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
@@ -591,11 +592,18 @@ macro infinite_parameter(model, args...)
     # parse the arguments
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     indep_kwarg = filter(kw -> kw.args[1] == :independent, kw_args)
+    new_kwargs = filter(kw -> kw.args[1] != :independent, kw_args)
+    if isempty(indep_kwarg)
+        independent = false
+    else
+        independent = indep_kwarg[1].args[2]
+    end
 
-    # determine if it is independent
-    independent = false
-    if length(extra) == 0 || (!isempty(indep_kwarg) && indep_kwarg[1].args[2])
-        independent = true
+    # determine if there is only one parameter
+    if length(extra) == 0
+        code = :( @independent_parameter($model, $(extra...), $(new_kwargs...),
+                                         container = $requestedcontainer,
+                                         error_args = $args) )
     else
         # get the param expression and check it is an array --> TODO make more efficient
         x = first(extra)
@@ -607,15 +615,22 @@ macro infinite_parameter(model, args...)
             param = x
         end
         if param isa Symbol
-            independent = true
+            code = :( @independent_parameter($model, $(extra...), $(new_kwargs...),
+                                             container = $requestedcontainer,
+                                             error_args = $args) )
+        else
+            code = quote
+                if $independent
+                    @independent_parameter($model, $(extra...), $(new_kwargs...),
+                                           container = $requestedcontainer,
+                                           error_args = $args)
+                else
+                    @dependent_parameters($model, $(extra...), $(new_kwargs...),
+                                          container = $requestedcontainer,
+                                          error_args = $args)
+                end
+            end
         end
-    end
-
-    # call the correct macro
-    if independent
-        code = :( @independent_parameter($model, $(args...), error_args = $args) )
-    else
-        code = :( @dependent_parameters($model, $(args...), error_args = $args) )
     end
     return esc(code)
 end

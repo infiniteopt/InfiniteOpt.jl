@@ -336,6 +336,37 @@ end
         @test @dependent_parameters(m, [i = 1:2], upper_bound = [1, 2][i],
                   lower_bound = 0) == [pref1, pref2]
     end
+    # test @infinite_parameter
+    @testset "@infinite_parameter" begin
+        m = InfiniteModel();
+        # test anonymous single
+        pref = GeneralVariableRef(m, 1, IndependentParameterIndex)
+        @test @infinite_parameter(m, distribution = dist1) == pref
+        # test explicit single
+        pref = GeneralVariableRef(m, 2, IndependentParameterIndex)
+        @test @infinite_parameter(m, a in [0, 1]) == pref
+        # test independent multi
+        pref1 = GeneralVariableRef(m, 3, IndependentParameterIndex)
+        pref2 = GeneralVariableRef(m, 4, IndependentParameterIndex)
+        @test @infinite_parameter(m, b[1:2] in [0, 1], num_supports = 2,
+                                  independent = true) == [pref1, pref2]
+        # test dependent multi
+        pref1 = GeneralVariableRef(m, 1, DependentParameterIndex, 1)
+        pref2 = GeneralVariableRef(m, 1, DependentParameterIndex, 2)
+        @test @infinite_parameter(m, c[1:2] in dist2,
+                                  base_name = "bob") == [pref1, pref2]
+        # test anonymous multi dependent
+        pref1 = GeneralVariableRef(m, 2, DependentParameterIndex, 1)
+        pref2 = GeneralVariableRef(m, 2, DependentParameterIndex, 2)
+        @test @infinite_parameter(m, [1:2], set = set2,
+                                  base_name = "bob") == [pref1, pref2]
+        # test multi with variable independent
+        pref1 = GeneralVariableRef(m, 5, IndependentParameterIndex)
+        pref2 = GeneralVariableRef(m, 6, IndependentParameterIndex)
+        indep = true
+        @test @infinite_parameter(m, d[1:2] in [0, 1], num_supports = 2,
+                                  independent = indep) == [pref1, pref2]
+    end
 end
 
 # test naming stuff
