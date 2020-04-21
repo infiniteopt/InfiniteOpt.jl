@@ -838,6 +838,8 @@ Order   = [:macro, :function]
 ```
 ```@docs
 @infinite_parameter
+@independent_parameter
+@dependent_parameters
 build_parameter(::Function, ::AbstractInfiniteSet)
 add_parameter(::InfiniteModel, ::InfOptParameter)
 add_parameters

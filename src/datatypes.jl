@@ -765,7 +765,7 @@ model an optmization problem with an infinite-dimensional decision space.
 **Fields**
 - `independent_params::MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{IndependentParameter}}`:
    The independent parameters and their mapping information.
-- `dependent_params::MOIUC.CleverDict{DependentParameterIndex, MultiParameterData}`:
+- `dependent_params::MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}`:
    The dependent parameters and their mapping information.
 - `finite_params::MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}`:
    The finite parameters and their mapping information.
@@ -806,7 +806,7 @@ model an optmization problem with an infinite-dimensional decision space.
 mutable struct InfiniteModel <: JuMP.AbstractModel
     # Parameter Data
     independent_params::MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}
-    dependent_params::MOIUC.CleverDict{DependentParameterIndex, MultiParameterData}
+    dependent_params::MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}
     finite_params::MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}
     name_to_param::Union{Dict{String, AbstractInfOptIndex}, Nothing}
     last_object_num::Int
@@ -887,7 +887,7 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                        kwargs...)::InfiniteModel
     return InfiniteModel(# Parameters
                          MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}(),
-                         MOIUC.CleverDict{DependentParameterIndex, MultiParameterData}(),
+                         MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}(),
                          MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
                          nothing, 0, 0,
                          Union{IndependentParameterIndex, DependentParametersIndex}[],

@@ -346,7 +346,6 @@ macro finite_parameter(model, args...)
     esc(code)
 end
 
-# TODO finish the docstring
 """
     @dependent_parameters(model, kw_args...)
 
@@ -357,6 +356,63 @@ the keyword arguments `kw_args` and returns the container of parameter reference
 @dependent_parameters(model, expr, kw_args...)
 ```
 
+Add a container of dependent infinite parameters to the model `model` described
+by the expression `expr`, and the keyword arguments `kw_args`. (note that in
+the following the symbol `<=` can be used instead of `≤`, the symbol `>=`can
+be used instead of `≥`, and the symbo `in` can be used instead of `∈`) The
+expression `expr` can be of the form:
+- `paramexpr` creating parameters described by `paramexpr`.
+- `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
+   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+- `paramexpr ∈ [lb, ub]` creating parameters described by `paramexpr` characterized
+   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+- `paramexpr ∈ dist` creating parameters described by `paramexpr` characterized
+   by the `Distributions.jl` distribution object `dist`.
+- `paramexpr ∈ set` creating parameters described by `paramexpr` characterized
+   by the `AbstractInfiniteSet` object `set`.
+
+The expression `paramexpr` must be of the form:
+- `paramname[...]` or `[...]` creating a container of parameters
+
+The recognized keyword arguments in `kw_args` are the following:
+- `base_name`: Sets the name prefix used to generate parameter names. It
+  corresponds to the parameter name for scalar parameter, otherwise, the
+  parameter names are set to `base_name[...]` for each index `...` of the axes
+  `axes`.
+- `lower_bound`: Sets the value of the parameter lower bound for an interval set.
+- `upper_bound`: Sets the value of the parameter upper bound for an interval set.
+- `set`: The `InfiniteSet` characterizing the parameters that are subtypes of
+         [`AbstractInfiniteSet`](@ref).
+- `distribution`: Sets the `Distributions.jl` distribution object that characterizes
+  the parameters.
+- `supports`: Sets the support points for the parameters.
+- `num_supports`: Specifies the number of supports to be automatically generated.
+                  Note that `supports` takes precedence. Defaults to 10.
+- `sig_figs`: Specifies the number of significant digits that should be used
+              in automatic support generation. Defaults to 5.
+- `container`: Specify the container type. Defaults to `automatic`.
+
+**Examples**
+```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; m = InfiniteModel())
+julia> @dependent_parameters(m, x[1:2] in [0, 1])
+2-element Array{GeneralVariableRef,1}:
+ x[1]
+ x[2]
+
+julia> @dependent_parameters(m, y[i = 1:2] in MvNormal(ones(2)), num_supports = 10)
+2-element Array{GeneralVariableRef,1}:
+ y[1]
+ y[2]
+
+julia> z = @dependent_parameters(m, [i = ["a", "b"], j = 1:2],
+                                 distribution = MatrixBeta(2, 2, 2))
+2-dimensional DenseAxisArray{GeneralVariableRef,2,...} with index sets:
+    Dimension 1, ["a", "b"]
+    Dimension 2, Base.OneTo(2)
+And data, a 2×2 Array{GeneralVariableRef,2}:
+ noname[a,1]  noname[a,2]
+ noname[b,1]  noname[b,2]
+```
 """
 macro dependent_parameters(model, args...)
     # extract the raw arguments
@@ -390,8 +446,8 @@ macro dependent_parameters(model, args...)
     supports_kw_arg = filter(kw -> kw.args[1] == :supports, kw_args)
     extra_kw_args = filter(kw -> kw.args[1] != :base_name &&
                            !InfiniteOpt._is_set_keyword(kw) &&
-                           kw.args[1] != :error_args, kw_args &&
-                           kw.args[1] != :supports)
+                           kw.args[1] != :error_args &&
+                           kw.args[1] != :supports, kw_args)
     base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
     infoexpr = InfiniteOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
 
@@ -415,14 +471,14 @@ macro dependent_parameters(model, args...)
     end
 
     # determine it is an anonymous call
-    anonparam = isexpr(param, :vect) || isexpr(param, :vcat)
-    anonparam && symbolic_set && _error("Cannot use symbolic infinite defintion" *
+    anonparam = isexpr(param, :vcat) || isexpr(param, :vect)
+    anonparam && symbolic_set && _error("Cannot use symbolic infinite defintion " *
                                         "with an anonymous parameter")
     # process the parameter name
     parameter = gensym()
     name = JuMPC._get_name(param)
     if isempty(base_name_kw_args)
-        base_name = anonparam ? "" : string(name)
+        base_name = anonparam ? "noname" : string(name)
     else
         base_name = esc(base_name_kw_args[1].args[2])
     end
@@ -446,11 +502,11 @@ macro dependent_parameters(model, args...)
     idxvars, indices = JuMPC._build_ref_sets(_error, param)
     namecode = JuMP._name_call(base_name, idxvars)
     parambuildcall = :( InfiniteOpt._DependentParameter($set, $supports, $namecode) )
-    param_containter_call = JuMPC.container_code(idxvars, indices, parambuildcall,
-                                                 requestedcontainer)
+    param_container_call = JuMPC.container_code(idxvars, indices, parambuildcall,
+                                                requestedcontainer)
     buildcall = :( InfiniteOpt._build_parameters($_error, $param_container_call) )
     JuMP._add_kw_args(buildcall, extra_kw_args)
-    creationcode = :( add_parameters($esc_model, $(buildcall)...)
+    creationcode = :( add_parameters($esc_model, $(buildcall)...) )
 
     # make the final return code based on if it is anonymous or not
     if anonparam
@@ -472,9 +528,98 @@ the keyword arguments `kw_args` and returns the parameter reference.
 @infinite_parameter(model, expr, kw_args...)
 ```
 
+Add an infinite parameter to the model `model` described by the expression `expr`,
+and the keyword arguments `kw_args`. (note that in
+the following the symbol `<=` can be used instead of `≤`, the symbol `>=`can
+be used instead of `≥`, and the symbo `in` can be used instead of `∈`) The
+expression `expr` can be of the form:
+- `paramexpr` creating parameters described by `paramexpr`.
+- `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
+   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+- `paramexpr ∈ [lb, ub]` creating parameters described by `paramexpr` characterized
+   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+- `paramexpr ∈ dist` creating parameters described by `paramexpr` characterized
+   by the `Distributions.jl` distribution object `dist`.
+- `paramexpr ∈ set` creating parameters described by `paramexpr` characterized
+  by the `AbstractInfiniteSet` object `set`.
+
+The expression `paramexpr` can be of the form:
+- `paramname` creating a scalar parameter of name `paramname`
+- `paramname[...]` or `[...]` creating a container of parameters
+
+The recognized keyword arguments in `kw_args` are the following:
+- `base_name`: Sets the name prefix used to generate parameter names. It
+  corresponds to the parameter name for scalar parameter, otherwise, the
+  parameter names are set to `base_name[...]` for each index `...` of the axes
+  `axes`.
+- `lower_bound`: Sets the value of the parameter lower bound for an interval set.
+- `upper_bound`: Sets the value of the parameter upper bound for an interval set.
+- `set`: The `InfiniteSet` characterizing the parameters see subtypes of
+         [`AbstractInfiniteSet`](@ref).
+- `distribution`: Sets the `Distributions.jl` distribution object that characterizes
+  the parameters.
+- `supports`: Sets the support points for the parameters.
+- `num_supports`: Specifies the number of supports to be automatically generated.
+                  Note that `supports` takes precedence. Defaults to 10.
+- `sig_figs`: Specifies the number of significant digits that should be used
+              in automatic support generation. Defaults to 5.
+- `independent`: Specifies if the each parameter is independent from each other
+  or not. Defaults to false.
+- `container`: Specify the container type. Defaults to `automatic`
+
+**Examples**
+```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; m = InfiniteModel())
+julia> @infinite_parameter(m, x in [0, 1])
+x
+
+julia> @infinite_parameter(m, y[i = 1:2] in MvNormal(ones(2)), num_supports = 10)
+2-element Array{GeneralVariableRef,1}:
+ y[1]
+ y[2]
+
+julia> z = @infinite_parameter(m, [["a", "b"]], distribution = Normal(),
+                               independent = true)
+1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
+    Dimension 1, ["a", "b"]
+And data, a 2-element Array{GeneralVariableRef,1}:
+ noname[a]
+ noname[b]
+```
 """
-macro infinite_parameter(model, args...) # TODO finish this (a wrapper for the above)
-    return
+macro infinite_parameter(model, args...)
+    # define error message function
+    _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...),
+                                       str...)
+    # parse the arguments
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    indep_kwarg = filter(kw -> kw.args[1] == :independent, kw_args)
+
+    # determine if it is independent
+    independent = false
+    if length(extra) == 0 || (!isempty(indep_kwarg) && indep_kwarg[1].args[2])
+        independent = true
+    else
+        # get the param expression and check it is an array --> TODO make more efficient
+        x = first(extra)
+        infoexpr = InfiniteOpt._ParameterInfoExpr()
+        symbolic_set = isexpr(x, :comparison) || isexpr(x, :call)
+        if symbolic_set
+            param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
+        else
+            param = x
+        end
+        if param isa Symbol
+            independent = true
+        end
+    end
+
+    # call the correct macro
+    if independent
+        code = :( @independent_parameter($model, $(args...), error_args = $args) )
+    else
+        code = :( @dependent_parameters($model, $(args...), error_args = $args) )
+    end
+    return esc(code)
 end
 
 ## Define helper functions needed to parse infinite variable expressions

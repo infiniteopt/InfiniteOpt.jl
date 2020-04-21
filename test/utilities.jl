@@ -21,6 +21,7 @@ end
 
 # Define test data structures
 struct BadSet <: AbstractInfiniteSet end
+struct BadArraySet <: InfiniteArraySet end
 struct TestBridge{C} <: MOI.Bridges.AbstractBridge where {C} end
 struct BadData <: AbstractMeasureData end
 struct Bad end

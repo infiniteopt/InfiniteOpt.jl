@@ -10,20 +10,20 @@ end
 
 # Extend _add_data_object
 function _add_data_object(model::InfiniteModel,
-                          object::MultiParameterData{<:DependentParameters}
+                          object::MultiParameterData{<:InfiniteArraySet}
                           )::DependentParametersIndex
     return MOIUC.add_item(model.dependent_params, object)
 end
 
 # Extend _data_dictionary
 function _data_dictionary(pref::DependentParameterRef)::MOIUC.CleverDict
-    return model.dependent_params
+    return JuMP.owner_model(pref).dependent_params
 end
 
 # Extend _data_object
 function _data_object(pref::DependentParameterRef
-                      )::MultiParameterData{<:DependentParameters}
-    return _data_dictionary(pref)[JuMP.index(pref)]
+                      )::MultiParameterData{<:InfiniteArraySet}
+    return _data_dictionary(pref)[JuMP.index(pref).object_index]
 end
 
 # Extend _core_variable_object
@@ -68,9 +68,6 @@ function _check_param_sets(_error::Function,
     if size(dist) != size(params)
         _error("The dimensions of the parameters and the multi-dimensional " *
                "distribution $dist.")
-    elseif !(params isa AbstractArray{<:_DependentParameter{<:set_type}})
-        _error("Cannot specify multiple multi-dimensional distributions sets for one " *
-               "set of dependent infinite parameters.")
     end
     return
 end
@@ -92,9 +89,6 @@ function _check_param_sets(_error::Function,
     if length(sets) != length(params)
         _error("The dimensions of the parameters and the specified CollectionSet " *
                "do not match.")
-    elseif !(params isa AbstractArray{<:_DependentParameter{<:set_type}})
-        _error("Cannot specify multiple `CollectionSet`s for one group of " *
-               "dependent infinite parameters.")
     elseif params isa JuMPC.SparseAxisArray
         @warn("CollectionSet order may not match the given `SparseAxisArray` " *
               "of specified dependent infinite parameters, consider instead " *
@@ -108,10 +102,17 @@ end
 function _check_param_sets(_error::Function,
     params::AbstractArray{<:_DependentParameter{<:InfiniteArraySet}}
     )::Nothing
+    return
+end
+
+# Mixed sets
+function _check_param_sets(_error::Function,
+    params::AbstractArray{<:_DependentParameter}
+    )::Nothing
     set_type = typeof(first(params).set)
-    if !(params isa AbstractArray{<:_DependentParameter{<:set_type}})
-        _error("Cannot specify multiple `InfiniteArraySet`s for one group of " *
-               "dependent infinite parameters.")
+    if !all(param.set isa InfiniteScalarSet for param in params)
+        _error("Cannot specify multiple `InfiniteScalarSets` for one container " *
+               "of infinite dependent parameters.")
     end
     return
 end
@@ -139,7 +140,7 @@ function _build_parameters(_error::Function,
                            params::AbstractArray{<:_DependentParameter};
                            num_supports::Int = 0,
                            sig_figs::Int = 5,
-                           extra_kw_args...)::DependentParameters
+                           extra_kw_args...)
     # error with extra keywords
     for (kwarg, _) in extra_kw_args
        _error("Unrecognized keyword argument $kwarg")
@@ -197,12 +198,19 @@ indices of the expected container as used by `Containers._make_array`
 
 **Example**
 ```julia-repl
-julia> set = MultiDistributionSet(MvNormal(ones(3))); # 3 dimensional
+julia> using Distributions
 
-julia> params = DependentParameters(set, rand(set, 10), [Set([McSample] for i = 1:10)]);
+julia> dist = MvNormal(ones(3)); # 3 dimensional
+
+julia> set = MultiDistributionSet(dist); # 3 dimensional
+
+julia> params = DependentParameters(set, rand(dist, 10), [Set([McSample]) for i = 1:10]);
 
 julia> prefs = add_parameters(model, params, ["par1", "par2", "par3"])
-
+3-element Array{GeneralVariableRef,1}:
+ par1
+ par2
+ par3
 ```
 """
 function add_parameters(model::InfiniteModel,
@@ -238,8 +246,8 @@ function _construct_array_set(_error::Function, info::_ParameterInfoExpr)
     if (info.has_lb || info.has_ub) && !(info.has_lb && info.has_ub)
         _error("Must specify both an upper bound and a lower bound")
     elseif info.has_lb
-        check = :(isa($(info.lower_bound), Number))
-        return :($(check) ? IntervalSet($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a number."))
+        check = :(isa($(info.lower_bound), Real))
+        return :($(check) ? IntervalSet($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a real number."))
     elseif info.has_dist
         check = :(isa($(info.distribution), Distributions.UnivariateDistribution))
         return :($(check) ? UniDistributionSet($(info.distribution)) : MultiDistributionSet($(info.distribution)))
@@ -250,6 +258,48 @@ function _construct_array_set(_error::Function, info::_ParameterInfoExpr)
     else
         _error("Must specify upper/lower bounds, a distribution, or a set")
     end
+end
+
+################################################################################
+#                                  NAMING
+################################################################################
+# Get the parameter index in the DependentParameters object
+_param_index(pref::DependentParameterRef)::Int = JuMP.index(pref).param_index
+
+"""
+    JuMP.name(pref::DependentParameterRef)::String
+
+Extend [`JuMP.name`](@ref JuMP.name(::JuMP.VariableRef)) to return the names of
+infinite dependent parameters.
+
+**Example**
+```julia-repl
+julia> name(pref)
+"par_name"
+```
+"""
+function JuMP.name(pref::DependentParameterRef)::String
+    return _data_object(pref).names[_param_index(pref)]
+end
+
+"""
+    JuMP.set_name(pref::DependentParameterRef, name::String)::Nothing
+
+Extend [`JuMP.set_name`](@ref JuMP.set_name(::JuMP.VariableRef, ::String)) to set
+names of dependent infinite parameters.
+
+**Example**
+```julia-repl
+julia> set_name(vref, "par_name")
+
+julia> name(vref)
+"para_name"
+```
+"""
+function JuMP.set_name(pref::DependentParameterRef, name::String)::Nothing
+    _data_object(pref).names[_param_index(pref)] = name
+    JuMP.owner_model(pref).name_to_param = nothing
+    return
 end
 
 ################################################################################

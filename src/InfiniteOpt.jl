@@ -33,9 +33,9 @@ include("array_parameters.jl")
 # include("expressions.jl")
 # include("measures.jl")
 # include("constraints.jl")
+include("macros.jl")
 # include("objective.jl")
 # include("measure_expansions.jl")
-# include("macros.jl")
 # include("optimize.jl")
 # include("results.jl")
 # include("show.jl")
@@ -60,7 +60,8 @@ export AbstractDataObject, InfiniteModel
 
 # Export macros
 export @infinite_variable, @point_variable, @hold_variable, @infinite_parameter,
-@BDconstraint, @finite_parameter, @set_parameter_bounds, @add_parameter_bounds
+@BDconstraint, @finite_parameter, @set_parameter_bounds, @add_parameter_bounds,
+@independent_parameter, @dependent_parameters
 
 # Export constants
 export Infinite, Hold, Point, sampling, quadrature
@@ -105,7 +106,7 @@ set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values,
 eval_supports, used_by_reduced_variable, has_parameter_bounds, parameter_bounds,
 set_parameter_bounds, add_parameter_bound, delete_parameter_bound,
 delete_parameter_bounds, parameter_list, raw_parameter_refs, raw_parameter_values,
-intervals
+intervals, dispatch_variable_ref
 
 # Export measure datatypes
 export AbstractMeasureData, DiscreteMeasureData, MultiDiscreteMeasureData,
