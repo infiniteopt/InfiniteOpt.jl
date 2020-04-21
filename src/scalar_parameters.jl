@@ -213,7 +213,7 @@ function build_parameter(_error::Function,
     end
     supports_dict = DataStructures.SortedDict{Float64, Set{Symbol}}(
                                                    i => label for i in supports)
-    if length(supports_dict) != length_supports
+    if length_supports != 0 && (length(supports_dict) != length_supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
     return IndependentParameter(set, supports_dict)
