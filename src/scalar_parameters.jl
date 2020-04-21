@@ -202,7 +202,7 @@ function build_parameter(_error::Function,
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
-    label = Set{Symbol}(UserDefined)
+    label = Set{Symbol}([UserDefined])
     length_supports = length(supports)
     if length_supports != 0
         _check_supports_in_bounds(_error, supports, set)

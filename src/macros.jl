@@ -190,10 +190,8 @@ macro independent_parameter(model, args...)
     # x                                         | type of x | x.head
     # ------------------------------------------+-----------+------------
     # param                                       | Symbol    | NA
-    # param <= ub                                 | Expr      | :call
     # param in [lb, ub]                           | Expr      | :call
     # lb <= param <= ub                           | Expr      | :comparison
-    # In the two last cases, we call parse_variable
     explicit_comparison = isexpr(x, :comparison) || isexpr(x, :call)
     if explicit_comparison
         param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
@@ -248,7 +246,7 @@ macro independent_parameter(model, args...)
         macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
                                                    model_for_registering = esc_model)
     end
-    return _assert_valid_model(esc_model, macro_code)
+    return JuMP._assert_valid_model(esc_model, macro_code)
 end
 
 """

@@ -59,9 +59,9 @@ generate_supports_and_coeffs
 export AbstractDataObject, InfiniteModel
 
 # Export macros
-export @infinite_variable, @point_variable, @hold_variable, @infinite_parameter,
-@BDconstraint, @finite_parameter, @set_parameter_bounds, @add_parameter_bounds,
-@independent_parameter, @dependent_parameters
+export @independent_parameter, @dependent_parameters, @infinite_parameter,
+@finite_parameter, @infinite_variable, @point_variable, @hold_variable,
+@infinite_parameter, @BDconstraint, @set_parameter_bounds, @add_parameter_bounds
 
 # Export constants
 export Infinite, Hold, Point, sampling, quadrature
@@ -86,7 +86,7 @@ DependentParameters, ScalarParameterData, MultiParameterData,
 IndependentParameterRef, DependentParameterRef, FiniteParameterRef
 
 # Export parameter methods
-export build_independent_parameter, build_finite_parameter, add_parameter,
+export build_parameter, add_parameter,
 infinite_set, set_infinite_set, num_parameters, parameter_by_name,
 all_parameters, num_supports, has_supports,
 set_supports, add_supports, delete_supports, supports, used_by_constraint,
