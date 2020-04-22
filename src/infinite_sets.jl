@@ -310,6 +310,7 @@ end
 #                        SUPPORT AND LABEL GENERATION
 ################################################################################
 # Define generation labels to be stored with supports
+const All = :all
 const UserDefined = :user_defined
 const McSample = :mc_sample
 const UniformGrid = :uniform_grid
@@ -385,7 +386,7 @@ function _generate_collection_supports(set::CollectionSet, num_supports::Int,
                                                    num_supports = num_supports,
                                                    sig_figs = sig_figs)[1]
     end
-    return collect(transpose(trans_supports))
+    return permutedims(trans_supports)
 end
 
 # CollectionSet (IntervalSets)

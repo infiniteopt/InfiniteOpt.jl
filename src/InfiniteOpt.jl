@@ -75,7 +75,7 @@ HoldVariableIndex, MeasureIndex, ConstraintIndex, InfiniteParameterIndex
 # Export infinite set types
 export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
 UniDistributionSet, MultiDistributionSet, CollectionSet, UserDefined,
-McSample, UniformGrid, Mixture
+McSample, UniformGrid, Mixture, All
 
 # Export infinite set methods
 export collection_sets, supports_in_set, generate_support_values
