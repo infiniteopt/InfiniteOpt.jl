@@ -866,4 +866,7 @@ supports(::AbstractArray{<:DependentParameterRef})
 set_supports(::AbstractArray{<:DependentParameterRef},::AbstractArray{<:Vector{<:Real}})
 add_supports(::AbstractArray{<:IndependentParameterRef},::AbstractArray{<:Vector{<:Real}})
 delete_supports(::AbstractArray{<:DependentParameterRef})
+generate_and_add_supports!(::AbstractArray{<:DependentParameterRef},::InfiniteArraySet)
+fill_in_supports!(::AbstractArray{<:DependentParameterRef})
+fill_in_supports!(::InfiniteModel)
 ```

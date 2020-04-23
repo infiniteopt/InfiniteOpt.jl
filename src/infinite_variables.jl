@@ -36,7 +36,7 @@ end
 # Check parameter tuple, ensure all elements contain parameter references
 function _check_parameter_tuple(_error::Function, prefs::VectorTuple)::Nothing
     if !all(pref.index_type <: InfiniteParameterIndex for pref in prefs)
-        _error("Invalid parameter type(s) given."
+        _error("Invalid parameter type(s) given.")
     end
     allunique(prefs) ||  _error("Cannot double specify infinite parameter " *
                                 "references.")
@@ -179,6 +179,7 @@ end
 ################################################################################
 #                            VARIABLE NAMING
 ################################################################################
+#=
 """
     JuMP.set_name(vref::InfiniteVariableRef, root_name::String)
 
@@ -371,3 +372,4 @@ function add_parameter_ref(vref::InfiniteVariableRef,
     end
     return
 end
+=#

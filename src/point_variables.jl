@@ -2,14 +2,14 @@
 #                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
 ################################################################################
 # Extend dispatch_variable_ref
-function dispatch_variable_ref(model::PointModel,
+function dispatch_variable_ref(model::InfiniteModel,
                                index::PointVariableIndex
                                )::PointVariableRef
     return PointVariableRef(model, index)
 end
 
 # Extend _add_data_object
-function _add_data_object(model::PointModel,
+function _add_data_object(model::InfiniteModel,
                           object::VariableData{<:PointVariable}
                           )::PointVariableIndex
     return MOIUC.add_item(model.infinite_vars, object)
@@ -172,7 +172,7 @@ end
 ################################################################################
 #                            VARIABLE NAMING
 ################################################################################
-
+#=
 """
     infinite_variable_ref(vref::PointVariableRef)::InfiniteVariableRef
 
@@ -309,3 +309,4 @@ function JuMP.set_name(vref::PointVariableRef, name::String)
     JuMP.owner_model(vref).name_to_var = nothing
     return
 end
+=#

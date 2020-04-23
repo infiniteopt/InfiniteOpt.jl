@@ -170,7 +170,7 @@ function _build_parameters(_error::Function,
     elseif num_supports != 0
         supps, label = generate_support_values(set, num_supports = num_supports,
                                                sig_figs = sig_figs)
-        labels = [label for i in 1:num_supports]
+        labels = [Set([label]) for i in 1:num_supports]
     # no supports are specified
     else
         supps = zeros(Float64, length(vector_params), 0)
@@ -384,8 +384,8 @@ true
 ```
 """
 function is_used(pref::DependentParameterRef)::Bool
-    return used_by_measure(vref) || used_by_constraint(vref) ||
-           used_by_infinite_variable(vref)
+    return used_by_measure(pref) || used_by_constraint(pref) ||
+           used_by_infinite_variable(pref)
 end
 
 ################################################################################
@@ -404,7 +404,7 @@ end
 # Extend _set_core_variable_object
 function _set_core_variable_object(pref::DependentParameterRef,
                                    params::DependentParameters)::Nothing
-    _data_object(pref).parameters = object
+    _data_object(pref).parameters = params
     return
 end
 
@@ -412,6 +412,11 @@ end
 #                             INFINITE SET METHODS
 ################################################################################
 ## Get the individual infinite set if possible
+# raw_set
+function _parameter_set(pref::DependentParameterRef)::InfiniteArraySet
+    return _core_variable_object(pref).set
+end
+
 # CollectionSet
 function _parameter_set(set::CollectionSet{S},
                         pref::DependentParameterRef
@@ -440,7 +445,18 @@ julia> infinite_set(x[1])
 ```
 """
 function infinite_set(pref::DependentParameterRef)::InfiniteScalarSet
-    return _parameter_set(_core_variable_object(pref).set, pref)
+    return _parameter_set(_parameter_set(pref), pref)
+end
+
+# Check that prefs are complete
+function _check_complete_param_array(
+    prefs::AbstractArray{<:DependentParameterRef}
+    )::Nothing
+    if length(prefs) != length(_data_object(first(prefs)).names)
+        error("Dimensions of parameter container and the infinite set do not " *
+              "match, ensure all related dependent parameters are included.")
+    end
+    return
 end
 
 """
@@ -461,11 +477,8 @@ dim: 2
 """
 function infinite_set(prefs::AbstractArray{<:DependentParameterRef}
                       )::InfiniteArraySet
-    if length(prefs) == length(_data_object(first(prefs)).names)
-        error("Dimensions of parameter container and the infinite set do not " *
-              "match, ensure all related dependent parameters are included.")
-    end
-    return _core_variable_object(first(prefs)).set
+    _check_complete_param_array(prefs)
+    return _parameter_set(first(prefs))
 end
 
 # Update the underlying set and delete the supports
@@ -502,8 +515,8 @@ julia> infinite_set(x[1])
 """
 function set_infinite_set(pref::DependentParameterRef,
                           set::InfiniteScalarSet)::Nothing
-    old_set = _core_variable_object(pref).set
-    if old_set != CollectionSet
+    old_set = _parameter_set(pref)
+    if !(old_set isa CollectionSet)
         error("Cannot set the individual infinite set of $pref if the " *
               "underlying set is not a CollectionSet.")
     elseif used_by_measure(pref)
@@ -535,10 +548,10 @@ julia> set_infinite_set(x, CollectionSet([IntervalSet(0, 1), IntervalSet(0, 2)])
 function set_infinite_set(prefs::AbstractArray{<:DependentParameterRef},
                           set::InfiniteArraySet)::Nothing
     if any(used_by_measure(pref) for pref in prefs)
-        error("Cannot override the infinite set of $pref since it is used by " *
+        error("Cannot override the infinite set of $prefs since it is used by " *
               "a measure.")
     end
-    old_set = infinite_set(prefs) # this error checks
+    _check_complete_param_array(prefs)
     _update_parameter_set(first(prefs), set)
     return
 end
@@ -559,7 +572,7 @@ true
 ```
 """
 function JuMP.has_lower_bound(pref::DependentParameterRef)::Bool
-    set = _core_variable_object(pref).set
+    set = _parameter_set(pref)
     if set isa CollectionSet
         return JuMP.has_lower_bound(collection_sets(set)[_param_index(pref)])
     else
@@ -734,10 +747,7 @@ julia> num_supports(x)
 """
 function num_supports(prefs::AbstractArray{<:DependentParameterRef};
                       label::Symbol = All)::Int
-    if length(prefs) == length(_data_object(first(prefs)).names)
-        error("Dimensions of parameter container and the infinite set do not " *
-              "match, ensure all related dependent parameters are included.")
-    end
+    _check_complete_param_array(prefs)
     return num_supports(first(prefs), label = label)
 end
 
@@ -796,7 +806,8 @@ end
 
 """
     supports(prefs::AbstractArray{<:DependentParameterRef};
-             [label::Symbol = All])::AbstractArray{<:Float64}
+             [label::Symbol = All]
+             )::Union{AbstractArray{<:Vector{<:Float64}}, Array{Float64, 2}}
 
 Return the support points associated with `prefs`. Errors if not all of the
 infinite dependent parameters are from the same object. This will return a
@@ -813,21 +824,15 @@ julia> supports(x) # columns are supports
 ```
 """
 function supports(prefs::AbstractArray{<:DependentParameterRef};
-                  label::Symbol = All)::AbstractArray{<:Float64}
-    if length(prefs) == length(_data_object(first(prefs)).names)
-        error("Dimensions of parameter container and the infinite set do not " *
-              "match, ensure all related dependent parameters are included.")
-    end
+                  label::Symbol = All)::AbstractArray{<:Vector{<:Float64}}
+    _check_complete_param_array(prefs)
     return supports.(prefs, label = label) # TODO make more efficient
 end
 
 # More efficient dispatch for Vectors
 function supports(prefs::Vector{DependentParameterRef};
                   label::Symbol = All)::Array{Float64, 2}
-    if length(prefs) == length(_data_object(first(prefs)).names)
-        error("Dimensions of parameter container and the infinite set do not " *
-              "match, ensure all related dependent parameters are included.")
-    end
+    _check_complete_param_array(prefs)
     if label == All
         return _parameter_supports(pref)
     else
@@ -932,7 +937,7 @@ function set_supports(pref::DependentParameterRef, supports; kwargs...)
 end
 
 """
-    add_supports(prefs::AbstractArray{<:IndependentParameterRef},
+    add_supports(prefs::AbstractArray{<:DependentParameterRef},
                  supports::AbstractArray{<:Vector{<:Real}})::Nothing
 
 Add additional support points for `prefs`. Errors if the supports violate the domain
@@ -966,7 +971,7 @@ julia> supports(t)
  0.0  1.0  0.5
 ```
 """
-function add_supports(prefs::AbstractArray{<:IndependentParameterRef},
+function add_supports(prefs::AbstractArray{<:DependentParameterRef},
                       supports::AbstractArray{<:Vector{<:Real}};
                       label::Symbol = UserDefined, # interal keyword args
                       check::Bool = true)::Nothing
@@ -976,7 +981,7 @@ function add_supports(prefs::AbstractArray{<:IndependentParameterRef},
 end
 
 # More efficient version for supports in the correct format
-function add_supports(prefs::Vector{IndependentParameterRef},
+function add_supports(prefs::Vector{DependentParameterRef},
                       supports::Array{<:Real, 2};
                       label::Symbol = UserDefined, # interal keyword args
                       check::Bool = true)::Nothing
@@ -1010,38 +1015,289 @@ julia> delete_supports(w)
 ```
 """
 function delete_supports(prefs::AbstractArray{<:DependentParameterRef})::Nothing
-    if length(prefs) == length(_data_object(first(prefs)).names)
-        error("Dimensions of parameter container and the infinite set do not " *
-              "match, ensure all related dependent parameters are included.")
-    elseif any(used_by_measure(pref) for pref in prefs)
+    _check_complete_param_array(prefs)
+    if any(used_by_measure(pref) for pref in prefs)
         error("Cannot delete supports with measure dependencies.")
     end
     _update_parameter_supports(prefs, zeros(length(prefs), 0), [Set{Symbol}()])
     return
 end
 
-# TODO add support generation methods
+"""
+    generate_and_add_supports!(prefs::AbstractArray{<:DependentParameterRef},
+                               set::InfiniteArraySet;
+                               [num_supports::Int = 10, sig_figs::Int = 5]
+                               )::Nothing
 
-################################################################################
-#                               OTHER METHODS
-################################################################################
-# Extract the root name of a parameter reference
-function _root_name(pref::GeneralVariableRef)::String
-    name = JuMP.name(pref)
-    first_bracket = findfirst(isequal('['), name)
-    if first_bracket == nothing
-        return name
-    else
-        # Hacky fix to handle invalid Unicode
-        try
-            return name[1:first_bracket-1]
-        catch
-            return name[1:first_bracket-2]
-        end
+Generate supports for `prefs` via [`generate_support_values`](@ref) and add them
+to `pref`. This is intended as an extendable internal method for
+[`fill_in_supports!`](@ref fill_in_supports!(::AbstractArray{<:DependentParameterRef})).
+Most extensions that employ user-defined infinite sets can typically enable this
+by extending [`generate_support_values`](@ref). However, in some cases it may be
+necessary to extend this when more complex operations need to take place then just
+adding supports to a set of infinite parameters. Errors if the
+infinite set type is not recognized.
+"""
+function generate_and_add_supports!(prefs::AbstractArray{<:DependentParameterRef},
+                                    set::InfiniteArraySet;
+                                    num_supports::Int = 10, sig_figs::Int = 5
+                                    )::Nothing
+    new_supps, label = generate_support_values(set, num_supports = num_supports,
+                                               sig_figs = sig_figs)
+    add_supports(_make_vector(prefs), new_supps, check = false, label = label)
+    return
+end
+
+"""
+    fill_in_supports!(prefs::AbstractArray{<:DependentParameterRef};
+                      [num_supports::Int = 10, sig_figs::Int = 5])::Nothing
+
+Automatically generate support points for a container of dependent infinite
+parameters `prefs`. Generating up to `num_supports` for the parameters in accordance
+with `generate_and_add_supports!`.
+User can specify the number of digits kept after decimal point for the
+auto-generated supports wtih `sig_figs`. Extensions that use user defined
+set types should extend [`generate_and_add_supports!`](@ref) and/or
+[`generate_support_values`](@ref) as needed. Errors if the infinite set type is
+not recognized.
+
+**Example**
+```julia-repl
+julia> fill_in_supports!(x, num_supports = 4, sig_figs = 3)
+
+julia> supports(x)
+2×4 Array{Float64,2}:
+ 0.0  0.333  0.667  1.0
+ 0.0  0.333  0.667  1.0
+```
+"""
+function fill_in_supports!(prefs::AbstractArray{<:DependentParameterRef};
+                           num_supports::Int = 10, sig_figs::Int = 5)::Nothing
+    set = infinite_set(prefs) # does check for bad container
+    current_amount = size(_parameter_supports(first(prefs)), 2)
+    if current_amount < num_supports
+        generate_and_add_supports!(prefs, set,
+                                   num_supports = num_supports - current_amount,
+                                   sig_figs = sig_figs)
     end
+    return
+end
+
+"""
+    fill_in_supports!(model::InfiniteModel; [num_supports::Int = 10,
+                      sig_figs::Int = 5])::Nothing
+
+Automatically generate support points for all infinite parameters in model. User
+can specify the number of significant figures kept after decimal point for the
+auto-generated supports wtih `sig_fig`. This calls
+`fill_in_supports!` for each parameter in the model.
+See [`fill_in_supports!`](@ref)
+for more information. Errors if one of the infinite set types is unrecognized.
+
+**Example**
+```julia-repl
+julia> fill_in_supports!(model, num_supports = 4, sig_fig = 3)
+
+julia> supports(t)
+4-element Array{Float64,1}:
+ 0.0
+ 0.333
+ 0.667
+ 1.0
+```
+"""
+function fill_in_supports!(model::InfiniteModel; num_supports::Int = 10,
+                           sig_figs::Int = 5)::Nothing
+    # fill in the the supports of each independent parameter
+    for (key, data_object) in model.independent_params
+        pref = dispatch_variable_ref(model, key)
+        fill_in_supports!(pref, num_supports = num_supports, sig_figs = sig_figs)
+    end
+    # fill in the supports of each dependent parameter set
+    for (key, data_object) in model.dependent_params
+        prefs = [dispatch_variable_ref(model, DependentParameterIndex(key, i))
+                 for i in 1:length(names)]
+        fill_in_supports!(prefs, num_supports = num_supports, sig_figs = sig_figs)
+    end
+    return
 end
 
 ################################################################################
 #                                 DELETION
 ################################################################################
-# TODO add deletion
+#=
+# Check if parameter is used by measure data and error if it is to prevent bad
+# deleting behavior
+function _check_param_in_data(pref::ParameterRef, data::AbstractMeasureData)
+    prefs = parameter_refs(data)
+    if (pref == prefs || pref in prefs)
+        error("Unable to delete `$pref` since it is used to evaluate measures.")
+    end
+    return
+end
+
+# Used to update infinite variable when one of its parameters is deleted
+function _update_infinite_variable(vref::InfiniteVariableRef)
+    JuMP.set_name(vref, _root_name(vref))
+    if used_by_measure(vref)
+        for mindex in JuMP.owner_model(vref).var_to_meas[JuMP.index(vref)]
+            JuMP.set_name(MeasureRef(JuMP.owner_model(vref), mindex),
+                       _make_meas_name(JuMP.owner_model(vref).measures[mindex]))
+        end
+    end
+    return
+end
+
+# Update point variable for which a parameter is deleted
+function _update_point_variable(pvref::PointVariableRef)
+    # update name if no alias was provided
+    if !isa(findfirst(isequal('('), JuMP.name(pvref)), Nothing)
+        JuMP.set_name(pvref, "")
+    end
+    if used_by_measure(pvref)
+        for mindex in JuMP.owner_model(pvref).var_to_meas[JuMP.index(pvref)]
+            JuMP.set_name(MeasureRef(JuMP.owner_model(pvref), mindex),
+                      _make_meas_name(JuMP.owner_model(pvref).measures[mindex]))
+        end
+    end
+    return
+end
+
+# Update a reduced variable associated with an infinite variable whose parameter
+# was removed
+function _update_reduced_variable(vref::ReducedInfiniteVariableRef,
+                                  delete_index::Int)
+    eval_supps = eval_supports(vref)
+    new_supports = Dict{Int, Number}()
+    for (index, support) in eval_supps
+        if index < delete_index
+            new_supports[index] = support
+        elseif index > delete_index
+            new_supports[index - 1] = support
+        end
+    end
+    new_info = ReducedInfiniteInfo(infinite_variable_ref(vref), new_supports)
+    JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = new_info
+    # update measure dependencies
+    if used_by_measure(vref)
+        for mindex in JuMP.owner_model(vref).reduced_to_meas[JuMP.index(vref)]
+            JuMP.set_name(MeasureRef(JuMP.owner_model(vref), mindex),
+                       _make_meas_name(JuMP.owner_model(vref).measures[mindex]))
+        end
+    end
+    return
+end
+
+"""
+    JuMP.delete(model::InfiniteModel, pref::ParameterRef)
+
+Extend [`JuMP.delete`](@ref JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)) to delete
+infinite parameters and their dependencies. All variables, constraints, and
+measure functions that depend on `pref` are updated to exclude it. Errors if the
+parameter is contained in an `AbstractMeasureData` datatype that is employed by
+a measure since the measure becomes invalid otherwise. Thus, measures that
+contain this dependency must be deleted first. Note that
+[`parameter_refs`](@ref parameter_refs(::AbstractMeasureData)) needs to be
+extended to allow deletion of parameters when custom `AbstractMeasureData`
+datatypes are used.
+
+**Example**
+```julia-repl
+julia> print(model)
+Min measure(g(t, x)*t + x) + z
+Subject to
+ z >= 0.0
+ g(t, x) + z >= 42.0
+ g(0.5, x) == 0
+ t in [0, 6]
+ x in [0, 1]
+
+julia> delete(model, x)
+
+julia> print(model)
+Min measure(g(t)*t) + z
+Subject to
+ g(t) + z >= 42.0
+ g(0.5) == 0
+ z >= 0.0
+ t in [0, 6]
+```
+"""
+function JuMP.delete(model::InfiniteModel,
+                     prefs::AbstractArray{<:DependentParameterRef})::Nothing
+    @assert JuMP.is_valid(model, first(prefs)) "Parameter reference is invalid."
+    _check_complete_param_array(prefs)
+    # update optimizer model status
+    if any(is_used(pref) for pref in prefs)
+        set_optimizer_model_ready(model, false)
+    end
+    # update measures
+    if used_by_measure(pref)
+        # ensure deletion is okay (pref isn't used by measure data)
+        for mindex in model.param_to_meas[JuMP.index(pref)]
+            _check_param_in_data(pref, model.measures[mindex].data)
+        end
+        # delete dependence of measures on pref
+        for mindex in model.param_to_meas[JuMP.index(pref)]
+            if isa(model.measures[mindex].func, ParameterRef)
+                model.measures[mindex] = Measure(zero(JuMP.AffExpr),
+                                                 model.measures[mindex].data)
+            else
+                _remove_variable(model.measures[mindex].func, pref)
+            end
+            JuMP.set_name(MeasureRef(model, mindex),
+                          _make_meas_name(model.measures[mindex]))
+        end
+        # delete mapping
+        delete!(model.param_to_meas, JuMP.index(pref))
+    end
+    # update variables
+    if used_by_variable(pref)
+        # update infinite variables that depend on pref
+        for vindex in model.param_to_vars[JuMP.index(pref)]
+            # remove the parameter dependence
+            vref = InfiniteVariableRef(model, vindex)
+            prefs = raw_parameter_refs(vref)
+            delete_index = findfirst(isequal(pref), prefs)
+            deleteat!(prefs, delete_index)
+            _update_infinite_variable(vref)
+            # update any point variables that depend on vref accordingly
+            if used_by_point_variable(vref)
+                for pindex in model.infinite_to_points[vindex]
+                    pvref = PointVariableRef(model, pindex)
+                    deleteat!(raw_parameter_values(pvref), delete_index)
+                    _update_point_variable(pvref)
+                end
+            end
+            # update any reduced variables that depend on vref accordingly
+            if used_by_reduced_variable(vref)
+                for rindex in model.infinite_to_reduced[vindex]
+                    rvref = ReducedInfiniteVariableRef(model,rindex)
+                    _update_reduced_variable(rvref, delete_index)
+                end
+            end
+        end
+        # delete mapping
+        delete!(model.param_to_vars, JuMP.index(pref))
+    end
+    # update constraints
+    if used_by_constraint(pref)
+        # update constraints in mapping to remove the parameter
+        for cindex in model.param_to_constrs[JuMP.index(pref)]
+            if isa(model.constrs[cindex].func, ParameterRef)
+                model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr),
+                                                      model.constrs[cindex].set)
+            else
+                _remove_variable(model.constrs[cindex].func, pref)
+            end
+        end
+        # delete mapping
+        delete!(model.param_to_constrs, JuMP.index(pref))
+    end
+    # delete parameter information stored in model
+    delete!(model.params, JuMP.index(pref))
+    delete!(model.param_to_name, JuMP.index(pref))
+    delete!(model.param_to_group_id, JuMP.index(pref))
+    return
+end
+=#

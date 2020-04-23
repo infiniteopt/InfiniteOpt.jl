@@ -464,7 +464,7 @@ function build_optimizer_model!(model::InfiniteModel; kwargs...)
 end
 
 """
-    optimizer_model_variable(vref::InfOptVariableRef, key::Val{ext_key_name};
+    optimizer_model_variable(vref::DispatchVariableRef, key::Val{ext_key_name};
                              [kwargs...])
 
 Return the reformulation variable(s) stored in the optimizer model that correspond
@@ -475,13 +475,13 @@ argument to `Val{ext_key_name}`. Keyword arguments can be added as needed.
 function optimizer_model_variable end
 
 # Fallback for unextended keys
-function optimizer_model_variable(vref::InfOptVariableRef, key; kwargs...)
+function optimizer_model_variable(vref::DispatchVariableRef, key; kwargs...)
     error("`optimizer_model_variable` not implemented for optimizer model
           key `$(typeof(key).parameters[1])`.")
 end
 
 """
-    optimizer_model_variable(vref::InfOptVariableRef; [kwargs...])
+    optimizer_model_variable(vref::DispatchVariableRef; [kwargs...])
 
 Return the reformulation variable(s) stored in the optimizer model that correspond
 to `vref`. By default, no keyword arguments `kwargs` are employed by
@@ -501,7 +501,7 @@ julia> optimizer_model_variable(z) # hold variable
 z
 ```
 """
-function optimizer_model_variable(vref::InfOptVariableRef; kwargs...)
+function optimizer_model_variable(vref::DispatchVariableRef; kwargs...)
     key = optimizer_model_key(JuMP.owner_model(vref))
     return optimizer_model_variable(vref, Val(key); kwargs...)
 end
@@ -546,7 +546,7 @@ function supports(vref::InfiniteVariableRef; kwargs...)::Vector
 end
 
 """
-    optimizer_model_constraint(cref::GeneralConstraintRef,
+    optimizer_model_constraint(cref::InfOptConstraintRef,
                                key::Val{ext_key_name}; [kwargs...])
 
 Return the reformulation constraint(s) stored in the optimizer model that correspond
@@ -557,13 +557,13 @@ argument to `Val{ext_key_name}`. Keyword arguments can be added as needed.
 function optimizer_model_constraint end
 
 # Fallback for unextended keys
-function optimizer_model_constraint(cref::GeneralConstraintRef, key; kwargs...)
+function optimizer_model_constraint(cref::InfOptConstraintRef, key; kwargs...)
     error("`optimizer_model_constraint` not implemented for optimizer model
           key `$(typeof(key).parameters[1])`.")
 end
 
 """
-    optimizer_model_constraint(cref::GeneralConstraintRef; [kwargs...])
+    optimizer_model_constraint(cref::InfOptConstraintRef; [kwargs...])
 
 Return the reformulation constraint(s) stored in the optimizer model that correspond
 to `cref`. By default, no keyword arguments `kwargs` are employed by
@@ -578,13 +578,13 @@ julia> optimizer_model_constraint(c1) # finite constraint
 c1 : x(support: 1) - y <= 3.0
 ```
 """
-function optimizer_model_constraint(cref::GeneralConstraintRef; kwargs...)
+function optimizer_model_constraint(cref::InfOptConstraintRef; kwargs...)
     key = optimizer_model_key(JuMP.owner_model(cref))
     return optimizer_model_constraint(cref, Val(key); kwargs...)
 end
 
 """
-    constraint_supports(optimizer_model::JuMP.Model, cref::GeneralConstraintRef,
+    constraint_supports(optimizer_model::JuMP.Model, cref::InfOptConstraintRef,
                         key::Val{ext_key_name}; [kwargs...])::Vector
 
 Return the supports associated with the mappings of `cref` in `optimizer_model`.
@@ -596,14 +596,14 @@ function constraint_supports end
 
 # fallback for unextended keys
 function constraint_supports(optimizer_model::JuMP.Model,
-                             cref::GeneralConstraintRef,
+                             cref::InfOptConstraintRef,
                              key; kwargs...)
   error("`constraint_supports` not implemented for optimizer model key `$(typeof(key).parameters[1])`` " *
         "and/or constraint type `$(typeof(cref))`.")
 end
 
 """
-    supports(cref::GeneralConstraintRef; [kwargs...])::Vector
+    supports(cref::InfOptConstraintRef; [kwargs...])::Vector
 
 Return the support associated with `cref`. Errors if `cref` is
 not associated with the constraint mappings stored in `optimizer_model` or if
@@ -618,7 +618,7 @@ Dict{Int64,Tuple{Float64}} with 2 entries:
   1 => (0.0,)
 ```
 """
-function supports(cref::GeneralConstraintRef; kwargs...)::Vector
+function supports(cref::InfOptConstraintRef; kwargs...)::Vector
     model = optimizer_model(JuMP.owner_model(cref))
     key = optimizer_model_key(JuMP.owner_model(cref))
     return constraint_supports(model, cref, Val(key); kwargs...)
@@ -626,7 +626,7 @@ end
 
 """
     constraint_parameter_refs(optimizer_model::JuMP.Model,
-                              cref::GeneralConstraintRef,
+                              cref::InfOptConstraintRef,
                               key::Val{ext_key_name}; [kwargs...])::Tuple
 
 Return the infinite parameter references associated with the mappings of `cref`
@@ -639,14 +639,14 @@ function constraint_parameter_refs end
 
 # fallback for unextended keys
 function constraint_parameter_refs(optimizer_model::JuMP.Model,
-                                   cref::GeneralConstraintRef,
+                                   cref::InfOptConstraintRef,
                                    key; kwargs...)
   error("`constraint_parameter_refs` not implemented for optimizer model key `$(typeof(key).parameters[1])` " *
         "and/or constraint type `$(typeof(cref))`.")
 end
 
 """
-    parameter_refs(cref::GeneralConstraintRef; [kwargs...])::Tuple
+    parameter_refs(cref::InfOptConstraintRef; [kwargs...])::Tuple
 
 Return the infinite parameters associated with `cref`. Errors if `cref` is
 not associated with the constraint mappings stored in `optimizer_model` or if
@@ -659,7 +659,7 @@ julia> parameter_refs(cref)
 (t, x)
 ```
 """
-function parameter_refs(cref::GeneralConstraintRef; kwargs...)::Tuple
+function parameter_refs(cref::InfOptConstraintRef; kwargs...)::Tuple
     model = optimizer_model(JuMP.owner_model(cref))
     key = optimizer_model_key(JuMP.owner_model(cref))
     return constraint_parameter_refs(model, cref, Val(key); kwargs...)

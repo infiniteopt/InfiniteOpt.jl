@@ -26,6 +26,14 @@ struct TestBridge{C} <: MOI.Bridges.AbstractBridge where {C} end
 struct BadData <: AbstractMeasureData end
 struct Bad end
 struct NotASetType end
+struct TestIndex <: ObjectIndex
+    value::Int
+end
+struct TestVariableRef <: DispatchVariableRef
+    model::InfiniteModel
+    index::TestIndex
+end
+InfiniteOpt.dispatch_variable_ref(m::InfiniteModel, i::TestIndex) = TestVariableRef(m, i)
 
 # Define test functions
 function new_fn end

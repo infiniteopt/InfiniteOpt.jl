@@ -30,6 +30,22 @@ JuMP.isequal_canonical(v::GeneralVariableRef, w::GeneralVariableRef)::Bool = v =
 JuMP.isequal_canonical(v::DispatchVariableRef, w::DispatchVariableRef)::Bool = v == w
 JuMP.variable_type(model::InfiniteModel)::DataType = GeneralVariableRef
 
+# Extract the root name of a variable reference (removes the bracketed container indices)
+function _remove_name_index(vref::GeneralVariableRef)::String
+    name = JuMP.name(vref)
+    first_bracket = findfirst(isequal('['), name)
+    if first_bracket == nothing
+        return name
+    else
+        # Hacky fix to handle invalid Unicode
+        try
+            return name[1:first_bracket-1]
+        catch
+            return name[1:first_bracket-2]
+        end
+    end
+end
+
 ################################################################################
 #                          BASIC REFERENCE ACCESSERS
 ################################################################################
@@ -242,6 +258,12 @@ function JuMP.is_valid(model::InfiniteModel, vref::DispatchVariableRef)::Bool
            haskey(_data_dictionary(vref), JuMP.index(vref))
 end
 
+# DependentParameterRef
+function JuMP.is_valid(model::InfiniteModel, vref::DependentParameterRef)::Bool
+    return model === JuMP.owner_model(vref) &&
+           haskey(_data_dictionary(vref), JuMP.index(vref).object_index)
+end
+
 """
     JuMP.is_valid(model::InfiniteModel, vref::GeneralVariableRef)::Bool
 
@@ -255,14 +277,14 @@ true
 ```
 """
 function JuMP.is_valid(model::InfiniteModel, vref::GeneralVariableRef)::Bool
-    return JuMP.is_valid(dispatch_variable_ref(vref))
+    return JuMP.is_valid(model, dispatch_variable_ref(vref))
 end
 
 ################################################################################
 #                             CORE OBJECT METHODS
 ################################################################################
 """
-    _core_variable_object(vref::DispatchVariableRef)::Union{InfOptParameter, InfOptVariable}
+    _core_variable_object(vref::DispatchVariableRef)::Union{InfOptParameter, InfOptVariable, Measure}
 
 Return the core object that `vref` points to. This needs to be extended for type
 of `vref`. This should use `_data_object` to access the data object where the
@@ -271,13 +293,13 @@ variable object is stored.
 function _core_variable_object end
 
 """
-    _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable}
+    _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable, Measure}
 
 Return the core object that `vref` points to. This is enabled
 with appropriate definitions of `_core_variable_object` for the
 underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
 """
-function _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable}
+function _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable, Measure}
     return _core_variable_object(dispatch_variable_ref(vref))
 end
 
@@ -583,7 +605,6 @@ end
 
 Return the infinite set associated with `pref`. Errors if `pref` is not an
 infinite parameter or if an [`InfiniteScalarSet`](@ref) is not defined for `pref`.
-```
 """
 function infinite_set(pref::GeneralVariableRef)::InfiniteScalarSet
     return infinite_set(dispatch_variable_ref(pref))
@@ -595,7 +616,6 @@ end
 Return the multi-dimensional infinite set associated with `prefs`. Errors if
 `prefs` are not an dependent infinite parameters of if they are not the full set
 of dependent parameters.
-```
 """
 function infinite_set(prefs::AbstractArray{<:GeneralVariableRef})::InfiniteArraySet
     return infinite_set(dispatch_variable_ref.(prefs))
@@ -614,7 +634,6 @@ Specify the scalar infinite set of the infinite parameter `pref` to `set`. Note
 this will reset/delete all the supports contained in the
 underlying parameter object. Also, errors if `pref` is used
 by a measure. An `ArgumentError` is thrown if `pref` is not an infinite parameter.
-```
 """
 function set_infinite_set(pref::GeneralVariableRef,
                           set::InfiniteScalarSet)::Nothing
@@ -631,7 +650,6 @@ underlying [`DependentParameters`](@ref) object. This will error if the not all
 of the dependent infinite parameters are included or if any of them are used by
 measures. An `ArgumentError` is thrown if `prefs` are not dependent infinite
 parameters.
-```
 """
 function set_infinite_set(prefs::AbstractArray{<:GeneralVariableRef},
                           set::InfiniteArraySet)::Nothing
@@ -651,10 +669,9 @@ Return the number of support points associated with a single infinite
 parameter `pref`. Specify a subset of supports via `label` to only count the
 supports with `label`. An `ArgumentError` is thrown if `pref` is not an infinite
 parameter.
-```
 """
 function num_supports(pref::GeneralVariableRef; label::Symbol = All)::Int
-    return num_supportst(dispatch_variable_ref(pref), label = label)
+    return num_supports(dispatch_variable_ref(pref), label = label)
 end
 
 """
@@ -662,14 +679,13 @@ end
                  [label::Symbol = All])::Int
 
 Return the number of support points associated with dependent infinite
-parameter `prefs`. Specify a subset of supports via `label` to only count the
+parameters `prefs`. Specify a subset of supports via `label` to only count the
 supports with `label`. An `ArgumentError` is thrown if `prefs` is are not
 dependent infinite parameters.
-```
 """
 function num_supports(prefs::AbstractArray{<:GeneralVariableRef};
                       label::Symbol = All)::Int
-    return num_supportst(dispatch_variable_ref.(prefs), label = label)
+    return num_supports(dispatch_variable_ref.(prefs), label = label)
 end
 
 # Dispatch fallback
@@ -678,7 +694,28 @@ function has_supports(pref)
                         "`$(typeof(pref))`."))
 end
 
-# TODO add methods
+"""
+    has_supports(pref::GeneralVariableRef)::Bool
+
+Return `Bool` if there are support points associated with a single infinite
+parameter `pref`. An `ArgumentError` is thrown if `pref` is not an infinite
+parameter.
+"""
+function has_supports(pref::GeneralVariableRef)::Bool
+    return has_supports(dispatch_variable_ref(pref))
+end
+
+"""
+    has_supports(prefs::AbstractArray{<:GeneralVariableRef})::Bool
+
+Return `Bool` if there are support points associated with dependent infinite
+parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
+dependent infinite parameters.
+```
+"""
+function has_supports(prefs::AbstractArray{<:GeneralVariableRef})::Bool
+    return has_supports(dispatch_variable_ref.(prefs))
+end
 
 # Dispatch fallback
 function supports(pref; kwargs...)
@@ -686,7 +723,33 @@ function supports(pref; kwargs...)
                         "`$(typeof(pref))`."))
 end
 
-# TODO add methods
+"""
+    supports(pref::GeneralVariableRef; [label::Symbol = All])::Vector{Float64}
+
+Return the support points associated with a single infinite
+parameter `pref`. Specify a subset of supports via `label` to only count the
+supports with `label`. An `ArgumentError` is thrown if `pref` is not an infinite
+parameter.
+"""
+function supports(pref::GeneralVariableRef; label::Symbol = All)::Vector{Float64}
+    return supports(dispatch_variable_ref(pref), label = label)
+end
+
+"""
+    supports(prefs::AbstractArray{<:GeneralVariableRef};
+             [label::Symbol = All]
+             )::Union{AbstractArray{<:Vector{<:Float64}}, Array{Float64, 2}}
+
+Return the support points associated with dependent infinite
+parameters `prefs`. Specify a subset of supports via `label` to only count the
+supports with `label`. An `ArgumentError` is thrown if `prefs` is are not
+dependent infinite parameters.
+"""
+function supports(prefs::AbstractArray{<:GeneralVariableRef};
+                  label::Symbol = All
+                  )::Union{AbstractArray{<:Vector{<:Float64}}, Array{Float64, 2}}
+    return supports(dispatch_variable_ref.(prefs), label = label)
+end
 
 # Dispatch fallback
 function set_supports(pref, supports; kwargs...)
@@ -694,7 +757,40 @@ function set_supports(pref, supports; kwargs...)
                         "`$(typeof(pref))`."))
 end
 
-# TODO add methods
+"""
+    set_supports(pref::GeneralVariableRef, supports::Union{Real, Vector{<:Real}};
+                 [force::Bool = false])::Nothing
+
+Set the support points associated with a single infinite
+parameter `pref`. An `ArgumentError` is thrown if `pref` is not an independent
+infinite parameter.
+"""
+function set_supports(pref::GeneralVariableRef,
+                      supports::Union{Real, Vector{<:Real}};
+                      force::Bool = false, label::Symbol = UserDefined
+                      )::Nothing
+    return set_supports(dispatch_variable_ref(pref), supports,
+                        force = force, label = label)
+end
+
+"""
+    set_supports(
+        prefs::Union{Vector{GeneralVariableRef}, AbstractArray{<:GeneralVariableRef}},
+        supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}};
+        [force::Bool = false]
+        )::Nothing
+
+Set the support points associated with dependent infinite
+parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
+dependent infinite parameters.
+"""
+function set_supports(prefs::AbstractArray{<:GeneralVariableRef},
+                      supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}};
+                      label::Symbol = UserDefined, force::Bool = false
+                      )::Nothing
+    return set_supports(dispatch_variable_ref.(prefs), supports, label = label,
+                        force = force)
+end
 
 # Dispatch fallback
 function add_supports(pref, supports; kwargs...)
@@ -702,7 +798,39 @@ function add_supports(pref, supports; kwargs...)
                         "`$(typeof(pref))`."))
 end
 
-# TODO add methods
+"""
+    add_supports(pref::GeneralVariableRef,
+                 supports::Union{Real, Vector{<:Real}})::Nothing
+
+Add the support points `supports` to a single infinite
+parameter `pref`. An `ArgumentError` is thrown if `pref` is not an independent
+infinite parameter.
+"""
+function add_supports(pref::GeneralVariableRef,
+                      supports::Union{Real, Vector{<:Real}};
+                      check::Bool = true, label::Symbol = UserDefined
+                      )::Nothing
+    return add_supports(dispatch_variable_ref(pref), supports,
+                        check = check, label = label)
+end
+
+"""
+    add_supports(
+        prefs::Union{Vector{GeneralVariableRef}, AbstractArray{<:GeneralVariableRef}},
+        supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}}
+        )::Nothing
+
+Add the support points `supports` to the dependent infinite
+parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
+dependent infinite parameters.
+"""
+function add_supports(prefs::AbstractArray{<:GeneralVariableRef},
+                      supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}};
+                      label::Symbol = UserDefined, check::Bool = true
+                      )::Nothing
+    return add_supports(dispatch_variable_ref.(prefs), supports, label = label,
+                        check = check)
+end
 
 # Dispatch fallback
 function delete_supports(pref)
@@ -710,7 +838,63 @@ function delete_supports(pref)
                         "`$(typeof(pref))`."))
 end
 
-# TODO add methods
+"""
+    delete_supports(pref::GeneralVariableRef)::Nothing
+
+Delete the support points associated with a single infinite
+parameter `pref`. An `ArgumentError` is thrown if `pref` is not an infinite
+parameter.
+"""
+function delete_supports(pref::GeneralVariableRef)::Nothing
+    return delete_supports(dispatch_variable_ref(pref))
+end
+
+"""
+    delete_supports(prefs::AbstractArray{<:GeneralVariableRef})::Nothing
+
+Delete the support points associated with dependent infinite
+parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
+dependent infinite parameters.
+```
+"""
+function delete_supports(prefs::AbstractArray{<:GeneralVariableRef})::Nothing
+    return delete_supports(dispatch_variable_ref.(prefs))
+end
+
+# Dispatch fallback
+function fill_in_supports!(pref; kwargs...)
+    throw(ArgumentError("`fill_in_supports!` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    fill_in_supports!(pref::GeneralVariableRef; [num_supports::Int = 10,
+                      sig_figs::Int = 5])::Nothing
+
+Fill in the support points associated with a single infinite
+parameter `pref` up to `num_supports`. An `ArgumentError` is thrown if `pref`
+is not an infinite parameter.
+"""
+function fill_in_supports!(pref::GeneralVariableRef; num_supports::Int = 10,
+                           sig_figs::Int = 5)::Nothing
+    return fill_in_supports!(dispatch_variable_ref(pref),
+                             num_supports = num_supports, sig_figs = sig_figs)
+end
+
+"""
+    fill_in_supports!(prefs::AbstractArray{<:GeneralVariableRef};
+                      [num_supports::Int = 10, sig_figs::Int = 5])::Nothing
+
+Fill in the support points associated with dependent infinite
+parameters `prefs` up to `num_supports`. An `ArgumentError` is thrown if `prefs`
+is are not dependent infinite parameters.
+```
+"""
+function fill_in_supports!(prefs::AbstractArray{<:GeneralVariableRef};
+                           num_supports::Int = 10, sig_figs::Int = 5)::Nothing
+    return fill_in_supports!(dispatch_variable_ref.(prefs),
+                             num_supports = num_supports, sig_figs = sig_figs)
+end
 
 ################################################################################
 #                              VARIABLE METHODS
@@ -769,7 +953,7 @@ set the lower bound of `vref`. It relies on `JuMP.set_lower_bound` being defined
 for the underlying `DispatchVariableRef`, otherwise an `ArugmentError` is thrown.
 """
 function JuMP.set_lower_bound(vref::GeneralVariableRef, value::Real)::Nothing
-    return JuMP.set_lower_bound(dispatch_variable_ref(vref))
+    return JuMP.set_lower_bound(dispatch_variable_ref(vref), value)
 end
 
 # Dispatch fallback
@@ -858,7 +1042,7 @@ set the upper bound of `vref`. It relies on `JuMP.set_upper_bound` being defined
 for the underlying `DispatchVariableRef`, otherwise an `ArugmentError` is thrown.
 """
 function JuMP.set_upper_bound(vref::GeneralVariableRef, value::Real)::Nothing
-    return JuMP.set_upper_bound(dispatch_variable_ref(vref))
+    return JuMP.set_upper_bound(dispatch_variable_ref(vref), value)
 end
 
 # Dispatch fallback
@@ -948,7 +1132,7 @@ for the underlying `DispatchVariableRef`, otherwise an `ArugmentError` is thrown
 """
 function JuMP.fix(vref::GeneralVariableRef, value::Real;
                   force::Bool = false)::Nothing
-    return JuMP.fix(dispatch_variable_ref(vref))
+    return JuMP.fix(dispatch_variable_ref(vref), value, force = force)
 end
 
 # Dispatch fallback
@@ -1019,7 +1203,7 @@ set the upper bound of `vref`. It relies on `JuMP.set_start_value` being defined
 for the underlying `DispatchVariableRef`, otherwise an `ArugmentError` is thrown.
 """
 function JuMP.set_start_value(vref::GeneralVariableRef, value::Real)::Nothing
-    return JuMP.set_start_value(dispatch_variable_ref(vref))
+    return JuMP.set_start_value(dispatch_variable_ref(vref), value)
 end
 
 ################################################################################
