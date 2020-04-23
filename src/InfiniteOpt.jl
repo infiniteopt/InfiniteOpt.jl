@@ -25,18 +25,18 @@ include("infinite_sets.jl")
 include("general_variables.jl")
 include("scalar_parameters.jl")
 include("array_parameters.jl")
-# include("variable_basics.jl")
-# include("infinite_variables.jl")
-# include("point_variables.jl")
-# include("hold_variables.jl")
+include("variable_basics.jl")
+include("infinite_variables.jl")
 # include("reduced_variables.jl")
+include("point_variables.jl")
+include("hold_variables.jl")
 # include("expressions.jl")
 # include("measures.jl")
 # include("constraints.jl")
 include("macros.jl")
-# include("objective.jl")
+include("objective.jl")
 # include("measure_expansions.jl")
-# include("optimize.jl")
+include("optimize.jl")
 # include("results.jl")
 # include("show.jl")
 include("utilities.jl")
@@ -75,7 +75,7 @@ HoldVariableIndex, MeasureIndex, ConstraintIndex, InfiniteParameterIndex
 # Export infinite set types
 export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
 UniDistributionSet, MultiDistributionSet, CollectionSet, UserDefined,
-McSample, UniformGrid, Mixture
+McSample, UniformGrid, Mixture, All
 
 # Export infinite set methods
 export collection_sets, supports_in_set, generate_support_values

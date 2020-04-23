@@ -310,6 +310,7 @@ end
 #                        SUPPORT AND LABEL GENERATION
 ################################################################################
 # Define generation labels to be stored with supports
+const All = :all
 const UserDefined = :user_defined
 const McSample = :mc_sample
 const UniformGrid = :uniform_grid
@@ -317,7 +318,7 @@ const Mixture = :mixture
 
 """
     generate_support_values(set::AbstractInfiniteSet; [num_supports::Int = 10,
-                            sig_figs::Int = 5])::Tuple{Array{<:Real}, Set{Symbol}}
+                            sig_figs::Int = 5])::Tuple{Array{<:Real}, Symbol}
 
 Generate `num_supports` support values with `sig_figs` significant digits in
 accordance with `set` and return them along with the correct generation label(s).
@@ -339,12 +340,12 @@ end
 function generate_support_values(set::IntervalSet;
                                  num_supports::Int = 10,
                                  sig_figs::Int = 5
-                                 )::Tuple{Vector{<:Real}, Set{Symbol}}
+                                 )::Tuple{Vector{<:Real}, Symbol}
     lb = JuMP.lower_bound(set)
     ub = JuMP.upper_bound(set)
     new_supports = round.(range(lb, stop = ub, length = num_supports),
                           sigdigits = sig_figs)
-    return new_supports, Set([UniformGrid])
+    return new_supports, UniformGrid
 end
 
 # UniDistributionSet and MultiDistributionSet (with multivariate only)
@@ -352,11 +353,11 @@ function generate_support_values(
     set::Union{UniDistributionSet, MultiDistributionSet{<:Distributions.MultivariateDistribution}};
     num_supports::Int = 10,
     sig_figs::Int = 5
-    )::Tuple{Array{<:Real}, Set{Symbol}}
+    )::Tuple{Array{<:Real}, Symbol}
     dist = set.distribution
     new_supports = round.(Distributions.rand(dist, num_supports),
                           sigdigits = sig_figs)
-    return new_supports, Set([McSample])
+    return new_supports, McSample
 end
 
 # MultiDistributionSet (matrix-variate distribution)
@@ -364,14 +365,14 @@ function generate_support_values(
     set::MultiDistributionSet{<:Distributions.MatrixDistribution};
     num_supports::Int = 10,
     sig_figs::Int = 5
-    )::Tuple{Array{Float64, 2}, Set{Symbol}}
+    )::Tuple{Array{Float64, 2}, Symbol}
     dist = set.distribution
     raw_supports = Distributions.rand(dist, num_supports)
     new_supports = Array{Float64}(undef, length(dist), num_supports)
     for i in 1:size(new_supports, 2)
         new_supports[:, i] = round.([raw_supports[i]...], sigdigits = sig_figs)
     end
-    return new_supports, Set([McSample])
+    return new_supports, McSample
 end
 
 # Generate the supports for a collection set
@@ -385,32 +386,32 @@ function _generate_collection_supports(set::CollectionSet, num_supports::Int,
                                                    num_supports = num_supports,
                                                    sig_figs = sig_figs)[1]
     end
-    return collect(transpose(trans_supports))
+    return permutedims(trans_supports)
 end
 
 # CollectionSet (IntervalSets)
 function generate_support_values(set::CollectionSet{IntervalSet};
                                  num_supports::Int = 10,
                                  sig_figs::Int = 5
-                                 )::Tuple{Array{<:Real}, Set{Symbol}}
+                                 )::Tuple{Array{<:Real}, Symbol}
     new_supports = _generate_collection_supports(set, num_supports, sig_figs)
-    return new_supports, Set([UniformGrid])
+    return new_supports, UniformGrid
 end
 
 # CollectionSet (UniDistributionSets)
 function generate_support_values(set::CollectionSet{<:UniDistributionSet};
                                  num_supports::Int = 10,
                                  sig_figs::Int = 5
-                                 )::Tuple{Array{<:Real}, Set{Symbol}}
+                                 )::Tuple{Array{<:Real}, Symbol}
     new_supports = _generate_collection_supports(set, num_supports, sig_figs)
-    return new_supports, Set([McSample])
+    return new_supports, McSample
 end
 
 # CollectionSet (InfiniteScalarSets)
 function generate_support_values(set::CollectionSet;
                                  num_supports::Int = 10,
                                  sig_figs::Int = 5
-                                 )::Tuple{Array{<:Real}, Set{Symbol}}
+                                 )::Tuple{Array{<:Real}, Symbol}
     new_supports = _generate_collection_supports(set, num_supports, sig_figs)
-    return new_supports, Set([Mixture])
+    return new_supports, Mixture
 end

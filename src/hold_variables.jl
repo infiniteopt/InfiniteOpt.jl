@@ -2,14 +2,14 @@
 #                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
 ################################################################################
 # Extend dispatch_variable_ref
-function dispatch_variable_ref(model::HoldModel,
+function dispatch_variable_ref(model::InfiniteModel,
                                index::HoldVariableIndex
                                )::HoldVariableRef
     return HoldVariableRef(model, index)
 end
 
 # Extend _add_data_object
-function _add_data_object(model::HoldModel,
+function _add_data_object(model::InfiniteModel,
                           object::VariableData{<:HoldVariable}
                           )::HoldVariableIndex
     return MOIUC.add_item(model.infinite_vars, object)
@@ -95,7 +95,7 @@ end
 ################################################################################
 #                            VARIABLE NAMING
 ################################################################################
-
+#=
 
 """
     parameter_bounds(vref::HoldVariableRef)::ParameterBounds
@@ -483,3 +483,4 @@ function delete_parameter_bounds(vref::HoldVariableRef)
     end
     return
 end
+=#

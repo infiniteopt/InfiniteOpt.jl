@@ -30,6 +30,22 @@ JuMP.isequal_canonical(v::GeneralVariableRef, w::GeneralVariableRef)::Bool = v =
 JuMP.isequal_canonical(v::DispatchVariableRef, w::DispatchVariableRef)::Bool = v == w
 JuMP.variable_type(model::InfiniteModel)::DataType = GeneralVariableRef
 
+# Extract the root name of a variable reference (removes the bracketed container indices)
+function _remove_name_index(vref::GeneralVariableRef)::String
+    name = JuMP.name(vref)
+    first_bracket = findfirst(isequal('['), name)
+    if first_bracket == nothing
+        return name
+    else
+        # Hacky fix to handle invalid Unicode
+        try
+            return name[1:first_bracket-1]
+        catch
+            return name[1:first_bracket-2]
+        end
+    end
+end
+
 ################################################################################
 #                          BASIC REFERENCE ACCESSERS
 ################################################################################
@@ -194,14 +210,7 @@ end
 ################################################################################
 #                                 NAME METHODS
 ################################################################################
-"""
-    JuMP.name(vref::DispatchVariableRef)::String
-
-Extend [`JuMP.name`](@ref JuMP.name(::JuMP.VariableRef)) to
-return the name of `vref`. This needs to be defined for the type of `vref`.
-This should use `_data_object` to access the data object where the name is stored
-if appropriate.
-"""
+# Dispatch fallback
 function JuMP.name(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.name` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -218,14 +227,7 @@ function JuMP.name(vref::GeneralVariableRef)::String
     return JuMP.name(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.set_name(vref::DispatchVariableRef, name::String)::Nothing
-
-Extend [`JuMP.set_name`](@ref JuMP.set_name(::JuMP.VariableRef, ::String)) to
-set the name of `vref`. This needs to be defined for the type of `vref`.
-This should use `_data_object` to access the data object where the name is stored
-if appropriate.
-"""
+# Dispatch fallback
 function JuMP.set_name(vref::DispatchVariableRef, name::String)
     throw(ArgumentError("`JuMP.set_name` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -256,6 +258,12 @@ function JuMP.is_valid(model::InfiniteModel, vref::DispatchVariableRef)::Bool
            haskey(_data_dictionary(vref), JuMP.index(vref))
 end
 
+# DependentParameterRef
+function JuMP.is_valid(model::InfiniteModel, vref::DependentParameterRef)::Bool
+    return model === JuMP.owner_model(vref) &&
+           haskey(_data_dictionary(vref), JuMP.index(vref).object_index)
+end
+
 """
     JuMP.is_valid(model::InfiniteModel, vref::GeneralVariableRef)::Bool
 
@@ -269,14 +277,14 @@ true
 ```
 """
 function JuMP.is_valid(model::InfiniteModel, vref::GeneralVariableRef)::Bool
-    return JuMP.is_valid(dispatch_variable_ref(vref))
+    return JuMP.is_valid(model, dispatch_variable_ref(vref))
 end
 
 ################################################################################
 #                             CORE OBJECT METHODS
 ################################################################################
 """
-    _core_variable_object(vref::DispatchVariableRef)::Union{InfOptParameter, InfOptVariable}
+    _core_variable_object(vref::DispatchVariableRef)::Union{InfOptParameter, InfOptVariable, Measure}
 
 Return the core object that `vref` points to. This needs to be extended for type
 of `vref`. This should use `_data_object` to access the data object where the
@@ -285,13 +293,13 @@ variable object is stored.
 function _core_variable_object end
 
 """
-    _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable}
+    _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable, Measure}
 
 Return the core object that `vref` points to. This is enabled
 with appropriate definitions of `_core_variable_object` for the
 underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
 """
-function _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable}
+function _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable, Measure}
     return _core_variable_object(dispatch_variable_ref(vref))
 end
 
@@ -410,13 +418,7 @@ end
 ################################################################################
 #                              USED BY METHODS
 ################################################################################
-"""
-    used_by_infinite_variable(vref::DispatchVariableRef)::Bool
-
-Return `Bool` whether `vref` is used by an infinite variable. This needs to
-be defined for type of `vref`. This should use `_infinite_variable_dependencies`
-to make this determination.
-"""
+# Dispatch fallback
 function used_by_infinite_variable(vref::DispatchVariableRef)
     throw(ArgumentError("`used_by_infinite_variable` not defined for " *
                         "variable reference type `$(typeof(vref))`."))
@@ -432,13 +434,7 @@ function used_by_infinite_variable(vref::GeneralVariableRef)::Bool
     return used_by_infinite_variable(dispatch_variable_ref(vref))
 end
 
-"""
-    used_by_reduced_variable(vref::DispatchVariableRef)::Bool
-
-Return `Bool` whether `vref` is used by a reduced variable. This needs to
-be defined for type of `vref`. This should use `_reduced_variable_dependencies`
-to make this determination.
-"""
+# Dispatch fallback
 function used_by_reduced_variable(vref::DispatchVariableRef)
     throw(ArgumentError("`used_by_reduced_variable` not defined for " *
                         "variable reference type `$(typeof(vref))`."))
@@ -454,13 +450,7 @@ function used_by_reduced_variable(vref::GeneralVariableRef)::Bool
     return used_by_reduced_variable(dispatch_variable_ref(vref))
 end
 
-"""
-    used_by_point_variable(vref::DispatchVariableRef)::Bool
-
-Return `Bool` whether `vref` is used by a point variable. This needs to
-be defined for type of `vref`. This should use `_point_variable_dependencies`
-to make this determination.
-"""
+# Dispatch fallback
 function used_by_point_variable(vref::DispatchVariableRef)
     throw(ArgumentError("`used_by_point_variable` not defined for " *
                         "variable reference type `$(typeof(vref))`."))
@@ -476,13 +466,7 @@ function used_by_point_variable(vref::GeneralVariableRef)::Bool
     return used_by_point_variable(dispatch_variable_ref(vref))
 end
 
-"""
-    used_by_measure(vref::DispatchVariableRef)::Bool
-
-Return `Bool` whether `vref` is used by a measure. This needs to
-be defined for type of `vref`. This should use `_measure_dependencies`
-to make this determination.
-"""
+# Dispatch fallback
 function used_by_measure(vref::DispatchVariableRef)
     throw(ArgumentError("`used_by_measure` not defined for " *
                         "variable reference type `$(typeof(vref))`."))
@@ -498,13 +482,7 @@ function used_by_measure(vref::GeneralVariableRef)::Bool
     return used_by_measure(dispatch_variable_ref(vref))
 end
 
-"""
-    used_by_objective(vref::DispatchVariableRef)::Bool
-
-Return `Bool` whether `vref` is used by an objective. This needs to
-be defined for type of `vref`. This should use `_data_object` to access the
-correct attribute.
-"""
+# Dispatch fallback
 function used_by_objective(vref::DispatchVariableRef)
     throw(ArgumentError("`used_by_objective` not defined for " *
                         "variable reference type `$(typeof(vref))`."))
@@ -520,13 +498,7 @@ function used_by_objective(vref::GeneralVariableRef)::Bool
     return used_by_objective(dispatch_variable_ref(vref))
 end
 
-"""
-    used_by_constraint(vref::DispatchVariableRef)::Bool
-
-Return `Bool` whether `vref` is used by a constraint. This needs to
-be defined for type of `vref`. This should use `_constraint_dependencies`
-to make this determination.
-"""
+# Dispatch fallback
 function used_by_constraint(vref::DispatchVariableRef)
     throw(ArgumentError("`used_by_constraint` not defined for " *
                         "variable reference type `$(typeof(vref))`."))
@@ -542,13 +514,7 @@ function used_by_constraint(vref::GeneralVariableRef)::Bool
     return used_by_constraint(dispatch_variable_ref(vref))
 end
 
-"""
-    is_used(vref::DispatchVariableRef)::Bool
-
-Return `Bool` whether `vref` is used. This needs to
-be defined for type of `vref`. This should use the appropriate `used_by` methods
-to make this determination.
-"""
+# Dispatch fallback
 function is_used(vref::DispatchVariableRef)
     throw(ArgumentError("`is_used` not defined for " *
                         "variable reference type `$(typeof(vref))`."))
@@ -567,14 +533,7 @@ end
 ################################################################################
 #                              DELETE METHODS
 ################################################################################
-"""
-    JuMP.delete(model::InfiniteModel, vref::DispatchVariableRef)::Nothing
-
-Extend [`JuMP.delete`](@ref JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)) to
-delete `vref` and its dependencies. This needs to be defined for the
-type of `vref`. This should use the appropriate getter methods to access information
-as needed and should invoke `_delete_data_object` at the end.
-"""
+# Dispatch fallback
 function JuMP.delete(model::InfiniteModel, vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.delete` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -596,43 +555,348 @@ end
 #                              PARAMETER METHODS
 ################################################################################
 """
-    _parameter_number(vref::DispatchVariableRef)::Int
+    _parameter_number(pref::DispatchVariableRef)::Int
 
-Return the parameter creation number for `vref` assuming it is an infinite
-parameter. This needs to be defined for the type of `vref`. This should use
+Return the parameter creation number for `pref` assuming it is an infinite
+parameter. This needs to be defined for the type of `pref`. This should use
 the `_data_object` to get the number.
 """
-function _parameter_number(vref::DispatchVariableRef) end
+function _parameter_number end
 
 """
-    _parameter_number(vref::GeneralVariableRef)::Int
+    _parameter_number(pref::GeneralVariableRef)::Int
 
-Return the parameter creation number for `vref` assuming it is an infinite
+Return the parameter creation number for `pref` assuming it is an infinite
 parameter. It relies on `_parameter_number` being properly defined for the
 underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
 """
-function _parameter_number(vref::GeneralVariableRef)::Int
-    return _parameter_number(dispatch_variable_ref(vref))
+function _parameter_number(pref::GeneralVariableRef)::Int
+    return _parameter_number(dispatch_variable_ref(pref))
 end
 
 """
-    _object_number(vref::DispatchVariableRef)::Int
+    _object_number(pref::DispatchVariableRef)::Int
 
-Return the object number for `vref` assuming it is an infinite
-parameter. This needs to be defined for the type of `vref`. This should use
+Return the object number for `pref` assuming it is an infinite
+parameter. This needs to be defined for the type of `pref`. This should use
 the `_data_object` to get the number.
 """
-function _object_number(vref::DispatchVariableRef) end
+function _object_number end
 
 """
-    _object_number(vref::GeneralVariableRef)::Int
+    _object_number(pref::GeneralVariableRef)::Int
 
-Return the object number for `vref` assuming it is an infinite
+Return the object number for `pref` assuming it is an infinite
 parameter. It relies on `_object_number` being properly defined for the
 underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
 """
-function _object_number(vref::GeneralVariableRef)::Int
-    return _object_number(dispatch_variable_ref(vref))
+function _object_number(pref::GeneralVariableRef)::Int
+    return _object_number(dispatch_variable_ref(pref))
+end
+
+# Dispatch fallback
+function infinite_set(pref)
+    throw(ArgumentError("`infinite_set` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    infinite_set(pref::GeneralVariableRef)::InfiniteScalarSet
+
+Return the infinite set associated with `pref`. Errors if `pref` is not an
+infinite parameter or if an [`InfiniteScalarSet`](@ref) is not defined for `pref`.
+"""
+function infinite_set(pref::GeneralVariableRef)::InfiniteScalarSet
+    return infinite_set(dispatch_variable_ref(pref))
+end
+
+"""
+    infinite_set(prefs::AbstractArray{<:GeneralVariableRef})::InfiniteArraySet
+
+Return the multi-dimensional infinite set associated with `prefs`. Errors if
+`prefs` are not an dependent infinite parameters of if they are not the full set
+of dependent parameters.
+"""
+function infinite_set(prefs::AbstractArray{<:GeneralVariableRef})::InfiniteArraySet
+    return infinite_set(dispatch_variable_ref.(prefs))
+end
+
+# Dispatch fallback
+function set_infinite_set(pref, set::AbstractInfiniteSet)
+    throw(ArgumentError("`set_infinite_set` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    set_infinite_set(pref::GeneralVariableRef, set::InfiniteScalarSet)::Nothing
+
+Specify the scalar infinite set of the infinite parameter `pref` to `set`. Note
+this will reset/delete all the supports contained in the
+underlying parameter object. Also, errors if `pref` is used
+by a measure. An `ArgumentError` is thrown if `pref` is not an infinite parameter.
+"""
+function set_infinite_set(pref::GeneralVariableRef,
+                          set::InfiniteScalarSet)::Nothing
+    return set_infinite_set(dispatch_variable_ref(pref), set)
+end
+
+"""
+    set_infinite_set(prefs::AbstractArray{<:GeneralVariableRef},
+                     set::InfiniteArraySet)::Nothing
+
+Specify the multi-dimensional infinite set of the dependent infinite parameters
+`prefs` to `set`. Note this will reset/delete all the supports contained in the
+underlying [`DependentParameters`](@ref) object. This will error if the not all
+of the dependent infinite parameters are included or if any of them are used by
+measures. An `ArgumentError` is thrown if `prefs` are not dependent infinite
+parameters.
+"""
+function set_infinite_set(prefs::AbstractArray{<:GeneralVariableRef},
+                          set::InfiniteArraySet)::Nothing
+    return set_infinite_set(dispatch_variable_ref.(prefs), set)
+end
+
+# Dispatch fallback
+function num_supports(pref; kwargs...)
+    throw(ArgumentError("`num_supports` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    num_supports(pref::GeneralVariableRef; [label::Symbol = All])::Int
+
+Return the number of support points associated with a single infinite
+parameter `pref`. Specify a subset of supports via `label` to only count the
+supports with `label`. An `ArgumentError` is thrown if `pref` is not an infinite
+parameter.
+"""
+function num_supports(pref::GeneralVariableRef; label::Symbol = All)::Int
+    return num_supports(dispatch_variable_ref(pref), label = label)
+end
+
+"""
+    num_supports(prefs::AbstractArray{<:GeneralVariableRef};
+                 [label::Symbol = All])::Int
+
+Return the number of support points associated with dependent infinite
+parameters `prefs`. Specify a subset of supports via `label` to only count the
+supports with `label`. An `ArgumentError` is thrown if `prefs` is are not
+dependent infinite parameters.
+"""
+function num_supports(prefs::AbstractArray{<:GeneralVariableRef};
+                      label::Symbol = All)::Int
+    return num_supports(dispatch_variable_ref.(prefs), label = label)
+end
+
+# Dispatch fallback
+function has_supports(pref)
+    throw(ArgumentError("`has_supports` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    has_supports(pref::GeneralVariableRef)::Bool
+
+Return `Bool` if there are support points associated with a single infinite
+parameter `pref`. An `ArgumentError` is thrown if `pref` is not an infinite
+parameter.
+"""
+function has_supports(pref::GeneralVariableRef)::Bool
+    return has_supports(dispatch_variable_ref(pref))
+end
+
+"""
+    has_supports(prefs::AbstractArray{<:GeneralVariableRef})::Bool
+
+Return `Bool` if there are support points associated with dependent infinite
+parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
+dependent infinite parameters.
+```
+"""
+function has_supports(prefs::AbstractArray{<:GeneralVariableRef})::Bool
+    return has_supports(dispatch_variable_ref.(prefs))
+end
+
+# Dispatch fallback
+function supports(pref; kwargs...)
+    throw(ArgumentError("`supports` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    supports(pref::GeneralVariableRef; [label::Symbol = All])::Vector{Float64}
+
+Return the support points associated with a single infinite
+parameter `pref`. Specify a subset of supports via `label` to only count the
+supports with `label`. An `ArgumentError` is thrown if `pref` is not an infinite
+parameter.
+"""
+function supports(pref::GeneralVariableRef; label::Symbol = All)::Vector{Float64}
+    return supports(dispatch_variable_ref(pref), label = label)
+end
+
+"""
+    supports(prefs::AbstractArray{<:GeneralVariableRef};
+             [label::Symbol = All]
+             )::Union{AbstractArray{<:Vector{<:Float64}}, Array{Float64, 2}}
+
+Return the support points associated with dependent infinite
+parameters `prefs`. Specify a subset of supports via `label` to only count the
+supports with `label`. An `ArgumentError` is thrown if `prefs` is are not
+dependent infinite parameters.
+"""
+function supports(prefs::AbstractArray{<:GeneralVariableRef};
+                  label::Symbol = All
+                  )::Union{AbstractArray{<:Vector{<:Float64}}, Array{Float64, 2}}
+    return supports(dispatch_variable_ref.(prefs), label = label)
+end
+
+# Dispatch fallback
+function set_supports(pref, supports; kwargs...)
+    throw(ArgumentError("`set_supports` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    set_supports(pref::GeneralVariableRef, supports::Union{Real, Vector{<:Real}};
+                 [force::Bool = false])::Nothing
+
+Set the support points associated with a single infinite
+parameter `pref`. An `ArgumentError` is thrown if `pref` is not an independent
+infinite parameter.
+"""
+function set_supports(pref::GeneralVariableRef,
+                      supports::Union{Real, Vector{<:Real}};
+                      force::Bool = false, label::Symbol = UserDefined
+                      )::Nothing
+    return set_supports(dispatch_variable_ref(pref), supports,
+                        force = force, label = label)
+end
+
+"""
+    set_supports(
+        prefs::Union{Vector{GeneralVariableRef}, AbstractArray{<:GeneralVariableRef}},
+        supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}};
+        [force::Bool = false]
+        )::Nothing
+
+Set the support points associated with dependent infinite
+parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
+dependent infinite parameters.
+"""
+function set_supports(prefs::AbstractArray{<:GeneralVariableRef},
+                      supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}};
+                      label::Symbol = UserDefined, force::Bool = false
+                      )::Nothing
+    return set_supports(dispatch_variable_ref.(prefs), supports, label = label,
+                        force = force)
+end
+
+# Dispatch fallback
+function add_supports(pref, supports; kwargs...)
+    throw(ArgumentError("`add_supports` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    add_supports(pref::GeneralVariableRef,
+                 supports::Union{Real, Vector{<:Real}})::Nothing
+
+Add the support points `supports` to a single infinite
+parameter `pref`. An `ArgumentError` is thrown if `pref` is not an independent
+infinite parameter.
+"""
+function add_supports(pref::GeneralVariableRef,
+                      supports::Union{Real, Vector{<:Real}};
+                      check::Bool = true, label::Symbol = UserDefined
+                      )::Nothing
+    return add_supports(dispatch_variable_ref(pref), supports,
+                        check = check, label = label)
+end
+
+"""
+    add_supports(
+        prefs::Union{Vector{GeneralVariableRef}, AbstractArray{<:GeneralVariableRef}},
+        supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}}
+        )::Nothing
+
+Add the support points `supports` to the dependent infinite
+parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
+dependent infinite parameters.
+"""
+function add_supports(prefs::AbstractArray{<:GeneralVariableRef},
+                      supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}};
+                      label::Symbol = UserDefined, check::Bool = true
+                      )::Nothing
+    return add_supports(dispatch_variable_ref.(prefs), supports, label = label,
+                        check = check)
+end
+
+# Dispatch fallback
+function delete_supports(pref)
+    throw(ArgumentError("`delete_supports` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    delete_supports(pref::GeneralVariableRef)::Nothing
+
+Delete the support points associated with a single infinite
+parameter `pref`. An `ArgumentError` is thrown if `pref` is not an infinite
+parameter.
+"""
+function delete_supports(pref::GeneralVariableRef)::Nothing
+    return delete_supports(dispatch_variable_ref(pref))
+end
+
+"""
+    delete_supports(prefs::AbstractArray{<:GeneralVariableRef})::Nothing
+
+Delete the support points associated with dependent infinite
+parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
+dependent infinite parameters.
+```
+"""
+function delete_supports(prefs::AbstractArray{<:GeneralVariableRef})::Nothing
+    return delete_supports(dispatch_variable_ref.(prefs))
+end
+
+# Dispatch fallback
+function fill_in_supports!(pref; kwargs...)
+    throw(ArgumentError("`fill_in_supports!` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    fill_in_supports!(pref::GeneralVariableRef; [num_supports::Int = 10,
+                      sig_figs::Int = 5])::Nothing
+
+Fill in the support points associated with a single infinite
+parameter `pref` up to `num_supports`. An `ArgumentError` is thrown if `pref`
+is not an infinite parameter.
+"""
+function fill_in_supports!(pref::GeneralVariableRef; num_supports::Int = 10,
+                           sig_figs::Int = 5)::Nothing
+    return fill_in_supports!(dispatch_variable_ref(pref),
+                             num_supports = num_supports, sig_figs = sig_figs)
+end
+
+"""
+    fill_in_supports!(prefs::AbstractArray{<:GeneralVariableRef};
+                      [num_supports::Int = 10, sig_figs::Int = 5,
+                       modify::Bool = true])::Nothing
+
+Fill in the support points associated with dependent infinite
+parameters `prefs` up to `num_supports`. An `ArgumentError` is thrown if `prefs`
+is are not dependent infinite parameters.
+```
+"""
+function fill_in_supports!(prefs::AbstractArray{<:GeneralVariableRef};
+                           num_supports::Int = 10, sig_figs::Int = 5,
+                           modify::Bool = true)::Nothing
+    return fill_in_supports!(dispatch_variable_ref.(prefs),
+                             num_supports = num_supports, sig_figs = sig_figs,
+                             modify = modify)
 end
 
 """
@@ -691,13 +955,7 @@ end
 ################################################################################
 #                            LOWER BOUND METHODS
 ################################################################################
-"""
-    JuMP.has_lower_bound(vref::DispatchVariableRef)::Bool
-
-Extend [`JuMP.has_lower_bound`](@ref JuMP.has_lower_bound(::JuMP.VariableRef)) to
-return `Bool` if `vref` has a lower bound. This needs to be extended for the
-type of `vref`. This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.has_lower_bound(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.has_lower_bound` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -715,13 +973,7 @@ function JuMP.has_lower_bound(vref::GeneralVariableRef)::Bool
     return JuMP.has_lower_bound(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.lower_bound(vref::DispatchVariableRef)::Float64
-
-Extend [`JuMP.lower_bound`](@ref JuMP.lower_bound(::JuMP.VariableRef)) to
-return the lower bound of `vref`. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.lower_bound(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.lower_bound` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -738,13 +990,7 @@ function JuMP.lower_bound(vref::GeneralVariableRef)::Float64
     return JuMP.lower_bound(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.set_lower_bound(vref::DispatchVariableRef, value::Real)::Nothing
-
-Extend [`JuMP.set_lower_bound`](@ref JuMP.set_lower_bound(::JuMP.VariableRef, ::Number)) to
-set the lower bound of `vref`. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.set_lower_bound(vref::DispatchVariableRef, value::Real)
     throw(ArgumentError("`JuMP.set_lower_bound` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -758,16 +1004,10 @@ set the lower bound of `vref`. It relies on `JuMP.set_lower_bound` being defined
 for the underlying `DispatchVariableRef`, otherwise an `ArugmentError` is thrown.
 """
 function JuMP.set_lower_bound(vref::GeneralVariableRef, value::Real)::Nothing
-    return JuMP.set_lower_bound(dispatch_variable_ref(vref))
+    return JuMP.set_lower_bound(dispatch_variable_ref(vref), value)
 end
 
-"""
-    JuMP.LowerBoundRef(vref::DispatchVariableRef)::InfOptConstraintRef
-
-Extend [`JuMP.LowerBoundRef`](@ref JuMP.LowerBoundRef(::JuMP.VariableRef)) to
-return the lower bound constraint of `vref`. This needs to be extended for the
-type of `vref`. This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.LowerBoundRef(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.LowerBoundRef` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -784,13 +1024,7 @@ function JuMP.LowerBoundRef(vref::GeneralVariableRef)::InfOptConstraintRef
     return JuMP.LowerBoundRef(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.delete_lower_bound(vref::DispatchVariableRef)::Nothing
-
-Extend [`JuMP.delete_lower_bound`](@ref JuMP.delete_lower_bound(::JuMP.VariableRef)) to
-delete the lower bound of `vref`. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.delete_lower_bound(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.delete_lower_bound` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -810,13 +1044,7 @@ end
 ################################################################################
 #                            UPPER BOUND METHODS
 ################################################################################
-"""
-    JuMP.has_upper_bound(vref::DispatchVariableRef)::Bool
-
-Extend [`JuMP.has_upper_bound`](@ref JuMP.has_upper_bound(::JuMP.VariableRef)) to
-return `Bool` if `vref` has a upper bound. This needs to be extended for the
-type of `vref`. This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.has_upper_bound(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.has_upper_bound` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -834,13 +1062,7 @@ function JuMP.has_upper_bound(vref::GeneralVariableRef)::Bool
     return JuMP.has_upper_bound(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.upper_bound(vref::DispatchVariableRef)::Float64
-
-Extend [`JuMP.upper_bound`](@ref JuMP.upper_bound(::JuMP.VariableRef)) to
-return the upper bound of `vref`. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.upper_bound(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.upper_bound` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -857,13 +1079,7 @@ function JuMP.upper_bound(vref::GeneralVariableRef)::Float64
     return JuMP.upper_bound(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.set_upper_bound(vref::DispatchVariableRef, value::Real)::Nothing
-
-Extend [`JuMP.set_upper_bound`](@ref JuMP.set_upper_bound(::JuMP.VariableRef, ::Number)) to
-set the upper bound of `vref`. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.set_upper_bound(vref::DispatchVariableRef, value::Real)
     throw(ArgumentError("`JuMP.set_upper_bound` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -877,16 +1093,10 @@ set the upper bound of `vref`. It relies on `JuMP.set_upper_bound` being defined
 for the underlying `DispatchVariableRef`, otherwise an `ArugmentError` is thrown.
 """
 function JuMP.set_upper_bound(vref::GeneralVariableRef, value::Real)::Nothing
-    return JuMP.set_upper_bound(dispatch_variable_ref(vref))
+    return JuMP.set_upper_bound(dispatch_variable_ref(vref), value)
 end
 
-"""
-    JuMP.UpperBoundRef(vref::DispatchVariableRef)::InfOptConstraintRef
-
-Extend [`JuMP.UpperBoundRef`](@ref JuMP.UpperBoundRef(::JuMP.VariableRef)) to
-return the upper bound constraint of `vref`. This needs to be extended for the
-type of `vref`. This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.UpperBoundRef(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.UpperBoundRef` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -903,13 +1113,7 @@ function JuMP.UpperBoundRef(vref::GeneralVariableRef)::InfOptConstraintRef
     return JuMP.UpperBoundRef(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.delete_upper_bound(vref::DispatchVariableRef)::Nothing
-
-Extend [`JuMP.delete_upper_bound`](@ref JuMP.delete_upper_bound(::JuMP.VariableRef)) to
-delete the upper bound of `vref`. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.delete_upper_bound(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.delete_upper_bound` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -929,13 +1133,7 @@ end
 ################################################################################
 #                                FIXING METHODS
 ################################################################################
-"""
-    JuMP.is_fixed(vref::DispatchVariableRef)::Bool
-
-Extend [`JuMP.is_fixed`](@ref JuMP.is_fixed(::JuMP.VariableRef)) to
-return `Bool` if `vref` is fixed. This needs to be extended for the
-type of `vref`. This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.is_fixed(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.is_fixed` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -953,13 +1151,7 @@ function JuMP.is_fixed(vref::GeneralVariableRef)::Bool
     return JuMP.is_fixed(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.fix_value(vref::DispatchVariableRef)::Float64
-
-Extend [`JuMP.fix_value`](@ref JuMP.fix_value(::JuMP.VariableRef)) to
-return the fixed value of `vref`. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.fix_value(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.fix_value` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -976,36 +1168,25 @@ function JuMP.fix_value(vref::GeneralVariableRef)::Float64
     return JuMP.fix_value(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.fix(vref::DispatchVariableRef, value::Real)::Nothing
-
-Extend [`JuMP.fix`](@ref JuMP.fix(::JuMP.VariableRef, ::Number)) to
-fix the value of `vref`. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
-function JuMP.fix(vref::DispatchVariableRef, value::Real)
+# Dispatch fallback
+function JuMP.fix(vref::DispatchVariableRef, value::Real; force::Bool = false)
     throw(ArgumentError("`JuMP.fix` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
 end
 
 """
-    JuMP.fix(vref::GeneralVariableRef, value::Real)::Nothing
+    JuMP.fix(vref::GeneralVariableRef, value::Real; force::Bool = false)::Nothing
 
 Extend [`JuMP.fix`](@ref JuMP.fix(::JuMP.VariableRef, ::Number)) to
 fix the value of `vref`. It relies on `JuMP.fix` being defined
 for the underlying `DispatchVariableRef`, otherwise an `ArugmentError` is thrown.
 """
-function JuMP.fix(vref::GeneralVariableRef, value::Real)::Nothing
-    return JuMP.fix(dispatch_variable_ref(vref))
+function JuMP.fix(vref::GeneralVariableRef, value::Real;
+                  force::Bool = false)::Nothing
+    return JuMP.fix(dispatch_variable_ref(vref), value, force = force)
 end
 
-"""
-    JuMP.FixRef(vref::DispatchVariableRef)::InfOptConstraintRef
-
-Extend [`JuMP.FixRef`](@ref JuMP.FixRef(::JuMP.VariableRef)) to
-return the fix bound constraint of `vref`. This needs to be extended for the
-type of `vref`. This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.FixRef(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.FixRef` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -1022,13 +1203,7 @@ function JuMP.FixRef(vref::GeneralVariableRef)::InfOptConstraintRef
     return JuMP.FixRef(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.unfix(vref::DispatchVariableRef)::Nothing
-
-Extend [`JuMP.unfix`](@ref JuMP.unfix(::JuMP.VariableRef)) to
-delete the upper bound of `vref`. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.unfix(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.unfix` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -1048,13 +1223,7 @@ end
 ################################################################################
 #                              START VALUE METHODS
 ################################################################################
-"""
-    JuMP.start_value(vref::DispatchVariableRef)::Union{Nothing, Float64}
-
-Extend [`JuMP.start_value`](@ref JuMP.start_value(::JuMP.VariableRef)) to
-return the start value of `vref`. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.start_value(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.start_value` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -1071,13 +1240,7 @@ function JuMP.start_value(vref::GeneralVariableRef)::Union{Nothing, Float64}
     return JuMP.start_value(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.set_start_value(vref::DispatchVariableRef, value::Real)::Nothing
-
-Extend [`JuMP.set_start_value`](@ref JuMP.set_start_value(::JuMP.VariableRef, ::Number)) to
-set the upper bound of `vref`. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.set_start_value(vref::DispatchVariableRef, value::Real)
     throw(ArgumentError("`JuMP.set_start_value` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -1091,19 +1254,13 @@ set the upper bound of `vref`. It relies on `JuMP.set_start_value` being defined
 for the underlying `DispatchVariableRef`, otherwise an `ArugmentError` is thrown.
 """
 function JuMP.set_start_value(vref::GeneralVariableRef, value::Real)::Nothing
-    return JuMP.set_start_value(dispatch_variable_ref(vref))
+    return JuMP.set_start_value(dispatch_variable_ref(vref), value)
 end
 
 ################################################################################
 #                                BINARY METHODS
 ################################################################################
-"""
-    JuMP.is_binary(vref::DispatchVariableRef)::Bool
-
-Extend [`JuMP.is_binary`](@ref JuMP.is_binary(::JuMP.VariableRef)) to
-return `Bool` if `vref` is binary. This needs to be extended for the
-type of `vref`. This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.is_binary(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.is_binary` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -1121,13 +1278,7 @@ function JuMP.is_binary(vref::GeneralVariableRef)::Bool
     return JuMP.is_binary(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.set_binary(vref::DispatchVariableRef)::Nothing
-
-Extend [`JuMP.set_binary`](@ref JuMP.set_binary(::JuMP.VariableRef)) to
-set `vref` as binary. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.set_binary(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.set_binary` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -1144,13 +1295,7 @@ function JuMP.set_binary(vref::GeneralVariableRef)::Nothing
     return JuMP.set_binary(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.BinaryRef(vref::DispatchVariableRef)::InfOptConstraintRef
-
-Extend [`JuMP.BinaryRef`](@ref JuMP.BinaryRef(::JuMP.VariableRef)) to
-return the binary constraint of `vref`. This needs to be extended for the
-type of `vref`. This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.BinaryRef(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.BinaryRef` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -1167,13 +1312,7 @@ function JuMP.BinaryRef(vref::GeneralVariableRef)::InfOptConstraintRef
     return JuMP.BinaryRef(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.unset_binary(vref::DispatchVariableRef)::Nothing
-
-Extend [`JuMP.unset_binary`](@ref JuMP.unset_binary(::JuMP.VariableRef)) to
-unset `vref` as binary. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.unset_binary(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.unset_binary` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -1193,13 +1332,7 @@ end
 ################################################################################
 #                               INTEGER METHODS
 ################################################################################
-"""
-    JuMP.is_integer(vref::DispatchVariableRef)::Bool
-
-Extend [`JuMP.is_integer`](@ref JuMP.is_integer(::JuMP.VariableRef)) to
-return `Bool` if `vref` is integer. This needs to be extended for the
-type of `vref`. This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.is_integer(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.is_integer` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -1217,13 +1350,7 @@ function JuMP.is_integer(vref::GeneralVariableRef)::Bool
     return JuMP.is_integer(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.set_integer(vref::DispatchVariableRef)::Nothing
-
-Extend [`JuMP.set_integer`](@ref JuMP.set_integer(::JuMP.VariableRef)) to
-set `vref` as integer. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.set_integer(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.set_integer` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -1240,13 +1367,7 @@ function JuMP.set_integer(vref::GeneralVariableRef)::Nothing
     return JuMP.set_integer(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.IntegerRef(vref::DispatchVariableRef)::InfOptConstraintRef
-
-Extend [`JuMP.IntegerRef`](@ref JuMP.IntegerRef(::JuMP.VariableRef)) to
-return the integer constraint of `vref`. This needs to be extended for the
-type of `vref`. This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.IntegerRef(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.IntegerRef` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
@@ -1263,13 +1384,7 @@ function JuMP.IntegerRef(vref::GeneralVariableRef)::InfOptConstraintRef
     return JuMP.IntegerRef(dispatch_variable_ref(vref))
 end
 
-"""
-    JuMP.unset_integer(vref::DispatchVariableRef)::Nothing
-
-Extend [`JuMP.unset_integer`](@ref JuMP.unset_integer(::JuMP.VariableRef)) to
-unset `vref` as integer. This needs to be extended for the type of `vref`.
-This should use the appropriate getter functions.
-"""
+# Dispatch fallback
 function JuMP.unset_integer(vref::DispatchVariableRef)
     throw(ArgumentError("`JuMP.unset_integer` not defined for variable reference type " *
                         "`$(typeof(vref))`."))

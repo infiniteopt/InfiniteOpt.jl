@@ -127,7 +127,7 @@ end
     @testset "IntervalSet" begin
         set = IntervalSet(0., 1.)
         @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1] isa Vector{<:Number}
-        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[2] == Set([UniformGrid])
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[2] == UniformGrid
         @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1][2] == 0.111
         @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1][2] != 1/11
         @test length(generate_support_values(set, num_supports = 10, sig_figs = 3)[1]) == 10
@@ -139,7 +139,7 @@ end
         set2 = MultiDistributionSet(dist2)
         @test generate_support_values(set1, num_supports = 10)[1] isa Vector{<:Number}
         @test generate_support_values(set2, num_supports = 10)[1] isa Array{<:Number, 2}
-        @test generate_support_values(set2, num_supports = 10)[2] == Set([McSample])
+        @test generate_support_values(set2, num_supports = 10)[2] == McSample
         @test length(generate_support_values(set1, num_supports = 10)[1]) == 10
         @test size(generate_support_values(set2, num_supports = 10)[1]) == (2, 10)
     end
@@ -147,7 +147,7 @@ end
         dist = MatrixBeta(2, 2, 2)
         set = MultiDistributionSet(dist)
         @test generate_support_values(set, num_supports = 10)[1] isa Array{<:Number, 2}
-        @test generate_support_values(set, num_supports = 10)[2] == Set([McSample])
+        @test generate_support_values(set, num_supports = 10)[2] == McSample
         @test size(generate_support_values(set, num_supports = 10)[1]) == (4, 10)
     end
     @testset "_generate_collection_supports" begin
@@ -164,7 +164,7 @@ end
         set2 = IntervalSet(0., 1.)
         set = CollectionSet([set1, set2])
         @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1] isa Array{<:Number, 2}
-        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[2] == Set([UniformGrid])
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[2] == UniformGrid
         @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1][2, 2] == 0.111
         @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1][2, 2] != 1/11
         @test size(generate_support_values(set, num_supports = 10, sig_figs = 3)[1]) == (2, 10)
@@ -174,7 +174,7 @@ end
         set2 = UniDistributionSet(Normal())
         set = CollectionSet([set1, set2])
         @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1] isa Array{<:Number, 2}
-        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[2] == Set([McSample])
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[2] == McSample
         @test size(generate_support_values(set, num_supports = 10, sig_figs = 3)[1]) == (2, 10)
     end
     @testset "CollectionSet (InfiniteScalarSets)" begin
@@ -182,7 +182,7 @@ end
         set2 = IntervalSet(0., 1.)
         set = CollectionSet([set1, set2])
         @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1] isa Array{<:Number, 2}
-        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[2] == Set([Mixture])
+        @test generate_support_values(set, num_supports = 10, sig_figs = 3)[2] == Mixture
         @test size(generate_support_values(set, num_supports = 10, sig_figs = 3)[1]) == (2, 10)
     end
     @testset "Fallback" begin

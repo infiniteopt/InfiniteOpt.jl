@@ -191,17 +191,39 @@ FiniteVariableRef
 ## User Methods
 ```@docs
 JuMP.owner_model(::GeneralVariableRef)
+JuMP.owner_model(::DispatchVariableRef)
 JuMP.index(::GeneralVariableRef)
+JuMP.index(::DispatchVariableRef)
 dispatch_variable_ref(::GeneralVariableRef)
+dispatch_variable_ref
 JuMP.name(::GeneralVariableRef)
 JuMP.set_name(::GeneralVariableRef, ::String)
 JuMP.is_valid(::InfiniteModel,::GeneralVariableRef)
+JuMP.is_valid(::InfiniteModel, ::DispatchVariableRef)
 used_by_infinite_variable(::GeneralVariableRef)
 used_by_point_variable(::GeneralVariableRef)
 used_by_measure(::GeneralVariableRef)
 used_by_objective(::GeneralVariableRef)
 used_by_constraint(::GeneralVariableRef)
 is_used(::GeneralVariableRef)
+infinite_set(::GeneralVariableRef)
+infinite_set(::AbstractArray{<:GeneralVariableRef})
+set_infinite_set(::GeneralVariableRef, ::InfiniteScalarSet)
+set_infinite_set(::AbstractArray{<:GeneralVariableRef}, ::InfiniteArraySet)
+num_supports(::GeneralVariableRef)
+num_supports(::AbstractArray{<:GeneralVariableRef})
+has_supports(::GeneralVariableRef)
+has_supports(::AbstractArray{<:GeneralVariableRef})
+supports(::GeneralVariableRef)
+supports(::AbstractArray{<:GeneralVariableRef})
+set_supports(::GeneralVariableRef,::Union{Real, Vector{<:Real}})
+set_supports(::AbstractArray{<:GeneralVariableRef},::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}})
+add_supports(::GeneralVariableRef,::Union{Real, Vector{<:Real}})
+add_supports(::AbstractArray{<:GeneralVariableRef},::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}})
+delete_supports(::GeneralVariableRef)
+delete_supports(::AbstractArray{<:GeneralVariableRef})
+fill_in_supports!(::GeneralVariableRef)
+fill_in_supports!(::AbstractArray{<:GeneralVariableRef})
 JuMP.delete(::InfiniteModel, ::GeneralVariableRef)
 JuMP.has_lower_bound(::GeneralVariableRef)
 JuMP.lower_bound(::GeneralVariableRef)
@@ -230,23 +252,17 @@ JuMP.IntegerRef(::GeneralVariableRef)
 JuMP.unset_integer(::GeneralVariableRef)
 ```
 
-## Developer Docs
+## Developer Internal Methods
 ```@index
 Pages   = ["expression.md"]
 Modules = [InfiniteOpt, JuMP]
 Order   = [:macro, :function]
 ```
 ```@docs
-JuMP.index(::DispatchVariableRef)
-JuMP.owner_model(::DispatchVariableRef)
-dispatch_variable_ref
 _add_data_object
 _data_dictionary
 _data_object
 _delete_data_object
-JuMP.name(::DispatchVariableRef)
-JuMP.set_name(::DispatchVariableRef,::String)
-JuMP.is_valid(::InfiniteModel, ::DispatchVariableRef)
 _core_variable_object
 _core_variable_object(::GeneralVariableRef)
 _set_core_variable_object
@@ -260,41 +276,8 @@ _measure_dependencies
 _measure_dependencies(::GeneralVariableRef)
 _constraint_dependencies
 _constraint_dependencies(::GeneralVariableRef)
-used_by_infinite_variable(::DispatchVariableRef)
-used_by_reduced_variable(::DispatchVariableRef)
-used_by_point_variable(::DispatchVariableRef)
-used_by_measure(::DispatchVariableRef)
-used_by_objective(::DispatchVariableRef)
-used_by_constraint(::DispatchVariableRef)
-is_used(::DispatchVariableRef)
-JuMP.delete(::InfiniteModel, ::DispatchVariableRef)
 _parameter_number
 _parameter_number(::GeneralVariableRef)
 _object_number
 _object_number(::GeneralVariableRef)
-JuMP.has_lower_bound(::DispatchVariableRef)
-JuMP.lower_bound(::DispatchVariableRef)
-JuMP.set_lower_bound(::DispatchVariableRef,::Real)
-JuMP.LowerBoundRef(::DispatchVariableRef)
-JuMP.delete_lower_bound(::DispatchVariableRef)
-JuMP.has_upper_bound(::DispatchVariableRef)
-JuMP.upper_bound(::DispatchVariableRef)
-JuMP.set_upper_bound(::DispatchVariableRef,::Real)
-JuMP.UpperBoundRef(::DispatchVariableRef)
-JuMP.delete_upper_bound(::DispatchVariableRef)
-JuMP.is_fixed(::DispatchVariableRef)
-JuMP.fix_value(::DispatchVariableRef)
-JuMP.fix(::DispatchVariableRef, ::Real)
-JuMP.FixRef(::DispatchVariableRef)
-JuMP.unfix(::DispatchVariableRef)
-JuMP.start_value(::DispatchVariableRef)
-JuMP.set_start_value(::DispatchVariableRef, ::Real)
-JuMP.is_binary(::DispatchVariableRef)
-JuMP.set_binary(::DispatchVariableRef)
-JuMP.BinaryRef(::DispatchVariableRef)
-JuMP.unset_binary(::DispatchVariableRef)
-JuMP.is_integer(::DispatchVariableRef)
-JuMP.set_integer(::DispatchVariableRef)
-JuMP.IntegerRef(::DispatchVariableRef)
-JuMP.unset_integer(::DispatchVariableRef)
 ```

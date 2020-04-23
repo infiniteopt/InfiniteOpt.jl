@@ -337,13 +337,14 @@ end
 ################################################################################
 # Include all the extension functions for manipulating the properties associated
 # with VariableInfo
-include("variable_info.jl")
+# include("variable_info.jl")
 
 
 ################################################################################
 #                          MODEL VARIABLE QUERIES
 ################################################################################
 # TODO make like constraint queries to search based on type
+#=
 """
     JuMP.num_variables(model::InfiniteModel)::Int
 
@@ -513,3 +514,4 @@ function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
     delete!(model.var_to_name, JuMP.index(vref))
     return
 end
+=#

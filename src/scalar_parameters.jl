@@ -211,7 +211,7 @@ function build_parameter(_error::Function,
                                                   sig_figs = sig_figs)
     end
     supports_dict = DataStructures.SortedDict{Float64, Set{Symbol}}(
-                                                   i => label for i in supports)
+                                            i => Set([label]) for i in supports)
     if length_supports != 0 && (length(supports_dict) != length_supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
@@ -796,38 +796,6 @@ julia> value(cost)
 """
 function JuMP.set_value(pref::FiniteParameterRef, value::Real)::Nothing
     _data_object(pref).parameter = FiniteParameter(value)
-    return
-end
-
-"""
-    fill_in_supports!(model::InfiniteModel; [num_supports::Int = 10,
-                      sig_figs::Int = 5])
-
-Automatically generate support points for all infinite parameters in model. User
-can specify the number of significant figures kept after decimal point for the
-auto-generated supports wtih `sig_figs`. This calls
-[`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef)) for each parameter
-in the model. See [`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef))
-for more information. Errors if one of the infinite set types is unrecognized.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
-julia> fill_in_supports!(model, num_supports = 4, sig_figs = 3)
-
-julia> supports(x)
-4-element Array{Number,1}:
- 0.0
- 0.333
- 0.667
- 1.0
-```
-"""
-function fill_in_supports!(model::InfiniteModel; num_supports::Int = 10,
-                           sig_figs::Int = 5)
-    for key in keys(model.params)
-        pref = ParameterRef(model, key)
-        fill_in_supports!(pref, num_supports = num_supports, sig_fig = sig_figs)
-    end
     return
 end
 
