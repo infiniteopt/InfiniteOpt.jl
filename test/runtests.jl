@@ -38,8 +38,8 @@ println("")
 end
 println("")
 @time @testset "Parameter Methods" begin
-    # @testset "Scalar" begin include("scalar_parameters.jl") end
-    @testset "Array" begin include("array_parameters.jl") end
+    @testset "Scalar" begin include("scalar_parameters.jl") end
+#    @testset "Array" begin include("array_parameters.jl") end
 end
 println("")
 # @time @testset "Optimizer Setup Methods" begin include("optimizer_setup.jl") end

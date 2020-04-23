@@ -87,7 +87,7 @@
         expected = :($(check1) ? $(info.set) : ($(check2) ? UniDistributionSet($(info.set)) : error("Set must be a subtype of InfiniteScalarSet.")))
         @test InfiniteOpt._constructor_set(error, info) == expected
     end
-    #=
+
     # _parse_one_operator_parameter
     @testset "_parse_one_operator_parameter" begin
         info = InfiniteOpt._ParameterInfoExpr()
@@ -135,51 +135,8 @@
         @test info.has_ub && info.upper_bound == 0
         @test info.has_lb && info.lower_bound == 0
     end
-    =#
-end
-#=
-# Test precursor functions needed for add_parameter
-@testset "Basic Reference Queries" begin
-    m = InfiniteModel()
-    pref = ParameterRef(m, 1)
-    # JuMP.index
-    @testset "JuMP.index" begin
-        @test JuMP.index(pref) == 1
-    end
-    # JuMP.owner_model
-    @testset "JuMP.owner_model" begin
-        @test owner_model(pref) == m
-    end
 end
 
-# Test name methods
-@testset "Name" begin
-    m = InfiniteModel()
-    param = InfOptParameter(IntervalSet(0, 1), Number[], false)
-    m.params[1] = param
-    m.param_to_name[1] = "test"
-    m.name_to_param = nothing
-    pref = ParameterRef(m, 1)
-    # JuMP.name
-    @testset "JuMP.name" begin
-        @test name(pref) == "test"
-    end
-    # JuMP.set_name
-    @testset "JuMP.set_name" begin
-        @test isa(set_name(pref, "new"), Nothing)
-        @test name(pref) == "new"
-    end
-    # parameter_by_name
-    @testset "parameter_by_name" begin
-        @test parameter_by_name(m, "new") == pref
-        @test isa(parameter_by_name(m, "test2"), Nothing)
-        m.params[2] = param
-        m.param_to_name[2] = "new"
-        m.name_to_param = nothing
-        @test_throws ErrorException parameter_by_name(m, "new")
-    end
-end
-=#
 # Test parameter definition methods
 @testset "Definition" begin
     # _check_supports_in_bounds
@@ -198,145 +155,169 @@ end
                                                                          2, set)
     end
     # build_independent_parameter
-    @testset "build_independent_parameter" begin
+    @testset "build_parameter (IndependentParameter)" begin
         set = IntervalSet(0, 1)
         supps = 0.
-        supps_dict = SortedDict{Float64, Set{Symbol}}(0. => Set{Symbol}())
-        param = build_independent_parameter(error, set, supports = supps)
+        supps_dict = SortedDict{Float64, Set{Symbol}}(0. => Set{Symbol}([UserDefined]))
+        param = build_parameter(error, set, supports = supps)
         @test param.set == set
         @test param.supports == supps_dict
-        @test_throws ErrorException build_independent_parameter(error, set, bob = 42)
+        @test_throws ErrorException build_parameter(error, set, bob = 42)
         warn = "Ignoring num_supports since supports is not empty."
-        @test_logs (:warn, warn) build_independent_parameter(error, set,
+        @test_logs (:warn, warn) build_parameter(error, set,
                                             supports = [0, 1], num_supports = 2)
         repeated_supps = [1, 1]
         expected = IndependentParameter(set, SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}()))
         warn = "Support points are not unique, eliminating redundant points."
-        @test_logs (:warn, warn) build_independent_parameter(error, set, supports = repeated_supps) == expected
+        @test_logs (:warn, warn) build_parameter(error, set, supports = repeated_supps) == expected
         set = UniDistributionSet(Normal())
-        param = build_independent_parameter(error, set, num_supports = 5)
+        param = build_parameter(error, set, num_supports = 5)
         @test length(param.supports) == 5
     end
     # build_finite_parameter
-    @testset "build_finite_parameter" begin
-        @test_throws ErrorException build_finite_parameter(error, 1, bob = 42)
+    @testset "build_parameter (FiniteParameter)" begin
+        @test_throws ErrorException build_parameter(error, 1, bob = 42)
         expected = FiniteParameter(1)
-        @test build_finite_parameter(error, 1) == expected
+        @test build_parameter(error, 1) == expected
     end
-#=
-    # _check_supports_dimensions
-    @testset "_check_supports_dimensions" begin
-        model = InfiniteModel()
-        param1 = InfOptParameter(IntervalSet(0, 1), Number[], false)
-        param2 = InfOptParameter(IntervalSet(0, 1), [0], false)
-        model.param_to_group_id[1] = 1
-        model.param_to_group_id[2] = 1
-        model.params[1] = param1
-        model.params[2] = param2
-        model.next_param_id = 1
-        @test InfiniteOpt._check_supports_dimensions(model, param1, 1) isa Nothing
-        @test_throws ErrorException InfiniteOpt._check_supports_dimensions(model, param2, 2)
-        model.param_to_group_id[3] = 2
-        model.params[3] = param1
-        model.next_param_id = 2
-        @test InfiniteOpt._check_supports_dimensions(model, param1, 3) isa Nothing
-        model.params[1] = param2
-        @test InfiniteOpt._check_supports_dimensions(model, param2, 2) isa Nothing
-    end
-=#
+
     # add_parameter
     @testset "add_parameter" begin
         m = InfiniteModel()
         param = IndependentParameter(IntervalSet(0, 1),
                                              SortedDict{Float64, Set{Symbol}}())
-        expected = IndependentParameterRef(m, IndependentParameterIndex(1))
+        expected = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
         @test add_parameter(m, param) == expected
         @test m.independent_params[IndependentParameterIndex(1)] ==
                                               InfiniteOpt._data_object(expected)
         param = FiniteParameter(1.5)
-        expected = FiniteParameterRef(m, FiniteParameterIndex(1))
+        expected = GeneralVariableRef(m, 1, FiniteParameterIndex, -1)
         @test add_parameter(m, param) == expected
         @test m.finite_params[FiniteParameterIndex(1)] ==
                                               InfiniteOpt._data_object(expected)
     end
 end
-#=
+
+# Test Reference Queries
+@testset "Basic Reference Queries" begin
+    m = InfiniteModel()
+    p = build_parameter(error, IntervalSet(0, 1))
+    pref = add_parameter(m, p)
+    # JuMP.index
+    @testset "JuMP.index" begin
+        @test JuMP.index(pref) == IndependentParameterIndex(1)
+    end
+    # JuMP.owner_model
+    @testset "JuMP.owner_model" begin
+        @test owner_model(pref) == m
+    end
+end
+
+# Test name methods
+@testset "Name" begin
+    m = InfiniteModel()
+    param = build_parameter(error, IntervalSet(0, 1))
+    pref = add_parameter(m, param, "test")
+    # JuMP.name
+    @testset "JuMP.name" begin
+        @test name(pref) == "test"
+    end
+    # JuMP.set_name
+    @testset "JuMP.set_name" begin
+        @test isa(set_name(pref, "new"), Nothing)
+        @test name(pref) == "new"
+    end
+    #=
+    # parameter_by_name
+    @testset "parameter_by_name" begin
+        @test parameter_by_name(m, "new") == pref
+        @test isa(parameter_by_name(m, "test2"), Nothing)
+        m.params[2] = param
+        m.param_to_name[2] = "new"
+        m.name_to_param = nothing
+        @test_throws ErrorException parameter_by_name(m, "new")
+    end
+    =#
+end
+
+
 # Test the parameter macro
 @testset "Macro" begin
     m = InfiniteModel()
     # single parameter
     @testset "Single" begin
-        pref = ParameterRef(m, 1)
+        pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
         @test @infinite_parameter(m, 0 <= a <= 1) == pref
-        @test m.params[1].set == IntervalSet(0, 1)
+        @test m.independent_params[IndependentParameterIndex(1)].parameter.set == IntervalSet(0, 1)
         @test name(pref) == "a"
-        pref = ParameterRef(m, 2)
+        pref = GeneralVariableRef(m, 2, IndependentParameterIndex, -1)
         @test @infinite_parameter(m, b in Normal(), supports = [1; 2]) == pref
-        @test m.params[2].set == DistributionSet(Normal())
-        @test m.params[2].supports == [1, 2]
-        pref = ParameterRef(m, 3)
+        @test m.independent_params[IndependentParameterIndex(2)].parameter.set == UniDistributionSet(Normal())
+        @test m.independent_params[IndependentParameterIndex(2)].parameter.supports == SortedDict(i => Set{Symbol}([UserDefined]) for i in [1,2])
+        pref = GeneralVariableRef(m, 3, IndependentParameterIndex, -1)
         @test @infinite_parameter(m, c in IntervalSet(0, 1)) == pref
-        @test m.params[3].set == IntervalSet(0, 1)
-        pref = ParameterRef(m, 4)
+        @test m.independent_params[IndependentParameterIndex(3)].parameter.set == IntervalSet(0, 1)
+        pref = GeneralVariableRef(m, 4, IndependentParameterIndex, -1)
         @test @infinite_parameter(m, set = IntervalSet(0, 1),
                                   base_name = "d") == pref
         @test name(pref) == "d"
-        pref = ParameterRef(m, 5)
+        pref = GeneralVariableRef(m, 5, IndependentParameterIndex, -1)
         @test @infinite_parameter(m, set = IntervalSet(0, 1)) == pref
         @test name(pref) == ""
-        pref = ParameterRef(m, 6)
+        pref = GeneralVariableRef(m, 6, IndependentParameterIndex, -1)
         @test @infinite_parameter(m, z in [0, 1]) == pref
-        @test m.params[6].set == IntervalSet(0, 1)
+        @test m.independent_params[IndependentParameterIndex(6)].parameter.set == IntervalSet(0, 1)
         @test name(pref) == "z"
     end
     # multiple parameters
     @testset "Array" begin
-        prefs = [ParameterRef(m, 7), ParameterRef(m, 8)]
-        @test @infinite_parameter(m, 0 <= e[1:2] <= 1) == prefs
-        @test m.params[7].set == IntervalSet(0, 1)
-        @test m.params[8].set == IntervalSet(0, 1)
-        prefs = [ParameterRef(m, 9), ParameterRef(m, 10)]
-        @test @infinite_parameter(m, [1:2], set = IntervalSet(0, 1)) == prefs
-        @test m.params[8].set == IntervalSet(0, 1)
-        @test m.params[10].set == IntervalSet(0, 1)
-        prefs = [ParameterRef(m, 11), ParameterRef(m, 12)]
+        prefs = [GeneralVariableRef(m, 7, IndependentParameterIndex, -1),
+                 GeneralVariableRef(m, 8, IndependentParameterIndex, -1)]
+        @test @independent_parameter(m, 0 <= e[1:2] <= 1) == prefs
+        @test m.independent_params[IndependentParameterIndex(7)].parameter.set == IntervalSet(0, 1)
+        @test m.independent_params[IndependentParameterIndex(8)].parameter.set == IntervalSet(0, 1)
+        prefs = [GeneralVariableRef(m, 9, IndependentParameterIndex, -1),
+                 GeneralVariableRef(m, 10, IndependentParameterIndex, -1)]
+        @test @independent_parameter(m, [1:2], set = IntervalSet(0, 1)) == prefs
+        @test m.independent_params[IndependentParameterIndex(9)].parameter.set == IntervalSet(0, 1)
+        @test m.independent_params[IndependentParameterIndex(10)].parameter.set == IntervalSet(0, 1)
+        prefs = [GeneralVariableRef(m, 11, IndependentParameterIndex, -1),
+                 GeneralVariableRef(m, 12, IndependentParameterIndex, -1)]
         sets = [IntervalSet(0, 1), IntervalSet(-1, 2)]
-        @test @infinite_parameter(m, f[i = 1:2], set = sets[i]) == prefs
-        @test m.params[11].set == IntervalSet(0, 1)
-        @test m.params[12].set == IntervalSet(-1, 2)
-        prefs = [ParameterRef(m, 13), ParameterRef(m, 14)]
-        @test @infinite_parameter(m, [i = 1:2], set = sets[i]) == prefs
-        @test m.params[13].set == IntervalSet(0, 1)
-        @test m.params[14].set == IntervalSet(-1, 2)
-        prefs = [ParameterRef(m, 15), ParameterRef(m, 16)]
-        @test @infinite_parameter(m, [0, -1][i] <= g[i = 1:2] <= [1, 2][i]) == prefs
-        @test m.params[15].set == IntervalSet(0, 1)
-        @test m.params[16].set == IntervalSet(-1, 2)
-        prefs = [ParameterRef(m, 17), ParameterRef(m, 18)]
-        @test @infinite_parameter(m, 0 <= h[1:2] <= 1,
-                                  independent = true) == prefs
-        @test m.params[17].independent
-        @test m.params[18].independent
-        prefs = [ParameterRef(m, 19), ParameterRef(m, 20)]
+        @test @independent_parameter(m, f[i = 1:2], set = sets[i]) == prefs
+        @test m.independent_params[IndependentParameterIndex(11)].parameter.set == IntervalSet(0, 1)
+        @test m.independent_params[IndependentParameterIndex(12)].parameter.set == IntervalSet(-1, 2)
+        prefs = [GeneralVariableRef(m, 13, IndependentParameterIndex, -1),
+                 GeneralVariableRef(m, 14, IndependentParameterIndex, -1)]
+        @test @independent_parameter(m, [i = 1:2], set = sets[i]) == prefs
+        @test m.independent_params[IndependentParameterIndex(13)].parameter.set == IntervalSet(0, 1)
+        @test m.independent_params[IndependentParameterIndex(14)].parameter.set == IntervalSet(-1, 2)
+        prefs = [GeneralVariableRef(m, 15, IndependentParameterIndex, -1),
+                 GeneralVariableRef(m, 16, IndependentParameterIndex, -1)]
+        @test @independent_parameter(m, [0, -1][i] <= g[i = 1:2] <= [1, 2][i]) == prefs
+        @test m.independent_params[IndependentParameterIndex(15)].parameter.set == IntervalSet(0, 1)
+        @test m.independent_params[IndependentParameterIndex(16)].parameter.set == IntervalSet(-1, 2)
+        prefs = [GeneralVariableRef(m, 17, IndependentParameterIndex, -1),
+                 GeneralVariableRef(m, 18, IndependentParameterIndex, -1)]
         prefs = convert(JuMP.Containers.SparseAxisArray, prefs)
-        @test @infinite_parameter(m, 0 <= i[1:2] <= 1,
+        @test @independent_parameter(m, 0 <= i[1:2] <= 1,
                                   container = SparseAxisArray) == prefs
-        @test m.params[19].set == IntervalSet(0, 1)
-        @test m.params[20].set == IntervalSet(0, 1)
+        @test m.independent_params[IndependentParameterIndex(17)].parameter.set == IntervalSet(0, 1)
+        @test m.independent_params[IndependentParameterIndex(18)].parameter.set == IntervalSet(0, 1)
     end
     # test for errors
     @testset "Errors" begin
-        @test_macro_throws ErrorException @infinite_parameter(m, 0 <= [1:2] <= 1)
-        @test_macro_throws ErrorException @infinite_parameter(m, 0 <= "bob" <= 1)
-        @test_macro_throws ErrorException @infinite_parameter(m, 0 <= a <= 1)
-        @test_macro_throws ErrorException @infinite_parameter(m, 0 <= j)
-        @test_macro_throws ErrorException @infinite_parameter(m, j)
-        @test_macro_throws ErrorException @infinite_parameter(m, j, foo = 42)
-        @test_macro_throws ErrorException @infinite_parameter(m, j in Multinomial(3, [1/3, 1/3]))
-        @test_macro_throws ErrorException @infinite_parameter(m, 0 <= k <= 1, Int)
+        @test_macro_throws ErrorException @independent_parameter(m, 0 <= [1:2] <= 1)
+        @test_macro_throws ErrorException @independent_parameter(m, 0 <= "bob" <= 1)
+        @test_macro_throws ErrorException @independent_parameter(m, 0 <= a <= 1)
+        @test_macro_throws ErrorException @independent_parameter(m, 0 <= j)
+        @test_macro_throws ErrorException @independent_parameter(m, j)
+        @test_macro_throws ErrorException @independent_parameter(m, j, foo = 42)
+        @test_macro_throws ErrorException @independent_parameter(m, j in Multinomial(3, [1/3, 1/3]))
+        @test_macro_throws ErrorException @independent_parameter(m, 0 <= k <= 1, Int)
     end
 end
-
+#=
 # Test if used
 @testset "Used" begin
     m = InfiniteModel()
@@ -624,10 +605,23 @@ end
         @test all_parameters(m)[1] == pref
     end
 end
-
+=#
 # Test methods for finite parameters
 @testset "Finite Parameters" begin
     # initialize the model
+    m = InfiniteModel()
+    # test JuMP.value
+    @testset "JuMP.value" begin
+        @finite_parameter(m, g, 1)
+        @test value(g) == 1
+    end
+    # test JuMP.set_value
+    @testset "JuMP.set_value" begin
+        @finite_parameter(m, i, 1)
+        @test isa(set_value(i, 42), Nothing)
+        @test value(i) == 42
+    end
+
     m = InfiniteModel()
     # test @finite_parameter
     @testset "@finite_parameter" begin
@@ -641,55 +635,31 @@ end
         @test_macro_throws ErrorException @finite_parameter(m2, test, 2)
         @test_macro_throws ErrorException @finite_parameter(m, test, 2, bob = 2)
         # test anonymous definition
-        pref = ParameterRef(m, 1)
+        pref = GeneralVariableRef(m, 1, FiniteParameterIndex)
         @test @finite_parameter(m, 42) == pref
-        @test supports(pref) == [42]
-        @test infinite_set(pref) == IntervalSet(42, 42)
+        @test value(pref) == 42
         # test vector anonymous definition
-        prefs = [ParameterRef(m, 2), ParameterRef(m, 3)]
+        prefs = [GeneralVariableRef(m, 2, FiniteParameterIndex),
+                 GeneralVariableRef(m, 3, FiniteParameterIndex)]
         @test @finite_parameter(m, [1:2], 42, base_name = "a") == prefs
-        @test supports(prefs[1]) == [42]
-        @test infinite_set(prefs[2]) == IntervalSet(42, 42)
+        @test value(prefs[1]) == 42
         @test name.(prefs) == ["a[1]", "a[2]"]
         # test named definition
-        pref = ParameterRef(m, 4)
+        pref = GeneralVariableRef(m, 4, FiniteParameterIndex)
         @test @finite_parameter(m, b, 42) == pref
-        @test supports(pref) == [42]
-        @test infinite_set(pref) == IntervalSet(42, 42)
+        @test value(pref) == 42
         @test name(pref) == "b"
         # test named vector definition
-        prefs = [ParameterRef(m, 5), ParameterRef(m, 6)]
+        prefs = [GeneralVariableRef(m, 5, FiniteParameterIndex),
+                 GeneralVariableRef(m, 6, FiniteParameterIndex)]
         prefs = convert(JuMPC.SparseAxisArray, prefs)
         @test @finite_parameter(m, c[i = 1:2], [3, 7][i],
                                 container = SparseAxisArray) == prefs
-        @test supports(prefs[2]) == [7]
-        @test infinite_set(prefs[1]) == IntervalSet(3, 3)
+        @test value(prefs[2]) == 7
         @test name(prefs[2]) == "c[2]"
     end
-    # test is_finite_parameter
-    @testset "is_finite_parameter" begin
-        @infinite_parameter(m, 0 <= d <= 1)
-        @finite_parameter(m, e, 1)
-        @test !is_finite_parameter(d)
-        @test is_finite_parameter(e)
-    end
-    # test JuMP.value
-    @testset "JuMP.value" begin
-        @infinite_parameter(m, 0 <= f <= 1)
-        @finite_parameter(m, g, 1)
-        @test value(g) == 1
-        @test_throws ErrorException value(f)
-    end
-    # test JuMP.set_value
-    @testset "JuMP.set_value" begin
-        @infinite_parameter(m, 0 <= h <= 1)
-        @finite_parameter(m, i, 1)
-        @test isa(set_value(i, 42), Nothing)
-        @test value(i) == 42
-        @test_throws ErrorException set_value(h, 42)
-    end
 end
-
+#=
 # Test support flll-in and geneartion functions
 @testset "Support Fill-in and Generation" begin
     @testset "generate_and_add_supports! (AbstractInfiniteSet)" begin

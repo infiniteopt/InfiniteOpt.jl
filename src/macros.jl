@@ -180,7 +180,7 @@ macro independent_parameter(model, args...)
         _error("Unrecognized argument $arg provided.")
     end
 
-    info_kw_args = filter(_is_set_keyword, kw_args)
+    info_kw_args = filter(InfiniteOpt._is_set_keyword, kw_args)
     extra_kw_args = filter(kw -> kw.args[1] != :base_name && !InfiniteOpt._is_set_keyword(kw) && kw.args[1] != :error_args, kw_args)
     base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
     infoexpr = InfiniteOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
@@ -191,14 +191,14 @@ macro independent_parameter(model, args...)
     # param                                       | Symbol    | NA
     # param in [lb, ub]                           | Expr      | :call
     # lb <= param <= ub                           | Expr      | :comparison
-    explicit_comparison = isexpr(x, :comparison) || isexpr(x, :call)
+    explicit_comparison = InfiniteOpt.isexpr(x, :comparison) || InfiniteOpt.isexpr(x, :call)
     if explicit_comparison
         param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
     else
         param = x
     end
 
-    anonvar = isexpr(param, :vect) || isexpr(param, :vcat) || anon_singleton
+    anonvar = InfiniteOpt.isexpr(param, :vect) || InfiniteOpt.isexpr(param, :vcat) || anon_singleton
     anonvar && explicit_comparison && _error("Cannot use explicit bounds via " *
                                              ">=, <= with an anonymous parameter")
     parameter = gensym()
@@ -295,32 +295,28 @@ macro finite_parameter(model, args...)
 
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
 
+    macro_name = :finite_parameter
     _error(str...) = JuMP._macro_error(macro_name, (model, args...), str...)
 
     # if there is only a single non-keyword argument, this is an anonymous
     # variable spec and the one non-kwarg is the model
+
     if length(extra) == 1
+        param = gensym()
         value = popfirst!(extra)
         anon_singleton = true
     elseif length(extra) == 2
-        x = popfirst!(extra)
+        param = popfirst!(extra)
         value = popfirst!(extra)
         anon_singleton = false
-        param = x
     else
         _error("Incorrect number of arguments. Must be of form " *
-       "@finite_parameter(model, name_expr, value).")
+               "@finite_parameter(model, name_expr, value).")
     end
+    value = JuMP._esc_non_constant(value)
 
-    extra_kw_args = filter(kw -> kw.args[1] != :base_name && !InfiniteOpt._is_set_keyword(kw) && kw.args[1] != :error_args, kw_args)
+    extra_kw_args = filter(kw -> kw.args[1] != :base_name, kw_args)
     base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
-
-    # There are five cases to consider:
-    # x                                         | type of x | x.head
-    # ------------------------------------------+-----------+------------
-    # param                                       | Symbol    | NA
-    # param in [lb, ub]                           | Expr      | :call
-    # lb <= param <= ub                           | Expr      | :comparison
 
     anonvar = isexpr(param, :vect) || isexpr(param, :vcat) || anon_singleton
 
@@ -338,18 +334,14 @@ macro finite_parameter(model, args...)
                "...) instead.")
     end
 
-    if length(extra) == 0
-        # Easy case - a single variable
-        buildcall = :( build_parameter($_error, $set) )
+    if isa(param, Symbol)
+        buildcall = :( build_parameter($_error, $value) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall, $base_name) )
         creationcode = :($parameter = $parametercall)
     else
-        # isa(param, Expr) || _error("Expected $param to be a parameter name") --> not needed... I think
-        # We now build the code to generate the variables (and possibly the
-        # SparseAxisArray to contain them)
         idxvars, indices = JuMPC._build_ref_sets(_error, param)
-        buildcall = :( build_parameter($_error, $set) )
+        buildcall = :( build_parameter($_error, $value) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall,
                                          $(JuMP._name_call(base_name, idxvars))) )
@@ -357,13 +349,8 @@ macro finite_parameter(model, args...)
                                              requestedcontainer)
     end
     if anonvar
-        # Anonymous variable, no need to register it in the model-level
-        # dictionary nor to assign it to a variable in the user scope.
-        # We simply return the variable
         macro_code = creationcode
     else
-        # We register the variable reference to its name and
-        # we assign it to a variable in the local scope of this name
         macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
                                                    model_for_registering = esc_model)
     end
