@@ -883,7 +883,8 @@ end
 
 """
     fill_in_supports!(prefs::AbstractArray{<:GeneralVariableRef};
-                      [num_supports::Int = 10, sig_figs::Int = 5])::Nothing
+                      [num_supports::Int = 10, sig_figs::Int = 5,
+                       modify::Bool = true])::Nothing
 
 Fill in the support points associated with dependent infinite
 parameters `prefs` up to `num_supports`. An `ArgumentError` is thrown if `prefs`
@@ -891,9 +892,11 @@ is are not dependent infinite parameters.
 ```
 """
 function fill_in_supports!(prefs::AbstractArray{<:GeneralVariableRef};
-                           num_supports::Int = 10, sig_figs::Int = 5)::Nothing
+                           num_supports::Int = 10, sig_figs::Int = 5,
+                           modify::Bool = true)::Nothing
     return fill_in_supports!(dispatch_variable_ref.(prefs),
-                             num_supports = num_supports, sig_figs = sig_figs)
+                             num_supports = num_supports, sig_figs = sig_figs,
+                             modify = modify)
 end
 
 ################################################################################

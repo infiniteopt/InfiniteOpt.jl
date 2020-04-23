@@ -777,7 +777,7 @@ true
 ```
 """
 function has_supports(prefs::AbstractArray{<:DependentParameterRef})::Bool
-    return num_supports(prefs) > 0
+    return num_supports(prefs) > 0 # this will check prefs
 end
 
 """
@@ -834,10 +834,10 @@ function supports(prefs::Vector{DependentParameterRef};
                   label::Symbol = All)::Array{Float64, 2}
     _check_complete_param_array(prefs)
     if label == All
-        return _parameter_supports(pref)
+        return _parameter_supports(first(prefs))
     else
-        indices = findall(x -> label in x, _parameter_support_labels(pref))
-        return _parameter_supports(pref)[:, indices]
+        indices = findall(x -> label in x, _parameter_support_labels(first(prefs)))
+        return _parameter_supports(first(prefs))[:, indices]
     end
 end
 
@@ -845,8 +845,8 @@ end
 function _update_parameter_supports(prefs::AbstractArray{<:DependentParameterRef},
                                     supports::Array{<:Real, 2},
                                     labels::Vector{Set{Symbol}})::Nothing
-    old_params = _core_variable_object(first(prefs))
-    new_params = DependentParameters(old_params.set, supports, labels)
+    set = _parameter_set(first(prefs))
+    new_params = DependentParameters(set, Float64.(supports), labels)
     _set_core_variable_object(first(prefs), new_params)
     if any(is_used(pref) for pref in prefs)
         set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
@@ -983,7 +983,7 @@ end
 # More efficient version for supports in the correct format
 function add_supports(prefs::Vector{DependentParameterRef},
                       supports::Array{<:Real, 2};
-                      label::Symbol = UserDefined, # interal keyword args
+                      label::Symbol = UserDefined, # internal keyword args
                       check::Bool = true)::Nothing
     set = infinite_set(prefs) # this does a check on prefs
     if check && !supports_in_set(supports, set)
@@ -992,7 +992,7 @@ function add_supports(prefs::Vector{DependentParameterRef},
     current_supports = _parameter_supports(first(prefs))
     new_supports = hcat(current_supports, supports)
     current_labels = _parameter_support_labels(first(prefs))
-    labels = push!(current_labels, [Set([label]) for i = 1:size(supports, 2)])
+    labels = push!(current_labels, (Set([label]) for i = 1:size(supports, 2))...)
     _update_parameter_supports(prefs, new_supports, labels)
     return
 end
@@ -1023,6 +1023,11 @@ function delete_supports(prefs::AbstractArray{<:DependentParameterRef})::Nothing
     return
 end
 
+# Error for single dependent parameters
+function delete_supports(pref::DependentParameterRef)
+    error("Cannot delete the supports of a single dependent infinite parameter.")
+end
+
 """
     generate_and_add_supports!(prefs::AbstractArray{<:DependentParameterRef},
                                set::InfiniteArraySet;
@@ -1050,11 +1055,12 @@ end
 
 """
     fill_in_supports!(prefs::AbstractArray{<:DependentParameterRef};
-                      [num_supports::Int = 10, sig_figs::Int = 5])::Nothing
+                      [num_supports::Int = 10, sig_figs::Int = 5,
+                       modify::Bool = true])::Nothing
 
 Automatically generate support points for a container of dependent infinite
 parameters `prefs`. Generating up to `num_supports` for the parameters in accordance
-with `generate_and_add_supports!`.
+with `generate_and_add_supports!`. Will add nothing if there are supports and `modify = false`.
 User can specify the number of digits kept after decimal point for the
 auto-generated supports wtih `sig_figs`. Extensions that use user defined
 set types should extend [`generate_and_add_supports!`](@ref) and/or
@@ -1072,10 +1078,11 @@ julia> supports(x)
 ```
 """
 function fill_in_supports!(prefs::AbstractArray{<:DependentParameterRef};
-                           num_supports::Int = 10, sig_figs::Int = 5)::Nothing
+                           num_supports::Int = 10, sig_figs::Int = 5,
+                           modify::Bool = true)::Nothing
     set = infinite_set(prefs) # does check for bad container
     current_amount = size(_parameter_supports(first(prefs)), 2)
-    if current_amount < num_supports
+    if (modify || current_amount == 0) && (current_amount < num_supports)
         generate_and_add_supports!(prefs, set,
                                    num_supports = num_supports - current_amount,
                                    sig_figs = sig_figs)
@@ -1083,16 +1090,23 @@ function fill_in_supports!(prefs::AbstractArray{<:DependentParameterRef};
     return
 end
 
+# Error for single dependent parameters
+function fill_in_supports!(pref::DependentParameterRef; kwargs...)
+    error("Cannot modify the supports of a single dependent infinite parameter.")
+end
+
 """
     fill_in_supports!(model::InfiniteModel; [num_supports::Int = 10,
-                      sig_figs::Int = 5])::Nothing
+                      sig_figs::Int = 5, modify::Bool = true])::Nothing
 
 Automatically generate support points for all infinite parameters in model. User
 can specify the number of significant figures kept after decimal point for the
-auto-generated supports wtih `sig_fig`. This calls
+auto-generated supports wtih `sig_figs`. This calls
 `fill_in_supports!` for each parameter in the model.
 See [`fill_in_supports!`](@ref)
 for more information. Errors if one of the infinite set types is unrecognized.
+Note that no supports will be added to a particular parameter if it already has
+some and `modify = false`.
 
 **Example**
 ```julia-repl
@@ -1107,17 +1121,19 @@ julia> supports(t)
 ```
 """
 function fill_in_supports!(model::InfiniteModel; num_supports::Int = 10,
-                           sig_figs::Int = 5)::Nothing
+                           sig_figs::Int = 5, modify::Bool = true)::Nothing
     # fill in the the supports of each independent parameter
     for (key, data_object) in model.independent_params
         pref = dispatch_variable_ref(model, key)
-        fill_in_supports!(pref, num_supports = num_supports, sig_figs = sig_figs)
+        fill_in_supports!(pref, num_supports = num_supports, sig_figs = sig_figs,
+                          modify = modify)
     end
     # fill in the supports of each dependent parameter set
     for (key, data_object) in model.dependent_params
         prefs = [dispatch_variable_ref(model, DependentParameterIndex(key, i))
                  for i in 1:length(names)]
-        fill_in_supports!(prefs, num_supports = num_supports, sig_figs = sig_figs)
+        fill_in_supports!(prefs, num_supports = num_supports, sig_figs = sig_figs,
+                          modify = modify)
     end
     return
 end
