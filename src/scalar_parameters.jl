@@ -150,7 +150,7 @@ function _constructor_set(_error::Function, info::_ParameterInfoExpr)
     if (info.has_lb || info.has_ub) && !(info.has_lb && info.has_ub)
         _error("Must specify both an upper bound and a lower bound")
     elseif info.has_lb
-        check = :(isa($(info.lower_bound), Number))
+        check = :(isa($(info.lower_bound), Real))
         return :($(check) ? IntervalSet($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a number."))
     elseif info.has_dist
         check = :(isa($(info.distribution), Distributions.UnivariateDistribution))
@@ -166,7 +166,7 @@ end
 
 # Check that supports don't violate the set bounds
 function _check_supports_in_bounds(_error::Function,
-                                   supports::Union{Real, Vector{<:Real}},
+                                   supports::Union{<:Real, Vector{<:Real}},
                                    set::AbstractInfiniteSet)::Nothing
     if !supports_in_set(supports, set)
         _error("Supports violate the set domain bounds.")
@@ -177,7 +177,7 @@ end
 """
     build_parameter(_error::Function, set::InfiniteScalarSet,
                            [num_params::Int = 1; num_supports::Int = 0,
-                           supports::Union{Real, Vector{<:Real}} = Number[],
+                           supports::Union{Real, Vector{<:Real}} = Real[],
                            sig_figs::Int = 5])::IndependentParameter
 
 Returns a [`IndependentParameter`](@ref) given the appropriate information.
@@ -201,7 +201,7 @@ function build_parameter(_error::Function,
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
-    label = Set{Symbol}([UserDefined])
+    label = UserDefined
     length_supports = length(supports)
     if length_supports != 0
         _check_supports_in_bounds(_error, supports, set)
@@ -307,7 +307,7 @@ function used_by_measure(pref::ScalarParameterRef)::Bool
 end
 
 """
-    used_by_variable(pref::Union{IndependentParameterRef, FiniteParameterRef})::Bool
+    used_by_infinite_variable(pref::Union{IndependentParameterRef, FiniteParameterRef})::Bool
 
 Return true if `pref` is used by an infinite variable or false otherwise.
 
@@ -317,7 +317,7 @@ julia> used_by_variable(t)
 true
 ```
 """
-function used_by_variable(pref::ScalarParameterRef)::Bool
+function used_by_infinite_variable(pref::ScalarParameterRef)::Bool
     return length(_data_object(pref).infinite_var_indices)
 end
 
@@ -330,11 +330,9 @@ Return true if `pref` is used by the objective function.
 ```julia-repl
 ```
 """
-#=
-function used_by_objective(pref::ScalarParameterRef)::Bool
-    return JuMP.index(pref) in JuMP.owner_model(pref).param_object_indices
+function used_by_objective(pref::FiniteParameterRef)::Bool
+    return _data_object(pref).in_objective
 end
-=#
 
 """
     is_used(pref::Union{IndependentParameterRef, FiniteParameterRef})::Bool
@@ -348,12 +346,12 @@ true
 ```
 """
 function is_used(pref::IndependentParameterRef)::Bool
-    return used_by_measure(pref) || used_by_constraint(pref) || used_by_variable(pref)
+    return used_by_measure(pref) || used_by_constraint(pref) || used_by_infinite_variable(pref)
 end
 
 function is_used(pref::FiniteParameterRef)::Bool
     return used_by_measure(pref) || used_by_constraint(pref) ||
-           used_by_variable(pref) || used_by_objective(pref)
+           used_by_infinite_variable(pref) || used_by_objective(pref)
 end
 
 ################################################################################
@@ -435,20 +433,35 @@ end
 # Internal functions
 _parameter_set(pref::IndependentParameterRef) = _core_variable_object(pref).set
 _parameter_supports(pref::IndependentParameterRef) = _core_variable_object(pref).supports
-function _update_parameter_set(pref::IndependentParameterRef, set::AbstractInfiniteSet)
-    param = _core_variable_object(pref)
-    supports = param.supports
-    new_param = IndependentParameter(set, supports)
+_parameter_support_values(pref::IndependentParameterRef) = collect(keys(_parameter_supports(pref)))
+function _update_parameter_set(pref::IndependentParameterRef, set::AbstractInfiniteSet)::Nothing
+    # old supports will always be discarded
+    new_param = IndependentParameter(set, DataStructures.SortedDict{Float64, Set{Symbol}}())
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
     return
 end
+#=
 function _update_parameter_supports(pref::IndependentParameterRef,
-                                    supports::DataStructures.SortedDict{Float64, Set{Symbol}})
-    param = _core_variable_object(pref)
-    set = param.set
+                                    supports::Union{<:Real, Vector{<:Real}},
+                                    labels::Union{Set{Symbol}, Vector{Set{Symbol}}})::Nothing
+    if isa(supports, Real)
+        supports = [supports]
+    end
+    if isa(labels, Set{Symbol})
+        labels = [labels]
+    end
+    new_supports_dict = DataStructures.SortedDict{Float64, Set{Symbol}}(
+                        supports[i] => labels[i] for i in eachindex(supports))
+    _update_parameter_supports(pref, new_supports_dict)
+    return
+end
+=#
+function _update_parameter_supports(pref::IndependentParameterRef,
+                                    supports::DataStructures.SortedDict{Float64, Set{Symbol}})::Nothing
+    set = _parameter_set(pref)
     new_param = IndependentParameter(set, supports)
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
@@ -475,18 +488,26 @@ end
 """
     set_infinite_set(pref::IndependentParameterRef, set::AbstractInfiniteSet)
 
-Specify the infinite set of `pref`.
+Reset the infinite set of `pref` with `set` of the same type as the original
+set. An error will be thrown if `pref` is being used by some measure.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1]))
 julia> set_infinite_set(t, IntervalSet(0, 2))
 
 julia> infinite_set(t)
 [0, 2]
 ```
 """
-function set_infinite_set(pref::IndependentParameterRef, set::AbstractInfiniteSet)
-    #TODO: delete supports if pref is not used in measure, otherwise error
+function set_infinite_set(pref::IndependentParameterRef, set::AbstractInfiniteSet)::Nothing
+    p = _core_variable_object(pref)
+    if typeof(p.set) != typeof(set)
+        error("The set of a defined independent parameter can only be reset by "
+               * "another set of the same type.")
+    end
+    if used_by_measure(pref)
+        error("$pref is used by a measure so resetting its set is not allowed.")
+    end
     _update_parameter_set(pref, set)
     return
 end
@@ -511,7 +532,7 @@ function JuMP.has_lower_bound(pref::IndependentParameterRef)::Bool
 end
 
 """
-    JuMP.lower_bound(pref::IndependentParameterRef)::Number
+    JuMP.lower_bound(pref::IndependentParameterRef)::Real
 
 Extend the `JuMP.lower_bound` function to accomodate infinite parameters.
 Returns the lower bound associated with the infinite set. Errors if such a bound
@@ -523,7 +544,7 @@ julia> lower_bound(t)
 0.0
 ```
 """
-function JuMP.lower_bound(pref::IndependentParameterRef)::Number
+function JuMP.lower_bound(pref::IndependentParameterRef)::Real
     set = _parameter_set(pref)
     if !JuMP.has_lower_bound(pref)
         error("Parameter $(pref) does not have a lower bound.")
@@ -532,7 +553,7 @@ function JuMP.lower_bound(pref::IndependentParameterRef)::Number
 end
 
 """
-    JuMP.set_lower_bound(pref::IndependentParameterRef, lower::Number)
+    JuMP.set_lower_bound(pref::IndependentParameterRef, lower::Real)
 
 Extend the `JuMP.set_lower_bound` function to accomodate infinite parameters.
 Updates the infinite set lower bound if such an operation is supported. Set
@@ -547,7 +568,7 @@ julia> lower_bound(t)
 -1.0
 ```
 """
-function JuMP.set_lower_bound(pref::IndependentParameterRef, lower::Number)
+function JuMP.set_lower_bound(pref::IndependentParameterRef, lower::Real)::Nothing
     set = _parameter_set(pref)
     new_set = JuMP.set_lower_bound(set, lower)
     _update_parameter_set(pref, new_set)
@@ -574,7 +595,7 @@ function JuMP.has_upper_bound(pref::IndependentParameterRef)::Bool
 end
 
 """
-    JuMP.upper_bound(pref::IndependentParameterRef)::Number
+    JuMP.upper_bound(pref::IndependentParameterRef)::Real
 
 Extend the `JuMP.upper_bound` function to accomodate infinite parameters.
 Returns the upper bound associated with the infinite set. Errors if such a bound
@@ -588,7 +609,7 @@ julia> upper_bound(t)
 1.0
 ```
 """
-function JuMP.upper_bound(pref::IndependentParameterRef)::Number
+function JuMP.upper_bound(pref::IndependentParameterRef)::Real
     set = _parameter_set(pref)
     if !JuMP.has_upper_bound(pref)
         error("Parameter $(pref) does not have a upper bound.")
@@ -597,7 +618,7 @@ function JuMP.upper_bound(pref::IndependentParameterRef)::Number
 end
 
 """
-    JuMP.set_upper_bound(pref::IndependentParameterRef, lower::Number)
+    JuMP.set_upper_bound(pref::IndependentParameterRef, lower::Real)
 
 Extend the `JuMP.set_upper_bound` function to accomodate infinite parameters.
 Updates the infinite set upper bound if and only if it is an IntervalSet. Errors
@@ -612,7 +633,7 @@ julia> upper_bound(t)
 2.0
 ```
 """
-function JuMP.set_upper_bound(pref::IndependentParameterRef, upper::Number)
+function JuMP.set_upper_bound(pref::IndependentParameterRef, upper::Real)::Nothing
     set = _parameter_set(pref)
     new_set = JuMP.set_upper_bound(set, upper)
     _update_parameter_set(pref, new_set)
@@ -620,7 +641,7 @@ function JuMP.set_upper_bound(pref::IndependentParameterRef, upper::Number)
 end
 
 """
-    num_supports(pref::IndependentParameterRef)::Int
+    num_supports(pref::IndependentParameterRef; [label::Symbol = All])::Int
 
 Return the number of support points associated with `pref`.
 
@@ -630,8 +651,15 @@ julia> num_supports(t)
 2
 ```
 """
-function num_supports(pref::IndependentParameterRef)::Int
-    return length(_parameter_supports(pref))
+function num_supports(pref::IndependentParameterRef; label::Symbol = All)::Int
+    supports_dict = _parameter_supports(pref)
+    if label == All
+        return length(supports_dict)
+    else
+        isin(x) = label in x
+        supports = findall(isin, supports_dict)
+        return length(supports)
+    end
 end
 
 """
@@ -648,26 +676,35 @@ true
 has_supports(pref::IndependentParameterRef)::Bool = num_supports(pref) > 0
 
 """
-    supports(pref::IndependentParameterRef)::Vector
+    supports(pref::IndependentParameterRef; [label::Symbol = All])::Vector
 
 Return the support points associated with `pref`. Errors if there are no
-supports.
+supports. Users can query just support points generated by a certain method
+using the keyword argument `label`. By default, the function returns all
+support points regardless of the associated label.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> supports(t)
-2-element Array{Int64,1}:
- 0
- 1
+2-element Array{Float64,1}:
+ 0.0
+ 1.0
 ```
 """
-function supports(pref::IndependentParameterRef)::Vector
+function supports(pref::IndependentParameterRef; label::Symbol = All)::Vector{Float64}
     has_supports(pref) || error("Parameter $pref does not have supports.")
-    return _parameter_supports(pref)
+    supports_dict = _parameter_supports(pref)
+    if label != All
+        isin(x) = label in x
+        supports = findall(isin, supports_dict)
+    else
+        supports = collect(keys(supports_dict))
+    end
+    return supports
 end
 
 """
-    set_supports(pref::IndependentParameterRef, supports::Vector{<:Number}; [force = false])
+    set_supports(pref::IndependentParameterRef, supports::Vector{<:Real}; [force = false])
 
 Specify the support points for `pref`. Errors if the supports violate the bounds
 associated with the infinite set. Warns if the points are not unique. If `force`
@@ -684,8 +721,8 @@ julia> supports(t)
  1
 ```
 """
-function set_supports(pref::IndependentParameterRef, supports::Vector{<:Number};
-                      force = false)
+function set_supports(pref::IndependentParameterRef, supports::Vector{<:Real};
+                      force::Bool = false, label::Symbol = UserDefined)::Nothing
     set = _parameter_set(pref)
     _check_supports_in_bounds(error, supports, set)
     if has_supports(pref) && !force
@@ -693,21 +730,17 @@ function set_supports(pref::IndependentParameterRef, supports::Vector{<:Number};
               " Consider using `add_supports` or use set `force = true` to " *
               "overwrite the existing supports.")
     end
-    if !(is_independent(pref)) &&
-       sum(values(pref.model.param_to_group_id) .== group_id(pref)) > 1
-        _update_parameter_supports(pref, supports)
-    else
-        unique_supports = unique(supports)
-        if length(unique_supports) != length(supports)
-            @warn("Support points are not unique, eliminating redundant points.")
-        end
-        _update_parameter_supports(pref, unique_supports)
+    supports_dict = DataStructures.SortedDict{Float64, Set{Symbol}}(
+                                            i => Set([label]) for i in supports)
+    if length(supports_dict) != length(supports)
+        @warn("Support points are not unique, eliminating redundant points.")
     end
+    _update_parameter_supports(pref, supports_dict)
     return
 end
 
 """
-    add_supports(pref::IndependentParameterRef, supports::Union{Number, Vector{<:Number}})
+    add_supports(pref::IndependentParameterRef, supports::Union{Real, Vector{<:Real}})
 
 Add additional support points for `pref`.
 
@@ -731,18 +764,15 @@ julia> supports(t)
  0.25
 ```
 """
-function add_supports(pref::IndependentParameterRef, supports::Union{Number,
-                                                          Vector{<:Number}})
-    set = _parameter_set(pref)
-    _check_supports_in_bounds(error, supports, set)
-    current_supports = _parameter_supports(pref)
-    if !(is_independent(pref)) &&
-       sum(values(pref.model.param_to_group_id) .== group_id(pref)) > 1
-        new_supports = [current_supports; supports]
-    else
-        new_supports = unique([current_supports; supports])
-    end
-    _update_parameter_supports(pref, new_supports)
+function add_supports(pref::IndependentParameterRef,
+                      supports::Union{Real, Vector{<:Real}};
+                      label::Symbol = UserDefined, check::Bool = true)::Nothing
+    set = infinite_set(pref)
+    check && _check_supports_in_bounds(error, supports, set)
+    new_supports = DataStructures.SortedDict{Float64, Set{Symbol}}(
+                                            i => Set([label]) for i in supports)
+    supports_dict = _parameter_supports(pref)
+    merge!(union, supports_dict, new_supports)
     return
 end
 
@@ -759,8 +789,12 @@ julia> supports(t)
 ERROR: Parameter t does not have supports.
 ```
 """
-function delete_supports(pref::IndependentParameterRef)
-    _update_parameter_supports(pref, Int[])
+function delete_supports(pref::IndependentParameterRef)::Nothing
+    if used_by_measure(pref)
+        error("Cannot delete the supports of $pref since it is used by " *
+              "a measure.")
+    end
+    _update_parameter_supports(pref, DataStructures.SortedDict{Float64, Set{Symbol}}())
     return
 end
 
@@ -773,11 +807,11 @@ an infinite parameter.
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @finite_parameter(model, cost, 42))
 julia> value(cost)
-42
+42.0
 ```
 """
 function JuMP.value(pref::FiniteParameterRef)::Real
-    return _data_object(pref).parameter.value
+    return _core_variable_object(pref).value
 end
 
 """
@@ -791,7 +825,7 @@ an infinite parameter.
 julia> set_value(cost, 27)
 
 julia> value(cost)
-27
+27.0
 ```
 """
 function JuMP.set_value(pref::FiniteParameterRef, value::Real)::Nothing
@@ -803,15 +837,15 @@ end
     fill_in_supports!(pref::IndependentParameterRef; [num_supports::Int = 10,
                                            sig_figs::Int = 5])
 
-Automatically generate support points for a particular infinite parameter `pref`.
+Automatically generate support points for a particular independent parameter `pref`.
 Generating `num_supports` for the parameter. The supports are generated uniformly
 if the underlying infinite set is an `IntervalSet` or they are generating randomly
-accordingly to the distribution if the set is a `DistributionSet`.
+accordingly to the distribution if the set is a `UniDistributionSet`.
 User can specify the number of digits kept after decimal point for the
-auto-generated supports wtih `sig_figs`. Extensions that use user defined
-set types should extend [`generate_and_add_supports!`](@ref) and/or
-[`generate_support_values`](@ref) as needed. Errors if the infinite set type is
-not recognized.
+auto-generated supports wtih `sig_figs`.Will add nothing if there are supports
+and `modify = false`. Extensions that use user defined set types should extend
+[`generate_and_add_supports!`](@ref) and/or [`generate_support_values`](@ref)
+as needed. Errors if the infinite set type is not recognized.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
@@ -827,11 +861,15 @@ julia> supports(x)
 ```
 """
 function fill_in_supports!(pref::IndependentParameterRef;
-                           num_supports::Int = 10, sig_figs::Int = 5)
-    p = JuMP.owner_model(pref).params[JuMP.index(pref)]
-    if length(p.supports) == 0
-        generate_and_add_supports!(pref, p.set, num_supports = num_supports,
-                                   sig_figs = sig_figs)
+                           num_supports::Int = 10, sig_figs::Int = 5,
+                           modify::Bool = true)::Nothing
+    set = infinite_set(pref)
+    current_amount = length(_parameter_supports(pref))
+    if (modify || current_amount == 0) && current_amount < num_supports
+        generate_and_add_supports!(pref, set,
+                                   num_supports = num_supports - current_amount,
+                                   sig_figs = sig_figs,
+                                   adding_extra = (current_amount > 0))
     end
     return
 end
@@ -841,22 +879,23 @@ end
                                set::AbstractInfiniteSet;
                                [num_supports::Int = 10, sig_figs::Int = 5])
 
-Generate supports for `pref` via [`generate_support_values`](@ref) and add them
-to `pref`. This is intended as an extendable internal method for
-[`fill_in_supports!`](@ref fill_in_supports!(::ParameterRef)). Note that if
-`pref` is part of a `DistributionSet` that features a multivariate distribution,
-all the associated parameters with `pref` will also have supports added to them.
+Generate supports for independent parameter `pref` via [`generate_support_values`](@ref)
+and add them to `pref`. This is intended as an extendable internal method for
+[`fill_in_supports!`](@ref fill_in_supports!(::IndependentParameterRef)).
 Most extensions that empoy user-defined infinite sets can typically enable this
-by extending [`generate_support_values`](@ref). However, in some cases it may be
-necessary to extend this when more complex operations need to take place then just
-adding supports to a single infinite parameter (e.g., how we enable multivariate
-distribution sets). Errors if the infinite set type is not recognized.
+by extending [`generate_support_values`](@ref). Errors if the infinite set type
+is not recognized.
 """
 function generate_and_add_supports!(pref::IndependentParameterRef,
                                     set::AbstractInfiniteSet;
-                                    num_supports::Int = 10, sig_figs::Int = 5)
-    add_supports(pref, generate_support_values(set, num_supports = num_supports,
-                                               sig_figs = sig_figs))
+                                    num_supports::Int = 10, sig_figs::Int = 5,
+                                    adding_extra::Bool = false)::Nothing
+    if isa(set, IntervalSet)
+        supports, label = generate_support_values(set, num_supports = num_supports, sig_figs = sig_figs, adding_extra = adding_extra)
+    else
+        supports, label = generate_support_values(set, num_supports = num_supports, sig_figs = sig_figs)
+    end
+    add_supports(pref, supports, label = label)
     return
 end
 

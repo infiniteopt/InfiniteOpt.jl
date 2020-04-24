@@ -339,13 +339,21 @@ end
 # IntervalSet
 function generate_support_values(set::IntervalSet;
                                  num_supports::Int = 10,
-                                 sig_figs::Int = 5
+                                 sig_figs::Int = 5,
+                                 adding_extra::Bool = false
                                  )::Tuple{Vector{<:Real}, Symbol}
     lb = JuMP.lower_bound(set)
     ub = JuMP.upper_bound(set)
-    new_supports = round.(range(lb, stop = ub, length = num_supports),
-                          sigdigits = sig_figs)
-    return new_supports, UniformGrid
+    if adding_extra
+        dist = Distributions.Uniform(lb, ub)
+        new_supports = round.(Distributions.rand(dist, num_supports),
+                              sigdigits = sig_figs)
+        return new_supports, McSample
+    else
+        new_supports = round.(range(lb, stop = ub, length = num_supports),
+                              sigdigits = sig_figs)
+        return new_supports, UniformGrid
+    end
 end
 
 # UniDistributionSet and MultiDistributionSet (with multivariate only)

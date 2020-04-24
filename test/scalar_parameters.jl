@@ -74,7 +74,7 @@
         info.has_lb = true; info.lower_bound = 0
         @test_throws ErrorException InfiniteOpt._constructor_set(error, info)
         info.has_ub = true; info.upper_bound = 1
-        check = :(isa($(info.lower_bound), Number))
+        check = :(isa($(info.lower_bound), Real))
         expected = :($(check) ? IntervalSet($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a number."))
         @test InfiniteOpt._constructor_set(error, info) == expected
         info = InfiniteOpt._ParameterInfoExpr(distribution = Normal())
@@ -317,281 +317,245 @@ end
         @test_macro_throws ErrorException @independent_parameter(m, 0 <= k <= 1, Int)
     end
 end
-#=
+
 # Test if used
 @testset "Used" begin
     m = InfiniteModel()
-    param = InfOptParameter(IntervalSet(0, 1), Number[], false)
-    pref = add_parameter(m, param, "test")
+    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
+    pref1 = add_parameter(m, p1, "p1")
+    p2 = FiniteParameter(1)
+    pref2 = add_parameter(m, p2, "p2")
     # used_by_constraint
     @testset "used_by_constraint" begin
-        @test !used_by_constraint(pref)
-        m.param_to_constrs[JuMP.index(pref)] = [1]
-        @test used_by_constraint(pref)
-        delete!(m.param_to_constrs, JuMP.index(pref))
+        @test !used_by_constraint(pref1)
+        @test !used_by_constraint(pref2)
+        push!(InfiniteOpt._data_object(pref1).constraint_indices, ConstraintIndex(1))
+        push!(InfiniteOpt._data_object(pref2).constraint_indices, ConstraintIndex(1))
+        @test used_by_constraint(pref1)
+        @test used_by_constraint(pref2)
+        popfirst!(InfiniteOpt._data_object(pref1).constraint_indices)
+        popfirst!(InfiniteOpt._data_object(pref2).constraint_indices)
     end
     # used_by_measure
     @testset "used_by_measure" begin
-        @test !used_by_measure(pref)
-        m.param_to_meas[JuMP.index(pref)] = [1]
-        @test used_by_measure(pref)
-        delete!(m.param_to_meas, JuMP.index(pref))
+        @test !used_by_measure(pref1)
+        @test !used_by_measure(pref2)
+        push!(InfiniteOpt._data_object(pref1).measure_indices, MeasureIndex(1))
+        push!(InfiniteOpt._data_object(pref2).measure_indices, MeasureIndex(1))
+        @test used_by_measure(pref1)
+        @test used_by_measure(pref2)
+        popfirst!(InfiniteOpt._data_object(pref1).measure_indices)
+        popfirst!(InfiniteOpt._data_object(pref2).measure_indices)
     end
-    # used_by_measure
-    @testset "used_by_variable" begin
-        @test !used_by_variable(pref)
-        m.param_to_vars[JuMP.index(pref)] = [1]
-        @test used_by_variable(pref)
-        delete!(m.param_to_vars, JuMP.index(pref))
+    # used_by_variable
+    @testset "used_by_infinite_variable" begin
+        @test !used_by_infinite_variable(pref1)
+        @test !used_by_infinite_variable(pref2)
+        push!(InfiniteOpt._data_object(pref1).infinite_var_indices, InfiniteVariableIndex(1))
+        push!(InfiniteOpt._data_object(pref2).infinite_var_indices, InfiniteVariableIndex(1))
+        @test used_by_infinite_variable(pref1)
+        @test used_by_infinite_variable(pref2)
+        popfirst!(InfiniteOpt._data_object(pref1).infinite_var_indices)
+        popfirst!(InfiniteOpt._data_object(pref2).infinite_var_indices)
+    end
+    # used_by_objective (for finite parameters)
+    @testset "used_by_objective (finite parameters)" begin
+        @test !used_by_objective(pref2)
+        InfiniteOpt._data_object(pref2).in_objective = true
+        @test used_by_objective(pref2)
+        InfiniteOpt._data_object(pref2).in_objective = false
     end
     # is_used
     @testset "is_used" begin
-        @test !is_used(pref)
-        m.param_to_constrs[JuMP.index(pref)] = [1]
-        @test is_used(pref)
-        delete!(m.param_to_constrs, JuMP.index(pref))
-        m.param_to_meas[JuMP.index(pref)] = [1]
-        @test is_used(pref)
-        delete!(m.param_to_meas, JuMP.index(pref))
-        m.param_to_vars[JuMP.index(pref)] = [1]
-        @test is_used(pref)
-        delete!(m.param_to_vars, JuMP.index(pref))
+        @test !is_used(pref1)
+        @test !is_used(pref2)
+        push!(InfiniteOpt._data_object(pref1).constraint_indices, ConstraintIndex(1))
+        push!(InfiniteOpt._data_object(pref2).constraint_indices, ConstraintIndex(1))
+        @test is_used(pref1)
+        @test is_used(pref2)
+        popfirst!(InfiniteOpt._data_object(pref1).constraint_indices)
+        popfirst!(InfiniteOpt._data_object(pref2).constraint_indices)
+        push!(InfiniteOpt._data_object(pref1).measure_indices, MeasureIndex(1))
+        push!(InfiniteOpt._data_object(pref2).measure_indices, MeasureIndex(1))
+        @test is_used(pref1)
+        @test is_used(pref2)
+        popfirst!(InfiniteOpt._data_object(pref1).measure_indices)
+        popfirst!(InfiniteOpt._data_object(pref2).measure_indices)
+        push!(InfiniteOpt._data_object(pref1).infinite_var_indices, InfiniteVariableIndex(1))
+        push!(InfiniteOpt._data_object(pref2).infinite_var_indices, InfiniteVariableIndex(1))
+        @test is_used(pref1)
+        @test is_used(pref2)
+        popfirst!(InfiniteOpt._data_object(pref1).infinite_var_indices)
+        popfirst!(InfiniteOpt._data_object(pref2).infinite_var_indices)
     end
 end
-
 
 # Test parameter set methods
 @testset "Infinite Set" begin
     m = InfiniteModel()
-    param = InfOptParameter(IntervalSet(0, 1), Number[], false)
-    pref = add_parameter(m, param, "test")
-    m.param_to_vars[JuMP.index(pref)] = [1]
+    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
+    pref_gen = add_parameter(m, param, "test")
+    pref_disp = dispatch_variable_ref(pref_gen)
     # _parameter_set
     @testset "_parameter_set" begin
-        @test InfiniteOpt._parameter_set(pref) == IntervalSet(0, 1)
+        @test InfiniteOpt._parameter_set(pref_disp) == IntervalSet(0, 1)
     end
     # _update_parameter_set
     @testset "_update_parameter_set " begin
-        @test isa(InfiniteOpt._update_parameter_set(pref,
+        @test isa(InfiniteOpt._update_parameter_set(pref_disp,
                                                     IntervalSet(1, 2)), Nothing)
-        @test InfiniteOpt._parameter_set(pref) == IntervalSet(1, 2)
+        @test InfiniteOpt._parameter_set(pref_disp) == IntervalSet(1, 2)
     end
     # infinite_set
     @testset "infinite_set" begin
-        @test infinite_set(pref) == IntervalSet(1, 2)
+        @test infinite_set(pref_gen) == IntervalSet(1, 2)
     end
     # set_infinite_set
     @testset "set_infinite_set" begin
-        @test isa(set_infinite_set(pref, IntervalSet(1, 3)), Nothing)
-        @test infinite_set(pref) == IntervalSet(1, 3)
+        @test isa(set_infinite_set(pref_gen, IntervalSet(1, 3)), Nothing)
+        @test infinite_set(pref_gen) == IntervalSet(1, 3)
+        push!(InfiniteOpt._data_object(pref_gen).measure_indices, MeasureIndex(1))
+        @test_throws ErrorException set_infinite_set(pref_gen, IntervalSet(1, 3))
+        @test_throws ErrorException set_infinite_set(pref_gen, UniDistributionSet(Normal()))
     end
 end
 
 # Test parameter support methods
 @testset "Supports" begin
     m = InfiniteModel()
-    param = InfOptParameter(IntervalSet(0, 1), Number[], false)
+    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
     pref = add_parameter(m, param, "test")
-    prefs = @infinite_parameter(m, x[1:3] in [0, 1])
+    pref_disp = dispatch_variable_ref(pref)
     # _parameter_supports
     @testset "_parameter_supports" begin
-        @test InfiniteOpt._parameter_supports(pref) == Number[]
+        @test InfiniteOpt._parameter_supports(pref_disp) == SortedDict{Float64, Set{Symbol}}()
+    end
+    @testset "_parameter_support_values" begin
+        @test InfiniteOpt._parameter_support_values(pref_disp) == Float64[]
     end
     # _update_parameter_supports
     @testset "_update_parameter_supports " begin
-        @test isa(InfiniteOpt._update_parameter_supports(pref, [1]), Nothing)
-        @test InfiniteOpt._parameter_supports(pref) == [1]
+        dict = SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}())
+        @test isa(InfiniteOpt._update_parameter_supports(pref_disp, dict), Nothing)
+        @test InfiniteOpt._parameter_support_values(pref_disp) == [1.]
     end
     # num_supports
     @testset "num_supports" begin
         @test num_supports(pref) == 1
+        @test num_supports(pref, label = UserDefined) == 0
     end
     # has_supports
     @testset "has_supports" begin
         @test has_supports(pref)
-        InfiniteOpt._update_parameter_supports(pref, Number[])
+        InfiniteOpt._update_parameter_supports(pref_disp, SortedDict{Float64, Set{Symbol}}())
         @test !has_supports(pref)
     end
     # supports
     @testset "supports" begin
         @test_throws ErrorException supports(pref)
-        InfiniteOpt._update_parameter_supports(pref, [1])
-        @test supports(pref) == [1]
+        dict = SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}())
+        InfiniteOpt._update_parameter_supports(pref_disp, dict)
+        @test supports(pref) == [1.]
     end
     # set_supports
     @testset "set_supports" begin
         @test isa(set_supports(pref, [0, 1], force = true), Nothing)
-        @test supports(pref) == [0, 1]
+        @test supports(pref) == [0., 1.]
         @test_throws ErrorException set_supports(pref, [2, 3])
         warn = "Support points are not unique, eliminating redundant points."
         @test_logs (:warn, warn) set_supports(pref, [1, 1], force = true)
         @test_throws ErrorException set_supports(pref, [0.5])
-        @test set_supports(prefs[1], [1, 1]) isa Nothing
-        @test supports(prefs[1]) == [1, 1]
     end
     # add_supports
     @testset "add_supports" begin
         @test isa(add_supports(pref, 0.5), Nothing)
-        @test supports(pref) == [1, 0.5]
+        @test supports(pref) == [0.5, 1.]
         @test isa(add_supports(pref, [0, 0.25, 1]), Nothing)
-        @test supports(pref) == [1, 0.5, 0, 0.25]
-        @test add_supports(prefs[2], [1, 1]) isa Nothing
-        @test supports(prefs[2]) == [1, 1]
+        @test supports(pref) == [0, 0.25, 0.5, 1.]
     end
     # delete_supports
     @testset "delete_supports" begin
         @test isa(delete_supports(pref), Nothing)
         @test_throws ErrorException supports(pref)
+        push!(InfiniteOpt._data_object(pref).measure_indices, MeasureIndex(1))
+        @test_throws ErrorException delete_supports(pref)
     end
 end
 
 # Test lower bound functions
 @testset "Lower Bound" begin
     m = InfiniteModel()
-    param = InfOptParameter(IntervalSet(0, 1), Number[], false)
-    pref = add_parameter(m, param, "test")
+    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
+    pref1 = add_parameter(m, p1)
+    p2 = IndependentParameter(UniDistributionSet(Normal()), SortedDict{Float64, Set{Symbol}}())
+    pref2 = add_parameter(m, p2)
+    p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}())
+    pref3 = add_parameter(m, p3)
     # JuMP.has_lower_bound
     @testset "JuMP.has_lower_bound" begin
-        @test has_lower_bound(pref)
-        set_infinite_set(pref, DistributionSet(Normal()))
-        @test has_lower_bound(pref)
-        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/2, 1/2])))
-        @test !has_lower_bound(pref)
-        set_infinite_set(pref, BadSet())
-        @test !has_lower_bound(pref)
+        @test has_lower_bound(pref1)
+        @test has_lower_bound(pref2)
     end
     # JuMP.lower_bound
     @testset "JuMP.lower_bound" begin
-        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/2, 1/2])))
-        @test_throws ErrorException lower_bound(pref)
-        set_infinite_set(pref, IntervalSet(0, 1))
-        @test lower_bound(pref) == 0
-        set_infinite_set(pref, DistributionSet(Normal()))
-        @test lower_bound(pref) == -Inf
+        @test lower_bound(pref1) == 0
+        @test lower_bound(pref2) == -Inf
+        @test_throws ErrorException lower_bound(pref3)
     end
     # JuMP.set_lower_bound
     @testset "JuMP.set_lower_bound" begin
-        @test_throws ErrorException set_lower_bound(pref, 2)
-        set_infinite_set(pref, BadSet())
-        @test_throws ErrorException set_lower_bound(pref, 2)
-        set_infinite_set(pref, IntervalSet(0, 1))
-        @test isa(set_lower_bound(pref, -1), Nothing)
-        @test lower_bound(pref) == -1
+        @test_throws ErrorException set_lower_bound(pref1, 2)
+        @test_throws ErrorException set_lower_bound(pref3, 2)
+        @test isa(set_lower_bound(pref1, -1), Nothing)
+        @test lower_bound(pref1) == -1
     end
 end
 
 # Test upper bound functions
 @testset "Upper Bound" begin
     m = InfiniteModel()
-    param = InfOptParameter(IntervalSet(0, 1), Number[], false)
-    pref = add_parameter(m, param, "test")
+    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
+    pref1 = add_parameter(m, p1)
+    p2 = IndependentParameter(UniDistributionSet(Normal()), SortedDict{Float64, Set{Symbol}}())
+    pref2 = add_parameter(m, p2)
+    p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}())
+    pref3 = add_parameter(m, p3)
     # JuMP.has_upper_bound
     @testset "JuMP.has_upper_bound" begin
-        @test has_upper_bound(pref)
-        set_infinite_set(pref, DistributionSet(Normal()))
-        @test has_upper_bound(pref)
-        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/2, 1/2])))
-        @test !has_upper_bound(pref)
-        set_infinite_set(pref, BadSet())
-        @test !has_upper_bound(pref)
+        @test has_upper_bound(pref1)
+        @test has_upper_bound(pref2)
     end
-    # JuMP.upper_bound
+    # JuMP.lower_bound
     @testset "JuMP.upper_bound" begin
-        set_infinite_set(pref, DistributionSet(Multinomial(3, [1/2, 1/2])))
-        @test_throws ErrorException upper_bound(pref)
-        set_infinite_set(pref, IntervalSet(0, 1))
-        @test upper_bound(pref) == 1
-        set_infinite_set(pref, DistributionSet(Normal()))
-        @test upper_bound(pref) == Inf
+        @test upper_bound(pref1) == 1
+        @test upper_bound(pref2) == Inf
+        @test_throws ErrorException upper_bound(pref3)
     end
-    # JuMP.set_upper_bound
+    # JuMP.set_lower_bound
     @testset "JuMP.set_upper_bound" begin
-        @test_throws ErrorException set_upper_bound(pref, 2)
-        set_infinite_set(pref, BadSet())
-        @test_throws ErrorException set_upper_bound(pref, 2)
-        set_infinite_set(pref, IntervalSet(0, 1))
-        @test isa(set_upper_bound(pref, 2), Nothing)
-        @test upper_bound(pref) == 2
-    end
-end
-
-# Test the independent manipulation functions
-@testset "Independent" begin
-    m = InfiniteModel()
-    param = InfOptParameter(IntervalSet(0, 1), Number[], false)
-    pref = add_parameter(m, param, "test")
-    # is_independent
-    @testset "is_indepentent" begin
-        @test !is_independent(pref)
-    end
-    # set_independent
-    @testset "set_indepentent" begin
-        @test isa(set_independent(pref), Nothing)
-        @test is_independent(pref)
-    end
-    # unset_independent
-    @testset "unset_indepentent" begin
-        @test isa(unset_independent(pref), Nothing)
-        @test !is_independent(pref)
-    end
-end
-
-# Test the internal helper functions
-@testset "Internal Helpers" begin
-    m = InfiniteModel()
-    param = InfOptParameter(IntervalSet(0, 1), Number[], false)
-    pref = add_parameter(m, param, "test")
-    pref2 = add_parameter(m, param, "θ")
-    prefs = @infinite_parameter(m, x[1:2], set = IntervalSet(0, 1),
-                                container = SparseAxisArray)
-    # group_id
-    @testset "group_id" begin
-        @test group_id(pref) == 1
-    end
-    # _root_name
-    @testset "_root_name" begin
-        @test InfiniteOpt._root_name(pref) == "test"
-        @test InfiniteOpt._root_name(prefs[1]) == "x"
-        @test InfiniteOpt._root_name(pref2) == "θ"
+        @test_throws ErrorException set_upper_bound(pref1, -1)
+        @test_throws ErrorException set_upper_bound(pref3, -1)
+        @test isa(set_upper_bound(pref1, 2), Nothing)
+        @test upper_bound(pref1) == 2
     end
 end
 
 # Test everything else
 @testset "Other Queries" begin
     m = InfiniteModel()
-    param = InfOptParameter(IntervalSet(0, 1), Number[], false)
+    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
     pref = add_parameter(m, param, "test")
-    prefs = @infinite_parameter(m, [1:2], set = IntervalSet(0, 1),
-                                container = SparseAxisArray)
+    prefs = @independent_parameter(m, [1:2], set = IntervalSet(0, 1),
+                                   container = SparseAxisArray)
     # JuMP.is_valid
     @testset "JuMP.is_valid" begin
         @test is_valid(m, pref)
-        pref2 = ParameterRef(InfiniteModel(), 1)
+        pref2 = GeneralVariableRef(InfiniteModel(), 1, IndependentParameterIndex)
         @test !is_valid(m, pref2)
-        pref3 = ParameterRef(m, 5)
+        pref3 = GeneralVariableRef(m, 5, IndependentParameterIndex)
         @test !is_valid(m, pref3)
     end
-    # supports (array)
-    @testset "supports (array)" begin
-        @test_throws ErrorException supports(prefs)
-        @test_throws ErrorException supports([prefs[1]; pref])
-        set_supports(prefs[1], [0])
-        set_supports(prefs[2], [0, 1])
-        @test_throws ErrorException supports(prefs)
-        add_supports(prefs[1], [1])
-        expected = JuMP.Containers.SparseAxisArray[]
-        push!(expected, convert(JuMP.Containers.SparseAxisArray, [0; 0]))
-        push!(expected, convert(JuMP.Containers.SparseAxisArray, [1; 1]))
-        @test supports(prefs) == expected
-        expected = JuMP.Containers.SparseAxisArray[]
-        push!(expected, convert(JuMP.Containers.SparseAxisArray, [0; 0]))
-        push!(expected, convert(JuMP.Containers.SparseAxisArray, [0; 1]))
-        push!(expected, convert(JuMP.Containers.SparseAxisArray, [1; 0]))
-        push!(expected, convert(JuMP.Containers.SparseAxisArray, [1; 1]))
-        set_independent(prefs[1])
-        set_independent(prefs[2])
-        @test sort(supports(prefs)) == sort(expected)
-    end
+    #=
     # num_parameters
     @testset "num_parameters" begin
         @test num_parameters(m) == 3
@@ -604,8 +568,9 @@ end
         @test length(all_parameters(m)) == 3
         @test all_parameters(m)[1] == pref
     end
+    =#
 end
-=#
+
 # Test methods for finite parameters
 @testset "Finite Parameters" begin
     # initialize the model
@@ -659,65 +624,40 @@ end
         @test name(prefs[2]) == "c[2]"
     end
 end
-#=
+
 # Test support flll-in and geneartion functions
 @testset "Support Fill-in and Generation" begin
     @testset "generate_and_add_supports! (AbstractInfiniteSet)" begin
         m = InfiniteModel()
-        pref1 = @infinite_parameter(m, 0 <= a <= 1)
-        set1 = JuMP.owner_model(pref1).params[JuMP.index(pref1)].set
+        gvref1 = @independent_parameter(m, 0 <= a <= 1)
+        pref1 = dispatch_variable_ref(gvref1)
+        set1 = infinite_set(pref1)
         dist = Normal(0., 1.)
-        pref2 = @infinite_parameter(m, c in dist)
-        set2 = JuMP.owner_model(pref2).params[JuMP.index(pref2)].set
+        gvref2 = @independent_parameter(m, c in dist)
+        pref2 = dispatch_variable_ref(gvref2)
+        set2 = infinite_set(pref2)
         @test generate_and_add_supports!(pref1, set1, num_supports = 10) isa Nothing
         @test generate_and_add_supports!(pref2, set2, num_supports = 10) isa Nothing
         @test length(supports(pref1)) == 10
         @test length(supports(pref2)) == 10
     end
-    @testset "generate_and_add_supports! (Multivariate DistributionSet)" begin
-        m = InfiniteModel()
-        dist = MvNormal([0.; 0.], [1. 0.; 0. 2.])
-        prefs = @infinite_parameter(m, x[1:2] in dist)
-        set = JuMP.owner_model(prefs[1]).params[JuMP.index(prefs[1])].set
-        @test generate_and_add_supports!(prefs[1], set, num_supports = 10, sig_fig = 7) isa Nothing
-        @test length(supports(prefs[1])) == 10
-        @test length(supports(prefs[2])) == 10
-    end
     # fill_in_supports! (ParameterRef)
     @testset "fill_in_supports! (ParameterRef)" begin
         m = InfiniteModel()
-        pref1 = @infinite_parameter(m, 0 <= a <= 1)
-        pref2 = @infinite_parameter(m, 0 <= b[1:2] <= 1)
+        pref1 = @independent_parameter(m, 0 <= a <= 1)
+        pref2 = @independent_parameter(m, 0 <= b[1:2] <= 1)
         dist = Normal(0., 1.)
-        pref3 = @infinite_parameter(m, c in dist, supports = [-0.5, 0.5])
-        @test fill_in_supports!(pref1, num_supports = 11, sig_fig = 3) isa Nothing
-        @test fill_in_supports!.(pref2, num_supports = 11, sig_fig = 3) isa Array{Nothing}
-        @test fill_in_supports!(pref3, num_supports = 11, sig_fig = 3) isa Nothing
+        pref3 = @independent_parameter(m, c in dist, supports = [-0.5, 0.5])
+        @test fill_in_supports!(pref1, num_supports = 11, sig_figs = 3) isa Nothing
+        @test fill_in_supports!.(pref2, num_supports = 11, sig_figs = 3) isa Array{Nothing}
+        @test fill_in_supports!(pref3, num_supports = 11, sig_figs = 3) isa Nothing
         @test length(supports(pref1)) == 11
         @test length(supports(pref2[1])) == 11
         @test length(supports(pref2[2])) == 11
-        @test supports(pref3) == [-0.5, 0.5]
+        @test length(supports(pref3)) == 11
+        @test -0.5 in supports(pref3)
+        @test 0.5 in supports(pref3)
         @test fill_in_supports!(pref1, num_supports = 20) isa Nothing
-        @test length(supports(pref1)) == 11
-    end
-    # fill_in_supports! (InfiniteModel)
-    @testset "fill_in_supports! (InfiniteModel)" begin
-        m = InfiniteModel()
-        dist1 = Normal(0., 1.)
-        dist2 = MvNormal([0.; 0.], [1. 0.;0. 2.])
-        pref_a = @infinite_parameter(m, 0 <= a <= 1)
-        prefs_b = @infinite_parameter(m, 1 <= b[1:2] <= 2)
-        pref_c = @infinite_parameter(m, c in dist1)
-        prefs_d = @infinite_parameter(m, d[1:2] in dist2)
-        pref_e = @infinite_parameter(m, 2 <= e <= 3, supports = [2.3, 2.7])
-        @test fill_in_supports!(m, num_supports = 10) isa Nothing
-        @test supports(pref_a) == round.(collect(range(0., stop = 1., step = 1/9)), sigdigits = 5)
-        @test supports(prefs_b[1]) == round.(collect(range(1., stop = 2., step = 1/9)), sigdigits = 5)
-        @test supports(prefs_b[2]) == round.(collect(range(1., stop = 2., step = 1/9)), sigdigits = 5)
-        @test length(supports(pref_c)) == 10
-        @test length(supports(prefs_d[1])) == 10
-        @test length(supports(prefs_d[2])) == 10
-        @test supports(pref_e) == [2.3, 2.7]
+        @test length(supports(pref1)) == 20
     end
 end
-=#
