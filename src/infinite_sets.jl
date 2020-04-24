@@ -340,11 +340,11 @@ end
 function generate_support_values(set::IntervalSet;
                                  num_supports::Int = 10,
                                  sig_figs::Int = 5,
-                                 adding_extra::Bool = false
+                                 use_mc::Bool = false
                                  )::Tuple{Vector{<:Real}, Symbol}
     lb = JuMP.lower_bound(set)
     ub = JuMP.upper_bound(set)
-    if adding_extra
+    if use_mc
         dist = Distributions.Uniform(lb, ub)
         new_supports = round.(Distributions.rand(dist, num_supports),
                               sigdigits = sig_figs)

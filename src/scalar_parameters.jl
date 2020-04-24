@@ -890,8 +890,8 @@ function generate_and_add_supports!(pref::IndependentParameterRef,
                                     set::AbstractInfiniteSet;
                                     num_supports::Int = 10, sig_figs::Int = 5,
                                     adding_extra::Bool = false)::Nothing
-    if isa(set, IntervalSet)
-        supports, label = generate_support_values(set, num_supports = num_supports, sig_figs = sig_figs, adding_extra = adding_extra)
+    if isa(set, IntervalSet) && adding_extra
+        supports, label = generate_support_values(set, num_supports = num_supports, sig_figs = sig_figs, use_mc = true)
     else
         supports, label = generate_support_values(set, num_supports = num_supports, sig_figs = sig_figs)
     end
