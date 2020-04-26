@@ -899,6 +899,54 @@ function fill_in_supports!(prefs::AbstractArray{<:GeneralVariableRef};
                              modify = modify)
 end
 
+"""
+    JuMP.value(vref::DispatchVariableRef)::Float64
+
+Extend [`JuMP.value`](@ref JuMP.value(::JuMP.VariableRef)) to
+return the value of `vref`. This needs to be extended for the
+type of `vref`. This should use the appropriate getter functions.
+"""
+function JuMP.value(vref::DispatchVariableRef)
+    throw(ArgumentError("`JuMP.value` not defined for variable reference type " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    JuMP.value(vref::GeneralVariableRef)::Float64
+
+Extend [`JuMP.value`](@ref JuMP.value(::JuMP.VariableRef)) to
+return the value of `vref`. It relies on `JuMP.value`
+being defined for the underlying `DispatchVariableRef`, otherwise an
+`ArugmentError` is thrown.
+"""
+function JuMP.value(vref::GeneralVariableRef)::Float64
+    return JuMP.value(dispatch_variable_ref(vref))
+end
+
+"""
+    JuMP.set_value(vref::DispatchVariableRef, value::Real)::Float64
+
+Extend [`JuMP.set_value`](@ref JuMP.set_value) to
+return the value of `vref`. This needs to be extended for the
+type of `vref`. This should use the appropriate getter functions.
+"""
+function JuMP.set_value(vref::DispatchVariableRef, value::Real)
+    throw(ArgumentError("`JuMP.set_value` not defined for variable reference type " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    JuMP.set_value(vref::DispatchVariableRef, value::Real)::Float64
+
+Extend [`JuMP.value`](@ref JuMP.value(::JuMP.VariableRef)) to
+return the value of `vref`. It relies on `JuMP.value`
+being defined for the underlying `DispatchVariableRef`, otherwise an
+`ArugmentError` is thrown.
+"""
+function JuMP.set_value(vref::GeneralVariableRef, value::Real)::Nothing
+    return JuMP.set_value(dispatch_variable_ref(vref), value)
+end
+
 ################################################################################
 #                              VARIABLE METHODS
 ################################################################################

@@ -339,6 +339,7 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
    infinite variables.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
+- `in_objective::Bool`: Is this used in objective? This should be true only for finite parameters.
 """
 mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     parameter::P
@@ -348,13 +349,14 @@ mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     infinite_var_indices::Vector{InfiniteVariableIndex}
     measure_indices::Vector{MeasureIndex}
     constraint_indices::Vector{ConstraintIndex}
+    in_objective::Bool
     function ScalarParameterData(param::P,
                                  object_num::Int,
                                  parameter_num::Int,
                                  name::String = ""
                                  ) where {P <: ScalarParameter}
         return new{P}(param, object_num, parameter_num, name,
-                      InfiniteVariableIndex[], MeasureIndex[], ConstraintIndex[])
+                      InfiniteVariableIndex[], MeasureIndex[], ConstraintIndex[], false)
     end
 end
 
