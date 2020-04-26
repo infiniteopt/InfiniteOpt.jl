@@ -1,3 +1,47 @@
+################################################################################
+#                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
+################################################################################
+# Extend dispatch_variable_ref
+function dispatch_variable_ref(model::InfiniteModel,
+                               index::ReducedInfiniteVariableIndex
+                               )::ReducedInfiniteVariableRef
+    return ReducedInfiniteVariableRef(model, index)
+end
+
+# Extend _add_data_object
+function _add_data_object(model::InfiniteModel,
+                          object::VariableData{<:ReducedInfiniteVariable}
+                          )::ReducedInfiniteVariableIndex
+    return MOIUC.add_item(model.reduced_vars, object)
+end
+
+# Extend _data_dictionary (type based)
+function _data_dictionary(model::InfiniteModel, ::Type{ReducedInfiniteVariable}
+    )::MOIUC.CleverDict{ReducedInfiniteVariableIndex, VariableData{ReducedInfiniteVariable{GeneralVariableRef}}}
+    return model.reduced_vars
+end
+
+# Extend _data_dictionary (reference based)
+function _data_dictionary(vref::ReducedInfiniteVariableRef
+    )::MOIUC.CleverDict{ReducedInfiniteVariableIndex, VariableData{ReducedInfiniteVariable{GeneralVariableRef}}}
+    return JuMP.owner_model(vref).reduced_vars
+end
+
+# Extend _data_object
+function _data_object(vref::ReducedInfiniteVariableRef)::VariableData{<:ReducedInfiniteVariable}
+    return _data_dictionary(vref)[JuMP.index(vref)]
+end
+
+# Extend _core_variable_object
+function _core_variable_object(vref::ReducedInfiniteVariableRef)::ReducedInfiniteVariable
+    return _data_object(vref).variable
+end
+
+# Extend _object_numbers
+function _object_numbers(vref::ReducedInfiniteVariableRef)::Vector{Int}
+    return _core_variable_object(vref).object_nums
+end
+
 """
     reduction_info(vref::ReducedInfiniteVariableRef,
                    key::Val{:my_ext_key}
@@ -25,6 +69,42 @@ function _reduced_info(vref::ReducedInfiniteVariableRef)::ReducedInfiniteInfo
     end
 end
 
+################################################################################
+#                                USAGE METHODS
+################################################################################
+"""
+    used_by_constraint(vref::ReducedInfiniteVariableRef)::Bool
+
+Return a `Bool` indicating if `vref` is used by a constraint.
+
+**Example**
+```julia-repl
+julia> used_by_constraint(vref)
+false
+```
+"""
+function used_by_constraint(vref::ReducedInfiniteVariableRef)::Bool
+    return haskey(JuMP.owner_model(vref).reduced_to_constrs, JuMP.index(vref))
+end
+
+"""
+    used_by_measure(vref::ReducedInfiniteVariableRef)::Bool
+
+Return a `Bool` indicating if `vref` is used by a measure.
+
+**Example**
+```julia-repl
+julia> used_by_measure(vref)
+true
+```
+"""
+function used_by_measure(vref::ReducedInfiniteVariableRef)::Bool
+    return haskey(JuMP.owner_model(vref).reduced_to_meas, JuMP.index(vref))
+end
+
+################################################################################
+#                          PARAMETER REFERENCE METHODS
+################################################################################
 """
     infinite_variable_ref(vref::ReducedInfiniteVariableRef)::InfiniteVariableRef
 
@@ -105,6 +185,9 @@ function parameter_list(vref::ReducedInfiniteVariableRef)::Vector{ParameterRef}
     return orig_prefs[indices]
 end
 
+################################################################################
+#                                NAME METHODS
+################################################################################
 """
     JuMP.name(vref::ReducedInfiniteVariableRef)::String
 
@@ -134,6 +217,9 @@ function JuMP.name(vref::ReducedInfiniteVariableRef)::String
     return string(root_name, param_name_tuple)
 end
 
+################################################################################
+#                            VARIABLE INFO METHODS
+################################################################################
 """
     JuMP.has_lower_bound(vref::ReducedInfiniteVariableRef)::Bool
 
@@ -415,52 +501,10 @@ function JuMP.IntegerRef(vref::ReducedInfiniteVariableRef)::GeneralConstraintRef
     return JuMP.IntegerRef(infinite_variable_ref(vref))
 end
 
-"""
-    used_by_constraint(vref::ReducedInfiniteVariableRef)::Bool
-
-Return a `Bool` indicating if `vref` is used by a constraint.
-
-**Example**
-```julia-repl
-julia> used_by_constraint(vref)
-false
-```
-"""
-function used_by_constraint(vref::ReducedInfiniteVariableRef)::Bool
-    return haskey(JuMP.owner_model(vref).reduced_to_constrs, JuMP.index(vref))
-end
-
-"""
-    used_by_measure(vref::ReducedInfiniteVariableRef)::Bool
-
-Return a `Bool` indicating if `vref` is used by a measure.
-
-**Example**
-```julia-repl
-julia> used_by_measure(vref)
-true
-```
-"""
-function used_by_measure(vref::ReducedInfiniteVariableRef)::Bool
-    return haskey(JuMP.owner_model(vref).reduced_to_meas, JuMP.index(vref))
-end
-
-"""
-    JuMP.is_valid(model::InfiniteModel, vref::ReducedInfiniteVariableRef)::Bool
-
-Extend [`JuMP.is_valid`](@ref) to accomodate reduced infinite variables.
-
-**Example**
-```julia-repl
-julia> is_valid(model, vref)
-true
-```
-"""
-function JuMP.is_valid(model::InfiniteModel,
-                       vref::ReducedInfiniteVariableRef)::Bool
-    return (model === JuMP.owner_model(vref)) && haskey(model.reduced_info, JuMP.index(vref))
-end
-
+################################################################################
+#                                  DELETION
+################################################################################
+#=
 """
     JuMP.delete(model::InfiniteModel, vref::ReducedInfiniteVariableRef)
 
@@ -535,3 +579,4 @@ function JuMP.delete(model::InfiniteModel, vref::ReducedInfiniteVariableRef)
     delete!(model.reduced_info, JuMP.index(vref))
     return
 end
+=#

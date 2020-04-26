@@ -902,7 +902,95 @@ end
 ################################################################################
 #                              VARIABLE METHODS
 ################################################################################
+# Dispatch fallback
+function raw_parameter_refs(vref::DispatchVariableRef)
+    throw(ArgumentError("`raw_parameter_refs` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
 
+"""
+    raw_parameter_refs(vref::GeneralVariableRef)::VectorTuple{GeneralVariableRef}
+
+Return the raw [`VectorTuple`](@ref) of the parameter references that `vref`
+depends on. An `ArgumentError` is thrown if `vref` is not an infinite/reduced
+variable.
+"""
+function raw_parameter_refs(vref::GeneralVariableRef)::VectorTuple{GeneralVariableRef}
+    return raw_parameter_refs(dispatch_variable_ref(vref))
+end
+
+# Dispatch fallback
+function parameter_refs(vref::DispatchVariableRef)
+    throw(ArgumentError("`parameter_refs` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    parameter_refs(vref::GeneralVariableRef)::Tuple
+
+Return the parameter references associated with the infinite variable `vref`. This
+is formatted as a Tuple of containing the parameter references as they inputted
+to define `vref`. An `ArgumentError` is thrown if `vref` is not an infinite/reduced
+variable.
+"""
+function parameter_refs(vref::GeneralVariableRef)::Tuple
+    return parameter_refs(dispatch_variable_ref(vref))
+end
+
+# Dispatch fallback
+function parameter_list(vref::DispatchVariableRef)
+    throw(ArgumentError("`parameter_list` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    parameter_list(vref::GeneralVariableRef)::Vector{GeneralVariableRef}
+
+Return a vector of the parameter references that `vref` depends on.
+An `ArgumentError` is thrown if `vref` is not an infinite/reduced variable.
+"""
+function parameter_list(vref::GeneralVariableRef)::Vector{GeneralVariableRef}
+    return parameter_list(dispatch_variable_ref(vref))
+end
+
+# Dispatch fallback
+function set_parameter_refs(vref::DispatchVariableRef, prefs::Tuple)
+    throw(ArgumentError("`set_parameter_refs` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    set_parameter_refs(vref::GeneralVariableRef, prefs::Tuple)::Nothing
+
+Specify a new parameter reference tuple `prefs` for the infinite variable `vref`.
+An `ArgumentError` is thrown if `vref` is not an infinite/reduced variable.
+"""
+function set_parameter_refs(vref::GeneralVariableRef, prefs::Tuple)::Nothing
+    return set_parameter_refs(dispatch_variable_ref(vref), prefs)
+end
+
+# Dispatch fallback
+function add_parameter_ref(vref::DispatchVariableRef,
+    pref::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}
+    )
+    throw(ArgumentError("`add_parameter_refs` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    add_parameter_ref(vref::GeneralVariableRef,
+        pref::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}
+        )::Nothing
+
+Add additional parameter reference or group of parameter references to be
+associated with the infinite variable `vref`. An `ArgumentError` is thrown if
+`vref` is not an infinite/reduced variable.
+"""
+function add_parameter_ref(vref::GeneralVariableRef,
+    pref::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}
+    )::Nothing
+    return add_parameter_ref(dispatch_variable_ref(vref), pref)
+end
 
 ################################################################################
 #                            LOWER BOUND METHODS

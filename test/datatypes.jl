@@ -279,7 +279,8 @@ end
 @testset "Variables" begin
     # useful data
     m = InfiniteModel()
-    sample_info = VariableInfo(zeros(Bool, 10)...)
+    num = Float64(0)
+    sample_info = VariableInfo(true, num, true, num, true, num, true, num, true, true)
     pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
     vref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
     # Abstract variables

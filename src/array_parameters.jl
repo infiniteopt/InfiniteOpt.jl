@@ -31,6 +31,11 @@ function _core_variable_object(pref::DependentParameterRef)::DependentParameters
     return _data_object(pref).parameters
 end
 
+# Return the number of dependent parameters involved
+function _num_parameters(pref::DependentParameterRef)::Int
+    return length(_data_object(pref).names)
+end
+
 ################################################################################
 #                             PARAMETER DEFINITION
 ################################################################################
@@ -401,6 +406,11 @@ function _object_number(pref::DependentParameterRef)::Int
     return _data_object(pref).object_num
 end
 
+# Extend _object_numbers
+function _object_numbers(pref::DependentParameterRef)::Vector{Int}
+    return [_object_number(pref)]
+end
+
 # Extend _set_core_variable_object
 function _set_core_variable_object(pref::DependentParameterRef,
                                    params::DependentParameters)::Nothing
@@ -452,7 +462,7 @@ end
 function _check_complete_param_array(
     prefs::AbstractArray{<:DependentParameterRef}
     )::Nothing
-    if length(prefs) != length(_data_object(first(prefs)).names)
+    if length(prefs) != _num_parameters(first(prefs))
         error("Dimensions of parameter container and the infinite set do not " *
               "match, ensure all related dependent parameters are included.")
     end
@@ -503,7 +513,7 @@ Specify the scalar infinite set of the dependent infinite parameter `pref` to
 `set` if `pref` is part of a [`CollectionSet`](@ref), otherwise an error is
 thrown. Note this will reset/delete all the supports contained in the
 underlying [`DependentParameters`](@ref) object. Also, errors if `pref` is used
-by a measure.
+by a measure or if the new set type is different than the original.
 
 **Example**
 ```julia-repl
@@ -522,6 +532,8 @@ function set_infinite_set(pref::DependentParameterRef,
     elseif used_by_measure(pref)
         error("Cannot override the infinite set of $pref since it is used by " *
               "a measure.")
+    elseif !(CollectionSet{typeof(set)} <: typeof(old_set))
+        error("Cannot change the underlying set type.")
     end
     param_idx = _param_index(pref)
     new_set = CollectionSet([i != param_idx ? collection_sets(old_set)[i] : set
@@ -537,8 +549,8 @@ end
 Specify the multi-dimensional infinite set of the dependent infinite parameters
 `prefs` to `set`. Note this will reset/delete all the supports contained in the
 underlying [`DependentParameters`](@ref) object. This will error if the not all
-of the dependent infinite parameters are included or if any of them are used by
-measures.
+of the dependent infinite parameters are included, if any of them are used by
+measures, or if the new set type is different than the previous.
 
 **Example**
 ```julia-repl
@@ -550,8 +562,9 @@ function set_infinite_set(prefs::AbstractArray{<:DependentParameterRef},
     if any(used_by_measure(pref) for pref in prefs)
         error("Cannot override the infinite set of $prefs since it is used by " *
               "a measure.")
+    elseif !(typeof(set) <: typeof(infinite_set(prefs))) # this checks prefs
+        error("Cannot change the underlying set type.")
     end
-    _check_complete_param_array(prefs)
     _update_parameter_set(first(prefs), set)
     return
 end

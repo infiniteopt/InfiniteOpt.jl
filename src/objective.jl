@@ -1,13 +1,13 @@
 """
     JuMP.set_objective_function(model::InfiniteModel,
-                                func::JuMP.AbstractJuMPScalar)
+                                func::JuMP.AbstractJuMPScalar)::Nothing
 
 Extend [`JuMP.set_objective_function`](@ref) to set the objective expression of
 infinite model `model`. Errors if `func` contains infinite variables and/or
 parameters. Also errors if `func` contains invalid variables.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @hold_variable(model, x))
+```julia-repl
 julia> set_objective_function(model, 2x + 1)
 
 julia> objective_function(model)
@@ -15,12 +15,14 @@ julia> objective_function(model)
 ```
 """
 function JuMP.set_objective_function(model::InfiniteModel,
-                                     func::JuMP.AbstractJuMPScalar)
+                                     func::JuMP.AbstractJuMPScalar)::Nothing
     # check the function
-    if isa(func, InfiniteExpr) || isa(func, ParameterExpr)
+    JuMP.check_belongs_to_model(func, model)
+    vrefs = _all_function_variables(func)
+    if !isempty(_object_numbers(vrefs))
         error("Objective function cannot contain infinite parameters/variables.")
     end
-    JuMP.check_belongs_to_model(func, model)
+    # TODO redo from here down
     # update the function
     model.objective_function = func
     # delete old mappings
@@ -44,7 +46,7 @@ function JuMP.set_objective_function(model::InfiniteModel,
 end
 
 """
-    JuMP.set_objective_function(model::InfiniteModel, func::Real)
+    JuMP.set_objective_function(model::InfiniteModel, func::Real)::Nothing
 
 Extend [`JuMP.set_objective_function`](@ref) to set the objective expression of
 `model` with a number.
@@ -57,10 +59,10 @@ julia> objective_function(model)
 3
 ```
 """
-function JuMP.set_objective_function(model::InfiniteModel, func::Real)
+function JuMP.set_objective_function(model::InfiniteModel, func::Real)::Nothing
     # update function
-    model.objective_function = JuMP.GenericAffExpr{Float64, HoldVariableRef}(func)
-    # delete old mappings
+    model.objective_function = JuMP.GenericAffExpr{Float64, GeneralVariableRef}(func)
+    # delete old mappings # TODO redo from here
     for vindex in keys(model.var_in_objective)
         model.var_in_objective[vindex] = false
     end
@@ -72,7 +74,8 @@ function JuMP.set_objective_function(model::InfiniteModel, func::Real)
 end
 
 """
-    JuMP.set_objective_sense(model::InfiniteModel, sense::MOI.OptimizationSense)
+    JuMP.set_objective_sense(model::InfiniteModel,
+                             sense::MOI.OptimizationSense)::Nothing
 
 Extend [`JuMP.set_objective_sense`](@ref JuMP.set_objective_sense(::JuMP.Model, ::MOI.OptimizationSense))
 to set the objective sense of infinite model `model`.
@@ -86,7 +89,7 @@ MIN_SENSE::OptimizationSense = 0
 ```
 """
 function JuMP.set_objective_sense(model::InfiniteModel,
-                                  sense::MOI.OptimizationSense)
+                                  sense::MOI.OptimizationSense)::Nothing
     model.objective_sense = sense
     set_optimizer_model_ready(model, false)
     return
@@ -94,7 +97,7 @@ end
 
 """
     JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense,
-                       func::Union{JuMP.AbstractJuMPScalar, Real})
+                       func::Union{JuMP.AbstractJuMPScalar, Real})::Nothing
 
 Extend `JuMP.set_objective` to set the objective of infinite model
 `model`. Errors if `func` contains infinite variables and/or parameters, or if
@@ -109,7 +112,7 @@ julia> objective_function(model)
 ```
 """
 function JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense,
-                            func::Union{JuMP.AbstractJuMPScalar, Real})
+                            func::Union{JuMP.AbstractJuMPScalar, Real})::Nothing
     JuMP.set_objective_sense(model, sense)
     JuMP.set_objective_function(model, func)
     return
@@ -182,7 +185,7 @@ end
 """
     JuMP.set_objective_coefficient(model::InfiniteModel,
                                    variable::GeneralVariableRef,
-                                   coefficient::Real)
+                                   coefficient::Real)::Nothing
 
 Extend [`JuMP.set_objective_coefficient`](@ref JuMP.set_objective_coefficient(::JuMP.Model, ::JuMP.VariableRef, ::Real))
 Set the linear objective coefficient associated with `variable` to `coefficient`.
@@ -207,7 +210,7 @@ x + 2 y
 """
 function JuMP.set_objective_coefficient(model::InfiniteModel,
                                         variable::GeneralVariableRef,
-                                        coeff::Real)
+                                        coeff::Real)::Nothing
     new_expr = _set_variable_coefficient!(JuMP.objective_function(model),
                                           variable, coeff)
     JuMP.set_objective_function(model, new_expr)

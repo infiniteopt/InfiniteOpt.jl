@@ -33,6 +33,10 @@
         @test InfiniteOpt._core_variable_object(pref) == params
         @test InfiniteOpt._core_variable_object(gvref) == params
     end
+    # test _num_parameters
+    @testset "_num_parameters" begin
+        @test InfiniteOpt._num_parameters(pref) == 2
+    end
 end
 
 # Test Definition
@@ -505,6 +509,12 @@ end
         @test InfiniteOpt._object_number(prefs[2]) == 1
         @test InfiniteOpt._object_number(gvrefs[1]) == 1
     end
+    # test _object_numbers
+    @testset "_object_numbers" begin
+        @test InfiniteOpt._object_numbers(prefs[1]) == [1]
+        @test InfiniteOpt._object_numbers(prefs[2]) == [1]
+        @test InfiniteOpt._object_numbers(gvrefs[1]) == [1]
+    end
     # test _set_core_variable_object
     @testset "_set_core_variable_object" begin
         @test InfiniteOpt._set_core_variable_object(prefs[1], params) isa Nothing
@@ -575,6 +585,7 @@ end
         push!(InfiniteOpt._measure_dependencies(prefs1[1]), MeasureIndex(1))
         @test_throws ErrorException set_infinite_set(prefs1[1], IntervalSet(0, 2))
         empty!(InfiniteOpt._measure_dependencies(prefs1[1]))
+        @test_throws ErrorException set_infinite_set(prefs1[1], UniDistributionSet(Normal()))
     end
     # test set_infinite_set (Array)
     @testset "set_infinite_set (Array)" begin
@@ -589,6 +600,8 @@ end
         push!(InfiniteOpt._measure_dependencies(prefs1[1]), MeasureIndex(1))
         @test_throws ErrorException set_infinite_set(prefs1, new_set)
         empty!(InfiniteOpt._measure_dependencies(prefs1[1]))
+        new_set = CollectionSet([IntervalSet(0, 1), UniDistributionSet(Normal())])
+        @test_throws ErrorException set_infinite_set(prefs1, new_set)
     end
     # test JuMP.has_lower_bound
     @testset "JuMP.has_lower_bound" begin

@@ -12,12 +12,19 @@ end
 function _add_data_object(model::InfiniteModel,
                           object::VariableData{<:PointVariable}
                           )::PointVariableIndex
-    return MOIUC.add_item(model.infinite_vars, object)
+    return MOIUC.add_item(model.point_vars, object)
 end
 
-# Extend _data_dictionary
-function _data_dictionary(vref::PointVariableRef)::MOIUC.CleverDict
-    return JuMP.owner_model(vref).infinite_vars
+# Extend _data_dictionary (type based)
+function _data_dictionary(model::InfiniteModel, ::Type{PointVariable}
+    )::MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}
+    return model.point_vars
+end
+
+# Extend _data_dictionary (reference based)
+function _data_dictionary(vref::PointVariableRef
+    )::MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}
+    return JuMP.owner_model(vref).point_vars
 end
 
 # Extend _data_object
@@ -47,14 +54,40 @@ function _check_tuple_shape(_error::Function,
     return
 end
 
+## Dispatch methods for checking the supports of parameters in point variable
+# IndependentParameterRefs
+function _check_element_support(_error::Function, prefs::Vector{IndependentParameterRef},
+                                param_values::Vector{Float64},
+                                counter::Int)::Int
+    for pref in prefs
+        if !supports_in_set(param_values[counter], infinite_set(pref))
+            _error("Parameter values violate parameter bounds.")
+        end
+        counter += 1
+    end
+    return counter
+end
+
+# DependentParameterRefs
+function _check_element_support(_error::Function, prefs::Vector{DependentParameterRef},
+                                param_values::Vector{Float64},
+                                counter::Int)::Int
+    len = length(prefs)
+    supp = reshape(param_values[counter:counter+len-1], len, 1)
+    if !supports_in_set(supp, infinite_set(prefs))
+        _error("Parameter values violate parameter bounds.")
+    end
+    return counter += len
+end
+
 # Used to ensure values don't violate parameter bounds
 function _check_tuple_values(_error::Function, ivref::InfiniteVariableRef,
                              param_values::Vector{Float64})::Nothing
-    prefs = raw_parameter_refs(ivref)
-    for i in eachindex(prefs)
-        if !supports_in_set(param_values[i], infinite_set(prefs[i]))
-            _error("Parameter values violate parameter bounds.")
-        end
+    raw_prefs = raw_parameter_refs(ivref)
+    counter = 1
+    for i in 1:size(raw_prefs, 1)
+        prefs = dispatch_variable_ref.(raw_prefs[1, :])
+        counter = _check_element_support(_error, prefs, param_values, counter)
     end
     return
 end
@@ -136,15 +169,42 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Point};
     _check_tuple_values(_error, dispatch_ivref, pvalues.values)
     info = _update_point_info(info, dispatch_ivref)
     # make variable and return
-    return PointVariable(info, infinite_variable_ref, pvalues.values)
+    return PointVariable(_make_float_info(info), infinite_variable_ref,
+                         pvalues.values)
+end
+
+## Dispatch methods for updating the supports of parameters in point variable
+# IndependentParameterRefs
+function _add_point_support(prefs::Vector{IndependentParameterRef},
+                            param_values::Vector{Float64},
+                            counter::Int)::Int
+    for pref in prefs
+        add_supports(pref, param_values[counter], check = false,
+                     label = UserDefined)
+        counter += 1
+    end
+    return counter
+end
+
+# DependentParameterRefs
+function _add_point_support(prefs::Vector{DependentParameterRef},
+                            param_values::Vector{Float64},
+                            counter::Int)::Int
+    len = length(prefs)
+    supp = reshape(param_values[counter:counter+len-1], len, 1)
+    add_supports(prefs, supp, check = false, label = UserDefined)
+    return counter += len
 end
 
 # Used to add point variable support to parameter supports if necessary
 function _update_param_supports(ivref::InfiniteVariableRef,
-                                param_values::Vector)::Nothing
-    prefs = raw_parameter_refs(ivref)
-    for i in eachindex(prefs)
-        add_supports(prefs[i], param_values[i])
+                                param_values::Vector{Float64})::Nothing
+    raw_prefs = raw_parameter_refs(ivref)
+    model = JuMP.owner_model(ivref)
+    counter = 1
+    for i in 1:size(raw_prefs, 1)
+        prefs = dispatch_variable_ref.(raw_prefs[1, :])
+        counter = _add_point_support(prefs, param_values, counter)
     end
     return
 end
@@ -160,7 +220,9 @@ end
 function _check_and_make_variable_ref(model::InfiniteModel,
                                       v::PointVariable)::PointVariableRef
     ivref = dispatch_variable_ref(v.infinite_variable_ref)
-    JuMP.is_valid(model, ivref) || error("Invalid infinite variable reference.")
+    if !JuMP.check_belongs_to_model(ivref, model)
+        error("Invalid infinite variable reference.")
+    end
     data_object = VariableData(v)
     vindex = _add_data_object(model, data_object)
     vref = PointVariableRef(model, vindex)
@@ -170,7 +232,7 @@ function _check_and_make_variable_ref(model::InfiniteModel,
 end
 
 ################################################################################
-#                            VARIABLE NAMING
+#                         PARAMETER VALUE METHODS
 ################################################################################
 #=
 """
@@ -235,7 +297,11 @@ function _update_variable_param_values(vref::PointVariableRef,
                                                                   pref_vals)
     return
 end
+=#
 
+################################################################################
+#                         VARIABLE NAMING METHODS
+################################################################################
 # Get root name of infinite variable
 function _root_name(vref::InfiniteVariableRef)
     name = JuMP.name(vref)
@@ -272,13 +338,13 @@ function _make_str_value(values::Array)::String
 end
 
 """
-    JuMP.set_name(vref::PointVariableRef, name::String)
+    JuMP.set_name(vref::PointVariableRef, name::String)::Nothing
 
 Extend [`JuMP.set_name`](@ref JuMP.set_name(::JuMP.VariableRef, ::String)) to set
 the names of point variables.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+```julia-repl
 julia> @infinite_variable(model, T(t))
 T(t)
 
@@ -291,22 +357,38 @@ julia> name(vref)
 "new_name"
 ```
 """
-function JuMP.set_name(vref::PointVariableRef, name::String)
+function JuMP.set_name(vref::PointVariableRef, name::String)::Nothing
     if length(name) == 0
-        ivref = infinite_variable_ref(vref::PointVariableRef)
+        ivref = dispatch_variable_ref(infinite_variable_ref(vref))
         name = _root_name(ivref)
-        values = JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
+        values = raw_parameter_values(vref)
         name = string(name, "(")
         for i in 1:size(values, 1)
             if i != size(values, 1)
-                name *= _make_str_value(values[i, :]) * ", "
+                name *= string(_make_str_value(values[i, :]), ", ")
             else
-                name *= _make_str_value(values[i, :]) * ")"
+                name *= string(_make_str_value(values[i, :]), ")")
             end
         end
     end
-    JuMP.owner_model(vref).var_to_name[JuMP.index(vref)] = name
+    _data_object(vref).name = name
     JuMP.owner_model(vref).name_to_var = nothing
     return
 end
-=#
+
+################################################################################
+#                           VARIABLE INFO METHODS
+################################################################################
+# Set info for point variables
+function _update_variable_info(vref::PointVariableRef,
+                               info::JuMP.VariableInfo)::Nothing
+    ivref = _core_variable_object(vref).infinite_variable_ref
+    param_values = _core_variable_object(vref).parameter_values
+    new_var = PointVariable(info, ivref, param_values)
+    _set_core_variable_object(vref, new_var)
+    return
+end
+
+################################################################################
+#                                 DELETION
+################################################################################

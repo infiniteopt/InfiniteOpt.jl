@@ -451,8 +451,46 @@ end
     idx = TestIndex(1)
     dvref = TestVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, TestIndex)
-    # test ...
-    # TODO insert as needed
+    # test raw_parameter_refs (Fallback)
+    @testset "raw_parameter_refs (Fallback)" begin
+        @test_throws ArgumentError raw_parameter_refs(dvref)
+    end
+    # test raw_parameter_refs (GeneralVariableRef)
+    @testset "raw_parameter_refs (GeneralVariableRef)" begin
+        @test_throws ArgumentError raw_parameter_refs(gvref)
+    end
+    # test parameter_refs (Fallback)
+    @testset "parameter_refs (Fallback)" begin
+        @test_throws ArgumentError parameter_refs(dvref)
+    end
+    # test parameter_refs (GeneralVariableRef)
+    @testset "parameter_refs (GeneralVariableRef)" begin
+        @test_throws ArgumentError parameter_refs(gvref)
+    end
+    # test parameter_list (Fallback)
+    @testset "parameter_list (Fallback)" begin
+        @test_throws ArgumentError parameter_list(dvref)
+    end
+    # test parameter_list (GeneralVariableRef)
+    @testset "parameter_list (GeneralVariableRef)" begin
+        @test_throws ArgumentError parameter_list(gvref)
+    end
+    # test set_parameter_refs (Fallback)
+    @testset "set_parameter_refs (Fallback)" begin
+        @test_throws ArgumentError set_parameter_refs(dvref, (gvref,))
+    end
+    # test set_parameter_refs (GeneralVariableRef)
+    @testset "set_parameter_refs (GeneralVariableRef)" begin
+        @test_throws ArgumentError set_parameter_refs(gvref, (gvref,))
+    end
+    # test add_parameter_ref (Fallback)
+    @testset "add_parameter_ref (Fallback)" begin
+        @test_throws ArgumentError add_parameter_ref(dvref, gvref)
+    end
+    # test add_parameter_ref (GeneralVariableRef)
+    @testset "add_parameter_ref (GeneralVariableRef)" begin
+        @test_throws ArgumentError add_parameter_ref(gvref, [gvref])
+    end
 end
 
 # test Lower Bound Methods

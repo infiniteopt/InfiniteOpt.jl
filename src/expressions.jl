@@ -1,15 +1,13 @@
 ## Extend for better comparisons than default
 # GenericAffExpr
 function Base.:(==)(aff1::JuMP.GenericAffExpr{C, V},
-                    aff2::JuMP.GenericAffExpr{C, W}) where {C, V <: GeneralVariableRef,
-                                                            W <: GeneralVariableRef}
+                    aff2::JuMP.GenericAffExpr{C, V}) where {C, V <: GeneralVariableRef}
     return aff1.constant == aff2.constant && collect(pairs(aff1.terms)) == collect(pairs(aff2.terms))
 end
 
 # GenericQuadExpr
 function Base.:(==)(quad1::JuMP.GenericQuadExpr{C, V},
-                    quad2::JuMP.GenericQuadExpr{C, W}) where {C, V <: GeneralVariableRef,
-                                                              W <: GeneralVariableRef}
+                    quad2::JuMP.GenericQuadExpr{C, V}) where {C, V <: GeneralVariableRef}
     pairs1 = collect(pairs(quad1.terms))
     pairs2 = collect(pairs(quad2.terms))
     if length(pairs1) != length(pairs2)
@@ -23,71 +21,67 @@ function Base.:(==)(quad1::JuMP.GenericQuadExpr{C, V},
     return quad1.aff == quad2.aff
 end
 
-# TODO make variable iterator by extending Base.iterate with a custom type
-# TODO see https://docs.julialang.org/en/latest/manual/interfaces/#man-interface-iteration-1
 ## Determine which variables are present in a function
 # GeneralVariableRef
-function _all_function_variables(f::GeneralVariableRef)::Vector{<:GeneralVariableRef}
+function _all_function_variables(f::GeneralVariableRef)::Vector{GeneralVariableRef}
     return [f]
 end
 
 # GenericAffExpr
-function _all_function_variables(f::JuMP.GenericAffExpr)::Vector{<:GeneralVariableRef}
-    return GeneralVariableRef[vref for vref in keys(f.terms)]
+function _all_function_variables(f::JuMP.GenericAffExpr)::Vector{GeneralVariableRef}
+    return collect(keys(f.terms))
 end
 
 # GenericQuadExpr
-function _all_function_variables(f::JuMP.GenericQuadExpr)::Vector{<:GeneralVariableRef}
-    aff_vrefs = _all_function_variables(f.aff)
-    vref_pairs = [k for k in keys(f.terms)]
-    a_vrefs = GeneralVariableRef[pair.a for pair in vref_pairs]
-    b_vrefs = GeneralVariableRef[pair.b for pair in vref_pairs]
-    return unique([aff_vrefs; a_vrefs; b_vrefs])
+function _all_function_variables(f::JuMP.GenericQuadExpr)::Vector{GeneralVariableRef}
+    vref_set = Set(keys(f.aff.terms))
+    for pair in keys(f.terms)
+        union!(vref_set, pair.a)
+        union!(vref_set, pair.b)
+    end
+    return collect(vref_set)
 end
 
 # Fallback
 function _all_function_variables(f)
-    error("Can only use InfiniteOpt variables and expressions.")
+    error("`_all_function_variables` not defined for expression of type $(typeof(f)).")
 end
 
-## Return a tuple of the parameter references in an expr
-# FiniteVariableRef
-_all_parameter_refs(expr::FiniteVariableRef)::Tuple = ()
+## Return the unique set of object numbers in an expression
+# Dispatch fallback (--> should be defined for each non-empty variable type)
+_object_numbers(expr::DispatchVariableRef)::Vector{Int} = Int[]
 
-# InfiniteVariableRef
-_all_parameter_refs(expr::InfiniteVariableRef)::Tuple = Tuple(raw_parameter_refs(expr), use_indices = false)
-
-# ParameterRef
-_all_parameter_refs(expr::ParameterRef)::Tuple = (expr, )
-
-# ReducedInfiniteVariableRef
-_all_parameter_refs(expr::ReducedInfiniteVariableRef)::Tuple = Tuple(raw_parameter_refs(expr), use_indices = false)
+# GeneralVariableRef
+function _object_numbers(expr::GeneralVariableRef)::Vector{Int}
+    return _object_numbers(dispatch_variable_ref(expr))
+end
 
 # GenericAffExpr
-function _all_parameter_refs(expr::JuMP.GenericAffExpr{C,
-                              <:GeneralVariableRef})::Tuple where {C}
-    pref_list = []
-    for var in keys(expr.terms)
-        push!(pref_list, _all_parameter_refs(var)...)
+function _object_numbers(expr::JuMP.GenericAffExpr)::Vector{Int}
+    obj_nums = Set{Int}()
+    for vref in keys(expr.terms)
+        union!(obj_nums, _object_numbers(vref))
     end
-    groups = _group.(pref_list)
-    unique_groups = unique(groups)
-    return Tuple(pref_list[findfirst(isequal(unique_groups[i]), groups)]
-                 for i in eachindex(unique_groups))
+    return collect(obj_nums)
 end
 
 # GenericQuadExpr
-function _all_parameter_refs(expr::JuMP.GenericQuadExpr{C,
-                             <:GeneralVariableRef})::Tuple where {C}
-    pref_list = Any[i for i in _all_parameter_refs(expr.aff)]
+function _object_numbers(expr::JuMP.GenericQuadExpr)::Vector{Int}
+    obj_nums = Set(_object_numbers(expr.aff))
     for pair in keys(expr.terms)
-        push!(pref_list, _all_parameter_refs(pair.a)...)
-        push!(pref_list, _all_parameter_refs(pair.b)...)
+        union!(obj_nums, _object_numbers(pair.a))
+        union!(obj_nums, _object_numbers(pair.b))
     end
-    groups = _group.(pref_list)
-    unique_groups = unique(groups)
-    return Tuple(pref_list[findfirst(isequal(unique_groups[i]), groups)]
-                 for i in eachindex(unique_groups))
+    return collect(obj_nums)
+end
+
+# Variable list
+function _object_numbers(vrefs::Vector{GeneralVariableRef})::Vector{Int}
+    obj_nums = Set{Int}()
+    for vref in vrefs
+        union!(obj_nums, _object_numbers(vref))
+    end
+    return collect(obj_nums)
 end
 
 ## Delete variables from an expression

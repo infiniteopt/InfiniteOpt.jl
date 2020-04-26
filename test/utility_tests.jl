@@ -63,9 +63,18 @@ end
 end
 
 # Test allequal
-@testset "allequal" begin
+@testset "_allequal" begin
     @test InfiniteOpt._allequal([1])
     @test !InfiniteOpt._allequal([1, 2])
     @test InfiniteOpt._allequal([1, 1])
     @test InfiniteOpt._allequal([1 1; 1 1])
+end
+
+# Test _make_float_info
+@testset "_make_float_info" begin
+    info1 = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false)
+    num = Float64(0)
+    info2 = VariableInfo(true, num, true, num, true, num, true, num, true, true)
+    @test InfiniteOpt._make_float_info(info1) isa VariableInfo{Float64, Float64, Float64, Float64}
+    @test InfiniteOpt._make_float_info(info2) == info2
 end

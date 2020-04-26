@@ -142,58 +142,10 @@ struct ConstraintIndex <: ObjectIndex
 end
 
 ## Extend the CleverDicts key access methods
-# index_to_key IndependentParameterIndex
-function MOIUC.index_to_key(::Type{IndependentParameterIndex},
-                            index::Int)::IndependentParameterIndex
-    return IndependentParameterIndex(index)
-end
-
-# index_to_key DependentParametersIndex
-function MOIUC.index_to_key(::Type{DependentParametersIndex},
-                            index::Int)::DependentParametersIndex
-    return DependentParametersIndex(index)
-end
-
-# index_to_key FiniteParameterIndex
-function MOIUC.index_to_key(::Type{FiniteParameterIndex},
-                            index::Int)::FiniteParameterIndex
-    return FiniteParameterIndex(index)
-end
-
-# index_to_key InfiniteVariableIndex
-function MOIUC.index_to_key(::Type{InfiniteVariableIndex},
-                            index::Int)::InfiniteVariableIndex
-    return InfiniteVariableIndex(index)
-end
-
-# index_to_key ReducedInfiniteVariableIndex
-function MOIUC.index_to_key(::Type{ReducedInfiniteVariableIndex},
-                            index::Int)::ReducedInfiniteVariableIndex
-    return ReducedInfiniteVariableIndex(index)
-end
-
-# index_to_key PointVariableIndex
-function MOIUC.index_to_key(::Type{PointVariableIndex},
-                            index::Int)::PointVariableIndex
-    return PointVariableIndex(index)
-end
-
-# index_to_key HoldVariableIndex
-function MOIUC.index_to_key(::Type{HoldVariableIndex},
-                            index::Int)::HoldVariableIndex
-    return HoldVariableIndex(index)
-end
-
-# index_to_key MeasureIndex
-function MOIUC.index_to_key(::Type{MeasureIndex},
-                            index::Int)::MeasureIndex
-    return MeasureIndex(index)
-end
-
-# index_to_key ConstraintIndex
-function MOIUC.index_to_key(::Type{ConstraintIndex},
-                            index::Int)::ConstraintIndex
-    return ConstraintIndex(index)
+# index_to_key
+function MOIUC.index_to_key(::Type{C},
+                            index::Int)::ObjectIndex where {C <: ObjectIndex}
+    return C(index)
 end
 
 # key_to_index
@@ -473,21 +425,21 @@ An abstract type for infinite, reduced, point, and hold variables.
 abstract type InfOptVariable <: JuMP.AbstractVariable end
 
 """
-    InfiniteVariable{S, T, U, V, P <: GeneralVariableRef} <: InfOptVariable
+    InfiniteVariable{P <: GeneralVariableRef} <: InfOptVariable
 
 A `DataType` for storing core infinite variable information. Note that indices
 that refer to the same dependent parameter group must be in the same tuple element.
 Also, the variable reference type `P` must pertain to infinite parameters.
 
 **Fields**
-- `info::JuMP.VariableInfo{S, T, U, V}`: JuMP variable information.
+- `info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}`: JuMP variable information.
 - `parameter_refs::VectorTuple{P}`: The infinite parameter references that
                                     parameterize the variable.
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
 """
-struct InfiniteVariable{S, T, U, V, P <: JuMP.AbstractVariableRef} <: InfOptVariable
-    info::JuMP.VariableInfo{S, T, U, V}
+struct InfiniteVariable{P <: JuMP.AbstractVariableRef} <: InfOptVariable
+    info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
     parameter_refs::VectorTuple{P}
     parameter_nums::Vector{Int}
     object_nums::Vector{Int}
@@ -513,36 +465,36 @@ struct ReducedInfiniteVariable{I <: JuMP.AbstractVariableRef} <: InfOptVariable
 end
 
 """
-    PointVariable{S, T, U, V, I <: GeneralVariableRef} <: InfOptVariable
+    PointVariable{I <: GeneralVariableRef} <: InfOptVariable
 
 A `DataType` for storing point variable information. Note that the elements
 `parameter_values` field must match the format of the parameter reference tuple
 defined in [`InfiniteVariable`](@ref)
 
 **Fields**
-- `info::JuMP.VariableInfo{S, T, U, V}` JuMP Variable information.
+- `info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}` JuMP Variable information.
 - `infinite_variable_ref::I` The infinite variable reference
     associated with the point variable.
 - `parameter_values::Vector{Float64}` The infinite parameter values
     defining the point.
 """
-struct PointVariable{S, T, U, V, I <: JuMP.AbstractVariableRef} <: InfOptVariable
-    info::JuMP.VariableInfo{S, T, U, V}
+struct PointVariable{I <: JuMP.AbstractVariableRef} <: InfOptVariable
+    info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
     infinite_variable_ref::I
     parameter_values::Vector{Float64}
 end
 
 """
-    HoldVariable{S, T, U, V, P <: GeneralVariableRef} <: InfOptVariable
+    HoldVariable{P <: GeneralVariableRef} <: InfOptVariable
 
 A `DataType` for storing hold variable information.
 
 **Fields**
-- `info::JuMP.VariableInfo{S, T, U, V}` JuMP variable information.
+- `info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}` JuMP variable information.
 - `parameter_bounds::ParameterBounds{P}` Valid parameter sub-domains
 """
-struct HoldVariable{S, T, U, V, P <: JuMP.AbstractVariableRef} <: InfOptVariable
-    info::JuMP.VariableInfo{S, T, U, V}
+struct HoldVariable{P <: JuMP.AbstractVariableRef} <: InfOptVariable
+    info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
     parameter_bounds::ParameterBounds{P}
 end
 
@@ -775,13 +727,13 @@ model an optmization problem with an infinite-dimensional decision space.
 - `last_param_num::Int`: The last parameter number to be used.
 - `param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}`:
   The collection of parameter object indices in creation order.
-- `infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable}}`:
+- `infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}`:
    The infinite variables and their mapping information.
-- `reduced_vars::MOIUC.CleverDict{ReducedInfiniteVariableIndex, VariableData{ReducedInfiniteVariable}}`:
+- `reduced_vars::MOIUC.CleverDict{ReducedInfiniteVariableIndex, <:VariableData{<:ReducedInfiniteVariable}}`:
    The reduced infinite variables and their mapping information.
-- `point_vars::MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable}}`:
+- `point_vars::MOIUC.CleverDict{PointVariableIndex, <:VariableData{<:PointVariable}}`:
    The point variables and their mapping information.
-- `hold_vars::MOIUC.CleverDict{HoldVariableIndex, VariableData{HoldVariable}}`:
+- `hold_vars::MOIUC.CleverDict{HoldVariableIndex, <:VariableData{<:HoldVariable}}`:
    The hold variables and their mapping information.
 - `name_to_var::Union{Dict{String, AbstractInfOptIndex}, Nothing}`:
    Field to help find a variable given the name.
@@ -813,11 +765,11 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     last_param_num::Int
     param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
 
-    # Variable Data # TODO make concrete types by modifying JuMP.VariableInfo
-    infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable}}
-    reduced_vars::MOIUC.CleverDict{ReducedInfiniteVariableIndex, VariableData{ReducedInfiniteVariable}}
-    point_vars::MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable}}
-    hold_vars::MOIUC.CleverDict{HoldVariableIndex, VariableData{HoldVariable}}
+    # Variable Data
+    infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}
+    reduced_vars::MOIUC.CleverDict{ReducedInfiniteVariableIndex, <:VariableData{<:ReducedInfiniteVariable}}
+    point_vars::MOIUC.CleverDict{PointVariableIndex, <:VariableData{<:PointVariable}}
+    hold_vars::MOIUC.CleverDict{HoldVariableIndex, <:VariableData{<:HoldVariable}}
     name_to_var::Union{Dict{String, AbstractInfOptIndex}, Nothing}
     has_hold_bounds::Bool
 
@@ -892,10 +844,10 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          nothing, 0, 0,
                          Union{IndependentParameterIndex, DependentParametersIndex}[],
                          # Variables
-                         MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable}}(),
-                         MOIUC.CleverDict{ReducedInfiniteVariableIndex, VariableData{ReducedInfiniteVariable}}(),
-                         MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable}}(),
-                         MOIUC.CleverDict{HoldVariableIndex, VariableData{HoldVariable}}(),
+                         MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable{GeneralVariableRef}}}(),
+                         MOIUC.CleverDict{ReducedInfiniteVariableIndex, VariableData{ReducedInfiniteVariable{GeneralVariableRef}}}(),
+                         MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
+                         MOIUC.CleverDict{HoldVariableIndex, VariableData{HoldVariable{GeneralVariableRef}}}(),
                          nothing, false,
                          # Measures
                          MOIUC.CleverDict{MeasureIndex, MeasureData}(),

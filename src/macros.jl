@@ -780,7 +780,7 @@ The recognized keyword arguments in `kw_args` are the following:
 
 - `parameter_refs`: This is mandatory if not specified in `varexpr`. Can be a
   single parameter reference, a single parameter array with parameters defined
-  in the same call of [`@infinite_parameter`](@ref) (i.e., have same group ID),
+  in the same call of [`@infinite_parameter`](@ref),
   or a tuple where each element is either of the first two options listed.
 - `base_name`: Sets the name prefix used to generate variable names. It
   corresponds to the variable name for scalar variable, otherwise, the

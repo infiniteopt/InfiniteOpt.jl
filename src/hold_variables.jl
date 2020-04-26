@@ -12,12 +12,19 @@ end
 function _add_data_object(model::InfiniteModel,
                           object::VariableData{<:HoldVariable}
                           )::HoldVariableIndex
-    return MOIUC.add_item(model.infinite_vars, object)
+    return MOIUC.add_item(model.hold_vars, object)
 end
 
-# Extend _data_dictionary
-function _data_dictionary(vref::HoldVariableRef)::MOIUC.CleverDict
-    return JuMP.owner_model(vref).infinite_vars
+# Extend _data_dictionary (type based)
+function _data_dictionary(model::InfiniteModel, ::Type{HoldVariable}
+    )::MOIUC.CleverDict{HoldVariableIndex, VariableData{HoldVariable{GeneralVariableRef}}}
+    return model.hold_vars
+end
+
+# Extend _data_dictionary (reference based)
+function _data_dictionary(vref::HoldVariableRef
+    )::MOIUC.CleverDict{HoldVariableIndex, VariableData{HoldVariable{GeneralVariableRef}}}
+    return JuMP.owner_model(vref).hold_vars
 end
 
 # Extend _data_object
@@ -61,7 +68,7 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Hold};
     # check that the bounds don't violate parameter domains
     _check_bounds(parameter_bounds)
     # make variable and return
-    return HoldVariable(info, parameter_bounds)
+    return HoldVariable(_make_float_info(info), parameter_bounds)
 end
 
 # Validate parameter bounds and add support(s) if needed
@@ -69,10 +76,11 @@ function _validate_bounds(model::InfiniteModel, bounds::ParameterBounds;
                           _error = error)::Nothing
     for (pref, set) in bounds
         # check validity
-        JuMP.is_valid(model, pref) || _error("Parameter bound reference " *
-                                             "is invalid.")
+        if JuMP.check_belongs_to_model(pref, model)
+            _error("Parameter bound reference is invalid.")
+        end
         # ensure has a support if a point constraint was given
-        if JuMP.lower_bound(set) == JuMP.upper_bound(set)
+        if JuMP.lower_bound(set) == JuMP.upper_bound(set) # TODO resolve for dependent parameters
             add_supports(pref, JuMP.lower_bound(set))
         end
     end
@@ -93,10 +101,20 @@ function _check_and_make_variable_ref(model::InfiniteModel,
 end
 
 ################################################################################
-#                            VARIABLE NAMING
+#                           VARIABLE INFO METHODS
+################################################################################
+# Set info for hold variables
+function _update_variable_info(vref::HoldVariableRef,
+                               info::JuMP.VariableInfo)::Nothing
+    bounds = _core_variable_object(vref).parameter_bounds
+    _set_core_variable_object(vref, HoldVariable(info, bounds))
+    return
+end
+
+################################################################################
+#                           PARAMETER BOUND METHODS
 ################################################################################
 #=
-
 """
     parameter_bounds(vref::HoldVariableRef)::ParameterBounds
 
@@ -484,3 +502,7 @@ function delete_parameter_bounds(vref::HoldVariableRef)
     return
 end
 =#
+
+################################################################################
+#                                 DELETION
+################################################################################

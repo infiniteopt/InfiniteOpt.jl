@@ -17,7 +17,7 @@ function JuMP.in_set_string(print_mode, set::IntervalSet)::String
 end
 
 # Extend to return of in set string for distribution sets
-function JuMP.in_set_string(print_mode, set::UniDistributionSet)::String
+function JuMP.in_set_string(print_mode, set::Union{UniDistributionSet, MultiDistributionSet})::String
     # get distribution string
     d_string = string(set.distribution)
     # remove number type
@@ -127,13 +127,13 @@ function Base.show(io::IO, ::MIME"text/latex", set::IntervalSet)
 end
 
 # Show IntervalSets in REPLMode
-function Base.show(io::IO, set::DistributionSet)
+function Base.show(io::IO, set::UniDistributionSet)
     print(io, set.distribution)
     return
 end
 
 # Show IntervalSets in IJuliaMode
-function Base.show(io::IO, ::MIME"text/latex", set::DistributionSet)
+function Base.show(io::IO, ::MIME"text/latex", set::UniDistributionSet)
     print(io, set.distribution)
 end
 
@@ -154,13 +154,13 @@ end
 # TODO show hold variables better
 
 # Show constraint in REPLMode
-function Base.show(io::IO, ref::GeneralConstraintRef)
+function Base.show(io::IO, ref::InfOptConstraintRef)
     print(io, JuMP.constraint_string(JuMP.REPLMode, ref))
     return
 end
 
 # Show constraint in IJuliaMode
-function Base.show(io::IO, ::MIME"text/latex", ref::GeneralConstraintRef)
+function Base.show(io::IO, ::MIME"text/latex", ref::InfOptConstraintRef)
     print(io, JuMP.constraint_string(JuMP.IJuliaMode, ref))
 end
 
@@ -205,17 +205,18 @@ function Base.show(io::IO, model::InfiniteModel)
         print(io, "Feasibility")
     end
     println(io, " problem with:")
+    # TODO show parameter info --> maybe more
     # show variable info
     println(io, "Variable", _plural(JuMP.num_variables(model)), ": ",
             JuMP.num_variables(model))
-    # show obejctive function info
+    # show objective function info
     if sense != MOI.FEASIBILITY_SENSE
         JuMP.show_objective_function_summary(io, model)
     end
     # show constraint info
     JuMP.show_constraints_summary(io, model)
     # show other info
-    names_in_scope = sort(collect(keys(JuMP.object_dictionary(model))))
+    names_in_scope = sort!(collect(keys(JuMP.object_dictionary(model))))
     if !isempty(names_in_scope)
         print(io, "Names registered in the model: ",
               join(string.(names_in_scope), ", "), "\n")
