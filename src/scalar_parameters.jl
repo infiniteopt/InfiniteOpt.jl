@@ -55,16 +55,24 @@ function _core_variable_object(pref::FiniteParameterRef)::FiniteParameter
     return _data_object(pref).parameter
 end
 
-# Extend _set_core_variable_object for IndependentParameterRefs
-function _set_core_variable_object(pref::IndependentParameterRef,
-                                   param::IndependentParameter)::Nothing
-    _data_object(pref).parameter = param
-    return
+# Extend _parameter_number
+function _parameter_number(pref::IndependentParameterRef)::Int
+    return _data_object(pref).parameter_num
 end
 
-# Extend _set_core_variable_object for FiniteParameterRefs
-function _set_core_variable_object(pref::FiniteParameterRef,
-                                   param::FiniteParameter)::Nothing
+# Extend _object_number
+function _object_number(pref::IndependentParameterRef)::Int
+    return _data_object(pref).object_num
+end
+
+# Extend _object_numbers
+function _object_numbers(pref::IndependentParameterRef)::Vector{Int}
+    return [_object_number(pref)]
+end
+
+# Extend _set_core_variable_object for ScalarParameterRefs
+function _set_core_variable_object(pref::ScalarParameterRef,
+                                   param::ScalarParameter)::Nothing
     _data_object(pref).parameter = param
     return
 end
@@ -231,7 +239,6 @@ julia> build_finite_parameter(error, 1)
 FiniteParameter(1.0)
 ```
 """
-
 function build_parameter(_error::Function, value::Real;
                          extra_kw_args...)::FiniteParameter
     for (kwarg, _) in extra_kw_args
@@ -269,11 +276,66 @@ function add_parameter(model::InfiniteModel, p::IndependentParameter,
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
 end
 
+# FiniteParameter
 function add_parameter(model::InfiniteModel, p::FiniteParameter,
                        name::String="")::GeneralVariableRef
     data_object = ScalarParameterData(p, -1, -1, name)
     obj_index = _add_data_object(model, data_object)
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
+end
+
+################################################################################
+#                           PARAMETER DEPENDENCIES
+################################################################################
+# Extend _infinite_variable_dependencies
+function _infinite_variable_dependencies(pref::ScalarParameterRef
+    )::Vector{InfiniteVariableIndex}
+    return _data_object(pref).infinite_var_indices
+end
+
+# Extend _measure_dependencies
+function _measure_dependencies(pref::ScalarParameterRef
+    )::Vector{MeasureIndex}
+    return _data_object(pref).measure_indices
+end
+
+# Extend _constraint_dependencies
+function _constraint_dependencies(pref::ScalarParameterRef
+    )::Vector{ConstraintIndex}
+    return _data_object(pref).constraint_indices
+end
+
+"""
+    used_by_infinite_variable(pref::IndependentParameterRef)::Bool
+
+Return true if `pref` is used by an infinite variable or false otherwise.
+
+**Example**
+```julia-repl
+julia> used_by_variable(t)
+true
+```
+"""
+function used_by_infinite_variable(pref::IndependentParameterRef)::Bool
+    return !isempty(_infinite_variable_dependencies(pref))
+end
+
+# FiniteParameter
+used_by_infinite_variable(pref::FiniteParameterRef)::Bool = false
+
+"""
+    used_by_measure(pref::Union{IndependentParameterRef, FiniteParameterRef})::Bool
+
+Return true if `pref` is used by a measure or false otherwise.
+
+**Example**
+```julia-repl
+julia> used_by_measure(t)
+false
+```
+"""
+function used_by_measure(pref::ScalarParameterRef)::Bool
+    return !isempty(_measure_dependencies(pref))
 end
 
 """
@@ -288,37 +350,7 @@ true
 ```
 """
 function used_by_constraint(pref::ScalarParameterRef)::Bool
-    return length(_data_object(pref).constraint_indices)
-end
-
-"""
-    used_by_measure(pref::Union{IndependentParameterRef, FiniteParameterRef})::Bool
-
-Return true if `pref` is used by a measure or false otherwise.
-
-**Example**
-```julia-repl
-julia> used_by_measure(t)
-false
-```
-"""
-function used_by_measure(pref::ScalarParameterRef)::Bool
-    return length(_data_object(pref).measure_indices)
-end
-
-"""
-    used_by_infinite_variable(pref::Union{IndependentParameterRef, FiniteParameterRef})::Bool
-
-Return true if `pref` is used by an infinite variable or false otherwise.
-
-**Example**
-```julia-repl
-julia> used_by_variable(t)
-true
-```
-"""
-function used_by_infinite_variable(pref::ScalarParameterRef)::Bool
-    return length(_data_object(pref).infinite_var_indices)
+    return !isempty(_constraint_dependencies(pref))
 end
 
 """
@@ -334,6 +366,9 @@ function used_by_objective(pref::FiniteParameterRef)::Bool
     return _data_object(pref).in_objective
 end
 
+# IndependentParameter
+used_by_objective(::IndependentParameterRef)::Bool = false
+
 """
     is_used(pref::Union{IndependentParameterRef, FiniteParameterRef})::Bool
 
@@ -346,12 +381,14 @@ true
 ```
 """
 function is_used(pref::IndependentParameterRef)::Bool
-    return used_by_measure(pref) || used_by_constraint(pref) || used_by_infinite_variable(pref)
+    return used_by_measure(pref) || used_by_constraint(pref) ||
+           used_by_infinite_variable(pref)
 end
 
+# FiniteParameterRef
 function is_used(pref::FiniteParameterRef)::Bool
     return used_by_measure(pref) || used_by_constraint(pref) ||
-           used_by_infinite_variable(pref) || used_by_objective(pref)
+           used_by_objective(pref)
 end
 
 ################################################################################

@@ -861,7 +861,8 @@ end
     prefs1 = dispatch_variable_ref.(gvrefs1)
     gvrefs2 = @dependent_parameters(m, b[1:2, 1:2] in MatrixBeta(2, 2, 2))
     prefs2 = dispatch_variable_ref.(gvrefs2)
-    pref = @independent_parameter(m, c in [0, 1])
+    gvref = @independent_parameter(m, c in [0, 1])
+    pref = dispatch_variable_ref(gvref)
     # test generate_and_add_supports!
     @testset "generate_and_add_supports!" begin
         old_supports = supports(prefs1)
@@ -898,6 +899,16 @@ end
     end
     # test fill_in_supports! (InfiniteModel)
     @testset "fill_in_supports! (InfiniteModel)" begin
-        # TODO implement when independent parameter fill_in_supports! is done
+        # test default
+        @test fill_in_supports!(m) isa Nothing
+        @test num_supports(prefs1) == 10
+        @test num_supports(prefs2) == 10
+        @test num_supports(pref) == 10
+        # test with keywords
+        @test fill_in_supports!(m, num_supports = 12, modify = false,
+                                sig_figs = 3) isa Nothing
+        @test num_supports(prefs1) == 10
+        @test num_supports(prefs2) == 10
+        @test num_supports(pref) == 10
     end
 end

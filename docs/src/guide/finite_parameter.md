@@ -87,6 +87,7 @@ Order   = [:type]
 ```
 ```@docs
 FiniteParameter
+FiniteParameterIndex
 FiniteParameterRef
 ```
 
@@ -98,7 +99,6 @@ Order   = [:macro, :function]
 ```
 ```@docs
 @finite_parameter
-is_finite_parameter
-JuMP.value(::ParameterRef)
-JuMP.set_value(::ParameterRef, ::Number)
+JuMP.value(::FiniteParameterRef)
+JuMP.set_value(::FiniteParameterRef, ::Real)
 ```

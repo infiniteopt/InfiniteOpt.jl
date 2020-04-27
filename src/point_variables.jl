@@ -94,7 +94,7 @@ end
 
 # Update point variable info to consider the infinite variable
 function _update_point_info(info::JuMP.VariableInfo,
-                            ivref::InfiniteVariableRef)::Nothing
+                            ivref::InfiniteVariableRef)::JuMP.VariableInfo
     if JuMP.has_lower_bound(ivref) && !info.has_fix && !info.has_lb
         info = JuMP.VariableInfo(true, JuMP.lower_bound(ivref),
                                  info.has_ub, info.upper_bound,
@@ -220,9 +220,7 @@ end
 function _check_and_make_variable_ref(model::InfiniteModel,
                                       v::PointVariable)::PointVariableRef
     ivref = dispatch_variable_ref(v.infinite_variable_ref)
-    if !JuMP.check_belongs_to_model(ivref, model)
-        error("Invalid infinite variable reference.")
-    end
+    JuMP.check_belongs_to_model(ivref, model)
     data_object = VariableData(v)
     vindex = _add_data_object(model, data_object)
     vref = PointVariableRef(model, vindex)
@@ -234,14 +232,14 @@ end
 ################################################################################
 #                         PARAMETER VALUE METHODS
 ################################################################################
-#=
+
 """
-    infinite_variable_ref(vref::PointVariableRef)::InfiniteVariableRef
+    infinite_variable_ref(vref::PointVariableRef)::GeneralVariableRef
 
 Return the `InfiniteVariableRef` associated with the point variable `vref`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+```julia-repl
 julia> @infinite_variable(model, T(t))
 T(t)
 
@@ -252,19 +250,18 @@ julia> infinite_variable_ref(vref)
 T(t)
 ```
 """
-function infinite_variable_ref(vref::PointVariableRef)::InfiniteVariableRef
-    return JuMP.owner_model(vref).vars[JuMP.index(vref)].infinite_variable_ref
+function infinite_variable_ref(vref::PointVariableRef)::GeneralVariableRef
+    return _core_variable_object(vref).infinite_variable_ref
 end
 
-"""
-    raw_parameter_values(vref::PointVariableRef)::VectorTuple{<:Number}
 
-Return the raw [`VectorTuple`](@ref) support point associated with the
-point variable `vref`.
-```
 """
-function raw_parameter_values(vref::PointVariableRef)::VectorTuple{<:Number}
-    return JuMP.owner_model(vref).vars[JuMP.index(vref)].parameter_values
+    raw_parameter_values(vref::PointVariableRef)::Vector{Float64}
+
+Return the raw support point values associated with the point variable `vref`.
+"""
+function raw_parameter_values(vref::PointVariableRef)::Vector{Float64}
+    return _core_variable_object(vref).parameter_values
 end
 
 """
@@ -273,7 +270,7 @@ end
 Return the support point associated with the point variable `vref`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+```julia-repl
 julia> @infinite_variable(model, T(t))
 T(t)
 
@@ -285,19 +282,20 @@ julia> parameter_values(vref)
 ```
 """
 function parameter_values(vref::PointVariableRef)::Tuple
-    return Tuple(raw_parameter_values(vref))
+    prefs = raw_parameter_refs(infinite_variable_ref(vref))
+    return Tuple(VectorTuple(raw_parameter_values(vref), prefs.ranges,
+                             prefs.indices))
 end
 
 # Internal function used to change the parameter value tuple of a point variable
 function _update_variable_param_values(vref::PointVariableRef,
-                                       pref_vals::VectorTuple)
-    info = JuMP.owner_model(vref).vars[JuMP.index(vref)].info
-    ivref = JuMP.owner_model(vref).vars[JuMP.index(vref)].infinite_variable_ref
-    JuMP.owner_model(vref).vars[JuMP.index(vref)] = PointVariable(info, ivref,
-                                                                  pref_vals)
+                                       pref_vals::Vector{<:Real})::Nothing
+    info = _variable_info.info
+    ivref = infinite_variable_ref(vref)
+    new_var = PointVariable(info, ivref, Float64.(pref_vals))
+    _set_core_variable_object(vref, new_var)
     return
 end
-=#
 
 ################################################################################
 #                         VARIABLE NAMING METHODS
@@ -360,14 +358,15 @@ julia> name(vref)
 function JuMP.set_name(vref::PointVariableRef, name::String)::Nothing
     if length(name) == 0
         ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+        prefs = raw_parameter_refs(ivref)
         name = _root_name(ivref)
         values = raw_parameter_values(vref)
         name = string(name, "(")
-        for i in 1:size(values, 1)
-            if i != size(values, 1)
-                name *= string(_make_str_value(values[i, :]), ", ")
+        for i in 1:size(prefs, 1)
+            if i != size(prefs, 1)
+                name *= string(_make_str_value(values[prefs.ranges[i]]), ", ")
             else
-                name *= string(_make_str_value(values[i, :]), ")")
+                name *= string(_make_str_value(values[prefs.ranges[i]]), ")")
             end
         end
     end
@@ -382,8 +381,8 @@ end
 # Set info for point variables
 function _update_variable_info(vref::PointVariableRef,
                                info::JuMP.VariableInfo)::Nothing
-    ivref = _core_variable_object(vref).infinite_variable_ref
-    param_values = _core_variable_object(vref).parameter_values
+    ivref = infinite_variable_ref(vref)
+    param_values = raw_parameter_values(vref)
     new_var = PointVariable(info, ivref, param_values)
     _set_core_variable_object(vref, new_var)
     return

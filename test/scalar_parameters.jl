@@ -1,3 +1,74 @@
+# Test Core data accessors
+@testset "Core Data Accessers" begin
+    # Setup data
+    m = InfiniteModel()
+    ind_idx = IndependentParameterIndex(1)
+    fin_idx = FiniteParameterIndex(1)
+    set = IntervalSet(0, 1)
+    supps_dict = SortedDict{Float64, Set{Symbol}}(0. => Set{Symbol}([UserDefined]))
+    ind_param = IndependentParameter(set, supps_dict)
+    fin_param = FiniteParameter(42)
+    ind_object = ScalarParameterData(ind_param, 1, 1, "ind")
+    fin_object = ScalarParameterData(fin_param, -1, -1, "fin")
+    ind_pref = IndependentParameterRef(m, ind_idx)
+    fin_pref = FiniteParameterRef(m, fin_idx)
+    ind_gvref = GeneralVariableRef(m, 1, IndependentParameterIndex)
+    fin_gvref = GeneralVariableRef(m, 1, FiniteParameterIndex)
+    # test dispatch_variable_ref
+    @testset "dispatch_variable_ref" begin
+        @test dispatch_variable_ref(m, ind_idx) == ind_pref
+        @test dispatch_variable_ref(ind_gvref) == ind_pref
+        @test dispatch_variable_ref(m, fin_idx) == fin_pref
+        @test dispatch_variable_ref(fin_gvref) == fin_pref
+    end
+    # test _add_data_object
+    @testset "_add_data_object" begin
+        @test InfiniteOpt._add_data_object(m, ind_object) == ind_idx
+        @test InfiniteOpt._add_data_object(m, fin_object) == fin_idx
+    end
+    # test _data_dictionary
+    @testset "_data_dictionary" begin
+        @test InfiniteOpt._data_dictionary(ind_pref) == m.independent_params
+        @test InfiniteOpt._data_dictionary(ind_gvref) == m.independent_params
+        @test InfiniteOpt._data_dictionary(fin_pref) == m.finite_params
+        @test InfiniteOpt._data_dictionary(fin_gvref) == m.finite_params
+    end
+    # test _data_object
+    @testset "_data_object" begin
+        @test InfiniteOpt._data_object(ind_pref) == ind_object
+        @test InfiniteOpt._data_object(ind_gvref) == ind_object
+        @test InfiniteOpt._data_object(fin_pref) == fin_object
+        @test InfiniteOpt._data_object(fin_gvref) == fin_object
+    end
+    # test _core_variable_object
+    @testset "_core_variable_object" begin
+        @test InfiniteOpt._core_variable_object(ind_pref) == ind_param
+        @test InfiniteOpt._core_variable_object(ind_gvref) == ind_param
+        @test InfiniteOpt._core_variable_object(fin_pref) == fin_param
+        @test InfiniteOpt._core_variable_object(fin_gvref) == fin_param
+    end
+    # test _parameter_number
+    @testset "_parameter_number" begin
+        @test InfiniteOpt._parameter_number(ind_pref) == 1
+        @test InfiniteOpt._parameter_number(ind_gvref) == 1
+    end
+    # test _object_number
+    @testset "_object_number" begin
+        @test InfiniteOpt._object_number(ind_pref) == 1
+        @test InfiniteOpt._object_number(ind_gvref) == 1
+    end
+    # test _object_numbers
+    @testset "_object_numbers" begin
+        @test InfiniteOpt._object_numbers(ind_pref) == [1]
+        @test InfiniteOpt._object_numbers(ind_gvref) == [1]
+    end
+    # test _set_core_variable_object
+    @testset "_set_core_variable_object" begin
+        @test InfiniteOpt._set_core_variable_object(ind_pref, ind_param) isa Nothing
+        @test InfiniteOpt._set_core_variable_object(fin_pref, fin_param) isa Nothing
+    end
+end
+
 # Test macro methods
 @testset "Macro Helpers" begin
     @testset "Symbol Methods" begin
@@ -159,9 +230,8 @@ end
         set = IntervalSet(0, 1)
         supps = 0.
         supps_dict = SortedDict{Float64, Set{Symbol}}(0. => Set{Symbol}([UserDefined]))
-        param = build_parameter(error, set, supports = supps)
-        @test param.set == set
-        @test param.supports == supps_dict
+        @test build_parameter(error, set, supports = supps).set == set
+        @test build_parameter(error, set, supports = supps).supports == supps_dict
         @test_throws ErrorException build_parameter(error, set, bob = 42)
         warn = "Ignoring num_supports since supports is not empty."
         @test_logs (:warn, warn) build_parameter(error, set,
@@ -171,8 +241,7 @@ end
         warn = "Support points are not unique, eliminating redundant points."
         @test_logs (:warn, warn) build_parameter(error, set, supports = repeated_supps) == expected
         set = UniDistributionSet(Normal())
-        param = build_parameter(error, set, num_supports = 5)
-        @test length(param.supports) == 5
+        @test length(build_parameter(error, set, num_supports = 5).supports) == 5
     end
     # build_finite_parameter
     @testset "build_parameter (FiniteParameter)" begin
@@ -188,13 +257,11 @@ end
                                              SortedDict{Float64, Set{Symbol}}())
         expected = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
         @test add_parameter(m, param) == expected
-        @test m.independent_params[IndependentParameterIndex(1)] ==
-                                              InfiniteOpt._data_object(expected)
+        @test InfiniteOpt._core_variable_object(expected) == param
         param = FiniteParameter(1.5)
         expected = GeneralVariableRef(m, 1, FiniteParameterIndex, -1)
         @test add_parameter(m, param) == expected
-        @test m.finite_params[FiniteParameterIndex(1)] ==
-                                              InfiniteOpt._data_object(expected)
+        @test InfiniteOpt._core_variable_object(expected) == param
     end
 end
 
@@ -203,13 +270,16 @@ end
     m = InfiniteModel()
     p = build_parameter(error, IntervalSet(0, 1))
     pref = add_parameter(m, p)
+    dpref = dispatch_variable_ref(pref)
     # JuMP.index
     @testset "JuMP.index" begin
         @test JuMP.index(pref) == IndependentParameterIndex(1)
+        @test JuMP.index(dpref) == IndependentParameterIndex(1)
     end
     # JuMP.owner_model
     @testset "JuMP.owner_model" begin
-        @test owner_model(pref) == m
+        @test owner_model(pref) === m
+        @test owner_model(dpref) === m
     end
 end
 
@@ -218,14 +288,18 @@ end
     m = InfiniteModel()
     param = build_parameter(error, IntervalSet(0, 1))
     pref = add_parameter(m, param, "test")
+    dpref = dispatch_variable_ref(pref)
     # JuMP.name
     @testset "JuMP.name" begin
         @test name(pref) == "test"
+        @test name(dpref) == "test"
     end
     # JuMP.set_name
     @testset "JuMP.set_name" begin
         @test isa(set_name(pref, "new"), Nothing)
         @test name(pref) == "new"
+        @test isa(set_name(dpref, "test"), Nothing)
+        @test name(dpref) == "test"
     end
     #=
     # parameter_by_name
@@ -240,33 +314,32 @@ end
     =#
 end
 
-
 # Test the parameter macro
 @testset "Macro" begin
     m = InfiniteModel()
     # single parameter
     @testset "Single" begin
         pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
-        @test @infinite_parameter(m, 0 <= a <= 1) == pref
-        @test m.independent_params[IndependentParameterIndex(1)].parameter.set == IntervalSet(0, 1)
+        @test @independent_parameter(m, 0 <= a <= 1) == pref
+        @test InfiniteOpt._core_variable_object(pref).set == IntervalSet(0, 1)
         @test name(pref) == "a"
         pref = GeneralVariableRef(m, 2, IndependentParameterIndex, -1)
-        @test @infinite_parameter(m, b in Normal(), supports = [1; 2]) == pref
-        @test m.independent_params[IndependentParameterIndex(2)].parameter.set == UniDistributionSet(Normal())
-        @test m.independent_params[IndependentParameterIndex(2)].parameter.supports == SortedDict(i => Set{Symbol}([UserDefined]) for i in [1,2])
+        @test @independent_parameter(m, b in Normal(), supports = [1; 2]) == pref
+        @test InfiniteOpt._core_variable_object(pref).set == UniDistributionSet(Normal())
+        @test InfiniteOpt._core_variable_object(pref).supports == SortedDict(i => Set{Symbol}([UserDefined]) for i in [1,2])
         pref = GeneralVariableRef(m, 3, IndependentParameterIndex, -1)
-        @test @infinite_parameter(m, c in IntervalSet(0, 1)) == pref
-        @test m.independent_params[IndependentParameterIndex(3)].parameter.set == IntervalSet(0, 1)
+        @test @independent_parameter(m, c in IntervalSet(0, 1)) == pref
+        @test InfiniteOpt._core_variable_object(pref).set == IntervalSet(0, 1)
         pref = GeneralVariableRef(m, 4, IndependentParameterIndex, -1)
-        @test @infinite_parameter(m, set = IntervalSet(0, 1),
+        @test @independent_parameter(m, set = IntervalSet(0, 1),
                                   base_name = "d") == pref
         @test name(pref) == "d"
         pref = GeneralVariableRef(m, 5, IndependentParameterIndex, -1)
-        @test @infinite_parameter(m, set = IntervalSet(0, 1)) == pref
+        @test @independent_parameter(m, set = IntervalSet(0, 1)) == pref
         @test name(pref) == ""
         pref = GeneralVariableRef(m, 6, IndependentParameterIndex, -1)
-        @test @infinite_parameter(m, z in [0, 1]) == pref
-        @test m.independent_params[IndependentParameterIndex(6)].parameter.set == IntervalSet(0, 1)
+        @test @independent_parameter(m, z in [0, 1]) == pref
+        @test InfiniteOpt._core_variable_object(pref).set == IntervalSet(0, 1)
         @test name(pref) == "z"
     end
     # multiple parameters
@@ -274,36 +347,36 @@ end
         prefs = [GeneralVariableRef(m, 7, IndependentParameterIndex, -1),
                  GeneralVariableRef(m, 8, IndependentParameterIndex, -1)]
         @test @independent_parameter(m, 0 <= e[1:2] <= 1) == prefs
-        @test m.independent_params[IndependentParameterIndex(7)].parameter.set == IntervalSet(0, 1)
-        @test m.independent_params[IndependentParameterIndex(8)].parameter.set == IntervalSet(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[1]).set == IntervalSet(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[2]).set == IntervalSet(0, 1)
         prefs = [GeneralVariableRef(m, 9, IndependentParameterIndex, -1),
                  GeneralVariableRef(m, 10, IndependentParameterIndex, -1)]
         @test @independent_parameter(m, [1:2], set = IntervalSet(0, 1)) == prefs
-        @test m.independent_params[IndependentParameterIndex(9)].parameter.set == IntervalSet(0, 1)
-        @test m.independent_params[IndependentParameterIndex(10)].parameter.set == IntervalSet(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[1]).set == IntervalSet(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[2]).set == IntervalSet(0, 1)
         prefs = [GeneralVariableRef(m, 11, IndependentParameterIndex, -1),
                  GeneralVariableRef(m, 12, IndependentParameterIndex, -1)]
         sets = [IntervalSet(0, 1), IntervalSet(-1, 2)]
         @test @independent_parameter(m, f[i = 1:2], set = sets[i]) == prefs
-        @test m.independent_params[IndependentParameterIndex(11)].parameter.set == IntervalSet(0, 1)
-        @test m.independent_params[IndependentParameterIndex(12)].parameter.set == IntervalSet(-1, 2)
+        @test InfiniteOpt._core_variable_object(prefs[1]).set == IntervalSet(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[2]).set == IntervalSet(-1, 2)
         prefs = [GeneralVariableRef(m, 13, IndependentParameterIndex, -1),
                  GeneralVariableRef(m, 14, IndependentParameterIndex, -1)]
         @test @independent_parameter(m, [i = 1:2], set = sets[i]) == prefs
-        @test m.independent_params[IndependentParameterIndex(13)].parameter.set == IntervalSet(0, 1)
-        @test m.independent_params[IndependentParameterIndex(14)].parameter.set == IntervalSet(-1, 2)
+        @test InfiniteOpt._core_variable_object(prefs[1]).set == IntervalSet(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[2]).set == IntervalSet(-1, 2)
         prefs = [GeneralVariableRef(m, 15, IndependentParameterIndex, -1),
                  GeneralVariableRef(m, 16, IndependentParameterIndex, -1)]
         @test @independent_parameter(m, [0, -1][i] <= g[i = 1:2] <= [1, 2][i]) == prefs
-        @test m.independent_params[IndependentParameterIndex(15)].parameter.set == IntervalSet(0, 1)
-        @test m.independent_params[IndependentParameterIndex(16)].parameter.set == IntervalSet(-1, 2)
+        @test InfiniteOpt._core_variable_object(prefs[1]).set == IntervalSet(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[2]).set == IntervalSet(-1, 2)
         prefs = [GeneralVariableRef(m, 17, IndependentParameterIndex, -1),
                  GeneralVariableRef(m, 18, IndependentParameterIndex, -1)]
         prefs = convert(JuMP.Containers.SparseAxisArray, prefs)
         @test @independent_parameter(m, 0 <= i[1:2] <= 1,
                                   container = SparseAxisArray) == prefs
-        @test m.independent_params[IndependentParameterIndex(17)].parameter.set == IntervalSet(0, 1)
-        @test m.independent_params[IndependentParameterIndex(18)].parameter.set == IntervalSet(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[1]).set == IntervalSet(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[2]).set == IntervalSet(0, 1)
     end
     # test for errors
     @testset "Errors" begin
@@ -323,70 +396,109 @@ end
     m = InfiniteModel()
     p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
     pref1 = add_parameter(m, p1, "p1")
+    dpref1 = dispatch_variable_ref(pref1)
     p2 = FiniteParameter(1)
     pref2 = add_parameter(m, p2, "p2")
+    dpref2 = dispatch_variable_ref(pref2)
+    # _infinite_variable_dependencies
+    @testset "_infinite_variable_dependencies" begin
+        @test InfiniteOpt._infinite_variable_dependencies(pref1) == InfiniteVariableIndex[]
+        @test InfiniteOpt._infinite_variable_dependencies(dpref1) == InfiniteVariableIndex[]
+        @test InfiniteOpt._infinite_variable_dependencies(pref2) == InfiniteVariableIndex[]
+        @test InfiniteOpt._infinite_variable_dependencies(dpref2) == InfiniteVariableIndex[]
+    end
+    # _measure_dependencies
+    @testset "_measure_dependencies" begin
+        @test InfiniteOpt._measure_dependencies(pref1) == MeasureIndex[]
+        @test InfiniteOpt._measure_dependencies(dpref1) == MeasureIndex[]
+        @test InfiniteOpt._measure_dependencies(pref2) == MeasureIndex[]
+        @test InfiniteOpt._measure_dependencies(dpref2) == MeasureIndex[]
+    end
+    # _constraint_dependencies
+    @testset "_constraint_dependencies" begin
+        @test InfiniteOpt._constraint_dependencies(pref1) == ConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(dpref1) == ConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(pref2) == ConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(dpref2) == ConstraintIndex[]
+    end
     # used_by_constraint
     @testset "used_by_constraint" begin
         @test !used_by_constraint(pref1)
         @test !used_by_constraint(pref2)
-        push!(InfiniteOpt._data_object(pref1).constraint_indices, ConstraintIndex(1))
-        push!(InfiniteOpt._data_object(pref2).constraint_indices, ConstraintIndex(1))
+        @test !used_by_constraint(dpref1)
+        @test !used_by_constraint(dpref2)
+        push!(InfiniteOpt._constraint_dependencies(dpref1), ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(dpref2), ConstraintIndex(1))
         @test used_by_constraint(pref1)
         @test used_by_constraint(pref2)
-        popfirst!(InfiniteOpt._data_object(pref1).constraint_indices)
-        popfirst!(InfiniteOpt._data_object(pref2).constraint_indices)
+        @test used_by_constraint(dpref1)
+        @test used_by_constraint(dpref2)
+        popfirst!(InfiniteOpt._constraint_dependencies(dpref1))
+        popfirst!(InfiniteOpt._constraint_dependencies(dpref2))
     end
     # used_by_measure
     @testset "used_by_measure" begin
         @test !used_by_measure(pref1)
         @test !used_by_measure(pref2)
-        push!(InfiniteOpt._data_object(pref1).measure_indices, MeasureIndex(1))
-        push!(InfiniteOpt._data_object(pref2).measure_indices, MeasureIndex(1))
+        @test !used_by_measure(dpref1)
+        @test !used_by_measure(dpref2)
+        push!(InfiniteOpt._measure_dependencies(dpref1), MeasureIndex(1))
+        push!(InfiniteOpt._measure_dependencies(dpref2), MeasureIndex(1))
         @test used_by_measure(pref1)
         @test used_by_measure(pref2)
-        popfirst!(InfiniteOpt._data_object(pref1).measure_indices)
-        popfirst!(InfiniteOpt._data_object(pref2).measure_indices)
+        @test used_by_measure(dpref1)
+        @test used_by_measure(dpref2)
+        popfirst!(InfiniteOpt._measure_dependencies(dpref1))
+        popfirst!(InfiniteOpt._measure_dependencies(dpref2))
     end
     # used_by_variable
     @testset "used_by_infinite_variable" begin
         @test !used_by_infinite_variable(pref1)
         @test !used_by_infinite_variable(pref2)
-        push!(InfiniteOpt._data_object(pref1).infinite_var_indices, InfiniteVariableIndex(1))
-        push!(InfiniteOpt._data_object(pref2).infinite_var_indices, InfiniteVariableIndex(1))
+        @test !used_by_infinite_variable(dpref1)
+        @test !used_by_infinite_variable(dpref2)
+        push!(InfiniteOpt._infinite_variable_dependencies(dpref1), InfiniteVariableIndex(1))
         @test used_by_infinite_variable(pref1)
-        @test used_by_infinite_variable(pref2)
-        popfirst!(InfiniteOpt._data_object(pref1).infinite_var_indices)
-        popfirst!(InfiniteOpt._data_object(pref2).infinite_var_indices)
+        @test used_by_infinite_variable(dpref1)
+        popfirst!(InfiniteOpt._infinite_variable_dependencies(dpref1))
     end
-    # used_by_objective (for finite parameters)
-    @testset "used_by_objective (finite parameters)" begin
+    # used_by_objective
+    @testset "used_by_objective" begin
+        @test !used_by_objective(pref1)
+        @test !used_by_objective(dpref1)
         @test !used_by_objective(pref2)
+        @test !used_by_objective(dpref2)
         InfiniteOpt._data_object(pref2).in_objective = true
         @test used_by_objective(pref2)
+        @test used_by_objective(dpref2)
         InfiniteOpt._data_object(pref2).in_objective = false
     end
     # is_used
     @testset "is_used" begin
         @test !is_used(pref1)
         @test !is_used(pref2)
-        push!(InfiniteOpt._data_object(pref1).constraint_indices, ConstraintIndex(1))
-        push!(InfiniteOpt._data_object(pref2).constraint_indices, ConstraintIndex(1))
+        @test !is_used(dpref1)
+        @test !is_used(dpref2)
+        push!(InfiniteOpt._constraint_dependencies(dpref1), ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(dpref2), ConstraintIndex(1))
         @test is_used(pref1)
         @test is_used(pref2)
-        popfirst!(InfiniteOpt._data_object(pref1).constraint_indices)
-        popfirst!(InfiniteOpt._data_object(pref2).constraint_indices)
-        push!(InfiniteOpt._data_object(pref1).measure_indices, MeasureIndex(1))
-        push!(InfiniteOpt._data_object(pref2).measure_indices, MeasureIndex(1))
+        @test is_used(dpref1)
+        @test is_used(dpref2)
+        popfirst!(InfiniteOpt._constraint_dependencies(dpref1))
+        popfirst!(InfiniteOpt._constraint_dependencies(dpref2))
+        push!(InfiniteOpt._measure_dependencies(dpref1), MeasureIndex(1))
+        push!(InfiniteOpt._measure_dependencies(dpref2), MeasureIndex(1))
         @test is_used(pref1)
         @test is_used(pref2)
-        popfirst!(InfiniteOpt._data_object(pref1).measure_indices)
-        popfirst!(InfiniteOpt._data_object(pref2).measure_indices)
-        push!(InfiniteOpt._data_object(pref1).infinite_var_indices, InfiniteVariableIndex(1))
-        push!(InfiniteOpt._data_object(pref2).infinite_var_indices, InfiniteVariableIndex(1))
+        @test is_used(dpref1)
+        @test is_used(dpref2)
+        popfirst!(InfiniteOpt._measure_dependencies(dpref1))
+        popfirst!(InfiniteOpt._measure_dependencies(dpref2))
+        push!(InfiniteOpt._infinite_variable_dependencies(dpref1), InfiniteVariableIndex(1))
         @test is_used(pref1)
-        @test is_used(pref2)
-        popfirst!(InfiniteOpt._data_object(pref1).infinite_var_indices)
-        popfirst!(InfiniteOpt._data_object(pref2).infinite_var_indices)
+        @test is_used(dpref1)
+        popfirst!(InfiniteOpt._infinite_variable_dependencies(dpref1))
     end
 end
 
@@ -575,19 +687,6 @@ end
 @testset "Finite Parameters" begin
     # initialize the model
     m = InfiniteModel()
-    # test JuMP.value
-    @testset "JuMP.value" begin
-        @finite_parameter(m, g, 1)
-        @test value(g) == 1
-    end
-    # test JuMP.set_value
-    @testset "JuMP.set_value" begin
-        @finite_parameter(m, i, 1)
-        @test isa(set_value(i, 42), Nothing)
-        @test value(i) == 42
-    end
-
-    m = InfiniteModel()
     # test @finite_parameter
     @testset "@finite_parameter" begin
         m2 = Model()
@@ -602,17 +701,17 @@ end
         # test anonymous definition
         pref = GeneralVariableRef(m, 1, FiniteParameterIndex)
         @test @finite_parameter(m, 42) == pref
-        @test value(pref) == 42
+        @test InfiniteOpt._core_variable_object(pref).value == 42
         # test vector anonymous definition
         prefs = [GeneralVariableRef(m, 2, FiniteParameterIndex),
                  GeneralVariableRef(m, 3, FiniteParameterIndex)]
         @test @finite_parameter(m, [1:2], 42, base_name = "a") == prefs
-        @test value(prefs[1]) == 42
+        @test InfiniteOpt._core_variable_object(prefs[1]).value == 42
         @test name.(prefs) == ["a[1]", "a[2]"]
         # test named definition
         pref = GeneralVariableRef(m, 4, FiniteParameterIndex)
         @test @finite_parameter(m, b, 42) == pref
-        @test value(pref) == 42
+        @test InfiniteOpt._core_variable_object(pref).value == 42
         @test name(pref) == "b"
         # test named vector definition
         prefs = [GeneralVariableRef(m, 5, FiniteParameterIndex),
@@ -620,8 +719,27 @@ end
         prefs = convert(JuMPC.SparseAxisArray, prefs)
         @test @finite_parameter(m, c[i = 1:2], [3, 7][i],
                                 container = SparseAxisArray) == prefs
-        @test value(prefs[2]) == 7
+        @test InfiniteOpt._core_variable_object(prefs[2]).value == 7
         @test name(prefs[2]) == "c[2]"
+    end
+    # initialize the model
+    m = InfiniteModel()
+    # test JuMP.value
+    @testset "JuMP.value" begin
+        pref = GeneralVariableRef(m, 1, FiniteParameterIndex)
+        dpref = dispatch_variable_ref(pref)
+        @test @finite_parameter(m, g, 1) == pref
+        @test value(dpref) == 1
+        @test value(pref) == 1
+    end
+    # test JuMP.set_value
+    @testset "JuMP.set_value" begin
+        pref = GeneralVariableRef(m, 1, FiniteParameterIndex)
+        dpref = dispatch_variable_ref(pref)
+        @test isa(set_value(dpref, 42), Nothing)
+        @test value(pref) == 42
+        @test isa(set_value(pref, 41), Nothing)
+        @test value(pref) == 41
     end
 end
 

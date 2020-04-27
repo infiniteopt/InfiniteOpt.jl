@@ -120,9 +120,7 @@ end
 function _check_parameters_valid(model::InfiniteModel,
                                  prefs::VectorTuple)::Nothing
     for pref in prefs
-        if !JuMP.check_belongs_to_model(pref, model)
-            error("Invalid Parameter reference provided.")
-        end
+        JuMP.check_belongs_to_model(pref, model)
     end
     return
 end

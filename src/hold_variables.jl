@@ -76,9 +76,7 @@ function _validate_bounds(model::InfiniteModel, bounds::ParameterBounds;
                           _error = error)::Nothing
     for (pref, set) in bounds
         # check validity
-        if JuMP.check_belongs_to_model(pref, model)
-            _error("Parameter bound reference is invalid.")
-        end
+        JuMP.check_belongs_to_model(pref, model)
         # ensure has a support if a point constraint was given
         if JuMP.lower_bound(set) == JuMP.upper_bound(set) # TODO resolve for dependent parameters
             add_supports(pref, JuMP.lower_bound(set))

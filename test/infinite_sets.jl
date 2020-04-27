@@ -131,6 +131,8 @@ end
         @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1][2] == 0.111
         @test generate_support_values(set, num_supports = 10, sig_figs = 3)[1][2] != 1/11
         @test length(generate_support_values(set, num_supports = 10, sig_figs = 3)[1]) == 10
+        @test generate_support_values(set, num_supports = 10, use_mc = true)[1] isa Vector{<:Number}
+        @test generate_support_values(set, num_supports = 10, use_mc = true)[2] == McSample
     end
     @testset "Distribution Sets" begin
         dist1 = Normal(0., 1.)

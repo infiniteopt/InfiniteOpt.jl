@@ -441,7 +441,22 @@ end
         @test_throws ArgumentError fill_in_supports!(sparse_gvrefs,
                                                  num_supports = 1, sig_figs = 1)
     end
-    # TODO insert more as needed
+    # test JuMP.value (Fallback)
+    @testset "JuMP.value (Fallback)" begin
+        @test_throws ArgumentError value(dvref)
+    end
+    # test JuMP.value (GeneralVariableRef)
+    @testset "JuMP.value (GeneralVariableRef)" begin
+        @test_throws ArgumentError value(gvref)
+    end
+    # test JuMP.set_value (Fallback)
+    @testset "JuMP.set_value (Fallback)" begin
+        @test_throws ArgumentError set_value(dvref, 2)
+    end
+    # test JuMP.set_value (GeneralVariableRef)
+    @testset "JuMP.set_value (GeneralVariableRef)" begin
+        @test_throws ArgumentError set_value(gvref, 2)
+    end
 end
 
 # test Variable Methods

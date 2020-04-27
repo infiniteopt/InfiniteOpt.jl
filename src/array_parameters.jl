@@ -1144,7 +1144,7 @@ function fill_in_supports!(model::InfiniteModel; num_supports::Int = 10,
     # fill in the supports of each dependent parameter set
     for (key, data_object) in model.dependent_params
         prefs = [dispatch_variable_ref(model, DependentParameterIndex(key, i))
-                 for i in 1:length(names)]
+                 for i in 1:length(data_object.names)]
         fill_in_supports!(prefs, num_supports = num_supports, sig_figs = sig_figs,
                           modify = modify)
     end
