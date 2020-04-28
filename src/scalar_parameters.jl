@@ -305,6 +305,10 @@ function _constraint_dependencies(pref::ScalarParameterRef
     return _data_object(pref).constraint_indices
 end
 
+################################################################################
+#                             USED_BY FUNCTIONS
+################################################################################
+
 """
     used_by_infinite_variable(pref::IndependentParameterRef)::Bool
 
@@ -392,7 +396,7 @@ function is_used(pref::FiniteParameterRef)::Bool
 end
 
 ################################################################################
-#                                 NAME METHODS
+#                              NAME METHODS
 ################################################################################
 
 """
@@ -428,24 +432,135 @@ julia> name(t)
 """
 function JuMP.set_name(pref::ScalarParameterRef, name::String)::Nothing
     _data_object(pref).name = name
+    JuMP.owner_model(pref).name_to_var = nothing
     return
+end
+
+# Make a parameter reference
+function _make_parameter_ref(model::InfiniteModel, index::AbstractInfOptIndex)::GeneralVariableRef
+    return GeneralVariableRef(model, index.value, typeof(index))
+end
+
+function _make_parameter_ref(model::InfiniteModel, index::DependentParameterIndex)::GeneralVariableRef
+    return GeneralVariableRef(model, index.object_index.value, typeof(index), index.param_index)
+end
+
+# Get the name_to_param Dictionary
+function _param_name_dict(model::InfiniteModel)::Union{Dict{String, AbstractInfOptIndex}, Nothing}
+    return model.name_to_param
+end
+
+# Update name_to_param
+function _update_param_name_dict(model::InfiniteModel, param_dict::MOIUC.CleverDict{K, V})::Nothing where {K, V <: ScalarParameterData}
+    name_dict = _param_name_dict(model)
+    for (index, data_object) in param_dict
+        param_name = data_object.name
+        if haskey(name_dict, param_name)
+            # IndependentParameterIndex(-1) is a special value that means
+            # this string does not map to a unique variable name.
+            name_dict[param_name] = IndependentParameterIndex(-1)
+        else
+            name_dict[param_name] = index
+        end
+    end
+    model.name_to_param = name_dict
+    return
+end
+
+function _update_param_name_dict(model::InfiniteModel, param_dict::MOIUC.CleverDict{K, V})::Nothing where {K, V <: MultiParameterData}
+    name_dict = _param_name_dict(model)
+    for (index, data_object) in param_dict
+        param_nums = data_object.parameter_nums
+        for i in eachindex(param_nums)
+            name = data_object.names[i]
+            if haskey(name_dict, name)
+                # IndependentParameterIndex(-1) is a special value that means
+                # this string does not map to a unique variable name.
+                name_dict[name] = IndependentParameterIndex(-1)
+            else
+                individual_index = DependentParameterIndex(index, i)
+                name_dict[name] = individual_index
+            end
+         end
+    end
+    model.name_to_param = name_dict
+    return
+end
+
+"""
+    parameter_by_name(model::InfiniteModel, name::String)::Union{GeneralVariableRef,
+                                                                 Nothing}
+
+Return the parameter reference assoociated with a parameter name. Errors if
+multiple parameters have the same name. Returns nothing if no such name exists.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1], supports = [0, 1]))
+julia> parameter_by_name(model, "t")
+t
+```
+"""
+function parameter_by_name(model::InfiniteModel,
+                           name::String)::Union{GeneralVariableRef, Nothing}
+    if _param_name_dict(model) === nothing
+        model.name_to_param = Dict{String, AbstractInfOptIndex}()
+        _update_param_name_dict(model, model.independent_params)
+        _update_param_name_dict(model, model.dependent_params)
+        _update_param_name_dict(model, model.finite_params)
+    end
+    index = get(_param_name_dict(model), name, nothing)
+    if index isa Nothing
+        return nothing
+    elseif index == IndependentParameterIndex(-1)
+        error("Multiple variables have the name $name.")
+    else
+        return _make_parameter_ref(model, index)
+    end
+end
+
+"""
+    all_scalar_parameters(model::InfiniteModel)::Vector{ScalarParameterRef}
+
+Return all of the scalar parameter references currently in `model`.
+
+**Example**
+```julia-repl
+julia> all_parameters(model)
+3-element Array{ParameterRef,1}:
+ t
+ x[1]
+ x[2]
+```
+"""
+function all_scalar_parameters(model::InfiniteModel)::Vector{GeneralVariableRef}
+    pref_list = Vector{GeneralVariableRef}(undef, num_scalar_parameters(model))
+    counter = 1
+    for (index, _) in model.independent_params
+        pref_list[counter] = GeneralVariableRef(model, index.value, IndependentParameterIndex)
+        counter += 1
+    end
+    for (index, _) in model.finite_params
+        pref_list[counter] = GeneralVariableRef(model, index.value, FiniteParameterIndex)
+        counter += 1
+    end
+    return pref_list
 end
 
 ################################################################################
 #
 ################################################################################
 """
-    num_parameters(model::InfiniteModel)::Int
+    num_scalar_parameters(model::InfiniteModel)::Int
 
 Return the number of scalar parameters currently present in `model`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
-julia> num_parameters(model)
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1]))
+julia> num_scalar_parameters(model)
 1
 ```
 """
-function num_parameters(model::InfiniteModel)::Int
+function num_scalar_parameters(model::InfiniteModel)::Int
     return num_independent_parameters(model) + num_finite_parameters(model)
 end
 
@@ -480,22 +595,6 @@ function _update_parameter_set(pref::IndependentParameterRef, set::AbstractInfin
     end
     return
 end
-#=
-function _update_parameter_supports(pref::IndependentParameterRef,
-                                    supports::Union{<:Real, Vector{<:Real}},
-                                    labels::Union{Set{Symbol}, Vector{Set{Symbol}}})::Nothing
-    if isa(supports, Real)
-        supports = [supports]
-    end
-    if isa(labels, Set{Symbol})
-        labels = [labels]
-    end
-    new_supports_dict = DataStructures.SortedDict{Float64, Set{Symbol}}(
-                        supports[i] => labels[i] for i in eachindex(supports))
-    _update_parameter_supports(pref, new_supports_dict)
-    return
-end
-=#
 function _update_parameter_supports(pref::IndependentParameterRef,
                                     supports::DataStructures.SortedDict{Float64, Set{Symbol}})::Nothing
     set = _parameter_set(pref)
@@ -506,6 +605,10 @@ function _update_parameter_supports(pref::IndependentParameterRef,
     end
     return
 end
+
+################################################################################
+#                               SET FUNCTIONS
+################################################################################
 
 """
     infinite_set(pref::IndependentParameterRef)::AbstractInfiniteSet
@@ -548,6 +651,10 @@ function set_infinite_set(pref::IndependentParameterRef, set::AbstractInfiniteSe
     _update_parameter_set(pref, set)
     return
 end
+
+################################################################################
+#                        LOWER/UPPER BOUND FUNCTIONS
+################################################################################
 
 """
     JuMP.has_lower_bound(pref::IndependentParameterRef)::Bool
@@ -677,6 +784,10 @@ function JuMP.set_upper_bound(pref::IndependentParameterRef, upper::Real)::Nothi
     return
 end
 
+################################################################################
+#                               SUPPORT FUNCTIONS
+################################################################################
+
 """
     num_supports(pref::IndependentParameterRef; [label::Symbol = All])::Int
 
@@ -782,23 +893,23 @@ end
 Add additional support points for `pref`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> add_supports(t, 0.5)
 
 julia> supports(t)
 3-element Array{Float64,1}:
  0.0
- 1.0
  0.5
+ 1.0
 
 julia> add_supports(t, [0.25, 1])
 
 julia> supports(t)
 4-element Array{Float64,1}:
  0.0
- 1.0
- 0.5
  0.25
+ 0.5
+ 1.0
 ```
 """
 function add_supports(pref::IndependentParameterRef,
@@ -819,7 +930,7 @@ end
 Delete the support points for `pref`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1], supports = [0, 1]))
 julia> delete_supports(t)
 
 julia> supports(t)
@@ -936,70 +1047,7 @@ function generate_and_add_supports!(pref::IndependentParameterRef,
     return
 end
 
-"""
-    parameter_by_name(model::InfiniteModel, name::String)::Union{ParameterRef,
-                                                                 Nothing}
 
-Return the parameter reference assoociated with a parameter name. Errors if
-multiple parameters have the same name. Returns nothing if no such name exists.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1], supports = [0, 1]))
-julia> parameter_by_name(model, "t")
-t
-```
-"""
-#=
-function parameter_by_name(model::InfiniteModel,
-                           name::String)::Union{ScalarParameterRef, Nothing}
-    if model.name_to_param === nothing
-        # Inspired from MOI/src/Utilities/model.jl
-        model.name_to_param = Dict{String, AbstractInfOptIndex}()
-        for (param, param_name) in model.param_to_name
-            if haskey(model.name_to_param, param_name)
-                # -1 is a special value that means this string does not map to
-                # a unique variable name.
-                model.name_to_param[param_name] = -1
-            else
-                model.name_to_param[param_name] = param
-            end
-        end
-    end
-    index = get(model.name_to_param, name, nothing)
-    if index isa Nothing
-        return
-    elseif index == -1
-        error("Multiple parameters have the name $name.")
-    else
-        return ParameterRef(model, index)
-    end
-end
-
-"""
-    all_parameters(model::InfiniteModel)::Vector{ParameterRef}
-
-Return all of the infinite parameter references currently in `model`.
-
-**Example**
-```julia-repl
-julia> all_parameters(model)
-3-element Array{ParameterRef,1}:
- t
- x[1]
- x[2]
-```
-"""
-function all_parameters(model::InfiniteModel)::Vector{ParameterRef}
-    pref_list = Vector{ParameterRef}(undef, num_parameters(model))
-    indexes = sort([index for index in keys(model.params)])
-    counter = 1
-    for index in indexes
-        pref_list[counter] = ParameterRef(model, index)
-        counter += 1
-    end
-    return pref_list
-end
-=#
 #=
 ################################################################################
 #                               DELETE FUNCTIONS
