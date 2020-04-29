@@ -230,7 +230,7 @@ end
     @testset "build_parameter (IndependentParameter)" begin
         set = IntervalSet(0, 1)
         supps = 0.
-        supps_dict = SortedDict{Float64, Set{Symbol}}(0. => Set{Symbol}([UserDefined]))
+        supps_dict = SortedDict{Float64, Set{Symbol}}(0. => Set([UserDefined]))
         @test build_parameter(error, set, supports = supps).set == set
         @test build_parameter(error, set, supports = supps).supports == supps_dict
         @test_throws ErrorException build_parameter(error, set, bob = 42)
@@ -291,29 +291,45 @@ end
     param = build_parameter(error, IntervalSet(0, 1))
     pref = add_parameter(m, param, "test")
     dpref = dispatch_variable_ref(pref)
+    bad = TestVariableRef(m, TestIndex(-1))
     # JuMP.name
     @testset "JuMP.name" begin
+        @test_throws ArgumentError name(bad)
         @test name(pref) == "test"
         @test name(dpref) == "test"
     end
     # JuMP.set_name
     @testset "JuMP.set_name" begin
+        @test_throws ArgumentError set_name(bad, "test")
         @test isa(set_name(pref, "new"), Nothing)
         @test name(pref) == "new"
         @test isa(set_name(dpref, "test"), Nothing)
         @test name(dpref) == "test"
     end
-    #=
+    # _make_parameter_ref
+    @testset "_make_parameter_ref" begin
+        @test InfiniteOpt._make_parameter_ref(m, IndependentParameterIndex(1)) == pref
+    end
+    # _param_name_dict
+    @testset "_param_name_dict" begin
+        @test isa(InfiniteOpt._param_name_dict(m), Nothing)
+    end
+    # _update_param_name_dict
+    @testset "_update_param_name_dict" begin
+        m.name_to_param = Dict{String, AbstractInfOptIndex}()
+        @test InfiniteOpt._update_param_name_dict(m, m.independent_params) isa Nothing
+        @test InfiniteOpt._update_param_name_dict(m, m.dependent_params) isa Nothing
+        @test m.name_to_param["test"] == IndependentParameterIndex(1)
+        m.name_to_param = nothing
+    end
     # parameter_by_name
     @testset "parameter_by_name" begin
-        @test parameter_by_name(m, "new") == pref
+        @test parameter_by_name(m, "test") == pref
         @test isa(parameter_by_name(m, "test2"), Nothing)
-        m.params[2] = param
-        m.param_to_name[2] = "new"
+        pref = add_parameter(m, param, "test")
         m.name_to_param = nothing
-        @test_throws ErrorException parameter_by_name(m, "new")
+        @test_throws ErrorException parameter_by_name(m, "test")
     end
-    =#
 end
 
 # Test the parameter macro
@@ -512,6 +528,7 @@ end
     param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
     pref_gen = add_parameter(m, param, "test")
     pref_disp = dispatch_variable_ref(pref_gen)
+    bad = Bad()
     # _parameter_set
     @testset "_parameter_set" begin
         @test InfiniteOpt._parameter_set(pref_disp) == IntervalSet(0, 1)
@@ -524,10 +541,15 @@ end
     end
     # infinite_set
     @testset "infinite_set" begin
+        @test_throws ArgumentError infinite_set(bad)
+        @test infinite_set(pref_disp) == IntervalSet(1, 2)
         @test infinite_set(pref_gen) == IntervalSet(1, 2)
     end
     # set_infinite_set
     @testset "set_infinite_set" begin
+        @test_throws ArgumentError set_infinite_set(bad, IntervalSet(0, 1))
+        @test isa(set_infinite_set(pref_disp, IntervalSet(2, 3)), Nothing)
+        @test infinite_set(pref_disp) == IntervalSet(2, 3)
         @test isa(set_infinite_set(pref_gen, IntervalSet(1, 3)), Nothing)
         @test infinite_set(pref_gen) == IntervalSet(1, 3)
         push!(InfiniteOpt._data_object(pref_gen).measure_indices, MeasureIndex(1))
@@ -542,6 +564,7 @@ end
     param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
     pref = add_parameter(m, param, "test")
     pref_disp = dispatch_variable_ref(pref)
+    bad = Bad()
     # _parameter_supports
     @testset "_parameter_supports" begin
         @test InfiniteOpt._parameter_supports(pref_disp) == SortedDict{Float64, Set{Symbol}}()
@@ -557,24 +580,35 @@ end
     end
     # num_supports
     @testset "num_supports" begin
+        @test_throws ArgumentError num_supports(bad)
+        @test num_supports(pref_disp) == 1
+        @test num_supports(pref_disp, label = UserDefined) == 0
         @test num_supports(pref) == 1
         @test num_supports(pref, label = UserDefined) == 0
     end
     # has_supports
     @testset "has_supports" begin
+        @test_throws ArgumentError has_supports(bad)
+        @test has_supports(pref_disp)
         @test has_supports(pref)
         InfiniteOpt._update_parameter_supports(pref_disp, SortedDict{Float64, Set{Symbol}}())
+        @test !has_supports(pref_disp)
         @test !has_supports(pref)
     end
     # supports
     @testset "supports" begin
+        @test_throws ArgumentError supports(bad)
+        @test_throws ErrorException supports(pref_disp)
         @test_throws ErrorException supports(pref)
         dict = SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}())
         InfiniteOpt._update_parameter_supports(pref_disp, dict)
+        @test supports(pref_disp) == [1.]
         @test supports(pref) == [1.]
     end
     # set_supports
     @testset "set_supports" begin
+        @test_throws ArgumentError set_supports(bad, [0, 1])
+        @test isa(set_supports(pref_disp, [0, 1], force = true), Nothing)
         @test isa(set_supports(pref, [0, 1], force = true), Nothing)
         @test supports(pref) == [0., 1.]
         @test_throws ErrorException set_supports(pref, [2, 3])
@@ -584,13 +618,18 @@ end
     end
     # add_supports
     @testset "add_supports" begin
+        @test_throws ArgumentError add_supports(bad, 0.5)
+        @test isa(add_supports(pref_disp, 0.25), Nothing)
         @test isa(add_supports(pref, 0.5), Nothing)
-        @test supports(pref) == [0.5, 1.]
+        @test supports(pref) == [0.25, 0.5, 1.]
         @test isa(add_supports(pref, [0, 0.25, 1]), Nothing)
         @test supports(pref) == [0, 0.25, 0.5, 1.]
     end
     # delete_supports
     @testset "delete_supports" begin
+        @test_throws ArgumentError delete_supports(bad)
+        @test isa(delete_supports(pref_disp), Nothing)
+        add_supports(pref, 0.1)
         @test isa(delete_supports(pref), Nothing)
         @test_throws ErrorException supports(pref)
         push!(InfiniteOpt._data_object(pref).measure_indices, MeasureIndex(1))
@@ -607,23 +646,35 @@ end
     pref2 = add_parameter(m, p2)
     p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}())
     pref3 = add_parameter(m, p3)
+    bad = TestVariableRef(m, TestIndex(-1))
     # JuMP.has_lower_bound
     @testset "JuMP.has_lower_bound" begin
+        @test_throws ArgumentError has_lower_bound(bad)
+        @test has_lower_bound(dispatch_variable_ref(pref1))
         @test has_lower_bound(pref1)
+        @test has_lower_bound(dispatch_variable_ref(pref2))
         @test has_lower_bound(pref2)
     end
     # JuMP.lower_bound
     @testset "JuMP.lower_bound" begin
+        @test_throws ArgumentError lower_bound(bad)
+        @test lower_bound(dispatch_variable_ref(pref1)) == 0
+        @test lower_bound(dispatch_variable_ref(pref2)) == -Inf
         @test lower_bound(pref1) == 0
         @test lower_bound(pref2) == -Inf
         @test_throws ErrorException lower_bound(pref3)
     end
     # JuMP.set_lower_bound
     @testset "JuMP.set_lower_bound" begin
+        @test_throws ArgumentError set_lower_bound(bad, 2)
+        @test_throws ErrorException set_lower_bound(dispatch_variable_ref(pref1), 2)
+        @test_throws ErrorException set_lower_bound(dispatch_variable_ref(pref3), 2)
         @test_throws ErrorException set_lower_bound(pref1, 2)
         @test_throws ErrorException set_lower_bound(pref3, 2)
-        @test isa(set_lower_bound(pref1, -1), Nothing)
+        @test isa(set_lower_bound(dispatch_variable_ref(pref1), -1), Nothing)
         @test lower_bound(pref1) == -1
+        @test isa(set_lower_bound(pref1, -2), Nothing)
+        @test lower_bound(pref1) == -2
     end
 end
 
@@ -636,23 +687,35 @@ end
     pref2 = add_parameter(m, p2)
     p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}())
     pref3 = add_parameter(m, p3)
+    bad = TestVariableRef(m, TestIndex(-1))
     # JuMP.has_upper_bound
     @testset "JuMP.has_upper_bound" begin
+        @test_throws ArgumentError has_upper_bound(bad)
+        @test has_upper_bound(dispatch_variable_ref(pref1))
+        @test has_upper_bound(dispatch_variable_ref(pref2))
         @test has_upper_bound(pref1)
         @test has_upper_bound(pref2)
     end
     # JuMP.lower_bound
     @testset "JuMP.upper_bound" begin
+        @test_throws ArgumentError upper_bound(bad)
+        @test upper_bound(dispatch_variable_ref(pref1)) == 1
+        @test upper_bound(dispatch_variable_ref(pref2)) == Inf
         @test upper_bound(pref1) == 1
         @test upper_bound(pref2) == Inf
         @test_throws ErrorException upper_bound(pref3)
     end
     # JuMP.set_lower_bound
     @testset "JuMP.set_upper_bound" begin
+        @test_throws ArgumentError set_upper_bound(bad, -1)
+        @test_throws ErrorException set_upper_bound(dispatch_variable_ref(pref1), -1)
+        @test_throws ErrorException set_upper_bound(dispatch_variable_ref(pref3), -1)
         @test_throws ErrorException set_upper_bound(pref1, -1)
         @test_throws ErrorException set_upper_bound(pref3, -1)
-        @test isa(set_upper_bound(pref1, 2), Nothing)
+        @test isa(set_upper_bound(dispatch_variable_ref(pref1), 2), Nothing)
         @test upper_bound(pref1) == 2
+        @test isa(set_upper_bound(pref1, 3), Nothing)
+        @test upper_bound(pref1) == 3
     end
 end
 
@@ -671,26 +734,22 @@ end
         pref3 = GeneralVariableRef(m, 5, IndependentParameterIndex)
         @test !is_valid(m, pref3)
     end
-    #=
-    # num_parameters
-    @testset "num_parameters" begin
-        @test num_parameters(m) == 3
-        delete!(m.params, JuMP.index(pref))
-        @test num_parameters(m) == 2
-        m.params[JuMP.index(pref)] = param
+    # num_scalar_parameters
+    @testset "num_scalar_parameters" begin
+        @test num_scalar_parameters(m) == 3
     end
     # all_parameters
-    @testset "all_parameters" begin
-        @test length(all_parameters(m)) == 3
-        @test all_parameters(m)[1] == pref
+    @testset "all_scalar_parameters" begin
+        @test length(all_scalar_parameters(m)) == 3
+        @test all_scalar_parameters(m)[1] == pref
     end
-    =#
 end
 
 # Test methods for finite parameters
 @testset "Finite Parameters" begin
     # initialize the model
     m = InfiniteModel()
+    bad = TestVariableRef(m, TestIndex(-1))
     # test @finite_parameter
     @testset "@finite_parameter" begin
         m2 = Model()
@@ -732,6 +791,7 @@ end
     @testset "JuMP.value" begin
         pref = GeneralVariableRef(m, 1, FiniteParameterIndex)
         dpref = dispatch_variable_ref(pref)
+        @test_throws ArgumentError value(bad)
         @test @finite_parameter(m, g, 1) == pref
         @test value(dpref) == 1
         @test value(pref) == 1
@@ -740,6 +800,7 @@ end
     @testset "JuMP.set_value" begin
         pref = GeneralVariableRef(m, 1, FiniteParameterIndex)
         dpref = dispatch_variable_ref(pref)
+        @test_throws ArgumentError set_value(bad, 42)
         @test isa(set_value(dpref, 42), Nothing)
         @test value(pref) == 42
         @test isa(set_value(pref, 41), Nothing)
@@ -770,13 +831,13 @@ end
         pref2 = @independent_parameter(m, 0 <= b[1:2] <= 1)
         dist = Normal(0., 1.)
         pref3 = @independent_parameter(m, c in dist, supports = [-0.5, 0.5])
-        @test fill_in_supports!(pref1, num_supports = 11, sig_figs = 3) isa Nothing
-        @test fill_in_supports!.(pref2, num_supports = 11, sig_figs = 3) isa Array{Nothing}
-        @test fill_in_supports!(pref3, num_supports = 11, sig_figs = 3) isa Nothing
-        @test length(supports(pref1)) == 11
-        @test length(supports(pref2[1])) == 11
-        @test length(supports(pref2[2])) == 11
-        @test length(supports(pref3)) == 11
+        @test fill_in_supports!(pref1, num_supports = 10, sig_figs = 4) isa Nothing
+        @test fill_in_supports!.(pref2, num_supports = 10, sig_figs = 4) isa Array{Nothing}
+        @test fill_in_supports!(pref3, num_supports = 10, sig_figs = 4) isa Nothing
+        @test length(supports(pref1)) == 10
+        @test length(supports(pref2[1])) == 10
+        @test length(supports(pref2[2])) == 10
+        @test length(supports(pref3)) == 10
         @test -0.5 in supports(pref3)
         @test 0.5 in supports(pref3)
         @test fill_in_supports!(pref1, num_supports = 20) isa Nothing

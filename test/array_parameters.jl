@@ -391,6 +391,20 @@ end
         @test InfiniteOpt._param_index(prefs[1]) == 1
         @test InfiniteOpt._param_index(prefs[2]) == 2
     end
+    # test _update_param_name_dict
+    @testset "_update_param_name_dict" begin
+        m.name_to_param = Dict{String, AbstractInfOptIndex}()
+        @test InfiniteOpt._update_param_name_dict(m, m.dependent_params) isa Nothing
+        @test m.name_to_param["a[1]"] == DependentParameterIndex(DependentParametersIndex(1), 1)
+        @test m.name_to_param["a[2]"] == DependentParameterIndex(DependentParametersIndex(1), 2)
+        m.name_to_param = nothing
+    end
+    # parameter_by_name
+    @testset "parameter_by_name" begin
+        @test parameter_by_name(m, "a[1]") == gvrefs[1]
+        @test parameter_by_name(m, "a[2]") == gvrefs[2]
+        @test isa(parameter_by_name(m, "a[3]"), Nothing)
+    end
     # test name
     @testset "JuMP.name" begin
         @test name(prefs[1]) == "a[1]"
