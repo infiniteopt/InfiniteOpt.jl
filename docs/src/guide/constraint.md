@@ -126,7 +126,7 @@ originally given, respectively. This distinction is needed to facilitate
 deletion methods such as deleting a bounded hold variable.
 
 These constraint objects are what store constraints in `InfiniteModel`s. And
-these are referred to by appropriate explicit type of [`GeneralConstraintRef`](@ref).
+these are referred to by appropriate explicit type of [`InfOptConstraintRef`](@ref).
 These explicit types are [`InfiniteConstraintRef`](@ref),
 [`FiniteConstraintRef`](@ref), and [`MeasureConstraintRef`](@ref) which
 correspond to constraints that contain infinite variables, finite variables, and
@@ -145,7 +145,7 @@ the following steps:
 - Define the constraint information (i.e., function, set, and parameter bounds)
 - Construct a concrete subtype of `JuMP.AbstractConstraint` to store the constraint information
 - Add the `AbstractConstraint` object to an `InfiniteModel` and assign a name
-- Create a concrete subtype of [`GeneralConstraintRef`](@ref) that points to the constraint object stored in the model.
+- Create a concrete subtype of [`InfOptConstraintRef`](@ref) that points to the constraint object stored in the model.
 
 The constraint objects are specified via
 [`build_constraint`](@ref JuMP.build_constraint(::Function, ::InfiniteExpr, ::MOI.AbstractScalarSet))
@@ -261,11 +261,11 @@ information.
 ### Basic
 A number of constraint properties can be extracted via constraint references.
 Principally, the validity, name, model, index, and constraint object can be queried
-via [`is_valid`](@ref JuMP.is_valid(::InfiniteModel, ::GeneralConstraintRef)),
-[`name`](@ref JuMP.name(::GeneralConstraintRef)),
-[`owner_model`](@ref JuMP.owner_model(::GeneralConstraintRef)),
-[`index`](@ref JuMP.index(::GeneralConstraintRef)),
-and [`constraint_object`](@ref JuMP.constraint_object(::GeneralConstraintRef)),
+via [`is_valid`](@ref JuMP.is_valid(::InfiniteModel, ::InfOptConstraintRef)),
+[`name`](@ref JuMP.name(::InfOptConstraintRef)),
+[`owner_model`](@ref JuMP.owner_model(::InfOptConstraintRef)),
+[`index`](@ref JuMP.index(::InfOptConstraintRef)),
+and [`constraint_object`](@ref JuMP.constraint_object(::InfOptConstraintRef)),
 respectively. These methods all constitute extensions of `JuMP` methods and
 follow exactly the same behavior. Let's try them out with the following example:
 ```jldoctest constrs
@@ -295,8 +295,8 @@ c1 : -g(t)² + 3 T(t, x) ≤ 0.0
 ### Parameter Bounds
 As explained above, bounded constraints serve as an integral capability of
 `InfiniteOpt`. Information about parameter bounds can be obtained via
-[`has_parameter_bounds`](@ref has_parameter_bounds(::GeneralConstraintRef)) and
-[`parameter_bounds`](@ref parameter_bounds(::GeneralConstraintRef)) which indicate
+[`has_parameter_bounds`](@ref has_parameter_bounds(::InfOptConstraintRef)) and
+[`parameter_bounds`](@ref parameter_bounds(::InfOptConstraintRef)) which indicate
 if a constraint is bounded and what its [`ParameterBounds`](@ref) are,
 respectively. These are exemplified below:
 ```jldoctest constrs
@@ -317,8 +317,8 @@ how it is actually stored in the model. This principally occurs since like terms
 and constants are combined together where possible with the variable terms on the
 left hand side and the constant on the right hand side. For instance, the
 constraint ``2g(t) + 3g(t) - 2 \leq 1 + z_1`` would be normalized ``5g(t) - z_1 \leq 3``. In
-accordance with this behavior [`normalized_rhs`](@ref JuMP.normalized_rhs(::GeneralConstraintRef))
-and [`normalized_coefficient`](@ref JuMP.normalized_coefficient(::GeneralConstraintRef, ::GeneralVariableRef))
+accordance with this behavior [`normalized_rhs`](@ref JuMP.normalized_rhs(::InfOptConstraintRef))
+and [`normalized_coefficient`](@ref JuMP.normalized_coefficient(::InfOptConstraintRef, ::GeneralVariableRef))
 can be used to query the normalized right hand side and the coefficient of a
 particular variable reference, respectively. Let's employ the above example to
 illustrate this:
@@ -383,7 +383,7 @@ existing constraints.
 ### Deletion
 All constraints in `InfiniteOpt` can be removed in like manner to typical `JuMP`
 constraints with the appropriate extension of
-[`delete`](@ref JuMP.delete(::InfiniteModel, ::GeneralConstraintRef)). This will
+[`delete`](@ref JuMP.delete(::InfiniteModel, ::InfOptConstraintRef)). This will
 remove the corresponding constraint object from the model. However, please note
 any registered names will remain registered in the infinite model. This means
 that a constraint with a registered name cannot be repeatedly added and removed
@@ -397,7 +397,7 @@ julia> delete(model, cref)
 
 ### General
 There also are a number of ways to modify information and characteristics of
-constraints. First, [`set_name`](@ref JuMP.set_name(::GeneralConstraintRef, ::String))
+constraints. First, [`set_name`](@ref JuMP.set_name(::InfOptConstraintRef, ::String))
 can be used to specify a new name for a particular constraint. For instance,
 let's update the name of `initial` to `"init_cond"`:
 ```jldoctest constrs
@@ -409,8 +409,8 @@ init_cond : g(t) = 0.0, ∀ t = 0
 
 We can also update the normalized right hand side constant value or normalized
 left hand side variable coefficient value using
-[`set_normalized_rhs`](@ref JuMP.set_normalized_rhs(::GeneralConstraintRef, ::Real))
-and [`set_normalized_coefficient`](@ref JuMP.set_normalized_coefficient(::GeneralConstraintRef, ::GeneralVariableRef, ::Real))
+[`set_normalized_rhs`](@ref JuMP.set_normalized_rhs(::InfOptConstraintRef, ::Real))
+and [`set_normalized_coefficient`](@ref JuMP.set_normalized_coefficient(::InfOptConstraintRef, ::GeneralVariableRef, ::Real))
 , respectively. Let's again consider the constraint ``5g(t) - z_1 \leq 3`` as an
 example. Let's change the constant term to -1 and the `g(t)` coefficient to 2.5:
 ```jldoctest constrs
@@ -432,8 +432,8 @@ constr : 2.5 g(t) - z[1] ≤ -1.0
 Parameter bounds can be added to, modified, or removed from any constraint in
 `InfiniteOpt`. Principally, this is accomplished via [`@add_parameter_bounds`](@ref),
 [`@set_parameter_bounds`](@ref),
-[`delete_parameter_bound`](@ref delete_parameter_bound(::GeneralConstraintRef, ::ParameterRef)),
-and [`delete_parameter_bounds`](@ref delete_parameter_bounds(::GeneralConstraintRef))
+[`delete_parameter_bound`](@ref delete_parameter_bound(::InfOptConstraintRef, ::ParameterRef)),
+and [`delete_parameter_bounds`](@ref delete_parameter_bounds(::InfOptConstraintRef))
 in like manner to hold variables.
 
 First, parameter bounds can be added to a constraint in an intuitive symbolic
@@ -477,8 +477,8 @@ constr : 2.5 g(t) - z[1] ≤ -1.0, ∀ t = 0
     that are part of the constraint. If no such, overlap exists then an error is
     thrown.
 
-Finally, constraint bounds can be deleted via [`delete_parameter_bound`](@ref delete_parameter_bound(::GeneralConstraintRef, ::ParameterRef))
-and [`delete_parameter_bounds`](@ref delete_parameter_bounds(::GeneralConstraintRef))
+Finally, constraint bounds can be deleted via [`delete_parameter_bound`](@ref delete_parameter_bound(::InfOptConstraintRef, ::ParameterRef))
+and [`delete_parameter_bounds`](@ref delete_parameter_bounds(::InfOptConstraintRef))
 where the first deletes the bound with associated with a particular parameter
 and later deletes all parameter bounds. Again, note the parameter bounds associated
 with hold variables will be unaffected and can only be removed by deleting them
@@ -522,26 +522,25 @@ Order   = [:macro, :function]
 ```
 ```@docs
 @BDconstraint
-JuMP.build_constraint(::Function, ::InfiniteExpr, ::MOI.AbstractScalarSet)
+JuMP.build_constraint(::Function,::Union{JuMP.GenericAffExpr{C, V}, JuMP.GenericQuadExpr{C, V}},::MOI.AbstractScalarSet;::ParameterBounds{GeneralVariableRef}) where {C, V <: GeneralVariableRef}
 JuMP.add_constraint(::InfiniteModel, ::JuMP.AbstractConstraint)
-JuMP.owner_model(::GeneralConstraintRef)
-JuMP.index(::GeneralConstraintRef)
-JuMP.constraint_object(::GeneralConstraintRef)
-JuMP.name(::GeneralConstraintRef)
-JuMP.set_name(::GeneralConstraintRef, ::String)
-JuMP.is_valid(::InfiniteModel, ::GeneralConstraintRef)
-JuMP.delete(::InfiniteModel, ::GeneralConstraintRef)
-has_parameter_bounds(::GeneralConstraintRef)
-parameter_bounds(::GeneralConstraintRef)
-set_parameter_bounds(::GeneralConstraintRef, ::ParameterBounds)
-add_parameter_bound(::GeneralConstraintRef, ::ParameterRef, ::Number, ::Number)
-delete_parameter_bound(::GeneralConstraintRef, ::ParameterRef)
-delete_parameter_bounds(::GeneralConstraintRef)
-JuMP.set_normalized_rhs(::GeneralConstraintRef, ::Real)
-JuMP.normalized_rhs(::GeneralConstraintRef)
-JuMP.add_to_function_constant(::GeneralConstraintRef, ::Real)
-JuMP.set_normalized_coefficient(::GeneralConstraintRef, ::GeneralVariableRef, ::Real)
-JuMP.normalized_coefficient(::GeneralConstraintRef, ::GeneralVariableRef)
+JuMP.owner_model(::InfOptConstraintRef)
+JuMP.index(::InfOptConstraintRef)
+JuMP.constraint_object(::InfOptConstraintRef)
+JuMP.name(::InfOptConstraintRef)
+JuMP.set_name(::InfOptConstraintRef, ::String)
+JuMP.is_valid(::InfiniteModel, ::InfOptConstraintRef)
+JuMP.delete(::InfiniteModel, ::InfOptConstraintRef)
+has_parameter_bounds(::InfOptConstraintRef)
+parameter_bounds(::InfOptConstraintRef)
+set_parameter_bounds(::InfOptConstraintRef, ::ParameterBounds{GeneralVariableRef})
+add_parameter_bounds(::InfOptConstraintRef, ::ParameterBounds{GeneralVariableRef})
+delete_parameter_bounds(::InfOptConstraintRef)
+JuMP.set_normalized_rhs(::InfOptConstraintRef, ::Real)
+JuMP.normalized_rhs(::InfOptConstraintRef)
+JuMP.add_to_function_constant(::InfOptConstraintRef, ::Real)
+JuMP.set_normalized_coefficient(::InfOptConstraintRef, ::GeneralVariableRef, ::Real)
+JuMP.normalized_coefficient(::InfOptConstraintRef, ::GeneralVariableRef)
 JuMP.constraint_by_name(::InfiniteModel, ::String)
 JuMP.list_of_constraint_types(::InfiniteModel)
 JuMP.num_constraints(::InfiniteModel, ::Type{<:JuMP.AbstractJuMPScalar}, ::Type{<:MOI.AbstractSet})

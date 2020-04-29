@@ -2,7 +2,8 @@
 # GenericAffExpr
 function Base.:(==)(aff1::JuMP.GenericAffExpr{C, V},
                     aff2::JuMP.GenericAffExpr{C, V}) where {C, V <: GeneralVariableRef}
-    return aff1.constant == aff2.constant && collect(pairs(aff1.terms)) == collect(pairs(aff2.terms))
+    return aff1.constant == aff2.constant &&
+           collect(pairs(aff1.terms)) == collect(pairs(aff2.terms))
 end
 
 # GenericQuadExpr
@@ -14,7 +15,8 @@ function Base.:(==)(quad1::JuMP.GenericQuadExpr{C, V},
         return false
     end
     for i in eachindex(pairs1)
-        if pairs1[i][1].a != pairs2[i][1].a || pairs1[i][1].b != pairs2[i][1].b || pairs1[i][2] != pairs2[i][2]
+        if pairs1[i][1].a != pairs2[i][1].a || pairs1[i][1].b != pairs2[i][1].b ||
+           pairs1[i][2] != pairs2[i][2]
             return false
         end
     end
@@ -36,8 +38,8 @@ end
 function _all_function_variables(f::JuMP.GenericQuadExpr)::Vector{GeneralVariableRef}
     vref_set = Set(keys(f.aff.terms))
     for pair in keys(f.terms)
-        union!(vref_set, pair.a)
-        union!(vref_set, pair.b)
+        push!(vref_set, pair.a)
+        push!(vref_set, pair.b)
     end
     return collect(vref_set)
 end
@@ -67,7 +69,10 @@ end
 
 # GenericQuadExpr
 function _object_numbers(expr::JuMP.GenericQuadExpr)::Vector{Int}
-    obj_nums = Set(_object_numbers(expr.aff))
+    obj_nums = Set{Int}()
+    for vref in keys(expr.aff.terms)
+        union!(obj_nums, _object_numbers(vref))
+    end
     for pair in keys(expr.terms)
         union!(obj_nums, _object_numbers(pair.a))
         union!(obj_nums, _object_numbers(pair.b))
@@ -86,7 +91,8 @@ end
 
 ## Delete variables from an expression
 # GenericAffExpr
-function _remove_variable(f::JuMP.GenericAffExpr, vref::GeneralVariableRef)
+function _remove_variable(f::JuMP.GenericAffExpr,
+                          vref::GeneralVariableRef)::Nothing
     if haskey(f.terms, vref)
         delete!(f.terms, vref)
     end
@@ -94,14 +100,12 @@ function _remove_variable(f::JuMP.GenericAffExpr, vref::GeneralVariableRef)
 end
 
 # GenericQuadExpr
-function _remove_variable(f::JuMP.GenericQuadExpr, vref::GeneralVariableRef)
+function _remove_variable(f::JuMP.GenericQuadExpr,
+                          vref::GeneralVariableRef)::Nothing
     _remove_variable(f.aff, vref)
-    vref_pairs = [k for k in keys(f.terms)]
-    for i in eachindex(vref_pairs) # TODO retain the good variable in pair
-        if vref_pairs[i].a == vref
-            delete!(f.terms, vref_pairs[i])
-        elseif vref_pairs[i].b == vref
-            delete!(f.terms, vref_pairs[i])
+    for (pair, coef) in f.terms # TODO should we preserve non-vref in pair? --> this would differ from JuMP
+        if pair.a == vref || pair.b == vref
+            delete!(f.terms, pair)
         end
     end
     return
@@ -110,20 +114,22 @@ end
 ## Modify linear coefficient of variable in expression
 # GeneralVariableRef
 function _set_variable_coefficient!(expr::GeneralVariableRef,
-                                    var::GeneralVariableRef,
-                                    coeff::Real)::JuMP.GenericAffExpr
+    var::GeneralVariableRef,
+    coeff::Real
+    )::JuMP.GenericAffExpr{Float64, GeneralVariableRef}
     # Determine if variable is that of the expression and change accordingly
     if expr == var
-        return coeff * var
+        return Float64(coeff) * var
     else
-        return expr + coeff * var
+        return expr + Float64(coeff) * var
     end
 end
 
 # GenericAffExpr
-function _set_variable_coefficient!(expr::JuMP.GenericAffExpr,
-                                    var::GeneralVariableRef,
-                                    coeff::Real)::JuMP.GenericAffExpr
+function _set_variable_coefficient!(expr::JuMP.GenericAffExpr{C, V},
+    var::V,
+    coeff::Real
+    )::JuMP.GenericAffExpr{C, V} where {C, V <: GeneralVariableRef}
     # Determine if variable is in the expression and change accordingly
     if haskey(expr.terms, var)
         expr.terms[var] = coeff
@@ -134,9 +140,10 @@ function _set_variable_coefficient!(expr::JuMP.GenericAffExpr,
 end
 
 # GenericQuadExpr
-function _set_variable_coefficient!(expr::JuMP.GenericQuadExpr,
-                                    var::GeneralVariableRef,
-                                    coeff::Real)::JuMP.GenericQuadExpr
+function _set_variable_coefficient!(expr::JuMP.GenericQuadExpr{C, V},
+    var::V,
+    coeff::Real
+    )::JuMP.GenericQuadExpr{C, V} where {C, V <: GeneralVariableRef}
     # Determine if variable is in the expression and change accordingly
     if haskey(expr.aff.terms, var)
         expr.aff.terms[var] = coeff
@@ -153,16 +160,18 @@ end
 
 # Check expression for a particular variable type via a recursive search
 # This is tested in test/measures.jl
-function _has_variable(vrefs::Vector{<:GeneralVariableRef},
-                       vref::GeneralVariableRef; prior=[])
+function _has_variable(vrefs::Vector{GeneralVariableRef},
+                       vref::GeneralVariableRef; prior=GeneralVariableRef[]
+                       )::Bool
     if vrefs[1] == vref
         return true
-    elseif isa(vrefs[1], MeasureRef)
+    elseif _index_type(vrefs[1]) == MeasureIndex
+        dvref = dispatch_variable_ref(vrefs[1])
         if length(vrefs) > 1
-            return _has_variable(_all_function_variables(measure_function(vrefs[1])),
-                          vref, prior = GeneralVariableRef[prior; vrefs[2:end]])
+            return _has_variable(_all_function_variables(measure_function(dvref)),
+                                 vref, prior = append!(prior, vrefs[2:end]))
         else
-            return _has_variable(_all_function_variables(measure_function(vrefs[1])),
+            return _has_variable(_all_function_variables(measure_function(dvref)),
                                  vref, prior = prior)
         end
     elseif length(vrefs) > 1

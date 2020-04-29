@@ -12,7 +12,9 @@ end
 function _add_data_object(model::InfiniteModel,
                           object::MultiParameterData{<:InfiniteArraySet}
                           )::DependentParametersIndex
-    return MOIUC.add_item(model.dependent_params, object)
+    index = MOIUC.add_item(model.dependent_params, object)
+    push!(model.param_object_indices, index)
+    return index
 end
 
 # Extend _data_dictionary
@@ -234,7 +236,7 @@ function add_parameters(model::InfiniteModel,
         indices = CartesianIndices(1:num_params)
     end
     # make the parameter model object
-    obj_num = model.last_object_num += 1
+    obj_num = length(_param_object_indices(model)) + 1
     first_param_num = model.last_param_num + 1
     last_param_num = model.last_param_num += num_params
     param_nums = first_param_num:last_param_num

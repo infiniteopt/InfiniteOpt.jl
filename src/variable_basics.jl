@@ -275,9 +275,7 @@ function _update_var_name_dict(model::InfiniteModel, var_dict::MOIUC.CleverDict)
     for (index, data_object) in var_dict
         var_name = data_object.name
         if haskey(_var_name_dict(model), var_name)
-            # -1 is a special value that means this string does not map to
-            # a unique variable name.
-            _var_name_dict(model)[var_name] = -1
+            _var_name_dict(model)[var_name] = HoldVariableIndex(-1) # dumby value
         else
             _var_name_dict(model)[var_name] = index
         end
@@ -315,7 +313,7 @@ function JuMP.variable_by_name(model::InfiniteModel,
     index = get(_var_name_dict(model), name, nothing)
     if index isa Nothing
         return nothing
-    elseif index == -1
+    elseif index == HoldVariableIndex(-1)
         error("Multiple variables have the name $name.")
     else
         return _make_variable_ref(model, index)
@@ -1142,9 +1140,28 @@ end
 ################################################################################
 #                                 DELETION
 ################################################################################
-#=
+# Helper function to delete the info constraints
+function _delete_info_constraints(vref::UserDecisionVariableRef)::Nothing
+    # remove variable info constraints associated with vref
+    if JuMP.has_lower_bound(vref)
+        JuMP.delete_lower_bound(vref)
+    end
+    if JuMP.has_upper_bound(vref)
+        JuMP.delete_upper_bound(vref)
+    end
+    if JuMP.is_fixed(vref)
+        JuMP.unfix(vref)
+    end
+    if JuMP.is_binary(vref)
+        JuMP.unset_binary(vref)
+    elseif JuMP.is_integer(vref)
+        JuMP.unset_integer(vref)
+    end
+    return
+end
+
 """
-    JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
+    JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
 
 Extend [`JuMP.delete`](@ref JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)) to delete
 `InfiniteOpt` variables and their dependencies. Errors if variable is invalid,
@@ -1170,102 +1187,53 @@ Subject to
  t ∈ [0, 6]
 ```
 """
-function JuMP.delete(model::InfiniteModel, vref::InfOptVariableRef)
+function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
     @assert JuMP.is_valid(model, vref) "Variable is invalid."
     # update the optimizer model status
     if is_used(vref)
         set_optimizer_model_ready(model, false)
     end
-    # remove variable info constraints associated with vref
-    if JuMP.has_lower_bound(vref)
-        JuMP.delete_lower_bound(vref)
-    end
-    if JuMP.has_upper_bound(vref)
-        JuMP.delete_upper_bound(vref)
-    end
-    if JuMP.is_fixed(vref)
-        JuMP.unfix(vref)
-    end
-    if JuMP.is_binary(vref)
-        JuMP.unset_binary(vref)
-    elseif JuMP.is_integer(vref)
-        JuMP.unset_integer(vref)
-    end
-    # remove dependencies from measures and update them
-    if used_by_measure(vref)
-        for mindex in model.var_to_meas[JuMP.index(vref)]
-            if isa(model.measures[mindex].func, InfOptVariableRef)
-                model.measures[mindex] = Measure(zero(JuMP.AffExpr),
-                                                 model.measures[mindex].data)
-            else
-                _remove_variable(model.measures[mindex].func, vref)
-            end
-            JuMP.set_name(MeasureRef(model, mindex),
-                           _make_meas_name(model.measures[mindex]))
+    # delete attributes specific to the variable type
+    _delete_variable_dependencies(vref)
+    # TODO update object numbers of measures and constraints
+    # remove from measures if used
+    for mindex in _measure_dependencies(vref)
+        mref = dispatch_variable_ref(model, mindex)
+        func = measure_function(mref)
+        if func isa GeneralVariableRef
+            data = measure_data(mref)
+            new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+            new_meas = Measure(new_func, data)
+            _set_core_variable_object(mref, new_meas)
+        else
+            _remove_variable(func, vref)
         end
-        # delete mapping
-        delete!(model.var_to_meas, JuMP.index(vref))
+        meas = _core_variable_object(mref)
+        JuMP.set_name(mref, _make_meas_name(meas))
     end
-    # remove dependencies from measures and update them
-    if used_by_constraint(vref)
-        for cindex in model.var_to_constrs[JuMP.index(vref)]
-            if isa(model.constrs[cindex].func, InfOptVariableRef)
-                model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr),
-                                                      model.constrs[cindex].set)
-            else
-                _remove_variable(model.constrs[cindex].func, vref)
-            end
+    # remove from constraints if used
+    for cindex in _constraint_dependencies(vref)
+        cref = _temp_constraint_ref(model, cindex)
+        func = JuMP.jump_function(JuMP.constraint_object(cref))
+        if func isa GeneralVariableRef
+            set = JuMP.moi_set(JuMP.constraint_object(cref))
+            new_func = zero(JuMP.AffExpr{Float64, GeneralVariableRef})
+            new_constr = JuMP.ScalarConstraint(new_func, set)
+            _set_core_constraint_object(cref, new_constr)
+        else
+            _remove_variable(func, vref)
         end
-        # delete mapping
-        delete!(model.var_to_constrs, JuMP.index(vref))
     end
     # remove from objective if vref is in it
     if used_by_objective(vref)
-        if isa(model.objective_function, InfOptVariableRef)
-            model.objective_function = zero(JuMP.AffExpr)
+        if JuMP.objective_function(model) isa GeneralVariableRef
+            new_func = zero(JuMP.AffExpr{Float64, GeneralVariableRef})
+            JuMP.set_objective_function(model, new_func)
         else
-            _remove_variable(model.objective_function, vref)
-        end
-    end
-    # do specific updates if vref is infinite
-    if isa(vref, InfiniteVariableRef)
-        # update parameter mapping
-        all_prefs = parameter_list(vref)
-        for pref in all_prefs
-            filter!(e -> e != JuMP.index(vref),
-                    model.param_to_vars[JuMP.index(pref)])
-            if length(model.param_to_vars[JuMP.index(pref)]) == 0
-                delete!(model.param_to_vars, JuMP.index(pref))
-            end
-        end
-        # delete associated point variables and mapping
-        if used_by_point_variable(vref)
-            for index in model.infinite_to_points[JuMP.index(vref)]
-                JuMP.delete(model, PointVariableRef(model, index))
-            end
-            delete!(model.infinite_to_points, JuMP.index(vref))
-        end
-        # delete associated reduced variables and mapping
-        if used_by_reduced_variable(vref)
-            for index in model.infinite_to_reduced[JuMP.index(vref)]
-                JuMP.delete(model, ReducedInfiniteVariableRef(model, index))
-            end
-            delete!(model.infinite_to_reduced, JuMP.index(vref))
-        end
-    end
-    # update mappings if is point variable
-    if isa(vref, PointVariableRef)
-        ivref = infinite_variable_ref(vref)
-        filter!(e -> e != JuMP.index(vref),
-                model.infinite_to_points[JuMP.index(ivref)])
-        if length(model.infinite_to_points[JuMP.index(ivref)]) == 0
-            delete!(model.infinite_to_points, JuMP.index(ivref))
+            _remove_variable(JuMP.objective_function(model), vref)
         end
     end
     # delete the variable information
-    delete!(model.var_in_objective, JuMP.index(vref))
-    delete!(model.vars, JuMP.index(vref))
-    delete!(model.var_to_name, JuMP.index(vref))
+    _delete_data_object(vref)
     return
 end
-=#

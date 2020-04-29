@@ -25,6 +25,7 @@
     @testset "_add_data_object" begin
         @test InfiniteOpt._add_data_object(m, ind_object) == ind_idx
         @test InfiniteOpt._add_data_object(m, fin_object) == fin_idx
+        @test InfiniteOpt._param_object_indices(m)[end] == ind_idx
     end
     # test _data_dictionary
     @testset "_data_dictionary" begin
@@ -258,6 +259,7 @@ end
         expected = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
         @test add_parameter(m, param) == expected
         @test InfiniteOpt._core_variable_object(expected) == param
+        @test InfiniteOpt._param_object_indices(m)[InfiniteOpt._object_number(expected)] == index(expected)
         param = FiniteParameter(1.5)
         expected = GeneralVariableRef(m, 1, FiniteParameterIndex, -1)
         @test add_parameter(m, param) == expected
@@ -341,6 +343,7 @@ end
         @test @independent_parameter(m, z in [0, 1]) == pref
         @test InfiniteOpt._core_variable_object(pref).set == IntervalSet(0, 1)
         @test name(pref) == "z"
+        @test InfiniteOpt._param_object_indices(m)[InfiniteOpt._object_number(pref)] == index(pref)
     end
     # multiple parameters
     @testset "Array" begin
@@ -377,6 +380,7 @@ end
                                   container = SparseAxisArray) == prefs
         @test InfiniteOpt._core_variable_object(prefs[1]).set == IntervalSet(0, 1)
         @test InfiniteOpt._core_variable_object(prefs[2]).set == IntervalSet(0, 1)
+        @test InfiniteOpt._param_object_indices(m)[InfiniteOpt._object_number(prefs[2])] == index(prefs[2])
     end
     # test for errors
     @testset "Errors" begin

@@ -28,12 +28,14 @@ function _data_dictionary(vref::PointVariableRef
 end
 
 # Extend _data_object
-function _data_object(vref::PointVariableRef)::VariableData{<:PointVariable}
+function _data_object(vref::PointVariableRef
+    )::VariableData{PointVariable{GeneralVariableRef}}
     return _data_dictionary(vref)[JuMP.index(vref)]
 end
 
 # Extend _core_variable_object
-function _core_variable_object(vref::PointVariableRef)::PointVariable
+function _core_variable_object(vref::PointVariableRef
+    )::PointVariable{GeneralVariableRef}
     return _data_object(vref).variable
 end
 
@@ -147,7 +149,7 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Point};
                         parameter_values::Union{Real,
                                                 AbstractArray{<:Real},
                                                 Tuple, Nothing} = nothing,
-                        extra_kw_args...)::PointVariable
+                        extra_kw_args...)::PointVariable{GeneralVariableRef}
     # check for unneeded keywords
     for (kwarg, _) in extra_kw_args
         _error("Keyword argument $kwarg is not for use with point variables.")
@@ -391,3 +393,12 @@ end
 ################################################################################
 #                                 DELETION
 ################################################################################
+# Extend _delete_variable_dependencies (for use with JuMP.delete)
+function _delete_variable_dependencies(vref::PointVariableRef)::Nothing
+    # remove variable info constraints associated with vref
+    _delete_info_constraints(vref)
+    # remove the infinite variable dependency
+    ivref = infinite_variable_ref(vref)
+    filter!(e -> e != JuMP.index(vref), _point_variable_dependencies(ivref))
+    return
+end

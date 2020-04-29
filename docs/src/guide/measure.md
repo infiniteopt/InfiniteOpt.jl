@@ -427,12 +427,14 @@ make_reduced_variable_ref
 add_measure_variable(::JuMP.Model, ::Any, ::Any)
 delete_internal_reduced_variable
 delete_reduced_variable(::JuMP.Model, ::Any, ::Any)
-reduction_info(::ReducedInfiniteVariableRef, ::Any)
+JuMP.build_variable(::Function, ::GeneralVariableRef,::Dict{Int, Float64})
+JuMP.add_variable(::InfiniteModel, ::ReducedInfiniteVariable,::String)
 infinite_variable_ref(::ReducedInfiniteVariableRef)
 eval_supports(::ReducedInfiniteVariableRef)
 parameter_refs(::ReducedInfiniteVariableRef)
 parameter_list(::ReducedInfiniteVariableRef)
 raw_parameter_refs(::ReducedInfiniteVariableRef)
+JuMP.set_name(::ReducedInfiniteVariableRef,::String)
 JuMP.name(::ReducedInfiniteVariableRef)
 JuMP.has_lower_bound(::ReducedInfiniteVariableRef)
 JuMP.lower_bound(::ReducedInfiniteVariableRef)
@@ -448,10 +450,6 @@ JuMP.is_binary(::ReducedInfiniteVariableRef)
 JuMP.BinaryRef(::ReducedInfiniteVariableRef)
 JuMP.is_integer(::ReducedInfiniteVariableRef)
 JuMP.IntegerRef(::ReducedInfiniteVariableRef)
-used_by_constraint(::ReducedInfiniteVariableRef)
-used_by_measure(::ReducedInfiniteVariableRef)
-JuMP.is_valid(::InfiniteModel, ::ReducedInfiniteVariableRef)
-JuMP.delete(::InfiniteModel, ::ReducedInfiniteVariableRef)
 ```
 
 ## MeasureEvalMethods Methods

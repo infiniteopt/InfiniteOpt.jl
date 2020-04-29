@@ -28,12 +28,14 @@ function _data_dictionary(vref::InfiniteVariableRef
 end
 
 # Extend _data_object
-function _data_object(vref::InfiniteVariableRef)::VariableData{<:InfiniteVariable}
+function _data_object(vref::InfiniteVariableRef
+    )::VariableData{InfiniteVariable{GeneralVariableRef}}
     return _data_dictionary(vref)[JuMP.index(vref)]
 end
 
 # Extend _core_variable_object
-function _core_variable_object(vref::InfiniteVariableRef)::InfiniteVariable
+function _core_variable_object(vref::InfiniteVariableRef
+    )::InfiniteVariable{GeneralVariableRef}
     return _data_object(vref).variable
 end
 
@@ -91,7 +93,7 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Infinit
                         parameter_refs::Union{GeneralVariableRef,
                                               AbstractArray{<:GeneralVariableRef},
                                               Tuple, Nothing} = nothing,
-                        extra_kw_args...)::InfiniteVariable
+                        extra_kw_args...)::InfiniteVariable{GeneralVariableRef}
     # check for unneeded keywords
     for (kwarg, _) in extra_kw_args
         _error("Keyword argument $kwarg is not for use with infinite variables.")
@@ -106,14 +108,11 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Infinit
     # check the VectorTuple for validity and format
     _check_parameter_tuple(_error, prefs)
     # get the parameter object numbers
-    object_set = Set{Int}()
-    for pref in prefs
-        union!(object_set, _object_number(pref))
-    end
+    object_nums = _object_numbers(prefs.values)
     # make the variable and return
     return InfiniteVariable(_make_float_info(info), prefs,
                             [_parameter_number(pref) for pref in prefs],
-                            collect(object_set))
+                            object_nums)
 end
 
 # check the pref tuple contains only valid parameters
@@ -284,11 +283,8 @@ function _update_variable_param_refs(vref::InfiniteVariableRef,
     info = _variable_info(vref)
     param_nums = [_parameter_number(pref) for pref in prefs]
     # get the parameter object numbers
-    object_set = Set{Int}()
-    for pref in prefs
-        union!(object_set, _object_number(pref))
-    end
-    new_var = InfiniteVariable(info, prefs, param_nums, collect(object_set))
+    object_nums = _object_numbers(parameter_list(prefs))
+    new_var = InfiniteVariable(info, prefs, param_nums, object_nums)
     _set_core_variable_object(vref, new_var)
     JuMP.set_name(vref, _root_name(vref))
     if is_used(vref)
@@ -410,7 +406,7 @@ function JuMP.set_name(vref::InfiniteVariableRef, root_name::String)::Nothing
     param_name_tuple = "("
     for i in 1:size(prefs, 1)
         element_prefs = prefs[i, :]
-        type = first(prefs).index_type
+        type = _index_type(first(prefs))
         if type == DependentParameterIndex
             param_name = _remove_name_index(first(element_prefs))
         elseif length(element_prefs) == 1
@@ -453,3 +449,22 @@ end
 ################################################################################
 #                                 DELETION
 ################################################################################
+# Extend _delete_variable_dependencies (for use with JuMP.delete)
+function _delete_variable_dependencies(vref::InfiniteVariableRef)::Nothing
+    # remove variable info constraints associated with vref
+    _delete_info_constraints(vref)
+    # update parameter mapping
+    all_prefs = parameter_list(vref)
+    for pref in all_prefs
+        filter!(e -> e != JuMP.index(vref), _infinite_variable_dependencies(pref))
+    end
+    # delete associated point variables and mapping
+    for index in _point_variable_dependencies(vref)
+        JuMP.delete(model, dispatch_variable_ref(model, index))
+    end
+    # delete associated reduced variables and mapping
+    for index in _reduced_variable_dependencies(vref)
+        JuMP.delete(model, dispatch_variable_ref(model, index))
+    end
+    return
+end

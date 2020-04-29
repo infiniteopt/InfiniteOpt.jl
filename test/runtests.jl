@@ -44,15 +44,15 @@ println("")
     @testset "Array" begin include("array_parameters.jl") end
 end
 println("")
-# @time @testset "Variable Methods" begin
+@time @testset "Variable Methods" begin
 #     @testset "Basic " begin include("variable_basics.jl") end
 #     @testset "Info" begin include("variable_info.jl") end
 #     @testset "Definition" begin include("variable_definition.jl") end
 #     @testset "Macros" begin include("variable_macros.jl") end
 #     @testset "Query" begin include("variable_queries.jl") end
 #     @testset "Reduction Variables" begin include("reduction_variables.jl") end
-# end
-# println("")
+end
+println("")
 # @time @testset "Operators" begin include("operators.jl") end
 # println("")
 # @time @testset "Expression Methods" begin include("expressions.jl") end

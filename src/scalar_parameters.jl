@@ -18,7 +18,9 @@ end
 function _add_data_object(model::InfiniteModel,
                           object::ScalarParameterData{<:IndependentParameter}
                           )::IndependentParameterIndex
-    return MOIUC.add_item(model.independent_params, object)
+    index =  MOIUC.add_item(model.independent_params, object)
+    push!(model.param_object_indices, index)
+    return index
 end
 
 function _add_data_object(model::InfiniteModel,
@@ -269,7 +271,7 @@ name
 """
 function add_parameter(model::InfiniteModel, p::IndependentParameter,
                        name::String="")::GeneralVariableRef
-    obj_num = model.last_object_num += 1
+    obj_num = length(_param_object_indices(model)) + 1 
     param_num = model.last_param_num += 1
     data_object = ScalarParameterData(p, obj_num, param_num, name)
     obj_index = _add_data_object(model, data_object)

@@ -83,7 +83,8 @@ export collection_sets, supports_in_set, generate_support_values
 # Export parameter datatypes
 export InfOptParameter, ScalarParameter, IndependentParameter, FiniteParameter,
 DependentParameters, ScalarParameterData, MultiParameterData,
-IndependentParameterRef, DependentParameterRef, FiniteParameterRef
+IndependentParameterRef, DependentParameterRef, FiniteParameterRef,
+ScalarParameterRef
 
 # Export parameter methods
 export build_parameter, add_parameter,
@@ -98,14 +99,14 @@ export InfOptVariable, InfiniteVariable, ReducedInfiniteVariable,
 PointVariable, HoldVariable, ParameterBounds, VariableData, GeneralVariableRef,
 DispatchVariableRef, InfiniteVariableRef, ReducedInfiniteVariableRef,
 MeasureFiniteVariableRef, FiniteVariableRef, PointVariableRef, HoldVariableRef,
-DecisionVariableRef, UserDecisionVariableRef, ScalarParameterRef
+DecisionVariableRef, UserDecisionVariableRef
 
 # Export variable methods
 export used_by_objective, infinite_variable_ref, parameter_refs,
 set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values,
 eval_supports, used_by_reduced_variable, has_parameter_bounds, parameter_bounds,
-set_parameter_bounds, add_parameter_bound, delete_parameter_bound,
-delete_parameter_bounds, parameter_list, raw_parameter_refs, raw_parameter_values,
+set_parameter_bounds, add_parameter_bounds, delete_parameter_bounds,
+parameter_list, raw_parameter_refs, raw_parameter_values,
 intervals, dispatch_variable_ref
 
 # Export measure datatypes
@@ -123,6 +124,9 @@ delete_internal_reduced_variable, expand_measures, reduction_info
 # Export constraint datatypes
 export BoundedScalarConstraint, ConstraintData, InfOptConstraintRef,
 InfiniteConstraintRef, FiniteConstraintRef
+
+# Export constraint methods
+export original_parameter_bounds
 
 # Export transcription datatypes
 export TranscriptionData, TranscriptionModel
@@ -143,7 +147,7 @@ export map_value, map_optimizer_index, map_dual, map_shadow_price,
 map_lp_rhs_perturbation_range, map_lp_objective_perturbation_range
 
 # Export printing methods
-export bound_string
+export bound_string, set_string
 
 # Export support generation and fill-in methods
 export fill_in_supports!, generate_supports

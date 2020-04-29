@@ -1,3 +1,68 @@
+################################################################################
+#                               ACCESSOR METHODS
+################################################################################
+"""
+    JuMP.objective_sense(model::InfiniteModel)::MOI.OptimizationSense
+
+Extend [`JuMP.objective_sense`](@ref JuMP.objective_sense(::JuMP.Model)) to
+return the objective sense of the infinite model `model`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(), @objective(model, Min, 1))
+julia> objective_sense(model)
+MIN_SENSE::OptimizationSense = 0
+```
+"""
+function JuMP.objective_sense(model::InfiniteModel)::MOI.OptimizationSense
+    return model.objective_sense
+end
+
+"""
+    JuMP.objective_function(model::InfiniteModel)::JuMP.AbstractJuMPScalar
+
+Extend [`JuMP.objective_function`](@ref JuMP.objective_function(::JuMP.Model))
+to return the objective of infinite model `model`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(), @objective(model, Min, 1))
+julia> objective_function(model)
+1
+```
+"""
+function JuMP.objective_function(model::InfiniteModel)::JuMP.AbstractJuMPScalar
+    return model.objective_function
+end
+
+# Extend objective_function for infinite models
+function JuMP.objective_function(model::InfiniteModel, FT::Type)
+    # InexactError should be thrown, this is needed in `objective.jl`
+    if !(model.objective_function isa FT)
+        throw(InexactError(:objective_function, FT,
+                           typeof(model.objective_function)))
+    end
+    return model.objective_function::FT
+end
+
+"""
+    JuMP.objective_function_type(model::InfiniteModel)::Type{<:JuMP.AbstractJuMPScalar}
+
+Extend [`JuMP.objective_function_type`](@ref JuMP.objective_function_type(::JuMP.Model))
+to return the objective function type of infinite model `model`.
+
+**Example**
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(), @objective(model, Min, 1))
+julia> objective_function_type(model)
+GenericAffExpr{Float64,GeneralVariableRef}
+```
+"""
+function JuMP.objective_function_type(model::InfiniteModel
+    )::Type{<:JuMP.AbstractJuMPScalar}
+    return typeof(JuMP.objective_function(model))
+end
+
+################################################################################
+#                             DEFINITION METHODS
+################################################################################
 """
     JuMP.set_objective_function(model::InfiniteModel,
                                 func::JuMP.AbstractJuMPScalar)::Nothing
@@ -16,30 +81,25 @@ julia> objective_function(model)
 """
 function JuMP.set_objective_function(model::InfiniteModel,
                                      func::JuMP.AbstractJuMPScalar)::Nothing
-    # check the function
-    JuMP.check_belongs_to_model(func, model)
-    vrefs = _all_function_variables(func)
-    if !isempty(_object_numbers(vrefs))
+    # gather the unique list of variable references for testing and mapping
+    new_vrefs = _all_function_variables(func)
+    # test in the model
+    for vref in new_vrefs
+        JuMP.check_belongs_to_model(vref, model)
+    end
+    if !isempty(_object_numbers(new_vrefs))
         error("Objective function cannot contain infinite parameters/variables.")
     end
-    # TODO redo from here down
+    # delete old mappings
+    old_vrefs = _all_function_variables(JuMP.objective_function(model))
+    for vref in old_vrefs
+        _data_object(vref).in_objective = false
+    end
     # update the function
     model.objective_function = func
-    # delete old mappings
-    for vindex in keys(model.var_in_objective)
-        model.var_in_objective[vindex] = false
-    end
-    for mindex in keys(model.meas_in_objective)
-        model.meas_in_objective[mindex] = false
-    end
     # update new mappings
-    vrefs = _all_function_variables(func)
-    for vref in vrefs
-        if isa(vref, InfOptVariableRef)
-            model.var_in_objective[JuMP.index(vref)] = true
-        elseif isa(vref, MeasureRef)
-            model.meas_in_objective[JuMP.index(vref)] = true
-        end
+    for vref in new_vrefs
+        _data_object(vref).in_objective = true
     end
     set_optimizer_model_ready(model, false)
     return
@@ -60,15 +120,13 @@ julia> objective_function(model)
 ```
 """
 function JuMP.set_objective_function(model::InfiniteModel, func::Real)::Nothing
+    # delete old mappings
+    old_vrefs = _all_function_variables(JuMP.objective_function(model))
+    for vref in old_vrefs
+        _data_object(vref).in_objective = false
+    end
     # update function
     model.objective_function = JuMP.GenericAffExpr{Float64, GeneralVariableRef}(func)
-    # delete old mappings # TODO redo from here
-    for vindex in keys(model.var_in_objective)
-        model.var_in_objective[vindex] = false
-    end
-    for mindex in keys(model.meas_in_objective)
-        model.meas_in_objective[mindex] = false
-    end
     set_optimizer_model_ready(model, false)
     return
 end
@@ -122,64 +180,6 @@ end
 function JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense,
                             func)
     error("The objective function `$(func)` is not supported.")
-end
-
-"""
-    JuMP.objective_sense(model::InfiniteModel)::MOI.OptimizationSense
-
-Extend [`JuMP.objective_sense`](@ref JuMP.objective_sense(::JuMP.Model)) to
-return the objective sense of the infinite model `model`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(), @objective(model, Min, 1))
-julia> objective_sense(model)
-MIN_SENSE::OptimizationSense = 0
-```
-"""
-function JuMP.objective_sense(model::InfiniteModel)::MOI.OptimizationSense
-    return model.objective_sense
-end
-
-"""
-    JuMP.objective_function_type(model::InfiniteModel)::Type{<:JuMP.AbstractJuMPScalar}
-
-Extend [`JuMP.objective_function_type`](@ref JuMP.objective_function_type(::JuMP.Model))
-to return the objective function type of infinite model `model`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(), @objective(model, Min, 1))
-julia> objective_function_type(model)
-GenericAffExpr{Float64,HoldVariableRef}
-```
-"""
-function JuMP.objective_function_type(model::InfiniteModel)::Type{<:JuMP.AbstractJuMPScalar}
-    return typeof(model.objective_function)
-end
-
-"""
-    JuMP.objective_function(model::InfiniteModel)::JuMP.AbstractJuMPScalar
-
-Extend [`JuMP.objective_function`](@ref JuMP.objective_function(::JuMP.Model))
-to return the objective of infinite model `model`.
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(), @objective(model, Min, 1))
-julia> objective_function(model)
-1
-```
-"""
-function JuMP.objective_function(model::InfiniteModel)::JuMP.AbstractJuMPScalar
-    return model.objective_function
-end
-
-# Extend objective_function for infinite models
-function JuMP.objective_function(model::InfiniteModel, FT::Type)
-    # InexactError should be thrown, this is needed in `objective.jl`
-    if !(model.objective_function isa FT)
-        throw(InexactError(:objective_function, FT,
-                           typeof(model.objective_function)))
-    end
-    return model.objective_function::FT
 end
 
 """

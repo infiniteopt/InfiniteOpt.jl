@@ -137,7 +137,6 @@ end
     @test InfiniteModel(mockoptimizer,
                         caching_mode = MOIU.MANUAL) isa JuMP.AbstractModel
     # test accessors
-    @test InfiniteOpt._last_object_num(m) == 0
     @test InfiniteOpt._last_param_num(m) == 0
     @test InfiniteOpt._param_object_indices(m) isa Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
 end
@@ -247,6 +246,11 @@ end
     @testset "Base.length" begin
         @test length(pb) == 1
     end
+    # test Base.isempty
+    @testset "Base.isempty" begin
+        @test !isempty(pb)
+        @test isempty(ParameterBounds())
+    end
     # test Base.:(==)
     @testset "Base.:(==)" begin
         @test pb == ParameterBounds((par3 => IntervalSet(0, 1),))
@@ -272,6 +276,21 @@ end
     # test Base.iterate
     @testset "Base.iterate" begin
         @test [p for p in pb] == [par3 => IntervalSet(0, 2)]
+    end
+    # test Base.merge!
+    @testset "Base.merge!" begin
+        new_pb = ParameterBounds()
+        @test merge!(new_pb, pb) isa ParameterBounds
+        @test new_pb == pb
+    end
+    # test Base.filter
+    @testset "Base.filter" begin
+        @test filter(e -> e[1] != par3, pb) == ParameterBounds()
+    end
+    # test Base.delete!
+    @testset "Base.delete!" begin
+        @test delete!(pb, par3) isa ParameterBounds
+        @test length(pb) == 0
     end
 end
 

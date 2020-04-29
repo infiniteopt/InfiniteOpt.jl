@@ -237,6 +237,9 @@ struct MultiDistributionSet{T <: NonUnivariateDistribution} <: InfiniteArraySet
     distribution::T
 end
 
+# make convenient alias for distribution sets
+const DistributionSet = Union{UniDistributionSet, MultiDistributionSet}
+
 """
     CollectionSet{T <: InfiniteScalarSet} <: InfiniteArraySet
 
@@ -687,20 +690,20 @@ struct BoundedScalarConstraint{F <: JuMP.AbstractJuMPScalar,
 end
 
 """
-    ConstraintData{C <: JuMP.AbstractConstraint} <: AbstractDataObject
+    ConstraintData <: AbstractDataObject
 
 A mutable `DataType` for storing constraints and their data.
 
 **Fields**
-- `constraint::C`: The scalar constraint.
+- `constraint::JuMP.AbstractConstraint`: The scalar constraint.
 - `object_nums::Vector{Int}`: The object numbers of the parameter objects that the
                               constraint depends on.
 - `name::String`: The name used for printing.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `is_info_constraint::Bool`: Is this is constraint based on variable info (e.g., lower bound)
 """
-mutable struct ConstraintData{C <: JuMP.AbstractConstraint} <: AbstractDataObject
-    constraint::C
+mutable struct ConstraintData <: AbstractDataObject
+    constraint::JuMP.AbstractConstraint
     object_nums::Vector{Int}
     name::String
     measure_indices::Vector{MeasureIndex}
@@ -725,7 +728,6 @@ model an optmization problem with an infinite-dimensional decision space.
    The finite parameters and their mapping information.
 - `name_to_param::Union{Dict{String, AbstractInfOptIndex}, Nothing}`:
    Field to help find a parameter given the name.
-- `last_object_num::Int`: The last parameter object number to be used.
 - `last_param_num::Int`: The last parameter number to be used.
 - `param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}`:
   The collection of parameter object indices in creation order.
@@ -747,7 +749,7 @@ model an optmization problem with an infinite-dimensional decision space.
    The default keyword arguments for [`integral`](@ref).
 - `constraints::MOIUC.CleverDict{ConstraintIndex, ConstraintData}`:
    The constraints and their mapping information.
-- `name_to_constr::Union{Dict{String, AbstractInfOptIndex}, Nothing}`:
+- `name_to_constr::Union{Dict{String, ConstraintIndex}, Nothing}`:
    Field to help find a constraint given the name.
 - `objective_sense::MOI.OptimizationSense`: Objective sense.
 - `objective_function::JuMP.AbstractJuMPScalar`: Finite scalar function.
@@ -763,7 +765,6 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     dependent_params::MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}
     finite_params::MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}
     name_to_param::Union{Dict{String, AbstractInfOptIndex}, Nothing}
-    last_object_num::Int
     last_param_num::Int
     param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
 
@@ -781,7 +782,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 
     # Constraint Data
     constraints::MOIUC.CleverDict{ConstraintIndex, ConstraintData}
-    name_to_constr::Union{Dict{String, AbstractInfOptIndex}, Nothing}
+    name_to_constr::Union{Dict{String, ConstraintIndex}, Nothing}
 
     # Objective Data
     objective_sense::MOI.OptimizationSense
@@ -843,7 +844,7 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}(),
                          MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}(),
                          MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
-                         nothing, 0, 0,
+                         nothing, 0,
                          Union{IndependentParameterIndex, DependentParametersIndex}[],
                          # Variables
                          MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable{GeneralVariableRef}}}(),
@@ -902,7 +903,6 @@ Base.broadcastable(model::InfiniteModel) = Ref(model)
 JuMP.object_dictionary(model::InfiniteModel)::Dict{Symbol, Any} = model.obj_dict
 
 # Define basic accessors
-_last_object_num(model::InfiniteModel)::Int = model.last_object_num
 _last_param_num(model::InfiniteModel)::Int = model.last_param_num
 _param_object_indices(model::InfiniteModel) = model.param_object_indices
 
@@ -1185,6 +1185,9 @@ end
 # Extend Base.length
 Base.length(bounds::ParameterBounds)::Int = length(intervals(bounds))
 
+# Extend Base.isempty
+Base.isempty(bounds::ParameterBounds)::Bool = isempty(intervals(bounds))
+
 # Extend Base.:(==)
 function Base.:(==)(bounds1::ParameterBounds, bounds2::ParameterBounds)::Bool
     return intervals(bounds1) == intervals(bounds2)
@@ -1207,6 +1210,26 @@ end
 # Extend Base.haskey
 function Base.haskey(pb::ParameterBounds{P}, key::P)::Bool where {P}
     return haskey(intervals(pb), key)
+end
+
+# Extend Base.delete!
+function Base.delete!(pb::ParameterBounds{P}, key::P)::ParameterBounds{P} where {P}
+    delete!(intervals(pb), key)
+    return pb
+end
+
+# Extend Base.merge!
+function Base.merge!(pb1::ParameterBounds{P},
+                     pb2::ParameterBounds{P})::ParameterBounds{P} where {P}
+    merge!(intervals(pb1), intervals(pb2))
+    return pb1
+end
+
+# Extend Base.filter
+function Base.filter(f::Function,
+                     pb::ParameterBounds{P})::ParameterBounds{P} where {P}
+    new_dict = filter(f, intervals(pb))
+    return ParameterBounds(new_dict)
 end
 
 # Extend Base.iterate

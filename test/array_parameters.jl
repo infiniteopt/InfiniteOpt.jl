@@ -17,6 +17,7 @@
     # test _add_data_object
     @testset "_add_data_object" begin
         @test InfiniteOpt._add_data_object(m, object) == obj_idx
+        @test InfiniteOpt._param_object_indices(m)[end] == obj_idx
     end
     # test _data_dictionary
     @testset "_data_dictionary" begin
@@ -182,7 +183,7 @@ end
         pref2 = GeneralVariableRef(m, 1, DependentParameterIndex, 2)
         params = InfiniteOpt._build_parameters(error, raw_params1)[1]
         @test add_parameters(m, params) == [pref1, pref2]
-        @test InfiniteOpt._last_object_num(m) == 1
+        @test InfiniteOpt._param_object_indices(m) == [index(pref1).object_index]
         @test InfiniteOpt._last_param_num(m) == 2
         @test name(pref1) == "noname"
         # test vector build
@@ -190,7 +191,7 @@ end
         pref2 = GeneralVariableRef(m, 2, DependentParameterIndex, 2)
         inputs = InfiniteOpt._build_parameters(error, raw_params2)
         @test add_parameters(m, inputs...) == [pref1, pref2]
-        @test InfiniteOpt._last_object_num(m) == 2
+        @test InfiniteOpt._param_object_indices(m)[2] == index(pref1).object_index
         @test InfiniteOpt._last_param_num(m) == 4
         @test name(pref1) == "p"
         # test array build
@@ -200,7 +201,7 @@ end
         pref4 = GeneralVariableRef(m, 3, DependentParameterIndex, 4)
         inputs = InfiniteOpt._build_parameters(error, raw_params5)
         @test add_parameters(m, inputs...) == [pref1 pref3; pref2 pref4]
-        @test InfiniteOpt._last_object_num(m) == 3
+        @test InfiniteOpt._param_object_indices(m)[3] == index(pref1).object_index
         @test InfiniteOpt._last_param_num(m) == 8
         @test name(pref1) == "p"
         # test DenseAxisArray build
@@ -212,7 +213,7 @@ end
         inputs = InfiniteOpt._build_parameters(error, dense_params)
         expected = JuMPC.DenseAxisArray([pref1 pref3; pref2 pref4], axes(raw_params5)...)
         @test add_parameters(m, inputs...) == expected
-        @test InfiniteOpt._last_object_num(m) == 4
+        @test InfiniteOpt._param_object_indices(m)[4] == index(pref1).object_index
         @test InfiniteOpt._last_param_num(m) == 12
         @test name(pref1) == "p"
         # test SparseAxisArray
@@ -222,7 +223,7 @@ end
         inputs = InfiniteOpt._build_parameters(error, sparse_params)
         expected = convert(JuMPC.SparseAxisArray, [pref1, pref2])
         @test add_parameters(m, inputs...) == expected
-        @test InfiniteOpt._last_object_num(m) == 5
+        @test InfiniteOpt._param_object_indices(m)[5] == index(pref1).object_index
         @test InfiniteOpt._last_param_num(m) == 14
         @test name(pref1) == "p"
     end
@@ -344,6 +345,7 @@ end
         pref2 = GeneralVariableRef(m, 8, DependentParameterIndex, 2)
         @test @dependent_parameters(m, [i = 1:2], upper_bound = [1, 2][i],
                   lower_bound = 0) == [pref1, pref2]
+        @test InfiniteOpt._param_object_indices(m)[InfiniteOpt._object_number(pref2)] == index(pref2).object_index
     end
     # test @infinite_parameter
     @testset "@infinite_parameter" begin

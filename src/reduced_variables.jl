@@ -42,73 +42,82 @@ function _object_numbers(vref::ReducedInfiniteVariableRef)::Vector{Int}
     return _core_variable_object(vref).object_nums
 end
 
+################################################################################
+#                             DEFINITION METHODS
+################################################################################
 """
-    reduction_info(vref::ReducedInfiniteVariableRef,
-                   key::Val{:my_ext_key}
-                   )::ReducedInfiniteInfo)
+    JuMP.build_variable(_error::Function, ivref::GeneralVariableRef,
+                        eval_supports::Dict{Int, Float64}; [check::Bool = true]
+                        )::ReducedInfiniteVariable{GeneralVariableRef}
 
-Return the reduction info of `vref` that is stored in the optimizer model with
-key `:my_ext_key` if it is in fact stored there. This is an internal method that
-should be extended in combination with an extension of
-[`add_measure_variable`](@ref).
+Extend the `JuMP.build_variable` function to build a reduced infinite variable
+based on the infinite variable `ivref` with reduction support `eval_supports`.
+Will check that input is appropriate if `check = true`. Errors if `ivref` is
+not an infinite variable, `eval_supports` violate infinite parameter domains, or
+if the support dimensions don't match the infinite parameter dimensions of `ivref`.
+This is intended an internal method for use in evaluating measures.
 """
-function reduction_info(vref::ReducedInfiniteVariableRef, key)::ReducedInfiniteInfo
-    error("Cannot find reduction information in the InfiniteModel and " *
-          "`reduction_info` is not extended for optimizer models with " *
-          "key $(typeof(key).parameters[1]) so we cannot check there either.")
-end
-
-# Helper function to get reduced variable info
-function _reduced_info(vref::ReducedInfiniteVariableRef)::ReducedInfiniteInfo
-    if haskey(JuMP.owner_model(vref).reduced_info, JuMP.index(vref))
-        return JuMP.owner_model(vref).reduced_info[JuMP.index(vref)]
-    else
-        # get reduced info from the optimizer model if it is stored there
-        key = optimizer_model_key(JuMP.owner_model(vref))
-        return reduction_info(vref, Val(key))
+function JuMP.build_variable(_error::Function, ivref::GeneralVariableRef,
+                             eval_supports::Dict{Int, Float64};
+                             check::Bool = true
+                             )::ReducedInfiniteVariable{GeneralVariableRef}
+    # check the inputs
+    dvref = dispatch_variable_ref(ivref)
+    prefs = raw_parameter_refs(dvref)
+    if check
+        if !(dvref isa InfiniteVariableRef)
+             _error("Must specify an infinite variable dependency.")
+        elseif maximum(keys(eval_dict)) > length(parameter_list(dvref))
+            _error("Support evaluation dictionary indices do not the infinite " *
+                   "parameter dependencies of $(ivref).")
+        end
+        for (index, value) in eval_dict
+            if has_lower_bound(prefs[index]) && !supports_in_set(value, infinite_set(pref))
+                _error("Evaluation support violates infinite parameter domain(s).")
+            end
+        end
     end
-end
-
-################################################################################
-#                                USAGE METHODS
-################################################################################
-"""
-    used_by_constraint(vref::ReducedInfiniteVariableRef)::Bool
-
-Return a `Bool` indicating if `vref` is used by a constraint.
-
-**Example**
-```julia-repl
-julia> used_by_constraint(vref)
-false
-```
-"""
-function used_by_constraint(vref::ReducedInfiniteVariableRef)::Bool
-    return haskey(JuMP.owner_model(vref).reduced_to_constrs, JuMP.index(vref))
+    # get the parameter object numbers of the dependencies
+    object_set = Set{Int}()
+    for i in eachindex(prefs)
+        if !haskey(eval_dict, i)
+            union!(object_set, _object_number(prefs[i]))
+        end
+    end
+    return ReducedInfiniteVariable(ivref, eval_supports, collect(object_set))
 end
 
 """
-    used_by_measure(vref::ReducedInfiniteVariableRef)::Bool
+    JuMP.add_variable(model::InfiniteModel, var::ReducedInfiniteVariable,
+                      [name::String = ""; define_name = true]
+                      )::GeneralVariableRef
 
-Return a `Bool` indicating if `vref` is used by a measure.
-
-**Example**
-```julia-repl
-julia> used_by_measure(vref)
-true
-```
+Extend the [`JuMP.add_variable`](@ref JuMP.add_variable(::JuMP.Model, ::JuMP.ScalarVariable, ::String))
+function to accomodate `InfiniteOpt` reduced variable types. Adds `var` to the
+infinite model `model` and returns a [`GeneralVariableRef`](@ref).
+Primarily intended to be an internal function used in evaluating measures. A name
+will be generated using the supports if `define_name = true`.
 """
-function used_by_measure(vref::ReducedInfiniteVariableRef)::Bool
-    return haskey(JuMP.owner_model(vref).reduced_to_meas, JuMP.index(vref))
+function JuMP.add_variable(model::InfiniteModel, var::ReducedInfiniteVariable,
+                           name::String = "";
+                           define_name::Bool = true)::GeneralVariableRef
+    JuMP.check_belongs_to_model(var.infinite_variable_ref)
+    data_object = VariableData(v)
+    vindex = _add_data_object(model, data_object)
+    if length(name) != 0 || define_name
+        JuMP.set_name(ReducedInfiniteVariableRef(model, vindex), name)
+    end
+    gvref = GeneralVariableRef(model, vindex.value, typeof(vindex))
+    return gvref
 end
 
 ################################################################################
 #                          PARAMETER REFERENCE METHODS
 ################################################################################
 """
-    infinite_variable_ref(vref::ReducedInfiniteVariableRef)::InfiniteVariableRef
+    infinite_variable_ref(vref::ReducedInfiniteVariableRef)::GeneralVariableRef
 
-Return the `InfiniteVariableRef` associated with the reduced infinite variable
+Return the infinite variable reference associated with the reduced infinite variable
 `vref`.
 
 **Example**
@@ -117,12 +126,12 @@ julia> infinite_variable_ref(vref)
 g(t, x)
 ```
 """
-function infinite_variable_ref(vref::ReducedInfiniteVariableRef)::InfiniteVariableRef
-    return _reduced_info(vref).infinite_variable_ref
+function infinite_variable_ref(vref::ReducedInfiniteVariableRef)::GeneralVariableRef
+    return _core_variable_object(vref).infinite_variable_ref
 end
 
 """
-    eval_supports(vref::ReducedInfiniteVariableRef)::Dict
+    eval_supports(vref::ReducedInfiniteVariableRef)::Dict{Int, Float64}
 
 Return the evaluation supports associated with the reduced infinite variable
 `vref`.
@@ -134,19 +143,20 @@ Dict{Int64,Float64} with 1 entry:
   1 => 0.5
 ```
 """
-function eval_supports(vref::ReducedInfiniteVariableRef)::Dict
-    return _reduced_info(vref).eval_supports
+function eval_supports(vref::ReducedInfiniteVariableRef)::Dict{Int, Float64}
+    return _core_variable_object(vref).eval_supports
 end
 
 """
-    raw_parameter_refs(vref::ReducedInfiniteVariableRef)::VectorTuple{ParameterRef}
+    raw_parameter_refs(vref::ReducedInfiniteVariableRef)::VectorTuple{GeneralVariableRef}
 
 Return the raw [`VectorTuple`](@ref) of the parameter references that `vref`
 depends on. This is primarily an internal method where
 [`parameter_refs`](@ref parameter_refs(vref::ReducedInfiniteVariableRef))
 is intended as the preferred user function.
 """
-function raw_parameter_refs(vref::ReducedInfiniteVariableRef)::VectorTuple{ParameterRef}
+function raw_parameter_refs(vref::ReducedInfiniteVariableRef
+                            )::VectorTuple{GeneralVariableRef}
     orig_prefs = raw_parameter_refs(infinite_variable_ref(vref))
     eval_supps = eval_supports(vref)
     delete_indices = [haskey(eval_supps, i) for i = 1:length(orig_prefs)]
@@ -156,8 +166,8 @@ end
 """
     parameter_refs(vref::ReducedInfiniteVariableRef)::Tuple
 
-Return the `ParameterRef`(s) associated with the reduced infinite variable
-`vref`. This is formatted as a Tuple of containing the parameter references as
+Return the infinite parameter references associated with the reduced infinite variable
+`vref`. This is formatted as a `Tuple` of containing the parameter references as
 they were inputted to define the untranscripted infinite variable except, the
 evaluated parameters are excluded.
 
@@ -172,13 +182,13 @@ function parameter_refs(vref::ReducedInfiniteVariableRef)::Tuple
 end
 
 """
-    parameter_list(vref::ReducedInfiniteVariableRef)::Vector{ParameterRef}
+    parameter_list(vref::ReducedInfiniteVariableRef)::Vector{GeneralVariableRef}
 
 Return a vector of the parameter references that `vref` depends on. This is
 primarily an internal method where [`parameter_refs`](@ref parameter_refs(vref::ReducedInfiniteVariableRef))
 is intended as the preferred user function.
 """
-function parameter_list(vref::ReducedInfiniteVariableRef)::Vector{ParameterRef}
+function parameter_list(vref::ReducedInfiniteVariableRef)::Vector{GeneralVariableRef}
     orig_prefs = raw_parameter_refs(infinite_variable_ref(vref))
     eval_supps = eval_supports(vref)
     indices = [!haskey(eval_supps, i) for i in eachindex(orig_prefs)]
@@ -189,32 +199,55 @@ end
 #                                NAME METHODS
 ################################################################################
 """
+    JuMP.set_name(vref::ReducedInfiniteVariableRef, name::String = "")::Nothing
+
+Extend `JuMP.set_name` to set name of reduced infinite variable references. This
+is primarily an internal method sense such variables are generated via expanding
+measures.
+"""
+function JuMP.set_name(vref::ReducedInfiniteVariableRef,
+                       name::String = "")::Nothing
+    if length(name) == 0
+        ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+        root_name = _root_name(ivref)
+        prefs = raw_parameter_refs(ivref)
+        eval_supps = eval_supports(vref)
+        raw_list = [i in keys(eval_supps) ? eval_supps[i] : prefs[i]
+                    for i in eachindex(prefs)]
+        param_name_tuple = "("
+        for i in 1:size(prefs, 1)
+            value = raw_list[prefs.ranges[i]]
+            if i != size(prefs, 1)
+                param_name_tuple *= string(_make_str_value(value), ", ")
+            else
+                param_name_tuple *= string(_make_str_value(value), ")")
+            end
+        end
+        name = string(root_name, param_name_tuple)
+    end
+    _data_object(vref).name = name
+    JuMP.owner_model(vref).name_to_var = nothing
+    return
+end
+
+"""
     JuMP.name(vref::ReducedInfiniteVariableRef)::String
 
-Extend `JuMP.name` to return name of reduced infinite variable references. This
-is used when displaying measure expansions that contain such variables.
+Extend `JuMP.name` to return the name of reduced infinite variable references.
+This will also automatically write a name if one has not yet been assigned.
 
-**Exanple**
+**Example**
 ```julia-repl
-julia> name(rvref)
-g(1.25, [x[1], x[2]])
+julia> name(vref)
+"x(t, [0, 0])"
 ```
 """
 function JuMP.name(vref::ReducedInfiniteVariableRef)::String
-    root_name = _root_name(infinite_variable_ref(vref))
-    prefs = raw_parameter_refs(infinite_variable_ref(vref))
-    eval_supps = eval_supports(vref)
-    raw_list = [i in keys(eval_supps) ? eval_supps[i] : prefs[i] for i in eachindex(prefs)]
-    param_name_tuple = "("
-    for i in 1:size(prefs, 1)
-        value = raw_list[prefs.ranges[i]]
-        if i != size(prefs, 1)
-            param_name_tuple *= string(_make_str_value(value), ", ")
-        else
-            param_name_tuple *= string(_make_str_value(value), ")")
-        end
+    # make and set the name if that has not already been done
+    if length(_data_object(vref).name) == 0
+        JuMP.set_name(vref)
     end
-    return string(root_name, param_name_tuple)
+    return _data_object(vref).name
 end
 
 ################################################################################
@@ -249,23 +282,25 @@ julia> lower_bound(vref)
 ```
 """
 function JuMP.lower_bound(vref::ReducedInfiniteVariableRef)::Float64
-    if !JuMP.has_lower_bound(vref)
+    ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+    if !JuMP.has_lower_bound(ivref)
         error("Variable $(vref) does not have a lower bound.")
     end
-    return JuMP.lower_bound(infinite_variable_ref(vref))
+    return JuMP.lower_bound(ivref)
 end
 
 # Extend to return the index of the lower bound constraint associated with the
 # original infinite variable of `vref`.
-function JuMP._lower_bound_index(vref::ReducedInfiniteVariableRef)::Int
-    if !JuMP.has_lower_bound(vref)
+function JuMP._lower_bound_index(vref::ReducedInfiniteVariableRef)::ConstraintIndex
+    ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+    if !JuMP.has_lower_bound(ivref)
         error("Variable $(vref) does not have a lower bound.")
     end
-    return JuMP._lower_bound_index(infinite_variable_ref(vref))
+    return JuMP._lower_bound_index(ivref)
 end
 
 """
-    JuMP.LowerBoundRef(vref::ReducedInfiniteVariableRef)::GeneralConstraintRef
+    JuMP.LowerBoundRef(vref::ReducedInfiniteVariableRef)::InfOptConstraintRef
 
 Extend [`JuMP.LowerBoundRef`](@ref) to extract a constraint reference for the
 lower bound of the original infinite variable of `vref`.
@@ -276,7 +311,7 @@ julia> cref = LowerBoundRef(vref)
 var >= 0.0
 ```
 """
-function JuMP.LowerBoundRef(vref::ReducedInfiniteVariableRef)::GeneralConstraintRef
+function JuMP.LowerBoundRef(vref::ReducedInfiniteVariableRef)::InfOptConstraintRef
     return JuMP.LowerBoundRef(infinite_variable_ref(vref))
 end
 
@@ -309,23 +344,25 @@ julia> upper_bound(vref)
 ```
 """
 function JuMP.upper_bound(vref::ReducedInfiniteVariableRef)::Float64
-    if !JuMP.has_upper_bound(vref)
+    ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+    if !JuMP.has_upper_bound(ivref)
         error("Variable $(vref) does not have a upper bound.")
     end
-    return JuMP.upper_bound(infinite_variable_ref(vref))
+    return JuMP.upper_bound(ivref)
 end
 
 # Extend to return the index of the upper bound constraint associated with the
 # original infinite variable of `vref`.
-function JuMP._upper_bound_index(vref::ReducedInfiniteVariableRef)::Int
-    if !JuMP.has_upper_bound(vref)
+function JuMP._upper_bound_index(vref::ReducedInfiniteVariableRef)::ConstraintIndex
+    ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+    if !JuMP.has_upper_bound(ivref)
         error("Variable $(vref) does not have a upper bound.")
     end
-    return JuMP._upper_bound_index(infinite_variable_ref(vref))
+    return JuMP._upper_bound_index(ivref)
 end
 
 """
-    JuMP.UpperBoundRef(vref::ReducedInfiniteVariableRef)::GeneralConstraintRef
+    JuMP.UpperBoundRef(vref::ReducedInfiniteVariableRef)::InfOptConstraintRef
 
 Extend [`JuMP.UpperBoundRef`](@ref) to extract a constraint reference for the
 upper bound of the original infinite variable of `vref`.
@@ -336,7 +373,7 @@ julia> cref = UpperBoundRef(vref)
 var <= 1.0
 ```
 """
-function JuMP.UpperBoundRef(vref::ReducedInfiniteVariableRef)::GeneralConstraintRef
+function JuMP.UpperBoundRef(vref::ReducedInfiniteVariableRef)::InfOptConstraintRef
     return JuMP.UpperBoundRef(infinite_variable_ref(vref))
 end
 
@@ -369,23 +406,25 @@ julia> fix_value(vref)
 ```
 """
 function JuMP.fix_value(vref::ReducedInfiniteVariableRef)::Float64
-    if !JuMP.is_fixed(vref)
+    ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+    if !JuMP.is_fixed(ivref)
         error("Variable $(vref) is not fixed.")
     end
-    return JuMP.fix_value(infinite_variable_ref(vref))
+    return JuMP.fix_value(ivref)
 end
 
 # Extend to return the index of the fix constraint associated with the original
 # infinite variable of `vref`.
-function JuMP._fix_index(vref::ReducedInfiniteVariableRef)::Int
-    if !JuMP.is_fixed(vref)
+function JuMP._fix_index(vref::ReducedInfiniteVariableRef)::ConstraintIndex
+    ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+    if !JuMP.is_fixed(ivref)
         error("Variable $(vref) is not fixed.")
     end
-    return JuMP._fix_index(infinite_variable_ref(vref))
+    return JuMP._fix_index(ivref)
 end
 
 """
-    JuMP.FixRef(vref::ReducedInfiniteVariableRef)::GeneralConstraintRef
+    JuMP.FixRef(vref::ReducedInfiniteVariableRef)::InfOptConstraintRef
 
 Extend [`JuMP.FixRef`](@ref) to return the constraint reference of the fix
 constraint associated with the original infinite variable of `vref`. Errors
@@ -397,7 +436,7 @@ julia> cref = FixRef(vref)
 var == 1.0
 ```
 """
-function JuMP.FixRef(vref::ReducedInfiniteVariableRef)::GeneralConstraintRef
+function JuMP.FixRef(vref::ReducedInfiniteVariableRef)::InfOptConstraintRef
     return JuMP.FixRef(infinite_variable_ref(vref))
 end
 
@@ -435,15 +474,16 @@ end
 
 # Extend to return the index of the binary constraint associated with the
 # original infinite variable of `vref`.
-function JuMP._binary_index(vref::ReducedInfiniteVariableRef)::Int
-    if !JuMP.is_binary(vref)
+function JuMP._binary_index(vref::ReducedInfiniteVariableRef)::ConstraintIndex
+    ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+    if !JuMP.is_binary(ivref)
         error("Variable $(vref) is not binary.")
     end
-    return JuMP._binary_index(infinite_variable_ref(vref))
+    return JuMP._binary_index(vref)
 end
 
 """
-    JuMP.BinaryRef(vref::ReducedInfiniteVariableRef)::GeneralConstraintRef
+    JuMP.BinaryRef(vref::ReducedInfiniteVariableRef)::InfOptConstraintRef
 
 Extend [`JuMP.BinaryRef`](@ref) to return a constraint reference to the
 constraint constrainting the original infinite variable of `vref` to be binary.
@@ -455,7 +495,7 @@ julia> cref = BinaryRef(vref)
 var binary
 ```
 """
-function JuMP.BinaryRef(vref::ReducedInfiniteVariableRef)::GeneralConstraintRef
+function JuMP.BinaryRef(vref::ReducedInfiniteVariableRef)::InfOptConstraintRef
     return JuMP.BinaryRef(infinite_variable_ref(vref))
 end
 
@@ -477,15 +517,16 @@ end
 
 # Extend to return the index of the integer constraint associated with the
 # original infinite variable of `vref`.
-function JuMP._integer_index(vref::ReducedInfiniteVariableRef)::Int
-    if !JuMP.is_integer(vref)
+function JuMP._integer_index(vref::ReducedInfiniteVariableRef)::ConstraintIndex
+    ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+    if !JuMP.is_integer(ivref)
         error("Variable $(vref) is not an integer.")
     end
-    return JuMP._integer_index(infinite_variable_ref(vref))
+    return JuMP._integer_index(ivref)
 end
 
 """
-    JuMP.IntegerRef(vref::ReducedInfiniteVariableRef)::GeneralConstraintRef
+    JuMP.IntegerRef(vref::ReducedInfiniteVariableRef)::InfOptConstraintRef
 
 Extend [`JuMP.IntegerRef`](@ref) to return a constraint reference to the
 constraint constrainting the original infinite variable of `vref` to be integer.
@@ -497,86 +538,17 @@ julia> cref = IntegerRef(vref)
 var integer
 ```
 """
-function JuMP.IntegerRef(vref::ReducedInfiniteVariableRef)::GeneralConstraintRef
+function JuMP.IntegerRef(vref::ReducedInfiniteVariableRef)::InfOptConstraintRef
     return JuMP.IntegerRef(infinite_variable_ref(vref))
 end
 
 ################################################################################
 #                                  DELETION
 ################################################################################
-#=
-"""
-    JuMP.delete(model::InfiniteModel, vref::ReducedInfiniteVariableRef)
-
-Extend [`JuMP.delete`](@ref) to delete reduced infinite variables and its
-dependencies. Errors if `vref` is invalid, meaning it has already been deleted
-or it belongs to another model.
-
-**Example**
-```julia
-julia> print(model)
-Min measure(g(0, t)*t + g(1, t)*t) + z
-Subject to
- z >= 0.0
- g(0, t) + g(1, t) == 0
- g(x, t) + z >= 42.0
- g(0.5, 0.5) == 0
- t in [0, 6]
- x in [0, 1]
-
-julia> delete(model, rvref1)
-
-julia> print(model)
-Min measure(t + g(1, t)*t) + z
-Subject to
- z >= 0.0
- g(1, t) == 0
- g(x, t) + z >= 42.0
- g(0.5, 0.5) == 0
- t in [0, 6]
- x in [0, 1]
-```
-"""
-function JuMP.delete(model::InfiniteModel, vref::ReducedInfiniteVariableRef)
-    # check valid reference
-    @assert JuMP.is_valid(model, vref) "Invalid variable reference."
-    # remove from measures if used
-    if used_by_measure(vref)
-        for mindex in model.reduced_to_meas[JuMP.index(vref)]
-            if isa(model.measures[mindex].func, ReducedInfiniteVariableRef)
-                model.measures[mindex] = Measure(zero(JuMP.AffExpr),
-                                                 model.measures[mindex].data)
-            else
-                _remove_variable(model.measures[mindex].func, vref)
-            end
-            JuMP.set_name(MeasureRef(model, mindex),
-                          _make_meas_name(model.measures[mindex]))
-        end
-        # delete mapping
-        delete!(model.reduced_to_meas, JuMP.index(vref))
-    end
-    # remove from constraints if used
-    if used_by_constraint(vref)
-        for cindex in model.reduced_to_constrs[JuMP.index(vref)]
-            if isa(model.constrs[cindex].func, ReducedInfiniteVariableRef)
-                model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr),
-                                                      model.constrs[cindex].set)
-            else
-                _remove_variable(model.constrs[cindex].func, vref)
-            end
-        end
-        # delete mapping
-        delete!(model.reduced_to_constrs, JuMP.index(vref))
-    end
+# Extend _delete_variable_dependencies (for use with JuMP.delete)
+function _delete_variable_dependencies(vref::ReducedInfiniteVariableRef)::Nothing
     # remove mapping to infinite variable
-    ivref = infinite_variable_ref(vref)
-    filter!(e -> e != JuMP.index(vref),
-            model.infinite_to_reduced[JuMP.index(ivref)])
-    if length(model.infinite_to_reduced[JuMP.index(ivref)]) == 0
-        delete!(model.infinite_to_reduced, JuMP.index(ivref))
-    end
-    # delete the info
-    delete!(model.reduced_info, JuMP.index(vref))
+    ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+    filter!(e -> e != JuMP.index(vref), _reduced_variable_dependencies(ivref))
     return
 end
-=#

@@ -46,6 +46,11 @@ function _remove_name_index(vref::GeneralVariableRef)::String
     end
 end
 
+# Define basic attribute getters
+_index_type(vref::GeneralVariableRef)::DataType = vref.index_type
+_raw_index(vref::GeneralVariableRef)::Int = vref.raw_index
+_param_index(vref::GeneralVariableRef)::Int = vref.param_index
+
 ################################################################################
 #                          BASIC REFERENCE ACCESSERS
 ################################################################################
@@ -62,11 +67,12 @@ HoldVariableIndex(1)
 ```
 """
 function JuMP.index(vref::GeneralVariableRef)::AbstractInfOptIndex
-    if vref.index_type == DependentParameterIndex
-        return vref.index_type(DependentParametersIndex(vref.raw_index),
-                               vref.param_index)
+    index_type = _index_type(vref)
+    if index_type == DependentParameterIndex
+        return index_type(DependentParametersIndex(_raw_index(vref)),
+                           _param_index(vref))
     else
-        return vref.index_type(vref.raw_index)
+        return index_type(_raw_index(vref))
     end
 end
 
@@ -999,7 +1005,7 @@ end
     set_parameter_refs(vref::GeneralVariableRef, prefs::Tuple)::Nothing
 
 Specify a new parameter reference tuple `prefs` for the infinite variable `vref`.
-An `ArgumentError` is thrown if `vref` is not an infinite/reduced variable.
+An `ArgumentError` is thrown if `vref` is not an infinite variable.
 """
 function set_parameter_refs(vref::GeneralVariableRef, prefs::Tuple)::Nothing
     return set_parameter_refs(dispatch_variable_ref(vref), prefs)
@@ -1009,7 +1015,7 @@ end
 function add_parameter_ref(vref::DispatchVariableRef,
     pref::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}
     )
-    throw(ArgumentError("`add_parameter_refs` not defined for variable reference type(s) " *
+    throw(ArgumentError("`add_parameter_ref` not defined for variable reference type(s) " *
                         "`$(typeof(vref))`."))
 end
 
@@ -1020,12 +1026,163 @@ end
 
 Add additional parameter reference or group of parameter references to be
 associated with the infinite variable `vref`. An `ArgumentError` is thrown if
-`vref` is not an infinite/reduced variable.
+`vref` is not an infinite variable.
 """
 function add_parameter_ref(vref::GeneralVariableRef,
     pref::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}
     )::Nothing
     return add_parameter_ref(dispatch_variable_ref(vref), pref)
+end
+
+# Dispatch fallback
+function infinite_variable_ref(vref::DispatchVariableRef)
+    throw(ArgumentError("`infinite_variable_ref` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    infinite_variable_ref(vref::GeneralVariableRef)::GeneralVariableRef
+
+Return the infinite variable reference associated with `vref`. An
+`ArgumentError` is thrown if `vref` is not a reduced/point variable.
+"""
+function infinite_variable_ref(vref::GeneralVariableRef)::GeneralVariableRef
+    return infinite_variable_ref(dispatch_variable_ref(vref))
+end
+
+# Dispatch fallback
+function eval_supports(vref::DispatchVariableRef)
+    throw(ArgumentError("`eval_supports` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    eval_supports(vref::GeneralVariableRef)::Dict{Int, Float64}
+
+Return the evaluation supports associated with the reduced infinite variable
+`vref`. An `ArgumentError` is thrown if `vref` is not a reduced variable.
+"""
+function eval_supports(vref::GeneralVariableRef)::Dict{Int, Float64}
+    return eval_supports(dispatch_variable_ref(vref))
+end
+
+# Dispatch fallback
+function raw_parameter_values(vref::DispatchVariableRef)
+    throw(ArgumentError("`raw_parameter_values` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    raw_parameter_values(vref::GeneralVariableRef)::Vector{Float64}
+
+Return the raw support point values associated with the point variable `vref`.
+An `ArgumentError` is thrown if `vref` is not a point variable.
+"""
+function raw_parameter_values(vref::GeneralVariableRef)::Vector{Float64}
+    return raw_parameter_values(dispatch_variable_ref(vref))
+end
+
+# Dispatch fallback
+function parameter_values(vref::DispatchVariableRef)
+    throw(ArgumentError("`parameter_values` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    parameter_values(vref::GeneralVariableRef)::Tuple
+
+Return the support point associated with the point variable `vref`.
+An `ArgumentError` is thrown if `vref` is not a point variable.
+"""
+function parameter_values(vref::GeneralVariableRef)::Tuple
+    return parameter_values(dispatch_variable_ref(vref))
+end
+
+# Dispatch fallback
+function parameter_bounds(vref::DispatchVariableRef)
+    throw(ArgumentError("`parameter_bounds` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    parameter_bounds(vref::GeneralVariableRef)::ParameterBounds{GeneralVariableRef}
+
+Return the [`ParameterBounds`](@ref) object associated with the hold variable
+`vref`. An `ArgumentError` is thrown if `vref` is not a hold variable.
+"""
+function parameter_bounds(vref::GeneralVariableRef
+                          )::ParameterBounds{GeneralVariableRef}
+    return parameter_bounds(dispatch_variable_ref(vref))
+end
+
+"""
+    has_parameter_bounds(vref::GeneralVariableRef)::Bool
+
+Return a `Bool` indicating if `vref` is limited to a sub-domain as defined
+by parameter bound.
+"""
+function has_parameter_bounds(vref::GeneralVariableRef)::Bool
+    return has_parameter_bounds(dispatch_variable_ref(vref))
+end
+
+# Dispatch fallback
+function set_parameter_bounds(vref::DispatchVariableRef, bounds; kwargs...)
+    throw(ArgumentError("`set_parameter_bounds` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    set_parameter_bounds(vref::GeneralVariableRef,
+                         bounds::ParameterBounds{GeneralVariableRef};
+                         [force::Bool = false])::Nothing
+
+Specify a new set of parameter bounds for a hold variable `vref`.
+An `ArgumentError` is thrown if `vref` is not a hold variable.
+"""
+function set_parameter_bounds(vref::GeneralVariableRef,
+                              bounds::ParameterBounds{GeneralVariableRef};
+                              force::Bool = false, _error::Function = error
+                              )::Nothing
+    return set_parameter_bounds(dispatch_variable_ref(vref), bounds,
+                                force = force, _error = _error)
+end
+
+# Dispatch fallback
+function add_parameter_bounds(vref::DispatchVariableRef, bounds; kwargs...)
+    throw(ArgumentError("`add_parameter_bounds` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    add_parameter_bounds(vref::GeneralVariableRef,
+                         bounds::ParameterBounds{GeneralVariableRef}
+                         )::Nothing
+
+Specify more parameter bounds for a hold variable `vref`.
+An `ArgumentError` is thrown if `vref` is not a hold variable.
+"""
+function add_parameter_bounds(vref::GeneralVariableRef,
+                              bounds::ParameterBounds{GeneralVariableRef};
+                              _error::Function = error
+                              )::Nothing
+    return add_parameter_bounds(dispatch_variable_ref(vref), bounds,
+                                _error = _error)
+end
+
+# Dispatch fallback
+function delete_parameter_bounds(vref::DispatchVariableRef)
+    throw(ArgumentError("`delete_parameter_bounds` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    delete_parameter_bounds(vref::GeneralVariableRef)::Nothing
+
+Delete all the parameter bounds of the hold variable `vref`. An `ArgumentError`
+is thrown if `vref` is not a hold variable.
+"""
+function delete_parameter_bounds(vref::GeneralVariableRef)::Nothing
+    return delete_parameter_bounds(dispatch_variable_ref(vref))
 end
 
 ################################################################################
