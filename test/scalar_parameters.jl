@@ -29,10 +29,12 @@
     end
     # test _data_dictionary
     @testset "_data_dictionary" begin
-        @test InfiniteOpt._data_dictionary(ind_pref) == m.independent_params
-        @test InfiniteOpt._data_dictionary(ind_gvref) == m.independent_params
-        @test InfiniteOpt._data_dictionary(fin_pref) == m.finite_params
-        @test InfiniteOpt._data_dictionary(fin_gvref) == m.finite_params
+        @test InfiniteOpt._data_dictionary(ind_pref) === m.independent_params
+        @test InfiniteOpt._data_dictionary(ind_gvref) === m.independent_params
+        @test InfiniteOpt._data_dictionary(fin_pref) === m.finite_params
+        @test InfiniteOpt._data_dictionary(fin_gvref) === m.finite_params
+        @test InfiniteOpt._data_dictionary(m, IndependentParameter) === m.independent_params
+        @test InfiniteOpt._data_dictionary(m, FiniteParameter) === m.finite_params
     end
     # test _data_object
     @testset "_data_object" begin
@@ -716,32 +718,6 @@ end
         @test upper_bound(pref1) == 2
         @test isa(set_upper_bound(pref1, 3), Nothing)
         @test upper_bound(pref1) == 3
-    end
-end
-
-# Test everything else
-@testset "Other Queries" begin
-    m = InfiniteModel()
-    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
-    pref = add_parameter(m, param, "test")
-    prefs = @independent_parameter(m, [1:2], set = IntervalSet(0, 1),
-                                   container = SparseAxisArray)
-    # JuMP.is_valid
-    @testset "JuMP.is_valid" begin
-        @test is_valid(m, pref)
-        pref2 = GeneralVariableRef(InfiniteModel(), 1, IndependentParameterIndex)
-        @test !is_valid(m, pref2)
-        pref3 = GeneralVariableRef(m, 5, IndependentParameterIndex)
-        @test !is_valid(m, pref3)
-    end
-    # num_scalar_parameters
-    @testset "num_scalar_parameters" begin
-        @test num_scalar_parameters(m) == 3
-    end
-    # all_parameters
-    @testset "all_scalar_parameters" begin
-        @test length(all_scalar_parameters(m)) == 3
-        @test all_scalar_parameters(m)[1] == pref
     end
 end
 

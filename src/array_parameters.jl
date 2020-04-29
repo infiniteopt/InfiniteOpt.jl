@@ -17,7 +17,13 @@ function _add_data_object(model::InfiniteModel,
     return index
 end
 
-# Extend _data_dictionary
+# Extend _data_dictionary (type based)
+function _data_dictionary(model::InfiniteModel,
+    ::Type{DependentParameters})::MOIUC.CleverDict
+    return model.dependent_params
+end
+
+# Extend _data_dictionary (ref based)
 function _data_dictionary(pref::DependentParameterRef)::MOIUC.CleverDict
     return JuMP.owner_model(pref).dependent_params
 end
@@ -1151,6 +1157,159 @@ function fill_in_supports!(model::InfiniteModel; num_supports::Int = 10,
                           modify = modify)
     end
     return
+end
+
+################################################################################
+#                          MODEL PARAMETER QUERIES
+################################################################################
+"""
+    num_parameters(model::InfiniteModel,
+                   [type::Type{InfOptParameter} = InfOptParameter])::Int
+
+Return the number of `InfiniteOpt` parameters assigned to `model`. By default,
+the total number of infinite and finite parameters is returned. The amount
+of a particular type is obtained by specifying the concrete parameter type
+of [`InfOptParameter`](@ref) via `type`. Type options include:
+ - `InfOptParameter`: all parameters
+ - `ScalarParameter`: all scalar parameters
+ - `InfiniteParameter`: all infinite parameters
+ - `FiniteParameter`: all finite parameters
+ - `IndependentParameter`: all independent infinite parameters
+ - `DependentParameters`: all dependent infinite parameters
+
+**Example**
+```julia-repl
+julia> num_parameters(model)
+3
+
+julia> num_parameters(model, IndependentParameter)
+2
+```
+"""
+function num_parameters(model::InfiniteModel,
+                        type::Type{InfOptParameter} = InfOptParameter
+                        )::Int
+    num_pars = num_parameters(model, IndependentParameter)
+    num_pars += num_parameters(model, FiniteParameter)
+    num_pars += num_parameters(model, DependentParameters)
+    return num_pars
+end
+
+# Particular scalar parameter types
+function num_parameters(model::InfiniteModel,
+                        type::Type{C})::Int where {C <: ScalarParameter}
+    return length(_data_dictionary(model, type))
+end
+
+# ScalarParameter
+function num_parameters(model::InfiniteModel,
+                        type::Type{ScalarParameter})::Int
+    num_pars = num_parameters(model, FiniteParameter)
+    num_pars += num_parameters(model, IndependentParameter)
+    return num_pars
+end
+
+# DependentParameters
+function num_parameters(model::InfiniteModel,
+                        type::Type{DependentParameters})::Int
+    num_pars = 0
+    for (_, object) in _data_dictionary(model, type)
+        num_pars += length(object.names)
+    end
+    return num_pars
+end
+
+# InfiniteParameter
+function num_parameters(model::InfiniteModel,
+                        type::Type{InfiniteParameter})::Int
+    num_pars = num_parameters(model, IndependentParameter)
+    num_pars += num_parameters(model, DependentParameters)
+    return num_pars
+end
+
+"""
+    all_parameters(model::InfiniteModel,
+                   type::Type{InfOptParameter} = InfOptParameter
+                   )::Vector{GeneralVariableRef}
+
+Return a list of all the `InfiniteOpt` parameters assigned to `model`. By default,
+all of the infinite and finite parameters is returned. The search is reduced to
+a particular type is obtained by specifying the concrete parameter type
+of [`InfOptParameter`](@ref) via `type`. Type options include:
+- `InfOptParameter`: all parameters
+- `ScalarParameter`: all scalar parameters
+- `InfiniteParameter`: all infinite parameters
+- `FiniteParameter`: all finite parameters
+- `IndependentParameter`: all independent infinite parameters
+- `DependentParameters`: all dependent infinite parameters
+
+**Examples**
+```julia-repl
+julia> all_parameters(model)
+4-element Array{GeneralVariableRef,1}:
+ t
+ x[1]
+ x[2]
+ alpha
+
+julia> all_parameters(model, FiniteParameter)
+1-element Array{GeneralVariableRef,1}:
+ alpha
+```
+"""
+function all_parameters(model::InfiniteModel,
+                        type::Type{InfOptParameter} = InfOptParameter
+                        )::Vector{GeneralVariableRef}
+    prefs_list = all_parameters(model, IndependentParameter)
+    append!(prefs_list, all_parameters(model, DependentParameters))
+    append!(prefs_list, all_parameters(model, FiniteParameter))
+    return prefs_list
+end
+
+# Particular scalar parameter types
+function all_parameters(model::InfiniteModel,
+                        type::Type{C}
+                        )::Vector{GeneralVariableRef} where {C <: InfOptParameter}
+    prefs_list = Vector{GeneralVariableRef}(undef, num_parameters(model, type))
+    counter = 1
+    for (index, _) in _data_dictionary(model, type)
+        prefs_list[counter] = _make_parameter_ref(model, index)
+        counter += 1
+    end
+    return prefs_list
+end
+
+# ScalarParameter
+function all_parameters(model::InfiniteModel,
+                        type::Type{ScalarParameter})::Vector{GeneralVariableRef}
+    prefs_list = all_parameters(model, IndependentParameter)
+    append!(prefs_list, all_parameters(model, FiniteParameter))
+    return prefs_list
+end
+
+# DependentParameters
+function all_parameters(model::InfiniteModel,
+                        type::Type{DependentParameters}
+                        )::Vector{GeneralVariableRef}
+    prefs_list = Vector{GeneralVariableRef}(undef, num_parameters(model, type))
+    counter = 1
+    for (index, object) in _data_dictionary(model, type)
+        for i in eachindex(object.names)
+            dep_idx = DependentParameterIndex(index, i)
+            prefs_list[counter] = _make_parameter_ref(model, dep_idx)
+            counter += 1
+        end
+    end
+    return prefs_list
+end
+
+# InfiniteParameter
+function all_parameters(model::InfiniteModel,
+                        type::Type{InfiniteParameter}
+                        )::Vector{GeneralVariableRef}
+    prefs_list = all_parameters(model, IndependentParameter)
+    append!(prefs_list, all_parameters(model, DependentParameters))
+    return prefs_list
 end
 
 ################################################################################

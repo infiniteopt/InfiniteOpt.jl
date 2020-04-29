@@ -21,8 +21,9 @@
     end
     # test _data_dictionary
     @testset "_data_dictionary" begin
-        @test InfiniteOpt._data_dictionary(pref) == m.dependent_params
-        @test InfiniteOpt._data_dictionary(gvref) == m.dependent_params
+        @test InfiniteOpt._data_dictionary(pref) === m.dependent_params
+        @test InfiniteOpt._data_dictionary(gvref) === m.dependent_params
+        @test InfiniteOpt._data_dictionary(m, DependentParameters) === m.dependent_params
     end
     # test _data_object
     @testset "_data_object" begin
@@ -926,5 +927,57 @@ end
         @test num_supports(prefs1) == 10
         @test num_supports(prefs2) == 10
         @test num_supports(pref) == 10
+    end
+end
+
+# Test parameter counting and listing methods
+@testset "General Queries" begin
+    # Setup data
+    m = InfiniteModel();
+    prefs1 = @dependent_parameters(m, a[1:2] in [0, 1], num_supports = 2)
+    prefs2 = @dependent_parameters(m, b[1:2, 1:2] in MatrixBeta(2, 2, 2))
+    pref = @independent_parameter(m, c in [0, 1])
+    fpref = @finite_parameter(m, d, 10)
+    # test num_parameters (Default)
+    @testset "num_parameters (Default)" begin
+        @test num_parameters(m) == 8
+    end
+    # test num_parameters (Specific Scalar)
+    @testset "num_parameters (Specific Scalar)" begin
+        @test num_parameters(m, IndependentParameter) == 1
+        @test num_parameters(m, FiniteParameter) == 1
+    end
+    # test num_parameters (ScalarParameter)
+    @testset "num_parameters (ScalarParameter)" begin
+        @test num_parameters(m, ScalarParameter) == 2
+    end
+    # test num_parameters (DependentParameters)
+    @testset "num_parameters (DependentParameters)" begin
+        @test num_parameters(m, DependentParameters) == 6
+    end
+    # test num_parameters (InfiniteParameter)
+    @testset "num_parameters (InfiniteParameter)" begin
+        @test num_parameters(m, InfiniteParameter) == 7
+    end
+    # test all_parameters (Default)
+    @testset "all_parameters (Default)" begin
+        @test all_parameters(m) == [pref; prefs1; [prefs2...]; fpref]
+    end
+    # test all_parameters (Specific Scalar)
+    @testset "all_parameters (Specific Scalar)" begin
+        @test all_parameters(m, IndependentParameter) == [pref]
+        @test all_parameters(m, FiniteParameter) == [fpref]
+    end
+    # test all_parameters (ScalarParameter)
+    @testset "all_parameters (ScalarParameter)" begin
+        @test all_parameters(m, ScalarParameter) == [pref, fpref]
+    end
+    # test all_parameters (DependentParameters)
+    @testset "all_parameters (DependentParameters)" begin
+        @test all_parameters(m, DependentParameters) == [prefs1; [prefs2...]]
+    end
+    # test all_parameters (InfiniteParameter)
+    @testset "all_parameters (InfiniteParameter)" begin
+        @test all_parameters(m, InfiniteParameter) == [pref; prefs1; [prefs2...]]
     end
 end

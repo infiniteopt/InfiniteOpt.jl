@@ -317,6 +317,9 @@ struct DependentParameters{T <: InfiniteArraySet} <: InfOptParameter
     labels::Vector{Set{Symbol}} # support (column) index to label set
 end
 
+# Define convenient alias for infinite types
+const InfiniteParameter = Union{IndependentParameter, DependentParameters}
+
 """
     AbstractDataObject
 

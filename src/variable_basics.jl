@@ -1062,7 +1062,12 @@ Extend [`JuMP.num_variables`](@ref JuMP.num_variables(::JuMP.Model)) to return t
 number of `InfiniteOpt` variables assigned to `model`. By default, the total
 number of infinite, reduced, point, and hold variables is returned. The amount
 of a particular type is obtained by specifying the concrete variable type
-of [`InfOptVariable`](@ref) via `type`.
+of [`InfOptVariable`](@ref) via `type`. Type options include:
+ - `InfOptVariable`: all variables
+ - `InfiniteVariable`: all infinite variables
+ - `ReducedInfiniteVariable`: all reduced infinite variables
+ - `PointVariable`: all point variables
+ - `HoldVariable`: all hold variables
 
 **Example**
 ```julia-repl
@@ -1098,7 +1103,12 @@ Extend [`JuMP.all_variables`](@ref JuMP.all_variables(::JuMP.Model)) to return a
 list of all the variable references associated with `model`. By default, all
 of the infinite, reduced, point, and hold variables is returned. Those
 of a particular type is obtained by specifying the concrete variable type
-of [`InfOptVariable`](@ref) via `type`.
+of [`InfOptVariable`](@ref) via `type`. Type options include:
+ - `InfOptVariable`: all variables
+ - `InfiniteVariable`: all infinite variables
+ - `ReducedInfiniteVariable`: all reduced infinite variables
+ - `PointVariable`: all point variables
+ - `HoldVariable`: all hold variables
 
 **Examples**
 ```julia-repl

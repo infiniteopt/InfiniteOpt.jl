@@ -338,10 +338,17 @@ function Base.show(io::IO, model::InfiniteModel)
         print(io, "Feasibility")
     end
     println(io, " problem with:")
-    # TODO show parameter info --> maybe more
+    # show finite parameter info
+    num_finite_params = num_parameters(model, FiniteParameter)
+    println(io, "Finite Parameter", _plural(num_finite_params), ": ",
+            num_finite_params)
+    # show infinite parameter info
+    num_infinite_params = num_parameters(model, InfiniteParameter)
+    println(io, "Infinite Parameter", _plural(num_infinite_params), ": ",
+            num_infinite_params)
     # show variable info
-    println(io, "Variable", _plural(JuMP.num_variables(model)), ": ",
-            JuMP.num_variables(model))
+    num_vars = JuMP.num_variables(model)
+    println(io, "Variable", _plural(num_vars), ": ", num_vars)
     # show objective function info
     if sense != MOI.FEASIBILITY_SENSE
         JuMP.show_objective_function_summary(io, model)

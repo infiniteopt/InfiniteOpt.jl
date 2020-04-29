@@ -84,16 +84,14 @@ export collection_sets, supports_in_set, generate_support_values
 export InfOptParameter, ScalarParameter, IndependentParameter, FiniteParameter,
 DependentParameters, ScalarParameterData, MultiParameterData,
 IndependentParameterRef, DependentParameterRef, FiniteParameterRef,
-ScalarParameterRef
+ScalarParameterRef, InfiniteParameter
 
 # Export parameter methods
-export build_parameter, add_parameter,
-infinite_set, set_infinite_set, num_scalar_parameters,
-num_independent_parameters, num_finite_parameters, parameter_by_name,
-all_scalar_parameters, num_supports, has_supports,
+export build_parameter, add_parameter, add_parameters,
+infinite_set, set_infinite_set, parameter_by_name, num_parameters,
+all_parameters, num_supports, has_supports,
 set_supports, add_supports, delete_supports, supports, used_by_constraint,
-used_by_measure, used_by_infinite_variable, is_used, generate_and_add_supports!,
-add_parameters
+used_by_measure, used_by_infinite_variable, is_used, generate_and_add_supports!
 
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, ReducedInfiniteVariable,

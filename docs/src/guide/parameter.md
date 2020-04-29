@@ -869,4 +869,6 @@ delete_supports(::AbstractArray{<:DependentParameterRef})
 generate_and_add_supports!(::AbstractArray{<:DependentParameterRef},::InfiniteArraySet)
 fill_in_supports!(::AbstractArray{<:DependentParameterRef})
 fill_in_supports!(::InfiniteModel)
+num_parameters
+all_parameters
 ```
