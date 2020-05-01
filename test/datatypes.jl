@@ -325,25 +325,27 @@ end
 @testset "Measures" begin
     # Helper data
     m = InfiniteModel()
-    pref = GeneralVariableRef(m, 2, IndependentParameterIndex, -1)
+    pref = GeneralVariableRef(m, 2, IndependentParameterIndex)
     w(t) = 1
     # abstract types
     @test AbstractMeasureData isa DataType
     # DiscreteMeasureData
     @test DiscreteMeasureData <: AbstractMeasureData
-    @test DiscreteMeasureData(pref, Float64[1], :all, "", w) isa DiscreteMeasureData
-    # MultiDistributionSet
-    @test MultiDiscreteMeasureData <: AbstractMeasureData
-    @test MultiDiscreteMeasureData([pref], Float64[1], :all, "", w) isa MultiDiscreteMeasureData
+    @test DiscreteMeasureData(pref, ones(2), ones(2), :a, w) isa DiscreteMeasureData
+    @test DiscreteMeasureData([pref], ones(2), ones(1, 2), :a, w) isa DiscreteMeasureData
+    # FunctionalDistributionSet
+    @test FunctionalDiscreteMeasureData <: AbstractMeasureData
+    @test FunctionalDiscreteMeasureData(pref, w, 2, :all, w) isa FunctionalDiscreteMeasureData
+    @test FunctionalDiscreteMeasureData([pref], w, 2, :all, w) isa FunctionalDiscreteMeasureData
     # Measure
     @test Measure isa UnionAll
     @test Measure(zero(AffExpr),
-                  DiscreteMeasureData(pref, Float64[1], :all, "", w),
-                  [1], [1]) isa Measure
+                  DiscreteMeasureData(pref, ones(2), ones(2), :a, w),
+                  [1], [1], false) isa Measure
     # MeasureData
     @test MeasureData <: AbstractDataObject
     @test MeasureData(Measure(zero(AffExpr), DiscreteMeasureData(pref,
-                      Float64[1], :all, "", w), [1], [1]), "") isa MeasureData
+                      ones(2), ones(2), :a, w), [1], [1], true)) isa MeasureData
 end
 
 # Test the constraint datatypes

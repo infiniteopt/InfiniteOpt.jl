@@ -73,6 +73,11 @@ function _parameter_number(pref::IndependentParameterRef)::Int
     return _data_object(pref).parameter_num
 end
 
+# Extend _parameter_numbers
+function _parameter_numbers(pref::IndependentParameterRef)::Vector{Int}
+    return [_parameter_number(pref)]
+end
+
 # Extend _object_number
 function _object_number(pref::IndependentParameterRef)::Int
     return _data_object(pref).object_num

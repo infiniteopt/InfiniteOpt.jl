@@ -409,6 +409,11 @@ function _parameter_number(pref::DependentParameterRef)::Int
     return _data_object(pref).parameter_nums[_param_index(pref)]
 end
 
+# Extend _parameter_numbers
+function _parameter_numbers(pref::DependentParameterRef)::Vector{Int}
+    return [_parameter_number(pref)]
+end
+
 # Extend _object_number
 function _object_number(pref::DependentParameterRef)::Int
     return _data_object(pref).object_num
@@ -879,7 +884,7 @@ end
 function _make_support_matrix(prefs::AbstractArray{<:DependentParameterRef},
                               supports::AbstractArray{<:Vector{<:Real}}
                               )::Array{<:Real, 2}
-    keys(supports) == keys(prefs) || error("Inconsistent support indices")
+    _keys(supports) == _keys(prefs) || error("Inconsistent support indices")
     lens = [length(supp) for supp in supports]
     _allequal(lens) || error("Inconsistent support dimensions.")
     trans_supps = Array{Float64}(undef, first(lens), length(prefs))

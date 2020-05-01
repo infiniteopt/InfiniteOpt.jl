@@ -12,6 +12,8 @@ return the infinite model associated with `cref`.
 julia> model = owner_model(cref)
 An InfiniteOpt Model
 Minimization problem with:
+Finite Parameters: 0
+Infinite Parameters: 3
 Variables: 3
 Objective function type: GeneralVariableRef
 `GenericAffExpr{Float64,GeneralVariableRef}`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
@@ -199,7 +201,6 @@ end
 # Used to update the model.var_to_constrs field
 function _update_var_constr_mapping(vrefs::Vector{GeneralVariableRef},
                                     cref::InfOptConstraintRef)::Nothing
-    model = JuMP.owner_model(cref)
     for vref in vrefs
         dvref = dispatch_variable_ref(vref)
         push!(_constraint_dependencies(dvref), JuMP.index(cref))
@@ -240,7 +241,7 @@ julia> @hold_variable(model, x);
 julia> constr = build_constraint(error, g + x, MOI.EqualTo(42));
 
 julia> cref = add_constraint(model, constr, "name")
-name : g(t) + x = 42.0
+name : g(t) + x = 42.0, ∀ t ∈ [0, 10]
 ```
 """
 function JuMP.add_constraint(model::InfiniteModel,
@@ -689,7 +690,7 @@ types and return a list of all constraints that use a particular set type.
 julia> all_constraints(model, MOI.GreaterThan)
 3-element Array{InfOptConstraintRef,1}:
  x ≥ 0.0
- g(t) ≥ 0.0
+ g(t) ≥ 0.0, ∀ t ∈ [0, 6]
  g(0.5) ≥ 0.0
 ```
 """
@@ -712,7 +713,7 @@ julia> all_constraints(model)
  x ≥ 0.0
  x ≤ 3.0
  x integer
- g(t) ≥ 0.0
+ g(t) ≥ 0.0, ∀ t ∈ [0, 6]
  g(0.5) ≥ 0.0
 ```
 """
@@ -930,8 +931,7 @@ julia> print(model)
 Min measure(g(t)*t) + z
 Subject to
  z ≥ 0.0
- g(t) + z ≥ 42.0
- t ∈ [0, 6]
+ g(t) + z ≥ 42.0, ∀ t ∈ [0, 6]
 
 julia> delete(model, cref)
 
@@ -939,7 +939,6 @@ julia> print(model)
 Min measure(g(t)*t) + z
 Subject to
  z ≥ 0.0
- t ∈ [0, 6]
 ```
 """
 function JuMP.delete(model::InfiniteModel, cref::InfOptConstraintRef)::Nothing

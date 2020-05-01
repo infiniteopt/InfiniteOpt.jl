@@ -28,17 +28,11 @@
 end
 
 # Test extension of keys
-@testset "Base.keys" begin
+@testset "_keys" begin
     m = Model()
     @variable(m, x[1:2], container = SparseAxisArray)
-    @test keys(x) == keys(x.data)
-end
-
-# Test extension of isapprox
-@testset "Base.isapprox" begin
-    a = JuMPC.SparseAxisArray(Dict((1,)=>-0, (3,)=>1.1))
-    b = JuMPC.SparseAxisArray(Dict((1,)=>-0, (3,)=>1.1 + 1e-30))
-    @test isapprox(a, b)
+    @test InfiniteOpt._keys(x) == keys(x.data)
+    @test InfiniteOpt._keys(ones(2)) == keys(ones(2))
 end
 
 # Test the _make_vector functions

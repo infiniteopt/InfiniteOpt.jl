@@ -75,7 +75,7 @@ end
 
 # SparseAxisArray
 function _get_indices(arr::JuMPC.SparseAxisArray{T, N, K})::Vector{K} where {T, N, K}
-    return sort!(collect(keys(arr)))
+    return sort!(collect(InfiniteOpt._keys(arr)))
 end
 
 # Fallback
@@ -172,13 +172,13 @@ end
 
 ## Extend first and last indices
 # Base.firstindex (linear)
-Base.firstindex(vt::VectorTuple)::Int = Base.firstindex(vt.values)
+Base.firstindex(vt::VectorTuple)::Int = firstindex(vt.values)
 
 # Base.firstindex (tuple)
 Base.firstindex(vt::VectorTuple, d::Int)::Int = 1
 
 # Base.lastindex (linear)
-Base.lastindex(vt::VectorTuple)::Int = Base.lastindex(vt.values)
+Base.lastindex(vt::VectorTuple)::Int = lastindex(vt.values)
 
 # Base.lastindex (tuple)
 function Base.lastindex(vt::VectorTuple, d::Int)::Int
@@ -188,32 +188,32 @@ end
 
 ## Extend Base.getindex
 # linear index along vector
-Base.getindex(vt::VectorTuple, i) = Base.getindex(vt.values, i)
+Base.getindex(vt::VectorTuple, i) = getindex(vt.values, i)
 
 # Tuple indexing (single position)
 function Base.getindex(vt::VectorTuple, i::Int, j)
-    return Base.getindex(vt.values[vt.ranges[i]], j)
+    return getindex(vt.values[vt.ranges[i]], j)
 end
 
 # Tuple indexing (with a colon)
 function Base.getindex(vt::VectorTuple, i::Colon, j)
-    return [Base.getindex(vt, i, j) for i = 1:size(vt, 1)]
+    return [getindex(vt, i, j) for i = 1:size(vt, 1)]
 end
 
 # Tuple indexing (with an iterable) --> assumed backup
 function Base.getindex(vt::VectorTuple, is, j)
-    return [Base.getindex(vt, i, j) for i in is]
+    return [getindex(vt, i, j) for i in is]
 end
 
 ## Extend Base.setindex!
 # linear index along vector
 function Base.setindex!(vt::VectorTuple, v, i)
-    return Base.setindex!(vt.values, v, i)
+    return setindex!(vt.values, v, i)
 end
 
 # Tuple indexing (with integer i and colon j)
 function Base.setindex!(vt::VectorTuple, v, i::Int, j::Colon)
-    return Base.setindex!(vt.values, v, vt.ranges[i])
+    return setindex!(vt.values, v, vt.ranges[i])
 end
 
 # Tuple indexing (with integer i and any non colon j)
@@ -222,52 +222,52 @@ function Base.setindex!(vt::VectorTuple, v, i::Int, j)
     if any(linear_index .> vt.ranges[i].stop)
         throw(BoundsError(vt, [i, j]))
     end
-    return Base.setindex!(vt.values, v, linear_index)
+    return setindex!(vt.values, v, linear_index)
 end
 
 # Tuple indexing (with colon i and integer j)
 function Base.setindex!(vt::VectorTuple, v, i::Colon, j::Int)
     linear_indexes = [vt.ranges[k].start - 1 + j for k in eachindex(vt.ranges)]
-    return Base.setindex!(vt.values, v, linear_indexes)
+    return setindex!(vt.values, v, linear_indexes)
 end
 
 # Tuple indexing (with colon i and noninteger j)
 function Base.setindex!(vt::VectorTuple, v, i::Colon, j)
-    return Base.setindex!(vt, v, 1:size(vt, 1), j)
+    return setindex!(vt, v, 1:size(vt, 1), j)
 end
 
 # Tuple indexing (with array i and any j)
 function Base.setindex!(vt::VectorTuple, v, i, j)
     @assert length(v) == length(i)
-    return [Base.setindex!(vt, v[k], i[k], j) for k in 1:length(i)]
+    return [setindex!(vt, v[k], i[k], j) for k in 1:length(i)]
 end
 
 # Extend Base.length
-Base.length(vt::VectorTuple)::Int = Base.length(vt.values)
+Base.length(vt::VectorTuple)::Int = length(vt.values)
 
 # Extend Base.isempty
-Base.isempty(vt::VectorTuple)::Bool = Base.isempty(vt.values)
+Base.isempty(vt::VectorTuple)::Bool = isempty(vt.values)
 
 # Extend Base.eachindex
-Base.eachindex(vt::VectorTuple) = Base.eachindex(vt.values)
+Base.eachindex(vt::VectorTuple) = eachindex(vt.values)
 
 # Extend Base.keys
-Base.keys(vt::VectorTuple) = Base.keys(vt.values)
+Base.keys(vt::VectorTuple) = keys(vt.values)
 
 # Extend Base.findfirst
-Base.findfirst(pred::Function, vt::VectorTuple) = Base.findfirst(pred, vt.values)
+Base.findfirst(pred::Function, vt::VectorTuple) = findfirst(pred, vt.values)
 
 # Extend Base.findall
-Base.findall(pred::Function, vt::VectorTuple) = Base.findall(pred, vt.values)
+Base.findall(pred::Function, vt::VectorTuple) = findall(pred, vt.values)
 
 # Extend Base.in
 function Base.in(item, vt::VectorTuple)::Bool
-    return Base.in(item, vt.values)
+    return in(item, vt.values)
 end
 
 # Extend Base.iterate
-Base.iterate(vt::VectorTuple) = Base.iterate(vt.values)
-Base.iterate(vt::VectorTuple, i) = Base.iterate(vt.values, i)
+Base.iterate(vt::VectorTuple) = iterate(vt.values)
+Base.iterate(vt::VectorTuple, i) = iterate(vt.values, i)
 
 # Extend Base.empty!
 function Base.empty!(vt::VectorTuple{T})::VectorTuple{T} where {T}

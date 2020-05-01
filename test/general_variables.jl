@@ -583,6 +583,31 @@ end
     end
 end
 
+# test Measure Methods
+@testset "Measure Methods" begin
+    # Setup data
+    m = InfiniteModel();
+    idx = TestIndex(1)
+    dvref = TestVariableRef(m, idx)
+    gvref = GeneralVariableRef(m, 1, TestIndex)
+    # test measure_function (Fallback)
+    @testset "measure_function (Fallback)" begin
+        @test_throws ArgumentError measure_function(dvref)
+    end
+    # test measure_function (GeneralVariableRef)
+    @testset "measure_function (GeneralVariableRef)" begin
+        @test_throws ArgumentError measure_function(gvref)
+    end
+    # test measure_data (Fallback)
+    @testset "measure_data (Fallback)" begin
+        @test_throws ArgumentError measure_function(dvref)
+    end
+    # test measure_data (GeneralVariableRef)
+    @testset "measure_data (GeneralVariableRef)" begin
+        @test_throws ArgumentError measure_function(gvref)
+    end
+end
+
 # test Lower Bound Methods
 @testset "Lower Bound Methods" begin
     # Setup data

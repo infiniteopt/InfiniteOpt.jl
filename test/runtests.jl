@@ -19,9 +19,9 @@ const FGQ = FastGaussQuadrature
 include("utilities.jl")
 
 # Run unit tests
-println("-----------------------------------------")
-println("----------------UNIT TESTS---------------")
-println("-----------------------------------------")
+println("----------------------------------------------------------------------------")
+println("---------------------------------UNIT TESTS---------------------------------")
+println("----------------------------------------------------------------------------")
 @time @testset "Collections" begin
     include("Collections/VectorTuple.jl")
     include("Collections/DualDict.jl")
@@ -45,12 +45,12 @@ println("")
 end
 println("")
 @time @testset "Variable Methods" begin
-#     @testset "Basic " begin include("variable_basics.jl") end
-#     @testset "Info" begin include("variable_info.jl") end
-#     @testset "Definition" begin include("variable_definition.jl") end
-#     @testset "Macros" begin include("variable_macros.jl") end
-#     @testset "Query" begin include("variable_queries.jl") end
-#     @testset "Reduction Variables" begin include("reduction_variables.jl") end
+    @testset "Infinite Variables" begin include("infinite_variables.jl") end
+    # @testset "Point Variables" begin include("point_variables.jl") end
+    # @testset "Hold Variables" begin include("hold_variables.jl") end
+    # @testset "Info Constraints" begin include("variable_info.jl") end
+    # @testset "Reduced Variables" begin include("reduced_variables.jl") end
+    # @testset "Queries" begin include("variable_queries.jl") end
 end
 println("")
 # @time @testset "Operators" begin include("operators.jl") end
@@ -90,6 +90,6 @@ println("")
 # println("")
 
 # TODO add involved deletion tests
-println("-----------------------------------------")
-println("-------------TESTING COMPLETE------------")
-println("-----------------------------------------")
+println("----------------------------------------------------------------------------")
+println("-----------------------------TESTING COMPLETE!------------------------------")
+println("----------------------------------------------------------------------------")

@@ -117,7 +117,7 @@ function JuMP.add_variable(model::InfiniteModel, var::InfOptVariable,
     dvref = _check_and_make_variable_ref(model, var)
     JuMP.set_name(dvref, name)
     vindex = JuMP.index(dvref)
-    gvref = GeneralVariableRef(model, vindex.value, typeof(vindex))
+    gvref = _make_variable_ref(model, vindex)
     if var.info.has_lb
         newset = MOI.GreaterThan(var.info.lower_bound)
         cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(gvref, newset),
@@ -272,14 +272,16 @@ end
 
 # Update name_to_var
 function _update_var_name_dict(model::InfiniteModel, var_dict::MOIUC.CleverDict)::Nothing
+    name_dict = _var_name_dict(model)
     for (index, data_object) in var_dict
         var_name = data_object.name
-        if haskey(_var_name_dict(model), var_name)
-            _var_name_dict(model)[var_name] = HoldVariableIndex(-1) # dumby value
+        if haskey(name_dict, var_name)
+            name_dict[var_name] = HoldVariableIndex(-1) # dumby value
         else
-            _var_name_dict(model)[var_name] = index
+            name_dict[var_name] = index
         end
     end
+    model.name_to_var = name_dict
     return
 end
 
@@ -305,10 +307,10 @@ function JuMP.variable_by_name(model::InfiniteModel,
                                name::String)::Union{GeneralVariableRef, Nothing}
     if _var_name_dict(model) === nothing
         model.name_to_var = Dict{String, ObjectIndex}()
-        _update_name_dict(model, model.infinite_vars)
-        _update_name_dict(model, model.reduced_vars)
-        _update_name_dict(model, model.point_vars)
-        _update_name_dict(model, model.hold_vars)
+        _update_var_name_dict(model, model.infinite_vars)
+        _update_var_name_dict(model, model.reduced_vars)
+        _update_var_name_dict(model, model.point_vars)
+        _update_var_name_dict(model, model.hold_vars)
     end
     index = get(_var_name_dict(model), name, nothing)
     if index isa Nothing
@@ -325,7 +327,7 @@ end
 ################################################################################
 # Extend _set_core_variable_object
 function _set_core_variable_object(vref::DecisionVariableRef,
-                                   object::VariableData)::Nothing
+                                   object::InfOptVariable)::Nothing
     _data_object(vref).variable = object
     return
 end
@@ -836,7 +838,7 @@ true
 JuMP.is_binary(vref::UserDecisionVariableRef)::Bool = _variable_info(vref).binary
 
 # Extend to return the index of the binary constraint associated with `vref`.
-function JuMP._binary_index(vref::UserDecisionVariableRef)::ContraintIndex
+function JuMP._binary_index(vref::UserDecisionVariableRef)::ConstraintIndex
     if !JuMP.is_binary(vref)
         error("Variable $(vref) is not binary.")
     end
@@ -1183,9 +1185,8 @@ julia> print(model)
 Min measure(g(t)*t) + z
 Subject to
  z ≥ 0.0
- g(t) + z ≥ 42.0
+ g(t) + z ≥ 42.0, ∀ t ∈ [0, 6]
  g(0.5) = 0
- t ∈ [0, 6]
 
 julia> delete(model, g)
 
@@ -1194,7 +1195,6 @@ Min measure(t) + z
 Subject to
  z ≥ 0.0
  z ≥ 42.0
- t ∈ [0, 6]
 ```
 """
 function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
@@ -1205,7 +1205,6 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
     end
     # delete attributes specific to the variable type
     _delete_variable_dependencies(vref)
-    # TODO update object numbers of measures and constraints
     # remove from measures if used
     for mindex in _measure_dependencies(vref)
         mref = dispatch_variable_ref(model, mindex)
@@ -1213,10 +1212,11 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
         if func isa GeneralVariableRef
             data = measure_data(mref)
             new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-            new_meas = Measure(new_func, data)
+            new_meas = Measure(new_func, data, [], [])
             _set_core_variable_object(mref, new_meas)
         else
             _remove_variable(func, vref)
+            # TODO update object/param numbers via measure specifc functions
         end
         meas = _core_variable_object(mref)
         JuMP.set_name(mref, _make_meas_name(meas))
@@ -1230,8 +1230,14 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
             new_func = zero(JuMP.AffExpr{Float64, GeneralVariableRef})
             new_constr = JuMP.ScalarConstraint(new_func, set)
             _set_core_constraint_object(cref, new_constr)
+            empty!(_object_numbers(cref))
         else
             _remove_variable(func, vref)
+            # update the object numbers if vref is infinite
+            if vref isa Union{InfiniteVariableRef, ReducedInfiniteVariableRef}
+                new_obj_nums = _object_numbers(func)
+                filter!(e -> e in new_obj_nums, _object_numbers(cref))
+            end
         end
     end
     # remove from objective if vref is in it

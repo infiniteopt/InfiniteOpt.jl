@@ -70,7 +70,7 @@ function _check_tuple_element(_error::Function,
 end
 
 # Fallback
-function _check_tuple_element(_error::Function, prefs)::Nothing
+function _check_tuple_element(_error::Function, prefs)
     _error("Cannot have mixed parameter types in a tuple element and can only " *
            "specify infinite parameters.")
 end
@@ -82,7 +82,7 @@ function _check_parameter_tuple(_error::Function,
     allunique(raw_prefs) || _error("Cannot double specify infinite parameter " *
                                    "references.")
     for i in 1:size(raw_prefs, 1)
-        prefs = dispatch_variable_ref.(raw_prefs[1, :])
+        prefs = dispatch_variable_ref.(raw_prefs[i, :])
         _check_tuple_element(_error, prefs)
     end
     return
@@ -108,7 +108,7 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Infinit
     # check the VectorTuple for validity and format
     _check_parameter_tuple(_error, prefs)
     # get the parameter object numbers
-    object_nums = _object_numbers(prefs.values)
+    object_nums = _object_numbers(parameter_list(prefs))
     # make the variable and return
     return InfiniteVariable(_make_float_info(info), prefs,
                             [_parameter_number(pref) for pref in prefs],
@@ -416,7 +416,7 @@ function JuMP.set_name(vref::InfiniteVariableRef, root_name::String)::Nothing
             if _allequal(names)
                 param_name = first(names)
             else
-                param_name = string(prefs)
+                param_name = string("[", join(element_prefs, ", "), "]")
             end
         end
         if i != size(prefs, 1)

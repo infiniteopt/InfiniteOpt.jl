@@ -55,6 +55,11 @@
         @test InfiniteOpt._parameter_number(ind_pref) == 1
         @test InfiniteOpt._parameter_number(ind_gvref) == 1
     end
+    # test _parameter_numbers
+    @testset "_parameter_numbers" begin
+        @test InfiniteOpt._parameter_numbers(ind_pref) == [1]
+        @test InfiniteOpt._parameter_numbers(ind_gvref) == [1]
+    end
     # test _object_number
     @testset "_object_number" begin
         @test InfiniteOpt._object_number(ind_pref) == 1

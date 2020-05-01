@@ -31,7 +31,7 @@ include("reduced_variables.jl")
 include("point_variables.jl")
 include("hold_variables.jl")
 include("expressions.jl")
-# include("measures.jl")
+include("measures.jl")
 include("constraints.jl")
 include("macros.jl")
 include("objective.jl")
@@ -61,7 +61,8 @@ export AbstractDataObject, InfiniteModel
 # Export macros
 export @independent_parameter, @dependent_parameters, @infinite_parameter,
 @finite_parameter, @infinite_variable, @point_variable, @hold_variable,
-@infinite_parameter, @BDconstraint, @set_parameter_bounds, @add_parameter_bounds
+@infinite_parameter, @BDconstraint, @set_parameter_bounds, @add_parameter_bounds,
+@measure
 
 # Export constants
 export Infinite, Hold, Point, sampling, quadrature
@@ -109,16 +110,17 @@ parameter_list, raw_parameter_refs, raw_parameter_values,
 intervals, dispatch_variable_ref
 
 # Export measure datatypes
-export AbstractMeasureData, DiscreteMeasureData, MultiDiscreteMeasureData,
+export AbstractMeasureData, DiscreteMeasureData, FunctionalDiscreteMeasureData,
 Measure, MeasureData, MeasureRef
 
 # Export measure methods
 export add_measure, measure, measure_function, measure_data, expand,
-expand_all_measures!, expect, support_sum, measure_name, measure_data_in_hold_bounds,
+expand_all_measures!, expect, support_sum, measure_data_in_hold_bounds,
 make_point_variable_ref, make_reduced_variable_ref, expand_measure, integral,
 set_integral_defaults, integral_defaults, coefficients, weight_function,
 default_weight, add_measure_variable, delete_reduced_variable,
-delete_internal_reduced_variable, expand_measures, reduction_info
+delete_internal_reduced_variable, expand_measures, support_label,
+coefficient_function, build_measure, add_supports_to_parameters
 
 # Export constraint datatypes
 export BoundedScalarConstraint, ConstraintData, InfOptConstraintRef,

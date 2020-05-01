@@ -562,76 +562,142 @@ An abstract type to define data for measures to define the behavior of
 abstract type AbstractMeasureData end
 
 """
-    DiscreteMeasureData{P <: GeneralVariableRef} <: AbstractMeasureData
+    DiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
+                        Vector{<:JuMP.AbstractVariableRef}},
+                        N} <: AbstractMeasureData
 
-A DataType for one dimensional measure abstraction data where the measure
+A DataType for immutable measure abstraction data where the
 abstraction is of the form:
 ``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
+The supports and coefficients are immutable (i.e., they will not change
+even if supports are changed for the underlying infinite parameter.) This
+type can be used for both 1-dimensional and multi-dimensional measures.
 
 **Fields**
-- `parameter_ref::P` The infinite parameter over which the integration occurs.
-- `coefficients::Vector{Float64}` Coefficients ``\\alpha_i`` for the above
+- `parameter_refs::P`: The infinite parameter(s) over which the integration occurs.
+                       These can be comprised of multiple independent parameters,
+                       but dependent parameters cannot be mixed with other types.
+- `coefficients::Vector{Float64}`: Coefficients ``\\alpha_i`` for the above
                                    measure abstraction.
-- `label::Symbol` Label to access the support points ``\\tau_i`` for the above
-                               measure abstraction.
-- `name::String` Name of the measure that will be implemented.
-- `weight_function::Function` Weighting function ``w`` must map support value
-                              input value of type `Number` to a scalar value.
+- `supports::Array{Float64, N}`: Supports points ``\\tau_i``. This is a `Vector`
+                                 if only one parameter is given, otherwise it is
+                                 a `Matrix` where the supports are stored column-wise.
+- `label::Symbol`: Label for the support points ``\\tau_i`` when stored in the
+                   infinite parameter(s).
+- `weight_function::Function`: Weighting function ``w`` must map an individual
+                               support value to a `Real` scalar value.
 """
-struct DiscreteMeasureData{P <: JuMP.AbstractVariableRef} <: AbstractMeasureData
-    parameter_ref::P
+struct DiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
+                           Vector{<:JuMP.AbstractVariableRef}},
+                           N} <: AbstractMeasureData
+    parameter_refs::P
     coefficients::Vector{Float64}
-    label::Symbol
-    name::String
-    weight_function::Function
+    supports::Array{Float64, N} # supports are stored column-wise
+    label::Symbol # label that will used when the supports are added to the model
+    weight_function::Function # single support --> weight value
+    # scalar constructor
+    function DiscreteMeasureData(param_ref::V, coeffs::Vector{<:Real},
+                                 supps::Vector{<:Real}, label::Symbol,
+                                 weight_func::Function
+                                 ) where {V <: JuMP.AbstractVariableRef}
+        return new{V, 1}(param_ref, coeffs, supps, label, weight_func)
+    end
+    # multi constructor
+    function DiscreteMeasureData(param_refs::Vector{V}, coeffs::Vector{<:Real},
+                                 supps::Matrix{<:Real}, label::Symbol,
+                                 weight_func::Function
+                                 ) where {V <: JuMP.AbstractVariableRef}
+        return new{Vector{V}, 2}(param_refs, coeffs, supps, label, weight_func)
+    end
 end
 
 """
-    MultiDiscreteMeasureData{P <: GeneralVariableRef} <: AbstractMeasureData
+    FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
+                                  Vector{<:JuMP.AbstractVariableRef}}
+                                  } <: AbstractMeasureData
 
-A DataType for multi-dimensional measure abstraction data where the measure
+A DataType for mutable measure abstraction data where the
 abstraction is of the form:
 ``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
+This abstraction is equivalent to that of [`DiscreteMeasureData`](@ref), but
+the difference is that the supports are not fully known at the time of measure
+creation. Thus, functions are stored that will be used to generate the
+concrete support points ``\\tau_i`` and their coefficients ``\\alpha_i`` when
+the measure is evaluated (expanded). These supports are identified/generated
+in accordance with the `label` with a gaurantee that at least `num_supports` are
+generated. For example, if `label = McSample` and `num_supports = 100` then
+the measure will use all of the supports stored in the `parameter_refs` with the
+label `McSample` and will ensure there are at least 100 are generated. This
+type can be used for both 1-dimensional and multi-dimensional measures.
 
 **Fields**
-- `parameter_refs::Vector{P}` The infinite parameters over which the
-                                 integration occurs.
-- `coefficients::Vector{Float64}` Coefficients ``\\alpha_i`` for the above
-                                   measure abstraction.
-- `label::Symbol` The label associated with the supports ``\\tau_i`` for the
-                                above measure abstraction.
-- `name::String` Name of the measure that will be implemented.
-- `weight_function::Function` Weighting function ``w`` must map a numerical
-                              support of type `JuMP.Containers.SparseAxisArray`
-                              to a scalar value.
+- `parameter_refs::P`: The infinite parameter(s) over which the integration occurs.
+                     These can be comprised of multiple independent parameters,
+                     but dependent parameters cannot be mixed with other types.
+- `coeff_function::Function`: Coefficient generation function making ``\\alpha_i``
+                              for the above measure abstraction. It should take
+                              an individual support as input and return the
+                              `Real` scalar coefficient value.
+- `num_supports::Int`: Specifies the minimum number of supports ``\\tau_i``
+                       desired in association with `parameter_refs` and `label`.
+- `label::Symbol`: Label for the support points ``\\tau_i`` which are/will be
+                   stored in the infinite parameter(s).
+- `weight_function::Function`: Weighting function ``w`` must map an individual
+                              support value to a `Real` scalar value.
 """
-struct MultiDiscreteMeasureData{P <: JuMP.AbstractVariableRef} <: AbstractMeasureData
-    parameter_refs::Vector{P}
-    coefficients::Vector{Float64}
-    label::Symbol
-    name::String
-    weight_function::Function
+struct FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
+                                     Vector{<:JuMP.AbstractVariableRef}}
+                                     } <: AbstractMeasureData
+    parameter_refs::P
+    coeff_function::Function # single support --> coefficient
+    num_supports::Int # minimum number of supports
+    label::Symbol # support label of included supports
+    weight_function::Function # single support --> weight value
+    # scalar constructor
+    function FunctionalDiscreteMeasureData(param_ref::V, coeff_func::Function,
+                                           num_supps::Int, label::Symbol,
+                                           weight_func::Function
+                                           ) where {V <: JuMP.AbstractVariableRef}
+        return new{V}(param_ref, coeff_func, num_supps, label, weight_func)
+    end
+    # multi constructor
+    function FunctionalDiscreteMeasureData(param_refs::Vector{V},
+                                           coeff_func::Function,
+                                           num_supps::Int, label::Symbol,
+                                           weight_func::Function
+                                           ) where {V <: JuMP.AbstractVariableRef}
+        return new{Vector{V}}(param_refs, coeff_func, num_supps, label, weight_func)
+    end
 end
 
 """
     Measure{T <: JuMP.AbstractJuMPScalar, V <: AbstractMeasureData}
 
-A `DataType` for measure abstractions.
+A `DataType` for measure abstractions. The abstraction is determined by `data`
+and is enacted on `func` when the measure is evaluated (expended).
 
 **Fields**
-- `func::T` Infinite variable expression.
+- `func::T` The `InfiniteOpt` expression to be measured.
 - `data::V` Data of the abstraction as described in a `AbstractMeasureData`
-            subtype.
+            concrete subtype.
 - `object_nums::Vector{Int}`: The parameter object numbers of the evaluated
-                              measure expression.
-- `parameter_nums::Vector{Int}`: The parameter numbers that parameterize the evaluated
-                                 measure expression.
+                              measure expression (i.e., the object numbers of
+                              `func` excluding those that belong to `data`).
+- `parameter_nums::Vector{Int}`: The parameter numbers that parameterize the
+                                 evaluated measure expression. (i.e., the
+                                 parameter numbers of `func` excluding those
+                                 that belong to `data`).
+- `constant_func::Bool`: Indicates if `func` is not parameterized by the infinite
+                         parameters in `data`. (i.e., do the object numbers of
+                         `func` and `data` have no intersection?) This is useful
+                         to enable analytic evaluations if possible.
 """
 struct Measure{T <: JuMP.AbstractJuMPScalar, V <: AbstractMeasureData}
     func::T
     data::V
     object_nums::Vector{Int}
     parameter_nums::Vector{Int}
+    constant_func::Bool # does `func` depend on the measure parameter(s)?
 end
 
 """
@@ -641,8 +707,8 @@ end
 A mutable `DataType` for storing [`Measure`](@ref)s and their data.
 
 **Fields**
-- `variable::V`: The scalar variable.
-- `name::String`: The name used for printing.
+- `measure::Measure{T, V}`: The measure structure.
+- `name::String`: The base name used for printing `name(meas_expr d(par))`.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
 - `in_objective::Bool`: Is this used in objective?
@@ -655,7 +721,7 @@ mutable struct MeasureData{T <: JuMP.AbstractJuMPScalar,
     constraint_indices::Vector{ConstraintIndex}
     in_objective::Bool
     function MeasureData(measure::Measure{T, V},
-                         name::String
+                         name::String = "measure"
                          ) where {T <: JuMP.AbstractJuMPScalar,
                                   V <: AbstractMeasureData}
         return new{T, V}(measure, name, MeasureIndex[], ConstraintIndex[], false)
@@ -667,9 +733,9 @@ end
 ################################################################################
 """
     BoundedScalarConstraint{F <: JuMP.AbstractJuMPScalar,
-                             S <: MOI.AbstractScalarSet,
-                             P <: GeneralVariableRef
-                             } <: JuMP.AbstractConstraint
+                            S <: MOI.AbstractScalarSet,
+                            P <: GeneralVariableRef
+                            } <: JuMP.AbstractConstraint
 
 A `DataType` that stores scalar constraints that are defined over a sub-domain
 of infinite parameters.
@@ -803,8 +869,6 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     ext::Dict{Symbol, Any}
 end
 
-const sampling = :sampling # TODO REMOVE THIS WHEN MEASURES.JL IS IMPLEMENTED AGAIN
-default_weight(t) = 1 # TODO REMOVE THIS WHEN MEASURES.JL IS IMPLEMENTED AGAIN
 """
     InfiniteModel([optimizer_constructor;
                   OptimizerModel::Function = TranscriptionModel,
@@ -1133,7 +1197,7 @@ struct FiniteConstraintRef{S <: JuMP.AbstractShape} <: InfOptConstraintRef
 end
 
 ################################################################################
-#                        PARAMETER BOUND METHODS
+#                            PARAMETER BOUND METHODS
 ################################################################################
 ## Modify parameter dictionary to expand any multidimensional parameter keys
 # Case where dictionary is already in correct form

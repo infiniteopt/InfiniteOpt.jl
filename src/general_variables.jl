@@ -97,6 +97,8 @@ return the model where `vref` is stored.
 julia> owner_model(vref)
 An InfiniteOpt Model
 Feasibility problem with:
+Finite Parameters: 0
+Infinite Parameters: 0
 Variable: 1
 `HoldVariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 1 constraint
 `HoldVariableRef`-in-`MathOptInterface.LessThan{Float64}`: 1 constraint
@@ -1183,6 +1185,41 @@ is thrown if `vref` is not a hold variable.
 """
 function delete_parameter_bounds(vref::GeneralVariableRef)::Nothing
     return delete_parameter_bounds(dispatch_variable_ref(vref))
+end
+
+################################################################################
+#                               MEASURE METHODS
+################################################################################
+# Dispatch fallback
+function measure_function(vref::DispatchVariableRef)
+    throw(ArgumentError("`measure_function` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    measure_function(vref::GeneralVariableRef)::JuMP.AbstractJuMPScalar
+
+Return the measure function associated with `vref`. An `ArgumentError`
+is thrown if `vref` is not a measure reference.
+"""
+function measure_function(vref::GeneralVariableRef)::JuMP.AbstractJuMPScalar
+    return measure_function(dispatch_variable_ref(vref))
+end
+
+# Dispatch fallback
+function measure_data(vref::DispatchVariableRef)
+    throw(ArgumentError("`measure_data` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    measure_data(vref::GeneralVariableRef)::AbstractMeasureData
+
+Return the measure data associated with `vref`. An `ArgumentError`
+is thrown if `vref` is not a measure reference.
+"""
+function measure_data(vref::GeneralVariableRef)::AbstractMeasureData
+    return measure_data(dispatch_variable_ref(vref))
 end
 
 ################################################################################

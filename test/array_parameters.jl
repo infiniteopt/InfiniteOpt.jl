@@ -520,6 +520,12 @@ end
         @test InfiniteOpt._parameter_number(prefs[2]) == 2
         @test InfiniteOpt._parameter_number(gvrefs[1]) == 1
     end
+    # test _parameter_numbers
+    @testset "_parameter_numbers" begin
+        @test InfiniteOpt._parameter_numbers(prefs[1]) == [1]
+        @test InfiniteOpt._parameter_numbers(prefs[2]) == [2]
+        @test InfiniteOpt._parameter_numbers(gvrefs[1]) == [1]
+    end
     # test _object_number
     @testset "_object_number" begin
         @test InfiniteOpt._object_number(prefs[1]) == 1

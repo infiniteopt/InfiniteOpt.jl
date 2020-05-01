@@ -35,7 +35,7 @@
         end
         # _make_ordered (Fallback)
         @testset "_make_ordered (Fallback)" begin
-            @test IC._make_ordered(a, keys(d)) == a
+            @test IC._make_ordered(a, InfiniteOpt._keys(d)) == a
         end
         # VectorTuple constructor from Tuple
         @testset "Constructor (Tuple)" begin

@@ -375,7 +375,7 @@ Order   = [:type]
 ```@docs
 AbstractMeasureData
 DiscreteMeasureData
-MultiDiscreteMeasureData
+FunctionalDiscreteMeasureData
 Measure
 MeasureIndex
 MeasureData
@@ -414,7 +414,6 @@ JuMP.name(::MeasureRef)
 JuMP.set_name(::MeasureRef, ::String)
 expand
 expand_all_measures!
-measure_name
 parameter_refs(::AbstractMeasureData)
 supports(::AbstractMeasureData)
 coefficients

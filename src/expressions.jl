@@ -89,6 +89,69 @@ function _object_numbers(vrefs::Vector{GeneralVariableRef})::Vector{Int}
     return collect(obj_nums)
 end
 
+## Return the unique set of parameter numbers in an expression
+# Dispatch fallback (--> should be defined for each non-empty variable type)
+_parameter_numbers(expr::DispatchVariableRef)::Vector{Int} = Int[]
+
+# GeneralVariableRef
+function _parameter_numbers(expr::GeneralVariableRef)::Vector{Int}
+    return _parameter_numbers(dispatch_variable_ref(expr))
+end
+
+# GenericAffExpr
+function _parameter_numbers(expr::JuMP.GenericAffExpr)::Vector{Int}
+    par_nums = Set{Int}()
+    for vref in keys(expr.terms)
+        union!(par_nums, _parameter_numbers(vref))
+    end
+    return collect(par_nums)
+end
+
+# GenericQuadExpr
+function _parameter_numbers(expr::JuMP.GenericQuadExpr)::Vector{Int}
+    par_nums = Set{Int}()
+    for vref in keys(expr.aff.terms)
+        union!(par_nums, _parameter_numbers(vref))
+    end
+    for pair in keys(expr.terms)
+        union!(par_nums, _parameter_numbers(pair.a))
+        union!(par_nums, _parameter_numbers(pair.b))
+    end
+    return collect(par_nums)
+end
+
+## Get the model from an expression
+# GeneralVariableRef
+function _model_from_expr(expr::GeneralVariableRef)::InfiniteModel
+    return JuMP.owner_model(expr)
+end
+
+# AffExpr
+function _model_from_expr(expr::JuMP.GenericAffExpr)::Union{InfiniteModel, Nothing}
+    if isempty(expr.terms)
+        return
+    else
+        return JuMP.owner_model(first(keys(expr)))
+    end
+end
+
+# QuadExpr
+function _model_from_expr(expr::JuMP.GenericQuadExpr)::Union{InfiniteModel, Nothing}
+    result = _model_from_expr(expr.aff)
+    if result !== nothing
+        return result
+    elseif isempty(expr.terms)
+        return
+    else
+        return JuMP.owner_model(first(keys(expr)).a)
+    end
+end
+
+# Fallback
+function _model_from_expr(expr::JuMP.AbstractJuMPScalar)
+    error("`_model_from_expr` not defined for expr of type $(typeof(expr)).")
+end
+
 ## Delete variables from an expression
 # GenericAffExpr
 function _remove_variable(f::JuMP.GenericAffExpr,

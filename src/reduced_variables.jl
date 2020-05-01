@@ -42,6 +42,18 @@ function _object_numbers(vref::ReducedInfiniteVariableRef)::Vector{Int}
     return _core_variable_object(vref).object_nums
 end
 
+# Extend _parameter_numbers
+function _parameter_numbers(vref::ReducedInfiniteVariableRef)::Vector{Int}
+    par_set = Set{Int}()
+    prefs = raw_parameter_refs(infinite_variable_ref(vref))
+    for i in eachindex(prefs)
+        if !haskey(eval_supports(vref), i)
+            push!(par_set, _parameter_number(prefs[i]))
+        end
+    end
+    return
+end
+
 ################################################################################
 #                             DEFINITION METHODS
 ################################################################################
@@ -67,11 +79,11 @@ function JuMP.build_variable(_error::Function, ivref::GeneralVariableRef,
     if check
         if !(dvref isa InfiniteVariableRef)
              _error("Must specify an infinite variable dependency.")
-        elseif maximum(keys(eval_dict)) > length(parameter_list(dvref))
+        elseif maximum(keys(eval_supports)) > length(parameter_list(dvref))
             _error("Support evaluation dictionary indices do not the infinite " *
                    "parameter dependencies of $(ivref).")
         end
-        for (index, value) in eval_dict
+        for (index, value) in eval_supports
             if has_lower_bound(prefs[index]) && !supports_in_set(value, infinite_set(pref))
                 _error("Evaluation support violates infinite parameter domain(s).")
             end
@@ -80,8 +92,8 @@ function JuMP.build_variable(_error::Function, ivref::GeneralVariableRef,
     # get the parameter object numbers of the dependencies
     object_set = Set{Int}()
     for i in eachindex(prefs)
-        if !haskey(eval_dict, i)
-            union!(object_set, _object_number(prefs[i]))
+        if !haskey(eval_supports, i)
+            push!(object_set, _object_number(prefs[i]))
         end
     end
     return ReducedInfiniteVariable(ivref, eval_supports, collect(object_set))

@@ -1,3 +1,6 @@
+################################################################################
+#                            MATH SYMBOL METHODS
+################################################################################
 # Support additional math symbols beyond what JuMP does
 function _infopt_math_symbol(::Type{JuMP.REPLMode}, name::Symbol)::String
     if name == :intersect
@@ -16,6 +19,9 @@ function _infopt_math_symbol(::Type{JuMP.IJuliaMode}, name::Symbol)::String
     end
 end
 
+################################################################################
+#                            INFINITE SET METHODS
+################################################################################
 # Return "s" if n is greater than one
 _plural(n) = (isone(n) ? "" : "s")
 
@@ -119,6 +125,9 @@ function JuMP.in_set_string(print_mode,
     end
 end
 
+################################################################################
+#                         CONSTRAINT STRING METHODS
+################################################################################
 # Return parameter bound list as a string
 function bound_string(print_mode, bounds::ParameterBounds{GeneralVariableRef}
                       )::String
@@ -257,11 +266,17 @@ function JuMP.constraints_string(print_mode, model::InfiniteModel)::Vector{Strin
     return strings
 end
 
+################################################################################
+#                           OBJECTIVE STRING METHODS
+################################################################################
 # Return the objective string
 function JuMP.objective_function_string(print_mode, model::InfiniteModel)
     return JuMP.function_string(print_mode, JuMP.objective_function(model))
 end
 
+################################################################################
+#                           DATATYPE SHOWING METHODS
+################################################################################
 # Show infinite sets in REPLMode
 function Base.show(io::IO, set::AbstractInfiniteSet)
     print(io, set_string(JuMP.REPLMode, set))

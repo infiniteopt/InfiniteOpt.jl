@@ -12,13 +12,9 @@ function Base.convert(::Type{JuMPC.SparseAxisArray},
     return JuMPC.SparseAxisArray(data)
 end
 
-# Hack to make the keys function work for sparse arrays
-Base.keys(d::JuMPC.SparseAxisArray) = keys(d.data)
-
-# Hacky fix to compare SparseAxisArrays
-function Base.isapprox(a::JuMPC.SparseAxisArray, b::JuMPC.SparseAxisArray)::Bool
-    return all(isapprox.(a, b))
-end
+# Make workaround for keys of containers
+_keys(a::JuMPC.SparseAxisArray) = keys(a.data)
+_keys(a::AbstractArray) = keys(a)
 
 ## Define functions to convert a JuMP array into a vector (need for @BDconstraint)
 # AbstractArray
