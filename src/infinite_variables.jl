@@ -438,9 +438,9 @@ end
 function _update_variable_info(vref::InfiniteVariableRef,
                                info::JuMP.VariableInfo)::Nothing
     new_info = _make_float_info(info)
-    prefs = _core_variable_object(vref).parameter_refs
-    param_nums = _core_variable_object(vref).parameter_nums
-    obj_nums = _core_variable_object(vref).object_nums
+    prefs = raw_parameter_refs(vref)
+    param_nums = _parameter_numbers(vref)
+    obj_nums = _object_numbers(vref)
     new_var = InfiniteVariable(new_info, prefs, param_nums, obj_nums)
     _set_core_variable_object(vref, new_var)
     return

@@ -88,7 +88,7 @@ function _check_tuple_values(_error::Function, ivref::InfiniteVariableRef,
     raw_prefs = raw_parameter_refs(ivref)
     counter = 1
     for i in 1:size(raw_prefs, 1)
-        prefs = dispatch_variable_ref.(raw_prefs[1, :])
+        prefs = map(e -> dispatch_variable_ref(e), raw_prefs[i, :])
         counter = _check_element_support(_error, prefs, param_values, counter)
     end
     return
@@ -146,8 +146,7 @@ end
 function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Point};
                         infinite_variable_ref::Union{GeneralVariableRef,
                                                      Nothing} = nothing,
-                        parameter_values::Union{Real,
-                                                AbstractArray{<:Real},
+                        parameter_values::Union{Real, AbstractArray{<:Real},
                                                 Tuple, Nothing} = nothing,
                         extra_kw_args...)::PointVariable{GeneralVariableRef}
     # check for unneeded keywords
@@ -205,7 +204,7 @@ function _update_param_supports(ivref::InfiniteVariableRef,
     model = JuMP.owner_model(ivref)
     counter = 1
     for i in 1:size(raw_prefs, 1)
-        prefs = dispatch_variable_ref.(raw_prefs[1, :])
+        prefs = dispatch_variable_ref.(raw_prefs[i, :])
         counter = _add_point_support(prefs, param_values, counter)
     end
     return
@@ -292,9 +291,9 @@ end
 # Internal function used to change the parameter value tuple of a point variable
 function _update_variable_param_values(vref::PointVariableRef,
                                        pref_vals::Vector{<:Real})::Nothing
-    info = _variable_info.info
+    info = _variable_info(vref)
     ivref = infinite_variable_ref(vref)
-    new_var = PointVariable(info, ivref, Float64.(pref_vals))
+    new_var = PointVariable(info, ivref, pref_vals)
     _set_core_variable_object(vref, new_var)
     return
 end
@@ -310,8 +309,8 @@ end
 
 ## Return the parameter value as an appropriate string
 # Number
-function _make_str_value(value)::String
-    return string(JuMP._string_round(value))
+function _make_str_value(value::Real)::String
+    return JuMP._string_round(value)
 end
 
 # Array{<:Number}
@@ -321,16 +320,14 @@ function _make_str_value(values::Array)::String
     end
     if length(values) <= 4
         str_value = "["
-        counter = 1
-        for value in values
-            if counter != length(values)
-                str_value *= JuMP._string_round(value) * ", "
+        for i in eachindex(values)
+            if i != length(values)
+                str_value *= JuMP._string_round(values[i]) * ", "
             else
-                str_value *= JuMP._string_round(value) * "]"
+                str_value *= JuMP._string_round(values[i]) * "]"
             end
-            counter += 1
         end
-        return string(str_value)
+        return str_value
     else
         return string("[", JuMP._string_round(first(values)), ", ..., ",
                       JuMP._string_round(last(values)), "]")

@@ -605,8 +605,8 @@ end
     # supports
     @testset "supports" begin
         @test_throws ArgumentError supports(bad)
-        @test_throws ErrorException supports(pref_disp)
-        @test_throws ErrorException supports(pref)
+        @test supports(pref_disp) == []
+        @test supports(pref) == []
         dict = SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}())
         InfiniteOpt._update_parameter_supports(pref_disp, dict)
         @test supports(pref_disp) == [1.]
@@ -638,7 +638,7 @@ end
         @test isa(delete_supports(pref_disp), Nothing)
         add_supports(pref, 0.1)
         @test isa(delete_supports(pref), Nothing)
-        @test_throws ErrorException supports(pref)
+        @test supports(pref) == []
         push!(InfiniteOpt._data_object(pref).measure_indices, MeasureIndex(1))
         @test_throws ErrorException delete_supports(pref)
     end

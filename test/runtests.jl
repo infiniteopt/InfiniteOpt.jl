@@ -46,7 +46,7 @@ end
 println("")
 @time @testset "Variable Methods" begin
     @testset "Infinite Variables" begin include("infinite_variables.jl") end
-    # @testset "Point Variables" begin include("point_variables.jl") end
+    @testset "Point Variables" begin include("point_variables.jl") end
     # @testset "Hold Variables" begin include("hold_variables.jl") end
     # @testset "Info Constraints" begin include("variable_info.jl") end
     # @testset "Reduced Variables" begin include("reduced_variables.jl") end

@@ -158,7 +158,7 @@
 end
 
 # Test variable definition methods
-@testset "Infinite Variable Definition" begin
+@testset "Definition" begin
     # initialize model and infinite variable info
     m = InfiniteModel()
     @independent_parameter(m, pref in [0, 1])
@@ -395,7 +395,7 @@ end
 end
 
 # Test helper functions for infinite variable macro
-@testset "Infinite Helpers" begin
+@testset "Macro Helpers" begin
     # _check_rhs
     @testset "_check_rhs" begin
         # test with reversed sides

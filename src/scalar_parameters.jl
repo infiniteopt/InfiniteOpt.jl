@@ -810,7 +810,6 @@ julia> supports(t)
 ```
 """
 function supports(pref::IndependentParameterRef; label::Symbol = All)::Vector{Float64}
-    has_supports(pref) || error("Parameter $pref does not have supports.")
     supports_dict = _parameter_supports(pref)
     if label != All
         supports = findall(x -> label in x, supports_dict)

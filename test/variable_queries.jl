@@ -160,20 +160,6 @@ end
     v = build_variable(error, info, Point, infinite_variable_ref = ivref2,
                        parameter_values = 0.5)
     pvref = add_variable(m, v, "name2")
-    # raw_parameter_values
-    @testset "raw_parameter_values" begin
-        @test raw_parameter_values(pvref) == VectorTuple{Float64}(0.5, )
-    end
-    # parameter_values
-    @testset "parameter_values" begin
-        @test parameter_values(pvref) == (Float64(0.5), )
-    end
-    # _update_variable_param_values
-    @testset "_update_variable_param_values" begin
-        @test isa(InfiniteOpt._update_variable_param_values(pvref, VectorTuple{Float64}(0)),
-                  Nothing)
-        @test parameter_values(pvref) == (Float64(0), )
-    end
     # _update_variable_param_refs
     @testset "_update_variable_param_refs" begin
         @test isa(InfiniteOpt._update_variable_param_refs(ivref, VectorTuple(pref2)),
