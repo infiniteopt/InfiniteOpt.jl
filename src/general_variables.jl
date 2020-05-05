@@ -682,6 +682,23 @@ function num_supports(pref::GeneralVariableRef; label::Symbol = All)::Int
     return num_supports(dispatch_variable_ref(pref), label = label)
 end
 
+# Dispatch fallback
+function significant_digits(pref)
+    throw(ArgumentError("`significant_digits` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    significant_digits(pref::GeneralVariableRef)::Int
+
+Return the number of significant digits associated with the supports a single
+infinite parameter `pref`. An `ArgumentError` is thrown if `pref` is not an
+infinite parameter.
+"""
+function significant_digits(pref::GeneralVariableRef)::Int
+    return significant_digits(dispatch_variable_ref(pref))
+end
+
 """
     num_supports(prefs::AbstractArray{<:GeneralVariableRef};
                  [label::Symbol = All])::Int
@@ -876,22 +893,22 @@ function fill_in_supports!(pref; kwargs...)
 end
 
 """
-    fill_in_supports!(pref::GeneralVariableRef; [num_supports::Int = 10,
-                      sig_figs::Int = 5])::Nothing
+    fill_in_supports!(pref::GeneralVariableRef;
+                      [num_supports::Int = DefaultNumSupports])::Nothing
 
 Fill in the support points associated with a single infinite
 parameter `pref` up to `num_supports`. An `ArgumentError` is thrown if `pref`
 is not an infinite parameter.
 """
-function fill_in_supports!(pref::GeneralVariableRef; num_supports::Int = 10,
-                           sig_figs::Int = 5)::Nothing
+function fill_in_supports!(pref::GeneralVariableRef;
+                           num_supports::Int = DefaultNumSupports)::Nothing
     return fill_in_supports!(dispatch_variable_ref(pref),
-                             num_supports = num_supports, sig_figs = sig_figs)
+                             num_supports = num_supports)
 end
 
 """
     fill_in_supports!(prefs::AbstractArray{<:GeneralVariableRef};
-                      [num_supports::Int = 10, sig_figs::Int = 5,
+                      [num_supports::Int = DefaultNumSupports,
                        modify::Bool = true])::Nothing
 
 Fill in the support points associated with dependent infinite
@@ -900,11 +917,10 @@ is are not dependent infinite parameters.
 ```
 """
 function fill_in_supports!(prefs::AbstractArray{<:GeneralVariableRef};
-                           num_supports::Int = 10, sig_figs::Int = 5,
+                           num_supports::Int = DefaultNumSupports,
                            modify::Bool = true)::Nothing
     return fill_in_supports!(dispatch_variable_ref.(prefs),
-                             num_supports = num_supports, sig_figs = sig_figs,
-                             modify = modify)
+                             num_supports = num_supports, modify = modify)
 end
 
 # Fallback

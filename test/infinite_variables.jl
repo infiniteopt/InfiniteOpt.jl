@@ -9,6 +9,7 @@
     idx = InfiniteVariableIndex(1)
     num = Float64(0)
     info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
+    new_info = VariableInfo(true, 0., true, 0., true, 0., true, 0., true, false)
     var = InfiniteVariable(info, VectorTuple(a, b[1:2], c, [b[3], d]),
                            [1:7...], [1:6...])
     object = VariableData(var, "var")
@@ -65,6 +66,14 @@
     # _parameter_numbers
     @testset "_parameter_numbers" begin
         @test InfiniteOpt._parameter_numbers(vref) == [1:7...]
+    end
+    @testset "_variable_info" begin
+        @test InfiniteOpt._variable_info(vref) == info
+    end
+    # _update_variable_info
+    @testset "_update_variable_info" begin
+        @test isa(InfiniteOpt._update_variable_info(vref, new_info), Nothing)
+        @test InfiniteOpt._variable_info(vref) == new_info
     end
     # _measure_dependencies
     @testset "_measure_dependencies" begin

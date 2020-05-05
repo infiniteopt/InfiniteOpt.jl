@@ -100,21 +100,21 @@ end
     # test IndependentParameter
     @test IndependentParameter <: ScalarParameter
     dict = SortedDict{Float64, Set{Symbol}}(2 => Set([:all]))
-    @test IndependentParameter(IntervalSet(0, 1), dict).set isa IntervalSet
+    @test IndependentParameter(IntervalSet(0, 1), dict, 6).set isa IntervalSet
     # test FiniteParameter
     @test FiniteParameter <: ScalarParameter
     @test FiniteParameter(1) == FiniteParameter(1)
     # test DependentParameters
     @test DependentParameters <: InfOptParameter
     @test DependentParameters(CollectionSet([IntervalSet(0, 1)]),
-                              zeros(1, 1), [Set([:all])]).set isa CollectionSet
+                              Dict(zeros(1) => Set([:all])), 6).set isa CollectionSet
     # test ScalarParameterData
     @test ScalarParameterData <: AbstractDataObject
     @test ScalarParameterData(FiniteParameter(42), 1, 1, "bob").name == "bob"
     # test MultiParameterData
     @test MultiParameterData <: AbstractDataObject
     params = DependentParameters(CollectionSet([IntervalSet(0, 1)]),
-                                 zeros(1, 1), [Set([:all])])
+                                 Dict(zeros(1) => Set([:all])), 6)
     @test MultiParameterData(params, 1, 1:1, ["par[1]"]) isa MultiParameterData{CollectionSet{IntervalSet}}
 end
 
@@ -234,8 +234,7 @@ end
         d = (par3 => IntervalSet(0, 1),)
         @test ParameterBounds(d).intervals == Dict(d...)
         d = (pars => IntervalSet(0, 1), par3 => IntervalSet(0, 1))
-        @test isa(ParameterBounds(d).intervals,
-                  Dict{GeneralVariableRef, IntervalSet})
+        @test ParameterBounds(d).intervals isa Dict{GeneralVariableRef, IntervalSet}
     end
     pb = ParameterBounds((par3 => IntervalSet(0, 1),))
     # test intervals

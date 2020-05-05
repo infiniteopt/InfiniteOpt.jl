@@ -62,8 +62,8 @@ function _check_bounds(bounds::ParameterBounds{GeneralVariableRef};
                        "for $pref.")
         end
         # keep track of dependent parameters with equality conditions to ensure completeness
-        if (_index_type(pref) == DependentParameterRef) &&
-           (JuMP.upper_bound(set) == JuMP.upper_bound(pref))
+        if (_index_type(pref) == DependentParameterIndex) &&
+           (JuMP.lower_bound(set) == JuMP.upper_bound(set))
             index = DependentParameterIndex(DependentParametersIndex(_raw_index(pref)), 1)
             dumby_pref = dispatch_variable_ref(pref.model, index)
             if haskey(depend_counter, dumby_pref)
@@ -108,12 +108,13 @@ function _validate_bounds(model::InfiniteModel,
         # ensure has a support if a point constraint was given
         if (JuMP.lower_bound(set) == JuMP.upper_bound(set))
             if _index_type(pref) == IndependentParameterIndex
-                add_supports(pref, JuMP.lower_bound(set))
+                # label will be UserDefined
+                add_supports(pref, JuMP.lower_bound(set), check = false)
             else
                 index = DependentParametersIndex(_raw_index(pref))
                 if !haskey(depend_supps, index)
-                    pref = dispatch_variable_ref(model, DependentParameterIndex(index, 1))
-                    depend_supps[index] = Matrix{Float64}(undef, _num_parameters(pref), 1)
+                    dumby_pref = dispatch_variable_ref(model, DependentParameterIndex(index, 1))
+                    depend_supps[index] = Matrix{Float64}(undef, _num_parameters(dumby_pref), 1)
                 end
                 depend_supps[index][_param_index(pref)] = JuMP.lower_bound(set)
             end
@@ -123,7 +124,7 @@ function _validate_bounds(model::InfiniteModel,
     for (index, supp) in depend_supps
         prefs = [dispatch_variable_ref(model, DependentParameterIndex(index, i))
                  for i in 1:length(supp)]
-        add_supports(prefs, supp)
+        add_supports(prefs, supp, check = false) # label will be UserDefined
     end
     return
 end

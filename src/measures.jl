@@ -419,7 +419,7 @@ function measure_data_in_hold_bounds(
     )::Bool where {P <: GeneralVariableRef}
     pref = parameter_refs(data)
     supps = supports(data)
-    if haskey(bounds, pref)
+    if haskey(bounds, pref) && length(supps) != 0
         return supports_in_set(supps, bounds[pref])
     end
     return true
@@ -432,10 +432,12 @@ function measure_data_in_hold_bounds(
     )::Bool where {P <: Vector{GeneralVariableRef}}
     prefs = parameter_refs(data)
     supps = supports(data)
-    for i in eachindex(prefs)
-        if haskey(bounds, prefs[i])
-            if !supports_in_set(supps[i, :], bounds[prefs[i]])
-                return false
+    if length(supps) != 0
+        for i in eachindex(prefs)
+            if haskey(bounds, prefs[i])
+                if !supports_in_set(supps[i, :], bounds[prefs[i]])
+                    return false
+                end
             end
         end
     end

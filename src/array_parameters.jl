@@ -152,7 +152,7 @@ end
 function _build_parameters(_error::Function,
                            params::AbstractArray{<:_DependentParameter};
                            num_supports::Int = 0,
-                           sig_figs::Int = 5,
+                           sig_digits::Int = DefaultSigDigits,
                            extra_kw_args...)
     # error with extra keywords
     for (kwarg, _) in extra_kw_args
@@ -178,20 +178,23 @@ function _build_parameters(_error::Function,
         end
         supps = permutedims(trans_supps)
         supports_in_set(supps, set) || _error("Supports violate infinite set domain.")
-        labels = [Set([UserDefined]) for i in 1:size(supps, 2)]
+        supps = round.(supps, sigdigits = sig_digits)
+        label = UserDefined
+        supp_dict = Dict{Vector{Float64}, Set{Symbol}}(@views supps[:, i] =>
+                                         Set([label]) for i in 1:size(supps, 2))
     # we want to generate supports
     elseif num_supports != 0
         supps, label = generate_support_values(set, num_supports = num_supports,
-                                               sig_figs = sig_figs)
-        labels = [Set([label]) for i in 1:num_supports]
+                                               sig_digits = sig_digits)
+        supp_dict = Dict{Vector{Float64}, Set{Symbol}}(@views supps[:, i] =>
+                                         Set([label]) for i in 1:size(supps, 2))
     # no supports are specified
     else
-        supps = zeros(Float64, length(vector_params), 0)
-        labels = Set{Symbol}[]
+        supp_dict = Dict{Vector{Float64}, Set{Symbol}}()
     end
     # make the parameter object
     names = [param.name for param in vector_params]
-    return DependentParameters(set, supps, labels), names, indices
+    return DependentParameters(set, supp_dict, sig_digits), names, indices
 end
 
 """
@@ -217,7 +220,7 @@ julia> dist = MvNormal(ones(3)); # 3 dimensional
 
 julia> set = MultiDistributionSet(dist); # 3 dimensional
 
-julia> params = DependentParameters(set, rand(dist, 10), [Set([McSample]) for i = 1:10]);
+julia> params = DependentParameters(set, Dict{Vector{Float64}, Set{Symbol}}(), 10);
 
 julia> prefs = add_parameters(model, params, ["par1", "par2", "par3"])
 3-element Array{GeneralVariableRef,1}:
@@ -232,7 +235,7 @@ function add_parameters(model::InfiniteModel,
                         indices = nothing
                         )::AbstractArray{<:GeneralVariableRef}
     # get the number of parameters
-    num_params = size(params.supports, 1)
+    num_params = length(params.set)
     # process the names
     if isempty(names)
         names = ["noname" for i in 1:num_params]
@@ -508,9 +511,9 @@ end
 function _update_parameter_set(pref::DependentParameterRef,
                                new_set::InfiniteArraySet)::Nothing
     old_params = _core_variable_object(pref)
-    new_supports = zeros(size(old_params.supports, 1), 0)
+    new_supports = Dict{Vector{Float64}, Set{Symbol}}()
     new_params = DependentParameters(new_set, new_supports,
-                                     empty!(old_params.labels))
+                                     significant_digits(pref))
     _set_core_variable_object(pref, new_params)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
@@ -724,13 +727,24 @@ end
 #                              SUPPORT METHODS
 ################################################################################
 # Get the raw supports
-function _parameter_supports(pref::DependentParameterRef)::Array{Float64, 2}
+function _parameter_supports(pref::DependentParameterRef
+                             )::Dict{Vector{Float64}, Set{Symbol}}
     return _core_variable_object(pref).supports
 end
 
-# Get the raw support labels
-function _parameter_support_labels(pref::DependentParameterRef)::Vector{Set{Symbol}}
-    return _core_variable_object(pref).labels
+"""
+    significant_digits(pref::DependentParameterRef)::Int
+
+Return the number of significant digits enforced on the supports of `pref`.
+
+**Example**
+```julia-repl
+julia> significant_digits(x[1])
+12
+```
+"""
+function significant_digits(pref::DependentParameterRef)::Int
+    return _core_variable_object(pref).sig_digits
 end
 
 """
@@ -751,9 +765,15 @@ julia> num_supports(x[1], label = McSample)
 """
 function num_supports(pref::DependentParameterRef; label::Symbol = All)::Int
     if label == All
-        return size(_parameter_supports(pref), 2)
+        return length(_parameter_supports(pref))
     else
-        return length(findall(x -> label in x, _parameter_support_labels(pref)))
+        counter = 0
+        for s in values(_parameter_supports(pref))
+            if label in s
+                counter += 1
+            end
+        end
+        return counter
     end
 end
 
@@ -788,7 +808,7 @@ julia> has_supports(x[1])
 true
 ```
 """
-has_supports(pref::DependentParameterRef)::Bool = num_supports(pref) > 0
+has_supports(pref::DependentParameterRef)::Bool = !isempty(_parameter_supports(pref))
 
 """
     has_supports(prefs::AbstractArray{<:DependentParameterRef})::Bool
@@ -803,7 +823,8 @@ true
 ```
 """
 function has_supports(prefs::AbstractArray{<:DependentParameterRef})::Bool
-    return num_supports(prefs) > 0 # this will check prefs
+    _check_complete_param_array(prefs)
+    return has_supports(first(prefs))
 end
 
 """
@@ -823,10 +844,12 @@ julia> supports(x[1])
 function supports(pref::DependentParameterRef;
                   label::Symbol = All)::Vector{Float64}
     if label == All
-        return _parameter_supports(pref)[_param_index(pref), :]
+        pindex = _param_index(pref)
+        return Float64[supp[pindex] for supp in keys(_parameter_supports(pref))]
     else
-        indices = findall(x -> label in x, _parameter_support_labels(pref))
-        return _parameter_supports(pref)[_param_index(pref), indices]
+        reduced_supps = findall(e -> label in e, _parameter_supports(pref))
+        pindex = _param_index(pref)
+        return Float64[supp[pindex] for supp in reduced_supps]
     end
 end
 
@@ -858,21 +881,33 @@ end
 # More efficient dispatch for Vectors
 function supports(prefs::Vector{DependentParameterRef};
                   label::Symbol = All)::Array{Float64, 2}
-    _check_complete_param_array(prefs)
-    if label == All
-        return _parameter_supports(first(prefs))
+    if !has_supports(prefs)
+        return zeros(Float64, _num_parameters(first(prefs)), 0)
+    elseif label == All
+        raw_supps = keys(_parameter_supports(first(prefs)))
+        if length(raw_supps) == 1
+            return reduce(hcat, collect(raw_supps))
+        else
+            return reduce(hcat, raw_supps)
+        end
     else
-        indices = findall(x -> label in x, _parameter_support_labels(first(prefs)))
-        return _parameter_supports(first(prefs))[:, indices]
+        raw_supps = findall(e -> label in e, _parameter_supports(first(prefs)))
+        if isempty(raw_supps)
+            return zeros(Float64, _num_parameters(first(prefs)), 0)
+        else
+            return reduce(hcat, raw_supps)
+        end
     end
 end
 
 # Define method for overriding the current supports
 function _update_parameter_supports(prefs::AbstractArray{<:DependentParameterRef},
                                     supports::Array{<:Real, 2},
-                                    labels::Vector{Set{Symbol}})::Nothing
+                                    label::Symbol)::Nothing
     set = _parameter_set(first(prefs))
-    new_params = DependentParameters(set, Float64.(supports), labels)
+    new_supps = Dict{Vector{Float64}, Set{Symbol}}(@views supports[:, i] =>
+                                      Set([label]) for i in 1:size(supports, 2))
+    new_params = DependentParameters(set, new_supps, significant_digits(first(prefs)))
     _set_core_variable_object(first(prefs), new_params)
     if any(is_used(pref) for pref in prefs)
         set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
@@ -952,8 +987,8 @@ function set_supports(prefs::Vector{DependentParameterRef},
     elseif !supports_in_set(supports, set)
         error("Supports violate the domain of the infinite set.")
     end
-    labels = [Set([label]) for i = 1:size(supports, 2)]
-    _update_parameter_supports(prefs, supports, labels)
+    supports = round.(supports, sigdigits = significant_digits(first(prefs)))
+    _update_parameter_supports(prefs, supports, label)
     return
 end
 
@@ -1015,11 +1050,19 @@ function add_supports(prefs::Vector{DependentParameterRef},
     if check && !supports_in_set(supports, set)
         error("Supports violate the domain of the infinite set.")
     end
+    supports = round.(supports, sigdigits = significant_digits(first(prefs)))
     current_supports = _parameter_supports(first(prefs))
-    new_supports = hcat(current_supports, supports)
-    current_labels = _parameter_support_labels(first(prefs))
-    labels = push!(current_labels, (Set([label]) for i = 1:size(supports, 2))...)
-    _update_parameter_supports(prefs, new_supports, labels)
+    for i in 1:size(supports, 2)
+        s = @view(supports[:, i])
+        if haskey(current_supports, s)
+            push!(current_supports[s], label)
+        else
+            current_supports[s] = Set([label])
+        end
+    end
+    if any(is_used(pref) for pref in prefs)
+        set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
+    end
     return
 end
 
@@ -1045,7 +1088,10 @@ function delete_supports(prefs::AbstractArray{<:DependentParameterRef})::Nothing
     if any(used_by_measure(pref) for pref in prefs)
         error("Cannot delete supports with measure dependencies.")
     end
-    _update_parameter_supports(prefs, zeros(length(prefs), 0), [Set{Symbol}()])
+    empty!(_parameter_supports(first(prefs)))
+    if any(is_used(pref) for pref in prefs)
+        set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
+    end
     return
 end
 
@@ -1054,11 +1100,11 @@ function delete_supports(pref::DependentParameterRef)
     error("Cannot delete the supports of a single dependent infinite parameter.")
 end
 
+# TODO resolve case that there are existing UniformGrid supports
 """
     generate_and_add_supports!(prefs::AbstractArray{<:DependentParameterRef},
                                set::InfiniteArraySet;
-                               [num_supports::Int = 10, sig_figs::Int = 5]
-                               )::Nothing
+                               [num_supports::Int = DefaultNumSupports])::Nothing
 
 Generate supports for `prefs` via [`generate_support_values`](@ref) and add them
 to `pref`. This is intended as an extendable internal method for
@@ -1071,31 +1117,29 @@ infinite set type is not recognized.
 """
 function generate_and_add_supports!(prefs::AbstractArray{<:DependentParameterRef},
                                     set::InfiniteArraySet;
-                                    num_supports::Int = 10, sig_figs::Int = 5
-                                    )::Nothing
+                                    num_supports::Int = DefaultNumSupports)::Nothing
     new_supps, label = generate_support_values(set, num_supports = num_supports,
-                                               sig_figs = sig_figs)
+                                    sig_digits = significant_digits(first(prefs)))
     add_supports(_make_vector(prefs), new_supps, check = false, label = label)
     return
 end
 
 """
     fill_in_supports!(prefs::AbstractArray{<:DependentParameterRef};
-                      [num_supports::Int = 10, sig_figs::Int = 5,
+                      [num_supports::Int = DefaultNumSupports,
                        modify::Bool = true])::Nothing
 
 Automatically generate support points for a container of dependent infinite
 parameters `prefs`. Generating up to `num_supports` for the parameters in accordance
-with `generate_and_add_supports!`. Will add nothing if there are supports and `modify = false`.
-User can specify the number of digits kept after decimal point for the
-auto-generated supports wtih `sig_figs`. Extensions that use user defined
+with `generate_and_add_supports!`. Will add nothing if there are supports and
+`modify = false`. Extensions that use user defined
 set types should extend [`generate_and_add_supports!`](@ref) and/or
 [`generate_support_values`](@ref) as needed. Errors if the infinite set type is
 not recognized.
 
 **Example**
 ```julia-repl
-julia> fill_in_supports!(x, num_supports = 4, sig_figs = 3)
+julia> fill_in_supports!(x, num_supports = 4)
 
 julia> supports(x)
 2×4 Array{Float64,2}:
@@ -1104,14 +1148,13 @@ julia> supports(x)
 ```
 """
 function fill_in_supports!(prefs::AbstractArray{<:DependentParameterRef};
-                           num_supports::Int = 10, sig_figs::Int = 5,
+                           num_supports::Int = DefaultNumSupports,
                            modify::Bool = true)::Nothing
     set = infinite_set(prefs) # does check for bad container
-    current_amount = size(_parameter_supports(first(prefs)), 2)
+    current_amount = InfiniteOpt.num_supports(first(prefs))
     if (modify || current_amount == 0) && (current_amount < num_supports)
         generate_and_add_supports!(prefs, set,
-                                   num_supports = num_supports - current_amount,
-                                   sig_figs = sig_figs)
+                                   num_supports = num_supports - current_amount)
     end
     return
 end
@@ -1122,13 +1165,11 @@ function fill_in_supports!(pref::DependentParameterRef; kwargs...)
 end
 
 """
-    fill_in_supports!(model::InfiniteModel; [num_supports::Int = 10,
-                      sig_figs::Int = 5, modify::Bool = true])::Nothing
+    fill_in_supports!(model::InfiniteModel; [num_supports::Int = DefaultNumSupports,
+                      modify::Bool = true])::Nothing
 
-Automatically generate support points for all infinite parameters in model. User
-can specify the number of significant figures kept after decimal point for the
-auto-generated supports wtih `sig_figs`. This calls
-`fill_in_supports!` for each parameter in the model.
+Automatically generate support points for all infinite parameters in model.
+This calls `fill_in_supports!` for each parameter in the model.
 See [`fill_in_supports!`](@ref)
 for more information. Errors if one of the infinite set types is unrecognized.
 Note that no supports will be added to a particular parameter if it already has
@@ -1136,7 +1177,7 @@ some and `modify = false`.
 
 **Example**
 ```julia-repl
-julia> fill_in_supports!(model, num_supports = 4, sig_fig = 3)
+julia> fill_in_supports!(model, num_supports = 4)
 
 julia> supports(t)
 4-element Array{Float64,1}:
@@ -1146,20 +1187,18 @@ julia> supports(t)
  1.0
 ```
 """
-function fill_in_supports!(model::InfiniteModel; num_supports::Int = 10,
-                           sig_figs::Int = 5, modify::Bool = true)::Nothing
+function fill_in_supports!(model::InfiniteModel; num_supports::Int = DefaultNumSupports,
+                           modify::Bool = true)::Nothing
     # fill in the the supports of each independent parameter
     for (key, data_object) in model.independent_params
         pref = dispatch_variable_ref(model, key)
-        fill_in_supports!(pref, num_supports = num_supports, sig_figs = sig_figs,
-                          modify = modify)
+        fill_in_supports!(pref, num_supports = num_supports, modify = modify)
     end
     # fill in the supports of each dependent parameter set
     for (key, data_object) in model.dependent_params
         prefs = [dispatch_variable_ref(model, DependentParameterIndex(key, i))
                  for i in 1:length(data_object.names)]
-        fill_in_supports!(prefs, num_supports = num_supports, sig_figs = sig_figs,
-                          modify = modify)
+        fill_in_supports!(prefs, num_supports = num_supports, modify = modify)
     end
     return
 end

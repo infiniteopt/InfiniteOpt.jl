@@ -8,6 +8,7 @@
     @infinite_variable(m, ivref(a, b, c))
     num = Float64(0)
     info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
+    new_info = VariableInfo(true, 0., true, 0., true, 0., true, 0., true, false)
     var = PointVariable(info, ivref, [0., 0., 1., 1., 0.])
     object = VariableData(var, "var")
     idx = PointVariableIndex(1)
@@ -56,6 +57,14 @@
     # _set_core_variable_object
     @testset "_set_core_variable_object" begin
         @test InfiniteOpt._set_core_variable_object(vref, var) isa Nothing
+    end
+    @testset "_variable_info" begin
+        @test InfiniteOpt._variable_info(vref) == info
+    end
+    # _update_variable_info
+    @testset "_update_variable_info" begin
+        @test isa(InfiniteOpt._update_variable_info(vref, new_info), Nothing)
+        @test InfiniteOpt._variable_info(vref) == new_info
     end
     # _measure_dependencies
     @testset "_measure_dependencies" begin

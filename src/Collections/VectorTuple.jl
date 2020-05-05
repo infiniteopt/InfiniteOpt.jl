@@ -93,6 +93,9 @@ _make_ordered(arr, indices) = arr
 
 # Constructor from a Tuple with type
 function VectorTuple{T}(tuple::Tuple)::VectorTuple{T} where {T}
+    if isempty(tuple)
+        return VectorTuple{T}()
+    end
     ranges = Vector{UnitRange{Int}}(undef, length(tuple))
     for i in eachindex(ranges)
         element_length = length(tuple[i])
@@ -111,6 +114,9 @@ end
 
 # Constructor from a Tuple without type
 function VectorTuple(tuple::Tuple)::VectorTuple
+    if isempty(tuple)
+        return VectorTuple()
+    end
     ranges = Vector{UnitRange{Int}}(undef, length(tuple))
     for i in eachindex(ranges)
         element_length = length(tuple[i])

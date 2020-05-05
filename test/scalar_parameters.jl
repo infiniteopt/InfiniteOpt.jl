@@ -6,7 +6,7 @@
     fin_idx = FiniteParameterIndex(1)
     set = IntervalSet(0, 1)
     supps_dict = SortedDict{Float64, Set{Symbol}}(0. => Set{Symbol}([UserDefined]))
-    ind_param = IndependentParameter(set, supps_dict)
+    ind_param = IndependentParameter(set, supps_dict, 5)
     fin_param = FiniteParameter(42)
     ind_object = ScalarParameterData(ind_param, 1, 1, "ind")
     fin_object = ScalarParameterData(fin_param, -1, -1, "fin")
@@ -245,7 +245,7 @@ end
         @test_logs (:warn, warn) build_parameter(error, set,
                                             supports = [0, 1], num_supports = 2)
         repeated_supps = [1, 1]
-        expected = IndependentParameter(set, SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}()))
+        expected = IndependentParameter(set, SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}()), 5)
         warn = "Support points are not unique, eliminating redundant points."
         @test_logs (:warn, warn) build_parameter(error, set, supports = repeated_supps) == expected
         set = UniDistributionSet(Normal())
@@ -262,7 +262,7 @@ end
     @testset "add_parameter" begin
         m = InfiniteModel()
         param = IndependentParameter(IntervalSet(0, 1),
-                                             SortedDict{Float64, Set{Symbol}}())
+                                             SortedDict{Float64, Set{Symbol}}(), 5)
         expected = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
         @test add_parameter(m, param) == expected
         @test InfiniteOpt._core_variable_object(expected) == param
@@ -273,7 +273,7 @@ end
         @test InfiniteOpt._core_variable_object(expected) == param
     end
 end
-
+#=
 # Test Reference Queries
 @testset "Basic Reference Queries" begin
     m = InfiniteModel()
@@ -421,7 +421,7 @@ end
 # Test if used
 @testset "Used" begin
     m = InfiniteModel()
-    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
+    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
     pref1 = add_parameter(m, p1, "p1")
     dpref1 = dispatch_variable_ref(pref1)
     p2 = FiniteParameter(1)
@@ -532,7 +532,7 @@ end
 # Test parameter set methods
 @testset "Infinite Set" begin
     m = InfiniteModel()
-    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
+    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
     pref_gen = add_parameter(m, param, "test")
     pref_disp = dispatch_variable_ref(pref_gen)
     bad = Bad()
@@ -568,10 +568,11 @@ end
 # Test parameter support methods
 @testset "Supports" begin
     m = InfiniteModel()
-    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
+    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
     pref = add_parameter(m, param, "test")
     pref_disp = dispatch_variable_ref(pref)
     bad = Bad()
+    push!(InfiniteOpt._data_object(pref).constraint_indices, ConstraintIndex(1))
     # _parameter_supports
     @testset "_parameter_supports" begin
         @test InfiniteOpt._parameter_supports(pref_disp) == SortedDict{Float64, Set{Symbol}}()
@@ -584,6 +585,10 @@ end
         dict = SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}())
         @test isa(InfiniteOpt._update_parameter_supports(pref_disp, dict), Nothing)
         @test InfiniteOpt._parameter_support_values(pref_disp) == [1.]
+    end
+    # significant_digits
+    @testset "significant_digits" begin
+        @test significant_digits(pref) == 5
     end
     # num_supports
     @testset "num_supports" begin
@@ -647,11 +652,11 @@ end
 # Test lower bound functions
 @testset "Lower Bound" begin
     m = InfiniteModel()
-    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
+    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
     pref1 = add_parameter(m, p1)
-    p2 = IndependentParameter(UniDistributionSet(Normal()), SortedDict{Float64, Set{Symbol}}())
+    p2 = IndependentParameter(UniDistributionSet(Normal()), SortedDict{Float64, Set{Symbol}}(), 5)
     pref2 = add_parameter(m, p2)
-    p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}())
+    p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}(), 5)
     pref3 = add_parameter(m, p3)
     bad = TestVariableRef(m, TestIndex(-1))
     # JuMP.has_lower_bound
@@ -688,11 +693,11 @@ end
 # Test upper bound functions
 @testset "Upper Bound" begin
     m = InfiniteModel()
-    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}())
+    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
     pref1 = add_parameter(m, p1)
-    p2 = IndependentParameter(UniDistributionSet(Normal()), SortedDict{Float64, Set{Symbol}}())
+    p2 = IndependentParameter(UniDistributionSet(Normal()), SortedDict{Float64, Set{Symbol}}(), 5)
     pref2 = add_parameter(m, p2)
-    p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}())
+    p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}(), 5)
     pref3 = add_parameter(m, p3)
     bad = TestVariableRef(m, TestIndex(-1))
     # JuMP.has_upper_bound
@@ -800,10 +805,10 @@ end
         gvref2 = @independent_parameter(m, c in dist)
         pref2 = dispatch_variable_ref(gvref2)
         set2 = infinite_set(pref2)
-        @test generate_and_add_supports!(pref1, set1, num_supports = 10) isa Nothing
-        @test generate_and_add_supports!(pref2, set2, num_supports = 10) isa Nothing
-        @test length(supports(pref1)) == 10
-        @test length(supports(pref2)) == 10
+        @test generate_and_add_supports!(pref1, set1, num_supports = 4) isa Nothing
+        @test generate_and_add_supports!(pref2, set2, num_supports = 4) isa Nothing
+        @test length(supports(pref1)) == 4
+        @test length(supports(pref2)) == 4
     end
     # fill_in_supports! (ParameterRef)
     @testset "fill_in_supports! (ParameterRef)" begin
@@ -812,16 +817,17 @@ end
         pref2 = @independent_parameter(m, 0 <= b[1:2] <= 1)
         dist = Normal(0., 1.)
         pref3 = @independent_parameter(m, c in dist, supports = [-0.5, 0.5])
-        @test fill_in_supports!(pref1, num_supports = 10, sig_figs = 4) isa Nothing
-        @test fill_in_supports!.(pref2, num_supports = 10, sig_figs = 4) isa Array{Nothing}
-        @test fill_in_supports!(pref3, num_supports = 10, sig_figs = 4) isa Nothing
-        @test length(supports(pref1)) == 10
-        @test length(supports(pref2[1])) == 10
-        @test length(supports(pref2[2])) == 10
-        @test length(supports(pref3)) == 10
+        @test fill_in_supports!(pref1, num_supports = 11) isa Nothing
+        @test fill_in_supports!.(pref2, num_supports = 11) isa Array{Nothing}
+        @test fill_in_supports!(pref3, num_supports = 11) isa Nothing
+        @test length(supports(pref1)) == 11
+        @test length(supports(pref2[1])) == 11
+        @test length(supports(pref2[2])) == 11
+        @test length(supports(pref3)) == 11
         @test -0.5 in supports(pref3)
         @test 0.5 in supports(pref3)
         @test fill_in_supports!(pref1, num_supports = 20) isa Nothing
         @test length(supports(pref1)) == 20
     end
 end
+=#

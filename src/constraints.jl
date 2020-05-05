@@ -948,7 +948,7 @@ function JuMP.delete(model::InfiniteModel, cref::InfOptConstraintRef)::Nothing
     constr = _core_constraint_object(cref)
     all_vrefs = _all_function_variables(JuMP.jump_function(constr))
     for vref in all_vrefs
-        filter!(e => e != JuMP.index(cref), _constraint_dependencies(vref))
+        filter!(e -> e != JuMP.index(cref), _constraint_dependencies(vref))
     end
     # delete constraint information
     _delete_data_object(cref)
