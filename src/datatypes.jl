@@ -281,10 +281,12 @@ A `DataType` for storing independent scalar infinite parameters.
 - `supports::DataStructures.SortedDict{Float64, Set{Symbol}}`: The support points
    used to discretize the parameter and their associated type labels stored as
    `Symbol`s.
+- `sig_digits::Int`: The number of significant digits used to round the support values.
 """
 struct IndependentParameter{T <: InfiniteScalarSet} <: ScalarParameter
     set::T
     supports::DataStructures.SortedDict{Float64, Set{Symbol}} # Support to label set
+    sig_digits::Int
 end
 
 """
@@ -307,14 +309,14 @@ A `DataType` for storing a collection of dependent infinite parameters.
 
 **Fields**
 - `set::T`: The infinite set that characterizes the parameters.
-- `supports::Array{Float64, 2}`: The support points used to discretize
-  the parameters stored column-wise.
-- `labels::Vector{Set{Symbol}}`: The support label sets.
+- `supports::Dict{Vector{Float64}, Set{Symbol}}`: Support dictionary where keys
+              are supports and the values are the set of labels for each support
+- `sig_digits::Int`: The number of significant digits used to round the support values.
 """
 struct DependentParameters{T <: InfiniteArraySet} <: InfOptParameter
     set::T
-    supports::Array{Float64, 2} # rows are vectorized params, columns are supports
-    labels::Vector{Set{Symbol}} # support (column) index to label set
+    supports::Dict{Vector{Float64}, Set{Symbol}} # Support to label set
+    sig_digits::Int
 end
 
 # Define convenient alias for infinite types
@@ -870,8 +872,8 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 end
 
 """
-    InfiniteModel([optimizer_constructor;
-                  OptimizerModel::Function = TranscriptionModel,
+    InfiniteModel([optimizer_constructor];
+                  [OptimizerModel::Function = TranscriptionModel,
                   caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
                   bridge_constraints::Bool = true, optimizer_model_kwargs...])
 
@@ -922,7 +924,7 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          # Measures
                          MOIUC.CleverDict{MeasureIndex, MeasureData}(),
                          Dict(:eval_method => sampling,
-                              :num_supports => 10,
+                              :num_supports => DefaultNumSupports,
                               :weight_func => default_weight,
                               :name => "integral",
                               :use_existing_supports => false),
@@ -1235,7 +1237,7 @@ end
 
 # Constructor for expanding array parameters
 function ParameterBounds(intervals::NTuple{N, Pair}
-                         )::ParameterBounds{GeneralVariableRef} where {N}
+    )::ParameterBounds{GeneralVariableRef} where {N}
     return ParameterBounds(_expand_parameter_dict(intervals))
 end
 

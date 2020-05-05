@@ -44,15 +44,12 @@ end
         @test sort(InfiniteOpt._make_vector(y)) == [1, 2, 4, 8]
         y = JuMPC.DenseAxisArray(x, [1, 2, 3, 4])
         @test InfiniteOpt._make_vector(y) == x
+        @test InfiniteOpt._make_vector(zeros(2, 0)) == []
     end
     # test arrays
     @testset "Array" begin
         @test InfiniteOpt._make_vector(x) == x
         @test InfiniteOpt._make_vector(ones(2, 2)) == ones(4)
-    end
-    # test other stuff
-    @testset "Non-Array" begin
-        @test InfiniteOpt._make_vector(2) == 2
     end
 end
 

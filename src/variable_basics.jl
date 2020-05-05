@@ -414,7 +414,8 @@ julia> lower_bound(vref)
 function JuMP.set_lower_bound(vref::UserDecisionVariableRef,
                               lower::Real)::Nothing
     newset = MOI.GreaterThan(convert(Float64, lower))
-    new_constr = JuMP.ScalarConstraint(vref, newset)
+    gvref = _make_variable_ref(JuMP.owner_model(vref), JuMP.index(vref))
+    new_constr = JuMP.ScalarConstraint(gvref, newset)
     model = JuMP.owner_model(vref)
     if JuMP.has_lower_bound(vref)
         cindex = JuMP._lower_bound_index(vref)
@@ -451,10 +452,10 @@ function JuMP.LowerBoundRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
     model = JuMP.owner_model(vref)
     cref = _temp_constraint_ref(model, cindex)
     if isempty(_object_numbers(cref))
-        return FiniteConstraintRef(model, index,
+        return FiniteConstraintRef(model, cindex,
                                    JuMP.shape(_core_constraint_object(cref)))
     else
-        return InfiniteConstraintRef(model, index,
+        return InfiniteConstraintRef(model, cindex,
                                      JuMP.shape(_core_constraint_object(cref)))
     end
 end
@@ -551,7 +552,8 @@ julia> upper_bound(vref)
 function JuMP.set_upper_bound(vref::UserDecisionVariableRef,
                               upper::Real)::Nothing
     newset = MOI.LessThan(convert(Float64, upper))
-    new_constr = JuMP.ScalarConstraint(vref, newset)
+    gvref = _make_variable_ref(JuMP.owner_model(vref), JuMP.index(vref))
+    new_constr = JuMP.ScalarConstraint(gvref, newset)
     model = JuMP.owner_model(vref)
     if JuMP.has_upper_bound(vref)
         cindex = JuMP._upper_bound_index(vref)
@@ -589,10 +591,10 @@ function JuMP.UpperBoundRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
     model = JuMP.owner_model(vref)
     cref = _temp_constraint_ref(model, cindex)
     if isempty(_object_numbers(cref))
-        return FiniteConstraintRef(model, index,
+        return FiniteConstraintRef(model, cindex,
                                    JuMP.shape(_core_constraint_object(cref)))
     else
-        return InfiniteConstraintRef(model, index,
+        return InfiniteConstraintRef(model, cindex,
                                      JuMP.shape(_core_constraint_object(cref)))
     end
 end
@@ -696,7 +698,8 @@ function JuMP.fix(vref::UserDecisionVariableRef, value::Real;
                   force::Bool = false)::Nothing
     new_set = MOI.EqualTo(convert(Float64, value))
     model = JuMP.owner_model(vref)
-    new_constr = JuMP.ScalarConstraint(vref, new_set)
+    gvref = _make_variable_ref(JuMP.owner_model(vref), JuMP.index(vref))
+    new_constr = JuMP.ScalarConstraint(gvref, new_set)
     if JuMP.is_fixed(vref)  # Update existing fixing constraint.
         cindex = JuMP._fix_index(vref)
         cref = _temp_constraint_ref(model, cindex)
@@ -747,10 +750,10 @@ function JuMP.FixRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
     model = JuMP.owner_model(vref)
     cref = _temp_constraint_ref(model, cindex)
     if isempty(_object_numbers(cref))
-        return FiniteConstraintRef(model, index,
+        return FiniteConstraintRef(model, cindex,
                                    JuMP.shape(_core_constraint_object(cref)))
     else
-        return InfiniteConstraintRef(model, index,
+        return InfiniteConstraintRef(model, cindex,
                                      JuMP.shape(_core_constraint_object(cref)))
     end
 end
@@ -874,8 +877,9 @@ function JuMP.set_binary(vref::UserDecisionVariableRef)::Nothing
         error("Cannot set the variable_ref $(vref) to binary as it " *
               "is already integer.")
     end
+    gvref = _make_variable_ref(JuMP.owner_model(vref), JuMP.index(vref))
     cref = JuMP.add_constraint(JuMP.owner_model(vref),
-                               JuMP.ScalarConstraint(vref, MOI.ZeroOne()),
+                               JuMP.ScalarConstraint(gvref, MOI.ZeroOne()),
                                is_info_constr = true)
     _set_binary_index(vref, JuMP.index(cref))
     info = _variable_info(vref)
@@ -905,10 +909,10 @@ function JuMP.BinaryRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
     model = JuMP.owner_model(vref)
     cref = _temp_constraint_ref(model, cindex)
     if isempty(_object_numbers(cref))
-        return FiniteConstraintRef(model, index,
+        return FiniteConstraintRef(model, cindex,
                                    JuMP.shape(_core_constraint_object(cref)))
     else
-        return InfiniteConstraintRef(model, index,
+        return InfiniteConstraintRef(model, cindex,
                                      JuMP.shape(_core_constraint_object(cref)))
     end
 end
@@ -989,8 +993,9 @@ function JuMP.set_integer(vref::UserDecisionVariableRef)::Nothing
         error("Cannot set the variable_ref $(vref) to integer as it " *
               "is already binary.")
     end
+    gvref = _make_variable_ref(JuMP.owner_model(vref), JuMP.index(vref))
     cref = JuMP.add_constraint(JuMP.owner_model(vref),
-                               JuMP.ScalarConstraint(vref, MOI.Integer()),
+                               JuMP.ScalarConstraint(gvref, MOI.Integer()),
                                is_info_constr = true)
     _set_integer_index(vref, JuMP.index(cref))
     info = _variable_info(vref)
@@ -1020,10 +1025,10 @@ function JuMP.IntegerRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
     model = JuMP.owner_model(vref)
     cref = _temp_constraint_ref(model, cindex)
     if isempty(_object_numbers(cref))
-        return FiniteConstraintRef(model, index,
+        return FiniteConstraintRef(model, cindex,
                                    JuMP.shape(_core_constraint_object(cref)))
     else
-        return InfiniteConstraintRef(model, index,
+        return InfiniteConstraintRef(model, cindex,
                                      JuMP.shape(_core_constraint_object(cref)))
     end
 end

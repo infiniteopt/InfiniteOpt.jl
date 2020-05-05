@@ -126,9 +126,9 @@ The recognized keyword arguments in `kw_args` are the following:
   the parameters.
 - `supports`: Sets the support points for the parameters.
 - `num_supports`: Specifies the number of supports to be automatically generated.
-                  Note that `supports` takes precedence. Defaults to 10.
-- `sig_figs`: Specifies the number of significant digits that should be used
-              in automatic support generation. Defaults to 5.
+                  Note that `supports` takes precedence. Defaults to `DefaultNumSupports`.
+- `sig_digits`: Specifies the number of significant digits that should be used
+              in automatic support generation. Defaults to `DefaultSigDigits`.
 - `container`: Specify the container type. Defaults to `automatic`
 
 **Examples**
@@ -399,9 +399,9 @@ The recognized keyword arguments in `kw_args` are the following:
   the parameters.
 - `supports`: Sets the support points for the parameters.
 - `num_supports`: Specifies the number of supports to be automatically generated.
-                  Note that `supports` takes precedence. Defaults to 10.
-- `sig_figs`: Specifies the number of significant digits that should be used
-              in automatic support generation. Defaults to 5.
+                  Note that `supports` takes precedence. Defaults to `DefaultNumSupports`.
+- `sig_digits`: Specifies the number of significant digits that should be used
+              in automatic support generation. Defaults to `DefaultSigDigits`.
 - `container`: Specify the container type. Defaults to `automatic`.
 
 **Examples**
@@ -574,9 +574,9 @@ The recognized keyword arguments in `kw_args` are the following:
   the parameters.
 - `supports`: Sets the support points for the parameters.
 - `num_supports`: Specifies the number of supports to be automatically generated.
-                  Note that `supports` takes precedence. Defaults to 10.
-- `sig_figs`: Specifies the number of significant digits that should be used
-              in automatic support generation. Defaults to 5.
+                  Note that `supports` takes precedence. Defaults to `DefaultNumSupports`.
+- `sig_digits`: Specifies the number of significant digits that should be used
+              in automatic support generation. Defaults to `DefaultSigDigits`.
 - `independent`: Specifies if the each parameter is independent from each other
   or not. Defaults to false.
 - `container`: Specify the container type. Defaults to `automatic`

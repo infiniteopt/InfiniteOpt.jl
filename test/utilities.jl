@@ -55,3 +55,6 @@ io_test(f::Function, exp_str::String, args...) = begin
     f(io, args...)
     @test String(take!(io)) == exp_str
 end
+
+# Make method for sorting matrices
+sortcols(A) = sortslices(A, dims=2, lt=(x,y)->isless(x[:],y[:]))

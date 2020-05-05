@@ -17,6 +17,13 @@ function collection_sets(set::CollectionSet{S}
 end
 
 ################################################################################
+#                               BASIC EXTENSIONS
+################################################################################
+Base.length(s::CollectionSet)::Int = length(collection_sets(s))
+Base.length(s::MultiDistributionSet)::Int = length(s.distribution)
+Base.length(s::InfiniteScalarSet)::Int = 1
+
+################################################################################
 #                           SUPPORT VALIDITY METHODS
 ################################################################################
 """
@@ -316,11 +323,17 @@ const McSample = :mc_sample
 const UniformGrid = :uniform_grid
 const Mixture = :mixture
 
-"""
-    generate_support_values(set::AbstractInfiniteSet; [num_supports::Int = 10,
-                            sig_figs::Int = 5])::Tuple{Array{<:Real}, Symbol}
+# Define default values of sig_digits and num_supports keywords
+const DefaultSigDigits = 12
+const DefaultNumSupports = 10
 
-Generate `num_supports` support values with `sig_figs` significant digits in
+"""
+    generate_support_values(set::AbstractInfiniteSet;
+                            [num_supports::Int = DefaultNumSupports,
+                            sig_digits::Int = DefaultSigDigits]
+                            )::Tuple{Array{<:Real}, Symbol}
+
+Generate `num_supports` support values with `sig_digits` significant digits in
 accordance with `set` and return them along with the correct generation label(s).
 `IntervalSet`s generate supports uniformly with label `Grid` and
 distribution sets generate them randomly accordingly to the
@@ -331,15 +344,15 @@ used by [`generate_and_add_supports!`](@ref) and [`build_parameter`](@ref).
 """
 function generate_support_values(set::AbstractInfiniteSet;
                                  num_supports::Int = 0,
-                                 sig_figs::Int = 1)
+                                 sig_digits::Int = 1)
     error("Unable to generate support values for unrecognized infinite set " *
           "type $(typeof(set))")
 end
 
 # IntervalSet
 function generate_support_values(set::IntervalSet;
-                                 num_supports::Int = 10,
-                                 sig_figs::Int = 5,
+                                 num_supports::Int = DefaultNumSupports,
+                                 sig_digits::Int = DefaultSigDigits,
                                  use_mc::Bool = false
                                  )::Tuple{Vector{<:Real}, Symbol}
     lb = JuMP.lower_bound(set)
@@ -347,11 +360,11 @@ function generate_support_values(set::IntervalSet;
     if use_mc
         dist = Distributions.Uniform(lb, ub)
         new_supports = round.(Distributions.rand(dist, num_supports),
-                              sigdigits = sig_figs)
+                              sigdigits = sig_digits)
         return new_supports, McSample
     else
         new_supports = round.(range(lb, stop = ub, length = num_supports),
-                              sigdigits = sig_figs)
+                              sigdigits = sig_digits)
         return new_supports, UniformGrid
     end
 end
@@ -359,67 +372,68 @@ end
 # UniDistributionSet and MultiDistributionSet (with multivariate only)
 function generate_support_values(
     set::Union{UniDistributionSet, MultiDistributionSet{<:Distributions.MultivariateDistribution}};
-    num_supports::Int = 10,
-    sig_figs::Int = 5
+    num_supports::Int = DefaultNumSupports,
+    sig_digits::Int = DefaultSigDigits
     )::Tuple{Array{<:Real}, Symbol}
     dist = set.distribution
     new_supports = round.(Distributions.rand(dist, num_supports),
-                          sigdigits = sig_figs)
+                          sigdigits = sig_digits)
     return new_supports, McSample
 end
 
 # MultiDistributionSet (matrix-variate distribution)
 function generate_support_values(
     set::MultiDistributionSet{<:Distributions.MatrixDistribution};
-    num_supports::Int = 10,
-    sig_figs::Int = 5
+    num_supports::Int = DefaultNumSupports,
+    sig_digits::Int = DefaultSigDigits
     )::Tuple{Array{Float64, 2}, Symbol}
     dist = set.distribution
     raw_supports = Distributions.rand(dist, num_supports)
     new_supports = Array{Float64}(undef, length(dist), num_supports)
     for i in 1:size(new_supports, 2)
-        new_supports[:, i] = round.([raw_supports[i]...], sigdigits = sig_figs)
+        new_supports[:, i] = round.(reduce(vcat, raw_supports[i]),
+                                    sigdigits = sig_digits)
     end
     return new_supports, McSample
 end
 
 # Generate the supports for a collection set
 function _generate_collection_supports(set::CollectionSet, num_supports::Int,
-                                       sig_figs::Int)::Array{Float64, 2}
+                                       sig_digits::Int)::Array{Float64, 2}
     sets = collection_sets(set)
     # build the support array transpose to fill in column order (leverage locality)
     trans_supports = Array{Float64, 2}(undef, num_supports, length(sets))
     for i in eachindex(sets)
         @inbounds trans_supports[:, i] = generate_support_values(sets[i],
                                                    num_supports = num_supports,
-                                                   sig_figs = sig_figs)[1]
+                                                   sig_digits = sig_digits)[1]
     end
     return permutedims(trans_supports)
 end
 
 # CollectionSet (IntervalSets)
 function generate_support_values(set::CollectionSet{IntervalSet};
-                                 num_supports::Int = 10,
-                                 sig_figs::Int = 5
+                                 num_supports::Int = DefaultNumSupports,
+                                 sig_digits::Int = DefaultSigDigits
                                  )::Tuple{Array{<:Real}, Symbol}
-    new_supports = _generate_collection_supports(set, num_supports, sig_figs)
+    new_supports = _generate_collection_supports(set, num_supports, sig_digits)
     return new_supports, UniformGrid
 end
 
 # CollectionSet (UniDistributionSets)
 function generate_support_values(set::CollectionSet{<:UniDistributionSet};
-                                 num_supports::Int = 10,
-                                 sig_figs::Int = 5
+                                 num_supports::Int = DefaultNumSupports,
+                                 sig_digits::Int = DefaultSigDigits
                                  )::Tuple{Array{<:Real}, Symbol}
-    new_supports = _generate_collection_supports(set, num_supports, sig_figs)
+    new_supports = _generate_collection_supports(set, num_supports, sig_digits)
     return new_supports, McSample
 end
 
 # CollectionSet (InfiniteScalarSets)
 function generate_support_values(set::CollectionSet;
-                                 num_supports::Int = 10,
-                                 sig_figs::Int = 5
+                                 num_supports::Int = DefaultNumSupports,
+                                 sig_digits::Int = DefaultSigDigits
                                  )::Tuple{Array{<:Real}, Symbol}
-    new_supports = _generate_collection_supports(set, num_supports, sig_figs)
+    new_supports = _generate_collection_supports(set, num_supports, sig_digits)
     return new_supports, Mixture
 end

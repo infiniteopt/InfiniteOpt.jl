@@ -204,7 +204,8 @@ end
     build_parameter(_error::Function, set::InfiniteScalarSet,
                            [num_params::Int = 1; num_supports::Int = 0,
                            supports::Union{Real, Vector{<:Real}} = Real[],
-                           sig_figs::Int = 5])::IndependentParameter
+                           sig_digits::Int = DefaultSigDigits]
+                           )::IndependentParameter
 
 Returns a [`IndependentParameter`](@ref) given the appropriate information.
 This is analagous to `JuMP.build_variable`. Errors if supports violate the
@@ -221,7 +222,7 @@ function build_parameter(_error::Function,
     set::S;
     num_supports::Int = 0,
     supports::Union{Real, Vector{<:Real}} = Real[],
-    sig_figs::Int = 5,
+    sig_digits::Int = DefaultSigDigits,
     extra_kw_args...
     )::IndependentParameter{S} where {S <: InfiniteScalarSet}
     for (kwarg, _) in extra_kw_args
@@ -229,19 +230,20 @@ function build_parameter(_error::Function,
     end
     label = UserDefined
     length_supports = length(supports)
-    if length_supports != 0
+    if !isempty(supports)
+        supports = round.(supports, sigdigits = sig_digits)
         _check_supports_in_bounds(_error, supports, set)
         num_supports == 0 || @warn("Ignoring num_supports since supports is not empty.")
     elseif num_supports != 0
         supports, label = generate_support_values(set, num_supports = num_supports,
-                                                  sig_figs = sig_figs)
+                                                  sig_digits = sig_digits)
     end
     supports_dict = DataStructures.SortedDict{Float64, Set{Symbol}}(
                                             i => Set([label]) for i in supports)
     if length_supports != 0 && (length(supports_dict) != length_supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
-    return IndependentParameter(set, supports_dict)
+    return IndependentParameter(set, supports_dict, sig_digits)
 end
 
 """
@@ -555,7 +557,9 @@ end
 function _update_parameter_set(pref::IndependentParameterRef,
                                set::AbstractInfiniteSet)::Nothing
     # old supports will always be discarded
-    new_param = IndependentParameter(set, DataStructures.SortedDict{Float64, Set{Symbol}}())
+    sig_digits = significant_digits(pref)
+    new_param = IndependentParameter(set, DataStructures.SortedDict{Float64, Set{Symbol}}(),
+                                     sig_digits)
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
@@ -751,12 +755,27 @@ end
 function _update_parameter_supports(pref::IndependentParameterRef,
     supports::DataStructures.SortedDict{Float64, Set{Symbol}})::Nothing
     set = _parameter_set(pref)
-    new_param = IndependentParameter(set, supports)
+    new_param = IndependentParameter(set, supports, significant_digits(pref))
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
     return
+end
+
+"""
+    significant_digits(pref::IndependentParameterRef)::Int
+
+Return the number of significant digits enforced on the supports of `pref`.
+
+**Example**
+```julia-repl
+julia> significant_digits(t)
+12
+```
+"""
+function significant_digits(pref::IndependentParameterRef)::Int
+    return _core_variable_object(pref).sig_digits
 end
 
 """
@@ -775,8 +794,13 @@ function num_supports(pref::IndependentParameterRef; label::Symbol = All)::Int
     if label == All
         return length(supports_dict)
     else
-        supports = findall(x -> label in x, supports_dict)
-        return length(supports)
+        counter = 0
+        for set in values(supports_dict)
+            if label in set
+                counter += 1
+            end
+        end
+        return counter
     end
 end
 
@@ -840,13 +864,14 @@ julia> supports(t)
 """
 function set_supports(pref::IndependentParameterRef, supports::Vector{<:Real};
                       force::Bool = false, label::Symbol = UserDefined)::Nothing
-    set = _parameter_set(pref)
-    _check_supports_in_bounds(error, supports, set)
     if has_supports(pref) && !force
         error("Unable set supports for $pref since it already has supports." *
               " Consider using `add_supports` or use set `force = true` to " *
               "overwrite the existing supports.")
     end
+    set = _parameter_set(pref)
+    supports = round.(supports, sigdigits = significant_digits(pref))
+    _check_supports_in_bounds(error, supports, set)
     supports_dict = DataStructures.SortedDict{Float64, Set{Symbol}}(
                                             i => Set([label]) for i in supports)
     if length(supports_dict) != length(supports)
@@ -857,9 +882,11 @@ function set_supports(pref::IndependentParameterRef, supports::Vector{<:Real};
 end
 
 """
-    add_supports(pref::IndependentParameterRef, supports::Union{Real, Vector{<:Real}})
+    add_supports(pref::IndependentParameterRef,
+                 supports::Union{Real, Vector{<:Real}};
+                 label::Symbol = UserDefined)::Nothing
 
-Add additional support points for `pref`.
+Add additional support points for `pref` with identifying label `label`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1], supports = [0, 1]))
@@ -885,11 +912,19 @@ function add_supports(pref::IndependentParameterRef,
                       supports::Union{Real, Vector{<:Real}};
                       label::Symbol = UserDefined, check::Bool = true)::Nothing
     set = infinite_set(pref)
+    supports = round.(supports, sigdigits = significant_digits(pref))
     check && _check_supports_in_bounds(error, supports, set)
-    new_supports = DataStructures.SortedDict{Float64, Set{Symbol}}(
-                                            i => Set([label]) for i in supports)
     supports_dict = _parameter_supports(pref)
-    merge!(union, supports_dict, new_supports)
+    for s in supports
+        if haskey(supports_dict, s)
+            push!(supports_dict[s], label)
+        else
+            supports_dict[s] = Set([label])
+        end
+    end
+    if is_used(pref)
+        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+    end
     return
 end
 
@@ -911,7 +946,10 @@ function delete_supports(pref::IndependentParameterRef)::Nothing
         error("Cannot delete the supports of $pref since it is used by " *
               "a measure.")
     end
-    _update_parameter_supports(pref, DataStructures.SortedDict{Float64, Set{Symbol}}())
+    empty!(_parameter_supports(pref))
+    if is_used(pref)
+        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+    end
     return
 end
 
@@ -951,22 +989,21 @@ function JuMP.set_value(pref::FiniteParameterRef, value::Real)::Nothing
 end
 
 """
-    fill_in_supports!(pref::IndependentParameterRef; [num_supports::Int = 10,
-                                           sig_figs::Int = 5])::Nothing
+    fill_in_supports!(pref::IndependentParameterRef;
+                      [num_supports::Int = DefaultNumSupports])::Nothing
 
 Automatically generate support points for a particular independent parameter `pref`.
 Generating `num_supports` for the parameter. The supports are generated uniformly
 if the underlying infinite set is an `IntervalSet` or they are generating randomly
 accordingly to the distribution if the set is a `UniDistributionSet`.
-User can specify the number of digits kept after decimal point for the
-auto-generated supports wtih `sig_figs`.Will add nothing if there are supports
+Will add nothing if there are supports
 and `modify = false`. Extensions that use user defined set types should extend
 [`generate_and_add_supports!`](@ref) and/or [`generate_support_values`](@ref)
 as needed. Errors if the infinite set type is not recognized.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @infinite_parameter(model, 0 <= x <= 1);)
-julia> fill_in_supports!(x, num_supports = 4, sig_figs = 3)
+julia> fill_in_supports!(x, num_supports = 4)
 
 julia> supports(x)
 4-element Array{Number,1}:
@@ -978,14 +1015,13 @@ julia> supports(x)
 ```
 """
 function fill_in_supports!(pref::IndependentParameterRef;
-                           num_supports::Int = 10, sig_figs::Int = 5,
+                           num_supports::Int = DefaultNumSupports,
                            modify::Bool = true)::Nothing
     set = infinite_set(pref)
     current_amount = length(_parameter_supports(pref))
     if (modify || current_amount == 0) && current_amount < num_supports
         generate_and_add_supports!(pref, set,
                                    num_supports = num_supports - current_amount,
-                                   sig_figs = sig_figs,
                                    adding_extra = (current_amount > 0))
     end
     return
@@ -994,8 +1030,7 @@ end
 """
     generate_and_add_supports!(pref::IndependentParameterRef,
                                set::AbstractInfiniteSet;
-                               [num_supports::Int = 10,
-                                sig_figs::Int = 5])::Nothing
+                               [num_supports::Int = DefaultNumSupports])::Nothing
 
 Generate supports for independent parameter `pref` via [`generate_support_values`](@ref)
 and add them to `pref`. This is intended as an extendable internal method for
@@ -1006,14 +1041,15 @@ is not recognized.
 """
 function generate_and_add_supports!(pref::IndependentParameterRef,
                                     set::AbstractInfiniteSet;
-                                    num_supports::Int = 10, sig_figs::Int = 5,
+                                    num_supports::Int = DefaultNumSupports,
                                     adding_extra::Bool = false)::Nothing
+    sig_digits = significant_digits(pref)
     if isa(set, IntervalSet) && adding_extra
         supports, label = generate_support_values(set, num_supports = num_supports,
-                                                  sig_figs = sig_figs, use_mc = true)
+                                                  sig_digits = sig_digits, use_mc = true)
     else
         supports, label = generate_support_values(set, num_supports = num_supports,
-                                                  sig_figs = sig_figs)
+                                                  sig_digits = sig_digits)
     end
     add_supports(pref, supports, label = label)
     return
