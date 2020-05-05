@@ -134,7 +134,7 @@ function _check_multidim_params(prefs::AbstractArray{GeneralVariableRef})::Nothi
         error("Cannot specify a mixture of infinite parameter types.")
     elseif only_dep && any(_raw_index(pref) != _raw_index(first(prefs)) for pref in prefs)
         error("Cannot specify multiple dependent parameter groups for one measure.")
-    elseif only_dep && length(prefs) != _num_parameters(first(dispatch_variable_ref(pref)))
+    elseif only_dep && length(prefs) != _num_parameters(first(dispatch_variable_ref.(prefs)))
         error("Cannot specify a subset of dependent parameters, consider using " *
               "nested one-dimensional measures instead.")
     end
@@ -214,7 +214,7 @@ function DiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
     if _keys(prefs) != _keys(first(supports))
         error("Parameter references and supports must use same container type.")
     end
-    if length(coefficients) != size(supps, 2)
+    if length(coefficients) != size(supports, 2)
         error("The amount of coefficients must match the amount of " *
               "support points.")
     end
@@ -230,6 +230,39 @@ function DiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
 end
 
 # TODO Make user constructor(s) for FunctionalDiscreteMeasureData
+function FunctionalDiscreteMeasureData(
+    pref::GeneralVariableRef,
+    coeff_func::Function,
+    num_supports::Int,
+    label::Symbol;
+    weight_function::Function = default_weight
+    )::FunctionalDiscreteMeasureData{GeneralVariableRef}
+    # NOTE Might need to add some check for valid label input here or later...
+    if !(_index_type(pref) <: InfiniteParameterIndex)
+        error("$pref is not an infinite parameter.")
+    end
+    if num_supports <= 0
+        error("Number of supports must be positive")
+    end
+    return FunctionalDiscreteMeasureData(pref, coeff_func, num_suppports,
+                                         label, weight_function)
+end
+
+function FunctionalDiscreteMeasureData(
+    prefs::AbstractArray{GeneralVariableRef},
+    coeff_func::Function,
+    num_supports::Int,
+    label::Symbol;
+    weight_function::Function = default_weight
+    )::FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}}
+    # NOTE Might need to add some check for valid label input here or later...
+    _check_multidim_params(prefs)
+    if num_supports <= 0
+        error("Number of supports must be positive")
+    end
+    return FunctionalDiscreteMeasureData(prefs, coeff_func, num_suppports,
+                                         label, weight_function)
+end
 
 """
     parameter_refs(data::AbstractMeasureData)::Union{GeneralVariableRef,
@@ -459,9 +492,21 @@ function _check_var_bounds(vref::GeneralVariableRef, data::AbstractMeasureData)
 end
 
 # TODO Make a function to determine the object numbers given the expr and data
+function _expr_data_object_numbers(expr::JuMP.AbstractJuMPScalar,
+                                   data::AbstractMeasureData)::Tuple
+    prefs = parameter_refs(data)
+    obj_num_data = _object_number(first(prefs))
+    return (_object_numbers(expr), obj_num_data)
+end
 # NOTE This can employ `_object_numbers`
 
 # TODO Make a function to determine the parameter numbers given the expr and data
+function _expr_data_parameter_numbers(expr::JuMP.AbstractJuMPScalar,
+                                      data::AbstractMeasureData)::Tuple
+    prefs = parameter_refs(data)
+    param_num_data = [_parameter_number(pref) for pref in prefs]
+    return (_parameter_numbers(expr), param_num_data)
+end
 # NOTE This can employ `parameter_numbers`
 
 """
@@ -482,8 +527,13 @@ function build_measure(_error::Function, expr::T, data::D
             _check_var_bounds(vref, data)
         end
     end
-    # TODO get the object numbers using the above function
-    # TODO get the parameter numbers using the above function
+    expr_obj_nums, data_obj_num = _expr_data_object_numbers(expr, data)
+    expr_param_nums, data_param_nums = _expr_data_parameter_numbers(expr, data)
+    if !(data_obj_num in expr_obj_nums)
+        constant_func = true
+    else
+        constant_func = false
+    end
     # TODO determine if expr can be treated as a constant using the object numbers
     # TODO make the Measure object and return
     return
