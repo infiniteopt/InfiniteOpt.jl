@@ -8,6 +8,12 @@
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
+    # _temp_constraint_ref
+    @testset "_temp_constraint_ref" begin
+        cindex = ConstraintIndex(1)
+        expected = FiniteConstraintRef(m, cindex, ScalarShape())
+        @test InfiniteOpt._temp_constraint_ref(m, cindex) == expected
+    end
     # is_fixed
     @testset "JuMP.is_fixed" begin
         @test is_fixed(vref3)

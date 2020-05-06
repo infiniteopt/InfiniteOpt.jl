@@ -305,7 +305,8 @@ end
 ## Update the indices if an element is deleted
 # SparseAxisArray
 function _update_indices(inds::Vector{<:Tuple}, i)
-    return deleteat!(inds, i)
+    new_inds = deleteat!(inds, i)
+    return length(new_inds) >= 2 ? new_inds : nothing
 end
 
 # DenseAxisArray

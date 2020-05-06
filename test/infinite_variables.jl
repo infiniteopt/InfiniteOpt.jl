@@ -47,13 +47,13 @@
     end
     # _data_object
     @testset "_data_object" begin
-        @test InfiniteOpt._data_object(vref) == object
-        @test InfiniteOpt._data_object(gvref) == object
+        @test InfiniteOpt._data_object(vref) === object
+        @test InfiniteOpt._data_object(gvref) === object
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(vref) == var
-        @test InfiniteOpt._core_variable_object(gvref) == var
+        @test InfiniteOpt._core_variable_object(vref) === var
+        @test InfiniteOpt._core_variable_object(gvref) === var
     end
     # _set_core_variable_object
     @testset "_set_core_variable_object" begin
@@ -692,5 +692,148 @@ end
         @test_macro_throws ErrorException @infinite_variable(m, i(t), bad = 42)
         # test name duplication
         @test_macro_throws ErrorException @infinite_variable(m, a(t), Int)
+    end
+end
+
+# test usage methods
+@testset "Usage" begin
+    # initialize model and stuff
+    m = InfiniteModel()
+    @independent_parameter(m, t in [0, 1])
+    @dependent_parameters(m, x[1:2] in [-1, 1])
+    @infinite_variable(m, y(t, x))
+    vref = dispatch_variable_ref(y)
+    # test used_by_reduced_variable
+    @testset "used_by_reduced_variable" begin
+        @test !used_by_reduced_variable(vref)
+        push!(InfiniteOpt._reduced_variable_dependencies(vref),
+              ReducedInfiniteVariableIndex(1))
+        @test used_by_reduced_variable(y)
+        @test used_by_reduced_variable(vref)
+        empty!(InfiniteOpt._reduced_variable_dependencies(vref))
+    end
+    # test used_by_point_variable
+    @testset "used_by_point_variable" begin
+        @test !used_by_point_variable(vref)
+        push!(InfiniteOpt._point_variable_dependencies(vref), PointVariableIndex(1))
+        @test used_by_point_variable(y)
+        @test used_by_point_variable(vref)
+        empty!(InfiniteOpt._point_variable_dependencies(vref))
+    end
+    # test used_by_measure
+    @testset "used_by_measure" begin
+        @test !used_by_measure(vref)
+        push!(InfiniteOpt._measure_dependencies(vref), MeasureIndex(1))
+        @test used_by_measure(y)
+        @test used_by_measure(vref)
+        empty!(InfiniteOpt._measure_dependencies(vref))
+    end
+    # test used_by_constraint
+    @testset "used_by_constraint" begin
+        @test !used_by_constraint(vref)
+        push!(InfiniteOpt._constraint_dependencies(vref), ConstraintIndex(1))
+        @test used_by_constraint(y)
+        @test used_by_constraint(vref)
+        empty!(InfiniteOpt._constraint_dependencies(vref))
+    end
+    # test used_by_objective
+    @testset "used_by_objective" begin
+        @test !used_by_objective(y)
+        @test !used_by_objective(vref)
+    end
+    # test is_used
+    @testset "is_used" begin
+        # test not used
+        @test !is_used(vref)
+        # test used by constraint and/or measure
+        push!(InfiniteOpt._constraint_dependencies(vref), ConstraintIndex(1))
+        @test is_used(y)
+        empty!(InfiniteOpt._constraint_dependencies(vref))
+        # test used by point variable
+        num = Float64(0)
+        info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
+        var = PointVariable(info, y, [0., 0., 0.])
+        object = VariableData(var, "var")
+        idx = PointVariableIndex(1)
+        pvref = PointVariableRef(m, idx)
+        @test InfiniteOpt._add_data_object(m, object) == idx
+        push!(InfiniteOpt._point_variable_dependencies(vref), idx)
+        @test !is_used(vref)
+        push!(InfiniteOpt._constraint_dependencies(pvref), ConstraintIndex(2))
+        @test is_used(vref)
+        empty!(InfiniteOpt._point_variable_dependencies(vref))
+        # test used by reduced variable
+        eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1)
+        var = ReducedInfiniteVariable(y, eval_supps, [2])
+        object = VariableData(var, "var")
+        idx = ReducedInfiniteVariableIndex(1)
+        rvref = ReducedInfiniteVariableRef(m, idx)
+        @test InfiniteOpt._add_data_object(m, object) == idx
+        push!(InfiniteOpt._reduced_variable_dependencies(vref), idx)
+        @test !is_used(vref)
+        push!(InfiniteOpt._constraint_dependencies(rvref), ConstraintIndex(2))
+        @test is_used(vref)
+    end
+end
+
+# Test queries for parameter references and values
+@testset "Parameter Modification" begin
+    # initialize model, parameter, and variables
+    m = InfiniteModel()
+    @independent_parameter(m, pref in [0, 1])
+    @independent_parameter(m, pref2 in [0, 1])
+    @dependent_parameters(m, prefs[1:2] in [0, 1])
+    @finite_parameter(m, fin, 42)
+    @infinite_variable(m, ivref(pref, pref2, prefs) == 1)
+    dvref = dispatch_variable_ref(ivref)
+    # _update_variable_param_refs
+    @testset "_update_variable_param_refs" begin
+        orig_prefs = raw_parameter_refs(dvref)
+        @test isa(InfiniteOpt._update_variable_param_refs(dvref, VectorTuple(pref2)),
+                  Nothing)
+        @test parameter_refs(dvref) == (pref2, )
+        @test name(dvref) == "ivref(pref2)"
+        @test isa(InfiniteOpt._update_variable_param_refs(dvref, orig_prefs),
+                  Nothing)
+    end
+    # set_parameter_refs
+    @testset "set_parameter_refs" begin
+        # test normal with 1 param
+        @test isa(set_parameter_refs(ivref, (pref2, )), Nothing)
+        @test parameter_refs(dvref) == (pref2, )
+        @test name(dvref) == "ivref(pref2)"
+        # test double specify
+        @test_throws ErrorException set_parameter_refs(dvref, (pref2, pref2))
+        # test used by point variable
+        push!(InfiniteOpt._point_variable_dependencies(dvref),
+              PointVariableIndex(1))
+        @test_throws ErrorException set_parameter_refs(dvref, (pref, ))
+        empty!(InfiniteOpt._point_variable_dependencies(dvref))
+        # test used by reduced variable
+        push!(InfiniteOpt._reduced_variable_dependencies(dvref),
+              ReducedInfiniteVariableIndex(1))
+        @test_throws ErrorException set_parameter_refs(dvref, (pref, ))
+        empty!(InfiniteOpt._reduced_variable_dependencies(dvref))
+    end
+    # add_parameter_ref
+    @testset "add_parameter_ref" begin
+        # test used by point variable
+        push!(InfiniteOpt._point_variable_dependencies(dvref),
+              PointVariableIndex(1))
+        @test_throws ErrorException add_parameter_ref(ivref, pref)
+        empty!(InfiniteOpt._point_variable_dependencies(dvref))
+        # test used by reduced variable
+        push!(InfiniteOpt._reduced_variable_dependencies(dvref),
+              ReducedInfiniteVariableIndex(1))
+        @test_throws ErrorException add_parameter_ref(dvref, pref)
+        empty!(InfiniteOpt._reduced_variable_dependencies(dvref))
+        # test normal use
+        @test isa(add_parameter_ref(ivref, pref), Nothing)
+        @test parameter_refs(ivref) == (pref2, pref)
+        @test name(ivref) == "ivref(pref2, pref)"
+        # test duplication error
+        @test_throws ErrorException add_parameter_ref(dvref, pref2)
+        #test bad array error
+        @test_throws ErrorException add_parameter_ref(dvref, prefs[1:1])
     end
 end

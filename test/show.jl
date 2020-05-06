@@ -13,6 +13,64 @@ using JuMP: REPLMode, IJuliaMode
     @constraint(m, c1, x + y -2 <= 0)
     @constraint(m, c2, y^2 - 3 == 0)
     @BDconstraint(m, c3(par1 in [0, 0.5]), x == 5)
+    # test _infopt_math_symbol (REPL)
+    @testset "_infopt_math_symbol (REPL)" begin
+        if Sys.iswindows()
+            @test InfiniteOpt._infopt_math_symbol(REPLModel, :intersect) == "and"
+        else
+            @test InfiniteOpt._infopt_math_symbol(REPLModel, :intersect) == "∩"
+        end
+        @test InfiniteOpt._infopt_math_symbol(REPLModel, :times) == "*"
+    end
+    # test _infopt_math_symbol (IJulia)
+    @testset "_infopt_math_symbol (IJulia)" begin
+        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) == "\\cap"
+        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :eq) == "="
+    end
+    # test _plural
+    @testset "_plural" begin
+        @test InfiniteOpt._plural(1) == ""
+        @test InfiniteOpt._plural(2) == "s"
+    end
+    # test set_string (IntervalSet)
+    @testset "set_string (IntervalSet)" begin
+        # test simple case
+        set = IntervalSet(0, 1)
+        @test set_string(REPLMode, set) == "[0, 1]"
+        @test set_string(IJuliaMode, set) == "[0, 1]"
+        # test rounding case
+        set = IntervalSet(-0, 1)
+        @test set_string(REPLMode, set) == "[0, 1]"
+        @test set_string(IJuliaMode, set) == "[0, 1]"
+        # test decimal case
+        set = IntervalSet(0.1, 1.3)
+        @test set_string(REPLMode, set) == "[0.1, 1.3]"
+        @test set_string(IJuliaMode, set) == "[0.1, 1.3]"
+    end
+    # test set_string (DistributionSet)
+    @testset "set_string (DistributionSet)" begin
+        # test univariate set
+        set = UniDistributionSet(Uniform())
+        @test in_set_string(REPLMode, set) == "Uniform(a=0.0, b=1.0)"
+        @test in_set_string(IJuliaMode, set) == "Uniform(a=0.0, b=1.0)"
+        # test mulivariate set
+        set = MultiDistributionSet(MvNormal([1], 1))
+        str = "IsoNormal(dim: 1, μ: [1.0], Σ: [1.0])"
+        @test in_set_string(REPLMode, set) == str
+        @test in_set_string(IJuliaMode, set) == str
+    end
+    # test set_string (CollectionSet)
+    @testset "set_string (CollectionSet)" begin
+        set = CollectionSet([IntervalSet(0, 1), IntervalSet(0, 0.1)])
+        str = "CollectionSet with 2 sets:\n [0, 1]\n [0, 0.1]"
+        @test in_set_string(REPLMode, set) == str
+        @test in_set_string(IJuliaMode, set) == str
+    end
+    # test set_string (Fallback)
+    @testset "set_string (Fallback)" begin
+        @test in_set_string(REPLMode, BadSet()) == "BadSet()"
+        @test in_set_string(IJuliaMode, BadSet()) == "BadSet()"
+    end
     # test in_set_string (IntervalSet)
     @testset "JuMP.in_set_string (Interval)" begin
         # test simple case
@@ -43,13 +101,13 @@ using JuMP: REPLMode, IJuliaMode
     # test in_set_string (Distribution)
     @testset "JuMP.in_set_string (Distribution)" begin
         # test univariate set
-        set = DistributionSet(Uniform())
+        set = UniDistributionSet(Uniform())
         str = JuMP._math_symbol(REPLMode, :in) * " Uniform(a=0.0, b=1.0)"
         @test in_set_string(REPLMode, set) == str
         str = JuMP._math_symbol(IJuliaMode, :in) * " Uniform(a=0.0, b=1.0)"
         @test in_set_string(IJuliaMode, set) == str
         # test mulivariate set
-        set = DistributionSet(MvNormal([1], 1))
+        set = MultiDistributionSet(MvNormal([1], 1))
         str = JuMP._math_symbol(REPLMode, :in) * " IsoNormal(dim: 1, μ: " *
                  "[1.0], Σ: [1.0])"
         @test in_set_string(REPLMode, set) == str
@@ -65,6 +123,46 @@ using JuMP: REPLMode, IJuliaMode
         @test in_set_string(REPLMode, set) == in1 * " BadSet()"
         @test in_set_string(IJuliaMode, set) == in2 * " BadSet()"
     end
+    # test in_set_string (IntervalSet with Bounds)
+    @testset "JuMP.in_set_string (IntervalSet with Bounds)" begin
+        # test in bounds
+        bounds = ParameterBounds((par1 => IntervalSet(0, 0)))
+        set = IntervalSet(0, 1)
+        str = JuMP._math_symbol(REPLMode, :in) * " = 0"
+        @test in_set_string(REPLMode, par1, set, bounds) == str
+        str = JuMP._math_symbol(IJuliaMode, :in) * " = 0"
+        @test in_set_string(IJuliaMode, par1, set, bounds) == str
+        # test not in bounds
+        str = JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
+        @test in_set_string(REPLMode, par1, set, bounds) == str
+        str = JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
+        @test in_set_string(IJuliaMode, par1, set, bounds) == str
+    end
+    # test in_set_string (InfiniteScalarSet with Bounds)
+    @testset "JuMP.in_set_string (InfiniteScalarSet with Bounds)" begin
+        # test in bounds
+        bounds = ParameterBounds((par1 => IntervalSet(0, 0)))
+        set = UniDistributionSet(Uniform())
+        str = JuMP._math_symbol(REPLMode, :in) * " = 0"
+        @test in_set_string(REPLMode, par1, set, bounds) == str
+        str = JuMP._math_symbol(IJuliaMode, :in) * " = 0"
+        @test in_set_string(IJuliaMode, par1, set, bounds) == str
+        # test in bounds and not equality
+        bounds = ParameterBounds((par1 => IntervalSet(0, 1)))
+        set = UniDistributionSet(Uniform())
+        str = JuMP._math_symbol(REPLMode, :in) * " Uniform(a=0.0, b=1.0) " *
+              InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) * " [0, 1]"
+        @test in_set_string(REPLMode, par1, set, bounds) == str
+        str = JuMP._math_symbol(IJuliaMode, :in) * " Uniform(a=0.0, b=1.0) " *
+              InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) * " [0, 1]"
+        @test in_set_string(IJuliaMode, par1, set, bounds) == str
+        # test not in bounds
+        str = JuMP._math_symbol(REPLMode, :in) * " Uniform(a=0.0, b=1.0)"
+        @test in_set_string(REPLMode, pars[1], set, bounds) == str
+        str = JuMP._math_symbol(IJuliaMode, :in) * " Uniform(a=0.0, b=1.0)"
+        @test in_set_string(IJuliaMode, pars[1], set, bounds) == str
+    end
+    #=
     # test bound_string
     @testset "bound_string" begin
         # test with single bound
@@ -134,8 +232,9 @@ using JuMP: REPLMode, IJuliaMode
         @test objective_function_string(REPLMode, m) == "y + 2"
         @test objective_function_string(IJuliaMode, m) == "y + 2"
     end
+    =#
 end
-
+#=
 # Helper function to test IO methods work correctly
 function show_test(mode, obj, exp_str; repl=:both)
     if mode == REPLMode
@@ -305,3 +404,4 @@ end
         show_test(REPLMode, m, str, repl=:show)
     end
 end
+=#

@@ -46,13 +46,13 @@
     end
     # _data_object
     @testset "_data_object" begin
-        @test InfiniteOpt._data_object(vref) == object
-        @test InfiniteOpt._data_object(gvref) == object
+        @test InfiniteOpt._data_object(vref) === object
+        @test InfiniteOpt._data_object(gvref) === object
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(vref) == var
-        @test InfiniteOpt._core_variable_object(gvref) == var
+        @test InfiniteOpt._core_variable_object(vref) === var
+        @test InfiniteOpt._core_variable_object(gvref) === var
     end
     # _set_core_variable_object
     @testset "_set_core_variable_object" begin
@@ -632,5 +632,52 @@ end
         # test redefinition catch
         @test_macro_throws ErrorException @point_variable(m, z(0, [0, 0]), z0,
                                                           Bin)
+    end
+end
+
+# test usage methods
+@testset "Usage" begin
+    # initialize model and stuff
+    m = InfiniteModel()
+    @independent_parameter(m, t in [0, 1])
+    @dependent_parameters(m, x[1:2] in [-1, 1])
+    @infinite_variable(m, y(t, x))
+    @point_variable(m, y(0, [0, 0]), y0)
+    vref = dispatch_variable_ref(y0)
+    # test used_by_measure
+    @testset "used_by_measure" begin
+        @test !used_by_measure(vref)
+        push!(InfiniteOpt._measure_dependencies(vref), MeasureIndex(1))
+        @test used_by_measure(y0)
+        @test used_by_measure(vref)
+        empty!(InfiniteOpt._measure_dependencies(vref))
+    end
+    # test used_by_constraint
+    @testset "used_by_constraint" begin
+        @test !used_by_constraint(vref)
+        push!(InfiniteOpt._constraint_dependencies(vref), ConstraintIndex(1))
+        @test used_by_constraint(y0)
+        @test used_by_constraint(vref)
+        empty!(InfiniteOpt._constraint_dependencies(vref))
+    end
+    # test used_by_objective
+    @testset "used_by_objective" begin
+        @test !used_by_objective(y0)
+        @test !used_by_objective(vref)
+        InfiniteOpt._data_object(vref).in_objective = true
+        @test used_by_objective(vref)
+        InfiniteOpt._data_object(vref).in_objective = false
+    end
+    # test is_used
+    @testset "is_used" begin
+        # test not used
+        @test !is_used(vref)
+        # test used by constraint and/or measure
+        push!(InfiniteOpt._constraint_dependencies(vref), ConstraintIndex(1))
+        @test is_used(y0)
+        empty!(InfiniteOpt._constraint_dependencies(vref))
+        # test used by objective
+        InfiniteOpt._data_object(vref).in_objective = true
+        @test is_used(vref)
     end
 end

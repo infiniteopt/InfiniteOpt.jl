@@ -1,14 +1,15 @@
 ## Extend for better comparisons than default
 # GenericAffExpr
 function Base.:(==)(aff1::JuMP.GenericAffExpr{C, V},
-                    aff2::JuMP.GenericAffExpr{C, V}) where {C, V <: GeneralVariableRef}
-    return aff1.constant == aff2.constant &&
-           collect(pairs(aff1.terms)) == collect(pairs(aff2.terms))
+    aff2::JuMP.GenericAffExpr{C, V}
+    )::Bool where {C, V <: GeneralVariableRef}
+    return aff1.constant == aff2.constant && aff1.terms == aff2.terms
 end
 
 # GenericQuadExpr
 function Base.:(==)(quad1::JuMP.GenericQuadExpr{C, V},
-                    quad2::JuMP.GenericQuadExpr{C, V}) where {C, V <: GeneralVariableRef}
+    quad2::JuMP.GenericQuadExpr{C, V}
+    )::Bool where {C, V <: GeneralVariableRef}
     pairs1 = collect(pairs(quad1.terms))
     pairs2 = collect(pairs(quad2.terms))
     if length(pairs1) != length(pairs2)
@@ -25,17 +26,23 @@ end
 
 ## Determine which variables are present in a function
 # GeneralVariableRef
-function _all_function_variables(f::GeneralVariableRef)::Vector{GeneralVariableRef}
+function _all_function_variables(
+    f::GeneralVariableRef
+    )::Vector{GeneralVariableRef}
     return [f]
 end
 
 # GenericAffExpr
-function _all_function_variables(f::JuMP.GenericAffExpr)::Vector{GeneralVariableRef}
+function _all_function_variables(
+    f::JuMP.GenericAffExpr{C, V}
+    )::Vector{V} where {C, V <: GeneralVariableRef}
     return collect(keys(f.terms))
 end
 
 # GenericQuadExpr
-function _all_function_variables(f::JuMP.GenericQuadExpr)::Vector{GeneralVariableRef}
+function _all_function_variables(
+    f::JuMP.GenericQuadExpr{C, V}
+    )::Vector{V} where {C, V <: GeneralVariableRef}
     vref_set = Set(keys(f.aff.terms))
     for pair in keys(f.terms)
         push!(vref_set, pair.a)
@@ -131,7 +138,7 @@ function _model_from_expr(expr::JuMP.GenericAffExpr)::Union{InfiniteModel, Nothi
     if isempty(expr.terms)
         return
     else
-        return JuMP.owner_model(first(keys(expr)))
+        return JuMP.owner_model(first(keys(expr.terms)))
     end
 end
 
@@ -143,7 +150,7 @@ function _model_from_expr(expr::JuMP.GenericQuadExpr)::Union{InfiniteModel, Noth
     elseif isempty(expr.terms)
         return
     else
-        return JuMP.owner_model(first(keys(expr)).a)
+        return JuMP.owner_model(first(keys(expr.terms)).a)
     end
 end
 
@@ -222,7 +229,7 @@ function _set_variable_coefficient!(expr, var::GeneralVariableRef, coeff::Real)
 end
 
 # Check expression for a particular variable type via a recursive search
-# This is tested in test/measures.jl
+#=
 function _has_variable(vrefs::Vector{GeneralVariableRef},
                        vref::GeneralVariableRef; prior=GeneralVariableRef[]
                        )::Bool
@@ -245,3 +252,4 @@ function _has_variable(vrefs::Vector{GeneralVariableRef},
         return false
     end
 end
+=#

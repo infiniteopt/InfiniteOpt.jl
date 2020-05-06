@@ -58,3 +58,25 @@ end
 
 # Make method for sorting matrices
 sortcols(A) = sortslices(A, dims=2, lt=(x,y)->isless(x[:],y[:]))
+
+# Extend comparison of SparseAxisArrays
+function Base.:(==)(a::JuMPC.SparseAxisArray, b::JuMPC.SparseAxisArray)::Bool
+    return a.data == b.data
+end
+
+## Make dumby measure data for the purpose of testing hold variables
+struct TestData <: AbstractMeasureData
+    pref::GeneralVariableRef
+    lb::Float64
+    ub::Float64
+end
+InfiniteOpt.parameter_refs(d::TestData) = d.pref
+function InfiniteOpt.measure_data_in_hold_bounds(d::TestData,
+    bounds::ParameterBounds{GeneralVariableRef}
+    )::Bool
+    pref = parameter_refs(d)
+    if haskey(bounds, pref)
+        return d.lb >= lower_bound(bounds[pref]) && d.ub <= upper_bound(bounds[pref])
+    end
+    return true
+end

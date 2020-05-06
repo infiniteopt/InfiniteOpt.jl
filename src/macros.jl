@@ -1375,23 +1375,23 @@ macro errors if `bound_expr` is ommited or if some unrecognized syntax is used.
 **Examples**
 ```julia-repl
 julia> @BDconstraint(model, c1(t in [0, 1]), T^2 + z <= 1)
-c1 : T(x, t)² + z ≤ 1.0, ∀ t ∈ [0, 1]
+c1 : T(x, t)² + z ≤ 1.0, ∀ t ∈ [0, 1], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] ∈ [-1, 1],
 
 julia> @BDconstraint(model, c2[i = 1:3](x[i] in [0, 1]), T^2 + z + x[i] <= 1)
 3-element Array{InfiniteConstraintRef,1}:
- c2[1] : T(x, t)² + z + x[1] ≤ 1.0, ∀ x[1] ∈ [0, 1]
- c2[2] : T(x, t)² + z + x[2] ≤ 1.0, ∀ x[2] ∈ [0, 1]
- c2[3] : T(x, t)² + z + x[3] ≤ 1.0, ∀ x[3] ∈ [0, 1]
+ c2[1] : T(x, t)² + z + x[1] ≤ 1.0, ∀ t ∈ [0, 1], x[1] ∈ [0, 1], x[2] ∈ [-1, 1], x[3] ∈ [-1, 1]
+ c2[2] : T(x, t)² + z + x[2] ≤ 1.0, ∀ t ∈ [0, 1], x[1] ∈ [-1, 1], x[2] ∈ [0, 1], x[3] ∈ [-1, 1]
+ c2[3] : T(x, t)² + z + x[3] ≤ 1.0, ∀ t ∈ [0, 1], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] ∈ [0, 1]
 
 julia> @BDconstraint(model, (x == 0, t == 0), T^2 + z <= 1)
-T(x, t)² + z ≤ 1.0, ∀ x[2] = 0, x[3] = 0, t = 0, x[1] = 0
+T(x, t)² + z ≤ 1.0, ∀ t = 0, x[1] = 0, x[2] = 0, x[3] = 0
 
 julia> @BDconstraint(model, [i = 1:3](x[i] == 0), T^2 + z <= 1,
                      container = SparseAxisArray)
 JuMP.Containers.SparseAxisArray{InfiniteConstraintRef,1,Tuple{Any}} with 3 entries:
-  [3]  =  T(x, t)² + z ≤ 1.0, ∀ x[3] = 0
-  [2]  =  T(x, t)² + z ≤ 1.0, ∀ x[2] = 0
-  [1]  =  T(x, t)² + z ≤ 1.0, ∀ x[1] = 0
+  [3]  =  T(x, t)² + z ≤ 1.0, ∀ t ∈ [0, 1], x[1] = 0, x[2] ∈ [-1, 1], x[3] ∈ [-1, 1]
+  [2]  =  T(x, t)² + z ≤ 1.0, ∀ t ∈ [0, 1], x[1] ∈ [-1, 1], x[2] = 0, x[3] ∈ [-1, 1]
+  [1]  =  T(x, t)² + z ≤ 1.0, ∀ t ∈ [0, 1], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] = 0
 ```
 """
 macro BDconstraint(model, args...)
@@ -1498,7 +1498,7 @@ julia> @hold_variable(model, y)
 y
 
 julia> @constraint(model, con, x + y == 0)
-con : x(t) + y = 0.0
+con : x(t) + y = 0.0, ∀ t ∈ [0, 10]
 
 julia> @set_parameter_bounds(y, t in [0, 5])
 
@@ -1586,7 +1586,7 @@ julia> @hold_variable(model, y)
 y
 
 julia> @constraint(model, con, x + y == 0)
-con : x(t, q) + y = 0.0
+con : x(t, q) + y = 0.0, ∀ t ∈ [0, 10], q ∈ [-2, 2]
 
 julia> @add_parameter_bounds(y, t in [0, 5])
 

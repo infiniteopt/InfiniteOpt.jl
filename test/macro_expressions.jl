@@ -6,8 +6,12 @@
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
     @hold_variable(m, hold)
-    meas = MeasureRef(m, 1)
-    m.meas_to_name[1] = "meas"
+    data = TestData(par, 0, 5)
+    meas = Measure(hold, data, Int[], Int[], true)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    meas = InfiniteOpt._make_variable_ref(m, mindex)
     # test addition
     @testset "Add" begin
         # test infinite + measure
@@ -16,62 +20,62 @@
         @test @expression(m, inf + meas).terms[meas] == 1
         @test @expression(m, inf + meas).terms[inf] == 1
         # test point + hold
-        @test isa(@expression(m, pt + hold), GenericAffExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, pt + hold), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, pt + hold).terms[hold] == 1
         # test other combos
-        @test isa(@expression(m, pt + meas), GenericAffExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(@expression(m, pt + meas), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par + pt), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par + inf), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par + meas), GenericAffExpr{Float64, GeneralVariableRef})
         # test same
-        @test isa(@expression(m, meas + meas), GenericAffExpr{Float64, MeasureRef})
+        @test isa(@expression(m, meas + meas), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, meas + meas).terms[meas] == 2
-        @test isa(@expression(m, inf + inf), GenericAffExpr{Float64, InfiniteVariableRef})
-        @test isa(@expression(m, pt + pt), GenericAffExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, inf + inf), GenericAffExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, pt + pt), GenericAffExpr{Float64, GeneralVariableRef})
     end
     # test subtraction
     @testset "Subtract" begin
         # test hold - measure
-        @test isa(@expression(m, hold - meas), GenericAffExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(@expression(m, hold - meas), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, hold - meas).constant == 0.0
         @test @expression(m, hold - meas).terms[meas] == -1
         @test @expression(m, hold - meas).terms[hold] == 1
         # test point - hold
-        @test isa(@expression(m, pt - hold), GenericAffExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, pt - hold), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, pt - hold).terms[hold] == -1
         # test other combos
-        @test isa(@expression(m, pt - meas), GenericAffExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(@expression(m, pt - meas), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par - pt), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par - inf), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par - meas), GenericAffExpr{Float64, GeneralVariableRef})
         # test same
-        @test isa(@expression(m, meas - meas), GenericAffExpr{Float64, MeasureRef})
-        @test @expression(m, meas - meas) == zero(GenericAffExpr{Float64, MeasureRef})
-        @test isa(@expression(m, inf - inf), GenericAffExpr{Float64, InfiniteVariableRef})
-        @test isa(@expression(m, pt - pt), GenericAffExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, meas - meas), GenericAffExpr{Float64, GeneralVariableRef})
+        @test @expression(m, meas - meas) == zero(GenericAffExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, inf - inf), GenericAffExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, pt - pt), GenericAffExpr{Float64, GeneralVariableRef})
     end
     # test multiplication
     @testset "Multiply" begin
         # test point * measure
-        @test isa(@expression(m, pt * meas), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(@expression(m, pt * meas), GenericQuadExpr{Float64, GeneralVariableRef})
         @test @expression(m, pt * meas).aff.constant == 0.0
-        pair = UnorderedPair{MeasureFiniteVariableRef}(pt, meas)
+        pair = UnorderedPair{GeneralVariableRef}(pt, meas)
         @test @expression(m, pt * meas).terms[pair] == 1
         # test point * hold
-        @test isa(@expression(m, pt * hold), GenericQuadExpr{Float64, FiniteVariableRef})
-        pair = UnorderedPair{FiniteVariableRef}(pt, hold)
+        @test isa(@expression(m, pt * hold), GenericQuadExpr{Float64, GeneralVariableRef})
+        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
         @test @expression(m, pt * hold).terms[pair] == 1
         # test other combos
-        @test isa(@expression(m, pt * meas), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(@expression(m, pt * meas), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par * pt), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par * inf), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par * meas), GenericQuadExpr{Float64, GeneralVariableRef})
         # test same
-        @test isa(@expression(m, meas * meas), GenericQuadExpr{Float64, MeasureRef})
-        pair = UnorderedPair{MeasureRef}(meas, meas)
+        @test isa(@expression(m, meas * meas), GenericQuadExpr{Float64, GeneralVariableRef})
+        pair = UnorderedPair{GeneralVariableRef}(meas, meas)
         @test @expression(m, meas * meas).terms[pair] == 1
-        @test isa(@expression(m, inf * inf), GenericQuadExpr{Float64, InfiniteVariableRef})
-        @test isa(@expression(m, pt * pt), GenericQuadExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, inf * inf), GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, pt * pt), GenericQuadExpr{Float64, GeneralVariableRef})
     end
     # test division
     @testset "Divide" begin
@@ -90,8 +94,12 @@ end
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
     @hold_variable(m, hold)
-    meas = MeasureRef(m, 1)
-    m.meas_to_name[1] = "meas"
+    data = TestData(par, 0, 5)
+    meas = Measure(hold, data, Int[], Int[], true)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = hold - pt
     aff3 = (hold - meas) + 1
@@ -103,15 +111,15 @@ end
         @test @expression(m, inf + aff1).terms[pt] == 1
         @test @expression(m, inf + aff1).terms[inf] == 2
         # test meas + aff2
-        @test isa(@expression(m, meas + aff2), GenericAffExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(@expression(m, meas + aff2), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, meas + aff2).terms[hold] == 1
         # test other combos
-        @test isa(@expression(m, hold + aff3), GenericAffExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(@expression(m, hold + aff3), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par + aff2), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par + aff1), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par + aff3), GenericAffExpr{Float64, GeneralVariableRef})
         # test same
-        @test isa(@expression(m, meas + (meas + meas)), GenericAffExpr{Float64, MeasureRef})
+        @test isa(@expression(m, meas + (meas + meas)), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, meas + (meas + meas)).terms[meas] == 3
     end
     # test subtraction
@@ -122,15 +130,15 @@ end
         @test @expression(m, inf - aff1).terms[pt] == -1
         @test @expression(m, inf - aff1).terms[inf] == 0
         # test meas + aff2
-        @test isa(@expression(m, meas - aff2), GenericAffExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(@expression(m, meas - aff2), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, meas - aff2).terms[hold] == -1
         # test other combos
-        @test isa(@expression(m, hold - aff3), GenericAffExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(@expression(m, hold - aff3), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par - aff2), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par - aff1), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par - aff3), GenericAffExpr{Float64, GeneralVariableRef})
         # test same
-        @test isa(@expression(m, meas - (meas + meas)), GenericAffExpr{Float64, MeasureRef})
+        @test isa(@expression(m, meas - (meas + meas)), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, meas - (meas + meas)).terms[meas] == -1
     end
     # test multiplication
@@ -144,18 +152,18 @@ end
         pair = UnorderedPair{GeneralVariableRef}(inf, inf)
         @test @expression(m, inf * aff1).terms[pair] == 1
         # test meas * aff2
-        @test isa(@expression(m, meas * aff2), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
-        pair = UnorderedPair{MeasureFiniteVariableRef}(meas, hold)
+        @test isa(@expression(m, meas * aff2), GenericQuadExpr{Float64, GeneralVariableRef})
+        pair = UnorderedPair{GeneralVariableRef}(meas, hold)
         @test @expression(m, meas * aff2).terms[pair] == 1
         @test length(@expression(m, meas * aff2).aff.terms) == 0
         # test other combos
-        @test isa(@expression(m, hold * aff3), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(@expression(m, hold * aff3), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par * aff2), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par * aff1), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par * aff3), GenericQuadExpr{Float64, GeneralVariableRef})
         # test same
-        @test isa(@expression(m, meas * (meas + meas)), GenericQuadExpr{Float64, MeasureRef})
-        pair = UnorderedPair{MeasureRef}(meas, meas)
+        @test isa(@expression(m, meas * (meas + meas)), GenericQuadExpr{Float64, GeneralVariableRef})
+        pair = UnorderedPair{GeneralVariableRef}(meas, meas)
         @test @expression(m, meas * (meas + meas)).terms[pair] == 2
     end
     # test division
@@ -175,8 +183,12 @@ end
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
     @hold_variable(m, hold)
-    meas = MeasureRef(m, 1)
-    m.meas_to_name[1] = "meas"
+    data = TestData(par, 0, 5)
+    meas = Measure(hold, data, Int[], Int[], true)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = hold - pt
     aff3 = (hold - meas) + 1
@@ -188,15 +200,15 @@ end
         @test @expression(m, copy(aff1) + inf).terms[pt] == 1
         @test @expression(m, copy(aff1) + inf).terms[inf] == 2
         # test aff2 + meas
-        @test isa(copy(aff2) + meas, GenericAffExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(copy(aff2) + meas, GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(aff2) + meas).terms[hold] == 1
         # test other combos
-        @test isa(aff3 + hold, GenericAffExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(aff3 + hold, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(aff2 + par, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(aff1 + par, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(aff3 + par, GenericAffExpr{Float64, GeneralVariableRef})
         # test same
-        @test isa((meas + meas) + meas, GenericAffExpr{Float64, MeasureRef})
+        @test isa((meas + meas) + meas, GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, (meas + meas) + meas).terms[meas] == 3
     end
     # test subtraction
@@ -207,15 +219,15 @@ end
         @test @expression(m, copy(aff1) - inf).terms[pt] == 1
         @test @expression(m, copy(aff1) - inf).terms[inf] == 0
         # test aff2 - meas
-        @test isa(@expression(m, copy(aff2) - meas), GenericAffExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(@expression(m, copy(aff2) - meas), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(aff2) - meas).terms[hold] == 1
         # test other combos
-        @test isa(@expression(m, aff3 - hold), GenericAffExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(@expression(m, aff3 - hold), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, aff2 - par), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, aff1 - par), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, aff3 - par), GenericAffExpr{Float64, GeneralVariableRef})
         # test same
-        @test isa(@expression(m, (meas + meas) - meas), GenericAffExpr{Float64, MeasureRef})
+        @test isa(@expression(m, (meas + meas) - meas), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, (meas + meas) - meas).terms[meas] == 1
     end
     # test multiplication
@@ -229,18 +241,18 @@ end
         pair = UnorderedPair{GeneralVariableRef}(inf, inf)
         @test @expression(m, aff1 * inf).terms[pair] == 1
         # test aff2 * meas
-        @test isa(@expression(m, aff2 * meas), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
-        pair = UnorderedPair{MeasureFiniteVariableRef}(meas, hold)
+        @test isa(@expression(m, aff2 * meas), GenericQuadExpr{Float64, GeneralVariableRef})
+        pair = UnorderedPair{GeneralVariableRef}(meas, hold)
         @test @expression(m, aff2 * meas).terms[pair] == 1
         @test length((aff2 * meas).aff.terms) == 0
         # test other combos
-        @test isa(@expression(m, aff3 * hold), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
+        @test isa(@expression(m, aff3 * hold), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, aff2 * par), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, aff1 * par), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, aff3 * par), GenericQuadExpr{Float64, GeneralVariableRef})
         # test same
-        @test isa(@expression(m, (meas + meas * meas)), GenericQuadExpr{Float64, MeasureRef})
-        pair = UnorderedPair{MeasureRef}(meas, meas)
+        @test isa(@expression(m, (meas + meas * meas)), GenericQuadExpr{Float64, GeneralVariableRef})
+        pair = UnorderedPair{GeneralVariableRef}(meas, meas)
         @test @expression(m, (meas + meas) * meas).terms[pair] == 2
     end
     # test division
@@ -261,8 +273,12 @@ end
     @point_variable(m, inf(0), pt)
     @hold_variable(m, hold)
     @hold_variable(m, test[1:51])
-    meas = MeasureRef(m, 1)
-    m.meas_to_name[1] = "meas"
+    data = TestData(par, 0, 5)
+    meas = Measure(hold, data, Int[], Int[], true)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = hold - pt
     aff3 = (hold - meas) + 1
@@ -276,8 +292,8 @@ end
         @test isa(@expression(m, copy(aff1) + aff_big), GenericAffExpr{Float64, GeneralVariableRef})
         # test various mixed combination types
         @test isa(@expression(m, copy(aff1) + aff2), GenericAffExpr{Float64, GeneralVariableRef})
-        @test isa(@expression(m, aff2 + aff3), GenericAffExpr{Float64, MeasureFiniteVariableRef})
-        @test isa(@expression(m, copy(aff2) + aff5), GenericAffExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, aff2 + aff3), GenericAffExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, copy(aff2) + aff5), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, aff4 + aff1), GenericAffExpr{Float64, GeneralVariableRef})
         # test results of general combinations
         @test @expression(m, copy(aff1) + aff2).constant == -2
@@ -298,10 +314,10 @@ end
         @test @expression(m, copy(aff2) + aff5).terms[pt] == 3
         @test @expression(m, copy(aff2) + aff5).terms[hold] == 1
         # test pure additions
-        @test isa(@expression(m, copy(aff4) + aff4), GenericAffExpr{Float64, InfiniteVariableRef})
+        @test isa(@expression(m, copy(aff4) + aff4), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(aff4) + aff4).constant == 6
         @test @expression(m, copy(aff4) + aff4).terms[inf] == 4
-        @test isa(@expression(m, copy(aff5) + aff5), GenericAffExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, copy(aff5) + aff5), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(aff5) + aff5).constant == -84
         @test @expression(m, copy(aff5) + aff5).terms[pt] == 8
     end
@@ -309,8 +325,8 @@ end
     @testset "Subtract" begin
         # test various mixed combination types
         @test isa(@expression(m, copy(aff1) - aff2), GenericAffExpr{Float64, GeneralVariableRef})
-        @test isa(@expression(m, aff2 - aff3), GenericAffExpr{Float64, MeasureFiniteVariableRef})
-        @test isa(@expression(m, copy(aff2) - aff5), GenericAffExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, aff2 - aff3), GenericAffExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, copy(aff2) - aff5), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, aff4 - aff1), GenericAffExpr{Float64, GeneralVariableRef})
         # test results of general combinations
         @test @expression(m, copy(aff1) - aff2).constant == -2
@@ -331,10 +347,10 @@ end
         @test @expression(m, copy(aff2) - aff5).terms[pt] == -5
         @test @expression(m, copy(aff2) - aff5).terms[hold] == 1
         # test pure additions
-        @test isa(@expression(m, copy(aff4) - aff4), GenericAffExpr{Float64, InfiniteVariableRef})
+        @test isa(@expression(m, copy(aff4) - aff4), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(aff4) - aff4).constant == 0
         @test @expression(m, copy(aff4) - aff4).terms[inf] == 0
-        @test isa(@expression(m, copy(aff5) - aff5), GenericAffExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, copy(aff5) - aff5), GenericAffExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(aff5) - aff5).constant == 0
         @test @expression(m, copy(aff5) - aff5).terms[pt] == 0
     end
@@ -342,8 +358,8 @@ end
     @testset "Multiply" begin
         # test various mixed combination types
         @test isa(@expression(m, aff1 * aff2), GenericQuadExpr{Float64, GeneralVariableRef})
-        @test isa(@expression(m, aff2 * aff3), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
-        @test isa(@expression(m, aff2 * aff5), GenericQuadExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, aff2 * aff3), GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, aff2 * aff5), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, aff4 * aff1), GenericQuadExpr{Float64, GeneralVariableRef})
         # test results of general combinations
         @test @expression(m, aff1 * aff2).aff.constant == 0
@@ -361,33 +377,33 @@ end
         # test results of measurefinite combinations
         @test @expression(m, aff2 * aff3).aff.constant == 0
         @test @expression(m, aff2 * aff3).aff.terms[pt] == -1
-        pair = UnorderedPair{MeasureFiniteVariableRef}(pt, meas)
+        pair = UnorderedPair{GeneralVariableRef}(pt, meas)
         @test @expression(m, aff2 * aff3).terms[pair] == 1
-        pair = UnorderedPair{MeasureFiniteVariableRef}(hold, hold)
+        pair = UnorderedPair{GeneralVariableRef}(hold, hold)
         @test @expression(m, aff2 * aff3).terms[pair] == 1
         @test @expression(m, aff3 * aff5).aff.constant == -42
         @test @expression(m, aff3 * aff5).aff.terms[meas] == 42
-        pair = UnorderedPair{MeasureFiniteVariableRef}(hold, pt)
+        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
         @test @expression(m, aff3 * aff5).terms[pair] == 4
-        pair = UnorderedPair{MeasureFiniteVariableRef}(meas, pt)
+        pair = UnorderedPair{GeneralVariableRef}(meas, pt)
         @test @expression(m, aff3 * aff5).terms[pair] == -4
         # test results of fininite combinations
         @test @expression(m, aff2 * aff5).aff.constant == 0
         @test @expression(m, aff2 * aff5).aff.terms[hold] == -42
-        pair = UnorderedPair{FiniteVariableRef}(hold, pt)
+        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
         @test @expression(m, aff2 * aff5).terms[pair] == 4
-        pair = UnorderedPair{FiniteVariableRef}(pt, pt)
+        pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, aff2 * aff5).terms[pair] == -4
         # test pure additions
-        @test isa(@expression(m, aff4 * aff4), GenericQuadExpr{Float64, InfiniteVariableRef})
+        @test isa(@expression(m, aff4 * aff4), GenericQuadExpr{Float64, GeneralVariableRef})
         @test @expression(m, aff4 * aff4).aff.constant == 9
         @test @expression(m, aff4 * aff4).aff.terms[inf] == 12
-        pair = UnorderedPair{InfiniteVariableRef}(inf, inf)
+        pair = UnorderedPair{GeneralVariableRef}(inf, inf)
         @test @expression(m, aff4 * aff4).terms[pair] == 4
-        @test isa(@expression(m, aff5 * aff5), GenericQuadExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, aff5 * aff5), GenericQuadExpr{Float64, GeneralVariableRef})
         @test @expression(m, aff5 * aff5).aff.constant == 42 * 42
         @test @expression(m, aff5 * aff5).aff.terms[pt] == 2 * 4 * -42
-        pair = UnorderedPair{PointVariableRef}(pt, pt)
+        pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, aff5 * aff5).terms[pair] == 16
     end
     # test division
@@ -409,8 +425,12 @@ end
     @point_variable(m, inf(0), pt)
     @hold_variable(m, hold)
     @hold_variable(m, test[1:51])
-    meas = MeasureRef(m, 1)
-    m.meas_to_name[1] = "meas"
+    data = TestData(par, 0, 5)
+    meas = Measure(hold, data, Int[], Int[], true)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = hold - pt
     aff3 = (hold - meas) + 1
@@ -423,8 +443,8 @@ end
     @testset "Add" begin
         # test mixed combo types
         @test isa(@expression(m, copy(quad1) + inf), GenericQuadExpr{Float64, GeneralVariableRef})
-        @test isa(@expression(m, copy(quad2) + meas), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
-        @test isa(@expression(m, copy(quad3) + pt), GenericQuadExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, copy(quad2) + meas), GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, copy(quad3) + pt), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, copy(quad4) + par), GenericQuadExpr{Float64, GeneralVariableRef})
         # test general combos
         @test @expression(m, copy(quad1) + inf).aff.constant == 0
@@ -451,7 +471,7 @@ end
         pair = UnorderedPair{GeneralVariableRef}(hold, pt)
         @test @expression(m, copy(quad3) + pt).terms[pair] == -1
         # test same types
-        @test isa(@expression(m, copy(quad4) + pt), GenericQuadExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, copy(quad4) + pt), GenericQuadExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(quad4) + pt).aff.constant == 0
         @test @expression(m, copy(quad4) + pt).aff.terms[pt] == -41
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
@@ -461,8 +481,8 @@ end
     @testset "Subtract" begin
         # test mixed combo types
         @test isa(@expression(m, copy(quad1) - inf), GenericQuadExpr{Float64, GeneralVariableRef})
-        @test isa(@expression(m, copy(quad2) - meas), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
-        @test isa(@expression(m, copy(quad3) - pt), GenericQuadExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, copy(quad2) - meas), GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, copy(quad3) - pt), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, copy(quad4) - par), GenericQuadExpr{Float64, GeneralVariableRef})
         # test general combos
         @test @expression(m, copy(quad1) - inf).aff.constant == 0
@@ -489,7 +509,7 @@ end
         pair = UnorderedPair{GeneralVariableRef}(hold, pt)
         @test @expression(m, copy(quad3) - pt).terms[pair] == -1
         # test same types
-        @test isa(@expression(m, copy(quad4) - pt), GenericQuadExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, copy(quad4) - pt), GenericQuadExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(quad4) - pt).aff.constant == 0
         @test @expression(m, copy(quad4) - pt).aff.terms[pt] == -43
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
@@ -522,8 +542,12 @@ end
     @point_variable(m, inf(0), pt)
     @hold_variable(m, hold)
     @hold_variable(m, test[1:51])
-    meas = MeasureRef(m, 1)
-    m.meas_to_name[1] = "meas"
+    data = TestData(par, 0, 5)
+    meas = Measure(hold, data, Int[], Int[], true)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = hold - pt
     aff3 = (hold - meas) + 1
@@ -536,8 +560,8 @@ end
     @testset "Add" begin
         # test mixed combo types
         @test isa(@expression(m, inf + copy(quad1)), GenericQuadExpr{Float64, GeneralVariableRef})
-        @test isa(@expression(m, meas + copy(quad2)), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
-        @test isa(@expression(m, pt + copy(quad3)), GenericQuadExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, meas + copy(quad2)), GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, pt + copy(quad3)), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par + copy(quad4)), GenericQuadExpr{Float64, GeneralVariableRef})
         # test general combos
         @test @expression(m, inf + copy(quad1)).aff.constant == 0
@@ -564,7 +588,7 @@ end
         pair = UnorderedPair{GeneralVariableRef}(hold, pt)
         @test @expression(m, pt + copy(quad3)).terms[pair] == -1
         # test same types
-        @test isa(@expression(m, pt + copy(quad4)), GenericQuadExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, pt + copy(quad4)), GenericQuadExpr{Float64, GeneralVariableRef})
         @test @expression(m, pt + copy(quad4)).aff.constant == 0
         @test @expression(m, pt + copy(quad4)).aff.terms[pt] == -41
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
@@ -574,8 +598,8 @@ end
     @testset "Subtract" begin
         # test mixed combo types
         @test isa(@expression(m, inf - copy(quad1)), GenericQuadExpr{Float64, GeneralVariableRef})
-        @test isa(@expression(m, meas - copy(quad2)), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
-        @test isa(@expression(m, pt - copy(quad3)), GenericQuadExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, meas - copy(quad2)), GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, pt - copy(quad3)), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, par - copy(quad4)), GenericQuadExpr{Float64, GeneralVariableRef})
         # test general combos
         @test @expression(m, inf - copy(quad1)).aff.constant == 0
@@ -602,7 +626,7 @@ end
         pair = UnorderedPair{GeneralVariableRef}(hold, pt)
         @test @expression(m, pt - copy(quad3)).terms[pair] == 1
         # test same types
-        @test isa(@expression(m, pt - copy(quad4)), GenericQuadExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, pt - copy(quad4)), GenericQuadExpr{Float64, GeneralVariableRef})
         @test @expression(m, pt - copy(quad4)).aff.constant == 0
         @test @expression(m, pt - copy(quad4)).aff.terms[pt] == 43
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
@@ -635,8 +659,12 @@ end
     @point_variable(m, inf(0), pt)
     @hold_variable(m, hold)
     @hold_variable(m, test[1:51])
-    meas = MeasureRef(m, 1)
-    m.meas_to_name[1] = "meas"
+    data = TestData(par, 0, 5)
+    meas = Measure(hold, data, Int[], Int[], true)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = hold - pt
     aff3 = (hold - meas) + 1
@@ -649,8 +677,8 @@ end
     @testset "Add" begin
         # test mixed combo types
         @test isa(@expression(m, copy(aff1) + quad1), GenericQuadExpr{Float64, GeneralVariableRef})
-        @test isa(@expression(m, copy(aff2) + quad2), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
-        @test isa(@expression(m, copy(aff5) + quad3), GenericQuadExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, copy(aff2) + quad2), GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, copy(aff5) + quad3), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, copy(aff3) + quad1), GenericQuadExpr{Float64, GeneralVariableRef})
         # test general combos
         @test @expression(m, copy(aff1) + quad1).aff.constant == -2
@@ -683,7 +711,7 @@ end
         pair = UnorderedPair{GeneralVariableRef}(hold, pt)
         @test @expression(m, copy(aff2) + quad3).terms[pair] == -1
         # test same types
-        @test isa(@expression(m, copy(aff5) + quad4), GenericQuadExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, copy(aff5) + quad4), GenericQuadExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(aff5) + quad4).aff.constant == -42
         @test @expression(m, copy(aff5) + quad4).aff.terms[pt] == -38
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
@@ -693,8 +721,8 @@ end
     @testset "Subtract" begin
         # test mixed combo types
         @test isa(@expression(m, copy(aff1) - quad1), GenericQuadExpr{Float64, GeneralVariableRef})
-        @test isa(@expression(m, copy(aff2) - quad2), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
-        @test isa(@expression(m, copy(aff5) - quad3), GenericQuadExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, copy(aff2) - quad2), GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, copy(aff5) - quad3), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, copy(aff3) - quad1), GenericQuadExpr{Float64, GeneralVariableRef})
         # test general combos
         @test @expression(m, copy(aff1) - quad1).aff.constant == -2
@@ -727,7 +755,7 @@ end
         pair = UnorderedPair{GeneralVariableRef}(hold, pt)
         @test @expression(m, copy(aff2) - quad3).terms[pair] == 1
         # test same types
-        @test isa(@expression(m, copy(aff5) - quad4), GenericQuadExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, copy(aff5) - quad4), GenericQuadExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(aff5) - quad4).aff.constant == -42
         @test @expression(m, copy(aff5) - quad4).aff.terms[pt] == 46
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
@@ -760,8 +788,12 @@ end
     @point_variable(m, inf(0), pt)
     @hold_variable(m, hold)
     @hold_variable(m, test[1:51])
-    meas = MeasureRef(m, 1)
-    m.meas_to_name[1] = "meas"
+    data = TestData(par, 0, 5)
+    meas = Measure(hold, data, Int[], Int[], true)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = hold - pt
     aff3 = (hold - meas) + 1
@@ -774,8 +806,8 @@ end
     @testset "Add" begin
         # test mixed combo types
         @test isa(@expression(m, copy(quad1) + copy(aff1)), GenericQuadExpr{Float64, GeneralVariableRef})
-        @test isa(@expression(m, copy(quad2) + copy(aff2) + quad2), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
-        @test isa(@expression(m, copy(quad3) + copy(aff5)), GenericQuadExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, copy(quad2) + copy(aff2) + quad2), GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, copy(quad3) + copy(aff5)), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, copy(quad1) + copy(aff3)), GenericQuadExpr{Float64, GeneralVariableRef})
         # test general combos
         @test @expression(m, copy(quad1) + copy(aff1)).aff.constant == -2
@@ -808,7 +840,7 @@ end
         pair = UnorderedPair{GeneralVariableRef}(hold, pt)
         @test @expression(m, copy(quad3) + copy(aff2)).terms[pair] == -1
         # test same types
-        @test isa(@expression(m, copy(quad4) + copy(aff5)), GenericQuadExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, copy(quad4) + copy(aff5)), GenericQuadExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(quad4) + copy(aff5)).aff.constant == -42
         @test @expression(m, copy(quad4) + copy(aff5)).aff.terms[pt] == -38
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
@@ -818,8 +850,8 @@ end
     @testset "Subtract" begin
         # test mixed combo types
         @test isa(@expression(m, copy(quad1) - copy(aff1)), GenericQuadExpr{Float64, GeneralVariableRef})
-        @test isa(@expression(m, copy(quad2) - copy(aff2)), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
-        @test isa(@expression(m, copy(quad3) - copy(aff5)), GenericQuadExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, copy(quad2) - copy(aff2)), GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, copy(quad3) - copy(aff5)), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, copy(quad1) - copy(aff3)), GenericQuadExpr{Float64, GeneralVariableRef})
         # test general combos
         @test @expression(m, copy(quad1) - copy(aff1)).aff.constant == 2
@@ -852,7 +884,7 @@ end
         pair = UnorderedPair{GeneralVariableRef}(hold, pt)
         @test @expression(m, copy(quad3) - copy(aff2)).terms[pair] == -1
         # test same types
-        @test isa(@expression(m, copy(quad4) - copy(aff5)), GenericQuadExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, copy(quad4) - copy(aff5)), GenericQuadExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(quad4) - copy(aff5)).aff.constant == 42
         @test @expression(m, copy(quad4) - copy(aff5)).aff.terms[pt] == -46
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
@@ -885,8 +917,12 @@ end
     @point_variable(m, inf(0), pt)
     @hold_variable(m, hold)
     @hold_variable(m, test[1:51])
-    meas = MeasureRef(m, 1)
-    m.meas_to_name[1] = "meas"
+    data = TestData(par, 0, 5)
+    meas = Measure(hold, data, Int[], Int[], true)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = hold - pt
     aff3 = (hold - meas) + 1
@@ -899,8 +935,8 @@ end
     @testset "Add" begin
         # test mixed combo types
         @test isa(@expression(m, copy(quad1) + quad2), GenericQuadExpr{Float64, GeneralVariableRef})
-        @test isa(@expression(m, copy(quad2) + quad4), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
-        @test isa(@expression(m, copy(quad3) + quad4), GenericQuadExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, copy(quad2) + quad4), GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, copy(quad3) + quad4), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, copy(quad4) + quad1), GenericQuadExpr{Float64, GeneralVariableRef})
         # test general combos
         @test @expression(m, copy(quad1) + quad2).aff.constant == -3
@@ -926,7 +962,7 @@ end
         pair = UnorderedPair{GeneralVariableRef}(hold, pt)
         @test @expression(m, copy(quad3) + quad4).terms[pair] == -1
         # test same types
-        @test isa(@expression(m, copy(quad4) + quad4), GenericQuadExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, copy(quad4) + quad4), GenericQuadExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(quad4) + quad4).aff.constant == 0
         @test @expression(m, copy(quad4) + quad4).aff.terms[pt] == -84
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
@@ -936,8 +972,8 @@ end
     @testset "Subtract" begin
         # test mixed combo types
         @test isa(@expression(m, copy(quad1) - quad2), GenericQuadExpr{Float64, GeneralVariableRef})
-        @test isa(@expression(m, copy(quad2) - quad4), GenericQuadExpr{Float64, MeasureFiniteVariableRef})
-        @test isa(@expression(m, copy(quad3) - quad4), GenericQuadExpr{Float64, FiniteVariableRef})
+        @test isa(@expression(m, copy(quad2) - quad4), GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(@expression(m, copy(quad3) - quad4), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, copy(quad4) - quad1), GenericQuadExpr{Float64, GeneralVariableRef})
         # test general combos
         @test @expression(m, copy(quad1) - quad2).aff.constant == 3
@@ -963,7 +999,7 @@ end
         pair = UnorderedPair{GeneralVariableRef}(hold, pt)
         @test @expression(m, copy(quad3) - quad4).terms[pair] == -1
         # test same types
-        @test isa(@expression(m, copy(quad4) - quad4), GenericQuadExpr{Float64, PointVariableRef})
+        @test isa(@expression(m, copy(quad4) - quad4), GenericQuadExpr{Float64, GeneralVariableRef})
         @test @expression(m, copy(quad4) - quad4).aff.constant == 0
         @test @expression(m, copy(quad4) - quad4).aff.terms[pt] == 0
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
