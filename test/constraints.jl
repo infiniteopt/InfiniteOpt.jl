@@ -1,38 +1,34 @@
 # Test basic extensions
-@testset "Basic Extensions" begin
+@testset "Basics" begin
     # initialize the model, references, and other info
     m = InfiniteModel()
-    cref1 = FiniteConstraintRef(m, 1, ScalarShape())
-    cref2 = InfiniteConstraintRef(m, 2, ScalarShape())
-    con = BoundedScalarConstraint(zero(AffExpr), MOI.EqualTo(0.0),
-                                  ParameterBounds(), ParameterBounds())
+    @infinite_parameter(m, t in [0, 10])
+    con1 = ScalarConstraint(zero(AffExpr), MOI.EqualTo(0.0))
+    con2 = BoundedScalarConstraint(zero(AffExpr), MOI.EqualTo(0.0),
+                                  ParameterBounds((t => IntervalSet(0, 1),)),
+                                  ParameterBounds())
+    object1 = ConstraintData(con1, Int[], "c1", MeasureIndex[], false)
+    object2 = ConstraintData(con2, [1], "c2", MeasureIndex[], false)
+    idx1 = ConstraintIndex(1)
+    idx2 = ConstraintIndex(2)
+    cref1 = FiniteConstraintRef(m, idx1, ScalarShape())
+    cref2 = InfiniteConstraintRef(m, idx2, ScalarShape())
     # owner_model
     @testset "JuMP.owner_model" begin
-      @test owner_model(cref1) == m
+      @test owner_model(cref1) === m
+      @test owner_model(cref2) === m
     end
     # index
     @testset "JuMP.index" begin
-      @test JuMP.index(cref1) == 1
-    end
-    # is_valid
-    @testset "JuMP.is_valid" begin
-      @test !is_valid(m, cref1)
-      m.constrs[1] = con
-      @test is_valid(m, cref1)
-    end
-    # constraint_object
-    @testset "JuMP.constraint_object" begin
-      @test constraint_object(cref1).func == con.func
-      @test constraint_object(cref1).set == con.set
-      @test constraint_object(cref1).bounds == con.bounds
-      @test constraint_object(cref1).orig_bounds == con.orig_bounds
+      @test JuMP.index(cref1) == ConstraintIndex(1)
+      @test JuMP.index(cref2) == ConstraintIndex(2)
     end
     # test Base.:(==) of constraint references
     @testset "Base.:(==) References" begin
         @test !(cref1 == cref2)
-        @test cref1 == FiniteConstraintRef(m, 1, ScalarShape())
-        @test cref1 != FiniteConstraintRef(m, 2, ScalarShape())
-        @test cref1 != FiniteConstraintRef(InfiniteModel(), 1, ScalarShape())
+        @test cref1 == FiniteConstraintRef(m, idx1, ScalarShape())
+        @test cref1 != FiniteConstraintRef(m, idx2, ScalarShape())
+        @test cref1 != FiniteConstraintRef(InfiniteModel(), idx1, ScalarShape())
     end
     # test broadcastable
     @testset "Base.broadcastable Reference" begin
@@ -40,69 +36,114 @@
     end
     # test constraint type
     @testset "JuMP.constraint_type" begin
-        @test constraint_type(m) == GeneralConstraintRef
+        @test constraint_type(m) == InfOptConstraintRef
     end
     # test shape
-    @testset "shape" begin
-        @test JuMP.shape(con) == ScalarShape()
+    @testset "JuMP.shape" begin
+        @test JuMP.shape(con2) == ScalarShape()
     end
     # test jump_function
     @testset "JuMP.jump_function" begin
-        @test jump_function(con) == zero(AffExpr)
+        @test jump_function(con2) == zero(AffExpr)
     end
     # test moi_set
     @testset "JuMP.moi_set" begin
-        @test moi_set(con) == MOI.EqualTo(0.0)
+        @test moi_set(con2) == MOI.EqualTo(0.0)
     end
-end
-
-# Test name methods
-@testset "Name" begin
-    # initialize model and references
-    m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_variable(m, inf(par))
-    @point_variable(m, inf(0.5), pt)
-    @hold_variable(m, x)
-    data = DiscreteMeasureData(par, [1], [1])
-    meas = measure(inf + par - x, data)
-    cref = FiniteConstraintRef(m, 1, ScalarShape())
-    m.constr_to_name[1] = "test"
+    # test parameter_bounds
+    @testset "parameter_bounds" begin
+        @test parameter_bounds(con2) == ParameterBounds((t => IntervalSet(0, 1),))
+    end
+    # test original_parameter_bounds
+    @testset "original_parameter_bounds" begin
+        @test original_parameter_bounds(con2) == ParameterBounds()
+    end
+    # _add_data_object
+    @testset "_add_data_object" begin
+        @test InfiniteOpt._add_data_object(m, object1) == idx1
+        @test InfiniteOpt._add_data_object(m, object2) == idx2
+    end
+    # _data_dictionary
+    @testset "_data_dictionary" begin
+        @test InfiniteOpt._data_dictionary(cref1) === m.constraints
+    end
+    # is_valid
+    @testset "JuMP.is_valid" begin
+      @test is_valid(m, cref1)
+      @test is_valid(m, cref2)
+    end
+    # _data_object
+    @testset "_data_object" begin
+        @test InfiniteOpt._data_object(cref1) === object1
+        @test InfiniteOpt._data_object(cref2) === object2
+    end
+    # _core_constraint_object
+    @testset "_core_constraint_object" begin
+        @test InfiniteOpt._core_constraint_object(cref1) === con1
+        @test InfiniteOpt._core_constraint_object(cref2) === con2
+    end
+    # _set_core_constraint_object
+    @testset "_set_core_constraint_object" begin
+        @test InfiniteOpt._set_core_constraint_object(cref1, con2) isa Nothing
+        @test InfiniteOpt._set_core_constraint_object(cref1, con1) isa Nothing
+    end
+    # _object_numbers
+    @testset "_object_numbers" begin
+        @test InfiniteOpt._object_numbers(cref1) == []
+        @test InfiniteOpt._object_numbers(cref2) == [1]
+    end
+    # _measure_dependencies
+    @testset "_measure_dependencies" begin
+        @test InfiniteOpt._measure_dependencies(cref1) == MeasureIndex[]
+    end
+    @testset "_is_info_constraint" begin
+        @test !InfiniteOpt._is_info_constraint(cref2)
+    end
+    # constraint_object
+    @testset "JuMP.constraint_object" begin
+      @test constraint_object(cref1) == con1
+      @test constraint_object(cref2) == con2
+    end
     # JuMP.name
     @testset "JuMP.name" begin
-        @test name(cref) == "test"
+        @test name(cref1) == "c1"
+        @test name(cref2) == "c2"
     end
     # JuMP.set_name
     @testset "JuMP.set_name" begin
-        @test isa(set_name(cref, "new"), Nothing)
-        @test name(cref) == "new"
+        @test isa(set_name(cref1, "new"), Nothing)
+        @test name(cref1) == "new"
+    end
+    # test has_parameter_bounds
+    @testset "has_parameter_bounds" begin
+        @test has_parameter_bounds(cref2)
+        @test !has_parameter_bounds(cref1)
+    end
+    # test parameter_bounds
+    @testset "parameter_bounds" begin
+        @test_throws ErrorException parameter_bounds(cref1)
+        @test parameter_bounds(cref2) == ParameterBounds((t => IntervalSet(0, 1),))
     end
     # _make_constraint_ref
     @testset "_make_constraint_ref" begin
-        # prepare for infinite constraint
-        m.constrs[1] = ScalarConstraint(inf + par, MOI.LessThan(1.0))
-        @test InfiniteOpt._make_constraint_ref(m, 1) == InfiniteConstraintRef(m,
-                                                        1, ScalarShape())
-        # prepare for measure constraint
-        m.constrs[1] = ScalarConstraint(pt + meas, MOI.LessThan(1.0))
-        @test InfiniteOpt._make_constraint_ref(m, 1) == MeasureConstraintRef(m,
-                                                        1, ScalarShape())
-        # prepare for finite constraint
-        m.constrs[1] = ScalarConstraint(pt + x, MOI.LessThan(1.0))
-        @test InfiniteOpt._make_constraint_ref(m, 1) == FiniteConstraintRef(m,
-                                                        1, ScalarShape())
+        @test InfiniteOpt._make_constraint_ref(m, idx1) == cref1
+        @test InfiniteOpt._make_constraint_ref(m, idx2) == cref2
     end
     # constraint_by_name
     @testset "JuMP.constraint_by_name" begin
         # test normal
-        @test constraint_by_name(m, "new") == cref
+        @test constraint_by_name(m, "new") == cref1
         @test isa(constraint_by_name(m, "test2"), Nothing)
         # prepare constraint with duplicate name
-        m.constrs[2] = ScalarConstraint(inf + par, MOI.LessThan(1.0))
-        m.constr_to_name[2] = "new"
-        m.name_to_constr = nothing
+        @test isa(set_name(cref2, "new"), Nothing)
         # test for duplciate name error
         @test_throws ErrorException constraint_by_name(m, "new")
+    end
+    # _delete_data_object
+    @testset "_delete_data_object" begin
+        @test InfiniteOpt._delete_data_object(cref1) isa Nothing
+        @test length(InfiniteOpt._data_dictionary(cref1)) == 1
+        @test !is_valid(m, cref1)
     end
 end
 
@@ -113,159 +154,164 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     @infinite_variable(m, inf(par))
+    @infinite_variable(m, inf2(par, pars))
     @point_variable(m, inf(0.5), pt)
     @hold_variable(m, x, parameter_bounds = (par == 1))
-    data = DiscreteMeasureData(par, [1], [1])
-    meas = measure(inf + par - x, data)
-    meas2 = measure(inf - x, data)
-    rv = ReducedInfiniteVariableRef(m, 42)
+    var = build_variable(error, inf2, Dict{Int, Float64}(1 => 0.5), check = false)
+    rv = add_variable(m, var, define_name = false)
+    # TODO remove below when measures is done
+    data = TestData(par, 0, 1)
+    meas = Measure(inf + par - x, data, Int[], Int[], true)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    meas = InfiniteOpt._make_variable_ref(m, mindex)
     # test build_constraint (single)
     @testset "JuMP.build_constraint (Single)" begin
         # test bounded constraint
-        con = BoundedScalarConstraint(inf, MOI.EqualTo(42.0),
-                                ParameterBounds(Dict(par => IntervalSet(0, 1))),
-                                ParameterBounds(Dict(par => IntervalSet(0, 1))))
-        @test build_constraint(error, inf, MOI.EqualTo(42.0),
-             parameter_bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))).func == con.func
-        @test build_constraint(error, inf, MOI.EqualTo(42.0),
-               parameter_bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))).set == con.set
-        @test build_constraint(error, inf, MOI.EqualTo(42.0),
-         parameter_bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))).bounds == con.bounds
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        @test jump_function(build_constraint(error, inf, MOI.EqualTo(42.0),
+                                             parameter_bounds = bounds)) == inf
+        @test moi_set(build_constraint(error, inf, MOI.EqualTo(42.0),
+                                 parameter_bounds = bounds)) == MOI.EqualTo(42.0)
+        @test parameter_bounds(build_constraint(error, inf, MOI.EqualTo(42.0),
+                                         parameter_bounds = bounds)) === bounds
+        @test original_parameter_bounds(build_constraint(error, inf,
+                       MOI.EqualTo(42.0), parameter_bounds = bounds)) !== bounds
+        @test original_parameter_bounds(build_constraint(error, inf,
+                        MOI.EqualTo(42.0), parameter_bounds = bounds)) == bounds
         # test scalar constraint
         con = ScalarConstraint(inf, MOI.EqualTo(42.0))
-        @test build_constraint(error, inf, MOI.EqualTo(42.0)).func == con.func
-        @test build_constraint(error, inf, MOI.EqualTo(42.0)).set == con.set
+        @test jump_function(build_constraint(error, inf, MOI.EqualTo(42.0))) == inf
+        @test moi_set(build_constraint(error, inf, MOI.EqualTo(42.0))) == MOI.EqualTo(42.0)
     end
     # test build_constraint (expr)
     @testset "JuMP.build_constraint (Expr)" begin
         # test bounded constraint
-        con = BoundedScalarConstraint(inf + pt, MOI.EqualTo(42.0),
-                                ParameterBounds(Dict(par => IntervalSet(0, 1))),
-                                ParameterBounds(Dict(par => IntervalSet(0, 1))))
-        @test build_constraint(error, inf + pt, MOI.EqualTo(42.0),
-             parameter_bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))).func == con.func
-        @test build_constraint(error, inf + pt, MOI.EqualTo(42.0),
-               parameter_bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))).set == con.set
-        @test build_constraint(error, inf + pt, MOI.EqualTo(42.0),
-         parameter_bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))).bounds == con.bounds
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        @test jump_function(build_constraint(error, inf + par, MOI.EqualTo(42.0),
+                                             parameter_bounds = bounds)) == inf + par
+        @test moi_set(build_constraint(error, inf + par, MOI.EqualTo(42.0),
+                                 parameter_bounds = bounds)) == MOI.EqualTo(42.0)
+        @test parameter_bounds(build_constraint(error, inf + par, MOI.EqualTo(42.0),
+                                         parameter_bounds = bounds)) === bounds
+        @test original_parameter_bounds(build_constraint(error, inf + par,
+                       MOI.EqualTo(42.0), parameter_bounds = bounds)) !== bounds
+        @test original_parameter_bounds(build_constraint(error, inf + par,
+                        MOI.EqualTo(42.0), parameter_bounds = bounds)) == bounds
         # test scalar constraint
-        con = ScalarConstraint(inf + pt, MOI.EqualTo(42.0))
-        @test build_constraint(error, inf + pt, MOI.EqualTo(42.0)).func == con.func
-        @test build_constraint(error, inf + pt, MOI.EqualTo(42.0)).set == con.set
+        con = ScalarConstraint(inf + par, MOI.EqualTo(42.0))
+        @test jump_function(build_constraint(error, inf + par, MOI.EqualTo(42.0))) == inf + par
+        @test moi_set(build_constraint(error, inf + par, MOI.EqualTo(42.0))) == MOI.EqualTo(42.0)
     end
-    # test _update_var_constr_mapping
-    @testset "_update_var_constr_mapping" begin
-        # test initial use of variable
-        @test isa(InfiniteOpt._update_var_constr_mapping([inf, par, meas, meas2, rv], 1),
-                  Nothing)
-        @test m.var_to_constrs[JuMP.index(inf)] == [1]
-        @test m.param_to_constrs[JuMP.index(par)] == [1]
-        @test m.meas_to_constrs[JuMP.index(meas)] == [1]
-        @test m.meas_to_constrs[JuMP.index(meas2)] == [1]
-        @test m.reduced_to_constrs[JuMP.index(rv)] == [1]
-        @test m.constr_to_meas[1] == [JuMP.index(meas), JuMP.index(meas2)]
-        # test secondary use of variable
-        @test isa(InfiniteOpt._update_var_constr_mapping([inf, par, meas, rv], 2),
-                  Nothing)
-        @test m.var_to_constrs[JuMP.index(inf)] == [1, 2]
-        @test m.param_to_constrs[JuMP.index(par)] == [1, 2]
-        @test m.meas_to_constrs[JuMP.index(meas)] == [1, 2]
-        @test m.reduced_to_constrs[JuMP.index(rv)] == [1, 2]
-        @test m.constr_to_meas[2] == [JuMP.index(meas)]
-        # Undo changes
-        delete!(m.var_to_constrs, JuMP.index(inf))
-        delete!(m.param_to_constrs, JuMP.index(par))
-        delete!(m.meas_to_constrs, JuMP.index(meas))
-        delete!(m.meas_to_constrs, JuMP.index(meas2))
-        delete!(m.reduced_to_constrs, JuMP.index(rv))
-        delete!(m.constr_to_meas, 1)
-        delete!(m.constr_to_meas, 2)
-    end
-    # test _check_and_update_bounds (BoundedScalarConstraint with no hold variables)
-    @testset "_check_and_update_bounds (Bounded no Hold)" begin
-        c = BoundedScalarConstraint(inf, MOI.EqualTo(0.0), ParameterBounds(),
-                                    ParameterBounds())
-        @test InfiniteOpt._check_and_update_bounds(m, c, [inf]).bounds == c.bounds
-    end
-    # test _check_and_update_bounds (BoundedScalarConstraint with hold variables)
-    @testset "_check_and_update_bounds (Bounded with Hold)" begin
+    # test _check_and_update_bounds (BoundedScalarConstraint)
+    @testset "_check_and_update_bounds (Bounded)" begin
         bounds = ParameterBounds()
         c = BoundedScalarConstraint(x + inf, MOI.EqualTo(0.0), bounds, copy(bounds))
         @test InfiniteOpt._check_and_update_bounds(m, c,
-                            [x, inf]).bounds.intervals[par] == IntervalSet(1, 1)
-        @test InfiniteOpt._check_and_update_bounds(m, c,
-                                      [x, inf]).orig_bounds == ParameterBounds()
+                                      [x, inf]).bounds[par] == IntervalSet(1, 1)
+        @test original_parameter_bounds(InfiniteOpt._check_and_update_bounds(m, c,
+                                                 [x, inf])) == ParameterBounds()
     end
-    # test _check_and_update_bounds (ScalarConstraint with no hold variables)
-    @testset "_check_and_update_bounds (Scalar no Hold)" begin
-        c = JuMP.ScalarConstraint(inf, MOI.EqualTo(0.0))
-        @test InfiniteOpt._check_and_update_bounds(m, c, [inf]) == c
-    end
-    # test _check_and_update_bounds (ScalarConstraint with hold variables)
-    @testset "_check_and_update_bounds (Scalar with Hold)" begin
+    # test _check_and_update_bounds (ScalarConstraint)
+    @testset "_check_and_update_bounds (Scalar)" begin
         c = JuMP.ScalarConstraint(inf + x, MOI.EqualTo(0.0))
         @test InfiniteOpt._check_and_update_bounds(m, c,
-                            [x, inf]).bounds.intervals[par] == IntervalSet(1, 1)
+                            [x, inf]).bounds[par] == IntervalSet(1, 1)
         set_parameter_bounds(x, ParameterBounds(), force = true)
         m.has_hold_bounds = false
+        @test InfiniteOpt._check_and_update_bounds(m, c, [x, inf]) == c
+    end
+    # test _update_var_constr_mapping
+    @testset "_update_var_constr_mapping" begin
+        # add dumby constraints
+        con = ScalarConstraint(zero(AffExpr), MOI.EqualTo(0.0))
+        object1 = ConstraintData(con, Int[], "c", MeasureIndex[], false)
+        object2 = ConstraintData(con, Int[], "c", MeasureIndex[], false)
+        idx1 = ConstraintIndex(1)
+        idx2 = ConstraintIndex(2)
+        cref1 = FiniteConstraintRef(m, idx1, ScalarShape())
+        cref2 = InfiniteConstraintRef(m, idx2, ScalarShape())
+        @test InfiniteOpt._add_data_object(m, object1) == idx1
+        @test InfiniteOpt._add_data_object(m, object2) == idx2
+        # test initial use of variable
+        @test isa(InfiniteOpt._update_var_constr_mapping([inf, par, meas, rv], cref1),
+                  Nothing)
+        @test InfiniteOpt._constraint_dependencies(inf) == [idx1]
+        @test InfiniteOpt._constraint_dependencies(par) == [idx1]
+        @test InfiniteOpt._constraint_dependencies(meas) == [idx1]
+        @test InfiniteOpt._constraint_dependencies(rv) == [idx1]
+        @test InfiniteOpt._measure_dependencies(cref1) == [mindex]
+        # test secondary use of variable
+        @test isa(InfiniteOpt._update_var_constr_mapping([inf, par, meas, rv], cref2),
+                  Nothing)
+        @test InfiniteOpt._constraint_dependencies(inf) == [idx1, idx2]
+        @test InfiniteOpt._constraint_dependencies(par) == [idx1, idx2]
+        @test InfiniteOpt._constraint_dependencies(meas) == [idx1, idx2]
+        @test InfiniteOpt._constraint_dependencies(rv) == [idx1, idx2]
+        @test InfiniteOpt._measure_dependencies(cref2) == [mindex]
+        # Undo changes
+        empty!(InfiniteOpt._constraint_dependencies(inf))
+        empty!(InfiniteOpt._constraint_dependencies(par))
+        empty!(InfiniteOpt._constraint_dependencies(meas))
+        empty!(InfiniteOpt._constraint_dependencies(rv))
+        empty!(InfiniteOpt._measure_dependencies(cref1))
+        empty!(InfiniteOpt._measure_dependencies(cref2))
+        m.constraints = MOIUC.CleverDict{ConstraintIndex, ConstraintData}()
     end
     # test add_constraint
     @testset "JuMP.add_constraint" begin
         # test reject vector constraint
         con = VectorConstraint([inf + pt], MOI.Zeros(1))
         @test_throws ErrorException add_constraint(m, con, "a")
-        # test rejects parameter only input
-        con = ScalarConstraint(par, MOI.EqualTo(42.0))
-        @test_throws ErrorException add_constraint(m, con, "a")
         # test rejects bad variables
-        @variable(Model(), z)
+        @hold_variable(InfiniteModel(), z)
         con = ScalarConstraint(z, MOI.EqualTo(42.0))
-        @test_throws VariableNotOwned add_constraint(m, con, "a")
-        @hold_variable(InfiniteModel(), g)
-        con = ScalarConstraint(g, MOI.EqualTo(42.0))
-        @test_throws VariableNotOwned add_constraint(m, con, "a")
+        @test_throws VariableNotOwned{GeneralVariableRef} add_constraint(m, con, "a")
         # test bounded constraint
-        index = m.next_constr_index + 1
-        con = BoundedScalarConstraint(inf + pt, MOI.EqualTo(42.0),
-                                ParameterBounds(Dict(par => IntervalSet(0, 1))),
-                                ParameterBounds(Dict(par => IntervalSet(0, 1))))
-        @test add_constraint(m, con, "a") == InfiniteConstraintRef(m, index,
-                                                                  ScalarShape())
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        con = BoundedScalarConstraint(inf + pt, MOI.EqualTo(42.0), bounds, bounds)
+        idx = ConstraintIndex(1)
+        cref = InfiniteConstraintRef(m, idx, ScalarShape())
+        @test add_constraint(m, con, "a") == cref
         # test infinite constraint
         con = ScalarConstraint(inf + pt, MOI.EqualTo(42.0))
-        @test add_constraint(m, con, "b") == InfiniteConstraintRef(m, index + 1,
-                                                                  ScalarShape())
-        # test measure constraint
-        con = ScalarConstraint(x + meas, MOI.EqualTo(42.0))
-        @test add_constraint(m, con, "c") == MeasureConstraintRef(m, index + 2,
-                                                                  ScalarShape())
+        idx = ConstraintIndex(2)
+        cref = InfiniteConstraintRef(m, idx, ScalarShape())
+        @test add_constraint(m, con, "b") == cref
         # test finite constraint
         con = ScalarConstraint(x + pt, MOI.EqualTo(42.0))
-        @test add_constraint(m, con, "d") == FiniteConstraintRef(m, index + 3,
-                                                                  ScalarShape())
-        @test name(FiniteConstraintRef(m, index + 3, ScalarShape())) == "d"
-        @test !m.constr_in_var_info[index + 3]
+        idx = ConstraintIndex(3)
+        cref = FiniteConstraintRef(m, idx, ScalarShape())
+        @test add_constraint(m, con, "d") == cref
+        @test name(cref) == "d"
+        @test !InfiniteOpt._is_info_constraint(cref)
         @test !optimizer_model_ready(m)
+        @test used_by_constraint(pt)
         # test with bounded hold variables
         @set_parameter_bounds(x, par == 1)
         con = ScalarConstraint(inf + pt + x, MOI.EqualTo(42.0))
-        @test add_constraint(m, con, "b") == InfiniteConstraintRef(m, index + 4,
-                                                                  ScalarShape())
-        @test m.constrs[index + 4].bounds.intervals[par] == IntervalSet(1, 1)
-        @test m.constrs[index + 4].orig_bounds == ParameterBounds()
+        idx = ConstraintIndex(4)
+        cref = InfiniteConstraintRef(m, idx, ScalarShape())
+        @test add_constraint(m, con, "b") == cref
+        @test parameter_bounds(cref)[par] == IntervalSet(1, 1)
+        @test InfiniteOpt._core_constraint_object(cref).orig_bounds == ParameterBounds()
         set_parameter_bounds(x, ParameterBounds(), force = true)
     end
     # test macro
     @testset "JuMP.@constraint" begin
         # test scalar constraint
-        index = m.next_constr_index + 1
-        @test @constraint(m, e, x + pt -2 <= 2) == FiniteConstraintRef(m, index,
-                                                                  ScalarShape())
-        @test isa(m.constrs[index], ScalarConstraint)
+        idx = ConstraintIndex(5)
+        cref = FiniteConstraintRef(m, idx, ScalarShape())
+        @test @constraint(m, e, x + pt -2 <= 2) == cref
+        @test isa(InfiniteOpt._core_constraint_object(cref), ScalarConstraint)
         # test bounded scalar constraint
-        @test @constraint(m, f, inf + meas <= 2,
-            parameter_bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))) == InfiniteConstraintRef(m, index + 1, ScalarShape())
-        @test isa(m.constrs[index + 1], BoundedScalarConstraint)
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        idx = ConstraintIndex(6)
+        cref = InfiniteConstraintRef(m, idx, ScalarShape())
+        @test @constraint(m, f, inf + meas <= 2, parameter_bounds = bounds) == cref
+        @test InfiniteOpt._object_numbers(cref) == [1]
+        @test isa(InfiniteOpt._core_constraint_object(cref), BoundedScalarConstraint)
     end
 end
 
@@ -283,9 +329,9 @@ end
         # test single anonymous bound
         args = [:in, :t, :([0, 1])]
         set = :(IntervalSet(0, 1))
-        tp = :(InfiniteOpt._make_vector(t))
+        tp = :(t)
         dict_arg = :($(tp) => $(set))
-        bounds = :(ParameterBounds(Dict($(dict_arg))))
+        bounds = :(ParameterBounds(($(dict_arg),)))
         @test InfiniteOpt._extract_bounds(error, args,
                                           Val(:call)) == (nothing, bounds)
         # test with name expression
@@ -316,70 +362,78 @@ end
         @test_macro_throws ErrorException @BDconstraint(m2, par == 0, inf == 0)
         @test_macro_throws ErrorException @BDconstraint(m2, con(par == 0), inf == 0)
         # test anonymous constraint with set
-        index = m.next_constr_index + 1
-        cref = InfiniteConstraintRef(m, index, ScalarShape())
+        idx = ConstraintIndex(1)
+        cref = InfiniteConstraintRef(m, idx, ScalarShape())
         @test @BDconstraint(m, par in [0, 1], inf + x == 2) == cref
-        @test m.constrs[1].bounds == bounds1
+        @test parameter_bounds(cref) == bounds1
         # test anonymous constraint with comparison
-        cref = InfiniteConstraintRef(m, index + 1, ScalarShape())
+        idx = ConstraintIndex(2)
+        cref = InfiniteConstraintRef(m, idx, ScalarShape())
         @test @BDconstraint(m, 0 <= par <= 1, inf + x == 2) == cref
-        @test m.constrs[2].bounds == bounds1
+        @test parameter_bounds(cref) == bounds1
         # test anonymous constraint with equality
-        cref = InfiniteConstraintRef(m, index + 2, ScalarShape())
+        idx = ConstraintIndex(3)
+        cref = InfiniteConstraintRef(m, idx, ScalarShape())
         @test @BDconstraint(m, par == 0, inf + x == 2) == cref
-        @test m.constrs[3].bounds == ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        @test parameter_bounds(cref) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
         # test anonymous multiple constraint
-        cref1 = InfiniteConstraintRef(m, index + 3, ScalarShape())
-        cref2 = InfiniteConstraintRef(m, index + 4, ScalarShape())
-        @test @BDconstraint(m, [1:2](par == 0), inf + x == 2) == [cref1, cref2]
-        @test m.constrs[4].bounds == ParameterBounds(Dict(par => IntervalSet(0, 0)))
-        @test m.constrs[5].bounds == ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        idxs = [ConstraintIndex(4), ConstraintIndex(5)]
+        crefs = [InfiniteConstraintRef(m, idx, ScalarShape()) for idx in idxs]
+        @test @BDconstraint(m, [1:2](par == 0), inf + x == 2) == crefs
+        @test parameter_bounds(crefs[1]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        @test parameter_bounds(crefs[2]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
         # test anonymous multiple bounds
-        cref = InfiniteConstraintRef(m, index + 5, ScalarShape())
+        idx = ConstraintIndex(6)
+        cref = InfiniteConstraintRef(m, idx, ScalarShape())
         @test @BDconstraint(m, (par == 0, pars[1] in [0, 1]), inf + x == 2) == cref
-        @test m.constrs[6].bounds == ParameterBounds(Dict(par => IntervalSet(0, 0),
+        @test parameter_bounds(cref) == ParameterBounds((par => IntervalSet(0, 0),
                                                   pars[1] => IntervalSet(0, 1)))
         # test anonymous multiple bounds with vector input
-        cref = InfiniteConstraintRef(m, index + 6, ScalarShape())
+        idx = ConstraintIndex(7)
+        cref = InfiniteConstraintRef(m, idx, ScalarShape())
         @test @BDconstraint(m, (par == 0, pars in [0, 1]), inf + x == 2) == cref
-        @test m.constrs[7].bounds == ParameterBounds(Dict(par => IntervalSet(0, 0),
+        @test parameter_bounds(cref) == ParameterBounds((par => IntervalSet(0, 0),
                     pars[1] => IntervalSet(0, 1), pars[2] => IntervalSet(0, 1)))
         # test named constraint
-        cref = InfiniteConstraintRef(m, index + 7, ScalarShape())
+        idx = ConstraintIndex(8)
+        cref = InfiniteConstraintRef(m, idx, ScalarShape())
         @test @BDconstraint(m, c1(par in [0, 1]), inf + x == 2) == cref
-        @test m.constrs[8].bounds == bounds1
+        @test parameter_bounds(cref) == bounds1
         # test named constraint with other vector type
-        cref = InfiniteConstraintRef(m, index + 8, ScalarShape())
+        idx = ConstraintIndex(9)
+        cref = InfiniteConstraintRef(m, idx, ScalarShape())
         @test @BDconstraint(m, c2(par in [0, 1], 0 <= pars <= 1), inf + x == 2) == cref
-        @test m.constrs[9].bounds == ParameterBounds(Dict(par => IntervalSet(0, 1),
+        @test parameter_bounds(cref) == ParameterBounds((par => IntervalSet(0, 1),
                     pars[1] => IntervalSet(0, 1), pars[2] => IntervalSet(0, 1)))
         # test named constraints
-        cref1 = InfiniteConstraintRef(m, index + 9, ScalarShape())
-        cref2 = InfiniteConstraintRef(m, index + 10, ScalarShape())
-        @test @BDconstraint(m, c3[1:2](par == 0), inf + x == 2) == [cref1, cref2]
-        @test m.constrs[10].bounds == ParameterBounds(Dict(par => IntervalSet(0, 0)))
-        @test m.constrs[11].bounds == ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        idxs = [ConstraintIndex(10), ConstraintIndex(11)]
+        crefs = [InfiniteConstraintRef(m, idx, ScalarShape()) for idx in idxs]
+        @test @BDconstraint(m, c3[1:2](par == 0), inf + x == 2) == crefs
+        @test parameter_bounds(crefs[1]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        @test parameter_bounds(crefs[2]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
         # test different container type
-        cref1 = InfiniteConstraintRef(m, index + 11, ScalarShape())
-        cref2 = InfiniteConstraintRef(m, index + 12, ScalarShape())
-        expected = convert(JuMPC.SparseAxisArray, [cref1, cref2])
+        idxs = [ConstraintIndex(12), ConstraintIndex(13)]
+        crefs = [InfiniteConstraintRef(m, idx, ScalarShape()) for idx in idxs]
+        expected = convert(JuMPC.SparseAxisArray, crefs)
         @test @BDconstraint(m, c4[1:2](par == 0), inf + x == 2,
                             container = SparseAxisArray) == expected
-        @test m.constrs[12].bounds == ParameterBounds(Dict(par => IntervalSet(0, 0)))
-        @test m.constrs[13].bounds == ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        @test parameter_bounds(crefs[1]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        @test parameter_bounds(crefs[2]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
         # test with SparseAxisArray input
-        cref = InfiniteConstraintRef(m, index + 13, ScalarShape())
+        idx = ConstraintIndex(14)
+        cref = InfiniteConstraintRef(m, idx, ScalarShape())
         pars = convert(JuMPC.SparseAxisArray, pars)
         @test @BDconstraint(m, c5(pars in [0, 1]), inf + x == 2) == cref
-        @test m.constrs[14].bounds == ParameterBounds(Dict(pars[1] => IntervalSet(0, 1),
+        @test parameter_bounds(cref) == ParameterBounds((pars[1] => IntervalSet(0, 1),
                                                   pars[2] => IntervalSet(0, 1)))
         # test with hold variable bounds
         @set_parameter_bounds(x, pars[1] in [0, 2])
-        cref = InfiniteConstraintRef(m, index + 14, ScalarShape())
+        idx = ConstraintIndex(15)
+        cref = InfiniteConstraintRef(m, idx, ScalarShape())
         @test @BDconstraint(m, c10(par in [0, 1]), inf + x == 2) == cref
-        @test m.constrs[15].bounds == ParameterBounds(Dict(par => IntervalSet(0, 1),
+        @test parameter_bounds(cref) == ParameterBounds(Dict(par => IntervalSet(0, 1),
                                                   pars[1] => IntervalSet(0, 2)))
-        @test m.constrs[15].orig_bounds == ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        @test InfiniteOpt._core_constraint_object(cref).orig_bounds == ParameterBounds(Dict(par => IntervalSet(0, 1)))
     end
 end
 
@@ -394,16 +448,6 @@ end
     @hold_variable(m, x >= 0, Int)
     @BDconstraint(m, c1(par in [0, 1]), inf + x == 0)
     @constraint(m, c2, x * pt + x == 2)
-    # test has_parameter_bounds
-    @testset "has_parameter_bounds" begin
-        @test has_parameter_bounds(c1)
-        @test !has_parameter_bounds(c2)
-    end
-    # test parameter_bounds
-    @testset "parameter_bounds" begin
-        @test_throws ErrorException parameter_bounds(c2)
-        @test parameter_bounds(c1) == ParameterBounds(Dict(par => IntervalSet(0, 1)))
-    end
     # test _update_constr_param_bounds
     @testset "_update_constr_param_bounds" begin
         # test empty bounds
@@ -431,36 +475,21 @@ end
         @test_throws ErrorException set_parameter_bounds(c1, bounds, force = true)
     end
     # test add_parameter_bound
-    @testset "add_parameter_bound" begin
+    @testset "add_parameter_bounds" begin
         # test already has bounds
-        @test isa(add_parameter_bound(c1, par, 0, 1), Nothing)
-        @test parameter_bounds(c1) == ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        @test isa(add_parameter_bounds(c1, copy(bounds)), Nothing)
+        @test parameter_bounds(c1) == bounds
         # test doesn't have bounds
         @constraint(m, c3, inf + pt == 0)
-        @test isa(add_parameter_bound(c3, par, 0, 1), Nothing)
-        @test parameter_bounds(c3) == ParameterBounds(Dict(par => IntervalSet(0, 1)))
-    end
-    # test delete_parameter_bound
-    @testset "delete_parameter_bound" begin
-        # test partial deletion
-        @test isa(add_parameter_bound(c1, pars[1], 0, 1), Nothing)
-        @add_parameter_bounds(x, par == 0)
-        @test isa(delete_parameter_bound(c1, par), Nothing)
-        expected = ParameterBounds(Dict(par => IntervalSet(0, 0),
-                                   pars[1] => IntervalSet(0, 1)))
-        @test parameter_bounds(c1) == expected
-        # test again without hold bounds
-        delete_parameter_bounds(x)
-        expected = ParameterBounds(Dict(pars[1] => IntervalSet(0, 1)))
-        @test parameter_bounds(c1) == expected
-        # test already gone
-        @test isa(delete_parameter_bound(c1, par), Nothing)
-        @test parameter_bounds(c1) == expected
+        @test isa(add_parameter_bounds(c3, copy(bounds)), Nothing)
+        @test parameter_bounds(c3) == bounds
     end
     # test delete_parameter_bounds
     @testset "delete_parameter_bounds" begin
         # test partial deletion
-        @test isa(add_parameter_bound(c1, pars[1], 0, 1), Nothing)
+        bounds = ParameterBounds(Dict(pars[1] => IntervalSet(0, 1)))
+        @test isa(add_parameter_bounds(c1, bounds), Nothing)
         @add_parameter_bounds(x, par == 0)
         @test isa(delete_parameter_bounds(c1), Nothing)
         expected = ParameterBounds(Dict(par => IntervalSet(0, 0)))
@@ -472,21 +501,20 @@ end
         @test isa(delete_parameter_bounds(c1), Nothing)
         @test isa(constraint_object(c1), ScalarConstraint)
     end
-    # test
     # test @set_parameter_bounds
     @testset "@set_parameter_bounds" begin
         # Note errors were already checked with hold variables
         # test force error
         @test_macro_throws ErrorException @set_parameter_bounds(c1, par == 1)
         # test with single
-        @set_parameter_bounds(x, pars[2] == 0)
+        @set_parameter_bounds(x, pars == 0)
         @test isa(@set_parameter_bounds(c1, par == 1, force = true), Nothing)
-        @test parameter_bounds(c1) == ParameterBounds(Dict(par => IntervalSet(1, 1),
-                                                  pars[2] => IntervalSet(0, 0)))
+        @test parameter_bounds(c1) == ParameterBounds((par => IntervalSet(1, 1),
+                                                  pars => IntervalSet(0, 0)))
         set_parameter_bounds(x, ParameterBounds(), force = true)
         # test multiple
         @test isa(@set_parameter_bounds(c1, pars == 0, force = true), Nothing)
-        @test parameter_bounds(c1).intervals[pars[2]] == IntervalSet(0, 0)
+        @test parameter_bounds(c1)[pars[2]] == IntervalSet(0, 0)
     end
     # test @add_parameter_bounds
     @testset "@add_parameter_bounds" begin
@@ -495,8 +523,8 @@ end
         @test_macro_throws ErrorException @add_parameter_bounds(c3, par in [-1, 1])
         # test with multiple
         @test isa(@add_parameter_bounds(c2, (pars == 0, par in [0, 1])), Nothing)
-        @test parameter_bounds(c2).intervals[pars[2]] == IntervalSet(0, 0)
-        @test parameter_bounds(c2).intervals[par] == IntervalSet(0, 1)
+        @test parameter_bounds(c2)[pars[2]] == IntervalSet(0, 0)
+        @test parameter_bounds(c2)[par] == IntervalSet(0, 1)
     end
 end
 
@@ -575,13 +603,12 @@ end
     @hold_variable(m, 0 <= x <= 1, Int)
     # test search function type and set type
     @testset "Function and Set" begin
-        @test num_constraints(m, HoldVariableRef, MOI.LessThan) == 1
-        @test num_constraints(m, InfiniteVariableRef, MOI.GreaterThan) == 1
+        @test num_constraints(m, GeneralVariableRef, MOI.LessThan) == 1
+        @test num_constraints(m, GeneralVariableRef, MOI.GreaterThan) == 3
     end
     # test search function type
     @testset "Function" begin
-        @test num_constraints(m, HoldVariableRef) == 3
-        @test num_constraints(m, InfiniteVariableRef) == 1
+        @test num_constraints(m, GeneralVariableRef) == 5
     end
     # test search set type
     @testset "Set" begin
@@ -604,36 +631,38 @@ end
     @hold_variable(m, 0 <= x <= 1, Int)
     # test search function type and set type
     @testset "Function and Set" begin
-        list = [FiniteConstraintRef(m, 4, ScalarShape())]
-        @test all_constraints(m, HoldVariableRef, MOI.LessThan) == list
-        list = [InfiniteConstraintRef(m, 1, ScalarShape())]
-        @test all_constraints(m, InfiniteVariableRef, MOI.GreaterThan) == list
+        list = [FiniteConstraintRef(m, ConstraintIndex(4), ScalarShape())]
+        @test all_constraints(m, GeneralVariableRef, MOI.LessThan) == list
+        list = [InfiniteConstraintRef(m, ConstraintIndex(1), ScalarShape()),
+                FiniteConstraintRef(m, ConstraintIndex(2), ScalarShape()),
+                FiniteConstraintRef(m, ConstraintIndex(3), ScalarShape())]
+        @test all_constraints(m, GeneralVariableRef, MOI.GreaterThan) == list
     end
     # test search function type
     @testset "Function" begin
-        list = [FiniteConstraintRef(m, 3, ScalarShape()),
-                FiniteConstraintRef(m, 4, ScalarShape()),
-                FiniteConstraintRef(m, 5, ScalarShape())]
-        @test all_constraints(m, HoldVariableRef) == list
-        list = [InfiniteConstraintRef(m, 1, ScalarShape())]
-        @test all_constraints(m, InfiniteVariableRef) == list
+        list = [InfiniteConstraintRef(m, ConstraintIndex(1), ScalarShape()),
+                FiniteConstraintRef(m, ConstraintIndex(2), ScalarShape()),
+                FiniteConstraintRef(m, ConstraintIndex(3), ScalarShape()),
+                FiniteConstraintRef(m, ConstraintIndex(4), ScalarShape()),
+                FiniteConstraintRef(m, ConstraintIndex(5), ScalarShape())]
+        @test all_constraints(m, GeneralVariableRef) == list
     end
     # test search set type
     @testset "Set" begin
-        list = [FiniteConstraintRef(m, 4, ScalarShape())]
+        list = [FiniteConstraintRef(m, ConstraintIndex(4), ScalarShape())]
         @test all_constraints(m, MOI.LessThan) == list
-        list = [InfiniteConstraintRef(m, 1, ScalarShape()),
-                FiniteConstraintRef(m, 2, ScalarShape()),
-                FiniteConstraintRef(m, 3, ScalarShape())]
+        list = [InfiniteConstraintRef(m, ConstraintIndex(1), ScalarShape()),
+                FiniteConstraintRef(m, ConstraintIndex(2), ScalarShape()),
+                FiniteConstraintRef(m, ConstraintIndex(3), ScalarShape())]
         @test all_constraints(m, MOI.GreaterThan) == list
     end
     # test search total
     @testset "Total" begin
-        list = [InfiniteConstraintRef(m, 1, ScalarShape()),
-                FiniteConstraintRef(m, 2, ScalarShape()),
-                FiniteConstraintRef(m, 3, ScalarShape()),
-                FiniteConstraintRef(m, 4, ScalarShape()),
-                FiniteConstraintRef(m, 5, ScalarShape())]
+        list = [InfiniteConstraintRef(m, ConstraintIndex(1), ScalarShape()),
+                FiniteConstraintRef(m, ConstraintIndex(2), ScalarShape()),
+                FiniteConstraintRef(m, ConstraintIndex(3), ScalarShape()),
+                FiniteConstraintRef(m, ConstraintIndex(4), ScalarShape()),
+                FiniteConstraintRef(m, ConstraintIndex(5), ScalarShape())]
         @test all_constraints(m) == list
     end
 end
@@ -646,10 +675,8 @@ end
     @infinite_variable(m, inf(par) >= 0)
     @point_variable(m, inf(0.5), pt)
     @hold_variable(m, 0 <= x <= 1, Int)
-    expected = [(InfiniteVariableRef, MOI.GreaterThan{Float64}),
-                (PointVariableRef, MOI.GreaterThan{Float64}),
-                (HoldVariableRef, MOI.GreaterThan{Float64}),
-                (HoldVariableRef, MOI.LessThan{Float64}),
-                (HoldVariableRef, MOI.Integer)]
-    @test list_of_constraint_types(m) == expected
+    expected = [(GeneralVariableRef, MOI.GreaterThan{Float64}),
+                (GeneralVariableRef, MOI.LessThan{Float64}),
+                (GeneralVariableRef, MOI.Integer)]
+    @test isempty(setdiff(list_of_constraint_types(m), expected))
 end

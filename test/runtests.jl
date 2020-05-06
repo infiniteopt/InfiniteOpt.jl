@@ -49,26 +49,25 @@ println("")
     @testset "Point Variables" begin include("point_variables.jl") end
     @testset "Hold Variables" begin include("hold_variables.jl") end
     @testset "Info Constraints" begin include("variable_info.jl") end
-    # @testset "Reduced Variables" begin include("reduced_variables.jl") end
-    # @testset "Queries" begin include("variable_queries.jl") end
+    @testset "Reduced Variables" begin include("reduced_variables.jl") end
 end
 println("")
-# @time @testset "Operators" begin include("operators.jl") end
-# println("")
-# @time @testset "Expression Methods" begin include("expressions.jl") end
-# println("")
-# @time @testset "Macro Expressions" begin include("macro_expressions.jl") end
-# println("")
+@time @testset "Operators" begin include("operators.jl") end
+println("")
+@time @testset "Expression Methods" begin include("expressions.jl") end
+println("")
+@time @testset "Macro Expressions" begin include("macro_expressions.jl") end
+println("")
 # @time @testset "Measure Evaluation Methods" begin
 #     include("MeasureEvalMethods/methods.jl")
 # end
 # println("")
 # @time @testset "Measure Methods" begin include("measures.jl") end
 # println("")
-# @time @testset "Objective Methods" begin include("objective.jl") end
-# println("")
-# @time @testset "Constraint Methods" begin include("constraints.jl") end
-# println("")
+@time @testset "Objective Methods" begin include("objective.jl") end
+println("")
+@time @testset "Constraint Methods" begin include("constraints.jl") end
+println("")
 # @time @testset "Deletion Methods" begin include("deletion.jl") end
 # println("")
 # @time @testset "Expansion Methods" begin include("measure_expansions.jl") end

@@ -21,7 +21,7 @@ end
 
 # Extend _data_object
 function _data_object(mref::MeasureRef)::MeasureData
-    return _data_dictionary(mref)[JuMP.index(vref)]
+    return _data_dictionary(mref)[JuMP.index(mref)]
 end
 
 # Extend _core_variable_object
@@ -627,7 +627,7 @@ end
 Return the function associated with `mref`.
 """
 function measure_function(mref::MeasureRef)::JuMP.AbstractJuMPScalar
-    return _core_variable_object(vref).func
+    return _core_variable_object(mref).func
 end
 
 """
@@ -636,7 +636,7 @@ end
 Return the measure data associated with `mref`.
 """
 function measure_data(mref::MeasureRef)::AbstractMeasureData
-    return _core_variable_object(vref).data
+    return _core_variable_object(mref).data
 end
 
 # NOTE This will be the preferred user method for small expressions
@@ -730,7 +730,7 @@ true
 ```
 """
 function used_by_measure(mref::MeasureRef)::Bool
-    return !isempty(_measure_dependencies(vref))
+    return !isempty(_measure_dependencies(mref))
 end
 
 """
@@ -745,7 +745,7 @@ false
 ```
 """
 function used_by_constraint(mref::MeasureRef)::Bool
-    return !isempty(_constraint_dependencies(vref))
+    return !isempty(_constraint_dependencies(mref))
 end
 
 """
@@ -760,7 +760,7 @@ true
 ```
 """
 function used_by_objective(mref::MeasureRef)::Bool
-    return _data_object(vref).in_objective
+    return _data_object(mref).in_objective
 end
 
 """

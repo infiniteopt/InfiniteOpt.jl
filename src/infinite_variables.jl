@@ -213,8 +213,7 @@ function is_used(vref::InfiniteVariableRef)::Bool
     end
     if used_by_reduced_variable(vref)
         for vindex in _reduced_variable_dependencies(vref)
-            rvref = ReducedInfiniteVariableRef(JuMP.owner_model(vref), vindex)
-            if is_used(rvref)
+            if is_used(ReducedInfiniteVariableRef(JuMP.owner_model(vref), vindex))
                 return true
             end
         end

@@ -212,7 +212,7 @@ end
 function _update_variable_param_bounds(vref::HoldVariableRef,
                                        bounds::ParameterBounds{GeneralVariableRef}
                                        )::Nothing
-    info = _variable_info(vref).info
+    info = _variable_info(vref)
     _set_core_variable_object(vref, HoldVariable(info, bounds))
     JuMP.owner_model(vref).has_hold_bounds = true
     if is_used(vref)
@@ -221,7 +221,7 @@ function _update_variable_param_bounds(vref::HoldVariableRef,
     return
 end
 
-## Check that the bounds dictionary is compadable with existing dependent measures
+# Check that the bounds dictionary is compadable with existing dependent measures
 function _check_meas_bounds(bounds::ParameterBounds{GeneralVariableRef},
                             data::AbstractMeasureData;
                             _error::Function = error
@@ -266,13 +266,6 @@ function _update_bounds(bounds1::ParameterBounds{GeneralVariableRef},
 end
 
 ## Update the variable bounds if it has any
-# GeneralVariableRef
-function _update_var_bounds(vref::GeneralVariableRef,
-                            constr_bounds::ParameterBounds{GeneralVariableRef}
-                            )::Nothing
-    return _update_var_bounds(dispatch_variable_ref(vref), constr_bounds)
-end
-
 # DispatchVariableRef
 function _update_var_bounds(vref::DispatchVariableRef,
                             constr_bounds::ParameterBounds{GeneralVariableRef}
@@ -301,6 +294,13 @@ function _update_var_bounds(mref::MeasureRef,
     return
 end
 
+# GeneralVariableRef
+function _update_var_bounds(vref::GeneralVariableRef,
+                            constr_bounds::ParameterBounds{GeneralVariableRef}
+                            )::Nothing
+    return _update_var_bounds(dispatch_variable_ref(vref), constr_bounds)
+end
+
 ## Rebuild the constraint bounds (don't change in case of error)
 # BoundedScalarConstraint
 function _rebuild_constr_bounds(c::BoundedScalarConstraint,
@@ -317,7 +317,7 @@ function _rebuild_constr_bounds(c::BoundedScalarConstraint,
     for vref in vrefs
         _update_var_bounds(vref, parameter_bounds(c_new))
     end
-    # check if the constraint bounds have and update if doesn't
+    # check if the constraint has bounds and update if doesn't
     if isempty(parameter_bounds(c_new))
         c_new = JuMP.ScalarConstraint(func, set)
     end
@@ -445,6 +445,12 @@ function add_parameter_bounds(vref::HoldVariableRef,
                               new_bounds::ParameterBounds{GeneralVariableRef};
                               _error::Function = error
                               )::Nothing
+    # if overriding any existing parameter bounds, dispatch to set new ones
+    if any(haskey(parameter_bounds(vref), pref) for pref in keys(new_bounds))
+        merged_bounds = merge(parameter_bounds(vref), new_bounds)
+        return set_parameter_bounds(vref, merged_bounds, force = true,
+                                    _error = _error)
+    end
     # check the new bounds
     _check_bounds(new_bounds, _error = _error)
     # check dependent measures
@@ -509,7 +515,7 @@ function delete_parameter_bounds(vref::HoldVariableRef)::Nothing
         for mindex in _measure_dependencies(vref)
             mref = dispatch_variable_ref(model, mindex)
             _check_meas_bounds(bounds, _core_variable_object(mref).data,
-                               _error = _error)
+                               _error = error)
             append!(cindices, _constraint_dependencies(mref))
         end
         # check and update dependent constraints
@@ -517,7 +523,7 @@ function delete_parameter_bounds(vref::HoldVariableRef)::Nothing
         for cindex in cindices
             cref = _temp_constraint_ref(model, cindex)
             constr = _core_constraint_object(cref)
-            new_constr = _rebuild_constr_bounds(constr, bounds, _error = _error)
+            new_constr = _rebuild_constr_bounds(constr, bounds, _error = error)
             _set_core_constraint_object(cref, new_constr)
         end
         # update status

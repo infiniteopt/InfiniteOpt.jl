@@ -1287,6 +1287,18 @@ function Base.delete!(pb::ParameterBounds{P}, key::P)::ParameterBounds{P} where 
     return pb
 end
 
+# Extend Base.keys
+function Base.keys(pb::ParameterBounds)
+    return keys(intervals(pb))
+end
+
+# Extend Base.merge
+function Base.merge(pb1::ParameterBounds{P},
+                    pb2::ParameterBounds{P})::ParameterBounds{P} where {P}
+    new_dict = merge(intervals(pb1), intervals(pb2))
+    return ParameterBounds(new_dict)
+end
+
 # Extend Base.merge!
 function Base.merge!(pb1::ParameterBounds{P},
                      pb2::ParameterBounds{P})::ParameterBounds{P} where {P}

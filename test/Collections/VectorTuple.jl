@@ -325,6 +325,7 @@
         @testset "_update_indices (SparseAxisArray)" begin
             inds = IC._get_indices(d)
             @test IC._update_indices(inds, 2) == [(1, 1), (2, 2)]
+            @test IC._update_indices(inds[1:2], 2) isa Nothing
         end
         # test _update_indices (DenseAxisArray)
         @testset "_update_indices (DenseAxisArray)" begin

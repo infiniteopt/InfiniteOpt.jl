@@ -44,14 +44,9 @@ end
 
 # Extend _parameter_numbers
 function _parameter_numbers(vref::ReducedInfiniteVariableRef)::Vector{Int}
-    par_set = Set{Int}()
     prefs = raw_parameter_refs(infinite_variable_ref(vref))
-    for i in eachindex(prefs)
-        if !haskey(eval_supports(vref), i)
-            push!(par_set, _parameter_number(prefs[i]))
-        end
-    end
-    return
+    return [_parameter_number(prefs[i]) for i in eachindex(prefs)
+            if !haskey(eval_supports(vref), i)]
 end
 
 ################################################################################
@@ -75,16 +70,17 @@ function JuMP.build_variable(_error::Function, ivref::GeneralVariableRef,
                              )::ReducedInfiniteVariable{GeneralVariableRef}
     # check the inputs
     dvref = dispatch_variable_ref(ivref)
+    if check && !(dvref isa InfiniteVariableRef)
+         _error("Must specify an infinite variable dependency.")
+    elseif check && maximum(keys(eval_supports)) > length(parameter_list(dvref))
+        _error("Support evaluation dictionary indices do not match the infinite " *
+               "parameter dependencies of $(ivref).")
+    end
     prefs = raw_parameter_refs(dvref)
     if check
-        if !(dvref isa InfiniteVariableRef)
-             _error("Must specify an infinite variable dependency.")
-        elseif maximum(keys(eval_supports)) > length(parameter_list(dvref))
-            _error("Support evaluation dictionary indices do not the infinite " *
-                   "parameter dependencies of $(ivref).")
-        end
         for (index, value) in eval_supports
-            if has_lower_bound(prefs[index]) && !supports_in_set(value, infinite_set(pref))
+            pref = prefs[index]
+            if JuMP.has_lower_bound(pref) && !supports_in_set(value, infinite_set(pref))
                 _error("Evaluation support violates infinite parameter domain(s).")
             end
         end
@@ -113,12 +109,14 @@ will be generated using the supports if `define_name = true`.
 function JuMP.add_variable(model::InfiniteModel, var::ReducedInfiniteVariable,
                            name::String = "";
                            define_name::Bool = true)::GeneralVariableRef
-    JuMP.check_belongs_to_model(var.infinite_variable_ref)
-    data_object = VariableData(v)
+    ivref = dispatch_variable_ref(var.infinite_variable_ref)
+    JuMP.check_belongs_to_model(ivref, model)
+    data_object = VariableData(var)
     vindex = _add_data_object(model, data_object)
     if length(name) != 0 || define_name
         JuMP.set_name(ReducedInfiniteVariableRef(model, vindex), name)
     end
+    push!(_reduced_variable_dependencies(ivref), vindex)
     gvref = GeneralVariableRef(model, vindex.value, typeof(vindex))
     return gvref
 end
@@ -171,7 +169,7 @@ function raw_parameter_refs(vref::ReducedInfiniteVariableRef
                             )::VectorTuple{GeneralVariableRef}
     orig_prefs = raw_parameter_refs(infinite_variable_ref(vref))
     eval_supps = eval_supports(vref)
-    delete_indices = [haskey(eval_supps, i) for i = 1:length(orig_prefs)]
+    delete_indices = [haskey(eval_supps, i) for i in eachindex(orig_prefs)]
     return deleteat!(copy(orig_prefs), delete_indices)
 end
 
@@ -203,8 +201,7 @@ is intended as the preferred user function.
 function parameter_list(vref::ReducedInfiniteVariableRef)::Vector{GeneralVariableRef}
     orig_prefs = raw_parameter_refs(infinite_variable_ref(vref))
     eval_supps = eval_supports(vref)
-    indices = [!haskey(eval_supps, i) for i in eachindex(orig_prefs)]
-    return orig_prefs[indices]
+    return [orig_prefs[i] for i in eachindex(orig_prefs) if !haskey(eval_supps, i)]
 end
 
 ################################################################################
@@ -491,7 +488,7 @@ function JuMP._binary_index(vref::ReducedInfiniteVariableRef)::ConstraintIndex
     if !JuMP.is_binary(ivref)
         error("Variable $(vref) is not binary.")
     end
-    return JuMP._binary_index(vref)
+    return JuMP._binary_index(ivref)
 end
 
 """

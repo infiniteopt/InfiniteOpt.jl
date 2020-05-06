@@ -191,8 +191,9 @@ function _check_and_update_bounds(model::InfiniteModel,
     end
     # if we added bounds, change to a bounded constraint and validate
     if !isempty(bounds)
-        c = BoundedScalarConstraint(c.func, c.set, bounds, ParameterBounds())
-        _validate_bounds(model, c.bounds)
+        new_c = BoundedScalarConstraint(c.func, c.set, bounds, ParameterBounds())
+        _validate_bounds(model, new_c.bounds)
+        return new_c
     end
     # TODO should we check that bounds don't violate point variables?
     return c

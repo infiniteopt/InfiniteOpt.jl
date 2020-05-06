@@ -272,9 +272,18 @@ end
         @test haskey(pb, par3)
         @test !haskey(pb, par2)
     end
+    # test Base.keys
+    @testset "Base.keys" begin
+        @test keys(pb) == keys(intervals(pb))
+    end
     # test Base.iterate
     @testset "Base.iterate" begin
         @test [p for p in pb] == [par3 => IntervalSet(0, 2)]
+    end
+    # test Base.merge
+    @testset "Base.merge" begin
+        new_pb = ParameterBounds()
+        @test merge(new_pb, pb) == pb
     end
     # test Base.merge!
     @testset "Base.merge!" begin

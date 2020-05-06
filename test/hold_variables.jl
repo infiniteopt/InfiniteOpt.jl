@@ -43,13 +43,13 @@
     end
     # _data_object
     @testset "_data_object" begin
-        @test InfiniteOpt._data_object(vref) == object
-        @test InfiniteOpt._data_object(gvref) == object
+        @test InfiniteOpt._data_object(vref) === object
+        @test InfiniteOpt._data_object(gvref) === object
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(vref) == var
-        @test InfiniteOpt._core_variable_object(gvref) == var
+        @test InfiniteOpt._core_variable_object(vref) === var
+        @test InfiniteOpt._core_variable_object(gvref) === var
     end
     @testset "_variable_info" begin
         @test InfiniteOpt._variable_info(vref) == info
@@ -496,5 +496,353 @@ end
         # test wrong model type
         @test_macro_throws ErrorException @hold_variable(Model(),
                                                   parameter_bounds = (par == 0))
+    end
+end
+
+# test usage methods
+@testset "Usage" begin
+    # initialize model and stuff
+    m = InfiniteModel()
+    @hold_variable(m, y0)
+    vref = dispatch_variable_ref(y0)
+    # test used_by_measure
+    @testset "used_by_measure" begin
+        @test !used_by_measure(vref)
+        push!(InfiniteOpt._measure_dependencies(vref), MeasureIndex(1))
+        @test used_by_measure(y0)
+        @test used_by_measure(vref)
+        empty!(InfiniteOpt._measure_dependencies(vref))
+    end
+    # test used_by_constraint
+    @testset "used_by_constraint" begin
+        @test !used_by_constraint(vref)
+        push!(InfiniteOpt._constraint_dependencies(vref), ConstraintIndex(1))
+        @test used_by_constraint(y0)
+        @test used_by_constraint(vref)
+        empty!(InfiniteOpt._constraint_dependencies(vref))
+    end
+    # test used_by_objective
+    @testset "used_by_objective" begin
+        @test !used_by_objective(y0)
+        @test !used_by_objective(vref)
+        InfiniteOpt._data_object(vref).in_objective = true
+        @test used_by_objective(vref)
+        InfiniteOpt._data_object(vref).in_objective = false
+    end
+    # test is_used
+    @testset "is_used" begin
+        # test not used
+        @test !is_used(vref)
+        # test used by constraint and/or measure
+        push!(InfiniteOpt._constraint_dependencies(vref), ConstraintIndex(1))
+        @test is_used(y0)
+        empty!(InfiniteOpt._constraint_dependencies(vref))
+        # test used by objective
+        InfiniteOpt._data_object(vref).in_objective = true
+        @test is_used(vref)
+    end
+end
+
+# Test parameter bound queries for hold variables
+@testset "Parameter Bounds" begin
+    # initialize the model and other needed information
+    m = InfiniteModel()
+    @infinite_parameter(m, par in [0, 10])
+    @infinite_parameter(m, pars[1:2] in [0, 10])
+    @infinite_variable(m, inf(par))
+    dinf = dispatch_variable_ref(inf)
+    @hold_variable(m, x == 0)
+    dx = dispatch_variable_ref(x)
+    @hold_variable(m, y >= 0, parameter_bounds = par == 0)
+    dy = dispatch_variable_ref(y)
+    data = TestData(par, 0, 5)
+    meas = Measure(x + inf, data, Int[], Int[], true)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    dmref = MeasureRef(m, mindex)
+    mref = InfiniteOpt._make_variable_ref(m, mindex)
+    push!(InfiniteOpt._measure_dependencies(dx), mindex)
+    # test parameter_bounds
+    @testset "parameter_bounds" begin
+        @test parameter_bounds(dx) == ParameterBounds()
+        @test parameter_bounds(y) == ParameterBounds((par => IntervalSet(0, 0),))
+    end
+    # test has_parameter_bounds
+    @testset "has_parameter_bounds" begin
+        @test !has_parameter_bounds(x)
+        @test has_parameter_bounds(dy)
+        @test !has_parameter_bounds(dinf)
+    end
+    # test _update_variable_param_bounds
+    @testset "_update_variable_param_bounds" begin
+        bounds = ParameterBounds((par => IntervalSet(0, 1),))
+        @test isa(InfiniteOpt._update_variable_param_bounds(dy, bounds), Nothing)
+        @test parameter_bounds(dy) == bounds
+    end
+    # test _check_meas_bounds
+    @testset "_check_meas_bounds" begin
+        # test ok
+        bounds = ParameterBounds((par => IntervalSet(0, 5),))
+        @test isa(InfiniteOpt._check_meas_bounds(bounds, data), Nothing)
+        # test lower bad
+        bounds = ParameterBounds((par => IntervalSet(2, 5),))
+        @test_throws ErrorException InfiniteOpt._check_meas_bounds(bounds, data)
+        # test upper bad
+        bounds = ParameterBounds((par => IntervalSet(0, 2),))
+        @test_throws ErrorException InfiniteOpt._check_meas_bounds(bounds, data)
+    end
+    # test _check_meas_bounds (Fallback)
+    @testset "_check_meas_bounds (Fallback)" begin
+        warn = "Unable to check if hold variables bounds are valid in measure " *
+               "with measure data type `BadData`. This can be resolved by " *
+               "extending `measure_data_in_hold_bounds`."
+        @test_logs (:warn, warn) InfiniteOpt._check_meas_bounds(ParameterBounds(),
+                                                                BadData())
+    end
+    # test _update_bounds
+    @testset "_update_bounds" begin
+        # test normal
+        bounds1 = ParameterBounds((pars[1] => IntervalSet(0, 1),
+                                   pars[2] => IntervalSet(-1, 2)))
+        bounds2 = ParameterBounds((par => IntervalSet(0, 0),
+                                   pars[1] => IntervalSet(0.5, 1.5),
+                                   pars[2] => IntervalSet(0, 1)))
+        @test isa(InfiniteOpt._update_bounds(bounds1, bounds2), Nothing)
+        @test length(bounds1) == 3
+        @test bounds1[par] == IntervalSet(0, 0)
+        @test bounds1[pars[1]] == IntervalSet(0.5, 1)
+        @test bounds1[pars[2]] == IntervalSet(0, 1)
+        # test error
+        new_bounds = ParameterBounds((par => IntervalSet(1, 1),))
+        @test_throws ErrorException InfiniteOpt._update_bounds(bounds1, new_bounds)
+        new_bounds = ParameterBounds((par => IntervalSet(-1, -1),))
+        @test_throws ErrorException InfiniteOpt._update_bounds(bounds1, new_bounds)
+    end
+    # test _update_var_bounds (DispatchVariableRef)
+    @testset "_update_var_bounds (DispatchVariableRef)" begin
+        @test isa(InfiniteOpt._update_var_bounds(dinf, ParameterBounds()),
+                  Nothing)
+    end
+    # test _update_var_bounds (HoldVariableRef)
+    @testset "_update_var_bounds (HoldVariableRef)" begin
+        bounds = ParameterBounds()
+        @test InfiniteOpt._update_variable_param_bounds(dx,
+                      ParameterBounds((par => IntervalSet(0, 6),))) isa Nothing
+        @test isa(InfiniteOpt._update_var_bounds(x, bounds), Nothing)
+        @test bounds[par] == IntervalSet(0, 6)
+    end
+    # test _update_var_bounds (MeasureRef)
+    @testset "_update_var_bounds (MeasureRef)" begin
+        bounds = ParameterBounds()
+        @test isa(InfiniteOpt._update_var_bounds(dmref, bounds), Nothing)
+        @test bounds[par] == IntervalSet(0, 6)
+        @test InfiniteOpt._update_variable_param_bounds(dx, ParameterBounds()) isa Nothing
+    end
+    # test _update_var_bounds (GeneralVariableRef)
+    @testset "_update_var_bounds (GeneralVariableRef)" begin
+        @test isa(InfiniteOpt._update_var_bounds(inf, ParameterBounds()),
+                  Nothing)
+    end
+    # test _rebuild_constr_bounds (BoundedScalarConstraint)
+    @testset "_rebuild_constr_bounds (Bounded)" begin
+        # test addition
+        bounds = ParameterBounds((par => IntervalSet(0, 2),))
+        c = BoundedScalarConstraint(y + inf, MOI.EqualTo(0.), copy(bounds),
+                                    copy(bounds))
+        expected = ParameterBounds((par => IntervalSet(0, 1),))
+        @test InfiniteOpt._rebuild_constr_bounds(c, bounds).bounds == expected
+        # test deletion
+        bounds = ParameterBounds((par => IntervalSet(0, 0),))
+        c = BoundedScalarConstraint(y + inf, MOI.EqualTo(0.), bounds,
+                                    ParameterBounds())
+        InfiniteOpt._update_variable_param_bounds(dy, ParameterBounds())
+        @test isa(InfiniteOpt._rebuild_constr_bounds(c, bounds),
+                  ScalarConstraint)
+        InfiniteOpt._update_variable_param_bounds(dy, bounds)
+    end
+    # test _rebuild_constr_bounds (ScalarConstraint)
+    @testset "_rebuild_constr_bounds (Scalar)" begin
+        bounds = ParameterBounds((par => IntervalSet(0, 0),))
+        c = ScalarConstraint(y + inf, MOI.EqualTo(0.))
+        @test InfiniteOpt._rebuild_constr_bounds(c, bounds).bounds == bounds
+    end
+    # test set_parameter_bounds
+    @testset "set_parameter_bounds" begin
+        bounds1 = ParameterBounds((pars[1] => IntervalSet(0, 1),))
+        # test force error
+        @test_throws ErrorException set_parameter_bounds(y, bounds1)
+        # prepare for main test
+        cref1 = FixRef(dx)
+        bconstr = BoundedScalarConstraint(mref, MOI.EqualTo(0.0), bounds1, bounds1)
+        cref2 = FiniteConstraintRef(m, ConstraintIndex(3), ScalarShape())
+        @test add_constraint(m, bconstr) == cref2
+        # test measure error
+        bounds = ParameterBounds((par => IntervalSet(1, 2),))
+        @test_throws ErrorException set_parameter_bounds(dx, bounds)
+        # test constr error
+        bounds = ParameterBounds((pars[1] => IntervalSet(2, 3), ))
+        @test_throws ErrorException set_parameter_bounds(dx, bounds)
+        @test InfiniteOpt._update_variable_param_bounds(dx, ParameterBounds()) isa Nothing
+        # test normal
+        bounds = ParameterBounds((par => IntervalSet(0, 5),
+                                  pars[1] => IntervalSet(0.5, 2)))
+        @test isa(set_parameter_bounds(dx, bounds), Nothing)
+        @test parameter_bounds(x) == bounds
+        @test m.has_hold_bounds
+        @test !optimizer_model_ready(m)
+        expected = ParameterBounds((par => IntervalSet(0, 5),
+                                    pars[1] => IntervalSet(0.5, 1)))
+        @test parameter_bounds(cref2) == expected
+        @test parameter_bounds(cref1) == bounds
+        # test forced
+        bounds = ParameterBounds((par => IntervalSet(1, 1),))
+        @test isa(set_parameter_bounds(y, bounds, force = true), Nothing)
+        @test parameter_bounds(dy) == bounds
+        @test parameter_bounds(LowerBoundRef(dy)) == bounds
+    end
+    # test _update_constr_bounds (BoundedScalarConstraint)
+    @testset "_update_constr_bounds (Bounded)" begin
+        dict1 = Dict(pars[1] => IntervalSet(0, 1))
+        dict2 = Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(1.1, 1.5))
+        constr = BoundedScalarConstraint(par, MOI.EqualTo(0.0), ParameterBounds(copy(dict1)),
+                                         ParameterBounds(copy(dict1)))
+        # test error
+        @test_throws ErrorException InfiniteOpt._update_constr_bounds(ParameterBounds(dict2), constr)
+        @test constr.bounds == ParameterBounds(dict1)
+        # test normal
+        dict2 = Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(0.5, 1.5))
+        dict = Dict(par => IntervalSet(0, 0), pars[1] => IntervalSet(0.5, 1))
+        @test InfiniteOpt._update_constr_bounds(ParameterBounds(dict2), constr).bounds == ParameterBounds(dict)
+    end
+    # test _update_constr_bounds (ScalarConstraint)
+    @testset "_update_constr_bounds (Scalar)" begin
+        bounds = ParameterBounds((pars[1] => IntervalSet(0, 1),))
+        constr = JuMP.ScalarConstraint(par, MOI.EqualTo(0.0))
+        @test InfiniteOpt._update_constr_bounds(bounds, constr).bounds == bounds
+    end
+    # test add_parameter_bound
+    @testset "add_parameter_bounds" begin
+        cref1 = FixRef(dx)
+        cref2 = FiniteConstraintRef(m, ConstraintIndex(3), ScalarShape())
+        # test adding normally
+        new_bounds = ParameterBounds((pars[2] => IntervalSet(0, 5),))
+        @test isa(add_parameter_bounds(x, new_bounds), Nothing)
+        bounds = ParameterBounds((par => IntervalSet(0, 5),
+                                  pars[1] => IntervalSet(0.5, 2),
+                                  pars[2] => IntervalSet(0, 5)))
+        @test parameter_bounds(dx) == bounds
+        expected = ParameterBounds((par => IntervalSet(0, 5),
+                                    pars[1] => IntervalSet(0.5, 1),
+                                    pars[2] => IntervalSet(0, 5)))
+        @test parameter_bounds(cref2) == expected
+        @test parameter_bounds(cref1) == bounds
+        # test measure error --> these errors are properly tested in the macros
+        new_bounds = ParameterBounds((par => IntervalSet(1, 2),))
+        @test_throws ErrorException add_parameter_bounds(dx, new_bounds)
+        # test constr error
+        new_bounds = ParameterBounds((pars[1] => IntervalSet(2, 3),))
+        @test_throws ErrorException add_parameter_bounds(x, new_bounds)
+        # test overwritting existing
+        new_bounds = ParameterBounds((par => IntervalSet(0, 0),))
+        @test isa(add_parameter_bounds(y, new_bounds), Nothing)
+        @test parameter_bounds(y) == new_bounds
+    end
+    # test delete_parameter_bounds
+    @testset "delete_parameter_bounds" begin
+        cref1 = FixRef(dx)
+        cref2 = FiniteConstraintRef(m, ConstraintIndex(3), ScalarShape())
+        # test normal
+        @test isa(delete_parameter_bounds(x), Nothing)
+        @test parameter_bounds(dx) == ParameterBounds()
+        expected = ParameterBounds((pars[1] => IntervalSet(0, 1),))
+        @test parameter_bounds(cref2) == expected
+        @test !has_parameter_bounds(cref1)
+        # test already gone
+        @test isa(delete_parameter_bounds(dx), Nothing)
+        @test parameter_bounds(dx) == ParameterBounds()
+        @test parameter_bounds(cref2) == expected
+        @test !has_parameter_bounds(cref1)
+    end
+end
+
+# Test Parameter Bound Macros
+@testset "Parameter Bound Macros" begin
+    # initialize the model and other needed information
+    m = InfiniteModel()
+    @infinite_parameter(m, par in [0, 10])
+    @infinite_parameter(m, pars[1:2] in [0, 10])
+    @hold_variable(m, x == 0)
+    @hold_variable(m, y, parameter_bounds = par == 0)
+    data = TestData(par, 0, 5)
+    meas = Measure(x + par, data, Int[], Int[], true)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    dmref = MeasureRef(m, mindex)
+    mref = InfiniteOpt._make_variable_ref(m, mindex)
+    push!(InfiniteOpt._measure_dependencies(x), mindex)
+    # test @add_parameter_bounds
+    @testset "@add_parameter_bounds" begin
+        bounds1 = ParameterBounds(Dict(pars[1] => IntervalSet(0, 1)))
+        # prepare for main test
+        cref1 = FixRef(x)
+        bconstr = BoundedScalarConstraint(mref, MOI.EqualTo(0.0), bounds1, bounds1)
+        cref2 = FiniteConstraintRef(m, ConstraintIndex(2), ScalarShape())
+        @test add_constraint(m, bconstr) == cref2
+        # test adding normally
+        @test isa(@add_parameter_bounds(x, pars[2] in [0, 5]), Nothing)
+        dict = Dict(pars[2] => IntervalSet(0, 5))
+        @test parameter_bounds(x) == ParameterBounds(dict)
+        expected = Dict(pars[1] => IntervalSet(0, 1),
+                        pars[2] => IntervalSet(0, 5))
+        @test parameter_bounds(cref2) == ParameterBounds(expected)
+        @test parameter_bounds(cref1) == ParameterBounds(dict)
+        # test measure error
+        @test_macro_throws ErrorException @add_parameter_bounds(x, par in [1, 2])
+        # test constr error
+        @test_macro_throws ErrorException @add_parameter_bounds(x, pars[1] in [2, 3])
+        # test bad input format
+        @test_macro_throws ErrorException @add_parameter_bounds(x, pars[1] = 0)
+        @test_macro_throws ErrorException @add_parameter_bounds(par, pars[1] == 0)
+        # test overwritting existing
+        @test isa(@add_parameter_bounds(y, par == 1), Nothing)
+        @test parameter_bounds(y) == ParameterBounds((par => IntervalSet(1, 1),))
+    end
+    # test @set_parameter_bounds
+    @testset "@set_parameter_bounds" begin
+        @test delete_parameter_bounds(x) isa Nothing
+        bounds1 = ParameterBounds((pars[1] => IntervalSet(0, 1),))
+        # test force error
+        @test_macro_throws ErrorException @set_parameter_bounds(y, pars[1] in [0, 1])
+        # test bad arguments
+        @test_macro_throws ErrorException @set_parameter_bounds(x, x, 23)
+        @test_macro_throws ErrorException @set_parameter_bounds(x, pars[1] == 0,
+                                                                bad = 42)
+        # test bad input format
+        @test_macro_throws ErrorException @set_parameter_bounds(x, pars[1] = 0)
+        @test_macro_throws ErrorException @set_parameter_bounds(par, pars[1] == 0)
+        # prepare for main test
+        cref1 = FixRef(x)
+        cref2 = FiniteConstraintRef(m, ConstraintIndex(2), ScalarShape())
+        # test measure error
+        @test_macro_throws ErrorException @set_parameter_bounds(x, par in [1, 2])
+        # test constr error
+        @test_macro_throws ErrorException @set_parameter_bounds(x, pars[1] in [2, 3])
+        # test normal
+        bounds = ParameterBounds((par => IntervalSet(0, 5),
+                                      pars[1] => IntervalSet(0.5, 2)))
+        @test isa(@set_parameter_bounds(x, (par in [0, 5], pars[1] in [0.5, 2])),
+                  Nothing)
+        @test parameter_bounds(x) == bounds
+        @test m.has_hold_bounds
+        @test !optimizer_model_ready(m)
+        expected = ParameterBounds((par => IntervalSet(0, 5),
+                                    pars[1] => IntervalSet(0.5, 1)))
+        @test parameter_bounds(cref2) == expected
+        @test parameter_bounds(cref1) == bounds
+        # test forced
+        @test isa(@set_parameter_bounds(y, par == 0, force = true), Nothing)
+        @test parameter_bounds(y) == ParameterBounds((par => IntervalSet(0, 0),))
     end
 end
