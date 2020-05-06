@@ -121,7 +121,7 @@ function DiscreteMeasureData(pref::GeneralVariableRef,
         error("Support points violate parameter domain.")
     end
     return DiscreteMeasureData(pref, coefficients, supports, label,
-                               weight_function)
+                               weight_function, NaN, NaN, false)
 end
 
 # NOTE This will be useful for most user measure methods
@@ -225,11 +225,12 @@ function DiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
             error("Support points violate parameter domain.")
         end
     end
+    bound_default = NaN * ones(size(supports, 1))
     return DiscreteMeasureData(vector_prefs, coefficients, supps, label,
-                               weight_function)
+                               bound_default, bound_default, false)
 end
 
-# TODO Make user constructor(s) for FunctionalDiscreteMeasureData
+# (done) TODO Make user constructor(s) for FunctionalDiscreteMeasureData
 function FunctionalDiscreteMeasureData(
     pref::GeneralVariableRef,
     coeff_func::Function,
@@ -245,7 +246,7 @@ function FunctionalDiscreteMeasureData(
         error("Number of supports must be positive")
     end
     return FunctionalDiscreteMeasureData(pref, coeff_func, num_suppports,
-                                         label, weight_function)
+                                         label, weight_function, NaN, NaN, false)
 end
 
 function FunctionalDiscreteMeasureData(
@@ -260,8 +261,10 @@ function FunctionalDiscreteMeasureData(
     if num_supports <= 0
         error("Number of supports must be positive")
     end
+    bound_default = NaN * ones(size(supports, 1))
     return FunctionalDiscreteMeasureData(prefs, coeff_func, num_suppports,
-                                         label, weight_function)
+                                         label, weight_function, bound_default,
+                                         bound_default, false)
 end
 
 """
@@ -493,7 +496,7 @@ function _check_var_bounds(vref::GeneralVariableRef, data::AbstractMeasureData)
     return
 end
 
-# TODO Make a function to determine the object numbers given the expr and data
+# (done) TODO Make a function to determine the object numbers given the expr and data
 function _expr_data_object_numbers(expr::JuMP.AbstractJuMPScalar,
                                    data::AbstractMeasureData)::Tuple
     prefs = parameter_refs(data)
@@ -502,7 +505,7 @@ function _expr_data_object_numbers(expr::JuMP.AbstractJuMPScalar,
 end
 # NOTE This can employ `_object_numbers`
 
-# TODO Make a function to determine the parameter numbers given the expr and data
+# (done) TODO Make a function to determine the parameter numbers given the expr and data
 function _expr_data_parameter_numbers(expr::JuMP.AbstractJuMPScalar,
                                       data::AbstractMeasureData)::Tuple
     prefs = parameter_refs(data)
@@ -511,6 +514,7 @@ function _expr_data_parameter_numbers(expr::JuMP.AbstractJuMPScalar,
 end
 # NOTE This can employ `parameter_numbers`
 
+# (done) TODO finish build_measure
 """
     build_measure(_error::Function, expr::JuMP.AbstractJuMPScalar,
                   data::AbstractMeasureData)::Measure
@@ -531,19 +535,53 @@ function build_measure(_error::Function, expr::T, data::D
     end
     expr_obj_nums, data_obj_num = _expr_data_object_numbers(expr, data)
     expr_param_nums, data_param_nums = _expr_data_parameter_numbers(expr, data)
-    if !(data_obj_num in expr_obj_nums)
+    prefs = parameter_refs(data)
+    obj_nums = setdiff(expr_obj_nums, data_obj_num)
+    param_nums = setdiff(expr_param_nums, data_param_nums)
+    constant_func = false
+    if length(param_nums) == length(expr_param_nums)
+        # change lower and upper bounds based on supports
+        supps = supports(data)
+        if length(data_param_nums) > 1
+            data.lower_bound = minimum(supps, dims = 2)
+            data.upper_bound = maximum(supps, dims = 2)
+        else
+            data.lower_bound = minimum(supps)
+            data.upper_bound = maximum(supps)
+        end
         constant_func = true
-    else
-        constant_func = false
     end
-    # TODO determine if expr can be treated as a constant using the object numbers
-    # TODO make the Measure object and return
-    return
+    return Measure(expr, data, obj_nums, param_nums, constant_func)
 end
 
 ################################################################################
 #                               DEFINITION METHODS
 ################################################################################
+function _is_constant_func_data(data::AbstractMeasureData)::Bool
+    lb_unique = unique(data.lower_bound)
+    ub_unique = unique(data.upper_bound)
+    return lb_unique == [NaN] && ub_unique == [NaN]
+end
+
+function _add_supports_to_multiple_parameters(
+    prefs::Vector{<:DependentParameterRef},
+    supps::Array{Float64, 2},
+    label::Symbol
+    )::Nothing
+    add_supports(prefs, supps, label = label, checks = false)
+    return
+end
+
+function _add_supports_to_multiple_parameters(
+    prefs::Vector{<:IndependentParameterRef},
+    supps::Array{Float64, 2},
+    label::Symbol
+    )::Nothing
+    for i in eachindex(prefs)
+        add_supports(prefs[i], supps[i, :], label = label, checks = false)
+    end
+    return
+end
 """
     add_supports_to_parameters(data::AbstractMeasureData,
                                [constant_func::Bool = false])::Nothing
@@ -553,8 +591,7 @@ This is an internal method with by [`add_measure`](@ref) and should be defined
 for user-defined measure data types. `constant_func` indicates if the measure
 expression depends on `data` or not.
 """
-function add_supports_to_parameters(data::AbstractMeasureData,
-                                    constant_func::Bool = false)
+function add_supports_to_parameters(data::AbstractMeasureData)
     # TODO should it be an error or a warning?
     error("`add_supports_to_parameters` not defined for measures with " *
           "measure data type $(typeof(data)).")
@@ -563,76 +600,73 @@ end
 ## Internal functions for adding measure data supports to the parameter supports
 # scalar DiscreteMeasureData
 function add_supports_to_parameters(
-    data::DiscreteMeasureData{GeneralVariableRef, 1},
-    constant_func::Bool = false
+    data::DiscreteMeasureData{GeneralVariableRef, 1}
     )::Nothing
-    # TODO decide what constant_func will do, do we still add supports if true?
-    pref = parameter_refs(data)
-    supps = supports(data)
-    label = support_label(data)
-    # TODO ensure label is added even if support already added
-    # TODO below will error if is dependent parameter --> should we do something?
-    add_supports(pref, supps, label = label, checks = false)
+    # (done) TODO decide what constant_func will do, do we still add supports if true?
+    if !_is_constant_func_data(data)
+        pref = parameter_refs(data)
+        supps = supports(data)
+        label = support_label(data)
+        # (done) TODO ensure label is added even if support already added
+            ## this should be taken care of by add_supports function alraedy
+        # TODO below will error if is dependent parameter --> should we do something?
+        add_supports(pref, supps, label = label, checks = false)
+    end
     return
 end
 
 # multi-dimensional DiscreteMeasureData
 function add_supports_to_parameters(
-    data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
-    constant_func::Bool = false
+    data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2}
     )::Nothing
-    # TODO decide what constant_func will do, do we still add supports if true?
-    prefs = dispatch_variable_ref.(parameter_refs(data))
-    supps = supports(data)
-    label = support_label(data)
-    # TODO replace this if block with just a single call once the below dispatch is implemented
-    if prefs isa Vector{DependentParameterRef}
-        add_supports(prefs, supps, label = label, checks = false)
-    else
-        # TODO make this a function for IndependentParameterRefs so we can use dispatch
-        for i in eachindex(prefs)
-            # TODO ensure label is added even if support already added
-            add_supports(prefs[i], supps[i, :], label = label, checks = false)
-        end
+    # (done) TODO decide what constant_func will do, do we still add supports if true?
+    if !_is_constant_func_data(data)
+        prefs = dispatch_variable_ref.(parameter_refs(data))
+        supps = supports(data)
+        label = support_label(data)
+        # (done) TODO replace this if block with just a single call once the below dispatch is implemented
+        _add_supports_to_multiple_parameters(prefs, supps, label)
     end
     return
 end
 
 # scalar FunationalDiscreteMeasureData
 function add_supports_to_parameters(
-    data::FunctionalDiscreteMeasureData{GeneralVariableRef},
-    constant_func::Bool = false
+    data::FunctionalDiscreteMeasureData{GeneralVariableRef}
     )::Nothing
-    # TODO decide what constant_func will do, do we still add supports if true?
-    pref = dispatch_variable_ref(parameter_refs(data))
-    num_supps = num_supports(data)
-    label = support_label(data)
-    curr_num_supps = num_supports(pref, label = label)
-    if curr_num_supps < num_supps
-        # TODO generate and add supports in accordance with method assocaited with
-        # `label`, perhaps we should modify `generate_and_add_supports!` to
-        # take this an argument to specify the method desired.
-        # NOTE A DependentParameterRef will need to be augmented to add supports
-        # to all the parameters
+    # (done) TODO decide what constant_func will do, do we still add supports if true?
+    if !_is_constant_func_data(data)
+        pref = dispatch_variable_ref(parameter_refs(data))
+        num_supps = num_supports(data)
+        label = support_label(data)
+        curr_num_supps = num_supports(pref, label = label)
+        if curr_num_supps < num_supps
+            # TODO generate and add supports in accordance with method assocaited with
+            # `label`, perhaps we should modify `generate_and_add_supports!` to
+            # take this an argument to specify the method desired.
+            # NOTE A DependentParameterRef will need to be augmented to add supports
+            # to all the parameters
+        end
     end
     return
 end
 
 # multi-dimensional FunationalDiscreteMeasureData
 function add_supports_to_parameters(
-    data::FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}},
-    constant_func::Bool = false
+    data::FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}}
     )::Nothing
-    # TODO decide what constant_func will do, do we still add supports if true?
-    prefs = dispatch_variable_ref.(parameter_refs(data))
-    num_supps = num_supports(data)
-    label = support_label(data)
-    # TODO dispatch this call correctly with dependent and independent parameters
-    curr_num_supps = num_supports(prefs, label = label)
-    if curr_num_supps < num_supps
-        # TODO generate and add supports in accordance with method assocaited with
-        # `label`, perhaps we should modify `generate_and_add_supports!` to
-        # take this an argument to specify the method desired.
+    # (done) TODO decide what constant_func will do, do we still add supports if true?
+    if !_is_constant_func_data(data)
+        prefs = dispatch_variable_ref.(parameter_refs(data))
+        num_supps = num_supports(data)
+        label = support_label(data)
+        # TODO dispatch this call correctly with dependent and independent parameters
+        curr_num_supps = num_supports(prefs, label = label)
+        if curr_num_supps < num_supps
+            # TODO generate and add supports in accordance with method assocaited with
+            # `label`, perhaps we should modify `generate_and_add_supports!` to
+            # take this an argument to specify the method desired.
+        end
     end
     return
 end
@@ -659,7 +693,7 @@ function add_measure(model::InfiniteModel, meas::Measure,
         JuMP.check_belongs_to_model(pref)
     end
     # add supports to the model as needed
-    add_supports_to_parameters(data, meas.constant_func) # TODO these methods are unfinished
+    add_supports_to_parameters(data) # TODO these methods are unfinished
     # add the measure to the model
     object = MeasureData(meas, name)
     mindex = _add_data_object(model, meas)

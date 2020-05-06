@@ -597,19 +597,30 @@ struct DiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
     supports::Array{Float64, N} # supports are stored column-wise
     label::Symbol # label that will used when the supports are added to the model
     weight_function::Function # single support --> weight value
+    lower_bound::Union{Float46, Vector{Float64}}
+    upper_bound::Union{Float46, Vector{Float64}}
+    expect::Bool
     # scalar constructor
     function DiscreteMeasureData(param_ref::V, coeffs::Vector{<:Real},
                                  supps::Vector{<:Real}, label::Symbol,
-                                 weight_func::Function
+                                 weight_func::Function,
+                                 lower_bound::Union{Float46, Vector{Float64}}
+                                 upper_bound::Union{Float46, Vector{Float64}}
+                                 expect::Bool
                                  ) where {V <: JuMP.AbstractVariableRef}
-        return new{V, 1}(param_ref, coeffs, supps, label, weight_func)
+        return new{V, 1}(param_ref, coeffs, supps, label, weight_func,
+                         lower_bound, upper_bound, expect)
     end
     # multi constructor
     function DiscreteMeasureData(param_refs::Vector{V}, coeffs::Vector{<:Real},
                                  supps::Matrix{<:Real}, label::Symbol,
                                  weight_func::Function
+                                 lower_bound::Union{Float46, Vector{Float64}}
+                                 upper_bound::Union{Float46, Vector{Float64}}
+                                 expect::Bool
                                  ) where {V <: JuMP.AbstractVariableRef}
-        return new{Vector{V}, 2}(param_refs, coeffs, supps, label, weight_func)
+        return new{Vector{V}, 2}(param_refs, coeffs, supps, label, weight_func,
+                                 lower_bound, upper_bound, expect)
     end
 end
 
@@ -655,12 +666,16 @@ struct FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
     num_supports::Int # minimum number of supports
     label::Symbol # support label of included supports
     weight_function::Function # single support --> weight value
+    lower_bound::Union{Float46, Vector{Float64}}
+    upper_bound::Union{Float46, Vector{Float64}}
+    expect::Bool
     # scalar constructor
     function FunctionalDiscreteMeasureData(param_ref::V, coeff_func::Function,
                                            num_supps::Int, label::Symbol,
                                            weight_func::Function
                                            ) where {V <: JuMP.AbstractVariableRef}
-        return new{V}(param_ref, coeff_func, num_supps, label, weight_func)
+        return new{V}(param_ref, coeff_func, num_supps, label, weight_func,
+                      lower_bound, upper_bound, expect)
     end
     # multi constructor
     function FunctionalDiscreteMeasureData(param_refs::Vector{V},
@@ -668,7 +683,8 @@ struct FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
                                            num_supps::Int, label::Symbol,
                                            weight_func::Function
                                            ) where {V <: JuMP.AbstractVariableRef}
-        return new{Vector{V}}(param_refs, coeff_func, num_supps, label, weight_func)
+        return new{Vector{V}}(param_refs, coeff_func, num_supps, label, weight_func,
+                              lower_bound, upper_bound, expect)
     end
 end
 
