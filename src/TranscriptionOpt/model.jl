@@ -44,7 +44,7 @@ mutable struct TranscriptionData
 
     # Measure variables
     next_var_index::Int
-    reduced_info::Dict{Int, InfiniteOpt.ReducedInfiniteVariable}
+    reduced_info::Dict{Int, InfiniteOpt.ReducedVariable}
 
     # Variable support data
     infvar_to_supports::Dict{InfiniteOpt.InfiniteVariableRef, Vector{<:Tuple}}
@@ -64,7 +64,7 @@ mutable struct TranscriptionData
                    Vector{JuMP.VariableRef}}(),
                    Dict{InfiniteOpt.HoldVariableRef, JuMP.VariableRef}(),
                    Dict{InfiniteOpt.PointVariableRef, JuMP.VariableRef}(),
-                   0, Dict{Int, InfiniteOpt.ReducedInfiniteVariable}(),
+                   0, Dict{Int, InfiniteOpt.ReducedVariable}(),
                    Dict{InfiniteOpt.InfiniteVariableRef, Vector{Tuple}}(),
                    Dict{InfiniteOpt.InfiniteConstraintRef,
                         Vector{JuMP.ConstraintRef}}(),

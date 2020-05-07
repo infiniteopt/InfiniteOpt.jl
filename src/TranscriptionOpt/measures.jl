@@ -26,10 +26,10 @@ end
     InfiniteOpt.add_measure_variable(model::JuMP.Model,
                                      var::InfiniteOpt.ReducedInfiniteInfo,
                                      key::Val{:TransData}
-                                     )::InfiniteOpt.ReducedInfiniteVariableRef
+                                     )::InfiniteOpt.ReducedVariableRef
 
-Make a `ReducedInfiniteVariableRef` and add `var` to the trascription data
-and return the `ReducedInfiniteVariableRef`. This is an extension of
+Make a `ReducedVariableRef` and add `var` to the trascription data
+and return the `ReducedVariableRef`. This is an extension of
 [`add_measure_variable`](@ref InfiniteOpt.add_measure_variable(::JuMP.Model,::Any,::Any))
 for `TranscriptionOpt`. Note that `reduction_info` is also extended to be able
 to access the `var`.
@@ -37,7 +37,7 @@ to access the `var`.
 function InfiniteOpt.add_measure_variable(model::JuMP.Model,
                                           var::InfiniteOpt.ReducedInfiniteInfo,
                                           key::Val{:TransData}
-                                          )::InfiniteOpt.ReducedInfiniteVariableRef
+                                          )::InfiniteOpt.ReducedVariableRef
     # Use the builtin transcription model to instead store the variables --> needed for reduction_info
     # TODO replace this hack with a mapping function similar to point variables
     ivref = var.infinite_variable_ref
@@ -45,21 +45,21 @@ function InfiniteOpt.add_measure_variable(model::JuMP.Model,
     # make negative index to not conflict with the InfiniteModel
     index = transcription_data(model).next_var_index -= 1
     # make the reference and map it to a transcription variable
-    rvref = InfiniteOpt.ReducedInfiniteVariableRef(JuMP.owner_model(ivref), index)
+    rvref = InfiniteOpt.ReducedVariableRef(JuMP.owner_model(ivref), index)
     transcription_data(model).reduced_info[index] = var
     return rvref
 end
 
 """
-    InfiniteOpt.reduction_info(vref::InfiniteOpt.ReducedInfiniteVariableRef,
+    InfiniteOpt.reduction_info(vref::InfiniteOpt.ReducedVariableRef,
                                key::Val{:TransData}
                                )::InfiniteOpt.ReducedInfiniteInfo
 
 Return the `ReducedInfiniteInfo` in connection with `vref` that was added via
 `add_measure_variable`. This is an extension of
-[`reduction_info`](@ref InfiniteOpt.reduction_info(::InfiniteOpt.ReducedInfiniteVariableRef, ::Any)).
+[`reduction_info`](@ref InfiniteOpt.reduction_info(::InfiniteOpt.ReducedVariableRef, ::Any)).
 """
-function InfiniteOpt.reduction_info(vref::InfiniteOpt.ReducedInfiniteVariableRef,
+function InfiniteOpt.reduction_info(vref::InfiniteOpt.ReducedVariableRef,
                                     key::Val{:TransData}
                                     )::InfiniteOpt.ReducedInfiniteInfo
     model = InfiniteOpt.optimizer_model(JuMP.owner_model(vref))
@@ -68,7 +68,7 @@ end
 
 """
     InfiniteOpt.delete_reduced_variable(model::JuMP.Model,
-                                        vref::InfiniteOpt.ReducedInfiniteVariableRef,
+                                        vref::InfiniteOpt.ReducedVariableRef,
                                         key::Val{:TransData})
 
 Delete the reduced variable associated with `vref` from the optimizer model
@@ -77,7 +77,7 @@ Delete the reduced variable associated with `vref` from the optimizer model
 for use in `TranscriptionOpt`.
 """
 function InfiniteOpt.delete_reduced_variable(model::JuMP.Model,
-                                             rvref::InfiniteOpt.ReducedInfiniteVariableRef,
+                                             rvref::InfiniteOpt.ReducedVariableRef,
                                              key::Val{:TransData})
     model = optimizer_model(JuMP.owner_model(rvref)) # TODO replace this in accordance with above hack
     delete!(transcription_data(model).reduced_info, JuMP.index(rvref))

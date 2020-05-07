@@ -236,7 +236,7 @@ end
     data = DiscreteMeasureData(par, [1], [1], name = "test")
     data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
     meas = Measure(par + 2inf - x, data)
-    rv = ReducedInfiniteVariableRef(m, 42)
+    rv = ReducedVariableRef(m, 42)
     # _make_meas_name
     @testset "_make_meas_name" begin
         @test InfiniteOpt._make_meas_name(meas) == "test(par + 2 inf(par) - x)"
@@ -370,7 +370,7 @@ end
     @hold_variable(m, x)
     m.reduced_info[-1] = ReducedInfiniteInfo(inf2, Dict(2 => 0.5))
     m.infinite_to_reduced[JuMP.index(inf2)] = [-1]
-    rv = ReducedInfiniteVariableRef(m, -1)
+    rv = ReducedVariableRef(m, -1)
     # prepare measures
     data = DiscreteMeasureData(par, [1], [1])
     data2 = DiscreteMeasureData(par2, [1], [1])

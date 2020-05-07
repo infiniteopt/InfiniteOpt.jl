@@ -202,17 +202,11 @@ end
 """
     _delete_data_object(vref::DispatchVariableRef)::Nothing
 
-Delete the concrete `AbstractDataObject` associated with `vref`. Will error if
-`vref` is a `DependentParameterRef`.
+Delete the concrete `AbstractDataObject` associated with `vref`.
 """
 function _delete_data_object(vref::DispatchVariableRef)::Nothing
     delete!(_data_dictionary(vref), JuMP.index(vref))
     return
-end
-
-# Error for DependentParameterRefs
-function _delete_data_object(vref::DependentParameterRef)
-    error("Cannot delete the data object only given a single parameter $vref.")
 end
 
 ################################################################################
@@ -344,7 +338,7 @@ function _infinite_variable_dependencies(vref::GeneralVariableRef)::Vector{Infin
 end
 
 """
-    _reduced_variable_dependencies(vref::DispatchVariableRef)::Vector{ReducedInfiniteVariableIndex}
+    _reduced_variable_dependencies(vref::DispatchVariableRef)::Vector{ReducedVariableIndex}
 
 Return the indices of reduced variables that depend on `vref`. This needs to
 be extended for type of `vref`. This should use `_data_object` to access the
@@ -353,13 +347,13 @@ data object where the name is stored if appropriate.
 function _reduced_variable_dependencies end
 
 """
-    _reduced_variable_dependencies(vref::GeneralVariableRef)::Vector{ReducedInfiniteVariableIndex}
+    _reduced_variable_dependencies(vref::GeneralVariableRef)::Vector{ReducedVariableIndex}
 
 Return the indices of reduced variables that depend on `vref`. This is enabled
 with appropriate definitions of `_reduced_variable_dependencies` for the
 underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
 """
-function _reduced_variable_dependencies(vref::GeneralVariableRef)::Vector{ReducedInfiniteVariableIndex}
+function _reduced_variable_dependencies(vref::GeneralVariableRef)::Vector{ReducedVariableIndex}
     return _reduced_variable_dependencies(dispatch_variable_ref(vref))
 end
 
@@ -542,7 +536,7 @@ end
 #                              DELETE METHODS
 ################################################################################
 # Dispatch fallback
-function JuMP.delete(model::InfiniteModel, vref::DispatchVariableRef)
+function JuMP.delete(model::InfiniteModel, vref)
     throw(ArgumentError("`JuMP.delete` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
 end
@@ -557,6 +551,19 @@ being defined for the underlying `DispatchVariableRef`, otherwise an
 """
 function JuMP.delete(model::InfiniteModel, vref::GeneralVariableRef)::Nothing
     return JuMP.delete(model, dispatch_variable_ref(vref))
+end
+
+"""
+    JuMP.delete(model::InfiniteModel,
+                prefs::AbstractArray{<:GeneralVariableRef})::Nothing
+
+Extend `JuMP.delete` to delete a group of dependent infinite parameters and
+their dependencies. An `ArugmentError` is thrown if `prefs` are not dependent
+infinite parameters.
+"""
+function JuMP.delete(model::InfiniteModel,
+                     prefs::AbstractArray{<:GeneralVariableRef})::Nothing
+    return JuMP.delete(model, dispatch_variable_ref.(prefs))
 end
 
 ################################################################################

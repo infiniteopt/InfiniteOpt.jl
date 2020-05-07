@@ -1271,7 +1271,7 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
             if length(model.meas_to_meas[JuMP.index(vref)]) == 0
                 delete!(model.meas_to_meas, JuMP.index(vref))
             end
-        elseif isa(vref, ReducedInfiniteVariableRef)
+        elseif isa(vref, ReducedVariableRef)
             filter!(e -> e != JuMP.index(mref),
                     model.reduced_to_meas[JuMP.index(vref)])
             if length(model.reduced_to_meas[JuMP.index(vref)]) == 0

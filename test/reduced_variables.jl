@@ -7,11 +7,11 @@
     @dependent_parameters(m, c[1:2] in [0, 1])
     @infinite_variable(m, ivref(a, b, c))
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1, 4 => 0, 5 => 0)
-    var = ReducedInfiniteVariable(ivref, eval_supps, [2])
+    var = ReducedVariable(ivref, eval_supps, [2])
     object = VariableData(var, "var")
-    idx = ReducedInfiniteVariableIndex(1)
-    vref = ReducedInfiniteVariableRef(m, idx)
-    gvref = GeneralVariableRef(m, 1, ReducedInfiniteVariableIndex)
+    idx = ReducedVariableIndex(1)
+    vref = ReducedVariableRef(m, idx)
+    gvref = GeneralVariableRef(m, 1, ReducedVariableIndex)
     # JuMP.owner_model
     @testset "JuMP.owner_model" begin
         @test owner_model(vref) === m
@@ -33,7 +33,7 @@
     end
     # _data_dictionary
     @testset "_data_dictionary" begin
-        @test InfiniteOpt._data_dictionary(m, ReducedInfiniteVariable) === m.reduced_vars
+        @test InfiniteOpt._data_dictionary(m, ReducedVariable) === m.reduced_vars
         @test InfiniteOpt._data_dictionary(vref) === m.reduced_vars
         @test InfiniteOpt._data_dictionary(gvref) === m.reduced_vars
     end
@@ -136,9 +136,9 @@
         @test variable_by_name(m, "ivref(0.5, [b[1], 1], [0, 0])") == gvref
         @test variable_by_name(m, "test(0.5, [b[1], 1], [0, 0])") isa Nothing
         # prepare variable with same name
-        idx2 = ReducedInfiniteVariableIndex(2)
+        idx2 = ReducedVariableIndex(2)
         @test InfiniteOpt._add_data_object(m, object) == idx2
-        vref2 = ReducedInfiniteVariableRef(m, idx2)
+        vref2 = ReducedVariableRef(m, idx2)
         @test set_name(vref2, "") isa Nothing
         # test multiple name error
         @test_throws ErrorException variable_by_name(m, "ivref(0.5, [b[1], 1], [0, 0])")
@@ -184,24 +184,24 @@ end
         var = build_variable(error, ivref, eval_supps, check = false)
         @test_throws VariableNotOwned{InfiniteVariableRef} add_variable(m2, var)
         # test normal
-        idx = ReducedInfiniteVariableIndex(1)
-        vref = ReducedInfiniteVariableRef(m, idx)
-        gvref = GeneralVariableRef(m, 1, ReducedInfiniteVariableIndex)
+        idx = ReducedVariableIndex(1)
+        vref = ReducedVariableRef(m, idx)
+        gvref = GeneralVariableRef(m, 1, ReducedVariableIndex)
         @test add_variable(m, var) == gvref
         @test name(vref) == "ivref(0.5, [b[1], 1], [0, 0])"
         @test eval_supports(vref) === eval_supps
         @test InfiniteOpt._object_numbers(vref) == [2]
         @test InfiniteOpt._reduced_variable_dependencies(ivref) == [idx]
         # test with set name
-        idx = ReducedInfiniteVariableIndex(2)
-        vref = ReducedInfiniteVariableRef(m, idx)
-        gvref = GeneralVariableRef(m, 2, ReducedInfiniteVariableIndex)
+        idx = ReducedVariableIndex(2)
+        vref = ReducedVariableRef(m, idx)
+        gvref = GeneralVariableRef(m, 2, ReducedVariableIndex)
         @test add_variable(m, var, "cat") == gvref
         @test name(vref) == "cat"
         # test with no name
-        idx = ReducedInfiniteVariableIndex(3)
-        vref = ReducedInfiniteVariableRef(m, idx)
-        gvref = GeneralVariableRef(m, 3, ReducedInfiniteVariableIndex)
+        idx = ReducedVariableIndex(3)
+        vref = ReducedVariableRef(m, idx)
+        gvref = GeneralVariableRef(m, 3, ReducedVariableIndex)
         @test add_variable(m, var, define_name = false) == gvref
         @test InfiniteOpt._data_object(vref).name == ""
     end
@@ -395,7 +395,7 @@ end
         @test num_variables(m, InfiniteVariable) == 1
         @test num_variables(m, PointVariable) == 1
         @test num_variables(m, HoldVariable) == 1
-        @test num_variables(m, ReducedInfiniteVariable) == 1
+        @test num_variables(m, ReducedVariable) == 1
         @test num_variables(m) == 4
         @test num_variables(m, InfOptVariable) == 4
     end
@@ -404,7 +404,7 @@ end
         @test all_variables(m, InfiniteVariable) == [ivref]
         @test all_variables(m, PointVariable) == [pvref]
         @test all_variables(m, HoldVariable) == [hvref]
-        @test all_variables(m, ReducedInfiniteVariable) == [rvref]
+        @test all_variables(m, ReducedVariable) == [rvref]
         @test all_variables(m) == [ivref, rvref, pvref, hvref]
         @test all_variables(m, InfOptVariable) == [ivref, rvref, pvref, hvref]
     end

@@ -23,9 +23,9 @@
     # InfiniteVariableIndex
     @test InfiniteVariableIndex <: ObjectIndex
     @test InfiniteVariableIndex(1).value == 1
-    # ReducedInfiniteVariableIndex
-    @test ReducedInfiniteVariableIndex <: ObjectIndex
-    @test ReducedInfiniteVariableIndex(1).value == 1
+    # ReducedVariableIndex
+    @test ReducedVariableIndex <: ObjectIndex
+    @test ReducedVariableIndex(1).value == 1
     # PointVariableIndex
     @test PointVariableIndex <: ObjectIndex
     @test PointVariableIndex(1).value == 1
@@ -45,7 +45,7 @@
         @test MOIUC.index_to_key(DependentParametersIndex, 42) == DependentParametersIndex(42)
         @test MOIUC.index_to_key(FiniteParameterIndex, 42) == FiniteParameterIndex(42)
         @test MOIUC.index_to_key(InfiniteVariableIndex, 42) == InfiniteVariableIndex(42)
-        @test MOIUC.index_to_key(ReducedInfiniteVariableIndex, 42) == ReducedInfiniteVariableIndex(42)
+        @test MOIUC.index_to_key(ReducedVariableIndex, 42) == ReducedVariableIndex(42)
         @test MOIUC.index_to_key(PointVariableIndex, 42) == PointVariableIndex(42)
         @test MOIUC.index_to_key(HoldVariableIndex, 42) == HoldVariableIndex(42)
         @test MOIUC.index_to_key(MeasureIndex, 42) == MeasureIndex(42)
@@ -168,10 +168,10 @@ end
     @test InfiniteVariableRef <: DispatchVariableRef
     idx = InfiniteVariableIndex(1)
     @test InfiniteVariableRef(m, idx) isa InfiniteVariableRef
-    # ReducedInfiniteVariableRef
-    @test ReducedInfiniteVariableRef <: DispatchVariableRef
-    idx = ReducedInfiniteVariableIndex(1)
-    @test ReducedInfiniteVariableRef(m, idx) isa ReducedInfiniteVariableRef
+    # ReducedVariableRef
+    @test ReducedVariableRef <: DispatchVariableRef
+    idx = ReducedVariableIndex(1)
+    @test ReducedVariableRef(m, idx) isa ReducedVariableRef
     # PointVariableRef
     @test PointVariableRef <: FiniteVariableRef
     idx = PointVariableIndex(1)
@@ -316,8 +316,8 @@ end
     @test InfiniteVariable <: InfOptVariable
     @test InfiniteVariable(sample_info, VectorTuple(pref), [1], [1]) isa InfiniteVariable
     # Reduced variable
-    @test ReducedInfiniteVariable <: InfOptVariable
-    @test ReducedInfiniteVariable(vref, Dict(1 => Float64(2)), [1]) isa ReducedInfiniteVariable
+    @test ReducedVariable <: InfOptVariable
+    @test ReducedVariable(vref, Dict(1 => Float64(2)), [1]) isa ReducedVariable
     # Point variable
     @test PointVariable <: InfOptVariable
     @test PointVariable(sample_info, vref, Float64[1]) isa PointVariable

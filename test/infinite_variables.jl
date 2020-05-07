@@ -87,8 +87,8 @@
     end
     # _reduced_variable_dependencies
     @testset "_reduced_variable_dependencies" begin
-        @test InfiniteOpt._reduced_variable_dependencies(vref) == ReducedInfiniteVariableIndex[]
-        @test InfiniteOpt._reduced_variable_dependencies(gvref) == ReducedInfiniteVariableIndex[]
+        @test InfiniteOpt._reduced_variable_dependencies(vref) == ReducedVariableIndex[]
+        @test InfiniteOpt._reduced_variable_dependencies(gvref) == ReducedVariableIndex[]
     end
     # _point_variable_dependencies
     @testset "_point_variable_dependencies" begin
@@ -707,7 +707,7 @@ end
     @testset "used_by_reduced_variable" begin
         @test !used_by_reduced_variable(vref)
         push!(InfiniteOpt._reduced_variable_dependencies(vref),
-              ReducedInfiniteVariableIndex(1))
+              ReducedVariableIndex(1))
         @test used_by_reduced_variable(y)
         @test used_by_reduced_variable(vref)
         empty!(InfiniteOpt._reduced_variable_dependencies(vref))
@@ -764,10 +764,10 @@ end
         empty!(InfiniteOpt._point_variable_dependencies(vref))
         # test used by reduced variable
         eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1)
-        var = ReducedInfiniteVariable(y, eval_supps, [2])
+        var = ReducedVariable(y, eval_supps, [2])
         object = VariableData(var, "var")
-        idx = ReducedInfiniteVariableIndex(1)
-        rvref = ReducedInfiniteVariableRef(m, idx)
+        idx = ReducedVariableIndex(1)
+        rvref = ReducedVariableRef(m, idx)
         @test InfiniteOpt._add_data_object(m, object) == idx
         push!(InfiniteOpt._reduced_variable_dependencies(vref), idx)
         @test !is_used(vref)
@@ -811,7 +811,7 @@ end
         empty!(InfiniteOpt._point_variable_dependencies(dvref))
         # test used by reduced variable
         push!(InfiniteOpt._reduced_variable_dependencies(dvref),
-              ReducedInfiniteVariableIndex(1))
+              ReducedVariableIndex(1))
         @test_throws ErrorException set_parameter_refs(dvref, (pref, ))
         empty!(InfiniteOpt._reduced_variable_dependencies(dvref))
     end
@@ -824,7 +824,7 @@ end
         empty!(InfiniteOpt._point_variable_dependencies(dvref))
         # test used by reduced variable
         push!(InfiniteOpt._reduced_variable_dependencies(dvref),
-              ReducedInfiniteVariableIndex(1))
+              ReducedVariableIndex(1))
         @test_throws ErrorException add_parameter_ref(dvref, pref)
         empty!(InfiniteOpt._reduced_variable_dependencies(dvref))
         # test normal use

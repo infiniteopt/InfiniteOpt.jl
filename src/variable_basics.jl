@@ -1072,7 +1072,7 @@ of a particular type is obtained by specifying the concrete variable type
 of [`InfOptVariable`](@ref) via `type`. Type options include:
  - `InfOptVariable`: all variables
  - `InfiniteVariable`: all infinite variables
- - `ReducedInfiniteVariable`: all reduced infinite variables
+ - `ReducedVariable`: all reduced variables
  - `PointVariable`: all point variables
  - `HoldVariable`: all hold variables
 
@@ -1089,7 +1089,7 @@ function JuMP.num_variables(model::InfiniteModel,
                             type::Type{InfOptVariable} = InfOptVariable
                             )::Int
     num_vars = JuMP.num_variables(model, InfiniteVariable)
-    num_vars += JuMP.num_variables(model, ReducedInfiniteVariable)
+    num_vars += JuMP.num_variables(model, ReducedVariable)
     num_vars += JuMP.num_variables(model, PointVariable)
     num_vars += JuMP.num_variables(model, HoldVariable)
     return num_vars
@@ -1113,7 +1113,7 @@ of a particular type is obtained by specifying the concrete variable type
 of [`InfOptVariable`](@ref) via `type`. Type options include:
  - `InfOptVariable`: all variables
  - `InfiniteVariable`: all infinite variables
- - `ReducedInfiniteVariable`: all reduced infinite variables
+ - `ReducedVariable`: all reduced variables
  - `PointVariable`: all point variables
  - `HoldVariable`: all hold variables
 
@@ -1135,7 +1135,7 @@ function JuMP.all_variables(model::InfiniteModel,
                             type::Type{InfOptVariable} = InfOptVariable
                             )::Vector{GeneralVariableRef}
     vrefs_list = JuMP.all_variables(model, InfiniteVariable)
-    append!(vrefs_list, JuMP.all_variables(model, ReducedInfiniteVariable))
+    append!(vrefs_list, JuMP.all_variables(model, ReducedVariable))
     append!(vrefs_list, JuMP.all_variables(model, PointVariable))
     append!(vrefs_list, JuMP.all_variables(model, HoldVariable))
     return vrefs_list
@@ -1210,6 +1210,7 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
     end
     # delete attributes specific to the variable type
     _delete_variable_dependencies(vref)
+    gvref = _make_variable_ref(model, JuMP.index(vref))
     # remove from measures if used
     for mindex in _measure_dependencies(vref)
         mref = dispatch_variable_ref(model, mindex)
@@ -1217,14 +1218,12 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
         if func isa GeneralVariableRef
             data = measure_data(mref)
             new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-            new_meas = Measure(new_func, data, [], [])
+            new_meas = Measure(new_func, data, Int[], Int[], true)
             _set_core_variable_object(mref, new_meas)
         else
-            _remove_variable(func, vref)
-            # TODO update object/param numbers via measure specifc functions
+            _remove_variable(func, gvref)
+            # TODO rebuild the Measure object via build_measure
         end
-        meas = _core_variable_object(mref)
-        JuMP.set_name(mref, _make_meas_name(meas))
     end
     # remove from constraints if used
     for cindex in _constraint_dependencies(vref)
@@ -1232,26 +1231,26 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
         func = JuMP.jump_function(JuMP.constraint_object(cref))
         if func isa GeneralVariableRef
             set = JuMP.moi_set(JuMP.constraint_object(cref))
-            new_func = zero(JuMP.AffExpr{Float64, GeneralVariableRef})
+            new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
             new_constr = JuMP.ScalarConstraint(new_func, set)
             _set_core_constraint_object(cref, new_constr)
             empty!(_object_numbers(cref))
         else
-            _remove_variable(func, vref)
+            _remove_variable(func, gvref)
             # update the object numbers if vref is infinite
-            if vref isa Union{InfiniteVariableRef, ReducedInfiniteVariableRef}
-                new_obj_nums = _object_numbers(func)
-                filter!(e -> e in new_obj_nums, _object_numbers(cref))
+            if vref isa Union{InfiniteVariableRef, ReducedVariableRef}
+                _data_object(cref).object_nums = _object_numbers(func)
             end
         end
     end
     # remove from objective if vref is in it
     if used_by_objective(vref)
         if JuMP.objective_function(model) isa GeneralVariableRef
-            new_func = zero(JuMP.AffExpr{Float64, GeneralVariableRef})
+            new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
             JuMP.set_objective_function(model, new_func)
+            JuMP.set_objective_sense(model, MOI.FEASIBILITY_SENSE)
         else
-            _remove_variable(JuMP.objective_function(model), vref)
+            _remove_variable(JuMP.objective_function(model), gvref)
         end
     end
     # delete the variable information

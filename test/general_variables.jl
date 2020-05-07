@@ -128,10 +128,7 @@ end
 @testset "Core Data Methods" begin
     # Setup data
     m = InfiniteModel();
-    idx = DependentParameterIndex(DependentParametersIndex(1), 1)
-    pref = DependentParameterRef(m, idx)
     gvref = GeneralVariableRef(m, 1, TestIndex)
-    gvref2 = GeneralVariableRef(m, 1, DependentParameterIndex, 1)
     idx = TestIndex(1)
     dvref = TestVariableRef(m, idx)
     # test _data_dictionary with GeneralVariableRef
@@ -141,10 +138,6 @@ end
     # test _data_object with GeneralVariableRef
     @testset "_data_object (GeneralVariableRef)" begin
         @test_throws MethodError InfiniteOpt._data_object(gvref)
-    end
-    # test _delete_data_object with DependentParameterRef
-    @testset "_delete_data_object (DependentParameterRef)" begin
-        @test_throws KeyError InfiniteOpt._delete_data_object(pref)
     end
     # test _delete_data_object with DispatchVariableRef
     @testset "_delete_data_object (DispatchVariableRef)" begin
@@ -286,6 +279,10 @@ end
     # test JuMP.delete (GeneralVariableRef)
     @testset "JuMP.delete (GeneralVariableRef)" begin
         @test_throws ArgumentError JuMP.delete(m, gvref)
+    end
+    # test JuMP.delete (GeneralVariableRefs)
+    @testset "JuMP.delete (GeneralVariableRefs)" begin
+        @test_throws ArgumentError JuMP.delete(m, [gvref])
     end
 end
 

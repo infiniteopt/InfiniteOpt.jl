@@ -176,7 +176,7 @@ end
     @hold_variable(m, w == 1, Int, start = 1)
     index = m.next_reduced_index + 1
     m.reduced_info[index] = ReducedInfiniteInfo(y, Dict{Int, Float64}(1 => 1))
-    yr = ReducedInfiniteVariableRef(m, index)
+    yr = ReducedVariableRef(m, index)
     tm = optimizer_model(m)
     @variable(tm, a)
     @variable(tm, b)
@@ -227,8 +227,8 @@ end
         @test IOTO._map_to_variable(y, (1., supp1), (par, pars), tm) == g
         @test IOTO._map_to_variable(y, (1, supp2), (par, pars), tm) == h
     end
-    # test for ReducedInfiniteVariableRefs
-    @testset "ReducedInfiniteVariableRef" begin
+    # test for ReducedVariableRefs
+    @testset "ReducedVariableRef" begin
         # test cannot find
         supp3 = Float64[0.5, 0.5]
         @test_throws ErrorException IOTO._map_to_variable(yr, (0.5, supp3),
@@ -296,7 +296,7 @@ end
     @hold_variable(m, w == 1, Int, start = 1)
     m.next_reduced_index += 1
     m.reduced_info[m.next_reduced_index] = ReducedInfiniteInfo(y, Dict(1 => 1))
-    yr = ReducedInfiniteVariableRef(m, m.next_reduced_index)
+    yr = ReducedVariableRef(m, m.next_reduced_index)
     data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
     meas1 = measure(x - w, data1)
     meas2 = measure(y, data1)

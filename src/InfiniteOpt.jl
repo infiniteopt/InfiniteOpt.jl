@@ -70,7 +70,7 @@ export Infinite, Hold, Point, sampling, quadrature
 # Export index types
 export AbstractInfOptIndex, ObjectIndex, IndependentParameterIndex,
 DependentParametersIndex, DependentParameterIndex, FiniteParameterIndex,
-InfiniteVariableIndex, PointVariableIndex, ReducedInfiniteVariableIndex,
+InfiniteVariableIndex, PointVariableIndex, ReducedVariableIndex,
 HoldVariableIndex, MeasureIndex, ConstraintIndex, InfiniteParameterIndex
 
 # Export infinite set types
@@ -96,9 +96,9 @@ used_by_measure, used_by_infinite_variable, is_used, generate_and_add_supports!,
 significant_digits
 
 # Export variable datatypes
-export InfOptVariable, InfiniteVariable, ReducedInfiniteVariable,
+export InfOptVariable, InfiniteVariable, ReducedVariable,
 PointVariable, HoldVariable, ParameterBounds, VariableData, GeneralVariableRef,
-DispatchVariableRef, InfiniteVariableRef, ReducedInfiniteVariableRef,
+DispatchVariableRef, InfiniteVariableRef, ReducedVariableRef,
 MeasureFiniteVariableRef, FiniteVariableRef, PointVariableRef, HoldVariableRef,
 DecisionVariableRef, UserDecisionVariableRef
 

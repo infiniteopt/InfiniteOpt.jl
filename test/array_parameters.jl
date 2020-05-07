@@ -39,6 +39,12 @@
     @testset "_num_parameters" begin
         @test InfiniteOpt._num_parameters(pref) == 2
     end
+    # test _delete_data_object
+    @testset "_delete_data_object" begin
+        @test is_valid(m, pref)
+        @test InfiniteOpt._delete_data_object(pref) isa Nothing
+        @test !is_valid(m, pref)
+    end
 end
 
 # Test Definition
@@ -435,9 +441,9 @@ end
     data = InfiniteOpt._data_object(first(prefs))
     # test _infinite_variable_dependencies
     @testset "_infinite_variable_dependencies" begin
-        @test InfiniteOpt._infinite_variable_dependencies(prefs[1]) == data.infinite_var_indices[1]
-        @test InfiniteOpt._infinite_variable_dependencies(prefs[2]) == data.infinite_var_indices[2]
-        @test InfiniteOpt._infinite_variable_dependencies(gvrefs[1]) == data.infinite_var_indices[1]
+        @test InfiniteOpt._infinite_variable_dependencies(prefs[1]) == data.infinite_var_indices
+        @test InfiniteOpt._infinite_variable_dependencies(prefs[2]) == data.infinite_var_indices
+        @test InfiniteOpt._infinite_variable_dependencies(gvrefs[1]) == data.infinite_var_indices
     end
     # test _measure_dependencies
     @testset "_measure_dependencies" begin
@@ -458,10 +464,10 @@ end
         @test !used_by_infinite_variable(prefs[2])
         @test !used_by_infinite_variable(gvrefs[1])
         # test used
-        push!(data.infinite_var_indices[1], InfiniteVariableIndex(1))
+        push!(data.infinite_var_indices, InfiniteVariableIndex(1))
         @test used_by_infinite_variable(prefs[1])
         # undo changes
-        empty!(data.infinite_var_indices[1])
+        empty!(data.infinite_var_indices)
     end
     # test used_by_measure
     @testset "used_by_measure" begin
@@ -494,10 +500,8 @@ end
         @test !is_used(prefs[2])
         @test !is_used(gvrefs[1])
         # test used
-        push!(data.infinite_var_indices[1], InfiniteVariableIndex(1))
+        push!(data.infinite_var_indices, InfiniteVariableIndex(1))
         @test is_used(prefs[1])
-        # undo changes
-        empty!(data.infinite_var_indices[1])
     end
 end
 
