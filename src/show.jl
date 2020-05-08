@@ -5,6 +5,8 @@
 function _infopt_math_symbol(::Type{JuMP.REPLMode}, name::Symbol)::String
     if name == :intersect
         return Sys.iswindows() ? "and" : "∩"
+    elseif name == :prop
+        return "~"
     else
         return JuMP._math_symbol(JuMP.REPLMode, name)
     end
@@ -14,6 +16,8 @@ end
 function _infopt_math_symbol(::Type{JuMP.IJuliaMode}, name::Symbol)::String
     if name == :intersect
         return "\\cap"
+    elseif name == :prop
+        return "\\sim"
     else
         return JuMP._math_symbol(JuMP.IJuliaMode, name)
     end
@@ -34,27 +38,7 @@ end
 
 # DistributionSet
 function set_string(print_mode, set::DistributionSet)::String
-    d_string = string(set.distribution)
-    # remove number type
-    first_bracket = findfirst(isequal('{'), d_string)
-    if first_bracket != nothing
-        last_bracket = findall(isequal('}'), d_string)[end]
-        d_string = d_string[1:first_bracket-1] * d_string[last_bracket+1:end]
-    end
-    # remove new line characters
-    new_lines = findall(isequal('\n'), d_string)
-    for i = 1:length(new_lines)
-        if new_lines[1] == length(d_string)
-            d_string = d_string[1:end-1]
-        elseif d_string[new_lines[1]-1] == '(' || d_string[new_lines[1]+1] == ')'
-            d_string = d_string[1:new_lines[1]-1] * d_string[new_lines[1]+1:end]
-        else
-            d_string = d_string[1:new_lines[1]-1] * ", " *
-                       d_string[new_lines[1]+1:end]
-        end
-        new_lines = findall(isequal('\n'), d_string)
-    end
-    return d_string
+    return string(set.distribution)
 end
 
 # CollectionSet
@@ -86,6 +70,21 @@ function JuMP.in_set_string(print_mode, set::IntervalSet)::String
         return string(_infopt_math_symbol(print_mode, :eq), " ",
                       JuMP._string_round(JuMP.lower_bound(set)))
     end
+end
+
+# Extend to return of in set string for distribution sets
+function JuMP.in_set_string(print_mode, set::DistributionSet)::String
+    dist = set.distribution
+    name = string(typeof(dist))
+    bracket_index = findfirst(isequal('{'), name)
+    if bracket_index !== nothing
+        name = name[1:bracket_index-1]
+    end
+    if !isempty(size(dist))
+        dims = size(dist)
+        name *= string("(dim", _plural(length(dims)), ": (", join(dims, ", "), "))")
+    end
+    return string(_infopt_math_symbol(print_mode, :prop), " ", name)
 end
 
 # Extend to return of in set string of other sets

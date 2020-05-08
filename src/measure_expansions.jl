@@ -1,11 +1,11 @@
 """
     make_point_variable_ref(write_model::Union{InfiniteModel, JuMP.Model},
-                            ivref::InfiniteVariableRef,
-                            support::Union{Tuple, VectorTuple{Float64}}
-                            )::PointVariableRef
+                            ivref::GeneralVariableRef,
+                            support::Union{Tuple, Vector{Float64}}
+                            )::GenealVariableRef
 
 Make a point variable for infinite variable `ivref` at `support`, add it to
-the `write_model`, and return the `PointVariableRef`. This is an internal method
+the `write_model`, and return the `GeneralVariableRef`. This is an internal method
 for point variables produced by expanding measures via [`expand_measure`](@ref).
 This is also useful for those writing extension optimizer models and wish to
 expand measures without modifiying the `InfiniteModel`. In such cases, `write_model`
@@ -14,8 +14,8 @@ should be extended appropriately for point variables. Errors if `write_model` is
 an optimizer model and `add_measure_variable` is not properly extended.
 """
 function make_point_variable_ref(write_model::InfiniteModel,
-                                 ivref::InfiniteVariableRef,
-                                 support::VectorTuple{Float64})::PointVariableRef
+                                 ivref::GeneralVariableRef,
+                                 support::Vector{Float64})::GeneralVariableRef
     var = PointVariable(_variable_info(ivref), ivref, support)
     return JuMP.add_variable(write_model, var)
 end
@@ -41,35 +41,32 @@ end
 # Store/add the variable to the optimizer model via add_measure_variable
 # This avoids changing the InfiniteModel unexpectedly
 function make_point_variable_ref(write_model::JuMP.Model, # this should be an optimizer model
-                                 ivref::InfiniteVariableRef,
-                                 support::VectorTuple{Float64})::PointVariableRef
+                                 ivref::GeneralVariableRef,
+                                 support::Vector{Float64})::GeneralVariableRef
     var = PointVariable(_variable_info(ivref), ivref, support)
     opt_key = optimizer_model_key(write_model)
     return add_measure_variable(write_model, var, Val(opt_key))
 end
 
+# TODO I am not sure this will be needed
 # Tuple support input and dispatch to appropriate VectorTuple function
 function make_point_variable_ref(write_model::Union{JuMP.Model, InfiniteModel},
-                                 ivref::InfiniteVariableRef,
+                                 ivref::GeneralVariableRef,
                                  support::Tuple)::PointVariableRef
-    vt_support = VectorTuple{Float64}(support)
-    prefs = raw_parameter_refs(ivref)
-    for i in eachindex(prefs.indices)
-        vt_support.indices[i] = prefs.indices[i]
-    end
-    return make_point_variable_ref(write_model, ivref, vt_support)
+    vt_support = VectorTuple{Float64}(support) # TODO make a flatten method
+    return make_point_variable_ref(write_model, ivref, vt_support.values)
 end
 
 
 """
     make_reduced_variable_ref(write_model::Union{InfiniteModel, JuMP.Model},
-                              ivref::InfiniteVariableRef,
+                              ivref::GeneralVariableRef,
                               indices::Vector{Int},
                               values::Vector{Float64}
-                              )::ReducedVariableRef
+                              )::GeneralVariableRef
 
 Make a reduced variable for infinite variable `ivref` at `support`, add it to
-the `write_model`, and return the `ReducedVariableRef`. This is an internal method
+the `write_model`, and return the `GeneralVariableRef`. This is an internal method
 for reduced variables produced by expanding measures via [`expand_measure`](@ref).
 This is also useful for those writing extension optimizer models and wish to
 expand measures without modifiying the `InfiniteModel`. In such cases, `write_model`
@@ -78,36 +75,30 @@ should be extended appropriately for reduced variables. Errors if `write_model`
 is an optimizer model and `add_measure_variable` is not properly extended.
 """
 function make_reduced_variable_ref(write_model::InfiniteModel,
-                                   ivref::InfiniteVariableRef,
+                                   ivref::GeneralVariableRef,
                                    indices::Vector{Int},
                                    values::Vector{Float64}
-                                   )::ReducedVariableRef
+                                   )::GeneralVariableRef
     eval_supps = Dict(indices[i] => values[i] for i in eachindex(indices))
-    index = write_model.next_reduced_index += 1
-    write_model.reduced_info[index] = ReducedInfiniteInfo(ivref, eval_supps)
-    if haskey(write_model.infinite_to_reduced, JuMP.index(ivref))
-        push!(write_model.infinite_to_reduced[JuMP.index(ivref)], index)
-    else
-        write_model.infinite_to_reduced[JuMP.index(ivref)] = [index]
-    end
-    return ReducedVariableRef(write_model, index)
+    var = JuMP.build_variable(error, ivref, eval_supps, check = false)
+    return JuMP.add_variable(write_model, var, define_name = false)
 end
 
 # Add reduced infinite variables in the optimizer model without modifying the InfiniteModel
 function make_reduced_variable_ref(write_model::JuMP.Model,
-                                   ivref::InfiniteVariableRef,
+                                   ivref::GeneralVariableRef,
                                    indices::Vector{Int},
                                    values::Vector{Float64}
-                                   )::ReducedVariableRef
+                                   )::GeneralVariableRef
     eval_supps = Dict(indices[i] => values[i] for i in eachindex(indices))
-    var = ReducedInfiniteInfo(ivref, eval_supps)
+    var = JuMP.build_variable(error, ivref, eval_supps, check = false)
     key = optimizer_model_key(write_model)
     return add_measure_variable(write_model, var, Val(key))
 end
 
 """
     delete_internal_reduced_variable(write_model::Union{InfiniteModel, JuMP.Model},
-                                     rvref::ReducedVariableRef)
+                                     rvref::ReducedVariableRef)::Nothing
 
 Delete the variable associated with `rvref` from `write_model` if it is purely
 an internal variable only used for measure expansion and is no longer needed.
@@ -118,7 +109,7 @@ Note that this is intended as an internal method to assist with extensions to
 [`expand_measure`](@ref).
 """
 function delete_internal_reduced_variable(write_model::InfiniteModel,
-                                          rvref::ReducedVariableRef)
+                                          rvref::ReducedVariableRef)::Nothing
     if !used_by_measure(rvref) && !used_by_constraint(rvref)
         JuMP.delete(write_model, rvref)
     end
@@ -126,7 +117,7 @@ function delete_internal_reduced_variable(write_model::InfiniteModel,
 end
 
 """
-    delete_reduced_variable(model::JuMP.Model, vref, key::Val{:ext_key_name})
+    delete_reduced_variable(model::JuMP.Model, vref, key::Val{:ext_key_name})::Nothing
 
 Delete the reduced variable associated with `vref` from the optimizer model
 `model` with associated extension key `:ext_key_name`. A warning is thrown if this
@@ -141,7 +132,7 @@ end
 
 # Delete reduced infinite variable from optimizer model if it was not made by the InfiniteModel
 function delete_internal_reduced_variable(write_model::JuMP.Model,
-                                          rvref::ReducedVariableRef)
+                                          rvref::ReducedVariableRef)::Nothing
     if !JuMP.is_valid(JuMP.owner_model(rvref), rvref)
         key = optimizer_model_key(write_model)
         delete_reduced_variable(write_model, rvref, Val(key))
@@ -167,9 +158,18 @@ measure data types. Principally, this is leveraged to enable the user methods
 """
 function expand_measure end
 
-# InfiniteVariableRef (DiscreteMeasureData)
-function expand_measure(ivref::InfiniteVariableRef,
+# GeneralVariableRef
+function expand_measure(vref::GeneralVariableRef,
                         data::DiscreteMeasureData,
+                        write_model::JuMP.AbstractModel
+                        )::JuMP.AbstractJuMPScalar
+    return expand_measure(vref, _index_type(vref), data, write_model)
+end
+
+# InfiniteVariableRef (1D DiscreteMeasureData)
+function expand_measure(ivref::GeneralVariableRef,
+                        index_type::Type{InfiniteVariableIndex},
+                        data::DiscreteMeasureData{GeneralVariableRef, 1},
                         write_model::JuMP.AbstractModel
                         )::JuMP.GenericAffExpr
     # pull in the needed information
@@ -181,11 +181,11 @@ function expand_measure(ivref::InfiniteVariableRef,
     # treat variable as constant if doesn't have measure parameter
     if !(pref in var_prefs)
         var_coef = sum(coeffs[i] * w(supps[i]) for i in eachindex(coeffs))
-        return JuMP.GenericAffExpr{Float64, typeof(ivref)}(0, ivref => var_coef)
+        return JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, ivref => var_coef)
     # make point variables if var_prefs = pref (it is the only dependence)
     elseif length(var_prefs) == 1
         return JuMP.@expression(write_model, sum(coeffs[i] * w(supps[i]) *
-                    make_point_variable_ref(write_model, ivref, (supps[i],))
+                    make_point_variable_ref(write_model, ivref, [supps[i]])
                     for i in eachindex(coeffs)))
     # make reduced variables if the variable contains other parameters
     else
@@ -196,9 +196,10 @@ function expand_measure(ivref::InfiniteVariableRef,
     end
 end
 
-# InfiniteVariableRef (MultiDiscreteMeasureData)
-function expand_measure(ivref::InfiniteVariableRef,
-                        data::MultiDiscreteMeasureData,
+# InfiniteVariableRef (Multi DiscreteMeasureData)
+function expand_measure(ivref::GeneralVariableRef,
+                        index_type::Type{InfiniteVariableIndex}
+                        data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
                         write_model::JuMP.AbstractModel
                         )::JuMP.GenericAffExpr
     # pull in the needed information
@@ -207,20 +208,16 @@ function expand_measure(ivref::InfiniteVariableRef,
     supps = supports(data)
     coeffs = coefficients(data)
     w = weight_function(data)
-    # figure out the parameter groups
-    group = group_id(first(prefs))
-    groups = group_id.(var_prefs[:, 1])
-    group_index = findfirst(isequal(group), groups)
     # treat variable as constant if doesn't have measure parameter
-    if group_index isa Nothing
+    if !any(p in var_prefs for p in prefs)
         var_coef = sum(coeffs[i] * w(supps[:, i]) for i in eachindex(coeffs))
-        return JuMP.GenericAffExpr{Float64, typeof(ivref)}(0, ivref => var_coef)
+        return JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, ivref => var_coef)
     # make point variables if all var_prefs are contained in prefs
     elseif size(var_prefs, 1) == 1 && length(var_prefs) == length(prefs)
         # var_prefs = prefs
         if parameter_list(ivref) == prefs
             return JuMP.@expression(write_model, sum(coeffs[i] * w(supps[:, i]) *
-                        make_point_variable_ref(write_model, ivref, (supps[:, i],))
+                        make_point_variable_ref(write_model, ivref, supps[:, i])
                         for i in eachindex(coeffs)))
         # assume that var_prefs are prefs in a different order (otherwise will error)
         else
@@ -233,19 +230,17 @@ function expand_measure(ivref::InfiniteVariableRef,
                         for i in eachindex(coeffs)))
         end
     # make reduced variables if the variable contains other parameters
-    elseif length(var_prefs[group_index, :]) == length(prefs)
+    else
         indices = [findfirst(isequal(pref), var_prefs) for pref in prefs]
         indices isa Vector{<:Int} || error("Invalid high-dimensional measure, parameters partially " *
                                            "overlap with the multi-dimensional parameters in $ivref.")
         return JuMP.@expression(write_model, sum(coeffs[i] * w(supps[:, i]) *
                     make_reduced_variable_ref(write_model, ivref, indices, supps[:, i])
                     for i in eachindex(coeffs)))
-    else
-        error("Invalid high-dimensional measure, the dimensions of the parameters " *
-              "do not agree with the related multi-dimensional parameters in $ivref. " *
-              "Consider using nested 1-dimensional measures if this behavior is wanted.")
     end
 end
+
+# TODO CONTINUE FROM HERE
 
 # Write point support given reduced info and the support
 function _make_point_support(orig_prefs::VectorTuple{ParameterRef},
@@ -280,7 +275,7 @@ function expand_measure(rvref::ReducedVariableRef,
                     make_point_variable_ref(write_model, ivref,
                     _make_point_support(orig_prefs, eval_supps, index, supps[i]))
                     for i in eachindex(coeffs)))
-        delete_internal_reduced_variable(write_model, rvref)
+        delete_internal_reduced_variable(write_model, rvref) # TODO not sure this is helpful
     # make reduced variables if the variable contains other parameters
     else
         index = findfirst(isequal(pref), orig_prefs)
@@ -289,7 +284,7 @@ function expand_measure(rvref::ReducedVariableRef,
         expr = JuMP.@expression(write_model, sum(coeffs[i] * w(supps[i]) *
                     make_reduced_variable_ref(write_model, ivref, indices, Float64[vals; supps[i]])
                     for i in eachindex(coeffs)))
-        delete_internal_reduced_variable(write_model, rvref)
+        delete_internal_reduced_variable(write_model, rvref) # TODO not sure this is helpful
     end
     return expr
 end
@@ -347,7 +342,7 @@ function expand_measure(rvref::ReducedVariableRef,
                         _make_point_support(orig_prefs, eval_supps, orig_group_index, new_supps[:, i]))
                         for i in eachindex(coeffs)))
         end
-        delete_internal_reduced_variable(write_model, rvref)
+        delete_internal_reduced_variable(write_model, rvref) # TODO not sure this is helpful
     # make reduced variables if the variable contains other parameters
     elseif length(var_prefs[group_index, :]) == length(prefs)
         new_indices = [findfirst(isequal(pref), orig_prefs) for pref in prefs]
@@ -361,7 +356,7 @@ function expand_measure(rvref::ReducedVariableRef,
         expr = JuMP.@expression(write_model, sum(coeffs[i] * w(supps[:, i]) *
                     make_reduced_variable_ref(write_model, ivref, indices, Float64[vals; supps[:, i]])
                     for i in eachindex(coeffs)))
-        delete_internal_reduced_variable(write_model, rvref)
+        delete_internal_reduced_variable(write_model, rvref) # TODO not sure this is helpful
     else
         error("Invalid high-dimensional measure, the dimensions of the parameters " *
               "do not agree with the related multi-dimensional parameters in $rvref. " *
@@ -514,6 +509,7 @@ function expand_measure(expr::JuMP.GenericQuadExpr{C, <:GeneralVariableRef},
     # expand the quadratic terms
     for i in eachindex(coeffs)
         # make viable data objects so we can multiply the terms
+        # TODO modify so these are initialized and then modified in place
         coef_data = DiscreteMeasureData(pref, [coeffs[i]], [supps[i]], name, w)
         simple_data = DiscreteMeasureData(pref, [1], [supps[i]], name,
                                           default_weight)
@@ -541,6 +537,8 @@ function expand_measure(expr::JuMP.GenericQuadExpr{C, <:GeneralVariableRef},
     # expand the quadratic terms
     for i in eachindex(coeffs)
         # make viable data objects so we can multiply the terms
+        # TODO modify so these are initialized and then modified in place
+        # TODO use @view
         coef_data = MultiDiscreteMeasureData(prefs, [coeffs[i]], supps[:, i:i],
                                              name, w)
         simple_data = MultiDiscreteMeasureData(prefs, [1], supps[:, i:i], name,
@@ -566,6 +564,22 @@ function expand_measure(mref::MeasureRef,
     new_func = expand_measure(deeper_func, deeper_data, write_model)
     # expand current level with the inner measure now expanded
     return expand_measure(new_func, data, write_model)
+end
+
+# FunctionalDiscreteMeasureData
+function expand_measure(expr,
+                        data::FunctionalDiscreteMeasureData,
+                        write_model::JuMP.AbstractModel
+                        )::JuMP.AbstractJuMPScalar
+    # get the info
+    prefs = parameter_refs(data)
+    supps = supports(data)
+    coeffs = coefficients(data) # TODO generate directly from supps for better efficiency
+    label = support_label(data)
+    w = weight_function(data)
+    # TODO update this once the data type is finalized
+    new_data = DiscreteMeasureData(prefs, coeffs, supps, label, w)
+    return expand_measure(expr, new_data, write_model)
 end
 
 # Catch all method for undefined behavior
@@ -603,6 +617,7 @@ julia> expr = expand(measure(g + z + T - h - 2, tdata))
 ```
 """
 function expand(mref::MeasureRef)::JuMP.AbstractJuMPScalar
+    # TODO check here if analytic
     return expand_measure(measure_function(mref), measure_data(mref),
                           JuMP.owner_model(mref))
 end
@@ -625,6 +640,7 @@ function expand_measures end
 function expand_measures(mref::MeasureRef,
                          write_model::JuMP.AbstractModel
                          )::JuMP.AbstractJuMPScalar
+    # TODO check if analytic
     return expand_measure(measure_function(mref), measure_data(mref),
                            write_model)
 end
@@ -666,7 +682,7 @@ function expand_measures(expr, write_model::JuMP.AbstractModel)
 end
 
 """
-    expand_all_measures!(model::InfiniteModel)
+    expand_all_measures!(model::InfiniteModel)::Nothing
 
 Expand all of the measures used in the objective and/or constraints of `model`.
 The objective and constraints are updated accordingly. Note that
@@ -721,10 +737,11 @@ function expand_all_measures!(model::InfiniteModel)
         # expand the expression
         new_func = expand_measures(model.constrs[cindex].func, model)
         # get the necessary info
-        cref = _make_constraint_ref(model, cindex)
+        cref = _make_constraint_ref(model, cindex) # TODO use temp constraint ref
         name = JuMP.name(cref)
         set = model.constrs[cindex].set
         curr_index = model.next_constr_index
+        # TODO this paradigm will have to be different --> in place
         # delete the old cosntraint and replace it with the expanded version
         model.next_constr_index = cindex - 1
         if isa(model.constrs[cindex], BoundedScalarConstraint) && isa(new_func,

@@ -633,7 +633,7 @@ Extend [`JuMP.all_constraints`](@ref JuMP.all_constraints(::JuMP.Model, ::Type{<
 to return a list of all the constraints with a particular function type and set type.
 
 ```julia-repl
-julia> all_constraints(model, HoldVariableRef, MOI.LessThan)
+julia> all_constraints(model, GeneralVariableRef, MOI.LessThan)
 1-element Array{InfOptConstraintRef,1}:
  x ≤ 1.0
 ```
@@ -665,7 +665,7 @@ to search by function types for all MOI
 sets and return a list of all constraints use a particular function type.
 
 ```julia-repl
-julia> all_constraints(model, HoldVariableRef)
+julia> all_constraints(model, GeneralVariableRef)
 3-element Array{InfOptConstraintRef,1}:
  x ≥ 0.0
  x ≤ 3.0
@@ -816,7 +816,7 @@ provides a more intuitive syntax.
 
 **Example**
 ```julia-repl
-julia> set_parameter_bounds(cref, ParameterBounds(Dict(t => IntervalSet(0, 2))))
+julia> set_parameter_bounds(cref, ParameterBounds((t => IntervalSet(0, 2),)))
 
 julia> parameter_bounds(cref)
 Subdomain bounds (1): t ∈ [0, 2]
@@ -858,7 +858,7 @@ sub-domain based on `pref` from `lower` to `upper`. This is primarily meant to b
 used by [`@add_parameter_bounds`](@ref).
 
 ```julia-repl
-julia> add_parameter_bound(cref, t, 0, 2)
+julia> add_parameter_bounds(cref, ParameterBounds((t => IntervalSet(0, 2),))
 
 julia> parameter_bounds(cref)
 Subdomain bounds (1): t ∈ [0, 2]
@@ -897,7 +897,7 @@ c1 : y(x) ≤ 42, ∀ x[1] = 0, x[2] = 0
 julia> delete_parameter_bounds(c1)
 
 julia> c1
-c1 : y(x) ≤ 42
+c1 : y(x) ≤ 42, ∀ x[1] ∈ [-1, 1], x[2] ∈ [-1, 1] 
 ```
 """
 function delete_parameter_bounds(cref::InfOptConstraintRef)::Nothing

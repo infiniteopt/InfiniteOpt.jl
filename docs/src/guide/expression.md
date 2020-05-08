@@ -8,8 +8,8 @@ statements involving variables and numbers. Thus, these comprise the
 mathematical expressions used that are used in measures, objectives, and
 constraints. Programmatically, `InfiniteOpt` simply extends `JuMP` expression
 types and methods principally pertaining to affine and quadratic mathematical
-expressions. An natively supported abstraction for general nonlinear expressions
-is currently under development since that of `JuMP` is not readily extendable.
+expressions. A natively supported abstraction for general nonlinear expressions
+is planned for development since that of `JuMP` is not readily extendable.
 
 ## Variable Hierarchy
 Expressions employ variable reference types inherited from
@@ -21,17 +21,22 @@ green and the concrete types are shown blue.
 
 ![tree](../assets/variable_tree.png)
 
-Following `JuMP`, expression objects are parameterized by the variable reference
-type that is present in the expression. In `InfiniteOpt` expressions
-automatically, select the most specific variable reference type possible in
-accordance with the above figure. For instance, an expression that only contains
-hold variables will be classified as a [`HoldVariableRef`](@ref) expression object,
-whereas an expression containing hold variables and a measure would be classified
-as a [`MeasureFiniteVariableRef`](@ref) expression object. This hierarchical
-classification becomes convenient to guide infinite program reformulation
-schemes in how to treat different expressions. The default transcription
-methodology employed by `InfiniteOpt.TranscriptionOpt` uses these classifications
-to efficiently differentiate between finite and infinite expressions.
+In consistently with `JuMP` expression support, [`GeneralVariableRef`](@ref)
+exists as a variable reference type that is able to represent any of the above
+conrete subtypes of [`DispatchVariableRef`](@ref). This allows the expression
+containers to be homogeneous in variable type. This is a paradigm shift from
+previous versions of `InfiniteOpt` that used the hierarchy of types directly
+to construct expressions. This behavior led to stability and performance
+limitations and thus a has been discontinued.
+
+However, the variable hierarchy is still used to create for variable methods.
+To accomplish this appropriate `GeneralVariableRef` dispatch methods are implemented
+(which are detailed in User Methods section at the bottom of this page) that
+utilize [`dispatch_variable_ref`](@ref) to create the appropriate concrete
+subtype of `DispatchVariableRef` and call the appropriate underlying method.
+These dispatch methods have been implemented for all public methods and the
+underlying methods are what are documented in the method manuals throughout the
+User Guide pages.
 
 ## Affine Expressions
 An affine expression pertains to a mathematical function of the form:
@@ -72,9 +77,7 @@ GenericAffExpr{Float64,GeneralVariableRef}
 Notice that coefficients to variables can simply be put alongside variables
 without having to use the `*` operator. Also, note that all of these expressions
 are stored in a container referred to as a `GenericAffExpr` which is a `JuMP`
-object for storing affine expressions. Furthermore, this object is parameterized
-by [`GeneralVariableRef`](@ref) since it is the lowest common variable reference
-type in common between hold variables and infinite variables.
+object for storing affine expressions.
 
 !!! note
     Where possible, it is preferable to use [`@expression`](@ref) for defining
@@ -124,9 +127,7 @@ GenericQuadExpr{Float64,GeneralVariableRef}
 ```
 Again, notice that coefficients need not employ `*`. Also, the object used to
 store the expression is a `GenericQuadExpr` which is a `JuMP` object used for
-storing quadratic expressions. Again, this expression container is parameterized
-by [`GeneralVariableRef`](@ref) since that is the common variable reference type
-between the hold variable `z` and the infinite variable `y(t)`.
+storing quadratic expressions.
 
 `GenericQuadExpr` object contains 2 data fields which are:
 - `aff::GenericAffExpr{CoefType,VarType}` An affine expression
@@ -171,9 +172,9 @@ More information can be found in the documentation for quadratic expressions in
 ## Nonlinear Expressions
 General nonlinear expressions as generated via `@NLexpression` and similar
 methods in `JuMP` are not yet extended for `InfiniteOpt`. This is because
-`JuMP` no longer readily supports nonlinear extensions, but a native nonlinear
-implementation is currently under development and should be released in the near
-future.
+`JuMP` does not readily support nonlinear extensions, but a native nonlinear
+implementation is planned for development and should be released in the
+relatively near future.
 
 ## DataTypes
 ```@index

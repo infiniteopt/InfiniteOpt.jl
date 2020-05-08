@@ -25,11 +25,13 @@ using JuMP: REPLMode, IJuliaMode
             @test InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) == "∩"
         end
         @test InfiniteOpt._infopt_math_symbol(REPLMode, :times) == "*"
+        @test InfiniteOpt._infopt_math_symbol(REPLMode, :prop) == "~"
     end
     # test _infopt_math_symbol (IJulia)
     @testset "_infopt_math_symbol (IJulia)" begin
         @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) == "\\cap"
         @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :eq) == "="
+        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) == "\\sim"
     end
     # test _plural
     @testset "_plural" begin
@@ -55,11 +57,11 @@ using JuMP: REPLMode, IJuliaMode
     @testset "set_string (DistributionSet)" begin
         # test univariate set
         set = UniDistributionSet(Uniform())
-        @test set_string(REPLMode, set) == "Uniform(a=0.0, b=1.0)"
-        @test set_string(IJuliaMode, set) == "Uniform(a=0.0, b=1.0)"
+        @test set_string(REPLMode, set) == "Uniform{Float64}(a=0.0, b=1.0)"
+        @test set_string(IJuliaMode, set) == "Uniform{Float64}(a=0.0, b=1.0)"
         # test mulivariate set
         set = MultiDistributionSet(MvNormal([1], 1))
-        str = "IsoNormal(dim: 1, μ: [1.0], Σ: [1.0])"
+        str = "IsoNormal(\ndim: 1\nμ: [1.0]\nΣ: [1.0]\n)\n"
         @test set_string(REPLMode, set) == str
         @test set_string(IJuliaMode, set) == str
     end
@@ -107,17 +109,21 @@ using JuMP: REPLMode, IJuliaMode
     @testset "JuMP.in_set_string (Distribution)" begin
         # test univariate set
         set = UniDistributionSet(Uniform())
-        str = JuMP._math_symbol(REPLMode, :in) * " Uniform(a=0.0, b=1.0)"
+        str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " Uniform"
         @test in_set_string(REPLMode, set) == str
-        str = JuMP._math_symbol(IJuliaMode, :in) * " Uniform(a=0.0, b=1.0)"
+        str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " Uniform"
         @test in_set_string(IJuliaMode, set) == str
         # test mulivariate set
         set = MultiDistributionSet(MvNormal([1], 1))
-        str = JuMP._math_symbol(REPLMode, :in) * " IsoNormal(dim: 1, μ: " *
-                 "[1.0], Σ: [1.0])"
+        str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " MvNormal(dim: (1))"
         @test in_set_string(REPLMode, set) == str
-        str = JuMP._math_symbol(IJuliaMode, :in) * " IsoNormal(dim: 1, μ: " *
-                 "[1.0], Σ: [1.0])"
+        str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " MvNormal(dim: (1))"
+        @test in_set_string(IJuliaMode, set) == str
+        # test matrix set
+        set = MultiDistributionSet(MatrixBeta(2, 2, 2))
+        str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " MatrixBeta(dims: (2, 2))"
+        @test in_set_string(REPLMode, set) == str
+        str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " MatrixBeta(dims: (2, 2))"
         @test in_set_string(IJuliaMode, set) == str
     end
     # test in_set_string (Fallback)
@@ -155,16 +161,16 @@ using JuMP: REPLMode, IJuliaMode
         # test in bounds and not equality
         bounds = ParameterBounds((par1 => IntervalSet(0, 1),))
         set = UniDistributionSet(Uniform())
-        str = JuMP._math_symbol(REPLMode, :in) * " Uniform(a=0.0, b=1.0) " *
+        str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " Uniform " *
               InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) * " [0, 1]"
         @test in_set_string(REPLMode, par1, set, bounds) == str
-        str = JuMP._math_symbol(IJuliaMode, :in) * " Uniform(a=0.0, b=1.0) " *
+        str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " Uniform " *
               InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) * " [0, 1]"
         @test in_set_string(IJuliaMode, par1, set, bounds) == str
         # test not in bounds
-        str = JuMP._math_symbol(REPLMode, :in) * " Uniform(a=0.0, b=1.0)"
+        str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " Uniform"
         @test in_set_string(REPLMode, pars[1], set, bounds) == str
-        str = JuMP._math_symbol(IJuliaMode, :in) * " Uniform(a=0.0, b=1.0)"
+        str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " Uniform"
         @test in_set_string(IJuliaMode, pars[1], set, bounds) == str
     end
     # test bound_string
@@ -224,23 +230,23 @@ using JuMP: REPLMode, IJuliaMode
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) == str
         # other set without equalities and including in the bounds
         bounds = ParameterBounds((pars[1] => IntervalSet(0, 1),))
-        str = "pars " * JuMP._math_symbol(REPLMode, :in) * " IsoNormal(dim: 2, μ: " *
-              "[1.0, 1.0], Σ: [1.0 0.0; 0.0 1.0]) " *
+        str = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
+              " MvNormal(dim: (2)) " *
               InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) *
               " (pars[1] " * JuMP._math_symbol(REPLMode, :in) * " [0, 1])"
         @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) == str
-        str = "pars " * JuMP._math_symbol(IJuliaMode, :in) * " IsoNormal(dim: 2, μ: " *
-              "[1.0, 1.0], Σ: [1.0 0.0; 0.0 1.0]) " *
+        str = "pars " * InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) *
+              " MvNormal(dim: (2)) " *
               InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) *
               " (pars_{1} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1])"
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) == str
         # other set without equalities and not included in bounds
         bounds = ParameterBounds((par1 => IntervalSet(0, 1),))
-        str = "pars " * JuMP._math_symbol(REPLMode, :in) * " IsoNormal(dim: 2, μ: " *
-              "[1.0, 1.0], Σ: [1.0 0.0; 0.0 1.0])"
+        str = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
+              " MvNormal(dim: (2))"
         @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) == str
-        str = "pars " * JuMP._math_symbol(IJuliaMode, :in) * " IsoNormal(dim: 2, μ: " *
-              "[1.0, 1.0], Σ: [1.0 0.0; 0.0 1.0])"
+        str = "pars " * InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) *
+              " MvNormal(dim: (2))"
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) == str
     end
     # test constraint_string (infinite constraint)
@@ -377,13 +383,11 @@ end
     end
     # test Base.show (DistributionSet in REPL)
     @testset "Base.show (REPL DistributionSet)" begin
-        show_test(REPLMode, UniDistributionSet(Uniform()),
-                  "Uniform(a=0.0, b=1.0)")
+        show_test(REPLMode, UniDistributionSet(Uniform()), string(Uniform()))
     end
     # test Base.show (DistributionSet in IJulia)
     @testset "Base.show (IJulia DistributionSet)" begin
-        show_test(IJuliaMode, UniDistributionSet(Uniform()),
-                  "Uniform(a=0.0, b=1.0)")
+        show_test(IJuliaMode, UniDistributionSet(Uniform()), string(Uniform()))
     end
     # test Base.show (CollectionSet in REPL)
     @testset "Base.show (REPL CollectionSet)" begin

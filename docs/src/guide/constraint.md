@@ -46,7 +46,7 @@ infinite model and the second is the constraint expression. For example, let's
 define the constraint ``2T(t, x) + ||z||^2 \leq 0``:
 ```jldoctest constrs
 julia> cref = @constraint(model, 2T + sum(z[i]^2 for i = 1:2) <= 0)
-z[1]² + z[2]² + 2 T(t, x) ≤ 0.0
+z[1]² + z[2]² + 2 T(t, x) ≤ 0.0, ∀ t ∈ [0, 10], x[1] ~ Normal, x[2] ~ Normal
 ```
 Thus, we added an infinite constraint (which infinite with respect to `t` and `x`)
 to `model` and stored the corresponding constraint reference to `cref`. The
@@ -77,6 +77,12 @@ measure_constr : integral(g(t)) = 4.0
 Thus, we added another constraint named `measure_constr` and created a `Julia`
 variable `measure_constr` that contains a reference to that constraint.
 
+!!! note
+    Linear algebra constraints can also be used when defining constraints
+    when `.` is added in front of the constraint operators (e.g., `.<=`). This
+    behavior is further explained in `JuMP`'s documentation [here](https://www.juliaopt.org/JuMP.jl/stable/constraints/#Vectorized-constraints-1). However, note that
+    that vector array sets such as `MOI.Nonnegatives` are not currently supported.
+
 ### Bounded Constraints
 Bounded constraints denote constraints with a particular sub-domain of an infinite
 domain. Such constraints might pertain to point constraints evaluated at a
@@ -99,7 +105,7 @@ the second argument. To illustrate this, let's define an anonymous constraint
 for ``2T^2(t, x) + w \geq 3, \ \forall t = 0, \ x \in [-1, 1]^2``:
 ```jldoctest constrs
 julia> cref = @BDconstraint(model, (t == 0, x in [-1, 1]), 2T^2 + w >= 3)
-2 T(t, x)² + w ≥ 3.0, ∀ x[2] ∈ [-1, 1], x[1] ∈ [-1, 1], t = 0
+2 T(t, x)² + w ≥ 3.0, ∀ t = 0, x[1] ~ Normal ∩ [-1, 1], x[2] ~ Normal ∩ [-1, 1]
 ```
 where `cref` contains the corresponding constraint reference.
 
@@ -111,7 +117,8 @@ In general, constraints in `JuMP` are of the form: `[function] in [set]` where
 `function` corresponds to a `JuMP` expression and `set` corresponds to a `MOI`
 set. Since `InfiniteOpt` only supports scalar constraints currently, expressions
 must be inherited from `JuMP.AbstractJuMPScalar` and the supported `MOI` sets are
-`MOI.EqualTo`, `MOI.LessThan`, and `MOI.GreaterThan`.  
+`MOI.EqualTo`, `MOI.LessThan`, `MOI.GreaterThan`, `MOI.Integer`, and `MOI.ZeroOne`.
+Where the last 2 are intended for single variable constraints.  
 
 Furthermore, constraints in the form mentioned above are stored in appropriate
 constraint object inherited from `JuMP.AbstractConstraint`. Typical scalar
@@ -127,10 +134,10 @@ deletion methods such as deleting a bounded hold variable.
 
 These constraint objects are what store constraints in `InfiniteModel`s. And
 these are referred to by appropriate explicit type of [`InfOptConstraintRef`](@ref).
-These explicit types are [`InfiniteConstraintRef`](@ref),
-[`FiniteConstraintRef`](@ref), and [`MeasureConstraintRef`](@ref) which
-correspond to constraints that contain infinite variables, finite variables, and
-measure variables, respectively.
+These explicit types are [`InfiniteConstraintRef`](@ref) and
+[`FiniteConstraintRef`](@ref)  which correspond to constraints that ultimately
+have infinite parameter dependencies (explicity or implicitly) or do not,
+respectively.
 
 ## Definition
 In this section, we describe the ins and outs of defining constraints. Note that
@@ -148,23 +155,22 @@ the following steps:
 - Create a concrete subtype of [`InfOptConstraintRef`](@ref) that points to the constraint object stored in the model.
 
 The constraint objects are specified via
-[`build_constraint`](@ref JuMP.build_constraint(::Function, ::InfiniteExpr, ::MOI.AbstractScalarSet))
- which requires
-the user a `JuMP.AbstractJuMPScalar`, a `MOI.AbstractScalarSet`, and any keyword
+[`JuMP.build_constraint`](@ref) which requires that the user provides
+a `JuMP.AbstractJuMPScalar`, a `MOI.AbstractScalarSet`, and any keyword
 arguments such as `ParameterBound`. For example, let's build a scalar constraint
 for ``3T(t, x) - g^2(t) \leq 0``:
 ```jldoctest constrs; setup = :(using MathOptInterface; const MOI = MathOptInterface)
 julia> constr = build_constraint(error, 3T - g^2, MOI.LessThan(0.0))
-ScalarConstraint{GenericQuadExpr{Float64,InfiniteVariableRef},MathOptInterface.LessThan{Float64}}(-g(t)² + 3 T(t, x), MathOptInterface.LessThan{Float64}(0.0))
+ScalarConstraint{GenericQuadExpr{Float64,GeneralVariableRef},MathOptInterface.LessThan{Float64}}(-g(t)² + 3 T(t, x), MathOptInterface.LessThan{Float64}(0.0))
 ```
 
 Now the built constraint object can be added to the infinite model via
-[`add_constraint`](@ref JuMP.add_constraint(::InfiniteModel, ::JuMP.AbstractConstraint)).
+[`add_constraint`](@ref JuMP.add_constraint(::InfiniteModel, ::JuMP.AbstractConstraint, ::String)).
 Let's do so with our example and assign it the name of `c1` (note that adding a
 name is optional):
 ```jldoctest constrs
 julia> cref = add_constraint(model, constr, "c1")
-c1 : -g(t)² + 3 T(t, x) ≤ 0.0
+c1 : -g(t)² + 3 T(t, x) ≤ 0.0, ∀ t ∈ [0, 10], x[1] ~ Normal, x[2] ~ Normal
 ```
 
 Thus, we have made our constraint and added it `model` and now have a constraint
@@ -187,8 +193,8 @@ below (notice this is equivalent to looping over individual `@constraint` calls)
 ```jldoctest constrs
 julia> crefs = @constraint(model, [i = 1:2], 2z[i] - g == 0)
 2-element Array{InfiniteConstraintRef{ScalarShape},1}:
- 2 z[1] - g(t) = 0.0
- 2 z[2] - g(t) = 0.0
+ 2 z[1] - g(t) = 0.0, ∀ t ∈ [0, 10]
+ 2 z[2] - g(t) = 0.0, ∀ t ∈ [0, 10]
 
 julia> crefs = Vector{InfiniteConstraintRef{ScalarShape}}(undef, 2);
 
@@ -198,8 +204,8 @@ julia> for i = 1:2
 
 julia> crefs
 2-element Array{InfiniteConstraintRef{ScalarShape},1}:
- 2 z[1] - g(t) = 0.0
- 2 z[2] - g(t) = 0.0
+ 2 z[1] - g(t) = 0.0, ∀ t ∈ [0, 10]
+ 2 z[2] - g(t) = 0.0, ∀ t ∈ [0, 10]
 ```
 Again, please note that only scalar constraints are currently supported and thus
 the `[scalar constr expr]` must be scalar.
@@ -221,7 +227,7 @@ constraint.
 
 The [`@BDconstraint`](@ref) is very similar except that it adds the capability
 of symbolically specifying parameter bounds. Thus the syntax is of the form
-`@BDconstraint([InfiniteModel], [name][indexing expr](param bounds), [scalar constr expr])`.
+`@BDconstraint([InfiniteModel], [name][indexing expr](bound expr), [scalar constr expr])`.
 Note that here the `name` and `[indexing expr]` are optional, but the
 `(param bounds)` tuple is required. Thus, three arguments must always be given.
 The `(bound expr)` can be of the form:
@@ -248,8 +254,8 @@ references to be stored in a `JuMP.SparseAxisArray`:
 julia> @BDconstraint(model, [i = 1:2](x[i] == 0), T^2 + z[i] <= 1,
                      container = SparseAxisArray)
 JuMP.Containers.SparseAxisArray{InfiniteConstraintRef{ScalarShape},1,Tuple{Int64}} with 2 entries:
-  [2]  =  T(t, x)² + z[2] ≤ 1.0, ∀ x[2] = 0
-  [1]  =  T(t, x)² + z[1] ≤ 1.0, ∀ x[1] = 0
+  [2]  =  T(t, x)² + z[2] ≤ 1.0, ∀ t ∈ [0, 10], x[1] ~ Normal, x[2] = 0
+  [1]  =  T(t, x)² + z[1] ≤ 1.0, ∀ t ∈ [0, 10], x[1] = 0, x[2] ~ Normal
 ```
 For more information on `JuMP` containers please visit their page
 [here](http://www.juliaopt.org/JuMP.jl/stable/containers/).
@@ -278,10 +284,10 @@ julia> name(measure_constr) # get the name
 julia> m = owner_model(measure_constr); # get the model it is added to
 
 julia> index(measure_constr) # get the constraint's index
-4
+ConstraintIndex(4)
 
 julia> constraint_object(measure_constr) # get the raw constraint datatype
-ScalarConstraint{GenericAffExpr{Float64,MeasureRef},MathOptInterface.EqualTo{Float64}}(integral(g(t)), MathOptInterface.EqualTo{Float64}(4.0))
+ScalarConstraint{GenericAffExpr{Float64,GeneralVariableRef},MathOptInterface.EqualTo{Float64}}(integral(g(t)), MathOptInterface.EqualTo{Float64}(4.0))
 ```
 
 Also, [`constraint_by_name`](@ref JuMP.constraint_by_name(::InfiniteModel, ::String))
@@ -289,7 +295,7 @@ can be used to retrieve a constraint reference if only the name is known and its
 name is unique. For example, let's extract the reference for `"c1"`:
 ```jldoctest constrs
 julia> cref = constraint_by_name(model, "c1")
-c1 : -g(t)² + 3 T(t, x) ≤ 0.0
+c1 : -g(t)² + 3 T(t, x) ≤ 0.0, ∀ t ∈ [0, 10], x[1] ~ Normal, x[2] ~ Normal
 ```
 
 ### Parameter Bounds
@@ -342,14 +348,10 @@ and the second element is the set type (recall that constraints are stored in
 the form `func-in-set`). Thus, for our current model we obtain:
 ```jldoctest constrs
 julia> list_of_constraint_types(model)
-8-element Array{Tuple,1}:
+4-element Array{Tuple,1}:
  (GenericQuadExpr{Float64,GeneralVariableRef}, MathOptInterface.LessThan{Float64})
- (GenericAffExpr{Float64,HoldVariableRef}, MathOptInterface.EqualTo{Float64})
- (GenericAffExpr{Float64,MeasureRef}, MathOptInterface.EqualTo{Float64})
- (GenericAffExpr{Float64,InfiniteVariableRef}, MathOptInterface.EqualTo{Float64})
- (GenericQuadExpr{Float64,GeneralVariableRef}, MathOptInterface.GreaterThan{Float64})
- (GenericQuadExpr{Float64,InfiniteVariableRef}, MathOptInterface.LessThan{Float64})
  (GenericAffExpr{Float64,GeneralVariableRef}, MathOptInterface.EqualTo{Float64})
+ (GenericQuadExpr{Float64,GeneralVariableRef}, MathOptInterface.GreaterThan{Float64})
  (GenericAffExpr{Float64,GeneralVariableRef}, MathOptInterface.LessThan{Float64})
 ```
 This information is useful when in combination with the
@@ -390,7 +392,7 @@ that a constraint with a registered name cannot be repeatedly added and removed
 using the same name. To exemplify this, let's delete the constraint `c1`:
 ```jldoctest constrs
 julia> cref = constraint_by_name(model, "c1")
-c1 : -g(t)² + 3 T(t, x) ≤ 0.0
+c1 : -g(t)² + 3 T(t, x) ≤ 0.0, ∀ t ∈ [0, 10], x[1] ~ Normal, x[2] ~ Normal
 
 julia> delete(model, cref)
 ```
@@ -419,11 +421,11 @@ julia> set_normalized_rhs(constr, -1)
 julia> set_normalized_coefficient(constr, g, 2.5)
 
 julia> constr
-constr : 2.5 g(t) - z[1] ≤ -1.0
+constr : 2.5 g(t) - z[1] ≤ -1.0, ∀ t ∈ [0, 10]
 ```
 
 !!! note
-    In many cases, it may be more convenient to dynamically modify coefficients
+    In some cases, it may be more convenient to dynamically modify coefficients
     and other values via the use of finite parameters. This provides an avenue
     to update parameters without having to be concerned about the normalized form.
     For more information, see the [Finite Parameters](@ref finite_param_docs) page.
@@ -432,7 +434,6 @@ constr : 2.5 g(t) - z[1] ≤ -1.0
 Parameter bounds can be added to, modified, or removed from any constraint in
 `InfiniteOpt`. Principally, this is accomplished via [`@add_parameter_bounds`](@ref),
 [`@set_parameter_bounds`](@ref),
-[`delete_parameter_bound`](@ref delete_parameter_bound(::InfOptConstraintRef, ::ParameterRef)),
 and [`delete_parameter_bounds`](@ref delete_parameter_bounds(::InfOptConstraintRef))
 in like manner to hold variables.
 
@@ -473,14 +474,13 @@ constr : 2.5 g(t) - z[1] ≤ -1.0, ∀ t = 0
 ```
 
 !!! note
-    Constraint parameters bounds are overlapped with those of any hold variables
-    that are part of the constraint. If no such, overlap exists then an error is
+    Constraint parameters bounds are intersected with those of any hold variables
+    that are part of the constraint. If no such intersection exists then an error is
     thrown.
 
-Finally, constraint bounds can be deleted via [`delete_parameter_bound`](@ref delete_parameter_bound(::InfOptConstraintRef, ::ParameterRef))
-and [`delete_parameter_bounds`](@ref delete_parameter_bounds(::InfOptConstraintRef))
-where the first deletes the bound with associated with a particular parameter
-and later deletes all parameter bounds. Again, note the parameter bounds associated
+Finally, constraint bounds can be deleted via
+[`delete_parameter_bounds`](@ref delete_parameter_bounds(::InfOptConstraintRef))
+which deletes all parameter bounds. Again, note the parameter bounds associated
 with hold variables will be unaffected and can only be removed by deleting them
 from the variables directly. Now let's delete the parameter bounds associated
 with our example:
@@ -488,16 +488,8 @@ with our example:
 julia> delete_parameter_bounds(constr)
 
 julia> constr
-constr : 2.5 g(t) - z[1] ≤ -1.0
+constr : 2.5 g(t) - z[1] ≤ -1.0, ∀ t ∈ [0, 10]
 ```
-Note that in this case we could equivalently call
-```jldoctest constrs
-julia> delete_parameter_bound(constr, t)
-
-julia> constr
-constr : 2.5 g(t) - z[1] ≤ -1.0
-```
-since `constr` only contained 1 parameter bound.
 
 ## Datatypes
 ```@index
@@ -522,8 +514,8 @@ Order   = [:macro, :function]
 ```
 ```@docs
 @BDconstraint
-JuMP.build_constraint(::Function,::Union{JuMP.GenericAffExpr{C, V}, JuMP.GenericQuadExpr{C, V}},::MOI.AbstractScalarSet;::ParameterBounds{GeneralVariableRef}) where {C, V <: GeneralVariableRef}
-JuMP.add_constraint(::InfiniteModel, ::JuMP.AbstractConstraint)
+JuMP.build_constraint
+JuMP.add_constraint(::InfiniteModel, ::JuMP.AbstractConstraint, ::String)
 JuMP.owner_model(::InfOptConstraintRef)
 JuMP.index(::InfOptConstraintRef)
 JuMP.constraint_object(::InfOptConstraintRef)
