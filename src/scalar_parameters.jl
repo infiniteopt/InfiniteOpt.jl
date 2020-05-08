@@ -928,6 +928,9 @@ function add_supports(pref::IndependentParameterRef,
     return
 end
 
+# TODO: finish this
+#function add_supports(prefs::Vector{IndependentParameterRef},...)
+
 """
     delete_supports(pref::IndependentParameterRef)
 
@@ -1040,15 +1043,18 @@ by extending [`generate_support_values`](@ref). Errors if the infinite set type
 is not recognized.
 """
 function generate_and_add_supports!(pref::IndependentParameterRef,
-                                    set::AbstractInfiniteSet;
+                                    set::AbstractInfiniteSet,
+                                    method::Union{Symbol, Nothing} = nothing;
                                     num_supports::Int = DefaultNumSupports,
                                     adding_extra::Bool = false)::Nothing
     sig_digits = significant_digits(pref)
     if isa(set, IntervalSet) && adding_extra
-        supports, label = generate_support_values(set, num_supports = num_supports,
-                                                  sig_digits = sig_digits, use_mc = true)
+        supports, label = generate_support_values(set, Val(McSample),
+                                                  num_supports = num_supports,
+                                                  sig_digits = sig_digits)
     else
-        supports, label = generate_support_values(set, num_supports = num_supports,
+        supports, label = generate_support_values(set, method,
+                                                  num_supports = num_supports,
                                                   sig_digits = sig_digits)
     end
     add_supports(pref, supports, label = label)

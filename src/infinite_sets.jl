@@ -342,7 +342,24 @@ should extend according to the new set type. Errors if the `set` is a type that
 has not been explicitly extended. This is intended as an internal method to be
 used by [`generate_and_add_supports!`](@ref) and [`build_parameter`](@ref).
 """
-function generate_support_values(set::AbstractInfiniteSet;
+# a user interface of generate_support_values
+function generate_support_values(set::AbstractInfiniteSet,
+                                 method::Union{Symbol, Nothing} = nothing;
+                                 num_supports::Int = DefaultNumSupports,
+                                 sig_digits::Int = DefaultSigDigits)
+    if method === nothing
+        return generate_support_values(set,
+                                       num_supports = num_supports,
+                                       sig_digits = sig_digits)
+    else
+        return generate_support_values(set, Val(method),
+                                       num_supports = num_supports,
+                                       sig_digits = sig_digits)
+    end
+end
+
+function generate_support_values(set::AbstractInfiniteSet,
+                                 method::Val;
                                  num_supports::Int = 0,
                                  sig_digits::Int = 1)
     error("Unable to generate support values for unrecognized infinite set " *
@@ -350,28 +367,42 @@ function generate_support_values(set::AbstractInfiniteSet;
 end
 
 # IntervalSet
-function generate_support_values(set::IntervalSet;
+function generate_support_values(set::IntervalSet,
+                                 ::Val{UniformGrid} = Val(UniformGrid);
                                  num_supports::Int = DefaultNumSupports,
                                  sig_digits::Int = DefaultSigDigits,
-                                 use_mc::Bool = false
                                  )::Tuple{Vector{<:Real}, Symbol}
     lb = JuMP.lower_bound(set)
     ub = JuMP.upper_bound(set)
-    if use_mc
-        dist = Distributions.Uniform(lb, ub)
-        new_supports = round.(Distributions.rand(dist, num_supports),
-                              sigdigits = sig_digits)
-        return new_supports, McSample
-    else
-        new_supports = round.(range(lb, stop = ub, length = num_supports),
-                              sigdigits = sig_digits)
-        return new_supports, UniformGrid
-    end
+    new_supports = round.(range(lb, stop = ub, length = num_supports),
+                          sigdigits = sig_digits)
+    return new_supports, UniformGrid
+end
+
+function generate_support_values(set::IntervalSet,
+                                 ::Val{McSample};
+                                 num_supports::Int = DefaultNumSupports,
+                                 sig_digits::Int = DefaultSigDigits,
+                                 )::Tuple{Vector{<:Real}, Symbol}
+    lb = JuMP.lower_bound(set)
+    ub = JuMP.upper_bound(set)
+    dist = Distributions.Uniform(lb, ub)
+    new_supports = round.(Distributions.rand(dist, num_supports),
+                          sigdigits = sig_digits)
+    return new_supports, McSample
+end
+
+# fallback for IntervalSet
+function generate_support_values(set::IntervalSet, method::Val;
+                                 num_supports::Int = 0, sig_digits::Int = 1)
+    error("Method " * string(method)[6:end-1] * " is not supported for " *
+          "set of type $(typeof(set))")
 end
 
 # UniDistributionSet and MultiDistributionSet (with multivariate only)
 function generate_support_values(
-    set::Union{UniDistributionSet, MultiDistributionSet{<:Distributions.MultivariateDistribution}};
+    set::Union{UniDistributionSet, MultiDistributionSet{<:Distributions.MultivariateDistribution}},
+    ::Val{McSample} = Val(McSample);
     num_supports::Int = DefaultNumSupports,
     sig_digits::Int = DefaultSigDigits
     )::Tuple{Array{<:Real}, Symbol}
@@ -381,9 +412,20 @@ function generate_support_values(
     return new_supports, McSample
 end
 
+# fallback for UniDistributionSet and MultiDistributionSet (with multivariate only)
+function generate_support_values(
+    set::Union{UniDistributionSet, MultiDistributionSet{<:Distributions.MultivariateDistribution}},
+    method::Val;
+    num_supports::Int = 0,
+    sig_digits::Int = 1)
+    error("Method " * string(method)[6:end-1] * " is not supported for " *
+          "set of type $(typeof(set))")
+end
+
 # MultiDistributionSet (matrix-variate distribution)
 function generate_support_values(
-    set::MultiDistributionSet{<:Distributions.MatrixDistribution};
+    set::MultiDistributionSet{<:Distributions.MatrixDistribution},
+    ::Val{McSample} = Val(McSample);
     num_supports::Int = DefaultNumSupports,
     sig_digits::Int = DefaultSigDigits
     )::Tuple{Array{Float64, 2}, Symbol}
@@ -395,6 +437,16 @@ function generate_support_values(
                                     sigdigits = sig_digits)
     end
     return new_supports, McSample
+end
+
+# fallback for MultiDistributionSet (matrix-variate distribution)
+function generate_support_values(
+    set::MultiDistributionSet{<:Distributions.MatrixDistribution},
+    method::Val;
+    num_supports::Int = 0,
+    sig_digits::Int = 1)
+    error("Method " * string(method)[6:end-1] * " is not supported for " *
+          "set of type $(typeof(set))")
 end
 
 # Generate the supports for a collection set
@@ -412,7 +464,8 @@ function _generate_collection_supports(set::CollectionSet, num_supports::Int,
 end
 
 # CollectionSet (IntervalSets)
-function generate_support_values(set::CollectionSet{IntervalSet};
+function generate_support_values(set::CollectionSet{IntervalSet},
+                                 ::Val{UniformGrid} = Val(UniformGrid);
                                  num_supports::Int = DefaultNumSupports,
                                  sig_digits::Int = DefaultSigDigits
                                  )::Tuple{Array{<:Real}, Symbol}
@@ -421,7 +474,8 @@ function generate_support_values(set::CollectionSet{IntervalSet};
 end
 
 # CollectionSet (UniDistributionSets)
-function generate_support_values(set::CollectionSet{<:UniDistributionSet};
+function generate_support_values(set::CollectionSet{<:UniDistributionSet},
+                                 ::Val{McSample} = Val(McSample);
                                  num_supports::Int = DefaultNumSupports,
                                  sig_digits::Int = DefaultSigDigits
                                  )::Tuple{Array{<:Real}, Symbol}
@@ -430,10 +484,21 @@ function generate_support_values(set::CollectionSet{<:UniDistributionSet};
 end
 
 # CollectionSet (InfiniteScalarSets)
-function generate_support_values(set::CollectionSet;
+function generate_support_values(set::CollectionSet,
+                                 ::Val{Mixture} = Val(Mixture);
                                  num_supports::Int = DefaultNumSupports,
                                  sig_digits::Int = DefaultSigDigits
                                  )::Tuple{Array{<:Real}, Symbol}
     new_supports = _generate_collection_supports(set, num_supports, sig_digits)
     return new_supports, Mixture
+end
+
+# fallback for CollectionSet
+function generate_support_values(set::CollectionSet,
+                                 method::Val;
+                                 num_supports::Int = DefaultNumSupports,
+                                 sig_digits::Int = DefaultSigDigits
+                                 )
+    error("Method " * string(method)[6:end-1] * " is not supported for " *
+          "set of type $(typeof(set))")
 end

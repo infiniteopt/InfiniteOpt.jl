@@ -339,21 +339,21 @@ end
     @test AbstractMeasureData isa DataType
     # DiscreteMeasureData
     @test DiscreteMeasureData <: AbstractMeasureData
-    @test DiscreteMeasureData(pref, ones(2), ones(2), :a, w) isa DiscreteMeasureData
-    @test DiscreteMeasureData([pref], ones(2), ones(1, 2), :a, w) isa DiscreteMeasureData
+    @test DiscreteMeasureData(pref, ones(2), ones(2), :a, w, NaN, NaN, false) isa DiscreteMeasureData
+    @test DiscreteMeasureData([pref], ones(2), ones(1, 2), :a, w, [NaN], [NaN], false) isa DiscreteMeasureData
     # FunctionalDistributionSet
     @test FunctionalDiscreteMeasureData <: AbstractMeasureData
-    @test FunctionalDiscreteMeasureData(pref, w, 2, :all, w) isa FunctionalDiscreteMeasureData
-    @test FunctionalDiscreteMeasureData([pref], w, 2, :all, w) isa FunctionalDiscreteMeasureData
+    @test FunctionalDiscreteMeasureData(pref, w, 2, :all, w, NaN, NaN, false) isa FunctionalDiscreteMeasureData
+    @test FunctionalDiscreteMeasureData([pref], w, 2, :all, w, [NaN], [NaN], false) isa FunctionalDiscreteMeasureData
     # Measure
     @test Measure isa UnionAll
     @test Measure(zero(AffExpr),
-                  DiscreteMeasureData(pref, ones(2), ones(2), :a, w),
+                  DiscreteMeasureData(pref, ones(2), ones(2), :a, w, NaN, NaN, false),
                   [1], [1], false) isa Measure
     # MeasureData
     @test MeasureData <: AbstractDataObject
     @test MeasureData(Measure(zero(AffExpr), DiscreteMeasureData(pref,
-                      ones(2), ones(2), :a, w), [1], [1], true)) isa MeasureData
+                      ones(2), ones(2), :a, w, NaN, NaN, false), [1], [1], true)) isa MeasureData
 end
 
 # Test the constraint datatypes
