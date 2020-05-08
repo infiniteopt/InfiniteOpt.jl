@@ -6,22 +6,26 @@
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
     @hold_variable(m, x)
-    data = DiscreteMeasureData(par, [1], [1])
-    meas = measure(inf + par - x, data)
-    rv = ReducedInfiniteVariableRef(m, 42)
+    var = build_variable(error, inf, Dict{Int, Float64}(1 => 0.5), check = false)
+    rv = add_variable(m, var, define_name = false)
+    # TODO replace with actual measure methods
+    data = TestData(par, 0, 1)
+    meas = Measure(inf + par - x, data, Int[], Int[], true)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    meas = InfiniteOpt._make_variable_ref(m, mindex)
     @constraint(m, cref, par - inf + pt + 2x - rv + meas <= 1)
     # test normal deletion
     @test isa(delete(m, cref), Nothing)
     @test !is_valid(m, cref)
-    @test !haskey(m.param_to_constrs, JuMP.index(par))
-    @test !haskey(m.var_to_constrs, JuMP.index(inf))
-    @test !haskey(m.var_to_constrs, JuMP.index(pt))
-    @test !haskey(m.var_to_constrs, JuMP.index(x))
-    @test !haskey(m.reduced_to_constrs, JuMP.index(rv))
-    @test !haskey(m.meas_to_constrs, JuMP.index(meas))
-    @test !haskey(m.constrs, JuMP.index(cref))
-    @test !haskey(m.constr_to_name, JuMP.index(cref))
-    @test !haskey(m.constr_in_var_info, JuMP.index(cref))
+    @test !used_by_constraint(par)
+    @test !used_by_constraint(inf)
+    @test !used_by_constraint(pt)
+    @test !used_by_constraint(x)
+    @test !used_by_constraint(rv)
+    @test !used_by_constraint(meas)
+    @test isempty(InfiniteOpt._data_dictionary(cref))
     # test assertion error
     @test_throws AssertionError delete(m, cref)
 end
@@ -129,14 +133,24 @@ end
     end
 end
 
-# Test parameter deletion
-@testset "Parameters" begin
-    # initialize model and references
+# Test scalar parameter deletion
+@testset "Scalar Parameters" begin
+    # initialize model
     m = InfiniteModel()
+    # setup the parameters
     @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1,)
     @infinite_parameter(m, 0 <= par2 <= 1)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     @infinite_parameter(m, 0 <= par3 <= 1)
+    @finite_parameter(m, fin, 42)
+    @finite_parameter(m, fin2, 42)
+    dpar = dispatch_variable_ref(par)
+    dpars = dispatch_variable_ref.(pars)
+    dpar2 = dispatch_variable_ref(par2)
+    dpar3 = dispatch_variable_ref(par3)
+    dfin = dispatch_variable_ref(fin)
+    dfin2 = dispatch_variable_ref(fin2)
+    # setup the variables
     @infinite_variable(m, inf(par))
     @infinite_variable(m, inf2(par, par2))
     @infinite_variable(m, inf3(par, pars))
@@ -145,106 +159,138 @@ end
     pt2 = @point_variable(m, inf2(0.5, 0.5))
     @point_variable(m, inf3(0, [0, 0]), pt3)
     @hold_variable(m, x)
-    m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(2 => 0.5))
-    m.infinite_to_reduced[JuMP.index(inf4)] = [-1]
-    rv = ReducedInfiniteVariableRef(m, -1)
-    data = DiscreteMeasureData(par, [1], [1])
-    data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
-    meas = measure(inf + par - x + rv, data)
-    meas2 = measure(inf3 - x + pt2, data2)
-    meas3 = measure(inf2 + par2, data)
-    meas4 = add_measure(m, Measure(par3, data))
-    meas5 = measure(pars[2] + par, data)
-    @constraint(m, con, inf2 + inf4 - par2 <= 0)
-    m.constrs[-1] = ScalarConstraint(par3, MOI.GreaterThan(0.))
-    m.param_to_constrs[JuMP.index(par3)] = [-1]
-    con2 = InfiniteConstraintRef(m, -1, JuMP.shape(m.constrs[-1]))
-    set_name(con2, "")
-    # test _check_param_in_data (scalar)
-    @testset "_check_param_in_data (Scalar)" begin
+    var = build_variable(error, inf4, Dict{Int, Float64}(2 => 0.5), check = false)
+    rv = add_variable(m, var, define_name = false)
+    dinf = dispatch_variable_ref(inf)
+    dinf2 = dispatch_variable_ref(inf2)
+    dinf3 = dispatch_variable_ref(inf3)
+    dinf4 = dispatch_variable_ref(inf4)
+    dpt = dispatch_variable_ref(pt)
+    dpt2 = dispatch_variable_ref(pt2)
+    dpt3 = dispatch_variable_ref(pt3)
+    dx = dispatch_variable_ref(x)
+    drv = dispatch_variable_ref(rv)
+    # setup the measure
+    # TODO replace with actual measure methods
+    data = TestData(par, 0, 1)
+    meas = Measure(inf + par - x + rv + par2 + par3 + fin, data, [2, 4], [2, 5], false)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(1)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    mref = InfiniteOpt._make_variable_ref(m, mindex)
+    for ref in [inf, par, x, rv, par2, par3, fin]
+        push!(InfiniteOpt._measure_dependencies(ref), mindex)
+    end
+    data = TestData(par, 0, 1)
+    meas = Measure(par2, data, [2], [2], false)
+    object = MeasureData(meas, "test")
+    mindex = MeasureIndex(2)
+    @test InfiniteOpt._add_data_object(m, object) == mindex
+    mref2 = InfiniteOpt._make_variable_ref(m, mindex)
+    push!(InfiniteOpt._measure_dependencies(par2), mindex)
+    dmref = dispatch_variable_ref(mref)
+    dmref2 = dispatch_variable_ref(mref2)
+    # setup the constraints
+    @constraint(m, con, inf2 + inf4 - par2 + par3 + fin <= 0)
+    constr = ScalarConstraint(par2, MOI.GreaterThan(0.))
+    con2 = add_constraint(m, constr)
+    # setup objective
+    set_objective(m, MOI.MIN_SENSE, fin)
+    # test _check_param_in_data
+    @testset "_check_param_in_data" begin
         @test_throws ErrorException InfiniteOpt._check_param_in_data(par, data)
         @test isa(InfiniteOpt._check_param_in_data(par2, data), Nothing)
-    end
-    # test _check_param_in_data (array)
-    @testset "_check_param_in_data (Array)" begin
-        @test_throws ErrorException InfiniteOpt._check_param_in_data(pars[1],
-                                                                     data2)
-        @test isa(InfiniteOpt._check_param_in_data(par, data2), Nothing)
-    end
-    # test _check_param_in_data (fallback)
-    @testset "_check_param_in_data (Fallback)" begin
+        @test isa(InfiniteOpt._check_param_in_data(pars[1], data), Nothing)
         @test_throws ErrorException InfiniteOpt._check_param_in_data(par, BadData())
-    end
-    # test _update_infinite_variable
-    @testset "_update_infinite_variable" begin
-        # test updating when used by measure
-        @test isa(InfiniteOpt._update_infinite_variable(inf3), Nothing)
-        @test parameter_refs(inf3) == (par, pars)
-        @test name(inf3) == "inf3(par, pars)"
-        @test name(meas2) == "measure(inf3(par, pars) - x + inf2(0.5, 0.5))"
-    end
-    @testset "_update_point_variable" begin
-        # test point variable with single parameter
-        @test isa(InfiniteOpt._update_point_variable(pt), Nothing)
-        @test parameter_values(pt) == (0.5,)
-        @test name(pt) == "pt"
-        @test isa(InfiniteOpt._update_point_variable(pt2), Nothing)
-        @test parameter_values(pt2) == (0.5, 0.5)
-        @test name(pt2) == "inf2(0.5, 0.5)"
-        @test name(meas2) == "measure(inf3(par, pars) - x + inf2(0.5, 0.5))"
     end
     # test _update_reduced_variable
     @testset "_update_reduced_variable" begin
         # test removing single parameter that is not reduced
-        InfiniteOpt._update_variable_param_refs(inf4, VectorTuple(par2, pars))
-        @test isa(InfiniteOpt._update_reduced_variable(rv, 1), Nothing)
-        @test m.reduced_info[JuMP.index(rv)].infinite_variable_ref == inf4
-        @test m.reduced_info[JuMP.index(rv)].eval_supports == Dict(1 => 0.5)
-        @test name(rv) == "inf4(0.5, [pars[1], pars[2]])"
-        @test name(meas) == "measure(inf(par) + par - x + inf4(0.5, [pars[1], pars[2]]))"
+        InfiniteOpt._update_variable_param_refs(dinf4, VectorTuple(par2, pars))
+        @test isa(InfiniteOpt._update_reduced_variable(drv, 1:1), Nothing)
+        @test infinite_variable_ref(drv) == inf4
+        @test eval_supports(drv) == Dict(1 => 0.5)
+        @test name(drv) == "inf4(0.5, [pars[1], pars[2]])"
         # Undo changes
-        m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(2 => 0.5))
-        InfiniteOpt._update_variable_param_refs(inf4, VectorTuple(par, par2, pars))
+        InfiniteOpt._set_core_variable_object(drv, var)
+        InfiniteOpt._update_variable_param_refs(dinf4, VectorTuple(par, par2, pars))
         # test removing single parameter that is reduced
-        InfiniteOpt._update_variable_param_refs(inf4, VectorTuple(par, pars))
-        @test isa(InfiniteOpt._update_reduced_variable(rv, 2), Nothing)
-        @test m.reduced_info[JuMP.index(rv)].infinite_variable_ref == inf4
-        @test m.reduced_info[JuMP.index(rv)].eval_supports == Dict{Int,
-                               Union{Number, JuMP.Containers.SparseAxisArray}}()
-        @test name(rv) == "inf4(par, [pars[1], pars[2]])"
-        @test name(meas) == "measure(inf(par) + par - x + inf4(par, [pars[1], pars[2]]))"
+        InfiniteOpt._update_variable_param_refs(dinf4, VectorTuple(par, pars))
+        @test eval_supports(drv) == Dict(2 => 0.5)
+        @test isa(InfiniteOpt._update_reduced_variable(drv, 2:2), Nothing)
+        @test infinite_variable_ref(drv) == inf4
+        @test eval_supports(drv) == Dict{Int, Float64}()
+        @test name(drv) == "inf4(par, [pars[1], pars[2]])"
         # Undo changes
-        InfiniteOpt._update_variable_param_refs(inf4, VectorTuple(par, par2, pars))
+        InfiniteOpt._update_variable_param_refs(dinf4, VectorTuple(par, par2, pars))
         # test removing a different single parameter
-        m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(1 => 0.5, 2 => 0.5))
-        InfiniteOpt._update_variable_param_refs(inf4, VectorTuple(par, pars))
-        @test isa(InfiniteOpt._update_reduced_variable(rv, 2), Nothing)
-        @test m.reduced_info[JuMP.index(rv)].infinite_variable_ref == inf4
-        @test m.reduced_info[JuMP.index(rv)].eval_supports == Dict(1 => 0.5)
-        @test name(rv) == "inf4(0.5, [pars[1], pars[2]])"
-        @test name(meas) == "measure(inf(par) + par - x + inf4(0.5, [pars[1], pars[2]]))"
+        eval_supports(drv)[1] = 0.5
+        eval_supports(drv)[2] = 0.5
+        InfiniteOpt._update_variable_param_refs(dinf4, VectorTuple(par, pars))
+        @test isa(InfiniteOpt._update_reduced_variable(drv, 2:2), Nothing)
+        @test infinite_variable_ref(drv) == inf4
+        @test eval_supports(drv) == Dict(1 => 0.5)
+        @test name(drv) == "inf4(0.5, [pars[1], pars[2]])"
         # Undo changes
-        m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(2 => 0.5))
-        InfiniteOpt._update_variable_param_refs(inf4, VectorTuple(par, par2, pars))
+        InfiniteOpt._set_core_variable_object(drv, var)
+        InfiniteOpt._update_variable_param_refs(dinf4, VectorTuple(par, par2, pars))
         # test removing array element
-        m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(2 => 0.5, 3 => 0.2, 4 => 0.1))
-        InfiniteOpt._update_variable_param_refs(inf4, VectorTuple(par, par2, [pars[2]]))
-        @test isa(InfiniteOpt._update_reduced_variable(rv, 3), Nothing)
-        @test m.reduced_info[JuMP.index(rv)].infinite_variable_ref == inf4
-        @test m.reduced_info[JuMP.index(rv)].eval_supports == Dict(2 => 0.5, 3 => 0.1)
-        @test name(rv) == "inf4(par, 0.5, 0.1)"
-        @test name(meas) == "measure(inf(par) + par - x + " * name(rv) * ")"
+        eval_supports(drv)[3] = 0.2
+        eval_supports(drv)[4] = 0.1
+        InfiniteOpt._update_variable_param_refs(dinf4, VectorTuple(par, par2))
+        @test isa(InfiniteOpt._update_reduced_variable(drv, 3:4), Nothing)
+        @test infinite_variable_ref(drv) == inf4
+        @test eval_supports(drv) == Dict(2 => 0.5)
+        @test name(drv) == "inf4(par, 0.5)"
         # Undo changes
-        m.reduced_info[-1] = ReducedInfiniteInfo(inf4, Dict(2 => 0.5))
-        InfiniteOpt._update_variable_param_refs(inf4, VectorTuple(par, par2, pars))
+        var = build_variable(error, inf4, Dict{Int, Float64}(2 => 0.5), check = false)
+        InfiniteOpt._set_core_variable_object(drv, var)
+        InfiniteOpt._update_variable_param_refs(dinf4, VectorTuple(par, par2, pars))
     end
-    # test JuMP.delete for parameters
-    @testset "JuMP.delete (Parameters)" begin
+    # test _update_measures
+    @testset "_update_measures" begin
+        @test InfiniteOpt._update_measures(m, par2) isa Nothing
+        @test measure_function(dmref) == inf + par - x + rv + par3 + fin
+        @test measure_function(dmref2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+        @test InfiniteOpt._object_numbers(dmref) == [2, 4]
+        @test InfiniteOpt._object_numbers(dmref2) == []
+        @test InfiniteOpt._parameter_numbers(dmref) == [2, 5]
+        @test InfiniteOpt._parameter_numbers(dmref2) == []
+        # undo changes
+        meas = Measure(inf + par - x + rv + par2 + par3 + fin, data, [2, 4], [2, 5], false)
+        InfiniteOpt._set_core_variable_object(dmref, meas)
+        meas = Measure(par2, data, [2], [2], false)
+        InfiniteOpt._set_core_variable_object(dmref2, meas)
+    end
+    # test _update_constraints
+    @testset "_update_constraints" begin
+        @test InfiniteOpt._update_constraints(m, par2) isa Nothing
+        @test jump_function(constraint_object(con)) == inf2 + inf4 + par3 + fin
+        @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+        @test isempty(setdiff(InfiniteOpt._object_numbers(con), [1, 2, 3, 4]))
+        @test InfiniteOpt._object_numbers(con2) == []
+        # undo changes
+        constr = ScalarConstraint(inf2 + inf4 - par2 + par3 + fin, MOI.LessThan(0.))
+        InfiniteOpt._set_core_constraint_object(con, constr)
+        constr = ScalarConstraint(par2, MOI.GreaterThan(0.))
+        InfiniteOpt._set_core_constraint_object(con2, constr)
+    end
+    # test _update_number_list
+    @testset "_update_number_list" begin
+        list = [1, 2, 3, 4, 5]
+        @test InfiniteOpt._update_number_list([2, 3], list) isa Nothing
+        @test list == [1, 2, 3]
+        list = [1, 3, 4, 5]
+        @test InfiniteOpt._update_number_list([2], list) isa Nothing
+        @test list == [1, 2, 3, 4]
+    end
+    # test JuMP.delete for IndependentParameters
+    @testset "JuMP.delete (IndependentParameterRef)" begin
         # test normal usage
-        idx = JuMP.index(par2)
         @test isa(delete(m, par2), Nothing)
-        @test name(meas3) == "measure(inf2(par))"
-        @test !haskey(m.param_to_meas, idx)
+        @test !is_valid(m, par2)
+        @test measure_function(dmref) == inf + par - x + rv + par3 + fin
+        @test measure_function(dmref2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
         @test parameter_refs(inf2) == (par,)
         @test parameter_refs(inf4) == (par, pars)
         @test parameter_values(pt2) == (0.5,)
@@ -253,58 +299,155 @@ end
         @test name(inf4) == "inf4(par, pars)"
         @test name(pt2) == "inf2(0.5)"
         @test name(rv) == "inf4(par, [pars[1], pars[2]])"
-        @test !haskey(m.param_to_vars, idx)
-        @test string(m.constrs[JuMP.index(con)].func) == "inf2(par) + " *
-                                                         "inf4(par, pars)"
-        @test !haskey(m.param_to_constrs, idx)
-        @test !haskey(m.params, idx)
-        @test !haskey(m.param_to_name, idx)
-        @test !haskey(m.param_to_group_id, idx)
+        @test jump_function(constraint_object(con)) == inf2 + inf4 + par3 + fin
+        @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+        expected = [IndependentParameterIndex(1), DependentParametersIndex(1),
+                    IndependentParameterIndex(3)]
+        @test InfiniteOpt._param_object_indices(m) == expected
+        @test InfiniteOpt._last_param_num(m) == 4
+        @test InfiniteOpt._object_number(dpar) == 1
+        @test InfiniteOpt._object_number(dpars[1]) == 2
+        @test InfiniteOpt._object_number(dpar3) == 3
+        @test InfiniteOpt._parameter_number(dpar3) == 4
+        @test InfiniteOpt._parameter_number(dpars[2]) == 3
+        @test InfiniteOpt._object_numbers(dinf2) == [1]
+        @test InfiniteOpt._parameter_numbers(dinf4) == [1, 2, 3]
+        @test isempty(setdiff(InfiniteOpt._object_numbers(inf3), [1, 2]))
+        @test InfiniteOpt._parameter_numbers(dinf) == [1]
+        @test isempty(setdiff(InfiniteOpt._object_numbers(drv), [1, 2]))
+        @test InfiniteOpt._object_numbers(dmref) == [3]
+        @test InfiniteOpt._parameter_numbers(dmref) == [4]
+        @test isempty(setdiff(InfiniteOpt._object_numbers(con), [1, 2, 3]))
+        @test isempty(InfiniteOpt._object_numbers(con2))
         # test special measure case with single parameter (possible through
         # multiple deletions) and with single parameter in constraint
-        idx = JuMP.index(par3)
         @test isa(delete(m, par3), Nothing)
-        @test name(meas4) == "measure(0)"
-        @test !haskey(m.param_to_meas, idx)
-        @test string(m.constrs[JuMP.index(con2)].func) == "0"
-        @test !haskey(m.param_to_constrs, idx)
-        @test !haskey(m.params, idx)
-        @test !haskey(m.param_to_name, idx)
-        @test !haskey(m.param_to_group_id, idx)
+        @test measure_function(dmref) == inf + par - x + rv + fin
+        @test jump_function(constraint_object(con)) == inf2 + inf4 + fin
+        @test isempty(setdiff(InfiniteOpt._object_numbers(con), [1, 2]))
+        expected = [IndependentParameterIndex(1), DependentParametersIndex(1)]
+        @test InfiniteOpt._param_object_indices(m) == expected
+        @test InfiniteOpt._last_param_num(m) == 3
+        @test InfiniteOpt._parameter_number(dpars[2]) == 3
+        @test InfiniteOpt._object_numbers(dinf2) == [1]
+        @test InfiniteOpt._parameter_numbers(dinf4) == [1, 2, 3]
         # test invalid parameter
         @test_throws AssertionError delete(m, par2)
         @test_throws AssertionError delete(m, par3)
         # test measure data check
         @test_throws ErrorException delete(m, par)
-        @test_throws ErrorException delete(m, pars[1])
-        # test array element deletion
-        delete!(m.measures, JuMP.index(meas2))
-        m.param_to_meas[JuMP.index(pars[2])] = [JuMP.index(meas5)]
-        delete!(m.var_to_meas, JuMP.index(inf3))
-        idx = JuMP.index(pars[2])
-        @test isa(delete(m, pars[2]), Nothing)
-        @test name(meas5) == "measure(par)"
-        @test !haskey(m.param_to_meas, idx)
-        new_pars = convert(JuMP.Containers.SparseAxisArray, [pars[1]])
-        @test parameter_refs(inf3) == (par, new_pars)
-        @test parameter_refs(inf4) == (par, new_pars)
-        new_vals = convert(JuMP.Containers.SparseAxisArray, [0])
-        @test parameter_values(pt3) == (0, new_vals)
-        @test parameter_refs(rv) == (par, new_pars)
-        @test name(inf3) == "inf3(par, pars)"
-        @test name(inf4) == "inf4(par, pars)"
-        @test name(pt3) == "pt3"
-        @test name(rv) == "inf4(par, pars[1])"
-        @test !haskey(m.param_to_vars, idx)
-        @test string(m.constrs[JuMP.index(con)].func) == "inf2(par) + " *
-                                                         "inf4(par, pars)"
-        @test !haskey(m.param_to_constrs, idx)
-        @test !haskey(m.params, idx)
-        @test !haskey(m.param_to_name, idx)
-        @test !haskey(m.param_to_group_id, idx)
+    end
+    # test delete for finite parameters
+    @testset "JuMP.delete (FiniteParameterRef)" begin
+        # test first case
+        @test delete(m, fin) isa Nothing
+        @test measure_function(dmref) == inf + par - x + rv
+        @test jump_function(constraint_object(con)) == inf2 + inf4
+        @test objective_function(m) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+        @test objective_sense(m) == MOI.FEASIBILITY_SENSE
+        # test error
+        @test_throws AssertionError delete(m, fin)
+        # test different objective
+        @objective(m, Min, fin2 + x + 1)
+        @test delete(m, fin2) isa Nothing
+        @test objective_function(m) == x + 1
+        @test objective_sense(m) == MOI.MIN_SENSE
     end
  end
 
+ # test deletion of dependent parameters
+ @testset "Dependent Parameters" begin
+     # initialize model
+     m = InfiniteModel()
+     # setup the parameters
+     @infinite_parameter(m, 0 <= par <= 1)
+     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+     @infinite_parameter(m, 0 <= par2 <= 1)
+     dpar = dispatch_variable_ref(par)
+     dpars = dispatch_variable_ref.(pars)
+     dpar2 = dispatch_variable_ref(par2)
+     # setup the variables
+     @infinite_variable(m, inf(par))
+     @infinite_variable(m, inf2(par, par2))
+     @infinite_variable(m, inf3(par, pars))
+     @infinite_variable(m, inf4(par, par2, pars))
+     @point_variable(m, inf(0.5), pt)
+     pt2 = @point_variable(m, inf2(0.5, 0.5))
+     @point_variable(m, inf3(0, [0, 0]), pt3)
+     @hold_variable(m, x)
+     var = build_variable(error, inf4, Dict{Int, Float64}(2 => 0.5, 3 => 0, 4 => 4),
+                          check = false)
+     rv = add_variable(m, var, define_name = false)
+     dinf = dispatch_variable_ref(inf)
+     dinf2 = dispatch_variable_ref(inf2)
+     dinf3 = dispatch_variable_ref(inf3)
+     dinf4 = dispatch_variable_ref(inf4)
+     dpt = dispatch_variable_ref(pt)
+     dpt2 = dispatch_variable_ref(pt2)
+     dpt3 = dispatch_variable_ref(pt3)
+     dx = dispatch_variable_ref(x)
+     drv = dispatch_variable_ref(rv)
+     # setup the measure
+     # TODO replace with actual measure methods
+     data = TestData(par, 0, 1)
+     meas = Measure(inf + par - x + rv + pars[1], data, [2], [2, 3], false)
+     object = MeasureData(meas, "test")
+     mindex = MeasureIndex(1)
+     @test InfiniteOpt._add_data_object(m, object) == mindex
+     mref = InfiniteOpt._make_variable_ref(m, mindex)
+     for ref in [inf, par, x, rv, pars[1]]
+         push!(InfiniteOpt._measure_dependencies(ref), mindex)
+     end
+     data = TestData(pars[2], 0, 1)
+     meas = Measure(inf4, data, [1, 2, 3], [1, 2, 4], false)
+     object = MeasureData(meas, "test")
+     mindex = MeasureIndex(2)
+     @test InfiniteOpt._add_data_object(m, object) == mindex
+     mref2 = InfiniteOpt._make_variable_ref(m, mindex)
+     push!(InfiniteOpt._measure_dependencies(inf4), mindex)
+     push!(InfiniteOpt._measure_dependencies(pars[2]), mindex)
+     dmref = dispatch_variable_ref(mref)
+     dmref2 = dispatch_variable_ref(mref2)
+     # setup the constraints
+     @constraint(m, con, inf2 + inf4 - par2 + pars[1] + pars[2] <= 0)
+     # test delete for dependent parameters
+     @testset "JuMP.delete (DependentParameterRefs)" begin
+         # test measure error
+         @test_throws ErrorException delete(m, pars)
+         filter!(e -> e != mindex, InfiniteOpt._measure_dependencies(inf4))
+         filter!(e -> e != mindex, InfiniteOpt._measure_dependencies(pars[2]))
+         InfiniteOpt._delete_data_object(dmref2)
+         # test regular
+         @test delete(m, pars) isa Nothing
+         @test parameter_refs(dinf) == (par,)
+         @test parameter_refs(dinf3) == (par,)
+         @test parameter_refs(dinf4) == (par, par2)
+         @test name(dinf) == "inf(par)"
+         @test name(dinf4) == "inf4(par, par2)"
+         @test name(drv) == "inf4(par, 0.5)"
+         @test parameter_values(dpt3) == (0,)
+         @test parameter_values(dpt2) == (0.5, 0.5)
+         @test measure_function(dmref) == inf + par - x + rv
+         @test jump_function(constraint_object(con)) == inf2 + inf4 - par2
+         expected = [IndependentParameterIndex(1), IndependentParameterIndex(2)]
+         @test InfiniteOpt._param_object_indices(m) == expected
+         @test InfiniteOpt._last_param_num(m) == 2
+         @test InfiniteOpt._object_number(dpar) == 1
+         @test InfiniteOpt._object_number(dpar2) == 2
+         @test InfiniteOpt._parameter_number(dpar2) == 2
+         @test isempty(setdiff(InfiniteOpt._object_numbers(dinf2), [1, 2]))
+         @test InfiniteOpt._parameter_numbers(dinf4) == [1, 2]
+         @test InfiniteOpt._object_numbers(inf3) == [1]
+         @test InfiniteOpt._parameter_numbers(dinf) == [1]
+         @test InfiniteOpt._object_numbers(drv) == [1]
+         @test InfiniteOpt._object_numbers(dmref) == []
+         @test InfiniteOpt._parameter_numbers(dmref) == []
+         @test isempty(setdiff(InfiniteOpt._object_numbers(con), [1, 2]))
+         # test assertion error
+         @test_throws AssertionError delete(m, pars)
+     end
+  end
+#=
  # Test reduced variable deletion
  @testset "JuMP.delete (Reduced Variables)" begin
      # intialize the model
@@ -316,10 +459,10 @@ end
      @hold_variable(m, x)
      m.reduced_info[-1] = ReducedInfiniteInfo(inf, Dict(2 => 0.5))
      m.infinite_to_reduced[JuMP.index(inf)] = [-1]
-     rv = ReducedInfiniteVariableRef(m, -1)
+     rv = ReducedVariableRef(m, -1)
      m.reduced_info[-2] = ReducedInfiniteInfo(inf, Dict(2 => 0.5))
      m.infinite_to_reduced[JuMP.index(inf)] = [-2]
-     rv2 = ReducedInfiniteVariableRef(m, -2)
+     rv2 = ReducedVariableRef(m, -2)
      data = DiscreteMeasureData(par, [1], [1])
      meas = measure(inf + par - x + rv, data)
      meas2 = measure(rv2, data)
@@ -454,7 +597,7 @@ end
      @point_variable(m, x(0), x0)
      m.reduced_info[-1] = ReducedInfiniteInfo(x, Dict(1 => 0.5))
      m.infinite_to_reduced[JuMP.index(x)] = [-1]
-     rv = ReducedInfiniteVariableRef(m, -1)
+     rv = ReducedVariableRef(m, -1)
      data = DiscreteMeasureData(par, [1], [1])
      meas1 = measure(x + y + par, data)
      meas2 = add_measure(m, Measure(y, data))
@@ -509,7 +652,7 @@ end
      @point_variable(m, x(0), x0)
      m.reduced_info[-1] = ReducedInfiniteInfo(x, Dict(1 => 0.5))
      m.infinite_to_reduced[JuMP.index(x)] = [-1]
-     rv = ReducedInfiniteVariableRef(m, -1)
+     rv = ReducedVariableRef(m, -1)
      data = DiscreteMeasureData(par, [1], [1])
      data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
      meas = measure(x, data)
@@ -561,3 +704,4 @@ end
      @test_throws AssertionError delete(m, meas1)
      @test_throws AssertionError delete(m, meas2)
  end
+=#

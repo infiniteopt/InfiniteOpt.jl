@@ -53,14 +53,14 @@
     @testset "make_reduced_variable_ref (InfiniteModel)" begin
         # test first addition
         idx = m.next_reduced_index + 1
-        rvref1 = ReducedInfiniteVariableRef(m, idx)
+        rvref1 = ReducedVariableRef(m, idx)
         @test make_reduced_variable_ref(m, inf2, [1], Float64[1]) == rvref1
         @test m.reduced_info[idx].infinite_variable_ref == inf2
         @test m.reduced_info[idx].eval_supports == Dict(1 => Float64(1))
         @test m.infinite_to_reduced[JuMP.index(inf2)] == [idx]
         # test second addition
         idx = m.next_reduced_index + 1
-        rvref2 = ReducedInfiniteVariableRef(m, idx)
+        rvref2 = ReducedVariableRef(m, idx)
         @test make_reduced_variable_ref(m, inf2, [1], Float64[0]) == rvref2
         @test m.reduced_info[idx].infinite_variable_ref == inf2
         @test m.reduced_info[idx].eval_supports == Dict(1 => Float64(0))
@@ -75,8 +75,8 @@
     # test delete_internal_reduced_variable (InfiniteModel)
     @testset "delete_internal_reduced_variable (InfiniteModel)" begin
         idx = m.next_reduced_index - 1
-        rvref1 = ReducedInfiniteVariableRef(m, idx)
-        rvref2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rvref1 = ReducedVariableRef(m, idx)
+        rvref2 = ReducedVariableRef(m, idx + 1)
         # test cannot delete
         m.reduced_to_constrs[idx] = [1]
         @test delete_internal_reduced_variable(m, rvref1) isa Nothing
@@ -90,19 +90,19 @@
     end
     # test delete_reduced_variable
     @testset "delete_reduced_variable" begin
-        rvref = ReducedInfiniteVariableRef(m, m.next_reduced_index - 1)
+        rvref = ReducedVariableRef(m, m.next_reduced_index - 1)
         warn = "'delete_reduced_variable' not extended for reduced variable type " *
-              "`ReducedInfiniteVariableRef` and optimizer model with key `bad`."
+              "`ReducedVariableRef` and optimizer model with key `bad`."
         @test_logs (:warn, warn) delete_reduced_variable(Model(), rvref, Val(:bad))
     end
     # test delete_internal_reduced_variable (optimizer_model)
     @testset "delete_internal_reduced_variable (optimizer_model)" begin
-        rvref = ReducedInfiniteVariableRef(m, m.next_reduced_index - 1)
+        rvref = ReducedVariableRef(m, m.next_reduced_index - 1)
         @test !is_valid(m, rvref)
         opt_m = Model()
         opt_m.ext[:my_key] = 42
         warn = "'delete_reduced_variable' not extended for reduced variable type " *
-              "`ReducedInfiniteVariableRef` and optimizer model with key `my_key`."
+              "`ReducedVariableRef` and optimizer model with key `my_key`."
         @test_logs (:warn, warn) delete_internal_reduced_variable(opt_m, rvref)
     end
 end
@@ -148,16 +148,16 @@ end
         @test expand_measure(inf1, data2, m) == expected
         # test single param infinite var with measure param and others
         idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
+        rv1 = ReducedVariableRef(m, idx)
         # m.reduced_info[idx] = ReducedInfiniteInfo(inf2, Dict(1 => Float64(1)))
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rv2 = ReducedVariableRef(m, idx + 1)
         # m.reduced_info[idx + 1] = ReducedInfiniteInfo(inf2, Dict(1 => Float64(2)))
         expected = 0.5 * (rv1 + rv2)
         @test expand_measure(inf2, data1, m) == expected
         # test multi param infinite var with single element evaluation
         idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rv1 = ReducedVariableRef(m, idx)
+        rv2 = ReducedVariableRef(m, idx + 1)
         expected = 0.5 * (rv1 + rv2)
         @test expand_measure(inf7, data7, m) == expected
     end
@@ -173,8 +173,8 @@ end
         @test expand_measure(inf4, data4, m) == expected
         # test infinite var with measure param and others
         idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rv1 = ReducedVariableRef(m, idx)
+        rv2 = ReducedVariableRef(m, idx + 1)
         expected = rv1 + rv2
         @test expand_measure(inf5, data3, m) == expected
         # test infinite var with measure param that is out of order
@@ -210,16 +210,16 @@ end
         # test single param reduced var with measure param and others
         rv = make_reduced_variable_ref(m, inf7, [1], Float64[1])
         idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rv1 = ReducedVariableRef(m, idx)
+        rv2 = ReducedVariableRef(m, idx + 1)
         expected = 1.5 * (rv1 + rv2)
         @test expand_measure(rv, data2, m) == expected
         @test !is_valid(m, rv)
         # test single param reduced var partially from array element
         rv = make_reduced_variable_ref(m, inf7, [1], Float64[1])
         idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rv1 = ReducedVariableRef(m, idx)
+        rv2 = ReducedVariableRef(m, idx + 1)
         expected = 0.5 * (rv1 + rv2)
         @test expand_measure(rv, data7, m) == expected
         @test !is_valid(m, rv)
@@ -247,8 +247,8 @@ end
         # test array param reduced var with measure param and others
         rv = make_reduced_variable_ref(m, inf7, [1], Float64[1])
         idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rv1 = ReducedVariableRef(m, idx)
+        rv2 = ReducedVariableRef(m, idx + 1)
         expected = rv1 + rv2
         @test expand_measure(rv, data3, m) == expected
         @test !is_valid(m, rv)
@@ -353,8 +353,8 @@ end
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rv1 = ReducedVariableRef(m, idx)
+        rv2 = ReducedVariableRef(m, idx + 1)
         expected = 0.5 * (2 * pts[1] * rv1 + - 2 * inf3 * inf4 + 2 * pts[2] *
                           rv2 + 2x + 4)
         @test expand_measure(expr, data1, m) == expected
@@ -367,8 +367,8 @@ end
         # test single param QuadExpr with first variable integrated
         expr = 3 * inf2 * inf1 + pars1[1] + 1
         idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rv1 = ReducedVariableRef(m, idx)
+        rv2 = ReducedVariableRef(m, idx + 1)
         expected = 1.5 * (3 * rv1 * inf1 + 3 * rv2 * inf1 + 2pars1[1] + 2)
         @test expand_measure(expr, data2, m) == expected
         # test single parameter with first quadratic term becomes number
@@ -403,8 +403,8 @@ end
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rv1 = ReducedVariableRef(m, idx)
+        rv2 = ReducedVariableRef(m, idx + 1)
         expected = 2 * pts[1] * rv1 - 2 * inf1 * inf2 + 2 * pts[2] * rv2 + 2x + 4
         @test expand_measure(expr, data3, m) == expected
         # test array param QuadExpr with first variable not integrated
@@ -416,8 +416,8 @@ end
         # test array param QuadExpr with first variable integrated
         expr = 3 * inf5 * inf1 + pars1[1] + 1
         idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rv1 = ReducedVariableRef(m, idx)
+        rv2 = ReducedVariableRef(m, idx + 1)
         expected = 2 * (3 * rv1 * inf1 + 3 * rv2 * inf1 + 2pars1[1] + 2)
         @test expand_measure(expr, data4, m) == expected
         # test array parameter with first quadratic term becomes number
@@ -495,8 +495,8 @@ end
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rv1 = ReducedVariableRef(m, idx)
+        rv2 = ReducedVariableRef(m, idx + 1)
         expected = 0.5 * (pts[1] + pts[2] + 6x - rv1 - rv2 + 2inf3 - 4)
         @test expand_measures(meas1, m) == expected
         # test the second measure
@@ -532,8 +532,8 @@ end
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rv1 = ReducedVariableRef(m, idx)
+        rv2 = ReducedVariableRef(m, idx + 1)
         expected = 2inf4 + 7x + pts[1] + pts[2] - rv1 - rv2 + 2inf3 - 4
         @test expand_measures(expr, m) == expected
         # test returning QuadExpr
@@ -550,8 +550,8 @@ end
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         idx2 = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx2)
-        rv2 = ReducedInfiniteVariableRef(m, idx2 + 1)
+        rv1 = ReducedVariableRef(m, idx2)
+        rv2 = ReducedVariableRef(m, idx2 + 1)
         m1 = 0.5 * (pts[1] + pts[2] + 6x - rv1 - rv2 + 2inf3 - 4)
         # test with this thorough expression
         @test expand_measures(expr, m) == 2 * m1 * x - x + 1
@@ -586,8 +586,8 @@ end
         idx = m.next_var_index + 1
         pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
         idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rv1 = ReducedVariableRef(m, idx)
+        rv2 = ReducedVariableRef(m, idx + 1)
         expected = 0.5 * (pts[1] + pts[2] + 6x - rv1 - rv2 + 2inf3 - 4)
         @test expand(meas1) == expected
         # test the second measure
@@ -618,8 +618,8 @@ end
         c2_expected = 2x - (2 * pts[1] * x + 2 * pts[2] * x + pts[3] + pts[4] +
                       pts[5] + pts[6])
         idx2 = m.next_reduced_index + 3
-        rv1 = ReducedInfiniteVariableRef(m, idx2)
-        rv2 = ReducedInfiniteVariableRef(m, idx2 + 1)
+        rv1 = ReducedVariableRef(m, idx2)
+        rv2 = ReducedVariableRef(m, idx2 + 1)
         c3_expected = 0.5rv1 + 0.5rv2 + inf1
         pts = [PointVariableRef(m, idx + 8), PointVariableRef(m, idx + 9)]
         c4_expected = pts[1] + pts[2]

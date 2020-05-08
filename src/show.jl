@@ -70,8 +70,10 @@ function set_string(print_mode, set::CollectionSet)::String
 end
 
 # Fallback
-function set_string(print_mode, set::AbstractInfiniteSet)::String
-    return string(set)
+function set_string(print_mode, set::S) where {S <: AbstractInfiniteSet}
+    # hack fix because just calling `string(set)` --> StackOverflow Error
+    values = map(f -> getfield(set, f), fieldnames(S))
+    return string(S, "(", join(values, ", "), ")")
 end
 
 ## Return in set strings of infinite sets
@@ -114,7 +116,7 @@ function JuMP.in_set_string(print_mode,
     if haskey(bounds, pref)
         bound_set = bounds[pref]
         if JuMP.lower_bound(bound_set) == JuMP.upper_bound(bound_set)
-            return JuMP.in_set_str(print_mode, bound_set)
+            return JuMP.in_set_string(print_mode, bound_set)
         else
             return  string(JuMP.in_set_string(print_mode, set), " ",
                            _infopt_math_symbol(print_mode, :intersect),
@@ -152,6 +154,10 @@ function JuMP.constraint_string(print_mode, cref::FiniteConstraintRef;
         constr_str = join(lines, '\n')
     else
         constr_str = string(func_str, " ", in_set_str)
+    end
+    # format for IJulia
+    if print_mode == JuMP.IJuliaMode && !in_math_mode
+        constr_str = JuMP._wrap_in_inline_math_mode(constr_str)
     end
     # add name if it has one
     name = JuMP.name(cref)
@@ -241,6 +247,10 @@ function JuMP.constraint_string(print_mode, cref::InfiniteConstraintRef;
         constr_str = join(lines, '\n')
     else
         constr_str = string(func_str, " ", in_set_str, bound_str[1:end-2])
+    end
+    # format for IJulia
+    if print_mode == JuMP.IJuliaMode && !in_math_mode
+        constr_str = JuMP._wrap_in_inline_math_mode(constr_str)
     end
     # add name if it has one
     name = JuMP.name(cref)

@@ -82,14 +82,14 @@ struct InfiniteVariableIndex <: ObjectIndex
 end
 
 """
-    ReducedInfiniteVariableIndex <: ObjectIndex
+    ReducedVariableIndex <: ObjectIndex
 
-A `DataType` for storing the index of a [`ReducedInfiniteVariable`](@ref).
+A `DataType` for storing the index of a [`ReducedVariable`](@ref).
 
 **Fields**
 - `value::Int`: The index value.
 """
-struct ReducedInfiniteVariableIndex <: ObjectIndex
+struct ReducedVariableIndex <: ObjectIndex
     value::Int
 end
 
@@ -380,7 +380,7 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 - `parameter_nums::UnitRange{Int}`: Given by `InfiniteModel.last_param_num`
                                     (updated when prior parameters are deleted)
 - `names::Vector{String}`: The names used for printing each parameter.
-- `infinite_var_indices::Vector{Vector{InfiniteVariableIndex}}`: Indices of
+- `infinite_var_indices::Vector{InfiniteVariableIndex}`: Indices of
    dependent infinite variables.
 - `measure_indices::Vector{Vector{MeasureIndex}}`: Indices of dependent measures.
 - `constraint_indices::Vector{Vector{ConstraintIndex}}`: Indices of dependent
@@ -391,7 +391,7 @@ mutable struct MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
     object_num::Int
     parameter_nums::UnitRange{Int}
     names::Vector{String}
-    infinite_var_indices::Vector{Vector{InfiniteVariableIndex}}
+    infinite_var_indices::Vector{InfiniteVariableIndex}
     measure_indices::Vector{Vector{MeasureIndex}}
     constraint_indices::Vector{Vector{ConstraintIndex}}
     function MultiParameterData(params::DependentParameters{T},
@@ -400,7 +400,7 @@ mutable struct MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
                                 names::Vector{String},
                                 ) where {T <: InfiniteArraySet}
         return new{T}(params, object_num, parameter_nums, names,
-                      [InfiniteVariableIndex[] for i in eachindex(names)],
+                      InfiniteVariableIndex[],
                       [MeasureIndex[] for i in eachindex(names)],
                       [ConstraintIndex[] for i in eachindex(names)])
     end
@@ -456,7 +456,7 @@ struct InfiniteVariable{P <: JuMP.AbstractVariableRef} <: InfOptVariable
 end
 
 """
-    ReducedInfiniteVariable{I <: GeneralVariableRef} <: InfOptVariable
+    ReducedVariable{I <: GeneralVariableRef} <: InfOptVariable
 
 A `DataType` for storing reduced infinite variables which partially support an
 infinite variable.
@@ -468,7 +468,7 @@ infinite variable.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with the
                               reduced `parameter_refs`.
 """
-struct ReducedInfiniteVariable{I <: JuMP.AbstractVariableRef} <: InfOptVariable
+struct ReducedVariable{I <: JuMP.AbstractVariableRef} <: InfOptVariable
     infinite_variable_ref::I
     eval_supports::Dict{Int, Float64}
     object_nums::Vector{Int}
@@ -525,7 +525,7 @@ A mutable `DataType` for storing `InfOptVariable`s and their data.
 - `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
 - `in_objective::Bool`: Is this used in objective?
 - `point_var_indices::Vector{PointVariableIndex}`: Indices of dependent point variables.
-- `reduced_var_indices::Vector{ReducedInfiniteVariableIndex}`: Indices of dependent reduced variables.
+- `reduced_var_indices::Vector{ReducedVariableIndex}`: Indices of dependent reduced variables.
 """
 mutable struct VariableData{V <: InfOptVariable} <: AbstractDataObject
     variable::V
@@ -539,11 +539,11 @@ mutable struct VariableData{V <: InfOptVariable} <: AbstractDataObject
     constraint_indices::Vector{ConstraintIndex}
     in_objective::Bool
     point_var_indices::Vector{PointVariableIndex} # InfiniteVariables only
-    reduced_var_indices::Vector{ReducedInfiniteVariableIndex} # InfiniteVariables only
+    reduced_var_indices::Vector{ReducedVariableIndex} # InfiniteVariables only
     function VariableData(var::V, name::String = "") where {V <: InfOptVariable}
         return new{V}(var, name, nothing, nothing, nothing, nothing, nothing,
                    MeasureIndex[], ConstraintIndex[], false, PointVariableIndex[],
-                   ReducedInfiniteVariableIndex[])
+                   ReducedVariableIndex[])
     end
 end
 
@@ -725,30 +725,25 @@ struct Measure{T <: JuMP.AbstractJuMPScalar, V <: AbstractMeasureData}
 end
 
 """
-    MeasureData{T <: JuMP.AbstractJuMPScalar,
-                V <: AbstractMeasureData} <: AbstractDataObject
+    MeasureData <: AbstractDataObject
 
 A mutable `DataType` for storing [`Measure`](@ref)s and their data.
 
 **Fields**
-- `measure::Measure{T, V}`: The measure structure.
+- `measure::Measure`: The measure structure.
 - `name::String`: The base name used for printing `name(meas_expr d(par))`.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
 - `in_objective::Bool`: Is this used in objective?
 """
-mutable struct MeasureData{T <: JuMP.AbstractJuMPScalar,
-                           V <: AbstractMeasureData} <: AbstractDataObject
-    measure::Measure{T, V}
+mutable struct MeasureData <: AbstractDataObject
+    measure::Measure
     name::String
     measure_indices::Vector{MeasureIndex}
     constraint_indices::Vector{ConstraintIndex}
     in_objective::Bool
-    function MeasureData(measure::Measure{T, V},
-                         name::String = "measure"
-                         ) where {T <: JuMP.AbstractJuMPScalar,
-                                  V <: AbstractMeasureData}
-        return new{T, V}(measure, name, MeasureIndex[], ConstraintIndex[], false)
+    function MeasureData(measure::Measure, name::String = "measure")
+        return new(measure, name, MeasureIndex[], ConstraintIndex[], false)
     end
 end
 
@@ -826,7 +821,7 @@ model an optmization problem with an infinite-dimensional decision space.
   The collection of parameter object indices in creation order.
 - `infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}`:
    The infinite variables and their mapping information.
-- `reduced_vars::MOIUC.CleverDict{ReducedInfiniteVariableIndex, <:VariableData{<:ReducedInfiniteVariable}}`:
+- `reduced_vars::MOIUC.CleverDict{ReducedVariableIndex, <:VariableData{<:ReducedVariable}}`:
    The reduced infinite variables and their mapping information.
 - `point_vars::MOIUC.CleverDict{PointVariableIndex, <:VariableData{<:PointVariable}}`:
    The point variables and their mapping information.
@@ -863,7 +858,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 
     # Variable Data
     infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}
-    reduced_vars::MOIUC.CleverDict{ReducedInfiniteVariableIndex, <:VariableData{<:ReducedInfiniteVariable}}
+    reduced_vars::MOIUC.CleverDict{ReducedVariableIndex, <:VariableData{<:ReducedVariable}}
     point_vars::MOIUC.CleverDict{PointVariableIndex, <:VariableData{<:PointVariable}}
     hold_vars::MOIUC.CleverDict{HoldVariableIndex, <:VariableData{<:HoldVariable}}
     name_to_var::Union{Dict{String, AbstractInfOptIndex}, Nothing}
@@ -938,7 +933,7 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          Union{IndependentParameterIndex, DependentParametersIndex}[],
                          # Variables
                          MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable{GeneralVariableRef}}}(),
-                         MOIUC.CleverDict{ReducedInfiniteVariableIndex, VariableData{ReducedInfiniteVariable{GeneralVariableRef}}}(),
+                         MOIUC.CleverDict{ReducedVariableIndex, VariableData{ReducedVariable{GeneralVariableRef}}}(),
                          MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
                          MOIUC.CleverDict{HoldVariableIndex, VariableData{HoldVariable{GeneralVariableRef}}}(),
                          nothing, false,
@@ -1078,7 +1073,7 @@ struct InfiniteVariableRef <: DispatchVariableRef
 end
 
 """
-    ReducedInfiniteVariableRef <: DispatchVariableRef
+    ReducedVariableRef <: DispatchVariableRef
 
 A `DataTyp`e for partially transcripted infinite dimensional variable references.
 This is used to expand measures that contain infinite variables that are not
@@ -1086,11 +1081,11 @@ fully transcripted by the measure.
 
 **Fields**
 - `model::InfiniteModel`: Infinite model.
-- `index::ReducedInfiniteVariableIndex`: Index of the variable in model.
+- `index::ReducedVariableIndex`: Index of the variable in model.
 """
-struct ReducedInfiniteVariableRef <: DispatchVariableRef
+struct ReducedVariableRef <: DispatchVariableRef
     model::InfiniteModel
-    index::ReducedInfiniteVariableIndex
+    index::ReducedVariableIndex
 end
 
 """
@@ -1167,7 +1162,7 @@ struct FiniteParameterRef <: FiniteVariableRef
 end
 
 ## Define convenient aliases
-const DecisionVariableRef = Union{InfiniteVariableRef, ReducedInfiniteVariableRef,
+const DecisionVariableRef = Union{InfiniteVariableRef, ReducedVariableRef,
                                   PointVariableRef, HoldVariableRef}
 
 const UserDecisionVariableRef = Union{InfiniteVariableRef, PointVariableRef,

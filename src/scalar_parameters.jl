@@ -1061,16 +1061,13 @@ function generate_and_add_supports!(pref::IndependentParameterRef,
     return
 end
 
-
-#=
 ################################################################################
 #                               DELETE FUNCTIONS
 ################################################################################
-
-
 # Check if parameter is used by measure data and error if it is to prevent bad
 # deleting behavior
-function _check_param_in_data(pref::ParameterRef, data::AbstractMeasureData)
+function _check_param_in_data(pref::GeneralVariableRef,
+                              data::AbstractMeasureData)::Nothing
     prefs = parameter_refs(data)
     if (pref == prefs || pref in prefs)
         error("Unable to delete `$pref` since it is used to evaluate measures.")
@@ -1078,63 +1075,125 @@ function _check_param_in_data(pref::ParameterRef, data::AbstractMeasureData)
     return
 end
 
-# Used to update infinite variable when one of its parameters is deleted
-function _update_infinite_variable(vref::InfiniteVariableRef)
-    JuMP.set_name(vref, _root_name(vref))
-    if used_by_measure(vref)
-        for mindex in JuMP.owner_model(vref).var_to_meas[JuMP.index(vref)]
-            JuMP.set_name(MeasureRef(JuMP.owner_model(vref), mindex),
-                       _make_meas_name(JuMP.owner_model(vref).measures[mindex]))
-        end
-    end
-    return
-end
-
-# Update point variable for which a parameter is deleted
-function _update_point_variable(pvref::PointVariableRef)
-    # update name if no alias was provided
-    if !isa(findfirst(isequal('('), JuMP.name(pvref)), Nothing)
-        JuMP.set_name(pvref, "")
-    end
-    if used_by_measure(pvref)
-        for mindex in JuMP.owner_model(pvref).var_to_meas[JuMP.index(pvref)]
-            JuMP.set_name(MeasureRef(JuMP.owner_model(pvref), mindex),
-                      _make_meas_name(JuMP.owner_model(pvref).measures[mindex]))
-        end
-    end
-    return
-end
-
 # Update a reduced variable associated with an infinite variable whose parameter
 # was removed
-function _update_reduced_variable(vref::ReducedInfiniteVariableRef,
-                                  delete_index::Int)
+function _update_reduced_variable(vref::ReducedVariableRef,
+                                  delete_indices::UnitRange{Int})::Nothing
     eval_supps = eval_supports(vref)
-    new_supports = Dict{Int, Number}()
+    new_supports = Dict{Int, Float64}()
+    num_indices = length(delete_indices)
     for (index, support) in eval_supps
-        if index < delete_index
+        if index < first(delete_indices)
             new_supports[index] = support
-        elseif index > delete_index
-            new_supports[index - 1] = support
+        elseif index > last(delete_indices)
+            new_supports[index - num_indices] = support
         end
     end
-    new_info = ReducedInfiniteInfo(infinite_variable_ref(vref), new_supports)
-    JuMP.owner_model(vref).reduced_info[JuMP.index(vref)] = new_info
-    # update measure dependencies
-    if used_by_measure(vref)
-        for mindex in JuMP.owner_model(vref).reduced_to_meas[JuMP.index(vref)]
-            JuMP.set_name(MeasureRef(JuMP.owner_model(vref), mindex),
-                       _make_meas_name(JuMP.owner_model(vref).measures[mindex]))
+    obj_nums = _object_numbers(vref)
+    new_var = ReducedVariable(infinite_variable_ref(vref), new_supports, obj_nums)
+    _set_core_variable_object(vref, new_var)
+    _data_object(vref).name = "" # reset the name
+    # TODO account for possibility that this becomes a point variable
+    # TODO account for possibility that this becomes an infinite variable
+    return
+end
+
+# Update the dependent measures
+function _update_measures(model::InfiniteModel,
+                          pref::GeneralVariableRef)::Nothing
+    for mindex in _measure_dependencies(pref)
+        mref = dispatch_variable_ref(model, mindex)
+        func = measure_function(mref)
+        if func isa GeneralVariableRef
+            data = measure_data(mref)
+            new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+            new_meas = Measure(new_func, data, Int[], Int[], true)
+            _set_core_variable_object(mref, new_meas)
+        else
+            _remove_variable(func, pref)
         end
     end
+    return
+end
+
+# Update the dependent constraints
+function _update_constraints(model::InfiniteModel,
+                             pref::GeneralVariableRef)::Nothing
+    for cindex in _constraint_dependencies(pref)
+        cref = _temp_constraint_ref(model, cindex)
+        func = JuMP.jump_function(JuMP.constraint_object(cref))
+        if func isa GeneralVariableRef
+            set = JuMP.moi_set(JuMP.constraint_object(cref))
+            new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+            new_constr = JuMP.ScalarConstraint(new_func, set)
+            _set_core_constraint_object(cref, new_constr)
+            empty!(_object_numbers(cref))
+        else
+            _remove_variable(func, pref)
+        end
+    end
+    return
+end
+
+# Remove given object/parameter number and update the list
+function _update_number_list(nums::Vector{Int}, list::Vector{Int})::Nothing
+    filter!(e -> !(e in nums), list)
+    max_num = maximum(nums)
+    for i in eachindex(list)
+        if list[i] > max_num
+            list[i] -= length(nums)
+        end
+    end
+    return
+end
+
+# Update the model with the removed parameter/object numbers
+function _update_model_numbers(model::InfiniteModel, obj_num::Int,
+                               param_nums::Vector{Int})::Nothing
+    # update the independent parameters
+    for (_, object) in _data_dictionary(model, IndependentParameter)
+        if object.object_num > obj_num
+            object.object_num -= 1
+            object.parameter_num -= length(param_nums)
+        end
+    end
+    # update the dependent parameters
+    for (_, object) in _data_dictionary(model, DependentParameters)
+        if object.object_num > obj_num
+            object.object_num -= 1
+            object.parameter_nums = object.parameter_nums .- length(param_nums)
+        end
+    end
+    # update the infinite variables
+    for vref in JuMP.all_variables(model, InfiniteVariable)
+        _update_number_list([obj_num], _object_numbers(vref))
+        _update_number_list(param_nums, _parameter_numbers(vref))
+    end
+    # update the reduced variables
+    for vref in JuMP.all_variables(model, ReducedVariable)
+        _update_number_list([obj_num], _object_numbers(vref))
+    end
+    # update the measures
+    for (index, object) in model.measures # TODO replace with all_measures when made
+        mref = MeasureRef(model, index)
+        _update_number_list([obj_num], _object_numbers(mref))
+        _update_number_list(param_nums, _parameter_numbers(mref))
+    end
+    # update the constraints
+    for (_, object) in model.constraints
+        _update_number_list([obj_num], object.object_nums)
+    end
+    # update the central info
+    deleteat!(_param_object_indices(model), obj_num)
+    model.last_param_num -= length(param_nums)
     return
 end
 
 """
-    JuMP.delete(model::InfiniteModel, pref::ParameterRef)
+    JuMP.delete(model::InfiniteModel, pref::ScalarParameterRef)::Nothing
 
 Extend [`JuMP.delete`](@ref JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)) to delete
-infinite parameters and their dependencies. All variables, constraints, and
+scalar parameters and their dependencies. All variables, constraints, and
 measure functions that depend on `pref` are updated to exclude it. Errors if the
 parameter is contained in an `AbstractMeasureData` datatype that is employed by
 a measure since the measure becomes invalid otherwise. Thus, measures that
@@ -1148,96 +1207,90 @@ datatypes are used.
 julia> print(model)
 Min measure(g(t, x)*t + x) + z
 Subject to
- z >= 0.0
- g(t, x) + z >= 42.0
- g(0.5, x) == 0
- t in [0, 6]
- x in [0, 1]
+ z ≥ 0.0
+ g(t, x) + z ≥ 42.0, ∀ t ∈ [0, 6], x ∈ [-1, 1]
+ g(0.5, x) = 0, ∀ x ∈ [-1, 1]
 
 julia> delete(model, x)
 
 julia> print(model)
 Min measure(g(t)*t) + z
 Subject to
- g(t) + z >= 42.0
- g(0.5) == 0
- z >= 0.0
- t in [0, 6]
+ g(t) + z ≥ 42.0, ∀ t ∈ [0, 6]
+ g(0.5) = 0
 ```
 """
-function JuMP.delete(model::InfiniteModel, pref::ParameterRef)
+function JuMP.delete(model::InfiniteModel, pref::IndependentParameterRef)::Nothing
+    @assert JuMP.is_valid(model, pref) "Parameter reference is invalid."
+    gvref = _make_parameter_ref(JuMP.owner_model(pref), JuMP.index(pref))
+    # ensure deletion is okay (pref isn't used by measure data)
+    for mindex in _measure_dependencies(pref)
+        data = measure_data(dispatch_variable_ref(model, mindex))
+        _check_param_in_data(gvref, data)
+    end
+    # update optimizer model status
+    if is_used(pref)
+        set_optimizer_model_ready(model, false)
+    end
+    # delete dependence of measures on pref
+    _update_measures(model, gvref)
+    # update infinite variables that depend on pref
+    for vindex in _infinite_variable_dependencies(pref)
+        # remove the parameter dependence
+        vref = InfiniteVariableRef(model, vindex)
+        prefs = raw_parameter_refs(vref)
+        delete_index = findfirst(isequal(gvref), prefs)
+        deleteat!(prefs, delete_index)
+        JuMP.set_name(vref, _root_name(vref))
+        # update any point variables that depend on vref accordingly
+        for pindex in _point_variable_dependencies(vref)
+            pvref = PointVariableRef(model, pindex)
+            deleteat!(raw_parameter_values(pvref), delete_index)
+            if !isa(findfirst(isequal('('), JuMP.name(pvref)), Nothing)
+                JuMP.set_name(pvref, "")
+            end
+        end
+        # update any reduced variables that depend on vref accordingly
+        for rindex in _reduced_variable_dependencies(vref)
+            rvref = ReducedVariableRef(model, rindex)
+            _update_reduced_variable(rvref, delete_index:delete_index)
+        end
+    end
+    # update constraints in mapping to remove the parameter
+    _update_constraints(model, gvref)
+    # delete parameter information stored in model
+    obj_num = _object_number(pref)
+    param_nums = _parameter_numbers(pref)
+    _delete_data_object(pref)
+    # update the object numbers and parameter numbers
+    _update_model_numbers(model, obj_num, param_nums)
+    return
+end
+
+# FiniteParameterRef
+function JuMP.delete(model::InfiniteModel, pref::FiniteParameterRef)::Nothing
     @assert JuMP.is_valid(model, pref) "Parameter reference is invalid."
     # update optimizer model status
     if is_used(pref)
         set_optimizer_model_ready(model, false)
     end
-    # update measures
-    if used_by_measure(pref)
-        # ensure deletion is okay (pref isn't used by measure data)
-        for mindex in model.param_to_meas[JuMP.index(pref)]
-            _check_param_in_data(pref, model.measures[mindex].data)
+    gvref = _make_parameter_ref(model, JuMP.index(pref))
+    # delete dependence of measures on pref
+    _update_measures(model, gvref)
+    # update constraints in mapping to remove the parameter
+    _update_constraints(model, gvref)
+    # update the objective if necessary
+    if used_by_objective(pref)
+        func = JuMP.objective_function(model)
+        if func isa GeneralVariableRef
+            new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+            JuMP.set_objective_function(model, new_func)
+            JuMP.set_objective_sense(model, MOI.FEASIBILITY_SENSE)
+        else
+            _remove_variable(func, gvref)
         end
-        # delete dependence of measures on pref
-        for mindex in model.param_to_meas[JuMP.index(pref)]
-            if isa(model.measures[mindex].func, ParameterRef)
-                model.measures[mindex] = Measure(zero(JuMP.AffExpr),
-                                                 model.measures[mindex].data)
-            else
-                _remove_variable(model.measures[mindex].func, pref)
-            end
-            JuMP.set_name(MeasureRef(model, mindex),
-                          _make_meas_name(model.measures[mindex]))
-        end
-        # delete mapping
-        delete!(model.param_to_meas, JuMP.index(pref))
-    end
-    # update variables
-    if used_by_variable(pref)
-        # update infinite variables that depend on pref
-        for vindex in model.param_to_vars[JuMP.index(pref)]
-            # remove the parameter dependence
-            vref = InfiniteVariableRef(model, vindex)
-            prefs = raw_parameter_refs(vref)
-            delete_index = findfirst(isequal(pref), prefs)
-            deleteat!(prefs, delete_index)
-            _update_infinite_variable(vref)
-            # update any point variables that depend on vref accordingly
-            if used_by_point_variable(vref)
-                for pindex in model.infinite_to_points[vindex]
-                    pvref = PointVariableRef(model, pindex)
-                    deleteat!(raw_parameter_values(pvref), delete_index)
-                    _update_point_variable(pvref)
-                end
-            end
-            # update any reduced variables that depend on vref accordingly
-            if used_by_reduced_variable(vref)
-                for rindex in model.infinite_to_reduced[vindex]
-                    rvref = ReducedInfiniteVariableRef(model,rindex)
-                    _update_reduced_variable(rvref, delete_index)
-                end
-            end
-        end
-        # delete mapping
-        delete!(model.param_to_vars, JuMP.index(pref))
-    end
-    # update constraints
-    if used_by_constraint(pref)
-        # update constraints in mapping to remove the parameter
-        for cindex in model.param_to_constrs[JuMP.index(pref)]
-            if isa(model.constrs[cindex].func, ParameterRef)
-                model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr),
-                                                      model.constrs[cindex].set)
-            else
-                _remove_variable(model.constrs[cindex].func, pref)
-            end
-        end
-        # delete mapping
-        delete!(model.param_to_constrs, JuMP.index(pref))
     end
     # delete parameter information stored in model
-    delete!(model.params, JuMP.index(pref))
-    delete!(model.param_to_name, JuMP.index(pref))
-    delete!(model.param_to_group_id, JuMP.index(pref))
+    _delete_data_object(pref)
     return
 end
-=#

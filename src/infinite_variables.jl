@@ -128,7 +128,10 @@ end
 function _update_param_var_mapping(vref::InfiniteVariableRef,
                                    prefs::VectorTuple)::Nothing
     for pref in prefs
-        push!(_infinite_variable_dependencies(pref), JuMP.index(vref))
+        dependency_list = _infinite_variable_dependencies(pref)
+        if !(JuMP.index(vref) in dependency_list)
+            push!(dependency_list, JuMP.index(vref))
+        end
     end
     return
 end
@@ -149,7 +152,7 @@ end
 ################################################################################
 # Extend _reduced_variable_dependencies
 function _reduced_variable_dependencies(vref::InfiniteVariableRef
-                                        )::Vector{ReducedInfiniteVariableIndex}
+                                        )::Vector{ReducedVariableIndex}
     return _data_object(vref).reduced_var_indices
 end
 
@@ -213,7 +216,7 @@ function is_used(vref::InfiniteVariableRef)::Bool
     end
     if used_by_reduced_variable(vref)
         for vindex in _reduced_variable_dependencies(vref)
-            if is_used(ReducedInfiniteVariableRef(JuMP.owner_model(vref), vindex))
+            if is_used(ReducedVariableRef(JuMP.owner_model(vref), vindex))
                 return true
             end
         end

@@ -29,19 +29,19 @@
     @testset "add_measure_variable (Reduced)" begin
         var = ReducedInfiniteInfo(y, Dict{Int, Float64}(1 => 0))
         idx = data.next_var_index - 1
-        vref = ReducedInfiniteVariableRef(m, idx)
+        vref = ReducedVariableRef(m, idx)
         @test add_measure_variable(tm, var, key) == vref
         @test data.reduced_info[idx] == var
     end
     # test reduction_info extension
     @testset "reduction_info" begin
-        vref = ReducedInfiniteVariableRef(m, data.next_var_index)
+        vref = ReducedVariableRef(m, data.next_var_index)
         @test reduction_info(vref, key).infinite_variable_ref == y
         @test reduction_info(vref, key).eval_supports == Dict{Int, Float64}(1 => 0)
     end
     # test delete_reduced_variable extension
     @testset "delete_reduced_variable" begin
-        vref = ReducedInfiniteVariableRef(m, data.next_var_index)
+        vref = ReducedVariableRef(m, data.next_var_index)
         @test delete_reduced_variable(tm, vref, key) isa Nothing
         @test_throws KeyError reduction_info(vref, key)
     end

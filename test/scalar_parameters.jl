@@ -75,6 +75,15 @@
         @test InfiniteOpt._set_core_variable_object(ind_pref, ind_param) isa Nothing
         @test InfiniteOpt._set_core_variable_object(fin_pref, fin_param) isa Nothing
     end
+    # test _delete_data_object
+    @testset "_delete_data_object" begin
+        @test is_valid(m, ind_pref)
+        @test is_valid(m, fin_pref)
+        @test InfiniteOpt._delete_data_object(ind_pref) isa Nothing
+        @test InfiniteOpt._delete_data_object(fin_pref) isa Nothing
+        @test !is_valid(m, ind_pref)
+        @test !is_valid(m, fin_pref)
+    end
 end
 
 # Test macro methods
@@ -273,7 +282,7 @@ end
         @test InfiniteOpt._core_variable_object(expected) == param
     end
 end
-#=
+
 # Test Reference Queries
 @testset "Basic Reference Queries" begin
     m = InfiniteModel()
@@ -830,4 +839,3 @@ end
         @test length(supports(pref1)) == 20
     end
 end
-=#

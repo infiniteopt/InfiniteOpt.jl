@@ -30,7 +30,7 @@ used by [`make_point_variable_ref`](@ref) and [`make_reduced_variable_ref`](@ref
 to make point variables and reduced variables when the `write_model` is an
 optimizer model. This is useful for extensions that wish to expand measures, but
 without changing the original `InfiniteModel`. Thus, this should be extended for
-adding `PointVariable`s and `ReducedInfiniteVariable`s for such extensions.
+adding `PointVariable`s and `ReducedVariable`s for such extensions.
 Otherwise, an error is thrown for unextended variable and/or optimizer model types.
 """
 function add_measure_variable(model::JuMP.Model, var, key)
@@ -66,10 +66,10 @@ end
                               ivref::InfiniteVariableRef,
                               indices::Vector{Int},
                               values::Vector{Float64}
-                              )::ReducedInfiniteVariableRef
+                              )::ReducedVariableRef
 
 Make a reduced variable for infinite variable `ivref` at `support`, add it to
-the `write_model`, and return the `ReducedInfiniteVariableRef`. This is an internal method
+the `write_model`, and return the `ReducedVariableRef`. This is an internal method
 for reduced variables produced by expanding measures via [`expand_measure`](@ref).
 This is also useful for those writing extension optimizer models and wish to
 expand measures without modifiying the `InfiniteModel`. In such cases, `write_model`
@@ -81,7 +81,7 @@ function make_reduced_variable_ref(write_model::InfiniteModel,
                                    ivref::InfiniteVariableRef,
                                    indices::Vector{Int},
                                    values::Vector{Float64}
-                                   )::ReducedInfiniteVariableRef
+                                   )::ReducedVariableRef
     eval_supps = Dict(indices[i] => values[i] for i in eachindex(indices))
     index = write_model.next_reduced_index += 1
     write_model.reduced_info[index] = ReducedInfiniteInfo(ivref, eval_supps)
@@ -90,7 +90,7 @@ function make_reduced_variable_ref(write_model::InfiniteModel,
     else
         write_model.infinite_to_reduced[JuMP.index(ivref)] = [index]
     end
-    return ReducedInfiniteVariableRef(write_model, index)
+    return ReducedVariableRef(write_model, index)
 end
 
 # Add reduced infinite variables in the optimizer model without modifying the InfiniteModel
@@ -98,7 +98,7 @@ function make_reduced_variable_ref(write_model::JuMP.Model,
                                    ivref::InfiniteVariableRef,
                                    indices::Vector{Int},
                                    values::Vector{Float64}
-                                   )::ReducedInfiniteVariableRef
+                                   )::ReducedVariableRef
     eval_supps = Dict(indices[i] => values[i] for i in eachindex(indices))
     var = ReducedInfiniteInfo(ivref, eval_supps)
     key = optimizer_model_key(write_model)
@@ -107,7 +107,7 @@ end
 
 """
     delete_internal_reduced_variable(write_model::Union{InfiniteModel, JuMP.Model},
-                                     rvref::ReducedInfiniteVariableRef)
+                                     rvref::ReducedVariableRef)
 
 Delete the variable associated with `rvref` from `write_model` if it is purely
 an internal variable only used for measure expansion and is no longer needed.
@@ -118,7 +118,7 @@ Note that this is intended as an internal method to assist with extensions to
 [`expand_measure`](@ref).
 """
 function delete_internal_reduced_variable(write_model::InfiniteModel,
-                                          rvref::ReducedInfiniteVariableRef)
+                                          rvref::ReducedVariableRef)
     if !used_by_measure(rvref) && !used_by_constraint(rvref)
         JuMP.delete(write_model, rvref)
     end
@@ -141,7 +141,7 @@ end
 
 # Delete reduced infinite variable from optimizer model if it was not made by the InfiniteModel
 function delete_internal_reduced_variable(write_model::JuMP.Model,
-                                          rvref::ReducedInfiniteVariableRef)
+                                          rvref::ReducedVariableRef)
     if !JuMP.is_valid(JuMP.owner_model(rvref), rvref)
         key = optimizer_model_key(write_model)
         delete_reduced_variable(write_model, rvref, Val(key))
@@ -255,8 +255,8 @@ function _make_point_support(orig_prefs::VectorTuple{ParameterRef},
     return VectorTuple{Float64}(values, orig_prefs.ranges, orig_prefs.indices)
 end
 
-# ReducedInfiniteVariableRef (DiscreteMeasureData)
-function expand_measure(rvref::ReducedInfiniteVariableRef,
+# ReducedVariableRef (DiscreteMeasureData)
+function expand_measure(rvref::ReducedVariableRef,
                         data::DiscreteMeasureData,
                         write_model::JuMP.AbstractModel
                         )::JuMP.GenericAffExpr
@@ -305,8 +305,8 @@ function _make_point_support(orig_prefs::VectorTuple{ParameterRef},
     return VectorTuple{Float64}(new_values, orig_prefs.ranges, orig_prefs.indices)
 end
 
-# ReducedInfiniteVariableRef (MultiDiscreteMeasureData)
-function expand_measure(rvref::ReducedInfiniteVariableRef,
+# ReducedVariableRef (MultiDiscreteMeasureData)
+function expand_measure(rvref::ReducedVariableRef,
                         data::MultiDiscreteMeasureData,
                         write_model::JuMP.AbstractModel
                         )::JuMP.GenericAffExpr

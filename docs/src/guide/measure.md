@@ -343,7 +343,7 @@ julia> expanded_measure = expand(mref4)
 5 T([x[1], x[2]], 2.5) + 5 T([x[1], x[2]], 7.5)
 ```
 where the expanded measure is a `JuMP.GenericAffExpr` that takes
-[`ReducedInfiniteVariableRef`](@ref) in its terms. [`ReducedInfiniteVariableRef`](@ref)
+[`ReducedVariableRef`](@ref) in its terms. [`ReducedVariableRef`](@ref)
 refers to the information of the reduced infinite variable stored in its model,
 in the type of [`ReducedInfiniteInfo`](@ref). Each [`ReducedInfiniteInfo`](@ref)
 records a reference for its original infinite variable, and the value of the
@@ -354,7 +354,7 @@ julia> T1 = first(keys(expanded_measure.terms))
 T([x[1], x[2]], 2.5)
 
 julia> typeof(T1)
-ReducedInfiniteVariableRef
+ReducedVariableRef
 
 julia> infinite_variable_ref(T1)
 T(x, t)
@@ -364,7 +364,7 @@ Dict{Int64,Float64} with 1 entry:
   3 => 2.5
 ```
 All the `JuMP` functions extended for infinite variables are also extended for
-reduced infinite variables, e.g. [`JuMP.lower_bound`](@ref JuMP.lower_bound(::ReducedInfiniteVariableRef)).
+reduced infinite variables, e.g. [`JuMP.lower_bound`](@ref JuMP.lower_bound(::ReducedVariableRef)).
 
 ## Datatypes
 ```@index
@@ -380,9 +380,9 @@ Measure
 MeasureIndex
 MeasureData
 MeasureRef
-ReducedInfiniteVariable
-ReducedInfiniteVariableIndex
-ReducedInfiniteVariableRef
+ReducedVariable
+ReducedVariableIndex
+ReducedVariableRef
 ```
 
 ## Methods
@@ -427,28 +427,28 @@ add_measure_variable(::JuMP.Model, ::Any, ::Any)
 delete_internal_reduced_variable
 delete_reduced_variable(::JuMP.Model, ::Any, ::Any)
 JuMP.build_variable(::Function, ::GeneralVariableRef,::Dict{Int, Float64})
-JuMP.add_variable(::InfiniteModel, ::ReducedInfiniteVariable,::String)
-infinite_variable_ref(::ReducedInfiniteVariableRef)
-eval_supports(::ReducedInfiniteVariableRef)
-parameter_refs(::ReducedInfiniteVariableRef)
-parameter_list(::ReducedInfiniteVariableRef)
-raw_parameter_refs(::ReducedInfiniteVariableRef)
-JuMP.set_name(::ReducedInfiniteVariableRef,::String)
-JuMP.name(::ReducedInfiniteVariableRef)
-JuMP.has_lower_bound(::ReducedInfiniteVariableRef)
-JuMP.lower_bound(::ReducedInfiniteVariableRef)
-JuMP.LowerBoundRef(::ReducedInfiniteVariableRef)
-JuMP.has_upper_bound(::ReducedInfiniteVariableRef)
-JuMP.upper_bound(::ReducedInfiniteVariableRef)
-JuMP.UpperBoundRef(::ReducedInfiniteVariableRef)
-JuMP.is_fixed(::ReducedInfiniteVariableRef)
-JuMP.fix_value(::ReducedInfiniteVariableRef)
-JuMP.FixRef(::ReducedInfiniteVariableRef)
-JuMP.start_value(::ReducedInfiniteVariableRef)
-JuMP.is_binary(::ReducedInfiniteVariableRef)
-JuMP.BinaryRef(::ReducedInfiniteVariableRef)
-JuMP.is_integer(::ReducedInfiniteVariableRef)
-JuMP.IntegerRef(::ReducedInfiniteVariableRef)
+JuMP.add_variable(::InfiniteModel, ::ReducedVariable,::String)
+infinite_variable_ref(::ReducedVariableRef)
+eval_supports(::ReducedVariableRef)
+parameter_refs(::ReducedVariableRef)
+parameter_list(::ReducedVariableRef)
+raw_parameter_refs(::ReducedVariableRef)
+JuMP.set_name(::ReducedVariableRef,::String)
+JuMP.name(::ReducedVariableRef)
+JuMP.has_lower_bound(::ReducedVariableRef)
+JuMP.lower_bound(::ReducedVariableRef)
+JuMP.LowerBoundRef(::ReducedVariableRef)
+JuMP.has_upper_bound(::ReducedVariableRef)
+JuMP.upper_bound(::ReducedVariableRef)
+JuMP.UpperBoundRef(::ReducedVariableRef)
+JuMP.is_fixed(::ReducedVariableRef)
+JuMP.fix_value(::ReducedVariableRef)
+JuMP.FixRef(::ReducedVariableRef)
+JuMP.start_value(::ReducedVariableRef)
+JuMP.is_binary(::ReducedVariableRef)
+JuMP.BinaryRef(::ReducedVariableRef)
+JuMP.is_integer(::ReducedVariableRef)
+JuMP.IntegerRef(::ReducedVariableRef)
 ```
 
 ## MeasureEvalMethods Methods

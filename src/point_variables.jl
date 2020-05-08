@@ -309,7 +309,7 @@ end
 
 ## Return the parameter value as an appropriate string
 # Number
-function _make_str_value(value::Real)::String
+function _make_str_value(value)::String
     return JuMP._string_round(value)
 end
 
