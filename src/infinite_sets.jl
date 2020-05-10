@@ -328,10 +328,11 @@ const DefaultSigDigits = 12
 const DefaultNumSupports = 10
 
 """
-    generate_support_values(set::AbstractInfiniteSet;
-                            [num_supports::Int = DefaultNumSupports,
-                            sig_digits::Int = DefaultSigDigits]
-                            )::Tuple{Array{<:Real}, Symbol}
+    generate_supports(set::AbstractInfiniteSet
+                      method::Union{Symbol, Nothing} = Nothing;
+                      [num_supports::Int = DefaultNumSupports,
+                      sig_digits::Int = DefaultSigDigits]
+                      )::Tuple{Array{<:Real}, Symbol}
 
 Generate `num_supports` support values with `sig_digits` significant digits in
 accordance with `set` and return them along with the correct generation label(s).
@@ -343,10 +344,10 @@ has not been explicitly extended. This is intended as an internal method to be
 used by [`generate_and_add_supports!`](@ref) and [`build_parameter`](@ref).
 """
 # a user interface of generate_support_values
-function generate_support_values(set::AbstractInfiniteSet,
-                                 method::Union{Symbol, Nothing} = nothing;
-                                 num_supports::Int = DefaultNumSupports,
-                                 sig_digits::Int = DefaultSigDigits)
+function generate_supports(set::AbstractInfiniteSet,
+                           method::Union{Symbol, Nothing} = nothing;
+                           num_supports::Int = DefaultNumSupports,
+                           sig_digits::Int = DefaultSigDigits)
     if method === nothing
         return generate_support_values(set,
                                        num_supports = num_supports,
@@ -359,7 +360,7 @@ function generate_support_values(set::AbstractInfiniteSet,
 end
 
 function generate_support_values(set::AbstractInfiniteSet,
-                                 method::Val;
+                                 method::Val = Val(:nothing); # method is needed here
                                  num_supports::Int = 0,
                                  sig_digits::Int = 1)
     error("Unable to generate support values for unrecognized infinite set " *
@@ -395,7 +396,7 @@ end
 # fallback for IntervalSet
 function generate_support_values(set::IntervalSet, method::Val;
                                  num_supports::Int = 0, sig_digits::Int = 1)
-    error("Method " * string(method)[6:end-1] * " is not supported for " *
+    error("Method " * string(method)[6:end-3] * " is not supported for " *
           "set of type $(typeof(set))")
 end
 
@@ -418,7 +419,7 @@ function generate_support_values(
     method::Val;
     num_supports::Int = 0,
     sig_digits::Int = 1)
-    error("Method " * string(method)[6:end-1] * " is not supported for " *
+    error("Method " * string(method)[6:end-3] * " is not supported for " *
           "set of type $(typeof(set))")
 end
 
@@ -445,7 +446,7 @@ function generate_support_values(
     method::Val;
     num_supports::Int = 0,
     sig_digits::Int = 1)
-    error("Method " * string(method)[6:end-1] * " is not supported for " *
+    error("Method " * string(method)[6:end-3] * " is not supported for " *
           "set of type $(typeof(set))")
 end
 
@@ -499,6 +500,6 @@ function generate_support_values(set::CollectionSet,
                                  num_supports::Int = DefaultNumSupports,
                                  sig_digits::Int = DefaultSigDigits
                                  )
-    error("Method " * string(method)[6:end-1] * " is not supported for " *
+    error("Method " * string(method)[6:end-3] * " is not supported for " *
           "set of type $(typeof(set))")
 end

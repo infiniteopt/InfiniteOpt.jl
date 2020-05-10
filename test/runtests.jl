@@ -40,16 +40,16 @@ println("")
 @time @testset "Optimizer Setup Methods" begin include("optimizer_setup.jl") end
 println("")
 @time @testset "Parameter Methods" begin
-    @testset "Scalar" begin include("scalar_parameters.jl") end
-    @testset "Array" begin include("array_parameters.jl") end
+#    @testset "Scalar" begin include("scalar_parameters.jl") end
+#    @testset "Array" begin include("array_parameters.jl") end
 end
 println("")
 @time @testset "Variable Methods" begin
-    @testset "Infinite Variables" begin include("infinite_variables.jl") end
-    @testset "Point Variables" begin include("point_variables.jl") end
-    @testset "Hold Variables" begin include("hold_variables.jl") end
-    @testset "Info Constraints" begin include("variable_info.jl") end
-    @testset "Reduced Variables" begin include("reduced_variables.jl") end
+#    @testset "Infinite Variables" begin include("infinite_variables.jl") end
+#    @testset "Point Variables" begin include("point_variables.jl") end
+#    @testset "Hold Variables" begin include("hold_variables.jl") end
+#    @testset "Info Constraints" begin include("variable_info.jl") end
+#    @testset "Reduced Variables" begin include("reduced_variables.jl") end
 end
 println("")
 @time @testset "Operators" begin include("operators.jl") end
@@ -62,8 +62,9 @@ println("")
 #     include("MeasureEvalMethods/methods.jl")
 # end
 # println("")
-# @time @testset "Measure Methods" begin include("measures.jl") end
-# println("")
+@time @testset "Measure Methods" begin include("measures.jl") end
+println("")
+#=
 @time @testset "Objective Methods" begin include("objective.jl") end
 println("")
 @time @testset "Constraint Methods" begin include("constraints.jl") end
@@ -74,6 +75,7 @@ println("")
 # println("")
 @time @testset "Printing Methods" begin include("show.jl") end
 println("")
+=#
 # @time @testset "TranscriptionOpt" begin
 #     @testset "Model" begin include("TranscriptionOpt/model.jl") end
 #     @testset "Measures" begin include("TranscriptionOpt/measure.jl") end

@@ -1125,8 +1125,8 @@ function generate_and_add_supports!(prefs::AbstractArray{<:DependentParameterRef
                                     set::InfiniteArraySet,
                                     method::Union{Symbol, Nothing} = nothing;
                                     num_supports::Int = DefaultNumSupports)::Nothing
-    new_supps, label = generate_support_values(set, method,
-                                               num_supports = num_supports,
+    new_supps, label = generate_supports(set, method,
+                                         num_supports = num_supports,
                                     sig_digits = significant_digits(first(prefs)))
     add_supports(_make_vector(prefs), new_supps, check = false, label = label)
     return

@@ -1053,9 +1053,9 @@ function generate_and_add_supports!(pref::IndependentParameterRef,
                                                   num_supports = num_supports,
                                                   sig_digits = sig_digits)
     else
-        supports, label = generate_support_values(set, method,
-                                                  num_supports = num_supports,
-                                                  sig_digits = sig_digits)
+        supports, label = generate_supports(set, method,
+                                            num_supports = num_supports,
+                                            sig_digits = sig_digits)
     end
     add_supports(pref, supports, label = label)
     return

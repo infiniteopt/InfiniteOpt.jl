@@ -143,8 +143,9 @@ end
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1][2] == 0.111
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1][2] != 1/11
         @test length(generate_support_values(set, num_supports = 10, sig_digits = 3)[1]) == 10
-        @test generate_support_values(set, num_supports = 10, use_mc = true)[1] isa Vector{<:Number}
-        @test generate_support_values(set, num_supports = 10, use_mc = true)[2] == McSample
+        @test generate_support_values(set, Val(McSample), num_supports = 10)[1] isa Vector{<:Number}
+        @test generate_support_values(set, Val(McSample), num_supports = 10)[2] == McSample
+        @test_throws ErrorException generate_support_values(set, Val(:a))
     end
     @testset "Distribution Sets" begin
         dist1 = Normal(0., 1.)
@@ -156,6 +157,8 @@ end
         @test generate_support_values(set2, num_supports = 10)[2] == McSample
         @test length(generate_support_values(set1, num_supports = 10)[1]) == 10
         @test size(generate_support_values(set2, num_supports = 10)[1]) == (2, 10)
+        @test_throws ErrorException generate_support_values(set1, Val(:a))
+        @test_throws ErrorException generate_support_values(set2, Val(:a))
     end
     @testset "Matrix Distribution Sets" begin
         dist = MatrixBeta(2, 2, 2)
@@ -163,6 +166,7 @@ end
         @test generate_support_values(set, num_supports = 10)[1] isa Array{<:Number, 2}
         @test generate_support_values(set, num_supports = 10)[2] == McSample
         @test size(generate_support_values(set, num_supports = 10)[1]) == (4, 10)
+        @test_throws ErrorException generate_support_values(set, Val(:a))
     end
     @testset "_generate_collection_supports" begin
         set1 = IntervalSet(0., 1.)
@@ -182,6 +186,7 @@ end
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1][2, 2] == 0.111
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1][2, 2] != 1/11
         @test size(generate_support_values(set, num_supports = 10, sig_digits = 3)[1]) == (2, 10)
+        @test_throws ErrorException generate_support_values(set, Val(:a))
     end
     @testset "CollectionSet (UniDistributionSets)" begin
         set1 = UniDistributionSet(Normal())
@@ -190,6 +195,7 @@ end
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1] isa Array{<:Number, 2}
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[2] == McSample
         @test size(generate_support_values(set, num_supports = 10, sig_digits = 3)[1]) == (2, 10)
+        @test_throws ErrorException generate_support_values(set, Val(:a))
     end
     @testset "CollectionSet (InfiniteScalarSets)" begin
         set1 = UniDistributionSet(Normal())
@@ -198,8 +204,14 @@ end
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1] isa Array{<:Number, 2}
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[2] == Mixture
         @test size(generate_support_values(set, num_supports = 10, sig_digits = 3)[1]) == (2, 10)
+        @test_throws ErrorException generate_support_values(set, Val(:a))
     end
     @testset "Fallback" begin
         @test_throws ErrorException generate_support_values(BadSet())
+    end
+    @testset "User Interface" begin
+        set = IntervalSet(0., 1.)
+        @test generate_supports(set)[1] isa Vector{<:Number}
+        @test generate_supports(set, McSample)[1] isa Vector{<:Number}
     end
 end

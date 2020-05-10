@@ -247,7 +247,7 @@ function DiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
         end
     end
     return DiscreteMeasureData(vector_prefs, coefficients, supps, label,
-                               lower_bound, upper_bound, expect)
+                               weight_function, lower_bound, upper_bound, expect)
 end
 
 # (done) TODO Make user constructor(s) for FunctionalDiscreteMeasureData
@@ -268,7 +268,7 @@ function FunctionalDiscreteMeasureData(
     if num_supports <= 0
         error("Number of supports must be positive")
     end
-    return FunctionalDiscreteMeasureData(pref, coeff_func, num_suppports,
+    return FunctionalDiscreteMeasureData(pref, coeff_func, num_supports,
                                          label, weight_function,
                                          lower_bound, upper_bound, expect)
 end
@@ -289,7 +289,7 @@ function FunctionalDiscreteMeasureData(
     if num_supports <= 0
         error("Number of supports must be positive")
     end
-    return FunctionalDiscreteMeasureData(vector_prefs, coeff_func, num_suppports,
+    return FunctionalDiscreteMeasureData(vector_prefs, coeff_func, num_supports,
                                          label, weight_function, lower_bound,
                                          upper_bound, expect)
 end
@@ -515,7 +515,7 @@ function _check_var_bounds(vref::GeneralVariableRef, data::AbstractMeasureData)
             error("Measure bounds violate hold variable bounds.")
         end
     elseif _index_type(vref) == MeasureIndex
-        vrefs = _all_function_variables(measure_function(mref))
+        vrefs = _all_function_variables(measure_function(vref))
         for vref in vrefs
             _check_var_bounds(vref, data)
         end
@@ -568,7 +568,7 @@ function _add_supports_to_multiple_parameters(
     supps::Array{Float64, 2},
     label::Symbol
     )::Nothing
-    add_supports(prefs, supps, label = label, checks = false)
+    add_supports(prefs, supps, label = label, check = false)
     return
 end
 
@@ -578,7 +578,7 @@ function _add_supports_to_multiple_parameters(
     label::Symbol
     )::Nothing
     for i in eachindex(prefs)
-        add_supports(prefs[i], supps[i, :], label = label, checks = false)
+        add_supports(prefs[i], supps[i, :], label = label, check = false)
     end
     return
 end
@@ -605,7 +605,7 @@ function add_supports_to_parameters(
     pref = parameter_refs(data)
     supps = supports(data)
     label = support_label(data)
-    add_supports(pref, supps, label = label, checks = false)
+    add_supports(pref, supps, label = label, check = false)
     return
 end
 
@@ -630,7 +630,7 @@ function add_supports_to_parameters(
     curr_num_supps = num_supports(pref, label = label)
     if curr_num_supps < num_supps
         # Assuming pref could not be DependentParameterRef
-        generate_and_add_supports!(infinite_set(pref), label,
+        generate_and_add_supports!(pref, infinite_set(pref), label,
                                    num_supports = num_supps - curr_num_supps)
     end
     return
@@ -645,7 +645,7 @@ function add_supports_to_parameters(
     label = support_label(data)
     curr_num_supps = num_supports(prefs, label = label)
     if curr_num_supps < num_supps
-        generate_and_add_supports!(infinite_set(prefs), label,
+        generate_and_add_supports!(prefs, infinite_set(prefs), label,
                                    num_supports = num_supps - curr_num_supps)
     end
     return
@@ -670,15 +670,15 @@ function add_measure(model::InfiniteModel, meas::Measure,
     data = meas.data
     prefs = parameter_refs(data)
     for pref in prefs
-        JuMP.check_belongs_to_model(pref)
+        JuMP.check_belongs_to_model(pref, model)
     end
     # add supports to the model as needed
-    if !data.constant_func
+    if !meas.constant_func
         add_supports_to_parameters(data)
     end
     # add the measure to the model
     object = MeasureData(meas, name)
-    mindex = _add_data_object(model, meas)
+    mindex = _add_data_object(model, object)
     mref = _make_variable_ref(model, mindex)
     # update mappings
     for vref in append!(vrefs, prefs)
