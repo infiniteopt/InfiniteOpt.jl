@@ -534,16 +534,16 @@ measure definition. Errors if the supports associated with `data` violate
 an hold variable parameter bounds of hold variables that are included in the
 measure.
 """
-function build_measure(expr::T, data::D;
+function build_measure(model::InfiniteModel, expr::T, data::D;
     )::Measure{T, D} where {T <: JuMP.AbstractJuMPScalar, D <: AbstractMeasureData}
-    vrefs = _all_function_variables(meas.func)
+    vrefs = _all_function_variables(expr)
     if model.has_hold_bounds
         for vref in vrefs
             _check_var_bounds(vref, data)
         end
     end
     expr_obj_nums = _object_numbers(expr)
-    expr_param_nums = parameter_numbers(expr)
+    expr_param_nums = _parameter_numbers(expr)
     prefs = parameter_refs(data)
     data_obj_num = _object_number(first(prefs))
     data_param_nums = [_parameter_number(pref) for pref in prefs]
@@ -553,8 +553,8 @@ function build_measure(expr::T, data::D;
     constant_func = false
     lb_unique = unique(data.lower_bound)
     ub_unique = unique(data.upper_bound)
-    if isempty(param_nums) && ((isequal(lb_unique, [NaN]) &&
-                                isequal(ub_unique, [NaN])) || expect)
+    if length(param_nums) == length(expr_param_nums) &&
+        ((isequal(lb_unique, [NaN]) && isequal(ub_unique, [NaN])) || expect)
         constant_func = true
     end
     return Measure(expr, data, obj_nums, param_nums, constant_func)
@@ -681,7 +681,7 @@ function add_measure(model::InfiniteModel, meas::Measure,
     mindex = _add_data_object(model, object)
     mref = _make_variable_ref(model, mindex)
     # update mappings
-    for vref in append!(vrefs, prefs)
+    for vref in union!(vrefs, prefs)
         push!(_measure_dependencies(vref), mindex)
     end
     return mref
@@ -746,7 +746,7 @@ function measure(expr::JuMP.AbstractJuMPScalar,
         error("Expression contains no variables or parameters.")
     end
     # TODO make meaningful error function
-    meas = build_measure(expr, data)
+    meas = build_measure(model, expr, data)
     return add_measure(model, meas, name)
 end
 

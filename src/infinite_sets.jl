@@ -464,6 +464,22 @@ function _generate_collection_supports(set::CollectionSet, num_supports::Int,
     return permutedims(trans_supports)
 end
 
+function _generate_collection_supports(set::CollectionSet,
+                                       method::Symbol,
+                                       num_supports::Int,
+                                       sig_digits::Int)::Array{Float64, 2}
+    sets = collection_sets(set)
+    # build the support array transpose to fill in column order (leverage locality)
+    trans_supports = Array{Float64, 2}(undef, num_supports, length(sets))
+    for i in eachindex(sets)
+        @inbounds trans_supports[:, i] = generate_support_values(sets[i],
+                                                   Val(method),
+                                                   num_supports = num_supports,
+                                                   sig_digits = sig_digits)[1]
+    end
+    return permutedims(trans_supports)
+end
+
 # CollectionSet (IntervalSets)
 function generate_support_values(set::CollectionSet{IntervalSet},
                                  ::Val{UniformGrid} = Val(UniformGrid);
@@ -472,6 +488,15 @@ function generate_support_values(set::CollectionSet{IntervalSet},
                                  )::Tuple{Array{<:Real}, Symbol}
     new_supports = _generate_collection_supports(set, num_supports, sig_digits)
     return new_supports, UniformGrid
+end
+
+function generate_support_values(set::CollectionSet{IntervalSet},
+                                 ::Val{McSample};
+                                 num_supports::Int = DefaultNumSupports,
+                                 sig_digits::Int = DefaultSigDigits
+                                 )::Tuple{Array{<:Real}, Symbol}
+    new_supports = _generate_collection_supports(set, McSample, num_supports, sig_digits)
+    return new_supports, McSample
 end
 
 # CollectionSet (UniDistributionSets)

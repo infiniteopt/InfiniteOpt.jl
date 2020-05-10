@@ -265,7 +265,7 @@ end
     data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
     data3 = FunctionalDiscreteMeasureData(par, coeff_func, 5, McSample)
     data4 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, McSample)
-    meas = Measure(par + 2inf - x, data, [1], [1], false)
+#    meas = Measure(par + 2inf - x, data, [1], [1], false)
     # test _add_supports_to_multiple_parameters (independent)
     @testset "_add_supports_to_multiple_parameters (independent)" begin
         prefs = dispatch_variable_ref.([par, par])
@@ -303,7 +303,6 @@ end
         # clear supports
         delete_supports(par)
     end
-    #=
     # test add_supports_to_parameters (multi FunctionalDiscreteMeasureData)
     @testset "add_supports_to_parameters (multi FunctionalDiscreteMeasureData)" begin
         # test functionality
@@ -312,18 +311,20 @@ end
         # clear supports
         delete_supports(pars)
     end
-    =#
-    #=
-    # test add_supports_to_parameters (array fallback)
-    @testset "add_supports_to_parameters (array fallback)" begin
-        # test functionality
-        @test isa(add_supports_to_parameters(pars, [[1, 1]]), Nothing)
-        @test supports(pars[1]) == [1]
-        @test supports(pars[2]) == [1]
-        # clear supports
-        delete_supports(pars)
+    # test add_supports_to_parameters (fallbacks)
+    @testset "add_supports_to_parameters (fallbacks)" begin
+        @test_throws ErrorException add_supports_to_parameters(BadData())
     end
-    =#
+    # test add_measure
+    @testset "add_measure" begin
+        meas1 = Measure(par + 2inf - x, data1, [1], [1], false)
+        mref1 = MeasureRef(m, MeasureIndex(1))
+        @test dispatch_variable_ref(add_measure(m, meas1, "measure1")) == mref1
+        @test supports(par) == [1.0]
+        @test InfiniteOpt._measure_dependencies(par) == [MeasureIndex(1)]
+        @test InfiniteOpt._data_object(mref1).name == "measure1"
+        @test !InfiniteOpt._data_object(mref1).in_objective
+    end
 end
 
 # Test measure construction methods
@@ -343,6 +344,8 @@ end
     data = DiscreteMeasureData(par, [1], [1])
     data2 = DiscreteMeasureData(par2, [1], [1])
     data3 = DiscreteMeasureData(pars, [1], [[1, 1]])
+    data4 = FunctionalDiscreteMeasureData(par, coeff_func, 5, McSample)
+    data5 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, McSample)
 
     # test measure_data_in_hold_bounds (DiscreteMeasureData)
     @testset "measure_data_in_hold_bounds (Discrete)" begin
@@ -416,8 +419,95 @@ end
         @set_parameter_bounds(x, par == 1)
         @test isa(InfiniteOpt._check_var_bounds(mref1, data), Nothing)
         @test isa(InfiniteOpt._check_var_bounds(mref2, data), Nothing)
-#        delete_supports(par)
-#        set_parameter_bounds(x, ParameterBounds(), force = true)
+        set_parameter_bounds(x, ParameterBounds(), force = true)
+    end
+    # test build_measure
+    @testset "build_measure" begin
+        @test isa(build_measure(m, inf, data), Measure)
+        @test isa(build_measure(m, inf, data2), Measure)
+        @test isa(build_measure(m, inf4, data3), Measure)
+        @test isa(build_measure(m, inf2, data4), Measure)
+        @test isa(build_measure(m, inf4, data5), Measure)
+        @test !build_measure(m, inf, data).constant_func
+        @test build_measure(m, inf, data2).constant_func
+        @test !build_measure(m, inf4, data3).constant_func
+        @test !build_measure(m, inf2, data4).constant_func
+        @test !build_measure(m, inf4, data5).constant_func
+    end
+end
+
+# Test queries and used functions
+@testset "Queries and Used" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_variable(m, inf(par))
+    @hold_variable(m, x)
+    data = DiscreteMeasureData(par, [1], [1])
+    meas = Measure(par + 2inf - x, data, [1], [1], false)
+    mref = add_measure(m, meas)
+    # test measure_function
+    @testset "measure_function" begin
+        @test measure_function(mref) == par + 2inf - x
+    end
+    # test measure_data
+    @testset "measure_data" begin
+        @test measure_data(mref) == data
+    end
+    @testset "used_by_constraint" begin
+        # test not used
+        @test !used_by_constraint(mref)
+        # prepare use case
+        push!(InfiniteOpt._data_object(mref).constraint_indices, ConstraintIndex(1))
+        # test used
+        @test used_by_constraint(mref)
+        # undo changes
+        InfiniteOpt._data_object(mref).constraint_indices = ConstraintIndex[]
+    end
+    # used_by_measure
+    @testset "used_by_measure" begin
+        # test not used
+        @test !used_by_measure(mref)
+        # prepare use case
+        push!(InfiniteOpt._data_object(mref).measure_indices, MeasureIndex(1))
+        # test used
+        @test used_by_measure(mref)
+        # undo changes
+        InfiniteOpt._data_object(mref).measure_indices = MeasureIndex[]
+    end
+    # used_by_objective
+    @testset "used_by_objective" begin
+        # test not used
+        @test !used_by_objective(mref)
+        # prepare use case
+        InfiniteOpt._data_object(mref).in_objective = true
+        # test used
+        @test used_by_objective(mref)
+        # undo changes
+        InfiniteOpt._data_object(mref).in_objective = false
+    end
+    # is_used
+    @testset "is_used" begin
+        # test not used
+        @test !is_used(mref)
+        # prepare use case
+        push!(InfiniteOpt._data_object(mref).constraint_indices, ConstraintIndex(1))
+        # test used
+        @test is_used(mref)
+        # undo changes
+        InfiniteOpt._data_object(mref).constraint_indices = ConstraintIndex[]
+        # prepare use case
+        push!(InfiniteOpt._data_object(mref).measure_indices, MeasureIndex(1))
+        # test used
+        @test is_used(mref)
+        # undo changes
+        InfiniteOpt._data_object(mref).measure_indices = MeasureIndex[]
+        # prepare use case
+        InfiniteOpt._data_object(mref).in_objective = true
+        # test used
+        @test is_used(mref)
+        # undo changes
+        InfiniteOpt._data_object(mref).in_objective = false
     end
 end
 
@@ -488,40 +578,6 @@ end
         # clear additions
         delete!(m.param_to_meas, JuMP.index(pars[1]))
         delete!(m.param_to_meas, JuMP.index(pars[2]))
-    end
-    # test add_measure
-    @testset "add_measure" begin
-        mref = MeasureRef(m, 1)
-        @test add_measure(m, meas) == mref
-        @test name(mref) == "test(par + 2 inf(par) - x)"
-        @test supports(par) == [1]
-        @test m.var_to_meas[JuMP.index(inf)] == [1]
-        @test m.var_to_meas[JuMP.index(x)] == [1]
-        @test m.param_to_meas[JuMP.index(par)] == [1]
-        @test !m.meas_in_objective[JuMP.index(mref)]
-        # test errors
-        @test_throws VariableNotOwned add_measure(m, Measure(@variable(Model()),
-                                                             data))
-    end
-end
-
-# Test queries
-@testset "Queries" begin
-    # initialize model and references
-    m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_variable(m, inf(par))
-    @hold_variable(m, x)
-    data = DiscreteMeasureData(par, [1], [1])
-    meas = Measure(par + 2inf - x, data)
-    mref = add_measure(m, meas)
-    # test measure_function
-    @testset "measure_function" begin
-        @test measure_function(mref) == par + 2inf - x
-    end
-    # test measure_data
-    @testset "measure_data" begin
-        @test measure_data(mref) == data
     end
 end
 
@@ -705,69 +761,6 @@ end
     end
 end
 
-# Test if used
-@testset "Used" begin
-    # initialize model and reference
-    m = InfiniteModel()
-    mref = MeasureRef(m, 1)
-    m.meas_in_objective[JuMP.index(mref)] = false
-    # used_by_constraint
-    @testset "used_by_constraint" begin
-        # test not used
-        @test !used_by_constraint(mref)
-        # prepare use case
-        m.meas_to_constrs[JuMP.index(mref)] = [1]
-        # test used
-        @test used_by_constraint(mref)
-        # undo changes
-        delete!(m.meas_to_constrs, JuMP.index(mref))
-    end
-    # used_by_measure
-    @testset "used_by_measure" begin
-        # test not used
-        @test !used_by_measure(mref)
-        # prepare use case
-        m.meas_to_meas[JuMP.index(mref)] = [2]
-        # test used
-        @test used_by_measure(mref)
-        # undo changes
-        delete!(m.meas_to_meas, JuMP.index(mref))
-    end
-    # used_by_objective
-    @testset "used_by_objective" begin
-        # test not used
-        @test !used_by_objective(mref)
-        # prepare use case
-        m.meas_in_objective[JuMP.index(mref)] = true
-        # test used
-        @test used_by_objective(mref)
-        # undo changes
-        m.meas_in_objective[JuMP.index(mref)] = false
-    end
-    # is_used
-    @testset "is_used" begin
-        # test not used
-        @test !is_used(mref)
-        # prepare use case
-        m.meas_to_constrs[JuMP.index(mref)] = [1]
-        # test used
-        @test is_used(mref)
-        # undo changes
-        delete!(m.meas_to_constrs, JuMP.index(mref))
-        # prepare use case
-        m.meas_to_meas[JuMP.index(mref)] = [2]
-        # test used
-        @test is_used(mref)
-        # undo changes
-        delete!(m.meas_to_meas, JuMP.index(mref))
-        # prepare use case
-        m.meas_in_objective[JuMP.index(mref)] = true
-        # test used
-        @test is_used(mref)
-        # undo changes
-        m.meas_in_objective[JuMP.index(mref)] = false
-    end
-end
 @testset "User Definition w/o Measure Data" begin
     m = InfiniteModel()
     dist1 = Normal(0., 1.)
