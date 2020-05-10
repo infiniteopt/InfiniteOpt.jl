@@ -59,6 +59,17 @@
         # undo changes
         m.objective_function = zero(GenericAffExpr{Float64, GeneralVariableRef})
     end
+    # test objective_has_measures
+    @testset "objective_has_measures" begin
+        # test default
+        @test !objective_has_measures(m)
+        # change function
+        m.objective_has_measures = true
+        # test new function
+        @test objective_has_measures(m)
+        # undo changes
+        m.objective_has_measures = false
+    end
 end
 
 # Test definition methods
@@ -93,12 +104,14 @@ end
         @test used_by_objective(pt)
         @test used_by_objective(meas)
         @test !optimizer_model_ready(m)
+        @test objective_has_measures(m)
         # test reset
         @test isa(set_objective_function(m, pt), Nothing)
         @test objective_function(m) == pt
         @test !used_by_objective(x)
         @test used_by_objective(pt)
         @test !used_by_objective(meas)
+        @test !objective_has_measures(m)
         # test errors
         @test_throws ErrorException set_objective_function(m, inf + pt)
         @test_throws ErrorException set_objective_function(m, par + pt)

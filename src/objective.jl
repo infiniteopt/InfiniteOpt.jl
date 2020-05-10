@@ -60,6 +60,15 @@ function JuMP.objective_function_type(model::InfiniteModel
     return typeof(JuMP.objective_function(model))
 end
 
+"""
+    objective_has_measures(model::InfiniteModel)::Bool
+
+Return `Bool` whether the objective function contains any measures.
+"""
+function objective_has_measures(model::InfiniteModel)::Bool
+    return model.objective_has_measures
+end
+
 ################################################################################
 #                             DEFINITION METHODS
 ################################################################################
@@ -95,11 +104,15 @@ function JuMP.set_objective_function(model::InfiniteModel,
     for vref in old_vrefs
         _data_object(vref).in_objective = false
     end
+    model.objective_has_measures = false
     # update the function
     model.objective_function = func
     # update new mappings
     for vref in new_vrefs
         _data_object(vref).in_objective = true
+        if _index_type(vref) == MeasureIndex
+            model.objective_has_measures = true
+        end
     end
     set_optimizer_model_ready(model, false)
     return

@@ -35,7 +35,7 @@ include("measures.jl")
 include("constraints.jl")
 include("macros.jl")
 include("objective.jl")
-# include("measure_expansions.jl")
+include("measure_expansions.jl")
 include("optimize.jl")
 # include("results.jl")
 include("show.jl")
@@ -71,7 +71,8 @@ export Infinite, Hold, Point, sampling, quadrature
 export AbstractInfOptIndex, ObjectIndex, IndependentParameterIndex,
 DependentParametersIndex, DependentParameterIndex, FiniteParameterIndex,
 InfiniteVariableIndex, PointVariableIndex, ReducedVariableIndex,
-HoldVariableIndex, MeasureIndex, ConstraintIndex, InfiniteParameterIndex
+HoldVariableIndex, MeasureIndex, ConstraintIndex, InfiniteParameterIndex,
+FiniteVariableIndex
 
 # Export infinite set types
 export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
@@ -122,6 +123,9 @@ set_integral_defaults, integral_defaults, coefficients, weight_function,
 default_weight, add_measure_variable, delete_reduced_variable,
 delete_internal_reduced_variable, expand_measures, support_label,
 coefficient_function, build_measure, add_supports_to_parameters
+
+# Export objective methods
+export objective_has_measures
 
 # Export constraint datatypes
 export BoundedScalarConstraint, ConstraintData, InfOptConstraintRef,

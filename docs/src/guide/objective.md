@@ -142,4 +142,5 @@ JuMP.set_objective_function(::InfiniteModel, ::Real)
 JuMP.set_objective_sense(::InfiniteModel, ::MOI.OptimizationSense)
 JuMP.set_objective(::InfiniteModel, ::MOI.OptimizationSense, ::Union{JuMP.AbstractJuMPScalar, Real})
 JuMP.set_objective_coefficient(::InfiniteModel, ::GeneralVariableRef, ::Real)
+objective_has_measures
 ```
