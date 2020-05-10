@@ -22,7 +22,7 @@ julia> ]
 Use the `add` command in the package to manager to add the following packages:
 
 - `JuMP`
-- `Distributions`
+- `Distributions` (required for stochastic programming)
 
 For example, to install `JuMP` we would enter:
 ```julia-repl

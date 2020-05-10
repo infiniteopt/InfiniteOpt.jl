@@ -541,7 +541,7 @@ end
 function _delete_variable_dependencies(vref::HoldVariableRef)::Nothing
     # remove variable info constraints associated with vref
     _delete_info_constraints(vref)
-    # update dependent constraint bounds by deleting teh variable bounds
+    # update dependent constraint bounds by deleting the variable bounds
     delete_parameter_bounds(vref)
     return
 end

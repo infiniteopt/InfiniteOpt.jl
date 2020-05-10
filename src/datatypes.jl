@@ -117,6 +117,10 @@ struct HoldVariableIndex <: ObjectIndex
     value::Int
 end
 
+# Define convenient aliases
+const FiniteVariableIndex = Union{PointVariableIndex, HoldVariableIndex,
+                                  FiniteParameterIndex}
+
 """
     MeasureIndex <: ObjectIndex
 
@@ -841,6 +845,7 @@ model an optmization problem with an infinite-dimensional decision space.
    Field to help find a constraint given the name.
 - `objective_sense::MOI.OptimizationSense`: Objective sense.
 - `objective_function::JuMP.AbstractJuMPScalar`: Finite scalar function.
+- `objective_has_measures::Bool`: Does the objective contain measures?
 - `obj_dict::Dict{Symbol, Any}`: Store Julia symbols used with `InfiniteModel`
 - `optimizer_constructor`: MOI optimizer constructor (e.g., Gurobi.Optimizer).
 - `optimizer_model::JuMP.Model`: Model used to solve `InfiniteModel`
@@ -874,6 +879,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     # Objective Data
     objective_sense::MOI.OptimizationSense
     objective_function::JuMP.AbstractJuMPScalar
+    objective_has_measures::Bool
 
     # Objects
     obj_dict::Dict{Symbol, Any}
@@ -945,6 +951,7 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          # Objective
                          MOI.FEASIBILITY_SENSE,
                          zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}),
+                         false,
                          # Object dictionary
                          Dict{Symbol, Any}(),
                          # Optimize data

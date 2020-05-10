@@ -19,6 +19,8 @@ julia> using InfiniteOpt, JuMP
 julia> model = InfiniteModel()
 An InfiniteOpt Model
 Feasibility problem with:
+Finite Parameters: 0
+Infinite Parameters: 0
 Variables: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
@@ -34,6 +36,8 @@ julia> using InfiniteOpt, JuMP, Ipopt
 julia> model = InfiniteModel(Ipopt.Optimizer)
 An InfiniteOpt Model
 Feasibility problem with:
+Finite Parameters: 0
+Infinite Parameters: 0
 Variables: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
@@ -54,6 +58,8 @@ julia> model = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer,
                                                        "output_level" => 0))
 An InfiniteOpt Model
 Feasibility problem with:
+Finite Parameters: 0
+Infinite Parameters: 0
 Variables: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
@@ -91,6 +97,8 @@ julia> model = InfiniteModel(Ipopt.Optimizer,
                              caching_mode = MOIU.MANUAL)
 An InfiniteOpt Model
 Feasibility problem with:
+Finite Parameters: 0
+Infinite Parameters: 0
 Variables: 0
 Optimizer model backend information:
 Model mode: MANUAL

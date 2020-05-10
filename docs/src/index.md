@@ -24,7 +24,7 @@ include:
 
 !!! note
     Currently, `InfiniteOpt` only accepts linear and quadratic expressions.
-    Development is underway to allow for general nonlinear expressions. Please
+    Development is planned to allow for general nonlinear expressions. Please
     visit [Expressions](@ref expr_page) for more details.
 
 ## Installation

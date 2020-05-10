@@ -1402,6 +1402,7 @@ Subject to
 function JuMP.delete(model::InfiniteModel,
                      prefs::AbstractArray{<:DependentParameterRef})::Nothing
     @assert JuMP.is_valid(model, first(prefs)) "Parameter references are invalid."
+    _check_complete_param_array(prefs)
     gvrefs = [_make_parameter_ref(model, JuMP.index(pref)) for pref in prefs]
     # ensure deletion is okay (prefs are not used by measure data)
     for pref in gvrefs
