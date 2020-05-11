@@ -1,3 +1,5 @@
+struct _DumbyModel <: JuMP.AbstractModel end
+
 ################################################################################
 #                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
 ################################################################################
@@ -760,11 +762,22 @@ function measure(expr::JuMP.AbstractJuMPScalar,
 end
 
 # NOTE This will be the preferred user method for medium to large expressions
-# TODO Make @measure that will call measure but will build expr via @expression
+# (done) TODO Make @measure that will call measure but will build expr via @expression
 #      Maybe this will also pass an error function to measure ofr build_measure
-macro measure(expr, args...) # NOTE Should use same inputs as measure
-    # TODO finish
-    return
+macro measure(expr, args...)
+    _error(str...) = JuMP._macro_error(:measure, (expr, args...), str...)
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    if length(extra) != 1
+        _error("Incorrect number of arguments. Must be of form " *
+               "@measure(expr, data).")
+    elseif length(kw_args) > 0
+        _error("No keyword arguments are accepted. Must be of form " *
+               "@measure(expr, data).")
+    end
+    data = first(extra)
+    expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
+    mref = :( measure($expression, $data) )
+    return esc(mref)
 end
 
 ################################################################################
@@ -996,21 +1009,6 @@ function integral(expr::JuMP.AbstractJuMPScalar,
                   kwargs...)::GeneralVariableRef
     # NOTE: params is required
     # NOTE: no more SparseAxisArray
-    # collect parameters from expression if they are not provided
-    if isa(params, Nothing)
-        if isa(expr, MeasureRef)
-            error("Nested call of intregral must specify parameters.")
-        end
-        params = _all_parameter_refs(expr)
-        if length(params) == 0
-            error("No infinite parameters in the expression.")
-        elseif length(params) == 1
-            params = params[1]
-        else
-            error("Multiple groups of parameters are in the expression. Need to " *
-                  "specify one group of parameters only.")
-        end
-    end
 
     # count number of parameters check array formatting
     num_params = length(params)

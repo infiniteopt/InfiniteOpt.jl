@@ -518,72 +518,99 @@ end
 
 # Test user definition methods
 @testset "User Definition" begin
-    @testset "User Definition" begin
-        # initialize model and references
-        m = InfiniteModel()
-        @infinite_parameter(m, 0 <= par <= 1)
-        @infinite_parameter(m, 0 <= par2 <= 1)
-        @infinite_parameter(m, 0 <= pars[1:2] <= 1)
-        @infinite_parameter(m, pars2[1:2] in MvNormal(ones(2), Float64[1 0; 0 1]))
-        @infinite_variable(m, inf(par))
-        @infinite_variable(m, inf2(par, par2))
-        @infinite_variable(m, inf3(par2))
-        @infinite_variable(m, inf4(pars))
-        @infinite_variable(m, inf5(pars2))
-        @hold_variable(m, x)
-        coeff_func(x) = 1
-        # prepare measure data
-        data = DiscreteMeasureData(par, [1], [1])
-        data2 = DiscreteMeasureData(par2, [1], [1])
-        data3 = DiscreteMeasureData(pars, [1], [[1, 1]])
-        data4 = FunctionalDiscreteMeasureData(par, coeff_func, 10, UniformGrid)
-        data5 = FunctionalDiscreteMeasureData(pars2, coeff_func, 10, McSample)
-        # test measure
-        @testset "measure" begin
-            # test scalar IndependentParameter
-            mref = MeasureRef(m, MeasureIndex(1))
-            @test dispatch_variable_ref(measure(inf + x, data)) == mref
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, 0 <= par2 <= 1)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+    @infinite_parameter(m, pars2[1:2] in MvNormal(ones(2), Float64[1 0; 0 1]))
+    @infinite_variable(m, inf(par))
+    @infinite_variable(m, inf2(par, par2))
+    @infinite_variable(m, inf3(par2))
+    @infinite_variable(m, inf4(pars))
+    @infinite_variable(m, inf5(pars2))
+    @hold_variable(m, x)
+    coeff_func(x) = 1
+    # prepare measure data
+    data = DiscreteMeasureData(par, [1], [1])
+    data2 = DiscreteMeasureData(par2, [1], [1])
+    data3 = DiscreteMeasureData(pars, [1], [[1, 1]])
+    data4 = FunctionalDiscreteMeasureData(par, coeff_func, 10, UniformGrid)
+    data5 = FunctionalDiscreteMeasureData(pars2, coeff_func, 10, McSample)
+    # test measure
+    @testset "measure" begin
+        # test scalar IndependentParameter
+        mref = MeasureRef(m, MeasureIndex(1))
+        @test dispatch_variable_ref(measure(inf + x, data)) == mref
 #            @test name(mref) == "a(inf(par) + x)"
-            @test supports(par) == [1]
-            @test !used_by_objective(mref)
-            # test nested use
-            mref2 = MeasureRef(m, MeasureIndex(2))
-            mref3 = MeasureRef(m, MeasureIndex(3))
-            @test dispatch_variable_ref(measure(inf + measure(inf2 + x, data2), data)) == mref3
+        @test supports(par) == [1]
+        @test !used_by_objective(mref)
+        # test nested use
+        mref2 = MeasureRef(m, MeasureIndex(2))
+        mref3 = MeasureRef(m, MeasureIndex(3))
+        @test dispatch_variable_ref(measure(inf + measure(inf2 + x, data2), data)) == mref3
 #            @test name(mref3) == "a(inf(par) + b(inf2(par, par2) + x))"
-            @test supports(par) == [1]
-            @test supports(par2) == [1]
-            # test DependentParameters
-            mref4 = MeasureRef(m, MeasureIndex(4))
-            @test dispatch_variable_ref(measure(inf4 + x, data3)) == mref4
+        @test supports(par) == [1]
+        @test supports(par2) == [1]
+        # test DependentParameters
+        mref4 = MeasureRef(m, MeasureIndex(4))
+        @test dispatch_variable_ref(measure(inf4 + x, data3)) == mref4
 #            @test name(mref4) == "c(inf4(pars) + x)"
-            @test supports(pars[1]) == [1]
-            @test supports(pars[2]) == [1]
-            # test with hold bounds
-            @set_parameter_bounds(x, par == 1)
-            mref5 = MeasureRef(m, MeasureIndex(5))
-            @test dispatch_variable_ref(measure(inf + x, data)) == mref5
+        @test supports(pars[1]) == [1]
+        @test supports(pars[2]) == [1]
+        # test with hold bounds
+        @set_parameter_bounds(x, par == 1)
+        mref5 = MeasureRef(m, MeasureIndex(5))
+        @test dispatch_variable_ref(measure(inf + x, data)) == mref5
 #            @test name(mref) == "a(inf(par) + x)"
-            @test supports(par) == [1]
-            # test scalar FunctionalDiscreteMeasureData
-            mref6 = MeasureRef(m, MeasureIndex(6))
-            @test dispatch_variable_ref(measure(inf, data4)) == mref6
-            @test InfiniteOpt._core_variable_object(mref6).data.label == UniformGrid
-            # test multidim FunctionalDiscreteMeasureData
-            mref7 = MeasureRef(m, MeasureIndex(7))
-            @test dispatch_variable_ref(measure(inf5, data5)) == mref7
-            @test InfiniteOpt._core_variable_object(mref7).data.label == McSample
-            # test analytic evaluation
-            @test dispatch_variable_ref(measure(x, data)) isa MeasureRef
-            @test is_analytic(measure(x, data))
-            @test dispatch_variable_ref(measure(par2, data)) isa MeasureRef
-            @test is_analytic(measure(par2, data))
-            @test dispatch_variable_ref(measure(inf4 + measure(inf + x, data3), data)) isa MeasureRef
-            @test !is_analytic(measure(inf4 + measure(inf + x, data3), data))
-            # test no variables
-            @test_throws ErrorException measure(zero(GenericAffExpr{Float64,
-                                                         GeneralVariableRef}), data)
-        end
+        @test supports(par) == [1]
+        # test scalar FunctionalDiscreteMeasureData
+        mref6 = MeasureRef(m, MeasureIndex(6))
+        @test dispatch_variable_ref(measure(inf, data4)) == mref6
+        @test InfiniteOpt._core_variable_object(mref6).data.label == UniformGrid
+        # test multidim FunctionalDiscreteMeasureData
+        mref7 = MeasureRef(m, MeasureIndex(7))
+        @test dispatch_variable_ref(measure(inf5, data5)) == mref7
+        @test InfiniteOpt._core_variable_object(mref7).data.label == McSample
+        # test analytic evaluation
+        @test dispatch_variable_ref(measure(x, data)) isa MeasureRef
+        @test is_analytic(measure(x, data))
+        @test dispatch_variable_ref(measure(par2, data)) isa MeasureRef
+        @test is_analytic(measure(par2, data))
+        @test dispatch_variable_ref(measure(inf4 + measure(inf + x, data3), data)) isa MeasureRef
+        @test !is_analytic(measure(inf4 + measure(inf + x, data3), data))
+        # test no variables
+        @test_throws ErrorException measure(zero(GenericAffExpr{Float64,
+                                                     GeneralVariableRef}), data)
+    end
+end
+
+@testset "Macros" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+    @infinite_parameter(m, pars2[1:2] in MvNormal(ones(2), Float64[1 0; 0 1]))
+    @infinite_variable(m, inf(par))
+    @infinite_variable(m, inf2(pars))
+    @infinite_variable(m, inf3(pars2))
+    @hold_variable(m, x)
+    coeff_func(x) = 1
+    # prepare measure data
+    data = DiscreteMeasureData(par, [1], [1])
+    data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
+    data3 = FunctionalDiscreteMeasureData(par, coeff_func, 10, UniformGrid)
+    data4 = FunctionalDiscreteMeasureData(pars2, coeff_func, 10, McSample)
+    # test @measure
+    @testset "@measure" begin
+        @test_macro_throws ErrorException @measure(par)
+        @test_macro_throws ErrorException @measure(par, data1, data2)
+        @test_macro_throws ErrorException @measure(par, data1, bob = 53)
+        @test dispatch_variable_ref(@measure(par, data)) isa MeasureRef
+        @test dispatch_variable_ref(@measure(inf + par, data)) isa MeasureRef
+        @test dispatch_variable_ref(@measure(inf2, data2)) isa MeasureRef
+        @test dispatch_variable_ref(@measure(inf, data3)) isa MeasureRef
+        @test dispatch_variable_ref(@measure(inf3, data4)) isa MeasureRef
     end
 end
 #=
