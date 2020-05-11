@@ -1245,6 +1245,22 @@ function measure_data(vref::GeneralVariableRef)::AbstractMeasureData
     return measure_data(dispatch_variable_ref(vref))
 end
 
+# Dispatch fallback
+function is_analytic(vref::DispatchVariableRef)::Bool
+    throw(ArgumentError("`is_analytic` not defined for variable reference type(s) " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    is_analytic(vref::GeneralVariableRef)::Bool
+
+Return if `vref` is evaluated anlaytically. An `ArgumentError` is thrown
+if `vref` is not a measure reference.
+"""
+function is_analytic(vref::GeneralVariableRef)::Bool
+    return is_analytic(dispatch_variable_ref(vref))
+end
+
 ################################################################################
 #                            LOWER BOUND METHODS
 ################################################################################

@@ -122,7 +122,7 @@ make_point_variable_ref, make_reduced_variable_ref, expand_measure, integral,
 set_integral_defaults, integral_defaults, coefficients, weight_function,
 default_weight, add_measure_variable, delete_reduced_variable,
 delete_internal_reduced_variable, expand_measures, support_label,
-coefficient_function, build_measure, add_supports_to_parameters
+coefficient_function, build_measure, add_supports_to_parameters, is_analytic
 
 # Export objective methods
 export objective_has_measures

@@ -705,6 +705,15 @@ function measure_data(mref::MeasureRef)::AbstractMeasureData
     return _core_variable_object(mref).data
 end
 
+"""
+    is_analytic(mref::MeasureRef)::AbstractMeasureData
+
+Return if `mref` is evaluated analytically.
+"""
+function is_analytic(mref::MeasureRef)::Bool
+    return _core_variable_object(mref).constant_func
+end
+
 # NOTE This will be the preferred user method for small expressions
 """
     measure(expr::JuMP.AbstractJuMPScalar,

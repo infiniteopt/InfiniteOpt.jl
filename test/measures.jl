@@ -339,6 +339,7 @@ end
     @infinite_variable(m, inf3(par2))
     @infinite_variable(m, inf4(pars))
     @hold_variable(m, x)
+    coeff_func(x) = 1
 
     # prepare measure data
     data = DiscreteMeasureData(par, [1], [1])
@@ -454,6 +455,10 @@ end
     @testset "measure_data" begin
         @test measure_data(mref) == data
     end
+    # test is_analytic
+    @testset "is_analytic" begin
+        @test !is_analytic(mref)
+    end
     @testset "used_by_constraint" begin
         # test not used
         @test !used_by_constraint(mref)
@@ -511,189 +516,77 @@ end
     end
 end
 
+# Test user definition methods
+@testset "User Definition" begin
+    @testset "User Definition" begin
+        # initialize model and references
+        m = InfiniteModel()
+        @infinite_parameter(m, 0 <= par <= 1)
+        @infinite_parameter(m, 0 <= par2 <= 1)
+        @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+        @infinite_parameter(m, pars2[1:2] in MvNormal(ones(2), Float64[1 0; 0 1]))
+        @infinite_variable(m, inf(par))
+        @infinite_variable(m, inf2(par, par2))
+        @infinite_variable(m, inf3(par2))
+        @infinite_variable(m, inf4(pars))
+        @infinite_variable(m, inf5(pars2))
+        @hold_variable(m, x)
+        coeff_func(x) = 1
+        # prepare measure data
+        data = DiscreteMeasureData(par, [1], [1])
+        data2 = DiscreteMeasureData(par2, [1], [1])
+        data3 = DiscreteMeasureData(pars, [1], [[1, 1]])
+        data4 = FunctionalDiscreteMeasureData(par, coeff_func, 10, UniformGrid)
+        data5 = FunctionalDiscreteMeasureData(pars2, coeff_func, 10, McSample)
+        # test measure
+        @testset "measure" begin
+            # test scalar IndependentParameter
+            mref = MeasureRef(m, MeasureIndex(1))
+            @test dispatch_variable_ref(measure(inf + x, data)) == mref
+#            @test name(mref) == "a(inf(par) + x)"
+            @test supports(par) == [1]
+            @test !used_by_objective(mref)
+            # test nested use
+            mref2 = MeasureRef(m, MeasureIndex(2))
+            mref3 = MeasureRef(m, MeasureIndex(3))
+            @test dispatch_variable_ref(measure(inf + measure(inf2 + x, data2), data)) == mref3
+#            @test name(mref3) == "a(inf(par) + b(inf2(par, par2) + x))"
+            @test supports(par) == [1]
+            @test supports(par2) == [1]
+            # test DependentParameters
+            mref4 = MeasureRef(m, MeasureIndex(4))
+            @test dispatch_variable_ref(measure(inf4 + x, data3)) == mref4
+#            @test name(mref4) == "c(inf4(pars) + x)"
+            @test supports(pars[1]) == [1]
+            @test supports(pars[2]) == [1]
+            # test with hold bounds
+            @set_parameter_bounds(x, par == 1)
+            mref5 = MeasureRef(m, MeasureIndex(5))
+            @test dispatch_variable_ref(measure(inf + x, data)) == mref5
+#            @test name(mref) == "a(inf(par) + x)"
+            @test supports(par) == [1]
+            # test scalar FunctionalDiscreteMeasureData
+            mref6 = MeasureRef(m, MeasureIndex(6))
+            @test dispatch_variable_ref(measure(inf, data4)) == mref6
+            @test InfiniteOpt._core_variable_object(mref6).data.label == UniformGrid
+            # test multidim FunctionalDiscreteMeasureData
+            mref7 = MeasureRef(m, MeasureIndex(7))
+            @test dispatch_variable_ref(measure(inf5, data5)) == mref7
+            @test InfiniteOpt._core_variable_object(mref7).data.label == McSample
+            # test analytic evaluation
+            @test dispatch_variable_ref(measure(x, data)) isa MeasureRef
+            @test is_analytic(measure(x, data))
+            @test dispatch_variable_ref(measure(par2, data)) isa MeasureRef
+            @test is_analytic(measure(par2, data))
+            @test dispatch_variable_ref(measure(inf4 + measure(inf + x, data3), data)) isa MeasureRef
+            @test !is_analytic(measure(inf4 + measure(inf + x, data3), data))
+            # test no variables
+            @test_throws ErrorException measure(zero(GenericAffExpr{Float64,
+                                                         GeneralVariableRef}), data)
+        end
+    end
+end
 #=
-# Test measure definition
-@testset "Definition" begin
-    # initialize model and references
-    m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
-    @infinite_variable(m, inf(par))
-    @hold_variable(m, x)
-    data = DiscreteMeasureData(par, [1], [1], name = "test")
-    data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
-    meas = Measure(par + 2inf - x, data)
-    rv = ReducedVariableRef(m, 42)
-    # _make_meas_name
-    @testset "_make_meas_name" begin
-        @test InfiniteOpt._make_meas_name(meas) == "test(par + 2 inf(par) - x)"
-    end
-    # test _update_var_meas_mapping
-    @testset "_update_var_meas_mapping" begin
-        # retrieve variables and parameters
-        mref = MeasureRef(m, 2)
-        vars = [par, inf, x, mref, rv]
-        # test initial reference
-        @test isa(InfiniteOpt._update_var_meas_mapping(vars, 1), Nothing)
-        @test m.var_to_meas[JuMP.index(inf)] == [1]
-        @test m.var_to_meas[JuMP.index(x)] == [1]
-        @test m.param_to_meas[JuMP.index(par)] == [1]
-        @test m.meas_to_meas[JuMP.index(mref)] == [1]
-        @test m.reduced_to_meas[JuMP.index(rv)] == [1]
-        # test repeated reference
-        @test isa(InfiniteOpt._update_var_meas_mapping(vars, 2), Nothing)
-        @test m.var_to_meas[JuMP.index(inf)] == [1, 2]
-        @test m.var_to_meas[JuMP.index(x)] == [1, 2]
-        @test m.param_to_meas[JuMP.index(par)] == [1, 2]
-        @test m.meas_to_meas[JuMP.index(mref)] == [1, 2]
-        @test m.reduced_to_meas[JuMP.index(rv)] == [1, 2]
-        # clear additions
-        delete!(m.var_to_meas, JuMP.index(inf))
-        delete!(m.var_to_meas, JuMP.index(x))
-        delete!(m.param_to_meas, JuMP.index(par))
-        delete!(m.meas_to_meas, JuMP.index(mref))
-        delete!(m.reduced_to_meas, JuMP.index(rv))
-    end
-    # test _update_param_data_mapping (scalar)
-    @testset "_update_param_data_mapping (scalar)" begin
-        # test first addition
-        @test isa(InfiniteOpt._update_param_data_mapping(m, par, 1), Nothing)
-        @test m.param_to_meas[JuMP.index(par)] == [1]
-        # test second addition
-        @test isa(InfiniteOpt._update_param_data_mapping(m, par, 2), Nothing)
-        @test m.param_to_meas[JuMP.index(par)] == [1, 2]
-        # clear additions
-        delete!(m.param_to_meas, JuMP.index(par))
-    end
-    # test _update_param_data_mapping (array)
-    @testset "_update_param_data_mapping (array)" begin
-        # test first addition
-        @test isa(InfiniteOpt._update_param_data_mapping(m, pars, 1), Nothing)
-        @test m.param_to_meas[JuMP.index(pars[1])] == [1]
-        @test m.param_to_meas[JuMP.index(pars[2])] == [1]
-        # test second addition
-        @test isa(InfiniteOpt._update_param_data_mapping(m, pars, 2), Nothing)
-        @test m.param_to_meas[JuMP.index(pars[1])] == [1, 2]
-        @test m.param_to_meas[JuMP.index(pars[2])] == [1, 2]
-        # clear additions
-        delete!(m.param_to_meas, JuMP.index(pars[1]))
-        delete!(m.param_to_meas, JuMP.index(pars[2]))
-    end
-end
-
-# Test methods variable search methods
-@testset "Parameter Search" begin
-    # initialize model and references
-    m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= par2 <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
-    @infinite_variable(m, inf(par))
-    @infinite_variable(m, inf2(par, par2))
-    @infinite_variable(m, inf3(par2))
-    @infinite_variable(m, inf4(pars))
-    @hold_variable(m, x)
-    m.reduced_info[-1] = ReducedInfiniteInfo(inf2, Dict(2 => 0.5))
-    m.infinite_to_reduced[JuMP.index(inf2)] = [-1]
-    rv = ReducedVariableRef(m, -1)
-    # prepare measures
-    data = DiscreteMeasureData(par, [1], [1])
-    data2 = DiscreteMeasureData(par2, [1], [1])
-    data3 = DiscreteMeasureData(pars, [1], [[1, 1]])
-    meas1 = Measure(par, data)
-    mref1 = add_measure(m, meas1)
-    meas2 = Measure(inf3, data2)
-    mref2 = add_measure(m, meas2)
-    meas3 = Measure(3 - inf2, data2)
-    mref3 = add_measure(m, meas3)
-    meas4 = Measure(x - mref3, data)
-    mref4 = add_measure(m, meas4)
-    meas5 = Measure(x + 3mref1, data)
-    mref5 = add_measure(m, meas5)
-    meas6 = Measure(x + inf4, data3)
-    mref6 = add_measure(m, meas6)
-    meas7 = Measure(rv, data)
-    mref7 = add_measure(m, meas7)
-    # test _has_variable
-    @testset "_has_variable" begin
-        # test in vector
-        @test InfiniteOpt._has_variable([par], par)
-        @test InfiniteOpt._has_variable([par, x, inf], inf)
-        # test not in vector
-        @test !InfiniteOpt._has_variable([par], inf)
-        @test !InfiniteOpt._has_variable([par, x, inf], inf2)
-        # test variable in prior
-        @test InfiniteOpt._has_variable([x], inf, prior = [inf, par])
-        @test InfiniteOpt._has_variable([x], inf, prior = [x, par, inf])
-        # test variable not in prior
-        @test !InfiniteOpt._has_variable([x], inf, prior = [x, par])
-        # test variable in measure
-        @test InfiniteOpt._has_variable([x, mref1], par)
-        @test InfiniteOpt._has_variable([x, mref1, inf], par)
-        @test InfiniteOpt._has_variable([x, mref2, mref1], par)
-        @test InfiniteOpt._has_variable([x, mref2, mref1, x], par)
-        # test variable not in measure
-        @test !InfiniteOpt._has_variable([x, mref2], par)
-        @test !InfiniteOpt._has_variable([x, mref2, inf], par)
-        @test !InfiniteOpt._has_variable([x, mref2, mref3, x], par)
-        # test deeper measure nesting
-        @test InfiniteOpt._has_variable([x, mref2, mref4], inf2)
-        @test !InfiniteOpt._has_variable([x, mref2, mref4], par)
-    end
-    # test _has_parameter
-    @testset "_has_parameter" begin
-        # test in vector
-        @test InfiniteOpt._has_parameter([par], par)
-        @test InfiniteOpt._has_parameter([x, par], par)
-        @test InfiniteOpt._has_parameter([x, inf], par)
-        @test InfiniteOpt._has_parameter([x, rv], par)
-        # test not in vector
-        @test !InfiniteOpt._has_parameter([par], par2)
-        @test !InfiniteOpt._has_parameter([x, par], par2)
-        @test !InfiniteOpt._has_parameter([x, inf], par2)
-        # test in measure
-        @test InfiniteOpt._has_parameter([x, mref1], par)
-        @test InfiniteOpt._has_parameter([x, mref1, inf3], par)
-        @test InfiniteOpt._has_parameter([x, mref2, mref1], par)
-        @test InfiniteOpt._has_parameter([x, mref2, mref3], par)
-        @test InfiniteOpt._has_parameter([x, mref2, mref4], par)
-        # test not in measure
-        @test !InfiniteOpt._has_parameter([x, mref1], par2)
-        @test !InfiniteOpt._has_parameter([x, mref1, inf], par2)
-        @test !InfiniteOpt._has_parameter([x, mref1, mref1], par2)
-        @test !InfiniteOpt._has_parameter([x, mref1, mref5], par2)
-    end
-    # _check_has_parameter (scalar)
-    @testset "_check_has_parameter (scalar)" begin
-        # test that is has the parameter
-        @test isa(InfiniteOpt._check_has_parameter([par], par), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter([inf], par), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter([x, inf], par), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter([x, mref2, mref4], par),
-                  Nothing)
-        # test is does not have the parameter
-        @test_throws ErrorException InfiniteOpt._check_has_parameter([par], par2)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter([inf], par2)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter([x, inf],
-                                                                     par2)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter([x, mref1,
-                                                                    mref5], par2)
-    end
-    # _check_has_parameter (array)
-    @testset "_check_has_parameter (array)" begin
-        # test that is has the parameter
-        @test isa(InfiniteOpt._check_has_parameter([pars[1], pars[2]], pars), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter([inf4], pars), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter([x, inf4], pars), Nothing)
-        @test isa(InfiniteOpt._check_has_parameter([x, mref6], pars), Nothing)
-        # test is does not have the parameter
-        @test_throws ErrorException InfiniteOpt._check_has_parameter([pars[1]], pars)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter([inf2], pars)
-        @test_throws ErrorException InfiniteOpt._check_has_parameter([x, mref1,
-                                                                    mref5], pars)
-    end
-end
-
 # Test user definition methods
 @testset "User Definition" begin
     # initialize model and references
