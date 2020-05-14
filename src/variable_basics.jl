@@ -237,7 +237,8 @@ julia> name(vref)
 ```
 """
 function JuMP.name(vref::DecisionVariableRef)::String
-    return _data_object(vref).name
+    object = _get(_data_dictionary(vref), JuMP.index(vref), nothing)
+    return isnothing(object) ? "" : object.name
 end
 
 """
@@ -343,8 +344,8 @@ end
 
 # Make a temporary constraint reference to use the data accessors
 function _temp_constraint_ref(model::InfiniteModel,
-                              cindex::ConstraintIndex)::FiniteConstraintRef
-    return FiniteConstraintRef(model, cindex, JuMP.ScalarShape())
+                              cindex::ConstraintIndex)::InfOptConstraintRef
+    return InfOptConstraintRef(model, cindex, JuMP.ScalarShape())
 end
 
 """
@@ -450,14 +451,7 @@ var ≥ 0.0
 function JuMP.LowerBoundRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
     cindex = JuMP._lower_bound_index(vref)
     model = JuMP.owner_model(vref)
-    cref = _temp_constraint_ref(model, cindex)
-    if isempty(_object_numbers(cref))
-        return FiniteConstraintRef(model, cindex,
-                                   JuMP.shape(_core_constraint_object(cref)))
-    else
-        return InfiniteConstraintRef(model, cindex,
-                                     JuMP.shape(_core_constraint_object(cref)))
-    end
+    return _temp_constraint_ref(model, cindex)
 end
 
 """
@@ -589,14 +583,7 @@ var ≤ 1.0
 function JuMP.UpperBoundRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
     cindex = JuMP._upper_bound_index(vref)
     model = JuMP.owner_model(vref)
-    cref = _temp_constraint_ref(model, cindex)
-    if isempty(_object_numbers(cref))
-        return FiniteConstraintRef(model, cindex,
-                                   JuMP.shape(_core_constraint_object(cref)))
-    else
-        return InfiniteConstraintRef(model, cindex,
-                                     JuMP.shape(_core_constraint_object(cref)))
-    end
+    return _temp_constraint_ref(model, cindex)
 end
 
 """
@@ -748,14 +735,7 @@ var = 1.0
 function JuMP.FixRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
     cindex = JuMP._fix_index(vref)
     model = JuMP.owner_model(vref)
-    cref = _temp_constraint_ref(model, cindex)
-    if isempty(_object_numbers(cref))
-        return FiniteConstraintRef(model, cindex,
-                                   JuMP.shape(_core_constraint_object(cref)))
-    else
-        return InfiniteConstraintRef(model, cindex,
-                                     JuMP.shape(_core_constraint_object(cref)))
-    end
+    return _temp_constraint_ref(model, cindex)
 end
 
 """
@@ -797,7 +777,11 @@ julia> start_value(vref)
 ```
 """
 function JuMP.start_value(vref::UserDecisionVariableRef)::Union{Nothing, Float64}
-    return _variable_info(vref).start
+    if _variable_info(vref).has_start
+        return _variable_info(vref).start
+    else
+        return
+    end
 end
 
 """
@@ -907,14 +891,7 @@ var binary
 function JuMP.BinaryRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
     cindex = JuMP._binary_index(vref)
     model = JuMP.owner_model(vref)
-    cref = _temp_constraint_ref(model, cindex)
-    if isempty(_object_numbers(cref))
-        return FiniteConstraintRef(model, cindex,
-                                   JuMP.shape(_core_constraint_object(cref)))
-    else
-        return InfiniteConstraintRef(model, cindex,
-                                     JuMP.shape(_core_constraint_object(cref)))
-    end
+    return _temp_constraint_ref(model, cindex)
 end
 
 """
@@ -1023,14 +1000,7 @@ var integer
 function JuMP.IntegerRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
     cindex = JuMP._integer_index(vref)
     model = JuMP.owner_model(vref)
-    cref = _temp_constraint_ref(model, cindex)
-    if isempty(_object_numbers(cref))
-        return FiniteConstraintRef(model, cindex,
-                                   JuMP.shape(_core_constraint_object(cref)))
-    else
-        return InfiniteConstraintRef(model, cindex,
-                                     JuMP.shape(_core_constraint_object(cref)))
-    end
+    return _temp_constraint_ref(model, cindex)
 end
 
 """

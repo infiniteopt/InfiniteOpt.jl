@@ -29,9 +29,12 @@ function _data_dictionary(pref::DependentParameterRef)::MOIUC.CleverDict
 end
 
 # Extend _data_object
-function _data_object(pref::DependentParameterRef
-                      )::MultiParameterData{<:InfiniteArraySet}
-    return _data_dictionary(pref)[JuMP.index(pref).object_index]
+function _data_object(pref::DependentParameterRef)::MultiParameterData
+    object = _get(_data_dictionary(pref), JuMP.index(pref).object_index, nothing)
+    isnothing(object) && error("Invalid dependent parameter reference, cannot find " *
+                           "corresponding parameter in the model. This is likely " *
+                           "caused by using the reference of a deleted parameter.")
+    return object
 end
 
 # Extend _core_variable_object
@@ -301,7 +304,8 @@ julia> name(pref)
 ```
 """
 function JuMP.name(pref::DependentParameterRef)::String
-    return _data_object(pref).names[_param_index(pref)]
+    object = _get(_data_dictionary(pref), JuMP.index(pref).object_index, nothing)
+    return isnothing(object) ? "" : object.names[_param_index(pref)]
 end
 
 """
@@ -392,6 +396,9 @@ false
 function used_by_constraint(pref::DependentParameterRef)::Bool
     return !isempty(_constraint_dependencies(pref))
 end
+
+# Extend used by objective
+used_by_objective(pref::DependentParameterRef)::Bool = false
 
 """
     is_used(pref::DependentParameterRef)::Bool

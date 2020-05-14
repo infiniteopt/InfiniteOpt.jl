@@ -91,11 +91,9 @@ end
 # other
 _make_ordered(arr, indices) = arr
 
-# Constructor from a Tuple with type
-function VectorTuple{T}(tuple::Tuple)::VectorTuple{T} where {T}
-    if isempty(tuple)
-        return VectorTuple{T}()
-    end
+# internal function for constructor
+function _make_vt_components(tuple::Tuple)
+    # form the range vector
     ranges = Vector{UnitRange{Int}}(undef, length(tuple))
     for i in eachindex(ranges)
         element_length = length(tuple[i])
@@ -105,11 +103,23 @@ function VectorTuple{T}(tuple::Tuple)::VectorTuple{T} where {T}
             ranges[i] = UnitRange(ranges[i-1].stop + 1, ranges[i-1].stop + element_length)
         end
     end
+    # get the indices and reorder the tuple if needed
     indices = Any[_get_indices(tuple[i]) for i in eachindex(tuple)]
     if any(k isa JuMPC.SparseAxisArray for k in tuple)
         tuple = Tuple(_make_ordered(tuple[i], indices[i]) for i in eachindex(tuple))
     end
-    return VectorTuple{T}([(tuple...)...], ranges, indices)
+    # expand the elements into a single vector
+    vals = [j for i in tuple for j in i]
+    return vals, ranges, indices
+end
+
+# Constructor from a Tuple with type
+function VectorTuple{T}(tuple::Tuple)::VectorTuple{T} where {T}
+    if isempty(tuple)
+        return VectorTuple{T}()
+    end
+    vals, ranges, indices = _make_vt_components(tuple)
+    return VectorTuple{T}(vals, ranges, indices)
 end
 
 # Constructor from a Tuple without type
@@ -117,20 +127,8 @@ function VectorTuple(tuple::Tuple)::VectorTuple
     if isempty(tuple)
         return VectorTuple()
     end
-    ranges = Vector{UnitRange{Int}}(undef, length(tuple))
-    for i in eachindex(ranges)
-        element_length = length(tuple[i])
-        if i === 1
-            ranges[i] = UnitRange(1, element_length)
-        else
-            ranges[i] = UnitRange(ranges[i-1].stop + 1, ranges[i-1].stop + element_length)
-        end
-    end
-    indices = Any[_get_indices(tuple[i]) for i in eachindex(tuple)]
-    if any(k isa JuMPC.SparseAxisArray for k in tuple)
-        tuple = Tuple(_make_ordered(tuple[i], indices[i]) for i in eachindex(tuple))
-    end
-    return VectorTuple([(tuple...)...], ranges, indices)
+    vals, ranges, indices = _make_vt_components(tuple)
+    return VectorTuple(vals, ranges, indices)
 end
 
 # Constructor from various arguments (like splatting the tuple) with type

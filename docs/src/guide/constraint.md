@@ -61,7 +61,7 @@ an additional argument before the constraint expression. For example,
 let's define ``3z[i] - 14 == 0, \forall i \in \{1,2\}``:
 ```jldoctest constrs
 julia> crefs = @constraint(model, [i = 1:2], 3z[i] - 14 == 0)
-2-element Array{FiniteConstraintRef{ScalarShape},1}:
+2-element Array{InfOptConstraintRef{ScalarShape},1}:
  3 z[1] = 14.0
  3 z[2] = 14.0
 ```
@@ -133,11 +133,7 @@ originally given, respectively. This distinction is needed to facilitate
 deletion methods such as deleting a bounded hold variable.
 
 These constraint objects are what store constraints in `InfiniteModel`s. And
-these are referred to by appropriate explicit type of [`InfOptConstraintRef`](@ref).
-These explicit types are [`InfiniteConstraintRef`](@ref) and
-[`FiniteConstraintRef`](@ref)  which correspond to constraints that ultimately
-have infinite parameter dependencies (explicity or implicitly) or do not,
-respectively.
+these are referred to by an [`InfOptConstraintRef`](@ref).
 
 ## Definition
 In this section, we describe the ins and outs of defining constraints. Note that
@@ -152,7 +148,7 @@ the following steps:
 - Define the constraint information (i.e., function, set, and parameter bounds)
 - Construct a concrete subtype of `JuMP.AbstractConstraint` to store the constraint information
 - Add the `AbstractConstraint` object to an `InfiniteModel` and assign a name
-- Create a concrete subtype of [`InfOptConstraintRef`](@ref) that points to the constraint object stored in the model.
+- Create an [`InfOptConstraintRef`](@ref) that points to the constraint object stored in the model.
 
 The constraint objects are specified via
 [`JuMP.build_constraint`](@ref) which requires that the user provides
@@ -192,18 +188,18 @@ The indexing expression can be used to produce an array of constraints as shown
 below (notice this is equivalent to looping over individual `@constraint` calls):
 ```jldoctest constrs
 julia> crefs = @constraint(model, [i = 1:2], 2z[i] - g == 0)
-2-element Array{InfiniteConstraintRef{ScalarShape},1}:
+2-element Array{InfOptConstraintRef{ScalarShape},1}:
  2 z[1] - g(t) = 0.0, ∀ t ∈ [0, 10]
  2 z[2] - g(t) = 0.0, ∀ t ∈ [0, 10]
 
-julia> crefs = Vector{InfiniteConstraintRef{ScalarShape}}(undef, 2);
+julia> crefs = Vector{InfOptConstraintRef{ScalarShape}}(undef, 2);
 
 julia> for i = 1:2
            crefs[i] = @constraint(model, 2z[i] - g == 0)
        end
 
 julia> crefs
-2-element Array{InfiniteConstraintRef{ScalarShape},1}:
+2-element Array{InfOptConstraintRef{ScalarShape},1}:
  2 z[1] - g(t) = 0.0, ∀ t ∈ [0, 10]
  2 z[2] - g(t) = 0.0, ∀ t ∈ [0, 10]
 ```
@@ -253,7 +249,7 @@ references to be stored in a `JuMP.SparseAxisArray`:
 ```jldoctest constrs
 julia> @BDconstraint(model, [i = 1:2](x[i] == 0), T^2 + z[i] <= 1,
                      container = SparseAxisArray)
-JuMP.Containers.SparseAxisArray{InfiniteConstraintRef{ScalarShape},1,Tuple{Int64}} with 2 entries:
+JuMP.Containers.SparseAxisArray{InfOptConstraintRef{ScalarShape},1,Tuple{Int64}} with 2 entries:
   [2]  =  T(t, x)² + z[2] ≤ 1.0, ∀ t ∈ [0, 10], x[1] ~ Normal, x[2] = 0
   [1]  =  T(t, x)² + z[1] ≤ 1.0, ∀ t ∈ [0, 10], x[1] = 0, x[2] ~ Normal
 ```
@@ -502,8 +498,8 @@ BoundedScalarConstraint
 CosntraintData
 ConstraintIndex
 InfOptConstraintRef
-InfiniteConstraintRef
-FiniteConstraintRef
+InfOptConstraintRef
+InfOptConstraintRef
 ```
 
 ## Methods/Macros

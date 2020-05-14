@@ -52,6 +52,18 @@
         @test MOIUC.index_to_key(ConstraintIndex, 42) == ConstraintIndex(42)
         # index_to_key
         @test MOIUC.key_to_index(MeasureIndex(42)) == 42
+        @testset "_get" begin
+            d = MOIUC.CleverDict{MeasureIndex, Int}()
+            k = MOIUC.add_item(d, 42)
+            k2 = MOIUC.add_item(d, 2)
+            bad_k = MeasureIndex(3)
+            @test InfiniteOpt._get(d, k, nothing) == 42
+            @test InfiniteOpt._get(d, bad_k, nothing) === nothing
+            delete!(d, k2)
+            @test InfiniteOpt._get(d, k, nothing) == 42
+            @test InfiniteOpt._get(d, bad_k, nothing) === nothing
+        end
+
     end
     # test Base.length
     @testset "Base.length" begin
@@ -148,7 +160,6 @@ end
     @test DispatchVariableRef <: AbstractVariableRef
     @test MeasureFiniteVariableRef <: DispatchVariableRef
     @test FiniteVariableRef <: MeasureFiniteVariableRef
-    @test InfOptConstraintRef isa DataType
     # test GeneralVariableRef
     @test GeneralVariableRef <: AbstractVariableRef
     @test GeneralVariableRef(m, 1, MeasureIndex) isa GeneralVariableRef
@@ -184,14 +195,10 @@ end
     @test MeasureRef <: MeasureFiniteVariableRef
     idx = MeasureIndex(1)
     @test MeasureRef(m, idx) isa MeasureRef
-    # InfiniteConstraintRef
-    @test InfiniteConstraintRef <: InfOptConstraintRef
+    # InfOptConstraintRef
+    @test InfOptConstraintRef isa UnionAll
     idx = ConstraintIndex(1)
-    @test InfiniteConstraintRef(m, idx, JuMP.ScalarShape()) isa InfiniteConstraintRef
-    # FiniteConstraintRef
-    @test FiniteConstraintRef <: InfOptConstraintRef
-    idx = ConstraintIndex(1)
-    @test FiniteConstraintRef(m, idx, JuMP.ScalarShape()) isa FiniteConstraintRef
+    @test InfOptConstraintRef(m, idx, JuMP.ScalarShape()) isa InfOptConstraintRef
 end
 
 # Test ParameterBounds

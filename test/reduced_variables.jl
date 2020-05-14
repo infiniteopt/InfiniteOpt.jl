@@ -12,6 +12,7 @@
     idx = ReducedVariableIndex(1)
     vref = ReducedVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, ReducedVariableIndex)
+    bad_vref = ReducedVariableRef(m, ReducedVariableIndex(-1))
     # JuMP.owner_model
     @testset "JuMP.owner_model" begin
         @test owner_model(vref) === m
@@ -46,6 +47,7 @@
     @testset "_data_object" begin
         @test InfiniteOpt._data_object(vref) === object
         @test InfiniteOpt._data_object(gvref) === object
+        @test_throws ErrorException InfiniteOpt._data_object(bad_vref)
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
@@ -104,6 +106,7 @@
         # test normal
         @test isa(set_name(vref, "new"), Nothing)
         @test name(vref) == "new"
+        @test_throws ErrorException set_name(bad_vref, "")
         # test default
         @test isa(set_name(gvref, ""), Nothing)
         @test name(vref) == "ivref(0.5, [b[1], 1], [0, 0])"
@@ -111,8 +114,7 @@
     # JuMP.name
     @testset "JuMP.name" begin
         @test name(vref) == "ivref(0.5, [b[1], 1], [0, 0])"
-        InfiniteOpt._data_object(vref).name = ""
-        @test name(gvref) == "ivref(0.5, [b[1], 1], [0, 0])"
+        @test name(bad_vref) == ""
     end
     # _make_variable_ref
     @testset "_make_variable_ref" begin

@@ -15,6 +15,7 @@
     object = VariableData(var, "var")
     vref = InfiniteVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
+    bad_vref = InfiniteVariableRef(m, InfiniteVariableIndex(-1))
     # JuMP.owner_model
     @testset "JuMP.owner_model" begin
         @test owner_model(vref) === m
@@ -49,6 +50,7 @@
     @testset "_data_object" begin
         @test InfiniteOpt._data_object(vref) === object
         @test InfiniteOpt._data_object(gvref) === object
+        @test_throws ErrorException InfiniteOpt._data_object(bad_vref)
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
@@ -99,6 +101,7 @@
     @testset "JuMP.name" begin
         @test name(vref) == "var"
         @test name(gvref) == "var"
+        @test name(bad_vref) == ""
     end
     # raw_parameter_refs
     @testset "raw_parameter_refs" begin
@@ -121,6 +124,7 @@
         # test default
         @test isa(set_name(vref, ""), Nothing)
         @test name(vref) == "noname(a, b, c, [b[3], d])"
+        @test_throws ErrorException set_name(bad_vref, "")
         # test normal
         @test isa(set_name(gvref, "new"), Nothing)
         @test name(vref) == "new(a, b, c, [b[3], d])"
@@ -157,6 +161,8 @@
     # _root_name
     @testset "_root_name" begin
         @test InfiniteOpt._root_name(vref) == "new"
+        InfiniteOpt._data_object(vref).name = ""
+        @test InfiniteOpt._root_name(vref) == ""
     end
     # _delete_data_object
     @testset "_delete_data_object" begin
@@ -351,7 +357,7 @@ end
         @test !optimizer_model_ready(m)
         # lower bound
         cindex = ConstraintIndex(1)
-        cref = InfiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_lower_bound(vref)
         @test JuMP._lower_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -359,7 +365,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # upper bound
         cindex = ConstraintIndex(2)
-        cref = InfiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_upper_bound(vref)
         @test JuMP._upper_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -367,7 +373,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # fix
         cindex = ConstraintIndex(3)
-        cref = InfiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test is_fixed(vref)
         @test JuMP._fix_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -375,7 +381,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # binary
         cindex = ConstraintIndex(4)
-        cref = InfiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test is_binary(vref)
         @test JuMP._binary_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -392,7 +398,7 @@ end
         @test add_variable(m, v, "name") == gvref
         @test !optimizer_model_ready(m)
         cindex = ConstraintIndex(8)
-        cref = InfiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test is_integer(vref)
         @test JuMP._integer_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,

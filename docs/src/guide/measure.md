@@ -426,6 +426,7 @@ make_reduced_variable_ref
 add_measure_variable(::JuMP.Model, ::Any, ::Any)
 delete_internal_reduced_variable
 delete_reduced_variable(::JuMP.Model, ::Any, ::Any)
+internal_reduced_variable
 JuMP.build_variable(::Function, ::GeneralVariableRef,::Dict{Int, Float64})
 JuMP.add_variable(::InfiniteModel, ::ReducedVariable,::String)
 infinite_variable_ref(::ReducedVariableRef)
@@ -434,7 +435,6 @@ parameter_refs(::ReducedVariableRef)
 parameter_list(::ReducedVariableRef)
 raw_parameter_refs(::ReducedVariableRef)
 JuMP.set_name(::ReducedVariableRef,::String)
-JuMP.name(::ReducedVariableRef)
 JuMP.has_lower_bound(::ReducedVariableRef)
 JuMP.lower_bound(::ReducedVariableRef)
 JuMP.LowerBoundRef(::ReducedVariableRef)

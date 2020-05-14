@@ -21,7 +21,11 @@ end
 
 # Extend _data_object
 function _data_object(mref::MeasureRef)::MeasureData
-    return _data_dictionary(mref)[JuMP.index(mref)]
+  object = _get(_data_dictionary(mref), JuMP.index(mref), nothing)
+  isnothing(object) && error("Invalid measure reference, cannot find " *
+                        "corresponding measure in the model. This is likely " *
+                        "caused by using the reference of a deleted measure.")
+  return object
 end
 
 # Extend _core_variable_object
@@ -702,7 +706,8 @@ Extend `JuMP.name` to return the name associated with a measure
 reference.
 """
 function JuMP.name(mref::MeasureRef)::String
-    return _data_object(mref).name
+    object = _get(_data_dictionary(mref), JuMP.index(mref), nothing)
+    return isnothing(object) ? "" : object.name
 end
 
 """

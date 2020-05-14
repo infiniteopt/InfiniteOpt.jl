@@ -210,6 +210,7 @@ end
         @test isa(InfiniteOpt._update_reduced_variable(drv, 1:1), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(1 => 0.5)
+        @test set_name(drv, "") isa Nothing
         @test name(drv) == "inf4(0.5, [pars[1], pars[2]])"
         # Undo changes
         InfiniteOpt._set_core_variable_object(drv, var)
@@ -220,6 +221,7 @@ end
         @test isa(InfiniteOpt._update_reduced_variable(drv, 2:2), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict{Int, Float64}()
+        @test set_name(drv, "") isa Nothing
         @test name(drv) == "inf4(par, [pars[1], pars[2]])"
         # Undo changes
         InfiniteOpt._update_variable_param_refs(dinf4, VectorTuple(par, par2, pars))
@@ -230,6 +232,7 @@ end
         @test isa(InfiniteOpt._update_reduced_variable(drv, 2:2), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(1 => 0.5)
+        @test set_name(drv, "") isa Nothing
         @test name(drv) == "inf4(0.5, [pars[1], pars[2]])"
         # Undo changes
         InfiniteOpt._set_core_variable_object(drv, var)
@@ -241,6 +244,7 @@ end
         @test isa(InfiniteOpt._update_reduced_variable(drv, 3:4), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(2 => 0.5)
+        @test set_name(drv, "") isa Nothing
         @test name(drv) == "inf4(par, 0.5)"
         # Undo changes
         var = build_variable(error, inf4, Dict{Int, Float64}(2 => 0.5), check = false)
@@ -298,6 +302,7 @@ end
         @test name(inf2) == "inf2(par)"
         @test name(inf4) == "inf4(par, pars)"
         @test name(pt2) == "inf2(0.5)"
+        @test set_name(rv, "") isa Nothing
         @test name(rv) == "inf4(par, [pars[1], pars[2]])"
         @test jump_function(constraint_object(con)) == inf2 + inf4 + par3 + fin
         @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
@@ -424,6 +429,7 @@ end
          @test parameter_refs(dinf4) == (par, par2)
          @test name(dinf) == "inf(par)"
          @test name(dinf4) == "inf4(par, par2)"
+         @test set_name(drv, "") isa Nothing
          @test name(drv) == "inf4(par, 0.5)"
          @test parameter_values(dpt3) == (0,)
          @test parameter_values(dpt2) == (0.5, 0.5)

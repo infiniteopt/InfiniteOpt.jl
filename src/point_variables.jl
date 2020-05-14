@@ -30,7 +30,11 @@ end
 # Extend _data_object
 function _data_object(vref::PointVariableRef
     )::VariableData{PointVariable{GeneralVariableRef}}
-    return _data_dictionary(vref)[JuMP.index(vref)]
+  object = _get(_data_dictionary(vref), JuMP.index(vref), nothing)
+  isnothing(object) && error("Invalid point variable reference, cannot find " *
+                        "corresponding variable in the model. This is likely " *
+                        "caused by using the reference of a deleted variable.")
+  return object
 end
 
 # Extend _core_variable_object
@@ -118,7 +122,7 @@ function _update_point_info(info::JuMP.VariableInfo,
                                  info.has_start, info.start,
                                  info.binary, info.integer)
     end
-    if !(JuMP.start_value(ivref) === NaN) && !info.has_start
+    if !(JuMP.start_value(ivref) === nothing) && !info.has_start
         info = JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                  info.has_ub, info.upper_bound,
                                  info.has_fix, info.fixed_value,
@@ -304,7 +308,8 @@ end
 # Get root name of infinite variable
 function _root_name(vref::InfiniteVariableRef)
     name = JuMP.name(vref)
-    return name[1:findfirst(isequal('('), name)-1]
+    idx = findfirst(isequal('('), name)
+    return isnothing(idx) ? name : name[1:idx-1]
 end
 
 ## Return the parameter value as an appropriate string

@@ -50,9 +50,12 @@ function _data_dictionary(pref::FiniteParameterRef)::MOIUC.CleverDict
 end
 
 # Extend _data_object
-function _data_object(pref::ScalarParameterRef
-                     )::ScalarParameterData
-    return _data_dictionary(pref)[JuMP.index(pref)]
+function _data_object(pref::ScalarParameterRef)::AbstractDataObject
+    object = _get(_data_dictionary(pref), JuMP.index(pref), nothing)
+    isnothing(object) && error("Invalid scalar parameter reference, cannot find " *
+                           "corresponding parameter in the model. This is likely " *
+                           "caused by using the reference of a deleted parameter.")
+    return object
 end
 
 ################################################################################
@@ -288,7 +291,7 @@ name
 ```
 """
 function add_parameter(model::InfiniteModel, p::IndependentParameter,
-                       name::String="")::GeneralVariableRef
+                       name::String = "")::GeneralVariableRef
     obj_num = length(_param_object_indices(model)) + 1
     param_num = model.last_param_num += 1
     data_object = ScalarParameterData(p, obj_num, param_num, name)
@@ -298,7 +301,7 @@ end
 
 # FiniteParameter
 function add_parameter(model::InfiniteModel, p::FiniteParameter,
-                       name::String="")::GeneralVariableRef
+                       name::String = "")::GeneralVariableRef
     data_object = ScalarParameterData(p, -1, -1, name)
     obj_index = _add_data_object(model, data_object)
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
@@ -432,7 +435,8 @@ julia> name(t)
 ```
 """
 function JuMP.name(pref::ScalarParameterRef)::String
-    return _data_object(pref).name
+    object = _get(_data_dictionary(pref), JuMP.index(pref), nothing)
+    return isnothing(object) ? "" : object.name
 end
 
 """
