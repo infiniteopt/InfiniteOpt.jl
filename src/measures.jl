@@ -226,7 +226,7 @@ DiscreteMeasureDataDiscreteMeasureData{Vector{GeneralVariableRef},2}
 """
 function DiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
                              coefficients::Vector{<:Real},
-                             supports::Vector{<:AbstractArray{<:Real}};
+                             supports::Array{Float64, 2};
                              label::Symbol = gensym(),
                              weight_function::Function = default_weight,
                              lower_bound::Vector{Float64} = NaN * ones(length(prefs)),
@@ -877,7 +877,8 @@ const IntegralDefaults = Dict(:eval_method => sampling,
                               :num_supports => DefaultNumSupports,
                               :weight_func => default_weight,
                               :name => "integral",
-                              :use_existing_supports => false)
+                              :use_existing_supports => false,
+                              :is_functional => false)
 
 """
     integral_defaults()
@@ -934,13 +935,21 @@ function set_integral_defaults(; kwargs...)
     return
 end
 
+function _check_bounds_in_sets(bound::Real, param::GeneralVariableRef)::Bool
+    return supports_in_set(lb, _parameter_set(first(params)))
+end
+
+function _check_bounds_in_sets(bounds::AbstractArray{<:Real},
+                               params::AbstractArray{GeneralVariableRef})::Bool
+    return all(supports_in_set.(lb, _parameter_set.(params)))
+end
+
 # TODO update this method to work
 # NOTE this probably needs to be significantly redone and should not convert things
 #      SparseAxisArrays as done previously, instead parameters should be expressed
 #      a vector using the methods shown in the DiscreteMeasureData constructor
 #      and supports should be stored as a vector or matrix since that is what
 #      the measure data type use.
-# NOTE Multi-dimensional params can be checked with _check_multidim_params
 """
     integral(expr::JuMP.AbstractJuMPScalar,
              [params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}},
@@ -1004,12 +1013,10 @@ julia> expand(int)
 """
 function integral(expr::JuMP.AbstractJuMPScalar,
                   params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}},
-                  lb::Union{Number, AbstractArray{<:Number}, Nothing} = nothing,
-                  ub::Union{Number, AbstractArray{<:Number}, Nothing} = nothing;
+                  lb::Union{Real, AbstractArray{<:Real}, Nothing} = nothing,
+                  ub::Union{Real, AbstractArray{<:Real}, Nothing} = nothing;
                   kwargs...)::GeneralVariableRef
-    # NOTE: params is required
-    # NOTE: no more SparseAxisArray
-
+    #
     # count number of parameters check array formatting
     num_params = length(params)
     if num_params == 0
@@ -1017,72 +1024,56 @@ function integral(expr::JuMP.AbstractJuMPScalar,
         error("No infinite parameter is provided.")
     elseif num_params == 1
         params = first(params)
+        isa(index(params), IndependentParameterIndex) || error("params is not a parameter reference.")
     else
-        # check that all parameters are from the same group
-        _allequal(group_id.(params)) || error("Multiple groups of parameters " *
-                                              "are specified.")
-        # Use SparseAxisArray for params, lb, ub if multiple parameters
-        # TODO change this so it doesn't have to needlessly convert to a SparseAxisArray
-        # and do so via typed functions
-        params = convert(JuMPC.SparseAxisArray, params)
-        if isa(lb, AbstractArray)
-            lb = convert(JuMPC.SparseAxisArray, lb)
-        end
-        if isa(ub, AbstractArray)
-            ub = convert(JuMPC.SparseAxisArray, ub)
-        end
+        _check_multidim_params(params)
     end
 
-    # collect model of the measure
-    model = JuMP.owner_model(first(params))
-
-    # collect keyword arguments
-    kwargs = merge(model.integral_defaults, kwargs)
-    eval_method = kwargs[:eval_method]
-    num_supports = kwargs[:num_supports]
-    name = kwargs[:name]
-    weight_func = kwargs[:weight_func]
-    use_existing_supports = kwargs[:use_existing_supports]
-
-    # parse the sampling key if given
-    if eval_method == sampling
-        eval_method = mc_sampling
-        kwargs[:eval_method] = mc_sampling
+    # check lb and ub input is compatible with params
+    params_vec = params
+    param_keys = InfiniteOpt._keys(params)
+    if isa(lb, AbstractArray)
+        if isa(params, GeneralVariableRef)
+            error("Multiple lower bounds are provided for scalar parameter.")
+        elseif isa(params, AbstractArray)
+            lb_keys = InfiniteOpt._keys(lb)
+            if param_keys != lb_keys
+                error("Indices of parameters and lower bounds do not match.")
+            end
+            (params_vec, lb) = _convert_param_refs_and_supports(params, [lb])
+        end
     end
-
-    # delete unneeded keyword arguments
-    delete!(kwargs, :use_existing_supports)
-    delete!(kwargs, :num_supports)
+    if isa(ub, AbstractArray)
+        if isa(params, GeneralVariableRef)
+            error("Multiple upper bounds are provided for scalar parameter.")
+        elseif isa(params, AbstractArray)
+            ub_keys = InfiniteOpt._keys(ub)
+            if param_keys != ub_keys
+                error("Indices of parameters and upper bounds do not match.")
+            end
+            (params_vec, ub) = _convert_param_refs_and_supports(params, [ub])
+        end
+    end
+    params = params_vec
+    params = _convert_param_refs(params)
+    # up to this line the status should be one of the following:
+        # params, lb, ub, are all vectors
+        # params is vector, one of lb/ub is vector and the other is nothing
+        # params is vector, lb/ub is any combination of real and nothing
+        # params is single pref, lb/ub is any combination of real and nothing
 
     # make bounds arrays if needed
     if num_params > 1
-        if isa(lb, Number)
-            lb = JuMPC.SparseAxisArray(Dict(k => lb for k in keys(params)))
+        if isa(lb, Real)
+            lb = ones(num_params) * lb
         end
-        if isa(ub, Number)
-            ub = JuMPC.SparseAxisArray(Dict(k => ub for k in keys(params)))
+        if isa(ub, Real)
+            ub = ones(num_params) * ub
         end
     end
-
-    # check lower bounds TODO replace with typed functions
-    bounds_valid = true
-    if isa(lb, Number)
-        bounds_valid = supports_in_set(lb, _parameter_set(first(params)))
-    elseif isa(lb, JuMPC.SparseAxisArray)
-        bounds_valid = all(supports_in_set.(lb, _parameter_set.(params)))
-    end
-    bounds_valid || error("Lower bound(s) violate(s) the infinite set domain.")
-
-    # check upper bounds TODO replace with typed functions
-    if isa(ub, Number)
-        bounds_valid = supports_in_set(ub, _parameter_set(first(params)))
-    elseif isa(ub, JuMPC.SparseAxisArray)
-        bounds_valid = all(supports_in_set.(ub, _parameter_set.(params)))
-    end
-    bounds_valid || error("Upper bound(s) violate(s) the infinite set domain.")
 
     # fill in bounds if needed
-    set = _parameter_set(first(params))
+    set = infinite_set(params)
     if JuMP.has_lower_bound(set)
         # Fill in lower bounds and upper bounds if not given
         if isa(lb, Nothing) || length(lb) == 0
@@ -1090,21 +1081,6 @@ function integral(expr::JuMP.AbstractJuMPScalar,
         end
         if isa(ub, Nothing) || length(ub) == 0
             ub = JuMP.upper_bound.(params)
-        end
-
-        # Check the dimension of lb and ub matches number of parameters
-        if length(lb) != num_params || length(ub) != num_params
-            error("Number of parameters do not match number of lower bounds or " *
-                  "upper bounds.")
-        end
-
-        if num_params == 1
-            if isa(lb, AbstractArray)
-                lb = lb[findfirst(x->isa(x, Number), lb)]
-            end
-            if isa(ub, AbstractArray)
-                ub = ub[findfirst(x->isa(x, Number), ub)]
-            end
         end
 
         # Check the input lower bounds and upper bounds are reasonable
@@ -1116,6 +1092,36 @@ function integral(expr::JuMP.AbstractJuMPScalar,
             end
         end
     end
+    # up to this line the status should be one of the following:
+        # params, lb, ub, are all vectors
+        # params is single pref, lb/ub are reals
+        # params is multivariate distribution as vector, lb/ub can be anything
+    #
+    # check if lower and upper bounds are in sets
+    _check_bounds_in_sets(lb, params) || error("Lower bound(s) violate(s) the infinite set domain.")
+    _check_bounds_in_sets(ub, params) || error("Upper bound(s) violate(s) the infinite set domain.")
+
+    # collect model of the measure
+    model = JuMP.owner_model(first(params))
+
+    # collect keyword arguments
+    kwargs = merge(model.integral_defaults, kwargs)
+    eval_method = kwargs[:eval_method]
+    num_supports = kwargs[:num_supports]
+    name = kwargs[:name]
+    weight_func = kwargs[:weight_func]
+    use_existing_supports = kwargs[:use_existing_supports]
+    is_functional = kwargs[:is_functional]
+
+    # parse the sampling key if given
+    if eval_method == sampling
+        eval_method = mc_sampling
+        kwargs[:eval_method] = mc_sampling
+    end
+
+    # delete unneeded keyword arguments
+    delete!(kwargs, :use_existing_supports)
+    delete!(kwargs, :num_supports)
 
     # construct data and return measure if we use existing supports
     if use_existing_supports
@@ -1125,24 +1131,19 @@ function integral(expr::JuMP.AbstractJuMPScalar,
                   "use_existing_supports is set as true.")
         end
         support = supports(params)
-        if !isa(lb, Nothing) && !isa(ub, Nothing)
-            support = [i for i in support if all(i .>= lb) && all(i .<= ub)]
+        if isa(params, AbstractArray)
+            if !isa(lb, Nothing) && !isa(ub, Nothing)
+                support = [_make_vector(i) for i in support if all(i .>= lb) && all(i .<= ub)]
+                len = length(support)
+                support = _make_support_matrix(params, support)
+            end
+        else
+            len = length(support)
         end
 
-        # TODO: generate reasonable coefficients for given supports
-        # TODO replace with typed functions
         len = length(support)
-        if isa(set, DistributionSet)
-            data = DiscreteMeasureData(params, ones(len) ./ len, support,
-                                       name = name, weight_function = weight_func)
-        elseif isa(set, IntervalSet) && eval_method == mc_sampling
-            coeffs = ones(len) / len * prod(ub .- lb)
-            data = DiscreteMeasureData(params, coeffs, support, name = name,
-                                       weight_function = weight_func)
-        else
-            data = DiscreteMeasureData(params, ones(len), support, name = name,
-                                       weight_function = weight_func)
-        end
+        data = DiscreteMeasureData(params, ones(len), support, name = name,
+                                   weight_function = weight_func)
         return measure(expr, data)
     end
 
@@ -1153,10 +1154,22 @@ function integral(expr::JuMP.AbstractJuMPScalar,
         end
         inf_bound_num = (lb == -Inf) + (ub == Inf)
         if inf_bound_num == 0
+            if eval_method != quadrature || eval_method != gauss_legendre
+                @warn("$(eval_method) is not compatible with finite intervals. " *
+                      "The integral will use Gauss-Legendre quadrature instead.")
+            end
             kwargs[:eval_method] = gauss_legendre
         elseif inf_bound_num == 1
+            if eval_method != quadrature || eval_method != gauss_laguerre
+                @warn("$(eval_method) is not compatible with semi-infinite intervals. " *
+                      "The integral will use Gauss-Laguerre quadrature instead.")
+            end
             kwargs[:eval_method] = gauss_laguerre
         else
+            if eval_method != quadrature || eval_method != gauss_hermite
+                @warn("$(eval_method) is not compatible with infinite intervals. " *
+                      "The integral will use Gauss-Hermite quadrature instead.")
+            end
             kwargs[:eval_method] = gauss_hermite
         end
     end
@@ -1167,6 +1180,9 @@ function integral(expr::JuMP.AbstractJuMPScalar,
     # call measure function to construct the measure
     return measure(expr, data)
 end
+
+_expect_coeff(x::Array{<:Real, 2})::Vector{Float64} = ones(size(x)[2]) / size(x)[2]
+_expect_coeff(x::Vector{<:Real})::Vector{Float64} = ones(length(x)) / length(x)
 
 # TODO update this method
 """
@@ -1196,13 +1212,24 @@ julia> expand(meas)
 ```
 """
 function expect(expr::JuMP.AbstractJuMPScalar,
-                params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef},
-                              Nothing} = nothing;
-                num_supports::Int = 10,
-                use_existing_supports::Bool = false)::GeneralVariableRef
+                params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}};
+                num_supports::Int = 10)::GeneralVariableRef
+    # TODO: update this to be more intelligent
+    # Basic idea: if params already have enough supports generated by MC
+    # sampling, then use_existing_supports
+    # otherwise, generate new supports in this function
+    # use FunctionalDiscreteMeasureData
     # expectation measure
-    return integral(expr, params, num_supports = num_supports,
-                    name = "expect", use_existing_supports = use_existing_supports)
+    exisiting_num_supports = num_supports(params, label = McSample)
+    set = infinite_set(params)
+    if exisiting_num_supports >= num_supports
+        generate_and_add_supports!(params, set, label = McSample,
+                                   num_supports = num_supports - exisiting_num_supports)
+    else
+    end
+    data = FunctionalDiscreteMeasureData(params, _expect_coeff, num_supports,
+                                         label = McSample, expect = true)
+    return measure(expr, data, name = "expect")
 end
 
 # TODO update this method
@@ -1234,17 +1261,75 @@ function support_sum(expr::JuMP.AbstractJuMPScalar,
                      params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef},
                                    Nothing} = nothing)::GeneralVariableRef
     # sum measure
-    return integral(expr, params, use_existing_supports = true, name = "sum",
-                    eval_method = :not_default)
+    return integral(expr, params, use_existing_supports = true, name = "sum")
 end
 
 # TODO make macros for integral, expect, and support_sum like @measure
+macro integral(expr, params, args...)
+    _error(str...) = JuMP._macro_error(:integral, (expr, params, args...), str...)
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    if length(extra) != 2
+        _error("Incorrect number of arguments for @integral. " *
+               "Users should either provide no inputs for lower or upper bounds, " *
+               "or provide inputs for both lower and upper bounds.")
+    elseif length(extra) == 0
+        lb = :nothing
+        ub = :nothing
+    else
+        lb = popfirst!(extra)
+        ub = popfirst!(extra)
+    end
+    expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
+    mref = :( integral($expression, $params, $lb, $ub) )
+    JuMP._add_kw_args(mref, kw_args)
+    return esc(mref)
+end
+
+macro expect(expr, params, args...)
+    _error(str...) = JuMP._macro_error(:integral, (expr, params, args...), str...)
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    if length(extra) > 0
+        _error("Incorrect number of arguments for @expect. " *
+               "Must be of form @expect(expr, params, num_supports = some_integer).")
+    end
+    if length(kw_args) > 1
+        _error("Incorrect number of keyword arguments for @expect.")
+    elseif length(kw_args) == 1
+        kw = first(kw_args)
+        if kw.args[1] != :num_supports
+            error("Unrecognized keyword argument $(kw.args[1])")
+        end
+    end
+    expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
+    mref = :( expect($expression, $params) )
+    JuMP._add_kw_args(mref, kw_args)
+    return esc(mref)
+end
+
+macro support_sum(expr, params, args...)
+    _error(str...) = JuMP._macro_error(:support_sum, (expr, params, args...), str...)
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    if length(extra) > 0
+        _error("Incorrect number of arguments for @expect. " *
+               "Must be of form @expect(expr, params, num_supports = some_integer).")
+    end
+    if length(kw_args) > 1
+        _error("Incorrect number of keyword arguments for @expect.")
+    elseif length(kw_args) == 1
+        kw = first(kw_args)
+        if kw.args[1] != :num_supports
+            error("Unrecognized keyword argument $(kw.args[1])")
+        end
+    end
+    expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
+    mref = :( support_sum($expression, $params) )
+    JuMP._add_kw_args(mref, kw_args)
+    return esc(mref)
+end
 
 ################################################################################
 #                                   DELETION
 ################################################################################
-# TODO update this to work
-# TODO refer to variable and constraint deletion
 """
     JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
 
@@ -1280,38 +1365,46 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
     if is_used(mref)
         set_optimizer_model_ready(model, false)
     end
+    gvref = _make_variable_ref(JuMP.owner_model(mref), JuMP.index(mref))
     # Remove from dependent measures if there are any
-    if used_by_measure(mref)
-        for mindex in model.meas_to_meas[JuMP.index(mref)]
-            if isa(model.measures[mindex].func, MeasureRef)
-                data = model.measures[mindex].data
-                model.measures[mindex] = Measure(zero(JuMP.AffExpr), data)
-            else
-                _remove_variable(model.measures[mindex].func, mref)
-            end
-            JuMP.set_name(MeasureRef(model, mindex),
-                          _make_meas_name(model.measures[mindex]))
+    for mindex in _measure_dependencies(mref)
+        meas_ref = dispatch_variable_ref(model, mindex)
+        func = measure_function(meas_ref)
+        if func isa GeneralVariableRef
+            data = measure_data(meas_ref)
+            new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+            new_meas = Measure(new_func, data, Int[], Int[], true)
+            _set_core_variable_object(meas_ref, new_meas)
+        else
+            _remove_variable(func, gvref)
+            # TODO rebuild the Measure object via build_measure
+            data = measure_data(meas_ref)
+            new_meas = build_measure(model, func, data)
+            _set_core_variable_object(meas_ref, new_meas)
         end
-        delete!(model.meas_to_meas, JuMP.index(mref))
     end
     # Remove from dependent constraints if there are any
-    if used_by_constraint(mref)
-        for cindex in model.meas_to_constrs[JuMP.index(mref)]
-            if isa(model.constrs[cindex].func, MeasureRef)
-                model.constrs[cindex] = JuMP.ScalarConstraint(zero(JuMP.AffExpr),
-                                                      model.constrs[cindex].set)
-            else
-                _remove_variable(model.constrs[cindex].func, mref)
-            end
+    for cindex in _constraint_dependencies(mref)
+        cref = _temp_constraint_ref(model, cindex)
+        func = JuMP.jump_function(JuMP.constraint_object(cref))
+        if func isa GeneralVariableRef
+            set = JuMP.moi_set(JuMP.constraint_object(cref))
+            new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+            new_constr = JuMP.ScalarConstraint(new_func, set)
+            _set_core_constraint_object(cref, new_constr)
+            empty!(_object_numbers(cref))
+        else
+            _remove_variable(func, gvref)
         end
-        delete!(model.meas_to_constrs, JuMP.index(mref))
     end
     # Remove from objective if used there
     if used_by_objective(mref)
-        if isa(model.objective_function, MeasureRef)
-            model.objective_function = zero(JuMP.AffExpr)
+        if JuMP.objective_function(model) isa GeneralVariableRef
+            new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+            JuMP.set_objective_function(model, new_func)
+            JuMP.set_objective_sense(model, MOI.FEASIBILITY_SENSE)
         else
-            _remove_variable(model.objective_function, mref)
+            _remove_variable(JuMP.objective_function(model), gvref)
         end
     end
     # Update that the parameters from the data are no longer dependent

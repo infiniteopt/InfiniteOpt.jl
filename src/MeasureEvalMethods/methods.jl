@@ -4,6 +4,22 @@ const gauss_legendre = :gauss_legendre
 const gauss_laguerre = :gauss_laguerre
 const trapezoid = :trapezoid
 
+function _truncated_set(set::IntervalSet,
+                        lb::Union{Real, Nothing},
+                        ub::Union{Real, Nothing})::IntervalSet
+    isa(lb, Nothing) ? new_lb = set.lower_bound : new_lb = lb
+    isa(ub, Nothing) ? new_ub = set.lower_bound : new_lb = ub
+    return IntervalSet(new_lb, new_ub)
+end
+
+function _truncated_set(set::UniDistributionSet,
+                        lb::Union{Real, Nothing},
+                        ub::Union{Real, Nothing})::UniDistributionSet
+    isa(lb, Nothing) ? new_lb = -Inf : new_lb = lb
+    isa(ub, Nothing) ? new_ub = Inf : new_lb = ub
+    (new_lb == -Inf && new_ub == Inf) ? return set : return UniDistributionSet(Distributions.truncated(dist, lb, ub))
+end
+
 """
     generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
                           AbstractArray{<:InfiniteOpt.ParameterRef}},
@@ -30,29 +46,32 @@ julia> measure_data = generate_measure_data(x, 3, 0.3, 0.7, method = gauss_legen
 DiscreteMeasureData(x, [0.1111111111111111, 0.17777777777777776, 0.1111111111111111], [0.3450806661517033, 0.5, 0.6549193338482967], "", InfiniteOpt.default_weight)
 ```
 """
-function generate_measure_data(params::Union{InfiniteOpt.ParameterRef,
-                               AbstractArray{<:InfiniteOpt.ParameterRef}},
-                               num_supports::Int,
-                               lb::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing,
-                               ub::Union{Number, JuMPC.SparseAxisArray, Nothing} = nothing;
-                               eval_method::Symbol = mc_sampling,
-                               name::String = "measure",
-                               weight_func::Function = InfiniteOpt.default_weight,
-                               kwargs...)::InfiniteOpt.AbstractMeasureData
-    if isa(params, InfiniteOpt.ParameterRef)
-        set = InfiniteOpt._parameter_set(params)
-    else
-        params = convert(JuMPC.SparseAxisArray, params)
-        set = InfiniteOpt._parameter_set(first(params))
-        sets = InfiniteOpt._parameter_set.(params)
-        if any(typeof(set) != typeof(s) for s in sets)
-            error("Automatic measure data generation for multi-dimensional " *
-                  "parameters with mixed set types is not supported.")
-        end
+function generate_measure_data(
+    params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}},
+    num_supports::Int,
+    lb::Union{Real, AbstractArray{<:Real}, Nothing} = nothing,
+    ub::Union{Real, AbstractArray{<:Real}, Nothing} = nothing;
+    eval_method::Symbol = mc_sampling,
+    name::String = "measure",
+    weight_func::Function = InfiniteOpt.default_weight,
+    is_functional::Bool = false,
+    kwargs...)::InfiniteOpt.AbstractMeasureData
+
+    set = infinite_set(params)
+    # TODO: we probably don't need this check any more...
+    if false # TODO: put some criterion to check this error
+        error("Automatic measure data generation for multi-dimensional " *
+              "parameters with mixed set types is not supported.")
     end
-    (supports, coeffs) = generate_supports_and_coeffs(set, params, num_supports, lb, ub, Val(eval_method); kwargs...)
-    return InfiniteOpt.DiscreteMeasureData(params, coeffs, supports,
-                                           name = name, weight_function = weight_func)
+    (supports, coeffs, label) = generate_supports_and_coeffs(set, params, num_supports, lb, ub, Val(eval_method);
+                                       is_functional = is_functional, kwargs...)
+    if isa(coeffs, Function)
+        return InfiniteOpt.FunctionalDiscreteMeasureData(
+            params, coeffs, num_supports, label, weight_func)
+    else
+        return InfiniteOpt.DiscreteMeasureData(params, coeffs, supports,
+                                               weight_function = weight_func)
+    end
 end
 
 """
@@ -81,28 +100,30 @@ function generate_supports_and_coeffs end
 
 # fallback
 function generate_supports_and_coeffs(set::InfiniteOpt.AbstractInfiniteSet,
-                                      params::Union{InfiniteOpt.ParameterRef,
-                                      AbstractArray{<:InfiniteOpt.ParameterRef}},
+                                      params::Union{InfiniteOpt.GeneralVariableRef,
+                                      AbstractArray{<:InfiniteOpt.GeneralVariableRef}},
                                       num_supports::Int,
-                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      lb::Union{Real, AbstractArray{<:Real}, Nothing},
+                                      ub::Union{Real, AbstractArray{<:Real}, Nothing},
                                       method; kwargs...)::Tuple
     error("`generate_supports_and_coeffs` is not extended for parameters in sets " *
           "of type $(typeof(set)) with method " * string(method)[6:length(string(method))-3] * ".")
 end
 
-# MC Sampling for IntervalSet
+# MC Sampling methods
+# IntervalSets & UniDistributionSet
 """
     generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
-                                 params::Union{InfiniteOpt.ParameterRef,
-                                 AbstractArray{<:InfiniteOpt.ParameterRef}},
+                                 param::InfiniteOpt.GeneralVariableRef,
                                  num_supports::Int,
                                  lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
                                  ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
                                  method::Val{mc_sampling})::Tuple
 
-Return a tuple that contains supports and coefficients generated by Monte Carlo
-sampling from a uniform distribution between the lower and upper bounds provided.
+Return a tuple that contains supports, coefficients and label generated by Monte
+Carlo sampling methods for a scalar parameter. If the scalar parameter is in
+an IntervalSet, this method samples from a uniform distribution over the
+interval.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP, Random; Random.seed!(0); model = InfiniteModel())
@@ -120,30 +141,37 @@ julia> supps
  0.278880109331201
 ```
 """
-function generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
-                                      params::Union{InfiniteOpt.ParameterRef,
-                                      AbstractArray{<:InfiniteOpt.ParameterRef}},
+function generate_supports_and_coeffs(set::InfiniteScalarSet,
+                                      param::InfiniteOpt.GeneralVariableRef,
                                       num_supports::Int,
-                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      lb::Union{Real, Nothing},
+                                      ub::Union{Real, Nothing},
                                       method::Val{mc_sampling})::Tuple
     _nothing_test(method, lb, ub)
-    if isa(params, InfiniteOpt.ParameterRef)
-        return _mc_sampling(set, params, num_supports, lb, ub)
+    # use the correct set for generating supports
+    new_set = _truncated_set(set, lb, ub)
+    supports = supports(param, label = McSample)
+    num_samples = length(supports)
+    if num_samples >= num_supports
+        coeffs = ones(num_samples) / num_samples * (new_ub - new_lb)
     else
-        samples_dict = Dict(i => _mc_sampling(set, params, num_supports, lb[i], ub[i])[1] for i in eachindex(lb))
-        samples = [JuMPC.SparseAxisArray(Dict(k => samples_dict[k][j] for k in eachindex(lb))) for j in 1:num_supports]
-        return (samples, ones(num_supports) / num_supports * prod(ub .- lb))
+        new_supports, _ = generate_support_values(new_set, Val(McSample),
+                                                      num_supports = num_supports - num_samples)
+        union!(supports, new_supports)
+        coeffs = ones(num_supports) / num_supports * (new_ub - new_lb)
     end
+    add_supports(param, supports, label = McSample) # this ensures new supports have McSample label
+    return (supports, coeffs, label)
 end
 
+# MultiDistributionSet
 """
     generate_supports_and_coeffs(set::InfiniteOpt.DistributionSet,
                                  params::Union{InfiniteOpt.ParameterRef,
                                  AbstractArray{<:InfiniteOpt.ParameterRef}},
                                  num_supports::Int,
-                                 lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                 ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                 lb::Union{AbstractArray{<:Real}, Nothing},
+                                 ub::Union{AbstractArray{<:Real}, Nothing},
                                  method::Val{mc_sampling})::Tuple
 
 Return a tuple that contains supports and coefficients generated by Monte Carlo
@@ -161,34 +189,72 @@ julia> (supps, coeffs) = generate_supports_and_coeffs(DistributionSet(dist), x, 
 ([0.6791074260357777, 0.8284134829000359, -0.3530074003005963, -0.13485387193052173, 0.5866170746331097, 0.29733585084941616, 0.06494754854834232, -0.10901738508171745, -0.514210390833322, 1.5743302021369892], [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
 ```
 """
-function generate_supports_and_coeffs(set::InfiniteOpt.DistributionSet,
-                                      params::Union{InfiniteOpt.ParameterRef,
-                                      AbstractArray{<:InfiniteOpt.ParameterRef}},
+function generate_supports_and_coeffs(set::InfiniteOpt.MultiDistributionSet,
+                                      params::AbstractArray{<:InfiniteOpt.GeneralVariableRef},
                                       num_supports::Int,
-                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      lb::Union{AbstractArray{<:Real}, Nothing},
+                                      ub::Union{AbstractArray{<:Real}, Nothing},
                                       method::Val{mc_sampling})::Tuple
-    dist = set.distribution
-    # create truncated distribution if necessary
+    # use the correct set for generating supports
     if !isa(lb, Nothing) || !isa(ub, Nothing)
-        if isa(dist, Distributions.MultivariateDistribution)
-            @warn("Truncated distribution for multivariate distribution is " *
-                  "not supported. Lower bounds and upper bounds are ignored.")
-        else
-            isa(lb, Number) ? temp_lb = lb : temp_lb = -Inf
-            isa(ub, Number) ? temp_ub = ub : temp_ub = Inf
-            dist = Distributions.Truncated(dist, temp_lb, temp_ub)
-        end
+        @warn("MC sampling for truncated multivariate distribution is not supported. " *
+              "Lower and upper bounds are thus ignored.")
     end
-    return _mc_sampling(dist, params, num_supports)
+    supports = supports(params, label = McSample)
+    num_samples = size(supports)[2]
+    if num_samples >= num_supports
+        coeffs = ones(num_samples) / num_samples
+    else
+        new_supports, _ = generate_support_values(new_set, Val(McSample),
+                                                  num_supports = num_supports - num_samples)
+        union!(supports, new_supports)
+        coeffs = ones(num_supports) / num_supports
+    end
+    add_supports(params, supports, label = McSample) # this ensures new supports have McSample label
+    return (supports, coeffs, McSample)
 end
 
+# CollectionSet
+function generate_supports_and_coeffs(set::InfiniteOpt.CollectionSet,
+                                      params::AbstractArray{<:InfiniteOpt.GeneralVariableRef},
+                                      num_supports::Int,
+                                      lb::Union{AbstractArray{<:Real}, Nothing},
+                                      ub::Union{AbstractArray{<:Real}, Nothing},
+                                      method::Val{mc_sampling})::Tuple
+    # Truncate each dimension accordingly
+    if !isa(lb, Nothing) || !isa(ub, Nothing)
+        if isa(lb, Nothing)
+            lb = -Inf * ones(length(params))
+        end
+        if isa(ub, Nothing)
+            ub = Inf * ones(length(params))
+        end
+        new_set = CollectionSet([_truncated_set(set.sets[i], lb[i], ub[i]) for i in eachindex(set.sets)])
+    else
+        new_set = set
+    end
+    supports = supports(params, label = McSample)
+    num_samples = size(supports)[2]
+    if num_samples >= num_supports
+        coeffs = ones(num_samples) / num_samples
+    else
+        new_supports, _ = generate_support_values(set, Val(McSample),
+                                                  num_supports = num_supports - num_samples)
+        supports = hcat(supports, new_supports)
+        coeffs = ones(curr_num_supps) / num_supports
+    end
+    add_supports(params, supports, label = McSample) # this ensures new supports have McSample label
+    return (supports, coeffs, McSample)
+end
+
+# Gaussian Quadrature Methods for IntervalSet
+# Gauss-Legendre for finite intervals
 """
     generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
                                  params::InfiniteOpt.ParameterRef,
                                  num_supports::Int,
-                                 lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                 ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                 lb::Union{Real, Nothing},
+                                 ub::Union{Real, Nothing},
                                  method::Val{gauss_legendre})::Tuple
 
 Return a tuple that contains supports and coefficients generated using
@@ -212,26 +278,28 @@ julia> supps
  0.9530899229693319
 ```
 """
-function generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
-                                      params::InfiniteOpt.ParameterRef,
+function generate_supports_and_coeffs(set::InfiniteScalarSet,
+                                      param::InfiniteOpt.GeneralVariableRef,
                                       num_supports::Int,
-                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      lb::Union{Real, Nothing},
+                                      ub::Union{Real, Nothing},
                                       method::Val{gauss_legendre})::Tuple
     _nothing_test(method, lb, ub)
-    _univariate_bounds(method, lb, ub)
+    if lb == -Inf || ub == Inf
+        error("Gauss Legendre quadrature can only be applied on finite intervals.")
+    end
     (supports, coeffs) = FastGaussQuadrature.gausslegendre(num_supports)
     supports = (ub - lb) / 2 * supports .+ (ub + lb) / 2
     coeffs = (ub - lb) / 2 * coeffs
-    return (supports, coeffs)
+    return (supports, coeffs, gauss_legendre)
 end
 
 """
     generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
-                                 params::InfiniteOpt.ParameterRef,
+                                 param::InfiniteOpt.GeneralVariableRef,
                                  num_supports::Int,
-                                 lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                 ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                 lb::Union{Real, Nothing},
+                                 ub::Union{Real, Nothing},
                                  method::Val{gauss_hermite})::Tuple
 
 Return a tuple that contains supports and coefficients generated using
@@ -256,20 +324,18 @@ julia> supps
 ```
 """
 function generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
-                                      params::InfiniteOpt.ParameterRef,
+                                      params::InfiniteOpt.GeneralVariableRef,
                                       num_supports::Int,
-                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      lb::Union{Real, Nothing},
+                                      ub::Union{Real, Nothing},
                                       method::Val{gauss_hermite})::Tuple
     _nothing_test(method, lb, ub)
-    _univariate_bounds(method, lb, ub)
     if lb != -Inf || ub != Inf
-        error("Lower/upper bound is not infinity. Use other measure evaluation " *
-              "methods.")
+        error("The range is not finite. Use other measure evaluation methods.")
     end
     (supports, coeffs) = FastGaussQuadrature.gausshermite(num_supports)
     coeffs = coeffs .* exp.(supports.^2)
-    return (supports, coeffs)
+    return (supports, coeffs, gauss_hermite)
 end
 
 """
@@ -302,7 +368,7 @@ julia> supps
 ```
 """
 function generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
-                                      params::InfiniteOpt.ParameterRef,
+                                      params::InfiniteOpt.GeneralVariableRef,
                                       num_supports::Int,
                                       lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
                                       ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
@@ -317,12 +383,12 @@ function generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
         (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_supports)
         coeffs = coeffs .* exp.(supports)
         supports = supports .+ lb
-        return (supports, coeffs)
+        return (supports, coeffs, gauss_laguerre)
     elseif lb == -Inf
         (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_supports)
         coeffs = coeffs .* exp.(supports)
         supports = -supports .+ ub
-        return (supports, coeffs)
+        return (supports, coeffs, gauss_laguerre)
     else
         error("The range is bounded. Use other measure evaluation methods.")
     end
@@ -357,14 +423,16 @@ julia> supps
 ```
 """
 function generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
-                                      params::InfiniteOpt.ParameterRef,
+                                      params::InfiniteOpt.GeneralVariableRef,
                                       num_supports::Int,
                                       lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
                                       ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
                                       method::Val{trapezoid})::Tuple
     _nothing_test(method, lb, ub)
     _univariate_bounds(method, lb, ub)
-    return _trapezoid_univ(lb, ub, num_supports)
+    if trapz
+    supports, coeffs = _trapezoid_univ(lb, ub, num_supports)
+    return (supports, coeffs, trapezoid)
 end
 
 function _trapezoid_univ(lb::Number, ub::Number, num_supports::Int)::Tuple
@@ -376,39 +444,37 @@ function _trapezoid_univ(lb::Number, ub::Number, num_supports::Int)::Tuple
     return (supps, coeffs)
 end
 
-# MC sampling for univariate IntervalSet
-function _mc_sampling(set::InfiniteOpt.IntervalSet,
-                      params::Union{InfiniteOpt.ParameterRef,
-                      AbstractArray{<:InfiniteOpt.ParameterRef}},
-                      num_supports::Int,
-                      lb::Number, ub::Number)::Tuple
-    # MC sampling from uniform distribution over the interval [lb, ub]
-    if lb == -Inf || ub == Inf
-        return infinite_transform(set, params, num_supports, lb, ub, Val(mc_sampling))
-    else
-        samples = rand(num_supports) .* (ub - lb) .+ lb
-        return (samples, ones(num_supports) / num_supports * (ub - lb))
+function _trapezoid_coeff(supps::AbstractArray{<:Real, 1})::Vector{<:Real}
+    len = length(supps)
+    coeffs = zero(length)
+    for i in eachindex(supps)
+        if i == 1
+            coeffs[i] = 1 / 2 * (supps[2] - supps[1])
+        elseif i == len
+            coeffs[i] = 1 / 2 * (supps[len] - supps[len-1])
+        else
+            coeffs[i] = 1 / 2 * (supps[i+1] - supps[i-1])
+        end
     end
+    return coeffs
 end
 
-# MC sampling for univariate DistributionSet
-function _mc_sampling(dist::Distributions.UnivariateDistribution,
-                     param::InfiniteOpt.ParameterRef,
-                     num_supports::Int)::Tuple
-    # MC sampling - Distribution Set
-    samples = rand(dist, num_supports)
-    return (samples, ones(num_supports) / num_supports)
-end
-
-# MC sampling for multivariate DistributionSet
-function _mc_sampling(dist::Distributions.MultivariateDistribution,
-                     params::AbstractArray{<:InfiniteOpt.ParameterRef},
-                     num_supports::Int)::Tuple
-    samples_matrix = rand(dist, num_supports)
-    ordered_pairs = sort(collect(params.data), by=x->x.second.index)
-    samples_dict = Dict(ordered_pairs[i].first => samples_matrix[i, :] for i in eachindex(ordered_pairs))
-    samples = [JuMP.Containers.SparseAxisArray(Dict(k.first => samples_dict[k.first][j] for k in ordered_pairs)) for j in 1:num_supports]
-    return (samples, ones(num_supports) / num_supports)
+function generate_supports_and_coeffs(set::InfiniteOpt.IntervalSet,
+                                      params::InfiniteOpt.GeneralVariableRef,
+                                      num_supports::Int,
+                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
+                                      method::Val{trapezoid};
+                                      is_functional = false)::Tuple
+    _nothing_test(method, lb, ub)
+    _univariate_bounds(method, lb, ub)
+    if is_functional
+        supports = []
+        coeffs = _trapezoid_coeff
+    else
+        supports, coeffs = _trapezoid_univ(lb, ub, num_supports)
+    end
+    return (supports, coeffs, trapezoid)
 end
 
 function _nothing_test(method::Val,

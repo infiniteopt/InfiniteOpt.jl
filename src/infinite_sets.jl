@@ -347,7 +347,7 @@ used by [`generate_and_add_supports!`](@ref) and [`build_parameter`](@ref).
 function generate_supports(set::AbstractInfiniteSet,
                            method::Union{Symbol, Nothing} = nothing;
                            num_supports::Int = DefaultNumSupports,
-                           sig_digits::Int = DefaultSigDigits)
+                           sig_digits::Int = DefaultSigDigits)::Tuple
     if method === nothing
         return generate_support_values(set,
                                        num_supports = num_supports,
@@ -517,6 +517,17 @@ function generate_support_values(set::CollectionSet,
                                  )::Tuple{Array{<:Real}, Symbol}
     new_supports = _generate_collection_supports(set, num_supports, sig_digits)
     return new_supports, Mixture
+end
+
+# CollectionSet (InfiniteScalarSets) using purely MC sampling
+# this is useful for measure support generation
+function generate_support_values(set::CollectionSet,
+                                 ::Val{McSample};
+                                 num_supports::Int = DefaultNumSupports,
+                                 sig_digits::Int = DefaultSigDigits
+                                 )::Tuple{Array{<:Real}, Symbol}
+    new_supports = _generate_collection_supports(set, McSample, num_supports, sig_digits)
+    return new_supports, McSample
 end
 
 # fallback for CollectionSet
