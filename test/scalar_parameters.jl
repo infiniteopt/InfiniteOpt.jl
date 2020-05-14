@@ -14,6 +14,8 @@
     fin_pref = FiniteParameterRef(m, fin_idx)
     ind_gvref = GeneralVariableRef(m, 1, IndependentParameterIndex)
     fin_gvref = GeneralVariableRef(m, 1, FiniteParameterIndex)
+    bad_ind_pref = IndependentParameterRef(m, IndependentParameterIndex(-1))
+    bad_fin_pref = FiniteParameterRef(m, FiniteParameterIndex(-1))
     # test dispatch_variable_ref
     @testset "dispatch_variable_ref" begin
         @test dispatch_variable_ref(m, ind_idx) == ind_pref
@@ -42,6 +44,8 @@
         @test InfiniteOpt._data_object(ind_gvref) == ind_object
         @test InfiniteOpt._data_object(fin_pref) == fin_object
         @test InfiniteOpt._data_object(fin_gvref) == fin_object
+        @test_throws ErrorException InfiniteOpt._data_object(bad_ind_pref)
+        @test_throws ErrorException InfiniteOpt._data_object(bad_fin_pref)
     end
     # test _core_variable_object
     @testset "_core_variable_object" begin
@@ -308,11 +312,13 @@ end
     pref = add_parameter(m, param, "test")
     dpref = dispatch_variable_ref(pref)
     bad = TestVariableRef(m, TestIndex(-1))
+    bad_pref = FiniteParameterRef(m, FiniteParameterIndex(-1))
     # JuMP.name
     @testset "JuMP.name" begin
         @test_throws ArgumentError name(bad)
         @test name(pref) == "test"
         @test name(dpref) == "test"
+        @test name(bad_pref) == ""
     end
     # JuMP.set_name
     @testset "JuMP.set_name" begin
@@ -436,12 +442,14 @@ end
     p2 = FiniteParameter(1)
     pref2 = add_parameter(m, p2, "p2")
     dpref2 = dispatch_variable_ref(pref2)
+    bad_pref = IndependentParameterRef(m ,IndependentParameterIndex(-1))
     # _infinite_variable_dependencies
     @testset "_infinite_variable_dependencies" begin
         @test InfiniteOpt._infinite_variable_dependencies(pref1) == InfiniteVariableIndex[]
         @test InfiniteOpt._infinite_variable_dependencies(dpref1) == InfiniteVariableIndex[]
         @test InfiniteOpt._infinite_variable_dependencies(pref2) == InfiniteVariableIndex[]
         @test InfiniteOpt._infinite_variable_dependencies(dpref2) == InfiniteVariableIndex[]
+        @test_throws ErrorException InfiniteOpt._infinite_variable_dependencies(bad_pref)
     end
     # _measure_dependencies
     @testset "_measure_dependencies" begin
@@ -449,6 +457,7 @@ end
         @test InfiniteOpt._measure_dependencies(dpref1) == MeasureIndex[]
         @test InfiniteOpt._measure_dependencies(pref2) == MeasureIndex[]
         @test InfiniteOpt._measure_dependencies(dpref2) == MeasureIndex[]
+        @test_throws ErrorException InfiniteOpt._measure_dependencies(bad_pref)
     end
     # _constraint_dependencies
     @testset "_constraint_dependencies" begin
@@ -456,6 +465,7 @@ end
         @test InfiniteOpt._constraint_dependencies(dpref1) == ConstraintIndex[]
         @test InfiniteOpt._constraint_dependencies(pref2) == ConstraintIndex[]
         @test InfiniteOpt._constraint_dependencies(dpref2) == ConstraintIndex[]
+        @test_throws ErrorException InfiniteOpt._constraint_dependencies(bad_pref)
     end
     # used_by_constraint
     @testset "used_by_constraint" begin
@@ -545,9 +555,11 @@ end
     pref_gen = add_parameter(m, param, "test")
     pref_disp = dispatch_variable_ref(pref_gen)
     bad = Bad()
+    bad_pref = IndependentParameterRef(m ,IndependentParameterIndex(-1))
     # _parameter_set
     @testset "_parameter_set" begin
         @test InfiniteOpt._parameter_set(pref_disp) == IntervalSet(0, 1)
+        @test_throws ErrorException InfiniteOpt._parameter_set(bad_pref)
     end
     # _update_parameter_set
     @testset "_update_parameter_set " begin
@@ -560,6 +572,7 @@ end
         @test_throws ArgumentError infinite_set(bad)
         @test infinite_set(pref_disp) == IntervalSet(1, 2)
         @test infinite_set(pref_gen) == IntervalSet(1, 2)
+        @test_throws ErrorException infinite_set(bad_pref)
     end
     # set_infinite_set
     @testset "set_infinite_set" begin

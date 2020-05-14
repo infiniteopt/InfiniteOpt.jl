@@ -490,7 +490,7 @@ macro dependent_parameters(model, args...)
     parameter = gensym()
     name = JuMPC._get_name(param)
     if isempty(base_name_kw_args)
-        base_name = anonparam ? "noname" : string(name)
+        base_name = anonparam ? "" : string(name)
     else
         base_name = esc(base_name_kw_args[1].args[2])
     end

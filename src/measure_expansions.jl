@@ -1,3 +1,6 @@
+################################################################################
+#                       MEASURE VARIABLE CREATION METHODS
+################################################################################
 """
     make_point_variable_ref(write_model::Union{InfiniteModel, JuMP.Model},
                             ivref::GeneralVariableRef,
@@ -32,6 +35,9 @@ optimizer model. This is useful for extensions that wish to expand measures, but
 without changing the original `InfiniteModel`. Thus, this should be extended for
 adding `PointVariable`s and `ReducedVariable`s for such extensions.
 Otherwise, an error is thrown for unextended variable and/or optimizer model types.
+Note if this is extended, than [`internal_reduced_variable`](@ref) should also
+be extended in order to direct reduced variables references to the underlying
+[`ReducedVariable`](@ref).
 """
 function add_measure_variable(model::JuMP.Model, var, key)
     error("`add_measure_variable` not defined for variable of type `$(typeof(var))` " *
@@ -63,6 +69,8 @@ expand measures without modifiying the `InfiniteModel`. In such cases, `write_mo
 should be the optimizer model and [`add_measure_variable`](@ref add_measure_variable(::JuMP.Model, ::Any, ::Any))
 should be extended appropriately for reduced variables. Errors if `write_model`
 is an optimizer model and `add_measure_variable` is not properly extended.
+Note this is only intended for optimizer models that are currently stored in
+`InfiniteModel.optimizer_model`.
 """
 function make_reduced_variable_ref(write_model::InfiniteModel,
                                    ivref::GeneralVariableRef,
@@ -130,6 +138,9 @@ function delete_internal_reduced_variable(write_model::JuMP.Model,
     return
 end
 
+################################################################################
+#                          EXPAND_MEASURE DEFINITIONS
+################################################################################
 """
     expand_measure(expr, data::AbstractMeasureData,
                    write_model::JuMP.AbstractModel)::JuMP.AbstractJuMPScalar
@@ -558,6 +569,9 @@ function expand_measure(expr, data::AbstractMeasureData,
           "extending `expand_measure`.")
 end
 
+################################################################################
+#                          ANALYTIC EXPANSION METHODS
+################################################################################
 # TODO add a note about the checking method that triggers this call
 """
     analytic_expansion(expr, data::AbstractMeasureData,
@@ -607,6 +621,9 @@ function analytic_expansion(expr, data::AbstractMeasureData,
     return expand_measure(expr, data, write_model)
 end
 
+################################################################################
+#                              EXPANSION METHODS
+################################################################################
 """
     expand(mref::MeasureRef)::JuMP.AbstractJuMPScalar
 

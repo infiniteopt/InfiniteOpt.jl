@@ -1,3 +1,6 @@
+################################################################################
+#                              BASIC MODEL DEFINITION
+################################################################################
 """
     TranscriptionData
 
@@ -8,79 +11,95 @@ make what is called a `TranscriptionModel` via the [`TranscriptionModel`](@ref)
 constructor.
 
 **Fields**
-- `infinite_to_vars::Dict{InfiniteOpt.InfiniteVariableRef,
-   Vector{JuMP.VariableRef}}`: Infinite variables to their transcribed variables.
-- `hold_to_var::Dict{InfiniteOpt.HoldVariableRef, JuMP.VariableRef}`: Hold
-  variables to model variables.
-- `point_to_var::Dict{InfiniteOpt.PointVariableRef, JuMP.VariableRef}`: Point
-  variables to model variables.
-- `next_var_index::Int` Index for generating measure expansion variables.
-- `reduced_info::Dict{Int, InfiniteOpt.ReducedInfiniteInfo}` Reduced variables
-                                                   made by measure expansion.
-- `infvar_to_supports::Dict{InfiniteOpt.InfiniteVariableRef, Dict}`: Infinite
-  variables to transcribed supports indexed by their numeric aliases.
-- `infinite_to_constrs::Dict{InfiniteOpt.InfiniteConstraintRef,
-  Vector{JuMP.ConstraintRef}}`: Infinite constraints to their transcribed
-  constraints.
-- `measure_to_constrs::Dict{InfiniteOpt.MeasureConstraintRef,
-  Vector{JuMP.ConstraintRef}}`: Measure constraints to model constraints.
-- `finite_to_constr::Dict{InfiniteOpt.FiniteConstraintRef, JuMP.ConstraintRef}`:
-  Finite constraints to model constraints.
-- `infconstr_to_supports::Dict{InfiniteOpt.InfiniteConstraintRef, Dict}`: Infinite
-  constraints to the transcribed supports indxed by their numeric aliases.
-- `measconstr_to_supports::Dict{InfiniteOpt.MeasureConstraintRef, Dict}`:
-  Measure constraints to the transcribed supports indxed by their numeric aliases.
-- `infconstr_to_params::Dict{InfiniteOpt.InfiniteConstraintRef, Tuple}`: Infinite
-  constraints to the parameter tuples associated with each transcribed support.
-- `measconstr_to_params::Dict{InfiniteOpt.MeasureConstraintRef, Tuple}`: Measure
-  constraints to the parameter tuples associated with each transcribed support.
+- `infvar_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}`:
+   A lookup table of infinite variable transcriptions via support value.
+- `infvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.VariableRef}}`:
+   Map infinite variables to their transcription variables.
+- `infvar_supports::Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}`:
+   Map infinite variables to their support values.
+- `finvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}`:
+   Map finite variables to their transcription variables.
+- `reduced_vars::Vector{InfiniteOpt.ReducedVariable{InfiniteOpt.GeneralVariableRef}}`:
+   Store the core reduced variable objects of reduced variables formed on transcription.
+- `last_point_index::Int`: The last internal point variable index added.
+- `measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}`:
+   A lookup table of measure transcriptions via support value.
+- `measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}`:
+   Map measures to transcription expressions.
+- `measure_supports::Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}`:
+   Map measures to their supports values (if the transcribed measure is still infinite).
+- `constr_mappings::Dict{InfiniteOpt.InfOptConstraintRef, Vector{JuMP.ConstraintRef}}`:
+   Map constraints to their transcriptions.
+- `constr_supports::Dict{InfiniteOpt.InfOptConstraintRef, Vector{Tuple}}`:
+   Map constraints to their support values.
+- `verbose_naming::Bool`: Should we name transcription variables/constraints with
+   support values?
+- `supports::Union{Nothing, Tuple}`: Store the collected parameter supports here.
 """
 mutable struct TranscriptionData
-    # Variable mapping
-    infinite_to_vars::Dict{InfiniteOpt.InfiniteVariableRef,
-                           Vector{JuMP.VariableRef}}
-    hold_to_var::Dict{InfiniteOpt.HoldVariableRef, JuMP.VariableRef}
-    point_to_var::Dict{InfiniteOpt.PointVariableRef, JuMP.VariableRef}
+    # Variable information
+    infvar_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}
+    infvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.VariableRef}}
+    infvar_supports::Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}
+    finvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}
 
-    # Measure variables
-    next_var_index::Int
-    reduced_info::Dict{Int, InfiniteOpt.ReducedVariable}
+    # Internal variables (created via internal measure expansions)
+    reduced_vars::Vector{InfiniteOpt.ReducedVariable{InfiniteOpt.GeneralVariableRef}}
+    last_point_index::Int
 
-    # Variable support data
-    infvar_to_supports::Dict{InfiniteOpt.InfiniteVariableRef, Vector{<:Tuple}}
+    # Measure information
+    measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}
+    measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}
+    # NOTE not sure if these are needed
+    measure_supports::Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}
 
-    # Constraint mapping
-    infinite_to_constrs::Dict{InfiniteOpt.InfiniteConstraintRef,
-                              Vector{JuMP.ConstraintRef}}
-    finite_to_constr::Dict{InfiniteOpt.FiniteConstraintRef, JuMP.ConstraintRef}
+    # Constraint information
+    constr_mappings::Dict{InfiniteOpt.InfOptConstraintRef{JuMP.ScalarShape},
+                          Vector{JuMP.ConstraintRef}}
+    constr_supports::Dict{InfiniteOpt.InfOptConstraintRef{JuMP.ScalarShape},
+                          Vector{Tuple}}
 
-    # Constraint support data
-    infconstr_to_supports::Dict{InfiniteOpt.InfiniteConstraintRef, Vector{<:Tuple}}
-    infconstr_to_params::Dict{InfiniteOpt.InfiniteConstraintRef, Tuple}
+    # Settings
+    verbose_naming::Bool
+
+    # Collected Supports
+    supports::Union{Nothing, Tuple}
 
     # Default constructor
-    function TranscriptionData()
-        return new(Dict{InfiniteOpt.InfiniteVariableRef,
-                   Vector{JuMP.VariableRef}}(),
-                   Dict{InfiniteOpt.HoldVariableRef, JuMP.VariableRef}(),
-                   Dict{InfiniteOpt.PointVariableRef, JuMP.VariableRef}(),
-                   0, Dict{Int, InfiniteOpt.ReducedVariable}(),
-                   Dict{InfiniteOpt.InfiniteVariableRef, Vector{Tuple}}(),
-                   Dict{InfiniteOpt.InfiniteConstraintRef,
+    function TranscriptionData(; verbose_naming::Bool = false)
+        return new( # variable info
+                   Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
+                   Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.VariableRef}}(),
+                   Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}(),
+                   Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}(),
+                   # internal variables
+                   Vector{InfiniteOpt.ReducedVariable{InfiniteOpt.GeneralVariableRef}}(),
+                   0,
+                   # measure info
+                   Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
+                   Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}(),
+                   Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}(),
+                   # constraint info
+                   Dict{InfiniteOpt.InfOptConstraintRef{JuMP.ScalarShape},
                         Vector{JuMP.ConstraintRef}}(),
-                   Dict{InfiniteOpt.FiniteConstraintRef, JuMP.ConstraintRef}(),
-                   Dict{InfiniteOpt.InfiniteConstraintRef, Vector{Tuple}}(),
-                   Dict{InfiniteOpt.InfiniteConstraintRef, Tuple}())
+                   Dict{InfiniteOpt.InfOptConstraintRef{JuMP.ScalarShape},
+                        Vector{Vector{Float64}}}(),
+                   # settings
+                   verbose_naming,
+                   # support storage
+                   nothing)
     end
 end
 
 """
     TranscriptionModel([optimizer_constructor;
                        caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
-                       bridge_constraints::Bool = true])::JuMP.Model
+                       bridge_constraints::Bool = true,
+                       verbose_naming::Bool = false])::JuMP.Model
 
 Return a [`JuMP.Model`](@ref) with [`TranscriptionData`](@ref) included in the
 `ext` data field. Accepts the same arguments as a typical JuMP `Model`.
+More detailed variable and constraint naming can be enabled via `verbose_naming`.
 
 **Example**
 ```julia-repl
@@ -93,19 +112,24 @@ CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
 ```
 """
-function TranscriptionModel(; kwargs...)::JuMP.Model
+function TranscriptionModel(; verbose_naming::Bool = false,
+                            kwargs...)::JuMP.Model
     model = JuMP.Model(; kwargs...)
-    model.ext[:TransData] = TranscriptionData()
+    model.ext[:TransData] = TranscriptionData(verbose_naming = verbose_naming)
     return model
 end
 # Accept optimizer_factorys
 function TranscriptionModel(optimizer_constructor;
+                            verbose_naming::Bool = false,
                             kwargs...)::JuMP.Model
     model = JuMP.Model(optimizer_constructor; kwargs...)
-    model.ext[:TransData] = TranscriptionData()
+    model.ext[:TransData] = TranscriptionData(verbose_naming = verbose_naming)
     return model
 end
 
+################################################################################
+#                                BASIC QUERIES
+################################################################################
 """
     is_transcription_model(model::JuMP.Model)::Bool
 
@@ -132,14 +156,17 @@ function transcription_data(model::JuMP.Model)::TranscriptionData
     return model.ext[:TransData]
 end
 
+################################################################################
+#                              VARIABLE QUERIES
+################################################################################
 """
     transcription_variable(model::JuMP.Model,
-                           vref::InfiniteOpt.InfOptVariableRef)
+                           vref::InfiniteOpt.GeneralVariableRef)
 
 Return the transcribed variable reference(s) corresponding to `vref`. Errors
 if no transcription variable is found. Also can query via the syntax:
 ```julia
-transcription_variable(vref::InfiniteOpt.InfOptVariableRef)
+transcription_variable(vref::InfiniteOpt.GeneralVariableRef)
 ```
 If the infinite model contains a built transcription model.
 
@@ -162,73 +189,180 @@ julia> transcription_variable(hdvar)
 hdvar
 ```
 """
-function transcription_variable end
+function transcription_variable(model::JuMP.Model,
+                                vref::InfiniteOpt.GeneralVariableRef)
+    return transcription_variable(model, vref, InfiniteOpt._index_type(vref))
+end
 
 ## Define the variable mapping functions
-# HoldVariableRef
+# FiniteVariableIndex
 function transcription_variable(model::JuMP.Model,
-                                vref::InfiniteOpt.HoldVariableRef)::JuMP.VariableRef
-    !haskey(transcription_data(model).hold_to_var, vref) && error("Variable " *
-                             "reference $vref not used in transcription model.")
-    return transcription_data(model).hold_to_var[vref]
+    vref::InfiniteOpt.GeneralVariableRef,
+    index_type::Type{V}
+    )::JuMP.VariableRef where {V <: InfiniteOpt.FiniteVariableIndex}
+    var = get(transcription_data(model).finvar_mappings, vref, nothing)
+    if isnothing(var)
+        error("Variable reference $vref not used in transcription model.")
+    end
+    return var
 end
-# InfiniteVariableRef
+
+# InfiniteIndex
 function transcription_variable(model::JuMP.Model,
-                                vref::InfiniteOpt.InfiniteVariableRef)::Vector
-    !haskey(transcription_data(model).infinite_to_vars, vref) && error("Variable " *
-                             "reference $vref not used in transcription model.")
-    return transcription_data(model).infinite_to_vars[vref]
+    vref::InfiniteOpt.GeneralVariableRef,
+    index_type::Type{V}
+    )::Vector{JuMP.VariableRef} where {V <: InfiniteOpt.InfiniteIndex}
+    var = get(transcription_data(model).infvar_mappings, vref, nothing)
+    if isnothing(var)
+        error("Variable reference $vref not used in transcription model.")
+    end
+    return var
 end
-# PointVariableRef
+
+# Fallback
 function transcription_variable(model::JuMP.Model,
-                                vref::InfiniteOpt.PointVariableRef)::JuMP.VariableRef
-    !haskey(transcription_data(model).point_to_var, vref) && error("Variable " *
-                             "reference $vref not used in transcription model.")
-    return transcription_data(model).point_to_var[vref]
+    vref::InfiniteOpt.GeneralVariableRef,
+    index_type)
+    error("`transcription_variable` not defined for variables with indices of " *
+          "type $(index_type).")
 end
+
 # Dispatch for internal models
-# function transcription_variable(vref::InfiniteOpt.InfOptVariableRef)
-#     trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(vref))
-#     return transcription_variable(trans_model, vref)
-# end
+function transcription_variable(vref::InfiniteOpt.GeneralVariableRef)
+    trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(vref))
+    return transcription_variable(trans_model, vref)
+end
 
 """
-    InfiniteOpt.optimizer_model_variable(vref::InfiniteOpt.InfOptVariableRef,
+    InfiniteOpt.optimizer_model_variable(vref::InfiniteOpt.GeneralVariableRef,
                                          ::Val{:TransData})
 
 Proper extension of [`InfiniteOpt.optimizer_model_variable`](@ref) for
 `TranscriptionModel`s. This simply dispatches to [`transcription_variable`](@ref).
 """
-# function InfiniteOpt.optimizer_model_variable(vref::InfiniteOpt.InfOptVariableRef,
-#                                               ::Val{:TransData})
-#     return transcription_variable(vref)
-# end
+function InfiniteOpt.optimizer_model_variable(vref::InfiniteOpt.GeneralVariableRef,
+                                              ::Val{:TransData})
+    return transcription_variable(vref)
+end
 
 """
     InfiniteOpt.variable_supports(model::JuMP.Model,
-                                  vref::InfiniteOpt.InfiniteVariableRef,
-                                  key::Val{:TransData} = Val(:TransData))::Vector
+        vref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef},
+        key::Val{:TransData} = Val(:TransData))::Vector
 
 Return the support alias mapping associated with `vref` in the transcribed model.
 Errors if `vref` does not have transcribed variables.
 """
-# function InfiniteOpt.variable_supports(model::JuMP.Model,
-#                                        vref::InfiniteOpt.InfiniteVariableRef,
-#                                        key::Val{:TransData} = Val(:TransData))::Vector
-#     if !haskey(transcription_data(model).infvar_to_supports, vref)
-#         error("Variable reference $vref not used in transcription model.")
-#     end
-#     return transcription_data(model).infvar_to_supports[vref]
-# end
+function InfiniteOpt.variable_supports(model::JuMP.Model,
+    vref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef},
+    key::Val{:TransData} = Val(:TransData)
+    )::Vector
+    if !haskey(transcription_data(model).infvar_mappings, vref)
+        error("Variable reference $vref not used in transcription model.")
+    elseif !haskey(transcription_data(model).infvar_supports, vref)
+        prefs = InfiniteOpt.raw_parameter_refs(vref)
+        lookups = transcription_data(model).infvar_lookup[vref]
+        supp = VectorTuple(first(keys(lookups)), prefs.ranges, prefs.indices)
+        type = typeof(Tuple(supp))
+        supps = Vector{type}(undef, length(lookups))
+        for (s, i) in lookups
+            supp.values[:] = s
+            supps[i] = Tuple(supp)
+        end
+        transcription_data(model).infvar_supports[vref] = supps
+    end
+    return transcription_data(model).infvar_supports[vref]
+end
+
 
 """
+    lookup_by_support(model::JuMP.Model,
+                      vref::InfiniteOpt.GeneralVariableRef,
+                      support::Vector)
+
+Return the transcription expression of `vref` defined at its `support`. This is
+intended as a helper method for automated transcription and doesn't implement
+any error checking.
+"""
+function lookup_by_support(model::JuMP.Model,
+    vref::InfiniteOpt.GeneralVariableRef,
+    support::Vector)
+    return transcription_expression(model, vref, InfiniteOpt._index_type(vref),
+                                    support)
+end
+
+# InfiniteIndex
+function lookup_by_support(model::JuMP.Model,
+    vref::InfiniteOpt.GeneralVariableRef,
+    index_type::Type{V},
+    support::Vector
+    )::JuMP.VariableRef where {V <: InfiniteOpt.InfiniteIndex}
+    idx = transcription_data(model).infvar_lookup[vref][support]
+    return transcription_data(model).infvar_mappings[vref][idx]
+end
+
+# FiniteVariableIndex
+function lookup_by_support(model::JuMP.Model,
+    vref::InfiniteOpt.GeneralVariableRef,
+    index_type::Type{V},
+    support::Vector
+    )::JuMP.VariableRef where {V <: InfiniteOpt.FiniteVariableIndex}
+    return transcription_data(model).finvar_mappings[vref]
+end
+
+# Extend internal_reduced_variable
+function InfiniteOpt.internal_reduced_variable(
+    vref::InfiniteOpt.ReducedVariableRef,
+    ::Val{:TransData}
+    )::ReducedVariable{GeneralVariableRef}
+    trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(vref))
+    reduced_vars = transcription_data(trans_model).reduced_vars
+    idx = -1 * JuMP.index(vref).value
+    if idx in keys(reduced_vars)
+        return reduced_vars[idx]
+    else
+        error("Invalid reduced variable reference, this likely is attributed " *
+              "to its being deleted.")
+    end
+end
+
+################################################################################
+#                              MEASURE QUERIES
+################################################################################
+# Extend transcription_expression
+function lookup_by_support(model::JuMP.Model,
+    mref::InfiniteOpt.GeneralVariableRef,
+    index_type::Type{InfiniteOpt.MeasureIndex},
+    support::Vector
+    )::JuMP.AbstractJuMPScalar
+    idx = transcription_data(model).measure_lookup[mref][support]
+    return transcription_data(model).measure_mappings[mref][idx]
+end
+
+# Extend variable_supports
+function InfiniteOpt.variable_supports(model::JuMP.Model,
+    mref::InfiniteOpt.MeasureRef,
+    key::Val{:TransData} = Val(:TransData)
+    )::Vector
+    supps = get(transcription_data(model).measure_supports, mref, nothing)
+    if isnothing(supps)
+        error("Variable reference $mref not used in transcription model.")
+    end
+    return supps
+end
+
+################################################################################
+#                             CONSTRAINT QUERIES
+################################################################################
+"""
     transcription_constraint(model::JuMP.Model,
-                             cref::InfiniteOpt.GeneralConstraintRef)
+                             cref::InfiniteOpt.InfOptConstraintRef
+                             )::Vector{JuMP.ConstraintRef}
 
 Return the transcribed constraint reference(s) corresponding to `cref`. Errors
 if `cref` has not been transcribed. Also can query via the syntax:
 ```julia
-transcription_constraint(cref::InfiniteOpt.GeneralConstraintRef)
+transcription_constraint(cref::InfiniteOpt.InfOptConstraintRef)
 ```
 If the infinite model contains a built transcription model.
 
@@ -241,104 +375,95 @@ julia> transcription_constraint(fin_con)
 fin_con : x(support: 1) - y <= 3.0
 ```
 """
-function transcription_constraint end
-
-## Define the cosntraint mapping functions
-# InfiniteConstraintRef
 function transcription_constraint(model::JuMP.Model,
-                                  cref::InfiniteOpt.InfiniteConstraintRef)::Vector
-    if !haskey(transcription_data(model).infinite_to_constrs, cref)
-        error("Constraint reference $cref not used in transcription model.")
+                                  cref::InfiniteOpt.InfOptConstraintRef
+                                  )::Vector{JuMP.ConstraintRef}
+    constr = get(transcription_data(model).constr_mappings, cref, nothing)
+    if isnothing(constr)
+      error("Constraint reference $cref not used in transcription model.")
     end
-    return transcription_data(model).infinite_to_constrs[cref]
+    return constr
 end
 
-# MeasureConstraintRef
-# function transcription_constraint(model::JuMP.Model,
-#                                   cref::InfiniteOpt.MeasureConstraintRef)::Vector
-#     if !haskey(transcription_data(model).measure_to_constrs, cref)
-#         error("Constraint reference $cref not used in transcription model.")
-#     end
-#     return transcription_data(model).measure_to_constrs[cref]
-# end
-
-# FiniteConstraintRef
-function transcription_constraint(model::JuMP.Model,
-                                  cref::InfiniteOpt.FiniteConstraintRef)::JuMP.ConstraintRef
-    if !haskey(transcription_data(model).finite_to_constr, cref)
-        error("Constraint reference $cref not used in transcription model.")
-    end
-    return transcription_data(model).finite_to_constr[cref]
-end
 # Dispatch for internal models
-# function transcription_constraint(cref::InfiniteOpt.GeneralConstraintRef)
-#     trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(cref))
-#     return transcription_constraint(trans_model, cref)
-# end
+function transcription_constraint(cref::InfiniteOpt.InfOptConstraintRef
+    )::Vector{JuMP.ConstraintRef}
+    trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(cref))
+    return transcription_constraint(trans_model, cref)
+end
 
 """
-    InfiniteOpt.optimizer_model_constraint(cref::InfiniteOpt.GeneralConstraintRef,
+    InfiniteOpt.optimizer_model_constraint(cref::InfiniteOpt.InfOptConstraintRef,
                                            ::Val{:TransData})
 
 Proper extension of [`InfiniteOpt.optimizer_model_constraint`](@ref) for
 `TranscriptionModel`s. This simply dispatches to [`transcription_constraint`](@ref).
 """
-# function InfiniteOpt.optimizer_model_constraint(cref::InfiniteOpt.GeneralConstraintRef,
-#                                                 ::Val{:TransData})
-#     return transcription_constraint(cref)
-# end
+function InfiniteOpt.optimizer_model_constraint(
+    cref::InfiniteOpt.InfOptConstraintRef,
+    ::Val{:TransData}
+    )::Vector{JuMP.ConstraintRef}
+    return transcription_constraint(cref)
+end
 
 """
     InfiniteOpt.constraint_supports(model::JuMP.Model,
-                                    cref::InfiniteOpt.GeneralConstraintRef,
-                                    key::Val{:TransData} = Val(:TransData))::Vector
+                                    cref::InfiniteOpt.InfOptConstraintRef,
+                                    key::Val{:TransData} = Val(:TransData)
+                                    )::Vector
 
 Return the support alias mappings associated with `cref`. Errors if `cref` is
 not transcribed.
 """
-# function InfiniteOpt.constraint_supports(model::JuMP.Model,
-#                                          cref::InfiniteOpt.InfiniteConstraintRef,
-#                                          key::Val{:TransData} = Val(:TransData))::Vector
-#     if !haskey(transcription_data(model).infconstr_to_supports, cref)
-#         error("Constraint reference $cref not used in transcription model.")
-#     end
-#     return transcription_data(model).infconstr_to_supports[cref]
-# end
-# # MeasureConstraintRef
-# function InfiniteOpt.constraint_supports(model::JuMP.Model,
-#                                          cref::InfiniteOpt.MeasureConstraintRef,
-#                                          key::Val{:TransData} = Val(:TransData))::Vector
-#     if !haskey(transcription_data(model).measconstr_to_supports, cref)
-#         error("Constraint reference $cref not used in transcription model " *
-#               "and/or is finite and doesn't have supports.")
-#     end
-#     return transcription_data(model).measconstr_to_supports[cref]
-# end
+function InfiniteOpt.constraint_supports(model::JuMP.Model,
+                                         cref::InfiniteOpt.InfOptConstraintRef,
+                                         key::Val{:TransData} = Val(:TransData)
+                                         )::Vector
+    supps = get(transcription_data(model).constr_supports, cref, nothing)
+    if isnothing(supps)
+        error("Constraint reference $cref not used in transcription model.")
+    end
+    return supps
+end
 
-"""
-    InfiniteOpt.constraint_parameter_refs(model::JuMP.Model,
-                                          cref::InfiniteOpt.GeneralConstraintRef,
-                                          key::Val{:TransData} = Val(:TransData))::Tuple
+################################################################################
+#                             OTHER QUERIES
+################################################################################
+# Access the collected supports
+function parameter_supports(model::JuMP.Model)::Union{Nothing, Tuple}
+    return transcription_data(model).supports
+end
 
-Return the a parameter reference tuple of all the parameters that parameterize
-`cref` and correspond to the supports. Errors if `cref` has not been transcribed.
-"""
-# function InfiniteOpt.constraint_parameter_refs(model::JuMP.Model,
-#                                                cref::InfiniteOpt.InfiniteConstraintRef,
-#                                                key::Val{:TransData} = Val(:TransData))::Tuple
-#     if !haskey(transcription_data(model).infconstr_to_params, cref)
-#         error("Constraint reference $cref not used in transcription model " *
-#               "and/or is finite and doesn't have parameter references.")
-#     end
-#     return transcription_data(model).infconstr_to_params[cref]
-# end
-# # MeasureConstraintRef
-# function InfiniteOpt.constraint_parameter_refs(model::JuMP.Model,
-#                                                cref::InfiniteOpt.MeasureConstraintRef,
-#                                                key::Val{:TransData} = Val(:TransData))::Tuple
-#     if !haskey(transcription_data(model).measconstr_to_params, cref)
-#         error("Constraint reference $cref not used in transcription model " *
-#               "and/or is finite and doesn't have parameter references.")
-#     end
-#     return transcription_data(model).measconstr_to_params[cref]
-# end
+## Form a placeholder parameter reference given the object index
+# IndependentParameterIndex
+function _temp_parameter_ref(model::InfiniteOpt.InfiniteModel,
+    index::InfiniteOpt.IndependentParameterIndex
+    )::InfiniteOpt.IndependentParameterRef
+    return InfiniteOpt.IndependentParameterRef(model, index)
+end
+
+# DependentParametersIndex
+function _temp_parameter_ref(model::InfiniteOpt.InfiniteModel,
+    index::InfiniteOpt.DependentParametersIndex
+    )::InfiniteOpt.DependentParameterRef
+    idx = InfiniteOpt.DependentParameterIndex(index, 1)
+    return InfiniteOpt.DependentParameterRef(model, idx)
+end
+
+# Return the collected supports of an infinite parameter
+function _collected_supports(model::InfiniteOpt.InfiniteModel,
+    index::InfiniteOpt.InfiniteParameterIndex
+    )::Vector
+    pref = _temp_parameter_ref(model, index)
+    supps = InfiniteOpt._parameter_supports(pref)
+    return collect(keys(supps))
+end
+
+# Build the parameter supports
+function set_parameter_supports(model::JuMP.Model,
+                                inf_model::InfiniteOpt.InfiniteModel)::Nothing
+    param_indices = InfiniteOpt._param_object_indices(inf_model)
+    supps = Tuple(_collected_supports(inf_model, i) for i in param_indices)
+    transcription_data(model).supports = supps
+    return
+end

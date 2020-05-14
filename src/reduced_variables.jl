@@ -28,13 +28,35 @@ function _data_dictionary(vref::ReducedVariableRef
 end
 
 # Extend _data_object
-function _data_object(vref::ReducedVariableRef)::VariableData{<:ReducedVariable}
-    return _data_dictionary(vref)[JuMP.index(vref)]
+function _data_object(vref::ReducedVariableRef
+    )::VariableData{ReducedVariable{GeneralVariableRef}}
+  object = _get(_data_dictionary(vref), JuMP.index(vref), nothing)
+  isnothing(object) && error("Invalid point variable reference, cannot find " *
+                        "corresponding variable in the model. This is likely " *
+                        "caused by using the reference of a deleted variable.")
+  return object
 end
 
+"""
+    internal_reduced_variable(vref::ReducedVariableRef,
+                              key::Val{:my_ext_key})::ReducedVariable
+
+Return the reduced variable object of `vref` assuming it is an internal variable
+made during measure expansion within an optimizer model. This will apply to
+optimizer model extensions that utilize `add_measure_variable` in combination
+with `expand_measure`.
+"""
+function internal_reduced_variable end
+
 # Extend _core_variable_object
-function _core_variable_object(vref::ReducedVariableRef)::ReducedVariable
-    return _data_object(vref).variable
+function _core_variable_object(vref::ReducedVariableRef
+    )::ReducedVariable{GeneralVariableRef}
+    if !haskey(_data_dictionary(vref), JuMP.index(vref))
+        model = JuMP.owner_model(vref)
+        return internal_reduced_variable(vref, Val(optimizer_model_key(model)))
+    else
+        return _data_object(vref).variable
+    end
 end
 
 # Extend _object_numbers
@@ -237,26 +259,6 @@ function JuMP.set_name(vref::ReducedVariableRef,
     _data_object(vref).name = name
     JuMP.owner_model(vref).name_to_var = nothing
     return
-end
-
-"""
-    JuMP.name(vref::ReducedVariableRef)::String
-
-Extend `JuMP.name` to return the name of reduced infinite variable references.
-This will also automatically write a name if one has not yet been assigned.
-
-**Example**
-```julia-repl
-julia> name(vref)
-"x(t, [0, 0])"
-```
-"""
-function JuMP.name(vref::ReducedVariableRef)::String
-    # make and set the name if that has not already been done
-    if length(_data_object(vref).name) == 0
-        JuMP.set_name(vref)
-    end
-    return _data_object(vref).name
 end
 
 ################################################################################

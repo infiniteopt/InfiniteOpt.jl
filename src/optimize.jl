@@ -1,3 +1,6 @@
+################################################################################
+#                              OPTIMIZER MODEL BASICS
+################################################################################
 """
     optimizer_model(model::InfiniteModel)::JuMP.Model
 
@@ -140,6 +143,45 @@ function set_optimizer_model(inf_model::InfiniteModel, opt_model::JuMP.Model;
     return
 end
 
+"""
+    optimizer_model_key(model::JuMP.Model)::Any
+
+Return the extension key used in the optimizer model `model`. Errors if
+`model.ext` contains more than one key. This is intended for internal
+use and extensions. For extensions this is used to dispatch to the appropriate
+optmizer model functions such as extensions to [`build_optimizer_model!`](@ref).
+This is intended as an internal method. See [`optimizer_model_key`](@ref optimizer_model_key(::InfiniteModel))
+for the public method
+"""
+function optimizer_model_key(model::JuMP.Model)
+    if length(model.ext) != 1
+        error("Optimizer models should have 1 and only 1 extension key of the " *
+              "form `Model.ext[:my_ext_key] = MyExtData`.")
+    end
+    return first(keys(model.ext))
+end
+
+"""
+    optimizer_model_key(model::InfiniteModel)::Any
+
+Return the extension key used in the optimizer model of `model`. Errors if
+`optimizer_model.ext` contains more than one key. This is intended for internal
+use and extensions. For extensions this is used to dispatch to the appropriate
+optmizer model functions such as extensions to [`build_optimizer_model!`](@ref).
+
+**Example**
+```julia-repl
+julia> optimizer_model_key(model)
+:TransData
+```
+"""
+function optimizer_model_key(model::InfiniteModel)::Any
+    return optimizer_model_key(optimizer_model(model))
+end
+
+################################################################################
+#                         OPTIMIZER METHOD EXTENSIONS
+################################################################################
 """
     JuMP.set_optimizer(model::InfiniteModel,
                        [optimizer_constructor;
@@ -350,46 +392,74 @@ function JuMP.get_optimizer_attribute(model::InfiniteModel,
     return MOI.get(optimizer_model(model), attr)
 end
 
-# Extend the solve error function
-JuMP.solve(model::InfiniteModel) = JuMP.solve(optimizer_model(model))
-
 """
-    optimizer_model_key(model::JuMP.Model)::Any
+    JuMP.solver_name(model::InfiniteModel)
 
-Return the extension key used in the optimizer model `model`. Errors if
-`model.ext` contains more than one key. This is intended for internal
-use and extensions. For extensions this is used to dispatch to the appropriate
-optmizer model functions such as extensions to [`build_optimizer_model!`](@ref).
-This is intended as an internal method. See [`optimizer_model_key`](@ref optimizer_model_key(::InfiniteModel))
-for the public method
-"""
-function optimizer_model_key(model::JuMP.Model)::Any
-    key = collect(keys(model.ext))
-    if length(key) != 1
-        error("Optimizer models should have 1 and only 1 extension key of the " *
-              "form `Model.ext[:my_ext_key] = MyExtData`.")
-    end
-    return key[1]
-end
-
-"""
-    optimizer_model_key(model::InfiniteModel)::Any
-
-Return the extension key used in the optimizer model of `model`. Errors if
-`optimizer_model.ext` contains more than one key. This is intended for internal
-use and extensions. For extensions this is used to dispatch to the appropriate
-optmizer model functions such as extensions to [`build_optimizer_model!`](@ref).
+Extend [`solver_name`](@ref JuMP.solver_name(::JuMP.Model)) to return the name
+of the solver being used if there is an optimizer selected and it has a name
+attribute. Otherwise, an error is thrown.
 
 **Example**
 ```julia-repl
-julia> optimizer_model_key(model)
-:TransData
+julia> solver_name(model)
+"Gurobi"
 ```
 """
-function optimizer_model_key(model::InfiniteModel)::Any
-    return optimizer_model_key(optimizer_model(model))
+function JuMP.solver_name(model::InfiniteModel)
+    return JuMP.solver_name(optimizer_model(model))
 end
 
+"""
+    JuMP.backend(model::InfiniteModel)
+
+Extend [`backend`](@ref JuMP.backend(::JuMP.Model)) to return the
+`MathOptInterface` backend associated with the optimizer model. Note this will
+be empty if the optimizer model has not been build yet.
+
+**Example**
+```julia-repl
+julia> moi_model = backend(model);
+```
+"""
+function JuMP.backend(model::InfiniteModel)
+    return JuMP.backend(optimizer_model(model))
+end
+
+"""
+    JuMP.mode(model::InfiniteModel)
+
+Extend [`mode`](@ref JuMP.mode(::JuMP.Model)) to return the `MathOptInterface`
+mode the optimizer model is in.
+
+**Example**
+```julia-repl
+julia> mode(model)
+AUTOMATIC::ModelMode = 0
+```
+"""
+function JuMP.mode(model::InfiniteModel)
+    return JuMP.mode(optimizer_model(model))
+end
+
+"""
+    JuMP.result_count(model::InfiniteModel)
+
+Extend [`result_count`](@ref JuMP.result_count(::JuMP.Model)) to return the
+number of results available to query after a call to `optimize!`.
+
+**Example**
+```julia-repla
+julia> result_count(model)
+1
+```
+"""
+function JuMP.result_count(model::InfiniteModel)::Int
+    return MOI.get(optimizer_model(model), MOI.ResultCount())
+end
+
+################################################################################
+#                       OPTIMIZER MODEL BUILD METHODS
+################################################################################
 """
     build_optimizer_model!(model::InfiniteModel, key::Val{ext_key_name};
                            [kwargs...])
@@ -463,8 +533,11 @@ function build_optimizer_model!(model::InfiniteModel; kwargs...)
   return
 end
 
+################################################################################
+#                        OPTIMIZER MODEL MAPPING METHODS
+################################################################################
 """
-    optimizer_model_variable(vref::DispatchVariableRef, key::Val{ext_key_name};
+    optimizer_model_variable(vref::GeneralVariableRef, key::Val{ext_key_name};
                              [kwargs...])
 
 Return the reformulation variable(s) stored in the optimizer model that correspond
@@ -475,13 +548,13 @@ argument to `Val{ext_key_name}`. Keyword arguments can be added as needed.
 function optimizer_model_variable end
 
 # Fallback for unextended keys
-function optimizer_model_variable(vref::DispatchVariableRef, key; kwargs...)
+function optimizer_model_variable(vref::GeneralVariableRef, key; kwargs...)
     error("`optimizer_model_variable` not implemented for optimizer model
           key `$(typeof(key).parameters[1])`.")
 end
 
 """
-    optimizer_model_variable(vref::DispatchVariableRef; [kwargs...])
+    optimizer_model_variable(vref::GeneralVariableRef; [kwargs...])
 
 Return the reformulation variable(s) stored in the optimizer model that correspond
 to `vref`. By default, no keyword arguments `kwargs` are employed by
@@ -501,30 +574,43 @@ julia> optimizer_model_variable(z) # hold variable
 z
 ```
 """
-function optimizer_model_variable(vref::DispatchVariableRef; kwargs...)
+function optimizer_model_variable(vref::GeneralVariableRef; kwargs...)
     key = optimizer_model_key(JuMP.owner_model(vref))
     return optimizer_model_variable(vref, Val(key); kwargs...)
 end
 
 """
-    variable_supports(optimizer_model::JuMP.Model, vref::InfiniteVariableRef,
+    variable_supports(optimizer_model::JuMP.Model, vref,
                       key::Val{ext_key_name}; [kwargs...])::Vector
 
 Return the supports associated with the mappings of `vref` in `optimizer_model`.
 This dispatches off of `key` which permits optimizer model extensions. This
 should throw an error if `vref` is not associated with the variable mappings
-stored in `optimizer_model`. Keyword arguments can be added as needed.
+stored in `optimizer_model`. Keyword arguments can be added as needed. Note that
+no extension is necessary for point or hold variables.
 """
 function variable_supports end
 
 # fallback for unextended keys
-function variable_supports(optimizer_model::JuMP.Model, vref::InfiniteVariableRef,
-                           key; kwargs...)
-  error("`variable_supports` not implemented for optimizer model key `$(typeof(key).parameters[1])`.")
+function variable_supports(optimizer_model::JuMP.Model, vref, key; kwargs...)
+    error("`variable_supports` not implemented for optimizer model key " *
+          "`$(typeof(key).parameters[1])`.")
+end
+
+# PointVariableRef
+function variable_supports(optimizer_model::JuMP.Model, vref::PointVariableRef,
+                           key; kwargs...)::Vector
+    return [parameter_values(vref)]
+end
+
+# HoldVariableRef
+function variable_supports(optimizer_model::JuMP.Model, vref::HoldVariableRef,
+                           key; kwargs...)::Vector
+    return []
 end
 
 """
-    supports(vref::InfiniteVariableRef; [kwargs...])::Vector
+    supports(vref::DecisionVariableRef; [kwargs...])::Vector
 
 Return the supports associated with `vref` in the optimizer
 model. Errors if [`variable_supports`](@ref) has not been extended for the
@@ -539,7 +625,8 @@ Dict{Int64,Tuple{Float64}} with 2 entries:
   1 => (0.0,)
 ```
 """
-function supports(vref::InfiniteVariableRef; kwargs...)::Vector
+function supports(vref::Union{DecisionVariableRef, MeasureRef};
+                  label = All, kwargs...)::Vector
     model = optimizer_model(JuMP.owner_model(vref))
     key = optimizer_model_key(JuMP.owner_model(vref))
     return variable_supports(model, vref, Val(key); kwargs...)
@@ -598,8 +685,8 @@ function constraint_supports end
 function constraint_supports(optimizer_model::JuMP.Model,
                              cref::InfOptConstraintRef,
                              key; kwargs...)
-  error("`constraint_supports` not implemented for optimizer model key `$(typeof(key).parameters[1])`` " *
-        "and/or constraint type `$(typeof(cref))`.")
+  error("`constraint_supports` not implemented for optimizer model key " *
+        "`$(typeof(key).parameters[1])`.")
 end
 
 """
@@ -624,95 +711,11 @@ function supports(cref::InfOptConstraintRef; kwargs...)::Vector
     return constraint_supports(model, cref, Val(key); kwargs...)
 end
 
-"""
-    constraint_parameter_refs(optimizer_model::JuMP.Model,
-                              cref::InfOptConstraintRef,
-                              key::Val{ext_key_name}; [kwargs...])::Tuple
-
-Return the infinite parameter references associated with the mappings of `cref`
-in `optimizer_model`. This dispatches off of `key` which permits optimizer model
-extensions. This should throw an error if `cref` is not associated with the
-variable mappings stored in `optimizer_model`. Keyword arguments can be added
-as needed.
-"""
-function constraint_parameter_refs end
-
-# fallback for unextended keys
-function constraint_parameter_refs(optimizer_model::JuMP.Model,
-                                   cref::InfOptConstraintRef,
-                                   key; kwargs...)
-  error("`constraint_parameter_refs` not implemented for optimizer model key `$(typeof(key).parameters[1])` " *
-        "and/or constraint type `$(typeof(cref))`.")
-end
-
-"""
-    parameter_refs(cref::InfOptConstraintRef; [kwargs...])::Tuple
-
-Return the infinite parameters associated with `cref`. Errors if `cref` is
-not associated with the constraint mappings stored in `optimizer_model` or if
-[`constraint_parameter_refs`](@ref) has not been extended. By default, no keyword
-arguments are accepted, but extensions may employ some.
-
-**Example**
-```julia-repl
-julia> parameter_refs(cref)
-(t, x)
-```
-"""
-function parameter_refs(cref::InfOptConstraintRef; kwargs...)::Tuple
-    model = optimizer_model(JuMP.owner_model(cref))
-    key = optimizer_model_key(JuMP.owner_model(cref))
-    return constraint_parameter_refs(model, cref, Val(key); kwargs...)
-end
-
-"""
-    JuMP.solver_name(model::InfiniteModel)
-
-Extend [`solver_name`](@ref JuMP.solver_name(::JuMP.Model)) to return the name
-of the solver being used if there is an optimizer selected and it has a name
-attribute. Otherwise, an error is thrown.
-
-**Example**
-```julia-repl
-julia> solver_name(model)
-"Gurobi"
-```
-"""
-function JuMP.solver_name(model::InfiniteModel)
-    return JuMP.solver_name(optimizer_model(model))
-end
-
-"""
-    JuMP.backend(model::InfiniteModel)
-
-Extend [`backend`](@ref JuMP.backend(::JuMP.Model)) to return the
-`MathOptInterface` backend associated with the optimizer model. Note this will
-be empty if the optimizer model has not been build yet.
-
-**Example**
-```julia-repl
-julia> moi_model = backend(model);
-```
-"""
-function JuMP.backend(model::InfiniteModel)
-    return JuMP.backend(optimizer_model(model))
-end
-
-"""
-    JuMP.mode(model::InfiniteModel)
-
-Extend [`mode`](@ref JuMP.mode(::JuMP.Model)) to return the `MathOptInterface`
-mode the optimizer model is in.
-
-**Example**
-```julia-repl
-julia> mode(model)
-AUTOMATIC::ModelMode = 0
-```
-"""
-function JuMP.mode(model::InfiniteModel)
-    return JuMP.mode(optimizer_model(model))
-end
+################################################################################
+#                             OPTIMIZATION METHODS
+################################################################################
+# Extend the solve error function
+JuMP.solve(model::InfiniteModel) = JuMP.solve(optimizer_model(model))
 
 """
     JuMP.optimize!(model::InfiniteModel;
@@ -740,20 +743,4 @@ function JuMP.optimize!(model::InfiniteModel;
     end
     JuMP.optimize!(optimizer_model(model))
     return
-end
-
-"""
-    JuMP.result_count(model::InfiniteModel)
-
-Extend [`result_count`](@ref JuMP.result_count(::JuMP.Model)) to return the
-number of results available to query after a call to `optimize!`.
-
-**Example**
-```julia-repla
-julia> result_count(model)
-1
-```
-"""
-function JuMP.result_count(model::InfiniteModel)::Int
-    return MOI.get(optimizer_model(model), MOI.ResultCount())
 end

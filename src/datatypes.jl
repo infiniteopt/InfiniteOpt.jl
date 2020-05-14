@@ -120,6 +120,7 @@ end
 # Define convenient aliases
 const FiniteVariableIndex = Union{PointVariableIndex, HoldVariableIndex,
                                   FiniteParameterIndex}
+const InfiniteIndex = Union{InfiniteVariableIndex, ReducedVariableIndex}
 
 """
     MeasureIndex <: ObjectIndex
@@ -155,6 +156,15 @@ end
 # key_to_index
 function MOIUC.key_to_index(key::ObjectIndex)::Int
     return key.value
+end
+
+# define safe getter function _get(dict, key)
+function _get(d::MOIUC.CleverDict, key::ObjectIndex, default)
+    if d.dict === nothing
+        return get(d.vector, MOIUC.key_to_index(key), default)
+    else
+        return get(d.dict, key, default)
+    end
 end
 
 # Extend Base.length
@@ -1178,39 +1188,16 @@ const UserDecisionVariableRef = Union{InfiniteVariableRef, PointVariableRef,
 const ScalarParameterRef = Union{IndependentParameterRef, FiniteParameterRef}
 
 """
-    InfOptConstraintRef
+    InfOptConstraintRef{S <: JuMP.AbstractShape}
 
-An abstract type for constraint references in `InfiniteOpt`.
-"""
-abstract type InfOptConstraintRef end
-
-"""
-    InfiniteConstraintRef{S <: JuMP.AbstractShape} <: InfOptConstraintRef
-
-A `DataType` for infinite constraints that are in `InfiniteModel`s
+A `DataType` for constraints that are in `InfiniteModel`s
 
 **Fields**
 - `model::InfiniteModel`: Infinite model.
 - `index::ConstraintIndex`: Index of the constraint in model.
 - `shape::JuMP.AbstractShape`: Shape of the constraint
 """
-struct InfiniteConstraintRef{S <: JuMP.AbstractShape} <: InfOptConstraintRef
-    model::InfiniteModel
-    index::ConstraintIndex
-    shape::S
-end
-
-"""
-    FiniteConstraintRef{S <: JuMP.AbstractShape} <: InfOptConstraintRef
-
-A `DataType` for finite constraints that are in `InfiniteModel`s
-
-**Fields**
-- `model::InfiniteModel`: Infinite model.
-- `index::ConstraintIndex`: Index of the constraint in model.
-- `shape::JuMP.AbstractShape`: Shape of the constraint
-"""
-struct FiniteConstraintRef{S <: JuMP.AbstractShape} <: InfOptConstraintRef
+struct InfOptConstraintRef{S <: JuMP.AbstractShape}
     model::InfiniteModel
     index::ConstraintIndex
     shape::S

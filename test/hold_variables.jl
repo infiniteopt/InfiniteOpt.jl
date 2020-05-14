@@ -11,6 +11,7 @@
     idx = HoldVariableIndex(1)
     vref = HoldVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, HoldVariableIndex)
+    bad_vref = HoldVariableRef(m, HoldVariableIndex(-1))
     # JuMP.owner_model
     @testset "JuMP.owner_model" begin
         @test owner_model(vref) === m
@@ -45,6 +46,7 @@
     @testset "_data_object" begin
         @test InfiniteOpt._data_object(vref) === object
         @test InfiniteOpt._data_object(gvref) === object
+        @test_throws ErrorException InfiniteOpt._data_object(bad_vref)
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
@@ -67,6 +69,7 @@
     @testset "JuMP.name" begin
         @test name(vref) == "test"
         @test name(gvref) == "test"
+        @test name(bad_vref) == ""
     end
     # JuMP.set_name
     @testset "JuMP.set_name" begin
@@ -74,6 +77,7 @@
         @test name(vref) == "new"
         @test isa(set_name(gvref, "new2"), Nothing)
         @test name(vref) == "new2"
+        @test_throws ErrorException set_name(bad_vref, "")
     end
     # _make_variable_ref
     @testset "_make_variable_ref" begin
@@ -243,7 +247,7 @@ end
         @test !m.has_hold_bounds
         # lower bound
         cindex = ConstraintIndex(1)
-        cref = FiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_lower_bound(vref)
         @test JuMP._lower_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -251,7 +255,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # upper bound
         cindex = ConstraintIndex(2)
-        cref = FiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_upper_bound(vref)
         @test JuMP._upper_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -259,7 +263,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # fix
         cindex = ConstraintIndex(3)
-        cref = FiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test is_fixed(vref)
         @test JuMP._fix_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -267,7 +271,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # binary
         cindex = ConstraintIndex(4)
-        cref = FiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test is_binary(vref)
         @test JuMP._binary_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -289,7 +293,7 @@ end
         @test supports(par) == [0]
         @test sortcols(supports(pars)) == [0 1; 0 1]
         cindex = ConstraintIndex(8)
-        cref = FiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test is_integer(vref)
         @test JuMP._integer_index(vref) == cindex
         @test constraint_object(cref) isa BoundedScalarConstraint{GeneralVariableRef,
@@ -675,7 +679,7 @@ end
         # prepare for main test
         cref1 = FixRef(dx)
         bconstr = BoundedScalarConstraint(mref, MOI.EqualTo(0.0), bounds1, bounds1)
-        cref2 = FiniteConstraintRef(m, ConstraintIndex(3), ScalarShape())
+        cref2 = InfOptConstraintRef(m, ConstraintIndex(3), ScalarShape())
         @test add_constraint(m, bconstr) == cref2
         # test measure error
         bounds = ParameterBounds((par => IntervalSet(1, 2),))
@@ -724,7 +728,7 @@ end
     # test add_parameter_bound
     @testset "add_parameter_bounds" begin
         cref1 = FixRef(dx)
-        cref2 = FiniteConstraintRef(m, ConstraintIndex(3), ScalarShape())
+        cref2 = InfOptConstraintRef(m, ConstraintIndex(3), ScalarShape())
         # test adding normally
         new_bounds = ParameterBounds((pars[2] => IntervalSet(0, 5),))
         @test isa(add_parameter_bounds(x, new_bounds), Nothing)
@@ -751,7 +755,7 @@ end
     # test delete_parameter_bounds
     @testset "delete_parameter_bounds" begin
         cref1 = FixRef(dx)
-        cref2 = FiniteConstraintRef(m, ConstraintIndex(3), ScalarShape())
+        cref2 = InfOptConstraintRef(m, ConstraintIndex(3), ScalarShape())
         # test normal
         @test isa(delete_parameter_bounds(x), Nothing)
         @test parameter_bounds(dx) == ParameterBounds()
@@ -788,7 +792,7 @@ end
         # prepare for main test
         cref1 = FixRef(x)
         bconstr = BoundedScalarConstraint(mref, MOI.EqualTo(0.0), bounds1, bounds1)
-        cref2 = FiniteConstraintRef(m, ConstraintIndex(2), ScalarShape())
+        cref2 = InfOptConstraintRef(m, ConstraintIndex(2), ScalarShape())
         @test add_constraint(m, bconstr) == cref2
         # test adding normally
         @test isa(@add_parameter_bounds(x, pars[2] in [0, 5]), Nothing)
@@ -824,7 +828,7 @@ end
         @test_macro_throws ErrorException @set_parameter_bounds(par, pars[1] == 0)
         # prepare for main test
         cref1 = FixRef(x)
-        cref2 = FiniteConstraintRef(m, ConstraintIndex(2), ScalarShape())
+        cref2 = InfOptConstraintRef(m, ConstraintIndex(2), ScalarShape())
         # test measure error
         @test_macro_throws ErrorException @set_parameter_bounds(x, par in [1, 2])
         # test constr error

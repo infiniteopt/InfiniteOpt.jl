@@ -109,7 +109,7 @@ set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values,
 eval_supports, used_by_reduced_variable, has_parameter_bounds, parameter_bounds,
 set_parameter_bounds, add_parameter_bounds, delete_parameter_bounds,
 parameter_list, raw_parameter_refs, raw_parameter_values,
-intervals, dispatch_variable_ref
+intervals, dispatch_variable_ref, internal_reduced_variable
 
 # Export measure datatypes
 export AbstractMeasureData, DiscreteMeasureData, FunctionalDiscreteMeasureData,

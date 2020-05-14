@@ -9,6 +9,8 @@
     object = MultiParameterData(params, 1, 1:2, ["p1", "p2"])
     pref = DependentParameterRef(m, idx)
     gvref = GeneralVariableRef(m, 1, DependentParameterIndex, 1)
+    bad_idx = DependentParameterIndex(DependentParametersIndex(-1), 2)
+    bad_pref = DependentParameterRef(m, bad_idx)
     # test dispatch_variable_ref
     @testset "dispatch_variable_ref" begin
         @test dispatch_variable_ref(m, idx) == pref
@@ -29,6 +31,7 @@
     @testset "_data_object" begin
         @test InfiniteOpt._data_object(pref) == object
         @test InfiniteOpt._data_object(gvref) == object
+        @test_throws ErrorException InfiniteOpt._data_object(bad_pref)
     end
     # test _core_variable_object
     @testset "_core_variable_object" begin
@@ -331,7 +334,7 @@ end
         pref4 = GeneralVariableRef(m, 5, DependentParameterIndex, 4)
         @test @dependent_parameters(m, [1:2, 1:2],
                  distribution = dist3) == [pref1 pref3; pref2 pref4]
-        @test InfiniteOpt._data_object(pref1).names == ["noname[1,1]", "noname[2,1]", "noname[1,2]", "noname[2,2]"]
+        @test InfiniteOpt._data_object(pref1).names == ["", "", "", ""]
         @test isempty(InfiniteOpt._core_variable_object(pref1).supports)
         # test anonymous with set keyword
         pref1 = GeneralVariableRef(m, 6, DependentParameterIndex, 1)
@@ -389,6 +392,8 @@ end
     m = InfiniteModel();
     gvrefs = @dependent_parameters(m, a[1:2] in [0, 1])
     prefs = dispatch_variable_ref.(gvrefs)
+    bad_idx = DependentParameterIndex(DependentParametersIndex(-1), 2)
+    bad_pref = DependentParameterRef(m, bad_idx)
     # test _param_index
     @testset "_param_index" begin
         @test InfiniteOpt._param_index(prefs[1]) == 1
@@ -414,6 +419,7 @@ end
         @test name(prefs[2]) == "a[2]"
         @test name(gvrefs[1]) == "a[1]"
         @test name(gvrefs[2]) == "a[2]"
+        @test name(bad_pref) == ""
     end
     # test set_name
     @testset "JuMP.set_name" begin
@@ -439,23 +445,28 @@ end
     gvrefs = @dependent_parameters(m, a[1:2] in [0, 1])
     prefs = dispatch_variable_ref.(gvrefs)
     data = InfiniteOpt._data_object(first(prefs))
+    bad_idx = DependentParameterIndex(DependentParametersIndex(-1), 2)
+    bad_pref = DependentParameterRef(m, bad_idx)
     # test _infinite_variable_dependencies
     @testset "_infinite_variable_dependencies" begin
         @test InfiniteOpt._infinite_variable_dependencies(prefs[1]) == data.infinite_var_indices
         @test InfiniteOpt._infinite_variable_dependencies(prefs[2]) == data.infinite_var_indices
         @test InfiniteOpt._infinite_variable_dependencies(gvrefs[1]) == data.infinite_var_indices
+        @test_throws ErrorException InfiniteOpt._infinite_variable_dependencies(bad_pref)
     end
     # test _measure_dependencies
     @testset "_measure_dependencies" begin
         @test InfiniteOpt._measure_dependencies(prefs[1]) == data.measure_indices[1]
         @test InfiniteOpt._measure_dependencies(prefs[2]) == data.measure_indices[2]
         @test InfiniteOpt._measure_dependencies(gvrefs[1]) == data.measure_indices[1]
+        @test_throws ErrorException InfiniteOpt._measure_dependencies(bad_pref)
     end
     # test _constraint_dependencies
     @testset "_constraint_dependencies" begin
         @test InfiniteOpt._constraint_dependencies(prefs[1]) == data.constraint_indices[1]
         @test InfiniteOpt._constraint_dependencies(prefs[2]) == data.constraint_indices[2]
         @test InfiniteOpt._constraint_dependencies(gvrefs[1]) == data.constraint_indices[1]
+        @test_throws ErrorException InfiniteOpt._constraint_dependencies(bad_pref)
     end
     # test used_by_infinite_variable
     @testset "used_by_infinite_variable" begin
@@ -493,6 +504,12 @@ end
         # undo changes
         empty!(data.constraint_indices[1])
     end
+    # test used_by_objective
+    @testset "used_by_objective" begin
+        @test !used_by_objective(prefs[1])
+        @test !used_by_objective(prefs[2])
+        @test !used_by_objective(gvrefs[1])
+    end
     # test is_used
     @testset "is_used" begin
         # test not used
@@ -514,11 +531,14 @@ end
     data = InfiniteOpt._data_object(first(prefs))
     set = CollectionSet([IntervalSet(0, 2), IntervalSet(0, 2)])
     params = DependentParameters(set, Dict{Vector{Float64}, Set{Symbol}}(), 10)
+    bad_idx = DependentParameterIndex(DependentParametersIndex(-1), 2)
+    bad_pref = DependentParameterRef(m, bad_idx)
     # test _parameter_number
     @testset "_parameter_number" begin
         @test InfiniteOpt._parameter_number(prefs[1]) == 1
         @test InfiniteOpt._parameter_number(prefs[2]) == 2
         @test InfiniteOpt._parameter_number(gvrefs[1]) == 1
+        @test_throws ErrorException InfiniteOpt._parameter_number(bad_pref)
     end
     # test _parameter_numbers
     @testset "_parameter_numbers" begin

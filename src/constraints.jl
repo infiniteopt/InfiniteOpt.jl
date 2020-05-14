@@ -65,7 +65,11 @@ end
 
 # Extend _data_object
 function _data_object(cref::InfOptConstraintRef)::ConstraintData
-    return _data_dictionary(cref)[JuMP.index(cref)]
+  object = _get(_data_dictionary(cref), JuMP.index(cref), nothing)
+  isnothing(object) && error("Invalid constraint reference, cannot find " *
+                        "corresponding constraint in the model. This is likely " *
+                        "caused by using the reference of a deleted constraint.")
+  return object
 end
 
 # Return the core constraint object
@@ -268,11 +272,7 @@ function JuMP.add_constraint(model::InfiniteModel,
     constr_object = ConstraintData(c, object_nums, name, MeasureIndex[],
                                   is_info_constr)
     cindex = _add_data_object(model, constr_object)
-    if isempty(object_nums)
-        cref = FiniteConstraintRef(model, cindex, JuMP.shape(c))
-    else
-        cref = InfiniteConstraintRef(model, cindex, JuMP.shape(c))
-    end
+    cref = InfOptConstraintRef(model, cindex, JuMP.shape(c))
     # update the variable mappings and model status
     _update_var_constr_mapping(vrefs, cref)
     set_optimizer_model_ready(model, false)
@@ -342,7 +342,8 @@ julia> name(cref)
 ```
 """
 function JuMP.name(cref::InfOptConstraintRef)::String
-    return _data_object(cref).name
+    object = _get(_data_dictionary(cref), JuMP.index(cref), nothing)
+    return isnothing(object) ? "" : object.name
 end
 
 """
@@ -494,13 +495,8 @@ end
 # Return the appropriate constraint reference given the index and model
 function _make_constraint_ref(model::InfiniteModel,
                               index::ConstraintIndex)::InfOptConstraintRef
-    if isempty(model.constraints[index].object_nums)
-        return FiniteConstraintRef(model, index,
-                                   JuMP.shape(model.constraints[index].constraint))
-    else
-        return InfiniteConstraintRef(model, index,
-                                   JuMP.shape(model.constraints[index].constraint))
-    end
+    constr = model.constraints[index].constraint
+    return InfOptConstraintRef(model, index, JuMP.shape(constr))
 end
 
 """
@@ -702,7 +698,7 @@ function JuMP.all_constraints(model::InfiniteModel,
 end
 
 """
-    JuMP.all_constraints(model::InfiniteModel)::Vector{<:InfOptConstraintRef}
+    JuMP.all_constraints(model::InfiniteModel)::Vector{InfOptConstraintRef}
 
 Extend [`JuMP.all_constraints`](@ref JuMP.all_constraints(::JuMP.Model, ::Type{<:Union{JuMP.AbstractJuMPScalar, Vector{<:JuMP.AbstractJuMPScalar}}}, ::Type{<:MOI.AbstractSet}))
 to return all a list of all the constraints
@@ -718,7 +714,7 @@ julia> all_constraints(model)
  g(0.5) ≥ 0.0
 ```
 """
-function JuMP.all_constraints(model::InfiniteModel)::Vector{<:InfOptConstraintRef}
+function JuMP.all_constraints(model::InfiniteModel)::Vector{InfOptConstraintRef}
     return [_make_constraint_ref(model, index)
             for (index, object) in model.constraints]
 end
@@ -897,7 +893,7 @@ c1 : y(x) ≤ 42, ∀ x[1] = 0, x[2] = 0
 julia> delete_parameter_bounds(c1)
 
 julia> c1
-c1 : y(x) ≤ 42, ∀ x[1] ∈ [-1, 1], x[2] ∈ [-1, 1] 
+c1 : y(x) ≤ 42, ∀ x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
 ```
 """
 function delete_parameter_bounds(cref::InfOptConstraintRef)::Nothing

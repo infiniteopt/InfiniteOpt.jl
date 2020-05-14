@@ -439,7 +439,7 @@ end
         @test !optimizer_model_ready(m)
         # lower bound
         cindex = ConstraintIndex(1)
-        cref = FiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_lower_bound(vref)
         @test JuMP._lower_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -447,7 +447,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # upper bound
         cindex = ConstraintIndex(2)
-        cref = FiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_upper_bound(vref)
         @test JuMP._upper_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -455,7 +455,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # fix
         cindex = ConstraintIndex(3)
-        cref = FiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_upper_bound(vref)
         @test is_fixed(vref)
         @test JuMP._fix_index(vref) == cindex
@@ -464,7 +464,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # binary
         cindex = ConstraintIndex(4)
-        cref = FiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_upper_bound(vref)
         @test is_binary(vref)
         @test JuMP._binary_index(vref) == cindex
@@ -483,7 +483,7 @@ end
         @test add_variable(m, v, "name") == gvref
         @test !optimizer_model_ready(m)
         cindex = ConstraintIndex(8)
-        cref = FiniteConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_upper_bound(vref)
         @test is_integer(vref)
         @test JuMP._integer_index(vref) == cindex

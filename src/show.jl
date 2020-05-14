@@ -140,33 +140,6 @@ function bound_string(print_mode, bounds::ParameterBounds{GeneralVariableRef}
     return string_list[1:end-2]
 end
 
-# Return string of a finite constraint
-function JuMP.constraint_string(print_mode, cref::FiniteConstraintRef;
-                                in_math_mode = false)::String
-    # get the function and set strings
-    func_str = JuMP.function_string(print_mode, _core_constraint_object(cref))
-    in_set_str = JuMP.in_set_string(print_mode, _core_constraint_object(cref))
-    # form the constraint string
-    if print_mode == JuMP.REPLMode
-        lines = split(func_str, '\n')
-        lines[1 + div(length(lines), 2)] *= " " * in_set_str
-        constr_str = join(lines, '\n')
-    else
-        constr_str = string(func_str, " ", in_set_str)
-    end
-    # format for IJulia
-    if print_mode == JuMP.IJuliaMode && !in_math_mode
-        constr_str = JuMP._wrap_in_inline_math_mode(constr_str)
-    end
-    # add name if it has one
-    name = JuMP.name(cref)
-    if isempty(name) || (print_mode == JuMP.IJuliaMode && in_math_mode)
-        return constr_str
-    else
-        return string(name, " : ", constr_str)
-    end
-end
-
 ## Return the parameter domain string given the object index
 # IndependentParameter
 function _param_domain_string(print_mode, model::InfiniteModel,
@@ -221,31 +194,38 @@ function _param_domain_string(print_mode, model::InfiniteModel,
 end
 
 # Return string of an infinite constraint
-function JuMP.constraint_string(print_mode, cref::InfiniteConstraintRef;
+function JuMP.constraint_string(print_mode, cref::InfOptConstraintRef;
                                 in_math_mode = false)::String
     # get the function and set strings
     func_str = JuMP.function_string(print_mode, _core_constraint_object(cref))
     in_set_str = JuMP.in_set_string(print_mode, _core_constraint_object(cref))
-    # get the parameter bounds if there are any
-    if has_parameter_bounds(cref)
-        bounds = parameter_bounds(cref)
+    # check if constraint if finite
+    obj_nums = _object_numbers(cref)
+    if isempty(obj_nums)
+        bound_str = ""
     else
-        bounds = ParameterBounds()
-    end
-    # prepare the parameter domains
-    model = JuMP.owner_model(cref)
-    bound_str = string(", ", JuMP._math_symbol(print_mode, :for_all), " ")
-    for index in _param_object_indices(model)[_object_numbers(cref)]
-        bound_str *= string(_param_domain_string(print_mode, model, index, bounds),
-                            ", ")
+        # get the parameter bounds if there are any
+        if has_parameter_bounds(cref)
+            bounds = parameter_bounds(cref)
+        else
+            bounds = ParameterBounds()
+        end
+        # prepare the parameter domains
+        model = JuMP.owner_model(cref)
+        bound_str = string(", ", JuMP._math_symbol(print_mode, :for_all), " ")
+        for index in _param_object_indices(model)[_object_numbers(cref)]
+            bound_str *= string(_param_domain_string(print_mode, model, index, bounds),
+                                ", ")
+        end
+        bound_str = bound_str[1:end-2]
     end
     # form the constraint string
     if print_mode == JuMP.REPLMode
         lines = split(func_str, '\n')
-        lines[1 + div(length(lines), 2)] *= " " * in_set_str * bound_str[1:end-2]
+        lines[1 + div(length(lines), 2)] *= " " * in_set_str * bound_str
         constr_str = join(lines, '\n')
     else
-        constr_str = string(func_str, " ", in_set_str, bound_str[1:end-2])
+        constr_str = string(func_str, " ", in_set_str, bound_str)
     end
     # format for IJulia
     if print_mode == JuMP.IJuliaMode && !in_math_mode
