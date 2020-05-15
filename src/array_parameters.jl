@@ -772,7 +772,7 @@ supports with `label`.
 julia> num_supports(x[1])
 2
 
-julia> num_supports(x[1], label = McSample)
+julia> num_supports(x[1], label = MCSample)
 0
 ```
 """

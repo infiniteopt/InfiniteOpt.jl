@@ -80,3 +80,6 @@ function InfiniteOpt.measure_data_in_hold_bounds(d::TestData,
     end
     return true
 end
+function InfiniteOpt.add_supports_to_parameters(d::TestData)::Nothing
+    return
+end

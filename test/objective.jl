@@ -6,15 +6,8 @@
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
     @hold_variable(m, x)
-    # data = DiscreteMeasureData(par, [1], [1])
-    # meas = measure(inf + par - x, data)
-    # TODO remove below when measures is done
     data = TestData(par, 0, 1)
-    meas = Measure(x, data, Int[], Int[], true)
-    object = MeasureData(meas, "test")
-    mindex = MeasureIndex(1)
-    @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
+    meas = measure(x, data, name = "test")
     # test objective_sense
     @testset "JuMP.objective_sense" begin
         # test default
@@ -80,15 +73,8 @@ end
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
     @hold_variable(m, x)
-    # data = DiscreteMeasureData(par, [1], [1])
-    # meas = measure(inf + par - x, data)
-    # TODO remove below when measures is done
     data = TestData(par, 0, 1)
-    meas = Measure(x, data, Int[], Int[], true)
-    object = MeasureData(meas, "test")
-    mindex = MeasureIndex(1)
-    @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
+    meas = measure(x, data, name = "test")
     # set_objective_sense
     @testset "JuMP.set_objective_sense" begin
         # test normal
@@ -180,15 +166,8 @@ end
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
     @hold_variable(m, x)
-    # data = DiscreteMeasureData(par, [1], [1])
-    # meas = measure(inf + par - x, data)
-    # TODO remove below when measures is done
     data = TestData(par, 0, 1)
-    meas = Measure(x, data, Int[], Int[], true)
-    object = MeasureData(meas, "test")
-    mindex = MeasureIndex(1)
-    @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
+    meas = measure(x, data, name = "test")
     # test set_objective_coefficient
     @testset "JuMP.set_objective_coefficient" begin
         # test variable function

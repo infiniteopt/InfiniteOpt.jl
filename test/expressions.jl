@@ -207,6 +207,18 @@ end
         @test InfiniteOpt._model_from_expr(quad2) isa Nothing
         @test InfiniteOpt._model_from_expr(quad3) === m
     end
+    # test for Vector{GeneralVariableRef}
+    @testset "Vector{GeneralVariableRef}" begin
+        vrefs1 = GeneralVariableRef[]
+        vrefs2 = [hd]
+        # test expressions
+        @test InfiniteOpt._model_from_expr(vrefs1) isa Nothing
+        @test InfiniteOpt._model_from_expr(vrefs2) === m
+    end
+    # test Fallback
+    @testset "Fallback" begin
+        @test_throws ErrorException InfiniteOpt._model_from_expr(42)
+    end
 end
 
 # Test _remove_variable

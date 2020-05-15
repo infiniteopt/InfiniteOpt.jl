@@ -8,6 +8,6 @@ const JuMPC = JuMP.Containers
 using ..InfiniteOpt
 
 # include jl files here
-include("methods.jl")
+include("integrals.jl")
 
 end # end module

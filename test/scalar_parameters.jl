@@ -634,10 +634,15 @@ end
         @test_throws ArgumentError supports(bad)
         @test supports(pref_disp) == []
         @test supports(pref) == []
-        dict = SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}())
+        dict = SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}([MCSample]))
         InfiniteOpt._update_parameter_supports(pref_disp, dict)
         @test supports(pref_disp) == [1.]
         @test supports(pref) == [1.]
+        @test supports(pref, label = MCSample) == [1.]
+    end
+    # supports (vector)
+    @testset "supports (vector)" begin
+        @test supports([pref_disp], label = MCSample) == ones(1, 1)
     end
     # set_supports
     @testset "set_supports" begin

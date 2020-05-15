@@ -154,8 +154,17 @@ function _model_from_expr(expr::JuMP.GenericQuadExpr)::Union{InfiniteModel, Noth
     end
 end
 
+# Vector{GeneralVariableRef}
+function _model_from_expr(vrefs::Vector{GeneralVariableRef})::Union{InfiniteModel, Nothing}
+    if isempty(vrefs)
+        return
+    else
+        return JuMP.owner_model(first(vrefs))
+    end
+end
+
 # Fallback
-function _model_from_expr(expr::JuMP.AbstractJuMPScalar)
+function _model_from_expr(expr)
     error("`_model_from_expr` not defined for expr of type $(typeof(expr)).")
 end
 

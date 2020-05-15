@@ -143,8 +143,8 @@ end
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1][2] == 0.111
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1][2] != 1/11
         @test length(generate_support_values(set, num_supports = 10, sig_digits = 3)[1]) == 10
-        @test generate_support_values(set, Val(McSample), num_supports = 10)[1] isa Vector{<:Number}
-        @test generate_support_values(set, Val(McSample), num_supports = 10)[2] == McSample
+        @test generate_support_values(set, Val(MCSample), num_supports = 10)[1] isa Vector{<:Number}
+        @test generate_support_values(set, Val(MCSample), num_supports = 10)[2] == MCSample
         @test_throws ErrorException generate_support_values(set, Val(:a))
     end
     @testset "Distribution Sets" begin
@@ -154,7 +154,7 @@ end
         set2 = MultiDistributionSet(dist2)
         @test generate_support_values(set1, num_supports = 10)[1] isa Vector{<:Number}
         @test generate_support_values(set2, num_supports = 10)[1] isa Array{<:Number, 2}
-        @test generate_support_values(set2, num_supports = 10)[2] == McSample
+        @test generate_support_values(set2, num_supports = 10)[2] == WeightedSample
         @test length(generate_support_values(set1, num_supports = 10)[1]) == 10
         @test size(generate_support_values(set2, num_supports = 10)[1]) == (2, 10)
         @test_throws ErrorException generate_support_values(set1, Val(:a))
@@ -164,7 +164,7 @@ end
         dist = MatrixBeta(2, 2, 2)
         set = MultiDistributionSet(dist)
         @test generate_support_values(set, num_supports = 10)[1] isa Array{<:Number, 2}
-        @test generate_support_values(set, num_supports = 10)[2] == McSample
+        @test generate_support_values(set, num_supports = 10)[2] == WeightedSample
         @test size(generate_support_values(set, num_supports = 10)[1]) == (4, 10)
         @test_throws ErrorException generate_support_values(set, Val(:a))
     end
@@ -193,7 +193,7 @@ end
         set2 = UniDistributionSet(Normal())
         set = CollectionSet([set1, set2])
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1] isa Array{<:Number, 2}
-        @test generate_support_values(set, num_supports = 10, sig_digits = 3)[2] == McSample
+        @test generate_support_values(set, num_supports = 10, sig_digits = 3)[2] == WeightedSample
         @test size(generate_support_values(set, num_supports = 10, sig_digits = 3)[1]) == (2, 10)
         @test_throws ErrorException generate_support_values(set, Val(:a))
     end
@@ -212,6 +212,6 @@ end
     @testset "User Interface" begin
         set = IntervalSet(0., 1.)
         @test generate_supports(set)[1] isa Vector{<:Number}
-        @test generate_supports(set, McSample)[1] isa Vector{<:Number}
+        @test generate_supports(set, MCSample)[1] isa Vector{<:Number}
     end
 end

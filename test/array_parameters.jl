@@ -300,7 +300,7 @@ end
                 num_supports = 10) == [pref1, pref2]
         @test InfiniteOpt._data_object(pref1).names == ["a[1]", "a[2]"]
         @test length(InfiniteOpt._core_variable_object(pref1).supports) == 10
-        @test McSample in first(InfiniteOpt._core_variable_object(pref1).supports)[2]
+        @test WeightedSample in first(InfiniteOpt._core_variable_object(pref1).supports)[2]
         @test InfiniteOpt._core_variable_object(pref1).set.sets == set5.sets
         # test another explicit build
         pref1 = GeneralVariableRef(m, 2, DependentParameterIndex, 1)
@@ -716,9 +716,9 @@ end
         @test num_supports(gvrefs1[2]) == 2
         @test num_supports(prefs2[2]) == 0
         # test label
-        @test num_supports(prefs1[1], label = McSample) == 0
+        @test num_supports(prefs1[1], label = MCSample) == 0
         @test num_supports(prefs1[1], label = UniformGrid) == 2
-        @test num_supports(gvrefs1[2], label = McSample) == 0
+        @test num_supports(gvrefs1[2], label = MCSample) == 0
     end
     # test num_supports (Array)
     @testset "num_supports (Array)" begin
@@ -727,9 +727,9 @@ end
         @test num_supports(gvrefs1) == 2
         @test num_supports(prefs2) == 0
         # test label
-        @test num_supports(prefs1, label = McSample) == 0
+        @test num_supports(prefs1, label = MCSample) == 0
         @test num_supports(prefs1, label = UniformGrid) == 2
-        @test num_supports(gvrefs1, label = McSample) == 0
+        @test num_supports(gvrefs1, label = MCSample) == 0
         # test error
         @test_throws ErrorException num_supports(prefs2[:, 1])
     end
@@ -754,9 +754,9 @@ end
         @test sort!(supports(gvrefs1[2])) == Float64[0, 1]
         @test supports(prefs2[2]) == Float64[]
         # test label
-        @test supports(prefs1[1], label = McSample) == Float64[]
+        @test supports(prefs1[1], label = MCSample) == Float64[]
         @test sort!(supports(prefs1[1], label = UniformGrid)) == Float64[0, 1]
-        @test supports(gvrefs1[2], label = McSample) == Float64[]
+        @test supports(gvrefs1[2], label = MCSample) == Float64[]
     end
     # test supports (AbstractArray)
     @testset "supports (AbstractArray)" begin
@@ -769,9 +769,9 @@ end
         @test sort!.(supports(new_gvrefs1)) == expected
         @test supports(prefs2) == [Float64[] for i in CartesianIndices(prefs2)]
         # test label
-        @test supports(new_prefs1, label = McSample) == expected2
+        @test supports(new_prefs1, label = MCSample) == expected2
         @test sort!.(supports(new_prefs1, label = UniformGrid)) == expected
-        @test supports(new_gvrefs1, label = McSample) == expected2
+        @test supports(new_gvrefs1, label = MCSample) == expected2
     end
     # test supports (Vector)
     @testset "supports (Vector)" begin
@@ -781,9 +781,9 @@ end
         @test supports(gvrefs3) == zeros(2, 0)
         @test supports(gvrefs4) == zeros(2, 1)
         # test label
-        @test supports(prefs1, label = McSample) == zeros(2, 0)
+        @test supports(prefs1, label = MCSample) == zeros(2, 0)
         @test sortcols(supports(prefs1, label = UniformGrid)) == [0 1; 0 1]
-        @test supports(gvrefs1, label = McSample) == zeros(2, 0)
+        @test supports(gvrefs1, label = MCSample) == zeros(2, 0)
         # test error
         @test_throws ErrorException supports(prefs2[:, 1])
     end
@@ -872,9 +872,9 @@ end
         @test collect(values(InfiniteOpt._parameter_supports(prefs2[1]))) == [Set([UserDefined])]
         # test keywords
         supps = [[0.5] for i in CartesianIndices(prefs2)]
-        @test add_supports(gvrefs2, supps, check = false, label = McSample) isa Nothing
+        @test add_supports(gvrefs2, supps, check = false, label = MCSample) isa Nothing
         @test sort!.(supports(prefs2)) == [[0.5, 1] for i in CartesianIndices(prefs2)]
-        @test Set([McSample]) in values(InfiniteOpt._parameter_supports(prefs2[1]))
+        @test Set([MCSample]) in values(InfiniteOpt._parameter_supports(prefs2[1]))
     end
     # test delete_supports (Single)
     @testset "delete_supports (Single)" begin

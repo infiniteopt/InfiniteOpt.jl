@@ -16,6 +16,12 @@ end
 _keys(a::JuMPC.SparseAxisArray) = keys(a.data)
 _keys(a::AbstractArray) = keys(a)
 
+# Tempororay hack for map of DenseAxisArray
+function Base.map(f, a::JuMPC.DenseAxisArray)
+    data = map(f, a.data)
+    return JuMPC.DenseAxisArray(data, axes(a)...)
+end
+
 ## Define functions to convert a JuMP array into a vector (need for @BDconstraint)
 # AbstractArray
 function _make_vector(arr::AbstractArray{T})::Vector{T} where {T}
@@ -29,6 +35,29 @@ end
 # Array (do nothing)
 function _make_vector(arr::Vector{T})::Vector{T} where {T}
     return arr
+end
+
+## Define function to vectorize abstractarrays in a consistent way
+# Vector
+function _make_ordered_vector(
+    arr::Vector{T}
+    )::Vector{T} where {T}
+    return arr
+end
+
+# Array
+function _make_ordered_vector(
+    arr::Union{Array{T}, JuMPC.DenseAxisArray{T}}
+    )::Vector{T} where{T}
+    return reduce(vcat, arr)
+end
+
+# SparseAxisArray
+function _make_ordered_vector(
+    arr::JuMPC.SparseAxisArray{T}
+    )::Vector{T} where {T}
+    indices = Collections._get_indices(arr)
+    return Collections._make_ordered(arr, indices)
 end
 
 ## Define efficient function to check if all elements in array are equal

@@ -35,6 +35,13 @@ end
     @test InfiniteOpt._keys(ones(2)) == keys(ones(2))
 end
 
+# Test extension of map
+@testset "Base.map (DenseAxisArray)" begin
+    JuMPC.@container(x[3:6], 2)
+    @test map(i -> iseven(i), x) isa JuMPC.DenseAxisArray
+    @test map(i -> iseven(i), x).data == [true, true, true, true]
+end
+
 # Test the _make_vector functions
 @testset "_make_vector" begin
     x = [2, 4, 1, 8]
@@ -50,6 +57,28 @@ end
     @testset "Array" begin
         @test InfiniteOpt._make_vector(x) == x
         @test InfiniteOpt._make_vector(ones(2, 2)) == ones(4)
+    end
+end
+
+# Test the _make_ordered_vector functions
+@testset "_make_ordered_vector" begin
+    x = [2, 4, 1, 8]
+    # test with JuMP containers
+    @testset "Vector" begin
+        x = ones(2)
+        @test InfiniteOpt._make_ordered_vector(x) === x
+    end
+    # test arrays
+    @testset "Array" begin
+        x = ones(2, 3)
+        @test InfiniteOpt._make_ordered_vector(x) == ones(6)
+        JuMPC.@container(x[3:6], 2)
+        @test InfiniteOpt._make_ordered_vector(x) == ones(4) * 2
+    end
+    # test SparseAxisArray
+    @testset "SparseAxisArray" begin
+        JuMPC.@container(x[i = 3:6], i, container = SparseAxisArray)
+        @test InfiniteOpt._make_ordered_vector(x) == [3, 4, 5, 6]
     end
 end
 

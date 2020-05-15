@@ -19,7 +19,7 @@ using .Collections: VectorTuple, same_structure, DualDict
 # Export the collections and methods  from Collections
 export VectorTuple, same_structure, DualDict
 
-# Import all of the datatpyes, methods, macros, and definitions.
+# Import pre measure methods
 include("datatypes.jl")
 include("infinite_sets.jl")
 include("general_variables.jl")
@@ -31,6 +31,15 @@ include("reduced_variables.jl")
 include("point_variables.jl")
 include("hold_variables.jl")
 include("expressions.jl")
+
+# Import MeasureEvalMethods
+include("MeasureEvalMethods/MeasureEvalMethods.jl")
+using .MeasureEvalMethods: AbstractIntegralMethod, AbstractUnivariateMethod,
+AbstractMultivariateMethod, Automatic, UniTrapezoid, UniMCSampling,
+UniIndepMCSampling, Quadrature, GaussHermite, GaussLegendre, GaussLaguerre,
+MultiMCSampling, MultiIndepMCSampling, generate_integral_data
+
+# Import post measure methods
 include("measures.jl")
 include("constraints.jl")
 include("macros.jl")
@@ -45,15 +54,10 @@ include("utilities.jl")
 include("TranscriptionOpt/TranscriptionOpt.jl")
 using .TranscriptionOpt
 
-# include("MeasureEvalMethods/MeasureEvalMethods.jl")
-# using .MeasureEvalMethods: generate_measure_data, mc_sampling, gauss_legendre,
-# gauss_hermite, gauss_laguerre, infinite_transform, generate_supports_and_coeffs,
-# trapezoid
-
 # Export the measure eval functions and constants
-export generate_measure_data, mc_sampling, gauss_legendre, gauss_hermite,
-gauss_laguerre, trapezoid, infinite_transform, measure_dispatch,
-generate_supports_and_coeffs
+export Automatic, UniTrapezoid, UniMCSampling, UniIndepMCSampling, Quadrature,
+GaussHermite, GaussLegendre, GaussLaguerre, MultiMCSampling,
+MultiIndepMCSampling, generate_integral_data
 
 # Export core datatypes
 export AbstractDataObject, InfiniteModel
@@ -62,7 +66,7 @@ export AbstractDataObject, InfiniteModel
 export @independent_parameter, @dependent_parameters, @infinite_parameter,
 @finite_parameter, @infinite_variable, @point_variable, @hold_variable,
 @infinite_parameter, @BDconstraint, @set_parameter_bounds, @add_parameter_bounds,
-@measure
+@measure, @integral, @expect, @support_sum
 
 # Export constants
 export Infinite, Hold, Point, sampling, quadrature
@@ -77,7 +81,7 @@ FiniteVariableIndex
 # Export infinite set types
 export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
 UniDistributionSet, MultiDistributionSet, CollectionSet, UserDefined,
-McSample, UniformGrid, Mixture, All
+MCSample, UniformGrid, Mixture, All, WeightedSample
 
 # Export infinite set methods
 export collection_sets, supports_in_set, generate_support_values
@@ -116,13 +120,12 @@ export AbstractMeasureData, DiscreteMeasureData, FunctionalDiscreteMeasureData,
 Measure, MeasureData, MeasureRef
 
 # Export measure methods
-export add_measure, measure, measure_function, measure_data, expand,
-expand_all_measures!, expect, support_sum, measure_data_in_hold_bounds,
-make_point_variable_ref, make_reduced_variable_ref, expand_measure, integral,
-set_integral_defaults, integral_defaults, coefficients, weight_function,
-default_weight, add_measure_variable, delete_reduced_variable,
-delete_internal_reduced_variable, expand_measures, support_label,
-coefficient_function, build_measure, add_supports_to_parameters, is_analytic
+export default_weight, support_label, coefficient_function, coefficients,
+weight_function, measure_data_in_hold_bounds, build_measure,
+add_supports_to_parameters, add_measure, measure_function, measure_data,
+is_analytic, measure, uni_integral_defaults, set_uni_integral_defaults,
+integral, multi_integral_defaults, set_multi_integral_defaults, expect,
+support_sum
 
 # Export objective methods
 export objective_has_measures

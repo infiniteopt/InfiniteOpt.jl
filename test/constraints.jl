@@ -163,14 +163,9 @@ end
     @hold_variable(m, x, parameter_bounds = (par == 1))
     var = build_variable(error, inf2, Dict{Int, Float64}(1 => 0.5), check = false)
     rv = add_variable(m, var, define_name = false)
-    # TODO remove below when measures is done
-    data = TestData(par, 0, 1)
-    meas = Measure(inf + par - x, data, Int[], Int[], true)
-    object = MeasureData(meas, "test")
+    data = TestData(par, 1, 1)
+    meas = @measure(inf + par - x, data, name = "test")
     mindex = MeasureIndex(1)
-    @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
-    # test build_constraint (single)
     @testset "JuMP.build_constraint (Single)" begin
         # test bounded constraint
         bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))

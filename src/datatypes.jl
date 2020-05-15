@@ -580,7 +580,8 @@ abstract type AbstractMeasureData end
 """
     DiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
                         Vector{<:JuMP.AbstractVariableRef}},
-                        N} <: AbstractMeasureData
+                        N, B <: Union{Float64, Vector{Float64}}
+                        } <: AbstractMeasureData
 
 A DataType for immutable measure abstraction data where the
 abstraction is of the form:
@@ -602,45 +603,52 @@ type can be used for both 1-dimensional and multi-dimensional measures.
                    infinite parameter(s).
 - `weight_function::Function`: Weighting function ``w`` must map an individual
                                support value to a `Real` scalar value.
+- `lower_bounds::B`: Lower bound in accordance with ``T``, this denotes the
+                    intended interval of the measure and should be `NaN` if ignored
+- `upper_bounds::B`: Same as above but the upper bound.
+- `is_expect::Bool`: Is this data associated with an expectation call?
 """
 struct DiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
                            Vector{<:JuMP.AbstractVariableRef}},
-                           N} <: AbstractMeasureData
+                           N, B <: Union{Float64, Vector{Float64}}
+                           } <: AbstractMeasureData
     parameter_refs::P
     coefficients::Vector{Float64}
     supports::Array{Float64, N} # supports are stored column-wise
     label::Symbol # label that will used when the supports are added to the model
     weight_function::Function # single support --> weight value
-    lower_bound::Union{Float64, Vector{Float64}}
-    upper_bound::Union{Float64, Vector{Float64}}
-    expect::Bool
+    lower_bounds::B
+    upper_bounds::B
+    is_expect::Bool
     # scalar constructor
     function DiscreteMeasureData(param_ref::V, coeffs::Vector{<:Real},
                                  supps::Vector{<:Real}, label::Symbol,
                                  weight_func::Function,
-                                 lower_bound::Float64,
-                                 upper_bound::Float64,
+                                 lower_bound::Real,
+                                 upper_bound::Real,
                                  expect::Bool
                                  ) where {V <: JuMP.AbstractVariableRef}
-        return new{V, 1}(param_ref, coeffs, supps, label, weight_func,
-                         lower_bound, upper_bound, expect)
+        return new{V, 1, Float64}(param_ref, coeffs, supps, label, weight_func,
+                                  lower_bound, upper_bound, expect)
     end
     # multi constructor
     function DiscreteMeasureData(param_refs::Vector{V}, coeffs::Vector{<:Real},
                                  supps::Matrix{<:Real}, label::Symbol,
                                  weight_func::Function,
-                                 lower_bound::Vector{Float64},
-                                 upper_bound::Vector{Float64},
+                                 lower_bound::Vector{<:Real},
+                                 upper_bound::Vector{<:Real},
                                  expect::Bool
                                  ) where {V <: JuMP.AbstractVariableRef}
-        return new{Vector{V}, 2}(param_refs, coeffs, supps, label, weight_func,
-                                 lower_bound, upper_bound, expect)
+        return new{Vector{V}, 2, Vector{Float64}}(param_refs, coeffs, supps,
+                                                  label, weight_func, lower_bound,
+                                                  upper_bound, expect)
     end
 end
 
 """
     FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
-                                  Vector{<:JuMP.AbstractVariableRef}}
+                                  Vector{<:JuMP.AbstractVariableRef}},
+                                  B <: Union{Float64, Vector{Float64}}
                                   } <: AbstractMeasureData
 
 A DataType for mutable measure abstraction data where the
@@ -652,9 +660,9 @@ creation. Thus, functions are stored that will be used to generate the
 concrete support points ``\\tau_i`` and their coefficients ``\\alpha_i`` when
 the measure is evaluated (expanded). These supports are identified/generated
 in accordance with the `label` with a gaurantee that at least `num_supports` are
-generated. For example, if `label = McSample` and `num_supports = 100` then
+generated. For example, if `label = MCSample` and `num_supports = 100` then
 the measure will use all of the supports stored in the `parameter_refs` with the
-label `McSample` and will ensure there are at least 100 are generated. This
+label `MCSample` and will ensure there are at least 100 are generated. This
 type can be used for both 1-dimensional and multi-dimensional measures.
 
 **Fields**
@@ -663,48 +671,54 @@ type can be used for both 1-dimensional and multi-dimensional measures.
                      but dependent parameters cannot be mixed with other types.
 - `coeff_function::Function`: Coefficient generation function making ``\\alpha_i``
                               for the above measure abstraction. It should take
-                              an individual support as input and return the
-                              `Real` scalar coefficient value.
-- `num_supports::Int`: Specifies the minimum number of supports ``\\tau_i``
+                              all the supports as input (formatted as an Array)
+                              and return the corresponding vector of coefficients.
+- `min_num_supports::Int`: Specifies the minimum number of supports ``\\tau_i``
                        desired in association with `parameter_refs` and `label`.
 - `label::Symbol`: Label for the support points ``\\tau_i`` which are/will be
                    stored in the infinite parameter(s).
 - `weight_function::Function`: Weighting function ``w`` must map an individual
                               support value to a `Real` scalar value.
+- `lower_bounds::B`: Lower bounds in accordance with ``T``, this denotes the
+                  intended interval of the measure and should be `NaN` if ignored
+- `upper_bounds::B`: Same as above but the upper bounds.
+- `is_expect::Bool`: Is this data associated with an expectation call?
 """
 struct FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
-                                     Vector{<:JuMP.AbstractVariableRef}}
+                                     Vector{<:JuMP.AbstractVariableRef}},
+                                     B <: Union{Float64, Vector{Float64}}
                                      } <: AbstractMeasureData
     parameter_refs::P
-    coeff_function::Function # single support --> coefficient, or maybe has to be the whole support array?
-    num_supports::Int # minimum number of supports
+    coeff_function::Function # supports --> coefficient vector
+    min_num_supports::Int # minimum number of supports
     label::Symbol # support label of included supports
     weight_function::Function # single support --> weight value
-    lower_bound::Union{Float64, Vector{Float64}}
-    upper_bound::Union{Float64, Vector{Float64}}
-    expect::Bool
+    lower_bounds::B
+    upper_bounds::B
+    is_expect::Bool
     # scalar constructor
     function FunctionalDiscreteMeasureData(param_ref::V, coeff_func::Function,
                                            num_supps::Int, label::Symbol,
                                            weight_func::Function,
-                                           lower_bound::Float64,
-                                           upper_bound::Float64,
+                                           lower_bound::Real,
+                                           upper_bound::Real,
                                            expect::Bool
                                            ) where {V <: JuMP.AbstractVariableRef}
-        return new{V}(param_ref, coeff_func, num_supps, label, weight_func,
-                      lower_bound, upper_bound, expect)
+        return new{V, Float64}(param_ref, coeff_func, num_supps, label, weight_func,
+                               lower_bound, upper_bound, expect)
     end
     # multi constructor
     function FunctionalDiscreteMeasureData(param_refs::Vector{V},
                                            coeff_func::Function,
                                            num_supps::Int, label::Symbol,
                                            weight_func::Function,
-                                           lower_bound::Vector{Float64},
-                                           upper_bound::Vector{Float64},
+                                           lower_bound::Vector{<:Real},
+                                           upper_bound::Vector{<:Real},
                                            expect::Bool
                                            ) where {V <: JuMP.AbstractVariableRef}
-        return new{Vector{V}}(param_refs, coeff_func, num_supps, label, weight_func,
-                              lower_bound, upper_bound, expect)
+        return new{Vector{V}, Vector{Float64}}(param_refs, coeff_func, num_supps,
+                                               label, weight_func, lower_bound,
+                                               upper_bound, expect)
     end
 end
 

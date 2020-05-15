@@ -847,6 +847,17 @@ function supports(pref::IndependentParameterRef; label::Symbol = All)::Vector{Fl
     return supports
 end
 
+# Return a matrix os supports when given a vector of IndependentParameterRefs (for measures)
+function supports(prefs::Vector{IndependentParameterRef};
+                  label::Symbol = All)::Matrix{Float64}
+    num_supps = num_supports(first(prefs), label = label)
+    trans_supps = Matrix{Float64}(undef, num_supps, length(prefs))
+    for i in eachindex(prefs)
+        trans_supps[:, i] = supports(prefs[i], label = label)
+    end
+    return permutedims(trans_supps)
+end
+
 """
     set_supports(pref::IndependentParameterRef, supports::Vector{<:Real};
                  [force::Bool = false])::Nothing
@@ -1053,7 +1064,7 @@ function generate_and_add_supports!(pref::IndependentParameterRef,
                                     adding_extra::Bool = false)::Nothing
     sig_digits = significant_digits(pref)
     if isa(set, IntervalSet) && adding_extra
-        supports, label = generate_support_values(set, Val(McSample),
+        supports, label = generate_support_values(set, Val(MCSample),
                                                   num_supports = num_supports,
                                                   sig_digits = sig_digits)
     else
