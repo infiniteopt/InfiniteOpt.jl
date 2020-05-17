@@ -308,16 +308,15 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
 
     supports = supports(pref, label = MCSample)
     filter!(x->(x >= new_lb && x <= new_ub), supports)
-    num_samples = length(supports)
 
+    num_samples = length(supports)
     if num_samples < num_supports
         new_supports, _ = generate_support_values(new_set, Val(MCSample),
                                                       num_supports = num_supports - num_samples)
         add_supports(pref, new_supports, label = MCSample) # this ensures new supports have MCSample label
     end
     function coeff_func(supps::AbstractArray{<:Real, 1})::Vector{Float64}
-        len = length(supps)
-        return ones(len) / len * (new_ub - new_lb)
+        return ones(num_supports) / num_supports * (new_ub - new_lb)
     end
     return FunctionalDiscreteMeasureData(pref, coeff_func, num_supports, MCSample,
                                          lower_bound, upper_bound, false)
@@ -405,8 +404,7 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
         add_supports(pref, new_supports, label = MCSample) # this ensures new supports have MCSample label
     end
     function coeff_func(supps::AbstractArray{<:Real, 2})::Vector{Float64}
-        len = length(supps)
-        return ones(len) / len * vol
+        return ones(num_samples) / num_samples * vol
     end
     return FunctionalDiscreteMeasureData(pref, coeff_func, num_supports, MCSample,
                                          lower_bound, upper_bound, false)
