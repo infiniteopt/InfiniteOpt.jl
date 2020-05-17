@@ -156,7 +156,7 @@ export map_value, map_optimizer_index, map_dual, map_shadow_price,
 map_lp_rhs_perturbation_range, map_lp_objective_perturbation_range
 
 # Export printing methods
-export bound_string, set_string
+export bound_string, set_string, measure_data_string
 
 # Export support generation and fill-in methods
 export fill_in_supports!, generate_supports

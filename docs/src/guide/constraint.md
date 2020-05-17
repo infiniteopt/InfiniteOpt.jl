@@ -72,7 +72,7 @@ Named constraints are defined by including a name as part of the second argument
 For example, let's add the constraint ``\int_0^10 g(t) dt == 4``:
 ```jldoctest constrs
 julia> @constraint(model, measure_constr, integral(g, t) == 4)
-measure_constr : integral(g(t)) = 4.0
+measure_constr : integral{t ∈ [0, 10]}[g(t)] = 4.0
 ```
 Thus, we added another constraint named `measure_constr` and created a `Julia`
 variable `measure_constr` that contains a reference to that constraint.
@@ -283,7 +283,7 @@ julia> index(measure_constr) # get the constraint's index
 ConstraintIndex(4)
 
 julia> constraint_object(measure_constr) # get the raw constraint datatype
-ScalarConstraint{GenericAffExpr{Float64,GeneralVariableRef},MathOptInterface.EqualTo{Float64}}(integral(g(t)), MathOptInterface.EqualTo{Float64}(4.0))
+ScalarConstraint{GenericAffExpr{Float64,GeneralVariableRef},MathOptInterface.EqualTo{Float64}}(integral{t ∈ [0, 10]}[g(t)], MathOptInterface.EqualTo{Float64}(4.0))
 ```
 
 Also, [`constraint_by_name`](@ref JuMP.constraint_by_name(::InfiniteModel, ::String))

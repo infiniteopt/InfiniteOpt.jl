@@ -495,11 +495,11 @@ end
 
 # CollectionSet (InfiniteScalarSets) using purely MC sampling
 # this is useful for measure support generation
-# function generate_support_values(set::CollectionSet,
-#                                  ::Val{MCSample};
-#                                  num_supports::Int = DefaultNumSupports,
-#                                  sig_digits::Int = DefaultSigDigits
-#                                  )::Tuple{Array{<:Real}, Symbol}
-#     new_supports = _generate_collection_supports(set, MCSample, num_supports, sig_digits)
-#     return new_supports, MCSample
-# end
+function generate_support_values(set::CollectionSet,
+                                 ::Val{MCSample};
+                                 num_supports::Int = DefaultNumSupports,
+                                 sig_digits::Int = DefaultSigDigits
+                                 )::Tuple{Array{<:Real}, Symbol}
+    new_supports = _generate_collection_supports(set, MCSample, num_supports, sig_digits)
+    return new_supports, MCSample
+end

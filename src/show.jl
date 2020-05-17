@@ -127,6 +127,86 @@ function JuMP.in_set_string(print_mode,
 end
 
 ################################################################################
+#                           MEASURE STRING METHODS
+################################################################################
+## Convert measure data into a useable string for measure printing
+# 1-D DiscreteMeasureData/FunctionalDiscreteMeasureData
+function measure_data_string(print_mode,
+    data::Union{DiscreteMeasureData{GeneralVariableRef},
+                FunctionalDiscreteMeasureData{GeneralVariableRef}}
+    )::String
+    pref = parameter_refs(data)
+    lb = JuMP.lower_bound(data)
+    ub = JuMP.upper_bound(data)
+    nan_bound = isnan(lb) || isnan(ub)
+    if nan_bound
+        return JuMP.function_string(print_mode, pref)
+    else
+        set = IntervalSet(lb, ub)
+        return string(JuMP.function_string(print_mode, pref), " ",
+                      JuMP.in_set_string(print_mode, set))
+    end
+end
+
+# Multi-D DiscreteMeasureData/FunctionalDiscreteMeasureData
+function measure_data_string(print_mode,
+    data::Union{DiscreteMeasureData{Vector{GeneralVariableRef}},
+                FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}}}
+    )::String
+    prefs = parameter_refs(data)
+    lbs = JuMP.lower_bound(data)
+    ubs = JuMP.upper_bound(data)
+    has_bounds = !isnan(first(lbs)) && !isnan(first(ubs))
+    homo_bounds = has_bounds && _allequal(lbs) && _allequal(ubs)
+    names = map(p -> _remove_name_index(p), prefs)
+    homo_names = _allequal(names)
+    num_prefs = length(prefs)
+    if homo_names && homo_bounds
+        set = IntervalSet(first(lbs), first(ubs))
+        return string(first(names), " ", JuMP.in_set_string(print_mode, set),
+                      "^", num_prefs)
+    elseif has_bounds
+        str_list = [JuMP.function_string(print_mode, prefs[i]) * " " *
+                    JuMP.in_set_string(print_mode, IntervalSet(lbs[i], ubs[i]))
+                    for i in eachindex(prefs)]
+        return _make_str_value(str_list)[2:end-1]
+    elseif homo_names
+        return first(names)
+    else
+        return _make_str_value(prefs)
+    end
+end
+
+# Fallback
+function measure_data_string(print_mode, data::AbstractMeasureData)::String
+    prefs = parameter_refs(data)
+    names = map(p -> _remove_name_index(p), prefs)
+    if _allequal(names)
+        return first(names)
+    else
+        return _make_str_value(prefs)
+    end
+end
+
+# Make strings to represent measures in REPLMode
+function JuMP.function_string(::Type{JuMP.REPLMode}, mref::MeasureRef)::String
+    data = measure_data(mref)
+    data_str = measure_data_string(JuMP.REPLMode, data)
+    func_str = JuMP.function_string(JuMP.REPLMode, measure_function(mref))
+    return string(JuMP.name(mref), "{", data_str, "}[", func_str, "]")
+end
+
+# Make strings to represent measures in IJuliaMode
+function JuMP.function_string(::Type{JuMP.IJuliaMode}, mref::MeasureRef)::String
+    data = measure_data(mref)
+    data_str = measure_data_string(JuMP.IJuliaMode, data)
+    func_str = JuMP.function_string(JuMP.IJuliaMode, measure_function(mref))
+    return string(JuMP.name(mref), "_{", data_str, "}[", func_str, "]")
+end
+
+# TODO make specifc methods for decision variables so we don't generate them at creation
+
+################################################################################
 #                         CONSTRAINT STRING METHODS
 ################################################################################
 # Return parameter bound list as a string
@@ -291,7 +371,16 @@ function Base.show(io::IO, ::MIME"text/latex", bounds::ParameterBounds)
           bound_string(JuMP.IJuliaMode, bounds))
 end
 
-# TODO show hold variables better
+# Show GeneralVariableRefs via their DispatchVariableRef in REPLMode
+function Base.show(io::IO, vref::GeneralVariableRef)
+    print(io, JuMP.function_string(JuMP.REPLMode, dispatch_variable_ref(vref)))
+    return
+end
+
+# Show GeneralVariableRefs via their DispatchVariableRef in IJuliaMode
+function Base.show(io::IO, ::MIME"text/latex", vref::GeneralVariableRef)
+    print(io, JuMP.function_string(JuMP.IJuliaMode, dispatch_variable_ref(vref)))
+end
 
 # Show constraint in REPLMode
 function Base.show(io::IO, ref::InfOptConstraintRef)

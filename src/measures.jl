@@ -708,6 +708,7 @@ function _add_supports_to_multiple_parameters(
     end
     return
 end
+
 """
     add_supports_to_parameters(data::AbstractMeasureData)::Nothing
 
@@ -759,6 +760,35 @@ function add_supports_to_parameters(
     return
 end
 
+## generate more supports as needed in accordance with a label
+# DependentParameterRefs
+function _generate_multiple_functional_supports(
+    prefs::Vector{DependentParameterRef},
+    num_supps::Int, label::Symbol
+    )::Nothing
+    curr_num_supps = num_supports(prefs, label = label)
+    if curr_num_supps < num_supps
+        generate_and_add_supports!(prefs, infinite_set(prefs), label,
+                                   num_supports = num_supps - curr_num_supps)
+    end
+    return
+end
+
+# IndependentParameterRefs
+function _generate_multiple_functional_supports(
+    prefs::Vector{IndependentParameterRef},
+    num_supps::Int, label::Symbol
+    )::Nothing
+    for pref in prefs
+        curr_num_supps = num_supports(pref, label = label)
+        if curr_num_supps < num_supps
+            generate_and_add_supports!(pref, infinite_set(pref), label,
+                                       num_supports = num_supps - curr_num_supps)
+        end
+    end
+    return
+end
+
 # multi-dimensional FunationalDiscreteMeasureData
 function add_supports_to_parameters(
     data::FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}}
@@ -766,11 +796,7 @@ function add_supports_to_parameters(
     prefs = dispatch_variable_ref.(parameter_refs(data))
     num_supps = num_supports(data)
     label = support_label(data)
-    curr_num_supps = num_supports(prefs, label = label)
-    if curr_num_supps < num_supps
-        generate_and_add_supports!(prefs, infinite_set(prefs), label,
-                                   num_supports = num_supps - curr_num_supps)
-    end
+    _generate_multiple_functional_supports(prefs, num_supps, label)
     return
 end
 
@@ -860,10 +886,10 @@ julia> tdata = DiscreteMeasureData(t, [0.5, 0.5], [1, 2]);
 julia> xdata = DiscreteMeasureData(xs, [0.5, 0.5], [[-1, -1], [1, 1]]);
 
 julia> constr_RHS = @expression(model, measure(g - s + 2, tdata) + s^2)
-measure(g(t) - s + 2) + s²
+measure{t}[g(t) - s + 2] + s²
 
 julia> @objective(model, Min, measure(g - 1  + measure(T, xdata), tdata))
-measure(g(t) - 1 + name2(T(t, x)))
+measure{xs}[g(t) - 1 + measure{xs}[T(t, x)]]
 ```
 """
 function measure(expr::JuMP.AbstractJuMPScalar,
@@ -1091,7 +1117,7 @@ julia> @infinite_variable(model, f(x))
 f(x)
 
 julia> int = integral(f, x)
-(f(x))
+integral{x ∈ [0, 1]}[f(x)]
 
 julia> expand(int)
 0.2 f(0.8236475079774124) + 0.2 f(0.9103565379264364) + 0.2 f(0.16456579813368521) + 0.2 f(0.17732884646626457) + 0.2 f(0.278880109331201)
@@ -1239,7 +1265,7 @@ julia> @infinite_parameter(model, x[1:2] in [0, 1], independent = true);
 julia> @infinite_variable(model, f(x));
 
 julia> int = integral(f, x)
-integral[][f(x)]
+integral{x ∈ [0, 1]^2}[f(x)]
 ```
 """
 function integral(expr::JuMP.AbstractJuMPScalar,
@@ -1364,7 +1390,7 @@ julia> @infinite_variable(model, f(x))
 f(x)
 
 julia> meas = expect(f, min_num_supports = 2)
-expect[f(x)]
+expect{x}[f(x)]
 
 julia> expand(meas)
 0.5 f(0.6791074260357777) + 0.5 f(0.8284134829000359)
@@ -1449,7 +1475,7 @@ julia> @infinite_variable(model, f(x))
 f(x)
 
 julia> meas = support_sum(f, x)
-support_sum(f(x))
+support_sum{x}[f(x)]
 
 julia> expand(meas)
 f(0.3) + f(0.7)
@@ -1491,10 +1517,10 @@ meaning it does not belong to the model or it has already been deleted.
 **Example**
 ```julia-repl
 julia> print(model)
-Min measure(g(t)*t) + z
+Min integral{t ∈ [0, 6]}[g(t)] + z
 Subject to
  z ≥ 0.0
- measure(g(t)) = 0
+ integral{t ∈ [0, 6]}[g(t)] = 0
  g(t) + z ≥ 42.0, ∀ t ∈ [0, 6]
  g(0.5) = 0
 

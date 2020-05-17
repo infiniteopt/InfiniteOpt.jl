@@ -412,13 +412,13 @@ function JuMP.set_name(vref::InfiniteVariableRef, root_name::String)::Nothing
     param_name_tuple = "("
     for i in 1:size(prefs, 1)
         element_prefs = prefs[i, :]
-        type = _index_type(first(prefs))
+        type = _index_type(first(element_prefs))
         if type == DependentParameterIndex
             param_name = _remove_name_index(first(element_prefs))
         elseif length(element_prefs) == 1
             param_name = JuMP.name(first(element_prefs))
         else
-            names = _remove_name_index.(element_prefs)
+            names = map(p -> _remove_name_index(p), element_prefs)
             if _allequal(names)
                 param_name = first(names)
             else

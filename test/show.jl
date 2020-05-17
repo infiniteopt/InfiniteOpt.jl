@@ -173,6 +173,68 @@ using JuMP: REPLMode, IJuliaMode
         str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " Uniform"
         @test in_set_string(IJuliaMode, pars[1], set, bounds) == str
     end
+    # test measure_data_string with 1-D DiscreteMeasureData/FunctionalDiscreteMeasureData
+    @testset "measure_data_string (1-D)" begin
+        # test with bounds
+        data = FunctionalDiscreteMeasureData(par1, ones, 0, All, default_weight, 0, 1, false)
+        str = "par1 " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
+        @test measure_data_string(REPLMode, data) == str
+        str = "par1 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
+        @test measure_data_string(IJuliaMode, data) == str
+        # test without bounds
+        data = FunctionalDiscreteMeasureData(par1, ones, 0, All, default_weight, NaN, NaN, false)
+        @test measure_data_string(REPLMode, data) == "par1"
+        @test measure_data_string(IJuliaMode, data) == "par1"
+    end
+    # test measure_data_string with Multi-D DiscreteMeasureData/FunctionalDiscreteMeasureData
+    @testset "measure_data_string (Multi-D)" begin
+        # test with homogenous bounds
+        data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [0, 0], [1, 1], false)
+        str = "pars2 " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]^2"
+        @test measure_data_string(REPLMode, data) == str
+        str = "pars2 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]^2"
+        @test measure_data_string(IJuliaMode, data) == str
+        # test heterogeneous bounds
+        data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [0, 0], [0.5, 1], false)
+        str = "pars2[1] " * JuMP._math_symbol(REPLMode, :in) * " [0, 0.5], " *
+              "pars2[2] " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
+        @test measure_data_string(REPLMode, data) == str
+        str = "pars2_{1} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 0.5], " *
+              "pars2_{2} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
+        @test measure_data_string(IJuliaMode, data) == str
+        # test no bounds with homogenous names
+        data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [NaN, NaN], [NaN, NaN], false)
+        @test measure_data_string(REPLMode, data) == "pars2"
+        @test measure_data_string(IJuliaMode, data) == "pars2"
+        # test no bounds with heterogeneous names
+        data = FunctionalDiscreteMeasureData([par1, pars[1]], ones, 0, All, default_weight, [NaN, NaN], [NaN, NaN], false)
+        @test measure_data_string(REPLMode, data) == "[par1, pars[1]]"
+        @test measure_data_string(IJuliaMode, data) == "[par1, pars[1]]"
+    end
+    # test measure_data_string (Fallback)
+    @testset "measure_data_string (Fallback)" begin
+        # test single
+        data = TestData(par1, 0, 1)
+        @test measure_data_string(REPLMode, data) == "par1"
+        @test measure_data_string(IJuliaMode, data) == "par1"
+        # test with homogenous names
+        data = TestData(pars2, 0, 1)
+        @test measure_data_string(REPLMode, data) == "pars2"
+        @test measure_data_string(IJuliaMode, data) == "pars2"
+        # test with heterogeneous names
+        data = TestData([par1, pars[1]], 0, 1)
+        @test measure_data_string(REPLMode, data) == "[par1, pars[1]]"
+        @test measure_data_string(IJuliaMode, data) == "[par1, pars[1]]"
+    end
+    # test JuMP.function_string (MeasureRef)
+    @testset "JuMP.function_string (MeasureRef)" begin
+        data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [0, 0], [1, 1], false)
+        meas = dispatch_variable_ref(measure(y, data, name = "test"))
+        str = "test{pars2 " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]^2}[y]"
+        @test JuMP.function_string(REPLMode, meas) == str
+        str = "test_{pars2 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]^2}[y]"
+        @test JuMP.function_string(IJuliaMode, meas) == str
+    end
     # test bound_string
     @testset "bound_string" begin
         # test with single bound
@@ -407,9 +469,17 @@ end
     end
     # test Base.show (ParameterBounds in IJulia)
     @testset "Base.show (IJulia ParameterBounds)" begin
-        str = "Subdomain bounds (1): par1 " * JuMP._math_symbol(IJuliaMode, :in) *
+        show_test(IJuliaMode, y, "y")
+    end
+    # test Base.show (GeneralVariableRef in IJulia)
+    @testset "Base.show (IJulia GeneralVariableRef)" begin
+        show_test(IJuliaMode, y, "y")
+    end
+    # test Base.show (GeneralVariableRef in REPL)
+    @testset "Base.show (REPL GeneralVariableRef)" begin
+        str = "Subdomain bounds (1): par1 " * JuMP._math_symbol(REPLMode, :in) *
               " [0.1, 1]"
-        show_test(IJuliaMode, bounds, str)
+        show_test(REPLMode, bounds, str)
     end
     # test Base.show (constraint in REPL)
     @testset "Base.show (REPL Constraint)" begin

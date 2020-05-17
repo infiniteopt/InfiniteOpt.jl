@@ -29,7 +29,7 @@ julia> @hold_variable(model, x[1:2])
  x[2]
 
 julia> @objective(model, Min, 0.5x[1] + 0.5x[2] + expect(y^2 - y, ξ))
-0.5 x[1] + 0.5 x[2] + expect(y(ξ)² - y(ξ))
+0.5 x[1] + 0.5 x[2] + expect{ξ}[y(ξ)² - y(ξ)]
 ```
 Thus, we have defined an objective using `InfiniteOpt`'s straightforward syntax.
 Note that the second argument indicates the objective sense which can be
@@ -63,7 +63,7 @@ julia> objective_sense(model)
 MIN_SENSE::OptimizationSense = 0
 
 julia> objective_function(model)
-0.5 x[1] + 0.5 x[2] + expect(y(ξ)² - y(ξ))
+0.5 x[1] + 0.5 x[2] + expect{ξ}[y(ξ)² - y(ξ)]
 
 julia> objective_function_type(model)
 GenericAffExpr{Float64,GeneralVariableRef}
@@ -86,7 +86,7 @@ example from 0.5 to 0.25:
 julia> set_objective_coefficient(model, x[1], 0.25)
 
 julia> objective_function(model)
-0.25 x[1] + 0.5 x[2] + expect(y(ξ)² - y(ξ))
+0.25 x[1] + 0.5 x[2] + expect{ξ}[y(ξ)² - y(ξ)]
 ```
 
 Now let's consider the modification methods that enable the [`@objective`](@ref)

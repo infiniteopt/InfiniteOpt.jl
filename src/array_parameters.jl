@@ -1116,7 +1116,8 @@ end
 # TODO resolve case that there are existing UniformGrid supports
 """
     generate_and_add_supports!(prefs::AbstractArray{<:DependentParameterRef},
-                               set::InfiniteArraySet;
+                               set::InfiniteArraySet,
+                               method::Union{Symbol, Nothing} = nothing;
                                [num_supports::Int = DefaultNumSupports])::Nothing
 
 Generate supports for `prefs` via [`generate_support_values`](@ref) and add them

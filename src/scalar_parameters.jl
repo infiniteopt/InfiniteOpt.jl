@@ -1047,7 +1047,8 @@ end
 
 """
     generate_and_add_supports!(pref::IndependentParameterRef,
-                               set::AbstractInfiniteSet;
+                               set::AbstractInfiniteSet,
+                               method::Union{Symbol, Nothing} = nothing;
                                [num_supports::Int = DefaultNumSupports])::Nothing
 
 Generate supports for independent parameter `pref` via [`generate_support_values`](@ref)

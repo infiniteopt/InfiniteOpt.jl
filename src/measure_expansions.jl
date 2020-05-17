@@ -473,14 +473,16 @@ function expand_measure(expr::JuMP.GenericQuadExpr{C, GeneralVariableRef},
     coeffs = coefficients(data)
     w = weight_function(data)
     label = support_label(data)
-    # TODO get more fields as necessary
+    lb = JuMP.lower_bound(data)
+    ub = JuMP.upper_bound(data)
+    is_expect = _is_expect(data)
     # expand the affine expression
     new_expr = expand_measure(expr.aff, data, write_model)
     # make viable data objects so we can multiply the terms
-    # TODO update with new types as needed
-    coef_data = DiscreteMeasureData(pref, ones(1), ones(1), label, w)
+    coef_data = DiscreteMeasureData(pref, ones(1), ones(1), label, w, lb, ub,
+                                    is_expect)
     simple_data = DiscreteMeasureData(pref, ones(1), ones(1), label,
-                                      default_weight)
+                                      default_weight, lb, ub, is_expect)
     # expand the quadratic terms
     for i in eachindex(coeffs)
         # update the temp data
@@ -506,14 +508,16 @@ function expand_measure(expr::JuMP.GenericQuadExpr{C, GeneralVariableRef},
     coeffs = coefficients(data)
     w = weight_function(data)
     label = support_label(data)
+    lbs = JuMP.lower_bound(data)
+    ubs = JuMP.upper_bound(data)
+    is_expect = _is_expect(data)
     # expand the affine expression
     new_expr = expand_measure(expr.aff, data, write_model)
     # make viable data objects so we can multiply the terms
-    # TODO modify types as needed with updates
     coef_data = DiscreteMeasureData(prefs, ones(1), ones(length(prefs), 1),
-                                    label, w)
+                                    label, w, lbs, ubs, is_expect)
     simple_data = DiscreteMeasureData(prefs, ones(1), ones(length(prefs), 1),
-                                      label, default_weight)
+                                      label, default_weight, lbs, ubs, is_expect)
     # expand the quadratic terms
     for i in eachindex(coeffs)
         # update the temp data
@@ -551,11 +555,16 @@ function expand_measure(expr,
     # get the info
     prefs = parameter_refs(data)
     supps = supports(data)
-    coeffs = coefficients(data) # TODO generate directly from supps for better efficiency
+    coef_func = coefficient_function(data)
+    coeffs = coef_func(supps)
     label = support_label(data)
     w = weight_function(data)
-    # TODO update this once the data type is finalized
-    new_data = DiscreteMeasureData(prefs, coeffs, supps, label, w)
+    lbs = JuMP.lower_bound(data)
+    ubs = JuMP.upper_bound(data)
+    is_expect = _is_expect(data)
+    # prepare the DiscreteMeasureData and dispatch
+    new_data = DiscreteMeasureData(prefs, coeffs, supps, label, w, lbs, ubs,
+                                   is_expect)
     return expand_measure(expr, new_data, write_model)
 end
 
@@ -572,7 +581,6 @@ end
 ################################################################################
 #                          ANALYTIC EXPANSION METHODS
 ################################################################################
-# TODO add a note about the checking method that triggers this call
 """
     analytic_expansion(expr, data::AbstractMeasureData,
                        write_model::JuMP.AbstractModel)::JuMP.AbstractJuMPScalar
@@ -582,7 +590,8 @@ Analytically, evaluate measure in the simple case where the measure expression
 conjunction with an analytic result of the `data`. This is intended as an internal
 method that is used by [`expand`](@ref) and [`expand_measures`](@ref). For
 unrecognized `data` types, `expand_measure` is called instead. User defined
-measure data type may choose to extend this method if desired.
+measure data type may choose to extend this method if desired. This is triggered
+when `is_analytic(mref) = true`.
 """
 function analytic_expansion end
 
@@ -593,11 +602,21 @@ function analytic_expansion(expr::JuMP.AbstractJuMPScalar,
                             write_model::JuMP.AbstractModel # needed for fallback
                             )::JuMP.AbstractJuMPScalar
     # get the bounds and expect
-    # check that the weight function is default_weight
-    # if default_weight with bounds return (ub - lb) * expr
-    # if default_weight and expect that return expr
-    # if other weight get the constant_coef and return constant_coef * expr
-    return
+    lb = JuMP.lower_bound(data)
+    ub = JuMP.upper_bound(data)
+    is_expect = _is_expect(data)
+    w = weight_function(data)
+    # build the expression
+    if w == default_weight && !isnan(lb) && !isnan(ub)
+        return (ub - lb) * expr
+    elseif w == default_weight && is_expect
+        return expr # this is an expectation and should be equal to 1 * expr
+    else
+        supps = supports(data)
+        coeffs = coefficients(data)
+        constant_coef = sum(coeffs[i] * w(supps[i]) for i in eachindex(coeffs))
+        return constant_coef * expr
+    end
 end
 
 # Multi DiscreteMeasureData/FunctionalDiscreteMeasureData
@@ -607,11 +626,21 @@ function analytic_expansion(expr::JuMP.AbstractJuMPScalar,
                             write_model::JuMP.AbstractModel # needed for fallback
                             )::JuMP.AbstractJuMPScalar
     # get the bounds and expect
-    # check that the weight function is default_weight
-    # if default_weight with bounds return prod(ub .- lb) * expr
-    # if default_weight and expect that return expr
-    # if other weight get the constant_coef and return constant_coef * expr
-    return
+    lbs = JuMP.lower_bound(data)
+    ubs = JuMP.upper_bound(data)
+    is_expect = _is_expect(data)
+    w = weight_function(data)
+    # build the expression
+    if w == default_weight && !isnan(first(lbs)) && !isnan(first(ubs))
+        return prod(ubs .- lbs) * expr
+    elseif w == default_weight && is_expect
+        return expr # this is an expectation and should be equal to 1 * expr
+    else
+        supps = supports(data)
+        coeffs = coefficients(data)
+        constant_coef = sum(coeffs[i] * w(supps[:, i]) for i in eachindex(coeffs))
+        return constant_coef * expr
+    end
 end
 
 # Fallback
@@ -639,7 +668,7 @@ This is useful for extensions that employ a custom optimizer model since it
 can be used evaluate measures before expressions are translated to the new model.
 This method can also be extended to handle custom measure data types by extending
 [`expand_measure`](@ref). Optionally, [`analytic_expansion`](@ref) can also
-be extended in combination with [PUT FUNCTION NAME HERE] for such types if
+be extended which is triggered by [`is_analytic`](@ref) for such types if
 analytic expansion is possible in certain cases.
 
 **Example**
@@ -651,7 +680,7 @@ julia> expr = expand(measure(g + z + T - h - 2, tdata))
 ```
 """
 function expand(mref::MeasureRef)::JuMP.AbstractJuMPScalar
-    if false # TODO check here if analytic
+    if is_analytic(mref)
         return analytic_expansion(measure_function(mref), measure_data(mref),
                                   JuMP.owner_model(mref))
     else
@@ -679,7 +708,7 @@ function expand_measures(mref::GeneralVariableRef,
                          index_type::Type{MeasureIndex},
                          write_model::JuMP.AbstractModel
                          )::Union{JuMP.AbstractJuMPScalar, Float64}
-    if false # TODO check here if analytic
+    if is_analytic(mref)
         return analytic_expansion(measure_function(mref), measure_data(mref),
                                   write_model)
     else
@@ -745,12 +774,12 @@ analytic expansion is possible in certain cases.
 **Example**
 ```julia-repl
 julia> print(model)
-Min measure(g(t)*t) + z
+Min integral{t ∈ [0, 6]}[g(t)*t] + z
 Subject to
  T(t, x) ≥ 0.0, ∀ t ∈ [0, 6], xi ∈ [-1, 1]
  z ≥ 0.0
  g(t) + z ≥ 42.0, ∀ t ∈ [0, 6]
- measure(T(t, x)) ≥ 0.0, ∀ x ∈ [-1, 1]
+ integral{t ∈ [0, 6]}[T(t, x)] ≥ 0.0, ∀ x ∈ [-1, 1]
 
 julia> expand_all_measures!(model)
 

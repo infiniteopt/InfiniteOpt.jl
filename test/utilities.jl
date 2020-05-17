@@ -65,10 +65,10 @@ function Base.:(==)(a::JuMPC.SparseAxisArray, b::JuMPC.SparseAxisArray)::Bool
 end
 
 ## Make dumby measure data for the purpose of testing hold variables
-struct TestData <: AbstractMeasureData
-    pref::GeneralVariableRef
-    lb::Float64
-    ub::Float64
+struct TestData{P, A} <: AbstractMeasureData
+    pref::P
+    lb::A
+    ub::A
 end
 InfiniteOpt.parameter_refs(d::TestData) = d.pref
 function InfiniteOpt.measure_data_in_hold_bounds(d::TestData,
