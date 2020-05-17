@@ -127,27 +127,14 @@ domains.
 struct MultiIndepMCSampling <: AbstractMultivariateMethod end
 
 ################################################################################
-#                             DATA GENERATION METHODS
+#                       DATA GENERATION METHODS (UNIVARIATE)
 ################################################################################
 # TODO update these as needed for below
 function _truncated_set(set::InfiniteOpt.IntervalSet,
-                        lb::Union{Real, Nothing},
-                        ub::Union{Real, Nothing})::InfiniteOpt.IntervalSet
-    isa(lb, Nothing) ? new_lb = set.lower_bound : new_lb = lb
-    isa(ub, Nothing) ? new_ub = set.lower_bound : new_lb = ub
+                        lb::Real, ub::Real)::InfiniteOpt.IntervalSet
+    new_lb = maximum(set.lower_bound, lb)
+    new_ub = minimum(set.upper_bound, ub)
     return InfiniteOpt.IntervalSet(new_lb, new_ub)
-end
-
-function _truncated_set(set::InfiniteOpt.UniDistributionSet,
-                        lb::Union{Real, Nothing},
-                        ub::Union{Real, Nothing})::InfiniteOpt.UniDistributionSet
-    isa(lb, Nothing) ? new_lb = -Inf : new_lb = lb
-    isa(ub, Nothing) ? new_ub = Inf : new_lb = ub
-    if new_lb == -Inf && new_ub == Inf
-        return set
-    else
-        return InfiniteOpt.UniDistributionSet(Distributions.truncated(dist, lb, ub))
-    end
 end
 
 """
@@ -189,217 +176,20 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     # TODO finish this is the forgiving method of users
     # If finite should dispatch to trapezoid and ignore num_supports
     # if infinite or semi-infinite shold use appropriate quadrature (error if pref is dependent)
-    return
-end
-
-# Vector prefs with Automatic
-function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
-    lower_bound::Vector{<:Real},
-    upper_bound::Vector{<:Real},
-    method::Type{Automatic};
-    num_supports::Int = InfiniteOpt.DefaultNumSupports,
-    weight_func::Function = InfiniteOpt.default_weight
-    )::InfiniteOpt.AbstractMeasureData
-    # TODO finish this is the forgiving method of users
-    # this should dispatch to use MultiMCSampling
-    return
-end
-
-#=
-# MC Sampling methods
-# IntervalSets & UniDistributionSet
-function generate_integral_data(set::InfiniteScalarSet,
-                                      param::InfiniteOpt.GeneralVariableRef,
-                                      num_supports::Int,
-                                      lb::Union{Real, Nothing},
-                                      ub::Union{Real, Nothing},
-                                      method::Val{mc_sampling})::Tuple
-    _nothing_test(method, lb, ub)
-    # use the correct set for generating supports
-    new_set = _truncated_set(set, lb, ub)
-    supports = supports(param, label = MCSample)
-    num_samples = length(supports)
-    if num_samples >= num_supports
-        coeffs = ones(num_samples) / num_samples * (new_ub - new_lb)
-    else
-        new_supports, _ = generate_support_values(new_set, Val(MCSample),
-                                                      num_supports = num_supports - num_samples)
-        union!(supports, new_supports)
-        coeffs = ones(num_supports) / num_supports * (new_ub - new_lb)
+    if InfiniteOpt._index_type(pref) == DependentParameterIndex
+        error("Univariate integral data cannot be generated for single dependent parameter.")
     end
-    add_supports(param, supports, label = MCSample) # this ensures new supports have MCSample label
-    return (supports, coeffs, label)
-end
-
-# MultiDistributionSet
-function generate_integral_data(set::InfiniteOpt.MultiDistributionSet,
-                                      params::AbstractArray{<:InfiniteOpt.GeneralVariableRef},
-                                      num_supports::Int,
-                                      lb::Union{AbstractArray{<:Real}, Nothing},
-                                      ub::Union{AbstractArray{<:Real}, Nothing},
-                                      method::Val{mc_sampling})::Tuple
-    # use the correct set for generating supports
-    if !isa(lb, Nothing) || !isa(ub, Nothing)
-        @warn("MC sampling for truncated multivariate distribution is not supported. " *
-              "Lower and upper bounds are thus ignored.")
+    inf_bound_num = (lower_bound == -Inf) && (upper_bound == Inf)
+    if inf_bound_num == 0 # finite interval
+        method = UniTrapezoid
+    elseif inf_bound_num == 1 # semi-infinite interval
+        method = GaussLaguerre
+    else # infinite interval
+        method = GaussHermite
     end
-    supports = supports(params, label = MCSample)
-    num_samples = size(supports)[2]
-    if num_samples >= num_supports
-        coeffs = ones(num_samples) / num_samples
-    else
-        new_supports, _ = generate_support_values(new_set, Val(MCSample),
-                                                  num_supports = num_supports - num_samples)
-        union!(supports, new_supports)
-        coeffs = ones(num_supports) / num_supports
-    end
-    add_supports(params, supports, label = MCSample) # this ensures new supports have MCSample label
-    return (supports, coeffs, MCSample)
-end
-
-# CollectionSet
-function generate_integral_data(set::InfiniteOpt.CollectionSet,
-                                      params::AbstractArray{<:InfiniteOpt.GeneralVariableRef},
-                                      num_supports::Int,
-                                      lb::Union{AbstractArray{<:Real}, Nothing},
-                                      ub::Union{AbstractArray{<:Real}, Nothing},
-                                      method::Val{mc_sampling})::Tuple
-    # Truncate each dimension accordingly
-    if !isa(lb, Nothing) || !isa(ub, Nothing)
-        if isa(lb, Nothing)
-            lb = -Inf * ones(length(params))
-        end
-        if isa(ub, Nothing)
-            ub = Inf * ones(length(params))
-        end
-        new_set = CollectionSet([_truncated_set(set.sets[i], lb[i], ub[i]) for i in eachindex(set.sets)])
-    else
-        new_set = set
-    end
-    supports = supports(params, label = MCSample)
-    num_samples = size(supports)[2]
-    if num_samples >= num_supports
-        coeffs = ones(num_samples) / num_samples
-    else
-        new_supports, _ = generate_support_values(set, Val(MCSample),
-                                                  num_supports = num_supports - num_samples)
-        supports = hcat(supports, new_supports)
-        coeffs = ones(curr_num_supps) / num_supports
-    end
-    add_supports(params, supports, label = MCSample) # this ensures new supports have MCSample label
-    return (supports, coeffs, MCSample)
-end
-
-# TODO incorporate the below into the appropriate functions
-# if eval_method == quadrature || eval_method == gauss_legendre ||
-#    eval_method == gauss_hermite || eval_method == gauss_laguerre
-#     if num_params > 1
-#         error("Quadrature method is not supported for multivariate measures.")
-#     end
-#     inf_bound_num = (lb == -Inf) + (ub == Inf)
-#     if inf_bound_num == 0
-#         if eval_method != quadrature || eval_method != gauss_legendre
-#             @warn("$(eval_method) is not compatible with finite intervals. " *
-#                   "The integral will use Gauss-Legendre quadrature instead.")
-#         end
-#         kwargs[:eval_method] = gauss_legendre
-#     elseif inf_bound_num == 1
-#         if eval_method != quadrature || eval_method != gauss_laguerre
-#             @warn("$(eval_method) is not compatible with semi-infinite intervals. " *
-#                   "The integral will use Gauss-Laguerre quadrature instead.")
-#         end
-#         kwargs[:eval_method] = gauss_laguerre
-#     else
-#         if eval_method != quadrature || eval_method != gauss_hermite
-#             @warn("$(eval_method) is not compatible with infinite intervals. " *
-#                   "The integral will use Gauss-Hermite quadrature instead.")
-#         end
-#         kwargs[:eval_method] = gauss_hermite
-#     end
-# end
-
-# Gaussian Quadrature Methods for IntervalSet
-# Gauss-Legendre for finite intervals
-function generate_integral_data(set::InfiniteScalarSet,
-                                      param::InfiniteOpt.GeneralVariableRef,
-                                      num_supports::Int,
-                                      lb::Union{Real, Nothing},
-                                      ub::Union{Real, Nothing},
-                                      method::Val{gauss_legendre})::Tuple
-    _nothing_test(method, lb, ub)
-    if lb == -Inf || ub == Inf
-        error("Gauss Legendre quadrature can only be applied on finite intervals.")
-    end
-    (supports, coeffs) = FastGaussQuadrature.gausslegendre(num_supports)
-    supports = (ub - lb) / 2 * supports .+ (ub + lb) / 2
-    coeffs = (ub - lb) / 2 * coeffs
-    return (supports, coeffs, gauss_legendre)
-end
-
-
-function generate_integral_data(set::InfiniteOpt.IntervalSet,
-                                      params::InfiniteOpt.GeneralVariableRef,
-                                      num_supports::Int,
-                                      lb::Union{Real, Nothing},
-                                      ub::Union{Real, Nothing},
-                                      method::Val{gauss_hermite})::Tuple
-    _nothing_test(method, lb, ub)
-    if lb != -Inf || ub != Inf
-        error("The range is not finite. Use other measure evaluation methods.")
-    end
-    (supports, coeffs) = FastGaussQuadrature.gausshermite(num_supports)
-    coeffs = coeffs .* exp.(supports.^2)
-    return (supports, coeffs, gauss_hermite)
-end
-
-function generate_integral_data(set::InfiniteOpt.IntervalSet,
-                                      params::InfiniteOpt.GeneralVariableRef,
-                                      num_supports::Int,
-                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                      method::Val{gauss_laguerre})::Tuple
-    _nothing_test(method, lb, ub)
-    _univariate_bounds(method, lb, ub)
-    # default Gaussian quadrature method for semi-infinite domain
-    if ub == Inf
-        if lb == -Inf
-            error("The range is infinite. Use other measure evaluation methods.")
-        end
-        (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_supports)
-        coeffs = coeffs .* exp.(supports)
-        supports = supports .+ lb
-        return (supports, coeffs, gauss_laguerre)
-    elseif lb == -Inf
-        (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_supports)
-        coeffs = coeffs .* exp.(supports)
-        supports = -supports .+ ub
-        return (supports, coeffs, gauss_laguerre)
-    else
-        error("The range is bounded. Use other measure evaluation methods.")
-    end
-end
-
-
-function generate_integral_data(set::InfiniteOpt.IntervalSet,
-                                      params::InfiniteOpt.GeneralVariableRef,
-                                      num_supports::Int,
-                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                      method::Val{trapezoid})::Tuple
-    _nothing_test(method, lb, ub)
-    _univariate_bounds(method, lb, ub)
-    if trapz
-    supports, coeffs = _trapezoid_univ(lb, ub, num_supports)
-    return (supports, coeffs, trapezoid)
-end
-
-function _trapezoid_univ(lb::Number, ub::Number, num_supports::Int)::Tuple
-    increment = (ub - lb) / (num_supports - 1)
-    supps = [(i - 1) * increment + lb for i in 1:num_supports]
-    coeffs = increment * ones(num_supports)
-    coeffs[1] = coeffs[1] / 2
-    coeffs[num_supports] = coeffs[num_supports] / 2
-    return (supps, coeffs)
+    return generate_integral_data(pref, lower_bound, upper_bound, method,
+                                  num_supports = num_supports,
+                                  weight_func = weight_func)
 end
 
 function _trapezoid_coeff(supps::AbstractArray{<:Real, 1})::Vector{<:Real}
@@ -417,46 +207,235 @@ function _trapezoid_coeff(supps::AbstractArray{<:Real, 1})::Vector{<:Real}
     return coeffs
 end
 
-function generate_integral_data(set::InfiniteOpt.IntervalSet,
-                                      params::InfiniteOpt.GeneralVariableRef,
-                                      num_supports::Int,
-                                      lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                      ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                                      method::Val{trapezoid};
-                                      is_functional = false)::Tuple
-    _nothing_test(method, lb, ub)
-    _univariate_bounds(method, lb, ub)
-    if is_functional
-        supports = []
-        coeffs = _trapezoid_coeff
+function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
+                                lower_bound::Real,
+                                upper_bound::Real,
+                                method::Type{UniTrapezoid};
+                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight)
+    return FunctionalDiscreteMeasureData(pref, _trapezoid_coeff, num_supports,
+                                         some_label, weight_func, lower_bound,
+                                         upper_bound, false)
+end
+
+function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
+                                lower_bound::Real,
+                                upper_bound::Real,
+                                method::Type{Quadrature};
+                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight)
+
+    inf_bound_num = (lb == -Inf) + (ub == Inf)
+    if inf_bound_num == 0 # finite interval
+        method = GaussLegendre
+    elseif inf_bound_num == 1 # semi-infinite interval
+        method = GaussLaguerre
+    else # infinite interval
+        method = GaussHermite
+    end
+    return generate_integral_data(pref, lower_bound, upper_bound, method,
+                                  num_supports = num_supports, weight_func = weight_func)
+end
+
+function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
+                                lower_bound::Real,
+                                upper_bound::Real,
+                                method::Type{GaussLegendre};
+                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight)
+    if lower_bound == -Inf || upper_bound == Inf
+        error("Gauss Legendre quadrature can only be applied on finite intervals.")
+    end
+    (supports, coeffs) = FastGaussQuadrature.gausslegendre(num_supports)
+    supports = (upper_bound - lower_bound) / 2 * supports .+ (upper_bound + lower_bound) / 2
+    coeffs = (upper_bound - lower_bound) / 2 * coeffs
+    return DiscreteMeasureData(pref, coeffs, supports, gensym(), weight_func,
+                               lower_bound, upper_bound, false)
+end
+
+function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
+                                lower_bound::Real,
+                                upper_bound::Real,
+                                method::Type{GaussLaguerre};
+                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight)
+    if upper_bound == Inf
+        if lower_bound == -Inf
+            error("The range is infinite. Use other measure evaluation methods.")
+        end
+        (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_supports)
+        coeffs = coeffs .* exp.(supports)
+        supports = supports .+ lower_bound
+    elseif lb == -Inf
+        (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_supports)
+        coeffs = coeffs .* exp.(supports)
+        supports = -supports .+ upper_bound
     else
-        supports, coeffs = _trapezoid_univ(lb, ub, num_supports)
+        error("The interval is finite. Use other measure evaluation methods.")
     end
-    return (supports, coeffs, trapezoid)
+
+    return DiscreteMeasureData(pref, coeffs, supports, gensym(), weight_func,
+                               lower_bound, upper_bound, false)
 end
 
-function _nothing_test(method::Val,
-                       lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                       ub::Union{Number, JuMPC.SparseAxisArray, Nothing})
-    if isa(lb, Nothing) || isa(ub, Nothing)
-        error("Method " * string(method)[6:length(string(method))-3] *
-              " cannot be nothing.")
+function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
+                                lower_bound::Real,
+                                upper_bound::Real,
+                                method::Type{GaussHermite};
+                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight)
+    if lower_bound != -Inf || upper_bound != Inf
+        error("The range is not infinite. Use other measure evaluation methods.")
     end
+    (supports, coeffs) = FastGaussQuadrature.gausshermite(num_supports)
+    coeffs = coeffs .* exp.(supports.^2)
+    return DiscreteMeasureData(pref, coeffs, supports, gensym(),
+                               weight_func, lower_bound, upper_bound, false)
 end
 
-# test if the lower/upper bound is univariate
-function _univariate_bounds(method::Val,
-                            lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                            ub::Union{Number, JuMPC.SparseAxisArray, Nothing})
-    if isa(lb, JuMPC.SparseAxisArray) || isa(ub, JuMPC.SparseAxisArray)
-        error("Method " * string(method)[6:length(string(method))-3] *
-              " is not applicable to multivariate infinite parameters.")
+function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
+                                lower_bound::Real,
+                                upper_bound::Real,
+                                method::Type{UniMCSampling};
+                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight)
+    if lower_bound == -Inf || upper_bound == Inf
+        error("Univariate MC sampling is not applicable to (semi-)infinite intervals.")
     end
+
+    new_lb = maximum(lower_bound(pref), lower_bound)
+    new_ub = minimum(upper_bound(pref), upper_bound)
+
+    supports = supports(pref, label = MCSample)
+    filter!(x->(x >= new_lb && x <= new_ub), supports)
+    num_samples = length(supports)
+
+    if num_samples < num_supports
+        new_supports, _ = generate_support_values(new_set, Val(MCSample),
+                                                      num_supports = num_supports - num_samples)
+        add_supports(pref, new_supports, label = MCSample) # this ensures new supports have MCSample label
+    end
+    function coeff_func(supps::AbstractArray{<:Real, 1})::Vector{Float64}
+        len = length(supps)
+        return ones(len) / len * (new_ub - new_lb)
+    end
+    return FunctionalDiscreteMeasureData(pref, coeff_func, num_supports, MCSample,
+                                         lower_bound, upper_bound, false)
+end
+
+function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
+                                lower_bound::Real,
+                                upper_bound::Real,
+                                method::Type{UniIndepMCSampling};
+                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight)
+    if lower_bound == -Inf || upper_bound == Inf
+        error("Univariate MC sampling is not applicable to (semi-)infinite intervals.")
+    end
+
+    new_lb = maximum(lower_bound(pref), lower_bound)
+    new_ub = minimum(upper_bound(pref), upper_bound)
+
+    supports, _ = generate_support_values(new_set, Val(MCSample),
+                                          num_supports = num_supports - num_samples)
+    coeffs = ones(num_supports) / num_supports * (new_ub - new_lb)
+    return DiscreteMeasureData(pref, coeffs, supports, gensym(),
+                               weight_func, lower_bound, upper_bound, false)
+end
+
+################################################################################
+#                       DATA GENERATION METHODS (MULTIVARIATE)
+################################################################################
+
+# Vector prefs with Automatic
+function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
+    lower_bound::Vector{<:Real},
+    upper_bound::Vector{<:Real},
+    method::Type{Automatic};
+    num_supports::Int = InfiniteOpt.DefaultNumSupports,
+    weight_func::Function = InfiniteOpt.default_weight
+    )::InfiniteOpt.AbstractMeasureData
+    # TODO finish this is the forgiving method of users
+    # this should dispatch to use MultiMCSampling
+    return generate_integral_data(prefs, lower_bound, upper_bound, MultiMCSampling,
+                                  num_supports = num_supports,
+                                  weight_func = weight_func)
+end
+
+
+function _truncate_collection_set_with_vol(
+    prefs::Vector{InfiniteOpt.GeneralVariableRef},
+    lower_bound::Vector{<:Real},
+    upper_bound::Vector{<:Real})::Tuple{CollectionSet{IntervalSet}, Float64}
+    set = IntervalSet[]
+    vol = 1.
+    for i in eachindex(prefs)
+        new_lb = maximum(lower_bound(prefs[i]), lower_bound[i])
+        new_ub = minimum(upper_bound(prefs[i]), upper_bound[i])
+        push!(set, IntervalSet(new_lb[i], new_ub[i]))
+        vol *= (new_ub - new_lb)
+    end
+    set = CollectionSet(set)
+    return (set, vol)
+end
+
+function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
+    lower_bound::Vector{<:Real},
+    upper_bound::Vector{<:Real},
+    method::Type{MultiMCSampling};
+    num_supports::Int = InfiniteOpt.DefaultNumSupports,
+    weight_func::Function = InfiniteOpt.default_weight
+    )::InfiniteOpt.AbstractMeasureData
+
+    for i in eachindex(lower_bound)
+        if lower_bound[i] == -Inf || upper_bound[i] == Inf
+            error("MC Sampling is not applicable to (semi-)infinite intervals.")
+        end
+    end
+
+    set, vol = _truncate_collection_set_with_vol(prefs, lower_bound, upper_bound)
+    supports = supports(prefs, label = MCSample)
+    valid_supports_idx = [supports_in_set(i, set) for i in eachcol(supports)]
+    supports = supports[valid_supports_idx]
+
+    num_samples = size(supports)[2]
+    if num_samples < num_supports
+        new_supports, _ = generate_support_values(set, Val(MCSample),
+                                                  num_supports = num_supports - num_samples)
+        add_supports(pref, new_supports, label = MCSample) # this ensures new supports have MCSample label
+    end
+    function coeff_func(supps::AbstractArray{<:Real, 2})::Vector{Float64}
+        len = length(supps)
+        return ones(len) / len * vol
+    end
+    return FunctionalDiscreteMeasureData(pref, coeff_func, num_supports, MCSample,
+                                         lower_bound, upper_bound, false)
+end
+
+function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
+    lower_bound::Vector{<:Real},
+    upper_bound::Vector{<:Real},
+    method::Type{MultiIndepMCSampling};
+    num_supports::Int = InfiniteOpt.DefaultNumSupports,
+    weight_func::Function = InfiniteOpt.default_weight
+    )::InfiniteOpt.AbstractMeasureData
+
+    for i in eachindex(lower_bound)
+        if lower_bound[i] == -Inf || upper_bound[i] == Inf
+            error("MC Sampling is not applicable to (semi-)infinite intervals.")
+        end
+    end
+    set, vol = _truncate_collection_set_with_vol(prefs, lower_bound, upper_bound)
+    supports, _ = generate_support_values(set, Val(MCSample), num_supports = num_supports)
+    coeffs = 1 / vol * num_supports
+    return DiscreteMeasureData(prefs, coeffs, supports, gensym(), weight_func,
+                               lower_bound, upper_bound, false)
 end
 
 ################################################################################
 #                               HELPER METHODS
 ################################################################################
+#=
 """
     infinite_transform(lb::Number, ub::Number, num_supports::Int;
                        [sub_method::Function = mc_sampling,
