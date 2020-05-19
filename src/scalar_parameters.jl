@@ -853,7 +853,15 @@ function supports(prefs::Vector{IndependentParameterRef};
     num_supps = num_supports(first(prefs), label = label)
     trans_supps = Matrix{Float64}(undef, num_supps, length(prefs))
     for i in eachindex(prefs)
-        trans_supps[:, i] = supports(prefs[i], label = label)
+        supp = supports(prefs[i], label = label)
+        if length(supp) != num_supps
+            error("Cannot simultaneously query the supports of multiple " *
+                  "independent parameters if the support dimensions do not match. " *
+                  "If this error appears during a measure call, consider using " *
+                  "nested one-dimensional measures instead.")
+        else
+            @inbounds trans_supps[:, i] = supp
+        end
     end
     return permutedims(trans_supps)
 end
@@ -942,9 +950,6 @@ function add_supports(pref::IndependentParameterRef,
     end
     return
 end
-
-# TODO: finish this
-#function add_supports(prefs::Vector{IndependentParameterRef},...)
 
 """
     delete_supports(pref::IndependentParameterRef)
@@ -1190,8 +1195,7 @@ function _update_model_numbers(model::InfiniteModel, obj_num::Int,
         _update_number_list([obj_num], _object_numbers(vref))
     end
     # update the measures
-    for (index, object) in model.measures # TODO replace with all_measures when made
-        mref = MeasureRef(model, index)
+    for mref in all_measures(model)
         _update_number_list([obj_num], _object_numbers(mref))
         _update_number_list(param_nums, _parameter_numbers(mref))
     end

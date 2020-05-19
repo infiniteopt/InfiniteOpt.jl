@@ -592,6 +592,7 @@ end
     m = InfiniteModel()
     param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
     pref = add_parameter(m, param, "test")
+    pref2 = add_parameter(m, param, "test2")
     pref_disp = dispatch_variable_ref(pref)
     bad = Bad()
     push!(InfiniteOpt._data_object(pref).constraint_indices, ConstraintIndex(1))
@@ -643,6 +644,7 @@ end
     # supports (vector)
     @testset "supports (vector)" begin
         @test supports([pref_disp], label = MCSample) == ones(1, 1)
+        @test_throws ErrorException supports([pref, pref2], label = MCSample)
     end
     # set_supports
     @testset "set_supports" begin

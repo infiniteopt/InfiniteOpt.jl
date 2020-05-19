@@ -430,40 +430,36 @@ end
 #                             OTHER QUERIES
 ################################################################################
 # Access the collected supports
+"""
+""" # TODO add docstring
 function parameter_supports(model::JuMP.Model)::Union{Nothing, Tuple}
     return transcription_data(model).supports
 end
 
-## Form a placeholder parameter reference given the object index
-# IndependentParameterIndex
-function _temp_parameter_ref(model::InfiniteOpt.InfiniteModel,
-    index::InfiniteOpt.IndependentParameterIndex
-    )::InfiniteOpt.IndependentParameterRef
-    return InfiniteOpt.IndependentParameterRef(model, index)
+# Form support iterator of indices
+"""
+""" # TODO add docstring
+function support_index_iterator(model::JuMP.Model)::CartesianIndices
+    raw_supps = parameter_supports(model)
+    return CartesianIndices(ntuple(i -> 1:length(raw_supps[i]), length(raw_supps)))
 end
 
-# DependentParametersIndex
-function _temp_parameter_ref(model::InfiniteOpt.InfiniteModel,
-    index::InfiniteOpt.DependentParametersIndex
-    )::InfiniteOpt.DependentParameterRef
-    idx = InfiniteOpt.DependentParameterIndex(index, 1)
-    return InfiniteOpt.DependentParameterRef(model, idx)
+# Generate for a subset of object numbers (0s used as placeholders)
+function support_index_iterator(model::JuMP.Model,
+                                obj_nums::Vector{Int})::CartesianIndices
+    raw_supps = parameter_supports(model)
+    # TODO check efficiency of using placeholder
+    return CartesianIndices(ntuple(i -> i in obj_nums ? (1:length(raw_supps[i])) : 0,
+                                   length(raw_supps)))
 end
 
-# Return the collected supports of an infinite parameter
-function _collected_supports(model::InfiniteOpt.InfiniteModel,
-    index::InfiniteOpt.InfiniteParameterIndex
-    )::Vector
-    pref = _temp_parameter_ref(model, index)
-    supps = InfiniteOpt._parameter_supports(pref)
-    return collect(keys(supps))
-end
-
-# Build the parameter supports
-function set_parameter_supports(model::JuMP.Model,
-                                inf_model::InfiniteOpt.InfiniteModel)::Nothing
-    param_indices = InfiniteOpt._param_object_indices(inf_model)
-    supps = Tuple(_collected_supports(inf_model, i) for i in param_indices)
-    transcription_data(model).supports = supps
-    return
+# Extract support from support index (NaN used as a placeholder)
+"""
+""" # TODO add docstring
+function index_to_support(model::JuMP.Model,
+                          index::CartesianIndex)::Vector{Float64}
+    raw_supps = parameter_supports(model)
+    # TODO check efficiency of using placeholder
+    return [j for i in eachindex(index.I)
+            for j in (iszero(index[i]) ? NaN : raw_supps[i][index[i]])]
 end

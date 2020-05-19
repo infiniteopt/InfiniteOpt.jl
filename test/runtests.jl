@@ -7,7 +7,7 @@ using Test
 
 # Define convenient aliases
 const IC = InfiniteOpt.Collections
-# const MEM = InfiniteOpt.MeasureEvalMethods
+const MT = InfiniteOpt.MeasureToolbox
 const IOTO = InfiniteOpt.TranscriptionOpt
 const JuMPC = JuMP.Containers
 const MOI = MathOptInterface
@@ -58,11 +58,13 @@ println("")
 println("")
 @time @testset "Macro Expressions" begin include("macro_expressions.jl") end
 println("")
-# @time @testset "Measure Evaluation Methods" begin
-#     include("MeasureEvalMethods/methods.jl")
-# end
-# println("")
 # @time @testset "Measure Methods" begin include("measures.jl") end
+# println("")
+# @time @testset "Measure Toolbox Methods" begin
+#     include("MeasureToolbox/integrals.jl")
+    # include("MeasureToolbox/expectations.jl")
+    # include("MeasureToolbox/support_sum.jl")
+# end
 # println("")
 @time @testset "Objective Methods" begin include("objective.jl") end
 println("")

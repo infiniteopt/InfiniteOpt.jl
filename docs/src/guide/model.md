@@ -22,6 +22,7 @@ Feasibility problem with:
 Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
+Measures: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
@@ -39,6 +40,7 @@ Feasibility problem with:
 Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
+Measures: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: EMPTY_OPTIMIZER
@@ -61,6 +63,7 @@ Feasibility problem with:
 Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
+Measures: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: EMPTY_OPTIMIZER
@@ -100,6 +103,7 @@ Feasibility problem with:
 Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
+Measures: 0
 Optimizer model backend information:
 Model mode: MANUAL
 CachingOptimizer state: EMPTY_OPTIMIZER

@@ -13,6 +13,12 @@ function _add_data_object(model::InfiniteModel,
     return MOIUC.add_item(model.measures, object)
 end
 
+# Extend _data_dictionary (type based)
+function _data_dictionary(model::InfiniteModel, ::Type{Measure}
+    )::MOIUC.CleverDict{MeasureIndex, MeasureData}
+    return model.measures
+end
+
 # Extend _data_dictionary (reference based)
 function _data_dictionary(mref::MeasureRef
     )::MOIUC.CleverDict{MeasureIndex, MeasureData}
@@ -313,9 +319,35 @@ function FunctionalDiscreteMeasureData(
         error("`min_num_supports` must be 0 for individual dependent parameters.")
     end
     min_num_supports >= 0 || error("Number of supports must be nonnegative.")
+    if !isnan(lower_bound) && !isnan(upper_bound)
+        if !supports_in_set([lower_bound, upper_bound], infinite_set(pref))
+            error("Bounds violate infinite set bounds.")
+        end
+    end
     return FunctionalDiscreteMeasureData(pref, coeff_func, min_num_supports,
                                          label, weight_function,
                                          lower_bound, upper_bound, is_expect)
+end
+
+## Check if the integral bounds satisfy the parameter set(s)
+# IndependentParameterRefs
+function _check_bounds_in_set(prefs::Vector{IndependentParameterRef}, lbs,
+                              ubs)::Nothing
+    for i in eachindex(prefs)
+        if !supports_in_set([lbs[i], ubs[i]], infinite_set(prefs[i]))
+            error("Bounds violate the infinite domain.")
+        end
+    end
+    return
+end
+
+# DependentParameterRefs
+function _check_bounds_in_set(prefs::Vector{DependentParameterRef}, lbs,
+                              ubs)::Nothing
+    if !supports_in_set(hcat(lbs, ubs), infinite_set(prefs))
+        error("Bounds violate the infinite domain.")
+    end
+    return
 end
 
 """
@@ -362,6 +394,12 @@ function FunctionalDiscreteMeasureData(
     end
     min_num_supports >= 0 || error("Number of supports must be nonnegative.")
     vector_prefs = _make_ordered_vector(prefs)
+    vector_lbs = _make_ordered_vector(lower_bounds)
+    vector_ubs = _make_ordered_vector(upper_bounds)
+    if !isnan(first(vector_lbs)) && !isnan(first(vector_ubs))
+        dprefs = map(p -> dispatch_variable_ref(p), vector_prefs)
+        _check_bounds_in_set(dprefs, vector_lbs, vector_ubs)
+    end
     return FunctionalDiscreteMeasureData(vector_prefs, coeff_func, min_num_supports,
                                          label, weight_function, lower_bounds,
                                          upper_bounds, is_expect)
@@ -482,10 +520,7 @@ function supports(data::FunctionalDiscreteMeasureData{GeneralVariableRef})::Vect
     if isnan(lb) && isnan(ub)
         return supps
     else
-        sort!(supps)
-        first_index = findfirst(i -> i >= lb, supps)
-        last_index = findlast(i -> i <= ub, supps)
-        return supps[first_index:last_index]
+        return filter!(i -> lb <= i <= ub, supps)
     end
 end
 
@@ -514,13 +549,26 @@ function num_supports(data::AbstractMeasureData)::Int
     return 0
 end
 
-# DiscreteMeasureData
-function num_supports(data::DiscreteMeasureData)::Int
+# DiscreteMeasureData/FunctionalDiscreteMeasureData
+function num_supports(data::Union{FunctionalDiscreteMeasureData,
+                                  DiscreteMeasureData})::Int
     return size(supports(data))[end]
 end
 
+"""
+    min_num_supports(data::AbstractMeasureData)::Int
+
+Return the minimum number of supports associated with `data`. By fallback, this
+will just return `num_supports(data)`. This is primarily intended for internal
+queries of `FunctionalDiscreteMeasureData`, but can be extended for other
+measure data types if needed.
+"""
+function min_num_supports(data::AbstractMeasureData)::Int
+    return num_supports(data)
+end
+
 # FunctionalDiscreteMeasureData
-function num_supports(data::FunctionalDiscreteMeasureData)::Int
+function min_num_supports(data::FunctionalDiscreteMeasureData)::Int
     return data.min_num_supports
 end
 
@@ -737,24 +785,36 @@ end
 function add_supports_to_parameters(
     data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2}
     )::Nothing
-    prefs = map(p->dispatch_variable_ref(p), parameter_refs(data))
+    prefs = map(p -> dispatch_variable_ref(p), parameter_refs(data))
     supps = supports(data)
     label = support_label(data)
     _add_supports_to_multiple_parameters(prefs, supps, label)
     return
 end
 
-# scalar FunationalDiscreteMeasureData
+# scalar FunctionalDiscreteMeasureData
 function add_supports_to_parameters(
     data::FunctionalDiscreteMeasureData{GeneralVariableRef}
     )::Nothing
-    pref = dispatch_variable_ref(parameter_refs(data))
-    num_supps = num_supports(data)
-    label = support_label(data)
-    curr_num_supps = num_supports(pref, label = label)
+    # determine if we need to add more supports
+    num_supps = min_num_supports(data)
+    curr_num_supps = num_supports(data)
     if curr_num_supps < num_supps
-        # Assuming pref is not a DependentParameterRef
-        generate_and_add_supports!(pref, infinite_set(pref), label,
+        # prepare the parameter reference
+        pref = dispatch_variable_ref(parameter_refs(data))
+        if pref == DependentParameterRef # This is just a last line of defense
+            error("min_num_supports must be 0 for individual dependent parameters.")
+        end
+        # prepare the generation set
+        lb = JuMP.lower_bound(data)
+        ub = JuMP.upper_bound(data)
+        if isnan(lb) || isnan(ub)
+            set = infinite_set(pref)
+        else
+            set = IntervalSet(lb, ub) # assumes lb and ub are in the set
+        end
+        # generate the needed supports
+        generate_and_add_supports!(pref, set, label,
                                    num_supports = num_supps - curr_num_supps)
     end
     return
@@ -764,27 +824,41 @@ end
 # DependentParameterRefs
 function _generate_multiple_functional_supports(
     prefs::Vector{DependentParameterRef},
-    num_supps::Int, label::Symbol
+    num_supps::Int, label::Symbol,
+    lower_bounds::Vector{<:Number},
+    upper_bounds::Vector{<:Number}
     )::Nothing
-    curr_num_supps = num_supports(prefs, label = label)
-    if curr_num_supps < num_supps
-        generate_and_add_supports!(prefs, infinite_set(prefs), label,
-                                   num_supports = num_supps - curr_num_supps)
+    # prepare the generation set
+    if isnan(first(lower_bounds)) || isnan(first(upper_bounds))
+        set = infinite_set(prefs)
+    else
+        # assumes we have valid bounds
+        set = CollectionSet([IntervalSet(lower_bounds[i], upper_bounds[i])
+                             for i in eachindex(lower_bounds)])
     end
+    # generate the supports
+    generate_and_add_supports!(prefs, set, label, num_supports = num_supps)
     return
 end
 
 # IndependentParameterRefs
 function _generate_multiple_functional_supports(
     prefs::Vector{IndependentParameterRef},
-    num_supps::Int, label::Symbol
+    num_supps::Int, label::Symbol,
+    lower_bounds::Vector{<:Number},
+    upper_bounds::Vector{<:Number}
     )::Nothing
-    for pref in prefs
-        curr_num_supps = num_supports(pref, label = label)
-        if curr_num_supps < num_supps
-            generate_and_add_supports!(pref, infinite_set(pref), label,
-                                       num_supports = num_supps - curr_num_supps)
+    # we are gauranteed that each have the same number of supports
+    for i in eachindex(prefs)
+        # prepare the generation set
+        if isnan(lower_bounds[i]) || isnan(upper_bounds[i])
+            set = infinite_set(prefs[i])
+        else
+            # assumes lb and ub are in the set
+            set = IntervalSet(lower_bounds[i], upper_bounds[i])
         end
+        # generate the supports
+        generate_and_add_supports!(prefs[i], set, label, num_supports = num_supps)
     end
     return
 end
@@ -793,10 +867,17 @@ end
 function add_supports_to_parameters(
     data::FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}}
     )::Nothing
-    prefs = dispatch_variable_ref.(parameter_refs(data))
-    num_supps = num_supports(data)
-    label = support_label(data)
-    _generate_multiple_functional_supports(prefs, num_supps, label)
+    min_num_supps = min_num_supports(data)
+    curr_num_supps = num_supports(data) # this will error check the support dims
+    needed_supps = min_num_supports - curr_num_supps
+    if needed_supps > 0
+        prefs = map(p -> dispatch_variable_ref(p), parameter_refs(data))
+        label = support_label(data)
+        lbs = JuMP.lower_bound(data)
+        ubs = JuMP.upper_bound(data)
+        _generate_multiple_functional_supports(prefs, needed_supps, label, ubs,
+                                               lbs)
+    end
     return
 end
 
@@ -1019,490 +1100,44 @@ function is_used(mref::MeasureRef)::Bool
 end
 
 ################################################################################
-#                           UNIVARIATE INTEGRALS
+#                                GENERAL QUERIES
 ################################################################################
-# Define default keyword arguments for 1-D integrals
-const UniIntegralDefaults = Dict(:eval_method => Automatic,
-                                 :num_supports => DefaultNumSupports,
-                                 :weight_func => default_weight)
-
 """
-    uni_integral_defaults()::Dict{Symbol, Any}
+    num_measures(model::InfiniteModel)::Int
 
-Get the default keyword argument values for defining one-dimensional integrals.
-
-```julia-repl
-julia> uni_integral_defaults()
-Dict{Symbol,Any} with 3 entries:
-  :num_supports          => 10
-  :eval_method           => Automatic
-  :weight_func           => default_weight
-```
-"""
-uni_integral_defaults()::Dict{Symbol, Any} = UniIntegralDefaults
-
-"""
-    set_uni_integral_defaults(; kwargs...)::Nothing
-
-Set the default keyword argument settings for one-dimensional integrals.
-The keyword arguments of this function will be recorded in the default keyword
-argument dictionary. These will determine the default keyword argument values
-when calling [`integral`](@ref) with a single infinite parameter.
+Return the number of measures defined in `model`.
 
 **Example**
 ```julia-repl
-julia> uni_integral_defaults()
-Dict{Symbol,Any} with 3 entries:
-  :num_supports          => 10
-  :eval_method           => Automatic
-  :weight_func           => default_weight
-
-julia> set_uni_integral_defaults(num_supports = 5, eval_method = Quadrature,
-                                 new_kwarg = true)
-
-julia> uni_integral_defaults()
-Dict{Symbol,Any} with 4 entries:
-  :new_kwarg             => true
-  :num_supports          => 5
-  :eval_method           => Quadrature
-  :weight_func           => default_weight
+julia> num_measures(model)
+2
 ```
 """
-function set_uni_integral_defaults(; kwargs...)::Nothing
-    merge!(UniIntegralDefaults, kwargs)
-    return
+function num_measures(model::InfiniteModel)::Int
+    return length(_data_dictionary(model, Measure))
 end
 
 """
-    integral(expr::JuMP.AbstractJuMPScalar,
-             pref::GeneralVariableRef,
-             [lower_bound::Real = lower_bound(pref),
-             upper_bound::Real = upper_bound(pref);
-             kwargs...])::GeneralVariableRef
+    all_measures(model::InfiniteModel)::Vector{GeneralVariableRef}
 
-Returns a measure reference that evaluates the integral of `expr` with respect
-to infinite parameter `pref` from `lower_bound` to `upper_bound`. This thus
-considers integrals of the form: ``\\int_{p \\in P} expr(p) w(p) dp`` where ``p``
-is an infinite parameter and ``w`` is the weight function is 1 by default. This
-function provides a high-level interface that ultimately constructs an appropriate
-concrete form of [`AbstractMeasureData`](@ref) via [`generate_integral_data`](@ref)
-in accordance with the keyword arugment `eval_method` that is then used with
-[`measure`](@ref). Note that it is preferred to call [`@integral`](@ref) when
-`expr` is not just a single variable reference. Errors for bad bound input.
+Return the list of all measures added to `model`.
 
-The keyword arguments are as follows:
-- `eval_method::Type{<:AbstractUnivariateMethod}`: Used to determine the
-    numerical evaluation scheme
-    - [`Automatic`](@ref MeasureEvalMethods.Automatic)
-    - [`UniTrapezoid`](@ref MeasureEvalMethods.UniTrapezoid)
-    - [`UniMCSampling`](@ref MeasureEvalMethods.UniMCSampling)
-    - [`UniIndepMCSampling`](@ref MeasureEvalMethods.UniIndepMCSampling)
-    - [`Quadrature`](@ref MeasureEvalMethods.Quadrature)
-    - [`GaussHermite`](@ref MeasureEvalMethods.GaussHermite)
-    - [`GaussLegendre`](@ref MeasureEvalMethods.GaussLegendre)
-    - [`GaussLaguerre`](@ref MeasureEvalMethods.GaussLaguerre)
-- `num_supports`: The minimum number of supports to be generated (if used by
-    `eval_method`)
-- `weight_func`: ``w(p)`` above with parameter value inputs and scalar output
-
-See [`set_uni_integral_defaults`](@ref) to update the default keyword argument
-values for all one-dimensional integral calls.
-
-**Example**
+**Examples**
 ```julia-repl
-julia> @infinite_parameter(model, x in [0, 1])
-x
-
-julia> @infinite_variable(model, f(x))
-f(x)
-
-julia> int = integral(f, x)
-integral{x ∈ [0, 1]}[f(x)]
-
-julia> expand(int)
-0.2 f(0.8236475079774124) + 0.2 f(0.9103565379264364) + 0.2 f(0.16456579813368521) + 0.2 f(0.17732884646626457) + 0.2 f(0.278880109331201)
+julia> all_measures(model)
+2-element Array{GeneralVariableRef,1}:
+ integral{t ∈ [0, 6]}[w(t, x)]
+ expect{x}[w(t, x)]
 ```
 """
-function integral(expr::JuMP.AbstractJuMPScalar,
-                  pref::GeneralVariableRef,
-                  lower_bound::Real = NaN,
-                  upper_bound::Real = NaN;
-                  kwargs...)::GeneralVariableRef
-    # check parameter formatting
-    _check_params(pref)
-    # fill in bounds if needed
-    if isnan(lower_bound) && JuMP.has_lower_bound(set)
-        lower_bound = JuMP.lower_bound(pref)
+function all_measures(model::InfiniteModel)::Vector{GeneralVariableRef}
+    vrefs_list = Vector{GeneralVariableRef}(undef, num_measures(model))
+    counter = 1
+    for (index, object) in _data_dictionary(model, Measure)
+        vrefs_list[counter] = _make_variable_ref(model, index)
+        counter += 1
     end
-    if isnan(upper_bound) && JuMP.has_upper_bound(set)
-        upper_bound = JuMP.upper_bound(pref)
-    end
-    # ensure valid bounds
-    if lower_bound >= upper_bound
-        error("Invalid integral bounds, ensure that lower_bound < upper_bound.")
-    elseif !supports_in_set([lower_bound, upper_bound], set)
-        error("Integral bounds violate the infinite domain.")
-    end
-    # prepare the keyword arguments and make the measure data
-    processed_kwargs = merge(uni_integral_defaults(), kwargs)
-    eval_method = pop!(kwargs, processed_kwargs, :eval_method)
-    data = generate_integral_data(pref, lower_bound, upper_bound,
-                                  eval_method; kwargs...)
-    # make the measure
-    return measure(expr, data, name = "integral")
-end
-
-################################################################################
-#                            MULTIVARIATE INTEGRALS
-################################################################################
-# Define default keyword arguments for multi-D integrals
-const MultiIntegralDefaults = Dict(:eval_method => Automatic,
-                                   :num_supports => DefaultNumSupports,
-                                   :weight_func => default_weight)
-
-"""
-    multi_integral_defaults()::Dict{Symbol, Any}
-
-Get the default keyword argument values for defining multi-dimensional integrals.
-
-```julia-repl
-julia> multi_integral_defaults()
-Dict{Symbol,Any} with 3 entries:
-  :num_supports          => 10
-  :eval_method           => Automatic
-  :weight_func           => default_weight
-```
-"""
-multi_integral_defaults()::Dict{Symbol, Any} = MultiIntegralDefaults
-
-"""
-    set_multi_integral_defaults(; kwargs...)::Nothing
-
-Set the default keyword argument settings for multi-dimesnional integrals.
-The keyword arguments of this function will be recorded in the default keyword
-argument dictionary. These will determine the default keyword argument values
-when calling [`integral`](@ref) with an array of infinite parameters.
-
-**Example**
-```julia-repl
-julia> multi_integral_defaults()
-Dict{Symbol,Any} with 3 entries:
-  :num_supports          => 10
-  :eval_method           => Automatic
-  :weight_func           => default_weight
-
-julia> set_multi_integral_defaults(num_supports = 5, new_kwarg = true)
-
-julia> multi_integral_defaults()
-Dict{Symbol,Any} with 4 entries:
-  :new_kwarg             => true
-  :num_supports          => 5
-  :eval_method           => Automatic
-  :weight_func           => default_weight
-```
-"""
-function set_multi_integral_defaults(; kwargs...)::Nothing
-    merge!(UniIntegralDefaults, kwargs)
-    return
-end
-
-## Check if the integral bounds satisfy the parameter set(s)
-# IndependentParameterRefs
-function _check_bounds_in_set(prefs::Vector{IndependentParameterRef}, lbs,
-                              ubs)::Nothing
-    for i in eachindex(prefs)
-        if !supports_in_set([lbs[i], ubs[i]], infinite_set(prefs[i]))
-            error("Integral bounds violate the infinite domain.")
-        end
-    end
-    return
-end
-
-# DependentParameterRefs
-function _check_bounds_in_set(prefs::Vector{DependentParameterRef}, lbs,
-                              ubs)::Nothing
-    if !supports_in_set(hcat(lbs, ubs), infinite_set(prefs))
-        error("Integral bounds violate the infinite domain.")
-    end
-    return
-end
-
-"""
-    integral(expr::JuMP.AbstractJuMPScalar,
-             prefs::AbstractArray{GeneralVariableRef},
-             [lower_bounds::Union{Real, AbstractArray{<:Real}} = [lower_bound(pref)...],
-             upper_bounds::Union{Real, AbstractArray{<:Real}} = [upper_bound(pref)...];
-             kwargs...])::GeneralVariableRef
-
-Returns a measure reference that evaluates the integral of `expr` with respect
-to infinite parameters `prefs` from `lower_bounds` to `upper_bounds`. This thus
-considers integrals of the form: ``\\int_{p \\in P} expr(p) w(p) dp`` where ``p``
-is an infinite parameter and ``w`` is the weight function is 1 by default. This
-function provides a high-level interface that ultimately constructs an appropriate
-concrete form of [`AbstractMeasureData`](@ref) via [`generate_integral_data`](@ref)
-in accordance with the keyword arugment `eval_method` that is then used with
-[`measure`](@ref). Note that it is preferred to call [`@integral`](@ref) when
-`expr` is not just a single variable reference. Errors when the container types
-and dimensions do not match or the bounds are invalid.
-
-The keyword arguments are as follows:
-- `eval_method::Type{<:AbstractMultivariateMethod}`: Used to determine the
-    numerical evaluation scheme
-    - [`Automatic`](@ref MeasureEvalMethods.Automatic)
-    - [`MultiMCSampling`](@ref MeasureEvalMethods.MultiMCSampling)
-    - [`MultiIndepMCSampling`](@ref MeasureEvalMethods.MultiIndepMCSampling)
-- `num_supports`: The minimum number of supports to be generated (if used by
-    `eval_method`)
-- `weight_func`: ``w(p)`` above with parameter value inputs and scalar output
-
-See [`set_multi_integral_defaults`](@ref) to update the default keyword argument
-values for all multi-dimensional integral calls.
-
-**Example**
-```julia-repl
-julia> @infinite_parameter(model, x[1:2] in [0, 1], independent = true);
-
-julia> @infinite_variable(model, f(x));
-
-julia> int = integral(f, x)
-integral{x ∈ [0, 1]^2}[f(x)]
-```
-"""
-function integral(expr::JuMP.AbstractJuMPScalar,
-                  prefs::AbstractArray{GeneralVariableRef},
-                  lower_bounds::Union{Real, AbstractArray{<:Real}} = NaN,
-                  upper_bounds::Union{Real, AbstractArray{<:Real}} = NaN;
-                  kwargs...)::GeneralVariableRef
-    # check parameter formatting
-    _check_params(params)
-    # fill in the lower bounds if needed
-    if isnan(lower_bounds) && JuMP.has_lower_bound(first(prefs))
-        lbs = map(p -> JuMP.lower_bound(p), prefs)
-    elseif !isnan(lower_bounds) && lower_bounds isa Real
-        lbs = map(p -> lower_bounds, prefs)
-    else
-        lbs = lower_bounds
-    end
-    # fill in the upper bounds if needed
-    if isnan(upper_bounds) && JuMP.has_upper_bound(first(prefs))
-        ubs = map(p -> JuMP.upper_bound(p), prefs)
-    elseif !isnan(upper_bounds) && upper_bounds isa Real
-        ubs = map(p -> upper_bounds, prefs)
-    else
-        ubs = upper_bounds
-    end
-    # do initial bound checks
-    if _keys(prefs) != _keys(lbs) || _keys(prefs) != _keys(ubs)
-        error("Array keys of infinite parameters and bounds do not match.")
-    end
-    # process the arrays
-    vector_prefs = _make_ordered_vector(prefs)
-    vector_lbs = _make_ordered_vector(lbs)
-    vector_ubs = _make_ordered_vector(ubs)
-    # ensure valid bounds
-    if any(vector_lbs[i] >= vector_ubs[i] for i in eachindex(vector_lbs))
-        error("Invalid integral bounds, ensure that lower_bounds < upper_bounds.")
-    end
-    _check_bounds_in_set(vector_prefs, vector_lbs, vector_ubs)
-    # prepare the keyword arguments and make the measure data
-    processed_kwargs = merge(mulit_integral_defaults(), kwargs)
-    eval_method = pop!(kwargs, processed_kwargs, :eval_method)
-    data = generate_integral_data(vector_prefs, vector_lbs, vector_ubs,
-                                  eval_method; kwargs...)
-    # make the measure
-    return measure(expr, data, name = "integral")
-end
-
-"""
-    @integral(expr::JuMP.AbstractJuMPScalar,
-              prefs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}},
-              [lower_bounds::Union{Real, AbstractArray{<:Real}} = default_bounds,
-              upper_bounds::Union{Real, AbstractArray{<:Real}} = default_bounds;
-              kwargs...])::GeneralVariableRef
-
-An efficient wrapper for [`integral`](@ref integral(::JuMP.AbstractJuMPScalar, ::GeneralVariableRef, ::Real, ::Real))
-and [`integral`](@ref integral(::JuMP.AbstractJuMPScalar, ::AbstractArray{GeneralVariableRef}, ::Union{Real, AbstractArray{<:Real}}, ::Union{Real, AbstractArray{<:Real}})).
-Please see the above doc strings for more information.
-"""
-macro integral(expr, prefs, args...)
-    _error(str...) = JuMP._macro_error(:integral, (expr, params, args...), str...)
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
-    if length(extra) != 0 && length(extra) != 2
-        _error("Incorrect number of positional arguments for @integral. " *
-               "Must provide both bounds or no bounds.")
-    end
-    expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
-    mref = :( integral($expression, $prefs, $(extra...); ($(kw_args...))) )
-    return esc(mref)
-end
-
-################################################################################
-#                             EXPECTATION METHODS
-################################################################################
-## Determine if parameter(s) use a distrubution set
-# IndependentParameter and UniDistributionSet
-function _has_distribution_set(pref::IndependentParameterRef,
-                               set::UniDistributionSet)::Bool
-    return true
-end
-
-# DependentParameter and MultiDistributionSet
-function _has_distribution_set(pref::DependentParameterRef,
-                               set::MultiDistributionSet)::Bool
-    return true
-end
-
-# DependentParameter and CollectionSet
-function _has_distribution_set(pref::DependentParameterRef,
-                               set::CollectionSet)::Bool
-    return collection_sets(set)[_param_index(pref)] isa UniDistributionSet
-end
-
-# Fallback
-function _has_distribution_set(pref, set)::Bool
-    return false
-end
-
-# Define coefficient function for expectations
-_expect_coeffs(x::Array) = ones(size(x)[end]) ./ size(x)[end]
-
-"""
-    expect(expr::JuMP.AbstractJuMPScalar,
-           prefs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef};
-           [min_num_supports::Int = DefaultNumSupports])::GeneralVariableRef
-
-Creates a measure that represents the expected value of an expression based on
-`prefs`. If `prefs` are not random parameters then this will be equivalent
-to the following call:
-```julia
-1/total_num_supports * support_sum(expr, prefs)
-```
-Note that min_num_supports should be 0 if a single dependent parameter is given.
-Also, note that it is preferred to call [`@expect`](@ref) when `expr` is not
-just a single variable reference.
-
-**Example**
-```julia-repl
-julia> @infinite_parameter(model, x in Normal())
-x
-
-julia> @infinite_variable(model, f(x))
-f(x)
-
-julia> meas = expect(f, min_num_supports = 2)
-expect{x}[f(x)]
-
-julia> expand(meas)
-0.5 f(0.6791074260357777) + 0.5 f(0.8284134829000359)
-```
-"""
-function expect(expr::JuMP.AbstractJuMPScalar,
-                prefs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}};
-                min_num_supports::Int = DefaultNumSupports)::GeneralVariableRef
-    # check the inputs
-    _check_params(prefs)
-    dpref = dispatch_variable_ref(first(prefs))
-    # update properly for single dependent parameters
-    if prefs isa GeneralVariableRef && dpref isa DependentParameterRef
-        min_num_supports = 0
-        if min_num_supports != DefaultNumSupports
-            @warn("Cannot specify a nonzero `min_num_supports` for individual " *
-                  "dependent parameters.")
-        end
-        min_num_supports = 0
-    end
-    # prepare the label
-    set = _parameter_set(dpref)
-    if _has_distribution_set(dpref, set)
-        label = WeightedSample
-        is_expect = true
-    else
-        label = All # TODO maybe do something more rigorous
-        is_expect = false
-    end
-    # make the data
-    data = FunctionalDiscreteMeasureData(prefs, _expect_coeffs, min_num_supports,
-                                         label, default_weight, NaN, NaN,
-                                         is_expect)
-    # make the measure
-    return measure(expr, data, name = "expect")
-end
-
-"""
-    @expect(expr::JuMP.AbstractJuMPScalar,
-            prefs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef};
-            [min_num_supports::Int = DefaultNumSupports])::GeneralVariableRef
-
-An efficient wrapper for [`expect`](@ref). Please see its doc string more
-information.
-"""
-macro expect(expr, params, args...)
-    _error(str...) = JuMP._macro_error(:integral, (expr, params, args...), str...)
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
-    if length(extra) > 0
-        _error("Unexpected positional arguments." *
-               "Must be of form @expect(expr, params, min_num_supports = some_integer).")
-    end
-    if !isempty(filter(kw -> kw.args[1] != :min_num_supports, kw_args))
-        _error("Unexpected keyword arugments.")
-    end
-    expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
-    mref = :( expect($expression, $params; ($(kw_args...))) )
-    return esc(mref)
-end
-
-################################################################################
-#                             SUPPORT SUM METHODS
-################################################################################
-# Define coefficient function for summing over supports
-_support_sum_coeffs(x::Array) = ones(size(x)[end])
-
-"""
-    support_sum(expr::JuMP.AbstractJuMPScalar,
-                params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}}
-                )::GeneralVariableRef
-
-Creates a measure that represents the sum of the expression over a parameter(s)
-using all of its supports. Also, note that it is preferred to call
-[`@support_sum`](@ref) when `expr` is not just a single variable reference.
-
-**Example**
-```julia-repl
-julia> @infinite_parameter(model, x in [0, 1], supports = [0.3, 0.7])
-x
-
-julia> @infinite_variable(model, f(x))
-f(x)
-
-julia> meas = support_sum(f, x)
-support_sum{x}[f(x)]
-
-julia> expand(meas)
-f(0.3) + f(0.7)
-```
-"""
-function support_sum(expr::JuMP.AbstractJuMPScalar,
-                     prefs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}}
-                     )::GeneralVariableRef
-    # make the data
-    data = FunctionalDiscreteMeasureData(prefs, _support_sum_coeffs, 0, All,
-                                         default_weight, NaN, NaN, false)
-    # make the measure
-    return measure(expr, data, name = "support_sum")
-end
-
-"""
-    @support_sum(expr::JuMP.AbstractJuMPScalar,
-                 params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}}
-                 )::GeneralVariableRef
-
-An efficient wrapper for [`support_sum`](@ref) please see its doc string for
-more information.
-"""
-macro support_sum(expr, params)
-    expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
-    mref = :( support_sum($expression, $params) )
-    return esc(mref)
+    return vrefs_list
 end
 
 ################################################################################

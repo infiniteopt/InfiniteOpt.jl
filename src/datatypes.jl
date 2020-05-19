@@ -299,6 +299,7 @@ A `DataType` for storing independent scalar infinite parameters.
 """
 struct IndependentParameter{T <: InfiniteScalarSet} <: ScalarParameter
     set::T
+    # TODO consider changing this to a Dictionary
     supports::DataStructures.SortedDict{Float64, Set{Symbol}} # Support to label set
     sig_digits::Int
 end
@@ -937,7 +938,10 @@ julia> using InfiniteOpt, JuMP, Ipopt;
 julia> model = InfiniteModel()
 An InfiniteOpt Model
 Feasibility problem with:
+Finite Parameters: 0
+Infinite Parameters: 0
 Variables: 0
+Measures: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
@@ -946,7 +950,10 @@ Solver name: No optimizer attached.
 julia> model = InfiniteModel(Ipopt.Optimizer)
 An InfiniteOpt Model
 Feasibility problem with:
+Finite Parameters: 0
+Infinite Parameters: 0
 Variables: 0
+Measures: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: EMPTY_OPTIMIZER

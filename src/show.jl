@@ -442,6 +442,9 @@ function Base.show(io::IO, model::InfiniteModel)
     # show variable info
     num_vars = JuMP.num_variables(model)
     println(io, "Variable", _plural(num_vars), ": ", num_vars)
+    # show measure info
+    num_meas = num_measures(model)
+    println(io, "Measure", _plural(num_meas), ": ", num_meas)
     # show objective function info
     if sense != MOI.FEASIBILITY_SENSE
         JuMP.show_objective_function_summary(io, model)

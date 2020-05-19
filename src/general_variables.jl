@@ -100,6 +100,7 @@ Feasibility problem with:
 Finite Parameters: 0
 Infinite Parameters: 0
 Variable: 1
+Measures: 0
 `HoldVariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 1 constraint
 `HoldVariableRef`-in-`MathOptInterface.LessThan{Float64}`: 1 constraint
 Names registered in the model: vref
