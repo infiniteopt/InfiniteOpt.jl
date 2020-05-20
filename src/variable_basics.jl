@@ -1185,15 +1185,15 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
     for mindex in _measure_dependencies(vref)
         mref = dispatch_variable_ref(model, mindex)
         func = measure_function(mref)
+        data = measure_data(mref)
         if func isa GeneralVariableRef
-            data = measure_data(mref)
             new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
             new_meas = Measure(new_func, data, Int[], Int[], true)
-            _set_core_variable_object(mref, new_meas)
         else
             _remove_variable(func, gvref)
-            # TODO rebuild the Measure object via build_measure
+            new_meas = build_measure(model, func, data)
         end
+        _set_core_variable_object(mref, new_meas)
     end
     # remove from constraints if used
     for cindex in _constraint_dependencies(vref)
@@ -1209,7 +1209,7 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
             _remove_variable(func, gvref)
             # update the object numbers if vref is infinite
             if vref isa Union{InfiniteVariableRef, ReducedVariableRef}
-                _data_object(cref).object_nums = _object_numbers(func)
+                _data_object(cref).object_nums = sort!(_object_numbers(func))
             end
         end
     end

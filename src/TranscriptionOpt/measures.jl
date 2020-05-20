@@ -44,10 +44,11 @@ function InfiniteOpt.add_measure_variable(model::JuMP.Model,
     reduced_vars = transcription_data(model).reduced_vars
     raw_index = -1 * (length(reduced_vars) + 1)
     # make the reference and map it to a transcription variable
+    ivref = var.infinite_variable_ref
     rvref = InfiniteOpt.GeneralVariableRef(JuMP.owner_model(ivref), raw_index,
                                            InfiniteOpt.ReducedVariableIndex)
     push!(reduced_vars, var)
-    # TODO map the reduced variable (will probably make function to do this)
+    _set_reduced_variable_mapping(model, var, rvref)
     return rvref
 end
 

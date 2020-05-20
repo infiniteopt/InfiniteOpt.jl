@@ -777,16 +777,11 @@ julia> num_supports(x[1], label = MCSample)
 ```
 """
 function num_supports(pref::DependentParameterRef; label::Symbol = All)::Int
+    supp_dict = _parameter_supports(pref)
     if label == All
-        return length(_parameter_supports(pref))
+        return length(supp_dict)
     else
-        counter = 0
-        for s in values(_parameter_supports(pref))
-            if label in s
-                counter += 1
-            end
-        end
-        return counter
+        return count(p -> label in p[2], supp_dict)
     end
 end
 
@@ -937,7 +932,7 @@ function _make_support_matrix(prefs::AbstractArray{<:DependentParameterRef},
     _allequal(lens) || error("Inconsistent support dimensions.")
     trans_supps = Array{Float64}(undef, first(lens), length(prefs))
     for k in eachindex(prefs)
-      trans_supps[:, _param_index(prefs[k])] = supports[k]
+        trans_supps[:, _param_index(prefs[k])] = supports[k]
     end
     return permutedims(trans_supps)
 end

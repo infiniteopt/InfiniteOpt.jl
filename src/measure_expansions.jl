@@ -19,6 +19,10 @@ an optimizer model and `add_measure_variable` is not properly extended.
 function make_point_variable_ref(write_model::InfiniteModel,
                                  ivref::GeneralVariableRef,
                                  support::Vector{Float64})::GeneralVariableRef
+    prefs = parameter_list(ivref)
+    for i in eachindex(support)
+        support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
+    end
     var = PointVariable(_variable_info(ivref), ivref, support)
     return JuMP.add_variable(write_model, var)
 end
@@ -49,6 +53,10 @@ end
 function make_point_variable_ref(write_model::JuMP.Model, # this should be an optimizer model
                                  ivref::GeneralVariableRef,
                                  support::Vector{Float64})::GeneralVariableRef
+    prefs = parameter_list(ivref)
+    for i in eachindex(support)
+        support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
+    end
     var = PointVariable(_variable_info(ivref), ivref, support)
     opt_key = optimizer_model_key(write_model)
     return add_measure_variable(write_model, var, Val(opt_key))

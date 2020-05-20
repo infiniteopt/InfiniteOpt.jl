@@ -7,7 +7,7 @@
     @dependent_parameters(m, c[1:2] in [0, 1])
     @infinite_variable(m, ivref(a, b, c))
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1, 4 => 0, 5 => 0)
-    var = ReducedVariable(ivref, eval_supps, [2])
+    var = ReducedVariable(ivref, eval_supps, [2], [2])
     object = VariableData(var, "var")
     idx = ReducedVariableIndex(1)
     vref = ReducedVariableRef(m, idx)
@@ -178,6 +178,7 @@ end
         @test build_variable(error, ivref, eval_supps).eval_supports === eval_supps
         @test build_variable(error, ivref, eval_supps).object_nums == [2]
         @test build_variable(error, ivref, eval_supps, check = false).object_nums == [2]
+        @test build_variable(error, ivref, eval_supps, check = false).parameter_nums == [2]
     end
     # test JuMP.add_variable
     @testset "JuMP.add_variable" begin

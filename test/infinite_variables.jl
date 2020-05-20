@@ -770,7 +770,7 @@ end
         empty!(InfiniteOpt._point_variable_dependencies(vref))
         # test used by reduced variable
         eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1)
-        var = ReducedVariable(y, eval_supps, [2])
+        var = ReducedVariable(y, eval_supps, [2], [2])
         object = VariableData(var, "var")
         idx = ReducedVariableIndex(1)
         rvref = ReducedVariableRef(m, idx)

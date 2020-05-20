@@ -324,7 +324,7 @@ end
     @test InfiniteVariable(sample_info, VectorTuple(pref), [1], [1]) isa InfiniteVariable
     # Reduced variable
     @test ReducedVariable <: InfOptVariable
-    @test ReducedVariable(vref, Dict(1 => Float64(2)), [1]) isa ReducedVariable
+    @test ReducedVariable(vref, Dict(1 => Float64(2)), [1], [1]) isa ReducedVariable
     # Point variable
     @test PointVariable <: InfOptVariable
     @test PointVariable(sample_info, vref, Float64[1]) isa PointVariable
@@ -376,5 +376,5 @@ end
     # ConstraintData
     @test ConstraintData <: AbstractDataObject
     @test ConstraintData(ScalarConstraint(zero(AffExpr), MOI.Integer()), [1], "",
-                         MeasureIndex[], false) isa ConstraintData
+                         false) isa ConstraintData
 end

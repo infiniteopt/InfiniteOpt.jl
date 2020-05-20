@@ -7,8 +7,8 @@
     con2 = BoundedScalarConstraint(zero(AffExpr), MOI.EqualTo(0.0),
                                   ParameterBounds((t => IntervalSet(0, 1),)),
                                   ParameterBounds())
-    object1 = ConstraintData(con1, Int[], "c1", MeasureIndex[], false)
-    object2 = ConstraintData(con2, [1], "c2", MeasureIndex[], false)
+    object1 = ConstraintData(con1, Int[], "c1", false)
+    object2 = ConstraintData(con2, [1], "c2", false)
     idx1 = ConstraintIndex(1)
     idx2 = ConstraintIndex(2)
     cref1 = InfOptConstraintRef(m, idx1, ScalarShape())
@@ -93,10 +93,6 @@
     @testset "_object_numbers" begin
         @test InfiniteOpt._object_numbers(cref1) == []
         @test InfiniteOpt._object_numbers(cref2) == [1]
-    end
-    # _measure_dependencies
-    @testset "_measure_dependencies" begin
-        @test InfiniteOpt._measure_dependencies(cref1) == MeasureIndex[]
     end
     @testset "_is_info_constraint" begin
         @test !InfiniteOpt._is_info_constraint(cref2)
@@ -225,8 +221,8 @@ end
     @testset "_update_var_constr_mapping" begin
         # add dumby constraints
         con = ScalarConstraint(zero(AffExpr), MOI.EqualTo(0.0))
-        object1 = ConstraintData(con, Int[], "c", MeasureIndex[], false)
-        object2 = ConstraintData(con, Int[], "c", MeasureIndex[], false)
+        object1 = ConstraintData(con, Int[], "c", false)
+        object2 = ConstraintData(con, Int[], "c", false)
         idx1 = ConstraintIndex(1)
         idx2 = ConstraintIndex(2)
         cref1 = InfOptConstraintRef(m, idx1, ScalarShape())
@@ -240,7 +236,6 @@ end
         @test InfiniteOpt._constraint_dependencies(par) == [idx1]
         @test InfiniteOpt._constraint_dependencies(meas) == [idx1]
         @test InfiniteOpt._constraint_dependencies(rv) == [idx1]
-        @test InfiniteOpt._measure_dependencies(cref1) == [mindex]
         # test secondary use of variable
         @test isa(InfiniteOpt._update_var_constr_mapping([inf, par, meas, rv], cref2),
                   Nothing)
@@ -248,14 +243,11 @@ end
         @test InfiniteOpt._constraint_dependencies(par) == [idx1, idx2]
         @test InfiniteOpt._constraint_dependencies(meas) == [idx1, idx2]
         @test InfiniteOpt._constraint_dependencies(rv) == [idx1, idx2]
-        @test InfiniteOpt._measure_dependencies(cref2) == [mindex]
         # Undo changes
         empty!(InfiniteOpt._constraint_dependencies(inf))
         empty!(InfiniteOpt._constraint_dependencies(par))
         empty!(InfiniteOpt._constraint_dependencies(meas))
         empty!(InfiniteOpt._constraint_dependencies(rv))
-        empty!(InfiniteOpt._measure_dependencies(cref1))
-        empty!(InfiniteOpt._measure_dependencies(cref2))
         m.constraints = MOIUC.CleverDict{ConstraintIndex, ConstraintData}()
     end
     # test add_constraint
@@ -433,6 +425,32 @@ end
         @test parameter_bounds(cref) == ParameterBounds(Dict(par => IntervalSet(0, 1),
                                                   pars[1] => IntervalSet(0, 2)))
         @test InfiniteOpt._core_constraint_object(cref).orig_bounds == ParameterBounds(Dict(par => IntervalSet(0, 1)))
+    end
+end
+
+# Test parameter reference methods
+@testset "Parameter References" begin
+    m = InfiniteModel()
+    @independent_parameter(m, t in [0, 1])
+    @independent_parameter(m, y in [0, 1])
+    @dependent_parameters(m, x[1:3] in [0, 1])
+    @hold_variable(m, z)
+    @constraint(m, c1, z >= 0)
+    @constraint(m, c2, z + t + x[1] >= 0)
+    # test _make_param_tuple_element (IndependentParameterIndex)
+    @testset "_make_param_tuple_element (Independent)" begin
+        @test InfiniteOpt._make_param_tuple_element(m, index(t)) == t
+        @test InfiniteOpt._make_param_tuple_element(m, index(y)) == y
+    end
+    # test _make_param_tuple_element (DependentParametersIndex)
+    @testset "_make_param_tuple_element (Dependent)" begin
+        obj_idx = index(first(x)).object_index
+        @test InfiniteOpt._make_param_tuple_element(m, obj_idx) == x
+    end
+    # test parameter_refs
+    @testset "parameter_refs" begin
+        @test parameter_refs(c1) == ()
+        @test parameter_refs(c2) == (t, x)
     end
 end
 

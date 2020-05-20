@@ -90,11 +90,6 @@ function _object_numbers(cref::InfOptConstraintRef)::Vector{Int}
     return _data_object(cref).object_nums
 end
 
-# Extend _measure_dependencies
-function _measure_dependencies(cref::InfOptConstraintRef)::Vector{MeasureIndex}
-    return _data_object(cref).measure_indices
-end
-
 # Return if this constraint is an info constraint
 function _is_info_constraint(cref::InfOptConstraintRef)::Bool
     return _data_object(cref).is_info_constraint
@@ -208,11 +203,7 @@ end
 function _update_var_constr_mapping(vrefs::Vector{GeneralVariableRef},
                                     cref::InfOptConstraintRef)::Nothing
     for vref in vrefs
-        dvref = dispatch_variable_ref(vref)
-        push!(_constraint_dependencies(dvref), JuMP.index(cref))
-        if dvref isa MeasureRef
-            push!(_measure_dependencies(cref), JuMP.index(dvref))
-        end
+        push!(_constraint_dependencies(vref), JuMP.index(cref))
     end
     return
 end
@@ -268,10 +259,9 @@ function JuMP.add_constraint(model::InfiniteModel,
         _validate_bounds(model, parameter_bounds(c))
     end
     # get the parameter object numbers
-    object_nums = _object_numbers(vrefs)
+    object_nums = sort!(_object_numbers(vrefs))
     # add the constaint to the model
-    constr_object = ConstraintData(c, object_nums, name, MeasureIndex[],
-                                  is_info_constr)
+    constr_object = ConstraintData(c, object_nums, name, is_info_constr)
     cindex = _add_data_object(model, constr_object)
     cref = InfOptConstraintRef(model, cindex, JuMP.shape(c))
     # update the variable mappings and model status
@@ -743,6 +733,45 @@ function JuMP.list_of_constraint_types(model::InfiniteModel
                           typeof(JuMP.moi_set(object.constraint))))
     end
     return collect(type_set)
+end
+
+################################################################################
+#                         PARAMETER REFERENCE METHODS
+################################################################################
+## Return an element of a parameter reference tuple given the model and index
+# IndependentParameterIndex
+function _make_param_tuple_element(model::InfiniteModel,
+    idx::IndependentParameterIndex,
+    )::GeneralVariableRef
+    return _make_parameter_ref(model, idx)
+end
+
+# DependentParametersIndex
+function _make_param_tuple_element(model::InfiniteModel,
+    idx::DependentParametersIndex,
+    )::Vector{GeneralVariableRef}
+    dpref = DependentParameterRef(model, DependentParameterIndex(idx, 1))
+    num_params = _num_parameters(dpref)
+    return [GeneralVariableRef(model, idx.value, DependentParameterIndex, i)
+            for i in 1:num_params]
+end
+
+"""
+    parameter_refs(cref::InfOptConstraintRef)::Tuple
+
+Return the tuple of infinite parameter references that determine the infinite
+dependencies of `cref`.
+
+**Example**
+```julia-repl
+julia> parameter_refs(cref)
+(t,)
+```
+"""
+function parameter_refs(cref::InfOptConstraintRef)::Tuple
+    model = JuMP.owner_model(cref)
+    obj_indices = _param_object_indices(model)[_object_numbers(cref)]
+    return Tuple(_make_param_tuple_element(model, idx) for idx in obj_indices)
 end
 
 ################################################################################

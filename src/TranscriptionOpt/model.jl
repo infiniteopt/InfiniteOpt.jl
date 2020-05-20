@@ -34,7 +34,7 @@ constructor.
    Map constraints to their support values.
 - `verbose_naming::Bool`: Should we name transcription variables/constraints with
    support values?
-- `supports::Union{Nothing, Tuple}`: Store the collected parameter supports here.
+- `supports::Tuple`: Store the collected parameter supports here.
 """
 mutable struct TranscriptionData
     # Variable information
@@ -50,7 +50,6 @@ mutable struct TranscriptionData
     # Measure information
     measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}
     measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}
-    # NOTE not sure if these are needed
     measure_supports::Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}
 
     # Constraint information
@@ -63,7 +62,7 @@ mutable struct TranscriptionData
     verbose_naming::Bool
 
     # Collected Supports
-    supports::Union{Nothing, Tuple}
+    supports::Tuple
 
     # Default constructor
     function TranscriptionData(; verbose_naming::Bool = false)
@@ -87,7 +86,7 @@ mutable struct TranscriptionData
                    # settings
                    verbose_naming,
                    # support storage
-                   nothing)
+                   ())
     end
 end
 
@@ -194,12 +193,18 @@ function transcription_variable(model::JuMP.Model,
     return transcription_variable(model, vref, InfiniteOpt._index_type(vref))
 end
 
+# define convenient aliases
+const InfVarIndex = Union{InfiniteOpt.InfiniteVariableIndex,
+                          InfiniteOpt.ReducedVariableIndex}
+const FinVarIndex = Union{InfiniteOpt.HoldVariableIndex,
+                          InfiniteOpt.PointVariableIndex}
+
 ## Define the variable mapping functions
-# FiniteVariableIndex
+# FinVarIndex
 function transcription_variable(model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V}
-    )::JuMP.VariableRef where {V <: InfiniteOpt.FiniteVariableIndex}
+    )::JuMP.VariableRef where {V <: FinVarIndex}
     var = get(transcription_data(model).finvar_mappings, vref, nothing)
     if isnothing(var)
         error("Variable reference $vref not used in transcription model.")
@@ -207,11 +212,11 @@ function transcription_variable(model::JuMP.Model,
     return var
 end
 
-# InfiniteIndex
+# InfVarIndex
 function transcription_variable(model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V}
-    )::Vector{JuMP.VariableRef} where {V <: InfiniteOpt.InfiniteIndex}
+    )::Vector{JuMP.VariableRef} where {V <: InfVarIndex}
     var = get(transcription_data(model).infvar_mappings, vref, nothing)
     if isnothing(var)
         error("Variable reference $vref not used in transcription model.")
@@ -254,15 +259,17 @@ Return the support alias mapping associated with `vref` in the transcribed model
 Errors if `vref` does not have transcribed variables.
 """
 function InfiniteOpt.variable_supports(model::JuMP.Model,
-    vref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef},
+    dvref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef},
     key::Val{:TransData} = Val(:TransData)
     )::Vector
+    vref = InfiniteOpt._make_variable_ref(JuMP.owner_model(dvref), JuMP.index(dvref))
     if !haskey(transcription_data(model).infvar_mappings, vref)
         error("Variable reference $vref not used in transcription model.")
     elseif !haskey(transcription_data(model).infvar_supports, vref)
-        prefs = InfiniteOpt.raw_parameter_refs(vref)
+        prefs = InfiniteOpt.raw_parameter_refs(dvref)
         lookups = transcription_data(model).infvar_lookup[vref]
-        supp = VectorTuple(first(keys(lookups)), prefs.ranges, prefs.indices)
+        supp = InfiniteOpt.Collections.VectorTuple(first(keys(lookups)), prefs.ranges,
+                                                   prefs.indices)
         type = typeof(Tuple(supp))
         supps = Vector{type}(undef, length(lookups))
         for (s, i) in lookups
@@ -291,13 +298,17 @@ function lookup_by_support(model::JuMP.Model,
                                     support)
 end
 
+# define error function for not being able to find a variable by its support
+_supp_error() = error("Unable to locate transcription variable by support, consider " *
+                      "rebuilding the infinite model with less significant digits.")
+
 # InfiniteIndex
 function lookup_by_support(model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     support::Vector
-    )::JuMP.VariableRef where {V <: InfiniteOpt.InfiniteIndex}
-    idx = transcription_data(model).infvar_lookup[vref][support]
+    )::JuMP.VariableRef where {V <: InfVarIndex}
+    idx = get(_supp_error, transcription_data(model).infvar_lookup[vref], support)
     return transcription_data(model).infvar_mappings[vref][idx]
 end
 
@@ -306,7 +317,7 @@ function lookup_by_support(model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     support::Vector
-    )::JuMP.VariableRef where {V <: InfiniteOpt.FiniteVariableIndex}
+    )::JuMP.VariableRef where {V <: FinVarIndex}
     return transcription_data(model).finvar_mappings[vref]
 end
 
@@ -335,20 +346,34 @@ function lookup_by_support(model::JuMP.Model,
     index_type::Type{InfiniteOpt.MeasureIndex},
     support::Vector
     )::JuMP.AbstractJuMPScalar
-    idx = transcription_data(model).measure_lookup[mref][support]
+    idx = get(_supp_error, transcription_data(model).measure_lookup[mref], support)
     return transcription_data(model).measure_mappings[mref][idx]
 end
 
 # Extend variable_supports
 function InfiniteOpt.variable_supports(model::JuMP.Model,
-    mref::InfiniteOpt.MeasureRef,
+    dmref::InfiniteOpt.MeasureRef,
     key::Val{:TransData} = Val(:TransData)
     )::Vector
-    supps = get(transcription_data(model).measure_supports, mref, nothing)
-    if isnothing(supps)
-        error("Variable reference $mref not used in transcription model.")
+    mref = InfiniteOpt._make_variable_ref(JuMP.owner_model(dmref), JuMP.index(dmref))
+    if !haskey(transcription_data(model).measure_mappings, mref)
+        error("Measure reference $mref not used in transcription model.")
+    elseif !haskey(transcription_data(model).measure_supports, mref)
+        lookups = transcription_data(model).measure_lookup[mref]
+        prefs = InfiniteOpt.parameter_refs(dmref)
+        vt_prefs = InfiniteOpt.Collections.VectorTuple(prefs)
+        vt_supp = InfiniteOpt.Collections.VectorTuple(first(keys(lookups)),
+                                                      vt_prefs.ranges,
+                                                      vt_prefs.indices)
+        type = typeof(Tuple(vt_supp))
+        supps = Vector{type}(undef, length(lookups))
+        for (supp, i) in lookups
+            vt_supp[:] = supp
+            supps[i] = Tuple(vt_supp)
+        end
+        transcription_data(model).measure_supports[mref] = supps
     end
-    return supps
+    return transcription_data(model).measure_supports[mref]
 end
 
 ################################################################################
@@ -432,7 +457,7 @@ end
 # Access the collected supports
 """
 """ # TODO add docstring
-function parameter_supports(model::JuMP.Model)::Union{Nothing, Tuple}
+function parameter_supports(model::JuMP.Model)::Tuple
     return transcription_data(model).supports
 end
 
@@ -444,12 +469,14 @@ function support_index_iterator(model::JuMP.Model)::CartesianIndices
     return CartesianIndices(ntuple(i -> 1:length(raw_supps[i]), length(raw_supps)))
 end
 
-# Generate for a subset of object numbers (0s used as placeholders)
+# Generate for a subset of object numbers (use last index as placeholder --> support with NaNs)
 function support_index_iterator(model::JuMP.Model,
                                 obj_nums::Vector{Int})::CartesianIndices
     raw_supps = parameter_supports(model)
-    # TODO check efficiency of using placeholder
-    return CartesianIndices(ntuple(i -> i in obj_nums ? (1:length(raw_supps[i])) : 0,
+    lens = map(i -> length(i), raw_supps)
+    # prepare the indices of each support combo
+    # note that the actual supports are afrom 1:length-1 and the placeholders are at the ends
+    return CartesianIndices(ntuple(i -> i in obj_nums ? (1:lens[i]-1) : (lens[i]:lens[i]),
                                    length(raw_supps)))
 end
 
@@ -459,7 +486,9 @@ end
 function index_to_support(model::JuMP.Model,
                           index::CartesianIndex)::Vector{Float64}
     raw_supps = parameter_supports(model)
-    # TODO check efficiency of using placeholder
-    return [j for i in eachindex(index.I)
-            for j in (iszero(index[i]) ? NaN : raw_supps[i][index[i]])]
+    return [j for i in eachindex(index.I) for j in raw_supps[i][index[i]]]
 end
+
+"""
+"""
+verbose_naming(model::JuMP.Model)::Bool = transcription_data(model).verbose_naming

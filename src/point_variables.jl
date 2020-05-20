@@ -173,6 +173,11 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Point};
     _check_tuple_shape(_error, dispatch_ivref, pvalues)
     _check_tuple_values(_error, dispatch_ivref, pvalues.values)
     info = _update_point_info(info, dispatch_ivref)
+    # enforce parameter significant digits on the values
+    prefs = parameter_list(dispatch_ivref)
+    for i in eachindex(pvalues)
+        pvalues[i] = round(pvalues[i], sigdigits = significant_digits(prefs[i]))
+    end
     # make variable and return
     return PointVariable(_make_float_info(info), infinite_variable_ref,
                          pvalues.values)
@@ -305,11 +310,15 @@ end
 ################################################################################
 #                         VARIABLE NAMING METHODS
 ################################################################################
-# Get root name of infinite variable
-function _root_name(vref::InfiniteVariableRef)
-    name = JuMP.name(vref)
+# remove (expr) from name
+function _root_name(name::String)::String
     idx = findfirst(isequal('('), name)
     return isnothing(idx) ? name : name[1:idx-1]
+end
+
+# Get root name of infinite variable
+function _root_name(vref::InfiniteVariableRef)
+    return _root_name(JuMP.name(vref))
 end
 
 ## Return the parameter value as an appropriate string

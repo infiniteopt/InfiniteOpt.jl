@@ -120,7 +120,6 @@ end
 # Define convenient aliases
 const FiniteVariableIndex = Union{PointVariableIndex, HoldVariableIndex,
                                   FiniteParameterIndex}
-const InfiniteIndex = Union{InfiniteVariableIndex, ReducedVariableIndex}
 
 """
     MeasureIndex <: ObjectIndex
@@ -480,12 +479,15 @@ infinite variable.
 - `infinite_variable_index::I`: The original infinite variable.
 - `eval_supports::Dict{Int, Float64}`: The original parameter tuple linear indices
                                      to the evaluation supports.
+- `parameter_nums::Vector{Int}`: The parameter numbers associated with the reduced
+                                 `parameter_refs`.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with the
                               reduced `parameter_refs`.
 """
 struct ReducedVariable{I <: JuMP.AbstractVariableRef} <: InfOptVariable
     infinite_variable_ref::I
     eval_supports::Dict{Int, Float64}
+    parameter_nums::Vector{Int}
     object_nums::Vector{Int}
 end
 
@@ -816,14 +818,12 @@ A mutable `DataType` for storing constraints and their data.
 - `object_nums::Vector{Int}`: The object numbers of the parameter objects that the
                               constraint depends on.
 - `name::String`: The name used for printing.
-- `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `is_info_constraint::Bool`: Is this is constraint based on variable info (e.g., lower bound)
 """
 mutable struct ConstraintData <: AbstractDataObject
     constraint::JuMP.AbstractConstraint
     object_nums::Vector{Int}
     name::String
-    measure_indices::Vector{MeasureIndex}
     is_info_constraint::Bool
 end
 

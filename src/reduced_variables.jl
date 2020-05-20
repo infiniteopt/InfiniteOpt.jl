@@ -66,9 +66,7 @@ end
 
 # Extend _parameter_numbers
 function _parameter_numbers(vref::ReducedVariableRef)::Vector{Int}
-    prefs = raw_parameter_refs(infinite_variable_ref(vref))
-    return [_parameter_number(prefs[i]) for i in eachindex(prefs)
-            if !haskey(eval_supports(vref), i)]
+    return _core_variable_object(vref).parameter_nums
 end
 
 ################################################################################
@@ -98,7 +96,7 @@ function JuMP.build_variable(_error::Function, ivref::GeneralVariableRef,
         _error("Support evaluation dictionary indices do not match the infinite " *
                "parameter dependencies of $(ivref).")
     end
-    prefs = raw_parameter_refs(dvref)
+    prefs = parameter_list(dvref)
     if check
         for (index, value) in eval_supports
             pref = prefs[index]
@@ -114,7 +112,16 @@ function JuMP.build_variable(_error::Function, ivref::GeneralVariableRef,
             push!(object_set, _object_number(prefs[i]))
         end
     end
-    return ReducedVariable(ivref, eval_supports, collect(object_set))
+    # get the parameter numbers
+    orig_nums = _parameter_numbers(ivref)
+    param_nums = [orig_nums[i] for i in eachindex(orig_nums)
+                  if !haskey(eval_supports, i)]
+    # round the support values in accordance with the significant digits
+    for (k, v) in eval_supports
+        eval_supports[k] = round(v, sigdigits = significant_digits(prefs[k]))
+    end
+    # build the variable
+    return ReducedVariable(ivref, eval_supports, param_nums, collect(object_set))
 end
 
 """
@@ -221,7 +228,7 @@ primarily an internal method where [`parameter_refs`](@ref parameter_refs(vref::
 is intended as the preferred user function.
 """
 function parameter_list(vref::ReducedVariableRef)::Vector{GeneralVariableRef}
-    orig_prefs = raw_parameter_refs(infinite_variable_ref(vref))
+    orig_prefs = parameter_list(infinite_variable_ref(vref))
     eval_supps = eval_supports(vref)
     return [orig_prefs[i] for i in eachindex(orig_prefs) if !haskey(eval_supps, i)]
 end

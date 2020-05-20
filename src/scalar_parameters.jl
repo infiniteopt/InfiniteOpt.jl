@@ -798,13 +798,7 @@ function num_supports(pref::IndependentParameterRef; label::Symbol = All)::Int
     if label == All
         return length(supports_dict)
     else
-        counter = 0
-        for set in values(supports_dict)
-            if label in set
-                counter += 1
-            end
-        end
-        return counter
+        return count(p -> label in p[2], supports_dict)
     end
 end
 
@@ -1111,7 +1105,9 @@ function _update_reduced_variable(vref::ReducedVariableRef,
         end
     end
     obj_nums = _object_numbers(vref)
-    new_var = ReducedVariable(infinite_variable_ref(vref), new_supports, obj_nums)
+    param_nums = _parameter_numbers(vref)
+    new_var = ReducedVariable(infinite_variable_ref(vref), new_supports,
+                              param_nums, obj_nums)
     _set_core_variable_object(vref, new_var)
     _data_object(vref).name = "" # reset the name
     # TODO account for possibility that this becomes a point variable
@@ -1193,6 +1189,7 @@ function _update_model_numbers(model::InfiniteModel, obj_num::Int,
     # update the reduced variables
     for vref in JuMP.all_variables(model, ReducedVariable)
         _update_number_list([obj_num], _object_numbers(vref))
+        _update_number_list(param_nums, _parameter_numbers(vref))
     end
     # update the measures
     for mref in all_measures(model)

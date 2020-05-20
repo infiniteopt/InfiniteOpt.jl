@@ -724,8 +724,8 @@ function build_measure(expr::T, data::D;
     prefs = parameter_refs(data)
     data_obj_nums = _object_numbers(prefs)
     data_param_nums = [_parameter_number(pref) for pref in prefs]
-    obj_nums = setdiff!(expr_obj_nums, data_obj_nums)
-    param_nums = setdiff(expr_param_nums, data_param_nums)
+    obj_nums = sort!(setdiff!(expr_obj_nums, data_obj_nums))
+    param_nums = sort!(setdiff(expr_param_nums, data_param_nums))
     # check if analytic method should be applied
     lb_nan = isnan(first(JuMP.lower_bound(data)))
     ub_nan = isnan(first(JuMP.upper_bound(data)))
@@ -921,6 +921,12 @@ end
     measure_function(mref::MeasureRef)::JuMP.AbstractJuMPScalar
 
 Return the function associated with `mref`.
+
+**Example**
+```julia-repl
+julia> measure_function(meas)
+y(x, t) + 2
+```
 """
 function measure_function(mref::MeasureRef)::JuMP.AbstractJuMPScalar
     return _core_variable_object(mref).func
@@ -930,6 +936,14 @@ end
     measure_data(mref::MeasureRef)::AbstractMeasureData
 
 Return the measure data associated with `mref`.
+
+**Example**
+```julia-repl
+julia> data = measure_data(meas);
+
+julia> typeof(data)
+FunctionalDiscreteMeasureData{Vector{GeneralVariableRef},Vector{Float64}}
+```
 """
 function measure_data(mref::MeasureRef)::AbstractMeasureData
     return _core_variable_object(mref).data
@@ -939,9 +953,58 @@ end
     is_analytic(mref::MeasureRef)::Bool
 
 Return if `mref` is evaluated analytically.
+
+**Example**
+```julia-repl
+julia> is_analytic(meas)
+false
+```
 """
 function is_analytic(mref::MeasureRef)::Bool
     return _core_variable_object(mref).constant_func
+end
+
+## Return an element of a parameter reference tuple given the model, index, and parameter numbers
+# IndependentParameterIndex
+function _make_param_tuple_element(model::InfiniteModel,
+    idx::IndependentParameterIndex,
+    param_nums::Vector{Int}
+    )::GeneralVariableRef
+    return _make_parameter_ref(model, idx)
+end
+
+# DependentParametersIndex
+function _make_param_tuple_element(model::InfiniteModel,
+    idx::DependentParametersIndex,
+    param_nums::Vector{Int}
+    )::Union{GeneralVariableRef, Vector{GeneralVariableRef}}
+    dpref = DependentParameterRef(model, DependentParameterIndex(idx, 1))
+    el_param_nums = _data_object(dpref).parameter_nums
+    prefs = [GeneralVariableRef(model, idx.value, DependentParameterIndex, i)
+             for i in eachindex(el_param_nums) if el_param_nums[i] in param_nums]
+    return length(prefs) > 1 ? prefs : first(prefs)
+end
+
+"""
+    parameter_refs(mref::MeasureRef)::Tuple
+
+Return the tuple of infinite parameters that the measured expression associated
+`mref` depends on once the measure has been evaluated. Note that this will
+correspond to the parameter dependencies of the measure function excluding those
+included in the measure data.
+
+**Example**
+```julia-repl
+julia> parameter_refs(meas)
+(t,)
+```
+"""
+function parameter_refs(mref::MeasureRef)::Tuple
+    model = JuMP.owner_model(mref)
+    obj_indices = _param_object_indices(model)[_object_numbers(mref)]
+    param_nums = _parameter_nums(mref)
+    return Tuple(_make_param_tuple_element(model, idx, param_nums)
+                 for idx in obj_indices)
 end
 
 """
@@ -1181,17 +1244,15 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
     for mindex in _measure_dependencies(mref)
         meas_ref = dispatch_variable_ref(model, mindex)
         func = measure_function(meas_ref)
+        data = measure_data(meas_ref)
         if func isa GeneralVariableRef
-            data = measure_data(meas_ref)
             new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
             new_meas = Measure(new_func, data, Int[], Int[], false)
-            _set_core_variable_object(meas_ref, new_meas)
         else
             _remove_variable(func, gvref)
-            data = measure_data(meas_ref)
             new_meas = build_measure(model, func, data)
-            _set_core_variable_object(meas_ref, new_meas)
         end
+        _set_core_variable_object(meas_ref, new_meas)
     end
     # Remove from dependent constraints if there are any
     for cindex in _constraint_dependencies(mref)
@@ -1205,7 +1266,7 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
             empty!(_object_numbers(cref))
         else
             _remove_variable(func, gvref)
-            _data_object(cref).object_nums = _object_numbers(func)
+            _data_object(cref).object_nums = sort!(_object_numbers(func))
         end
     end
     # Remove from objective if used there

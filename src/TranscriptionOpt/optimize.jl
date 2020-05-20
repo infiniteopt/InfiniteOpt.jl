@@ -24,7 +24,7 @@ function InfiniteOpt.build_optimizer_model!(model::InfiniteOpt.InfiniteModel,
     # clear the optimzier model contents
     trans_model = InfiniteOpt.clear_optimizer_model_build!(model)
     # build the transcription model based on model
-    _build_transcription_model!(trans_model, model)
+    build_transcription_model!(trans_model, model)
     # update the optimizer model status
     InfiniteOpt.set_optimizer_model_ready(model, true)
     return
