@@ -436,21 +436,33 @@ Modules = [InfiniteOpt, InfiniteOpt.TranscriptionOpt]
 Order   = [:function]
 ```
 ```@docs
-transcription_model
-build_optimizer_model!(::InfiniteModel,::Val{:TransData})
-TranscriptionModel()
-TranscriptionModel(::InfiniteModel, ::Any)
+TranscriptionModel
 is_transcription_model
 transcription_data
-transcription_variable
-InfiniteOpt.optimizer_model_variable(::InfiniteOpt.InfOptVariableRef, ::Val{:TransData})
-InfiniteOpt.variable_supports(::JuMP.Model, ::InfiniteOpt.InfiniteVariableRef, ::Val{:TransData})
-transcription_constraint
-InfiniteOpt.optimizer_model_constraint(::InfiniteOpt.GeneralConstraintRef, ::Val{:TransData})
-InfiniteOpt.constraint_supports(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData})
-InfiniteOpt.constraint_parameter_refs(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData})
+InfiniteOpt.TranscriptionOpt.transcription_model
+InfiniteOpt.TranscriptionOpt.transcription_variable(::JuMP.Model,::InfiniteOpt.GeneralVariableRef)
+InfiniteOpt.optimizer_model_variable(::InfiniteOpt.GeneralVariableRef,::Val{:TransData})
+InfiniteOpt.variable_supports(::JuMP.Model,::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef},::Val{:TransData})
+InfiniteOpt.TranscriptionOpt.lookup_by_support(::JuMP.Model,::InfiniteOpt.GeneralVariableRef,::Vector)
+InfiniteOpt.internal_reduced_variable(::InfiniteOpt.ReducedVariableRef,::Val{:TransData})
+InfiniteOpt.TranscriptionOpt.transcription_constraint(::JuMP.Model,::InfiniteOpt.InfOptConstraintRef)
+InfiniteOpt.optimizer_model_constraint(::InfiniteOpt.InfOptConstraintRef,::Val{:TransData})
+InfiniteOpt.constraint_supports(::JuMP.Model,::InfiniteOpt.InfOptConstraintRef,::Val{:TransData})
+InfiniteOpt.TranscriptionOpt.parameter_supports(::JuMP.Model)
+InfiniteOpt.TranscriptionOpt.support_index_iterator
+InfiniteOpt.TranscriptionOpt.index_to_support
+InfiniteOpt.TranscriptionOpt.set_parameter_supports
+InfiniteOpt.TranscriptionOpt.transcribe_hold_variables!
+InfiniteOpt.TranscriptionOpt.transcribe_infinite_variables!
+InfiniteOpt.TranscriptionOpt.transcribe_reduced_variables!
+InfiniteOpt.TranscriptionOpt.transcribe_point_variables!
+InfiniteOpt.TranscriptionOpt.transcription_expression
+InfiniteOpt.TranscriptionOpt.transcribe_measures!
+InfiniteOpt.TranscriptionOpt.transcribe_objective!
+InfiniteOpt.TranscriptionOpt.transcribe_constraints!
+InfiniteOpt.TranscriptionOpt.build_transcription_model!
 InfiniteOpt.add_measure_variable(::JuMP.Model,::InfiniteOpt.PointVariable,::Val{:TransData})
-InfiniteOpt.add_measure_variable(::JuMP.Model,::InfiniteOpt.ReducedInfiniteInfo,::Val{:TransData})
+InfiniteOpt.add_measure_variable(::JuMP.Model,::InfiniteOpt.ReducedVariable,::Val{:TransData})
 InfiniteOpt.delete_reduced_variable(::JuMP.Model,::InfiniteOpt.ReducedVariableRef,::Val{:TransData})
-InfiniteOpt.reduction_info(::InfiniteOpt.ReducedVariableRef,::Val{:TransData})
+InfiniteOpt.build_optimizer_model!(::InfiniteOpt.InfiniteModel,::Val{:TransData})
 ```

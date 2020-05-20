@@ -16,9 +16,6 @@ const MOIUC = MOIU.CleverDicts
 include("Collections/Collections.jl")
 using .Collections: VectorTuple, same_structure, DualDict
 
-# Export the collections and methods  from Collections
-export VectorTuple, same_structure, DualDict
-
 # Import methods
 include("datatypes.jl")
 include("infinite_sets.jl")
@@ -37,7 +34,7 @@ include("macros.jl")
 include("objective.jl")
 include("measure_expansions.jl")
 include("optimize.jl")
-# include("results.jl")
+include("results.jl")
 include("show.jl")
 include("utilities.jl")
 
@@ -49,18 +46,16 @@ using .TranscriptionOpt
 include("MeasureToolbox/MeasureToolbox.jl")
 using .MeasureToolbox: Automatic, UniTrapezoid, UniMCSampling,
 UniIndepMCSampling, Quadrature, GaussHermite, GaussLegendre, GaussLaguerre,
-MultiMCSampling, MultiIndepMCSampling, generate_integral_data,
-uni_integral_defaults, set_uni_integral_defaults, integral,
-multi_integral_defaults, set_multi_integral_defaults, expect, support_sum,
-@integral, @expect, @support_sum
+MultiMCSampling, MultiIndepMCSampling, uni_integral_defaults,
+set_uni_integral_defaults, integral, multi_integral_defaults,
+set_multi_integral_defaults, expect, support_sum, @integral, @expect, @support_sum
 
 # Export the measure toolbox functions and constants
 export Automatic, UniTrapezoid, UniMCSampling, UniIndepMCSampling, Quadrature,
 GaussHermite, GaussLegendre, GaussLaguerre, MultiMCSampling,
-MultiIndepMCSampling, generate_integral_data, uni_integral_defaults,
-set_uni_integral_defaults, integral, multi_integral_defaults,
-set_multi_integral_defaults, expect, support_sum, @integral, @expect,
-@support_sum
+MultiIndepMCSampling, uni_integral_defaults, set_uni_integral_defaults,
+integral, multi_integral_defaults, set_multi_integral_defaults, expect,
+support_sum, @integral, @expect, @support_sum
 
 # Export core datatypes
 export AbstractDataObject, InfiniteModel
@@ -101,7 +96,7 @@ infinite_set, set_infinite_set, parameter_by_name, num_parameters,
 all_parameters, num_supports, has_supports,
 set_supports, add_supports, delete_supports, supports, used_by_constraint,
 used_by_measure, used_by_infinite_variable, is_used, generate_and_add_supports!,
-significant_digits
+significant_digits, parameter_value
 
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, ReducedVariable,

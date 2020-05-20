@@ -234,19 +234,18 @@ set_optimizer_model
 optimizer_model_key(::InfiniteModel)
 optimizer_model_key(::JuMP.Model)
 build_optimizer_model!(::InfiniteModel)
+build_optimizer_model!
 clear_optimizer_model_build!(::InfiniteModel)
 clear_optimizer_model_build!(::JuMP.Model)
 add_infinite_model_optimizer
-optimizer_model_variable(::InfOptVariableRef)
+optimizer_model_variable(::GeneralVariableRef)
 optimizer_model_variable
-supports(::InfiniteVariableRef)
+supports(::Union{DecisionVariableRef, MeasureRef})
 variable_supports
-optimizer_model_constraint(::GeneralConstraintRef)
+optimizer_model_constraint(::InfOptConstraintRef)
 optimizer_model_constraint
-supports(::GeneralConstraintRef)
+supports(::InfOptConstraintRef)
 constraint_supports
-parameter_refs(::GeneralConstraintRef)
-constraint_parameter_refs
 optimizer_model_ready
 set_optimizer_model_ready
 JuMP.bridge_constraints(::InfiniteModel)

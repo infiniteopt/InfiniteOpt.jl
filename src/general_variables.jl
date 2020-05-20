@@ -932,21 +932,19 @@ function fill_in_supports!(prefs::AbstractArray{<:GeneralVariableRef};
 end
 
 # Fallback
-function JuMP.value(vref::DispatchVariableRef)
-    throw(ArgumentError("`JuMP.value` not defined for variable reference type " *
-                        "`$(typeof(vref))`."))
+function parameter_value(pref::DispatchVariableRef)
+    throw(ArgumentError("`parameter_value` not defined for variable reference type " *
+                        "`$(typeof(pref))`."))
 end
 
 """
-    JuMP.value(vref::GeneralVariableRef)::Float64
+    parameter_value(pref::GeneralVariableRef)::Float64
 
-Extend [`JuMP.value`](@ref JuMP.value(::JuMP.VariableRef)) to
-return the value of `vref`. It relies on `JuMP.value`
-being defined for the underlying `DispatchVariableRef`, otherwise an
-`ArugmentError` is thrown.
+Return the value of a finite parameter. This is defined for the finite parameters
+only, otherwise an `ArugmentError` is thrown.
 """
-function JuMP.value(vref::GeneralVariableRef)::Float64
-    return JuMP.value(dispatch_variable_ref(vref))
+function parameter_value(pref::GeneralVariableRef)::Float64
+    return parameter_value(dispatch_variable_ref(pref))
 end
 
 # Fallback

@@ -802,14 +802,14 @@ end
     end
     # initialize the model
     m = InfiniteModel()
-    # test JuMP.value
-    @testset "JuMP.value" begin
+    # test parameter_value
+    @testset "parameter_value" begin
         pref = GeneralVariableRef(m, 1, FiniteParameterIndex)
         dpref = dispatch_variable_ref(pref)
-        @test_throws ArgumentError value(bad)
+        @test_throws ArgumentError parameter_value(bad)
         @test @finite_parameter(m, g, 1) == pref
-        @test value(dpref) == 1
-        @test value(pref) == 1
+        @test parameter_value(dpref) == 1
+        @test parameter_value(pref) == 1
     end
     # test JuMP.set_value
     @testset "JuMP.set_value" begin
@@ -817,9 +817,9 @@ end
         dpref = dispatch_variable_ref(pref)
         @test_throws ArgumentError set_value(bad, 42)
         @test isa(set_value(dpref, 42), Nothing)
-        @test value(pref) == 42
+        @test parameter_value(pref) == 42
         @test isa(set_value(pref, 41), Nothing)
-        @test value(pref) == 41
+        @test parameter_value(pref) == 41
     end
 end
 

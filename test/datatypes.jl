@@ -376,5 +376,5 @@ end
     # ConstraintData
     @test ConstraintData <: AbstractDataObject
     @test ConstraintData(ScalarConstraint(zero(AffExpr), MOI.Integer()), [1], "",
-                         false) isa ConstraintData
+                         MeasureIndex[], false) isa ConstraintData
 end

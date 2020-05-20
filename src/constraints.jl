@@ -90,6 +90,11 @@ function _object_numbers(cref::InfOptConstraintRef)::Vector{Int}
     return _data_object(cref).object_nums
 end
 
+# Extend _measure_dependencies
+function _measure_dependencies(cref::InfOptConstraintRef)::Vector{MeasureIndex}
+    return _data_object(cref).measure_indices
+end
+
 # Return if this constraint is an info constraint
 function _is_info_constraint(cref::InfOptConstraintRef)::Bool
     return _data_object(cref).is_info_constraint
@@ -203,7 +208,11 @@ end
 function _update_var_constr_mapping(vrefs::Vector{GeneralVariableRef},
                                     cref::InfOptConstraintRef)::Nothing
     for vref in vrefs
-        push!(_constraint_dependencies(vref), JuMP.index(cref))
+        dvref = dispatch_variable_ref(vref)
+        push!(_constraint_dependencies(dvref), JuMP.index(cref))
+        if dvref isa MeasureRef
+            push!(_measure_dependencies(cref), JuMP.index(dvref))
+        end
     end
     return
 end
@@ -261,7 +270,8 @@ function JuMP.add_constraint(model::InfiniteModel,
     # get the parameter object numbers
     object_nums = sort!(_object_numbers(vrefs))
     # add the constaint to the model
-    constr_object = ConstraintData(c, object_nums, name, is_info_constr)
+    constr_object = ConstraintData(c, object_nums, name, MeasureIndex[],
+                                   is_info_constr)
     cindex = _add_data_object(model, constr_object)
     cref = InfOptConstraintRef(model, cindex, JuMP.shape(c))
     # update the variable mappings and model status

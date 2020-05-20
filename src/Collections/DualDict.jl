@@ -3,8 +3,7 @@
 
 A convenient dictionary type that efficiently implements a dictionary with
 two different key types `K1` and `K2` for one common value type `V`. General
-usage is experimental and this is primarily intended to be used to store
-`ParmaterBounds`.
+usage is experimental.
 
 **Example**
 ```julia-repl

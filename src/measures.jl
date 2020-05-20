@@ -279,7 +279,7 @@ end
 """
     FunctionalDiscreteMeasureData(pref::GeneralVariableRef,
                                   coeff_func::Function,
-                                  min_num_supports::Int
+                                  min_num_supports::Int,
                                   label::Symbol;
                                   [weight_function::Function = [`default_weight`](@ref),
                                   lower_bound::Real = NaN,
@@ -351,9 +351,9 @@ function _check_bounds_in_set(prefs::Vector{DependentParameterRef}, lbs,
 end
 
 """
-    FunctionalDiscreteMeasureData(AbstractArray{GeneralVariableRef},
+    FunctionalDiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
                                   coeff_func::Function,
-                                  min_num_supports::Int
+                                  min_num_supports::Int,
                                   label::Symbol;
                                   [weight_function::Function = [`default_weight`](@ref),
                                   lower_bounds::AbstractArray{<:Real} = [NaN...],
@@ -1264,9 +1264,11 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
             new_constr = JuMP.ScalarConstraint(new_func, set)
             _set_core_constraint_object(cref, new_constr)
             empty!(_object_numbers(cref))
+            empty!(_measure_dependencies(cref))
         else
             _remove_variable(func, gvref)
             _data_object(cref).object_nums = sort!(_object_numbers(func))
+            filter!(e -> e != JuMP.index(mref), _measure_dependencies(cref))
         end
     end
     # Remove from objective if used there

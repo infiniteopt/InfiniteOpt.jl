@@ -7,8 +7,8 @@
     con2 = BoundedScalarConstraint(zero(AffExpr), MOI.EqualTo(0.0),
                                   ParameterBounds((t => IntervalSet(0, 1),)),
                                   ParameterBounds())
-    object1 = ConstraintData(con1, Int[], "c1", false)
-    object2 = ConstraintData(con2, [1], "c2", false)
+    object1 = ConstraintData(con1, Int[], "c1", MeasureIndex[], false)
+    object2 = ConstraintData(con2, [1], "c2", MeasureIndex[], false)
     idx1 = ConstraintIndex(1)
     idx2 = ConstraintIndex(2)
     cref1 = InfOptConstraintRef(m, idx1, ScalarShape())
@@ -93,6 +93,10 @@
     @testset "_object_numbers" begin
         @test InfiniteOpt._object_numbers(cref1) == []
         @test InfiniteOpt._object_numbers(cref2) == [1]
+    end
+    # _measure_dependencies
+    @testset "_measure_dependencies" begin
+        @test InfiniteOpt._measure_dependencies(cref1) == MeasureIndex[]
     end
     @testset "_is_info_constraint" begin
         @test !InfiniteOpt._is_info_constraint(cref2)
@@ -221,8 +225,8 @@ end
     @testset "_update_var_constr_mapping" begin
         # add dumby constraints
         con = ScalarConstraint(zero(AffExpr), MOI.EqualTo(0.0))
-        object1 = ConstraintData(con, Int[], "c", false)
-        object2 = ConstraintData(con, Int[], "c", false)
+        object1 = ConstraintData(con, Int[], "c", MeasureIndex[], false)
+        object2 = ConstraintData(con, Int[], "c", MeasureIndex[], false)
         idx1 = ConstraintIndex(1)
         idx2 = ConstraintIndex(2)
         cref1 = InfOptConstraintRef(m, idx1, ScalarShape())
@@ -236,6 +240,7 @@ end
         @test InfiniteOpt._constraint_dependencies(par) == [idx1]
         @test InfiniteOpt._constraint_dependencies(meas) == [idx1]
         @test InfiniteOpt._constraint_dependencies(rv) == [idx1]
+        @test InfiniteOpt._measure_dependencies(cref1) == [mindex]
         # test secondary use of variable
         @test isa(InfiniteOpt._update_var_constr_mapping([inf, par, meas, rv], cref2),
                   Nothing)
@@ -243,11 +248,14 @@ end
         @test InfiniteOpt._constraint_dependencies(par) == [idx1, idx2]
         @test InfiniteOpt._constraint_dependencies(meas) == [idx1, idx2]
         @test InfiniteOpt._constraint_dependencies(rv) == [idx1, idx2]
+        @test InfiniteOpt._measure_dependencies(cref2) == [mindex]
         # Undo changes
         empty!(InfiniteOpt._constraint_dependencies(inf))
         empty!(InfiniteOpt._constraint_dependencies(par))
         empty!(InfiniteOpt._constraint_dependencies(meas))
         empty!(InfiniteOpt._constraint_dependencies(rv))
+        empty!(InfiniteOpt._measure_dependencies(cref1))
+        empty!(InfiniteOpt._measure_dependencies(cref2))
         m.constraints = MOIUC.CleverDict{ConstraintIndex, ConstraintData}()
     end
     # test add_constraint

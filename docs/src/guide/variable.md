@@ -786,7 +786,7 @@ HoldVariableIndex
 InfiniteVariableRef
 PointVariableRef
 HoldVariableRef
-VectorTuple
+InfiniteOpt.Collections.VectorTuple
 ```
 
 ## [Methods/Macros] (@id var_methods)

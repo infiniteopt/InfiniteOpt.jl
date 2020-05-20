@@ -389,37 +389,47 @@ ReducedVariableRef
 ```@index
 Pages   = ["measure.md"]
 Modules = [InfiniteOpt, JuMP]
-Order   = [:function]
+Order   = [:macro, :function]
 ```
 ```@docs
-expect
-support_sum
-integral
-integral_defaults
-set_integral_defaults
 default_weight
-DiscreteMeasureData(::ParameterRef, ::Vector{<:Real}, ::Vector{<:Real})
-DiscreteMeasureData(::AbstractArray{<:ParameterRef}, ::Vector{<:Real}, ::Vector{<:AbstractArray{<:Real}})
-measure
+DiscreteMeasureData(::GeneralVariableRef, ::Vector{<:Real}, ::Vector{<:Real})
+DiscreteMeasureData(::AbstractArray{GeneralVariableRef}, ::Vector{<:Real}, ::Vector{<:AbstractArray{<:Real}})
+FunctionalDiscreteMeasureData(::GeneralVariableRef,::Function,::Int,::Symbol)
+FunctionalDiscreteMeasureData(::AbstractArray{GeneralVariableRef},::Function,::Int,::Symbol)
+parameter_refs(::AbstractMeasureData)
+support_label(::AbstractMeasureData)
+JuMP.lower_bound(::AbstractMeasureData)
+JuMP.upper_bound(::AbstractMeasureData)
+supports(::AbstractMeasureData)
+num_supports(::AbstractMeasureData)
+min_num_supports(::AbstractMeasureData)
+coefficient_function(::AbstractMeasureData)
+coefficients(::AbstractMeasureData)
+weight_function(::AbstractMeasureData)
+measure_data_in_hold_bounds(::AbstractMeasureData,::ParameterBounds)
+build_measure
+add_supports_to_parameters(::AbstractMeasureData)
 add_measure
 measure_function
 measure_data
+is_analytic
+parameter_refs(::MeasureRef)
+measure
+@measure
 used_by_constraint(::MeasureRef)
 used_by_measure(::MeasureRef)
 used_by_objective(::MeasureRef)
 is_used(::MeasureRef)
-JuMP.is_valid(::InfiniteModel, ::MeasureRef)
-JuMP.delete(::InfiniteModel, ::MeasureRef)
 JuMP.name(::MeasureRef)
 JuMP.set_name(::MeasureRef, ::String)
+num_measures
+all_measures
+JuMP.delete(::InfiniteModel, ::MeasureRef)
 expand
 expand_all_measures!
-parameter_refs(::AbstractMeasureData)
-supports(::AbstractMeasureData)
-coefficients
-weight_function
-measure_data_in_hold_bounds
 expand_measure
+analytic_expansion
 expand_measures
 make_point_variable_ref
 make_reduced_variable_ref
@@ -451,21 +461,46 @@ JuMP.is_integer(::ReducedVariableRef)
 JuMP.IntegerRef(::ReducedVariableRef)
 ```
 
-## MeasureEvalMethods Methods
+## MeasureToolbox Datatypes
 ```@index
 Pages   = ["measure.md"]
-Modules = [InfiniteOpt.MeasureEvalMethods]
-Order   = [:function]
+Modules = [InfiniteOpt.MeasureToolbox]
+Order   = [:type]
+```
+```@docs
+InfiniteOpt.MeasureToolbox.AbstractIntegralMethod
+InfiniteOpt.MeasureToolbox.Automatic
+InfiniteOpt.MeasureToolbox.AbstractUnivariateMethod
+InfiniteOpt.MeasureToolbox.UniTrapezoid
+InfiniteOpt.MeasureToolbox.UniMCSampling
+InfiniteOpt.MeasureToolbox.UniIndepMCSampling
+InfiniteOpt.MeasureToolbox.Quadrature
+InfiniteOpt.MeasureToolbox.GaussHermite
+InfiniteOpt.MeasureToolbox.GaussLegendre
+InfiniteOpt.MeasureToolbox.GaussLaguerre
+InfiniteOpt.MeasureToolbox.AbstractMultivariateMethod
+InfiniteOpt.MeasureToolbox.MultiMCSampling
+InfiniteOpt.MeasureToolbox.MultiIndepMCSampling
 ```
 
+
+## MeasureToolbox Methods
+```@index
+Pages   = ["measure.md"]
+Modules = [InfiniteOpt.MeasureToolbox]
+Order   = [:macro, :function]
+```
 ```@docs
-InfiniteOpt.MeasureEvalMethods.generate_measure_data
-InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs
-InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{:mc_sampling})
-InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(::InfiniteOpt.DistributionSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{:mc_sampling})
-generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{trapezoid})
-generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_legendre})
-generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_hermite})
-generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_laguerre})
-InfiniteOpt.MeasureEvalMethods.infinite_transform
+InfiniteOpt.MeasureToolbox.@integral
+InfiniteOpt.MeasureToolbox.integral(::JuMP.AbstractJuMPScalar,::InfiniteOpt.GeneralVariableRef,::Real,::Real)
+InfiniteOpt.MeasureToolbox.integral(::JuMP.AbstractJuMPScalar,::AbstractArray{InfiniteOpt.GeneralVariableRef},::Union{Real, AbstractArray{<:Real}},::Union{Real, AbstractArray{<:Real}})
+InfiniteOpt.MeasureToolbox.@expect
+InfiniteOpt.MeasureToolbox.expect
+InfiniteOpt.MeasureToolbox.@support_sum
+InfiniteOpt.MeasureToolbox.support_sum
+InfiniteOpt.MeasureToolbox.uni_integral_defaults
+InfiniteOpt.MeasureToolbox.set_uni_integral_defaults
+InfiniteOpt.MeasureToolbox.multi_integral_defaults
+InfiniteOpt.MeasureToolbox.set_multi_integral_defaults
+InfiniteOpt.MeasureToolbox.generate_integral_data
 ```

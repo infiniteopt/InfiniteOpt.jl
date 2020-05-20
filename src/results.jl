@@ -192,7 +192,7 @@ function map_value(vref::GeneralVariableRef, key, result::Int)
 end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_value(cref::GeneralConstraintRef, key, result::Int)
+function map_value(cref::InfOptConstraintRef, key, result::Int)
     opt_cref = optimizer_model_constraint(cref)
     if opt_cref isa AbstractArray
         return JuMP.value.(opt_cref; result = result)
@@ -202,7 +202,7 @@ function map_value(cref::GeneralConstraintRef, key, result::Int)
 end
 
 """
-    JuMP.value(vref::InfOptVariableRef; [result::Int = 1])
+    JuMP.value(vref::GeneralVariableRef; [result::Int = 1])
 
 Extend [`JuMP.value`](@ref JuMP.value(::JuMP.VariableRef)) to return the value(s)
 of `vref` in accordance with its reformulation variable(s) stored in the optimizer
@@ -218,12 +218,12 @@ julia> value(z)
 42.0
 ```
 """
-function JuMP.value(vref::InfOptVariableRef; result::Int = 1)
+function JuMP.value(vref::GeneralVariableRef; result::Int = 1)
     return map_value(vref, Val(optimizer_model_key(JuMP.owner_model(vref))), result)
 end
 
 """
-    JuMP.value(cref::GeneralConstraintRef; [result::Int = 1])
+    JuMP.value(cref::InfOptConstraintRef; [result::Int = 1])
 
 Extend [`JuMP.value`](@ref JuMP.value(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
 to return the value(s) of `cref` in accordance with its reformulation constraint(s)
@@ -243,7 +243,7 @@ julia> value(c1)
  20.9
 ```
 """
-function JuMP.value(cref::GeneralConstraintRef; result::Int = 1)
+function JuMP.value(cref::InfOptConstraintRef; result::Int = 1)
     return map_value(cref, Val(optimizer_model_key(JuMP.owner_model(cref))), result)
 end
 
@@ -273,7 +273,7 @@ function map_optimizer_index(vref::GeneralVariableRef, key)
 end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_optimizer_index(cref::GeneralConstraintRef, key)
+function map_optimizer_index(cref::InfOptConstraintRef, key)
     opt_cref = optimizer_model_constraint(cref)
     if opt_cref isa AbstractArray
         return JuMP.optimizer_index.(opt_cref)
@@ -283,7 +283,7 @@ function map_optimizer_index(cref::GeneralConstraintRef, key)
 end
 
 """
-    JuMP.optimizer_index(vref::InfOptVariableRef)
+    JuMP.optimizer_index(vref::DecisionVariableRef)
 
 Extend [`JuMP.optimizer_index`](@ref JuMP.optimizer_index(::JuMP.VariableRef)) to
 return the `MathOptInterface` index(es) of `vref` in accordance with its
@@ -301,12 +301,12 @@ julia> optimizer_index(x)
  MathOptInterface.VariableIndex(5)
 ```
 """
-function JuMP.optimizer_index(vref::InfOptVariableRef)
+function JuMP.optimizer_index(vref::DecisionVariableRef)
     return map_optimizer_index(vref, Val(optimizer_model_key(JuMP.owner_model(vref))))
 end
 
 """
-    JuMP.optimizer_index(cref::GeneralConstraintRef)
+    JuMP.optimizer_index(cref::InfOptConstraintRef)
 
 Extend [`JuMP.optimizer_index`](@ref JuMP.optimizer_index(::JuMP.ConstraintRef{JuMP.Model}))
 to return the `MathOptInterface` index(es) of `cref` in accordance with its
@@ -324,12 +324,12 @@ julia> optimizer_index(c1)
  MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(4)
 ```
 """
-function JuMP.optimizer_index(cref::GeneralConstraintRef)
+function JuMP.optimizer_index(cref::InfOptConstraintRef)
     return map_optimizer_index(cref, Val(optimizer_model_key(JuMP.owner_model(cref))))
 end
 
 """
-    map_dual(cref::GeneralConstraintRef, key::Val{ext_key_name}, result::Int)
+    map_dual(cref::InfOptConstraintRef, key::Val{ext_key_name}, result::Int)
 
 Map the dual(s) of `cref` to its counterpart in the optimizer
 model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
@@ -344,7 +344,7 @@ these mappings by default. Here `result` is the result index that is used in `du
 function map_dual end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_dual(cref::GeneralConstraintRef, key, result::Int)
+function map_dual(cref::InfOptConstraintRef, key, result::Int)
     opt_cref = optimizer_model_constraint(cref)
     if opt_cref isa AbstractArray
         return JuMP.dual.(opt_cref; result = result)
@@ -354,7 +354,7 @@ function map_dual(cref::GeneralConstraintRef, key, result::Int)
 end
 
 """
-    JuMP.dual(cref::GeneralConstraintRef; [result::Int = 1])
+    JuMP.dual(cref::InfOptConstraintRef; [result::Int = 1])
 
 Extend [`JuMP.dual`](@ref JuMP.dual(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
 to return the dual(s) of `cref` in accordance with its reformulation constraint(s)
@@ -374,18 +374,18 @@ julia> dual(c1)
  0.0
 ```
 """
-function JuMP.dual(cref::GeneralConstraintRef; result::Int = 1)
+function JuMP.dual(cref::InfOptConstraintRef; result::Int = 1)
     return map_dual(cref, Val(optimizer_model_key(JuMP.owner_model(cref))),
                     result)
 end
 
-# Error redriect dor variable call
+# Error redriect for variable call
 function JuMP.dual(vref::GeneralVariableRef; result::Int = 1)
     return JuMP.dual(JuMP.VariableRef(JuMP.Model(), MOI.VariableIndex(1)))
 end
 
 """
-    map_shadow_price(cref::GeneralConstraintRef, key::Val{ext_key_name})
+    map_shadow_price(cref::InfOptConstraintRef, key::Val{ext_key_name})
 
 Map the shadow price(s) of `cref` to its counterpart in the optimizer
 model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
@@ -400,7 +400,7 @@ these mappings by default.
 function map_shadow_price end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_shadow_price(cref::GeneralConstraintRef, key)
+function map_shadow_price(cref::InfOptConstraintRef, key)
     opt_cref = optimizer_model_constraint(cref)
     if opt_cref isa AbstractArray
         return JuMP.shadow_price.(opt_cref)
@@ -410,7 +410,7 @@ function map_shadow_price(cref::GeneralConstraintRef, key)
 end
 
 """
-    JuMP.shadow_price(cref::GeneralConstraintRef)
+    JuMP.shadow_price(cref::InfOptConstraintRef)
 
 Extend [`JuMP.shadow_price`](@ref JuMP.shadow_price(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
 to return the shadow price(s) of `cref` in accordance with its reformulation constraint(s)
@@ -429,12 +429,12 @@ julia> shadow_price(c1)
  -0.0
 ```
 """
-function JuMP.shadow_price(cref::GeneralConstraintRef)
+function JuMP.shadow_price(cref::InfOptConstraintRef)
     return map_shadow_price(cref, Val(optimizer_model_key(JuMP.owner_model(cref))))
 end
 
 """
-    map_lp_rhs_perturbation_range(cref::GeneralConstraintRef,
+    map_lp_rhs_perturbation_range(cref::InfOptConstraintRef,
                                   key::Val{ext_key_name}, toler::Float64)
 
 Map the RHS perturbation range of `cref` to its counterpart in the optimizer
@@ -450,7 +450,7 @@ variables and/or constraints in the original infinite form. Otherwise,
 function map_lp_rhs_perturbation_range end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_lp_rhs_perturbation_range(cref::GeneralConstraintRef, key,
+function map_lp_rhs_perturbation_range(cref::InfOptConstraintRef, key,
                                        toler::Float64)
     opt_cref = optimizer_model_constraint(cref)
     if opt_cref isa AbstractArray
@@ -463,7 +463,7 @@ function map_lp_rhs_perturbation_range(cref::GeneralConstraintRef, key,
 end
 
 """
-    JuMP.lp_rhs_perturbation_range(cref::GeneralConstraintRef;
+    JuMP.lp_rhs_perturbation_range(cref::InfOptConstraintRef;
                                    [feasibility_tolerance::Float64 = 1e-8])
 
 Extend [`JuMP.lp_rhs_perturbation_range`](@ref JuMP.lp_rhs_perturbation_range(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
@@ -483,14 +483,14 @@ julia> lp_rhs_perturbation_range(c1)
  (-Inf, 42.0)
 ```
 """
-function JuMP.lp_rhs_perturbation_range(cref::GeneralConstraintRef;
+function JuMP.lp_rhs_perturbation_range(cref::InfOptConstraintRef;
                                         feasibility_tolerance::Float64 = 1e-8)
     return map_lp_rhs_perturbation_range(cref, Val(optimizer_model_key(JuMP.owner_model(cref))),
                                          feasibility_tolerance)
 end
 
 """
-    map_lp_objective_perturbation_range(vref::InfOptVariableRef,
+    map_lp_objective_perturbation_range(vref::DecisionVariableRef,
                                         key::Val{ext_key_name}, toler::Float64)
 
 Map the reduced cost range(s) of `vref` to its counterpart in the optimizer

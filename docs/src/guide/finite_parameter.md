@@ -99,6 +99,6 @@ Order   = [:macro, :function]
 ```
 ```@docs
 @finite_parameter
-JuMP.value(::FiniteParameterRef)
+parameter_value(::FiniteParameterRef)
 JuMP.set_value(::FiniteParameterRef, ::Real)
 ```

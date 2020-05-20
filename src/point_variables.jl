@@ -122,7 +122,7 @@ function _update_point_info(info::JuMP.VariableInfo,
                                  info.has_start, info.start,
                                  info.binary, info.integer)
     end
-    if !(JuMP.start_value(ivref) === nothing) && !info.has_start
+    if !isnothing(JuMP.start_value(ivref)) && !info.has_start
         info = JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                  info.has_ub, info.upper_bound,
                                  info.has_fix, info.fixed_value,
@@ -158,7 +158,7 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Point};
         _error("Keyword argument $kwarg is not for use with point variables.")
     end
     # ensure the needed arguments are given
-    if parameter_values === nothing || infinite_variable_ref === nothing
+    if isnothing(parameter_values) || isnothing(infinite_variable_ref)
         _error("Must specify the infinite variable and the values of its " *
                "infinite parameters")
     end

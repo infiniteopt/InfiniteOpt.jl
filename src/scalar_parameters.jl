@@ -204,11 +204,11 @@ function _check_supports_in_bounds(_error::Function,
 end
 
 """
-    build_parameter(_error::Function, set::InfiniteScalarSet,
-                           [num_params::Int = 1; num_supports::Int = 0,
-                           supports::Union{Real, Vector{<:Real}} = Real[],
-                           sig_digits::Int = DefaultSigDigits]
-                           )::IndependentParameter
+    build_parameter(_error::Function, set::InfiniteScalarSet;
+                    [num_supports::Int = 0,
+                    supports::Union{Real, Vector{<:Real}} = Real[],
+                    sig_digits::Int = DefaultSigDigits]
+                    )::IndependentParameter
 
 Returns a [`IndependentParameter`](@ref) given the appropriate information.
 This is analagous to `JuMP.build_variable`. Errors if supports violate the
@@ -971,7 +971,7 @@ function delete_supports(pref::IndependentParameterRef)::Nothing
 end
 
 """
-    JuMP.value(pref::FiniteParameterRef)::Float64
+    parameter_value(pref::FiniteParameterRef)::Float64
 
 Return the value of a finite parameter reference `pref`. Errors if it is
 an infinite parameter.
@@ -982,7 +982,7 @@ julia> value(cost)
 42.0
 ```
 """
-function JuMP.value(pref::FiniteParameterRef)::Real
+function parameter_value(pref::FiniteParameterRef)::Real
     return _core_variable_object(pref).value
 end
 

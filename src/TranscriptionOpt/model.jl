@@ -32,8 +32,6 @@ constructor.
    Map constraints to their transcriptions.
 - `constr_supports::Dict{InfiniteOpt.InfOptConstraintRef, Vector{Tuple}}`:
    Map constraints to their support values.
-- `verbose_naming::Bool`: Should we name transcription variables/constraints with
-   support values?
 - `supports::Tuple`: Store the collected parameter supports here.
 """
 mutable struct TranscriptionData
@@ -58,14 +56,11 @@ mutable struct TranscriptionData
     constr_supports::Dict{InfiniteOpt.InfOptConstraintRef{JuMP.ScalarShape},
                           Vector{Tuple}}
 
-    # Settings
-    verbose_naming::Bool
-
     # Collected Supports
     supports::Tuple
 
     # Default constructor
-    function TranscriptionData(; verbose_naming::Bool = false)
+    function TranscriptionData()
         return new( # variable info
                    Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
                    Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.VariableRef}}(),
@@ -83,8 +78,6 @@ mutable struct TranscriptionData
                         Vector{JuMP.ConstraintRef}}(),
                    Dict{InfiniteOpt.InfOptConstraintRef{JuMP.ScalarShape},
                         Vector{Vector{Float64}}}(),
-                   # settings
-                   verbose_naming,
                    # support storage
                    ())
     end
@@ -93,8 +86,7 @@ end
 """
     TranscriptionModel([optimizer_constructor;
                        caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
-                       bridge_constraints::Bool = true,
-                       verbose_naming::Bool = false])::JuMP.Model
+                       bridge_constraints::Bool = true])::JuMP.Model
 
 Return a [`JuMP.Model`](@ref) with [`TranscriptionData`](@ref) included in the
 `ext` data field. Accepts the same arguments as a typical JuMP `Model`.
@@ -111,18 +103,16 @@ CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
 ```
 """
-function TranscriptionModel(; verbose_naming::Bool = false,
-                            kwargs...)::JuMP.Model
+function TranscriptionModel(; kwargs...)::JuMP.Model
     model = JuMP.Model(; kwargs...)
-    model.ext[:TransData] = TranscriptionData(verbose_naming = verbose_naming)
+    model.ext[:TransData] = TranscriptionData()
     return model
 end
-# Accept optimizer_factorys
+# Accept optimizer constructors
 function TranscriptionModel(optimizer_constructor;
-                            verbose_naming::Bool = false,
                             kwargs...)::JuMP.Model
     model = JuMP.Model(optimizer_constructor; kwargs...)
-    model.ext[:TransData] = TranscriptionData(verbose_naming = verbose_naming)
+    model.ext[:TransData] = TranscriptionData()
     return model
 end
 
@@ -255,8 +245,8 @@ end
         vref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef},
         key::Val{:TransData} = Val(:TransData))::Vector
 
-Return the support alias mapping associated with `vref` in the transcribed model.
-Errors if `vref` does not have transcribed variables.
+Return the support alias mapping associated with `vref` in the transcription model.
+Errors if `vref` does not have transcripted variables.
 """
 function InfiniteOpt.variable_supports(model::JuMP.Model,
     dvref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef},
@@ -289,7 +279,7 @@ end
 
 Return the transcription expression of `vref` defined at its `support`. This is
 intended as a helper method for automated transcription and doesn't implement
-any error checking.
+complete error checking.
 """
 function lookup_by_support(model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
@@ -321,11 +311,21 @@ function lookup_by_support(model::JuMP.Model,
     return transcription_data(model).finvar_mappings[vref]
 end
 
-# Extend internal_reduced_variable
+"""
+    InfiniteOpt.internal_reduced_variable(
+        vref::InfiniteOpt.ReducedVariableRef,
+        ::Val{:TransData}
+        )::InfiniteOpt.ReducedVariable{InfiniteOpt.GeneralVariableRef}
+
+Return the internal reduced variable associated with `vref`, assuming it was
+added internally during measure expansion at the transcription step. This
+extends [`InfiniteOpt.internal_reduced_variable`](@ref) as described in its
+docstring. Errors, if no such variable can be found.
+"""
 function InfiniteOpt.internal_reduced_variable(
     vref::InfiniteOpt.ReducedVariableRef,
     ::Val{:TransData}
-    )::ReducedVariable{GeneralVariableRef}
+    )::InfiniteOpt.ReducedVariable{InfiniteOpt.GeneralVariableRef}
     trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(vref))
     reduced_vars = transcription_data(trans_model).reduced_vars
     idx = -1 * JuMP.index(vref).value
@@ -454,19 +454,31 @@ end
 ################################################################################
 #                             OTHER QUERIES
 ################################################################################
-# Access the collected supports
 """
-""" # TODO add docstring
+    parameter_supports(model::JuMP.Model)::Tuple
+
+Return the collected parameter support tuple that is stored in
+`TranscriptionData.supports`.
+"""
 function parameter_supports(model::JuMP.Model)::Tuple
     return transcription_data(model).supports
 end
 
-# Form support iterator of indices
 """
-""" # TODO add docstring
+    support_index_iterator(model::JuMP.Model, [obj_nums::Vector{Int}])::CartesianIndices
+
+Return the `CartesianIndices` that determine the indices of the unique combinations
+of `TranscriptionData.supports` stored in `model`. If `obj_nums` is specified,
+then the indices will only include the tuple elements uses indices are included
+in the object numbers `obj_nums` and all others will be assigned the last index
+which should correspond to an appropriately sized placeholder comprised of `NaN`s.
+Note this method assumes that [`set_parameter_supports`](@ref) has already been
+called and that the last elements of each support vector contains a placeholder
+value.
+"""
 function support_index_iterator(model::JuMP.Model)::CartesianIndices
     raw_supps = parameter_supports(model)
-    return CartesianIndices(ntuple(i -> 1:length(raw_supps[i]), length(raw_supps)))
+    return CartesianIndices(ntuple(i -> 1:length(raw_supps[i]-1), length(raw_supps)))
 end
 
 # Generate for a subset of object numbers (use last index as placeholder --> support with NaNs)
@@ -480,15 +492,15 @@ function support_index_iterator(model::JuMP.Model,
                                    length(raw_supps)))
 end
 
-# Extract support from support index (NaN used as a placeholder)
 """
-""" # TODO add docstring
+    index_to_support(model::JuMP.Model, index::CartesianIndex)::Vector{Float64}
+
+Given a particular support `index` generated via [`support_index_iterator`](@ref)
+using `model`, return the corresponding support from `TranscriptionData.supports`
+using placeholder `NaN`s as appropriate for tuple elements that are unneeded.
+"""
 function index_to_support(model::JuMP.Model,
                           index::CartesianIndex)::Vector{Float64}
     raw_supps = parameter_supports(model)
     return [j for i in eachindex(index.I) for j in raw_supps[i][index[i]]]
 end
-
-"""
-"""
-verbose_naming(model::JuMP.Model)::Bool = transcription_data(model).verbose_naming

@@ -339,7 +339,15 @@ Generate `num_supports` support values with `sig_digits` significant digits in
 accordance with `set` and return them along with the correct generation label(s).
 `IntervalSet`s generate supports uniformly with label `Grid` and
 distribution sets generate them randomly accordingly to the
-underlying distribution. Extensions that employ user-defined infinite set types
+underlying distribution. Moreover, `method` indicates the generation method that
+should be used. These `methods` correspond to parameter support labels. Current
+labels that can be used as generation methods include (but may not be defined
+for certain set types):
+- `MCSample`: Uniformly distributed Monte Carlo samples.
+- `WeightedSample`: Monte Carlo samples that are weighted by an un derlying PDF.
+- `UniformGrid`: Samples that are generated uniformly over the set domain.
+
+Extensions that employ user-defined infinite set types
 should extend according to the new set type. Errors if the `set` is a type that
 has not been explicitly extended. This is intended as an internal method to be
 used by [`generate_and_add_supports!`](@ref) and [`build_parameter`](@ref).

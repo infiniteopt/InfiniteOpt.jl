@@ -447,13 +447,13 @@ end
         @test_throws ArgumentError fill_in_supports!(dense_gvrefs, num_supports = 1)
         @test_throws ArgumentError fill_in_supports!(sparse_gvrefs,num_supports = 1)
     end
-    # test JuMP.value (Fallback)
-    @testset "JuMP.value (Fallback)" begin
-        @test_throws ArgumentError value(dvref)
+    # test parameter_value (Fallback)
+    @testset "parameter_value (Fallback)" begin
+        @test_throws ArgumentError parameter_value(dvref)
     end
-    # test JuMP.value (GeneralVariableRef)
-    @testset "JuMP.value (GeneralVariableRef)" begin
-        @test_throws ArgumentError value(gvref)
+    # test parameter_value (GeneralVariableRef)
+    @testset "parameter_value (GeneralVariableRef)" begin
+        @test_throws ArgumentError parameter_value(gvref)
     end
     # test JuMP.set_value (Fallback)
     @testset "JuMP.set_value (Fallback)" begin
@@ -605,6 +605,14 @@ end
     # test measure_data (GeneralVariableRef)
     @testset "measure_data (GeneralVariableRef)" begin
         @test_throws ArgumentError measure_function(gvref)
+    end
+    # test is_analytic (Fallback)
+    @testset "is_analytic (Fallback)" begin
+        @test_throws ArgumentError is_analytic(dvref)
+    end
+    # test is_analytic (GeneralVariableRef)
+    @testset "is_analytic (GeneralVariableRef)" begin
+        @test_throws ArgumentError is_analytic(gvref)
     end
 end
 
