@@ -83,4 +83,5 @@ JuMP.upper_bound(::AbstractInfiniteSet)
 JuMP.set_upper_bound(::AbstractInfiniteSet, ::Real)
 supports_in_set
 generate_supports
+InfiniteOpt.generate_support_values
 ```

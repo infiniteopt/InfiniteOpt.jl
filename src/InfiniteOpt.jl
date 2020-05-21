@@ -50,13 +50,6 @@ MultiMCSampling, MultiIndepMCSampling, uni_integral_defaults,
 set_uni_integral_defaults, integral, multi_integral_defaults,
 set_multi_integral_defaults, expect, support_sum, @integral, @expect, @support_sum
 
-# Export the measure toolbox functions and constants
-export Automatic, UniTrapezoid, UniMCSampling, UniIndepMCSampling, Quadrature,
-GaussHermite, GaussLegendre, GaussLaguerre, MultiMCSampling,
-MultiIndepMCSampling, uni_integral_defaults, set_uni_integral_defaults,
-integral, multi_integral_defaults, set_multi_integral_defaults, expect,
-support_sum, @integral, @expect, @support_sum
-
 # Export core datatypes
 export AbstractDataObject, InfiniteModel
 
@@ -67,7 +60,7 @@ export @independent_parameter, @dependent_parameters, @infinite_parameter,
 @measure
 
 # Export constants
-export Infinite, Hold, Point, sampling, quadrature
+export Infinite, Hold, Point
 
 # Export index types
 export AbstractInfOptIndex, ObjectIndex, IndependentParameterIndex,
@@ -122,6 +115,13 @@ export default_weight, support_label, coefficient_function, coefficients,
 weight_function, build_measure, min_num_supports, add_measure, measure_function,
 measure_data, is_analytic, measure, num_measures, all_measures
 
+# Export the measure toolbox functions and datatypes
+export Automatic, UniTrapezoid, UniMCSampling, UniIndepMCSampling, Quadrature,
+GaussHermite, GaussLegendre, GaussLaguerre, MultiMCSampling,
+MultiIndepMCSampling, uni_integral_defaults, set_uni_integral_defaults,
+integral, multi_integral_defaults, set_multi_integral_defaults, expect,
+support_sum, @integral, @expect, @support_sum
+
 # Export objective methods
 export objective_has_measures
 
@@ -137,7 +137,7 @@ export TranscriptionData, TranscriptionModel
 
 # Export transcription methods
 export is_transcription_model, transcription_data, transcription_variable,
-transcription_constraint, transcription_model
+transcription_constraint, transcription_model, transcription_expression
 
 # Export optimize methods
 export optimizer_model, set_optimizer_model, optimizer_model_ready,

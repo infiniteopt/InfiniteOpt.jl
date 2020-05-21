@@ -347,16 +347,18 @@ for certain set types):
 - `WeightedSample`: Monte Carlo samples that are weighted by an un derlying PDF.
 - `UniformGrid`: Samples that are generated uniformly over the set domain.
 
-Extensions that employ user-defined infinite set types
-should extend according to the new set type. Errors if the `set` is a type that
-has not been explicitly extended. This is intended as an internal method to be
-used by [`generate_and_add_supports!`](@ref) and [`build_parameter`](@ref).
+Extensions that employ user-defined infinite set types and/or methods
+should extend [`generate_support_values`](@ref) to enable this. Errors if the
+`set` type and /or methods are unrecognized. This is intended as an internal
+method to be used by methods such as [`generate_and_add_supports!`](@ref) and
+[`build_parameter`](@ref).
 """
 # a user interface of generate_support_values
 function generate_supports(set::AbstractInfiniteSet,
                            method::Union{Symbol, Nothing} = nothing;
                            num_supports::Int = DefaultNumSupports,
-                           sig_digits::Int = DefaultSigDigits)::Tuple
+                           sig_digits::Int = DefaultSigDigits
+                           )::Tuple
     if method === nothing
         return generate_support_values(set,
                                        num_supports = num_supports,
@@ -368,9 +370,23 @@ function generate_supports(set::AbstractInfiniteSet,
     end
 end
 
-# Fallback
+"""
+    generate_support_values(set::AbstractInfiniteSet,
+                            [method::Val{:MyMethod} = Val(:MyMethod)];
+                            num_supports::Int = DefaultNumSupports,
+                            sig_digits::Int = DefaultSigDigits,
+                            )::Tuple{Array{<:Real}, Symbol}
+
+A multiple dispatch method for [`generate_supports`](@ref). This will return
+a tuple where the first element are the supports and the second is their
+label. This can be extended for user-defined infinite sets and/or generation
+methods. When defining a new set type the default method dispatch should
+make `method` an optional argument (making it the default). Otherwise, other
+method dispatches for a given set must ensure that `method` is positional
+argument without a default value (contrary to the definition above).
+"""
 function generate_support_values(set::AbstractInfiniteSet,
-                                 method::Val = Val(:nothing); kwargs...)
+                                 method = Val(:nothing); kwargs...)
      error("Method `$(typeof(method).parameters[1])` is not supported for " *
            "set of type $(typeof(set))")
 end
