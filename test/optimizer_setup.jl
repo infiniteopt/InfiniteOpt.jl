@@ -8,7 +8,7 @@
     set_time_limit_sec(m, 42)
     # test normal
     tm = Model()
-    @test add_infinite_model_optimizer(tm, m) isa Nothing
+    @test InfiniteOpt.add_infinite_model_optimizer(tm, m) isa Nothing
     @test time_limit_sec(tm) == 42
     @test get_optimizer_attribute(tm, MOI.Silent())
 end

@@ -1,3 +1,6 @@
+################################################################################
+#                              COMPARISON METHODS
+################################################################################
 ## Extend for better comparisons than default
 # GenericAffExpr
 function Base.:(==)(aff1::JuMP.GenericAffExpr{C, V},
@@ -24,6 +27,9 @@ function Base.:(==)(quad1::JuMP.GenericQuadExpr{C, V},
     return quad1.aff == quad2.aff
 end
 
+################################################################################
+#                            VARIABLE LIST MAKING
+################################################################################
 ## Determine which variables are present in a function
 # GeneralVariableRef
 function _all_function_variables(
@@ -56,6 +62,9 @@ function _all_function_variables(f)
     error("`_all_function_variables` not defined for expression of type $(typeof(f)).")
 end
 
+################################################################################
+#                            OBJECT NUMBER METHODS
+################################################################################
 ## Return the unique set of object numbers in an expression
 # Dispatch fallback (--> should be defined for each non-empty variable type)
 _object_numbers(expr::DispatchVariableRef)::Vector{Int} = Int[]
@@ -96,6 +105,9 @@ function _object_numbers(vrefs::Vector{GeneralVariableRef})::Vector{Int}
     return collect(obj_nums)
 end
 
+################################################################################
+#                             PARAMETER NUMBER METHODS
+################################################################################
 ## Return the unique set of parameter numbers in an expression
 # Dispatch fallback (--> should be defined for each non-empty variable type)
 _parameter_numbers(expr::DispatchVariableRef)::Vector{Int} = Int[]
@@ -127,6 +139,9 @@ function _parameter_numbers(expr::JuMP.GenericQuadExpr)::Vector{Int}
     return collect(par_nums)
 end
 
+################################################################################
+#                             MODEL EXTRACTION METHODS
+################################################################################
 ## Get the model from an expression
 # GeneralVariableRef
 function _model_from_expr(expr::GeneralVariableRef)::InfiniteModel
@@ -168,6 +183,9 @@ function _model_from_expr(expr)
     error("`_model_from_expr` not defined for expr of type $(typeof(expr)).")
 end
 
+################################################################################
+#                            VARIABLE REMOVAL BOUNDS
+################################################################################
 ## Delete variables from an expression
 # GenericAffExpr
 function _remove_variable(f::JuMP.GenericAffExpr,
@@ -190,6 +208,9 @@ function _remove_variable(f::JuMP.GenericQuadExpr,
     return
 end
 
+################################################################################
+#                         COEFFICIENT MODIFICATION METHODS
+################################################################################
 ## Modify linear coefficient of variable in expression
 # GeneralVariableRef
 function _set_variable_coefficient!(expr::GeneralVariableRef,
@@ -237,6 +258,53 @@ function _set_variable_coefficient!(expr, var::GeneralVariableRef, coeff::Real)
     error("Unsupported function type for coefficient modification.")
 end
 
+################################################################################
+#                         PARAMETER REFERNCE METHODS
+################################################################################
+## Return an element of a parameter reference tuple given the model and index
+# IndependentParameterIndex
+function _make_param_tuple_element(model::InfiniteModel,
+    idx::IndependentParameterIndex,
+    )::GeneralVariableRef
+    return _make_parameter_ref(model, idx)
+end
+
+# DependentParametersIndex
+function _make_param_tuple_element(model::InfiniteModel,
+    idx::DependentParametersIndex,
+    )::Vector{GeneralVariableRef}
+    dpref = DependentParameterRef(model, DependentParameterIndex(idx, 1))
+    num_params = _num_parameters(dpref)
+    return [GeneralVariableRef(model, idx.value, DependentParameterIndex, i)
+            for i in 1:num_params]
+end
+
+"""
+    parameter_refs(expr)::Tuple
+
+Return the tuple of infinite parameter references that determine the infinite
+dependencies of `expr`.
+
+**Example**
+```julia-repl
+julia> parameter_refs(my_expr)
+(t,)
+```
+"""
+function parameter_refs(expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr})::Tuple
+    model = _model_from_expr(expr)
+    if isnothing(model)
+        return ()
+    else
+        obj_nums = sort!(_object_numbers(expr))
+        obj_indices = _param_object_indices(model)[obj_nums]
+        return Tuple(_make_param_tuple_element(model, idx) for idx in obj_indices)
+    end
+end
+
+################################################################################
+#                             EXPRESSION SEARCHING
+################################################################################
 # Check expression for a particular variable type via a recursive search
 #=
 function _has_variable(vrefs::Vector{GeneralVariableRef},

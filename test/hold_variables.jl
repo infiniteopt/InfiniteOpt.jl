@@ -79,6 +79,11 @@
         @test name(vref) == "new2"
         @test_throws ErrorException set_name(bad_vref, "")
     end
+    # test parameter_refs
+    @testset "parameter_refs" begin
+        @test parameter_refs(vref) == ()
+        @test parameter_refs(gvref) == ()
+    end
     # _make_variable_ref
     @testset "_make_variable_ref" begin
         @test InfiniteOpt._make_variable_ref(m, idx) == gvref

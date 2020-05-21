@@ -632,7 +632,6 @@ end
     end
     # supports
     @testset "supports" begin
-        @test_throws ArgumentError supports(bad)
         @test supports(pref_disp) == []
         @test supports(pref) == []
         dict = SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}([MCSample]))

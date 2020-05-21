@@ -751,21 +751,23 @@ function has_supports(prefs::AbstractArray{<:GeneralVariableRef})::Bool
 end
 
 # Dispatch fallback
-function supports(pref; kwargs...)
+function supports(pref::DispatchVariableRef; kwargs...)
     throw(ArgumentError("`supports` not defined for variable reference type(s) " *
                         "`$(typeof(pref))`."))
 end
+function supports(prefs::AbstractArray; kwargs...)
+    throw(ArgumentError("`supports` not defined for variable reference type(s) " *
+                        "`$(typeof(prefs))`."))
+end
 
 """
-    supports(pref::GeneralVariableRef; [label::Symbol = All])::Vector{Float64}
+    supports(vref::GeneralVariableRef; [kwargs...])
 
-Return the support points associated with a single infinite
-parameter `pref`. Specify a subset of supports via `label` to only count the
-supports with `label`. An `ArgumentError` is thrown if `pref` is not an infinite
-parameter.
+Return the support points associated with a single parameter or variable. Will
+throw an `ArgumentError` for unsupported types.
 """
-function supports(pref::GeneralVariableRef; label::Symbol = All)::Vector{Float64}
-    return supports(dispatch_variable_ref(pref), label = label)
+function supports(vref::GeneralVariableRef; kwargs...)
+    return supports(dispatch_variable_ref(vref); kwargs...)
 end
 
 """

@@ -321,7 +321,7 @@ end
     @test InfOptVariable <: AbstractVariable
     # Infinite variable
     @test InfiniteVariable <: InfOptVariable
-    @test InfiniteVariable(sample_info, VectorTuple(pref), [1], [1]) isa InfiniteVariable
+    @test InfiniteVariable(sample_info, IC.VectorTuple(pref), [1], [1]) isa InfiniteVariable
     # Reduced variable
     @test ReducedVariable <: InfOptVariable
     @test ReducedVariable(vref, Dict(1 => Float64(2)), [1], [1]) isa ReducedVariable

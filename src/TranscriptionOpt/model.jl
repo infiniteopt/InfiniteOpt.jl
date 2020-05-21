@@ -242,16 +242,15 @@ end
 
 """
     InfiniteOpt.variable_supports(model::JuMP.Model,
-        vref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef},
-        key::Val{:TransData} = Val(:TransData))::Vector
+                                  vref::InfiniteOpt.DecisionVariableRef,
+                                  key::Val{:TransData} = Val(:TransData))
 
 Return the support alias mapping associated with `vref` in the transcription model.
 Errors if `vref` does not have transcripted variables.
 """
 function InfiniteOpt.variable_supports(model::JuMP.Model,
     dvref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef},
-    key::Val{:TransData} = Val(:TransData)
-    )::Vector
+    key::Val{:TransData} = Val(:TransData))::Vector
     vref = InfiniteOpt._make_variable_ref(JuMP.owner_model(dvref), JuMP.index(dvref))
     if !haskey(transcription_data(model).infvar_mappings, vref)
         error("Variable reference $vref not used in transcription model.")
@@ -271,15 +270,13 @@ function InfiniteOpt.variable_supports(model::JuMP.Model,
     return transcription_data(model).infvar_supports[vref]
 end
 
-
 """
     lookup_by_support(model::JuMP.Model,
                       vref::InfiniteOpt.GeneralVariableRef,
                       support::Vector)
 
 Return the transcription expression of `vref` defined at its `support`. This is
-intended as a helper method for automated transcription and doesn't implement
-complete error checking.
+intended as a helper method for automated transcription.
 """
 function lookup_by_support(model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
@@ -298,6 +295,9 @@ function lookup_by_support(model::JuMP.Model,
     index_type::Type{V},
     support::Vector
     )::JuMP.VariableRef where {V <: InfVarIndex}
+    if !haskey(transcription_data(model).infvar_lookup, vref)
+        error("Variable reference $vref not used in transcription model.")
+    end
     idx = get(_supp_error, transcription_data(model).infvar_lookup[vref], support)
     return transcription_data(model).infvar_mappings[vref][idx]
 end
@@ -308,6 +308,9 @@ function lookup_by_support(model::JuMP.Model,
     index_type::Type{V},
     support::Vector
     )::JuMP.VariableRef where {V <: FinVarIndex}
+    if !haskey(transcription_data(model).finvar_mappings, vref)
+        error("Variable reference $vref not used in transcription model.")
+    end
     return transcription_data(model).finvar_mappings[vref]
 end
 
@@ -340,12 +343,27 @@ end
 ################################################################################
 #                              MEASURE QUERIES
 ################################################################################
+# MeasureIndex
+function transcription_variable(model::JuMP.Model,
+    mref::InfiniteOpt.GeneralVariableRef,
+    index_type::Type{InfiniteOpt.MeasureRef}
+    )
+    exprs = get(transcription_data(model).measure_mappings, mref, nothing)
+    if isnothing(exprs)
+        error("Measure reference $mref not used in transcription model.")
+    end
+    return length(exprs) > 1 ? exprs : first(exprs)
+end
+
 # Extend transcription_expression
 function lookup_by_support(model::JuMP.Model,
     mref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.MeasureIndex},
     support::Vector
     )::JuMP.AbstractJuMPScalar
+    if !haskey(transcription_data(model).measure_lookup, mref)
+        error("Measure reference $mref not used in transcription model.")
+    end
     idx = get(_supp_error, transcription_data(model).measure_lookup[mref], support)
     return transcription_data(model).measure_mappings[mref][idx]
 end
@@ -354,7 +372,7 @@ end
 function InfiniteOpt.variable_supports(model::JuMP.Model,
     dmref::InfiniteOpt.MeasureRef,
     key::Val{:TransData} = Val(:TransData)
-    )::Vector
+    )
     mref = InfiniteOpt._make_variable_ref(JuMP.owner_model(dmref), JuMP.index(dmref))
     if !haskey(transcription_data(model).measure_mappings, mref)
         error("Measure reference $mref not used in transcription model.")
@@ -373,7 +391,105 @@ function InfiniteOpt.variable_supports(model::JuMP.Model,
         end
         transcription_data(model).measure_supports[mref] = supps
     end
-    return transcription_data(model).measure_supports[mref]
+    supps = transcription_data(model).measure_supports[mref]
+    return length(supps) > 1 ? supps : first(supps)
+end
+
+################################################################################
+#                             EXPRESSION QUERIES
+################################################################################
+"""
+    transcription_expression(model::JuMP.Model,
+                             expr::JuMP.AbstractJuMPScalar)
+
+Return the transcribed expression(s) corresponding to `expr`. Errors
+if `expr` cannot be transcribed. Also can query via the syntax:
+```julia
+transcription_expression(expr::JuMP.AbstractJuMPScalar)
+```
+If the infinite model contains a built transcription model.
+
+**Example**
+```julia-repl
+julia> transcription_expression(trans_model, my_expr)
+fin_con : x(support: 1) - y <= 3.0
+
+julia> transcription_expression(my_expr)
+fin_con : x(support: 1) - y <= 3.0
+```
+"""
+function transcription_expression(model::JuMP.Model,
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr}
+    )
+    # get the object numbers of the expression and form the support iterator
+    obj_nums = InfiniteOpt._object_numbers(expr)
+    support_indices = support_index_iterator(model, obj_nums)
+    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(support_indices))
+    counter = 1
+    # iterate over the indices and compute the values
+    for i in support_indices
+        supp = index_to_support(model, i)
+        @inbounds exprs[counter] = transcription_expression(model, expr, supp)
+        counter += 1
+    end
+    # return the expressions
+    return length(exprs) > 1 ? exprs : first(exprs)
+end
+
+# Define for variables
+function transcription_expression(model::JuMP.Model,
+    vref::InfiniteOpt.GeneralVariableRef)
+    return transcription_variable(model, vref)
+end
+
+# Dispatch for internal models
+function transcription_expression(expr::JuMP.AbstractJuMPScalar)
+    model = _model_from_expr(expr)
+    if isnothing(model)
+        return zero(JuMP.AffExpr) + JuMP.constant(expr)
+    else
+        trans_model = InfiniteOpt.optimizer_model(model)
+    end
+    return transcription_expression(trans_model, expr)
+end
+
+"""
+    InfiniteOpt.optimizer_model_expression(expr::JuMP.AbstractJuMPScalar,
+                                           ::Val{:TransData})
+
+Proper extension of [`InfiniteOpt.optimizer_model_expression`](@ref) for
+`TranscriptionModel`s. This simply dispatches to [`transcription_expression`](@ref).
+"""
+function InfiniteOpt.optimizer_model_expression(
+    expr::JuMP.AbstractJuMPScalar,
+    ::Val{:TransData})
+    return transcription_expression(expr)
+end
+
+"""
+    InfiniteOpt.expression_supports(model::JuMP.Model,
+                                    expr::JuMP.AbstractJuMPScalar,
+                                    key::Val{:TransData} = Val(:TransData))
+
+Return the support alias mappings associated with `expr`. Errors if `expr` cannot
+be transcribed.
+"""
+function InfiniteOpt.expression_supports(model::JuMP.Model,
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
+    key::Val{:TransData} = Val(:TransData))
+    # get the object numbers of the expression and form the support iterator
+    obj_nums = sort!(InfiniteOpt._object_numbers(expr))
+    support_indices = support_index_iterator(model, obj_nums)
+    supps = Vector{Tuple}(undef, length(support_indices))
+    param_supps = parameter_supports(model)
+    counter = 1
+    # iterate over the indices and compute the values
+    for i in support_indices
+        @inbounds supps[counter] = Tuple(param_supps[j][i[j]] for j in obj_nums)
+        counter += 1
+    end
+    # return the supports
+    return length(supps) > 1 ? supps : first(supps)
 end
 
 ################################################################################
@@ -381,8 +497,7 @@ end
 ################################################################################
 """
     transcription_constraint(model::JuMP.Model,
-                             cref::InfiniteOpt.InfOptConstraintRef
-                             )::Vector{JuMP.ConstraintRef}
+                             cref::InfiniteOpt.InfOptConstraintRef)
 
 Return the transcribed constraint reference(s) corresponding to `cref`. Errors
 if `cref` has not been transcribed. Also can query via the syntax:
@@ -401,18 +516,16 @@ fin_con : x(support: 1) - y <= 3.0
 ```
 """
 function transcription_constraint(model::JuMP.Model,
-                                  cref::InfiniteOpt.InfOptConstraintRef
-                                  )::Vector{JuMP.ConstraintRef}
+                                  cref::InfiniteOpt.InfOptConstraintRef)
     constr = get(transcription_data(model).constr_mappings, cref, nothing)
     if isnothing(constr)
       error("Constraint reference $cref not used in transcription model.")
     end
-    return constr
+    return length(constr) > 1 ? constr : first(constr)
 end
 
 # Dispatch for internal models
-function transcription_constraint(cref::InfiniteOpt.InfOptConstraintRef
-    )::Vector{JuMP.ConstraintRef}
+function transcription_constraint(cref::InfiniteOpt.InfOptConstraintRef)
     trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(cref))
     return transcription_constraint(trans_model, cref)
 end
@@ -426,29 +539,26 @@ Proper extension of [`InfiniteOpt.optimizer_model_constraint`](@ref) for
 """
 function InfiniteOpt.optimizer_model_constraint(
     cref::InfiniteOpt.InfOptConstraintRef,
-    ::Val{:TransData}
-    )::Vector{JuMP.ConstraintRef}
+    ::Val{:TransData})
     return transcription_constraint(cref)
 end
 
 """
     InfiniteOpt.constraint_supports(model::JuMP.Model,
                                     cref::InfiniteOpt.InfOptConstraintRef,
-                                    key::Val{:TransData} = Val(:TransData)
-                                    )::Vector
+                                    key::Val{:TransData} = Val(:TransData))
 
 Return the support alias mappings associated with `cref`. Errors if `cref` is
 not transcribed.
 """
 function InfiniteOpt.constraint_supports(model::JuMP.Model,
                                          cref::InfiniteOpt.InfOptConstraintRef,
-                                         key::Val{:TransData} = Val(:TransData)
-                                         )::Vector
+                                         key::Val{:TransData} = Val(:TransData))
     supps = get(transcription_data(model).constr_supports, cref, nothing)
     if isnothing(supps)
         error("Constraint reference $cref not used in transcription model.")
     end
-    return supps
+    return length(supps) > 1 ? supps : first(supps)
 end
 
 ################################################################################

@@ -104,6 +104,11 @@
         @test isa(InfiniteOpt._update_variable_param_values(vref, [0., 0., 1., 1., 0.]),
                   Nothing)
     end
+    # test parameter_refs
+    @testset "parameter_refs" begin
+        @test parameter_refs(vref) == ()
+        @test parameter_refs(gvref) == ()
+    end
     # _make_str_value (Number)
     @testset "_make_str_value (Number)" begin
         @test InfiniteOpt._make_str_value(1.0) == "1"
@@ -183,20 +188,20 @@ end
     # _check_tuple_shape
     @testset "_check_tuple_shape" begin
         # test normal
-        @test isa(InfiniteOpt._check_tuple_shape(error, divref, VectorTuple{Float64}(0.5, 0.5)),
+        @test isa(InfiniteOpt._check_tuple_shape(error, divref, IC.VectorTuple{Float64}(0.5, 0.5)),
                   Nothing)
         # prepare param value tuple
-        tuple = VectorTuple{Float64}(0.5, [0.5, 0.5])
+        tuple = IC.VectorTuple{Float64}(0.5, [0.5, 0.5])
         # test normal with array
         @test isa(InfiniteOpt._check_tuple_shape(error, divref2, tuple), Nothing)
         # test for errors in shape
         @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, divref,
-                                                              VectorTuple{Float64}(0.5,))
+                                                              IC.VectorTuple{Float64}(0.5,))
         @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, divref,
-                                                        VectorTuple{Float64}(0.5, [0.5]))
+                                                        IC.VectorTuple{Float64}(0.5, [0.5]))
         @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, divref2,
-                                                          VectorTuple{Float64}(0.5, 0.5))
-        tuple = VectorTuple{Float64}(0.5, [0.5, 0.5, 0.5])
+                                                          IC.VectorTuple{Float64}(0.5, 0.5))
+        tuple = IC.VectorTuple{Float64}(0.5, [0.5, 0.5, 0.5])
         @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, divref2,
                                                                    tuple)
     end
@@ -360,7 +365,7 @@ end
         @test supports(pref) == [0.5]
         @test supports(pref2) == [1]
         # prepare array tuple
-        tuple = VectorTuple{Float64}(0.5, [0, 1])
+        tuple = IC.VectorTuple{Float64}(0.5, [0, 1])
         # test normal with array
         @test isa(InfiniteOpt._update_param_supports(divref2, Float64[0.5, 0, 1]),
                   Nothing)

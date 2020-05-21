@@ -88,8 +88,8 @@
     end
     # raw_parameter_refs
     @testset "raw_parameter_refs" begin
-        @test raw_parameter_refs(vref) == VectorTuple(b[1])
-        @test raw_parameter_refs(gvref) == VectorTuple(b[1])
+        @test raw_parameter_refs(vref) == IC.VectorTuple(b[1])
+        @test raw_parameter_refs(gvref) == IC.VectorTuple(b[1])
     end
     # parameter_refs
     @testset "parameter_refs" begin

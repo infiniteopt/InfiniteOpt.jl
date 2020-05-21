@@ -407,10 +407,10 @@ min_num_supports(::AbstractMeasureData)
 coefficient_function(::AbstractMeasureData)
 coefficients(::AbstractMeasureData)
 weight_function(::AbstractMeasureData)
-measure_data_in_hold_bounds(::AbstractMeasureData,::ParameterBounds)
 build_measure
-add_supports_to_parameters(::AbstractMeasureData)
+InfiniteOpt.measure_data_in_hold_bounds(::AbstractMeasureData,::ParameterBounds)
 add_measure
+InfiniteOpt.add_supports_to_parameters(::AbstractMeasureData)
 measure_function
 measure_data
 is_analytic

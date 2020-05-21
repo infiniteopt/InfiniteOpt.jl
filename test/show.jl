@@ -42,41 +42,41 @@ using JuMP: REPLMode, IJuliaMode
     @testset "set_string (IntervalSet)" begin
         # test simple case
         set = IntervalSet(0, 1)
-        @test set_string(REPLMode, set) == "[0, 1]"
-        @test set_string(IJuliaMode, set) == "[0, 1]"
+        @test InfiniteOpt.set_string(REPLMode, set) == "[0, 1]"
+        @test InfiniteOpt.set_string(IJuliaMode, set) == "[0, 1]"
         # test rounding case
         set = IntervalSet(-0, 1)
-        @test set_string(REPLMode, set) == "[0, 1]"
-        @test set_string(IJuliaMode, set) == "[0, 1]"
+        @test InfiniteOpt.set_string(REPLMode, set) == "[0, 1]"
+        @test InfiniteOpt.set_string(IJuliaMode, set) == "[0, 1]"
         # test decimal case
         set = IntervalSet(0.1, 1.3)
-        @test set_string(REPLMode, set) == "[0.1, 1.3]"
-        @test set_string(IJuliaMode, set) == "[0.1, 1.3]"
+        @test InfiniteOpt.set_string(REPLMode, set) == "[0.1, 1.3]"
+        @test InfiniteOpt.set_string(IJuliaMode, set) == "[0.1, 1.3]"
     end
     # test set_string (DistributionSet)
     @testset "set_string (DistributionSet)" begin
         # test univariate set
         set = UniDistributionSet(Uniform())
-        @test set_string(REPLMode, set) == "Uniform{Float64}(a=0.0, b=1.0)"
-        @test set_string(IJuliaMode, set) == "Uniform{Float64}(a=0.0, b=1.0)"
+        @test InfiniteOpt.set_string(REPLMode, set) == "Uniform{Float64}(a=0.0, b=1.0)"
+        @test InfiniteOpt.set_string(IJuliaMode, set) == "Uniform{Float64}(a=0.0, b=1.0)"
         # test mulivariate set
         set = MultiDistributionSet(MvNormal([1], 1))
         str = "IsoNormal(\ndim: 1\nμ: [1.0]\nΣ: [1.0]\n)\n"
-        @test set_string(REPLMode, set) == str
-        @test set_string(IJuliaMode, set) == str
+        @test InfiniteOpt.set_string(REPLMode, set) == str
+        @test InfiniteOpt.set_string(IJuliaMode, set) == str
     end
     # test set_string (CollectionSet)
     @testset "set_string (CollectionSet)" begin
         set = CollectionSet([IntervalSet(0, 1), IntervalSet(0, 0.1)])
         str = "CollectionSet with 2 sets:\n [0, 1]\n [0, 0.1]"
-        @test set_string(REPLMode, set) == str
-        @test set_string(IJuliaMode, set) == str
+        @test InfiniteOpt.set_string(REPLMode, set) == str
+        @test InfiniteOpt.set_string(IJuliaMode, set) == str
     end
     # test set_string (Fallback)
     @testset "set_string (Fallback)" begin
         set = BadSet()
-        @test set_string(REPLMode, set) == "BadSet()"
-        @test set_string(IJuliaMode, set) == "BadSet()"
+        @test InfiniteOpt.set_string(REPLMode, set) == "BadSet()"
+        @test InfiniteOpt.set_string(IJuliaMode, set) == "BadSet()"
     end
     # test in_set_string (IntervalSet)
     @testset "JuMP.in_set_string (Interval)" begin
@@ -178,53 +178,53 @@ using JuMP: REPLMode, IJuliaMode
         # test with bounds
         data = FunctionalDiscreteMeasureData(par1, ones, 0, All, default_weight, 0, 1, false)
         str = "par1 " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
-        @test measure_data_string(REPLMode, data) == str
+        @test InfiniteOpt.measure_data_string(REPLMode, data) == str
         str = "par1 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
-        @test measure_data_string(IJuliaMode, data) == str
+        @test InfiniteOpt.measure_data_string(IJuliaMode, data) == str
         # test without bounds
         data = FunctionalDiscreteMeasureData(par1, ones, 0, All, default_weight, NaN, NaN, false)
-        @test measure_data_string(REPLMode, data) == "par1"
-        @test measure_data_string(IJuliaMode, data) == "par1"
+        @test InfiniteOpt.measure_data_string(REPLMode, data) == "par1"
+        @test InfiniteOpt.measure_data_string(IJuliaMode, data) == "par1"
     end
     # test measure_data_string with Multi-D DiscreteMeasureData/FunctionalDiscreteMeasureData
     @testset "measure_data_string (Multi-D)" begin
         # test with homogenous bounds
         data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [0, 0], [1, 1], false)
         str = "pars2 " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]^2"
-        @test measure_data_string(REPLMode, data) == str
+        @test InfiniteOpt.measure_data_string(REPLMode, data) == str
         str = "pars2 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]^2"
-        @test measure_data_string(IJuliaMode, data) == str
+        @test InfiniteOpt.measure_data_string(IJuliaMode, data) == str
         # test heterogeneous bounds
         data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [0, 0], [0.5, 1], false)
         str = "pars2[1] " * JuMP._math_symbol(REPLMode, :in) * " [0, 0.5], " *
               "pars2[2] " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
-        @test measure_data_string(REPLMode, data) == str
+        @test InfiniteOpt.measure_data_string(REPLMode, data) == str
         str = "pars2_{1} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 0.5], " *
               "pars2_{2} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
-        @test measure_data_string(IJuliaMode, data) == str
+        @test InfiniteOpt.measure_data_string(IJuliaMode, data) == str
         # test no bounds with homogenous names
         data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [NaN, NaN], [NaN, NaN], false)
-        @test measure_data_string(REPLMode, data) == "pars2"
-        @test measure_data_string(IJuliaMode, data) == "pars2"
+        @test InfiniteOpt.measure_data_string(REPLMode, data) == "pars2"
+        @test InfiniteOpt.measure_data_string(IJuliaMode, data) == "pars2"
         # test no bounds with heterogeneous names
         data = FunctionalDiscreteMeasureData([par1, pars[1]], ones, 0, All, default_weight, [NaN, NaN], [NaN, NaN], false)
-        @test measure_data_string(REPLMode, data) == "[par1, pars[1]]"
-        @test measure_data_string(IJuliaMode, data) == "[par1, pars[1]]"
+        @test InfiniteOpt.measure_data_string(REPLMode, data) == "[par1, pars[1]]"
+        @test InfiniteOpt.measure_data_string(IJuliaMode, data) == "[par1, pars[1]]"
     end
     # test measure_data_string (Fallback)
     @testset "measure_data_string (Fallback)" begin
         # test single
         data = TestData(par1, 0, 1)
-        @test measure_data_string(REPLMode, data) == "par1"
-        @test measure_data_string(IJuliaMode, data) == "par1"
+        @test InfiniteOpt.measure_data_string(REPLMode, data) == "par1"
+        @test InfiniteOpt.measure_data_string(IJuliaMode, data) == "par1"
         # test with homogenous names
         data = TestData(pars2, 0, 1)
-        @test measure_data_string(REPLMode, data) == "pars2"
-        @test measure_data_string(IJuliaMode, data) == "pars2"
+        @test InfiniteOpt.measure_data_string(REPLMode, data) == "pars2"
+        @test InfiniteOpt.measure_data_string(IJuliaMode, data) == "pars2"
         # test with heterogeneous names
         data = TestData([par1, pars[1]], 0, 1)
-        @test measure_data_string(REPLMode, data) == "[par1, pars[1]]"
-        @test measure_data_string(IJuliaMode, data) == "[par1, pars[1]]"
+        @test InfiniteOpt.measure_data_string(REPLMode, data) == "[par1, pars[1]]"
+        @test InfiniteOpt.measure_data_string(IJuliaMode, data) == "[par1, pars[1]]"
     end
     # test JuMP.function_string (MeasureRef)
     @testset "JuMP.function_string (MeasureRef)" begin
@@ -286,9 +286,9 @@ using JuMP: REPLMode, IJuliaMode
         bounds = ParameterBounds((pars[1] => IntervalSet(0, 0),
                                   pars[2] => IntervalSet(1, 1)))
         idx = index(pars[1]).object_index
-        str = bound_string(REPLMode, bounds)
+        str = InfiniteOpt.bound_string(REPLMode, bounds)
         @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) == str
-        str = bound_string(IJuliaMode, bounds)
+        str = InfiniteOpt.bound_string(IJuliaMode, bounds)
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) == str
         # other set without equalities and including in the bounds
         bounds = ParameterBounds((pars[1] => IntervalSet(0, 1),))

@@ -445,16 +445,6 @@ end
     @hold_variable(m, z)
     @constraint(m, c1, z >= 0)
     @constraint(m, c2, z + t + x[1] >= 0)
-    # test _make_param_tuple_element (IndependentParameterIndex)
-    @testset "_make_param_tuple_element (Independent)" begin
-        @test InfiniteOpt._make_param_tuple_element(m, index(t)) == t
-        @test InfiniteOpt._make_param_tuple_element(m, index(y)) == y
-    end
-    # test _make_param_tuple_element (DependentParametersIndex)
-    @testset "_make_param_tuple_element (Dependent)" begin
-        obj_idx = index(first(x)).object_index
-        @test InfiniteOpt._make_param_tuple_element(m, obj_idx) == x
-    end
     # test parameter_refs
     @testset "parameter_refs" begin
         @test parameter_refs(c1) == ()

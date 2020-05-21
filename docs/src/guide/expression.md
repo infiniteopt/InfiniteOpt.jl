@@ -189,7 +189,17 @@ MeasureFiniteVariableRef
 FiniteVariableRef
 ```
 
-## User Methods
+## Expression Methods
+```@docs
+parameter_refs(::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr})
+```
+
+## GeneralVariableRef User Methods
+```@index
+Pages   = ["expression.md"]
+Modules = [InfiniteOpt, JuMP]
+Order   = [:macro, :function]
+```
 ```@docs
 JuMP.owner_model(::GeneralVariableRef)
 JuMP.owner_model(::DispatchVariableRef)
@@ -275,11 +285,6 @@ JuMP.unset_integer(::GeneralVariableRef)
 ```
 
 ## Developer Internal Methods
-```@index
-Pages   = ["expression.md"]
-Modules = [InfiniteOpt, JuMP]
-Order   = [:macro, :function]
-```
 ```@docs
 _add_data_object
 _data_dictionary

@@ -324,6 +324,14 @@ function JuMP.variable_by_name(model::InfiniteModel,
 end
 
 ################################################################################
+#                              PARAMETER REFERENCES
+################################################################################
+# Extend parameter_refs for variables (this serves as a fallback for finite types)
+function parameter_refs(vref::FiniteVariableRef)::Tuple
+    return ()
+end
+
+################################################################################
 #                         VARIABLE OBJECT MODIFICATION
 ################################################################################
 # Extend _set_core_variable_object

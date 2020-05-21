@@ -10,7 +10,7 @@
     num = Float64(0)
     info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
     new_info = VariableInfo(true, 0., true, 0., true, 0., true, 0., true, false)
-    var = InfiniteVariable(info, VectorTuple(a, b[1:2], c, [b[3], d]),
+    var = InfiniteVariable(info, IC.VectorTuple(a, b[1:2], c, [b[3], d]),
                            [1:7...], [1:6...])
     object = VariableData(var, "var")
     vref = InfiniteVariableRef(m, idx)
@@ -105,8 +105,8 @@
     end
     # raw_parameter_refs
     @testset "raw_parameter_refs" begin
-        @test raw_parameter_refs(vref) == VectorTuple(a, b[1:2], c, [b[3], d])
-        @test raw_parameter_refs(gvref) == VectorTuple(a, b[1:2], c, [b[3], d])
+        @test raw_parameter_refs(vref) == IC.VectorTuple(a, b[1:2], c, [b[3], d])
+        @test raw_parameter_refs(gvref) == IC.VectorTuple(a, b[1:2], c, [b[3], d])
     end
     # parameter_refs
     @testset "parameter_refs" begin
@@ -203,16 +203,16 @@ end
     # _check_parameter_tuple
     @testset "_check_parameter_tuple" begin
         # test normal
-        tuple = VectorTuple((pref, prefs, pref2))
+        tuple = IC.VectorTuple((pref, prefs, pref2))
         @test InfiniteOpt._check_parameter_tuple(error, tuple) isa Nothing
-        tuple = VectorTuple(([pref, pref2], prefs))
+        tuple = IC.VectorTuple(([pref, pref2], prefs))
         @test InfiniteOpt._check_parameter_tuple(error, tuple) isa Nothing
         # test bad
-        tuple = VectorTuple((pref, pref))
+        tuple = IC.VectorTuple((pref, pref))
         @test_throws ErrorException InfiniteOpt._check_parameter_tuple(error, tuple)
-        tuple = VectorTuple((pref, [prefs[1], pref2]))
+        tuple = IC.VectorTuple((pref, [prefs[1], pref2]))
         @test_throws ErrorException InfiniteOpt._check_parameter_tuple(error, tuple)
-        tuple = VectorTuple(fin)
+        tuple = IC.VectorTuple(fin)
         @test_throws ErrorException InfiniteOpt._check_parameter_tuple(error, tuple)
     end
     # _make_variable
@@ -227,7 +227,7 @@ end
         @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Infinite),
                                                   parameter_refs = (pref, pref))
         # defined expected output
-        expected = InfiniteVariable(info, VectorTuple(pref), [1], [1])
+        expected = InfiniteVariable(info, IC.VectorTuple(pref), [1], [1])
         # test for expected output
         @test InfiniteOpt._make_variable(error, info, Val(Infinite),
                              parameter_refs = pref).info == expected.info
@@ -238,17 +238,17 @@ end
         @test InfiniteOpt._make_variable(error, info, Val(Infinite),
                 parameter_refs = pref).object_nums == expected.object_nums
         # test various types of param tuples
-        tuple = VectorTuple(pref, pref2)
+        tuple = IC.VectorTuple(pref, pref2)
         @test InfiniteOpt._make_variable(error, info, Val(Infinite),
                  parameter_refs = (pref, pref2)).parameter_refs == tuple
-        tuple = VectorTuple(pref, prefs)
+        tuple = IC.VectorTuple(pref, prefs)
         @test InfiniteOpt._make_variable(error, info, Val(Infinite),
                          parameter_refs = (pref, prefs)).parameter_refs == tuple
         @test InfiniteOpt._make_variable(error, info, Val(Infinite),
                          parameter_refs = (pref, prefs)).parameter_nums == [1, 3, 4]
         @test sort!(InfiniteOpt._make_variable(error, info, Val(Infinite),
                          parameter_refs = (pref, prefs)).object_nums) == [1, 3]
-        tuple = VectorTuple(prefs)
+        tuple = IC.VectorTuple(prefs)
         @test InfiniteOpt._make_variable(error, info, Val(Infinite),
                              parameter_refs = prefs).parameter_refs == tuple
     end
@@ -267,17 +267,17 @@ end
                                                   parameter_refs = (pref, pref),
                                                   error = error)
         # defined expected output
-        expected = InfiniteVariable(info, VectorTuple(pref), [1], [1])
+        expected = InfiniteVariable(info, IC.VectorTuple(pref), [1], [1])
         # test for expected output
         @test build_variable(error, info, Infinite,
                              parameter_refs = pref).info == expected.info
         @test build_variable(error, info, Infinite,
                 parameter_refs = pref).parameter_refs == expected.parameter_refs
         # test various types of param tuples
-        tuple = VectorTuple(pref, prefs)
+        tuple = IC.VectorTuple(pref, prefs)
         @test build_variable(error, info, Infinite,
                          parameter_refs = (pref, prefs)).parameter_refs == tuple
-        tuple = VectorTuple(prefs)
+        tuple = IC.VectorTuple(prefs)
         @test build_variable(error, info, Infinite,
                              parameter_refs = prefs).parameter_refs == tuple
         @test build_variable(error, info, Infinite,
@@ -289,17 +289,17 @@ end
     @testset "_check_parameters_valid" begin
         # prepare param tuple
         @independent_parameter(InfiniteModel(), pref3 in [0, 1])
-        tuple = VectorTuple((pref, prefs, pref3))
+        tuple = IC.VectorTuple((pref, prefs, pref3))
         # test that catches error
         @test_throws VariableNotOwned{GeneralVariableRef} InfiniteOpt._check_parameters_valid(m, tuple)
         # test normal
-        tuple = VectorTuple(pref, pref2)
+        tuple = IC.VectorTuple(pref, pref2)
         @test InfiniteOpt._check_parameters_valid(m, tuple) isa Nothing
     end
     # _update_param_var_mapping
     @testset "_update_param_var_mapping" begin
         # prepare tuple
-        tuple = VectorTuple(pref, prefs)
+        tuple = IC.VectorTuple(pref, prefs)
         idx = InfiniteVariableIndex(1)
         ivref = InfiniteVariableRef(m, idx)
         # test normal
@@ -795,7 +795,7 @@ end
     # _update_variable_param_refs
     @testset "_update_variable_param_refs" begin
         orig_prefs = raw_parameter_refs(dvref)
-        @test isa(InfiniteOpt._update_variable_param_refs(dvref, VectorTuple(pref2)),
+        @test isa(InfiniteOpt._update_variable_param_refs(dvref, IC.VectorTuple(pref2)),
                   Nothing)
         @test parameter_refs(dvref) == (pref2, )
         @test name(dvref) == "ivref(pref2)"

@@ -468,8 +468,8 @@ Build the optimizer model stored in `model` such that it can be
 treated as a normal JuMP model, where the `Model.ext` field contains a key
 that points to a datastructure that appropriately maps the data between the
 two models. The key argument should be be typed to `Val{ext_key_name}`. This
-should also use [`add_infinite_model_optimizer`](@ref) to transfer the optimizer
-stored in `model`. Ultimately, [`set_optimizer_model`](@ref) should be called
+should also use [`clear_optimizer_model_build!`](@ref) to empty the out the current
+optimizer model. Ultimately, [`set_optimizer_model`](@ref) should be called
 to insert the build optimizer model into `model` and [`set_optimizer_model_ready`](@ref)
 should be used to update the optimizer model's status.
 """
@@ -534,7 +534,7 @@ function build_optimizer_model!(model::InfiniteModel; kwargs...)
 end
 
 ################################################################################
-#                        OPTIMIZER MODEL MAPPING METHODS
+#                  OPTIMIZER MODEL MAPPING METHODS (VARIABLES)
 ################################################################################
 """
     optimizer_model_variable(vref::GeneralVariableRef, key::Val{ext_key_name};
@@ -549,8 +549,8 @@ function optimizer_model_variable end
 
 # Fallback for unextended keys
 function optimizer_model_variable(vref::GeneralVariableRef, key; kwargs...)
-    error("`optimizer_model_variable` not implemented for optimizer model
-          key `$(typeof(key).parameters[1])`.")
+    error("`optimizer_model_variable` not implemented for optimizer model " *
+          "key `$(typeof(key).parameters[1])`.")
 end
 
 """
@@ -597,41 +597,144 @@ function variable_supports(optimizer_model::JuMP.Model, vref, key; kwargs...)
           "`$(typeof(key).parameters[1])`.")
 end
 
-# PointVariableRef
-function variable_supports(optimizer_model::JuMP.Model, vref::PointVariableRef,
-                           key; kwargs...)::Vector
-    return [parameter_values(vref)]
-end
-
-# HoldVariableRef
-function variable_supports(optimizer_model::JuMP.Model, vref::HoldVariableRef,
-                           key; kwargs...)::Vector
-    return []
+# FiniteVariableRef
+function variable_supports(optimizer_model::JuMP.Model, vref::FiniteVariableRef,
+                           key; kwargs...)
+    return ()
 end
 
 """
-    supports(vref::DecisionVariableRef; [kwargs...])::Vector
+    supports(vref::DecisionVariableRef; [kwargs...])
 
 Return the supports associated with `vref` in the optimizer
-model. Errors if [`variable_supports`](@ref) has not been extended for the
+model. Errors if [`InfiniteOpt.variable_supports`](@ref) has not been extended for the
 optimizer model type or if `vref` is not be reformulated in the optimizer model.
 By default, keyword arugments are not used, but may employed by extensions.
 
 **Example**
 ```julia-repl
 julia> supports(vref)
-Dict{Int64,Tuple{Float64}} with 2 entries:
-  2 => (1.0,)
-  1 => (0.0,)
+2-element Array{Tuple{Float64},1}:
+ (0.0,)
+ (1.0,)
 ```
 """
 function supports(vref::Union{DecisionVariableRef, MeasureRef};
-                  label = All, kwargs...)::Vector
+                  label = All, kwargs...)
     model = optimizer_model(JuMP.owner_model(vref))
     key = optimizer_model_key(JuMP.owner_model(vref))
     return variable_supports(model, vref, Val(key); kwargs...)
 end
 
+################################################################################
+#                 OPTIMIZER MODEL MAPPING METHODS (EXPRESSIONS)
+################################################################################
+"""
+    optimizer_model_expression(expr, key::Val{ext_key_name}; [kwargs...])
+
+Return the reformulation expression(s) stored in the optimizer model that correspond
+to `expr`. This needs to be defined for extensions that implement a custom
+optimizer model type. Principally, this is accomplished by typed the `key`
+argument to `Val{ext_key_name}`. Keyword arguments can be added as needed.
+Note that if `expr` is a `GeneralVariableRef` this just dispatches to
+`voptimizer_model_variable`.
+"""
+function optimizer_model_expression end
+
+# Fallback for unextended keys
+function optimizer_model_expression(expr, key; kwargs...)
+    error("`optimizer_model_expression` not defined for optimizer model " *
+          "key `$(typeof(key).parameters[1])` and expression type " *
+          "`$(typeof(expr))`.")
+end
+
+# Define for variable reference expressions
+function optimizer_model_expression(expr::GeneralVariableRef, key; kwargs...)
+    return optimizer_model_variable(expr, key; kwargs...)
+end
+
+"""
+    optimizer_model_expression(expr::JuMP.AbstractJuMPScalar; [kwargs...])
+
+Return the reformulation expression(s) stored in the optimizer model that correspond
+to `expr`. By default, no keyword arguments `kwargs` are employed by
+`TranscriptionOpt`, but extensions may employ `kwargs` in accordance with
+their implementation of [`optimizer_model_expression`](@ref). Errors if such an
+extension has not been written. Also errors if no such expression can be found in
+the optimizer model (meaning one or more of the underlying variables have not
+been transcribed).
+
+**Example**
+```julia-repl
+julia> optimizer_model_expression(my_expr) # finite expression
+x(support: 1) - y
+```
+"""
+function optimizer_model_expression(expr::JuMP.AbstractJuMPScalar; kwargs...)
+    model = _model_from_expr(expr)
+    if isnothing(model)
+        return zero(JuMP.AffExpr) + JuMP.constant(expr)
+    else
+        key = optimizer_model_key(model)
+        return optimizer_model_expression(expr, Val(key); kwargs...)
+    end
+end
+
+"""
+    expression_supports(optimizer_model::JuMP.Model, expr,
+                        key::Val{ext_key_name}; [kwargs...])
+
+Return the supports associated with the mappings of `expr` in `optimizer_model`.
+This dispatches off of `key` which permits optimizer model extensions. This
+should throw an error if `expr` is not associated with the variable mappings
+stored in `optimizer_model`. Keyword arguments can be added as needed. Note that
+if `expr` is a `GeneralVariableRef` this just dispatches to `variable_supports`.
+"""
+function expression_supports end
+
+# fallback for unextended keys
+function expression_supports(optimizer_model::JuMP.Model, expr, key; kwargs...)
+  error("`constraint_supports` not implemented for optimizer model key " *
+        "`$(typeof(key).parameters[1])` and/or expressions of type " *
+        "`$(typeof(expr))`.")
+end
+
+# Variable reference expressions
+function expression_supports(model::JuMP.Model, vref::GeneralVariableRef, key;
+                             kwargs...)
+    return variable_supports(model, dispatch_variable_ref(vref), key; kwargs...)
+end
+
+"""
+    supports(expr::JuMP.AbstractJuMPScalar; [kwargs...])
+
+Return the support associated with `expr`. Errors if `expr` is
+not associated with the constraint mappings stored in `optimizer_model` or if
+[`InfiniteOpt.expression_supports`](@ref) has not been extended. By default,
+no keyword arguments are accepted, but extensions may employ some.
+
+**Example**
+```julia-repl
+julia> supports(cref)
+2-element Array{Tuple{Float64},1}:
+ (0.0,)
+ (1.0,)
+```
+"""
+function supports(expr::JuMP.AbstractJuMPScalar; kwargs...)
+    model = _model_from_expr(expr)
+    if isnothing(model)
+        return ()
+    else
+        key = optimizer_model_key(model)
+        opt_model = optimizer_model(model)
+        return expression_supports(opt_model, expr, Val(key); kwargs...)
+    end
+end
+
+################################################################################
+#                OPTIMIZER MODEL MAPPING METHODS (CONSTRAINTS)
+################################################################################
 """
     optimizer_model_constraint(cref::InfOptConstraintRef,
                                key::Val{ext_key_name}; [kwargs...])
@@ -645,8 +748,8 @@ function optimizer_model_constraint end
 
 # Fallback for unextended keys
 function optimizer_model_constraint(cref::InfOptConstraintRef, key; kwargs...)
-    error("`optimizer_model_constraint` not implemented for optimizer model
-          key `$(typeof(key).parameters[1])`.")
+    error("`optimizer_model_constraint` not implemented for optimizer model " *
+          "key `$(typeof(key).parameters[1])`.")
 end
 
 """
@@ -672,7 +775,7 @@ end
 
 """
     constraint_supports(optimizer_model::JuMP.Model, cref::InfOptConstraintRef,
-                        key::Val{ext_key_name}; [kwargs...])::Vector
+                        key::Val{ext_key_name}; [kwargs...])
 
 Return the supports associated with the mappings of `cref` in `optimizer_model`.
 This dispatches off of `key` which permits optimizer model extensions. This
@@ -690,22 +793,22 @@ function constraint_supports(optimizer_model::JuMP.Model,
 end
 
 """
-    supports(cref::InfOptConstraintRef; [kwargs...])::Vector
+    supports(cref::InfOptConstraintRef; [kwargs...])
 
 Return the support associated with `cref`. Errors if `cref` is
 not associated with the constraint mappings stored in `optimizer_model` or if
-[`constraint_supports`](@ref) has not been extended. By default, no keyword
+[`InfiniteOpt.constraint_supports`](@ref) has not been extended. By default, no keyword
 arguments are accepted, but extensions may employ some.
 
 **Example**
 ```julia-repl
 julia> supports(cref)
-Dict{Int64,Tuple{Float64}} with 2 entries:
-  2 => (1.0,)
-  1 => (0.0,)
+2-element Array{Tuple{Float64},1}:
+ (0.0,)
+ (1.0,)
 ```
 """
-function supports(cref::InfOptConstraintRef; kwargs...)::Vector
+function supports(cref::InfOptConstraintRef; kwargs...)
     model = optimizer_model(JuMP.owner_model(cref))
     key = optimizer_model_key(JuMP.owner_model(cref))
     return constraint_supports(model, cref, Val(key); kwargs...)

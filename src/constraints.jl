@@ -748,24 +748,6 @@ end
 ################################################################################
 #                         PARAMETER REFERENCE METHODS
 ################################################################################
-## Return an element of a parameter reference tuple given the model and index
-# IndependentParameterIndex
-function _make_param_tuple_element(model::InfiniteModel,
-    idx::IndependentParameterIndex,
-    )::GeneralVariableRef
-    return _make_parameter_ref(model, idx)
-end
-
-# DependentParametersIndex
-function _make_param_tuple_element(model::InfiniteModel,
-    idx::DependentParametersIndex,
-    )::Vector{GeneralVariableRef}
-    dpref = DependentParameterRef(model, DependentParameterIndex(idx, 1))
-    num_params = _num_parameters(dpref)
-    return [GeneralVariableRef(model, idx.value, DependentParameterIndex, i)
-            for i in 1:num_params]
-end
-
 """
     parameter_refs(cref::InfOptConstraintRef)::Tuple
 

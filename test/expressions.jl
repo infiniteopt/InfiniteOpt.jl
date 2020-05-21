@@ -286,3 +286,30 @@ end
         @test_throws ErrorException InfiniteOpt._set_variable_coefficient!(2, x, 2)
     end
 end
+
+# Test parameter reference methods
+@testset "Parameter References" begin
+    m = InfiniteModel()
+    @independent_parameter(m, t in [0, 1])
+    @independent_parameter(m, y in [0, 1])
+    @dependent_parameters(m, x[1:3] in [0, 1])
+    @hold_variable(m, z)
+    @expression(m, c1, 2z)
+    @expression(m, c2, z + t + x[1])
+    # test _make_param_tuple_element (IndependentParameterIndex)
+    @testset "_make_param_tuple_element (Independent)" begin
+        @test InfiniteOpt._make_param_tuple_element(m, index(t)) == t
+        @test InfiniteOpt._make_param_tuple_element(m, index(y)) == y
+    end
+    # test _make_param_tuple_element (DependentParametersIndex)
+    @testset "_make_param_tuple_element (Dependent)" begin
+        obj_idx = index(first(x)).object_index
+        @test InfiniteOpt._make_param_tuple_element(m, obj_idx) == x
+    end
+    # test parameter_refs
+    @testset "parameter_refs" begin
+        @test parameter_refs(c1) == ()
+        @test parameter_refs(c2) == (t, x)
+        @test parameter_refs(zero(AffExpr)) == ()
+    end
+end

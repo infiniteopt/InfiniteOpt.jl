@@ -426,7 +426,7 @@ Modules = [InfiniteOpt]
 Order   = [:type]
 ```
 ```@docs
-TranscriptionData
+InfiniteOpt.TranscriptionOpt.TranscriptionData
 ```
 
 ## Methods
@@ -436,15 +436,18 @@ Modules = [InfiniteOpt, InfiniteOpt.TranscriptionOpt]
 Order   = [:function]
 ```
 ```@docs
-TranscriptionModel
-is_transcription_model
-transcription_data
+InfiniteOpt.TranscriptionOpt.TranscriptionModel
+InfiniteOpt.TranscriptionOpt.is_transcription_model
+InfiniteOpt.TranscriptionOpt.transcription_data
 InfiniteOpt.TranscriptionOpt.transcription_model
 InfiniteOpt.TranscriptionOpt.transcription_variable(::JuMP.Model,::InfiniteOpt.GeneralVariableRef)
 InfiniteOpt.optimizer_model_variable(::InfiniteOpt.GeneralVariableRef,::Val{:TransData})
 InfiniteOpt.variable_supports(::JuMP.Model,::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef},::Val{:TransData})
 InfiniteOpt.TranscriptionOpt.lookup_by_support(::JuMP.Model,::InfiniteOpt.GeneralVariableRef,::Vector)
 InfiniteOpt.internal_reduced_variable(::InfiniteOpt.ReducedVariableRef,::Val{:TransData})
+InfiniteOpt.TranscriptionOpt.transcription_expression(::JuMP.Model,::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr})
+InfiniteOpt.optimizer_model_expression(::JuMP.AbstractJuMPScalar,::Val{:TransData})
+InfiniteOpt.expression_supports(::JuMP.Model,::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr}, ::Val{:TransData})
 InfiniteOpt.TranscriptionOpt.transcription_constraint(::JuMP.Model,::InfiniteOpt.InfOptConstraintRef)
 InfiniteOpt.optimizer_model_constraint(::InfiniteOpt.InfOptConstraintRef,::Val{:TransData})
 InfiniteOpt.constraint_supports(::JuMP.Model,::InfiniteOpt.InfOptConstraintRef,::Val{:TransData})

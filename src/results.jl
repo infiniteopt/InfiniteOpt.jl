@@ -1,3 +1,6 @@
+################################################################################
+#                                  STATUS QUERIES
+################################################################################
 """
     JuMP.termination_status(model::InfiniteModel)
 
@@ -115,6 +118,9 @@ function JuMP.has_duals(model::InfiniteModel; result::Int = 1)::Bool
     return JuMP.dual_status(model; result = result) != MOI.NO_SOLUTION
 end
 
+################################################################################
+#                              OBJECTIVE QUERIES
+################################################################################
 """
     JuMP.objective_bound(model::InfiniteModel)::Float64
 
@@ -166,17 +172,21 @@ function JuMP.dual_objective_value(model::InfiniteModel; result::Int = 1)::Float
     return JuMP.dual_objective_value(optimizer_model(model); result = result)
 end
 
+################################################################################
+#                                 VALUE QUERIES
+################################################################################
 """
-    map_value(ref, key::Val{ext_key_name}, result::Int)
+    map_value([ref/expr], key::Val{ext_key_name}, result::Int)
 
 Map the value(s) of `ref` to its counterpart in the optimizer model type that is
 distininguished by its extension key `key` as type `Val{ext_key_name}`.
 Here `ref` need refer to methods for both variable references and constraint
 references. This only needs to be defined for reformulation extensions that cannot
-readily extend `optimizer_model_variable` and `optimizer_model_constraint`.
-Such as is the case with reformuations that do not have a direct mapping between
-variables and/or constraints in the original infinite form. Otherwise,
-`optimizer_model_variable` and `optimizer_model_constraint` are used to make
+readily extend `optimizer_model_variable`, `optimizer_model_expression`, and/or
+`optimizer_model_constraint`. Such as is the case with reformuations that do not
+have a direct mapping between variables and/or constraints in the original
+infinite form. Otherwise, `optimizer_model_variable`,
+`optimizer_model_expression`, and `optimizer_model_constraint` are used to make
 these mappings by default. Here `result` is the result index used in `value`.
 """
 function map_value end
@@ -198,6 +208,16 @@ function map_value(cref::InfOptConstraintRef, key, result::Int)
         return JuMP.value.(opt_cref; result = result)
     else
         return JuMP.value(opt_cref; result = result)
+    end
+end
+
+# Default method that depends on optimizer_model_expression --> making extensions easier
+function map_value(expr::JuMP.AbstractJuMPScalar, key, result::Int)
+    opt_expr = optimizer_model_expression(vref, key)
+    if opt_expr isa AbstractArray
+        return JuMP.value.(opt_expr; result = result)
+    else
+        return JuMP.value(opt_expr; result = result)
     end
 end
 
@@ -247,6 +267,47 @@ function JuMP.value(cref::InfOptConstraintRef; result::Int = 1)
     return map_value(cref, Val(optimizer_model_key(JuMP.owner_model(cref))), result)
 end
 
+"""
+    JuMP.value(expr::JuMP.AbstractJuMPScalar; result::Int = 1)
+
+Return the value(s) of `expr` in accordance with the optimized variable values.
+This method should be used cautiously with expressions that have varied
+infinite parameter dependencies.
+
+Extensions can enable this method via proper definition of
+[`parse_expression_value`](@ref).
+
+**Example**
+```julia-repl
+julia> value(my_finite_expr)
+23.34
+
+julia> value(my_infinite_expr)
+4-element Array{Float64,1}:
+ -0.0
+ 20.9
+ 20.9
+ 20.9
+```
+"""
+function JuMP.value(expr::Union{JuMP.GenericAffExpr{C, V}, JuMP.GenericQuadExpr{C, V}};
+    result::Int = 1
+    ) where {C, V <: GeneralVariableRef}
+    # get the model
+    model = _model_from_expr(expr)
+    # if no model then the expression only contains a constant
+    if isnothing(model)
+        return JuMP.constant(expr)
+    # otherwise let's call parse_expression_value
+    else
+        key = optimizer_model_key(model)
+        return map_value(expr, Val(key), result)
+    end
+end
+
+################################################################################
+#                             OPTIMIZER INDEX QUERIES
+################################################################################
 """
     map_optimizer_index(ref, key::Val{ext_key_name})
 
@@ -328,6 +389,9 @@ function JuMP.optimizer_index(cref::InfOptConstraintRef)
     return map_optimizer_index(cref, Val(optimizer_model_key(JuMP.owner_model(cref))))
 end
 
+################################################################################
+#                                  DUAL QUERIES
+################################################################################
 """
     map_dual(cref::InfOptConstraintRef, key::Val{ext_key_name}, result::Int)
 
@@ -384,6 +448,9 @@ function JuMP.dual(vref::GeneralVariableRef; result::Int = 1)
     return JuMP.dual(JuMP.VariableRef(JuMP.Model(), MOI.VariableIndex(1)))
 end
 
+################################################################################
+#                              SHADOW PRICE QUERIES
+################################################################################
 """
     map_shadow_price(cref::InfOptConstraintRef, key::Val{ext_key_name})
 
@@ -433,6 +500,9 @@ function JuMP.shadow_price(cref::InfOptConstraintRef)
     return map_shadow_price(cref, Val(optimizer_model_key(JuMP.owner_model(cref))))
 end
 
+################################################################################
+#                               PERTURBATION QUERIES
+################################################################################
 """
     map_lp_rhs_perturbation_range(cref::InfOptConstraintRef,
                                   key::Val{ext_key_name}, toler::Float64)
