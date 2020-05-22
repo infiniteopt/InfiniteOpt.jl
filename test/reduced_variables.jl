@@ -299,8 +299,13 @@ end
     end
     # start_value
     @testset "JuMP.start_value" begin
-        @test start_value(rvref2) == 0
-        @test start_value(gvref2) == 0
+        @test_throws ErrorException start_value(rvref2)
+        @test_throws ErrorException start_value(gvref2)
+    end
+    # start_value_function
+    @testset "start_value_function" begin
+        @test start_value_function(rvref2)([0]) == 0
+        @test start_value_function(gvref2)([0]) == 0
     end
     # is_binary
     @testset "JuMP.is_binary" begin

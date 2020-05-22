@@ -1382,7 +1382,8 @@ a measure since the measure becomes invalid otherwise. Thus, measures that
 contain this dependency must be deleted first. Note that
 [`parameter_refs`](@ref parameter_refs(::AbstractMeasureData)) needs to be
 extended to allow deletion of parameters when custom `AbstractMeasureData`
-datatypes are used.
+datatypes are used. Note that any dependent infinite variables will have their
+start values reset to the default via [`reset_start_value_function`](@ref).
 
 **Example**
 ```julia-repl
@@ -1435,6 +1436,7 @@ function JuMP.delete(model::InfiniteModel,
         delete_indices = vprefs.ranges[tup_index]
         deleteat!(vprefs, tup_index, tuple_index = true)
         JuMP.set_name(vref, _root_name(vref))
+        reset_start_value_function(vref)
         # update any point variables that depend on vref accordingly
         for pindex in _point_variable_dependencies(vref)
             pvref = PointVariableRef(model, pindex)

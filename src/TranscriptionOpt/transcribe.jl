@@ -77,6 +77,23 @@ function transcribe_hold_variables!(trans_model::JuMP.Model,
     return
 end
 
+# Return a proper scalar variable info object given on with a start value function
+function _format_infinite_info(var::InfiniteOpt.InfiniteVariable,
+    support::Vector{Float64}
+    )::JuMP.VariableInfo
+    # generate the start value
+    info = var.info
+    if var.is_vector_start
+        start = info.start(support)
+    else
+        start = info.start(Tuple(support, var.parameter_refs)...)
+    end
+    # make the info and return
+    return JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
+                             info.upper_bound, info.has_fix, info.fixed_value,
+                             info.has_start, start, info.binary, info.integer)
+end
+
 """
     transcribe_infinite_variables!(trans_model::JuMP.Model,
                                    inf_model::InfiniteOpt.InfiniteModel)::Nothing
@@ -105,10 +122,11 @@ function transcribe_infinite_variables!(trans_model::JuMP.Model,
         for i in supp_indices
             raw_supp = index_to_support(trans_model, i)
             supp = raw_supp[param_nums]
+            info = _format_infinite_info(var, supp)
             var_name = string(base_name, "(support: ", counter, ")")
             @inbounds vrefs[counter] = JuMP.add_variable(trans_model,
-                                               JuMP.ScalarVariable(var.info),
-                                               var_name)
+                                                         JuMP.ScalarVariable(info),
+                                                         var_name)
             lookup_dict[supp] = counter
             counter += 1
         end
@@ -311,7 +329,7 @@ function transcription_expression(trans_model::JuMP.Model,
     )
     return JuMP.@expression(trans_model,
                  sum(coef * transcription_expression(trans_model, vref, support)
-                     for (vref, coef) in aff.terms) + aff.constant)
+                     for (coef, vref) in JuMP.linear_terms(aff)) + JuMP.constant(aff))
 end
 
 # QuadExpr
@@ -320,9 +338,9 @@ function transcription_expression(trans_model::JuMP.Model,
     support::Vector{Float64}
     )
     return JuMP.@expression(trans_model,
-                 sum(coef * transcription_expression(trans_model, pair.a, support) *
-                     transcription_expression(trans_model, pair.b, support)
-                     for (pair, coef) in quad.terms) +
+                 sum(coef * transcription_expression(trans_model, v1, support) *
+                     transcription_expression(trans_model, v2, support)
+                     for (coef, v1, v2) in JuMP.quad_terms(quad)) +
                  transcription_expression(trans_model, quad.aff, support))
 end
 

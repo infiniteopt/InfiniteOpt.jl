@@ -8,10 +8,13 @@
     @independent_parameter(m, d in [0, 1])
     idx = InfiniteVariableIndex(1)
     num = Float64(0)
-    info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
-    new_info = VariableInfo(true, 0., true, 0., true, 0., true, 0., true, false)
+    func = (x) -> NaN
+    info = VariableInfo{Float64, Float64, Float64, Function}(false, num, false,
+                                     num, false, num, false, func, false, false)
+    new_info = VariableInfo{Float64, Float64, Float64, Function}(true, 0., true,
+                                          0., true, 0., true, func, true, false)
     var = InfiniteVariable(info, IC.VectorTuple(a, b[1:2], c, [b[3], d]),
-                           [1:7...], [1:6...])
+                           [1:7...], [1:6...], true)
     object = VariableData(var, "var")
     vref = InfiniteVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
@@ -69,8 +72,13 @@
     @testset "_parameter_numbers" begin
         @test InfiniteOpt._parameter_numbers(vref) == [1:7...]
     end
+    # test _variable_info
     @testset "_variable_info" begin
         @test InfiniteOpt._variable_info(vref) == info
+    end
+    # test _is_vector_start
+    @testset "_is_vector_start" begin
+        @test InfiniteOpt._is_vector_start(vref)
     end
     # _update_variable_info
     @testset "_update_variable_info" begin
@@ -181,9 +189,10 @@ end
     @dependent_parameters(m, prefs[1:2] in [0, 1])
     @finite_parameter(m, fin, 42)
     num = Float64(0)
-    info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
-    info2 = VariableInfo(true, num, true, num, true, num, true, num, true, false)
-    info3 = VariableInfo(true, num, true, num, true, num, true, num, false, true)
+    func1 = (a) -> 2
+    info = VariableInfo(false, num, false, num, false, num, false, NaN, false, false)
+    info2 = VariableInfo(true, num, true, num, true, num, true, func1, true, false)
+    info3 = VariableInfo(true, num, true, num, true, num, true, 42, false, true)
     # _check_tuple_element (IndependentParameterRefs)
     @testset "_check_tuple_element (IndependentParameterRefs)" begin
         iprefs = dispatch_variable_ref.([pref, pref2])
@@ -215,6 +224,39 @@ end
         tuple = IC.VectorTuple(fin)
         @test_throws ErrorException InfiniteOpt._check_parameter_tuple(error, tuple)
     end
+    # _check_and_format_infinite_info (Real)
+    @testset "_check_and_format_infinite_info (Real)" begin
+        tuple = IC.VectorTuple((pref, prefs, pref2))
+        @test !InfiniteOpt._check_and_format_infinite_info(error, info, tuple)[1].has_start
+        @test InfiniteOpt._check_and_format_infinite_info(error, info, tuple)[1].start isa Function
+        @test InfiniteOpt._check_and_format_infinite_info(error, info, tuple)[2]
+        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple)[1].has_start
+        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple)[1].start isa Function
+        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple)[2]
+    end
+    # _check_and_format_infinite_info (Function)
+    @testset "_check_and_format_infinite_info (Function)" begin
+        tuple = IC.VectorTuple((pref,))
+        # test normal
+        @test InfiniteOpt._check_and_format_infinite_info(error, info2, tuple)[1].has_start
+        @test InfiniteOpt._check_and_format_infinite_info(error, info2, tuple)[1].start == func1
+        @test !InfiniteOpt._check_and_format_infinite_info(error, info2, tuple)[2]
+        # test multiple methods
+        mult_func(a,b,c) = 2
+        mult_func(a) = 2
+        bad_info = VariableInfo(true, num, true, num, true, num, true, mult_func, true, false)
+        @test_throws ErrorException InfiniteOpt._check_and_format_infinite_info(error, bad_info, tuple)
+        # test bad args
+        func = (a, b) -> a + sum(b)
+        bad_info = VariableInfo(true, num, true, num, true, num, true, func, true, false)
+        @test_throws ErrorException InfiniteOpt._check_and_format_infinite_info(error, bad_info, tuple)
+    end
+    # _check_and_format_infinite_info (Fallback)
+    @testset "_check_and_format_infinite_info (Fallback)" begin
+        tuple = IC.VectorTuple((pref, prefs, pref2))
+        bad_info = VariableInfo(true, num, true, num, true, num, true, Complex(1), true, false)
+        @test_throws ErrorException InfiniteOpt._check_and_format_infinite_info(error, bad_info, tuple)
+    end
     # _make_variable
     @testset "_make_variable" begin
         # test for each error message
@@ -226,17 +268,19 @@ end
                                                    parameter_refs = (pref, fin))
         @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Infinite),
                                                   parameter_refs = (pref, pref))
-        # defined expected output
-        expected = InfiniteVariable(info, IC.VectorTuple(pref), [1], [1])
+        func = (a, b) -> a + sum(b)
+        bad_info = VariableInfo(true, num, true, num, true, num, true, func, true, false)
+        @test_throws ErrorException InfiniteOpt._make_variable(error, bad_info, Val(Infinite),
+                                                               parameter_refs = (pref))
         # test for expected output
         @test InfiniteOpt._make_variable(error, info, Val(Infinite),
-                             parameter_refs = pref).info == expected.info
+                             parameter_refs = pref).info isa JuMP.VariableInfo{Float64, Float64, Float64, Function}
         @test InfiniteOpt._make_variable(error, info, Val(Infinite),
-                parameter_refs = pref).parameter_refs == expected.parameter_refs
+                parameter_refs = pref).parameter_refs == IC.VectorTuple(pref)
         @test InfiniteOpt._make_variable(error, info, Val(Infinite),
-                parameter_refs = pref).parameter_nums == expected.parameter_nums
+                parameter_refs = pref).parameter_nums == [1]
         @test InfiniteOpt._make_variable(error, info, Val(Infinite),
-                parameter_refs = pref).object_nums == expected.object_nums
+                parameter_refs = pref).object_nums == [1]
         # test various types of param tuples
         tuple = IC.VectorTuple(pref, pref2)
         @test InfiniteOpt._make_variable(error, info, Val(Infinite),
@@ -246,6 +290,8 @@ end
                          parameter_refs = (pref, prefs)).parameter_refs == tuple
         @test InfiniteOpt._make_variable(error, info, Val(Infinite),
                          parameter_refs = (pref, prefs)).parameter_nums == [1, 3, 4]
+        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+                                         parameter_refs = (pref, prefs)).is_vector_start
         @test sort!(InfiniteOpt._make_variable(error, info, Val(Infinite),
                          parameter_refs = (pref, prefs)).object_nums) == [1, 3]
         tuple = IC.VectorTuple(prefs)
@@ -266,13 +312,11 @@ end
         @test_throws ErrorException build_variable(error, info, Infinite,
                                                   parameter_refs = (pref, pref),
                                                   error = error)
-        # defined expected output
-        expected = InfiniteVariable(info, IC.VectorTuple(pref), [1], [1])
         # test for expected output
         @test build_variable(error, info, Infinite,
-                             parameter_refs = pref).info == expected.info
+                             parameter_refs = pref).info isa JuMP.VariableInfo{Float64, Float64, Float64, Function}
         @test build_variable(error, info, Infinite,
-                parameter_refs = pref).parameter_refs == expected.parameter_refs
+                parameter_refs = pref).parameter_refs == IC.VectorTuple(pref)
         # test various types of param tuples
         tuple = IC.VectorTuple(pref, prefs)
         @test build_variable(error, info, Infinite,
@@ -355,6 +399,8 @@ end
         gvref = InfiniteOpt._make_variable_ref(m, idx)
         @test add_variable(m, v, "name") == gvref
         @test !optimizer_model_ready(m)
+        @test !InfiniteOpt._is_vector_start(vref)
+        @test InfiniteOpt._variable_info(vref).start == func1
         # lower bound
         cindex = ConstraintIndex(1)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
@@ -397,6 +443,8 @@ end
         gvref = InfiniteOpt._make_variable_ref(m, idx)
         @test add_variable(m, v, "name") == gvref
         @test !optimizer_model_ready(m)
+        @test InfiniteOpt._is_vector_start(vref)
+        @test InfiniteOpt._variable_info(vref).start isa Function
         cindex = ConstraintIndex(8)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test is_integer(vref)
@@ -628,23 +676,41 @@ end
         @test @infinite_variable(m, d(t) == 0, Int, base_name = "test") == gvref
         @test name(vref) == "test(t)"
         @test fix_value(vref) == 0
+        # test single start value
+        idx = InfiniteVariableIndex(7)
+        vref = InfiniteVariableRef(m, idx)
+        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        @test @infinite_variable(m, aa(t), Int, start = 42) == gvref
+        @test name(vref) == "aa(t)"
+        @test start_value_function(vref) isa Function
+        @test start_value_function(vref)([0]) == 42
+        @test_throws MethodError start_value_function(vref)(0)
+        # test function start value
+        idx = InfiniteVariableIndex(8)
+        vref = InfiniteVariableRef(m, idx)
+        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        func = (a) -> a
+        @test @infinite_variable(m, ab(t), Int, start = func) == gvref
+        @test name(vref) == "ab(t)"
+        @test start_value_function(vref) isa Function
+        @test start_value_function(vref)(0) == 0
     end
     # test array variable definition
     @testset "Array" begin
         # test anonymous array
-        idxs = [InfiniteVariableIndex(7), InfiniteVariableIndex(8)]
+        idxs = [InfiniteVariableIndex(9), InfiniteVariableIndex(10)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
         @test @infinite_variable(m, [1:2], parameter_refs = t) == gvrefs
         @test name(vrefs[1]) == "noname(t)"
         # test basic param expression
-        idxs = [InfiniteVariableIndex(9), InfiniteVariableIndex(10)]
+        idxs = [InfiniteVariableIndex(11), InfiniteVariableIndex(12)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
         @test @infinite_variable(m, e[1:2], parameter_refs = (t, x)) == gvrefs
         @test name(vrefs[2]) == "e[2](t, x)"
         # test comparison without params
-        idxs = [InfiniteVariableIndex(11), InfiniteVariableIndex(12)]
+        idxs = [InfiniteVariableIndex(13), InfiniteVariableIndex(14)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
         @test @infinite_variable(m, 0 <= f[1:2] <= 1,
@@ -653,7 +719,7 @@ end
         @test lower_bound(vrefs[1]) == 0
         @test upper_bound(vrefs[2]) == 1
         # test comparison with call
-        idxs = [InfiniteVariableIndex(13), InfiniteVariableIndex(14)]
+        idxs = [InfiniteVariableIndex(15), InfiniteVariableIndex(16)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
         @test @infinite_variable(m, 0 <= g[1:2](t) <= 1) == gvrefs
@@ -661,20 +727,36 @@ end
         @test lower_bound(vrefs[1]) == 0
         @test upper_bound(vrefs[2]) == 1
         # test fixed
-        idxs = [InfiniteVariableIndex(15), InfiniteVariableIndex(16)]
+        idxs = [InfiniteVariableIndex(17), InfiniteVariableIndex(18)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
         @test @infinite_variable(m, h[i = 1:2](t) == ones(2)[i]) == gvrefs
         @test name(vrefs[1]) == "h[1](t)"
         @test fix_value(vrefs[1]) == 1
         # test containers
-        idxs = [InfiniteVariableIndex(17), InfiniteVariableIndex(18)]
+        idxs = [InfiniteVariableIndex(19), InfiniteVariableIndex(20)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
         svrefs = convert(JuMP.Containers.SparseAxisArray, gvrefs)
         @test @infinite_variable(m, [1:2](t),
                                  container = SparseAxisArray) isa JuMPC.SparseAxisArray
         @test name(vrefs[1]) == "noname(t)"
+        # test scalar starts
+        idxs = [InfiniteVariableIndex(21), InfiniteVariableIndex(22)]
+        vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
+        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        starts = [2, 5]
+        @test @infinite_variable(m, w[i = 1:2](t), start = starts[i]) == gvrefs
+        @test start_value_function(vrefs[1])([0]) == 2
+        @test start_value_function(vrefs[2])([0]) == 5
+        # test mixed starts
+        idxs = [InfiniteVariableIndex(23), InfiniteVariableIndex(24)]
+        vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
+        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        starts = [(a) -> 2, 5]
+        @test @infinite_variable(m, cat[i = 1:2](t), start = starts[i]) == gvrefs
+        @test start_value_function(vrefs[1])(0) == 2
+        @test start_value_function(vrefs[2])([0]) == 5
     end
     # test errors
     @testset "Errors" begin
@@ -698,6 +780,8 @@ end
         @test_macro_throws ErrorException @infinite_variable(m, i(t), bad = 42)
         # test name duplication
         @test_macro_throws ErrorException @infinite_variable(m, a(t), Int)
+        # test bad start function
+        @test_macro_throws ErrorException @infinite_variable(m, zz(t), start = (a, b) -> 2)
     end
 end
 
@@ -779,67 +863,5 @@ end
         @test !is_used(vref)
         push!(InfiniteOpt._constraint_dependencies(rvref), ConstraintIndex(2))
         @test is_used(vref)
-    end
-end
-
-# Test queries for parameter references and values
-@testset "Parameter Modification" begin
-    # initialize model, parameter, and variables
-    m = InfiniteModel()
-    @independent_parameter(m, pref in [0, 1])
-    @independent_parameter(m, pref2 in [0, 1])
-    @dependent_parameters(m, prefs[1:2] in [0, 1])
-    @finite_parameter(m, fin, 42)
-    @infinite_variable(m, ivref(pref, pref2, prefs) == 1)
-    dvref = dispatch_variable_ref(ivref)
-    # _update_variable_param_refs
-    @testset "_update_variable_param_refs" begin
-        orig_prefs = raw_parameter_refs(dvref)
-        @test isa(InfiniteOpt._update_variable_param_refs(dvref, IC.VectorTuple(pref2)),
-                  Nothing)
-        @test parameter_refs(dvref) == (pref2, )
-        @test name(dvref) == "ivref(pref2)"
-        @test isa(InfiniteOpt._update_variable_param_refs(dvref, orig_prefs),
-                  Nothing)
-    end
-    # set_parameter_refs
-    @testset "set_parameter_refs" begin
-        # test normal with 1 param
-        @test isa(set_parameter_refs(ivref, (pref2, )), Nothing)
-        @test parameter_refs(dvref) == (pref2, )
-        @test name(dvref) == "ivref(pref2)"
-        # test double specify
-        @test_throws ErrorException set_parameter_refs(dvref, (pref2, pref2))
-        # test used by point variable
-        push!(InfiniteOpt._point_variable_dependencies(dvref),
-              PointVariableIndex(1))
-        @test_throws ErrorException set_parameter_refs(dvref, (pref, ))
-        empty!(InfiniteOpt._point_variable_dependencies(dvref))
-        # test used by reduced variable
-        push!(InfiniteOpt._reduced_variable_dependencies(dvref),
-              ReducedVariableIndex(1))
-        @test_throws ErrorException set_parameter_refs(dvref, (pref, ))
-        empty!(InfiniteOpt._reduced_variable_dependencies(dvref))
-    end
-    # add_parameter_ref
-    @testset "add_parameter_ref" begin
-        # test used by point variable
-        push!(InfiniteOpt._point_variable_dependencies(dvref),
-              PointVariableIndex(1))
-        @test_throws ErrorException add_parameter_ref(ivref, pref)
-        empty!(InfiniteOpt._point_variable_dependencies(dvref))
-        # test used by reduced variable
-        push!(InfiniteOpt._reduced_variable_dependencies(dvref),
-              ReducedVariableIndex(1))
-        @test_throws ErrorException add_parameter_ref(dvref, pref)
-        empty!(InfiniteOpt._reduced_variable_dependencies(dvref))
-        # test normal use
-        @test isa(add_parameter_ref(ivref, pref), Nothing)
-        @test parameter_refs(ivref) == (pref2, pref)
-        @test name(ivref) == "ivref(pref2, pref)"
-        # test duplication error
-        @test_throws ErrorException add_parameter_ref(dvref, pref2)
-        #test bad array error
-        @test_throws ErrorException add_parameter_ref(dvref, prefs[1:1])
     end
 end

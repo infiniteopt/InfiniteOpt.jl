@@ -315,13 +315,16 @@ end
     m = InfiniteModel()
     num = Float64(0)
     sample_info = VariableInfo(true, num, true, num, true, num, true, num, true, true)
+    func = (x) -> NaN
+    inf_info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
+                 num, true, num, false, func, true, true)
     pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
     vref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
     # Abstract variables
     @test InfOptVariable <: AbstractVariable
     # Infinite variable
     @test InfiniteVariable <: InfOptVariable
-    @test InfiniteVariable(sample_info, IC.VectorTuple(pref), [1], [1]) isa InfiniteVariable
+    @test InfiniteVariable(inf_info, IC.VectorTuple(pref), [1], [1], true) isa InfiniteVariable
     # Reduced variable
     @test ReducedVariable <: InfOptVariable
     @test ReducedVariable(vref, Dict(1 => Float64(2)), [1], [1]) isa ReducedVariable

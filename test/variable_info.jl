@@ -259,10 +259,21 @@ end
     m = InfiniteModel()
     gvref = @hold_variable(m, var1, start = 0)
     vref = dispatch_variable_ref(gvref)
+    gvref2 = @hold_variable(m, var2)
+    vref2 = dispatch_variable_ref(gvref2)
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_variable(m, inf(t), start = 0)
+    dinf = dispatch_variable_ref(inf)
+    @infinite_variable(m, inf2(t))
+    dinf2 = dispatch_variable_ref(inf2)
     # start_value
     @testset "JuMP.start_value" begin
         @test start_value(vref) == 0
         @test start_value(gvref) == 0
+        @test start_value(vref2) isa Nothing
+        @test start_value(gvref2) isa Nothing
+        @test_throws ErrorException start_value(inf)
+        @test_throws ErrorException start_value(dinf)
     end
     # set_start_value
     @testset "JuMP.set_start_value" begin
@@ -270,6 +281,34 @@ end
         @test start_value(vref) == 1.5
         @test !optimizer_model_ready(m)
         @test isa(set_start_value(gvref, 1), Nothing)
+        @test_throws ErrorException set_start_value(inf, 0)
+        @test_throws ErrorException set_start_value(dinf, 0)
+    end
+    # start_value_function
+    @testset "start_value_function" begin
+        @test start_value_function(inf)([1]) == 0
+        @test start_value_function(dinf)([1]) == 0
+        @test InfiniteOpt._is_vector_start(dinf)
+        @test start_value_function(inf2) isa Nothing
+        @test start_value_function(dinf2) isa Nothing
+    end
+    # set_start_value_function
+    @testset "set_start_value_function" begin
+        @test set_start_value_function(inf, 1.5) isa Nothing
+        @test start_value_function(inf)([0]) == 1.5
+        @test InfiniteOpt._is_vector_start(dinf)
+        @test !optimizer_model_ready(m)
+        func = (a) -> 1
+        @test set_start_value_function(inf, func) isa Nothing
+        @test start_value_function(inf)(0) == 1
+        @test !InfiniteOpt._is_vector_start(dinf)
+    end
+    # reset_start_value_function
+    @testset "reset_start_value_function" begin
+        @test reset_start_value_function(inf) isa Nothing
+        @test start_value_function(inf) isa Nothing
+        @test InfiniteOpt._is_vector_start(dinf)
+        @test !optimizer_model_ready(m)
     end
 end
 

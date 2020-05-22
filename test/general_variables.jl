@@ -496,22 +496,6 @@ end
     @testset "parameter_list (GeneralVariableRef)" begin
         @test_throws ArgumentError parameter_list(gvref)
     end
-    # test set_parameter_refs (Fallback)
-    @testset "set_parameter_refs (Fallback)" begin
-        @test_throws ArgumentError set_parameter_refs(dvref, (gvref,))
-    end
-    # test set_parameter_refs (GeneralVariableRef)
-    @testset "set_parameter_refs (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_parameter_refs(gvref, (gvref,))
-    end
-    # test add_parameter_ref (Fallback)
-    @testset "add_parameter_ref (Fallback)" begin
-        @test_throws ArgumentError add_parameter_ref(dvref, gvref)
-    end
-    # test add_parameter_ref (GeneralVariableRef)
-    @testset "add_parameter_ref (GeneralVariableRef)" begin
-        @test_throws ArgumentError add_parameter_ref(gvref, [gvref])
-    end
     # test infinite_variable_ref (Fallback)
     @testset "infinite_variable_ref (Fallback)" begin
         @test_throws ArgumentError infinite_variable_ref(dvref)
@@ -785,6 +769,30 @@ end
     # test JuMP.set_start_value (GeneralVariableRef)
     @testset "JuMP.set_start_value (GeneralVariableRef)" begin
         @test_throws ArgumentError set_start_value(gvref, 42)
+    end
+    # test start_value_function (Fallback)
+    @testset "start_value_function (Fallback)" begin
+        @test_throws ArgumentError start_value_function(dvref)
+    end
+    # test start_value_function (GeneralVariableRef)
+    @testset "start_value_function (GeneralVariableRef)" begin
+        @test_throws ArgumentError start_value_function(gvref)
+    end
+    # test set_start_value_function (Fallback)
+    @testset "set_start_value(Fallback)" begin
+        @test_throws ArgumentError set_start_value_function(dvref, 42)
+    end
+    # test set_start_value_function (GeneralVariableRef)
+    @testset "set_start_value (GeneralVariableRef)" begin
+        @test_throws ArgumentError set_start_value_function(gvref, 42)
+    end
+    # test reset_start_value_function (Fallback)
+    @testset "reset_start_value(Fallback)" begin
+        @test_throws ArgumentError reset_start_value_function(dvref)
+    end
+    # test reset_start_value_function (GeneralVariableRef)
+    @testset "reset_start_value (GeneralVariableRef)" begin
+        @test_throws ArgumentError reset_start_value_function(gvref)
     end
 end
 

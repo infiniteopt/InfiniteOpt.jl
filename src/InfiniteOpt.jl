@@ -14,12 +14,12 @@ const MOIUC = MOIU.CleverDicts
 
 # Import the Collections module
 include("Collections/Collections.jl")
-using .Collections: VectorTuple, same_structure, DualDict
+using .Collections: VectorTuple, same_structure
 
 # Import methods
 include("datatypes.jl")
 include("infinite_sets.jl")
-include("general_variables.jl")
+# include("general_variables.jl")
 include("scalar_parameters.jl")
 include("array_parameters.jl")
 include("variable_basics.jl")
@@ -37,6 +37,7 @@ include("optimize.jl")
 include("results.jl")
 include("show.jl")
 include("utilities.jl")
+include("general_variables.jl")
 
 # Import TranscriptionOpt
 include("TranscriptionOpt/TranscriptionOpt.jl")
@@ -50,13 +51,6 @@ MultiMCSampling, MultiIndepMCSampling, uni_integral_defaults,
 set_uni_integral_defaults, integral, multi_integral_defaults,
 set_multi_integral_defaults, expect, support_sum, @integral, @expect, @support_sum
 
-# Export the measure toolbox functions and constants
-export Automatic, UniTrapezoid, UniMCSampling, UniIndepMCSampling, Quadrature,
-GaussHermite, GaussLegendre, GaussLaguerre, MultiMCSampling,
-MultiIndepMCSampling, uni_integral_defaults, set_uni_integral_defaults,
-integral, multi_integral_defaults, set_multi_integral_defaults, expect,
-support_sum, @integral, @expect, @support_sum
-
 # Export core datatypes
 export AbstractDataObject, InfiniteModel
 
@@ -67,7 +61,7 @@ export @independent_parameter, @dependent_parameters, @infinite_parameter,
 @measure
 
 # Export constants
-export Infinite, Hold, Point, sampling, quadrature
+export Infinite, Hold, Point
 
 # Export index types
 export AbstractInfOptIndex, ObjectIndex, IndependentParameterIndex,
@@ -107,11 +101,12 @@ DecisionVariableRef, UserDecisionVariableRef
 
 # Export variable methods
 export used_by_objective, infinite_variable_ref, parameter_refs,
-set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values,
+used_by_point_variable, parameter_values,
 eval_supports, used_by_reduced_variable, has_parameter_bounds, parameter_bounds,
 set_parameter_bounds, add_parameter_bounds, delete_parameter_bounds,
 parameter_list, raw_parameter_refs, raw_parameter_values,
-intervals, dispatch_variable_ref, internal_reduced_variable
+intervals, dispatch_variable_ref, internal_reduced_variable, start_value_function,
+set_start_value_function, reset_start_value_function
 
 # Export measure datatypes
 export AbstractMeasureData, DiscreteMeasureData, FunctionalDiscreteMeasureData,
@@ -122,6 +117,13 @@ export default_weight, support_label, coefficient_function, coefficients,
 weight_function, build_measure, min_num_supports, add_measure, measure_function,
 measure_data, is_analytic, measure, num_measures, all_measures,
 add_supports_to_parameters, measure_data_in_hold_bounds
+
+# Export the measure toolbox functions and datatypes
+export Automatic, UniTrapezoid, UniMCSampling, UniIndepMCSampling, Quadrature,
+GaussHermite, GaussLegendre, GaussLaguerre, MultiMCSampling,
+MultiIndepMCSampling, uni_integral_defaults, set_uni_integral_defaults,
+integral, multi_integral_defaults, set_multi_integral_defaults, expect,
+support_sum, @integral, @expect, @support_sum
 
 # Export objective methods
 export objective_has_measures
@@ -138,7 +140,7 @@ export TranscriptionData, TranscriptionModel
 
 # Export transcription methods
 export is_transcription_model, transcription_data, transcription_variable,
-transcription_constraint, transcription_model
+transcription_constraint, transcription_model, transcription_expression
 
 # Export optimize methods
 export optimizer_model, set_optimizer_model, optimizer_model_ready,

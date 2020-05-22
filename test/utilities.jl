@@ -83,3 +83,19 @@ end
 function InfiniteOpt.add_supports_to_parameters(d::TestData)::Nothing
     return
 end
+
+# Define useful function for deletion testing
+function _update_variable_param_refs(vref::InfiniteVariableRef,
+                                     prefs::IC.VectorTuple{GeneralVariableRef}
+                                     )::Nothing
+    # get basic information
+    info = InfiniteOpt._variable_info(vref)
+    param_nums = [InfiniteOpt._parameter_number(pref) for pref in prefs]
+    # get the parameter object numbers
+    object_nums = InfiniteOpt._object_numbers(parameter_list(prefs))
+    is_vect_func = InfiniteOpt._is_vector_start(vref)
+    new_var = InfiniteVariable(info, prefs, param_nums, object_nums, is_vect_func)
+    InfiniteOpt._set_core_variable_object(vref, new_var)
+    JuMP.set_name(vref, InfiniteOpt._root_name(vref))
+    return
+end

@@ -458,20 +458,26 @@ function JuMP.FixRef(vref::ReducedVariableRef)::InfOptConstraintRef
     return JuMP.FixRef(infinite_variable_ref(vref))
 end
 
-"""
-    JuMP.start_value(vref::ReducedVariableRef)::Union{Nothing, Float64}
+# Fallback dispatch
+function JuMP.start_value(vref::ReducedVariableRef)
+    return JuMP.start_value(infinite_variable_ref(vref))
+end
 
-Extend [`JuMP.start_value`](@ref) to return starting value of the original
-infinite variable of `vref` if it has one. Returns `nothing` otherwise.
+"""
+    start_value_function(vref::ReducedVariableRef)::Union{Nothing, Function}
+
+Return the function that is used to generate the start values of `vref` for
+particular support values. Returns `nothing` if no start behavior has been
+specified.
 
 **Example**
 ```julia-repl
-julia> start_value(vref)
-0.0
+julia> start_value_func(vref)
+my_func
 ```
 """
-function JuMP.start_value(vref::ReducedVariableRef)::Union{Nothing, Float64}
-    return JuMP.start_value(infinite_variable_ref(vref))
+function start_value_function(vref::ReducedVariableRef)::Union{Nothing, Function}
+    return start_value_function(infinite_variable_ref(vref))
 end
 
 """

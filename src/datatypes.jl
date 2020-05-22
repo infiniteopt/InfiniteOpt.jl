@@ -453,20 +453,27 @@ abstract type InfOptVariable <: JuMP.AbstractVariable end
 
 A `DataType` for storing core infinite variable information. Note that indices
 that refer to the same dependent parameter group must be in the same tuple element.
-Also, the variable reference type `P` must pertain to infinite parameters.
+It is important to note that `info.start` should contain a start value function
+that generates the start value for a given infinite parameter support. This
+function should map a support to a start value using user-formatting if
+`is_vector_start = false`, otherwise it should do the mapping using a single
+support vector as input. Also, the variable reference type `P` must pertain to
+infinite parameters.
 
 **Fields**
-- `info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}`: JuMP variable information.
+- `info::JuMP.VariableInfo{Float64, Float64, Float64, Function}`: JuMP variable information.
 - `parameter_refs::VectorTuple{P}`: The infinite parameter references that
                                     parameterize the variable.
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
+- `is_vector_start::Bool`: Does the start function take support values formatted as vectors?
 """
 struct InfiniteVariable{P <: JuMP.AbstractVariableRef} <: InfOptVariable
-    info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
+    info::JuMP.VariableInfo{Float64, Float64, Float64, Function}
     parameter_refs::VectorTuple{P}
     parameter_nums::Vector{Int}
     object_nums::Vector{Int}
+    is_vector_start::Bool
 end
 
 """
@@ -1279,11 +1286,15 @@ function intervals(pb::ParameterBounds{P})::Dict{P, IntervalSet} where {P}
     return pb.intervals
 end
 
-# Extend Base.length
-Base.length(bounds::ParameterBounds)::Int = length(intervals(bounds))
+# Extend simple 1 argument Base dispatches
+for op = (:length, :isempty, :keys, :iterate)
+    @eval Base.$op(bounds::ParameterBounds) = $op(intervals(bounds))
+end
 
-# Extend Base.isempty
-Base.isempty(bounds::ParameterBounds)::Bool = isempty(intervals(bounds))
+# Extend simple 2 argument Base dispatches where the second is arbitrary
+for op = (:getindex, :haskey, :iterate)
+    @eval Base.$op(bounds::ParameterBounds, arg) = $op(intervals(bounds), arg)
+end
 
 # Extend Base.:(==)
 function Base.:(==)(bounds1::ParameterBounds, bounds2::ParameterBounds)::Bool
@@ -1293,31 +1304,16 @@ end
 # Extend Base.copy
 Base.copy(bounds::ParameterBounds) = ParameterBounds(copy(intervals(bounds)))
 
-# Extend Base.getindex
-function Base.getindex(pb::ParameterBounds{P}, index::P)::IntervalSet where {P}
-    return intervals(pb)[index]
-end
-
 # Extend Base.setindex!
 function Base.setindex!(pb::ParameterBounds{P}, value::IntervalSet,
                         index::P)::IntervalSet where {P}
     return intervals(pb)[index] = value
 end
 
-# Extend Base.haskey
-function Base.haskey(pb::ParameterBounds{P}, key::P)::Bool where {P}
-    return haskey(intervals(pb), key)
-end
-
 # Extend Base.delete!
 function Base.delete!(pb::ParameterBounds{P}, key::P)::ParameterBounds{P} where {P}
     delete!(intervals(pb), key)
     return pb
-end
-
-# Extend Base.keys
-function Base.keys(pb::ParameterBounds)
-    return keys(intervals(pb))
 end
 
 # Extend Base.merge
@@ -1339,14 +1335,4 @@ function Base.filter(f::Function,
                      pb::ParameterBounds{P})::ParameterBounds{P} where {P}
     new_dict = filter(f, intervals(pb))
     return ParameterBounds(new_dict)
-end
-
-# Extend Base.iterate
-function Base.iterate(pb::ParameterBounds{P}
-                      )::Union{Nothing, Tuple{Pair{P, IntervalSet}, Int}} where {P}
-    return iterate(intervals(pb))
-end
-function Base.iterate(pb::ParameterBounds{P}, state
-                      )::Union{Nothing, Tuple{Pair{P, IntervalSet}, Int}} where {P}
-    return iterate(intervals(pb), state)
 end
