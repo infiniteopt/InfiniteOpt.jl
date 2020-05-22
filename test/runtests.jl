@@ -22,6 +22,7 @@ include("utilities.jl")
 println("----------------------------------------------------------------------------")
 println("---------------------------------UNIT TESTS---------------------------------")
 println("----------------------------------------------------------------------------")
+#=
 @time @testset "Collections" begin
     include("Collections/VectorTuple.jl")
     include("Collections/DualDict.jl")
@@ -58,14 +59,16 @@ println("")
 println("")
 @time @testset "Macro Expressions" begin include("macro_expressions.jl") end
 println("")
-# @time @testset "Measure Methods" begin include("measures.jl") end
-# println("")
+=#
+@time @testset "Measure Methods" begin include("measures.jl") end
+println("")
 # @time @testset "Measure Toolbox Methods" begin
 #     include("MeasureToolbox/integrals.jl")
     # include("MeasureToolbox/expectations.jl")
     # include("MeasureToolbox/support_sum.jl")
 # end
 # println("")
+#=
 @time @testset "Objective Methods" begin include("objective.jl") end
 println("")
 @time @testset "Constraint Methods" begin include("constraints.jl") end
@@ -89,7 +92,7 @@ println("")
 # println("")
 # @time @testset "Extensions" begin include("extensions.jl") end
 # println("")
-
+=#
 # TODO add involved deletion tests
 println("----------------------------------------------------------------------------")
 println("-----------------------------TESTING COMPLETE!------------------------------")

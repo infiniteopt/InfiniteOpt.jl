@@ -120,7 +120,8 @@ Measure, MeasureData, MeasureRef
 # Export measure methods
 export default_weight, support_label, coefficient_function, coefficients,
 weight_function, build_measure, min_num_supports, add_measure, measure_function,
-measure_data, is_analytic, measure, num_measures, all_measures
+measure_data, is_analytic, measure, num_measures, all_measures,
+add_supports_to_parameters, measure_data_in_hold_bounds
 
 # Export objective methods
 export objective_has_measures

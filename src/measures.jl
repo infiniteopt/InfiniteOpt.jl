@@ -179,7 +179,8 @@ end
 function _convert_param_refs_and_supports(
     prefs::Union{Array{GeneralVariableRef},
                  JuMPC.DenseAxisArray{GeneralVariableRef}},
-    supports::Vector{JuMPC.DenseAxisArray{T}}
+#    supports::Vector{<:JuMPC.DenseAxisArray{T}}
+    supports::Union{Array{<:Array{T}},Vector{<:JuMPC.DenseAxisArray{T}}}
     )::Tuple{Vector{GeneralVariableRef}, Matrix{T}} where {T <: Real}
     return reduce(vcat, prefs), [supp[i] for i in eachindex(first(supports)), supp in supports]
 end
@@ -187,7 +188,7 @@ end
 # SparseAxisArray
 function _convert_param_refs_and_supports(
     prefs::JuMPC.SparseAxisArray{GeneralVariableRef},
-    supports::Vector{JuMPC.SparseAxisArray{T}}
+    supports::Vector{<:JuMPC.SparseAxisArray{T}}
     )::Tuple{Vector{GeneralVariableRef}, Matrix{T}} where {T <: Real}
     indices = Collections._get_indices(prefs)
     ordered_prefs = Collections._make_ordered(prefs, indices)
@@ -724,13 +725,15 @@ function build_measure(expr::T, data::D;
     prefs = parameter_refs(data)
     data_obj_nums = _object_numbers(prefs)
     data_param_nums = [_parameter_number(pref) for pref in prefs]
-    obj_nums = sort!(setdiff!(expr_obj_nums, data_obj_nums))
-    param_nums = sort!(setdiff(expr_param_nums, data_param_nums))
+    # NOTE setdiff! cannot be used here since it modifies object_nums of expr if expr is a single infinite variable
+    obj_nums = sort(setdiff(expr_obj_nums, data_obj_nums))
+    param_nums = sort(setdiff(expr_param_nums, data_param_nums))
     # check if analytic method should be applied
     lb_nan = isnan(first(JuMP.lower_bound(data)))
     ub_nan = isnan(first(JuMP.upper_bound(data)))
-    constant_func = isempty(intersect!(expr_param_nums, data_param_nums)) &&
-                    (!lb_nan && !ub_nan || _is_expect(data))
+    # NOTE intersect! cannot be used here since it modifies parameter_nums of expr if expr is a single infinite variable
+    constant_func = isempty(intersect(expr_param_nums, data_param_nums)) &&
+                    (lb_nan && ub_nan || _is_expect(data))
     return Measure(expr, data, obj_nums, param_nums, constant_func)
 end
 
@@ -803,6 +806,7 @@ function add_supports_to_parameters(
         # prepare the parameter reference
         pref = dispatch_variable_ref(parameter_refs(data))
         if pref == DependentParameterRef # This is just a last line of defense
+            # NOTE consider removing this test (seems this could never be tested)
             error("min_num_supports must be 0 for individual dependent parameters.")
         end
         # prepare the generation set
@@ -814,6 +818,7 @@ function add_supports_to_parameters(
             set = IntervalSet(lb, ub) # assumes lb and ub are in the set
         end
         # generate the needed supports
+        label = support_label(data)
         generate_and_add_supports!(pref, set, label,
                                    num_supports = num_supps - curr_num_supps)
     end
@@ -869,7 +874,7 @@ function add_supports_to_parameters(
     )::Nothing
     min_num_supps = min_num_supports(data)
     curr_num_supps = num_supports(data) # this will error check the support dims
-    needed_supps = min_num_supports - curr_num_supps
+    needed_supps = min_num_supps - curr_num_supps
     if needed_supps > 0
         prefs = map(p -> dispatch_variable_ref(p), parameter_refs(data))
         label = support_label(data)
