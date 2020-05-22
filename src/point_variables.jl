@@ -100,7 +100,8 @@ end
 
 # Update point variable info to consider the infinite variable
 function _update_point_info(info::JuMP.VariableInfo,
-                            ivref::InfiniteVariableRef)::JuMP.VariableInfo
+                            ivref::InfiniteVariableRef,
+                            point::Vector{Float64})::JuMP.VariableInfo
     if JuMP.has_lower_bound(ivref) && !info.has_fix && !info.has_lb
         info = JuMP.VariableInfo(true, JuMP.lower_bound(ivref),
                                  info.has_ub, info.upper_bound,
@@ -122,11 +123,17 @@ function _update_point_info(info::JuMP.VariableInfo,
                                  info.has_start, info.start,
                                  info.binary, info.integer)
     end
-    if !isnothing(JuMP.start_value(ivref)) && !info.has_start
+    if !isnothing(start_value_function(ivref)) && !info.has_start
+        if _is_vector_start(ivref)
+            start = start_value_function(ivref)(point)
+        else
+            prefs = raw_parameter_refs(ivref)
+            start = start_value_function(ivref)(Tuple(point, prefs)...)
+        end
         info = JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                  info.has_ub, info.upper_bound,
                                  info.has_fix, info.fixed_value,
-                                 true, JuMP.start_value(ivref),
+                                 true, Float64(start),
                                  info.binary, info.integer)
     end
     if JuMP.is_binary(ivref) && !info.integer
@@ -172,7 +179,7 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Point};
     end
     _check_tuple_shape(_error, dispatch_ivref, pvalues)
     _check_tuple_values(_error, dispatch_ivref, pvalues.values)
-    info = _update_point_info(info, dispatch_ivref)
+    info = _update_point_info(info, dispatch_ivref, pvalues.values)
     # enforce parameter significant digits on the values
     prefs = parameter_list(dispatch_ivref)
     for i in eachindex(pvalues)

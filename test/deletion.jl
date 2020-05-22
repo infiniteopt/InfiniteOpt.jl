@@ -206,7 +206,7 @@ end
     # test _update_reduced_variable
     @testset "_update_reduced_variable" begin
         # test removing single parameter that is not reduced
-        InfiniteOpt._update_variable_param_refs(dinf4, IC.VectorTuple(par2, pars))
+        _update_variable_param_refs(dinf4, IC.VectorTuple(par2, pars))
         @test isa(InfiniteOpt._update_reduced_variable(drv, 1:1), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(1 => 0.5)
@@ -214,9 +214,9 @@ end
         @test name(drv) == "inf4(0.5, [pars[1], pars[2]])"
         # Undo changes
         InfiniteOpt._set_core_variable_object(drv, var)
-        InfiniteOpt._update_variable_param_refs(dinf4, IC.VectorTuple(par, par2, pars))
+        _update_variable_param_refs(dinf4, IC.VectorTuple(par, par2, pars))
         # test removing single parameter that is reduced
-        InfiniteOpt._update_variable_param_refs(dinf4, IC.VectorTuple(par, pars))
+        _update_variable_param_refs(dinf4, IC.VectorTuple(par, pars))
         @test eval_supports(drv) == Dict(2 => 0.5)
         @test isa(InfiniteOpt._update_reduced_variable(drv, 2:2), Nothing)
         @test infinite_variable_ref(drv) == inf4
@@ -224,11 +224,11 @@ end
         @test set_name(drv, "") isa Nothing
         @test name(drv) == "inf4(par, [pars[1], pars[2]])"
         # Undo changes
-        InfiniteOpt._update_variable_param_refs(dinf4, IC.VectorTuple(par, par2, pars))
+        _update_variable_param_refs(dinf4, IC.VectorTuple(par, par2, pars))
         # test removing a different single parameter
         eval_supports(drv)[1] = 0.5
         eval_supports(drv)[2] = 0.5
-        InfiniteOpt._update_variable_param_refs(dinf4, IC.VectorTuple(par, pars))
+        _update_variable_param_refs(dinf4, IC.VectorTuple(par, pars))
         @test isa(InfiniteOpt._update_reduced_variable(drv, 2:2), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(1 => 0.5)
@@ -236,11 +236,11 @@ end
         @test name(drv) == "inf4(0.5, [pars[1], pars[2]])"
         # Undo changes
         InfiniteOpt._set_core_variable_object(drv, var)
-        InfiniteOpt._update_variable_param_refs(dinf4, IC.VectorTuple(par, par2, pars))
+        _update_variable_param_refs(dinf4, IC.VectorTuple(par, par2, pars))
         # test removing array element
         eval_supports(drv)[3] = 0.2
         eval_supports(drv)[4] = 0.1
-        InfiniteOpt._update_variable_param_refs(dinf4, IC.VectorTuple(par, par2))
+        _update_variable_param_refs(dinf4, IC.VectorTuple(par, par2))
         @test isa(InfiniteOpt._update_reduced_variable(drv, 3:4), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(2 => 0.5)
@@ -249,7 +249,7 @@ end
         # Undo changes
         var = build_variable(error, inf4, Dict{Int, Float64}(2 => 0.5), check = false)
         InfiniteOpt._set_core_variable_object(drv, var)
-        InfiniteOpt._update_variable_param_refs(dinf4, IC.VectorTuple(par, par2, pars))
+        _update_variable_param_refs(dinf4, IC.VectorTuple(par, par2, pars))
     end
     # test _update_measures
     @testset "_update_measures" begin

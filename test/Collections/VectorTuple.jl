@@ -439,6 +439,17 @@
             vt = IC.VectorTuple(a, c)
             @test Tuple(vt, use_indices = false) == (a, [c...])
         end
+        # test Tuple
+        @testset "Base.Tuple (other values)" begin
+            # test reproducing original
+            vt = IC.VectorTuple(a, c, b)
+            values = [:a for i in 1:length(vt)]
+            @test Tuple(values, vt) == (:a, [:a :a; :a :a], [:a, :a, :a])
+            # test vector mode
+            vt = IC.VectorTuple(a, c)
+            values = [:a for i in 1:length(vt)]
+            @test Tuple(values, vt, use_indices = false) == (:a, [:a, :a, :a, :a])
+        end
     end
 
     @testset "Printing Methods" begin

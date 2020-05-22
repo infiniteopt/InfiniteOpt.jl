@@ -246,28 +246,18 @@ function Base.setindex!(vt::VectorTuple, v, i, j)
     return [setindex!(vt, v[k], i[k], j) for k in 1:length(i)]
 end
 
-# Extend Base.length
-Base.length(vt::VectorTuple)::Int = length(vt.values)
+# Extend simple Base redirect methods with VectorTuple arguments
+for op = (:length, :isempty, :eachindex, :keys)
+    @eval Base.$op(vt::VectorTuple) = $op(vt.values)
+end
 
-# Extend Base.isempty
-Base.isempty(vt::VectorTuple)::Bool = isempty(vt.values)
-
-# Extend Base.eachindex
-Base.eachindex(vt::VectorTuple) = eachindex(vt.values)
-
-# Extend Base.keys
-Base.keys(vt::VectorTuple) = keys(vt.values)
-
-# Extend Base.findfirst
-Base.findfirst(pred::Function, vt::VectorTuple) = findfirst(pred, vt.values)
-
-# Extend Base.findall
-Base.findall(pred::Function, vt::VectorTuple) = findall(pred, vt.values)
+# Extend simple Base 2 argument methods
+for op = (:findfirst, :findall)
+    @eval Base.$op(f::Function, vt::VectorTuple) = $op(f, vt.values)
+end
 
 # Extend Base.in
-function Base.in(item, vt::VectorTuple)::Bool
-    return in(item, vt.values)
-end
+Base.in(i, vt::VectorTuple)::Bool = in(i, vt.values)
 
 # Extend Base.iterate
 Base.iterate(vt::VectorTuple) = iterate(vt.values)
@@ -426,6 +416,18 @@ function Base.Tuple(vt::VectorTuple; use_indices = true)::Tuple
                      for i in eachindex(vt.ranges))
     else
         return Tuple(length(vt.ranges[i]) == 1 ? vt.values[vt.ranges[i].start] : vt.values[vt.ranges[i]]
+                     for i in eachindex(vt.ranges))
+    end
+end
+
+# Define Tuple using construction from a values vector in combination with a VT
+function Base.Tuple(values::Vector, vt::VectorTuple; use_indices = true)::Tuple
+    @assert length(values) == length(vt)
+    if use_indices
+        return Tuple(_make_array(values[vt.ranges[i]], vt.indices[i])
+                     for i in eachindex(vt.ranges))
+    else
+        return Tuple(length(vt.ranges[i]) == 1 ? values[vt.ranges[i].start] : values[vt.ranges[i]]
                      for i in eachindex(vt.ranges))
     end
 end

@@ -242,26 +242,39 @@ end
     end
     # _update_point_info
     @testset "_update_point_info" begin
+        basic_func = (a::Vector) -> 1
         # prepare info for test
-        new_info = VariableInfo(true, 0., true, 0., false, 0., true, 0., true,
-                                false)
+        new_info = VariableInfo(true, 0., true, 0., false, 0., false, basic_func,
+                                 true, false)
         InfiniteOpt._update_variable_info(divref, new_info)
+        expected = VariableInfo{Float64, Float64, Float64, Float64}(true, 0.,
+                                true, 0., false, 0., false, 0., true, false)
         # test with current info
-        @test InfiniteOpt._update_point_info(info, divref) == new_info
+        @test InfiniteOpt._update_point_info(info, divref, Float64[0, 0]) == expected
         # prepare info for test
-        new_info = VariableInfo(false, 0., false, 0., true, 0., true, 0., false,
-                                true)
+        new_info = VariableInfo(false, 0., false, 0., true, 0., true, basic_func,
+                                false, true)
         InfiniteOpt._update_variable_info(divref, new_info)
+        expected = VariableInfo{Float64, Float64, Float64, Float64}(false, 0.,
+                                false, 0., true, 0., true, 1, false, true)
         # test with current info
-        @test InfiniteOpt._update_point_info(info, divref) == new_info
+        @test InfiniteOpt._update_point_info(info, divref, Float64[0, 0]) == expected
         # prepare info for test
-        curr_info = VariableInfo(true, 0., true, 0., false, 0., true, 0., true,
-                                 false)
+        curr_info = VariableInfo(true, 0., true, 0., false, 0., true, 0.,
+                                 true, false)
         # test with current info
-        @test InfiniteOpt._update_point_info(curr_info, divref) == curr_info
+        @test InfiniteOpt._update_point_info(curr_info, divref, Float64[0, 0]) == curr_info
         # undo info changes
-        info = VariableInfo{Float64, Float64, Float64, Float64}(false, NaN, false, NaN, false, NaN, false, NaN, false, false)
-        InfiniteOpt._update_variable_info(divref, info)
+        basic_func = (a::Vector) -> NaN
+        old_info = VariableInfo(false, NaN, false, NaN, false, NaN, false, basic_func,
+                            false, false)
+        InfiniteOpt._update_variable_info(divref, old_info)
+        # test with user defined start function
+        @test set_start_value_function(divref, (a, b) -> a + b) isa Nothing
+        expected = VariableInfo{Float64, Float64, Float64, Float64}(false, 0.,
+                                false, 0., false, 0., true, 3, false, false)
+        @test InfiniteOpt._update_point_info(info, divref, Float64[1, 2]) == expected
+        @test reset_start_value_function(divref) isa Nothing
     end
     # test _make_variable
     @testset "_make_variable" begin
@@ -506,7 +519,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 1])
     @infinite_parameter(m, x[1:2] in [-1, 1])
-    @infinite_variable(m, 0 <= z(t, x) <= 1, Int)
+    @infinite_variable(m, 0 <= z(t, x) <= 1, Int, start = (a, x) -> a + sum(x))
     @infinite_variable(m, z2[1:2](t) == 3)
     # test single variable definition
     @testset "Single" begin
@@ -520,6 +533,7 @@ end
         @test parameter_values(vref) == (0, [0, 0])
         @test is_integer(vref)
         @test lower_bound(vref) == 0
+        @test start_value(vref) == 0
         # test anon with changes to fixed
         idx = PointVariableIndex(2)
         vref = PointVariableRef(m, idx)

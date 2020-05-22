@@ -257,13 +257,10 @@ function InfiniteOpt.variable_supports(model::JuMP.Model,
     elseif !haskey(transcription_data(model).infvar_supports, vref)
         prefs = InfiniteOpt.raw_parameter_refs(dvref)
         lookups = transcription_data(model).infvar_lookup[vref]
-        supp = InfiniteOpt.Collections.VectorTuple(first(keys(lookups)), prefs.ranges,
-                                                   prefs.indices)
-        type = typeof(Tuple(supp))
+        type = typeof(Tuple(first(keys(lookups)), prefs))
         supps = Vector{type}(undef, length(lookups))
         for (s, i) in lookups
-            supp.values[:] = s
-            supps[i] = Tuple(supp)
+            supps[i] = Tuple(s, prefs)
         end
         transcription_data(model).infvar_supports[vref] = supps
     end
@@ -380,14 +377,10 @@ function InfiniteOpt.variable_supports(model::JuMP.Model,
         lookups = transcription_data(model).measure_lookup[mref]
         prefs = InfiniteOpt.parameter_refs(dmref)
         vt_prefs = InfiniteOpt.Collections.VectorTuple(prefs)
-        vt_supp = InfiniteOpt.Collections.VectorTuple(first(keys(lookups)),
-                                                      vt_prefs.ranges,
-                                                      vt_prefs.indices)
-        type = typeof(Tuple(vt_supp))
+        type = typeof(Tuple(first(keys(lookups)), vt_prefs))
         supps = Vector{type}(undef, length(lookups))
         for (supp, i) in lookups
-            vt_supp[:] = supp
-            supps[i] = Tuple(vt_supp)
+            supps[i] = Tuple(supp, vt_prefs)
         end
         transcription_data(model).measure_supports[mref] = supps
     end
@@ -478,7 +471,7 @@ function InfiniteOpt.expression_supports(model::JuMP.Model,
     expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
     key::Val{:TransData} = Val(:TransData))
     # get the object numbers of the expression and form the support iterator
-    obj_nums = sort!(InfiniteOpt._object_numbers(expr))
+    obj_nums = sort(InfiniteOpt._object_numbers(expr))
     support_indices = support_index_iterator(model, obj_nums)
     supps = Vector{Tuple}(undef, length(support_indices))
     param_supps = parameter_supports(model)

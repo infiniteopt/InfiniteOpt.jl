@@ -14,12 +14,12 @@ const MOIUC = MOIU.CleverDicts
 
 # Import the Collections module
 include("Collections/Collections.jl")
-using .Collections: VectorTuple, same_structure, DualDict
+using .Collections: VectorTuple, same_structure
 
 # Import methods
 include("datatypes.jl")
 include("infinite_sets.jl")
-include("general_variables.jl")
+# include("general_variables.jl")
 include("scalar_parameters.jl")
 include("array_parameters.jl")
 include("variable_basics.jl")
@@ -37,6 +37,7 @@ include("optimize.jl")
 include("results.jl")
 include("show.jl")
 include("utilities.jl")
+include("general_variables.jl")
 
 # Import TranscriptionOpt
 include("TranscriptionOpt/TranscriptionOpt.jl")
@@ -100,11 +101,12 @@ DecisionVariableRef, UserDecisionVariableRef
 
 # Export variable methods
 export used_by_objective, infinite_variable_ref, parameter_refs,
-set_parameter_refs, add_parameter_ref, used_by_point_variable, parameter_values,
+used_by_point_variable, parameter_values,
 eval_supports, used_by_reduced_variable, has_parameter_bounds, parameter_bounds,
 set_parameter_bounds, add_parameter_bounds, delete_parameter_bounds,
 parameter_list, raw_parameter_refs, raw_parameter_values,
-intervals, dispatch_variable_ref, internal_reduced_variable
+intervals, dispatch_variable_ref, internal_reduced_variable, start_value_function,
+set_start_value_function, reset_start_value_function
 
 # Export measure datatypes
 export AbstractMeasureData, DiscreteMeasureData, FunctionalDiscreteMeasureData,

@@ -72,6 +72,10 @@ used in the array definition can be used to index attributes assigned to each
 variable in the array. In this case, we used `i` to assign different initial
 guess values for each variable via the `start` keyword argument.
 
+Moreover, for infinite variables a function can be given to determine the start
+values over a range of support points (e.g., a guess trajectory). This is
+discussed further below in the Macro Definition section.
+
 ### Point Variables
 Now let's add some point variables. These allow us to consider an infinite
 variable evaluated at a certain infinite parameter point. For example, let's
@@ -141,13 +145,16 @@ Defining/initializing a variable principally involves the following steps:
 
 The `JuMP.VariableInfo` data structure stores the following variable information:
 - `has_lb::Bool`: Specifies a `Bool` it has a lower bound
-- `lower_bound::Number`: Specifies lower bound value
+- `lower_bound::Real`: Specifies lower bound value
 - `has_ub::Bool`: Specifies a `Bool` it has a upper bound
-- `upper_bound::Number`: Specifies upper bound value
+- `upper_bound::Real`: Specifies upper bound value
 - `has_fix::Bool`: Specifies a `Bool` it is fixed
-- `fixed_value::Number`: Specifies the fixed value
+- `fixed_value::Real`: Specifies the fixed value
 - `has_start::Bool`: Specifies a `Bool` it has a start value
-- `start::Number`: Specifies the start value
+- `start::Union{Real, Function}`: Specifies the start guess value, this can be a
+                                  function for infinite variables that intakes a
+                                  support and maps it to a guess value (allowing
+                                  to specify guess trajectories)
 - `binary`: Specifies `Bool` if it is binary
 - `integer`: Specifies `Bool` if it is integer.
 Thus, the user specifies this information to prepare such an object:
@@ -172,8 +179,7 @@ t
 
 julia> info = VariableInfo(true, 0, true, 42, false, 0, false, 0, false, true);
 
-julia> inf_var = build_variable(error, info, Infinite, parameter_refs = (t))
-InfiniteVariable{GeneralVariableRef}(VariableInfo{Float64,Float6464,Float64,Float64}(true, 0.0, true, 42.0, false, 0.0, false, 0.0, false, true), (t,), [1], [1])
+julia> inf_var = build_variable(error, info, Infinite, parameter_refs = (t));
 ```
 Thus, we create an [`InfiniteVariable`](@ref) object with the desired properties.
 Note that in this case the `parameter_refs` keyword argument is required to
@@ -249,9 +255,14 @@ d
 Now we've made 2 more hold variables both called `d`. Thus, the anonymous syntax
 allows us to define variables with the same name. Moreover, any variable
 information can be specified via the appropriate keywords which include:
-- `lower_bound::Number`: specifies lower bound
-- `upper_bound::Number`: specifies upper bound
-- `start::Number`: specifies the initial guess value the solver will use
+- `lower_bound::Real`: specifies lower bound
+- `upper_bound::Real`: specifies upper bound
+- `start::Union{Real, Function}`: specifies the initial guess value the solver will use,
+                                  for infinite variables this can be a function that
+                                  takes as input a realization of the infinite parameters
+                                  (using the same format as `parameter_refs`) and return the
+                                  guess value for such as realization (e.g., functionally
+                                  define a trajectory).
 - `binary::Bool`: specifies if is binary variable
 - `integer::Bool`: specifies if is integer variable.
 Anonymous variables must use these keyword arguments since symbolic definition
@@ -440,6 +451,20 @@ julia> @infinite_variable(model, 0 <= z[1:3](t) <= 2, Int)
  z[2](t)
  z[3](t)
 ```
+In many cases, it is important to specify a guess trajectory for an infinite
+variable. Currently, this can be done by defining a start value function and
+specifying via the `start` keyword. In particular, the arguments of this function
+must match the format of the infinite parameters and return a start value for a
+given realization (point) of the infinite parameters:
+```jldoctest var_macro
+julia> my_traj_func(t_val, x_vals) = t_val + sum(x_vals) # replace with actual functionality
+
+julia> @infinite_variable(model, y2(t, x), start = (t_val, x_vals) -> my_traj_func(t_val, x_vals))
+y2(t, x)
+```
+Notice that above we use an anonymous function in the macro call, this is done
+to avoid ambiguity in case we have multiple `my_traj_func` definitions. In
+general it is recommended that anonymous functions be used.
 
 ### Point Variables
 Point variables denote infinite variables evaluated at a particular point in the
@@ -550,7 +575,7 @@ is useful in returning the total number of decision variables currently stored
 in an infinite model:
 ```jldoctest var_macro
 julia> num_variables(model)
-44
+45
 
 julia> num_variables(model, PointVariable)
 5
@@ -833,6 +858,9 @@ JuMP.FixRef(::UserDecisionVariableRef)
 JuMP.unfix(::UserDecisionVariableRef)
 JuMP.start_value(::UserDecisionVariableRef)
 JuMP.set_start_value(::UserDecisionVariableRef, ::Real)
+start_value_function(::InfiniteVariableRef)
+set_start_value_function(::InfiniteVariableRef, ::Union{Real, Function})
+reset_start_value_function(::InfiniteVariableRef)
 JuMP.is_binary(::UserDecisionVariableRef)
 JuMP.set_binary(::UserDecisionVariableRef)
 JuMP.BinaryRef(::UserDecisionVariableRef)
@@ -844,8 +872,6 @@ JuMP.unset_integer(::UserDecisionVariableRef)
 parameter_refs(::InfiniteVariableRef)
 parameter_list(::InfiniteVariableRef)
 raw_parameter_refs(::InfiniteVariableRef)
-set_parameter_refs(::InfiniteVariableRef, ::Tuple)
-add_parameter_ref(::InfiniteVariableRef,::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}})
 @set_parameter_bounds
 @add_parameter_bounds
 has_parameter_bounds(::HoldVariableRef)

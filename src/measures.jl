@@ -1267,7 +1267,7 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
             empty!(_measure_dependencies(cref))
         else
             _remove_variable(func, gvref)
-            _data_object(cref).object_nums = sort!(_object_numbers(func))
+            _data_object(cref).object_nums = sort(_object_numbers(func))
             filter!(e -> e != JuMP.index(mref), _measure_dependencies(cref))
         end
     end

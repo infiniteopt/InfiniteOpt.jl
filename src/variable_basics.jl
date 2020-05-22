@@ -46,7 +46,7 @@ t
 julia> info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false);
 
 julia> inf_var = build_variable(error, info, Infinite, parameter_refs = t)
-InfiniteVariable{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Float64}(false, 0.0, false, 0.0, false, 0.0, false, 0.0, false, false), (t,), Int64[], Int64[])
+InfiniteVariable{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Function}(false, 0.0, false, 0.0, false, 0.0, false, start_func, false, false), (t,), Int64[], Int64[])
 
 julia> ivref = add_variable(m, inf_var, "var_name")
 var_name(t)
@@ -93,7 +93,7 @@ reference is included in `var`.
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel())
 julia> @infinite_parameter(m, t in [0, 10]);
 
-julia> info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false);
+julia> info = VariableInfo(false, 0, false, 0, false, 0, true, 0, false, false);
 
 julia> inf_var = build_variable(error, info, Infinite, parameter_refs = t);
 
@@ -345,8 +345,7 @@ end
 #                           VARIABLE INFO METHODS
 ################################################################################
 # Get info
-function _variable_info(vref::UserDecisionVariableRef
-    )::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
+function _variable_info(vref::UserDecisionVariableRef)::JuMP.VariableInfo
     return _core_variable_object(vref).info
 end
 
@@ -1217,7 +1216,7 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
             _remove_variable(func, gvref)
             # update the object numbers if vref is infinite
             if vref isa Union{InfiniteVariableRef, ReducedVariableRef}
-                _data_object(cref).object_nums = sort!(_object_numbers(func))
+                _data_object(cref).object_nums = sort(_object_numbers(func))
             end
         end
     end
