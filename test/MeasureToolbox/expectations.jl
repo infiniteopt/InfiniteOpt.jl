@@ -20,7 +20,6 @@
     end
 end
 
-# TODO: resolve structural issues here
 @testset "Expect" begin
     m = InfiniteModel()
     @infinite_parameter(m, x in Normal())
@@ -31,11 +30,10 @@ end
     @test InfiniteOpt._index_type(expect(inf, x)) == MeasureIndex
     warn = "Cannot specify a nonzero `min_num_supports` for individual " *
            "dependent parameters."
-    @test_logs (:warn, warn) expect(inf, xi, min_num_supports = 3)
-    @test !InfiniteOpt._is_expect(InfiniteOpt._data_object(expect(inf, y)))
+    @test_logs (:warn, warn) expect(inf, xi[1], min_num_supports = 3)
+    @test !InfiniteOpt._is_expect(InfiniteOpt._core_variable_object(expect(inf, y)).data)
 end
 
-# TODO: same structural issue as above
 @testset "Macro" begin
     m = InfiniteModel()
     @infinite_parameter(m, x in Normal())

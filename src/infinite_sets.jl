@@ -527,3 +527,11 @@ function generate_support_values(set::CollectionSet,
     new_supports = _generate_collection_supports(set, MCSample, num_supports, sig_digits)
     return new_supports, MCSample
 end
+
+# For label All: dispatch to default methods
+function generate_support_values(set::AbstractInfiniteSet, ::Val{All};
+                                 num_supports::Int = DefaultNumSupports,
+                                 sig_digits::Int = DefaultSigDigits)
+    return generate_support_values(set, num_supports = num_supports,
+                                   sig_digits = sig_digits)
+end

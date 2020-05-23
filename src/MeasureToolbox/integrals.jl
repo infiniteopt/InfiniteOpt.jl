@@ -648,7 +648,7 @@ function set_multi_integral_defaults(; kwargs...)::Nothing
     return
 end
 
-isnan(arr::AbstractArray{<:Real})::Bool = false
+Base.isnan(arr::AbstractArray{<:Real})::Bool = all(Base.isnan.(arr))
 """
     integral(expr::JuMP.AbstractJuMPScalar,
              prefs::AbstractArray{GeneralVariableRef},
