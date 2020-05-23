@@ -83,11 +83,12 @@ function expect(expr::JuMP.AbstractJuMPScalar,
         label = InfiniteOpt.All # TODO maybe do something more rigorous
         is_expect = false
     end
+    length(prefs) == 1 ? bounds = NaN : bounds = map(e -> NaN, prefs)
     # make the data
     data = InfiniteOpt.FunctionalDiscreteMeasureData(prefs, _expect_coeffs,
                                                      min_num_supports, label,
                                                      InfiniteOpt.default_weight,
-                                                     NaN, NaN, is_expect)
+                                                     bounds, bounds, is_expect)
     # make the measure
     return InfiniteOpt.measure(expr, data, name = "expect")
 end
@@ -100,17 +101,17 @@ end
 An efficient wrapper for [`expect`](@ref). Please see its doc string more
 information.
 """
-macro expect(expr, params, args...)
-    _error(str...) = JuMP._macro_error(:integral, (expr, params, args...), str...)
+macro expect(expr, prefs, args...)
+    _error(str...) = JuMP._macro_error(:integral, (expr, prefs, args...), str...)
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     if length(extra) > 0
         _error("Unexpected positional arguments." *
-               "Must be of form @expect(expr, params, min_num_supports = some_integer).")
+               "Must be of form @expect(expr, prefs, min_num_supports = some_integer).")
     end
     if !isempty(filter(kw -> kw.args[1] != :min_num_supports, kw_args))
         _error("Unexpected keyword arugments.")
     end
     expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
-    mref = :( expect($expression, $params; ($(kw_args...))) )
+    mref = :( expect($expression, $prefs; ($(kw_args...))) )
     return esc(mref)
 end

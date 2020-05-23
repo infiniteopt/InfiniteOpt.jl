@@ -880,8 +880,8 @@ function add_supports_to_parameters(
         label = support_label(data)
         lbs = JuMP.lower_bound(data)
         ubs = JuMP.upper_bound(data)
-        _generate_multiple_functional_supports(prefs, needed_supps, label, ubs,
-                                               lbs)
+        _generate_multiple_functional_supports(prefs, needed_supps, label, lbs,
+                                               ubs)
     end
     return
 end
@@ -1007,7 +1007,7 @@ julia> parameter_refs(meas)
 function parameter_refs(mref::MeasureRef)::Tuple
     model = JuMP.owner_model(mref)
     obj_indices = _param_object_indices(model)[_object_numbers(mref)]
-    param_nums = _parameter_nums(mref)
+    param_nums = _parameter_numbers(mref)
     return Tuple(_make_param_tuple_element(model, idx, param_nums)
                  for idx in obj_indices)
 end

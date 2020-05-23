@@ -159,33 +159,6 @@ end
         @test_throws ErrorException FunctionalDiscreteMeasureData(pars, coeff_func, -1, :label)
     end
 end
-#=
-# Test basic JuMP extensions
-@testset "Basic JuMP Extensions" begin
-    # initialize model and references
-    m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    data = DiscreteMeasureData(par, [1], [1])
-    mref = MeasureRef(m, 1)
-    m.meas_to_name[1] = "test"
-    m.measures[1] = Measure(par, data)
-    # test name
-    @testset "JuMP.name" begin
-        @test name(mref) == "test"
-    end
-    # test set_name
-    @testset "JuMP.set_name" begin
-        @test isa(set_name(mref, "new"), Nothing)
-        @test name(mref) == "new"
-    end
-    # test is_valid
-    @testset "JuMP.is_valid" begin
-        @test is_valid(m, mref)
-        @test !is_valid(m, MeasureRef(InfiniteModel(), 1))
-        @test !is_valid(m, MeasureRef(m, 2))
-    end
-end
-=#
 # Test data access methods
 @testset "Data Queries" begin
     # initialize model and references
@@ -518,6 +491,7 @@ end
     end
     # test parameter_refs for measure
     @testset "parameter_refs (measure)" begin
+        @test collect(parameter_refs(mref)) == [par]
     end
     @testset "used_by_constraint" begin
         # test not used
@@ -671,6 +645,44 @@ end
         @test dispatch_variable_ref(@measure(inf, data3)) isa MeasureRef
         @test dispatch_variable_ref(@measure(inf3, data4)) isa MeasureRef
     end
+end
+
+@testset "Naming methods" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    data = DiscreteMeasureData(par, [1], [1])
+    mref = @measure(par, data, name = "test")
+    # test name
+    @testset "JuMP.name" begin
+        @test name(mref) == "test"
+    end
+    # test set_name
+    @testset "JuMP.set_name" begin
+        @test isa(set_name(mref, "new"), Nothing)
+        @test name(mref) == "new"
+    end
+end
+
+@testset "General Queries" begin
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_variable(m, inf(par))
+    data = DiscreteMeasureData(par, [1], [1])
+    mref1 = @measure(inf + par, data)
+    mref2 = @measure(2 * inf, data)
+    # test num_measures
+    @testset "num_measures" begin
+        @test num_measures(m) == 2
+    end
+    #test all_measures
+    @testset "all_measures" begin
+        @test all_measures(m) == [mref1, mref2]
+    end
+end
+
+@testset "Measure Deletion" begin
+    # TODO finish this
 end
 #=
 # Test user definition methods

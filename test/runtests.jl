@@ -14,6 +14,7 @@ const MOI = MathOptInterface
 const MOIU = MathOptInterface.Utilities
 const MOIUC = MathOptInterface.Utilities.CleverDicts
 const FGQ = FastGaussQuadrature
+const IOMT = InfiniteOpt.MeasureToolbox
 
 # Load in testing utilities
 include("utilities.jl")
@@ -60,13 +61,13 @@ println("")
 @time @testset "Macro Expressions" begin include("macro_expressions.jl") end
 println("")
 =#
-@time @testset "Measure Methods" begin include("measures.jl") end
-println("")
-# @time @testset "Measure Toolbox Methods" begin
-#     include("MeasureToolbox/integrals.jl")
-    # include("MeasureToolbox/expectations.jl")
-    # include("MeasureToolbox/support_sum.jl")
-# end
+# @time @testset "Measure Methods" begin include("measures.jl") end
+# println("")
+@time @testset "Measure Toolbox Methods" begin
+    @testset "Integrals" begin include("MeasureToolbox/integrals.jl") end
+    @testset "Expectations" begin include("MeasureToolbox/expectations.jl") end
+    @testset "Support Sums" begin include("MeasureToolbox/support_sums.jl") end
+end
 # println("")
 #=
 @time @testset "Objective Methods" begin include("objective.jl") end

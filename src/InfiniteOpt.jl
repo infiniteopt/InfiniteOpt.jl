@@ -49,7 +49,8 @@ using .MeasureToolbox: Automatic, UniTrapezoid, UniMCSampling,
 UniIndepMCSampling, Quadrature, GaussHermite, GaussLegendre, GaussLaguerre,
 MultiMCSampling, MultiIndepMCSampling, uni_integral_defaults,
 set_uni_integral_defaults, integral, multi_integral_defaults,
-set_multi_integral_defaults, expect, support_sum, @integral, @expect, @support_sum
+set_multi_integral_defaults, expect, support_sum, @integral, @expect, @support_sum,
+generate_integral_data
 
 # Export core datatypes
 export AbstractDataObject, InfiniteModel
@@ -123,7 +124,7 @@ export Automatic, UniTrapezoid, UniMCSampling, UniIndepMCSampling, Quadrature,
 GaussHermite, GaussLegendre, GaussLaguerre, MultiMCSampling,
 MultiIndepMCSampling, uni_integral_defaults, set_uni_integral_defaults,
 integral, multi_integral_defaults, set_multi_integral_defaults, expect,
-support_sum, @integral, @expect, @support_sum
+support_sum, @integral, @expect, @support_sum, generate_integral_data
 
 # Export objective methods
 export objective_has_measures
