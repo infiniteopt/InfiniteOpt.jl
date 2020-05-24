@@ -31,7 +31,7 @@ end
 function _data_object(vref::PointVariableRef
     )::VariableData{PointVariable{GeneralVariableRef}}
   object = _get(_data_dictionary(vref), JuMP.index(vref), nothing)
-  isnothing(object) && error("Invalid point variable reference, cannot find " *
+  object === nothing && error("Invalid point variable reference, cannot find " *
                         "corresponding variable in the model. This is likely " *
                         "caused by using the reference of a deleted variable.")
   return object
@@ -123,7 +123,7 @@ function _update_point_info(info::JuMP.VariableInfo,
                                  info.has_start, info.start,
                                  info.binary, info.integer)
     end
-    if !isnothing(start_value_function(ivref)) && !info.has_start
+    if start_value_function(ivref) !== nothing && !info.has_start
         if _is_vector_start(ivref)
             start = start_value_function(ivref)(point)
         else
@@ -165,7 +165,7 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Point};
         _error("Keyword argument $kwarg is not for use with point variables.")
     end
     # ensure the needed arguments are given
-    if isnothing(parameter_values) || isnothing(infinite_variable_ref)
+    if parameter_values === nothing || infinite_variable_ref === nothing
         _error("Must specify the infinite variable and the values of its " *
                "infinite parameters")
     end
@@ -320,7 +320,7 @@ end
 # remove (expr) from name
 function _root_name(name::String)::String
     idx = findfirst(isequal('('), name)
-    return isnothing(idx) ? name : name[1:idx-1]
+    return idx === nothing ? name : name[1:idx-1]
 end
 
 # Get root name of infinite variable

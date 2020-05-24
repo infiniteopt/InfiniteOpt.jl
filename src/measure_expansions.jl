@@ -238,7 +238,7 @@ function expand_measure(ivref::GeneralVariableRef,
         # get indices of each pref to map properly
         indices = [findfirst(isequal(pref), var_prefs) for pref in prefs]
         # check that if any of the indices are empty and truncate as needed
-        empty = map(i -> isnothing(i), indices)
+        empty = map(i -> i === nothing, indices)
         if any(empty)
             deleteat!(indices, empty)
             supps = supps[.!empty, :]
@@ -348,7 +348,7 @@ function expand_measure(rvref::GeneralVariableRef,
         # get the indices of prefs in terms of the ivref
         new_indices = [findfirst(isequal(pref), orig_prefs) for pref in prefs]
         # check that if any of the indices are empty or already reduced and truncate as needed
-        bad_index = map(i -> isnothing(i) || i in keys(eval_supps), new_indices)
+        bad_index = map(i -> i === nothing || i in keys(eval_supps), new_indices)
         if any(bad_index)
             deleteat!(new_indices, bad_index)
             supps = supps[.!bad_index, :]
@@ -430,8 +430,8 @@ function expand_measure(pref::GeneralVariableRef,
     w = weight_function(data)
     # find the position of pref if it is in the data
     index = findfirst(isequal(pref), prefs)
-    # treat the parameter
-    if isnothing(index)
+    # treat the parameter as a constant
+    if index === nothing
         par_coef = sum(coeffs[i] * w(supps[:, i]) for i in eachindex(coeffs))
         return JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, pref => par_coef)
     # replace the parameter with its value

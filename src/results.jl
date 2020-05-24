@@ -309,7 +309,7 @@ function JuMP.value(expr::Union{JuMP.GenericAffExpr{C, V}, JuMP.GenericQuadExpr{
     # get the model
     model = _model_from_expr(expr)
     # if no model then the expression only contains a constant
-    if isnothing(model)
+    if model === nothing
         return JuMP.constant(expr)
     # otherwise let's call parse_expression_value
     else

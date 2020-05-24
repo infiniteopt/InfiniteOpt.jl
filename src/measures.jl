@@ -28,7 +28,7 @@ end
 # Extend _data_object
 function _data_object(mref::MeasureRef)::MeasureData
   object = _get(_data_dictionary(mref), JuMP.index(mref), nothing)
-  isnothing(object) && error("Invalid measure reference, cannot find " *
+  object === nothing && error("Invalid measure reference, cannot find " *
                         "corresponding measure in the model. This is likely " *
                         "caused by using the reference of a deleted measure.")
   return object
@@ -1085,7 +1085,7 @@ reference.
 """
 function JuMP.name(mref::MeasureRef)::String
     object = _get(_data_dictionary(mref), JuMP.index(mref), nothing)
-    return isnothing(object) ? "" : object.name
+    return object === nothing ? "" : object.name
 end
 
 """

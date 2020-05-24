@@ -67,7 +67,7 @@ end
 # Extend _data_object
 function _data_object(cref::InfOptConstraintRef)::ConstraintData
   object = _get(_data_dictionary(cref), JuMP.index(cref), nothing)
-  isnothing(object) && error("Invalid constraint reference, cannot find " *
+  object === nothing && error("Invalid constraint reference, cannot find " *
                         "corresponding constraint in the model. This is likely " *
                         "caused by using the reference of a deleted constraint.")
   return object
@@ -344,7 +344,7 @@ julia> name(cref)
 """
 function JuMP.name(cref::InfOptConstraintRef)::String
     object = _get(_data_dictionary(cref), JuMP.index(cref), nothing)
-    return isnothing(object) ? "" : object.name
+    return object === nothing ? "" : object.name
 end
 
 """

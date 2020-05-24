@@ -535,7 +535,7 @@ function transcribe_constraints!(trans_model::JuMP.Model,
                 info_ref = _get_info_constr_from_var(trans_model, func, set,
                                                      raw_supp)
                 # not all supports may be defined if overwritten by a point variable
-                if !isnothing(info_ref)
+                if info_ref !== nothing
                     @inbounds crefs[counter] = info_ref
                     @inbounds supps[counter] = Tuple(param_supps[j][i[j]]
                                                      for j in obj_nums)

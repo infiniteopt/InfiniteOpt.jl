@@ -31,7 +31,7 @@ end
 function _data_object(vref::InfiniteVariableRef
     )::VariableData{InfiniteVariable{GeneralVariableRef}}
   object = _get(_data_dictionary(vref), JuMP.index(vref), nothing)
-  isnothing(object) && error("Invalid infinite variable reference, cannot find " *
+  object === nothing && error("Invalid infinite variable reference, cannot find " *
                         "corresponding variable in the model. This is likely " *
                         "caused by using the reference of a deleted variable.")
   return object

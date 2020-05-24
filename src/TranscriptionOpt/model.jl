@@ -196,7 +196,7 @@ function transcription_variable(model::JuMP.Model,
     index_type::Type{V}
     )::JuMP.VariableRef where {V <: FinVarIndex}
     var = get(transcription_data(model).finvar_mappings, vref, nothing)
-    if isnothing(var)
+    if var === nothing
         error("Variable reference $vref not used in transcription model.")
     end
     return var
@@ -208,7 +208,7 @@ function transcription_variable(model::JuMP.Model,
     index_type::Type{V}
     )::Vector{JuMP.VariableRef} where {V <: InfVarIndex}
     var = get(transcription_data(model).infvar_mappings, vref, nothing)
-    if isnothing(var)
+    if var === nothing
         error("Variable reference $vref not used in transcription model.")
     end
     return var
@@ -346,7 +346,7 @@ function transcription_variable(model::JuMP.Model,
     index_type::Type{InfiniteOpt.MeasureRef}
     )
     exprs = get(transcription_data(model).measure_mappings, mref, nothing)
-    if isnothing(exprs)
+    if exprs === nothing
         error("Measure reference $mref not used in transcription model.")
     end
     return length(exprs) > 1 ? exprs : first(exprs)
@@ -438,7 +438,7 @@ end
 # Dispatch for internal models
 function transcription_expression(expr::JuMP.AbstractJuMPScalar)
     model = _model_from_expr(expr)
-    if isnothing(model)
+    if model === nothing
         return zero(JuMP.AffExpr) + JuMP.constant(expr)
     else
         trans_model = InfiniteOpt.optimizer_model(model)
@@ -511,7 +511,7 @@ fin_con : x(support: 1) - y <= 3.0
 function transcription_constraint(model::JuMP.Model,
                                   cref::InfiniteOpt.InfOptConstraintRef)
     constr = get(transcription_data(model).constr_mappings, cref, nothing)
-    if isnothing(constr)
+    if constr === nothing
       error("Constraint reference $cref not used in transcription model.")
     end
     return length(constr) > 1 ? constr : first(constr)
@@ -548,7 +548,7 @@ function InfiniteOpt.constraint_supports(model::JuMP.Model,
                                          cref::InfiniteOpt.InfOptConstraintRef,
                                          key::Val{:TransData} = Val(:TransData))
     supps = get(transcription_data(model).constr_supports, cref, nothing)
-    if isnothing(supps)
+    if supps === nothing
         error("Constraint reference $cref not used in transcription model.")
     end
     return length(supps) > 1 ? supps : first(supps)

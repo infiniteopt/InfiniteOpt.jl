@@ -52,7 +52,7 @@ end
 # Extend _data_object
 function _data_object(pref::ScalarParameterRef)::AbstractDataObject
     object = _get(_data_dictionary(pref), JuMP.index(pref), nothing)
-    isnothing(object) && error("Invalid scalar parameter reference, cannot find " *
+    object === nothing && error("Invalid scalar parameter reference, cannot find " *
                            "corresponding parameter in the model. This is likely " *
                            "caused by using the reference of a deleted parameter.")
     return object
@@ -436,7 +436,7 @@ julia> name(t)
 """
 function JuMP.name(pref::ScalarParameterRef)::String
     object = _get(_data_dictionary(pref), JuMP.index(pref), nothing)
-    return isnothing(object) ? "" : object.name
+    return object === nothing ? "" : object.name
 end
 
 """

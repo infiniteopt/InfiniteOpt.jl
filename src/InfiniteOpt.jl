@@ -19,7 +19,6 @@ using .Collections: VectorTuple, same_structure
 # Import methods
 include("datatypes.jl")
 include("infinite_sets.jl")
-# include("general_variables.jl")
 include("scalar_parameters.jl")
 include("array_parameters.jl")
 include("variable_basics.jl")

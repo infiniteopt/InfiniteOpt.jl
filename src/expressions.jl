@@ -293,7 +293,7 @@ julia> parameter_refs(my_expr)
 """
 function parameter_refs(expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr})::Tuple
     model = _model_from_expr(expr)
-    if isnothing(model)
+    if model === nothing
         return ()
     else
         obj_nums = sort!(_object_numbers(expr))

@@ -348,7 +348,7 @@ end
 function Base.deleteat!(vt::VectorTuple{T}, inds::AbstractVector{<:Bool};
                         tuple_index::Bool = false)::VectorTuple{T} where {T}
     if tuple_index
-        deleteat!(vt.values, [(vt.ranges[inds]...)...])
+        deleteat!(vt.values, [j for i in vt.ranges[inds] for j in i])
         deleteat!(vt.indices, inds)
         prev_sum = 0
         for i in eachindex(vt.ranges)
