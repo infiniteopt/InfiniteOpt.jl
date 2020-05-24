@@ -83,25 +83,21 @@ end
         @test_throws ErrorException DiscreteMeasureData(par, [1], Int[])
         @test_throws ErrorException DiscreteMeasureData(par, [1], [2])
         @test_throws ErrorException DiscreteMeasureData(fpar, [1], [1])
-        @test_throws ErrorException DiscreteMeasureData(pars[1], [1], [1])
     end
     # test scalar FunctionalDiscreteMeasureData constructor
     @testset "FunctionalDiscreteMeasureData (scalar)" begin
         @test isa(FunctionalDiscreteMeasureData(par, coeff_func, 10, :label), FunctionalDiscreteMeasureData)
         @test_throws ErrorException FunctionalDiscreteMeasureData(pars[1], coeff_func, 10, :label)
         @test_throws ErrorException FunctionalDiscreteMeasureData(par, coeff_func, -1, :label)
-    end
-    # test multidim FunctionalDiscreteMeasureData constructor
-    @testset "FunctionalDiscreteMeasureData (multidim)" begin
-        @test isa(FunctionalDiscreteMeasureData(pars, coeff_func, 10, :label), FunctionalDiscreteMeasureData)
-        @test_throws ErrorException FunctionalDiscreteMeasureData(pars, coeff_func, -1, :label)
+        @test_throws ErrorException FunctionalDiscreteMeasureData(par, coeff_func, 10, MCSample, lower_bound = -1, upper_bound = 2)
     end
     # test _check_multidim_params
-    @testset "_check_multidim_params" begin
-        @test_throws ErrorException InfiniteOpt._check_multidim_params([par, pars[1]])
-        @test_throws ErrorException InfiniteOpt._check_multidim_params([pars[1], pars2[1]])
-        @test_throws ErrorException InfiniteOpt._check_multidim_params([pars4[1, 1], pars4[1, 2]])
-        @test InfiniteOpt._check_multidim_params(pars) isa Nothing
+    @testset "_check_params" begin
+        @test_throws ErrorException InfiniteOpt._check_params(fpar)
+        @test_throws ErrorException InfiniteOpt._check_params([par, pars[1]])
+        @test_throws ErrorException InfiniteOpt._check_params([pars[1], pars2[1]])
+        @test_throws ErrorException InfiniteOpt._check_params([pars4[1, 1], pars4[1, 2]])
+        @test InfiniteOpt._check_params(pars) isa Nothing
     end
     # test _convert_param_refs_and_supports (Vector)
     @testset "_convert_param_refs_and_supports (Vector)" begin
@@ -143,61 +139,37 @@ end
                                                         [[1, 1]])
         @test_throws ErrorException DiscreteMeasureData([par, pars[1]], [1], [[1, 1]])
     end
-    # test _convert_param_refs (Vector)
-    @testset "_convert_param_refs (Vector)" begin
-        @test InfiniteOpt._convert_param_refs(pars) == pars
+    # test _check_bounds_in_set (IndependentParameter)
+    @testset "_check_bounds_in_set (independent parameters)" begin
+        disp_par = dispatch_variable_ref(par)
+        @test_throws ErrorException InfiniteOpt._check_bounds_in_set([disp_par, disp_par], [-1, -1], [1, 1])
+        @test_throws ErrorException InfiniteOpt._check_bounds_in_set([disp_par, disp_par], [0, 0], [2, 2])
+        @test InfiniteOpt._check_bounds_in_set([disp_par, disp_par], [0.3, 0.2], [0.7, 0.8]) isa Nothing
     end
-    # test _convert_param_refs (Array)
-    @testset "_convert_param_refs (Array)" begin
-        expected = [pars2[1,1], pars2[2,1], pars2[1,2], pars2[2,2], pars2[1,3], pars2[2,3]]
-        @test InfiniteOpt._convert_param_refs(pars2) == expected
+    # test _check_bounds_in_set (DependentParameter)
+    @testset "_check_bounds_in_set (dependent parameters)" begin
+        disp_vars = dispatch_variable_ref.(pars)
+        @test_throws ErrorException InfiniteOpt._check_bounds_in_set(disp_vars, [-1, -1], [1, 1])
+        @test_throws ErrorException InfiniteOpt._check_bounds_in_set(disp_vars, [0, 0], [2, 2])
+        @test InfiniteOpt._check_bounds_in_set(disp_vars, [0.3, 0.2], [0.7, 0.8]) isa Nothing
     end
-    # test _convert_param_refs (DenseAxisArray)
-    @testset "_convert_param_refs (DenseAxisArray)" begin
-        expected = [pars3[2], pars3[3]]
-        @test InfiniteOpt._convert_param_refs(pars3) == expected
-    end
-    # test _convert_param_refs (SparseAxisArray)
-    @testset "_convert_param_refs (SparseAxisArray)" begin
-        expected = [pars4[1, 1], pars4[1, 2], pars4[2, 2]]
-        @test InfiniteOpt._convert_param_refs(pars4) == expected
-    end
-end
-#=
-# Test basic JuMP extensions
-@testset "Basic JuMP Extensions" begin
-    # initialize model and references
-    m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    data = DiscreteMeasureData(par, [1], [1])
-    mref = MeasureRef(m, 1)
-    m.meas_to_name[1] = "test"
-    m.measures[1] = Measure(par, data)
-    # test name
-    @testset "JuMP.name" begin
-        @test name(mref) == "test"
-    end
-    # test set_name
-    @testset "JuMP.set_name" begin
-        @test isa(set_name(mref, "new"), Nothing)
-        @test name(mref) == "new"
-    end
-    # test is_valid
-    @testset "JuMP.is_valid" begin
-        @test is_valid(m, mref)
-        @test !is_valid(m, MeasureRef(InfiniteModel(), 1))
-        @test !is_valid(m, MeasureRef(m, 2))
+    # test multidim FunctionalDiscreteMeasureData constructor
+    @testset "FunctionalDiscreteMeasureData (multidim)" begin
+        @test isa(FunctionalDiscreteMeasureData(pars, coeff_func, 10, :label), FunctionalDiscreteMeasureData)
+        @test_throws ErrorException FunctionalDiscreteMeasureData(pars, coeff_func, -1, :label)
     end
 end
-=#
 # Test data access methods
 @testset "Data Queries" begin
     # initialize model and references
     m = InfiniteModel()
+    f(x) = 1
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     data = DiscreteMeasureData(par, [1], [1])
     data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
+    data3 = FunctionalDiscreteMeasureData(par, f, 10, MCSample)
+    data4 = FunctionalDiscreteMeasureData(pars, f, 10, MCSample)
     # parameter_refs (DiscreteMeasureData)
     @testset "parameter_refs (Single)" begin
         @test parameter_refs(data) == par
@@ -215,6 +187,21 @@ end
         @test isa(support_label(data), Symbol)
         @test_throws ErrorException support_label(BadData())
     end
+    # JuMP.lower_bound for AbstractMeasureData
+    @testset "JuMP.lower_bound" begin
+        @test isnan(JuMP.lower_bound(data))
+        @test isnan(JuMP.lower_bound(BadData()))
+    end
+    # JuMP.upper_bound for AbstractMeasureData
+    @testset "JuMP.upper_bound" begin
+        @test isnan(JuMP.upper_bound(data))
+        @test isnan(JuMP.upper_bound(BadData()))
+    end
+    # _is_expect
+    @testset "_is_expect" begin
+        @test !InfiniteOpt._is_expect(data)
+        @test !InfiniteOpt._is_expect(BadData())
+    end
     # supports (DiscreteMeasureData)
     @testset "supports (Single)" begin
         @test supports(data) == Float64[1]
@@ -226,6 +213,22 @@ end
     # supports (Fallback)
     @testset "supports (Fallback)" begin
         @test supports(BadData()) == Float64[]
+    end
+    # num_supports
+    @testset "num_supports" begin
+        @test num_supports(data) == 1
+        @test num_supports(data3) == 0
+        @test num_supports(BadData()) == 0
+    end
+    # min_num_supports (FunctionalDiscreteMeasureData)
+    @testset "min_num_supports" begin
+        @test min_num_supports(data3) == 10
+        @test min_num_supports(data) == 1
+    end
+    # coefficient_function (FunctionalDiscreteMeasureData)
+    @testset "coefficient_function" begin
+        @test coefficient_function(data3) == f
+        @test_throws ErrorException coefficient_function(BadData())
     end
     # coefficients (DiscreteMeasureData)
     @testset "coefficients (Single)" begin
@@ -259,12 +262,15 @@ end
     coeff_func(x) = 1
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+    @infinite_parameter(m, 0 <= par2 <= 1)
+    @infinite_parameter(m, 0 <= par3 <= 1)
+    @infinite_parameter(m, 0 <= pars2[1:2] <= 1)
     @infinite_variable(m, inf(par))
     @hold_variable(m, x)
     data1 = DiscreteMeasureData(par, [1], [1])
     data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
-    data3 = FunctionalDiscreteMeasureData(par, coeff_func, 5, McSample)
-    data4 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, McSample)
+    data3 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample)
+    data4 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, MCSample)
 #    meas = Measure(par + 2inf - x, data, [1], [1], false)
     # test _add_supports_to_multiple_parameters (independent)
     @testset "_add_supports_to_multiple_parameters (independent)" begin
@@ -302,6 +308,20 @@ end
         @test num_supports(par) == 5
         # clear supports
         delete_supports(par)
+    end
+    # test _generate_multiple_functional_supports (DependentParameterRefs)
+    @testset "_generate_multiple_functional_supports (DependentParameterRefs)" begin
+        dpars = dispatch_variable_ref.(pars2)
+        @test InfiniteOpt._generate_multiple_functional_supports(dpars, 5, MCSample, [NaN], [NaN]) isa Nothing
+        @test InfiniteOpt._generate_multiple_functional_supports(dpars, 5, MCSample, [0.3, 0.3], [0.7, 0.7]) isa Nothing
+        @test num_supports(pars2[1]) == 10
+    end
+    # test _generate_multiple_functional_supports (IndependentParameterRefs)
+    @testset "_generate_multiple_functional_supports (IndependentParameterRefs)" begin
+        dpars = dispatch_variable_ref.([par2, par3])
+        @test InfiniteOpt._generate_multiple_functional_supports(dpars, 5, MCSample, [NaN, NaN], [NaN, NaN]) isa Nothing
+        @test InfiniteOpt._generate_multiple_functional_supports(dpars, 5, MCSample, [0.3, 0.3], [0.7, 0.7]) isa Nothing
+        @test num_supports(par2) == 10
     end
     # test add_supports_to_parameters (multi FunctionalDiscreteMeasureData)
     @testset "add_supports_to_parameters (multi FunctionalDiscreteMeasureData)" begin
@@ -345,8 +365,8 @@ end
     data = DiscreteMeasureData(par, [1], [1])
     data2 = DiscreteMeasureData(par2, [1], [1])
     data3 = DiscreteMeasureData(pars, [1], [[1, 1]])
-    data4 = FunctionalDiscreteMeasureData(par, coeff_func, 5, McSample)
-    data5 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, McSample)
+    data4 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample)
+    data5 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, MCSample)
 
     # test measure_data_in_hold_bounds (DiscreteMeasureData)
     @testset "measure_data_in_hold_bounds (Discrete)" begin
@@ -424,16 +444,16 @@ end
     end
     # test build_measure
     @testset "build_measure" begin
-        @test isa(build_measure(m, inf, data), Measure)
-        @test isa(build_measure(m, inf, data2), Measure)
-        @test isa(build_measure(m, inf4, data3), Measure)
-        @test isa(build_measure(m, inf2, data4), Measure)
-        @test isa(build_measure(m, inf4, data5), Measure)
-        @test !build_measure(m, inf, data).constant_func
-        @test build_measure(m, inf, data2).constant_func
-        @test !build_measure(m, inf4, data3).constant_func
-        @test !build_measure(m, inf2, data4).constant_func
-        @test !build_measure(m, inf4, data5).constant_func
+        @test isa(build_measure(inf, data), Measure)
+        @test isa(build_measure(inf, data2), Measure)
+        @test isa(build_measure(inf4, data3), Measure)
+        @test isa(build_measure(inf2, data4), Measure)
+        @test isa(build_measure(inf4, data5), Measure)
+        @test !build_measure(inf, data).constant_func
+        @test build_measure(inf, data2).constant_func
+        @test !build_measure(inf4, data3).constant_func
+        @test !build_measure(inf2, data4).constant_func
+        @test !build_measure(inf4, data5).constant_func
     end
 end
 
@@ -442,6 +462,7 @@ end
     # initialize model and references
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     @infinite_variable(m, inf(par))
     @hold_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
@@ -458,6 +479,19 @@ end
     # test is_analytic
     @testset "is_analytic" begin
         @test !is_analytic(mref)
+    end
+    # test _make_param_tuple_element (IndependentParameterIndex)
+    @testset "_make_param_tuple_element (IndependentParameterIndex)" begin
+        @test InfiniteOpt._make_param_tuple_element(m, IndependentParameterIndex(1), [1]) == par
+    end
+    # test _make_param_tuple_element (DependentParameterIndex)
+    @testset "_make_param_tuple_element (DependentParameterIndex)" begin
+        @test InfiniteOpt._make_param_tuple_element(m, DependentParametersIndex(1), [2, 3]) == pars
+        @test InfiniteOpt._make_param_tuple_element(m, DependentParametersIndex(1), [2]) == pars[1]
+    end
+    # test parameter_refs for measure
+    @testset "parameter_refs (measure)" begin
+        @test collect(parameter_refs(mref)) == [par]
     end
     @testset "used_by_constraint" begin
         # test not used
@@ -536,7 +570,7 @@ end
     data2 = DiscreteMeasureData(par2, [1], [1])
     data3 = DiscreteMeasureData(pars, [1], [[1, 1]])
     data4 = FunctionalDiscreteMeasureData(par, coeff_func, 10, UniformGrid)
-    data5 = FunctionalDiscreteMeasureData(pars2, coeff_func, 10, McSample)
+    data5 = FunctionalDiscreteMeasureData(pars2, coeff_func, 10, WeightedSample)
     # test measure
     @testset "measure" begin
         # test scalar IndependentParameter
@@ -571,7 +605,7 @@ end
         # test multidim FunctionalDiscreteMeasureData
         mref7 = MeasureRef(m, MeasureIndex(7))
         @test dispatch_variable_ref(measure(inf5, data5)) == mref7
-        @test InfiniteOpt._core_variable_object(mref7).data.label == McSample
+        @test InfiniteOpt._core_variable_object(mref7).data.label == WeightedSample
         # test analytic evaluation
         @test dispatch_variable_ref(measure(x, data)) isa MeasureRef
         @test is_analytic(measure(x, data))
@@ -600,10 +634,9 @@ end
     data = DiscreteMeasureData(par, [1], [1])
     data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
     data3 = FunctionalDiscreteMeasureData(par, coeff_func, 10, UniformGrid)
-    data4 = FunctionalDiscreteMeasureData(pars2, coeff_func, 10, McSample)
+    data4 = FunctionalDiscreteMeasureData(pars2, coeff_func, 10, WeightedSample)
     # test @measure
     @testset "@measure" begin
-        @test_macro_throws ErrorException @measure(par)
         @test_macro_throws ErrorException @measure(par, data1, data2)
         @test_macro_throws ErrorException @measure(par, data1, bob = 53)
         @test dispatch_variable_ref(@measure(par, data)) isa MeasureRef
@@ -612,6 +645,44 @@ end
         @test dispatch_variable_ref(@measure(inf, data3)) isa MeasureRef
         @test dispatch_variable_ref(@measure(inf3, data4)) isa MeasureRef
     end
+end
+
+@testset "Naming methods" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    data = DiscreteMeasureData(par, [1], [1])
+    mref = @measure(par, data, name = "test")
+    # test name
+    @testset "JuMP.name" begin
+        @test name(mref) == "test"
+    end
+    # test set_name
+    @testset "JuMP.set_name" begin
+        @test isa(set_name(mref, "new"), Nothing)
+        @test name(mref) == "new"
+    end
+end
+
+@testset "General Queries" begin
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_variable(m, inf(par))
+    data = DiscreteMeasureData(par, [1], [1])
+    mref1 = @measure(inf + par, data)
+    mref2 = @measure(2 * inf, data)
+    # test num_measures
+    @testset "num_measures" begin
+        @test num_measures(m) == 2
+    end
+    #test all_measures
+    @testset "all_measures" begin
+        @test all_measures(m) == [mref1, mref2]
+    end
+end
+
+@testset "Measure Deletion" begin
+    # TODO finish this
 end
 #=
 # Test user definition methods

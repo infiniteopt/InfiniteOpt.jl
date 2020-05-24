@@ -171,7 +171,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     weight_func::Function = InfiniteOpt.default_weight
     )::InfiniteOpt.AbstractMeasureData
     is_depend = InfiniteOpt._index_type(pref) == DependentParameterIndex
-    inf_bound_num = (lower_bound == -Inf) && (upper_bound == Inf)
+    inf_bound_num = (lower_bound == -Inf) + (upper_bound == Inf)
     if inf_bound_num == 0 # finite interval
         method = UniTrapezoid
     elseif inf_bound_num == 1 && !is_depend # semi-infinite interval
@@ -233,7 +233,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 num_supports::Int = InfiniteOpt.DefaultNumSupports,
                                 weight_func::Function = InfiniteOpt.default_weight)
     _ensure_independent_param(pref, method)
-    inf_bound_num = (lb == -Inf) + (ub == Inf)
+    inf_bound_num = (lower_bound == -Inf) + (upper_bound == Inf)
     if inf_bound_num == 0 # finite interval
         method = GaussLegendre
     elseif inf_bound_num == 1 # semi-infinite interval
@@ -287,7 +287,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
         (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_supports)
         coeffs = coeffs .* exp.(supports)
         supports = supports .+ lower_bound
-    elseif lb == -Inf
+    elseif lower_bound == -Inf
         (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_supports)
         coeffs = coeffs .* exp.(supports)
         supports = -supports .+ upper_bound
@@ -351,6 +351,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     # prepare the data
     return InfiniteOpt.FunctionalDiscreteMeasureData(pref, _coeffs, num_supports,
                                                      InfiniteOpt.MCSample,
+                                                     weight_func,
                                                      lower_bound, upper_bound,
                                                      false)
 end
@@ -410,9 +411,10 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
         return vol * ones(num_samples) / num_samples
     end
     # make the data
-    return InfiniteOpt.FunctionalDiscreteMeasureData(pref, coeff_func,
+    return InfiniteOpt.FunctionalDiscreteMeasureData(prefs, _coeffs,
                                                      num_supports,
                                                      InfiniteOpt.MCSample,
+                                                     weight_func,
                                                      lower_bounds, upper_bounds,
                                                      false)
 end
@@ -569,6 +571,7 @@ function integral(expr::JuMP.AbstractJuMPScalar,
     # check parameter formatting
     InfiniteOpt._check_params(pref)
     # fill in bounds if needed
+    set = infinite_set(pref)
     if isnan(lower_bound) && JuMP.has_lower_bound(set)
         lower_bound = JuMP.lower_bound(pref)
     end
@@ -583,9 +586,9 @@ function integral(expr::JuMP.AbstractJuMPScalar,
     end
     # prepare the keyword arguments and make the measure data
     processed_kwargs = merge(uni_integral_defaults(), kwargs)
-    eval_method = pop!(kwargs, processed_kwargs, :eval_method)
+    eval_method = pop!(processed_kwargs, :eval_method)
     data = generate_integral_data(pref, lower_bound, upper_bound,
-                                  eval_method; kwargs...)
+                                  eval_method; processed_kwargs...)
     # make the measure
     return InfiniteOpt.measure(expr, data, name = "integral")
 end
@@ -641,10 +644,11 @@ Dict{Symbol,Any} with 4 entries:
 ```
 """
 function set_multi_integral_defaults(; kwargs...)::Nothing
-    merge!(UniIntegralDefaults, kwargs)
+    merge!(MultiIntegralDefaults, kwargs)
     return
 end
 
+Base.isnan(arr::AbstractArray{<:Real})::Bool = all(Base.isnan.(arr))
 """
     integral(expr::JuMP.AbstractJuMPScalar,
              prefs::AbstractArray{GeneralVariableRef},
@@ -692,7 +696,7 @@ function integral(expr::JuMP.AbstractJuMPScalar,
                   upper_bounds::Union{Real, AbstractArray{<:Real}} = NaN;
                   kwargs...)::InfiniteOpt.GeneralVariableRef
     # check parameter formatting
-    InfiniteOpt._check_params(params)
+    InfiniteOpt._check_params(prefs)
     # fill in the lower bounds if needed
     if isnan(lower_bounds) && JuMP.has_lower_bound(first(prefs))
         lbs = map(p -> JuMP.lower_bound(p), prefs)
@@ -722,12 +726,13 @@ function integral(expr::JuMP.AbstractJuMPScalar,
     if any(vector_lbs[i] >= vector_ubs[i] for i in eachindex(vector_lbs))
         error("Invalid integral bounds, ensure that lower_bounds < upper_bounds.")
     end
-    InfiniteOpt._check_bounds_in_set(vector_prefs, vector_lbs, vector_ubs)
+    dprefs = map(p -> dispatch_variable_ref(p), vector_prefs)
+    InfiniteOpt._check_bounds_in_set(dprefs, vector_lbs, vector_ubs)
     # prepare the keyword arguments and make the measure data
-    processed_kwargs = merge(mulit_integral_defaults(), kwargs)
-    eval_method = pop!(kwargs, processed_kwargs, :eval_method)
+    processed_kwargs = merge(multi_integral_defaults(), kwargs)
+    eval_method = pop!(processed_kwargs, :eval_method)
     data = generate_integral_data(vector_prefs, vector_lbs, vector_ubs,
-                                  eval_method; kwargs...)
+                                  eval_method; processed_kwargs...)
     # make the measure
     return InfiniteOpt.measure(expr, data, name = "integral")
 end
@@ -744,7 +749,7 @@ and [`integral`](@ref integral(::JuMP.AbstractJuMPScalar, ::AbstractArray{Infini
 Please see the above doc strings for more information.
 """
 macro integral(expr, prefs, args...)
-    _error(str...) = JuMP._macro_error(:integral, (expr, params, args...), str...)
+    _error(str...) = JuMP._macro_error(:integral, (expr, prefs, args...), str...)
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     if length(extra) != 0 && length(extra) != 2
         _error("Incorrect number of positional arguments for @integral. " *

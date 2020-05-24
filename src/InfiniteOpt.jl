@@ -48,7 +48,8 @@ using .MeasureToolbox: Automatic, UniTrapezoid, UniMCSampling,
 UniIndepMCSampling, Quadrature, GaussHermite, GaussLegendre, GaussLaguerre,
 MultiMCSampling, MultiIndepMCSampling, uni_integral_defaults,
 set_uni_integral_defaults, integral, multi_integral_defaults,
-set_multi_integral_defaults, expect, support_sum, @integral, @expect, @support_sum
+set_multi_integral_defaults, expect, support_sum, @integral, @expect, @support_sum,
+generate_integral_data
 
 # Export core datatypes
 export AbstractDataObject, InfiniteModel
@@ -114,14 +115,15 @@ Measure, MeasureData, MeasureRef
 # Export measure methods
 export default_weight, support_label, coefficient_function, coefficients,
 weight_function, build_measure, min_num_supports, add_measure, measure_function,
-measure_data, is_analytic, measure, num_measures, all_measures
+measure_data, is_analytic, measure, num_measures, all_measures,
+add_supports_to_parameters, measure_data_in_hold_bounds
 
 # Export the measure toolbox functions and datatypes
 export Automatic, UniTrapezoid, UniMCSampling, UniIndepMCSampling, Quadrature,
 GaussHermite, GaussLegendre, GaussLaguerre, MultiMCSampling,
 MultiIndepMCSampling, uni_integral_defaults, set_uni_integral_defaults,
 integral, multi_integral_defaults, set_multi_integral_defaults, expect,
-support_sum, @integral, @expect, @support_sum
+support_sum, @integral, @expect, @support_sum, generate_integral_data
 
 # Export objective methods
 export objective_has_measures
