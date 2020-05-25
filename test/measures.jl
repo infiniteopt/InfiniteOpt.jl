@@ -125,6 +125,18 @@ end
         expected = ([pars4[1, 1], pars4[1, 2], pars4[2, 2]], [0 1; 0 1; 0 1])
         @test isequal(InfiniteOpt._convert_param_refs_and_supports(pars4, supp), expected)
     end
+    # test _check_supports_in_bounds (IndependentParameterRefs)
+    @testset "_check_supports_in_bounds (IndependentParameterRefs)" begin
+        dpar = dispatch_variable_ref(par)
+        @test InfiniteOpt._check_supports_in_bounds([dpar, dpar], [0.3 0.2; 0.7 0.6]) isa Nothing
+        @test_throws ErrorException InfiniteOpt._check_supports_in_bounds([dpar, dpar], [-1 0.5; 0.7 2])
+    end
+    # test _check_supports_in_bounds (DependentParameterRefs)
+    @testset "_check_supports_in_bounds (DependentParameterRefs)" begin
+        dpars = dispatch_variable_ref.(pars)
+        @test InfiniteOpt._check_supports_in_bounds(dpars, [0.3 0.2; 0.7 0.6]) isa Nothing
+        @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(dpars, [-1 0.5; 0.7 2])
+    end
     # test multidim DiscreteMeasureData constructor
     @testset "DiscreteMeasureData (multi-dim)" begin
         # test normal usage
@@ -138,6 +150,8 @@ end
         @test_throws ErrorException DiscreteMeasureData([fpar, fpar], [1],
                                                         [[1, 1]])
         @test_throws ErrorException DiscreteMeasureData([par, pars[1]], [1], [[1, 1]])
+        @test_throws ErrorException DiscreteMeasureData(pars3, [1], [[1, 2]])
+        @test_throws ErrorException DiscreteMeasureData(pars3, [1], [JuMPC.DenseAxisArray([1,2],2:3)], lower_bounds = [NaN, NaN])
     end
     # test _check_bounds_in_set (IndependentParameter)
     @testset "_check_bounds_in_set (independent parameters)" begin
@@ -155,15 +169,38 @@ end
     end
     # test multidim FunctionalDiscreteMeasureData constructor
     @testset "FunctionalDiscreteMeasureData (multidim)" begin
-        @test isa(FunctionalDiscreteMeasureData(pars, coeff_func, 10, :label), FunctionalDiscreteMeasureData)
+        @test isa(FunctionalDiscreteMeasureData(pars, coeff_func, 10, :label, lower_bounds = [0.3, 0.3], upper_bounds = [0.7, 0.7]), FunctionalDiscreteMeasureData)
         @test_throws ErrorException FunctionalDiscreteMeasureData(pars, coeff_func, -1, :label)
+        @test_throws ErrorException FunctionalDiscreteMeasureData(pars3, coeff_func, 5, MCSample, lower_bounds = [NaN, NaN])
+
+    end
+    # test copy methods
+    @testset "Base.copy" begin
+        data1 = DiscreteMeasureData(par, [1], [1])
+        data2 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample)
+        @test data1.parameter_refs == copy(data1).parameter_refs
+        @test data1.coefficients == copy(data1).coefficients
+        @test data1.label == copy(data1).label
+        @test data1.is_expect == copy(data1).is_expect
+        @test data1.supports == copy(data1).supports
+        @test data1.weight_function == copy(data1).weight_function
+        @test isnan(copy(data1).lower_bounds)
+        @test isnan(copy(data1).upper_bounds)
+        @test data2.parameter_refs == copy(data2).parameter_refs
+        @test data2.coeff_function == copy(data2).coeff_function
+        @test data2.label == copy(data2).label
+        @test data2.is_expect == copy(data2).is_expect
+        @test data2.min_num_supports == copy(data2).min_num_supports
+        @test data2.weight_function == copy(data2).weight_function
+        @test isnan(copy(data2).lower_bounds)
+        @test isnan(copy(data2).upper_bounds)
     end
 end
 # Test data access methods
 @testset "Data Queries" begin
     # initialize model and references
     m = InfiniteModel()
-    f(x) = 1
+    f(x) = [1]
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     data = DiscreteMeasureData(par, [1], [1])
@@ -238,6 +275,10 @@ end
     @testset "coefficients (Multi)" begin
         @test coefficients(data2) == Float64[1]
     end
+    # coefficients (FunctionalDiscreteMeasureData)
+    @testset "coefficients (Functional)" begin
+        @test coefficients(data3) == [1]
+    end
     # coefficients (Fallback)
     @testset "coefficients (Fallback)" begin
         @test coefficients(BadData()) == Float64[]
@@ -271,6 +312,7 @@ end
     data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
     data3 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample)
     data4 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, MCSample)
+    data5 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample, lower_bound = 0.3, upper_bound = 0.7)
 #    meas = Measure(par + 2inf - x, data, [1], [1], false)
     # test _add_supports_to_multiple_parameters (independent)
     @testset "_add_supports_to_multiple_parameters (independent)" begin
@@ -305,6 +347,11 @@ end
     @testset "add_supports_to_parameters (scalar FunctionalDiscreteMeasureData)" begin
         # test functionality
         @test isa(add_supports_to_parameters(data3), Nothing)
+        @test num_supports(par) == 5
+        # clear supports
+        delete_supports(par)
+        # test functionality
+        @test isa(add_supports_to_parameters(data5), Nothing)
         @test num_supports(par) == 5
         # clear supports
         delete_supports(par)
@@ -682,232 +729,34 @@ end
 end
 
 @testset "Measure Deletion" begin
-    # TODO finish this
-end
-#=
-# Test user definition methods
-@testset "User Definition" begin
-    # initialize model and references
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= par2 <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     @infinite_variable(m, inf(par))
-    @infinite_variable(m, inf2(par, par2))
-    @infinite_variable(m, inf3(par2))
-    @infinite_variable(m, inf4(pars))
-    @hold_variable(m, x)
-    # prepare measure data
-    data = DiscreteMeasureData(par, [1], [1], name = "a")
-    data2 = DiscreteMeasureData(par2, [1], [1], name = "b")
-    data3 = DiscreteMeasureData(pars, [1], [[1, 1]], name = "c")
-    # test _model_from_expr
-    @testset "_model_from_expr" begin
-        @test InfiniteOpt._model_from_expr([par]) == m
-        @test InfiniteOpt._model_from_expr([inf, par]) == m
-        @test InfiniteOpt._model_from_expr([inf]) == m
-        @test isa(InfiniteOpt._model_from_expr(GeneralVariableRef[]), Nothing)
-    end
-    # test measure
-    @testset "measure" begin
-        # test single use
-        index = m.next_meas_index
-        mref = MeasureRef(m, index + 1)
-        @test measure(inf + x, data) == mref
-        @test name(mref) == "a(inf(par) + x)"
-        @test supports(par) == [1]
-        @test !m.meas_in_objective[index + 1]
-        # test nested use
-        mref2 = MeasureRef(m, index + 2)
-        mref3 = MeasureRef(m, index + 3)
-        @test measure(inf + measure(inf2 + x, data2), data) == mref3
-        @test name(mref3) == "a(inf(par) + b(inf2(par, par2) + x))"
-        @test supports(par) == [1]
-        @test supports(par2) == [1]
-        # test vector parameter
-        mref4 = MeasureRef(m, index + 4)
-        @test measure(inf4 + x, data3) == mref4
-        @test name(mref4) == "c(inf4(pars) + x)"
-        @test supports(pars[1]) == [1]
-        @test supports(pars[2]) == [1]
-        # test with hold bounds
-        @set_parameter_bounds(x, par == 1)
-        mref = MeasureRef(m, index + 5)
-        @test measure(inf + x, data) == mref
-        @test name(mref) == "a(inf(par) + x)"
-        @test supports(par) == [1]
-        # test no variables
-        @test_throws ErrorException measure(zero(GenericAffExpr{Float64,
-                                                     GeneralVariableRef}), data)
-        # test not dependent
-        @test measure(x, data) isa MeasureRef
-        @test measure(par2, data) isa MeasureRef
-        @test measure(inf4 + measure(inf + x, data3), data) isa MeasureRef
-        # test with bad variable bounds
-        InfiniteOpt._update_variable_param_bounds(x, ParameterBounds(Dict(par => IntervalSet(0, 0))))
-        @test_throws ErrorException measure(inf + x, data)
-        # test invalid parameter
-        delete!(m.params, JuMP.index(par))
-        @test_throws ErrorException measure(inf, data)
+    data = DiscreteMeasureData(par, [1], [1])
+    mref1 = @measure(inf + par, data)
+    mref2 = @measure(mref1, data)
+    mref3 = @measure(mref1 + inf, data)
+    constr1 = @constraint(m, mref1 >= 1)
+    constr2 = @constraint(m, 2 * mref1 <= 10)
+    obj = @objective(m, Min, mref1)
+
+    m2 = InfiniteModel()
+    @infinite_parameter(m2, 0 <= x <= 1)
+    @hold_variable(m2, z >= 0)
+    data = DiscreteMeasureData(x, [1], [1])
+    mref4 = @measure(3*x, data)
+    obj2 = @objective(m2, Min, z + mref4)
+
+    # test JuMP.delete
+    @testset "JuMP.delete" begin
+        @test_throws AssertionError delete(m2, mref1)
+        @test delete(m, mref1) isa Nothing
+        @test measure_function(mref2) == AffExpr(0)
+        @test measure_function(mref3) == 1. * inf
+        @test constraint_object(constr1).func == zero(AffExpr)
+        @test constraint_object(constr2).func == zero(AffExpr)
+        @test objective_function(m) == zero(AffExpr)
+        @test delete(m2, mref4) isa Nothing
+        @test objective_function(m2) == 1. * z
     end
 end
-
-@testset "User Definition w/o Measure Data" begin
-    m = InfiniteModel()
-    dist1 = Normal(0., 1.)
-    dist2 = MvNormal([0., 0.], [1. 0.;0. 10.])
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= par2 <= 1)
-    @infinite_parameter(m, 0 <= par3 <= 1)
-    @infinite_parameter(m, 0 <= pars1[1:2] <= 1, container = SparseAxisArray)
-    @infinite_parameter(m, 0 <= pars2[("a", "b")] <= 1)
-    @infinite_parameter(m, 0 <= pars3[1:2] <= 1)
-    @infinite_parameter(m, rp in dist1)
-    @infinite_parameter(m, rp2[1:2] in dist2)
-    @infinite_parameter(m, 0 <= par4 <= 1)
-    @infinite_parameter(m, 0 <= par5 <= 1)
-    @infinite_parameter(m, par6 in [0, Inf])
-    @infinite_parameter(m, par7 in [-Inf, Inf])
-    sets = [IntervalSet(0,1), DistributionSet(Uniform())]
-    @infinite_parameter(m, pars4[i = 1:2], set = sets[i])
-    @infinite_variable(m, inf(par))
-    @infinite_variable(m, inf2(par, par2))
-    @infinite_variable(m, inf3(par3))
-    @infinite_variable(m, inf4(pars1))
-    @infinite_variable(m, inf5(pars1, pars2))
-    @infinite_variable(m, inf6(pars2))
-    @infinite_variable(m, inf7(pars3))
-    @infinite_variable(m, inf8(rp))
-    @infinite_variable(m, inf9(rp2))
-    @infinite_variable(m, inf10(rp, rp2))
-    @infinite_variable(m, inf11(par4))
-    @infinite_variable(m, inf12(par5))
-    @infinite_variable(m, inf13(par6))
-    @infinite_variable(m, inf14(par7))
-    @hold_variable(m, x)
-
-    # test integral
-    @testset "integral" begin
-        meas1 = integral(inf, num_supports = 5, eval_method = gauss_legendre)
-        (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
-        expected_supps = expected_supps .* 0.5 .+ 0.5
-        expected_coeffs = expected_coeffs .* 0.5
-        @test all(measure_data(meas1).supports .== expected_supps)
-        @test all(measure_data(meas1).coefficients .== expected_coeffs)
-
-        add_supports(par2, [0.3, 0.7])
-        meas2 = integral(inf2, par2, use_existing_supports = true)
-        @test measure_data(meas2).parameter_ref == par2
-        @test measure_data(meas2).supports == [0.3, 0.7]
-        meas2 = integral(inf2, par2, 0.5, 0.9, use_existing_supports = true)
-        @test measure_data(meas2).supports == [0.7]
-        meas2 = integral(inf2, [par2], [0.5], [0.9], use_existing_supports = true)
-        @test measure_data(meas2).supports == [0.7]
-
-        meas3 = integral(inf4, num_supports = 5, eval_method = sampling)
-        @test pars1[1] in measure_data(meas3).parameter_refs
-        @test pars1[2] in measure_data(meas3).parameter_refs
-
-        meas4 = integral(inf5, pars2, num_supports = 5)
-        @test pars2["a"] in measure_data(meas4).parameter_refs
-        @test pars2["b"] in measure_data(meas4).parameter_refs
-
-        meas5 = integral(inf6, use_existing_supports = true)
-        @test measure_data(meas4).supports == measure_data(meas5).supports
-
-        add_supports(pars3[1], [0.3, 0.7])
-        add_supports(pars3[2], [0.3, 0.7])
-        meas6 = integral(inf7, pars3, 0.5, 1.0, use_existing_supports = true)
-        @test measure_data(meas6).supports == ones(Float64, 2, 1) * 0.7
-        meas6 = integral(inf7, pars3, [0.5, 0.5], [1.0, 1.0], use_existing_supports = true)
-        @test measure_data(meas6).supports == ones(Float64, 2, 1) * 0.7
-
-        meas7 = integral(inf11, par4, num_supports = 5, eval_method = quadrature)
-        (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
-        expected_supps = expected_supps .* 0.5 .+ 0.5
-        expected_coeffs = expected_coeffs .* 0.5
-        @test all(measure_data(meas7).supports .== expected_supps)
-        @test all(measure_data(meas7).coefficients .== expected_coeffs)
-
-        add_supports(par5, [0.3, 0.7])
-        warn = "Quadrature method will not be used because use_existing_supports is set as true."
-        @test_logs (:warn, warn) integral(inf12, par5,
-                               use_existing_supports = true, eval_method = quadrature)
-
-        meas8 = integral(inf13, par6, num_supports = 5, eval_method = quadrature)
-        (expected_supps, expected_coeffs) = FGQ.gausslaguerre(5)
-        expected_coeffs = expected_coeffs .* exp.(expected_supps)
-        @test all(measure_data(meas8).supports .== expected_supps)
-        @test all(measure_data(meas8).coefficients .== expected_coeffs)
-
-        meas9 = integral(inf14, par7, num_supports = 5, eval_method = quadrature)
-        (expected_supps, expected_coeffs) = FGQ.gausshermite(5)
-        expected_coeffs = expected_coeffs .* exp.(expected_supps.^2)
-        @test all(measure_data(meas9).supports .== expected_supps)
-        @test all(measure_data(meas9).coefficients .== expected_coeffs)
-
-        # test errors
-        @test_throws ErrorException integral(x)
-        @test_throws ErrorException integral(inf, ParameterRef[])
-        @test_throws ErrorException integral(inf2)
-        @test_throws ErrorException integral(inf2, [par, par2])
-        @test_throws ErrorException integral(inf2, par, 1., 3.)
-        @test_throws ErrorException integral(inf2, par, [0., 1.])
-        @test_throws ErrorException integral(inf2, par, 0., [1., 1.])
-        @test_throws ErrorException integral(inf2, par, 0.5, 0.)
-        @test_throws ErrorException integral(inf8, use_existing_supports = true)
-        @test_throws ErrorException integral(meas1)
-        @test_throws ErrorException integral(inf4, pars1, eval_method = quadrature)
-        @test_throws ErrorException integral(inf, par, -1)
-        @test_throws ErrorException integral(inf, par, 0, 2)
-        @test_throws ErrorException integral(inf4, pars1, -1)
-        @test_throws ErrorException integral(inf4, pars1, 0, 2)
-        @test_throws ErrorException integral(x, pars4)
-    end
-    # test support_sum
-    @testset "support_sum" begin
-        sum1 = support_sum(inf2, par2)
-        @test measure_data(sum1).parameter_ref == par2
-        @test measure_data(sum1).supports == [0.3, 0.7]
-        @test name(sum1) == "sum(inf2(par, par2))"
-        sum2 = support_sum(inf7)
-        @test pars3[1] in measure_data(sum2).parameter_refs
-        @test pars3[2] in measure_data(sum2).parameter_refs
-        @test measure_data(sum2).supports == Float64[0.3 0.7; 0.3 0.7]
-    end
-    # test expectation measure
-    @testset "expect" begin
-        expect1 = expect(inf8, num_supports = 5)
-        expect2 = expect(inf9, num_supports = 5)
-        @test_throws ErrorException expect(inf10)
-        expect3 = expect(inf10, rp, use_existing_supports = true)
-        check1 = expect(inf8, use_existing_supports = true)
-        check2 = expect(inf9, use_existing_supports = true)
-        @test measure_data(expect1).supports == measure_data(check1).supports
-        @test measure_data(expect2).supports == measure_data(check2).supports
-        @test measure_data(expect3).supports == measure_data(expect1).supports
-    end
-    # test set_integral_defaults
-    @testset "set_integral_defaults" begin
-        set_integral_defaults(m, num_supports = 5, eval_method = quadrature,
-                            new_kwarg = true)
-        def_vals = integral_defaults(m)
-        @test def_vals[:num_supports] == 5
-        @test def_vals[:eval_method] == quadrature
-        @test def_vals[:name] == "integral"
-        @test def_vals[:weight_func] == default_weight
-        @test def_vals[:use_existing_supports] == false
-        @test def_vals[:new_kwarg] == true
-    end
-    # test measure with default keyword argument values
-    @testset "default measure" begin
-        delete!(integral_defaults(m), :new_kwarg)
-        meas = integral(inf)
-        (expected_supps, expected_coeffs) = FGQ.gausslegendre(5)
-        expected_supps = expected_supps .* 0.5 .+ 0.5
-        expected_coeffs = expected_coeffs .* 0.5
-        @test all(measure_data(meas).supports .== expected_supps)
-        @test all(measure_data(meas).coefficients .== expected_coeffs)
-    end
-end
-=#

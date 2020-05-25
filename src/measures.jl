@@ -1255,7 +1255,7 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
             new_meas = Measure(new_func, data, Int[], Int[], false)
         else
             _remove_variable(func, gvref)
-            new_meas = build_measure(model, func, data)
+            new_meas = build_measure(func, data)
         end
         _set_core_variable_object(meas_ref, new_meas)
     end

@@ -74,6 +74,10 @@
         @test_throws ErrorException generate_integral_data(x[1], -Inf, 0, Automatic)
         @test_throws ErrorException generate_integral_data(x[1], -Inf, Inf, Automatic)
     end
+    # test fallback
+    @testset "generate_integral_data (fallback)" begin
+        @test_throws ErrorException generate_integral_data(x, 1, 2, Quadrature)
+    end
 end
 
 @testset "Integral Data Generation (Multivariate)" begin
