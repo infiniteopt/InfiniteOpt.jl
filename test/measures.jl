@@ -736,7 +736,8 @@ end
     mref1 = @measure(inf + par, data)
     mref2 = @measure(mref1, data)
     mref3 = @measure(mref1 + inf, data)
-    constr1 = @constraint(m, mref1 >= 1)
+    con = build_constraint(error, mref1, MOI.GreaterThan(1.0))
+    constr1 = add_constraint(m, con)
     constr2 = @constraint(m, 2 * mref1 <= 10)
     obj = @objective(m, Min, mref1)
 
