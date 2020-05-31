@@ -456,7 +456,7 @@ julia> name(t)
 """
 function JuMP.set_name(pref::ScalarParameterRef, name::String)::Nothing
     _data_object(pref).name = name
-    JuMP.owner_model(pref).name_to_var = nothing
+    JuMP.owner_model(pref).name_to_param = nothing
     return
 end
 
@@ -533,6 +533,7 @@ julia> parameter_by_name(model, "t")
 t
 ```
 """
+# TODO: this is not changing the name registered in model
 function parameter_by_name(model::InfiniteModel,
                            name::String)::Union{GeneralVariableRef, Nothing}
     if _param_name_dict(model) === nothing

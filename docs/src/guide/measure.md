@@ -239,11 +239,11 @@ that it can apply for.
 
 | `eval_method` | Uni/multi-variate? | Type of set |
 | --- | --- | --- |
-| [`mc_sampling`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{mc_sampling})) | Both | [`IntervalSet`](@ref) |
-| [`mc_sampling`](@ref generate_supports_and_coeffs(::InfiniteOpt.DistributionSet, ::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}}, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{mc_sampling})) | Both | [`DistributionSet`](@ref) |
-| [`gauss_legendre`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_legendre})) | Univariate | Finite [`IntervalSet`](@ref) |
-| [`gauss_laguerre`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_laguerre})) | Univariate | Semi-infinite [`IntervalSet`](@ref) |
-| [`gauss_hermite`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{gauss_hermite})) | Univariate | Infinite [`IntervalSet`](@ref) |
+| [`mc_sampling`] | Both | [`IntervalSet`](@ref) |
+| [`mc_sampling`] | Both | [`DistributionSet`](@ref) |
+| [`gauss_legendre`] | Univariate | Finite [`IntervalSet`](@ref) |
+| [`gauss_laguerre`] | Univariate | Semi-infinite [`IntervalSet`](@ref) |
+| [`gauss_hermite`] | Univariate | Infinite [`IntervalSet`](@ref) |
 | [`trapezoid`](@ref generate_supports_and_coeffs(::InfiniteOpt.IntervalSet, ::InfiniteOpt.ParameterRef, ::Int, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Union{Number, JuMP.Containers.SparseAxisArray, Nothing}, ::Val{trapezoid})) | Univariate | Infinite [`IntervalSet`](@ref) |
 
 The default evaluation method is MC sampling.
