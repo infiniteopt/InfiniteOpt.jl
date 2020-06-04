@@ -507,6 +507,7 @@ function _delete_variable_dependencies(vref::InfiniteVariableRef)::Nothing
     for pref in all_prefs
         filter!(e -> e != JuMP.index(vref), _infinite_variable_dependencies(pref))
     end
+    model = JuMP.owner_model(vref)
     # delete associated point variables and mapping
     for index in _point_variable_dependencies(vref)
         JuMP.delete(model, dispatch_variable_ref(model, index))

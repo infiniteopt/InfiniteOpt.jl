@@ -701,7 +701,7 @@ end
     push!(InfiniteOpt._constraint_dependencies(prefs1[1]), ConstraintIndex(1))
     # test _parameter_supports
     @testset "_parameter_supports" begin
-        @test collect(keys(InfiniteOpt._parameter_supports(prefs1[1]))) == [[0., 0.], [1., 1.]]
+        @test sort(collect(keys(InfiniteOpt._parameter_supports(prefs1[1])))) == [[0., 0.], [1., 1.]]
         @test isempty(InfiniteOpt._parameter_supports(prefs2[2]))
     end
     # test significant_digits
