@@ -265,7 +265,7 @@ function DiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
     elseif _keys(prefs) != _keys(lower_bounds)
         error("Parameter references and bounds must use same container type.")
     end
-    if length(coefficients) != size(supports, 2)
+    if length(coefficients) != length(supports)
         error("The amount of coefficients must match the amount of " *
               "support points.")
     end

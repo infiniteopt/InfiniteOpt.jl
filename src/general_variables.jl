@@ -731,7 +731,7 @@ end
 #                               MEASURE METHODS
 ################################################################################
 # Define measure queries and their fallbacks
-for op = (:measure_function, :measure_data, :is_analytic)
+for op = (:measure_function, :measure_data, :is_analytic, :expand)
     @eval begin
         # define the fallback method
         func = $op
