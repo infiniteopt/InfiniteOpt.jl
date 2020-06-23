@@ -1109,7 +1109,6 @@ function _update_reduced_variable(vref::ReducedVariableRef,
     new_var = ReducedVariable(infinite_variable_ref(vref), new_supports,
                               param_nums, obj_nums)
     _set_core_variable_object(vref, new_var)
-    _data_object(vref).name = "" # reset the name
     # TODO account for possibility that this becomes a point variable
     # TODO account for possibility that this becomes an infinite variable
     return
@@ -1259,15 +1258,11 @@ function JuMP.delete(model::InfiniteModel, pref::IndependentParameterRef)::Nothi
         prefs = raw_parameter_refs(vref)
         delete_index = findfirst(isequal(gvref), prefs)
         deleteat!(prefs, delete_index)
-        JuMP.set_name(vref, _root_name(vref))
         reset_start_value_function(vref)
         # update any point variables that depend on vref accordingly
         for pindex in _point_variable_dependencies(vref)
             pvref = PointVariableRef(model, pindex)
             deleteat!(raw_parameter_values(pvref), delete_index)
-            if !isa(findfirst(isequal('('), JuMP.name(pvref)), Nothing)
-                JuMP.set_name(pvref, "")
-            end
         end
         # update any reduced variables that depend on vref accordingly
         for rindex in _reduced_variable_dependencies(vref)

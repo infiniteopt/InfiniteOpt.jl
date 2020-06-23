@@ -111,7 +111,7 @@ function transcribe_infinite_variables!(trans_model::JuMP.Model,
     for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.InfiniteVariable)
         # get the basic variable information
         var = object.variable
-        base_name = InfiniteOpt._root_name(object.name)
+        base_name = object.name
         param_nums = var.parameter_nums
         # prepare for iterating over its supports
         supp_indices = support_index_iterator(trans_model, var.object_nums)

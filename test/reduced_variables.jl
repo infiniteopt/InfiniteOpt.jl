@@ -108,12 +108,12 @@
         @test name(vref) == "new"
         @test_throws ErrorException set_name(bad_vref, "")
         # test default
-        @test isa(set_name(gvref, ""), Nothing)
-        @test name(vref) == "ivref(0.5, [b[1], 1], [0, 0])"
+        @test isa(set_name(gvref, "a"), Nothing)
+        @test name(vref) == "a"
     end
     # JuMP.name
     @testset "JuMP.name" begin
-        @test name(vref) == "ivref(0.5, [b[1], 1], [0, 0])"
+        @test name(vref) == "a"
         @test name(bad_vref) == ""
     end
     # _make_variable_ref
@@ -135,15 +135,15 @@
     # parameter_by_name
     @testset "JuMP.variable_by_name" begin
         # test normal
-        @test variable_by_name(m, "ivref(0.5, [b[1], 1], [0, 0])") == gvref
-        @test variable_by_name(m, "test(0.5, [b[1], 1], [0, 0])") isa Nothing
+        @test variable_by_name(m, "a") == gvref
+        @test variable_by_name(m, "test") isa Nothing
         # prepare variable with same name
         idx2 = ReducedVariableIndex(2)
         @test InfiniteOpt._add_data_object(m, object) == idx2
         vref2 = ReducedVariableRef(m, idx2)
-        @test set_name(vref2, "") isa Nothing
+        @test set_name(vref2, "a") isa Nothing
         # test multiple name error
-        @test_throws ErrorException variable_by_name(m, "ivref(0.5, [b[1], 1], [0, 0])")
+        @test_throws ErrorException variable_by_name(m, "a")
     end
     # _delete_data_object
     @testset "_delete_data_object" begin
@@ -191,7 +191,7 @@ end
         vref = ReducedVariableRef(m, idx)
         gvref = GeneralVariableRef(m, 1, ReducedVariableIndex)
         @test add_variable(m, var) == gvref
-        @test name(vref) == "ivref(0.5, [b[1], 1], [0, 0])"
+        @test name(vref) == ""
         @test eval_supports(vref) === eval_supps
         @test InfiniteOpt._object_numbers(vref) == [2]
         @test InfiniteOpt._reduced_variable_dependencies(ivref) == [idx]
@@ -205,7 +205,7 @@ end
         idx = ReducedVariableIndex(3)
         vref = ReducedVariableRef(m, idx)
         gvref = GeneralVariableRef(m, 3, ReducedVariableIndex)
-        @test add_variable(m, var, define_name = false) == gvref
+        @test add_variable(m, var) == gvref
         @test InfiniteOpt._data_object(vref).name == ""
     end
 end
@@ -221,10 +221,10 @@ end
     @infinite_variable(m,  ivref2(a, b, c) == 1, Bin, start = 0)
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1, 4 => 0, 5 => 0)
     var1 = build_variable(error, ivref1, eval_supps, check = false)
-    gvref1 = add_variable(m, var1, define_name = false)
+    gvref1 = add_variable(m, var1)
     rvref1 = dispatch_variable_ref(gvref1)
     var2 = build_variable(error, ivref2, eval_supps, check = false)
-    gvref2 = add_variable(m, var2, define_name = false)
+    gvref2 = add_variable(m, var2)
     rvref2 = dispatch_variable_ref(gvref2)
     dvref1 = dispatch_variable_ref(ivref1)
     dvref2 = dispatch_variable_ref(ivref2)
@@ -352,7 +352,7 @@ end
     @infinite_variable(m, y(t, x))
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1)
     var = build_variable(error, y, eval_supps, check = false)
-    gvref = add_variable(m, var, define_name = false)
+    gvref = add_variable(m, var)
     vref = dispatch_variable_ref(gvref)
     # test used_by_measure
     @testset "used_by_measure" begin
@@ -397,7 +397,7 @@ end
     @hold_variable(m, hvref)
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1, 4 => 0, 5 => 0)
     var = build_variable(error, ivref, eval_supps, check = false)
-    rvref = add_variable(m, var, define_name = false)
+    rvref = add_variable(m, var)
     # num_variables
     @testset "JuMP.num_variables" begin
         @test num_variables(m, InfiniteVariable) == 1

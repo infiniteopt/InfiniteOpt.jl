@@ -93,7 +93,7 @@ function make_reduced_variable_ref(write_model::InfiniteModel,
                                    )::GeneralVariableRef
     eval_supps = Dict(indices[i] => values[i] for i in eachindex(indices))
     var = JuMP.build_variable(error, ivref, eval_supps, check = false)
-    return JuMP.add_variable(write_model, var, define_name = true)
+    return JuMP.add_variable(write_model, var)
 end
 
 # Add reduced infinite variables in the optimizer model without modifying the InfiniteModel

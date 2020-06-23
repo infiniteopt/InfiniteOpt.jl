@@ -126,8 +126,7 @@ end
 
 """
     JuMP.add_variable(model::InfiniteModel, var::ReducedVariable,
-                      [name::String = ""; define_name = true]
-                      )::GeneralVariableRef
+                      [name::String = ""])::GeneralVariableRef
 
 Extend the [`JuMP.add_variable`](@ref JuMP.add_variable(::JuMP.Model, ::JuMP.ScalarVariable, ::String))
 function to accomodate `InfiniteOpt` reduced variable types. Adds `var` to the
@@ -136,15 +135,11 @@ Primarily intended to be an internal function used in evaluating measures. A nam
 will be generated using the supports if `define_name = true`.
 """
 function JuMP.add_variable(model::InfiniteModel, var::ReducedVariable,
-                           name::String = "";
-                           define_name::Bool = true)::GeneralVariableRef
+                           name::String = "")::GeneralVariableRef
     ivref = dispatch_variable_ref(var.infinite_variable_ref)
     JuMP.check_belongs_to_model(ivref, model)
-    data_object = VariableData(var)
+    data_object = VariableData(var, name)
     vindex = _add_data_object(model, data_object)
-    if length(name) != 0 || define_name
-        JuMP.set_name(ReducedVariableRef(model, vindex), name)
-    end
     push!(_reduced_variable_dependencies(ivref), vindex)
     gvref = GeneralVariableRef(model, vindex.value, typeof(vindex))
     return gvref
@@ -243,30 +238,30 @@ Extend `JuMP.set_name` to set name of reduced infinite variable references. This
 is primarily an internal method sense such variables are generated via expanding
 measures.
 """
-function JuMP.set_name(vref::ReducedVariableRef,
-                       name::String = "")::Nothing
-    if length(name) == 0
-        ivref = dispatch_variable_ref(infinite_variable_ref(vref))
-        root_name = _root_name(ivref)
-        prefs = raw_parameter_refs(ivref)
-        eval_supps = eval_supports(vref)
-        raw_list = [i in keys(eval_supps) ? eval_supps[i] : prefs[i]
-                    for i in eachindex(prefs)]
-        param_name_tuple = "("
-        for i in 1:size(prefs, 1)
-            value = raw_list[prefs.ranges[i]]
-            if i != size(prefs, 1)
-                param_name_tuple *= string(_make_str_value(value), ", ")
-            else
-                param_name_tuple *= string(_make_str_value(value), ")")
-            end
-        end
-        name = string(root_name, param_name_tuple)
-    end
-    _data_object(vref).name = name
-    JuMP.owner_model(vref).name_to_var = nothing
-    return
-end
+# function JuMP.set_name(vref::ReducedVariableRef,
+#                        name::String = "")::Nothing
+#     if length(name) == 0
+#         ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+#         root_name = _root_name(ivref)
+#         prefs = raw_parameter_refs(ivref)
+#         eval_supps = eval_supports(vref)
+#         raw_list = [i in keys(eval_supps) ? eval_supps[i] : prefs[i]
+#                     for i in eachindex(prefs)]
+#         param_name_tuple = "("
+#         for i in 1:size(prefs, 1)
+#             value = raw_list[prefs.ranges[i]]
+#             if i != size(prefs, 1)
+#                 param_name_tuple *= string(_make_str_value(value), ", ")
+#             else
+#                 param_name_tuple *= string(_make_str_value(value), ")")
+#             end
+#         end
+#         name = string(root_name, param_name_tuple)
+#     end
+#     _data_object(vref).name = name
+#     JuMP.owner_model(vref).name_to_var = nothing
+#     return
+# end
 
 ################################################################################
 #                            VARIABLE INFO METHODS

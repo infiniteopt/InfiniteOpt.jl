@@ -204,7 +204,165 @@ function JuMP.function_string(::Type{JuMP.IJuliaMode}, mref::MeasureRef)::String
     return string(JuMP.name(mref), "_{", data_str, "}[", func_str, "]")
 end
 
-# TODO make specifc methods for decision variables so we don't generate them at creation
+################################################################################
+#                          VARIABLE STRING METHODS
+################################################################################
+## helper function for getting the variable names
+# REPLMode
+function _get_base_name(::Type{JuMP.REPLMode}, vref)::String
+    var_name = JuMP.name(vref)
+    if !isempty(var_name)
+        return var_name
+    else
+        return "noname"
+    end
+end
+
+# IJuliaMode
+function _get_base_name(::Type{JuMP.IJuliaMode}, vref)::String
+    var_name = JuMP.name(vref)
+    if !isempty(var_name)
+        # TODO: This is wrong if variable name constains extra "]"
+        return replace(replace(var_name, "[" => "_{", count = 1), "]" => "}")
+    else
+        return "noname"
+    end
+end
+
+# Make a string for InfiniteVariableRef
+function variable_string(print_mode, vref::InfiniteVariableRef)::String
+    base_name = _get_base_name(print_mode, vref)
+    if !haskey(_data_dictionary(vref), JuMP.index(vref))
+        return base_name
+    else
+        prefs = raw_parameter_refs(vref)
+        param_name_tuple = "("
+        for i in 1:size(prefs, 1)
+            element_prefs = prefs[i, :]
+            type = _index_type(first(element_prefs))
+            if type == DependentParameterIndex
+                param_name = _remove_name_index(first(element_prefs))
+            elseif length(element_prefs) == 1
+                param_name = JuMP.name(first(element_prefs))
+            else
+                # TODO this isn't quite right with a subset of an independent container
+                names = map(p -> _remove_name_index(p), element_prefs)
+                if _allequal(names)
+                    param_name = first(names)
+                else
+                    param_name = string("[", join(element_prefs, ", "), "]")
+                end
+            end
+            if i != size(prefs, 1)
+                param_name_tuple *= string(param_name, ", ")
+            else
+                param_name_tuple *= string(param_name, ")")
+            end
+        end
+        return string(base_name, param_name_tuple)
+    end
+end
+
+## Return the parameter value as an appropriate string
+# Number
+function _make_str_value(value)::String
+    return JuMP._string_round(value)
+end
+
+# Array{<:Number}
+function _make_str_value(values::Array)::String
+    if length(values) == 1
+        return _make_str_value(first(values))
+    end
+    if length(values) <= 4
+        str_value = "["
+        for i in eachindex(values)
+            if i != length(values)
+                str_value *= JuMP._string_round(values[i]) * ", "
+            else
+                str_value *= JuMP._string_round(values[i]) * "]"
+            end
+        end
+        return str_value
+    else
+        return string("[", JuMP._string_round(first(values)), ", ..., ",
+                      JuMP._string_round(last(values)), "]")
+    end
+end
+
+# Make a string for PointVariableRef
+function variable_string(print_mode, vref::PointVariableRef)::String
+    if !haskey(_data_dictionary(vref), JuMP.index(vref)) || !isempty(JuMP.name(vref))
+        return _get_base_name(print_mode, vref)
+    else
+        ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+        base_name = _get_base_name(print_mode, ivref)
+        prefs = raw_parameter_refs(ivref)
+        values = raw_parameter_values(vref)
+        name = string(base_name, "(")
+        for i in 1:size(prefs, 1)
+            if i != size(prefs, 1)
+                name *= string(_make_str_value(values[prefs.ranges[i]]), ", ")
+            else
+                name *= string(_make_str_value(values[prefs.ranges[i]]), ")")
+            end
+        end
+        return name
+    end
+end
+
+# Make a string for ReducedVariableRef
+function variable_string(print_mode, vref::ReducedVariableRef)::String
+    if !haskey(_data_dictionary(vref), JuMP.index(vref)) || !isempty(JuMP.name(vref))
+        return _get_base_name(print_mode, vref)
+    else
+        ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+        base_name = _get_base_name(print_mode, ivref)
+        prefs = raw_parameter_refs(ivref)
+        eval_supps = eval_supports(vref)
+        raw_list = [i in keys(eval_supps) ? eval_supps[i] : prefs[i]
+                    for i in eachindex(prefs)]
+        param_name_tuple = "("
+        for i in 1:size(prefs, 1)
+            value = raw_list[prefs.ranges[i]]
+            if i != size(prefs, 1)
+                param_name_tuple *= string(_make_str_value(value), ", ")
+            else
+                param_name_tuple *= string(_make_str_value(value), ")")
+            end
+        end
+        return string(base_name, param_name_tuple)
+    end
+end
+
+# Fallback
+function variable_string(print_mode, vref::JuMP.AbstractVariableRef)::String
+    return _get_base_name(print_mode, vref)
+end
+
+# Extend function string for DispatchVariableRefs (REPL)
+function JuMP.function_string(::Type{JuMP.REPLMode},
+                              vref::DispatchVariableRef)::String
+    return variable_string(JuMP.REPLMode, vref)
+end
+
+# Extend function string for DispatchVariableRefs (IJulia)
+function JuMP.function_string(::Type{JuMP.IJuliaMode},
+                              vref::DispatchVariableRef)::String
+    return variable_string(JuMP.IJuliaMode, vref)
+end
+
+# Extend function string for GeneralVariableRefs (REPL)
+function JuMP.function_string(::Type{JuMP.REPLMode},
+                              vref::GeneralVariableRef)::String
+    return variable_string(JuMP.REPLMode, dispatch_variable_ref(vref))
+end
+
+# Extend function string for GeneralVariableRefs (IJulia)
+function JuMP.function_string(::Type{JuMP.IJuliaMode},
+                              vref::GeneralVariableRef)::String
+    return variable_string(JuMP.IJuliaMode, dispatch_variable_ref(vref))
+end
 
 ################################################################################
 #                         CONSTRAINT STRING METHODS
@@ -369,17 +527,6 @@ end
 function Base.show(io::IO, ::MIME"text/latex", bounds::ParameterBounds)
     print(io, "Subdomain bounds (", length(bounds), "): ",
           bound_string(JuMP.IJuliaMode, bounds))
-end
-
-# Show GeneralVariableRefs via their DispatchVariableRef in REPLMode
-function Base.show(io::IO, vref::GeneralVariableRef)
-    print(io, JuMP.function_string(JuMP.REPLMode, dispatch_variable_ref(vref)))
-    return
-end
-
-# Show GeneralVariableRefs via their DispatchVariableRef in IJuliaMode
-function Base.show(io::IO, ::MIME"text/latex", vref::GeneralVariableRef)
-    print(io, JuMP.function_string(JuMP.IJuliaMode, dispatch_variable_ref(vref)))
 end
 
 # Show constraint in REPLMode

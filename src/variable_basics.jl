@@ -71,7 +71,7 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
 end
 
 # Fallback
-function _check_and_make_variable_ref(model::InfiniteModel, v::T) where {T}
+function _check_and_make_variable_ref(model::InfiniteModel, v::T, name) where {T}
     throw(ArgumentError("Invalid variable object type `$T`."))
 end
 
@@ -114,8 +114,7 @@ var_name
 """
 function JuMP.add_variable(model::InfiniteModel, var::InfOptVariable,
                            name::String = "")::GeneralVariableRef
-    dvref = _check_and_make_variable_ref(model, var)
-    JuMP.set_name(dvref, name)
+    dvref = _check_and_make_variable_ref(model, var, name)
     vindex = JuMP.index(dvref)
     gvref = _make_variable_ref(model, vindex)
     if var.info.has_lb

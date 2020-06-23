@@ -189,9 +189,10 @@ end
 
 # Define _check_and_make_variable_ref (used by JuMP.add_variable)
 function _check_and_make_variable_ref(model::InfiniteModel,
-                                      v::InfiniteVariable)::InfiniteVariableRef
+                                      v::InfiniteVariable,
+                                      name::String)::InfiniteVariableRef
     _check_parameters_valid(model, v.parameter_refs)
-    data_object = VariableData(v)
+    data_object = VariableData(v, name)
     vindex = _add_data_object(model, data_object)
     vref = InfiniteVariableRef(model, vindex)
     _update_param_var_mapping(vref, v.parameter_refs)
@@ -349,38 +350,38 @@ julia> name(vref)
 "new_name(t)"
 ```
 """
-function JuMP.set_name(vref::InfiniteVariableRef, root_name::String)::Nothing
-    if length(root_name) == 0
-        root_name = "noname"
-    end
-    prefs = raw_parameter_refs(vref)
-    param_name_tuple = "("
-    for i in 1:size(prefs, 1)
-        element_prefs = prefs[i, :]
-        type = _index_type(first(element_prefs))
-        if type == DependentParameterIndex
-            param_name = _remove_name_index(first(element_prefs))
-        elseif length(element_prefs) == 1
-            param_name = JuMP.name(first(element_prefs))
-        else
-            names = map(p -> _remove_name_index(p), element_prefs)
-            if _allequal(names)
-                param_name = first(names)
-            else
-                param_name = string("[", join(element_prefs, ", "), "]")
-            end
-        end
-        if i != size(prefs, 1)
-            param_name_tuple *= string(param_name, ", ")
-        else
-            param_name_tuple *= string(param_name, ")")
-        end
-    end
-    var_name = string(root_name, param_name_tuple)
-    _data_object(vref).name = var_name
-    JuMP.owner_model(vref).name_to_var = nothing
-    return
-end
+# function JuMP.set_name(vref::InfiniteVariableRef, root_name::String)::Nothing
+#     if length(root_name) == 0
+#         root_name = "noname"
+#     end
+#     prefs = raw_parameter_refs(vref)
+#     param_name_tuple = "("
+#     for i in 1:size(prefs, 1)
+#         element_prefs = prefs[i, :]
+#         type = _index_type(first(element_prefs))
+#         if type == DependentParameterIndex
+#             param_name = _remove_name_index(first(element_prefs))
+#         elseif length(element_prefs) == 1
+#             param_name = JuMP.name(first(element_prefs))
+#         else
+#             names = map(p -> _remove_name_index(p), element_prefs)
+#             if _allequal(names)
+#                 param_name = first(names)
+#             else
+#                 param_name = string("[", join(element_prefs, ", "), "]")
+#             end
+#         end
+#         if i != size(prefs, 1)
+#             param_name_tuple *= string(param_name, ", ")
+#         else
+#             param_name_tuple *= string(param_name, ")")
+#         end
+#     end
+#     var_name = string(root_name, param_name_tuple)
+#     _data_object(vref).name = var_name
+#     JuMP.owner_model(vref).name_to_var = nothing
+#     return
+# end
 
 ################################################################################
 #                           VARIABLE INFO METHODS

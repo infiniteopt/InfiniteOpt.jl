@@ -217,20 +217,20 @@ end
         v = build_variable(error, info, Hold)
         idx = HoldVariableIndex(1)
         vref = HoldVariableRef(m, idx)
-        @test InfiniteOpt._check_and_make_variable_ref(m, v) == vref
+        @test InfiniteOpt._check_and_make_variable_ref(m, v, "") == vref
         # test with bounds
         bounds = ParameterBounds((par => IntervalSet(0, 2),))
         v = build_variable(error, info, Hold, parameter_bounds = bounds)
         idx = HoldVariableIndex(2)
         vref = HoldVariableRef(m, idx)
-        @test InfiniteOpt._check_and_make_variable_ref(m, v) == vref
+        @test InfiniteOpt._check_and_make_variable_ref(m, v, "") == vref
         @test m.has_hold_bounds
         m.has_hold_bounds = false
         # test bad bounds
         @infinite_parameter(InfiniteModel(), par2 in [0, 2])
         v = build_variable(error, info, Hold,
             parameter_bounds = ParameterBounds((par2 => IntervalSet(0, 1),)))
-        @test_throws VariableNotOwned{GeneralVariableRef} InfiniteOpt._check_and_make_variable_ref(m, v)
+        @test_throws VariableNotOwned{GeneralVariableRef} InfiniteOpt._check_and_make_variable_ref(m, v, "")
     end
     # add_variable
     @testset "JuMP.add_variable" begin

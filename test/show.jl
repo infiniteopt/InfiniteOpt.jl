@@ -7,8 +7,10 @@ using JuMP: REPLMode, IJuliaMode
     @infinite_parameter(m, 0 <= par1 <= 1)
     @infinite_parameter(m, pars[1:2] in MvNormal([1, 1], 1))
     @infinite_parameter(m, pars2[1:2] in [0, 2])
+    @infinite_parameter(m, pars3[1:2] in [0, 1], independent = true)
     @infinite_variable(m, x(par1))
     @infinite_variable(m, z(pars))
+    @infinite_variable(m, inf(pars, par1, pars3))
     @hold_variable(m, y)
     @objective(m, Min, 2 + y)
     @constraint(m, c1, x + y - 2 <= 0)
@@ -234,6 +236,93 @@ using JuMP: REPLMode, IJuliaMode
         @test JuMP.function_string(REPLMode, meas) == str
         str = "test_{pars2 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]^2}[y]"
         @test JuMP.function_string(IJuliaMode, meas) == str
+    end
+    # test _get_base_name
+    @testset "_get_base_name (REPL)" begin
+        @test InfiniteOpt._get_base_name(REPLMode, pars[1]) == "pars[1]"
+        bad_ref = HoldVariableRef(m, HoldVariableIndex(-1))
+        @test InfiniteOpt._get_base_name(REPLMode, bad_ref) == "noname"
+    end
+    # test _get_base_name
+    @testset "_get_base_name (IJulia)" begin
+        @test InfiniteOpt._get_base_name(IJuliaMode, pars[1]) == "pars_{1}"
+        bad_ref = HoldVariableRef(m, HoldVariableIndex(-1))
+        @test InfiniteOpt._get_base_name(IJuliaMode, bad_ref) == "noname"
+    end
+    # test variable_string (InfiniteVariableRef)
+    @testset "JuMP.function_string (InfiniteVariableRef)" begin
+        # test bad ref
+        bad_ref = InfiniteVariableRef(m, InfiniteVariableIndex(-1))
+        @test InfiniteOpt.variable_string(REPLMode, bad_ref) == "noname"
+        @test InfiniteOpt.variable_string(IJuliaMode, bad_ref) == "noname"
+        # test complex normal one
+        dvref = dispatch_variable_ref(inf)
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "inf(pars, par1, pars3)"
+        @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "inf(pars, par1, pars3)"
+        # test mixed types
+        @infinite_variable(m, inf2([par1, pars3[2]]))
+        dvref = dispatch_variable_ref(inf2)
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "inf2([par1, pars3[2]])"
+        @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "inf2([par1, pars3[2]])"
+    end
+    # _make_str_value (Number)
+    @testset "_make_str_value (Number)" begin
+        @test InfiniteOpt._make_str_value(1.0) == "1"
+    end
+    # _make_str_value (Array)
+    @testset "_make_str_value (Array)" begin
+        # test single
+        @test InfiniteOpt._make_str_value([1.1]) == "1.1"
+        # test short array
+        values = [1., 2., 3.]
+        @test InfiniteOpt._make_str_value(values) == "[1, 2, 3]"
+        # test long array
+        values = [1., 2., 3., 4., 5., 6.]
+        @test InfiniteOpt._make_str_value(values) == "[1, ..., 6]"
+    end
+    # test variable_string (PointVariableRef)
+    @testset "variable_string (PointVariableRef)" begin
+        # test bad ref
+        bad_ref = PointVariableRef(m, PointVariableIndex(-1))
+        @test InfiniteOpt.variable_string(REPLMode, bad_ref) == "noname"
+        @test InfiniteOpt.variable_string(IJuliaMode, bad_ref) == "noname"
+        # test short one
+        dvref = dispatch_variable_ref(@point_variable(m, x(0)))
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "x(0)"
+        @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "x(0)"
+        # test complex one
+        dvref = dispatch_variable_ref(@point_variable(m, inf([0, 0], 0, [0, 0])))
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "inf([0, 0], 0, [0, 0])"
+        @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "inf([0, 0], 0, [0, 0])"
+        # test with alias name
+        dvref = dispatch_variable_ref(@point_variable(m, z([0, 0]), z0))
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "z0"
+        @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "z0"
+    end
+    # test variable_string (ReducedVariableRef)
+    @testset "variable_string (ReducedVariableRef)" begin
+        # test bad ref
+        bad_ref = ReducedVariableRef(m, ReducedVariableIndex(-1))
+        @test InfiniteOpt.variable_string(REPLMode, bad_ref) == "noname"
+        @test InfiniteOpt.variable_string(IJuliaMode, bad_ref) == "noname"
+        # test short one
+        eval_supps = Dict{Int, Float64}(1 => 0, 2 => 0, 4=>0)
+        var = build_variable(error, inf, eval_supps, check = false)
+        dvref = dispatch_variable_ref(add_variable(m, var))
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "inf([0, 0], par1, [0, pars3[2]])"
+        @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "inf([0, 0], par1, [0, pars3[2]])"
+    end
+    # test variable_string (Fallback)
+    @testset "variable_string (Fallback)" begin
+        @test InfiniteOpt.variable_string(REPLMode, y) == "y"
+        @test InfiniteOpt.variable_string(IJuliaMode, y) == "y"
+    end
+    # test the function_string extensions
+    @testset "JuMP.function_string" begin
+        @test JuMP.function_string(REPLMode, dispatch_variable_ref(y)) == "y"
+        @test JuMP.function_string(IJuliaMode, dispatch_variable_ref(inf)) == "inf(pars, par1, pars3)"
+        @test JuMP.function_string(REPLMode, y) == "y"
+        @test JuMP.function_string(IJuliaMode, inf) == "inf(pars, par1, pars3)"
     end
     # test bound_string
     @testset "bound_string" begin
@@ -469,11 +558,11 @@ end
     end
     # test Base.show (ParameterBounds in IJulia)
     @testset "Base.show (IJulia ParameterBounds)" begin
-        show_test(IJuliaMode, y, "y")
+        show_test(IJuliaMode, y, "\$\$ y \$\$")
     end
     # test Base.show (GeneralVariableRef in IJulia)
     @testset "Base.show (IJulia GeneralVariableRef)" begin
-        show_test(IJuliaMode, y, "y")
+        show_test(IJuliaMode, y, "\$\$ y \$\$")
     end
     # test Base.show (GeneralVariableRef in REPL)
     @testset "Base.show (REPL GeneralVariableRef)" begin

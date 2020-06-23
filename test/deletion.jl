@@ -7,7 +7,7 @@
     @point_variable(m, inf(0.5), pt)
     @hold_variable(m, x)
     var = build_variable(error, inf, Dict{Int, Float64}(1 => 0.5), check = false)
-    rv = add_variable(m, var, define_name = false)
+    rv = add_variable(m, var)
     data = TestData(par, 0, 1)
     meas = measure(inf + par - x, data)
     @constraint(m, cref, par - inf + pt + 2x - rv + meas <= 1)
@@ -155,7 +155,7 @@ end
     @point_variable(m, inf3(0, [0, 0]), pt3)
     @hold_variable(m, x)
     var = build_variable(error, inf4, Dict{Int, Float64}(2 => 0.5), check = false)
-    rv = add_variable(m, var, define_name = false)
+    rv = add_variable(m, var)
     dinf = dispatch_variable_ref(inf)
     dinf2 = dispatch_variable_ref(inf2)
     dinf3 = dispatch_variable_ref(inf3)
@@ -191,8 +191,7 @@ end
         @test isa(InfiniteOpt._update_reduced_variable(drv, 1:1), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(1 => 0.5)
-        @test set_name(drv, "") isa Nothing
-        @test name(drv) == "inf4(0.5, [pars[1], pars[2]])"
+        @test string(drv) == "inf4(0.5, [pars[1], pars[2]])"
         # Undo changes
         InfiniteOpt._set_core_variable_object(drv, var)
         _update_variable_param_refs(dinf4, IC.VectorTuple(par, par2, pars))
@@ -202,8 +201,7 @@ end
         @test isa(InfiniteOpt._update_reduced_variable(drv, 2:2), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict{Int, Float64}()
-        @test set_name(drv, "") isa Nothing
-        @test name(drv) == "inf4(par, [pars[1], pars[2]])"
+        @test string(drv) == "inf4(par, [pars[1], pars[2]])"
         # Undo changes
         _update_variable_param_refs(dinf4, IC.VectorTuple(par, par2, pars))
         # test removing a different single parameter
@@ -213,8 +211,7 @@ end
         @test isa(InfiniteOpt._update_reduced_variable(drv, 2:2), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(1 => 0.5)
-        @test set_name(drv, "") isa Nothing
-        @test name(drv) == "inf4(0.5, [pars[1], pars[2]])"
+        @test string(drv) == "inf4(0.5, [pars[1], pars[2]])"
         # Undo changes
         InfiniteOpt._set_core_variable_object(drv, var)
         _update_variable_param_refs(dinf4, IC.VectorTuple(par, par2, pars))
@@ -226,7 +223,7 @@ end
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(2 => 0.5)
         @test set_name(drv, "") isa Nothing
-        @test name(drv) == "inf4(par, 0.5)"
+        @test string(drv) == "inf4(par, 0.5)"
         # Undo changes
         var = build_variable(error, inf4, Dict{Int, Float64}(2 => 0.5), check = false)
         InfiniteOpt._set_core_variable_object(drv, var)
@@ -280,11 +277,11 @@ end
         @test parameter_refs(inf4) == (par, pars)
         @test parameter_values(pt2) == (0.5,)
         @test parameter_refs(rv) == (par, pars)
-        @test name(inf2) == "inf2(par)"
-        @test name(inf4) == "inf4(par, pars)"
-        @test name(pt2) == "inf2(0.5)"
+        @test string(inf2) == "inf2(par)"
+        @test string(inf4) == "inf4(par, pars)"
+        @test string(pt2) == "inf2(0.5)"
         @test set_name(rv, "") isa Nothing
-        @test name(rv) == "inf4(par, [pars[1], pars[2]])"
+        @test string(rv) == "inf4(par, [pars[1], pars[2]])"
         @test jump_function(constraint_object(con)) == inf2 + inf4 + par3 + fin
         @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
         expected = [IndependentParameterIndex(1), DependentParametersIndex(1),
@@ -363,7 +360,7 @@ end
      @hold_variable(m, x)
      var = build_variable(error, inf4, Dict{Int, Float64}(2 => 0.5, 3 => 0, 4 => 4),
                           check = false)
-     rv = add_variable(m, var, define_name = false)
+     rv = add_variable(m, var)
      dinf = dispatch_variable_ref(inf)
      dinf2 = dispatch_variable_ref(inf2)
      dinf3 = dispatch_variable_ref(inf3)
@@ -395,10 +392,10 @@ end
          @test parameter_refs(dinf) == (par,)
          @test parameter_refs(dinf3) == (par,)
          @test parameter_refs(dinf4) == (par, par2)
-         @test name(dinf) == "inf(par)"
-         @test name(dinf4) == "inf4(par, par2)"
+         @test string(dinf) == "inf(par)"
+         @test string(dinf4) == "inf4(par, par2)"
          @test set_name(drv, "") isa Nothing
-         @test name(drv) == "inf4(par, 0.5)"
+         @test string(drv) == "inf4(par, 0.5)"
          @test parameter_values(dpt3) == (0,)
          @test parameter_values(dpt2) == (0.5, 0.5)
          @test measure_function(dmref) == inf + par - x + rv
@@ -432,8 +429,8 @@ end
      @point_variable(m, inf(0.5, 0.5), pt)
      @hold_variable(m, x)
      var = build_variable(error, inf, Dict{Int, Float64}(2 => 0.5), check = false)
-     rv = add_variable(m, var, define_name = false)
-     rv2 = add_variable(m, var, define_name = false)
+     rv = add_variable(m, var)
+     rv2 = add_variable(m, var)
      data = TestData(par, 0, 1)
      meas = measure(inf + par - x + rv, data)
      meas2 = measure(rv2, data)
@@ -543,7 +540,7 @@ end
      @infinite_variable(m, y(par) == 1, Int)
      @point_variable(m, x(0), x0)
      var = build_variable(error, x, Dict{Int, Float64}(1 => 0.5), check = false)
-     rv = add_variable(m, var, define_name = false)
+     rv = add_variable(m, var)
      data = TestData(par, 0, 1)
      meas1 = measure(x + y + par, data)
      meas2 = measure(y, data)
@@ -589,7 +586,7 @@ end
      @infinite_variable(m, y(par2))
      @point_variable(m, x(0), x0)
      var = build_variable(error, x, Dict{Int, Float64}(1 => 0.5), check = false)
-     rv = add_variable(m, var, define_name = false)
+     rv = add_variable(m, var)
      data = TestData(par, 0, 1)
      data2 = TestData(pars, [0, 0], [1, 1])
      meas = measure(x, data)

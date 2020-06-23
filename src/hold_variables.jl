@@ -135,9 +135,10 @@ end
 
 # Define _check_and_make_variable_ref (used by JuMP.add_variable)
 function _check_and_make_variable_ref(model::InfiniteModel,
-                                      v::HoldVariable)::HoldVariableRef
+                                      v::HoldVariable,
+                                      name::String)::HoldVariableRef
     _validate_bounds(model, v.parameter_bounds)
-    data_object = VariableData(v)
+    data_object = VariableData(v, name)
     vindex = _add_data_object(model, data_object)
     vref = HoldVariableRef(model, vindex)
     if !isempty(v.parameter_bounds)

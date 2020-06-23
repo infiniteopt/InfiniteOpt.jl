@@ -30,11 +30,11 @@ end
 # Extend _data_object
 function _data_object(vref::PointVariableRef
     )::VariableData{PointVariable{GeneralVariableRef}}
-  object = _get(_data_dictionary(vref), JuMP.index(vref), nothing)
-  object === nothing && error("Invalid point variable reference, cannot find " *
+    object = _get(_data_dictionary(vref), JuMP.index(vref), nothing)
+    object === nothing && error("Invalid point variable reference, cannot find " *
                         "corresponding variable in the model. This is likely " *
                         "caused by using the reference of a deleted variable.")
-  return object
+    return object
 end
 
 # Extend _core_variable_object
@@ -235,10 +235,11 @@ end
 
 # Define _check_and_make_variable_ref (used by JuMP.add_variable)
 function _check_and_make_variable_ref(model::InfiniteModel,
-                                      v::PointVariable)::PointVariableRef
+                                      v::PointVariable,
+                                      name::String)::PointVariableRef
     ivref = dispatch_variable_ref(v.infinite_variable_ref)
     JuMP.check_belongs_to_model(ivref, model)
-    data_object = VariableData(v)
+    data_object = VariableData(v, name)
     vindex = _add_data_object(model, data_object)
     vref = PointVariableRef(model, vindex)
     _update_param_supports(ivref, v.parameter_values)
@@ -318,42 +319,42 @@ end
 #                         VARIABLE NAMING METHODS
 ################################################################################
 # remove (expr) from name
-function _root_name(name::String)::String
-    idx = findfirst(isequal('('), name)
-    return idx === nothing ? name : name[1:idx-1]
-end
-
-# Get root name of infinite variable
-function _root_name(vref::InfiniteVariableRef)
-    return _root_name(JuMP.name(vref))
-end
-
-## Return the parameter value as an appropriate string
-# Number
-function _make_str_value(value)::String
-    return JuMP._string_round(value)
-end
-
-# Array{<:Number}
-function _make_str_value(values::Array)::String
-    if length(values) == 1
-        return _make_str_value(first(values))
-    end
-    if length(values) <= 4
-        str_value = "["
-        for i in eachindex(values)
-            if i != length(values)
-                str_value *= JuMP._string_round(values[i]) * ", "
-            else
-                str_value *= JuMP._string_round(values[i]) * "]"
-            end
-        end
-        return str_value
-    else
-        return string("[", JuMP._string_round(first(values)), ", ..., ",
-                      JuMP._string_round(last(values)), "]")
-    end
-end
+# function _root_name(name::String)::String
+#     idx = findfirst(isequal('('), name)
+#     return idx === nothing ? name : name[1:idx-1]
+# end
+#
+# # Get root name of infinite variable
+# function _root_name(vref::InfiniteVariableRef)
+#     return _root_name(JuMP.name(vref))
+# end
+#
+# ## Return the parameter value as an appropriate string
+# # Number
+# function _make_str_value(value)::String
+#     return JuMP._string_round(value)
+# end
+#
+# # Array{<:Number}
+# function _make_str_value(values::Array)::String
+#     if length(values) == 1
+#         return _make_str_value(first(values))
+#     end
+#     if length(values) <= 4
+#         str_value = "["
+#         for i in eachindex(values)
+#             if i != length(values)
+#                 str_value *= JuMP._string_round(values[i]) * ", "
+#             else
+#                 str_value *= JuMP._string_round(values[i]) * "]"
+#             end
+#         end
+#         return str_value
+#     else
+#         return string("[", JuMP._string_round(first(values)), ", ..., ",
+#                       JuMP._string_round(last(values)), "]")
+#     end
+# end
 
 """
     JuMP.set_name(vref::PointVariableRef, name::String)::Nothing
@@ -375,25 +376,25 @@ julia> name(vref)
 "new_name"
 ```
 """
-function JuMP.set_name(vref::PointVariableRef, name::String)::Nothing
-    if length(name) == 0
-        ivref = dispatch_variable_ref(infinite_variable_ref(vref))
-        prefs = raw_parameter_refs(ivref)
-        name = _root_name(ivref)
-        values = raw_parameter_values(vref)
-        name = string(name, "(")
-        for i in 1:size(prefs, 1)
-            if i != size(prefs, 1)
-                name *= string(_make_str_value(values[prefs.ranges[i]]), ", ")
-            else
-                name *= string(_make_str_value(values[prefs.ranges[i]]), ")")
-            end
-        end
-    end
-    _data_object(vref).name = name
-    JuMP.owner_model(vref).name_to_var = nothing
-    return
-end
+# function JuMP.set_name(vref::PointVariableRef, name::String)::Nothing
+#     if length(name) == 0
+#         ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+#         prefs = raw_parameter_refs(ivref)
+#         name = _root_name(ivref)
+#         values = raw_parameter_values(vref)
+#         name = string(name, "(")
+#         for i in 1:size(prefs, 1)
+#             if i != size(prefs, 1)
+#                 name *= string(_make_str_value(values[prefs.ranges[i]]), ", ")
+#             else
+#                 name *= string(_make_str_value(values[prefs.ranges[i]]), ")")
+#             end
+#         end
+#     end
+#     _data_object(vref).name = name
+#     JuMP.owner_model(vref).name_to_var = nothing
+#     return
+# end
 
 ################################################################################
 #                           VARIABLE INFO METHODS

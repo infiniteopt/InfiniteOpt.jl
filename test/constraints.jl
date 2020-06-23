@@ -162,7 +162,7 @@ end
     @point_variable(m, inf(0.5), pt)
     @hold_variable(m, x, parameter_bounds = (par == 1))
     var = build_variable(error, inf2, Dict{Int, Float64}(1 => 0.5), check = false)
-    rv = add_variable(m, var, define_name = false)
+    rv = add_variable(m, var)
     data = TestData(par, 1, 1)
     meas = @measure(inf + par - x, data, name = "test")
     mindex = MeasureIndex(1)

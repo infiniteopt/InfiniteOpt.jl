@@ -96,6 +96,5 @@ function _update_variable_param_refs(vref::InfiniteVariableRef,
     is_vect_func = InfiniteOpt._is_vector_start(vref)
     new_var = InfiniteVariable(info, prefs, param_nums, object_nums, is_vect_func)
     InfiniteOpt._set_core_variable_object(vref, new_var)
-    JuMP.set_name(vref, InfiniteOpt._root_name(vref))
     return
 end
