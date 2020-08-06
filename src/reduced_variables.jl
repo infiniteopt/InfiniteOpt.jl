@@ -229,41 +229,6 @@ function parameter_list(vref::ReducedVariableRef)::Vector{GeneralVariableRef}
 end
 
 ################################################################################
-#                                NAME METHODS
-################################################################################
-"""
-    JuMP.set_name(vref::ReducedVariableRef, name::String = "")::Nothing
-
-Extend `JuMP.set_name` to set name of reduced infinite variable references. This
-is primarily an internal method sense such variables are generated via expanding
-measures.
-"""
-# function JuMP.set_name(vref::ReducedVariableRef,
-#                        name::String = "")::Nothing
-#     if length(name) == 0
-#         ivref = dispatch_variable_ref(infinite_variable_ref(vref))
-#         root_name = _root_name(ivref)
-#         prefs = raw_parameter_refs(ivref)
-#         eval_supps = eval_supports(vref)
-#         raw_list = [i in keys(eval_supps) ? eval_supps[i] : prefs[i]
-#                     for i in eachindex(prefs)]
-#         param_name_tuple = "("
-#         for i in 1:size(prefs, 1)
-#             value = raw_list[prefs.ranges[i]]
-#             if i != size(prefs, 1)
-#                 param_name_tuple *= string(_make_str_value(value), ", ")
-#             else
-#                 param_name_tuple *= string(_make_str_value(value), ")")
-#             end
-#         end
-#         name = string(root_name, param_name_tuple)
-#     end
-#     _data_object(vref).name = name
-#     JuMP.owner_model(vref).name_to_var = nothing
-#     return
-# end
-
-################################################################################
 #                            VARIABLE INFO METHODS
 ################################################################################
 """

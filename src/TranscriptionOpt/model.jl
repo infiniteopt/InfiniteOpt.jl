@@ -343,7 +343,7 @@ end
 # MeasureIndex
 function transcription_variable(model::JuMP.Model,
     mref::InfiniteOpt.GeneralVariableRef,
-    index_type::Type{InfiniteOpt.MeasureRef}
+    index_type::Type{InfiniteOpt.MeasureIndex}
     )
     exprs = get(transcription_data(model).measure_mappings, mref, nothing)
     if exprs === nothing
@@ -405,10 +405,10 @@ If the infinite model contains a built transcription model.
 **Example**
 ```julia-repl
 julia> transcription_expression(trans_model, my_expr)
-fin_con : x(support: 1) - y <= 3.0
+x(support: 1) - y
 
 julia> transcription_expression(my_expr)
-fin_con : x(support: 1) - y <= 3.0
+x(support: 1) - y
 ```
 """
 function transcription_expression(model::JuMP.Model,
@@ -437,7 +437,7 @@ end
 
 # Dispatch for internal models
 function transcription_expression(expr::JuMP.AbstractJuMPScalar)
-    model = _model_from_expr(expr)
+    model = InfiniteOpt._model_from_expr(expr)
     if model === nothing
         return zero(JuMP.AffExpr) + JuMP.constant(expr)
     else
@@ -454,7 +454,7 @@ Proper extension of [`InfiniteOpt.optimizer_model_expression`](@ref) for
 `TranscriptionModel`s. This simply dispatches to [`transcription_expression`](@ref).
 """
 function InfiniteOpt.optimizer_model_expression(
-    expr::JuMP.AbstractJuMPScalar,
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
     ::Val{:TransData})
     return transcription_expression(expr)
 end
@@ -581,7 +581,7 @@ value.
 """
 function support_index_iterator(model::JuMP.Model)::CartesianIndices
     raw_supps = parameter_supports(model)
-    return CartesianIndices(ntuple(i -> 1:length(raw_supps[i]-1), length(raw_supps)))
+    return CartesianIndices(ntuple(i -> 1:length(raw_supps[i])-1, length(raw_supps)))
 end
 
 # Generate for a subset of object numbers (use last index as placeholder --> support with NaNs)

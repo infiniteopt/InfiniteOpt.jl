@@ -19,7 +19,7 @@ end
 
 # Return the collected supports of an infinite parameter
 function _collected_supports(model::InfiniteOpt.InfiniteModel,
-    index::InfiniteOpt.InfiniteParameterIndex
+    index::Union{InfiniteOpt.IndependentParameterIndex, InfiniteOpt.DependentParametersIndex}
     )::Vector
     pref = _temp_parameter_ref(model, index)
     supps = InfiniteOpt._parameter_supports(pref)
@@ -309,7 +309,7 @@ function transcription_expression(trans_model::JuMP.Model,
     index_type::Type{V},
     support::Vector{Float64}
     )::Float64 where {V <: InfiniteOpt.InfiniteParameterIndex}
-    param_num = InfiniteOpt._parameter_num(vref)
+    param_num = InfiniteOpt._parameter_number(vref)
     return support[param_num]
 end
 
@@ -319,7 +319,7 @@ function transcription_expression(trans_model::JuMP.Model,
     index_type::Type{InfiniteOpt.FiniteParameterIndex},
     support::Vector{Float64}
     )::Float64
-    return JuMP.value(vref)
+    return InfiniteOpt.parameter_value(vref)
 end
 
 # AffExpr
