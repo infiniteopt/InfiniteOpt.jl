@@ -11,38 +11,38 @@
     @variable(tm, a)
     @variable(tm, b)
     @variable(tm, c)
+    @variable(tm, d)
     data = transcription_data(tm)
-    data.infinite_to_vars[x] = [a, b, c]
-    data.infvar_to_supports[x] = [(0.,), (0.5,), (1.,)]
-    data.point_to_var[x0] = a
+    data.infvar_mappings[x] = [a, b, c]
+    data.infvar_supports[x] = [(0.,), (0.5,), (1.,)]
+    data.infvar_lookup[x] = Dict{Vector{Float64}, Int}([0] => 1, [0.5] => 2, [1] => 3)
+    data.infvar_mappings[y] = [a, b, c, d]
+    data.infvar_supports[y] = [(0., [0., 0.]), (0., [1., 1.]), (1., [0., 0.]), (1., [1., 1.])]
+    data.infvar_lookup[y] = Dict{Vector{Float64}, Int}([0, 0, 0] => 1, [0, 1, 1] => 2, 
+                                                       [1, 0, 0] => 3, [1, 1, 1] => 4)
+    data.finvar_mappings[x0] = a
     key = Val(:TransData)
+    IOTO.set_parameter_supports(tm, m)
     # test add_measure_variable for point variables
     @testset "add_measure_variable (Point)" begin
-        var = PointVariable(InfiniteOpt._variable_info(x), x, VectorTuple{Float64}(1))
-        idx = data.next_var_index - 1
-        vref = PointVariableRef(m, idx)
-        set_name(vref, "vref") # for test debugging
-        @test add_measure_variable(tm, var, key) == vref
-        @test data.point_to_var[vref] == c
+        info = JuMP.VariableInfo(true, 0., true, 0., true, 0., true, 0., true, true)
+        var = PointVariable(info, x, [1.])
+        vref = GeneralVariableRef(m, -1, PointVariableIndex)
+        @test InfiniteOpt.add_measure_variable(tm, var, key) == vref
+        @test transcription_variable(vref) == c
     end
     # test add_measure_variable for reduced variables
     @testset "add_measure_variable (Reduced)" begin
-        var = ReducedInfiniteInfo(y, Dict{Int, Float64}(1 => 0))
-        idx = data.next_var_index - 1
-        vref = ReducedVariableRef(m, idx)
-        @test add_measure_variable(tm, var, key) == vref
-        @test data.reduced_info[idx] == var
-    end
-    # test reduction_info extension
-    @testset "reduction_info" begin
-        vref = ReducedVariableRef(m, data.next_var_index)
-        @test reduction_info(vref, key).infinite_variable_ref == y
-        @test reduction_info(vref, key).eval_supports == Dict{Int, Float64}(1 => 0)
+        var = ReducedVariable(y, Dict{Int, Float64}(1 => 0), [2, 3], [2])
+        vref = GeneralVariableRef(m, -1, ReducedVariableIndex)
+        @test InfiniteOpt.add_measure_variable(tm, var, key) == vref
+        @test data.reduced_vars == [var]
+        @test transcription_variable(vref) == [a, b]
+        @test supports(vref) == [([0., 0.], ), ([1., 1.], )]
     end
     # test delete_reduced_variable extension
     @testset "delete_reduced_variable" begin
-        vref = ReducedVariableRef(m, data.next_var_index)
-        @test delete_reduced_variable(tm, vref, key) isa Nothing
-        @test_throws KeyError reduction_info(vref, key)
+        vref = ReducedVariableRef(m, ReducedVariableIndex(-1))
+        @test InfiniteOpt.delete_reduced_variable(tm, vref, key) isa Nothing
     end
 end

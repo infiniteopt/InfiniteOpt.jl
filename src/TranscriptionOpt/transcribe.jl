@@ -146,6 +146,7 @@ function _set_reduced_variable_mapping(trans_model::JuMP.Model,
     param_nums = var.parameter_nums
     ivref = var.infinite_variable_ref
     ivref_param_nums = InfiniteOpt._parameter_numbers(ivref)
+    eval_supps = var.eval_supports
     # prepare for iterating over its supports
     supp_indices = support_index_iterator(trans_model, var.object_nums)
     vrefs = Vector{JuMP.VariableRef}(undef, length(supp_indices))
@@ -155,7 +156,8 @@ function _set_reduced_variable_mapping(trans_model::JuMP.Model,
     for i in supp_indices
         raw_supp = index_to_support(trans_model, i)
         supp = raw_supp[param_nums]
-        ivref_supp = raw_supp[ivref_param_nums]
+        ivref_supp = [haskey(eval_supps, i) ? eval_supps[i] : raw_supp[i] 
+                      for i in ivref_param_nums]
         @inbounds vrefs[counter] = lookup_by_support(trans_model, ivref, ivref_supp)
         lookup_dict[supp] = counter
         counter += 1
