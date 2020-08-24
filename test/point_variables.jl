@@ -109,29 +109,14 @@
         @test parameter_refs(vref) == ()
         @test parameter_refs(gvref) == ()
     end
-    # _make_str_value (Number)
-    @testset "_make_str_value (Number)" begin
-        @test InfiniteOpt._make_str_value(1.0) == "1"
-    end
-    # _make_str_value (Array)
-    @testset "_make_str_value (Array)" begin
-        # test single
-        @test InfiniteOpt._make_str_value([1.1]) == "1.1"
-        # test short array
-        values = [1., 2., 3.]
-        @test InfiniteOpt._make_str_value(values) == "[1, 2, 3]"
-        # test long array
-        values = [1., 2., 3., 4., 5., 6.]
-        @test InfiniteOpt._make_str_value(values) == "[1, ..., 6]"
-    end
     # JuMP.set_name
     @testset "JuMP.set_name" begin
         # test normal
         @test isa(set_name(vref, "new"), Nothing)
         @test name(vref) == "new"
         # test default
-        @test isa(set_name(gvref, ""), Nothing)
-        @test name(vref) == "ivref(0, [0, 1], [1, 0])"
+        @test isa(set_name(gvref, "a"), Nothing)
+        @test name(vref) == "a"
     end
     # _make_variable_ref
     @testset "_make_variable_ref" begin
@@ -152,15 +137,15 @@
     # parameter_by_name
     @testset "JuMP.variable_by_name" begin
         # test normal
-        @test variable_by_name(m, "ivref(0, [0, 1], [1, 0])") == gvref
-        @test variable_by_name(m, "test(0, [0, 1], [1, 0])") isa Nothing
+        @test variable_by_name(m, "a") == gvref
+        @test variable_by_name(m, "test") isa Nothing
         # prepare variable with same name
         idx2 = PointVariableIndex(2)
         @test InfiniteOpt._add_data_object(m, object) == idx2
         vref2 = PointVariableRef(m, idx2)
-        @test set_name(vref2, "") isa Nothing
+        @test set_name(vref2, "a") isa Nothing
         # test multiple name error
-        @test_throws ErrorException variable_by_name(m, "ivref(0, [0, 1], [1, 0])")
+        @test_throws ErrorException variable_by_name(m, "a")
     end
     # _delete_data_object
     @testset "_delete_data_object" begin
@@ -414,13 +399,13 @@ end
         v = build_variable(error, info, Point, infinite_variable_ref = ivref3,
                            parameter_values = 0.5)
         # test for invalid variable error
-        @test_throws VariableNotOwned{InfiniteVariableRef} InfiniteOpt._check_and_make_variable_ref(m, v)
+        @test_throws VariableNotOwned{InfiniteVariableRef} InfiniteOpt._check_and_make_variable_ref(m, v, "")
         # test normal
         v = build_variable(error, info, Point, infinite_variable_ref = ivref3,
                            parameter_values = 0)
         idx = PointVariableIndex(1)
         vref = PointVariableRef(m2, idx)
-        @test InfiniteOpt._check_and_make_variable_ref(m2, v) == vref
+        @test InfiniteOpt._check_and_make_variable_ref(m2, v, "") == vref
         @test supports(pref3) == [0]
         @test InfiniteOpt._point_variable_dependencies(ivref3) == [idx]
     end
@@ -589,7 +574,7 @@ end
         @test infinite_variable_ref(vrefs[2]) == z2[2]
         @test parameter_values(vrefs[2]) == (0,)
         @test fix_value(vrefs[2]) == 3
-        @test name(vrefs[1]) == "z2[1](0)"
+        @test name(vrefs[1]) == ""
         # test array with same infvar
         idxs = [PointVariableIndex(9), PointVariableIndex(10)]
         vrefs = [PointVariableRef(m, idx) for idx in idxs]
@@ -618,7 +603,7 @@ end
         @test infinite_variable_ref(vrefs[1]) == z2[1]
         @test infinite_variable_ref(vrefs[2]) == z2[2]
         @test lower_bound(vrefs[2]) == -5
-        @test name(vrefs[1]) == "z2[1](0)"
+        @test name(vrefs[1]) == ""
     end
     # test errors
     @testset "Errors" begin

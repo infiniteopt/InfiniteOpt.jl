@@ -71,18 +71,18 @@ println("")
 println("")
 @time @testset "Constraint Methods" begin include("constraints.jl") end
 println("")
-@time @testset "Deletion Methods" begin include("deletion.jl") end
-println("")
-# @time @testset "Expansion Methods" begin include("measure_expansions.jl") end
-# println("")
 @time @testset "Printing Methods" begin include("show.jl") end
 println("")
-# @time @testset "TranscriptionOpt" begin
-#     @testset "Model" begin include("TranscriptionOpt/model.jl") end
-#     @testset "Measures" begin include("TranscriptionOpt/measure.jl") end
+@time @testset "Deletion Methods" begin include("deletion.jl") end
+println("")
+@time @testset "Expansion Methods" begin include("measure_expansions.jl") end
+println("")
+@time @testset "TranscriptionOpt" begin
+    @testset "Model" begin include("TranscriptionOpt/model.jl") end
+    @testset "Measures" begin include("TranscriptionOpt/measure.jl") end
 #     @testset "Transcribe" begin include("TranscriptionOpt/transcribe.jl") end
 #     @testset "Optimize" begin include("TranscriptionOpt/optimize.jl") end
-# end
+end
 # println("")
 # @time @testset "Solution Methods" begin include("optimizer.jl") end
 # println("")

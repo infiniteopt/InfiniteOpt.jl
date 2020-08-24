@@ -23,7 +23,10 @@ function make_point_variable_ref(write_model::InfiniteModel,
     for i in eachindex(support)
         support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
     end
-    var = PointVariable(_variable_info(ivref), ivref, support)
+    base_info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false,
+                                  NaN, false, false)
+    new_info = _update_point_info(base_info, dispatch_variable_ref(ivref), support)
+    var = PointVariable(_make_float_info(new_info), ivref, support)
     return JuMP.add_variable(write_model, var)
 end
 
@@ -57,7 +60,10 @@ function make_point_variable_ref(write_model::JuMP.Model, # this should be an op
     for i in eachindex(support)
         support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
     end
-    var = PointVariable(_variable_info(ivref), ivref, support)
+    base_info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false,
+                                  NaN, false, false)
+    new_info = _update_point_info(base_info, dispatch_variable_ref(ivref), support)
+    var = PointVariable(_make_float_info(new_info), ivref, support)
     opt_key = optimizer_model_key(write_model)
     return add_measure_variable(write_model, var, Val(opt_key))
 end
@@ -87,7 +93,7 @@ function make_reduced_variable_ref(write_model::InfiniteModel,
                                    )::GeneralVariableRef
     eval_supps = Dict(indices[i] => values[i] for i in eachindex(indices))
     var = JuMP.build_variable(error, ivref, eval_supps, check = false)
-    return JuMP.add_variable(write_model, var, define_name = false)
+    return JuMP.add_variable(write_model, var)
 end
 
 # Add reduced infinite variables in the optimizer model without modifying the InfiniteModel
@@ -171,7 +177,7 @@ function expand_measure end
 function expand_measure(vref::GeneralVariableRef,
                         data::DiscreteMeasureData,
                         write_model::JuMP.AbstractModel
-                        )::JuMP.AbstractJuMPScalar
+                        )::Union{JuMP.AbstractJuMPScalar, Float64}
     return expand_measure(vref, _index_type(vref), data, write_model)
 end
 
@@ -240,7 +246,7 @@ function expand_measure(ivref::GeneralVariableRef,
         # check that if any of the indices are empty and truncate as needed
         empty = map(i -> i === nothing, indices)
         if any(empty)
-            deleteat!(indices, empty)
+            indices = convert(Vector{Int}, deleteat!(indices, empty))
             supps = supps[.!empty, :]
         end
         return JuMP.@expression(write_model, sum(coeffs[i] * w(supps[:, i]) *
@@ -331,12 +337,14 @@ function expand_measure(rvref::GeneralVariableRef,
         expr = JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, rvref => var_coef)
     # make point variables if prefs includes all var_prefs
     elseif all(pref in prefs for pref in var_prefs)
-        # get the indices of prefs in the order of the ivref prefs
-        indices = [findfirst(isequal(pref), prefs) for pref in orig_prefs]
-        # reorder if necesary
-        if indices != 1:size(supps, 1)
-            supps = supps[indices, :]
+        # get the indices of measure prefs to reorder/truncate as needed
+        supp_indices = [findfirst(isequal(pref), prefs) for pref in var_prefs]
+        # reorder/truncate if necesary
+        if supp_indices != 1:size(supps, 1)
+            supps = supps[supp_indices, :]
         end
+        # get the parameter indices of the variable parameters to be reduced
+        indices = [findfirst(isequal(pref), orig_prefs) for pref in var_prefs]
         # make the expression
         expr = JuMP.@expression(write_model, sum(coeffs[i] * w(supps[:, i]) *
                     make_point_variable_ref(write_model, ivref,
@@ -776,7 +784,7 @@ can be used evaluate measures before `model` is translated into the new model.
 This method can also be extended to handle custom measure data types by extending
 [`expand_measure`](@ref). Note that this method leverages `expand_measure` via
 [`expand_measures`](@ref). Optionally, [`analytic_expansion`](@ref) can also
-be extended in combination with [PUT FUNCTION NAME HERE] for such types if
+be extended which is triggered by [`is_analytic`](@ref) for such types if
 analytic expansion is possible in certain cases.
 
 **Example**
@@ -817,9 +825,9 @@ function expand_all_measures!(model::InfiniteModel)::Nothing
             end
             # expand the expression
             new_func = expand_measures(JuMP.jump_function(old_constr), model)
-            offset = JuMP.constant(expr)
-            JuMP.add_to_expression!(expr, -offset)
-            new_set = MOIU.shift_constant(set, -offset)
+            offset = JuMP.constant(new_func)
+            JuMP.add_to_expression!(new_func, -offset)
+            new_set = MOIU.shift_constant(JuMP.moi_set(old_constr), -offset)
             vrefs = _all_function_variables(new_func)
             # make the new constraint object
             if old_constr isa BoundedScalarConstraint

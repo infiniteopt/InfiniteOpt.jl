@@ -88,7 +88,7 @@ end
     @point_variable(m, inf(0), pt)
     @hold_variable(m, hold)
     var = build_variable(error, inf2, Dict{Int, Float64}(1 => 0.5), check = false)
-    red = add_variable(m, var, define_name = false)
+    red = add_variable(m, var)
     # test for finite variable reference
     @testset "FiniteVariable" begin
         @test InfiniteOpt._object_numbers(pt) == []
@@ -138,7 +138,7 @@ end
     @point_variable(m, inf(0), pt)
     @hold_variable(m, hold)
     var = build_variable(error, inf2, Dict{Int, Float64}(1 => 0.5), check = false)
-    red = add_variable(m, var, define_name = false)
+    red = add_variable(m, var)
     # test for finite variable reference
     @testset "FiniteVariable" begin
         @test InfiniteOpt._parameter_numbers(pt) == []

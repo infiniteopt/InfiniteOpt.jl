@@ -5,7 +5,7 @@
                                      )::InfiniteOpt.GeneralVariableRef
 
 Make a `PointVariableRef` and map it to the appropriate transcription variable
-and return the `PointVariableRef`. This is an extension of
+and return the `GeneralVariableRef`. This is an extension of
 [`add_measure_variable`](@ref InfiniteOpt.add_measure_variable(::JuMP.Model,::Any,::Any))
 for `TranscriptionOpt`.
 """
@@ -31,7 +31,7 @@ end
                                      )::InfiniteOpt.GeneralVariableRef
 
 Make a `ReducedVariableRef` and add `var` to the transcription data
-and return the `ReducedVariableRef`. This is an extension of
+and return the `GeneralVariableRef`. This is an extension of
 [`add_measure_variable`](@ref InfiniteOpt.add_measure_variable(::JuMP.Model,::Any,::Any))
 for `TranscriptionOpt`. Note that `internal_reduced_variable` is also extended
 to be able to access the `var`.

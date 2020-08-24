@@ -598,6 +598,14 @@ end
     @testset "is_analytic (GeneralVariableRef)" begin
         @test_throws ArgumentError is_analytic(gvref)
     end
+    # test expand (Fallback)
+    @testset "expand (Fallback)" begin
+        @test_throws ArgumentError expand(dvref)
+    end
+    # test expand (GeneralVariableRef)
+    @testset "expand (GeneralVariableRef)" begin
+        @test_throws ArgumentError expand(gvref)
+    end
 end
 
 # test Lower Bound Methods

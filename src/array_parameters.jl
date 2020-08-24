@@ -1435,15 +1435,11 @@ function JuMP.delete(model::InfiniteModel,
         tup_index = findfirst(isequal(obj_num), _object_number.(vprefs[:, 1]))
         delete_indices = vprefs.ranges[tup_index]
         deleteat!(vprefs, tup_index, tuple_index = true)
-        JuMP.set_name(vref, _root_name(vref))
         reset_start_value_function(vref)
         # update any point variables that depend on vref accordingly
         for pindex in _point_variable_dependencies(vref)
             pvref = PointVariableRef(model, pindex)
             deleteat!(raw_parameter_values(pvref), delete_indices)
-            if !isa(findfirst(isequal('('), JuMP.name(pvref)), Nothing)
-                JuMP.set_name(pvref, "")
-            end
         end
         # update any reduced variables that depend on vref accordingly
         for rindex in _reduced_variable_dependencies(vref)
