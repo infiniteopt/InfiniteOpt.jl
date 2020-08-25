@@ -209,6 +209,7 @@ end
         set = CollectionSet([set1, set2])
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1] isa Array{<:Number, 2}
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[2] == Mixture
+        @test generate_support_values(CollectionSet([set2, set2]), Val(MCSample), num_supports = 10, sig_digits = 3)[2] == MCSample
         @test size(generate_support_values(set, num_supports = 10, sig_digits = 3)[1]) == (2, 10)
         @test_throws ErrorException generate_support_values(set, Val(:a))
         @test generate_support_values(set, Val(All))[2] == Mixture

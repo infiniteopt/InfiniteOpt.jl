@@ -220,6 +220,11 @@ end
         @test ParameterBounds(d) isa ParameterBounds{GeneralVariableRef}
         @test ParameterBounds() isa ParameterBounds{GeneralVariableRef}
     end
+    # test _expand_parameter_tuple
+    @testset "_expand_parameter_tuple" begin
+        d = (par3 => IntervalSet(0, 1),)
+        @test InfiniteOpt._expand_parameter_tuple(d) == Dict(d...)
+    end
     # test _expand_parameter_dict(Dict{ParameterRef,IntervalSet}))
     @testset "_expand_parameter_dict (acceptable Form)" begin
         d = (par3 => IntervalSet(0, 1),)
