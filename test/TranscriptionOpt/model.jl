@@ -91,11 +91,11 @@ end
         @test_throws ErrorException InfiniteOpt.variable_supports(tm, dvref)
         tm.ext[:TransData].infvar_mappings[x] = [b, c, d]
         # test supports are empty
-        lookups = Dict{Vector{Float64}, Int}([0, 0, 0] => 1, [0, 0, 1] => 2, [1, 1, 1] => 3)
+        lookups = Dict{Vector{Float64}, Int}([0, 0, 0] => 1, [0, 1, 1] => 2, [1, 1, 1] => 3)
         tm.ext[:TransData].infvar_lookup[x] = lookups
-        @test InfiniteOpt.variable_supports(tm, dvref) == [(0., [0., 0.]), (0., [0., 1.]), (1., [1., 1.])]
+        @test InfiniteOpt.variable_supports(tm, dvref) == [(0., [0., 0.]), (0., [1., 1.]), (1., [1., 1.])]
         # test normal
-        @test InfiniteOpt.variable_supports(tm, dvref) == [(0., [0., 0.]), (0., [0., 1.]), (1., [1., 1.])]
+        @test InfiniteOpt.variable_supports(tm, dvref) == [(0., [0., 0.]), (0., [1., 1.]), (1., [1., 1.])]
         # test with reduced variable
         lookups = Dict{Vector{Float64}, Int}([0, 1] => 1, [1, 1] => 2)
         tm.ext[:TransData].infvar_lookup[xrv] = lookups
@@ -104,7 +104,7 @@ end
     end
     # test supports for infinite variable
     @testset "supports (Infinite)" begin
-        @test supports(x) == [(0., [0., 0.]), (0., [0., 1.]), (1., [1., 1.])]
+        @test supports(x) == [(0., [0., 0.]), (0., [1., 1.]), (1., [1., 1.])]
         @test supports(xrv) == [(0., 1.), (1., 1.)]
     end
     # test lookup_by_support (infinite vars)
@@ -116,10 +116,10 @@ end
         @test_throws ErrorException IOTO.lookup_by_support(tm, xrv, [0., 0., 0.])
         # test normal
         @test IOTO.lookup_by_support(tm, x, [0., 0., 0.]) == b
-        @test IOTO.lookup_by_support(tm, x, [0., 0., 1.]) == c
+        @test IOTO.lookup_by_support(tm, x, [0., 1., 1.]) == c
         @test IOTO.lookup_by_support(tm, x, [1., 1., 1.]) == d
-        @test IOTO.lookup_by_support(tm, xrv, [0., 0., 1.]) == c
-        @test IOTO.lookup_by_support(tm, xrv, [1., 1., 1.]) == d
+        @test IOTO.lookup_by_support(tm, xrv, [0., 1.]) == c
+        @test IOTO.lookup_by_support(tm, xrv, [1., 1.]) == d
     end
     # test lookup_by_support (finite vars)
     @testset "lookup_by_support (Finite)" begin

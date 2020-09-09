@@ -228,14 +228,14 @@ using JuMP: REPLMode, IJuliaMode
         @test InfiniteOpt.measure_data_string(REPLMode, data) == "[par1, pars[1]]"
         @test InfiniteOpt.measure_data_string(IJuliaMode, data) == "[par1, pars[1]]"
     end
-    # test JuMP.function_string (MeasureRef)
-    @testset "JuMP.function_string (MeasureRef)" begin
+    # test variabel_string (MeasureRef)
+    @testset "variable_string (MeasureRef)" begin
         data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [0, 0], [1, 1], false)
         meas = dispatch_variable_ref(measure(y, data, name = "test"))
         str = "test{pars2 " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]^2}[y]"
-        @test JuMP.function_string(REPLMode, meas) == str
+        @test InfiniteOpt.variable_string(REPLMode, meas) == str
         str = "test_{pars2 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]^2}[y]"
-        @test JuMP.function_string(IJuliaMode, meas) == str
+        @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
     end
     # test _get_base_name
     @testset "_get_base_name (REPL)" begin

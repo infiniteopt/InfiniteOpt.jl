@@ -189,7 +189,7 @@ function measure_data_string(print_mode, data::AbstractMeasureData)::String
 end
 
 # Make strings to represent measures in REPLMode
-function JuMP.function_string(::Type{JuMP.REPLMode}, mref::MeasureRef)::String
+function variable_string(::Type{JuMP.REPLMode}, mref::MeasureRef)::String
     data = measure_data(mref)
     data_str = measure_data_string(JuMP.REPLMode, data)
     func_str = JuMP.function_string(JuMP.REPLMode, measure_function(mref))
@@ -197,7 +197,7 @@ function JuMP.function_string(::Type{JuMP.REPLMode}, mref::MeasureRef)::String
 end
 
 # Make strings to represent measures in IJuliaMode
-function JuMP.function_string(::Type{JuMP.IJuliaMode}, mref::MeasureRef)::String
+function variable_string(::Type{JuMP.IJuliaMode}, mref::MeasureRef)::String
     data = measure_data(mref)
     data_str = measure_data_string(JuMP.IJuliaMode, data)
     func_str = JuMP.function_string(JuMP.IJuliaMode, measure_function(mref))

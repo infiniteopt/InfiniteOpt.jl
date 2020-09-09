@@ -37,8 +37,9 @@
         vref = GeneralVariableRef(m, -1, ReducedVariableIndex)
         @test InfiniteOpt.add_measure_variable(tm, var, key) == vref
         @test data.reduced_vars == [var]
-        @test transcription_variable(vref) == [a, b]
-        @test supports(vref) == [([0., 0.], ), ([1., 1.], )]
+        @test a in transcription_variable(vref)
+        @test b in transcription_variable(vref)
+        @test sort!(supports(vref)) == [([0., 0.], ), ([1., 1.], )]
     end
     # test delete_reduced_variable extension
     @testset "delete_reduced_variable" begin

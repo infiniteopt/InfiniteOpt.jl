@@ -278,13 +278,14 @@ intended as a helper method for automated transcription.
 function lookup_by_support(model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     support::Vector)
-    return transcription_expression(model, vref, InfiniteOpt._index_type(vref),
-                                    support)
+    return lookup_by_support(model, vref, InfiniteOpt._index_type(vref), support)
 end
 
 # define error function for not being able to find a variable by its support
 _supp_error() = error("Unable to locate transcription variable by support, consider " *
-                      "rebuilding the infinite model with less significant digits.")
+                      "rebuilding the infinite model with less significant digits. " *
+                      "Note this might be due to partially evaluating dependent parameters " *
+                      "which is not supported by TranscriptionOpt.")
 
 # InfiniteIndex
 function lookup_by_support(model::JuMP.Model,

@@ -80,8 +80,8 @@ println("")
 @time @testset "TranscriptionOpt" begin
     @testset "Model" begin include("TranscriptionOpt/model.jl") end
     @testset "Measures" begin include("TranscriptionOpt/measure.jl") end
-#     @testset "Transcribe" begin include("TranscriptionOpt/transcribe.jl") end
-#     @testset "Optimize" begin include("TranscriptionOpt/optimize.jl") end
+    @testset "Transcribe" begin include("TranscriptionOpt/transcribe.jl") end
+    @testset "Optimize" begin include("TranscriptionOpt/optimize.jl") end
 end
 # println("")
 # @time @testset "Solution Methods" begin include("optimizer.jl") end

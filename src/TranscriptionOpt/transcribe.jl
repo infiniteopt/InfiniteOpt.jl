@@ -117,9 +117,8 @@ function transcribe_infinite_variables!(trans_model::JuMP.Model,
         supp_indices = support_index_iterator(trans_model, var.object_nums)
         vrefs = Vector{JuMP.VariableRef}(undef, length(supp_indices))
         lookup_dict = Dict{Vector{Float64}, Int}()
-        counter = 1
         # create a variable for each support
-        for i in supp_indices
+        for (counter, i) in enumerate(supp_indices)
             raw_supp = index_to_support(trans_model, i)
             supp = raw_supp[param_nums]
             info = _format_infinite_info(var, supp)
@@ -128,7 +127,6 @@ function transcribe_infinite_variables!(trans_model::JuMP.Model,
                                                          JuMP.ScalarVariable(info),
                                                          var_name)
             lookup_dict[supp] = counter
-            counter += 1
         end
         # save the transcription information
         ivref = InfiniteOpt._make_variable_ref(inf_model, index)
@@ -155,13 +153,19 @@ function _set_reduced_variable_mapping(trans_model::JuMP.Model,
     # map a variable for each support
     for i in supp_indices
         raw_supp = index_to_support(trans_model, i)
+        if any(!isnan(raw_supp[ivref_param_nums[k]]) && raw_supp[ivref_param_nums[k]] != v 
+               for (k, v) in eval_supps)
+            continue
+        end
         supp = raw_supp[param_nums]
-        ivref_supp = [haskey(eval_supps, i) ? eval_supps[i] : raw_supp[i] 
-                      for i in ivref_param_nums]
+        ivref_supp = [haskey(eval_supps, j) ? eval_supps[j] : raw_supp[k] 
+                      for (j, k) in enumerate(ivref_param_nums)]
         @inbounds vrefs[counter] = lookup_by_support(trans_model, ivref, ivref_supp)
         lookup_dict[supp] = counter
         counter += 1
     end
+    # truncate vrefs if any supports were skipped because of dependent parameter supps
+    deleteat!(vrefs, counter:length(vrefs))
     # save the transcription information
     transcription_data(trans_model).infvar_lookup[rvref] = lookup_dict
     transcription_data(trans_model).infvar_mappings[rvref] = vrefs
@@ -377,15 +381,13 @@ function transcribe_measures!(trans_model::JuMP.Model,
         supp_indices = support_index_iterator(trans_model, meas.object_nums)
         exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(supp_indices))
         lookup_dict = Dict{Vector{Float64}, Int}()
-        counter = 1
         # map a variable for each support
-        for i in supp_indices
+        for (counter, i) in enumerate(supp_indices)
             raw_supp = index_to_support(trans_model, i)
             @inbounds exprs[counter] = transcription_expression(trans_model,
                                                                 new_expr, raw_supp)
-            supp = raw_supp[meas.param_nums]
+            supp = raw_supp[meas.parameter_nums]
             lookup_dict[supp] = counter
-            counter += 1
         end
         # save the transcription information
         mref = InfiniteOpt._make_variable_ref(inf_model, index)
@@ -494,7 +496,7 @@ function _support_in_bounds(support::Vector{Float64},
     sets::Vector{InfiniteOpt.IntervalSet}
     )::Bool
     for i in eachindex(indices)
-        s = support[i]
+        s = support[indices[i]]
         if !isnan(s) && (s < JuMP.lower_bound(sets[i]) || s > JuMP.upper_bound(sets[i]))
             return false
         end
@@ -524,7 +526,7 @@ function transcribe_constraints!(trans_model::JuMP.Model,
         constr = object.constraint
         func = JuMP.jump_function(constr)
         set = JuMP.moi_set(constr)
-        obj_nums = constr.object_nums
+        obj_nums = object.object_nums
         # prepare the iteration helpers
         supp_indices = support_index_iterator(trans_model, obj_nums)
         crefs = Vector{JuMP.ConstraintRef}(undef, length(supp_indices))
@@ -590,7 +592,7 @@ modified. Note that this will add supports to `inf_model` via
 [`InfiniteOpt.fill_in_supports!`](@ref) for infinite parameters that contain
 no supports. Also a warning is thrown when the transcription model contains
 more than 15,000 support points to alert users when they may naively have
-a few independent supports whose product wuickly yields a very large grid.
+a few independent supports whose product quickly yields a very large grid.
 For example having 3 independent parameters with 100 supports each would result
 in 1,000,000 supports. This behavior can be overcome using dependent parameters.
 """
