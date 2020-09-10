@@ -733,7 +733,7 @@ function build_measure(expr::T, data::D;
     ub_nan = isnan(first(JuMP.upper_bound(data)))
     # NOTE intersect! cannot be used here since it modifies parameter_nums of expr if expr is a single infinite variable
     constant_func = isempty(intersect(expr_param_nums, data_param_nums)) &&
-                    (lb_nan && ub_nan || _is_expect(data))
+                    ((!lb_nan && !ub_nan) || _is_expect(data))
     return Measure(expr, data, obj_nums, param_nums, constant_func)
 end
 

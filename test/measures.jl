@@ -410,7 +410,7 @@ end
 
     # prepare measure data
     data = DiscreteMeasureData(par, [1], [1])
-    data2 = DiscreteMeasureData(par2, [1], [1])
+    data2 = DiscreteMeasureData(par2, [1], [1], lower_bound = 0, upper_bound = 1)
     data3 = DiscreteMeasureData(pars, [1], [[1, 1]])
     data4 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample)
     data5 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, MCSample)
@@ -613,7 +613,7 @@ end
     @hold_variable(m, x)
     coeff_func(x) = 1
     # prepare measure data
-    data = DiscreteMeasureData(par, [1], [1])
+    data = DiscreteMeasureData(par, [1], [1], is_expect = true)
     data2 = DiscreteMeasureData(par2, [1], [1])
     data3 = DiscreteMeasureData(pars, [1], [[1, 1]])
     data4 = FunctionalDiscreteMeasureData(par, coeff_func, 10, UniformGrid)
