@@ -83,9 +83,9 @@ println("")
     @testset "Transcribe" begin include("TranscriptionOpt/transcribe.jl") end
     @testset "Optimize" begin include("TranscriptionOpt/optimize.jl") end
 end
-# println("")
-# @time @testset "Solution Methods" begin include("optimizer.jl") end
-# println("")
+println("")
+@time @testset "Solution Methods" begin include("optimizer.jl") end
+println("")
 # @time @testset "Solution Queries" begin include("results.jl") end
 # println("")
 # @time @testset "Extensions" begin include("extensions.jl") end

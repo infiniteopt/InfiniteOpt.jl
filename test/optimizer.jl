@@ -52,19 +52,54 @@ end
         @test optimizer_model_variable(x0) == transcription_variable(x0)
         @test optimizer_model_variable(z) == transcription_variable(z)
         # test fallback
-        @test_throws ErrorException optimizer_model_variable(x, Val(:Bad))
+        @test_throws ErrorException optimizer_model_variable(x, Val(:Bad), my_key = true)
     end
     # Test variable_supports
     @testset "variable_supports" begin
-        # test normal usage
-        @test variable_supports(tm, x) == tdata.infvar_to_supports[x]
+        # test finite variable fallback
+        @test InfiniteOpt.variable_supports(tm, dispatch_variable_ref(z), :key) == ()
+        @test InfiniteOpt.variable_supports(tm, dispatch_variable_ref(x0), :key) == ()
         # test fallback
-        @test_throws ErrorException variable_supports(tm, x, Val(:Bad))
+        @test_throws ErrorException InfiniteOpt.variable_supports(tm, x, Val(:Bad))
     end
     # Test supports (variables)
     @testset "supports (Variables)" begin
         # test normal usage
-        @test supports(x) == tdata.infvar_to_supports[x]
+        @test supports(x) == [(0.,), (1.,)]
+        @test supports(meas1) == () 
+    end
+    # Test optimizer_model_expression
+    @testset "optimizer_model_expression" begin
+        # test variable references
+        @test optimizer_model_expression(x) == transcription_variable(x)
+        @test optimizer_model_expression(z) == transcription_variable(z)
+        @test optimizer_model_expression(x0) == transcription_variable(x0)
+        # test expression without variables 
+        expr = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + 42
+        @test optimizer_model_expression(expr) == zero(AffExpr) + 42
+        # test normal expressions 
+        xt = transcription_variable(x)
+        zt = transcription_variable(z)
+        @test optimizer_model_expression(x^2 + z) == [xt[1]^2 + zt, xt[2]^2 + zt]
+        @test optimizer_model_expression(2z - 3) == 2zt - 3
+        # test fallback
+        @test_throws ErrorException optimizer_model_expression(c1, Val(:Bad), my_key = true)
+    end
+    # Test expression_supports
+    @testset "expression_supports" begin
+        # test normal usage
+        @test InfiniteOpt.expression_supports(tm, x, Val(:TransData)) == [(0.,), (1.,)]
+        @test InfiniteOpt.expression_supports(tm, x^2 - x0, Val(:TransData)) == [(0.,), (1.,)]
+        # test fallback
+        @test_throws ErrorException InfiniteOpt.expression_supports(tm, z^2, Val(:Bad))
+    end
+    # Test supports (expressions)
+    @testset "supports (Expressions)" begin
+        # test normal usage
+        @test supports(x) == [(0.,), (1.,)]
+        @test supports(2x - z + x0 + 43) == [(0.,), (1.,)]
+        expr = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + 42
+        @test supports(expr) == ()
     end
     # Test optimizer_model_constraint
     @testset "optimizer_model_constraint" begin
@@ -73,35 +108,21 @@ end
         @test optimizer_model_constraint(c2) == transcription_constraint(c2)
         @test optimizer_model_constraint(c3) == transcription_constraint(c3)
         # test fallback
-        @test_throws ErrorException optimizer_model_constraint(c1, Val(:Bad))
+        @test_throws ErrorException optimizer_model_constraint(c1, Val(:Bad), my_key = true)
     end
     # Test constraint_supports
     @testset "constraint_supports" begin
         # test normal usage
-        @test constraint_supports(tm, c1) == tdata.infconstr_to_supports[c1]
+        @test InfiniteOpt.constraint_supports(tm, c1) == [(0.,), (1.,)]
         # test fallback
-        @test_throws ErrorException constraint_supports(tm, c1, Val(:Bad))
+        @test_throws ErrorException InfiniteOpt.constraint_supports(tm, c1, Val(:Bad))
     end
     # Test supports (constraints)
     @testset "supports (Constraints)" begin
         # test normal usage
-        @test supports(c1) == tdata.infconstr_to_supports[c1]
+        @test supports(c1) == [(0.,), (1.,)]
         # test fallback
-        @test_throws ErrorException supports(c2)
-    end
-    # Test constraint_parameter_refs
-    @testset "constraint_parameter_refs" begin
-        # test normal usage
-        @test constraint_parameter_refs(tm, c1) == tdata.infconstr_to_params[c1]
-        # test fallback
-        @test_throws ErrorException constraint_parameter_refs(tm, c1, Val(:Bad))
-    end
-    # Test parameter_refs (constraints)
-    @testset "parameter_refs (Constraints)" begin
-        # test normal usage
-        @test parameter_refs(c1) == tdata.infconstr_to_params[c1]
-        # test fallback
-        @test_throws ErrorException parameter_refs(c2)
+        @test supports(c2) == ()
     end
 end
 
