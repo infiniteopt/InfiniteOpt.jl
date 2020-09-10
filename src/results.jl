@@ -213,7 +213,7 @@ end
 
 # Default method that depends on optimizer_model_expression --> making extensions easier
 function map_value(expr::JuMP.AbstractJuMPScalar, key, result::Int)
-    opt_expr = optimizer_model_expression(vref, key)
+    opt_expr = optimizer_model_expression(expr, key)
     if opt_expr isa AbstractArray
         return map(e -> JuMP.value(e; result = result), opt_expr)
     else
@@ -311,7 +311,7 @@ function JuMP.value(expr::Union{JuMP.GenericAffExpr{C, V}, JuMP.GenericQuadExpr{
     # if no model then the expression only contains a constant
     if model === nothing
         return JuMP.constant(expr)
-    # otherwise let's call parse_expression_value
+    # otherwise let's call map_value
     else
         key = optimizer_model_key(model)
         return map_value(expr, Val(key), result)
@@ -357,7 +357,7 @@ function map_optimizer_index(cref::InfOptConstraintRef, key)
 end
 
 """
-    JuMP.optimizer_index(vref::DecisionVariableRef)
+    JuMP.optimizer_index(vref::GeneralVariableRef)
 
 Extend [`JuMP.optimizer_index`](@ref JuMP.optimizer_index(::JuMP.VariableRef)) to
 return the `MathOptInterface` index(es) of `vref` in accordance with its
@@ -377,7 +377,7 @@ julia> optimizer_index(x)
  MathOptInterface.VariableIndex(5)
 ```
 """
-function JuMP.optimizer_index(vref::DecisionVariableRef)
+function JuMP.optimizer_index(vref::GeneralVariableRef)
     return map_optimizer_index(vref, Val(optimizer_model_key(JuMP.owner_model(vref))))
 end
 
