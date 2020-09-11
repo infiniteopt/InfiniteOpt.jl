@@ -47,7 +47,6 @@
     @test num_variables(optimizer_model(m)) == 4
 end
 
-#=
 # Test extensions of measure data
 @testset "Measure Data" begin
     # load in the extension
@@ -58,8 +57,8 @@ end
     @infinite_parameter(m, t in [0, 10])
     @infinite_variable(m, x(t) >= 0)
     @hold_variable(m, z, parameter_bounds = (t in [0, 5]))
-    data1 = generate_measure_data(t, 2, 0, 5, eval_method = gauss_legendre)
-    data2 = generate_measure_data(t, 4, 0, 10, eval_method = gauss_legendre)
+    data1 = DiscreteMeasureData(t, [2.5, 2.5], [2., 4.], lower_bound = 0., upper_bound = 5.)
+    data2 = DiscreteMeasureData(t, [1., 1.], [3., 6.], lower_bound = 1., upper_bound = 10.)
 
     # test definition
     @test NewMeasureData("test", data1) isa NewMeasureData
@@ -69,8 +68,6 @@ end
     # test data queries
     @test parameter_refs(new_data1) == t
     @test parameter_refs(new_data2) == t
-    @test measure_name(new_data1) == "test"
-    @test measure_name(new_data2) == "test"
     @test supports(new_data1) == supports(data1)
     @test supports(new_data2) == supports(data2)
     @test coefficients(new_data1) == coefficients(data1)
@@ -82,21 +79,21 @@ end
     @test !measure_data_in_hold_bounds(data2, parameter_bounds(z))
 
     # test measure definition
-    @test measure(x + z, new_data1) isa MeasureRef
+    @test measure(x + z, new_data1) isa GeneralVariableRef
     @test_throws ErrorException measure(x + z, new_data2)
-    @test new_measure(x^2, t, 0, 4, num_supports = 4) isa MeasureRef
+    @test new_measure(x^2, t, 0, 4, num_supports = 4) isa GeneralVariableRef
     @test_throws ErrorException new_measure(x^2 + z, t, 6, 10)
 
     # test expansion
-    index = m.next_var_index
-    pvrefs = [PointVariableRef(m, index + 1), PointVariableRef(m, index + 2)]
+    pvrefs = [GeneralVariableRef(m, 1, PointVariableIndex), GeneralVariableRef(m, 2, PointVariableIndex)]
     @test expand(measure(x + z, new_data1)) == 2.5 * (pvrefs[1] + pvrefs[2]) + 5z
 
     # test transcription
-    delete_supports(t)
-    @test @constraint(m, z == measure(x, new_data1)) isa GeneralConstraintRef
+    @test @constraint(m, z == measure(x, new_data1)) isa InfOptConstraintRef
     @test build_optimizer_model!(m) isa Nothing
-    @test num_variables(optimizer_model(m)) == 3
+    @test num_variables(optimizer_model(m)) == 6
+    println(optimizer_model(m))
+    println(supports(t))
 
     # test deletion
     @test_throws ErrorException delete(m, t)
@@ -107,6 +104,7 @@ end
     @test delete(m, t) isa Nothing
 end
 
+#=
 # Test extensions of measure evaluation methods
 @testset "Measure Evaluation" begin
     # load in the extension

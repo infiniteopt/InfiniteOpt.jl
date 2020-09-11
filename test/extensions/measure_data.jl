@@ -11,8 +11,8 @@ struct NewMeasureData <: AbstractMeasureData
 end
 
 # Extend parameter_refs to return the parameter(s) being measured by a measure using NewMeasureData
-function InfiniteOpt.parameter_refs(data::NewMeasureData)::Union{ParameterRef, AbstractArray{<:ParameterRef}}
-    return data.attr2.parameter_ref # REPLACE WITH ACTUAL PARAMETER LOCATION
+function InfiniteOpt.parameter_refs(data::NewMeasureData)::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}
+    return data.attr2.parameter_refs # REPLACE WITH ACTUAL PARAMETER LOCATION
 end
 
 # Extend expand_measure to return the finite reformulation of a measure using NewMeasureData
@@ -23,6 +23,12 @@ function InfiniteOpt.expand_measure(expr::JuMP.AbstractJuMPScalar,
     # INSERT APPROPRIATE METHODS HERE
     # USING make_point_variable_ref AND make_reduced_variable_ref MAY BE USEFUL
     return expand_measure(expr, data.attr2, write_model) # REPLACE ACTUAL RESULT
+end
+
+# Extend add_supports_to_parameters to add supports to parameters according to the NewMeasureData
+# This is only optional if the measure is always analytic
+function InfiniteOpt.add_supports_to_parameters(data::NewMeasureData)
+    return add_supports_to_parameters(data.attr2) # REPLACE WITH ACTUAL SUPPORT ADDITION STEPS
 end
 
 # Extend supports to return any infinite parameter supports employed by NewMeasureData
@@ -40,12 +46,6 @@ function InfiniteOpt.measure_data_in_hold_bounds(data::NewMeasureData,
     return in_bounds
 end
 
-# Extend measure_name to return the name of a measure using NewMeasureData
-# This is optional (uses "measure" otherwise)
-function InfiniteOpt.measure_name(data::NewMeasureData)::String
-    return data.attr1 # REPLACE WITH ACTUAL NAME LOCATION
-end
-
 # Extend coefficients to return the coefficients stored in NewMeasureData if appropriate
 # This is optional (returns empty vector otherwise)
 function InfiniteOpt.coefficients(data::NewMeasureData)::Vector{Float64}
@@ -60,12 +60,12 @@ end
 
 # Make a convenient measure constructor function for our new measure type
 # This should employ measure(expr, data)
-function new_measure(expr::JuMP.AbstractJuMPScalar, param::ParameterRef,
+function new_measure(expr::JuMP.AbstractJuMPScalar, param::GeneralVariableRef,
                      lb::Number, ub::Number; name::String = "NewMeas",
-                     num_supports::Int = 10)::MeasureRef # REPLACE ARGS WITH ACTUAL DESIRED
+                     num_supports::Int = 10)::GeneralVariableRef # REPLACE ARGS WITH ACTUAL DESIRED
     # INSERT RELAVENT CHECKS AND OPERATIONS HERE
     # REPLACE BELOW WITH ACTUAL CONSTRUCTION
-    attr2 = generate_measure_data(param, num_supports, lb, ub) # just an example
+    attr2 = DiscreteMeasureData(param, ones(num_supports), collect(range(lb, ub, length = num_supports))) # just an example
     data = NewMeasureData(name, attr2) # REPLACE WITH ACTUAL
     # built the measure using the built-in constructor
     return measure(expr, data)

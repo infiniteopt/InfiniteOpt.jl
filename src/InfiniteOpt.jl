@@ -118,7 +118,7 @@ weight_function, build_measure, min_num_supports, add_measure, measure_function,
 measure_data, is_analytic, measure, num_measures, all_measures,
 add_supports_to_parameters, measure_data_in_hold_bounds, make_point_variable_ref,
 make_reduced_variable_ref, add_measure_variable, delete_internal_reduced_variable,
-delete_reduced_variable, expand, expand_all_measures!
+delete_reduced_variable, expand, expand_all_measures!, expand_measure
 
 # Export the measure toolbox functions and datatypes
 export Automatic, UniTrapezoid, UniMCSampling, UniIndepMCSampling, Quadrature,
