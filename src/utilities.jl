@@ -12,6 +12,11 @@ function Base.convert(::Type{JuMPC.SparseAxisArray},
     return JuMPC.SparseAxisArray(data)
 end
 
+# Convert numbers to jump objects 
+function Base.convert(::Type{JuMP.AbstractJuMPScalar}, c::Number) 
+    return zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + c
+end
+
 # Make workaround for keys of containers
 _keys(a::JuMPC.SparseAxisArray) = keys(a.data)
 _keys(a::AbstractArray) = keys(a)

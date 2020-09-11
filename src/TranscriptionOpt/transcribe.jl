@@ -350,6 +350,14 @@ function transcription_expression(trans_model::JuMP.Model,
                  transcription_expression(trans_model, quad.aff, support))
 end
 
+# Real Number 
+function transcription_expression(trans_model::JuMP.Model,
+    num::Real,
+    support::Vector{Float64}
+    )
+    return zero(JuMP.AffExpr) + num
+end
+
 ################################################################################
 #                         MEASURE TRANSCRIPTION METHODS
 ################################################################################

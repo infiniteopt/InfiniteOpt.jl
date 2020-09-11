@@ -308,6 +308,11 @@ end
         expected = b^2 + d^2 - 2a - 3a^2 - b - 2.3
         @test IOTO.transcription_expression(tm, expr, [1., 1., 1.]) == expected
     end
+    # test transcription expression for numbers with 3 args
+    @testset "transcription_expression (Real)" begin
+        expected = zero(AffExpr) + 42
+        @test IOTO.transcription_expression(tm, 42, [1., 1., 1.]) == expected
+    end
     # test transcription expression for Exprs with 2 args
     @testset "transcription_expression (Expr 2 Args)" begin
         # test infinite expr

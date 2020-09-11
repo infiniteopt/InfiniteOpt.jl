@@ -153,6 +153,7 @@ end
     meas1 = support_sum(x + 2w, par)
     meas2 = integral(w, par)
     meas3 = integral(y^2, pars)
+    meas4 = integral(pars[1], pars[1])
     tm = transcription_model(m)
     IOTO.set_parameter_supports(tm, m)
     IOTO.transcribe_hold_variables!(tm, m)
@@ -167,6 +168,7 @@ end
         @test transcription_variable(meas1) == tx[1] + 4tw + tx[2]
         @test transcription_variable(meas2) == tw + 0
         @test transcription_variable(meas3) isa Vector{AbstractJuMPScalar}
+        @test transcription_variable(meas4) isa AffExpr
         @test supports(meas1) == ()
         @test supports(meas2) == ()
         @test sort!(supports(meas3)) == [(0.,), (1., )]

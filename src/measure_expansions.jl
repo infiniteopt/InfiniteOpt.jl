@@ -567,7 +567,7 @@ end
 function expand_measure(expr,
                         data::FunctionalDiscreteMeasureData,
                         write_model::JuMP.AbstractModel
-                        )::JuMP.AbstractJuMPScalar
+                        )::Union{JuMP.AbstractJuMPScalar, Float64}
     # get the info
     prefs = parameter_refs(data)
     supps = supports(data)
@@ -695,7 +695,7 @@ julia> expr = expand(measure(g + z + T - h - 2, tdata))
 0.5 g(0) + 0.5 g(1) + z + 0.5 T(0, x) + 0.5 T(1, x) - h(x) - 2
 ```
 """
-function expand(mref::MeasureRef)::JuMP.AbstractJuMPScalar
+function expand(mref::MeasureRef)::Union{JuMP.AbstractJuMPScalar, Float64}
     if is_analytic(mref)
         return analytic_expansion(measure_function(mref), measure_data(mref),
                                   JuMP.owner_model(mref))

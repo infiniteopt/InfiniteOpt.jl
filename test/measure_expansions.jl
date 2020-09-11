@@ -366,7 +366,7 @@ end
         pts = [GeneralVariableRef(m, idx, PointVariableIndex),
                GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = 0.5 * (pts[1] + 2 * pts[2] + 4)
-        @test InfiniteOpt.expand_measure(expr, data1, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data1, m) == expected 
         # test single parameter with first quadratic term becomes number, 2nd constant
         expr = par1 * x + 2
         expected = 0.5 * (x + 2 * x + 4)
