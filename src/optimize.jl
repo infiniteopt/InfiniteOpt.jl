@@ -637,7 +637,7 @@ to `expr`. This needs to be defined for extensions that implement a custom
 optimizer model type. Principally, this is accomplished by typed the `key`
 argument to `Val{ext_key_name}`. Keyword arguments can be added as needed.
 Note that if `expr` is a `GeneralVariableRef` this just dispatches to
-`voptimizer_model_variable`.
+`optimizer_model_variable`.
 """
 function optimizer_model_expression end
 
