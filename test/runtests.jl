@@ -87,9 +87,9 @@ println("")
 @time @testset "Solution Methods" begin include("optimizer.jl") end
 println("")
 @time @testset "Solution Queries" begin include("results.jl") end
-# println("")
-# @time @testset "Extensions" begin include("extensions.jl") end
-# println("")
+println("")
+@time @testset "Extensions" begin include("extensions.jl") end
+println("")
 # TODO add involved deletion tests
 println("----------------------------------------------------------------------------")
 println("-----------------------------TESTING COMPLETE!------------------------------")

@@ -2,8 +2,7 @@ using Documenter, InfiniteOpt, JuMP, Distributions
 
 makedocs(;
     pages = ["Home" => "index.md",
-            "User Guide" => [
-                             "Installation" => "guide/install.md",
+            "User Guide" => ["Installation" => "guide/install.md",
                              # "Infinite Models" => "guide/model.md",
                              # "Infinite Sets" => "guide/sets.md",
                              "Infinite Parameters" => "guide/parameter.md"
@@ -17,7 +16,7 @@ makedocs(;
                              # "Optimization" => "guide/optimize.md",
                              # "Results" => "guide/result.md"
                              ]
-            #                  ,
+                             ,
             # "Examples" => "examples.md",
             # "Extensions" => "extensions.md",
             "Development" => "develop.md",
