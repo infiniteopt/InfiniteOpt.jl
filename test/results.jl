@@ -196,7 +196,7 @@ end
     @test value(meas2) == [0., -3.]
     @test value(3g - 1) == 2.
     @test value(inf^2 + g - 2) == [3., -1.]
-    @test value(zero(AffExpr) - 42) == -42.
+    @test value(zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) - 42) == -42.
     end
     # test dual
     @testset "JuMP.dual" begin
