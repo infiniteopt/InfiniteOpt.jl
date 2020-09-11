@@ -618,6 +618,7 @@ end
     data3 = DiscreteMeasureData(pars, [1], [[1, 1]])
     data4 = FunctionalDiscreteMeasureData(par, coeff_func, 10, UniformGrid)
     data5 = FunctionalDiscreteMeasureData(pars2, coeff_func, 10, WeightedSample)
+    data6 = DiscreteMeasureData(par, [1], [1], lower_bound = 0, upper_bound = 1)
     # test measure
     @testset "measure" begin
         # test scalar IndependentParameter
@@ -660,6 +661,8 @@ end
         @test is_analytic(measure(par2, data))
         @test dispatch_variable_ref(measure(inf4 + measure(inf + x, data3), data)) isa MeasureRef
         @test !is_analytic(measure(inf4 + measure(inf + x, data3), data))
+        @test is_analytic(measure(x, data6))
+        @test is_analytic(measure(par2, data6))
         # test no variables
         @test_throws ErrorException measure(zero(GenericAffExpr{Float64,
                                                      GeneralVariableRef}), data)
