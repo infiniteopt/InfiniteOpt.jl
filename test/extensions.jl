@@ -1,4 +1,3 @@
-#=
 # test adding new infinite set
 @testset "Infinite Sets" begin
     # load in the extension
@@ -47,8 +46,7 @@
     @test build_optimizer_model!(m) isa Nothing
     @test num_variables(optimizer_model(m)) == 4
 end
-=#
-#=
+
 # Test extensions of measure data
 @testset "Measure Data" begin
     # load in the extension
@@ -94,8 +92,6 @@ end
     @test @constraint(m, z == measure(x, new_data1)) isa InfOptConstraintRef
     @test build_optimizer_model!(m) isa Nothing
     @test num_variables(optimizer_model(m)) == 6
-    println(optimizer_model(m))
-    println(supports(t))
 
     # test deletion
     @test_throws ErrorException delete(m, t)
@@ -106,9 +102,6 @@ end
     @test delete(m, t) isa Nothing
 end
 
-#=
-=#
-#= 
 # Test extensions of measure evaluation methods
 @testset "Measure Evaluation" begin
     # load in the extension
@@ -118,21 +111,20 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 5])
     @infinite_parameter(m, x[1:2] in [0, 1], independent = true)
+    @infinite_parameter(m, p[1:2] in [0, 1])
     @infinite_parameter(m, xi in Normal(0., 1.))
     @infinite_variable(m, y(t) >= 0)
     @infinite_variable(m, f(x))
-    mref = integral(y^2 + t, t, 0, 4, num_supports = 5, eval_method = NewEvalMethod)
+    mref = integral(y^2 + t, t, 0, 4, num_supports = 5, eval_method = NewUniEvalMethod)
     @test supports(measure_data(mref)) == Array([0., 1., 2., 3., 4.])
     warn = "The method is implemented for independent multivariate parameters."
-    @test_logs (:warn, warn) integral(f, x, num_supports = 3,
-                                      eval_method = NewEvalMethod,
-                                      independent = false)
-    mref2 = integral(f, x, num_supports = 3, eval_method = NewEvalMethod,
-                     independent = is_independent(x[1]))
+    @test_logs (:warn, warn) integral(f, p, num_supports = 3,
+                                      eval_method = NewMultiEvalMethod)
+    mref2 = integral(f, x, num_supports = 3, eval_method = NewMultiEvalMethod)
     @test supports(measure_data(mref2)) == Float64[0 0.5 1; 0 0.5 1]
-    @test_throws ErrorException integral(xi^2, eval_method = NewEvalMethod)
+#     @test_throws ErrorException integral(xi^2, xi, eval_method = NewUniEvalMethod) # not sure what this checks...
 end
-=#
+
 # Test otpimizer model extensions
 @testset "Optimizer Model" begin
     # load in the extension
@@ -273,4 +265,3 @@ end
     @test shadow_price(c2) == [-0., 1.]
     @test shadow_price(c3) == [-0., 1.]
 end
-=#
