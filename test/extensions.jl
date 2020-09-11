@@ -9,12 +9,12 @@
     # test definition
     @test MyNewSet(0, 1) isa MyNewSet
     set = MyNewSet(0, 1)
-    @test @infinite_parameter(m, set = set) isa ParameterRef
-    m.params[1] == set
-    @test @infinite_parameter(m, par in set, supports = [0, 1]) isa ParameterRef
+    @test @infinite_parameter(m, set = set) isa GeneralVariableRef
+    @test infinite_set(first(all_parameters(m))) == set
+    @test @infinite_parameter(m, par in set, supports = [0, 1]) isa GeneralVariableRef
     infinite_set(m[:par]) == set
     supports(m[:par]) == [0., 1.]
-    @test @infinite_parameter(m, par2 in set, num_supports = 3) isa ParameterRef
+    @test @infinite_parameter(m, par2 in set, num_supports = 3) isa GeneralVariableRef
     supports(m[:par2]) == [0., 0.5, 1.]
     @test @infinite_parameter(m, [1:2], set = set, num_supports = 3) isa Vector
 
@@ -33,21 +33,21 @@
     @test upper_bound(m[:par2]) == 0
 
     # add variables
-    @test @infinite_variable(m, x(par) >= 0) isa InfiniteVariableRef
+    @test @infinite_variable(m, x(par) >= 0) isa GeneralVariableRef
     x = m[:x]
-
+    
     # test measures
-    @test integral(x^2 + par, par, num_supports = 2, eval_method = gauss_legendre) isa MeasureRef
-    @test integral(x^2 + par, par, num_supports = 2, use_existing_supports = true) isa MeasureRef
+    @test @integral(x^2 + par, par, num_supports = 2, eval_method = GaussLegendre) isa GeneralVariableRef
 
     # test constraints
-    @test @constraint(m, x + par <= 0) isa GeneralConstraintRef
+    @test @constraint(m, x + par <= 0) isa InfOptConstraintRef
 
     # transcribe the model
     @test build_optimizer_model!(m) isa Nothing
     @test num_variables(optimizer_model(m)) == 4
 end
 
+#=
 # Test extensions of measure data
 @testset "Measure Data" begin
     # load in the extension
@@ -260,3 +260,4 @@ end
     @test shadow_price(c2) == [0]
     @test shadow_price(c3) == -1
 end
+=#
