@@ -80,7 +80,7 @@ variable `measure_constr` that contains a reference to that constraint.
 !!! note
     Linear algebra constraints can also be used when defining constraints
     when `.` is added in front of the constraint operators (e.g., `.<=`). This
-    behavior is further explained in `JuMP`'s documentation [here](https://www.juliaopt.org/JuMP.jl/stable/constraints/#Vectorized-constraints-1). However, note that
+    behavior is further explained in `JuMP`'s documentation [here](https://jump.dev/JuMP.jl/stable/constraints/#Vectorized-constraints-1). However, note that
     that vector array sets such as `MOI.Nonnegatives` are not currently supported.
 
 ### Bounded Constraints
@@ -495,10 +495,8 @@ Order   = [:type]
 ```
 ```@docs
 BoundedScalarConstraint
-CosntraintData
+ConstraintData
 ConstraintIndex
-InfOptConstraintRef
-InfOptConstraintRef
 InfOptConstraintRef
 ```
 
