@@ -38,7 +38,7 @@ through step by step how this should be done.
      computer. This needs to be done via the `dev` command in the package manager
      so you can edit it. The syntax is as follows:
      ```julia
-     (v1.5) pkg> dev https://github.com/username-here/InfiniteOpt.jl
+     (v1.4) pkg> dev https://github.com/username-here/InfiniteOpt.jl
      ```
      We also recommend you install [`Revise.jl`](https://github.com/timholy/Revise.jl)
      which is very useful when developing packages in Julia.
@@ -65,7 +65,7 @@ through step by step how this should be done.
   8. Create a pull request. Go [here](https://github.com/pulsipher/InfiniteOpt.jl)
      to `InfiniteOpt`'s main page and create a pull request drawing from your forked
      repository. A step by step explanation is provided
-     [here](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork).
+     [here](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork).
   9. Make necessary changes if the tests fail and/or we ask you to make specific
      changes. The Codecov tests will ensure every new line of code is tested at least
      once with the new test functions and Travis CI will ensure that the tests pass
@@ -139,7 +139,7 @@ Here we detail the programmatic style used with `InfiniteOpt`. This is done in a
 effort to make this package intuitive for new-comers and to ease development. This
 style closely follows that of `JuMP.jl` with similar deviations from typical Julia
 styles. Please refer to the `JuMP` style guide
-[here](https://jump.dev/JuMP.jl/stable/style/) as this is the style used
+[here](http://www.juliaopt.org/JuMP.jl/stable/style/) as this is the style used
 by `InfiniteOpt`.
 
 In addition, we adopt the following practices:

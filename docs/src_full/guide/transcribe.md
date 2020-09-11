@@ -414,10 +414,7 @@ is invoked.
 Likewise, [`transcription_constraint`](@ref) and
 [`constraint_supports`](@ref InfiniteOpt.supports(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData}))
 can be used with constraints to find their transcribed equivalents in the
-`JuMP` model and determine their supports. In the case of infinite constraints,
-their parameter references can be determined
-[`constraint_parameter_refs`](@ref InfiniteOpt.parameter_refs(::JuMP.Model, ::InfiniteOpt.InfiniteConstraintRef, ::Val{:TransData}))
-just like infinite variables.
+`JuMP` model and determine their supports.
 
 ## Datatypes
 ```@index
