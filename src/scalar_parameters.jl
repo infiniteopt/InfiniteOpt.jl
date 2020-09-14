@@ -520,6 +520,7 @@ function _update_param_name_dict(model::InfiniteModel,
     return
 end
 
+# TODO: this is not changing the name registered in model
 """
     parameter_by_name(model::InfiniteModel,
                       name::String)::Union{GeneralVariableRef, Nothing}
@@ -533,7 +534,6 @@ julia> parameter_by_name(model, "t")
 t
 ```
 """
-# TODO: this is not changing the name registered in model
 function parameter_by_name(model::InfiniteModel,
                            name::String)::Union{GeneralVariableRef, Nothing}
     if _param_name_dict(model) === nothing

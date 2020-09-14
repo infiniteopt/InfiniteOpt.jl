@@ -162,7 +162,7 @@ end
     JuMP.set_lower_bound(set::AbstractInfiniteSet,
                          lower::Union{Real, Vector{<:Real}})::AbstractInfiniteSet
 
-Set and return the lower bound of `set` if such an aoperation makes sense. Errors
+Set and return the lower bound of `set` if such an operation makes sense. Errors
 if the type of `set` does not support this operation or has not been extended.
 User-defined set types should extend this if appropriate.
 
@@ -328,6 +328,7 @@ const Mixture = :mixture
 const DefaultSigDigits = 12
 const DefaultNumSupports = 10
 
+# a user interface of generate_support_values
 """
     generate_supports(set::AbstractInfiniteSet
                       method::Union{Symbol, Nothing} = Nothing;
@@ -353,7 +354,6 @@ should extend [`generate_support_values`](@ref) to enable this. Errors if the
 method to be used by methods such as [`generate_and_add_supports!`](@ref) and
 [`build_parameter`](@ref).
 """
-# a user interface of generate_support_values
 function generate_supports(set::AbstractInfiniteSet,
                            method::Union{Symbol, Nothing} = nothing;
                            num_supports::Int = DefaultNumSupports,
