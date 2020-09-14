@@ -63,7 +63,6 @@
             @test InfiniteOpt._get(d, k, nothing) == 42
             @test InfiniteOpt._get(d, bad_k, nothing) === nothing
         end
-
     end
     # test Base.length
     @testset "Base.length" begin
