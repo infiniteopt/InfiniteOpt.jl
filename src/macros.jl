@@ -245,7 +245,7 @@ macro independent_parameter(model, args...)
         macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
                                                    model_for_registering = esc_model)
     end
-    return JuMP._assert_valid_model(esc_model, macro_code)
+    return JuMP._finalize_macro(esc_model, macro_code, __source__)
 end
 
 """
@@ -355,7 +355,7 @@ macro finite_parameter(model, args...)
         macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
                                                    model_for_registering = esc_model)
     end
-    return JuMP._assert_valid_model(esc_model, macro_code)
+    return JuMP._finalize_macro(esc_model, macro_code, __source__)
 end
 
 """
@@ -527,7 +527,7 @@ macro dependent_parameters(model, args...)
         macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
                                                    model_for_registering = esc_model)
     end
-    return JuMP._assert_valid_model(esc_model, macro_code)
+    return JuMP._finalize_macro(esc_model, macro_code, __source__)
 end
 
 """
