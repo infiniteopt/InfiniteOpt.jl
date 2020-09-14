@@ -65,7 +65,7 @@ function new_measure(expr::JuMP.AbstractJuMPScalar, param::GeneralVariableRef,
                      num_supports::Int = 10)::GeneralVariableRef # REPLACE ARGS WITH ACTUAL DESIRED
     # INSERT RELAVENT CHECKS AND OPERATIONS HERE
     # REPLACE BELOW WITH ACTUAL CONSTRUCTION
-    attr2 = DiscreteMeasureData(param, ones(num_supports), collect(range(lb, ub, length = num_supports))) # just an example
+    attr2 = DiscreteMeasureData(param, ones(num_supports), [lb + (ub - lb) / (num_supports - 1) * i for i in 1:num_supports]) # just an example
     data = NewMeasureData(name, attr2) # REPLACE WITH ACTUAL
     # built the measure using the built-in constructor
     return measure(expr, data)
