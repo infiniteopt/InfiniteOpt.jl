@@ -437,3 +437,32 @@ end
         @test_throws ErrorException set_integer(vref3)
     end
 end
+
+# Test relaxation 
+@testset "JuMP.relax_integrality" begin 
+    # setup the model 
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_variable(m, y(t), Int)
+    @hold_variable(m, 0.25 <= x <= 1.25, Bin)
+    @hold_variable(m, z, Bin)
+    # test relaxing it 
+    result_store = []
+    @test push!(result_store, relax_integrality(m)) isa Vector
+    @test !is_integer(y)
+    @test !is_binary(x)
+    @test !is_binary(z)
+    @test lower_bound(x) == 0.25
+    @test upper_bound(x) == 1
+    @test lower_bound(z) == 0
+    @test upper_bound(z) == 1
+    # test unrelaxing it 
+    @test result_store[1]() isa Nothing 
+    @test is_integer(y)
+    @test is_binary(x)
+    @test is_binary(z)
+    @test lower_bound(x) == 0.25
+    @test upper_bound(x) == 1.25
+    @test !has_lower_bound(z)
+    @test !has_upper_bound(z)
+end

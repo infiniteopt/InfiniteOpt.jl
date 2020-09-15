@@ -881,4 +881,5 @@ delete_parameter_bounds(::HoldVariableRef)
 infinite_variable_ref(::PointVariableRef)
 parameter_values(::PointVariableRef)
 raw_parameter_values(::PointVariableRef)
+JuMP.relax_integrality(::InfiniteModel)
 ```

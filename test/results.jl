@@ -20,6 +20,9 @@
     MOI.set(mockoptimizer, MOI.DualStatus(1), MOI.FEASIBLE_POINT)
     MOI.set(mockoptimizer, MOI.PrimalStatus(2), MOI.FEASIBLE_POINT)
     MOI.set(mockoptimizer, MOI.DualStatus(2), MOI.FEASIBLE_POINT)
+    MOI.set(mockoptimizer, MOI.SimplexIterations(), 4)
+    MOI.set(mockoptimizer, MOI.BarrierIterations(), 7)
+    MOI.set(mockoptimizer, MOI.NodeCount(), 2)
     MOI.set(mockoptimizer, MOI.SolveTime(), 0.42)
     # test termination_status
     @testset "JuMP.termination_status" begin
@@ -42,6 +45,18 @@
     # test raw_status
     @testset "JuMP.raw_status" begin
         @test raw_status(m) == "solver specific string"
+    end
+    # test simplex_iterations
+    @testset "JuMP.simplex_iterations" begin
+        @test simplex_iterations(m) == 4
+    end
+    # test barrier_iterations
+    @testset "JuMP.barrier_iterations" begin
+        @test barrier_iterations(m) == 7
+    end
+    # test node_count
+    @testset "JuMP.node_count" begin
+        @test node_count(m) == 2
     end
 end
 
