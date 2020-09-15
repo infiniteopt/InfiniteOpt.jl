@@ -344,7 +344,7 @@ case.
 #### Anonymous Parameter Definition and `base_name`
 As mentioned above, we can define anonymous parameters using keyword arguments
 in the macro [`@infinite_parameter`](@ref). For instance, we can create an
-anonymous position parameter in a 3D space, referred to by a list of [`ParameterRef`](@ref)
+anonymous position parameter in a 3D space, referred to by a list of [`GeneralVariableRef`](@ref)
 called `x`:
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
 julia> x = @infinite_parameter(model, [1:3], lower_bound = 0, upper_bound = 1)
@@ -554,7 +554,7 @@ supports to a defined parameter using methods [`add_supports`](@ref) and
 In this section we introduce automatic support generation for defined
 parameters with no associated supports. This can be done using the
 [`fill_in_supports!`](@ref) functions. [`fill_in_supports!`](@ref) can take as
-argument a [`ParameterRef`](@ref), in which case it will generate
+argument a [`GeneralVariableRef`](@ref) or an `AbstractArray{<:GeneralVariableRef}`, in which case it will generate
 supports for the associated infinite parameter. Alternatively,
 [`fill_in_supports!`](@ref) can also take an [`InfiniteModel`](@ref) as an
 argument, in which case it will generate supports for all infinite parameters

@@ -338,7 +338,7 @@ const DefaultNumSupports = 10
 
 Generate `num_supports` support values with `sig_digits` significant digits in
 accordance with `set` and return them along with the correct generation label(s).
-`IntervalSet`s generate supports uniformly with label `Grid` and
+`IntervalSet`s generate supports uniformly with label `UniformGrid` and
 distribution sets generate them randomly accordingly to the
 underlying distribution. Moreover, `method` indicates the generation method that
 should be used. These `methods` correspond to parameter support labels. Current
@@ -351,8 +351,7 @@ for certain set types):
 Extensions that employ user-defined infinite set types and/or methods
 should extend [`generate_support_values`](@ref) to enable this. Errors if the
 `set` type and /or methods are unrecognized. This is intended as an internal
-method to be used by methods such as [`generate_and_add_supports!`](@ref) and
-[`build_parameter`](@ref).
+method to be used by methods such as [`generate_and_add_supports!`](@ref).
 """
 function generate_supports(set::AbstractInfiniteSet,
                            method::Union{Symbol, Nothing} = nothing;
