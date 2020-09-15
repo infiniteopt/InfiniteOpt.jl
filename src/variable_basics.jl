@@ -1233,3 +1233,92 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
     _delete_data_object(vref)
     return
 end
+
+################################################################################
+#                           INTEGRALITY RELAXATION
+################################################################################
+"""
+    JuMP.relax_integrality(model::InfiniteModel)::Function
+
+Modifies `model` to "relax" all binary and integrality constraints on
+variables. Specifically,
+
+- Binary constraints are deleted, and variable bounds are tightened if
+  necessary to ensure the variable is constrained to the interval ``[0, 1]``.
+- Integrality constraints are deleted without modifying variable bounds.
+- All other constraints are ignored (left in place). This includes discrete
+  constraints like SOS and indicator constraints.
+
+Returns a function that can be called without any arguments to restore the
+original model. The behavior of this function is undefined if additional
+changes are made to the affected variables in the meantime.
+
+**Example**
+```julia-repl
+julia> undo_relax = relax_integrality(model);
+
+julia> print(model)
+Min x + integral{t ∈ [0, 10]}(y(t))
+Subject to
+ x ≥ 0.0
+ y(t) ≥ 1.0
+ x ≤ 1.0
+ y(t) ≤ 10.0
+
+julia> undo_relax()
+
+julia> print(model)
+Min x + integral{t ∈ [0, 10]}(y(t))
+Subject to
+ y(t) ≥ 1.0
+ y(t) ≤ 10.0
+ y(t) integer
+ x binary
+```
+"""
+function JuMP.relax_integrality(model::InfiniteModel)
+    # TODO ensure variables are not semi-continous/integer
+    # get the variable info 
+    info_pre_relaxation = map(v -> (dispatch_variable_ref(v), 
+                              _variable_info(dispatch_variable_ref(v))),
+                              JuMP.all_variables(model))
+    # relax the appropriate variables
+    for (vref, info) in info_pre_relaxation
+        if info.integer
+            JuMP.unset_integer(vref)
+        elseif info.binary
+            JuMP.unset_binary(vref)
+            if isnan(info.lower_bound)
+                JuMP.set_lower_bound(vref, 0.0)
+            else
+                JuMP.set_lower_bound(vref, max(0.0, info.lower_bound))
+            end 
+            if isnan(info.upper_bound)
+                JuMP.set_upper_bound(vref, 1.0)
+            else 
+                JuMP.set_upper_bound(vref, min(1.0, info.upper_bound))
+            end
+        end
+    end
+    function unrelax()::Nothing
+        for (vref, info) in info_pre_relaxation
+            if info.integer
+                JuMP.set_integer(vref)
+            elseif info.binary
+                JuMP.set_binary(vref)
+                if info.has_lb
+                    JuMP.set_lower_bound(vref, info.lower_bound)
+                else
+                    JuMP.delete_lower_bound(vref)
+                end
+                if info.has_ub
+                    JuMP.set_upper_bound(vref, info.upper_bound)
+                else
+                    JuMP.delete_upper_bound(vref)
+                end
+            end
+        end
+        return
+    end
+    return unrelax
+end

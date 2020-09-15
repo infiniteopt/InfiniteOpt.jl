@@ -118,6 +118,40 @@ function JuMP.has_duals(model::InfiniteModel; result::Int = 1)::Bool
     return JuMP.dual_status(model; result = result) != MOI.NO_SOLUTION
 end
 
+"""
+    simplex_iterations(model::InfiniteModel)
+
+Gets the cumulative number of simplex iterations during the most-recent optimization.
+
+Solvers must implement `MOI.SimplexIterations()` to use this function.
+"""
+function JuMP.simplex_iterations(model::InfiniteModel)
+    return JuMP.simplex_iterations(optimizer_model(model))
+end
+
+"""
+    barrier_iterations(model::InfiniteModel)
+
+Gets the cumulative number of barrier iterations during the most-recent optimization.
+
+Solvers must implement `MOI.BarrierIterations()` to use this function.
+"""
+function JuMP.barrier_iterations(model::InfiniteModel)
+    return JuMP.barrier_iterations(optimizer_model(model))
+end
+
+"""
+    node_count(model::InfiniteModel)
+
+Gets the total number of branch-and-bound nodes explored during the most recent
+optimization in a Mixed Integer Program.
+
+Solvers must implement `MOI.NodeCount()` to use this function.
+"""
+function JuMP.node_count(model::InfiniteModel)
+    return JuMP.node_count(optimizer_model(model))
+end
+
 ################################################################################
 #                              OBJECTIVE QUERIES
 ################################################################################
