@@ -345,7 +345,7 @@ should be used. These `methods` correspond to parameter support labels. Current
 labels that can be used as generation methods include (but may not be defined
 for certain set types):
 - `MCSample`: Uniformly distributed Monte Carlo samples.
-- `WeightedSample`: Monte Carlo samples that are weighted by an un derlying PDF.
+- `WeightedSample`: Monte Carlo samples that are weighted by an underlying PDF.
 - `UniformGrid`: Samples that are generated uniformly over the set domain.
 
 Extensions that employ user-defined infinite set types and/or methods
