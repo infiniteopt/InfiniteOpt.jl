@@ -109,20 +109,7 @@ values that are different from the defaults. We don't have to input the keyword 
 values every time we construct a new measure. Instead, we can modify the
 default values of measure keyword arguments, and construct measures using the new 
 default values. To do that, we use the functions
-[`set_uni_integral_defaults`](@ref) and [`set_multi_integral_defaults`](@ref). For example,
-suppose we want to change the default number of supports to 20, and for some
-reason we want to add a new keyword argument called `a` to the measure function,
-with value of 1, for all univariate integrals. Then we can do the following:
-```jldoctest meas_basic
-julia> set_uni_integral_defaults(num_supports = 20, a = 1)
-
-julia> uni_integral_defaults()
-Dict{Symbol,Any} with 4 entries:
-  :a            => 1
-  :num_supports => 20
-  :eval_method  => Automatic
-  :weight_func  => default_weight
-```
+[`set_uni_integral_defaults`](@ref) and [`set_multi_integral_defaults`](@ref).
 Adding new keyword arguments will be useful if users want to extend the measure 
 functions with their custom discretization/evaluation schemes that need to take 
 additional arguments somehow. See [Extensions](@ref) for more details.

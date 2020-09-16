@@ -9,7 +9,7 @@ makedocs(;
                              "Finite Parameters" => "guide/finite_parameter.md",
                              "Variables" => "guide/variable.md",
                              "Expressions" => "guide/expression.md",
-                             # "Measures" => "guide/measure.md",
+                             "Measures" => "guide/measure.md",
                              "Objectives" => "guide/objective.md",
                              "Constraints" => "guide/constraint.md",
                              "Model Transcription" => "guide/transcribe.md",
@@ -18,7 +18,7 @@ makedocs(;
                              ]
                              ,
             "Examples" => "examples.md",
-            # "Extensions" => "extensions.md",
+            "Extensions" => "extensions.md",
             "Development" => "develop.md",
             "Library" => "library.md",
             hide("JuMP Docs" => "JuMP.md")

@@ -88,7 +88,7 @@ Now the checks are enabled so, the following would yield an error because the
 support is not in the set domain:
 ```jldoctest set_ext
 julia> @infinite_parameter(model, set = DisjointSet(0, 1, 3, 4), supports = 2)
-ERROR: In `@infinite_parameter(model, set = DisjointSet(0, 1, 3, 4), supports = 2)`: Supports violate the set domain bounds.
+ERROR: At none:1: `@infinite_parameter(model, set = DisjointSet(0, 1, 3, 4), supports = 2)`: Supports violate the set domain bounds.
 ```
 
 To enable automatic support generation via the `num_supports` keyword and with
@@ -189,7 +189,7 @@ create a measure using the measure data, as shown below:
 
 ```jldoctest measure_eval
 julia> tdata = uniform_grid(t, 0, 5, 6)
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.8333333333333333, 0.8333333333333333, 0.8333333333333333, 0.8333333333333333, 0.8333333333333333, 0.8333333333333333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], Symbol("##285"), InfiniteOpt.default_weight, 0.0, 5.0, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.8333333333333333, 0.8333333333333333, 0.8333333333333333, 0.8333333333333333, 0.8333333333333333, 0.8333333333333333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], Symbol("##704"), InfiniteOpt.default_weight, 0.0, 5.0, false)
 
 julia> f_meas = measure(f, tdata)
 measure{t ∈ [0, 5]}[f(t)]
@@ -226,7 +226,7 @@ function InfiniteOpt.MeasureToolbox.generate_integral_data(
     upper_bound::Real,
     method::Type{UnifGrid};
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
-    weight_func::Function
+    weight_func::Function = InfiniteOpt.default_weight
     )::InfiniteOpt.AbstractMeasureData # REPLACE WITH ACTUAL ALIAS
     increment = (upper_bound - lower_bound) / (num_supports - 1)
     supports = [lower_bound + (i - 1) * increment for i in 1:num_supports]
@@ -239,6 +239,8 @@ function InfiniteOpt.MeasureToolbox.generate_integral_data(
 end
 
 # output
+
+
 ```
 
 Also notice that users are free to pass keyword arguments for their new
