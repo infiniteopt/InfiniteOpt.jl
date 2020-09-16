@@ -156,15 +156,13 @@ macro independent_parameter(model, args...)
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
 
     # check to see if error_args are provided define error function
-    error_args = filter(kw -> kw.args[1] == :error_args, kw_args)
-    if length(error_args) != 0
-        new_args = error_args[1].args[2]
-        macro_name = :infinite_parameter
+    error_kwargs = filter(kw -> kw.args[1] == :error_func, kw_args)
+    if isempty(error_kwargs)
+        _error(str...) = JuMP._macro_error(:independent_parameter, (model, args...), 
+                                           __source__, str...)
     else
-        new_args = args
-        macro_name = :independent_parameter
+        _error = error_kwargs[1].args[2]
     end
-    _error(str...) = JuMP._macro_error(macro_name, (model, new_args...), str...)
 
     # if there is only a single non-keyword argument, this is an anonymous
     # variable spec and the one non-kwarg is the model
@@ -181,7 +179,9 @@ macro independent_parameter(model, args...)
     end
 
     info_kw_args = filter(InfiniteOpt._is_set_keyword, kw_args)
-    extra_kw_args = filter(kw -> kw.args[1] != :base_name && !InfiniteOpt._is_set_keyword(kw) && kw.args[1] != :error_args, kw_args)
+    extra_kw_args = filter(kw -> kw.args[1] != :base_name && 
+                           !InfiniteOpt._is_set_keyword(kw) && 
+                           kw.args[1] != :error_func, kw_args)
     base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
     infoexpr = InfiniteOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
 
@@ -297,7 +297,8 @@ macro finite_parameter(model, args...)
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
 
     macro_name = :finite_parameter
-    _error(str...) = JuMP._macro_error(macro_name, (model, args...), str...)
+    _error(str...) = JuMP._macro_error(macro_name, (model, args...), 
+                                       __source__, str...)
 
     # if there is only a single non-keyword argument, this is an anonymous
     # variable spec and the one non-kwarg is the model
@@ -432,19 +433,17 @@ macro dependent_parameters(model, args...)
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
 
     # check to see if error_args are provided define error function
-    error_args = filter(kw -> kw.args[1] == :error_args, kw_args)
-    if length(error_args) != 0
-        new_args = error_args[1].args[2]
-        macro_name = :infinite_parameter
+    error_kwargs = filter(kw -> kw.args[1] == :error_func, kw_args)
+    if isempty(error_kwargs)
+        _error(str...) = JuMP._macro_error(:dependent_parameters, (model, args...), 
+                                           __source__, str...)
     else
-        new_args = args
-        macro_name = :dependent_parameters
+        _error = error_kwargs[1].args[2]
     end
-    _error(str...) = JuMP._macro_error(macro_name, (model, new_args...), str...)
 
     # there must be one extra positional argument to specify the dimensions
     if length(extra) == 1
-        x = popfirst!(extra)
+        x = popfirst!(extra) 
     elseif length(extra) == 0
         _error("Must specify more than one dependent parameter.")
     else
@@ -458,7 +457,7 @@ macro dependent_parameters(model, args...)
     supports_kw_arg = filter(kw -> kw.args[1] == :supports, kw_args)
     extra_kw_args = filter(kw -> kw.args[1] != :base_name &&
                            !InfiniteOpt._is_set_keyword(kw) &&
-                           kw.args[1] != :error_args &&
+                           kw.args[1] != :error_func &&
                            kw.args[1] != :supports, kw_args)
     base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
     infoexpr = InfiniteOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
@@ -603,7 +602,7 @@ And data, a 2-element Array{GeneralVariableRef,1}:
 macro infinite_parameter(model, args...)
     # define error message function
     _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...),
-                                       str...)
+                                       __source__, str...)
     # parse the arguments
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     indep_kwarg = filter(kw -> kw.args[1] == :independent, kw_args)
@@ -618,7 +617,7 @@ macro infinite_parameter(model, args...)
     if length(extra) == 0
         code = :( @independent_parameter($model, $(extra...), $(new_kwargs...),
                                          container = $requestedcontainer,
-                                         error_args = $args) )
+                                         error_func = $(_error)) )
     else
         # get the param expression and check it is an array --> TODO make more efficient
         x = first(extra)
@@ -632,17 +631,17 @@ macro infinite_parameter(model, args...)
         if param isa Symbol
             code = :( @independent_parameter($model, $(extra...), $(new_kwargs...),
                                              container = $requestedcontainer,
-                                             error_args = $args) )
+                                             error_func = $(_error)) )
         else
             code = quote
                 if $independent
                     @independent_parameter($model, $(extra...), $(new_kwargs...),
                                            container = $requestedcontainer,
-                                           error_args = $args)
+                                           error_func = $(_error))
                 else
                     @dependent_parameters($model, $(extra...), $(new_kwargs...),
                                           container = $requestedcontainer,
-                                          error_args = $args)
+                                          error_func = $(_error))
                 end
             end
         end
@@ -841,7 +840,7 @@ julia> @infinite_variable(model, lb[i] <= y[i = 1:2](t) <= ub[i], Int)
 """
 macro infinite_variable(model, args...)
     _error(str...) = JuMP._macro_error(:infinite_variable, (model, args...),
-                                       str...)
+                                       __source__, str...)
 
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     param_kw_args = filter(kw -> kw.args[1] == :parameter_refs, kw_args)
@@ -1034,7 +1033,8 @@ julia> y0 = @point_variable(model, [i = 1:2], binary = true, base_name = "y0",
 """
 macro point_variable(model, args...)
     _error(str...) = JuMP._macro_error(:point_variable,
-                                       (model, args...), str...)
+                                       (model, args...), __source__,
+                                       str...)
 
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     param_kw_args = filter(kw -> kw.args[1] == :infinite_variable_ref ||
@@ -1178,7 +1178,7 @@ d
 """
 macro hold_variable(model, args...)
     _error(str...) = JuMP._macro_error(:hold_variable, (model, args...),
-                                       str...)
+                                       __source__, str...)
     # parse the arguments
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     bound_kw_args = filter(kw -> kw.args[1] == :parameter_bounds, kw_args)
@@ -1400,7 +1400,8 @@ JuMP.Containers.SparseAxisArray{InfiniteConstraintRef,1,Tuple{Any}} with 3 entri
 """
 macro BDconstraint(model, args...)
     # define appropriate error message function
-    _error(str...) = JuMP._macro_error(:BDconstraint, (model, args...), str...)
+    _error(str...) = JuMP._macro_error(:BDconstraint, (model, args...), 
+                                        __source__, str...)
 
     # parse the arguments
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
@@ -1518,7 +1519,8 @@ con : x(t) + y = 0.0, ∀ t = 0
 macro set_parameter_bounds(ref, bound_expr, args...)
     # define appropriate error message function
     _error(str...) = JuMP._macro_error(:set_parameter_bounds,
-                                       (ref, bound_expr, args...), str...)
+                                       (ref, bound_expr, args...), __source__, 
+                                       str...)
     # parse the arguments
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     extra_kw_args = filter(kw -> kw.args[1] != :force, kw_args)

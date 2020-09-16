@@ -40,6 +40,12 @@ Subject to
  c2 : x(t) = 42.0, ∀ t = 0
 
 julia> optimize!(model)
+
+******************************************************************************
+ This program contains Ipopt, a library for large-scale nonlinear optimization.
+  Ipopt is released as open source code under the Eclipse Public License (EPL).
+          For more information visit http://projects.coin-or.org/Ipopt
+******************************************************************************
 ```
 Now that the model has been optimized, let's find out what happened. To determine
 why the optimizer stopped, we can use
@@ -92,15 +98,15 @@ let's retrieve the "value" of `x(t)` which is infinite with respect to `t`:
 julia> value(x)
 10-element Array{Float64,1}:
  42.0
- 20.999999995633615
- 20.999999995633615
- 20.999999995633615
- 20.999999995633615
- 20.999999995633615
- 20.999999995633615
- 20.999999995633615
- 20.999999995633615
- 20.999999995633615
+ 20.999999995620495
+ 20.999999995620495
+ 20.999999995620495
+ 20.999999995620495
+ 20.999999995620495
+ 20.999999995620495
+ 20.999999995620495
+ 20.999999995620495
+ 20.999999995620495
 ```
 Notice here we obtain an array of values since these correspond to the
 transcribed finite (discretized) variables used to solve the problem. We obtain
@@ -109,14 +115,14 @@ the corresponding support (discretized `t`) values via `supports`:
 julia> supports(x)
 10-element Array{Tuple,1}:
  (0.0,)
- (1.1111,)
- (2.2222,)
- (3.3333,)
- (4.4444,)
- (5.5556,)
- (6.6667,)
- (7.7778,)
- (8.8889,)
+ (1.11111111111,)
+ (2.22222222222,)
+ (3.33333333333,)
+ (4.44444444444,)
+ (5.55555555556,)
+ (6.66666666667,)
+ (7.77777777778,)
+ (8.88888888889,)
  (10.0,)
 ```
 There is 1-to-1 correspondence between these supports and the values reported
@@ -162,14 +168,14 @@ julia> parameter_refs(c1)
 julia> supports(c1)
 10-element Array{Tuple,1}:
  (0.0,)
- (1.1111,)
- (2.2222,)
- (3.3333,)
- (4.4444,)
- (5.5556,)
- (6.6667,)
- (7.7778,)
- (8.8889,)
+ (1.11111111111,)
+ (2.22222222222,)
+ (3.33333333333,)
+ (4.44444444444,)
+ (5.55555555556,)
+ (6.66666666667,)
+ (7.77777777778,)
+ (8.88888888889,)
  (10.0,)
 ```
 These again all have a 1-to-1 correspondence.
@@ -290,15 +296,15 @@ z - x(t)
 julia> value(c1)
 10-element Array{Float64,1}:
  -8.747427671096375e-9
- 20.999999995618957
- 20.999999995618957
- 20.999999995618957
- 20.999999995618957
- 20.999999995618957
- 20.999999995618957
- 20.999999995618957
- 20.999999995618957
- 20.999999995618957
+ 20.999999995632077
+ 20.999999995632077
+ 20.999999995632077
+ 20.999999995632077
+ 20.999999995632077
+ 20.999999995632077
+ 20.999999995632077
+ 20.999999995632077
+ 20.999999995632077
 ```
 Again, we obtain an array of values since `c1` is infinite due to its dependence
 on `x(t)`. Behind the scenes this is implemented via the appropriate extensions

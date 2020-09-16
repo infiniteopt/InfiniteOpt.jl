@@ -48,11 +48,6 @@ Subject to
 Now we optimize the model using `optimize!`:
 ```jldoctest optimize
 julia> optimize!(model);
-******************************************************************************
- This program contains Ipopt, a library for large-scale nonlinear optimization.
-  Ipopt is released as open source code under the Eclipse Public License (EPL).
-          For more information visit http://projects.coin-or.org/Ipopt
-******************************************************************************
 
 julia> termination_status(model)
 LOCALLY_SOLVED::TerminationStatusCode = 4

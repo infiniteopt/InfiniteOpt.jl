@@ -261,7 +261,7 @@ Min support_sum{t}[y(t)²]
 Subject to
  y(t) = 1.0, ∀ t = 0
  support_sum{x}[g(t, x)] = 42.0, ∀ t ∈ [0, 10]
- y(t)² + 3 g(t, x) ≤ 2.0, t ∈ [0, 10], x[1] ∈ [-1, 1],  x[2] ∈ [-1, 1]
+ y(t)² + 3 g(t, x) ≤ 2.0, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
 ```
 Thus, we obtain the infinite problem in `InfiniteOpt`. As previously noted,
 transcription would be handled automatically behind the scenes when the model is

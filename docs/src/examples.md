@@ -116,11 +116,11 @@ println("Expected Profit: \$", round(profit, digits = 2))
 # output
 
 Land Allocations: [48.56, 214.77, 236.67]
-Expected Profit: $57100.21
+Expected Profit: $57099.53
 ```
 ```
 Land Allocations: [48.56, 214.77, 236.67]
-Expected Profit: $57100.21
+Expected Profit: $57099.53
 ```
 
 We did it! An interesting modification would be to use a ``CVaR`` risk measure
@@ -171,12 +171,12 @@ println("Expected Profit: \$", round(profit, digits = 2))
 
 # output
 
-Land Allocations: [224.58, 83.63, 191.88]
-Expected Profit: $47840.01
+Land Allocations: [58.5, 199.25, 242.26]
+Expected Profit: $32918.89
 ```
 ```
-Land Allocations: [224.58, 83.63, 191.88]
-Expected Profit: $47840.01
+Land Allocations: [58.5, 199.25, 242.26]
+Expected Profit: $32918.89
 ```
 
 ## Optimal Control
