@@ -189,7 +189,7 @@ create a measure using the measure data, as shown below:
 
 ```jldoctest measure_eval
 julia> tdata = uniform_grid(t, 0, 5, 6)
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.8333333333333333, 0.8333333333333333, 0.8333333333333333, 0.8333333333333333, 0.8333333333333333, 0.8333333333333333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], Symbol("##704"), InfiniteOpt.default_weight, 0.0, 5.0, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], Symbol("##812"), InfiniteOpt.default_weight, 0.0, 5.0, false)
 
 julia> f_meas = measure(f, tdata)
 measure{t ∈ [0, 5]}[f(t)]
