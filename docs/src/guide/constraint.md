@@ -346,9 +346,9 @@ the form `func-in-set`). Thus, for our current model we obtain:
 julia> list_of_constraint_types(model)
 4-element Array{Tuple{DataType,DataType},1}:
  (GenericQuadExpr{Float64,GeneralVariableRef}, MathOptInterface.LessThan{Float64})
- (GenericAffExpr{Float64,GeneralVariableRef}, MathOptInterface.EqualTo{Float64})
  (GenericQuadExpr{Float64,GeneralVariableRef}, MathOptInterface.GreaterThan{Float64})
  (GenericAffExpr{Float64,GeneralVariableRef}, MathOptInterface.LessThan{Float64})
+ (GenericAffExpr{Float64,GeneralVariableRef}, MathOptInterface.EqualTo{Float64})
 ```
 This information is useful when in combination with the
 [`num_constraints`](@ref JuMP.num_constraints(::InfiniteModel, ::Type{<:JuMP.AbstractJuMPScalar}, ::Type{<:MOI.AbstractSet}))
