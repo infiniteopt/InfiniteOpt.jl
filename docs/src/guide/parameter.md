@@ -36,7 +36,7 @@ following its support points. If none are specified by the user than 50
 support points are generated that are equidistant over the interval. However,
 users may wish to employ their own support scheme. This can be done by using the
 `num_supports` or `supports` keyword arguments. For example, if we desire to
-have only 10 equidistant supports then we could have instead defined `t`:
+have only 10 equi-distant supports then we could have instead defined `t`:
 ```jldoctest; setup = :(using JuMP, InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10], num_supports = 10)
 t
@@ -73,12 +73,12 @@ We could also define a random parameter described by a statistical
 distribution. This can be accomplished using [`@infinite_parameter`](@ref) in
 combination with a distribution from
 [`Distributions.jl`](https://github.com/JuliaStats/Distributions.jl). For
-example let's define a vector of random parameters described by a Normal
+example let's define a vector of independent random parameters described by a Normal
 distribution:
 ```jldoctest basic
 julia> using Distributions
 
-julia> @infinite_parameter(model, xi[i = 1:3] in Normal())
+julia> @infinite_parameter(model, xi[i = 1:3] in Normal(), independent = true)
 3-element Array{GeneralVariableRef,1}:
  xi[1]
  xi[2]
@@ -127,7 +127,7 @@ julia> set = IntervalSet(0, 10)
 [0, 10]
 
 julia> t_param = build_parameter(error, set, supports = [0, 2, 5, 7, 10])
-IndependentParameter{IntervalSet}([0, 10], SortedDict{Float64,Set{Symbol},Base.Order.ForwardOrdering}(0.0 => Set([:user_defined]),2.0 => Set([:user_defined]),5.0 => Set([:user_defined]),7.0 => Set([:user_defined]),10.0 => Set([:user_defined])), 12)
+IndependentParameter{IntervalSet}([0, 10], DataStructures.SortedDict(0.0=>Set([:user_defined]),2.0=>Set([:user_defined]),5.0=>Set([:user_defined]),7.0=>Set([:user_defined]),10.0=>Set([:user_defined])), 12)
 ```  
 Now that we have a `InfOptParameter` that contains an `IntervalSet` and supports,
 let's now add `t_param` to our `InfiniteModel` using [`add_parameter`](@ref)
@@ -155,7 +155,7 @@ julia> set = UniDistributionSet(dist)
 Normal{Float64}(μ=0.0, σ=1.0)
 
 julia> x_param = build_parameter(error, set, supports = [-0.5, 0.5])
-IndependentParameter{UniDistributionSet{Normal{Float64}}}(Normal{Float64}(μ=0.0, σ=1.0), SortedDict{Float64,Set{Symbol},Base.Order.ForwardOrdering}(-0.5 => Set([:user_defined]),0.5 => Set([:user_defined])), 12)
+IndependentParameter{UniDistributionSet{Normal{Float64}}}(Normal{Float64}(μ=0.0, σ=1.0), DataStructures.SortedDict(-0.5=>Set([:user_defined]),0.5=>Set([:user_defined])), 12)
 ```
 Again, we use [`add_parameter`](@ref) to add `x_param` to the `InfiniteModel` and
 assign it the name `x`:
@@ -504,7 +504,7 @@ julia> set = IntervalSet(0, 10)
 [0, 10]
 
 julia> t_param = build_parameter(error, set, num_supports = 4, sig_digits = 3)
-IndependentParameter{IntervalSet}([0, 10], SortedDict{Float64,Set{Symbol},Base.Order.ForwardOrdering}(0.0 => Set([:uniform_grid]),3.33 => Set([:uniform_grid]),6.67 => Set([:uniform_grid]),10.0 => Set([:uniform_grid])), 3)
+IndependentParameter{IntervalSet}([0, 10], DataStructures.SortedDict(0.0=>Set([:uniform_grid]),3.33=>Set([:uniform_grid]),6.67=>Set([:uniform_grid]),10.0=>Set([:uniform_grid])), 3)
 ```  
 Using macro definition we have
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
@@ -563,7 +563,7 @@ of the [`InfiniteModel`](@ref) with no supports.
 The [`fill_in_supports!`](@ref) method allows users to specify integer keyword
 arguments `num_supports` and `sig_digits`. `num_supports` dictates the
 number of supports to be generated, and `sig_digits` dictates the significant
-figures of generated supports desired. The default values are 50 and 5,
+figures of generated supports desired. The default values are 10 and 12,
 respectively.
 
 The ways by which supports are automatically generated are as follows. If the
@@ -612,8 +612,8 @@ julia> fill_in_supports!(xi, num_supports = 3)
 
 julia> supports(xi)
 2×3 Array{Float64,2}:
- 0.679107  -0.353007  0.586617
- 1.17155   -0.190712  0.420496
+ -0.353007  0.679107  0.586617
+ -0.190712  1.17155   0.420496
 ```
 Note that [`fill_in_supports!`](@ref) only fill in supports for parameters with no
 associated supports. To modify the supports of parameters already associated
@@ -637,7 +637,7 @@ false
 ```
 This function checks if the parameter is used by any constraint, measure, or
 variable. In a similar way, functions [`used_by_constraint`](@ref),
-[`used_by_measure`](@ref) and [`used_by_variable`](@ref) can be applied to
+[`used_by_measure`](@ref) and [`used_by_infinite_variable`](@ref) can be applied to
 find out any dependency of specific types on the infinite parameter.
 
 In addition, sometimes we need to check if a certain [`GeneralVariableRef`](@ref)
@@ -761,7 +761,7 @@ julia> infinite_set(t)
 [1, 4]
 ```
 We do not support setting lower bounds and upper bounds for random parameters
-in a [UniDistributionSet](@ref) and will throw an error if users attempt to do
+in a [`UniDistributionSet`](@ref) and will throw an error if users attempt to do
 so. If users want to set lower bound and upper bound for a random infinite
 parameter, consider using `Distributions.Truncated`, which creates a truncated
 distribution from a univariate distribution.
@@ -834,7 +834,7 @@ JuMP.set_upper_bound(::IndependentParameterRef,::Real)
 JuMP.set_upper_bound(::DependentParameterRef,::Real)
 significant_digits(::IndependentParameterRef)
 significant_digits(::DependentParameterRef)
-num_supports(::IndependentParameterRef
+num_supports(::IndependentParameterRef)
 num_supports(::DependentParameterRef)
 num_supports(::AbstractArray{<:DependentParameterRef})
 has_supports(::IndependentParameterRef)
@@ -846,7 +846,7 @@ supports(::AbstractArray{<:DependentParameterRef})
 set_supports(::IndependentParameterRef, ::Vector{<:Real})
 set_supports(::AbstractArray{<:DependentParameterRef},::AbstractArray{<:Vector{<:Real}})
 add_supports(::IndependentParameterRef,::Union{Real, Vector{<:Real}})
-add_supports(::AbstractArray{<:IndependentParameterRef},::AbstractArray{<:Vector{<:Real}})
+add_supports(::AbstractArray{<:DependentParameterRef},::AbstractArray{<:Vector{<:Real}})
 delete_supports(::IndependentParameterRef)
 delete_supports(::AbstractArray{<:DependentParameterRef})
 generate_and_add_supports!(::IndependentParameterRef,::AbstractInfiniteSet,::Union{Symbol, Nothing})

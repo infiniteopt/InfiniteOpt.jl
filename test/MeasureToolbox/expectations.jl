@@ -20,6 +20,8 @@
     end
 end
 
+# TODO test expect with JuMP container of infinite parameters
+
 @testset "Expect" begin
     m = InfiniteModel()
     @infinite_parameter(m, x in Normal())

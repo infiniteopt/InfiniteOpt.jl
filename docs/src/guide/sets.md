@@ -13,20 +13,31 @@ and as discussed on the [Infinite Parameters](@ref inf_par_page) page.
 However, for convenience below we summary the infinite sets associated with
 `InfiniteOpt`:
 
-| Set Type        | Domain              |
-|:---------------:|:-------------------:|
-| IntervalSet     | ``[lb, ub]``        |
-| UniDistributionSet | ``\sim \mathcal{D}``|
-| MultiDistributionSet | ``\sim \mathcal{D}``|
+| Set Type                       | Domain                                     | Type                        |
+|:------------------------------:|:------------------------------------------:|:---------------------------:|
+| [`IntervalSet`](@ref)          | ``[lb, ub]``                               | [`InfiniteScalarSet`](@ref) |
+| [`UniDistributionSet`](@ref)   | ``\sim \mathcal{D} \subseteq \mathbb{R}``  | [`InfiniteScalarSet`](@ref) |
+| [`MultiDistributionSet`](@ref) | ``\sim \mathcal{D} \subseteq \mathbb{R}^n``| [`InfiniteArraySet`](@ref)  |
+| [`CollectionSet`](@ref)        | Combination of Univariate Domains          | [`InfiniteArraySet`](@ref)  |
 
-## IntervalSets
-The domain of a given infinite parameter is described by an infinite set
+## Infinite Set Classes
+The domain of a given infinite parameter(s) is described by an infinite set
 inherited from [`AbstractInfiniteSet`](@ref). `InfiniteOpt` natively supports
-two such sets. The first is [`IntervalSet`](@ref) which describes a continuous
-interval from some lower bound up to some upper bound. Typically, this range
-is inclusive of the bounds. Such sets often arise for parameters that pertain to
-time and/or spatial position. For example, to define a position interval
-``[-2, 2]`` we would use:
+two set sub-groups, namely [`InfiniteScalarSet`](@ref)s and [`InfiniteArraySet`](@ref)s. 
+These correspond to a single independent infinite parameter and a dependent multi-dimensional 
+group of infinite parameters, respectively. We describe each group's natively 
+supported sets below.
+
+### Univariate Sets
+Univariate infinite sets (i.e., [`InfiniteScalarSet`](@ref)s) are one-dimensional 
+domains (``\subseteq \mathbb{R}``) that describe the behavior of one single independent 
+infinite parameter (i.e., infinite parameters made using `independent = true`). The 
+two natively supported concrete types are [`IntervalSet`](@ref)s and [`UniDistributionSet`](@ref)s.
+
+[`IntervalSet`](@ref)s describe a continuous interval from some lower bound up to 
+some upper bound. Where the range is inclusive of the bounds. Such sets often 
+arise for parameters that pertain to time and/or spatial position. For example, 
+to define a position interval ``[-2, 2]`` we would use:
 ```jldoctest; setup = :(using InfiniteOpt)
 julia> set = IntervalSet(-2, 2)
 [-2, 2]
@@ -37,20 +48,36 @@ julia> infinite_set = IntervalSet(-Inf, Inf)
 [-Inf, Inf]
 ```
 
-## DistributionSets
-The second kind of set is that of [`UniDistributionSet`](@ref) which contains
-univariate distribution from [`Distributions.jl`](https://github.com/JuliaStats/Distributions.jl)
-that characterizes an infinite parameter. Similarly, [`MultiDistributionSet`](@ref) contains 
-multivariate distributions, wchih are only valid when
-defining an array of parameters with equivalent dimensions. For example, let's
-make a `UniDistributionSet` that depends on a Beta distribution:
-```jldoctest; setup = :(using InfiniteOpt, Distributions)
+[`UniDistributionSet`](@ref)s pertain to the co-domain of a univariate distribution. 
+In other words, these correspond to the underlying distributions that characterize 
+uncertain scalar parameters. These sets are compatible with any univariate 
+distribution native to [`Distributions.jl`](https://github.com/JuliaStats/Distributions.jl).
+For example, let's make a `UniDistributionSet` that depends on a Beta distribution:
+```jldoctest; setup = :(using InfiniteOpt)
+julia> using Distributions;
+
 julia> set = UniDistributionSet(Beta(2,2))
 Beta{Float64}(α=2.0, β=2.0)
 ```
-`MultiDistributionSet`s can be created in a similar way. For example, we can
-make a `MultiDistributionSet` that depends on a 2-D normal distribution as follows:
-```jldoctest; setup = :(using InfiniteOpt, Distributions)
+User-defined distributions are also permissible so long as they are created in
+accordance with `Distributions.jl`.
+
+### Multivariate Sets
+Multivariate infinite sets (i.e., [`InfiniteArraySet`])(@ref)s are multi-dimensional 
+domains that define the behavior of a group of dependent infinite parameters 
+(i.e., an array of infinite parameters where `independent = false`). This is a 
+unique feature to `InfiniteOpt` that enables a much richer set of possibilities 
+for modeling infinite domain. Natively two set types are supported: 
+[`MultiDistributionSet`](@ref)s and [`CollectionSet`](@ref)s. 
+
+[`MultiDistributionSet`](@ref)s correspond to the co-domain of a multi-variate 
+(or matrix-variate) distribution which characterizes the behavior of multi-dimensional 
+uncertain parameters. Again, these correspond to any appropriate distribution 
+defined in `Distributions.jl`. For example, we can make a `MultiDistributionSet` 
+that depends on a 2-D normal distribution as follows:
+```jldoctest; setup = :(using InfiniteOpt)
+julia> using Distributions;
+
 julia> dist = MvNormal([0., 0.], [1. 0.; 0. 2.]);
 
 julia> set = MultiDistributionSet(dist)
@@ -60,8 +87,24 @@ dim: 2
 Σ: [1.0 0.0; 0.0 2.0]
 )
 ```
-User-defined distributions are also permissible so long as they are created in
-accordance with `Distributions.jl`.
+
+!!! note 
+    The dimensions (shape) of a chosen distribution used in an `MultiDistriubtionSet` 
+    must match those of the corresponding infinite parameter array.
+
+Finally, [`CollectionSet`](@ref)s are a dependent collection of [`InfiniteScalarSet`](@ref)s
+that correspond to a group of infinite parameters that are treated dependently. 
+This can be useful when the user wishes to have complete control over how the 
+supports are generated for a group independent parameters where the default 
+combinatorial approach in not wanted. For example, let's make a set of `IntervalSet`s:
+```jldoctest; setup = :(using InfiniteOpt)
+julia> set = CollectionSet([IntervalSet(-2, 2), IntervalSet(-1, 4)])
+CollectionSet with 2 sets:
+ [-2, 2]
+ [-1, 4]
+```
+Now we could use this set in define a two-dimensional infinite parameter of which 
+we can have the freedom to define a non-combinatorial support grid.
 
 ## Bound Query/Modification Methods for Infinite Sets
 Once an infinite set is created, one can query the lower bound and upper bound of the set 
@@ -100,7 +143,9 @@ julia> set_upper_bound(set, 1)
 This is crucial as support generation decides how each infinite-dimensional parameter, which is subject
 to certain infinite set, is discretized later in the transcription stage. The interface will allow users
 to automatically generate support points using our default methods. Later we will also show that users can 
-also input support points manually for an infinite parameter.
+also input support points manually for an infinite parameter. Please note that these 
+methods are called by the [`@infinite_parameter`](@ref) macro when the `num_supports` 
+keyword is used. Thus, users typically will not need to use this interface directly.
 
 In `InfiniteOpt` supports can be generated via [`generate_supports`](@ref) function. For example, let's 
 generate 5 equidistant support points for the `IntervalSet` [-2, 2]:
@@ -128,7 +173,7 @@ is `MCSample`, which is to sample from a uniform distribution over the interval.
 need to specify a second positional argument, as shown in the following example:
 ```jldoctest; setup = :(using InfiniteOpt, Random; Random.seed!(0); set = IntervalSet(-2, 2))
 julia> generate_supports(set, MCSample, num_supports = 5)
-([1.29459003191, 1.64142615171, -1.34173680747, -1.29068461413, -0.884479562675], :mc_sample)
+([1.29459, 1.64143, -1.34174, -1.29068, -0.88448], :mc_sample)
 ```
 In this case, the returned label is `MCSample`, instead of `UniformGrid`.
 
@@ -151,7 +196,7 @@ julia> supps
 ```
 
 For those who are interested in coding up their own support generation functions, [`generate_supports`](@ref) is
-an inteface that calls the proper [`generate_support_values`](@ref) function based on the type of set and value of mehtod.
+an inteface that calls the proper [`generate_support_values`](@ref) function based on the type of set and value of method.
 Therefore, to use custom support generation methods, users can implement extensions for [`generate_support_values`](@ref) 
 with a different method label from the existing methods. See [Extensions](@ref) for full details.
 

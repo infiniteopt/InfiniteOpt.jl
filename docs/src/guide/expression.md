@@ -120,7 +120,7 @@ julia> expr = 2y^2 - z * y + 42t - 3
 2 y(t)² - z*y(t) + 42 t - 3
 
 julia> expr = @expression(model, 2y^2 - z * y + 42t - 3)
-2 y(t)² - z*y(t) + 42 t - 3
+2 y(t)² - y(t)*z + 42 t - 3
 
 julia> typeof(expr)
 GenericQuadExpr{Float64,GeneralVariableRef}
@@ -147,7 +147,7 @@ GenericAffExpr{Float64,GeneralVariableRef}
 julia> expr.terms
 OrderedCollections.OrderedDict{UnorderedPair{GeneralVariableRef},Float64} with 2 entries:
   UnorderedPair{GeneralVariableRef}(y(t), y(t)) => 2.0
-  UnorderedPair{GeneralVariableRef}(z, y(t))    => -1.0
+  UnorderedPair{GeneralVariableRef}(y(t), z)    => -1.0
 ```
 Notice again that the ordered dictionary preserves the order.
 

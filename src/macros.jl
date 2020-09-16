@@ -121,7 +121,7 @@ The recognized keyword arguments in `kw_args` are the following:
 - `lower_bound`: Sets the value of the parameter lower bound for an interval set.
 - `upper_bound`: Sets the value of the parameter upper bound for an interval set.
 - `set`: The `InfiniteSet` characterizing the parameters see [`IntervalSet`](@ref)
-   and [`DistributionSet`](@ref).
+   and [`UniDistributionSet`](@ref).
 - `distribution`: Sets the `Distributions.jl` distribution object that characterizes
   the parameters.
 - `supports`: Sets the support points for the parameters.

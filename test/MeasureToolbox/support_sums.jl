@@ -4,6 +4,8 @@
     end
 end
 
+# TODO test support_sum with JuMP container of infinite parameters
+
 @testset "Support Sum" begin
     m = InfiniteModel()
     @infinite_parameter(m, x in [0, 1])

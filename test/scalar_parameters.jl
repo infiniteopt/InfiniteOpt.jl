@@ -642,8 +642,16 @@ end
     end
     # supports (vector)
     @testset "supports (vector)" begin
+        # test simple case
         @test supports([pref_disp], label = MCSample) == ones(1, 1)
-        @test_throws ErrorException supports([pref, pref2], label = MCSample)
+        # test typical combinatorial case
+        supps = [[-1, 0, 1], [-1, 1]] 
+        @infinite_parameter(m, x[i = 1:2] in [-1, 1], supports = supps[i], independent = true)
+        @test supports(x) == Float64[-1 0 1 -1 0 1; -1 -1 -1 1 1 1]
+        # test non-combinatorial case 
+        @test_throws ErrorException supports(x, use_combinatorics = false)
+        @test set_supports(x[2], supps[1], force = true) isa Nothing 
+        @test supports(x, use_combinatorics = false) == Float64[-1 0 1; -1 0 1]
     end
     # set_supports
     @testset "set_supports" begin

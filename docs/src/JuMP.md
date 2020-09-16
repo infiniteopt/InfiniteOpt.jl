@@ -144,6 +144,7 @@ JuMP.optimizer_index(::JuMP.VariableRef)
 JuMP.optimizer_index(::JuMP.ConstraintRef{JuMP.Model})
 JuMP.lp_rhs_perturbation_range(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON})
 JuMP.lp_objective_perturbation_range(::JuMP.VariableRef)
+JuMP.reduced_cost(::VariableRef)
 ```
 
 # JuMP Section References

@@ -32,8 +32,9 @@ function support_sum(expr::JuMP.AbstractJuMPScalar,
     prefs::Union{InfiniteOpt.GeneralVariableRef, AbstractArray{InfiniteOpt.GeneralVariableRef}}
     )::InfiniteOpt.GeneralVariableRef
     # make the data
-    length(prefs) == 1 ? bounds = NaN : bounds = map(e -> NaN, prefs)
-    data = InfiniteOpt.FunctionalDiscreteMeasureData(prefs, _support_sum_coeffs,
+    ordered_prefs = InfiniteOpt._make_ordered_vector(prefs)
+    length(prefs) == 1 ? bounds = NaN : bounds = map(e -> NaN, ordered_prefs)
+    data = InfiniteOpt.FunctionalDiscreteMeasureData(ordered_prefs, _support_sum_coeffs,
                                                      0, InfiniteOpt.All,
                                                      InfiniteOpt.default_weight,
                                                      bounds, bounds, false)

@@ -65,6 +65,11 @@ function _make_ordered_vector(
     return Collections._make_ordered(arr, indices)
 end
 
+# Fallback 
+function _make_ordered_vector(x::T)::T where {T}
+    return x
+end
+
 ## Define efficient function to check if all elements in array are equal
 # method found at https://stackoverflow.com/questions/47564825/check-if-all-the-elements-of-a-julia-array-are-equal/47578613
 @inline function _allequal(x::AbstractArray)::Bool

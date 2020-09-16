@@ -275,7 +275,7 @@ end
                   p::Union{IndependentParameterRef, FiniteParameterRef},
                   [name::String = ""])::GeneralVariableRef
 
-Returns a [`ParameterRef`](@ref) associated with the parameter `p` that is added
+Returns a [`GeneralVariableRef`](@ref) associated with the parameter `p` that is added
 to `model`. This adds a parameter to the model in a manner similar to
 `JuMP.add_variable`. This can be used to add parameters with the use of
 [`@infinite_parameter`](@ref). [`build_parameter`](@ref) should be used to
@@ -844,21 +844,33 @@ end
 
 # Return a matrix os supports when given a vector of IndependentParameterRefs (for measures)
 function supports(prefs::Vector{IndependentParameterRef};
-                  label::Symbol = All)::Matrix{Float64}
-    num_supps = num_supports(first(prefs), label = label)
-    trans_supps = Matrix{Float64}(undef, num_supps, length(prefs))
-    for i in eachindex(prefs)
-        supp = supports(prefs[i], label = label)
-        if length(supp) != num_supps
-            error("Cannot simultaneously query the supports of multiple " *
-                  "independent parameters if the support dimensions do not match. " *
-                  "If this error appears during a measure call, consider using " *
-                  "nested one-dimensional measures instead.")
-        else
-            @inbounds trans_supps[:, i] = supp
+                  label::Symbol = All,
+                  use_combinatorics::Bool = true)::Matrix{Float64}
+    # generate the support matrix considering all the unique combinations
+    if use_combinatorics 
+        supp_list = Tuple(supports(p, label = label) for p in prefs)
+        inds = CartesianIndices(ntuple(i -> 1:length(supp_list[i]), length(prefs)))
+        supps = Matrix{Float64}(undef, length(prefs), length(inds))
+        for (k, idx) in enumerate(inds) 
+            supps[:, k] = [supp_list[i][j] for (i, j) in enumerate(idx.I)]
         end
+        return supps
+    # generate the support matrix while negating the unique combinations
+    else 
+        num_supps = num_supports(first(prefs), label = label)
+        trans_supps = Matrix{Float64}(undef, num_supps, length(prefs))
+        for i in eachindex(prefs)
+            supp = supports(prefs[i], label = label)
+            if length(supp) != num_supps
+                error("Cannot simultaneously query the supports of multiple " *
+                    "independent parameters if the support dimensions do not match " *
+                    "while ignoring the combinatorics. Try setting `use_combinatorics = true`.")
+            else
+                @inbounds trans_supps[:, i] = supp
+            end
+        end
+        return permutedims(trans_supps)
     end
-    return permutedims(trans_supps)
 end
 
 """

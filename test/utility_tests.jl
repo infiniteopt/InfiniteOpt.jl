@@ -85,6 +85,10 @@ end
         JuMPC.@container(x[i = 3:6], i, container = SparseAxisArray)
         @test InfiniteOpt._make_ordered_vector(x) == [3, 4, 5, 6]
     end
+    # test fallback 
+    @testset "Fallback" begin 
+    @test InfiniteOpt._make_ordered_vector(2) == 2
+    end
 end
 
 # Test allequal

@@ -83,9 +83,10 @@ function expect(expr::JuMP.AbstractJuMPScalar,
         label = InfiniteOpt.All # TODO maybe do something more rigorous
         is_expect = false
     end
-    length(prefs) == 1 ? bounds = NaN : bounds = map(e -> NaN, prefs)
+    ordered_prefs = InfiniteOpt._make_ordered_vector(prefs)
+    length(ordered_prefs) == 1 ? bounds = NaN : bounds = map(e -> NaN, ordered_prefs)
     # make the data
-    data = InfiniteOpt.FunctionalDiscreteMeasureData(prefs, _expect_coeffs,
+    data = InfiniteOpt.FunctionalDiscreteMeasureData(ordered_prefs, _expect_coeffs,
                                                      min_num_supports, label,
                                                      InfiniteOpt.default_weight,
                                                      bounds, bounds, is_expect)
