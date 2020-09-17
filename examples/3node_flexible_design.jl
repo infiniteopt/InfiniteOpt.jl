@@ -21,11 +21,12 @@ U = 10000
 num_samples = 100
 
 # Initialize the model
-m = InfiniteModel(Clp.Optimizer, seed = true) # use seed to get same samples
+m = InfiniteModel(Clp.Optimizer)
 set_silent(m)
 
 # Set the uncertainty parameters
-@infinite_parameter(m, θ[i = 1:n_θ] in MvNormal(θ_nom, covar))
+@infinite_parameter(m, θ[i = 1:n_θ] in MvNormal(θ_nom, covar), 
+                    num_supports = num_samples)
 
 # Initialize the variables
 @infinite_variable(m, 0 <= y(θ) <= 1)
@@ -34,7 +35,7 @@ set_silent(m)
 @hold_variable(m, d[1:n_d] >= 0)
 
 # Set objective function
-@objective(m, Max, expect(1 - y, θ, num_supports = num_samples))
+@objective(m, Max, expect(1 - y, θ))
 
 # Set the line capacity constraints
 @constraint(m, f1, -z[1] - 35 - d[1] <= y * U)

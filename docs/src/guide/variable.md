@@ -15,7 +15,7 @@ are made irrespective of the infinite domain (e.g., first stage variables and
 design variables). Or in other words, they hold a particular value over the
 infinite domain or some sub-domain of it. We also employ reduced variables
 which correspond to partially transcribed infinite variables which are artifacts
-of measure evaluation and thus are discussed on the [Measures](@ref) page.
+of measure evaluation and thus are discussed on the [Measures](@ref measure_page) page.
 
 ## Basic Usage
 Infinite, point, and hold variables are summarized in the following table:

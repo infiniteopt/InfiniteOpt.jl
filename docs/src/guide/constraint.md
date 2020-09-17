@@ -342,7 +342,7 @@ can be used query what types of constraints have been added to a model. This
 is provided as a list of tuples where the first element is the expression type
 and the second element is the set type (recall that constraints are stored in
 the form `func-in-set`). Thus, for our current model we obtain:
-```jldoctest constrs
+```julia-repl
 julia> list_of_constraint_types(model)
 4-element Array{Tuple{DataType,DataType},1}:
  (GenericQuadExpr{Float64,GeneralVariableRef}, MathOptInterface.LessThan{Float64})

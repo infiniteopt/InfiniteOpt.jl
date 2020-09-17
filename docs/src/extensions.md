@@ -281,7 +281,7 @@ The extension steps employed are:
 8. Make simple measure constructor wrapper of [`measure`](@ref) to ease definition.
 
 To illustrate how this process can be done, let's consider extending `InfiniteOpt`
-to include measure for assessing the variance of random expressions. The
+to include measure support for assessing the variance of random expressions. The
 variance of an expression ``f(x, \xi)`` where ``x \in \mathbb{R}^n`` are hold
 variables and ``\xi \in \mathbb{R}^m`` are random infinite parameters is defined:
 ```math
@@ -341,7 +341,7 @@ since support points will be used for measure evaluation later:
 function InfiniteOpt.add_supports_to_parameters(data::DiscreteVarianceData)::Nothing
     pref = parameter_refs(data)
     supps = supports(data)
-    add_supports(pref, supps, check = false)
+    add_supports(pref, supps)
     return
 end
 
@@ -352,8 +352,8 @@ end
 Note that extending `supports` is not needed for abstractions that don't involve
 discretization of the infinite parameter(s), such as the case for certain
 outer approximation techniques. 
-Our extension is now sufficiently constructor to
-allow us to define out new variance measure via
+Our extension is now sufficiently constructed to
+allow us to define out the new variance measure via
 [`measure`](@ref). For example,
 ```jldoctest measure_data; setup = :(using Random; Random.seed!(42))
 # Setup the infinite model
@@ -395,7 +395,7 @@ end
 ```
 Notice that we reformulated our abstraction in terms of measures with
 [`DiscreteMeasureData`](@ref) so that we could leverage the existing
-[`expand_measure`](@ref) library. Now, new measure type can be expanded and
+[`expand_measure`](@ref) library. Now, new the measure type can be expanded and
 moreover infinite models using this new type can be optimized. Let's try
 expanding the measure we already defined:
 ```jldoctest measure_data
@@ -652,7 +652,7 @@ function InfiniteOpt.build_optimizer_model!(model::InfiniteModel,
         end
         new_vref = add_variable(determ_model, ScalarVariable(info),
                                 name(dvref)) # TODO update infinite variable names
-        deterministic_data(determ_model).infvar_to_detvar[dvref] = new_vref
+        deterministic_data(determ_model).infvar_to_detvar[vref] = new_vref
     end
 
     # add the objective

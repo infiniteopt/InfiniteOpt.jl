@@ -131,8 +131,7 @@ end
 Extend the [`JuMP.add_variable`](@ref JuMP.add_variable(::JuMP.Model, ::JuMP.ScalarVariable, ::String))
 function to accomodate `InfiniteOpt` reduced variable types. Adds `var` to the
 infinite model `model` and returns a [`GeneralVariableRef`](@ref).
-Primarily intended to be an internal function used in evaluating measures. A name
-will be generated using the supports if `define_name = true`.
+Primarily intended to be an internal function used in evaluating measures.
 """
 function JuMP.add_variable(model::InfiniteModel, var::ReducedVariable,
                            name::String = "")::GeneralVariableRef

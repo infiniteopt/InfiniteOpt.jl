@@ -130,7 +130,7 @@ CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
 ```
 More information on implementing custom optimizer models is located on the 
-[`Extensions`](@ref) page.
+Extensions page.
 
 ## Supported Optimizers
 `InfiniteOpt` can use any optimizer that is supported by `JuMP v0.19.0` or newer.

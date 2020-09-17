@@ -1,4 +1,4 @@
-# Measures
+# [Measures] (@id measure_page)
 A guide and manual for the definition and use of measures in `InfiniteOpt`.
 The Datatypes and Methods sections at the end comprise the manual, and the
 above sections comprise the guide.  
@@ -8,7 +8,7 @@ Measures are objects that capture the integration of an expression with respect
 to parameters, which is a distinct feature of optimization problems with
 infinite decision spaces. In dynamic optimization measures can represent integral
 terms such as the total cost over time, and in stochastic optimization measures
-can represent integrals over the uncertain parameters, such as expectation. In
+can represent integrals over the uncertain parameters, such as expectations. In
 `InfiniteOpt`, measures are evaluated by some discretization scheme, which
 evaluates the expression at a set of points over the parameter space and
 approximates the measures based on the expression values at these points.
@@ -35,30 +35,51 @@ We can construct a measure to represent this integral using the
 julia> mref1 = integral(y^2 + u^2, t, 2, 8)
 integral{t ∈ [2, 8]}[y(t)² + u(t)²]
 ```
-The four positional arguments of [`integral`](@ref) are the integrand expression, the parameter of integration, the lower bound, and the upper
-bound. Specifying the integrand expression and the parameter of integration is required.
+The four positional arguments of [`integral`](@ref) are the integrand expression, 
+the parameter of integration, the lower bound, and the upper bound, respectively. 
+Specifying the integrand expression and the parameter of integration is required.
 If the lower and upper bounds are not specified, then the integration will
-be over the entire domain, which is [0, 10] in this case. In addition, if the
-parameter of integration is not specified, the measure will search for the
-parameter in the expression and choose that as the measure of integration.
+be over the entire domain, which is [0, 10] in this case.
 
-
-The measure function uses trapezoid rule as the default discretization scheme
-for univariate parameters in finite `IntervalSet`. In addition, the user can also 
+The `integral` function uses trapezoid rule as the default discretization scheme
+for univariate parameters in finite `IntervalSet`s. In addition, the user can also 
 use quadrature methods for univariate parameters in all `IntervalSet`s by setting
-the keyword argument `eval_method` as `quadrature`:
+the keyword argument `eval_method` as `Quadrature`:
 ```jldoctest meas_basic
 julia> mref2 = integral(y^2 + u^2, t, eval_method = Quadrature)
 integral{t ∈ [0, 10]}[y(t)² + u(t)²]
 ```
 
-The measure function also allows for specifying the number of points for the
+The `integral` function also allows for specifying the number of points for the
 discretization scheme using the keyword argument `num_supports`. The default
 value of `num_supports` is 10.
 ```jldoctest meas_basic
 julia> mref3 = integral(y^2 + u^2, t, num_supports = 20)
 integral{t ∈ [0, 10]}[y(t)² + u(t)²]
 ```
+
+Two other explicit measure type methods include [`expect`](@ref) for expectations 
+and [`support_sum`](@ref) for summing an expression over the support points of 
+selected infinite parameters. The syntax for these is analogous to that of `integral` 
+except that there are no lower/upper bounds. For example, we can define the following 
+expectation of a random expression:
+```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions)
+julia> m = InfiniteModel();
+
+julia> @infinite_parameter(m, ξ in Normal(), num_supports = 100);
+
+julia> @infinite_variable(m, x(ξ));
+
+julia> expect_x = expect(x^2, ξ)
+expect{ξ}[x(ξ)²]
+```
+
+!!! note
+    For integrals, expectations, and support sums involving moderate to large 
+    expressions, the macro versions [`@integral`](@ref), [`@expect`](@ref), and 
+    [`@support_sum`](@ref) should be used instead of their functional equivalents 
+    for better performance. 
+
 Depending on the type of measures created, support points may be generated
 at the time of creating the measures. In these cases, the new support points
 will be added to the support list of the integrated parameter.
@@ -134,6 +155,13 @@ by taking a discretization scheme
 where ``\tau_i`` are the grid points where the expression ``f(\tau)`` is
 evaluated, and ``N`` is the total number of points taken.
 
+This is the abstraction behind both [`DiscreteMeasureData`](@ref) and 
+[`FunctionalDiscreteMeasureData`](@ref) which are the native measure data types 
+in InfiniteOpt. The [Measure Data Generation](@ref) section below details how 
+these can be implemented to enable schemes that fit this mathematical paradigm, but 
+lie out of the realm of the supported features behind `integral`, `expect`, and 
+`support_sum`.
+
 ## Measure Data Generation
 The most general form of [`measure`](@ref) function takes two arguments: the integrand expression and
 a measure data object that contains the details of the discretization scheme.
@@ -183,7 +211,7 @@ object is [`FunctionalDiscreteMeasureData`](@ref). This type captures measure da
 where the support points are not known at the time of measure data creation. Instead of 
 storing the specific support and coefficient values, `FunctionalDiscreteMeasureData`
 stores the minimum number of supports required for the measure, and a coefficient function
-that maps supports to coefficients. When the measure built on a `FunctionalDiscreteMeasureData` 
+that maps supports to coefficients. When the measure is built on a `FunctionalDiscreteMeasureData` 
 is evaluated (expanded), supports will be generated based on the functions stored in 
 the data object. The method of support generation is recorded as a `label` in the
 measure object. 
@@ -222,8 +250,8 @@ Each method is limited on the dimension of parameter and/or the type of set
 that it can apply for. For the details of what each method type means, refer to the corresponding
 docstrings.
 
-| `eval_method` | Uni/multi-variate? | Type of set |
-| --- | --- | --- |
+| Evaluation Method | Uni/Multi-Variate? | Set Type |
+|:---:|:---:|:---:|
 | [`Automatic`](@ref) | Both | All |
 | [`UniTrapezoid`](@ref) | Both | [`IntervalSet`](@ref) |
 | [`UniMCSampling`](@ref) | Univariate | Finite [`IntervalSet`](@ref) |
@@ -232,8 +260,8 @@ docstrings.
 | [`GaussLegendre`](@ref) | Univariate | Finite [`IntervalSet`](@ref) |
 | [`GaussLaguerre`](@ref) | Univariate | Semi-infinite [`IntervalSet`](@ref) |
 | [`GaussHermite`](@ref) | Univariate | Infinite [`IntervalSet`](@ref) |
-| [`MultiMCSampling`](@ref) | Multivariate | Infinite [`IntervalSet`](@ref) |
-| [`MultiIndepMCSampling`](@ref) | Multivariate | Infinite [`IntervalSet`](@ref) |
+| [`MultiMCSampling`](@ref) | Multivariate | Finite [`IntervalSet`](@ref) |
+| [`MultiIndepMCSampling`](@ref) | Multivariate | Finite [`IntervalSet`](@ref) |
 
 In summary, the package supports trapezoid rule, Gaussian quadrature methods for univariate parameters,
 and Monte Carlo sampling for both univariate and multivariate parameters.
@@ -278,7 +306,8 @@ the [`expand_all_measures!`](@ref) function to expand all measures in a model,
 which simply applies the [`expand`](@ref) to all measures stored in the model.
 
 ## Reduced Infinite Variables
-Expanding partial integrals will introduce reduced infinite variables to the
+Expanding measures that cover a subset of infinite parameter dependencies present 
+in an expression will introduce reduced infinite variables to the
 model. To see what this means, suppose we have an infinite variable that is
 parameterized by multiple infinite parameters defined as follows:
 ```jldoctest meas_basic
@@ -292,7 +321,7 @@ julia> mref5 = measure(T, tdata)
 measure{t}[T(x, t)]
 ```
 Now if we expand this measure, the measure data object `tdata` records the
-supports for `t`, but no supports for `x` because `T` is not integrated over
+supports for `t`, but no supports for `x` because `T` is not evaluated over
 `x` in this measure. Therefore, point variables cannot be defined in the
 measure expansion.
 
@@ -388,9 +417,9 @@ all_measures
 JuMP.delete(::InfiniteModel, ::MeasureRef)
 expand
 expand_all_measures!
-expand_measure
-analytic_expansion
-expand_measures
+InfiniteOpt.expand_measure
+InfiniteOpt.analytic_expansion
+InfiniteOpt.expand_measures
 make_point_variable_ref
 make_reduced_variable_ref
 add_measure_variable(::JuMP.Model, ::Any, ::Any)
@@ -414,7 +443,7 @@ JuMP.UpperBoundRef(::ReducedVariableRef)
 JuMP.is_fixed(::ReducedVariableRef)
 JuMP.fix_value(::ReducedVariableRef)
 JuMP.FixRef(::ReducedVariableRef)
-JuMP.start_value(::ReducedVariableRef)
+start_value_function(::ReducedVariableRef)
 JuMP.is_binary(::ReducedVariableRef)
 JuMP.BinaryRef(::ReducedVariableRef)
 JuMP.is_integer(::ReducedVariableRef)
