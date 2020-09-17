@@ -442,14 +442,14 @@ We have done it! Now go and extend away!
 
 ## [Optimizer Models] (@id extend_optimizer_model)
 `InfiniteOpt` provides a convenient interface and abstraction for modeling
-infinite dimensional optimization problems. By default, `InfiniteModel`s are
+infinite-dimensional optimization problems. By default, `InfiniteModel`s are
 reformulated into a solvable `JuMP.Model` (referred to as an optimizer model)
 via `TranscriptionOpt` which discretizes the model in accordance with the
 infinite parameter supports. However, users may wish to employ some other
 reformulation method to produce the optimizer model. This section will explain
 how this can be done in `InfiniteOpt`. A template for implementing this
 extension is provided in [`./test/extensions/optimizer_model.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/optimizer_model.jl).
-Our default sub-package `InfiniteOpt.TranscriptionOpt` also serves as a good
+Our default sub-module `InfiniteOpt.TranscriptionOpt` also serves as a good
 example.
 
 A new reformulation method and its corresponding optimizer model can be
@@ -458,18 +458,20 @@ extended using the following steps:
 2. Define a `JuMP.Model` constructor that uses (1.) in `Model.ext[:my_ext_key]` (recommended)
 3. Extend [`build_optimizer_model!`](@ref) to in accordance with the new optimizer model (required)
 4. Extend [`optimizer_model_variable`](@ref) if possible (enables result queries)
-5. Extend [`optimizer_model_constraint`](@ref) if possible (enables result queries)
-6. Extend [`variable_supports`](@ref) if appropriate
-7. Extend [`constraint_supports`](@ref) and [`constraint_parameter_refs`](@ref) if appropriate
-8. If steps 4 & 5 are skipped then extend the following:
-    - [`map_value`](@ref) (enables `JuMP.value`)
-    - [`map_optimizer_index`](@ref) (enables `JuMP.optimizer_index`)
-    - [`map_dual`](@ref) (enables `JuMP.dual`)
-    - [`map_shadow_price`](@ref) (enables `JuMP.shadow_price`)
-    - [`map_lp_rhs_perturbation_range`](@ref) (enables `JuMP.lp_rhs_perturbation_range`)
-    - [`map_lp_objective_perturbation_range`](@ref) (enables `JuMP.lp_objective_perturbation_range`)
-9. Extend [`add_measure_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model
-10. Extend [`delete_reduced_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model and delete unneeded reduced variables.
+5. Extend [`optimizer_model_expression`](@ref) if possible (enables result queries)
+6. Extend [`optimizer_model_constraint`](@ref) if possible (enables result queries)
+7. Extend [`InfiniteOpt.variable_supports`](@ref) if appropriate
+8. Extend [`InfiniteOpt.expression_supports`](@ref) if appropriate
+9. Extend [`InfiniteOpt.constraint_supports`](@ref) if appropriate
+10. If steps 4-6 are skipped then extend the following:
+    - [`InfiniteOpt.map_value`](@ref) (enables `JuMP.value`)
+    - [`InfiniteOpt.map_optimizer_index`](@ref) (enables `JuMP.optimizer_index`)
+    - [`InfiniteOpt.map_dual`](@ref) (enables `JuMP.dual`)
+    - [`InfiniteOpt.map_shadow_price`](@ref) (enables `JuMP.shadow_price`)
+    - [`InfiniteOpt.map_lp_rhs_perturbation_range`](@ref) (enables `JuMP.lp_rhs_perturbation_range`)
+    - [`InfiniteOpt.map_lp_objective_perturbation_range`](@ref) (enables `JuMP.lp_objective_perturbation_range`)
+11. Extend [`InfiniteOpt.add_measure_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model
+12. Extend [`InfiniteOpt.delete_reduced_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model and delete unneeded reduced variables.
 
 For the sake of example, let's suppose we want to define a reformulation method
 for `InfiniteModel`s that are 2-stage stochastic programs (i.e., only
@@ -479,7 +481,7 @@ method that replaces the infinite parameters with their mean values, giving us
 the deterministic mean-valued problem.
 
 First, let's define the `mutable struct` that will be used to store our variable
-and constraint mappings. This this case it is quite simple since our deterministic
+and constraint mappings. This case it is quite simple since our deterministic
 model will have a 1-to-1 mapping:
 ```jldoctest opt_model; output = false
 using InfiniteOpt, JuMP, Distributions
@@ -487,11 +489,11 @@ using InfiniteOpt, JuMP, Distributions
 mutable struct DeterministicData
     # variable and constraint mapping
     infvar_to_detvar::Dict{GeneralVariableRef, VariableRef}
-    infconstr_to_detconstr::Dict{GeneralConstraintRef, ConstraintRef}
+    infconstr_to_detconstr::Dict{InfOptConstraintRef, ConstraintRef}
     # constructor
     function DeterministicData()
         return new(Dict{GeneralVariableRef, VariableRef}(),
-                   Dict{GeneralConstraintRef, ConstraintRef}())
+                   Dict{InfOptConstraintRef, ConstraintRef}())
     end
 end
 
@@ -502,16 +504,18 @@ end
 Now let's define a constructor for optimizer models that will use
 `DeterministicData` and let's define a method to access that data:
 ```jldoctest opt_model; output = false
+const DetermKey = :DetermData
+
 function DeterministicModel(args...; kwargs...)::Model
     # initialize the JuMP Model
     model = Model(args...; kwargs...)
-    model.ext[:DetermData] = DeterministicData()
+    model.ext[DetermKey] = DeterministicData()
     return model
 end
 
 function deterministic_data(model::Model)::DeterministicData
-    haskey(model.ext, :DetermData) || error("Model is not a DeterministicModel.")
-    return model.ext[:DetermData]
+    haskey(model.ext, DetermKey) || error("Model is not a DeterministicModel.")
+    return model.ext[DetermKey]
 end
 
 # output
@@ -520,7 +524,7 @@ deterministic_data (generic function with 1 method)
 ```
 
 !!! note
-    The use of an extension key such as `:DetermData` is key since it used to
+    The use of an extension key such as `DetermKey` is required since it used to
     dispatch reformulation and querying methods making optimizer model
     extensions possible.
 
@@ -554,13 +558,12 @@ build our `InfiniteModel` as normal, for example:
 print(model)
 
 # output
-Min x + expect(y[1](ξ) + y[2](ξ))
+Min x + expect{ξ}[y[1](ξ) + y[2](ξ)]
 Subject to
- y[1](ξ) ≥ 0.0
- y[2](ξ) ≥ 0.0
- 2 y[1](ξ) - x ≤ 42.0
- y[2](ξ)² + ξ = 2.0
- ξ ∈ Uniform(a=0.0, b=1.0)
+ y[1](ξ) ≥ 0.0, ∀ ξ ~ Uniform
+ y[2](ξ) ≥ 0.0, ∀ ξ ~ Uniform
+ 2 y[1](ξ) - x ≤ 42.0, ∀ ξ ~ Uniform
+ y[2](ξ)² + ξ = 2.0, ∀ ξ ~ Uniform
 ```
 
 We have defined our `InfiniteModel`, but now we need to specify how to
@@ -571,51 +574,60 @@ convert and `InfiniteOpt` expression into a `JuMP` expression using the mappings
 stored in `opt_model` in its `DeterministicData`:
 ```jldoctest opt_model; output = false
 ## Make dispatch methods for converting InfiniteOpt expressions
-# ParameterRef
-function _make_expression(opt_model::Model, expr::ParameterRef)
+# GeneralVariableRef
+function _make_expression(opt_model::Model, expr::GeneralVariableRef)
+    return _make_expression(opt_model, expr, index(expr))
+end
+# IndependentParameterRef
+function _make_expression(opt_model::Model, expr::GeneralVariableRef, 
+                          ::IndependentParameterIndex)
     return mean(infinite_set(expr).distribution) # assuming univariate
 end
-# InfOptVariableRef
-function _make_expression(opt_model::Model, expr::InfOptVariableRef)
+# FiniteParameterRef
+function _make_expression(opt_model::Model, expr::GeneralVariableRef, 
+                          ::FiniteParameterIndex)
+    return parameter_value(expr)
+end
+# DependentParameterRef
+function _make_expression(opt_model::Model, expr::GeneralVariableRef, 
+                          ::DependentParameterIndex)
+    return mean(infinite_set(expr).distribution) # assuming valid dist.
+end
+# DecisionVariableRef
+function _make_expression(opt_model::Model, expr::GeneralVariableRef, 
+                          ::Union{InfiniteVariableIndex, HoldVariableIndex})
     return deterministic_data(opt_model).infvar_to_detvar[expr]
 end
 # MeasureRef --> assume is expectation
-function _make_expression(opt_model::Model, expr::MeasureRef)
+function _make_expression(opt_model::Model, expr::GeneralVariableRef,
+                          ::MeasureIndex)
     return _make_expression(opt_model, measure_function(expr))
 end
 # AffExpr
 function _make_expression(opt_model::Model, expr::GenericAffExpr)
-    new_expr = zero(AffExpr)
-    for (vref, coef) in expr.terms
-        add_to_expression!(new_expr, coef, _make_expression(opt_model, vref))
-    end
-    new_expr.constant += expr.constant
-    return new_expr
+    return @expression(opt_model, sum(c * _make_expression(opt_model, v) 
+                       for (c, v) in linear_terms(expr)) + constant(expr))
 end
 # QuadExpr
 function _make_expression(opt_model::Model, expr::GenericQuadExpr)
-    new_expr = zero(QuadExpr)
-    for (pair, coef) in expr.terms
-        add_to_expression!(new_expr, coef, _make_expression(opt_model, pair.a),
-                           _make_expression(opt_model, pair.b))
-    end
-    new_expr.aff = _make_expression(opt_model, expr.aff)
-    return new_expr
+    return @expression(opt_model, sum(c * _make_expression(opt_model, v1) * 
+                       _make_expression(opt_model, v2) for (c, v1, v2) in quad_terms(expr)) + 
+                       _make_expression(opt_model, expr.aff))
 end
 
 # output
-_make_expression (generic function with 5 methods)
+_make_expression (generic function with 8 methods)
 
 ```
 For simplicity in example, above we assume that only `DistributionSet`s are used,
-there are `PointVariableRef`s, and all `MeasureRef`s correspond to expectations.
+there are not any `PointVariableRef`s, and all `MeasureRef`s correspond to expectations.
 Naturally, a full extension should include checks to enforce that such assumptions
 hold.
 
 Now let's extend [`build_optimizer_model!`](@ref) for `DeterministicModel`s.
 Such extensions should build an optimizer model in place and in general should
 employ the following:
-- [`clear_optimizer_model_build!`](@ref clear_optimizer_model_build!(::InfiniteModel))
+- [`clear_optimizer_model_build!`](@ref InfiniteOpt.clear_optimizer_model_build!(::InfiniteModel))
 - [`set_optimizer_model_ready`](@ref).
 In place builds without the use of `clear_optimizer_model_build!` are also
 possible, but will require some sort of active mapping scheme to update in
@@ -624,17 +636,23 @@ optimizer model is built more than once. Thus, for simplicity we extend
 `build_optimizer_model!` below using an initial clearing scheme:
 ```jldoctest opt_model; output = false
 function InfiniteOpt.build_optimizer_model!(model::InfiniteModel,
-                                            key::Val{:DetermData})
+                                            key::Val{DetermKey})
     # TODO check that `model` is a stochastic model
     # clear the model for a build/rebuild
-    determ_model = clear_optimizer_model_build!(model)
+    determ_model = InfiniteOpt.clear_optimizer_model_build!(model)
 
     # add variables
     for vref in all_variables(model)
-        new_vref = add_variable(determ_model,
-                                ScalarVariable(model.vars[index(vref)].info),
-                                name(vref)) # TODO update infinite variable names
-        deterministic_data(determ_model).infvar_to_detvar[vref] = new_vref
+        dvref = dispatch_variable_ref(vref)
+        if dvref isa InfiniteVariableRef # have to handle the infinite variable functional start value
+            inf_var = InfiniteOpt._core_variable_object(dvref)
+            info = InfiniteOpt.TranscriptionOpt._format_infinite_info(inf_var, zeros(length(raw_parameter_refs(dvref))))
+        else
+            info = InfiniteOpt._variable_info(dvref)
+        end
+        new_vref = add_variable(determ_model, ScalarVariable(info),
+                                name(dvref)) # TODO update infinite variable names
+        deterministic_data(determ_model).infvar_to_detvar[dvref] = new_vref
     end
 
     # add the objective
@@ -643,7 +661,7 @@ function InfiniteOpt.build_optimizer_model!(model::InfiniteModel,
 
     # add the constraints
     for cref in all_constraints(model)
-        if !model.constr_in_var_info[index(cref)]
+        if !InfiniteOpt._is_info_constraint(cref)
             constr = constraint_object(cref)
             new_constr = build_constraint(error, _make_expression(determ_model, constr.func),
                                           constr.set)
@@ -667,12 +685,12 @@ optimize!(model)
 print(optimizer_model(model))
 
 # output
-Min x + y[1](ξ) + y[2](ξ)
+Min x + y[1] + y[2]
 Subject to
- 2 y[1](ξ) - x ≤ 42.0
- y[2](ξ)² = 1.5
- y[1](ξ) ≥ 0.0
- y[2](ξ) ≥ 0.0
+ 2 y[1] - x ≤ 42.0
+ y[2]² = 1.5
+ y[1] ≥ 0.0
+ y[2] ≥ 0.0
 ```
 Note that batter variable naming could be used with the reformulated infinite
 variables. Moreover, in general extensions of [`build_optimizer_model!`](@ref)
@@ -682,22 +700,29 @@ and/or `ScalarConstraint`s that contain [`ParameterBounds`](@ref) as accessed vi
 
 Now that we have optimized out `InfiniteModel` via the use the of a
 `DeterministicModel`, we probably will want to access the results. All queries
-are enabled when we extend [`optimizer_model_variable`](@ref) and
-[`optimizer_model_constraint`](@ref) return the variable(s)/constraint(s) in the
+are enabled when we extend [`optimizer_model_variable`](@ref), 
+[`optimizer_model_expression`](@ref), and [`optimizer_model_constraint`](@ref) 
+to return the variable(s)/expression(s)/constraint(s) in the
 optimizer model corresponding to their `InfiniteModel` counterparts. These will
 use the `mutable struct` of mapping data and should error if no mapping can be
 found, Let's continue our example using `DeterministicModel`s:
 ```jldoctest opt_model; output = false
-function InfiniteOpt.optimizer_model_variable(vref::InfOptVariableRef,
-                                              key::Val{:DetermData})
+function InfiniteOpt.optimizer_model_variable(vref::GeneralVariableRef,
+                                              key::Val{DetermKey})
     model = optimizer_model(JuMP.owner_model(vref))
     map_dict = deterministic_data(model).infvar_to_detvar
     haskey(map_dict, vref) || error("Variable $vref not used in the optimizer model.")
     return map_dict[vref]
 end
 
-function InfiniteOpt.optimizer_model_constraint(cref::GeneralConstraintRef,
-                                                key::Val{:DetermData})
+function InfiniteOpt.optimizer_model_expression(expr::JuMP.AbstractJuMPScalar,
+                                                key::Val{DetermKey})
+    model = optimizer_model(JuMP.owner_model(vref))
+    return _make_expression(model, expr)
+end
+
+function InfiniteOpt.optimizer_model_constraint(cref::InfOptConstraintRef,
+                                                key::Val{DetermKey})
     model = optimizer_model(JuMP.owner_model(cref))
     map_dict = deterministic_data(model).infconstr_to_detconstr
     haskey(map_dict, cref) || error("Constraint $cref not used in the optimizer model.")
@@ -725,15 +750,16 @@ MathOptInterface.VariableIndex(3)
 ```
 
 !!! note
-    If [`optimizer_model_variable`](@ref) and [`optimizer_model_constraint`](@ref)
+    If [`optimizer_model_variable`](@ref), [`optimizer_model_expression`](@ref), 
+    and/or [`optimizer_model_constraint`](@ref)
     cannot be extended due to the nature of the reformulation then please refer
-    to step 8 of the extension steps listed at the beginning of this section.
+    to step 10 of the extension steps listed at the beginning of this section.
 
 Furthermore, if appropriate for the given reformulation the following should be
 extended:
-- [`variable_supports`](@ref) to enable [`supports`](@ref supports(::InfiniteVariableRef))
-- [`constraint_supports`](@ref) to enable [`supports`](@ref supports(::GeneralConstraintRef))
-- [`constraint_parameter_refs`](@ref) to enable [`parameter_refs`](@ref parameter_refs(::GeneralConstraintRef))
+- [`InfiniteOpt.variable_supports`](@ref) to enable `supports` on variables)
+- [`InfiniteOpt.expression_supports`](@ref) to enable `supports` on expressions)
+- [`InfiniteOpt.constraint_supports`](@ref) to enable `supports` on constraints)
 
 That's it!
 
