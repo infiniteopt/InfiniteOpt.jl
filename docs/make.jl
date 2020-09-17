@@ -27,14 +27,10 @@ makedocs(;
     sitename = "InfiniteOpt.jl",
     authors = "Joshua Pulsipher and Weiqi Zhang",
     doctest = true,
-    linkcheck = false,
+    linkcheck = true,
     format = Documenter.HTML(
         # See https://github.com/JuliaDocs/Documenter.jl/issues/868
         prettyurls = get(ENV, "CI", nothing) == "true",
-        # assets = [
-        #     "assets/logo.png",
-        #     "assets/logo-dark.png"
-        # ],
         analytics = "UA-178297470-1",
     )
 )
