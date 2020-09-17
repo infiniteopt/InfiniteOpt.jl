@@ -40,15 +40,14 @@ julia> @BDconstraint(model, c2(t == 0), x == 42);
 julia> print(model)
 Min 2 z
 Subject to
- x(t) ≥ 0.0
+ x(t) ≥ 0.0, ∀ t ∈ [0, 10]
  z ≥ 0.0
- z - x(t) ≥ 0.0
- x(t) = 42.0, ∀ t = 0
- t ∈ [0, 10]
+ c1 : z - x(t) ≥ 0.0, ∀ t ∈ [0, 10]
+ c2 : x(t) = 42.0, ∀ t = 0
 ```
 Now we optimize the model using `optimize!`:
 ```jldoctest optimize
-julia> optimize!(model)
+julia> optimize!(model);
 
 julia> termination_status(model)
 LOCALLY_SOLVED::TerminationStatusCode = 4
@@ -74,14 +73,14 @@ the infinite model) in the `Model.ext` dictionary with an associated key. By
 default a `JuMP.Model` using [`TranscriptionData`](@ref) stored under the key
 `:TransData` is used and is referred to as a `TranscriptionModel`. The
 optimizer model is then what is used to optimize the infinite model and it provides
-the information exacted by solution queries mapped backed back to the infinite
+the information exacted by solution queries mapped back to the infinite
 model using the mapping data structure.
 
 The process for optimizing an `InfiniteModel` is summarized in the following
 steps:
- - fully define the `InfiniteModel`
- - build the optimizer model via [`build_optimizer_model!`](@ref)
- - optimize the `optimizer_model` via [`optimize!`](@ref JuMP.optimize!(::JuMP.Model)).
+ 1. fully define the `InfiniteModel`
+ 2. build the optimizer model via [`build_optimizer_model!`](@ref)
+ 3. optimize the `optimizer_model` via [`optimize!`](@ref JuMP.optimize!(::JuMP.Model)).
 
 Here `build_optimizer_model!` creates a reformulated finite version of the
 `InfiniteModel`, stores it in `InfiniteModel.optimizer_model` via
@@ -109,9 +108,9 @@ Solver name: Ipopt
 
 The `JuMP` variable(s) stored in the optimizer model that correspond to a
 particular `InfiniteOpt` variable can be queried via
-[`optimizer_model_variable`](@ref optimizer_model_variable(::InfOptVariableRef)).
+[`optimizer_model_variable`](@ref optimizer_model_variable(::GeneralVariableRef)).
 Using a `TranscriptionModel` this equivalent to calling
-[`transcription_variable`](@ref). Thus, using going example we get:
+[`transcription_variable`](@ref). Thus, using the going example we get:
 ```jldoctest optimize
 julia> optimizer_model_variable(x) # infinite variable
 10-element Array{VariableRef,1}:
@@ -131,25 +130,40 @@ z
 ```
 In like manner, we get the `JuMP` constraints corresponding to a particular
 `InfiniteOpt` constraint via
-[`optimizer_model_constraint`](@ref optimizer_model_constraint(::GeneralConstraintRef)).
+[`optimizer_model_constraint`](@ref optimizer_model_constraint(::InfOptConstraintRef)).
 Using a `TranscriptionModel` this equivalent to calling
 [`transcription_constraint`](@ref). Thus, using going example we get:
 ```jldoctest optimize
 julia> optimizer_model_constraint(c1) # infinite constraint
 10-element Array{ConstraintRef,1}:
- c1(Support: 1) : z - x(support: 1) ≥ 0.0
- c1(Support: 2) : z - x(support: 2) ≥ 0.0
- c1(Support: 3) : z - x(support: 3) ≥ 0.0
- c1(Support: 4) : z - x(support: 4) ≥ 0.0
- c1(Support: 5) : z - x(support: 5) ≥ 0.0
- c1(Support: 6) : z - x(support: 6) ≥ 0.0
- c1(Support: 7) : z - x(support: 7) ≥ 0.0
- c1(Support: 8) : z - x(support: 8) ≥ 0.0
- c1(Support: 9) : z - x(support: 9) ≥ 0.0
- c1(Support: 10) : z - x(support: 10) ≥ 0.0
+ c1(support: 1) : z - x(support: 1) ≥ 0.0
+ c1(support: 2) : z - x(support: 2) ≥ 0.0
+ c1(support: 3) : z - x(support: 3) ≥ 0.0
+ c1(support: 4) : z - x(support: 4) ≥ 0.0
+ c1(support: 5) : z - x(support: 5) ≥ 0.0
+ c1(support: 6) : z - x(support: 6) ≥ 0.0
+ c1(support: 7) : z - x(support: 7) ≥ 0.0
+ c1(support: 8) : z - x(support: 8) ≥ 0.0
+ c1(support: 9) : z - x(support: 9) ≥ 0.0
+ c1(support: 10) : z - x(support: 10) ≥ 0.0
+```
+We can also query the expressions via [`optimizer_model_expression`](@ref optimizer_model_expression(::JuMP.AbstractJuMPScalar)):
+```jldoctest optimize
+julia> optimizer_model_expression(z - x^2 + 3) # infinite expression
+10-element Array{AbstractJuMPScalar,1}:
+ -x(support: 1)² + z + 3
+ -x(support: 2)² + z + 3
+ -x(support: 3)² + z + 3
+ -x(support: 4)² + z + 3
+ -x(support: 5)² + z + 3
+ -x(support: 6)² + z + 3
+ -x(support: 7)² + z + 3
+ -x(support: 8)² + z + 3
+ -x(support: 9)² + z + 3
+ -x(support: 10)² + z + 3
 ```
 
-The purpose of this `optimizer_model` structure is to readily enable user-defined
+The purpose of this `optimizer_model` abstraction is to readily enable user-defined
 reformulation extensions (e.g., using polynomial chaos expansion theory). However,
 this is all handled behind the scenes such that most users can interact with
 `InfiniteModel`s like any `JuMP.Model`.
@@ -234,19 +248,22 @@ set_optimizer_model
 optimizer_model_key(::InfiniteModel)
 optimizer_model_key(::JuMP.Model)
 build_optimizer_model!(::InfiniteModel)
+build_optimizer_model!
 clear_optimizer_model_build!(::InfiniteModel)
 clear_optimizer_model_build!(::JuMP.Model)
-add_infinite_model_optimizer
-optimizer_model_variable(::InfOptVariableRef)
+InfiniteOpt.add_infinite_model_optimizer
+optimizer_model_variable(::GeneralVariableRef)
 optimizer_model_variable
-supports(::InfiniteVariableRef)
-variable_supports
-optimizer_model_constraint(::GeneralConstraintRef)
+supports(::Union{DecisionVariableRef, MeasureRef})
+InfiniteOpt.variable_supports
+optimizer_model_expression(::JuMP.AbstractJuMPScalar)
+optimizer_model_expression
+supports(::JuMP.AbstractJuMPScalar)
+InfiniteOpt.expression_supports
+InfiniteOpt.optimizer_model_constraint(::InfOptConstraintRef)
 optimizer_model_constraint
-supports(::GeneralConstraintRef)
-constraint_supports
-parameter_refs(::GeneralConstraintRef)
-constraint_parameter_refs
+supports(::InfOptConstraintRef)
+InfiniteOpt.constraint_supports
 optimizer_model_ready
 set_optimizer_model_ready
 JuMP.bridge_constraints(::InfiniteModel)

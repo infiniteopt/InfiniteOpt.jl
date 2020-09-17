@@ -77,10 +77,13 @@ ybar3 = 0           # no upper bound on the other crops
 ```
 Great now we can formulate and solve the problem using `InfiniteOpt`:
 ```jldoctest 2-stage; output = false
-using InfiniteOpt, JuMP, Ipopt
+using InfiniteOpt, JuMP, Ipopt, Random
+
+# Seed for repeatability
+Random.seed!(0)
 
 # Initialize the model
-model = InfiniteModel(Ipopt.Optimizer, seed = true) # seed to test output
+model = InfiniteModel(Ipopt.Optimizer) # seed to test output
 set_optimizer_attribute(model, "print_level", 0)
 
 # Define the random parameters
@@ -93,8 +96,7 @@ set_optimizer_attribute(model, "print_level", 0)
 
 # Define the objective
 @objective(model, Min, sum(α[c] * x[c] for c in C) +
-           expect(sum(β[c] * y[c] - λ[c] * w[c] for c in C), ξ,
-                  use_existing_supports = true))
+           expect(sum(β[c] * y[c] - λ[c] * w[c] for c in C), ξ))
 
 # Define the constraints
 @constraint(model, capacity, sum(x[c] for c in C) <= xbar)
@@ -114,11 +116,11 @@ println("Expected Profit: \$", round(profit, digits = 2))
 # output
 
 Land Allocations: [48.56, 214.77, 236.67]
-Expected Profit: $57100.21
+Expected Profit: $57099.53
 ```
 ```
 Land Allocations: [48.56, 214.77, 236.67]
-Expected Profit: $57100.21
+Expected Profit: $57099.53
 ```
 
 We did it! An interesting modification would be to use a ``CVaR`` risk measure
@@ -150,8 +152,7 @@ resolve our `InfiniteOpt` model using ``\epsilon = 0.95``:
 @infinite_variable(model, q(ξ) >= 0)
 
 # Redefine the objective
-@objective(model, Min, sum(α[c] * x[c] for c in C) + t + 1 \ (1 - 0.95) *
-           expect(q, ξ, use_existing_supports = true))
+@objective(model, Min, sum(α[c] * x[c] for c in C) + t + 1 \ (1 - 0.95) * expect(q, ξ))
 
 # Add the max constraint
 @constraint(model, max, q >= sum(β[c] * y[c] - λ[c] * w[c] for c in C) - t)
@@ -170,12 +171,12 @@ println("Expected Profit: \$", round(profit, digits = 2))
 
 # output
 
-Land Allocations: [224.58, 83.63, 191.88]
-Expected Profit: $47840.01
+Land Allocations: [58.5, 199.25, 242.26]
+Expected Profit: $32918.89
 ```
 ```
-Land Allocations: [224.58, 83.63, 191.88]
-Expected Profit: $47840.01
+Land Allocations: [58.5, 199.25, 242.26]
+Expected Profit: $32918.89
 ```
 
 ## Optimal Control
@@ -261,7 +262,7 @@ m = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0)
 @BDconstraint(m, [i = 1:2, j = 1:length(tw)](t == tw[j]), x[i] == xw[i, j])
 
 # Specify the objective
-@objective(m, Min, integral(u[1]^2 + u[2]^2, t, use_existing_supports = true))
+@objective(m, Min, integral(u[1]^2 + u[2]^2, t))
 
 # Optimize the model
 optimize!(m)

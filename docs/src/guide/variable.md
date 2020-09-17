@@ -13,14 +13,16 @@ recourse variables). Point variables are infinite variables at a particular
 infinite parameter value (point). Finally, hold variables are decisions that
 are made irrespective of the infinite domain (e.g., first stage variables and
 design variables). Or in other words, they hold a particular value over the
-infinite domain or some sub-domain of it.
+infinite domain or some sub-domain of it. We also employ reduced variables
+which correspond to partially transcribed infinite variables which are artifacts
+of measure evaluation and thus are discussed on the [Measures](@ref measure_page) page.
 
 ## Basic Usage
 Infinite, point, and hold variables are summarized in the following table:
 
 | Variable Type | Description                                    | Examples                               |
 |:-------------:|:----------------------------------------------:|:--------------------------------------:|
-| Infinite      | Parameterized by infinite sets                 | ``y(t)``, ``y(\xi)``, ``y(t, x)``      |
+| Infinite      | Functional variables with infinite co-domain   | ``y(t)``, ``y(\xi)``, ``y(t, x)``      |
 | Point         | Infinite variable evaluated at parameter point | ``y(0)``, ``y(t_0, x_0)``              |
 | Hold          | Held constant over infinite domain             | ``z`` (design and 1st stage variables) |
 
@@ -41,7 +43,7 @@ julia> @infinite_parameter(model, t in [0, 10])
 t
 
 julia> @infinite_parameter(model, x[1:2] in [-1, 1], independent = true)
-2-element Array{ParameterRef,1}:
+2-element Array{GeneralVariableRef,1}:
  x[1]
  x[2]
 ```
@@ -59,7 +61,7 @@ useful case is that of defining an array of variables `w` that depend on both
 position and time:
 ```jldoctest var_basic
 julia> @infinite_variable(model, w[i = 1:3](t, x), start = [0, 2, 1][i])
-3-element Array{InfiniteVariableRef,1}:
+3-element Array{GeneralVariableRef,1}:
  w[1](t, x)
  w[2](t, x)
  w[3](t, x)
@@ -69,6 +71,10 @@ respective infinite variables `w[i](t, x)` stored in `model`. Note that the `i`
 used in the array definition can be used to index attributes assigned to each
 variable in the array. In this case, we used `i` to assign different initial
 guess values for each variable via the `start` keyword argument.
+
+Moreover, for infinite variables a function can be given to determine the start
+values over a range of support points (e.g., a guess trajectory). This is
+discussed further below in the Macro Definition section.
 
 ### Point Variables
 Now let's add some point variables. These allow us to consider an infinite
@@ -135,29 +141,33 @@ Defining/initializing a variable principally involves the following steps:
 1. Define the variable information pertaining to `JuMP.VariableInfo` (e.g., bounds, indicate if it is integer, etc.)
 2. Construct a concrete subtype of [`InfOptVariable`](@ref) to store the variable information
 3. Add the `InfOptVariable` object to an `InfiniteModel` and assign a name
-4. Create a concrete subtype of [`InfOptVariableRef`](@ref) that points to the variable object stored in the model
+4. Create a [`GeneralVariableRef`](@ref) that points to the variable object stored in the model
 
 The `JuMP.VariableInfo` data structure stores the following variable information:
 - `has_lb::Bool`: Specifies a `Bool` it has a lower bound
-- `lower_bound::Number`: Specifies lower bound value
+- `lower_bound::Real`: Specifies lower bound value
 - `has_ub::Bool`: Specifies a `Bool` it has a upper bound
-- `upper_bound::Number`: Specifies upper bound value
+- `upper_bound::Real`: Specifies upper bound value
 - `has_fix::Bool`: Specifies a `Bool` it is fixed
-- `fixed_value::Number`: Specifies the fixed value
+- `fixed_value::Real`: Specifies the fixed value
 - `has_start::Bool`: Specifies a `Bool` it has a start value
-- `start::Number`: Specifies the start value
+- `start::Union{Real, Function}`: Specifies the start guess value, this can be a
+                                  function for infinite variables that intakes a
+                                  support and maps it to a guess value (allowing
+                                  to specify guess trajectories)
 - `binary`: Specifies `Bool` if it is binary
 - `integer`: Specifies `Bool` if it is integer.
 Thus, the user specifies this information to prepare such an object:
 ```jldoctest genvar_define; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
-julia> info = VariableInfo(true, 0, true, 42, false, 0, false, 0, false, true)
-VariableInfo{Int64,Int64,Int64,Int64}(true, 0, true, 42, false, 0, false, 0, false, true)
+julia> info = VariableInfo(true, 0., true, 42., false, 0., false, 0., false, true)
+VariableInfo{Float64,Float64,Float64,Float64}(true, 0.0, true, 42.0, false, 0.0, false, 0.0, false, true)
 ```
 Here we specified a lower bound of 0, an upper bound of 42, and that it is
 integer.
 
 The variable objects (`InfOptVariable` subtypes) are defined via
-[`build_variable`](@ref) which requires that the user provide a
+[`build_variable`](@ref JuMP.build_variable(::Function,::JuMP.VariableInfo,::Symbol))
+which requires that the user provide a
 `JuMP.VariableInfo` object, the variable type to be defined (`Infinite`,
 `Point`, or `Hold`), and any necessary keyword arguments required for that
 variable type (i.e., `parameter_refs`, `infinite_variable_ref`, and/or
@@ -169,8 +179,7 @@ t
 
 julia> info = VariableInfo(true, 0, true, 42, false, 0, false, 0, false, true);
 
-julia> inf_var = build_variable(error, info, Infinite, parameter_refs = (t))
-InfiniteVariable{Int64,Int64,Int64,Int64}(VariableInfo{Int64,Int64,Int64,Int64}(true, 0, true, 42, false, 0, false, 0, false, true), (t,))
+julia> inf_var = build_variable(error, info, Infinite, parameter_refs = (t));
 ```
 Thus, we create an [`InfiniteVariable`](@ref) object with the desired properties.
 Note that in this case the `parameter_refs` keyword argument is required to
@@ -178,18 +187,22 @@ indicate which infinite parameter(s) this infinite variable will depend on.
 
 Once a variable has been built, it needs to be added to our `model` and a Julia
 variable should be defined to reference it. Variables are added via
-[`add_variable`](@ref JuMP.add_variable(::InfiniteModel, ::InfOptVariable))
+[`add_variable`](@ref JuMP.add_variable(::InfiniteModel, ::InfOptVariable, ::String))
 which adds a variable object to the model, assigns a name to the variable,
 adds any constraints associated with the `JuMP.VariableInfo`, and returns
-an appropriate variable reference variable (subtyped from [`InfOptVariableRef`](@ref)).
+an appropriate variable reference variable (a [`GeneralVariableRef`](@ref)).
 For example, let's add `inf_var` to `model`:
 ```jldoctest genvar_define
 julia> var_ref = add_variable(model, inf_var, "y")
 y(t)
 ```
 Thus, we have added an infinite variable `y` that is parameterized by `t` with the
-variable information mentioned above and now have a [`InfiniteVariableRef`](@ref)
+variable information mentioned above and now have a `GeneralVariableRef`
 called `var_ref` that can be used in defining our infinite model.
+
+Note that the use of `GeneralVariableRef`s and the corresponding concrete subtypes
+of [`DispatchVariableRef`](@ref)s is discussed on the [Expressions](@ref expr_page)
+page.
 
 ## Macro Variable Definition
 The [`@infinite_variable`](@ref), [`@point_variable`](@ref), and
@@ -230,7 +243,7 @@ julia> var_ref = @hold_variable(model)
 noname
 ```
 Here we just added a nameless hold variable to `model` and defined `var_ref`
-as a [`HoldVariableRef`](@ref) that points to it. We can add a name via the
+as a `GeneralVariableRef` that points to it. We can add a name via the
 `base_name` keyword argument:
 ```jldoctest var_macro
 julia> var_ref1 = @hold_variable(model, base_name = "d")
@@ -242,9 +255,14 @@ d
 Now we've made 2 more hold variables both called `d`. Thus, the anonymous syntax
 allows us to define variables with the same name. Moreover, any variable
 information can be specified via the appropriate keywords which include:
-- `lower_bound::Number`: specifies lower bound
-- `upper_bound::Number`: specifies upper bound
-- `start::Number`: specifies the initial guess value the solver will use
+- `lower_bound::Real`: specifies lower bound
+- `upper_bound::Real`: specifies upper bound
+- `start::Union{Real, Function}`: specifies the initial guess value the solver will use,
+                                  for infinite variables this can be a function that
+                                  takes as input a realization of the infinite parameters
+                                  (using the same format as `parameter_refs`) and return the
+                                  guess value for such as realization (e.g., functionally
+                                  define a trajectory).
 - `binary::Bool`: specifies if is binary variable
 - `integer::Bool`: specifies if is integer variable.
 Anonymous variables must use these keyword arguments since symbolic definition
@@ -257,24 +275,24 @@ d
 ```
 
 We can also define arrays of variables using any indices of our choice. For
-example, let's define a 3 dimensional vector with indices `[1, 2, 3]`:
+example, let's define a 3-dimensional vector with indices `[1, 2, 3]`:
 ```jldoctest var_macro
 julia> var_refs = @hold_variable(model, [i = 1:3], start = [0, 2, 1][i],
                                  base_name = "d")
-3-element Array{HoldVariableRef,1}:
+3-element Array{GeneralVariableRef,1}:
  d[1]
  d[2]
  d[3]
 ```
 Thus, we define 3 variables named `d[i]` and each with different start values
-and define `var_refs` which is a vector of `HoldVariableRef`s that uses the
+and define `var_refs` which is a vector of `GeneralVariableRef`s that uses the
 indices we specified. Note the syntax `i = indices` is used to define an
 iteration variable to use with the keyword arguments to assign different values
 for each variable being defined. Note the above example is equivalent to:
 ```jldoctest var_macro
 julia> starts = [0, 2, 1];
 
-julia> var_refs = Vector{HoldVariableRef}(undef, 3);
+julia> var_refs = Vector{GeneralVariableRef}(undef, 3);
 
 julia> for i = eachindex(var_refs)
           var_refs[i] = @hold_variable(model, base_name = "d", start = starts[i])
@@ -283,23 +301,23 @@ julia> for i = eachindex(var_refs)
 Other non-standard indices can also be used such as the following examples:
 ```jldoctest var_macro
 julia> var_refs2 = @hold_variable(model, [2:4], base_name = "d")
-1-dimensional DenseAxisArray{HoldVariableRef,1,...} with index sets:
+1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 2:4
-And data, a 3-element Array{HoldVariableRef,1}:
+And data, a 3-element Array{GeneralVariableRef,1}:
  d[2]
  d[3]
  d[4]
 
 julia> var_refs3 = @hold_variable(model, [[:A, :C, :Z]], base_name = "d")
-1-dimensional DenseAxisArray{HoldVariableRef,1,...} with index sets:
+1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, Symbol[:A, :C, :Z]
-And data, a 3-element Array{HoldVariableRef,1}:
+And data, a 3-element Array{GeneralVariableRef,1}:
  d[A]
  d[C]
  d[Z]
 
 julia> var_refs3 = @hold_variable(model, [i=1:2, j=i:2], base_name = "d")
-JuMP.Containers.SparseAxisArray{HoldVariableRef,2,Tuple{Int64,Int64}} with 3 entries:
+JuMP.Containers.SparseAxisArray{GeneralVariableRef,2,Tuple{Int64,Int64}} with 3 entries:
   [1, 2]  =  d[1,2]
   [2, 2]  =  d[2,2]
   [1, 1]  =  d[1,1]
@@ -318,15 +336,15 @@ be a regular `Array`:
 julia> a = 1; b = 3;
 
 julia> var_refs1 = @hold_variable(model, [a:b], base_name = "d")
-1-dimensional DenseAxisArray{HoldVariableRef,1,...} with index sets:
+1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 1:3
-And data, a 3-element Array{HoldVariableRef,1}:
+And data, a 3-element Array{GeneralVariableRef,1}:
  d[1]
  d[2]
  d[3]
 
 julia> var_refs2 = @hold_variable(model, [a:b], base_name = "d", container = Array)
-3-element Array{HoldVariableRef,1}:
+3-element Array{GeneralVariableRef,1}:
  d[1]
  d[2]
  d[3]
@@ -388,7 +406,7 @@ name that cannot be duplicated. For one more example let's define a vector of
 variables ``a \in \mathbb{R}_+^3`` with starting values of 0:
 ```jldoctest var_macro
 julia> @hold_variable(model, a[1:3] >= 0, start = 0)
-3-element Array{HoldVariableRef,1}:
+3-element Array{GeneralVariableRef,1}:
  a[1]
  a[2]
  a[3]
@@ -428,11 +446,26 @@ in the previous section. For example, let's define a vector of infinite variable
 ``z(t) \in \{0, 1, 2\}^3``:
 ```jldoctest var_macro
 julia> @infinite_variable(model, 0 <= z[1:3](t) <= 2, Int)
-3-element Array{InfiniteVariableRef,1}:
+3-element Array{GeneralVariableRef,1}:
  z[1](t)
  z[2](t)
  z[3](t)
 ```
+In many cases, it is important to specify a guess trajectory for an infinite
+variable. Currently, this can be done by defining a start value function and
+specifying via the `start` keyword. In particular, the arguments of this function
+must match the format of the infinite parameters and return a start value for a
+given realization (point) of the infinite parameters:
+```jldoctest var_macro
+julia> my_traj_func(t_val, x_vals) = t_val + sum(x_vals) # replace with actual functionality
+my_traj_func (generic function with 1 method)
+
+julia> @infinite_variable(model, y2(t, x), start = (t_val, x_vals) -> my_traj_func(t_val, x_vals))
+y2(t, x)
+```
+Notice that above we use an anonymous function in the macro call, this is done
+to avoid ambiguity in case we have multiple `my_traj_func` definitions. In
+general it is recommended that anonymous functions be used.
 
 ### Point Variables
 Point variables denote infinite variables evaluated at a particular point in the
@@ -456,7 +489,7 @@ julia> y0 = @point_variable(model, infinite_variable_ref = y,
 y(0, [-1, -1, -1])
 ```
 This creates a point variable `y(0, [-1, -1, -1]) ≥ 0` that is added to `model`
-and assigns to the associated [`PointVariableRef`](@ref) to the Julia variable
+and assigns to the associated `GeneralVariableRef` to the Julia variable
 `y0`. Equivalently, this can accomplished much more conveniently via:
 ```jldoctest var_macro
 julia> @point_variable(model, y(0, [-1, -1, -1]), y0 >= 0)
@@ -470,7 +503,7 @@ variables. For example consider defining ``z(0) = 0`` for
 ``z(t) \in \{0, 1, 2\}^3``:
 ```jldoctest var_macro
 julia> @point_variable(model, z[i](0), z0[i = 1:3] == 0)
-3-element Array{PointVariableRef,1}:
+3-element Array{GeneralVariableRef,1}:
  z0[1]
  z0[2]
  z0[3]
@@ -521,7 +554,7 @@ manual) below.
 
 ### General Information
 Here we describe some methods used to query general variable information such as
-the name. Variable names can be extracted via [`name`](@ref JuMP.name(::InfOptVariableRef))
+the name. Variable names can be extracted via [`name`](@ref JuMP.name(::DecisionVariableRef))
 which returns the
 name of a variable. The index of a variable (where it is stored in the infinite
 model) is accessed via [`index`](@ref JuMP.index(::GeneralVariableRef)) and the
@@ -530,27 +563,32 @@ given by [`owner_model`](@ref JuMP.owner_model(::GeneralVariableRef)). These met
 are demonstrated below:
 ```jldoctest var_macro
 julia> name(y)
-"y(t, x)"
+"y"
 
 julia> index(y)
-33
+InfiniteVariableIndex(3)
 
 julia> model_where_stored = owner_model(y);
 ```
 
-Also, [`num_variables`](@ref) is useful in returning the total number variables
-currently stored in an infinite model:
+Also, [`num_variables`](@ref JuMP.all_variables(::InfiniteModel,::Type{InfOptVariable}))
+is useful in returning the total number of decision variables currently stored
+in an infinite model:
 ```jldoctest var_macro
 julia> num_variables(model)
-44
-```
-Similarly, [`all_variables`](@ref) returns a list of all the variables currently
-added to the model.
+45
 
-Finally, [`variable_by_name`](@ref) can be employed to return the appropriate
-explicit type of [`GeneralVariableRef`](@ref) based off of the variable name if
-it is unique. Errors if such a name cannot be found or it is not unique. For
-example, we can request the reference associated with `"c"`:
+julia> num_variables(model, PointVariable)
+5
+```
+Similarly, [`all_variables`](@ref JuMP.all_variables(::InfiniteModel,::Type{InfOptVariable}))
+returns a list of all the variables currently added to the model.
+
+Finally, [`variable_by_name`](@ref JuMP.variable_by_name(::InfiniteModel,::String))
+can be employed to return the appropriate
+[`GeneralVariableRef`](@ref) based off of the variable name if
+it is unique. Returns `nothing` if such a name cannot be found and errors if it
+is not unique. For example, we can request the reference associated with `"c"`:
 ```jldoctest var_macro
 julia> variable_by_name(model, "c")
 c
@@ -569,58 +607,58 @@ Thus, a number of methods exist to query information about these constraints.
 First, the ```[has/is]_[variable constraint type]``` methods indicate whether or not a
 variable has that particular constraint type. For example, to query if a variable
 `d` has a lower bound we can use
-[`has_lower_bound`](@ref JuMP.has_lower_bound(::InfOptVariableRef)):
+[`has_lower_bound`](@ref JuMP.has_lower_bound(::UserDecisionVariableRef)):
 ```jldoctest var_macro
 julia> has_lower_bound(d)
 true
 ```
 Thus, `d` does have a lower bound. The other methods are
-[`has_upper_bound`](@ref JuMP.has_upper_bound(::InfOptVariableRef)),
-[`is_fixed`](@ref JuMP.is_fixed(::InfOptVariableRef)),
-[`is_binary`](@ref JuMP.is_binary(::InfOptVariableRef)), and
-[`is_integer`](@ref JuMP.is_integer(::InfOptVariableRef)).
+[`has_upper_bound`](@ref JuMP.has_upper_bound(::UserDecisionVariableRef)),
+[`is_fixed`](@ref JuMP.is_fixed(::UserDecisionVariableRef)),
+[`is_binary`](@ref JuMP.is_binary(::UserDecisionVariableRef)), and
+[`is_integer`](@ref JuMP.is_integer(::UserDecisionVariableRef)).
 
 Next, the ```[ConstraintType]Ref``` methods return an appropriate explicit type
-[`GeneralConstraintRef`](@ref) that points to the constraint (errors if no
+[`InfOptConstraintRef`](@ref) that points to the constraint (errors if no
 such constraint exists). For example, the upper bound constraint of `d` can be
-obtained via [`UpperBoundRef`](@ref JuMP.UpperBoundRef(::InfOptVariableRef)):
+obtained via [`UpperBoundRef`](@ref JuMP.UpperBoundRef(::UserDecisionVariableRef)):
 ```jldoctest var_macro
 julia> UpperBoundRef(d)
 d ≤ 3.0
 ```
-The other methods are [`LowerBoundRef`](@ref JuMP.LowerBoundRef(::InfOptVariableRef)),
-[`FixRef`](@ref JuMP.FixRef(::InfOptVariableRef)),
-[`BinaryRef`](@ref JuMP.BinaryRef(::InfOptVariableRef)), and
-[`IntegerRef`](@ref JuMP.IntegerRef(::InfOptVariableRef)).
+The other methods are [`LowerBoundRef`](@ref JuMP.LowerBoundRef(::UserDecisionVariableRef)),
+[`FixRef`](@ref JuMP.FixRef(::UserDecisionVariableRef)),
+[`BinaryRef`](@ref JuMP.BinaryRef(::UserDecisionVariableRef)), and
+[`IntegerRef`](@ref JuMP.IntegerRef(::UserDecisionVariableRef)).
 
 Finally, variable constraints that entail values (i.e., lower bounds, upper
 bounds, and fixed values) have their values queried via the appropriate method.
 For example, the lower bound value of `d` is obtained via
-[`lower_bound`](@ref JuMP.lower_bound(::InfOptVariableRef)):
+[`lower_bound`](@ref JuMP.lower_bound(::UserDecisionVariableRef)):
 ```jldoctest var_macro
 julia> lower_bound(d)
 0.0
 ```
 Note these methods error when no such constraint is associated with the variable.
-The other methods are [`upper_bound`](@ref JuMP.upper_bound(::InfOptVariableRef))
-and [`fix_value`](@ref JuMP.fix_value(::InfOptVariableRef)).
+The other methods are [`upper_bound`](@ref JuMP.upper_bound(::UserDecisionVariableRef))
+and [`fix_value`](@ref JuMP.fix_value(::UserDecisionVariableRef)).
 
 ### Variable Use
 `InfiniteOpt` defines a number of methods to track if and how variables are used
 in an infinite model. For example,
-[`used_by_constraint`](@ref used_by_constraint(::InfOptVariableRef)) is used to
+[`used_by_constraint`](@ref used_by_constraint(::DecisionVariableRef)) is used to
 determine if a variable is used by a constraint. For example, let's see if `c`
 is used by a constraint:
 ```jldoctest var_macro
 julia> used_by_constraint(c)
 true
 ```
-Other methods include [`used_by_measure`](@ref used_by_measure(::InfOptVariableRef))
-and [`used_by_objective`](@ref used_by_objective(::InfOptVariableRef)).
+Other methods include [`used_by_measure`](@ref used_by_measure(::DecisionVariableRef))
+and [`used_by_objective`](@ref used_by_objective(::DecisionVariableRef)).
 For infinite variables, [`used_by_point_variable`](@ref) can also be used in a
 similar manner.
 
-Finally, in general [`is_used`](@ref is_used(::InfOptVariableRef)) can be used
+Finally, in general [`is_used`](@ref is_used(::DecisionVariableRef)) can be used
 to determine if a variable is
 used at all in the infinite model or not. For example, if we check `e` using
 `is_used` we find that it isn't:
@@ -637,7 +675,7 @@ of infinite parameters that the variable depends on. For example, consider
 `y(t, x)`:
 ```jldoctest var_macro
 julia> parameter_refs(y)
-(t, ParameterRef[x[1], x[2], x[3]])
+(t, GeneralVariableRef[x[1], x[2], x[3]])
 ```
 
 For point variables,
@@ -676,7 +714,7 @@ methods/macros are detailed in the [Methods/Macros](@ref var_methods) section
 ### Deletion
 Like `JuMP v0.19+`, `InfiniteOpt` fully supports deletion throughout its data
 types. Any variable and its dependencies can be deleted via
-[`delete`](@ref JuMP.delete(::InfiniteModel, ::InfOptVariableRef)). Thus, when `delete`
+[`delete`](@ref JuMP.delete(::InfiniteModel, ::DecisionVariableRef)). Thus, when `delete`
 is invoked any bound/type constraints associated with the variable will be removed
 and it will be removed from any other constraints, measures, and/or objectives.
 For example, if we delete `y(t, x)` it will be removed along with its bounds and
@@ -686,7 +724,7 @@ julia> delete(model, y)
 ```
 
 Another class of deletion methods correspond to variable constraints. For example,
-[`delete_lower_bound`](@ref JuMP.delete_lower_bound(::InfOptVariableRef)) is
+[`delete_lower_bound`](@ref JuMP.delete_lower_bound(::UserDecisionVariableRef)) is
 used to delete a lower bound associated with a
 variable if it has one. Let's illustrate this by deleting the lower bound of
 `d`:
@@ -697,16 +735,14 @@ julia> has_lower_bound(d)
 false
 ```
 Other similar methods are
-[`delete_upper_bound`](@ref JuMP.delete_upper_bound(::InfOptVariableRef)),
-[`unfix`](@ref JuMP.unfix(::InfOptVariableRef)),
-[`unset_binary`](@ref JuMP.unset_binary(::InfOptVariableRef)), and
-[`unset_integer`](@ref JuMP.unset_integer(::InfOptVariableRef)).
+[`delete_upper_bound`](@ref JuMP.delete_upper_bound(::UserDecisionVariableRef)),
+[`unfix`](@ref JuMP.unfix(::UserDecisionVariableRef)),
+[`unset_binary`](@ref JuMP.unset_binary(::UserDecisionVariableRef)), and
+[`unset_integer`](@ref JuMP.unset_integer(::UserDecisionVariableRef)).
 
 Finally, [`delete_parameter_bounds`](@ref delete_parameter_bounds(::HoldVariableRef))
-and [`delete_parameter_bound`](@ref delete_parameter_bound(::HoldVariableRef, ::ParameterRef))
-can be used on hold variables to delete all of their parameter bounds or a
-particular one. For example, let's delete all of the parameter bounds associated
-with `c`:
+can be used on hold variables to delete all of their parameter bounds. For
+example, let's delete all of the parameter bounds associated with `c`:
 ```jldoctest var_macro
 julia> parameter_bounds(c)
 Subdomain bounds (1): t ∈ [0, 5]
@@ -719,7 +755,7 @@ false
 
 ### Variable Constraints
 Another class of methods seek to add/modify variable constraints such as
-bounds. For example, [`set_lower_bound`](@ref JuMP.set_lower_bound(::InfOptVariableRef, ::Number))
+bounds. For example, [`set_lower_bound`](@ref JuMP.set_lower_bound(::UserDecisionVariableRef, ::Number))
 specifies the lower bound of a
 variable. We can add a lower bound of 0 to `c` by:
 ```jldoctest var_macro
@@ -737,16 +773,14 @@ julia> lower_bound(c)
 -2.0
 ```
 Other similar methods are
-[`set_upper_bound`](@ref JuMP.set_upper_bound(::InfOptVariableRef, ::Number)),
-[`fix`](@ref JuMP.fix(::InfOptVariableRef, ::Number)),
-[`set_binary`](@ref JuMP.set_binary(::InfOptVariableRef)), and
-[`set_integer`](@ref JuMP.set_integer(::InfOptVariableRef)).
+[`set_upper_bound`](@ref JuMP.set_upper_bound(::UserDecisionVariableRef, ::Real)),
+[`fix`](@ref JuMP.fix(::UserDecisionVariableRef, ::Real)),
+[`set_binary`](@ref JuMP.set_binary(::UserDecisionVariableRef)), and
+[`set_integer`](@ref JuMP.set_integer(::UserDecisionVariableRef)).
 
 ### Type Specific
 Finally, we consider methods unique to `InfiniteOpt` that exist to modify
-specific variable types. For infinite variables, [`add_parameter_ref`](@ref)
-and [`set_parameter_refs`](@ref) are used to add an infinite parameter and
-overwrite the infinite parameters, respectively.
+specific variable types.
 
 For hold variables, the parameter bounds can be modified via
 [`@add_parameter_bounds`](@ref) and [`@set_parameter_bounds`](@ref) which
@@ -769,14 +803,14 @@ InfiniteVariable
 PointVariable
 ParameterBounds
 HoldVariable
-InfOptVariableRef
-GeneralVariableRef
-MeasureFiniteVariableRef
-FiniteVariableRef
+VariableData
+InfiniteVariableIndex
+PointVariableIndex
+HoldVariableIndex
 InfiniteVariableRef
 PointVariableRef
 HoldVariableRef
-VectorTuple
+InfiniteOpt.Collections.VectorTuple
 ```
 
 ## [Methods/Macros] (@id var_methods)
@@ -786,68 +820,64 @@ Modules = [InfiniteOpt, JuMP]
 Order   = [:macro, :function]
 ```
 ```@docs
-JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Symbol)
-JuMP.add_variable(::InfiniteModel, ::InfOptVariable, ::String)
 @infinite_variable
 @point_variable
 @hold_variable
-JuMP.owner_model(::GeneralVariableRef)
-JuMP.index(::GeneralVariableRef)
-used_by_constraint(::InfOptVariableRef)
-used_by_measure(::InfOptVariableRef)
-used_by_objective(::InfOptVariableRef)
-is_used(::InfOptVariableRef)
+JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Symbol)
+JuMP.add_variable(::InfiniteModel, ::InfOptVariable, ::String)
+used_by_constraint(::DecisionVariableRef)
+used_by_measure(::DecisionVariableRef)
+used_by_objective(::DecisionVariableRef)
+is_used(::DecisionVariableRef)
 used_by_point_variable(::InfiniteVariableRef)
 used_by_reduced_variable(::InfiniteVariableRef)
 is_used(::InfiniteVariableRef)
-JuMP.delete(::InfiniteModel, ::InfOptVariableRef)
-JuMP.is_valid(::InfiniteModel, ::InfOptVariableRef)
-JuMP.num_variables(::InfiniteModel)
-JuMP.has_lower_bound(::InfOptVariableRef)
-JuMP.lower_bound(::InfOptVariableRef)
-JuMP.set_lower_bound(::InfOptVariableRef, ::Number)
-JuMP.LowerBoundRef(::InfOptVariableRef)
-JuMP.delete_lower_bound(::InfOptVariableRef)
-JuMP.has_upper_bound(::InfOptVariableRef)
-JuMP.upper_bound(::InfOptVariableRef)
-JuMP.set_upper_bound(::InfOptVariableRef, ::Number)
-JuMP.UpperBoundRef(::InfOptVariableRef)
-JuMP.delete_upper_bound(::InfOptVariableRef)
-JuMP.is_fixed(::InfOptVariableRef)
-JuMP.fix_value(::InfOptVariableRef)
-JuMP.fix(::InfOptVariableRef, ::Number; ::Bool)
-JuMP.FixRef(::InfOptVariableRef)
-JuMP.unfix(::InfOptVariableRef)
-JuMP.start_value(::InfOptVariableRef)
-JuMP.set_start_value(::InfOptVariableRef, ::Number)
-JuMP.is_binary(::InfOptVariableRef)
-JuMP.set_binary(::InfOptVariableRef)
-JuMP.BinaryRef(::InfOptVariableRef)
-JuMP.unset_binary(::InfOptVariableRef)
-JuMP.is_integer(::InfOptVariableRef)
-JuMP.set_integer(::InfOptVariableRef)
-JuMP.IntegerRef(::InfOptVariableRef)
-JuMP.unset_integer(::InfOptVariableRef)
-JuMP.name(::InfOptVariableRef)
-JuMP.set_name(::InfiniteVariableRef, ::String)
-JuMP.set_name(::PointVariableRef, ::String)
-JuMP.set_name(::HoldVariableRef, ::String)
+JuMP.delete(::InfiniteModel, ::DecisionVariableRef)
+JuMP.num_variables(::InfiniteModel, ::Type{InfOptVariable})
+JuMP.all_variables(::InfiniteModel, ::Type{InfOptVariable})
+JuMP.name(::DecisionVariableRef)
+JuMP.set_name(::DecisionVariableRef, ::String)
+JuMP.variable_by_name(::InfiniteModel, ::String)
+JuMP.has_lower_bound(::UserDecisionVariableRef)
+JuMP.lower_bound(::UserDecisionVariableRef)
+JuMP.set_lower_bound(::UserDecisionVariableRef, ::Real)
+JuMP.LowerBoundRef(::UserDecisionVariableRef)
+JuMP.delete_lower_bound(::UserDecisionVariableRef)
+JuMP.has_upper_bound(::UserDecisionVariableRef)
+JuMP.upper_bound(::UserDecisionVariableRef)
+JuMP.set_upper_bound(::UserDecisionVariableRef, ::Real)
+JuMP.UpperBoundRef(::UserDecisionVariableRef)
+JuMP.delete_upper_bound(::UserDecisionVariableRef)
+JuMP.is_fixed(::UserDecisionVariableRef)
+JuMP.fix_value(::UserDecisionVariableRef)
+JuMP.fix(::UserDecisionVariableRef, ::Real; ::Bool)
+JuMP.FixRef(::UserDecisionVariableRef)
+JuMP.unfix(::UserDecisionVariableRef)
+JuMP.start_value(::UserDecisionVariableRef)
+JuMP.set_start_value(::UserDecisionVariableRef, ::Real)
+start_value_function(::InfiniteVariableRef)
+set_start_value_function(::InfiniteVariableRef, ::Union{Real, Function})
+reset_start_value_function(::InfiniteVariableRef)
+JuMP.is_binary(::UserDecisionVariableRef)
+JuMP.set_binary(::UserDecisionVariableRef)
+JuMP.BinaryRef(::UserDecisionVariableRef)
+JuMP.unset_binary(::UserDecisionVariableRef)
+JuMP.is_integer(::UserDecisionVariableRef)
+JuMP.set_integer(::UserDecisionVariableRef)
+JuMP.IntegerRef(::UserDecisionVariableRef)
+JuMP.unset_integer(::UserDecisionVariableRef)
 parameter_refs(::InfiniteVariableRef)
 parameter_list(::InfiniteVariableRef)
 raw_parameter_refs(::InfiniteVariableRef)
-set_parameter_refs(::InfiniteVariableRef, ::Tuple)
-add_parameter_ref(::InfiniteVariableRef,::Union{ParameterRef, AbstractArray{<:ParameterRef}})
 @set_parameter_bounds
 @add_parameter_bounds
 has_parameter_bounds(::HoldVariableRef)
 parameter_bounds(::HoldVariableRef)
-set_parameter_bounds(::HoldVariableRef, ::ParameterBounds)
-add_parameter_bound(::HoldVariableRef, ::ParameterRef, ::Number, ::Number)
-delete_parameter_bound(::HoldVariableRef, ::ParameterRef)
+set_parameter_bounds(::HoldVariableRef, ::ParameterBounds{GeneralVariableRef})
+add_parameter_bounds(::HoldVariableRef, ::ParameterBounds{GeneralVariableRef})
 delete_parameter_bounds(::HoldVariableRef)
 infinite_variable_ref(::PointVariableRef)
 parameter_values(::PointVariableRef)
 raw_parameter_values(::PointVariableRef)
-JuMP.variable_by_name(::InfiniteModel, ::String)
-JuMP.all_variables(::InfiniteModel)
+JuMP.relax_integrality(::InfiniteModel)
 ```

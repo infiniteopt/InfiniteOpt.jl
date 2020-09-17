@@ -24,12 +24,12 @@ julia> @infinite_variable(model, y(ξ))
 y(ξ)
 
 julia> @hold_variable(model, x[1:2])
-2-element Array{HoldVariableRef,1}:
+2-element Array{GeneralVariableRef,1}:
  x[1]
  x[2]
 
 julia> @objective(model, Min, 0.5x[1] + 0.5x[2] + expect(y^2 - y, ξ))
-0.5 x[1] + 0.5 x[2] + expect(y(ξ)² - y(ξ))
+0.5 x[1] + 0.5 x[2] + expect{ξ}[y(ξ)² - y(ξ)]
 ```
 Thus, we have defined an objective using `InfiniteOpt`'s straightforward syntax.
 Note that the second argument indicates the objective sense which can be
@@ -63,10 +63,10 @@ julia> objective_sense(model)
 MIN_SENSE::OptimizationSense = 0
 
 julia> objective_function(model)
-0.5 x[1] + 0.5 x[2] + expect(y(ξ)² - y(ξ))
+0.5 x[1] + 0.5 x[2] + expect{ξ}[y(ξ)² - y(ξ)]
 
 julia> objective_function_type(model)
-GenericAffExpr{Float64,MeasureFiniteVariableRef}
+GenericAffExpr{Float64,GeneralVariableRef}
 ```
 The objective sense can be one of three possibilities: `MIN_SENSE`, `MAX_SENSE`,
 or `FEASIBILITY_SENSE`. The later sense applies to models that contain no
@@ -86,7 +86,7 @@ example from 0.5 to 0.25:
 julia> set_objective_coefficient(model, x[1], 0.25)
 
 julia> objective_function(model)
-0.25 x[1] + 0.5 x[2] + expect(y(ξ)² - y(ξ))
+0.25 x[1] + 0.5 x[2] + expect{ξ}[y(ξ)² - y(ξ)]
 ```
 
 Now let's consider the modification methods that enable the [`@objective`](@ref)
@@ -104,10 +104,6 @@ The objective sense is updated via [`set_objective_sense`](@ref JuMP.set_objecti
 specify the sense as one of the `MOI.OptimizationSense` subtypes. For example,
 let's change the current objective to be maximization problem:
 ``jldoctest obj
-julia> using MathOptInterface
-
-julia> const MOI = MathOptInterface;
-
 julia> set_objective_sense(model, MOI.MAX_SENSE)
 
 julia> objective_sense(model)
@@ -146,4 +142,5 @@ JuMP.set_objective_function(::InfiniteModel, ::Real)
 JuMP.set_objective_sense(::InfiniteModel, ::MOI.OptimizationSense)
 JuMP.set_objective(::InfiniteModel, ::MOI.OptimizationSense, ::Union{JuMP.AbstractJuMPScalar, Real})
 JuMP.set_objective_coefficient(::InfiniteModel, ::GeneralVariableRef, ::Real)
+objective_has_measures
 ```

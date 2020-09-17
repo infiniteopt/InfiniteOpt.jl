@@ -1,47 +1,139 @@
+# Test indexes
+@testset "Indexes" begin
+    # Abstract types
+    @test AbstractInfOptIndex isa DataType
+    @test ObjectIndex isa DataType
+    @test ObjectIndex <: AbstractInfOptIndex
+    # IndependentParameterIndex
+    @test IndependentParameterIndex <: ObjectIndex
+    @test IndependentParameterIndex(1).value == 1
+    # DependentParametersIndex
+    @test DependentParametersIndex <: ObjectIndex
+    @test DependentParametersIndex(1).value == 1
+    # DependentParameterIndex
+    @test DependentParameterIndex <: AbstractInfOptIndex
+    idx = DependentParametersIndex(1)
+    @test DependentParameterIndex(idx, 1).object_index == idx
+    @test DependentParameterIndex(idx, 1).param_index == 1
+    # InfiniteParameterIndex
+    @test InfiniteParameterIndex <: AbstractInfOptIndex
+    # FiniteParameterIndex
+    @test FiniteParameterIndex <: ObjectIndex
+    @test FiniteParameterIndex(1).value == 1
+    # InfiniteVariableIndex
+    @test InfiniteVariableIndex <: ObjectIndex
+    @test InfiniteVariableIndex(1).value == 1
+    # ReducedVariableIndex
+    @test ReducedVariableIndex <: ObjectIndex
+    @test ReducedVariableIndex(1).value == 1
+    # PointVariableIndex
+    @test PointVariableIndex <: ObjectIndex
+    @test PointVariableIndex(1).value == 1
+    # HoldVariableIndex
+    @test HoldVariableIndex <: ObjectIndex
+    @test HoldVariableIndex(1).value == 1
+    # MeasureIndex
+    @test MeasureIndex <: ObjectIndex
+    @test MeasureIndex(1).value == 1
+    # ConstraintIndex
+    @test ConstraintIndex <: ObjectIndex
+    @test ConstraintIndex(1).value == 1
+    # test CleverDict extensions
+    @testset "CleverDict Extensions" begin
+        # index_to_key
+        @test MOIUC.index_to_key(IndependentParameterIndex, 42) == IndependentParameterIndex(42)
+        @test MOIUC.index_to_key(DependentParametersIndex, 42) == DependentParametersIndex(42)
+        @test MOIUC.index_to_key(FiniteParameterIndex, 42) == FiniteParameterIndex(42)
+        @test MOIUC.index_to_key(InfiniteVariableIndex, 42) == InfiniteVariableIndex(42)
+        @test MOIUC.index_to_key(ReducedVariableIndex, 42) == ReducedVariableIndex(42)
+        @test MOIUC.index_to_key(PointVariableIndex, 42) == PointVariableIndex(42)
+        @test MOIUC.index_to_key(HoldVariableIndex, 42) == HoldVariableIndex(42)
+        @test MOIUC.index_to_key(MeasureIndex, 42) == MeasureIndex(42)
+        @test MOIUC.index_to_key(ConstraintIndex, 42) == ConstraintIndex(42)
+        # index_to_key
+        @test MOIUC.key_to_index(MeasureIndex(42)) == 42
+        @testset "_get" begin
+            d = MOIUC.CleverDict{MeasureIndex, Int}()
+            k = MOIUC.add_item(d, 42)
+            k2 = MOIUC.add_item(d, 2)
+            bad_k = MeasureIndex(3)
+            @test InfiniteOpt._get(d, k, nothing) == 42
+            @test InfiniteOpt._get(d, bad_k, nothing) === nothing
+            delete!(d, k2)
+            @test InfiniteOpt._get(d, k, nothing) == 42
+            @test InfiniteOpt._get(d, bad_k, nothing) === nothing
+        end
+    end
+    # test Base.length
+    @testset "Base.length" begin
+        @test length(MeasureIndex(1)) == 1
+    end
+    # test Base.broadcastable
+    @testset "Base.broadcastable" begin
+        @test Base.broadcastable(MeasureIndex(1)) isa Ref
+    end
+    # test Base.iterate
+    @testset "Base.iterate" begin
+        @test iterate(MeasureIndex(1)) == (MeasureIndex(1), true)
+        @test iterate(MeasureIndex(1), true) isa Nothing
+    end
+end
+
 # Test Infinite Sets
 @testset "Infinite Sets" begin
     # Abstract types
     @test AbstractInfiniteSet isa DataType
+    @test InfiniteScalarSet <: AbstractInfiniteSet
+    @test InfiniteArraySet <: AbstractInfiniteSet
     # IntervalSet
-    @test IntervalSet <: AbstractInfiniteSet
+    @test IntervalSet <: InfiniteScalarSet
     @test IntervalSet(0, 1) == IntervalSet(0.0, 1.0)
     @test_throws ErrorException IntervalSet(1, 0)
-    # DistributionSet
-    @test DistributionSet <: AbstractInfiniteSet
-    @test DistributionSet(Normal()) isa DistributionSet{<:Normal}
+    # UniDistributionSet
+    @test UniDistributionSet <: InfiniteScalarSet
+    @test UniDistributionSet(Normal()) isa UniDistributionSet{<:Normal}
+    # NonUnivariateDistribution
+    @test InfiniteOpt.NonUnivariateDistribution <: Distribution
+    # MultiDistributionSet
+    @test MultiDistributionSet <: InfiniteArraySet
+    @test MultiDistributionSet(Dirichlet([0.5, 0.5])) isa MultiDistributionSet{<:Dirichlet}
+    # CollectionSet
+    @test CollectionSet <: InfiniteArraySet
+    @test CollectionSet([IntervalSet(0, 1), IntervalSet(2, 3)]) isa CollectionSet{IntervalSet}
 end
 
-# Test core parameter/variable data structures
-sample_info = VariableInfo(zeros(Bool, 10)...)
-@testset "Core Parameter/Variables" begin
-    # Parameters
+# Test parameter datatypes
+@testset "Parameters" begin
+    # abstract types
     @test InfOptParameter <: AbstractVariable
-    @test InfOptParameter(IntervalSet(0, 1), Int[], true).set isa IntervalSet
-    p1 = InfOptParameter(IntervalSet(0, 1), Int[], true)
-    p2 = InfOptParameter(IntervalSet(0, 1), Int[], true)
-    @test p1 == p2
-    # Abstract variable
-    @test InfOptVariable <: AbstractVariable
-    @test AbstractReducedInfo isa DataType
-    # Infinite variable
-    @test InfiniteVariable <: InfOptVariable
-    # Point variable
-    @test PointVariable <: InfOptVariable
-    # Hold variable
-    @test ParameterBounds isa DataType
-    @test ParameterBounds().intervals == Dict{ParameterRef, IntervalSet}()
-    @test HoldVariable <: InfOptVariable
-    @test HoldVariable(sample_info,
-                       ParameterBounds()).info isa VariableInfo
-    # Reduced variable info
-    @test ReducedInfiniteInfo <: AbstractReducedInfo
+    @test ScalarParameter <: InfOptParameter
+    @test AbstractDataObject isa DataType
+    # test IndependentParameter
+    @test IndependentParameter <: ScalarParameter
+    dict = SortedDict{Float64, Set{Symbol}}(2 => Set([:all]))
+    @test IndependentParameter(IntervalSet(0, 1), dict, 6).set isa IntervalSet
+    # test FiniteParameter
+    @test FiniteParameter <: ScalarParameter
+    @test FiniteParameter(1) == FiniteParameter(1)
+    # test DependentParameters
+    @test DependentParameters <: InfOptParameter
+    @test DependentParameters(CollectionSet([IntervalSet(0, 1)]),
+                              Dict(zeros(1) => Set([:all])), 6).set isa CollectionSet
+    # test ScalarParameterData
+    @test ScalarParameterData <: AbstractDataObject
+    @test ScalarParameterData(FiniteParameter(42), 1, 1, "bob").name == "bob"
+    # test MultiParameterData
+    @test MultiParameterData <: AbstractDataObject
+    params = DependentParameters(CollectionSet([IntervalSet(0, 1)]),
+                                 Dict(zeros(1) => Set([:all])), 6)
+    @test MultiParameterData(params, 1, 1:1, ["par[1]"]) isa MultiParameterData{CollectionSet{IntervalSet}}
 end
 
 # Test the InfiniteModel datatype
 @testset "InfiniteModel" begin
     # test basic
     @test InfiniteModel <: JuMP.AbstractModel
-    @test InfiniteModel().next_var_index == 0
+    @test InfiniteModel().ext isa Dict
     # prepare optimizer constructor
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                              eval_objective_value=false)
@@ -55,104 +147,241 @@ end
     @test InfiniteModel(caching_mode = MOIU.MANUAL) isa JuMP.AbstractModel
     @test InfiniteModel(mockoptimizer,
                         caching_mode = MOIU.MANUAL) isa JuMP.AbstractModel
-    m = InfiniteModel(seed = true)
-    #@test reinterpret(Int32, Random.GLOBAL_RNG.seed)[1] == 0 # this test does not work on travis nightly julia
-    rand_num1 = rand()
-    m = InfiniteModel(seed = true)
-    rand_num2 = rand()
-    @test rand_num1 == rand_num2
+    # test accessors
+    @test InfiniteOpt._last_param_num(m) == 0
+    @test InfiniteOpt._param_object_indices(m) isa Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
 end
 
 # Test reference variable datatypes
 @testset "References" begin
     m = InfiniteModel();
     # Abstract types
-    @test GeneralVariableRef <: JuMP.AbstractVariableRef
-    @test MeasureFiniteVariableRef <: GeneralVariableRef
+    @test DispatchVariableRef <: AbstractVariableRef
+    @test MeasureFiniteVariableRef <: DispatchVariableRef
     @test FiniteVariableRef <: MeasureFiniteVariableRef
-    # Hold variable refs
-    @test HoldVariableRef <: FiniteVariableRef
-    @test HoldVariableRef(m, 1).index == 1
-    # Point variable refs
+    # test GeneralVariableRef
+    @test GeneralVariableRef <: AbstractVariableRef
+    @test GeneralVariableRef(m, 1, MeasureIndex) isa GeneralVariableRef
+    # test IndependentParameterRef
+    @test IndependentParameterRef <: DispatchVariableRef
+    idx = IndependentParameterIndex(1)
+    @test IndependentParameterRef(m, idx) isa IndependentParameterRef
+    # test DependentParameterRef
+    @test DependentParameterRef <: DispatchVariableRef
+    idx = DependentParameterIndex(DependentParametersIndex(1), 1)
+    @test DependentParameterRef(m, idx) isa DependentParameterRef
+    # test FiniteParameterRef
+    @test FiniteParameterRef <: FiniteVariableRef
+    idx = FiniteParameterIndex(1)
+    @test FiniteParameterRef(m, idx) isa FiniteParameterRef
+    # InfiniteVariableRef
+    @test InfiniteVariableRef <: DispatchVariableRef
+    idx = InfiniteVariableIndex(1)
+    @test InfiniteVariableRef(m, idx) isa InfiniteVariableRef
+    # ReducedVariableRef
+    @test ReducedVariableRef <: DispatchVariableRef
+    idx = ReducedVariableIndex(1)
+    @test ReducedVariableRef(m, idx) isa ReducedVariableRef
+    # PointVariableRef
     @test PointVariableRef <: FiniteVariableRef
-    @test PointVariableRef(m, 1).index == 1
-    # Infinite variable refs
-    @test InfiniteVariableRef <: GeneralVariableRef
-    @test InfiniteVariableRef(m, 1).index == 1
-    ivref = InfiniteVariableRef(m, 1)
-    # Reduced infinite variable refs
-    @test ReducedInfiniteVariableRef <: GeneralVariableRef
-    @test ReducedInfiniteVariableRef(m, 1).index == 1
-    # Parameter refs
-    @test ParameterRef <: GeneralVariableRef
-    @test ParameterRef(m, 1).index == 1
-    pref = ParameterRef(m, 1)
-    @test copy(pref, m).index == 1
-    # Measure refs
+    idx = PointVariableIndex(1)
+    @test PointVariableRef(m, idx) isa PointVariableRef
+    # HoldVariableRef
+    @test HoldVariableRef <: FiniteVariableRef
+    idx = HoldVariableIndex(1)
+    @test HoldVariableRef(m, idx) isa HoldVariableRef
+    # MeasureRef
     @test MeasureRef <: MeasureFiniteVariableRef
-    @test MeasureRef(m, 1).index == 1
-end
-
-# Test the constraint datatypes
-@testset "Unions" begin
-    @test InfOptVariableRef <: GeneralVariableRef
-    @test InfiniteExpr <: AbstractJuMPScalar
-    @test ParameterExpr <: AbstractJuMPScalar
-    @test MeasureExpr <: AbstractJuMPScalar
-end
-
-# Test the constraint datatypes
-@testset "Constraints" begin
-    m = InfiniteModel()
-    # Bounded constraints
-    @test BoundedScalarConstraint <: JuMP.AbstractConstraint
-    pref = ParameterRef(m, 1)
-    bounds = ParameterBounds(Dict(pref => IntervalSet(0, 1)))
-    @test BoundedScalarConstraint(zero(AffExpr), MOI.Integer(),
-                bounds, bounds).bounds.intervals[pref].lower_bound == 0.0
-    # Abstract cosntraint refs
-    @test GeneralConstraintRef isa DataType
-    # Infinite constraint refs
-    @test InfiniteConstraintRef <: GeneralConstraintRef
-    @test InfiniteConstraintRef(m, 1, JuMP.ScalarShape()).index == 1
-    # Finite constraint refs
-    @test FiniteConstraintRef <: GeneralConstraintRef
-    @test FiniteConstraintRef(m, 1, JuMP.ScalarShape()).index == 1
-    # Measure constraint refs
-    @test MeasureConstraintRef <: GeneralConstraintRef
-    @test MeasureConstraintRef(m, 1, JuMP.ScalarShape()).index == 1
+    idx = MeasureIndex(1)
+    @test MeasureRef(m, idx) isa MeasureRef
+    # InfOptConstraintRef
+    @test InfOptConstraintRef isa UnionAll
+    idx = ConstraintIndex(1)
+    @test InfOptConstraintRef(m, idx, JuMP.ScalarShape()) isa InfOptConstraintRef
 end
 
 # Test ParameterBounds
 @testset "Parameter Bounds" begin
-    # setup
+    # prepare the data
     m = InfiniteModel()
-    m.params[1] = InfOptParameter(IntervalSet(0, 10), Number[], false)
-    m.params[2] = InfOptParameter(IntervalSet(0, 10), Number[], false)
-    m.params[3] = InfOptParameter(IntervalSet(0, 10), Number[], false)
-    par = ParameterRef(m, 1)
-    pars = [ParameterRef(m, 2), ParameterRef(m, 3)]
+    idx = DependentParametersIndex(1)
+    idx1 = DependentParameterIndex(idx, 1)
+    idx2 = DependentParameterIndex(idx, 2)
+    idx3 = IndependentParameterIndex(1)
+    par1 = GeneralVariableRef(m, 1, DependentParameterIndex, 1)
+    par2 = GeneralVariableRef(m, 1, DependentParameterIndex, 2)
+    par3 = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
+    pars = [par1, par2]
+    # test datatype
+    @testset "DataType" begin
+        @test ParameterBounds isa UnionAll
+        d = Dict(par3 => IntervalSet(0, 1))
+        @test ParameterBounds(d) isa ParameterBounds{GeneralVariableRef}
+        @test ParameterBounds() isa ParameterBounds{GeneralVariableRef}
+    end
+    # test _expand_parameter_tuple
+    @testset "_expand_parameter_tuple" begin
+        d = (par3 => IntervalSet(0, 1),)
+        @test InfiniteOpt._expand_parameter_tuple(d) == Dict(d...)
+    end
     # test _expand_parameter_dict(Dict{ParameterRef,IntervalSet}))
     @testset "_expand_parameter_dict (acceptable Form)" begin
-        d = Dict(par => IntervalSet(0, 1))
-        @test InfiniteOpt._expand_parameter_dict(d) == d
+        d = (par3 => IntervalSet(0, 1),)
+        @test InfiniteOpt._expand_parameter_dict(d) == Dict(d...)
     end
     # test _expand_parameter_dict(Dict{Any,IntervalSet}))
     @testset "_expand_parameter_dict (Array Form)" begin
-        d = Dict(pars => IntervalSet(0, 1), par => IntervalSet(0, 1))
+        d = (pars => IntervalSet(0, 1), par3 => IntervalSet(0, 1))
         @test isa(InfiniteOpt._expand_parameter_dict(d),
-                  Dict{ParameterRef, IntervalSet})
+                  Dict{GeneralVariableRef, IntervalSet})
     end
     # test _expand_parameter_dict(Dict))
     @testset "_expand_parameter_dict (Fallback)" begin
-        d = Dict(pars => 1, par => 2)
+        d = (pars => 1, par3 => 2)
         @test_throws ErrorException InfiniteOpt._expand_parameter_dict(d)
     end
     # test expansion definition
     @testset "ParameterBounds Expansion" begin
-        d = Dict(par => IntervalSet(0, 1))
-        @test ParameterBounds(d).intervals == d
-        d = Dict(pars => IntervalSet(0, 1), par => IntervalSet(0, 1))
-        @test isa(ParameterBounds(d).intervals, Dict{ParameterRef, IntervalSet})
+        d = (par3 => IntervalSet(0, 1),)
+        @test ParameterBounds(d).intervals == Dict(d...)
+        d = (pars => IntervalSet(0, 1), par3 => IntervalSet(0, 1))
+        @test ParameterBounds(d).intervals isa Dict{GeneralVariableRef, IntervalSet}
     end
+    pb = ParameterBounds((par3 => IntervalSet(0, 1),))
+    # test intervals
+    @testset "intervals" begin
+        @test intervals(pb) == pb.intervals
+    end
+    # test Base.length
+    @testset "Base.length" begin
+        @test length(pb) == 1
+    end
+    # test Base.isempty
+    @testset "Base.isempty" begin
+        @test !isempty(pb)
+        @test isempty(ParameterBounds())
+    end
+    # test Base.:(==)
+    @testset "Base.:(==)" begin
+        @test pb == ParameterBounds((par3 => IntervalSet(0, 1),))
+        @test pb != ParameterBounds()
+    end
+    # test Base.copy
+    @testset "Base.copy" begin
+        @test copy(pb) == pb
+    end
+    # test Base.getindex
+    @testset "Base.getindex" begin
+        @test pb[par3] == IntervalSet(0, 1)
+    end
+    # test Base.setindex!
+    @testset "Base.setindex!" begin
+        @test (pb[par3] = IntervalSet(0, 2)) == IntervalSet(0, 2)
+    end
+    # test Base.haskey
+    @testset "Base.haskey" begin
+        @test haskey(pb, par3)
+        @test !haskey(pb, par2)
+    end
+    # test Base.keys
+    @testset "Base.keys" begin
+        @test keys(pb) == keys(intervals(pb))
+    end
+    # test Base.iterate
+    @testset "Base.iterate" begin
+        @test [p for p in pb] == [par3 => IntervalSet(0, 2)]
+    end
+    # test Base.merge
+    @testset "Base.merge" begin
+        new_pb = ParameterBounds()
+        @test merge(new_pb, pb) == pb
+    end
+    # test Base.merge!
+    @testset "Base.merge!" begin
+        new_pb = ParameterBounds()
+        @test merge!(new_pb, pb) isa ParameterBounds
+        @test new_pb == pb
+    end
+    # test Base.filter
+    @testset "Base.filter" begin
+        @test filter(e -> e[1] != par3, pb) == ParameterBounds()
+    end
+    # test Base.delete!
+    @testset "Base.delete!" begin
+        @test delete!(pb, par3) isa ParameterBounds
+        @test length(pb) == 0
+    end
+end
+
+# Test variable datatypes
+@testset "Variables" begin
+    # useful data
+    m = InfiniteModel()
+    num = Float64(0)
+    sample_info = VariableInfo(true, num, true, num, true, num, true, num, true, true)
+    func = (x) -> NaN
+    inf_info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
+                 num, true, num, false, func, true, true)
+    pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
+    vref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
+    # Abstract variables
+    @test InfOptVariable <: AbstractVariable
+    # Infinite variable
+    @test InfiniteVariable <: InfOptVariable
+    @test InfiniteVariable(inf_info, IC.VectorTuple(pref), [1], [1], true) isa InfiniteVariable
+    # Reduced variable
+    @test ReducedVariable <: InfOptVariable
+    @test ReducedVariable(vref, Dict(1 => Float64(2)), [1], [1]) isa ReducedVariable
+    # Point variable
+    @test PointVariable <: InfOptVariable
+    @test PointVariable(sample_info, vref, Float64[1]) isa PointVariable
+    # Hold variable
+    @test HoldVariable <: InfOptVariable
+    @test HoldVariable(sample_info, ParameterBounds()) isa HoldVariable
+    # VariableData
+    @test VariableData <: AbstractDataObject
+    @test VariableData(HoldVariable(sample_info, ParameterBounds())) isa VariableData
+end
+
+# Test the measure datatypes
+@testset "Measures" begin
+    # Helper data
+    m = InfiniteModel()
+    pref = GeneralVariableRef(m, 2, IndependentParameterIndex)
+    w(t) = 1
+    # abstract types
+    @test AbstractMeasureData isa DataType
+    # DiscreteMeasureData
+    @test DiscreteMeasureData <: AbstractMeasureData
+    @test DiscreteMeasureData(pref, ones(2), ones(2), :a, w, NaN, NaN, false) isa DiscreteMeasureData
+    @test DiscreteMeasureData([pref], ones(2), ones(1, 2), :a, w, [NaN], [NaN], false) isa DiscreteMeasureData
+    # FunctionalDistributionSet
+    @test FunctionalDiscreteMeasureData <: AbstractMeasureData
+    @test FunctionalDiscreteMeasureData(pref, w, 2, :all, w, NaN, NaN, false) isa FunctionalDiscreteMeasureData
+    @test FunctionalDiscreteMeasureData([pref], w, 2, :all, w, [NaN], [NaN], false) isa FunctionalDiscreteMeasureData
+    # Measure
+    @test Measure isa UnionAll
+    @test Measure(zero(AffExpr),
+                  DiscreteMeasureData(pref, ones(2), ones(2), :a, w, NaN, NaN, false),
+                  [1], [1], false) isa Measure
+    # MeasureData
+    @test MeasureData <: AbstractDataObject
+    @test MeasureData(Measure(zero(AffExpr), DiscreteMeasureData(pref,
+                      ones(2), ones(2), :a, w, NaN, NaN, false), [1], [1], true)) isa MeasureData
+end
+
+# Test the constraint datatypes
+@testset "Constraints" begin
+    # Setup
+    m = InfiniteModel()
+    pref = GeneralVariableRef(m, 2, IndependentParameterIndex, -1)
+    bounds = ParameterBounds(Dict(pref => IntervalSet(0, 1)))
+    # Bounded constraints
+    @test BoundedScalarConstraint <: JuMP.AbstractConstraint
+    @test BoundedScalarConstraint(zero(AffExpr), MOI.Integer(),
+                bounds, bounds).bounds.intervals[pref].lower_bound == 0.0
+    # ConstraintData
+    @test ConstraintData <: AbstractDataObject
+    @test ConstraintData(ScalarConstraint(zero(AffExpr), MOI.Integer()), [1], "",
+                         MeasureIndex[], false) isa ConstraintData
 end

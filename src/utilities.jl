@@ -1,34 +1,3 @@
-## Extend convert to handle JuMP expression types
-# GenericAffExpr
-function Base.convert(::Type{JuMP.GenericAffExpr{C, V}},
-                      x::JuMP.GenericAffExpr{C, W}) where {C, V, W}
-    if V != W
-        return JuMP.GenericAffExpr{C,V}(x.constant, x.terms)
-    else
-        return x
-    end
-end
-
-# GenericQuadExpr
-function Base.convert(::Type{JuMP.GenericQuadExpr{C, V}},
-                      x::JuMP.GenericQuadExpr{C, W}) where {C, V, W}
-    if V != W
-        return JuMP.GenericQuadExpr{C, V}(x.aff, x.terms)
-    else
-        return x
-    end
-end
-
-# UnorderedPair
-function Base.convert(::Type{JuMP.UnorderedPair{V}},
-                      x::JuMP.UnorderedPair{W}) where {V, W}
-    if V != W
-        return JuMP.UnorderedPair{V}(x.a, x.b)
-    else
-        return x
-    end
-end
-
 ## Extend convert to handle JuMP containers
 # Array -> SparseAxisArray
 function Base.convert(::Type{JuMPC.SparseAxisArray}, arr::Array)
@@ -43,98 +12,85 @@ function Base.convert(::Type{JuMPC.SparseAxisArray},
     return JuMPC.SparseAxisArray(data)
 end
 
-## Extensions for ParameterBounds
-# length
-Base.length(bounds::ParameterBounds)::Int = length(bounds.intervals)
-
-# equal to
-function Base.:(==)(bounds1::ParameterBounds, bounds2::ParameterBounds)::Bool
-    return bounds1.intervals == bounds2.intervals
+# Convert numbers to jump objects 
+function Base.convert(::Type{JuMP.AbstractJuMPScalar}, c::Number) 
+    return zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + c
 end
 
-# copy
-Base.copy(bounds::ParameterBounds) = ParameterBounds(copy(bounds.intervals))
+# Make workaround for keys of containers
+_keys(a::JuMPC.SparseAxisArray) = keys(a.data)
+_keys(a::AbstractArray) = keys(a)
 
-# function Base.convert(::Type{Array}, arr::JuMPC.SparseAxisArray)
-#
-# end
-#
-# function Base.convert(::Type{JuMPC.DenseAxisArray},
-#                       arr::JuMPC.SparseAxisArray)
-#
-# end
-
-# Extend to handle InfOptParameters correctly
-function Base.:(==)(p1::InfOptParameter, p2::InfOptParameter)
-    return (p1.set == p2.set && isequal(p1.supports, p2.supports) &&
-            p1.independent == p2.independent)
-end
-
-# Hack to make the keys function work for sparse arrays
-Base.keys(d::JuMPC.SparseAxisArray) = keys(d.data)
-
-# Hacky fix to compare SparseAxisArrays
-function Base.isapprox(a::JuMPC.SparseAxisArray, b::JuMPC.SparseAxisArray)::Bool
-    return all(isapprox.(a, b))
-end
-
-# Attempt to convert variable type of GenericAffExpr if possible
-function _possible_convert(type::DataType,
-                           aff::JuMP.GenericAffExpr{C, V}) where {C, V}
-    if V == type
-        return aff
-    end
-    for k in keys(aff.terms)
-        if !(k isa type)
-            return aff
-        end
-    end
-    return JuMP.GenericAffExpr{C, type}(aff.constant, aff.terms)
-end
-
-# Attempt to convert variable type of GenericQuadExpr if possible
-function _possible_convert(type::DataType,
-                           quad::JuMP.GenericQuadExpr{C, V}) where {C, V}
-    if V == type
-       return quad
-    end
-    for k in keys(quad.terms)
-        if !(k.a isa type && k.b isa type)
-            return quad
-        end
-    end
-    for k in keys(quad.aff.terms)
-        if !(k isa type)
-            return quad
-        end
-    end
-    aff = convert(JuMP.GenericAffExpr{C, type}, quad.aff)
-    return JuMP.GenericQuadExpr{C, type}(aff, quad.terms)
+# Tempororay hack for map of DenseAxisArray
+function Base.map(f, a::JuMPC.DenseAxisArray)
+    data = map(f, a.data)
+    return JuMPC.DenseAxisArray(data, axes(a)...)
 end
 
 ## Define functions to convert a JuMP array into a vector (need for @BDconstraint)
 # AbstractArray
-function _make_vector(arr::AbstractArray)
-    return [arr[i] for i in keys(arr)]
+function _make_vector(arr::AbstractArray{T})::Vector{T} where {T}
+    if isempty(arr)
+        return T[]
+    else
+        return reduce(vcat, arr)
+    end
 end
 
 # Array (do nothing)
-function _make_vector(arr::Array)
+function _make_vector(arr::Vector{T})::Vector{T} where {T}
     return arr
 end
 
-# Something else
-function _make_vector(arr)
+## Define function to vectorize abstractarrays in a consistent way
+# Vector
+function _make_ordered_vector(
+    arr::Vector{T}
+    )::Vector{T} where {T}
     return arr
+end
+
+# Array
+function _make_ordered_vector(
+    arr::Union{Array{T}, JuMPC.DenseAxisArray{T}}
+    )::Vector{T} where{T}
+    return reduce(vcat, arr)
+end
+
+# SparseAxisArray
+function _make_ordered_vector(
+    arr::JuMPC.SparseAxisArray{T}
+    )::Vector{T} where {T}
+    indices = Collections._get_indices(arr)
+    return Collections._make_ordered(arr, indices)
+end
+
+# Fallback 
+function _make_ordered_vector(x::T)::T where {T}
+    return x
 end
 
 ## Define efficient function to check if all elements in array are equal
 # method found at https://stackoverflow.com/questions/47564825/check-if-all-the-elements-of-a-julia-array-are-equal/47578613
-@inline function _allequal(x::AbstractArray)
+@inline function _allequal(x::AbstractArray)::Bool
     length(x) < 2 && return true
     e1 = first(x)
     for value in x
         value == e1 || return false
     end
     return true
+end
+
+## Convert JuMP variable info to only use Float64
+# Change needed
+function _make_float_info(info::JuMP.VariableInfo)::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
+    return JuMP.VariableInfo{Float64, Float64, Float64, Float64}(
+        info.has_lb, info.lower_bound, info.has_ub, info.upper_bound,
+        info.has_fix, info.fixed_value, info.has_start, info.start,
+        info.binary, info.integer)
+end
+
+# No change needed
+function _make_float_info(info::T)::T where {T <: JuMP.VariableInfo{Float64, Float64, Float64, Float64}}
+    return info
 end

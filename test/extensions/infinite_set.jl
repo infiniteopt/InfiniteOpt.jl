@@ -1,5 +1,5 @@
 # Define the new set structure
-struct MyNewSet <: InfiniteOpt.AbstractInfiniteSet
+struct MyNewSet <: InfiniteOpt.InfiniteScalarSet
     attr1::Float64 # REPLACE WITH DESIRED TYPE
     attr2::Float64 # REPLACE WITH DESIRED TYPE
     # ADD MORE ATTRIBUTES AS NEEDED
@@ -11,7 +11,7 @@ struct MyNewSet <: InfiniteOpt.AbstractInfiniteSet
 end
 
 # Extend supports_in_set
-function InfiniteOpt.supports_in_set(supports::Union{Number, Vector{<:Number}},
+function InfiniteOpt.supports_in_set(supports::Union{Real, Vector{<:Real}},
                                      set::MyNewSet)::Bool
     # DETERMINE IF SUPPORTS ARE IN THE DOMAIN OF `set`
     in_set = all(set.attr1 .<= supports .<= set.attr2) # REPLACE WITH ACTUAL CHECK
@@ -21,27 +21,10 @@ end
 # Extend generate_support_values if possible
 function InfiniteOpt.generate_support_values(set::MyNewSet;
                                              num_supports::Int = 10,
-                                             sig_fig::Int = 5)::Array
-    # REPLACE BELOW WITH METHODS TO GENERATE `num_samples` with `sig_fig`
+                                             sig_digits::Int = 5)::Tuple{Vector{<:Real}, Symbol}
+    # REPLACE BELOW WITH METHODS TO GENERATE `num_samples` with `sig_fig` 
     supports = collect(range(set.attr1, stop = set.attr2, length = num_supports))
-    return round.(supports, sigdigits = sig_fig)
-end
-
-# Extend generate_and_add_supports! if supports are not generated for parameters individually
-# Here we'll assume generate_support_values is sufficient
-
-# Extend generate_supports_and_coeffs in enable integral() with methods
-function InfiniteOpt.MeasureEvalMethods.generate_supports_and_coeffs(
-    set::MyNewSet,
-    params::Union{InfiniteOpt.ParameterRef, AbstractArray{<:InfiniteOpt.ParameterRef}},
-    num_supports::Int,
-    lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-    ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-    method::Val; kwargs...
-    )::Tuple
-    # ADD CHECKS IF NEEDED
-    return generate_supports_and_coeffs(IntervalSet(set.attr1, set.attr2), params,
-                                        num_supports, lb, ub, method) # REPLACE WITH PROPER DISPATCH
+    return round.(supports, sigdigits = sig_digits), UniformGrid
 end
 
 # Extend JuMP.has_lower_bound (optional if the answer is always false)
@@ -57,7 +40,7 @@ function JuMP.lower_bound(set::MyNewSet)
 end
 
 # Extend JuMP.set_lower_bound if appropriate
-function JuMP.set_lower_bound(set::MyNewSet, lower::Number)::MyNewSet
+function JuMP.set_lower_bound(set::MyNewSet, lower::Real)::MyNewSet
     return MyNewSet(lower, set.attr2) # REPLACE WITH ACTUAL CONSTRUCTOR
 end
 
@@ -74,6 +57,6 @@ function JuMP.upper_bound(set::MyNewSet)
 end
 
 # Extend JuMP.set_upper_bound if appropriate
-function JuMP.set_upper_bound(set::MyNewSet, upper::Number)::MyNewSet
+function JuMP.set_upper_bound(set::MyNewSet, upper::Real)::MyNewSet
     return MyNewSet(set.attr1, upper) # REPLACE WITH ACTUAL CONSTRUCTOR
 end

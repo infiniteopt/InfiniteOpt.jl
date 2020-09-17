@@ -14,19 +14,28 @@ makedocs(;
                              "Constraints" => "guide/constraint.md",
                              "Model Transcription" => "guide/transcribe.md",
                              "Optimization" => "guide/optimize.md",
-                             "Results" => "guide/result.md"],
+                             "Results" => "guide/result.md"
+                             ]
+                             ,
             "Examples" => "examples.md",
             "Extensions" => "extensions.md",
             "Development" => "develop.md",
             "Library" => "library.md",
-            hide("JuMP Docs" => "JuMP.md")],
+            hide("JuMP Docs" => "JuMP.md")
+            ],
     repo = "https://github.com/pulsipher/InfiniteOpt.jl/blob/{commit}{path}#L{line}",
     sitename = "InfiniteOpt.jl",
     authors = "Joshua Pulsipher and Weiqi Zhang",
     doctest = true,
-    linkcheck = true
+    linkcheck = true,
+    format = Documenter.HTML(
+        # See https://github.com/JuliaDocs/Documenter.jl/issues/868
+        prettyurls = get(ENV, "CI", nothing) == "true",
+        analytics = "UA-178297470-1",
+    )
 )
 
 deploydocs(;
     repo = "github.com/pulsipher/InfiniteOpt.jl",
 )
+

@@ -61,28 +61,39 @@ end
 
 ## Parse the proper indices for each container type
 # Array
-_get_indices(arr::Array)::CartesianIndices = CartesianIndices(arr)
+function _get_indices(
+    arr::Array{T, N}
+    )::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} where {T, N}
+    return CartesianIndices(arr)
+end
 
 # DenseAxisArray
-_get_indices(arr::JuMPC.DenseAxisArray)::Tuple = (CartesianIndices(arr), axes(arr))
+function _get_indices(arr::JuMPC.DenseAxisArray{T, N, Ax}
+    )::Tuple{CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, Ax} where {T, N, Ax}
+    return CartesianIndices(arr), axes(arr)
+end
 
 # SparseAxisArray
-_get_indices(arr::JuMPC.SparseAxisArray)::Vector = sort(collect(keys(arr)))
+function _get_indices(arr::JuMPC.SparseAxisArray{T, N, K})::Vector{K} where {T, N, K}
+    return sort!(collect(InfiniteOpt._keys(arr)))
+end
 
 # Fallback
-_get_indices(arr) = nothing
+_get_indices(arr)::Nothing = nothing
 
 ## Order arrays by index if necessary (to take care of SparseAxisArrays)
 # SparseAxisArray
-function _make_ordered(arr::JuMPC.SparseAxisArray, indices::Vector)::Vector
+function _make_ordered(arr::JuMPC.SparseAxisArray{T},
+                       indices::Vector)::Vector{T} where {T}
     return [arr[i] for i in indices]
 end
 
 # other
 _make_ordered(arr, indices) = arr
 
-# Constructor from a Tuple with type
-function VectorTuple{T}(tuple::Tuple)::VectorTuple where {T}
+# internal function for constructor
+function _make_vt_components(tuple::Tuple)
+    # form the range vector
     ranges = Vector{UnitRange{Int}}(undef, length(tuple))
     for i in eachindex(ranges)
         element_length = length(tuple[i])
@@ -92,33 +103,36 @@ function VectorTuple{T}(tuple::Tuple)::VectorTuple where {T}
             ranges[i] = UnitRange(ranges[i-1].stop + 1, ranges[i-1].stop + element_length)
         end
     end
+    # get the indices and reorder the tuple if needed
     indices = Any[_get_indices(tuple[i]) for i in eachindex(tuple)]
     if any(k isa JuMPC.SparseAxisArray for k in tuple)
         tuple = Tuple(_make_ordered(tuple[i], indices[i]) for i in eachindex(tuple))
     end
-    return VectorTuple{T}([(tuple...)...], ranges, indices)
+    # expand the elements into a single vector
+    vals = [j for i in tuple for j in i]
+    return vals, ranges, indices
+end
+
+# Constructor from a Tuple with type
+function VectorTuple{T}(tuple::Tuple)::VectorTuple{T} where {T}
+    if isempty(tuple)
+        return VectorTuple{T}()
+    end
+    vals, ranges, indices = _make_vt_components(tuple)
+    return VectorTuple{T}(vals, ranges, indices)
 end
 
 # Constructor from a Tuple without type
 function VectorTuple(tuple::Tuple)::VectorTuple
-    ranges = Vector{UnitRange{Int}}(undef, length(tuple))
-    for i in eachindex(ranges)
-        element_length = length(tuple[i])
-        if i === 1
-            ranges[i] = UnitRange(1, element_length)
-        else
-            ranges[i] = UnitRange(ranges[i-1].stop + 1, ranges[i-1].stop + element_length)
-        end
+    if isempty(tuple)
+        return VectorTuple()
     end
-    indices = Any[_get_indices(tuple[i]) for i in eachindex(tuple)]
-    if any(k isa JuMPC.SparseAxisArray for k in tuple)
-        tuple = Tuple(_make_ordered(tuple[i], indices[i]) for i in eachindex(tuple))
-    end
-    return VectorTuple([(tuple...)...], ranges, indices)
+    vals, ranges, indices = _make_vt_components(tuple)
+    return VectorTuple(vals, ranges, indices)
 end
 
 # Constructor from various arguments (like splatting the tuple) with type
-function VectorTuple{T}(items...)::VectorTuple where {T}
+function VectorTuple{T}(items...)::VectorTuple{T} where {T}
     return VectorTuple{T}(items)
 end
 
@@ -128,7 +142,7 @@ function VectorTuple(items...)::VectorTuple
 end
 
 # Default Constructor with type
-function VectorTuple{T}()::VectorTuple where {T}
+function VectorTuple{T}()::VectorTuple{T} where {T}
     return VectorTuple(T[], UnitRange{Int}[], Any[])
 end
 
@@ -156,19 +170,19 @@ function same_structure(vt1::VectorTuple, vt2::VectorTuple;
 end
 
 # Extend Base.copy
-function Base.copy(vt::VectorTuple)::VectorTuple
+function Base.copy(vt::VectorTuple{T})::VectorTuple{T} where {T}
     return VectorTuple(copy(vt.values), copy(vt.ranges), copy(vt.indices))
 end
 
 ## Extend first and last indices
 # Base.firstindex (linear)
-Base.firstindex(vt::VectorTuple)::Int = Base.firstindex(vt.values)
+Base.firstindex(vt::VectorTuple)::Int = firstindex(vt.values)
 
 # Base.firstindex (tuple)
 Base.firstindex(vt::VectorTuple, d::Int)::Int = 1
 
 # Base.lastindex (linear)
-Base.lastindex(vt::VectorTuple)::Int = Base.lastindex(vt.values)
+Base.lastindex(vt::VectorTuple)::Int = lastindex(vt.values)
 
 # Base.lastindex (tuple)
 function Base.lastindex(vt::VectorTuple, d::Int)::Int
@@ -178,32 +192,32 @@ end
 
 ## Extend Base.getindex
 # linear index along vector
-Base.getindex(vt::VectorTuple, i) = Base.getindex(vt.values, i)
+Base.getindex(vt::VectorTuple, i) = getindex(vt.values, i)
 
 # Tuple indexing (single position)
 function Base.getindex(vt::VectorTuple, i::Int, j)
-    return Base.getindex(vt.values[vt.ranges[i]], j)
+    return getindex(vt.values[vt.ranges[i]], j)
 end
 
 # Tuple indexing (with a colon)
 function Base.getindex(vt::VectorTuple, i::Colon, j)
-    return [Base.getindex(vt, i, j) for i = 1:size(vt, 1)]
+    return [getindex(vt, i, j) for i = 1:size(vt, 1)]
 end
 
 # Tuple indexing (with an iterable) --> assumed backup
 function Base.getindex(vt::VectorTuple, is, j)
-    return [Base.getindex(vt, i, j) for i in is]
+    return [getindex(vt, i, j) for i in is]
 end
 
 ## Extend Base.setindex!
 # linear index along vector
 function Base.setindex!(vt::VectorTuple, v, i)
-    return Base.setindex!(vt.values, v, i)
+    return setindex!(vt.values, v, i)
 end
 
 # Tuple indexing (with integer i and colon j)
 function Base.setindex!(vt::VectorTuple, v, i::Int, j::Colon)
-    return Base.setindex!(vt.values, v, vt.ranges[i])
+    return setindex!(vt.values, v, vt.ranges[i])
 end
 
 # Tuple indexing (with integer i and any non colon j)
@@ -212,55 +226,45 @@ function Base.setindex!(vt::VectorTuple, v, i::Int, j)
     if any(linear_index .> vt.ranges[i].stop)
         throw(BoundsError(vt, [i, j]))
     end
-    return Base.setindex!(vt.values, v, linear_index)
+    return setindex!(vt.values, v, linear_index)
 end
 
 # Tuple indexing (with colon i and integer j)
 function Base.setindex!(vt::VectorTuple, v, i::Colon, j::Int)
     linear_indexes = [vt.ranges[k].start - 1 + j for k in eachindex(vt.ranges)]
-    return Base.setindex!(vt.values, v, linear_indexes)
+    return setindex!(vt.values, v, linear_indexes)
 end
 
 # Tuple indexing (with colon i and noninteger j)
 function Base.setindex!(vt::VectorTuple, v, i::Colon, j)
-    return Base.setindex!(vt, v, 1:size(vt, 1), j)
+    return setindex!(vt, v, 1:size(vt, 1), j)
 end
 
 # Tuple indexing (with array i and any j)
 function Base.setindex!(vt::VectorTuple, v, i, j)
     @assert length(v) == length(i)
-    return [Base.setindex!(vt, v[k], i[k], j) for k in 1:length(i)]
+    return [setindex!(vt, v[k], i[k], j) for k in 1:length(i)]
 end
 
-# Extend Base.length
-Base.length(vt::VectorTuple)::Int = Base.length(vt.values)
+# Extend simple Base redirect methods with VectorTuple arguments
+for op = (:length, :isempty, :eachindex, :keys)
+    @eval Base.$op(vt::VectorTuple) = $op(vt.values)
+end
 
-# Extend Base.isempty
-Base.isempty(vt::VectorTuple)::Bool = Base.isempty(vt.values)
-
-# Extend Base.eachindex
-Base.eachindex(vt::VectorTuple) = Base.eachindex(vt.values)
-
-# Extend Base.keys
-Base.keys(vt::VectorTuple) = Base.keys(vt.values)
-
-# Extend Base.findfirst
-Base.findfirst(pred::Function, vt::VectorTuple) = Base.findfirst(pred, vt.values)
-
-# Extend Base.findall
-Base.findall(pred::Function, vt::VectorTuple) = Base.findall(pred, vt.values)
+# Extend simple Base 2 argument methods
+for op = (:findfirst, :findall)
+    @eval Base.$op(f::Function, vt::VectorTuple) = $op(f, vt.values)
+end
 
 # Extend Base.in
-function Base.in(item, vt::VectorTuple)::Bool
-    return Base.in(item, vt.values)
-end
+Base.in(i, vt::VectorTuple)::Bool = in(i, vt.values)
 
 # Extend Base.iterate
-Base.iterate(vt::VectorTuple) = Base.iterate(vt.values)
-Base.iterate(vt::VectorTuple, i) = Base.iterate(vt.values, i)
+Base.iterate(vt::VectorTuple) = iterate(vt.values)
+Base.iterate(vt::VectorTuple, i) = iterate(vt.values, i)
 
 # Extend Base.empty!
-function Base.empty!(vt::VectorTuple)::VectorTuple
+function Base.empty!(vt::VectorTuple{T})::VectorTuple{T} where {T}
     empty!(vt.values)
     empty!(vt.ranges)
     empty!(vt.indices)
@@ -269,7 +273,7 @@ end
 
 ## Extend Base.push!
 # Single item
-function Base.push!(vt::VectorTuple{T}, item::T)::VectorTuple where {T}
+function Base.push!(vt::VectorTuple{T}, item::T)::VectorTuple{T} where {T}
     push!(vt.values, item)
     push!(vt.ranges, UnitRange(vt.ranges[end].stop + 1, vt.ranges[end].stop + 1))
     push!(vt.indices, nothing)
@@ -278,7 +282,7 @@ end
 
 # AbstractArray
 function Base.push!(vt::VectorTuple{T},
-                    items::AbstractArray{<:T})::VectorTuple where {T}
+                    items::AbstractArray{<:T})::VectorTuple{T} where {T}
     indices = _get_indices(items)
     push!(vt.values, _make_ordered(items, indices)...)
     push!(vt.ranges, UnitRange(vt.ranges[end].stop + 1, length(vt.values)))
@@ -289,7 +293,8 @@ end
 ## Update the indices if an element is deleted
 # SparseAxisArray
 function _update_indices(inds::Vector{<:Tuple}, i)
-    return deleteat!(inds, i)
+    new_inds = deleteat!(inds, i)
+    return length(new_inds) >= 2 ? new_inds : nothing
 end
 
 # DenseAxisArray
@@ -305,7 +310,8 @@ function _update_indices(inds::CartesianIndices, i)
 end
 
 # Extend Base.deleteat!
-function Base.deleteat!(vt::VectorTuple, i::Int; tuple_index::Bool = false)
+function Base.deleteat!(vt::VectorTuple{T}, i::Int;
+                        tuple_index::Bool = false)::VectorTuple{T} where {T}
     if tuple_index
         len = length(vt.ranges[i])
         start = vt.ranges[i].start
@@ -339,10 +345,10 @@ function Base.deleteat!(vt::VectorTuple, i::Int; tuple_index::Bool = false)
 end
 
 # Extend Base.deleteat! (boolean list)
-function Base.deleteat!(vt::VectorTuple, inds::AbstractVector{<:Bool};
-                        tuple_index::Bool = false)
+function Base.deleteat!(vt::VectorTuple{T}, inds::AbstractVector{<:Bool};
+                        tuple_index::Bool = false)::VectorTuple{T} where {T}
     if tuple_index
-        deleteat!(vt.values, [(vt.ranges[inds]...)...])
+        deleteat!(vt.values, [j for i in vt.ranges[inds] for j in i])
         deleteat!(vt.indices, inds)
         prev_sum = 0
         for i in eachindex(vt.ranges)
@@ -381,35 +387,47 @@ end
 
 ## Make the original array for a particular tuple element
 # Array
-function _make_array(values::Vector, range::UnitRange{Int},
-                     indices::CartesianIndices)
-    return [values[range][i] for i in LinearIndices(indices)]
+function _make_array(values::Vector{T},
+                     indices::CartesianIndices{N})::Array{T, N} where {T, N}
+    return [values[i] for i in LinearIndices(indices)]
 end
 
 # DenseAxisArray
-function _make_array(values::Vector, range::UnitRange{Int}, indices::Tuple)
-    array = _make_array(values, range, indices[1])
+function _make_array(values::Vector, indices::Tuple)
+    array = _make_array(values, indices[1])
     return JuMPC.DenseAxisArray(array, indices[2]...)
 end
 
 # SparseAxisArray
-function _make_array(values::Vector, range::UnitRange{Int}, indices::Vector)
-    data = Dict(indices[i] => values[range][i] for i in eachindex(indices))
+function _make_array(values::Vector, indices::Vector)
+    data = Dict(indices[i] => values[i] for i in eachindex(indices))
     return JuMPC.SparseAxisArray(data)
 end
 
 # Other
-function _make_array(values::Vector, range::UnitRange{Int}, indices::Nothing)
-    return length(range) == 1 ? values[range.start] : values[range]
+function _make_array(values::Vector, indices::Nothing)
+    return length(values) == 1 ? first(values) : values
 end
 
 # Define Tuple construction from a VectorTuple
 function Base.Tuple(vt::VectorTuple; use_indices = true)::Tuple
     if use_indices
-        return Tuple(_make_array(vt.values, vt.ranges[i], vt.indices[i])
+        return Tuple(_make_array(vt.values[vt.ranges[i]], vt.indices[i])
                      for i in eachindex(vt.ranges))
     else
         return Tuple(length(vt.ranges[i]) == 1 ? vt.values[vt.ranges[i].start] : vt.values[vt.ranges[i]]
+                     for i in eachindex(vt.ranges))
+    end
+end
+
+# Define Tuple using construction from a values vector in combination with a VT
+function Base.Tuple(values::Vector, vt::VectorTuple; use_indices = true)::Tuple
+    @assert length(values) == length(vt)
+    if use_indices
+        return Tuple(_make_array(values[vt.ranges[i]], vt.indices[i])
+                     for i in eachindex(vt.ranges))
+    else
+        return Tuple(length(vt.ranges[i]) == 1 ? values[vt.ranges[i].start] : values[vt.ranges[i]]
                      for i in eachindex(vt.ranges))
     end
 end

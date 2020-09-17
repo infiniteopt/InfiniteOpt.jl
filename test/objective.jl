@@ -6,8 +6,8 @@
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
     @hold_variable(m, x)
-    data = DiscreteMeasureData(par, [1], [1])
-    meas = measure(inf + par - x, data)
+    data = TestData(par, 0, 1)
+    meas = measure(x, data, name = "test")
     # test objective_sense
     @testset "JuMP.objective_sense" begin
         # test default
@@ -19,39 +19,49 @@
         # undo changes
         m.objective_sense = MOI.FEASIBILITY_SENSE
     end
-    # test objective_function_type
-    @testset "JuMP.objective_function_type" begin
-        # test default
-        @test objective_function_type(m) == GenericAffExpr{Float64,
-                                                           FiniteVariableRef}
-        # change function
-        m.objective_function = x + meas + pt
-        # test new function
-        @test objective_function_type(m) == GenericAffExpr{Float64,
-                                                       MeasureFiniteVariableRef}
-        # undo changes
-        m.objective_function = zero(GenericAffExpr{Float64, FiniteVariableRef})
-    end
     # test objective_function
     @testset "JuMP.objective_function" begin
         # test default
         @test objective_function(m) == zero(GenericAffExpr{Float64,
-                                                           FiniteVariableRef})
+                                                           GeneralVariableRef})
         # change function
         m.objective_function = x + meas + pt
         # test new function
         @test objective_function(m) == x + meas + pt
         # undo changes
-        m.objective_function = zero(GenericAffExpr{Float64, FiniteVariableRef})
+        m.objective_function = zero(GenericAffExpr{Float64, GeneralVariableRef})
     end
     # test objective_function (internal)
     @testset "JuMP.objective_function (internal)" begin
         # test normal
         @test objective_function(m, GenericAffExpr{Float64,
-                                    FiniteVariableRef}) == zero(GenericAffExpr{Float64,
-                                                                FiniteVariableRef})
+                                    GeneralVariableRef}) == zero(GenericAffExpr{Float64,
+                                                                GeneralVariableRef})
         # test new sense
-        @test_throws InexactError objective_function(m, HoldVariableRef)
+        @test_throws InexactError objective_function(m, GeneralVariableRef)
+    end
+    # test objective_function_type
+    @testset "JuMP.objective_function_type" begin
+        # test default
+        @test objective_function_type(m) == GenericAffExpr{Float64,
+                                                           GeneralVariableRef}
+        # change function
+        m.objective_function = x + meas + pt
+        # test new function
+        @test objective_function_type(m) == GenericAffExpr{Float64, GeneralVariableRef}
+        # undo changes
+        m.objective_function = zero(GenericAffExpr{Float64, GeneralVariableRef})
+    end
+    # test objective_has_measures
+    @testset "objective_has_measures" begin
+        # test default
+        @test !objective_has_measures(m)
+        # change function
+        m.objective_has_measures = true
+        # test new function
+        @test objective_has_measures(m)
+        # undo changes
+        m.objective_has_measures = false
     end
 end
 
@@ -63,8 +73,8 @@ end
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
     @hold_variable(m, x)
-    data = DiscreteMeasureData(par, [1], [1])
-    meas = measure(inf + par - x, data)
+    data = TestData(par, 0, 1)
+    meas = measure(x, data, name = "test")
     # set_objective_sense
     @testset "JuMP.set_objective_sense" begin
         # test normal
@@ -80,23 +90,25 @@ end
         @test used_by_objective(pt)
         @test used_by_objective(meas)
         @test !optimizer_model_ready(m)
+        @test objective_has_measures(m)
         # test reset
         @test isa(set_objective_function(m, pt), Nothing)
         @test objective_function(m) == pt
         @test !used_by_objective(x)
         @test used_by_objective(pt)
         @test !used_by_objective(meas)
+        @test !objective_has_measures(m)
         # test errors
         @test_throws ErrorException set_objective_function(m, inf + pt)
         @test_throws ErrorException set_objective_function(m, par + pt)
-        @test_throws VariableNotOwned set_objective_function(m, @variable(Model()))
+        @test_throws VariableNotOwned set_objective_function(m, @hold_variable(InfiniteModel()))
     end
     # set_objective_function (number)
     @testset "JuMP.set_objective_function (Number)" begin
         # test normal
         @test isa(set_objective_function(m, 3), Nothing)
         @test objective_function(m) == GenericAffExpr{Float64,
-                                                      HoldVariableRef}(3)
+                                                      GeneralVariableRef}(3)
         @test !used_by_objective(x)
         @test !used_by_objective(pt)
         @test !used_by_objective(meas)
@@ -127,7 +139,7 @@ end
         # test normal
         @test isa(set_objective(m, MOI.MIN_SENSE, 3), Nothing)
         @test objective_function(m) == GenericAffExpr{Float64,
-                                                      HoldVariableRef}(3)
+                                                      GeneralVariableRef}(3)
         @test objective_sense(m) == MOI.MIN_SENSE
         @test !used_by_objective(x)
         @test !used_by_objective(pt)
@@ -154,8 +166,8 @@ end
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
     @hold_variable(m, x)
-    data = DiscreteMeasureData(par, [1], [1])
-    meas = measure(inf + par - x, data)
+    data = TestData(par, 0, 1)
+    meas = measure(x, data, name = "test")
     # test set_objective_coefficient
     @testset "JuMP.set_objective_coefficient" begin
         # test variable function

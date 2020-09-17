@@ -86,30 +86,20 @@ function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr, lvalue
     return var
 end
 
-# Extend to increase the param group id
-function _assert_valid_model_call(m, macrocode)
-    # assumes m is already escaped
-    quote
-        JuMP._valid_model($m, $(quot(m.args[1])))
-        $(m).next_param_id += 1
-        $macrocode
-    end
-end
-
 """
-    @infinite_parameter(model, kw_args...)
+    @independent_parameter(model::InfiniteModel, kw_args...)::GeneralVariableRef
 
 Add an *anonymous* infinite parameter to the model `model` described by the
 keyword arguments `kw_args` and returns the parameter reference.
 
 ```julia
-@infinite_parameter(model, expr, kw_args...)
+@independent_parameter(model::InfiniteModel, expr, kw_args...)::GeneralVariableRef
 ```
 
-Add a parameter to the model `model` described by the expression `expr`, the
-positional arguments `args` and the keyword arguments `kw_args`. (note that in
+Add a parameter to the model `model` described by the expression `expr`
+and the keyword arguments `kw_args`. (note that in
 the following the symbol `<=` can be used instead of `≤`, the symbol `>=`can
-be used instead of `≥`, and the symbo `in` can be used instead of `∈`) The
+be used instead of `≥`, and the symbol `in` can be used instead of `∈`) The
 expression `expr` can be of the form:
 - `paramexpr` creating parameters described by `paramexpr`.
 - `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
@@ -131,52 +121,48 @@ The recognized keyword arguments in `kw_args` are the following:
 - `lower_bound`: Sets the value of the parameter lower bound for an interval set.
 - `upper_bound`: Sets the value of the parameter upper bound for an interval set.
 - `set`: The `InfiniteSet` characterizing the parameters see [`IntervalSet`](@ref)
-   and [`DistributionSet`](@ref).
+   and [`UniDistributionSet`](@ref).
 - `distribution`: Sets the `Distributions.jl` distribution object that characterizes
   the parameters.
 - `supports`: Sets the support points for the parameters.
 - `num_supports`: Specifies the number of supports to be automatically generated.
-                  Note that `supports` takes precedence. Defaults to 50.
-- `sig_figs`: Specifies the number of significant digits that should be used
-              in automatic support generation. Defaults to 5.
-- `independent`: Specifies if the each parameter is independent from each other
-  or not. Defaults to false.
-- `container`: Specify the container type. Defaults to automatic
+                  Note that `supports` takes precedence. Defaults to `DefaultNumSupports`.
+- `sig_digits`: Specifies the number of significant digits that should be used
+              in automatic support generation. Defaults to `DefaultSigDigits`.
+- `container`: Specify the container type. Defaults to `automatic`
 
 **Examples**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; m = InfiniteModel())
-julia> @infinite_parameter(m, 0 <= x <= 1)
+julia> @independent_parameter(m, x in [0, 1])
 x
 
-julia> @infinite_parameter(m, y[i = 1:2] in Normal(), num_supports = 10)
-2-element Array{ParameterRef,1}:
+julia> @independent_parameter(m, y[i = 1:2] in Normal(), num_supports = 10)
+2-element Array{GeneralVariableRef,1}:
  y[1]
  y[2]
 
-julia> z = @infinite_parameter(m, ["a", "b"], distribution = Uniform(), independent = true)
-2-dimensional DenseAxisArray{ParameterRef,2,...} with index sets:
-    Dimension 1, "a"
-    Dimension 2, "b"
-And data, a 1×1 Array{ParameterRef,2}:
- noname
+julia> z = @independent_parameter(m, [["a", "b"]], lower_bound = 0,
+                                  upper_bound = 1, supports = [0, 0.5, 1])
+1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
+   Dimension 1, ["a", "b"]
+And data, a 2-element Array{GeneralVariableRef,1}:
+noname[a]
+noname[b]
 ```
 """
-macro infinite_parameter(model, args...)
+macro independent_parameter(model, args...)
     esc_model = esc(model)
 
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
 
     # check to see if error_args are provided define error function
-    error_args = filter(kw -> kw.args[1] == :error_args, kw_args)
-    if length(error_args) != 0
-        new_args = error_args[1].args[2]
-        macro_name = :finite_parameter
+    error_kwargs = filter(kw -> kw.args[1] == :error_func, kw_args)
+    if isempty(error_kwargs)
+        _error(str...) = JuMP._macro_error(:independent_parameter, (model, args...), 
+                                           __source__, str...)
     else
-        new_args = args
-        macro_name = :infinite_parameter
+        _error = error_kwargs[1].args[2]
     end
-    _error(str...) = JuMP._macro_error(macro_name, (model, new_args...),
-                                       str...)
 
     # if there is only a single non-keyword argument, this is an anonymous
     # variable spec and the one non-kwarg is the model
@@ -192,8 +178,10 @@ macro infinite_parameter(model, args...)
         _error("Unrecognized argument $arg provided.")
     end
 
-    info_kw_args = filter(_is_set_keyword, kw_args)
-    extra_kw_args = filter(kw -> kw.args[1] != :base_name && !InfiniteOpt._is_set_keyword(kw) && kw.args[1] != :error_args, kw_args)
+    info_kw_args = filter(InfiniteOpt._is_set_keyword, kw_args)
+    extra_kw_args = filter(kw -> kw.args[1] != :base_name && 
+                           !InfiniteOpt._is_set_keyword(kw) && 
+                           kw.args[1] != :error_func, kw_args)
     base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
     infoexpr = InfiniteOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
 
@@ -201,19 +189,16 @@ macro infinite_parameter(model, args...)
     # x                                         | type of x | x.head
     # ------------------------------------------+-----------+------------
     # param                                       | Symbol    | NA
-    # param[1:2]                                  | Expr      | :ref
-    # param <= ub or param[1:2] <= ub             | Expr      | :call
     # param in [lb, ub]                           | Expr      | :call
-    # lb <= param <= ub or lb <= param[1:2] <= ub | Expr      | :comparison
-    # In the three last cases, we call parse_variable
-    explicit_comparison = isexpr(x, :comparison) || isexpr(x, :call)
+    # lb <= param <= ub                           | Expr      | :comparison
+    explicit_comparison = InfiniteOpt.isexpr(x, :comparison) || InfiniteOpt.isexpr(x, :call)
     if explicit_comparison
         param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
     else
         param = x
     end
 
-    anonvar = isexpr(param, :vect) || isexpr(param, :vcat) || anon_singleton
+    anonvar = InfiniteOpt.isexpr(param, :vect) || InfiniteOpt.isexpr(param, :vcat) || anon_singleton
     anonvar && explicit_comparison && _error("Cannot use explicit bounds via " *
                                              ">=, <= with an anonymous parameter")
     parameter = gensym()
@@ -226,29 +211,26 @@ macro infinite_parameter(model, args...)
 
     if !isa(name, Symbol) && !anonvar
         _error("Expression $name should not be used as a parameter name. Use " *
-               "the \"anonymous\" syntax $name = @infinite_parameter(model, " *
+               "the \"anonymous\" syntax $name = @independent_parameter(model, " *
                "...) instead.")
     end
 
     set = InfiniteOpt._constructor_set(_error, infoexpr)
     if isa(param, Symbol)
         # Easy case - a single variable
-        buildcall = :( build_parameter($_error, $set, 1, $(extra...)) )
+        buildcall = :( build_parameter($_error, $set) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
-        parametercall = :( add_parameter($esc_model, $buildcall, $base_name,
-                                         macro_call = true) )
+        parametercall = :( add_parameter($esc_model, $buildcall, $base_name) )
         creationcode = :($parameter = $parametercall)
     else
         # isa(param, Expr) || _error("Expected $param to be a parameter name") --> not needed... I think
         # We now build the code to generate the variables (and possibly the
         # SparseAxisArray to contain them)
         idxvars, indices = JuMPC._build_ref_sets(_error, param)
-        buildcall = :( build_parameter($_error, $set, length(collect($indices)),
-                                       $(extra...)) )
+        buildcall = :( build_parameter($_error, $set) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall,
-                                         $(JuMP._name_call(base_name, idxvars)),
-                                         macro_call = true, multi_dim = true) )
+                                         $(JuMP._name_call(base_name, idxvars))) )
         creationcode = JuMPC.container_code(idxvars, indices, parametercall,
                                              requestedcontainer)
     end
@@ -263,17 +245,18 @@ macro infinite_parameter(model, args...)
         macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
                                                    model_for_registering = esc_model)
     end
-    return _assert_valid_model_call(esc_model, macro_code)
+    return JuMP._finalize_macro(esc_model, macro_code, __source__)
 end
 
 """
-    @finite_parameter(model::InfiniteModel, value)
+    @finite_parameter(model::InfiniteModel, value)::GeneralVariableRef
 
 Define and add an anonymous finite parameter to `model` and return its
 parameter reference. Its value is equal to `value`.
 
 ```julia
-    @finite_parameter(model::InfiniteModel, param_expr, value_expr)
+    @finite_parameter(model::InfiniteModel, param_expr,
+                      value_expr)::GeneralVariableRef
 ```
 Define and add a finite parameter(s) to `model` and return appropriate parameter
 reference(s). The parameter(s) has/have value(s) indicated by the `value_expr`.
@@ -309,56 +292,361 @@ par2
 ```
 """
 macro finite_parameter(model, args...)
-    # define error message function
-    _error(str...) = JuMP._macro_error(:finite_parameter, (model, args...),
-                                       str...)
-    # parse the arguments
+    esc_model = esc(model)
+
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
 
-    # check number of arguments
-    if length(extra) == 0 || length(extra) > 2
+    macro_name = :finite_parameter
+    _error(str...) = JuMP._macro_error(macro_name, (model, args...), 
+                                       __source__, str...)
+
+    # if there is only a single non-keyword argument, this is an anonymous
+    # variable spec and the one non-kwarg is the model
+
+    if length(extra) == 1
+        param = gensym()
+        value = popfirst!(extra)
+        anon_singleton = true
+    elseif length(extra) == 2
+        param = popfirst!(extra)
+        value = popfirst!(extra)
+        anon_singleton = false
+    else
         _error("Incorrect number of arguments. Must be of form " *
                "@finite_parameter(model, name_expr, value).")
     end
+    value = JuMP._esc_non_constant(value)
 
-    # ensure unsupported keywords are not given
-    # if length(kw_args) != 0
-    #     _error("Unrecognized keyword arguments given. Only the container " *
-    #            "keyword is recognized.")
-    # end
+    extra_kw_args = filter(kw -> kw.args[1] != :base_name, kw_args)
+    base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
 
-    # parse the input information from `extra`
-    x = popfirst!(extra)
-    # we have a single anonymous expression
-    if length(extra) == 0
-        code = quote
-            @assert isa($model, InfiniteModel) "Model must be an " *
-                                               "`InfiniteModel`."
-            value = $x
-            @assert isa(value, Number) "Value must be a number."
-            @infinite_parameter($model, lower_bound = value, upper_bound = value,
-                                supports = value, error_args = $args,
-                                container = $requestedcontainer, ($(kw_args...)))
-        end
-    # we have a some sort of name expression or vector expression
-    elseif isa(x, Symbol) || isexpr(x, :vect) || isexpr(x, :vcat) || isexpr(x, :ref)
-        name_expr = x
-        value_expr = extra[1]
-        code = quote
-            @assert isa($model, InfiniteModel) "Model must be an " *
-                                               "`InfiniteModel`."
-            @infinite_parameter($model, $name_expr, lower_bound = $value_expr,
-                                upper_bound = $value_expr, supports = $value_expr,
-                                container = $requestedcontainer, ($(kw_args...)),
-                                error_args = $args)
-        end
-    # we have some other syntax
+    anonvar = isexpr(param, :vect) || isexpr(param, :vcat) || anon_singleton
+
+    parameter = gensym()
+    name = JuMPC._get_name(param)
+    if isempty(base_name_kw_args)
+        base_name = anonvar ? "" : string(name)
     else
-        _error("Unrecognized input format. Must be of form " *
-               "@finite_parameter(model, value) or " *
-               "@finite_parameter(model, name[i =..., ...], value_expr).")
+        base_name = esc(base_name_kw_args[1].args[2])
     end
-    esc(code)
+
+    if !isa(name, Symbol) && !anonvar
+        _error("Expression $name should not be used as a parameter name. Use " *
+               "the \"anonymous\" syntax $name = @finite_parameter(model, " *
+               "...) instead.")
+    end
+
+    if isa(param, Symbol)
+        buildcall = :( build_parameter($_error, $value) )
+        JuMP._add_kw_args(buildcall, extra_kw_args)
+        parametercall = :( add_parameter($esc_model, $buildcall, $base_name) )
+        creationcode = :($parameter = $parametercall)
+    else
+        idxvars, indices = JuMPC._build_ref_sets(_error, param)
+        buildcall = :( build_parameter($_error, $value) )
+        JuMP._add_kw_args(buildcall, extra_kw_args)
+        parametercall = :( add_parameter($esc_model, $buildcall,
+                                         $(JuMP._name_call(base_name, idxvars))) )
+        creationcode = JuMPC.container_code(idxvars, indices, parametercall,
+                                             requestedcontainer)
+    end
+    if anonvar
+        macro_code = creationcode
+    else
+        macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
+                                                   model_for_registering = esc_model)
+    end
+    return JuMP._finalize_macro(esc_model, macro_code, __source__)
+end
+
+"""
+    @dependent_parameters(model::InfiniteModel, kw_args...)::GeneralVariableRef
+
+Add *anonymous* dependent infinite parameters to the model `model` described by
+the keyword arguments `kw_args` and returns the container of parameter references.
+
+```julia
+@dependent_parameters(model::InfiniteModel, expr, kw_args...)::GeneralVariableRef
+```
+
+Add a container of dependent infinite parameters to the model `model` described
+by the expression `expr`, and the keyword arguments `kw_args`. (note that in
+the following the symbol `<=` can be used instead of `≤`, the symbol `>=`can
+be used instead of `≥`, and the symbol `in` can be used instead of `∈`) The
+expression `expr` can be of the form:
+- `paramexpr` creating parameters described by `paramexpr`.
+- `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
+   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+- `paramexpr ∈ [lb, ub]` creating parameters described by `paramexpr` characterized
+   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+- `paramexpr ∈ dist` creating parameters described by `paramexpr` characterized
+   by the `Distributions.jl` distribution object `dist`.
+- `paramexpr ∈ set` creating parameters described by `paramexpr` characterized
+   by the `AbstractInfiniteSet` object `set`.
+
+The expression `paramexpr` must be of the form:
+- `paramname[...]` or `[...]` creating a container of parameters
+
+The recognized keyword arguments in `kw_args` are the following:
+- `base_name`: Sets the name prefix used to generate parameter names. It
+  corresponds to the parameter name for scalar parameter, otherwise, the
+  parameter names are set to `base_name[...]` for each index `...` of the axes
+  `axes`.
+- `lower_bound`: Sets the value of the parameter lower bound for an interval set.
+- `upper_bound`: Sets the value of the parameter upper bound for an interval set.
+- `set`: The `InfiniteSet` characterizing the parameters that are subtypes of
+         [`AbstractInfiniteSet`](@ref).
+- `distribution`: Sets the `Distributions.jl` distribution object that characterizes
+  the parameters.
+- `supports`: Sets the support points for the parameters.
+- `num_supports`: Specifies the number of supports to be automatically generated.
+                  Note that `supports` takes precedence. Defaults to `DefaultNumSupports`.
+- `sig_digits`: Specifies the number of significant digits that should be used
+              in automatic support generation. Defaults to `DefaultSigDigits`.
+- `container`: Specify the container type. Defaults to `automatic`.
+
+**Examples**
+```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; m = InfiniteModel())
+julia> @dependent_parameters(m, x[1:2] in [0, 1])
+2-element Array{GeneralVariableRef,1}:
+ x[1]
+ x[2]
+
+julia> @dependent_parameters(m, y[i = 1:2] in MvNormal(ones(2)), num_supports = 10)
+2-element Array{GeneralVariableRef,1}:
+ y[1]
+ y[2]
+
+julia> z = @dependent_parameters(m, [i = ["a", "b"], j = 1:2],
+                                 distribution = MatrixBeta(2, 2, 2))
+2-dimensional DenseAxisArray{GeneralVariableRef,2,...} with index sets:
+    Dimension 1, ["a", "b"]
+    Dimension 2, Base.OneTo(2)
+And data, a 2×2 Array{GeneralVariableRef,2}:
+ noname[a,1]  noname[a,2]
+ noname[b,1]  noname[b,2]
+```
+"""
+macro dependent_parameters(model, args...)
+    # extract the raw arguments
+    esc_model = esc(model)
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+
+    # check to see if error_args are provided define error function
+    error_kwargs = filter(kw -> kw.args[1] == :error_func, kw_args)
+    if isempty(error_kwargs)
+        _error(str...) = JuMP._macro_error(:dependent_parameters, (model, args...), 
+                                           __source__, str...)
+    else
+        _error = error_kwargs[1].args[2]
+    end
+
+    # there must be one extra positional argument to specify the dimensions
+    if length(extra) == 1
+        x = popfirst!(extra) 
+    elseif length(extra) == 0
+        _error("Must specify more than one dependent parameter.")
+    else
+        x = popfirst!(extra)
+        arg = popfirst!(extra)
+        _error("Unrecognized argument $arg provided.")
+    end
+
+    # parse the keyword arguments
+    info_kw_args = filter(_is_set_keyword, kw_args)
+    supports_kw_arg = filter(kw -> kw.args[1] == :supports, kw_args)
+    extra_kw_args = filter(kw -> kw.args[1] != :base_name &&
+                           !InfiniteOpt._is_set_keyword(kw) &&
+                           kw.args[1] != :error_func &&
+                           kw.args[1] != :supports, kw_args)
+    base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
+    infoexpr = InfiniteOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
+
+    # There are six cases to consider:
+    # x                                         | type of x | x.head
+    # ------------------------------------------+-----------+------------
+    # param                                       | Symbol    | NA
+    # [1:2]                                       | Expr      | :vect
+    # param[1:2]                                  | Expr      | :ref
+    # param[1:2] <= ub                            | Expr      | :call
+    # param[1:2] in [lb, ub] (other sets)         | Expr      | :call
+    # lb <= param[1:2] <= ub                      | Expr      | :comparison
+    # In the three last cases, we call parse_variable
+    symbolic_set = isexpr(x, :comparison) || isexpr(x, :call)
+    if symbolic_set
+        param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
+    elseif isa(x, Symbol)
+        _error("Must specify more than one dependent parameter.")
+    else
+        param = x
+    end
+
+    # determine it is an anonymous call
+    anonparam = isexpr(param, :vcat) || isexpr(param, :vect)
+    anonparam && symbolic_set && _error("Cannot use symbolic infinite defintion " *
+                                        "with an anonymous parameter")
+    # process the parameter name
+    parameter = gensym()
+    name = JuMPC._get_name(param)
+    if isempty(base_name_kw_args)
+        base_name = anonparam ? "" : string(name)
+    else
+        base_name = esc(base_name_kw_args[1].args[2])
+    end
+    if !isa(name, Symbol) && !anonparam
+        _error("Expression $name should not be used as a parameter name. Use " *
+               "the \"anonymous\" syntax $name = @dependent_parameters(model, " *
+               "...) instead.")
+    end
+
+    # process the supports
+    if isempty(supports_kw_arg)
+        supports = :(Float64[])
+    else
+        supports = esc(supports_kw_arg[1].args[2])
+    end
+
+    # arse the infinite set(s)
+    set = InfiniteOpt._construct_array_set(_error, infoexpr)
+
+    # make code to build the DependentParameters object and the references
+    idxvars, indices = JuMPC._build_ref_sets(_error, param)
+    namecode = JuMP._name_call(base_name, idxvars)
+    parambuildcall = :( InfiniteOpt._DependentParameter($set, $supports, $namecode) )
+    param_container_call = JuMPC.container_code(idxvars, indices, parambuildcall,
+                                                requestedcontainer)
+    buildcall = :( InfiniteOpt._build_parameters($_error, $param_container_call) )
+    JuMP._add_kw_args(buildcall, extra_kw_args)
+    creationcode = :( add_parameters($esc_model, $(buildcall)...) )
+
+    # make the final return code based on if it is anonymous or not
+    if anonparam
+        macro_code = creationcode
+    else
+        macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
+                                                   model_for_registering = esc_model)
+    end
+    return JuMP._finalize_macro(esc_model, macro_code, __source__)
+end
+
+"""
+    @infinite_parameter(model::InfiniteModel, kw_args...)::GeneralVariableRef
+
+Add *anonymous* infinite parameter to the model `model` described by
+the keyword arguments `kw_args` and returns the parameter reference.
+
+```julia
+@infinite_parameter(model::InfiniteModel, expr, kw_args...)::GeneralVariableRef
+```
+
+Add an infinite parameter to the model `model` described by the expression `expr`,
+and the keyword arguments `kw_args`. This is just a wrapper macro that will make
+the appropriate call to either [`@independent_parameter`](@ref) or
+[`@dependent_parameters`](@ref). (Note that in
+the following the symbol `<=` can be used instead of `≤`, the symbol `>=`can
+be used instead of `≥`, and the symbol `in` can be used instead of `∈`) The
+expression `expr` can be of the form:
+- `paramexpr` creating parameters described by `paramexpr`.
+- `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
+   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+- `paramexpr ∈ [lb, ub]` creating parameters described by `paramexpr` characterized
+   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+- `paramexpr ∈ dist` creating parameters described by `paramexpr` characterized
+   by the `Distributions.jl` distribution object `dist`.
+- `paramexpr ∈ set` creating parameters described by `paramexpr` characterized
+  by the `AbstractInfiniteSet` object `set`.
+
+The expression `paramexpr` can be of the form:
+- `paramname` creating a scalar parameter of name `paramname`
+- `paramname[...]` or `[...]` creating a container of parameters
+
+The recognized keyword arguments in `kw_args` are the following:
+- `base_name`: Sets the name prefix used to generate parameter names. It
+  corresponds to the parameter name for scalar parameter, otherwise, the
+  parameter names are set to `base_name[...]` for each index `...` of the axes
+  `axes`.
+- `lower_bound`: Sets the value of the parameter lower bound for an interval set.
+- `upper_bound`: Sets the value of the parameter upper bound for an interval set.
+- `set`: The `InfiniteSet` characterizing the parameters see subtypes of
+         [`AbstractInfiniteSet`](@ref).
+- `distribution`: Sets the `Distributions.jl` distribution object that characterizes
+  the parameters.
+- `supports`: Sets the support points for the parameters.
+- `num_supports`: Specifies the number of supports to be automatically generated.
+                  Note that `supports` takes precedence. Defaults to `DefaultNumSupports`.
+- `sig_digits`: Specifies the number of significant digits that should be used
+              in automatic support generation. Defaults to `DefaultSigDigits`.
+- `independent`: Specifies if the each parameter is independent from each other
+  or not. Defaults to false.
+- `container`: Specify the container type. Defaults to `automatic`
+
+**Examples**
+```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; m = InfiniteModel())
+julia> @infinite_parameter(m, x in [0, 1])
+x
+
+julia> @infinite_parameter(m, y[i = 1:2] in MvNormal(ones(2)), num_supports = 10)
+2-element Array{GeneralVariableRef,1}:
+ y[1]
+ y[2]
+
+julia> z = @infinite_parameter(m, [["a", "b"]], distribution = Normal(),
+                               independent = true)
+1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
+    Dimension 1, ["a", "b"]
+And data, a 2-element Array{GeneralVariableRef,1}:
+ noname[a]
+ noname[b]
+```
+"""
+macro infinite_parameter(model, args...)
+    # define error message function
+    _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...),
+                                       __source__, str...)
+    # parse the arguments
+    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    indep_kwarg = filter(kw -> kw.args[1] == :independent, kw_args)
+    new_kwargs = filter(kw -> kw.args[1] != :independent, kw_args)
+    if isempty(indep_kwarg)
+        independent = false
+    else
+        independent = indep_kwarg[1].args[2]
+    end
+
+    # determine if there is only one parameter
+    if length(extra) == 0
+        code = :( @independent_parameter($model, $(extra...), $(new_kwargs...),
+                                         container = $requestedcontainer,
+                                         error_func = $(_error)) )
+    else
+        # get the param expression and check it is an array --> TODO make more efficient
+        x = first(extra)
+        infoexpr = InfiniteOpt._ParameterInfoExpr()
+        symbolic_set = isexpr(x, :comparison) || isexpr(x, :call)
+        if symbolic_set
+            param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
+        else
+            param = x
+        end
+        if param isa Symbol
+            code = :( @independent_parameter($model, $(extra...), $(new_kwargs...),
+                                             container = $requestedcontainer,
+                                             error_func = $(_error)) )
+        else
+            code = quote
+                if $independent
+                    @independent_parameter($model, $(extra...), $(new_kwargs...),
+                                           container = $requestedcontainer,
+                                           error_func = $(_error))
+                else
+                    @dependent_parameters($model, $(extra...), $(new_kwargs...),
+                                          container = $requestedcontainer,
+                                          error_func = $(_error))
+                end
+            end
+        end
+    end
+    return esc(code)
 end
 
 ## Define helper functions needed to parse infinite variable expressions
@@ -465,14 +753,15 @@ function _parse_parameters(_error::Function, head::Val{:comparison}, args)
 end
 
 """
-    @infinte_variable(model, kw_args...)
+    @infinte_variable(model::InfiniteModel, kw_args...)::GeneralVariableRef
 
 Add an *anonymous* infinite variable to the model `model` described by the
 keyword arguments `kw_args` and returns the variable reference. Note that the
 `parameter_refs` keyword is required in this case.
 
 ```julia
-@infinite_variable(model, varexpr, args..., kw_args...)
+@infinite_variable(model::InfiniteModel, varexpr, args...,
+                   kw_args...)::GeneralVariableRef
 ```
 
 Add an infinite variable to `model` described by the expression `var_expr`, the
@@ -506,7 +795,7 @@ The recognized keyword arguments in `kw_args` are the following:
 
 - `parameter_refs`: This is mandatory if not specified in `varexpr`. Can be a
   single parameter reference, a single parameter array with parameters defined
-  in the same call of [`@infinite_parameter`](@ref) (i.e., have same group ID),
+  in the same call of [`@infinite_parameter`](@ref),
   or a tuple where each element is either of the first two options listed.
 - `base_name`: Sets the name prefix used to generate variable names. It
   corresponds to the variable name for scalar variable, otherwise, the
@@ -516,6 +805,10 @@ The recognized keyword arguments in `kw_args` are the following:
 - `lower_bound`: Sets the value of the variable lower bound.
 - `upper_bound`: Sets the value of the variable upper bound.
 - `start`: Sets the variable starting value used as initial guess in optimization.
+           This can be a single value enforced over the entire infinite variable
+           domain or it can be a function that maps a support value to a scalar
+           guess value. Note that the function arguments must match the format
+           of `parameter_refs`.
 - `binary`: Sets whether the variable is binary or not.
 - `integer`: Sets whether the variable is integer or not.
 - `container`: Specify the container type.
@@ -526,7 +819,7 @@ julia> @infinite_parameter(model, 0 <= t <= 1)
 t
 
 julia> @infinite_parameter(model, w[1:2] in Normal())
-2-element Array{ParameterRef,1}:
+2-element Array{GeneralVariableRef,1}:
  w[1]
  w[2]
 
@@ -540,14 +833,14 @@ x(t, w)
 julia> lb = [0, 1]; ub = [10, 12];
 
 julia> @infinite_variable(model, lb[i] <= y[i = 1:2](t) <= ub[i], Int)
-2-element Array{InfiniteVariableRef,1}:
+2-element Array{GeneralVariableRef,1}:
  y[1](t)
  y[2](t)
 ```
 """
 macro infinite_variable(model, args...)
     _error(str...) = JuMP._macro_error(:infinite_variable, (model, args...),
-                                       str...)
+                                       __source__, str...)
 
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     param_kw_args = filter(kw -> kw.args[1] == :parameter_refs, kw_args)
@@ -624,7 +917,7 @@ macro infinite_variable(model, args...)
 end
 
 """
-    @point_variable(model, kw_args...)
+    @point_variable(model::InfiniteModel, kw_args...)::GeneralVariableRef
 
 Add an *anonymous* point variable to the model `model` described by the
 keyword arguments `kw_args` and returns the variable reference. Note that the
@@ -632,7 +925,8 @@ keyword arguments `kw_args` and returns the variable reference. Note that the
 case.
 
 ```julia
-@point_variable(model, infvarexpr, varexpr, args..., kw_args...)
+@point_variable(model::InfiniteModel, infvarexpr, varexpr, args...,
+                kw_args...)::GeneralVariableRef
 ```
 
 Add a point variable to `model` described by the expression `varexpr`, the
@@ -641,7 +935,7 @@ infinite variable expr `infvarexpr`. The expression `infvarexpr` specifies the
 infinite variable this point variable corresponds to and the values at which the
 parameters are evaluated and must be of the form: `infvar(param_values...)`
 where the parameter values `param_values...` are listed in the same format as
-they are in teh definition of `infvar`. The expression `varexpr` is used to
+they are in the definition of `infvar`. The expression `varexpr` is used to
 define variable specific bounds and whose name is used as an alias for the point
 variable which is simply the infinite variable evaluated at the values indicated.
 The expression `varexpr` can either be (note that in the following the symbol
@@ -656,9 +950,9 @@ of the form:
 - `lb ≤ varexpr ≤ ub` or `ub ≥ varexpr ≥ lb` creating variables described by
   `varexpr` with lower bounds given by `lb` and upper bounds given by `ub`
 
- Note that be default a point variable inherits all of the same properties as
- the infinite variable it corresponds to, but that these can be overwritten
- by specifying properties such as lower bounds, fix values, etc.
+Note that by default a point variable inherits all of the same properties as
+the infinite variable it corresponds to, but that these can be overwritten
+by specifying properties such as lower bounds, fix values, etc.
 
 The expression `varexpr` can be of the form:
 
@@ -674,9 +968,9 @@ The recognized keyword arguments in `kw_args` are the following:
 
 - `infinite_variable_ref`: Sets the infinite variable reference that the point
   variable is associated with.
-- `parameter_refs`: Sets the values of the infinite parameters of the infinite
-  variable at which this poitn variable is evaluated at. Must be of the same
-  format of that specified for the parameters in the definition of the infinite
+- `parameter_values`: Sets the values of the infinite parameters of the infinite
+  variable at which this poitn variable is evaluated at. MUST be of the SAME
+  FORMAT of that specified for the parameters in the definition of the infinite
   variable.
 - `base_name`: Sets the name prefix used to generate variable names. It
   corresponds to the variable name for scalar variable, otherwise, the
@@ -696,7 +990,7 @@ julia> @infinite_parameter(model, 0 <= t <= 1)
 t
 
 julia> @infinite_parameter(model, w[1:2] in Normal())
-2-element Array{ParameterRef,1}:
+2-element Array{GeneralVariableRef,1}:
  w[1]
  w[2]
 
@@ -714,35 +1008,37 @@ julia> x0 = @point_variable(model, upper_bound = 1, base_name = "x0",
 x0
 
 julia> @point_variable(model, x([0, 1][i], [0, 0]), xf[i = 1:2])
-2-element Array{PointVariableRef,1}:
+2-element Array{GeneralVariableRef,1}:
  xf[1]
  xf[2]
 
 julia> lb = [0, 1]; ub = [10, 12];
 
 julia> @infinite_variable(model, lb[i] <= y[i = 1:2](t) <= ub[i], Int)
-2-element Array{InfiniteVariableRef,1}:
+2-element Array{GeneralVariableRef,1}:
  y[1](t)
  y[2](t)
 
 julia> @point_variable(model, y[i](0), y0[i = 1:2], Bin)
-2-element Array{PointVariableRef,1}:
+2-element Array{GeneralVariableRef,1}:
  y0[1]
  y0[2]
 
 julia> y0 = @point_variable(model, [i = 1:2], binary = true, base_name = "y0",
                              infinite_variable_ref = y[i], parameter_values = 0)
-2-element Array{PointVariableRef,1}:
+2-element Array{GeneralVariableRef,1}:
  y0[1]
  y0[2]
 ```
 """
 macro point_variable(model, args...)
     _error(str...) = JuMP._macro_error(:point_variable,
-                                       (model, args...), str...)
+                                       (model, args...), __source__,
+                                       str...)
 
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
-    param_kw_args = filter(kw -> kw.args[1] == :infinite_variable_ref || kw.args[1] == :parameter_values, kw_args)
+    param_kw_args = filter(kw -> kw.args[1] == :infinite_variable_ref ||
+                           kw.args[1] == :parameter_values, kw_args)
 
     # Check for easy case if it is anonymous single variable
     if length(extra) == 0
@@ -788,13 +1084,14 @@ macro point_variable(model, args...)
 end
 
 """
-    @hold_variable(model, kw_args...)
+    @hold_variable(model::InfiniteModel, kw_args...)::GeneralVariableRef
 
 Add an *anonymous* hold variable to the model `model` described by the
 keyword arguments `kw_args` and returns the variable reference.
 
 ```julia
-@hold_variable(model, varexpr, args..., kw_args...)
+@hold_variable(model::InfiniteModel, varexpr, args...,
+               kw_args...)::GeneralVariableRef
 ```
 
 Add a hold variable to `model` described by the expression `varexpr`, the
@@ -839,6 +1136,10 @@ be of the form:
 - Any combination of the above forms. Must be inside parentheses and comma
   separated.
 
+Please note that when specifying value conditions on dependent infinite parameters,
+a value must be provided for each parameter in the dependent container otherwise
+an error will be thrown.
+
 The other recognized keyword arguments in `kw_args` are the following:
 
 - `base_name`: Sets the name prefix used to generate variable names. It
@@ -865,9 +1166,9 @@ julia> y = @hold_variable(model, lower_bound = 0, upper_bound = 4,
 y
 
 julia> @hold_variable(model, z[2:3] == 0)
-1-dimensional DenseAxisArray{HoldVariableRef,1,...} with index sets:
+1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 2:3
-And data, a 2-element Array{HoldVariableRef,1}:
+And data, a 2-element Array{GeneralVariableRef,1}:
  z[2]
  z[3]
 
@@ -877,7 +1178,7 @@ d
 """
 macro hold_variable(model, args...)
     _error(str...) = JuMP._macro_error(:hold_variable, (model, args...),
-                                       str...)
+                                       __source__, str...)
     # parse the arguments
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     bound_kw_args = filter(kw -> kw.args[1] == :parameter_bounds, kw_args)
@@ -896,9 +1197,9 @@ macro hold_variable(model, args...)
            name_expr, bounds = InfiniteOpt._extract_bounds(_error, x.args,
                                                            Val(x.head))
         else
-           _error("Unrecognized input format for parameter bounds. Must be of " *
+           _error("Unrecognized input format for parameter bounds. Must be " *
                   "tuple with elements of form: par(s) in [lb, ub] or " *
-                  "par(s) = value.")
+                  "par(s) == value.")
         end
         extra_kw_args = filter(kw -> kw.args[1] != :parameter_bounds, kw_args)
         code = quote
@@ -930,13 +1231,8 @@ function _make_interval_set(_error::Function, expr::Expr)
         return Expr(:call, :IntervalSet, expr.args...)
     else
         _error("Unrecognized input format for parameter bounds. Must be of form " *
-        "par in [lb, ub], lb <= par <= ub,  or par = value.")
+        "par in [lb, ub], lb <= par <= ub,  or par == value.")
     end
-end
-
-# Return ParameterRef(s) as a vector if necessary (to handle JuMP arrays)
-function _process_parameter(arg)
-    return Expr(:call, :(InfiniteOpt._make_vector), arg)
 end
 
 ## Return a bound pair of form param => IntervalSet(lb, ub) or error
@@ -944,28 +1240,28 @@ end
 function _make_bound_pair(_error::Function, expr::Expr,
                           ::Union{Val{:in}, Val{:∈}})
     set = _make_interval_set(_error, expr.args[3])
-    param = _process_parameter(expr.args[2])
+    param = expr.args[2]
     return Expr(:call, :(=>), param, set)
 end
 
 # Call expressions using :(==)
 function _make_bound_pair(_error::Function, expr::Expr, ::Val{:(==)})
     set = _make_interval_set(_error, Expr(:vect, expr.args[3], expr.args[3]))
-    param = _process_parameter(expr.args[2])
+    param = expr.args[2]
     return Expr(:call, :(=>), param, set)
 end
 
 # Comparison expressions using something else
 function _make_bound_pair(_error::Function, expr::Expr, first)
     _error("Invalid set format operators. Must be of form par in [lb, ub], " *
-           "lb <= par <= ub, or par = value.")
+           "lb <= par <= ub, or par == value.")
 end
 
 # Comparison expressions using :(<=)
 function _make_bound_pair(_error::Function, expr::Expr, ::Val{:(<=)},
                           ::Val{:(<=)})
     set = _make_interval_set(_error, Expr(:vect, expr.args[1], expr.args[5]))
-    param = _process_parameter(expr.args[3])
+    param = expr.args[3]
     return Expr(:call, :(=>), param, set)
 end
 
@@ -973,14 +1269,14 @@ end
 function _make_bound_pair(_error::Function, expr::Expr, ::Val{:(>=)},
                           ::Val{:(>=)})
     set = _make_interval_set(_error, Expr(:vect, expr.args[5], expr.args[1]))
-    param = _process_parameter(expr.args[3])
+    param = expr.args[3]
     return Expr(:call, :(=>), param, set)
 end
 
 # Comparison expressions using something else
 function _make_bound_pair(_error::Function, expr::Expr, first, second)
     _error("Invalid set format operators. Must be of form par in [lb, ub], " *
-           "lb <= par <= ub, or par = value.")
+           "lb <= par <= ub, or par == value.")
 end
 
 # General wrapper
@@ -991,14 +1287,14 @@ function _make_bound_pair(_error::Function, expr::Expr)
         return _make_bound_pair(_error, expr, Val(expr.args[2]), Val(expr.args[4]))
     else
         _error("Unrecognized input format for parameter bounds. Must be of form " *
-               "par in [lb, ub], lb <= par <= ub, or par = value.")
+               "par in [lb, ub], lb <= par <= ub, or par == value.")
     end
 end
 
 # Return a dictionary of parameter bounds given raw vector of call expressions
 function _parse_parameter_bounds(_error::Function, args::Vector)
-    dict_args = [_make_bound_pair(_error, arg) for arg in args]
-    return Expr(:call, :ParameterBounds, Expr(:call, :Dict, dict_args...))
+    dict_pairs = Tuple(_make_bound_pair(_error, arg) for arg in args)
+    return Expr(:call, :ParameterBounds, Expr(:tuple, dict_pairs...))
 end
 
 # Only 1 parameter bound is given thus dispatch as a vector to make dictionary
@@ -1035,14 +1331,14 @@ end
 
 """
     @BDconstraint(model::InfiniteModel, [i = ..., ...](bound_expr), constr_expr;
-                  [kw_args...])
+                  [kw_args...])::InfOptConstraintRef
 
 Add an anonymous bounded constraint to `model` and return an appropriate
 container of constraint reference(s).
 
 ```julia
     @BDconstraint(model::InfiniteModel, name[i = ..., ...](bound_expr),
-                  constr_expr; [kw_args...])
+                  constr_expr; [kw_args...])::InfOptConstraintRef
 ```
 
 Add a named bounded constraint to `model` and return an appropriate
@@ -1072,6 +1368,10 @@ can be of the form:
 - Any combination of the above forms. Must be inside parentheses and comma
   separated.
 
+Please note that when specifying value conditions on dependent infinite parameters,
+a value must be provided for each parameter in the dependent container otherwise
+an error will be thrown.
+
 Like typical constraints, the `container` keyword argument can be used to specify
 the `JuMP` container type used to store the constraint references. Note this
 macro errors if `bound_expr` is ommited or if some unrecognized syntax is used.
@@ -1079,28 +1379,29 @@ macro errors if `bound_expr` is ommited or if some unrecognized syntax is used.
 **Examples**
 ```julia-repl
 julia> @BDconstraint(model, c1(t in [0, 1]), T^2 + z <= 1)
-c1 : T(x, t)² + z ≤ 1.0, ∀ t ∈ [0, 1]
+c1 : T(x, t)² + z ≤ 1.0, ∀ t ∈ [0, 1], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] ∈ [-1, 1],
 
 julia> @BDconstraint(model, c2[i = 1:3](x[i] in [0, 1]), T^2 + z + x[i] <= 1)
-3-element Array{GeneralConstraintRef,1}:
- c2[1] : T(x, t)² + z + x[1] ≤ 1.0, ∀ x[1] ∈ [0, 1]
- c2[2] : T(x, t)² + z + x[2] ≤ 1.0, ∀ x[2] ∈ [0, 1]
- c2[3] : T(x, t)² + z + x[3] ≤ 1.0, ∀ x[3] ∈ [0, 1]
+3-element Array{InfiniteConstraintRef,1}:
+ c2[1] : T(x, t)² + z + x[1] ≤ 1.0, ∀ t ∈ [0, 1], x[1] ∈ [0, 1], x[2] ∈ [-1, 1], x[3] ∈ [-1, 1]
+ c2[2] : T(x, t)² + z + x[2] ≤ 1.0, ∀ t ∈ [0, 1], x[1] ∈ [-1, 1], x[2] ∈ [0, 1], x[3] ∈ [-1, 1]
+ c2[3] : T(x, t)² + z + x[3] ≤ 1.0, ∀ t ∈ [0, 1], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] ∈ [0, 1]
 
 julia> @BDconstraint(model, (x == 0, t == 0), T^2 + z <= 1)
-T(x, t)² + z ≤ 1.0, ∀ x[2] = 0, x[3] = 0, t = 0, x[1] = 0
+T(x, t)² + z ≤ 1.0, ∀ t = 0, x[1] = 0, x[2] = 0, x[3] = 0
 
 julia> @BDconstraint(model, [i = 1:3](x[i] == 0), T^2 + z <= 1,
                      container = SparseAxisArray)
-JuMP.Containers.SparseAxisArray{GeneralConstraintRef,1,Tuple{Any}} with 3 entries:
-  [3]  =  T(x, t)² + z ≤ 1.0, ∀ x[3] = 0
-  [2]  =  T(x, t)² + z ≤ 1.0, ∀ x[2] = 0
-  [1]  =  T(x, t)² + z ≤ 1.0, ∀ x[1] = 0
+JuMP.Containers.SparseAxisArray{InfiniteConstraintRef,1,Tuple{Any}} with 3 entries:
+  [3]  =  T(x, t)² + z ≤ 1.0, ∀ t ∈ [0, 1], x[1] = 0, x[2] ∈ [-1, 1], x[3] ∈ [-1, 1]
+  [2]  =  T(x, t)² + z ≤ 1.0, ∀ t ∈ [0, 1], x[1] ∈ [-1, 1], x[2] = 0, x[3] ∈ [-1, 1]
+  [1]  =  T(x, t)² + z ≤ 1.0, ∀ t ∈ [0, 1], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] = 0
 ```
 """
 macro BDconstraint(model, args...)
     # define appropriate error message function
-    _error(str...) = JuMP._macro_error(:BDconstraint, (model, args...), str...)
+    _error(str...) = JuMP._macro_error(:BDconstraint, (model, args...), 
+                                        __source__, str...)
 
     # parse the arguments
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
@@ -1117,7 +1418,7 @@ macro BDconstraint(model, args...)
     if length(extra) != 2
         _error("Incorrect amount of arguments. Must be of form " *
                "@BDconstraint(model, name[i=..., ...](par in [lb, ub], " *
-               "par2 = value, ...), expr).")
+               "par2 == value, ...), expr).")
     # otherwise we have a 3 argument form
     else
         # process the 2nd argument for the parameter bounds if provided
@@ -1125,16 +1426,15 @@ macro BDconstraint(model, args...)
         if isexpr(x, :ref) || isexpr(x, :vect) || isa(x, Symbol) || isexpr(x, :vcat)
             _error("Must specify at least one parameter bound of the form " *
                    "@BDconstraint(model, name[i=..., ...](par in [lb, ub], " *
-                   "par2 = value, ...), expr).")
+                   "par2 == value, ...), expr).")
         elseif isexpr(x, :call) || isexpr(x, :tuple) || isexpr(x, :comparison)
             name_expr, bounds = InfiniteOpt._extract_bounds(_error, x.args,
                                                             Val(x.head))
         else
             _error("Unrecognized input format for name expression. Must be of " *
                    "form @BDconstraint(model, name[i=..., ...](par in [lb, ub], " *
-                   "par2 = value, ...), expr).")
+                   "par2 == value, ...), expr).")
         end
-        # TODO check the expression type somewhere...
         # we have a single anonymous constraint
         if isa(name_expr, Nothing)
             code = quote
@@ -1160,7 +1460,7 @@ end
 
 # TODO add looping capability for multi-dimensional refs
 """
-    @set_parameter_bounds(ref, bound_expr; [force = false])
+    @set_parameter_bounds(ref, bound_expr; [force::Bool = false])::Nothing
 
 Specify new parameter bounds for a constraint reference or hold variable
 reference `ref`. These bounds correspond to bounding a constraint in an
@@ -1182,6 +1482,10 @@ argument in [`@hold_variable`](@ref). Here `(bound_expr)` can be of the form:
 - Any combination of the above forms. Must be inside parentheses and comma
   separated.
 
+Please note that when specifying value conditions on dependent infinite parameters,
+a value must be provided for each parameter in the dependent container otherwise
+an error will be thrown.
+
 Errors if the constraint or variable corresponding to `ref` already has bounds.
 However, using `force = true` can be used ignore the current bounds and
 overwrite them with new ones. Also, note that bounds on dependent constraints
@@ -1199,7 +1503,7 @@ julia> @hold_variable(model, y)
 y
 
 julia> @constraint(model, con, x + y == 0)
-con : x(t) + y = 0.0
+con : x(t) + y = 0.0, ∀ t ∈ [0, 10]
 
 julia> @set_parameter_bounds(y, t in [0, 5])
 
@@ -1215,8 +1519,8 @@ con : x(t) + y = 0.0, ∀ t = 0
 macro set_parameter_bounds(ref, bound_expr, args...)
     # define appropriate error message function
     _error(str...) = JuMP._macro_error(:set_parameter_bounds,
-                                       (ref, bound_expr, args...), str...)
-
+                                       (ref, bound_expr, args...), __source__, 
+                                       str...)
     # parse the arguments
     extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
     extra_kw_args = filter(kw -> kw.args[1] != :force, kw_args)
@@ -1225,7 +1529,6 @@ macro set_parameter_bounds(ref, bound_expr, args...)
     elseif length(extra_kw_args) != 0
         _error("Unrecognized keyword arguments.")
     end
-
     # parse the bounds
     x = bound_expr
     if isexpr(x, :call) || isexpr(x, :tuple) || isexpr(x, :comparison)
@@ -1234,19 +1537,15 @@ macro set_parameter_bounds(ref, bound_expr, args...)
     else
        _error("Unrecognized input format for parameter bounds. Must be of " *
               "tuple with elements of form: par(s) in [lb, ub] or " *
-              "par(s) = value.")
+              "par(s) == value.")
     end
     # prepare the code
-    code = quote
-        @assert(isa($ref, Union{GeneralConstraintRef, HoldVariableRef}),
-                "Reference must correspond to a constraint or hold variable.")
-        set_parameter_bounds($ref, $bounds; ($(args...)), _error = $_error)
-    end
+    code = :(set_parameter_bounds($ref, $bounds; ($(args...)), _error = $_error))
     return esc(code)
 end
 
 """
-    @add_parameter_bounds(ref, bound_expr)
+    @add_parameter_bounds(ref, bound_expr)::Nothing
 
 Add new parameter bounds for a constraint reference or hold variable
 reference `ref`. These bounds correspond to bounding a constraint in an
@@ -1267,6 +1566,10 @@ argument in [`@hold_variable`](@ref). Here `(bound_expr)` can be of the form:
                             each to be equal to `value`
 - Any combination of the above forms. Must be inside parentheses and comma
   separated.
+
+Please note that when specifying value conditions on dependent infinite parameters,
+a value must be provided for each parameter in the dependent container otherwise
+an error will be thrown.
 
 Errors if the new bounds cause irreconcilable differences with existing measures
 and constraints. For example, this occurs when adding hold variable bounds
@@ -1289,7 +1592,7 @@ julia> @hold_variable(model, y)
 y
 
 julia> @constraint(model, con, x + y == 0)
-con : x(t, q) + y = 0.0
+con : x(t, q) + y = 0.0, ∀ t ∈ [0, 10], q ∈ [-2, 2]
 
 julia> @add_parameter_bounds(y, t in [0, 5])
 
@@ -1306,7 +1609,6 @@ macro add_parameter_bounds(ref, bound_expr)
     # define appropriate error message function
     _error(str...) = JuMP._macro_error(:add_parameter_bounds,
                                        (ref, bound_expr), str...)
-
     # parse the bounds
     x = bound_expr
     if isexpr(x, :call) || isexpr(x, :tuple) || isexpr(x, :comparison)
@@ -1318,13 +1620,6 @@ macro add_parameter_bounds(ref, bound_expr)
               "par(s) = value.")
     end
     # prepare the code
-    code = quote
-        @assert(isa($ref, Union{GeneralConstraintRef, HoldVariableRef}),
-                "Reference must correspond to a constraint or hold variable.")
-        for (pref, set) in ($(bounds)).intervals
-            add_parameter_bound($ref, pref, set.lower_bound, set.upper_bound,
-                                 _error = $_error)
-        end
-    end
+    code = :(add_parameter_bounds($ref, $bounds, _error = $_error))
     return esc(code)
 end

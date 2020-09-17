@@ -9,19 +9,13 @@
     # test make_point_variable_ref (InfiniteModel)
     @testset "make_point_variable_ref (InfiniteModel)" begin
         # test with inf1
-        idx = m.next_var_index + 1
-        supp = VectorTuple{Float64}(0)
-        pref = PointVariableRef(m, idx)
-        @test make_point_variable_ref(m, inf1, supp) == pref
-        @test name(pref) == "inf1(0)"
-        @test delete(m, pref) isa Nothing
+        pvref = GeneralVariableRef(m, 1, PointVariableIndex)
+        @test make_point_variable_ref(m, inf1, Float64[0]) == pvref
+        @test parameter_values(pvref) == (0.,)
         # test with inf2
-        idx += 1
-        supp = VectorTuple{Float64}(0, 0)
-        pref = PointVariableRef(m, idx)
-        @test make_point_variable_ref(m, inf2, supp) == pref
-        @test name(pref) == "inf2(0, 0)"
-        @test delete(m, pref) isa Nothing
+        pvref = GeneralVariableRef(m, 2, PointVariableIndex)
+        @test make_point_variable_ref(m, inf2, Float64[0, 0]) == pvref
+        @test parameter_values(pvref) == (0., 0.)
     end
     # test add_measure_variable
     @testset "add_measure_variable" begin
@@ -31,40 +25,20 @@
     @testset "make_point_variable_ref (optimizer_model)" begin
         opt_m = Model()
         opt_m.ext[:my_key] = 42
-        supp = VectorTuple{Float64}(0)
-        @test_throws ErrorException make_point_variable_ref(opt_m, inf1, supp)
-    end
-    # test make_point_variable_ref (Tuple input)
-    @testset "make_point_variable_ref (Tuple input)" begin
-        # test with inf1
-        idx = m.next_var_index + 1
-        pref = PointVariableRef(m, idx)
-        @test make_point_variable_ref(m, inf1, (0,)) == pref
-        @test name(pref) == "inf1(0)"
-        @test delete(m, pref) isa Nothing
-        # test with inf2
-        idx += 1
-        pref = PointVariableRef(m, idx)
-        @test make_point_variable_ref(m, inf2, (0, 0)) == pref
-        @test name(pref) == "inf2(0, 0)"
-        @test delete(m, pref) isa Nothing
+        @test_throws ErrorException make_point_variable_ref(opt_m, inf1, Float64[0])
     end
     # test make_reduced_variable_ref (InfiniteModel)
     @testset "make_reduced_variable_ref (InfiniteModel)" begin
         # test first addition
-        idx = m.next_reduced_index + 1
-        rvref1 = ReducedInfiniteVariableRef(m, idx)
+        rvref1 = GeneralVariableRef(m, 1, ReducedVariableIndex)
         @test make_reduced_variable_ref(m, inf2, [1], Float64[1]) == rvref1
-        @test m.reduced_info[idx].infinite_variable_ref == inf2
-        @test m.reduced_info[idx].eval_supports == Dict(1 => Float64(1))
-        @test m.infinite_to_reduced[JuMP.index(inf2)] == [idx]
+        @test infinite_variable_ref(rvref1) == inf2
+        @test eval_supports(rvref1) == Dict(1 => Float64(1))
         # test second addition
-        idx = m.next_reduced_index + 1
-        rvref2 = ReducedInfiniteVariableRef(m, idx)
+        rvref2 = GeneralVariableRef(m, 2, ReducedVariableIndex)
         @test make_reduced_variable_ref(m, inf2, [1], Float64[0]) == rvref2
-        @test m.reduced_info[idx].infinite_variable_ref == inf2
-        @test m.reduced_info[idx].eval_supports == Dict(1 => Float64(0))
-        @test m.infinite_to_reduced[JuMP.index(inf2)] == [idx - 1, idx]
+        @test infinite_variable_ref(rvref2) == inf2
+        @test eval_supports(rvref2) == Dict(1 => Float64(0))
     end
     # test make_reduced_variable_ref (optimizer_model)
     @testset "make_reduced_variable_ref (optimizer_model)" begin
@@ -74,14 +48,13 @@
     end
     # test delete_internal_reduced_variable (InfiniteModel)
     @testset "delete_internal_reduced_variable (InfiniteModel)" begin
-        idx = m.next_reduced_index - 1
-        rvref1 = ReducedInfiniteVariableRef(m, idx)
-        rvref2 = ReducedInfiniteVariableRef(m, idx + 1)
+        rvref1 = ReducedVariableRef(m, ReducedVariableIndex(1))
+        rvref2 = ReducedVariableRef(m, ReducedVariableIndex(2))
         # test cannot delete
-        m.reduced_to_constrs[idx] = [1]
+        push!(InfiniteOpt._constraint_dependencies(rvref1), ConstraintIndex(1))
         @test delete_internal_reduced_variable(m, rvref1) isa Nothing
         @test is_valid(m, rvref1)
-        delete!(m.reduced_to_constrs, idx)
+        empty!(InfiniteOpt._constraint_dependencies(rvref1))
         # test can delete
         @test delete_internal_reduced_variable(m, rvref1) isa Nothing
         @test delete_internal_reduced_variable(m, rvref2) isa Nothing
@@ -90,19 +63,19 @@
     end
     # test delete_reduced_variable
     @testset "delete_reduced_variable" begin
-        rvref = ReducedInfiniteVariableRef(m, m.next_reduced_index - 1)
+        rvref = ReducedVariableRef(m, ReducedVariableIndex(1))
         warn = "'delete_reduced_variable' not extended for reduced variable type " *
-              "`ReducedInfiniteVariableRef` and optimizer model with key `bad`."
+              "`ReducedVariableRef` and optimizer model with key `bad`."
         @test_logs (:warn, warn) delete_reduced_variable(Model(), rvref, Val(:bad))
     end
     # test delete_internal_reduced_variable (optimizer_model)
     @testset "delete_internal_reduced_variable (optimizer_model)" begin
-        rvref = ReducedInfiniteVariableRef(m, m.next_reduced_index - 1)
+        rvref = ReducedVariableRef(m, ReducedVariableIndex(1))
         @test !is_valid(m, rvref)
         opt_m = Model()
         opt_m.ext[:my_key] = 42
         warn = "'delete_reduced_variable' not extended for reduced variable type " *
-              "`ReducedInfiniteVariableRef` and optimizer model with key `my_key`."
+              "`ReducedVariableRef` and optimizer model with key `my_key`."
         @test_logs (:warn, warn) delete_internal_reduced_variable(opt_m, rvref)
     end
 end
@@ -113,7 +86,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 1 <= par1 <= 2)
     @infinite_parameter(m, 1 <= par2 <= 2)
-    @infinite_parameter(m, 1 <= pars1[1:2] <= 2)
+    @infinite_parameter(m, 1 <= pars1[1:2] <= 2, independent = true)
     @infinite_parameter(m, 1 <= pars2[1:2] <= 2)
     @infinite_variable(m, inf1(par1))
     @infinite_variable(m, inf2(par1, par2))
@@ -131,344 +104,421 @@ end
     data2 = DiscreteMeasureData(par2, [0.5, 0.5], [1, 1], weight_function = w)
     data3 = DiscreteMeasureData(pars1, [1, 1], [[1, 1], [2, 2]])
     data4 = DiscreteMeasureData(pars2, [2, 2], [[1, 1], [1, 1]])
-    data5 = DiscreteMeasureData([pars1[2], pars1[1]], [1, 1], [[1, 1], [2, 2]])
+    data5 = DiscreteMeasureData([pars1[2], pars1[1]], [1, 1], [[1, 1.2], [2, 2]])
     data6 = DiscreteMeasureData([pars1[2]], [1, 1], [[1], [2]])
     data7 = DiscreteMeasureData(pars1[1], [0.5, 0.5], [1, 2])
     meas1 = measure(inf1, data1)
     meas2 = measure(2 * inf3 * x - par1, data2)
     # test expand_measure (infinite variable) with DiscreteMeasureData
-    @testset "Infinite Variable (DiscreteMeasureData)" begin
+    @testset "Infinite Variable (1D DiscreteMeasureData)" begin
         # test single param infinite var with measure param
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
-        expected = 0.5 * (pts[1] + pts[2])
-        @test expand_measure(inf1, data1, m) == expected
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
+        @test InfiniteOpt.expand_measure(inf1, data1, m) == 0.5 * (pts[1] + pts[2])
+        @test parameter_values.(pts) == [(1.,), (2.,)]
         # test single param infinite var without measure param
-        expected = 3inf1
-        @test expand_measure(inf1, data2, m) == expected
+        @test InfiniteOpt.expand_measure(inf1, data2, m) == 3inf1
         # test single param infinite var with measure param and others
-        idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        # m.reduced_info[idx] = ReducedInfiniteInfo(inf2, Dict(1 => Float64(1)))
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
-        # m.reduced_info[idx + 1] = ReducedInfiniteInfo(inf2, Dict(1 => Float64(2)))
-        expected = 0.5 * (rv1 + rv2)
-        @test expand_measure(inf2, data1, m) == expected
+        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        @test InfiniteOpt.expand_measure(inf2, data1, m) == 0.5 * (rv1 + rv2)
+        @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2.)
         # test multi param infinite var with single element evaluation
-        idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
-        expected = 0.5 * (rv1 + rv2)
-        @test expand_measure(inf7, data7, m) == expected
+        rv1 = GeneralVariableRef(m, idx + 2, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 3, ReducedVariableIndex)
+        @test InfiniteOpt.expand_measure(inf7, data7, m) == 0.5 * (rv1 + rv2)
+        @test eval_supports(rv2) == Dict{Int, Float64}(3 => 2.)
     end
-    # test expand_measure (infinite variable) with MultiDiscreteMeasureData
-    @testset "Infinite Variable (MultiDiscreteMeasureData)" begin
+    # test expand_measure (infinite variable) with Multi DiscreteMeasureData
+    @testset "Infinite Variable (Multi DiscreteMeasureData)" begin
         # test infinite var with measure param
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
-        expected = pts[1] + pts[2]
-        @test expand_measure(inf4, data3, m) == expected
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
+        @test InfiniteOpt.expand_measure(inf4, data3, m) == pts[1] + pts[2]
+        @test parameter_values(pts[1]) == (Float64[1., 1.],)
         # test infinite var without measure param
-        expected = 4inf4
-        @test expand_measure(inf4, data4, m) == expected
+        @test InfiniteOpt.expand_measure(inf4, data4, m) == 4inf4
         # test infinite var with measure param and others
-        idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
-        expected = rv1 + rv2
-        @test expand_measure(inf5, data3, m) == expected
+        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        @test InfiniteOpt.expand_measure(inf5, data3, m) == rv1 + rv2
+        @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2, 2 => 2)
         # test infinite var with measure param that is out of order
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
-        expected = pts[1] + pts[2]
-        @test expand_measure(inf4, data5, m) == expected
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
+        @test InfiniteOpt.expand_measure(inf4, data5, m) == pts[1] + pts[2]
+        @test parameter_values(pts[1]) == (Float64[1.2, 1],)
         # test infinite var with measure param that doesn't overlap
-        @test_throws ErrorException expand_measure(inf8, data6, m)
-        # test infinite var with measure param tat doesn't overlap and there are others
-        @test_throws ErrorException expand_measure(inf9, data6, m)
-        # test dimension mismatch
-        @test_throws ErrorException expand_measure(inf8, data3, m)
+        @test InfiniteOpt.expand_measure(inf8, data6, m) == 2inf8
+        # test infinite var with measure param that doesn't overlap and there are others
+        @test InfiniteOpt.expand_measure(inf9, data6, m) == 2inf9
+        # test infinite variable has subset of multi params
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
+        @test InfiniteOpt.expand_measure(inf8, data3, m) == pts[1] + pts[2]
+        @test parameter_values(pts[2]) == (2.,)
+        # test making reduced vars with variable not containing all the measure prefs
+        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        @test InfiniteOpt.expand_measure(inf9, data3, m) == rv1 + rv2
+        @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2)
     end
-    @testset "_make_point_support (DiscreteMeasureData)" begin
-        orig_prefs = raw_parameter_refs(inf2)
+    @testset "_make_point_support (1D DiscreteMeasureData)" begin
+        orig_prefs = parameter_list(inf2)
         support_dict = Dict{Int, Float64}(2 => 42)
-        expected = VectorTuple{Float64}(23, 42)
+        expected = Float64[23, 42]
         @test InfiniteOpt._make_point_support(orig_prefs, support_dict, 1, Float64(23)) == expected
     end
     # test expand_measure (reduced infinite variable)
-    @testset "Reduced Variable (DiscreteMeasureData)" begin
+    @testset "Reduced Variable (1D DiscreteMeasureData)" begin
         # test single param reduced var without measure param
         rv = make_reduced_variable_ref(m, inf2, [1], Float64[1])
-        expected = 0.5 * (rv + rv)
-        @test expand_measure(rv, data1, m) == expected
+        @test InfiniteOpt.expand_measure(rv, data1, m) == 0.5 * (rv + rv)
         # test single param reduced var with measure param
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
-        expected = 1.5 * (pts[1] + pts[2])
-        @test expand_measure(rv, data2, m) == expected
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
+        @test InfiniteOpt.expand_measure(rv, data2, m) == 1.5 * (pts[1] + pts[2])
+        @test parameter_values(pts[1]) == (1., 1.)
         @test !is_valid(m, rv)
         # test single param reduced var with measure param and others
         rv = make_reduced_variable_ref(m, inf7, [1], Float64[1])
-        idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
-        expected = 1.5 * (rv1 + rv2)
-        @test expand_measure(rv, data2, m) == expected
+        idx = index(rv).value + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        @test InfiniteOpt.expand_measure(rv, data2, m) == 1.5 * (rv1 + rv2)
+        @test eval_supports(rv2) == Dict{Int, Float64}(1 => 1, 2 => 1)
         @test !is_valid(m, rv)
         # test single param reduced var partially from array element
         rv = make_reduced_variable_ref(m, inf7, [1], Float64[1])
-        idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
-        expected = 0.5 * (rv1 + rv2)
-        @test expand_measure(rv, data7, m) == expected
+        idx = index(rv).value + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        @test InfiniteOpt.expand_measure(rv, data7, m) == 0.5 * (rv1 + rv2)
+        @test eval_supports(rv2) == Dict{Int, Float64}(1 => 1, 3 => 2)
         @test !is_valid(m, rv)
     end
-    @testset "_make_point_support (MultiDiscreteMeasureData)" begin
-        orig_prefs = raw_parameter_refs(inf7)
+    @testset "_make_point_support (Multi DiscreteMeasureData)" begin
+        orig_prefs = parameter_list(inf7)
         support_dict = Dict{Int, Float64}(1 => 23, 2 => 42)
-        expected = VectorTuple{Float64}((23, 42, [3, 2]))
-        index = 3
-        values = Float64[3, 2]
-        @test InfiniteOpt._make_point_support(orig_prefs, support_dict, index, values) == expected
+        expected = Float64[23, 42, 3, 2]
+        vals = Float64[3, 2]
+        @test InfiniteOpt._make_point_support(orig_prefs, support_dict, [3, 4], vals) == expected
     end
     # test expand_measure (reduced infinite variable)
-    @testset "Reduced Variable (MultiDiscreteMeasureData)" begin
+    @testset "Reduced Variable (Multi DiscreteMeasureData)" begin
         # test array param reduced var without measure param
         rv = make_reduced_variable_ref(m, inf5, [1, 2], Float64[1, 1])
-        expected = rv + rv
-        @test expand_measure(rv, data3, m) == expected
+        @test InfiniteOpt.expand_measure(rv, data3, m) == rv + rv
         # test array param reduced var with measure param
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
-        expected = 2 * (pts[1] + pts[2])
-        @test expand_measure(rv, data4, m) == expected
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
+        @test InfiniteOpt.expand_measure(rv, data4, m) == 2 * (pts[1] + pts[2])
+        @test parameter_values(pts[2]) == (Float64[1, 1], Float64[1, 1])
         @test !is_valid(m, rv)
         # test array param reduced var with measure param and others
         rv = make_reduced_variable_ref(m, inf7, [1], Float64[1])
-        idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
-        expected = rv1 + rv2
-        @test expand_measure(rv, data3, m) == expected
+        idx = index(rv).value + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        @test InfiniteOpt.expand_measure(rv, data3, m) == rv1 + rv2
+        @test eval_supports(rv2) == Dict{Int, Float64}(1 => 1, 3 => 2, 4 => 2)
         @test !is_valid(m, rv)
         # test array param that is out of order and should make point variable
         rv = make_reduced_variable_ref(m, inf5, [3, 4], Float64[1, 1])
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
-        expected = (pts[1] + pts[2])
-        @test expand_measure(rv, data5, m) == expected
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
+        @test InfiniteOpt.expand_measure(rv, data5, m) == pts[1] + pts[2]
+        @test parameter_values(pts[1]) == (Float64[1.2, 1], Float64[1, 1])
         @test !is_valid(m, rv)
         # test array param that with no others that partially overlap
         rv = make_reduced_variable_ref(m, inf5, [2, 3, 4], Float64[1, 1, 1])
-        @test_throws ErrorException expand_measure(rv, data6, m)
+        @test InfiniteOpt.expand_measure(rv, data6, m) == 2rv
         # test array param with others that partially overlap
         rv = make_reduced_variable_ref(m, inf5, [2], Float64[1])
-        @test_throws ErrorException expand_measure(rv, data6, m)
-        # test dimension mismatch
+        @test InfiniteOpt.expand_measure(rv, data6, m) == 2rv
+        # test partial overlap
         rv = make_reduced_variable_ref(m, inf5, [2], Float64[1])
-        @test_throws ErrorException expand_measure(rv, data3, m)
+        idx = index(rv).value + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        @test InfiniteOpt.expand_measure(rv, data3, m) == rv1 + rv2
+        @test eval_supports(rv2) == Dict{Int, Float64}(2 => 1, 1 => 2)
+        @test !is_valid(m, rv)
     end
     # test expand_measure (finite variable)
-    @testset "Finite Variable (DiscreteMeasureData)" begin
+    @testset "Finite Variable (1D DiscreteMeasureData)" begin
         # test with single parameter measure
-        expected = 0.5 * (x + x)
-        @test expand_measure(x, data1, m) == expected
+        @test InfiniteOpt.expand_measure(x, data1, m) == 0.5 * (x + x)
     end
     # test expand_measure (finite variable)
-    @testset "Finite Variable (MultiDiscreteMeasureData)" begin
+    @testset "Finite Variable (Multi DiscreteMeasureData)" begin
         # test with multi parameter measure
-        expected = x + x
-        @test expand_measure(x, data3, m) == expected
+        @test InfiniteOpt.expand_measure(x, data3, m) == x + x
     end
     # test expand_measure (parameter)
-    @testset "Parameter (DiscreteMeasureData)" begin
+    @testset "Infinite Parameter (1D DiscreteMeasureData)" begin
         # test with different parameter
-        expected = 1.5 * (par1 + par1)
-        @test expand_measure(par1, data2, m) == expected
+        @test InfiniteOpt.expand_measure(par1, data2, m) == 1.5 * (par1 + par1)
         # test with same parameter
-        @test expand_measure(par1, data1, m) == Float64(0.5 * (1 + 2))
+        @test InfiniteOpt.expand_measure(par1, data1, m) == 0.5 * (1. + 2.)
     end
     # test expand_measure (multi measure data with parameter)
-    @testset "Parameter (MultiDiscreteMeasureData)" begin
+    @testset "Infinite Parameter (Multi DiscreteMeasureData)" begin
         # test with different parameter
-        expected = par1 + par1
-        @test expand_measure(par1, data3, m) == expected
+        @test InfiniteOpt.expand_measure(par1, data3, m) == par1 + par1
         # test with same parameter
-        @test expand_measure(pars1[2], data3, m) == Float64(3)
+        @test InfiniteOpt.expand_measure(pars1[2], data3, m) == 3.
     end
     # test expand_measure (Finite Expr) with DiscreteMeasureData
-    @testset "Finite Expression (DiscreteMeasureData)"  begin
+    @testset "Finite Expression (1D DiscreteMeasureData)"  begin
         # test AffExpr
         expr = 2x +3
-        @test expand_measure(expr, data2, m) == expr * 3
+        @test InfiniteOpt.expand_measure(expr, data2, m) == expr * 3
         # test QuadExpr
         expr = x^2 + 2x +3
-        @test expand_measure(expr, data2, m) == expr * 3
+        @test InfiniteOpt.expand_measure(expr, data2, m) == expr * 3
     end
     # test expand_measure (Finite Expr) with DiscreteMeasureData
-    @testset "Finite Expression (DiscreteMeasureData)"  begin
+    @testset "Finite Expression (Multi DiscreteMeasureData)"  begin
         # test AffExpr
         expr = 2x +3
-        @test expand_measure(expr, data3, m) == expr * 2
+        @test InfiniteOpt.expand_measure(expr, data3, m) == expr * 2
         # test QuadExpr
         expr = x^2 + 2x +3
-        @test expand_measure(expr, data4, m) == expr * 4
+        @test InfiniteOpt.expand_measure(expr, data4, m) == expr * 4
     end
     # test expand_measure (AffExpr)
-    @testset "AffExpr (DiscreteMeasureData)" begin
+    @testset "AffExpr (1D DiscreteMeasureData)" begin
         # test single param AffExpr, no measures
         expr = 2inf1 + par1 - x + 3par2 - 3
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = 0.5 * (2pts[1] + 2pts[2] + 1 + 2 - x - x + 3par2 + 3par2 - 6)
-        @test expand_measure(expr, data1, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data1, m) == expected
         # test single param AffExpr, with measures
         expr = meas2 - x + par1
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = 0.5 * (6 * (pts[1] * x + pts[2] * x) - 2x - 6)
-        @test expand_measure(expr, data1, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data1, m) == expected
     end
     # test expand_measure (AffExpr)
-    @testset "AffExpr (MultiDiscreteMeasureData)" begin
+    @testset "AffExpr (Multi DiscreteMeasureData)" begin
         # test array param AffExpr, no measures
         expr = inf4 + par1 - x + 3pars1[2] - 1
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = pts[1] + pts[2] + 2par1 - 2x + 9 - 2
-        @test expand_measure(expr, data3, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data3, m) == expected
         # test array param AffExpr, with measures
         expr = meas2 - x + par1 - inf4
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1),
-               PointVariableRef(m, idx + 2), PointVariableRef(m, idx + 3)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex),
+               GeneralVariableRef(m, idx + 2, PointVariableIndex),
+               GeneralVariableRef(m, idx + 3, PointVariableIndex)]
         expected = 6 * (pts[1] * x + pts[2] * x) - 4par1 - 2x - pts[3] - pts[4]
-        @test expand_measure(expr, data3, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data3, m) == expected
     end
     # test expand_measure (QuadExpr)
-    @testset "QuadExpr (DiscreteMeasureData)" begin
+    @testset "QuadExpr (1D DiscreteMeasureData)" begin
         # test single param QuadExpr with both variables integrated or not
         expr = 2 * inf1 * inf2 - inf3 * inf4 + x + 2
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
-        idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
+        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
         expected = 0.5 * (2 * pts[1] * rv1 + - 2 * inf3 * inf4 + 2 * pts[2] *
                           rv2 + 2x + 4)
-        @test expand_measure(expr, data1, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data1, m) == expected
         # test single param QuadExpr with first variable not integrated
         expr = 3 * inf3 * inf1 + pars1[1] - 1
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = 0.5 * (3 * inf3 * pts[1] + 3 * inf3 * pts[2] + 2pars1[1] - 2)
-        @test expand_measure(expr, data1, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data1, m) == expected
         # test single param QuadExpr with first variable integrated
         expr = 3 * inf2 * inf1 + pars1[1] + 1
-        idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
         expected = 1.5 * (3 * rv1 * inf1 + 3 * rv2 * inf1 + 2pars1[1] + 2)
-        @test expand_measure(expr, data2, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data2, m) == expected
         # test single parameter with first quadratic term becomes number
         expr = par1 * inf1 + 2
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = 0.5 * (pts[1] + 2 * pts[2] + 4)
-        @test expand_measure(expr, data1, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data1, m) == expected 
         # test single parameter with first quadratic term becomes number, 2nd constant
         expr = par1 * x + 2
         expected = 0.5 * (x + 2 * x + 4)
-        @test expand_measure(expr, data1, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data1, m) == expected
         # test single parameter with both quadratic terms become numbers
         expr = par1 * par1 + 2
         expected = 0.5 * (1 + 2 * 2 + 4)
-        @test expand_measure(expr, data1, m) == Float64(expected)
+        @test InfiniteOpt.expand_measure(expr, data1, m) == Float64(expected)
         # test single parameter with 2nd quadratic term becomes number
         expr = inf1 * par1 + 2
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = 0.5 * (pts[1] + 2 * pts[2] + 4)
-        @test expand_measure(expr, data1, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data1, m) == expected
         # test single parameter with 2nd quadratic term becomes number, 1st constant
         expr = x * par1 + 2
         expected = 0.5 * (x + 2 * x + 4)
-        @test expand_measure(expr, data1, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data1, m) == expected
     end
     # test expand_measure (QuadExpr)
-    @testset "QuadExpr (MultiDiscreteMeasureData)" begin
+    @testset "QuadExpr (Multi DiscreteMeasureData)" begin
         # test array param QuadExpr with both variables integrated
         expr = 2 * inf4 * inf5 - inf1 * inf2 + x + 2
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
-        idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
+               idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
+               rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+               rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
         expected = 2 * pts[1] * rv1 - 2 * inf1 * inf2 + 2 * pts[2] * rv2 + 2x + 4
-        @test expand_measure(expr, data3, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data3, m) == expected
         # test array param QuadExpr with first variable not integrated
         expr = 3 * inf1 * inf4 + par1 - 1
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = 3 * inf1 * pts[1] + 3 * inf1 * pts[2] + 2par1 - 2
-        @test expand_measure(expr, data3, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data3, m) == expected
         # test array param QuadExpr with first variable integrated
         expr = 3 * inf5 * inf1 + pars1[1] + 1
-        idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
         expected = 2 * (3 * rv1 * inf1 + 3 * rv2 * inf1 + 2pars1[1] + 2)
-        @test expand_measure(expr, data4, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data4, m) == expected
         # test array parameter with first quadratic term becomes number
         expr = pars1[1] * inf4 + 2
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = pts[1] + 2 * pts[2] + 4
-        @test expand_measure(expr, data3, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data3, m) == expected
         # test array parameter with first quadratic term becomes number, 2nd constant
         expr = pars1[1] * x + 2
         expected = x + 2 * x + 4
-        @test expand_measure(expr, data3, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data3, m) == expected
         # test array parameter with both quadratic terms become numbers
         expr = pars1[1] * pars1[2] + 2
         expected = 1 + 2 * 2 + 4
-        @test expand_measure(expr, data3, m) == Float64(expected)
+        @test InfiniteOpt.expand_measure(expr, data3, m) == Float64(expected)
         # test array parameter with 2nd quadratic term becomes number
         expr = inf4 * pars1[1] + 2
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = pts[1] + 2 * pts[2] + 4
-        @test expand_measure(expr, data3, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data3, m) == expected
         # test array parameter with 2nd quadratic term becomes number, 1st constant
         expr = x * pars1[1] + 2
         expected = x + 2 * x + 4
-        @test expand_measure(expr, data3, m) == expected
+        @test InfiniteOpt.expand_measure(expr, data3, m) == expected
     end
     # test expand_measure (measure)
     @testset "Measure" begin
         # test single param measure
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = 0.5 * (pts[1] + pts[2])
-        @test expand_measure(meas1, data1, m) == expected
+        @test InfiniteOpt.expand_measure(meas1, data1, m) == expected
         # test another single param
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = 0.5 * (6 * pts[1] * x + 6 * pts[2] * x - 3 * (1 + 2))
-        @test expand_measure(meas2, data1, m) == expected
+        @test InfiniteOpt.expand_measure(meas2, data1, m) == expected
         # test array param measure
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = pts[1] + pts[2]
-        @test expand_measure(meas1, data3, m) == expected
+        @test InfiniteOpt.expand_measure(meas1, data3, m) == expected
+    end
+    # test expand_measure (FunctionalDiscreteMeasureData)
+    @testset "FunctionalDiscreteMeasureData" begin
+        coef(a) = ones(length(a))
+        data = FunctionalDiscreteMeasureData(par1, coef, 2, All, is_expect = true)
+        @test InfiniteOpt.expand_measure(x, data, m) == 2x
     end
     # test expand_measure (other)
     @testset "Other" begin
         # prepare test
         @variable(Model(), y)
         # test it
-        @test_throws ErrorException expand_measure(y, BadData(), m)
+        @test_throws ErrorException InfiniteOpt.expand_measure(y, BadData(), m)
+    end
+end
+
+# Test analytic_expansion
+@testset "analytic_expansion" begin
+    # initialize model and references
+    m = InfiniteModel()
+    @infinite_parameter(m, 1 <= par1 <= 2)
+    @infinite_parameter(m, 1 <= par2 <= 2)
+    @infinite_parameter(m, 1 <= pars1[1:2] <= 2, num_supports = 2)
+    @infinite_variable(m, inf3(par2))
+    @hold_variable(m, x)
+    # test with 1D data
+    @testset "1D Discrete Data" begin
+        # test with bounds
+        data = DiscreteMeasureData(par1, [1], [1], lower_bound = 1,
+                                   upper_bound = 1.5)
+        @test InfiniteOpt.analytic_expansion(2x + inf3, data, m) == 0.5 * (2x + inf3)
+        # test as expectation
+        coef(a) = ones(length(a))
+        data = FunctionalDiscreteMeasureData(par2, coef, 0, WeightedSample,
+                                             is_expect = true)
+        @test InfiniteOpt.analytic_expansion(inf3, data, m) == inf3
+        # test other
+        data = DiscreteMeasureData(par1, [1, 0.5], [1, 1.5])
+        @test InfiniteOpt.analytic_expansion(x, data, m) == 1.5 * x
+    end
+    # test with multi dimensional data
+    @testset "Multi Discrete Data" begin
+        # test with bounds
+        coef(a) = ones(length(a))
+        data = FunctionalDiscreteMeasureData(pars1, coef, 0, :l,
+                    lower_bounds = [1, 1], upper_bounds = [1.5, 2])
+        @test InfiniteOpt.analytic_expansion(x, data, m) == 0.5x
+        # test as expectation
+        data = DiscreteMeasureData(pars1, [1], [[1, 1]], is_expect = true)
+        @test InfiniteOpt.analytic_expansion(inf3, data, m) == inf3
+        # test other
+        coef(a) = ones(size(a, 2))
+        data = FunctionalDiscreteMeasureData(pars1, coef, 2, All)
+        @test InfiniteOpt.analytic_expansion(x, data, m) == 2x
+    end
+    # test with fallback
+    @testset "Fallback" begin
+        data = TestData(par1, 1, 2)
+        @test_throws ErrorException InfiniteOpt.analytic_expansion(x, data, m)
     end
 end
 
@@ -485,80 +535,81 @@ end
     @infinite_variable(m, inf4(pars1))
     @hold_variable(m, x)
     # prepare measures
-    data1 = DiscreteMeasureData(par1, [0.5, 0.5], [1, 2])
+    data1 = DiscreteMeasureData(par1, [0.5, 0.5], [1, 2], is_expect = true)
     data2 = DiscreteMeasureData(pars1, [1, 1], [[1, 1], [2, 2]])
     meas1 = measure(inf1 + 3x - inf2 + inf3 - 2, data1)
     meas2 = measure(2 * inf4 * x - pars1[2] + inf2, data2)
     # test expand_measures (measure)
     @testset "MeasureRef" begin
         # test the first measure
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
-        idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
+        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
         expected = 0.5 * (pts[1] + pts[2] + 6x - rv1 - rv2 + 2inf3 - 4)
-        @test expand_measures(meas1, m) == expected
+        @test InfiniteOpt.expand_measures(meas1, m) == expected
         # test the second measure
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = 2 * pts[1] * x + 2 * pts[2] * x - 3 + 2inf2
-        @test expand_measures(meas2, m) == expected
-        # test error
-        m2 = Model()
-        @variable(m2, y)
-        m.measures[1] = Measure(y, BadData())
-        @test_throws ErrorException expand_measures(meas1, m)
-        # Undo changes
-        m.measures[1] = Measure(inf1 + 3x - inf2 + inf3 - 2, data1)
+        @test InfiniteOpt.expand_measures(meas2, m) == expected
+        # test analytic expansion
+        meas3 = measure(x, data1)
+        @test InfiniteOpt.expand_measures(meas3, m) == x
     end
     # test expand_measures (GeneralVariableRef)
     @testset "GeneralVariableRef" begin
-        @test expand_measures(x, m) == x
-        @test expand_measures(par1, m) == par1
-        @test expand_measures(inf1, m) == inf1
+        @test InfiniteOpt.expand_measures(x, m) == x
+        @test InfiniteOpt.expand_measures(par1, m) == par1
+        @test InfiniteOpt.expand_measures(inf1, m) == inf1
     end
     # test expand_measures (Finite Expression)
     @testset "Expression (Finite)" begin
         expr = 2x + 2
-        @test expand_measures(expr, m) == expr
+        @test InfiniteOpt.expand_measures(expr, m) == expr
         expr = x^2 + 2x + 2
-        @test expand_measures(expr, m) == expr
+        @test InfiniteOpt.expand_measures(expr, m) == expr
     end
     # test expand_measures (GenericAffExpr)
     @testset "AffExpr (General)" begin
         # test returning AffExpr
         expr = 2inf4 + x + 2meas1
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
-        idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
+        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
         expected = 2inf4 + 7x + pts[1] + pts[2] - rv1 - rv2 + 2inf3 - 4
-        @test expand_measures(expr, m) == expected
+        @test InfiniteOpt.expand_measures(expr, m) == expected
         # test returning QuadExpr
         expr = x + 3par1 + meas2
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = x + 3par1 + 2 * pts[1] * x + 2 * pts[2] * x - 3 + 2inf2
-        @test expand_measures(expr, m) == expected
+        @test InfiniteOpt.expand_measures(expr, m) == expected
     end
     # test expand_measures (GenericQuadExpr)
     @testset "QuadExpr (General)" begin
         # prepare first measure expansion
         expr = 2 * meas1 * x - x + 1
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
-        idx2 = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx2)
-        rv2 = ReducedInfiniteVariableRef(m, idx2 + 1)
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
+        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
         m1 = 0.5 * (pts[1] + pts[2] + 6x - rv1 - rv2 + 2inf3 - 4)
         # test with this thorough expression
-        @test expand_measures(expr, m) == 2 * m1 * x - x + 1
+        @test InfiniteOpt.expand_measures(expr, m) == 2 * m1 * x - x + 1
     end
     # test expand_measures (Fallback)
     @testset "Fallback" begin
-        @test_throws ErrorException expand_measures(1, m)
+        @test_throws ErrorException InfiniteOpt.expand_measures(1, m)
     end
 end
 
@@ -583,46 +634,57 @@ end
     # test expand
     @testset "expand" begin
         # test the first measure
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
-        idx = m.next_reduced_index + 1
-        rv1 = ReducedInfiniteVariableRef(m, idx)
-        rv2 = ReducedInfiniteVariableRef(m, idx + 1)
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
+        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
         expected = 0.5 * (pts[1] + pts[2] + 6x - rv1 - rv2 + 2inf3 - 4)
         @test expand(meas1) == expected
+        @test parameter_values(pts[2]) == (2.,)
+        @test eval_supports(rv1) == Dict{Int, Float64}(1 => 1)
         # test the second measure
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         expected = 2 * pts[1] * x + 2 * pts[2] * x - 3 + 2inf2
         @test expand(meas2) == expected
+        @test parameter_values(pts[2]) == (Float64[2, 2],)
+        # test analytic
+        @test expand(measure(x, data1)) == 1*x
     end
+
     # test expand_all_measures!
     @testset "expand_all_measures!" begin
-        # test error
-        @objective(m, Min, x + meas1)
-        @test_throws ErrorException expand_all_measures!(m)
         # prepare the model for testing
+        @hold_variable(m, y, parameter_bounds = (par2 == 1))
         set_objective_function(m, x + measure(inf1 * par1 + 3, data1))
         @constraint(m, c1, inf1 + x >= 42.)
         @constraint(m, c2, 2x - measure(measure(inf1 * x + par1 + inf2, data1),
                                         data3) == 0.)
         @BDconstraint(m, c3(par2 in [1, 1.5]), measure(inf2, data1) + inf1 >= 0.)
-        @constraint(m, c4, measure(inf4, data2) <= 3.)
+        @constraint(m, c4, measure(inf4 + y, data2) <= 3.)
         # prepare comparison expressions
-        idx = m.next_var_index + 1
-        pts = [PointVariableRef(m, idx), PointVariableRef(m, idx + 1)]
+        idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
+        pts = [GeneralVariableRef(m, idx, PointVariableIndex),
+               GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         obj = x + 0.5pts[1] + pts[2] + 3
-        pts = [PointVariableRef(m, idx + 2), PointVariableRef(m, idx + 3),
-               PointVariableRef(m, idx + 4), PointVariableRef(m, idx + 5),
-               PointVariableRef(m, idx + 6), PointVariableRef(m, idx + 7)]
+        pts = [GeneralVariableRef(m, idx + 2, PointVariableIndex),
+               GeneralVariableRef(m, idx + 3, PointVariableIndex),
+               GeneralVariableRef(m, idx + 4, PointVariableIndex),
+               GeneralVariableRef(m, idx + 5, PointVariableIndex),
+               GeneralVariableRef(m, idx + 6, PointVariableIndex),
+               GeneralVariableRef(m, idx + 7, PointVariableIndex)]
         c2_expected = 2x - (2 * pts[1] * x + 2 * pts[2] * x + pts[3] + pts[4] +
                       pts[5] + pts[6])
-        idx2 = m.next_reduced_index + 3
-        rv1 = ReducedInfiniteVariableRef(m, idx2)
-        rv2 = ReducedInfiniteVariableRef(m, idx2 + 1)
+        idx2 = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 3
+        rv1 = GeneralVariableRef(m, idx2, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx2 + 1, ReducedVariableIndex)
         c3_expected = 0.5rv1 + 0.5rv2 + inf1
-        pts = [PointVariableRef(m, idx + 8), PointVariableRef(m, idx + 9)]
-        c4_expected = pts[1] + pts[2]
+        pts = [GeneralVariableRef(m, idx + 8, PointVariableIndex),
+               GeneralVariableRef(m, idx + 9, PointVariableIndex)]
+        c4_expected = pts[1] + pts[2] + 2y
         # test the expansion
         @test isa(expand_all_measures!(m), Nothing)
         @test objective_function(m) == obj
@@ -633,21 +695,22 @@ end
         @test name(c2) == "c2"
         @test name(c3) == "c3"
         @test name(c4) == "c4"
-        @test m.constrs[JuMP.index(c1)].func == inf1 + x
-        # @test m.constrs[JuMP.index(c2)].func == c2_expected --> remove for 32 bit testing
-        # @test m.constrs[JuMP.index(c3)].func == c3_expected
-        # @test m.constrs[JuMP.index(c4)].func == c4_expected
-        @test m.constrs[JuMP.index(c2)].func isa JuMP.GenericQuadExpr{Float64, FiniteVariableRef}
-        @test m.constrs[JuMP.index(c3)].func isa JuMP.GenericAffExpr{Float64, GeneralVariableRef}
-        @test m.constrs[JuMP.index(c4)].func isa JuMP.GenericAffExpr{Float64, PointVariableRef}
-        @test m.constrs[JuMP.index(c1)].set == MOI.GreaterThan(42.)
-        @test m.constrs[JuMP.index(c2)].set == MOI.EqualTo(6.)
-        @test m.constrs[JuMP.index(c3)].set == MOI.GreaterThan(0.)
-        @test m.constrs[JuMP.index(c4)].set == MOI.LessThan(3.)
-        @test isa(m.constrs[JuMP.index(c1)], ScalarConstraint)
-        @test isa(m.constrs[JuMP.index(c2)], ScalarConstraint)
-        @test isa(m.constrs[JuMP.index(c3)], BoundedScalarConstraint)
-        @test isa(m.constrs[JuMP.index(c4)], ScalarConstraint)
-        @test m.constrs[JuMP.index(c3)].bounds.intervals == Dict(par2 => IntervalSet(1, 1.5))
+        @test constraint_object(c1).func == inf1 + x
+        @test constraint_object(c2).func == c2_expected
+        @test constraint_object(c3).func == c3_expected
+        @test constraint_object(c4).func == c4_expected
+        @test constraint_object(c2).func isa JuMP.GenericQuadExpr{Float64, GeneralVariableRef}
+        @test constraint_object(c3).func isa JuMP.GenericAffExpr{Float64, GeneralVariableRef}
+        @test constraint_object(c4).func isa JuMP.GenericAffExpr{Float64, GeneralVariableRef}
+        @test constraint_object(c1).set == MOI.GreaterThan(42.)
+        @test constraint_object(c2).set == MOI.EqualTo(6.)
+        @test constraint_object(c3).set == MOI.GreaterThan(0.)
+        @test constraint_object(c4).set == MOI.LessThan(3.)
+        @test isa(constraint_object(c1), ScalarConstraint)
+        @test isa(constraint_object(c2), ScalarConstraint)
+        @test isa(constraint_object(c3), BoundedScalarConstraint)
+        @test isa(constraint_object(c4), BoundedScalarConstraint)
+        @test constraint_object(c3).bounds.intervals == Dict(par2 => IntervalSet(1, 1.5))
+        @test constraint_object(c4).bounds.intervals == Dict(par2 => IntervalSet(1, 1))
     end
 end

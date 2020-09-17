@@ -50,7 +50,7 @@ Comments, suggestions and improvements are welcome and appreciated.
 following in the package manager.
 
 ```julia
-(v1.4) pkg> add InfiniteOpt
+(v1.5) pkg> add InfiniteOpt
 ```
 
 ## Documentation
@@ -60,7 +60,7 @@ Please visit our [documentation pages](https://pulsipher.github.io/InfiniteOpt.j
 tutorials, examples, and more!
 
 ## Project Status
-The package is tested against Julia `1.0`, `1.1`, `1.2`, `1.3`, `1.4`, and nightly on Linux, macOS, and Windows.
+The package is tested against Julia `1.0`, `1.4`, `1.5`, and nightly on Linux, macOS, and Windows.
 
 ## Contributing
 `InfiniteOpt` is being actively developed and suggestions or other forms of contribution are encouraged.

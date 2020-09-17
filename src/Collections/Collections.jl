@@ -6,5 +6,6 @@ import JuMP
 const JuMPC = JuMP.Containers
 
 include("VectorTuple.jl")
+include("DualDict.jl")
 
 end # end module

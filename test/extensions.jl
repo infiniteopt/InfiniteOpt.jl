@@ -9,12 +9,12 @@
     # test definition
     @test MyNewSet(0, 1) isa MyNewSet
     set = MyNewSet(0, 1)
-    @test @infinite_parameter(m, set = set) isa ParameterRef
-    m.params[1] == set
-    @test @infinite_parameter(m, par in set, supports = [0, 1]) isa ParameterRef
+    @test @infinite_parameter(m, set = set) isa GeneralVariableRef
+    @test infinite_set(first(all_parameters(m))) == set
+    @test @infinite_parameter(m, par in set, supports = [0, 1]) isa GeneralVariableRef
     infinite_set(m[:par]) == set
     supports(m[:par]) == [0., 1.]
-    @test @infinite_parameter(m, par2 in set, num_supports = 3) isa ParameterRef
+    @test @infinite_parameter(m, par2 in set, num_supports = 3) isa GeneralVariableRef
     supports(m[:par2]) == [0., 0.5, 1.]
     @test @infinite_parameter(m, [1:2], set = set, num_supports = 3) isa Vector
 
@@ -33,15 +33,14 @@
     @test upper_bound(m[:par2]) == 0
 
     # add variables
-    @test @infinite_variable(m, x(par) >= 0) isa InfiniteVariableRef
+    @test @infinite_variable(m, x(par) >= 0) isa GeneralVariableRef
     x = m[:x]
-
+    
     # test measures
-    @test integral(x^2 + par, par, num_supports = 2, eval_method = gauss_legendre) isa MeasureRef
-    @test integral(x^2 + par, par, num_supports = 2, use_existing_supports = true) isa MeasureRef
+    @test @integral(x^2 + par, par, num_supports = 2, eval_method = GaussLegendre) isa GeneralVariableRef
 
     # test constraints
-    @test @constraint(m, x + par <= 0) isa GeneralConstraintRef
+    @test @constraint(m, x + par <= 0) isa InfOptConstraintRef
 
     # transcribe the model
     @test build_optimizer_model!(m) isa Nothing
@@ -58,8 +57,8 @@ end
     @infinite_parameter(m, t in [0, 10])
     @infinite_variable(m, x(t) >= 0)
     @hold_variable(m, z, parameter_bounds = (t in [0, 5]))
-    data1 = generate_measure_data(t, 2, 0, 5, eval_method = gauss_legendre)
-    data2 = generate_measure_data(t, 4, 0, 10, eval_method = gauss_legendre)
+    data1 = DiscreteMeasureData(t, [2.5, 2.5], [2., 4.], lower_bound = 0., upper_bound = 5.)
+    data2 = DiscreteMeasureData(t, [1., 1.], [3., 6.], lower_bound = 1., upper_bound = 10.)
 
     # test definition
     @test NewMeasureData("test", data1) isa NewMeasureData
@@ -69,8 +68,6 @@ end
     # test data queries
     @test parameter_refs(new_data1) == t
     @test parameter_refs(new_data2) == t
-    @test measure_name(new_data1) == "test"
-    @test measure_name(new_data2) == "test"
     @test supports(new_data1) == supports(data1)
     @test supports(new_data2) == supports(data2)
     @test coefficients(new_data1) == coefficients(data1)
@@ -82,21 +79,19 @@ end
     @test !measure_data_in_hold_bounds(data2, parameter_bounds(z))
 
     # test measure definition
-    @test measure(x + z, new_data1) isa MeasureRef
+    @test measure(x + z, new_data1) isa GeneralVariableRef
     @test_throws ErrorException measure(x + z, new_data2)
-    @test new_measure(x^2, t, 0, 4, num_supports = 4) isa MeasureRef
+    @test new_measure(x^2, t, 0, 4, num_supports = 4) isa GeneralVariableRef
     @test_throws ErrorException new_measure(x^2 + z, t, 6, 10)
 
     # test expansion
-    index = m.next_var_index
-    pvrefs = [PointVariableRef(m, index + 1), PointVariableRef(m, index + 2)]
+    pvrefs = [GeneralVariableRef(m, 1, PointVariableIndex), GeneralVariableRef(m, 2, PointVariableIndex)]
     @test expand(measure(x + z, new_data1)) == 2.5 * (pvrefs[1] + pvrefs[2]) + 5z
 
     # test transcription
-    delete_supports(t)
-    @test @constraint(m, z == measure(x, new_data1)) isa GeneralConstraintRef
+    @test @constraint(m, z == measure(x, new_data1)) isa InfOptConstraintRef
     @test build_optimizer_model!(m) isa Nothing
-    @test num_variables(optimizer_model(m)) == 3
+    @test num_variables(optimizer_model(m)) == 6
 
     # test deletion
     @test_throws ErrorException delete(m, t)
@@ -116,19 +111,18 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 5])
     @infinite_parameter(m, x[1:2] in [0, 1], independent = true)
+    @infinite_parameter(m, p[1:2] in [0, 1])
     @infinite_parameter(m, xi in Normal(0., 1.))
     @infinite_variable(m, y(t) >= 0)
     @infinite_variable(m, f(x))
-    mref = integral(y^2 + t, t, 0, 4, num_supports = 5, eval_method = NewEvalMethod)
+    mref = integral(y^2 + t, t, 0, 4, num_supports = 5, eval_method = NewUniEvalMethod)
     @test supports(measure_data(mref)) == Array([0., 1., 2., 3., 4.])
     warn = "The method is implemented for independent multivariate parameters."
-    @test_logs (:warn, warn) integral(f, x, num_supports = 3,
-                                      eval_method = NewEvalMethod,
-                                      independent = false)
-    mref2 = integral(f, x, num_supports = 3, eval_method = NewEvalMethod,
-                     independent = is_independent(x[1]))
+    @test_logs (:warn, warn) integral(f, p, num_supports = 3,
+                                      eval_method = NewMultiEvalMethod)
+    mref2 = integral(f, x, num_supports = 3, eval_method = NewMultiEvalMethod)
     @test supports(measure_data(mref2)) == Float64[0 0.5 1; 0 0.5 1]
-    @test_throws ErrorException integral(xi^2, eval_method = NewEvalMethod)
+#     @test_throws ErrorException integral(xi^2, xi, eval_method = NewUniEvalMethod) # not sure what this checks...
 end
 
 # Test otpimizer model extensions
@@ -138,13 +132,13 @@ end
 
     # setup the infinite model
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_parameter(m, par in [0, 1])
     @infinite_variable(m, x(par))
     @point_variable(m, x(0), x0)
     @hold_variable(m, y)
-    data = DiscreteMeasureData(par, [0.5, 0.5], [0, 1])
+    meas = integral(x, par)
     @constraint(m, c1, x + y - 2 <= 0)
-    @constraint(m, c2, measure(x, data) == 0)
+    @constraint(m, c2, meas == 0)
     @constraint(m, c3, x0 + y == 5)
     @objective(m, Min, y)
 
@@ -160,6 +154,10 @@ end
     @test set_optimizer_model(m, NewReformModel()) isa Nothing
     @test haskey(optimizer_model(m).ext, :ReformData)
 
+    # test making InfiniteModel with the new optimizer model
+    @test InfiniteModel(OptimizerModel = NewReformModel) isa InfiniteModel 
+    @test optimizer_model_key(InfiniteModel(OptimizerModel = NewReformModel)) == :ReformData
+
     # test retrival errors
     @test_throws ErrorException optimizer_model_variable(x)
     @test_throws ErrorException optimizer_model_variable(x0)
@@ -171,32 +169,26 @@ end
     @test_throws ErrorException supports(c1)
     @test_throws ErrorException supports(c2)
     @test_throws ErrorException supports(c3)
-    @test_throws ErrorException parameter_refs(c1)
-    @test_throws ErrorException parameter_refs(c2)
-    @test_throws ErrorException parameter_refs(c3)
 
     # test build_optimizer_model!
     @test build_optimizer_model!(m, my_kwarg = true) isa Nothing
     @test haskey(optimizer_model(m).ext, :ReformData)
-    @test num_variables(optimizer_model(m)) == 3
+    @test num_variables(optimizer_model(m)) == 13
 
     # test retrivals
     @test optimizer_model_variable(x, my_kwarg = true) isa Vector{VariableRef}
     @test optimizer_model_variable(x0, my_kwarg = true) isa VariableRef
     @test optimizer_model_variable(y, my_kwarg = true) isa VariableRef
-    @test optimizer_model_constraint(c1, my_kwarg = true) isa Vector
-    @test optimizer_model_constraint(c2, my_kwarg = true) isa Vector
-    @test optimizer_model_constraint(c3, my_kwarg = true) isa ConstraintRef
+    @test optimizer_model_variable(meas, my_kwarg = true) isa Vector{VariableRef}
+    @test optimizer_model_constraint(c1, my_kwarg = true) isa Vector{<:ConstraintRef}
+    @test optimizer_model_constraint(c2, my_kwarg = true) isa Vector{<:ConstraintRef}
+    @test optimizer_model_constraint(c3, my_kwarg = true) isa Vector{<:ConstraintRef}
+    @test optimizer_model_expression(x^2) == zero(AffExpr)
     @test supports(x, my_kwarg = true) == [(0.,), (1.,)]
-    @test supports(c1, my_kwarg = true) == [(0.,), (1.,)]
-    @test parameter_refs(x) == (par,)
-    @test parameter_refs(c1, my_kwarg = true) == (par,)
-
-    # test more retrival errors
-    @test_throws ErrorException supports(c2)
-    @test_throws ErrorException parameter_refs(c2)
-    @test_throws ErrorException supports(c3)
-    @test_throws ErrorException parameter_refs(c3)
+    @test supports(y) == ()
+    @test supports(meas) == [(-1.,), (-2.,)]
+    @test supports(c1, my_kwarg = true) == [(2.,), (3.,)]
+    @test supports(x + y) == [(-42.,), (1.,)]
 
     # test optimization with rebuild
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
@@ -224,6 +216,12 @@ end
             JuMP.optimizer_index(optimizer_model_variable(x)[2]), 0.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(),
             JuMP.optimizer_index(optimizer_model_variable(y)), 1.0)
+    MOI.set(mockoptimizer, MOI.VariablePrimal(),
+            JuMP.optimizer_index(optimizer_model_variable(x0)), 42.)
+    MOI.set(mockoptimizer, MOI.VariablePrimal(),
+            JuMP.optimizer_index(optimizer_model_variable(meas)[1]), 2.0)
+    MOI.set(mockoptimizer, MOI.VariablePrimal(),
+            JuMP.optimizer_index(optimizer_model_variable(meas)[2]), -2.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(),
             JuMP.optimizer_index(optimizer_model_constraint(c1)[1]), -1.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(),
@@ -231,7 +229,12 @@ end
     MOI.set(mockoptimizer, MOI.ConstraintDual(),
             JuMP.optimizer_index(optimizer_model_constraint(c2)[1]), 0.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(),
-            JuMP.optimizer_index(optimizer_model_constraint(c3)), -1.0)
+            JuMP.optimizer_index(optimizer_model_constraint(c2)[2]), -1.0)
+    MOI.set(mockoptimizer, MOI.ConstraintDual(),
+            JuMP.optimizer_index(optimizer_model_constraint(c3)[1]), 0.0)
+    MOI.set(mockoptimizer, MOI.ConstraintDual(),
+            JuMP.optimizer_index(optimizer_model_constraint(c3)[2]), -1.0)
+
 
     # test result queries
     @test termination_status(m) == MOI.OPTIMAL
@@ -245,18 +248,20 @@ end
     @test objective_bound(m) == 2
     @test objective_value(m) == -1
     @test value(x) == [-1, 0]
-    @test value(x0) == -1
+    @test value(x0) == 42.
     @test value(y) == 1
+    @test value(meas) == [2., -2.]
+    @test value(x + y) == 0.
     @test dual(c1) == [-1, -1]
-    @test dual(c2) == [0]
-    @test dual(c3) == -1
+    @test dual(c2) == [0., -1.]
+    @test dual(c3) == [0., -1.]
     @test optimizer_index(x) == optimizer_index.(optimizer_model_variable(x))
     @test optimizer_index(x0) == optimizer_index(optimizer_model_variable(x0))
     @test optimizer_index(y) == optimizer_index(optimizer_model_variable(y))
     @test optimizer_index(c1) == optimizer_index.(optimizer_model_constraint(c1))
     @test optimizer_index(c2) == optimizer_index.(optimizer_model_constraint(c2))
-    @test optimizer_index(c3) == optimizer_index(optimizer_model_constraint(c3))
-    @test shadow_price(c1) == [-1, -1]
-    @test shadow_price(c2) == [0]
-    @test shadow_price(c3) == -1
+    @test optimizer_index(c3) == optimizer_index.(optimizer_model_constraint(c3))
+    @test shadow_price(c1) == [1, 1]
+    @test shadow_price(c2) == [-0., 1.]
+    @test shadow_price(c3) == [-0., 1.]
 end

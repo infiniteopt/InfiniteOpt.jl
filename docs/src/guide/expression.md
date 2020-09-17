@@ -8,10 +8,10 @@ statements involving variables and numbers. Thus, these comprise the
 mathematical expressions used that are used in measures, objectives, and
 constraints. Programmatically, `InfiniteOpt` simply extends `JuMP` expression
 types and methods principally pertaining to affine and quadratic mathematical
-expressions. An natively supported abstraction for general nonlinear expressions
-is currently under development since that of `JuMP` is not readily extendable.
+expressions. A natively supported abstraction for general nonlinear expressions
+is planned for development since that of `JuMP` is not readily extendable.
 
-## Datatype Hierarchy
+## Variable Hierarchy
 Expressions employ variable reference types inherited from
 [`JuMP.AbstractVariableRef`](@ref) to form expression objects. `InfiniteOpt`
 uses a hierarchy of such types to organize the complexities associated with
@@ -21,17 +21,22 @@ green and the concrete types are shown blue.
 
 ![tree](../assets/variable_tree.png)
 
-Following `JuMP`, expression objects are parameterized by the variable reference
-type that is present in the expression. In `InfiniteOpt` expressions
-automatically, select the most specific variable reference type possible in
-accordance with the above figure. For instance, an expression that only contains
-hold variables will be classified as a [`HoldVariableRef`](@ref) expression object,
-whereas an expression containing hold variables and a measure would be classified
-as a [`MeasureFiniteVariableRef`](@ref) expression object. This hierarchical
-classification becomes convenient to guide infinite program reformulation
-schemes in how to treat different expressions. The default transcription
-methodology employed by `InfiniteOpt.TranscriptionOpt` uses these classifications
-to efficiently differentiate between finite and infinite expressions.
+In consistently with `JuMP` expression support, [`GeneralVariableRef`](@ref)
+exists as a variable reference type that is able to represent any of the above
+conrete subtypes of [`DispatchVariableRef`](@ref). This allows the expression
+containers to be homogeneous in variable type. This is a paradigm shift from
+previous versions of `InfiniteOpt` that used the hierarchy of types directly
+to construct expressions. This behavior led to stability and performance
+limitations and thus a has been discontinued.
+
+However, the variable hierarchy is still used to create for variable methods.
+To accomplish this appropriate `GeneralVariableRef` dispatch methods are implemented
+(which are detailed in User Methods section at the bottom of this page) that
+utilize [`dispatch_variable_ref`](@ref) to create the appropriate concrete
+subtype of `DispatchVariableRef` and call the appropriate underlying method.
+These dispatch methods have been implemented for all public methods and the
+underlying methods are what are documented in the method manuals throughout the
+User Guide pages.
 
 ## Affine Expressions
 An affine expression pertains to a mathematical function of the form:
@@ -72,9 +77,7 @@ GenericAffExpr{Float64,GeneralVariableRef}
 Notice that coefficients to variables can simply be put alongside variables
 without having to use the `*` operator. Also, note that all of these expressions
 are stored in a container referred to as a `GenericAffExpr` which is a `JuMP`
-object for storing affine expressions. Furthermore, this object is parameterized
-by [`GeneralVariableRef`](@ref) since it is the lowest common variable reference
-type in common between hold variables and infinite variables.
+object for storing affine expressions.
 
 !!! note
     Where possible, it is preferable to use [`@expression`](@ref) for defining
@@ -117,16 +120,14 @@ julia> expr = 2y^2 - z * y + 42t - 3
 2 y(t)² - z*y(t) + 42 t - 3
 
 julia> expr = @expression(model, 2y^2 - z * y + 42t - 3)
-2 y(t)² - z*y(t) + 42 t - 3
+2 y(t)² - y(t)*z + 42 t - 3
 
 julia> typeof(expr)
 GenericQuadExpr{Float64,GeneralVariableRef}
 ```
 Again, notice that coefficients need not employ `*`. Also, the object used to
 store the expression is a `GenericQuadExpr` which is a `JuMP` object used for
-storing quadratic expressions. Again, this expression container is parameterized
-by [`GeneralVariableRef`](@ref) since that is the common variable reference type
-between the hold variable `z` and the infinite variable `y(t)`.
+storing quadratic expressions.
 
 `GenericQuadExpr` object contains 2 data fields which are:
 - `aff::GenericAffExpr{CoefType,VarType}` An affine expression
@@ -146,7 +147,7 @@ GenericAffExpr{Float64,GeneralVariableRef}
 julia> expr.terms
 OrderedCollections.OrderedDict{UnorderedPair{GeneralVariableRef},Float64} with 2 entries:
   UnorderedPair{GeneralVariableRef}(y(t), y(t)) => 2.0
-  UnorderedPair{GeneralVariableRef}(z, y(t))    => -1.0
+  UnorderedPair{GeneralVariableRef}(y(t), z)    => -1.0
 ```
 Notice again that the ordered dictionary preserves the order.
 
@@ -171,6 +172,140 @@ More information can be found in the documentation for quadratic expressions in
 ## Nonlinear Expressions
 General nonlinear expressions as generated via `@NLexpression` and similar
 methods in `JuMP` are not yet extended for `InfiniteOpt`. This is because
-`JuMP` no longer readily supports nonlinear extensions, but a native nonlinear
-implementation is currently under development and should be released in the near
-future.
+`JuMP` does not readily support nonlinear extensions, but a native nonlinear
+implementation is planned for development and should be released in the
+relatively near future.
+
+## DataTypes
+```@index
+Pages   = ["expression.md"]
+Modules = [InfiniteOpt]
+Order   = [:type]
+```
+```@docs
+GeneralVariableRef
+DispatchVariableRef
+MeasureFiniteVariableRef
+FiniteVariableRef
+```
+
+## Expression Methods
+```@docs
+parameter_refs(::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr})
+```
+
+## GeneralVariableRef User Methods
+```@index
+Pages   = ["expression.md"]
+Modules = [InfiniteOpt, JuMP]
+Order   = [:macro, :function]
+```
+```@docs
+JuMP.owner_model(::GeneralVariableRef)
+JuMP.owner_model(::DispatchVariableRef)
+JuMP.index(::GeneralVariableRef)
+JuMP.index(::DispatchVariableRef)
+dispatch_variable_ref(::GeneralVariableRef)
+dispatch_variable_ref
+JuMP.name(::GeneralVariableRef)
+JuMP.set_name(::GeneralVariableRef, ::String)
+JuMP.is_valid(::InfiniteModel,::GeneralVariableRef)
+JuMP.is_valid(::InfiniteModel, ::DispatchVariableRef)
+used_by_infinite_variable(::GeneralVariableRef)
+used_by_point_variable(::GeneralVariableRef)
+used_by_measure(::GeneralVariableRef)
+used_by_objective(::GeneralVariableRef)
+used_by_constraint(::GeneralVariableRef)
+is_used(::GeneralVariableRef)
+parameter_value(::GeneralVariableRef)
+JuMP.set_value(::GeneralVariableRef, ::Real)
+infinite_set(::GeneralVariableRef)
+infinite_set(::AbstractArray{<:GeneralVariableRef})
+set_infinite_set(::GeneralVariableRef, ::InfiniteScalarSet)
+set_infinite_set(::AbstractArray{<:GeneralVariableRef}, ::InfiniteArraySet)
+num_supports(::GeneralVariableRef)
+num_supports(::AbstractArray{<:GeneralVariableRef})
+has_supports(::GeneralVariableRef)
+has_supports(::AbstractArray{<:GeneralVariableRef})
+supports(::GeneralVariableRef)
+supports(::AbstractArray{<:GeneralVariableRef})
+set_supports(::GeneralVariableRef,::Union{Real, Vector{<:Real}})
+set_supports(::AbstractArray{<:GeneralVariableRef},::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}})
+add_supports(::GeneralVariableRef,::Union{Real, Vector{<:Real}})
+add_supports(::AbstractArray{<:GeneralVariableRef},::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}})
+delete_supports(::GeneralVariableRef)
+delete_supports(::AbstractArray{<:GeneralVariableRef})
+fill_in_supports!(::GeneralVariableRef)
+fill_in_supports!(::AbstractArray{<:GeneralVariableRef})
+raw_parameter_refs(::GeneralVariableRef)
+parameter_refs(::GeneralVariableRef)
+parameter_list(::GeneralVariableRef)
+infinite_variable_ref(::GeneralVariableRef)
+eval_supports(::GeneralVariableRef)
+raw_parameter_values(::GeneralVariableRef)
+parameter_values(::GeneralVariableRef)
+parameter_bounds(::GeneralVariableRef)
+has_parameter_bounds(::GeneralVariableRef)
+set_parameter_bounds(::GeneralVariableRef,::ParameterBounds{GeneralVariableRef})
+add_parameter_bounds(::GeneralVariableRef,::ParameterBounds{GeneralVariableRef})
+delete_parameter_bounds(::GeneralVariableRef)
+significant_digits(::GeneralVariableRef)
+measure_function(::GeneralVariableRef)
+measure_data(::GeneralVariableRef)
+is_analytic(::GeneralVariableRef)
+JuMP.delete(::InfiniteModel, ::GeneralVariableRef)
+JuMP.delete(::InfiniteModel,::AbstractArray{<:GeneralVariableRef})
+JuMP.has_lower_bound(::GeneralVariableRef)
+JuMP.lower_bound(::GeneralVariableRef)
+JuMP.set_lower_bound(::GeneralVariableRef,::Real)
+JuMP.LowerBoundRef(::GeneralVariableRef)
+JuMP.delete_lower_bound(::GeneralVariableRef)
+JuMP.has_upper_bound(::GeneralVariableRef)
+JuMP.upper_bound(::GeneralVariableRef)
+JuMP.set_upper_bound(::GeneralVariableRef,::Real)
+JuMP.UpperBoundRef(::GeneralVariableRef)
+JuMP.delete_upper_bound(::GeneralVariableRef)
+JuMP.is_fixed(::GeneralVariableRef)
+JuMP.fix_value(::GeneralVariableRef)
+JuMP.fix(::GeneralVariableRef, ::Real)
+JuMP.FixRef(::GeneralVariableRef)
+JuMP.unfix(::GeneralVariableRef)
+JuMP.start_value(::GeneralVariableRef)
+JuMP.set_start_value(::GeneralVariableRef, ::Real)
+start_value_function(::GeneralVariableRef)
+set_start_value_function(::GeneralVariableRef, ::Any)
+reset_start_value_function(::GeneralVariableRef)
+JuMP.is_binary(::GeneralVariableRef)
+JuMP.set_binary(::GeneralVariableRef)
+JuMP.BinaryRef(::GeneralVariableRef)
+JuMP.unset_binary(::GeneralVariableRef)
+JuMP.is_integer(::GeneralVariableRef)
+JuMP.set_integer(::GeneralVariableRef)
+JuMP.IntegerRef(::GeneralVariableRef)
+JuMP.unset_integer(::GeneralVariableRef)
+```
+
+## Developer Internal Methods
+```@docs
+InfiniteOpt._add_data_object
+InfiniteOpt._data_dictionary
+InfiniteOpt._data_object
+InfiniteOpt._delete_data_object
+InfiniteOpt._core_variable_object
+InfiniteOpt._core_variable_object(::GeneralVariableRef)
+InfiniteOpt._set_core_variable_object
+InfiniteOpt._infinite_variable_dependencies
+InfiniteOpt._infinite_variable_dependencies(::GeneralVariableRef)
+InfiniteOpt._reduced_variable_dependencies
+InfiniteOpt._reduced_variable_dependencies(::GeneralVariableRef)
+InfiniteOpt._point_variable_dependencies
+InfiniteOpt._point_variable_dependencies(::GeneralVariableRef)
+InfiniteOpt._measure_dependencies
+InfiniteOpt._measure_dependencies(::GeneralVariableRef)
+InfiniteOpt._constraint_dependencies
+InfiniteOpt._constraint_dependencies(::GeneralVariableRef)
+InfiniteOpt._parameter_number
+InfiniteOpt._parameter_number(::GeneralVariableRef)
+InfiniteOpt._object_number
+InfiniteOpt._object_number(::GeneralVariableRef)
+```

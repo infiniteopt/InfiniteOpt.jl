@@ -17,22 +17,21 @@ Julia terminal and enter the package manager:
 ```julia-repl
 julia> ]
 
-(v1.3) pkg>
+(v1.5) pkg>
 ```
 Use the `add` command in the package to manager to add the following packages:
 
 - `JuMP`
-- `Distributions`
+- `Distributions` (required for stochastic programming)
 
 For example, to install `JuMP` we would enter:
 ```julia-repl
-(v1.3) pkg> add JuMP
+(v1.5) pkg> add JuMP
 ```
 
-Now let's install `InfiniteOpt`, because it is not yet a registered Julia
-package we have to specify the GitHub repository address:
+Now let's install `InfiniteOpt`:
 ```julia-repl
-(v1.3) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
+(v1.5) pkg> add InfiniteOpt
 ```
 
 ## Install Optimization Solvers
@@ -43,7 +42,7 @@ supported solvers and their corresponding Julia packages is provided in
 
 For example, we can install Ipopt which is an open-source nonlinear solver:
 ```julia-repl
-(v1.3) pkg> add Ipopt
+(v1.5) pkg> add Ipopt
 ```
 Now Ipopt can be used as the optimizer (solver) for an infinite model by running:
 ```julia-repl
