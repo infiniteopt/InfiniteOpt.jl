@@ -157,15 +157,6 @@ function MOIUC.key_to_index(key::ObjectIndex)::Int
     return key.value
 end
 
-# define safe getter function _get(dict, key)
-function _get(d::MOIUC.CleverDict, key::ObjectIndex, default)
-    if d.dict === nothing
-        return get(d.vector, MOIUC.key_to_index(key), default)
-    else
-        return get(d.dict, key, default)
-    end
-end
-
 # Extend Base.length
 Base.length(index::AbstractInfOptIndex)::Int = 1
 Base.broadcastable(index::AbstractInfOptIndex) = Ref(index)

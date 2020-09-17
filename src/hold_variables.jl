@@ -30,7 +30,7 @@ end
 # Extend _data_object
 function _data_object(vref::HoldVariableRef
     )::VariableData{HoldVariable{GeneralVariableRef}}
-  object = _get(_data_dictionary(vref), JuMP.index(vref), nothing)
+  object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
   object === nothing && error("Invalid hold variable reference, cannot find " *
                         "corresponding variable in the model. This is likely " *
                         "caused by using the reference of a deleted variable.")

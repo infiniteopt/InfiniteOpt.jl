@@ -36,7 +36,7 @@ the following in the package manager:
 Please visit our [Installation Guide](@ref) for more details and information
 on how to get started.
 
-Moreover, `InfiniteOpt` under constant develop with new features being added often.
+Moreover, `InfiniteOpt` is under constant develop with new features being added often.
 Thus, the latest pre-release experimental version can be obtained via the
 following command:
 ```julia
