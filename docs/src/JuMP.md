@@ -6,6 +6,8 @@ end
 ```
 
 # JuMP Documentation
+The docstrings below are sourced from JuMP.jl and provided for completeness.
+
 
 ## Model
 ```@docs
