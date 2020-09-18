@@ -17,7 +17,7 @@ include:
 - Direct support of infinite, point, and hold variables
 - Symbolic measure (integral) expression
 - Infinite/finite constraint definition
-- Ordinary differential equation support (coming soon with `v0.2.0`)
+- Ordinary differential equation support (coming soon with `v0.3.0`)
 - Automated model transcription/reformulation and solution
 - Compatible with all [JuMP-supported solvers](https://www.juliaopt.org/JuMP.jl/dev/installation/#Getting-Solvers-1)
 - Readily extendable to accommodate user defined abstractions and solution techniques.
