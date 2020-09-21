@@ -21,10 +21,10 @@ abstract type ObjectIndex <: AbstractInfOptIndex end
 A `DataType` for storing the index of a [`IndependentParameter`](@ref).
 
 **Fields**
-- `value::Int`: The index value.
+- `value::Int64`: The index value.
 """
 struct IndependentParameterIndex <: ObjectIndex
-    value::Int
+    value::Int64
 end
 
 """
@@ -33,10 +33,10 @@ end
 A `DataType` for storing the index of a [`DependentParameters`](@ref) object.
 
 **Fields**
-- `value::Int`: The index value.
+- `value::Int64`: The index value.
 """
 struct DependentParametersIndex <: ObjectIndex
-    value::Int
+    value::Int64
 end
 
 """
@@ -63,10 +63,10 @@ const InfiniteParameterIndex = Union{IndependentParameterIndex, DependentParamet
 A `DataType` for storing the index of a [`FiniteParameter`](@ref).
 
 **Fields**
-- `value::Int`: The index value.
+- `value::Int64`: The index value.
 """
 struct FiniteParameterIndex <: ObjectIndex
-    value::Int
+    value::Int64
 end
 
 """
@@ -75,10 +75,10 @@ end
 A `DataType` for storing the index of a [`InfiniteVariable`](@ref).
 
 **Fields**
-- `value::Int`: The index value.
+- `value::Int64`: The index value.
 """
 struct InfiniteVariableIndex <: ObjectIndex
-    value::Int
+    value::Int64
 end
 
 """
@@ -87,10 +87,10 @@ end
 A `DataType` for storing the index of a [`ReducedVariable`](@ref).
 
 **Fields**
-- `value::Int`: The index value.
+- `value::Int64`: The index value.
 """
 struct ReducedVariableIndex <: ObjectIndex
-    value::Int
+    value::Int64
 end
 
 """
@@ -99,10 +99,10 @@ end
 A `DataType` for storing the index of a [`PointVariable`](@ref).
 
 **Fields**
-- `value::Int`: The index value.
+- `value::Int64`: The index value.
 """
 struct PointVariableIndex <: ObjectIndex
-    value::Int
+    value::Int64
 end
 
 """
@@ -111,10 +111,10 @@ end
 A `DataType` for storing the index of a [`HoldVariable`](@ref).
 
 **Fields**
-- `value::Int`: The index value.
+- `value::Int64`: The index value.
 """
 struct HoldVariableIndex <: ObjectIndex
-    value::Int
+    value::Int64
 end
 
 # Define convenient aliases
@@ -127,10 +127,10 @@ const FiniteVariableIndex = Union{PointVariableIndex, HoldVariableIndex,
 A `DataType` for storing the index of a [`Measure`](@ref).
 
 **Fields**
-- `value::Int`: The index value.
+- `value::Int64`: The index value.
 """
 struct MeasureIndex <: ObjectIndex
-    value::Int
+    value::Int64
 end
 
 """
@@ -139,29 +139,30 @@ end
 A `DataType` for storing the index of constraint objects.
 
 **Fields**
-- `value::Int`: The index value.
+- `value::Int64`: The index value.
 """
 struct ConstraintIndex <: ObjectIndex
-    value::Int
+    value::Int64
 end
 
 ## Extend the CleverDicts key access methods
 # index_to_key
 function MOIUC.index_to_key(::Type{C},
-                            index::Int)::ObjectIndex where {C <: ObjectIndex}
+                            index::Int64)::ObjectIndex where {C <: ObjectIndex}
     return C(index)
 end
 
 # key_to_index
-function MOIUC.key_to_index(key::ObjectIndex)::Int
+function MOIUC.key_to_index(key::ObjectIndex)::Int64
     return key.value
 end
 
-# Extend Base.length
-Base.length(index::AbstractInfOptIndex)::Int = 1
+# Extend Base functions
+Base.length(index::AbstractInfOptIndex) = 1
 Base.broadcastable(index::AbstractInfOptIndex) = Ref(index)
 Base.iterate(index::AbstractInfOptIndex) = (index, true)
 Base.iterate(index::AbstractInfOptIndex, state) = nothing
+Base.hash(v::ObjectIndex, h::UInt) = hash(v.value, h)
 
 ################################################################################
 #                            INFINITE SET TYPES
@@ -1040,19 +1041,19 @@ construct expressions using concrete containers unlike previous versions of
 
 **Fields**
 - `model::InfiniteModel`: Infinite model.
-- `raw_index::Int`: The raw index to be used in the `index_type` constructor.
+- `raw_index::Int64`: The raw index to be used in the `index_type` constructor.
 - `index_type::DataType`: The concrete [`AbstractInfOptIndex`](@ref) type/constructor.
 - `param_index::Int`: The index of a parameter in [`DependentParameters`](@ref).
   This is ignored for other variable types.
 """
 struct GeneralVariableRef <: JuMP.AbstractVariableRef
     model::InfiniteModel
-    raw_index::Int
+    raw_index::Int64
     index_type::DataType
     param_index::Int # for DependentParameterRefs
-    function GeneralVariableRef(model::InfiniteModel, raw_index::Int,
+    function GeneralVariableRef(model::InfiniteModel, raw_index,
                                index_type::DataType, param_index::Int = -1)
-       return new(model, raw_index, index_type, param_index)
+       return new(model, Int64(raw_index), index_type, param_index)
     end
 end
 

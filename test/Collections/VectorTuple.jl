@@ -363,7 +363,7 @@
             # test with linear index and truncated DenseAxisArray
             vt = IC.VectorTuple(b, c2, a)
             inds = CartesianIndices(c2)
-            new_inds = [k.I for k in JuMPC.DenseAxisArrayKeys(Base.Iterators.product(axes(c2)...))]
+            new_inds = [k.I for k in keys(c2)]
             cs = JuMPC.SparseAxisArray(Dict(new_inds[k] => c[inds[k]] for k = [1, 3, 4]))
             @test deleteat!(vt, 5) == IC.VectorTuple(b, cs, a)
             # test with linear index and truncated DenseAxisArray
