@@ -1051,9 +1051,9 @@ struct GeneralVariableRef <: JuMP.AbstractVariableRef
     raw_index::Int64
     index_type::DataType
     param_index::Int # for DependentParameterRefs
-    function GeneralVariableRef(model::InfiniteModel, raw_index::Int64,
+    function GeneralVariableRef(model::InfiniteModel, raw_index,
                                index_type::DataType, param_index::Int = -1)
-       return new(model, raw_index, index_type, param_index)
+       return new(model, Int64(raw_index), index_type, param_index)
     end
 end
 
