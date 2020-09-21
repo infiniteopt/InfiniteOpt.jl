@@ -47,11 +47,11 @@ A `DataType` for storing the index of an indiviudal parameter in a
 
 **Fields**
 - `object_index::DependentParametersIndex`: The index of the parameter collection.
-- `param_index::Int64`: The index of the individual parameter in the above object.
+- `param_index::Int`: The index of the individual parameter in the above object.
 """
 struct DependentParameterIndex <: AbstractInfOptIndex
     object_index::DependentParametersIndex
-    param_index::Int64
+    param_index::Int
 end
 
 # Define convenient alias for infinite parameters
