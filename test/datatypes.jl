@@ -66,6 +66,10 @@
         @test iterate(MeasureIndex(1)) == (MeasureIndex(1), true)
         @test iterate(MeasureIndex(1), true) isa Nothing
     end
+    # test Base.hash
+    @testset "Base.hash" begin
+        @test Base.hash(MeasureIndex(1), UInt(1)) isa UInt
+    end
 end
 
 # Test Infinite Sets

@@ -299,7 +299,7 @@ end
 
 # DenseAxisArray
 function _update_indices(inds::Tuple, i)
-    new_inds = [k.I for k in JuMPC.DenseAxisArrayKeys(Base.Iterators.product(inds[2]...))]
+    new_inds = reduce(vcat, Base.Iterators.product(inds[2]...))
     return _update_indices(new_inds, i) # call the SparseAxisArray version
 end
 
