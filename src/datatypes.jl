@@ -646,9 +646,9 @@ abstract type InfOptDerivative <: JuMP.AbstractVariable end
                        D <: AbstractDerivativeEvalData} <: InfOptDerivative
 
 A `DataType` for storing core infinite derivative information. This follows a 
-derivative of the form: ``\frac{\partial x(\alpha, \hdots)}{\partial \alpha}`` 
-where ``x(\alpha, \hdots)`` is an infinite variable and ``\alpha`` is an infinite 
-parameter. Here, both ``x`` and ``\alpha`` must be scalars. 
+derivative of the form: ``\\frac{\\partial x(\\alpha, \\hdots)}{\\partial \\alpha}`` 
+where ``x(\\alpha, \\hdots)`` is an infinite variable and ``\\alpha`` is an infinite 
+parameter. Here, both ``x`` and ``\\alpha`` must be scalars. 
 
 It is important to note that `info.start` should contain a start value function
 that generates the start value for a given infinite parameter support. This
