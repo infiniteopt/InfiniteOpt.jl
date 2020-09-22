@@ -19,19 +19,11 @@ Modules = [InfiniteOpt]
 Order   = [:type]
 ```
 ```@docs
-InfiniteDerivativeIndex
-ReducedDerivativeIndex
-PointDerivativeIndex
-InfiniteDerivativeRef
-ReducedDerivativeRef
-PointDerivativeRef
+DerivativeIndex
+DerivativeRef
 AbstractDerivativeMethod
 Integral
-InfOptDerivative
-InfiniteDerivative
-ReducedDerivative
-PointDerivative
-DerivativeData
+Derivative
 ```
 
 ## [Methods/Macros] (@id deriv_methods)

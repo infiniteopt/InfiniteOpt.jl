@@ -213,6 +213,8 @@ JuMP.is_valid(::InfiniteModel,::GeneralVariableRef)
 JuMP.is_valid(::InfiniteModel, ::DispatchVariableRef)
 used_by_infinite_variable(::GeneralVariableRef)
 used_by_point_variable(::GeneralVariableRef)
+used_by_reduced_variable(::GeneralVariableRef)
+used_by_derivative(::GeneralVariableRef)
 used_by_measure(::GeneralVariableRef)
 used_by_objective(::GeneralVariableRef)
 used_by_constraint(::GeneralVariableRef)
@@ -300,6 +302,8 @@ InfiniteOpt._reduced_variable_dependencies
 InfiniteOpt._reduced_variable_dependencies(::GeneralVariableRef)
 InfiniteOpt._point_variable_dependencies
 InfiniteOpt._point_variable_dependencies(::GeneralVariableRef)
+InfiniteOpt._derivative_dependencies
+InfiniteOpt._derivative_dependencies(::GeneralVariableRef)
 InfiniteOpt._measure_dependencies
 InfiniteOpt._measure_dependencies(::GeneralVariableRef)
 InfiniteOpt._constraint_dependencies

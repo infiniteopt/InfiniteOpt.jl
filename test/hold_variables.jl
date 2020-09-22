@@ -254,7 +254,7 @@ end
         cindex = ConstraintIndex(1)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_lower_bound(vref)
-        @test JuMP._lower_bound_index(vref) == cindex
+        @test InfiniteOpt._lower_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                  MOI.GreaterThan{Float64}}
         @test InfiniteOpt._data_object(cref).is_info_constraint
@@ -262,7 +262,7 @@ end
         cindex = ConstraintIndex(2)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_upper_bound(vref)
-        @test JuMP._upper_bound_index(vref) == cindex
+        @test InfiniteOpt._upper_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                  MOI.LessThan{Float64}}
         @test InfiniteOpt._data_object(cref).is_info_constraint
@@ -270,7 +270,7 @@ end
         cindex = ConstraintIndex(3)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test is_fixed(vref)
-        @test JuMP._fix_index(vref) == cindex
+        @test InfiniteOpt._fix_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                  MOI.EqualTo{Float64}}
         @test InfiniteOpt._data_object(cref).is_info_constraint
@@ -278,7 +278,7 @@ end
         cindex = ConstraintIndex(4)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test is_binary(vref)
-        @test JuMP._binary_index(vref) == cindex
+        @test InfiniteOpt._binary_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                  MOI.ZeroOne}
         @test InfiniteOpt._data_object(cref).is_info_constraint
@@ -300,7 +300,7 @@ end
         cindex = ConstraintIndex(8)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test is_integer(vref)
-        @test JuMP._integer_index(vref) == cindex
+        @test InfiniteOpt._integer_index(vref) == cindex
         @test constraint_object(cref) isa BoundedScalarConstraint{GeneralVariableRef,
                                                             MOI.Integer}
         @test InfiniteOpt._data_object(cref).is_info_constraint

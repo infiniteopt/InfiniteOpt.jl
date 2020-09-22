@@ -232,7 +232,7 @@ end
 ################################################################################
 # Extend _derivative_dependencies
 function _derivative_dependencies(vref::ReducedVariableRef
-                                  )::Vector{InfiniteDerivativeIndex}
+                                  )::Vector{DerivativeIndex}
     return _data_object(vref).derivative_indices
 end
 
@@ -249,6 +249,29 @@ true
 """
 function used_by_derivative(vref::ReducedVariableRef)::Bool
     return !isempty(_derivative_dependencies(vref))
+end
+
+"""
+    is_used(vref::ReducedVariableRef)::Bool
+
+Return a `Bool` indicating if `vref` is used in the model.
+
+**Example**
+```julia-repl
+julia> is_used(vref)
+true
+```
+"""
+function is_used(vref::ReducedVariableRef)::Bool
+    if used_by_measure(vref) || used_by_constraint(vref)
+        return true
+    end
+    for dindex in _derivative_dependencies(vref)
+        if is_used(DerivativeRef(JuMP.owner_model(vref), dindex))
+            return true
+        end
+    end
+    return false
 end
 
 ################################################################################
@@ -292,12 +315,12 @@ end
 
 # Extend to return the index of the lower bound constraint associated with the
 # original infinite variable of `vref`.
-function JuMP._lower_bound_index(vref::ReducedVariableRef)::ConstraintIndex
+function InfiniteOpt._lower_bound_index(vref::ReducedVariableRef)::ConstraintIndex
     ivref = dispatch_variable_ref(infinite_variable_ref(vref))
     if !JuMP.has_lower_bound(ivref)
         error("Variable $(vref) does not have a lower bound.")
     end
-    return JuMP._lower_bound_index(ivref)
+    return InfiniteOpt._lower_bound_index(ivref)
 end
 
 """
@@ -354,12 +377,12 @@ end
 
 # Extend to return the index of the upper bound constraint associated with the
 # original infinite variable of `vref`.
-function JuMP._upper_bound_index(vref::ReducedVariableRef)::ConstraintIndex
+function InfiniteOpt._upper_bound_index(vref::ReducedVariableRef)::ConstraintIndex
     ivref = dispatch_variable_ref(infinite_variable_ref(vref))
     if !JuMP.has_upper_bound(ivref)
         error("Variable $(vref) does not have a upper bound.")
     end
-    return JuMP._upper_bound_index(ivref)
+    return InfiniteOpt._upper_bound_index(ivref)
 end
 
 """
@@ -416,12 +439,12 @@ end
 
 # Extend to return the index of the fix constraint associated with the original
 # infinite variable of `vref`.
-function JuMP._fix_index(vref::ReducedVariableRef)::ConstraintIndex
+function InfiniteOpt._fix_index(vref::ReducedVariableRef)::ConstraintIndex
     ivref = dispatch_variable_ref(infinite_variable_ref(vref))
     if !JuMP.is_fixed(ivref)
         error("Variable $(vref) is not fixed.")
     end
-    return JuMP._fix_index(ivref)
+    return InfiniteOpt._fix_index(ivref)
 end
 
 """
@@ -481,12 +504,12 @@ end
 
 # Extend to return the index of the binary constraint associated with the
 # original infinite variable of `vref`.
-function JuMP._binary_index(vref::ReducedVariableRef)::ConstraintIndex
+function InfiniteOpt._binary_index(vref::ReducedVariableRef)::ConstraintIndex
     ivref = dispatch_variable_ref(infinite_variable_ref(vref))
     if !JuMP.is_binary(ivref)
         error("Variable $(vref) is not binary.")
     end
-    return JuMP._binary_index(ivref)
+    return InfiniteOpt._binary_index(ivref)
 end
 
 """
@@ -524,12 +547,12 @@ end
 
 # Extend to return the index of the integer constraint associated with the
 # original infinite variable of `vref`.
-function JuMP._integer_index(vref::ReducedVariableRef)::ConstraintIndex
+function InfiniteOpt._integer_index(vref::ReducedVariableRef)::ConstraintIndex
     ivref = dispatch_variable_ref(infinite_variable_ref(vref))
     if !JuMP.is_integer(ivref)
         error("Variable $(vref) is not an integer.")
     end
-    return JuMP._integer_index(ivref)
+    return InfiniteOpt._integer_index(ivref)
 end
 
 """

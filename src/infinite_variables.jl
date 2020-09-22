@@ -203,25 +203,28 @@ end
 #                            VARIABLE DEPENDENCIES
 ################################################################################
 # Extend _reduced_variable_dependencies
-function _reduced_variable_dependencies(vref::InfiniteVariableRef
-                                        )::Vector{ReducedVariableIndex}
+function _reduced_variable_dependencies(
+    vref::Union{InfiniteVariableRef, DerivativeRef}
+     )::Vector{ReducedVariableIndex}
     return _data_object(vref).reduced_var_indices
 end
 
 # Extend _point_variable_dependencies
-function _point_variable_dependencies(vref::InfiniteVariableRef
-                                      )::Vector{PointVariableIndex}
+function _point_variable_dependencies(
+    vref::Union{InfiniteVariableRef, DerivativeRef}
+    )::Vector{PointVariableIndex}
     return _data_object(vref).point_var_indices
 end
 
 # Extend _derivative_dependencies
-function _derivative_dependencies(vref::InfiniteVariableRef
-                                  )::Vector{InfiniteDerivativeIndex}
+function _derivative_dependencies(
+    vref::Union{InfiniteVariableRef, DerivativeRef}
+     )::Vector{DerivativeIndex}
     return _data_object(vref).derivative_indices
 end
 
 """
-    used_by_reduced_variable(vref::InfiniteVariableRef)::Bool
+    used_by_reduced_variable(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
 
 Return a `Bool` indicating if `vref` is used by a reduced infinite variable.
 
@@ -231,12 +234,12 @@ julia> used_by_reduced_variable(vref)
 false
 ```
 """
-function used_by_reduced_variable(vref::InfiniteVariableRef)::Bool
+function used_by_reduced_variable(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
     return !isempty(_reduced_variable_dependencies(vref))
 end
 
 """
-    used_by_point_variable(vref::InfiniteVariableRef)::Bool
+    used_by_point_variable(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
 
 Return a `Bool` indicating if `vref` is used by a point variable.
 
@@ -246,12 +249,12 @@ julia> used_by_point_variable(vref)
 false
 ```
 """
-function used_by_point_variable(vref::InfiniteVariableRef)::Bool
+function used_by_point_variable(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
     return !isempty(_point_variable_dependencies(vref))
 end
 
 """
-    used_by_derivative(vref::InfiniteVariableRef)::Bool
+    used_by_derivative(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
 
 Return a `Bool` indicating if `vref` is used by a derivative.
 
@@ -261,12 +264,12 @@ julia> used_by_derivative(vref)
 true
 ```
 """
-function used_by_derivative(vref::InfiniteVariableRef)::Bool
+function used_by_derivative(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
     return !isempty(_derivative_dependencies(vref))
 end
 
 """
-    is_used(vref::InfiniteVariableRef)::Bool
+    is_used(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
 
 Return a `Bool` indicating if `vref` is used in the model.
 
@@ -276,29 +279,23 @@ julia> is_used(vref)
 false
 ```
 """
-function is_used(vref::InfiniteVariableRef)::Bool
+function is_used(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
     if used_by_measure(vref) || used_by_constraint(vref)
         return true
     end
-    if used_by_point_variable(vref)
-        for vindex in _point_variable_dependencies(vref)
-            if is_used(PointVariableRef(JuMP.owner_model(vref), vindex))
-                return true
-            end
+    for vindex in _point_variable_dependencies(vref)
+        if is_used(PointVariableRef(JuMP.owner_model(vref), vindex))
+            return true
         end
     end
-    if used_by_reduced_variable(vref)
-        for vindex in _reduced_variable_dependencies(vref)
-            if is_used(ReducedVariableRef(JuMP.owner_model(vref), vindex))
-                return true
-            end
+    for vindex in _reduced_variable_dependencies(vref)
+        if is_used(ReducedVariableRef(JuMP.owner_model(vref), vindex))
+            return true
         end
     end
-    if used_by_derivative(vref)
-        for dindex in _derivative_dependencies(vref)
-            if is_used(InfiniteDerivativeRef(JuMP.owner_model(vref), dindex))
-                return true
-            end
+    for dindex in _derivative_dependencies(vref)
+        if is_used(DerivativeRef(JuMP.owner_model(vref), dindex))
+            return true
         end
     end
     return false
@@ -367,7 +364,6 @@ function _update_variable_info(vref::InfiniteVariableRef,
                                  info.upper_bound, info.has_fix, info.fixed_value,
                                  info.has_start, info.start, info.binary, info.integer)
     prefs = raw_parameter_refs(vref)
-    prefs = raw_parameter_refs(vref)
     param_nums = _parameter_numbers(vref)
     obj_nums = _object_numbers(vref)
     is_vect_func = _is_vector_start(vref)
@@ -377,19 +373,19 @@ function _update_variable_info(vref::InfiniteVariableRef,
 end
 
 # Specify start_value fallback for infinite variables
-function JuMP.start_value(vref::InfiniteVariableRef)
+function JuMP.start_value(vref::Union{InfiniteVariableRef, DerivativeRef})
     error("`start_value` not defined for infinite variables, consider calling " *
           "`start_value_function` instead.")
 end
 
 # Specify set_start_value fallback for infinite variables
-function JuMP.set_start_value(vref::InfiniteVariableRef, value::Real)
+function JuMP.set_start_value(vref::Union{InfiniteVariableRef, DerivativeRef}, value::Real)
     error("`set_start_value` not defined for infinite variables, consider calling " *
           "`set_start_value_function` instead.")
 end
 
 """
-    start_value_function(vref::InfiniteVariableRef)::Union{Nothing, Function}
+    start_value_function(vref::Union{InfiniteVariableRef, DerivativeRef})::Union{Nothing, Function}
 
 Return the function that is used to generate the start values of `vref` for
 particular support values. Returns `nothing` if no start behavior has been
@@ -397,11 +393,11 @@ specified.
 
 **Example**
 ```julia-repl
-julia> start_valuefunction(vref)
+julia> start_value_function(vref)
 my_start_func
 ```
 """
-function start_value_function(vref::InfiniteVariableRef)::Union{Nothing, Function}
+function start_value_function(vref::Union{InfiniteVariableRef, DerivativeRef})::Union{Nothing, Function}
     if _variable_info(vref).has_start
         return _variable_info(vref).start
     else

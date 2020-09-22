@@ -66,7 +66,7 @@ function _constraint_dependencies(mref::MeasureRef)::Vector{ConstraintIndex}
 end
 
 # Extend _derivative_dependencies
-function _derivative_dependencies(mref::MeasureRef)::Vector{InfiniteDerivativeIndex}
+function _derivative_dependencies(mref::MeasureRef)::Vector{DerivativeIndex}
     return _data_object(mref).derivative_indices
 end
 
@@ -1020,6 +1020,11 @@ end
 # Extend raw_parameter_refs (this is helpful for defining derivatives)
 function raw_parameter_refs(mref::MeasureRef)::VectorTuple{GeneralVariableRef}
     return VectorTuple(parameter_refs(mref))
+end
+
+# Extend parameter_list (this is helpful for defining derivatives)
+function parameter_list(mref::MeasureRef)::Vector{GeneralVariableRef}
+    return raw_parameter_refs(mref).values
 end
 
 """

@@ -494,7 +494,7 @@ end
         @test !used_by_derivative(prefs[2])
         @test !used_by_derivative(gvrefs[1])
         # test used
-        push!(data.derivative_indices[1], InfiniteDerivativeIndex(1))
+        push!(data.derivative_indices[1], DerivativeIndex(1))
         @test used_by_derivative(prefs[1])
         # undo changes
         empty!(data.derivative_indices[1])

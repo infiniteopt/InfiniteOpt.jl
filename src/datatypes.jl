@@ -118,75 +118,15 @@ struct HoldVariableIndex <: ObjectIndex
 end
 
 """
-    InfiniteDerivativeIndex <: ObjectIndex
+    DerivativeIndex <: ObjectIndex
 
-A `DataType` for storing the index of a [`InfiniteDerivative`](@ref).
-
-**Fields**
-- `value::Int64`: The index value.
-"""
-struct InfiniteDerivativeIndex <: ObjectIndex
-    value::Int64
-end
-
-"""
-    ReducedDerivativeIndex <: ObjectIndex
-
-A `DataType` for storing the index of a [`ReducedDerivative`](@ref).
+A `DataType` for storing the index of a [`Derivative`](@ref).
 
 **Fields**
 - `value::Int64`: The index value.
 """
-struct ReducedDerivativeIndex <: ObjectIndex
+struct DerivativeIndex <: ObjectIndex
     value::Int64
-end
-
-"""
-    PointDerivativeIndex <: ObjectIndex
-
-A `DataType` for storing the index of a [`PointDerivative`](@ref).
-
-**Fields**
-- `value::Int64`: The index value.
-"""
-struct PointDerivativeIndex <: ObjectIndex
-    value::Int64
-end
-
-"""
-    InfiniteDerivativeIndex <: ObjectIndex
-
-A `DataType` for storing the index of a [`InfiniteDerivative`](@ref).
-
-**Fields**
-- `value::Int`: The index value.
-"""
-struct InfiniteDerivativeIndex <: ObjectIndex
-    value::Int
-end
-
-"""
-    ReducedDerivativeIndex <: ObjectIndex
-
-A `DataType` for storing the index of a [`ReducedDerivative`](@ref).
-
-**Fields**
-- `value::Int`: The index value.
-"""
-struct ReducedDerivativeIndex <: ObjectIndex
-    value::Int
-end
-
-"""
-    PointDerivativeIndex <: ObjectIndex
-
-A `DataType` for storing the index of a [`PointDerivative`](@ref).
-
-**Fields**
-- `value::Int`: The index value.
-"""
-struct PointDerivativeIndex <: ObjectIndex
-    value::Int
 end
 
 # Define convenient aliases
@@ -220,7 +160,7 @@ end
 ## Extend the CleverDicts key access methods
 # index_to_key
 function MOIUC.index_to_key(::Type{C},
-                            index::Int64)::ObjectIndex where {C <: ObjectIndex}
+                            index::Int64) where {C <: ObjectIndex}
     return C(index)
 end
 
@@ -234,7 +174,7 @@ Base.length(index::AbstractInfOptIndex) = 1
 Base.broadcastable(index::AbstractInfOptIndex) = Ref(index)
 Base.iterate(index::AbstractInfOptIndex) = (index, true)
 Base.iterate(index::AbstractInfOptIndex, state) = nothing
-Base.hash(v::ObjectIndex, h::UInt) = hash(v.value, h)
+# Base.hash(v::ObjectIndex, h::UInt) = hash(v.value, h)
 
 ################################################################################
 #                            INFINITE SET TYPES
@@ -423,7 +363,7 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
 - `name::String`: The name used for printing.
 - `infinite_var_indices::Vector{InfiniteVariableIndex}`: Indices of dependent
    infinite variables.
-- `derivative_indices::Vector{InfiniteDerivativeIndex}`: Indices of dependent derivatives.
+- `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
 - `in_objective::Bool`: Is this used in objective? This should be true only for finite parameters.
@@ -434,7 +374,7 @@ mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     parameter_num::Int
     name::String
     infinite_var_indices::Vector{InfiniteVariableIndex}
-    derivative_indices::Vector{InfiniteDerivativeIndex}
+    derivative_indices::Vector{DerivativeIndex}
     measure_indices::Vector{MeasureIndex}
     constraint_indices::Vector{ConstraintIndex}
     in_objective::Bool
@@ -444,7 +384,7 @@ mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
                                  name::String = ""
                                  ) where {P <: ScalarParameter}
         return new{P}(param, object_num, parameter_num, name,
-                      InfiniteVariableIndex[], InfiniteDerivativeIndex[], 
+                      InfiniteVariableIndex[], DerivativeIndex[], 
                       MeasureIndex[], ConstraintIndex[], false)
     end
 end
@@ -463,7 +403,7 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 - `names::Vector{String}`: The names used for printing each parameter.
 - `infinite_var_indices::Vector{InfiniteVariableIndex}`: Indices of
    dependent infinite variables.
-- `derivative_indices::Vector{Vector{InfiniteDerivativeIndex}} `: Indices of dependent derivatives.
+- `derivative_indices::Vector{Vector{DerivativeIndex}} `: Indices of dependent derivatives.
 - `measure_indices::Vector{Vector{MeasureIndex}}`: Indices of dependent measures.
 - `constraint_indices::Vector{Vector{ConstraintIndex}}`: Indices of dependent
   constraints.
@@ -474,7 +414,7 @@ mutable struct MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
     parameter_nums::UnitRange{Int}
     names::Vector{String}
     infinite_var_indices::Vector{InfiniteVariableIndex}
-    derivative_indices::Vector{Vector{InfiniteDerivativeIndex}} 
+    derivative_indices::Vector{Vector{DerivativeIndex}} 
     measure_indices::Vector{Vector{MeasureIndex}}
     constraint_indices::Vector{Vector{ConstraintIndex}}
     function MultiParameterData(params::DependentParameters{T},
@@ -484,7 +424,7 @@ mutable struct MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
                                 ) where {T <: InfiniteArraySet}
         return new{T}(params, object_num, parameter_nums, names,
                       InfiniteVariableIndex[],
-                      [InfiniteDerivativeIndex[] for i in eachindex(names)],
+                      [DerivativeIndex[] for i in eachindex(names)],
                       [MeasureIndex[] for i in eachindex(names)],
                       [ConstraintIndex[] for i in eachindex(names)])
     end
@@ -553,7 +493,7 @@ A `DataType` for storing reduced infinite variables which partially support an
 infinite variable.
 
 **Fields**
-- `infinite_variable_ref::I`: The original infinite variable.
+- `infinite_variable_ref::I`: The original infinite/derivvative variable.
 - `eval_supports::Dict{Int, Float64}`: The original parameter tuple linear indices
                                      to the evaluation supports.
 - `parameter_nums::Vector{Int}`: The parameter numbers associated with the reduced
@@ -577,7 +517,7 @@ defined in [`InfiniteVariable`](@ref)
 
 **Fields**
 - `info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}` JuMP Variable information.
-- `infinite_variable_ref::I` The infinite variable reference
+- `infinite_variable_ref::I` The infinite variable/derivative reference
     associated with the point variable.
 - `parameter_values::Vector{Float64}` The infinite parameter values
     defining the point.
@@ -620,7 +560,7 @@ A mutable `DataType` for storing `InfOptVariable`s and their data.
 - `in_objective::Bool`: Is this used in objective?
 - `point_var_indices::Vector{PointVariableIndex}`: Indices of dependent point variables.
 - `reduced_var_indices::Vector{ReducedVariableIndex}`: Indices of dependent reduced variables.
-- `derivative_indices::Vector{InfiniteDerivativeIndex}`: Indices of dependent derivatives.
+- `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
 """
 mutable struct VariableData{V <: InfOptVariable} <: AbstractDataObject
     variable::V
@@ -635,11 +575,11 @@ mutable struct VariableData{V <: InfOptVariable} <: AbstractDataObject
     in_objective::Bool
     point_var_indices::Vector{PointVariableIndex} # InfiniteVariables only
     reduced_var_indices::Vector{ReducedVariableIndex} # InfiniteVariables only
-    derivative_indices::Vector{InfiniteDerivativeIndex} # infinite and reduced only
+    derivative_indices::Vector{DerivativeIndex} # infinite and reduced only
     function VariableData(var::V, name::String = "") where {V <: InfOptVariable}
         return new{V}(var, name, nothing, nothing, nothing, nothing, nothing,
                    MeasureIndex[], ConstraintIndex[], false, PointVariableIndex[],
-                   ReducedVariableIndex[], InfiniteDerivativeIndex[])
+                   ReducedVariableIndex[], DerivativeIndex[])
     end
 end
 
@@ -671,15 +611,8 @@ struct Integral <: AbstractDerivativeMethod
 end
 
 """
-    InfOptDerivative <: JuMP.AbstractVariable
-
-An abstract type for infinite, reduced, point, and hold derivatives.
-"""
-abstract type InfOptDerivative <: JuMP.AbstractVariable end
-
-"""
-    InfiniteDerivative{V <: GeneralVariableRef, 
-                       D <: AbstractDerivativeMethod} <: InfOptDerivative
+    Derivative{V <: GeneralVariableRef, 
+               D <: AbstractDerivativeMethod} <: InfOptVariable
 
 A `DataType` for storing core infinite derivative information. This follows a 
 derivative of the form: ``\\frac{\\partial x(\\alpha, \\hdots)}{\\partial \\alpha}`` 
@@ -700,92 +633,13 @@ infinite variables and parameters.
 - `parameter_ref::V`: The variable reference of the infinite parameter denomenator.
 - `eval_method::D`: The method used to evaluate the derivative (e.g., finite difference)
 """
-struct InfiniteDerivative{V <: JuMP.AbstractVariableRef, 
-                          D <: AbstractDerivativeMethod} <: InfOptDerivative
+struct Derivative{V <: JuMP.AbstractVariableRef, 
+                  D <: AbstractDerivativeMethod} <: InfOptVariable
     info::JuMP.VariableInfo{Float64, Float64, Float64, Function}
     is_vector_start::Bool
     variable_ref::V # could be ref of infinite/reduced variable/derivative (top of derivative)
     parameter_ref::V # a scalar infinite parameter ref (bottom of derivative)
     eval_method::D
-end
-
-"""
-    ReducedDerivative{D <: GeneralVariableRef} <: InfOptDerivative
-
-A `DataType` for storing reduced infinite derivatives which partially support an
-infinite derivative.
-
-**Fields**
-- `infinite_derivative_ref::D`: The original infinite derivative.
-- `eval_supports::Dict{Int, Float64}`: The original parameter tuple linear indices
-                                     to the evaluation supports.
-- `parameter_nums::Vector{Int}`: The parameter numbers associated with the reduced
-                                 `parameter_refs`.
-- `object_nums::Vector{Int}`: The parameter object numbers associated with the
-                              reduced `parameter_refs`.
-"""
-struct ReducedDerivative{D <: JuMP.AbstractVariableRef} <: InfOptDerivative
-    infinite_derivative_ref::D # must be ref of InfiniteDerivative
-    eval_supports::Dict{Int, Float64}
-    parameter_nums::Vector{Int}
-    object_nums::Vector{Int}
-end
-
-"""
-    PointDerivative{D <: GeneralVariableRef} <: InfOptDerivative
-
-A `DataType` for storing point derivative information. Note that the elements
-`parameter_values` field must match the format of the parameter reference tuple
-defined in `InfiniteDerivative.variable_ref`.
-
-**Fields**
-- `info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}` JuMP Variable information.
-- `infinite_derivative_ref::D` The infinite derivative reference
-    associated with the point derivative.
-- `parameter_values::Vector{Float64}` The infinite parameter values
-    defining the point.
-"""
-struct PointDerivative{D <: JuMP.AbstractVariableRef} <: InfOptDerivative
-    info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
-    infinite_derivative_ref::D # must be ref of InfiniteDerivative
-    parameter_values::Vector{Float64}
-end
-
-"""
-    DerivativeData{D <: InfOptDerivative} <: AbstractDataObject
-
-A mutable `DataType` for storing `InfOptDerivative`s and their data.
-
-**Fields**
-- `derivative::D`: The scalar derivative.
-- `name::String`: The name used for printing.
-- `lower_bound_index::Union{ConstraintIndex, Nothing}`: Index of lower bound constraint.
-- `upper_bound_index::Union{ConstraintIndex, Nothing}`: Index of upper bound constraint.
-- `fix_index::Union{ConstraintIndex, Nothing}`: Index on fixing constraint.
-- `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
-- `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
-- `in_objective::Bool`: Is this used in objective?
-- `point_deriv_indices::Vector{PointDerivativeIndex}`: Indices of dependent point derivatives.
-- `reduced_deriv_indices::Vector{ReducedDerivativeIndex}`: Indices of dependent reduced derivatives.
-- `derivative_indices::Vector{InfiniteDerivativeIndex}`: Indices of dependent infinite derivatives.
-"""
-mutable struct DerivativeData{D <: InfOptDerivative} <: AbstractDataObject
-    derivative::D
-    name::String
-    lower_bound_index::Union{ConstraintIndex, Nothing}
-    upper_bound_index::Union{ConstraintIndex, Nothing}
-    fix_index::Union{ConstraintIndex, Nothing}
-    measure_indices::Vector{MeasureIndex}
-    constraint_indices::Vector{ConstraintIndex}
-    in_objective::Bool
-    point_deriv_indices::Vector{PointDerivativeIndex} # InfiniteDerivatives only
-    reduced_deriv_indices::Vector{ReducedDerivativeIndex} # InfiniteDerivatives only
-    derivative_indices::Vector{InfiniteDerivativeIndex} # infinite and reduced only
-    function DerivativeData(deriv::D, name::String = "") where {D <: InfOptDerivative}
-        return new{D}(deriv, name, nothing, nothing, nothing,
-                   MeasureIndex[], ConstraintIndex[], false, PointDerivativeIndex[],
-                   ReducedDerivativeIndex[], InfiniteDerivativeIndex[])
-    end
 end
 
 ################################################################################
@@ -984,7 +838,7 @@ A mutable `DataType` for storing [`Measure`](@ref)s and their data.
 - `name::String`: The base name used for printing `name(meas_expr d(par))`.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
-- `derivative_indices::Vector{InfiniteDerivativeIndex}`: Indices of dependent derivatives.
+- `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
 - `in_objective::Bool`: Is this used in objective?
 """
 mutable struct MeasureData <: AbstractDataObject
@@ -992,11 +846,11 @@ mutable struct MeasureData <: AbstractDataObject
     name::String
     measure_indices::Vector{MeasureIndex}
     constraint_indices::Vector{ConstraintIndex}
-    derivative_indices::Vector{InfiniteDerivativeIndex}
+    derivative_indices::Vector{DerivativeIndex}
     in_objective::Bool
     function MeasureData(measure::Measure, name::String = "measure")
         return new(measure, name, MeasureIndex[], ConstraintIndex[], 
-                   InfiniteDerivativeIndex[], false)
+                   DerivativeIndex[], false)
     end
 end
 
@@ -1084,12 +938,8 @@ model an optmization problem with an infinite-dimensional decision space.
    Field to help find a variable given the name.
 - `has_hold_bounds::Bool`:
    Does any variable have parameter bounds?
-- `infinite_derivs::MOIUC.CleverDict{InfiniteDerivativeIndex, <:DerivativeData{<:InfiniteDerivative}}`:
-  The infinite derivatives and their mapping information.
-- `reduced_derivs::MOIUC.CleverDict{ReducedDerivativeIndex, <:DerivativeData{<:ReducedDerivative}}`:
-  The reduced infinite derivatives and their mapping information.
-- `point_derivs::MOIUC.CleverDict{PointDerivativeIndex, <:DerivativeData{<:PointDerivative}}`: 
-  The point derivatives and their mapping information.
+- `derivatives::MOIUC.CleverDict{DerivativeIndex, <:VariableData{<:Derivative}}`:
+  The derivatives and their mapping information.
 - `measures::MOIUC.CleverDict{MeasureIndex, MeasureData}`:
    The measures and their mapping information.
 - `integral_defaults::Dict{Symbol}`:
@@ -1125,9 +975,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     has_hold_bounds::Bool
 
     # Derivative Data 
-    infinite_derivs::MOIUC.CleverDict{InfiniteDerivativeIndex, <:DerivativeData{<:InfiniteDerivative}}
-    reduced_derivs::MOIUC.CleverDict{ReducedDerivativeIndex, <:DerivativeData{<:ReducedDerivative}}
-    point_derivs::MOIUC.CleverDict{PointDerivativeIndex, <:DerivativeData{<:PointDerivative}}
+    derivatives::MOIUC.CleverDict{DerivativeIndex, <:VariableData{<:Derivative}}
 
     # Measure Data
     measures::MOIUC.CleverDict{MeasureIndex, MeasureData}
@@ -1210,9 +1058,7 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          MOIUC.CleverDict{HoldVariableIndex, VariableData{HoldVariable{GeneralVariableRef}}}(),
                          nothing, false,
                          # Derivatives
-                         MOIUC.CleverDict{InfiniteDerivativeIndex, DerivativeData{InfiniteDerivative{GeneralVariableRef}}}(),
-                         MOIUC.CleverDict{ReducedDerivativeIndex, DerivativeData{ReducedDerivative{GeneralVariableRef}}}(),
-                         MOIUC.CleverDict{PointDerivativeIndex, DerivativeData{PointDerivative{GeneralVariableRef}}}(),
+                         MOIUC.CleverDict{DerivativeIndex, VariableData{<:Derivative}}(),
                          # Measures
                          MOIUC.CleverDict{MeasureIndex, MeasureData}(),
                          # Constraints
@@ -1366,33 +1212,17 @@ struct ReducedVariableRef <: DispatchVariableRef
 end
 
 """
-    InfiniteDerivativeRef <: DispatchVariableRef
+    DerivativeRef <: DispatchVariableRef
 
-A `DataType` for untranscripted infinite dimensional derivative references.
-
-**Fields**
-- `model::InfiniteModel`: Infinite model.
-- `index::InfiniteDerivativeIndex`: Index of the derivative in model.
-"""
-struct InfiniteDerivativeRef <: DispatchVariableRef
-    model::InfiniteModel
-    index::InfiniteDerivativeIndex
-end
-
-"""
-    ReducedDerivativeRef <: DispatchVariableRef
-
-A `DataTyp`e for partially transcripted infinite dimensional derivatives references.
-This is used to expand measures that contain infinite derivatives that are not
-fully transcripted by the measure.
+A `DataType` for untranscripted derivative references.
 
 **Fields**
 - `model::InfiniteModel`: Infinite model.
-- `index::ReducedDerivativeIndex`: Index of the derivative in model.
+- `index::DerivativeIndex`: Index of the derivative in model.
 """
-struct ReducedDerivativeRef <: DispatchVariableRef
+struct DerivativeRef <: DispatchVariableRef
     model::InfiniteModel
-    index::ReducedDerivativeIndex
+    index::DerivativeIndex
 end
 
 """
@@ -1454,20 +1284,6 @@ struct HoldVariableRef <: FiniteVariableRef
 end
 
 """
-    PointDerivativeRef <: FiniteVariableRef
-
-A `DataType` for derivatives defined at a transcipted point.
-
-**Fields**
-- `model::InfiniteModel`: Infinite model.
-- `index::PointDerivativeIndex`: Index of the derivative in model.
-"""
-struct PointDerivativeRef <: FiniteVariableRef
-    model::InfiniteModel
-    index::PointDerivativeIndex
-end
-
-"""
     FiniteParameterRef <: FiniteVariableRef
 
 A `DataType` for finite parameters references who are replaced with their values
@@ -1484,10 +1300,11 @@ end
 
 ## Define convenient aliases
 const DecisionVariableRef = Union{InfiniteVariableRef, ReducedVariableRef,
-                                  PointVariableRef, HoldVariableRef}
+                                  PointVariableRef, HoldVariableRef, 
+                                  DerivativeRef}
 
 const UserDecisionVariableRef = Union{InfiniteVariableRef, PointVariableRef,
-                                      HoldVariableRef}
+                                      HoldVariableRef, DerivativeRef}
 
 const ScalarParameterRef = Union{IndependentParameterRef, FiniteParameterRef}
 

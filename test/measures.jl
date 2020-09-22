@@ -59,8 +59,8 @@
     end
     # _derivative_dependencies
     @testset "_derivative_dependencies" begin
-        @test InfiniteOpt._derivative_dependencies(mref) == InfiniteDerivativeIndex[]
-        @test InfiniteOpt._derivative_dependencies(gvref) == InfiniteDerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(mref) == DerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(gvref) == DerivativeIndex[]
     end
     # test _delete_data_object
     @testset "_delete_data_object" begin
@@ -557,6 +557,10 @@ end
     @testset "raw_parameter_refs (measure)" begin
         @test raw_parameter_refs(mref) == InfiniteOpt.Collections.VectorTuple(par)
     end
+    # test parameter_list for measure
+    @testset "parameter_list (measure)" begin
+        @test parameter_list(mref) == [par]
+    end
     @testset "used_by_constraint" begin
         # test not used
         @test !used_by_constraint(mref)
@@ -583,7 +587,7 @@ end
         # test not used
         @test !used_by_derivative(mref)
         # prepare use case
-        push!(InfiniteOpt._derivative_dependencies(mref), InfiniteDerivativeIndex(1))
+        push!(InfiniteOpt._derivative_dependencies(mref), DerivativeIndex(1))
         # test used
         @test used_by_derivative(mref)
         # undo changes

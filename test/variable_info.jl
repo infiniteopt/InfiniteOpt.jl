@@ -32,16 +32,16 @@
         @test_throws ErrorException lower_bound(vref1)
     end
     # _lower_bound_index
-    @testset "JuMP._lower_bound_index" begin
-        @test JuMP._lower_bound_index(vref2) == ConstraintIndex(1)
-        @test_throws ErrorException JuMP._lower_bound_index(vref1)
+    @testset "InfiniteOpt._lower_bound_index" begin
+        @test InfiniteOpt._lower_bound_index(vref2) == ConstraintIndex(1)
+        @test_throws ErrorException InfiniteOpt._lower_bound_index(vref1)
     end
     # _set_lower_bound_index
     @testset "_set_lower_bound_index" begin
         # test function
         @test isa(InfiniteOpt._set_lower_bound_index(vref2, ConstraintIndex(2)),
                   Nothing)
-        @test JuMP._lower_bound_index(vref2) == ConstraintIndex(2)
+        @test InfiniteOpt._lower_bound_index(vref2) == ConstraintIndex(2)
         # undo changes
         @test isa(InfiniteOpt._set_lower_bound_index(vref2, ConstraintIndex(1)),
                   Nothing)
@@ -110,16 +110,16 @@ end
         @test_throws ErrorException upper_bound(vref1)
     end
     # _upper_bound_index
-    @testset "JuMP._upper_bound_index" begin
-        @test JuMP._upper_bound_index(vref2) == ConstraintIndex(1)
-        @test_throws ErrorException JuMP._upper_bound_index(vref1)
+    @testset "InfiniteOpt._upper_bound_index" begin
+        @test InfiniteOpt._upper_bound_index(vref2) == ConstraintIndex(1)
+        @test_throws ErrorException InfiniteOpt._upper_bound_index(vref1)
     end
     # _set_upper_bound_index
     @testset "_set_upper_bound_index" begin
         # test function
         @test isa(InfiniteOpt._set_upper_bound_index(vref2, ConstraintIndex(2)),
                   Nothing)
-        @test JuMP._upper_bound_index(vref2) == ConstraintIndex(2)
+        @test InfiniteOpt._upper_bound_index(vref2) == ConstraintIndex(2)
         # undo changes
         @test isa(InfiniteOpt._set_upper_bound_index(vref2, ConstraintIndex(1)),
                   Nothing)
@@ -185,15 +185,15 @@ end
         @test_throws ErrorException fix_value(vref1)
     end
     # _fix_index
-    @testset "JuMP._fix_index" begin
-        @test JuMP._fix_index(vref2) == ConstraintIndex(1)
-        @test_throws ErrorException JuMP._fix_index(vref1)
+    @testset "InfiniteOpt._fix_index" begin
+        @test InfiniteOpt._fix_index(vref2) == ConstraintIndex(1)
+        @test_throws ErrorException InfiniteOpt._fix_index(vref1)
     end
     # _set_fix_index
     @testset "_set_fix_index" begin
         # test function
         @test isa(InfiniteOpt._set_fix_index(vref2, ConstraintIndex(2)), Nothing)
-        @test JuMP._fix_index(vref2) == ConstraintIndex(2)
+        @test InfiniteOpt._fix_index(vref2) == ConstraintIndex(2)
         # undo changes
         @test isa(InfiniteOpt._set_fix_index(vref2, ConstraintIndex(1)), Nothing)
     end
@@ -329,15 +329,15 @@ end
         @test is_binary(gvref2)
     end
     # _binary_index
-    @testset "JuMP._binary_index" begin
-        @test JuMP._binary_index(vref2) == ConstraintIndex(1)
-        @test_throws ErrorException JuMP._binary_index(vref1)
+    @testset "InfiniteOpt._binary_index" begin
+        @test InfiniteOpt._binary_index(vref2) == ConstraintIndex(1)
+        @test_throws ErrorException InfiniteOpt._binary_index(vref1)
     end
     # _set_binary_index
     @testset "_set_binary_index" begin
         # test function
         @test isa(InfiniteOpt._set_binary_index(vref2, ConstraintIndex(2)), Nothing)
-        @test JuMP._binary_index(vref2) == ConstraintIndex(2)
+        @test InfiniteOpt._binary_index(vref2) == ConstraintIndex(2)
         # undo changes
         @test isa(InfiniteOpt._set_binary_index(vref2, ConstraintIndex(1)), Nothing)
     end
@@ -392,15 +392,15 @@ end
         @test is_integer(gvref2)
     end
     # _integer_index
-    @testset "JuMP._integer_index" begin
-        @test JuMP._integer_index(vref2) == ConstraintIndex(1)
-        @test_throws ErrorException JuMP._integer_index(vref1)
+    @testset "InfiniteOpt._integer_index" begin
+        @test InfiniteOpt._integer_index(vref2) == ConstraintIndex(1)
+        @test_throws ErrorException InfiniteOpt._integer_index(vref1)
     end
     # _set_integer_index
     @testset "_set_integer_index" begin
         # test function
         @test isa(InfiniteOpt._set_integer_index(vref2, ConstraintIndex(2)), Nothing)
-        @test JuMP._integer_index(vref2) == ConstraintIndex(2)
+        @test InfiniteOpt._integer_index(vref2) == ConstraintIndex(2)
         # undo changes
         @test isa(InfiniteOpt._set_integer_index(vref2, ConstraintIndex(1)), Nothing)
     end

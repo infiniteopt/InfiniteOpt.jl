@@ -318,7 +318,7 @@ end
 
 # Extend _derivative_dependencies
 function _derivative_dependencies(pref::ScalarParameterRef
-    )::Vector{InfiniteDerivativeIndex}
+    )::Vector{DerivativeIndex}
     return _data_object(pref).derivative_indices
 end
 

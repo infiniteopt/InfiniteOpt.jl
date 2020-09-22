@@ -71,8 +71,7 @@ export AbstractInfOptIndex, ObjectIndex, IndependentParameterIndex,
 DependentParametersIndex, DependentParameterIndex, FiniteParameterIndex,
 InfiniteVariableIndex, PointVariableIndex, ReducedVariableIndex,
 HoldVariableIndex, MeasureIndex, ConstraintIndex, InfiniteParameterIndex,
-FiniteVariableIndex, InfiniteDerivativeIndex, ReducedDerivativeIndex, 
-PointDerivativeIndex
+FiniteVariableIndex, DerivativeIndex
 
 # Export infinite set types
 export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
@@ -113,17 +112,15 @@ intervals, dispatch_variable_ref, internal_reduced_variable, start_value_functio
 set_start_value_function, reset_start_value_function
 
 # Export derivative datatypes 
-export AbstractDerivativeMethod, Integral, InfOptDerivative, InfiniteDerivative, 
-ReducedDerivative, PointDerivative, InfiniteDerivativeRef, ReducedDerivativeRef,
-PointDerivativeRef
+export AbstractDerivativeMethod, Integral, Derivative, DerivativeRef
 
 # Export derivative methods 
-export build_derivative, add_derivative
+export build_derivative, add_derivative, derivative_argument, operator_parameter,
+eval_method
 
 # Export measure datatypes
 export AbstractMeasureData, DiscreteMeasureData, FunctionalDiscreteMeasureData,
-Measure, MeasureData, MeasureRef, DerivativeData, InfiniteDerivativeRef, 
-ReducedDerivativeRef, PointDerivativeRef
+Measure, MeasureData, MeasureRef
 
 # Export measure methods
 export default_weight, support_label, coefficient_function, coefficients,

@@ -397,7 +397,7 @@ function JuMP.lower_bound(vref::UserDecisionVariableRef)::Float64
 end
 
 # Extend to return the index of the lower bound constraint associated with `vref`.
-function JuMP._lower_bound_index(vref::UserDecisionVariableRef)::ConstraintIndex
+function _lower_bound_index(vref::UserDecisionVariableRef)::ConstraintIndex
     if !JuMP.has_lower_bound(vref)
         error("Variable $(vref) does not have a lower bound.")
     end
@@ -433,7 +433,7 @@ function JuMP.set_lower_bound(vref::UserDecisionVariableRef,
     new_constr = JuMP.ScalarConstraint(gvref, newset)
     model = JuMP.owner_model(vref)
     if JuMP.has_lower_bound(vref)
-        cindex = JuMP._lower_bound_index(vref)
+        cindex = _lower_bound_index(vref)
         cref = _temp_constraint_ref(model, cindex)
         _set_core_constraint_object(cref, new_constr)
         set_optimizer_model_ready(model, false)
@@ -463,7 +463,7 @@ var ≥ 0.0
 ```
 """
 function JuMP.LowerBoundRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
-    cindex = JuMP._lower_bound_index(vref)
+    cindex = _lower_bound_index(vref)
     model = JuMP.owner_model(vref)
     return _temp_constraint_ref(model, cindex)
 end
@@ -528,7 +528,7 @@ function JuMP.upper_bound(vref::UserDecisionVariableRef)::Float64
 end
 
 # Extend to return the index of the upper bound constraint associated with `vref`.
-function JuMP._upper_bound_index(vref::UserDecisionVariableRef)::ConstraintIndex
+function _upper_bound_index(vref::UserDecisionVariableRef)::ConstraintIndex
     if !JuMP.has_upper_bound(vref)
         error("Variable $(vref) does not have a upper bound.")
     end
@@ -564,7 +564,7 @@ function JuMP.set_upper_bound(vref::UserDecisionVariableRef,
     new_constr = JuMP.ScalarConstraint(gvref, newset)
     model = JuMP.owner_model(vref)
     if JuMP.has_upper_bound(vref)
-        cindex = JuMP._upper_bound_index(vref)
+        cindex = _upper_bound_index(vref)
         cref = _temp_constraint_ref(model, cindex)
         _set_core_constraint_object(cref, new_constr)
         set_optimizer_model_ready(model, false)
@@ -595,7 +595,7 @@ var ≤ 1.0
 ```
 """
 function JuMP.UpperBoundRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
-    cindex = JuMP._upper_bound_index(vref)
+    cindex = _upper_bound_index(vref)
     model = JuMP.owner_model(vref)
     return _temp_constraint_ref(model, cindex)
 end
@@ -660,7 +660,7 @@ function JuMP.fix_value(vref::UserDecisionVariableRef)::Float64
 end
 
 # Extend to return the index of the fix constraint associated with `vref`.
-function JuMP._fix_index(vref::UserDecisionVariableRef)::ConstraintIndex
+function _fix_index(vref::UserDecisionVariableRef)::ConstraintIndex
     if !JuMP.is_fixed(vref)
         error("Variable $(vref) is not fixed.")
     end
@@ -702,7 +702,7 @@ function JuMP.fix(vref::UserDecisionVariableRef, value::Real;
     gvref = _make_variable_ref(JuMP.owner_model(vref), JuMP.index(vref))
     new_constr = JuMP.ScalarConstraint(gvref, new_set)
     if JuMP.is_fixed(vref)  # Update existing fixing constraint.
-        cindex = JuMP._fix_index(vref)
+        cindex = _fix_index(vref)
         cref = _temp_constraint_ref(model, cindex)
         _set_core_constraint_object(cref, new_constr)
         set_optimizer_model_ready(model, false)
@@ -747,7 +747,7 @@ var = 1.0
 ```
 """
 function JuMP.FixRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
-    cindex = JuMP._fix_index(vref)
+    cindex = _fix_index(vref)
     model = JuMP.owner_model(vref)
     return _temp_constraint_ref(model, cindex)
 end
@@ -839,7 +839,7 @@ true
 JuMP.is_binary(vref::UserDecisionVariableRef)::Bool = _variable_info(vref).binary
 
 # Extend to return the index of the binary constraint associated with `vref`.
-function JuMP._binary_index(vref::UserDecisionVariableRef)::ConstraintIndex
+function _binary_index(vref::UserDecisionVariableRef)::ConstraintIndex
     if !JuMP.is_binary(vref)
         error("Variable $(vref) is not binary.")
     end
@@ -903,7 +903,7 @@ var binary
 ```
 """
 function JuMP.BinaryRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
-    cindex = JuMP._binary_index(vref)
+    cindex = _binary_index(vref)
     model = JuMP.owner_model(vref)
     return _temp_constraint_ref(model, cindex)
 end
@@ -948,7 +948,7 @@ true
 JuMP.is_integer(vref::UserDecisionVariableRef)::Bool = _variable_info(vref).integer
 
 # Extend to return the index of the integer constraintassociated with `vref`.
-function JuMP._integer_index(vref::UserDecisionVariableRef)::ConstraintIndex
+function _integer_index(vref::UserDecisionVariableRef)::ConstraintIndex
     if !JuMP.is_integer(vref)
         error("Variable $(vref) is not an integer.")
     end
@@ -1012,7 +1012,7 @@ var integer
 ```
 """
 function JuMP.IntegerRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
-    cindex = JuMP._integer_index(vref)
+    cindex = _integer_index(vref)
     model = JuMP.owner_model(vref)
     return _temp_constraint_ref(model, cindex)
 end

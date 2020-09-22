@@ -107,8 +107,8 @@
     end
     # _derivative_dependencies
     @testset "_derivative_dependencies" begin
-        @test InfiniteOpt._derivative_dependencies(vref) == InfiniteDerivativeIndex[]
-        @test InfiniteOpt._derivative_dependencies(gvref) == InfiniteDerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(vref) == DerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(gvref) == DerivativeIndex[]
     end
     # JuMP.name
     @testset "JuMP.name" begin
@@ -404,7 +404,7 @@ end
         cindex = ConstraintIndex(1)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_lower_bound(vref)
-        @test JuMP._lower_bound_index(vref) == cindex
+        @test InfiniteOpt._lower_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                            MOI.GreaterThan{Float64}}
         @test InfiniteOpt._data_object(cref).is_info_constraint
@@ -412,7 +412,7 @@ end
         cindex = ConstraintIndex(2)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_upper_bound(vref)
-        @test JuMP._upper_bound_index(vref) == cindex
+        @test InfiniteOpt._upper_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                            MOI.LessThan{Float64}}
         @test InfiniteOpt._data_object(cref).is_info_constraint
@@ -420,7 +420,7 @@ end
         cindex = ConstraintIndex(3)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test is_fixed(vref)
-        @test JuMP._fix_index(vref) == cindex
+        @test InfiniteOpt._fix_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                            MOI.EqualTo{Float64}}
         @test InfiniteOpt._data_object(cref).is_info_constraint
@@ -428,7 +428,7 @@ end
         cindex = ConstraintIndex(4)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test is_binary(vref)
-        @test JuMP._binary_index(vref) == cindex
+        @test InfiniteOpt._binary_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                            MOI.ZeroOne}
         @test InfiniteOpt._data_object(cref).is_info_constraint
@@ -447,7 +447,7 @@ end
         cindex = ConstraintIndex(8)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test is_integer(vref)
-        @test JuMP._integer_index(vref) == cindex
+        @test InfiniteOpt._integer_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                            MOI.Integer}
         @test InfiniteOpt._data_object(cref).is_info_constraint
@@ -812,7 +812,7 @@ end
     # test used_by_derivative
     @testset "used_by_derivative" begin
         @test !used_by_derivative(vref)
-        push!(InfiniteOpt._derivative_dependencies(vref), InfiniteDerivativeIndex(1))
+        push!(InfiniteOpt._derivative_dependencies(vref), DerivativeIndex(1))
         @test used_by_derivative(y)
         @test used_by_derivative(vref)
         empty!(InfiniteOpt._derivative_dependencies(vref))
@@ -870,5 +870,22 @@ end
         @test !is_used(vref)
         push!(InfiniteOpt._constraint_dependencies(rvref), ConstraintIndex(2))
         @test is_used(vref)
+        empty!(InfiniteOpt._reduced_variable_dependencies(vref))
+        # test used by derivative
+        eval_method = Integral(10, Automatic)
+        func = (x) -> NaN
+        num = 0.
+        info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
+                                         num, true, num, false, func, true, true)
+        deriv = Derivative(info, true, y, t, eval_method)
+        object = VariableData(deriv)
+        idx = DerivativeIndex(1)
+        dref = DerivativeRef(m, idx)
+        @test InfiniteOpt._add_data_object(m, object) == idx
+        push!(InfiniteOpt._derivative_dependencies(vref), idx)
+        @test !is_used(vref)
+        push!(InfiniteOpt._constraint_dependencies(dref), ConstraintIndex(2))
+        @test is_used(vref)
+        empty!(InfiniteOpt._derivative_dependencies(vref))
     end
 end
