@@ -153,6 +153,42 @@ struct PointDerivativeIndex <: ObjectIndex
     value::Int64
 end
 
+"""
+    InfiniteDerivativeIndex <: ObjectIndex
+
+A `DataType` for storing the index of a [`InfiniteDerivative`](@ref).
+
+**Fields**
+- `value::Int`: The index value.
+"""
+struct InfiniteDerivativeIndex <: ObjectIndex
+    value::Int
+end
+
+"""
+    ReducedDerivativeIndex <: ObjectIndex
+
+A `DataType` for storing the index of a [`ReducedDerivative`](@ref).
+
+**Fields**
+- `value::Int`: The index value.
+"""
+struct ReducedDerivativeIndex <: ObjectIndex
+    value::Int
+end
+
+"""
+    PointDerivativeIndex <: ObjectIndex
+
+A `DataType` for storing the index of a [`PointDerivative`](@ref).
+
+**Fields**
+- `value::Int`: The index value.
+"""
+struct PointDerivativeIndex <: ObjectIndex
+    value::Int
+end
+
 # Define convenient aliases
 const FiniteVariableIndex = Union{PointVariableIndex, HoldVariableIndex,
                                   FiniteParameterIndex}
