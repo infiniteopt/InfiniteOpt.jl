@@ -8,6 +8,7 @@ makedocs(;
                              "Infinite Parameters" => "guide/parameter.md",
                              "Finite Parameters" => "guide/finite_parameter.md",
                              "Variables" => "guide/variable.md",
+                             "Derivatives" => "guide/derivative.md",
                              "Expressions" => "guide/expression.md",
                              "Measures" => "guide/measure.md",
                              "Objectives" => "guide/objective.md",

@@ -198,6 +198,10 @@ end
     @testset "_constraint_dependencies (GeneralVariableRef)" begin
         @test_throws MethodError InfiniteOpt._constraint_dependencies(gvref)
     end
+    # test _derivative_dependencies (GeneralVariableRef)
+    @testset "_derivative_dependencies (GeneralVariableRef)" begin
+        @test_throws MethodError InfiniteOpt._derivative_dependencies(gvref)
+    end
 end
 
 # test Usage Methods
@@ -254,6 +258,14 @@ end
     # test used_by_constraint (GeneralVariableRef)
     @testset "used_by_constraint (GeneralVariableRef)" begin
         @test_throws ArgumentError used_by_constraint(gvref)
+    end
+    # test used_by_derivative (Fallback)
+    @testset "used_by_derivative (Fallback)" begin
+        @test_throws ArgumentError used_by_derivative(dvref)
+    end
+    # test used_by_derivative (GeneralVariableRef)
+    @testset "used_by_derivative (GeneralVariableRef)" begin
+        @test_throws ArgumentError used_by_derivative(gvref)
     end
     # test is_used (Fallback)
     @testset "is_used (Fallback)" begin

@@ -468,6 +468,13 @@ end
         @test InfiniteOpt._constraint_dependencies(gvrefs[1]) == data.constraint_indices[1]
         @test_throws ErrorException InfiniteOpt._constraint_dependencies(bad_pref)
     end
+    # test _derivative_dependencies
+    @testset "_derivative_dependencies" begin
+        @test InfiniteOpt._derivative_dependencies(prefs[1]) == data.derivative_indices[1]
+        @test InfiniteOpt._derivative_dependencies(prefs[2]) == data.derivative_indices[2]
+        @test InfiniteOpt._derivative_dependencies(gvrefs[1]) == data.derivative_indices[1]
+        @test_throws ErrorException InfiniteOpt._derivative_dependencies(bad_pref)
+    end
     # test used_by_infinite_variable
     @testset "used_by_infinite_variable" begin
         # test not used
@@ -479,6 +486,18 @@ end
         @test used_by_infinite_variable(prefs[1])
         # undo changes
         empty!(data.infinite_var_indices)
+    end
+    # test used_by_derivative
+    @testset "used_by_derivative" begin
+        # test not used
+        @test !used_by_derivative(prefs[1])
+        @test !used_by_derivative(prefs[2])
+        @test !used_by_derivative(gvrefs[1])
+        # test used
+        push!(data.derivative_indices[1], InfiniteDerivativeIndex(1))
+        @test used_by_derivative(prefs[1])
+        # undo changes
+        empty!(data.derivative_indices[1])
     end
     # test used_by_measure
     @testset "used_by_measure" begin

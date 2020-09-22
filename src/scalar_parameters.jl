@@ -316,6 +316,12 @@ function _infinite_variable_dependencies(pref::ScalarParameterRef
     return _data_object(pref).infinite_var_indices
 end
 
+# Extend _derivative_dependencies
+function _derivative_dependencies(pref::ScalarParameterRef
+    )::Vector{InfiniteDerivativeIndex}
+    return _data_object(pref).derivative_indices
+end
+
 # Extend _measure_dependencies
 function _measure_dependencies(pref::ScalarParameterRef
     )::Vector{MeasureIndex}
@@ -397,6 +403,24 @@ end
 used_by_objective(::IndependentParameterRef)::Bool = false
 
 """
+    used_by_derivative(pref::IndependentParameterRef)::Bool
+
+Return true if `pref` is used by a derivative or false otherwise.
+
+**Example**
+```julia-repl
+julia> used_by_derivative(t)
+false
+```
+"""
+function used_by_derivative(pref::IndependentParameterRef)::Bool
+    return !isempty(_derivative_dependencies(pref))
+end
+
+# FiniteParameter
+used_by_derivative(::FiniteParameterRef)::Bool = false
+
+"""
     is_used(pref::Union{IndependentParameterRef, FiniteParameterRef})::Bool
 
 Return true if `pref` is used in the model or false otherwise.
@@ -407,15 +431,10 @@ julia> is_used(t)
 true
 ```
 """
-function is_used(pref::IndependentParameterRef)::Bool
+function is_used(pref::ScalarParameterRef)::Bool
     return used_by_measure(pref) || used_by_constraint(pref) ||
-           used_by_infinite_variable(pref)
-end
-
-# FiniteParameterRef
-function is_used(pref::FiniteParameterRef)::Bool
-    return used_by_measure(pref) || used_by_constraint(pref) ||
-           used_by_objective(pref)
+           used_by_infinite_variable(pref) || used_by_objective(pref) || 
+           used_by_derivative(pref)
 end
 
 ################################################################################

@@ -53,6 +53,8 @@ println("")
    @testset "Reduced Variables" begin include("reduced_variables.jl") end
 end
 println("")
+@time @testset "Derivatives" begin include("derivatives.jl") end
+println("")
 @time @testset "Operators" begin include("operators.jl") end
 println("")
 @time @testset "Expression Methods" begin include("expressions.jl") end

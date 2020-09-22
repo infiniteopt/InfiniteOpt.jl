@@ -65,6 +65,11 @@ function _constraint_dependencies(mref::MeasureRef)::Vector{ConstraintIndex}
     return _data_object(mref).constraint_indices
 end
 
+# Extend _derivative_dependencies
+function _derivative_dependencies(mref::MeasureRef)::Vector{InfiniteDerivativeIndex}
+    return _data_object(mref).derivative_indices
+end
+
 ################################################################################
 #                              MEASURE DATA METHODS
 ################################################################################
@@ -1012,6 +1017,11 @@ function parameter_refs(mref::MeasureRef)::Tuple
                  for idx in obj_indices)
 end
 
+# Extend raw_parameter_refs (this is helpful for defining derivatives)
+function raw_parameter_refs(mref::MeasureRef)::VectorTuple{GeneralVariableRef}
+    return VectorTuple(parameter_refs(mref))
+end
+
 """
     measure(expr::JuMP.AbstractJuMPScalar,
             data::AbstractMeasureData;
@@ -1137,7 +1147,7 @@ function used_by_constraint(mref::MeasureRef)::Bool
 end
 
 """
-    used_by_objective(vmref::MeasureRef)::Bool
+    used_by_objective(mref::MeasureRef)::Bool
 
 Return a `Bool` indicating if `mref` is used by the objective.
 
@@ -1149,6 +1159,21 @@ true
 """
 function used_by_objective(mref::MeasureRef)::Bool
     return _data_object(mref).in_objective
+end
+
+"""
+    used_by_derivative(mref::MeasureRef)::Bool
+
+Return a `Bool` indicating if `mref` is used by a derivative.
+
+**Example**
+```julia-repl
+julia> used_by_derivative(mref)
+true
+```
+"""
+function used_by_derivative(mref::MeasureRef)::Bool
+    return !isempty(_derivative_dependencies(mref))
 end
 
 """
@@ -1164,7 +1189,7 @@ true
 """
 function is_used(mref::MeasureRef)::Bool
     return used_by_measure(mref) || used_by_constraint(mref) ||
-           used_by_objective(mref)
+           used_by_objective(mref) || used_by_derivative(mref)
 end
 
 ################################################################################

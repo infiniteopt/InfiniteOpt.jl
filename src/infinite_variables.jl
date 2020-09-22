@@ -214,13 +214,19 @@ function _point_variable_dependencies(vref::InfiniteVariableRef
     return _data_object(vref).point_var_indices
 end
 
+# Extend _derivative_dependencies
+function _derivative_dependencies(vref::InfiniteVariableRef
+                                  )::Vector{InfiniteDerivativeIndex}
+    return _data_object(vref).derivative_indices
+end
+
 """
     used_by_reduced_variable(vref::InfiniteVariableRef)::Bool
 
 Return a `Bool` indicating if `vref` is used by a reduced infinite variable.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @infinite_variable(m, vref(@infinite_parameter(m, t in [0, 1]))))
+```julia-repl
 julia> used_by_reduced_variable(vref)
 false
 ```
@@ -235,7 +241,7 @@ end
 Return a `Bool` indicating if `vref` is used by a point variable.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @infinite_variable(m, vref(@infinite_parameter(m, t in [0, 1]))))
+```julia-repl
 julia> used_by_point_variable(vref)
 false
 ```
@@ -245,12 +251,27 @@ function used_by_point_variable(vref::InfiniteVariableRef)::Bool
 end
 
 """
+    used_by_derivative(vref::InfiniteVariableRef)::Bool
+
+Return a `Bool` indicating if `vref` is used by a derivative.
+
+**Example**
+```julia-repl
+julia> used_by_derivative(vref)
+true
+```
+"""
+function used_by_derivative(vref::InfiniteVariableRef)::Bool
+    return !isempty(_derivative_dependencies(vref))
+end
+
+"""
     is_used(vref::InfiniteVariableRef)::Bool
 
 Return a `Bool` indicating if `vref` is used in the model.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @infinite_variable(m, vref(@infinite_parameter(m, t in [0, 1]))))
+```julia-repl
 julia> is_used(vref)
 false
 ```
@@ -269,6 +290,13 @@ function is_used(vref::InfiniteVariableRef)::Bool
     if used_by_reduced_variable(vref)
         for vindex in _reduced_variable_dependencies(vref)
             if is_used(ReducedVariableRef(JuMP.owner_model(vref), vindex))
+                return true
+            end
+        end
+    end
+    if used_by_derivative(vref)
+        for dindex in _derivative_dependencies(vref)
+            if is_used(InfiniteDerivativeRef(JuMP.owner_model(vref), dindex))
                 return true
             end
         end

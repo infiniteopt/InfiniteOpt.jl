@@ -228,6 +228,30 @@ function parameter_list(vref::ReducedVariableRef)::Vector{GeneralVariableRef}
 end
 
 ################################################################################
+#                            VARIABLE DEPENDENCIES
+################################################################################
+# Extend _derivative_dependencies
+function _derivative_dependencies(vref::ReducedVariableRef
+                                  )::Vector{InfiniteDerivativeIndex}
+    return _data_object(vref).derivative_indices
+end
+
+"""
+    used_by_derivative(vref::ReducedVariableRef)::Bool
+
+Return a `Bool` indicating if `vref` is used by a derivative.
+
+**Example**
+```julia-repl
+julia> used_by_derivative(vref)
+true
+```
+"""
+function used_by_derivative(vref::ReducedVariableRef)::Bool
+    return !isempty(_derivative_dependencies(vref))
+end
+
+################################################################################
 #                            VARIABLE INFO METHODS
 ################################################################################
 """

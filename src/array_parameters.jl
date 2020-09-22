@@ -349,6 +349,12 @@ function _constraint_dependencies(pref::DependentParameterRef
     return _data_object(pref).constraint_indices[_param_index(pref)]
 end
 
+# Extend _derivative_dependencies
+function _derivative_dependencies(pref::DependentParameterRef
+    )::Vector{InfiniteDerivativeIndex}
+    return _data_object(pref).derivative_indices[_param_index(pref)]
+end
+
 """
     used_by_infinite_variable(pref::DependentParameterRef)::Bool
 
@@ -397,6 +403,22 @@ function used_by_constraint(pref::DependentParameterRef)::Bool
     return !isempty(_constraint_dependencies(pref))
 end
 
+"""
+    used_by_derivative(pref::DependentParameterRef)::Bool
+
+Return a `Bool` indicating if the dependent infinite parameter `pref` is used by
+a derivative.
+
+**Example**
+```julia-repl
+julia> used_by_derivative(pref)
+false
+```
+"""
+function used_by_derivative(pref::DependentParameterRef)::Bool
+    return !isempty(_derivative_dependencies(pref))
+end
+
 # Extend used by objective
 used_by_objective(pref::DependentParameterRef)::Bool = false
 
@@ -414,7 +436,7 @@ true
 """
 function is_used(pref::DependentParameterRef)::Bool
     return used_by_measure(pref) || used_by_constraint(pref) ||
-           used_by_infinite_variable(pref)
+           used_by_infinite_variable(pref) || used_by_derivative(pref)
 end
 
 ################################################################################

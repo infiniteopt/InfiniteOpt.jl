@@ -63,7 +63,7 @@ function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
                              var_type::Symbol;
                              macro_error::Union{Function, Nothing} = nothing,
                              kw_args...)::InfOptVariable
-    if macro_error != nothing
+    if macro_error !== nothing
         _error = macro_error # replace with macro error function
     end
     # make the variable and conduct necessary checks
@@ -73,6 +73,40 @@ end
 # Fallback
 function _check_and_make_variable_ref(model::InfiniteModel, v::T, name) where {T}
     throw(ArgumentError("Invalid variable object type `$T`."))
+end
+
+# helper function for setting the info constraints (#TODO add test)
+function _set_info_constraints(info::JuMP.VariableInfo, gvref::GeneralVariableRef, 
+                               dvref::DispatchVariableRef)::Nothing
+    model = JuMP.owner_model(gvref)
+    if info.has_lb
+        newset = MOI.GreaterThan(info.lower_bound)
+        cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(gvref, newset),
+                                   is_info_constr = true)
+        _set_lower_bound_index(dvref, JuMP.index(cref))
+    end
+    if info.has_ub
+        newset = MOI.LessThan(info.upper_bound)
+        cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(gvref, newset),
+                                   is_info_constr = true)
+        _set_upper_bound_index(dvref, JuMP.index(cref))
+    end
+    if info.has_fix
+        newset = MOI.EqualTo(info.fixed_value)
+        cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(gvref, newset),
+                                   is_info_constr = true)
+        _set_fix_index(dvref, JuMP.index(cref))
+    end
+    if info.binary
+        cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(gvref, MOI.ZeroOne()),
+                                   is_info_constr = true)
+        _set_binary_index(dvref, JuMP.index(cref))
+    elseif info.integer
+        cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(gvref, MOI.Integer()),
+                                   is_info_constr = true)
+        _set_integer_index(dvref, JuMP.index(cref))
+    end
+    return
 end
 
 """
@@ -117,33 +151,7 @@ function JuMP.add_variable(model::InfiniteModel, var::InfOptVariable,
     dvref = _check_and_make_variable_ref(model, var, name)
     vindex = JuMP.index(dvref)
     gvref = _make_variable_ref(model, vindex)
-    if var.info.has_lb
-        newset = MOI.GreaterThan(var.info.lower_bound)
-        cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(gvref, newset),
-                                   is_info_constr = true)
-        _set_lower_bound_index(dvref, JuMP.index(cref))
-    end
-    if var.info.has_ub
-        newset = MOI.LessThan(var.info.upper_bound)
-        cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(gvref, newset),
-                                   is_info_constr = true)
-        _set_upper_bound_index(dvref, JuMP.index(cref))
-    end
-    if var.info.has_fix
-        newset = MOI.EqualTo(var.info.fixed_value)
-        cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(gvref, newset),
-                                   is_info_constr = true)
-        _set_fix_index(dvref, JuMP.index(cref))
-    end
-    if var.info.binary
-        cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(gvref, MOI.ZeroOne()),
-                                   is_info_constr = true)
-        _set_binary_index(dvref, JuMP.index(cref))
-    elseif var.info.integer
-        cref = JuMP.add_constraint(model, JuMP.ScalarConstraint(gvref, MOI.Integer()),
-                                   is_info_constr = true)
-        _set_integer_index(dvref, JuMP.index(cref))
-    end
+    _set_info_constraints(var.info, gvref, dvref)
     return gvref
 end
 

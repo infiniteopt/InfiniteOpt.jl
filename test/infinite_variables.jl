@@ -105,6 +105,11 @@
         @test InfiniteOpt._point_variable_dependencies(vref) == PointVariableIndex[]
         @test InfiniteOpt._point_variable_dependencies(gvref) == PointVariableIndex[]
     end
+    # _derivative_dependencies
+    @testset "_derivative_dependencies" begin
+        @test InfiniteOpt._derivative_dependencies(vref) == InfiniteDerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(gvref) == InfiniteDerivativeIndex[]
+    end
     # JuMP.name
     @testset "JuMP.name" begin
         @test name(vref) == "var"
@@ -803,6 +808,14 @@ end
         @test used_by_point_variable(y)
         @test used_by_point_variable(vref)
         empty!(InfiniteOpt._point_variable_dependencies(vref))
+    end
+    # test used_by_derivative
+    @testset "used_by_derivative" begin
+        @test !used_by_derivative(vref)
+        push!(InfiniteOpt._derivative_dependencies(vref), InfiniteDerivativeIndex(1))
+        @test used_by_derivative(y)
+        @test used_by_derivative(vref)
+        empty!(InfiniteOpt._derivative_dependencies(vref))
     end
     # test used_by_measure
     @testset "used_by_measure" begin

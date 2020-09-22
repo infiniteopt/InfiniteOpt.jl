@@ -68,6 +68,11 @@
         @test InfiniteOpt._constraint_dependencies(vref) == ConstraintIndex[]
         @test InfiniteOpt._constraint_dependencies(gvref) == ConstraintIndex[]
     end
+    # _derivative_dependencies
+    @testset "_derivative_dependencies" begin
+        @test InfiniteOpt._derivative_dependencies(vref) == InfiniteDerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(gvref) == InfiniteDerivativeIndex[]
+    end
     # _object_numbers
     @testset "_object_numbers" begin
         @test InfiniteOpt._object_numbers(vref) == [2]
@@ -369,6 +374,14 @@ end
         @test used_by_constraint(gvref)
         @test used_by_constraint(vref)
         empty!(InfiniteOpt._constraint_dependencies(vref))
+    end
+    # test used_by_derivative
+    @testset "used_by_derivative" begin
+        @test !used_by_derivative(vref)
+        push!(InfiniteOpt._derivative_dependencies(vref), InfiniteDerivativeIndex(1))
+        @test used_by_derivative(gvref)
+        @test used_by_derivative(vref)
+        empty!(InfiniteOpt._derivative_dependencies(vref))
     end
     # test used_by_objective
     @testset "used_by_objective" begin

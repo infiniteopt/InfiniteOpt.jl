@@ -32,6 +32,15 @@
     # HoldVariableIndex
     @test HoldVariableIndex <: ObjectIndex
     @test HoldVariableIndex(1).value == 1
+    # InfiniteDerivativeIndex
+    @test InfiniteDerivativeIndex <: ObjectIndex
+    @test InfiniteDerivativeIndex(1).value == 1
+    # ReducedDerivativeIndex
+    @test ReducedDerivativeIndex <: ObjectIndex
+    @test ReducedDerivativeIndex(1).value == 1
+    # PointDerivativeIndex
+    @test PointDerivativeIndex <: ObjectIndex
+    @test PointDerivativeIndex(1).value == 1
     # MeasureIndex
     @test MeasureIndex <: ObjectIndex
     @test MeasureIndex(1).value == 1
@@ -48,6 +57,9 @@
         @test MOIUC.index_to_key(ReducedVariableIndex, Int64(42)) == ReducedVariableIndex(42)
         @test MOIUC.index_to_key(PointVariableIndex, Int64(42)) == PointVariableIndex(42)
         @test MOIUC.index_to_key(HoldVariableIndex, Int64(42)) == HoldVariableIndex(42)
+        @test MOIUC.index_to_key(InfiniteDerivativeIndex, Int64(42)) == InfiniteDerivativeIndex(42)
+        @test MOIUC.index_to_key(ReducedDerivativeIndex, Int64(42)) == ReducedDerivativeIndex(42)
+        @test MOIUC.index_to_key(PointDerivativeIndex, Int64(42)) == PointDerivativeIndex(42)
         @test MOIUC.index_to_key(MeasureIndex, Int64(42)) == MeasureIndex(42)
         @test MOIUC.index_to_key(ConstraintIndex, Int64(42)) == ConstraintIndex(42)
         # index_to_key
@@ -183,6 +195,18 @@ end
     @test HoldVariableRef <: FiniteVariableRef
     idx = HoldVariableIndex(1)
     @test HoldVariableRef(m, idx) isa HoldVariableRef
+    # InfiniteDerivativeRef
+    @test InfiniteDerivativeRef <: DispatchVariableRef
+    idx = InfiniteDerivativeIndex(1)
+    @test InfiniteDerivativeRef(m, idx) isa InfiniteDerivativeRef
+    # ReducedDerivativeRef
+    @test ReducedDerivativeRef <: DispatchVariableRef
+    idx = ReducedDerivativeIndex(1)
+    @test ReducedDerivativeRef(m, idx) isa ReducedDerivativeRef
+    # PointVariableRef
+    @test PointDerivativeRef <: FiniteVariableRef
+    idx = PointDerivativeIndex(1)
+    @test PointDerivativeRef(m, idx) isa PointDerivativeRef
     # MeasureRef
     @test MeasureRef <: MeasureFiniteVariableRef
     idx = MeasureIndex(1)
@@ -334,6 +358,37 @@ end
     # VariableData
     @test VariableData <: AbstractDataObject
     @test VariableData(HoldVariable(sample_info, ParameterBounds())) isa VariableData
+end
+
+# Test derivative datatypes
+@testset "Derivatives" begin
+    # useful data
+    m = InfiniteModel()
+    num = Float64(0)
+    sample_info = VariableInfo(true, num, true, num, true, num, true, num, true, true)
+    func = (x) -> NaN
+    inf_info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
+                 num, true, num, false, func, true, true)
+    pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
+    vref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
+    dref = GeneralVariableRef(m, 1, InfiniteDerivativeIndex)
+    # Evaluation Data 
+    @test AbstractDerivativeMethod isa DataType
+    @test Integral(10, InfiniteOpt.MeasureToolbox.UniTrapezoid) isa Integral
+    # Abstract derviatives
+    @test InfOptDerivative <: AbstractVariable
+    # Infinite derivative
+    @test InfiniteDerivative <: InfOptDerivative
+    @test InfiniteDerivative(inf_info, true, vref, pref, Integral(10, Int)) isa InfiniteDerivative
+    # Reduced derivative
+    @test ReducedDerivative <: InfOptDerivative
+    @test ReducedDerivative(dref, Dict(1 => Float64(2)), [1], [1]) isa ReducedDerivative
+    # Point derivative
+    @test PointDerivative <: InfOptDerivative
+    @test PointDerivative(sample_info, dref, Float64[1]) isa PointDerivative
+    # DerivativeData
+    @test DerivativeData <: AbstractDataObject
+    @test DerivativeData(PointDerivative(sample_info, dref, Float64[1])) isa DerivativeData
 end
 
 # Test the measure datatypes

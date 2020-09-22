@@ -302,7 +302,7 @@ Return the core object that `vref` points to. This is enabled
 with appropriate definitions of `_core_variable_object` for the
 underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
 """
-function _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable, Measure}
+function _core_variable_object(vref::GeneralVariableRef)
     return _core_variable_object(dispatch_variable_ref(vref))
 end
 
@@ -321,7 +321,7 @@ function _set_core_variable_object end
 # Define wrappers for internal usage methods and their templates
 for op = (:_infinite_variable_dependencies, :_reduced_variable_dependencies,
           :_point_variable_dependencies, :_measure_dependencies,
-          :_constraint_dependencies)
+          :_constraint_dependencies, :_derivative_dependencies)
     @eval begin
         # define the api template
         func = $op
@@ -353,7 +353,7 @@ end
 # Define the usage method wrappers and their fallbacks
 for op = (:used_by_infinite_variable, :used_by_reduced_variable,
           :used_by_point_variable, :used_by_measure, :used_by_constraint,
-          :used_by_objective, :is_used)
+          :used_by_objective, :used_by_derivative, :is_used)
     @eval begin
         # define the fallback method
         func = $op

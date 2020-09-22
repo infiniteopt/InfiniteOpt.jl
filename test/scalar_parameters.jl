@@ -451,6 +451,14 @@ end
         @test InfiniteOpt._infinite_variable_dependencies(dpref2) == InfiniteVariableIndex[]
         @test_throws ErrorException InfiniteOpt._infinite_variable_dependencies(bad_pref)
     end
+    # _derivative_dependencies
+    @testset "_derivative_dependencies" begin
+        @test InfiniteOpt._derivative_dependencies(pref1) == InfiniteDerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(dpref1) == InfiniteDerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(pref2) == InfiniteDerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(dpref2) == InfiniteDerivativeIndex[]
+        @test_throws ErrorException InfiniteOpt._derivative_dependencies(bad_pref)
+    end
     # _measure_dependencies
     @testset "_measure_dependencies" begin
         @test InfiniteOpt._measure_dependencies(pref1) == MeasureIndex[]
@@ -507,6 +515,17 @@ end
         @test used_by_infinite_variable(pref1)
         @test used_by_infinite_variable(dpref1)
         popfirst!(InfiniteOpt._infinite_variable_dependencies(dpref1))
+    end
+    # used_by_derivative
+    @testset "used_by_derivative" begin
+        @test !used_by_derivative(pref1)
+        @test !used_by_derivative(pref2)
+        @test !used_by_derivative(dpref1)
+        @test !used_by_derivative(dpref2)
+        push!(InfiniteOpt._derivative_dependencies(dpref1), InfiniteDerivativeIndex(1))
+        @test used_by_derivative(pref1)
+        @test used_by_derivative(dpref1)
+        popfirst!(InfiniteOpt._derivative_dependencies(dpref1))
     end
     # used_by_objective
     @testset "used_by_objective" begin
