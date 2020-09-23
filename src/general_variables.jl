@@ -755,6 +755,33 @@ for op = (:measure_function, :measure_data, :is_analytic, :expand)
 end
 
 ################################################################################
+#                               DERIVATIVE METHODS
+################################################################################
+# Define measure queries and their fallbacks
+for op = (:derivative_argument, :operator_parameter, :eval_method)
+    @eval begin
+        # define the fallback method
+        func = $op
+        function $op(dref::DispatchVariableRef)
+            str = string("`", func, "` not defined for variable reference type " *
+                         "`$(typeof(dref))`.")
+            throw(ArgumentError(str))
+        end
+        # define the dispatch version
+        """
+            $func(dref::GeneralVariableRef)
+
+        Define `$func` for general variable references. Errors if `dref` does
+        not correspond to a `DerivativeRef`. See the underlying docstrings for more
+        information.
+        """
+        function $op(dref::GeneralVariableRef)
+            return $op(dispatch_variable_ref(dref))
+        end
+    end
+end
+
+################################################################################
 #                            VARIABLE INFO METHODS
 ################################################################################
 # Define the 1 argument JuMP variable info methods

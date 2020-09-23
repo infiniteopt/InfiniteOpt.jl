@@ -116,7 +116,7 @@ export AbstractDerivativeMethod, Integral, Derivative, DerivativeRef
 
 # Export derivative methods 
 export build_derivative, add_derivative, derivative_argument, operator_parameter,
-eval_method
+eval_method, deriv
 
 # Export measure datatypes
 export AbstractMeasureData, DiscreteMeasureData, FunctionalDiscreteMeasureData,

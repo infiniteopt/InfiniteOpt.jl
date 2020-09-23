@@ -620,6 +620,39 @@ end
     end
 end
 
+# test Derivative Methods
+@testset "Derivative Methods" begin
+    # Setup data
+    m = InfiniteModel();
+    idx = TestIndex(1)
+    dvref = TestVariableRef(m, idx)
+    gvref = GeneralVariableRef(m, 1, TestIndex)
+    # test derivative_argument (Fallback)
+    @testset "derivative_argument (Fallback)" begin
+        @test_throws ArgumentError derivative_argument(dvref)
+    end
+    # test derivative_argument (GeneralVariableRef)
+    @testset "derivative_argument (GeneralVariableRef)" begin
+        @test_throws ArgumentError derivative_argument(gvref)
+    end
+    # test operator_parameter (Fallback)
+    @testset "operator_parameter (Fallback)" begin
+        @test_throws ArgumentError operator_parameter(dvref)
+    end
+    # test operator_parameter (GeneralVariableRef)
+    @testset "operator_parameter (GeneralVariableRef)" begin
+        @test_throws ArgumentError operator_parameter(gvref)
+    end
+    # test eval_method (Fallback)
+    @testset "eval_method (Fallback)" begin
+        @test_throws ArgumentError eval_method(dvref)
+    end
+    # test eval_method (GeneralVariableRef)
+    @testset "eval_method (GeneralVariableRef)" begin
+        @test_throws ArgumentError eval_method(gvref)
+    end
+end
+
 # test Lower Bound Methods
 @testset "Lower Bound Methods" begin
     # Setup data

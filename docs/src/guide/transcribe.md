@@ -484,6 +484,7 @@ InfiniteOpt.TranscriptionOpt.index_to_support
 InfiniteOpt.TranscriptionOpt.set_parameter_supports
 InfiniteOpt.TranscriptionOpt.transcribe_hold_variables!
 InfiniteOpt.TranscriptionOpt.transcribe_infinite_variables!
+InfiniteOpt.TranscriptionOpt.transcribe_derivative_variables!
 InfiniteOpt.TranscriptionOpt.transcribe_reduced_variables!
 InfiniteOpt.TranscriptionOpt.transcribe_point_variables!
 InfiniteOpt.TranscriptionOpt.transcription_expression

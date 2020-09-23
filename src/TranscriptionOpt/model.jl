@@ -185,7 +185,8 @@ end
 
 # define convenient aliases
 const InfVarIndex = Union{InfiniteOpt.InfiniteVariableIndex,
-                          InfiniteOpt.ReducedVariableIndex}
+                          InfiniteOpt.ReducedVariableIndex,
+                          InfiniteOpt.DerivativeIndex}
 const FinVarIndex = Union{InfiniteOpt.HoldVariableIndex,
                           InfiniteOpt.PointVariableIndex}
 

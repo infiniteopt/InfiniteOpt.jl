@@ -33,5 +33,15 @@ Modules = [InfiniteOpt, JuMP]
 Order   = [:macro, :function]
 ```
 ```@docs
-
+deriv
+build_derivative
+add_derivative
+derivative_argument
+operator_parameter
+eval_method
+raw_parameter_refs(::DerivativeRef)
+parameter_refs(::DerivativeRef)
+parameter_list(::DerivativeRef)
+set_start_value_function(::DerivativeRef,::Union{Real, Function})
+reset_start_value_function(::DerivativeRef)
 ```

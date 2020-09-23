@@ -49,13 +49,13 @@ end
 # Ensure parameter values match shape of parameter reference tuple stored in the
 # infinite variable reference
 function _check_tuple_shape(_error::Function,
-                            ivref::InfiniteVariableRef,
+                            ivref::Union{InfiniteVariableRef, DerivativeRef},
                             values::VectorTuple)::Nothing
     prefs = raw_parameter_refs(ivref)
     if !same_structure(prefs, values)
         _error("The dimensions and array formatting of the infinite parameter " *
                "values must match those of the parameter references for the " *
-               "infinite variable.")
+               "infinite variable/derivative.")
     end
     return
 end
@@ -87,7 +87,8 @@ function _check_element_support(_error::Function, prefs::Vector{DependentParamet
 end
 
 # Used to ensure values don't violate parameter bounds
-function _check_tuple_values(_error::Function, ivref::InfiniteVariableRef,
+function _check_tuple_values(_error::Function, 
+                             ivref::Union{InfiniteVariableRef, DerivativeRef},
                              param_values::Vector{Float64})::Nothing
     raw_prefs = raw_parameter_refs(ivref)
     counter = 1
@@ -100,7 +101,7 @@ end
 
 # Update point variable info to consider the infinite variable
 function _update_point_info(info::JuMP.VariableInfo,
-                            ivref::InfiniteVariableRef,
+                            ivref::Union{InfiniteVariableRef, DerivativeRef},
                             point::Vector{Float64})::JuMP.VariableInfo
     if JuMP.has_lower_bound(ivref) && !info.has_fix && !info.has_lb
         info = JuMP.VariableInfo(true, JuMP.lower_bound(ivref),
@@ -166,15 +167,15 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Point};
     end
     # ensure the needed arguments are given
     if parameter_values === nothing || infinite_variable_ref === nothing
-        _error("Must specify the infinite variable and the values of its " *
+        _error("Must specify the infinite variable/derivative and the values of its " *
                "infinite parameters")
     end
     # format tuple as VectorTuple
     pvalues = VectorTuple{Float64}(parameter_values)
     # check information and prepare format
     dispatch_ivref = dispatch_variable_ref(infinite_variable_ref)
-    if !(dispatch_ivref isa InfiniteVariableRef)
-     _error("Expected an infinite variable reference dependency, but got a " *
+    if !(dispatch_ivref isa Union{InfiniteVariableRef, DerivativeRef})
+     _error("Expected an infinite variable/derivative reference dependency, but got a " *
             "variable reference of type $(typeof(dispatch_ivref)).")
     end
     _check_tuple_shape(_error, dispatch_ivref, pvalues)
@@ -214,7 +215,7 @@ function _add_point_support(prefs::Vector{DependentParameterRef},
 end
 
 # Used to add point variable support to parameter supports if necessary
-function _update_param_supports(ivref::InfiniteVariableRef,
+function _update_param_supports(ivref::Union{InfiniteVariableRef, DerivativeRef},
                                 param_values::Vector{Float64})::Nothing
     raw_prefs = raw_parameter_refs(ivref)
     model = JuMP.owner_model(ivref)
@@ -228,7 +229,8 @@ end
 
 # Used to update mapping infinite_to_points
 function _update_infinite_point_mapping(pvref::PointVariableRef,
-                                        ivref::InfiniteVariableRef)::Nothing
+    ivref::Union{InfiniteVariableRef, DerivativeRef}
+    )::Nothing
     push!(_point_variable_dependencies(ivref), JuMP.index(pvref))
     return
 end

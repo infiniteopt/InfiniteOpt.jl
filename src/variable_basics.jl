@@ -46,7 +46,7 @@ t
 julia> info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false);
 
 julia> inf_var = build_variable(error, info, Infinite, parameter_refs = t)
-InfiniteVariable{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Function}(false, 0.0, false, 0.0, false, 0.0, false, start_func, false, false), (t,), Int64[], Int64[])
+InfiniteVariable{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Function}(false, 0.0, false, 0.0, false, 0.0, false, start_func, false, false), (t,), Int64[], Int64[], true)
 
 julia> ivref = add_variable(m, inf_var, "var_name")
 var_name(t)

@@ -174,7 +174,7 @@ Base.length(index::AbstractInfOptIndex) = 1
 Base.broadcastable(index::AbstractInfOptIndex) = Ref(index)
 Base.iterate(index::AbstractInfOptIndex) = (index, true)
 Base.iterate(index::AbstractInfOptIndex, state) = nothing
-# Base.hash(v::ObjectIndex, h::UInt) = hash(v.value, h)
+Base.hash(v::ObjectIndex, h::UInt) = hash(v.value, h)
 
 ################################################################################
 #                            INFINITE SET TYPES
@@ -637,7 +637,7 @@ struct Derivative{V <: JuMP.AbstractVariableRef,
                   D <: AbstractDerivativeMethod} <: InfOptVariable
     info::JuMP.VariableInfo{Float64, Float64, Float64, Function}
     is_vector_start::Bool
-    variable_ref::V # could be ref of infinite/reduced variable/derivative (top of derivative)
+    variable_ref::V # could be ref of infinite/reduced variable/derivative or measure (top of derivative)
     parameter_ref::V # a scalar infinite parameter ref (bottom of derivative)
     eval_method::D
 end
@@ -1323,6 +1323,10 @@ struct InfOptConstraintRef{S <: JuMP.AbstractShape}
     index::ConstraintIndex
     shape::S
 end
+
+# Make dumby model type for calling @expression 
+struct _DumbyModel <: JuMP.AbstractModel end
+const _Model = _DumbyModel()
 
 ################################################################################
 #                            PARAMETER BOUND METHODS
