@@ -396,10 +396,10 @@ function reset_start_value_function(dref::DerivativeRef)::Nothing
                                  info.has_lb, info.lower_bound, info.has_ub,
                                  info.upper_bound, info.has_fix, info.fixed_value,
                                  false, start_func, info.binary, info.integer)
-    numer = derivative_argument(dref)
-    denom = operator_parameter(dref)
+    vref = derivative_argument(dref)
+    pref = operator_parameter(dref)
     method = eval_method(dref)
-    new_deriv = InfiniteDreivative(new_info, true, numer, denom, method)
+    new_deriv = Derivative(new_info, true, vref, pref, method)
     _set_core_variable_object(dref, new_deriv)
     return
 end
