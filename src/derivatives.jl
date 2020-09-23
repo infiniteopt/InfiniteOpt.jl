@@ -35,7 +35,7 @@ end
 # Extend _core_variable_object
 function _core_variable_object(dref::DerivativeRef
     )::Derivative{<:GeneralVariableRef}
-    return _data_object(dref).derivative
+    return _data_object(dref).variable
 end
 
 # Define getter function for deriv.is_vector_start
@@ -110,7 +110,7 @@ const DefaultEvalMethod = Integral(10, MeasureToolbox.Automatic)
     build_derivative(_error::Function, info::JuMP.VariableInfo, 
                      argument_ref::GeneralVariableRef, 
                      parameter_ref::GeneralVariableRef; 
-                     eval_method::AbstractDerivativeMethod = DefaultEvalMethod
+                     [eval_method::AbstractDerivativeMethod = DefaultEvalMethod]
                      )::Derivative
 
 Constructs and returns a [`Derivative`](@ref) with a differential operator that 
@@ -156,7 +156,7 @@ end
 
 """
     add_derivative(model::InfiniteModel, d::Derivative, 
-                   name::String = "")::GeneralVariableRef
+                   [name::String = ""])::GeneralVariableRef
 
 Adds a derivative `d` to `model` and returns a `GeneralVariableRef` that points 
 to it. Errors if the derivative dependencies do not belong to `model`. 
@@ -250,8 +250,8 @@ function _recursive_deriv_build(expr, prefs, eval_method
 end
 
 """
-    deriv(expr::JuMP.AbstractJuMPScalar, pref1::GeneralVariableRef, ....; 
-          eval_method::AbstractDerivativeMethod = DefaultEvalMethod
+    deriv(expr::JuMP.AbstractJuMPScalar, pref1::GeneralVariableRef[, ....]; 
+          [eval_method::AbstractDerivativeMethod = DefaultEvalMethod]
           )::Union{JuMP.AbstractJuMPScalar, Float64}
 
 Apply appropriate calculus methods to define and return the derivative expression of `expr` 
