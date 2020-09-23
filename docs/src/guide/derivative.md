@@ -12,6 +12,9 @@ above sections comprise the guide.
 ## Advanced Information
 
 
+## Numerical Evaluation Methods
+
+
 ## Datatypes
 ```@index
 Pages   = ["variable.md"]

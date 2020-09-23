@@ -594,6 +594,8 @@ reformation/transcription.
 """
 abstract type AbstractDerivativeMethod end 
 
+# TODO ADD DERIVATIVE METHODS HERE AND CHANGE `Integral` BELOW AS NEEDED
+
 """
     Integral <: AbstractDerivativeMethod
 
