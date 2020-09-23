@@ -47,4 +47,7 @@ parameter_refs(::DerivativeRef)
 parameter_list(::DerivativeRef)
 set_start_value_function(::DerivativeRef,::Union{Real, Function})
 reset_start_value_function(::DerivativeRef)
+evaluate 
+evaluate_all_derivatives
+evaluate_derivative
 ```

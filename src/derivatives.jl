@@ -181,7 +181,7 @@ function add_derivative(model::InfiniteModel, d::Derivative,
     JuMP.check_belongs_to_model(vref, model)
     JuMP.check_belongs_to_model(pref, model)
     # add it to the model and make the reference
-    data_object = DerivativeData(d, name)
+    data_object = VariableData(d, name)
     dindex = _add_data_object(model, data_object)
     dref = DerivativeRef(model, dindex)
     # update the mappings 
