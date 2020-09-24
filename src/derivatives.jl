@@ -179,7 +179,7 @@ function add_derivative(model::InfiniteModel, d::Derivative,
     vref = dispatch_variable_ref(d.variable_ref)
     pref = dispatch_variable_ref(d.parameter_ref)
     JuMP.check_belongs_to_model(vref, model)
-    JuMP.check_belongs_to_model(pref, model)
+    JuMP.check_belongs_to_model(pref, model) # TODO consider redundant variable definitions
     # add it to the model and make the reference
     data_object = VariableData(d, name)
     dindex = _add_data_object(model, data_object)
@@ -201,11 +201,11 @@ const _DefaultInfo = JuMP.VariableInfo{Float64, Float64, Float64, Function}(
 ## Define function that build derivative expressions following rules of calculus
 # GeneralVariableRef
 function _build_deriv_expr(vref::GeneralVariableRef, pref, eval_method
-    )::Union{JuMP.AbstractJuMPScalar, Float64}
+    )::Union{GeneralVariableRef, Float64}
     if vref == pref 
         return 1.0
     elseif _parameter_number(pref) in _parameter_numbers(vref)
-        d = Derivative(_DefaultInfo, true, vref, pref, eval_method)
+        d = Derivative(_DefaultInfo, true, vref, pref, eval_method) # TODO consider redundant derivative definitions
         return add_derivative(JuMP.owner_model(vref), d)
     else 
         return 0.0
@@ -213,15 +213,13 @@ function _build_deriv_expr(vref::GeneralVariableRef, pref, eval_method
 end
 
 # AffExpr
-function _build_deriv_expr(aff::JuMP.GenericAffExpr, pref, eval_method
-    )::Union{JuMP.AbstractJuMPScalar, Float64}
+function _build_deriv_expr(aff::JuMP.GenericAffExpr, pref, eval_method)
     return JuMP.@expression(_Model, sum(c * _build_deriv_expr(v, pref, eval_method) 
                             for (c, v) in JuMP.linear_terms(aff)))
 end
 
 # Quad Expr (implements product rule)
-function _build_deriv_expr(quad::JuMP.GenericQuadExpr, pref, eval_method
-    )::Union{JuMP.AbstractJuMPScalar, Float64}
+function _build_deriv_expr(quad::JuMP.GenericQuadExpr, pref, eval_method)
     return JuMP.@expression(_Model, sum(c * (_build_deriv_expr(v1, pref, eval_method) * v2 + 
                                         v1 * _build_deriv_expr(v2, pref, eval_method)) 
                                         for (c, v1, v2) in JuMP.quad_terms(quad)) + 
@@ -369,10 +367,10 @@ function set_start_value_function(dref::DerivativeRef,
                                  info.upper_bound, info.has_fix, info.fixed_value,
                                  true, start, info.binary, info.integer)
     new_info, is_vect_func = _check_and_format_infinite_info(error, temp_info, prefs)
-    numer = derivative_argument(dref)
-    denom = operator_parameter(dref)
+    vref = derivative_argument(dref)
+    pref = operator_parameter(dref)
     method = eval_method(dref)
-    new_deriv = InfiniteDreivative(new_info, is_vect_func, numer, denom, method)
+    new_deriv = Derivative(new_info, is_vect_func, vref, pref, method)
     _set_core_variable_object(dref, new_deriv)
     return
 end

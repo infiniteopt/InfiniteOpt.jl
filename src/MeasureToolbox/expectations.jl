@@ -112,7 +112,7 @@ macro expect(expr, prefs, args...)
     if !isempty(filter(kw -> kw.args[1] != :min_num_supports, kw_args))
         _error("Unexpected keyword arugments.")
     end
-    expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
+    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
     mref = :( expect($expression, $prefs; ($(kw_args...))) )
     return esc(mref)
 end

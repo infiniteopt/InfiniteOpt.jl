@@ -755,7 +755,7 @@ macro integral(expr, prefs, args...)
         _error("Incorrect number of positional arguments for @integral. " *
                "Must provide both bounds or no bounds.")
     end
-    expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
+    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
     mref = :( integral($expression, $prefs, $(extra...); ($(kw_args...))) )
     return esc(mref)
 end

@@ -1067,9 +1067,6 @@ function measure(expr::JuMP.AbstractJuMPScalar,
     return add_measure(model, meas, name)
 end
 
-# Make filler model in order to call @expression
-struct _DumbyModel <: JuMP.AbstractModel end
-
 """
     @measure(expr::JuMP.AbstractJuMPScalar,
              data::AbstractMeasureData;
@@ -1089,7 +1086,7 @@ macro measure(expr, data, args...)
         _error("Invalid keyword arguments. Must be of form " *
                "@measure(expr, data, name = ...).")
     end
-    expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
+    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
     mref = :( measure($expression, $data; ($(kw_args...))) )
     return esc(mref)
 end
