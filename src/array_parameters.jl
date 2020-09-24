@@ -30,7 +30,7 @@ end
 
 # Extend _data_object
 function _data_object(pref::DependentParameterRef)::MultiParameterData
-    object = _get(_data_dictionary(pref), JuMP.index(pref).object_index, nothing)
+    object = get(_data_dictionary(pref), JuMP.index(pref).object_index, nothing)
     object === nothing && error("Invalid dependent parameter reference, cannot find " *
                            "corresponding parameter in the model. This is likely " *
                            "caused by using the reference of a deleted parameter.")
@@ -304,7 +304,7 @@ julia> name(pref)
 ```
 """
 function JuMP.name(pref::DependentParameterRef)::String
-    object = _get(_data_dictionary(pref), JuMP.index(pref).object_index, nothing)
+    object = get(_data_dictionary(pref), JuMP.index(pref).object_index, nothing)
     return object === nothing ? "" : object.names[_param_index(pref)]
 end
 

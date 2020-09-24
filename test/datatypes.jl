@@ -41,28 +41,17 @@
     # test CleverDict extensions
     @testset "CleverDict Extensions" begin
         # index_to_key
-        @test MOIUC.index_to_key(IndependentParameterIndex, 42) == IndependentParameterIndex(42)
-        @test MOIUC.index_to_key(DependentParametersIndex, 42) == DependentParametersIndex(42)
-        @test MOIUC.index_to_key(FiniteParameterIndex, 42) == FiniteParameterIndex(42)
-        @test MOIUC.index_to_key(InfiniteVariableIndex, 42) == InfiniteVariableIndex(42)
-        @test MOIUC.index_to_key(ReducedVariableIndex, 42) == ReducedVariableIndex(42)
-        @test MOIUC.index_to_key(PointVariableIndex, 42) == PointVariableIndex(42)
-        @test MOIUC.index_to_key(HoldVariableIndex, 42) == HoldVariableIndex(42)
-        @test MOIUC.index_to_key(MeasureIndex, 42) == MeasureIndex(42)
-        @test MOIUC.index_to_key(ConstraintIndex, 42) == ConstraintIndex(42)
+        @test MOIUC.index_to_key(IndependentParameterIndex, Int64(42)) == IndependentParameterIndex(42)
+        @test MOIUC.index_to_key(DependentParametersIndex, Int64(42)) == DependentParametersIndex(42)
+        @test MOIUC.index_to_key(FiniteParameterIndex, Int64(42)) == FiniteParameterIndex(42)
+        @test MOIUC.index_to_key(InfiniteVariableIndex, Int64(42)) == InfiniteVariableIndex(42)
+        @test MOIUC.index_to_key(ReducedVariableIndex, Int64(42)) == ReducedVariableIndex(42)
+        @test MOIUC.index_to_key(PointVariableIndex, Int64(42)) == PointVariableIndex(42)
+        @test MOIUC.index_to_key(HoldVariableIndex, Int64(42)) == HoldVariableIndex(42)
+        @test MOIUC.index_to_key(MeasureIndex, Int64(42)) == MeasureIndex(42)
+        @test MOIUC.index_to_key(ConstraintIndex, Int64(42)) == ConstraintIndex(42)
         # index_to_key
         @test MOIUC.key_to_index(MeasureIndex(42)) == 42
-        @testset "_get" begin
-            d = MOIUC.CleverDict{MeasureIndex, Int}()
-            k = MOIUC.add_item(d, 42)
-            k2 = MOIUC.add_item(d, 2)
-            bad_k = MeasureIndex(3)
-            @test InfiniteOpt._get(d, k, nothing) == 42
-            @test InfiniteOpt._get(d, bad_k, nothing) === nothing
-            delete!(d, k2)
-            @test InfiniteOpt._get(d, k, nothing) == 42
-            @test InfiniteOpt._get(d, bad_k, nothing) === nothing
-        end
     end
     # test Base.length
     @testset "Base.length" begin
@@ -76,6 +65,10 @@
     @testset "Base.iterate" begin
         @test iterate(MeasureIndex(1)) == (MeasureIndex(1), true)
         @test iterate(MeasureIndex(1), true) isa Nothing
+    end
+    # test Base.hash
+    @testset "Base.hash" begin
+        @test Base.hash(MeasureIndex(1), UInt(1)) isa UInt
     end
 end
 

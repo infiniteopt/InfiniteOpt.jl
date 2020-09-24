@@ -236,7 +236,7 @@ julia> name(vref)
 ```
 """
 function JuMP.name(vref::DecisionVariableRef)::String
-    object = _get(_data_dictionary(vref), JuMP.index(vref), nothing)
+    object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
     return object === nothing ? "" : object.name
 end
 
