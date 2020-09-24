@@ -36,6 +36,7 @@ Modules = [InfiniteOpt, JuMP]
 Order   = [:macro, :function]
 ```
 ```@docs
+@deriv
 deriv
 build_derivative
 add_derivative

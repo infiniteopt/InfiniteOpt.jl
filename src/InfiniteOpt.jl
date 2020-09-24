@@ -62,7 +62,7 @@ export AbstractDataObject, InfiniteModel
 export @independent_parameter, @dependent_parameters, @infinite_parameter,
 @finite_parameter, @infinite_variable, @point_variable, @hold_variable,
 @infinite_parameter, @BDconstraint, @set_parameter_bounds, @add_parameter_bounds,
-@measure
+@measure, @integral, @expect, @support_sum, @deriv
 
 # Export constants
 export Infinite, Hold, Point
@@ -138,7 +138,7 @@ export Automatic, UniTrapezoid, UniMCSampling, UniIndepMCSampling, Quadrature,
 GaussHermite, GaussLegendre, GaussLaguerre, MultiMCSampling,
 MultiIndepMCSampling, uni_integral_defaults, set_uni_integral_defaults,
 integral, multi_integral_defaults, set_multi_integral_defaults, expect,
-support_sum, @integral, @expect, @support_sum, generate_integral_data
+support_sum, generate_integral_data
 
 # Export objective methods
 export objective_has_measures
