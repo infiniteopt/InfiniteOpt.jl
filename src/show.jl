@@ -7,6 +7,8 @@ function _infopt_math_symbol(::Type{JuMP.REPLMode}, name::Symbol)::String
         return Sys.iswindows() ? "and" : "∩"
     elseif name == :prop
         return "~"
+    elseif name == :partial 
+        return Sys.iswindows() ? "d" : "∂"
     else
         return JuMP._math_symbol(JuMP.REPLMode, name)
     end
@@ -18,6 +20,8 @@ function _infopt_math_symbol(::Type{JuMP.IJuliaMode}, name::Symbol)::String
         return "\\cap"
     elseif name == :prop
         return "\\sim"
+    elseif name == :partial 
+        return "\\partial"
     else
         return JuMP._math_symbol(JuMP.IJuliaMode, name)
     end
@@ -260,6 +264,35 @@ function variable_string(print_mode, vref::InfiniteVariableRef)::String
             end
         end
         return string(base_name, param_name_tuple)
+    end
+end
+
+## Make helper function for making derivative operators 
+# REPL 
+function _deriv_operator(::Type{JuMP.REPLMode}, pref)::String
+    return string(_infopt_math_symbol(print_mode, :partial), "/", 
+                  _infopt_math_symbol(print_mode, :partial), 
+                  variable_string(print_mode, pref))
+end
+
+# IJulia 
+function _deriv_operator(::Type{JuMP.IJuliaMode}, pref)::String
+    return string("\\frac{", _infopt_math_symbol(print_mode, :partial), "}{", 
+                  _infopt_math_symbol(print_mode, :partial), 
+                  variable_string(print_mode, pref), "}")
+end
+
+# Make a string for DerivativeRef 
+function variable_string(print_mode, dref::DerivativeRef)::String
+    if !haskey(_data_dictionary(dref), JuMP.index(dref)) || !isempty(JuMP.name(dref))
+        return _get_base_name(print_mode, dref)
+    else
+        vref = derivative_argument(dref)
+        pref = operator_parameter(dref)
+        return string(_deriv_operator(print_mode, pref), 
+                      _infopt_math_symbol(print_mode, :open_rng), 
+                      variable_string(print_mode, vref), 
+                      _infopt_math_symbol(print_mode, :close_rng))
     end
 end
 
