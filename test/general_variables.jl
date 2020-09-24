@@ -651,6 +651,14 @@ end
     @testset "eval_method (GeneralVariableRef)" begin
         @test_throws ArgumentError eval_method(gvref)
     end
+    # test set_eval_method (Fallback)
+    @testset "set_eval_method (Fallback)" begin
+        @test_throws ArgumentError set_eval_method(dvref, Integral(10, Automatic))
+    end
+    # test set_eval_method (GeneralVariableRef)
+    @testset "set_eval_method (GeneralVariableRef)" begin
+        @test_throws ArgumentError set_eval_method(gvref, Integral(10, Automatic))
+    end
 end
 
 # test Lower Bound Methods

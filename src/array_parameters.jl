@@ -1348,10 +1348,8 @@ function all_parameters(model::InfiniteModel,
                         type::Type{C}
                         )::Vector{GeneralVariableRef} where {C <: InfOptParameter}
     prefs_list = Vector{GeneralVariableRef}(undef, num_parameters(model, type))
-    counter = 1
-    for (index, _) in _data_dictionary(model, type)
-        prefs_list[counter] = _make_parameter_ref(model, index)
-        counter += 1
+    for (i, (index, _)) in enumerate(_data_dictionary(model, type))
+        prefs_list[i] = _make_parameter_ref(model, index)
     end
     return prefs_list
 end
@@ -1467,6 +1465,12 @@ function JuMP.delete(model::InfiniteModel,
         for rindex in _reduced_variable_dependencies(vref)
             rvref = ReducedVariableRef(model, rindex)
             _update_reduced_variable(rvref, delete_indices)
+        end
+    end
+    # delete derivatives that depend on any of these parameters 
+    for pref in gvrefs 
+        for index in _derivative_dependencies(pref)
+            JuMP.delete(model, dispatch_variable_ref(model, index))
         end
     end
     # delete parameter information stored in model

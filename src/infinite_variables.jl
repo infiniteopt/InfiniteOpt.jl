@@ -486,5 +486,9 @@ function _delete_variable_dependencies(vref::InfiniteVariableRef)::Nothing
     for index in _reduced_variable_dependencies(vref)
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
+    # delete associated derivative variables and mapping 
+    for index in _derivative_dependencies(vref)
+        JuMP.delete(model, dispatch_variable_ref(model, index))
+    end
     return
 end

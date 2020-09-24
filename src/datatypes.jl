@@ -942,6 +942,8 @@ model an optmization problem with an infinite-dimensional decision space.
    Does any variable have parameter bounds?
 - `derivatives::MOIUC.CleverDict{DerivativeIndex, <:VariableData{<:Derivative}}`:
   The derivatives and their mapping information.
+- `deriv_lookup::Dict{<:Tuple, DerivativeIndex}`: Map derivative variable-parameter 
+  pairs to a derivative index to prevent duplicates.
 - `measures::MOIUC.CleverDict{MeasureIndex, MeasureData}`:
    The measures and their mapping information.
 - `integral_defaults::Dict{Symbol}`:
@@ -978,6 +980,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 
     # Derivative Data 
     derivatives::MOIUC.CleverDict{DerivativeIndex, <:VariableData{<:Derivative}}
+    deriv_lookup::Dict{<:Tuple, DerivativeIndex}
 
     # Measure Data
     measures::MOIUC.CleverDict{MeasureIndex, MeasureData}
@@ -1061,6 +1064,7 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          nothing, false,
                          # Derivatives
                          MOIUC.CleverDict{DerivativeIndex, VariableData{<:Derivative}}(),
+                         Dict{Tuple{GeneralVariableRef, GeneralVariableRef}, DerivativeIndex}(),
                          # Measures
                          MOIUC.CleverDict{MeasureIndex, MeasureData}(),
                          # Constraints

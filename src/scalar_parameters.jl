@@ -1302,6 +1302,10 @@ function JuMP.delete(model::InfiniteModel, pref::IndependentParameterRef)::Nothi
             _update_reduced_variable(rvref, delete_index:delete_index)
         end
     end
+    # delete any derivatives that use pref 
+    for index in _derivative_dependencies(pref)
+        JuMP.delete(model, dispatch_variable_ref(model, index))
+    end
     # update constraints in mapping to remove the parameter
     _update_constraints(model, gvref)
     # delete parameter information stored in model

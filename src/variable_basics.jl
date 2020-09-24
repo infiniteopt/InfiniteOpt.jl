@@ -1130,10 +1130,8 @@ function JuMP.all_variables(model::InfiniteModel,
                             type::Type{C}
                             )::Vector{GeneralVariableRef} where {C <: InfOptVariable}
     vrefs_list = Vector{GeneralVariableRef}(undef, JuMP.num_variables(model, type))
-    counter = 1
-    for (index, object) in _data_dictionary(model, type)
-        vrefs_list[counter] = _make_variable_ref(model, index)
-        counter += 1
+    for (i, (index, _)) in enumerate(_data_dictionary(model, type))
+        vrefs_list[i] = _make_variable_ref(model, index)
     end
     return vrefs_list
 end

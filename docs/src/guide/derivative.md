@@ -39,14 +39,20 @@ Order   = [:macro, :function]
 deriv
 build_derivative
 add_derivative
-derivative_argument
-operator_parameter
-eval_method
+default_eval_method
+set_default_eval_method
+derivative_argument(::DerivativeRef)
+operator_parameter(::DerivativeRef)
+eval_method(::DerivativeRef)
+set_eval_method(::DerivativeRef, ::AbstractDerivativeMethod)
+set_all_eval_methods
 raw_parameter_refs(::DerivativeRef)
 parameter_refs(::DerivativeRef)
 parameter_list(::DerivativeRef)
 set_start_value_function(::DerivativeRef,::Union{Real, Function})
 reset_start_value_function(::DerivativeRef)
+num_derivatives
+all_derivatives
 evaluate 
 evaluate_all_derivatives
 evaluate_derivative

@@ -1227,10 +1227,8 @@ julia> all_measures(model)
 """
 function all_measures(model::InfiniteModel)::Vector{GeneralVariableRef}
     vrefs_list = Vector{GeneralVariableRef}(undef, num_measures(model))
-    counter = 1
-    for (index, object) in _data_dictionary(model, Measure)
-        vrefs_list[counter] = _make_variable_ref(model, index)
-        counter += 1
+    for (i, (index, _)) in enumerate(_data_dictionary(model, Measure))
+        vrefs_list[i] = _make_variable_ref(model, index)
     end
     return vrefs_list
 end
@@ -1312,6 +1310,10 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
         else
             _remove_variable(JuMP.objective_function(model), gvref)
         end
+    end
+    # delete associated derivative variables and mapping 
+    for index in _derivative_dependencies(mref)
+        JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # Update that the variables used by it are no longer used by it
     vrefs = _all_function_variables(measure_function(mref))

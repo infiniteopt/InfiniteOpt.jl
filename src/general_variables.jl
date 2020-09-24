@@ -781,6 +781,26 @@ for op = (:derivative_argument, :operator_parameter, :eval_method)
     end
 end
 
+# Define the fallback
+function set_eval_method(dref::DispatchVariableRef, method)
+    str = string("`set_eval_method` not defined for variable reference type " *
+                    "`$(typeof(dref))`.")
+    throw(ArgumentError(str))
+end
+
+# Define the dispatch version
+"""
+    set_eval_method(dref::GeneralVariableRef, method::AbstractDerivativeMethod)::Nothing
+
+Define `set_eval_method` for general variable references. Errors if `dref` does
+not correspond to a `DerivativeRef`. See the underlying docstrings for more
+information.
+"""
+function set_eval_method(dref::GeneralVariableRef, 
+                         method::AbstractDerivativeMethod)::Nothing
+    return set_eval_method(dispatch_variable_ref(dref), method)
+end
+
 ################################################################################
 #                            VARIABLE INFO METHODS
 ################################################################################
