@@ -270,24 +270,26 @@ end
 ## Make helper function for making derivative operators 
 # REPL 
 function _deriv_operator(::Type{JuMP.REPLMode}, pref)::String
-    return string(_infopt_math_symbol(print_mode, :partial), "/", 
-                  _infopt_math_symbol(print_mode, :partial), 
-                  variable_string(print_mode, pref))
+    return string(_infopt_math_symbol(JuMP.REPLMode, :partial), "/", 
+                  _infopt_math_symbol(JuMP.REPLMode, :partial), 
+                  variable_string(JuMP.REPLMode, pref))
 end
 
 # IJulia 
 function _deriv_operator(::Type{JuMP.IJuliaMode}, pref)::String
-    return string("\\frac{", _infopt_math_symbol(print_mode, :partial), "}{", 
-                  _infopt_math_symbol(print_mode, :partial), 
-                  variable_string(print_mode, pref), "}")
+    return string("\\frac{", _infopt_math_symbol(JuMP.IJuliaMode, :partial), "}{", 
+                  _infopt_math_symbol(JuMP.IJuliaMode, :partial), 
+                  variable_string(JuMP.IJuliaMode, pref), "}")
 end
 
+# TODO implement more intelligent naming for nested derivatives (i.e., use exponents)
+# TODO account for container naming when variable macro is introduced
 # Make a string for DerivativeRef 
 function variable_string(print_mode, dref::DerivativeRef)::String
     if !haskey(_data_dictionary(dref), JuMP.index(dref)) || !isempty(JuMP.name(dref))
         return _get_base_name(print_mode, dref)
     else
-        vref = derivative_argument(dref)
+        vref = dispatch_variable_ref(derivative_argument(dref))
         pref = operator_parameter(dref)
         return string(_deriv_operator(print_mode, pref), 
                       _infopt_math_symbol(print_mode, :open_rng), 
@@ -329,7 +331,11 @@ function variable_string(print_mode, vref::PointVariableRef)::String
         return _get_base_name(print_mode, vref)
     else
         ivref = dispatch_variable_ref(infinite_variable_ref(vref))
-        base_name = _get_base_name(print_mode, ivref)
+        if ivref isa InfiniteVariableRef
+            base_name = _get_base_name(print_mode, ivref)
+        else 
+            base_name = variable_string(print_mode, ivref) # we have a derivative
+        end
         prefs = raw_parameter_refs(ivref)
         values = raw_parameter_values(vref)
         name = string(base_name, "(")
@@ -350,7 +356,11 @@ function variable_string(print_mode, vref::ReducedVariableRef)::String
         return _get_base_name(print_mode, vref)
     else
         ivref = dispatch_variable_ref(infinite_variable_ref(vref))
-        base_name = _get_base_name(print_mode, ivref)
+        if ivref isa InfiniteVariableRef
+            base_name = _get_base_name(print_mode, ivref)
+        else 
+            base_name = variable_string(print_mode, ivref) # we have a derivative
+        end
         prefs = raw_parameter_refs(ivref)
         eval_supps = eval_supports(vref)
         raw_list = [i in keys(eval_supps) ? eval_supps[i] : prefs[i]
