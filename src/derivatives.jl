@@ -76,19 +76,21 @@ function operator_parameter(dref::DerivativeRef)::GeneralVariableRef
 end
 
 """
-    eval_method(dref::DerivativeRef)::AbstractDerivativeMethod
+    derivative_method(dref::DerivativeRef)::AbstractDerivativeMethod
 
 Returns the evaluation method employed by `dref` that determines the numerical 
-computation scheme that will be used to evaluate the derivative.
+computation scheme that will be used to evaluate the derivative. Note that this 
+is set on by the infinite parameter with respect to which the derivative is 
+defined.
 
 **Example**
 ```julia-repl
-julia> eval_method(dref) 
-Integral(10, Automatic)
+julia> derivative_method(dref) 
+FiniteDifference()
 ```
 """
-function eval_method(dref::DerivativeRef)::AbstractDerivativeMethod
-    return _core_variable_object(dref).eval_method
+function derivative_method(dref::DerivativeRef)::AbstractDerivativeMethod
+    return derivative_method(operator_parameter(dref))
 end
 
 # Extend _object_numbers
@@ -114,42 +116,10 @@ end
 #                          DEFINTION METHODS
 ################################################################################
 # Set a dictionary to store the eval_method defaults
-const DerivativeDefaults = Dict{Symbol, Any}(:eval_method => Integral(10, MeasureToolbox.Automatic),
-                                             :info => JuMP.VariableInfo{Float64, Float64, Float64, Function}(
-                                                false, NaN, false, NaN, false, NaN, false, s -> NaN, 
-                                                false, false)
-                                            )
-
-"""
-    default_eval_method()::AbstractDerivativeMethod
-
-Returns the default evalulation method used by `build_derivative` and `deriv`.
-
-**Example**
-```julia-repl 
-julia> default_eval_method()
-Integral(10, Automatic)
-```
-"""
-function default_eval_method()::AbstractDerivativeMethod
-    return DerivativeDefaults[:eval_method]
-end
-
-"""
-    set_default_eval_method(method::AbstractDerivativeMethod)::Nothing
-
-Sets the default evalulation method used by `build_derivative` and `deriv`.
-
-**Example**
-```julia-repl 
-julia> set_default_eval_method(Integral(20, Automatic))
-
-```
-"""
-function set_default_eval_method(method::AbstractDerivativeMethod)::Nothing
-    DerivativeDefaults[:eval_method] = method
-    return
-end
+const DerivativeDefaults = Dict{Symbol, Any}(
+    :info => JuMP.VariableInfo{Float64, Float64, Float64, Function}(           
+                false, NaN, false, NaN, false, NaN, false, s -> NaN, false, false),
+    )
 
 """
     default_derivative_info()::JuMP.VariableInfo
@@ -165,17 +135,15 @@ end
 """
     build_derivative(_error::Function, info::JuMP.VariableInfo, 
                      argument_ref::GeneralVariableRef, 
-                     parameter_ref::GeneralVariableRef; 
-                     [eval_method::AbstractDerivativeMethod = default_eval_method()]
+                     parameter_ref::GeneralVariableRef
                      )::Derivative
 
 Constructs and returns a [`Derivative`](@ref) with a differential operator that 
 depends on `parameter_ref` and operates on `argument_ref`. Variable `info` can also 
 be provided to associate this derivative with bounds and a starting value function 
-like that of infinite variables. Here `eval_method` refers to the 
-`AbstractDerivativeMethod` use to numerically evaulate the derivative. Errors 
-when `argument_ref` is not an infinite/reduced variable or derivative that depends 
-on `parameter_ref`. Also, errors if such a derivative was already added to the model.
+like that of infinite variables. Errors when `argument_ref` is not an 
+infinite/reduced variable or derivative that depends on `parameter_ref`. Also, 
+errors if such a derivative was already added to the model.
 
 **Example**
 ```julia-repl 
@@ -184,14 +152,13 @@ julia> @infinite_parameter(m, t in [0, 1]); @infinite_variable(m, x(t));
 julia> info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false);
 
 julia> build_derivative(error, info, x, t)
-Derivative{GeneralVariableRef, Integral}(VariableInfo{Float64,Float64,Float64,Function}(false, 0.0, false, 0.0, false, 0.0, false, start_func, false, false), true, x(t), t, Integral(10, Automatic))
+Derivative{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Function}(false, 0.0, false, 0.0, false, 0.0, false, start_func, false, false), true, x(t), t)
 ````
 """
 function build_derivative(_error::Function, info::JuMP.VariableInfo, 
                           argument_ref::GeneralVariableRef, 
-                          parameter_ref::GeneralVariableRef; 
-                          eval_method::AbstractDerivativeMethod = default_eval_method()
-                          )::Derivative
+                          parameter_ref::GeneralVariableRef
+                          )::Derivative{GeneralVariableRef}
     # check the derivative numerator and denominator 
     if !(_index_type(parameter_ref) <: InfiniteParameterIndex)
         _error("Derivatives must be with respect to an infinite parameter, but " * 
@@ -210,7 +177,24 @@ function build_derivative(_error::Function, info::JuMP.VariableInfo,
     prefs = raw_parameter_refs(argument_ref)
     new_info, is_vect_func = _check_and_format_infinite_info(_error, info, prefs)
     # make the derivative and return it 
-    return Derivative(new_info, is_vect_func, argument_ref, parameter_ref, eval_method)
+    return Derivative(new_info, is_vect_func, argument_ref, parameter_ref)
+end
+
+# Extend _make_variable to enable JuMP.build_variable for macro definition 
+function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Type{Deriv};
+    argument::Union{GeneralVariableRef, Nothing} = nothing,
+    operator_parameter::Union{GeneralVariableRef, Nothing} = nothing,
+    extra_kw_args...
+    )::Derivative{GeneralVariableRef}
+    for (kwarg, _) in extra_kw_args
+        _error("Keyword argument $kwarg is not for use with derivatives.")
+    end
+    # check that we have been given parameter references
+    if variable_ref === nothing || parameter_ref === nothing
+        _error("Must specify the derivative argument variable and the operator " *
+               "infinite parameter that the derivative is with respect to.")
+    end
+    return build_derivative(_error, info, arugment, operator_parameter)
 end
 
 """
@@ -256,9 +240,15 @@ function add_derivative(model::InfiniteModel, d::Derivative,
     return gvref
 end
 
+# Extend JuMP.add_variable to enable macro definition 
+function JuMP.add_variable(model::InfiniteModel, d::Derivative, 
+                           name::String = "")::GeneralVariableRef
+    return add_derivative(model, d, name)
+end
+
 ## Define function that build derivative expressions following rules of calculus
 # GeneralVariableRef
-function _build_deriv_expr(vref::GeneralVariableRef, pref, eval_method
+function _build_deriv_expr(vref::GeneralVariableRef, pref
     )::Union{GeneralVariableRef, Float64}
     if vref == pref 
         return 1.0
@@ -266,7 +256,7 @@ function _build_deriv_expr(vref::GeneralVariableRef, pref, eval_method
         dindex = _existing_derivative_index(vref, pref)
         model = JuMP.owner_model(vref)
         if dindex === nothing
-            d = Derivative(default_derivative_info(), true, vref, pref, eval_method)
+            d = Derivative(default_derivative_info(), true, vref, pref)
             return add_derivative(model, d)
         else 
             return _make_variable_ref(model, dindex)
@@ -277,51 +267,49 @@ function _build_deriv_expr(vref::GeneralVariableRef, pref, eval_method
 end
 
 # AffExpr
-function _build_deriv_expr(aff::JuMP.GenericAffExpr, pref, eval_method)
-    return JuMP.@expression(_Model, sum(c * _build_deriv_expr(v, pref, eval_method) 
+function _build_deriv_expr(aff::JuMP.GenericAffExpr, pref)
+    return JuMP.@expression(_Model, sum(c * _build_deriv_expr(v, pref) 
                             for (c, v) in JuMP.linear_terms(aff)))
 end
 
 # Quad Expr (implements product rule)
-function _build_deriv_expr(quad::JuMP.GenericQuadExpr, pref, eval_method)
-    return JuMP.@expression(_Model, sum(c * (_build_deriv_expr(v1, pref, eval_method) * v2 + 
-                                        v1 * _build_deriv_expr(v2, pref, eval_method)) 
+function _build_deriv_expr(quad::JuMP.GenericQuadExpr, pref)
+    return JuMP.@expression(_Model, sum(c * (_build_deriv_expr(v1, pref) * v2 + 
+                                        v1 * _build_deriv_expr(v2, pref)) 
                                         for (c, v1, v2) in JuMP.quad_terms(quad)) + 
-                                        _build_deriv_expr(quad.aff, pref, eval_method))
+                                        _build_deriv_expr(quad.aff, pref))
 end
 
 # Real number
-function _build_deriv_expr(expr::Real, pref, eval_method)::Float64
+function _build_deriv_expr(expr::Real, pref)::Float64
     return 0.0
 end
 
 # Fallback 
-function _build_deriv_expr(expr, pref, eval_method)
+function _build_deriv_expr(expr, pref)
     error("Unsupported expression type $(typeof(expr)) for derivative definition.")
 end
 
 # Define recursive function to call _build_deriv_expr 
-function _recursive_deriv_build(expr, prefs, eval_method
+function _recursive_deriv_build(expr, prefs
     )::Union{JuMP.AbstractJuMPScalar, Float64}
     if isempty(prefs)
         return expr 
     else
-        new_expr = _build_deriv_expr(expr, first(prefs), eval_method)
-        return _recursive_deriv_build(new_expr, prefs[2:end], eval_method)
+        new_expr = _build_deriv_expr(expr, first(prefs))
+        return _recursive_deriv_build(new_expr, prefs[2:end])
     end
 end
 
 """
-    deriv(expr::JuMP.AbstractJuMPScalar, pref1::GeneralVariableRef[, ....]; 
-          [eval_method::AbstractDerivativeMethod = default_eval_method()]
+    deriv(expr::JuMP.AbstractJuMPScalar, pref1::GeneralVariableRef[, ....]
           )::Union{JuMP.AbstractJuMPScalar, Float64}
 
 Apply appropriate calculus methods to define and return the derivative expression of `expr` 
 with respect to the infinite parameter(s) `pref1`, pref2`, etc. in that respective 
 order. This will implicilty build and add individual [`Derivative`](@ref)s as 
 appropriate. Errors if no infinite parameter is given or if the parameters are 
-not infinite. Here `eval_method` refers to the concrete `AbstractDerivativeMethod` 
-that will be used to evaluate the individual derivatives numerically.
+not infinite.
 
 **Example**
 ```julia-repl 
@@ -338,8 +326,7 @@ julia> deriv_expr = deriv(x^2 + z, t, t)
 2 ∂/∂t[∂/∂t[x(t)]]*x(t) + 2 ∂/∂t[x(t)]²
 ```
 """
-function deriv(expr, prefs::GeneralVariableRef...; 
-               eval_method::AbstractDerivativeMethod = default_eval_method()
+function deriv(expr, prefs::GeneralVariableRef...
                )::Union{JuMP.AbstractJuMPScalar, Float64}
     # Check inputs 
     if !all(_index_type(pref) <: InfiniteParameterIndex for pref in prefs)
@@ -349,12 +336,11 @@ function deriv(expr, prefs::GeneralVariableRef...;
               "the derivative operator.")
     end
     # Build the derivative expression
-    return _recursive_deriv_build(expr, prefs, eval_method)
+    return _recursive_deriv_build(expr, prefs)
 end
 
 """
-    @deriv(expr, pref_expr1[, ...]; 
-           [eval_method::AbstractDerivativeMethod = default_eval_method()]
+    @deriv(expr, pref_expr1[, ...]
            )::Union{JuMP.AbstractJuMPScalar, Float64}
 
 The macro variant of [`deriv`](@ref) that is more efficient for expression building 
@@ -400,7 +386,7 @@ macro deriv(expr, args...)
     end
     # prepare the code to call deriv
     expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
-    code = :( deriv($expression, $(pref_exprs...); ($(kw_args...))) )
+    code = :( deriv($expression, $(pref_exprs...); ($(kw_args...))) ) # TODO throw error if has kw_args?
     return esc(code)
 end
 
@@ -457,11 +443,10 @@ function _update_variable_info(dref::DerivativeRef,
                                  info.has_lb, info.lower_bound, info.has_ub,
                                  info.upper_bound, info.has_fix, info.fixed_value,
                                  info.has_start, info.start, info.binary, info.integer)
-    numer = derivative_argument(dref)
-    denom = operator_parameter(dref)
-    method = eval_method(dref)
+    vref = derivative_argument(dref)
+    pref = operator_parameter(dref)
     is_vect_func = _is_vector_start(dref)
-    new_deriv = Derivative(new_info, is_vect_func, numer, denom, method)
+    new_deriv = Derivative(new_info, is_vect_func, vref, pref)
     _set_core_variable_object(dref, new_deriv)
     return
 end
@@ -494,8 +479,7 @@ function set_start_value_function(dref::DerivativeRef,
     new_info, is_vect_func = _check_and_format_infinite_info(error, temp_info, prefs)
     vref = derivative_argument(dref)
     pref = operator_parameter(dref)
-    method = eval_method(dref)
-    new_deriv = Derivative(new_info, is_vect_func, vref, pref, method)
+    new_deriv = Derivative(new_info, is_vect_func, vref, pref)
     _set_core_variable_object(dref, new_deriv)
     return
 end
@@ -521,8 +505,7 @@ function reset_start_value_function(dref::DerivativeRef)::Nothing
                                  false, start_func, info.binary, info.integer)
     vref = derivative_argument(dref)
     pref = operator_parameter(dref)
-    method = eval_method(dref)
-    new_deriv = Derivative(new_info, true, vref, pref, method)
+    new_deriv = Derivative(new_info, true, vref, pref)
     _set_core_variable_object(dref, new_deriv)
     return
 end
@@ -573,50 +556,11 @@ end
 ################################################################################
 #                      EVALUATION METHOD MODIFICATIONS
 ################################################################################
-"""
-    set_eval_method(dref::DerivativeRef, method::AbstractDerivativeMethod)::Nothing
-
-Specfies the desired evaluation method `method` for the derivative corresponding 
-to `dref`. Note only `dref` will be affected (i.e., other derivatives will not be 
-updated to use `method`). See [`set_all_eval_methods`](@ref) to change all the 
-evaluation methods simultaneously.
-
-**Example**
-```julia-repl
-julia> set_eval_method(d, Integral(20, Automatic))
-
-```
-"""
-function set_eval_method(dref::DerivativeRef, 
-    method::AbstractDerivativeMethod
-    )::Nothing
-    old_deriv = _core_variable_object(dref)
-    vref = derivative_argument(dref)
-    pref = operator_parameter(dref)
-    new_deriv = Derivative(old_deriv.info, old_deriv.is_vect_func, vref, pref, method)
-    _set_core_variable_object(dref, new_deriv)
-    return
-end
-
-"""
-    set_all_eval_methods(model::InfiniteModel, method::AbstractDerivativeMethod)::Nothing
-
-Sets the desired evaluation method `method` for all the derivatives currently added 
-to `model`. 
-
-**Example**
-```julia-repl
-julia> set_all_eval_methods(model, Integral(20, Automatic))
-
-```
-"""
-function set_all_eval_methods(model::InfiniteModel, 
-    method::AbstractDerivativeMethod
-    )::Nothing
-    for dref in all_derivatives(model)
-        set_eval_method(dref, method)
-    end
-    return
+# Fallback (needs to be done via the infinite parameter)
+function set_derivative_method(dref::DerivativeRef, method::AbstractDerivativeMethod)
+    error("Cannot specify the derivative method in terms of the derivative, must " * 
+          " do so in terms of the operator parameter by calling `set_derivative_method` " * 
+          " using the operator parameter.")
 end
 
 ################################################################################

@@ -6,7 +6,8 @@
     fin_idx = FiniteParameterIndex(1)
     set = IntervalSet(0, 1)
     supps_dict = SortedDict{Float64, Set{Symbol}}(0. => Set{Symbol}([UserDefined]))
-    ind_param = IndependentParameter(set, supps_dict, 5)
+    method = InfiniteOpt.DefaultDerivativeMethod
+    ind_param = IndependentParameter(set, supps_dict, 5, method)
     fin_param = FiniteParameter(42)
     ind_object = ScalarParameterData(ind_param, 1, 1, "ind")
     fin_object = ScalarParameterData(fin_param, -1, -1, "fin")
@@ -251,6 +252,7 @@ end
         set = IntervalSet(0, 1)
         supps = 0.
         supps_dict = SortedDict{Float64, Set{Symbol}}(0. => Set([UserDefined]))
+        method = InfiniteOpt.DefaultDerivativeMethod
         @test build_parameter(error, set, supports = supps).set == set
         @test build_parameter(error, set, supports = supps).supports == supps_dict
         @test_throws ErrorException build_parameter(error, set, bob = 42)
@@ -258,7 +260,7 @@ end
         @test_logs (:warn, warn) build_parameter(error, set,
                                             supports = [0, 1], num_supports = 2)
         repeated_supps = [1, 1]
-        expected = IndependentParameter(set, SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}()), 5)
+        expected = IndependentParameter(set, SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}()), 5, method)
         warn = "Support points are not unique, eliminating redundant points."
         @test_logs (:warn, warn) build_parameter(error, set, supports = repeated_supps) == expected
         set = UniDistributionSet(Normal())
@@ -274,8 +276,9 @@ end
     # add_parameter
     @testset "add_parameter" begin
         m = InfiniteModel()
+        method = InfiniteOpt.DefaultDerivativeMethod
         param = IndependentParameter(IntervalSet(0, 1),
-                                             SortedDict{Float64, Set{Symbol}}(), 5)
+                                             SortedDict{Float64, Set{Symbol}}(), 5, method)
         expected = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
         @test add_parameter(m, param) == expected
         @test InfiniteOpt._core_variable_object(expected) == param
@@ -436,7 +439,8 @@ end
 # Test if used
 @testset "Used" begin
     m = InfiniteModel()
-    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
+    method = InfiniteOpt.DefaultDerivativeMethod
+    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5, method)
     pref1 = add_parameter(m, p1, "p1")
     dpref1 = dispatch_variable_ref(pref1)
     p2 = FiniteParameter(1)
@@ -567,14 +571,17 @@ end
     end
 end
 
+# TODO TEST THE DERIVATIVE METHOD FUNCTIONS
+
 # Test parameter set methods
 @testset "Infinite Set" begin
     m = InfiniteModel()
-    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
+    method = InfiniteOpt.DefaultDerivativeMethod
+    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5, method)
     pref_gen = add_parameter(m, param, "test")
     pref_disp = dispatch_variable_ref(pref_gen)
     bad = Bad()
-    bad_pref = IndependentParameterRef(m ,IndependentParameterIndex(-1))
+    bad_pref = IndependentParameterRef(m, IndependentParameterIndex(-1))
     # _parameter_set
     @testset "_parameter_set" begin
         @test InfiniteOpt._parameter_set(pref_disp) == IntervalSet(0, 1)
@@ -609,7 +616,8 @@ end
 # Test parameter support methods
 @testset "Supports" begin
     m = InfiniteModel()
-    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
+    method = InfiniteOpt.DefaultDerivativeMethod
+    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5, method)
     pref = add_parameter(m, param, "test")
     pref2 = add_parameter(m, param, "test2")
     pref_disp = dispatch_variable_ref(pref)
@@ -707,11 +715,12 @@ end
 # Test lower bound functions
 @testset "Lower Bound" begin
     m = InfiniteModel()
-    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
+    method = InfiniteOpt.DefaultDerivativeMethod
+    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5, method)
     pref1 = add_parameter(m, p1)
-    p2 = IndependentParameter(UniDistributionSet(Normal()), SortedDict{Float64, Set{Symbol}}(), 5)
+    p2 = IndependentParameter(UniDistributionSet(Normal()), SortedDict{Float64, Set{Symbol}}(), 5, method)
     pref2 = add_parameter(m, p2)
-    p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}(), 5)
+    p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}(), 5, method)
     pref3 = add_parameter(m, p3)
     bad = TestVariableRef(m, TestIndex(-1))
     # JuMP.has_lower_bound
@@ -748,11 +757,12 @@ end
 # Test upper bound functions
 @testset "Upper Bound" begin
     m = InfiniteModel()
-    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
+    method = InfiniteOpt.DefaultDerivativeMethod
+    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5, method)
     pref1 = add_parameter(m, p1)
-    p2 = IndependentParameter(UniDistributionSet(Normal()), SortedDict{Float64, Set{Symbol}}(), 5)
+    p2 = IndependentParameter(UniDistributionSet(Normal()), SortedDict{Float64, Set{Symbol}}(), 5, method)
     pref2 = add_parameter(m, p2)
-    p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}(), 5)
+    p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}(), 5, method)
     pref3 = add_parameter(m, p3)
     bad = TestVariableRef(m, TestIndex(-1))
     # JuMP.has_upper_bound

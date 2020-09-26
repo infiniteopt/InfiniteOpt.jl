@@ -127,6 +127,8 @@ The recognized keyword arguments in `kw_args` are the following:
 - `supports`: Sets the support points for the parameters.
 - `num_supports`: Specifies the number of supports to be automatically generated.
                   Note that `supports` takes precedence. Defaults to `DefaultNumSupports`.
+- `derivative_method`: Specifies the numerical method used to evaluate derivatives that 
+                       are taken with respect to the parameter.
 - `sig_digits`: Specifies the number of significant digits that should be used
               in automatic support generation. Defaults to `DefaultSigDigits`.
 - `container`: Specify the container type. Defaults to `automatic`
@@ -401,12 +403,14 @@ The recognized keyword arguments in `kw_args` are the following:
 - `supports`: Sets the support points for the parameters.
 - `num_supports`: Specifies the number of supports to be automatically generated.
                   Note that `supports` takes precedence. Defaults to `DefaultNumSupports`.
+- `derivative_method`: Specifies the numerical derivative method used to evaluate 
+                       derivatives that depend on a particular dependent parameter.
 - `sig_digits`: Specifies the number of significant digits that should be used
               in automatic support generation. Defaults to `DefaultSigDigits`.
 - `container`: Specify the container type. Defaults to `automatic`.
 
 **Examples**
-```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; m = InfiniteModel())
+```julia-repl
 julia> @dependent_parameters(m, x[1:2] in [0, 1])
 2-element Array{GeneralVariableRef,1}:
  x[1]
@@ -455,10 +459,12 @@ macro dependent_parameters(model, args...)
     # parse the keyword arguments
     info_kw_args = filter(_is_set_keyword, kw_args)
     supports_kw_arg = filter(kw -> kw.args[1] == :supports, kw_args)
+    method_kw_arg = filter(kw -> kw.args[1] == :derivative_method, kw_args)
     extra_kw_args = filter(kw -> kw.args[1] != :base_name &&
                            !InfiniteOpt._is_set_keyword(kw) &&
                            kw.args[1] != :error_func &&
-                           kw.args[1] != :supports, kw_args)
+                           kw.args[1] != :supports &&
+                           kw.args[1] != :derivative_method, kw_args)
     base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
     infoexpr = InfiniteOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
 
@@ -506,13 +512,20 @@ macro dependent_parameters(model, args...)
         supports = esc(supports_kw_arg[1].args[2])
     end
 
-    # arse the infinite set(s)
+    # process the derivative methods
+    if isempty(method_kw_arg)
+        method = :(InfiniteOpt.DefaultDerivativeMethod)
+    else
+        method = esc(method_kw_arg[1].args[2])
+    end
+
+    # parse the infinite set(s)
     set = InfiniteOpt._construct_array_set(_error, infoexpr)
 
     # make code to build the DependentParameters object and the references
     idxvars, indices = JuMPC._build_ref_sets(_error, param)
     namecode = JuMP._name_call(base_name, idxvars)
-    parambuildcall = :( InfiniteOpt._DependentParameter($set, $supports, $namecode) )
+    parambuildcall = :( InfiniteOpt._DependentParameter($set, $supports, $namecode, $method) )
     param_container_call = JuMPC.container_code(idxvars, indices, parambuildcall,
                                                 requestedcontainer)
     buildcall = :( InfiniteOpt._build_parameters($_error, $param_container_call) )
@@ -574,6 +587,8 @@ The recognized keyword arguments in `kw_args` are the following:
 - `supports`: Sets the support points for the parameters.
 - `num_supports`: Specifies the number of supports to be automatically generated.
                   Note that `supports` takes precedence. Defaults to `DefaultNumSupports`.
+- `derivative_method`: Specify the numerical method to evaluate derivatives that are
+                       taken with respect to the parameter.
 - `sig_digits`: Specifies the number of significant digits that should be used
               in automatic support generation. Defaults to `DefaultSigDigits`.
 - `independent`: Specifies if the each parameter is independent from each other
@@ -581,7 +596,7 @@ The recognized keyword arguments in `kw_args` are the following:
 - `container`: Specify the container type. Defaults to `automatic`
 
 **Examples**
-```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; m = InfiniteModel())
+```julia-repl
 julia> @infinite_parameter(m, x in [0, 1])
 x
 
@@ -1212,6 +1227,13 @@ macro hold_variable(model, args...)
         end
     end
     return esc(code)
+end
+
+"""
+
+"""
+macro derivative_variable()
+
 end
 
 ## Helper function for parsing the parameter bounds and the name expression

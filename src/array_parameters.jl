@@ -57,18 +57,20 @@ end
 #                             PARAMETER DEFINITION
 ################################################################################
 # Store partially processed individual dependent parameters
-struct _DependentParameter{S <: AbstractInfiniteSet}
+struct _DependentParameter{S <: AbstractInfiniteSet, M <: AbstractDerivativeMethod}
     set::S
     supports::Vector{Float64}
     name::String
+    deriv_method::M
     function _DependentParameter(set::S,
         supports::Union{Vector{<:Real}, Real},
-        name::String
-        )::_DependentParameter{S} where {S <: AbstractInfiniteSet}
+        name::String,
+        method::M
+        )::_DependentParameter{S, M} where {S <: AbstractInfiniteSet, M <: AbstractDerivativeMethod}
         if supports isa Real
-            return new{S}(set, [supports], name)
+            return new{S, M}(set, [supports], name, method)
         else
-            return new{S}(set, supports, name)
+            return new{S, M}(set, supports, name, method)
         end
     end
 end
@@ -141,7 +143,29 @@ end
 
 # Fallback
 function _check_param_sets(_error::Function, params)
-    _error("Unrecognized infinite set input.")
+    _error("Unrecognized input for infinite set.")
+end
+
+## Define methods for checking the the derivative methods 
+# NonGenerativeDerivativeMethod
+function _check_derivative_methods(_error::Function, 
+    params::AbstractArray{<:_DependentParameter{S, <:NonGenerativeDerivativeMethod}}
+    )::Nothing where {S}
+    return 
+end
+
+# AbstractDerivativeMethod
+function _check_derivative_methods(_error::Function, 
+    params::AbstractArray{<:_DependentParameter{S, <:AbstractDerivativeMethod}}
+    ) where {S}
+    _error("Cannot use generative derivative evaluation methods with dependent " *
+           "infinite parameters. Only subtypes of `NonGenerativeDerivativeMethod` " *
+           "can be used.") 
+end
+
+# Fallback
+function _check_derivative_methods(_error::Function, params)
+    _error("Unrecognized input for derivative method.")
 end
 
 ## Use set type dispatch to make the proper InfiniteArraySet
@@ -169,6 +193,7 @@ function _build_parameters(_error::Function,
     end
     # check the formatting
     _check_param_sets(_error, params)
+    _check_derivative_methods(_error, params)
     # vectorize the parameter array
     indices = Collections._get_indices(params)
     ordered_params = Collections._make_ordered(params, indices)
@@ -176,7 +201,7 @@ function _build_parameters(_error::Function,
     # make the set
     set = _make_array_set(vector_params)
     # make the supports and labels
-    lens = [length(p.supports) for p in vector_params]
+    lens = map(p -> length(p.supports), vector_params)
     _allequal(lens) || _error("Inconsistent support dimensions.")
     # we have supports
     if first(lens) != 0
@@ -202,8 +227,9 @@ function _build_parameters(_error::Function,
         supp_dict = Dict{Vector{Float64}, Set{Symbol}}()
     end
     # make the parameter object
-    names = [param.name for param in vector_params]
-    return DependentParameters(set, supp_dict, sig_digits), names, indices
+    names = map(p -> p.name, vector_params)
+    methods = map(p -> p.deriv_method, vector_params)
+    return DependentParameters(set, supp_dict, sig_digits, methods), names, indices
 end
 
 """
@@ -470,6 +496,81 @@ function _set_core_variable_object(pref::DependentParameterRef,
 end
 
 ################################################################################
+#                        DERIVATIVE METHOD FUNCTIONS
+################################################################################
+# Get the raw derivative method vector
+function _derivative_methods(pref::DependentParameterRef)
+    return _core_variable_object(pref).derivative_methods
+end
+
+"""
+    derivative_method(pref::DependentParameterRef)::NonGenerativeDerivativeMethod
+
+Returns the numerical derivative evaluation method employed with `pref` when it 
+is used as an operator parameter in a derivative.
+
+**Example**
+```julia-repl
+julia> derivative_method(pref) 
+FiniteDifference
+```
+"""
+function derivative_method(pref::DependentParameterRef)::NonGenerativeDerivativeMethod
+    return _derivative_methods(pref)[_param_index(pref)]
+end
+
+"""
+    set_derivative_method(pref::DependentParameterRef, 
+                          method::NonGenerativeDerivativeMethod)::Nothing
+
+Specfies the desired derivative evaluation method `method` for derivatives that are 
+taken with respect to `pref`. Errors if `method` is generative (i.e., it requires 
+the definition of additional supports)
+
+**Example**
+```julia-repl
+julia> set_derivative_method(d, FiniteDifference())
+
+```
+"""
+function set_derivative_method(pref::DependentParameterRef, 
+    method::AbstractDerivativeMethod
+    )::Nothing
+    if !(method isa NonGenerativeDerivativeMethod)
+        error("Must specify a subtype of `NonGenerativeDerivativeMethod` for " *
+              "for a dependent parameter.")
+    end
+    _core_variable_object(pref).derivative_methods[_param_index(pref)] = method
+    if is_used(pref)
+        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+    end
+    return
+end
+
+"""
+    set_all_derivative_methods(model::InfiniteModel, 
+                               method::AbstractDerivativeMethod)::Nothing
+
+Sets the desired evaluation method `method` for all the derivatives currently added 
+to `model`. Note that this is done with respect to the infinite parameters. Errors 
+if a generative method is specified and the model contains dependent parameters.
+
+**Example**
+```julia-repl
+julia> set_all_derivative_methods(model, OrthogonalCollocation(2))
+
+```
+"""
+function set_all_derivative_methods(model::InfiniteModel, 
+    method::AbstractDerivativeMethod
+    )::Nothing
+    for pref in all_parameters(model, InfiniteParameter)
+        set_derivative_method(pref, method)
+    end
+    return
+end
+
+################################################################################
 #                             INFINITE SET METHODS
 ################################################################################
 ## Get the individual infinite set if possible
@@ -547,8 +648,9 @@ function _update_parameter_set(pref::DependentParameterRef,
                                new_set::InfiniteArraySet)::Nothing
     old_params = _core_variable_object(pref)
     new_supports = Dict{Vector{Float64}, Set{Symbol}}()
-    new_params = DependentParameters(new_set, new_supports,
-                                     significant_digits(pref))
+    sig_figs = significant_digits(pref)
+    methods = _derivative_methods(pref)
+    new_params = DependentParameters(new_set, new_supports, sig_figs, methods)
     _set_core_variable_object(pref, new_params)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
@@ -937,7 +1039,9 @@ function _update_parameter_supports(prefs::AbstractArray{<:DependentParameterRef
     set = _parameter_set(first(prefs))
     new_supps = Dict{Vector{Float64}, Set{Symbol}}(@views supports[:, i] =>
                                       Set([label]) for i in 1:size(supports, 2))
-    new_params = DependentParameters(set, new_supps, significant_digits(first(prefs)))
+    sig_figs = significant_digits(first(prefs))
+    methods = _derivative_methods(first(prefs))
+    new_params = DependentParameters(set, new_supps, sig_figs, methods)
     _set_core_variable_object(first(prefs), new_params)
     if any(is_used(pref) for pref in prefs)
         set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)

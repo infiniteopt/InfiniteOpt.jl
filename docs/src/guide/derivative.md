@@ -24,9 +24,12 @@ Order   = [:type]
 ```@docs
 DerivativeIndex
 DerivativeRef
-AbstractDerivativeMethod
-Integral
 Derivative
+AbstractDerivativeMethod
+GenerativeDerivativeMethod
+OrthogonalCollocation
+NonGenerativeDerivateMethod
+FiniteDifference
 ```
 
 ## [Methods/Macros] (@id deriv_methods)
@@ -40,13 +43,9 @@ Order   = [:macro, :function]
 deriv
 build_derivative
 add_derivative
-default_eval_method
-set_default_eval_method
 derivative_argument(::DerivativeRef)
 operator_parameter(::DerivativeRef)
-eval_method(::DerivativeRef)
-set_eval_method(::DerivativeRef, ::AbstractDerivativeMethod)
-set_all_eval_methods
+derivative_method(::DerivativeRef)
 raw_parameter_refs(::DerivativeRef)
 parameter_refs(::DerivativeRef)
 parameter_list(::DerivativeRef)
@@ -54,6 +53,9 @@ set_start_value_function(::DerivativeRef,::Union{Real, Function})
 reset_start_value_function(::DerivativeRef)
 num_derivatives
 all_derivatives
+set_derivative_method(::IndependentParameterRef, ::AbstractDerivativeMethod)
+set_derivative_method(::DependentParameterRef, ::AbstractDerivativeMethod)
+set_all_derivative_methods
 evaluate 
 evaluate_all_derivatives
 evaluate_derivative

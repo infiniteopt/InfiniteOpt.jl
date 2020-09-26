@@ -272,6 +272,65 @@ struct CollectionSet{T <: InfiniteScalarSet} <: InfiniteArraySet
 end
 
 ################################################################################
+#                         DERIVATIVE EVALUATION METHODS
+################################################################################
+"""
+    AbstractDerivativeMethod
+
+An abstract type for storing derivative evaluation data that is pertinent to its 
+reformation/transcription. 
+"""
+abstract type AbstractDerivativeMethod end 
+
+"""
+    GenerativeDerivativeMethod <: AbstractDerivativeMethod
+
+An abstract type for derivative evaluation method types that will require support 
+generation when employed (e.g., internal node points associated with orthogonal 
+collocation). Such methods can be used with derivatives that on independent 
+infinite parameters, but cannot be used for ones that depend on dependent parameters.
+"""
+abstract type GenerativeDerivativeMethod <: AbstractDerivativeMethod end 
+
+"""
+    OrthogonalCollocation <: GenerativeDerivativeMethod 
+
+PLEASE FILL THIS IN ONCE COMPLETED CORRECTLY
+
+**Fields**
+- `num_nodes::Int`: The number of internal collocation points (nodes).
+- `label::Symbol`: The label associated with generated supports.
+- `quadrature_type::DataType`: The quadrature method used to produce the points.
+"""
+struct OrthogonalCollocation <: GenerativeDerivativeMethod 
+    num_nodes::Int
+    label::Symbol 
+    quadrature_type::DataType # TODO update with actual implementation
+end
+
+"""
+    NonGenerativeDerivativeMethod <: AbstractDerivativeMethod
+
+An abstract type for derivative evaluation method types that do not require the 
+definition of additional support points. Such methods are amendable to any 
+derivative in InfiniteOpt including those with dependent infinite parameter 
+dependencies.
+"""
+abstract type NonGenerativeDerivativeMethod <: AbstractDerivativeMethod end
+
+"""
+    FiniteDifference <: NonGenerativeDerivativeMethod
+
+PLEASE FILL THIS IN 
+
+**Fields** 
+- `technique::DataType`: Mathematical technqiue behind finite difference
+"""
+struct FiniteDifference <: NonGenerativeDerivativeMethod 
+    technique::DataType # TODO update with actual implementation
+end
+
+################################################################################
 #                              PARAMETER TYPES
 ################################################################################
 """
@@ -289,7 +348,8 @@ An abstract type for scalar parameters used in InfiniteOpt.
 abstract type ScalarParameter <: InfOptParameter end
 
 """
-    IndependentParameter{T <: InfiniteScalarSet} <: ScalarParameter
+    IndependentParameter{T <: InfiniteScalarSet,
+                         M <: AbstractDerivativeMethod} <: ScalarParameter
 
 A `DataType` for storing independent scalar infinite parameters.
 
@@ -299,12 +359,15 @@ A `DataType` for storing independent scalar infinite parameters.
    used to discretize the parameter and their associated type labels stored as
    `Symbol`s.
 - `sig_digits::Int`: The number of significant digits used to round the support values.
+- `derivative_method::M`: The derivative evaluation method used for derivatives that
+   are conducted with respect to this parameter.
 """
-struct IndependentParameter{T <: InfiniteScalarSet} <: ScalarParameter
+struct IndependentParameter{T <: InfiniteScalarSet, 
+                            M <: AbstractDerivativeMethod} <: ScalarParameter
     set::T
-    # TODO consider changing this to a Dictionary
     supports::DataStructures.SortedDict{Float64, Set{Symbol}} # Support to label set
     sig_digits::Int
+    derivative_method::M
 end
 
 """
@@ -321,7 +384,8 @@ struct FiniteParameter <: ScalarParameter
 end
 
 """
-    DependentParameters{T <: InfiniteArraySet} <: InfOptParameter
+    DependentParameters{T <: InfiniteArraySet, 
+                        M <: NonGenerativeDerivativeMethod} <: InfOptParameter
 
 A `DataType` for storing a collection of dependent infinite parameters.
 
@@ -330,11 +394,15 @@ A `DataType` for storing a collection of dependent infinite parameters.
 - `supports::Dict{Vector{Float64}, Set{Symbol}}`: Support dictionary where keys
               are supports and the values are the set of labels for each support
 - `sig_digits::Int`: The number of significant digits used to round the support values.
+- `derivative_methods::Vector{M}`: The derivative evaluation methods associated with 
+  each parameter.
 """
-struct DependentParameters{T <: InfiniteArraySet} <: InfOptParameter
+struct DependentParameters{T <: InfiniteArraySet, 
+                           M <: NonGenerativeDerivativeMethod} <: InfOptParameter
     set::T
     supports::Dict{Vector{Float64}, Set{Symbol}} # Support to label set
     sig_digits::Int
+    derivative_methods::Vector{M}
 end
 
 # Define convenient alias for infinite types
@@ -587,34 +655,7 @@ end
 #                              DERIVATIVE TYPES
 ################################################################################
 """
-    AbstractDerivativeMethod
-
-An abstract type for storing derivative evaluation data that is pertinent to its 
-reformation/transcription. 
-"""
-abstract type AbstractDerivativeMethod end 
-
-# TODO ADD DERIVATIVE METHODS HERE AND CHANGE `Integral` BELOW AS NEEDED
-
-"""
-    Integral <: AbstractDerivativeMethod
-
-A `DataType` for storing the informational parameters needed to evaulate a 
-derivative using an integral.
-
-**Fields**
-- `min_num_supports::Int`: The minimum number of supports that should be used. 
-- `eval_method::DataType`: The evaluation method used by the integral inherited from 
-                           [`AbstractIntegralMethod`](@ref InfiniteOpt.MeasureToolbox.AbstractIntegralMethod)
-"""
-struct Integral <: AbstractDerivativeMethod
-    min_num_supports::Int
-    eval_method::DataType # a method from AbstractIntegralMethod
-end
-
-"""
-    Derivative{V <: GeneralVariableRef, 
-               D <: AbstractDerivativeMethod} <: InfOptVariable
+    Derivative{V <: GeneralVariableRef} <: InfOptVariable
 
 A `DataType` for storing core infinite derivative information. This follows a 
 derivative of the form: ``\\frac{\\partial x(\\alpha, \\hdots)}{\\partial \\alpha}`` 
@@ -631,17 +672,15 @@ infinite variables and parameters.
 **Fields**
 - `info::JuMP.VariableInfo{Float64, Float64, Float64, Function}`: JuMP variable information.
 - `is_vector_start::Bool`: Does the start function take support values formatted as vectors?
-- `variable_ref::V`: The variable reference of the infinite variable numerator.
-- `parameter_ref::V`: The variable reference of the infinite parameter denomenator.
-- `eval_method::D`: The method used to evaluate the derivative (e.g., finite difference)
+- `variable_ref::V`: The variable reference of the infinite variable argument.
+- `parameter_ref::V`: The variable reference of the infinite parameter the defines the
+   differential operator.
 """
-struct Derivative{V <: JuMP.AbstractVariableRef, 
-                  D <: AbstractDerivativeMethod} <: InfOptVariable
+struct Derivative{V <: JuMP.AbstractVariableRef} <: InfOptVariable
     info::JuMP.VariableInfo{Float64, Float64, Float64, Function}
     is_vector_start::Bool
     variable_ref::V # could be ref of infinite/reduced variable/derivative or measure (top of derivative)
     parameter_ref::V # a scalar infinite parameter ref (bottom of derivative)
-    eval_method::D
 end
 
 ################################################################################
@@ -1063,7 +1102,7 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          MOIUC.CleverDict{HoldVariableIndex, VariableData{HoldVariable{GeneralVariableRef}}}(),
                          nothing, false,
                          # Derivatives
-                         MOIUC.CleverDict{DerivativeIndex, VariableData{<:Derivative}}(),
+                         MOIUC.CleverDict{DerivativeIndex, VariableData{Derivative{GeneralVariableRef}}}(),
                          Dict{Tuple{GeneralVariableRef, GeneralVariableRef}, DerivativeIndex}(),
                          # Measures
                          MOIUC.CleverDict{MeasureIndex, MeasureData}(),

@@ -854,6 +854,8 @@ generate_and_add_supports!(::AbstractArray{<:DependentParameterRef},::InfiniteAr
 fill_in_supports!(::IndependentParameterRef)
 fill_in_supports!(::AbstractArray{<:DependentParameterRef})
 fill_in_supports!(::InfiniteModel)
+derivative_method(::IndependentParameterRef)
+derivative_method(::DependentParameterRef)
 num_parameters
 all_parameters
 JuMP.delete(::InfiniteModel, ::IndependentParameterRef)

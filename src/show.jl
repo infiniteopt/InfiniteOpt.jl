@@ -632,6 +632,9 @@ function Base.show(io::IO, model::InfiniteModel)
     # show variable info
     num_vars = JuMP.num_variables(model)
     println(io, "Variable", _plural(num_vars), ": ", num_vars)
+    # show the derivative info 
+    num_derivs = num_derivatives(model)
+    println(io, "Derivative", _plural(num_derivs), ": ", num_derivs)
     # show measure info
     num_meas = num_measures(model)
     println(io, "Measure", _plural(num_meas), ": ", num_meas)

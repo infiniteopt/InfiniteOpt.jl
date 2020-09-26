@@ -265,37 +265,37 @@ end
     @testset "_make_variable" begin
         # test for all errors
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                              Val(Point), parameter_refs = pref)
+                                              Point, parameter_refs = pref)
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                                               Val(Point))
+                                                               Point)
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                      Val(Point), infinite_variable_ref = ivref)
+                                      Point, infinite_variable_ref = ivref)
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                               Val(Point), parameter_values = 3)
+                                               Point, parameter_values = 3)
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                               Val(Point), parameter_values = 3,
+                                               Point, parameter_values = 3,
                                                infinite_variable_ref = pref)
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                               Val(Point), parameter_values = (1, 1, 1),
+                                               Point, parameter_values = (1, 1, 1),
                                                infinite_variable_ref = ivref)
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                               Val(Point), parameter_values = (1, 2),
+                                               Point, parameter_values = (1, 2),
                                                infinite_variable_ref = ivref)
         # test a variety of builds
-        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref,
+        @test InfiniteOpt._make_variable(error, info, Point, infinite_variable_ref = ivref,
                    parameter_values = (0.5, 0.5)).infinite_variable_ref == ivref
-        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref,
+        @test InfiniteOpt._make_variable(error, info, Point, infinite_variable_ref = ivref,
                    parameter_values = (0.5, 0.5)).parameter_values == [0.5, 0.5]
-        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref,
+        @test InfiniteOpt._make_variable(error, info, Point, infinite_variable_ref = ivref,
                              parameter_values = (0.5, 0.5)).info == info
-        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Point),
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Point,
                                                   infinite_variable_ref = ivref,
                                                   parameter_values = (0.5, 2))
-        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref2,
+        @test InfiniteOpt._make_variable(error, info, Point, infinite_variable_ref = ivref2,
                parameter_values = (0.5, [0, 0])).infinite_variable_ref == ivref2
-        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref2,
+        @test InfiniteOpt._make_variable(error, info, Point, infinite_variable_ref = ivref2,
                      parameter_values = (0.5, [0, 0])).parameter_values == [0.5, 0, 0]
-        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Point),
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Point,
                                             infinite_variable_ref = ivref2,
                                             parameter_values = (0.5, [0, 0, 0]))
     end

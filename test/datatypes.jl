@@ -99,6 +99,20 @@ end
     @test CollectionSet([IntervalSet(0, 1), IntervalSet(2, 3)]) isa CollectionSet{IntervalSet}
 end
 
+# Test Derivative Evaluation Methods 
+@testset "Derivative Methods" begin
+    # abstract types
+    @test AbstractDerivativeMethod isa DataType
+    @test GenerativeDerivativeMethod <: AbstractDerivativeMethod
+    @test NonGenerativeDerivativeMethod <: AbstractDerivativeMethod
+    # test orthogonal collocation 
+    @test OrthogonalCollocation <: GenerativeDerivativeMethod
+    @test OrthogonalCollocation(2, :bob, Int) isa OrthogonalCollocation
+    # test finite difference
+    @test FiniteDifference <: NonGenerativeDerivativeMethod
+    @test FiniteDifference(Int) isa FiniteDifference
+end
+
 # Test parameter datatypes
 @testset "Parameters" begin
     # abstract types
@@ -108,21 +122,22 @@ end
     # test IndependentParameter
     @test IndependentParameter <: ScalarParameter
     dict = SortedDict{Float64, Set{Symbol}}(2 => Set([:all]))
-    @test IndependentParameter(IntervalSet(0, 1), dict, 6).set isa IntervalSet
+    method = FiniteDifference(Int)
+    @test IndependentParameter(IntervalSet(0, 1), dict, 6, method).set isa IntervalSet
     # test FiniteParameter
     @test FiniteParameter <: ScalarParameter
     @test FiniteParameter(1) == FiniteParameter(1)
     # test DependentParameters
     @test DependentParameters <: InfOptParameter
     @test DependentParameters(CollectionSet([IntervalSet(0, 1)]),
-                              Dict(zeros(1) => Set([:all])), 6).set isa CollectionSet
+                              Dict(zeros(1) => Set([:all])), 6, [method]).set isa CollectionSet
     # test ScalarParameterData
     @test ScalarParameterData <: AbstractDataObject
     @test ScalarParameterData(FiniteParameter(42), 1, 1, "bob").name == "bob"
     # test MultiParameterData
     @test MultiParameterData <: AbstractDataObject
     params = DependentParameters(CollectionSet([IntervalSet(0, 1)]),
-                                 Dict(zeros(1) => Set([:all])), 6)
+                                 Dict(zeros(1) => Set([:all])), 6, [method])
     @test MultiParameterData(params, 1, 1:1, ["par[1]"]) isa MultiParameterData{CollectionSet{IntervalSet}}
 end
 
@@ -356,18 +371,15 @@ end
     pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
     vref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
     dref = GeneralVariableRef(m, 1, DerivativeIndex)
-    # Evaluation Data 
-    @test AbstractDerivativeMethod isa DataType
-    @test Integral(10, InfiniteOpt.MeasureToolbox.UniTrapezoid) isa Integral
     # derivative
     @test Derivative <: InfOptVariable
-    @test Derivative(inf_info, true, vref, pref, Integral(10, Int)) isa Derivative
+    @test Derivative(inf_info, true, vref, pref) isa Derivative
     # Reduced derivative
     @test ReducedVariable(dref, Dict(1 => Float64(2)), [1], [1]) isa ReducedVariable
     # Point derivative
     @test PointVariable(sample_info, dref, Float64[1]) isa PointVariable
     # VariableData
-    @test VariableData(Derivative(inf_info, true, vref, pref, Integral(10, Int))) isa VariableData
+    @test VariableData(Derivative(inf_info, true, vref, pref)) isa VariableData
 end
 
 # Test the measure datatypes

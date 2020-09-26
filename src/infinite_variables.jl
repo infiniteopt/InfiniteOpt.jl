@@ -138,7 +138,7 @@ function _check_and_format_infinite_info(_error::Function,
 end
 
 # Define _make_variable (used by JuMP.build_variable)
-function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Infinite};
+function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Type{Infinite};
                         parameter_refs::Union{GeneralVariableRef,
                                               AbstractArray{<:GeneralVariableRef},
                                               Tuple, Nothing} = nothing,

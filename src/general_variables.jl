@@ -456,7 +456,8 @@ end
 
 # Define 1 argument user method wrappers and their fallbacks
 for op = (:infinite_set, :num_supports, :significant_digits, :has_supports,
-          :supports, :delete_supports, :fill_in_supports!, :parameter_value)
+          :supports, :delete_supports, :fill_in_supports!, :parameter_value,
+          :derivative_method)
     @eval begin
         # define the fallback method
         func = $op
@@ -625,6 +626,26 @@ function JuMP.set_value(vref::GeneralVariableRef, value::Real)::Nothing
     return JuMP.set_value(dispatch_variable_ref(vref), value)
 end
 
+# Dispatch fallback
+function set_derivative_method(pref::DispatchVariableRef, method)
+    throw(ArgumentError("`set_derivative_method` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    set_derivative_method(pref::GeneralVariableRef,
+                          method::AbstractDerivativeMethod
+                          )::Nothing
+
+Specify the numerical derivative evaluation technique associated with `pref`.
+An `ArgumentError` is thrown if `pref` is not an infinite parameter.
+"""
+function set_derivative_method(pref::GeneralVariableRef,
+                               method::AbstractDerivativeMethod
+                               )::Nothing
+    return set_derivative_method(dispatch_variable_ref(pref), method)
+end
+
 ################################################################################
 #                              VARIABLE METHODS
 ################################################################################
@@ -758,7 +779,7 @@ end
 #                               DERIVATIVE METHODS
 ################################################################################
 # Define measure queries and their fallbacks
-for op = (:derivative_argument, :operator_parameter, :eval_method)
+for op = (:derivative_argument, :operator_parameter)
     @eval begin
         # define the fallback method
         func = $op
@@ -779,26 +800,6 @@ for op = (:derivative_argument, :operator_parameter, :eval_method)
             return $op(dispatch_variable_ref(dref))
         end
     end
-end
-
-# Define the fallback
-function set_eval_method(dref::DispatchVariableRef, method)
-    str = string("`set_eval_method` not defined for variable reference type " *
-                    "`$(typeof(dref))`.")
-    throw(ArgumentError(str))
-end
-
-# Define the dispatch version
-"""
-    set_eval_method(dref::GeneralVariableRef, method::AbstractDerivativeMethod)::Nothing
-
-Define `set_eval_method` for general variable references. Errors if `dref` does
-not correspond to a `DerivativeRef`. See the underlying docstrings for more
-information.
-"""
-function set_eval_method(dref::GeneralVariableRef, 
-                         method::AbstractDerivativeMethod)::Nothing
-    return set_eval_method(dispatch_variable_ref(dref), method)
 end
 
 ################################################################################

@@ -5,7 +5,8 @@
     obj_idx = DependentParametersIndex(1)
     idx = DependentParameterIndex(obj_idx, 1)
     set = CollectionSet([IntervalSet(0, 1), IntervalSet(0, 1)])
-    params = DependentParameters(set, Dict{Vector{Float64}, Set{Symbol}}(), 5)
+    methods = [InfiniteOpt.DefaultDerivativeMethod for i = 1:2]
+    params = DependentParameters(set, Dict{Vector{Float64}, Set{Symbol}}(), 5, methods)
     object = MultiParameterData(params, 1, 1:2, ["p1", "p2"])
     pref = DependentParameterRef(m, idx)
     gvref = GeneralVariableRef(m, 1, DependentParameterIndex, 1)
@@ -60,34 +61,36 @@ end
     set2 = MultiDistributionSet(MvNormal(ones(2)))
     set3 = MultiDistributionSet(MatrixBeta(2, 2, 2))
     set4 = CollectionSet([sset1, sset2])
+    method = InfiniteOpt.DefaultDerivativeMethod
+    method_type = typeof(method)
     # test _DependentParameter
     @testset "_DependentParameter" begin
         @test InfiniteOpt._DependentParameter isa UnionAll
-        @test isa(InfiniteOpt._DependentParameter(sset1, Float64[], "p"),
-                  InfiniteOpt._DependentParameter{IntervalSet})
-        @test isa(InfiniteOpt._DependentParameter(set1, 1, "p"),
-                  InfiniteOpt._DependentParameter{<:CollectionSet})
-        @test isa(InfiniteOpt._DependentParameter(set3, [1, 3], "p"),
-                  InfiniteOpt._DependentParameter{<:MultiDistributionSet})
+        @test isa(InfiniteOpt._DependentParameter(sset1, Float64[], "p", method),
+                  InfiniteOpt._DependentParameter{IntervalSet,method_type})
+        @test isa(InfiniteOpt._DependentParameter(set1, 1, "p", method),
+                  InfiniteOpt._DependentParameter{<:CollectionSet, method_type})
+        @test isa(InfiniteOpt._DependentParameter(set3, [1, 3], "p", method),
+                  InfiniteOpt._DependentParameter{<:MultiDistributionSet, method_type})
     end
     # prepare containers of _DependentParameters
-    raw_params1 = [InfiniteOpt._DependentParameter(sset1, Float64[], "p") for i = 1:2]
-    raw_params2 = [InfiniteOpt._DependentParameter(set1, [0, 1], "p") for i = 1:2]
-    raw_params3 = [InfiniteOpt._DependentParameter(set2, 1, "p") for i = 1:2]
-    raw_params4 = [InfiniteOpt._DependentParameter(set3, Float64[], "p") for i = 1:2]
-    raw_params5 = [InfiniteOpt._DependentParameter(set3, Float64[], "p")
+    raw_params1 = [InfiniteOpt._DependentParameter(sset1, Float64[], "p", method) for i = 1:2]
+    raw_params2 = [InfiniteOpt._DependentParameter(set1, [0, 1], "p", method) for i = 1:2]
+    raw_params3 = [InfiniteOpt._DependentParameter(set2, 1, "p", method) for i = 1:2]
+    raw_params4 = [InfiniteOpt._DependentParameter(set3, Float64[], "p", method) for i = 1:2]
+    raw_params5 = [InfiniteOpt._DependentParameter(set3, Float64[], "p", method)
                    for i = CartesianIndices((1:2, 1:2))]
-    raw_params6 = [InfiniteOpt._DependentParameter(set4, Float64[], "p") for i = 1:2]
-    raw_params7 = [InfiniteOpt._DependentParameter(set2, Float64[], "p"),
-                   InfiniteOpt._DependentParameter(set3, Float64[], "p")]
-    raw_params8 = [InfiniteOpt._DependentParameter(set1, [0, 1], "p") for i = 1:3]
-    raw_params9 = [InfiniteOpt._DependentParameter(set1, Float64[], "p"),
-                   InfiniteOpt._DependentParameter(set4, Float64[], "p")]
-    raw_params10 = [InfiniteOpt._DependentParameter(set1, Float64[], "p"),
-                    InfiniteOpt._DependentParameter(set2, Float64[], "p")]
-    raw_params11 = [InfiniteOpt._DependentParameter(BadArraySet(), 1, "p") for i = 1:2]
-    raw_params12 = [InfiniteOpt._DependentParameter(sset1, Float64[], "p"),
-                    InfiniteOpt._DependentParameter(sset2, Float64[], "p")]
+    raw_params6 = [InfiniteOpt._DependentParameter(set4, Float64[], "p", method) for i = 1:2]
+    raw_params7 = [InfiniteOpt._DependentParameter(set2, Float64[], "p", method),
+                   InfiniteOpt._DependentParameter(set3, Float64[], "p", method)]
+    raw_params8 = [InfiniteOpt._DependentParameter(set1, [0, 1], "p", method) for i = 1:3]
+    raw_params9 = [InfiniteOpt._DependentParameter(set1, Float64[], "p", method),
+                   InfiniteOpt._DependentParameter(set4, Float64[], "p", method)]
+    raw_params10 = [InfiniteOpt._DependentParameter(set1, Float64[], "p", method),
+                    InfiniteOpt._DependentParameter(set2, Float64[], "p", method)]
+    raw_params11 = [InfiniteOpt._DependentParameter(BadArraySet(), 1, "p", method) for i = 1:2]
+    raw_params12 = [InfiniteOpt._DependentParameter(sset1, Float64[], "p", method),
+                    InfiniteOpt._DependentParameter(sset2, Float64[], "p", method)]
     # test _check_param_sets (InfiniteScalarSet)
     @testset "_check_param_sets (InfiniteScalarSet)" begin
         @test InfiniteOpt._check_param_sets(error, raw_params1) isa Nothing
@@ -129,6 +132,8 @@ end
     @testset "_check_param_sets (Fallback)" begin
         @test_throws ErrorException InfiniteOpt._check_param_sets(error, ones(2))
     end
+    # TODO TEST _check_derivative_methods
+
     # test _make_array_set (InfiniteArraySet)
     @testset "_make_array_set (InfiniteArraySet)" begin
         @test InfiniteOpt._make_array_set(raw_params3) == set2
@@ -144,10 +149,10 @@ end
         @test_throws ErrorException InfiniteOpt._build_parameters(error, raw_params1, bob = 2)
         @test_throws ErrorException InfiniteOpt._build_parameters(error, raw_params4)
         @test_throws ErrorException InfiniteOpt._build_parameters(error, raw_params9)
-        raw_params12 = [InfiniteOpt._DependentParameter(set1, 0, "p"),
-                        InfiniteOpt._DependentParameter(set1, Float64[], "p")]
+        raw_params12 = [InfiniteOpt._DependentParameter(set1, 0, "p", method),
+                        InfiniteOpt._DependentParameter(set1, Float64[], "p", method)]
         @test_throws ErrorException InfiniteOpt._build_parameters(error, raw_params12)
-        raw_params13 = [InfiniteOpt._DependentParameter(set1, [0, 2], "p") for i = 1:2]
+        raw_params13 = [InfiniteOpt._DependentParameter(set1, [0, 2], "p", method) for i = 1:2]
         @test_throws ErrorException InfiniteOpt._build_parameters(error, raw_params13)
         # test has supports
         @test InfiniteOpt._build_parameters(error,
@@ -549,7 +554,8 @@ end
     prefs = dispatch_variable_ref.(gvrefs)
     data = InfiniteOpt._data_object(first(prefs))
     set = CollectionSet([IntervalSet(0, 2), IntervalSet(0, 2)])
-    params = DependentParameters(set, Dict{Vector{Float64}, Set{Symbol}}(), 10)
+    methods = [InfiniteOpt.DefaultDerivativeMethod for i = 1:2]
+    params = DependentParameters(set, Dict{Vector{Float64}, Set{Symbol}}(), 10, methods)
     bad_idx = DependentParameterIndex(DependentParametersIndex(-1), 2)
     bad_pref = DependentParameterRef(m, bad_idx)
     # test _parameter_number
@@ -583,6 +589,8 @@ end
         @test InfiniteOpt._set_core_variable_object(prefs[2], params) isa Nothing
     end
 end
+
+# TODO TEST DERIVATIVE EVALUATION METHOD FUNCTIONS
 
 # test Infinite Set Methods
 @testset "Infinite Set Methods" begin

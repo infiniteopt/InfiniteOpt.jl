@@ -64,8 +64,8 @@ export @independent_parameter, @dependent_parameters, @infinite_parameter,
 @infinite_parameter, @BDconstraint, @set_parameter_bounds, @add_parameter_bounds,
 @measure, @integral, @expect, @support_sum, @deriv
 
-# Export constants
-export Infinite, Hold, Point
+# Export variable types 
+export InfOptVariableType, Infinite, Hold, Point, Deriv
 
 # Export index types
 export AbstractInfOptIndex, ObjectIndex, IndependentParameterIndex,
@@ -86,7 +86,9 @@ export collection_sets, supports_in_set, generate_support_values
 export InfOptParameter, ScalarParameter, IndependentParameter, FiniteParameter,
 DependentParameters, ScalarParameterData, MultiParameterData,
 IndependentParameterRef, DependentParameterRef, FiniteParameterRef,
-ScalarParameterRef, InfiniteParameter
+ScalarParameterRef, InfiniteParameter, AbstractDerivativeMethod, 
+GenerativeDerivativeMethod, NonGenerativeDerivativeMethod, OrthogonalCollocation,
+FiniteDifference
 
 # Export parameter methods
 export build_parameter, add_parameter, add_parameters,
@@ -94,7 +96,8 @@ infinite_set, set_infinite_set, parameter_by_name, num_parameters,
 all_parameters, num_supports, has_supports,
 set_supports, add_supports, delete_supports, supports, used_by_constraint,
 used_by_measure, used_by_infinite_variable, is_used, generate_and_add_supports!,
-significant_digits, parameter_value, used_by_derivative
+significant_digits, parameter_value, used_by_derivative, derivative_method, 
+set_derivative_method, set_all_derivative_methods
 
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, ReducedVariable,
@@ -113,13 +116,12 @@ intervals, dispatch_variable_ref, internal_reduced_variable, start_value_functio
 set_start_value_function, reset_start_value_function
 
 # Export derivative datatypes 
-export AbstractDerivativeMethod, Integral, Derivative, DerivativeRef
+export Derivative, DerivativeRef
 
 # Export derivative methods 
 export build_derivative, add_derivative, derivative_argument, operator_parameter,
-eval_method, deriv, evaluate_derivative, evaluate, evaluate_all_derivatives!,
-num_derivatives, all_derivatives, set_eval_method, set_all_eval_methods,
-default_eval_method, set_default_eval_method, default_derivative_info
+deriv, evaluate_derivative, evaluate, evaluate_all_derivatives!, num_derivatives, 
+all_derivatives, default_derivative_info
 
 # Export measure datatypes
 export AbstractMeasureData, DiscreteMeasureData, FunctionalDiscreteMeasureData,

@@ -99,7 +99,7 @@ function _set_core_variable_object(pref::ScalarParameterRef,
 end
 
 ################################################################################
-#                             PARAMETER DEFINITION
+#                           MACRO DEFINITION HELPERS
 ################################################################################
 # Internal structure for building InfOptParameters
 mutable struct _ParameterInfoExpr
@@ -193,6 +193,12 @@ function _constructor_set(_error::Function, info::_ParameterInfoExpr)
     end
 end
 
+################################################################################
+#                            PARAMETER DEFINITION
+################################################################################
+# Define the default derivative evaluation method 
+const DefaultDerivativeMethod = FiniteDifference(Int) # TODO replace this with actual method
+
 # Check that supports don't violate the set bounds
 function _check_supports_in_bounds(_error::Function,
                                    supports::Union{<:Real, Vector{<:Real}},
@@ -207,18 +213,21 @@ end
     build_parameter(_error::Function, set::InfiniteScalarSet;
                     [num_supports::Int = 0,
                     supports::Union{Real, Vector{<:Real}} = Real[],
-                    sig_digits::Int = DefaultSigDigits]
+                    sig_digits::Int = DefaultSigDigits,
+                    derivative_method::AbstractDerivativeMethod = DefaultDerivativeMethod]
                     )::IndependentParameter
 
 Returns a [`IndependentParameter`](@ref) given the appropriate information.
 This is analagous to `JuMP.build_variable`. Errors if supports violate the
 bounds associated with `set`. This is meant to primarily serve as a
-helper method for [`@independent_parameter`](@ref).
+helper method for [`@independent_parameter`](@ref). Here `derivative_method` 
+specifies the numerical evalution method that will be applied to derivatives that 
+are taken with respect to this infinite parameter.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt)
+```julia-repl
 julia> build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-IndependentParameter{IntervalSet}(IntervalSet(0.0, 3.0), DataStructures.SortedDict(0.0 => Set([]),1.0 => Set([]),2.0 => Set([]),3.0 => Set([])))
+IndependentParameter{IntervalSet,FiniteDifference}([0, 3], DataStructures.SortedDict(0.0 => Set([:user_defined]),1.0 => Set([:user_defined]),2.0 => Set([:user_defined]),3.0 => Set([:user_defined])), 12, FiniteDifference())
 ```
 """
 function build_parameter(_error::Function,
@@ -226,6 +235,7 @@ function build_parameter(_error::Function,
     num_supports::Int = 0,
     supports::Union{Real, Vector{<:Real}} = Real[],
     sig_digits::Int = DefaultSigDigits,
+    derivative_method::AbstractDerivativeMethod = DefaultDerivativeMethod,
     extra_kw_args...
     )::IndependentParameter{S} where {S <: InfiniteScalarSet}
     for (kwarg, _) in extra_kw_args
@@ -246,7 +256,7 @@ function build_parameter(_error::Function,
     if length_supports != 0 && (length(supports_dict) != length_supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
-    return IndependentParameter(set, supports_dict, sig_digits)
+    return IndependentParameter(set, supports_dict, sig_digits, derivative_method)
 end
 
 """
@@ -283,8 +293,7 @@ construct `p`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> p = build_independent_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-IndependentParameter{IntervalSet}(IntervalSet(0.0, 3.0), DataStructures.SortedDict(0.0 => Set([]),1.0 => Set([]),2.0 => Set([]),3.0 => Set([])))
+julia> p = build_independent_parameter(error, IntervalSet(0, 3), supports = Vector(0:3));
 
 julia> param_ref = add_parameter(model, p, "name")
 name
@@ -337,7 +346,6 @@ end
 ################################################################################
 #                             USED_BY FUNCTIONS
 ################################################################################
-
 """
     used_by_infinite_variable(pref::IndependentParameterRef)::Bool
 
@@ -572,6 +580,53 @@ function parameter_by_name(model::InfiniteModel,
 end
 
 ################################################################################
+#                        DERIVATIVE METHOD FUNCTIONS
+################################################################################
+"""
+    derivative_method(pref::IndependentParameterRef)::AbstractDerivativeMethod
+
+Returns the numerical derivative evaluation method employed with `pref` when it 
+is used as an operator parameter in a derivative.
+
+**Example**
+```julia-repl
+julia> derivative_method(pref) 
+FiniteDifference
+```
+"""
+function derivative_method(pref::IndependentParameterRef)::AbstractDerivativeMethod
+    return _core_variable_object(pref).derivative_method
+end
+
+"""
+    set_derivative_method(pref::IndependentParameterRef, 
+                          method::AbstractDerivativeMethod)::Nothing
+
+Specfies the desired derivative evaluation method `method` for derivatives that are 
+taken with respect to `pref`.
+
+**Example**
+```julia-repl
+julia> set_derivative_method(d, OrthogonalCollocation(2))
+
+```
+"""
+function set_derivative_method(pref::IndependentParameterRef, 
+    method::AbstractDerivativeMethod
+    )::Nothing
+    old_param = _core_variable_object(pref)
+    set = _parameter_set(pref)
+    supps = _parameter_supports(pref)
+    sig_figs = significant_digits(pref)
+    new_param = IndependentParameter(set, supps, sig_figs, method)
+    _set_core_variable_object(dref, new_param)
+    if is_used(pref)
+        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+    end
+    return
+end
+
+################################################################################
 #                               SET FUNCTIONS
 ################################################################################
 # Internal functions
@@ -582,8 +637,9 @@ function _update_parameter_set(pref::IndependentParameterRef,
                                set::AbstractInfiniteSet)::Nothing
     # old supports will always be discarded
     sig_digits = significant_digits(pref)
+    method = derivative_method(pref)
     new_param = IndependentParameter(set, DataStructures.SortedDict{Float64, Set{Symbol}}(),
-                                     sig_digits)
+                                     sig_digits, method)
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
@@ -779,7 +835,9 @@ end
 function _update_parameter_supports(pref::IndependentParameterRef,
     supports::DataStructures.SortedDict{Float64, Set{Symbol}})::Nothing
     set = _parameter_set(pref)
-    new_param = IndependentParameter(set, supports, significant_digits(pref))
+    method = derivative_method(pref)
+    sig_figs = significant_digits(pref)
+    new_param = IndependentParameter(set, supports, sig_figs, method)
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)

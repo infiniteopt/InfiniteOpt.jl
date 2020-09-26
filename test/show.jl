@@ -626,7 +626,7 @@ end
         # test minimization
         str = "An InfiniteOpt Model\nMinimization problem with:\nFinite " *
               "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
-              "\nMeasures: 0" *
+              "\nDerivatives: 0\nMeasures: 0" *
               "\nObjective function type: GenericAffExpr{Float64,General" *
               "VariableRef}\n`GenericAffExpr{Float64,GeneralVariableRef}`-in-" *
               "`MathOptInterface.LessThan{Float64}`: 2 constraints" *
@@ -639,7 +639,7 @@ end
         set_objective_sense(m, MOI.MAX_SENSE)
         str = "An InfiniteOpt Model\nMaximization problem with:\nFinite " *
               "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
-              "\nMeasures: 0" *
+              "\nDerivatives: 0\nMeasures: 0" *
               "\nObjective function type: GenericAffExpr{Float64,General" *
               "VariableRef}\n`GenericAffExpr{Float64,GeneralVariableRef}`-in-" *
               "`MathOptInterface.LessThan{Float64}`: 2 constraints" *
@@ -652,7 +652,7 @@ end
         set_objective_sense(m, MOI.FEASIBILITY_SENSE)
         str = "An InfiniteOpt Model\nFeasibility problem with:\nFinite " *
               "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
-              "\nMeasures: 0" *
+              "\nDerivatives: 0\nMeasures: 0" *
               "\n`GenericAffExpr{Float64,GeneralVariableRef}`-in-`MathOpt" *
               "Interface.LessThan{Float64}`: 2 constraints" *
               "\nNames registered in the model: c1, c3, par1, " *

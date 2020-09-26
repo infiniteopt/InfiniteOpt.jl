@@ -159,21 +159,21 @@ end
     # _make_variable
     @testset "_make_variable" begin
         # test normal
-        @test InfiniteOpt._make_variable(error, info, Val(Hold)).info == info
+        @test InfiniteOpt._make_variable(error, info, Hold).info == info
         bounds = ParameterBounds((pars => IntervalSet(0, 0),))
-        @test InfiniteOpt._make_variable(error, info, Val(Hold),
+        @test InfiniteOpt._make_variable(error, info, Hold,
                                          parameter_bounds = bounds).info == info
-        @test InfiniteOpt._make_variable(error, info, Val(Hold),
+        @test InfiniteOpt._make_variable(error, info, Hold,
                             parameter_bounds = bounds).parameter_bounds == bounds
         # test errors
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                                Val(Hold), parameter_values = 3)
+                                                Hold, parameter_values = 3)
         bounds = ParameterBounds((pars[1] => IntervalSet(0, 0),))
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                           Val(Hold), parameter_bounds = bounds)
+                                           Hold, parameter_bounds = bounds)
         bounds = ParameterBounds((par => IntervalSet(-1, -1),))
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                           Val(Hold), parameter_bounds = bounds)
+                                           Hold, parameter_bounds = bounds)
     end
     # build_variable
     @testset "JuMP.build_variable" begin

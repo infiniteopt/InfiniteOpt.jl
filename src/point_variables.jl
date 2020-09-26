@@ -155,7 +155,7 @@ function _update_point_info(info::JuMP.VariableInfo,
 end
 
 # Define _make_variable (used by JuMP.build_variable)
-function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Point};
+function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Type{Point};
                         infinite_variable_ref::Union{GeneralVariableRef,
                                                      Nothing} = nothing,
                         parameter_values::Union{Real, AbstractArray{<:Real},

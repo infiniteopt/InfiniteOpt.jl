@@ -259,42 +259,42 @@ end
     # _make_variable
     @testset "_make_variable" begin
         # test for each error message
-        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Infinite),
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Infinite,
                                                    bob = 42)
         @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(:bad))
-        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Infinite))
-        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Infinite),
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Infinite)
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Infinite,
                                                    parameter_refs = (pref, fin))
-        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Infinite),
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Infinite,
                                                   parameter_refs = (pref, pref))
         func = (a, b) -> a + sum(b)
         bad_info = VariableInfo(true, num, true, num, true, num, true, func, true, false)
-        @test_throws ErrorException InfiniteOpt._make_variable(error, bad_info, Val(Infinite),
+        @test_throws ErrorException InfiniteOpt._make_variable(error, bad_info, Infinite,
                                                                parameter_refs = (pref))
         # test for expected output
-        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+        @test InfiniteOpt._make_variable(error, info, Infinite,
                              parameter_refs = pref).info isa JuMP.VariableInfo{Float64, Float64, Float64, Function}
-        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+        @test InfiniteOpt._make_variable(error, info, Infinite,
                 parameter_refs = pref).parameter_refs == IC.VectorTuple(pref)
-        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+        @test InfiniteOpt._make_variable(error, info, Infinite,
                 parameter_refs = pref).parameter_nums == [1]
-        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+        @test InfiniteOpt._make_variable(error, info, Infinite,
                 parameter_refs = pref).object_nums == [1]
         # test various types of param tuples
         tuple = IC.VectorTuple(pref, pref2)
-        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+        @test InfiniteOpt._make_variable(error, info, Infinite,
                  parameter_refs = (pref, pref2)).parameter_refs == tuple
         tuple = IC.VectorTuple(pref, prefs)
-        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+        @test InfiniteOpt._make_variable(error, info, Infinite,
                          parameter_refs = (pref, prefs)).parameter_refs == tuple
-        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+        @test InfiniteOpt._make_variable(error, info, Infinite,
                          parameter_refs = (pref, prefs)).parameter_nums == [1, 3, 4]
-        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+        @test InfiniteOpt._make_variable(error, info, Infinite,
                                          parameter_refs = (pref, prefs)).is_vector_start
-        @test sort!(InfiniteOpt._make_variable(error, info, Val(Infinite),
+        @test sort!(InfiniteOpt._make_variable(error, info, Infinite,
                          parameter_refs = (pref, prefs)).object_nums) == [1, 3]
         tuple = IC.VectorTuple(prefs)
-        @test InfiniteOpt._make_variable(error, info, Val(Infinite),
+        @test InfiniteOpt._make_variable(error, info, Infinite,
                              parameter_refs = prefs).parameter_refs == tuple
     end
     # build_variable
@@ -302,7 +302,6 @@ end
         # test for each error message
         @test_throws ErrorException build_variable(error, info, Infinite,
                                                    bob = 42)
-        @test_throws ErrorException build_variable(error, info, :bad)
         @test_throws ErrorException build_variable(error, info, Point,
                                                    parameter_refs = pref)
         @test_throws ErrorException build_variable(error, info, Infinite)
@@ -872,12 +871,11 @@ end
         @test is_used(vref)
         empty!(InfiniteOpt._reduced_variable_dependencies(vref))
         # test used by derivative
-        eval_method = Integral(10, Automatic)
         func = (x) -> NaN
         num = 0.
         info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
                                          num, true, num, false, func, true, true)
-        deriv = Derivative(info, true, y, t, eval_method)
+        deriv = Derivative(info, true, y, t)
         object = VariableData(deriv)
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)

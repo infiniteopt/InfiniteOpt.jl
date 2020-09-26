@@ -397,12 +397,11 @@ end
         @test is_used(y)
         empty!(InfiniteOpt._constraint_dependencies(vref))
         # test used by derivative
-        eval_method = Integral(10, Automatic)
         func = (x) -> NaN
         num = 0.
         info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
                                          num, true, num, false, func, true, true)
-        deriv = Derivative(info, true, y, t, eval_method)
+        deriv = Derivative(info, true, y, t)
         object = VariableData(deriv)
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)

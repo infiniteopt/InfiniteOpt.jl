@@ -1,10 +1,12 @@
 ################################################################################
 #                               VARIABLE DEFINITION
 ################################################################################
-# Define symbol inputs for different variable types
-const Infinite = :Infinite
-const Point = :Point
-const Hold = :Hold
+# Define types for different variables
+abstract type InfOptVariableType end 
+struct Infinite <: InfOptVariableType end
+struct Point <: InfOptVariableType end
+struct Hold <: InfOptVariableType end
+struct Deriv <: InfOptVariableType end
 
 # Fallback _make_variable (the methods are defined in the variable files)
 function _make_variable(_error::Function, info::JuMP.VariableInfo, type;
@@ -15,7 +17,7 @@ end
 
 """
     JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
-                        var_type::Symbol;
+                        var_type::Type{<:InfOptVariableType};
                         [parameter_refs::Union{GeneralVariableRef,
                                               AbstractArray{<:GeneralVariableRef},
                                               Tuple, Nothing} = nothing,
@@ -60,14 +62,14 @@ HoldVariable{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Float64}(f
 ```
 """
 function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
-                             var_type::Symbol;
+                             var_type::Type{<:InfOptVariableType};
                              macro_error::Union{Function, Nothing} = nothing,
                              kw_args...)::InfOptVariable
     if macro_error !== nothing
         _error = macro_error # replace with macro error function
     end
     # make the variable and conduct necessary checks
-    return _make_variable(_error, info, Val(var_type); kw_args...)
+    return _make_variable(_error, info, var_type; kw_args...)
 end
 
 # Fallback

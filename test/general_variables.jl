@@ -475,6 +475,22 @@ end
     @testset "JuMP.set_value (GeneralVariableRef)" begin
         @test_throws ArgumentError set_value(gvref, 2)
     end
+    # test derivative_method (Fallback)
+    @testset "derivative_method (Fallback)" begin
+        @test_throws ArgumentError derivative_method(dvref)
+    end
+    # test derivative_method (GeneralVariableRef)
+    @testset "derivative_method (GeneralVariableRef)" begin
+        @test_throws ArgumentError derivative_method(gvref)
+    end
+    # test set_derivative_method (Fallback)
+    @testset "set_derivative_method (Fallback)" begin
+        @test_throws ArgumentError set_derivative_method(dvref, FiniteDifference(Int))
+    end
+    # test set_derivative_method (GeneralVariableRef)
+    @testset "set_derivative_method (GeneralVariableRef)" begin
+        @test_throws ArgumentError set_derivative_method(gvref, FiniteDifference(Int))
+    end
 end
 
 # test Variable Methods
@@ -642,22 +658,6 @@ end
     # test operator_parameter (GeneralVariableRef)
     @testset "operator_parameter (GeneralVariableRef)" begin
         @test_throws ArgumentError operator_parameter(gvref)
-    end
-    # test eval_method (Fallback)
-    @testset "eval_method (Fallback)" begin
-        @test_throws ArgumentError eval_method(dvref)
-    end
-    # test eval_method (GeneralVariableRef)
-    @testset "eval_method (GeneralVariableRef)" begin
-        @test_throws ArgumentError eval_method(gvref)
-    end
-    # test set_eval_method (Fallback)
-    @testset "set_eval_method (Fallback)" begin
-        @test_throws ArgumentError set_eval_method(dvref, Integral(10, Automatic))
-    end
-    # test set_eval_method (GeneralVariableRef)
-    @testset "set_eval_method (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_eval_method(gvref, Integral(10, Automatic))
     end
 end
 
