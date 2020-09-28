@@ -23,6 +23,7 @@ Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
 Measures: 0
+Derivatives: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
@@ -41,6 +42,7 @@ Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
 Measures: 0
+Derivatives: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: EMPTY_OPTIMIZER
@@ -64,6 +66,7 @@ Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
 Measures: 0
+Derivatives: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: EMPTY_OPTIMIZER
@@ -104,6 +107,7 @@ Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
 Measures: 0
+Derivatives: 0
 Optimizer model backend information:
 Model mode: MANUAL
 CachingOptimizer state: EMPTY_OPTIMIZER
@@ -124,6 +128,7 @@ Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
 Measures: 0
+Derivatives: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
@@ -196,4 +201,5 @@ ObjectIndex
 ## Methods
 ```@docs
 InfiniteModel()
+has_internal_supports
 ```

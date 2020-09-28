@@ -491,6 +491,38 @@ end
     @testset "set_derivative_method (GeneralVariableRef)" begin
         @test_throws ArgumentError set_derivative_method(gvref, FiniteDifference(Int))
     end
+    # test has_internal_supports (Fallback)
+    @testset "has_internal_supports (Fallback)" begin
+        @test_throws ArgumentError has_internal_supports(dvref)
+    end
+    # test has_internal_supports (GeneralVariableRef)
+    @testset "has_internal_supports (GeneralVariableRef)" begin
+        @test_throws ArgumentError has_internal_supports(gvref)
+    end
+    # test set_has_internal_supports (Fallback)
+    @testset "set_has_internal_supports (Fallback)" begin
+        @test_throws ArgumentError set_has_internal_supports(dvref, true)
+    end
+    # test set_has_internal_supports (GeneralVariableRef)
+    @testset "set_has_internal_supports (GeneralVariableRef)" begin
+        @test_throws ArgumentError set_has_internal_supports(gvref, true)
+    end
+    # test has_derivative_supports (Fallback)
+    @testset "has_derivative_supports (Fallback)" begin
+        @test_throws ArgumentError has_derivative_supports(dvref)
+    end
+    # test has_derivative_supports (GeneralVariableRef)
+    @testset "has_derivative_supports (GeneralVariableRef)" begin
+        @test_throws ArgumentError has_derivative_supports(gvref)
+    end
+    # test set_has_derivative_supports (Fallback)
+    @testset "set_has_derivative_supports (Fallback)" begin
+        @test_throws ArgumentError set_has_derivative_supports(dvref, true)
+    end
+    # test set_has_derivative_supports (GeneralVariableRef)
+    @testset "set_has_derivative_supports (GeneralVariableRef)" begin
+        @test_throws ArgumentError set_has_derivative_supports(gvref, true)
+    end
 end
 
 # test Variable Methods

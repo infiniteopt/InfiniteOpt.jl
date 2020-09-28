@@ -110,7 +110,7 @@ end
     DiscreteMeasureData(pref::GeneralVariableRef,
                         coefficients::Vector{<:Real},
                         supports::Vector{<:Real};
-                        [label::Symbol = gensym(),
+                        [label::Type{<:AbstractSupportLabel} = generate_unique_label(),
                         weight_function::Function = [`default_weight`](@ref),
                         lower_bound::Real = NaN,
                         upper_bound::Real = NaN,
@@ -122,20 +122,20 @@ to define measures using [`measure`](@ref). This accepts input for a scalar (sin
 infinite parameter. A description of the other arguments is provided in the
 documentation for [`DiscreteMeasureData`](@ref). Errors if supports are out
 bounds or an unequal number of supports and coefficients are given. Note that by
-default a unique `label` is generated via `gensym` to ensure the supports can
+default a unique `label` is generated via `generate_unique_label` to ensure the supports can
 be located in the infinite parameter support storage. Advanced implementations,
 may choose a different behavior but should do so with caution.
 
 **Example**
 ```julia-repl
 julia> data = DiscreteMeasureData(pref, [0.5, 0.5], [1, 2])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(pref, [0.5, 0.5], [1.0, 2.0], Symbol("##373"), default_weight, NaN, NaN, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(pref, [0.5, 0.5], [1.0, 2.0], Val{Symbol("##373")}, default_weight, NaN, NaN, false)
 ```
 """
 function DiscreteMeasureData(pref::GeneralVariableRef,
     coefficients::Vector{<:Real},
     supports::Vector{<:Real};
-    label::Symbol = gensym(), # makes a unique symbol
+    label::Type{<:AbstractSupportLabel} = generate_unique_label(),
     weight_function::Function = default_weight,
     lower_bound::Real = NaN,
     upper_bound::Real = NaN,
@@ -228,7 +228,7 @@ end
     DiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
                         coefficients::Vector{<:Real},
                         supports::Vector{<:AbstractArray{<:Real}};
-                        label::Symbol = gensym(),
+                        label::Type{<:AbstractSupportLabel} = generate_unique_label(),
                         weight_function::Function = [`default_weight`](@ref),
                         lower_bounds::AbstractArray{<:Real} = [NaN...],
                         upper_bounds::AbstractArray{<:Real} = [NaN...],
@@ -243,7 +243,7 @@ provided in the
 documentation for [`DiscreteMeasureData`](@ref). Errors if supports are out
 bounds, an unequal number of supports and coefficients are given, the array
 formats do not match, or if mixed infinite parameter types are given. Note that by
-default a unique `label` is generated via `gensym` to ensure the supports can
+default a unique `label` is generated via `generate_unique_label` to ensure the supports can
 be located in the infinite parameter support storage. Advanced implementations,
 may choose a different behavior but should do so with caution.
 
@@ -258,7 +258,7 @@ DiscreteMeasureData{Array{GeneralVariableRef,1},2,Array{Float64,1}}
 function DiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
     coefficients::Vector{<:Real},
     supports::Vector{<:AbstractArray{<:Real}};
-    label::Symbol = gensym(),
+    label::Type{<:AbstractSupportLabel} = generate_unique_label(),
     weight_function::Function = default_weight,
     lower_bounds::AbstractArray{<:Real} = map(e -> NaN, prefs),
     upper_bounds::AbstractArray{<:Real} = map(e -> NaN, prefs),
@@ -286,7 +286,7 @@ end
     FunctionalDiscreteMeasureData(pref::GeneralVariableRef,
                                   coeff_func::Function,
                                   min_num_supports::Int,
-                                  label::Symbol;
+                                  label::Type{<:AbstractSupportLabel};
                                   [weight_function::Function = [`default_weight`](@ref),
                                   lower_bound::Real = NaN,
                                   upper_bound::Real = NaN,
@@ -313,13 +313,12 @@ function FunctionalDiscreteMeasureData(
     pref::GeneralVariableRef,
     coeff_func::Function,
     min_num_supports::Int,
-    label::Symbol;
+    label::Type{<:AbstractSupportLabel};
     weight_function::Function = default_weight,
     lower_bound::Real = NaN,
     upper_bound::Real = NaN,
     is_expect::Bool = false
     )::FunctionalDiscreteMeasureData{GeneralVariableRef,Float64}
-    # NOTE Might need to add some check for valid label input here or later...
     _check_params(pref)
     if _index_type(pref) == DependentParameterIndex && min_num_supports != 0
         error("`min_num_supports` must be 0 for individual dependent parameters.")
@@ -360,7 +359,7 @@ end
     FunctionalDiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
                                   coeff_func::Function,
                                   min_num_supports::Int,
-                                  label::Symbol;
+                                  label::Type{<:AbstractSupportLabel};
                                   [weight_function::Function = [`default_weight`](@ref),
                                   lower_bounds::AbstractArray{<:Real} = [NaN...],
                                   upper_bounds::AbstractArray{<:Real} = [NaN...],
@@ -387,13 +386,12 @@ function FunctionalDiscreteMeasureData(
     prefs::AbstractArray{GeneralVariableRef},
     coeff_func::Function,
     min_num_supports::Int,
-    label::Symbol;
+    label::Type{<:AbstractSupportLabel};
     weight_function::Function = default_weight,
     lower_bounds::AbstractArray{<:Real} = map(e -> NaN, prefs),
     upper_bounds::AbstractArray{<:Real} = map(e -> NaN, prefs),
     is_expect::Bool = false
     )::FunctionalDiscreteMeasureData{Vector{GeneralVariableRef},Vector{Float64}}
-    # NOTE Might need to add some check for valid label input here or later...
     _check_params(prefs)
     if _keys(prefs) != _keys(lower_bounds)
         error("Parameter references and bounds must use same container type.")
@@ -434,7 +432,7 @@ function parameter_refs(data::FunctionalDiscreteMeasureData{T})::T where {T}
 end
 
 """
-    support_label(data::AbstractMeasureData)::Symbol
+    support_label(data::AbstractMeasureData)::Type{<:AbstractSupportLabel}
 
 Return the label stored in `data` associated with its supports.
 This is intended as en internal method for measure creation and ensures any
@@ -449,7 +447,7 @@ end
 
 # DiscreteMeasureData and FunctionalDiscreteMeasureData
 function support_label(data::Union{FunctionalDiscreteMeasureData,
-                       DiscreteMeasureData})::Symbol
+                       DiscreteMeasureData})::Type{<:AbstractSupportLabel}
     return data.label
 end
 
@@ -497,7 +495,7 @@ end
 
 # DiscreteMeasureData and FunctionalDiscreteMeasureData
 function _is_expect(data::Union{FunctionalDiscreteMeasureData,
-                                      DiscreteMeasureData})::Bool
+                                DiscreteMeasureData})::Bool
     return data.is_expect
 end
 
@@ -748,7 +746,7 @@ end
 function _add_supports_to_multiple_parameters(
     prefs::Vector{DependentParameterRef},
     supps::Array{Float64, 2},
-    label::Symbol
+    label::Type{<:AbstractSupportLabel}
     )::Nothing
     add_supports(prefs, supps, label = label, check = false)
     return
@@ -757,7 +755,7 @@ end
 function _add_supports_to_multiple_parameters(
     prefs::Vector{IndependentParameterRef},
     supps::Array{Float64, 2},
-    label::Symbol
+    label::Type{<:AbstractSupportLabel}
     )::Nothing
     for i in eachindex(prefs)
         add_supports(prefs[i], supps[i, :], label = label, check = false)
@@ -834,7 +832,7 @@ end
 # DependentParameterRefs
 function _generate_multiple_functional_supports(
     prefs::Vector{DependentParameterRef},
-    num_supps::Int, label::Symbol,
+    num_supps::Int, label::Type{<:AbstractSupportLabel},
     lower_bounds::Vector{<:Number},
     upper_bounds::Vector{<:Number}
     )::Nothing
@@ -854,7 +852,7 @@ end
 # IndependentParameterRefs
 function _generate_multiple_functional_supports(
     prefs::Vector{IndependentParameterRef},
-    num_supps::Int, label::Symbol,
+    num_supps::Int, label::Type{<:AbstractSupportLabel},
     lower_bounds::Vector{<:Number},
     upper_bounds::Vector{<:Number}
     )::Nothing
@@ -1320,6 +1318,13 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
     union!(vrefs, parameter_refs(measure_data(mref)))
     for vref in vrefs
         filter!(e -> e != JuMP.index(mref), _measure_dependencies(vref))
+    end
+    # Remove any unique supports associated with this measure 
+    if num_supports(measure_data(mref)) > 0
+        label = support_label(measure_data(mref))
+        if label <: UniqueMeasure
+            delete_supports(parameter_refs(measure_data(mref)), label = label)
+        end
     end
     # delete remaining measure information
     _delete_data_object(mref)

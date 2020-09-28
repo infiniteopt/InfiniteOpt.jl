@@ -214,17 +214,17 @@ function _build_parameters(_error::Function,
         supports_in_set(supps, set) || _error("Supports violate infinite set domain.")
         supps = round.(supps, sigdigits = sig_digits)
         label = UserDefined
-        supp_dict = Dict{Vector{Float64}, Set{Symbol}}(@views supps[:, i] =>
+        supp_dict = Dict{Vector{Float64}, Set{DataType}}(@views supps[:, i] =>
                                          Set([label]) for i in 1:size(supps, 2))
     # we want to generate supports
     elseif num_supports != 0
         supps, label = generate_support_values(set, num_supports = num_supports,
                                                sig_digits = sig_digits)
-        supp_dict = Dict{Vector{Float64}, Set{Symbol}}(@views supps[:, i] =>
+        supp_dict = Dict{Vector{Float64}, Set{DataType}}(@views supps[:, i] =>
                                          Set([label]) for i in 1:size(supps, 2))
     # no supports are specified
     else
-        supp_dict = Dict{Vector{Float64}, Set{Symbol}}()
+        supp_dict = Dict{Vector{Float64}, Set{DataType}}()
     end
     # make the parameter object
     names = map(p -> p.name, vector_params)
@@ -498,6 +498,16 @@ end
 ################################################################################
 #                        DERIVATIVE METHOD FUNCTIONS
 ################################################################################
+# Extend fallback for dependent parameters
+function has_derivative_supports(pref::DependentParameterRef)::Bool
+    return false
+end
+
+# Extend fallback for dependent parameters
+function set_has_derivative_supports(pref::DependentParameterRef, status::Bool)::Nothing
+    return
+end
+
 # Get the raw derivative method vector
 function _derivative_methods(pref::DependentParameterRef)
     return _core_variable_object(pref).derivative_methods
@@ -647,7 +657,7 @@ end
 function _update_parameter_set(pref::DependentParameterRef,
                                new_set::InfiniteArraySet)::Nothing
     old_params = _core_variable_object(pref)
-    new_supports = Dict{Vector{Float64}, Set{Symbol}}()
+    new_supports = Dict{Vector{Float64}, Set{DataType}}()
     sig_figs = significant_digits(pref)
     methods = _derivative_methods(pref)
     new_params = DependentParameters(new_set, new_supports, sig_figs, methods)
@@ -865,7 +875,7 @@ end
 ################################################################################
 # Get the raw supports
 function _parameter_supports(pref::DependentParameterRef
-                             )::Dict{Vector{Float64}, Set{Symbol}}
+                             )::Dict{Vector{Float64}, Set{DataType}}
     return _core_variable_object(pref).supports
 end
 
@@ -885,11 +895,13 @@ function significant_digits(pref::DependentParameterRef)::Int
 end
 
 """
-    num_supports(pref::DependentParameterRef; [label::Symbol = All])::Int
+    num_supports(pref::DependentParameterRef; 
+                 [label::Type{<:AbstractSupportLabel} = PublicLabel])::Int
 
 Return the number of support points associated with a single dependent infinite
 parameter `pref`. Specify a subset of supports via `label` to only count the
-supports with `label`.
+supports with `label`. By default only the amount of public supports are given, but 
+the full amount is obtained via `label == All`.
 
 **Example**
 ```julia-repl
@@ -900,22 +912,25 @@ julia> num_supports(x[1], label = MCSample)
 0
 ```
 """
-function num_supports(pref::DependentParameterRef; label::Symbol = All)::Int
+function num_supports(pref::DependentParameterRef; 
+                      label::Type{<:AbstractSupportLabel} = PublicLabel)::Int
     supp_dict = _parameter_supports(pref)
-    if label == All
+    if label == All || (!has_internal_supports(pref) && label == PublicLabel)
         return length(supp_dict)
     else
-        return count(p -> label in p[2], supp_dict)
+        return count(p -> any(v -> v <: label, p[2]), supp_dict)
     end
 end
 
 """
     num_supports(prefs::AbstractArray{<:DependentParameterRef};
-                 [label::Symbol = All])::Int
+                 [label::Type{<:AbstractSupportLabel} = PublicLabel])::Int
 
 Return the number of support points associated with dependent infinite
 parameters `prefs`. Errors if not all from the same underlying object.
 Specify a subset of supports via `label` to only count the supports with `label`.
+By default only the amount of public supports are given, but the full amount is 
+obtained via `label == All`.
 
 **Example**
 ```julia-repl
@@ -924,7 +939,8 @@ julia> num_supports(x)
 ```
 """
 function num_supports(prefs::AbstractArray{<:DependentParameterRef};
-                      label::Symbol = All)::Int
+    label::Type{<:AbstractSupportLabel} = PublicLabel
+    )::Int
     _check_complete_param_array(prefs)
     return num_supports(first(prefs), label = label)
 end
@@ -960,10 +976,13 @@ function has_supports(prefs::AbstractArray{<:DependentParameterRef})::Bool
 end
 
 """
-    supports(pref::DependentParameterRef; [label::Symbol = All])::Vector{Float64}
+    supports(pref::DependentParameterRef; 
+             [label::Type{<:AbstractSupportLabel} = PublicLabel])::Vector{Float64}
 
 Return the support points associated with `pref`. A subset of supports can be
-returned via `label` to return just the supports associated with `label`.
+returned via `label` to return just the supports associated with `label`. By 
+default only the public supports are given, but the full set is 
+obtained via `label == All`.
 
 **Example**
 ```julia-repl
@@ -974,27 +993,29 @@ julia> supports(x[1])
 ```
 """
 function supports(pref::DependentParameterRef;
-                  label::Symbol = All)::Vector{Float64}
-    if label == All
-        pindex = _param_index(pref)
-        return Float64[supp[pindex] for supp in keys(_parameter_supports(pref))]
+                  label::Type{<:AbstractSupportLabel} = PublicLabel)::Vector{Float64}
+    supp_dict = _parameter_supports(pref)
+    pindex = _param_index(pref)
+    if label == All || (!has_internal_supports(pref) && label == PublicLabel)
+        return Float64[supp[pindex] for supp in keys(supp_dict)]
     else
-        reduced_supps = findall(e -> label in e, _parameter_supports(pref))
-        pindex = _param_index(pref)
+        reduced_supps = findall(e -> any(v -> v <: label, e), supp_dict)
         return Float64[supp[pindex] for supp in reduced_supps]
     end
 end
 
 """
     supports(prefs::AbstractArray{<:DependentParameterRef};
-             [label::Symbol = All]
+             [label::Type{<:AbstractSupportLabel} = PublicLabel]
              )::Union{AbstractArray{<:Vector{<:Float64}}, Array{Float64, 2}}
 
 Return the support points associated with `prefs`. Errors if not all of the
 infinite dependent parameters are from the same object. This will return a
 matrix if `prefs` is `Vector`, otherwise an array of vectors is returned by
 calling `supports.(prefs)`. A subset of supports can be
-returned via `label` to return just the supports associated with `label`.
+returned via `label` to return just the supports associated with `label`. By 
+default only the public supports are given, but the full set is  obtained via 
+`label == All`.
 
 **Example**
 ```julia-repl
@@ -1005,17 +1026,19 @@ julia> supports(x) # columns are supports
 ```
 """
 function supports(prefs::AbstractArray{<:DependentParameterRef};
-                  label::Symbol = All)::AbstractArray{<:Vector{<:Float64}}
+                  label::Type{<:AbstractSupportLabel} = PublicLabel
+                  )::AbstractArray{<:Vector{<:Float64}}
     _check_complete_param_array(prefs)
     return supports.(prefs, label = label) # TODO make more efficient
 end
 
 # More efficient dispatch for Vectors
 function supports(prefs::Vector{DependentParameterRef};
-                  label::Symbol = All)::Array{Float64, 2}
+                  label::Type{<:AbstractSupportLabel} = PublicLabel
+                  )::Array{Float64, 2}
     if !has_supports(prefs)
         return zeros(Float64, _num_parameters(first(prefs)), 0)
-    elseif label == All
+    elseif label == All || (!has_internal_supports(first(prefs)) && label == PublicLabel)
         raw_supps = keys(_parameter_supports(first(prefs)))
         if length(raw_supps) == 1
             return reduce(hcat, collect(raw_supps))
@@ -1023,7 +1046,8 @@ function supports(prefs::Vector{DependentParameterRef};
             return reduce(hcat, raw_supps)
         end
     else
-        raw_supps = findall(e -> label in e, _parameter_supports(first(prefs)))
+        raw_supps = findall(e -> any(v -> v <: label, e), 
+                            _parameter_supports(first(prefs)))
         if isempty(raw_supps)
             return zeros(Float64, _num_parameters(first(prefs)), 0)
         else
@@ -1035,14 +1059,15 @@ end
 # Define method for overriding the current supports
 function _update_parameter_supports(prefs::AbstractArray{<:DependentParameterRef},
                                     supports::Array{<:Real, 2},
-                                    label::Symbol)::Nothing
+                                    label::Type{<:AbstractSupportLabel})::Nothing
     set = _parameter_set(first(prefs))
-    new_supps = Dict{Vector{Float64}, Set{Symbol}}(@views supports[:, i] =>
+    new_supps = Dict{Vector{Float64}, Set{DataType}}(@views supports[:, i] =>
                                       Set([label]) for i in 1:size(supports, 2))
     sig_figs = significant_digits(first(prefs))
     methods = _derivative_methods(first(prefs))
     new_params = DependentParameters(set, new_supps, sig_figs, methods)
     _set_core_variable_object(first(prefs), new_params)
+    set_has_internal_supports(first(prefs), label <: InternalLabel)
     if any(is_used(pref) for pref in prefs)
         set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
     end
@@ -1066,7 +1091,8 @@ end
 """
     set_supports(prefs::AbstractArray{<:DependentParameterRef},
                  supports::AbstractArray{<:Vector{<:Real}};
-                 [force::Bool = false])::Nothing
+                 [force::Bool = false,
+                 label::Type{<:AbstractSupportLabel} = UserDefined])::Nothing
 
 Specify the support points for `prefs`. Errors if the supports violate the domain
 of the infinite set, if the dimensions don't match up properly,
@@ -1078,7 +1104,8 @@ supports and `force = false`. Note that it is strongly preferred to use
 ```julia
     set_supports(prefs::Vector{DependentParameterRef},
                  supports::Array{<:Real, 2};
-                 [force::Bool = false])::Nothing
+                 [force::Bool = false,
+                 label::Type{<:AbstractSupportLabel} = UserDefined])::Nothing
 ```
 Specify the supports for a vector `prefs` of dependent infinite parameters.
 Here rows of `supports` correspond to `prefs` and the columns correspond to the
@@ -1100,7 +1127,7 @@ julia> supports(x)
 function set_supports(prefs::AbstractArray{<:DependentParameterRef},
                       supports::AbstractArray{<:Vector{<:Real}};
                       force::Bool = false,
-                      label::Symbol = UserDefined
+                      label::Type{<:AbstractSupportLabel} = UserDefined
                       )::Nothing
     supps = _make_support_matrix(prefs, supports)
     set_supports(_make_vector(prefs), supps, force = force, label = label)
@@ -1111,7 +1138,7 @@ end
 function set_supports(prefs::Vector{DependentParameterRef},
                       supports::Array{<:Real, 2};
                       force::Bool = false,
-                      label::Symbol = UserDefined
+                      label::Type{<:AbstractSupportLabel} = UserDefined
                       )::Nothing
     set = infinite_set(prefs) # this does a check on prefs
     if has_supports(prefs) && !force
@@ -1133,7 +1160,8 @@ end
 
 """
     add_supports(prefs::AbstractArray{<:DependentParameterRef},
-                 supports::AbstractArray{<:Vector{<:Real}})::Nothing
+                 supports::AbstractArray{<:Vector{<:Real}};
+                 [label::Type{<:AbstractSupportLabel} = UserDefined])::Nothing
 
 Add additional support points for `prefs`. Errors if the supports violate the domain
 of the infinite set, if the dimensions don't match up properly,
@@ -1142,7 +1170,8 @@ from the same dependent infinite parameter container.
 
 ```julia
     add_supports(prefs::Vector{DependentParameterRef},
-                 supports::Array{<:Real, 2})::Nothing
+                 supports::Array{<:Real, 2};
+                 [label::Type{<:AbstractSupportLabel} = UserDefined])::Nothing
 ```
 Specify the supports for a vector `prefs` of dependent infinite parameters.
 Here rows of `supports` correspond to `prefs` and the columns correspond to the
@@ -1168,7 +1197,7 @@ julia> supports(t)
 """
 function add_supports(prefs::AbstractArray{<:DependentParameterRef},
                       supports::AbstractArray{<:Vector{<:Real}};
-                      label::Symbol = UserDefined, # interal keyword args
+                      label::Type{<:AbstractSupportLabel} = UserDefined, # interal keyword args
                       check::Bool = true)::Nothing
     supps = _make_support_matrix(prefs, supports)
     add_supports(_make_vector(prefs), supps, label = label, check = check)
@@ -1178,7 +1207,7 @@ end
 # More efficient version for supports in the correct format
 function add_supports(prefs::Vector{DependentParameterRef},
                       supports::Array{<:Real, 2};
-                      label::Symbol = UserDefined, # internal keyword args
+                      label::Type{<:AbstractSupportLabel} = UserDefined, # internal keyword args
                       check::Bool = true)::Nothing
     set = infinite_set(prefs) # this does a check on prefs
     if check && !supports_in_set(supports, set)
@@ -1194,6 +1223,9 @@ function add_supports(prefs::Vector{DependentParameterRef},
             current_supports[s] = Set([label])
         end
     end
+    if label <: InternalLabel
+        set_has_internal_supports(first(prefs), true)
+    end
     if any(is_used(pref) for pref in prefs)
         set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
     end
@@ -1206,10 +1238,13 @@ function add_supports(pref::DependentParameterRef, supports; kwargs...)
 end
 
 """
-    delete_supports(prefs::AbstractArray{<:DependentParameterRef})::Nothing
+    delete_supports(prefs::AbstractArray{<:DependentParameterRef};
+                    [label::Type{<:AbstractSupportLabel} = All])::Nothing
 
 Delete the support points for `prefs`. Errors if any of the parameters are
 used by a measure or if not all belong to the same set of dependent parameters.
+If `label != All` then that label is removed along with any supports that solely 
+contain that label.
 
 **Example**
 ```julia-repl
@@ -1217,12 +1252,25 @@ julia> delete_supports(w)
 
 ```
 """
-function delete_supports(prefs::AbstractArray{<:DependentParameterRef})::Nothing
+function delete_supports(prefs::AbstractArray{<:DependentParameterRef};
+                         label::Type{<:AbstractSupportLabel} = All)::Nothing
     _check_complete_param_array(prefs)
-    if any(used_by_measure(pref) for pref in prefs)
-        error("Cannot delete supports with measure dependencies.")
+    supp_dict = _parameter_supports(first(prefs))
+    if label == All
+        if any(used_by_measure(pref) for pref in prefs)
+            error("Cannot delete supports with measure dependencies.")
+        end
+        empty!(supp_dict)
+    else 
+        filter!(p -> !all(v -> v <: label, p[2]), supp_dict)
+        for (k, v) in supp_dict 
+            filter!(l -> !(l <: label), v)
+        end
+        pref1 = first(prefs)
+        if has_internal_supports(pref1) && num_supports(pref1, label = InternalLabel) == 0
+            set_has_internal_supports(pref1, false)
+        end
     end
-    empty!(_parameter_supports(first(prefs)))
     if any(is_used(pref) for pref in prefs)
         set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
     end
@@ -1238,7 +1286,7 @@ end
 """
     generate_and_add_supports!(prefs::AbstractArray{<:DependentParameterRef},
                                set::InfiniteArraySet,
-                               method::Union{Symbol, Nothing} = nothing;
+                               [method::Type{<:AbstractSupportLabel}];
                                [num_supports::Int = DefaultNumSupports])::Nothing
 
 Generate supports for `prefs` via [`generate_support_values`](@ref) and add them
@@ -1251,8 +1299,19 @@ adding supports to a set of infinite parameters. Errors if the
 infinite set type is not recognized.
 """
 function generate_and_add_supports!(prefs::AbstractArray{<:DependentParameterRef},
+                                    set::InfiniteArraySet;
+                                    num_supports::Int = DefaultNumSupports)::Nothing
+    new_supps, label = generate_supports(set,
+                                         num_supports = num_supports,
+                                    sig_digits = significant_digits(first(prefs)))
+    add_supports(_make_vector(prefs), new_supps, check = false, label = label)
+    return
+end
+
+# Method dispatch
+function generate_and_add_supports!(prefs::AbstractArray{<:DependentParameterRef},
                                     set::InfiniteArraySet,
-                                    method::Union{Symbol, Nothing} = nothing;
+                                    method::Type{<:AbstractSupportLabel};
                                     num_supports::Int = DefaultNumSupports)::Nothing
     new_supps, label = generate_supports(set, method,
                                          num_supports = num_supports,

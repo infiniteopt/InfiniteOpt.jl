@@ -4,7 +4,7 @@
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 1])
     w = t -> 1
-    meas_data = DiscreteMeasureData(t, ones(2), ones(2), :a, w, NaN, NaN, false)
+    meas_data = DiscreteMeasureData(t, ones(2), ones(2), All, w, NaN, NaN, false)
     meas = Measure(zero(AffExpr),meas_data, [1], [1], false)
     object = MeasureData(meas)
     idx = MeasureIndex(1)
@@ -98,9 +98,9 @@ end
     end
     # test scalar FunctionalDiscreteMeasureData constructor
     @testset "FunctionalDiscreteMeasureData (scalar)" begin
-        @test isa(FunctionalDiscreteMeasureData(par, coeff_func, 10, :label), FunctionalDiscreteMeasureData)
-        @test_throws ErrorException FunctionalDiscreteMeasureData(pars[1], coeff_func, 10, :label)
-        @test_throws ErrorException FunctionalDiscreteMeasureData(par, coeff_func, -1, :label)
+        @test isa(FunctionalDiscreteMeasureData(par, coeff_func, 10, UniqueMeasure{Val{:a}}), FunctionalDiscreteMeasureData)
+        @test_throws ErrorException FunctionalDiscreteMeasureData(pars[1], coeff_func, 10, UniqueMeasure{Val{:a}})
+        @test_throws ErrorException FunctionalDiscreteMeasureData(par, coeff_func, -1, UniqueMeasure{Val{:a}})
         @test_throws ErrorException FunctionalDiscreteMeasureData(par, coeff_func, 10, MCSample, lower_bound = -1, upper_bound = 2)
     end
     # test _check_multidim_params
@@ -181,8 +181,8 @@ end
     end
     # test multidim FunctionalDiscreteMeasureData constructor
     @testset "FunctionalDiscreteMeasureData (multidim)" begin
-        @test isa(FunctionalDiscreteMeasureData(pars, coeff_func, 10, :label, lower_bounds = [0.3, 0.3], upper_bounds = [0.7, 0.7]), FunctionalDiscreteMeasureData)
-        @test_throws ErrorException FunctionalDiscreteMeasureData(pars, coeff_func, -1, :label)
+        @test isa(FunctionalDiscreteMeasureData(pars, coeff_func, 10, All, lower_bounds = [0.3, 0.3], upper_bounds = [0.7, 0.7]), FunctionalDiscreteMeasureData)
+        @test_throws ErrorException FunctionalDiscreteMeasureData(pars, coeff_func, -1, All)
         @test_throws ErrorException FunctionalDiscreteMeasureData(pars3, coeff_func, 5, MCSample, lower_bounds = [NaN, NaN])
 
     end
@@ -233,7 +233,7 @@ end
     end
     # support_label
     @testset "support_label" begin
-        @test isa(support_label(data), Symbol)
+        @test support_label(data) <:AbstractSupportLabel
         @test_throws ErrorException support_label(BadData())
     end
     # JuMP.lower_bound for AbstractMeasureData
@@ -440,13 +440,13 @@ end
     # test _add_supports_to_multiple_parameters (independent)
     @testset "_add_supports_to_multiple_parameters (independent)" begin
         prefs = dispatch_variable_ref.([par, par])
-        @test isa(InfiniteOpt._add_supports_to_multiple_parameters(prefs, [0.1 0.2;0.3 0.4], :label), Nothing)
+        @test isa(InfiniteOpt._add_supports_to_multiple_parameters(prefs, [0.1 0.2;0.3 0.4], MCSample), Nothing)
         delete_supports(par)
     end
     # test _add_supports_to_multiple_parameters (dependent)
     @testset "_add_supports_to_multiple_parameters (dependent)" begin
         prefs = dispatch_variable_ref.(pars)
-        @test isa(InfiniteOpt._add_supports_to_multiple_parameters(prefs, [0. 1.; 0. 1.], :label), Nothing)
+        @test isa(InfiniteOpt._add_supports_to_multiple_parameters(prefs, [0. 1.; 0. 1.], MCSample), Nothing)
         delete_supports(pars)
     end
     # test add_supports_to_parameters (scalar DiscreteMeasureData)

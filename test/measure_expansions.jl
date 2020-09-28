@@ -504,7 +504,7 @@ end
     @testset "Multi Discrete Data" begin
         # test with bounds
         coef(a) = ones(length(a))
-        data = FunctionalDiscreteMeasureData(pars1, coef, 0, :l,
+        data = FunctionalDiscreteMeasureData(pars1, coef, 0, All,
                     lower_bounds = [1, 1], upper_bounds = [1.5, 2])
         @test InfiniteOpt.analytic_expansion(x, data, m) == 0.5x
         # test as expectation

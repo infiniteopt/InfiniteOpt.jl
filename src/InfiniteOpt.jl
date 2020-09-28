@@ -76,8 +76,9 @@ FiniteVariableIndex, DerivativeIndex
 
 # Export infinite set types
 export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
-UniDistributionSet, MultiDistributionSet, CollectionSet, UserDefined,
-MCSample, UniformGrid, Mixture, All, WeightedSample
+UniDistributionSet, MultiDistributionSet, CollectionSet, AbstractSupportLabel, 
+PublicLabel, InternalLabel, SampleLabel, UserDefined, MCSample, UniformGrid, 
+Mixture, All, WeightedSample, UniqueMeasure
 
 # Export infinite set methods
 export collection_sets, supports_in_set, generate_support_values
@@ -97,7 +98,8 @@ all_parameters, num_supports, has_supports,
 set_supports, add_supports, delete_supports, supports, used_by_constraint,
 used_by_measure, used_by_infinite_variable, is_used, generate_and_add_supports!,
 significant_digits, parameter_value, used_by_derivative, derivative_method, 
-set_derivative_method, set_all_derivative_methods
+set_derivative_method, set_all_derivative_methods, has_internal_supports, 
+has_derivative_supports, set_has_derivative_supports, set_has_internal_supports
 
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, ReducedVariable,

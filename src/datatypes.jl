@@ -299,12 +299,12 @@ PLEASE FILL THIS IN ONCE COMPLETED CORRECTLY
 
 **Fields**
 - `num_nodes::Int`: The number of internal collocation points (nodes).
-- `label::Symbol`: The label associated with generated supports.
+- `label::DataType`: The label associated with generated supports.
 - `quadrature_type::DataType`: The quadrature method used to produce the points.
 """
 struct OrthogonalCollocation <: GenerativeDerivativeMethod 
     num_nodes::Int
-    label::Symbol 
+    label::DataType
     quadrature_type::DataType # TODO update with actual implementation
 end
 
@@ -328,6 +328,21 @@ PLEASE FILL THIS IN
 """
 struct FiniteDifference <: NonGenerativeDerivativeMethod 
     technique::DataType # TODO update with actual implementation
+end
+
+"""
+    support_label(method::GenerativeDerivativeMethod)
+
+Return the support label associated with `method` if there is one, errors otherwise. 
+This should be extended for any `GenerativeDerivativeMethod`.
+"""
+function support_label(method::AbstractDerivativeMethod)::DataType
+    error("`support_label` not defined for derivative methods of type `$(typeof(method))`.")
+end
+
+# Extend support_label for OrthogonalCollocation
+function support_label(method::OrthogonalCollocation)::DataType
+    return method.label
 end
 
 ################################################################################
@@ -355,9 +370,9 @@ A `DataType` for storing independent scalar infinite parameters.
 
 **Fields**
 - `set::T`: The infinite set that characterizes the parameter.
-- `supports::DataStructures.SortedDict{Float64, Set{Symbol}}`: The support points
+- `supports::DataStructures.SortedDict{Float64, Set{DataType}}`: The support points
    used to discretize the parameter and their associated type labels stored as
-   `Symbol`s.
+   `DataTypes`s which should be a subtype of [`AbstractSupportLabel`](@ref).
 - `sig_digits::Int`: The number of significant digits used to round the support values.
 - `derivative_method::M`: The derivative evaluation method used for derivatives that
    are conducted with respect to this parameter.
@@ -365,7 +380,7 @@ A `DataType` for storing independent scalar infinite parameters.
 struct IndependentParameter{T <: InfiniteScalarSet, 
                             M <: AbstractDerivativeMethod} <: ScalarParameter
     set::T
-    supports::DataStructures.SortedDict{Float64, Set{Symbol}} # Support to label set
+    supports::DataStructures.SortedDict{Float64, Set{DataType}} # Support to label set
     sig_digits::Int
     derivative_method::M
 end
@@ -391,8 +406,8 @@ A `DataType` for storing a collection of dependent infinite parameters.
 
 **Fields**
 - `set::T`: The infinite set that characterizes the parameters.
-- `supports::Dict{Vector{Float64}, Set{Symbol}}`: Support dictionary where keys
-              are supports and the values are the set of labels for each support
+- `supports::Dict{Vector{Float64}, Set{DataType}}`: Support dictionary where keys
+              are supports and the values are the set of labels for each support.
 - `sig_digits::Int`: The number of significant digits used to round the support values.
 - `derivative_methods::Vector{M}`: The derivative evaluation methods associated with 
   each parameter.
@@ -400,7 +415,7 @@ A `DataType` for storing a collection of dependent infinite parameters.
 struct DependentParameters{T <: InfiniteArraySet, 
                            M <: NonGenerativeDerivativeMethod} <: InfOptParameter
     set::T
-    supports::Dict{Vector{Float64}, Set{Symbol}} # Support to label set
+    supports::Dict{Vector{Float64}, Set{DataType}} # Support to label set
     sig_digits::Int
     derivative_methods::Vector{M}
 end
@@ -435,6 +450,8 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
 - `in_objective::Bool`: Is this used in objective? This should be true only for finite parameters.
+- `has_internal_supports::Bool`: Does this parameter have internal supports?
+- `has_derivative_supports::Bool`: Have any derivative specfic supports been added?
 """
 mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     parameter::P
@@ -446,6 +463,8 @@ mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     measure_indices::Vector{MeasureIndex}
     constraint_indices::Vector{ConstraintIndex}
     in_objective::Bool
+    has_internal_supports::Bool
+    has_derivative_supports::Bool
     function ScalarParameterData(param::P,
                                  object_num::Int,
                                  parameter_num::Int,
@@ -453,7 +472,7 @@ mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
                                  ) where {P <: ScalarParameter}
         return new{P}(param, object_num, parameter_num, name,
                       InfiniteVariableIndex[], DerivativeIndex[], 
-                      MeasureIndex[], ConstraintIndex[], false)
+                      MeasureIndex[], ConstraintIndex[], false, false, false)
     end
 end
 
@@ -475,6 +494,7 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 - `measure_indices::Vector{Vector{MeasureIndex}}`: Indices of dependent measures.
 - `constraint_indices::Vector{Vector{ConstraintIndex}}`: Indices of dependent
   constraints.
+- `has_internal_supports::Bool`: Does this parameter have internal supports?
 """
 mutable struct MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
     parameters::DependentParameters{T}
@@ -485,6 +505,7 @@ mutable struct MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
     derivative_indices::Vector{Vector{DerivativeIndex}} 
     measure_indices::Vector{Vector{MeasureIndex}}
     constraint_indices::Vector{Vector{ConstraintIndex}}
+    has_internal_supports::Bool
     function MultiParameterData(params::DependentParameters{T},
                                 object_num::Int,
                                 parameter_nums::UnitRange{Int},
@@ -494,7 +515,8 @@ mutable struct MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
                       InfiniteVariableIndex[],
                       [DerivativeIndex[] for i in eachindex(names)],
                       [MeasureIndex[] for i in eachindex(names)],
-                      [ConstraintIndex[] for i in eachindex(names)])
+                      [ConstraintIndex[] for i in eachindex(names)],
+                      false)
     end
 end
 
@@ -716,8 +738,8 @@ type can be used for both 1-dimensional and multi-dimensional measures.
 - `supports::Array{Float64, N}`: Supports points ``\\tau_i``. This is a `Vector`
                                  if only one parameter is given, otherwise it is
                                  a `Matrix` where the supports are stored column-wise.
-- `label::Symbol`: Label for the support points ``\\tau_i`` when stored in the
-                   infinite parameter(s).
+- `label::DataType`: Label for the support points ``\\tau_i`` when stored in the
+                   infinite parameter(s), stemming from [`AbstractSupportLabel`](@ref).
 - `weight_function::Function`: Weighting function ``w`` must map an individual
                                support value to a `Real` scalar value.
 - `lower_bounds::B`: Lower bound in accordance with ``T``, this denotes the
@@ -732,14 +754,14 @@ struct DiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
     parameter_refs::P
     coefficients::Vector{Float64}
     supports::Array{Float64, N} # supports are stored column-wise
-    label::Symbol # label that will used when the supports are added to the model
+    label::DataType # label that will used when the supports are added to the model
     weight_function::Function # single support --> weight value
     lower_bounds::B
     upper_bounds::B
     is_expect::Bool
     # scalar constructor
     function DiscreteMeasureData(param_ref::V, coeffs::Vector{<:Real},
-                                 supps::Vector{<:Real}, label::Symbol,
+                                 supps::Vector{<:Real}, label::DataType,
                                  weight_func::Function,
                                  lower_bound::Real,
                                  upper_bound::Real,
@@ -750,7 +772,7 @@ struct DiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
     end
     # multi constructor
     function DiscreteMeasureData(param_refs::Vector{V}, coeffs::Vector{<:Real},
-                                 supps::Matrix{<:Real}, label::Symbol,
+                                 supps::Matrix{<:Real}, label::DataType,
                                  weight_func::Function,
                                  lower_bound::Vector{<:Real},
                                  upper_bound::Vector{<:Real},
@@ -792,8 +814,8 @@ type can be used for both 1-dimensional and multi-dimensional measures.
                               and return the corresponding vector of coefficients.
 - `min_num_supports::Int`: Specifies the minimum number of supports ``\\tau_i``
                        desired in association with `parameter_refs` and `label`.
-- `label::Symbol`: Label for the support points ``\\tau_i`` which are/will be
-                   stored in the infinite parameter(s).
+- `label::DataType`: Label for the support points ``\\tau_i`` which are/will be
+                   stored in the infinite parameter(s), stemming from [`AbstractSupportLabel`](@ref).
 - `weight_function::Function`: Weighting function ``w`` must map an individual
                               support value to a `Real` scalar value.
 - `lower_bounds::B`: Lower bounds in accordance with ``T``, this denotes the
@@ -808,14 +830,14 @@ struct FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
     parameter_refs::P
     coeff_function::Function # supports --> coefficient vector
     min_num_supports::Int # minimum number of supports
-    label::Symbol # support label of included supports
+    label::DataType # support label of included supports
     weight_function::Function # single support --> weight value
     lower_bounds::B
     upper_bounds::B
     is_expect::Bool
     # scalar constructor
     function FunctionalDiscreteMeasureData(param_ref::V, coeff_func::Function,
-                                           num_supps::Int, label::Symbol,
+                                           num_supps::Int, label::DataType,
                                            weight_func::Function,
                                            lower_bound::Real,
                                            upper_bound::Real,
@@ -827,7 +849,7 @@ struct FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
     # multi constructor
     function FunctionalDiscreteMeasureData(param_refs::Vector{V},
                                            coeff_func::Function,
-                                           num_supps::Int, label::Symbol,
+                                           num_supps::Int, label::DataType,
                                            weight_func::Function,
                                            lower_bound::Vector{<:Real},
                                            upper_bound::Vector{<:Real},
@@ -1069,6 +1091,7 @@ Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
 Measures: 0
+Derivatives: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
@@ -1081,6 +1104,7 @@ Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
 Measures: 0
+Derivatives: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: EMPTY_OPTIMIZER

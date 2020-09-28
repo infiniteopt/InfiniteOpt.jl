@@ -59,4 +59,5 @@ set_all_derivative_methods
 evaluate 
 evaluate_all_derivatives
 evaluate_derivative
+support_label(::AbstractDerivativeMethod)
 ```

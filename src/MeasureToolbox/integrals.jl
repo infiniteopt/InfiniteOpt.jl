@@ -263,7 +263,8 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     (supports, coeffs) = FastGaussQuadrature.gausslegendre(num_supports)
     supports = (upper_bound - lower_bound) / 2 * supports .+ (upper_bound + lower_bound) / 2
     coeffs = (upper_bound - lower_bound) / 2 * coeffs
-    return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, gensym(),
+    return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, 
+                                           InfiniteOpt.generate_unique_label(),
                                            weight_func, lower_bound, upper_bound,
                                            false)
 end
@@ -299,7 +300,8 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                       weight_func = weight_func)
     end
 
-    return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, gensym(),
+    return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, 
+                                           InfiniteOpt.generate_unique_label(),
                                            weight_func, lower_bound, upper_bound,
                                            false)
 end
@@ -321,7 +323,8 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     end
     (supports, coeffs) = FastGaussQuadrature.gausshermite(num_supports)
     coeffs = coeffs .* exp.(supports.^2)
-    return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, gensym(),
+    return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, 
+                                           InfiniteOpt.generate_unique_label(),
                                            weight_func, lower_bound, upper_bound,
                                            false)
 end
@@ -368,7 +371,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
         error("Univariate MC sampling is not applicable to (semi-)infinite intervals.")
     end
     set = InfiniteOpt.IntervalSet(lower_bound, upper_bound)
-    supports, _ = InfiniteOpt.generate_support_values(set, Val(InfiniteOpt.MCSample),
+    supports, _ = InfiniteOpt.generate_support_values(set, InfiniteOpt.MCSample,
                                                       num_supports = num_supports)
     coeffs = (upper_bound - lower_bound) * ones(num_supports) / num_supports
     return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports,
@@ -426,7 +429,7 @@ function _make_multi_mc_supports(prefs::Vector{InfiniteOpt.DependentParameterRef
                                  num_supps::Int)::Matrix{Float64}
     sets = [InfiniteOpt.IntervalSet(lbs[i], ubs[i]) for i in eachindex(lbs)]
     set = InfiniteOpt.CollectionSet(sets)
-    supports, _ = InfiniteOpt.generate_support_values(set, Val(InfiniteOpt.MCSample),
+    supports, _ = InfiniteOpt.generate_support_values(set, InfiniteOpt.MCSample,
                                                       num_supports = num_supps)
     return supports
 end
@@ -447,7 +450,7 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
     sets = [InfiniteOpt.IntervalSet(lower_bounds[i], upper_bounds[i])
             for i in eachindex(lower_bounds)]
     set = InfiniteOpt.CollectionSet(sets)
-    supports, _ = InfiniteOpt.generate_support_values(set, Val(InfiniteOpt.MCSample),
+    supports, _ = InfiniteOpt.generate_support_values(set, InfiniteOpt.MCSample,
                                                       num_supports = num_supports)
     # prepare the coefficients
     coeffs = prod(upper_bounds .- lower_bounds) * ones(num_supports) / num_supports

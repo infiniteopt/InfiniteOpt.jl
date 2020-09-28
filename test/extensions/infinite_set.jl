@@ -21,7 +21,7 @@ end
 # Extend generate_support_values if possible
 function InfiniteOpt.generate_support_values(set::MyNewSet;
                                              num_supports::Int = 10,
-                                             sig_digits::Int = 5)::Tuple{Vector{<:Real}, Symbol}
+                                             sig_digits::Int = 5)::Tuple{Vector{<:Real}, DataType}
     # REPLACE BELOW WITH METHODS TO GENERATE `num_samples` with `sig_fig` 
     supports = collect(range(set.attr1, stop = set.attr2, length = num_supports))
     return round.(supports, sigdigits = sig_digits), UniformGrid

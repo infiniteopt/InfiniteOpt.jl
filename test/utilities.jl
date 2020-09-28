@@ -83,6 +83,7 @@ end
 function InfiniteOpt.add_supports_to_parameters(d::TestData)::Nothing
     return
 end
+InfiniteOpt.support_label(d::TestData) = UniqueMeasure{Val{:a}}
 
 # Define useful function for deletion testing
 function _update_variable_param_refs(vref::InfiniteVariableRef,

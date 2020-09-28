@@ -95,15 +95,17 @@ To enable automatic support generation via the `num_supports` keyword and with
 functions such as [`fill_in_supports!`](@ref), we will extend
 [`InfiniteOpt.generate_support_values`](@ref):
 ```jldoctest set_ext; output = false
+struct DisjointGrid <: InfiniteOpt.PublicLabel end
+
 function InfiniteOpt.generate_support_values(set::DisjointSet;
                                              num_supports::Int = InfiniteOpt.DefaultNumSupports,
-                                             sig_digits::Int = InfiniteOpt.DefaultSigDigits)::Tuple{Vector{<:Real}, Symbol}
+                                             sig_digits::Int = InfiniteOpt.DefaultSigDigits)::Tuple{Vector{<:Real}, DataType}
     length_ratio = (set.ub1 - set.lb1) / (set.ub1 - set.lb1 + set.ub2 - set.lb2)
     num_supports1 = Int64(ceil(length_ratio * num_supports))
     num_supports2 = num_supports - num_supports1
     supports1 = collect(range(set.lb1, stop = set.ub1, length = num_supports1))
     supports2 = collect(range(set.lb2, stop = set.ub2, length = num_supports2))
-    return round.([supports1; supports2], sigdigits = sig_digits), :disjoint_grid
+    return round.([supports1; supports2], sigdigits = sig_digits), DisjointGrid
 end
 
 # output
@@ -189,7 +191,7 @@ create a measure using the measure data, as shown below:
 
 ```jldoctest measure_eval
 julia> tdata = uniform_grid(t, 0, 5, 6)
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], Symbol("##815"), InfiniteOpt.default_weight, 0.0, 5.0, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], UniqueMeasure{Val{Symbol("##815")}}, InfiniteOpt.default_weight, 0.0, 5.0, false)
 
 julia> f_meas = measure(f, tdata)
 measure{t ∈ [0, 5]}[f(t)]
@@ -278,6 +280,7 @@ The extension steps employed are:
 5. Extend [`InfiniteOpt.measure_data_in_hold_bounds`](@ref) (enables hold variable bound checking with measures)
 6. Extend [`InfiniteOpt.coefficients`](@ref) (useful getter method if applicable)
 7. Extend [`InfiniteOpt.weight_function`](@ref) (useful getter method if applicable)
+8. Extend [`InfiniteOpt.support_label`](@ref) (needed to enable deletion if supports are added.)
 8. Make simple measure constructor wrapper of [`measure`](@ref) to ease definition.
 
 To illustrate how this process can be done, let's consider extending `InfiniteOpt`
@@ -299,16 +302,18 @@ const JuMPC = JuMP.Containers
 struct DiscreteVarianceData <: AbstractMeasureData
     parameter_refs::Union{GeneralVariableRef, Vector{GeneralVariableRef}}
     supports::Vector
+    label::DataType
     # constructor
     function DiscreteVarianceData(
         parameter_refs::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}},
-        supports::Vector)
+        supports::Vector,
+        label::DataType = InfiniteOpt.generate_unique_label())
         # convert input as necessary to proper array format
         if parameter_refs isa AbstractArray
             parameter_refs = convert(Vector, parameter_refs)
             supports = [convert(Vector, arr) for arr in supports]
         end
-        return new(parameter_refs, supports)
+        return new(parameter_refs, supports, label)
     end
 end
 
@@ -319,8 +324,9 @@ end
 
 We have defined our data type, so let's extend the measure data query
 methods to enable its definition. These include
-[`parameter_refs`](@ref parameter_refs(::AbstractMeasureData)) and 
-[`supports`](@ref supports(::AbstractMeasureData)):
+[`parameter_refs`](@ref parameter_refs(::AbstractMeasureData)), 
+[`supports`](@ref supports(::AbstractMeasureData)), and 
+[`support_label`](@ref support_label(::AbstractMeasureData)):
 ```jldoctest measure_data; output = false
 function InfiniteOpt.parameter_refs(data::DiscreteVarianceData)
     return data.parameter_refs
@@ -328,6 +334,10 @@ end
 
 function InfiniteOpt.supports(data::DiscreteVarianceData)::Vector
     return data.supports
+end
+
+function InfiniteOpt.support_label(data::DiscreteVarianceData)::DataType
+    return data.label
 end
 
 # output
@@ -341,7 +351,8 @@ since support points will be used for measure evaluation later:
 function InfiniteOpt.add_supports_to_parameters(data::DiscreteVarianceData)::Nothing
     pref = parameter_refs(data)
     supps = supports(data)
-    add_supports(pref, supps)
+    label = support_label(data)
+    add_supports(pref, supps, label = label)
     return
 end
 
@@ -382,7 +393,7 @@ function InfiniteOpt.expand_measure(expr::JuMP.AbstractJuMPScalar,
     expect_data = DiscreteMeasureData(
                       data.parameter_refs,
                       1 / length(data.supports) * ones(length(data.supports)),
-                      data.supports, is_expect = true)
+                      data.supports, is_expect = true, label = data.label)
     # define the mean
     mean = measure(expr, expect_data)
     # return the expansion of the variance using the data mean

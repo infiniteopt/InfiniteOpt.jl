@@ -6,7 +6,7 @@
     idx = DependentParameterIndex(obj_idx, 1)
     set = CollectionSet([IntervalSet(0, 1), IntervalSet(0, 1)])
     methods = [InfiniteOpt.DefaultDerivativeMethod for i = 1:2]
-    params = DependentParameters(set, Dict{Vector{Float64}, Set{Symbol}}(), 5, methods)
+    params = DependentParameters(set, Dict{Vector{Float64}, Set{DataType}}(), 5, methods)
     object = MultiParameterData(params, 1, 1:2, ["p1", "p2"])
     pref = DependentParameterRef(m, idx)
     gvref = GeneralVariableRef(m, 1, DependentParameterIndex, 1)
@@ -169,7 +169,7 @@ end
         @test InfiniteOpt._build_parameters(error, raw_params6,
                             num_supports = 4, sig_digits = 5)[1].set == set4
         @test InfiniteOpt._build_parameters(error, raw_params6,
-                            num_supports = 4, sig_digits = 5)[1].supports isa Dict{Vector{Float64}, Set{Symbol}}
+                            num_supports = 4, sig_digits = 5)[1].supports isa Dict{Vector{Float64}, Set{DataType}}
         @test Mixture in first(InfiniteOpt._build_parameters(error, raw_params6,
                               num_supports = 4, sig_digits = 5)[1].supports)[2]
         @test InfiniteOpt._build_parameters(error, raw_params2,
@@ -181,7 +181,7 @@ end
                             raw_params5)[1] isa DependentParameters
         @test InfiniteOpt._build_parameters(error, raw_params5)[1].set == set3
         @test InfiniteOpt._build_parameters(error,
-                            raw_params5)[1].supports == Dict{Vector{Float64}, Set{Symbol}}()
+                            raw_params5)[1].supports == Dict{Vector{Float64}, Set{DataType}}()
         @test InfiniteOpt._build_parameters(error,
                             raw_params5)[2] == ["p", "p", "p", "p"]
         @test InfiniteOpt._build_parameters(error,
@@ -314,7 +314,7 @@ end
         @test @dependent_parameters(m, b[3:4] in set2,
                 supports = 0) == expected
         @test InfiniteOpt._data_object(pref1).names == ["b[3]", "b[4]"]
-        @test InfiniteOpt._core_variable_object(pref1).supports == Dict{Vector{Float64}, Set{Symbol}}(zeros(2) => Set([UserDefined]))
+        @test InfiniteOpt._core_variable_object(pref1).supports == Dict{Vector{Float64}, Set{DataType}}(zeros(2) => Set([UserDefined]))
         # test explicit build with some args
         pref1 = GeneralVariableRef(m, 3, DependentParameterIndex, 1)
         pref2 = GeneralVariableRef(m, 3, DependentParameterIndex, 2)
@@ -555,7 +555,7 @@ end
     data = InfiniteOpt._data_object(first(prefs))
     set = CollectionSet([IntervalSet(0, 2), IntervalSet(0, 2)])
     methods = [InfiniteOpt.DefaultDerivativeMethod for i = 1:2]
-    params = DependentParameters(set, Dict{Vector{Float64}, Set{Symbol}}(), 10, methods)
+    params = DependentParameters(set, Dict{Vector{Float64}, Set{DataType}}(), 10, methods)
     bad_idx = DependentParameterIndex(DependentParametersIndex(-1), 2)
     bad_pref = DependentParameterRef(m, bad_idx)
     # test _parameter_number
@@ -886,9 +886,9 @@ end
         @test InfiniteOpt._parameter_supports(prefs1[1])[0.1 * ones(2)] == Set([UserDefined])
         # test keywords
         @test add_supports(gvrefs1, zeros(2, 1), check = false,
-                           label = :bob) isa Nothing
+                           label = InternalLabel) isa Nothing
         @test sortcols(supports(prefs1)) == Float64[0 0.1 1; 0 0.1 1]
-        @test InfiniteOpt._parameter_supports(prefs1[1])[zeros(2)] == Set([UniformGrid, :bob])
+        @test InfiniteOpt._parameter_supports(prefs1[1])[zeros(2)] == Set([UniformGrid, InternalLabel])
     end
     # test add_supports (AbstractArray)
     @testset "add_supports (AbstractArray)" begin

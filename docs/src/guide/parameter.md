@@ -127,7 +127,7 @@ julia> set = IntervalSet(0, 10)
 [0, 10]
 
 julia> t_param = build_parameter(error, set, supports = [0, 2, 5, 7, 10])
-IndependentParameter{IntervalSet}([0, 10], DataStructures.SortedDict(0.0=>Set([:user_defined]),2.0=>Set([:user_defined]),5.0=>Set([:user_defined]),7.0=>Set([:user_defined]),10.0=>Set([:user_defined])), 12)
+IndependentParameter{IntervalSet}([0, 10], DataStructures.SortedDict(0.0=>Set(UserDefined]),2.0=>Set([UserDefined]),5.0=>Set([UserDefined]),7.0=>Set([UserDefined]),10.0=>Set([UserDefined])), 12)
 ```  
 Now that we have a `InfOptParameter` that contains an `IntervalSet` and supports,
 let's now add `t_param` to our `InfiniteModel` using [`add_parameter`](@ref)
@@ -155,7 +155,7 @@ julia> set = UniDistributionSet(dist)
 Normal{Float64}(μ=0.0, σ=1.0)
 
 julia> x_param = build_parameter(error, set, supports = [-0.5, 0.5])
-IndependentParameter{UniDistributionSet{Normal{Float64}}}(Normal{Float64}(μ=0.0, σ=1.0), DataStructures.SortedDict(-0.5=>Set([:user_defined]),0.5=>Set([:user_defined])), 12)
+IndependentParameter{UniDistributionSet{Normal{Float64}}}(Normal{Float64}(μ=0.0, σ=1.0), DataStructures.SortedDict(-0.5=>Set([UserDefined]),0.5=>Set([UserDefined])), 12)
 ```
 Again, we use [`add_parameter`](@ref) to add `x_param` to the `InfiniteModel` and
 assign it the name `x`:
@@ -504,7 +504,7 @@ julia> set = IntervalSet(0, 10)
 [0, 10]
 
 julia> t_param = build_parameter(error, set, num_supports = 4, sig_digits = 3)
-IndependentParameter{IntervalSet}([0, 10], DataStructures.SortedDict(0.0=>Set([:uniform_grid]),3.33=>Set([:uniform_grid]),6.67=>Set([:uniform_grid]),10.0=>Set([:uniform_grid])), 3)
+IndependentParameter{IntervalSet}([0, 10], DataStructures.SortedDict(0.0=>Set([UniformGrid]),3.33=>Set([UniformGrid]),6.67=>Set([UniformGrid]),10.0=>Set([UniformGrid])), 3)
 ```  
 Using macro definition we have
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
@@ -849,8 +849,8 @@ add_supports(::IndependentParameterRef,::Union{Real, Vector{<:Real}})
 add_supports(::AbstractArray{<:DependentParameterRef},::AbstractArray{<:Vector{<:Real}})
 delete_supports(::IndependentParameterRef)
 delete_supports(::AbstractArray{<:DependentParameterRef})
-generate_and_add_supports!(::IndependentParameterRef,::AbstractInfiniteSet,::Union{Symbol, Nothing})
-generate_and_add_supports!(::AbstractArray{<:DependentParameterRef},::InfiniteArraySet,::Union{Symbol, Nothing})
+generate_and_add_supports!(::IndependentParameterRef,::AbstractInfiniteSet)
+generate_and_add_supports!(::AbstractArray{<:DependentParameterRef},::InfiniteArraySet)
 fill_in_supports!(::IndependentParameterRef)
 fill_in_supports!(::AbstractArray{<:DependentParameterRef})
 fill_in_supports!(::InfiniteModel)
@@ -860,4 +860,7 @@ num_parameters
 all_parameters
 JuMP.delete(::InfiniteModel, ::IndependentParameterRef)
 JuMP.delete(::InfiniteModel,::AbstractArray{<:DependentParameterRef})
+has_internal_supports(::Union{IndependentParameterRef, DependentParameterRef})
+has_derivative_supports(::IndependentParameterRef)
+set_has_derivative_supports(::IndependentParameterRef, ::Bool)
 ```
