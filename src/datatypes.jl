@@ -321,7 +321,8 @@ abstract type NonGenerativeDerivativeMethod <: AbstractDerivativeMethod end
 """
     FiniteDifference <: NonGenerativeDerivativeMethod
 
-PLEASE FILL THIS IN 
+A `DataType` for information about finite difference method applied to 
+a derivative evaluation. 
 
 **Fields** 
 - `technique::DataType`: Mathematical technqiue behind finite difference
@@ -329,6 +330,38 @@ PLEASE FILL THIS IN
 struct FiniteDifference <: NonGenerativeDerivativeMethod 
     technique::DataType # TODO update with actual implementation
 end
+
+"""
+    FDTechniques
+
+An abstract data type for labels of specific techniques applied in the finite 
+difference method in derivative evaluation.
+"""
+abstract type FDTechniques end
+
+"""
+    FDForward <: FDTechniques
+
+A technique label for finite difference method that implements a forward 
+difference approximation.
+"""
+struct FDForward <: FDTechniques end
+
+"""
+    FDCentral <: FDTechniques
+
+A technique label for finite difference method that implements a central 
+difference approximation.
+"""
+struct FDCentral <: FDTechniques end
+
+"""
+    FDBackward <: FDTechniques
+
+A technique label for finite difference method that implements a backward 
+difference approximation.
+"""
+struct FDBackward <: FDTechniques end
 
 """
     support_label(method::GenerativeDerivativeMethod)

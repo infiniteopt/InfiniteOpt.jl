@@ -125,7 +125,8 @@ end
                         method::AbstractDerivativeMethod,
                         write_model::JuMP.AbstractModel)::PUT_FORMAT_HERE
 
-Add text here.
+Build expression for derivative of `vref` with respect to `pref` evaluated at each
+support of `pref` using finite difference scheme.
 """
 function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef, 
                              method::AbstractDerivativeMethod,
@@ -134,8 +135,81 @@ function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef,
           "$(typeof(method)).")
 end
 
-# TODO add realizations for each derivative method
+"""
+    evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef, 
+                        method::FiniteDifference,
+                        write_model::JuMP.AbstractModel)::PUT_FORMAT_HERE
+    
+Build expression for derivative of `vref` with respect to `pref` evaluated at each
+support of `pref` using finite difference scheme.
+"""
+function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef, 
+                             method::FiniteDifference, 
+                             write_model::JuMP.AbstractModel)
+
+    n_supps = num_supports(pref)
+    if n_supps <= 1
+        error("$(pref) does not have enough supports to apply any finite difference methods.")
+    end
+    ordered_supps = sort(supports(pref))
+    expr_dict = Dict{Float64, JuMP.AbstractJuMPScalar}()
+    for i in eachindex(ordered_supps)
+        curr_value = ordered_supps[i]
+        if i == 1
+            expr_dict[curr_value] = _make_difference_expr(vref, pref, i, ordered_supps, write_model, FDForward)
+        elseif i == n_supps
+            expr_dict[curr_value] = _make_difference_expr(vref, pref, i, ordered_supps, write_model, FDBackward)
+        else
+            expr_dict[curr_value] = _make_difference_expr(vref, pref, i, ordered_supps, write_model, method.technique)
+        end
+    end
+    return expr_dict
+end
+
+function _make_difference_expr(vref::GeneralVariableRef, pref::GeneralVariableRef,
+                               index::Int, 
+                               ordered_supps::Vector{Float64},
+                               write_model::JuMP.AbstractModel, 
+                               type::Type{FDForward})::JuMP.AbstractJuMPScalar
+    
+    curr_value = ordered_supps[index]
+    next_value = ordered_supps[index+1]
+    return JuMP.@expression(InfiniteOpt._Model, (make_reduced_expr(vref, pref, next_value, write_model) 
+                                            - make_reduced_expr(vref, pref, curr_value, write_model))
+                                            / (next_value - curr_value) )
+end
+
+function _make_difference_expr(vref::GeneralVariableRef, pref::GeneralVariableRef,
+                               index::Int, 
+                               ordered_supps::Vector{Float64}, 
+                               write_model::JuMP.AbstractModel, 
+                               type::Type{FDCentral})::JuMP.AbstractJuMPScalar
+    prev_value = ordered_supps[index-1]
+    next_value = ordered_supps[index+1]
+    return JuMP.@expression(InfiniteOpt._Model, (make_reduced_expr(vref, pref, next_value, write_model) 
+                                            - make_reduced_expr(vref, pref, prev_value, write_model)) 
+                                            / (next_value - prev_value) )
+end
+
+function _make_difference_expr(vref::GeneralVariableRef, pref::GeneralVariableRef,
+                               index::Int, 
+                               ordered_supps::Vector{Float64}, 
+                               write_model::JuMP.AbstractModel,
+                               type::Type{FDBackward})::JuMP.AbstractJuMPScalar
+    prev_value = ordered_supps[index-1]
+    curr_value = ordered_supps[index]
+    return JuMP.@expression(InfiniteOpt._Model, (make_reduced_expr(vref, pref, curr_value, write_model) 
+                                            - make_reduced_expr(vref, pref, prev_value, write_model)) 
+                                            / (curr_value - prev_value) )
+end
+
+function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef, 
+                             method::OrthogonalCollocation, 
+                             write_model::JuMP.AbstractModel)
 # NOTE These should use `add_derivative_supports` and `make_reduced_expr`.
+    
+end
+
 
 ################################################################################
 #                              EVALUATION METHODS
