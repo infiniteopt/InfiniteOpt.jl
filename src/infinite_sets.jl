@@ -420,7 +420,7 @@ const DefaultNumSupports = 10
 # a user interface of generate_support_values
 """
     generate_supports(set::AbstractInfiniteSet
-                      [method::DataType];
+                      [method::Type{<:AbstractSupportLabel}];
                       [num_supports::Int = DefaultNumSupports,
                       sig_digits::Int = DefaultSigDigits]
                       )::Tuple{Array{<:Real}, DataType}

@@ -30,8 +30,7 @@ function generate_derivative_supports(
     pref::IndependentParameterRef, 
     method::OrthogonalCollocation
     )::Vector{Float64}
-    # TODO PUT ADDITIONS HERE USING add_supports WITH APPROPRIATE INTERNAL LABEL
-    return
+    # TODO GENERATE SUPPORTS AND RETURN THEM
 end
 
 """
