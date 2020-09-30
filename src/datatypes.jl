@@ -452,6 +452,8 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
 - `in_objective::Bool`: Is this used in objective? This should be true only for finite parameters.
 - `has_internal_supports::Bool`: Does this parameter have internal supports?
 - `has_derivative_supports::Bool`: Have any derivative specfic supports been added?
+- `has_deriv_constrs::Bool`: Have any derivative evaluation constraints been added 
+                             to the infinite model associated with this parameter?
 """
 mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     parameter::P
@@ -465,6 +467,7 @@ mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     in_objective::Bool
     has_internal_supports::Bool
     has_derivative_supports::Bool
+    has_deriv_constrs::Bool
     function ScalarParameterData(param::P,
                                  object_num::Int,
                                  parameter_num::Int,
@@ -472,7 +475,7 @@ mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
                                  ) where {P <: ScalarParameter}
         return new{P}(param, object_num, parameter_num, name,
                       InfiniteVariableIndex[], DerivativeIndex[], 
-                      MeasureIndex[], ConstraintIndex[], false, false, false)
+                      MeasureIndex[], ConstraintIndex[], false, false, false, false)
     end
 end
 
@@ -495,6 +498,8 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 - `constraint_indices::Vector{Vector{ConstraintIndex}}`: Indices of dependent
   constraints.
 - `has_internal_supports::Bool`: Does this parameter have internal supports?
+- `has_deriv_constrs::Bool`: Have any derivative evaluation constraints been added 
+                             to the infinite model associated with this parameter?
 """
 mutable struct MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
     parameters::DependentParameters{T}
@@ -506,6 +511,7 @@ mutable struct MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
     measure_indices::Vector{Vector{MeasureIndex}}
     constraint_indices::Vector{Vector{ConstraintIndex}}
     has_internal_supports::Bool
+    has_deriv_constrs::Bool
     function MultiParameterData(params::DependentParameters{T},
                                 object_num::Int,
                                 parameter_nums::UnitRange{Int},
@@ -516,7 +522,7 @@ mutable struct MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
                       [DerivativeIndex[] for i in eachindex(names)],
                       [MeasureIndex[] for i in eachindex(names)],
                       [ConstraintIndex[] for i in eachindex(names)],
-                      false)
+                      false, false)
     end
 end
 

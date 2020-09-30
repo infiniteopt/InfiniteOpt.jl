@@ -1,38 +1,192 @@
 ################################################################################
+#                                HELPER METHODS
+################################################################################
+"""
+    generate_derivative_supports(pref::IndependentParameterRef, 
+                                 method::GenerativeDerivativeMethod)::Vector{Float64}
+
+Generate and return a vector any additional supports needed by `method`. This is 
+intended as an internal method and will need to be extended for user-defined 
+derivative methods that are generative.
+"""
+function generate_derivative_supports(
+    pref::IndependentParameterRef, 
+    method::AbstractDerivativeMethod
+    )
+    error("`generate_derivative_supports` not extended for derivative method of " * 
+          "type $(typeof(method)).")
+end
+
+# NonGenerativeDerivativeMethod
+function generate_derivative_supports(
+    pref::IndependentParameterRef, 
+    method::NonGenerativeDerivativeMethod
+    )::Vector{Float64}
+    return Float64[]
+end
+
+# OrthogonalCollocation
+function generate_derivative_supports(
+    pref::IndependentParameterRef, 
+    method::OrthogonalCollocation
+    )::Vector{Float64}
+    # TODO PUT ADDITIONS HERE USING add_supports WITH APPROPRIATE INTERNAL LABEL
+    return
+end
+
+"""
+    add_derivative_supports(pref::Union{IndependentParameterRef, DependentParameterRef})::Nothing
+
+Add any supports `pref` that are needed for derivative evaluation. This is intended 
+as a helper method for derivative evaluation and depends [`generate_derivative_supports`](@ref InfiniteOpt.generate_derivative_supports) 
+which will need to be extended for user-defined derivative methods that generate supports. 
+In such cases, it is necessary to also extend 
+[`support_label`](@ref InfiniteOpt.support_label(::AbstractDerivativeMethod)) Errors if 
+such is not defined for the current derivative method associated with `pref`. 
+"""
+function add_derivative_supports(pref::IndependentParameterRef)::Nothing 
+    if !has_derivative_supports(pref)
+        method = derivative_method(pref)
+        supps = generate_derivative_supports(pref, method)
+        if !isempty(supps)
+            add_supports(pref, supps, label = support_label(method))
+            set_has_derivative_supports(pref, true)
+        end
+    end
+    return
+end
+
+# Define for DependentParameterRef
+function add_derivative_supports(pref::DependentParameterRef)::Nothing
+    return 
+end
+
+"""
+    make_reduced_expr(vref::GeneralVariableRef, pref::GeneralVariableRef, 
+                      support::Float64, write_model::Union{InfiniteModel, JuMP.Model})
+
+Given the argument variable `vref` and the operator parameter `pref` from a 
+derivative, build and return the reduced expression in accordance to the support 
+`support` with respect to `pref`. New point/reduced variables will be written to 
+`write_model`. This is solely intended as a helper function for derivative 
+evaluation.
+"""
+function make_reduced_expr(vref::GeneralVariableRef, pref::GeneralVariableRef, 
+                           support::Float64, write_model::JuMP.AbstractModel)
+    return make_reduced_expr(vref, _index_type(vref), pref, support, write_model)
+end
+
+# MeasureIndex
+function make_reduced_expr(mref, ::Type{MeasureIndex}, pref, support, write_model)
+    data = DiscreteMeasureData(pref, [1], [support], InternalLabel, # NOTE the label will not be used
+                               default_weight, NaN, NaN, false)
+    return expand_measure(mref, data, write_model)
+end
+
+# InfiniteVariableIndex
+function make_reduced_expr(vref, 
+    ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}}, 
+    pref, support, write_model
+    )::GeneralVariableRef
+    prefs = parameter_list(vref)
+    if length(prefs) == 1
+        return make_point_variable_ref(write_model, vref, [support])
+    else 
+        pindex = findfirst(isequal(pref), prefs)
+        return make_reduced_variable_ref(write_model, vref, [pindex], [support])
+    end
+end
+
+# ReducedVariableIndex
+function make_reduced_expr(vref, ::Type{ReducedVariableIndex}, pref, support, 
+                           write_model)::GeneralVariableRef
+    dvref = dispatch_variable_ref(vref)
+    ivref = infinite_variable_ref(vref)
+    var_prefs = parameter_list(dvref)
+    orig_prefs = parameter_list(ivref)
+    eval_supps = eval_supports(dvref)
+    pindex = findfirst(isequal(pref), orig_prefs)
+    if length(var_prefs) == 1
+        processed_support = _make_point_support(orig_prefs, eval_supps, pindex, support)
+        return make_point_variable_ref(write_model, ivref, processed_support)
+    else
+        indices = collect(keys(eval_supps))
+        vals = map(k -> eval_supps[k], indices)
+        push!(indices, pindex)
+        push!(vals, support)
+        return make_reduced_variable_ref(write_model, ivref, indices, vals)
+    end
+end
+
+################################################################################
 #                        EVALUATE_DERIVIATIVE DEFINITIONS
 ################################################################################
 """
-    evaluate_derivative(dref::GeneralVariableRef, data::AbstractDerivativeMethod,
+    evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef, 
+                        method::AbstractDerivativeMethod,
                         write_model::JuMP.AbstractModel)::PUT_FORMAT_HERE
 
-Add text here. (NOTE maybe something different than `dref` could be given)
+Add text here.
 """
-function evaluate_derivative end
+function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef, 
+                             method::AbstractDerivativeMethod,
+                             write_model::JuMP.AbstractModel)
+    error("`evaluate_derivative` not defined for derivative method of type " * 
+          "$(typeof(method)).")
+end
 
-# TODO add realizations with a fallback too 
-# NOTE These should use `make_point_variable_ref` and `make_reduced_variable_ref` as needed
-
-# TODO consider the handling and possible addition of supports for collocation methods
+# TODO add realizations for each derivative method
+# NOTE These should use `add_derivative_supports` and `make_reduced_expr`.
 
 ################################################################################
 #                              EVALUATION METHODS
 ################################################################################
 """
-    evaluate(dref::DerivativeRef)::PUT_FORMAT_HERE
+    evaluate(dref::DerivativeRef)::Nothing
 
-Add text here.
+Numerically evaluate `dref` by computing its auxiliary derivative constraints 
+(e.g., collocation equations) and add them to the model. For normal usage, it is 
+recommended that this method not be called directly and instead have TranscriptionOpt 
+handle these equations, since preemptive evaluation can lead to invalid relations 
+if the support structure is modified. Errors if `evaluate_derivative` is not 
+defined for the derivative method employed.
+
+**Example**
+```julia-repl 
+TODO ADD EXAMPLE
+```
 """
-function evaluate(dref::DerivativeRef) # TODO place output format here 
-    # TODO utilize `evaluate_derivative` where `write_model` is the `InfiniteModel` 
-    # and the evaluation constraints are added.
+function evaluate(dref::DerivativeRef)::Nothing
+    # collect the basic info
+    vref = argument_variable(dref)
+    pref = operator_parameter(dref)
+    method = derivative_method(pref)
+    model = JuMP.owner_model(dref)
+    # get the expressions 
+    exprs = evaluate_derivative(vref, pref, method, model)
+    # add the constraints
+
+    # TODO ADD DERIVATIVE AUXILIARY CONSTRAINTS HERE
+
+    # update the parameter status 
+    _data_object(pref).has_deriv_constrs = true
+    return
 end
 
 """
     evaluate_all_derivatives!(model::InfiniteModel)::Nothing
 
-Add text here.
+Evaluate all the derivatives in `model` by adding the corresponding auxiliary 
+equations to `model`. See [`evaluate`](@ref) for more information.
+
+**Example**
+```julia-repl 
+TODO ADD EXAMPLE
+```
 """
 function evaluate_all_derivatives!(model::InfiniteModel)::Nothing
-    # TODO utilize `evaluate_derivative` where `write_model` is the `InfiniteModel` 
-    # and the evaluation constraints are added for all the derivatives.
+    for dref in all_derivatives(model)
+        evaluate(dref)
+    end
+    return
 end

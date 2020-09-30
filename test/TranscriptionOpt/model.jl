@@ -214,10 +214,10 @@ end
     @testset "_collected_supports" begin 
         # independent parameters
         expected = Float64[0., 1., NaN]
-        @test isequal(IOTO._collected_supports(m, index(par)), expected)
+        @test isequal(IOTO._collected_supports(dispatch_variable_ref(par)), expected)
         # dependent parameters
         expected = sort!([Float64[0., 0.], Float64[1., 1.], Float64[NaN, NaN]])
-        @test isequal(sort!(IOTO._collected_supports(m, index(pars[1]).object_index)), expected)
+        @test isequal(sort!(IOTO._collected_supports(dispatch_variable_ref(pars[1]))), expected)
     end
     # test set_parameter_supports
     @testset "set_parameter_supports" begin 

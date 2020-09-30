@@ -457,7 +457,8 @@ end
 # Define 1 argument user method wrappers and their fallbacks
 for op = (:infinite_set, :num_supports, :significant_digits, :has_supports,
           :supports, :delete_supports, :fill_in_supports!, :parameter_value,
-          :derivative_method, :has_derivative_supports, :has_internal_supports)
+          :derivative_method, :has_derivative_supports, :has_internal_supports,
+          :add_derivative_supports)
     @eval begin
         # define the fallback method
         func = $op
@@ -821,7 +822,7 @@ end
 #                               DERIVATIVE METHODS
 ################################################################################
 # Define measure queries and their fallbacks
-for op = (:derivative_argument, :operator_parameter)
+for op = (:derivative_argument, :operator_parameter, :evaluate)
     @eval begin
         # define the fallback method
         func = $op

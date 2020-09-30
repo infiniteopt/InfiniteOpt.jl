@@ -621,6 +621,21 @@ function derivative_method(pref::IndependentParameterRef)::AbstractDerivativeMet
     return _core_variable_object(pref).derivative_method
 end
 
+# make method to reset derivative supports 
+function _reset_derivative_supports(pref::Union{IndependentParameterRef, 
+                                                DependentParameterRef})::Nothing
+    if _data_object(pref).has_deriv_constrs
+        @warn("Support/method changes will invalidate existing derivative evaluations. " *
+              "This problem can be avoided by not modifying the support structure " *
+              "after calling `evaluate_all_derivatives` or `evaluate`.")
+    elseif has_derivative_supports(pref)
+        old_label = support_label(derivative_method(pref))
+        delete_supports(pref, label = old_label)
+        set_has_derivative_supports(pref, false)
+    end
+    return
+end
+
 """
     set_derivative_method(pref::IndependentParameterRef, 
                           method::AbstractDerivativeMethod)::Nothing
@@ -643,11 +658,7 @@ function set_derivative_method(pref::IndependentParameterRef,
     supps = _parameter_supports(pref)
     sig_figs = significant_digits(pref)
     new_param = IndependentParameter(set, supps, sig_figs, method)
-    if has_derivative_supports(pref)
-        old_label = support_label(derivative_method(pref))
-        delete_supports(pref, label = old_label)
-        set_has_derivative_supports(pref, false)
-    end
+    _reset_derivative_supports(pref)
     _set_core_variable_object(dref, new_param)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
@@ -670,6 +681,8 @@ function _update_parameter_set(pref::IndependentParameterRef,
     new_param = IndependentParameter(set, DataStructures.SortedDict{Float64, Set{DataType}}(),
                                      sig_digits, method)
     _set_core_variable_object(pref, new_param)
+    _reset_derivative_supports(pref)
+    set_has_internal_supports(pref, false)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
@@ -714,7 +727,8 @@ function set_infinite_set(pref::IndependentParameterRef,
                * "another set of the same type.")
     end
     if used_by_measure(pref)
-        error("$pref is used by a measure so resetting its set is not allowed.")
+        error("$pref is used by a measure so changing its " *
+              "infinite set is not allowed.")
     end
     _update_parameter_set(pref, set)
     return
@@ -868,6 +882,7 @@ function _update_parameter_supports(pref::IndependentParameterRef,
     sig_figs = significant_digits(pref)
     new_param = IndependentParameter(set, supports, sig_figs, method)
     _set_core_variable_object(pref, new_param)
+    _reset_derivative_supports(pref)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
@@ -1092,6 +1107,7 @@ function add_supports(pref::IndependentParameterRef,
             supports_dict[s] = Set([label])
         end
     end
+    _reset_derivative_supports(pref)
     if label <: InternalLabel
         set_has_internal_supports(pref, true)
     end
@@ -1119,13 +1135,23 @@ ERROR: Parameter t does not have supports.
 function delete_supports(pref::IndependentParameterRef; 
                          label::Type{<:AbstractSupportLabel} = All)::Nothing
     supp_dict = _parameter_supports(pref)
+    if _data_object(pref).has_deriv_constrs
+        @warn("Support changes will invalidate existing derivative evaluations. " *
+              "This problem can be avoided by not modifying the support structure " *
+              "after calling `evaluate_all_derivatives` or `evaluate`.")
+    end
     if label == All
         if used_by_measure(pref)
             error("Cannot delete the supports of $pref since it is used by " *
                   "a measure.")
         end
         empty!(supp_dict)
+        set_has_derivative_supports(pref, false)
+        set_has_internal_supports(pref, false)
     else
+        if has_derivative_supports(pref) && support_label(pref) != label
+            label = Union{label, support_label(pref)}
+        end
         filter!(p -> !all(v -> v <: label, p[2]), supp_dict)
         for (k, v) in supp_dict 
             filter!(l -> !(l <: label), v)

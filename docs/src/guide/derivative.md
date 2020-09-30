@@ -56,8 +56,11 @@ all_derivatives
 set_derivative_method(::IndependentParameterRef, ::AbstractDerivativeMethod)
 set_derivative_method(::DependentParameterRef, ::AbstractDerivativeMethod)
 set_all_derivative_methods
-evaluate 
-evaluate_all_derivatives
+evaluate(::DerivativeRef)
+evaluate_all_derivatives!
 evaluate_derivative
-support_label(::AbstractDerivativeMethod)
+InfiniteOpt.support_label(::AbstractDerivativeMethod)
+InfiniteOPt.generate_derivative_supports
+InfiniteOpt.add_derivative_supports(::IndependentParameterRef)
+InfiniteOpt.make_reduced_expr
 ```

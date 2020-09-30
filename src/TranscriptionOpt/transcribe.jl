@@ -18,14 +18,23 @@ function _temp_parameter_ref(model::InfiniteOpt.InfiniteModel,
 end
 
 # Return the collected supports of an infinite parameter
-function _collected_supports(model::InfiniteOpt.InfiniteModel,
-    index::Union{InfiniteOpt.IndependentParameterIndex, InfiniteOpt.DependentParametersIndex}
+function _collected_supports(
+    pref::Union{InfiniteOpt.IndependentParameterRef, InfiniteOpt.DependentParameterRef}
     )::Vector
-    pref = _temp_parameter_ref(model, index)
-    supps = InfiniteOpt._parameter_supports(pref)
-    supp_list = collect(keys(supps))
+    supp_dict = InfiniteOpt._parameter_supports(pref)
+    supp_list = collect(keys(supp_dict))
     # append a placeholder NaN support at the end to be used for efficient combinatorics
     return push!(supp_list, map(i -> NaN, first(supp_list)))
+end
+
+# Return the collected support labels of an infinite parameter
+function _collected_support_labels(
+    pref::Union{InfiniteOpt.IndependentParameterRef, InfiniteOpt.DependentParameterRef},
+    supports::Vector
+    )::Vector{Set{DataType}}
+    supp_dict = InfiniteOpt._parameter_supports(pref)
+    default = Set{DataType}()
+    return map(k -> get(supp_dict, k, default), supports)
 end
 
 """
@@ -41,14 +50,33 @@ an independent will be a `Vector{Float64}` and a support collection associated
 with a group of dependent parameters will be a `Vector{Vector{Float64}}`. Note
 that each collection vector will include an extra final placeholder element
 comprised of `NaN`s for convenience in generating support indices via
-[`support_index_iterator`](@ref).
+[`support_index_iterator`](@ref). This also gathers the associated support labels. 
+
+Before this is all done, `InfiniteOpt.add_derivative_supports` is invoked for 
+any parameter that has at least one derivative dependency.
 """
 function set_parameter_supports(trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
+    # gather the basic information
     param_indices = InfiniteOpt._param_object_indices(inf_model)
-    supps = Tuple(_collected_supports(inf_model, i) for i in param_indices)
-    transcription_data(trans_model).supports = supps
+    prefs = map(idx -> _temp_parameter_ref(inf_model, idx), param_indices)
+    data = transcription_data(trans_model)
+    # check and add supports to prefs as needed
+    for pref in prefs 
+        if InfiniteOpt.has_internal_supports(pref)
+            data.has_internal_supports = true
+        end 
+        if InfiniteOpt.used_by_derivative(pref)
+            InfiniteOpt.add_derivative_supports(pref)
+        end
+    end
+    # build and add the support/label tuples
+    supps = Tuple(_collected_supports(pref) for pref in prefs)
+    labels = Tuple(_collected_support_labels(pref, supps[i]) 
+                   for (i, pref) in enumerate(prefs))
+    data.supports = supps
+    data.support_labels = labels
     return
 end
 
@@ -103,7 +131,8 @@ stored in `inf_model` and add them to `trans_model`. The variable mappings are
 also stored in `TranscriptionData.infvar_mappings` in accordance with
 `TranscriptionData.infvar_lookup` which enable [`transcription_variable`](@ref)
 and [`lookup_by_support`](@ref). Note that the supports will not be generated
-until `InfiniteOpt.variable_supports` is invoked via `InfiniteOpt.supports`.
+until `InfiniteOpt.variable_supports` is invoked via `InfiniteOpt.supports`. 
+Note that `TranscriptionData.infvar_support_labels` is also populated.
 """
 function transcribe_infinite_variables!(trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
@@ -116,6 +145,7 @@ function transcribe_infinite_variables!(trans_model::JuMP.Model,
         # prepare for iterating over its supports
         supp_indices = support_index_iterator(trans_model, var.object_nums)
         vrefs = Vector{JuMP.VariableRef}(undef, length(supp_indices))
+        labels = Vector{Set{DataType}}(undef, length(supp_indices))
         lookup_dict = Dict{Vector{Float64}, Int}()
         # create a variable for each support
         for (counter, i) in enumerate(supp_indices)
@@ -127,11 +157,14 @@ function transcribe_infinite_variables!(trans_model::JuMP.Model,
                                                          JuMP.ScalarVariable(info),
                                                          var_name)
             lookup_dict[supp] = counter
+            @inbounds labels[counter] = index_to_labels(trans_model, i)
         end
         # save the transcription information
         ivref = InfiniteOpt._make_variable_ref(inf_model, index)
-        transcription_data(trans_model).infvar_lookup[ivref] = lookup_dict
-        transcription_data(trans_model).infvar_mappings[ivref] = vrefs
+        data = transcription_data(trans_model)
+        data.infvar_lookup[ivref] = lookup_dict
+        data.infvar_mappings[ivref] = vrefs
+        data.infvar_support_labels[ivref] = labels
     end
     return
 end
@@ -166,36 +199,42 @@ also stored in `TranscriptionData.infvar_mappings` in accordance with
 `TranscriptionData.infvar_lookup` which enable [`transcription_variable`](@ref)
 and [`lookup_by_support`](@ref). Note that the supports will not be generated
 until `InfiniteOpt.variable_supports` is invoked via `InfiniteOpt.supports`. The 
-futher derivative evaluation constraints are added when PUT NAME HERE is invoked.
+futher derivative evaluation constraints are added when 
+`transcribe_derivative_evaluations!` is invoked. Note that 
+`TranscriptionData.infvar_support_labels` is also populated.
 """
 function transcribe_derivative_variables!(trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
     for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.Derivative)
         # get the basic variable information
+        dref = InfiniteOpt._make_variable_ref(inf_model, index)
         d = object.variable
-        base_name = object.name # TODO figure out naming scheme
+        base_name = InfiniteOpt.variable_string(JuMP.REPLMode, dispatch_variable_ref(dref))
         param_nums = InfiniteOpt._parameter_numbers(d.variable_ref)
         obj_nums = InfiniteOpt._object_numbers(d.variable_ref)
         # prepare for iterating over its supports
         supp_indices = support_index_iterator(trans_model, obj_nums)
         vrefs = Vector{JuMP.VariableRef}(undef, length(supp_indices))
+        labels = Vector{Set{DataType}}(undef, length(supp_indices))
         lookup_dict = Dict{Vector{Float64}, Int}()
         # create a variable for each support
         for (counter, i) in enumerate(supp_indices)
             raw_supp = index_to_support(trans_model, i)
             supp = raw_supp[param_nums]
             info = _format_derivative_info(d, supp)
-            deriv_name = string(base_name, "(support: ", counter, ")") # TODO update with decided naming scheme
+            deriv_name = string(base_name, "(support: ", counter, ")")
             @inbounds vrefs[counter] = JuMP.add_variable(trans_model,
                                                          JuMP.ScalarVariable(info),
                                                          deriv_name)
             lookup_dict[supp] = counter
+            @inbounds labels[counter] = index_to_labels(trans_model, i)
         end
         # save the transcription information
-        dref = InfiniteOpt._make_variable_ref(inf_model, index)
-        transcription_data(trans_model).infvar_lookup[dref] = lookup_dict
-        transcription_data(trans_model).infvar_mappings[dref] = vrefs
+        data = transcription_data(trans_model)
+        data.infvar_lookup[dref] = lookup_dict
+        data.infvar_mappings[dref] = vrefs
+        data.infvar_support_labels[dref] = labels
     end
     return
 end
@@ -212,6 +251,7 @@ function _set_reduced_variable_mapping(trans_model::JuMP.Model,
     # prepare for iterating over its supports
     supp_indices = support_index_iterator(trans_model, var.object_nums)
     vrefs = Vector{JuMP.VariableRef}(undef, length(supp_indices))
+    labels = Vector{Set{DataType}}(undef, length(supp_indices))
     lookup_dict = Dict{Vector{Float64}, Int}()
     counter = 1
     # map a variable for each support
@@ -228,13 +268,17 @@ function _set_reduced_variable_mapping(trans_model::JuMP.Model,
                       for (j, k) in enumerate(ivref_param_nums)]
         @inbounds vrefs[counter] = lookup_by_support(trans_model, ivref, ivref_supp)
         lookup_dict[supp] = counter
+        @inbounds labels[counter] = index_to_labels(trans_model, i)
         counter += 1
     end
     # truncate vrefs if any supports were skipped because of dependent parameter supps
     deleteat!(vrefs, counter:length(vrefs))
+    deleteat!(labels, counter:length(vrefs))
     # save the transcription information
-    transcription_data(trans_model).infvar_lookup[rvref] = lookup_dict
-    transcription_data(trans_model).infvar_mappings[rvref] = vrefs
+    data = transcription_data(trans_model)
+    data.infvar_lookup[rvref] = lookup_dict
+    data.infvar_mappings[rvref] = vrefs
+    data.infvar_support_labels[rvref] = labels
     return
 end
 
@@ -248,7 +292,8 @@ Map each `ReducedVariable` in `inf_model` to transcription variables stored in
 `TranscriptionData.infvar_lookup` which enable [`transcription_variable`](@ref)
 and [`lookup_by_support`](@ref). Note that [`transcribe_infinite_variables!`](@ref)
 must be called first. Note that the supports will not be generated
-until `InfiniteOpt.variable_supports` is invoked via `InfiniteOpt.supports`.
+until `InfiniteOpt.variable_supports` is invoked via `InfiniteOpt.supports`. 
+Note that `TranscriptionData.infvar_support_labels` is also populated.
 """
 function transcribe_reduced_variables!(trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
@@ -437,7 +482,8 @@ For each `Measure` in `inf_model` expand it via `InfiniteOpt.expand_measure` or
 expression mappings in `TranscriptionData.measure_mappings` and
 `TranscriptionData.measure_lookup` to enable [`transcription_variable`](@ref)
 and [`lookup_by_support`](@ref). Note that the supports will not be generated
-until `InfiniteOpt.variable_supports` is invoked via `InfiniteOpt.supports`.
+until `InfiniteOpt.variable_supports` is invoked via `InfiniteOpt.supports`. 
+Note that `TranscriptionData.measure_support_labels` is also populated.
 """
 function transcribe_measures!(trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
@@ -454,6 +500,7 @@ function transcribe_measures!(trans_model::JuMP.Model,
         # prepare to transcribe over the supports
         supp_indices = support_index_iterator(trans_model, meas.object_nums)
         exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(supp_indices))
+        labels = Vector{Set{DataType}}(undef, length(supp_indices))
         lookup_dict = Dict{Vector{Float64}, Int}()
         # map a variable for each support
         for (counter, i) in enumerate(supp_indices)
@@ -462,11 +509,14 @@ function transcribe_measures!(trans_model::JuMP.Model,
                                                                 new_expr, raw_supp)
             supp = raw_supp[meas.parameter_nums]
             lookup_dict[supp] = counter
+            @inbounds labels[counter] = index_to_labels(trans_model, i)
         end
         # save the transcription information
         mref = InfiniteOpt._make_variable_ref(inf_model, index)
-        transcription_data(trans_model).measure_lookup[mref] = lookup_dict
-        transcription_data(trans_model).measure_mappings[mref] = exprs
+        data = transcription_data(trans_model)
+        data.measure_lookup[mref] = lookup_dict
+        data.measure_mappings[mref] = exprs
+        data.measure_support_labels[mref] = labels
     end
     return
 end
@@ -589,7 +639,8 @@ to enable [`transcription_constraint`](@ref) and `InfiniteOpt.constraint_support
 Note that variable info constraints are simply mapped to the existing info
 constraints already generated along with the transcription variables. Note that
 the variables and measures must all first be transcripted (e.g., via
-[`transcribe_measures!`](@ref)).
+[`transcribe_measures!`](@ref)). Note that 
+`TranscriptionData.constr_support_labels` is also populated.
 """
 function transcribe_constraints!(trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
@@ -605,6 +656,7 @@ function transcribe_constraints!(trans_model::JuMP.Model,
         supp_indices = support_index_iterator(trans_model, obj_nums)
         crefs = Vector{JuMP.ConstraintRef}(undef, length(supp_indices))
         supps = Vector{Tuple}(undef, length(supp_indices))
+        labels = Vector{Set{DataType}}(undef, length(supp_indices))
         counter = 1
         # iterate over the support indices for the info constraints
         if object.is_info_constraint
@@ -617,6 +669,7 @@ function transcribe_constraints!(trans_model::JuMP.Model,
                     @inbounds crefs[counter] = info_ref
                     @inbounds supps[counter] = Tuple(param_supps[j][i[j]]
                                                      for j in obj_nums)
+                    @inbounds labels[counter] = index_to_labels(trans_model, i)
                     counter += 1
                 end
             end
@@ -636,6 +689,7 @@ function transcribe_constraints!(trans_model::JuMP.Model,
                                                          trans_constr, new_name)
                     @inbounds supps[counter] = Tuple(param_supps[j][i[j]]
                                                      for j in obj_nums)
+                    @inbounds labels[counter] = index_to_labels(trans_model, i)
                     counter += 1
                 end
             end
@@ -643,10 +697,44 @@ function transcribe_constraints!(trans_model::JuMP.Model,
         # truncate the arrays in case not all the supports satisfied the bounds
         deleteat!(crefs, counter:length(crefs))
         deleteat!(supps, counter:length(supps))
+        deleteat!(labels, counter:length(supps))
         # add the constraint mappings to the trans model
         cref = InfiniteOpt._make_constraint_ref(inf_model, index)
-        transcription_data(trans_model).constr_mappings[cref] = crefs
-        transcription_data(trans_model).constr_supports[cref] = supps
+        data = transcription_data(trans_model)
+        data.constr_mappings[cref] = crefs
+        data.constr_supports[cref] = supps
+        data.constr_support_labels[cref] = labels
+    end
+    return
+end
+
+################################################################################
+#                      DERIVATIVE CONSTRAINT TRANSCRIPTION METHODS
+################################################################################
+"""
+    transcribe_derivative_evaluations!(trans_model::JuMP.Model, 
+                                       inf_model::InfiniteOpt.InfiniteModel)::Nothing
+
+Generate the auxiliary derivative evaluation equations and transcribe them 
+appropriately for all the derivatives in `inf_model`. These are in turn added to 
+`trans_model`. Note that no mapping information is recorded since the InfiniteModel 
+won't have any constraints that correspond to these equations. Also Note that
+the variables and measures must all first be transcripted (e.g., via
+[`transcribe_derivative_variables!`](@ref)).
+"""
+function transcribe_derivative_evaluations!(trans_model::JuMP.Model, 
+    inf_model::InfiniteOpt.InfiniteModel
+    )::Nothing
+    for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.Derivative)
+        # get the basic variable information
+        dref = InfiniteOpt._make_variable_ref(inf_model, index)
+        d = object.variable
+        vref = d.variable_ref
+        pref = d.parameter_ref 
+        method = InfiniteOpt.derivative_method(pref)
+        # generate the expressions and transcribe the constraints 
+        # exprs = InfiniteOpt.evaluate_derivative(vref, pref, method, trans_model)
+        # TODO finish
     end
     return
 end
@@ -675,7 +763,7 @@ function build_transcription_model!(trans_model::JuMP.Model,
     )::Nothing
     # ensure there are supports to add and add them to the trans model
     InfiniteOpt.fill_in_supports!(inf_model, modify = false)
-    set_parameter_supports(trans_model, inf_model) # TODO this needs to account for any new derivative supports
+    set_parameter_supports(trans_model, inf_model)
     # check that there isn't a crazy amount of supports from taking the product
     supps = parameter_supports(trans_model)
     num_supps = prod(length, supps)
@@ -696,7 +784,7 @@ function build_transcription_model!(trans_model::JuMP.Model,
     # define the constraints
     transcribe_constraints!(trans_model, inf_model)
     # define the derivative evaluation constraints
-    # TODO add method here
+    transcribe_derivative_evaluations!(trans_model, inf_model)
     return
 end
 

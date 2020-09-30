@@ -133,9 +133,9 @@ end
     end
     # test map_value
     @testset "map_value" begin
-        @test InfiniteOpt.map_value(inf, Val(:TransData), 1) == [2., 0.]
-        @test InfiniteOpt.map_value(g, Val(:TransData), 1) == 1.
-        @test InfiniteOpt.map_value(rv, Val(:TransData), 1) == [-2., -1.]
+        @test InfiniteOpt.map_value(inf, Val(:TransData), 1, All) == [2., 0.]
+        @test InfiniteOpt.map_value(g, Val(:TransData), 1, All) == 1.
+        @test InfiniteOpt.map_value(rv, Val(:TransData), 1, All) == [-2., -1.]
     end
     # test value
     @testset "JuMP.value" begin
@@ -145,9 +145,9 @@ end
     end
     # test map_optimizer_index
     @testset "map_optimizer_index" begin
-        @test isa(InfiniteOpt.map_optimizer_index(g, Val(:TransData)), MOI.VariableIndex)
-        @test isa(InfiniteOpt.map_optimizer_index(inf, Val(:TransData)), Vector{MOI.VariableIndex})
-        @test isa(InfiniteOpt.map_optimizer_index(rv, Val(:TransData)), Vector{MOI.VariableIndex})
+        @test isa(InfiniteOpt.map_optimizer_index(g, Val(:TransData), All), MOI.VariableIndex)
+        @test isa(InfiniteOpt.map_optimizer_index(inf, Val(:TransData), All), Vector{MOI.VariableIndex})
+        @test isa(InfiniteOpt.map_optimizer_index(rv, Val(:TransData), All), Vector{MOI.VariableIndex})
     end
     # test optimizer_index
     @testset "JuMP.optimizer_index" begin
@@ -199,11 +199,11 @@ end
     end
     # test map_value
     @testset "map_value" begin
-        @test InfiniteOpt.map_value(meas1, Val(:TransData), 1) == 4.
-        @test InfiniteOpt.map_value(meas2, Val(:TransData), 1) == [0., -3.]
-        @test InfiniteOpt.map_value(3g - 1, Val(:TransData), 1) == 2.
-        @test InfiniteOpt.map_value(inf^2 + g, Val(:TransData), 1) == [5., 1.]
-        @test InfiniteOpt.map_value(zero(AffExpr) + 1, Val(:TransData), 1) == 1.
+        @test InfiniteOpt.map_value(meas1, Val(:TransData), 1, All) == 4.
+        @test InfiniteOpt.map_value(meas2, Val(:TransData), 1, All) == [0., -3.]
+        @test InfiniteOpt.map_value(3g - 1, Val(:TransData), 1, All) == 2.
+        @test InfiniteOpt.map_value(inf^2 + g, Val(:TransData), 1, All) == [5., 1.]
+        @test InfiniteOpt.map_value(zero(AffExpr) + 1, Val(:TransData), 1, All) == 1.
     end
     # test value
     @testset "JuMP.value" begin
@@ -251,8 +251,8 @@ end
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c2t[2]), 1.0)
     # test map_value
     @testset "map_value" begin
-        @test InfiniteOpt.map_value(c1, Val(:TransData), 1) == 1.
-        @test InfiniteOpt.map_value(c2, Val(:TransData), 1) == [-1., 0.]
+        @test InfiniteOpt.map_value(c1, Val(:TransData), 1, All) == 1.
+        @test InfiniteOpt.map_value(c2, Val(:TransData), 1, All) == [-1., 0.]
     end
     # test value
     @testset "JuMP.value" begin
@@ -261,8 +261,8 @@ end
     end
     # test map_optimizer_index
     @testset "map_optimizer_index" begin
-        @test isa(InfiniteOpt.map_optimizer_index(c1, Val(:TransData)), MOI.ConstraintIndex)
-        @test isa(InfiniteOpt.map_optimizer_index(c2, Val(:TransData)), Vector{<:MOI.ConstraintIndex})
+        @test isa(InfiniteOpt.map_optimizer_index(c1, Val(:TransData), All), MOI.ConstraintIndex)
+        @test isa(InfiniteOpt.map_optimizer_index(c2, Val(:TransData), All), Vector{<:MOI.ConstraintIndex})
     end
     # test optimizer_index
     @testset "JuMP.optimizer_index" begin
@@ -275,8 +275,8 @@ end
     end
     # test map_dual
     @testset "map_dual" begin
-        @test InfiniteOpt.map_dual(c1, Val(:TransData), 1) == -1.
-        @test InfiniteOpt.map_dual(c2, Val(:TransData), 1) == [0., 1.]
+        @test InfiniteOpt.map_dual(c1, Val(:TransData), 1, All) == -1.
+        @test InfiniteOpt.map_dual(c2, Val(:TransData), 1, All) == [0., 1.]
     end
     # test dual
     @testset "JuMP.dual" begin
@@ -285,8 +285,8 @@ end
     end
     # test map_shadow_price
     @testset "map_shadow_price" begin
-        @test InfiniteOpt.map_shadow_price(c1, Val(:TransData)) == -1.
-        @test InfiniteOpt.map_shadow_price(c2, Val(:TransData)) == [-0., -1.]
+        @test InfiniteOpt.map_shadow_price(c1, Val(:TransData), All) == -1.
+        @test InfiniteOpt.map_shadow_price(c2, Val(:TransData), All) == [-0., -1.]
     end
     # test shadow_price
     @testset "JuMP.shadow_price" begin
@@ -331,9 +331,9 @@ end
     MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c2t[2]), MOI.NONBASIC)
     # test map_lp_rhs_perturbation_range
     @testset "map_lp_rhs_perturbation_range" begin
-        @test InfiniteOpt.map_lp_rhs_perturbation_range(c1, Val(:TransData), 1e-8) == (-Inf, Inf)
-        @test InfiniteOpt.map_lp_rhs_perturbation_range(c2, Val(:TransData), 1e-8) == [(-Inf, Inf),
-                                                                           (-Inf, Inf)]
+        @test InfiniteOpt.map_lp_rhs_perturbation_range(c1, Val(:TransData), 1e-8, All) == (-Inf, Inf)
+        @test InfiniteOpt.map_lp_rhs_perturbation_range(c2, Val(:TransData), 1e-8, All) == [(-Inf, Inf),
+                                                                                            (-Inf, Inf)]
     end
     # test lp_rhs_perturbation_range
     @testset "JuMP.lp_rhs_perturbation_range" begin
@@ -342,9 +342,9 @@ end
     end
     # test map_lp_objective_perturbation_range
     @testset "map_lp_objective_perturbation_rangee" begin
-        @test InfiniteOpt.map_lp_objective_perturbation_range(g, Val(:TransData), 1e-8) == (-2.0, Inf)
-        @test InfiniteOpt.map_lp_objective_perturbation_range(inf, Val(:TransData), 1e-8) == [(-Inf, 0.0),
-                                                                                  (-Inf, 0.0)]
+        @test InfiniteOpt.map_lp_objective_perturbation_range(g, Val(:TransData), 1e-8, All) == (-2.0, Inf)
+        @test InfiniteOpt.map_lp_objective_perturbation_range(inf, Val(:TransData), 1e-8, All) == [(-Inf, 0.0),
+                                                                                                   (-Inf, 0.0)]
     end
     # test lp_objective_perturbation_range
     @testset "JuMP.lp_objective_perturbation_range" begin

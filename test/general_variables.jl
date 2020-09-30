@@ -523,6 +523,14 @@ end
     @testset "set_has_derivative_supports (GeneralVariableRef)" begin
         @test_throws ArgumentError set_has_derivative_supports(gvref, true)
     end
+    # test add_derivative_supports (Fallback)
+    @testset "add_derivative_supports (Fallback)" begin
+        @test_throws ArgumentError InfiniteOpt.add_derivative_supports(dvref)
+    end
+    # test add_derivative_supports (GeneralVariableRef)
+    @testset "add_derivative_supports (GeneralVariableRef)" begin
+        @test_throws ArgumentError InfiniteOpt.add_derivative_supports(gvref)
+    end
 end
 
 # test Variable Methods
@@ -690,6 +698,14 @@ end
     # test operator_parameter (GeneralVariableRef)
     @testset "operator_parameter (GeneralVariableRef)" begin
         @test_throws ArgumentError operator_parameter(gvref)
+    end
+    # test evaluate (Fallback)
+    @testset "evaluate (Fallback)" begin
+        @test_throws ArgumentError evaluate(dvref)
+    end
+    # test evaluate (GeneralVariableRef)
+    @testset "evaluate (GeneralVariableRef)" begin
+        @test_throws ArgumentError evaluate(gvref)
     end
 end
 

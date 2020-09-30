@@ -551,6 +551,7 @@ function set_derivative_method(pref::DependentParameterRef,
               "for a dependent parameter.")
     end
     _core_variable_object(pref).derivative_methods[_param_index(pref)] = method
+    _reset_derivative_supports(pref) # this is just used as a check and will never affect any supports
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
@@ -662,6 +663,8 @@ function _update_parameter_set(pref::DependentParameterRef,
     methods = _derivative_methods(pref)
     new_params = DependentParameters(new_set, new_supports, sig_figs, methods)
     _set_core_variable_object(pref, new_params)
+    _reset_derivative_supports(pref)
+    set_has_internal_supports(pref, false)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
@@ -1068,6 +1071,7 @@ function _update_parameter_supports(prefs::AbstractArray{<:DependentParameterRef
     new_params = DependentParameters(set, new_supps, sig_figs, methods)
     _set_core_variable_object(first(prefs), new_params)
     set_has_internal_supports(first(prefs), label <: InternalLabel)
+    _reset_derivative_supports(first(prefs)) # used as check only
     if any(is_used(pref) for pref in prefs)
         set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
     end
@@ -1226,6 +1230,7 @@ function add_supports(prefs::Vector{DependentParameterRef},
     if label <: InternalLabel
         set_has_internal_supports(first(prefs), true)
     end
+    _reset_derivative_supports(first(prefs)) # used as warn check only
     if any(is_used(pref) for pref in prefs)
         set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
     end
@@ -1256,11 +1261,13 @@ function delete_supports(prefs::AbstractArray{<:DependentParameterRef};
                          label::Type{<:AbstractSupportLabel} = All)::Nothing
     _check_complete_param_array(prefs)
     supp_dict = _parameter_supports(first(prefs))
+    _reset_derivative_supports(first(prefs)) # used as warn check only
     if label == All
         if any(used_by_measure(pref) for pref in prefs)
             error("Cannot delete supports with measure dependencies.")
         end
         empty!(supp_dict)
+        set_has_internal_supports(first(prefs), false)
     else 
         filter!(p -> !all(v -> v <: label, p[2]), supp_dict)
         for (k, v) in supp_dict 

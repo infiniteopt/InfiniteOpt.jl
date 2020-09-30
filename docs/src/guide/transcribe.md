@@ -466,6 +466,7 @@ Order   = [:function]
 InfiniteOpt.TranscriptionOpt.TranscriptionModel
 InfiniteOpt.TranscriptionOpt.is_transcription_model
 InfiniteOpt.TranscriptionOpt.transcription_data
+InfiniteOpt.TranscriptionOpt.has_internal_supports
 InfiniteOpt.TranscriptionOpt.transcription_model
 InfiniteOpt.TranscriptionOpt.transcription_variable(::JuMP.Model,::InfiniteOpt.GeneralVariableRef)
 InfiniteOpt.optimizer_model_variable(::InfiniteOpt.GeneralVariableRef,::Val{:TransData})
@@ -481,6 +482,7 @@ InfiniteOpt.constraint_supports(::JuMP.Model,::InfiniteOpt.InfOptConstraintRef,:
 InfiniteOpt.TranscriptionOpt.parameter_supports(::JuMP.Model)
 InfiniteOpt.TranscriptionOpt.support_index_iterator
 InfiniteOpt.TranscriptionOpt.index_to_support
+InfiniteOpt.TranscriptionOpt.index_to_labels
 InfiniteOpt.TranscriptionOpt.set_parameter_supports
 InfiniteOpt.TranscriptionOpt.transcribe_hold_variables!
 InfiniteOpt.TranscriptionOpt.transcribe_infinite_variables!
@@ -491,6 +493,7 @@ InfiniteOpt.TranscriptionOpt.transcription_expression
 InfiniteOpt.TranscriptionOpt.transcribe_measures!
 InfiniteOpt.TranscriptionOpt.transcribe_objective!
 InfiniteOpt.TranscriptionOpt.transcribe_constraints!
+InfiniteOpt.TranscriptionOpt.transcribe_derivative_evaluations!
 InfiniteOpt.TranscriptionOpt.build_transcription_model!
 InfiniteOpt.add_measure_variable(::JuMP.Model,::InfiniteOpt.PointVariable,::Val{:TransData})
 InfiniteOpt.add_measure_variable(::JuMP.Model,::InfiniteOpt.ReducedVariable,::Val{:TransData})

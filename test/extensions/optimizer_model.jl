@@ -96,6 +96,7 @@ end
 # Extend optimizer_model_variable if appropriate to enable variable related queries
 function InfiniteOpt.optimizer_model_variable(vref::GeneralVariableRef,
                                               key::Val{OptKey};
+                                              label = PublicLabel,
                                               my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE OPTIMIZER MODEL VARIABLE(S)
     model = optimizer_model(JuMP.owner_model(vref))
@@ -114,6 +115,7 @@ end
 # Extend optimizer_model_expression if appropriate to enable expression related queries
 function InfiniteOpt.optimizer_model_expression(expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
                                                 key::Val{OptKey};
+                                                label = PublicLabel,
                                                 my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO REFORMULATED EXPRESSIONS
     reform_expr = zero(AffExpr)
@@ -123,6 +125,7 @@ end
 # Extend optimizer_model_constraint if appropriate to enable constraint related queries
 function InfiniteOpt.optimizer_model_constraint(cref::InfOptConstraintRef,
                                                 key::Val{OptKey};
+                                                label = PublicLabel,
                                                 my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE OPTIMIZER MODEL CONSTRAINT(S)
     model = optimizer_model(JuMP.owner_model(cref))
@@ -135,6 +138,7 @@ end
 function InfiniteOpt.variable_supports(model::JuMP.Model,
                                        vref::Union{InfiniteVariableRef, ReducedVariableRef},
                                        key::Val{OptKey};
+                                       label = PublicLabel,
                                        my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED)
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE INFINITE VARIABLE SUPPORT VALUES
     map_dict = reform_data(model).infvar_to_supports
@@ -147,6 +151,7 @@ end
 function InfiniteOpt.variable_supports(model::JuMP.Model,
                                        mref::MeasureRef,
                                        key::Val{OptKey};
+                                       label = PublicLabel,
                                        my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED)
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE INFINITE VARIABLE SUPPORT VALUES
     map_dict = reform_data(model).meas_to_supports
@@ -159,6 +164,7 @@ end
 function InfiniteOpt.expression_supports(model::JuMP.Model,
                                          expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
                                          key::Val{OptKey};
+                                         label = PublicLabel,
                                          my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED)
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO SUPPORT(S) OF THE EXPRESSION(S)
     supps = [(-42.,), (1.,)]
@@ -169,6 +175,7 @@ end
 function InfiniteOpt.constraint_supports(model::JuMP.Model,
                                          cref::InfOptConstraintRef,
                                          key::Val{OptKey};
+                                         label = PublicLabel,
                                          my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED)
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE INFINITE VARIABLE SUPPORT VALUES
     map_dict = reform_data(model).constr_to_supports
