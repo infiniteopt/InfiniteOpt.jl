@@ -200,21 +200,22 @@ function evaluate_derivative(
     n_supps <= 1 && error("$(pref) does not have enough supports for derivative evaluation.")
     # make the expressions
     exprs = Vector{JuMP.AbstractJuMPScalar}(undef, n_supps)
-    # TODO CONTINUE FROM HERE TO FIX EXPRESSIONS TO NEW FORM (make sure we don't divide by the difference)
     for i in eachindex(exprs)
         @inbounds curr_value = ordered_supps[i]
         if i == 1
-            exprs[i] = (curr_value, _make_difference_expr(vref, pref, i, ordered_supps, write_model, FDForward))
+            exprs[i] = _make_difference_expr(dref, vref, pref, i, ordered_supps, write_model, FDForward)
         elseif i == n_supps
-            exprs[i] = (curr_value, _make_difference_expr(vref, pref, i, ordered_supps, write_model, FDBackward))
+            exprs[i] = _make_difference_expr(dref, vref, pref, i, ordered_supps, write_model, FDBackward)
         else
-            exprs[i] = (curr_value, _make_difference_expr(vref, pref, i, ordered_supps, write_model, method.technique))
+            exprs[i] = _make_difference_expr(dref, vref, pref, i, ordered_supps, write_model, method.technique)
         end
     end
     return exprs
 end
 
-function _make_difference_expr(vref::GeneralVariableRef, pref::GeneralVariableRef,
+function _make_difference_expr(dref::GeneralVariableRef,
+                               vref::GeneralVariableRef, 
+                               pref::GeneralVariableRef,
                                index::Int, 
                                ordered_supps::Vector{Float64},
                                write_model::JuMP.AbstractModel, 
@@ -222,33 +223,38 @@ function _make_difference_expr(vref::GeneralVariableRef, pref::GeneralVariableRe
     
     curr_value = ordered_supps[index]
     next_value = ordered_supps[index+1]
-    return JuMP.@expression(_Model, (make_reduced_expr(vref, pref, next_value, write_model) 
-                                            - make_reduced_expr(vref, pref, curr_value, write_model))
-                                            / (next_value - curr_value) )
+    return JuMP.@expression(_Model, (next_value - curr_value) * make_reduced_expr(dref, pref, curr_value, write_model) 
+                                            - make_reduced_expr(vref, pref, next_value, write_model) 
+                                            + make_reduced_expr(vref, pref, curr_value, write_model) )
 end
 
-function _make_difference_expr(vref::GeneralVariableRef, pref::GeneralVariableRef,
+function _make_difference_expr(dref::GeneralVariableRef, 
+                               vref::GeneralVariableRef, 
+                               pref::GeneralVariableRef,
                                index::Int, 
                                ordered_supps::Vector{Float64}, 
                                write_model::JuMP.AbstractModel, 
                                type::Type{FDCentral})::JuMP.AbstractJuMPScalar
     prev_value = ordered_supps[index-1]
     next_value = ordered_supps[index+1]
-    return JuMP.@expression(_Model, (make_reduced_expr(vref, pref, next_value, write_model) 
-                                            - make_reduced_expr(vref, pref, prev_value, write_model)) 
-                                            / (next_value - prev_value) )
+    curr_value = ordered_supps[index]
+    return JuMP.@expression(_Model, (next_value - prev_value) *  make_reduced_expr(dref, pref, curr_value, write_model)
+                                            - make_reduced_expr(vref, pref, next_value, write_model) 
+                                            + make_reduced_expr(vref, pref, prev_value, write_model) )
 end
 
-function _make_difference_expr(vref::GeneralVariableRef, pref::GeneralVariableRef,
+function _make_difference_expr(dref::GeneralVariableRef,
+                               vref::GeneralVariableRef, 
+                               pref::GeneralVariableRef,
                                index::Int, 
                                ordered_supps::Vector{Float64}, 
                                write_model::JuMP.AbstractModel,
                                type::Type{FDBackward})::JuMP.AbstractJuMPScalar
     prev_value = ordered_supps[index-1]
     curr_value = ordered_supps[index]
-    return JuMP.@expression(_Model, (make_reduced_expr(vref, pref, curr_value, write_model) 
-                                            - make_reduced_expr(vref, pref, prev_value, write_model)) 
-                                            / (curr_value - prev_value) )
+    return JuMP.@expression(_Model, (curr_value - prev_value) *  make_reduced_expr(dref, pref, curr_value, write_model)
+                                            - make_reduced_expr(vref, pref, curr_value, write_model) 
+                                            + make_reduced_expr(vref, pref, prev_value, write_model) )
 end
 
 # evaluate_derivative for OrthogonalCollocation
@@ -284,11 +290,11 @@ function evaluate_derivative(
                 M2t[k,j] = i_nodes[j]^k
             end
         end
-        Mt = M2t \ M1t
+        Minvt = M1t \ M2t
         for j in eachindex(i_nodes)
-            # TODO FIX THIS EXPRESSION TO BE THE CORRECT FORM
-            exprs[counter] = JuMP.@expression(_Model, sum(Mt[k,j] * make_reduced_expr(vref, pref, i_nodes[k] + lb, write_model) for k in 1:n_nodes+1) - 
-                                                      sum(Mt[k,j] for k in 1:n_nodes+1) * make_reduced_expr(vref, pref, lb, write_model))
+            exprs[counter] = JuMP.@expression(_Model, sum(Minvt[k,j] *  make_reduced_expr(dref, pref, i_nodes[k] + lb, write_model) )
+                                                    - make_reduced_expr(vref, pref, i_nodes[k] + lb, write_model)
+                                                    + make_reduced_expr(vref, pref, lb, write_model))
             counter += 1
         end
     end
@@ -322,11 +328,11 @@ julia> evaluate(dref)
 julia> print(m)
 Feasibility
 Subject to
- ∂/∂t[T(t)](0) - 2 T(0.5) + 2 T(0) = 0.0
+ 0.5 ∂/∂t[T(t)](0) - T(0.5) + T(0) = 0.0
  ∂/∂t[T(t)](0.5) - T(1) + T(0) = 0.0
  ∂/∂t[T(t)](1) - T(1.5) + T(0.5) = 0.0
  ∂/∂t[T(t)](1.5) - T(2) + T(1) = 0.0
- ∂/∂t[T(t)](2) - 2 T(2) + 2 T(1.5) = 0.0
+ 0.5 ∂/∂t[T(t)](2) - T(2) + T(1.5) = 0.0
 ```
 """
 function evaluate(dref::DerivativeRef)::Nothing
@@ -341,6 +347,7 @@ function evaluate(dref::DerivativeRef)::Nothing
         JuMP.@constraint(model, expr == 0)
     end
     # update the parameter status 
+    pref = operator_parameter(dref)
     _data_object(pref).has_deriv_constrs = true
     return
 end
@@ -369,14 +376,14 @@ julia> print(m)
 Feasibility
 Subject to
  ∂/∂t[T(x, t)](x, 0) - T(x, 1) + T(x, 0) = 0.0, ∀ x ∈ [0, 1]
- ∂/∂t[T(x, t)](x, 1) - 0.5 T(x, 2) + 0.5 T(x, 0) = 0.0, ∀ x ∈ [0, 1]
+ 2 ∂/∂t[T(x, t)](x, 1) - T(x, 2) + T(x, 0) = 0.0, ∀ x ∈ [0, 1]
  ∂/∂t[T(x, t)](x, 2) - T(x, 2) + T(x, 1) = 0.0, ∀ x ∈ [0, 1]
- ∂/∂x[T(x, t)](0, t) - 2 T(0.5, t) + 2 T(0, t) = 0.0, ∀ t ∈ [0, 2]
+ 0.5 ∂/∂x[T(x, t)](0, t) - T(0.5, t) + T(0, t) = 0.0, ∀ t ∈ [0, 2]
  ∂/∂x[T(x, t)](0.5, t) - T(1, t) + T(0, t) = 0.0, ∀ t ∈ [0, 2]
- ∂/∂x[T(x, t)](1, t) - 2 T(1, t) + 2 T(0.5, t) = 0.0, ∀ t ∈ [0, 2]
- ∂/∂x[∂/∂x[T(x, t)]](0, t) - 2 ∂/∂x[T(x, t)](0.5, t) + 2 ∂/∂x[T(x, t)](0, t) = 0.0, ∀ t ∈ [0, 2]
+ 0.5 ∂/∂x[T(x, t)](1, t) - T(1, t) + T(0.5, t) = 0.0, ∀ t ∈ [0, 2]
+ 0.5 ∂/∂x[∂/∂x[T(x, t)]](0, t) - ∂/∂x[T(x, t)](0.5, t) + ∂/∂x[T(x, t)](0, t) = 0.0, ∀ t ∈ [0, 2]
  ∂/∂x[∂/∂x[T(x, t)]](0.5, t) - ∂/∂x[T(x, t)](1, t) + ∂/∂x[T(x, t)](0, t) = 0.0, ∀ t ∈ [0, 2]
- ∂/∂x[∂/∂x[T(x, t)]](1, t) - 2 ∂/∂x[T(x, t)](1, t) + 2 ∂/∂x[T(x, t)](0.5, t) = 0.0, ∀ t ∈ [0, 2]
+ 0.5 ∂/∂x[∂/∂x[T(x, t)]](1, t) - ∂/∂x[T(x, t)](1, t) + ∂/∂x[T(x, t)](0.5, t) = 0.0, ∀ t ∈ [0, 2]
 ```
 """
 function evaluate_all_derivatives!(model::InfiniteModel)::Nothing
