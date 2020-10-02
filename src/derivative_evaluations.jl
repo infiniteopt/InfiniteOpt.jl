@@ -274,7 +274,6 @@ function evaluate_derivative(
     for i in Iterators.take(eachindex(interval_inds), length(interval_inds) - 1)
         # collect the supports
         lb = all_supps[interval_inds[i]]
-        ub = all_supps[interval_inds[i+1]]
         i_nodes = all_supps[interval_inds[i]+1:interval_inds[i+1]] .- lb
         # build the matrices in memory order (column-wise using the transpose form)
         M1t = Matrix{Float64}(undef, n_nodes+1, n_nodes+1)
@@ -285,7 +284,7 @@ function evaluate_derivative(
                 M2t[k,j] = i_nodes[j]^k
             end
         end
-        Mt = inv(M2t) * M1t
+        Mt = M2t \ M1t
         for j in eachindex(i_nodes)
             # TODO FIX THIS EXPRESSION TO BE THE CORRECT FORM
             exprs[counter] = JuMP.@expression(_Model, sum(Mt[k,j] * make_reduced_expr(vref, pref, i_nodes[k] + lb, write_model) for k in 1:n_nodes+1) - 
