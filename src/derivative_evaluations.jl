@@ -1,14 +1,4 @@
 ################################################################################
-#                         DERIVATIVE METHOD CONSTRUCTORS
-################################################################################
-function OrthogonalCollocation(num_nodes::Int, quadrature_type::DataType = Lobatto)
-    if !(quadrature_type <: OCQuadrature)
-        error("Invalid quadrature method for orthogonal collocation.")
-    end
-    return OrthogonalCollocation(num_nodes, OrthogonalCollocationNode, quadrature_type)
-end
-
-################################################################################
 #                                HELPER METHODS
 ################################################################################
 """
@@ -35,30 +25,59 @@ function generate_derivative_supports(
     return Float64[]
 end
 
-# OrthogonalCollocation
+## Define helper functions for Lobatto Polynomials'
+# Generate the Legendre polynomials
+function _legendre(n::Int)::Polynomials.Polynomial{Float64} 
+    return sum(binomial(n,k)^2 * Polynomials.Polynomial([-1,1])^(n-k) * 
+               Polynomials.Polynomial([1,1])^k for k in 0:n) / 2^n
+end 
+
+# Compute the Lobatto roots
+function _compute_internal_node_basis(n::Int)::Vector{Float64} 
+    return Polynomials.roots(Polynomials.derivative(_legendre(n+1)))
+end
+
+# OrthogonalCollocation (top level dispatch)
 function generate_derivative_supports(
     pref::IndependentParameterRef, 
     method::OrthogonalCollocation
     )::Vector{Float64}
+    return generate_derivative_supports(pref, method, method.technique)
+end
 
+# OrthogonalCollocation (Labatto)
+function generate_derivative_supports(
+    pref::IndependentParameterRef, 
+    method::OrthogonalCollocation,
+    technique::Type{Lobatto}
+    )::Vector{Float64}
+    # collect the preliminaries
     num_nodes = method.num_nodes
-    num_supps = num_supports(pref)
     node_basis = _compute_internal_node_basis(num_nodes)
-    ordered_supps = sort(supports(pref))
+    ordered_supps = supports(pref, label = All) # already sorted by SortedDict
+    num_supps = length(ordered_supps)
+    num_supps <= 1 && error("$(pref) does not have enough supports for derivative evaluation.")
     internal_nodes = Vector{Float64}(undef, num_nodes * (num_supps - 1))
-    for i in eachindex(ordered_supps[1:end-1])
-        lower_bound = ordered_supps[i]
-        upper_bound = ordered_supps[i+1]
-        internal_nodes[(i-1)*num_nodes+1:i*num_nodes] = (upper_bound - lower_bound) / 2 * node_basis .+ (upper_bound + lower_bound) / 2
+    # generate the internal node supports
+    for i in Iterators.take(eachindex(ordered_supps), num_supps - 1)
+        lb = ordered_supps[i]
+        ub = ordered_supps[i+1]
+        internal_nodes[(i-1)*num_nodes+1:i*num_nodes] = (ub - lb) / 2 * node_basis .+ (ub + lb) / 2
     end
     return internal_nodes
 end
 
-_legendre(n::Int)::Polynomials.Polynomial{Float64} = sum( binomial(n,k)^2 * Polynomials.Polynomial([-1,1])^(n-k) * Polynomials.Polynomial([1,1])^k for k in 0:n) / 2^n
-_compute_internal_node_basis(n::Int)::Vector{Float64} = Polynomials.roots(Polynomials.derivative(_legendre(n+1)))
+# OrthogonalCollocation (Fallback)
+function generate_derivative_supports(
+    pref::IndependentParameterRef, 
+    method::OrthogonalCollocation,
+    technique
+    )
+    error("Undefined orthogonal collocation technique `$technique`.")
+end
 
 """
-    add_derivative_supports(pref::Union{IndependentParameterRef, DependentParameterRef})::Vector{Float64}
+    add_derivative_supports(pref::Union{IndependentParameterRef, DependentParameterRef})::Nothing
 
 Add any supports `pref` that are needed for derivative evaluation. This is intended 
 as a helper method for derivative evaluation and depends [`generate_derivative_supports`](@ref InfiniteOpt.generate_derivative_supports) 
@@ -67,7 +86,7 @@ In such cases, it is necessary to also extend
 [`support_label`](@ref InfiniteOpt.support_label(::AbstractDerivativeMethod)) Errors if 
 such is not defined for the current derivative method associated with `pref`. 
 """
-function add_derivative_supports(pref::IndependentParameterRef)::Vector{Float64}
+function add_derivative_supports(pref::IndependentParameterRef)::Nothing
     if !has_derivative_supports(pref)
         method = derivative_method(pref)
         supps = generate_derivative_supports(pref, method)
@@ -75,15 +94,13 @@ function add_derivative_supports(pref::IndependentParameterRef)::Vector{Float64}
             add_supports(pref, supps, label = support_label(method))
             set_has_derivative_supports(pref, true)
         end
-        return supps
     end
-    method = derivative_method(pref)
-    return supports(pref, label = support_label(method))
+    return
 end
 
 # Define for DependentParameterRef
-function add_derivative_supports(pref::DependentParameterRef)::Vector{Float64}
-    return Float64[]
+function add_derivative_supports(pref::DependentParameterRef)::Nothing
+    return
 end
 
 """
@@ -114,8 +131,10 @@ function make_reduced_expr(vref,
     pref, support, write_model
     )::GeneralVariableRef
     prefs = parameter_list(vref)
+    # only one parameter so we have to make a point variable (we know that this must be pref)
     if length(prefs) == 1
         return make_point_variable_ref(write_model, vref, [support])
+    # there are other parameters so make reduced variable
     else 
         pindex = findfirst(isequal(pref), prefs)
         return make_reduced_variable_ref(write_model, vref, [pindex], [support])
@@ -125,15 +144,18 @@ end
 # ReducedVariableIndex
 function make_reduced_expr(vref, ::Type{ReducedVariableIndex}, pref, support, 
                            write_model)::GeneralVariableRef
+    # get the preliminary info
     dvref = dispatch_variable_ref(vref)
     ivref = infinite_variable_ref(vref)
     var_prefs = parameter_list(dvref)
     orig_prefs = parameter_list(ivref)
     eval_supps = eval_supports(dvref)
     pindex = findfirst(isequal(pref), orig_prefs)
+    # we only have 1 parameter so we need to make a point variable
     if length(var_prefs) == 1
         processed_support = _make_point_support(orig_prefs, eval_supps, pindex, support)
         return make_point_variable_ref(write_model, ivref, processed_support)
+    # otherwise we need to make a futher reduced variable
     else
         indices = collect(keys(eval_supps))
         vals = map(k -> eval_supps[k], indices)
@@ -147,37 +169,40 @@ end
 #                        EVALUATE_DERIVIATIVE DEFINITIONS
 ################################################################################
 """
-    evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef, 
+    evaluate_derivative(dref::GeneralVariableRef, 
                         method::AbstractDerivativeMethod,
-                        write_model::JuMP.AbstractModel)::Vector{Tuple{Float64, JuMP.AbstractJuMPScalar}}
+                        write_model::JuMP.AbstractModel)::Vector{JuMP.AbstractJuMPScalar}
 
 Build expression for derivative of `vref` with respect to `pref` evaluated at each
-support of `pref` using finite difference scheme.
+support of `pref` using finite difference scheme. ADD MORE HERE ABOUT ABSTRACTION
+(const * deriv(pt) - rhs) = 0
 """
 function evaluate_derivative(
-    vref::GeneralVariableRef, 
-    pref::GeneralVariableRef,                          
+    dref::GeneralVariableRef,                        
     method::AbstractDerivativeMethod,                         
-    write_model::JuMP.AbstractModel)::Vector{Tuple{Float64, JuMP.AbstractJuMPScalar}}
+    write_model::JuMP.AbstractModel)
     error("`evaluate_derivative` not defined for derivative method of type " * 
           "$(typeof(method)).")
 end
 
 # evaluate_derivative for FiniteDifference
 function evaluate_derivative(
-    vref::GeneralVariableRef, 
-    pref::GeneralVariableRef, 
+    dref::GeneralVariableRef, 
     method::FiniteDifference, 
-    write_model::JuMP.AbstractModel)::Vector{Tuple{Float64, JuMP.AbstractJuMPScalar}}
-
-    n_supps = num_supports(pref)
-    if n_supps <= 1
-        error("$(pref) does not have enough supports to apply any finite difference methods.")
-    end
-    ordered_supps = sort(supports(pref))
-    exprs = Vector{Tuple{Float64, JuMP.AbstractJuMPScalar}}(undef, n_supps)
-    for i in eachindex(ordered_supps)
-        curr_value = ordered_supps[i]
+    write_model::JuMP.AbstractModel
+    )::Vector{JuMP.AbstractJuMPScalar}
+    # gather the arugment and parameter 
+    vref = derivative_argument(dref)
+    pref = operator_parameter(dref)
+    # get the supports and check validity
+    ordered_supps = sort!(supports(pref, label = All))
+    n_supps = length(ordered_supps)
+    n_supps <= 1 && error("$(pref) does not have enough supports for derivative evaluation.")
+    # make the expressions
+    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, n_supps)
+    # TODO CONTINUE FROM HERE TO FIX EXPRESSIONS TO NEW FORM (make sure we don't divide by the difference)
+    for i in eachindex(exprs)
+        @inbounds curr_value = ordered_supps[i]
         if i == 1
             exprs[i] = (curr_value, _make_difference_expr(vref, pref, i, ordered_supps, write_model, FDForward))
         elseif i == n_supps
@@ -197,7 +222,7 @@ function _make_difference_expr(vref::GeneralVariableRef, pref::GeneralVariableRe
     
     curr_value = ordered_supps[index]
     next_value = ordered_supps[index+1]
-    return JuMP.@expression(InfiniteOpt._Model, (make_reduced_expr(vref, pref, next_value, write_model) 
+    return JuMP.@expression(_Model, (make_reduced_expr(vref, pref, next_value, write_model) 
                                             - make_reduced_expr(vref, pref, curr_value, write_model))
                                             / (next_value - curr_value) )
 end
@@ -209,7 +234,7 @@ function _make_difference_expr(vref::GeneralVariableRef, pref::GeneralVariableRe
                                type::Type{FDCentral})::JuMP.AbstractJuMPScalar
     prev_value = ordered_supps[index-1]
     next_value = ordered_supps[index+1]
-    return JuMP.@expression(InfiniteOpt._Model, (make_reduced_expr(vref, pref, next_value, write_model) 
+    return JuMP.@expression(_Model, (make_reduced_expr(vref, pref, next_value, write_model) 
                                             - make_reduced_expr(vref, pref, prev_value, write_model)) 
                                             / (next_value - prev_value) )
 end
@@ -221,50 +246,53 @@ function _make_difference_expr(vref::GeneralVariableRef, pref::GeneralVariableRe
                                type::Type{FDBackward})::JuMP.AbstractJuMPScalar
     prev_value = ordered_supps[index-1]
     curr_value = ordered_supps[index]
-    return JuMP.@expression(InfiniteOpt._Model, (make_reduced_expr(vref, pref, curr_value, write_model) 
+    return JuMP.@expression(_Model, (make_reduced_expr(vref, pref, curr_value, write_model) 
                                             - make_reduced_expr(vref, pref, prev_value, write_model)) 
                                             / (curr_value - prev_value) )
 end
 
 # evaluate_derivative for OrthogonalCollocation
 function evaluate_derivative(
-    vref::GeneralVariableRef, 
-    pref::GeneralVariableRef, 
+    dref::GeneralVariableRef, 
     method::OrthogonalCollocation, 
-    write_model::JuMP.AbstractModel)::Vector{Tuple{Float64, JuMP.AbstractJuMPScalar}}
-    n_supps = num_supports(pref)
-    if n_supps <= 1
-        error("$(pref) does not have enough supports to apply any finite difference methods.")
-    end
+    write_model::JuMP.AbstractModel
+    )::Vector{JuMP.AbstractJuMPScalar}
+    # gather the arugment and parameter 
+    vref = derivative_argument(dref)
+    pref = operator_parameter(dref)
+    # ensure that the internal supports are added in case they haven't already 
+    add_derivative_supports(pref) # this checks for enough supports
+    # gather the supports and indices of the internal supports
+    all_supps = supports(pref, label = All) # sorted by virtue of SortedDict
+    bool_inds = map(s -> !(support_label(method) in s), values(_parameter_supports(pref)))
+    interval_inds = findall(bool_inds)
     n_nodes = method.num_nodes
-    ordered_supps = sort(supports(pref))
-
-    # Determine the nodes values using appropriate quadrature from method.
-    # Call `add_derivative_supports` to add the internal supports.
-    internal_nodes = add_derivative_supports(pref)
-
-    # Compute M matrix based on the node values
-    # Generate expressions using the M matrix and `make_reduced_expr`
-    exprs = Vector{Tuple{Float64, JuMP.AbstractJuMPScalar}}()
-    for i in eachindex(ordered_supps[1:end-1])
-        i_nodes = [internal_nodes[(i-1)*n_nodes+1:i*n_nodes]..., ordered_supps[i+1]] .- ordered_supps[i]
-        M1 = Matrix{Float64}(undef, n_nodes+1, n_nodes+1)
-        M2 = Matrix{Float64}(undef, n_nodes+1, n_nodes+1)
+    # compute M matrix based on the node values and generate expressions using 
+    # the M matrix and `make_reduced_expr`
+    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(all_supps)) # I think this is the right length...
+    counter = 1
+    for i in Iterators.take(eachindex(interval_inds), length(interval_inds) - 1)
+        # collect the supports
+        lb = all_supps[interval_inds[i]]
+        ub = all_supps[interval_inds[i+1]]
+        i_nodes = all_supps[interval_inds[i]+1:interval_inds[i+1]] .- lb
+        # build the matrices in memory order (column-wise using the transpose form)
+        M1t = Matrix{Float64}(undef, n_nodes+1, n_nodes+1)
+        M2t = Matrix{Float64}(undef, n_nodes+1, n_nodes+1)
         for j in eachindex(i_nodes)
             for k in 1:n_nodes+1
-                M1[j,k] = k * i_nodes[j]^(k-1)
-                M2[j,k] = i_nodes[j]^k
+                M1t[k,j] = k * i_nodes[j]^(k-1)
+                M2t[k,j] = i_nodes[j]^k
             end
         end
-        M = M1 * inv(M2)
+        Mt = inv(M2t) * M1t
         for j in eachindex(i_nodes)
-            push!(exprs, (i_nodes[j] + ordered_supps[i], 
-                        JuMP.@expression(InfiniteOpt._Model, 
-                        sum(M[j,k] * make_reduced_expr(vref, pref, i_nodes[k] + ordered_supps[i], write_model) for k in 1:n_nodes+1)
-                        - sum(M[j,k] for k in 1:n_nodes+1) * make_reduced_expr(vref, pref, ordered_supps[i], write_model)) ) )
+            # TODO FIX THIS EXPRESSION TO BE THE CORRECT FORM
+            exprs[counter] = JuMP.@expression(_Model, sum(Mt[k,j] * make_reduced_expr(vref, pref, i_nodes[k] + lb, write_model) for k in 1:n_nodes+1) - 
+                                                      sum(Mt[k,j] for k in 1:n_nodes+1) * make_reduced_expr(vref, pref, lb, write_model))
+            counter += 1
         end
     end
-
     return exprs
 end
 
@@ -282,7 +310,7 @@ if the support structure is modified. Errors if `evaluate_derivative` is not
 defined for the derivative method employed.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP)
+```julia-repl
 julia> m = InfiniteModel(); @infinite_parameter(m, t in [0,2]); @infinite_variable(m, T(t));
 
 julia> dref = @deriv(T,t)
@@ -304,18 +332,15 @@ Subject to
 """
 function evaluate(dref::DerivativeRef)::Nothing
     # collect the basic info
-    vref = derivative_argument(dref)
-    pref = operator_parameter(dref)
-    method = derivative_method(pref)
+    method = derivative_method(dref)
     model = JuMP.owner_model(dref)
     # get the expressions 
-    exprs = evaluate_derivative(vref, pref, method, model)
+    gvref = GeneralVariableRef(model, JuMP.index(dref).value, DerivativeIndex)
+    exprs = evaluate_derivative(gvref, method, model)
     # add the constraints
-    gdref = GeneralVariableRef(model, JuMP.index(dref).value, DerivativeIndex)
-    for (supp, expr) in exprs
-        JuMP.@constraint(model, make_reduced_expr(gdref, pref, supp, model) == expr)
+    for expr in exprs
+        JuMP.@constraint(model, expr == 0)
     end
-
     # update the parameter status 
     _data_object(pref).has_deriv_constrs = true
     return
@@ -328,7 +353,7 @@ Evaluate all the derivatives in `model` by adding the corresponding auxiliary
 equations to `model`. See [`evaluate`](@ref) for more information.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP)
+```julia-repl
 julia> m = InfiniteModel();
 
 julia> @infinite_parameter(m, t in [0,2], supports = [0, 1, 2]);

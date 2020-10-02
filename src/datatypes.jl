@@ -293,6 +293,21 @@ infinite parameters, but cannot be used for ones that depend on dependent parame
 abstract type GenerativeDerivativeMethod <: AbstractDerivativeMethod end 
 
 """
+    OCTechnique
+
+An abstract type for the method used to carry out orthogonal collocation.
+"""
+abstract type OCTechnique end
+
+"""
+    Lobatto <: OCTechnique
+
+A quadrature method label for orthogonal collocation method that generates
+internal nodes between public supports using Lobatto quadrature method.
+"""
+struct Lobatto <: OCTechnique end
+
+"""
     OrthogonalCollocation <: GenerativeDerivativeMethod 
 
 A `DataType` for storing information about orthogonal collocation method
@@ -300,31 +315,18 @@ for derivative evaluation.
 
 **Fields**
 - `num_nodes::Int`: The number of internal collocation points (nodes).
-- `label::DataType`: The label associated with generated supports.
-- `quadrature_type::DataType`: The quadrature method used to produce the points.
+- `technique::Type{<:OCTechnique}`: The method used to produce the points.
 """
 struct OrthogonalCollocation <: GenerativeDerivativeMethod 
     num_nodes::Int
-    label::DataType
-    quadrature_type::DataType
+    technique::DataType
+    # make the constructor 
+    function OrthogonalCollocation(num_nodes::Int, 
+        technique::Type{<:OCTechnique} = Lobatto
+        )::OrthogonalCollocation
+        return new(num_nodes, technique)
+    end
 end
-
-"""
-    OCQuadrature
-
-An abstract type for label of quadrature method used to generate additional 
-supports (nodes) for orthogonal collocation.
-"""
-abstract type OCQuadrature end
-
-"""
-    Lobatto <: OCQuadrature
-
-A quadrature method label for orthogonal collocation method that generates
-internal nodes between public supports using Lobatto quadrature method.
-"""
-struct Lobatto <: OCQuadrature end
-
 
 """
     NonGenerativeDerivativeMethod <: AbstractDerivativeMethod
@@ -337,49 +339,53 @@ dependencies.
 abstract type NonGenerativeDerivativeMethod <: AbstractDerivativeMethod end
 
 """
+    FDTechnique
+
+An abstract data type for labels of specific techniques applied in the finite 
+difference method in derivative evaluation.
+"""
+abstract type FDTechnique end
+
+"""
+    FDForward <: FDTechnique
+
+A technique label for finite difference method that implements a forward 
+difference approximation.
+"""
+struct FDForward <: FDTechnique end
+
+"""
+    FDCentral <: FDTechnique
+
+A technique label for finite difference method that implements a central 
+difference approximation.
+"""
+struct FDCentral <: FDTechnique end
+
+"""
+    FDBackward <: FDTechnique
+
+A technique label for finite difference method that implements a backward 
+difference approximation.
+"""
+struct FDBackward <: FDTechnique end
+
+"""
     FiniteDifference <: NonGenerativeDerivativeMethod
 
 A `DataType` for information about finite difference method applied to 
 a derivative evaluation. 
 
 **Fields** 
-- `technique::DataType`: Mathematical technqiue behind finite difference
+- `technique::Type{<:FDTechnique}`: Mathematical technqiue behind finite difference
 """
 struct FiniteDifference <: NonGenerativeDerivativeMethod 
     technique::DataType
+    # set the constructor 
+    function FiniteDifference(technique::Type{<:FDTechnique} = FDCentral)
+        return new(technique)
+    end
 end
-
-"""
-    FDTechniques
-
-An abstract data type for labels of specific techniques applied in the finite 
-difference method in derivative evaluation.
-"""
-abstract type FDTechniques end
-
-"""
-    FDForward <: FDTechniques
-
-A technique label for finite difference method that implements a forward 
-difference approximation.
-"""
-struct FDForward <: FDTechniques end
-
-"""
-    FDCentral <: FDTechniques
-
-A technique label for finite difference method that implements a central 
-difference approximation.
-"""
-struct FDCentral <: FDTechniques end
-
-"""
-    FDBackward <: FDTechniques
-
-A technique label for finite difference method that implements a backward 
-difference approximation.
-"""
-struct FDBackward <: FDTechniques end
 
 """
     support_label(method::GenerativeDerivativeMethod)
@@ -393,7 +399,7 @@ end
 
 # Extend support_label for OrthogonalCollocation
 function support_label(method::OrthogonalCollocation)::DataType
-    return method.label
+    return OrthogonalCollocationNode
 end
 
 ################################################################################
