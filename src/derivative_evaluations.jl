@@ -39,10 +39,13 @@ function generate_derivative_supports(
     for i in eachindex(ordered_supps[1:end-1])
         lower_bound = ordered_supps[i]
         upper_bound = ordered_supps[i+1]
-        internal_nodes[(i-1)*num_nodes+1, i*num_nodes] = (upper_bound - lower_bound) / 2 * node_basis .+ (upper_bound + lower_bound) / 2
+        internal_nodes[(i-1)*num_nodes+1:i*num_nodes] = (upper_bound - lower_bound) / 2 * node_basis .+ (upper_bound + lower_bound) / 2
     end
     return internal_nodes
 end
+
+_legendre(n::Int)::Polynomials.Polynomial{Float64} = sum( binomial(n,k)^2 * Polynomials.Polynomial([-1,1])^(n-k) * Polynomials.Polynomial([1,1])^k for k in 0:n) / 2^n
+_compute_internal_node_basis(n::Int)::Vector{Float64} = Polynomials.roots(Polynomials.derivative(_legendre(n+1)))
 
 """
     add_derivative_supports(pref::Union{IndependentParameterRef, DependentParameterRef})::Vector{Float64}
@@ -64,7 +67,8 @@ function add_derivative_supports(pref::IndependentParameterRef)::Vector{Float64}
         end
         return supps
     end
-    return Float64[]
+    method = derivative_method(pref)
+    return supports(pref, label = support_label(method))
 end
 
 # Define for DependentParameterRef
@@ -168,11 +172,11 @@ function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef,
     for i in eachindex(ordered_supps)
         curr_value = ordered_supps[i]
         if i == 1
-            expr_dict[curr_value] = _make_difference_expr(vref, pref, i, ordered_supps, write_model, FDForward)
+            exprs[i] = (curr_value, _make_difference_expr(vref, pref, i, ordered_supps, write_model, FDForward))
         elseif i == n_supps
-            expr_dict[curr_value] = _make_difference_expr(vref, pref, i, ordered_supps, write_model, FDBackward)
+            exprs[i] = (curr_value, _make_difference_expr(vref, pref, i, ordered_supps, write_model, FDBackward))
         else
-            expr_dict[curr_value] = _make_difference_expr(vref, pref, i, ordered_supps, write_model, method.technique)
+            exprs[i] = (curr_value, _make_difference_expr(vref, pref, i, ordered_supps, write_model, method.technique))
         end
     end
     return exprs
@@ -230,7 +234,8 @@ function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef,
     internal_nodes = add_derivative_supports(pref)
 
     # Compute M matrix based on the node values
-
+    # Generate expressions using the M matrix and `make_reduced_expr`
+    exprs = Vector{Tuple{Float64, JuMP.AbstractJuMPScalar}}()
     for i in eachindex(ordered_supps[1:end-1])
         i_nodes = [internal_nodes[(i-1)*n_nodes+1:i*n_nodes]..., ordered_supps[i+1]] .- ordered_supps[i]
         M1 = Matrix{Float64}(undef, n_nodes+1, n_nodes+1)
@@ -242,16 +247,17 @@ function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef,
             end
         end
         M = M1 * inv(M2)
-
+        for j in eachindex(i_nodes)
+            push!(exprs, (i_nodes[j] + ordered_supps[i], 
+                        JuMP.@expression(InfiniteOpt._Model, 
+                        sum(M[j,k] * (make_reduced_expr(vref, pref, i_nodes[j] + ordered_supps[i], write_model) 
+                        - make_reduced_expr(vref, pref, ordered_supps[i], write_model)) 
+                        for k in 1:n_nodes+1) ) ) )
+        end
     end
 
-    # Step 4: Generate expressions using the M matrix and `make_reduced_expr`
-
+    return exprs
 end
-
-_legendre(n::Int)::Polynomials.Polynomial{Float64} = sum( binomial(n,k)^2 * Polynomials.Polynomial([-1,1])^(n-k) * Polynomials.Polynomial([1,1])^k for k in 0:n) / 2^n
-_compute_internal_node_basis(n::Int)::Vector{Float64} = Polynomials.roots(Polynomials.derivative(_legendre(n+1)))
-
 
 ################################################################################
 #                              EVALUATION METHODS
@@ -273,15 +279,17 @@ TODO ADD EXAMPLE
 """
 function evaluate(dref::DerivativeRef)::Nothing
     # collect the basic info
-    vref = argument_variable(dref)
+    vref = derivative_argument(dref)
     pref = operator_parameter(dref)
     method = derivative_method(pref)
     model = JuMP.owner_model(dref)
     # get the expressions 
     exprs = evaluate_derivative(vref, pref, method, model)
     # add the constraints
-
-    # TODO ADD DERIVATIVE AUXILIARY CONSTRAINTS HERE
+    gdref = GeneralVariableRef(model, JuMP.index(dref).value, DerivativeIndex)
+    for (supp, expr) in exprs
+        JuMP.@constraint(model, make_reduced_expr(gdref, pref, supp, model) == expr)
+    end
 
     # update the parameter status 
     _data_object(pref).has_deriv_constrs = true
