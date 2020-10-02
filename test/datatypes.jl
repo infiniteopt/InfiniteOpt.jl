@@ -141,7 +141,7 @@ end
     @test MultiParameterData <: AbstractDataObject
     params = DependentParameters(CollectionSet([IntervalSet(0, 1)]),
                                  Dict(zeros(1) => Set([All])), 6, [method])
-    @test MultiParameterData(params, 1, 1:1, ["par[1]"]) isa MultiParameterData{CollectionSet{IntervalSet}}
+    @test MultiParameterData(params, 1, 1:1, ["par[1]"]) isa MultiParameterData
 end
 
 # Test the InfiniteModel datatype

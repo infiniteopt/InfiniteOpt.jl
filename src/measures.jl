@@ -1074,8 +1074,8 @@ An efficient wrapper for [`measure`](@ref), please see its doc string for more
 information.
 """
 macro measure(expr, data, args...)
-    _error(str...) = JuMP._macro_error(:measure, (expr, args...), str...)
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    _error(str...) = _macro_error(:measure, (expr, args...), str...)
+    extra, kw_args, requestedcontainer = _extract_kw_args(args)
     if length(extra) != 0
         _error("Incorrect number of arguments. Must be of form " *
                "@measure(expr, data, name = ...).")

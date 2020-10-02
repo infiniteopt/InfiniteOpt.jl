@@ -6,14 +6,14 @@ using JuMP.Containers
 function _parse_one_operator_parameter(
     _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:<=}, Val{:≤}},
     upper)
-    JuMP._set_upper_bound_or_error(_error, infoexpr, upper)
+    _set_upper_bound_or_error(_error, infoexpr, upper)
 end
 
 # Parse raw input to define the lower bound for an interval set
 function _parse_one_operator_parameter(
     _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:>=}, Val{:≥}},
     lower)
-    JuMP._set_lower_bound_or_error(_error, infoexpr, lower)
+    _set_lower_bound_or_error(_error, infoexpr, lower)
 end
 
 # Parse raw input to define the distribution for a dist set
@@ -22,10 +22,10 @@ function _parse_one_operator_parameter(
     value)
     # check if interval set
     if isexpr(value.args[1], :vect)
-        JuMP._set_lower_bound_or_error(_error, infoexpr,
-                                  JuMP._esc_non_constant(value.args[1].args[1]))
-        JuMP._set_upper_bound_or_error(_error, infoexpr,
-                                  JuMP._esc_non_constant(value.args[1].args[2]))
+        _set_lower_bound_or_error(_error, infoexpr,
+                                  _esc_non_constant(value.args[1].args[1]))
+        _set_upper_bound_or_error(_error, infoexpr,
+                                  _esc_non_constant(value.args[1].args[2]))
     else
         _set_or_error(_error, infoexpr, value)
     end
@@ -41,7 +41,7 @@ end
 function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
                           sense::Symbol, var, value)
     _parse_one_operator_parameter(_error, infoexpr, Val(sense),
-                                JuMP._esc_non_constant(value))
+                                _esc_non_constant(value))
     return var
 end
 
@@ -51,7 +51,7 @@ function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
                           sense::Symbol, value::Number, var)
     _parse_one_operator_parameter(_error, infoexpr,
                                   JuMP.reverse_sense(Val(sense)),
-                                  JuMP._esc_non_constant(value))
+                                  _esc_non_constant(value))
     return var
 end
 
@@ -59,8 +59,8 @@ end
 function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
                                   ::Union{Val{:<=}, Val{:≤}}, lower,
                                   ::Union{Val{:<=}, Val{:≤}}, upper)
-    JuMP._set_lower_bound_or_error(_error, infoexpr, lower)
-    JuMP._set_upper_bound_or_error(_error, infoexpr, upper)
+    _set_lower_bound_or_error(_error, infoexpr, lower)
+    _set_upper_bound_or_error(_error, infoexpr, upper)
 end
 
 # Parse raw input to define the upper and lower bounds for an interval set
@@ -81,8 +81,8 @@ function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr, lvalue
                           lsign::Symbol, var, rsign::Symbol, rvalue)
     # lvalue lsign var rsign rvalue
     _parse_ternary_parameter(_error, infoexpr, Val(lsign),
-                             JuMP._esc_non_constant(lvalue), Val(rsign),
-                             JuMP._esc_non_constant(rvalue))
+                             _esc_non_constant(lvalue), Val(rsign),
+                             _esc_non_constant(rvalue))
     return var
 end
 
@@ -155,13 +155,13 @@ noname[b]
 macro independent_parameter(model, args...)
     esc_model = esc(model)
 
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = _extract_kw_args(args)
 
     # check to see if error_args are provided define error function
     error_kwargs = filter(kw -> kw.args[1] == :error_func, kw_args)
     if isempty(error_kwargs)
-        _error(str...) = JuMP._macro_error(:independent_parameter, (model, args...), 
-                                           __source__, str...)
+        _error(str...) = _macro_error(:independent_parameter, (model, args...), 
+                                      __source__, str...)
     else
         _error = error_kwargs[1].args[2]
     end
@@ -232,7 +232,7 @@ macro independent_parameter(model, args...)
         buildcall = :( build_parameter($_error, $set) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall,
-                                         $(JuMP._name_call(base_name, idxvars))) )
+                                         $(_name_call(base_name, idxvars))) )
         creationcode = JuMPC.container_code(idxvars, indices, parametercall,
                                              requestedcontainer)
     end
@@ -296,11 +296,10 @@ par2
 macro finite_parameter(model, args...)
     esc_model = esc(model)
 
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = _extract_kw_args(args)
 
     macro_name = :finite_parameter
-    _error(str...) = JuMP._macro_error(macro_name, (model, args...), 
-                                       __source__, str...)
+    _error(str...) = _macro_error(macro_name, (model, args...), __source__, str...)
 
     # if there is only a single non-keyword argument, this is an anonymous
     # variable spec and the one non-kwarg is the model
@@ -317,7 +316,7 @@ macro finite_parameter(model, args...)
         _error("Incorrect number of arguments. Must be of form " *
                "@finite_parameter(model, name_expr, value).")
     end
-    value = JuMP._esc_non_constant(value)
+    value = _esc_non_constant(value)
 
     extra_kw_args = filter(kw -> kw.args[1] != :base_name, kw_args)
     base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
@@ -348,7 +347,7 @@ macro finite_parameter(model, args...)
         buildcall = :( build_parameter($_error, $value) )
         JuMP._add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall,
-                                         $(JuMP._name_call(base_name, idxvars))) )
+                                         $(_name_call(base_name, idxvars))) )
         creationcode = JuMPC.container_code(idxvars, indices, parametercall,
                                              requestedcontainer)
     end
@@ -434,13 +433,13 @@ And data, a 2×2 Array{GeneralVariableRef,2}:
 macro dependent_parameters(model, args...)
     # extract the raw arguments
     esc_model = esc(model)
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = _extract_kw_args(args)
 
     # check to see if error_args are provided define error function
     error_kwargs = filter(kw -> kw.args[1] == :error_func, kw_args)
     if isempty(error_kwargs)
-        _error(str...) = JuMP._macro_error(:dependent_parameters, (model, args...), 
-                                           __source__, str...)
+        _error(str...) = _macro_error(:dependent_parameters, (model, args...), 
+                                      __source__, str...)
     else
         _error = error_kwargs[1].args[2]
     end
@@ -524,7 +523,7 @@ macro dependent_parameters(model, args...)
 
     # make code to build the DependentParameters object and the references
     idxvars, indices = JuMPC._build_ref_sets(_error, param)
-    namecode = JuMP._name_call(base_name, idxvars)
+    namecode = _name_call(base_name, idxvars)
     parambuildcall = :( InfiniteOpt._DependentParameter($set, $supports, $namecode, $method) )
     param_container_call = JuMPC.container_code(idxvars, indices, parambuildcall,
                                                 requestedcontainer)
@@ -616,10 +615,10 @@ And data, a 2-element Array{GeneralVariableRef,1}:
 """
 macro infinite_parameter(model, args...)
     # define error message function
-    _error(str...) = JuMP._macro_error(:infinite_parameter, (model, args...),
-                                       __source__, str...)
+    _error(str...) = _macro_error(:infinite_parameter, (model, args...),
+                                  __source__, str...)
     # parse the arguments
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = _extract_kw_args(args)
     indep_kwarg = filter(kw -> kw.args[1] == :independent, kw_args)
     new_kwargs = filter(kw -> kw.args[1] != :independent, kw_args)
     if isempty(indep_kwarg)
@@ -830,7 +829,7 @@ The recognized keyword arguments in `kw_args` are the following:
 
 **Examples**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; model = InfiniteModel())
-julia> @infinite_parameter(model, 0 <= t <= 1)
+julia> @infinite_parameter(model, t in [0, 1])
 t
 
 julia> @infinite_parameter(model, w[1:2] in Normal())
@@ -854,10 +853,10 @@ julia> @infinite_variable(model, lb[i] <= y[i = 1:2](t) <= ub[i], Int)
 ```
 """
 macro infinite_variable(model, args...)
-    _error(str...) = JuMP._macro_error(:infinite_variable, (model, args...),
-                                       __source__, str...)
+    _error(str...) = _macro_error(:infinite_variable, (model, args...),
+                                  __source__, str...)
 
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = _extract_kw_args(args)
     param_kw_args = filter(kw -> kw.args[1] == :parameter_refs, kw_args)
 
     # Check for easy case if it is anonymous single variable
@@ -1001,7 +1000,7 @@ The recognized keyword arguments in `kw_args` are the following:
 
 **Examples**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; model = InfiniteModel())
-julia> @infinite_parameter(model, 0 <= t <= 1)
+julia> @infinite_parameter(model, t in [0, 1])
 t
 
 julia> @infinite_parameter(model, w[1:2] in Normal())
@@ -1047,11 +1046,10 @@ julia> y0 = @point_variable(model, [i = 1:2], binary = true, base_name = "y0",
 ```
 """
 macro point_variable(model, args...)
-    _error(str...) = JuMP._macro_error(:point_variable,
-                                       (model, args...), __source__,
-                                       str...)
+    _error(str...) = _macro_error(:point_variable, (model, args...), 
+                                  __source__, str...)
 
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = _extract_kw_args(args)
     param_kw_args = filter(kw -> kw.args[1] == :infinite_variable_ref ||
                            kw.args[1] == :parameter_values, kw_args)
 
@@ -1084,7 +1082,7 @@ macro point_variable(model, args...)
                                parameter_values = $param_vals,
                                macro_error = $_error)
             end
-        elseif isexpr(x, :vect) && length(extra) == 0
+        elseif (isexpr(x, :vect) || isexpr(x, :vcat)) && length(extra) == 0
             code = quote
                 @assert isa($model, InfiniteModel) "Model must be an " *
                                                    "`InfiniteModel`."
@@ -1192,10 +1190,10 @@ d
 ```
 """
 macro hold_variable(model, args...)
-    _error(str...) = JuMP._macro_error(:hold_variable, (model, args...),
-                                       __source__, str...)
+    _error(str...) = _macro_error(:hold_variable, (model, args...),
+                                  __source__, str...)
     # parse the arguments
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = _extract_kw_args(args)
     bound_kw_args = filter(kw -> kw.args[1] == :parameter_bounds, kw_args)
 
     # no bounds given so we don't need to do anything
@@ -1229,12 +1227,180 @@ macro hold_variable(model, args...)
     return esc(code)
 end
 
-# TODO finish
-"""
+
+## Parse derivative numerators and denominators 
+# Normal 
+function _parse_derivative_variable(_error, ::Union{Val{:d}, Val{:∂}}, var)
+    return var
+end
+
+# Fallback 
+function _parse_derivative_variable(_error, operator, var)
+    _error("Unrecognized derivative syntax, use syntax `d(vref)/d(pref)` to " *
+           "express the derivative.")
+end
+
+## Parse the derivative expressions ::Union{Val{:d}, Val{:∂}}
+# Normal 
+function _parse_derivative_expr(_error, ::Val{:call}, operator, var)
+    return _parse_derivative_variable(_error, Val(operator), var)
+end
+
+# Fallback
+function _parse_derivative_expr(_error, args...)
+    _error("Unrecognized derivative syntax, use syntax `d(vref)/d(pref)` to " *
+           "express the derivative. Only one argument variable and one operator " * 
+           "parameter can be used. See `@deriv` to specify more complex derivatives.")
+end
 
 """
-macro derivative_variable()
+    @derivative_variable(model::InfiniteModel, kw_args...)::GeneralVariableRef
 
+Add an *anonymous* derivative to the model `model` described by the
+keyword arguments `kw_args` and returns the variable reference. Note that the
+`argument` and `operator_parameter` keywords are required in this
+case.
+
+```julia
+@derivative_variable(model::InfiniteModel, deriv_expr, var_expr,
+                     kw_args...)::GeneralVariableRef
+```
+
+Add a derivative to `model` described by the expression `var_expr`, the keyword 
+arguments `kw_args`, and the derivative expr `deriv_expr`. The expression 
+`deriv_expr` specifies the derivative argument and operator parameter and must be 
+of the from: `d(arg_vref)/d(pref)` where `arg_vref` is a variable/derivative/measure 
+with an infinite dependence on the infinite parameter `pref`. Equivalently, the 
+derivative can be expressed `∂(arg_vref)/∂(pref)`. The expression `var_expr` is 
+used to define variable specific bounds and whose name is used as an alias for the 
+derivative reference. The expression `var_expr` can either be (note that in the 
+following the symbol `<=` can be used instead of `≤` and the symbol `>=`can be 
+used instead of `≥`) of the form:
+
+- `var_expr` creating variables described by `varexpr`
+- `var_expr ≤ ub` (resp. `varexpr ≥ lb`) creating variables described by
+  `var_expr` with upper bounds given by `ub` (resp. lower bounds given by `lb`)
+- `var_expr == value` creating variables described by `var_expr` with fixed values
+   given by `value`
+- `lb ≤ var_expr ≤ ub` or `ub ≥ var_expr ≥ lb` creating variables described by
+  `var_expr` with lower bounds given by `lb` and upper bounds given by `ub`
+
+Note that the preferred way to define derivatives is via [`@deriv`](@ref) which 
+provides a more succinct way to specify more complex derivatives. However, this 
+variable based syntax is provided as a convenient way to specify starting 
+values/functions when needed.
+
+The expression `var_expr` can be of the form:
+
+- `varname` creating a scalar real variable of alias name `varname`
+- `varname[...]` or `[...]` creating a container of variables.
+
+The recognized keyword arguments in `kw_args` are the following:
+
+- `argument`: Sets the argument of the differential operator.
+- `operator_parameter`: Sets the infinite parameter the derivative is with respect to.
+- `base_name`: Sets the name prefix used to generate variable names. It
+  corresponds to the variable name for scalar variable, otherwise, the
+  variable names are set to `base_name[...]` for each index `...` of the axes
+  `axes`.
+- `lower_bound`: Sets the value of the variable lower bound.
+- `upper_bound`: Sets the value of the variable upper bound.
+- `start`: Sets the derivative starting value used as initial guess in optimization.
+           This can be a single value enforced over the entire infinite
+           domain or it can be a function that maps a support value to a scalar
+           guess value. Note that the function arguments must match the format
+           of `parameter_refs(argument)`.
+- `container`: Specify the container type.
+
+**Examples**
+```julia-repl
+julia> @infinite_parameter(model, t in [0, 10])
+t
+
+julia> @infinite_variable(model, x(t) >= 0)
+x(t)
+
+julia> @infinite_variable(model, y[1:2](t))
+2-element Array{GeneralVariableRef,1}:
+ y[1](t)
+ y[2](t)
+
+julia> @derivative_variable(model, d(x)/d(t), dx <= 1, start = 0)
+dx
+
+julia> dx = @derivative_variable(model, d(x)/d(t), upper_bound = 1, base_name = "dx")
+dx
+
+julia> dx = @derivative_variable(model, upper_bound = 1, base_name = "dx",
+                                  argument = x, operator_parameter = t)
+dx
+
+julia> @derivative_variable(model, d(y[i])/d(t), dx2[i = 1:2])
+2-element Array{GeneralVariableRef,1}:
+ dx2[1]
+ dx2[2]
+
+julia> dx = @derivative_variable(model, d(y[i])/d(t), [i = 1:2])
+2-element Array{GeneralVariableRef,1}:
+ ∂/∂t[y[1](t)]
+ ∂/∂t[y[2](t)]
+ 
+julia> dx = @derivative_variable(model, [i = 1:2], argument = y[i], 
+                                 operator_parameter = t)
+2-element Array{GeneralVariableRef,1}:
+ ∂/∂t[y[1](t)]
+ ∂/∂t[y[2](t)]
+```
+"""
+macro derivative_variable(model, args...)
+    _error(str...) = _macro_error(:derivative_variable, (model, args...), 
+                                  __source__, str...)
+
+    extra, kw_args, requestedcontainer = _extract_kw_args(args)
+    deriv_kw_args = filter(kw -> kw.args[1] == :argument ||
+                           kw.args[1] == :operator_parameter, kw_args)
+
+    # Check for easy case if it is anonymous single variable
+    if length(extra) == 0
+        code = quote
+            @assert isa($model, InfiniteModel) "Model must be an " *
+                                               "`InfiniteModel`."
+            JuMP.@variable($model, ($(args...)), variable_type = Deriv,
+                           macro_error = $_error)
+        end
+    else
+        x = popfirst!(extra)
+
+        if isexpr(x, :call)
+            if length(deriv_kw_args) != 0
+                _error("Cannot double specify the argument variable reference " *
+                       "and/or the operator parameter.")
+            elseif x.args[1] != :/
+                _error("Invalid input syntax.")
+            end
+            rest_args = [args[i] for i = 2:length(args)]
+            vref = _parse_derivative_expr(_error, Val(x.args[2].head), x.args[2].args...)
+            pref = _parse_derivative_expr(_error, Val(x.args[3].head), x.args[3].args...)
+            code = quote
+                @assert isa($model, InfiniteModel) "Model must be an " *
+                                                   "`InfiniteModel`."
+                JuMP.@variable($model, ($(rest_args...)), variable_type = Deriv,
+                               argument = $vref,
+                               operator_parameter = $pref,
+                               macro_error = $_error)
+            end
+        elseif (isexpr(x, :vect) || isexpr(x, :vcat)) && length(extra) == 0
+            code = quote
+                @assert isa($model, InfiniteModel) "Model must be an " *
+                                                   "`InfiniteModel`."
+                JuMP.@variable($model, ($(args...)), variable_type = Deriv,
+                               macro_error = $_error)
+            end
+        else
+            _error("Invalid input syntax.")
+        end
+    end
+    return esc(code)
 end
 
 ## Helper function for parsing the parameter bounds and the name expression
@@ -1423,11 +1589,11 @@ JuMP.Containers.SparseAxisArray{InfiniteConstraintRef,1,Tuple{Any}} with 3 entri
 """
 macro BDconstraint(model, args...)
     # define appropriate error message function
-    _error(str...) = JuMP._macro_error(:BDconstraint, (model, args...), 
-                                        __source__, str...)
+    _error(str...) = _macro_error(:BDconstraint, (model, args...), 
+                                  __source__, str...)
 
     # parse the arguments
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = _extract_kw_args(args)
     bound_kw_args = filter(kw -> kw.args[1] == :parameter_bounds, kw_args)
 
     # check for double specification of parameter bounds
@@ -1541,11 +1707,10 @@ con : x(t) + y = 0.0, ∀ t = 0
 """
 macro set_parameter_bounds(ref, bound_expr, args...)
     # define appropriate error message function
-    _error(str...) = JuMP._macro_error(:set_parameter_bounds,
-                                       (ref, bound_expr, args...), __source__, 
-                                       str...)
+    _error(str...) = _macro_error(:set_parameter_bounds, (ref, bound_expr, args...), 
+                                  __source__, str...)
     # parse the arguments
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    extra, kw_args, requestedcontainer = _extract_kw_args(args)
     extra_kw_args = filter(kw -> kw.args[1] != :force, kw_args)
     if length(extra) != 0
         _error("Too many positional arguments.")
@@ -1630,8 +1795,8 @@ con : x(t, q) + y = 0.0, ∀ t ∈ [0, 5], q = 0
 """
 macro add_parameter_bounds(ref, bound_expr)
     # define appropriate error message function
-    _error(str...) = JuMP._macro_error(:add_parameter_bounds,
-                                       (ref, bound_expr), str...)
+    _error(str...) = _macro_error(:add_parameter_bounds, (ref, bound_expr), 
+                                  __source__, str...)
     # parse the bounds
     x = bound_expr
     if isexpr(x, :call) || isexpr(x, :tuple) || isexpr(x, :comparison)

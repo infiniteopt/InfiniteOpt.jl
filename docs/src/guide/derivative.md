@@ -41,6 +41,7 @@ Order   = [:macro, :function]
 ```@docs
 @deriv
 deriv
+@derivative_variable
 build_derivative
 add_derivative
 derivative_argument(::DerivativeRef)

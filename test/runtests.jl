@@ -40,6 +40,8 @@ end
 println("")
 @time @testset "Optimizer Setup Methods" begin include("optimizer_setup.jl") end
 println("")
+@time @testset "Macro Utilities" begin include("macro_utilities.jl") end
+println("")
 @time @testset "Parameter Methods" begin
    @testset "Scalar" begin include("scalar_parameters.jl") end
    @testset "Array" begin include("array_parameters.jl") end
@@ -78,6 +80,8 @@ println("")
 @time @testset "Deletion Methods" begin include("deletion.jl") end
 println("")
 @time @testset "Expansion Methods" begin include("measure_expansions.jl") end
+println("")
+@time @testset "Derivative Evaluation" begin include("derivative_evaluation.jl") end
 println("")
 @time @testset "TranscriptionOpt" begin
     @testset "Model" begin include("TranscriptionOpt/model.jl") end

@@ -468,24 +468,27 @@ mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     has_internal_supports::Bool
     has_derivative_supports::Bool
     has_deriv_constrs::Bool
-    function ScalarParameterData(param::P,
-                                 object_num::Int,
-                                 parameter_num::Int,
-                                 name::String = ""
-                                 ) where {P <: ScalarParameter}
-        return new{P}(param, object_num, parameter_num, name,
-                      InfiniteVariableIndex[], DerivativeIndex[], 
-                      MeasureIndex[], ConstraintIndex[], false, false, false, false)
-    end
+end
+
+# Convenient constructor
+function ScalarParameterData(param::P,
+                             object_num::Int,
+                             parameter_num::Int,
+                             name::String = ""
+                             ) where {P <: ScalarParameter}
+    return ScalarParameterData{P}(param, object_num, parameter_num, name,
+                                  InfiniteVariableIndex[], DerivativeIndex[], 
+                                  MeasureIndex[], ConstraintIndex[], false, false, 
+                                  false, false)
 end
 
 """
-    MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
+    MultiParameterData{P <: DependentParameters} <: AbstractDataObject
 
 A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 
 **Fields**
-- `parameters::DependentParameters{T}`: The parameter collection.
+- `parameters::P`: The parameter collection.
 - `object_num::Int`: The location of the corresponding `ObjectIndex` in
    `InfiniteModel.param_object_indices` (given by `InfiniteModel.last_object_num`).
 - `parameter_nums::UnitRange{Int}`: Given by `InfiniteModel.last_param_num`
@@ -501,8 +504,8 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 - `has_deriv_constrs::Bool`: Have any derivative evaluation constraints been added 
                              to the infinite model associated with this parameter?
 """
-mutable struct MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
-    parameters::DependentParameters{T}
+mutable struct MultiParameterData{P <: DependentParameters} <: AbstractDataObject
+    parameters::P
     object_num::Int
     parameter_nums::UnitRange{Int}
     names::Vector{String}
@@ -512,18 +515,20 @@ mutable struct MultiParameterData{T <: InfiniteArraySet} <: AbstractDataObject
     constraint_indices::Vector{Vector{ConstraintIndex}}
     has_internal_supports::Bool
     has_deriv_constrs::Bool
-    function MultiParameterData(params::DependentParameters{T},
-                                object_num::Int,
-                                parameter_nums::UnitRange{Int},
-                                names::Vector{String},
-                                ) where {T <: InfiniteArraySet}
-        return new{T}(params, object_num, parameter_nums, names,
-                      InfiniteVariableIndex[],
-                      [DerivativeIndex[] for i in eachindex(names)],
-                      [MeasureIndex[] for i in eachindex(names)],
-                      [ConstraintIndex[] for i in eachindex(names)],
-                      false, false)
-    end
+end
+
+# Convenient constructor 
+function MultiParameterData(params::P,
+                            object_num::Int,
+                            parameter_nums::UnitRange{Int},
+                            names::Vector{String},
+                            ) where {P <: DependentParameters}
+    return MultiParameterData{P}(params, object_num, parameter_nums, names,
+                                 InfiniteVariableIndex[],
+                                 [DerivativeIndex[] for i in eachindex(names)],
+                                 [MeasureIndex[] for i in eachindex(names)],
+                                 [ConstraintIndex[] for i in eachindex(names)],
+                                 false, false)
 end
 
 ################################################################################

@@ -27,6 +27,7 @@ include("reduced_variables.jl")
 include("point_variables.jl")
 include("hold_variables.jl")
 include("expressions.jl")
+include("macro_utilities.jl")
 include("measures.jl")
 
 # Import MeasureToolbox
@@ -62,7 +63,7 @@ export AbstractDataObject, InfiniteModel
 export @independent_parameter, @dependent_parameters, @infinite_parameter,
 @finite_parameter, @infinite_variable, @point_variable, @hold_variable,
 @infinite_parameter, @BDconstraint, @set_parameter_bounds, @add_parameter_bounds,
-@measure, @integral, @expect, @support_sum, @deriv
+@measure, @integral, @expect, @support_sum, @deriv, @derivative_variable
 
 # Export variable types 
 export InfOptVariableType, Infinite, Hold, Point, Deriv
@@ -123,7 +124,7 @@ export Derivative, DerivativeRef
 # Export derivative methods 
 export build_derivative, add_derivative, derivative_argument, operator_parameter,
 deriv, evaluate_derivative, evaluate, evaluate_all_derivatives!, num_derivatives, 
-all_derivatives, default_derivative_info
+all_derivatives
 
 # Export measure datatypes
 export AbstractMeasureData, DiscreteMeasureData, FunctionalDiscreteMeasureData,

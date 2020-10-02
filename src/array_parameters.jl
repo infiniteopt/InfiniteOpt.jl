@@ -10,7 +10,7 @@ end
 
 # Extend _add_data_object
 function _add_data_object(model::InfiniteModel,
-                          object::MultiParameterData{<:InfiniteArraySet}
+                          object::MultiParameterData
                           )::DependentParametersIndex
     index = MOIUC.add_item(model.dependent_params, object)
     push!(model.param_object_indices, index)
@@ -488,10 +488,31 @@ function _object_numbers(pref::DependentParameterRef)::Vector{Int}
     return [_object_number(pref)]
 end
 
+## Set helper methods for adapting data_objects with parametric changes 
+# No change needed 
+function _adaptive_data_update(pref::DependentParameterRef, params::P, 
+    data::MultiParameterData{P})::Nothing where {P <: DependentParameters}
+    data.parameters = params
+    return
+end
+
+# Reconstruction is necessary 
+function _adaptive_data_update(pref::DependentParameterRef, params::P1, 
+    data::MultiParameterData{P2})::Nothing  where {P1, P2}
+    new_data = MultiParameterData(params, data.object_num, data.parameter_nums, 
+                                  data.names, data.infinite_var_indices, 
+                                  data.derivative_indices, data.measure_indices,
+                                  data.constraint_indices,
+                                  data.has_internal_supports, 
+                                  data.has_deriv_constrs)
+    _data_dictionary(pref)[JuMP.index(pref).object_index] = new_data
+    return
+end
+
 # Extend _set_core_variable_object
 function _set_core_variable_object(pref::DependentParameterRef,
                                    params::DependentParameters)::Nothing
-    _data_object(pref).parameters = params
+    _adaptive_data_update(pref, params, _data_object(pref))
     return
 end
 
@@ -529,6 +550,29 @@ function derivative_method(pref::DependentParameterRef)::NonGenerativeDerivative
     return _derivative_methods(pref)[_param_index(pref)]
 end
 
+## Define helper methods for setting the derivative method efficiently
+# Compatible with vector type 
+function _adaptive_method_update(pref, 
+    p::DependentParameters{S, M1}, 
+    method::M2
+    )::Nothing where {S, M1 <: NonGenerativeDerivativeMethod, M2 <: M1}
+    p.derivative_methods[_param_index(pref)] = method
+    return
+end
+
+# Not compatible
+function _adaptive_method_update(pref, 
+    p::DependentParameters{S, M1}, 
+    method::M2
+    )::Nothing where {S, M1, M2}
+    methods = p.derivative_methods
+    new_methods = [i == _param_index(pref) ? method : m 
+                   for (i, m) in enumerate(methods)]
+    new_params = DependentParameters(p.set, p.supports, p.sig_digits, new_methods)
+    _set_core_variable_object(pref, new_params)
+    return
+end
+
 """
     set_derivative_method(pref::DependentParameterRef, 
                           method::NonGenerativeDerivativeMethod)::Nothing
@@ -550,7 +594,7 @@ function set_derivative_method(pref::DependentParameterRef,
         error("Must specify a subtype of `NonGenerativeDerivativeMethod` for " *
               "for a dependent parameter.")
     end
-    _core_variable_object(pref).derivative_methods[_param_index(pref)] = method
+    _adaptive_method_update(pref, _core_variable_object(pref), method)
     _reset_derivative_supports(pref) # this is just used as a check and will never affect any supports
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
@@ -679,7 +723,7 @@ Specify the scalar infinite set of the dependent infinite parameter `pref` to
 `set` if `pref` is part of a [`CollectionSet`](@ref), otherwise an error is
 thrown. Note this will reset/delete all the supports contained in the
 underlying [`DependentParameters`](@ref) object. Also, errors if `pref` is used
-by a measure or if the new set type is different than the original.
+by a measure.
 
 **Example**
 ```julia-repl
@@ -698,8 +742,6 @@ function set_infinite_set(pref::DependentParameterRef,
     elseif used_by_measure(pref)
         error("Cannot override the infinite set of $pref since it is used by " *
               "a measure.")
-    elseif !(CollectionSet{typeof(set)} <: typeof(old_set))
-        error("Cannot change the underlying set type.")
     end
     param_idx = _param_index(pref)
     new_set = CollectionSet([i != param_idx ? collection_sets(old_set)[i] : set
@@ -716,7 +758,7 @@ Specify the multi-dimensional infinite set of the dependent infinite parameters
 `prefs` to `set`. Note this will reset/delete all the supports contained in the
 underlying [`DependentParameters`](@ref) object. This will error if the not all
 of the dependent infinite parameters are included, if any of them are used by
-measures, or if the new set type is different than the previous.
+measures.
 
 **Example**
 ```julia-repl
@@ -728,9 +770,8 @@ function set_infinite_set(prefs::AbstractArray{<:DependentParameterRef},
     if any(used_by_measure(pref) for pref in prefs)
         error("Cannot override the infinite set of $prefs since it is used by " *
               "a measure.")
-    elseif !(typeof(set) <: typeof(infinite_set(prefs))) # this checks prefs
-        error("Cannot change the underlying set type.")
     end
+    _check_complete_param_array(prefs)
     _update_parameter_set(first(prefs), set)
     return
 end
@@ -1552,8 +1593,8 @@ end
 function all_parameters(model::InfiniteModel,
                         type::Type{InfiniteParameter}
                         )::Vector{GeneralVariableRef}
-    prefs_list = all_parameters(model, IndependentParameter)
-    append!(prefs_list, all_parameters(model, DependentParameters))
+    prefs_list = all_parameters(model, DependentParameters)
+    append!(prefs_list, all_parameters(model, IndependentParameter))
     return prefs_list
 end
 
