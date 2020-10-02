@@ -26,6 +26,7 @@ struct BadArraySet <: InfiniteArraySet end
 struct TestBridge{C} <: MOI.Bridges.AbstractBridge where {C} end
 struct TestMethod <: NonGenerativeDerivativeMethod end
 struct TestGenMethod <: GenerativeDerivativeMethod end
+struct TestOCTechnique <: OCTechnique end
 struct BadData <: AbstractMeasureData end
 struct Bad end
 struct NotASetType end
