@@ -80,7 +80,7 @@ FiniteVariableIndex, DerivativeIndex
 export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
 UniDistributionSet, MultiDistributionSet, CollectionSet, AbstractSupportLabel, 
 PublicLabel, InternalLabel, SampleLabel, UserDefined, MCSample, UniformGrid, 
-Mixture, All, WeightedSample, UniqueMeasure
+Mixture, All, WeightedSample, UniqueMeasure, OrthogonalCollocationNode
 
 # Export infinite set methods
 export collection_sets, supports_in_set, generate_support_values
@@ -91,7 +91,8 @@ DependentParameters, ScalarParameterData, MultiParameterData,
 IndependentParameterRef, DependentParameterRef, FiniteParameterRef,
 ScalarParameterRef, InfiniteParameter, AbstractDerivativeMethod, 
 GenerativeDerivativeMethod, NonGenerativeDerivativeMethod, OrthogonalCollocation,
-FiniteDifference
+FiniteDifference, OCQuadrature, Lobatto, FDTechniques, FDForward, FDCentral, 
+FDBackward
 
 # Export parameter methods
 export build_parameter, add_parameter, add_parameters,

@@ -229,6 +229,7 @@ WeightedSample
 Mixture
 UniqueMeasure
 InternalLabel
+OrthogonalCollocationNode
 ```
 
 ## Methods

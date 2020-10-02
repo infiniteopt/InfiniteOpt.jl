@@ -295,7 +295,8 @@ abstract type GenerativeDerivativeMethod <: AbstractDerivativeMethod end
 """
     OrthogonalCollocation <: GenerativeDerivativeMethod 
 
-PLEASE FILL THIS IN ONCE COMPLETED CORRECTLY
+A `DataType` for storing information about orthogonal collocation method
+for derivative evaluation. 
 
 **Fields**
 - `num_nodes::Int`: The number of internal collocation points (nodes).
@@ -305,7 +306,7 @@ PLEASE FILL THIS IN ONCE COMPLETED CORRECTLY
 struct OrthogonalCollocation <: GenerativeDerivativeMethod 
     num_nodes::Int
     label::DataType
-    quadrature_type::DataType # TODO update with actual implementation
+    quadrature_type::DataType
 end
 
 """
@@ -345,7 +346,7 @@ a derivative evaluation.
 - `technique::DataType`: Mathematical technqiue behind finite difference
 """
 struct FiniteDifference <: NonGenerativeDerivativeMethod 
-    technique::DataType # TODO update with actual implementation
+    technique::DataType
 end
 
 """

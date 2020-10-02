@@ -1,4 +1,14 @@
 ################################################################################
+#                         DERIVATIVE METHOD CONSTRUCTORS
+################################################################################
+function OrthogonalCollocation(num_nodes::Int, quadrature_type::DataType = Lobatto)
+    if !(quadrature_type <: OCQuadrature)
+        error("Invalid quadrature method for orthogonal collocation.")
+    end
+    return OrthogonalCollocation(num_nodes, OrthogonalCollocationNode, quadrature_type)
+end
+
+################################################################################
 #                                HELPER METHODS
 ################################################################################
 """
@@ -139,29 +149,26 @@ end
 """
     evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef, 
                         method::AbstractDerivativeMethod,
-                        write_model::JuMP.AbstractModel)::PUT_FORMAT_HERE
+                        write_model::JuMP.AbstractModel)::Vector{Tuple{Float64, JuMP.AbstractJuMPScalar}}
 
 Build expression for derivative of `vref` with respect to `pref` evaluated at each
 support of `pref` using finite difference scheme.
 """
-function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef, 
-                             method::AbstractDerivativeMethod,
-                             write_model::JuMP.AbstractModel)
+function evaluate_derivative(
+    vref::GeneralVariableRef, 
+    pref::GeneralVariableRef,                          
+    method::AbstractDerivativeMethod,                         
+    write_model::JuMP.AbstractModel)::Vector{Tuple{Float64, JuMP.AbstractJuMPScalar}}
     error("`evaluate_derivative` not defined for derivative method of type " * 
           "$(typeof(method)).")
 end
 
-"""
-    evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef, 
-                        method::FiniteDifference,
-                        write_model::JuMP.AbstractModel)::PUT_FORMAT_HERE
-    
-Build expression for derivative of `vref` with respect to `pref` evaluated at each
-support of `pref` using finite difference scheme.
-"""
-function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef, 
-                             method::FiniteDifference, 
-                             write_model::JuMP.AbstractModel)
+# evaluate_derivative for FiniteDifference
+function evaluate_derivative(
+    vref::GeneralVariableRef, 
+    pref::GeneralVariableRef, 
+    method::FiniteDifference, 
+    write_model::JuMP.AbstractModel)::Vector{Tuple{Float64, JuMP.AbstractJuMPScalar}}
 
     n_supps = num_supports(pref)
     if n_supps <= 1
@@ -219,9 +226,12 @@ function _make_difference_expr(vref::GeneralVariableRef, pref::GeneralVariableRe
                                             / (curr_value - prev_value) )
 end
 
-function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef, 
-                             method::OrthogonalCollocation, 
-                             write_model::JuMP.AbstractModel)
+# evaluate_derivative for OrthogonalCollocation
+function evaluate_derivative(
+    vref::GeneralVariableRef, 
+    pref::GeneralVariableRef, 
+    method::OrthogonalCollocation, 
+    write_model::JuMP.AbstractModel)::Vector{Tuple{Float64, JuMP.AbstractJuMPScalar}}
     n_supps = num_supports(pref)
     if n_supps <= 1
         error("$(pref) does not have enough supports to apply any finite difference methods.")
@@ -250,9 +260,8 @@ function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef,
         for j in eachindex(i_nodes)
             push!(exprs, (i_nodes[j] + ordered_supps[i], 
                         JuMP.@expression(InfiniteOpt._Model, 
-                        sum(M[j,k] * (make_reduced_expr(vref, pref, i_nodes[j] + ordered_supps[i], write_model) 
-                        - make_reduced_expr(vref, pref, ordered_supps[i], write_model)) 
-                        for k in 1:n_nodes+1) ) ) )
+                        sum(M[j,k] * make_reduced_expr(vref, pref, i_nodes[k] + ordered_supps[i], write_model) for k in 1:n_nodes+1)
+                        - sum(M[j,k] for k in 1:n_nodes+1) * make_reduced_expr(vref, pref, ordered_supps[i], write_model)) ) )
         end
     end
 
@@ -273,8 +282,24 @@ if the support structure is modified. Errors if `evaluate_derivative` is not
 defined for the derivative method employed.
 
 **Example**
-```julia-repl 
-TODO ADD EXAMPLE
+```jldoctest; setup = :(using InfiniteOpt, JuMP)
+julia> m = InfiniteModel(); @infinite_parameter(m, t in [0,2]); @infinite_variable(m, T(t));
+
+julia> dref = @deriv(T,t)
+∂/∂t[T(t)]
+
+julia> add_supports(t, [0, 0.5, 1, 1.5, 2])
+
+julia> evaluate(dref)
+
+julia> print(m)
+Feasibility
+Subject to
+ ∂/∂t[T(t)](0) - 2 T(0.5) + 2 T(0) = 0.0
+ ∂/∂t[T(t)](0.5) - T(1) + T(0) = 0.0
+ ∂/∂t[T(t)](1) - T(1.5) + T(0.5) = 0.0
+ ∂/∂t[T(t)](1.5) - T(2) + T(1) = 0.0
+ ∂/∂t[T(t)](2) - 2 T(2) + 2 T(1.5) = 0.0
 ```
 """
 function evaluate(dref::DerivativeRef)::Nothing
@@ -303,8 +328,31 @@ Evaluate all the derivatives in `model` by adding the corresponding auxiliary
 equations to `model`. See [`evaluate`](@ref) for more information.
 
 **Example**
-```julia-repl 
-TODO ADD EXAMPLE
+```jldoctest; setup = :(using InfiniteOpt, JuMP)
+julia> m = InfiniteModel();
+
+julia> @infinite_parameter(m, t in [0,2], supports = [0, 1, 2]);
+
+julia> @infinite_parameter(m, x in [0,1], supports = [0, 0.5, 1]);
+
+julia> @infinite_variable(m, T(x, t));
+
+julia> dref1 = @deriv(T, t); dref2 = @deriv(T, x^2);
+
+julia> evaluate_all_derivatives!(m)
+
+julia> print(m)
+Feasibility
+Subject to
+ ∂/∂t[T(x, t)](x, 0) - T(x, 1) + T(x, 0) = 0.0, ∀ x ∈ [0, 1]
+ ∂/∂t[T(x, t)](x, 1) - 0.5 T(x, 2) + 0.5 T(x, 0) = 0.0, ∀ x ∈ [0, 1]
+ ∂/∂t[T(x, t)](x, 2) - T(x, 2) + T(x, 1) = 0.0, ∀ x ∈ [0, 1]
+ ∂/∂x[T(x, t)](0, t) - 2 T(0.5, t) + 2 T(0, t) = 0.0, ∀ t ∈ [0, 2]
+ ∂/∂x[T(x, t)](0.5, t) - T(1, t) + T(0, t) = 0.0, ∀ t ∈ [0, 2]
+ ∂/∂x[T(x, t)](1, t) - 2 T(1, t) + 2 T(0.5, t) = 0.0, ∀ t ∈ [0, 2]
+ ∂/∂x[∂/∂x[T(x, t)]](0, t) - 2 ∂/∂x[T(x, t)](0.5, t) + 2 ∂/∂x[T(x, t)](0, t) = 0.0, ∀ t ∈ [0, 2]
+ ∂/∂x[∂/∂x[T(x, t)]](0.5, t) - ∂/∂x[T(x, t)](1, t) + ∂/∂x[T(x, t)](0, t) = 0.0, ∀ t ∈ [0, 2]
+ ∂/∂x[∂/∂x[T(x, t)]](1, t) - 2 ∂/∂x[T(x, t)](1, t) + 2 ∂/∂x[T(x, t)](0.5, t) = 0.0, ∀ t ∈ [0, 2]
 ```
 """
 function evaluate_all_derivatives!(model::InfiniteModel)::Nothing

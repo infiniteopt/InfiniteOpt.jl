@@ -28,8 +28,14 @@ Derivative
 AbstractDerivativeMethod
 GenerativeDerivativeMethod
 OrthogonalCollocation
+OCQuadrature
+Lobatto
 NonGenerativeDerivateMethod
 FiniteDifference
+FDTechniques
+FDForward
+FDCentral
+FDBackward
 ```
 
 ## [Methods/Macros] (@id deriv_methods)

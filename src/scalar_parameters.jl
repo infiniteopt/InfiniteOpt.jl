@@ -219,7 +219,7 @@ end
 #                            PARAMETER DEFINITION
 ################################################################################
 # Define the default derivative evaluation method 
-const DefaultDerivativeMethod = FiniteDifference(Int) # TODO replace this with actual method
+const DefaultDerivativeMethod = FiniteDifference(FDCentral)
 
 # Check that supports don't violate the set bounds
 function _check_supports_in_bounds(_error::Function,

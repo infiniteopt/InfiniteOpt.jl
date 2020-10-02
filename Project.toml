@@ -9,6 +9,7 @@ MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+Polynomials = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
 
 [compat]
 julia = "1"
@@ -17,6 +18,7 @@ FastGaussQuadrature = "^0.3.2, ~0.4"
 Distributions = "~0.19, ~0.20, ~0.21, ~0.22, ~0.23"
 MathOptInterface = "~0.9.16"
 DataStructures = "^0.14.2, ~0.15, ~0.16, ~0.17, ~0.18"
+Polynomials = "~1.1.9"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
