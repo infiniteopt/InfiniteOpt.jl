@@ -12,31 +12,33 @@
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
     meas = InfiniteOpt._make_variable_ref(m, mindex)
+    dinf = @deriv(inf, par)
     # test for variable reference
     @testset "Variable" begin
         @test InfiniteOpt._all_function_variables(par) == [par]
         @test InfiniteOpt._all_function_variables(inf) == [inf]
         @test InfiniteOpt._all_function_variables(meas) == [meas]
+        @test InfiniteOpt._all_function_variables(dinf) == [dinf]
     end
     # test for GenericAffExpr
     @testset "AffExpr" begin
         # make expressions
-        aff1 = meas + 2par + hold
+        aff1 = meas + 2par + hold - dinf
         aff2 = zero(GenericAffExpr{Float64, GeneralVariableRef})
         # test expressions
         @test isempty(setdiff(InfiniteOpt._all_function_variables(aff1),
-                              [meas, par, hold]))
+                              [meas, par, hold, dinf]))
         @test InfiniteOpt._all_function_variables(aff2) == GeneralVariableRef[]
     end
     # test for GenericQuadExpr
     @testset "QuadExpr" begin
         # make expressions
-        quad1 = pt^2 + inf * pt - meas + 2par + hold
+        quad1 = pt^2 + inf * pt - meas + 2par + hold - dinf
         quad2 = pt^2 + inf * pt
         quad3 = zero(GenericQuadExpr{Float64, GeneralVariableRef})
         # test expressions
         @test isempty(setdiff(InfiniteOpt._all_function_variables(quad1),
-                      [meas, par, hold, pt, inf]))
+                      [meas, par, hold, dinf, pt, inf]))
         @test isempty(setdiff(InfiniteOpt._all_function_variables(quad2),
                               [pt, inf]))
         @test InfiniteOpt._all_function_variables(quad3) == GeneralVariableRef[]

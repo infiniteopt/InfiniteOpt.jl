@@ -213,6 +213,7 @@ function _update_var_constr_mapping(vrefs::Vector{GeneralVariableRef},
         if dvref isa MeasureRef
             push!(_measure_dependencies(cref), JuMP.index(dvref))
         end
+        # TODO maybe make mapping for derivatives...
     end
     return
 end

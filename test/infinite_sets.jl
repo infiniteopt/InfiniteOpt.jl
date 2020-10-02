@@ -130,7 +130,6 @@ end
         set6 = CollectionSet([set1, set1])
         @test set_upper_bound(set6, [0.9, 0.9]).sets ==
                                     [IntervalSet(0., 0.9), IntervalSet(0., 0.9)]
-
     end
 end
 
@@ -148,6 +147,7 @@ end
         @test Mixture <: PublicLabel
         @test UniqueMeasure isa UnionAll
         @test InternalLabel <: AbstractSupportLabel
+        @test OrthogonalCollocationNode <: InternalLabel
     end
     @testset "generate_unique_label" begin 
         @test InfiniteOpt.generate_unique_label() <: UniqueMeasure

@@ -106,14 +106,22 @@ end
     @test GenerativeDerivativeMethod <: AbstractDerivativeMethod
     @test NonGenerativeDerivativeMethod <: AbstractDerivativeMethod
     # test orthogonal collocation 
+    @test OCTechnique isa DataType
+    @test Lobatto <: OCTechnique
     @test OrthogonalCollocation <: GenerativeDerivativeMethod
-    @test OrthogonalCollocation(2, Int, Int) isa OrthogonalCollocation
+    @test OrthogonalCollocation(2, Lobatto) isa OrthogonalCollocation
+    @test OrthogonalCollocation(2) == OrthogonalCollocation(2, Lobatto)
     # test finite difference
+    @test FDTechnique isa DataType
+    @test FDForward <: FDTechnique
+    @test FDCentral <: FDTechnique
+    @test FDBackward <: FDTechnique
     @test FiniteDifference <: NonGenerativeDerivativeMethod
-    @test FiniteDifference(Int) isa FiniteDifference
+    @test FiniteDifference(FDForward) isa FiniteDifference
+    @test FiniteDifference() == FiniteDifference(FDCentral)
     # test support_label 
-    @test_throws ErrorException support_label(FiniteDifference(Int))
-    @test support_label(OrthogonalCollocation(2, Int, Int)) == Int
+    @test_throws ErrorException support_label(FiniteDifference())
+    @test support_label(OrthogonalCollocation(2)) == OrthogonalCollocationNode
 end
 
 # Test parameter datatypes
@@ -125,7 +133,7 @@ end
     # test IndependentParameter
     @test IndependentParameter <: ScalarParameter
     dict = SortedDict{Float64, Set{DataType}}(2 => Set([All]))
-    method = FiniteDifference(Int)
+    method = FiniteDifference()
     @test IndependentParameter(IntervalSet(0, 1), dict, 6, method).set isa IntervalSet
     # test FiniteParameter
     @test FiniteParameter <: ScalarParameter

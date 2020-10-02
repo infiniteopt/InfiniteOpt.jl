@@ -494,6 +494,16 @@ end
     @dependent_parameters(m, x[1:2] in [-1, 1])
     @infinite_variable(m, y(t, x))
     @infinite_variable(m, q[1:3](t, x))
+    # test the helper methods 
+    @testset "_parse_derivative_variable" begin 
+        @test InfiniteOpt._parse_derivative_variable(error, Val(:d), :x) == :x 
+        @test InfiniteOpt._parse_derivative_variable(error, Val(:∂), :x) == :x 
+        @test_throws ErrorException InfiniteOpt._parse_derivative_variable(error, Val(:g), :x)
+    end
+    @testset "_parse_derivative_expr" begin 
+        @test InfiniteOpt._parse_derivative_expr(error, Val(:call), :d, :x) == :x 
+        @test_throws ErrorException InfiniteOpt._parse_derivative_expr(error, Val(:dx))
+    end
     # test single variable definition
     @testset "Single" begin
         # test simple anon case

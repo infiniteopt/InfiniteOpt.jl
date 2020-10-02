@@ -485,11 +485,11 @@ end
     end
     # test set_derivative_method (Fallback)
     @testset "set_derivative_method (Fallback)" begin
-        @test_throws ArgumentError set_derivative_method(dvref, FiniteDifference(Int))
+        @test_throws ArgumentError set_derivative_method(dvref, FiniteDifference())
     end
     # test set_derivative_method (GeneralVariableRef)
     @testset "set_derivative_method (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_derivative_method(gvref, FiniteDifference(Int))
+        @test_throws ArgumentError set_derivative_method(gvref, FiniteDifference())
     end
     # test has_internal_supports (Fallback)
     @testset "has_internal_supports (Fallback)" begin
