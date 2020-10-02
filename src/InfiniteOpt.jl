@@ -5,6 +5,7 @@ import JuMP
 import MathOptInterface
 import Distributions
 import DataStructures
+import Polynomials
 
 # Make useful aliases
 const MOI = MathOptInterface

@@ -30,11 +30,22 @@ function generate_derivative_supports(
     pref::IndependentParameterRef, 
     method::OrthogonalCollocation
     )::Vector{Float64}
-    # TODO GENERATE SUPPORTS AND RETURN THEM
+
+    num_nodes = method.num_nodes
+    num_supps = num_supports(pref)
+    node_basis = _compute_internal_node_basis(num_nodes)
+    ordered_supps = sort(supports(pref))
+    internal_nodes = Vector{Float64}(undef, num_nodes * (num_supps - 1))
+    for i in eachindex(ordered_supps[1:end-1])
+        lower_bound = ordered_supps[i]
+        upper_bound = ordered_supps[i+1]
+        internal_nodes[(i-1)*num_nodes+1, i*num_nodes] = (upper_bound - lower_bound) / 2 * node_basis .+ (upper_bound + lower_bound) / 2
+    end
+    return internal_nodes
 end
 
 """
-    add_derivative_supports(pref::Union{IndependentParameterRef, DependentParameterRef})::Nothing
+    add_derivative_supports(pref::Union{IndependentParameterRef, DependentParameterRef})::Vector{Float64}
 
 Add any supports `pref` that are needed for derivative evaluation. This is intended 
 as a helper method for derivative evaluation and depends [`generate_derivative_supports`](@ref InfiniteOpt.generate_derivative_supports) 
@@ -43,7 +54,7 @@ In such cases, it is necessary to also extend
 [`support_label`](@ref InfiniteOpt.support_label(::AbstractDerivativeMethod)) Errors if 
 such is not defined for the current derivative method associated with `pref`. 
 """
-function add_derivative_supports(pref::IndependentParameterRef)::Nothing 
+function add_derivative_supports(pref::IndependentParameterRef)::Vector{Float64}
     if !has_derivative_supports(pref)
         method = derivative_method(pref)
         supps = generate_derivative_supports(pref, method)
@@ -51,13 +62,14 @@ function add_derivative_supports(pref::IndependentParameterRef)::Nothing
             add_supports(pref, supps, label = support_label(method))
             set_has_derivative_supports(pref, true)
         end
+        return supps
     end
-    return
+    return Float64[]
 end
 
 # Define for DependentParameterRef
-function add_derivative_supports(pref::DependentParameterRef)::Nothing
-    return 
+function add_derivative_supports(pref::DependentParameterRef)::Vector{Float64}
+    return Float64[]
 end
 
 """
@@ -152,7 +164,7 @@ function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef,
         error("$(pref) does not have enough supports to apply any finite difference methods.")
     end
     ordered_supps = sort(supports(pref))
-    expr_dict = Dict{Float64, JuMP.AbstractJuMPScalar}()
+    exprs = Vector{Tuple{Float64, JuMP.AbstractJuMPScalar}}(undef, n_supps)
     for i in eachindex(ordered_supps)
         curr_value = ordered_supps[i]
         if i == 1
@@ -163,7 +175,7 @@ function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef,
             expr_dict[curr_value] = _make_difference_expr(vref, pref, i, ordered_supps, write_model, method.technique)
         end
     end
-    return expr_dict
+    return exprs
 end
 
 function _make_difference_expr(vref::GeneralVariableRef, pref::GeneralVariableRef,
@@ -206,9 +218,39 @@ end
 function evaluate_derivative(vref::GeneralVariableRef, pref::GeneralVariableRef, 
                              method::OrthogonalCollocation, 
                              write_model::JuMP.AbstractModel)
-# NOTE These should use `add_derivative_supports` and `make_reduced_expr`.
-    
+    n_supps = num_supports(pref)
+    if n_supps <= 1
+        error("$(pref) does not have enough supports to apply any finite difference methods.")
+    end
+    n_nodes = method.num_nodes
+    ordered_supps = sort(supports(pref))
+
+    # Determine the nodes values using appropriate quadrature from method.
+    # Call `add_derivative_supports` to add the internal supports.
+    internal_nodes = add_derivative_supports(pref)
+
+    # Compute M matrix based on the node values
+
+    for i in eachindex(ordered_supps[1:end-1])
+        i_nodes = [internal_nodes[(i-1)*n_nodes+1:i*n_nodes]..., ordered_supps[i+1]] .- ordered_supps[i]
+        M1 = Matrix{Float64}(undef, n_nodes+1, n_nodes+1)
+        M2 = Matrix{Float64}(undef, n_nodes+1, n_nodes+1)
+        for j in eachindex(i_nodes)
+            for k in 1:n_nodes+1
+                M1[j,k] = k * i_nodes[j]^(k-1)
+                M2[j,k] = i_nodes[j]^k
+            end
+        end
+        M = M1 * inv(M2)
+
+    end
+
+    # Step 4: Generate expressions using the M matrix and `make_reduced_expr`
+
 end
+
+_legendre(n::Int)::Polynomials.Polynomial{Float64} = sum( binomial(n,k)^2 * Polynomials.Polynomial([-1,1])^(n-k) * Polynomials.Polynomial([1,1])^k for k in 0:n) / 2^n
+_compute_internal_node_basis(n::Int)::Vector{Float64} = Polynomials.roots(Polynomials.derivative(_legendre(n+1)))
 
 
 ################################################################################

@@ -309,6 +309,23 @@ struct OrthogonalCollocation <: GenerativeDerivativeMethod
 end
 
 """
+    OCQuadrature
+
+An abstract type for label of quadrature method used to generate additional 
+supports (nodes) for orthogonal collocation.
+"""
+abstract type OCQuadrature end
+
+"""
+    Lobatto <: OCQuadrature
+
+A quadrature method label for orthogonal collocation method that generates
+internal nodes between public supports using Lobatto quadrature method.
+"""
+struct Lobatto <: OCQuadrature end
+
+
+"""
     NonGenerativeDerivativeMethod <: AbstractDerivativeMethod
 
 An abstract type for derivative evaluation method types that do not require the 
