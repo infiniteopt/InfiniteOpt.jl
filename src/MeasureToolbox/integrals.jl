@@ -752,8 +752,9 @@ and [`integral`](@ref integral(::JuMP.AbstractJuMPScalar, ::AbstractArray{Infini
 Please see the above doc strings for more information.
 """
 macro integral(expr, prefs, args...)
-    _error(str...) = JuMP._macro_error(:integral, (expr, prefs, args...), str...)
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    _error(str...) = InfiniteOpt._macro_error(:integral, (expr, prefs, args...), 
+                                              str...)
+    extra, kw_args, requestedcontainer = InfiniteOpt._extract_kw_args(args)
     if length(extra) != 0 && length(extra) != 2
         _error("Incorrect number of positional arguments for @integral. " *
                "Must provide both bounds or no bounds.")

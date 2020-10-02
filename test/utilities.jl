@@ -24,6 +24,8 @@ struct BadSet <: AbstractInfiniteSet end
 struct BadScalarSet <: InfiniteScalarSet end
 struct BadArraySet <: InfiniteArraySet end
 struct TestBridge{C} <: MOI.Bridges.AbstractBridge where {C} end
+struct TestMethod <: NonGenerativeDerivativeMethod end
+struct TestGenMethod <: GenerativeDerivativeMethod end
 struct BadData <: AbstractMeasureData end
 struct Bad end
 struct NotASetType end
@@ -35,6 +37,8 @@ struct TestVariableRef <: DispatchVariableRef
     index::TestIndex
 end
 InfiniteOpt.dispatch_variable_ref(m::InfiniteModel, i::TestIndex) = TestVariableRef(m, i)
+
+InfiniteOpt.support_label(::TestGenMethod) = InternalLabel
 
 # Define test functions
 function new_fn end

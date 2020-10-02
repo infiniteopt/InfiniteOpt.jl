@@ -91,10 +91,32 @@ function _object_numbers(pref::IndependentParameterRef)::Vector{Int}
     return [_object_number(pref)]
 end
 
+## Set helper methods for adapting data_objects with parametric changes 
+# No change needed 
+function _adaptive_data_update(pref::ScalarParameterRef, param::P, 
+                               data::ScalarParameterData{P})::Nothing where {P <: ScalarParameter}
+    data.parameter = param
+    return
+end
+
+# Reconstruction is necessary 
+function _adaptive_data_update(pref::ScalarParameterRef, param::P1, 
+                               data::ScalarParameterData{P2})::Nothing  where {P1, P2}
+    new_data = ScalarParameterData(param, data.object_num, data.parameter_num, 
+                                   data.name, data.infinite_var_indices, 
+                                   data.derivative_indices, data.measure_indices,
+                                   data.constraint_indices, data.in_objective,
+                                   data.has_internal_supports, 
+                                   data.has_derivative_supports,
+                                   data.has_deriv_constrs)
+    _data_dictionary(pref)[JuMP.index(pref)] = new_data
+    return
+end
+
 # Extend _set_core_variable_object for ScalarParameterRefs
 function _set_core_variable_object(pref::ScalarParameterRef,
                                    param::ScalarParameter)::Nothing
-    _data_object(pref).parameter = param
+    _adaptive_data_update(pref, param, _data_object(pref))
     return
 end
 
@@ -129,8 +151,8 @@ function _is_set_keyword(kw::Expr)
 end
 
 # Extend to assist in building InfOptParameters
-function JuMP._set_lower_bound_or_error(_error::Function,
-                                        info::_ParameterInfoExpr, lower)::Nothing
+function _set_lower_bound_or_error(_error::Function,
+                                   info::_ParameterInfoExpr, lower)::Nothing
     info.has_lb && _error("Cannot specify parameter lower_bound twice")
     info.has_dist && _error("Cannot specify parameter lower_bound and " *
                             "distribution")
@@ -141,8 +163,8 @@ function JuMP._set_lower_bound_or_error(_error::Function,
 end
 
 # Extend to assist in building InfOptParameters
-function JuMP._set_upper_bound_or_error(_error::Function,
-                                        info::_ParameterInfoExpr, upper)::Nothing
+function _set_upper_bound_or_error(_error::Function,
+                                    info::_ParameterInfoExpr, upper)::Nothing
     info.has_ub && _error("Cannot specify parameter upper_bound twice")
     info.has_dist && _error("Cannot specify parameter upper_bound and " *
                             "distribution")
@@ -659,7 +681,7 @@ function set_derivative_method(pref::IndependentParameterRef,
     sig_figs = significant_digits(pref)
     new_param = IndependentParameter(set, supps, sig_figs, method)
     _reset_derivative_supports(pref)
-    _set_core_variable_object(dref, new_param)
+    _set_core_variable_object(pref, new_param)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
@@ -708,8 +730,8 @@ end
     set_infinite_set(pref::IndependentParameterRef,
                      set::InfiniteScalarSet)::Nothing
 
-Reset the infinite set of `pref` with `set` of the same type as the original
-set. An error will be thrown if `pref` is being used by some measure.
+Reset the infinite set of `pref` with another `InfiniteScalarSet`. An error will 
+be thrown if `pref` is being used by some measure.
 
 **Example**
 ```julia-repl
@@ -721,11 +743,6 @@ julia> infinite_set(t)
 """
 function set_infinite_set(pref::IndependentParameterRef,
                           set::InfiniteScalarSet)::Nothing
-    p = _core_variable_object(pref)
-    if typeof(p.set) != typeof(set)
-        error("The set of a defined independent parameter can only be reset by "
-               * "another set of the same type.")
-    end
     if used_by_measure(pref)
         error("$pref is used by a measure so changing its " *
               "infinite set is not allowed.")
@@ -1149,8 +1166,9 @@ function delete_supports(pref::IndependentParameterRef;
         set_has_derivative_supports(pref, false)
         set_has_internal_supports(pref, false)
     else
-        if has_derivative_supports(pref) && support_label(pref) != label
+        if has_derivative_supports(pref) && support_label(derivative_method(pref)) != label
             label = Union{label, support_label(pref)}
+            set_has_derivative_supports(pref, false)
         end
         filter!(p -> !all(v -> v <: label, p[2]), supp_dict)
         for (k, v) in supp_dict 
