@@ -23,6 +23,7 @@ include("utilities.jl")
 println("----------------------------------------------------------------------------")
 println("---------------------------------UNIT TESTS---------------------------------")
 println("----------------------------------------------------------------------------")
+#=
 @time @testset "Collections" begin
     include("Collections/VectorTuple.jl")
     include("Collections/DualDict.jl")
@@ -81,8 +82,10 @@ println("")
 println("")
 @time @testset "Expansion Methods" begin include("measure_expansions.jl") end
 println("")
+=#
 @time @testset "Derivative Evaluation" begin include("derivative_evaluation.jl") end
 println("")
+#=
 @time @testset "TranscriptionOpt" begin
     @testset "Model" begin include("TranscriptionOpt/model.jl") end
     @testset "Measures" begin include("TranscriptionOpt/measure.jl") end
@@ -96,6 +99,7 @@ println("")
 println("")
 @time @testset "Extensions" begin include("extensions.jl") end
 println("")
+=#
 # TODO add involved deletion tests
 println("----------------------------------------------------------------------------")
 println("-----------------------------TESTING COMPLETE!------------------------------")
