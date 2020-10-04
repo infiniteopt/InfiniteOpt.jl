@@ -283,7 +283,7 @@ function _deriv_operator(::Type{JuMP.IJuliaMode}, pref)::String
 end
 
 # TODO implement more intelligent naming for nested derivatives (i.e., use exponents)
-# TODO account for container naming when variable macro is introduced
+# TODO account for container naming when variable macro is used (maybe deal with this at the macro end)
 # Make a string for DerivativeRef 
 function variable_string(print_mode, dref::DerivativeRef)::String
     if !haskey(_data_dictionary(dref), JuMP.index(dref)) || !isempty(JuMP.name(dref))

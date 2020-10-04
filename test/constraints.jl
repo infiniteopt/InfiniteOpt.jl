@@ -166,6 +166,7 @@ end
     data = TestData(par, 1, 1)
     meas = @measure(inf + par - x, data, name = "test")
     mindex = MeasureIndex(1)
+    dinf = @deriv(inf, par)
     @testset "JuMP.build_constraint (Single)" begin
         # test bounded constraint
         bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
@@ -308,9 +309,10 @@ end
         bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
         idx = ConstraintIndex(6)
         cref = InfOptConstraintRef(m, idx, ScalarShape())
-        @test @constraint(m, f, inf + meas <= 2, parameter_bounds = bounds) == cref
+        @test @constraint(m, f, inf + meas - dinf <= 2, parameter_bounds = bounds) == cref
         @test InfiniteOpt._object_numbers(cref) == [1]
         @test isa(InfiniteOpt._core_constraint_object(cref), BoundedScalarConstraint)
+        @test used_by_constraint(dinf)
     end
 end
 

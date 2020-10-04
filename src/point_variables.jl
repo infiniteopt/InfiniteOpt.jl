@@ -238,13 +238,16 @@ end
 # Define _check_and_make_variable_ref (used by JuMP.add_variable)
 function _check_and_make_variable_ref(model::InfiniteModel,
                                       v::PointVariable,
-                                      name::String)::PointVariableRef
+                                      name::String;
+                                      add_support = true)::PointVariableRef
     ivref = dispatch_variable_ref(v.infinite_variable_ref)
     JuMP.check_belongs_to_model(ivref, model)
     data_object = VariableData(v, name)
     vindex = _add_data_object(model, data_object)
     vref = PointVariableRef(model, vindex)
-    _update_param_supports(ivref, v.parameter_values)
+    if add_support
+        _update_param_supports(ivref, v.parameter_values)
+    end
     _update_infinite_point_mapping(vref, ivref)
     return vref
 end

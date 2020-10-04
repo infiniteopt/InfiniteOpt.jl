@@ -301,7 +301,8 @@ Return the support alias mapping associated with `vref` in the transcription mod
 Errors if `vref` does not have transcripted variables.
 """
 function InfiniteOpt.variable_supports(model::JuMP.Model,
-    dvref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef},
+    dvref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef, 
+                 InfiniteOpt.DerivativeRef},
     key::Val{:TransData} = Val(:TransData);
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )::Vector

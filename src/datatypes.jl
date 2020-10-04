@@ -311,20 +311,29 @@ struct Lobatto <: OCTechnique end
     OrthogonalCollocation <: GenerativeDerivativeMethod 
 
 A `DataType` for storing information about orthogonal collocation method
-for derivative evaluation. 
+for derivative evaluation. Note that the constructor for this method is of the
+form: 
+```julia 
+    OrthogonalCollocation(num_nodes::Int, technique::Type{<:OCTechnique} = Labatto)
+```
+where `num_nodes` is total number of nodes for each collocation interval. In 
+practice, this corresponds to `num_nodes = num_internal_nodes + 2`. 
 
 **Fields**
-- `num_nodes::Int`: The number of internal collocation points (nodes).
+- `num_internal_nodes::Int`: The number of internal collocation points (nodes) 
+  between the each support pair.
 - `technique::Type{<:OCTechnique}`: The method used to produce the points.
 """
 struct OrthogonalCollocation <: GenerativeDerivativeMethod 
-    num_nodes::Int
+    num_internal_nodes::Int
     technique::DataType
     # make the constructor 
     function OrthogonalCollocation(num_nodes::Int, 
         technique::Type{<:OCTechnique} = Lobatto
         )::OrthogonalCollocation
-        return new(num_nodes, technique)
+        num_nodes >= 3 || error("Must specify at least 3 collocation points (i.e., " *
+                                "1 internal node per support interval.")
+        return new(num_nodes - 2, technique)
     end
 end
 

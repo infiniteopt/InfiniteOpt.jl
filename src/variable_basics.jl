@@ -149,8 +149,8 @@ var_name
 ```
 """
 function JuMP.add_variable(model::InfiniteModel, var::InfOptVariable,
-                           name::String = "")::GeneralVariableRef
-    dvref = _check_and_make_variable_ref(model, var, name)
+                           name::String = ""; kwargs...)::GeneralVariableRef
+    dvref = _check_and_make_variable_ref(model, var, name; kwargs...)
     vindex = JuMP.index(dvref)
     gvref = _make_variable_ref(model, vindex)
     _set_info_constraints(var.info, gvref, dvref)

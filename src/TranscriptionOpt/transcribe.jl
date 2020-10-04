@@ -64,12 +64,12 @@ function set_parameter_supports(trans_model::JuMP.Model,
     data = transcription_data(trans_model)
     # check and add supports to prefs as needed
     for pref in prefs 
-        if InfiniteOpt.has_internal_supports(pref)
-            data.has_internal_supports = true
-        end 
         if InfiniteOpt.used_by_derivative(pref)
             InfiniteOpt.add_derivative_supports(pref)
         end
+        if InfiniteOpt.has_internal_supports(pref)
+            data.has_internal_supports = true
+        end 
     end
     # build and add the support/label tuples
     supps = Tuple(_collected_supports(pref) for pref in prefs)
@@ -169,7 +169,6 @@ function transcribe_infinite_variables!(trans_model::JuMP.Model,
     return
 end
 
-# TODO test this
 # Return a proper scalar variable info object given on with a start value function
 function _format_derivative_info(d::InfiniteOpt.Derivative,
     support::Vector{Float64}
@@ -188,7 +187,6 @@ function _format_derivative_info(d::InfiniteOpt.Derivative,
                              info.has_start, start, info.binary, info.integer)
 end
 
-# TODO test this
 """
     transcribe_derivative_variables!(trans_model::JuMP.Model,
                                      inf_model::InfiniteOpt.InfiniteModel)::Nothing
@@ -728,13 +726,24 @@ function transcribe_derivative_evaluations!(trans_model::JuMP.Model,
     for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.Derivative)
         # get the basic variable information
         dref = InfiniteOpt._make_variable_ref(inf_model, index)
-        d = object.variable
-        vref = d.variable_ref
-        pref = d.parameter_ref 
+        pref = dispatch_variable_ref(object.variable.parameter_ref)
         method = InfiniteOpt.derivative_method(pref)
-        # generate the expressions and transcribe the constraints 
-        # exprs = InfiniteOpt.evaluate_derivative(vref, pref, method, trans_model)
-        # TODO finish
+        # generate the infinite expressions
+        exprs = InfiniteOpt.evaluate_derivative(dref, method, trans_model)
+        # prepare the iteration helpers
+        param_obj_num = InfiniteOpt._object_number(pref)
+        obj_nums = filter(!isequal(param_obj_num), InfiniteOpt._object_numbers(dref))
+        supp_indices = support_index_iterator(trans_model, obj_nums)
+        # transcribe the constraints 
+        set = MOI.EqualTo(0.0)
+        for i in supp_indices 
+            raw_supp = index_to_support(trans_model, i)
+            for expr in exprs
+                new_expr = transcription_expression(trans_model, expr, raw_supp)
+                trans_constr = JuMP.build_constraint(error, new_expr, set)
+                JuMP.add_constraint(trans_model, trans_constr) # TODO maybe add name?
+            end 
+        end
     end
     return
 end

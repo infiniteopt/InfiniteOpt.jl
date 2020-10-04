@@ -52,7 +52,7 @@ function generate_derivative_supports(
     technique::Type{Lobatto}
     )::Vector{Float64}
     # collect the preliminaries
-    num_nodes = method.num_nodes
+    num_nodes = method.num_internal_nodes
     node_basis = _compute_internal_node_basis(num_nodes)
     ordered_supps = supports(pref, label = All) # already sorted by SortedDict
     num_supps = length(ordered_supps)
@@ -125,7 +125,8 @@ function make_reduced_expr(mref, ::Type{MeasureIndex}, pref, support, write_mode
     return expand_measure(mref, data, write_model)
 end
 
-# InfiniteVariableIndex
+# TODO prevent the redundant generation of point and reduced variables for overlapping expressions
+# InfiniteVariableIndex/DerivativeIndex
 function make_reduced_expr(vref, 
     ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}}, 
     pref, support, write_model
@@ -173,9 +174,8 @@ end
                         method::AbstractDerivativeMethod,
                         write_model::JuMP.AbstractModel)::Vector{JuMP.AbstractJuMPScalar}
 
-Build expression for derivative of `vref` with respect to `pref` evaluated at each
-support of `pref` using finite difference scheme. The expressions for derivative is in
-the form of `lhs - rhs`, where `lhs` is a function of derivatives evaluated at some supports
+Build expressions for derivative `dref` evaluated in accordance with `method`. 
+The expressions are of the form `lhs - rhs`, where `lhs` is a function of derivatives evaluated at some supports
 for certain infinite parameter, and `rhs` is a function of the derivative arguments
 evaluated at some supports for certain infinite parameter. For example, for finite difference
 methods at point `t = 1`, `lhs` is `Δt * ∂/∂t[T(1)]`, and `rhs` could be `T(1+Δt) - T(1)` in
@@ -190,6 +190,56 @@ function evaluate_derivative(
     write_model::JuMP.AbstractModel)
     error("`evaluate_derivative` not defined for derivative method of type " * 
           "$(typeof(method)).")
+end
+
+## Define helper methods for finite difference 
+# FDForward
+function _make_difference_expr(dref::GeneralVariableRef,
+                               vref::GeneralVariableRef, 
+                               pref::GeneralVariableRef,
+                               index::Int, 
+                               ordered_supps::Vector{Float64},
+                               write_model::JuMP.AbstractModel, 
+                               type::Type{FDForward})::JuMP.AbstractJuMPScalar
+    curr_value = ordered_supps[index]
+    next_value = ordered_supps[index+1]
+    return JuMP.@expression(_Model, (next_value - curr_value) * 
+                                    make_reduced_expr(dref, pref, curr_value, write_model) -
+                                    make_reduced_expr(vref, pref, next_value, write_model) +
+                                    make_reduced_expr(vref, pref, curr_value, write_model))
+end
+
+# FDCentral
+function _make_difference_expr(dref::GeneralVariableRef, 
+                               vref::GeneralVariableRef, 
+                               pref::GeneralVariableRef,
+                               index::Int, 
+                               ordered_supps::Vector{Float64}, 
+                               write_model::JuMP.AbstractModel, 
+                               type::Type{FDCentral})::JuMP.AbstractJuMPScalar
+    prev_value = ordered_supps[index-1]
+    next_value = ordered_supps[index+1]
+    curr_value = ordered_supps[index]
+    return JuMP.@expression(_Model, (next_value - prev_value) *  
+                                    make_reduced_expr(dref, pref, curr_value, write_model) - 
+                                    make_reduced_expr(vref, pref, next_value, write_model) +
+                                    make_reduced_expr(vref, pref, prev_value, write_model))
+end
+
+# FDBackward
+function _make_difference_expr(dref::GeneralVariableRef,
+                               vref::GeneralVariableRef, 
+                               pref::GeneralVariableRef,
+                               index::Int, 
+                               ordered_supps::Vector{Float64}, 
+                               write_model::JuMP.AbstractModel,
+                               type::Type{FDBackward})::JuMP.AbstractJuMPScalar
+    prev_value = ordered_supps[index-1]
+    curr_value = ordered_supps[index]
+    return JuMP.@expression(_Model, (curr_value - prev_value) *  
+                                    make_reduced_expr(dref, pref, curr_value, write_model) - 
+                                    make_reduced_expr(vref, pref, curr_value, write_model) +
+                                    make_reduced_expr(vref, pref, prev_value, write_model))
 end
 
 # evaluate_derivative for FiniteDifference
@@ -207,64 +257,17 @@ function evaluate_derivative(
     n_supps <= 1 && error("$(pref) does not have enough supports for derivative evaluation.")
     # make the expressions
     exprs = Vector{JuMP.AbstractJuMPScalar}(undef, n_supps)
-    for i in eachindex(exprs)
-        @inbounds curr_value = ordered_supps[i]
-        if i == 1
-            exprs[i] = _make_difference_expr(dref, vref, pref, i, ordered_supps, write_model, FDForward)
-        elseif i == n_supps
-            exprs[i] = _make_difference_expr(dref, vref, pref, i, ordered_supps, write_model, FDBackward)
-        else
-            exprs[i] = _make_difference_expr(dref, vref, pref, i, ordered_supps, write_model, method.technique)
-        end
+    exprs[1] = _make_difference_expr(dref, vref, pref, 1, ordered_supps, write_model, FDForward)
+    for i in 2:n_supps-1
+        @inbounds exprs[i] = _make_difference_expr(dref, vref, pref, i, ordered_supps, write_model, method.technique)
     end
+    exprs[end] = _make_difference_expr(dref, vref, pref, n_supps, ordered_supps, write_model, FDBackward)
     return exprs
 end
 
-function _make_difference_expr(dref::GeneralVariableRef,
-                               vref::GeneralVariableRef, 
-                               pref::GeneralVariableRef,
-                               index::Int, 
-                               ordered_supps::Vector{Float64},
-                               write_model::JuMP.AbstractModel, 
-                               type::Type{FDForward})::JuMP.AbstractJuMPScalar
-    
-    curr_value = ordered_supps[index]
-    next_value = ordered_supps[index+1]
-    return JuMP.@expression(_Model, (next_value - curr_value) * make_reduced_expr(dref, pref, curr_value, write_model) 
-                                            - make_reduced_expr(vref, pref, next_value, write_model) 
-                                            + make_reduced_expr(vref, pref, curr_value, write_model) )
-end
-
-function _make_difference_expr(dref::GeneralVariableRef, 
-                               vref::GeneralVariableRef, 
-                               pref::GeneralVariableRef,
-                               index::Int, 
-                               ordered_supps::Vector{Float64}, 
-                               write_model::JuMP.AbstractModel, 
-                               type::Type{FDCentral})::JuMP.AbstractJuMPScalar
-    prev_value = ordered_supps[index-1]
-    next_value = ordered_supps[index+1]
-    curr_value = ordered_supps[index]
-    return JuMP.@expression(_Model, (next_value - prev_value) *  make_reduced_expr(dref, pref, curr_value, write_model)
-                                            - make_reduced_expr(vref, pref, next_value, write_model) 
-                                            + make_reduced_expr(vref, pref, prev_value, write_model) )
-end
-
-function _make_difference_expr(dref::GeneralVariableRef,
-                               vref::GeneralVariableRef, 
-                               pref::GeneralVariableRef,
-                               index::Int, 
-                               ordered_supps::Vector{Float64}, 
-                               write_model::JuMP.AbstractModel,
-                               type::Type{FDBackward})::JuMP.AbstractJuMPScalar
-    prev_value = ordered_supps[index-1]
-    curr_value = ordered_supps[index]
-    return JuMP.@expression(_Model, (curr_value - prev_value) *  make_reduced_expr(dref, pref, curr_value, write_model)
-                                            - make_reduced_expr(vref, pref, curr_value, write_model) 
-                                            + make_reduced_expr(vref, pref, prev_value, write_model) )
-end
-
-# evaluate_derivative for OrthogonalCollocation
+# Evaluate_derivative for OrthogonalCollocation
+# This is based on the collocation scheme presented in "Nonlinear Modeling, 
+# Estimation and Predictive Control in APMonitor"
 function evaluate_derivative(
     dref::GeneralVariableRef, 
     method::OrthogonalCollocation, 
@@ -280,7 +283,7 @@ function evaluate_derivative(
     bool_inds = map(s -> !(support_label(method) in s), 
                     values(_parameter_supports(dispatch_variable_ref(pref))))
     interval_inds = findall(bool_inds)
-    n_nodes = method.num_nodes
+    n_nodes = method.num_internal_nodes
     # compute M matrix based on the node values and generate expressions using 
     # the M matrix and `make_reduced_expr`
     exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(all_supps) - 1)
@@ -292,17 +295,18 @@ function evaluate_derivative(
         # build the matrices in memory order (column-wise using the transpose form)
         M1t = Matrix{Float64}(undef, n_nodes+1, n_nodes+1)
         M2t = Matrix{Float64}(undef, n_nodes+1, n_nodes+1)
-        for j in eachindex(i_nodes)
-            for k in 1:n_nodes+1
-                M1t[k,j] = k * i_nodes[j]^(k-1)
-                M2t[k,j] = i_nodes[j]^k
+        for j in eachindex(i_nodes) # support index
+            for k in eachindex(i_nodes) # polynomial index
+                M1t[k, j] = k * i_nodes[j]^(k-1)
+                M2t[k, j] = i_nodes[j]^k
             end
         end
         Minvt = M1t \ M2t
         for j in eachindex(i_nodes)
-            exprs[counter] = JuMP.@expression(_Model, sum(Minvt[k,j] *  make_reduced_expr(dref, pref, i_nodes[k] + lb, write_model) for k in 1:n_nodes+1 )
-                                                    - make_reduced_expr(vref, pref, i_nodes[j] + lb, write_model)
-                                                    + make_reduced_expr(vref, pref, lb, write_model))
+            exprs[counter] = JuMP.@expression(_Model, sum(Minvt[k, j] *  make_reduced_expr(dref, pref, i_nodes[k] + lb, write_model) 
+                                                          for k in eachindex(i_nodes)) - 
+                                                      make_reduced_expr(vref, pref, i_nodes[j] + lb, write_model) + 
+                                                      make_reduced_expr(vref, pref, lb, write_model))
             counter += 1
         end
     end

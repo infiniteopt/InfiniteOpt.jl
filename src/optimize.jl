@@ -603,7 +603,7 @@ function variable_supports end
 # fallback for unextended keys
 function variable_supports(optimizer_model::JuMP.Model, vref, key; kwargs...)
     error("`variable_supports` not implemented for optimizer model key " *
-          "`$(typeof(key).parameters[1])`.")
+          "`$(typeof(key).parameters[1])` and/or variable type $(typeof(vref)).")
 end
 
 # FiniteVariableRef

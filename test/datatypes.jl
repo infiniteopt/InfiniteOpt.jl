@@ -109,8 +109,9 @@ end
     @test OCTechnique isa DataType
     @test Lobatto <: OCTechnique
     @test OrthogonalCollocation <: GenerativeDerivativeMethod
-    @test OrthogonalCollocation(2, Lobatto) isa OrthogonalCollocation
-    @test OrthogonalCollocation(2) == OrthogonalCollocation(2, Lobatto)
+    @test OrthogonalCollocation(3, Lobatto) isa OrthogonalCollocation
+    @test OrthogonalCollocation(3) == OrthogonalCollocation(3, Lobatto)
+    @test_throws ErrorException OrthogonalCollocation(2)
     # test finite difference
     @test FDTechnique isa DataType
     @test FDForward <: FDTechnique
@@ -121,7 +122,7 @@ end
     @test FiniteDifference() == FiniteDifference(FDCentral)
     # test support_label 
     @test_throws ErrorException support_label(FiniteDifference())
-    @test support_label(OrthogonalCollocation(2)) == OrthogonalCollocationNode
+    @test support_label(OrthogonalCollocation(3)) == OrthogonalCollocationNode
 end
 
 # Test parameter datatypes

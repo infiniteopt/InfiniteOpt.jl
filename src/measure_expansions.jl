@@ -27,7 +27,7 @@ function make_point_variable_ref(write_model::InfiniteModel,
                                   NaN, false, false)
     new_info = _update_point_info(base_info, dispatch_variable_ref(ivref), support)
     var = PointVariable(_make_float_info(new_info), ivref, support)
-    return JuMP.add_variable(write_model, var)
+    return JuMP.add_variable(write_model, var; add_support = false)
 end
 
 """
@@ -181,7 +181,7 @@ function expand_measure(vref::GeneralVariableRef,
     return expand_measure(vref, _index_type(vref), data, write_model)
 end
 
-# InfiniteVariableRef (1D DiscreteMeasureData)
+# InfiniteVariableRef/DerivativeRef (1D DiscreteMeasureData)
 function expand_measure(ivref::GeneralVariableRef,
                         index_type::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}},
                         data::DiscreteMeasureData{GeneralVariableRef, 1},
@@ -211,7 +211,7 @@ function expand_measure(ivref::GeneralVariableRef,
     end
 end
 
-# InfiniteVariableRef (Multi DiscreteMeasureData)
+# InfiniteVariableRef/DerivativeRef (Multi DiscreteMeasureData)
 function expand_measure(ivref::GeneralVariableRef,
                         index_type::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}},
                         data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
