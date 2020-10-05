@@ -450,7 +450,8 @@ end
     @test objective_sense(tm) == MOI.MIN_SENSE
     # test constraints
     yt = transcription_variable(y)
-    @test constraint_object(transcription_constraint(c1)).func == -zt + xt[1] + d1t[1]
+    dt_c1 = IOTO.lookup_by_support(tm, d1, zeros(3))
+    @test constraint_object(transcription_constraint(c1)).func == -zt + xt[1] + dt_c1
     @test constraint_object(transcription_constraint(c2)).func == zt + xt[1]
     expected = transcription_variable(meas2)[2] - 2 * transcription_variable(y0) + xt[2]
     @test constraint_object(transcription_constraint(c4)).func == expected

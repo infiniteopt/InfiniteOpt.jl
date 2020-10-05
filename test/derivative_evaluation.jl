@@ -183,22 +183,24 @@ end
         # test first solve 
         method = OrthogonalCollocation(3)
         set_derivative_method(t, method)
+        Mt = [1. 5.; 1. 10]' \ [2.5 2.5^2; 5. 25.]'
+        M = Mt'
         ridx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 12
         rvs = [GeneralVariableRef(m, ridx + i, ReducedVariableIndex) for i = 1:16]
-        exprs = [3.75rvs[1] - 1.25rvs[2] - rvs[3] + rvs[4],
-                 5rvs[5] - rvs[7] + rvs[8],
-                 3.75rvs[9] - 1.25rvs[10] - rvs[11] + rvs[12],
-                 5rvs[13] - rvs[15] + rvs[16]]
+        exprs = [@expression(m, M[1, 1] * rvs[1] + M[1, 2] * rvs[2] - rvs[3] + rvs[4]),
+                 @expression(m, M[2, 1] * rvs[5] + M[2, 2] * rvs[6] - rvs[7] + rvs[8]),
+                 @expression(m, M[1, 1] * rvs[9] + M[1, 2] * rvs[10] - rvs[11] + rvs[12]),
+                 @expression(m, M[2, 1] * rvs[13] + M[2, 2] * rvs[14] - rvs[15] + rvs[16])]
         @test InfiniteOpt.evaluate_derivative(d2, method, m) == exprs
         @test supports(t) == [0, 5, 10]
         @test supports(t, label = All) == [0, 2.5, 5, 7.5, 10]
         # test resolve 
         ridx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 12
         rvs = [GeneralVariableRef(m, ridx + i, ReducedVariableIndex) for i = 1:16]
-        exprs = [3.75rvs[1] - 1.25rvs[2] - rvs[3] + rvs[4],
-                 5rvs[5] - rvs[7] + rvs[8],
-                 3.75rvs[9] - 1.25rvs[10] - rvs[11] + rvs[12],
-                 5rvs[13] - rvs[15] + rvs[16]]
+        exprs = [@expression(m, M[1, 1] * rvs[1] + M[1, 2] * rvs[2] - rvs[3] + rvs[4]),
+                 @expression(m, M[2, 1] * rvs[5] + M[2, 2] * rvs[6] - rvs[7] + rvs[8]),
+                 @expression(m, M[1, 1] * rvs[9] + M[1, 2] * rvs[10] - rvs[11] + rvs[12]),
+                 @expression(m, M[2, 1] * rvs[13] + M[2, 2] * rvs[14] - rvs[15] + rvs[16])]
         @test InfiniteOpt.evaluate_derivative(d2, method, m) == exprs
         @test supports(t) == [0, 5, 10]
         @test supports(t, label = All) == [0, 2.5, 5, 7.5, 10]
