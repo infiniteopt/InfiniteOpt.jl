@@ -34,7 +34,7 @@ JuMP.variable_type(model::InfiniteModel)::DataType = GeneralVariableRef
 function _remove_name_index(vref::GeneralVariableRef)::String
     name = JuMP.name(vref)
     first_bracket = findfirst(isequal('['), name)
-    if first_bracket == nothing
+    if first_bracket === nothing
         return name
     else
         # Hacky fix to handle invalid Unicode
@@ -302,7 +302,7 @@ Return the core object that `vref` points to. This is enabled
 with appropriate definitions of `_core_variable_object` for the
 underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
 """
-function _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable, Measure}
+function _core_variable_object(vref::GeneralVariableRef)
     return _core_variable_object(dispatch_variable_ref(vref))
 end
 
@@ -321,7 +321,7 @@ function _set_core_variable_object end
 # Define wrappers for internal usage methods and their templates
 for op = (:_infinite_variable_dependencies, :_reduced_variable_dependencies,
           :_point_variable_dependencies, :_measure_dependencies,
-          :_constraint_dependencies)
+          :_constraint_dependencies, :_derivative_dependencies)
     @eval begin
         # define the api template
         func = $op
@@ -353,7 +353,7 @@ end
 # Define the usage method wrappers and their fallbacks
 for op = (:used_by_infinite_variable, :used_by_reduced_variable,
           :used_by_point_variable, :used_by_measure, :used_by_constraint,
-          :used_by_objective, :is_used)
+          :used_by_objective, :used_by_derivative, :is_used)
     @eval begin
         # define the fallback method
         func = $op
@@ -456,7 +456,9 @@ end
 
 # Define 1 argument user method wrappers and their fallbacks
 for op = (:infinite_set, :num_supports, :significant_digits, :has_supports,
-          :supports, :delete_supports, :fill_in_supports!, :parameter_value)
+          :supports, :delete_supports, :fill_in_supports!, :parameter_value,
+          :derivative_method, :has_derivative_supports, :has_internal_supports,
+          :add_derivative_supports)
     @eval begin
         # define the fallback method
         func = $op
@@ -542,7 +544,8 @@ infinite parameter.
 """
 function set_supports(pref::GeneralVariableRef,
                       supports::Union{Real, Vector{<:Real}};
-                      force::Bool = false, label::Symbol = UserDefined
+                      force::Bool = false, 
+                      label::Type{<:AbstractSupportLabel} = UserDefined
                       )::Nothing
     return set_supports(dispatch_variable_ref(pref), supports,
                         force = force, label = label)
@@ -561,7 +564,8 @@ dependent infinite parameters.
 """
 function set_supports(prefs::AbstractArray{<:GeneralVariableRef},
                       supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}};
-                      label::Symbol = UserDefined, force::Bool = false
+                      label::Type{<:AbstractSupportLabel} = UserDefined, 
+                      force::Bool = false
                       )::Nothing
     return set_supports(dispatch_variable_ref.(prefs), supports, label = label,
                         force = force)
@@ -583,7 +587,8 @@ infinite parameter.
 """
 function add_supports(pref::GeneralVariableRef,
                       supports::Union{Real, Vector{<:Real}};
-                      check::Bool = true, label::Symbol = UserDefined
+                      check::Bool = true, 
+                      label::Type{<:AbstractSupportLabel} = UserDefined
                       )::Nothing
     return add_supports(dispatch_variable_ref(pref), supports,
                         check = check, label = label)
@@ -601,7 +606,8 @@ dependent infinite parameters.
 """
 function add_supports(prefs::AbstractArray{<:GeneralVariableRef},
                       supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}};
-                      label::Symbol = UserDefined, check::Bool = true
+                      label::Type{<:AbstractSupportLabel} = UserDefined, 
+                      check::Bool = true
                       )::Nothing
     return add_supports(dispatch_variable_ref.(prefs), supports, label = label,
                         check = check)
@@ -623,6 +629,64 @@ being defined for the underlying `DispatchVariableRef`, otherwise an
 """
 function JuMP.set_value(vref::GeneralVariableRef, value::Real)::Nothing
     return JuMP.set_value(dispatch_variable_ref(vref), value)
+end
+
+# Dispatch fallback
+function set_derivative_method(pref::DispatchVariableRef, method)
+    throw(ArgumentError("`set_derivative_method` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    set_derivative_method(pref::GeneralVariableRef,
+                          method::AbstractDerivativeMethod
+                          )::Nothing
+
+Specify the numerical derivative evaluation technique associated with `pref`.
+An `ArgumentError` is thrown if `pref` is not an infinite parameter.
+"""
+function set_derivative_method(pref::GeneralVariableRef,
+                               method::AbstractDerivativeMethod
+                               )::Nothing
+    return set_derivative_method(dispatch_variable_ref(pref), method)
+end
+
+# Dispatch fallback
+function set_has_derivative_supports(pref::DispatchVariableRef, status)
+    throw(ArgumentError("`set_has_derivative_supports` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    set_has_derivative_supports(pref::GeneralVariableRef, status::Bool)::Nothing
+
+Specify whether derivative supports have been added to `pref`. This is intended as 
+an internal method as is provided to assist with extensions that implement a 
+custom `GenerativeDerivativeMethod`.
+An `ArgumentError` is thrown if `pref` is not an infinite parameter.
+"""
+function set_has_derivative_supports(pref::GeneralVariableRef,
+                                     status::Bool
+                                     )::Nothing
+    return set_has_derivative_supports(dispatch_variable_ref(pref), status)
+end
+
+# Dispatch fallback
+function set_has_internal_supports(pref::DispatchVariableRef, status)
+    throw(ArgumentError("`set_has_internal_supports` not defined for variable reference type(s) " *
+                        "`$(typeof(pref))`."))
+end
+
+"""
+    set_has_internal_supports(pref::GeneralVariableRef, status::Bool)::Nothing
+
+Specify if `pref` has internal supports.
+An `ArgumentError` is thrown if `pref` is not an infinite parameter.
+"""
+function set_has_internal_supports(pref::GeneralVariableRef,
+                                   status::Bool
+                                   )::Nothing
+    return set_has_internal_supports(dispatch_variable_ref(pref), status)
 end
 
 ################################################################################
@@ -750,6 +814,33 @@ for op = (:measure_function, :measure_data, :is_analytic, :expand)
         """
         function $op(mref::GeneralVariableRef)
             return $op(dispatch_variable_ref(mref))
+        end
+    end
+end
+
+################################################################################
+#                               DERIVATIVE METHODS
+################################################################################
+# Define measure queries and their fallbacks
+for op = (:derivative_argument, :operator_parameter, :evaluate)
+    @eval begin
+        # define the fallback method
+        func = $op
+        function $op(dref::DispatchVariableRef)
+            str = string("`", func, "` not defined for variable reference type " *
+                         "`$(typeof(dref))`.")
+            throw(ArgumentError(str))
+        end
+        # define the dispatch version
+        """
+            $func(dref::GeneralVariableRef)
+
+        Define `$func` for general variable references. Errors if `dref` does
+        not correspond to a `DerivativeRef`. See the underlying docstrings for more
+        information.
+        """
+        function $op(dref::GeneralVariableRef)
+            return $op(dispatch_variable_ref(dref))
         end
     end
 end

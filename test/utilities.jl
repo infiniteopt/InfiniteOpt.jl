@@ -24,6 +24,9 @@ struct BadSet <: AbstractInfiniteSet end
 struct BadScalarSet <: InfiniteScalarSet end
 struct BadArraySet <: InfiniteArraySet end
 struct TestBridge{C} <: MOI.Bridges.AbstractBridge where {C} end
+struct TestMethod <: NonGenerativeDerivativeMethod end
+struct TestGenMethod <: GenerativeDerivativeMethod end
+struct TestOCTechnique <: OCTechnique end
 struct BadData <: AbstractMeasureData end
 struct Bad end
 struct NotASetType end
@@ -35,6 +38,8 @@ struct TestVariableRef <: DispatchVariableRef
     index::TestIndex
 end
 InfiniteOpt.dispatch_variable_ref(m::InfiniteModel, i::TestIndex) = TestVariableRef(m, i)
+
+InfiniteOpt.support_label(::TestGenMethod) = InternalLabel
 
 # Define test functions
 function new_fn end
@@ -83,6 +88,7 @@ end
 function InfiniteOpt.add_supports_to_parameters(d::TestData)::Nothing
     return
 end
+InfiniteOpt.support_label(d::TestData) = UniqueMeasure{Val{:a}}
 
 # Define useful function for deletion testing
 function _update_variable_param_refs(vref::InfiniteVariableRef,

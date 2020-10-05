@@ -384,8 +384,8 @@ Order   = [:macro, :function]
 default_weight
 DiscreteMeasureData(::GeneralVariableRef, ::Vector{<:Real}, ::Vector{<:Real})
 DiscreteMeasureData(::AbstractArray{GeneralVariableRef}, ::Vector{<:Real}, ::Vector{<:AbstractArray{<:Real}})
-FunctionalDiscreteMeasureData(::GeneralVariableRef,::Function,::Int,::Symbol)
-FunctionalDiscreteMeasureData(::AbstractArray{GeneralVariableRef},::Function,::Int,::Symbol)
+FunctionalDiscreteMeasureData(::GeneralVariableRef,::Function,::Int,::Type{<:AbstractSupportLabel})
+FunctionalDiscreteMeasureData(::AbstractArray{GeneralVariableRef},::Function,::Int,::Type{<:AbstractSupportLabel})
 parameter_refs(::AbstractMeasureData)
 support_label(::AbstractMeasureData)
 JuMP.lower_bound(::AbstractMeasureData)

@@ -6,6 +6,7 @@
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
     @hold_variable(m, hold)
+    dinf = @deriv(inf, par)
     data = TestData(par, 0, 5)
     meas = Measure(hold, data, Int[], Int[], true)
     object = MeasureData(meas, "test")
@@ -32,6 +33,11 @@
         @test (meas + meas).terms[meas] == 2
         @test isa(inf + inf, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(pt + pt, GenericAffExpr{Float64, GeneralVariableRef})
+        # test with derivative 
+        @test isa(dinf + dinf, GenericAffExpr{Float64, GeneralVariableRef})
+        @test (dinf + dinf).terms[dinf] == 2
+        @test isa(dinf + inf, GenericAffExpr{Float64, GeneralVariableRef})
+        @test isa(dinf + pt, GenericAffExpr{Float64, GeneralVariableRef})
     end
     # test subtraction
     @testset "Base.:-" begin

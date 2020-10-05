@@ -68,6 +68,11 @@
         @test InfiniteOpt._constraint_dependencies(vref) == ConstraintIndex[]
         @test InfiniteOpt._constraint_dependencies(gvref) == ConstraintIndex[]
     end
+    # _derivative_dependencies
+    @testset "_derivative_dependencies" begin
+        @test InfiniteOpt._derivative_dependencies(vref) == DerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(gvref) == DerivativeIndex[]
+    end
     # _object_numbers
     @testset "_object_numbers" begin
         @test InfiniteOpt._object_numbers(vref) == [2]
@@ -241,9 +246,9 @@ end
         @test_throws ErrorException lower_bound(rvref2)
     end
     # _lower_bound_index
-    @testset "JuMP._lower_bound_index" begin
-        @test JuMP._lower_bound_index(rvref1) == JuMP._lower_bound_index(dvref1)
-        @test_throws ErrorException JuMP._lower_bound_index(rvref2)
+    @testset "InfiniteOpt._lower_bound_index" begin
+        @test InfiniteOpt._lower_bound_index(rvref1) == InfiniteOpt._lower_bound_index(dvref1)
+        @test_throws ErrorException InfiniteOpt._lower_bound_index(rvref2)
     end
     # LowerBoundRef
     @testset "JuMP.LowerBoundRef" begin
@@ -264,9 +269,9 @@ end
         @test_throws ErrorException upper_bound(rvref2)
     end
     # _upper_bound_index
-    @testset "JuMP._upper_bound_index" begin
-        @test JuMP._upper_bound_index(rvref1) == JuMP._upper_bound_index(dvref1)
-        @test_throws ErrorException JuMP._upper_bound_index(rvref2)
+    @testset "InfiniteOpt._upper_bound_index" begin
+        @test InfiniteOpt._upper_bound_index(rvref1) == InfiniteOpt._upper_bound_index(dvref1)
+        @test_throws ErrorException InfiniteOpt._upper_bound_index(rvref2)
     end
     # UpperBoundRef
     @testset "JuMP.UpperBoundRef" begin
@@ -287,9 +292,9 @@ end
         @test_throws ErrorException fix_value(gvref1)
     end
     # _fix_index
-    @testset "JuMP._fix_index" begin
-        @test JuMP._fix_index(rvref2) == JuMP._fix_index(dvref2)
-        @test_throws ErrorException JuMP._fix_index(rvref1)
+    @testset "InfiniteOpt._fix_index" begin
+        @test InfiniteOpt._fix_index(rvref2) == InfiniteOpt._fix_index(dvref2)
+        @test_throws ErrorException InfiniteOpt._fix_index(rvref1)
     end
     # FixRef
     @testset "JuMP.FixRef" begin
@@ -314,9 +319,9 @@ end
         @test !is_binary(rvref1)
     end
     # _binary_index
-    @testset "JuMP._binary_index" begin
-        @test JuMP._binary_index(rvref2) == JuMP._binary_index(dvref2)
-        @test_throws ErrorException JuMP._binary_index(rvref1)
+    @testset "InfiniteOpt._binary_index" begin
+        @test InfiniteOpt._binary_index(rvref2) == InfiniteOpt._binary_index(dvref2)
+        @test_throws ErrorException InfiniteOpt._binary_index(rvref1)
     end
     # BinaryRef
     @testset "JuMP.BinaryRef" begin
@@ -331,9 +336,9 @@ end
         @test !is_integer(gvref2)
     end
     # _integer_index
-    @testset "JuMP._integer_index" begin
-        @test JuMP._integer_index(rvref1) == JuMP._integer_index(dvref1)
-        @test_throws ErrorException JuMP._integer_index(rvref2)
+    @testset "InfiniteOpt._integer_index" begin
+        @test InfiniteOpt._integer_index(rvref1) == InfiniteOpt._integer_index(dvref1)
+        @test_throws ErrorException InfiniteOpt._integer_index(rvref2)
     end
     # IntegerRef
     @testset "JuMP.IntegerRef" begin
@@ -370,6 +375,14 @@ end
         @test used_by_constraint(vref)
         empty!(InfiniteOpt._constraint_dependencies(vref))
     end
+    # test used_by_derivative
+    @testset "used_by_derivative" begin
+        @test !used_by_derivative(vref)
+        push!(InfiniteOpt._derivative_dependencies(vref), DerivativeIndex(1))
+        @test used_by_derivative(gvref)
+        @test used_by_derivative(vref)
+        empty!(InfiniteOpt._derivative_dependencies(vref))
+    end
     # test used_by_objective
     @testset "used_by_objective" begin
         @test !used_by_objective(gvref)
@@ -382,6 +395,22 @@ end
         # test used by constraint and/or measure
         push!(InfiniteOpt._constraint_dependencies(vref), ConstraintIndex(1))
         @test is_used(y)
+        empty!(InfiniteOpt._constraint_dependencies(vref))
+        # test used by derivative
+        func = (x) -> NaN
+        num = 0.
+        info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
+                                         num, true, num, false, func, true, true)
+        deriv = Derivative(info, true, y, t)
+        object = VariableData(deriv)
+        idx = DerivativeIndex(1)
+        dref = DerivativeRef(m, idx)
+        @test InfiniteOpt._add_data_object(m, object) == idx
+        push!(InfiniteOpt._derivative_dependencies(vref), idx)
+        @test !is_used(vref)
+        push!(InfiniteOpt._constraint_dependencies(dref), ConstraintIndex(2))
+        @test is_used(vref)
+        empty!(InfiniteOpt._derivative_dependencies(vref))
     end
 end
 

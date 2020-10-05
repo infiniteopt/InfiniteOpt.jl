@@ -1,62 +1,74 @@
-# Test the core measure data structures
-#=
-@testset "Core Datatypes" begin
-    # initialize model and references
+# Test Core data accessors
+@testset "Core Data Accessers" begin
+    # Setup data
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
-    # test AbstractMeasureData
-    @testset "AbstractMeasureData" begin
-        @test AbstractMeasureData isa DataType
+    @infinite_parameter(m, t in [0, 1])
+    w = t -> 1
+    meas_data = DiscreteMeasureData(t, ones(2), ones(2), All, w, NaN, NaN, false)
+    meas = Measure(zero(AffExpr),meas_data, [1], [1], false)
+    object = MeasureData(meas)
+    idx = MeasureIndex(1)
+    mref = MeasureRef(m, idx)
+    gvref = GeneralVariableRef(m, 1, MeasureIndex)
+    # test dispatch_variable_ref
+    @testset "dispatch_variable_ref" begin
+        @test dispatch_variable_ref(gvref) == mref
     end
-    # test DiscreteMeasureData
-    @testset "DiscreteMeasureData" begin
-        # type and normal usage
-        @test DiscreteMeasureData <: AbstractMeasureData
-        @test DiscreteMeasureData(par, [1], [1], "", default_weight).name == ""
-        @test DiscreteMeasureData(par, [1], [1], "",
-                                  default_weight).parameter_ref == par
+    # test _add_data_object
+    @testset "_add_data_object" begin
+        @test InfiniteOpt._add_data_object(m, object) == idx
     end
-    # test MultiDiscreteMeasureData
-    @testset "MultiDiscreteMeasureData" begin
-        # test normal usage and type
-        @test MultiDiscreteMeasureData <: AbstractMeasureData
-        @test MultiDiscreteMeasureData(pars, [1], zeros(2, 1), "",
-                                       default_weight).name == ""
-        @test MultiDiscreteMeasureData(pars, [1], zeros(2, 1), "",
-                                       default_weight).parameter_refs == pars
+    # test _data_dictionary
+    @testset "_data_dictionary" begin
+        @test InfiniteOpt._data_dictionary(mref) === m.measures
+        @test InfiniteOpt._data_dictionary(m, Measure) === m.measures
     end
-    # test Measure
-    @testset "Measure" begin
-        # prepare data
-        data1 = DiscreteMeasureData(par, [1], [1], "", default_weight)
-        data2 =  MultiDiscreteMeasureData(pars, [1], zeros(2, 1), "", default_weight)
-        # run tests
-        @test Measure isa UnionAll
-        @test isa(Measure(par, data1), Measure)
-        @test Measure(par, data1).func == par
-        @test isa(Measure(pars[1] + pars[2], data2),
-                  Measure{GenericAffExpr{Float64, ParameterRef},
-                          MultiDiscreteMeasureData})
+    # test _data_object
+    @testset "_data_object" begin
+        @test InfiniteOpt._data_object(mref) == object
+        @test InfiniteOpt._data_object(gvref) == object
     end
-    # test Base.copy for MeasureRefs
-    @testset "Base.copy (MeasureRef)" begin
-        m2 = InfiniteModel()
-        mref = MeasureRef(m, 1)
-        @test copy(mref, m2) == MeasureRef(m2, 1)
+    # test _core_variable_object
+    @testset "_core_variable_object" begin
+        @test InfiniteOpt._core_variable_object(mref) == meas
+        @test InfiniteOpt._core_variable_object(gvref) == meas
     end
-    # test Base.copy for DiscreteMeasureData
-    @testset "Base.copy (DiscreteMeasureData)" begin
-        data = DiscreteMeasureData(par, [1], [1], "", default_weight)
-        @test copy(data) isa DiscreteMeasureData
+    # test _parameter_numbers
+    @testset "_parameter_numbers" begin
+        @test InfiniteOpt._parameter_numbers(mref) == [1]
+        @test InfiniteOpt._parameter_numbers(gvref) == [1]
     end
-    # test Base.copy for MultiDiscreteMeasureData
-    @testset "Base.copy (MultiDiscreteMeasureData)" begin
-        data = MultiDiscreteMeasureData(pars, [1], zeros(2, 1), "", default_weight)
-        @test copy(data) isa MultiDiscreteMeasureData
+    # test _object_numbers
+    @testset "_object_numbers" begin
+        @test InfiniteOpt._object_numbers(mref) == [1]
+        @test InfiniteOpt._object_numbers(gvref) == [1]
+    end
+    # test _set_core_variable_object
+    @testset "_set_core_variable_object" begin
+        @test InfiniteOpt._set_core_variable_object(mref, meas) isa Nothing
+    end
+    # _measure_dependencies
+    @testset "_measure_dependencies" begin
+        @test InfiniteOpt._measure_dependencies(mref) == MeasureIndex[]
+        @test InfiniteOpt._measure_dependencies(gvref) == MeasureIndex[]
+    end
+    # _constraint_dependencies
+    @testset "_constraint_dependencies" begin
+        @test InfiniteOpt._constraint_dependencies(mref) == ConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(gvref) == ConstraintIndex[]
+    end
+    # _derivative_dependencies
+    @testset "_derivative_dependencies" begin
+        @test InfiniteOpt._derivative_dependencies(mref) == DerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(gvref) == DerivativeIndex[]
+    end
+    # test _delete_data_object
+    @testset "_delete_data_object" begin
+        @test is_valid(m, mref)
+        @test InfiniteOpt._delete_data_object(mref) isa Nothing
+        @test !is_valid(m, mref)
     end
 end
-=#
 
 # Test measure data constructors
 @testset "Measure Data Constructors" begin
@@ -86,9 +98,9 @@ end
     end
     # test scalar FunctionalDiscreteMeasureData constructor
     @testset "FunctionalDiscreteMeasureData (scalar)" begin
-        @test isa(FunctionalDiscreteMeasureData(par, coeff_func, 10, :label), FunctionalDiscreteMeasureData)
-        @test_throws ErrorException FunctionalDiscreteMeasureData(pars[1], coeff_func, 10, :label)
-        @test_throws ErrorException FunctionalDiscreteMeasureData(par, coeff_func, -1, :label)
+        @test isa(FunctionalDiscreteMeasureData(par, coeff_func, 10, UniqueMeasure{Val{:a}}), FunctionalDiscreteMeasureData)
+        @test_throws ErrorException FunctionalDiscreteMeasureData(pars[1], coeff_func, 10, UniqueMeasure{Val{:a}})
+        @test_throws ErrorException FunctionalDiscreteMeasureData(par, coeff_func, -1, UniqueMeasure{Val{:a}})
         @test_throws ErrorException FunctionalDiscreteMeasureData(par, coeff_func, 10, MCSample, lower_bound = -1, upper_bound = 2)
     end
     # test _check_multidim_params
@@ -169,8 +181,8 @@ end
     end
     # test multidim FunctionalDiscreteMeasureData constructor
     @testset "FunctionalDiscreteMeasureData (multidim)" begin
-        @test isa(FunctionalDiscreteMeasureData(pars, coeff_func, 10, :label, lower_bounds = [0.3, 0.3], upper_bounds = [0.7, 0.7]), FunctionalDiscreteMeasureData)
-        @test_throws ErrorException FunctionalDiscreteMeasureData(pars, coeff_func, -1, :label)
+        @test isa(FunctionalDiscreteMeasureData(pars, coeff_func, 10, All, lower_bounds = [0.3, 0.3], upper_bounds = [0.7, 0.7]), FunctionalDiscreteMeasureData)
+        @test_throws ErrorException FunctionalDiscreteMeasureData(pars, coeff_func, -1, All)
         @test_throws ErrorException FunctionalDiscreteMeasureData(pars3, coeff_func, 5, MCSample, lower_bounds = [NaN, NaN])
 
     end
@@ -221,7 +233,7 @@ end
     end
     # support_label
     @testset "support_label" begin
-        @test isa(support_label(data), Symbol)
+        @test support_label(data) <:AbstractSupportLabel
         @test_throws ErrorException support_label(BadData())
     end
     # JuMP.lower_bound for AbstractMeasureData
@@ -295,102 +307,6 @@ end
     # TODO: this might need to be changed
     @testset "weight_function (Fallback)" begin
         @test_throws ErrorException weight_function(BadData())
-    end
-end
-# Test add_measure and helper functions
-@testset "Measure Addition" begin
-    m = InfiniteModel()
-    coeff_func(x) = 1
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
-    @infinite_parameter(m, 0 <= par2 <= 1)
-    @infinite_parameter(m, 0 <= par3 <= 1)
-    @infinite_parameter(m, 0 <= pars2[1:2] <= 1)
-    @infinite_variable(m, inf(par))
-    @hold_variable(m, x)
-    data1 = DiscreteMeasureData(par, [1], [1])
-    data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
-    data3 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample)
-    data4 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, MCSample)
-    data5 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample, lower_bound = 0.3, upper_bound = 0.7)
-#    meas = Measure(par + 2inf - x, data, [1], [1], false)
-    # test _add_supports_to_multiple_parameters (independent)
-    @testset "_add_supports_to_multiple_parameters (independent)" begin
-        prefs = dispatch_variable_ref.([par, par])
-        @test isa(InfiniteOpt._add_supports_to_multiple_parameters(prefs, [0.1 0.2;0.3 0.4], :label), Nothing)
-        delete_supports(par)
-    end
-    # test _add_supports_to_multiple_parameters (dependent)
-    @testset "_add_supports_to_multiple_parameters (dependent)" begin
-        prefs = dispatch_variable_ref.(pars)
-        @test isa(InfiniteOpt._add_supports_to_multiple_parameters(prefs, [0. 1.; 0. 1.], :label), Nothing)
-        delete_supports(pars)
-    end
-    # test add_supports_to_parameters (scalar DiscreteMeasureData)
-    @testset "add_supports_to_parameters (scalar DiscreteMeasureData)" begin
-        # test functionality
-        @test isa(add_supports_to_parameters(data1), Nothing)
-        @test supports(par) == [1.]
-        # clear supports
-        delete_supports(par)
-    end
-    # test add_supports_to_parameters (multi DiscreteMeasureData)
-    @testset "add_supports_to_parameters (multi DiscreteMeasureData)" begin
-        # test functionality
-        @test isa(add_supports_to_parameters(data2), Nothing)
-        @test supports(pars[1]) == [1.]
-        @test supports(pars[2]) == [1.]
-        # clear supports
-        delete_supports(pars)
-    end
-    # test add_supports_to_parameters (scalar FunctionalDiscreteMeasureData)
-    @testset "add_supports_to_parameters (scalar FunctionalDiscreteMeasureData)" begin
-        # test functionality
-        @test isa(add_supports_to_parameters(data3), Nothing)
-        @test num_supports(par) == 5
-        # clear supports
-        delete_supports(par)
-        # test functionality
-        @test isa(add_supports_to_parameters(data5), Nothing)
-        @test num_supports(par) == 5
-        # clear supports
-        delete_supports(par)
-    end
-    # test _generate_multiple_functional_supports (DependentParameterRefs)
-    @testset "_generate_multiple_functional_supports (DependentParameterRefs)" begin
-        dpars = dispatch_variable_ref.(pars2)
-        @test InfiniteOpt._generate_multiple_functional_supports(dpars, 5, MCSample, [NaN], [NaN]) isa Nothing
-        @test InfiniteOpt._generate_multiple_functional_supports(dpars, 5, MCSample, [0.3, 0.3], [0.7, 0.7]) isa Nothing
-        @test num_supports(pars2[1]) == 10
-    end
-    # test _generate_multiple_functional_supports (IndependentParameterRefs)
-    @testset "_generate_multiple_functional_supports (IndependentParameterRefs)" begin
-        dpars = dispatch_variable_ref.([par2, par3])
-        @test InfiniteOpt._generate_multiple_functional_supports(dpars, 5, MCSample, [NaN, NaN], [NaN, NaN]) isa Nothing
-        @test InfiniteOpt._generate_multiple_functional_supports(dpars, 5, MCSample, [0.3, 0.3], [0.7, 0.7]) isa Nothing
-        @test num_supports(par2) == 10
-    end
-    # test add_supports_to_parameters (multi FunctionalDiscreteMeasureData)
-    @testset "add_supports_to_parameters (multi FunctionalDiscreteMeasureData)" begin
-        # test functionality
-        @test isa(add_supports_to_parameters(data4), Nothing)
-        @test num_supports(pars) == 5 # wrong with CollectionSet support generation
-        # clear supports
-        delete_supports(pars)
-    end
-    # test add_supports_to_parameters (fallbacks)
-    @testset "add_supports_to_parameters (fallbacks)" begin
-        @test_throws ErrorException add_supports_to_parameters(BadData())
-    end
-    # test add_measure
-    @testset "add_measure" begin
-        meas1 = Measure(par + 2inf - x, data1, [1], [1], false)
-        mref1 = MeasureRef(m, MeasureIndex(1))
-        @test dispatch_variable_ref(add_measure(m, meas1, "measure1")) == mref1
-        @test supports(par) == [1.0]
-        @test InfiniteOpt._measure_dependencies(par) == [MeasureIndex(1)]
-        @test InfiniteOpt._data_object(mref1).name == "measure1"
-        @test !InfiniteOpt._data_object(mref1).in_objective
     end
 end
 
@@ -504,6 +420,103 @@ end
     end
 end
 
+# Test add_measure and helper functions
+@testset "Measure Addition" begin
+    m = InfiniteModel()
+    coeff_func(x) = 1
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+    @infinite_parameter(m, 0 <= par2 <= 1)
+    @infinite_parameter(m, 0 <= par3 <= 1)
+    @infinite_parameter(m, 0 <= pars2[1:2] <= 1)
+    @infinite_variable(m, inf(par))
+    @hold_variable(m, x)
+    data1 = DiscreteMeasureData(par, [1], [1])
+    data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
+    data3 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample)
+    data4 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, MCSample)
+    data5 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample, lower_bound = 0.3, upper_bound = 0.7)
+#    meas = Measure(par + 2inf - x, data, [1], [1], false)
+    # test _add_supports_to_multiple_parameters (independent)
+    @testset "_add_supports_to_multiple_parameters (independent)" begin
+        prefs = dispatch_variable_ref.([par, par])
+        @test isa(InfiniteOpt._add_supports_to_multiple_parameters(prefs, [0.1 0.2;0.3 0.4], MCSample), Nothing)
+        delete_supports(par)
+    end
+    # test _add_supports_to_multiple_parameters (dependent)
+    @testset "_add_supports_to_multiple_parameters (dependent)" begin
+        prefs = dispatch_variable_ref.(pars)
+        @test isa(InfiniteOpt._add_supports_to_multiple_parameters(prefs, [0. 1.; 0. 1.], MCSample), Nothing)
+        delete_supports(pars)
+    end
+    # test add_supports_to_parameters (scalar DiscreteMeasureData)
+    @testset "add_supports_to_parameters (scalar DiscreteMeasureData)" begin
+        # test functionality
+        @test isa(add_supports_to_parameters(data1), Nothing)
+        @test supports(par) == [1.]
+        # clear supports
+        delete_supports(par)
+    end
+    # test add_supports_to_parameters (multi DiscreteMeasureData)
+    @testset "add_supports_to_parameters (multi DiscreteMeasureData)" begin
+        # test functionality
+        @test isa(add_supports_to_parameters(data2), Nothing)
+        @test supports(pars[1]) == [1.]
+        @test supports(pars[2]) == [1.]
+        # clear supports
+        delete_supports(pars)
+    end
+    # test add_supports_to_parameters (scalar FunctionalDiscreteMeasureData)
+    @testset "add_supports_to_parameters (scalar FunctionalDiscreteMeasureData)" begin
+        # test functionality
+        @test isa(add_supports_to_parameters(data3), Nothing)
+        @test num_supports(par) == 5
+        # clear supports
+        delete_supports(par)
+        # test functionality
+        @test isa(add_supports_to_parameters(data5), Nothing)
+        @test num_supports(par) == 5
+        # clear supports
+        delete_supports(par)
+    end
+    # test _generate_multiple_functional_supports (DependentParameterRefs)
+    @testset "_generate_multiple_functional_supports (DependentParameterRefs)" begin
+        dpars = dispatch_variable_ref.(pars2)
+        @test InfiniteOpt._generate_multiple_functional_supports(dpars, 5, MCSample, [NaN], [NaN]) isa Nothing
+        @test InfiniteOpt._generate_multiple_functional_supports(dpars, 5, MCSample, [0.3, 0.3], [0.7, 0.7]) isa Nothing
+        @test num_supports(pars2[1]) == 10
+    end
+    # test _generate_multiple_functional_supports (IndependentParameterRefs)
+    @testset "_generate_multiple_functional_supports (IndependentParameterRefs)" begin
+        dpars = dispatch_variable_ref.([par2, par3])
+        @test InfiniteOpt._generate_multiple_functional_supports(dpars, 5, MCSample, [NaN, NaN], [NaN, NaN]) isa Nothing
+        @test InfiniteOpt._generate_multiple_functional_supports(dpars, 5, MCSample, [0.3, 0.3], [0.7, 0.7]) isa Nothing
+        @test num_supports(par2) == 10
+    end
+    # test add_supports_to_parameters (multi FunctionalDiscreteMeasureData)
+    @testset "add_supports_to_parameters (multi FunctionalDiscreteMeasureData)" begin
+        # test functionality
+        @test isa(add_supports_to_parameters(data4), Nothing)
+        @test num_supports(pars) == 5 # wrong with CollectionSet support generation
+        # clear supports
+        delete_supports(pars)
+    end
+    # test add_supports_to_parameters (fallbacks)
+    @testset "add_supports_to_parameters (fallbacks)" begin
+        @test_throws ErrorException add_supports_to_parameters(BadData())
+    end
+    # test add_measure
+    @testset "add_measure" begin
+        meas1 = Measure(par + 2inf - x, data1, [1], [1], false)
+        mref1 = MeasureRef(m, MeasureIndex(1))
+        @test dispatch_variable_ref(add_measure(m, meas1, "measure1")) == mref1
+        @test supports(par) == [1.0]
+        @test InfiniteOpt._measure_dependencies(par) == [MeasureIndex(1)]
+        @test InfiniteOpt._data_object(mref1).name == "measure1"
+        @test !InfiniteOpt._data_object(mref1).in_objective
+    end
+end
+
 # Test queries and used functions
 @testset "Queries and Used" begin
     # initialize model and references
@@ -538,28 +551,47 @@ end
     end
     # test parameter_refs for measure
     @testset "parameter_refs (measure)" begin
-        @test collect(parameter_refs(mref)) == [par]
+        @test parameter_refs(mref) == (par,)
+    end
+    # test raw_parameter_refs for measure
+    @testset "raw_parameter_refs (measure)" begin
+        @test raw_parameter_refs(mref) == InfiniteOpt.Collections.VectorTuple(par)
+    end
+    # test parameter_list for measure
+    @testset "parameter_list (measure)" begin
+        @test parameter_list(mref) == [par]
     end
     @testset "used_by_constraint" begin
         # test not used
         @test !used_by_constraint(mref)
         # prepare use case
-        push!(InfiniteOpt._data_object(mref).constraint_indices, ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(mref), ConstraintIndex(1))
         # test used
         @test used_by_constraint(mref)
         # undo changes
-        InfiniteOpt._data_object(mref).constraint_indices = ConstraintIndex[]
+        popfirst!(InfiniteOpt._constraint_dependencies(mref))
     end
     # used_by_measure
     @testset "used_by_measure" begin
         # test not used
         @test !used_by_measure(mref)
         # prepare use case
-        push!(InfiniteOpt._data_object(mref).measure_indices, MeasureIndex(1))
+        push!(InfiniteOpt._measure_dependencies(mref), MeasureIndex(1))
         # test used
         @test used_by_measure(mref)
         # undo changes
-        InfiniteOpt._data_object(mref).measure_indices = MeasureIndex[]
+        popfirst!(InfiniteOpt._measure_dependencies(mref))
+    end
+    # used_by_derivative
+    @testset "used_by_derivative" begin
+        # test not used
+        @test !used_by_derivative(mref)
+        # prepare use case
+        push!(InfiniteOpt._derivative_dependencies(mref), DerivativeIndex(1))
+        # test used
+        @test used_by_derivative(mref)
+        # undo changes
+        popfirst!(InfiniteOpt._derivative_dependencies(mref))
     end
     # used_by_objective
     @testset "used_by_objective" begin

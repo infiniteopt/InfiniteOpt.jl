@@ -32,6 +32,9 @@
     # HoldVariableIndex
     @test HoldVariableIndex <: ObjectIndex
     @test HoldVariableIndex(1).value == 1
+    # DerivativeIndex
+    @test DerivativeIndex <: ObjectIndex
+    @test DerivativeIndex(1).value == 1
     # MeasureIndex
     @test MeasureIndex <: ObjectIndex
     @test MeasureIndex(1).value == 1
@@ -48,6 +51,7 @@
         @test MOIUC.index_to_key(ReducedVariableIndex, Int64(42)) == ReducedVariableIndex(42)
         @test MOIUC.index_to_key(PointVariableIndex, Int64(42)) == PointVariableIndex(42)
         @test MOIUC.index_to_key(HoldVariableIndex, Int64(42)) == HoldVariableIndex(42)
+        @test MOIUC.index_to_key(DerivativeIndex, Int64(42)) == DerivativeIndex(42)
         @test MOIUC.index_to_key(MeasureIndex, Int64(42)) == MeasureIndex(42)
         @test MOIUC.index_to_key(ConstraintIndex, Int64(42)) == ConstraintIndex(42)
         # index_to_key
@@ -95,6 +99,32 @@ end
     @test CollectionSet([IntervalSet(0, 1), IntervalSet(2, 3)]) isa CollectionSet{IntervalSet}
 end
 
+# Test Derivative Evaluation Methods 
+@testset "Derivative Methods" begin
+    # abstract types
+    @test AbstractDerivativeMethod isa DataType
+    @test GenerativeDerivativeMethod <: AbstractDerivativeMethod
+    @test NonGenerativeDerivativeMethod <: AbstractDerivativeMethod
+    # test orthogonal collocation 
+    @test OCTechnique isa DataType
+    @test Lobatto <: OCTechnique
+    @test OrthogonalCollocation <: GenerativeDerivativeMethod
+    @test OrthogonalCollocation(3, Lobatto) isa OrthogonalCollocation
+    @test OrthogonalCollocation(3) == OrthogonalCollocation(3, Lobatto)
+    @test_throws ErrorException OrthogonalCollocation(2)
+    # test finite difference
+    @test FDTechnique isa DataType
+    @test FDForward <: FDTechnique
+    @test FDCentral <: FDTechnique
+    @test FDBackward <: FDTechnique
+    @test FiniteDifference <: NonGenerativeDerivativeMethod
+    @test FiniteDifference(FDForward) isa FiniteDifference
+    @test FiniteDifference() == FiniteDifference(FDCentral)
+    # test support_label 
+    @test_throws ErrorException support_label(FiniteDifference())
+    @test support_label(OrthogonalCollocation(3)) == OrthogonalCollocationNode
+end
+
 # Test parameter datatypes
 @testset "Parameters" begin
     # abstract types
@@ -103,23 +133,24 @@ end
     @test AbstractDataObject isa DataType
     # test IndependentParameter
     @test IndependentParameter <: ScalarParameter
-    dict = SortedDict{Float64, Set{Symbol}}(2 => Set([:all]))
-    @test IndependentParameter(IntervalSet(0, 1), dict, 6).set isa IntervalSet
+    dict = SortedDict{Float64, Set{DataType}}(2 => Set([All]))
+    method = FiniteDifference()
+    @test IndependentParameter(IntervalSet(0, 1), dict, 6, method).set isa IntervalSet
     # test FiniteParameter
     @test FiniteParameter <: ScalarParameter
     @test FiniteParameter(1) == FiniteParameter(1)
     # test DependentParameters
     @test DependentParameters <: InfOptParameter
     @test DependentParameters(CollectionSet([IntervalSet(0, 1)]),
-                              Dict(zeros(1) => Set([:all])), 6).set isa CollectionSet
+                              Dict(zeros(1) => Set([All])), 6, [method]).set isa CollectionSet
     # test ScalarParameterData
     @test ScalarParameterData <: AbstractDataObject
     @test ScalarParameterData(FiniteParameter(42), 1, 1, "bob").name == "bob"
     # test MultiParameterData
     @test MultiParameterData <: AbstractDataObject
     params = DependentParameters(CollectionSet([IntervalSet(0, 1)]),
-                                 Dict(zeros(1) => Set([:all])), 6)
-    @test MultiParameterData(params, 1, 1:1, ["par[1]"]) isa MultiParameterData{CollectionSet{IntervalSet}}
+                                 Dict(zeros(1) => Set([All])), 6, [method])
+    @test MultiParameterData(params, 1, 1:1, ["par[1]"]) isa MultiParameterData
 end
 
 # Test the InfiniteModel datatype
@@ -183,6 +214,10 @@ end
     @test HoldVariableRef <: FiniteVariableRef
     idx = HoldVariableIndex(1)
     @test HoldVariableRef(m, idx) isa HoldVariableRef
+    # DerivativeRef
+    @test DerivativeRef <: DispatchVariableRef
+    idx = DerivativeIndex(1)
+    @test DerivativeRef(m, idx) isa DerivativeRef
     # MeasureRef
     @test MeasureRef <: MeasureFiniteVariableRef
     idx = MeasureIndex(1)
@@ -336,6 +371,29 @@ end
     @test VariableData(HoldVariable(sample_info, ParameterBounds())) isa VariableData
 end
 
+# Test derivative datatypes
+@testset "Derivatives" begin
+    # useful data
+    m = InfiniteModel()
+    num = Float64(0)
+    sample_info = VariableInfo(true, num, true, num, true, num, true, num, true, true)
+    func = (x) -> NaN
+    inf_info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
+                 num, true, num, false, func, true, true)
+    pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
+    vref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
+    dref = GeneralVariableRef(m, 1, DerivativeIndex)
+    # derivative
+    @test Derivative <: InfOptVariable
+    @test Derivative(inf_info, true, vref, pref) isa Derivative
+    # Reduced derivative
+    @test ReducedVariable(dref, Dict(1 => Float64(2)), [1], [1]) isa ReducedVariable
+    # Point derivative
+    @test PointVariable(sample_info, dref, Float64[1]) isa PointVariable
+    # VariableData
+    @test VariableData(Derivative(inf_info, true, vref, pref)) isa VariableData
+end
+
 # Test the measure datatypes
 @testset "Measures" begin
     # Helper data
@@ -346,21 +404,21 @@ end
     @test AbstractMeasureData isa DataType
     # DiscreteMeasureData
     @test DiscreteMeasureData <: AbstractMeasureData
-    @test DiscreteMeasureData(pref, ones(2), ones(2), :a, w, NaN, NaN, false) isa DiscreteMeasureData
-    @test DiscreteMeasureData([pref], ones(2), ones(1, 2), :a, w, [NaN], [NaN], false) isa DiscreteMeasureData
+    @test DiscreteMeasureData(pref, ones(2), ones(2), All, w, NaN, NaN, false) isa DiscreteMeasureData
+    @test DiscreteMeasureData([pref], ones(2), ones(1, 2), All, w, [NaN], [NaN], false) isa DiscreteMeasureData
     # FunctionalDistributionSet
     @test FunctionalDiscreteMeasureData <: AbstractMeasureData
-    @test FunctionalDiscreteMeasureData(pref, w, 2, :all, w, NaN, NaN, false) isa FunctionalDiscreteMeasureData
-    @test FunctionalDiscreteMeasureData([pref], w, 2, :all, w, [NaN], [NaN], false) isa FunctionalDiscreteMeasureData
+    @test FunctionalDiscreteMeasureData(pref, w, 2, All, w, NaN, NaN, false) isa FunctionalDiscreteMeasureData
+    @test FunctionalDiscreteMeasureData([pref], w, 2, All, w, [NaN], [NaN], false) isa FunctionalDiscreteMeasureData
     # Measure
     @test Measure isa UnionAll
     @test Measure(zero(AffExpr),
-                  DiscreteMeasureData(pref, ones(2), ones(2), :a, w, NaN, NaN, false),
+                  DiscreteMeasureData(pref, ones(2), ones(2), All, w, NaN, NaN, false),
                   [1], [1], false) isa Measure
     # MeasureData
     @test MeasureData <: AbstractDataObject
     @test MeasureData(Measure(zero(AffExpr), DiscreteMeasureData(pref,
-                      ones(2), ones(2), :a, w, NaN, NaN, false), [1], [1], true)) isa MeasureData
+                      ones(2), ones(2), All, w, NaN, NaN, false), [1], [1], true)) isa MeasureData
 end
 
 # Test the constraint datatypes

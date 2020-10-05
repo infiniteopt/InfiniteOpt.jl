@@ -218,6 +218,18 @@ UniDistributionSet
 InfiniteArraySet
 MultiDistributionSet
 CollectionSet
+AbstractSupportLabel
+All
+PublicLabel
+UserDefined
+UniformGrid
+SampleLabel
+MCSample
+WeightedSample
+Mixture
+UniqueMeasure
+InternalLabel
+OrthogonalCollocationNode
 ```
 
 ## Methods
@@ -237,4 +249,5 @@ JuMP.set_upper_bound(::AbstractInfiniteSet, ::Real)
 supports_in_set
 generate_supports
 InfiniteOpt.generate_support_values
+InfiniteOpt.generate_unique_label
 ```

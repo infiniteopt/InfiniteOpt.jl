@@ -5,8 +5,9 @@
     ind_idx = IndependentParameterIndex(1)
     fin_idx = FiniteParameterIndex(1)
     set = IntervalSet(0, 1)
-    supps_dict = SortedDict{Float64, Set{Symbol}}(0. => Set{Symbol}([UserDefined]))
-    ind_param = IndependentParameter(set, supps_dict, 5)
+    supps_dict = SortedDict{Float64, Set{DataType}}(0. => Set{DataType}([UserDefined]))
+    method = InfiniteOpt.DefaultDerivativeMethod
+    ind_param = IndependentParameter(set, supps_dict, 5, method)
     fin_param = FiniteParameter(42)
     ind_object = ScalarParameterData(ind_param, 1, 1, "ind")
     fin_object = ScalarParameterData(fin_param, -1, -1, "fin")
@@ -74,6 +75,19 @@
         @test InfiniteOpt._object_numbers(ind_pref) == [1]
         @test InfiniteOpt._object_numbers(ind_gvref) == [1]
     end
+    # test _adaptive_data_update
+    @testset "_adaptive_data_update" begin
+        # test change of same type
+        p = IndependentParameter(IntervalSet(0, 2), supps_dict, 12, method)
+        data = InfiniteOpt._data_object(ind_pref)
+        @test InfiniteOpt._adaptive_data_update(ind_pref, p, data) isa Nothing
+        @test InfiniteOpt._core_variable_object(ind_pref) == p 
+        # test change of different types 
+        p = IndependentParameter(IntervalSet(0, 2), supps_dict, 12, TestMethod())
+        data = InfiniteOpt._data_object(ind_pref)
+        @test InfiniteOpt._adaptive_data_update(ind_pref, p, data) isa Nothing
+        @test InfiniteOpt._core_variable_object(ind_pref) == p 
+    end
     # test _set_core_variable_object
     @testset "_set_core_variable_object" begin
         @test InfiniteOpt._set_core_variable_object(ind_pref, ind_param) isa Nothing
@@ -101,36 +115,36 @@ end
         @test InfiniteOpt._ParameterInfoExpr(ones(Bool, 8)...).has_lb
         @test !InfiniteOpt._ParameterInfoExpr().has_lb
     end
-    # test JuMP._set_lower_bound_or_error
-    @testset "JuMP._set_lower_bound_or_error" begin
+    # test InfiniteOpt._set_lower_bound_or_error
+    @testset "InfiniteOpt._set_lower_bound_or_error" begin
         info = InfiniteOpt._ParameterInfoExpr()
         # test normal operation
-        @test isa(JuMP._set_lower_bound_or_error(error, info, 0), Nothing)
+        @test isa(InfiniteOpt._set_lower_bound_or_error(error, info, 0), Nothing)
         @test info.has_lb && info.lower_bound == 0
         # test double/lack of input errors
-        @test_throws ErrorException JuMP._set_lower_bound_or_error(error,
+        @test_throws ErrorException InfiniteOpt._set_lower_bound_or_error(error,
                                                                    info, 0)
         info.has_lb = false; info.has_dist = true
-        @test_throws ErrorException JuMP._set_lower_bound_or_error(error,
+        @test_throws ErrorException InfiniteOpt._set_lower_bound_or_error(error,
                                                                    info, 0)
         info.has_dist = false; info.has_set = true
-        @test_throws ErrorException JuMP._set_lower_bound_or_error(error,
+        @test_throws ErrorException InfiniteOpt._set_lower_bound_or_error(error,
                                                                    info, 0)
     end
-    # test JuMP._set_upper_bound_or_error
-    @testset "JuMP._set_upper_bound_or_error" begin
+    # test InfiniteOpt._set_upper_bound_or_error
+    @testset "InfiniteOpt._set_upper_bound_or_error" begin
         info = InfiniteOpt._ParameterInfoExpr()
         # test normal operation
-        @test isa(JuMP._set_upper_bound_or_error(error, info, 0), Nothing)
+        @test isa(InfiniteOpt._set_upper_bound_or_error(error, info, 0), Nothing)
         @test info.has_ub && info.upper_bound == 0
         # test double/lack of input errors
-        @test_throws ErrorException JuMP._set_upper_bound_or_error(error,
+        @test_throws ErrorException InfiniteOpt._set_upper_bound_or_error(error,
                                                                    info, 0)
         info.has_ub = false; info.has_dist = true
-        @test_throws ErrorException JuMP._set_upper_bound_or_error(error,
+        @test_throws ErrorException InfiniteOpt._set_upper_bound_or_error(error,
                                                                    info, 0)
         info.has_dist = false; info.has_set = true
-        @test_throws ErrorException JuMP._set_upper_bound_or_error(error,
+        @test_throws ErrorException InfiniteOpt._set_upper_bound_or_error(error,
                                                                    info, 0)
     end
     # _dist_or_error
@@ -250,7 +264,8 @@ end
     @testset "build_parameter (IndependentParameter)" begin
         set = IntervalSet(0, 1)
         supps = 0.
-        supps_dict = SortedDict{Float64, Set{Symbol}}(0. => Set([UserDefined]))
+        supps_dict = SortedDict{Float64, Set{DataType}}(0. => Set([UserDefined]))
+        method = TestMethod()
         @test build_parameter(error, set, supports = supps).set == set
         @test build_parameter(error, set, supports = supps).supports == supps_dict
         @test_throws ErrorException build_parameter(error, set, bob = 42)
@@ -258,11 +273,13 @@ end
         @test_logs (:warn, warn) build_parameter(error, set,
                                             supports = [0, 1], num_supports = 2)
         repeated_supps = [1, 1]
-        expected = IndependentParameter(set, SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}()), 5)
+        expected = IndependentParameter(set, SortedDict{Float64, Set{DataType}}(1. => Set{DataType}()), 5, method)
         warn = "Support points are not unique, eliminating redundant points."
-        @test_logs (:warn, warn) build_parameter(error, set, supports = repeated_supps) == expected
+        @test_logs (:warn, warn) build_parameter(error, set, supports = repeated_supps, 
+                                                 derivative_method = method) == expected
         set = UniDistributionSet(Normal())
         @test length(build_parameter(error, set, num_supports = 5).supports) == 5
+        @test build_parameter(error, set, derivative_method = method).derivative_method == method
     end
     # build_finite_parameter
     @testset "build_parameter (FiniteParameter)" begin
@@ -274,8 +291,9 @@ end
     # add_parameter
     @testset "add_parameter" begin
         m = InfiniteModel()
+        method = InfiniteOpt.DefaultDerivativeMethod
         param = IndependentParameter(IntervalSet(0, 1),
-                                             SortedDict{Float64, Set{Symbol}}(), 5)
+                                    SortedDict{Float64, Set{DataType}}(), 5, method)
         expected = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
         @test add_parameter(m, param) == expected
         @test InfiniteOpt._core_variable_object(expected) == param
@@ -290,7 +308,7 @@ end
 # Test Reference Queries
 @testset "Basic Reference Queries" begin
     m = InfiniteModel()
-    p = build_parameter(error, IntervalSet(0, 1))
+    p = build_parameter(error, IntervalSet(0, 1), derivative_method = TestMethod())
     pref = add_parameter(m, p)
     dpref = dispatch_variable_ref(pref)
     # JuMP.index
@@ -302,6 +320,37 @@ end
     @testset "JuMP.owner_model" begin
         @test owner_model(pref) === m
         @test owner_model(dpref) === m
+    end
+    # has_derivative_supports
+    @testset "has_derivative_supports" begin
+        @test !has_derivative_supports(pref)
+        InfiniteOpt._data_object(pref).has_derivative_supports = true
+        @test has_derivative_supports(dpref)
+    end
+    # set_has_derivative_supports
+    @testset "set_has_derivative_supports" begin
+        @test set_has_derivative_supports(pref, true) isa Nothing
+        @test has_derivative_supports(pref)
+        @test set_has_derivative_supports(dpref, false) isa Nothing
+        @test !has_derivative_supports(pref)
+    end
+    # derivative_method
+    @testset "derivative_method" begin
+        @test derivative_method(pref) isa TestMethod
+        @test derivative_method(dpref) isa TestMethod
+    end
+    # has_internal_supports
+    @testset "has_internal_supports" begin
+        @test !has_internal_supports(pref)
+        InfiniteOpt._data_object(pref).has_internal_supports = true
+        @test has_internal_supports(dpref)
+    end
+    # set_has_internal_supports
+    @testset "set_has_internal_supports" begin
+        @test set_has_internal_supports(pref, true) isa Nothing
+        @test has_internal_supports(pref)
+        @test set_has_internal_supports(dpref, false) isa Nothing
+        @test !has_internal_supports(pref)
     end
 end
 
@@ -366,7 +415,7 @@ end
         pref = GeneralVariableRef(m, 2, IndependentParameterIndex, -1)
         @test @independent_parameter(m, b in Normal(), supports = [1; 2]) == pref
         @test InfiniteOpt._core_variable_object(pref).set == UniDistributionSet(Normal())
-        @test InfiniteOpt._core_variable_object(pref).supports == SortedDict(i => Set{Symbol}([UserDefined]) for i in [1,2])
+        @test InfiniteOpt._core_variable_object(pref).supports == SortedDict(i => Set{DataType}([UserDefined]) for i in [1,2])
         pref = GeneralVariableRef(m, 3, IndependentParameterIndex, -1)
         @test @independent_parameter(m, c in IntervalSet(0, 1)) == pref
         @test InfiniteOpt._core_variable_object(pref).set == IntervalSet(0, 1)
@@ -378,9 +427,10 @@ end
         @test @independent_parameter(m, set = IntervalSet(0, 1)) == pref
         @test name(pref) == ""
         pref = GeneralVariableRef(m, 6, IndependentParameterIndex, -1)
-        @test @independent_parameter(m, z in [0, 1]) == pref
+        @test @independent_parameter(m, z in [0, 1], derivative_method = TestMethod()) == pref
         @test InfiniteOpt._core_variable_object(pref).set == IntervalSet(0, 1)
         @test name(pref) == "z"
+        @test derivative_method(pref) isa TestMethod
         @test InfiniteOpt._param_object_indices(m)[InfiniteOpt._object_number(pref)] == index(pref)
     end
     # multiple parameters
@@ -436,13 +486,11 @@ end
 # Test if used
 @testset "Used" begin
     m = InfiniteModel()
-    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
-    pref1 = add_parameter(m, p1, "p1")
+    @independent_parameter(m, pref1 in [0, 1])
+    @finite_parameter(m, pref2, 1)
     dpref1 = dispatch_variable_ref(pref1)
-    p2 = FiniteParameter(1)
-    pref2 = add_parameter(m, p2, "p2")
     dpref2 = dispatch_variable_ref(pref2)
-    bad_pref = IndependentParameterRef(m ,IndependentParameterIndex(-1))
+    bad_pref = IndependentParameterRef(m, IndependentParameterIndex(-1))
     # _infinite_variable_dependencies
     @testset "_infinite_variable_dependencies" begin
         @test InfiniteOpt._infinite_variable_dependencies(pref1) == InfiniteVariableIndex[]
@@ -450,6 +498,14 @@ end
         @test InfiniteOpt._infinite_variable_dependencies(pref2) == InfiniteVariableIndex[]
         @test InfiniteOpt._infinite_variable_dependencies(dpref2) == InfiniteVariableIndex[]
         @test_throws ErrorException InfiniteOpt._infinite_variable_dependencies(bad_pref)
+    end
+    # _derivative_dependencies
+    @testset "_derivative_dependencies" begin
+        @test InfiniteOpt._derivative_dependencies(pref1) == DerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(dpref1) == DerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(pref2) == DerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(dpref2) == DerivativeIndex[]
+        @test_throws ErrorException InfiniteOpt._derivative_dependencies(bad_pref)
     end
     # _measure_dependencies
     @testset "_measure_dependencies" begin
@@ -508,6 +564,17 @@ end
         @test used_by_infinite_variable(dpref1)
         popfirst!(InfiniteOpt._infinite_variable_dependencies(dpref1))
     end
+    # used_by_derivative
+    @testset "used_by_derivative" begin
+        @test !used_by_derivative(pref1)
+        @test !used_by_derivative(pref2)
+        @test !used_by_derivative(dpref1)
+        @test !used_by_derivative(dpref2)
+        push!(InfiniteOpt._derivative_dependencies(dpref1), DerivativeIndex(1))
+        @test used_by_derivative(pref1)
+        @test used_by_derivative(dpref1)
+        popfirst!(InfiniteOpt._derivative_dependencies(dpref1))
+    end
     # used_by_objective
     @testset "used_by_objective" begin
         @test !used_by_objective(pref1)
@@ -548,14 +615,46 @@ end
     end
 end
 
+# Test derivative methods 
+@testset "Derivative Methods" begin 
+    m = InfiniteModel()
+    @independent_parameter(m, pref in [0, 1])
+    dpref = dispatch_variable_ref(pref)
+    # test _reset_derivative_supports
+    @testset "_reset_derivative_supports" begin 
+        # test empty 
+        @test InfiniteOpt._reset_derivative_supports(dpref) isa Nothing
+        # test warning 
+        InfiniteOpt._data_object(dpref).has_deriv_constrs = true 
+        warn = "Support/method changes will invalidate existing derivative evaluations. " *
+               "This problem can be avoided by not modifying the support structure " *
+               "after calling `evaluate_all_derivatives` or `evaluate`."
+        @test_logs (:warn, warn) InfiniteOpt._reset_derivative_supports(dpref) isa Nothing
+        InfiniteOpt._data_object(dpref).has_deriv_constrs = false
+        # test has derivative supports to deal with 
+        supps = SortedDict{Float64, Set{DataType}}(42 => Set([InternalLabel]))
+        param = IndependentParameter(IntervalSet(0, 1), supps, 12, TestGenMethod())
+        InfiniteOpt._set_core_variable_object(dpref, param)
+        set_has_derivative_supports(pref, true)
+        @test InfiniteOpt._reset_derivative_supports(dpref) isa Nothing
+        @test !has_derivative_supports(dpref)
+        @test length(InfiniteOpt._core_variable_object(dpref).supports) == 0 
+    end
+    # test set_derivative_method
+    @testset "set_derivative_method" begin 
+        push!(InfiniteOpt._constraint_dependencies(dpref), ConstraintIndex(1))
+        @test set_derivative_method(pref, TestMethod()) isa Nothing
+        @test derivative_method(dpref) isa TestMethod
+    end
+end
+
 # Test parameter set methods
 @testset "Infinite Set" begin
     m = InfiniteModel()
-    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
-    pref_gen = add_parameter(m, param, "test")
+    @independent_parameter(m, pref_gen in [0, 1])
     pref_disp = dispatch_variable_ref(pref_gen)
     bad = Bad()
-    bad_pref = IndependentParameterRef(m ,IndependentParameterIndex(-1))
+    bad_pref = IndependentParameterRef(m, IndependentParameterIndex(-1))
     # _parameter_set
     @testset "_parameter_set" begin
         @test InfiniteOpt._parameter_set(pref_disp) == IntervalSet(0, 1)
@@ -581,31 +680,31 @@ end
         @test infinite_set(pref_disp) == IntervalSet(2, 3)
         @test isa(set_infinite_set(pref_gen, IntervalSet(1, 3)), Nothing)
         @test infinite_set(pref_gen) == IntervalSet(1, 3)
+        @test set_infinite_set(pref_gen, UniDistributionSet(Normal())) isa Nothing
+        @test infinite_set(pref_disp) isa UniDistributionSet 
         push!(InfiniteOpt._data_object(pref_gen).measure_indices, MeasureIndex(1))
         @test_throws ErrorException set_infinite_set(pref_gen, IntervalSet(1, 3))
-        @test_throws ErrorException set_infinite_set(pref_gen, UniDistributionSet(Normal()))
     end
 end
 
 # Test parameter support methods
 @testset "Supports" begin
     m = InfiniteModel()
-    param = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
-    pref = add_parameter(m, param, "test")
-    pref2 = add_parameter(m, param, "test2")
+    @independent_parameter(m, pref in [0, 1], sig_digits = 5)
+    @independent_parameter(m, pref2 in [0, 1])
     pref_disp = dispatch_variable_ref(pref)
     bad = Bad()
     push!(InfiniteOpt._data_object(pref).constraint_indices, ConstraintIndex(1))
     # _parameter_supports
     @testset "_parameter_supports" begin
-        @test InfiniteOpt._parameter_supports(pref_disp) == SortedDict{Float64, Set{Symbol}}()
+        @test InfiniteOpt._parameter_supports(pref_disp) == SortedDict{Float64, Set{DataType}}()
     end
     @testset "_parameter_support_values" begin
         @test InfiniteOpt._parameter_support_values(pref_disp) == Float64[]
     end
     # _update_parameter_supports
     @testset "_update_parameter_supports " begin
-        dict = SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}())
+        dict = SortedDict{Float64, Set{DataType}}(1. => Set{DataType}([MCSample]))
         @test isa(InfiniteOpt._update_parameter_supports(pref_disp, dict), Nothing)
         @test InfiniteOpt._parameter_support_values(pref_disp) == [1.]
     end
@@ -620,13 +719,15 @@ end
         @test num_supports(pref_disp, label = UserDefined) == 0
         @test num_supports(pref) == 1
         @test num_supports(pref, label = UserDefined) == 0
+        @test num_supports(pref, label = SampleLabel) == 1
+        @test num_supports(pref, label = All) == 1
     end
     # has_supports
     @testset "has_supports" begin
         @test_throws ArgumentError has_supports(bad)
         @test has_supports(pref_disp)
         @test has_supports(pref)
-        InfiniteOpt._update_parameter_supports(pref_disp, SortedDict{Float64, Set{Symbol}}())
+        InfiniteOpt._update_parameter_supports(pref_disp, SortedDict{Float64, Set{DataType}}())
         @test !has_supports(pref_disp)
         @test !has_supports(pref)
     end
@@ -634,16 +735,17 @@ end
     @testset "supports" begin
         @test supports(pref_disp) == []
         @test supports(pref) == []
-        dict = SortedDict{Float64, Set{Symbol}}(1. => Set{Symbol}([MCSample]))
+        dict = SortedDict{Float64, Set{DataType}}(1. => Set{DataType}([MCSample]))
         InfiniteOpt._update_parameter_supports(pref_disp, dict)
         @test supports(pref_disp) == [1.]
         @test supports(pref) == [1.]
         @test supports(pref, label = MCSample) == [1.]
+        @test supports(pref, label = All) == [1.]
     end
     # supports (vector)
     @testset "supports (vector)" begin
         # test simple case
-        @test supports([pref_disp], label = MCSample) == ones(1, 1)
+        @test supports([pref_disp], label = SampleLabel) == ones(1, 1)
         # test typical combinatorial case
         supps = [[-1, 0, 1], [-1, 1]] 
         @infinite_parameter(m, x[i = 1:2] in [-1, 1], supports = supps[i], independent = true)
@@ -663,6 +765,7 @@ end
         warn = "Support points are not unique, eliminating redundant points."
         @test_logs (:warn, warn) set_supports(pref, [1, 1], force = true)
         @test_throws ErrorException set_supports(pref, [0.5])
+        @test !has_internal_supports(pref)
     end
     # add_supports
     @testset "add_supports" begin
@@ -670,16 +773,38 @@ end
         @test isa(add_supports(pref_disp, 0.25), Nothing)
         @test isa(add_supports(pref, 0.5), Nothing)
         @test supports(pref) == [0.25, 0.5, 1.]
-        @test isa(add_supports(pref, [0, 0.25, 1]), Nothing)
+        @test isa(add_supports(pref, [0, 0.25, 1], check = false), Nothing)
         @test supports(pref) == [0, 0.25, 0.5, 1.]
+        @test add_supports(pref, 0.2, label = InternalLabel) isa Nothing
+        @test supports(pref) == [0, 0.25, 0.5, 1.]
+        @test supports(pref, label = All) == [0, 0.2, 0.25, 0.5, 1.]
+        @test has_internal_supports(pref)
     end
     # delete_supports
     @testset "delete_supports" begin
+        # test bad parameter 
         @test_throws ArgumentError delete_supports(bad)
-        @test isa(delete_supports(pref_disp), Nothing)
-        add_supports(pref, 0.1)
+        # test label deletion
+        set_derivative_method(pref, TestGenMethod())
+        set_has_derivative_supports(pref, true)
+        add_supports(pref, 0.1, label = UniformGrid)
+        @test delete_supports(pref_disp, label = UniformGrid) isa Nothing
+        @test !has_derivative_supports(pref)
+        @test !has_internal_supports(pref)
+        @test supports(pref, label = All) == [0, 0.25, 0.5, 1.]
+        # test total deletion
         @test isa(delete_supports(pref), Nothing)
+        @test !has_derivative_supports(pref)
+        @test !has_internal_supports(pref)
         @test supports(pref) == []
+        # test derivative constraint warning 
+        InfiniteOpt._data_object(pref).has_deriv_constrs = true
+        warn = "Support changes will invalidate existing derivative evaluations. " *
+               "This problem can be avoided by not modifying the support structure " *
+               "after calling `evaluate_all_derivatives` or `evaluate`."
+        @test_logs (:warn, warn) delete_supports(pref) isa Nothing
+        InfiniteOpt._data_object(pref).has_deriv_constrs = false
+        # test measure error
         push!(InfiniteOpt._data_object(pref).measure_indices, MeasureIndex(1))
         @test_throws ErrorException delete_supports(pref)
     end
@@ -688,12 +813,9 @@ end
 # Test lower bound functions
 @testset "Lower Bound" begin
     m = InfiniteModel()
-    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
-    pref1 = add_parameter(m, p1)
-    p2 = IndependentParameter(UniDistributionSet(Normal()), SortedDict{Float64, Set{Symbol}}(), 5)
-    pref2 = add_parameter(m, p2)
-    p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}(), 5)
-    pref3 = add_parameter(m, p3)
+    @independent_parameter(m, pref1 in [0, 1])
+    @independent_parameter(m, pref2 in Normal())
+    @independent_parameter(m, pref3 in BadScalarSet())
     bad = TestVariableRef(m, TestIndex(-1))
     # JuMP.has_lower_bound
     @testset "JuMP.has_lower_bound" begin
@@ -729,12 +851,9 @@ end
 # Test upper bound functions
 @testset "Upper Bound" begin
     m = InfiniteModel()
-    p1 = IndependentParameter(IntervalSet(0, 1), SortedDict{Float64, Set{Symbol}}(), 5)
-    pref1 = add_parameter(m, p1)
-    p2 = IndependentParameter(UniDistributionSet(Normal()), SortedDict{Float64, Set{Symbol}}(), 5)
-    pref2 = add_parameter(m, p2)
-    p3 = IndependentParameter(BadScalarSet(), SortedDict{Float64, Set{Symbol}}(), 5)
-    pref3 = add_parameter(m, p3)
+    @independent_parameter(m, pref1 in [0, 1])
+    @independent_parameter(m, pref2 in Normal())
+    @independent_parameter(m, pref3 in BadScalarSet())
     bad = TestVariableRef(m, TestIndex(-1))
     # JuMP.has_upper_bound
     @testset "JuMP.has_upper_bound" begin

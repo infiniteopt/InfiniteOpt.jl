@@ -130,7 +130,27 @@ end
         set6 = CollectionSet([set1, set1])
         @test set_upper_bound(set6, [0.9, 0.9]).sets ==
                                     [IntervalSet(0., 0.9), IntervalSet(0., 0.9)]
+    end
+end
 
+# Test support labels 
+@testset "Support Labels" begin 
+    @testset "DataTypes" begin 
+        @test AbstractSupportLabel isa DataType 
+        @test All <: AbstractSupportLabel
+        @test PublicLabel <: AbstractSupportLabel
+        @test UserDefined <: PublicLabel
+        @test UniformGrid <: PublicLabel
+        @test SampleLabel <: PublicLabel
+        @test MCSample <: SampleLabel
+        @test WeightedSample <: SampleLabel
+        @test Mixture <: PublicLabel
+        @test UniqueMeasure isa UnionAll
+        @test InternalLabel <: AbstractSupportLabel
+        @test OrthogonalCollocationNode <: InternalLabel
+    end
+    @testset "generate_unique_label" begin 
+        @test InfiniteOpt.generate_unique_label() <: UniqueMeasure
     end
 end
 
@@ -143,10 +163,10 @@ end
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1][2] == 0.111
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1][2] != 1/11
         @test length(generate_support_values(set, num_supports = 10, sig_digits = 3)[1]) == 10
-        @test generate_support_values(set, Val(MCSample), num_supports = 10)[1] isa Vector{<:Number}
-        @test generate_support_values(set, Val(MCSample), num_supports = 10)[2] == MCSample
+        @test generate_support_values(set, MCSample, num_supports = 10)[1] isa Vector{<:Number}
+        @test generate_support_values(set, MCSample, num_supports = 10)[2] == MCSample
         @test_throws ErrorException generate_support_values(set, Val(:a))
-        @test generate_support_values(set, Val(All))[2] == UniformGrid
+        @test generate_support_values(set, All)[2] == UniformGrid
     end
     @testset "Distribution Sets" begin
         dist1 = Normal(0., 1.)
@@ -160,8 +180,8 @@ end
         @test size(generate_support_values(set2, num_supports = 10)[1]) == (2, 10)
         @test_throws ErrorException generate_support_values(set1, Val(:a))
         @test_throws ErrorException generate_support_values(set2, Val(:a))
-        @test generate_support_values(set1, Val(All))[2] == WeightedSample
-        @test generate_support_values(set2, Val(All))[2] == WeightedSample
+        @test generate_support_values(set1, All)[2] == WeightedSample
+        @test generate_support_values(set2, All)[2] == WeightedSample
     end
     @testset "Matrix Distribution Sets" begin
         dist = MatrixBeta(2, 2, 2)
@@ -170,7 +190,7 @@ end
         @test generate_support_values(set, num_supports = 10)[2] == WeightedSample
         @test size(generate_support_values(set, num_supports = 10)[1]) == (4, 10)
         @test_throws ErrorException generate_support_values(set, Val(:a))
-        @test generate_support_values(set, Val(All))[2] == WeightedSample
+        @test generate_support_values(set, All)[2] == WeightedSample
     end
     @testset "_generate_collection_supports" begin
         set1 = IntervalSet(0., 1.)
@@ -191,7 +211,7 @@ end
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1][2, 2] != 1/11
         @test size(generate_support_values(set, num_supports = 10, sig_digits = 3)[1]) == (2, 10)
         @test_throws ErrorException generate_support_values(set, Val(:a))
-        @test generate_support_values(set, Val(All))[2] == UniformGrid
+        @test generate_support_values(set, All)[2] == UniformGrid
     end
     @testset "CollectionSet (UniDistributionSets)" begin
         set1 = UniDistributionSet(Normal())
@@ -201,7 +221,7 @@ end
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[2] == WeightedSample
         @test size(generate_support_values(set, num_supports = 10, sig_digits = 3)[1]) == (2, 10)
         @test_throws ErrorException generate_support_values(set, Val(:a))
-        @test generate_support_values(set, Val(All))[2] == WeightedSample
+        @test generate_support_values(set, All)[2] == WeightedSample
     end
     @testset "CollectionSet (InfiniteScalarSets)" begin
         set1 = UniDistributionSet(Normal())
@@ -209,10 +229,10 @@ end
         set = CollectionSet([set1, set2])
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[1] isa Array{<:Number, 2}
         @test generate_support_values(set, num_supports = 10, sig_digits = 3)[2] == Mixture
-        @test generate_support_values(CollectionSet([set2, set2]), Val(MCSample), num_supports = 10, sig_digits = 3)[2] == MCSample
+        @test generate_support_values(CollectionSet([set2, set2]), MCSample, num_supports = 10, sig_digits = 3)[2] == MCSample
         @test size(generate_support_values(set, num_supports = 10, sig_digits = 3)[1]) == (2, 10)
         @test_throws ErrorException generate_support_values(set, Val(:a))
-        @test generate_support_values(set, Val(All))[2] == Mixture
+        @test generate_support_values(set, All)[2] == Mixture
     end
     @testset "Fallback" begin
         @test_throws ErrorException generate_support_values(BadSet())

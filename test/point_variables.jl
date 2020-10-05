@@ -265,37 +265,37 @@ end
     @testset "_make_variable" begin
         # test for all errors
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                              Val(Point), parameter_refs = pref)
+                                              Point, parameter_refs = pref)
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                                               Val(Point))
+                                                               Point)
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                      Val(Point), infinite_variable_ref = ivref)
+                                      Point, infinite_variable_ref = ivref)
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                               Val(Point), parameter_values = 3)
+                                               Point, parameter_values = 3)
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                               Val(Point), parameter_values = 3,
+                                               Point, parameter_values = 3,
                                                infinite_variable_ref = pref)
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                               Val(Point), parameter_values = (1, 1, 1),
+                                               Point, parameter_values = (1, 1, 1),
                                                infinite_variable_ref = ivref)
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                               Val(Point), parameter_values = (1, 2),
+                                               Point, parameter_values = (1, 2),
                                                infinite_variable_ref = ivref)
         # test a variety of builds
-        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref,
+        @test InfiniteOpt._make_variable(error, info, Point, infinite_variable_ref = ivref,
                    parameter_values = (0.5, 0.5)).infinite_variable_ref == ivref
-        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref,
+        @test InfiniteOpt._make_variable(error, info, Point, infinite_variable_ref = ivref,
                    parameter_values = (0.5, 0.5)).parameter_values == [0.5, 0.5]
-        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref,
+        @test InfiniteOpt._make_variable(error, info, Point, infinite_variable_ref = ivref,
                              parameter_values = (0.5, 0.5)).info == info
-        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Point),
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Point,
                                                   infinite_variable_ref = ivref,
                                                   parameter_values = (0.5, 2))
-        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref2,
+        @test InfiniteOpt._make_variable(error, info, Point, infinite_variable_ref = ivref2,
                parameter_values = (0.5, [0, 0])).infinite_variable_ref == ivref2
-        @test InfiniteOpt._make_variable(error, info, Val(Point), infinite_variable_ref = ivref2,
+        @test InfiniteOpt._make_variable(error, info, Point, infinite_variable_ref = ivref2,
                      parameter_values = (0.5, [0, 0])).parameter_values == [0.5, 0, 0]
-        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Val(Point),
+        @test_throws ErrorException InfiniteOpt._make_variable(error, info, Point,
                                             infinite_variable_ref = ivref2,
                                             parameter_values = (0.5, [0, 0, 0]))
     end
@@ -444,7 +444,7 @@ end
         cindex = ConstraintIndex(1)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_lower_bound(vref)
-        @test JuMP._lower_bound_index(vref) == cindex
+        @test InfiniteOpt._lower_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                  MOI.GreaterThan{Float64}}
         @test InfiniteOpt._data_object(cref).is_info_constraint
@@ -452,7 +452,7 @@ end
         cindex = ConstraintIndex(2)
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_upper_bound(vref)
-        @test JuMP._upper_bound_index(vref) == cindex
+        @test InfiniteOpt._upper_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                  MOI.LessThan{Float64}}
         @test InfiniteOpt._data_object(cref).is_info_constraint
@@ -461,7 +461,7 @@ end
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_upper_bound(vref)
         @test is_fixed(vref)
-        @test JuMP._fix_index(vref) == cindex
+        @test InfiniteOpt._fix_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                  MOI.EqualTo{Float64}}
         @test InfiniteOpt._data_object(cref).is_info_constraint
@@ -470,7 +470,7 @@ end
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_upper_bound(vref)
         @test is_binary(vref)
-        @test JuMP._binary_index(vref) == cindex
+        @test InfiniteOpt._binary_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                  MOI.ZeroOne}
         @test InfiniteOpt._data_object(cref).is_info_constraint
@@ -489,7 +489,7 @@ end
         cref = InfOptConstraintRef(m, cindex, ScalarShape())
         @test has_upper_bound(vref)
         @test is_integer(vref)
-        @test JuMP._integer_index(vref) == cindex
+        @test InfiniteOpt._integer_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                  MOI.Integer}
         @test InfiniteOpt._data_object(cref).is_info_constraint
