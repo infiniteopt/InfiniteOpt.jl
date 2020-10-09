@@ -91,7 +91,7 @@ function add_derivative_supports(pref::IndependentParameterRef)::Nothing
         method = derivative_method(pref)
         supps = generate_derivative_supports(pref, method)
         if !isempty(supps)
-            add_supports(pref, supps, label = support_label(method))
+            add_supports(pref, supps, label = support_label(method), check = false)
             set_has_derivative_supports(pref, true)
         end
     end

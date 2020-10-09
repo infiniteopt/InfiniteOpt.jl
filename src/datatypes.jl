@@ -331,8 +331,9 @@ struct OrthogonalCollocation <: GenerativeDerivativeMethod
     function OrthogonalCollocation(num_nodes::Int, 
         technique::Type{<:OCTechnique} = Lobatto
         )::OrthogonalCollocation
-        num_nodes >= 3 || error("Must specify at least 3 collocation points (i.e., " *
-                                "1 internal node per support interval.")
+        num_nodes >= 2 || error("Must specify at least 2 collocation points (i.e., " *
+                                "the bounds of each support interval with no internal " * 
+                                "support nodes).")
         return new(num_nodes - 2, technique)
     end
 end
