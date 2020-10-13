@@ -436,6 +436,8 @@ end
     data3 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample)
     data4 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, MCSample)
     data5 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample, lower_bound = 0.3, upper_bound = 0.7)
+    data6 = FunctionalDiscreteMeasureData(pars[1], coeff_func, 10, MCSample, 
+                                          default_weight, NaN, NaN, false)
 #    meas = Measure(par + 2inf - x, data, [1], [1], false)
     # test _add_supports_to_multiple_parameters (independent)
     @testset "_add_supports_to_multiple_parameters (independent)" begin
@@ -476,6 +478,8 @@ end
         # test functionality
         @test isa(add_supports_to_parameters(data5), Nothing)
         @test num_supports(par) == 5
+        # test error 
+        @test_throws ErrorException add_supports_to_parameters(data6)
         # clear supports
         delete_supports(par)
     end

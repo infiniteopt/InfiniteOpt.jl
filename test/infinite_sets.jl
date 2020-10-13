@@ -212,6 +212,8 @@ end
         @test size(generate_support_values(set, num_supports = 10, sig_digits = 3)[1]) == (2, 10)
         @test_throws ErrorException generate_support_values(set, Val(:a))
         @test generate_support_values(set, All)[2] == UniformGrid
+        @test generate_support_values(set, MCSample)[2] == MCSample 
+        @test generate_support_values(set, MCSample)[1] isa Array{<:Number, 2}
     end
     @testset "CollectionSet (UniDistributionSets)" begin
         set1 = UniDistributionSet(Normal())

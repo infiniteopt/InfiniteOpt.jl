@@ -808,8 +808,7 @@ function add_supports_to_parameters(
     if curr_num_supps < num_supps
         # prepare the parameter reference
         pref = dispatch_variable_ref(parameter_refs(data))
-        if pref == DependentParameterRef # This is just a last line of defense
-            # NOTE consider removing this test (seems this could never be tested)
+        if pref isa DependentParameterRef # This is just a last line of defense
             error("min_num_supports must be 0 for individual dependent parameters.")
         end
         # prepare the generation set

@@ -190,6 +190,9 @@ end
 # Univariate trapezoid coefficient function
 function _trapezoid_coeff(supps::Vector{<:Real})::Vector{Float64}
     len = length(supps)
+    len >= 2 || error("Cannot invoke trapezoid rule on integral if there are " * 
+                      "less than 2 supports added to its infinite parameter. Ensure " * 
+                      "all infinite parameters have supports.")
     coeffs = Vector{Float64}(undef, len)
     for i in eachindex(supps)
         if i == 1

@@ -193,14 +193,14 @@ function evaluate_derivative(
 end
 
 ## Define helper methods for finite difference 
-# FDForward
+# Forward
 function _make_difference_expr(dref::GeneralVariableRef,
                                vref::GeneralVariableRef, 
                                pref::GeneralVariableRef,
                                index::Int, 
                                ordered_supps::Vector{Float64},
                                write_model::JuMP.AbstractModel, 
-                               type::Type{FDForward})::JuMP.AbstractJuMPScalar
+                               type::Type{Forward})::JuMP.AbstractJuMPScalar
     curr_value = ordered_supps[index]
     next_value = ordered_supps[index+1]
     return JuMP.@expression(_Model, (next_value - curr_value) * 
@@ -209,14 +209,14 @@ function _make_difference_expr(dref::GeneralVariableRef,
                                     make_reduced_expr(vref, pref, curr_value, write_model))
 end
 
-# FDCentral
+# Central
 function _make_difference_expr(dref::GeneralVariableRef, 
                                vref::GeneralVariableRef, 
                                pref::GeneralVariableRef,
                                index::Int, 
                                ordered_supps::Vector{Float64}, 
                                write_model::JuMP.AbstractModel, 
-                               type::Type{FDCentral})::JuMP.AbstractJuMPScalar
+                               type::Type{Central})::JuMP.AbstractJuMPScalar
     prev_value = ordered_supps[index-1]
     next_value = ordered_supps[index+1]
     curr_value = ordered_supps[index]
@@ -226,14 +226,14 @@ function _make_difference_expr(dref::GeneralVariableRef,
                                     make_reduced_expr(vref, pref, prev_value, write_model))
 end
 
-# FDBackward
+# Backward
 function _make_difference_expr(dref::GeneralVariableRef,
                                vref::GeneralVariableRef, 
                                pref::GeneralVariableRef,
                                index::Int, 
                                ordered_supps::Vector{Float64}, 
                                write_model::JuMP.AbstractModel,
-                               type::Type{FDBackward})::JuMP.AbstractJuMPScalar
+                               type::Type{Backward})::JuMP.AbstractJuMPScalar
     prev_value = ordered_supps[index-1]
     curr_value = ordered_supps[index]
     return JuMP.@expression(_Model, (curr_value - prev_value) *  
@@ -256,12 +256,18 @@ function evaluate_derivative(
     n_supps = length(ordered_supps)
     n_supps <= 1 && error("$(pref) does not have enough supports for derivative evaluation.")
     # make the expressions
-    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, n_supps)
-    exprs[1] = _make_difference_expr(dref, vref, pref, 1, ordered_supps, write_model, FDForward)
-    for i in 2:n_supps-1
-        @inbounds exprs[i] = _make_difference_expr(dref, vref, pref, i, ordered_supps, write_model, method.technique)
+    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, n_supps - 2)
+    for i in eachindex(exprs)
+        exprs[i] = _make_difference_expr(dref, vref, pref, i + 1, ordered_supps, 
+                                         write_model, method.technique)
     end
-    exprs[end] = _make_difference_expr(dref, vref, pref, n_supps, ordered_supps, write_model, FDBackward)
+    if method.add_boundary_constraint && method.technique == Forward
+        push!(exprs, _make_difference_expr(dref, vref, pref, 1, ordered_supps, 
+                                           write_model, Forward))
+    elseif method.add_boundary_constraint && method.technique == Backward
+        push!(exprs, _make_difference_expr(dref, vref, pref, n_supps, ordered_supps, 
+                                           write_model, Backward))
+    end
     return exprs
 end
 

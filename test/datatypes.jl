@@ -111,15 +111,16 @@ end
     @test OrthogonalCollocation <: GenerativeDerivativeMethod
     @test OrthogonalCollocation(3, Lobatto) isa OrthogonalCollocation
     @test OrthogonalCollocation(3) == OrthogonalCollocation(3, Lobatto)
-    @test_throws ErrorException OrthogonalCollocation(2)
+    @test_throws ErrorException OrthogonalCollocation(1)
     # test finite difference
     @test FDTechnique isa DataType
-    @test FDForward <: FDTechnique
-    @test FDCentral <: FDTechnique
-    @test FDBackward <: FDTechnique
+    @test Forward <: FDTechnique
+    @test Central <: FDTechnique
+    @test Backward <: FDTechnique
     @test FiniteDifference <: NonGenerativeDerivativeMethod
-    @test FiniteDifference(FDForward) isa FiniteDifference
-    @test FiniteDifference() == FiniteDifference(FDCentral)
+    @test FiniteDifference(Forward) isa FiniteDifference
+    @test FiniteDifference() == FiniteDifference(Backward)
+    @test FiniteDifference(Forward, false) isa FiniteDifference
     # test support_label 
     @test_throws ErrorException support_label(FiniteDifference())
     @test support_label(OrthogonalCollocation(3)) == OrthogonalCollocationNode

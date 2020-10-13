@@ -107,6 +107,7 @@ end
     @infinite_parameter(m, 0 <= par2 <= 2, supports = [0, 2])
     @infinite_variable(m, inf(par))
     @infinite_variable(m, inf2(par2, par))
+    @finite_parameter(m, fin, 42)
     @hold_variable(m, g)
     d1 = @deriv(inf, par)
     var = build_variable(error, inf2, Dict{Int, Float64}(2 => 0))
@@ -152,6 +153,10 @@ end
         @test value(d1, label = All) == [2., 1., 2.]
         @test value(g) == 1.
         @test value(rv) == [-2., -1.]
+        @test value(par) == [0., 1.]
+        @test value(par, label = All) == [0., 0.5, 1.]
+        @test value(fin) == 42
+        @test value(fin, label = All) == 42
     end
     # test map_optimizer_index
     @testset "map_optimizer_index" begin

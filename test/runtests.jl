@@ -55,7 +55,7 @@ println("")
    @testset "Reduced Variables" begin include("reduced_variables.jl") end
 end
 println("")
-@time @testset "Derivatives" begin include("derivatives.jl") end
+@time @testset "Derivative Methods" begin include("derivatives.jl") end
 println("")
 @time @testset "Operators" begin include("operators.jl") end
 println("")
@@ -96,8 +96,6 @@ println("")
 println("")
 @time @testset "Extensions" begin include("extensions.jl") end
 println("")
-
-# TODO add involved deletion tests
 println("----------------------------------------------------------------------------")
 println("-----------------------------TESTING COMPLETE!------------------------------")
 println("----------------------------------------------------------------------------")

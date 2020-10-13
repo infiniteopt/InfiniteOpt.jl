@@ -147,10 +147,14 @@ function _check_param_sets(_error::Function, params)
 end
 
 ## Define methods for checking the the derivative methods 
-# NonGenerativeDerivativeMethod
+# Expected format
 function _check_derivative_methods(_error::Function, 
-    params::AbstractArray{<:_DependentParameter{S, <:NonGenerativeDerivativeMethod}}
-    )::Nothing where {S}
+    params::AbstractArray{<:_DependentParameter})::Nothing
+    if !all(p.deriv_method isa NonGenerativeDerivativeMethod for p in params)
+        _error("Cannot use generative derivative evaluation methods with dependent " *
+               "infinite parameters. Only subtypes of `NonGenerativeDerivativeMethod` " *
+               "can be used.") 
+    end
     return 
 end
 

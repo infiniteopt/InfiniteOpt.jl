@@ -257,19 +257,19 @@ using JuMP: REPLMode, IJuliaMode
         # test non measure toolbox measures
         data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [0, 0], [1, 1], false)
         meas = dispatch_variable_ref(measure(y, data, name = "test"))
-        str = "test{pars2 " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]^2}\\left[y\\right]"
+        str = "test{pars2 " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]^2}[y]"
         @test InfiniteOpt.variable_string(REPLMode, meas) == str
         str = "\\text{test}_{pars2 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]^2}\\left[y\\right]"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
         # test measure toolbox special cases for IJulia
         @infinite_parameter(m, t in [0, 1])
-        meas = expect(y, t)
-        str = "\\mathbb{E}_{t " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]}\\left[y\\right]"
+        meas = dispatch_variable_ref(expect(y, t))
+        str = "\\mathbb{E}_{t}\\left[y\\right]"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
-        meas = integral(y, t)
+        meas = dispatch_variable_ref(integral(y, t))
         str = "\\int_{t " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]}ydt"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
-        meas = integral(y, par1)
+        meas = dispatch_variable_ref(integral(y, par1))
         str = "\\int_{par1 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]}yd(par1)"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
     end
@@ -311,12 +311,12 @@ using JuMP: REPLMode, IJuliaMode
         dref = dispatch_variable_ref(d1)
         d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
         @test InfiniteOpt.variable_string(REPLMode, dref) == "$d_re/$(d_re)par1[x(par1)]"
-        @test InfiniteOpt.variable_string(IJuliaMode, dref) == "\\frac{\\partial}{\\partial par1}\\[x(par1)\\]"
+        @test InfiniteOpt.variable_string(IJuliaMode, dref) == "\\frac{\\partial}{\\partial par1}\\left[x(par1)\\right]"
         # test nested one 
         dref = dispatch_variable_ref(d2)
         expected = "$d_re/$(d_re)par1[$d_re/$(d_re)pars[1][inf(pars, par1, pars3)]]"
         @test InfiniteOpt.variable_string(REPLMode, dref) == expected
-        expected = "\\frac{\\partial}{\\partialpar1}\\[\\frac{\\partial}{\\partial pars_{1}}\\[inf(pars, par1, pars3)\\]\\]"
+        expected = "\\frac{\\partial}{\\partial par1}\\left[\\frac{\\partial}{\\partial pars_{1}}\\left[inf(pars, par1, pars3)\\right]\\right]"
         @test InfiniteOpt.variable_string(IJuliaMode, dref) == expected
         # test has explicit name
         dref = dispatch_variable_ref(d3)
@@ -356,6 +356,10 @@ using JuMP: REPLMode, IJuliaMode
         dvref = dispatch_variable_ref(@point_variable(m, z([0, 0]), z0))
         @test InfiniteOpt.variable_string(REPLMode, dvref) == "z0"
         @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "z0"
+        # test with derivative 
+        dvref = dispatch_variable_ref(@point_variable(m, d1(0)))
+        d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "$(d_re)/$(d_re)par1[x(par1)](0)"
     end
     # test variable_string (ReducedVariableRef)
     @testset "variable_string (ReducedVariableRef)" begin
@@ -369,6 +373,12 @@ using JuMP: REPLMode, IJuliaMode
         dvref = dispatch_variable_ref(add_variable(m, var))
         @test InfiniteOpt.variable_string(REPLMode, dvref) == "inf([0, 0], par1, [0, pars3[2]])"
         @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "inf([0, 0], par1, [0, pars3[2]])"
+        # test derivative 
+        eval_supps = Dict{Int, Float64}(1 => 0)
+        var = build_variable(error, d3, eval_supps, check = false)
+        dvref = dispatch_variable_ref(add_variable(m, var))
+        d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "d3([0, pars[2]])"
     end
     # test variable_string (Fallback)
     @testset "variable_string (Fallback)" begin

@@ -1187,7 +1187,8 @@ end
 # Make dispatch for an array of parameters 
 function delete_supports(prefs::AbstractArray{<:IndependentParameterRef}; 
                          label::Type{<:AbstractSupportLabel} = All)::Nothing
-    return delete_supports.(prefs, label = label)
+    delete_supports.(prefs, label = label)
+    return
 end
 
 """

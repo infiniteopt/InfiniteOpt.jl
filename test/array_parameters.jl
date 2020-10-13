@@ -91,6 +91,9 @@ end
     raw_params11 = [InfiniteOpt._DependentParameter(BadArraySet(), 1, "p", method) for i = 1:2]
     raw_params12 = [InfiniteOpt._DependentParameter(sset1, Float64[], "p", method),
                     InfiniteOpt._DependentParameter(sset2, Float64[], "p", method)]
+    raw_params13 = [InfiniteOpt._DependentParameter(sset1, Float64[], "p", TestGenMethod()) for i = 1:2]
+    raw_params14 = [InfiniteOpt._DependentParameter(sset1, Float64[], "p", TestGenMethod()),
+                    InfiniteOpt._DependentParameter(sset2, Float64[], "p", method)]
     # test _check_param_sets (InfiniteScalarSet)
     @testset "_check_param_sets (InfiniteScalarSet)" begin
         @test InfiniteOpt._check_param_sets(error, raw_params1) isa Nothing
@@ -132,8 +135,17 @@ end
     @testset "_check_param_sets (Fallback)" begin
         @test_throws ErrorException InfiniteOpt._check_param_sets(error, ones(2))
     end
-    # TODO TEST _check_derivative_methods
-
+    # test _check_derivative_methods
+    @testset "_check_derivative_methods" begin 
+        # test normal 
+        @test InfiniteOpt._check_derivative_methods(error, raw_params1) isa Nothing
+        @test InfiniteOpt._check_derivative_methods(error, raw_params12) isa Nothing
+        # test bad type 
+        @test_throws ErrorException InfiniteOpt._check_derivative_methods(error, raw_params13)
+        @test_throws ErrorException InfiniteOpt._check_derivative_methods(error, raw_params14)
+        # test fallback 
+        @test_throws ErrorException InfiniteOpt._check_derivative_methods(error, ones(2))
+    end
     # test _make_array_set (InfiniteArraySet)
     @testset "_make_array_set (InfiniteArraySet)" begin
         @test InfiniteOpt._make_array_set(raw_params3) == set2

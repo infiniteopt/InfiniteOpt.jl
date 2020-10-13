@@ -344,6 +344,7 @@ function _make_str_value(values::Array)::String
 end
 
 # Make a string for PointVariableRef
+# TODO improve so numerator of derivative contains the point
 function variable_string(print_mode, vref::PointVariableRef)::String
     if !haskey(_data_dictionary(vref), JuMP.index(vref)) || !isempty(JuMP.name(vref))
         return _get_base_name(print_mode, vref)
@@ -369,6 +370,7 @@ function variable_string(print_mode, vref::PointVariableRef)::String
 end
 
 # Make a string for ReducedVariableRef
+# TODO improve so numerator of derivative contains the parameter tuple
 function variable_string(print_mode, vref::ReducedVariableRef)::String
     if !haskey(_data_dictionary(vref), JuMP.index(vref)) || !isempty(JuMP.name(vref))
         return _get_base_name(print_mode, vref)

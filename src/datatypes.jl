@@ -314,7 +314,7 @@ A `DataType` for storing information about orthogonal collocation method
 for derivative evaluation. Note that the constructor for this method is of the
 form: 
 ```julia 
-    OrthogonalCollocation(num_nodes::Int, technique::Type{<:OCTechnique} = Labatto)
+    OrthogonalCollocation(num_nodes::Int, [technique::Type{<:OCTechnique} = Labatto])
 ```
 where `num_nodes` is total number of nodes for each collocation interval. In 
 practice, this corresponds to `num_nodes = num_internal_nodes + 2`. 
@@ -357,43 +357,60 @@ difference method in derivative evaluation.
 abstract type FDTechnique end
 
 """
-    FDForward <: FDTechnique
+    Forward <: FDTechnique
 
 A technique label for finite difference method that implements a forward 
 difference approximation.
 """
-struct FDForward <: FDTechnique end
+struct Forward <: FDTechnique end
 
 """
-    FDCentral <: FDTechnique
+    Central <: FDTechnique
 
 A technique label for finite difference method that implements a central 
 difference approximation.
 """
-struct FDCentral <: FDTechnique end
+struct Central <: FDTechnique end
 
 """
-    FDBackward <: FDTechnique
+    Backward <: FDTechnique
 
 A technique label for finite difference method that implements a backward 
 difference approximation.
 """
-struct FDBackward <: FDTechnique end
+struct Backward <: FDTechnique end
 
 """
     FiniteDifference <: NonGenerativeDerivativeMethod
 
 A `DataType` for information about finite difference method applied to 
-a derivative evaluation. 
+a derivative evaluation. Note that the constructor is of the form:
+```julia 
+    FiniteDifference([technique::Type{<:FDTechnique} = Backward],
+                     [add_boundary_constr::Bool = true])
+```
+where `technique` is the indicated finite difference method to be applied and 
+`add_boundary_constr` indicates if the finite difference equation corresponding to 
+a boundary support should be included. Thus, for backward difference since
+corresponds to the terminal point and for forward difference this corresponds to 
+the initial point. We recommend using `add_boundary_constr = false` when an final 
+condition is given with a backward method or when an initial condition is given 
+with a forward method. Note that this argument is ignored for central finite 
+difference which cannot include any boundary points.
 
 **Fields** 
 - `technique::Type{<:FDTechnique}`: Mathematical technqiue behind finite difference
+- `add_boundary_constraint::Bool`: Indicate if the boundary constraint should be 
+  included in the transcription (e.g., the terminal boundary backward equation for 
+  backward difference)
 """
 struct FiniteDifference <: NonGenerativeDerivativeMethod 
     technique::DataType
+    add_boundary_constraint::Bool
     # set the constructor 
-    function FiniteDifference(technique::Type{<:FDTechnique} = FDCentral)
-        return new(technique)
+    function FiniteDifference(technique::Type{<:FDTechnique} = Backward, 
+                              add_boundary_constr::Bool = true)
+        return new(technique, add_boundary_constr)
     end
 end
 
