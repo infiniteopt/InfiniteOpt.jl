@@ -6,7 +6,7 @@ A complete guide to installing all that is necessary to use `InfiniteOpt.jl`.
 have an installation of Julia to get started. An appropriate download can be
 found [here](https://julialang.org/downloads/). Alternatively, users with a
 limited programming background might find it easier to install and use
-[JuliaPro](https://juliacomputing.com/products/juliapro.html).
+[JuliaPro](https://juliacomputing.com/products/juliapro/).
 
 !!! note
     This version of `InfiniteOpt` requires that Julia 1.0 or newer be used.
