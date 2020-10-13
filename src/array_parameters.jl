@@ -158,15 +158,6 @@ function _check_derivative_methods(_error::Function,
     return 
 end
 
-# AbstractDerivativeMethod
-function _check_derivative_methods(_error::Function, 
-    params::AbstractArray{<:_DependentParameter{S, <:AbstractDerivativeMethod}}
-    ) where {S}
-    _error("Cannot use generative derivative evaluation methods with dependent " *
-           "infinite parameters. Only subtypes of `NonGenerativeDerivativeMethod` " *
-           "can be used.") 
-end
-
 # Fallback
 function _check_derivative_methods(_error::Function, params)
     _error("Unrecognized input for derivative method.")

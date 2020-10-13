@@ -182,6 +182,7 @@ end
         @test_throws ErrorException generate_support_values(set2, Val(:a))
         @test generate_support_values(set1, All)[2] == WeightedSample
         @test generate_support_values(set2, All)[2] == WeightedSample
+        @test generate_support_values(set1, MCSample)[2] == MCSample
     end
     @testset "Matrix Distribution Sets" begin
         dist = MatrixBeta(2, 2, 2)
@@ -235,6 +236,8 @@ end
         @test size(generate_support_values(set, num_supports = 10, sig_digits = 3)[1]) == (2, 10)
         @test_throws ErrorException generate_support_values(set, Val(:a))
         @test generate_support_values(set, All)[2] == Mixture
+        @test generate_support_values(set, MCSample)[2] == MCSample 
+        @test generate_support_values(set, MCSample)[1] isa Array{<:Number, 2}
     end
     @testset "Fallback" begin
         @test_throws ErrorException generate_support_values(BadSet())

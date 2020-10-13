@@ -536,6 +536,17 @@ function generate_support_values(
     return new_supports, method
 end
 
+# UniDistributionSet and MCSample 
+function generate_support_values(
+    set::UniDistributionSet,
+    method::Type{MCSample};
+    num_supports::Int = DefaultNumSupports,
+    sig_digits::Int = DefaultSigDigits
+    )::Tuple{Vector{Float64}, DataType}
+    return generate_support_values(set, WeightedSample; num_supports = num_supports, 
+                                   sig_digits = sig_digits)[1], method # TODO use an unwieghted sample...
+end
+
 # MultiDistributionSet (matrix-variate distribution)
 function generate_support_values(
     set::MultiDistributionSet{<:Distributions.MatrixDistribution},
