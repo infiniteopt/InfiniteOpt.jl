@@ -22,6 +22,10 @@ function _infopt_math_symbol(::Type{JuMP.IJuliaMode}, name::Symbol)::String
         return "\\sim"
     elseif name == :partial 
         return "\\partial"
+    elseif name == :open_rng 
+        return "\\left["
+    elseif name == :close_rng 
+        return "\\right]"
     else
         return JuMP._math_symbol(JuMP.IJuliaMode, name)
     end
@@ -181,8 +185,8 @@ function measure_data_string(print_mode,
     end
 end
 
-# Fallback
-function measure_data_string(print_mode, data::AbstractMeasureData)::String
+# extract the most compact parameter name possible
+function _get_root_parameter_name(data::AbstractMeasureData)::String 
     prefs = parameter_refs(data)
     names = map(p -> _remove_name_index(p), prefs)
     if _allequal(names)
@@ -190,6 +194,11 @@ function measure_data_string(print_mode, data::AbstractMeasureData)::String
     else
         return _make_str_value(prefs)
     end
+end 
+
+# Fallback for measure_data_string
+function measure_data_string(print_mode, data::AbstractMeasureData)::String
+    return _get_root_parameter_name(data)
 end
 
 # Make strings to represent measures in REPLMode
@@ -201,11 +210,21 @@ function variable_string(::Type{JuMP.REPLMode}, mref::MeasureRef)::String
 end
 
 # Make strings to represent measures in IJuliaMode
-function variable_string(::Type{JuMP.IJuliaMode}, mref::MeasureRef)::String
+function variable_string(m::Type{JuMP.IJuliaMode}, mref::MeasureRef)::String
     data = measure_data(mref)
-    data_str = measure_data_string(JuMP.IJuliaMode, data)
-    func_str = JuMP.function_string(JuMP.IJuliaMode, measure_function(mref))
-    return string(JuMP.name(mref), "_{", data_str, "}[", func_str, "]")
+    data_str = measure_data_string(m, data)
+    func_str = JuMP.function_string(m, measure_function(mref))
+    name = JuMP.name(mref) 
+    if name == "integral" 
+        param_name = _get_root_parameter_name(data)
+        end_str = length(param_name) == 1 ? "d$param_name" : "d($param_name)"
+        return string("\\int_{", data_str, "}", func_str, end_str)
+    else 
+        name = name == "expect" ? "\\mathbb{E}" : string("\\text{", name, "}")
+        return string(name, "_{", data_str, "}", 
+                  InfiniteOpt._infopt_math_symbol(m, :open_rng), func_str, 
+                  InfiniteOpt._infopt_math_symbol(m, :close_rng))
+    end
 end
 
 ################################################################################
@@ -269,17 +288,16 @@ end
 
 ## Make helper function for making derivative operators 
 # REPL 
-function _deriv_operator(::Type{JuMP.REPLMode}, pref)::String
-    return string(_infopt_math_symbol(JuMP.REPLMode, :partial), "/", 
-                  _infopt_math_symbol(JuMP.REPLMode, :partial), 
-                  variable_string(JuMP.REPLMode, pref))
+function _deriv_operator(m::Type{JuMP.REPLMode}, pref)::String
+    return string(_infopt_math_symbol(m, :partial), "/", 
+                  _infopt_math_symbol(m, :partial), variable_string(m, pref))
 end
 
 # IJulia 
-function _deriv_operator(::Type{JuMP.IJuliaMode}, pref)::String
-    return string("\\frac{", _infopt_math_symbol(JuMP.IJuliaMode, :partial), "}{", 
-                  _infopt_math_symbol(JuMP.IJuliaMode, :partial), 
-                  variable_string(JuMP.IJuliaMode, pref), "}")
+function _deriv_operator(m::Type{JuMP.IJuliaMode}, pref)::String
+    return string("\\frac{", _infopt_math_symbol(m, :partial), "}{", 
+                  _infopt_math_symbol(m, :partial), " ", 
+                  variable_string(m, pref), "}")
 end
 
 # TODO implement more intelligent naming for nested derivatives (i.e., use exponents)
@@ -326,6 +344,7 @@ function _make_str_value(values::Array)::String
 end
 
 # Make a string for PointVariableRef
+# TODO improve so numerator of derivative contains the point
 function variable_string(print_mode, vref::PointVariableRef)::String
     if !haskey(_data_dictionary(vref), JuMP.index(vref)) || !isempty(JuMP.name(vref))
         return _get_base_name(print_mode, vref)
@@ -351,6 +370,7 @@ function variable_string(print_mode, vref::PointVariableRef)::String
 end
 
 # Make a string for ReducedVariableRef
+# TODO improve so numerator of derivative contains the parameter tuple
 function variable_string(print_mode, vref::ReducedVariableRef)::String
     if !haskey(_data_dictionary(vref), JuMP.index(vref)) || !isempty(JuMP.name(vref))
         return _get_base_name(print_mode, vref)

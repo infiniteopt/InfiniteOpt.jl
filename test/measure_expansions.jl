@@ -722,7 +722,7 @@ end
     @infinite_variable(m, inf4(pars1))
     @hold_variable(m, x >= 0)
     # prepare measures
-    data1 = DiscreteMeasureData(par1, [0.5, 0.5], [1, 2])
+    data1 = DiscreteMeasureData(par1, [0.5, 0.5], [1, 2], lower_bound = 1, upper_bound = 2)
     data2 = DiscreteMeasureData(pars1, [1, 1], [[1, 1], [2, 2]])
     data3 = DiscreteMeasureData(par2, [2, 2], [1, 2])
     meas1 = measure(inf1 + 3x - inf2 + inf3 - 2, data1)
@@ -748,7 +748,15 @@ end
         @test expand(meas2) == expected
         @test parameter_values(pts[2]) == (Float64[2, 2],)
         # test analytic
-        @test expand(measure(x, data1)) == 1*x
+        meas = measure(x, data1)
+        @test is_analytic(meas)
+        @test expand(meas) == 1*x
+        # test integral with only 1 support 
+        delete(m, meas1)
+        delete(m, meas)
+        delete_supports(par1)
+        add_supports(par1, 1)
+        @test_throws ErrorException expand(integral(inf1, par1))
     end
 
     # test expand_all_measures!

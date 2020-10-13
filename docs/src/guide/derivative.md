@@ -28,14 +28,14 @@ Derivative
 AbstractDerivativeMethod
 GenerativeDerivativeMethod
 OrthogonalCollocation
-OCQuadrature
+OCTechnique
 Lobatto
-NonGenerativeDerivateMethod
+NonGenerativeDerivativeMethod
 FiniteDifference
-FDTechniques
-FDForward
-FDCentral
-FDBackward
+FDTechnique
+Forward
+Central
+Backward
 ```
 
 ## [Methods/Macros] (@id deriv_methods)
@@ -67,7 +67,7 @@ evaluate(::DerivativeRef)
 evaluate_all_derivatives!
 evaluate_derivative
 InfiniteOpt.support_label(::AbstractDerivativeMethod)
-InfiniteOPt.generate_derivative_supports
+InfiniteOpt.generate_derivative_supports
 InfiniteOpt.add_derivative_supports(::IndependentParameterRef)
 InfiniteOpt.make_reduced_expr
 ```

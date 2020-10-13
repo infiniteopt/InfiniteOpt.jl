@@ -151,29 +151,18 @@ In `InfiniteOpt` supports can be generated via [`generate_supports`](@ref) funct
 generate 5 equidistant support points for the `IntervalSet` [-2, 2]:
 ```jldoctest; setup = :(using InfiniteOpt; set = IntervalSet(-2, 2))
 julia> supps, label = generate_supports(set, num_supports = 5)
-([-2.0, -1.0, 0.0, 1.0, 2.0], :uniform_grid)
-
-julia> supps
-5-element Array{Float64,1}:
- -2.0
- -1.0
-  0.0
-  1.0
-  2.0
-
-julia> label
-:uniform_grid
+([-2.0, -1.0, 0.0, 1.0, 2.0], UniformGrid)
 ```
 Note that the number of supports generated is specified via
 `num_supports` keyword argument, which will take a default value of 10 if not specified. 
 The function `generate_supports` returns a vector of the supports generated, and a label that symbolizes
 the underlying method. In this case the label returned is `UniformGrid`, which is the default 
 support generation method for `IntervalSet`s. Another support generation method implemented for `IntervalSet`s
-is `MCSample`, which is to sample from a uniform distribution over the interval. To use this mehtod, users
+is `MCSample`, which is to sample from a uniform distribution over the interval. To use this method, users
 need to specify a second positional argument, as shown in the following example:
 ```jldoctest; setup = :(using InfiniteOpt, Random; Random.seed!(0); set = IntervalSet(-2, 2))
 julia> generate_supports(set, MCSample, num_supports = 5)
-([1.29459, 1.64143, -1.34174, -1.29068, -0.88448], :mc_sample)
+([1.29459, 1.64143, -1.34174, -1.29068, -0.88448], MCSample)
 ```
 In this case, the returned label is `MCSample`, instead of `UniformGrid`.
 
@@ -187,16 +176,11 @@ julia> dist = MvNormal([0., 0.], [1. 0.;0. 2.]);
 julia> set = MultiDistributionSet(dist);
 
 julia> supps, label = generate_supports(set, num_supports = 3)
-([0.679107426036 -0.353007400301 0.586617074633; 1.17155358277 -0.190712174623 0.420496392851], :weighted_sample)
-
-julia> supps
-2×3 Array{Float64,2}:
- 0.679107  -0.353007  0.586617
- 1.17155   -0.190712  0.420496
+([0.679107426036 -0.353007400301 0.586617074633; 1.17155358277 -0.190712174623 0.420496392851], WeightedSample)
 ```
 
 For those who are interested in coding up their own support generation functions, [`generate_supports`](@ref) is
-an inteface that calls the proper [`generate_support_values`](@ref) function based on the type of set and value of method.
+an interface that calls the proper [`generate_support_values`](@ref) function based on the type of set and value of method.
 Therefore, to use custom support generation methods, users can implement extensions for [`generate_support_values`](@ref) 
 with a different method label from the existing methods. See [Extensions](@ref) for full details.
 

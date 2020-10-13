@@ -127,7 +127,7 @@ julia> set = IntervalSet(0, 10)
 [0, 10]
 
 julia> t_param = build_parameter(error, set, supports = [0, 2, 5, 7, 10])
-IndependentParameter{IntervalSet}([0, 10], DataStructures.SortedDict(0.0=>Set(UserDefined]),2.0=>Set([UserDefined]),5.0=>Set([UserDefined]),7.0=>Set([UserDefined]),10.0=>Set([UserDefined])), 12)
+IndependentParameter{IntervalSet,FiniteDifference}([0, 10], DataStructures.SortedDict(0.0=>Set([UserDefined]),2.0=>Set([UserDefined]),5.0=>Set([UserDefined]),7.0=>Set([UserDefined]),10.0=>Set([UserDefined])), 12, FiniteDifference(Backward, true))
 ```  
 Now that we have a `InfOptParameter` that contains an `IntervalSet` and supports,
 let's now add `t_param` to our `InfiniteModel` using [`add_parameter`](@ref)
@@ -155,7 +155,7 @@ julia> set = UniDistributionSet(dist)
 Normal{Float64}(μ=0.0, σ=1.0)
 
 julia> x_param = build_parameter(error, set, supports = [-0.5, 0.5])
-IndependentParameter{UniDistributionSet{Normal{Float64}}}(Normal{Float64}(μ=0.0, σ=1.0), DataStructures.SortedDict(-0.5=>Set([UserDefined]),0.5=>Set([UserDefined])), 12)
+IndependentParameter{UniDistributionSet{Normal{Float64}},FiniteDifference}(Normal{Float64}(μ=0.0, σ=1.0), DataStructures.SortedDict(-0.5=>Set([UserDefined]),0.5=>Set([UserDefined])), 12, FiniteDifference(Backward, true))
 ```
 Again, we use [`add_parameter`](@ref) to add `x_param` to the `InfiniteModel` and
 assign it the name `x`:
@@ -504,7 +504,7 @@ julia> set = IntervalSet(0, 10)
 [0, 10]
 
 julia> t_param = build_parameter(error, set, num_supports = 4, sig_digits = 3)
-IndependentParameter{IntervalSet}([0, 10], DataStructures.SortedDict(0.0=>Set([UniformGrid]),3.33=>Set([UniformGrid]),6.67=>Set([UniformGrid]),10.0=>Set([UniformGrid])), 3)
+IndependentParameter{IntervalSet,FiniteDifference}([0, 10], DataStructures.SortedDict(0.0=>Set([UniformGrid]),3.33=>Set([UniformGrid]),6.67=>Set([UniformGrid]),10.0=>Set([UniformGrid])), 3, FiniteDifference(Backward, true))
 ```  
 Using macro definition we have
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())

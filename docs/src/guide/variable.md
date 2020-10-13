@@ -823,7 +823,7 @@ Order   = [:macro, :function]
 @infinite_variable
 @point_variable
 @hold_variable
-JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Symbol)
+JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Type{<:InfOptVariableType})
 JuMP.add_variable(::InfiniteModel, ::InfOptVariable, ::String)
 used_by_constraint(::DecisionVariableRef)
 used_by_measure(::DecisionVariableRef)

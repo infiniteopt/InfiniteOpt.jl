@@ -257,6 +257,23 @@ function map_value(expr::JuMP.AbstractJuMPScalar, key, result::Int, label)
     end
 end
 
+## Define dispatch methods to collect value of parameters 
+# InfiniteParameter 
+function _get_value(pref, ::Type{<:InfiniteParameterIndex}, result, label)
+    return supports(pref, label = label)
+end
+
+# FiniteParameter 
+function _get_value(pref, ::Type{<:FiniteParameterIndex}, result, label)
+    return parameter_value(pref)
+end
+
+# Others 
+function _get_value(vref, index_type, result, label)
+    return map_value(vref, Val(optimizer_model_key(JuMP.owner_model(vref))), 
+                     result, label)
+end
+
 """
     JuMP.value(vref::GeneralVariableRef; [result::Int = 1, 
                label::Type{<:AbstractSupportLabel} = PublicLabel])
@@ -283,8 +300,7 @@ julia> value(z)
 """
 function JuMP.value(vref::GeneralVariableRef; result::Int = 1,
                     label::Type{<:AbstractSupportLabel} = PublicLabel)
-    return map_value(vref, Val(optimizer_model_key(JuMP.owner_model(vref))), 
-                     result, label)
+    return _get_value(vref, _index_type(vref), result, label)
 end
 
 """

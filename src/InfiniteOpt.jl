@@ -91,8 +91,8 @@ DependentParameters, ScalarParameterData, MultiParameterData,
 IndependentParameterRef, DependentParameterRef, FiniteParameterRef,
 ScalarParameterRef, InfiniteParameter, AbstractDerivativeMethod, 
 GenerativeDerivativeMethod, NonGenerativeDerivativeMethod, OrthogonalCollocation,
-FiniteDifference, OCTechnique, Lobatto, FDTechnique, FDForward, FDCentral, 
-FDBackward
+FiniteDifference, OCTechnique, Lobatto, FDTechnique, Forward, Central, 
+Backward
 
 # Export parameter methods
 export build_parameter, add_parameter, add_parameters,

@@ -662,6 +662,7 @@ end
     end
     # _update_parameter_set
     @testset "_update_parameter_set " begin
+        push!(InfiniteOpt._constraint_dependencies(pref_disp), ConstraintIndex(1))
         @test isa(InfiniteOpt._update_parameter_set(pref_disp,
                                                     IntervalSet(1, 2)), Nothing)
         @test InfiniteOpt._parameter_set(pref_disp) == IntervalSet(1, 2)
@@ -797,6 +798,8 @@ end
         @test !has_derivative_supports(pref)
         @test !has_internal_supports(pref)
         @test supports(pref) == []
+        # test array input 
+        @test isa(delete_supports([pref]), Nothing)
         # test derivative constraint warning 
         InfiniteOpt._data_object(pref).has_deriv_constrs = true
         warn = "Support changes will invalidate existing derivative evaluations. " *
