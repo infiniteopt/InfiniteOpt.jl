@@ -150,6 +150,15 @@ julia> parameter_refs(constr)
 ```
 Note the parameter reference tuple corresponds to the support tuples.
 
+!!! note 
+    Method that query the transcription surrogates (e.g., `transcription_variable`) 
+    and the respective supports via `supports` also accept the keyword argument 
+    `label` to specify which that transcription objects are desired in accordance 
+    to the support labels that are inherited from and/or are equal to `label`. By 
+    default, this will return any supports that are public (i.e., will hide anything 
+    solely associated with internal supports). The full query response can always 
+    be obtained via `label = All`.
+
 Now we have a transcribed `JuMP` model that can be optimized via traditional
 `JuMP` methods whose variables and constraints can be accessed using the methods
 mentioned above.
@@ -162,13 +171,16 @@ thus represent the problem in terms of these supports (e.g., using discrete time
 points in dynamic optimization). This methodology can be generalized into the
 following steps:
  - define supports for each infinite parameter if not already defined,
+ - add any additional support needed for derivative evaluation,
  - expand any measures according to their underlying numerical representation
    using transcribed infinite variables as appropriate,
- - replace any remaining infinite variables with transcribed variables supported
+ - replace any remaining infinite variables/derivatives with transcribed variables supported
    over each unique combination of the underlying parameter supports,
  - replace any remaining infinite constraints with transcribed ones supported over
    all the unique support combinations stemming from the infinite parameters they
-   depend on.
+   depend on,
+ - add on the transcripted versions of the auxiliary derivative evaluation 
+   equations. 
 
 For example, let's consider a space-time optimization problem of the form:
 ```math
@@ -176,7 +188,7 @@ For example, let's consider a space-time optimization problem of the form:
 	&&\min_{y(t), g(t, x)} &&& \int_0^{10} y^2(t) dt \\
 	&&\text{s.t.} &&& y(0) = 1 \\
 	&&&&& \int_{x \in [-1, 1]^2} g(t, x) dx = 42, && \forall t \in [0, 10] \\
-    &&&&& 3g(t, x) + 2y^2(t) \leq 2, && \forall t \in T, \ x \in [-1, 1]^2. \\
+  &&&&& 3g(t, x) + 2y^2(t) \leq 2, && \forall t \in T, \ x \in [-1, 1]^2. \\
 \end{aligned}
 ```
 Thus, we have an optimization problem whose decision space is infinite with
@@ -245,7 +257,7 @@ inf_model = InfiniteModel()
 @infinite_variable(inf_model, g(t, x))
 
 # Set the objective (using support_sum for the integral given our simple example)
-# Note: In real problems measure should be used
+# Note: In real problems integral should be used
 @objective(inf_model, Min, support_sum(y^2, t))
 
 # Define the constraints

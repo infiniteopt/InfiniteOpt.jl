@@ -320,8 +320,8 @@ using JuMP: REPLMode, IJuliaMode
         @test InfiniteOpt.variable_string(IJuliaMode, dref) == expected
         # test has explicit name
         dref = dispatch_variable_ref(d3)
-        @test InfiniteOpt.variable_string(REPLMode, dref) == "d3"
-        @test InfiniteOpt.variable_string(IJuliaMode, dref) == "d3"
+        @test InfiniteOpt.variable_string(REPLMode, dref) == "d3(pars)"
+        @test InfiniteOpt.variable_string(IJuliaMode, dref) == "d3(pars)"
     end
     # _make_str_value (Number)
     @testset "_make_str_value (Number)" begin
@@ -360,6 +360,9 @@ using JuMP: REPLMode, IJuliaMode
         dvref = dispatch_variable_ref(@point_variable(m, d1(0)))
         d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
         @test InfiniteOpt.variable_string(REPLMode, dvref) == "$(d_re)/$(d_re)par1[x(par1)](0)"
+        # test named derivative 
+        dvref = dispatch_variable_ref(@point_variable(m, d3([0, 0])))
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "d3([0, 0])"
     end
     # test variable_string (ReducedVariableRef)
     @testset "variable_string (ReducedVariableRef)" begin
@@ -373,12 +376,17 @@ using JuMP: REPLMode, IJuliaMode
         dvref = dispatch_variable_ref(add_variable(m, var))
         @test InfiniteOpt.variable_string(REPLMode, dvref) == "inf([0, 0], par1, [0, pars3[2]])"
         @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "inf([0, 0], par1, [0, pars3[2]])"
-        # test derivative 
+        # test named derivative 
         eval_supps = Dict{Int, Float64}(1 => 0)
         var = build_variable(error, d3, eval_supps, check = false)
         dvref = dispatch_variable_ref(add_variable(m, var))
-        d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
         @test InfiniteOpt.variable_string(REPLMode, dvref) == "d3([0, pars[2]])"
+        # unnamed derivative
+        eval_supps = Dict{Int, Float64}(1 => 0)
+        var = build_variable(error, d1, eval_supps, check = false)
+        dvref = dispatch_variable_ref(add_variable(m, var))
+        d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "$(d_re)/$(d_re)par1[x(par1)](0)"
     end
     # test variable_string (Fallback)
     @testset "variable_string (Fallback)" begin

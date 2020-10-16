@@ -428,10 +428,12 @@ arguments. However, the users cannot do both at the same time. The macro will
 check this behavior and throw an error if this happens. For example,
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
 julia> @infinite_parameter(model,  y in [0, 1], lower_bound = 0, upper_bound = 1)
-ERROR: LoadError At REPL[3]:1: `@infinite_parameter(model, y in [0, 1], lower_bound = 0, upper_bound = 1)`: Cannot specify parameter lower_bound twice
+ERROR: LoadError At none:1: `@infinite_parameter(model, y in [0, 1], lower_bound = 0, upper_bound = 1)`: Cannot specify parameter lower_bound twice
+[...]
 
 julia> @infinite_parameter(model,  y in [0, 1], set = IntervalSet(0, 1))
-ERROR: LoadError At REPL[4]:1: `@infinite_parameter(model, y in [0, 1], set = IntervalSet(0, 1))`: Cannot specify parameter lower_bound and set
+ERROR: LoadError At none:1: `@infinite_parameter(model, y in [0, 1], set = IntervalSet(0, 1))`: Cannot specify parameter lower_bound and set
+[...]
 ```
 
 Once the check on arguments and keyword arguments is done, the macro will create
@@ -623,9 +625,9 @@ vectorized syntax:
 ```jldoctest supp_gen_defined
 julia> supports(x)
 3×27 Array{Float64,2}:
- 0.0  0.5  1.0  0.0  0.5  1.0  0.0  0.5  1.0  0.0  0.5  1.0  …  0.5  1.0  0.0  0.5  1.0  0.0  0.5  1.0  0.0  0.5  1.0
- 0.0  0.0  0.0  0.5  0.5  0.5  1.0  1.0  1.0  0.0  0.0  0.0     1.0  1.0  0.0  0.0  0.0  0.5  0.5  0.5  1.0  1.0  1.0
- 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.5  0.5  0.5     0.5  0.5  1.0  1.0  1.0  1.0  1.0  1.0  1.0  1.0  1.0
+ 0.0  0.5  1.0  0.0  0.5  1.0  0.0  0.5  …  1.0  0.0  0.5  1.0  0.0  0.5  1.0
+ 0.0  0.0  0.0  0.5  0.5  0.5  1.0  1.0     0.0  0.5  0.5  0.5  1.0  1.0  1.0
+ 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     1.0  1.0  1.0  1.0  1.0  1.0  1.0
 ```
 
 If the parameter is in a [`UniDistributionSet`](@ref) or
@@ -901,5 +903,4 @@ JuMP.delete(::InfiniteModel, ::IndependentParameterRef)
 JuMP.delete(::InfiniteModel,::AbstractArray{<:DependentParameterRef})
 has_internal_supports(::Union{IndependentParameterRef, DependentParameterRef})
 has_derivative_supports(::IndependentParameterRef)
-set_has_derivative_supports(::IndependentParameterRef, ::Bool)
 ```

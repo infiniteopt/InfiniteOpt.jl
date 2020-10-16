@@ -1,4 +1,4 @@
-# Derivatives
+# Derivatives Operators
 A guide and manual for the definition and use of derivatives in `InfiniteOpt`.
 The Datatypes and Methods sections at the end comprise the manual, and the
 above sections comprise the guide.  
@@ -43,10 +43,10 @@ julia> d1 = @deriv(y, t)
 ∂/∂t[y(t, ξ)]
 
 julia> d2 = @deriv(y, t, ξ)
-∂/∂ξ[d/dt[y(t, ξ)]]
+∂/∂ξ[∂/∂t[y(t, ξ)]]
 
 julia> d3 = @deriv(q, t^2)
-∂/∂t[d/dt[q(t)]]
+∂/∂t[∂/∂t[q(t)]]
 
 julia> d_expr = @deriv(y * q - 2t, t)
 ∂/∂t[y(t, ξ)]*q(t) + ∂/∂t[q(t)]*y(t, ξ) - 2
@@ -80,10 +80,10 @@ methods that can/will be invoked to transcript the derivatives when solving the
 model. The methods native to `InfiniteOpt` are described in the table below:
 | Method                         | Type               | Needed Boundary Conditions| Creates Supports |
 |:------------------------------:|:------------------:|:-------------------------:|:----------------:|
-|[`FiniteDifference`](@ref)      | ['Forward'](@ref)  | Final & optional Initial  | No               |
-|[`FiniteDifference`](@ref)      | ['Central'](@ref)  | Initial & Final           | No               |
-|[`FiniteDifference`](@ref)      | ['Backward'](@ref) | Initial & optional Final  | No               |
-|[`OrthogonalCollocation`](@ref) | ['Lobatto'](@ref)  | Initial                   | Yes              |
+|[`FiniteDifference`](@ref)      | [`Forward`](@ref)  | Final & optional Initial  | No               |
+|[`FiniteDifference`](@ref)      | [`Central`](@ref)  | Initial & Final           | No               |
+|[`FiniteDifference`](@ref)      | [`Backward`](@ref) | Initial & optional Final  | No               |
+|[`OrthogonalCollocation`](@ref) | [`Lobatto`](@ref)  | Initial                   | Yes              |
 Here the default method is backward finite difference. These are enforced on an 
 infinite parameter basis (i.e., the parameter the differential operator is taken 
 with respect to). Thus, in the above examples any derivatives taken with respect to 
@@ -166,7 +166,7 @@ a Basic Usage section) enforcing a lower bound of 1 with an initial guess of 0 a
 assign it to an alias `GeneralVariableRef` called `dydt2`:
 ```jldoctest deriv_basic 
 julia> @derivative_variable(model, d(d1)/d(t), dydt2 >= 1, start = 0)
-dydt2
+dydt2(t, ξ)
 ```
 This will also support anonymous definition and multi-dimensional definition,  
 please refer to [`@derivative_variable`](@ref) in the manual for the full details.
@@ -181,10 +181,10 @@ definition, handling the nesting as appropriate. For example, we can "define"
 ``\frac{\partial^2 y(t, \xi)}{\partial t^2}`` again:
 ```jldoctest deriv_basic 
 julia> @deriv(d1, t)
-dydt2
+dydt2(t, ξ)
 
 julia> @deriv(y, t^2)
-dydt2
+dydt2(t, ξ)
 ```
 Notice that no error is thrown (which would have occurred if we called 
 `@derivative_variable` again) and that the derivative references all point to the 
@@ -192,7 +192,7 @@ same derivative object we defined up above with its alias name `dydt2`. This mac
 can also tackle complex expressions using the appropriate calculus such as:
 ```jldoctest deriv_basic 
 julia> @deriv(integral(y, ξ) * q, t)
-∂/∂t[integral{ξ ∈ [-1, 1]}[y(t, ξ)]]*q(t) + d∂/∂t[q(t)]*integral{ξ ∈ [-1, 1]}[y(t, ξ)]
+∂/∂t[integral{ξ ∈ [-1, 1]}[y(t, ξ)]]*q(t) + ∂/∂t[q(t)]*integral{ξ ∈ [-1, 1]}[y(t, ξ)]
 ```
 Thus, demonstrating the convenience of using `@deriv`.
 
@@ -274,15 +274,15 @@ following auxiliary equations:
 In the section below we detail the derivative evaluation methods that `InfiniteOpt` 
 natively implements.
 
-### Derivative Method
+### Derivative Methods
 As discussed briefly above in the Basic Usage section, we natively employ 4 
 derivative methods in `InfiniteOpt` which are summarized:
 | Method                         | Type               | Needed Boundary Conditions| Creates Supports |
 |:------------------------------:|:------------------:|:-------------------------:|:----------------:|
-|[`FiniteDifference`](@ref)      | ['Forward'](@ref)  | Final & optional Initial  | No               |
-|[`FiniteDifference`](@ref)      | ['Central'](@ref)  | Initial & Final           | No               |
-|[`FiniteDifference`](@ref)      | ['Backward'](@ref) | Initial & optional Final  | No               |
-|[`OrthogonalCollocation`](@ref) | ['Lobatto'](@ref)  | Initial                   | Yes              |
+|[`FiniteDifference`](@ref)      | [`Forward`](@ref)  | Final & optional Initial  | No               |
+|[`FiniteDifference`](@ref)      | [`Central`](@ref)  | Initial & Final           | No               |
+|[`FiniteDifference`](@ref)      | [`Backward`](@ref) | Initial & optional Final  | No               |
+|[`OrthogonalCollocation`](@ref) | [`Lobatto`](@ref)  | Initial                   | Yes              |
 
 These methods are defined in association with individual infinite parameters and 
 will be applied to any derivatives that are taken with respect to that parameter. 
@@ -359,7 +359,7 @@ to use 3 collocation nodes (i.e., 1 internal node per finite element) correspond
 to a 2nd degree polynomial via
 ```jldoctest deriv_basic
 julia> OrthogonalCollocation(3)
-OrthogonalCollocation(3, Labatto)
+OrthogonalCollocation(1, Labatto)
 ```
 Notice that the 2nd attribute is `Labatto` which indicates that we are using 
 collocation nodes selected via Labatto quadrature. This is currently the only 
@@ -397,27 +397,179 @@ julia> derivative_constraints(d1)
  5 ∂/∂t[y(t, ξ)](5, ξ) - y(10, ξ) + y(5, ξ) = 0.0, ∀ ξ ~ Uniform
  5 ∂/∂t[y(t, ξ)](0, ξ) - y(5, ξ) + y(0, ξ) = 0.0, ∀ ξ ~ Uniform
 ```
+Note that we made sure `t` had supports first over which we could carry out the 
+evaluation, otherwise an error would have been thrown. Moreover, once the 
+evaluation was completed we were able to access the auxiliary equations via 
+[`derivative_constraints`](@ref). 
+
+We can also, add the necessary auxiliary equations for all the derivatives in the 
+model if we call [`evaluate_all_derivatives!`](@ref):
+```jldoctest deriv_basic
+julia> fill_in_supports!(ξ, num_supports = 4) # add supports first
+
+julia> evaluate_all_derivatives!(model)
+
+julia> derivative_constraints(dydt2)
+2-element Array{InfOptConstraintRef,1}:
+ 5 dydt2(5, ξ) - ∂/∂t[y(t, ξ)](10, ξ) + ∂/∂t[y(t, ξ)](5, ξ) = 0.0, ∀ ξ ~ Uniform
+ 5 dydt2(0, ξ) - ∂/∂t[y(t, ξ)](5, ξ) + ∂/∂t[y(t, ξ)](0, ξ) = 0.0, ∀ ξ ~ Uniform
+```
+
+Finally, we note that once derivative constraints have been added to the 
+`InfiniteModel` any changes to the respective infinite parameter sets, supports, 
+or derivative method will necessitate the deletion of these auxiliary constraints 
+and a warning will be thrown to indicate such:
+```jldoctest deriv_basic
+julia> derivative_constraints(d1)
+2-element Array{InfOptConstraintRef,1}:
+ 5 ∂/∂t[y(t, ξ)](5, ξ) - y(10, ξ) + y(5, ξ) = 0.0, ∀ ξ ~ Uniform
+ 5 ∂/∂t[y(t, ξ)](0, ξ) - y(5, ξ) + y(0, ξ) = 0.0, ∀ ξ ~ Uniform
+
+julia> add_supports(t, 0.2)
+┌ Warning: Support/method changes will invalidate existing derivative evaluation constraints that have been added to the InfiniteModel. Thus, these are being deleted.
+
+julia> has_derivative_constraints(d1)
+false
+```
 
 ## Query Methods
-
+Here we describe the various query techniques that we can employ on derivatives 
+in `InfiniteOpt`.
 
 ### Basic Queries 
+First, let's overview the basic object inquiries: [`derivative_argument`](@ref), 
+[`operator_parameter`](@ref), [`derivative_method`](@ref), and
+[`name`](@ref JuMP.name(::DecisionVariableRef)):
+```jldoctest deriv_basic
+julia> derivative_argument(dydt2) # get the variable the derivative operates on
+∂/∂t[y(t, ξ)]
 
+julia> operator_parameter(dydt2) # get the parameter the operator is taken with respect to
+t
+
+julia> derivative_method(dydt2) # get the numerical derivative evaluation method
+FiniteDifference(Forward, true)
+
+julia> name(dydt2) # get the name if there is one
+"dydt2"
+```
+These all work as exemplified above. We note that `derivative_method` simply 
+queries the derivative method associated with the operator parameter.
+
+Derivatives also inherit all the usage methods employed by infinite variables. 
+For example:
+```jldoctest deriv_basic
+julia> is_used(d1)
+true
+
+julia> used_by_measure(dydt2)
+false
+
+julia> used_by_reduced_variable(d2)
+true
+```
+
+Also, since derivatives are analogous to infinite variables, they inherit many 
+of the same queries including [`parameter_refs`](@ref):
+```jldoctest deriv_basic
+julia> parameter_refs(d1)
+(t, ξ)
+
+julia> parameter_refs(derivative_argument(d1))
+(t, ξ)
+```
+Since derivatives simply inherit their infinite parameter dependencies from the 
+argument variable, the above lines are equivalent.
 
 ### Variable Information 
+Again, since derivatives are essentially a special case of infinite variables, they 
+inherit all the same methods for querying variable information. For example, 
+consider the following queries:
+```jldoctest deriv_basic
+julia> has_lower_bound(dydt2)
+true
 
+julia> lower_bound(dydt2)
+1.0
+
+julia> LowerBoundRef(dydt2)
+dydt2(t, ξ) ≥ 1.0, ∀ t ∈ [0, 10], ξ ~ Uniform
+
+julia> has_upper_bound(dydt2)
+false 
+
+julia> start_value_function(dydt2)
+#139 (generic function with 1 method)
+```
 
 ### Model Queries 
+We can also determine the number of derivatives a model contains and obtain a list 
+of them via [`num_derivatives`](@ref) and [`all_derivatives`](@ref), respectively:
+```jldoctest deriv_basic
+julia> num_derivatives(model)
+7
 
+julia> all_derivatives(model)
+7-element Array{GeneralVariableRef,1}:
+ ∂/∂t[y(t, ξ)]
+ ∂/∂ξ[∂/∂t[y(t, ξ)]]
+ ∂/∂t[q(t)]
+ ∂/∂t[∂/∂t[q(t)]]
+ ∂/∂ξ[y(t, ξ)]
+ dydt2(t, ξ)
+ ∂/∂t[integral{ξ in [-1, 1]}[y(t, ξ)]]
+```
 
 ## Modification Methods 
-
+In this section, we'll highlight some of the modification methods that can be 
+used on derivatives in `InfiniteOpt`.
 
 ### Variable Information 
+As discussed above, derivatives inherit the same variable methods as infinite 
+variables. Thus we can modify/delete bounds and starting values for derivatives 
+using the same methods. For example:
+```jldoctest deriv_basic
+julia> set_lower_bound(dydt2, 0)
 
+julia> lower_bound(dydt2)
+0.0
+
+julia> set_upper_bound(dydt2, 2)
+
+julia> upper_bound(dydt2)
+2.0
+
+julia> fix(dydt2, 42, force = true)
+
+julia> fix_value(dydt2) 
+42.0
+
+julia> set_start_value_function(dydt2, (t, xi) -> t + xi)
+
+julia> unfix(dydt2)
+
+```
 
 ### Deletion
+Finally, the are 2 deletion methods we can employ apart from deleting variable 
+information. First, we can employ [`delete_derivative_constraints`](@ref) to 
+delete any derivative evaluation constraints associated with a particular 
+derivative:
+```jldoctest deriv_basic
+julia> delete_derivative_constraints(d2)
 
+julia> has_derivative_constraints(d2)
+false
+```
+
+Lastly, we can employ `delete` to delete a particular derivative and all its 
+dependencies:
+```jldoctest deriv_basic
+julia> delete(model, d2)
+
+julia> is_valid(model, d2)
+false
+```
 
 ## Datatypes
 ```@index

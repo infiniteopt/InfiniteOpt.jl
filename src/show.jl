@@ -252,6 +252,34 @@ function _get_base_name(::Type{JuMP.IJuliaMode}, vref)::String
     end
 end
 
+# Helper method for infinite variable construction 
+function _add_on_parameter_refs(base_name::String, prefs::VectorTuple)::String 
+    param_name_tuple = "("
+    for i in 1:size(prefs, 1)
+        element_prefs = prefs[i, :]
+        type = _index_type(first(element_prefs))
+        if type == DependentParameterIndex
+            param_name = _remove_name_index(first(element_prefs))
+        elseif length(element_prefs) == 1
+            param_name = JuMP.name(first(element_prefs))
+        else
+            # TODO this isn't quite right with a subset of an independent container
+            names = map(p -> _remove_name_index(p), element_prefs)
+            if _allequal(names)
+                param_name = first(names)
+            else
+                param_name = string("[", join(element_prefs, ", "), "]")
+            end
+        end
+        if i != size(prefs, 1)
+            param_name_tuple *= string(param_name, ", ")
+        else
+            param_name_tuple *= string(param_name, ")")
+        end
+    end
+    return string(base_name, param_name_tuple)
+end
+
 # Make a string for InfiniteVariableRef
 function variable_string(print_mode, vref::InfiniteVariableRef)::String
     base_name = _get_base_name(print_mode, vref)
@@ -259,30 +287,7 @@ function variable_string(print_mode, vref::InfiniteVariableRef)::String
         return base_name
     else
         prefs = raw_parameter_refs(vref)
-        param_name_tuple = "("
-        for i in 1:size(prefs, 1)
-            element_prefs = prefs[i, :]
-            type = _index_type(first(element_prefs))
-            if type == DependentParameterIndex
-                param_name = _remove_name_index(first(element_prefs))
-            elseif length(element_prefs) == 1
-                param_name = JuMP.name(first(element_prefs))
-            else
-                # TODO this isn't quite right with a subset of an independent container
-                names = map(p -> _remove_name_index(p), element_prefs)
-                if _allequal(names)
-                    param_name = first(names)
-                else
-                    param_name = string("[", join(element_prefs, ", "), "]")
-                end
-            end
-            if i != size(prefs, 1)
-                param_name_tuple *= string(param_name, ", ")
-            else
-                param_name_tuple *= string(param_name, ")")
-            end
-        end
-        return string(base_name, param_name_tuple)
+        return _add_on_parameter_refs(base_name, prefs)
     end
 end
 
@@ -304,8 +309,12 @@ end
 # TODO account for container naming when variable macro is used (maybe deal with this at the macro end)
 # Make a string for DerivativeRef 
 function variable_string(print_mode, dref::DerivativeRef)::String
-    if !haskey(_data_dictionary(dref), JuMP.index(dref)) || !isempty(JuMP.name(dref))
-        return _get_base_name(print_mode, dref)
+    base_name = _get_base_name(print_mode, dref)
+    if !haskey(_data_dictionary(dref), JuMP.index(dref))
+        return base_name
+    elseif base_name != "noname"
+        prefs = raw_parameter_refs(dref)
+        return _add_on_parameter_refs(base_name, prefs)
     else
         vref = dispatch_variable_ref(derivative_argument(dref))
         pref = operator_parameter(dref)
@@ -350,7 +359,7 @@ function variable_string(print_mode, vref::PointVariableRef)::String
         return _get_base_name(print_mode, vref)
     else
         ivref = dispatch_variable_ref(infinite_variable_ref(vref))
-        if ivref isa InfiniteVariableRef
+        if ivref isa InfiniteVariableRef || !isempty(JuMP.name(ivref))
             base_name = _get_base_name(print_mode, ivref)
         else 
             base_name = variable_string(print_mode, ivref) # we have a derivative
@@ -376,7 +385,7 @@ function variable_string(print_mode, vref::ReducedVariableRef)::String
         return _get_base_name(print_mode, vref)
     else
         ivref = dispatch_variable_ref(infinite_variable_ref(vref))
-        if ivref isa InfiniteVariableRef
+        if ivref isa InfiniteVariableRef || !isempty(JuMP.name(ivref))
             base_name = _get_base_name(print_mode, ivref)
         else 
             base_name = variable_string(print_mode, ivref) # we have a derivative
