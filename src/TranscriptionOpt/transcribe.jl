@@ -728,21 +728,24 @@ function transcribe_derivative_evaluations!(trans_model::JuMP.Model,
         dref = InfiniteOpt._make_variable_ref(inf_model, index)
         pref = dispatch_variable_ref(object.variable.parameter_ref)
         method = InfiniteOpt.derivative_method(pref)
-        # generate the infinite expressions
-        exprs = InfiniteOpt.evaluate_derivative(dref, method, trans_model)
-        # prepare the iteration helpers
-        param_obj_num = InfiniteOpt._object_number(pref)
-        obj_nums = filter(!isequal(param_obj_num), InfiniteOpt._object_numbers(dref))
-        supp_indices = support_index_iterator(trans_model, obj_nums)
-        # transcribe the constraints 
-        set = MOI.EqualTo(0.0)
-        for i in supp_indices 
-            raw_supp = index_to_support(trans_model, i)
-            for expr in exprs
-                new_expr = transcription_expression(trans_model, expr, raw_supp)
-                trans_constr = JuMP.build_constraint(error, new_expr, set)
-                JuMP.add_constraint(trans_model, trans_constr) # TODO maybe add name?
-            end 
+        # generate the transcription constraints as needed
+        if !InfiniteOpt.has_derivative_constraints(dref)
+            # generate the evaluation expressions
+            exprs = InfiniteOpt.evaluate_derivative(dref, method, trans_model)
+            # prepare the iteration helpers
+            param_obj_num = InfiniteOpt._object_number(pref)
+            obj_nums = filter(!isequal(param_obj_num), InfiniteOpt._object_numbers(dref))
+            supp_indices = support_index_iterator(trans_model, obj_nums)
+            # transcribe the constraints 
+            set = MOI.EqualTo(0.0)
+            for i in supp_indices 
+                raw_supp = index_to_support(trans_model, i)
+                for expr in exprs
+                    new_expr = transcription_expression(trans_model, expr, raw_supp)
+                    trans_constr = JuMP.build_constraint(error, new_expr, set)
+                    JuMP.add_constraint(trans_model, trans_constr) # TODO maybe add name?
+                end 
+            end
         end
     end
     return

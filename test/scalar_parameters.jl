@@ -327,11 +327,11 @@ end
         InfiniteOpt._data_object(pref).has_derivative_supports = true
         @test has_derivative_supports(dpref)
     end
-    # set_has_derivative_supports
-    @testset "set_has_derivative_supports" begin
-        @test set_has_derivative_supports(pref, true) isa Nothing
+    # _set_has_derivative_supports
+    @testset "_set_has_derivative_supports" begin
+        @test InfiniteOpt._set_has_derivative_supports(pref, true) isa Nothing
         @test has_derivative_supports(pref)
-        @test set_has_derivative_supports(dpref, false) isa Nothing
+        @test InfiniteOpt._set_has_derivative_supports(dpref, false) isa Nothing
         @test !has_derivative_supports(pref)
     end
     # derivative_method
@@ -345,12 +345,25 @@ end
         InfiniteOpt._data_object(pref).has_internal_supports = true
         @test has_internal_supports(dpref)
     end
-    # set_has_internal_supports
-    @testset "set_has_internal_supports" begin
-        @test set_has_internal_supports(pref, true) isa Nothing
+    # _set_has_internal_supports
+    @testset "_set_has_internal_supports" begin
+        @test InfiniteOpt._set_has_internal_supports(pref, true) isa Nothing
         @test has_internal_supports(pref)
-        @test set_has_internal_supports(dpref, false) isa Nothing
+        @test InfiniteOpt._set_has_internal_supports(dpref, false) isa Nothing
         @test !has_internal_supports(pref)
+    end
+    # has_derivative_constraints
+    @testset "has_derivative_constraints" begin
+        @test !has_derivative_constraints(pref)
+        InfiniteOpt._data_object(pref).has_deriv_constrs = true
+        @test has_derivative_constraints(dpref)
+    end
+    # _set_has_derivative_constraints
+    @testset "_set_has_derivative_constraints" begin
+        @test InfiniteOpt._set_has_derivative_constraints(pref, true) isa Nothing
+        @test has_derivative_constraints(pref)
+        @test InfiniteOpt._set_has_derivative_constraints(dpref, false) isa Nothing
+        @test !has_derivative_constraints(pref)
     end
 end
 
@@ -620,23 +633,36 @@ end
     m = InfiniteModel()
     @independent_parameter(m, pref in [0, 1])
     dpref = dispatch_variable_ref(pref)
-    # test _reset_derivative_supports
-    @testset "_reset_derivative_supports" begin 
+    func = (x) -> NaN
+    num = 0.
+    info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
+                                        num, true, num, false, func, false, false)
+    d = Derivative(info, true, pref, pref) # this is wrong but that is ok
+    object = VariableData(d)
+    idx = InfiniteOpt._add_data_object(m, object)
+    push!(InfiniteOpt._derivative_dependencies(pref), idx)
+    dref = DerivativeRef(m, idx)
+    gdref = GeneralVariableRef(m, idx.value, DerivativeIndex)
+    cref = @constraint(m, gdref == 0)
+    # test _reset_derivative_evaluations
+    @testset "_reset_derivative_evaluations" begin 
         # test empty 
-        @test InfiniteOpt._reset_derivative_supports(dpref) isa Nothing
+        @test InfiniteOpt._reset_derivative_evaluations(dpref) isa Nothing
         # test warning 
-        InfiniteOpt._data_object(dpref).has_deriv_constrs = true 
-        warn = "Support/method changes will invalidate existing derivative evaluations. " *
-               "This problem can be avoided by not modifying the support structure " *
-               "after calling `evaluate_all_derivatives` or `evaluate`."
-        @test_logs (:warn, warn) InfiniteOpt._reset_derivative_supports(dpref) isa Nothing
-        InfiniteOpt._data_object(dpref).has_deriv_constrs = false
+        InfiniteOpt._set_has_derivative_constraints(pref, true) 
+        @test push!(InfiniteOpt._derivative_constraint_dependencies(dref), index(cref)) isa Vector
+        warn = "Support/method changes will invalidate existing derivative evaluation " *
+               "constraints that have been added to the InfiniteModel. Thus, " *
+               "these are being deleted."
+        @test_logs (:warn, warn) InfiniteOpt._reset_derivative_evaluations(dpref) isa Nothing
+        @test !has_derivative_constraints(pref)
+        @test !is_valid(m, cref)
         # test has derivative supports to deal with 
         supps = SortedDict{Float64, Set{DataType}}(42 => Set([InternalLabel]))
         param = IndependentParameter(IntervalSet(0, 1), supps, 12, TestGenMethod())
         InfiniteOpt._set_core_variable_object(dpref, param)
-        set_has_derivative_supports(pref, true)
-        @test InfiniteOpt._reset_derivative_supports(dpref) isa Nothing
+        InfiniteOpt._set_has_derivative_supports(pref, true)
+        @test InfiniteOpt._reset_derivative_evaluations(dpref) isa Nothing
         @test !has_derivative_supports(dpref)
         @test length(InfiniteOpt._core_variable_object(dpref).supports) == 0 
     end
@@ -787,7 +813,7 @@ end
         @test_throws ArgumentError delete_supports(bad)
         # test label deletion
         set_derivative_method(pref, TestGenMethod())
-        set_has_derivative_supports(pref, true)
+        InfiniteOpt._set_has_derivative_supports(pref, true)
         add_supports(pref, 0.1, label = UniformGrid)
         @test delete_supports(pref_disp, label = UniformGrid) isa Nothing
         @test !has_derivative_supports(pref)
@@ -800,13 +826,26 @@ end
         @test supports(pref) == []
         # test array input 
         @test isa(delete_supports([pref]), Nothing)
+        # prepare to test derivative constraints 
+        func = (x) -> NaN
+        num = 0.
+        info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
+                                            num, true, num, false, func, false, false)
+        deriv = Derivative(info, true, pref, pref)
+        object = VariableData(deriv)
+        idx = InfiniteOpt._add_data_object(m, object)
+        push!(InfiniteOpt._derivative_dependencies(pref), idx)
+        dref = DerivativeRef(m, idx)
+        gdref = GeneralVariableRef(m, 1, DerivativeIndex)
+        cref = @constraint(m, gdref == 0)
+        InfiniteOpt._set_has_derivative_constraints(pref, true) 
+        @test push!(InfiniteOpt._derivative_constraint_dependencies(dref), index(cref)) isa Vector
         # test derivative constraint warning 
-        InfiniteOpt._data_object(pref).has_deriv_constrs = true
-        warn = "Support changes will invalidate existing derivative evaluations. " *
-               "This problem can be avoided by not modifying the support structure " *
-               "after calling `evaluate_all_derivatives` or `evaluate`."
+        warn = "Deleting supports invalidated derivative evaluations. Thus, these " * 
+               "are being deleted as well."
         @test_logs (:warn, warn) delete_supports(pref) isa Nothing
-        InfiniteOpt._data_object(pref).has_deriv_constrs = false
+        @test !has_derivative_constraints(pref)
+        @test !is_valid(m, cref)
         # test measure error
         push!(InfiniteOpt._data_object(pref).measure_indices, MeasureIndex(1))
         @test_throws ErrorException delete_supports(pref)

@@ -21,7 +21,7 @@ However, for convenience below we summary the infinite sets associated with
 | [`CollectionSet`](@ref)        | Combination of Univariate Domains          | [`InfiniteArraySet`](@ref)  |
 
 ## Infinite Set Classes
-The domain of a given infinite parameter(s) is described by an infinite set
+The domain of a given infinite parameter(s) is described by an infinite set (domain) 
 inherited from [`AbstractInfiniteSet`](@ref). `InfiniteOpt` natively supports
 two set sub-groups, namely [`InfiniteScalarSet`](@ref)s and [`InfiniteArraySet`](@ref)s. 
 These correspond to a single independent infinite parameter and a dependent multi-dimensional 
@@ -74,7 +74,7 @@ for modeling infinite domain. Natively two set types are supported:
 (or matrix-variate) distribution which characterizes the behavior of multi-dimensional 
 uncertain parameters. Again, these correspond to any appropriate distribution 
 defined in `Distributions.jl`. For example, we can make a `MultiDistributionSet` 
-that depends on a 2-D normal distribution as follows:
+that depends on a 2D normal distribution as follows:
 ```jldoctest; setup = :(using InfiniteOpt)
 julia> using Distributions;
 
@@ -155,7 +155,7 @@ julia> supps, label = generate_supports(set, num_supports = 5)
 ```
 Note that the number of supports generated is specified via
 `num_supports` keyword argument, which will take a default value of 10 if not specified. 
-The function `generate_supports` returns a vector of the supports generated, and a label that symbolizes
+The function `generate_supports` returns a vector of the supports generated, and a label that denotes
 the underlying method. In this case the label returned is `UniformGrid`, which is the default 
 support generation method for `IntervalSet`s. Another support generation method implemented for `IntervalSet`s
 is `MCSample`, which is to sample from a uniform distribution over the interval. To use this method, users
@@ -169,7 +169,7 @@ In this case, the returned label is `MCSample`, instead of `UniformGrid`.
 `generate_supports` can also be applied to `DistributionSets`. The default (and currently only) method
 implemented for `DistributionSets` is `WeightedSample`, which generates Monte Carlo samples that are 
 weighted based on the underlying probability density function of the distribution. 
-For example, a set of support points for a 2-D normal distribution can be generated as follows:
+For example, a set of support points for a 2D normal distribution can be generated as follows:
 ```setup = :(using InfiniteOpt, Random; Random.seed!(0))
 julia> dist = MvNormal([0., 0.], [1. 0.;0. 2.]);
 

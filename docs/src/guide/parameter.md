@@ -11,8 +11,8 @@ that follow a certain underlying statistical distribution. `InfiniteOpt`
 considers principally two kinds of infinite parameters, ones defined over
 continuous intervals and ones characterized by a distribution (others can be
 added by defining a user-defined type). These can be used to parameterize
-infinite variables, point variables, measures, and can be used directly inside
-constraints.
+infinite variables, point variables, derivatives, measures, and can be used 
+directly inside constraints.
 
 ## Basic Usage
 First, we need to initialize and add infinite parameters to our `InfiniteModel`.
@@ -28,12 +28,14 @@ t
 ```
 Now `t` is a Julia variable that stores a [`GeneralVariableRef`](@ref) which
 points to where the time parameter is stored in `model`. It can now be used with
-infinite variables, measures, and constraints as described in the appropriate
-sections.
+infinite variables, derivatives, measures, and constraints as described in their 
+respective user guide sections.
 
-When the model is optimized, `t` will be transcribed (discretized) over its domain
-following its support points. If none are specified by the user than 50
-support points are generated that are equidistant over the interval. However,
+When the model is optimized, `t` will be transcripted (discretized) over its domain
+following its support points. If none are specified by the user than the default 
+amount support points are generated according to the default support generation 
+scheme. In this case, equidistant supports over the interval would be added. Note
+that this default addition will not occur until `optimize!` is called. However,
 users may wish to employ their own support scheme. This can be done by using the
 `num_supports` or `supports` keyword arguments. For example, if we desire to
 have only 10 equi-distant supports then we could have instead defined `t`:
@@ -78,16 +80,25 @@ distribution:
 ```jldoctest basic
 julia> using Distributions
 
-julia> @infinite_parameter(model, xi[i = 1:3] in Normal(), independent = true)
+julia> @infinite_parameter(model, ξ[i = 1:3] in Normal(), independent = true)
 3-element Array{GeneralVariableRef,1}:
- xi[1]
- xi[2]
- xi[3]
+ ξ[1]
+ ξ[2]
+ ξ[3]
 ```
 Note that we could have used `i` as an index to assign a different distribution
 to each parameter. Supports can also be specified for each parameter as shown
 above. Similarly, the `num_supports` keyword is used to generate random supports.
-Now we have infinite parameters `t` and `xi` that are ready to be used in
+
+More interestingly, we can also define multi-variate random parameters, for example:
+```jldoctest basic
+julia> @infinite_parameter(model, θ[1:2] in MvNormal([0, 0], [1, 1]))
+2-element Array{GeneralVariableRef,1}:
+ θ[1]
+ θ[2]
+```
+
+Now we have infinite parameters `t` and `ξ` that are ready to be used in
 defining infinite variables and constraints. We also mention
 here that the [`@infinite_parameter`](@ref) macro is designed to closely emulate
 [`JuMP.@variable`](@ref) and thus handles arrays and keyword arguments in the
@@ -168,6 +179,14 @@ model that it adds to. As shown in [Macro Definition](@ref param_macro), the
 macro definition does not allow for multiple parameters sharing the same name and
 will throw an error if it happens.
 
+For dependent parameters, we do not provide a publicly available `build_parameter` 
+method due to inherent complexities. Thus, it is recommended to construct these 
+using [`@dependent_parameters`](@ref) or [`@infinite_parameter`](@ref). However, 
+these can be constructed manually via the basic constructor for 
+[`DependentParameters`](@ref) and then invoking [`add_parameters`](@ref). Note that 
+this should be done with caution since most error checking will be omitted in this 
+case.
+
 ### [Macro Definition] (@id param_macro)
 #### One-Dimensional Parameters
 One user-friendly way of defining infinite parameters is by macro
@@ -181,7 +200,7 @@ operators to set lower bounds and upper bounds for the infinite parameter:
 julia> @infinite_parameter(model, 0 <= t <= 10, supports = [0, 2, 5, 7, 10])
 t
 ```
-More generally, we use `in` to define the set that an infinite parameter is
+More generally, we use `in` (or `∈`) to define the set that an infinite parameter is
 subject to. The set could be an interval set, or a distribution set. For example,
 we can define the same parameter `t` as above in the following way:
 ```jldoctest time_macro_define_in; setup = :(using InfiniteOpt; model = InfiniteModel())
@@ -225,7 +244,7 @@ in a concise way. For example, consider a position parameter `x` in a
 3-dimensional space constrained in a unit cube (i.e. in the interval `[0, 1]`  
 for all dimensions). This parameter can be defined in one line as follows:
 ```jldoctest 3d_macro; setup = :(using InfiniteOpt; model= InfiniteModel())
-julia> @infinite_parameter(model, x[1:3] in [0, 1], supports = [0.3, 0.7])
+julia> @infinite_parameter(model, x[1:3] in [0, 1], independent = true, supports = [0.3, 0.7])
 3-element Array{GeneralVariableRef,1}:
  x[1]
  x[2]
@@ -262,8 +281,8 @@ julia> supports(a[2])
 ```
 
 In a similar way we can define an infinite parameter subject to a multivariate
-distribution. For example, a 2-dimensional parameter `xi` subject to a
-2-D normal distribution can be created as follows:
+distribution. For example, a 2-dimensional parameter `ξ` subject to a
+2D normal distribution can be created as follows:
 ```jldoctest; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
 julia> dist = MvNormal([0., 0.], [1. 0.; 0. 2.])
 FullNormal(
@@ -272,10 +291,10 @@ dim: 2
 Σ: [1.0 0.0; 0.0 2.0]
 )
 
-julia> @infinite_parameter(model, xi[1:2] in dist)
+julia> @infinite_parameter(model, ξ[1:2] in dist)
 2-element Array{GeneralVariableRef,1}:
- xi[1]
- xi[2]
+ ξ[1]
+ ξ[2]
 ```
 
 #### Containers for Multi-Dimensional Parameters
@@ -292,6 +311,9 @@ JuMP.Containers.SparseAxisArray{GeneralVariableRef,1,Tuple{Int64}} with 3 entrie
   [2]  =  x[2]
   [1]  =  x[1]
 ```
+
+More information on `JuMP` containers is located 
+[here](https://jump.dev/JuMP.jl/stable/variables/#Variable-containers-1).
 
 #### Specifying independence of infinite parameters
 The concrete data object that stores information of infinite parameters are
@@ -406,10 +428,10 @@ arguments. However, the users cannot do both at the same time. The macro will
 check this behavior and throw an error if this happens. For example,
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
 julia> @infinite_parameter(model,  y in [0, 1], lower_bound = 0, upper_bound = 1)
-ERROR: LoadError
+ERROR: LoadError At REPL[3]:1: `@infinite_parameter(model, y in [0, 1], lower_bound = 0, upper_bound = 1)`: Cannot specify parameter lower_bound twice
 
 julia> @infinite_parameter(model,  y in [0, 1], set = IntervalSet(0, 1))
-ERROR: LoadError
+ERROR: LoadError At REPL[4]:1: `@infinite_parameter(model, y in [0, 1], set = IntervalSet(0, 1))`: Cannot specify parameter lower_bound and set
 ```
 
 Once the check on arguments and keyword arguments is done, the macro will create
@@ -422,7 +444,6 @@ supports for different dimensions.
 In the end, if the created parameter is not anonymous, the macro will register
 the name to the model. In this way, we prevent parameters created by
 [`@infinite_parameter`](@ref) non-anonymously to share the same name.
-
 
 ## Supports
 For an infinite parameter, its supports are a finite set of points that the
@@ -444,6 +465,16 @@ julia> supports(t)
   7.0
  10.0
 ```
+
+!!! note
+    Most support query functions have a keyword argument `label` that is used 
+    the specify the type of supports that will be involved in the query. By default, 
+    this will be `PublicLabel` which will correspond to any supports that are 
+    reported to the user by default, but will exclude any supports that have 
+    `InternalLabel`s (e.g., internal collocation nodes). The full set can always 
+    be obtained via `label = All`. We can also query more specific subsets of 
+    support information with more specific labels such as `label = UniformGrid`.
+
 We also provide functions that access other related information about the
 supports. For example, [`has_supports`](@ref) checks whether a parameter has
 supports, while [`num_supports`](@ref) gives the number of supports associated
@@ -587,7 +618,15 @@ Note that the dot syntax because [`fill_in_supports!`](@ref) takes single
 supports (`[0.0, 0.5, 1.0]`) are generated. Since the `independent` keyword is
 set as `true`, the transcription stage will create a three-dimensional grid for
 all variables parameterized by `x`, with each point separated by 0.5 units in
-each dimension.
+each dimension. We can view this grid by simply invoking `supports` without the 
+vectorized syntax:
+```jldoctest supp_gen_defined
+julia> supports(x)
+3×27 Array{Float64,2}:
+ 0.0  0.5  1.0  0.0  0.5  1.0  0.0  0.5  1.0  0.0  0.5  1.0  …  0.5  1.0  0.0  0.5  1.0  0.0  0.5  1.0  0.0  0.5  1.0
+ 0.0  0.0  0.0  0.5  0.5  0.5  1.0  1.0  1.0  0.0  0.0  0.0     1.0  1.0  0.0  0.0  0.0  0.5  0.5  0.5  1.0  1.0  1.0
+ 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.5  0.5  0.5     0.5  0.5  1.0  1.0  1.0  1.0  1.0  1.0  1.0  1.0  1.0
+```
 
 If the parameter is in a [`UniDistributionSet`](@ref) or
 [`MultiDistributionSet`](@ref), [`fill_in_supports!`](@ref)
@@ -595,7 +634,7 @@ samples `num_supports` supports from the distribution. Recall that support
 generation is not allowed for parameters under multivariate distribution during
 parameter definition. However, if the parameter is defined first without
 supports, [`fill_in_supports!`](@ref) allows for supports generation. For
-example, for a 2D random variable `xi` under a multivariate Gaussian
+example, for a 2D random variable `ξ` under a multivariate Gaussian
 distribution, we can generate supports for it in the following way:
 ```jldoctest supp_gen_defined
 julia> dist = MvNormal([0., 0.], [1. 0.; 0. 2.])
@@ -606,11 +645,11 @@ dim: 2
 )
 
 
-julia> @infinite_parameter(model, xi[1:2] in dist);
+julia> @infinite_parameter(model, ξ[1:2] in dist);
 
-julia> fill_in_supports!(xi, num_supports = 3)
+julia> fill_in_supports!(ξ, num_supports = 3)
 
-julia> supports(xi)
+julia> supports(ξ)
 2×3 Array{Float64,2}:
  -0.353007  0.679107  0.586617
  -0.190712  1.17155   0.420496

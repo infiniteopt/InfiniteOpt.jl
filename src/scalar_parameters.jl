@@ -614,16 +614,22 @@ function has_derivative_supports(pref::IndependentParameterRef)::Bool
     return _data_object(pref).has_derivative_supports
 end
 
-"""
-    set_has_derivative_supports(pref::IndependentParameterRef, status::Bool)::Nothing
-
-Specify whether derivative supports have been added to `pref`. This is intended as 
-an internal method as is provided to assist with extensions that implement a 
-custom `GenerativeDerivativeMethod`.
-"""
-function set_has_derivative_supports(pref::IndependentParameterRef, 
+# Specify if a parameter has derivative supports
+function _set_has_derivative_supports(pref::IndependentParameterRef, 
                                      status::Bool)::Nothing
     _data_object(pref).has_derivative_supports = status 
+    return
+end
+
+# Determine if any derivatives have derivative constraints
+function has_derivative_constraints(pref::IndependentParameterRef)::Bool
+    return _data_object(pref).has_deriv_constrs
+end
+
+# Make update function for whether it has derivative supports 
+function _set_has_derivative_constraints(pref::IndependentParameterRef, 
+                                         status::Bool)::Nothing 
+    _data_object(pref).has_deriv_constrs = status
     return
 end
 
@@ -643,17 +649,22 @@ function derivative_method(pref::IndependentParameterRef)::AbstractDerivativeMet
     return _core_variable_object(pref).derivative_method
 end
 
-# make method to reset derivative supports 
-function _reset_derivative_supports(pref::Union{IndependentParameterRef, 
-                                                DependentParameterRef})::Nothing
-    if _data_object(pref).has_deriv_constrs
-        @warn("Support/method changes will invalidate existing derivative evaluations. " *
-              "This problem can be avoided by not modifying the support structure " *
-              "after calling `evaluate_all_derivatives` or `evaluate`.")
-    elseif has_derivative_supports(pref)
+# Make method to reset derivative supports/evaluations
+function _reset_derivative_evaluations(pref::Union{IndependentParameterRef, 
+                                                   DependentParameterRef})::Nothing
+    if has_derivative_constraints(pref)
+        @warn("Support/method changes will invalidate existing derivative evaluation " *
+              "constraints that have been added to the InfiniteModel. Thus, " *
+              "these are being deleted.")
+        for idx in _derivative_dependencies(pref)
+            delete_derivative_constraints(DerivativeRef(JuMP.owner_model(pref), idx))
+        end
+        _set_has_derivative_constraints(pref, false)
+    end
+    if has_derivative_supports(pref)
         old_label = support_label(derivative_method(pref))
         delete_supports(pref, label = old_label)
-        set_has_derivative_supports(pref, false)
+        _set_has_derivative_supports(pref, false)
     end
     return
 end
@@ -664,7 +675,8 @@ end
 
 Specfies the desired derivative evaluation method `method` for derivatives that are 
 taken with respect to `pref`. Any internal supports exclusively associated with 
-the previous method will be deleted.
+the previous method will be deleted. Also, if any derivatives were evaluated 
+manually, the associated derivative evaluation constraints will be deleted.
 
 **Example**
 ```julia-repl
@@ -680,7 +692,7 @@ function set_derivative_method(pref::IndependentParameterRef,
     supps = _parameter_supports(pref)
     sig_figs = significant_digits(pref)
     new_param = IndependentParameter(set, supps, sig_figs, method)
-    _reset_derivative_supports(pref)
+    _reset_derivative_evaluations(pref)
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
@@ -703,8 +715,8 @@ function _update_parameter_set(pref::IndependentParameterRef,
     new_param = IndependentParameter(set, DataStructures.SortedDict{Float64, Set{DataType}}(),
                                      sig_digits, method)
     _set_core_variable_object(pref, new_param)
-    _reset_derivative_supports(pref)
-    set_has_internal_supports(pref, false)
+    _reset_derivative_evaluations(pref)
+    _set_has_internal_supports(pref, false)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
@@ -899,7 +911,7 @@ function _update_parameter_supports(pref::IndependentParameterRef,
     sig_figs = significant_digits(pref)
     new_param = IndependentParameter(set, supports, sig_figs, method)
     _set_core_variable_object(pref, new_param)
-    _reset_derivative_supports(pref)
+    _reset_derivative_evaluations(pref)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
@@ -919,7 +931,7 @@ function has_internal_supports(
 end
 
 # update has internal supports 
-function set_has_internal_supports(
+function _set_has_internal_supports(
     pref::Union{IndependentParameterRef, DependentParameterRef}, 
     status::Bool
     )::Nothing
@@ -1078,7 +1090,7 @@ function set_supports(pref::IndependentParameterRef, supports::Vector{<:Real};
         @warn("Support points are not unique, eliminating redundant points.")
     end
     _update_parameter_supports(pref, supports_dict)
-    set_has_internal_supports(pref, label <: InternalLabel)
+    _set_has_internal_supports(pref, label <: InternalLabel)
     return
 end
 
@@ -1124,9 +1136,9 @@ function add_supports(pref::IndependentParameterRef,
             supports_dict[s] = Set([label])
         end
     end
-    _reset_derivative_supports(pref)
+    _reset_derivative_evaluations(pref)
     if label <: InternalLabel
-        set_has_internal_supports(pref, true)
+        _set_has_internal_supports(pref, true)
     end
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
@@ -1152,10 +1164,13 @@ ERROR: Parameter t does not have supports.
 function delete_supports(pref::IndependentParameterRef; 
                          label::Type{<:AbstractSupportLabel} = All)::Nothing
     supp_dict = _parameter_supports(pref)
-    if _data_object(pref).has_deriv_constrs
-        @warn("Support changes will invalidate existing derivative evaluations. " *
-              "This problem can be avoided by not modifying the support structure " *
-              "after calling `evaluate_all_derivatives` or `evaluate`.")
+    if has_derivative_constraints(pref)
+        @warn("Deleting supports invalidated derivative evaluations. Thus, these " * 
+              "are being deleted as well.")
+        for idx in _derivative_dependencies(pref)
+            delete_derivative_constraints(DerivativeRef(JuMP.owner_model(pref), idx))
+        end
+        _set_has_derivative_constraints(pref, false)
     end
     if label == All
         if used_by_measure(pref)
@@ -1163,19 +1178,19 @@ function delete_supports(pref::IndependentParameterRef;
                   "a measure.")
         end
         empty!(supp_dict)
-        set_has_derivative_supports(pref, false)
-        set_has_internal_supports(pref, false)
+        _set_has_derivative_supports(pref, false)
+        _set_has_internal_supports(pref, false)
     else
         if has_derivative_supports(pref) && support_label(derivative_method(pref)) != label
             label = Union{label, support_label(pref)}
-            set_has_derivative_supports(pref, false)
+            _set_has_derivative_supports(pref, false)
         end
         filter!(p -> !all(v -> v <: label, p[2]), supp_dict)
         for (k, v) in supp_dict 
             filter!(l -> !(l <: label), v)
         end
         if has_internal_supports(pref) && num_supports(pref, label = InternalLabel) == 0
-            set_has_internal_supports(pref, false)
+            _set_has_internal_supports(pref, false)
         end
     end
     if is_used(pref)

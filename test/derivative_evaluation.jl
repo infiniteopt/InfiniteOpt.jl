@@ -232,23 +232,35 @@ end
         @test evaluate(dy) isa Nothing 
         @test num_constraints(m) == 2
         @test !has_derivative_supports(t)
-        @test InfiniteOpt._data_object(t).has_deriv_constrs
+        @test has_derivative_constraints(t)
+        @test has_derivative_constraints(dy)
+        @test length(derivative_constraints(dy)) == 2
         # test evaluate second derivative 
         @test derivative_method(t) isa FiniteDifference
         @test evaluate(dy2) isa Nothing 
         @test num_constraints(m) == 4
         @test !has_derivative_supports(t)
-        @test InfiniteOpt._data_object(t).has_deriv_constrs
+        @test has_derivative_constraints(t)
+        @test has_derivative_constraints(dy2)
+        @test length(derivative_constraints(dy2)) == 2
     end
     # test evaluate_all_derivatives!
     @testset "evaluate_all_derivatives!" begin 
         @test derivative_method(x) isa OrthogonalCollocation
         @test evaluate_all_derivatives!(m) isa Nothing 
-        @test num_constraints(m) == 11
+        @test num_constraints(m) == 7
         @test has_derivative_supports(x)
         @test has_internal_supports(x)
         @test supports(x) == [-1, 1]
         @test num_supports(x, label = All) == 4
         @test supports(t) == [0, 3, 10]
+        @test length(derivative_constraints(dy)) == 2
+        @test length(derivative_constraints(dy2)) == 2
+        @test length(derivative_constraints(dq)) == 3
+        @test has_derivative_constraints(t)
+        @test has_derivative_constraints(x)
+        @test has_derivative_constraints(dy)
+        @test has_derivative_constraints(dy2)
+        @test has_derivative_constraints(dq)
     end
 end

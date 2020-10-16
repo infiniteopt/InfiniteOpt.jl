@@ -468,7 +468,7 @@ to avoid ambiguity in case we have multiple `my_traj_func` definitions. In
 general it is recommended that anonymous functions be used.
 
 ### Point Variables
-Point variables denote infinite variables evaluated at a particular point in the
+Point variables denote infinite variables (or derivatives) evaluated at a particular point in the
 infinite decision space (i.e., particular infinite parameter values). These
 are commonly employed when using initial and terminal conditions, and to build
 discrete characterizations of complex operators such as derivatives. The
@@ -790,6 +790,9 @@ parameter bounds for a hold variable. For example, let's add the bounds
 ```jldoctest var_macro
 julia> @add_parameter_bounds(c, (t in [0, 5], x == 0))
 ```
+
+A number of other techniques exist for the various variable types can be found in 
+the manual below.
 
 ## Datatypes
 ```@index

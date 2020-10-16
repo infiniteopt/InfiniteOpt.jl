@@ -629,10 +629,23 @@ end
         @test !has_derivative_supports(prefs[1])
         @test !has_derivative_supports(gvrefs[2])
     end
-    # test set_has_derivative_supports
-    @testset "set_has_derivative_supports" begin
-        @test set_has_derivative_supports(prefs[1], true) isa Nothing
-        @test set_has_derivative_supports(gvrefs[2], false) isa Nothing
+    # test _set_has_derivative_supports
+    @testset "_set_has_derivative_supports" begin
+        @test InfiniteOpt._set_has_derivative_supports(prefs[1], true) isa Nothing
+        @test InfiniteOpt._set_has_derivative_supports(gvrefs[2], false) isa Nothing
+    end
+    # test has_derivative_constraints
+    @testset "has_derivative_constraints" begin
+        @test !has_derivative_constraints(prefs[1])
+        InfiniteOpt._data_object(prefs[1]).has_deriv_constrs[1] = true
+        @test has_derivative_constraints(gvrefs[1])
+    end
+    # test _set_has_derivative_constraints
+    @testset "_set_has_derivative_constraints" begin
+        @test InfiniteOpt._set_has_derivative_constraints(prefs[1], true) isa Nothing
+        @test has_derivative_constraints(prefs[1])
+        @test InfiniteOpt._set_has_derivative_constraints(gvrefs[1], false) isa Nothing
+        @test !has_derivative_constraints(prefs[1])
     end
     # test _derivative_methods
     @testset "_derivative_methods" begin
@@ -817,11 +830,11 @@ end
         @test !has_internal_supports(prefs1[1])
         @test !has_internal_supports(gvrefs4[2])
     end
-    # test set_has_internal_supports 
-    @testset "set_has_internal_supports" begin
-        @test set_has_internal_supports(prefs1[1], true) isa Nothing
+    # test _set_has_internal_supports 
+    @testset "_set_has_internal_supports" begin
+        @test InfiniteOpt._set_has_internal_supports(prefs1[1], true) isa Nothing
         @test has_internal_supports(prefs1[1])
-        @test set_has_internal_supports(gvrefs1[1], false) isa Nothing
+        @test InfiniteOpt._set_has_internal_supports(gvrefs1[1], false) isa Nothing
         @test !has_internal_supports(prefs1[1])
     end
     # test _parameter_supports
@@ -1002,12 +1015,12 @@ end
         @test sortcols(supports(prefs1)) == Float64[0 0.1 1; 0 0.1 1]
         @test InfiniteOpt._parameter_supports(prefs1[1])[zeros(2)] == Set([UniformGrid, InternalLabel])
         # test warning 
-        InfiniteOpt._data_object(prefs1[1]).has_deriv_constrs = true
-        warn = "Support/method changes will invalidate existing derivative evaluations. " *
-               "This problem can be avoided by not modifying the support structure " *
-               "after calling `evaluate_all_derivatives` or `evaluate`."
+        InfiniteOpt._data_object(prefs1[1]).has_deriv_constrs[1] = true
+        warn = "Support/method changes will invalidate existing derivative evaluation " *
+               "constraints that have been added to the InfiniteModel. Thus, " *
+               "these are being deleted."
         @test_logs (:warn, warn) add_supports(prefs1, 0.1 * ones(2, 2)) isa Nothing
-        InfiniteOpt._data_object(prefs1[1]).has_deriv_constrs = false
+        InfiniteOpt._data_object(prefs1[1]).has_deriv_constrs[1] = false
     end
     # test add_supports (AbstractArray)
     @testset "add_supports (AbstractArray)" begin

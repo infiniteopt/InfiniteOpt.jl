@@ -520,7 +520,20 @@ function has_derivative_supports(pref::DependentParameterRef)::Bool
 end
 
 # Extend fallback for dependent parameters
-function set_has_derivative_supports(pref::DependentParameterRef, status::Bool)::Nothing
+function _set_has_derivative_supports(pref::DependentParameterRef, 
+                                      status::Bool)::Nothing
+    return
+end
+
+# Extend has derivative constraints 
+function has_derivative_constraints(pref::DependentParameterRef)::Bool 
+    return _data_object(pref).has_deriv_constrs[_param_index(pref)]
+end
+
+# Extend setting if has derivative constraints 
+function _set_has_derivative_constraints(pref::DependentParameterRef, 
+                                         status::Bool)::Nothing 
+    _data_object(pref).has_deriv_constrs[_param_index(pref)] = status
     return
 end
 
@@ -590,7 +603,7 @@ function set_derivative_method(pref::DependentParameterRef,
               "for a dependent parameter.")
     end
     _adaptive_method_update(pref, _core_variable_object(pref), method)
-    _reset_derivative_supports(pref) # this is just used as a check and will never affect any supports
+    _reset_derivative_evaluations(pref)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
@@ -702,8 +715,12 @@ function _update_parameter_set(pref::DependentParameterRef,
     methods = _derivative_methods(pref)
     new_params = DependentParameters(new_set, new_supports, sig_figs, methods)
     _set_core_variable_object(pref, new_params)
-    _reset_derivative_supports(pref)
-    set_has_internal_supports(pref, false)
+    for i in 1:length(new_set)
+        idx = DependentParameterIndex(JuMP.index(pref).object_index, i)
+        p = DependentParameterRef(JuMP.owner_model(pref), idx)
+        _reset_derivative_evaluations(p)
+    end
+    _set_has_internal_supports(pref, false)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
@@ -1106,8 +1123,10 @@ function _update_parameter_supports(prefs::AbstractArray{<:DependentParameterRef
     methods = _derivative_methods(first(prefs))
     new_params = DependentParameters(set, new_supps, sig_figs, methods)
     _set_core_variable_object(first(prefs), new_params)
-    set_has_internal_supports(first(prefs), label <: InternalLabel)
-    _reset_derivative_supports(first(prefs)) # used as check only
+    _set_has_internal_supports(first(prefs), label <: InternalLabel)
+    for pref in prefs 
+        _reset_derivative_evaluations(pref)
+    end
     if any(is_used(pref) for pref in prefs)
         set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
     end
@@ -1264,9 +1283,11 @@ function add_supports(prefs::Vector{DependentParameterRef},
         end
     end
     if label <: InternalLabel
-        set_has_internal_supports(first(prefs), true)
+        _set_has_internal_supports(first(prefs), true)
     end
-    _reset_derivative_supports(first(prefs)) # used as warn check only
+    for pref in prefs
+        _reset_derivative_evaluations(pref)
+    end
     if any(is_used(pref) for pref in prefs)
         set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
     end
@@ -1297,13 +1318,15 @@ function delete_supports(prefs::AbstractArray{<:DependentParameterRef};
                          label::Type{<:AbstractSupportLabel} = All)::Nothing
     _check_complete_param_array(prefs)
     supp_dict = _parameter_supports(first(prefs))
-    _reset_derivative_supports(first(prefs)) # used as warn check only
+    for pref in prefs
+        _reset_derivative_evaluations(pref)
+    end
     if label == All
         if any(used_by_measure(pref) for pref in prefs)
             error("Cannot delete supports with measure dependencies.")
         end
         empty!(supp_dict)
-        set_has_internal_supports(first(prefs), false)
+        _set_has_internal_supports(first(prefs), false)
     else 
         filter!(p -> !all(v -> v <: label, p[2]), supp_dict)
         for (k, v) in supp_dict 
@@ -1311,7 +1334,7 @@ function delete_supports(prefs::AbstractArray{<:DependentParameterRef};
         end
         pref1 = first(prefs)
         if has_internal_supports(pref1) && num_supports(pref1, label = InternalLabel) == 0
-            set_has_internal_supports(pref1, false)
+            _set_has_internal_supports(pref1, false)
         end
     end
     if any(is_used(pref) for pref in prefs)

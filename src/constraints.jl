@@ -43,8 +43,7 @@ JuMP.index(cref::InfOptConstraintRef)::ConstraintIndex = cref.index
 
 # Extend Base and JuMP functions
 function Base.:(==)(v::InfOptConstraintRef, w::InfOptConstraintRef)::Bool
-    return v.model === w.model && v.index == w.index && v.shape == w.shape &&
-           typeof(v) == typeof(w)
+    return v.model === w.model && v.index == w.index
 end
 Base.broadcastable(cref::InfOptConstraintRef) = Ref(cref)
 JuMP.constraint_type(m::InfiniteModel) = InfOptConstraintRef
@@ -274,7 +273,7 @@ function JuMP.add_constraint(model::InfiniteModel,
     constr_object = ConstraintData(c, object_nums, name, MeasureIndex[],
                                    is_info_constr)
     cindex = _add_data_object(model, constr_object)
-    cref = InfOptConstraintRef(model, cindex, JuMP.shape(c))
+    cref = InfOptConstraintRef(model, cindex)
     # update the variable mappings and model status
     _update_var_constr_mapping(vrefs, cref)
     set_optimizer_model_ready(model, false)
@@ -498,7 +497,7 @@ end
 function _make_constraint_ref(model::InfiniteModel,
                               index::ConstraintIndex)::InfOptConstraintRef
     constr = model.constraints[index].constraint
-    return InfOptConstraintRef(model, index, JuMP.shape(constr))
+    return InfOptConstraintRef(model, index)
 end
 
 """

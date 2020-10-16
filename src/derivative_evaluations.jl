@@ -92,7 +92,7 @@ function add_derivative_supports(pref::IndependentParameterRef)::Nothing
         supps = generate_derivative_supports(pref, method)
         if !isempty(supps)
             add_supports(pref, supps, label = support_label(method), check = false)
-            set_has_derivative_supports(pref, true)
+            _set_has_derivative_supports(pref, true)
         end
     end
     return
@@ -328,9 +328,10 @@ end
 Numerically evaluate `dref` by computing its auxiliary derivative constraints 
 (e.g., collocation equations) and add them to the model. For normal usage, it is 
 recommended that this method not be called directly and instead have TranscriptionOpt 
-handle these equations, since preemptive evaluation can lead to invalid relations 
-if the support structure is modified. Errors if `evaluate_derivative` is not 
+handle these equations. Errors if `evaluate_derivative` is not 
 defined for the derivative method employed.
+
+The resulting constraints can be accessed via `derivative_constraints`.
 
 **Example**
 ```julia-repl
@@ -354,19 +355,23 @@ Subject to
 ```
 """
 function evaluate(dref::DerivativeRef)::Nothing
-    # collect the basic info
-    method = derivative_method(dref)
-    model = JuMP.owner_model(dref)
-    # get the expressions 
-    gvref = GeneralVariableRef(model, JuMP.index(dref).value, DerivativeIndex)
-    exprs = evaluate_derivative(gvref, method, model)
-    # add the constraints
-    for expr in exprs
-        JuMP.@constraint(model, expr == 0)
+    if !has_derivative_constraints(dref)
+        # collect the basic info
+        method = derivative_method(dref)
+        model = JuMP.owner_model(dref)
+        constr_list = _derivative_constraint_dependencies(dref)
+        # get the expressions 
+        gvref = GeneralVariableRef(model, JuMP.index(dref).value, DerivativeIndex)
+        exprs = evaluate_derivative(gvref, method, model)
+        # add the constraints
+        for expr in exprs
+            cref = JuMP.@constraint(model, expr == 0)
+            push!(constr_list, JuMP.index(cref))
+        end
+        # update the parameter status 
+        pref = dispatch_variable_ref(operator_parameter(dref))
+        _set_has_derivative_constraints(pref, true)
     end
-    # update the parameter status 
-    pref = operator_parameter(dref)
-    _data_object(pref).has_deriv_constrs = true
     return
 end
 

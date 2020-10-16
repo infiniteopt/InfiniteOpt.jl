@@ -113,6 +113,11 @@
         @test InfiniteOpt._derivative_dependencies(dref) == DerivativeIndex[]
         @test InfiniteOpt._derivative_dependencies(gvref) == DerivativeIndex[]
     end
+    # _derivative_constraint_dependencies
+    @testset "_derivative_constraint_dependencies" begin
+        @test InfiniteOpt._derivative_constraint_dependencies(dref) == ConstraintIndex[]
+        @test InfiniteOpt._derivative_constraint_dependencies(gvref) == ConstraintIndex[]
+    end
     # JuMP.name
     @testset "JuMP.name" begin
         @test name(dref) == "var"
@@ -171,6 +176,10 @@
     # _var_name_dict
     @testset "_var_name_dict" begin
         @test InfiniteOpt._var_name_dict(m) isa Nothing
+    end
+    # test has_derivative_constraints
+    @testset "has_derivative_constraints" begin 
+        @test !has_derivative_constraints(dref)
     end
     # _delete_data_object
     @testset "_delete_data_object" begin
@@ -283,7 +292,7 @@ end
         @test InfiniteOpt._existing_derivative_index(x, prefs[1]) == idx
         # lower bound
         cindex = ConstraintIndex(1)
-        cref = InfOptConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex)
         @test has_lower_bound(dref)
         @test InfiniteOpt._lower_bound_index(dref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -291,7 +300,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # upper bound
         cindex = ConstraintIndex(2)
-        cref = InfOptConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex)
         @test has_upper_bound(dref)
         @test InfiniteOpt._upper_bound_index(dref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -299,7 +308,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # fix
         cindex = ConstraintIndex(3)
-        cref = InfOptConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex)
         @test is_fixed(dref)
         @test InfiniteOpt._fix_index(dref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -719,6 +728,9 @@ end
     d1 = @deriv(y, t)
     d2 = @deriv(y, x[1])
     d3 = @deriv(d2, t)
+    cref = @constraint(m, d1 == 0)
+    push!(InfiniteOpt._derivative_constraint_dependencies(d1), index(cref))
+    InfiniteOpt._set_has_derivative_constraints(t, true)
     # test num_derivatives 
     @testset "num_derivative" begin 
         @test num_derivatives(m) == 3
@@ -726,6 +738,17 @@ end
     # test all_derivatives 
     @testset "all_derivative" begin 
         @test all_derivatives(m) == [d1, d2, d3]
+    end
+    # test derivative_constraints
+    @testset "derivative_constraints" begin 
+        @test derivative_constraints(d1) == [cref]
+    end
+    # test delete_derivative_constraints
+    @testset "delete_derivative_constraints" begin 
+        @test delete_derivative_constraints(d1) isa Nothing
+        @test !has_derivative_constraints(d1)
+        @test !has_derivative_constraints(t)
+        @test !is_valid(m, cref)
     end
 end
 
