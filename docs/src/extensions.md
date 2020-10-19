@@ -1,13 +1,13 @@
 # Extensions
-Here we provide guidance to various ways `InfinitOpt` can be extended.
+Here we provide guidance to various ways `InfiniteOpt` can be extended.
 
 ## Overview
-Extendibility is one of the core ideas of `InfinitOpt` so that it can serve as a
+Extendibility is one of the core ideas of `InfiniteOpt` so that it can serve as a
 convenient tool for those developing and implementing advanced techniques for
 infinite dimensional optimization problems. Thus, `InfiniteOpt` is developed in
 a modular manner to readily accommodate user-defined functionality and/or to
 serve as useful base in writing a `JuMP` extension. Admittedly, this modularity
-might be imperfect and comments/suggestions are welcomed to help us improve this.
+is not perfect and comments/suggestions are welcomed to help us improve this.
 
 ## Infinite Sets
 Infinite sets are used to characterize the behavior of infinite parameters and
@@ -786,5 +786,3 @@ solution techniques. These extension packages can implement any of the extension
 shown above and likely will want to introduce wrapper functions and macros to
 use package specific terminology (e.g., using random variables instead of
 infinite variables).
-
-TODO refer to example packages that do this (e.g., an update of FlexibilityAnalysis.jl)

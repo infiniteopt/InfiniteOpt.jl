@@ -59,7 +59,22 @@ Modules = [InfiniteOpt, JuMP]
 Order   = [:macro, :function]
 ```
 
-## Measures
+## Derivative Operators
+### Datatypes
+```@index
+Pages   = ["guide/derivative.md"]
+Modules = [InfiniteOpt]
+Order   = [:type]
+```
+
+### Methods/Macros
+```@index
+Pages   = ["guide/derivative.md"]
+Modules = [InfiniteOpt, JuMP]
+Order   = [:macro, :function]
+```
+
+## Measure Operators
 ### Datatypes
 ```@index
 Pages   = ["guide/measure.md"]

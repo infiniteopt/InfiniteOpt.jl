@@ -397,6 +397,7 @@ end
     @constraint(m, c3, meas1 + z == 0)
     @BDconstraint(m, c4(par in [0.5, 1]), meas2 - 2y0 + x + fin <= 1)
     @constraint(m, c5, meas2 == 0)
+    @constraint(m, x + y == 83)
     @objective(m, Min, x0 + meas1)
     # test basic usage
     tm = optimizer_model(m)

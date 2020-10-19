@@ -682,7 +682,7 @@ function transcribe_constraints!(trans_model::JuMP.Model,
                 if _support_in_bounds(raw_supp, bound_info[1], bound_info[2])
                     new_func = transcription_expression(trans_model, func, raw_supp)
                     trans_constr = JuMP.build_constraint(error, new_func, set)
-                    new_name = string(name, "(support: ", counter, ")")
+                    new_name = isempty(name) ? "" : string(name, "(support: ", counter, ")")
                     @inbounds crefs[counter] = JuMP.add_constraint(trans_model,
                                                          trans_constr, new_name)
                     @inbounds supps[counter] = Tuple(param_supps[j][i[j]]

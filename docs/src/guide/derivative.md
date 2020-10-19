@@ -1,4 +1,4 @@
-# Derivatives Operators
+# [Derivative Operators](@id deriv_page)
 A guide and manual for the definition and use of derivatives in `InfiniteOpt`.
 The Datatypes and Methods sections at the end comprise the manual, and the
 above sections comprise the guide.  
@@ -78,12 +78,14 @@ julia> set_start_value_function(d1, 0)
 Now let's return to our discussion on derivative evaluation methods. These are the 
 methods that can/will be invoked to transcript the derivatives when solving the 
 model. The methods native to `InfiniteOpt` are described in the table below:
+
 | Method                         | Type               | Needed Boundary Conditions| Creates Supports |
 |:------------------------------:|:------------------:|:-------------------------:|:----------------:|
 |[`FiniteDifference`](@ref)      | [`Forward`](@ref)  | Final & optional Initial  | No               |
 |[`FiniteDifference`](@ref)      | [`Central`](@ref)  | Initial & Final           | No               |
 |[`FiniteDifference`](@ref)      | [`Backward`](@ref) | Initial & optional Final  | No               |
 |[`OrthogonalCollocation`](@ref) | [`Lobatto`](@ref)  | Initial                   | Yes              |
+
 Here the default method is backward finite difference. These are enforced on an 
 infinite parameter basis (i.e., the parameter the differential operator is taken 
 with respect to). Thus, in the above examples any derivatives taken with respect to 
@@ -208,16 +210,16 @@ be used in reformulating the model for solution.
 To motivate the principles behind numerical derivative evaluation/transcription, 
 let's first consider the initial value problem:
 ```math 
-/frac{d y(t)}{dt} = f(t, y(t)), \ \ \ y(t_0) = y_0
+\frac{d y(t)}{dt} = f(t, y(t)), \ \ \ y(t_0) = y_0
 ```
 With a finite support set ``\{t_0, t_1, \dots, t_k\}`` we can numerically 
-approximate the value of ``/frac{d y(t_n)}{dt}`` at each time point ``t_n`` via 
+approximate the value of ``\frac{d y(t_n)}{dt}`` at each time point ``t_n`` via 
 the Euler method (i.e., forward finite difference). We thus obtain a system of 
 equations:
 ```math
 \begin{aligned}
-&&& y(t_{n+1}) = y(t_n) + (t_{n+1} - t_n) /frac{d y(t_n)}{dt}, && \forall n = 0, \dots, k-1\\
-&&& /frac{d y(t_n)}{dt} = f(t_n, y(t_n)), && \forall n = 0, \dots, k \\ 
+&&& y(t_{n+1}) = y(t_n) + (t_{n+1} - t_n) \frac{d y(t_n)}{dt}, && \forall n = 0, \dots, k-1\\
+&&& \frac{d y(t_n)}{dt} = f(t_n, y(t_n)), && \forall n = 0, \dots, k \\ 
 &&& y(t_0) = y_0
 \end{aligned}
 ```
@@ -243,7 +245,7 @@ This can be formalized as:
 \begin{aligned}
 &&& f_j(y(\lambda), Dy(\lambda)) \leq 0, && \forall j \in J, \lambda \in \Lambda \\
 &&& h_i(y(\lambda), Dy(\lambda)) == 0, && \forall i \in I, \lambda \in \Lambda \\
-&&& g_k(y(\hat{\lambda}), Dy(\hat{\lambda})) == 0, && \forall k \in K, \hat{lambda} \in \hat{\Lambda}
+&&& g_k(y(\hat{\lambda}), Dy(\hat{\lambda})) == 0, && \forall k \in K, \hat{\lambda} \in \hat{\Lambda}
 \end{aligned}
 ```
 where ``y(\lambda)`` and ``Dy(\lambda)`` denote all the variables and derivatives 
@@ -260,14 +262,14 @@ derivative evaluation techniques. Higher order derivatives are dealt with natura
 since such techniques can be applied to nested derivative operators recursively. 
 For example, consider the second-order partial derivative:
 ```math
-/frac{\partial^2 y(t, \xi)}{\partial t^2} = /frac{\partial}{\partial t}\left(/frac{\partial y(t, \xi)}{\partial t}\right)
+\frac{\partial^2 y(t, \xi)}{\partial t^2} = \frac{\partial}{\partial t}\left(\frac{\partial y(t, \xi)}{\partial t}\right)
 ```
 The 2 forms are equivalent thus when we apply the Euler method we obtain the 
 following auxiliary equations:
 ```math
 \begin{aligned}
-&&& y(t_{n+1}, \xi) = y(t_n, \xi) + (t_{n+1} - t_n) /frac{\partial y(t_n, \xi)}{\partial t}, && \forall \xi \in \mathcal{D}_\xi, n = 0, \dots, k-1\\
-&&& /frac{\partial y(t_{n+1}, \xi)}{\partial t} = /frac{\partial y(t_n, \xi)}{\partial t} + (t_{n+1} - t_n) /frac{\partial^2 y(t_n, \xi)}{\partial t^2}, && \forall \xi \in \mathcal{D}_\xi, n = 0, \dots, k-1\\
+&&& y(t_{n+1}, \xi) = y(t_n, \xi) + (t_{n+1} - t_n) \frac{\partial y(t_n, \xi)}{\partial t}, && \forall \xi \in \mathcal{D}_\xi, n = 0, \dots, k-1\\
+&&& \frac{\partial y(t_{n+1}, \xi)}{\partial t} = \frac{\partial y(t_n, \xi)}{\partial t} + (t_{n+1} - t_n) \frac{\partial^2 y(t_n, \xi)}{\partial t^2}, && \forall \xi \in \mathcal{D}_\xi, n = 0, \dots, k-1\\
 \end{aligned}
 ```
 
@@ -277,6 +279,7 @@ natively implements.
 ### Derivative Methods
 As discussed briefly above in the Basic Usage section, we natively employ 4 
 derivative methods in `InfiniteOpt` which are summarized:
+
 | Method                         | Type               | Needed Boundary Conditions| Creates Supports |
 |:------------------------------:|:------------------:|:-------------------------:|:----------------:|
 |[`FiniteDifference`](@ref)      | [`Forward`](@ref)  | Final & optional Initial  | No               |
@@ -311,9 +314,9 @@ points. By default, we have `FiniteDifference(Backward, true)` which is the defa
 for all infinite parameters. 
 
 Forward finite difference (i.e., explicit Euler) is exemplified by approximating first 
-order derivative ``/frac{d y(t)}{dt}`` via 
+order derivative ``\frac{d y(t)}{dt}`` via 
 ```math
-y(t_{n+1}) = y(t_n) + (t_{n+1} - t_{n})/frac{d y(t_n)}{dt_n}, \ \forall n = 0, 1, \dots, k-1
+y(t_{n+1}) = y(t_n) + (t_{n+1} - t_{n})\frac{d y(t_n)}{dt_n}, \ \forall n = 0, 1, \dots, k-1
 ```
 Note that in this case, the boundary relation corresponds to ``n = 0`` and would 
 be included if we set `FiniteDifference(Forward, true)` or would excluded if we 
@@ -324,9 +327,9 @@ terminal point cannot be made. Thus, if a terminal condition is not given termin
 point derivative will be a free variable.
 
 Central finite difference is exemplified by approximating the first order derivative 
-``/frac{d y(t)}{dt}`` via
+``\frac{d y(t)}{dt}`` via
 ```math 
-y(t_{n+1}) = y(t_{n-1}) + (t_{n+1} - t_{n-1})/frac{d y(t_n)}{dt_n}, \ \forall n = 1, 2, \dots, k-1
+y(t_{n+1}) = y(t_{n-1}) + (t_{n+1} - t_{n-1})\frac{d y(t_n)}{dt_n}, \ \forall n = 1, 2, \dots, k-1
 ```
 Note that this form cannot be invoked at ``n = 0`` or ``n = k`` and cannot 
 an equation at either boundary. With this in mind the syntax is `FiniteDifference(Central)` 
@@ -336,9 +339,9 @@ derivatives at those points will be free variables.
 
 Backward finite difference (i.e., implicit euler) is our last (and default) 
 finite difference method and is exemplified by approximating the first order 
-derivative ``/frac{d y(t)}{dt}`` via
+derivative ``\frac{d y(t)}{dt}`` via
 ```math
-y(t_{n}) = y(t_{n-1}) + (t_{n} - t_{n-1})/frac{d y(t_{n})}{dt_{n}}, \ \forall n = 1, 2, \dots, k
+y(t_{n}) = y(t_{n-1}) + (t_{n} - t_{n-1})\frac{d y(t_{n})}{dt_{n}}, \ \forall n = 1, 2, \dots, k
 ```
 Here the boundary case corresponds to ``n = k`` and would be included if we set 
 `FiniteDifference(Backward, true)` (the default) or excluded if we set the second 

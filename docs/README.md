@@ -8,8 +8,18 @@ julia> ]
 (v1.5) pkg> add Documenter
 ```
 
-Once you have Documenter installed you can build the documentation via:
+You'll also need to make sure you have JuMP.jl, Distributions.jl, and Ipopt.jl 
+installed for use in the guide's examples.
+
+Once you have these packages installed you can build the documentation via:
 ```julia
 julia --project=. --color=yes make.jl
 ```
-The compiled documents can then be viewed at `build/index.html`.
+
+in a Bash terminal. Or you can just run the `make.jl` file in a Julia REPL:
+```julia-repl
+julia> include("PUT/YOUR/PATH/HERE/InfiniteOpt/docs/make.jl") 
+```
+
+The compiled documents can then be viewed at `build/index.html` via a web browser 
+of your choice (e.g., Chrome).

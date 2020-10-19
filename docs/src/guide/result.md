@@ -240,6 +240,13 @@ optimizer model and using its stored variable mappings to return the correct
 information. Thus, here the queries are extended to work with the specifics of
 the optimizer model to return the appropriate info.
 
+!!! note 
+    Like `supports` the all object based query methods below also employ the 
+    `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+    default will return variables/expressions/constraints associated with public 
+    supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+    is obtained via `label = All`.
+
 First, we should verify that the optimized model in fact has variable values
 via [`has_values`](@ref JuMP.has_values(::InfiniteModel)). In our example,
 we have:
@@ -255,6 +262,8 @@ appropriate [`map_value`](@ref InfiniteOpt.map_value) defined by the optimizer m
 employs the `map_value` fallback which uses `optimizer_model_variable` to do the
 mapping. Details on how to extend these methods for user-defined optimizer
 models is explained on the Extensions page.
+
+We also, support call to `value` that use an expression of variables as input.
 
 Finally, the optimizer index of a variable is queried via
 [`optimizer_index`](@ref JuMP.optimizer_index(::GeneralVariableRef)) which
@@ -283,6 +292,13 @@ appropriate versions of [`map_optimizer_index`](@ref InfiniteOpt.map_optimizer_i
 
 ## Constraint Queries
 Like variables, a variety of information can be queried about constraints.
+
+!!! note 
+    Like `supports` the all object based query methods below also employ the 
+    `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+    default will return variables/expressions/constraints associated with public 
+    supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+    is obtained via `label = All`.
 
 First, recall that constraints are stored in the form `function-in-set` where
 generally `function` contains the variables and coefficients and the set contains

@@ -170,16 +170,16 @@ transcribe the problem according to certain finite parameter values (supports) a
 thus represent the problem in terms of these supports (e.g., using discrete time
 points in dynamic optimization). This methodology can be generalized into the
 following steps:
- - define supports for each infinite parameter if not already defined,
- - add any additional support needed for derivative evaluation,
- - expand any measures according to their underlying numerical representation
+ 1. define supports for each infinite parameter if not already defined,
+ 2. add any additional support needed for derivative evaluation,
+ 3. expand any measures according to their underlying numerical representation
    using transcribed infinite variables as appropriate,
- - replace any remaining infinite variables/derivatives with transcribed variables supported
+ 4. replace any remaining infinite variables/derivatives with transcribed variables supported
    over each unique combination of the underlying parameter supports,
- - replace any remaining infinite constraints with transcribed ones supported over
+ 5. replace any remaining infinite constraints with transcribed ones supported over
    all the unique support combinations stemming from the infinite parameters they
    depend on,
- - add on the transcripted versions of the auxiliary derivative evaluation 
+ 6. and add on the transcripted versions of the auxiliary derivative evaluation 
    equations. 
 
 For example, let's consider a space-time optimization problem of the form:
@@ -187,16 +187,18 @@ For example, let's consider a space-time optimization problem of the form:
 \begin{aligned}
 	&&\min_{y(t), g(t, x)} &&& \int_0^{10} y^2(t) dt \\
 	&&\text{s.t.} &&& y(0) = 1 \\
-	&&&&& \int_{x \in [-1, 1]^2} g(t, x) dx = 42, && \forall t \in [0, 10] \\
+	&&&&& \int_{x \in [-1, 1]^2} \frac{\partial g(t, x)}{\partial t} dx = 42, && \forall t \in [0, 10] \\
   &&&&& 3g(t, x) + 2y^2(t) \leq 2, && \forall t \in T, \ x \in [-1, 1]^2. \\
 \end{aligned}
 ```
 Thus, we have an optimization problem whose decision space is infinite with
-respect to time ``t`` and position ``x``. Now let's transcribe it following the
+respect to time ``t`` and position ``x``. Now let's transcript it following the
 above steps. First, we need to specify the infinite parameter supports and for
 simplicity let's choose the following sparse sets:
  - ``t \in \{0, 10\}``
  - ``x \in \{[-1, -1]^T, [-1, 1]^T, [1, -1]^T, [1, 1]^T\}``.
+ To handle the derivative ``\frac{\partial g(t, x)}{\partial t}``, we'll use 
+ backward finite difference so no additional supports will need to be added.
 
 Now we expand the two integrals (measures) via a finite approximation using only
 the above supports and term coefficients of 1 (note this is not numerically
@@ -206,15 +208,16 @@ form:
 \begin{aligned}
 	&&\min_{y(t), g(t, x)} &&& y^2(0) + y^2(10) \\
 	&&\text{s.t.} &&& y(0) = 1 \\
-	&&&&& g(t, [-1, -1]) + g(t, [-1, 1]) + g(t, [1, -1]) + g(t, [1, 1]) = 42, && \forall t \in [0, 10] \\
-    &&&&& 3g(t, x) + 2y^2(t) \leq 2, && \forall t \in T, \ x \in [-1, 1]^2. \\
+  &&&&& g(0, x) = 0 \\
+	&&&&& \frac{\partial g(t, [-1, -1])}{\partial t} + \frac{\partial g(t, [-1, 1])}{\partial t} + \frac{\partial g(t, [1, -1])}{\partial t} + \frac{\partial g(t, [1, 1])}{\partial t} = 42, && \forall t \in [0, 10] \\
+  &&&&& 3g(t, x) + 2y^2(t) \leq 2, && \forall t \in T, \ x \in [-1, 1]^2. \\
 \end{aligned}
 ```
 Notice that the infinite variable ``y(t)`` in the objective measure has been
 replaced with finite transcribed variables ``y(0)`` and ``y(10)``. Also, the
-infinite variable ``g(t, x)`` was replaced with partially transcribed variables
-in the second constraint in accordance with the measure over the positional domain
-``x``.
+infinite derivative ``\frac{\partial g(t, x)}{\partial t}`` was replaced with 
+partially transcribed variables in the second constraint in accordance with the 
+measure over the positional domain ``x``.
 
 Now we need to transcribe the remaining infinite and semi-infinite variables
 with finite variables and duplicate the remaining infinite constraints accordingly.
@@ -225,15 +228,34 @@ of the time and position supports. Applying this transcription yields:
 \begin{aligned}
 	&&\min_{y(t), g(t, x)} &&& y^2(0) + y^2(10) \\
 	&&\text{s.t.} &&& y(0) = 1 \\
-	&&&&& g(0, [-1, -1]) + g(0, [-1, 1]) + g(0, [1, -1]) + g(0, [1, 1]) = 42\\
-    &&&&& g(10, [-1, -1]) + g(10, [-1, 1]) + g(10, [1, -1]) + g(10, [1, 1]) = 42\\
-    &&&&& 3g(0, [-1, -1]) + 2y^2(0) \leq 2 \\
-    &&&&& 3g(0, [-1, 1]) + 2y^2(0) \leq 2 \\
-    &&&&& \vdots \\
-    &&&&& 3g(10, [1, 1]) + 2y^2(10) \leq 2.
+  &&&&& g(0, [-1, -1]) = 0 \\
+  &&&&& g(0, [-1, 1]) = 0 \\
+  &&&&& g(0, [1, -1]) = 0 \\
+  &&&&& g(0, [1, 1]) = 0 \\
+	&&&&& \frac{\partial g(0, [-1, -1])}{\partial t} + \frac{\partial g(0, [-1, 1])}{\partial t} + \frac{\partial g(0, [1, -1])}{\partial t} + \frac{\partial g(0, [1, 1])}{\partial t} = 42\\
+  &&&&& \frac{\partial g(10, [-1, -1])}{\partial t} + \frac{\partial g(10, [-1, 1])}{\partial t} + \frac{\partial g(10, [1, -1])}{\partial t} + \frac{\partial g(10, [1, 1])}{\partial t} = 42\\
+  &&&&& 3g(0, [-1, -1]) + 2y^2(0) \leq 2 \\
+  &&&&& 3g(0, [-1, 1]) + 2y^2(0) \leq 2 \\
+  &&&&& \vdots \\
+  &&&&& 3g(10, [1, 1]) + 2y^2(10) \leq 2.
 \end{aligned}
 ```
-Now the problem is fully transcribed (discretized) and can be solved as a
+
+Now that the variables and constraints are are transcripted, all that remains is 
+to add relations to define the behavior of the transcripted partial derivatives. 
+We can accomplish this via backward finite difference which will just add one 
+infinite equation in this case this we only have 2 supports in the time domain 
+is then transcripted over the spatial domain to yield:
+```math
+\begin{aligned}
+&&& g(10, [-1, -1]) = g(0, [-1, -1]) + 10\frac{\partial g(10, [-1, -1])}{\partial t} \\
+&&& g(10, [-1, 1]) = g(0, [-1, 1]) + 10\frac{\partial g(10, [-1, 1])}{\partial t} \\
+&&& g(10, [1, -1]) = g(0, [1, -1]) + 10\frac{\partial g(10, [1, -1])}{\partial t} \\
+&&& g(10, [1, 1]) = g(0, [1, 1]) + 10\frac{\partial g(10, [1, 1])}{\partial t}
+\end{aligned}
+```
+
+Now the problem is fully transcripted (discretized) and can be solved as a
 standard optimization problem. Note that with realistic measure evaluation
 schemes more supports might be added to the support sets and these will need to
 be incorporated when transcribing variables and constraints.
@@ -262,7 +284,8 @@ inf_model = InfiniteModel()
 
 # Define the constraints
 @BDconstraint(inf_model, t == 0, y == 1)
-@constraint(inf_model, support_sum(g, x) == 42) # support_sum for simplicity
+@BDconstraint(inf_model, t == 0, g == 0)
+@constraint(inf_model, support_sum(deriv(g, t), x) == 42) # support_sum for simplicity
 @constraint(inf_model, 3g + y^2 <= 2)
 
 # Print the infinite model
@@ -272,7 +295,8 @@ print(inf_model)
 Min support_sum{t}[y(t)²]
 Subject to
  y(t) = 1.0, ∀ t = 0
- support_sum{x}[g(t, x)] = 42.0, ∀ t ∈ [0, 10]
+ g(t, x) = 0.0, ∀ t = 0, x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
+ support_sum{x}[∂/∂t[g(t, x)]] = 42.0, ∀ t ∈ [0, 10]
  y(t)² + 3 g(t, x) ≤ 2.0, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
 ```
 Thus, we obtain the infinite problem in `InfiniteOpt`. As previously noted,
@@ -287,17 +311,25 @@ julia> trans_model = optimizer_model(inf_model);
 julia> print(trans_model)
 Min y(support: 1)² + y(support: 2)²
 Subject to
- (support: 1) : y(support: 1) = 1.0
- (support: 1) : g(support: 1) + g(support: 3) + g(support: 5) + g(support: 7) = 42.0
- (support: 2) : g(support: 2) + g(support: 4) + g(support: 6) + g(support: 8) = 42.0
- (support: 1) : y(support: 1)² + 3 g(support: 1) ≤ 2.0
- (support: 2) : y(support: 2)² + 3 g(support: 2) ≤ 2.0
- (support: 3) : y(support: 1)² + 3 g(support: 3) ≤ 2.0
- (support: 4) : y(support: 2)² + 3 g(support: 4) ≤ 2.0
- (support: 5) : y(support: 1)² + 3 g(support: 5) ≤ 2.0
- (support: 6) : y(support: 2)² + 3 g(support: 6) ≤ 2.0
- (support: 7) : y(support: 1)² + 3 g(support: 7) ≤ 2.0
- (support: 8) : y(support: 2)² + 3 g(support: 8) ≤ 2.0
+ y(support: 1) = 1.0
+ g(support: 1) = 0.0
+ g(support: 3) = 0.0
+ g(support: 5) = 0.0
+ g(support: 7) = 0.0
+ ∂/∂t[g(t, x)](support: 1) + ∂/∂t[g(t, x)](support: 3) + ∂/∂t[g(t, x)](support: 5) + ∂/∂t[g(t, x)](support: 7) = 42.0
+ ∂/∂t[g(t, x)](support: 2) + ∂/∂t[g(t, x)](support: 4) + ∂/∂t[g(t, x)](support: 6) + ∂/∂t[g(t, x)](support: 8) = 42.0
+ g(support: 1) - g(support: 2) + 10 ∂/∂t[g(t, x)](support: 2) = 0.0
+ g(support: 3) - g(support: 4) + 10 ∂/∂t[g(t, x)](support: 4) = 0.0
+ g(support: 5) - g(support: 6) + 10 ∂/∂t[g(t, x)](support: 6) = 0.0
+ g(support: 7) - g(support: 8) + 10 ∂/∂t[g(t, x)](support: 8) = 0.0
+ y(support: 1)² + 3 g(support: 1) ≤ 2.0
+ y(support: 2)² + 3 g(support: 2) ≤ 2.0
+ y(support: 1)² + 3 g(support: 3) ≤ 2.0
+ y(support: 2)² + 3 g(support: 4) ≤ 2.0
+ y(support: 1)² + 3 g(support: 5) ≤ 2.0
+ y(support: 2)² + 3 g(support: 6) ≤ 2.0
+ y(support: 1)² + 3 g(support: 7) ≤ 2.0
+ y(support: 2)² + 3 g(support: 8) ≤ 2.0
 ```
 This precisely matches what we found analytically. Note that the unique support
 combinations are determined automatically and are represented visually as
@@ -359,8 +391,8 @@ Note that the all the normal `JuMP.Model` arguments can be used with both
 constructor when making an empty model and they are simply inherited from those 
 specified in the `InfiniteModel`. The call to `build_optimizer_model!` is the backbone 
 behind infinite model transcription and is what encapsulates all of the methods to 
-transcribe measures, variables, and constraints. This is also the method that 
-enables the use of [`optimize!`](@ref JuMP.optimize!(::InfiniteModel)).
+transcribe measures, variables, derivatives, and constraints. This is also the 
+method that enables the use of [`optimize!`](@ref JuMP.optimize!(::InfiniteModel)).
 
 ### Queries
 In this section we highlight a number of query methods that pertain
@@ -424,6 +456,13 @@ julia> supports(g)
  (5.0,)
  (10.0,)
 ```
+
+!!! note 
+    Note that like `supports` the `transcription_[obj]` methods also employ the 
+    `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+    default will return variables/expressions/constraints associated with public 
+    supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+    is obtained via `label = All`.
 
 Likewise, [`transcription_constraint`](@ref) and
 `supports`(@ref) can be used with constraints to find their transcribed 
