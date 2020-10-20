@@ -11,7 +11,7 @@
     # _temp_constraint_ref
     @testset "_temp_constraint_ref" begin
         cindex = ConstraintIndex(1)
-        expected = InfOptConstraintRef(m, cindex, ScalarShape())
+        expected = InfOptConstraintRef(m, cindex)
         @test InfiniteOpt._temp_constraint_ref(m, cindex) == expected
     end
     # is_fixed
@@ -49,14 +49,14 @@
     # LowerBoundRef
     @testset "JuMP.LowerBoundRef" begin
         # prepare constraint reference
-        expected = InfOptConstraintRef(m, ConstraintIndex(1), JuMP.ScalarShape())
+        expected = InfOptConstraintRef(m, ConstraintIndex(1))
         # test for finite variable
         @test LowerBoundRef(vref2) == expected
         @test LowerBoundRef(gvref2) == expected
         # prepare infinite variable
         @infinite_parameter(m, t in [0, 1])
         @infinite_variable(m, ivref(t) >= 0)
-        expected = InfOptConstraintRef(m, ConstraintIndex(3), JuMP.ScalarShape())
+        expected = InfOptConstraintRef(m, ConstraintIndex(3))
         @test LowerBoundRef(ivref) == expected
     end
     # set_lower_bound
@@ -127,14 +127,14 @@ end
     # UpperBoundRef
     @testset "JuMP.UpperBoundRef" begin
         # prepare constraint reference
-        expected = InfOptConstraintRef(m, ConstraintIndex(1), JuMP.ScalarShape())
+        expected = InfOptConstraintRef(m, ConstraintIndex(1))
         # test for finite variable
         @test UpperBoundRef(vref2) == expected
         @test UpperBoundRef(gvref2) == expected
         # prepare infinite variable
         @infinite_parameter(m, t in [0, 1])
         @infinite_variable(m, ivref(t) <= 0)
-        expected = InfOptConstraintRef(m, ConstraintIndex(3), JuMP.ScalarShape())
+        expected = InfOptConstraintRef(m, ConstraintIndex(3))
         @test UpperBoundRef(ivref) == expected
     end
     # set_upper_bound
@@ -200,13 +200,13 @@ end
     # FixRef
     @testset "JuMP.FixRef" begin
         # prepare constraint reference
-        expected = InfOptConstraintRef(m, ConstraintIndex(1), JuMP.ScalarShape())
+        expected = InfOptConstraintRef(m, ConstraintIndex(1))
         # test for finite variable
         @test FixRef(vref2) == expected
         # prepare infinite variable
         @infinite_parameter(m, t in [0, 1])
         @infinite_variable(m, ivref(t) == 0)
-        expected = InfOptConstraintRef(m, ConstraintIndex(2), JuMP.ScalarShape())
+        expected = InfOptConstraintRef(m, ConstraintIndex(2))
         # test for infinite variable
         @test FixRef(ivref) == expected
     end
@@ -344,13 +344,13 @@ end
     # BinaryRef
     @testset "BinaryRef" begin
         # prepare constraint reference
-        expected = InfOptConstraintRef(m, ConstraintIndex(1), JuMP.ScalarShape())
+        expected = InfOptConstraintRef(m, ConstraintIndex(1))
         # test for finite variable
         @test BinaryRef(vref2) == expected
         # prepare infinite variable
         @infinite_parameter(m, t in [0, 1])
         @infinite_variable(m, ivref(t), Bin)
-        expected = InfOptConstraintRef(m, ConstraintIndex(3), JuMP.ScalarShape())
+        expected = InfOptConstraintRef(m, ConstraintIndex(3))
         # test for infinite variable
         @test BinaryRef(ivref) == expected
     end
@@ -407,13 +407,13 @@ end
     # IntegerRef
     @testset "IntegerRef" begin
         # prepare constraint reference
-        expected = InfOptConstraintRef(m, ConstraintIndex(1), JuMP.ScalarShape())
+        expected = InfOptConstraintRef(m, ConstraintIndex(1))
         # test for finite variable
         @test IntegerRef(vref2) == expected
         # prepare infinite variable
         @infinite_parameter(m, t in [0, 1])
         @infinite_variable(m, ivref(t), Int)
-        expected = InfOptConstraintRef(m, ConstraintIndex(3), JuMP.ScalarShape())
+        expected = InfOptConstraintRef(m, ConstraintIndex(3))
         # test for infinite variable
         @test IntegerRef(ivref) == expected
     end

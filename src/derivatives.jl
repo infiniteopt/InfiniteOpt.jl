@@ -112,6 +112,24 @@ function _existing_derivative_index(
     return get(model.deriv_lookup, (vref, pref), nothing)
 end
 
+# Get access the derivative constraint indices 
+function _derivative_constraint_dependencies(dref::DerivativeRef
+    )::Vector{ConstraintIndex}
+    return _data_object(dref).deriv_constr_indices
+end
+
+"""
+    has_derivative_constraints(dref::DerivativeRef)::Bool
+
+Return a `Bool` whether `dref` has been evaluated within the `InfiniteModel` and 
+has derivative constraints that have been added to the `InfiniteModel`. Note this 
+does not indicate if such constraints have been added to the optimizer model. Thus, 
+with normal usage (i.e., not using `evaluate`) this should always return `false`.
+"""
+function has_derivative_constraints(dref::DerivativeRef)::Bool
+    return !isempty(_derivative_constraint_dependencies(dref))
+end
+
 ################################################################################
 #                          DEFINTION METHODS
 ################################################################################
@@ -558,13 +576,46 @@ function all_derivatives(model::InfiniteModel)::Vector{GeneralVariableRef}
 end
 
 ################################################################################
-#                      EVALUATION METHOD MODIFICATIONS
+#                      EVALUATION METHOD MODIFICATIONS/QUERIES
 ################################################################################
 # Fallback (needs to be done via the infinite parameter)
 function set_derivative_method(dref::DerivativeRef, method::AbstractDerivativeMethod)
     error("Cannot specify the derivative method in terms of the derivative, must " * 
           " do so in terms of the operator parameter by calling `set_derivative_method` " * 
           " using the operator parameter.")
+end
+
+"""
+    derivative_constraints(dref::DerivativeRef)::Vector{InfOptConstraintRef}
+
+Return a list of the derivative evaluation constraints for `dref` that have been 
+added directly to the `InfiniteModel` associated with `dref`. An empty vector is 
+returned is there are no such constraints.
+"""
+function derivative_constraints(dref::DerivativeRef)::Vector{InfOptConstraintRef}
+    return [InfOptConstraintRef(JuMP.owner_model(dref), idx) 
+            for idx in _derivative_constraint_dependencies(dref)]
+end
+
+
+"""
+    delete_derivative_constraints(dref::DerivativeRef)::Nothing
+
+Delete any derivative constraints of `dref` that have been directly added to the 
+`InfiniteModel`.
+"""
+function delete_derivative_constraints(dref::DerivativeRef)::Nothing 
+    model = JuMP.owner_model(dref)
+    for cref in derivative_constraints(dref)
+        JuMP.delete(model, cref)
+    end
+    empty!(_derivative_constraint_dependencies(dref))
+    pref = dispatch_variable_ref(operator_parameter(dref))
+    if all(!has_derivative_constraints(DerivativeRef(model, idx)) 
+            for idx in _derivative_dependencies(pref))
+        _set_has_derivative_constraints(pref, false)
+    end
+    return
 end
 
 ################################################################################
@@ -580,6 +631,10 @@ function _delete_variable_dependencies(dref::DerivativeRef)::Nothing
     filter!(e -> e != JuMP.index(dref), _derivative_dependencies(vref))
     filter!(e -> e != JuMP.index(dref), _derivative_dependencies(pref))
     model = JuMP.owner_model(dref)
+    # delete the variable-parameter pair from the anti-duplication dictionary 
+    delete!(model.deriv_lookup, (vref, pref))
+    # delete any derivative constraints associated with this derivative 
+    delete_derivative_constraints(dref)
     # delete associated point variables and mapping
     for index in _point_variable_dependencies(dref)
         JuMP.delete(model, dispatch_variable_ref(model, index))

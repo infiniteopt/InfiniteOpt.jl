@@ -598,7 +598,7 @@ mutable struct MultiParameterData{P <: DependentParameters} <: AbstractDataObjec
     measure_indices::Vector{Vector{MeasureIndex}}
     constraint_indices::Vector{Vector{ConstraintIndex}}
     has_internal_supports::Bool
-    has_deriv_constrs::Bool
+    has_deriv_constrs::Vector{Bool}
 end
 
 # Convenient constructor 
@@ -612,7 +612,7 @@ function MultiParameterData(params::P,
                                  [DerivativeIndex[] for i in eachindex(names)],
                                  [MeasureIndex[] for i in eachindex(names)],
                                  [ConstraintIndex[] for i in eachindex(names)],
-                                 false, false)
+                                 false, zeros(Bool, length(names)))
 end
 
 ################################################################################
@@ -746,6 +746,7 @@ A mutable `DataType` for storing `InfOptVariable`s and their data.
 - `point_var_indices::Vector{PointVariableIndex}`: Indices of dependent point variables.
 - `reduced_var_indices::Vector{ReducedVariableIndex}`: Indices of dependent reduced variables.
 - `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
+- `deriv_constr_indices::Vector{ConstraintIndex}`: Indices of dependent derivative evaluation constraints.
 """
 mutable struct VariableData{V <: InfOptVariable} <: AbstractDataObject
     variable::V
@@ -761,10 +762,11 @@ mutable struct VariableData{V <: InfOptVariable} <: AbstractDataObject
     point_var_indices::Vector{PointVariableIndex} # InfiniteVariables only
     reduced_var_indices::Vector{ReducedVariableIndex} # InfiniteVariables only
     derivative_indices::Vector{DerivativeIndex} # infinite and reduced only
+    deriv_constr_indices::Vector{ConstraintIndex} # Derivatives only
     function VariableData(var::V, name::String = "") where {V <: InfOptVariable}
         return new{V}(var, name, nothing, nothing, nothing, nothing, nothing,
                    MeasureIndex[], ConstraintIndex[], false, PointVariableIndex[],
-                   ReducedVariableIndex[], DerivativeIndex[])
+                   ReducedVariableIndex[], DerivativeIndex[], ConstraintIndex[])
     end
 end
 
@@ -1473,19 +1475,17 @@ const UserDecisionVariableRef = Union{InfiniteVariableRef, PointVariableRef,
 const ScalarParameterRef = Union{IndependentParameterRef, FiniteParameterRef}
 
 """
-    InfOptConstraintRef{S <: JuMP.AbstractShape}
+    InfOptConstraintRef
 
 A `DataType` for constraints that are in `InfiniteModel`s
 
 **Fields**
 - `model::InfiniteModel`: Infinite model.
 - `index::ConstraintIndex`: Index of the constraint in model.
-- `shape::JuMP.AbstractShape`: Shape of the constraint
 """
-struct InfOptConstraintRef{S <: JuMP.AbstractShape}
+struct InfOptConstraintRef
     model::InfiniteModel
     index::ConstraintIndex
-    shape::S
 end
 
 # Make dumby model type for calling @expression 

@@ -401,7 +401,7 @@ end
         @test InfiniteOpt._variable_info(vref).start == func1
         # lower bound
         cindex = ConstraintIndex(1)
-        cref = InfOptConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex)
         @test has_lower_bound(vref)
         @test InfiniteOpt._lower_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -409,7 +409,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # upper bound
         cindex = ConstraintIndex(2)
-        cref = InfOptConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex)
         @test has_upper_bound(vref)
         @test InfiniteOpt._upper_bound_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -417,7 +417,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # fix
         cindex = ConstraintIndex(3)
-        cref = InfOptConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex)
         @test is_fixed(vref)
         @test InfiniteOpt._fix_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -425,7 +425,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # binary
         cindex = ConstraintIndex(4)
-        cref = InfOptConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex)
         @test is_binary(vref)
         @test InfiniteOpt._binary_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
@@ -444,7 +444,7 @@ end
         @test InfiniteOpt._is_vector_start(vref)
         @test InfiniteOpt._variable_info(vref).start isa Function
         cindex = ConstraintIndex(8)
-        cref = InfOptConstraintRef(m, cindex, ScalarShape())
+        cref = InfOptConstraintRef(m, cindex)
         @test is_integer(vref)
         @test InfiniteOpt._integer_index(vref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,

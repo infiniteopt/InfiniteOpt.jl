@@ -6,12 +6,12 @@ above sections comprise the guide.
 ## Overview
 Constraints are an integral part of infinite dimensional problems and serve
 as a fundamental utility of `InfiniteOpt`. In particular, `InfiniteOpt` supports
-finite constraints that entail finite variables and/or measures that fully any
+finite constraints that entail finite variables and/or measures that fully remove any
 infinite parameter dependencies (e.g., first stage constraints), infinite
 constraints that are enforced over the entire domain of its infinite parameter
 dependencies (e.g., path constraints), and bounded infinite constraints which
 are enforced over some specified sub-domain of its infinite parameter
-dependencies (e.g., initial conditions). This page will highlight how to
+dependencies (e.g., boundary conditions). This page will highlight how to
 implement these types of constraints in `InfiniteOpt`.
 
 ## Basic Usage
@@ -19,7 +19,7 @@ Principally, the [`@constraint`](@ref) and [`@BDconstraint`](@ref) macros should
 be employed to specify constraints. Here `@constraint` is used to specify
 typical finite and infinite constraints and `@BDconstraint` is used to specify
 bounded constraints (i.e., infinite constraints with a constrained sub-domain
-of its full infinite sub-domain). First, let's setup an infinite model with
+of its full infinite domain). First, let's setup an infinite model with
 variables that we can add constraints to:
 ```jldoctest constrs; setup = :(using InfiniteOpt, JuMP, Distributions)
 julia> model = InfiniteModel();
@@ -61,7 +61,7 @@ an additional argument before the constraint expression. For example,
 let's define ``3z[i] - 14 == 0, \forall i \in \{1,2\}``:
 ```jldoctest constrs
 julia> crefs = @constraint(model, [i = 1:2], 3z[i] - 14 == 0)
-2-element Array{InfOptConstraintRef{ScalarShape},1}:
+2-element Array{InfOptConstraintRef,1}:
  3 z[1] = 14.0
  3 z[2] = 14.0
 ```
@@ -80,8 +80,10 @@ variable `measure_constr` that contains a reference to that constraint.
 !!! note
     Linear algebra constraints can also be used when defining constraints
     when `.` is added in front of the constraint operators (e.g., `.<=`). This
-    behavior is further explained in `JuMP`'s documentation [here](https://jump.dev/JuMP.jl/stable/constraints/#Vectorized-constraints-1). However, note that
-    that vector array sets such as `MOI.Nonnegatives` are not currently supported.
+    behavior is further explained in `JuMP`'s documentation 
+    [here](https://jump.dev/JuMP.jl/stable/constraints/#Vectorized-constraints-1). 
+    However, note that that vector array sets such as `MOI.Nonnegatives` are not 
+    currently supported.
 
 ### Bounded Constraints
 Bounded constraints denote constraints with a particular sub-domain of an infinite
@@ -109,7 +111,7 @@ julia> cref = @BDconstraint(model, (t == 0, x in [-1, 1]), 2T^2 + w >= 3)
 ```
 where `cref` contains the corresponding constraint reference.
 
-Now we have added constraints to our model and it is ready to be transcribed!
+Now we have added constraints to our model and it is ready to be transcripted!
 
 ## Data Structure
 Here we detail the data structures used to store constraints in `InfiniteOpt`.
@@ -188,18 +190,18 @@ The indexing expression can be used to produce an array of constraints as shown
 below (notice this is equivalent to looping over individual `@constraint` calls):
 ```jldoctest constrs
 julia> crefs = @constraint(model, [i = 1:2], 2z[i] - g == 0)
-2-element Array{InfOptConstraintRef{ScalarShape},1}:
+2-element Array{InfOptConstraintRef,1}:
  2 z[1] - g(t) = 0.0, ∀ t ∈ [0, 10]
  2 z[2] - g(t) = 0.0, ∀ t ∈ [0, 10]
 
-julia> crefs = Vector{InfOptConstraintRef{ScalarShape}}(undef, 2);
+julia> crefs = Vector{InfOptConstraintRef}(undef, 2);
 
 julia> for i = 1:2
            crefs[i] = @constraint(model, 2z[i] - g == 0)
        end
 
 julia> crefs
-2-element Array{InfOptConstraintRef{ScalarShape},1}:
+2-element Array{InfOptConstraintRef,1}:
  2 z[1] - g(t) = 0.0, ∀ t ∈ [0, 10]
  2 z[2] - g(t) = 0.0, ∀ t ∈ [0, 10]
 ```
@@ -207,7 +209,7 @@ Again, please note that only scalar constraints are currently supported and thus
 the `[scalar constr expr]` must be scalar.
 
 An interesting corollary is that `@constraint` in certain cases will produce
-bound constraints even if the user doesn't specify any parameter bounds. This,
+bounded constraints even if the user doesn't specify any parameter bounds. This,
 occurs when a bounded hold variable is included. For example, if we want to
 make the constraint ``g(t) + 2.5w \leg 2`` it would only be valid over the sub-domain
 ``t \in [0, 5] \subsetneq [0, 10]`` due to the restrictions on `w`. Thus,
@@ -249,7 +251,7 @@ references to be stored in a `JuMP.SparseAxisArray`:
 ```jldoctest constrs
 julia> @BDconstraint(model, [i = 1:2](x[i] in [0, 1]), T^2 + z[i] <= 1,
                      container = SparseAxisArray)
-JuMP.Containers.SparseAxisArray{InfOptConstraintRef{ScalarShape},1,Tuple{Int64}} with 2 entries:
+JuMP.Containers.SparseAxisArray{InfOptConstraintRef,1,Tuple{Int64}} with 2 entries:
   [2]  =  T(t, x)² + z[2] ≤ 1.0, ∀ t ∈ [0, 10], x[1] ~ Normal, x[2] ~ Normal ∩ [0, 1] 
   [1]  =  T(t, x)² + z[1] ≤ 1.0, ∀ t ∈ [0, 10], x[1] ~ Normal ∩ [0, 1], x[2] ~ Normal
 ```

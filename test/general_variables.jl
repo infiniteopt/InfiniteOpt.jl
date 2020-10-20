@@ -202,6 +202,10 @@ end
     @testset "_derivative_dependencies (GeneralVariableRef)" begin
         @test_throws MethodError InfiniteOpt._derivative_dependencies(gvref)
     end
+    # test _derivative_constraint_dependencies (GeneralVariableRef)
+    @testset "_derivative_constraint_dependencies (GeneralVariableRef)" begin
+        @test_throws MethodError InfiniteOpt._derivative_constraint_dependencies(gvref)
+    end
 end
 
 # test Usage Methods
@@ -274,6 +278,14 @@ end
     # test is_used (GeneralVariableRef)
     @testset "is_used (GeneralVariableRef)" begin
         @test_throws ArgumentError is_used(gvref)
+    end
+    # test has_derivative_constraints (Fallback)
+    @testset "has_derivative_constraints (Fallback)" begin
+        @test_throws ArgumentError has_derivative_constraints(dvref)
+    end
+    # test has_derivative_constraints (GeneralVariableRef)
+    @testset "has_derivative_constraints (GeneralVariableRef)" begin
+        @test_throws ArgumentError has_derivative_constraints(gvref)
     end
 end
 
@@ -499,13 +511,13 @@ end
     @testset "has_internal_supports (GeneralVariableRef)" begin
         @test_throws ArgumentError has_internal_supports(gvref)
     end
-    # test set_has_internal_supports (Fallback)
-    @testset "set_has_internal_supports (Fallback)" begin
-        @test_throws ArgumentError set_has_internal_supports(dvref, true)
+    # test _set_has_internal_supports (Fallback)
+    @testset "_set_has_internal_supports (Fallback)" begin
+        @test_throws ArgumentError InfiniteOpt._set_has_internal_supports(dvref, true)
     end
-    # test set_has_internal_supports (GeneralVariableRef)
-    @testset "set_has_internal_supports (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_has_internal_supports(gvref, true)
+    # test _set_has_internal_supports (GeneralVariableRef)
+    @testset "_set_has_internal_supports (GeneralVariableRef)" begin
+        @test_throws ArgumentError InfiniteOpt._set_has_internal_supports(gvref, true)
     end
     # test has_derivative_supports (Fallback)
     @testset "has_derivative_supports (Fallback)" begin
@@ -515,13 +527,21 @@ end
     @testset "has_derivative_supports (GeneralVariableRef)" begin
         @test_throws ArgumentError has_derivative_supports(gvref)
     end
-    # test set_has_derivative_supports (Fallback)
-    @testset "set_has_derivative_supports (Fallback)" begin
-        @test_throws ArgumentError set_has_derivative_supports(dvref, true)
+    # test _set_has_derivative_supports (Fallback)
+    @testset "_set_has_derivative_supports (Fallback)" begin
+        @test_throws ArgumentError InfiniteOpt._set_has_derivative_supports(dvref, true)
     end
-    # test set_has_derivative_supports (GeneralVariableRef)
-    @testset "set_has_derivative_supports (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_has_derivative_supports(gvref, true)
+    # test _set_has_derivative_supports (GeneralVariableRef)
+    @testset "_set_has_derivative_supports (GeneralVariableRef)" begin
+        @test_throws ArgumentError InfiniteOpt._set_has_derivative_supports(gvref, true)
+    end
+    # test _set_has_derivative_constraints (Fallback)
+    @testset "_set_has_derivative_constraints (Fallback)" begin
+        @test_throws ArgumentError InfiniteOpt._set_has_derivative_constraints(dvref, true)
+    end
+    # test _set_has_derivative_constraints (GeneralVariableRef)
+    @testset "_set_has_derivative_constraints (GeneralVariableRef)" begin
+        @test_throws ArgumentError InfiniteOpt._set_has_derivative_constraints(gvref, true)
     end
     # test add_derivative_supports (Fallback)
     @testset "add_derivative_supports (Fallback)" begin
@@ -706,6 +726,22 @@ end
     # test evaluate (GeneralVariableRef)
     @testset "evaluate (GeneralVariableRef)" begin
         @test_throws ArgumentError evaluate(gvref)
+    end
+    # test derivative_constraints (Fallback)
+    @testset "derivative_constraints (Fallback)" begin
+        @test_throws ArgumentError derivative_constraints(dvref)
+    end
+    # test derivative_constraints (GeneralVariableRef)
+    @testset "derivative_constraints (GeneralVariableRef)" begin
+        @test_throws ArgumentError derivative_constraints(gvref)
+    end
+    # test delete_derivative_constraints (Fallback)
+    @testset "delete_derivative_constraints (Fallback)" begin
+        @test_throws ArgumentError delete_derivative_constraints(dvref)
+    end
+    # test delete_derivative_constraints (GeneralVariableRef)
+    @testset "delete_derivative_constraints (GeneralVariableRef)" begin
+        @test_throws ArgumentError delete_derivative_constraints(gvref)
     end
 end
 

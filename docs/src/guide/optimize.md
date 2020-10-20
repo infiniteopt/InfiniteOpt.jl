@@ -1,4 +1,4 @@
-# Optimization
+# [Optimization] (@id opt_page)
 A guide and manual for optimizing (solving) `InfiniteOpt` models. The Methods
 section at the end comprise the manual, and the above sections comprise the guide.
 
@@ -162,6 +162,13 @@ julia> optimizer_model_expression(z - x^2 + 3) # infinite expression
  -x(support: 9)² + z + 3
  -x(support: 10)² + z + 3
 ```
+
+!!! note 
+    Like `supports` the `optimizer_model_[obj]` methods also employ the 
+    `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+    default will return variables/expressions/constraints associated with public 
+    supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+    is obtained via `label = All`.
 
 The purpose of this `optimizer_model` abstraction is to readily enable user-defined
 reformulation extensions (e.g., using polynomial chaos expansion theory). However,

@@ -102,7 +102,7 @@ set_supports, add_supports, delete_supports, supports, used_by_constraint,
 used_by_measure, used_by_infinite_variable, is_used, generate_and_add_supports!,
 significant_digits, parameter_value, used_by_derivative, derivative_method, 
 set_derivative_method, set_all_derivative_methods, has_internal_supports, 
-has_derivative_supports, set_has_derivative_supports, set_has_internal_supports
+has_derivative_supports, has_derivative_constraints
 
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, ReducedVariable,
@@ -126,7 +126,7 @@ export Derivative, DerivativeRef
 # Export derivative methods 
 export build_derivative, add_derivative, derivative_argument, operator_parameter,
 deriv, evaluate_derivative, evaluate, evaluate_all_derivatives!, num_derivatives, 
-all_derivatives
+all_derivatives, derivative_constraints, delete_derivative_constraints
 
 # Export measure datatypes
 export AbstractMeasureData, DiscreteMeasureData, FunctionalDiscreteMeasureData,

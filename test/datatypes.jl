@@ -224,9 +224,9 @@ end
     idx = MeasureIndex(1)
     @test MeasureRef(m, idx) isa MeasureRef
     # InfOptConstraintRef
-    @test InfOptConstraintRef isa UnionAll
+    @test InfOptConstraintRef isa DataType
     idx = ConstraintIndex(1)
-    @test InfOptConstraintRef(m, idx, JuMP.ScalarShape()) isa InfOptConstraintRef
+    @test InfOptConstraintRef(m, idx) isa InfOptConstraintRef
 end
 
 # Test ParameterBounds

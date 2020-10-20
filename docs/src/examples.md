@@ -195,74 +195,37 @@ problem is expressed:
 ```
 where ``x(t)`` is the Cartesian position, ``v(t)`` is the velocity, ``u(t)`` is
 the thrust input, ``xw_i, \ i \in I,`` are the waypoints, and ``T`` is the time
-horizon. This contains two ordinary differential equations which aren't currently
-supported by `InfiniteOpt`, so we'll need to reformulate them. This can be
-achieved via a simple Euler integration. Thus, we define a set of time points
-``T_m \subseteq T`` with an equal time step ``\Delta t`` and apply Euler's
-method to obtain:
-```math
-\begin{aligned}
-	&&\underset{x(t), v(t), u(t)}{\text{min}} &&& \int_{t \in T} |u(t)|_2^2 dt  \\
-	&&\text{s.t.} &&& v(0) = v0\\
-	&&&&& x(t_{j+1}) = v(t_{j}) \Delta t + x(t_{j}), && j \in T_m \setminus T_{mf}\\
-    &&&&& v(t_{j+1}) = u(t_{j}) \Delta t + v(t_{j}), && j \in T_m \setminus T_{mf}\\
-    &&&&& x(t_i) = xw_i, && i \in I
-\end{aligned}
-```
-where ``T_{mf}`` is the final time point in ``T_m``.
+horizon.
 
-Let's implement this in `InfiniteOpt` by first defining our problem parameters:
+Let's implement this in `InfiniteOpt`:
 ```jldoctest hovercraft; output = false
-# Initial condition
-v0 = [0, 0]
-
-# Time horizon
-max_time = 60
-
-# Euler parameters
-Δt = 1
-time_points = Vector(0:Δt:max_time)
+using InfiniteOpt, JuMP, Ipopt
 
 # Waypoints
 xw = [1 4 6 1; 1 3 0 1] # positions
 tw = [0, 25, 50, 60]    # times
 
-# output
-4-element Array{Int64,1}:
-  0
- 25
- 50
- 60
-```
-
-With our parameters set, let's now construct the `InfiniteModel` and solve it:
-```jldoctest hovercraft; output = false
-using InfiniteOpt, JuMP, Ipopt
-
 # Initialize the model
 m = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0))
 
 # Set the parameters and variables
-@infinite_parameter(m, t in [0, max_time])
+@infinite_parameter(m, t in [0, 60], num_supports = 61)
 @infinite_variable(m, x[1:2](t), start = 1) # position
 @infinite_variable(m, v[1:2](t), start = 0) # velocity
 @infinite_variable(m, u[1:2](t), start = 0) # thruster input
 
+# Specify the objective
+@objective(m, Min, integral(u[1]^2 + u[2]^2, t))
+
 # Set the initial conditions
 @BDconstraint(m, initial_velocity[i = 1:2](t == 0), v[i] == 0)
 
-# Manually implement euler scheme for motion equations
-@point_variable(m, x[i](time_points[j]), xp[i = 1:2, j = 1:length(time_points)])
-@point_variable(m, v[i](time_points[j]), vp[i = 1:2, j = 1:length(time_points)])
-@point_variable(m, u[i](time_points[j]), up[i = 1:2, j = 1:length(time_points)])
-@constraint(m, [i = 1:2, j = 1:length(time_points)-1], xp[i, j+1] == xp[i, j] + vp[i, j])
-@constraint(m, [i = 1:2, j = 1:length(time_points)-1], vp[i, j+1] == vp[i, j] + up[i, j])
+# Define the point physics
+@constraint(m, [i = 1:2], deriv(x[i], t) == v[i])
+@constraint(m, [i = 1:2], deriv(v[i], t) == u[i])
 
 # Hit all the waypoints
-@BDconstraint(m, [i = 1:2, j = 1:length(tw)](t == tw[j]), x[i] == xw[i, j])
-
-# Specify the objective
-@objective(m, Min, integral(u[1]^2 + u[2]^2, t))
+@BDconstraint(m, [i = 1:2, j = eachindex(tw)](t == tw[j]), x[i] == xw[i, j])
 
 # Optimize the model
 optimize!(m)
@@ -274,15 +237,19 @@ This thus demonstrates how point variables can be used to enable functionality
 that is not built in `InfinitOpt`. Finally, let's extract the solution and plot
 it to see the finalized trajectory:
 ```julia
+using PyPlot
+
 # Get the results
 if has_values(m)
     x_opt = value.(x)
 end
 
 # Plot the results
+figure()
 scatter(xw[1,:], xw[2,:], label = "Waypoints")
-plot!(x_opt[1,:], x_opt[2,:], label = "Trajectory")
-xlabel!("x1")
-ylabel!("x2")
+plot(x_opt[1], x_opt[2], label = "Trajectory", color = "C1")
+xlabel(L"$x_1$")
+ylabel(L"$x_2$")
+legend()
 ```
 ![answer](./assets/hovercraft.png)

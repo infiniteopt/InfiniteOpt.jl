@@ -361,7 +361,7 @@ end
 # Make a temporary constraint reference to use the data accessors
 function _temp_constraint_ref(model::InfiniteModel,
                               cindex::ConstraintIndex)::InfOptConstraintRef
-    return InfOptConstraintRef(model, cindex, JuMP.ScalarShape())
+    return InfOptConstraintRef(model, cindex)
 end
 
 """

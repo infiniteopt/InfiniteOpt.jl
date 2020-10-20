@@ -321,7 +321,8 @@ function _set_core_variable_object end
 # Define wrappers for internal usage methods and their templates
 for op = (:_infinite_variable_dependencies, :_reduced_variable_dependencies,
           :_point_variable_dependencies, :_measure_dependencies,
-          :_constraint_dependencies, :_derivative_dependencies)
+          :_constraint_dependencies, :_derivative_dependencies, 
+          :_derivative_constraint_dependencies)
     @eval begin
         # define the api template
         func = $op
@@ -353,7 +354,7 @@ end
 # Define the usage method wrappers and their fallbacks
 for op = (:used_by_infinite_variable, :used_by_reduced_variable,
           :used_by_point_variable, :used_by_measure, :used_by_constraint,
-          :used_by_objective, :used_by_derivative, :is_used)
+          :used_by_objective, :used_by_derivative, :is_used, :has_derivative_constraints)
     @eval begin
         # define the fallback method
         func = $op
@@ -651,42 +652,22 @@ function set_derivative_method(pref::GeneralVariableRef,
     return set_derivative_method(dispatch_variable_ref(pref), method)
 end
 
-# Dispatch fallback
-function set_has_derivative_supports(pref::DispatchVariableRef, status)
-    throw(ArgumentError("`set_has_derivative_supports` not defined for variable reference type(s) " *
-                        "`$(typeof(pref))`."))
-end
-
-"""
-    set_has_derivative_supports(pref::GeneralVariableRef, status::Bool)::Nothing
-
-Specify whether derivative supports have been added to `pref`. This is intended as 
-an internal method as is provided to assist with extensions that implement a 
-custom `GenerativeDerivativeMethod`.
-An `ArgumentError` is thrown if `pref` is not an infinite parameter.
-"""
-function set_has_derivative_supports(pref::GeneralVariableRef,
-                                     status::Bool
-                                     )::Nothing
-    return set_has_derivative_supports(dispatch_variable_ref(pref), status)
-end
-
-# Dispatch fallback
-function set_has_internal_supports(pref::DispatchVariableRef, status)
-    throw(ArgumentError("`set_has_internal_supports` not defined for variable reference type(s) " *
-                        "`$(typeof(pref))`."))
-end
-
-"""
-    set_has_internal_supports(pref::GeneralVariableRef, status::Bool)::Nothing
-
-Specify if `pref` has internal supports.
-An `ArgumentError` is thrown if `pref` is not an infinite parameter.
-"""
-function set_has_internal_supports(pref::GeneralVariableRef,
-                                   status::Bool
-                                   )::Nothing
-    return set_has_internal_supports(dispatch_variable_ref(pref), status)
+# Define parameter status setters 
+for op = (:_set_has_derivative_supports, :_set_has_internal_supports,
+          :_set_has_derivative_constraints)
+    @eval begin
+        # define the fallback method
+        func = $op
+        function $op(vref::DispatchVariableRef, status)
+            str = string("`", func, "` not defined for variable reference type " *
+                         "`$(typeof(vref))`.")
+            throw(ArgumentError(str))
+        end
+        # define the dispatch version
+        function $op(vref::GeneralVariableRef, status::Bool)::Nothing
+            return $op(dispatch_variable_ref(vref), status)
+        end
+    end
 end
 
 ################################################################################
@@ -822,7 +803,8 @@ end
 #                               DERIVATIVE METHODS
 ################################################################################
 # Define measure queries and their fallbacks
-for op = (:derivative_argument, :operator_parameter, :evaluate)
+for op = (:derivative_argument, :operator_parameter, :evaluate, 
+          :derivative_constraints, :delete_derivative_constraints)
     @eval begin
         # define the fallback method
         func = $op

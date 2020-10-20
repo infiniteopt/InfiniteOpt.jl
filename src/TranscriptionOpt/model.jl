@@ -61,11 +61,11 @@ mutable struct TranscriptionData
     measure_support_labels::Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}
 
     # Constraint information
-    constr_mappings::Dict{InfiniteOpt.InfOptConstraintRef{JuMP.ScalarShape},
+    constr_mappings::Dict{InfiniteOpt.InfOptConstraintRef,
                           Vector{JuMP.ConstraintRef}}
-    constr_supports::Dict{InfiniteOpt.InfOptConstraintRef{JuMP.ScalarShape},
+    constr_supports::Dict{InfiniteOpt.InfOptConstraintRef,
                           Vector{Tuple}}
-    constr_support_labels::Dict{InfiniteOpt.InfOptConstraintRef{JuMP.ScalarShape},
+    constr_support_labels::Dict{InfiniteOpt.InfOptConstraintRef,
                                Vector{Set{DataType}}}
 
     # Collected Supports
@@ -90,12 +90,9 @@ mutable struct TranscriptionData
                    Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}(),
                    Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}(),
                    # constraint info
-                   Dict{InfiniteOpt.InfOptConstraintRef{JuMP.ScalarShape},
-                        Vector{JuMP.ConstraintRef}}(),
-                   Dict{InfiniteOpt.InfOptConstraintRef{JuMP.ScalarShape},
-                        Vector{Vector{Float64}}}(),
-                   Dict{InfiniteOpt.InfOptConstraintRef{JuMP.ScalarShape},
-                        Vector{Set{DataType}}}(),
+                   Dict{InfiniteOpt.InfOptConstraintRef, Vector{JuMP.ConstraintRef}}(),
+                   Dict{InfiniteOpt.InfOptConstraintRef, Vector{Vector{Float64}}}(),
+                   Dict{InfiniteOpt.InfOptConstraintRef, Vector{Set{DataType}}}(),
                    # support storage
                    (), (), false)
     end
@@ -346,7 +343,8 @@ end
 _supp_error() = error("Unable to locate transcription variable by support, consider " *
                       "rebuilding the infinite model with less significant digits. " *
                       "Note this might be due to partially evaluating dependent parameters " *
-                      "which is not supported by TranscriptionOpt.")
+                      "which is not supported by TranscriptionOpt. Such is the case with " * 
+                      "derivatives/measures that dependent on single dependent parameters.")
 
 # InfiniteIndex
 function lookup_by_support(model::JuMP.Model,
