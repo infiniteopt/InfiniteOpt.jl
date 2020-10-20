@@ -430,6 +430,7 @@ julia> derivative_constraints(d1)
 
 julia> add_supports(t, 0.2)
 ┌ Warning: Support/method changes will invalidate existing derivative evaluation constraints that have been added to the InfiniteModel. Thus, these are being deleted.
+└ @ InfiniteOpt ~/build/pulsipher/InfiniteOpt.jl/src/scalar_parameters.jl:656
 
 julia> has_derivative_constraints(d1)
 false

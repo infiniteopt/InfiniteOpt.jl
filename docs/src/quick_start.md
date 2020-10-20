@@ -224,7 +224,7 @@ julia> optimize!(model)
 ```
 We can check the solution status via 
 [`termination_status`](@ref JuMP.termination_status(::InfiniteModel)):
-```jldoctest quick; setup = :(optimize!(model))
+```jldoctest quick; setup = :(set_optimizer_attribute(model, "print_level", 0); optimize!(model))
 julia> termination_status(model)
 LOCALLY_SOLVED::TerminationStatusCode = 4
 ```
