@@ -76,7 +76,7 @@ Before moving on, let's go ahead make a finite parameter via [`@finite_parameter
 for ``\epsilon`` since this likely a constant we'll want to update repeatedly 
 (e.g., to determine a tradeoff curve by varying it): 
 ```jldoctest quick
-julia> @finite_parameter(model, ϵ, 0.001)
+julia> @finite_parameter(model, ϵ, 10)
 ϵ
 ```
 Learn more about finite parameters on our [Finite Parameters](@ref finite_param_docs) 
@@ -161,12 +161,16 @@ Now let's define the initial conditions using [`@BDconstraint`](@ref) which we u
 to define constraints over portions and/or points of the infinite domain:
  ```jldoctest quick
 julia> @BDconstraint(model, initial1[i in I](t == 0), x[i] == x0[i])
-2-element Array{InfOptConstraintRef,1}:
+1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
+    Dimension 1, 1:2
+And data, a 2-element Array{InfOptConstraintRef,1}:
  initial1[1] : x[1](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
  initial1[2] : x[2](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
 
 julia> @BDconstraint(model, initial2[i in I](t == 0), v[i] == v0[i])
-2-element Array{InfOptConstraintRef,1}:
+1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
+    Dimension 1, 1:2
+And data, a 2-element Array{InfOptConstraintRef,1}:
  initial2[1] : v[1](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
  initial2[2] : v[2](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
 ```
@@ -201,11 +205,11 @@ julia> @BDconstraint(model, c3[w in W](t == tw[w]), y[w] == sum((x[i] - p[i, w])
 And data, a 4-element Array{InfOptConstraintRef,1}:
  c3[1] : -x[1](t, ξ)² - x[2](t, ξ)² + y[1](ξ) + 2 x[1](t, ξ) + 2 x[2](t, ξ) = 2.0, ∀ t = 0, ξ ~ Normal
  c3[2] : -x[1](t, ξ)² - x[2](t, ξ)² + y[2](ξ) + 8 x[1](t, ξ) + 6 x[2](t, ξ) = 25.0, ∀ t = 25, ξ ~ Normal
- c3[3] : -x[1](t, ξ)² - x[2](t, ξ)² + y[3](ξ) + 12 x[1](t, ξ) == 36.0, ∀ t = 50, ξ ~ Normal
+ c3[3] : -x[1](t, ξ)² - x[2](t, ξ)² + y[3](ξ) + 12 x[1](t, ξ) = 36.0, ∀ t = 50, ξ ~ Normal
  c3[4] : -x[1](t, ξ)² - x[2](t, ξ)² + y[4](ξ) + 2 x[1](t, ξ) + 2 x[2](t, ξ) = 2.0, ∀ t = 60, ξ ~ Normal
 
 julia> @constraint(model, c4, expect(sum(y[w] for w in W), ξ) <= ϵ)
-c4 : expect{ξ}[y[1](ξ) + y[2](ξ) + y[3](ξ) + y[4](ξ)] - ϵ <= 0.0
+c4 : expect{ξ}[y[1](ξ) + y[2](ξ) + y[3](ξ) + y[4](ξ)] - ϵ ≤ 0.0
 ```
 Notice we are able to invoke an expectation simply by calling [`expect`](@ref).
 
@@ -214,13 +218,13 @@ That's it, now we have our problem defined in `InfiniteOpt`!
 ## Solution & Queries
 ### Optimize 
 Now that our model is defined, let's optimize it via [`optimize!`](@ref):
-```jldoctest quick
+```julia-repl
 julia> optimize!(model)
 
 ```
 We can check the solution status via 
 [`termination_status`](@ref JuMP.termination_status(::InfiniteModel)):
-```jldoctest quick
+```jldoctest quick; setup = :(optimize!(model))
 julia> termination_status(model)
 LOCALLY_SOLVED::TerminationStatusCode = 4
 ```
@@ -266,7 +270,7 @@ I = 1:2; W = 1:4
 model = InfiniteModel(Ipopt.Optimizer)
 
 # INITIALIZE THE PARAMETERS
-@finite_parameter(model, ϵ, 0.001)
+@finite_parameter(model, ϵ, 10)
 @infinite_parameter(model, t in [0, 60], num_supports = 61, 
                     derivative_method = OrthogonalCollocation(2))
 @infinite_parameter(model, ξ in Normal(μ, σ^2), num_supports = 10)

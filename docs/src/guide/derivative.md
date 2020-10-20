@@ -362,10 +362,10 @@ to use 3 collocation nodes (i.e., 1 internal node per finite element) correspond
 to a 2nd degree polynomial via
 ```jldoctest deriv_basic
 julia> OrthogonalCollocation(3)
-OrthogonalCollocation(1, Labatto)
+OrthogonalCollocation(1, Lobatto)
 ```
-Notice that the 2nd attribute is `Labatto` which indicates that we are using 
-collocation nodes selected via Labatto quadrature. This is currently the only 
+Notice that the 2nd attribute is `Lobatto` which indicates that we are using 
+collocation nodes selected via Lobatto quadrature. This is currently the only 
 supported technique employed by `OrthogonalCollocation` although more may be added 
 in future versions. Please note that an initial condition must be provided otherwise 
 the corresponding derivative will be free variable. For more information on 
@@ -520,7 +520,7 @@ julia> all_derivatives(model)
  ∂/∂t[∂/∂t[q(t)]]
  ∂/∂ξ[y(t, ξ)]
  dydt2(t, ξ)
- ∂/∂t[integral{ξ in [-1, 1]}[y(t, ξ)]]
+ ∂/∂t[integral{ξ ∈ [-1, 1]}[y(t, ξ)]]
 ```
 
 ## Modification Methods 

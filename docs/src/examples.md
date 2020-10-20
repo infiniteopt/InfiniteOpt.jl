@@ -208,14 +208,14 @@ tw = [0, 25, 50, 60]    # times
 # Initialize the model
 m = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0))
 
-# Specify the objective
-@objective(m, Min, integral(u[1]^2 + u[2]^2, t))
-
 # Set the parameters and variables
 @infinite_parameter(m, t in [0, 60], num_supports = 61)
 @infinite_variable(m, x[1:2](t), start = 1) # position
 @infinite_variable(m, v[1:2](t), start = 0) # velocity
 @infinite_variable(m, u[1:2](t), start = 0) # thruster input
+
+# Specify the objective
+@objective(m, Min, integral(u[1]^2 + u[2]^2, t))
 
 # Set the initial conditions
 @BDconstraint(m, initial_velocity[i = 1:2](t == 0), v[i] == 0)

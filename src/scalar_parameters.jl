@@ -1238,6 +1238,9 @@ julia> value(cost)
 """
 function JuMP.set_value(pref::FiniteParameterRef, value::Real)::Nothing
     _data_object(pref).parameter = FiniteParameter(value)
+    if is_used(pref)
+        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+    end
     return
 end
 

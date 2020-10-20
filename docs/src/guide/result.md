@@ -41,11 +41,6 @@ Subject to
 
 julia> optimize!(model)
 
-******************************************************************************
-This program contains Ipopt, a library for large-scale nonlinear optimization.
- Ipopt is released as open source code under the Eclipse Public License (EPL).
-         For more information visit http://projects.coin-or.org/Ipopt
-******************************************************************************
 ```
 Now that the model has been optimized, let's find out what happened. To determine
 why the optimizer stopped, we can use

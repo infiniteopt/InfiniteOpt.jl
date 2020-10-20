@@ -983,6 +983,7 @@ end
     @testset "JuMP.set_value" begin
         pref = GeneralVariableRef(m, 1, FiniteParameterIndex)
         dpref = dispatch_variable_ref(pref)
+        push!(InfiniteOpt._constraint_dependencies(dpref), ConstraintIndex(1))
         @test_throws ArgumentError set_value(bad, 42)
         @test isa(set_value(dpref, 42), Nothing)
         @test parameter_value(pref) == 42

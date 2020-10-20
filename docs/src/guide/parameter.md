@@ -428,11 +428,11 @@ arguments. However, the users cannot do both at the same time. The macro will
 check this behavior and throw an error if this happens. For example,
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
 julia> @infinite_parameter(model,  y in [0, 1], lower_bound = 0, upper_bound = 1)
-ERROR: LoadError At none:1: `@infinite_parameter(model, y in [0, 1], lower_bound = 0, upper_bound = 1)`: Cannot specify parameter lower_bound twice
+ERROR: LoadError: At none:1: `@infinite_parameter(model, y in [0, 1], lower_bound = 0, upper_bound = 1)`: Cannot specify parameter lower_bound twice
 [...]
 
 julia> @infinite_parameter(model,  y in [0, 1], set = IntervalSet(0, 1))
-ERROR: LoadError At none:1: `@infinite_parameter(model, y in [0, 1], set = IntervalSet(0, 1))`: Cannot specify parameter lower_bound and set
+ERROR: LoadError: At none:1: `@infinite_parameter(model, y in [0, 1], set = IntervalSet(0, 1))`: Cannot specify parameter lower_bound and set
 [...]
 ```
 
