@@ -344,13 +344,12 @@ julia> add_supports(t, [0, 0.5, 1, 1.5, 2])
 
 julia> evaluate(dref)
 
-julia> print(m)
+julia> derivative_constraints(dref)
 Feasibility
-Subject to
- 0.5 ∂/∂t[T(t)](0) - T(0.5) + T(0) = 0.0
- ∂/∂t[T(t)](0.5) - T(1) + T(0) = 0.0
- ∂/∂t[T(t)](1) - T(1.5) + T(0.5) = 0.0
- ∂/∂t[T(t)](1.5) - T(2) + T(1) = 0.0
+4-element Array{InfOptConstraintRef,1}:
+ 0.5 ∂/∂t[T(t)](0.5) - T(0.5) + T(0) = 0.0
+ 0.5 ∂/∂t[T(t)](1) - T(1) + T(0.5) = 0.0
+ 0.5 ∂/∂t[T(t)](1.5) - T(1.5) + T(1) = 0.0
  0.5 ∂/∂t[T(t)](2) - T(2) + T(1.5) = 0.0
 ```
 """
@@ -398,14 +397,11 @@ julia> evaluate_all_derivatives!(m)
 julia> print(m)
 Feasibility
 Subject to
- ∂/∂t[T(x, t)](x, 0) - T(x, 1) + T(x, 0) = 0.0, ∀ x ∈ [0, 1]
- 2 ∂/∂t[T(x, t)](x, 1) - T(x, 2) + T(x, 0) = 0.0, ∀ x ∈ [0, 1]
+ ∂/∂t[T(x, t)](x, 1) - T(x, 1) + T(x, 0) = 0.0, ∀ x ∈ [0, 1]
  ∂/∂t[T(x, t)](x, 2) - T(x, 2) + T(x, 1) = 0.0, ∀ x ∈ [0, 1]
- 0.5 ∂/∂x[T(x, t)](0, t) - T(0.5, t) + T(0, t) = 0.0, ∀ t ∈ [0, 2]
- ∂/∂x[T(x, t)](0.5, t) - T(1, t) + T(0, t) = 0.0, ∀ t ∈ [0, 2]
+ 0.5 ∂/∂x[T(x, t)](0.5, t) - T(0.5, t) + T(0, t) = 0.0, ∀ t ∈ [0, 2]
  0.5 ∂/∂x[T(x, t)](1, t) - T(1, t) + T(0.5, t) = 0.0, ∀ t ∈ [0, 2]
- 0.5 ∂/∂x[∂/∂x[T(x, t)]](0, t) - ∂/∂x[T(x, t)](0.5, t) + ∂/∂x[T(x, t)](0, t) = 0.0, ∀ t ∈ [0, 2]
- ∂/∂x[∂/∂x[T(x, t)]](0.5, t) - ∂/∂x[T(x, t)](1, t) + ∂/∂x[T(x, t)](0, t) = 0.0, ∀ t ∈ [0, 2]
+ 0.5 ∂/∂x[∂/∂x[T(x, t)]](0.5, t) - ∂/∂x[T(x, t)](0.5, t) + ∂/∂x[T(x, t)](0, t) = 0.0, ∀ t ∈ [0, 2]
  0.5 ∂/∂x[∂/∂x[T(x, t)]](1, t) - ∂/∂x[T(x, t)](1, t) + ∂/∂x[T(x, t)](0.5, t) = 0.0, ∀ t ∈ [0, 2]
 ```
 """

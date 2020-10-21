@@ -250,7 +250,7 @@ julia> dist = MvNormal(ones(3)); # 3 dimensional
 
 julia> set = MultiDistributionSet(dist); # 3 dimensional
 
-julia> params = DependentParameters(set, Dict{Vector{Float64}, Set{Symbol}}(), 10);
+julia> params = DependentParameters(set, Dict{Vector{Float64}, Set{DatatType}}(), 10);
 
 julia> prefs = add_parameters(model, params, ["par1", "par2", "par3"])
 3-element Array{GeneralVariableRef,1}:
@@ -843,7 +843,7 @@ is supported. Infinite scalar set extensions that seek to employ this should ext
 that existing supports will be deleted.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+```julia-repl
 julia> set_lower_bound(t, -1)
 
 julia> lower_bound(t)
@@ -912,7 +912,7 @@ is supported. Infinite scalar set extensions that seek to employ this should ext
 that existing supports will be deleted.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 1]))
+```julia-repl
 julia> set_upper_bound(t, -1)
 
 julia> upper_bound(t)

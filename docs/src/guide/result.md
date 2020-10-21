@@ -175,6 +175,13 @@ julia> supports(c1)
 ```
 These again all have a 1-to-1 correspondence.
 
+!!! note
+    In the case that our variables/constraints depend on multiple infinite 
+    parameter it is typically convenient to add the keyword statement 
+    `ndarray = true` when calling any variable/constraint queries (e.g., `value` 
+    and `dual`). This will reformat the output vector into a n-dimensional array 
+    whose dimensions correspond to the supports of the infinite parameters. 
+
 ## Termination Queries
 Termination queries are those that question about how the infinite model was
 solved and what its optimized state entails. Programmatically, such queries on
@@ -236,11 +243,19 @@ information. Thus, here the queries are extended to work with the specifics of
 the optimizer model to return the appropriate info.
 
 !!! note 
-    Like `supports` the all object based query methods below also employ the 
-    `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
-    default will return variables/expressions/constraints associated with public 
-    supports. The full set (e.g., ones corresponding to internal collocation nodes) 
-    is obtained via `label = All`.
+    1. Like `supports` the all variable based query methods below also employ the 
+       `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+       default will return the desired information associated with public 
+       supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+       is obtained via `label = All`.
+    2. These methods also employ the `ndarray::Bool` keyword argument that will cause the 
+       output to be formatted as a n-dimensional array where the dimensions 
+       correspond to the infinite parameter dependencies. For example, if we have an 
+       infinite variable `y(t, ξ)` and we invoke a query method with `ndarray = true` 
+       then we'll get a matrix whose dimensions correspond to the supports of `t` and 
+       `ξ`, respectively. Also, if `ndarray = true` then `label` correspond to the 
+       intersection of supports labels in contrast to its default of invoking the union 
+       of the labels.
 
 First, we should verify that the optimized model in fact has variable values
 via [`has_values`](@ref JuMP.has_values(::InfiniteModel)). In our example,
@@ -289,11 +304,19 @@ appropriate versions of [`map_optimizer_index`](@ref InfiniteOpt.map_optimizer_i
 Like variables, a variety of information can be queried about constraints.
 
 !!! note 
-    Like `supports` the all object based query methods below also employ the 
-    `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
-    default will return variables/expressions/constraints associated with public 
-    supports. The full set (e.g., ones corresponding to internal collocation nodes) 
-    is obtained via `label = All`.
+    1. Like `supports` the all constraint query methods below also employ the 
+       `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+       default will return the desired information associated with public 
+       supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+       is obtained via `label = All`.
+    2. These methods also employ the `ndarray::Bool` keyword argument that will cause the 
+       output to be formatted as a n-dimensional array where the dimensions 
+       correspond to the infinite parameter dependencies. For example, if we have an 
+       infinite constraint that depends on `t` and `ξ)` and we invoke a query method 
+       with `ndarray = true` then we'll get a matrix whose dimensions correspond to 
+       the supports of `t` and `ξ`, respectively. Also, if `ndarray = true` then 
+       `label` correspond to the intersection of supports labels in contrast to its 
+       default of invoking the union of the labels.
 
 First, recall that constraints are stored in the form `function-in-set` where
 generally `function` contains the variables and coefficients and the set contains

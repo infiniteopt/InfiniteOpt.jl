@@ -164,11 +164,19 @@ julia> optimizer_model_expression(z - x^2 + 3) # infinite expression
 ```
 
 !!! note 
-    Like `supports` the `optimizer_model_[obj]` methods also employ the 
-    `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
-    default will return variables/expressions/constraints associated with public 
-    supports. The full set (e.g., ones corresponding to internal collocation nodes) 
-    is obtained via `label = All`.
+    1. Like `supports` the `optimizer_model_[obj]` methods also employ the 
+       `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+       default will return variables/expressions/constraints associated with public 
+       supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+       is obtained via `label = All`.
+    2. These methods also employ the `ndarray::Bool` keyword argument that will cause the 
+       output to be formatted as a n-dimensional array where the dimensions 
+       correspond to the infinite parameter dependencies. For example, if we have an 
+       infinite variable `y(t, ξ)` and we invoke a query method with `ndarray = true` 
+       then we'll get a matrix whose dimensions correspond to the supports of `t` and 
+       `ξ`, respectively. Also, if `ndarray = true` then `label` correspond to the 
+       intersection of supports labels in contrast to its default of invoking the union 
+       of the labels.
 
 The purpose of this `optimizer_model` abstraction is to readily enable user-defined
 reformulation extensions (e.g., using polynomial chaos expansion theory). However,

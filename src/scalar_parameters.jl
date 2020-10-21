@@ -642,7 +642,7 @@ is used as an operator parameter in a derivative.
 **Example**
 ```julia-repl
 julia> derivative_method(pref) 
-FiniteDifference
+FiniteDifference(Backward, true)
 ```
 """
 function derivative_method(pref::IndependentParameterRef)::AbstractDerivativeMethod

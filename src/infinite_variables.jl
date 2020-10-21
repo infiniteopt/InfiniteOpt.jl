@@ -159,7 +159,10 @@ function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Type{Infini
     # check and format the info (accounting for start value functions)
     new_info, is_vect_func = _check_and_format_infinite_info(_error, info, prefs)
     # get the parameter object numbers
-    object_nums = _object_numbers(parameter_list(prefs))
+    object_nums = Int[]
+    for pref in prefs 
+        union!(object_nums, _object_number(pref))
+    end
     # make the variable and return
     return InfiniteVariable(new_info, prefs,
                             [_parameter_number(pref) for pref in prefs],
