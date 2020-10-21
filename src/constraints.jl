@@ -15,6 +15,7 @@ Minimization problem with:
 Finite Parameters: 0
 Infinite Parameters: 3
 Variables: 3
+Derivatives: 0
 Measures: 0
 Objective function type: GeneralVariableRef
 `GenericAffExpr{Float64,GeneralVariableRef}`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint

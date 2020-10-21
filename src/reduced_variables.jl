@@ -106,10 +106,10 @@ function JuMP.build_variable(_error::Function, ivref::GeneralVariableRef,
         end
     end
     # get the parameter object numbers of the dependencies
-    object_set = Set{Int}()
+    object_nums = Int[]
     for i in eachindex(prefs)
         if !haskey(eval_supports, i)
-            push!(object_set, _object_number(prefs[i]))
+            union!(object_nums, _object_number(prefs[i]))
         end
     end
     # get the parameter numbers
@@ -121,7 +121,7 @@ function JuMP.build_variable(_error::Function, ivref::GeneralVariableRef,
         eval_supports[k] = round(v, sigdigits = significant_digits(prefs[k]))
     end
     # build the variable
-    return ReducedVariable(ivref, eval_supports, param_nums, collect(object_set))
+    return ReducedVariable(ivref, eval_supports, param_nums, object_nums)
 end
 
 """

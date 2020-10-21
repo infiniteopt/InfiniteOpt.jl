@@ -210,7 +210,7 @@ end
 #                                 VALUE QUERIES
 ################################################################################
 """
-    map_value([ref/expr], key::Val{ext_key_name}, result::Int, label::Type{<:AbstractSupportLabel})
+    map_value([ref/expr], key::Val{ext_key_name}, result::Int; kwargs...)
 
 Map the value(s) of `ref` to its counterpart in the optimizer model type that is
 distininguished by its extension key `key` as type `Val{ext_key_name}`.
@@ -221,15 +221,14 @@ readily extend `optimizer_model_variable`, `optimizer_model_expression`, and/or
 have a direct mapping between variables and/or constraints in the original
 infinite form. Otherwise, `optimizer_model_variable`,
 `optimizer_model_expression`, and `optimizer_model_constraint` are used to make
-these mappings by default. Here `result` is the result index used in `value`. 
-Also, `label` is provided primarily for the default dispatch via the `optimizer_model_[obj]` 
-methods and likely can be ignored (but must be included) when this method is extended.
+these mappings by default where `kwargs` are passed on these functions. Here 
+`result` is the result index used in `value`.
 """
 function map_value end
 
 # Default method that depends on optimizer_model_variable --> making extensions easier
-function map_value(vref::GeneralVariableRef, key, result::Int, label)
-    opt_vref = optimizer_model_variable(vref, key; label = label)
+function map_value(vref::GeneralVariableRef, key, result::Int; kwargs...)
+    opt_vref = optimizer_model_variable(vref, key; kwargs...)
     if opt_vref isa AbstractArray
         return map(v -> JuMP.value(v; result = result), opt_vref)
     else
@@ -238,8 +237,8 @@ function map_value(vref::GeneralVariableRef, key, result::Int, label)
 end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_value(cref::InfOptConstraintRef, key, result::Int, label)
-    opt_cref = optimizer_model_constraint(cref, key, label = label)
+function map_value(cref::InfOptConstraintRef, key, result::Int; kwargs...)
+    opt_cref = optimizer_model_constraint(cref, key; kwargs...)
     if opt_cref isa AbstractArray
         return map(c -> JuMP.value(c; result = result), opt_cref)
     else
@@ -248,8 +247,8 @@ function map_value(cref::InfOptConstraintRef, key, result::Int, label)
 end
 
 # Default method that depends on optimizer_model_expression --> making extensions easier
-function map_value(expr::JuMP.AbstractJuMPScalar, key, result::Int, label)
-    opt_expr = optimizer_model_expression(expr, key, label = label)
+function map_value(expr::JuMP.AbstractJuMPScalar, key, result::Int; kwargs...)
+    opt_expr = optimizer_model_expression(expr, key; kwargs...)
     if opt_expr isa AbstractArray
         return map(e -> JuMP.value(e; result = result), opt_expr)
     else
@@ -259,38 +258,52 @@ end
 
 ## Define dispatch methods to collect value of parameters 
 # InfiniteParameter 
-function _get_value(pref, ::Type{<:InfiniteParameterIndex}, result, label)
+function _get_value(pref, ::Type{<:InfiniteParameterIndex}, result; kwargs...)
+    label = get(kwargs, :label, PublicLabel)
     return supports(pref, label = label)
 end
 
 # FiniteParameter 
-function _get_value(pref, ::Type{<:FiniteParameterIndex}, result, label)
+function _get_value(pref, ::Type{<:FiniteParameterIndex}, result; kwargs...)
     return parameter_value(pref)
 end
 
 # Others 
-function _get_value(vref, index_type, result, label)
+function _get_value(vref, index_type, result; kwargs...)
     return map_value(vref, Val(optimizer_model_key(JuMP.owner_model(vref))), 
-                     result, label)
+                     result; kwargs...)
 end
 
 """
     JuMP.value(vref::GeneralVariableRef; [result::Int = 1, 
-               label::Type{<:AbstractSupportLabel} = PublicLabel])
+               label::Type{<:AbstractSupportLabel} = PublicLabel,
+               ndarray::Bool = false, kwargs...])
 
 Extend [`JuMP.value`](@ref JuMP.value(::JuMP.VariableRef)) to return the value(s)
 of `vref` in accordance with its reformulation variable(s) stored in the optimizer
 model and the result index `result` of the most recent solution obtained. Use
 [`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check
-if a result exists before asking for values. For extensions, this only works if
-[`optimizer_model_variable`](@ref) has been extended correctly and/or
-[`map_value`](@ref) has been extended for variables. To provide context for the
+if a result exists before asking for values. 
+    
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ.
+
+By default only the values associated with public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, the values of infinite 
+variables are returned as a list. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the variable has multiple 
+infinite parameter dependencies.
+
+To provide context for the
 results it may be helpful to also query the variable's `parameter_refs` and
 `supports` which will have a one-to-one correspondence with the value(s).
 It may also be helpful to query via [`optimizer_model_variable`](@ref) to
-retrieve the variables(s) that these values are based on. By default, only the 
-values corresponding to public supports are returned. The full set is obtained 
-via `label = All`.
+retrieve the variables(s) that these values are based on. These functions should 
+all be called with the same keyword arugments for consistency.
+
+For extensions, this only works if
+[`optimizer_model_variable`](@ref) has been extended correctly and/or
+[`map_value`](@ref) has been extended for variables.
 
 **Example**
 ```julia-repl
@@ -298,28 +311,41 @@ julia> value(z)
 42.0
 ```
 """
-function JuMP.value(vref::GeneralVariableRef; result::Int = 1,
-                    label::Type{<:AbstractSupportLabel} = PublicLabel)
-    return _get_value(vref, _index_type(vref), result, label)
+function JuMP.value(vref::GeneralVariableRef; result::Int = 1, kwargs...)
+    return _get_value(vref, _index_type(vref), result; kwargs...)
 end
 
 """
     JuMP.value(cref::InfOptConstraintRef; [result::Int = 1,
-               label::Type{<:AbstractSupportLabel} = PublicLabel])
+               label::Type{<:AbstractSupportLabel} = PublicLabel,
+               ndarray::Bool = false, kwargs...])
 
 Extend [`JuMP.value`](@ref JuMP.value(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
 to return the value(s) of `cref` in accordance with its reformulation constraint(s)
 stored in the optimizer model and the result index `result` of the most recent
 solution obtained. Use [`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel))
-to check if a result exists before asking for values. For extensions, this only
-works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
-[`map_value`](@ref) has been extended for constraints. To provide context for
+to check if a result exists before asking for values. 
+    
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ.
+
+By default only the values associated with public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, the values of infinite 
+constraints are returned as a list. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the constraint has multiple 
+infinite parameter dependencies.
+
+To provide context for
 the results it may be helpful to also query the constraint's `parameter_refs`
 and `supports` which will have a one-to-one correspondence with the value(s).
 It may also be helpful to query via [`optimizer_model_constraint`](@ref) to
 retrieve the constraint(s) that these values are based on. By default, only the 
-values corresponding to public supports are returned. The full set is obtained 
-via `label = All`.
+values corresponding to public supports are returned. These functions should 
+all be called with the same keyword arugments for consistency.
+
+For extensions, this only
+works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
+[`map_value`](@ref) has been extended for constraints. 
 
 **Example**
 ```julia-repl
@@ -332,24 +358,36 @@ julia> value(c1)
 ```
 """
 function JuMP.value(cref::InfOptConstraintRef; result::Int = 1, 
-                    label::Type{<:AbstractSupportLabel} = PublicLabel)
+                    kwargs...)
     return map_value(cref, Val(optimizer_model_key(JuMP.owner_model(cref))), 
-                     result, label)
+                     result; kwargs...)
 end
 
 """
     JuMP.value(expr::JuMP.AbstractJuMPScalar; [result::Int = 1, 
-               label::Type{<:AbstractSupportLabel} = PublicLabel])
+               label::Type{<:AbstractSupportLabel} = PublicLabel,
+               ndarray::Bool = false, kwargs...])
 
 Return the value(s) of `expr` in accordance with the optimized variable values
 the result index `result` of the most recent solution obtained. Use
 [`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check if a result
-exists before asking for values. To provide context for the results it may be
+exists before asking for values. 
+    
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ.
+
+By default only the values associated with public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, the values of infinite 
+expressions are returned as a list. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the expression has multiple 
+infinite parameter dependencies.
+    
+To provide context for the results it may be
 helpful to also query the expression's `parameter_refs` and `supports` which
 will have a one-to-one correspondence with the value(s). It may also be helpful
 to query via [`optimizer_model_expression`](@ref) to retrieve the expression(s)
-that these values are based on. By default, only the values corresponding to 
-public supports are returned. The full set is obtained via `label = All`.
+that these values are based on. These should use the same keyword arguments for 
+consistency.
 
 For extensions, this only works if [`optimizer_model_expression`](@ref) has been
 extended correctly and/or [`map_value`](@ref) has been extended for expressions.
@@ -369,7 +407,7 @@ julia> value(my_infinite_expr)
 """
 function JuMP.value(expr::Union{JuMP.GenericAffExpr{C, V}, JuMP.GenericQuadExpr{C, V}};
     result::Int = 1,
-    label::Type{<:AbstractSupportLabel} = PublicLabel
+    kwargs...
     ) where {C, V <: GeneralVariableRef}
     # get the model
     model = _model_from_expr(expr)
@@ -379,7 +417,7 @@ function JuMP.value(expr::Union{JuMP.GenericAffExpr{C, V}, JuMP.GenericQuadExpr{
     # otherwise let's call map_value
     else
         key = optimizer_model_key(model)
-        return map_value(expr, Val(key), result, label)
+        return map_value(expr, Val(key), result; kwargs...)
     end
 end
 
@@ -387,7 +425,7 @@ end
 #                             OPTIMIZER INDEX QUERIES
 ################################################################################
 """
-    map_optimizer_index(ref, key::Val{ext_key_name}, label::Type{<:AbstractSupportLabel})
+    map_optimizer_index(ref, key::Val{ext_key_name}; kwargs...)
 
 Map the `MathOptInterface` index(es) of `ref` to its counterpart in the optimizer
 model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
@@ -397,14 +435,13 @@ readily extend `optimizer_model_variable` and `optimizer_model_constraint`.
 Such as is the case with reformuations that do not have a direct mapping between
 variables and/or constraints in the original infinite form. Otherwise,
 `optimizer_model_variable` and `optimizer_model_constraint` are used to make
-these mappings by default. For these defaults, `label` is necessarily provided 
-to access the correct set of variables/constraints.
+these mappings by default where `kwargs` are passed on as well.
 """
 function map_optimizer_index end
 
 # Default method that depends on optimizer_model_variable --> making extensions easier
-function map_optimizer_index(vref::GeneralVariableRef, key, label)
-    opt_vref = optimizer_model_variable(vref, key, label = label)
+function map_optimizer_index(vref::GeneralVariableRef, key; kwargs...)
+    opt_vref = optimizer_model_variable(vref, key; kwargs...)
     if opt_vref isa AbstractArray
         return map(v -> JuMP.optimizer_index(v), opt_vref)
     else
@@ -413,8 +450,8 @@ function map_optimizer_index(vref::GeneralVariableRef, key, label)
 end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_optimizer_index(cref::InfOptConstraintRef, key, label)
-    opt_cref = optimizer_model_constraint(cref, key, label = label)
+function map_optimizer_index(cref::InfOptConstraintRef, key; kwargs...)
+    opt_cref = optimizer_model_constraint(cref, key; kwargs...)
     if opt_cref isa AbstractArray
         return map(c -> JuMP.optimizer_index(c), opt_cref)
     else
@@ -424,17 +461,29 @@ end
 
 """
     JuMP.optimizer_index(vref::GeneralVariableRef; 
-                         [label::Type{<:AbstractSupportLabel} = PublicLabel])
+                         [label::Type{<:AbstractSupportLabel} = PublicLabel,
+                         ndarray::Bool = false, kwargs...])
 
 Extend [`JuMP.optimizer_index`](@ref JuMP.optimizer_index(::JuMP.VariableRef)) to
 return the `MathOptInterface` index(es) of `vref` in accordance with its
-reformulation variable(s) stored in the optimizer model. For extensions, this
+reformulation variable(s) stored in the optimizer model.
+
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ.
+
+By default only the optimizer indices associated with public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, the indices of infinite 
+variables are returned as a list. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the variable has multiple 
+infinite parameter dependencies.
+
+It may also be helpful to query via [`optimizer_model_variable`](@ref) to
+retrieve the variables(s) that these indices are based on. These should use the 
+same keyword arguments for consistency.
+
+For extensions, this
 only works if [`optimizer_model_variable`](@ref) has been extended correctly
 and/or [`map_optimizer_index`](@ref) has been extended for variables.
-It may also be helpful to query via [`optimizer_model_variable`](@ref) to
-retrieve the variables(s) that these indices are based on. By default, only the 
-indices corresponding to public supports are returned. The full set is obtained 
-via `label = All`.
 
 **Example**
 ```julia-repl
@@ -446,25 +495,36 @@ julia> optimizer_index(x)
  MathOptInterface.VariableIndex(5)
 ```
 """
-function JuMP.optimizer_index(vref::GeneralVariableRef; 
-                              label::Type{<:AbstractSupportLabel} = PublicLabel)
-    return map_optimizer_index(vref, Val(optimizer_model_key(JuMP.owner_model(vref))), 
-                               label)
+function JuMP.optimizer_index(vref::GeneralVariableRef; kwargs...)
+    return map_optimizer_index(vref, Val(optimizer_model_key(JuMP.owner_model(vref))); 
+                               kwargs...)
 end
 
 """
     JuMP.optimizer_index(cref::InfOptConstraintRef; 
-                         [label::Type{<:AbstractSupportLabel} = PublicLabel])
+                         [label::Type{<:AbstractSupportLabel} = PublicLabel,
+                         ndarray::Bool = false, kwargs...])
 
 Extend [`JuMP.optimizer_index`](@ref JuMP.optimizer_index(::JuMP.ConstraintRef{JuMP.Model}))
 to return the `MathOptInterface` index(es) of `cref` in accordance with its
-reformulation constraints(s) stored in the optimizer model. For extensions, this
+reformulation constraints(s) stored in the optimizer model. 
+
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ.
+
+By default only the optimizer indices associated with public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, the indices of infinite 
+constraints are returned as a list. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the constraint has multiple 
+infinite parameter dependencies.
+
+It may also be helpful to query via [`optimizer_model_constraint`](@ref) to
+retrieve the constraints(s) that these indices are based on. The same keyword 
+arguments should be used for consistency.
+
+For extensions, this
 only works if [`optimizer_model_constraint`](@ref) has been extended correctly
 and/or [`map_optimizer_index`](@ref) has been extended for constraints.
-It may also be helpful to query via [`optimizer_model_constraint`](@ref) to
-retrieve the constraints(s) that these indices are based on. By default, only the 
-indices corresponding to public supports are returned. The full set is obtained 
-via `label = All`.
 
 **Example**
 ```julia-repl
@@ -476,18 +536,17 @@ julia> optimizer_index(c1)
  MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(4)
 ```
 """
-function JuMP.optimizer_index(cref::InfOptConstraintRef; 
-                              label::Type{<:AbstractSupportLabel} = PublicLabel)
-    return map_optimizer_index(cref, Val(optimizer_model_key(JuMP.owner_model(cref))), 
-                               label)
+function JuMP.optimizer_index(cref::InfOptConstraintRef; kwargs...)
+    return map_optimizer_index(cref, Val(optimizer_model_key(JuMP.owner_model(cref))); 
+                               kwargs...)
 end
 
 ################################################################################
 #                                  DUAL QUERIES
 ################################################################################
 """
-    map_dual(cref::InfOptConstraintRef, key::Val{ext_key_name}, result::Int, 
-             label::Type{<:AbstractSupportLabel})
+    map_dual(cref::InfOptConstraintRef, key::Val{ext_key_name}, result::Int; 
+             kwargs...)
 
 Map the dual(s) of `cref` to its counterpart in the optimizer
 model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
@@ -497,15 +556,14 @@ readily extend `optimizer_model_variable` and `optimizer_model_constraint`.
 Such as is the case with reformuations that do not have a direct mapping between
 variables and/or constraints in the original infinite form. Otherwise,
 `optimizer_model_variable` and `optimizer_model_constraint` are used to make
-these mappings by default. Here `result` is the result index that is used in `dual`. 
-For the defaults, `label` is necessarily included to specify the correct optimizer 
-model entities.
+these mappings by default where `kwargs` are also pass on to. Here `result` is 
+the result index that is used in `dual`. 
 """
 function map_dual end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_dual(cref::InfOptConstraintRef, key, result::Int, label)
-    opt_cref = optimizer_model_constraint(cref, key, label = label)
+function map_dual(cref::InfOptConstraintRef, key, result::Int; kwargs...)
+    opt_cref = optimizer_model_constraint(cref, key; kwargs...)
     if opt_cref isa AbstractArray
         return map(c -> JuMP.dual(c; result = result), opt_cref)
     else
@@ -515,19 +573,32 @@ end
 
 """
     JuMP.dual(cref::InfOptConstraintRef; [result::Int = 1, 
-              label::Type{<:AbstractSupportLabel} = PublicLabel])
+              label::Type{<:AbstractSupportLabel} = PublicLabel,
+              ndarray::Bool = false, kwargs...])
 
 Extend [`JuMP.dual`](@ref JuMP.dual(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
 to return the dual(s) of `cref` in accordance with its reformulation constraint(s)
 stored in the optimizer model and the result index `result` of the most recent
 solution obtained. Use [`JuMP.has_duals`](@ref JuMP.has_duals(::InfiniteModel))
-to check if a result exists before asking for duals. For extensions, this only
-works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
-[`map_dual`](@ref) has been extended for constraints. It may also be helpful to
+to check if a result exists before asking for duals. 
+
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ.
+
+By default only the duals associated with public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, the duals of infinite 
+constraints are returned as a list. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the constraint has multiple 
+infinite parameter dependencies.
+
+It may also be helpful to
 query via [`optimizer_model_constraint`](@ref) to retrieve the constraint(s)
 that these duals are based on. Calling `parameter_refs` and `supports` may also
-be insightful. By default, only the duals corresponding to public supports are 
-returned. The full set is obtained via `label = All`.
+be insightful. Be sure to use the same keyword arguments for consistency.
+
+For extensions, this only
+works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
+[`map_dual`](@ref) has been extended for constraints.
 
 **Example**
 ```julia-repl
@@ -539,14 +610,13 @@ julia> dual(c1)
  0.0
 ```
 """
-function JuMP.dual(cref::InfOptConstraintRef; result::Int = 1, 
-                   label::Type{<:AbstractSupportLabel} = PublicLabel)
+function JuMP.dual(cref::InfOptConstraintRef; result::Int = 1, kwargs...)
     return map_dual(cref, Val(optimizer_model_key(JuMP.owner_model(cref))),
-                    result, label)
+                    result; kwargs...)
 end
 
 # Error redriect for variable call
-function JuMP.dual(vref::GeneralVariableRef; result::Int = 1, label = PublicLabel)
+function JuMP.dual(vref::GeneralVariableRef; kwargs...)
     return JuMP.dual(JuMP.VariableRef(JuMP.Model(), MOI.VariableIndex(1)))
 end
 
@@ -554,8 +624,8 @@ end
 #                              SHADOW PRICE QUERIES
 ################################################################################
 """
-    map_shadow_price(cref::InfOptConstraintRef, key::Val{ext_key_name}, 
-                     label::Type{<:AbstractSupportLabel})
+    map_shadow_price(cref::InfOptConstraintRef, key::Val{ext_key_name}; 
+                     kwargs...)
 
 Map the shadow price(s) of `cref` to its counterpart in the optimizer
 model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
@@ -565,13 +635,13 @@ readily extend `optimizer_model_variable` and `optimizer_model_constraint`.
 Such as is the case with reformuations that do not have a direct mapping between
 variables and/or constraints in the original infinite form. Otherwise,
 `optimizer_model_variable` and `optimizer_model_constraint` are used to make
-these mappings by default. For these defaults, `label` is necessarily included.
+these mappings by default where `kwargs` are passed on to.
 """
 function map_shadow_price end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_shadow_price(cref::InfOptConstraintRef, key, label)
-    opt_cref = optimizer_model_constraint(cref, key, label = label)
+function map_shadow_price(cref::InfOptConstraintRef, key; kwargs...)
+    opt_cref = optimizer_model_constraint(cref, key; kwargs...)
     if opt_cref isa AbstractArray
         return map(c -> JuMP.shadow_price(c), opt_cref)
     else
@@ -581,18 +651,32 @@ end
 
 """
     JuMP.shadow_price(cref::InfOptConstraintRef; 
-                      [label::Type{<:AbstractSupportLabel} = PublicLabel])
+                      [label::Type{<:AbstractSupportLabel} = PublicLabel,
+                      ndarray::Bool = false, kwargs...])
 
 Extend [`JuMP.shadow_price`](@ref JuMP.shadow_price(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
 to return the shadow price(s) of `cref` in accordance with its reformulation constraint(s)
 stored in the optimizer model. Use [`JuMP.has_duals`](@ref JuMP.has_duals(::InfiniteModel))
-to check if a result exists before asking for duals. For extensions, this only
-works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
-[`map_shadow_price`](@ref) has been extended for constraints. It may also be
+to check if a result exists before asking for duals. 
+    
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ.
+
+By default only the shadow prices associated with public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, the prices of infinite 
+constraints are returned as a list. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the constraint has multiple 
+infinite parameter dependencies.
+
+It may also be
 helpful to query via [`optimizer_model_constraint`](@ref) to retrieve the
 constraint(s) that these shadow prices are based on. Calling `parameter_refs` and
-`supports` may also be insightful. By default, only the prices corresponding to 
-public supports are returned. The full set is obtained via `label = All`.
+`supports` may also be insightful. Be sure to use the same keyword arguments for 
+consistency.
+
+For extensions, this only
+works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
+[`map_shadow_price`](@ref) has been extended for constraints. 
 
 **Example**
 ```julia-repl
@@ -604,10 +688,9 @@ julia> shadow_price(c1)
  -0.0
 ```
 """
-function JuMP.shadow_price(cref::InfOptConstraintRef; 
-                           label::Type{<:AbstractSupportLabel} = PublicLabel)
-    return map_shadow_price(cref, Val(optimizer_model_key(JuMP.owner_model(cref))), 
-                            label)
+function JuMP.shadow_price(cref::InfOptConstraintRef; kwargs...)
+    return map_shadow_price(cref, Val(optimizer_model_key(JuMP.owner_model(cref))); 
+                            kwargs...)
 end
 
 ################################################################################
@@ -615,8 +698,8 @@ end
 ################################################################################
 """
     map_lp_rhs_perturbation_range(cref::InfOptConstraintRef,
-                                  key::Val{ext_key_name}, toler::Float64,
-                                  label::Type{<:AbstractSupportLabel})
+                                  key::Val{ext_key_name}, toler::Float64;
+                                  kwargs...)
 
 Map the RHS perturbation range of `cref` to its counterpart in the optimizer
 model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
@@ -625,17 +708,16 @@ references. This only needs to be defined for reformulation extensions that cann
 readily extend `optimizer_model_constraint`.
 Such as is the case with reformuations that do not have a direct mapping between
 variables and/or constraints in the original infinite form. Otherwise,
-`optimizer_model_constraint` is used to make these mappings by default. Here
-`toler` corresponds to the `feasibility_tolerance` used by `lp_rhs_perturbation_range`.
-Also, like the other mapping methods `label` is necessarily included to support the 
-defaults.
+`optimizer_model_constraint` is used to make these mappings by default where `kwargs` 
+are passed on to. Here `toler` corresponds to the `feasibility_tolerance` used by 
+`lp_rhs_perturbation_range`.
 """
 function map_lp_rhs_perturbation_range end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
 function map_lp_rhs_perturbation_range(cref::InfOptConstraintRef, key,
-                                       toler::Float64, label)
-    opt_cref = optimizer_model_constraint(cref, key, label = label)
+                                       toler::Float64; kwargs...)
+    opt_cref = optimizer_model_constraint(cref, key; kwargs...)
     if opt_cref isa AbstractArray
         return map(c -> JuMP.lp_rhs_perturbation_range(c; feasibility_tolerance = toler),
                    opt_cref)
@@ -647,18 +729,31 @@ end
 """
     JuMP.lp_rhs_perturbation_range(cref::InfOptConstraintRef;
                                    [feasibility_tolerance::Float64 = 1e-8,
-                                   label::Type{<:AbstractSupportLabel} = PublicLabel])
+                                   label::Type{<:AbstractSupportLabel} = PublicLabel,
+                                   ndarray::Bool = false, kwargs...])
 
 Extend [`JuMP.lp_rhs_perturbation_range`](@ref JuMP.lp_rhs_perturbation_range(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
 to return the range(s) of the RHS of `cref` for which the shadow price(s) are valid
 in accordance with its reformulation constraint(s)
-stored in the optimizer model. For extensions, this only
-works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
-[`map_lp_rhs_perturbation_range`](@ref) has been implemented. It may also be helpful to
+stored in the optimizer model. 
+
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ.
+
+By default only the ranges associated with public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, the ranges of infinite 
+constraints are returned as a list. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the constraint has multiple 
+infinite parameter dependencies.
+
+It may also be helpful to
 query via [`optimizer_model_constraint`](@ref) to retrieve the constraint(s)
 that these ranges are based on. Calling `parameter_refs` and `supports` may also
-be insightful. By default, only the results corresponding to 
-public supports are returned. The full set is obtained via `label = All`.
+be insightful. Be sure to use the same keyword arguments for consistency.
+
+For extensions, this only
+works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
+[`map_lp_rhs_perturbation_range`](@ref) has been implemented. 
 
 **Example**
 ```julia-repl
@@ -672,16 +767,16 @@ julia> lp_rhs_perturbation_range(c1)
 """
 function JuMP.lp_rhs_perturbation_range(cref::InfOptConstraintRef;
     feasibility_tolerance::Float64 = 1e-8,
-    label::Type{<:AbstractSupportLabel} = PublicLabel
+    kwargs...
     )
     return map_lp_rhs_perturbation_range(cref, Val(optimizer_model_key(JuMP.owner_model(cref))),
-                                         feasibility_tolerance, label)
+                                         feasibility_tolerance; kwargs...)
 end
 
 """
     map_lp_objective_perturbation_range(vref::DecisionVariableRef,
-                                        key::Val{ext_key_name}, toler::Float64,
-                                        label::Type{<:AbstractSupportLabel})
+                                        key::Val{ext_key_name}, toler::Float64;
+                                        kwargs...)
 
 Map the reduced cost range(s) of `vref` to its counterpart in the optimizer
 model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
@@ -690,17 +785,16 @@ references. This only needs to be defined for reformulation extensions that cann
 readily extend `optimizer_model_variable`.
 Such as is the case with reformuations that do not have a direct mapping between
 variables and/or constraints in the original infinite form. Otherwise,
-`optimizer_model_variable` is used to make these mappings by default. Here
-`toler` corresponds to the `optimality_tolerance` used by
-`lp_objective_perturbation_range`. Here `label` is necessarily included to support 
-the defaults.
+`optimizer_model_variable` is used to make these mappings by default where `kwargs` 
+are passed on as well. Here `toler` corresponds to the `optimality_tolerance` used by
+`lp_objective_perturbation_range`.
 """
 function map_lp_objective_perturbation_range end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
 function map_lp_objective_perturbation_range(vref::GeneralVariableRef, key,
-                                             toler::Float64, label)
-    opt_vref = optimizer_model_variable(vref, key, label = label)
+                                             toler::Float64; kwargs...)
+    opt_vref = optimizer_model_variable(vref, key; kwargs...)
     if opt_vref isa AbstractArray
         return map(v -> JuMP.lp_objective_perturbation_range(v; optimality_tolerance = toler),
                    opt_vref)
@@ -712,18 +806,31 @@ end
 """
     JuMP.lp_objective_perturbation_range(vref::InfOptVariableRef;
                                          [optimality_tolerance::Float64 = 1e-8,
-                                         label::Type{<:AbstractSupportLabel} = PublicLabel])
+                                         label::Type{<:AbstractSupportLabel} = PublicLabel,
+                                         ndarray::Bool = false, kwargs...])
 
 Extend [`JuMP.lp_objective_perturbation_range`](@ref JuMP.lp_objective_perturbation_range(::JuMP.VariableRef))
 to return the range(s) that the reduced cost(s) of `vref` remain valid
 in accordance with its reformulation variables(s)
-stored in the optimizer model. For extensions, this only
+stored in the optimizer model. 
+
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ.
+
+By default only the ranges associated with public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, the ranges of infinite 
+variables are returned as a list. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the variable has multiple 
+infinite parameter dependencies.
+
+It may also be helpful to query via [`optimizer_model_variable`](@ref) to retrieve 
+the variable(s) that these ranges are based on. Calling `parameter_refs` and
+`supports` may also be insightful. Be sure to use the same keyword arguments for 
+conistency.
+
+For extensions, this only
 works if [`optimizer_model_variable`](@ref) has been extended correctly and/or
-if [`map_lp_objective_perturbation_range`](@ref) has been implemented. It may
-also be helpful to query via [`optimizer_model_variable`](@ref) to retrieve the
-variable(s) that these ranges are based on. Calling `parameter_refs` and
-`supports` may also be insightful. By default, only the results corresponding to 
-public supports are returned. The full set is obtained via `label = All`.
+if [`map_lp_objective_perturbation_range`](@ref) has been implemented.
 
 **Example**
 ```julia-repl
@@ -733,8 +840,8 @@ julia> lp_objective_perturbation_range(z)
 """
 function JuMP.lp_objective_perturbation_range(vref::GeneralVariableRef;
     optimality_tolerance::Float64 = 1e-8,
-    label::Type{<:AbstractSupportLabel} = PublicLabel
+    kwargs...
     )
     return map_lp_objective_perturbation_range(vref, Val(optimizer_model_key(JuMP.owner_model(vref))),
-                                               optimality_tolerance, label)
+                                               optimality_tolerance; kwargs...)
 end

@@ -53,6 +53,7 @@ end
     @testset "optimizer_model_variable" begin
         # test normal usage
         @test optimizer_model_variable(x, label = All) == transcription_variable(x, label = All)
+        @test optimizer_model_variable(x, label = All, ndarray = true) == transcription_variable(x, label = All, ndarray = true)
         @test optimizer_model_variable(x0) == transcription_variable(x0)
         @test optimizer_model_variable(z) == transcription_variable(z)
         @test optimizer_model_variable(d1, label = InternalLabel) == transcription_variable(d1, label = InternalLabel)
@@ -71,6 +72,7 @@ end
     @testset "supports (Variables)" begin
         # test normal usage
         @test supports(x) == [(0.,), (1.,)]
+        @test supports(x, ndarray = true) == [(0.,), (1.,)]
         @test supports(x, label = All) == [(0.,), (0.5,), (1.,)]
         @test supports(meas1) == () 
         @test supports(d1, label = InternalLabel) == [(0.5,)]
@@ -81,6 +83,7 @@ end
         @test optimizer_model_expression(x, label = All) == transcription_variable(x, label = All)
         @test optimizer_model_expression(z) == transcription_variable(z)
         @test optimizer_model_expression(x0) == transcription_variable(x0)
+        @test optimizer_model_expression(x0, ndarray = true) == transcription_variable(x0)
         # test expression without variables 
         expr = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + 42
         @test optimizer_model_expression(expr) == zero(AffExpr) + 42
@@ -88,6 +91,7 @@ end
         xt = transcription_variable(x, label = All)
         zt = transcription_variable(z)
         @test optimizer_model_expression(x^2 + z) == [xt[1]^2 + zt, xt[3]^2 + zt]
+        @test optimizer_model_expression(x^2 + z, ndarray = true) == [xt[1]^2 + zt, xt[3]^2 + zt]
         @test optimizer_model_expression(x^2 + z, label = All) == [xt[1]^2 + zt, xt[2]^2 + zt, xt[3]^2 + zt]
         @test optimizer_model_expression(2z - 3) == 2zt - 3
         # test fallback
@@ -107,6 +111,7 @@ end
         # test normal usage
         @test supports(x) == [(0.,), (1.,)]
         @test supports(2x - z + x0 + 43) == [(0.,), (1.,)]
+        @test supports(2x - z + x0 + 43, ndarray = true) == [(0.,), (1.,)]
         expr = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + 42
         @test supports(expr, label = All) == ()
     end
@@ -115,6 +120,7 @@ end
         # test normal usage
         @test optimizer_model_constraint(c1) == transcription_constraint(c1)
         @test optimizer_model_constraint(c2, label = All) == transcription_constraint(c2, label = All)
+        @test optimizer_model_constraint(c2, label = All, ndarray = true) == transcription_constraint(c2, label = All, ndarray = true)
         @test optimizer_model_constraint(c3) == transcription_constraint(c3)
         # test fallback
         @test_throws ErrorException optimizer_model_constraint(c1, Val(:Bad), my_key = true)
@@ -124,6 +130,7 @@ end
         # test normal usage
         @test InfiniteOpt.constraint_supports(tm, c1) == [(0.,), (1.,)]
         @test InfiniteOpt.constraint_supports(tm, c1, label = All) == [(0.,), (0.5,), (1.,)]
+        @test InfiniteOpt.constraint_supports(tm, c1, label = All, ndarray = true) == [(0.,), (0.5,), (1.,)]
         # test fallback
         @test_throws ErrorException InfiniteOpt.constraint_supports(tm, c1, Val(:Bad))
     end

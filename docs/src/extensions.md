@@ -145,6 +145,8 @@ and upper bounds aren't exactly clear for a disjoint interval. Please refer to
 the template in `./InfiniteOpt/test/extensions/infinite_set.jl` to see how this
 is done.
 
+## Derivative Evaluation Methods 
+
 ## Measure Evaluation Techniques
 Measure evaluation methods are used to dictate how to evaluate measures. Users
 may wish to apply evaluation methods other than Monte Carlo sampling and/or
@@ -719,8 +721,7 @@ use the `mutable struct` of mapping data and should error if no mapping can be
 found, Let's continue our example using `DeterministicModel`s:
 ```jldoctest opt_model; output = false
 function InfiniteOpt.optimizer_model_variable(vref::GeneralVariableRef,
-                                              key::Val{DetermKey};
-                                              label = All)
+                                              key::Val{DetermKey})
     model = optimizer_model(JuMP.owner_model(vref))
     map_dict = deterministic_data(model).infvar_to_detvar
     haskey(map_dict, vref) || error("Variable $vref not used in the optimizer model.")
@@ -728,15 +729,13 @@ function InfiniteOpt.optimizer_model_variable(vref::GeneralVariableRef,
 end
 
 function InfiniteOpt.optimizer_model_expression(expr::JuMP.AbstractJuMPScalar,
-                                                key::Val{DetermKey};
-                                                label = All)
+                                                key::Val{DetermKey})
     model = optimizer_model(JuMP.owner_model(vref))
     return _make_expression(model, expr)
 end
 
 function InfiniteOpt.optimizer_model_constraint(cref::InfOptConstraintRef,
-                                                key::Val{DetermKey};
-                                                label = All)
+                                                key::Val{DetermKey})
     model = optimizer_model(JuMP.owner_model(cref))
     map_dict = deterministic_data(model).infconstr_to_detconstr
     haskey(map_dict, cref) || error("Constraint $cref not used in the optimizer model.")

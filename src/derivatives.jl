@@ -86,7 +86,7 @@ defined.
 **Example**
 ```julia-repl
 julia> derivative_method(dref) 
-FiniteDifference()
+FiniteDifference(Backward, true)
 ```
 """
 function derivative_method(dref::DerivativeRef)::AbstractDerivativeMethod
@@ -563,8 +563,10 @@ Returns a list of all the individual derivatives stored in `model`.
 **Example**
 ```julia-repl
 julia> all_derivatives(model)
-4-element Array{GeneralVariableRef,1}:
- TODO PUT OUTPUT HERE ONCE PRINTING IS DONE
+3-element Array{GeneralVariableRef,1}:
+ ∂/∂t[T(x, t)]
+ ∂/∂x[T(x, t)]
+ ∂/∂x[∂/∂x[T(x, t)]]
 ```
 """
 function all_derivatives(model::InfiniteModel)::Vector{GeneralVariableRef}

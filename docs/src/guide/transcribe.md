@@ -350,6 +350,16 @@ julia> supports(g)
  (10.0, [-1.0, 1.0])
  (0.0, [1.0, 1.0])
  (10.0, [1.0, 1.0])
+
+julia> supports(g, ndarray = true) # format it as an n-dimensional array (t by x[1] by x[2])
+2×2×2 Array{Tuple,3}:
+[:, :, 1] =
+ (0.0, [-1.0, -1.0])   (0.0, [1.0, -1.0])
+ (10.0, [-1.0, -1.0])  (10.0, [1.0, -1.0])
+
+[:, :, 2] =
+ (0.0, [-1.0, 1.0])   (0.0, [1.0, 1.0])
+ (10.0, [-1.0, 1.0])  (10.0, [1.0, 1.0])
 ```
 
 ## TranscriptionOpt
@@ -395,7 +405,7 @@ transcribe measures, variables, derivatives, and constraints. This is also the
 method that enables the use of [`optimize!`](@ref JuMP.optimize!(::InfiniteModel)).
 
 ### Queries
-In this section we highlight a number of query methods that pertain
+In this section we highlight a number of query methods that pertain to 
 `TranscriptionModel`s and their mappings. First, if the `optimizer_model` of an
 `InfiniteModel` is a `TranscriptionModel` it can be extracted via
 [`transcription_model`](@ref):
@@ -458,11 +468,19 @@ julia> supports(g)
 ```
 
 !!! note 
-    Note that like `supports` the `transcription_[obj]` methods also employ the 
-    `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
-    default will return variables/expressions/constraints associated with public 
-    supports. The full set (e.g., ones corresponding to internal collocation nodes) 
-    is obtained via `label = All`.
+    1. Note that like `supports` the `transcription_[obj]` methods also employ the 
+       `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+       default will return variables/expressions/constraints associated with public 
+       supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+       is obtained via `label = All`. 
+    2. These methods also employ the `ndarray::Bool` keyword argument that will cause the 
+       output to be formatted as a n-dimensional array where the dimensions 
+       correspond to the infinite parameter dependencies. For example, if we have an 
+       infinite variable `y(t, ξ)` and we invoke a query method with `ndarray = true` 
+       then we'll get a matrix whose dimensions correspond to the supports of `t` and 
+       `ξ`, respectively. Also, if `ndarray = true` then `label` correspond to the 
+       intersection of supports labels in contrast to its default of invoking the union 
+       of the labels.
 
 Likewise, [`transcription_constraint`](@ref) and
 `supports`(@ref) can be used with constraints to find their transcribed 
@@ -534,6 +552,7 @@ InfiniteOpt.TranscriptionOpt.parameter_supports(::JuMP.Model)
 InfiniteOpt.TranscriptionOpt.support_index_iterator
 InfiniteOpt.TranscriptionOpt.index_to_support
 InfiniteOpt.TranscriptionOpt.index_to_labels
+InfiniteOpt.TranscriptionOpt.make_ndarray
 InfiniteOpt.TranscriptionOpt.set_parameter_supports
 InfiniteOpt.TranscriptionOpt.transcribe_hold_variables!
 InfiniteOpt.TranscriptionOpt.transcribe_infinite_variables!
