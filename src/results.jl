@@ -1,4 +1,4 @@
-################################################################################
+        ################################################################################
 #                                  STATUS QUERIES
 ################################################################################
 """
@@ -279,6 +279,39 @@ julia> value(z)
 function JuMP.value(vref::GeneralVariableRef; result::Int = 1)
     return map_value(vref, Val(optimizer_model_key(JuMP.owner_model(vref))), result)
 end
+
+
+################################################################################
+#                                 REDUCED COST
+################################################################################
+
+function map_reduced_cost(vref::GeneralVariableRef, key)
+    opt_vref = optimizer_model_variable(vref, key)
+    if opt_vref isa AbstractArray
+        return map(v -> JuMP.reduced_cost(v), opt_vref)
+    else
+        return JuMP.reduced_cost(opt_vref)
+    end
+end
+
+
+"""
+    JuMP.reduced_cost(vref::GeneralVariableRef)
+Extending [`JuMP.reduced_cost`](@JuMP.reduced_cost(vref::GeneralVariableRef)). This returns
+the reduced cost of some infinite variable. Returns a scalar value.
+
+**Example**
+```
+julia> reduced_cost(x)
+
+```
+"""
+function JuMP.reduced_cost(vref::GeneralVariableRef)
+    return map_reduced_cost(vref, Val(optimizer_model_key(JuMP.owner_model(vref))))
+end
+
+
+
 
 """
     JuMP.value(cref::InfOptConstraintRef; [result::Int = 1])
