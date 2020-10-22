@@ -7,6 +7,8 @@ function _infopt_math_symbol(::Type{JuMP.REPLMode}, name::Symbol)::String
         return Sys.iswindows() ? "and" : "∩"
     elseif name == :prop
         return "~"
+    elseif name == :partial 
+        return Sys.iswindows() ? "d" : "∂"
     else
         return JuMP._math_symbol(JuMP.REPLMode, name)
     end
@@ -18,6 +20,12 @@ function _infopt_math_symbol(::Type{JuMP.IJuliaMode}, name::Symbol)::String
         return "\\cap"
     elseif name == :prop
         return "\\sim"
+    elseif name == :partial 
+        return "\\partial"
+    elseif name == :open_rng 
+        return "\\left["
+    elseif name == :close_rng 
+        return "\\right]"
     else
         return JuMP._math_symbol(JuMP.IJuliaMode, name)
     end
@@ -177,8 +185,8 @@ function measure_data_string(print_mode,
     end
 end
 
-# Fallback
-function measure_data_string(print_mode, data::AbstractMeasureData)::String
+# extract the most compact parameter name possible
+function _get_root_parameter_name(data::AbstractMeasureData)::String 
     prefs = parameter_refs(data)
     names = map(p -> _remove_name_index(p), prefs)
     if _allequal(names)
@@ -186,6 +194,11 @@ function measure_data_string(print_mode, data::AbstractMeasureData)::String
     else
         return _make_str_value(prefs)
     end
+end 
+
+# Fallback for measure_data_string
+function measure_data_string(print_mode, data::AbstractMeasureData)::String
+    return _get_root_parameter_name(data)
 end
 
 # Make strings to represent measures in REPLMode
@@ -197,11 +210,21 @@ function variable_string(::Type{JuMP.REPLMode}, mref::MeasureRef)::String
 end
 
 # Make strings to represent measures in IJuliaMode
-function variable_string(::Type{JuMP.IJuliaMode}, mref::MeasureRef)::String
+function variable_string(m::Type{JuMP.IJuliaMode}, mref::MeasureRef)::String
     data = measure_data(mref)
-    data_str = measure_data_string(JuMP.IJuliaMode, data)
-    func_str = JuMP.function_string(JuMP.IJuliaMode, measure_function(mref))
-    return string(JuMP.name(mref), "_{", data_str, "}[", func_str, "]")
+    data_str = measure_data_string(m, data)
+    func_str = JuMP.function_string(m, measure_function(mref))
+    name = JuMP.name(mref) 
+    if name == "integral" 
+        param_name = _get_root_parameter_name(data)
+        end_str = length(param_name) == 1 ? "d$param_name" : "d($param_name)"
+        return string("\\int_{", data_str, "}", func_str, end_str)
+    else 
+        name = name == "expect" ? "\\mathbb{E}" : string("\\text{", name, "}")
+        return string(name, "_{", data_str, "}", 
+                  InfiniteOpt._infopt_math_symbol(m, :open_rng), func_str, 
+                  InfiniteOpt._infopt_math_symbol(m, :close_rng))
+    end
 end
 
 ################################################################################
@@ -229,6 +252,34 @@ function _get_base_name(::Type{JuMP.IJuliaMode}, vref)::String
     end
 end
 
+# Helper method for infinite variable construction 
+function _add_on_parameter_refs(base_name::String, prefs::VectorTuple)::String 
+    param_name_tuple = "("
+    for i in 1:size(prefs, 1)
+        element_prefs = prefs[i, :]
+        type = _index_type(first(element_prefs))
+        if type == DependentParameterIndex
+            param_name = _remove_name_index(first(element_prefs))
+        elseif length(element_prefs) == 1
+            param_name = JuMP.name(first(element_prefs))
+        else
+            # TODO this isn't quite right with a subset of an independent container
+            names = map(p -> _remove_name_index(p), element_prefs)
+            if _allequal(names)
+                param_name = first(names)
+            else
+                param_name = string("[", join(element_prefs, ", "), "]")
+            end
+        end
+        if i != size(prefs, 1)
+            param_name_tuple *= string(param_name, ", ")
+        else
+            param_name_tuple *= string(param_name, ")")
+        end
+    end
+    return string(base_name, param_name_tuple)
+end
+
 # Make a string for InfiniteVariableRef
 function variable_string(print_mode, vref::InfiniteVariableRef)::String
     base_name = _get_base_name(print_mode, vref)
@@ -236,30 +287,41 @@ function variable_string(print_mode, vref::InfiniteVariableRef)::String
         return base_name
     else
         prefs = raw_parameter_refs(vref)
-        param_name_tuple = "("
-        for i in 1:size(prefs, 1)
-            element_prefs = prefs[i, :]
-            type = _index_type(first(element_prefs))
-            if type == DependentParameterIndex
-                param_name = _remove_name_index(first(element_prefs))
-            elseif length(element_prefs) == 1
-                param_name = JuMP.name(first(element_prefs))
-            else
-                # TODO this isn't quite right with a subset of an independent container
-                names = map(p -> _remove_name_index(p), element_prefs)
-                if _allequal(names)
-                    param_name = first(names)
-                else
-                    param_name = string("[", join(element_prefs, ", "), "]")
-                end
-            end
-            if i != size(prefs, 1)
-                param_name_tuple *= string(param_name, ", ")
-            else
-                param_name_tuple *= string(param_name, ")")
-            end
-        end
-        return string(base_name, param_name_tuple)
+        return _add_on_parameter_refs(base_name, prefs)
+    end
+end
+
+## Make helper function for making derivative operators 
+# REPL 
+function _deriv_operator(m::Type{JuMP.REPLMode}, pref)::String
+    return string(_infopt_math_symbol(m, :partial), "/", 
+                  _infopt_math_symbol(m, :partial), variable_string(m, pref))
+end
+
+# IJulia 
+function _deriv_operator(m::Type{JuMP.IJuliaMode}, pref)::String
+    return string("\\frac{", _infopt_math_symbol(m, :partial), "}{", 
+                  _infopt_math_symbol(m, :partial), " ", 
+                  variable_string(m, pref), "}")
+end
+
+# TODO implement more intelligent naming for nested derivatives (i.e., use exponents)
+# TODO account for container naming when variable macro is used (maybe deal with this at the macro end)
+# Make a string for DerivativeRef 
+function variable_string(print_mode, dref::DerivativeRef)::String
+    base_name = _get_base_name(print_mode, dref)
+    if !haskey(_data_dictionary(dref), JuMP.index(dref))
+        return base_name
+    elseif base_name != "noname"
+        prefs = raw_parameter_refs(dref)
+        return _add_on_parameter_refs(base_name, prefs)
+    else
+        vref = dispatch_variable_ref(derivative_argument(dref))
+        pref = operator_parameter(dref)
+        return string(_deriv_operator(print_mode, pref), 
+                      _infopt_math_symbol(print_mode, :open_rng), 
+                      variable_string(print_mode, vref), 
+                      _infopt_math_symbol(print_mode, :close_rng))
     end
 end
 
@@ -291,12 +353,17 @@ function _make_str_value(values::Array)::String
 end
 
 # Make a string for PointVariableRef
+# TODO improve so numerator of derivative contains the point
 function variable_string(print_mode, vref::PointVariableRef)::String
     if !haskey(_data_dictionary(vref), JuMP.index(vref)) || !isempty(JuMP.name(vref))
         return _get_base_name(print_mode, vref)
     else
         ivref = dispatch_variable_ref(infinite_variable_ref(vref))
-        base_name = _get_base_name(print_mode, ivref)
+        if ivref isa InfiniteVariableRef || !isempty(JuMP.name(ivref))
+            base_name = _get_base_name(print_mode, ivref)
+        else 
+            base_name = variable_string(print_mode, ivref) # we have a derivative
+        end
         prefs = raw_parameter_refs(ivref)
         values = raw_parameter_values(vref)
         name = string(base_name, "(")
@@ -312,12 +379,17 @@ function variable_string(print_mode, vref::PointVariableRef)::String
 end
 
 # Make a string for ReducedVariableRef
+# TODO improve so numerator of derivative contains the parameter tuple
 function variable_string(print_mode, vref::ReducedVariableRef)::String
     if !haskey(_data_dictionary(vref), JuMP.index(vref)) || !isempty(JuMP.name(vref))
         return _get_base_name(print_mode, vref)
     else
         ivref = dispatch_variable_ref(infinite_variable_ref(vref))
-        base_name = _get_base_name(print_mode, ivref)
+        if ivref isa InfiniteVariableRef || !isempty(JuMP.name(ivref))
+            base_name = _get_base_name(print_mode, ivref)
+        else 
+            base_name = variable_string(print_mode, ivref) # we have a derivative
+        end
         prefs = raw_parameter_refs(ivref)
         eval_supps = eval_supports(vref)
         raw_list = [i in keys(eval_supps) ? eval_supps[i] : prefs[i]
@@ -589,6 +661,9 @@ function Base.show(io::IO, model::InfiniteModel)
     # show variable info
     num_vars = JuMP.num_variables(model)
     println(io, "Variable", _plural(num_vars), ": ", num_vars)
+    # show the derivative info 
+    num_derivs = num_derivatives(model)
+    println(io, "Derivative", _plural(num_derivs), ": ", num_derivs)
     # show measure info
     num_meas = num_measures(model)
     println(io, "Measure", _plural(num_meas), ": ", num_meas)

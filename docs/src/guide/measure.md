@@ -1,17 +1,19 @@
-# [Measures] (@id measure_page)
+# [Measure Operators] (@id measure_page)
 A guide and manual for the definition and use of measures in `InfiniteOpt`.
 The Datatypes and Methods sections at the end comprise the manual, and the
 above sections comprise the guide.  
 
 ## Overview
-Measures are objects that capture the integration of an expression with respect
+Measure operators are objects that capture the evaluation of an expression with respect
 to parameters, which is a distinct feature of optimization problems with
 infinite decision spaces. In dynamic optimization measures can represent integral
 terms such as the total cost over time, and in stochastic optimization measures
 can represent integrals over the uncertain parameters, such as expectations. In
-`InfiniteOpt`, measures are evaluated by some discretization scheme, which
-evaluates the expression at a set of points over the parameter space and
-approximates the measures based on the expression values at these points.
+`InfiniteOpt`, measures are general operators that can be uni-variate or 
+multi-variate. Natively we employ measure abstractions that employ discretization 
+schemes, which evaluate the expression at a set of points over the parameter space and
+approximates the measures based on the expression values at these points. However, 
+we support the use of alternative measure operator paradigms.
 
 ## [Basic Usage] (@id measure_basic_usage)
 First, we consider a dynamic optimization problem with the time parameter `t`
@@ -39,7 +41,7 @@ The four positional arguments of [`integral`](@ref) are the integrand expression
 the parameter of integration, the lower bound, and the upper bound, respectively. 
 Specifying the integrand expression and the parameter of integration is required.
 If the lower and upper bounds are not specified, then the integration will
-be over the entire domain, which is [0, 10] in this case.
+be over the entire domain, which is ``[0, 10]`` in this case.
 
 The `integral` function uses trapezoid rule as the default discretization scheme
 for univariate parameters in finite `IntervalSet`s. In addition, the user can also 
@@ -80,6 +82,9 @@ expect{ξ}[x(ξ)²]
     [`@support_sum`](@ref) should be used instead of their functional equivalents 
     for better performance. 
 
+Other measure paradigms can be implemented via [`measure`](@ref) as described in 
+the sections further below.
+
 Depending on the type of measures created, support points may be generated
 at the time of creating the measures. In these cases, the new support points
 will be added to the support list of the integrated parameter.
@@ -89,17 +94,18 @@ measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
 julia> measure_data(mref2)
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.333357, 0.747257, 1.09543, 1.34633, 1.47762, 1.47762, 1.34633, 1.09543, 0.747257, 0.333357], [0.130467, 0.674683, 1.60295, 2.83302, 4.25563, 5.74437, 7.16698, 8.39705, 9.32532, 9.86953], Symbol("##703"), InfiniteOpt.default_weight, 0.0, 10.0, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.333357, 0.747257, 1.09543, 1.34633, 1.47762, 1.47762, 1.34633, 1.09543, 0.747257, 0.333357], [0.130467, 0.674683, 1.60295, 2.83302, 4.25563, 5.74437, 7.16698, 8.39705, 9.32532, 9.86953], UniqueMeasure{Val{Symbol("##808")}}, InfiniteOpt.default_weight, 0.0, 10.0, false)
 
 julia> measure_data(mref3)
-FunctionalDiscreteMeasureData{GeneralVariableRef,Float64}(t, InfiniteOpt.MeasureToolbox._trapezoid_coeff, 0, :all, InfiniteOpt.default_weight, 0.0, 10.0, false)
+FunctionalDiscreteMeasureData{GeneralVariableRef,Float64}(t, InfiniteOpt.MeasureToolbox._trapezoid_coeff, 0, All, InfiniteOpt.default_weight, 0.0, 10.0, false)
 ```
-Note that in `InfiniteOpt`, two types of measure data objects are used to store the measure
+Natively in `InfiniteOpt`, two types of measure data objects are used to store the measure
 data information depending on the nature of the measures created: `DiscreteMeasureData` and
 `FunctionalDiscreteMeasureData`. For more details on the measure data object, 
 refer to [Measure Data Generation](@ref).
 
-Similarly, one can also query the integrand function using [`measure_function`](@ref):
+Similarly, one can also query the expression the measure operates on using 
+[`measure_function`](@ref):
 ```jldoctest meas_basic
 julia> measure_function(mref3)
 y(t)² + u(t)²
@@ -132,7 +138,7 @@ default values of measure keyword arguments, and construct measures using the ne
 default values. To do that, we use the functions
 [`set_uni_integral_defaults`](@ref) and [`set_multi_integral_defaults`](@ref).
 Adding new keyword arguments will be useful if users want to extend the measure 
-functions with their custom discretization/evaluation schemes that need to take 
+functions with their custom representation/evaluation schemes that need to take 
 additional arguments somehow. See [Extensions](@ref) for more details.
 
 Now we can add integrals to the constraints and objective functions in our
@@ -140,15 +146,25 @@ model using these measures. For more detailed information, please review the
 information below.
 
 ## Theoretical Abstraction
-In `InfiniteOpt`, measures represent integrals of the form
+In `InfiniteOpt`, measures denote operators ``M_\ell`` that operate on some infinite 
+expression ``y`` over the infinite domain ``\mathcal{D}_\ell`` associated with 
+the infinite parameter ``\ell``:
+```math
+M_{\ell}y : \mathcal{D}_{-\ell} \mapsto \mathbb{R}^{n_y}
+```
+Such a paradigm can capture a wide variety of mathematical operators commonly 
+encountered in infinite-dimensional programming such as integrals, expectations, 
+risk measures, and chance constraints.
+
+Currently, `InfiniteOpt` natively contains programmatic objects for measures that 
+can be represented as integrals of the form:
 ```math
 \int_{\tau \in \mathcal{T}} f(\tau)w(\tau) d\tau
 ```
-where ``\tau`` is a
-(possibly multivariate) infinite parameter, ``f(\tau)`` is an expression
-parameterized by ``\tau``, ``w(\tau)`` is a weight function, and ``\mathcal{T}``
-is a subset of the domain of ``\tau``. The measures approximate the integrals
-by taking a discretization scheme
+where ``\tau`` is a (possibly multivariate) infinite parameter, ``f(\tau)`` is an 
+expression parameterized by ``\tau``, ``w(\tau)`` is a weight function, and 
+``\mathcal{T}`` is a subset of the domain of ``\tau``. The measures approximate 
+the integrals by taking a discretization scheme
 ```math
 \int_{\tau \in \mathcal{T}} f(\tau)w(\tau) d\tau \approx \sum_{i=1}^N \alpha_i f(\tau_i) w(\tau_i)
 ```
@@ -162,9 +178,13 @@ these can be implemented to enable schemes that fit this mathematical paradigm, 
 lie out of the realm of the supported features behind `integral`, `expect`, and 
 `support_sum`.
 
+More complex measure paradigms can also be implemented by creating concrete 
+subtype of [`AbstractMeasureData`](@ref) as detailed in [Measure Data](@ref) Section 
+on our extensions page.
+
 ## Measure Data Generation
-The most general form of [`measure`](@ref) function takes two arguments: the integrand expression and
-a measure data object that contains the details of the discretization scheme.
+The general [`measure`](@ref) function takes two arguments: the argument expression and
+a measure data object that contains the details of the measure representation.
 Measure data objects can be constructed using [`DiscreteMeasureData`](@ref),
 where the parameter of integration, the coefficients ``\alpha_i``, and the
 support points need to be defined explicitly. For example, if we want to
@@ -173,7 +193,7 @@ can construct the following measure data object to record this discretization
 scheme:
 ```jldoctest meas_basic
 julia> md_t = DiscreteMeasureData(t, ones(10), [i for i in 1:10])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], Symbol("##707"), InfiniteOpt.default_weight, NaN, NaN, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], UniqueMeasure{Val{Symbol("##812")}}, InfiniteOpt.default_weight, NaN, NaN, false)
 ```
 The arguments of [`DiscreteMeasureData`](@ref) are parameter, coefficients, and
 supports. The default weight function is ``w(\tau) = 1`` for
@@ -190,7 +210,7 @@ for ``y^2`` as follows:
 julia> mref = measure(y^2, md_t)
 measure{t}[y(t)²]
 ```
-In the same way, we can define measure data for multivariate infinite parameter.
+In the same way, we can define measure data for multi-variate infinite parameters.
 For example, we can define a discretization scheme for a 2D position parameter
 ``x \in [0, 1] \times [0, 1]`` as follows:
 ```jldoctest meas_basic
@@ -200,7 +220,7 @@ julia> @infinite_parameter(model, x[1:2] in [0, 1])
  x[2]
 
 julia> md_x = DiscreteMeasureData(x, 0.25 * ones(4), [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75]])
-DiscreteMeasureData{Array{GeneralVariableRef,1},2,Array{Float64,1}}(GeneralVariableRef[x[1], x[2]], [0.25, 0.25, 0.25, 0.25], [0.25 0.25 0.75 0.75; 0.25 0.75 0.25 0.75], Symbol("##712"), InfiniteOpt.default_weight, [NaN, NaN], [NaN, NaN], false)
+DiscreteMeasureData{Array{GeneralVariableRef,1},2,Array{Float64,1}}(GeneralVariableRef[x[1], x[2]], [0.25, 0.25, 0.25, 0.25], [0.25 0.25 0.75 0.75; 0.25 0.75 0.25 0.75], UniqueMeasure{Val{Symbol("##817")}}, InfiniteOpt.default_weight, [NaN, NaN], [NaN, NaN], false)
 ```
 where `md_x` cuts the domain into four 0.5-by-0.5 squares, and evaluates the
 integrand on the center of these squares. Note that for multivariate parameters, 
@@ -224,15 +244,13 @@ julia> coeff_f(supports) = [(10 - 0) / length(supports) for i in supports]
 coeff_f (generic function with 1 method)
 
 julia> fmd_t = FunctionalDiscreteMeasureData(t, coeff_f, 20, UniformGrid)
-FunctionalDiscreteMeasureData{GeneralVariableRef,Float64}(t, coeff_f, 20, :uniform_grid, InfiniteOpt.default_weight, NaN, NaN, false)
+FunctionalDiscreteMeasureData{GeneralVariableRef,Float64}(t, coeff_f, 20, UniformGrid, InfiniteOpt.default_weight, NaN, NaN, false)
 ```
 For more details see [`FunctionalDiscreteMeasureData`](@ref). 
 
-The [`integral`](@ref) function shown in [Basic Usage](@ref measure_basic_usage), 
-which does not require explicit construction of the measure data object,
-calls the [`measure`](@ref) function at the lower level. To do that, [`integral`] 
-constructs the appropriate measure data object according to the values
-of the positional and keyword arguments.
+Our higher-level measure methods, such as [`integral`](@ref), do not require 
+explicit construction of the measure data object and instead serve as wrappers 
+that construct the appropriate data object and then call [`measure`](@ref).
 
 ## Evaluation Methods
 The [`integral`](@ref) function calls [`generate_integral_data`](@ref) under the hood
@@ -244,26 +262,26 @@ a measure data object of type [`AbstractMeasureData`](@ref).
 support generation methods depending on the input `eval_method`. Each dispatch is distingushed by 
 the `method`, which takes a concrete subtype of `AbstractIntegralMethod`. 
 Each dispatch of `generate_integral_data` implements the specified method and returns
-the resulting measure data, which will be used by [`@integral`] to create the measure.
+the resulting measure data, which will be used by [`@integral`](@ref) to create the measure.
 A table of available `method` options in our package is listed below.
 Each method is limited on the dimension of parameter and/or the type of set
 that it can apply for. For the details of what each method type means, refer to the corresponding
 docstrings.
 
-| Evaluation Method | Uni/Multi-Variate? | Set Type |
-|:---:|:---:|:---:|
-| [`Automatic`](@ref) | Both | All |
-| [`UniTrapezoid`](@ref) | Both | [`IntervalSet`](@ref) |
-| [`UniMCSampling`](@ref) | Univariate | Finite [`IntervalSet`](@ref) |
-| [`UniIndepMCSampling`](@ref) | Univariate | Finite [`IntervalSet`](@ref) |
-| [`Quadrature`](@ref) | Univariate | [`IntervalSet`](@ref) |
-| [`GaussLegendre`](@ref) | Univariate | Finite [`IntervalSet`](@ref) |
-| [`GaussLaguerre`](@ref) | Univariate | Semi-infinite [`IntervalSet`](@ref) |
-| [`GaussHermite`](@ref) | Univariate | Infinite [`IntervalSet`](@ref) |
-| [`MultiMCSampling`](@ref) | Multivariate | Finite [`IntervalSet`](@ref) |
-| [`MultiIndepMCSampling`](@ref) | Multivariate | Finite [`IntervalSet`](@ref) |
+| Evaluation Method              | Uni/Multi-Variate? | Set Type                            |
+|:------------------------------:|:------------------:|:-----------------------------------:|
+| [`Automatic`](@ref)            | Both               | Any                                 |
+| [`UniTrapezoid`](@ref)         | Both               | [`IntervalSet`](@ref)               |
+| [`UniMCSampling`](@ref)        | Univariate         | Finite [`IntervalSet`](@ref)        |
+| [`UniIndepMCSampling`](@ref)   | Univariate         | Finite [`IntervalSet`](@ref)        |
+| [`Quadrature`](@ref)           | Univariate         | [`IntervalSet`](@ref)               |
+| [`GaussLegendre`](@ref)        | Univariate         | Finite [`IntervalSet`](@ref)        |
+| [`GaussLaguerre`](@ref)        | Univariate         | Semi-infinite [`IntervalSet`](@ref) |
+| [`GaussHermite`](@ref)         | Univariate         | Infinite [`IntervalSet`](@ref)      |
+| [`MultiMCSampling`](@ref)      | Multivariate       | Finite [`IntervalSet`](@ref)        |
+| [`MultiIndepMCSampling`](@ref) | Multivariate       | Finite [`IntervalSet`](@ref)        |
 
-In summary, the package supports trapezoid rule, Gaussian quadrature methods for univariate parameters,
+In summary, we natively support trapezoid rule, Gaussian quadrature methods for univariate parameters,
 and Monte Carlo sampling for both univariate and multivariate parameters.
 For extension purposes, users may define their own [`generate_integral_data`](@ref)
 to encode custom evaluation methods. See [Extensions](@ref) for more details.
@@ -289,7 +307,7 @@ integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``.
 We can set up and expand this measure as follows:
 ```jldoctest meas_basic
 julia> tdata = DiscreteMeasureData(t, [5, 5], [2.5, 7.5])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], Symbol("##713"), InfiniteOpt.default_weight, NaN, NaN, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], UniqueMeasure{Val{Symbol("##818")}}, InfiniteOpt.default_weight, NaN, NaN, false)
 
 julia> mref4 = measure(y^2, tdata)
 measure{t}[y(t)²]
@@ -384,8 +402,8 @@ Order   = [:macro, :function]
 default_weight
 DiscreteMeasureData(::GeneralVariableRef, ::Vector{<:Real}, ::Vector{<:Real})
 DiscreteMeasureData(::AbstractArray{GeneralVariableRef}, ::Vector{<:Real}, ::Vector{<:AbstractArray{<:Real}})
-FunctionalDiscreteMeasureData(::GeneralVariableRef,::Function,::Int,::Symbol)
-FunctionalDiscreteMeasureData(::AbstractArray{GeneralVariableRef},::Function,::Int,::Symbol)
+FunctionalDiscreteMeasureData(::GeneralVariableRef,::Function,::Int,::Type{<:AbstractSupportLabel})
+FunctionalDiscreteMeasureData(::AbstractArray{GeneralVariableRef},::Function,::Int,::Type{<:AbstractSupportLabel})
 parameter_refs(::AbstractMeasureData)
 support_label(::AbstractMeasureData)
 JuMP.lower_bound(::AbstractMeasureData)

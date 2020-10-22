@@ -5,7 +5,8 @@
     obj_idx = DependentParametersIndex(1)
     idx = DependentParameterIndex(obj_idx, 1)
     set = CollectionSet([IntervalSet(0, 1), IntervalSet(0, 1)])
-    params = DependentParameters(set, Dict{Vector{Float64}, Set{Symbol}}(), 5)
+    methods = [InfiniteOpt.DefaultDerivativeMethod for i = 1:2]
+    params = DependentParameters(set, Dict{Vector{Float64}, Set{DataType}}(), 5, methods)
     object = MultiParameterData(params, 1, 1:2, ["p1", "p2"])
     pref = DependentParameterRef(m, idx)
     gvref = GeneralVariableRef(m, 1, DependentParameterIndex, 1)
@@ -60,34 +61,39 @@ end
     set2 = MultiDistributionSet(MvNormal(ones(2)))
     set3 = MultiDistributionSet(MatrixBeta(2, 2, 2))
     set4 = CollectionSet([sset1, sset2])
+    method = InfiniteOpt.DefaultDerivativeMethod
+    method_type = typeof(method)
     # test _DependentParameter
     @testset "_DependentParameter" begin
         @test InfiniteOpt._DependentParameter isa UnionAll
-        @test isa(InfiniteOpt._DependentParameter(sset1, Float64[], "p"),
-                  InfiniteOpt._DependentParameter{IntervalSet})
-        @test isa(InfiniteOpt._DependentParameter(set1, 1, "p"),
-                  InfiniteOpt._DependentParameter{<:CollectionSet})
-        @test isa(InfiniteOpt._DependentParameter(set3, [1, 3], "p"),
-                  InfiniteOpt._DependentParameter{<:MultiDistributionSet})
+        @test isa(InfiniteOpt._DependentParameter(sset1, Float64[], "p", method),
+                  InfiniteOpt._DependentParameter{IntervalSet,method_type})
+        @test isa(InfiniteOpt._DependentParameter(set1, 1, "p", method),
+                  InfiniteOpt._DependentParameter{<:CollectionSet, method_type})
+        @test isa(InfiniteOpt._DependentParameter(set3, [1, 3], "p", method),
+                  InfiniteOpt._DependentParameter{<:MultiDistributionSet, method_type})
     end
     # prepare containers of _DependentParameters
-    raw_params1 = [InfiniteOpt._DependentParameter(sset1, Float64[], "p") for i = 1:2]
-    raw_params2 = [InfiniteOpt._DependentParameter(set1, [0, 1], "p") for i = 1:2]
-    raw_params3 = [InfiniteOpt._DependentParameter(set2, 1, "p") for i = 1:2]
-    raw_params4 = [InfiniteOpt._DependentParameter(set3, Float64[], "p") for i = 1:2]
-    raw_params5 = [InfiniteOpt._DependentParameter(set3, Float64[], "p")
+    raw_params1 = [InfiniteOpt._DependentParameter(sset1, Float64[], "p", method) for i = 1:2]
+    raw_params2 = [InfiniteOpt._DependentParameter(set1, [0, 1], "p", method) for i = 1:2]
+    raw_params3 = [InfiniteOpt._DependentParameter(set2, 1, "p", method) for i = 1:2]
+    raw_params4 = [InfiniteOpt._DependentParameter(set3, Float64[], "p", method) for i = 1:2]
+    raw_params5 = [InfiniteOpt._DependentParameter(set3, Float64[], "p", method)
                    for i = CartesianIndices((1:2, 1:2))]
-    raw_params6 = [InfiniteOpt._DependentParameter(set4, Float64[], "p") for i = 1:2]
-    raw_params7 = [InfiniteOpt._DependentParameter(set2, Float64[], "p"),
-                   InfiniteOpt._DependentParameter(set3, Float64[], "p")]
-    raw_params8 = [InfiniteOpt._DependentParameter(set1, [0, 1], "p") for i = 1:3]
-    raw_params9 = [InfiniteOpt._DependentParameter(set1, Float64[], "p"),
-                   InfiniteOpt._DependentParameter(set4, Float64[], "p")]
-    raw_params10 = [InfiniteOpt._DependentParameter(set1, Float64[], "p"),
-                    InfiniteOpt._DependentParameter(set2, Float64[], "p")]
-    raw_params11 = [InfiniteOpt._DependentParameter(BadArraySet(), 1, "p") for i = 1:2]
-    raw_params12 = [InfiniteOpt._DependentParameter(sset1, Float64[], "p"),
-                    InfiniteOpt._DependentParameter(sset2, Float64[], "p")]
+    raw_params6 = [InfiniteOpt._DependentParameter(set4, Float64[], "p", method) for i = 1:2]
+    raw_params7 = [InfiniteOpt._DependentParameter(set2, Float64[], "p", method),
+                   InfiniteOpt._DependentParameter(set3, Float64[], "p", method)]
+    raw_params8 = [InfiniteOpt._DependentParameter(set1, [0, 1], "p", method) for i = 1:3]
+    raw_params9 = [InfiniteOpt._DependentParameter(set1, Float64[], "p", method),
+                   InfiniteOpt._DependentParameter(set4, Float64[], "p", method)]
+    raw_params10 = [InfiniteOpt._DependentParameter(set1, Float64[], "p", method),
+                    InfiniteOpt._DependentParameter(set2, Float64[], "p", method)]
+    raw_params11 = [InfiniteOpt._DependentParameter(BadArraySet(), 1, "p", method) for i = 1:2]
+    raw_params12 = [InfiniteOpt._DependentParameter(sset1, Float64[], "p", method),
+                    InfiniteOpt._DependentParameter(sset2, Float64[], "p", method)]
+    raw_params13 = [InfiniteOpt._DependentParameter(sset1, Float64[], "p", TestGenMethod()) for i = 1:2]
+    raw_params14 = [InfiniteOpt._DependentParameter(sset1, Float64[], "p", TestGenMethod()),
+                    InfiniteOpt._DependentParameter(sset2, Float64[], "p", method)]
     # test _check_param_sets (InfiniteScalarSet)
     @testset "_check_param_sets (InfiniteScalarSet)" begin
         @test InfiniteOpt._check_param_sets(error, raw_params1) isa Nothing
@@ -129,6 +135,17 @@ end
     @testset "_check_param_sets (Fallback)" begin
         @test_throws ErrorException InfiniteOpt._check_param_sets(error, ones(2))
     end
+    # test _check_derivative_methods
+    @testset "_check_derivative_methods" begin 
+        # test normal 
+        @test InfiniteOpt._check_derivative_methods(error, raw_params1) isa Nothing
+        @test InfiniteOpt._check_derivative_methods(error, raw_params12) isa Nothing
+        # test bad type 
+        @test_throws ErrorException InfiniteOpt._check_derivative_methods(error, raw_params13)
+        @test_throws ErrorException InfiniteOpt._check_derivative_methods(error, raw_params14)
+        # test fallback 
+        @test_throws ErrorException InfiniteOpt._check_derivative_methods(error, ones(2))
+    end
     # test _make_array_set (InfiniteArraySet)
     @testset "_make_array_set (InfiniteArraySet)" begin
         @test InfiniteOpt._make_array_set(raw_params3) == set2
@@ -144,10 +161,10 @@ end
         @test_throws ErrorException InfiniteOpt._build_parameters(error, raw_params1, bob = 2)
         @test_throws ErrorException InfiniteOpt._build_parameters(error, raw_params4)
         @test_throws ErrorException InfiniteOpt._build_parameters(error, raw_params9)
-        raw_params12 = [InfiniteOpt._DependentParameter(set1, 0, "p"),
-                        InfiniteOpt._DependentParameter(set1, Float64[], "p")]
+        raw_params12 = [InfiniteOpt._DependentParameter(set1, 0, "p", method),
+                        InfiniteOpt._DependentParameter(set1, Float64[], "p", method)]
         @test_throws ErrorException InfiniteOpt._build_parameters(error, raw_params12)
-        raw_params13 = [InfiniteOpt._DependentParameter(set1, [0, 2], "p") for i = 1:2]
+        raw_params13 = [InfiniteOpt._DependentParameter(set1, [0, 2], "p", method) for i = 1:2]
         @test_throws ErrorException InfiniteOpt._build_parameters(error, raw_params13)
         # test has supports
         @test InfiniteOpt._build_parameters(error,
@@ -164,7 +181,7 @@ end
         @test InfiniteOpt._build_parameters(error, raw_params6,
                             num_supports = 4, sig_digits = 5)[1].set == set4
         @test InfiniteOpt._build_parameters(error, raw_params6,
-                            num_supports = 4, sig_digits = 5)[1].supports isa Dict{Vector{Float64}, Set{Symbol}}
+                            num_supports = 4, sig_digits = 5)[1].supports isa Dict{Vector{Float64}, Set{DataType}}
         @test Mixture in first(InfiniteOpt._build_parameters(error, raw_params6,
                               num_supports = 4, sig_digits = 5)[1].supports)[2]
         @test InfiniteOpt._build_parameters(error, raw_params2,
@@ -176,7 +193,7 @@ end
                             raw_params5)[1] isa DependentParameters
         @test InfiniteOpt._build_parameters(error, raw_params5)[1].set == set3
         @test InfiniteOpt._build_parameters(error,
-                            raw_params5)[1].supports == Dict{Vector{Float64}, Set{Symbol}}()
+                            raw_params5)[1].supports == Dict{Vector{Float64}, Set{DataType}}()
         @test InfiniteOpt._build_parameters(error,
                             raw_params5)[2] == ["p", "p", "p", "p"]
         @test InfiniteOpt._build_parameters(error,
@@ -309,7 +326,7 @@ end
         @test @dependent_parameters(m, b[3:4] in set2,
                 supports = 0) == expected
         @test InfiniteOpt._data_object(pref1).names == ["b[3]", "b[4]"]
-        @test InfiniteOpt._core_variable_object(pref1).supports == Dict{Vector{Float64}, Set{Symbol}}(zeros(2) => Set([UserDefined]))
+        @test InfiniteOpt._core_variable_object(pref1).supports == Dict{Vector{Float64}, Set{DataType}}(zeros(2) => Set([UserDefined]))
         # test explicit build with some args
         pref1 = GeneralVariableRef(m, 3, DependentParameterIndex, 1)
         pref2 = GeneralVariableRef(m, 3, DependentParameterIndex, 2)
@@ -339,7 +356,8 @@ end
         # test anonymous with set keyword
         pref1 = GeneralVariableRef(m, 6, DependentParameterIndex, 1)
         pref2 = GeneralVariableRef(m, 6, DependentParameterIndex, 2)
-        @test @dependent_parameters(m, [1:2], set = sset2) == [pref1, pref2]
+        @test @dependent_parameters(m, [1:2], set = sset2, 
+                                    derivative_method = TestMethod()) == [pref1, pref2]
         # test anonymous with dist keyword and base_name
         pref1 = GeneralVariableRef(m, 7, DependentParameterIndex, 1)
         pref2 = GeneralVariableRef(m, 7, DependentParameterIndex, 2)
@@ -468,6 +486,13 @@ end
         @test InfiniteOpt._constraint_dependencies(gvrefs[1]) == data.constraint_indices[1]
         @test_throws ErrorException InfiniteOpt._constraint_dependencies(bad_pref)
     end
+    # test _derivative_dependencies
+    @testset "_derivative_dependencies" begin
+        @test InfiniteOpt._derivative_dependencies(prefs[1]) == data.derivative_indices[1]
+        @test InfiniteOpt._derivative_dependencies(prefs[2]) == data.derivative_indices[2]
+        @test InfiniteOpt._derivative_dependencies(gvrefs[1]) == data.derivative_indices[1]
+        @test_throws ErrorException InfiniteOpt._derivative_dependencies(bad_pref)
+    end
     # test used_by_infinite_variable
     @testset "used_by_infinite_variable" begin
         # test not used
@@ -479,6 +504,18 @@ end
         @test used_by_infinite_variable(prefs[1])
         # undo changes
         empty!(data.infinite_var_indices)
+    end
+    # test used_by_derivative
+    @testset "used_by_derivative" begin
+        # test not used
+        @test !used_by_derivative(prefs[1])
+        @test !used_by_derivative(prefs[2])
+        @test !used_by_derivative(gvrefs[1])
+        # test used
+        push!(data.derivative_indices[1], DerivativeIndex(1))
+        @test used_by_derivative(prefs[1])
+        # undo changes
+        empty!(data.derivative_indices[1])
     end
     # test used_by_measure
     @testset "used_by_measure" begin
@@ -530,7 +567,8 @@ end
     prefs = dispatch_variable_ref.(gvrefs)
     data = InfiniteOpt._data_object(first(prefs))
     set = CollectionSet([IntervalSet(0, 2), IntervalSet(0, 2)])
-    params = DependentParameters(set, Dict{Vector{Float64}, Set{Symbol}}(), 10)
+    methods = [InfiniteOpt.DefaultDerivativeMethod for i = 1:2]
+    params = DependentParameters(set, Dict{Vector{Float64}, Set{DataType}}(), 10, methods)
     bad_idx = DependentParameterIndex(DependentParametersIndex(-1), 2)
     bad_pref = DependentParameterRef(m, bad_idx)
     # test _parameter_number
@@ -558,10 +596,98 @@ end
         @test InfiniteOpt._object_numbers(prefs[2]) == [1]
         @test InfiniteOpt._object_numbers(gvrefs[1]) == [1]
     end
+    # test _adaptive_data_update
+    @testset "_adaptive_data_update" begin
+        # test with same data 
+        @test InfiniteOpt._adaptive_data_update(prefs[1], params, data) isa Nothing
+        # test with different data 
+        set = MultiDistributionSet(MvNormal([0, 0], [1, 1]))
+        ps = DependentParameters(set, Dict{Vector{Float64}, Set{DataType}}(), 10, methods)
+        @test InfiniteOpt._adaptive_data_update(prefs[2], ps, data) isa Nothing
+        @test InfiniteOpt._core_variable_object(prefs[2]) == ps
+    end
     # test _set_core_variable_object
     @testset "_set_core_variable_object" begin
+        # test with different type
         @test InfiniteOpt._set_core_variable_object(prefs[1], params) isa Nothing
+        @test InfiniteOpt._core_variable_object(prefs[2]) == params
+        # test with same type
         @test InfiniteOpt._set_core_variable_object(prefs[2], params) isa Nothing
+        @test InfiniteOpt._core_variable_object(prefs[1]) == params
+    end
+end
+
+# test Derivative Method 
+@testset "Derivative Methods" begin 
+    # setup the data
+    m = InfiniteModel();
+    gvrefs = @dependent_parameters(m, a[1:2] in [0, 1], derivative_method = TestMethod())
+    prefs = dispatch_variable_ref.(gvrefs)
+    push!(InfiniteOpt._constraint_dependencies(prefs[1]), ConstraintIndex(1))
+    # test has_derivative_supports
+    @testset "has_derivative_supports" begin
+        @test !has_derivative_supports(prefs[1])
+        @test !has_derivative_supports(gvrefs[2])
+    end
+    # test _set_has_derivative_supports
+    @testset "_set_has_derivative_supports" begin
+        @test InfiniteOpt._set_has_derivative_supports(prefs[1], true) isa Nothing
+        @test InfiniteOpt._set_has_derivative_supports(gvrefs[2], false) isa Nothing
+    end
+    # test has_derivative_constraints
+    @testset "has_derivative_constraints" begin
+        @test !has_derivative_constraints(prefs[1])
+        InfiniteOpt._data_object(prefs[1]).has_deriv_constrs[1] = true
+        @test has_derivative_constraints(gvrefs[1])
+    end
+    # test _set_has_derivative_constraints
+    @testset "_set_has_derivative_constraints" begin
+        @test InfiniteOpt._set_has_derivative_constraints(prefs[1], true) isa Nothing
+        @test has_derivative_constraints(prefs[1])
+        @test InfiniteOpt._set_has_derivative_constraints(gvrefs[1], false) isa Nothing
+        @test !has_derivative_constraints(prefs[1])
+    end
+    # test _derivative_methods
+    @testset "_derivative_methods" begin
+        @test InfiniteOpt._derivative_methods(prefs[1]) isa Vector{TestMethod}
+    end
+    # test derivative_method
+    @testset "derivative_method" begin
+        @test derivative_method(prefs[1]) isa TestMethod
+        @test derivative_method(gvrefs[2]) isa TestMethod
+    end
+    # test _adaptive_method_update
+    @testset "_adaptive_method_update" begin
+        # same type
+        params = InfiniteOpt._core_variable_object(prefs[1])
+        @test InfiniteOpt._adaptive_method_update(prefs[1], params, TestMethod()) isa Nothing
+        @test derivative_method(prefs[1]) isa TestMethod
+        # different type
+        params = InfiniteOpt._core_variable_object(prefs[1])
+        method = InfiniteOpt.DefaultDerivativeMethod
+        @test InfiniteOpt._adaptive_method_update(prefs[2], params, method) isa Nothing
+        @test InfiniteOpt._derivative_methods(prefs[1]) == [TestMethod(), method]
+    end
+    # test set_derivative_method
+    @testset "set_derivative_method" begin
+        # same type
+        method = InfiniteOpt.DefaultDerivativeMethod
+        @test set_derivative_method(prefs[1], method) isa Nothing
+        @test derivative_method(prefs[1]) == method
+        @test InfiniteOpt._derivative_methods(prefs[1]) == [method, method]
+        # different type
+        @test set_derivative_method(prefs[2], TestMethod()) isa Nothing
+        @test InfiniteOpt._derivative_methods(prefs[1]) == [method, TestMethod()]
+        # test error 
+        @test_throws ErrorException set_derivative_method(gvrefs[2], TestGenMethod())
+    end
+    # test set_all_derivative_methods
+    @testset "set_all_derivative_methods" begin 
+        @infinite_parameter(m, pref in [0, 1])
+        @test set_all_derivative_methods(m, TestMethod()) isa Nothing
+        @test InfiniteOpt._derivative_methods(prefs[1]) == [TestMethod(), TestMethod()]
+        @test derivative_method(pref) == TestMethod()
+        @test_throws ErrorException set_all_derivative_methods(m, TestGenMethod())
     end
 end
 
@@ -623,12 +749,14 @@ end
         @test set_infinite_set(prefs1[2], IntervalSet(-1, 1)) isa Nothing
         @test infinite_set(prefs1[2]) == IntervalSet(-1, 1)
         @test set_infinite_set(gvrefs1[2], IntervalSet(0, 1)) isa Nothing
+        @test set_infinite_set(prefs1[1], UniDistributionSet(Normal())) isa Nothing
+        @test infinite_set(prefs1[1]) isa UniDistributionSet
+        @test set_infinite_set(prefs1[1], IntervalSet(0, 1)) isa Nothing
         # test errors
         @test_throws ErrorException set_infinite_set(prefs2[1], IntervalSet(0, 2))
         push!(InfiniteOpt._measure_dependencies(prefs1[1]), MeasureIndex(1))
         @test_throws ErrorException set_infinite_set(prefs1[1], IntervalSet(0, 2))
         empty!(InfiniteOpt._measure_dependencies(prefs1[1]))
-        @test_throws ErrorException set_infinite_set(prefs1[1], UniDistributionSet(Normal()))
     end
     # test set_infinite_set (Array)
     @testset "set_infinite_set (Array)" begin
@@ -643,8 +771,6 @@ end
         push!(InfiniteOpt._measure_dependencies(prefs1[1]), MeasureIndex(1))
         @test_throws ErrorException set_infinite_set(prefs1, new_set)
         empty!(InfiniteOpt._measure_dependencies(prefs1[1]))
-        new_set = CollectionSet([IntervalSet(0, 1), UniDistributionSet(Normal())])
-        @test_throws ErrorException set_infinite_set(prefs1, new_set)
     end
     # test JuMP.has_lower_bound
     @testset "JuMP.has_lower_bound" begin
@@ -699,6 +825,18 @@ end
     gvrefs3 = @dependent_parameters(m, c[1:2] in [0, 1])
     gvrefs4 = @dependent_parameters(m, d[1:2] in [0, 1], supports = 0)
     push!(InfiniteOpt._constraint_dependencies(prefs1[1]), ConstraintIndex(1))
+    # test has_internal_supports 
+    @testset "has_internal_supports" begin
+        @test !has_internal_supports(prefs1[1])
+        @test !has_internal_supports(gvrefs4[2])
+    end
+    # test _set_has_internal_supports 
+    @testset "_set_has_internal_supports" begin
+        @test InfiniteOpt._set_has_internal_supports(prefs1[1], true) isa Nothing
+        @test has_internal_supports(prefs1[1])
+        @test InfiniteOpt._set_has_internal_supports(gvrefs1[1], false) isa Nothing
+        @test !has_internal_supports(prefs1[1])
+    end
     # test _parameter_supports
     @testset "_parameter_supports" begin
         @test sort(collect(keys(InfiniteOpt._parameter_supports(prefs1[1])))) == [[0., 0.], [1., 1.]]
@@ -719,6 +857,8 @@ end
         @test num_supports(prefs1[1], label = MCSample) == 0
         @test num_supports(prefs1[1], label = UniformGrid) == 2
         @test num_supports(gvrefs1[2], label = MCSample) == 0
+        @test num_supports(prefs1[1], label = All) == 2
+        @test num_supports(prefs1[1], label = SampleLabel) == 0
     end
     # test num_supports (Array)
     @testset "num_supports (Array)" begin
@@ -757,6 +897,7 @@ end
         @test supports(prefs1[1], label = MCSample) == Float64[]
         @test sort!(supports(prefs1[1], label = UniformGrid)) == Float64[0, 1]
         @test supports(gvrefs1[2], label = MCSample) == Float64[]
+        @test supports(gvrefs4[1], label = All) == [0]
     end
     # test supports (AbstractArray)
     @testset "supports (AbstractArray)" begin
@@ -772,6 +913,8 @@ end
         @test supports(new_prefs1, label = MCSample) == expected2
         @test sort!.(supports(new_prefs1, label = UniformGrid)) == expected
         @test supports(new_gvrefs1, label = MCSample) == expected2
+        @test supports(gvrefs4, label = All) == zeros(2, 1)
+        @test supports(gvrefs4, label = AbstractSupportLabel) == zeros(2, 1)
     end
     # test supports (Vector)
     @testset "supports (Vector)" begin
@@ -784,6 +927,7 @@ end
         @test supports(prefs1, label = MCSample) == zeros(2, 0)
         @test sortcols(supports(prefs1, label = UniformGrid)) == [0 1; 0 1]
         @test supports(gvrefs1, label = MCSample) == zeros(2, 0)
+        @test supports(gvrefs1, label = InternalLabel) == zeros(2, 0)
         # test error
         @test_throws ErrorException supports(prefs2[:, 1])
     end
@@ -829,6 +973,14 @@ end
                            label = UniformGrid) isa Nothing
         @test sortcols(supports(prefs1)) == sortcols(old_supports)
         @test collect(values(InfiniteOpt._parameter_supports(prefs1[1]))) == [Set([UniformGrid]) for i = 1:2]
+        # test setting with internal supports 
+        @test set_supports(gvrefs1, old_supports, force = true,
+                            label = InternalLabel) isa Nothing
+        @test sortcols(supports(prefs1, label = All)) == sortcols(old_supports)
+        @test has_internal_supports(prefs1[1])
+        @test set_supports(gvrefs1, old_supports, force = true,
+                           label = UniformGrid) isa Nothing
+        @test !has_internal_supports(prefs1[1])
     end
     # test set_supports (AbstractArray)
     @testset "set_supports (AbstractArray)" begin
@@ -859,9 +1011,16 @@ end
         @test InfiniteOpt._parameter_supports(prefs1[1])[0.1 * ones(2)] == Set([UserDefined])
         # test keywords
         @test add_supports(gvrefs1, zeros(2, 1), check = false,
-                           label = :bob) isa Nothing
+                           label = InternalLabel) isa Nothing
         @test sortcols(supports(prefs1)) == Float64[0 0.1 1; 0 0.1 1]
-        @test InfiniteOpt._parameter_supports(prefs1[1])[zeros(2)] == Set([UniformGrid, :bob])
+        @test InfiniteOpt._parameter_supports(prefs1[1])[zeros(2)] == Set([UniformGrid, InternalLabel])
+        # test warning 
+        InfiniteOpt._data_object(prefs1[1]).has_deriv_constrs[1] = true
+        warn = "Support/method changes will invalidate existing derivative evaluation " *
+               "constraints that have been added to the InfiniteModel. Thus, " *
+               "these are being deleted."
+        @test_logs (:warn, warn) add_supports(prefs1, 0.1 * ones(2, 2)) isa Nothing
+        InfiniteOpt._data_object(prefs1[1]).has_deriv_constrs[1] = false
     end
     # test add_supports (AbstractArray)
     @testset "add_supports (AbstractArray)" begin
@@ -888,6 +1047,9 @@ end
         push!(InfiniteOpt._measure_dependencies(prefs1[1]), MeasureIndex(1))
         @test_throws ErrorException delete_supports(prefs1)
         empty!(InfiniteOpt._measure_dependencies(prefs1[1]))
+        # test label deletion 
+        @test delete_supports(prefs1, label = InternalLabel) isa Nothing
+        @test !has_internal_supports(prefs1[1])
         # normal
         @test delete_supports(prefs1) isa Nothing
         @test supports(prefs1) == zeros(Float64, 2, 0)
@@ -1003,6 +1165,6 @@ end
     end
     # test all_parameters (InfiniteParameter)
     @testset "all_parameters (InfiniteParameter)" begin
-        @test all_parameters(m, InfiniteParameter) == [pref; prefs1; [prefs2...]]
+        @test all_parameters(m, InfiniteParameter) == [prefs1; [prefs2...]; pref]
     end
 end

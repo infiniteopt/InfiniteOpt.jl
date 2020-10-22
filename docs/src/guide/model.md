@@ -22,6 +22,7 @@ Feasibility problem with:
 Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
+Derivatives: 0
 Measures: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
@@ -40,6 +41,7 @@ Feasibility problem with:
 Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
+Derivatives: 0
 Measures: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
@@ -63,6 +65,7 @@ Feasibility problem with:
 Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
+Derivatives: 0
 Measures: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
@@ -103,6 +106,7 @@ Feasibility problem with:
 Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
+Derivatives: 0
 Measures: 0
 Optimizer model backend information:
 Model mode: MANUAL
@@ -123,6 +127,7 @@ Feasibility problem with:
 Finite Parameters: 0
 Infinite Parameters: 0
 Variables: 0
+Derivatives: 0
 Measures: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
@@ -196,4 +201,5 @@ ObjectIndex
 ## Methods
 ```@docs
 InfiniteModel()
+has_internal_supports
 ```

@@ -554,14 +554,26 @@ function optimizer_model_variable(vref::GeneralVariableRef, key; kwargs...)
 end
 
 """
-    optimizer_model_variable(vref::GeneralVariableRef; [kwargs...])
+    optimizer_model_variable(vref::GeneralVariableRef; 
+                             [label::Type{<:AbstractSupportLabel} = PublicLabel, 
+                             ndarray::Bool = false,
+                             kwargs...])
 
 Return the reformulation variable(s) stored in the optimizer model that correspond
-to `vref`. By default, no keyword arguments `kwargs` are employed by
-`TranscriptionOpt`, but extensions may employ `kwargs` in accordance with
-their implementation of [`optimizer_model_variable`](@ref). Errors if such an
-extension has not been written. Also errors if no such variable can be found in
+to `vref`. Also errors if no such variable can be found in
 the optimizer model.
+
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ in accordance with
+their implementation of [`optimizer_model_variable`](@ref). Errors if such an
+extension has not been written. 
+
+By default only the variables associated with public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, infinite variables are 
+returned as a list corresponding to their supports. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the variable has multiple 
+infinite parameter dependencies. The corresponding supports are obtained via 
+`supports` using the same keyword arguments.
 
 **Example**
 ```julia-repl
@@ -581,20 +593,21 @@ end
 
 """
     variable_supports(optimizer_model::JuMP.Model, vref,
-                      key::Val{ext_key_name}; [kwargs...])::Vector
+                      key::Val{ext_key_name}; 
+                      [kwargs...])::Vector
 
 Return the supports associated with the mappings of `vref` in `optimizer_model`.
 This dispatches off of `key` which permits optimizer model extensions. This
 should throw an error if `vref` is not associated with the variable mappings
 stored in `optimizer_model`. Keyword arguments can be added as needed. Note that
-no extension is necessary for point or hold variables.
+no extension is necessary for point or hold variables. 
 """
 function variable_supports end
 
 # fallback for unextended keys
 function variable_supports(optimizer_model::JuMP.Model, vref, key; kwargs...)
     error("`variable_supports` not implemented for optimizer model key " *
-          "`$(typeof(key).parameters[1])`.")
+          "`$(typeof(key).parameters[1])` and/or variable type $(typeof(vref)).")
 end
 
 # FiniteVariableRef
@@ -604,12 +617,25 @@ function variable_supports(optimizer_model::JuMP.Model, vref::FiniteVariableRef,
 end
 
 """
-    supports(vref::DecisionVariableRef; [kwargs...])
+    supports(vref::DecisionVariableRef; 
+             [label::Type{<:AbstractSupportLabel} = PublicLabel, 
+             ndarray::Bool = false,
+             kwargs...])
 
 Return the supports associated with `vref` in the optimizer
 model. Errors if [`InfiniteOpt.variable_supports`](@ref) has not been extended for the
 optimizer model type or if `vref` is not be reformulated in the optimizer model.
-By default, keyword arugments are not used, but may employed by extensions.
+
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ in accordance with
+their implementation of `variable_supports`. Errors if such an
+extension has not been written. 
+
+By default only the public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, the supports of infinite 
+variables are returned as a list. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the variable has multiple 
+infinite parameter dependencies.
 
 **Example**
 ```julia-repl
@@ -619,8 +645,7 @@ julia> supports(vref)
  (1.0,)
 ```
 """
-function supports(vref::Union{DecisionVariableRef, MeasureRef};
-                  label = All, kwargs...)
+function supports(vref::Union{DecisionVariableRef, MeasureRef}; kwargs...)
     model = optimizer_model(JuMP.owner_model(vref))
     key = optimizer_model_key(JuMP.owner_model(vref))
     return variable_supports(model, vref, Val(key); kwargs...)
@@ -654,15 +679,27 @@ function optimizer_model_expression(expr::GeneralVariableRef, key; kwargs...)
 end
 
 """
-    optimizer_model_expression(expr::JuMP.AbstractJuMPScalar; [kwargs...])
+    optimizer_model_expression(expr::JuMP.AbstractJuMPScalar; 
+                               [label::Type{<:AbstractSupportLabel} = PublicLabel,
+                               ndarray::Bool = false, 
+                               kwargs...])
 
 Return the reformulation expression(s) stored in the optimizer model that correspond
-to `expr`. By default, no keyword arguments `kwargs` are employed by
-`TranscriptionOpt`, but extensions may employ `kwargs` in accordance with
-their implementation of [`optimizer_model_expression`](@ref). Errors if such an
-extension has not been written. Also errors if no such expression can be found in
+to `expr`. Also errors if no such expression can be found in
 the optimizer model (meaning one or more of the underlying variables have not
 been transcribed).
+
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ in accordance with
+their implementation of [`optimizer_model_expression`](@ref). Errors if such an
+extension has not been written. 
+
+By default only the expressions associated with public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, infinite expressions are 
+returned as a list corresponding to their supports. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the expression has multiple 
+infinite parameter dependencies. The corresponding supports are obtained via 
+`supports` using the same keyword arguments.
 
 **Example**
 ```julia-repl
@@ -706,12 +743,24 @@ function expression_supports(model::JuMP.Model, vref::GeneralVariableRef, key;
 end
 
 """
-    supports(expr::JuMP.AbstractJuMPScalar; [kwargs...])
+    supports(expr::JuMP.AbstractJuMPScalar; 
+             [label::Type{<:AbstractSupportLabel} = PublicLabel,
+             ndarray::Bool = false,
+             kwargs...])
 
 Return the support associated with `expr`. Errors if `expr` is
-not associated with the constraint mappings stored in `optimizer_model` or if
-[`InfiniteOpt.expression_supports`](@ref) has not been extended. By default,
-no keyword arguments are accepted, but extensions may employ some.
+not associated with the constraint mappings stored in `optimizer_model`.
+
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ in accordance with
+their implementation of `expression_supports`. Errors if such an
+extension has not been written. 
+
+By default only the public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, the supports of infinite 
+expressions are returned as a list. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the expression has multiple 
+infinite parameter dependencies.
 
 **Example**
 ```julia-repl
@@ -753,14 +802,26 @@ function optimizer_model_constraint(cref::InfOptConstraintRef, key; kwargs...)
 end
 
 """
-    optimizer_model_constraint(cref::InfOptConstraintRef; [kwargs...])
+    optimizer_model_constraint(cref::InfOptConstraintRef; 
+                               [label::Type{<:AbstractSupportLabel} = PublicLabel, 
+                               ndarray::Bool = false,
+                               kwargs...])
 
 Return the reformulation constraint(s) stored in the optimizer model that correspond
-to `cref`. By default, no keyword arguments `kwargs` are employed by
-`TranscriptionOpt`, but extensions may employ `kwargs` in accordance with
-their implementation of [`optimizer_model_constraint`](@ref). Errors if such an
-extension has not been written. Also errors if no such constraint can be found in
+to `cref`. Errors if no such constraint can be found in
 the optimizer model.
+
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ in accordance with
+their implementation of [`optimizer_model_constraint`](@ref). Errors if such an
+extension has not been written. 
+
+By default only the constraints associated with public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, infinite constraints are 
+returned as a list corresponding to their supports. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the constraint has multiple 
+infinite parameter dependencies. The corresponding supports are obtained via 
+`supports` using the same keyword arguments.
 
 **Example**
 ```julia-repl
@@ -793,12 +854,24 @@ function constraint_supports(optimizer_model::JuMP.Model,
 end
 
 """
-    supports(cref::InfOptConstraintRef; [kwargs...])
+    supports(cref::InfOptConstraintRef; 
+             [label::Type{<:AbstractSupportLabel} = PublicLabel,
+             ndarray::Bool = false,
+             kwargs...])
 
 Return the support associated with `cref`. Errors if `cref` is
-not associated with the constraint mappings stored in `optimizer_model` or if
-[`InfiniteOpt.constraint_supports`](@ref) has not been extended. By default, no keyword
-arguments are accepted, but extensions may employ some.
+not associated with the constraint mappings stored in `optimizer_model`.
+
+The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+and `kwargs` denote extra ones that user extensions may employ in accordance with
+their implementation of `constraint_supports`. Errors if such an
+extension has not been written. 
+
+By default only the public supports are returned, the 
+full set can be accessed via `label = All`. Moreover, the supports of infinite 
+constraints are returned as a list. However, a n-dimensional array 
+can be obtained via `ndarray = true` which is handy when the constraint has multiple 
+infinite parameter dependencies.
 
 **Example**
 ```julia-repl

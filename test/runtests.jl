@@ -1,6 +1,6 @@
 # Load in the dependencies
 using InfiniteOpt, JuMP, MathOptInterface, Distributions, Random,
-FastGaussQuadrature, DataStructures
+FastGaussQuadrature, DataStructures, Polynomials
 
 # load the test module
 using Test
@@ -40,6 +40,8 @@ end
 println("")
 @time @testset "Optimizer Setup Methods" begin include("optimizer_setup.jl") end
 println("")
+@time @testset "Macro Utilities" begin include("macro_utilities.jl") end
+println("")
 @time @testset "Parameter Methods" begin
    @testset "Scalar" begin include("scalar_parameters.jl") end
    @testset "Array" begin include("array_parameters.jl") end
@@ -52,6 +54,8 @@ println("")
    @testset "Info Constraints" begin include("variable_info.jl") end
    @testset "Reduced Variables" begin include("reduced_variables.jl") end
 end
+println("")
+@time @testset "Derivative Methods" begin include("derivatives.jl") end
 println("")
 @time @testset "Operators" begin include("operators.jl") end
 println("")
@@ -77,6 +81,8 @@ println("")
 println("")
 @time @testset "Expansion Methods" begin include("measure_expansions.jl") end
 println("")
+@time @testset "Derivative Evaluation" begin include("derivative_evaluation.jl") end
+println("")
 @time @testset "TranscriptionOpt" begin
     @testset "Model" begin include("TranscriptionOpt/model.jl") end
     @testset "Measures" begin include("TranscriptionOpt/measure.jl") end
@@ -90,7 +96,6 @@ println("")
 println("")
 @time @testset "Extensions" begin include("extensions.jl") end
 println("")
-# TODO add involved deletion tests
 println("----------------------------------------------------------------------------")
 println("-----------------------------TESTING COMPLETE!------------------------------")
 println("----------------------------------------------------------------------------")

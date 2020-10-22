@@ -6,7 +6,7 @@ problems.
 ## Overview
 `InfiniteOpt.jl` provides a mathematical interface to express and solve
 optimization problems that entail an infinite-dimensional decision space. Such
-problems stem from areas such as dynamic programming, state-space models, and
+problems stem from areas such as space-time programming and
 stochastic programming. `InfiniteOpt` is meant to facilitate intuitive model
 definition, automatic transcription into solvable models, permit a wide range
 of user-defined extensions/behavior, and more. Currently, its capabilities
@@ -15,10 +15,11 @@ include:
 - Infinite set abstractions for parameterization of variables/constraints
 - Finite parameters support and use (similar to `ParameterJuMP`)
 - Direct support of infinite, point, and hold variables
-- Symbolic measure (integral) expression
+- Straightforward measure operator definition (e.g., integrals, risk measures)
 - Infinite/finite constraint definition
-- Ordinary differential equation support (coming soon with `v0.3.0`)
-- Automated model transcription/reformulation and solution
+- Event constraint definition (e.g., chance constraints)
+- Compact ordinary/partial differential operator expression
+- Efficient automated model transcription/reformulation and solution
 - Compatible with all [JuMP-supported solvers](https://www.juliaopt.org/JuMP.jl/dev/installation/#Getting-Solvers-1)
 - Readily extendable to accommodate user defined abstractions and solution techniques.
 

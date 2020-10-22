@@ -11,9 +11,9 @@
     object2 = ConstraintData(con2, [1], "c2", MeasureIndex[], false)
     idx1 = ConstraintIndex(1)
     idx2 = ConstraintIndex(2)
-    cref1 = InfOptConstraintRef(m, idx1, ScalarShape())
-    cref2 = InfOptConstraintRef(m, idx2, ScalarShape())
-    bad_cref = InfOptConstraintRef(m, ConstraintIndex(-1), ScalarShape())
+    cref1 = InfOptConstraintRef(m, idx1)
+    cref2 = InfOptConstraintRef(m, idx2)
+    bad_cref = InfOptConstraintRef(m, ConstraintIndex(-1))
     # owner_model
     @testset "JuMP.owner_model" begin
       @test owner_model(cref1) === m
@@ -27,9 +27,9 @@
     # test Base.:(==) of constraint references
     @testset "Base.:(==) References" begin
         @test !(cref1 == cref2)
-        @test cref1 == InfOptConstraintRef(m, idx1, ScalarShape())
-        @test cref1 != InfOptConstraintRef(m, idx2, ScalarShape())
-        @test cref1 != InfOptConstraintRef(InfiniteModel(), idx1, ScalarShape())
+        @test cref1 == InfOptConstraintRef(m, idx1)
+        @test cref1 != InfOptConstraintRef(m, idx2)
+        @test cref1 != InfOptConstraintRef(InfiniteModel(), idx1)
     end
     # test broadcastable
     @testset "Base.broadcastable Reference" begin
@@ -166,6 +166,7 @@ end
     data = TestData(par, 1, 1)
     meas = @measure(inf + par - x, data, name = "test")
     mindex = MeasureIndex(1)
+    dinf = @deriv(inf, par)
     @testset "JuMP.build_constraint (Single)" begin
         # test bounded constraint
         bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
@@ -229,8 +230,8 @@ end
         object2 = ConstraintData(con, Int[], "c", MeasureIndex[], false)
         idx1 = ConstraintIndex(1)
         idx2 = ConstraintIndex(2)
-        cref1 = InfOptConstraintRef(m, idx1, ScalarShape())
-        cref2 = InfOptConstraintRef(m, idx2, ScalarShape())
+        cref1 = InfOptConstraintRef(m, idx1)
+        cref2 = InfOptConstraintRef(m, idx2)
         @test InfiniteOpt._add_data_object(m, object1) == idx1
         @test InfiniteOpt._add_data_object(m, object2) == idx2
         # test initial use of variable
@@ -271,17 +272,17 @@ end
         bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
         con = BoundedScalarConstraint(inf + pt, MOI.EqualTo(42.0), bounds, bounds)
         idx = ConstraintIndex(1)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         @test add_constraint(m, con, "a") == cref
         # test infinite constraint
         con = ScalarConstraint(inf + pt, MOI.EqualTo(42.0))
         idx = ConstraintIndex(2)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         @test add_constraint(m, con, "b") == cref
         # test finite constraint
         con = ScalarConstraint(x + pt, MOI.EqualTo(42.0))
         idx = ConstraintIndex(3)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         @test add_constraint(m, con, "d") == cref
         @test name(cref) == "d"
         @test !InfiniteOpt._is_info_constraint(cref)
@@ -291,7 +292,7 @@ end
         @set_parameter_bounds(x, par == 1)
         con = ScalarConstraint(inf + pt + x, MOI.EqualTo(42.0))
         idx = ConstraintIndex(4)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         @test add_constraint(m, con, "b") == cref
         @test parameter_bounds(cref)[par] == IntervalSet(1, 1)
         @test InfiniteOpt._core_constraint_object(cref).orig_bounds == ParameterBounds()
@@ -301,16 +302,17 @@ end
     @testset "JuMP.@constraint" begin
         # test scalar constraint
         idx = ConstraintIndex(5)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         @test @constraint(m, e, x + pt -2 <= 2) == cref
         @test isa(InfiniteOpt._core_constraint_object(cref), ScalarConstraint)
         # test bounded scalar constraint
         bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
         idx = ConstraintIndex(6)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
-        @test @constraint(m, f, inf + meas <= 2, parameter_bounds = bounds) == cref
+        cref = InfOptConstraintRef(m, idx)
+        @test @constraint(m, f, inf + meas - dinf <= 2, parameter_bounds = bounds) == cref
         @test InfiniteOpt._object_numbers(cref) == [1]
         @test isa(InfiniteOpt._core_constraint_object(cref), BoundedScalarConstraint)
+        @test used_by_constraint(dinf)
     end
 end
 
@@ -362,57 +364,57 @@ end
         @test_macro_throws ErrorException @BDconstraint(m2, con(par == 0), inf == 0)
         # test anonymous constraint with set
         idx = ConstraintIndex(1)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         @test @BDconstraint(m, par in [0, 1], inf + x == 2) == cref
         @test parameter_bounds(cref) == bounds1
         # test anonymous constraint with comparison
         idx = ConstraintIndex(2)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         @test @BDconstraint(m, 0 <= par <= 1, inf + x == 2) == cref
         @test parameter_bounds(cref) == bounds1
         # test anonymous constraint with equality
         idx = ConstraintIndex(3)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         @test @BDconstraint(m, par == 0, inf + x == 2) == cref
         @test parameter_bounds(cref) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
         # test anonymous multiple constraint
         idxs = [ConstraintIndex(4), ConstraintIndex(5)]
-        crefs = [InfOptConstraintRef(m, idx, ScalarShape()) for idx in idxs]
+        crefs = [InfOptConstraintRef(m, idx) for idx in idxs]
         @test @BDconstraint(m, [1:2](par == 0), inf + x == 2) == crefs
         @test parameter_bounds(crefs[1]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
         @test parameter_bounds(crefs[2]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
         # test anonymous multiple bounds
         idx = ConstraintIndex(6)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         @test @BDconstraint(m, (par == 0, pars[1] in [0, 1]), inf + x == 2) == cref
         @test parameter_bounds(cref) == ParameterBounds((par => IntervalSet(0, 0),
                                                   pars[1] => IntervalSet(0, 1)))
         # test anonymous multiple bounds with vector input
         idx = ConstraintIndex(7)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         @test @BDconstraint(m, (par == 0, pars in [0, 1]), inf + x == 2) == cref
         @test parameter_bounds(cref) == ParameterBounds((par => IntervalSet(0, 0),
                     pars[1] => IntervalSet(0, 1), pars[2] => IntervalSet(0, 1)))
         # test named constraint
         idx = ConstraintIndex(8)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         @test @BDconstraint(m, c1(par in [0, 1]), inf + x == 2) == cref
         @test parameter_bounds(cref) == bounds1
         # test named constraint with other vector type
         idx = ConstraintIndex(9)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         @test @BDconstraint(m, c2(par in [0, 1], 0 <= pars <= 1), inf + x == 2) == cref
         @test parameter_bounds(cref) == ParameterBounds((par => IntervalSet(0, 1),
                     pars[1] => IntervalSet(0, 1), pars[2] => IntervalSet(0, 1)))
         # test named constraints
         idxs = [ConstraintIndex(10), ConstraintIndex(11)]
-        crefs = [InfOptConstraintRef(m, idx, ScalarShape()) for idx in idxs]
+        crefs = [InfOptConstraintRef(m, idx) for idx in idxs]
         @test @BDconstraint(m, c3[1:2](par == 0), inf + x == 2) == crefs
         @test parameter_bounds(crefs[1]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
         @test parameter_bounds(crefs[2]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
         # test different container type
         idxs = [ConstraintIndex(12), ConstraintIndex(13)]
-        crefs = [InfOptConstraintRef(m, idx, ScalarShape()) for idx in idxs]
+        crefs = [InfOptConstraintRef(m, idx) for idx in idxs]
         expected = convert(JuMPC.SparseAxisArray, crefs)
         @test @BDconstraint(m, c4[1:2](par == 0), inf + x == 2,
                             container = SparseAxisArray) == expected
@@ -420,7 +422,7 @@ end
         @test parameter_bounds(crefs[2]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
         # test with SparseAxisArray input
         idx = ConstraintIndex(14)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         pars = convert(JuMPC.SparseAxisArray, pars)
         @test @BDconstraint(m, c5(pars in [0, 1]), inf + x == 2) == cref
         @test parameter_bounds(cref) == ParameterBounds((pars[1] => IntervalSet(0, 1),
@@ -428,7 +430,7 @@ end
         # test with hold variable bounds
         @set_parameter_bounds(x, pars[1] in [0, 2])
         idx = ConstraintIndex(15)
-        cref = InfOptConstraintRef(m, idx, ScalarShape())
+        cref = InfOptConstraintRef(m, idx)
         @test @BDconstraint(m, c10(par in [0, 1]), inf + x == 2) == cref
         @test parameter_bounds(cref) == ParameterBounds(Dict(par => IntervalSet(0, 1),
                                                   pars[1] => IntervalSet(0, 2)))
@@ -646,38 +648,38 @@ end
     @hold_variable(m, 0 <= x <= 1, Int)
     # test search function type and set type
     @testset "Function and Set" begin
-        list = [InfOptConstraintRef(m, ConstraintIndex(4), ScalarShape())]
+        list = [InfOptConstraintRef(m, ConstraintIndex(4))]
         @test all_constraints(m, GeneralVariableRef, MOI.LessThan) == list
-        list = [InfOptConstraintRef(m, ConstraintIndex(1), ScalarShape()),
-                InfOptConstraintRef(m, ConstraintIndex(2), ScalarShape()),
-                InfOptConstraintRef(m, ConstraintIndex(3), ScalarShape())]
+        list = [InfOptConstraintRef(m, ConstraintIndex(1)),
+                InfOptConstraintRef(m, ConstraintIndex(2)),
+                InfOptConstraintRef(m, ConstraintIndex(3))]
         @test all_constraints(m, GeneralVariableRef, MOI.GreaterThan) == list
     end
     # test search function type
     @testset "Function" begin
-        list = [InfOptConstraintRef(m, ConstraintIndex(1), ScalarShape()),
-                InfOptConstraintRef(m, ConstraintIndex(2), ScalarShape()),
-                InfOptConstraintRef(m, ConstraintIndex(3), ScalarShape()),
-                InfOptConstraintRef(m, ConstraintIndex(4), ScalarShape()),
-                InfOptConstraintRef(m, ConstraintIndex(5), ScalarShape())]
+        list = [InfOptConstraintRef(m, ConstraintIndex(1)),
+                InfOptConstraintRef(m, ConstraintIndex(2)),
+                InfOptConstraintRef(m, ConstraintIndex(3)),
+                InfOptConstraintRef(m, ConstraintIndex(4)),
+                InfOptConstraintRef(m, ConstraintIndex(5))]
         @test all_constraints(m, GeneralVariableRef) == list
     end
     # test search set type
     @testset "Set" begin
-        list = [InfOptConstraintRef(m, ConstraintIndex(4), ScalarShape())]
+        list = [InfOptConstraintRef(m, ConstraintIndex(4))]
         @test all_constraints(m, MOI.LessThan) == list
-        list = [InfOptConstraintRef(m, ConstraintIndex(1), ScalarShape()),
-                InfOptConstraintRef(m, ConstraintIndex(2), ScalarShape()),
-                InfOptConstraintRef(m, ConstraintIndex(3), ScalarShape())]
+        list = [InfOptConstraintRef(m, ConstraintIndex(1)),
+                InfOptConstraintRef(m, ConstraintIndex(2)),
+                InfOptConstraintRef(m, ConstraintIndex(3))]
         @test all_constraints(m, MOI.GreaterThan) == list
     end
     # test search total
     @testset "Total" begin
-        list = [InfOptConstraintRef(m, ConstraintIndex(1), ScalarShape()),
-                InfOptConstraintRef(m, ConstraintIndex(2), ScalarShape()),
-                InfOptConstraintRef(m, ConstraintIndex(3), ScalarShape()),
-                InfOptConstraintRef(m, ConstraintIndex(4), ScalarShape()),
-                InfOptConstraintRef(m, ConstraintIndex(5), ScalarShape())]
+        list = [InfOptConstraintRef(m, ConstraintIndex(1)),
+                InfOptConstraintRef(m, ConstraintIndex(2)),
+                InfOptConstraintRef(m, ConstraintIndex(3)),
+                InfOptConstraintRef(m, ConstraintIndex(4)),
+                InfOptConstraintRef(m, ConstraintIndex(5))]
         @test all_constraints(m) == list
     end
 end

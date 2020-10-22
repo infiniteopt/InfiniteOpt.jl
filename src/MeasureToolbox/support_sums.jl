@@ -51,7 +51,7 @@ An efficient wrapper for [`support_sum`](@ref) please see its doc string for
 more information.
 """
 macro support_sum(expr, params)
-    expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
+    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
     mref = :( support_sum($expression, $params) )
     return esc(mref)
 end

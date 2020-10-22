@@ -12,6 +12,10 @@ using JuMP: REPLMode, IJuliaMode
     @infinite_variable(m, z(pars))
     @infinite_variable(m, inf(pars, par1, pars3))
     @hold_variable(m, y)
+    d1 = @deriv(x, par1)
+    d2 = @deriv(inf, pars[1], par1)
+    d3 = @deriv(z, pars[2])
+    set_name(d3, "d3")
     @objective(m, Min, 2 + y)
     @constraint(m, c1, x + y - 2 <= 0)
     ac1 = @constraint(m, x + y - 2 <= 0)
@@ -23,8 +27,10 @@ using JuMP: REPLMode, IJuliaMode
     @testset "_infopt_math_symbol (REPL)" begin
         if Sys.iswindows()
             @test InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) == "and"
+            @test InfiniteOpt._infopt_math_symbol(REPLMode, :partial) == "d"
         else
             @test InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) == "∩"
+            @test InfiniteOpt._infopt_math_symbol(REPLMode, :partial) == "∂"
         end
         @test InfiniteOpt._infopt_math_symbol(REPLMode, :times) == "*"
         @test InfiniteOpt._infopt_math_symbol(REPLMode, :prop) == "~"
@@ -34,6 +40,9 @@ using JuMP: REPLMode, IJuliaMode
         @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) == "\\cap"
         @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :eq) == "="
         @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) == "\\sim"
+        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :partial) == "\\partial"
+        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :open_rng) == "\\left["
+        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :close_rng) == "\\right]"
     end
     # test _plural
     @testset "_plural" begin
@@ -213,6 +222,21 @@ using JuMP: REPLMode, IJuliaMode
         @test InfiniteOpt.measure_data_string(REPLMode, data) == "[par1, pars[1]]"
         @test InfiniteOpt.measure_data_string(IJuliaMode, data) == "[par1, pars[1]]"
     end
+    # test _get_root_parameter_name
+    @testset "_get_root_parameter_name" begin
+        # test single
+        data = TestData(par1, 0, 1)
+        @test InfiniteOpt._get_root_parameter_name(data) == "par1"
+        @test InfiniteOpt._get_root_parameter_name(data) == "par1"
+        # test with homogenous names
+        data = TestData(pars2, 0, 1)
+        @test InfiniteOpt._get_root_parameter_name(data) == "pars2"
+        @test InfiniteOpt._get_root_parameter_name(data) == "pars2"
+        # test with heterogeneous names
+        data = TestData([par1, pars[1]], 0, 1)
+        @test InfiniteOpt._get_root_parameter_name(data) == "[par1, pars[1]]"
+        @test InfiniteOpt._get_root_parameter_name(data) == "[par1, pars[1]]"
+    end
     # test measure_data_string (Fallback)
     @testset "measure_data_string (Fallback)" begin
         # test single
@@ -230,11 +254,23 @@ using JuMP: REPLMode, IJuliaMode
     end
     # test variabel_string (MeasureRef)
     @testset "variable_string (MeasureRef)" begin
+        # test non measure toolbox measures
         data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [0, 0], [1, 1], false)
         meas = dispatch_variable_ref(measure(y, data, name = "test"))
         str = "test{pars2 " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]^2}[y]"
         @test InfiniteOpt.variable_string(REPLMode, meas) == str
-        str = "test_{pars2 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]^2}[y]"
+        str = "\\text{test}_{pars2 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]^2}\\left[y\\right]"
+        @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
+        # test measure toolbox special cases for IJulia
+        @infinite_parameter(m, t in [0, 1])
+        meas = dispatch_variable_ref(expect(y, t))
+        str = "\\mathbb{E}_{t}\\left[y\\right]"
+        @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
+        meas = dispatch_variable_ref(integral(y, t))
+        str = "\\int_{t " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]}ydt"
+        @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
+        meas = dispatch_variable_ref(integral(y, par1))
+        str = "\\int_{par1 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]}yd(par1)"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
     end
     # test _get_base_name
@@ -250,7 +286,7 @@ using JuMP: REPLMode, IJuliaMode
         @test InfiniteOpt._get_base_name(IJuliaMode, bad_ref) == "noname"
     end
     # test variable_string (InfiniteVariableRef)
-    @testset "JuMP.function_string (InfiniteVariableRef)" begin
+    @testset "variable_string (InfiniteVariableRef)" begin
         # test bad ref
         bad_ref = InfiniteVariableRef(m, InfiniteVariableIndex(-1))
         @test InfiniteOpt.variable_string(REPLMode, bad_ref) == "noname"
@@ -264,6 +300,28 @@ using JuMP: REPLMode, IJuliaMode
         dvref = dispatch_variable_ref(inf2)
         @test InfiniteOpt.variable_string(REPLMode, dvref) == "inf2([par1, pars3[2]])"
         @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "inf2([par1, pars3[2]])"
+    end
+    # test variable_string (DerivativeRef)
+    @testset "variable_string (DerivativeRef)" begin
+        # test bad ref
+        bad_ref = DerivativeRef(m, DerivativeIndex(-1))
+        @test InfiniteOpt.variable_string(REPLMode, bad_ref) == "noname"
+        @test InfiniteOpt.variable_string(IJuliaMode, bad_ref) == "noname"
+        # test normal one
+        dref = dispatch_variable_ref(d1)
+        d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
+        @test InfiniteOpt.variable_string(REPLMode, dref) == "$d_re/$(d_re)par1[x(par1)]"
+        @test InfiniteOpt.variable_string(IJuliaMode, dref) == "\\frac{\\partial}{\\partial par1}\\left[x(par1)\\right]"
+        # test nested one 
+        dref = dispatch_variable_ref(d2)
+        expected = "$d_re/$(d_re)par1[$d_re/$(d_re)pars[1][inf(pars, par1, pars3)]]"
+        @test InfiniteOpt.variable_string(REPLMode, dref) == expected
+        expected = "\\frac{\\partial}{\\partial par1}\\left[\\frac{\\partial}{\\partial pars_{1}}\\left[inf(pars, par1, pars3)\\right]\\right]"
+        @test InfiniteOpt.variable_string(IJuliaMode, dref) == expected
+        # test has explicit name
+        dref = dispatch_variable_ref(d3)
+        @test InfiniteOpt.variable_string(REPLMode, dref) == "d3(pars)"
+        @test InfiniteOpt.variable_string(IJuliaMode, dref) == "d3(pars)"
     end
     # _make_str_value (Number)
     @testset "_make_str_value (Number)" begin
@@ -298,6 +356,13 @@ using JuMP: REPLMode, IJuliaMode
         dvref = dispatch_variable_ref(@point_variable(m, z([0, 0]), z0))
         @test InfiniteOpt.variable_string(REPLMode, dvref) == "z0"
         @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "z0"
+        # test with derivative 
+        dvref = dispatch_variable_ref(@point_variable(m, d1(0)))
+        d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "$(d_re)/$(d_re)par1[x(par1)](0)"
+        # test named derivative 
+        dvref = dispatch_variable_ref(@point_variable(m, d3([0, 0])))
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "d3([0, 0])"
     end
     # test variable_string (ReducedVariableRef)
     @testset "variable_string (ReducedVariableRef)" begin
@@ -311,6 +376,17 @@ using JuMP: REPLMode, IJuliaMode
         dvref = dispatch_variable_ref(add_variable(m, var))
         @test InfiniteOpt.variable_string(REPLMode, dvref) == "inf([0, 0], par1, [0, pars3[2]])"
         @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "inf([0, 0], par1, [0, pars3[2]])"
+        # test named derivative 
+        eval_supps = Dict{Int, Float64}(1 => 0)
+        var = build_variable(error, d3, eval_supps, check = false)
+        dvref = dispatch_variable_ref(add_variable(m, var))
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "d3([0, pars[2]])"
+        # unnamed derivative
+        eval_supps = Dict{Int, Float64}(1 => 0)
+        var = build_variable(error, d1, eval_supps, check = false)
+        dvref = dispatch_variable_ref(add_variable(m, var))
+        d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "$(d_re)/$(d_re)par1[x(par1)](0)"
     end
     # test variable_string (Fallback)
     @testset "variable_string (Fallback)" begin
@@ -323,6 +399,8 @@ using JuMP: REPLMode, IJuliaMode
         @test JuMP.function_string(IJuliaMode, dispatch_variable_ref(inf)) == "inf(pars, par1, pars3)"
         @test JuMP.function_string(REPLMode, y) == "y"
         @test JuMP.function_string(IJuliaMode, inf) == "inf(pars, par1, pars3)"
+        d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
+        @test JuMP.function_string(REPLMode, d1) == "$d_re/$(d_re)par1[x(par1)]"
     end
     # test bound_string
     @testset "bound_string" begin
@@ -376,9 +454,11 @@ using JuMP: REPLMode, IJuliaMode
                                   pars[2] => IntervalSet(1, 1)))
         idx = index(pars[1]).object_index
         str = InfiniteOpt.bound_string(REPLMode, bounds)
-        @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) == str
+        str2 = string(split(str, ", ")[2], ", ", split(str, ", ")[1])
+        @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) in [str, str2]
         str = InfiniteOpt.bound_string(IJuliaMode, bounds)
-        @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) == str
+        str2 = string(split(str, ", ")[2], ", ", split(str, ", ")[1])
+        @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) in [str, str2]
         # other set without equalities and including in the bounds
         bounds = ParameterBounds((pars[1] => IntervalSet(0, 1),))
         str = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
@@ -558,7 +638,9 @@ end
     end
     # test Base.show (ParameterBounds in IJulia)
     @testset "Base.show (IJulia ParameterBounds)" begin
-        show_test(IJuliaMode, y, "\$\$ y \$\$")
+        str = "Subdomain bounds (1): par1 " * JuMP._math_symbol(IJuliaMode, :in) *
+              " [0.1, 1]"
+        show_test(IJuliaMode, bounds, str)
     end
     # test Base.show (GeneralVariableRef in IJulia)
     @testset "Base.show (IJulia GeneralVariableRef)" begin
@@ -566,9 +648,7 @@ end
     end
     # test Base.show (GeneralVariableRef in REPL)
     @testset "Base.show (REPL GeneralVariableRef)" begin
-        str = "Subdomain bounds (1): par1 " * JuMP._math_symbol(REPLMode, :in) *
-              " [0.1, 1]"
-        show_test(REPLMode, bounds, str)
+        show_test(REPLMode, y, "y")
     end
     # test Base.show (constraint in REPL)
     @testset "Base.show (REPL Constraint)" begin
@@ -626,7 +706,7 @@ end
         # test minimization
         str = "An InfiniteOpt Model\nMinimization problem with:\nFinite " *
               "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
-              "\nMeasures: 0" *
+              "\nDerivatives: 0\nMeasures: 0" *
               "\nObjective function type: GenericAffExpr{Float64,General" *
               "VariableRef}\n`GenericAffExpr{Float64,GeneralVariableRef}`-in-" *
               "`MathOptInterface.LessThan{Float64}`: 2 constraints" *
@@ -639,7 +719,7 @@ end
         set_objective_sense(m, MOI.MAX_SENSE)
         str = "An InfiniteOpt Model\nMaximization problem with:\nFinite " *
               "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
-              "\nMeasures: 0" *
+              "\nDerivatives: 0\nMeasures: 0" *
               "\nObjective function type: GenericAffExpr{Float64,General" *
               "VariableRef}\n`GenericAffExpr{Float64,GeneralVariableRef}`-in-" *
               "`MathOptInterface.LessThan{Float64}`: 2 constraints" *
@@ -652,7 +732,7 @@ end
         set_objective_sense(m, MOI.FEASIBILITY_SENSE)
         str = "An InfiniteOpt Model\nFeasibility problem with:\nFinite " *
               "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
-              "\nMeasures: 0" *
+              "\nDerivatives: 0\nMeasures: 0" *
               "\n`GenericAffExpr{Float64,GeneralVariableRef}`-in-`MathOpt" *
               "Interface.LessThan{Float64}`: 2 constraints" *
               "\nNames registered in the model: c1, c3, par1, " *

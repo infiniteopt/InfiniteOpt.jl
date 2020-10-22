@@ -10,7 +10,8 @@
     rv = add_variable(m, var)
     data = TestData(par, 0, 1)
     meas = measure(inf + par - x, data)
-    @constraint(m, cref, par - inf + pt + 2x - rv + meas <= 1)
+    d1 = @deriv(inf, par)
+    @constraint(m, cref, par - inf + pt + 2x - rv + meas - d1 <= 1)
     # test normal deletion
     @test isa(delete(m, cref), Nothing)
     @test !is_valid(m, cref)
@@ -20,6 +21,7 @@
     @test !used_by_constraint(x)
     @test !used_by_constraint(rv)
     @test !used_by_constraint(meas)
+    @test !used_by_constraint(d1)
     @test isempty(InfiniteOpt._data_dictionary(cref))
     # test assertion error
     @test_throws AssertionError delete(m, cref)
@@ -36,6 +38,8 @@ end
     @point_variable(m, inf2(0.5), pt2)
     @hold_variable(m, 0 <= gb1 <= 1, Bin)
     @hold_variable(m, gb2 == 1, Int)
+    @derivative_variable(m, d(inf1)/d(par), 0 <= d1 <= 1)
+    @derivative_variable(m, d(inf2)/d(par), d2 == 1)
     # test delete_lower_bound
     @testset "JuMP.delete_lower_bound" begin
         # test with infinite variable
@@ -53,6 +57,11 @@ end
         @test isa(delete_lower_bound(gb1), Nothing)
         @test !has_lower_bound(gb1)
         @test_throws ErrorException delete_lower_bound(gb2)
+        # test with derivative
+        @test has_lower_bound(d1)
+        @test isa(delete_lower_bound(d1), Nothing)
+        @test !has_lower_bound(d1)
+        @test_throws ErrorException delete_lower_bound(d2)
     end
     # test delete_upper_bound
     @testset "JuMP.delete_upper_bound" begin
@@ -71,6 +80,11 @@ end
         @test isa(delete_upper_bound(gb1), Nothing)
         @test !has_upper_bound(gb1)
         @test_throws ErrorException delete_upper_bound(gb2)
+        # test with derivative
+        @test has_upper_bound(d1)
+        @test isa(delete_upper_bound(d1), Nothing)
+        @test !has_upper_bound(d1)
+        @test_throws ErrorException delete_upper_bound(d2)
     end
     # test unfix
     @testset "JuMP.unfix" begin
@@ -89,6 +103,11 @@ end
         @test isa(unfix(gb2), Nothing)
         @test !is_fixed(gb2)
         @test_throws ErrorException unfix(gb1)
+        # test with derivative
+        @test is_fixed(d2)
+        @test isa(unfix(d2), Nothing)
+        @test !is_fixed(d2)
+        @test_throws ErrorException unfix(d1)
     end
     # test unset_binary
     @testset "JuMP.unset_binary" begin
@@ -171,6 +190,8 @@ end
     mref2 = measure(par2, data)
     dmref = dispatch_variable_ref(mref)
     dmref2 = dispatch_variable_ref(mref2)
+    # setup a derivative 
+    d1 = @deriv(inf2, par2)
     # setup the constraints
     @constraint(m, con, inf2 + inf4 - par2 + par3 + fin <= 0)
     constr = ScalarConstraint(par2, MOI.GreaterThan(0.))
@@ -271,6 +292,7 @@ end
         # test normal usage
         @test isa(delete(m, par2), Nothing)
         @test !is_valid(m, par2)
+        @test !is_valid(m, d1)
         @test measure_function(dmref) == inf + par - x + rv + par3 + fin
         @test measure_function(dmref2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
         @test parameter_refs(inf2) == (par,)
@@ -377,6 +399,9 @@ end
      mref2 = measure(inf4, data)
      dmref = dispatch_variable_ref(mref)
      dmref2 = dispatch_variable_ref(mref2)
+     # setup the derivatives 
+     d1 = @deriv(inf3, pars[1])
+     d2 = @deriv(inf3, pars[2])
      # setup the constraints
      @constraint(m, con, inf2 + inf4 - par2 + pars[1] + pars[2] <= 0)
      # test delete for dependent parameters
@@ -389,6 +414,8 @@ end
          InfiniteOpt._delete_data_object(dmref2)
          # test regular
          @test delete(m, pars) isa Nothing
+         @test !is_valid(m, d1)
+         @test !is_valid(m, d2)
          @test parameter_refs(dinf) == (par,)
          @test parameter_refs(dinf3) == (par,)
          @test parameter_refs(dinf4) == (par, par2)
@@ -434,11 +461,13 @@ end
      data = TestData(par, 0, 1)
      meas = measure(inf + par - x + rv, data)
      meas2 = measure(rv2, data)
+     d1 = @deriv(rv, par)
      @constraint(m, con, x + rv <= 0)
      constr = ScalarConstraint(rv2, MOI.GreaterThan(0.))
      con2 = add_constraint(m, constr)
      # test normal deletion
      @test isa(delete(m, rv), Nothing)
+     @test !is_valid(m, d1)
      @test measure_function(meas) == inf + par - x
      @test InfiniteOpt._object_numbers(meas) == [2]
      @test jump_function(constraint_object(con)) == x + 0
@@ -515,7 +544,7 @@ end
      @test jump_function(constraint_object(con1)) == y + par
      @test InfiniteOpt._object_numbers(con1) == [1]
      @test objective_function(m) == y + 0
-     @test !haskey(InfiniteOpt._data_dictionary(m, HoldVariable), JuMP.index(x))
+     @test !haskey(InfiniteOpt._data_dictionary(m, PointVariable), JuMP.index(x))
      # test deletion of y
      set_objective_function(m, y)
      @test isa(delete(m, y), Nothing)
@@ -525,7 +554,7 @@ end
      @test jump_function(constraint_object(con1)) == par + 0
      @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
      @test objective_function(m) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-     @test !haskey(InfiniteOpt._data_dictionary(m, HoldVariable), JuMP.index(y))
+     @test !haskey(InfiniteOpt._data_dictionary(m, PointVariable), JuMP.index(y))
      # test errors
      @test_throws AssertionError delete(m, x)
      @test_throws AssertionError delete(m, y)
@@ -544,6 +573,7 @@ end
      data = TestData(par, 0, 1)
      meas1 = measure(x + y + par, data)
      meas2 = measure(y, data)
+     d1 = @deriv(x, par)
      @constraint(m, con1, x + y + par <= 0)
      con2 = add_constraint(m, ScalarConstraint(y, MOI.LessThan(0.)))
      # test deletion of x
@@ -556,7 +586,8 @@ end
      @test InfiniteOpt._infinite_variable_dependencies(par) == [index(y)]
      @test !is_valid(m, rv)
      @test !is_valid(m, x0)
-     @test !haskey(InfiniteOpt._data_dictionary(m, HoldVariable), JuMP.index(x))
+     @test !is_valid(m, d1)
+     @test !haskey(InfiniteOpt._data_dictionary(m, InfiniteVariable), JuMP.index(x))
      # test deletion of y
      @test isa(delete(m, y), Nothing)
      @test num_constraints(m) == 2
@@ -568,10 +599,64 @@ end
      @test InfiniteOpt._object_numbers(con1) == [1]
      @test InfiniteOpt._object_numbers(con2) == []
      @test InfiniteOpt._infinite_variable_dependencies(par) == []
-     @test !haskey(InfiniteOpt._data_dictionary(m, HoldVariable), JuMP.index(y))
+     @test !haskey(InfiniteOpt._data_dictionary(m, InfiniteVariable), JuMP.index(y))
      # test errors
      @test_throws AssertionError delete(m, x)
      @test_throws AssertionError delete(m, y)
+ end
+
+ # Test derivative deletion 
+ @testset "JuMP.delete (Derivatives)" begin 
+    # intialize the model
+    m = InfiniteModel()
+    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_variable(m, 0 <= x(par) <= 1, Bin)
+    @infinite_variable(m, y(par) == 1, Int)
+    d1 = @deriv(x, par)
+    d2 = @deriv(y, par)
+    d3 = @deriv(d1, par)
+    @point_variable(m, d1(0), dx0)
+    var = build_variable(error, d1, Dict{Int, Float64}(1 => 0.5), check = false)
+    rv = add_variable(m, var)
+    data = TestData(par, 0, 1)
+    meas1 = measure(d1 + y + par, data)
+    meas2 = measure(d2, data)
+    @constraint(m, con1, d1 + d2 + par <= 0)
+    con2 = add_constraint(m, ScalarConstraint(d2, MOI.LessThan(0.)))
+    cref = @constraint(m, d1 == 0)
+    push!(InfiniteOpt._derivative_constraint_dependencies(d1), index(cref))
+    InfiniteOpt._set_has_derivative_constraints(par, true)
+    # test deletion of d1
+    @test isa(delete(m, d1), Nothing)
+    @test num_constraints(m) == 7
+    @test measure_function(meas1) == y + par
+    @test InfiniteOpt._object_numbers(meas1) == []
+    @test jump_function(constraint_object(con1)) == d2 + par
+    @test InfiniteOpt._object_numbers(con1) == [1]
+    @test InfiniteOpt._derivative_dependencies(par) == [index(d2)]
+    @test !is_valid(m, rv)
+    @test !is_valid(m, dx0)
+    @test !is_valid(m, d3)
+    @test !is_valid(m, cref)
+    @test !haskey(InfiniteOpt._data_dictionary(m, Derivative), JuMP.index(d1))
+    @test !has_derivative_constraints(par)
+    @test !haskey(m.deriv_lookup, (x, par))
+    # test deletion of d2
+    @test isa(delete(m, d2), Nothing)
+    @test num_constraints(m) == 7
+    @test measure_function(meas1) == y + par
+    @test measure_function(meas2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test InfiniteOpt._object_numbers(meas1) == []
+    @test jump_function(constraint_object(con1)) == par + 0
+    @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test InfiniteOpt._object_numbers(con1) == [1]
+    @test InfiniteOpt._object_numbers(con2) == []
+    @test InfiniteOpt._derivative_dependencies(par) == []
+    @test !haskey(InfiniteOpt._data_dictionary(m, Derivative), JuMP.index(d2))
+    @test !haskey(m.deriv_lookup, (y, par))
+    # test errors
+    @test_throws AssertionError delete(m, d1)
+    @test_throws AssertionError delete(m, d2)
  end
 
  # Test variable deletion
@@ -595,6 +680,8 @@ end
      meas3 = measure(meas1 + x0, data)
      meas4 = measure(meas2, data)
      meas5 = measure(w, data2)
+     meas6 = measure(x + y, data)
+     d1 = @deriv(meas6, par2)
      @constraint(m, con1, x0 + meas1 <= 0)
      con2 = add_constraint(m, ScalarConstraint(meas2, MOI.LessThan(0.)))
      @objective(m, Min, meas1 + x0)
@@ -605,9 +692,9 @@ end
      @test jump_function(constraint_object(con1)) == x0 + 0
      @test InfiniteOpt._object_numbers(con1) == []
      @test objective_function(m) == x0 + 0
-     @test InfiniteOpt._measure_dependencies(x) == [JuMP.index(meas), JuMP.index(meas2)]
-     @test InfiniteOpt._measure_dependencies(y) == []
-     @test length(InfiniteOpt._measure_dependencies(par)) == 4
+     @test InfiniteOpt._measure_dependencies(x) == [JuMP.index(meas), JuMP.index(meas2), JuMP.index(meas6)]
+     @test InfiniteOpt._measure_dependencies(y) == [JuMP.index(meas6)]
+     @test length(InfiniteOpt._measure_dependencies(par)) == 5
      @test InfiniteOpt._measure_dependencies(rv) == [JuMP.index(meas2)]
      @test !haskey(InfiniteOpt._data_dictionary(m, Measure), JuMP.index(meas1))
      # test deletion of meas2
@@ -618,15 +705,18 @@ end
      @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
      @test InfiniteOpt._object_numbers(con2) == []
      @test objective_function(m) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-     @test InfiniteOpt._measure_dependencies(x) == [JuMP.index(meas)]
-     @test InfiniteOpt._measure_dependencies(y) == []
-     @test length(InfiniteOpt._measure_dependencies(par)) == 3
+     @test InfiniteOpt._measure_dependencies(x) == [JuMP.index(meas), JuMP.index(meas6)]
+     @test InfiniteOpt._measure_dependencies(y) == [JuMP.index(meas6)]
+     @test length(InfiniteOpt._measure_dependencies(par)) == 4
      @test InfiniteOpt._measure_dependencies(rv) == []
      @test !haskey(InfiniteOpt._data_dictionary(m, Measure), JuMP.index(meas2))
      # test deletion of meas5
      @test isa(delete(m, meas5), Nothing)
      @test InfiniteOpt._measure_dependencies(pars[1]) == []
      @test InfiniteOpt._measure_dependencies(pars[2]) == []
+     # test deletion of meas6
+     @test isa(delete(m, meas6), Nothing)
+     @test !is_valid(m, d1)
      # test errors
      @test_throws AssertionError delete(m, meas1)
      @test_throws AssertionError delete(m, meas2)

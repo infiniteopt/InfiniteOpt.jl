@@ -468,7 +468,7 @@ to avoid ambiguity in case we have multiple `my_traj_func` definitions. In
 general it is recommended that anonymous functions be used.
 
 ### Point Variables
-Point variables denote infinite variables evaluated at a particular point in the
+Point variables denote infinite variables (or derivatives) evaluated at a particular point in the
 infinite decision space (i.e., particular infinite parameter values). These
 are commonly employed when using initial and terminal conditions, and to build
 discrete characterizations of complex operators such as derivatives. The
@@ -791,6 +791,9 @@ parameter bounds for a hold variable. For example, let's add the bounds
 julia> @add_parameter_bounds(c, (t in [0, 5], x == 0))
 ```
 
+A number of other techniques exist for the various variable types can be found in 
+the manual below.
+
 ## Datatypes
 ```@index
 Pages   = ["variable.md"]
@@ -823,15 +826,15 @@ Order   = [:macro, :function]
 @infinite_variable
 @point_variable
 @hold_variable
-JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Symbol)
+JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Type{<:InfOptVariableType})
 JuMP.add_variable(::InfiniteModel, ::InfOptVariable, ::String)
 used_by_constraint(::DecisionVariableRef)
 used_by_measure(::DecisionVariableRef)
 used_by_objective(::DecisionVariableRef)
 is_used(::DecisionVariableRef)
-used_by_point_variable(::InfiniteVariableRef)
-used_by_reduced_variable(::InfiniteVariableRef)
-is_used(::InfiniteVariableRef)
+used_by_point_variable(::Union{InfiniteVariableRef, DerivativeRef})
+used_by_reduced_variable(::Union{InfiniteVariableRef, DerivativeRef})
+is_used(::Union{InfiniteVariableRef, DerivativeRef})
 JuMP.delete(::InfiniteModel, ::DecisionVariableRef)
 JuMP.num_variables(::InfiniteModel, ::Type{InfOptVariable})
 JuMP.all_variables(::InfiniteModel, ::Type{InfOptVariable})
@@ -855,7 +858,7 @@ JuMP.FixRef(::UserDecisionVariableRef)
 JuMP.unfix(::UserDecisionVariableRef)
 JuMP.start_value(::UserDecisionVariableRef)
 JuMP.set_start_value(::UserDecisionVariableRef, ::Real)
-start_value_function(::InfiniteVariableRef)
+start_value_function(::Union{InfiniteVariableRef, DerivativeRef})
 set_start_value_function(::InfiniteVariableRef, ::Union{Real, Function})
 reset_start_value_function(::InfiniteVariableRef)
 JuMP.is_binary(::UserDecisionVariableRef)

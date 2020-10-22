@@ -65,7 +65,7 @@ through step by step how this should be done.
   8. Create a pull request. Go [here](https://github.com/pulsipher/InfiniteOpt.jl)
      to `InfiniteOpt`'s main page and create a pull request drawing from your forked
      repository. A step by step explanation is provided
-     [here](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork).
+     [here](https://docs.github.com/en/free-pro-team@latest/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork).
   9. Make necessary changes if the tests fail and/or we ask you to make specific
      changes. The Codecov tests will ensure every new line of code is tested at least
      once with the new test functions and Travis CI will ensure that the tests pass
@@ -259,7 +259,7 @@ returns (also what will cause it will trigger errors). This is in markdown
 format.
 
 **Example**
-```jldoctest; setup = :(using JuMP, InfiniteOpt; [other commands])
+```julia-repl
 julia> my_new_function(input...)
 expected_output
 ```
@@ -270,10 +270,7 @@ end
 ````
 Notice that the function is declared at the top with an ident and the optional
 arguments are enclosed within square brackets. This can be spaced over several
-lines if there are too many arguments to fit on one line. Also, the `jldoctest`
-should be used where possible (this actually runs and tests that the example
-works), but when this is not possible it can be replaced with `julia` which
-will provide syntax highlighting without running the code.
+lines if there are too many arguments to fit on one line.
 
 For datatypes Docstrings should follow the form:
 ```julia

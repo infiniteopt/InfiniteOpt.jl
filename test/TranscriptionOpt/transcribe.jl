@@ -10,6 +10,10 @@
     @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
     @hold_variable(m, 0 <= z <= 1, Bin)
     @hold_variable(m, w == 1, Int, start = 1)
+    dx = @deriv(x, par)
+    dy = @deriv(y, par)
+    set_lower_bound(dx, 0)
+    set_start_value_function(dy, (p, ps) -> p + sum(ps))
     var = build_variable(error, y, Dict{Int, Float64}(2 => 0))
     yrv = add_variable(m, var)
     data = DiscreteMeasureData(par, [0.5, 0.5], [0, 1])
@@ -69,20 +73,52 @@
         @test supports(x) == [(0,), (1,)]
         @test length(supports(y)) == 4
     end
+    # test _format_derivative_info
+    @testset "_format_derivative_info" begin
+        der = InfiniteOpt._core_variable_object(dy)
+        @test !IOTO._format_derivative_info(der, [0., 0.5, 0.75]).has_lb
+        @test !IOTO._format_derivative_info(der, [0., 0.5, 0.75]).has_ub
+        @test !IOTO._format_derivative_info(der, [0., 0.5, 0.75]).has_fix
+        @test IOTO._format_derivative_info(der, [0., 0.5, 0.75]).has_start
+        @test IOTO._format_derivative_info(der, [0., 0.5, 0.75]).start == 1.25
+        @test !IOTO._format_derivative_info(der, [0., 0.5, 0.75]).binary 
+        @test !IOTO._format_derivative_info(der, [0., 0.5, 0.75]).integer
+        der = InfiniteOpt._core_variable_object(dx)
+        @test IOTO._format_derivative_info(der, [0.]).has_lb
+        @test IOTO._format_derivative_info(der, [0.]).lower_bound == 0
+        @test !IOTO._format_derivative_info(der, [0.]).has_ub
+        @test !IOTO._format_derivative_info(der, [0.]).has_fix
+        @test !IOTO._format_derivative_info(der, [0.]).has_start
+        @test isnan(IOTO._format_derivative_info(der, [0.]).start)
+        @test !IOTO._format_derivative_info(der, [0.]).integer
+    end
+    # test transcribe_derivative_variables!
+    @testset "transcribe_derivative_variables!" begin
+        @test isa(IOTO.transcribe_derivative_variables!(tm, m), Nothing)
+        @test length(transcription_data(tm).infvar_mappings) == 4
+        @test transcription_variable(tm, dx) isa Vector{VariableRef}
+        @test transcription_variable(tm, dy) isa Vector{VariableRef}
+        @test name(transcription_variable(tm, dx)[1]) == (Sys.iswindows() ? "d/dpar[x(par)](support: 1)" : "∂/∂par[x(par)](support: 1)")
+        @test name(transcription_variable(tm, dy)[3]) == (Sys.iswindows() ? "d/dpar[y(par, pars)](support: 3)" : "∂/∂par[y(par, pars)](support: 3)")
+        @test has_lower_bound(transcription_variable(tm, dx)[1])
+        @test sort!(start_value.(transcription_variable(tm, dy))) == [0., 1, 2, 3]
+        @test supports(dx) == [(0,), (1,)]
+        @test length(supports(dy)) == 4
+    end
     # test _set_reduced_variable_mapping
     @testset "_set_reduced_variable_mapping" begin 
         var = ReducedVariable(y, Dict{Int, Float64}(1 => 0), [1, 2], [1])
         vref = GeneralVariableRef(m, -1, ReducedVariableIndex)
         @test IOTO._set_reduced_variable_mapping(tm, var, vref) isa Nothing 
         @test transcription_variable(vref) isa Vector{VariableRef}
-        @test length(transcription_data(tm).infvar_mappings) == 3
+        @test length(transcription_data(tm).infvar_mappings) == 5
         @test IOTO.lookup_by_support(tm, y, [0., 0, 0]) == IOTO.lookup_by_support(tm, vref, [0., 0])
     end
     # test transcribe_reduced_variables!
     @testset "transcribe_reduced_variables!" begin 
         @test IOTO.transcribe_reduced_variables!(tm, m) isa Nothing
         @test transcription_variable(yrv) isa Vector{VariableRef}
-        @test length(transcription_data(tm).infvar_mappings) == 4
+        @test length(transcription_data(tm).infvar_mappings) == 6
         @test IOTO.lookup_by_support(tm, y, [1., 0., 0.]) == IOTO.lookup_by_support(tm, yrv, [1., 0])
     end
     # test _update_point_info
@@ -311,6 +347,30 @@ end
     end
 end
 
+# Test transcribe_derivative_evaluations! (TODO SEE IF THIS CAN BE MADE TO WORK WITH DEPENDENDENT PARAMETER BASED DERIVATIVES)
+@testset "transcribe_derivative_evaluations!" begin 
+    # setup 
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1], num_supports = 4, 
+                        derivative_method = OrthogonalCollocation(4))
+    @infinite_variable(m, y(t))
+    d1 = @deriv(y, t)
+    d2 = @deriv(y, t^2)
+    tm = transcription_model(m)
+    IOTO.set_parameter_supports(tm, m)
+    IOTO.transcribe_infinite_variables!(tm, m)
+    IOTO.transcribe_derivative_variables!(tm, m)
+    # main test 
+    @test IOTO.transcribe_derivative_evaluations!(tm, m) isa Nothing 
+    @test num_constraints(tm, AffExpr, MOI.EqualTo{Float64}) == 18
+    @test num_supports(t) == 4
+    @test num_supports(t, label = All) == 10
+    @test length(supports(d1)) == 4
+    @test length(supports(d2, label = All)) == 10
+    @test IOTO.has_internal_supports(tm)
+    @test has_derivative_supports(t)
+end
+
 # Test build_transcription_model!
 @testset "build_transcription_model!" begin
     # initialize model
@@ -326,14 +386,18 @@ end
     @hold_variable(m, 0 <= z <= 1, Bin)
     @hold_variable(m, w == 1, Int, start = 1)
     @finite_parameter(m, fin, 0)
-    meas1 = support_sum(x - w, par)
+    d1 = @deriv(y, par)
+    d2 = @deriv(x, par^2)
+    set_upper_bound(d1, 2)
+    meas1 = support_sum(x - w - d2, par)
     meas2 = support_sum(y, pars)
     @set_parameter_bounds(z, (pars == 0, par == 0))
-    @constraint(m, c1, x + par - z == 0)
+    @constraint(m, c1, x + par - z + d1 == 0)
     @constraint(m, c2, z + x0 >= -3)
     @constraint(m, c3, meas1 + z == 0)
     @BDconstraint(m, c4(par in [0.5, 1]), meas2 - 2y0 + x + fin <= 1)
     @constraint(m, c5, meas2 == 0)
+    @constraint(m, x + y == 83)
     @objective(m, Min, x0 + meas1)
     # test basic usage
     tm = optimizer_model(m)
@@ -374,21 +438,29 @@ end
     @test has_upper_bound(transcription_variable(y0))
     @test is_integer(transcription_variable(y0))
     @test start_value(transcription_variable(y0)) == 0.
+    # test derivatives 
+    d1t = transcription_variable(d1)
+    d2t = transcription_variable(d2)
+    @test length(d1t) == 4
+    @test length(d2t) == 2
+    @test upper_bound(d1t[1]) == 2
+    @test supports(d2) == [(0.,), (1.,)]
     # test objective
     xt = transcription_variable(tm, x)
-    @test objective_function(tm) == 2xt[1] + xt[2] - 2wt
+    @test objective_function(tm) == 2xt[1] + xt[2] - 2wt - d2t[1] - d2t[2]
     @test objective_sense(tm) == MOI.MIN_SENSE
     # test constraints
     yt = transcription_variable(y)
-    @test constraint_object(transcription_constraint(c1)).func == xt[1] - zt
+    dt_c1 = IOTO.lookup_by_support(tm, d1, zeros(3))
+    @test constraint_object(transcription_constraint(c1)).func == -zt + xt[1] + dt_c1
     @test constraint_object(transcription_constraint(c2)).func == zt + xt[1]
     expected = transcription_variable(meas2)[2] - 2 * transcription_variable(y0) + xt[2]
     @test constraint_object(transcription_constraint(c4)).func == expected
-    @test constraint_object(transcription_constraint(c3)).func == xt[1] - 2wt + xt[2] + zt
+    @test constraint_object(transcription_constraint(c3)).func == xt[1] - 2wt + xt[2] + zt - d2t[1] - d2t[2]
     @test transcription_constraint(c5) isa Vector{ConstraintRef}
     @test name(transcription_constraint(c2)) == "c2(support: 1)"
     @test name(transcription_constraint(c1)) == "c1(support: 1)"
-    @test supports(c1) == (0.,)
+    @test supports(c1) == (0., [0., 0.])
     # test info constraints
     @test transcription_constraint(LowerBoundRef(z)) == LowerBoundRef(zt)
     @test transcription_constraint(UpperBoundRef(z)) == UpperBoundRef(zt)
@@ -406,4 +478,5 @@ end
     @test transcription_constraint(IntegerRef(x)) == IntegerRef.(xt)
     @test transcription_constraint(FixRef(y)) isa Vector{ConstraintRef}
     @test transcription_constraint(BinaryRef(y)) isa Vector{ConstraintRef}
+    @test transcription_constraint(UpperBoundRef(d1)) == UpperBoundRef.(d1t)
 end

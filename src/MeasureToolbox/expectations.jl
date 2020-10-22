@@ -103,8 +103,9 @@ An efficient wrapper for [`expect`](@ref). Please see its doc string more
 information.
 """
 macro expect(expr, prefs, args...)
-    _error(str...) = JuMP._macro_error(:integral, (expr, prefs, args...), str...)
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    _error(str...) = InfiniteOpt._macro_error(:integral, (expr, prefs, args...), 
+                                              str...)
+    extra, kw_args, requestedcontainer = InfiniteOpt._extract_kw_args(args)
     if length(extra) > 0
         _error("Unexpected positional arguments." *
                "Must be of form @expect(expr, prefs, min_num_supports = some_integer).")
@@ -112,7 +113,7 @@ macro expect(expr, prefs, args...)
     if !isempty(filter(kw -> kw.args[1] != :min_num_supports, kw_args))
         _error("Unexpected keyword arugments.")
     end
-    expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
+    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
     mref = :( expect($expression, $prefs; ($(kw_args...))) )
     return esc(mref)
 end

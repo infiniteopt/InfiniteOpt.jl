@@ -1,13 +1,13 @@
 # Extensions
-Here we provide guidance to various ways `InfinitOpt` can be extended.
+Here we provide guidance to various ways `InfiniteOpt` can be extended.
 
 ## Overview
-Extendibility is one of the core ideas of `InfinitOpt` so that it can serve as a
+Extendibility is one of the core ideas of `InfiniteOpt` so that it can serve as a
 convenient tool for those developing and implementing advanced techniques for
 infinite dimensional optimization problems. Thus, `InfiniteOpt` is developed in
 a modular manner to readily accommodate user-defined functionality and/or to
 serve as useful base in writing a `JuMP` extension. Admittedly, this modularity
-might be imperfect and comments/suggestions are welcomed to help us improve this.
+is not perfect and comments/suggestions are welcomed to help us improve this.
 
 ## Infinite Sets
 Infinite sets are used to characterize the behavior of infinite parameters and
@@ -95,15 +95,17 @@ To enable automatic support generation via the `num_supports` keyword and with
 functions such as [`fill_in_supports!`](@ref), we will extend
 [`InfiniteOpt.generate_support_values`](@ref):
 ```jldoctest set_ext; output = false
+struct DisjointGrid <: InfiniteOpt.PublicLabel end
+
 function InfiniteOpt.generate_support_values(set::DisjointSet;
                                              num_supports::Int = InfiniteOpt.DefaultNumSupports,
-                                             sig_digits::Int = InfiniteOpt.DefaultSigDigits)::Tuple{Vector{<:Real}, Symbol}
+                                             sig_digits::Int = InfiniteOpt.DefaultSigDigits)::Tuple{Vector{<:Real}, DataType}
     length_ratio = (set.ub1 - set.lb1) / (set.ub1 - set.lb1 + set.ub2 - set.lb2)
     num_supports1 = Int64(ceil(length_ratio * num_supports))
     num_supports2 = num_supports - num_supports1
     supports1 = collect(range(set.lb1, stop = set.ub1, length = num_supports1))
     supports2 = collect(range(set.lb2, stop = set.ub2, length = num_supports2))
-    return round.([supports1; supports2], sigdigits = sig_digits), :disjoint_grid
+    return round.([supports1; supports2], sigdigits = sig_digits), DisjointGrid
 end
 
 # output
@@ -142,6 +144,119 @@ no extension is needed. For our current example we won't do this since lower
 and upper bounds aren't exactly clear for a disjoint interval. Please refer to
 the template in `./InfiniteOpt/test/extensions/infinite_set.jl` to see how this
 is done.
+
+## Derivative Evaluation Methods 
+Derivative evaluation methods are used to dictate how we form the auxiliary 
+derivative evaluation equations (derivative constraints) when we evaluate 
+derivatives in InfiniteOpt. Users may wish to implement their own methods beyond 
+the finite difference and orthogonal collocation ones we natively provide. Thus, 
+we provide an API to do just this. A complete template is provided in 
+[`./test/extensions/derivative_method.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/derivative_method.jl) 
+to help streamline this process. The extension steps are:
+1. Define the new method struct that inherits from the correct [`AbstractDerivativeMethod`](@ref) subtype
+2. Extend [`InfiniteOpt.support_label`](@ref InfiniteOpt.support_label(::AbstractDerivativeMethod)) 
+   if the method is a [`GenerativeDerivativeMethod`](@ref)
+3. Extend [`InfiniteOpt.generate_derivative_supports`](@ref) if the method is a
+   [`GenerativeDerivativeMethod`](@ref)
+4. Extend [`InfiniteOpt.evaluate_derivative`](@ref).
+
+To exemplify this process let's implement explicit Euler which is already 
+implemented via `FiniteDifference(Forward)`, but let's make our own anyway for 
+the sake of example. For a first order derivative ``\frac{d y(t)}{dt}`` explicit 
+Euler is expressed:
+```math
+y(t_{n+1}) = y(t_n) + (t_{n+1} - t_{n})\frac{d y(t_n)}{dt}, \ \forall n = 0, 1, \dots, k-1
+```
+
+Let's get started with step 1 and define our new method struct:
+```jldoctest deriv_ext; output = false
+using InfiniteOpt, JuMP
+
+struct ExplicitEuler <: NonGenerativeDerivativeMethod end
+
+# output
+
+
+```
+Notice that our method `ExplicitEuler` inherits from [`NonGenerativeDerivativeMethod`](@ref) 
+since explicit Euler uses the existing support scheme without adding any additional 
+supports. If our desired method needed to add additional supports (e.g., 
+orthogonal collocation over finite elements) then we would need to have used 
+[`GenerativeDerivativeMethod`](@ref).
+
+Since, this is a `NonGenerativeDerivativeMethod` we skip steps 2 and 3. These are 
+however exemplified in the extension template.
+
+Now we just need to do step 4 which is to extend 
+[`InfiniteOpt.evaluate_derivative`](@ref). This function generates all the expressions 
+necessary to build the derivative evaluation equations (derivative constraints). 
+We assume these relations to be of the form ``h = 0`` where ``h`` is a vector of 
+expressions and is what the output of `InfiniteOpt.evaluate_derivative` should be.
+Thus, mathematically ``h`` should be of the form:
+```math
+\begin{aligned}
+&&& y(t_{1}) - y(0) - (t_{1} - t_{0})\frac{d y(0)}{dt} \\
+&&& \vdots \\
+&&& y(t_{n+1}) - y(t_n) - (t_{n+1} - t_{n})\frac{d y(t_n)}{dt} \\
+&&& \vdots \\
+&&& y(t_{k}) - y(k-1) - (t_{k} - t_{k-1})\frac{d y(k-1)}{dt} \\
+\end{aligned}
+```
+With this in mind let's now extend `InfiniteOpt.evaluate_derivative`:
+```jldoctest deriv_ext; output = false
+function InfiniteOpt.evaluate_derivative(
+    dref::GeneralVariableRef, 
+    method::ExplicitEuler,
+    write_model::JuMP.AbstractModel
+    )::Vector{JuMP.AbstractJuMPScalar}
+    # get the basic derivative information 
+    vref = derivative_argument(dref)
+    pref = operator_parameter(dref)
+    # make sure internal supports are added to the model
+    InfiniteOpt.add_derivative_supports(pref) # NOTE THIS IS UNNEEDED FOR NONGENERATIVE METHODS
+    # generate the derivative expressions h_i corresponding to the equations of 
+    # the form h_i = 0
+    supps = supports(pref, label = All)
+    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(supps) - 1)
+    for i in eachindex(exprs)
+        d = InfiniteOpt.make_reduced_expr(dref, pref, supps[i], write_model)
+        v1 = InfiniteOpt.make_reduced_expr(vref, pref, supps[i], write_model)
+        v2 = InfiniteOpt.make_reduced_expr(vref, pref, supps[i + 1], write_model)
+        change = supps[i + 1] - supps[i]
+        exprs[i] = JuMP.@expression(write_model, v2 - v1 - change * d)
+    end
+    return exprs
+end
+
+# output
+
+
+```
+Notice that we used [`InfiniteOpt.add_derivative_supports`](@ref) as required 
+for `GenerativeDerivativeMethods`, but is not necessary in this example. We 
+also used [`InfiniteOpt.make_reduced_expr`](@ref) as a convenient helper function 
+to generate the reduced variables/expressions we need to generate at each support 
+point.
+
+Now that we have have completed all the necessary steps, let's try it out! 
+```jldoctest deriv_ext
+julia> model = InfiniteModel();
+
+julia> @infinite_parameter(model, t in [0, 10], num_supports = 3, 
+                           derivative_method = ExplicitEuler());
+
+julia> @infinite_variable(model, y(t));
+
+julia> dy = deriv(y, t);
+
+julia> evaluate(dy)
+
+julia> derivative_constraints(dy)
+2-element Array{InfOptConstraintRef,1}:
+ y(5) - y(0) - 5 ∂/∂t[y(t)](0) = 0.0
+ y(10) - y(5) - 5 ∂/∂t[y(t)](5) = 0.0
+```
+We implemented explict Euler and it works! Now go and extend away!
 
 ## Measure Evaluation Techniques
 Measure evaluation methods are used to dictate how to evaluate measures. Users
@@ -189,7 +304,7 @@ create a measure using the measure data, as shown below:
 
 ```jldoctest measure_eval
 julia> tdata = uniform_grid(t, 0, 5, 6)
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], Symbol("##815"), InfiniteOpt.default_weight, 0.0, 5.0, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], UniqueMeasure{Val{Symbol("##923")}}, InfiniteOpt.default_weight, 0.0, 5.0, false)
 
 julia> f_meas = measure(f, tdata)
 measure{t ∈ [0, 5]}[f(t)]
@@ -278,6 +393,7 @@ The extension steps employed are:
 5. Extend [`InfiniteOpt.measure_data_in_hold_bounds`](@ref) (enables hold variable bound checking with measures)
 6. Extend [`InfiniteOpt.coefficients`](@ref) (useful getter method if applicable)
 7. Extend [`InfiniteOpt.weight_function`](@ref) (useful getter method if applicable)
+8. Extend [`InfiniteOpt.support_label`](@ref) (needed to enable deletion if supports are added.)
 8. Make simple measure constructor wrapper of [`measure`](@ref) to ease definition.
 
 To illustrate how this process can be done, let's consider extending `InfiniteOpt`
@@ -299,16 +415,18 @@ const JuMPC = JuMP.Containers
 struct DiscreteVarianceData <: AbstractMeasureData
     parameter_refs::Union{GeneralVariableRef, Vector{GeneralVariableRef}}
     supports::Vector
+    label::DataType
     # constructor
     function DiscreteVarianceData(
         parameter_refs::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}},
-        supports::Vector)
+        supports::Vector,
+        label::DataType = InfiniteOpt.generate_unique_label())
         # convert input as necessary to proper array format
         if parameter_refs isa AbstractArray
             parameter_refs = convert(Vector, parameter_refs)
             supports = [convert(Vector, arr) for arr in supports]
         end
-        return new(parameter_refs, supports)
+        return new(parameter_refs, supports, label)
     end
 end
 
@@ -319,8 +437,9 @@ end
 
 We have defined our data type, so let's extend the measure data query
 methods to enable its definition. These include
-[`parameter_refs`](@ref parameter_refs(::AbstractMeasureData)) and 
-[`supports`](@ref supports(::AbstractMeasureData)):
+[`parameter_refs`](@ref parameter_refs(::AbstractMeasureData)), 
+[`supports`](@ref supports(::AbstractMeasureData)), and 
+[`support_label`](@ref support_label(::AbstractMeasureData)):
 ```jldoctest measure_data; output = false
 function InfiniteOpt.parameter_refs(data::DiscreteVarianceData)
     return data.parameter_refs
@@ -328,6 +447,10 @@ end
 
 function InfiniteOpt.supports(data::DiscreteVarianceData)::Vector
     return data.supports
+end
+
+function InfiniteOpt.support_label(data::DiscreteVarianceData)::DataType
+    return data.label
 end
 
 # output
@@ -341,7 +464,8 @@ since support points will be used for measure evaluation later:
 function InfiniteOpt.add_supports_to_parameters(data::DiscreteVarianceData)::Nothing
     pref = parameter_refs(data)
     supps = supports(data)
-    add_supports(pref, supps)
+    label = support_label(data)
+    add_supports(pref, supps, label = label)
     return
 end
 
@@ -382,7 +506,7 @@ function InfiniteOpt.expand_measure(expr::JuMP.AbstractJuMPScalar,
     expect_data = DiscreteMeasureData(
                       data.parameter_refs,
                       1 / length(data.supports) * ones(length(data.supports)),
-                      data.supports, is_expect = true)
+                      data.supports, is_expect = true, label = data.label)
     # define the mean
     mean = measure(expr, expect_data)
     # return the expansion of the variance using the data mean
@@ -772,5 +896,3 @@ solution techniques. These extension packages can implement any of the extension
 shown above and likely will want to introduce wrapper functions and macros to
 use package specific terminology (e.g., using random variables instead of
 infinite variables).
-
-TODO refer to example packages that do this (e.g., an update of FlexibilityAnalysis.jl)

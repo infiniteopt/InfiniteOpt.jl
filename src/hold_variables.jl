@@ -88,7 +88,7 @@ function _check_bounds(bounds::ParameterBounds{GeneralVariableRef};
 end
 
 # Define _make_variable (used by JuMP.build_variable)
-function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Val{Hold};
+function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Type{Hold};
     parameter_bounds::ParameterBounds{GeneralVariableRef} = ParameterBounds(),
     extra_kw_args...)::HoldVariable{GeneralVariableRef}
     # check for unneeded keywords

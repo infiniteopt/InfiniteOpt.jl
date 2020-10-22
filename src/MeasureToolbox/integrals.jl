@@ -190,6 +190,9 @@ end
 # Univariate trapezoid coefficient function
 function _trapezoid_coeff(supps::Vector{<:Real})::Vector{Float64}
     len = length(supps)
+    len >= 2 || error("Cannot invoke trapezoid rule on integral if there are " * 
+                      "less than 2 supports added to its infinite parameter. Ensure " * 
+                      "all infinite parameters have supports.")
     coeffs = Vector{Float64}(undef, len)
     for i in eachindex(supps)
         if i == 1
@@ -263,7 +266,8 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     (supports, coeffs) = FastGaussQuadrature.gausslegendre(num_supports)
     supports = (upper_bound - lower_bound) / 2 * supports .+ (upper_bound + lower_bound) / 2
     coeffs = (upper_bound - lower_bound) / 2 * coeffs
-    return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, gensym(),
+    return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, 
+                                           InfiniteOpt.generate_unique_label(),
                                            weight_func, lower_bound, upper_bound,
                                            false)
 end
@@ -299,7 +303,8 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                       weight_func = weight_func)
     end
 
-    return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, gensym(),
+    return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, 
+                                           InfiniteOpt.generate_unique_label(),
                                            weight_func, lower_bound, upper_bound,
                                            false)
 end
@@ -321,7 +326,8 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     end
     (supports, coeffs) = FastGaussQuadrature.gausshermite(num_supports)
     coeffs = coeffs .* exp.(supports.^2)
-    return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, gensym(),
+    return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, 
+                                           InfiniteOpt.generate_unique_label(),
                                            weight_func, lower_bound, upper_bound,
                                            false)
 end
@@ -368,7 +374,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
         error("Univariate MC sampling is not applicable to (semi-)infinite intervals.")
     end
     set = InfiniteOpt.IntervalSet(lower_bound, upper_bound)
-    supports, _ = InfiniteOpt.generate_support_values(set, Val(InfiniteOpt.MCSample),
+    supports, _ = InfiniteOpt.generate_support_values(set, InfiniteOpt.MCSample,
                                                       num_supports = num_supports)
     coeffs = (upper_bound - lower_bound) * ones(num_supports) / num_supports
     return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports,
@@ -426,7 +432,7 @@ function _make_multi_mc_supports(prefs::Vector{InfiniteOpt.DependentParameterRef
                                  num_supps::Int)::Matrix{Float64}
     sets = [InfiniteOpt.IntervalSet(lbs[i], ubs[i]) for i in eachindex(lbs)]
     set = InfiniteOpt.CollectionSet(sets)
-    supports, _ = InfiniteOpt.generate_support_values(set, Val(InfiniteOpt.MCSample),
+    supports, _ = InfiniteOpt.generate_support_values(set, InfiniteOpt.MCSample,
                                                       num_supports = num_supps)
     return supports
 end
@@ -447,7 +453,7 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
     sets = [InfiniteOpt.IntervalSet(lower_bounds[i], upper_bounds[i])
             for i in eachindex(lower_bounds)]
     set = InfiniteOpt.CollectionSet(sets)
-    supports, _ = InfiniteOpt.generate_support_values(set, Val(InfiniteOpt.MCSample),
+    supports, _ = InfiniteOpt.generate_support_values(set, InfiniteOpt.MCSample,
                                                       num_supports = num_supports)
     # prepare the coefficients
     coeffs = prod(upper_bounds .- lower_bounds) * ones(num_supports) / num_supports
@@ -749,13 +755,14 @@ and [`integral`](@ref integral(::JuMP.AbstractJuMPScalar, ::AbstractArray{Infini
 Please see the above doc strings for more information.
 """
 macro integral(expr, prefs, args...)
-    _error(str...) = JuMP._macro_error(:integral, (expr, prefs, args...), str...)
-    extra, kw_args, requestedcontainer = JuMPC._extract_kw_args(args)
+    _error(str...) = InfiniteOpt._macro_error(:integral, (expr, prefs, args...), 
+                                              str...)
+    extra, kw_args, requestedcontainer = InfiniteOpt._extract_kw_args(args)
     if length(extra) != 0 && length(extra) != 2
         _error("Incorrect number of positional arguments for @integral. " *
                "Must provide both bounds or no bounds.")
     end
-    expression = :( JuMP.@expression(InfiniteOpt._DumbyModel(), $expr) )
+    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
     mref = :( integral($expression, $prefs, $(extra...); ($(kw_args...))) )
     return esc(mref)
 end

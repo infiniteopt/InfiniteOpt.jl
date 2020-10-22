@@ -1,0 +1,305 @@
+# Quick Start Guide
+Below we exemplify and briefly explain the very basics behind defining and solving 
+an infinite-dimensional optimization problem in `InfiniteOpt`. Please refer to the 
+Guide on our subsequent pages for more complete information. The Basic Usage sections 
+on the each guide page are good places to start from. Also, the syntax of `InfiniteOpt` 
+is inspired by `JuMP` thus we recommend new users that haven't used `JuMP`, first 
+consult their quick start guide [here](https://jump.dev/JuMP.jl/stable/quickstart/).
+
+## Preliminaries 
+### Software Setup
+First, we need to make sure everything is installed. This will include:
+- installing Julia 
+- installing the `InfiniteOpt.jl`, `JuMP.jl`, and `Distributions.jl` packages
+- installing wanted optimizers e.g., `Ipopt.jl` and `Clp.jl`
+See [Installation](@ref) for more information.
+
+### Problem Formulation
+Now we need to formulate the problem we want to solve mathematically. For example, 
+let's define a simple optimal control model:
+```math
+\begin{aligned}
+	&&\underset{x_i(t, \xi), v_i(t, \xi), y_w(\xi), u_i(t)}{\text{min}} &&& \int_{t \in \mathcal{D}_t} \sum_{i \in I} u_i^2(t) dt \\
+	&&\text{s.t.} &&& x_i(0, \xi) = x0_i, && \forall i \in I, \xi \in \mathcal{D}_\xi\\
+    &&&&& v_i(0, \xi) = v0_i, && \forall i \in I, \xi \in \mathcal{D}_\xi \\
+	&&&&& \frac{\partial x_i(t, \xi)}{\partial t} = v_i(t, \xi), && \forall i \in I, t \in \mathcal{D}_t\, \xi \in \mathcal{D}_\xi\\
+    &&&&& \xi\frac{\partial v_i(t, \xi)}{\partial t} = u_i(t), && \forall i \in I, t \in \mathcal{D}_t, \xi \in \mathcal{D}_\xi\\
+    &&&&& y_{w}(\xi) = \sum_{i \in I}(x_i(t_w, \xi) - p_{iw})^2, && \forall w \in W, \xi \in \mathcal{D}_\xi \\
+    &&&&& y_{w}(\xi) \geq 0, && \forall w \in W, \xi \in \mathcal{D}_\xi \\
+    &&&&& \mathbb{E}_{\xi}\left[\sum_{w \in W} y_w(\xi) \right] \leq \epsilon \\
+    &&&&& \xi \sim \mathcal{N}(\mu, \sigma^2) \\
+    &&&&& t \in \mathcal{D}_t
+\end{aligned}
+```
+Notice this model is both dynamic with time ``t`` and random with respect to ``\xi``.
+
+### Parameter Specification
+Before moving on we'll need to define the necessary constants and problem 
+parameters. Thus, continuing with our example we define the following in our 
+Julia session (these could also be put into a script as is shown at the bottom 
+of this page):
+```jldoctest quick
+julia> μ = 1; σ = 0.2; # set the distribution parameters 
+
+julia> x0 = [0, 0]; v0 = [0, 0]; # set the initial conditions
+
+julia> p = [1 4 6 1; 1 3 0 1]; tw = [0, 25, 50, 60]; # set waypoint specifications
+
+julia> I = 1:2; W = 1:4; # set the finite domains
+```
+
+## Model Definition 
+### Model Initialization 
+The first thing we need to do is initialize our `InfiniteModel` and assign an 
+appropriate optimizer that will be used to solve its transcripted variant. For our 
+little example let's choose to use Ipopt:
+```jldoctest quick
+julia> using InfiniteOpt, JuMP, Distributions, Ipopt;
+
+julia> model = InfiniteModel(Ipopt.Optimizer)
+An InfiniteOpt Model
+Feasibility problem with:
+Finite Parameters: 0
+Infinite Parameters: 0
+Variables: 0
+Derivatives: 0
+Measures: 0
+Optimizer model backend information:
+Model mode: AUTOMATIC
+CachingOptimizer state: EMPTY_OPTIMIZER
+Solver name: Ipopt
+```
+Learn more about `InfiniteModel`s and optimizers on our 
+[Infinite Models](@ref infinite_model_docs) page.
+
+Before moving on, let's go ahead make a finite parameter via [`@finite_parameter`](@ref) 
+for ``\epsilon`` since this likely a constant we'll want to update repeatedly 
+(e.g., to determine a tradeoff curve by varying it): 
+```jldoctest quick
+julia> @finite_parameter(model, ϵ, 10)
+ϵ
+```
+Learn more about finite parameters on our [Finite Parameters](@ref finite_param_docs) 
+page.
+
+### Infinite Parameters 
+The next thing we need to do is identify the infinite domains our problem contains 
+and define an infinite parameter(s) for each one via [`@infinite_parameter`]. For 
+this problem we have the time domain ``t \in \mathcal{D}_t`` and the random domain 
+``\xi \in \mathcal{D}_\xi`` where ``\xi \sim \mathcal{N}(\mu, \sigma^2)``:
+```jldoctest quick
+julia> @infinite_parameter(model, t in [0, 60], num_supports = 61, 
+                           derivative_method = OrthogonalCollocation(2))
+t
+
+julia> @infinite_parameter(model, ξ in Normal(μ, σ^2), num_supports = 10)
+ξ
+```
+Notice we specify the domain/distribution the parameter depends on via `in`.
+Here we also specify the number of finite supports we desire for each parameter 
+that will ultimately be used to reformulate and solve the problem (i.e., discretize). 
+We also specify the derivative evaluation method associated with `t` that will be 
+used evaluate the derivatives numerically. See more information about parameters 
+on our [Infinite Parameters] (@ref inf_par_page) page. Also learn more about 
+derivative methods on our [Derivative Operators](@ref deriv_page) page.
+
+### Variables 
+Now that we have an `InfiniteModel` and infinite parameters let's define our 
+decision variables. First, infinite variables (ones that depend on infinite 
+parameters) are defined via [`@infinite_variable`](@ref) which uses a syntax 
+similar to `JuMP.@variable` except that we also indicate the infinite parameter 
+dependencies:
+ ```jldoctest quick
+julia> @infinite_variable(model, x[I](t, ξ), start = 0)
+1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
+    Dimension 1, 1:2
+And data, a 2-element Array{GeneralVariableRef,1}:
+ x[1](t, ξ)
+ x[2](t, ξ)
+
+julia> @infinite_variable(model, v[I](t, ξ), start = 0)
+1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
+    Dimension 1, 1:2
+And data, a 2-element Array{GeneralVariableRef,1}:
+ v[1](t, ξ)
+ v[2](t, ξ)
+
+julia> @infinite_variable(model, u[I](t), start = 0)
+1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
+    Dimension 1, 1:2
+And data, a 2-element Array{GeneralVariableRef,1}:
+ u[1](t)
+ u[2](t)
+
+julia> @infinite_variable(model, y[W](ξ) >= 0, start = 0)
+1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
+    Dimension 1, 1:4
+And data, a 4-element Array{GeneralVariableRef,1}:
+ y[1](ξ)
+ y[2](ξ)
+ y[3](ξ)
+ y[4](ξ)
+```
+Notice that we specifying the initial guess for all of them via `start`. We also 
+can symbolically define variable conditions like the lower bound on `y`.
+
+That does it for this example, but other problems might also employ the following:
+- [`@hold_variable`](@ref) to define variables that depend on finite domains 
+- [`@point_variable`](@ref) to define infinite variables at a certain point
+
+### Objective & Constraints 
+Now that the variables and parameters are ready to go, let's define our problem. 
+First, we can define the objective using [`@objective`](@ref):
+ ```jldoctest quick
+julia> @objective(model, Min, integral(sum(u[i]^2 for i in I), t))
+integral{t ∈ [0, 60]}[u[1](t)² + u[2](t)²]
+```
+Notice that we also employ [`integral`](@ref) to define the integral. Note that 
+objectives must evaluate over all included infinite domains. 
+
+Now let's define the initial conditions using [`@BDconstraint`](@ref) which we use 
+to define constraints over portions and/or points of the infinite domain:
+ ```jldoctest quick
+julia> @BDconstraint(model, initial1[i in I](t == 0), x[i] == x0[i])
+1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
+    Dimension 1, 1:2
+And data, a 2-element Array{InfOptConstraintRef,1}:
+ initial1[1] : x[1](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
+ initial1[2] : x[2](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
+
+julia> @BDconstraint(model, initial2[i in I](t == 0), v[i] == v0[i])
+1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
+    Dimension 1, 1:2
+And data, a 2-element Array{InfOptConstraintRef,1}:
+ initial2[1] : v[1](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
+ initial2[2] : v[2](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
+```
+Note it is important that we include appropriate boundary conditions when using 
+derivatives in our model. For more information please see 
+[Derivative Operators](@ref deriv_page).
+
+Next, we can add our model constraints that have derivatives using 
+[`@constraint`](@ref) and [`@deriv`](@ref):
+ ```jldoctest quick
+julia> @constraint(model, c1[i in I], @deriv(x[i], t) == v[i])
+1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
+    Dimension 1, 1:2
+And data, a 2-element Array{InfOptConstraintRef,1}:
+ c1[1] : ∂/∂t[x[1](t, ξ)] - v[1](t, ξ) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
+ c1[2] : ∂/∂t[x[2](t, ξ)] - v[2](t, ξ) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
+
+julia> @constraint(model, c2[i in I], ξ * @deriv(v[i], t) == u[i])
+1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
+    Dimension 1, 1:2
+And data, a 2-element Array{InfOptConstraintRef,1}:
+ c2[1] : ξ*∂/∂t[v[1](t, ξ)] - u[1](t) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
+ c2[2] : ξ*∂/∂t[v[2](t, ξ)] - u[2](t) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
+```
+
+Finally, we can define our last 2 constraints in the example using both 
+[`@BDconstraint`](@ref) and [`@constraint`](@ref):
+ ```jldoctest quick
+julia> @BDconstraint(model, c3[w in W](t == tw[w]), y[w] == sum((x[i] - p[i, w])^2 for i in I))
+1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
+    Dimension 1, 1:4
+And data, a 4-element Array{InfOptConstraintRef,1}:
+ c3[1] : -x[1](t, ξ)² - x[2](t, ξ)² + y[1](ξ) + 2 x[1](t, ξ) + 2 x[2](t, ξ) = 2.0, ∀ t = 0, ξ ~ Normal
+ c3[2] : -x[1](t, ξ)² - x[2](t, ξ)² + y[2](ξ) + 8 x[1](t, ξ) + 6 x[2](t, ξ) = 25.0, ∀ t = 25, ξ ~ Normal
+ c3[3] : -x[1](t, ξ)² - x[2](t, ξ)² + y[3](ξ) + 12 x[1](t, ξ) = 36.0, ∀ t = 50, ξ ~ Normal
+ c3[4] : -x[1](t, ξ)² - x[2](t, ξ)² + y[4](ξ) + 2 x[1](t, ξ) + 2 x[2](t, ξ) = 2.0, ∀ t = 60, ξ ~ Normal
+
+julia> @constraint(model, c4, expect(sum(y[w] for w in W), ξ) <= ϵ)
+c4 : expect{ξ}[y[1](ξ) + y[2](ξ) + y[3](ξ) + y[4](ξ)] - ϵ ≤ 0.0
+```
+Notice we are able to invoke an expectation simply by calling [`expect`](@ref).
+
+That's it, now we have our problem defined in `InfiniteOpt`!
+
+## Solution & Queries
+### Optimize 
+Now that our model is defined, let's optimize it via [`optimize!`](@ref):
+```julia-repl
+julia> optimize!(model)
+
+```
+We can check the solution status via 
+[`termination_status`](@ref JuMP.termination_status(::InfiniteModel)):
+```jldoctest quick; setup = :(set_optimizer_attribute(model, "print_level", 0); optimize!(model))
+julia> termination_status(model)
+LOCALLY_SOLVED::TerminationStatusCode = 4
+```
+Thus, our model was solved successfully! For more information please see our 
+[Optimization](@ref opt_page) and [Results](@ref) pages.
+
+### Query the Solution
+Finally, we can query a wide variety of information about our solution. Perhaps 
+most commonly we'll want to know the objective value and the optimal primal values 
+of decision variables. This is accomplished via 
+[`objective_value`](@ref JuMP.objective_value(::InfiniteModel)) and 
+[`value`](@ref JuMP.value(::GeneralVariableRef)):
+```jldoctest quick
+julia> opt_obj = objective_value(model);
+
+julia> u_opt = value.(u);
+```
+Note that u_opt will be multi-dimensional combination with the support values used 
+to transcribe `u(t)` along the domain of `t`. We can query those corresponding 
+support values via `supports`:
+```jldoctest quick
+julia> u_ts = supports.(u)
+1-dimensional DenseAxisArray{Array{Tuple,1},1,...} with index sets:
+    Dimension 1, 1:2
+And data, a 2-element Array{Array{Tuple,1},1}:
+ [(0.0,), (1.0,), (2.0,), (3.0,), (4.0,), (5.0,), (6.0,), (7.0,), (8.0,), (9.0,)  …  (51.0,), (52.0,), (53.0,), (54.0,), (55.0,), (56.0,), (57.0,), (58.0,), (59.0,), (60.0,)]
+ [(0.0,), (1.0,), (2.0,), (3.0,), (4.0,), (5.0,), (6.0,), (7.0,), (8.0,), (9.0,)  …  (51.0,), (52.0,), (53.0,), (54.0,), (55.0,), (56.0,), (57.0,), (58.0,), (59.0,), (60.0,)]
+```
+Please see the [Results](@ref) page for more information. 
+
+## Summary Script 
+The example used in the sections above is summarized in the script below:
+```julia
+using InfiniteOpt, JuMP, Distributions, Ipopt
+
+# DEFINE THE PROBLEM CONSTANTS
+μ = 1; σ = 0.2
+x0 = [0, 0]; v0 = [0, 0]
+p = [1 4 6 1; 1 3 0 1]; tw = [0, 25, 50, 60]
+I = 1:2; W = 1:4
+
+# INITIALIZE THE MODEL
+model = InfiniteModel(Ipopt.Optimizer)
+
+# INITIALIZE THE PARAMETERS
+@finite_parameter(model, ϵ, 10)
+@infinite_parameter(model, t in [0, 60], num_supports = 61, 
+                    derivative_method = OrthogonalCollocation(2))
+@infinite_parameter(model, ξ in Normal(μ, σ^2), num_supports = 10)
+
+# INITIALIZE THE PARAMETERS
+@infinite_variable(model, x[I](t, ξ), start = 0)
+@infinite_variable(model, v[I](t, ξ), start = 0)
+@infinite_variable(model, u[I](t), start = 0)
+@infinite_variable(model, y[W](ξ) >= 0, start = 0)
+
+# SET THE OBJECTIVE
+@objective(model, Min, integral(sum(u[i]^2 for i in I), t))
+
+# SET THE INITIAL CONDITIONS
+@BDconstraint(model, initial1[i in I](t == 0), x[i] == x0[i])
+@BDconstraint(model, initial2[i in I](t == 0), v[i] == v0[i])
+
+# SET THE PROBLEM CONSTRAINTS
+@constraint(model, c1[i in I], @deriv(x[i], t) == v[i])
+@constraint(model, c2[i in I], ξ * @deriv(v[i], t) == u[i])
+@BDconstraint(model, c3[w in W](t == tw[w]), y[w] == sum((x[i] - p[i, w])^2 for i in I))
+@constraint(model, c4, expect(sum(y[w] for w in W), ξ) <= ϵ)
+
+# SOLVE THE MODEL
+optimize!(model)
+
+# GET THE RESULTS
+termination_status(model)
+opt_obj = objective_value(model)
+u_opt = value.(u)
+u_ts = supports.(u)
+```

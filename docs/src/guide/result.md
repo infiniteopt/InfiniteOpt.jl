@@ -41,11 +41,6 @@ Subject to
 
 julia> optimize!(model)
 
-******************************************************************************
-This program contains Ipopt, a library for large-scale nonlinear optimization.
- Ipopt is released as open source code under the Eclipse Public License (EPL).
-         For more information visit http://projects.coin-or.org/Ipopt
-******************************************************************************
 ```
 Now that the model has been optimized, let's find out what happened. To determine
 why the optimizer stopped, we can use
@@ -180,6 +175,13 @@ julia> supports(c1)
 ```
 These again all have a 1-to-1 correspondence.
 
+!!! note
+    In the case that our variables/constraints depend on multiple infinite 
+    parameter it is typically convenient to add the keyword statement 
+    `ndarray = true` when calling any variable/constraint queries (e.g., `value` 
+    and `dual`). This will reformat the output vector into a n-dimensional array 
+    whose dimensions correspond to the supports of the infinite parameters. 
+
 ## Termination Queries
 Termination queries are those that question about how the infinite model was
 solved and what its optimized state entails. Programmatically, such queries on
@@ -240,6 +242,21 @@ optimizer model and using its stored variable mappings to return the correct
 information. Thus, here the queries are extended to work with the specifics of
 the optimizer model to return the appropriate info.
 
+!!! note 
+    1. Like `supports` the all variable based query methods below also employ the 
+       `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+       default will return the desired information associated with public 
+       supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+       is obtained via `label = All`.
+    2. These methods also employ the `ndarray::Bool` keyword argument that will cause the 
+       output to be formatted as a n-dimensional array where the dimensions 
+       correspond to the infinite parameter dependencies. For example, if we have an 
+       infinite variable `y(t, ξ)` and we invoke a query method with `ndarray = true` 
+       then we'll get a matrix whose dimensions correspond to the supports of `t` and 
+       `ξ`, respectively. Also, if `ndarray = true` then `label` correspond to the 
+       intersection of supports labels in contrast to its default of invoking the union 
+       of the labels.
+
 First, we should verify that the optimized model in fact has variable values
 via [`has_values`](@ref JuMP.has_values(::InfiniteModel)). In our example,
 we have:
@@ -255,6 +272,8 @@ appropriate [`map_value`](@ref InfiniteOpt.map_value) defined by the optimizer m
 employs the `map_value` fallback which uses `optimizer_model_variable` to do the
 mapping. Details on how to extend these methods for user-defined optimizer
 models is explained on the Extensions page.
+
+We also, support call to `value` that use an expression of variables as input.
 
 Finally, the optimizer index of a variable is queried via
 [`optimizer_index`](@ref JuMP.optimizer_index(::GeneralVariableRef)) which
@@ -283,6 +302,21 @@ appropriate versions of [`map_optimizer_index`](@ref InfiniteOpt.map_optimizer_i
 
 ## Constraint Queries
 Like variables, a variety of information can be queried about constraints.
+
+!!! note 
+    1. Like `supports` the all constraint query methods below also employ the 
+       `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+       default will return the desired information associated with public 
+       supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+       is obtained via `label = All`.
+    2. These methods also employ the `ndarray::Bool` keyword argument that will cause the 
+       output to be formatted as a n-dimensional array where the dimensions 
+       correspond to the infinite parameter dependencies. For example, if we have an 
+       infinite constraint that depends on `t` and `ξ)` and we invoke a query method 
+       with `ndarray = true` then we'll get a matrix whose dimensions correspond to 
+       the supports of `t` and `ξ`, respectively. Also, if `ndarray = true` then 
+       `label` correspond to the intersection of supports labels in contrast to its 
+       default of invoking the union of the labels.
 
 First, recall that constraints are stored in the form `function-in-set` where
 generally `function` contains the variables and coefficients and the set contains

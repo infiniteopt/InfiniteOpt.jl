@@ -70,7 +70,8 @@ converted into the appropriate affine expression when transcripted.
 !!! warning 
     `InfiniteOpt`'s implementation of finite parameters should not be a reason to 
     use `InfiniteOpt` to model non-infinite-dimensional problems, since the added 
-    overhead will make it slower than just iteratively building `JuMP` models.
+    overhead will make it slower than just iteratively building `JuMP` models. For 
+    this behavior, we recommend looking into using `ParameterJuMP`.
 
 ## Datatypes
 ```@index
