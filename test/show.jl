@@ -454,9 +454,11 @@ using JuMP: REPLMode, IJuliaMode
                                   pars[2] => IntervalSet(1, 1)))
         idx = index(pars[1]).object_index
         str = InfiniteOpt.bound_string(REPLMode, bounds)
-        @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) == str
+        str2 = string(split(str, ", ")[2], ", ", split(str, ", ")[1])
+        @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) in [str, str2]
         str = InfiniteOpt.bound_string(IJuliaMode, bounds)
-        @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) == str
+        str2 = string(split(str, ", ")[2], ", ", split(str, ", ")[1])
+        @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) in [str, str2]
         # other set without equalities and including in the bounds
         bounds = ParameterBounds((pars[1] => IntervalSet(0, 1),))
         str = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
