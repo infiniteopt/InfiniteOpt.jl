@@ -253,8 +253,8 @@ julia> evaluate(dy)
 
 julia> derivative_constraints(dy)
 2-element Array{InfOptConstraintRef,1}:
- y(5) - y(0) - 5 ∂/∂t[y(t)](0) == 0.0
- y(10) - y(5) - 5 ∂/∂t[y(t)](5) == 0.0
+ y(5) - y(0) - 5 ∂/∂t[y(t)](0) = 0.0
+ y(10) - y(5) - 5 ∂/∂t[y(t)](5) = 0.0
 ```
 We implemented explict Euler and it works! Now go and extend away!
 
@@ -304,7 +304,7 @@ create a measure using the measure data, as shown below:
 
 ```jldoctest measure_eval
 julia> tdata = uniform_grid(t, 0, 5, 6)
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], UniqueMeasure{Val{Symbol("##915")}}, InfiniteOpt.default_weight, 0.0, 5.0, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], UniqueMeasure{Val{Symbol("##923")}}, InfiniteOpt.default_weight, 0.0, 5.0, false)
 
 julia> f_meas = measure(f, tdata)
 measure{t ∈ [0, 5]}[f(t)]
