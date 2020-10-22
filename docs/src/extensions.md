@@ -146,6 +146,117 @@ the template in `./InfiniteOpt/test/extensions/infinite_set.jl` to see how this
 is done.
 
 ## Derivative Evaluation Methods 
+Derivative evaluation methods are used to dictate how we form the auxiliary 
+derivative evaluation equations (derivative constraints) when we evaluate 
+derivatives in InfiniteOpt. Users may wish to implement their own methods beyond 
+the finite difference and orthogonal collocation ones we natively provide. Thus, 
+we provide an API to do just this. A complete template is provided in 
+[`./test/extensions/derivative_method.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/derivative_method.jl) 
+to help streamline this process. The extension steps are:
+1. Define the new method struct that inherits from the correct [`AbstractDerivativeMethod`](@ref) subtype
+2. Extend [`InfiniteOpt.support_label`](@ref InfiniteOpt.support_label(::AbstractDerivativeMethod)) 
+   if the method is a [`GenerativeDerivativeMethod`](@ref)
+3. Extend [`InfiniteOpt.generate_derivative_supports`](@ref) if the method is a
+   [`GenerativeDerivativeMethod`](@ref)
+4. Extend [`InfiniteOpt.evaluate_derivative`](@ref).
+
+To exemplify this process let's implement explicit Euler which is already 
+implemented via `FiniteDifference(Forward)`, but let's make our own anyway for 
+the sake of example. For a first order derivative ``\frac{d y(t)}{dt}`` explicit 
+Euler is expressed:
+```math
+y(t_{n+1}) = y(t_n) + (t_{n+1} - t_{n})\frac{d y(t_n)}{dt}, \ \forall n = 0, 1, \dots, k-1
+```
+
+Let's get started with step 1 and define our new method struct:
+```jldoctest deriv_ext; output = false
+using InfiniteOpt, JuMP
+
+struct ExplicitEuler <: NonGenerativeDerivativeMethod end
+
+# output
+
+
+```
+Notice that our method `ExplicitEuler` inherits from [`NonGenerativeDerivativeMethod`](@ref) 
+since explicit Euler uses the existing support scheme without adding any additional 
+supports. If our desired method needed to add additional supports (e.g., 
+orthogonal collocation over finite elements) then we would need to have used 
+[`GenerativeDerivativeMethod`](@ref).
+
+Since, this is a `NonGenerativeDerivativeMethod` we skip steps 2 and 3. These are 
+however exemplified in the extension template.
+
+Now we just need to do step 4 which is to extend 
+[`InfiniteOpt.evaluate_derivative`](@ref). This function generates all the expressions 
+necessary to build the derivative evaluation equations (derivative constraints). 
+We assume these relations to be of the form ``h = 0`` where ``h`` is a vector of 
+expressions and is what the output of `InfiniteOpt.evaluate_derivative` should be.
+Thus, mathematically ``h`` should be of the form:
+```math
+\begin{aligned}
+&&& y(t_{1}) - y(0) - (t_{1} - t_{0})\frac{d y(0)}{dt} \\
+&&& \vdots \\
+&&& y(t_{n+1}) - y(t_n) - (t_{n+1} - t_{n})\frac{d y(t_n)}{dt} \\
+&&& \vdots \\
+&&& y(t_{k}) - y(k-1) - (t_{k} - t_{k-1})\frac{d y(k-1)}{dt} \\
+\end{aligned}
+```
+With this in mind let's now extend `InfiniteOpt.evaluate_derivative`:
+```jldoctest deriv_ext; output = false
+function InfiniteOpt.evaluate_derivative(
+    dref::GeneralVariableRef, 
+    method::ExplicitEuler,
+    write_model::JuMP.AbstractModel
+    )::Vector{JuMP.AbstractJuMPScalar}
+    # get the basic derivative information 
+    vref = derivative_argument(dref)
+    pref = operator_parameter(dref)
+    # make sure internal supports are added to the model
+    InfiniteOpt.add_derivative_supports(pref) # NOTE THIS IS UNNEEDED FOR NONGENERATIVE METHODS
+    # generate the derivative expressions h_i corresponding to the equations of 
+    # the form h_i = 0
+    supps = supports(pref, label = All)
+    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(supps) - 1)
+    for i in eachindex(exprs)
+        d = InfiniteOpt.make_reduced_expr(dref, pref, supps[i], write_model)
+        v1 = InfiniteOpt.make_reduced_expr(vref, pref, supps[i], write_model)
+        v2 = InfiniteOpt.make_reduced_expr(vref, pref, supps[i + 1], write_model)
+        change = supps[i + 1] - supps[i]
+        exprs[i] = JuMP.@expression(write_model, v2 - v1 - change * d)
+    end
+    return exprs
+end
+
+# output
+
+
+```
+Notice that we used [`InfiniteOpt.add_derivative_supports`](@ref) as required 
+for `GenerativeDerivativeMethods`, but is not necessary in this example. We 
+also used [`InfiniteOpt.make_reduced_expr`](@ref) as a convenient helper function 
+to generate the reduced variables/expressions we need to generate at each support 
+point.
+
+Now that we have have completed all the necessary steps, let's try it out! 
+```jldoctest deriv_ext
+julia> model = InfiniteModel();
+
+julia> @infinite_parameter(model, t in [0, 10], num_supports = 3, 
+                           derivative_method = ExplicitEuler());
+
+julia> @infinite_variable(model, y(t));
+
+julia> dy = deriv(y, t);
+
+julia> evaluate(dy)
+
+julia> derivative_constraints(dy)
+2-element Array{InfOptConstraintRef,1}:
+ y(5) - y(0) - 5 ∂/∂t[y(t)](0) == 0.0
+ y(10) - y(5) - 5 ∂/∂t[y(t)](5) == 0.0
+```
+We implemented explict Euler and it works! Now go and extend away!
 
 ## Measure Evaluation Techniques
 Measure evaluation methods are used to dictate how to evaluate measures. Users
