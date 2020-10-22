@@ -316,7 +316,7 @@ for all infinite parameters.
 Forward finite difference (i.e., explicit Euler) is exemplified by approximating first 
 order derivative ``\frac{d y(t)}{dt}`` via 
 ```math
-y(t_{n+1}) = y(t_n) + (t_{n+1} - t_{n})\frac{d y(t_n)}{dt_n}, \ \forall n = 0, 1, \dots, k-1
+y(t_{n+1}) = y(t_n) + (t_{n+1} - t_{n})\frac{d y(t_n)}{dt}, \ \forall n = 0, 1, \dots, k-1
 ```
 Note that in this case, the boundary relation corresponds to ``n = 0`` and would 
 be included if we set `FiniteDifference(Forward, true)` or would excluded if we 
@@ -329,7 +329,7 @@ point derivative will be a free variable.
 Central finite difference is exemplified by approximating the first order derivative 
 ``\frac{d y(t)}{dt}`` via
 ```math 
-y(t_{n+1}) = y(t_{n-1}) + (t_{n+1} - t_{n-1})\frac{d y(t_n)}{dt_n}, \ \forall n = 1, 2, \dots, k-1
+y(t_{n+1}) = y(t_{n-1}) + (t_{n+1} - t_{n-1})\frac{d y(t_n)}{dt}, \ \forall n = 1, 2, \dots, k-1
 ```
 Note that this form cannot be invoked at ``n = 0`` or ``n = k`` and cannot 
 an equation at either boundary. With this in mind the syntax is `FiniteDifference(Central)` 
@@ -341,7 +341,7 @@ Backward finite difference (i.e., implicit euler) is our last (and default)
 finite difference method and is exemplified by approximating the first order 
 derivative ``\frac{d y(t)}{dt}`` via
 ```math
-y(t_{n}) = y(t_{n-1}) + (t_{n} - t_{n-1})\frac{d y(t_{n})}{dt_{n}}, \ \forall n = 1, 2, \dots, k
+y(t_{n}) = y(t_{n-1}) + (t_{n} - t_{n-1})\frac{d y(t_{n})}{dt}, \ \forall n = 1, 2, \dots, k
 ```
 Here the boundary case corresponds to ``n = k`` and would be included if we set 
 `FiniteDifference(Backward, true)` (the default) or excluded if we set the second 

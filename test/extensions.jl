@@ -47,6 +47,33 @@
     @test num_variables(optimizer_model(m)) == 4
 end
 
+# test using the new derivative evaluation method
+@testset "Derivative Method" begin
+    # load in the extension
+    include("./extensions/derivative_method.jl")
+
+    # initialize model and objects
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 10], num_supports = 3)
+    @infinite_variable(m, x(t))
+    d = deriv(x, t)
+
+    # test definition and addition to a parameter
+    @test MyDerivMethod(true) isa MyDerivMethod
+    @test set_derivative_method(t, MyDerivMethod(true)) isa Nothing 
+    @test derivative_method(t) isa MyDerivMethod
+
+    # test preliminaries to evaluation 
+    @test InfiniteOpt.support_label(MyDerivMethod(true)) == InternalLabel
+    @test InfiniteOpt.generate_derivative_supports(dispatch_variable_ref(t), MyDerivMethod(true)) isa Vector{Float64}
+
+    # test evaluation 
+    @test InfiniteOpt.evaluate_derivative(d, MyDerivMethod(true), m) isa Vector 
+    @test evaluate(d) isa Nothing 
+    @test length(derivative_constraints(d)) == 4
+    @test num_constraints(m) == 4
+end
+
 # Test extensions of measure data
 @testset "Measure Data" begin
     # load in the extension
