@@ -53,7 +53,7 @@ julia> @infinite_variable(model, f(x))
 f(x)
 
 julia> meas = expect(f, min_num_supports = 2)
-expect{x}[f(x)]
+𝔼{x}[f(x)]
 
 julia> expand(meas)
 0.5 f(0.6791074260357777) + 0.5 f(0.8284134829000359)
@@ -116,4 +116,32 @@ macro expect(expr, prefs, args...)
     expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
     mref = :( expect($expression, $prefs; ($(kw_args...))) )
     return esc(mref)
+end
+
+"""
+    𝔼(expr::JuMP.AbstractJuMPScalar,
+      prefs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}};
+      [min_num_supports::Int = DefaultNumSupports]
+      )::GeneralVariableRef)
+
+A convenient wrapper for [`expect`](@ref). The unicode symbol `𝔼` is produced by 
+`\\bbE`.
+"""
+function 𝔼(expr::JuMP.AbstractJuMPScalar,
+    prefs::Union{InfiniteOpt.GeneralVariableRef, AbstractArray{InfiniteOpt.GeneralVariableRef}};
+    min_num_supports::Int = InfiniteOpt.DefaultNumSupports
+    )::InfiniteOpt.GeneralVariableRef
+    return expect(expr, prefs, min_num_supports = min_num_supports)
+end
+
+"""
+    @𝔼(expr::JuMP.AbstractJuMPScalar,
+       prefs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef};
+       [min_num_supports::Int = DefaultNumSupports])::GeneralVariableRef
+
+A convenient wrapper for [`@expect`](@ref). The unicode symbol `𝔼` is produced by 
+`\\bbE`.
+"""
+macro 𝔼(expr, prefs, args...)
+    return esc(:( @expect($expr, $prefs, $(args...)) ))
 end

@@ -28,9 +28,13 @@ using JuMP: REPLMode, IJuliaMode
         if Sys.iswindows()
             @test InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) == "and"
             @test InfiniteOpt._infopt_math_symbol(REPLMode, :partial) == "d"
+            @test InfiniteOpt._infopt_math_symbol(REPLMode, :integral) == "integral"
+            @test InfiniteOpt._infopt_math_symbol(REPLMode, :expect) == "E"
         else
             @test InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) == "∩"
             @test InfiniteOpt._infopt_math_symbol(REPLMode, :partial) == "∂"
+            @test InfiniteOpt._infopt_math_symbol(REPLMode, :integral) == "∫"
+            @test InfiniteOpt._infopt_math_symbol(REPLMode, :expect) == "𝔼"
         end
         @test InfiniteOpt._infopt_math_symbol(REPLMode, :times) == "*"
         @test InfiniteOpt._infopt_math_symbol(REPLMode, :prop) == "~"
@@ -43,6 +47,8 @@ using JuMP: REPLMode, IJuliaMode
         @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :partial) == "\\partial"
         @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :open_rng) == "\\left["
         @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :close_rng) == "\\right]"
+        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :integral) == "\\int"
+        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :expect) == "\\mathbb{E}"
     end
     # test _plural
     @testset "_plural" begin
@@ -261,14 +267,19 @@ using JuMP: REPLMode, IJuliaMode
         @test InfiniteOpt.variable_string(REPLMode, meas) == str
         str = "\\text{test}_{pars2 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]^2}\\left[y\\right]"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
-        # test measure toolbox special cases for IJulia
+        # test measure toolbox special cases for integrals and expectations
         @infinite_parameter(m, t in [0, 1])
         meas = dispatch_variable_ref(expect(y, t))
         str = "\\mathbb{E}_{t}\\left[y\\right]"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
+        str = InfiniteOpt._infopt_math_symbol(REPLMode, :expect) * "{t}[y]"
+        @test InfiniteOpt.variable_string(REPLMode, meas) == str
         meas = dispatch_variable_ref(integral(y, t))
         str = "\\int_{t " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]}ydt"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
+        int = InfiniteOpt._infopt_math_symbol(REPLMode, :integral)
+        str = int * "{t " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]}[y]"
+        @test InfiniteOpt.variable_string(REPLMode, meas) == str
         meas = dispatch_variable_ref(integral(y, par1))
         str = "\\int_{par1 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]}yd(par1)"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
@@ -454,9 +465,11 @@ using JuMP: REPLMode, IJuliaMode
                                   pars[2] => IntervalSet(1, 1)))
         idx = index(pars[1]).object_index
         str = InfiniteOpt.bound_string(REPLMode, bounds)
-        @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) == str
+        str2 = string(split(str, ", ")[2], ", ", split(str, ", ")[1])
+        @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) in [str, str2]
         str = InfiniteOpt.bound_string(IJuliaMode, bounds)
-        @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) == str
+        str2 = string(split(str, ", ")[2], ", ", split(str, ", ")[1])
+        @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) in [str, str2]
         # other set without equalities and including in the bounds
         bounds = ParameterBounds((pars[1] => IntervalSet(0, 1),))
         str = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *

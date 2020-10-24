@@ -391,6 +391,20 @@ end
         @test deriv(pref^2, pref, pref, pref) == 0
         @test deriv(42, pref, pref) == 0
     end
+    # test "∂"
+    @testset "∂" begin
+        # test errors
+        @test_throws ErrorException ∂(x, pref, fin)
+        @test_throws ErrorException ∂(x)
+        # test normal 
+        gvref = GeneralVariableRef(m, 1, DerivativeIndex)
+        @test ∂(x, pref) == gvref 
+        @test ∂(pref, pref) == 1 
+        @test ∂(x^2 + pref, pref) == 2 * gvref * x + 1
+        @test ∂(pref^2, pref, pref) == 2
+        @test ∂(pref^2, pref, pref, pref) == 0
+        @test ∂(42, pref, pref) == 0
+    end
     # test "@deriv"
     @testset "@deriv" begin
         # test errors
@@ -416,6 +430,22 @@ end
         @test InfiniteOpt._add_data_object(m, data) isa MeasureIndex
         mref = GeneralVariableRef(m, 1, MeasureIndex)
         @test @deriv(mref, prefs[2]) isa GeneralVariableRef
+    end
+    # test "@∂"
+    @testset "@∂" begin
+        # test errors
+        @test_throws ErrorException @∂(x, pref, fin)
+        @test_throws ErrorException @∂(x)
+        # test normal 
+        gvref = GeneralVariableRef(m, 1, DerivativeIndex)
+        gvref2 = GeneralVariableRef(m, 5, DerivativeIndex)
+        @test @∂(x, pref) == gvref 
+        @test @∂(pref, pref) == 1 
+        @test @∂(x^2, pref^2) == 2 * gvref2 * x + 2gvref^2
+        @test @∂(pref^2, pref^2) == 2
+        @test @∂(pref^2, pref^3) == 0
+        @test @∂(42, pref^1) == 0
+        @test @∂(x, pref^2, prefs[2]) isa GeneralVariableRef
     end
 end
 

@@ -45,14 +45,18 @@ julia> d1 = @deriv(y, t)
 julia> d2 = @deriv(y, t, ξ)
 ∂/∂ξ[∂/∂t[y(t, ξ)]]
 
-julia> d3 = @deriv(q, t^2)
+julia> d3 = @∂(q, t^2)
 ∂/∂t[∂/∂t[q(t)]]
 
 julia> d_expr = @deriv(y * q - 2t, t)
 ∂/∂t[y(t, ξ)]*q(t) + ∂/∂t[q(t)]*y(t, ξ) - 2
 ```
 Thus, we can define derivatives in a variety of forms according to the problem at 
-hand. The last example even shows hwo the product rule is correctly applied. 
+hand. The last example even shows how the product rule is correctly applied. 
+
+!!! note 
+    For convenience in making more compact code we provide [`∂`](@ref) and 
+    [`@∂`](@ref) as wrappers for [`deriv`](@ref) and [`@deriv`](@ref), respectively.
 
 Also, notice that the appropriate analytic calculus is applied to infinite 
 parameters. For example, we could also compute:
@@ -173,7 +177,7 @@ dydt2(t, ξ)
 This will also support anonymous definition and multi-dimensional definition,  
 please refer to [`@derivative_variable`](@ref) in the manual for the full details.
 
-Second, for more convenient definition we use [`@deriv`](@ref) as shown in the 
+Second, for more convenient definition we use [`@deriv`](@ref) (or [`@∂`](@ref)) as shown in the 
 Basic Usage section above. Unlike `@derivative_variable` this can handle any 
 `InfiniteOpt` expression as the argument input and will automatically take care of 
 any redundant derivative creation by using the existing derivatives as appropriate. 
@@ -193,8 +197,8 @@ Notice that no error is thrown (which would have occurred if we called
 same derivative object we defined up above with its alias name `dydt2`. This macro 
 can also tackle complex expressions using the appropriate calculus such as:
 ```jldoctest deriv_basic 
-julia> @deriv(integral(y, ξ) * q, t)
-∂/∂t[integral{ξ ∈ [-1, 1]}[y(t, ξ)]]*q(t) + ∂/∂t[q(t)]*integral{ξ ∈ [-1, 1]}[y(t, ξ)]
+julia> @deriv(∫(y, ξ) * q, t)
+∂/∂t[∫{ξ ∈ [-1, 1]}[y(t, ξ)]]*q(t) + ∂/∂t[q(t)]*∫{ξ ∈ [-1, 1]}[y(t, ξ)]
 ```
 Thus, demonstrating the convenience of using `@deriv`.
 
@@ -521,7 +525,7 @@ julia> all_derivatives(model)
  ∂/∂t[∂/∂t[q(t)]]
  ∂/∂ξ[y(t, ξ)]
  dydt2(t, ξ)
- ∂/∂t[integral{ξ ∈ [-1, 1]}[y(t, ξ)]]
+ ∂/∂t[∫{ξ ∈ [-1, 1]}[y(t, ξ)]]
 ```
 
 ## Modification Methods 
@@ -606,7 +610,9 @@ Order   = [:macro, :function]
 ```
 ```@docs
 @deriv
+@∂
 deriv
+∂
 @derivative_variable
 build_derivative
 add_derivative

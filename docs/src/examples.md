@@ -96,7 +96,7 @@ set_optimizer_attribute(model, "print_level", 0)
 
 # Define the objective
 @objective(model, Min, sum(α[c] * x[c] for c in C) +
-           expect(sum(β[c] * y[c] - λ[c] * w[c] for c in C), ξ))
+           𝔼(sum(β[c] * y[c] - λ[c] * w[c] for c in C), ξ))
 
 # Define the constraints
 @constraint(model, capacity, sum(x[c] for c in C) <= xbar)
@@ -152,7 +152,7 @@ resolve our `InfiniteOpt` model using ``\epsilon = 0.95``:
 @infinite_variable(model, q(ξ) >= 0)
 
 # Redefine the objective
-@objective(model, Min, sum(α[c] * x[c] for c in C) + t + 1 \ (1 - 0.95) * expect(q, ξ))
+@objective(model, Min, sum(α[c] * x[c] for c in C) + t + 1 \ (1 - 0.95) * 𝔼(q, ξ))
 
 # Add the max constraint
 @constraint(model, max, q >= sum(β[c] * y[c] - λ[c] * w[c] for c in C) - t)
@@ -215,14 +215,14 @@ m = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0)
 @infinite_variable(m, u[1:2](t), start = 0) # thruster input
 
 # Specify the objective
-@objective(m, Min, integral(u[1]^2 + u[2]^2, t))
+@objective(m, Min, ∫(u[1]^2 + u[2]^2, t))
 
 # Set the initial conditions
 @BDconstraint(m, initial_velocity[i = 1:2](t == 0), v[i] == 0)
 
 # Define the point physics
-@constraint(m, [i = 1:2], deriv(x[i], t) == v[i])
-@constraint(m, [i = 1:2], deriv(v[i], t) == u[i])
+@constraint(m, [i = 1:2], ∂(x[i], t) == v[i])
+@constraint(m, [i = 1:2], ∂(v[i], t) == u[i])
 
 # Hit all the waypoints
 @BDconstraint(m, [i = 1:2, j = eachindex(tw)](t == tw[j]), x[i] == xw[i, j])

@@ -128,6 +128,13 @@ end
         @test_throws ErrorException integral(inf1, t, 3, 1)
         @test name(integral(inf1, t)) == "integral"
     end
+    @testset "∫" begin
+        @test InfiniteOpt._index_type(∫(inf1, t)) == MeasureIndex
+        @test_throws ErrorException ∫(inf1, t, -1, 1)
+        @test_throws ErrorException ∫(inf1, t, 9, 11)
+        @test_throws ErrorException ∫(inf1, t, 3, 1)
+        @test name(∫(inf1, t)) == "integral"
+    end
 end
 
 @testset "Multivariate Integrals" begin
@@ -159,6 +166,17 @@ end
         @test_throws ErrorException integral(inf1, x, 9, 11)
         @test name(integral(inf1, x)) == "integral"
     end
+    @testset "∫" begin
+        @test InfiniteOpt._index_type(∫(inf1, x)) == MeasureIndex
+        @test InfiniteOpt._index_type(∫(inf2, xi)) == MeasureIndex
+        @test InfiniteOpt._index_type(∫(inf1, x, 1, 2)) == MeasureIndex
+        @test InfiniteOpt._index_type(∫(inf2, xi, 1, 2)) == MeasureIndex
+        @test_throws ErrorException ∫(inf3, y, [0, 0], [1, 1])
+        @test_throws ErrorException ∫(inf1, x, 3, 1)
+        @test_throws ErrorException ∫(inf1, x, -1, 1)
+        @test_throws ErrorException ∫(inf1, x, 9, 11)
+        @test name(∫(inf1, x)) == "integral"
+    end
 end
 
 @testset "Macro" begin
@@ -174,5 +192,13 @@ end
         @test InfiniteOpt._index_type(@integral(inf1, t, 3, 7)) == MeasureIndex
         @test InfiniteOpt._index_type(@integral(inf2, x, [0, 2], [3, 5])) == MeasureIndex
         @test_macro_throws ErrorException @integral(inf1, t, 1)
+    end
+    @testset "@∫" begin
+        @test InfiniteOpt._index_type(@∫(inf1, t)) == MeasureIndex
+        @test InfiniteOpt._index_type(@∫(inf2, x)) == MeasureIndex
+        @test InfiniteOpt._index_type(@∫(inf2, t)) == MeasureIndex
+        @test InfiniteOpt._index_type(@∫(inf1, t, 3, 7)) == MeasureIndex
+        @test InfiniteOpt._index_type(@∫(inf2, x, [0, 2], [3, 5])) == MeasureIndex
+        @test_macro_throws ErrorException @∫(inf1, t, 1)
     end
 end
