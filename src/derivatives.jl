@@ -410,6 +410,27 @@ macro deriv(expr, args...)
     return esc(code)
 end
 
+"""
+    ∂(expr::JuMP.AbstractJuMPScalar, pref1::GeneralVariableRef[, ....]
+      )::Union{JuMP.AbstractJuMPScalar, Float64}
+
+This serves as a convenient unicode wrapper for [`deriv`](@ref). The `∂` is 
+produced via `\\partial`.
+"""
+function ∂(expr, prefs::GeneralVariableRef...)::Union{JuMP.AbstractJuMPScalar, Float64}
+    return deriv(expr, prefs...)
+end
+
+"""
+    @∂(expr, pref_expr1[, ...])::Union{JuMP.AbstractJuMPScalar, Float64}
+
+This serves as a convenient unicode wrapper for [`@deriv`](@ref). The `∂` is 
+produced via `\\partial`.
+"""
+macro ∂(expr, args...)
+    return esc(:( @deriv($expr, $(args...)) ))
+end
+
 ################################################################################
 #                           PARAMETER REFERENCES
 ################################################################################

@@ -28,8 +28,8 @@ julia> @hold_variable(model, x[1:2])
  x[1]
  x[2]
 
-julia> @objective(model, Min, 0.5x[1] + 0.5x[2] + expect(y^2 - y, ξ))
-0.5 x[1] + 0.5 x[2] + expect{ξ}[y(ξ)² - y(ξ)]
+julia> @objective(model, Min, 0.5x[1] + 0.5x[2] + 𝔼(y^2 - y, ξ))
+0.5 x[1] + 0.5 x[2] + 𝔼{ξ}[y(ξ)² - y(ξ)]
 ```
 Thus, we have defined an objective using `InfiniteOpt`'s straightforward syntax.
 Note that the second argument indicates the objective sense which can be
@@ -38,9 +38,9 @@ The objective function (expression) must be finite containing only hold variable
 point variables, and/or measures. Also, any included measures must fully
 integrate over all the infinite parameters contained in its input function.
 For example, if we define had an infinite variable `z(ξ, t)` then the measure
-`expect(z, ξ)` could not be included since the resulting expression would still
+`𝔼(z, ξ)` could not be included since the resulting expression would still
 be infinite with respect to `t`. However, adding a measure for `t` would result
-in a valid object to add to an objective: `integral(expect(z, ξ), t)`.
+in a valid object to add to an objective: `∫(𝔼(z, ξ), t)`.
 
 Now we can add objectives to our infinite models. For more detailed information,
 please review the information below.  
@@ -63,7 +63,7 @@ julia> objective_sense(model)
 MIN_SENSE::OptimizationSense = 0
 
 julia> objective_function(model)
-0.5 x[1] + 0.5 x[2] + expect{ξ}[y(ξ)² - y(ξ)]
+0.5 x[1] + 0.5 x[2] + 𝔼{ξ}[y(ξ)² - y(ξ)]
 
 julia> objective_function_type(model)
 GenericAffExpr{Float64,GeneralVariableRef}
@@ -86,7 +86,7 @@ example from 0.5 to 0.25:
 julia> set_objective_coefficient(model, x[1], 0.25)
 
 julia> objective_function(model)
-0.25 x[1] + 0.5 x[2] + expect{ξ}[y(ξ)² - y(ξ)]
+0.25 x[1] + 0.5 x[2] + 𝔼{ξ}[y(ξ)² - y(ξ)]
 ```
 
 Now let's consider the modification methods that enable the [`@objective`](@ref)
