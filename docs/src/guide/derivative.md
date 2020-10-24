@@ -197,8 +197,8 @@ Notice that no error is thrown (which would have occurred if we called
 same derivative object we defined up above with its alias name `dydt2`. This macro 
 can also tackle complex expressions using the appropriate calculus such as:
 ```jldoctest deriv_basic 
-julia> @deriv(integral(y, ξ) * q, t)
-∂/∂t[integral{ξ ∈ [-1, 1]}[y(t, ξ)]]*q(t) + ∂/∂t[q(t)]*integral{ξ ∈ [-1, 1]}[y(t, ξ)]
+julia> @deriv(∫(y, ξ) * q, t)
+∂/∂t[∫{ξ ∈ [-1, 1]}[y(t, ξ)]]*q(t) + ∂/∂t[q(t)]*∫{ξ ∈ [-1, 1]}[y(t, ξ)]
 ```
 Thus, demonstrating the convenience of using `@deriv`.
 
@@ -525,7 +525,7 @@ julia> all_derivatives(model)
  ∂/∂t[∂/∂t[q(t)]]
  ∂/∂ξ[y(t, ξ)]
  dydt2(t, ξ)
- ∂/∂t[integral{ξ ∈ [-1, 1]}[y(t, ξ)]]
+ ∂/∂t[∫{ξ ∈ [-1, 1]}[y(t, ξ)]]
 ```
 
 ## Modification Methods 

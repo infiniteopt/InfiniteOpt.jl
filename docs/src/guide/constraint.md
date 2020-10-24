@@ -285,7 +285,7 @@ julia> index(measure_constr) # get the constraint's index
 ConstraintIndex(4)
 
 julia> constraint_object(measure_constr) # get the raw constraint datatype
-ScalarConstraint{GenericAffExpr{Float64,GeneralVariableRef},MathOptInterface.EqualTo{Float64}}(integral{t ∈ [0, 10]}[g(t)], MathOptInterface.EqualTo{Float64}(4.0))
+ScalarConstraint{GenericAffExpr{Float64,GeneralVariableRef},MathOptInterface.EqualTo{Float64}}(∫{t ∈ [0, 10]}[g(t)], MathOptInterface.EqualTo{Float64}(4.0))
 ```
 
 Also, [`constraint_by_name`](@ref JuMP.constraint_by_name(::InfiniteModel, ::String))
