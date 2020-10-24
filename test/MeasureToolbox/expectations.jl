@@ -34,6 +34,7 @@ end
            "dependent parameters."
     @test_logs (:warn, warn) expect(inf, xi[1], min_num_supports = 3)
     @test !InfiniteOpt._is_expect(InfiniteOpt._core_variable_object(expect(inf, y)).data)
+    @test 𝔼(inf, x) isa GeneralVariableRef
 end
 
 @testset "Macro" begin
@@ -46,4 +47,5 @@ end
     @test InfiniteOpt._index_type(@expect(inf, xi, min_num_supports = 20)) == MeasureIndex
     @test_macro_throws ErrorException @expect(inf, x, 1)
     @test_macro_throws ErrorException @expect(inf, x, bob = 35)
+    @test @𝔼(inf, x) isa GeneralVariableRef
 end

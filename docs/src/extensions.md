@@ -368,7 +368,7 @@ independent in order to throw a warning when needed.
 We create measure for `f` and `g` using the `uniform_grid` method
 ```jldoctest measure_eval
 julia> f_int = integral(f, t, num_supports = 6, eval_method = UnifGrid)
-integral{t ∈ [0, 5]}[f(t)]
+∫{t ∈ [0, 5]}[f(t)]
 
 julia> expand(f_int)
 0.8333333333333333 f(0) + 0.8333333333333333 f(1) + 0.8333333333333333 f(2) + 0.8333333333333333 f(3) + 0.8333333333333333 f(4) + 0.8333333333333333 f(5)
@@ -682,7 +682,7 @@ build our `InfiniteModel` as normal, for example:
 print(model)
 
 # output
-Min x + expect{ξ}[y[1](ξ) + y[2](ξ)]
+Min x + 𝔼{ξ}[y[1](ξ) + y[2](ξ)]
 Subject to
  y[1](ξ) ≥ 0.0, ∀ ξ ~ Uniform
  y[2](ξ) ≥ 0.0, ∀ ξ ~ Uniform

@@ -9,6 +9,10 @@ function _infopt_math_symbol(::Type{JuMP.REPLMode}, name::Symbol)::String
         return "~"
     elseif name == :partial 
         return Sys.iswindows() ? "d" : "∂"
+    elseif name == :expect 
+        return Sys.iswindows() ? "E" : "𝔼"
+    elseif name == :integral 
+        return Sys.iswindows() ? "integral" : "∫"
     else
         return JuMP._math_symbol(JuMP.REPLMode, name)
     end
@@ -26,6 +30,10 @@ function _infopt_math_symbol(::Type{JuMP.IJuliaMode}, name::Symbol)::String
         return "\\left["
     elseif name == :close_rng 
         return "\\right]"
+    elseif name == :expect 
+        return "\\mathbb{E}"
+    elseif name == :integral 
+        return "\\int"
     else
         return JuMP._math_symbol(JuMP.IJuliaMode, name)
     end
@@ -202,11 +210,17 @@ function measure_data_string(print_mode, data::AbstractMeasureData)::String
 end
 
 # Make strings to represent measures in REPLMode
-function variable_string(::Type{JuMP.REPLMode}, mref::MeasureRef)::String
+function variable_string(m::Type{JuMP.REPLMode}, mref::MeasureRef)::String
     data = measure_data(mref)
-    data_str = measure_data_string(JuMP.REPLMode, data)
-    func_str = JuMP.function_string(JuMP.REPLMode, measure_function(mref))
-    return string(JuMP.name(mref), "{", data_str, "}[", func_str, "]")
+    data_str = measure_data_string(m, data)
+    func_str = JuMP.function_string(m, measure_function(mref))
+    name = JuMP.name(mref)
+    if name == "integral"
+        name = _infopt_math_symbol(m, :integral)
+    elseif name == "expect"
+        name = _infopt_math_symbol(m, :expect)
+    end
+    return string(name, "{", data_str, "}[", func_str, "]")
 end
 
 # Make strings to represent measures in IJuliaMode
