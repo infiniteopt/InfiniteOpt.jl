@@ -320,8 +320,8 @@ end
 #                                 REDUCED COST
 ################################################################################
 
-function map_reduced_cost(vref::GeneralVariableRef, key)
-    opt_vref = optimizer_model_variable(vref, key)
+function map_reduced_cost(vref::GeneralVariableRef, key; kwargs...)
+    opt_vref = optimizer_model_variable(vref, key; kwargs...)
     if opt_vref isa AbstractArray
         return map(v -> JuMP.reduced_cost(v), opt_vref)
     else
@@ -341,8 +341,8 @@ julia> reduced_cost(x)
 
 ```
 """
-function JuMP.reduced_cost(vref::GeneralVariableRef)
-    return map_reduced_cost(vref, Val(optimizer_model_key(JuMP.owner_model(vref))))
+function JuMP.reduced_cost(vref::GeneralVariableRef; kwargs...)
+    return map_reduced_cost(vref, Val(optimizer_model_key(JuMP.owner_model(vref))); kwargs...)
 end
 
 
