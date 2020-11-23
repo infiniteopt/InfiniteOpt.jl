@@ -35,7 +35,7 @@ We can construct a measure to represent this integral using the
 [`integral`](@ref) function
 ```jldoctest meas_basic
 julia> mref1 = integral(y^2 + u^2, t, 2, 8)
-integral{t ∈ [2, 8]}[y(t)² + u(t)²]
+∫{t ∈ [2, 8]}[y(t)² + u(t)²]
 ```
 The four positional arguments of [`integral`](@ref) are the integrand expression, 
 the parameter of integration, the lower bound, and the upper bound, respectively. 
@@ -49,16 +49,17 @@ use quadrature methods for univariate parameters in all `IntervalSet`s by settin
 the keyword argument `eval_method` as `Quadrature`:
 ```jldoctest meas_basic
 julia> mref2 = integral(y^2 + u^2, t, eval_method = Quadrature)
-integral{t ∈ [0, 10]}[y(t)² + u(t)²]
+∫{t ∈ [0, 10]}[y(t)² + u(t)²]
 ```
 
 The `integral` function also allows for specifying the number of points for the
 discretization scheme using the keyword argument `num_supports`. The default
 value of `num_supports` is 10.
 ```jldoctest meas_basic
-julia> mref3 = integral(y^2 + u^2, t, num_supports = 20)
-integral{t ∈ [0, 10]}[y(t)² + u(t)²]
+julia> mref3 = ∫(y^2 + u^2, t, num_supports = 20)
+∫{t ∈ [0, 10]}[y(t)² + u(t)²]
 ```
+Notice here how we used [`∫`](@ref) in place of `integral` as a convenient wrapper.
 
 Two other explicit measure type methods include [`expect`](@ref) for expectations 
 and [`support_sum`](@ref) for summing an expression over the support points of 
@@ -73,14 +74,19 @@ julia> @infinite_parameter(m, ξ in Normal(), num_supports = 100);
 julia> @infinite_variable(m, x(ξ));
 
 julia> expect_x = expect(x^2, ξ)
-expect{ξ}[x(ξ)²]
+𝔼{ξ}[x(ξ)²]
 ```
 
 !!! note
     For integrals, expectations, and support sums involving moderate to large 
     expressions, the macro versions [`@integral`](@ref), [`@expect`](@ref), and 
     [`@support_sum`](@ref) should be used instead of their functional equivalents 
-    for better performance. 
+    for better performance.
+
+!!! note 
+    For convenience in compact representation we can use [`∫`](@ref), [`@∫`](@ref), 
+    [`𝔼`](@ref), and [`@𝔼`](@ref) as wrappers for [`integral`](@ref), 
+    [`@integral`](@ref), [`expect`](@ref), and [`@expect`](@ref), respectively.
 
 Other measure paradigms can be implemented via [`measure`](@ref) as described in 
 the sections further below.
@@ -499,10 +505,15 @@ Order   = [:macro, :function]
 ```
 ```@docs
 InfiniteOpt.MeasureToolbox.@integral
+InfiniteOpt.MeasureToolbox.@∫
 InfiniteOpt.MeasureToolbox.integral(::JuMP.AbstractJuMPScalar,::InfiniteOpt.GeneralVariableRef,::Real,::Real)
 InfiniteOpt.MeasureToolbox.integral(::JuMP.AbstractJuMPScalar,::AbstractArray{InfiniteOpt.GeneralVariableRef},::Union{Real, AbstractArray{<:Real}},::Union{Real, AbstractArray{<:Real}})
+InfiniteOpt.MeasureToolbox.∫(::JuMP.AbstractJuMPScalar,::InfiniteOpt.GeneralVariableRef,::Real,::Real)
+InfiniteOpt.MeasureToolbox.∫(::JuMP.AbstractJuMPScalar,::AbstractArray{InfiniteOpt.GeneralVariableRef},::Union{Real, AbstractArray{<:Real}},::Union{Real, AbstractArray{<:Real}})
 InfiniteOpt.MeasureToolbox.@expect
+InfiniteOpt.MeasureToolbox.@𝔼
 InfiniteOpt.MeasureToolbox.expect
+InfiniteOpt.MeasureToolbox.𝔼
 InfiniteOpt.MeasureToolbox.@support_sum
 InfiniteOpt.MeasureToolbox.support_sum
 InfiniteOpt.MeasureToolbox.uni_integral_defaults

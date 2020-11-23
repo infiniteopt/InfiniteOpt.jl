@@ -563,7 +563,7 @@ julia> @infinite_variable(model, f(x))
 f(x)
 
 julia> int = integral(f, x)
-integral{x ∈ [0, 1]}[f(x)]
+∫{x ∈ [0, 1]}[f(x)]
 
 julia> expand(int)
 0.2 f(0.8236475079774124) + 0.2 f(0.9103565379264364) + 0.2 f(0.16456579813368521) + 0.2 f(0.17732884646626457) + 0.2 f(0.278880109331201)
@@ -597,6 +597,24 @@ function integral(expr::JuMP.AbstractJuMPScalar,
                                   eval_method; processed_kwargs...)
     # make the measure
     return InfiniteOpt.measure(expr, data, name = "integral")
+end
+
+"""
+    ∫(expr::JuMP.AbstractJuMPScalar,
+      pref::GeneralVariableRef,
+      [lower_bound::Real = NaN,
+      upper_bound::Real = NaN;
+      kwargs...])::GeneralVariableRef
+
+A convenient wrapper for [`integral`](@ref). The `∫` unicode symbol is produced 
+via `\\int`.
+"""
+function ∫(expr::JuMP.AbstractJuMPScalar,
+           pref::InfiniteOpt.GeneralVariableRef,
+           lower_bound::Real = NaN,
+           upper_bound::Real = NaN;
+           kwargs...)::InfiniteOpt.GeneralVariableRef
+    return integral(expr, pref, lower_bound, upper_bound; kwargs...)
 end
 
 ################################################################################
@@ -693,7 +711,7 @@ julia> @infinite_parameter(model, x[1:2] in [0, 1], independent = true);
 julia> @infinite_variable(model, f(x));
 
 julia> int = integral(f, x)
-integral{x ∈ [0, 1]^2}[f(x)]
+∫{x ∈ [0, 1]^2}[f(x)]
 ```
 """
 function integral(expr::JuMP.AbstractJuMPScalar,
@@ -744,6 +762,24 @@ function integral(expr::JuMP.AbstractJuMPScalar,
 end
 
 """
+    ∫(expr::JuMP.AbstractJuMPScalar,
+      prefs::AbstractArray{GeneralVariableRef},
+      [lower_bounds::Union{Real, AbstractArray{<:Real}} = NaN,
+      upper_bounds::Union{Real, AbstractArray{<:Real}} = NaN;
+      kwargs...])::GeneralVariableRef
+
+A convenient wrapper for [`integral`](@ref). The unicode symbol `∫` is produced 
+via `\\int`.
+"""
+function ∫(expr::JuMP.AbstractJuMPScalar,
+           prefs::AbstractArray{InfiniteOpt.GeneralVariableRef},
+           lower_bounds::Union{Real, AbstractArray{<:Real}} = NaN,
+           upper_bounds::Union{Real, AbstractArray{<:Real}} = NaN;
+           kwargs...)::InfiniteOpt.GeneralVariableRef
+    return integral(expr, prefs, lower_bounds, upper_bounds; kwargs...)
+end
+
+"""
     @integral(expr::JuMP.AbstractJuMPScalar,
               prefs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}},
               [lower_bounds::Union{Real, AbstractArray{<:Real}} = default_bounds,
@@ -765,6 +801,20 @@ macro integral(expr, prefs, args...)
     expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
     mref = :( integral($expression, $prefs, $(extra...); ($(kw_args...))) )
     return esc(mref)
+end
+
+"""
+    @∫(expr::JuMP.AbstractJuMPScalar,
+       prefs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}},
+       [lower_bounds::Union{Real, AbstractArray{<:Real}} = default_bounds,
+       upper_bounds::Union{Real, AbstractArray{<:Real}} = default_bounds;
+       kwargs...])::GeneralVariableRef
+
+A convenient wrapper for [`@integral`](@ref). The unicode symbol `∫` is produced 
+via `\\int`.
+"""
+macro ∫(expr, prefs, args...)
+    return esc(:( @integral($expr, $prefs, $(args...)) ))
 end
 
 ################################################################################

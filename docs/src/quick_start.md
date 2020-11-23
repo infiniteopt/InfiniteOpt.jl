@@ -152,7 +152,7 @@ Now that the variables and parameters are ready to go, let's define our problem.
 First, we can define the objective using [`@objective`](@ref):
  ```jldoctest quick
 julia> @objective(model, Min, integral(sum(u[i]^2 for i in I), t))
-integral{t ∈ [0, 60]}[u[1](t)² + u[2](t)²]
+∫{t ∈ [0, 60]}[u[1](t)² + u[2](t)²]
 ```
 Notice that we also employ [`integral`](@ref) to define the integral. Note that 
 objectives must evaluate over all included infinite domains. 
@@ -209,7 +209,7 @@ And data, a 4-element Array{InfOptConstraintRef,1}:
  c3[4] : -x[1](t, ξ)² - x[2](t, ξ)² + y[4](ξ) + 2 x[1](t, ξ) + 2 x[2](t, ξ) = 2.0, ∀ t = 60, ξ ~ Normal
 
 julia> @constraint(model, c4, expect(sum(y[w] for w in W), ξ) <= ϵ)
-c4 : expect{ξ}[y[1](ξ) + y[2](ξ) + y[3](ξ) + y[4](ξ)] - ϵ ≤ 0.0
+c4 : 𝔼{ξ}[y[1](ξ) + y[2](ξ) + y[3](ξ) + y[4](ξ)] - ϵ ≤ 0.0
 ```
 Notice we are able to invoke an expectation simply by calling [`expect`](@ref).
 

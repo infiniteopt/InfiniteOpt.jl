@@ -1266,7 +1266,7 @@ changes are made to the affected variables in the meantime.
 julia> undo_relax = relax_integrality(model);
 
 julia> print(model)
-Min x + integral{t ∈ [0, 10]}(y(t))
+Min x + ∫{t ∈ [0, 10]}(y(t))
 Subject to
  x ≥ 0.0
  y(t) ≥ 1.0
@@ -1276,7 +1276,7 @@ Subject to
 julia> undo_relax()
 
 julia> print(model)
-Min x + integral{t ∈ [0, 10]}(y(t))
+Min x + ∫{t ∈ [0, 10]}(y(t))
 Subject to
  y(t) ≥ 1.0
  y(t) ≤ 10.0
