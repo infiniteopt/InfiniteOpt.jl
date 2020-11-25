@@ -271,6 +271,35 @@ function transcription_variable(model::JuMP.Model,
     end
 end
 
+# ParameterFunctionIndex
+function transcription_variable(model::JuMP.Model,
+    fref::InfiniteOpt.GeneralVariableRef,
+    index_type::Type{InfiniteOpt.ParameterFunctionIndex},
+    label::Type{<:InfiniteOpt.AbstractSupportLabel},
+    ndarray::Bool
+    )
+    # get the object numbers of the expression and form the support iterator
+    obj_nums = InfiniteOpt._object_numbers(fref)
+    support_indices = support_index_iterator(model, obj_nums)
+    vals = Vector{Float64}(undef, length(support_indices))
+    check_labels = length(vals) > 1 && !_ignore_label(model, label)
+    label_inds = ones(Bool, length(vals))
+    # iterate over the indices and compute the values
+    for (i, idx) in enumerate(support_indices)
+        supp = index_to_support(model, idx)
+        if check_labels && !any(l -> l <: label, index_to_labels(model, idx))
+            @inbounds label_inds[i] = false
+        end
+        @inbounds vals[i] = transcription_expression(model, fref, supp)
+    end
+    # return the values
+    if ndarray
+        return make_ndarray(model, fref, vals, label)
+    else
+        return vals[label_inds]
+    end
+end
+
 # Fallback
 function transcription_variable(model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
@@ -350,6 +379,35 @@ function InfiniteOpt.variable_supports(model::JuMP.Model,
     end
 end
 
+# ParameterFunctionRef 
+function InfiniteOpt.variable_supports(model::JuMP.Model,
+    dvref::InfiniteOpt.ParameterFunctionRef,
+    key::Val{:TransData} = Val(:TransData);
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
+    ndarray::Bool = false
+    )::Array
+    # get the object numbers of the expression and form the support iterator
+    obj_nums = sort(InfiniteOpt._object_numbers(dvref))
+    support_indices = support_index_iterator(model, obj_nums)
+    supps = Vector{Tuple}(undef, length(support_indices))
+    check_labels = length(supps) > 1 && !_ignore_label(model, label)
+    param_supps = parameter_supports(model)
+    label_inds = ones(Bool, length(supps))
+    # iterate over the indices and compute the values
+    for (i, idx) in enumerate(support_indices)
+        if check_labels && !any(l -> l <: label, index_to_labels(model, idx))
+            @inbounds label_inds[i] = false
+        end
+        @inbounds supps[i] = Tuple(param_supps[j][idx[j]] for j in obj_nums)
+    end
+    # return the supports
+    if ndarray
+        return make_ndarray(model, dvref, supps, label)
+    else
+        return supps[label_inds]
+    end
+end
+
 """
     lookup_by_support(model::JuMP.Model,
                       vref::InfiniteOpt.GeneralVariableRef,
@@ -382,6 +440,17 @@ function lookup_by_support(model::JuMP.Model,
     end
     idx = get(_supp_error, transcription_data(model).infvar_lookup[vref], support)
     return transcription_data(model).infvar_mappings[vref][idx]
+end
+
+# ParameterFunctionIndex
+function lookup_by_support(model::JuMP.Model,
+    fref::InfiniteOpt.GeneralVariableRef,
+    index_type::Type{InfiniteOpt.ParameterFunctionIndex},
+    support::Vector
+    )
+    prefs = InfiniteOpt.raw_parameter_refs(fref)
+    func = InfiniteOpt.raw_function(fref)
+    return func(Tuple(support, prefs)...)
 end
 
 # FiniteVariableIndex

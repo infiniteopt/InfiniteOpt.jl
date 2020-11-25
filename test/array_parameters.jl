@@ -472,6 +472,13 @@ end
         @test InfiniteOpt._infinite_variable_dependencies(gvrefs[1]) == data.infinite_var_indices
         @test_throws ErrorException InfiniteOpt._infinite_variable_dependencies(bad_pref)
     end
+    # test _parameter_function_dependencies
+    @testset "_parameter_function_dependencies" begin
+        @test InfiniteOpt._parameter_function_dependencies(prefs[1]) == data.parameter_func_indices
+        @test InfiniteOpt._parameter_function_dependencies(prefs[2]) == data.parameter_func_indices
+        @test InfiniteOpt._parameter_function_dependencies(gvrefs[1]) == data.parameter_func_indices
+        @test_throws ErrorException InfiniteOpt._parameter_function_dependencies(bad_pref)
+    end
     # test _measure_dependencies
     @testset "_measure_dependencies" begin
         @test InfiniteOpt._measure_dependencies(prefs[1]) == data.measure_indices[1]
@@ -504,6 +511,18 @@ end
         @test used_by_infinite_variable(prefs[1])
         # undo changes
         empty!(data.infinite_var_indices)
+    end
+    # test used_by_parameter_function
+    @testset "used_by_parameter_function" begin
+        # test not used
+        @test !used_by_parameter_function(prefs[1])
+        @test !used_by_parameter_function(prefs[2])
+        @test !used_by_parameter_function(gvrefs[1])
+        # test used
+        push!(data.parameter_func_indices, ParameterFunctionIndex(1))
+        @test used_by_parameter_function(prefs[1])
+        # undo changes
+        empty!(data.parameter_func_indices)
     end
     # test used_by_derivative
     @testset "used_by_derivative" begin

@@ -48,7 +48,7 @@ function InfiniteOpt.add_measure_variable(model::JuMP.Model,
     rvref = InfiniteOpt.GeneralVariableRef(JuMP.owner_model(ivref), raw_index,
                                            InfiniteOpt.ReducedVariableIndex)
     push!(reduced_vars, var)
-    _set_reduced_variable_mapping(model, var, rvref)
+    _set_reduced_variable_mapping(model, var, rvref, InfiniteOpt._index_type(ivref))
     return rvref
 end
 

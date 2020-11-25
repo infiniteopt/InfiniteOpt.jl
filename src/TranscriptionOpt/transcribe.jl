@@ -240,7 +240,8 @@ end
 # Setup the mapping for a given reduced variable
 function _set_reduced_variable_mapping(trans_model::JuMP.Model,
     var::InfiniteOpt.ReducedVariable,
-    rvref::InfiniteOpt.GeneralVariableRef
+    rvref::InfiniteOpt.GeneralVariableRef,
+    index_type
     )::Nothing
     param_nums = var.parameter_nums
     ivref = var.infinite_variable_ref
@@ -280,6 +281,15 @@ function _set_reduced_variable_mapping(trans_model::JuMP.Model,
     return
 end
 
+# Empty mapping dispatch for infinite parameter functions
+function _set_reduced_variable_mapping(trans_model::JuMP.Model,
+    var::InfiniteOpt.ReducedVariable,
+    rvref::InfiniteOpt.GeneralVariableRef,
+    index_type::Type{InfiniteOpt.ParameterFunctionIndex}
+    )::Nothing
+    return
+end
+
 """
     transcribe_reduced_variables!(trans_model::JuMP.Model,
                                   inf_model::InfiniteOpt.InfiniteModel)::Nothing
@@ -301,7 +311,9 @@ function transcribe_reduced_variables!(trans_model::JuMP.Model,
         var = object.variable
         rvref = InfiniteOpt._make_variable_ref(inf_model, index)
         # setup the mappings
-        _set_reduced_variable_mapping(trans_model, var, rvref)
+        ivref = InfiniteOpt.infinite_variable_ref(rvref)
+        _set_reduced_variable_mapping(trans_model, var, rvref, 
+                                      InfiniteOpt._index_type(ivref))
     end
     return
 end
@@ -399,14 +411,32 @@ function transcription_expression(trans_model::JuMP.Model,
                                     InfiniteOpt._index_type(vref), support)
 end
 
-# Infinite variables, reduced variables, and measures
+# Infinite variables, infinite parameter functions, and measures
 function transcription_expression(trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     support::Vector{Float64}
-    )::JuMP.AbstractJuMPScalar where {V <: Union{InfVarIndex, InfiniteOpt.MeasureIndex}}
+    ) where {V <: Union{InfVarIndex, InfiniteOpt.ParameterFunctionIndex, InfiniteOpt.MeasureIndex}}
     param_nums = InfiniteOpt._parameter_numbers(vref)
     return lookup_by_support(trans_model, vref, index_type, support[param_nums])
+end
+
+# Reduced variables
+function transcription_expression(trans_model::JuMP.Model,
+    vref::InfiniteOpt.GeneralVariableRef,
+    index_type::Type{InfiniteOpt.ReducedVariableIndex},
+    support::Vector{Float64}
+    )
+    ivref = InfiniteOpt.infinite_variable_ref(vref)
+    if InfiniteOpt._index_type(ivref) == InfiniteOpt.ParameterFunctionIndex 
+        prefs = InfiniteOpt.raw_parameter_refs(ivref)
+        param_nums = InfiniteOpt._parameter_numbers(ivref)
+        func = InfiniteOpt.raw_function(ivref)
+        return func(Tuple(support[param_nums], prefs)...)
+    else 
+        param_nums = InfiniteOpt._parameter_numbers(vref)
+        return lookup_by_support(trans_model, vref, index_type, support[param_nums])
+    end
 end
 
 # Point variables and hold variables

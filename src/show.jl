@@ -305,6 +305,17 @@ function variable_string(print_mode, vref::InfiniteVariableRef)::String
     end
 end
 
+# Make a string for ParameterFunctionRef
+function variable_string(print_mode, vref::ParameterFunctionRef)::String
+    base_name = _get_base_name(print_mode, vref)
+    if !haskey(_data_dictionary(vref), JuMP.index(vref))
+        return base_name
+    else
+        prefs = raw_parameter_refs(vref)
+        return _add_on_parameter_refs(base_name, prefs)
+    end
+end
+
 ## Make helper function for making derivative operators 
 # REPL 
 function _deriv_operator(m::Type{JuMP.REPLMode}, pref)::String

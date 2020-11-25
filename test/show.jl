@@ -312,6 +312,17 @@ using JuMP: REPLMode, IJuliaMode
         @test InfiniteOpt.variable_string(REPLMode, dvref) == "inf2([par1, pars3[2]])"
         @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "inf2([par1, pars3[2]])"
     end
+    # test variable_string (ParameterFunctionRef)
+    @testset "variable_string (ParameterFunctionRef)" begin
+        # test bad ref
+        bad_ref = ParameterFunctionRef(m, ParameterFunctionIndex(-1))
+        @test InfiniteOpt.variable_string(REPLMode, bad_ref) == "noname"
+        @test InfiniteOpt.variable_string(IJuliaMode, bad_ref) == "noname"
+        # test normal one
+        dvref = dispatch_variable_ref(parameter_function(sin, par1))
+        @test InfiniteOpt.variable_string(REPLMode, dvref) == "sin(par1)"
+        @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "sin(par1)"
+    end
     # test variable_string (DerivativeRef)
     @testset "variable_string (DerivativeRef)" begin
         # test bad ref

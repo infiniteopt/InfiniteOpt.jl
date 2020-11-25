@@ -72,7 +72,7 @@ end
 function _check_tuple_element(_error::Function,
                               prefs::Vector{DependentParameterRef})::Nothing
     if length(prefs) != _num_parameters(first(prefs))
-        _error("Infinite variables cannot depend on a subset of dependent " *
+        _error("Infinite parameter tuple elements cannot depend on a subset of dependent " *
                "parameters.")
     end
     return
@@ -111,18 +111,24 @@ function _check_and_format_infinite_info(_error::Function,
         info.binary, info.integer), true
 end
 
+# make function for checking start value function properties 
+function _check_valid_function(_error::Function, func::Function, 
+                               prefs::VectorTuple)::Nothing 
+    input_format = typeof(Tuple(Vector{Float64}(undef, length(prefs)), prefs))
+    if isempty(methods(func, input_format))
+        _error("Specified function `$func` must be able to accept a `Float64` " * 
+               "support realization of the infinite parameter tuple $(prefs).")
+    end
+    return 
+end
+
 # A function is given for the start value generation
 function _check_and_format_infinite_info(_error::Function,
     info::JuMP.VariableInfo{<:Real, <:Real, <:Real, <:Function},
     prefs::VectorTuple
     )::Tuple{JuMP.VariableInfo{Float64, Float64, Float64, Function}, Bool}
     # check the function properties
-    if length(methods(info.start)) != 1
-        _error("Start value function name is not unique.")
-    elseif length(first(methods(info.start)).sig.parameters) != size(prefs, 1) + 1
-        _error("Start value function must match the formatting of the infinite " *
-               "parameter tuple of the infinite variable.")
-    end
+    _check_valid_function(_error, info.start, prefs)
     # make the info and return
     return JuMP.VariableInfo{Float64, Float64, Float64, Function}(
         info.has_lb, info.lower_bound, info.has_ub, info.upper_bound,
