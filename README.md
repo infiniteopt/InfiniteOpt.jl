@@ -64,7 +64,7 @@ following in the package manager.
 ### Modeling Infinite-Dimensional Problems with InfiniteOpt.jl
 See our YouTube overview of infinite-dimensional programming and InfiniteOpt.jl's 
 capabilities:
-[![youtube](docs/src/assets/youtube.png)](http://www.youtube.com/watch?v=q5ETFLZbxiU "Modeling Infinite-Dimensional Problems with InfiniteOpt.jl")
+[![youtube](docs/src/assets/youtube.PNG)](http://www.youtube.com/watch?v=q5ETFLZbxiU "Modeling Infinite-Dimensional Problems with InfiniteOpt.jl")
 
 ## Documentation
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable)
