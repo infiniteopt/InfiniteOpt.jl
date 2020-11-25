@@ -206,6 +206,10 @@ end
     @testset "_derivative_constraint_dependencies (GeneralVariableRef)" begin
         @test_throws MethodError InfiniteOpt._derivative_constraint_dependencies(gvref)
     end
+    # test _parameter_function_dependencies (GeneralVariableRef)
+    @testset "_parameter_function_dependencies (GeneralVariableRef)" begin
+        @test_throws MethodError InfiniteOpt._parameter_function_dependencies(gvref)
+    end
 end
 
 # test Usage Methods
@@ -286,6 +290,14 @@ end
     # test has_derivative_constraints (GeneralVariableRef)
     @testset "has_derivative_constraints (GeneralVariableRef)" begin
         @test_throws ArgumentError has_derivative_constraints(gvref)
+    end
+    # test used_by_parameter_function(Fallback)
+    @testset "used_by_parameter_function (Fallback)" begin
+        @test_throws ArgumentError used_by_parameter_function(dvref)
+    end
+    # test used_by_parameter_function (GeneralVariableRef)
+    @testset "used_by_parameter_function (GeneralVariableRef)" begin
+        @test_throws ArgumentError used_by_parameter_function(gvref)
     end
 end
 
@@ -550,6 +562,14 @@ end
     # test add_derivative_supports (GeneralVariableRef)
     @testset "add_derivative_supports (GeneralVariableRef)" begin
         @test_throws ArgumentError InfiniteOpt.add_derivative_supports(gvref)
+    end
+    # test raw_function (Fallback)
+    @testset "raw_function (Fallback)" begin
+        @test_throws ArgumentError raw_function(dvref)
+    end
+    # test raw_function (GeneralVariableRef)
+    @testset "raw_function (GeneralVariableRef)" begin
+        @test_throws ArgumentError raw_function(gvref)
     end
 end
 

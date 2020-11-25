@@ -512,6 +512,14 @@ end
         @test InfiniteOpt._infinite_variable_dependencies(dpref2) == InfiniteVariableIndex[]
         @test_throws ErrorException InfiniteOpt._infinite_variable_dependencies(bad_pref)
     end
+    # _parameter_function_dependencies
+    @testset "_parameter_function_dependencies" begin
+        @test InfiniteOpt._parameter_function_dependencies(pref1) == ParameterFunctionIndex[]
+        @test InfiniteOpt._parameter_function_dependencies(dpref1) == ParameterFunctionIndex[]
+        @test InfiniteOpt._parameter_function_dependencies(pref2) == ParameterFunctionIndex[]
+        @test InfiniteOpt._parameter_function_dependencies(dpref2) == ParameterFunctionIndex[]
+        @test_throws ErrorException InfiniteOpt._parameter_function_dependencies(bad_pref)
+    end
     # _derivative_dependencies
     @testset "_derivative_dependencies" begin
         @test InfiniteOpt._derivative_dependencies(pref1) == DerivativeIndex[]
@@ -566,7 +574,7 @@ end
         popfirst!(InfiniteOpt._measure_dependencies(dpref1))
         popfirst!(InfiniteOpt._measure_dependencies(dpref2))
     end
-    # used_by_variable
+    # used_by_infinite_variable
     @testset "used_by_infinite_variable" begin
         @test !used_by_infinite_variable(pref1)
         @test !used_by_infinite_variable(pref2)
@@ -576,6 +584,17 @@ end
         @test used_by_infinite_variable(pref1)
         @test used_by_infinite_variable(dpref1)
         popfirst!(InfiniteOpt._infinite_variable_dependencies(dpref1))
+    end
+    # used_by_parameter_function
+    @testset "used_by_parameter_function" begin
+        @test !used_by_parameter_function(pref1)
+        @test !used_by_parameter_function(pref2)
+        @test !used_by_parameter_function(dpref1)
+        @test !used_by_parameter_function(dpref2)
+        push!(InfiniteOpt._parameter_function_dependencies(dpref1), ParameterFunctionIndex(1))
+        @test used_by_parameter_function(pref1)
+        @test used_by_parameter_function(dpref1)
+        popfirst!(InfiniteOpt._parameter_function_dependencies(dpref1))
     end
     # used_by_derivative
     @testset "used_by_derivative" begin
@@ -625,6 +644,10 @@ end
         @test is_used(pref1)
         @test is_used(dpref1)
         popfirst!(InfiniteOpt._infinite_variable_dependencies(dpref1))
+        push!(InfiniteOpt._parameter_function_dependencies(dpref1), ParameterFunctionIndex(1))
+        @test is_used(pref1)
+        @test is_used(dpref1)
+        popfirst!(InfiniteOpt._parameter_function_dependencies(dpref1))
     end
 end
 

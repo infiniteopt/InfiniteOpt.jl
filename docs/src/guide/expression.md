@@ -11,6 +11,53 @@ types and methods principally pertaining to affine and quadratic mathematical
 expressions. A natively supported abstraction for general nonlinear expressions
 is planned for development since that of `JuMP` is not readily extendable.
 
+## Infinite Parameter Functions
+As described further below, InfiniteOpt.jl only supports affine and quadratic 
+expressions in its current rendition. However, there several use cases where we 
+might want to provide a more complex function of infinite parameter(s) (e.g., 
+nonlinear setpoint tracking). Thus, we provide infinite parameter function objects 
+that given a particular realization of infinite parameters will output a scalar 
+value. This is accomplished via [`parameter_function`](@ref) and is exemplified 
+by defining `sin(t)` below:
+```@jldoctest; param_func
+julia> using InfiniteOpt, JuMP;
+
+julia> model = InfiniteModel();
+
+julia> @infinite_parameter(model, t in [0, 10]);
+
+julia> f = parameter_function(sin, t)
+sin(t)
+```
+Here we created an infinite parameter function object, added it to `model`, and 
+then created a Julia variable `f` that serves as a `GeneralVariableRef` that points 
+to it. From here we can treat `f` as a normal infinite variable and use it with 
+measures, derivatives, and constraints. For example, we can do the following:
+```@jldoctest; param_func
+julia> @infinite_variable(model, y(t));
+
+julia> df = deriv(f, t)
+∂/∂t[sin(t)]
+
+julia> meas = integral(y - f, t)
+∫{t ∈ [0, 10]}[y(t) - sin(t)]
+
+julia> @constraint(model, y - f <= 0)
+y(t) - sin(t) ≤ 0.0, ∀ t ∈ [0, 10]
+```
+We can also define infinite parameter functions that depend on multiple infinite 
+parameters:
+```@jldoctest; param_func
+julia> @infinite_parameter(model, x[1:2] in [-1, 1]);
+
+julia> f2 = parameter_function((a, b) -> a + sum(b), (t, x), name = "myname")
+myname(t, x)
+```
+
+Beyond this, there are number of query and modification methods that can be 
+employed for infinite parameter functions and these are detailed in the 
+[Infinite Parameter Function Methods](@ref) Section below.
+
 ## Variable Hierarchy
 Expressions employ variable reference types inherited from
 [`JuMP.AbstractVariableRef`](@ref) to form expression objects. `InfiniteOpt`
@@ -23,7 +70,7 @@ green and the concrete types are shown blue.
 
 In consistently with `JuMP` expression support, [`GeneralVariableRef`](@ref)
 exists as a variable reference type that is able to represent any of the above
-conrete subtypes of [`DispatchVariableRef`](@ref). This allows the expression
+concrete subtypes of [`DispatchVariableRef`](@ref). This allows the expression
 containers to be homogeneous in variable type. This is a paradigm shift from
 previous versions of `InfiniteOpt` that used the hierarchy of types directly
 to construct expressions. This behavior led to stability and performance
@@ -187,6 +234,29 @@ GeneralVariableRef
 DispatchVariableRef
 MeasureFiniteVariableRef
 FiniteVariableRef
+ParameterFunctionRef
+ParameterFunctionIndex
+InfiniteParameterFunction
+ParameterFunctionData
+```
+
+## Infinite Parameter Function Methods 
+```@docs
+parameter_function
+build_parameter_function
+add_parameter_function
+JuMP.name(::ParameterFunctionRef)
+JuMP.set_name(::ParameterFunctionRef, ::String)
+parameter_refs(::ParameterFunctionRef)
+raw_parameter_refs(::ParameterFunctionRef)
+parameter_list(::ParameterFunctionRef)
+raw_function
+used_by_reduced_variable(::ParameterFunctionRef)
+used_by_derivative(::ParameterFunctionRef)
+used_by_measure(::ParameterFunctionRef)
+used_by_constraint(::ParameterFunctionRef)
+is_used(::ParameterFunctionRef)
+JuMP.delete(::InfiniteModel, ::ParameterFunctionRef)
 ```
 
 ## Expression Methods

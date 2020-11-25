@@ -181,6 +181,13 @@ end
         # test without supports 
         delete_supports(x)
         @test_throws ErrorException InfiniteOpt.evaluate_derivative(d3, method, m)
+        # test parameter function 
+        f = parameter_function(sin, t)
+        df = deriv(f, t)
+        pts = [GeneralVariableRef(m, pidx + 6, PointVariableIndex),
+               GeneralVariableRef(m, pidx + 7, PointVariableIndex)]
+        @test InfiniteOpt.evaluate_derivative(df, method, m) == [5pts[1] - sin(5) + sin(0), 
+                                                                 5pts[2] - sin(10) + sin(5)]
     end
     # test OrthogonalCollocation with evaluate_derivative
     @testset "OrthogonalCollocation" begin 

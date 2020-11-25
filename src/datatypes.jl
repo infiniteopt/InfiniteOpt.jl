@@ -70,6 +70,18 @@ struct FiniteParameterIndex <: ObjectIndex
 end
 
 """
+    ParameterFunctionIndex <: ObjectIndex
+
+A `DataType` for storing the index of a [`InfiniteParameterFunction`](@ref).
+
+**Fields**
+- `value::Int64`: The index value.
+"""
+struct ParameterFunctionIndex <: ObjectIndex
+    value::Int64
+end
+
+"""
     InfiniteVariableIndex <: ObjectIndex
 
 A `DataType` for storing the index of a [`InfiniteVariable`](@ref).
@@ -528,6 +540,8 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
 - `parameter_num::Int`: Given by `InfiniteModel.last_param_num` (updated when
                         prior parameters are deleted)
 - `name::String`: The name used for printing.
+- `parameter_func_indices::Vector{ParameterFunctionIndex}`: Indices of dependent
+   infinite parameter functions.
 - `infinite_var_indices::Vector{InfiniteVariableIndex}`: Indices of dependent
    infinite variables.
 - `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
@@ -544,6 +558,7 @@ mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     object_num::Int
     parameter_num::Int
     name::String
+    parameter_func_indices::Vector{ParameterFunctionIndex}
     infinite_var_indices::Vector{InfiniteVariableIndex}
     derivative_indices::Vector{DerivativeIndex}
     measure_indices::Vector{MeasureIndex}
@@ -561,9 +576,9 @@ function ScalarParameterData(param::P,
                              name::String = ""
                              ) where {P <: ScalarParameter}
     return ScalarParameterData{P}(param, object_num, parameter_num, name,
-                                  InfiniteVariableIndex[], DerivativeIndex[], 
-                                  MeasureIndex[], ConstraintIndex[], false, false, 
-                                  false, false)
+                                  ParameterFunctionIndex[], InfiniteVariableIndex[], 
+                                  DerivativeIndex[], MeasureIndex[], 
+                                  ConstraintIndex[], false, false, false, false)
 end
 
 """
@@ -578,6 +593,8 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 - `parameter_nums::UnitRange{Int}`: Given by `InfiniteModel.last_param_num`
                                     (updated when prior parameters are deleted)
 - `names::Vector{String}`: The names used for printing each parameter.
+- `parameter_func_indices::Vector{ParameterFunctionIndex}`: Indices of
+   dependent infinite parameter functions.
 - `infinite_var_indices::Vector{InfiniteVariableIndex}`: Indices of
    dependent infinite variables.
 - `derivative_indices::Vector{Vector{DerivativeIndex}} `: Indices of dependent derivatives.
@@ -593,6 +610,7 @@ mutable struct MultiParameterData{P <: DependentParameters} <: AbstractDataObjec
     object_num::Int
     parameter_nums::UnitRange{Int}
     names::Vector{String}
+    parameter_func_indices::Vector{ParameterFunctionIndex}
     infinite_var_indices::Vector{InfiniteVariableIndex}
     derivative_indices::Vector{Vector{DerivativeIndex}} 
     measure_indices::Vector{Vector{MeasureIndex}}
@@ -608,7 +626,7 @@ function MultiParameterData(params::P,
                             names::Vector{String},
                             ) where {P <: DependentParameters}
     return MultiParameterData{P}(params, object_num, parameter_nums, names,
-                                 InfiniteVariableIndex[],
+                                 ParameterFunctionIndex[], InfiniteVariableIndex[],
                                  [DerivativeIndex[] for i in eachindex(names)],
                                  [MeasureIndex[] for i in eachindex(names)],
                                  [ConstraintIndex[] for i in eachindex(names)],
@@ -631,6 +649,59 @@ Note that the GeneralVariableRef must pertain to infinite parameters.
 """
 struct ParameterBounds{P <: JuMP.AbstractVariableRef}
     intervals::Dict{P, IntervalSet}
+end
+
+################################################################################
+#                     INFINITE PARAMETER FUNCTION OBJECTS
+################################################################################
+"""
+    InfiniteParameterFunction{P <: GeneralVariableRef}
+
+A `DataType` for storing infinite parameter functions. These equate to arbitrary 
+functions that take support instances of infinite parameters `parameter_refs` in 
+as input and compute a scalar value as output via `func`. These can then can 
+incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
+
+**Fields**
+-`func::Function`: The function the takes infinite parameters as input and provide 
+                   a scalar number as output.
+-`parameter_refs::VectorTuple{P}`: The infinite parameter references that serve as 
+                                   inputs to `func`. Their formatting is analagous 
+                                   to those of infinite variables. 
+- `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
+- `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
+"""
+struct InfiniteParameterFunction{P <: JuMP.AbstractVariableRef}
+    func::Function
+    parameter_refs::VectorTuple{P}
+    object_nums::Vector{Int}
+    parameter_nums::Vector{Int}
+end
+
+"""
+    ParameterFunctionData{F <: InfiniteParameterFunction} <: AbstractDataObject
+
+A mutable `DataType` for storing `InfiniteParameterFunction`s and their data.
+
+**Fields**
+- `func::F`: The infinite parameter function.
+- `name::String`: The name used for printing.
+- `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
+- `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
+- `reduced_var_indices::Vector{ReducedVariableIndex}`: Indices of dependent reduced variables.
+- `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
+"""
+mutable struct ParameterFunctionData{F <: InfiniteParameterFunction} <: AbstractDataObject
+    func::F
+    name::String
+    measure_indices::Vector{MeasureIndex}
+    constraint_indices::Vector{ConstraintIndex}
+    reduced_var_indices::Vector{ReducedVariableIndex}
+    derivative_indices::Vector{DerivativeIndex}
+    function ParameterFunctionData(func::F, name::String = "") where {F <: InfiniteParameterFunction}
+        return new{F}(func, name, MeasureIndex[], ConstraintIndex[], 
+                      ReducedVariableIndex[], DerivativeIndex[])
+    end
 end
 
 ################################################################################
@@ -1086,6 +1157,8 @@ model an optmization problem with an infinite-dimensional decision space.
 - `last_param_num::Int`: The last parameter number to be used.
 - `param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}`:
   The collection of parameter object indices in creation order.
+- `param_functions::MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{InfiniteParameterFunction}}`: 
+  The infinite parameter functions and their mapping information.
 - `infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}`:
    The infinite variables and their mapping information.
 - `reduced_vars::MOIUC.CleverDict{ReducedVariableIndex, <:VariableData{<:ReducedVariable}}`:
@@ -1127,6 +1200,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     name_to_param::Union{Dict{String, AbstractInfOptIndex}, Nothing}
     last_param_num::Int
     param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
+    param_functions::MOIUC.CleverDict{ParameterFunctionIndex, <:ParameterFunctionData}
 
     # Variable Data
     infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}
@@ -1216,6 +1290,7 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
                          nothing, 0,
                          Union{IndependentParameterIndex, DependentParametersIndex}[],
+                         MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{InfiniteParameterFunction{GeneralVariableRef}}}(),
                          # Variables
                          MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable{GeneralVariableRef}}}(),
                          MOIUC.CleverDict{ReducedVariableIndex, VariableData{ReducedVariable{GeneralVariableRef}}}(),
@@ -1344,6 +1419,20 @@ infinite variables.
 struct DependentParameterRef <: DispatchVariableRef
     model::InfiniteModel
     index::DependentParameterIndex
+end
+
+"""
+    ParameterFunctionRef <: DispatchVariableRef
+
+A `DataType` for infinite parameter function references.
+
+**Fields**
+- `model::InfiniteModel`: Infinite model.
+- `index::ParameterFunctionIndex`: Index of the infinite parameter function.
+"""
+struct ParameterFunctionRef <: DispatchVariableRef
+    model::InfiniteModel
+    index::ParameterFunctionIndex
 end
 
 """

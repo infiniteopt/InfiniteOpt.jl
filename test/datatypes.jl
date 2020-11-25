@@ -20,6 +20,9 @@
     # FiniteParameterIndex
     @test FiniteParameterIndex <: ObjectIndex
     @test FiniteParameterIndex(1).value == 1
+    # ParameterFunctionIndex
+    @test ParameterFunctionIndex <: ObjectIndex
+    @test ParameterFunctionIndex(1).value == 1
     # InfiniteVariableIndex
     @test InfiniteVariableIndex <: ObjectIndex
     @test InfiniteVariableIndex(1).value == 1
@@ -47,6 +50,7 @@
         @test MOIUC.index_to_key(IndependentParameterIndex, Int64(42)) == IndependentParameterIndex(42)
         @test MOIUC.index_to_key(DependentParametersIndex, Int64(42)) == DependentParametersIndex(42)
         @test MOIUC.index_to_key(FiniteParameterIndex, Int64(42)) == FiniteParameterIndex(42)
+        @test MOIUC.index_to_key(ParameterFunctionIndex, Int64(42)) == ParameterFunctionIndex(42)
         @test MOIUC.index_to_key(InfiniteVariableIndex, Int64(42)) == InfiniteVariableIndex(42)
         @test MOIUC.index_to_key(ReducedVariableIndex, Int64(42)) == ReducedVariableIndex(42)
         @test MOIUC.index_to_key(PointVariableIndex, Int64(42)) == PointVariableIndex(42)
@@ -207,6 +211,10 @@ end
     @test ReducedVariableRef <: DispatchVariableRef
     idx = ReducedVariableIndex(1)
     @test ReducedVariableRef(m, idx) isa ReducedVariableRef
+    # ParameterFunctionRef
+    @test ParameterFunctionRef <: DispatchVariableRef
+    idx = ParameterFunctionIndex(1)
+    @test ParameterFunctionRef(m, idx) isa ParameterFunctionRef
     # PointVariableRef
     @test PointVariableRef <: FiniteVariableRef
     idx = PointVariableIndex(1)
@@ -340,6 +348,18 @@ end
         @test delete!(pb, par3) isa ParameterBounds
         @test length(pb) == 0
     end
+end
+
+# Test Infinite parameter functions 
+@testset "Infinite Parameter Functions" begin 
+    # useful data
+    m = InfiniteModel()
+    pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
+    vt = IC.VectorTuple(pref)
+    # test InfiniteParameterFunction
+    @test InfiniteParameterFunction(sin, vt, [1], [1]) isa InfiniteParameterFunction
+    # test ParameterFunctionData
+    @test ParameterFunctionData(InfiniteParameterFunction(sin, vt, [1], [1])) isa ParameterFunctionData
 end
 
 # Test variable datatypes

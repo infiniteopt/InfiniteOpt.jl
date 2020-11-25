@@ -1,3 +1,208 @@
+# Test infinite parameter function methods 
+@testset "Infinite Parameter Function Methods" begin 
+    # setup the needed info 
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x[1:2] in [-1, 1])
+    func = InfiniteParameterFunction(sin, IC.VectorTuple(t), [1], [1])
+    object = ParameterFunctionData(func, "test")
+    idx = ParameterFunctionIndex(1)
+    fref = ParameterFunctionRef(m, idx)
+    gvref = GeneralVariableRef(m, 1, ParameterFunctionIndex)
+    bad_vref = ParameterFunctionRef(m, ParameterFunctionIndex(-1))
+    # JuMP.owner_model
+    @testset "JuMP.owner_model" begin
+        @test owner_model(fref) === m
+        @test owner_model(gvref) === m
+    end
+    # JuMP.index
+    @testset "JuMP.index" begin
+        @test index(fref) == idx
+        @test index(gvref) == idx
+    end
+    # dispatch_variable_ref
+    @testset "dispatch_variable_ref" begin
+        @test dispatch_variable_ref(m, idx) == fref
+        @test dispatch_variable_ref(gvref) == fref
+    end
+    # _add_data_object
+    @testset "_add_data_object" begin
+        @test InfiniteOpt._add_data_object(m, object) == idx
+    end
+    # _data_dictionary
+    @testset "_data_dictionary" begin
+        @test InfiniteOpt._data_dictionary(fref) === m.param_functions
+        @test InfiniteOpt._data_dictionary(gvref) === m.param_functions
+    end
+    # JuMP.is_valid
+    @testset "JuMP.is_valid" begin
+        @test is_valid(m, fref)
+        @test is_valid(m, gvref)
+    end
+    # _data_object
+    @testset "_data_object" begin
+        @test InfiniteOpt._data_object(fref) === object
+        @test InfiniteOpt._data_object(gvref) === object
+        @test_throws ErrorException InfiniteOpt._data_object(bad_vref)
+    end
+    # _core_variable_object
+    @testset "_core_variable_object" begin
+        @test InfiniteOpt._core_variable_object(fref) === func
+        @test InfiniteOpt._core_variable_object(gvref) === func
+    end
+    # _object_numbers
+    @testset "_object_numbers" begin
+        @test InfiniteOpt._object_numbers(fref) == [1]
+    end
+    # _parameter_numbers
+    @testset "_parameter_numbers" begin
+        @test InfiniteOpt._parameter_numbers(fref) == [1]
+    end
+    # JuMP.name
+    @testset "JuMP.name" begin
+        @test name(fref) == "test"
+        @test name(gvref) == "test"
+        @test name(bad_vref) == ""
+    end
+    # JuMP.set_name
+    @testset "JuMP.set_name" begin
+        @test isa(set_name(fref, "new"), Nothing)
+        @test name(fref) == "new"
+        @test isa(set_name(gvref, "new2"), Nothing)
+        @test name(fref) == "new2"
+        @test_throws ErrorException set_name(bad_vref, "")
+    end
+    # _measure_dependencies
+    @testset "_measure_dependencies" begin
+        @test InfiniteOpt._measure_dependencies(fref) == MeasureIndex[]
+        @test InfiniteOpt._measure_dependencies(gvref) == MeasureIndex[]
+    end
+    # _constraint_dependencies
+    @testset "_constraint_dependencies" begin
+        @test InfiniteOpt._constraint_dependencies(fref) == ConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(gvref) == ConstraintIndex[]
+    end
+    # _reduced_variable_dependencies
+    @testset "_reduced_variable_dependencies" begin
+        @test InfiniteOpt._reduced_variable_dependencies(fref) == ReducedVariableIndex[]
+        @test InfiniteOpt._reduced_variable_dependencies(gvref) == ReducedVariableIndex[]
+    end
+    # _derivative_dependencies
+    @testset "_derivative_dependencies" begin
+        @test InfiniteOpt._derivative_dependencies(fref) == DerivativeIndex[]
+        @test InfiniteOpt._derivative_dependencies(gvref) == DerivativeIndex[]
+    end
+    # raw_parameter_refs
+    @testset "raw_parameter_refs" begin
+        @test raw_parameter_refs(fref) == IC.VectorTuple(t)
+        @test raw_parameter_refs(gvref) == IC.VectorTuple(t)
+    end
+    # parameter_refs
+    @testset "parameter_refs" begin
+        @test parameter_refs(fref) == (t, )
+        @test parameter_refs(gvref) == (t, )
+    end
+    # parameter_list
+    @testset "parameter_list" begin
+        @test parameter_list(fref) == [t]
+        @test parameter_list(gvref) == [t]
+    end
+    # raw_function
+    @testset "raw_function" begin
+        @test raw_function(fref) == sin
+        @test raw_function(gvref) == sin
+    end
+    # test used_by_reduced_variable
+    @testset "used_by_reduced_variable" begin
+        @test !used_by_reduced_variable(fref)
+        push!(InfiniteOpt._reduced_variable_dependencies(fref),
+              ReducedVariableIndex(1))
+        @test used_by_reduced_variable(fref)
+        empty!(InfiniteOpt._reduced_variable_dependencies(fref))
+    end
+    # test used_by_derivative
+    @testset "used_by_derivative" begin
+        @test !used_by_derivative(fref)
+        push!(InfiniteOpt._derivative_dependencies(fref), DerivativeIndex(1))
+        @test used_by_derivative(fref)
+        empty!(InfiniteOpt._derivative_dependencies(fref))
+    end
+    # test used_by_measure
+    @testset "used_by_measure" begin
+        @test !used_by_measure(fref)
+        push!(InfiniteOpt._measure_dependencies(fref), MeasureIndex(1))
+        @test used_by_measure(fref)
+        empty!(InfiniteOpt._measure_dependencies(fref))
+    end
+    # test used_by_constraint
+    @testset "used_by_constraint" begin
+        @test !used_by_constraint(fref)
+        push!(InfiniteOpt._constraint_dependencies(fref), ConstraintIndex(1))
+        @test used_by_constraint(fref)
+        empty!(InfiniteOpt._constraint_dependencies(fref))
+    end
+    # test is_used
+    @testset "is_used" begin
+        @test !is_used(fref)
+        push!(InfiniteOpt._constraint_dependencies(fref), ConstraintIndex(1))
+        @test is_used(fref)
+        empty!(InfiniteOpt._constraint_dependencies(fref))
+    end
+    # test _update_param_var_mapping
+    @testset "_update_param_var_mapping" begin 
+        @test InfiniteOpt._update_param_var_mapping(fref, IC.VectorTuple(t)) isa Nothing 
+        @test used_by_parameter_function(t)
+        empty!(InfiniteOpt._parameter_function_dependencies(t))
+    end
+    # _delete_data_object
+    @testset "_delete_data_object" begin
+        @test InfiniteOpt._delete_data_object(fref) isa Nothing
+        @test length(InfiniteOpt._data_dictionary(fref)) == 0
+        @test !is_valid(m, fref)
+    end
+    # test build_parameter_function
+    @testset "build_parameter_function" begin 
+        # test errors  
+        @test_throws ErrorException build_parameter_function(error, sin, x[1])
+        @test_throws ErrorException build_parameter_function(error, sin, (t, x))
+        # test normal  
+        @test build_parameter_function(error, (a, b) -> 2, (t, x)) isa InfiniteParameterFunction 
+    end
+    # test add_parameter_function
+    @testset "add_parameter_function" begin 
+        # test does not belong 
+        @infinite_parameter(InfiniteModel(), t2 in [0, 1])
+        func = build_parameter_function(error, (a, b) -> 2, (t2, x))
+        @test_throws VariableNotOwned{GeneralVariableRef} add_parameter_function(m, func)
+        # test normal 
+        func = build_parameter_function(error, (a, b) -> 2, (t, x))
+        fref = GeneralVariableRef(m, 2, ParameterFunctionIndex)
+        @test add_parameter_function(m, func, "test") == fref
+        @test name(fref) == "test"
+        @test parameter_refs(fref) == (t, x)
+        @test used_by_parameter_function(t)
+        # test default name 
+        func = build_parameter_function(error, cos, t)
+        fref = GeneralVariableRef(m, 3, ParameterFunctionIndex)
+        @test add_parameter_function(m, func) == fref
+        @test name(fref) == "cos"
+    end
+    # test parameter_function
+    @testset "parameter_function" begin 
+        @test parameter_function(sin, t) isa GeneralVariableRef
+        @test parameter_function(sin, t, name = "name") isa GeneralVariableRef
+    end
+    # test making other objects 
+    @testset "Other Objects" begin
+        f = parameter_function((a,b) -> 2, (t, x))
+        # test making reduced variable
+        d = Dict{Int, Float64}(1 => 0)
+        @test add_variable(m, build_variable(error, f, d)) isa GeneralVariableRef
+        # test making derivative 
+        @test deriv(f, t) isa GeneralVariableRef
+    end
+end
+
 # Test _all_function_variables
 @testset "_all_function_variables" begin
     # initialize model and references

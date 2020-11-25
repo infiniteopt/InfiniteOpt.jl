@@ -358,6 +358,12 @@ function _infinite_variable_dependencies(pref::DependentParameterRef
     return _data_object(pref).infinite_var_indices
 end
 
+# Extend _parameter_function_dependencies
+function _parameter_function_dependencies(pref::DependentParameterRef
+    )::Vector{ParameterFunctionIndex}
+    return _data_object(pref).parameter_func_indices
+end
+
 # Extend _measure_dependencies
 function _measure_dependencies(pref::DependentParameterRef
     )::Vector{MeasureIndex}
@@ -384,12 +390,28 @@ an infinite variable.
 
 **Example**
 ```julia-repl
-julia> used_by_objective(pref)
+julia> used_by_infinite_variable(pref)
 true
 ```
 """
 function used_by_infinite_variable(pref::DependentParameterRef)::Bool
     return !isempty(_infinite_variable_dependencies(pref))
+end
+
+"""
+    used_by_parameter_function(pref::DependentParameterRef)::Bool
+
+Return a `Bool` indicating if the dependent infinite parameter `pref` is used by
+an infinite parameter function.
+
+**Example**
+```julia-repl
+julia> used_by_parameter_function(pref)
+true
+```
+"""
+function used_by_parameter_function(pref::DependentParameterRef)::Bool
+    return !isempty(_parameter_function_dependencies(pref))
 end
 
 """
@@ -457,7 +479,8 @@ true
 """
 function is_used(pref::DependentParameterRef)::Bool
     return used_by_measure(pref) || used_by_constraint(pref) ||
-           used_by_infinite_variable(pref) || used_by_derivative(pref)
+           used_by_infinite_variable(pref) || used_by_derivative(pref) ||
+           used_by_parameter_function(pref)
 end
 
 ################################################################################
@@ -495,7 +518,8 @@ end
 function _adaptive_data_update(pref::DependentParameterRef, params::P1, 
     data::MultiParameterData{P2})::Nothing  where {P1, P2}
     new_data = MultiParameterData(params, data.object_num, data.parameter_nums, 
-                                  data.names, data.infinite_var_indices, 
+                                  data.names, data.parameter_func_indices,
+                                  data.infinite_var_indices, 
                                   data.derivative_indices, data.measure_indices,
                                   data.constraint_indices,
                                   data.has_internal_supports, 
@@ -1663,6 +1687,11 @@ function JuMP.delete(model::InfiniteModel,
             data = measure_data(dispatch_variable_ref(model, mindex))
             _check_param_in_data(pref, data)
         end
+    end
+    # make sure it isn't used by parameter function 
+    if used_by_parameter_function(first(prefs))
+        error("Cannot delete `$prefs` since they are used by an infinite " * 
+              "parameter function.")
     end
     # update optimizer model status
     if any(is_used(pref) for pref in prefs)
