@@ -243,7 +243,11 @@ end
         # test multiple methods
         mult_func(a,b,c) = 2
         mult_func(a) = 2
-        bad_info = VariableInfo(true, num, true, num, true, num, true, mult_func, true, false)
+        mult_info = VariableInfo(true, num, true, num, true, num, true, mult_func, true, false)
+        @test InfiniteOpt._check_and_format_infinite_info(error, mult_info, tuple)[1] isa VariableInfo 
+        # test bad method
+        bad_func(a, b) = 2
+        bad_info = VariableInfo(true, num, true, num, true, num, true, bad_func, true, false)
         @test_throws ErrorException InfiniteOpt._check_and_format_infinite_info(error, bad_info, tuple)
         # test bad args
         func = (a, b) -> a + sum(b)

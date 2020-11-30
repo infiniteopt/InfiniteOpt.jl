@@ -46,6 +46,7 @@ end
     @constraint(m, c1, x + par - z == 0)
     @constraint(m, c2, z + x0 >= -3)
     @constraint(m, c3, meas1 + z == 0)
+    f = parameter_function(sin, par)
     build_optimizer_model!(m)
     tm = optimizer_model(m)
     tdata = transcription_data(tm)
@@ -57,6 +58,7 @@ end
         @test optimizer_model_variable(x0) == transcription_variable(x0)
         @test optimizer_model_variable(z) == transcription_variable(z)
         @test optimizer_model_variable(d1, label = InternalLabel) == transcription_variable(d1, label = InternalLabel)
+        @test optimizer_model_variable(f) == [0, sin(1)]
         # test fallback
         @test_throws ErrorException optimizer_model_variable(x, Val(:Bad), my_key = true)
     end
@@ -76,6 +78,7 @@ end
         @test supports(x, label = All) == [(0.,), (0.5,), (1.,)]
         @test supports(meas1) == () 
         @test supports(d1, label = InternalLabel) == [(0.5,)]
+        @test supports(f, label = All) == [(0.,), (0.5,), (1.,)]
     end
     # Test optimizer_model_expression
     @testset "optimizer_model_expression" begin
@@ -94,6 +97,7 @@ end
         @test optimizer_model_expression(x^2 + z, ndarray = true) == [xt[1]^2 + zt, xt[3]^2 + zt]
         @test optimizer_model_expression(x^2 + z, label = All) == [xt[1]^2 + zt, xt[2]^2 + zt, xt[3]^2 + zt]
         @test optimizer_model_expression(2z - 3) == 2zt - 3
+        @test optimizer_model_expression(2 * f) == [zero(AffExpr), zero(AffExpr) + sin(1) * 2]
         # test fallback
         @test_throws ErrorException optimizer_model_expression(c1, Val(:Bad), my_key = true)
     end

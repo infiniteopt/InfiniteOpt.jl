@@ -289,6 +289,10 @@ end
     end
     # test JuMP.delete for IndependentParameters
     @testset "JuMP.delete (IndependentParameterRef)" begin
+        # test parameter function dependency 
+        push!(InfiniteOpt._parameter_function_dependencies(par2), ParameterFunctionIndex(1))
+        @test_throws ErrorException delete(m, par2)
+        popfirst!(InfiniteOpt._parameter_function_dependencies(par2)) 
         # test normal usage
         @test isa(delete(m, par2), Nothing)
         @test !is_valid(m, par2)
@@ -412,6 +416,11 @@ end
          filter!(e -> e != mindex, InfiniteOpt._measure_dependencies(inf4))
          filter!(e -> e != mindex, InfiniteOpt._measure_dependencies(pars[2]))
          InfiniteOpt._delete_data_object(dmref2)
+         # test parameter function dependency 
+         data = InfiniteOpt._data_object(first(pars))
+         push!(data.parameter_func_indices, ParameterFunctionIndex(1))
+         @test_throws ErrorException delete(m, pars)
+         empty!(data.parameter_func_indices)
          # test regular
          @test delete(m, pars) isa Nothing
          @test !is_valid(m, d1)
@@ -657,6 +666,34 @@ end
     # test errors
     @test_throws AssertionError delete(m, d1)
     @test_throws AssertionError delete(m, d2)
+ end
+
+  # Test infinite parameter function deletion
+ @testset "JuMP.delete (Parameter Function)" begin
+     # intialize the model
+     m = InfiniteModel()
+     @infinite_parameter(m, 0 <= par <= 1)
+     f = parameter_function(sin, par)
+     data = TestData(par, 0, 0)
+     meas1 = measure(f + par, data)
+     meas2 = measure(f, data)
+     @constraint(m, con1, f + par <= 0)
+     con2 = add_constraint(m, ScalarConstraint(f, MOI.LessThan(0.)))
+     d = deriv(f, par)
+     rv = add_variable(m, build_variable(error, f, Dict(1 => 0.)))
+     # test deletion of x
+     @test isa(delete(m, f), Nothing)
+     @test num_constraints(m) == 2
+     @test measure_function(meas1) == par + 0
+     @test measure_function(meas2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+     @test jump_function(constraint_object(con1)) == par + 0
+     @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+     @test !haskey(InfiniteOpt._data_dictionary(f), JuMP.index(f))
+     @test !is_valid(m, f)
+     @test !is_valid(m, d)
+     @test !is_valid(m, rv)
+     # test errors
+     @test_throws AssertionError delete(m, f)
  end
 
  # Test variable deletion

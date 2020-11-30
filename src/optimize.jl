@@ -645,7 +645,10 @@ julia> supports(vref)
  (1.0,)
 ```
 """
-function supports(vref::Union{DecisionVariableRef, MeasureRef}; kwargs...)
+function supports(
+    vref::Union{DecisionVariableRef, MeasureRef, ParameterFunctionRef}; 
+    kwargs...
+    )
     model = optimizer_model(JuMP.owner_model(vref))
     key = optimizer_model_key(JuMP.owner_model(vref))
     return variable_supports(model, vref, Val(key); kwargs...)

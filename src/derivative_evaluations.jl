@@ -128,9 +128,11 @@ end
 # TODO prevent the redundant generation of point and reduced variables for overlapping expressions
 # InfiniteVariableIndex/DerivativeIndex
 function make_reduced_expr(vref, 
-    ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}}, 
-    pref, support, write_model
-    )::GeneralVariableRef
+    ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}, Type{ParameterFunctionIndex}}, 
+    pref, 
+    support, 
+    write_model
+    )
     prefs = parameter_list(vref)
     # only one parameter so we have to make a point variable (we know that this must be pref)
     if length(prefs) == 1

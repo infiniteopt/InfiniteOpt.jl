@@ -5,7 +5,7 @@
     make_point_variable_ref(write_model::Union{InfiniteModel, JuMP.Model},
                             ivref::GeneralVariableRef,
                             support::Vector{Float64}
-                            )::GenealVariableRef
+                            )::GeneralVariableRef
 
 Make a point variable for infinite variable/derivative `ivref` at `support`, add it to
 the `write_model`, and return the `GeneralVariableRef`. This is an internal method
@@ -15,10 +15,20 @@ expand measures without modifiying the `InfiniteModel`. In such cases, `write_mo
 should be the optimizer model and [`add_measure_variable`](@ref add_measure_variable(::JuMP.Model, ::Any, ::Any))
 should be extended appropriately for point variables. Errors if `write_model` is
 an optimizer model and `add_measure_variable` is not properly extended.
+
+Note this is also accomodates infinite parameter functions, in which case the 
+infinite parameter function is called with the support as input. 
 """
 function make_point_variable_ref(write_model::InfiniteModel,
                                  ivref::GeneralVariableRef,
-                                 support::Vector{Float64})::GeneralVariableRef
+                                 support::Vector{Float64})
+    return make_point_variable_ref(write_model, ivref, support, _index_type(ivref))
+end
+
+# Infinite variable index
+function make_point_variable_ref(write_model::InfiniteModel, ivref, support, 
+    ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}}
+    )::GeneralVariableRef
     prefs = parameter_list(ivref)
     for i in eachindex(support)
         support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
@@ -28,6 +38,16 @@ function make_point_variable_ref(write_model::InfiniteModel,
     new_info = _update_point_info(base_info, dispatch_variable_ref(ivref), support)
     var = PointVariable(_make_float_info(new_info), ivref, support)
     return JuMP.add_variable(write_model, var; add_support = false)
+end
+
+# Infinite parameter function index (this works for both optimizer and infinite models)
+function make_point_variable_ref(write_model, fref, support, 
+    ::Type{ParameterFunctionIndex}
+    )::Float64
+    prefs = raw_parameter_refs(fref)
+    supp_tuple = Tuple(support, prefs)
+    func = raw_function(fref)
+    return func(supp_tuple...)
 end
 
 """
@@ -55,7 +75,14 @@ end
 # This avoids changing the InfiniteModel unexpectedly
 function make_point_variable_ref(write_model::JuMP.Model, # this should be an optimizer model
                                  ivref::GeneralVariableRef,
-                                 support::Vector{Float64})::GeneralVariableRef
+                                 support::Vector{Float64})
+    return make_point_variable_ref(write_model, ivref, support, _index_type(ivref))
+end
+
+# Infinite variable index
+function make_point_variable_ref(write_model::JuMP.Model, ivref, support, 
+    ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}}
+    )::GeneralVariableRef
     prefs = parameter_list(ivref)
     for i in eachindex(support)
         support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
@@ -75,7 +102,7 @@ end
                               values::Vector{Float64}
                               )::GeneralVariableRef
 
-Make a reduced variable for infinite variable/derivative `ivref` at `support`, add it to
+Make a reduced variable for infinite variable/derivative/parameter function `ivref` at `support`, add it to
 the `write_model`, and return the `GeneralVariableRef`. This is an internal method
 for reduced variables produced by expanding measures via [`expand_measure`](@ref).
 This is also useful for those writing extension optimizer models and wish to
@@ -181,12 +208,11 @@ function expand_measure(vref::GeneralVariableRef,
     return expand_measure(vref, _index_type(vref), data, write_model)
 end
 
-# InfiniteVariableRef/DerivativeRef (1D DiscreteMeasureData)
+# InfiniteVariableRef/DerivativeRef/ParameterFunctionRef (1D DiscreteMeasureData)
 function expand_measure(ivref::GeneralVariableRef,
-                        index_type::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}},
+                        index_type::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}, Type{ParameterFunctionIndex}},
                         data::DiscreteMeasureData{GeneralVariableRef, 1},
-                        write_model::JuMP.AbstractModel
-                        )::JuMP.GenericAffExpr
+                        write_model::JuMP.AbstractModel)
     # pull in the needed information
     var_prefs = parameter_list(ivref)
     pref = parameter_refs(data)
@@ -211,12 +237,11 @@ function expand_measure(ivref::GeneralVariableRef,
     end
 end
 
-# InfiniteVariableRef/DerivativeRef (Multi DiscreteMeasureData)
+# InfiniteVariableRef/DerivativeRef/ParameterFunctionRef (Multi DiscreteMeasureData)
 function expand_measure(ivref::GeneralVariableRef,
-                        index_type::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}},
+                        index_type::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}, Type{ParameterFunctionIndex}},
                         data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
-                        write_model::JuMP.AbstractModel
-                        )::JuMP.GenericAffExpr
+                        write_model::JuMP.AbstractModel)
     # pull in the needed information
     var_prefs = parameter_list(ivref)
     prefs = parameter_refs(data)
@@ -266,8 +291,7 @@ end
 function expand_measure(rvref::GeneralVariableRef,
                         index_type::Type{ReducedVariableIndex},
                         data::DiscreteMeasureData{GeneralVariableRef, 1},
-                        write_model::JuMP.AbstractModel
-                        )::JuMP.GenericAffExpr
+                        write_model::JuMP.AbstractModel)
     # pull in the needed information
     drvref = dispatch_variable_ref(rvref)
     ivref = infinite_variable_ref(drvref)
@@ -319,8 +343,7 @@ end
 function expand_measure(rvref::GeneralVariableRef,
                         index_type::Type{ReducedVariableIndex},
                         data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
-                        write_model::JuMP.AbstractModel
-                        )::JuMP.GenericAffExpr
+                        write_model::JuMP.AbstractModel)
     # pull in the needed information
     drvref = dispatch_variable_ref(rvref)
     ivref = infinite_variable_ref(drvref)

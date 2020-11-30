@@ -27,6 +27,12 @@
         @test make_point_variable_ref(m, d2, Float64[0, 0]) == pvref
         @test parameter_values(pvref) == (0., 0.)
     end
+    # test make_point_variable_ref with infinite parameter functions 
+    @testset "make_point_variable_ref (Parameter Function)" begin
+        f = parameter_function(sin, par1)
+        @test make_point_variable_ref(m, f, [0.]) == 0 
+        @test make_point_variable_ref(Model(), f, [0.]) == 0 
+    end
     # test add_measure_variable
     @testset "add_measure_variable" begin
         @test_throws ErrorException add_measure_variable(Model(), Bad(), Val(:some_key))
@@ -133,6 +139,15 @@ end
     d7 = @deriv(inf7, par1)
     d8 = @deriv(inf8, pars1[1])
     d9 = @deriv(inf9, pars1[1])
+    f1 = parameter_function(sin, par1)
+    f2 = parameter_function((a,b) -> 1, (par1, par2))
+    f3 = parameter_function(cos, par2)
+    f4 = parameter_function(a -> -1, (pars1,))
+    f5 = parameter_function((a,b) -> 1, (pars1, pars2))
+    f6 = parameter_function(a -> -1, (pars2,))
+    f7 = parameter_function((a,b,c) -> 1, (par1, par2, pars1))
+    f8 = parameter_function(cos, pars1[1])
+    f9 = parameter_function((a,b) -> 1, (pars1[1], par1))
     # prepare measures
     w(t) = 3
     data1 = DiscreteMeasureData(par1, [0.5, 0.5], [1, 2])
@@ -186,6 +201,24 @@ end
         rv1 = GeneralVariableRef(m, idx + 2, ReducedVariableIndex)
         rv2 = GeneralVariableRef(m, idx + 3, ReducedVariableIndex)
         @test InfiniteOpt.expand_measure(d7, data7, m) == 0.5 * (rv1 + rv2)
+        @test eval_supports(rv2) == Dict{Int, Float64}(3 => 2.)
+    end
+    # test expand_measure (infinite parameter functions) with DiscreteMeasureData
+    @testset "Parameter Function (1D DiscreteMeasureData)" begin
+        # test single param infinite var with measure param
+        @test InfiniteOpt.expand_measure(f1, data1, m) == 0.5 * (sin(1) + sin(2))
+        # test single param infinite var without measure param
+        @test InfiniteOpt.expand_measure(f1, data2, m) == 3 * f1
+        # test single param infinite var with measure param and others
+        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        @test InfiniteOpt.expand_measure(f2, data1, m) == 0.5 * (rv1 + rv2)
+        @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2.)
+        # test multi param infinite var with single element evaluation
+        rv1 = GeneralVariableRef(m, idx + 2, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 3, ReducedVariableIndex)
+        @test InfiniteOpt.expand_measure(f7, data7, m) == 0.5 * (rv1 + rv2)
         @test eval_supports(rv2) == Dict{Int, Float64}(3 => 2.)
     end
     # test expand_measure (infinite variable) with Multi DiscreteMeasureData
@@ -264,6 +297,33 @@ end
         rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
         rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
         @test InfiniteOpt.expand_measure(d9, data3, m) == rv1 + rv2
+        @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2)
+    end
+    # test expand_measure (infinite parameter functions) with Multi DiscreteMeasureData
+    @testset "Parameter Function (Multi DiscreteMeasureData)" begin
+        # test infinite var with measure param
+        @test InfiniteOpt.expand_measure(f4, data3, m) == -2
+        # test infinite var without measure param
+        @test InfiniteOpt.expand_measure(f4, data4, m) == 4 * f4
+        # test infinite var with measure param and others
+        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        @test InfiniteOpt.expand_measure(f5, data3, m) == rv1 + rv2
+        @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2, 2 => 2)
+        # test infinite var with measure param that is out of order
+        @test InfiniteOpt.expand_measure(f4, data5, m) == -2
+        # test infinite var with measure param that doesn't overlap
+        @test InfiniteOpt.expand_measure(f8, data6, m) == 2 * f8
+        # test infinite var with measure param that doesn't overlap and there are others
+        @test InfiniteOpt.expand_measure(f9, data6, m) == 2 * f9
+        # test infinite variable has subset of multi params
+        @test InfiniteOpt.expand_measure(f8, data3, m) == cos(1) + cos(2)
+        # test making reduced vars with variable not containing all the measure prefs
+        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        @test InfiniteOpt.expand_measure(f9, data3, m) == rv1 + rv2
         @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2)
     end
     @testset "_make_point_support (1D DiscreteMeasureData)" begin

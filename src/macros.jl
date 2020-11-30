@@ -822,7 +822,7 @@ The recognized keyword arguments in `kw_args` are the following:
            This can be a single value enforced over the entire infinite variable
            domain or it can be a function that maps a support value to a scalar
            guess value. Note that the function arguments must match the format
-           of `parameter_refs`.
+           of a support instance of `parameter_refs`.
 - `binary`: Sets whether the variable is binary or not.
 - `integer`: Sets whether the variable is integer or not.
 - `container`: Specify the container type.

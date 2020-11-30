@@ -96,6 +96,8 @@ end
     @infinite_variable(m, x(par, pars))
     @point_variable(m, x(0, [0, 0]), x0)
     @hold_variable(m, y)
+    f1 = parameter_function(sin, par)
+    f2 = parameter_function((a, b) -> 1, (par, pars))
     add_supports(par, 0.5, label = InternalLabel)
     supps = Dict{Int, Float64}(2 => 1)
     xrv = add_variable(m, build_variable(error, x, supps))
@@ -152,6 +154,15 @@ end
         @test transcription_variable(tm, x, ndarray = true) == [a d; c f]
         @test_throws ErrorException transcription_variable(tm, xrv, ndarray = true)
     end
+    # test transcription_variable (Parameter Function)
+    @testset "transcription_variable (Parameter Function)" begin
+        # test normal
+        @test transcription_variable(tm, f1) == [sin(0), sin(1)]
+        @test transcription_variable(tm, f1, label = All) == sin.([0, 0.5, 1])
+        # test ndarray 
+        @test transcription_variable(tm, f1, label = All, ndarray = true) == sin.([0, 0.5, 1])
+        @test transcription_variable(tm, f2, ndarray = true) == ones(2, 2)
+    end
     # test transcription_variable (Fallback)
     @testset "transcription_variable (Fallback)" begin
         @test_throws ErrorException transcription_variable(tm, par)
@@ -161,6 +172,7 @@ end
         @test transcription_variable(y) == a
         @test transcription_variable(x, label = All) == [a, b, c, d, e, f]
         @test transcription_variable(x0) == b
+        @test transcription_variable(f2, ndarray = true) == ones(2, 2)
     end
     # test optimizer_model_variable extension
     @testset "optimizer_model_variable" begin
@@ -199,10 +211,22 @@ end
         @test InfiniteOpt.variable_supports(tm, dvref) == expected
         @test InfiniteOpt.variable_supports(tm, dvref, label = InternalLabel) == [expected[2]]
     end
+    # test variable_supports for infinite parameter functions with 2 inputs
+    @testset "variable_supports (Model, Parameter Function)" begin
+        # test normal
+        df1 = dispatch_variable_ref(f1)
+        @test InfiniteOpt.variable_supports(tm, df1) == [(0.,), (1.,)]
+        @test InfiniteOpt.variable_supports(tm, df1, label = All) == [(0.,), (0.5,), (1.,)]
+        # test ndarray 
+        df2 = dispatch_variable_ref(f2)
+        @test InfiniteOpt.variable_supports(tm, df1, label = All, ndarray = true) == [(0.,), (0.5,), (1.,)]
+        @test InfiniteOpt.variable_supports(tm, df2, ndarray = true) isa Array
+    end
     # test supports for infinite variable
     @testset "supports (Infinite)" begin
         @test supports(x, label = InternalLabel) == [(0.5, [0., 0.]), (0.5, [1., 1.])]
         @test supports(xrv) == [(0., 1.), (0.5, 1.), (1., 1.)]
+        @test supports(f1, label = All) == [(0.,), (0.5,), (1.,)]
     end
     # test lookup_by_support (infinite vars)
     @testset "lookup_by_support (Infinite)" begin
@@ -217,6 +241,11 @@ end
         @test IOTO.lookup_by_support(tm, x, [1., 1., 1.]) == f
         @test IOTO.lookup_by_support(tm, xrv, [0., 1.]) == d
         @test IOTO.lookup_by_support(tm, xrv, [1., 1.]) == f
+    end
+    # test lookup_by_support (infinite parameter functions)
+    @testset "lookup_by_support (Parameter Function)" begin
+        @test IOTO.lookup_by_support(tm, f1, [0.]) == 0
+        @test IOTO.lookup_by_support(tm, f2, [0., 0., 1.]) == 1
     end
     # test lookup_by_support (finite vars)
     @testset "lookup_by_support (Finite)" begin
@@ -401,6 +430,7 @@ end
     @finite_parameter(m, finpar, 42)
     @point_variable(m, x(0, [0, 0]), x0)
     @hold_variable(m, y)
+    f = parameter_function((a,b) -> 1, (par, pars))
     add_supports(par, 1, label = InternalLabel)
     meas1 = support_sum(2par -2, par)
     meas2 = support_sum(x^2 - y, pars)
@@ -435,6 +465,19 @@ end
     @testset "transcription_expression (Infinite Variable)" begin
         @test IOTO.transcription_expression(tm, x, [0., 1., 0.]) == c
         @test IOTO.transcription_expression(tm, meas1, [0., 0., 1.]) == -2 * zero(AffExpr)
+        @test IOTO.transcription_expression(tm, f, [0., 1., 0.]) == 1
+    end
+    # test transcription expression for reduced variables with 3 args
+    @testset "transcription_expression (Reduced Variable)" begin
+        # reduced of parameter function 
+        rv = add_variable(m, build_variable(error, f, Dict(1=>1.)))
+        @test IOTO.transcription_expression(tm, rv, [0., 1., 0.]) == 1
+        # reduced of infinite variable
+        rv = add_variable(m, build_variable(error, x, Dict(1=>1.)))
+        data.infvar_mappings[rv] = [b, c]
+        lookups = Dict{Vector{Float64}, Int}([0, 0] => 1, [1, 0] => 2)
+        data.infvar_lookup[rv] = lookups
+        @test IOTO.transcription_expression(tm, rv, [1., 0., 0.]) == c
     end
     # test transcription expression for finite variables with 3 args
     @testset "transcription_expression (Finite Variable)" begin

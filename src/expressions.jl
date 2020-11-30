@@ -1,4 +1,411 @@
 ################################################################################
+#                       INFINITE PARAMETER FUNCTION METHODS
+################################################################################
+# Extend dispatch_variable_ref
+function dispatch_variable_ref(model::InfiniteModel,
+                               index::ParameterFunctionIndex
+                               )::ParameterFunctionRef
+    return ParameterFunctionRef(model, index)
+end
+
+# Extend _add_data_object
+function _add_data_object(model::InfiniteModel,
+                          object::ParameterFunctionData
+                          )::ParameterFunctionIndex
+    return MOIUC.add_item(model.param_functions, object)
+end
+
+# Extend _data_dictionary (reference based)
+function _data_dictionary(fref::ParameterFunctionRef
+    )::MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{InfiniteParameterFunction{GeneralVariableRef}}}
+    return JuMP.owner_model(fref).param_functions
+end
+
+# Extend _data_object
+function _data_object(fref::ParameterFunctionRef
+    )::ParameterFunctionData{InfiniteParameterFunction{GeneralVariableRef}}
+  object = get(_data_dictionary(fref), JuMP.index(fref), nothing)
+  object === nothing && error("Invalid infinite parameter function reference, cannot find " *
+                        "corresponding object in the model. This is likely " *
+                        "caused by using the reference of a deleted function.")
+  return object
+end
+
+# Extend _core_variable_object
+function _core_variable_object(fref::ParameterFunctionRef
+    )::InfiniteParameterFunction{GeneralVariableRef}
+    return _data_object(fref).func
+end
+
+# Extend _object_numbers
+function _object_numbers(fref::ParameterFunctionRef)::Vector{Int}
+    return _core_variable_object(fref).object_nums
+end
+
+# Extend _parameter_numbers
+function _parameter_numbers(fref::ParameterFunctionRef)::Vector{Int}
+    return _core_variable_object(fref).parameter_nums
+end
+
+"""
+    build_parameter_function(_error::Function, func::Function, 
+        parameter_refs::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}, Tuple}
+        )::InfiniteParameterFunction{GeneralVariableRef}
+
+Build an [`InfiniteParameterFunction`](@ref) object that employs a infinite 
+parameter function `func` that takes instances of the infinite parameter(s) as 
+input. This can ultimately by incorporated into expressions to enable nonlinear 
+infinite parameter behavior and/or incorporate data over infinite domains. Errors 
+if the infinite parameter tuple is formatted incorrectly. The allowed format 
+follows that of infinite variables. Also errors if the function doesn't accept 
+a support realization of the `parameter_refs` as input.
+
+**Example**
+```julia-repl 
+julia> f = build_parameter_function(error, sin, t)
+InfiniteParameterFunction{GeneralVariableRef}(sin, (t,), [1], [1])
+```
+"""
+function build_parameter_function(
+    _error::Function, 
+    func::Function, 
+    parameter_refs::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}, Tuple}
+    )::InfiniteParameterFunction{GeneralVariableRef}
+    # process the parameter reference inputs
+    prefs = VectorTuple(parameter_refs)
+    # check the arguments
+    _check_parameter_tuple(_error, prefs)
+    _check_valid_function(_error, func, prefs)
+    # get the parameter object numbers
+    object_nums = Int[]
+    for pref in prefs 
+        union!(object_nums, _object_number(pref))
+    end
+    # get the parameter numbers 
+    param_nums = [_parameter_number(pref) for pref in prefs]
+    # make the variable and return
+    return InfiniteParameterFunction(func, prefs, object_nums, param_nums)
+end 
+
+# Used to update parameter-parameter function mappings
+function _update_param_var_mapping(fref::ParameterFunctionRef,
+                                   prefs::VectorTuple)::Nothing
+    for pref in prefs
+        dependency_list = _parameter_function_dependencies(pref)
+        if !(JuMP.index(fref) in dependency_list)
+            push!(dependency_list, JuMP.index(fref))
+        end
+    end
+    return
+end
+
+"""
+    add_parameter_function(model::InfiniteModel, pfunc::InfiniteParameterFunction, 
+                           [name::String = ""])::GeneralVariableRef
+
+Add an [`InfiniteParameterFunction`](@ref) `pfunc` to the `model` using `name` for 
+printing and return a `GeneralVariableRef` such that it can be embedded in 
+expressions. Errors if the infinite parameters `pfunc` points to do not belong to 
+`model`.
+
+**Example**
+```julia-repl
+julia> f = build_parameter_function(error, sin, t);
+
+julia> fref = add_parameter_function(model, f, "sin")
+sin(t)
+```
+"""
+function add_parameter_function(
+    model::InfiniteModel, 
+    pfunc::InfiniteParameterFunction, 
+    name::String = ""
+    )::GeneralVariableRef
+    _check_parameters_valid(model, pfunc.parameter_refs)
+    if isempty(name) 
+        name = String(first(methods(pfunc.func)).name)
+    end
+    data_object = ParameterFunctionData(pfunc, name)
+    findex = _add_data_object(model, data_object)
+    fref = ParameterFunctionRef(model, findex)
+    _update_param_var_mapping(fref, pfunc.parameter_refs)
+    return _make_variable_ref(model, findex)
+end
+
+"""
+    JuMP.name(fref::ParameterFunctionRef)::String
+
+Extend [`JuMP.name`](@ref JuMP.name(::JuMP.VariableRef)) to return the base name of
+`fref`.
+
+**Example**
+```julia-repl
+julia> name(fref)
+"func_name"
+```
+"""
+function JuMP.name(fref::ParameterFunctionRef)::String 
+    object = get(_data_dictionary(fref), JuMP.index(fref), nothing)
+    return object === nothing ? "" : object.name
+end
+
+"""
+    JuMP.set_name(fref::ParameterFunctionRef, name::String)::Nothing
+
+Extend [`JuMP.set_name`](@ref JuMP.set_name(::JuMP.VariableRef, ::String)) to set
+names of infinite parameter functions.
+
+**Example**
+```julia-repl
+julia> set_name(fref, "func_name")
+
+julia> name(fref)
+"func_name"
+```
+"""
+function JuMP.set_name(fref::ParameterFunctionRef, name::String)::Nothing
+    _data_object(fref).name = name
+    return
+end
+
+"""
+    parameter_function(func::Function, 
+                       pref_inputs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}, Tuple}; 
+                       [name::String = ""])::GeneralVariableRef
+
+Make an infinite parameter function and return a `GeneralVariableRef` that can be 
+embedded in InfiniteOpt expressions. This serves as a convenient wrapper for 
+[`build_parameter_function`](@ref) and [`add_parameter_function`](@ref). Here 
+`func` denotes the function that will take a support of infinite parameters as 
+input (formatted like `pref_inputs`) and will return a scalar value. Errors if 
+`func` will not take such as support as input or if `pref_inputs` follow an invalid 
+input format.
+
+**Example**
+```julia-repl 
+julia> p_func = parameter_function(sin, t)
+sin(t)
+```
+"""
+function parameter_function(func::Function, pref_inputs; 
+                            name::String = "")::GeneralVariableRef
+    f = build_parameter_function(error, func, pref_inputs)
+    model = JuMP.owner_model(first(f.parameter_refs))
+    return add_parameter_function(model, f, name)
+end
+
+"""
+    raw_parameter_refs(fref::ParameterFunctionRef)::VectorTuple{GeneralVariableRef}
+
+Return the raw [`VectorTuple`](@ref) of the parameter references that `fref`
+depends on. This is primarily an internal method where
+[`parameter_refs`](@ref parameter_refs(::ParameterFunctionRef))
+is intended as the preferred user function.
+"""
+function raw_parameter_refs(fref::ParameterFunctionRef)::VectorTuple{GeneralVariableRef}
+    return _core_variable_object(fref).parameter_refs 
+end
+
+"""
+    parameter_refs(fref::ParameterFunctionRef)::Tuple
+
+Return the parameter references associated with `fref`. This
+is formatted as a Tuple of containing the parameter references as they inputted
+to define `fref`.
+
+**Example**
+```julia-repl
+julia> parameter_refs(p_func)
+(t,)
+```
+"""
+function parameter_refs(fref::ParameterFunctionRef)::Tuple
+    return Tuple(raw_parameter_refs(fref))
+end
+
+"""
+    parameter_list(fref::ParameterFunctionRef)::Vector{GeneralVariableRef}
+
+Return a vector of the parameter references that `fref` depends on. This is
+primarily an internal method where [`parameter_refs`](@ref parameter_refs(::ParameterFunctionRef))
+is intended as the preferred user function.
+"""
+function parameter_list(fref::ParameterFunctionRef)::Vector{GeneralVariableRef}
+    return raw_parameter_refs(fref).values
+end
+
+"""
+    raw_function(fref::ParameterFunctionRef)::Function
+
+Returns the raw function behind `fref` that takes a particular support of `fref`'s 
+infinite parameters as input. 
+"""
+function raw_function(fref::ParameterFunctionRef)::Function
+    return _core_variable_object(fref).func
+end
+
+# Extend _reduced_variable_dependencies
+function _reduced_variable_dependencies(
+    fref::ParameterFunctionRef
+     )::Vector{ReducedVariableIndex}
+    return _data_object(fref).reduced_var_indices
+end
+
+# Extend _derivative_dependencies
+function _derivative_dependencies(
+    fref::ParameterFunctionRef
+     )::Vector{DerivativeIndex}
+    return _data_object(fref).derivative_indices
+end
+
+# Extend _measure_dependencies
+function _measure_dependencies(fref::ParameterFunctionRef)::Vector{MeasureIndex}
+    return _data_object(fref).measure_indices
+end
+
+# Extend _constraint_dependencies
+function _constraint_dependencies(fref::ParameterFunctionRef)::Vector{ConstraintIndex}
+    return _data_object(fref).constraint_indices
+end
+
+"""
+    used_by_reduced_variable(fref::ParameterFunctionRef)::Bool
+
+Return a `Bool` indicating if `fref` is used by a reduced infinite variable.
+
+**Example**
+```julia-repl
+julia> used_by_reduced_variable(fref)
+false
+```
+"""
+function used_by_reduced_variable(fref::ParameterFunctionRef)::Bool
+    return !isempty(_reduced_variable_dependencies(fref))
+end
+
+"""
+    used_by_derivative(fref::ParameterFunctionRef)::Bool
+
+Return a `Bool` indicating if `fref` is used by a derivative.
+
+**Example**
+```julia-repl
+julia> used_by_derivative(vref)
+true
+```
+"""
+function used_by_derivative(fref::ParameterFunctionRef)::Bool
+    return !isempty(_derivative_dependencies(fref))
+end
+
+"""
+    used_by_measure(fref::ParameterFunctionRef)::Bool
+
+Return a `Bool` indicating if `fref` is used by a measure.
+
+**Example**
+```julia-repl
+julia> used_by_measure(fref)
+true
+```
+"""
+function used_by_measure(fref::ParameterFunctionRef)::Bool
+    return !isempty(_measure_dependencies(fref))
+end
+
+"""
+    used_by_constraint(fref::ParameterFunctionRef)::Bool
+
+Return a `Bool` indicating if `fref` is used by a constraint.
+
+**Example**
+```julia-repl
+julia> used_by_constraint(fref)
+false
+```
+"""
+function used_by_constraint(fref::ParameterFunctionRef)::Bool
+    return !isempty(_constraint_dependencies(fref))
+end
+
+"""
+    is_used(fref::ParameterFunctionRef)::Bool
+
+Return a `Bool` indicating if `fref` is used in the model.
+
+**Example**
+```julia-repl
+julia> is_used(fref)
+true
+```
+"""
+function is_used(fref::ParameterFunctionRef)::Bool
+    return used_by_measure(fref) || used_by_constraint(fref) || 
+           used_by_reduced_variable(fref) || used_by_derivative(fref)
+end
+
+"""
+    JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)::Nothing
+
+Extend [`JuMP.delete`](@ref JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)) to delete
+infinite parameter functions and their dependencies. Errors if `fref` is invalid,
+meaning it has already been deleted or it belongs to another model.
+"""
+function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)::Nothing 
+    @assert JuMP.is_valid(model, fref) "Infinite parameter function is invalid."
+    # update the optimizer model status
+    if is_used(fref)
+        set_optimizer_model_ready(model, false)
+    end
+    # update parameter mapping
+    all_prefs = parameter_list(fref)
+    for pref in all_prefs
+        filter!(e -> e != JuMP.index(fref), _parameter_function_dependencies(pref))
+    end
+    gvref = _make_variable_ref(model, JuMP.index(fref))
+    # delete associated reduced variables and mapping
+    for index in _reduced_variable_dependencies(fref)
+        JuMP.delete(model, dispatch_variable_ref(model, index))
+    end
+    # delete associated derivative variables and mapping 
+    for index in _derivative_dependencies(fref)
+        JuMP.delete(model, dispatch_variable_ref(model, index))
+    end
+    # remove from measures if used
+    for mindex in _measure_dependencies(fref)
+        mref = dispatch_variable_ref(model, mindex)
+        func = measure_function(mref)
+        data = measure_data(mref)
+        if func isa GeneralVariableRef
+            new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+            new_meas = Measure(new_func, data, Int[], Int[], true)
+        else
+            _remove_variable(func, gvref)
+            new_meas = build_measure(func, data)
+        end
+        _set_core_variable_object(mref, new_meas)
+    end
+    # remove from constraints if used
+    for cindex in _constraint_dependencies(fref)
+        cref = _temp_constraint_ref(model, cindex)
+        func = JuMP.jump_function(JuMP.constraint_object(cref))
+        if func isa GeneralVariableRef
+            set = JuMP.moi_set(JuMP.constraint_object(cref))
+            new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+            new_constr = JuMP.ScalarConstraint(new_func, set)
+            _set_core_constraint_object(cref, new_constr)
+            empty!(_object_numbers(cref))
+        else
+            _remove_variable(func, gvref)
+            _data_object(cref).object_nums = sort(_object_numbers(func))
+        end
+    end
+    # delete the data object
+    _delete_data_object(fref)
+    return
+end
+
+################################################################################
 #                              COMPARISON METHODS
 ################################################################################
 ## Extend for better comparisons than default

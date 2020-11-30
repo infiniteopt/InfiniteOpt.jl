@@ -78,7 +78,7 @@ end
                         )::ReducedVariable{GeneralVariableRef}
 
 Extend the `JuMP.build_variable` function to build a reduced infinite variable
-based on the infinite variable/derivative `ivref` with reduction support `eval_supports`.
+based on the infinite variable/derivative/parameter function `ivref` with reduction support `eval_supports`.
 Will check that input is appropriate if `check = true`. Errors if `ivref` is
 not an infinite variable, `eval_supports` violate infinite parameter domains, or
 if the support dimensions don't match the infinite parameter dimensions of `ivref`.
@@ -90,8 +90,8 @@ function JuMP.build_variable(_error::Function, ivref::GeneralVariableRef,
                              )::ReducedVariable{GeneralVariableRef}
     # check the inputs
     dvref = dispatch_variable_ref(ivref)
-    if check && !(dvref isa Union{InfiniteVariableRef, DerivativeRef})
-         _error("Must specify an infinite variable/derivative dependency.")
+    if check && !(dvref isa Union{InfiniteVariableRef, DerivativeRef, ParameterFunctionRef})
+         _error("Must specify an infinite variable/derivative/parameter function dependency.")
     elseif check && maximum(keys(eval_supports)) > length(parameter_list(dvref))
         _error("Support evaluation dictionary indices do not match the infinite " *
                "parameter dependencies of $(ivref).")
@@ -150,8 +150,8 @@ end
 """
     infinite_variable_ref(vref::ReducedVariableRef)::GeneralVariableRef
 
-Return the infinite variable/derivative reference associated with the reduced infinite variable
-`vref`.
+Return the infinite variable/derivative/parameter function reference associated 
+with the reduced infinite variable `vref`.
 
 **Example**
 ```julia-repl

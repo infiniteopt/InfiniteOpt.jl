@@ -109,10 +109,11 @@
     @testset "_set_reduced_variable_mapping" begin 
         var = ReducedVariable(y, Dict{Int, Float64}(1 => 0), [1, 2], [1])
         vref = GeneralVariableRef(m, -1, ReducedVariableIndex)
-        @test IOTO._set_reduced_variable_mapping(tm, var, vref) isa Nothing 
+        @test IOTO._set_reduced_variable_mapping(tm, var, vref, ReducedVariableIndex) isa Nothing 
         @test transcription_variable(vref) isa Vector{VariableRef}
         @test length(transcription_data(tm).infvar_mappings) == 5
         @test IOTO.lookup_by_support(tm, y, [0., 0, 0]) == IOTO.lookup_by_support(tm, vref, [0., 0])
+        @test IOTO._set_reduced_variable_mapping(tm, var, vref, ParameterFunctionIndex) isa Nothing 
     end
     # test transcribe_reduced_variables!
     @testset "transcribe_reduced_variables!" begin 
@@ -386,13 +387,14 @@ end
     @hold_variable(m, 0 <= z <= 1, Bin)
     @hold_variable(m, w == 1, Int, start = 1)
     @finite_parameter(m, fin, 0)
+    f = parameter_function(a -> 0, par)
     d1 = @deriv(y, par)
     d2 = @deriv(x, par^2)
     set_upper_bound(d1, 2)
     meas1 = support_sum(x - w - d2, par)
     meas2 = support_sum(y, pars)
     @set_parameter_bounds(z, (pars == 0, par == 0))
-    @constraint(m, c1, x + par - z + d1 == 0)
+    @constraint(m, c1, x + par - z + d1 + f == 0)
     @constraint(m, c2, z + x0 >= -3)
     @constraint(m, c3, meas1 + z == 0)
     @BDconstraint(m, c4(par in [0.5, 1]), meas2 - 2y0 + x + fin <= 1)

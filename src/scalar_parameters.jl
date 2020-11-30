@@ -103,7 +103,8 @@ end
 function _adaptive_data_update(pref::ScalarParameterRef, param::P1, 
                                data::ScalarParameterData{P2})::Nothing  where {P1, P2}
     new_data = ScalarParameterData(param, data.object_num, data.parameter_num, 
-                                   data.name, data.infinite_var_indices, 
+                                   data.name, data.parameter_func_indices,
+                                   data.infinite_var_indices, 
                                    data.derivative_indices, data.measure_indices,
                                    data.constraint_indices, data.in_objective,
                                    data.has_internal_supports, 
@@ -347,6 +348,12 @@ function _infinite_variable_dependencies(pref::ScalarParameterRef
     return _data_object(pref).infinite_var_indices
 end
 
+# Extend _parameter_function_dependencies
+function _parameter_function_dependencies(pref::ScalarParameterRef
+    )::Vector{ParameterFunctionIndex}
+    return _data_object(pref).parameter_func_indices
+end
+
 # Extend _derivative_dependencies
 function _derivative_dependencies(pref::ScalarParameterRef
     )::Vector{DerivativeIndex}
@@ -375,7 +382,7 @@ Return true if `pref` is used by an infinite variable or false otherwise.
 
 **Example**
 ```julia-repl
-julia> used_by_variable(t)
+julia> used_by_infinite_variable(t)
 true
 ```
 """
@@ -385,6 +392,24 @@ end
 
 # FiniteParameter
 used_by_infinite_variable(pref::FiniteParameterRef)::Bool = false
+
+"""
+    used_by_parameter_function(pref::IndependentParameterRef)::Bool
+
+Return true if `pref` is used by an infinite parameter function or false otherwise.
+
+**Example**
+```julia-repl
+julia> used_by_parameter_function(t)
+false
+```
+"""
+function used_by_parameter_function(pref::IndependentParameterRef)::Bool
+    return !isempty(_parameter_function_dependencies(pref))
+end
+
+# FiniteParameter
+used_by_parameter_function(pref::FiniteParameterRef)::Bool = false
 
 """
     used_by_measure(pref::Union{IndependentParameterRef, FiniteParameterRef})::Bool
@@ -464,7 +489,7 @@ true
 function is_used(pref::ScalarParameterRef)::Bool
     return used_by_measure(pref) || used_by_constraint(pref) ||
            used_by_infinite_variable(pref) || used_by_objective(pref) || 
-           used_by_derivative(pref)
+           used_by_derivative(pref) || used_by_parameter_function(pref)
 end
 
 ################################################################################
@@ -1496,6 +1521,11 @@ function JuMP.delete(model::InfiniteModel, pref::IndependentParameterRef)::Nothi
     for mindex in _measure_dependencies(pref)
         data = measure_data(dispatch_variable_ref(model, mindex))
         _check_param_in_data(gvref, data)
+    end
+    # ensure pref is not used by a parameter function 
+    if used_by_parameter_function(pref)
+        error("Cannot delete `$pref` since it is used by an infinite parameter " * 
+              "function.")
     end
     # update optimizer model status
     if is_used(pref)

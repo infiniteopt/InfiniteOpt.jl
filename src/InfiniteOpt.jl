@@ -75,7 +75,7 @@ export AbstractInfOptIndex, ObjectIndex, IndependentParameterIndex,
 DependentParametersIndex, DependentParameterIndex, FiniteParameterIndex,
 InfiniteVariableIndex, PointVariableIndex, ReducedVariableIndex,
 HoldVariableIndex, MeasureIndex, ConstraintIndex, InfiniteParameterIndex,
-FiniteVariableIndex, DerivativeIndex
+FiniteVariableIndex, DerivativeIndex, ParameterFunctionIndex
 
 # Export infinite set types
 export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
@@ -103,7 +103,11 @@ set_supports, add_supports, delete_supports, supports, used_by_constraint,
 used_by_measure, used_by_infinite_variable, is_used, generate_and_add_supports!,
 significant_digits, parameter_value, used_by_derivative, derivative_method, 
 set_derivative_method, set_all_derivative_methods, has_internal_supports, 
-has_derivative_supports, has_derivative_constraints
+has_derivative_supports, has_derivative_constraints, used_by_parameter_function
+
+# Export the paramter function datatypes and methods 
+export InfiniteParameterFunction, ParameterFunctionData, ParameterFunctionRef,
+build_parameter_function, add_parameter_function, raw_function, parameter_function
 
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, ReducedVariable,
