@@ -9,10 +9,10 @@ interface for these advanced problem types that can be used by those with little
 to no background in these areas. It also it contains a wealth of capabilities
 making it a powerful and convenient tool for advanced users.  
 
-| **Documentation**                                                               | **Build Status**                                                                                |
-|:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|
-| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable) | [![Build Status](https://api.travis-ci.com/pulsipher/InfiniteOpt.jl.svg?branch=v0.3.2)](https://travis-ci.com/pulsipher/InfiniteOpt.jl) [![Build Status2](https://ci.appveyor.com/api/projects/status/p3srfp3uuvchfg3j/branch/v0.3.2?svg=true)](https://ci.appveyor.com/project/pulsipher/InfiniteOpt-jl) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=release-0.3)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=release-0.3) |
-| [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/dev) | [![Build Status](https://travis-ci.com/pulsipher/InfiniteOpt.jl.svg?branch=master)](https://travis-ci.com/pulsipher/InfiniteOpt.jl) [![Build Status2](https://ci.appveyor.com/api/projects/status/github/pulsipher/InfiniteOpt.jl?branch=master&svg=true)](https://ci.appveyor.com/project/pulsipher/InfiniteOpt-jl) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=master)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=master) |
+| **Documentation**                                                               | **Build Status**                                                                                | **Citation** |
+|:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|:--------------------------------------:|
+| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable) | [![Build Status](https://api.travis-ci.com/pulsipher/InfiniteOpt.jl.svg?branch=v0.3.2)](https://travis-ci.com/pulsipher/InfiniteOpt.jl) [![Build Status2](https://ci.appveyor.com/api/projects/status/p3srfp3uuvchfg3j/branch/v0.3.2?svg=true)](https://ci.appveyor.com/project/pulsipher/InfiniteOpt-jl) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=release-0.3)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=release-0.3) | [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4291106.svg)](https://doi.org/10.5281/zenodo.4291106) |
+| [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/dev) | [![Build Status](https://travis-ci.com/pulsipher/InfiniteOpt.jl.svg?branch=master)](https://travis-ci.com/pulsipher/InfiniteOpt.jl) [![Build Status2](https://ci.appveyor.com/api/projects/status/github/pulsipher/InfiniteOpt.jl?branch=master&svg=true)](https://ci.appveyor.com/project/pulsipher/InfiniteOpt-jl) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=master)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=master) | |
 
 Its capabilities include:
 - `JuMP`-like symbolic macro interface
@@ -71,6 +71,20 @@ capabilities:
 
 Please visit our [documentation pages](https://pulsipher.github.io/InfiniteOpt.jl/stable) to learn more. These pages are quite extensive and feature overviews, guides, manuals,
 tutorials, examples, and more!
+
+## Citing
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4291106.svg)](https://doi.org/10.5281/zenodo.4291106)
+
+If you use InfiniteOpt.jl in your research, we would greatly appreciate your citing it.
+```latex
+@misc{pulsipher20,
+  author       = {J. Pulsipher and W. Zhang and V. Zavala},
+  title        = {InfiniteOpt.jl -- A Julia package for modeling infinite-dimensional optimizataion problems},
+  year         = 2020,
+  doi          = {10.5281/zenodo.4291106},
+  url          = {https://doi.org/10.5281/zenodo.4291106}
+}
+```
 
 ## Project Status
 The package is tested against Julia `1.0` and `1.5` on Linux and Windows.
