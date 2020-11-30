@@ -129,7 +129,12 @@ end
     MOI.set(mockoptimizer, MOI.ResultCount(), 1)
     MOI.set(mockoptimizer, MOI.PrimalStatus(1), MOI.FEASIBLE_POINT)
     MOI.set(mockoptimizer, MOI.DualStatus(1), MOI.FEASIBLE_POINT)
-    MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(creft), 7.0)
+    for t in list_of_constraint_types(tm)
+        for c in all_constraints(tm, t...)
+            MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c), -12.0)
+        end
+    end
+    # MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(creft), 7.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(gt), 1.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(inft[1]), 2.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(inft[2]), 1.0)
@@ -166,12 +171,12 @@ end
     #test Reduced Cost
     @testset "map_reduced_cost" begin
     @test InfiniteOpt.map_reduced_cost(inf, Val(:TransData), label = All) == [0.0, 0.0, 0.0]
-    @test InfiniteOpt.map_reduced_cost(g, Val(:TransData)) == 7.0
+    @test InfiniteOpt.map_reduced_cost(g, Val(:TransData)) == 26.0
 end
      #test Reduced Cost
      @testset "JuMP.reduced_cost" begin
-     @test InfiniteOpt.JuMP.reduced_cost(inf, label = All) == [0.0, 0.0, 0.0]
-     @test InfiniteOpt.JuMP.reduced_cost(g) == 7.0
+     @test JuMP.reduced_cost(inf, label = All) == [0.0, 0.0, 0.0]
+     @test JuMP.reduced_cost(g) == 26.0
  end
     # test map_optimizer_index
     @testset "map_optimizer_index" begin
