@@ -478,6 +478,7 @@ InfiniteOpt.map_value
 InfiniteOpt.map_optimizer_index
 InfiniteOpt.map_dual
 InfiniteOpt.map_shadow_price
+InfiniteOpt.map_reduced_cost(vref::GeneralVariableRef)
 InfiniteOpt.map_lp_rhs_perturbation_range
 InfiniteOpt.map_lp_objective_perturbation_range
 ```
