@@ -315,6 +315,54 @@ function JuMP.value(vref::GeneralVariableRef; result::Int = 1, kwargs...)
     return _get_value(vref, _index_type(vref), result; kwargs...)
 end
 
+
+################################################################################
+#                                 REDUCED COST
+################################################################################
+
+"""
+    map_reduced_cost([ref], key::Val{ext_key_name}, result::Int; kwargs...)
+
+Map the reduced cost(s) of `ref` to its counterpart in the optimizer model type that is
+distininguished by its extension key `key` as type `Val{ext_key_name}`. Here `ref` needs refer 
+to methods for variable references.  This only needs to be defined for reformulation extensions that cannot
+readily extend `optimizer_model_variable`. Such as is the case with reformuations that do not
+have a direct mapping between variables in the original
+infinite form. Otherwise, `optimizer_model_variable`, is used to make
+these mappings by default where `kwargs` are passed on these functions. Here 
+`result` is the result index used in `value`.
+"""
+function map_reduced_cost end
+
+function map_reduced_cost(vref::GeneralVariableRef, key; kwargs...)
+    opt_vref = optimizer_model_variable(vref, key; kwargs...)
+    if opt_vref isa AbstractArray
+        return map(v -> JuMP.reduced_cost(v), opt_vref)
+    else
+        return JuMP.reduced_cost(opt_vref)
+    end
+end
+
+
+"""
+    JuMP.reduced_cost(vref::GeneralVariableRef)
+Extending [`JuMP.reduced_cost`](@JuMP.reduced_cost(vref::GeneralVariableRef)). This returns
+the reduced cost of some infinite variable. Returns a scalar value.
+
+**Example**
+```
+julia> reduced_cost(x)
+12.81
+
+```
+"""
+function JuMP.reduced_cost(vref::GeneralVariableRef; kwargs...)
+    return map_reduced_cost(vref, Val(optimizer_model_key(JuMP.owner_model(vref))); kwargs...)
+end
+
+
+
+
 """
     JuMP.value(cref::InfOptConstraintRef; [result::Int = 1,
                label::Type{<:AbstractSupportLabel} = PublicLabel,

@@ -108,7 +108,7 @@ end
     @infinite_variable(m, inf(par))
     @infinite_variable(m, inf2(par2, par))
     @finite_parameter(m, fin, 42)
-    @hold_variable(m, g)
+    @hold_variable(m, g <=3)
     d1 = @deriv(inf, par)
     var = build_variable(error, inf2, Dict{Int, Float64}(2 => 0))
     rv = add_variable(m, var)
@@ -121,11 +121,20 @@ end
     inf2t = transcription_variable(inf2, label = All)
     d1t = transcription_variable(d1, label = All)
     rvt = transcription_variable(rv, label = All)
+    cref = UpperBoundRef(g)
+    creft = transcription_constraint(cref, label = All)
     # setup the optimizer
     mockoptimizer = JuMP.backend(tm).optimizer.model
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
     MOI.set(mockoptimizer, MOI.ResultCount(), 1)
     MOI.set(mockoptimizer, MOI.PrimalStatus(1), MOI.FEASIBLE_POINT)
+    MOI.set(mockoptimizer, MOI.DualStatus(1), MOI.FEASIBLE_POINT)
+    for t in list_of_constraint_types(tm)
+        for c in all_constraints(tm, t...)
+            MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c), -12.0)
+        end
+    end
+    # MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(creft), 7.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(gt), 1.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(inft[1]), 2.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(inft[2]), 1.0)
@@ -159,6 +168,16 @@ end
         @test value(fin) == 42
         @test value(fin, label = All) == 42
     end
+    #test Reduced Cost
+    @testset "map_reduced_cost" begin
+    @test InfiniteOpt.map_reduced_cost(inf, Val(:TransData), label = All) == [0.0, 0.0, 0.0]
+    @test InfiniteOpt.map_reduced_cost(g, Val(:TransData)) == 26.0
+end
+     #test Reduced Cost
+     @testset "JuMP.reduced_cost" begin
+     @test JuMP.reduced_cost(inf, label = All) == [0.0, 0.0, 0.0]
+     @test JuMP.reduced_cost(g) == 26.0
+ end
     # test map_optimizer_index
     @testset "map_optimizer_index" begin
         @test isa(InfiniteOpt.map_optimizer_index(g, Val(:TransData)), MOI.VariableIndex)

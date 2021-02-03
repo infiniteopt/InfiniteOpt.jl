@@ -467,6 +467,7 @@ JuMP.result_count(::InfiniteModel)
 JuMP.value(::GeneralVariableRef)
 JuMP.value(::InfOptConstraintRef)
 JuMP.value(::Union{JuMP.GenericAffExpr{<:Any, <:GeneralVariableRef}, JuMP.GenericQuadExpr{<:Any, <:GeneralVariableRef}})
+JuMP.reduced_cost(::GeneralVariableRef)
 JuMP.optimizer_index(::GeneralVariableRef)
 JuMP.optimizer_index(::InfOptConstraintRef)
 JuMP.dual(::InfOptConstraintRef)
@@ -477,6 +478,7 @@ InfiniteOpt.map_value
 InfiniteOpt.map_optimizer_index
 InfiniteOpt.map_dual
 InfiniteOpt.map_shadow_price
+InfiniteOpt.map_reduced_cost
 InfiniteOpt.map_lp_rhs_perturbation_range
 InfiniteOpt.map_lp_objective_perturbation_range
 ```
