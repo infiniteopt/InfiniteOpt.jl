@@ -46,9 +46,9 @@ be over the entire domain, which is ``[0, 10]`` in this case.
 The `integral` function uses trapezoid rule as the default discretization scheme
 for univariate parameters in finite `IntervalSet`s. In addition, the user can also 
 use quadrature methods for univariate parameters in all `IntervalSet`s by setting
-the keyword argument `eval_method` as `Quadrature`:
+the keyword argument `eval_method` as `Quadrature()`:
 ```jldoctest meas_basic
-julia> mref2 = integral(y^2 + u^2, t, eval_method = Quadrature)
+julia> mref2 = integral(y^2 + u^2, t, eval_method = Quadrature())
 ∫{t ∈ [0, 10]}[y(t)² + u(t)²]
 ```
 
@@ -125,13 +125,13 @@ of the measure. The default value of these keyword arguments can be queried usin
 julia> uni_integral_defaults()
 Dict{Symbol,Any} with 3 entries:
   :num_supports => 10
-  :eval_method  => Automatic
+  :eval_method  => Automatic()
   :weight_func  => default_weight
 
 julia> multi_integral_defaults()
 Dict{Symbol,Any} with 3 entries:
   :num_supports => 10
-  :eval_method  => Automatic
+  :eval_method  => Automatic()
   :weight_func  => default_weight
 ```
 `Automatic` dictates that the integral is created using the default method depending
@@ -274,18 +274,21 @@ Each method is limited on the dimension of parameter and/or the type of set
 that it can apply for. For the details of what each method type means, refer to the corresponding
 docstrings.
 
-| Evaluation Method              | Uni/Multi-Variate? | Set Type                            |
-|:------------------------------:|:------------------:|:-----------------------------------:|
-| [`Automatic`](@ref)            | Both               | Any                                 |
-| [`UniTrapezoid`](@ref)         | Both               | [`IntervalSet`](@ref)               |
-| [`UniMCSampling`](@ref)        | Univariate         | Finite [`IntervalSet`](@ref)        |
-| [`UniIndepMCSampling`](@ref)   | Univariate         | Finite [`IntervalSet`](@ref)        |
-| [`Quadrature`](@ref)           | Univariate         | [`IntervalSet`](@ref)               |
-| [`GaussLegendre`](@ref)        | Univariate         | Finite [`IntervalSet`](@ref)        |
-| [`GaussLaguerre`](@ref)        | Univariate         | Semi-infinite [`IntervalSet`](@ref) |
-| [`GaussHermite`](@ref)         | Univariate         | Infinite [`IntervalSet`](@ref)      |
-| [`MultiMCSampling`](@ref)      | Multivariate       | Finite [`IntervalSet`](@ref)        |
-| [`MultiIndepMCSampling`](@ref) | Multivariate       | Finite [`IntervalSet`](@ref)        |
+| Evaluation Method              | Uni/Multi-Variate? | Set Type                              |
+|:------------------------------:|:------------------:|:-------------------------------------:|
+| [`Automatic()`](@ref)            | Both               | Any                                 |
+| [`UniTrapezoid()`](@ref)         | Both               | [`IntervalSet`](@ref)               |
+| [`UniMCSampling()`](@ref)        | Univariate         | Finite [`IntervalSet`](@ref)        |
+| [`UniIndepMCSampling()`](@ref)   | Univariate         | Finite [`IntervalSet`](@ref)        |
+| [`Quadrature()`](@ref)           | Univariate         | [`IntervalSet`](@ref)               |
+| [`GaussLegendre()`](@ref)        | Univariate         | Finite [`IntervalSet`](@ref)        |
+| [`GaussRadau()`](@ref)           | Univariate         | Finite [`IntervalSet`](@ref)        |
+| [`GaussJacobi()`](@ref)          | Univariate         | Finite [`IntervalSet`](@ref)        |
+| [`GaussLobatto()`](@ref)         | Univariate         | Finite [`IntervalSet`](@ref)        |
+| [`GaussLaguerre()`](@ref)        | Univariate         | Semi-infinite [`IntervalSet`](@ref) |
+| [`GaussHermite()`](@ref)         | Univariate         | Infinite [`IntervalSet`](@ref)      |
+| [`MultiMCSampling()`](@ref)      | Multivariate       | Finite [`IntervalSet`](@ref)        |
+| [`MultiIndepMCSampling()`](@ref) | Multivariate       | Finite [`IntervalSet`](@ref)        |
 
 In summary, we natively support trapezoid rule, Gaussian quadrature methods for univariate parameters,
 and Monte Carlo sampling for both univariate and multivariate parameters.
@@ -490,6 +493,9 @@ InfiniteOpt.MeasureToolbox.UniIndepMCSampling
 InfiniteOpt.MeasureToolbox.Quadrature
 InfiniteOpt.MeasureToolbox.GaussHermite
 InfiniteOpt.MeasureToolbox.GaussLegendre
+InfiniteOpt.MeasureToolbox.GaussRadau
+InfiniteOpt.MeasureToolbox.GaussLobatto
+InfiniteOpt.MeasureToolbox.GaussJacobi
 InfiniteOpt.MeasureToolbox.GaussLaguerre
 InfiniteOpt.MeasureToolbox.AbstractMultivariateMethod
 InfiniteOpt.MeasureToolbox.MultiMCSampling
