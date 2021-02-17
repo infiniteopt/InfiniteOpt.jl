@@ -128,7 +128,7 @@ struct GaussJacobi <: AbstractUnivariateMethod
     α::Float64
     β::Float64
     function GaussJacobi(α::Real, β::Real)
-        return new(float64(α), float64(β))
+        return new(Float64(α), Float64(β))
     end
 end
 
