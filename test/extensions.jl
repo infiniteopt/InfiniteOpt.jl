@@ -37,7 +37,7 @@
     x = m[:x]
     
     # test measures
-    @test @integral(x^2 + par, par, num_supports = 2, eval_method = GaussLegendre) isa GeneralVariableRef
+    @test @integral(x^2 + par, par, num_supports = 2, eval_method = GaussLegendre()) isa GeneralVariableRef
 
     # test constraints
     @test @constraint(m, x + par <= 0) isa InfOptConstraintRef

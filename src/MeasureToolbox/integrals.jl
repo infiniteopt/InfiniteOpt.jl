@@ -13,7 +13,7 @@ abstract type AbstractIntegralMethod end
     Automatic <: AbstractIntegralMethod
 
 An integral evaluation type for automically selecting an appropriate integral
-evaluation method.
+evaluation method. Contains no fields.
 """
 struct Automatic <: AbstractIntegralMethod end
 
@@ -31,7 +31,7 @@ An integral evalution method that uses the trapezoid rule to in combination
 with all parameter supports available when the integral is expanded and/or when
 the infinite model is optimized, whichever comes first. Note this method will
 ignore the `num_supports` keyword argument. Note this is valid only for finite
-integral domains.
+integral domains. Contains no fields.
 """
 struct UniTrapezoid <: AbstractUnivariateMethod end
 
@@ -43,7 +43,7 @@ approximate the integral. This variant will add more supports to the model as
 needed to satisfy `num_supports` and it will include all supports with the
 `MCSample` label up till the integral is expanded and/or when
 the infinite model is optimized, whichever comes first. Note this is valid only
-for finite integral domains.
+for finite integral domains. Contains no fields.
 """
 struct UniMCSampling <: AbstractUnivariateMethod end
 
@@ -54,7 +54,7 @@ An integral evaluation method that uses uniform Monte Carlo sampling to
 approximate the integral similar to [`UniMCSampling`](@ref MeasureToolbox.UniMCSampling).
 However, this variant will generate its own set of supports and ignore all other
 supports with the `MCSample` label. Note this is valid only for finite integral
-domains. This is not compatible with individual dependent parameters.
+domains. This is not compatible with individual dependent parameters. Contains no fields.
 """
 struct UniIndepMCSampling <: AbstractUnivariateMethod end
 
@@ -66,7 +66,7 @@ appropriate quadrature method to approximate the integral. Please note that this
 will generate a unique set of parameter supports and will ignore existing supports
 when the integral is evaluated and thus should be used with caution. However,
 this method is able to handle infinite and semi-infinite integral domains.
-This is not compatible with individual dependent parameters.
+This is not compatible with individual dependent parameters. Contains no fields.
 """
 struct Quadrature <: AbstractUnivariateMethod end
 
@@ -76,7 +76,7 @@ struct Quadrature <: AbstractUnivariateMethod end
 An integral evaulation method that uses Gauss-Hermite quadrature to
 evaluate integrals. This is valid for infinite integral domains. Note this will
 generate its own set of supports and will ignore other parameter supports.
-This is not compatible with individual dependent parameters.
+This is not compatible with individual dependent parameters. Contains no fields.
 """
 struct GaussHermite <: AbstractUnivariateMethod end
 
@@ -86,9 +86,51 @@ struct GaussHermite <: AbstractUnivariateMethod end
 An integral evaulation method that uses Gauss-Legendre quadrature to
 evaluate integrals. This is valid for finite integral domains. Note this will
 generate its own set of supports and will ignore other parameter supports.
-This is not compatible with individual dependent parameters.
+This is not compatible with individual dependent parameters. Contains no fields.
 """
 struct GaussLegendre <: AbstractUnivariateMethod end
+
+"""
+    GaussRadau <: AbstractUnivariateMethod
+
+An integral evaulation method that uses Gauss-Radau quadrature to
+evaluate integrals. This is valid for finite integral domains. Note this will
+generate its own set of supports and will ignore other parameter supports.
+This is not compatible with individual dependent parameters. Contains no fields.
+"""
+struct GaussRadau <: AbstractUnivariateMethod end
+
+"""
+    GaussLobatto <: AbstractUnivariateMethod
+
+An integral evaulation method that uses Gauss-Lobatto quadrature to
+evaluate integrals. This is valid for finite integral domains. Note this will
+generate its own set of supports and will ignore other parameter supports.
+This is not compatible with individual dependent parameters. Contains no fields.
+"""
+struct GaussLobatto <: AbstractUnivariateMethod end
+
+
+"""
+    GaussJacobi <: AbstractUnivariateMethod
+
+An integral evaulation method that uses Gauss-Jacobi quadrature to
+evaluate integrals. This is valid for finite integral domains. This requires the user
+to input the alpha and beta shape parameters for their function. This will then
+generate its own set of supports and will ignore other parameter supports.
+This is not compatible with individual dependent parameters.
+
+**Fields**
+- `α::Float64`: The α Jacobi shape parameter.
+- `β::Float64`: The β Jacobi shape parameter.
+"""
+struct GaussJacobi <: AbstractUnivariateMethod
+    α::Float64
+    β::Float64
+    function GaussJacobi(α::Real, β::Real)
+        return new(Float64(α), Float64(β))
+    end
+end
 
 """
     GaussLaguerre <: AbstractUnivariateMethod
@@ -96,7 +138,7 @@ struct GaussLegendre <: AbstractUnivariateMethod end
 An integral evaulation method that uses Gauss-Laguerre quadrature to
 evaluate integrals. This is valid for semi-infinite integral domains. Note this
 will generate its own set of supports and will ignore other parameter supports.
-This is not compatible with individual dependent parameters.
+This is not compatible with individual dependent parameters. Contains no fields.
 """
 struct GaussLaguerre <: AbstractUnivariateMethod end
 
@@ -116,7 +158,7 @@ needed to satisfy `num_supports` and it will include all supports with the
 `MCSample` label up till the integral is expanded and/or when
 the infinite model is optimized, whichever comes first. Note this is valid only
 for finite integral domains. If an array of independent infinite parameters
-is specified, they must use the same amount of supports.
+is specified, they must use the same amount of supports. Contains no fields.
 """
 struct MultiMCSampling <: AbstractMultivariateMethod end
 
@@ -127,7 +169,7 @@ An integral evaluation method that uses uniform Monte Carlo sampling to
 approximate the integral similar to [`MultiMCSampling`](@ref MeasureToolbox.MultiMCSampling).
 However, this variant will generate its own set of supports and ignore all other
 supports with the `MCSample` label. Note this is valid only for finite integral
-domains.
+domains. Contains no fields.
 """
 struct MultiIndepMCSampling <: AbstractMultivariateMethod end
 
@@ -166,18 +208,18 @@ end
 function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     lower_bound::Real,
     upper_bound::Real,
-    method::Type{Automatic};
+    method::Automatic;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
     )::InfiniteOpt.AbstractMeasureData
     is_depend = InfiniteOpt._index_type(pref) == DependentParameterIndex
     inf_bound_num = (lower_bound == -Inf) + (upper_bound == Inf)
     if inf_bound_num == 0 # finite interval
-        method = UniTrapezoid
+        method = UniTrapezoid()
     elseif inf_bound_num == 1 && !is_depend # semi-infinite interval
-        method = GaussLaguerre
+        method = GaussLaguerre()
     elseif inf_bound_num == 2 && !is_depend # infinite interval
-        method = GaussHermite
+        method = GaussHermite()
     else
         error("Cannot generate measure data for individual dependent parameters " *
               "with infinite or semi-infinite domains.")
@@ -210,7 +252,7 @@ end
 function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
-                                method::Type{UniTrapezoid};
+                                method::UniTrapezoid;
                                 num_supports::Int = InfiniteOpt.DefaultNumSupports,
                                 weight_func::Function = InfiniteOpt.default_weight)
     return InfiniteOpt.FunctionalDiscreteMeasureData(pref, _trapezoid_coeff, 0,
@@ -232,17 +274,17 @@ end
 function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
-                                method::Type{Quadrature};
+                                method::Quadrature;
                                 num_supports::Int = InfiniteOpt.DefaultNumSupports,
                                 weight_func::Function = InfiniteOpt.default_weight)
     _ensure_independent_param(pref, method)
     inf_bound_num = (lower_bound == -Inf) + (upper_bound == Inf)
     if inf_bound_num == 0 # finite interval
-        method = GaussLegendre
+        method = GaussLegendre()
     elseif inf_bound_num == 1 # semi-infinite interval
-        method = GaussLaguerre
+        method = GaussLaguerre()
     else # infinite interval
-        method = GaussHermite
+        method = GaussHermite()
     end
     return generate_integral_data(pref, lower_bound, upper_bound, method,
                                   num_supports = num_supports, weight_func = weight_func)
@@ -252,14 +294,14 @@ end
 function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
-                                method::Type{GaussLegendre};
+                                method::GaussLegendre;
                                 num_supports::Int = InfiniteOpt.DefaultNumSupports,
                                 weight_func::Function = InfiniteOpt.default_weight)
     _ensure_independent_param(pref, method)
     if lower_bound == -Inf || upper_bound == Inf
         @warn("Gauss Legendre quadrature can only be applied on finite intervals, " *
               "switching to an appropriate method.")
-        return generate_integral_data(pref, lower_bound, upper_bound, Quadrature,
+        return generate_integral_data(pref, lower_bound, upper_bound, Quadrature(),
                                       num_supports = num_supports,
                                       weight_func = weight_func)
     end
@@ -272,11 +314,83 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                            false)
 end
 
+# Single pref Gauss-Radau
+function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
+                                lower_bound::Real,
+                                upper_bound::Real,
+                                method::GaussRadau;
+                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight)
+    _ensure_independent_param(pref, method)
+    if lower_bound == -Inf || upper_bound == Inf
+        @warn("Gauss Radau quadrature can only be applied on finite intervals, " *
+            "switching to an appropriate method.")
+    return generate_integral_data(pref, lower_bound, upper_bound, Quadrature(),
+                                        num_supports = num_supports,
+                                        weight_func = weight_func)
+    end
+    (supports, coeffs) = FastGaussQuadrature.gaussradau(num_supports)
+    supports = (upper_bound - lower_bound) / 2 * supports .+ (upper_bound + lower_bound) / 2
+    coeffs = (upper_bound - lower_bound) / 2 * coeffs
+    return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, 
+                                            InfiniteOpt.generate_unique_label(),
+                                            weight_func, lower_bound, upper_bound,
+                                            false)
+end
+
+# Single pref Gauss-Lobatto
+function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
+                                lower_bound::Real,
+                                upper_bound::Real,
+                                method::GaussLobatto;
+                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight)
+    _ensure_independent_param(pref, method)
+    if lower_bound == -Inf || upper_bound == Inf
+        @warn("Gauss Lobatto quadrature can only be applied on finite intervals, " *
+            "switching to an appropriate method.")
+    return generate_integral_data(pref, lower_bound, upper_bound, Quadrature(),
+                                        num_supports = num_supports,
+                                        weight_func = weight_func)
+    end
+    (supports, coeffs) = FastGaussQuadrature.gausslobatto(num_supports)
+    supports = (upper_bound - lower_bound) / 2 * supports .+ (upper_bound + lower_bound) / 2
+    coeffs = (upper_bound - lower_bound) / 2 * coeffs
+return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, 
+                                            InfiniteOpt.generate_unique_label(),
+                                            weight_func, lower_bound, upper_bound,
+                                            false)
+end
+
+# Single pref Gauss-Jacobi
+function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
+                                lower_bound::Real,
+                                upper_bound::Real,
+                                method::GaussJacobi;
+                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight)
+    _ensure_independent_param(pref, method)
+    if lower_bound == -Inf || upper_bound == Inf
+        @warn("Gauss Jacobi quadrature can only be applied on finite intervals, " *
+            "switching to an appropriate method.")
+    return generate_integral_data(pref, lower_bound, upper_bound, Quadrature(),
+                                        num_supports = num_supports,
+                                        weight_func = weight_func)
+    end
+    (supports, coeffs) = FastGaussQuadrature.gaussjacobi(num_supports, method.α, method.β)
+    supports = (upper_bound - lower_bound) / 2 * supports .+ (upper_bound + lower_bound) / 2
+    coeffs = (upper_bound - lower_bound) / 2 * coeffs
+return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, 
+                                            InfiniteOpt.generate_unique_label(),
+                                            weight_func, lower_bound, upper_bound,
+                                            false)
+end
+
 # Single pref Gauss-Laguerre
 function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
-                                method::Type{GaussLaguerre};
+                                method::GaussLaguerre;
                                 num_supports::Int = InfiniteOpt.DefaultNumSupports,
                                 weight_func::Function = InfiniteOpt.default_weight)
     _ensure_independent_param(pref, method)
@@ -284,7 +398,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
         if lower_bound == -Inf
             @warn("Gauss Laguerre quadrature can only be applied on semi-infinite intervals, " *
                   "switching to an appropriate method.")
-            return generate_integral_data(pref, lower_bound, upper_bound, GaussHermite,
+            return generate_integral_data(pref, lower_bound, upper_bound, GaussHermite(),
                                           num_supports = num_supports,
                                           weight_func = weight_func)
         end
@@ -298,7 +412,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     else
         @warn("Gauss Laguerre quadrature can only be applied on semi-infinite intervals, " *
               "switching to an appropriate method.")
-        return generate_integral_data(pref, lower_bound, upper_bound, GaussLegendre,
+        return generate_integral_data(pref, lower_bound, upper_bound, GaussLegendre(),
                                       num_supports = num_supports,
                                       weight_func = weight_func)
     end
@@ -313,14 +427,14 @@ end
 function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
-                                method::Type{GaussHermite};
+                                method::GaussHermite;
                                 num_supports::Int = InfiniteOpt.DefaultNumSupports,
                                 weight_func::Function = InfiniteOpt.default_weight)
     _ensure_independent_param(pref, method)
     if lower_bound != -Inf || upper_bound != Inf
         @warn("Gauss Hermite quadrature can only be applied on infinite intervals, " *
               "switching to an appropriate method.")
-        return generate_integral_data(pref, lower_bound, upper_bound, Quadrature,
+        return generate_integral_data(pref, lower_bound, upper_bound, Quadrature(),
                                       num_supports = num_supports,
                                       weight_func = weight_func)
     end
@@ -336,7 +450,7 @@ end
 function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
-                                method::Type{UniMCSampling};
+                                method::UniMCSampling;
                                 num_supports::Int = InfiniteOpt.DefaultNumSupports,
                                 weight_func::Function = InfiniteOpt.default_weight)
     # check and process the arguments
@@ -366,7 +480,7 @@ end
 function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
-                                method::Type{UniIndepMCSampling};
+                                method::UniIndepMCSampling;
                                 num_supports::Int = InfiniteOpt.DefaultNumSupports,
                                 weight_func::Function = InfiniteOpt.default_weight)
     _ensure_independent_param(pref, method)
@@ -389,12 +503,12 @@ end
 function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
     lower_bounds::Vector{<:Real},
     upper_bounds::Vector{<:Real},
-    method::Type{Automatic};
+    method::Automatic;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
     )::InfiniteOpt.AbstractMeasureData
     return generate_integral_data(prefs, lower_bounds, upper_bounds,
-                                  MultiMCSampling, num_supports = num_supports,
+                                  MultiMCSampling(), num_supports = num_supports,
                                   weight_func = weight_func)
 end
 
@@ -402,7 +516,7 @@ end
 function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
     lower_bounds::Vector{<:Real},
     upper_bounds::Vector{<:Real},
-    method::Type{MultiMCSampling};
+    method::MultiMCSampling;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
     )::InfiniteOpt.AbstractMeasureData
@@ -441,7 +555,7 @@ end
 function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
     lower_bounds::Vector{<:Real},
     upper_bounds::Vector{<:Real},
-    method::Type{MultiIndepMCSampling};
+    method::MultiIndepMCSampling;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
     )::InfiniteOpt.AbstractMeasureData
@@ -467,7 +581,7 @@ end
 #                           UNIVARIATE INTEGRALS
 ################################################################################
 # Define default keyword arguments for 1-D integrals
-const UniIntegralDefaults = Dict(:eval_method => Automatic,
+const UniIntegralDefaults = Dict(:eval_method => Automatic(),
                                  :num_supports => InfiniteOpt.DefaultNumSupports,
                                  :weight_func => InfiniteOpt.default_weight)
 
@@ -480,7 +594,7 @@ Get the default keyword argument values for defining one-dimensional integrals.
 julia> uni_integral_defaults()
 Dict{Symbol,Any} with 3 entries:
   :num_supports          => 10
-  :eval_method           => Automatic
+  :eval_method           => Automatic()
   :weight_func           => default_weight
 ```
 """
@@ -500,17 +614,17 @@ with a single infinite parameter.
 julia> uni_integral_defaults()
 Dict{Symbol,Any} with 3 entries:
   :num_supports          => 10
-  :eval_method           => Automatic
+  :eval_method           => Automatic()
   :weight_func           => default_weight
 
-julia> set_uni_integral_defaults(num_supports = 5, eval_method = Quadrature,
+julia> set_uni_integral_defaults(num_supports = 5, eval_method = Quadrature(),
                                  new_kwarg = true)
 
 julia> uni_integral_defaults()
 Dict{Symbol,Any} with 4 entries:
   :new_kwarg             => true
   :num_supports          => 5
-  :eval_method           => Quadrature
+  :eval_method           => Quadrature()
   :weight_func           => default_weight
 ```
 """
@@ -537,8 +651,8 @@ in accordance with the keyword arugment `eval_method` that is then used with
 `expr` is not just a single variable reference. Errors for bad bound input.
 
 The keyword arguments are as follows:
-- `eval_method::Type{<:AbstractUnivariateMethod}`: Used to determine the
-    numerical evaluation scheme
+- `eval_method::AbstractUnivariateMethod`: Used to determine the
+    numerical evaluation scheme. Possible choices include:
     - [`Automatic`](@ref MeasureToolbox.Automatic)
     - [`UniTrapezoid`](@ref MeasureToolbox.UniTrapezoid)
     - [`UniMCSampling`](@ref MeasureToolbox.UniMCSampling)
@@ -546,7 +660,10 @@ The keyword arguments are as follows:
     - [`Quadrature`](@ref MeasureToolbox.Quadrature)
     - [`GaussHermite`](@ref MeasureToolbox.GaussHermite)
     - [`GaussLegendre`](@ref MeasureToolbox.GaussLegendre)
-    - [`GaussLaguerre`](@ref MeasureToolbox.GaussLaguerre)
+    - [`GaussLageurre`](@ref MeasureToolbox.GaussLaguerre)
+    - [`GaussLobatto`](@ref MeasureToolbox.GaussLobatto)
+    - [`GaussRadau`](@ref MeasureToolbox.GaussRadau)
+    - [`GaussJacobi`](@ref MeasureToolbox.GaussJacobi)
 - `num_supports`: The minimum number of supports to be generated (if used by
     `eval_method`)
 - `weight_func`: ``w(p)`` above with parameter value inputs and scalar output
@@ -621,7 +738,7 @@ end
 #                            MULTIVARIATE INTEGRALS
 ################################################################################
 # Define default keyword arguments for multi-D integrals
-const MultiIntegralDefaults = Dict(:eval_method => Automatic,
+const MultiIntegralDefaults = Dict(:eval_method => Automatic(),
                                    :num_supports => InfiniteOpt.DefaultNumSupports,
                                    :weight_func => InfiniteOpt.default_weight)
 
@@ -634,7 +751,7 @@ Get the default keyword argument values for defining multi-dimensional integrals
 julia> multi_integral_defaults()
 Dict{Symbol,Any} with 3 entries:
   :num_supports          => 10
-  :eval_method           => Automatic
+  :eval_method           => Automatic()
   :weight_func           => default_weight
 ```
 """
@@ -654,7 +771,7 @@ with an array of infinite parameters.
 julia> multi_integral_defaults()
 Dict{Symbol,Any} with 3 entries:
   :num_supports          => 10
-  :eval_method           => Automatic
+  :eval_method           => Automatic()
   :weight_func           => default_weight
 
 julia> set_multi_integral_defaults(num_supports = 5, new_kwarg = true)
@@ -663,7 +780,7 @@ julia> multi_integral_defaults()
 Dict{Symbol,Any} with 4 entries:
   :new_kwarg             => true
   :num_supports          => 5
-  :eval_method           => Automatic
+  :eval_method           => Automatic()
   :weight_func           => default_weight
 ```
 """
@@ -692,8 +809,8 @@ in accordance with the keyword arugment `eval_method` that is then used with
 and dimensions do not match or the bounds are invalid.
 
 The keyword arguments are as follows:
-- `eval_method::Type{<:AbstractMultivariateMethod}`: Used to determine the
-    numerical evaluation scheme
+- `eval_method::AbstractMultivariateMethod`: Used to determine the
+    numerical evaluation scheme. Possible choices include:
     - [`Automatic`](@ref MeasureToolbox.Automatic)
     - [`MultiMCSampling`](@ref MeasureToolbox.MultiMCSampling)
     - [`MultiIndepMCSampling`](@ref MeasureToolbox.MultiIndepMCSampling)
@@ -842,7 +959,7 @@ transform function. The default transform function is
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt)
-julia> (supps, coeffs) = infinite_transform(-Inf, Inf, 5, sub_method = gauss_legendre)
+julia> (supps, coeffs) = infinite_transform(-Inf, Inf, 5, sub_method = gauss_legendre())
 ([-5.06704059565454, -0.7583532171678754, 0.0, 0.7583532171678754, 5.06704059565454], [13.490960583398396, 1.2245949721571516, 0.5688888888888889, 1.2245949721571516, 13.490960583398396])
 ```
 """
