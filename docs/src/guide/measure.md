@@ -296,32 +296,65 @@ For extension purposes, users may define their own [`generate_integral_data`](@r
 to encode custom evaluation methods. See [Extensions](@ref) for more details.
 
 ### A Note on Support Management
-There is a difference in how supports are considered in trapezoidal rule and Gauss of MC quadratures. Consider the following example with eleven supports and an integral objective function with a trapezoid rule:
-```julia
+There is a difference in how supports are considered using `UniTrapezoid` and 
+the other schemes. Namely, the other schemes will NOT incorporate other supports 
+specified elsewhere in the model. Consider the following example with 11 supports 
+and an integral objective function that uses `UniTrapezoid` (the default):
+```jldoctest support_manage; setup = :(using InfiniteOpt, JuMP), output = false
 # Create a model, with one variable and an infinite parameter with a given number of supports
 m = InfiniteModel()
-@infinite_parameter(m, t in [0, 10],num_supports = 11)
+@infinite_parameter(m, t in [0, 10], num_supports = 11)
 @infinite_variable(m, u(t))
+
 # Create an objective function with the default trapezoid integration
-@objective(m,Min,integral(u^2, t))
+@objective(m, Min, integral(u^2, t))
+
 # Get the transcribed model to check how the supports are taken into account
 build_optimizer_model!(m)
-mBT1 = optimizer_model(m)
+mBT1 = optimizer_model(m);
+
+# output
+
 ```
 
-If we look at how many supports there are, how the variable `u` is transcribed, and how the objective function of the transcribed model looks like, we notice that the same supports are used in both the objective function and the transcribed variable:
-```jldoctest meas_basic
+If we look at how many supports there are, how the variable `u` is transcribed, 
+and how the objective function of the transcribed model looks like, we notice that 
+the same supports are used in both the objective function and the transcribed 
+variable:
+```jldoctest support_manage
 julia> supports(t) 
-[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
+11-element Array{Float64,1}:
+  0.0
+  1.0
+  2.0
+  3.0
+  4.0
+  5.0
+  6.0
+  7.0
+  8.0
+  9.0
+ 10.0
 
 julia> transcription_variable(u)  
-VariableRef[u(support: 1), u(support: 2), u(support: 3), u(support: 4), u(support: 5), u(support: 6), u(support: 7), u(support: 8), u(support: 9), u(support: 10), u(support: 11)]
+11-element Array{VariableRef,1}:
+ u(support: 1)
+ u(support: 2)
+ u(support: 3)
+ u(support: 4)
+ u(support: 5)
+ u(support: 6)
+ u(support: 7)
+ u(support: 8)
+ u(support: 9)
+ u(support: 10)
+ u(support: 11)
 
 julia> objective_function(mBT1) 
 0.5 u(support: 1)² + u(support: 2)² + u(support: 3)² + u(support: 4)² + u(support: 5)² + u(support: 6)² + u(support: 7)² + u(support: 8)² + u(support: 9)² + u(support: 10)² + 0.5 u(support: 11)²
 ```
 
-Then we readjust the model to use Gauss-Legendre quadrature:
+Then we readjust the model to use Gauss-Legendre quadrature via Gauss:
 ``` julia
 set_objective_function(m,integral(u^2, t,eval_method=Quadrature))
 build_optimizer_model!(m)
