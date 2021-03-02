@@ -36,6 +36,7 @@ function support_sum(expr::JuMP.AbstractJuMPScalar,
     length(prefs) == 1 ? bounds = NaN : bounds = map(e -> NaN, ordered_prefs)
     data = InfiniteOpt.FunctionalDiscreteMeasureData(ordered_prefs, _support_sum_coeffs,
                                                      0, InfiniteOpt.All,
+                                                     InfiniteOpt.NoGenerativeSupports(),
                                                      InfiniteOpt.default_weight,
                                                      bounds, bounds, false)
     # make the measure

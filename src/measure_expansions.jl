@@ -586,16 +586,25 @@ function expand_measure(mref::GeneralVariableRef,
     return expand_measure(new_func, data, write_model)
 end
 
+# Call add_generative_supports if needed 
+function _prep_generative_supps(prefs, info_type::Type{NoGenerativeSupports})::Nothing 
+    return
+end
+function _prep_generative_supps(pref, info_type)::Nothing 
+    add_generative_supports(pref)
+    return
+end
+
 # FunctionalDiscreteMeasureData
 function expand_measure(expr,
-                        data::FunctionalDiscreteMeasureData,
-                        write_model::JuMP.AbstractModel
-                        )::Union{JuMP.AbstractJuMPScalar, Float64}
+    data::FunctionalDiscreteMeasureData{P, B, I},
+    write_model::JuMP.AbstractModel
+    )::Union{JuMP.AbstractJuMPScalar, Float64} where {P, B, I}
     # get the info
     prefs = parameter_refs(data)
+    _prep_generative_supps(prefs, I)
     supps = supports(data)
-    coef_func = coefficient_function(data)
-    coeffs = coef_func(supps)
+    coeffs = coefficients(data)
     label = support_label(data)
     w = weight_function(data)
     lbs = JuMP.lower_bound(data)

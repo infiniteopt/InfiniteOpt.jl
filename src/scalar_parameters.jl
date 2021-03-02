@@ -107,8 +107,9 @@ function _adaptive_data_update(pref::ScalarParameterRef, param::P1,
                                    data.infinite_var_indices, 
                                    data.derivative_indices, data.measure_indices,
                                    data.constraint_indices, data.in_objective,
+                                   data.generative_measures,
                                    data.has_internal_supports, 
-                                   data.has_derivative_supports,
+                                   data.has_generative_supports,
                                    data.has_deriv_constrs)
     _data_dictionary(pref)[JuMP.index(pref)] = new_data
     return
@@ -250,17 +251,17 @@ are taken with respect to this infinite parameter.
 **Example**
 ```julia-repl
 julia> build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-IndependentParameter{IntervalSet,FiniteDifference}([0, 3], DataStructures.SortedDict(0.0 => Set([UserDefined]),1.0 => Set([UserDefined]),2.0 => Set([UserDefined]),3.0 => Set([UserDefined])), 12, FiniteDifference())
+IndependentParameter{IntervalSet,FiniteDifference{Backward},NoGenerativeSupports}([0, 3], DataStructures.SortedDict(0.0 => Set([UserDefined]),1.0 => Set([UserDefined]),2.0 => Set([UserDefined]),3.0 => Set([UserDefined])), 12, FiniteDifference{Backward}(Backward(), true), NoGenerativeSupports())
 ```
 """
 function build_parameter(_error::Function,
-    set::S;
+    set::InfiniteScalarSet;
     num_supports::Int = 0,
     supports::Union{Real, Vector{<:Real}} = Real[],
     sig_digits::Int = DefaultSigDigits,
-    derivative_method::M = DefaultDerivativeMethod,
+    derivative_method::AbstractDerivativeMethod = DefaultDerivativeMethod,
     extra_kw_args...
-    )::IndependentParameter{S, M} where {S <: InfiniteScalarSet, M <: AbstractDerivativeMethod}
+    )::IndependentParameter
     for (kwarg, _) in extra_kw_args
         _error("Unrecognized keyword argument $kwarg")
     end
@@ -279,7 +280,8 @@ function build_parameter(_error::Function,
     if length_supports != 0 && (length(supports_dict) != length_supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
-    return IndependentParameter(set, supports_dict, sig_digits, derivative_method)
+    return IndependentParameter(set, supports_dict, sig_digits, derivative_method,
+                                generative_support_info(derivative_method))
 end
 
 """
@@ -370,6 +372,12 @@ end
 function _constraint_dependencies(pref::ScalarParameterRef
     )::Vector{ConstraintIndex}
     return _data_object(pref).constraint_indices
+end
+
+# Extend _generative_measures
+function _generative_measures(pref::ScalarParameterRef
+    )::Vector{MeasureIndex}
+    return _data_object(pref).generative_measures
 end
 
 ################################################################################
@@ -627,25 +635,162 @@ function parameter_by_name(model::InfiniteModel,
 end
 
 ################################################################################
-#                        DERIVATIVE METHOD FUNCTIONS
+#                       GENERATIVE SUPPORT FUNCTIONS
 ################################################################################
-"""
-    has_derivative_supports(pref::IndependentParameterRef)::Bool
-
-Return whether derivative specific supports have been added to `pref` in accordance 
-with its derivative method.
-"""
-function has_derivative_supports(pref::IndependentParameterRef)::Bool
-    return _data_object(pref).has_derivative_supports
+# Extend copy for NoGenerativeSupports
+function Base.copy(d::NoGenerativeSupports)::NoGenerativeSupports
+    return NoGenerativeSupports()
 end
 
-# Specify if a parameter has derivative supports
-function _set_has_derivative_supports(pref::IndependentParameterRef, 
-                                     status::Bool)::Nothing
-    _data_object(pref).has_derivative_supports = status 
+# Extend copy for UniformGenerativeInfo
+function Base.copy(d::UniformGenerativeInfo)::UniformGenerativeInfo
+    return UniformGenerativeInfo(copy(d.support_basis), d.label)
+end
+
+"""
+    support_label(info::AbstractGenerativeInfo)::DataType 
+
+Return the support label to be associated with generative supports produced in 
+accordance with `info`. This is intended an internal method that should be 
+extended for user defined types of [`AbstractGenerativeInfo`](@ref).
+"""
+function support_label(info::AbstractGenerativeInfo)
+    error("`support_label` not defined for generative support info type " *
+          "$(typeof(info)).")
+end
+
+# UniformGenerativeInfo
+function support_label(info::UniformGenerativeInfo)::DataType
+    return info.label
+end
+
+# NoGenerativeSupports
+function support_label(info::NoGenerativeSupports)::DataType
+    return _NoLabel
+end
+
+"""
+    generative_support_info(pref::IndependentParameterRef)::AbstractGenerativeInfo
+
+Return the generative support information associated with `pref`.
+"""
+function generative_support_info(pref::IndependentParameterRef)::AbstractGenerativeInfo
+    return _core_variable_object(pref).generative_supp_info
+end
+
+"""
+    has_generative_supports(pref::IndependentParameterRef)::Bool
+
+Return whether generative supports have been added to `pref` in accordance 
+with its generative support info.
+"""
+function has_generative_supports(pref::IndependentParameterRef)::Bool
+    return _data_object(pref).has_generative_supports
+end
+
+# Specify if a parameter has generative supports
+function _set_has_generative_supports(pref::IndependentParameterRef, 
+                                      status::Bool)::Nothing
+    _data_object(pref).has_generative_supports = status 
     return
 end
 
+# Reset (remove) the generative supports if needed 
+function _reset_generative_supports(pref::IndependentParameterRef)::Nothing
+    if has_generative_supports(pref)
+        label = support_label(generative_support_info(pref))
+        delete_supports(pref, label = label) # this also calls _set_has_generative_supports
+    end
+    return
+end
+
+# Specify the generative_support_info
+function _set_generative_support_info(pref::IndependentParameterRef, 
+    info::AbstractGenerativeInfo)::Nothing
+    sig_digits = significant_digits(pref)
+    method = derivative_method(pref)
+    set = _parameter_set(pref)
+    supps = _parameter_supports(pref)
+    new_param = IndependentParameter(set, supps, sig_digits, method, info)
+    _reset_generative_supports(pref)
+    _set_core_variable_object(pref, new_param)
+    if is_used(pref)
+        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+    end
+    return
+end
+
+"""
+    make_generative_supports(info::AbstractGenerativeInfo,
+                             pref::IndependentParameterRef,
+                             existing_supps::Vector{Float64}
+                             )::Vector{Float64}
+
+Generate the generative supports for `pref` in accordance with `info` and the 
+`existing_supps` that `pref` has. The returned supports should not include 
+`existing_supps`. This is intended as internal method to enable 
+[`add_generative_supports`](@ref) and should be extended for any user defined 
+`info` types that are created to enable new measure and/or derivative evaluation 
+techniques that require the creation of generative supports.
+"""
+function make_generative_supports(info::AbstractGenerativeInfo, pref, supps)
+    error("`make_generative_supports` is not defined for generative support " * 
+          "info of type $(typeof(info)).")
+end
+
+# UniformGenerativeInfo
+function make_generative_supports(info::UniformGenerativeInfo, 
+    pref, supps)::Vector{Float64}
+    # collect the preliminaries
+    basis = info.support_basis
+    num_internal = length(basis)
+    num_existing = length(supps)
+    num_existing <= 1 && error("$(pref) does not have enough supports for " *
+                                "creating generative supports.")
+    internal_nodes = Vector{Float64}(undef, num_internal * (num_existing - 1))
+    # generate the internal node supports
+    for i in Iterators.take(eachindex(supps), num_existing - 1)
+        lb = supps[i]
+        ub = supps[i+1]
+        internal_nodes[(i-1)*num_internal+1:i*num_internal] = basis * (ub - lb) .+ lb
+    end
+    return internal_nodes
+end
+
+## Define internal dispatch methods for adding generative supports
+# AbstractGenerativeInfo
+function _add_generative_supports(pref, info::AbstractGenerativeInfo)::Nothing 
+    if !has_generative_supports(pref)
+        existing_supps = supports(pref, label = All)
+        supps = make_generative_supports(info, pref, existing_supps)
+        add_supports(pref, supps, label = support_label(info))
+        _set_has_generative_supports(pref, true)
+    end
+    return
+end
+
+# NoGenerativeSupports
+function _add_generative_supports(pref, info::NoGenerativeSupports)::Nothing 
+    return
+end
+
+"""
+    add_generative_supports(pref::IndependentParameterRef)::Nothing
+
+Create generative supports for `pref` if needed in accordance with its 
+generative support info using [`make_generative_supports`](@ref) and add them to 
+`pref`. This is intended as an internal function, but can be useful user defined 
+optimizer model extensions that utlize our support system.
+"""
+function add_generative_supports(pref::IndependentParameterRef)::Nothing
+    info = generative_support_info(pref)
+    _add_generative_supports(pref, info)
+    return
+end
+
+################################################################################
+#                        DERIVATIVE METHOD FUNCTIONS
+################################################################################
 # Determine if any derivatives have derivative constraints
 function has_derivative_constraints(pref::IndependentParameterRef)::Bool
     return _data_object(pref).has_deriv_constrs
@@ -674,8 +819,8 @@ function derivative_method(pref::IndependentParameterRef)::AbstractDerivativeMet
     return _core_variable_object(pref).derivative_method
 end
 
-# Make method to reset derivative supports/evaluations
-function _reset_derivative_evaluations(pref::Union{IndependentParameterRef, 
+# Make method to reset derivative constraints (supports are handled separately)
+function _reset_derivative_constraints(pref::Union{IndependentParameterRef, 
                                                    DependentParameterRef})::Nothing
     if has_derivative_constraints(pref)
         @warn("Support/method changes will invalidate existing derivative evaluation " *
@@ -685,11 +830,6 @@ function _reset_derivative_evaluations(pref::Union{IndependentParameterRef,
             delete_derivative_constraints(DerivativeRef(JuMP.owner_model(pref), idx))
         end
         _set_has_derivative_constraints(pref, false)
-    end
-    if has_derivative_supports(pref)
-        old_label = support_label(derivative_method(pref))
-        delete_supports(pref, label = old_label)
-        _set_has_derivative_supports(pref, false)
     end
     return
 end
@@ -701,7 +841,9 @@ end
 Specfies the desired derivative evaluation method `method` for derivatives that are 
 taken with respect to `pref`. Any internal supports exclusively associated with 
 the previous method will be deleted. Also, if any derivatives were evaluated 
-manually, the associated derivative evaluation constraints will be deleted.
+manually, the associated derivative evaluation constraints will be deleted. Errors 
+if new derivative method generates supports that are incompatible with existing 
+measures.
 
 **Example**
 ```julia-repl
@@ -710,14 +852,45 @@ julia> set_derivative_method(d, OrthogonalCollocation(2))
 ```
 """
 function set_derivative_method(pref::IndependentParameterRef, 
-    method::AbstractDerivativeMethod
+    method::NonGenerativeDerivativeMethod
     )::Nothing
     old_param = _core_variable_object(pref)
     set = _parameter_set(pref)
     supps = _parameter_supports(pref)
     sig_figs = significant_digits(pref)
-    new_param = IndependentParameter(set, supps, sig_figs, method)
-    _reset_derivative_evaluations(pref)
+    if isempty(_generative_measures(pref))
+        _reset_generative_supports(pref)
+        new_param = IndependentParameter(set, supps, sig_figs, method, 
+                                         NoGenerativeSupports())
+    else
+        info = generative_support_info(pref)
+        new_param = IndependentParameter(set, supps, sig_figs, method, info)
+    end
+    _reset_derivative_constraints(pref)
+    _set_core_variable_object(pref, new_param)
+    if is_used(pref)
+        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+    end
+    return
+end
+
+# GenerativeDerivativeMethod
+function set_derivative_method(pref::IndependentParameterRef, 
+    method::GenerativeDerivativeMethod
+    )::Nothing
+    new_info = generative_support_info(method)
+    old_info = generative_support_info(pref)
+    if !isempty(_generative_measures(pref)) && new_info != old_info 
+        error("Generative derivative method conflicts with existing generative " *
+              "measures.")
+    end
+    old_param = _core_variable_object(pref)
+    set = _parameter_set(pref)
+    supps = _parameter_supports(pref)
+    sig_figs = significant_digits(pref)
+    new_param = IndependentParameter(set, supps, sig_figs, method, new_info)
+    _reset_derivative_constraints(pref)
+    _reset_generative_supports(pref)
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
@@ -737,10 +910,12 @@ function _update_parameter_set(pref::IndependentParameterRef,
     # old supports will always be discarded
     sig_digits = significant_digits(pref)
     method = derivative_method(pref)
+    info = generative_support_info(pref)
     new_param = IndependentParameter(set, DataStructures.SortedDict{Float64, Set{DataType}}(),
-                                     sig_digits, method)
+                                     sig_digits, method, info)
     _set_core_variable_object(pref, new_param)
-    _reset_derivative_evaluations(pref)
+    _reset_derivative_constraints(pref)
+    _set_has_generative_supports(pref, false)
     _set_has_internal_supports(pref, false)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
@@ -934,9 +1109,11 @@ function _update_parameter_supports(pref::IndependentParameterRef,
     set = _parameter_set(pref)
     method = derivative_method(pref)
     sig_figs = significant_digits(pref)
-    new_param = IndependentParameter(set, supports, sig_figs, method)
+    info = generative_support_info(pref)
+    new_param = IndependentParameter(set, supports, sig_figs, method, info)
     _set_core_variable_object(pref, new_param)
-    _reset_derivative_evaluations(pref)
+    _reset_derivative_constraints(pref)
+    _set_has_generative_supports(pref, false)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
@@ -1161,7 +1338,8 @@ function add_supports(pref::IndependentParameterRef,
             supports_dict[s] = Set([label])
         end
     end
-    _reset_derivative_evaluations(pref)
+    _reset_derivative_constraints(pref)
+    _reset_generative_supports(pref)
     if label <: InternalLabel
         _set_has_internal_supports(pref, true)
     end
@@ -1203,13 +1381,13 @@ function delete_supports(pref::IndependentParameterRef;
                   "a measure.")
         end
         empty!(supp_dict)
-        _set_has_derivative_supports(pref, false)
+        _set_has_generative_supports(pref, false)
         _set_has_internal_supports(pref, false)
     else
-        if has_derivative_supports(pref) && support_label(derivative_method(pref)) != label
-            label = Union{label, support_label(pref)}
-            _set_has_derivative_supports(pref, false)
+        if has_generative_supports(pref) && support_label(generative_support_info(pref)) != label
+            label = Union{label, support_label(generative_support_info(pref))}
         end
+        _set_has_generative_supports(pref, false)
         filter!(p -> !all(v -> v <: label, p[2]), supp_dict)
         for (k, v) in supp_dict 
             filter!(l -> !(l <: label), v)
@@ -1456,6 +1634,11 @@ function _update_model_numbers(model::InfiniteModel, obj_num::Int,
             object.object_num -= 1
             object.parameter_nums = object.parameter_nums .- length(param_nums)
         end
+    end
+    # update the infinite parameter functions
+    for (_, object) in model.param_functions
+        _update_number_list([obj_num], object.func.object_nums)
+        _update_number_list(param_nums, object.func.parameter_nums)
     end
     # update the infinite variables
     for vref in JuMP.all_variables(model, InfiniteVariable)

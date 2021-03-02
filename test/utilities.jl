@@ -26,7 +26,8 @@ struct BadArraySet <: InfiniteArraySet end
 struct TestBridge{C} <: MOI.Bridges.AbstractBridge where {C} end
 struct TestMethod <: NonGenerativeDerivativeMethod end
 struct TestGenMethod <: GenerativeDerivativeMethod end
-struct TestOCTechnique <: OCTechnique end
+struct BadFiniteTech <: FDTechnique end
+struct TestGenInfo <: AbstractGenerativeInfo end
 struct BadData <: AbstractMeasureData end
 struct Bad end
 struct NotASetType end
@@ -88,7 +89,7 @@ end
 function InfiniteOpt.add_supports_to_parameters(d::TestData)::Nothing
     return
 end
-InfiniteOpt.support_label(d::TestData) = UniqueMeasure{Val{:a}}
+InfiniteOpt.support_label(d::TestData) = UniqueMeasure{:a}
 
 # Define useful function for deletion testing
 function _update_variable_param_refs(vref::InfiniteVariableRef,

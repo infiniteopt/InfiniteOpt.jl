@@ -37,6 +37,12 @@ function InfiniteOpt.supports(data::NewMeasureData)::Vector
     return data.attr2.supports # REPLACE WITH ACTUAL LOCATION
 end
 
+# Extend support_label to return the label of supports employed by NewMeasureData
+# This is only optional if the new abstraction doesn't use supports at all
+function InfiniteOpt.support_label(data::NewMeasureData)::Type{<:AbstractSupportLabel}
+    return data.attr2.label # REPLACE WITH ACTUAL LOCATION
+end
+
 # Extend measure_data_in_hold_bounds to determine if NewMeasureData is in the
 # domain of hold variable bounds. (Enables hold variable error checking)
 function InfiniteOpt.measure_data_in_hold_bounds(data::NewMeasureData,

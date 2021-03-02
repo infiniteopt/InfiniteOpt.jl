@@ -52,8 +52,7 @@ that each collection vector will include an extra final placeholder element
 comprised of `NaN`s for convenience in generating support indices via
 [`support_index_iterator`](@ref). This also gathers the associated support labels. 
 
-Before this is all done, `InfiniteOpt.add_derivative_supports` is invoked for 
-any parameter that has at least one derivative dependency.
+Before this is all done, `InfiniteOpt.add_generative_supports` is invoked as needed.
 """
 function set_parameter_supports(trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
@@ -64,9 +63,7 @@ function set_parameter_supports(trans_model::JuMP.Model,
     data = transcription_data(trans_model)
     # check and add supports to prefs as needed
     for pref in prefs 
-        if InfiniteOpt.used_by_derivative(pref)
-            InfiniteOpt.add_derivative_supports(pref)
-        end
+        InfiniteOpt.add_generative_supports(pref)
         if InfiniteOpt.has_internal_supports(pref)
             data.has_internal_supports = true
         end 
@@ -786,7 +783,8 @@ end
 ################################################################################
 """
     build_transcription_model!(trans_model::JuMP.Model,
-                               inf_model::InfiniteOpt.InfiniteModel)::Nothing
+                               inf_model::InfiniteOpt.InfiniteModel;
+                               [check_support_dims::Bool = true])::Nothing
 
 Given an empty `trans_model` build it using the information stored in `inf_model`.
 This is intended for a `TranscriptionModel` that serves as a internal optimizer model
@@ -798,10 +796,12 @@ no supports. Also a warning is thrown when the transcription model contains
 more than 15,000 support points to alert users when they may naively have
 a few independent supports whose product quickly yields a very large grid.
 For example having 3 independent parameters with 100 supports each would result
-in 1,000,000 supports. This behavior can be overcome using dependent parameters.
+in 1,000,000 supports if all three are together in at least 1 constraint. This 
+behavior can be overcome using dependent parameters. The warning can be turned off 
+via `check_support_dims = false`.
 """
 function build_transcription_model!(trans_model::JuMP.Model,
-    inf_model::InfiniteOpt.InfiniteModel
+    inf_model::InfiniteOpt.InfiniteModel; check_support_dims::Bool = true
     )::Nothing
     # ensure there are supports to add and add them to the trans model
     InfiniteOpt.fill_in_supports!(inf_model, modify = false)
@@ -809,10 +809,12 @@ function build_transcription_model!(trans_model::JuMP.Model,
     # check that there isn't a crazy amount of supports from taking the product
     supps = parameter_supports(trans_model)
     num_supps = prod(length, supps)
-    if length(supps) > 1 && num_supps > 15000 # NOTE this is an arbitrary cutoff
+    if check_support_dims && length(supps) > 1 && num_supps > 15000 # NOTE this is an arbitrary cutoff
         @warn("Due to necessarily considering the combinatorics of independent " *
-              "parameter supports, the model will be transcripted over $(num_supps) " *
-              "supports and naive solution of the discretized problem may be slow.")
+              "parameter supports, the model will be transcripted over up to $(num_supps) " *
+              "supports (if any constraint uses all the infinite parameters) "  *
+              "and thus naive solution of the discretized problem may be slow. " * 
+              "This warning can be turned off via `check_support_dims = false`.")
     end
     # define the variables
     transcribe_hold_variables!(trans_model, inf_model)

@@ -539,13 +539,18 @@ end
 #                        DERIVATIVE METHOD FUNCTIONS
 ################################################################################
 # Extend fallback for dependent parameters
-function has_derivative_supports(pref::DependentParameterRef)::Bool
+function has_generative_supports(pref::DependentParameterRef)::Bool
     return false
 end
 
 # Extend fallback for dependent parameters
-function _set_has_derivative_supports(pref::DependentParameterRef, 
+function _set_has_generative_supports(pref::DependentParameterRef, 
                                       status::Bool)::Nothing
+    return
+end
+
+# Extend add_generative_supports
+function add_generative_supports(pref::DependentParameterRef)::Nothing
     return
 end
 
@@ -627,7 +632,7 @@ function set_derivative_method(pref::DependentParameterRef,
               "for a dependent parameter.")
     end
     _adaptive_method_update(pref, _core_variable_object(pref), method)
-    _reset_derivative_evaluations(pref)
+    _reset_derivative_constraints(pref)
     if is_used(pref)
         set_optimizer_model_ready(JuMP.owner_model(pref), false)
     end
@@ -742,7 +747,7 @@ function _update_parameter_set(pref::DependentParameterRef,
     for i in 1:length(new_set)
         idx = DependentParameterIndex(JuMP.index(pref).object_index, i)
         p = DependentParameterRef(JuMP.owner_model(pref), idx)
-        _reset_derivative_evaluations(p)
+        _reset_derivative_constraints(p)
     end
     _set_has_internal_supports(pref, false)
     if is_used(pref)
@@ -1149,7 +1154,7 @@ function _update_parameter_supports(prefs::AbstractArray{<:DependentParameterRef
     _set_core_variable_object(first(prefs), new_params)
     _set_has_internal_supports(first(prefs), label <: InternalLabel)
     for pref in prefs 
-        _reset_derivative_evaluations(pref)
+        _reset_derivative_constraints(pref)
     end
     if any(is_used(pref) for pref in prefs)
         set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
@@ -1310,7 +1315,7 @@ function add_supports(prefs::Vector{DependentParameterRef},
         _set_has_internal_supports(first(prefs), true)
     end
     for pref in prefs
-        _reset_derivative_evaluations(pref)
+        _reset_derivative_constraints(pref)
     end
     if any(is_used(pref) for pref in prefs)
         set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
@@ -1343,7 +1348,7 @@ function delete_supports(prefs::AbstractArray{<:DependentParameterRef};
     _check_complete_param_array(prefs)
     supp_dict = _parameter_supports(first(prefs))
     for pref in prefs
-        _reset_derivative_evaluations(pref)
+        _reset_derivative_constraints(pref)
     end
     if label == All
         if any(used_by_measure(pref) for pref in prefs)

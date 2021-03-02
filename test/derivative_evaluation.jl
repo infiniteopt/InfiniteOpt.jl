@@ -6,40 +6,27 @@
     @infinite_parameter(m, x[1:2] in [0,5], num_supports = 2)
     @infinite_variable(m, T(t, x))
     @infinite_variable(m, q(t))
-    oc = OrthogonalCollocation(3, Lobatto)
-    bad_oc = OrthogonalCollocation(3, TestOCTechnique)
+    oc = OrthogonalCollocation(3, GaussLobatto())
+    bad_oc = OrthogonalCollocation{GaussLegendre}(3, GaussLegendre())
     tref = dispatch_variable_ref(t)
-    # helper method for Lobatto quadrature
-    @testset "Lobatto Quadrature" begin
-        # test _legendre
-        @test InfiniteOpt._legendre(2) isa Polynomial{Float64}
-        @test coeffs(InfiniteOpt._legendre(2)) == [-0.5, 0.0, 1.5]
-        @test coeffs(InfiniteOpt._legendre(5)) == [0., 1.875, 0., -8.75, 0., 7.875]
-        # test _compute_internal_node_basis
-        @test InfiniteOpt._compute_internal_node_basis(1) == [0.]
-        @test isapprox(InfiniteOpt._compute_internal_node_basis(2), [-sqrt(5)/5, sqrt(5)/5])
+    # test generative_support_info
+    @testset "generative_support_info" begin 
+        # test Fallback
+        @test_throws ErrorException generative_support_info(TestGenMethod())
+        # test NonGenerativeDerivativeMethod
+        @test generative_support_info(TestMethod()) == NoGenerativeSupports()
+        # test OrthogonalCollocation with GaussLobatto
+        @test generative_support_info(oc) == UniformGenerativeInfo([0.5], InternalGaussLobatto)
+        @test generative_support_info(OrthogonalCollocation(2)) == NoGenerativeSupports()
+        # test bad OrthogonalCollocation
+        @test_throws ErrorException generative_support_info(bad_oc)
     end
-    # test generate_derivative_supports
-    @testset "generate_derivative_supports" begin
-        # orthogonal collocation
-        @test_throws ErrorException InfiniteOpt.generate_derivative_supports(tref, oc)
-        add_supports(t, [0, 0.5, 1])
-        @test InfiniteOpt.generate_derivative_supports(tref, oc) == [0.25, 0.75]
-        @test_throws ErrorException InfiniteOpt.generate_derivative_supports(tref, bad_oc)
-        # general fallbacks
-        @test_throws ErrorException InfiniteOpt.generate_derivative_supports(tref, TestGenMethod())
-        @test InfiniteOpt.generate_derivative_supports(tref, TestMethod()) == Float64[]
-    end
-    # test add_derivative_supports
-    @testset "add_derivative_supports" begin
-        # test normal
-        set_derivative_method(t, oc)
-        @test InfiniteOpt.add_derivative_supports(t) isa Nothing
-        @test supports(t, label = All) == [0, 0.25, 0.5, 0.75, 1.]
-        @test InfiniteOpt.add_derivative_supports(t) isa Nothing
-        @test supports(t, label = All) == [0, 0.25, 0.5, 0.75, 1.]
-        # fallback
-        @test InfiniteOpt.add_derivative_supports(x[1]) isa Nothing
+    # test support_label
+    @testset "support_label" begin 
+        # test Fallback
+        @test_throws ErrorException support_label(TestMethod())
+        # test GenerativeDerivativeMethod
+        @test support_label(oc) == InternalGaussLobatto
     end
     # test make_reduced_expr 
     @testset "make_reduced_expr" begin 
@@ -49,7 +36,6 @@
         pts = [GeneralVariableRef(m, pidx, PointVariableIndex),
                GeneralVariableRef(m, pidx + 1, PointVariableIndex)]
         @test InfiniteOpt.make_reduced_expr(meas, t, 0.0, m) in [pts[1] + pts[2], pts[2] + pts[1]] # order is unknown
-        @test !(InternalLabel in InfiniteOpt._parameter_supports(tref)[0.0])
         @test parameter_values(pts[1]) in [(0., [0., 0.]), (0., [5., 5.])]
         @test parameter_values(pts[2]) in [(0., [0., 0.]), (0., [5., 5.])]
         # test InfiniteVariableIndex 
@@ -107,7 +93,7 @@ end
         pts = [GeneralVariableRef(m, pidx, PointVariableIndex),
                GeneralVariableRef(m, pidx + 1, PointVariableIndex),
                GeneralVariableRef(m, pidx + 2, PointVariableIndex)]
-        @test InfiniteOpt._make_difference_expr(d1, y, t, 1, supps, m, Forward) == 5pts[1] - pts[2] + pts[3]
+        @test InfiniteOpt._make_difference_expr(d1, y, t, 1, supps, m, Forward()) == 5pts[1] - pts[2] + pts[3]
         @test parameter_values(pts[1]) == (0.,)
         @test parameter_values(pts[2]) == (5.,)
         @test parameter_values(pts[3]) == (0.,)
@@ -119,7 +105,7 @@ end
         rvs = [GeneralVariableRef(m, ridx, ReducedVariableIndex),
                GeneralVariableRef(m, ridx + 1, ReducedVariableIndex),
                GeneralVariableRef(m, ridx + 2, ReducedVariableIndex)]
-        @test InfiniteOpt._make_difference_expr(d2, q, t, 2, supps, m, Central) == 10rvs[1] - rvs[2] + rvs[3]
+        @test InfiniteOpt._make_difference_expr(d2, q, t, 2, supps, m, Central()) == 10rvs[1] - rvs[2] + rvs[3]
         @test eval_supports(rvs[1])[1] == 5
         @test eval_supports(rvs[2])[1] == 10
         @test eval_supports(rvs[3])[1] == 0
@@ -131,15 +117,19 @@ end
         rvs = [GeneralVariableRef(m, ridx, ReducedVariableIndex),
                GeneralVariableRef(m, ridx + 1, ReducedVariableIndex),
                GeneralVariableRef(m, ridx + 2, ReducedVariableIndex)]
-        @test InfiniteOpt._make_difference_expr(d3, q, x[2], 2, supps, m, Backward) == rvs[1] - rvs[2] + rvs[3]
+        @test InfiniteOpt._make_difference_expr(d3, q, x[2], 2, supps, m, Backward()) == rvs[1] - rvs[2] + rvs[3]
         @test eval_supports(rvs[1])[3] == 1
         @test eval_supports(rvs[2])[3] == 1
         @test eval_supports(rvs[3])[3] == 0
     end
+    # test _make_difference_expr fallback
+    @testset "_make_difference_expr (Fallback)" begin 
+        @test_throws ErrorException InfiniteOpt._make_difference_expr(d3, q, x[2], 2, [1], m, BadFiniteTech())
+    end
     # test FiniteDifference with evaluate_derivative
     @testset "FiniteDifference" begin 
         # test with independent parameter 
-        method = FiniteDifference(Central)
+        method = FiniteDifference(Central())
         pidx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
         pts = [GeneralVariableRef(m, pidx, PointVariableIndex),
                GeneralVariableRef(m, pidx + 1, PointVariableIndex),
@@ -147,7 +137,7 @@ end
         exprs = [10pts[1] - pts[2] + pts[3]]
         @test InfiniteOpt.evaluate_derivative(d1, method, m) == exprs 
         # test with dependent parameter 
-        method = FiniteDifference(Forward) 
+        method = FiniteDifference(Forward()) 
         ridx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
         rvs = [GeneralVariableRef(m, ridx, ReducedVariableIndex),
                GeneralVariableRef(m, ridx + 4, ReducedVariableIndex),
@@ -159,7 +149,7 @@ end
         exprs = [rvs[1] - rvs[2] - rvs[3] - rvs[4] + rvs[5] + rvs[6] + rvs[7]] 
         @test InfiniteOpt.evaluate_derivative(d4, method, m) == exprs
         # test using Backward without boundary constraint
-        method = FiniteDifference(Backward, false)
+        method = FiniteDifference(Backward(), false)
         pidx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
         pts = [GeneralVariableRef(m, pidx, PointVariableIndex),
                GeneralVariableRef(m, pidx + 1, PointVariableIndex),
@@ -167,7 +157,7 @@ end
         exprs = [5pts[1] - pts[2] + pts[3]]
         @test InfiniteOpt.evaluate_derivative(d1, method, m) == exprs 
         # test Backward with boundary constraint 
-        method = FiniteDifference(Backward, true)
+        method = FiniteDifference(Backward(), true)
         pidx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
         pts = [GeneralVariableRef(m, pidx, PointVariableIndex),
                GeneralVariableRef(m, pidx + 1, PointVariableIndex),
@@ -215,7 +205,7 @@ end
         @test InfiniteOpt.evaluate_derivative(d2, method, m) == exprs
         @test supports(t) == [0, 5, 10]
         @test supports(t, label = All) == [0, 2.5, 5, 7.5, 10]
-        @test has_derivative_supports(t)
+        @test has_generative_supports(t)
         @test has_internal_supports(t)
     end
 end
@@ -238,7 +228,7 @@ end
         @test derivative_method(t) isa FiniteDifference
         @test evaluate(dy) isa Nothing 
         @test num_constraints(m) == 2
-        @test !has_derivative_supports(t)
+        @test !has_generative_supports(t)
         @test has_derivative_constraints(t)
         @test has_derivative_constraints(dy)
         @test length(derivative_constraints(dy)) == 2
@@ -246,7 +236,7 @@ end
         @test derivative_method(t) isa FiniteDifference
         @test evaluate(dy2) isa Nothing 
         @test num_constraints(m) == 4
-        @test !has_derivative_supports(t)
+        @test !has_generative_supports(t)
         @test has_derivative_constraints(t)
         @test has_derivative_constraints(dy2)
         @test length(derivative_constraints(dy2)) == 2
@@ -256,7 +246,7 @@ end
         @test derivative_method(x) isa OrthogonalCollocation
         @test evaluate_all_derivatives!(m) isa Nothing 
         @test num_constraints(m) == 7
-        @test has_derivative_supports(x)
+        @test has_generative_supports(x)
         @test has_internal_supports(x)
         @test supports(x) == [-1, 1]
         @test num_supports(x, label = All) == 4

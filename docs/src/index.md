@@ -26,7 +26,7 @@ include:
 ### Modeling Infinite-Dimensional Problems with InfiniteOpt.jl
 See our YouTube overview of infinite-dimensional programming and InfiniteOpt.jl's 
 capabilities:
-[![youtube](assets/youtube.PNG)](http://www.youtube.com/watch?v=q5ETFLZbxiU "Modeling Infinite-Dimensional Problems with InfiniteOpt.jl")
+[![youtube](assets/youtube.PNG)](https://www.youtube.com/watch?v=q5ETFLZbxiU "Modeling Infinite-Dimensional Problems with InfiniteOpt.jl")
 
 !!! note
     Currently, `InfiniteOpt` only accepts linear and quadratic expressions.
