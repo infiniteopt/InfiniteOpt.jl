@@ -1,6 +1,6 @@
 # Load in the dependencies
 using InfiniteOpt, JuMP, MathOptInterface, Distributions, Random,
-FastGaussQuadrature, DataStructures, Polynomials
+FastGaussQuadrature, DataStructures
 
 # load the test module
 using Test
