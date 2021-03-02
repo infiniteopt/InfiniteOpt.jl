@@ -166,7 +166,7 @@ julia> set = UniDistributionSet(dist)
 Normal{Float64}(μ=0.0, σ=1.0)
 
 julia> x_param = build_parameter(error, set, supports = [-0.5, 0.5])
-IndependentParameter{UniDistributionSet{Normal{Float64}},FiniteDifference{Backward},NoGenerativeSupports}(Normal{Float64}(μ=0.0, σ=1.0), DataStructures.SortedDict(-0.5=>Set([UserDefined]),0.5=>Set([UserDefined])), 12, FiniteDifference{Backward}(Backward, true), NoGenerativeSupports())
+IndependentParameter{UniDistributionSet{Normal{Float64}},FiniteDifference{Backward},NoGenerativeSupports}(Normal{Float64}(μ=0.0, σ=1.0), DataStructures.SortedDict(-0.5=>Set([UserDefined]),0.5=>Set([UserDefined])), 12, FiniteDifference{Backward}(Backward(), true), NoGenerativeSupports())
 ```
 Again, we use [`add_parameter`](@ref) to add `x_param` to the `InfiniteModel` and
 assign it the name `x`:
