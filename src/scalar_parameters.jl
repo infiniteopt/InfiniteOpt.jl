@@ -664,6 +664,11 @@ function support_label(info::UniformGenerativeInfo)::DataType
     return info.label
 end
 
+# NoGenerativeSupports
+function support_label(info::NoGenerativeSupports)::DataType
+    return _NoLabel
+end
+
 """
     generative_support_info(pref::IndependentParameterRef)::AbstractGenerativeInfo
 

@@ -17,6 +17,7 @@
         @test generative_support_info(TestMethod()) == NoGenerativeSupports()
         # test OrthogonalCollocation with GaussLobatto
         @test generative_support_info(oc) == UniformGenerativeInfo([0.5], InternalGaussLobatto)
+        @test generative_support_info(OrthogonalCollocation(2)) == NoGenerativeSupports()
         # test bad OrthogonalCollocation
         @test_throws ErrorException generative_support_info(bad_oc)
     end

@@ -300,7 +300,7 @@ create a measure using the measure data, as shown below:
 
 ```jldoctest measure_eval
 julia> tdata = uniform_grid(t, 0, 5, 6)
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], UniqueMeasure{Symbol("##923")}, InfiniteOpt.default_weight, 0.0, 5.0, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], UniqueMeasure{Symbol("##924")}, InfiniteOpt.default_weight, 0.0, 5.0, false)
 
 julia> f_meas = measure(f, tdata)
 measure{t ∈ [0, 5]}[f(t)]
@@ -598,7 +598,7 @@ types of supports and extend `support_label`:
 ```jldoctest info_model; output = false
 struct RandomInternal <: InternalLabel end
 
-function InfiniteOpt.support_label(info::RandomGenerativeInfo)::TypeRandomInternal}
+function InfiniteOpt.support_label(info::RandomGenerativeInfo)::TypeRandomInternal
     return RandomInternal
 end
 

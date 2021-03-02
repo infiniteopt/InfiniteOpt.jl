@@ -691,6 +691,7 @@ end
     @testset "support_label" begin 
         @test_throws ErrorException support_label(TestGenInfo())
         @test support_label(info) == InternalLabel
+        @test support_label(NoGenerativeSupports()) == InfiniteOpt._NoLabel
     end
     # test _reset_generative_supports
     @testset "_reset_generative_supports" begin 
@@ -793,7 +794,7 @@ end
         @test derivative_method(dpref) isa TestMethod
         # test GenerativeDerivativeMethod with generative measures
         @test InfiniteOpt._set_generative_support_info(dpref, info) isa Nothing 
-        @test_throws ErrorException set_derivative_method(pref, TestGenMethod())
+        @test_throws ErrorException set_derivative_method(pref, OrthogonalCollocation(4))
         @test set_derivative_method(pref, OrthogonalCollocation(3)) isa Nothing
         @test derivative_method(dpref) isa OrthogonalCollocation
         # test GenerativeDerivativeMethod without generative measures
@@ -942,8 +943,8 @@ end
         @test_throws ArgumentError delete_supports(bad)
         # test label deletion
         set_derivative_method(pref, OrthogonalCollocation(3))
-        InfiniteOpt._set_has_generative_supports(pref, true)
         add_supports(pref, 0.1, label = UniformGrid)
+        InfiniteOpt._set_has_generative_supports(pref, true)
         @test delete_supports(pref_disp, label = UniformGrid) isa Nothing
         @test !has_generative_supports(pref)
         @test !has_internal_supports(pref)

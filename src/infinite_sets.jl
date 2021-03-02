@@ -332,6 +332,9 @@ supports, but rather is used used to indicate that all supports should be used.
 """
 struct All <: AbstractSupportLabel end
 
+# Filler label for NoGenerativeSupports
+struct _NoLabel <: AbstractSupportLabel end
+
 """
     PublicLabel <: AbstractSupportLabel
 

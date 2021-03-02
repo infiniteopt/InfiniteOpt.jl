@@ -147,6 +147,7 @@ end
         @test Mixture <: PublicLabel
         @test UniqueMeasure isa UnionAll
         @test InternalLabel <: AbstractSupportLabel
+        @test InfiniteOpt._NoLabel <: AbstractSupportLabel
     end
     @testset "generate_unique_label" begin 
         @test InfiniteOpt.generate_unique_label() <: UniqueMeasure

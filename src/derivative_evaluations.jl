@@ -68,11 +68,16 @@ end
 # OrthogonalCollocation with GaussLabatto
 function generative_support_info(
     method::OrthogonalCollocation{MeasureToolbox.GaussLobatto}
-    )::UniformGenerativeInfo
-    (nodes, _) = FastGaussQuadrature.gausslobatto(method.num_nodes)
-    deleteat!(nodes, length(nodes))
-    deleteat!(nodes, 1)
-    return UniformGenerativeInfo(nodes, MeasureToolbox.InternalGaussLobatto, -1, 1)
+    )::AbstractGenerativeInfo
+    num_nodes = method.num_nodes
+    if num_nodes == 2
+        return NoGenerativeSupports()
+    else
+        (nodes, _) = FastGaussQuadrature.gausslobatto(method.num_nodes)
+        deleteat!(nodes, length(nodes))
+        deleteat!(nodes, 1)
+        return UniformGenerativeInfo(nodes, MeasureToolbox.InternalGaussLobatto, -1, 1)
+    end
 end
 
 # OrthogonalCollocation fallback

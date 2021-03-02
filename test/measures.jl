@@ -229,6 +229,9 @@ end
                                           upper_bound = 1)
     data6 = FunctionalDiscreteMeasureData(pars, f, 10, MCSample, lower_bounds = [0, 0], 
                                           upper_bounds = [1, 1])
+    data7 = FunctionalDiscreteMeasureData(par, f, 10, All, lower_bound = 0, 
+                                          upper_bound = 0.8)
+    data8 = FunctionalDiscreteMeasureData(par, f, 10, All)
     # parameter_refs (DiscreteMeasureData)
     @testset "parameter_refs (Single)" begin
         @test parameter_refs(data) == par
@@ -300,6 +303,8 @@ end
         add_generative_supports(dpar)
         # test with non generative
         @test supports(data5) == [0, 0.5, 1]
+        @test supports(data7) == [0, 0.5]
+        @test supports(data8) == [0, 0.5, 1]
         # test generative
         @test supports(data3, include_generative = false) == [0, 1]
         @test supports(data3) == [0, 0.5, 1]

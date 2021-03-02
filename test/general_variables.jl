@@ -505,4 +505,12 @@ end
     @testset "JuMP.fix (GeneralVariableRef)" begin
         @test_throws ArgumentError fix(gvref, 42, force = true)
     end
+    # test set_start_value_function (Fallback)
+    @testset "set_start_value_function (Fallback)" begin
+        @test_throws ArgumentError set_start_value_function(dvref, sin)
+    end
+    # test set_start_value_function (GeneralVariableRef)
+    @testset "set_start_value_function (GeneralVariableRef)" begin
+        @test_throws ArgumentError set_start_value_function(gvref, sin)
+    end
 end
