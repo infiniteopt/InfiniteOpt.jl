@@ -154,14 +154,12 @@ we provide an API to do just this. A complete template is provided in
 [`./test/extensions/derivative_method.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/derivative_method.jl) 
 to help streamline this process. The extension steps are:
 1. Define the new method struct that inherits from the correct [`AbstractDerivativeMethod`](@ref) subtype
-2. Extend [`InfiniteOpt.support_label`](@ref InfiniteOpt.support_label(::AbstractDerivativeMethod)) 
+2. Extend [`InfiniteOpt.generative_support_info`](@ref InfiniteOpt.generative_support_info(::AbstractDerivativeMethod)) 
    if the method is a [`GenerativeDerivativeMethod`](@ref)
-3. Extend [`InfiniteOpt.generate_derivative_supports`](@ref) if the method is a
-   [`GenerativeDerivativeMethod`](@ref)
-4. Extend [`InfiniteOpt.evaluate_derivative`](@ref).
+3. Extend [`InfiniteOpt.evaluate_derivative`](@ref).
 
 To exemplify this process let's implement explicit Euler which is already 
-implemented via `FiniteDifference(Forward)`, but let's make our own anyway for 
+implemented via `FiniteDifference(Forward())`, but let's make our own anyway for 
 the sake of example. For a first order derivative ``\frac{d y(t)}{dt}`` explicit 
 Euler is expressed:
 ```math
@@ -184,10 +182,10 @@ supports. If our desired method needed to add additional supports (e.g.,
 orthogonal collocation over finite elements) then we would need to have used 
 [`GenerativeDerivativeMethod`](@ref).
 
-Since, this is a `NonGenerativeDerivativeMethod` we skip steps 2 and 3. These are 
+Since, this is a `NonGenerativeDerivativeMethod` we skip step 2. This is 
 however exemplified in the extension template.
 
-Now we just need to do step 4 which is to extend 
+Now we just need to do step 3 which is to extend 
 [`InfiniteOpt.evaluate_derivative`](@ref). This function generates all the expressions 
 necessary to build the derivative evaluation equations (derivative constraints). 
 We assume these relations to be of the form ``h = 0`` where ``h`` is a vector of 
@@ -212,8 +210,6 @@ function InfiniteOpt.evaluate_derivative(
     # get the basic derivative information 
     vref = derivative_argument(dref)
     pref = operator_parameter(dref)
-    # make sure internal supports are added to the model
-    InfiniteOpt.add_derivative_supports(pref) # NOTE THIS IS UNNEEDED FOR NONGENERATIVE METHODS
     # generate the derivative expressions h_i corresponding to the equations of 
     # the form h_i = 0
     supps = supports(pref, label = All)
@@ -232,11 +228,10 @@ end
 
 
 ```
-Notice that we used [`InfiniteOpt.add_derivative_supports`](@ref) as required 
-for `GenerativeDerivativeMethods`, but is not necessary in this example. We 
-also used [`InfiniteOpt.make_reduced_expr`](@ref) as a convenient helper function 
+We used [`InfiniteOpt.make_reduced_expr`](@ref) as a convenient helper function 
 to generate the reduced variables/expressions we need to generate at each support 
-point.
+point. Also note that [`InfiniteOpt.add_generative_supports`](@ref) needs to be 
+included for `GenerativeDerivativeMethods`, but is not necessary in this example.
 
 Now that we have have completed all the necessary steps, let's try it out! 
 ```jldoctest deriv_ext
@@ -256,7 +251,7 @@ julia> derivative_constraints(dy)
  y(5) - y(0) - 5 ∂/∂t[y(t)](0) = 0.0
  y(10) - y(5) - 5 ∂/∂t[y(t)](5) = 0.0
 ```
-We implemented explict Euler and it works! Now go and extend away!
+We implemented explicit Euler and it works! Now go and extend away!
 
 ## Measure Evaluation Techniques
 Measure evaluation methods are used to dictate how to evaluate measures. Users
@@ -266,7 +261,8 @@ evaluation methods, users may want to embed the new evaluation method under the
 [`integral`](@ref) function that
 does not require explicit construction of [`AbstractMeasureData`](@ref).
 
-The basic way to do that is to write a function that creates [`AbstractMeasureData`](@ref)
+### Creating a DiscreteMeasureData Object
+The basic way to do that is to write a function that creates [`DiscreteMeasureData`](@ref)
 object, and pass the object to the [`measure`](@ref). For instance, let's
 consider defining a function that
 enables the definition of a uniform grid for a univariate or multivariate
@@ -304,7 +300,7 @@ create a measure using the measure data, as shown below:
 
 ```jldoctest measure_eval
 julia> tdata = uniform_grid(t, 0, 5, 6)
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], UniqueMeasure{Val{Symbol("##923")}}, InfiniteOpt.default_weight, 0.0, 5.0, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], UniqueMeasure{Symbol("##923")}, InfiniteOpt.default_weight, 0.0, 5.0, false)
 
 julia> f_meas = measure(f, tdata)
 measure{t ∈ [0, 5]}[f(t)]
@@ -313,7 +309,8 @@ julia> expand(f_meas)
 0.8333333333333333 f(0) + 0.8333333333333333 f(1) + 0.8333333333333333 f(2) + 0.8333333333333333 f(3) + 0.8333333333333333 f(4) + 0.8333333333333333 f(5)
 ```
 
-An alternate way of extending new measure evaluation methods is to extend
+### Integral Evaluation Methods
+For integrals, we can implement a new approximation method via the extension of
 [`InfiniteOpt.MeasureToolbox.generate_integral_data`](@ref). This will
 allow users to use their custom measure evaluation methods in the
 [`integral`](@ref) function that does not explicitly require a measure data
@@ -394,6 +391,7 @@ The extension steps employed are:
 6. Extend [`InfiniteOpt.coefficients`](@ref) (useful getter method if applicable)
 7. Extend [`InfiniteOpt.weight_function`](@ref) (useful getter method if applicable)
 8. Extend [`InfiniteOpt.support_label`](@ref) (needed to enable deletion if supports are added.)
+9. Extend [`InfiniteOpt.generative_support_info`](@ref) (Needed if the measure will cause the creation of generative supports)
 8. Make simple measure constructor wrapper of [`measure`](@ref) to ease definition.
 
 To illustrate how this process can be done, let's consider extending `InfiniteOpt`
@@ -553,7 +551,7 @@ variance (generic function with 1 method)
 ```
 Notice in this case that we only permit linear expressions for `expr` since
 it will be squared by our new measure and we currently only support quadratic
-expressions. (This could be overcome by defining place a place holder variable
+expressions. (This could be overcome by defining a place holder variable
 for `expr`.
 
 Now let's use our constructor to repeat the above measure example:
@@ -563,6 +561,73 @@ julia> expand(variance(2y + z, xi, use_existing = true))
 ```
 
 We have done it! Now go and extend away!
+
+## Generative Support Information 
+As discussed in the [Generative Supports](@ref) section, generative supports help 
+enable measure and/or derivative evaluation techniques that require the creation 
+of generative supports (e.g., orthogonal collocation). Natively, we provide 
+[`UniformGenerativeInfo`](@ref) to help accomplish this which works for creating 
+generative supports uniformly over finite elements as is the case for orthogonal 
+collocation (note this includes scaling them as need to the size of each finite 
+element). However, more complex generative support schemes can be enabled by 
+defining a new concrete [`AbstractGenerativeInfo`](@ref) subtype. This section will 
+detail how this can be accomplished in `InfiniteOpt`. A template for implementing 
+this is provided in [`./test/extensions/generative_info.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/generative_info.jl).
+
+A new generative support information type can be created via the following:
+1. Define a concrete subtype of [`AbstractGenerativeInfo`](@ref) (required)
+2. Make a unique support label that inherits [`InternalLabel`](@ref) (recommended)
+3. Extend [`InfiniteOpt.support_label`](@ref) (required)
+4. Extend [`InfiniteOpt.make_generative_supports`](@ref) (required).
+
+For the sake of example, let's suppose we want to make a method that generates a
+certain amount of random supports for each finite element. First, let's define 
+our struct `RandomGenerativeInfo`:
+```jldoctest info_model; output = false
+using InfiniteOpt, Random
+
+struct RandomGenerativeInfo <: InfiniteOpt.AbstractGenerativeInfo
+    amount::Int # amount of random supports per finite element
+end
+
+# output
+
+```
+With that done, let's define a unique support label `RandomInternal` for these 
+types of supports and extend `support_label`:
+```jldoctest info_model; output = false
+struct RandomInternal <: InternalLabel end
+
+function InfiniteOpt.support_label(info::RandomGenerativeInfo)::TypeRandomInternal}
+    return RandomInternal
+end
+
+# output
+
+```
+Finally, let's extend `make_generative_supports` to create a vector of the 
+generative supports based on a `RandomGenerativeInfo` and the existing model 
+supports which are passed in the function as input:
+```jldoctest info_model; output = false
+function InfiniteOpt.make_generative_supports(info::RandomGenerativeInfo, pref, supps)::Vector{Float64}
+    num_existing = length(supps)
+    num_existing <= 1 && error("`$pref` doesn't have enough supports.")
+    num_internal = info.attr
+    gen_supps = Float64[]
+    for i = 1:num_existing-1 
+        lb = supps[i]
+        ub = supps[i+1]
+        append!(gen_supps, rand(num_internal) * (ub - lb) .+ lb)
+    end
+    return gen_supps
+end
+
+# output
+
+```
+Our extension is done and now `RandomGenerativeInfo` can be incorporated by a 
+`GenerativeDerivativeMethod` we create or an `AbstractMeasureData` object of our 
+choice like `FunctionalDiscreteMeasureData`. 
 
 ## [Optimizer Models] (@id extend_optimizer_model)
 `InfiniteOpt` provides a convenient interface and abstraction for modeling

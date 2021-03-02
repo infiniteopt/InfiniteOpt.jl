@@ -174,6 +174,16 @@ domains. Contains no fields.
 struct MultiIndepMCSampling <: AbstractMultivariateMethod end
 
 ################################################################################
+#                             INTERNAL SUPPORT LABELS
+################################################################################
+"""
+    InternalGaussLobatto <: InfiniteOpt.InternalLabel
+
+A support label Gauss Lobatto points that are used as generative supports.
+"""
+struct InternalGaussLobatto <: InfiniteOpt.InternalLabel end
+
+################################################################################
 #                       DATA GENERATION METHODS (UNIVARIATE)
 ################################################################################
 """
@@ -181,7 +191,7 @@ struct MultiIndepMCSampling <: AbstractMultivariateMethod end
         prefs::Union{InfiniteOpt.GeneralVariableRef, Vector{InfiniteOpt.GeneralVariableRef}},
         lower_bounds::Union{Real, Vector{<:Real}},
         upper_bounds::Union{Real, Vector{<:Real}},
-        method::Type{V}; [num_supports::Int = InfiniteOpt.DefaultNumSupports,
+        method::V; [num_supports::Int = InfiniteOpt.DefaultNumSupports,
         weight_func::Function = InfiniteOpt.default_weight,
         extra_kwargs...]
         )::InfiniteOpt.AbstractMeasureData where {V <: AbstractIntegralMethod}
@@ -201,7 +211,7 @@ function generate_integral_data end
 # General fallback
 function generate_integral_data(prefs, lb, ub, method; kwargs...)
     error("`generate_integral_data` is not defined for method type `$(method)` " *
-          "in accordance with the arugments given.")
+          "in accordance with the arguments given.")
 end
 
 # Single pref with Automatic
@@ -256,8 +266,10 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 num_supports::Int = InfiniteOpt.DefaultNumSupports,
                                 weight_func::Function = InfiniteOpt.default_weight)
     return InfiniteOpt.FunctionalDiscreteMeasureData(pref, _trapezoid_coeff, 0,
-                                                     InfiniteOpt.All, weight_func,
-                                                     lower_bound, upper_bound, false)
+                                                     InfiniteOpt.All, 
+                                                     InfiniteOpt.NoGenerativeSupports(), 
+                                                     weight_func, lower_bound, 
+                                                     upper_bound, false)
 end
 
 # Useful error function for dependent parameters
@@ -471,6 +483,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     # prepare the data
     return InfiniteOpt.FunctionalDiscreteMeasureData(pref, _coeffs, num_supports,
                                                      InfiniteOpt.MCSample,
+                                                     InfiniteOpt.NoGenerativeSupports(),
                                                      weight_func,
                                                      lower_bound, upper_bound,
                                                      false)

@@ -83,12 +83,12 @@ Now let's return to our discussion on derivative evaluation methods. These are t
 methods that can/will be invoked to transcript the derivatives when solving the 
 model. The methods native to `InfiniteOpt` are described in the table below:
 
-| Method                         | Type               | Needed Boundary Conditions| Creates Supports |
-|:------------------------------:|:------------------:|:-------------------------:|:----------------:|
-|[`FiniteDifference`](@ref)      | [`Forward`](@ref)  | Final & optional Initial  | No               |
-|[`FiniteDifference`](@ref)      | [`Central`](@ref)  | Initial & Final           | No               |
-|[`FiniteDifference`](@ref)      | [`Backward`](@ref) | Initial & optional Final  | No               |
-|[`OrthogonalCollocation`](@ref) | [`Lobatto`](@ref)  | Initial                   | Yes              |
+| Method                         | Type                    | Needed Boundary Conditions| Creates Supports |
+|:------------------------------:|:-----------------------:|:-------------------------:|:----------------:|
+|[`FiniteDifference`](@ref)      | [`Forward`](@ref)       | Final & optional Initial  | No               |
+|[`FiniteDifference`](@ref)      | [`Central`](@ref)       | Initial & Final           | No               |
+|[`FiniteDifference`](@ref)      | [`Backward`](@ref)      | Initial & optional Final  | No               |
+|[`OrthogonalCollocation`](@ref) | [`GaussLobatto`](@ref)  | Initial                   | Yes              |
 
 Here the default method is backward finite difference. These are enforced on an 
 infinite parameter basis (i.e., the parameter the differential operator is taken 
@@ -100,7 +100,7 @@ specified as our derivative method. More information is provided in the
 to specify/modify the derivative method used. More conveniently, we can call 
 [`set_all_derivative_methods`](@ref):
 ```jldoctest deriv_basic 
-julia> set_all_derivative_methods(model, FiniteDifference(Forward))
+julia> set_all_derivative_methods(model, FiniteDifference(Forward()))
 
 ```
 
@@ -282,14 +282,7 @@ natively implements.
 
 ### Derivative Methods
 As discussed briefly above in the Basic Usage section, we natively employ 4 
-derivative methods in `InfiniteOpt` which are summarized:
-
-| Method                         | Type               | Needed Boundary Conditions| Creates Supports |
-|:------------------------------:|:------------------:|:-------------------------:|:----------------:|
-|[`FiniteDifference`](@ref)      | [`Forward`](@ref)  | Final & optional Initial  | No               |
-|[`FiniteDifference`](@ref)      | [`Central`](@ref)  | Initial & Final           | No               |
-|[`FiniteDifference`](@ref)      | [`Backward`](@ref) | Initial & optional Final  | No               |
-|[`OrthogonalCollocation`](@ref) | [`Lobatto`](@ref)  | Initial                   | Yes              |
+derivative methods in `InfiniteOpt` (see the table in that section for a summary).
 
 These methods are defined in association with individual infinite parameters and 
 will be applied to any derivatives that are taken with respect to that parameter. 
@@ -297,7 +290,7 @@ These methods are specified via the `derivative_method` keyword argument in the
 [`@infinite_parameter`](@ref) macro and can also be defined by invoking 
 [`set_derivative_method`](@ref) or [`set_all_derivative_methods`](@ref):
 ```jldoctest deriv_basic
-julia> set_derivative_method(t, FiniteDifference(Forward))
+julia> set_derivative_method(t, FiniteDifference(Forward()))
 
 ```
 In this example, we set `t`'s derivative evaluation method to use forward finite 
@@ -309,12 +302,12 @@ The first class of methods pertain to finite difference techniques. The syntax
 for specifying these techniques is described in [`FiniteDifference`](@ref) and 
 exemplified here:
 ```jldoctest deriv_basic
-julia> FiniteDifference(Forward, true)
-FiniteDifference(Forward, true)
+julia> FiniteDifference(Forward(), true)
+FiniteDifference{Forward}(Forward(), true)
 ```
 where the first argument indicates the type of finite difference we wish to employ 
 and the second argument indicates if this method should be enforced on boundary 
-points. By default, we have `FiniteDifference(Backward, true)` which is the default 
+points. By default, we have `FiniteDifference(Backward(), true)` which is the default 
 for all infinite parameters. 
 
 Forward finite difference (i.e., explicit Euler) is exemplified by approximating first 
@@ -323,7 +316,7 @@ order derivative ``\frac{d y(t)}{dt}`` via
 y(t_{n+1}) = y(t_n) + (t_{n+1} - t_{n})\frac{d y(t_n)}{dt}, \ \forall n = 0, 1, \dots, k-1
 ```
 Note that in this case, the boundary relation corresponds to ``n = 0`` and would 
-be included if we set `FiniteDifference(Forward, true)` or would excluded if we 
+be included if we set `FiniteDifference(Forward(), true)` or would excluded if we 
 let the second argument be `false`. We recommend, selecting `false` when an initial 
 condition is provided. Also, note that a terminal condition should be provided 
 when using this method since an auxiliary equation for the derivative at the 
@@ -336,7 +329,7 @@ Central finite difference is exemplified by approximating the first order deriva
 y(t_{n+1}) = y(t_{n-1}) + (t_{n+1} - t_{n-1})\frac{d y(t_n)}{dt}, \ \forall n = 1, 2, \dots, k-1
 ```
 Note that this form cannot be invoked at ``n = 0`` or ``n = k`` and cannot 
-an equation at either boundary. With this in mind the syntax is `FiniteDifference(Central)` 
+an equation at either boundary. With this in mind the syntax is `FiniteDifference(Central())` 
 where the second argument is omitted since it doesn't apply to this scheme. As a 
 result both initial and terminal conditions should be specified otherwise the 
 derivatives at those points will be free variables.
@@ -348,7 +341,7 @@ derivative ``\frac{d y(t)}{dt}`` via
 y(t_{n}) = y(t_{n-1}) + (t_{n} - t_{n-1})\frac{d y(t_{n})}{dt}, \ \forall n = 1, 2, \dots, k
 ```
 Here the boundary case corresponds to ``n = k`` and would be included if we set 
-`FiniteDifference(Backward, true)` (the default) or excluded if we set the second 
+`FiniteDifference(Backward(), true)` (the default) or excluded if we set the second 
 argument to `false`. We recommend, selecting `false` when a terminal condition is 
 provided. Also, note that an initial condition should always be given otherwise 
 the derivative at the first point will be free.
@@ -366,9 +359,9 @@ to use 3 collocation nodes (i.e., 1 internal node per finite element) correspond
 to a 2nd degree polynomial via
 ```jldoctest deriv_basic
 julia> OrthogonalCollocation(3)
-OrthogonalCollocation(1, Lobatto)
+OrthogonalCollocation{GaussLobatto}(3, GaussLobatto())
 ```
-Notice that the 2nd attribute is `Lobatto` which indicates that we are using 
+Notice that the 2nd attribute is `GaussLobatto` which indicates that we are using 
 collocation nodes selected via Lobatto quadrature. This is currently the only 
 supported technique employed by `OrthogonalCollocation` although more may be added 
 in future versions. Please note that an initial condition must be provided otherwise 
@@ -434,7 +427,7 @@ julia> derivative_constraints(d1)
 
 julia> add_supports(t, 0.2)
 ┌ Warning: Support/method changes will invalidate existing derivative evaluation constraints that have been added to the InfiniteModel. Thus, these are being deleted.
-└ @ InfiniteOpt ~/build/pulsipher/InfiniteOpt.jl/src/scalar_parameters.jl:681
+└ @ InfiniteOpt ~/build/pulsipher/InfiniteOpt.jl/src/scalar_parameters.jl:821
 
 julia> has_derivative_constraints(d1)
 false
@@ -456,7 +449,7 @@ julia> operator_parameter(dydt2) # get the parameter the operator is taken with 
 t
 
 julia> derivative_method(dydt2) # get the numerical derivative evaluation method
-FiniteDifference(Forward, true)
+FiniteDifference{Forward}(Forward(), true)
 
 julia> name(dydt2) # get the name if there is one
 "dydt2"
@@ -592,8 +585,6 @@ Derivative
 AbstractDerivativeMethod
 GenerativeDerivativeMethod
 OrthogonalCollocation
-OCTechnique
-Lobatto
 NonGenerativeDerivativeMethod
 FiniteDifference
 FDTechnique
@@ -626,7 +617,7 @@ set_start_value_function(::DerivativeRef,::Union{Real, Function})
 reset_start_value_function(::DerivativeRef)
 num_derivatives
 all_derivatives
-set_derivative_method(::IndependentParameterRef, ::AbstractDerivativeMethod)
+set_derivative_method(::IndependentParameterRef, ::NonGenerativeDerivativeMethod)
 set_derivative_method(::DependentParameterRef, ::AbstractDerivativeMethod)
 set_all_derivative_methods
 evaluate(::DerivativeRef)
@@ -635,8 +626,7 @@ has_derivative_constraints(::DerivativeRef)
 derivative_constraints(::DerivativeRef)
 delete_derivative_constraints(::DerivativeRef)
 evaluate_derivative
-InfiniteOpt.support_label(::AbstractDerivativeMethod)
-InfiniteOpt.generate_derivative_supports
-InfiniteOpt.add_derivative_supports(::IndependentParameterRef)
+generative_support_info(::AbstractDerivativeMethod)
+support_label(::AbstractDerivativeMethod)
 InfiniteOpt.make_reduced_expr
 ```

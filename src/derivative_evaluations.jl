@@ -1,106 +1,100 @@
 ################################################################################
+#                           DERIVATIVE METHOD DATATYPES
+################################################################################
+"""
+    OrthogonalCollocation{Q <: MeasureToolbox.AbstractUnivariateMethod
+                          } <: GenerativeDerivativeMethod 
+
+A `DataType` for storing information about orthogonal collocation over finite 
+elements to approximate derivatives. The constructor is of the form:
+```
+    OrthogonalCollocation(num_nodes::Int, 
+                          [quad::AbstractUnivariateMethod = GaussLobatto])
+```
+
+**Fields**
+- `num_nodes::Int`: The number of collocation points (nodes) per finite element.
+- `quadrature_method::Q`: The quadrature method uses to choose the collocation points.
+"""
+struct OrthogonalCollocation{Q <: MeasureToolbox.AbstractUnivariateMethod
+                             } <: GenerativeDerivativeMethod 
+    num_nodes::Int
+    quadrature_method::Q
+    function OrthogonalCollocation{Q}(
+        num_nodes::Int, 
+        quad::Q
+        ) where {Q <: MeasureToolbox.AbstractUnivariateMethod}
+        return new{Q}(num_nodes, quad)
+    end
+end
+
+# Define Lobatto constructor
+function OrthogonalCollocation(num_nodes::Int, quad::Q
+    )::OrthogonalCollocation{Q} where {Q <: MeasureToolbox.GaussLobatto}
+    num_nodes >= 2 || error("Must specify at least 2 collocation points (i.e., " *
+                            "the bounds of each support interval with no internal " * 
+                            "support nodes).")
+    return OrthogonalCollocation{Q}(num_nodes, quad)
+end
+
+# Define default constructor
+function OrthogonalCollocation(num_nodes::Int
+    )::OrthogonalCollocation{MeasureToolbox.GaussLobatto}
+    return OrthogonalCollocation(num_nodes, MeasureToolbox.GaussLobatto())
+end
+
+################################################################################
 #                                HELPER METHODS
 ################################################################################
 """
-    generate_derivative_supports(pref::IndependentParameterRef, 
-                                 method::GenerativeDerivativeMethod)::Vector{Float64}
+    generative_support_info(method::AbstractDerivativeMethod)::AbstractGenerativeInfo
 
-Generate and return a vector any additional supports needed by `method`. This is 
-intended as an internal method and will need to be extended for user-defined 
-derivative methods that are generative.
+Return the [`AbstractGenerativeInfo`](@ref) associated with `method`. This is 
+intended as an internal method and should be extended for user-defined derivative 
+methods are [`GenerativeDerivativeMethod`](@ref)s.
 """
-function generate_derivative_supports(
-    pref::IndependentParameterRef, 
-    method::AbstractDerivativeMethod
-    )
-    error("`generate_derivative_supports` not extended for derivative method of " * 
-          "type $(typeof(method)).")
+function generative_support_info(method::AbstractDerivativeMethod)
+    error("`generative_support_info` is undefined for derivative method type " * 
+          "`$(typeof(method))`.")
 end
 
-# NonGenerativeDerivativeMethod
-function generate_derivative_supports(
-    pref::IndependentParameterRef, 
+# NonGenerativeDerivativeMethods
+function generative_support_info(
     method::NonGenerativeDerivativeMethod
-    )::Vector{Float64}
-    return Float64[]
+    )::NoGenerativeSupports
+    return NoGenerativeSupports()
 end
 
-## Define helper functions for Lobatto Polynomials'
-# Generate the Legendre polynomials
-function _legendre(n::Int)::Polynomials.Polynomial{Float64} 
-    return sum(binomial(n,k)^2 * Polynomials.Polynomial([-1,1])^(n-k) * 
-               Polynomials.Polynomial([1,1])^k for k in 0:n) / 2^n
-end 
-
-# Compute the Lobatto roots
-function _compute_internal_node_basis(n::Int)::Vector{Float64} 
-    return Polynomials.roots(Polynomials.derivative(_legendre(n+1)))
+# OrthogonalCollocation with GaussLabatto
+function generative_support_info(
+    method::OrthogonalCollocation{MeasureToolbox.GaussLobatto}
+    )::UniformGenerativeInfo
+    (nodes, _) = FastGaussQuadrature.gausslobatto(method.num_nodes)
+    deleteat!(nodes, length(nodes))
+    deleteat!(nodes, 1)
+    return UniformGenerativeInfo(nodes, MeasureToolbox.InternalGaussLobatto, -1, 1)
 end
 
-# OrthogonalCollocation (top level dispatch)
-function generate_derivative_supports(
-    pref::IndependentParameterRef, 
-    method::OrthogonalCollocation
-    )::Vector{Float64}
-    return generate_derivative_supports(pref, method, method.technique)
-end
-
-# OrthogonalCollocation (Labatto)
-function generate_derivative_supports(
-    pref::IndependentParameterRef, 
-    method::OrthogonalCollocation,
-    technique::Type{Lobatto}
-    )::Vector{Float64}
-    # collect the preliminaries
-    num_nodes = method.num_internal_nodes
-    node_basis = _compute_internal_node_basis(num_nodes)
-    ordered_supps = supports(pref, label = All) # already sorted by SortedDict
-    num_supps = length(ordered_supps)
-    num_supps <= 1 && error("$(pref) does not have enough supports for derivative evaluation.")
-    internal_nodes = Vector{Float64}(undef, num_nodes * (num_supps - 1))
-    # generate the internal node supports
-    for i in Iterators.take(eachindex(ordered_supps), num_supps - 1)
-        lb = ordered_supps[i]
-        ub = ordered_supps[i+1]
-        internal_nodes[(i-1)*num_nodes+1:i*num_nodes] = (ub - lb) / 2 * node_basis .+ (ub + lb) / 2
-    end
-    return internal_nodes
-end
-
-# OrthogonalCollocation (Fallback)
-function generate_derivative_supports(
-    pref::IndependentParameterRef, 
-    method::OrthogonalCollocation,
-    technique
-    )
-    error("Undefined orthogonal collocation technique `$technique`.")
+# OrthogonalCollocation fallback
+function generative_support_info(method::OrthogonalCollocation{Q}) where {Q}
+    error("Invalid `OrthogonalCollocation` with unknown quadrature method `$Q`.")
 end
 
 """
-    add_derivative_supports(pref::Union{IndependentParameterRef, DependentParameterRef})::Nothing
+    support_label(method::GenerativeDerivativeMethod)
 
-Add any supports `pref` that are needed for derivative evaluation. This is intended 
-as a helper method for derivative evaluation and depends [`generate_derivative_supports`](@ref InfiniteOpt.generate_derivative_supports) 
-which will need to be extended for user-defined derivative methods that generate supports. 
-In such cases, it is necessary to also extend 
-[`support_label`](@ref InfiniteOpt.support_label(::AbstractDerivativeMethod)) Errors if 
-such is not defined for the current derivative method associated with `pref`. 
+Return the support label associated with `method` if there is one, errors otherwise. 
+This depends on [`generative_support_info`](@ref generative_support_info(::AbstractDerivativeMethod)) 
+being defined for the type of `method`.
 """
-function add_derivative_supports(pref::IndependentParameterRef)::Nothing
-    if !has_derivative_supports(pref)
-        method = derivative_method(pref)
-        supps = generate_derivative_supports(pref, method)
-        if !isempty(supps)
-            add_supports(pref, supps, label = support_label(method), check = false)
-            _set_has_derivative_supports(pref, true)
-        end
-    end
-    return
+function support_label(method::AbstractDerivativeMethod)::DataType
+    error("`support_label` not defined for derivative methods of type " *
+          "`$(typeof(method))`.")
 end
 
-# Define for DependentParameterRef
-function add_derivative_supports(pref::DependentParameterRef)::Nothing
-    return
+# Extend support_label for GenerativeDerivativeMethods
+function support_label(method::GenerativeDerivativeMethod)::DataType
+    return support_label(generative_support_info(method))
 end
 
 """
@@ -204,7 +198,7 @@ function _make_difference_expr(dref::GeneralVariableRef,
                                index::Int, 
                                ordered_supps::Vector{Float64},
                                write_model::JuMP.AbstractModel, 
-                               type::Type{Forward})::JuMP.AbstractJuMPScalar
+                               type::Forward)::JuMP.AbstractJuMPScalar
     curr_value = ordered_supps[index]
     next_value = ordered_supps[index+1]
     return JuMP.@expression(_Model, (next_value - curr_value) * 
@@ -220,7 +214,7 @@ function _make_difference_expr(dref::GeneralVariableRef,
                                index::Int, 
                                ordered_supps::Vector{Float64}, 
                                write_model::JuMP.AbstractModel, 
-                               type::Type{Central})::JuMP.AbstractJuMPScalar
+                               type::Central)::JuMP.AbstractJuMPScalar
     prev_value = ordered_supps[index-1]
     next_value = ordered_supps[index+1]
     curr_value = ordered_supps[index]
@@ -237,13 +231,18 @@ function _make_difference_expr(dref::GeneralVariableRef,
                                index::Int, 
                                ordered_supps::Vector{Float64}, 
                                write_model::JuMP.AbstractModel,
-                               type::Type{Backward})::JuMP.AbstractJuMPScalar
+                               type::Backward)::JuMP.AbstractJuMPScalar
     prev_value = ordered_supps[index-1]
     curr_value = ordered_supps[index]
     return JuMP.@expression(_Model, (curr_value - prev_value) *  
                                     make_reduced_expr(dref, pref, curr_value, write_model) - 
                                     make_reduced_expr(vref, pref, curr_value, write_model) +
                                     make_reduced_expr(vref, pref, prev_value, write_model))
+end
+
+# Fallback
+function _make_difference_expr(dref, vref, pref, index, supps, model, type)
+    error("Undefined `FiniteDifference` technique `$(typeof(type))`.")
 end
 
 # evaluate_derivative for FiniteDifference
@@ -265,35 +264,35 @@ function evaluate_derivative(
         exprs[i] = _make_difference_expr(dref, vref, pref, i + 1, ordered_supps, 
                                          write_model, method.technique)
     end
-    if method.add_boundary_constraint && method.technique == Forward
+    if method.add_boundary_constraint && method.technique isa Forward
         push!(exprs, _make_difference_expr(dref, vref, pref, 1, ordered_supps, 
-                                           write_model, Forward))
-    elseif method.add_boundary_constraint && method.technique == Backward
+                                           write_model, Forward()))
+    elseif method.add_boundary_constraint && method.technique isa Backward
         push!(exprs, _make_difference_expr(dref, vref, pref, n_supps, ordered_supps, 
-                                           write_model, Backward))
+                                           write_model, Backward()))
     end
     return exprs
 end
 
-# Evaluate_derivative for OrthogonalCollocation
+# Evaluate_derivative for OrthogonalCollocation with Labatto
 # This is based on the collocation scheme presented in "Nonlinear Modeling, 
 # Estimation and Predictive Control in APMonitor"
 function evaluate_derivative(
     dref::GeneralVariableRef, 
-    method::OrthogonalCollocation, 
+    method::OrthogonalCollocation{MeasureToolbox.GaussLobatto}, 
     write_model::JuMP.AbstractModel
     )::Vector{JuMP.AbstractJuMPScalar}
     # gather the arugment and parameter 
     vref = derivative_argument(dref)
     pref = operator_parameter(dref)
     # ensure that the internal supports are added in case they haven't already 
-    add_derivative_supports(pref) # this checks for enough supports
+    add_generative_supports(pref) # this checks for enough supports
     # gather the supports and indices of the internal supports
     all_supps = supports(pref, label = All) # sorted by virtue of SortedDict
     bool_inds = map(s -> !(support_label(method) in s), 
                     values(_parameter_supports(dispatch_variable_ref(pref))))
     interval_inds = findall(bool_inds)
-    n_nodes = method.num_internal_nodes
+    n_nodes = method.num_nodes - 2 # we want the # of internal nodes
     # compute M matrix based on the node values and generate expressions using 
     # the M matrix and `make_reduced_expr`
     exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(all_supps) - 1)

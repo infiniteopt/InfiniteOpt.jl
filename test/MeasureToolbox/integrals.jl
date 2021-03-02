@@ -10,7 +10,8 @@
     # test generate_integral_data (trapezoid)
     @testset "generate_integral_data (trapezoid)" begin
         @test generate_integral_data(t, 0, 1, UniTrapezoid()) ==
-                    FunctionalDiscreteMeasureData(t, IOMT._trapezoid_coeff, 0, All, InfiniteOpt.default_weight, 0, 1, false)
+                    FunctionalDiscreteMeasureData(t, IOMT._trapezoid_coeff, 0, All, 
+                               NoGenerativeSupports(),default_weight, 0, 1, false)
     end
     # test _ensure_independent_param
     @testset "_ensure_independent_param" begin

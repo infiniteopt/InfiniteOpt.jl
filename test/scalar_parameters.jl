@@ -7,7 +7,8 @@
     set = IntervalSet(0, 1)
     supps_dict = SortedDict{Float64, Set{DataType}}(0. => Set{DataType}([UserDefined]))
     method = InfiniteOpt.DefaultDerivativeMethod
-    ind_param = IndependentParameter(set, supps_dict, 5, method)
+    info = NoGenerativeSupports()
+    ind_param = IndependentParameter(set, supps_dict, 5, method, info)
     fin_param = FiniteParameter(42)
     ind_object = ScalarParameterData(ind_param, 1, 1, "ind")
     fin_object = ScalarParameterData(fin_param, -1, -1, "fin")
@@ -78,12 +79,12 @@
     # test _adaptive_data_update
     @testset "_adaptive_data_update" begin
         # test change of same type
-        p = IndependentParameter(IntervalSet(0, 2), supps_dict, 12, method)
+        p = IndependentParameter(IntervalSet(0, 2), supps_dict, 12, method, info)
         data = InfiniteOpt._data_object(ind_pref)
         @test InfiniteOpt._adaptive_data_update(ind_pref, p, data) isa Nothing
         @test InfiniteOpt._core_variable_object(ind_pref) == p 
         # test change of different types 
-        p = IndependentParameter(IntervalSet(0, 2), supps_dict, 12, TestMethod())
+        p = IndependentParameter(IntervalSet(0, 2), supps_dict, 12, TestMethod(), info)
         data = InfiniteOpt._data_object(ind_pref)
         @test InfiniteOpt._adaptive_data_update(ind_pref, p, data) isa Nothing
         @test InfiniteOpt._core_variable_object(ind_pref) == p 
@@ -266,6 +267,7 @@ end
         supps = 0.
         supps_dict = SortedDict{Float64, Set{DataType}}(0. => Set([UserDefined]))
         method = TestMethod()
+        geninfo = NoGenerativeSupports()
         @test build_parameter(error, set, supports = supps).set == set
         @test build_parameter(error, set, supports = supps).supports == supps_dict
         @test_throws ErrorException build_parameter(error, set, bob = 42)
@@ -273,7 +275,7 @@ end
         @test_logs (:warn, warn) build_parameter(error, set,
                                             supports = [0, 1], num_supports = 2)
         repeated_supps = [1, 1]
-        expected = IndependentParameter(set, SortedDict{Float64, Set{DataType}}(1. => Set{DataType}()), 5, method)
+        expected = IndependentParameter(set, SortedDict{Float64, Set{DataType}}(1. => Set{DataType}()), 5, method, geninfo)
         warn = "Support points are not unique, eliminating redundant points."
         @test_logs (:warn, warn) build_parameter(error, set, supports = repeated_supps, 
                                                  derivative_method = method) == expected
@@ -292,8 +294,10 @@ end
     @testset "add_parameter" begin
         m = InfiniteModel()
         method = InfiniteOpt.DefaultDerivativeMethod
+        geninfo = NoGenerativeSupports()
         param = IndependentParameter(IntervalSet(0, 1),
-                                    SortedDict{Float64, Set{DataType}}(), 5, method)
+                                    SortedDict{Float64, Set{DataType}}(), 5, 
+                                    method, geninfo)
         expected = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
         @test add_parameter(m, param) == expected
         @test InfiniteOpt._core_variable_object(expected) == param
@@ -322,17 +326,21 @@ end
         @test owner_model(dpref) === m
     end
     # has_derivative_supports
-    @testset "has_derivative_supports" begin
-        @test !has_derivative_supports(pref)
-        InfiniteOpt._data_object(pref).has_derivative_supports = true
-        @test has_derivative_supports(dpref)
+    @testset "has_generative_supports" begin
+        @test !has_generative_supports(pref)
+        InfiniteOpt._data_object(pref).has_generative_supports = true
+        @test has_generative_supports(dpref)
     end
-    # _set_has_derivative_supports
-    @testset "_set_has_derivative_supports" begin
-        @test InfiniteOpt._set_has_derivative_supports(pref, true) isa Nothing
-        @test has_derivative_supports(pref)
-        @test InfiniteOpt._set_has_derivative_supports(dpref, false) isa Nothing
-        @test !has_derivative_supports(pref)
+    # _set_has_generative_supports
+    @testset "_set_has_generative_supports" begin
+        @test InfiniteOpt._set_has_generative_supports(pref, true) isa Nothing
+        @test has_generative_supports(pref)
+        @test InfiniteOpt._set_has_generative_supports(dpref, false) isa Nothing
+        @test !has_generative_supports(pref)
+    end
+    # test generative_support_info
+    @testset "generative_support_info" begin 
+        @test generative_support_info(pref) == NoGenerativeSupports()
     end
     # derivative_method
     @testset "derivative_method" begin
@@ -544,6 +552,14 @@ end
         @test InfiniteOpt._constraint_dependencies(dpref2) == ConstraintIndex[]
         @test_throws ErrorException InfiniteOpt._constraint_dependencies(bad_pref)
     end
+    # _generative_measures
+    @testset "_generative_measures" begin
+        @test InfiniteOpt._generative_measures(pref1) == MeasureIndex[]
+        @test InfiniteOpt._generative_measures(dpref1) == MeasureIndex[]
+        @test InfiniteOpt._generative_measures(pref2) == MeasureIndex[]
+        @test InfiniteOpt._generative_measures(dpref2) == MeasureIndex[]
+        @test_throws ErrorException InfiniteOpt._generative_measures(bad_pref)
+    end
     # used_by_constraint
     @testset "used_by_constraint" begin
         @test !used_by_constraint(pref1)
@@ -651,6 +667,89 @@ end
     end
 end
 
+# Test generative support info methods 
+@testset "Generative Support Info" begin 
+    # setup info 
+    m = InfiniteModel()
+    @independent_parameter(m, pref in [0, 5])
+    dpref = dispatch_variable_ref(pref)
+    info = UniformGenerativeInfo([0.5], InternalLabel)
+    method = FiniteDifference()
+    supps = SortedDict{Float64, Set{DataType}}(0 => Set([All]), 
+                                               2.5 => Set([InternalLabel]), 
+                                               5 => Set([All]))
+    new_param = IndependentParameter(IntervalSet(0, 5), supps, 6, method, info)
+    InfiniteOpt._set_core_variable_object(dpref, new_param)
+    push!(InfiniteOpt._measure_dependencies(dpref), MeasureIndex(-1))
+    # test Base.copy 
+    @testset "Base.copy" begin 
+        @test copy(info) == info 
+        @test copy(info) !== info 
+        @test copy(NoGenerativeSupports()) == NoGenerativeSupports()
+    end
+    # test support label 
+    @testset "support_label" begin 
+        @test_throws ErrorException support_label(TestGenInfo())
+        @test support_label(info) == InternalLabel
+    end
+    # test _reset_generative_supports
+    @testset "_reset_generative_supports" begin 
+        @test InfiniteOpt._set_has_generative_supports(dpref, true) isa Nothing
+        @test has_generative_supports(dpref)
+        @test supports(dpref, label = All) == [0, 2.5, 5]
+        @test InfiniteOpt._reset_generative_supports(dpref) isa Nothing
+        @test !has_generative_supports(dpref)
+        @test supports(dpref, label = All) == [0, 5]
+    end
+    # test _set_generative_support_info
+    @testset "_set_generative_support_info" begin 
+        # test 1
+        @test InfiniteOpt._set_generative_support_info(dpref, NoGenerativeSupports()) isa Nothing
+        @test generative_support_info(pref) == NoGenerativeSupports()
+        # test 2
+        @test InfiniteOpt._set_generative_support_info(dpref, info) isa Nothing
+        @test generative_support_info(pref) == info
+    end
+    # test make_generative_supports
+    @testset "make_generative_supports" begin 
+        # test errors
+        @test_throws ErrorException make_generative_supports(TestGenInfo(), dpref, [0, 1])
+        @test_throws ErrorException make_generative_supports(info, dpref, [0.0])
+        # test normal
+        @test make_generative_supports(info, dpref, [0.0, 2.0, 5.0]) == [1, 3.5]
+        @test make_generative_supports(info, dpref, [0.0, 5.0]) == [2.5]
+    end
+    # test _add_generative_supports 
+    @testset "_add_generative_supports " begin 
+        # test with NoGenerativeSupports
+        @test InfiniteOpt._add_generative_supports(dpref, NoGenerativeSupports()) isa Nothing 
+        @test !has_generative_supports(dpref)
+        # test UniformGenerativeInfo
+        @test InfiniteOpt._add_generative_supports(dpref, info) isa Nothing 
+        @test has_generative_supports(dpref)
+        @test supports(dpref, label = All) == [0, 2.5, 5]
+        # test subsequent run
+        @test InfiniteOpt._add_generative_supports(dpref, info) isa Nothing 
+        @test has_generative_supports(dpref)
+        @test supports(dpref, label = All) == [0, 2.5, 5]
+        # undo changes 
+        @test delete_supports(dpref, label = InternalLabel) isa Nothing 
+        @test !has_generative_supports(dpref)
+        @test supports(dpref, label = All) == [0, 5]
+    end
+    # test add_generative_supports
+    @testset "add_generative_supports" begin 
+        # test normal 
+        @test add_generative_supports(dpref) isa Nothing 
+        @test has_generative_supports(dpref)
+        @test supports(dpref, label = All) == [0, 2.5, 5]
+        # test subsequent run
+        @test add_generative_supports(dpref) isa Nothing 
+        @test has_generative_supports(dpref)
+        @test supports(dpref, label = All) == [0, 2.5, 5]
+    end
+end
+
 # Test derivative methods 
 @testset "Derivative Methods" begin 
     m = InfiniteModel()
@@ -667,33 +766,40 @@ end
     dref = DerivativeRef(m, idx)
     gdref = GeneralVariableRef(m, idx.value, DerivativeIndex)
     cref = @constraint(m, gdref == 0)
-    # test _reset_derivative_evaluations
-    @testset "_reset_derivative_evaluations" begin 
+    info = UniformGenerativeInfo([0.5], InternalGaussLobatto)
+    # test _reset_derivative_constraints
+    @testset "_reset_derivative_constraints" begin 
         # test empty 
-        @test InfiniteOpt._reset_derivative_evaluations(dpref) isa Nothing
+        @test InfiniteOpt._reset_derivative_constraints(dpref) isa Nothing
         # test warning 
         InfiniteOpt._set_has_derivative_constraints(pref, true) 
         @test push!(InfiniteOpt._derivative_constraint_dependencies(dref), index(cref)) isa Vector
         warn = "Support/method changes will invalidate existing derivative evaluation " *
                "constraints that have been added to the InfiniteModel. Thus, " *
                "these are being deleted."
-        @test_logs (:warn, warn) InfiniteOpt._reset_derivative_evaluations(dpref) isa Nothing
+        @test_logs (:warn, warn) InfiniteOpt._reset_derivative_constraints(dpref) isa Nothing
         @test !has_derivative_constraints(pref)
         @test !is_valid(m, cref)
-        # test has derivative supports to deal with 
-        supps = SortedDict{Float64, Set{DataType}}(42 => Set([InternalLabel]))
-        param = IndependentParameter(IntervalSet(0, 1), supps, 12, TestGenMethod())
-        InfiniteOpt._set_core_variable_object(dpref, param)
-        InfiniteOpt._set_has_derivative_supports(pref, true)
-        @test InfiniteOpt._reset_derivative_evaluations(dpref) isa Nothing
-        @test !has_derivative_supports(dpref)
-        @test length(InfiniteOpt._core_variable_object(dpref).supports) == 0 
     end
     # test set_derivative_method
     @testset "set_derivative_method" begin 
+        # test NonGenerativeDerivativeMethod with no generative measures
         push!(InfiniteOpt._constraint_dependencies(dpref), ConstraintIndex(1))
         @test set_derivative_method(pref, TestMethod()) isa Nothing
         @test derivative_method(dpref) isa TestMethod
+        # test NonGenerativeDerivativeMethod with generative measures
+        push!(InfiniteOpt._generative_measures(dpref), MeasureIndex(1))
+        @test set_derivative_method(pref, TestMethod()) isa Nothing
+        @test derivative_method(dpref) isa TestMethod
+        # test GenerativeDerivativeMethod with generative measures
+        @test InfiniteOpt._set_generative_support_info(dpref, info) isa Nothing 
+        @test_throws ErrorException set_derivative_method(pref, TestGenMethod())
+        @test set_derivative_method(pref, OrthogonalCollocation(3)) isa Nothing
+        @test derivative_method(dpref) isa OrthogonalCollocation
+        # test GenerativeDerivativeMethod without generative measures
+        empty!(InfiniteOpt._generative_measures(dpref))
+        @test set_derivative_method(pref, OrthogonalCollocation(4)) isa Nothing
+        @test derivative_method(dpref) isa OrthogonalCollocation
     end
 end
 
@@ -825,7 +931,7 @@ end
         @test supports(pref) == [0.25, 0.5, 1.]
         @test isa(add_supports(pref, [0, 0.25, 1], check = false), Nothing)
         @test supports(pref) == [0, 0.25, 0.5, 1.]
-        @test add_supports(pref, 0.2, label = InternalLabel) isa Nothing
+        @test add_supports(pref, 0.2, label = InternalGaussLobatto) isa Nothing
         @test supports(pref) == [0, 0.25, 0.5, 1.]
         @test supports(pref, label = All) == [0, 0.2, 0.25, 0.5, 1.]
         @test has_internal_supports(pref)
@@ -835,16 +941,16 @@ end
         # test bad parameter 
         @test_throws ArgumentError delete_supports(bad)
         # test label deletion
-        set_derivative_method(pref, TestGenMethod())
-        InfiniteOpt._set_has_derivative_supports(pref, true)
+        set_derivative_method(pref, OrthogonalCollocation(3))
+        InfiniteOpt._set_has_generative_supports(pref, true)
         add_supports(pref, 0.1, label = UniformGrid)
         @test delete_supports(pref_disp, label = UniformGrid) isa Nothing
-        @test !has_derivative_supports(pref)
+        @test !has_generative_supports(pref)
         @test !has_internal_supports(pref)
         @test supports(pref, label = All) == [0, 0.25, 0.5, 1.]
         # test total deletion
         @test isa(delete_supports(pref), Nothing)
-        @test !has_derivative_supports(pref)
+        @test !has_generative_supports(pref)
         @test !has_internal_supports(pref)
         @test supports(pref) == []
         # test array input 

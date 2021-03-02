@@ -193,13 +193,15 @@ using JuMP: REPLMode, IJuliaMode
     # test measure_data_string with 1-D DiscreteMeasureData/FunctionalDiscreteMeasureData
     @testset "measure_data_string (1-D)" begin
         # test with bounds
-        data = FunctionalDiscreteMeasureData(par1, ones, 0, All, default_weight, 0, 1, false)
+        data = FunctionalDiscreteMeasureData(par1, ones, 0, All, NoGenerativeSupports(), 
+                                             default_weight, 0, 1, false)
         str = "par1 " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
         @test InfiniteOpt.measure_data_string(REPLMode, data) == str
         str = "par1 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
         @test InfiniteOpt.measure_data_string(IJuliaMode, data) == str
         # test without bounds
-        data = FunctionalDiscreteMeasureData(par1, ones, 0, All, default_weight, NaN, NaN, false)
+        data = FunctionalDiscreteMeasureData(par1, ones, 0, All, NoGenerativeSupports(), 
+                                             default_weight, NaN, NaN, false)
         @test InfiniteOpt.measure_data_string(REPLMode, data) == "par1"
         @test InfiniteOpt.measure_data_string(IJuliaMode, data) == "par1"
     end

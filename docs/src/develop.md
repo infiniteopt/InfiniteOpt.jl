@@ -65,7 +65,7 @@ through step by step how this should be done.
   8. Create a pull request. Go [here](https://github.com/pulsipher/InfiniteOpt.jl)
      to `InfiniteOpt`'s main page and create a pull request drawing from your forked
      repository. A step by step explanation is provided
-     [here](https://docs.github.com/en/free-pro-team@latest/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork).
+     [here](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork).
   9. Make necessary changes if the tests fail and/or we ask you to make specific
      changes. The Codecov tests will ensure every new line of code is tested at least
      once with the new test functions and Travis CI will ensure that the tests pass

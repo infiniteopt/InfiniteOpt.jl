@@ -76,7 +76,7 @@ end
 # Extend Base.copy for DiscreteMeasureData
 function Base.copy(data::DiscreteMeasureData)::DiscreteMeasureData
     return DiscreteMeasureData(copy(data.parameter_refs), copy(data.coefficients),
-                               copy(data.supports), data.label,
+                               copy(data.supports), data.label, 
                                data.weight_function, copy(data.lower_bounds),
                                copy(data.upper_bounds), data.is_expect)
 end
@@ -85,7 +85,8 @@ end
 function Base.copy(data::FunctionalDiscreteMeasureData)::FunctionalDiscreteMeasureData
     return FunctionalDiscreteMeasureData(copy(data.parameter_refs),
                                          data.coeff_function, data.min_num_supports,
-                                         data.label, data.weight_function,
+                                         data.label, copy(data.generative_supp_info),
+                                         data.weight_function,
                                          copy(data.lower_bounds),
                                          copy(data.upper_bounds), data.is_expect)
 end
@@ -108,14 +109,14 @@ end
 
 """
     DiscreteMeasureData(pref::GeneralVariableRef,
-                        coefficients::Vector{<:Real},
-                        supports::Vector{<:Real};
-                        [label::Type{<:AbstractSupportLabel} = generate_unique_label(),
-                        weight_function::Function = [`default_weight`](@ref),
-                        lower_bound::Real = NaN,
-                        upper_bound::Real = NaN,
-                        is_expect::Bool = false]
-                        )::DiscreteMeasureData
+        coefficients::Vector{<:Real},
+        supports::Vector{<:Real};
+        [label::Type{<:AbstractSupportLabel} = generate_unique_label(),
+        weight_function::Function = [`default_weight`](@ref),
+        lower_bound::Real = NaN,
+        upper_bound::Real = NaN,
+        is_expect::Bool = false]
+        )::DiscreteMeasureData
 
 Returns a 1-dimensional `DiscreteMeasureData` object that can be utilized
 to define measures using [`measure`](@ref). This accepts input for a scalar (single)
@@ -129,7 +130,7 @@ may choose a different behavior but should do so with caution.
 **Example**
 ```julia-repl
 julia> data = DiscreteMeasureData(pref, [0.5, 0.5], [1, 2])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(pref, [0.5, 0.5], [1.0, 2.0], Val{Symbol("##373")}, default_weight, NaN, NaN, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(pref, [0.5, 0.5], [1.0, 2.0], UniqueMeasure{Symbol("##373")}, default_weight, NaN, NaN, false)
 ```
 """
 function DiscreteMeasureData(pref::GeneralVariableRef,
@@ -226,14 +227,14 @@ end
 
 """
     DiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
-                        coefficients::Vector{<:Real},
-                        supports::Vector{<:AbstractArray{<:Real}};
-                        label::Type{<:AbstractSupportLabel} = generate_unique_label(),
-                        weight_function::Function = [`default_weight`](@ref),
-                        lower_bounds::AbstractArray{<:Real} = [NaN...],
-                        upper_bounds::AbstractArray{<:Real} = [NaN...],
-                        is_expect::Bool = false
-                        )::DiscreteMeasureData
+        coefficients::Vector{<:Real},
+        supports::Vector{<:AbstractArray{<:Real}};
+        label::Type{<:AbstractSupportLabel} = generate_unique_label(),
+        weight_function::Function = [`default_weight`](@ref),
+        lower_bounds::AbstractArray{<:Real} = [NaN...],
+        upper_bounds::AbstractArray{<:Real} = [NaN...],
+        is_expect::Bool = false
+        )::DiscreteMeasureData
 
 Returns a `DiscreteMeasureData` object that can be utilized to
 define measures using [`measure`](@ref). This accepts input for an array (multi)
@@ -284,14 +285,15 @@ end
 
 """
     FunctionalDiscreteMeasureData(pref::GeneralVariableRef,
-                                  coeff_func::Function,
-                                  min_num_supports::Int,
-                                  label::Type{<:AbstractSupportLabel};
-                                  [weight_function::Function = [`default_weight`](@ref),
-                                  lower_bound::Real = NaN,
-                                  upper_bound::Real = NaN,
-                                  is_expect::Bool = false]
-                                  )::FunctionalDiscreteMeasureData
+        coeff_func::Function,
+        min_num_supports::Int,
+        label::Type{<:AbstractSupportLabel};
+        [weight_function::Function = [`default_weight`](@ref),
+        lower_bound::Real = NaN,
+        upper_bound::Real = NaN,
+        is_expect::Bool = false,
+        generative_support_info::AbstractGenerativeInfo = NoGenerativeSupports()]
+        )::FunctionalDiscreteMeasureData
 
 Returns a 1-dimensional `FunctionalDiscreteMeasureData` object that can be utilized
 to define measures using [`measure`](@ref). This accepts input for a scalar (single)
@@ -306,7 +308,7 @@ not an infinite parameter. Built-in choices for `label` include:
 **Example**
 ```julia-repl
 julia> data = FunctionalDiscreteMeasureData(pref, my_func, 20, UniformGrid)
-FunctionalDiscreteMeasureData{GeneralVariableRef,Float64}(pref, my_func, 20, UniformGrid, default_weight, NaN, NaN, false)
+FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,NoGenerativeSupports}(pref, my_func, 20, UniformGrid, NoGenerativeSupports(), default_weight, NaN, NaN, false)
 ```
 """
 function FunctionalDiscreteMeasureData(
@@ -317,8 +319,9 @@ function FunctionalDiscreteMeasureData(
     weight_function::Function = default_weight,
     lower_bound::Real = NaN,
     upper_bound::Real = NaN,
-    is_expect::Bool = false
-    )::FunctionalDiscreteMeasureData{GeneralVariableRef,Float64}
+    is_expect::Bool = false,
+    generative_support_info::AbstractGenerativeInfo = NoGenerativeSupports()
+    )
     _check_params(pref)
     if _index_type(pref) == DependentParameterIndex && min_num_supports != 0
         error("`min_num_supports` must be 0 for individual dependent parameters.")
@@ -330,8 +333,9 @@ function FunctionalDiscreteMeasureData(
         end
     end
     return FunctionalDiscreteMeasureData(pref, coeff_func, min_num_supports,
-                                         label, weight_function,
-                                         lower_bound, upper_bound, is_expect)
+                                         label, generative_support_info, 
+                                         weight_function, lower_bound, 
+                                         upper_bound, is_expect)
 end
 
 ## Check if the integral bounds satisfy the parameter set(s)
@@ -357,14 +361,14 @@ end
 
 """
     FunctionalDiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
-                                  coeff_func::Function,
-                                  min_num_supports::Int,
-                                  label::Type{<:AbstractSupportLabel};
-                                  [weight_function::Function = [`default_weight`](@ref),
-                                  lower_bounds::AbstractArray{<:Real} = [NaN...],
-                                  upper_bounds::AbstractArray{<:Real} = [NaN...],
-                                  is_expect::Bool = false]
-                                  )::FunctionalDiscreteMeasureData
+        coeff_func::Function,
+        min_num_supports::Int,
+        label::Type{<:AbstractSupportLabel};
+        [weight_function::Function = [`default_weight`](@ref),
+        lower_bounds::AbstractArray{<:Real} = [NaN...],
+        upper_bounds::AbstractArray{<:Real} = [NaN...],
+        is_expect::Bool = false]
+        )::FunctionalDiscreteMeasureData
 
 Returns a multi-dimensional `FunctionalDiscreteMeasureData` object that can be utilized
 to define measures using [`measure`](@ref). This accepts input for an array of
@@ -391,7 +395,7 @@ function FunctionalDiscreteMeasureData(
     lower_bounds::AbstractArray{<:Real} = map(e -> NaN, prefs),
     upper_bounds::AbstractArray{<:Real} = map(e -> NaN, prefs),
     is_expect::Bool = false
-    )::FunctionalDiscreteMeasureData{Vector{GeneralVariableRef},Vector{Float64}}
+    )
     _check_params(prefs)
     if _keys(prefs) != _keys(lower_bounds)
         error("Parameter references and bounds must use same container type.")
@@ -500,6 +504,22 @@ function _is_expect(data::Union{FunctionalDiscreteMeasureData,
 end
 
 """
+    generative_support_info(data::AbstractMeasureData)::AbstractGenerativeInfo
+
+Return the generative support creation info that corresponds to `data`. This is 
+intended as an internal method and only needs to be extended for user-defined 
+measure data types that use generative supports.
+"""
+function generative_support_info(data::AbstractMeasureData)::NoGenerativeSupports
+    return NoGenerativeSupports()
+end
+
+# FunctionalDiscreteMeasureData
+function generative_support_info(data::FunctionalDiscreteMeasureData)
+    return data.generative_supp_info
+end
+
+"""
     supports(data::AbstractMeasureData)::Array{Float64}
 
 Return the supports associated with `data` and its infinite parameters.
@@ -516,8 +536,53 @@ function supports(data::DiscreteMeasureData{T, N})::Array{Float64, N} where {T, 
     return data.supports
 end
 
-# 1D FunctionalDiscreteMeasureData
-function supports(data::FunctionalDiscreteMeasureData{GeneralVariableRef})::Vector{Float64}
+## Define helper functions for generative functional data
+# Include generative and uses All
+function _get_supports(pref, gen::Val{true}, info, label::Type{All})::Vector{Float64}
+    return supports(pref, label = label)
+end
+
+# Include generative and does not use All
+function _get_supports(pref, gen::Val{true}, info, label)::Vector{Float64}
+    return supports(pref, label = Union{support_label(info), label})
+end
+
+# Exclude generative and uses All
+function _get_supports(pref, gen::Val{false}, info, label::Type{All})::Vector{Float64}
+    gen_label = support_label(info)
+    return findall(x -> any(v -> v != gen_label, x), _parameter_supports(pref))
+end
+
+# Exclude generative and does not use All
+function _get_supports(pref, gen::Val{false}, info, label)::Vector{Float64}
+    gen_label = support_label(info)
+    return supps = findall(x -> any(v -> v <: label && v != gen_label, x), 
+                           _parameter_supports(pref))
+end
+
+# 1D FunctionalDiscreteMeasureData (not NoGenerativeSupports)
+function supports(
+    data::FunctionalDiscreteMeasureData{GeneralVariableRef};
+    include_generative::Bool = true
+    )::Vector{Float64}
+    info = generative_support_info(data)
+    label = support_label(data)
+    pref = dispatch_variable_ref(parameter_refs(data))
+    supps = _get_supports(pref, Val(include_generative), info, label)
+    lb = JuMP.lower_bound(data)
+    ub = JuMP.upper_bound(data)
+    if isnan(lb) && isnan(ub)
+        return supps
+    else
+        return filter!(i -> lb <= i <= ub, supps)
+    end
+end
+
+# 1D FunctionalDiscreteMeasureData (NoGenerativeSupports)
+function supports(
+    data::FunctionalDiscreteMeasureData{GeneralVariableRef, Float64, NoGenerativeSupports};
+    include_generative::Bool = true
+    )::Vector{Float64}
     supps = supports(parameter_refs(data), label = support_label(data))
     lb = JuMP.lower_bound(data)
     ub = JuMP.upper_bound(data)
@@ -529,7 +594,10 @@ function supports(data::FunctionalDiscreteMeasureData{GeneralVariableRef})::Vect
 end
 
 # Multi FunctionalDiscreteMeasureData
-function supports(data::FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}})::Matrix{Float64}
+function supports(
+    data::FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}};
+    include_generative::Bool = true
+    )::Matrix{Float64}
     supps = supports(parameter_refs(data), label = support_label(data))
     lb = JuMP.lower_bound(data)
     ub = JuMP.upper_bound(data)
@@ -614,7 +682,7 @@ end
 
 # FunctionalDiscreteMeasureData
 function coefficients(data::FunctionalDiscreteMeasureData)::Vector{Float64}
-    return data.coeff_function(supports(data))
+    return data.coeff_function(supports(data, include_generative = false))
 end
 
 """
@@ -743,6 +811,48 @@ end
 ################################################################################
 #                               DEFINITION METHODS
 ################################################################################
+## Define methods to check a measure's generative info and add it if needed
+# DependentParameterRef and NoGenerativeSupports
+function _check_and_set_generative_info(pref::DependentParameterRef, 
+    info::NoGenerativeSupports)::Nothing
+    return 
+end
+
+# DependentParameterRef and not NoGenerativeSupports
+function _check_and_set_generative_info(pref::DependentParameterRef, info)::Nothing
+    error("Cannot use a measure that requires generative supports with respect to " * 
+          "a dependent infinite parameter.")
+end
+
+# IndependentParameterRef and NoGenerativeSupports
+function _check_and_set_generative_info(pref::IndependentParameterRef, 
+    info::NoGenerativeSupports)::Nothing
+    return 
+end
+
+# IndependentParameterRef w/ NoGenerativeSupports
+function _check_and_set_generative_info(pref, info1::NoGenerativeSupports, info2)::Nothing
+    _set_generative_support_info(pref, info2)
+    return
+end
+
+# IndependentParameterRef w/ info already
+function _check_and_set_generative_info(pref, info1, info2)::Nothing
+    info1 != info2 && error("The generative support structure associated with " * 
+                            "the desired measure conflicts with the current scheme. " * 
+                            "This is likely due to the derivative method and/or other measures.")
+    return
+end
+
+# IndependentParameterRef and not NoGenerativeSupports
+function _check_and_set_generative_info(pref::IndependentParameterRef, 
+    info::AbstractGenerativeInfo)::Nothing
+    current_info = generative_support_info(pref)
+    _check_and_set_generative_info(pref, current_info, info)
+    return
+end
+
+## Helper methods for adding supports
 function _add_supports_to_multiple_parameters(
     prefs::Vector{DependentParameterRef},
     supps::Array{Float64, 2},
@@ -888,6 +998,19 @@ function add_supports_to_parameters(
     return
 end
 
+## Helper methods for updating the generative measure dependencies 
+# NoGenerativeSupports
+function _update_generative_measures(prefs, info::NoGenerativeSupports, 
+                                     mindex)::Nothing
+    return
+end
+
+# not NoGenerativeSupports and must be an IndependentParameterRef
+function _update_generative_measures(pref, info, mindex)::Nothing
+    push!(_generative_measures(pref), mindex)
+    return
+end
+
 """
     add_measure(model::InfiniteModel, meas::Measure,
                 name::String = "measure")::GeneralVariableRef
@@ -909,6 +1032,9 @@ function add_measure(model::InfiniteModel, meas::Measure,
     for pref in prefs
         JuMP.check_belongs_to_model(pref, model)
     end
+    # check generative info is compatible and update model if needed
+    info = generative_support_info(data)
+    _check_and_set_generative_info(dispatch_variable_ref(first(prefs)), info)
     # add supports to the model as needed
     if !meas.constant_func
         add_supports_to_parameters(data)
@@ -921,6 +1047,7 @@ function add_measure(model::InfiniteModel, meas::Measure,
     for vref in union!(vrefs, prefs)
         push!(_measure_dependencies(vref), mindex)
     end
+    _update_generative_measures(prefs, info, mindex)
     return mref
 end
 
@@ -1313,8 +1440,9 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # Update that the variables used by it are no longer used by it
+    prefs = parameter_refs(measure_data(mref))
     vrefs = _all_function_variables(measure_function(mref))
-    union!(vrefs, parameter_refs(measure_data(mref)))
+    union!(vrefs, prefs)
     for vref in vrefs
         filter!(e -> e != JuMP.index(mref), _measure_dependencies(vref))
     end
@@ -1322,7 +1450,16 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
     if num_supports(measure_data(mref)) > 0
         label = support_label(measure_data(mref))
         if label <: UniqueMeasure
-            delete_supports(parameter_refs(measure_data(mref)), label = label)
+            delete_supports(prefs, label = label)
+        end
+    end
+    # update the generative info if needed 
+    info = generative_support_info(measure_data(mref))
+    if prefs isa GeneralVariableRef && !(info isa NoGenerativeSupports)
+        filter!(e -> e != JuMP.index(mref), _generative_measures(prefs))
+        if isempty(_generative_measures(prefs)) && derivative_method(prefs) isa NonGenerativeDerivativeMethod
+            _set_generative_support_info(dispatch_variable_ref(prefs), 
+                                         NoGenerativeSupports())
         end
     end
     # delete remaining measure information

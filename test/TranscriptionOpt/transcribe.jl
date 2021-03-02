@@ -369,7 +369,7 @@ end
     @test length(supports(d1)) == 4
     @test length(supports(d2, label = All)) == 10
     @test IOTO.has_internal_supports(tm)
-    @test has_derivative_supports(t)
+    @test has_generative_supports(t)
 end
 
 # Test build_transcription_model!
@@ -403,7 +403,8 @@ end
     @objective(m, Min, x0 + meas1)
     # test basic usage
     tm = optimizer_model(m)
-    @test IOTO.build_transcription_model!(tm, m) isa Nothing
+    @test IOTO.build_transcription_model!(tm, m, 
+                                          check_support_dims = false) isa Nothing
     # test hold variables
     zt = transcription_variable(z)
     wt = transcription_variable(w)

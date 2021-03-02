@@ -178,37 +178,13 @@ end
     # Setup data
     m = InfiniteModel();
     gvref = GeneralVariableRef(m, 1, TestIndex)
-    # test _infinite_variable_dependencies (GeneralVariableRef)
-    @testset "_infinite_variable_dependencies (GeneralVariableRef)" begin
-        @test_throws MethodError InfiniteOpt._infinite_variable_dependencies(gvref)
-    end
-    # test _reduced_variable_dependencies (GeneralVariableRef)
-    @testset "_reduced_variable_dependencies (GeneralVariableRef)" begin
-        @test_throws MethodError InfiniteOpt._reduced_variable_dependencies(gvref)
-    end
-    # test _point_variable_dependencies (GeneralVariableRef)
-    @testset "_point_variable_dependencies (GeneralVariableRef)" begin
-        @test_throws MethodError InfiniteOpt._point_variable_dependencies(gvref)
-    end
-    # test _measure_dependencies (GeneralVariableRef)
-    @testset "_measure_dependenciess (GeneralVariableRef)" begin
-        @test_throws MethodError InfiniteOpt._measure_dependencies(gvref)
-    end
-    # test _constraint_dependencies (GeneralVariableRef)
-    @testset "_constraint_dependencies (GeneralVariableRef)" begin
-        @test_throws MethodError InfiniteOpt._constraint_dependencies(gvref)
-    end
-    # test _derivative_dependencies (GeneralVariableRef)
-    @testset "_derivative_dependencies (GeneralVariableRef)" begin
-        @test_throws MethodError InfiniteOpt._derivative_dependencies(gvref)
-    end
-    # test _derivative_constraint_dependencies (GeneralVariableRef)
-    @testset "_derivative_constraint_dependencies (GeneralVariableRef)" begin
-        @test_throws MethodError InfiniteOpt._derivative_constraint_dependencies(gvref)
-    end
-    # test _parameter_function_dependencies (GeneralVariableRef)
-    @testset "_parameter_function_dependencies (GeneralVariableRef)" begin
-        @test_throws MethodError InfiniteOpt._parameter_function_dependencies(gvref)
+    # Loop over the various functions
+    for f in (:_infinite_variable_dependencies, :_reduced_variable_dependencies,
+              :_point_variable_dependencies, :_measure_dependencies,
+              :_constraint_dependencies, :_derivative_dependencies, 
+              :_derivative_constraint_dependencies, 
+              :_parameter_function_dependencies, :_generative_measures)
+        @test_throws MethodError InfiniteOpt.eval(f)(gvref)
     end
 end
 
@@ -219,85 +195,12 @@ end
     idx = TestIndex(1)
     dvref = TestVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, TestIndex)
-    # test used_by_infinite_variable (Fallback)
-    @testset "used_by_infinite_variable (Fallback)" begin
-        @test_throws ArgumentError used_by_infinite_variable(dvref)
-    end
-    # test used_by_infinite_variable (GeneralVariableRef)
-    @testset "used_by_infinite_variable (GeneralVariableRef)" begin
-        @test_throws ArgumentError used_by_infinite_variable(gvref)
-    end
-    # test used_by_reduced_variable (Fallback)
-    @testset "used_by_reduced_variable (Fallback)" begin
-        @test_throws ArgumentError used_by_reduced_variable(dvref)
-    end
-    # test used_by_reduced_variable (GeneralVariableRef)
-    @testset "used_by_reduced_variable (GeneralVariableRef)" begin
-        @test_throws ArgumentError used_by_reduced_variable(gvref)
-    end
-    # test used_by_point_variable (Fallback)
-    @testset "used_by_point_variable (Fallback)" begin
-        @test_throws ArgumentError used_by_point_variable(dvref)
-    end
-    # test used_by_point_variable (GeneralVariableRef)
-    @testset "used_by_point_variable (GeneralVariableRef)" begin
-        @test_throws ArgumentError used_by_point_variable(gvref)
-    end
-    # test used_by_measure (Fallback)
-    @testset "used_by_measure (Fallback)" begin
-        @test_throws ArgumentError used_by_measure(dvref)
-    end
-    # test used_by_measure (GeneralVariableRef)
-    @testset "used_by_measure (GeneralVariableRef)" begin
-        @test_throws ArgumentError used_by_measure(gvref)
-    end
-    # test used_by_objective (Fallback)
-    @testset "used_by_objective (Fallback)" begin
-        @test_throws ArgumentError used_by_objective(dvref)
-    end
-    # test used_by_objective (GeneralVariableRef)
-    @testset "used_by_objective (GeneralVariableRef)" begin
-        @test_throws ArgumentError used_by_objective(gvref)
-    end
-    # test used_by_constraint (Fallback)
-    @testset "used_by_constraint (Fallback)" begin
-        @test_throws ArgumentError used_by_constraint(dvref)
-    end
-    # test used_by_constraint (GeneralVariableRef)
-    @testset "used_by_constraint (GeneralVariableRef)" begin
-        @test_throws ArgumentError used_by_constraint(gvref)
-    end
-    # test used_by_derivative (Fallback)
-    @testset "used_by_derivative (Fallback)" begin
-        @test_throws ArgumentError used_by_derivative(dvref)
-    end
-    # test used_by_derivative (GeneralVariableRef)
-    @testset "used_by_derivative (GeneralVariableRef)" begin
-        @test_throws ArgumentError used_by_derivative(gvref)
-    end
-    # test is_used (Fallback)
-    @testset "is_used (Fallback)" begin
-        @test_throws ArgumentError is_used(dvref)
-    end
-    # test is_used (GeneralVariableRef)
-    @testset "is_used (GeneralVariableRef)" begin
-        @test_throws ArgumentError is_used(gvref)
-    end
-    # test has_derivative_constraints (Fallback)
-    @testset "has_derivative_constraints (Fallback)" begin
-        @test_throws ArgumentError has_derivative_constraints(dvref)
-    end
-    # test has_derivative_constraints (GeneralVariableRef)
-    @testset "has_derivative_constraints (GeneralVariableRef)" begin
-        @test_throws ArgumentError has_derivative_constraints(gvref)
-    end
-    # test used_by_parameter_function(Fallback)
-    @testset "used_by_parameter_function (Fallback)" begin
-        @test_throws ArgumentError used_by_parameter_function(dvref)
-    end
-    # test used_by_parameter_function (GeneralVariableRef)
-    @testset "used_by_parameter_function (GeneralVariableRef)" begin
-        @test_throws ArgumentError used_by_parameter_function(gvref)
+    for f in (:used_by_infinite_variable, :used_by_reduced_variable,
+              :used_by_point_variable, :used_by_measure, :used_by_constraint,
+              :used_by_objective, :used_by_derivative, :is_used, 
+              :has_derivative_constraints, :used_by_parameter_function)
+        @test_throws ArgumentError eval(f)(dvref)
+        @test_throws ArgumentError eval(f)(gvref)
     end
 end
 
@@ -343,6 +246,13 @@ end
     @testset "_object_number" begin
         @test_throws MethodError InfiniteOpt._object_number(gvref)
     end
+    # test 1 argument methods and fallbacks 
+    for f in (:significant_digits, :parameter_value, :derivative_method, 
+              :has_generative_supports, :has_internal_supports,
+              :add_generative_supports, :raw_function, :generative_support_info)
+        @test_throws ArgumentError eval(f)(dvref)
+        @test_throws ArgumentError eval(f)(gvref)
+    end
     # test infinite_set (Fallback)
     @testset "infinite_set (Fallback)" begin
         @test_throws ArgumentError infinite_set(dvref)
@@ -370,14 +280,6 @@ end
         @test_throws ArgumentError set_infinite_set(gvrefs, aset)
         @test_throws ArgumentError set_infinite_set(dense_gvrefs, aset)
         @test_throws ArgumentError set_infinite_set(sparse_gvrefs, aset)
-    end
-    # test significant_digits (Fallback)
-    @testset "significant_digits (Fallback)" begin
-        @test_throws ArgumentError significant_digits(dvref)
-    end
-    # test significant_digits (GeneralVariableRef)
-    @testset "significant_digits (GeneralVariableRef)" begin
-        @test_throws ArgumentError significant_digits(gvref)
     end
     # test num_supports (Fallback)
     @testset "num_supports (Fallback)" begin
@@ -483,14 +385,6 @@ end
         @test_throws ArgumentError fill_in_supports!(dense_gvrefs, num_supports = 1)
         @test_throws ArgumentError fill_in_supports!(sparse_gvrefs,num_supports = 1)
     end
-    # test parameter_value (Fallback)
-    @testset "parameter_value (Fallback)" begin
-        @test_throws ArgumentError parameter_value(dvref)
-    end
-    # test parameter_value (GeneralVariableRef)
-    @testset "parameter_value (GeneralVariableRef)" begin
-        @test_throws ArgumentError parameter_value(gvref)
-    end
     # test JuMP.set_value (Fallback)
     @testset "JuMP.set_value (Fallback)" begin
         @test_throws ArgumentError set_value(dvref, 2)
@@ -498,14 +392,6 @@ end
     # test JuMP.set_value (GeneralVariableRef)
     @testset "JuMP.set_value (GeneralVariableRef)" begin
         @test_throws ArgumentError set_value(gvref, 2)
-    end
-    # test derivative_method (Fallback)
-    @testset "derivative_method (Fallback)" begin
-        @test_throws ArgumentError derivative_method(dvref)
-    end
-    # test derivative_method (GeneralVariableRef)
-    @testset "derivative_method (GeneralVariableRef)" begin
-        @test_throws ArgumentError derivative_method(gvref)
     end
     # test set_derivative_method (Fallback)
     @testset "set_derivative_method (Fallback)" begin
@@ -515,61 +401,11 @@ end
     @testset "set_derivative_method (GeneralVariableRef)" begin
         @test_throws ArgumentError set_derivative_method(gvref, FiniteDifference())
     end
-    # test has_internal_supports (Fallback)
-    @testset "has_internal_supports (Fallback)" begin
-        @test_throws ArgumentError has_internal_supports(dvref)
-    end
-    # test has_internal_supports (GeneralVariableRef)
-    @testset "has_internal_supports (GeneralVariableRef)" begin
-        @test_throws ArgumentError has_internal_supports(gvref)
-    end
-    # test _set_has_internal_supports (Fallback)
-    @testset "_set_has_internal_supports (Fallback)" begin
-        @test_throws ArgumentError InfiniteOpt._set_has_internal_supports(dvref, true)
-    end
-    # test _set_has_internal_supports (GeneralVariableRef)
-    @testset "_set_has_internal_supports (GeneralVariableRef)" begin
-        @test_throws ArgumentError InfiniteOpt._set_has_internal_supports(gvref, true)
-    end
-    # test has_derivative_supports (Fallback)
-    @testset "has_derivative_supports (Fallback)" begin
-        @test_throws ArgumentError has_derivative_supports(dvref)
-    end
-    # test has_derivative_supports (GeneralVariableRef)
-    @testset "has_derivative_supports (GeneralVariableRef)" begin
-        @test_throws ArgumentError has_derivative_supports(gvref)
-    end
-    # test _set_has_derivative_supports (Fallback)
-    @testset "_set_has_derivative_supports (Fallback)" begin
-        @test_throws ArgumentError InfiniteOpt._set_has_derivative_supports(dvref, true)
-    end
-    # test _set_has_derivative_supports (GeneralVariableRef)
-    @testset "_set_has_derivative_supports (GeneralVariableRef)" begin
-        @test_throws ArgumentError InfiniteOpt._set_has_derivative_supports(gvref, true)
-    end
-    # test _set_has_derivative_constraints (Fallback)
-    @testset "_set_has_derivative_constraints (Fallback)" begin
-        @test_throws ArgumentError InfiniteOpt._set_has_derivative_constraints(dvref, true)
-    end
-    # test _set_has_derivative_constraints (GeneralVariableRef)
-    @testset "_set_has_derivative_constraints (GeneralVariableRef)" begin
-        @test_throws ArgumentError InfiniteOpt._set_has_derivative_constraints(gvref, true)
-    end
-    # test add_derivative_supports (Fallback)
-    @testset "add_derivative_supports (Fallback)" begin
-        @test_throws ArgumentError InfiniteOpt.add_derivative_supports(dvref)
-    end
-    # test add_derivative_supports (GeneralVariableRef)
-    @testset "add_derivative_supports (GeneralVariableRef)" begin
-        @test_throws ArgumentError InfiniteOpt.add_derivative_supports(gvref)
-    end
-    # test raw_function (Fallback)
-    @testset "raw_function (Fallback)" begin
-        @test_throws ArgumentError raw_function(dvref)
-    end
-    # test raw_function (GeneralVariableRef)
-    @testset "raw_function (GeneralVariableRef)" begin
-        @test_throws ArgumentError raw_function(gvref)
+    # test parameter status setters
+    for f in (:_set_has_generative_supports, :_set_has_internal_supports,
+              :_set_has_derivative_constraints)
+        @test_throws ArgumentError InfiniteOpt.eval(f)(dvref, true)
+        @test_throws ArgumentError InfiniteOpt.eval(f)(gvref, true)
     end
 end
 
@@ -580,69 +416,13 @@ end
     idx = TestIndex(1)
     dvref = TestVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, TestIndex)
-    # test raw_parameter_refs (Fallback)
-    @testset "raw_parameter_refs (Fallback)" begin
-        @test_throws ArgumentError raw_parameter_refs(dvref)
-    end
-    # test raw_parameter_refs (GeneralVariableRef)
-    @testset "raw_parameter_refs (GeneralVariableRef)" begin
-        @test_throws ArgumentError raw_parameter_refs(gvref)
-    end
-    # test parameter_refs (Fallback)
-    @testset "parameter_refs (Fallback)" begin
-        @test_throws ArgumentError parameter_refs(dvref)
-    end
-    # test parameter_refs (GeneralVariableRef)
-    @testset "parameter_refs (GeneralVariableRef)" begin
-        @test_throws ArgumentError parameter_refs(gvref)
-    end
-    # test parameter_list (Fallback)
-    @testset "parameter_list (Fallback)" begin
-        @test_throws ArgumentError parameter_list(dvref)
-    end
-    # test parameter_list (GeneralVariableRef)
-    @testset "parameter_list (GeneralVariableRef)" begin
-        @test_throws ArgumentError parameter_list(gvref)
-    end
-    # test infinite_variable_ref (Fallback)
-    @testset "infinite_variable_ref (Fallback)" begin
-        @test_throws ArgumentError infinite_variable_ref(dvref)
-    end
-    # test infinite_variable_ref (GeneralVariableRef)
-    @testset "infinite_variable_ref (GeneralVariableRef)" begin
-        @test_throws ArgumentError infinite_variable_ref(gvref)
-    end
-    # test eval_supports (Fallback)
-    @testset "eval_supports (Fallback)" begin
-        @test_throws ArgumentError eval_supports(dvref)
-    end
-    # test eval_supports (GeneralVariableRef)
-    @testset "eval_supports (GeneralVariableRef)" begin
-        @test_throws ArgumentError eval_supports(gvref)
-    end
-    # test raw_parameter_values (Fallback)
-    @testset "raw_parameter_values (Fallback)" begin
-        @test_throws ArgumentError raw_parameter_values(dvref)
-    end
-    # test raw_parameter_values (GeneralVariableRef)
-    @testset "raw_parameter_values (GeneralVariableRef)" begin
-        @test_throws ArgumentError raw_parameter_values(gvref)
-    end
-    # test parameter_values (Fallback)
-    @testset "parameter_values (Fallback)" begin
-        @test_throws ArgumentError parameter_values(dvref)
-    end
-    # test parameter_values (GeneralVariableRef)
-    @testset "parameter_values (GeneralVariableRef)" begin
-        @test_throws ArgumentError parameter_values(gvref)
-    end
-    # test parameter_bounds (Fallback)
-    @testset "parameter_bounds (Fallback)" begin
-        @test_throws ArgumentError parameter_bounds(dvref)
-    end
-    # test parameter_vbounds (GeneralVariableRef)
-    @testset "parameter_bounds (GeneralVariableRef)" begin
-        @test_throws ArgumentError parameter_bounds(gvref)
+    # test 1 argument methods 
+    for f in (:raw_parameter_refs, :parameter_refs, :parameter_list,
+              :start_value_function, :reset_start_value_function,
+              :infinite_variable_ref, :eval_supports, :raw_parameter_values,
+              :parameter_values, :parameter_bounds, :delete_parameter_bounds)
+        @test_throws ArgumentError eval(f)(dvref)
+        @test_throws ArgumentError eval(f)(gvref)
     end
     # test has_parameter_vbounds (GeneralVariableRef)
     @testset "has_parameter_bounds (GeneralVariableRef)" begin
@@ -665,14 +445,6 @@ end
     @testset "add_parameter_bounds (GeneralVariableRef)" begin
         @test_throws ArgumentError add_parameter_bounds(gvref, ParameterBounds())
     end
-    # test delete_parameter_bounds (Fallback)
-    @testset "delete_parameter_bounds (Fallback)" begin
-        @test_throws ArgumentError delete_parameter_bounds(dvref)
-    end
-    # test delete_parameter_vbounds (GeneralVariableRef)
-    @testset "delete_parameter_bounds (GeneralVariableRef)" begin
-        @test_throws ArgumentError delete_parameter_bounds(gvref)
-    end
 end
 
 # test Measure Methods
@@ -682,37 +454,10 @@ end
     idx = TestIndex(1)
     dvref = TestVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, TestIndex)
-    # test measure_function (Fallback)
-    @testset "measure_function (Fallback)" begin
-        @test_throws ArgumentError measure_function(dvref)
-    end
-    # test measure_function (GeneralVariableRef)
-    @testset "measure_function (GeneralVariableRef)" begin
-        @test_throws ArgumentError measure_function(gvref)
-    end
-    # test measure_data (Fallback)
-    @testset "measure_data (Fallback)" begin
-        @test_throws ArgumentError measure_function(dvref)
-    end
-    # test measure_data (GeneralVariableRef)
-    @testset "measure_data (GeneralVariableRef)" begin
-        @test_throws ArgumentError measure_function(gvref)
-    end
-    # test is_analytic (Fallback)
-    @testset "is_analytic (Fallback)" begin
-        @test_throws ArgumentError is_analytic(dvref)
-    end
-    # test is_analytic (GeneralVariableRef)
-    @testset "is_analytic (GeneralVariableRef)" begin
-        @test_throws ArgumentError is_analytic(gvref)
-    end
-    # test expand (Fallback)
-    @testset "expand (Fallback)" begin
-        @test_throws ArgumentError expand(dvref)
-    end
-    # test expand (GeneralVariableRef)
-    @testset "expand (GeneralVariableRef)" begin
-        @test_throws ArgumentError expand(gvref)
+    # loop of the methods 
+    for f in (:measure_function, :measure_data, :is_analytic, :expand)
+        @test_throws ArgumentError eval(f)(dvref)
+        @test_throws ArgumentError eval(f)(gvref)
     end
 end
 
@@ -723,168 +468,34 @@ end
     idx = TestIndex(1)
     dvref = TestVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, TestIndex)
-    # test derivative_argument (Fallback)
-    @testset "derivative_argument (Fallback)" begin
-        @test_throws ArgumentError derivative_argument(dvref)
-    end
-    # test derivative_argument (GeneralVariableRef)
-    @testset "derivative_argument (GeneralVariableRef)" begin
-        @test_throws ArgumentError derivative_argument(gvref)
-    end
-    # test operator_parameter (Fallback)
-    @testset "operator_parameter (Fallback)" begin
-        @test_throws ArgumentError operator_parameter(dvref)
-    end
-    # test operator_parameter (GeneralVariableRef)
-    @testset "operator_parameter (GeneralVariableRef)" begin
-        @test_throws ArgumentError operator_parameter(gvref)
-    end
-    # test evaluate (Fallback)
-    @testset "evaluate (Fallback)" begin
-        @test_throws ArgumentError evaluate(dvref)
-    end
-    # test evaluate (GeneralVariableRef)
-    @testset "evaluate (GeneralVariableRef)" begin
-        @test_throws ArgumentError evaluate(gvref)
-    end
-    # test derivative_constraints (Fallback)
-    @testset "derivative_constraints (Fallback)" begin
-        @test_throws ArgumentError derivative_constraints(dvref)
-    end
-    # test derivative_constraints (GeneralVariableRef)
-    @testset "derivative_constraints (GeneralVariableRef)" begin
-        @test_throws ArgumentError derivative_constraints(gvref)
-    end
-    # test delete_derivative_constraints (Fallback)
-    @testset "delete_derivative_constraints (Fallback)" begin
-        @test_throws ArgumentError delete_derivative_constraints(dvref)
-    end
-    # test delete_derivative_constraints (GeneralVariableRef)
-    @testset "delete_derivative_constraints (GeneralVariableRef)" begin
-        @test_throws ArgumentError delete_derivative_constraints(gvref)
+    # loop through methods 
+    for f in (:derivative_argument, :operator_parameter, :evaluate, 
+              :derivative_constraints, :delete_derivative_constraints)
+        @test_throws ArgumentError eval(f)(dvref)
+        @test_throws ArgumentError eval(f)(gvref)
     end
 end
 
-# test Lower Bound Methods
-@testset "Lower Bound Methods" begin
+# test variable info methods 
+@testset "Variable Info Methods" begin 
     # Setup data
     m = InfiniteModel();
     idx = TestIndex(1)
     dvref = TestVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, TestIndex)
-    # test JuMP.has_lower_bound (Fallback)
-    @testset "JuMP.has_lower_bound (Fallback)" begin
-        @test_throws ArgumentError has_lower_bound(dvref)
+    # test 1 argument methods 
+    for f in (:has_lower_bound, :has_upper_bound, :is_fixed, :is_binary, 
+              :is_integer, :lower_bound, :upper_bound, :fix_value, :start_value,
+              :set_binary, :set_integer, :LowerBoundRef, :UpperBoundRef, :FixRef, 
+              :BinaryRef, :IntegerRef, :delete_lower_bound, :delete_upper_bound, 
+              :unfix, :unset_binary, :unset_integer)
+        @test_throws ArgumentError eval(f)(dvref)
+        @test_throws ArgumentError eval(f)(gvref)
     end
-    # test JuMP.has_lower_bound (GeneralVariableRef)
-    @testset "JuMP.has_lower_bound (GeneralVariableRef)" begin
-        @test_throws ArgumentError has_lower_bound(gvref)
-    end
-    # test JuMP.lower_bound (Fallback)
-    @testset "JuMP.lower_bound (Fallback)" begin
-        @test_throws ArgumentError lower_bound(dvref)
-    end
-    # test JuMP.lower_bound (GeneralVariableRef)
-    @testset "JuMP.lower_bound (GeneralVariableRef)" begin
-        @test_throws ArgumentError lower_bound(gvref)
-    end
-    # test JuMP.set_lower_bound (Fallback)
-    @testset "JuMP.set_lower_bound (Fallback)" begin
-        @test_throws ArgumentError set_lower_bound(dvref, 42)
-    end
-    # test JuMP.set_lower_bound (GeneralVariableRef)
-    @testset "JuMP.set_lower_bound (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_lower_bound(gvref, 42)
-    end
-    # test JuMP.LowerBoundRef (Fallback)
-    @testset "JuMP.LowerBoundRef (Fallback)" begin
-        @test_throws ArgumentError LowerBoundRef(dvref)
-    end
-    # test JuMP.LowerBoundRef (GeneralVariableRef)
-    @testset "JuMP.LowerBoundRef (GeneralVariableRef)" begin
-        @test_throws ArgumentError LowerBoundRef(gvref)
-    end
-    # test JuMP.delete_lower_bound (Fallback)
-    @testset "JuMP.delete_lower_bound (Fallback)" begin
-        @test_throws ArgumentError delete_lower_bound(dvref)
-    end
-    # test JuMP.delete_lower_bound (GeneralVariableRef)
-    @testset "JuMP.delete_lower_bound (GeneralVariableRef)" begin
-        @test_throws ArgumentError delete_lower_bound(gvref)
-    end
-end
-
-# test Upper Bound Methods
-@testset "Upper Bound Methods" begin
-    # Setup data
-    m = InfiniteModel();
-    idx = TestIndex(1)
-    dvref = TestVariableRef(m, idx)
-    gvref = GeneralVariableRef(m, 1, TestIndex)
-    # test JuMP.has_upper_bound (Fallback)
-    @testset "JuMP.has_upper_bound (Fallback)" begin
-        @test_throws ArgumentError has_upper_bound(dvref)
-    end
-    # test JuMP.has_upper_bound (GeneralVariableRef)
-    @testset "JuMP.has_upper_bound (GeneralVariableRef)" begin
-        @test_throws ArgumentError has_upper_bound(gvref)
-    end
-    # test JuMP.upper_bound (Fallback)
-    @testset "JuMP.upper_bound (Fallback)" begin
-        @test_throws ArgumentError upper_bound(dvref)
-    end
-    # test JuMP.upper_bound (GeneralVariableRef)
-    @testset "JuMP.upper_bound (GeneralVariableRef)" begin
-        @test_throws ArgumentError upper_bound(gvref)
-    end
-    # test JuMP.set_upper_bound (Fallback)
-    @testset "JuMP.set_upper_bound (Fallback)" begin
-        @test_throws ArgumentError set_upper_bound(dvref, 42)
-    end
-    # test JuMP.set_upper_bound (GeneralVariableRef)
-    @testset "JuMP.set_upper_bound (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_upper_bound(gvref, 42)
-    end
-    # test JuMP.UpperBoundRef (Fallback)
-    @testset "JuMP.UpperBoundRef (Fallback)" begin
-        @test_throws ArgumentError UpperBoundRef(dvref)
-    end
-    # test JuMP.UpperBoundRef (GeneralVariableRef)
-    @testset "JuMP.UpperBoundRef (GeneralVariableRef)" begin
-        @test_throws ArgumentError UpperBoundRef(gvref)
-    end
-    # test JuMP.delete_upper_bound (Fallback)
-    @testset "JuMP.delete_upper_bound (Fallback)" begin
-        @test_throws ArgumentError delete_upper_bound(dvref)
-    end
-    # test JuMP.delete_upper_bound (GeneralVariableRef)
-    @testset "JuMP.delete_upper_bound (GeneralVariableRef)" begin
-        @test_throws ArgumentError delete_upper_bound(gvref)
-    end
-end
-
-# test Fixing Methods
-@testset "Fixing Methods" begin
-    # Setup data
-    m = InfiniteModel();
-    idx = TestIndex(1)
-    dvref = TestVariableRef(m, idx)
-    gvref = GeneralVariableRef(m, 1, TestIndex)
-    # test JuMP.is_fixed (Fallback)
-    @testset "JuMP.is_fixed (Fallback)" begin
-        @test_throws ArgumentError is_fixed(dvref)
-    end
-    # test JuMP.is_fixed (GeneralVariableRef)
-    @testset "JuMP.is_fixed (GeneralVariableRef)" begin
-        @test_throws ArgumentError is_fixed(gvref)
-    end
-    # test JuMP.fix_value (Fallback)
-    @testset "JuMP.fix_value (Fallback)" begin
-        @test_throws ArgumentError fix_value(dvref)
-    end
-    # test JuMP.fix_value (GeneralVariableRef)
-    @testset "JuMP.fix_value (GeneralVariableRef)" begin
-        @test_throws ArgumentError fix_value(gvref)
+    # test setting methods
+    for f in (:set_lower_bound, :set_upper_bound, :set_start_value)
+        @test_throws ArgumentError eval(f)(dvref, 42)
+        @test_throws ArgumentError eval(f)(gvref, 42)
     end
     # test JuMP.fix (Fallback)
     @testset "JuMP.fix (Fallback)" begin
@@ -893,152 +504,5 @@ end
     # test JuMP.fix (GeneralVariableRef)
     @testset "JuMP.fix (GeneralVariableRef)" begin
         @test_throws ArgumentError fix(gvref, 42, force = true)
-    end
-    # test JuMP.FixRef (Fallback)
-    @testset "JuMP.FixRef (Fallback)" begin
-        @test_throws ArgumentError FixRef(dvref)
-    end
-    # test JuMP.FixRef (GeneralVariableRef)
-    @testset "JuMP.FixRef (GeneralVariableRef)" begin
-        @test_throws ArgumentError FixRef(gvref)
-    end
-    # test JuMP.unfix (Fallback)
-    @testset "JuMP.unfix (Fallback)" begin
-        @test_throws ArgumentError unfix(dvref)
-    end
-    # test JuMP.unfix (GeneralVariableRef)
-    @testset "JuMP.unfix (GeneralVariableRef)" begin
-        @test_throws ArgumentError unfix(gvref)
-    end
-end
-
-# test Start Value Methods
-@testset "Start Value Methods" begin
-    # Setup data
-    m = InfiniteModel();
-    idx = TestIndex(1)
-    dvref = TestVariableRef(m, idx)
-    gvref = GeneralVariableRef(m, 1, TestIndex)
-    # test JuMP.start_value (Fallback)
-    @testset "JuMP.start_value (Fallback)" begin
-        @test_throws ArgumentError start_value(dvref)
-    end
-    # test JuMP.start_value (GeneralVariableRef)
-    @testset "JuMP.start_value (GeneralVariableRef)" begin
-        @test_throws ArgumentError start_value(gvref)
-    end
-    # test JuMP.set_start_value (Fallback)
-    @testset "JuMP.set_start_value(Fallback)" begin
-        @test_throws ArgumentError set_start_value(dvref, 42)
-    end
-    # test JuMP.set_start_value (GeneralVariableRef)
-    @testset "JuMP.set_start_value (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_start_value(gvref, 42)
-    end
-    # test start_value_function (Fallback)
-    @testset "start_value_function (Fallback)" begin
-        @test_throws ArgumentError start_value_function(dvref)
-    end
-    # test start_value_function (GeneralVariableRef)
-    @testset "start_value_function (GeneralVariableRef)" begin
-        @test_throws ArgumentError start_value_function(gvref)
-    end
-    # test set_start_value_function (Fallback)
-    @testset "set_start_value(Fallback)" begin
-        @test_throws ArgumentError set_start_value_function(dvref, 42)
-    end
-    # test set_start_value_function (GeneralVariableRef)
-    @testset "set_start_value (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_start_value_function(gvref, 42)
-    end
-    # test reset_start_value_function (Fallback)
-    @testset "reset_start_value(Fallback)" begin
-        @test_throws ArgumentError reset_start_value_function(dvref)
-    end
-    # test reset_start_value_function (GeneralVariableRef)
-    @testset "reset_start_value (GeneralVariableRef)" begin
-        @test_throws ArgumentError reset_start_value_function(gvref)
-    end
-end
-
-# test Binary Methods
-@testset "Binary Methods" begin
-    # Setup data
-    m = InfiniteModel();
-    idx = TestIndex(1)
-    dvref = TestVariableRef(m, idx)
-    gvref = GeneralVariableRef(m, 1, TestIndex)
-    # test JuMP.is_binary (Fallback)
-    @testset "JuMP.is_binary (Fallback)" begin
-        @test_throws ArgumentError is_binary(dvref)
-    end
-    # test JuMP.is_binary (GeneralVariableRef)
-    @testset "JuMP.is_binary (GeneralVariableRef)" begin
-        @test_throws ArgumentError is_binary(gvref)
-    end
-    # test JuMP.set_binary (Fallback)
-    @testset "JuMP.set_binary (Fallback)" begin
-        @test_throws ArgumentError set_binary(dvref)
-    end
-    # test JuMP.set_binary (GeneralVariableRef)
-    @testset "JuMP.set_binary (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_binary(gvref)
-    end
-    # test JuMP.BinaryRef (Fallback)
-    @testset "JuMP.BinaryRef (Fallback)" begin
-        @test_throws ArgumentError BinaryRef(dvref)
-    end
-    # test JuMP.BinaryRef (GeneralVariableRef)
-    @testset "JuMP.BinaryRef (GeneralVariableRef)" begin
-        @test_throws ArgumentError BinaryRef(gvref)
-    end
-    # test JuMP.unset_binary (Fallback)
-    @testset "JuMP.unset_binary (Fallback)" begin
-        @test_throws ArgumentError unset_binary(dvref)
-    end
-    # test JuMP.unset_binary (GeneralVariableRef)
-    @testset "JuMP.unset_binary (GeneralVariableRef)" begin
-        @test_throws ArgumentError unset_binary(gvref)
-    end
-end
-
-# test Integer Methods
-@testset "Integer Methods" begin
-    # Setup data
-    m = InfiniteModel();
-    idx = TestIndex(1)
-    dvref = TestVariableRef(m, idx)
-    gvref = GeneralVariableRef(m, 1, TestIndex)
-    # test JuMP.is_integer (Fallback)
-    @testset "JuMP.is_integer (Fallback)" begin
-        @test_throws ArgumentError is_integer(dvref)
-    end
-    # test JuMP.is_integer (GeneralVariableRef)
-    @testset "JuMP.is_integer (GeneralVariableRef)" begin
-        @test_throws ArgumentError is_integer(gvref)
-    end
-    # test JuMP.set_integer (Fallback)
-    @testset "JuMP.set_integer (Fallback)" begin
-        @test_throws ArgumentError set_integer(dvref)
-    end
-    # test JuMP.set_integer (GeneralVariableRef)
-    @testset "JuMP.set_integer (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_integer(gvref)
-    end
-    # test JuMP.IntegerRef (Fallback)
-    @testset "JuMP.IntegerRef (Fallback)" begin
-        @test_throws ArgumentError IntegerRef(dvref)
-    end
-    # test JuMP.IntegerRef (GeneralVariableRef)
-    @testset "JuMP.IntegerRef (GeneralVariableRef)" begin
-        @test_throws ArgumentError IntegerRef(gvref)
-    end
-    # test JuMP.unset_integer (Fallback)
-    @testset "JuMP.unset_integer (Fallback)" begin
-        @test_throws ArgumentError unset_integer(dvref)
-    end
-    # test JuMP.unset_integer (GeneralVariableRef)
-    @testset "JuMP.unset_integer (GeneralVariableRef)" begin
-        @test_throws ArgumentError unset_integer(gvref)
     end
 end
