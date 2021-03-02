@@ -619,9 +619,16 @@ end
     end
     # test expand_measure (FunctionalDiscreteMeasureData)
     @testset "FunctionalDiscreteMeasureData" begin
+        # test without generative supports 
         coef(a) = ones(length(a))
         data = FunctionalDiscreteMeasureData(par1, coef, 2, All, is_expect = true)
         @test InfiniteOpt.expand_measure(x, data, m) == 2x
+        # test with generative supports 
+        coef2(a) = ones(length(a) + 1)
+        info = UniformGenerativeInfo([0.5], InternalLabel)
+        data = FunctionalDiscreteMeasureData(par1, coef2, 2, All, generative_support_info = info)
+        InfiniteOpt._set_generative_support_info(dispatch_variable_ref(par1), info)
+        @test InfiniteOpt.expand_measure(x, data, m) == 3x
     end
     # test expand_measure (other)
     @testset "Other" begin

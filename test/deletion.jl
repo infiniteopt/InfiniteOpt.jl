@@ -293,6 +293,8 @@ end
         push!(InfiniteOpt._parameter_function_dependencies(par2), ParameterFunctionIndex(1))
         @test_throws ErrorException delete(m, par2)
         popfirst!(InfiniteOpt._parameter_function_dependencies(par2)) 
+        # add parameter function for object number updating 
+        pfunc = parameter_function(sin, par)
         # test normal usage
         @test isa(delete(m, par2), Nothing)
         @test !is_valid(m, par2)

@@ -332,9 +332,9 @@ derivative_method(::GeneralVariableRef)
 evaluate(::GeneralVariableRef)
 derivative_constraints(::GeneralVariableRef)
 delete_derivative_constraints(::GeneralVariableRef)
-InfiniteOpt.add_derivative_supports(::GeneralVariableRef)
+InfiniteOpt.add_generative_supports(::GeneralVariableRef)
 set_derivative_method(::GeneralVariableRef, ::AbstractDerivativeMethod)
-has_derivative_supports(::GeneralVariableRef)
+has_generative_supports(::GeneralVariableRef)
 has_internal_supports(::GeneralVariableRef)
 JuMP.delete(::InfiniteModel, ::GeneralVariableRef)
 JuMP.delete(::InfiniteModel,::AbstractArray{<:GeneralVariableRef})
@@ -387,6 +387,8 @@ InfiniteOpt._derivative_dependencies
 InfiniteOpt._derivative_dependencies(::GeneralVariableRef)
 InfiniteOpt._measure_dependencies
 InfiniteOpt._measure_dependencies(::GeneralVariableRef)
+InfiniteOpt._generative_measures
+InfiniteOpt._generative_measures(::GeneralVariableRef)
 InfiniteOpt._constraint_dependencies
 InfiniteOpt._constraint_dependencies(::GeneralVariableRef)
 InfiniteOpt._derivative_constraint_dependencies

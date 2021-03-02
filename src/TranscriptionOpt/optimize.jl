@@ -14,7 +14,8 @@ end
 
 """
     InfiniteOpt.build_optimizer_model!(model::InfiniteOpt.InfiniteModel,
-                                       key::Val{:TransData})::Nothing
+                                       key::Val{:TransData};
+                                       check_support_dims::Bool = true)::Nothing
 
 Transcribe `model` and store it as a `TranscriptionModel` in the
 `model.optimizer_model` field which can be accessed with `transcription_model`.
@@ -23,11 +24,13 @@ Ths clears the existing `TranscriptionModel` via
 using [`build_transcription_model!`](@ref).
 """
 function InfiniteOpt.build_optimizer_model!(model::InfiniteOpt.InfiniteModel,
-                                            key::Val{:TransData})::Nothing
+                                            key::Val{:TransData};
+                                            check_support_dims::Bool = true)::Nothing
     # clear the optimzier model contents
     trans_model = InfiniteOpt.clear_optimizer_model_build!(model)
     # build the transcription model based on model
-    build_transcription_model!(trans_model, model)
+    build_transcription_model!(trans_model, model, 
+                               check_support_dims = check_support_dims)
     # update the optimizer model status
     InfiniteOpt.set_optimizer_model_ready(model, true)
     return

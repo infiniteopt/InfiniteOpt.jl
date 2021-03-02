@@ -385,12 +385,12 @@ end
         @test isequal(sort.(transcription_data(tm).supports), expected)
         @test IOTO.has_internal_supports(tm)
         expected = ([Set([UniformGrid]), Set([UniformGrid]), Set{DataType}()], 
-                    [Set([UserDefined]), Set([OrthogonalCollocationNode]), 
-                     Set([InternalLabel]), Set([OrthogonalCollocationNode]), 
+                    [Set([UserDefined]), Set([InternalGaussLobatto]), 
+                     Set([InternalLabel]), Set([InternalGaussLobatto]), 
                      Set([UserDefined]), Set{DataType}()])
         @test isequal(transcription_data(tm).support_labels, expected)
         @test supports(par, label = All) == [0., 0.3, 0.6, 0.8, 1.]
-        @test has_derivative_supports(par)
+        @test has_generative_supports(par)
     end
     # test parameter_supports
     @testset "parameter_supports" begin 
@@ -415,7 +415,7 @@ end
     @testset "index_to_labels" begin 
         idxs = CartesianIndices((1:2, 1:5))
         @test IOTO.index_to_labels(tm, first(idxs)) == Set([UserDefined, UniformGrid])
-        @test IOTO.index_to_labels(tm, idxs[3]) == Set([UniformGrid, OrthogonalCollocationNode])
+        @test IOTO.index_to_labels(tm, idxs[3]) == Set([UniformGrid, InternalGaussLobatto])
         @test IOTO.index_to_labels(tm, last(IOTO.support_index_iterator(tm, Int[]))) == Set{DataType}()
     end
 end

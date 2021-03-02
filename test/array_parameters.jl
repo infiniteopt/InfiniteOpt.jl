@@ -643,15 +643,20 @@ end
     gvrefs = @dependent_parameters(m, a[1:2] in [0, 1], derivative_method = TestMethod())
     prefs = dispatch_variable_ref.(gvrefs)
     push!(InfiniteOpt._constraint_dependencies(prefs[1]), ConstraintIndex(1))
-    # test has_derivative_supports
-    @testset "has_derivative_supports" begin
-        @test !has_derivative_supports(prefs[1])
-        @test !has_derivative_supports(gvrefs[2])
+    # test has_generative_supports
+    @testset "has_generative_supports" begin
+        @test !has_generative_supports(prefs[1])
+        @test !has_generative_supports(gvrefs[2])
     end
-    # test _set_has_derivative_supports
-    @testset "_set_has_derivative_supports" begin
-        @test InfiniteOpt._set_has_derivative_supports(prefs[1], true) isa Nothing
-        @test InfiniteOpt._set_has_derivative_supports(gvrefs[2], false) isa Nothing
+    # test add_generative_supports
+    @testset "add_generative_supports" begin
+        @test add_generative_supports(prefs[1]) isa Nothing
+        @test add_generative_supports(gvrefs[2]) isa Nothing
+    end
+    # test _set_has_generative_supports
+    @testset "_set_has_generative_supports" begin
+        @test InfiniteOpt._set_has_generative_supports(prefs[1], true) isa Nothing
+        @test InfiniteOpt._set_has_generative_supports(gvrefs[2], false) isa Nothing
     end
     # test has_derivative_constraints
     @testset "has_derivative_constraints" begin

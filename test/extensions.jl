@@ -57,18 +57,21 @@ end
     @infinite_parameter(m, t in [0, 10], num_supports = 3)
     @infinite_variable(m, x(t))
     d = deriv(x, t)
+    method = MyDerivMethod(0.5)
 
     # test definition and addition to a parameter
-    @test MyDerivMethod(true) isa MyDerivMethod
-    @test set_derivative_method(t, MyDerivMethod(true)) isa Nothing 
+    @test method isa MyDerivMethod
+    @test set_derivative_method(t, method) isa Nothing 
     @test derivative_method(t) isa MyDerivMethod
 
     # test preliminaries to evaluation 
-    @test InfiniteOpt.support_label(MyDerivMethod(true)) == InternalLabel
-    @test InfiniteOpt.generate_derivative_supports(dispatch_variable_ref(t), MyDerivMethod(true)) isa Vector{Float64}
+    @test generative_support_info(method) == UniformGenerativeInfo([0.5], InternalLabel)
+    @test support_label(method) == InternalLabel
 
     # test evaluation 
-    @test InfiniteOpt.evaluate_derivative(d, MyDerivMethod(true), m) isa Vector 
+    @test InfiniteOpt.evaluate_derivative(d, method, m) isa Vector 
+    @test has_generative_supports(t)
+    @test num_supports(t, label = All) == 5
     @test evaluate(d) isa Nothing 
     @test length(derivative_constraints(d)) == 4
     @test num_constraints(m) == 4
@@ -150,6 +153,27 @@ end
     mref2 = integral(f, x, num_supports = 3, eval_method = NewMultiEvalMethod)
     @test supports(measure_data(mref2)) == Float64[0 0.5 1; 0 0.5 1]
 #     @test_throws ErrorException integral(xi^2, xi, eval_method = NewUniEvalMethod) # not sure what this checks...
+end
+
+# Test extensions of generative support info
+@testset "Generative Support Info" begin
+    # load in the extension
+    include("./extensions/generative_info.jl")
+
+    # set up the model
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 5], num_supports = 4)
+    pref = dispatch_variable_ref(t)
+    
+    # test creation and basic functions 
+    @test MyGenInfo(2) isa AbstractGenerativeInfo
+    @test support_label(MyGenInfo(2)) == MyGenLabel 
+    @test length(make_generative_supports(MyGenInfo(2), t, supports(t))) == 6
+
+    # test incorporation into infinite parameter 
+    @test InfiniteOpt._set_generative_support_info(pref, MyGenInfo(2)) isa Nothing 
+    @test add_generative_supports(t) isa Nothing 
+    @test num_supports(t, label = All) == 10
 end
 
 # Test otpimizer model extensions

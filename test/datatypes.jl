@@ -103,18 +103,34 @@ end
     @test CollectionSet([IntervalSet(0, 1), IntervalSet(2, 3)]) isa CollectionSet{IntervalSet}
 end
 
+# Test Generative Support Info 
+@testset "Generative Support Info" begin 
+    # Abstract types
+    @test AbstractGenerativeInfo isa DataType
+    # NoGenerativeSupports
+    @test NoGenerativeSupports <: AbstractGenerativeInfo
+    @test NoGenerativeSupports() isa NoGenerativeSupports
+    @test NoGenerativeSupports() == NoGenerativeSupports()
+    # UniformGenerativeInfo
+    @test UniformGenerativeInfo <: AbstractGenerativeInfo
+    @test UniformGenerativeInfo([0.0, 1.0], InternalLabel) isa UniformGenerativeInfo
+    @test UniformGenerativeInfo([-2, 0, 1], InternalLabel, -2, 1).support_basis == [0, 2.0/3.0, 1]
+    @test UniformGenerativeInfo([0.0, 1.0], InternalLabel) == UniformGenerativeInfo([2, 6], InternalLabel, 2, 6)
+    @test UniformGenerativeInfo([0.0, 1.0], InternalLabel) != UniformGenerativeInfo([2, 5], InternalLabel, 2, 6)
+    @test_throws ErrorException UniformGenerativeInfo([2, 6], InternalLabel)
+end
+
 # Test Derivative Evaluation Methods 
 @testset "Derivative Methods" begin
     # abstract types
     @test AbstractDerivativeMethod isa DataType
     @test GenerativeDerivativeMethod <: AbstractDerivativeMethod
     @test NonGenerativeDerivativeMethod <: AbstractDerivativeMethod
-    # test orthogonal collocation 
-    @test OCTechnique isa DataType
-    @test Lobatto <: OCTechnique
+    # test orthogonal collocation (defined in derivative_evaluations.jl)
     @test OrthogonalCollocation <: GenerativeDerivativeMethod
-    @test OrthogonalCollocation(3, Lobatto) isa OrthogonalCollocation
-    @test OrthogonalCollocation(3) == OrthogonalCollocation(3, Lobatto)
+    @test OrthogonalCollocation{GaussLobatto}(3, GaussLobatto()) isa OrthogonalCollocation
+    @test OrthogonalCollocation(3, GaussLobatto()) == OrthogonalCollocation{GaussLobatto}(3, GaussLobatto())
+    @test OrthogonalCollocation(3) == OrthogonalCollocation(3, GaussLobatto())
     @test_throws ErrorException OrthogonalCollocation(1)
     # test finite difference
     @test FDTechnique isa DataType
@@ -122,12 +138,9 @@ end
     @test Central <: FDTechnique
     @test Backward <: FDTechnique
     @test FiniteDifference <: NonGenerativeDerivativeMethod
-    @test FiniteDifference(Forward) isa FiniteDifference
-    @test FiniteDifference() == FiniteDifference(Backward)
-    @test FiniteDifference(Forward, false) isa FiniteDifference
-    # test support_label 
-    @test_throws ErrorException support_label(FiniteDifference())
-    @test support_label(OrthogonalCollocation(3)) == OrthogonalCollocationNode
+    @test FiniteDifference(Forward()) isa FiniteDifference
+    @test FiniteDifference() == FiniteDifference(Backward())
+    @test FiniteDifference(Forward(), false) isa FiniteDifference
 end
 
 # Test parameter datatypes
@@ -140,7 +153,8 @@ end
     @test IndependentParameter <: ScalarParameter
     dict = SortedDict{Float64, Set{DataType}}(2 => Set([All]))
     method = FiniteDifference()
-    @test IndependentParameter(IntervalSet(0, 1), dict, 6, method).set isa IntervalSet
+    info = NoGenerativeSupports()
+    @test IndependentParameter(IntervalSet(0, 1), dict, 6, method, info).set isa IntervalSet
     # test FiniteParameter
     @test FiniteParameter <: ScalarParameter
     @test FiniteParameter(1) == FiniteParameter(1)
@@ -421,6 +435,7 @@ end
     m = InfiniteModel()
     pref = GeneralVariableRef(m, 2, IndependentParameterIndex)
     w(t) = 1
+    info = NoGenerativeSupports()
     # abstract types
     @test AbstractMeasureData isa DataType
     # DiscreteMeasureData
@@ -429,8 +444,9 @@ end
     @test DiscreteMeasureData([pref], ones(2), ones(1, 2), All, w, [NaN], [NaN], false) isa DiscreteMeasureData
     # FunctionalDistributionSet
     @test FunctionalDiscreteMeasureData <: AbstractMeasureData
-    @test FunctionalDiscreteMeasureData(pref, w, 2, All, w, NaN, NaN, false) isa FunctionalDiscreteMeasureData
+    @test FunctionalDiscreteMeasureData(pref, w, 2, All, info, w, NaN, NaN, false) isa FunctionalDiscreteMeasureData
     @test FunctionalDiscreteMeasureData([pref], w, 2, All, w, [NaN], [NaN], false) isa FunctionalDiscreteMeasureData
+    @test FunctionalDiscreteMeasureData([pref], w, 2, All, info, w, [NaN], [NaN], false) isa FunctionalDiscreteMeasureData
     # Measure
     @test Measure isa UnionAll
     @test Measure(zero(AffExpr),
