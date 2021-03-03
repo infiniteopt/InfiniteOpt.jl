@@ -295,6 +295,152 @@ and Monte Carlo sampling for both univariate and multivariate parameters.
 For extension purposes, users may define their own [`generate_integral_data`](@ref)
 to encode custom evaluation methods. See [Extensions](@ref) for more details.
 
+### A Note on Support Management
+There is a difference in how supports are considered using `UniTrapezoid()` and 
+the other schemes. Namely, the other schemes will NOT incorporate other supports 
+specified elsewhere in the model. Consider the following example with 3 equidistant 
+supports and an integral objective function that uses `UniTrapezoid()` (the default):
+```jldoctest support_manage; setup = :(using InfiniteOpt, JuMP), output = false
+# Create a model, with one variable and an infinite parameter with a given number of supports
+m = InfiniteModel()
+@infinite_parameter(m, t in [0, 2], num_supports = 3)
+@infinite_variable(m, u(t))
+
+# Create an objective function with the default trapezoid integration
+@objective(m, Min, integral(u^2, t))
+
+# Get the transcribed model to check how the supports are taken into account
+build_optimizer_model!(m)
+trans_m = optimizer_model(m);
+
+# output
+A JuMP Model
+Minimization problem with:
+Variables: 3
+Objective function type: GenericQuadExpr{Float64,VariableRef}
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
+
+```
+
+If we look at how many supports there are, how the variable `u` is transcribed, 
+and how the objective function of the transcribed model looks like, we notice that 
+the same supports are used in both the objective function and the transcribed 
+variable:
+```jldoctest support_manage
+julia> supports(t) 
+3-element Array{Float64,1}:
+ 0.0
+ 1.0
+ 2.0
+
+julia> transcription_variable(u)  
+3-element Array{VariableRef,1}:
+ u(support: 1)
+ u(support: 2)
+ u(support: 3)
+
+julia> objective_function(trans_m) 
+0.5 u(support: 1)² + u(support: 2)² + 0.5 u(support: 3)²
+```
+Thus, the integral incorporates the 3 supports generated outside of the `integral` 
+declaration.
+
+Then we readjust the model to use Gauss-Legendre quadrature via `GaussLegendre()` 
+that uses 2 quadrature nodes:
+```jldoctest support_manage; output = false
+# Set the new objective and update the TranscriptionModel
+set_objective_function(m, integral(u^2, t, eval_method = GaussLegendre(), num_supports = 2))
+build_optimizer_model!(m)
+trans_m = optimizer_model(m);
+
+# output
+A JuMP Model
+Minimization problem with:
+Variables: 5
+Objective function type: GenericQuadExpr{Float64,VariableRef}
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
+
+```
+Now let's look again at the number of supports, the transcription of `u`, and the 
+new objective function:
+```jldoctest support_manage
+julia> supports(t) 
+5-element Array{Float64,1}:
+ 0.0
+ 0.42264973081
+ 1.0
+ 1.57735026919
+ 2.0
+
+julia> transcription_variable(u)  
+5-element Array{VariableRef,1}:
+ u(support: 1)
+ u(support: 2)
+ u(support: 3)
+ u(support: 4)
+ u(support: 5)
+
+julia> objective_function(trans_m) 
+u(support: 2)² + u(support: 4)²
+```
+The supports used in the objective function are different from the supports used 
+in the transcription of `u`. The integral objective function has been transcribed 
+using the 2 quadrature supports, but does not include the other supports since 
+they cannot be incorporated into the Gaussian quadrature approximation. Whereas,
+`u` is defined over all the supports and thus certain realizations of `u` will 
+excluded from the objective function which will affect the behavior of the 
+optimization and lead to unexpected results.
+
+However, this behavior is avoided if we let the integral add the supports and 
+not add supports elsewhere (for convenience we'll use `set_uni_integral_defaults`):
+```jldoctest support_manage; output = false
+# Define a new model, parameter, and variable
+m = InfiniteModel()
+@infinite_parameter(m, t in [0, 2])
+@infinite_variable(m, u(t))
+
+# Update the integral default keyword arguments for convenience 
+set_uni_integral_defaults(eval_method = GaussLegendre(), num_supports = 2)
+
+# Set the objective with our desired integral
+@objective(m, Min, integral(u^2, t))
+
+# Build the transcribed model 
+build_optimizer_model!(m)
+trans_m = optimizer_model(m);
+
+# output
+A JuMP Model
+Minimization problem with:
+Variables: 2
+Objective function type: GenericQuadExpr{Float64,VariableRef}
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
+
+```
+Then we get the supports are consistent for `u` and the integral:
+```jldoctest support_manage
+julia> supports(t) 
+2-element Array{Float64,1}:
+ 0.42264973081
+ 1.57735026919
+
+julia> transcription_variable(u)  
+2-element Array{VariableRef,1}:
+ u(support: 1)
+ u(support: 2)
+
+julia> objective_function(trans_m) 
+u(support: 1)² + u(support: 2)²
+```
+Therefore, using quadratures other than trapezoid requires careful analysis if 
+there are user-defined supports in the problem. 
+
 ## Expansion
 In a model, each measure records the integrand expression and an evaluation
 scheme that details the discretization scheme to approximate the integral.
@@ -316,7 +462,7 @@ integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``.
 We can set up and expand this measure as follows:
 ```jldoctest meas_basic
 julia> tdata = DiscreteMeasureData(t, [5, 5], [2.5, 7.5])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], UniqueMeasure{Symbol("##819")}, InfiniteOpt.default_weight, NaN, NaN, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], UniqueMeasure{Symbol("##831")}, InfiniteOpt.default_weight, NaN, NaN, false)
 
 julia> mref4 = measure(y^2, tdata)
 measure{t}[y(t)²]
