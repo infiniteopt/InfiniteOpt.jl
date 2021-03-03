@@ -462,7 +462,7 @@ integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``.
 We can set up and expand this measure as follows:
 ```jldoctest meas_basic
 julia> tdata = DiscreteMeasureData(t, [5, 5], [2.5, 7.5])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], UniqueMeasure{Symbol("##819")}, InfiniteOpt.default_weight, NaN, NaN, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], UniqueMeasure{Symbol("##831")}, InfiniteOpt.default_weight, NaN, NaN, false)
 
 julia> mref4 = measure(y^2, tdata)
 measure{t}[y(t)²]
