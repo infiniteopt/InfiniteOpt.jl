@@ -314,6 +314,13 @@ build_optimizer_model!(m)
 trans_m = optimizer_model(m);
 
 # output
+A JuMP Model
+Minimization problem with:
+Variables: 3
+Objective function type: GenericQuadExpr{Float64,VariableRef}
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
 
 ```
 
@@ -349,6 +356,13 @@ build_optimizer_model!(m)
 trans_m = optimizer_model(m);
 
 # output
+A JuMP Model
+Minimization problem with:
+Variables: 5
+Objective function type: GenericQuadExpr{Float64,VariableRef}
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
 
 ```
 Now let's look again at the number of supports, the transcription of `u`, and the 
@@ -382,7 +396,7 @@ excluded from the objective function which will affect the behavior of the
 optimization and lead to unexpected results.
 
 However, this behavior is avoided if we let the integral add the supports and 
-not add supports elsewhere (for convenience we'll use ):
+not add supports elsewhere (for convenience we'll use `set_uni_integral_defaults`):
 ```jldoctest support_manage; output = false
 # Define a new model, parameter, and variable
 m = InfiniteModel()
@@ -399,7 +413,14 @@ set_uni_integral_defaults(eval_method = GaussLegendre(), num_supports = 2)
 build_optimizer_model!(m)
 trans_m = optimizer_model(m);
 
-# output 
+# output
+A JuMP Model
+Minimization problem with:
+Variables: 2
+Objective function type: GenericQuadExpr{Float64,VariableRef}
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
 
 ```
 Then we get the supports are consistent for `u` and the integral:
