@@ -447,7 +447,7 @@ function lookup_by_support(model::JuMP.Model,
     fref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.ParameterFunctionIndex},
     support::Vector
-    )
+    )::Float64
     prefs = InfiniteOpt.raw_parameter_refs(fref)
     func = InfiniteOpt.raw_function(fref)
     return func(Tuple(support, prefs)...)
