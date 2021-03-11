@@ -8,7 +8,7 @@ By participating, you are expected to uphold this code.
 
 ## Improve the Documentation
 Our documentation is by no means perfect, and we welcome help in making it better.
-Chances our if you have had to ask us questions, then our
+Chances are if you have had to ask us questions, then our
 [documentation](https://pulsipher.github.io/InfiniteOpt.jl/dev/) can be improved
 and moreover you're probably the best person to help since it was your question.
 
