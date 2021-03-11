@@ -84,7 +84,7 @@ end
 
 
 ```
-Now the checks are enabled so, the following would yield an error because the
+Now the checks are enabled, so the following would yield an error because the
 support is not in the set domain:
 ```jldoctest set_ext
 julia> @infinite_parameter(model, set = DisjointSet(0, 1, 3, 4), supports = 2)
@@ -881,7 +881,7 @@ Subject to
  y[1] ≥ 0.0
  y[2] ≥ 0.0
 ```
-Note that batter variable naming could be used with the reformulated infinite
+Note that better variable naming could be used with the reformulated infinite
 variables. Moreover, in general extensions of [`build_optimizer_model!`](@ref)
 should account for the possibility that `InfiniteModel` contains `HoldVariable`s
 and/or `ScalarConstraint`s that contain [`ParameterBounds`](@ref) as accessed via
