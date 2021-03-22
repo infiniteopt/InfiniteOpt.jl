@@ -347,6 +347,10 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
         num_nodes::Int = 3,
         weight_func::Function = InfiniteOpt.default_weight,
         kwargs...)
+    if lower_bound == -Inf || upper_bound == Inf
+        @warn("The Gauss Lobatto method can only be applied on finite intervals, " *
+              "switching to an appropriate method.")
+    end
     if num_nodes < 2
         error("Num supports must be greater than 2")
     end

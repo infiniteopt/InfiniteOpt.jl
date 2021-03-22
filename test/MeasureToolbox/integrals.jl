@@ -69,6 +69,10 @@
                "switching to an appropriate method."
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, GaussLobatto())) isa DiscreteMeasureData
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, Inf, GaussLobatto())) isa DiscreteMeasureData
+        warn = "The Gauss Lobatto method can only be applied on finite intervals, " *
+               "switching to an appropriate method."
+        @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, FEGaussLobatto())) isa FunctionalDiscreteMeasureData
+        @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, Inf, FEGaussLobatto())) isa FunctionalDiscreteMeasureData
         warn = "The `GaussRadau` method can only be applied on finite intervals, " *
                "switching to an appropriate method."
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, GaussRadau())) isa DiscreteMeasureData
