@@ -100,10 +100,10 @@ measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
 julia> measure_data(mref2)
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.333357, 0.747257, 1.09543, 1.34633, 1.47762, 1.47762, 1.34633, 1.09543, 0.747257, 0.333357], [0.130467, 0.674683, 1.60295, 2.83302, 4.25563, 5.74437, 7.16698, 8.39705, 9.32532, 9.86953], UniqueMeasure{Val{Symbol("##808")}}, InfiniteOpt.default_weight, 0.0, 10.0, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.333357, 0.747257, 1.09543, 1.34633, 1.47762, 1.47762, 1.34633, 1.09543, 0.747257, 0.333357], [0.130467, 0.674683, 1.60295, 2.83302, 4.25563, 5.74437, 7.16698, 8.39705, 9.32532, 9.86953], UniqueMeasure{Symbol("##809")}, InfiniteOpt.default_weight, 0.0, 10.0, false)
 
 julia> measure_data(mref3)
-FunctionalDiscreteMeasureData{GeneralVariableRef,Float64}(t, InfiniteOpt.MeasureToolbox._trapezoid_coeff, 0, All, InfiniteOpt.default_weight, 0.0, 10.0, false)
+FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,NoGenerativeSupports}(t, InfiniteOpt.MeasureToolbox._trapezoid_coeff, 0, All, NoGenerativeSupports(), InfiniteOpt.default_weight, 0.0, 10.0, false)
 ```
 Natively in `InfiniteOpt`, two types of measure data objects are used to store the measure
 data information depending on the nature of the measures created: `DiscreteMeasureData` and
@@ -199,7 +199,7 @@ can construct the following measure data object to record this discretization
 scheme:
 ```jldoctest meas_basic
 julia> md_t = DiscreteMeasureData(t, ones(10), [i for i in 1:10])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], UniqueMeasure{Val{Symbol("##812")}}, InfiniteOpt.default_weight, NaN, NaN, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], UniqueMeasure{Symbol("##813")}, InfiniteOpt.default_weight, NaN, NaN, false)
 ```
 The arguments of [`DiscreteMeasureData`](@ref) are parameter, coefficients, and
 supports. The default weight function is ``w(\tau) = 1`` for
@@ -226,7 +226,7 @@ julia> @infinite_parameter(model, x[1:2] in [0, 1])
  x[2]
 
 julia> md_x = DiscreteMeasureData(x, 0.25 * ones(4), [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75]])
-DiscreteMeasureData{Array{GeneralVariableRef,1},2,Array{Float64,1}}(GeneralVariableRef[x[1], x[2]], [0.25, 0.25, 0.25, 0.25], [0.25 0.25 0.75 0.75; 0.25 0.75 0.25 0.75], UniqueMeasure{Val{Symbol("##817")}}, InfiniteOpt.default_weight, [NaN, NaN], [NaN, NaN], false)
+DiscreteMeasureData{Array{GeneralVariableRef,1},2,Array{Float64,1}}(GeneralVariableRef[x[1], x[2]], [0.25, 0.25, 0.25, 0.25], [0.25 0.25 0.75 0.75; 0.25 0.75 0.25 0.75], UniqueMeasure{Symbol("##818")}, InfiniteOpt.default_weight, [NaN, NaN], [NaN, NaN], false)
 ```
 where `md_x` cuts the domain into four 0.5-by-0.5 squares, and evaluates the
 integrand on the center of these squares. Note that for multivariate parameters, 
@@ -250,7 +250,7 @@ julia> coeff_f(supports) = [(10 - 0) / length(supports) for i in supports]
 coeff_f (generic function with 1 method)
 
 julia> fmd_t = FunctionalDiscreteMeasureData(t, coeff_f, 20, UniformGrid)
-FunctionalDiscreteMeasureData{GeneralVariableRef,Float64}(t, coeff_f, 20, UniformGrid, InfiniteOpt.default_weight, NaN, NaN, false)
+FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,NoGenerativeSupports}(t, coeff_f, 20, UniformGrid, NoGenerativeSupports(), InfiniteOpt.default_weight, NaN, NaN, false)
 ```
 For more details see [`FunctionalDiscreteMeasureData`](@ref). 
 
@@ -265,7 +265,7 @@ positional arguments the integrated parameter, lower bound, upper bound, and met
 a measure data object of type [`AbstractMeasureData`](@ref).
 
 [`generate_integral_data`](@ref) applies multiple dispatch to encode different
-support generation methods depending on the input `eval_method`. Each dispatch is distingushed by 
+support generation methods depending on the input `eval_method`. Each dispatch is distinguished by 
 the `method`, which takes a concrete subtype of `AbstractIntegralMethod`. 
 Each dispatch of `generate_integral_data` implements the specified method and returns
 the resulting measure data, which will be used by [`@integral`](@ref) to create the measure.
@@ -316,6 +316,152 @@ and Monte Carlo sampling for both univariate and multivariate parameters.
 For extension purposes, users may define their own [`generate_integral_data`](@ref)
 to encode custom evaluation methods. See [Extensions](@ref) for more details.
 
+### A Note on Support Management
+There is a difference in how supports are considered using `UniTrapezoid()` and 
+the other schemes. Namely, the other schemes will NOT incorporate other supports 
+specified elsewhere in the model. Consider the following example with 3 equidistant 
+supports and an integral objective function that uses `UniTrapezoid()` (the default):
+```jldoctest support_manage; setup = :(using InfiniteOpt, JuMP), output = false
+# Create a model, with one variable and an infinite parameter with a given number of supports
+m = InfiniteModel()
+@infinite_parameter(m, t in [0, 2], num_supports = 3)
+@infinite_variable(m, u(t))
+
+# Create an objective function with the default trapezoid integration
+@objective(m, Min, integral(u^2, t))
+
+# Get the transcribed model to check how the supports are taken into account
+build_optimizer_model!(m)
+trans_m = optimizer_model(m);
+
+# output
+A JuMP Model
+Minimization problem with:
+Variables: 3
+Objective function type: GenericQuadExpr{Float64,VariableRef}
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
+
+```
+
+If we look at how many supports there are, how the variable `u` is transcribed, 
+and how the objective function of the transcribed model looks like, we notice that 
+the same supports are used in both the objective function and the transcribed 
+variable:
+```jldoctest support_manage
+julia> supports(t) 
+3-element Array{Float64,1}:
+ 0.0
+ 1.0
+ 2.0
+
+julia> transcription_variable(u)  
+3-element Array{VariableRef,1}:
+ u(support: 1)
+ u(support: 2)
+ u(support: 3)
+
+julia> objective_function(trans_m) 
+0.5 u(support: 1)² + u(support: 2)² + 0.5 u(support: 3)²
+```
+Thus, the integral incorporates the 3 supports generated outside of the `integral` 
+declaration.
+
+Then we readjust the model to use Gauss-Legendre quadrature via `GaussLegendre()` 
+that uses 2 quadrature nodes:
+```jldoctest support_manage; output = false
+# Set the new objective and update the TranscriptionModel
+set_objective_function(m, integral(u^2, t, eval_method = GaussLegendre(), num_supports = 2))
+build_optimizer_model!(m)
+trans_m = optimizer_model(m);
+
+# output
+A JuMP Model
+Minimization problem with:
+Variables: 5
+Objective function type: GenericQuadExpr{Float64,VariableRef}
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
+
+```
+Now let's look again at the number of supports, the transcription of `u`, and the 
+new objective function:
+```jldoctest support_manage
+julia> supports(t) 
+5-element Array{Float64,1}:
+ 0.0
+ 0.42264973081
+ 1.0
+ 1.57735026919
+ 2.0
+
+julia> transcription_variable(u)  
+5-element Array{VariableRef,1}:
+ u(support: 1)
+ u(support: 2)
+ u(support: 3)
+ u(support: 4)
+ u(support: 5)
+
+julia> objective_function(trans_m) 
+u(support: 2)² + u(support: 4)²
+```
+The supports used in the objective function are different from the supports used 
+in the transcription of `u`. The integral objective function has been transcribed 
+using the 2 quadrature supports, but does not include the other supports since 
+they cannot be incorporated into the Gaussian quadrature approximation. Whereas,
+`u` is defined over all the supports and thus certain realizations of `u` will 
+excluded from the objective function which will affect the behavior of the 
+optimization and lead to unexpected results.
+
+However, this behavior is avoided if we let the integral add the supports and 
+not add supports elsewhere (for convenience we'll use `set_uni_integral_defaults`):
+```jldoctest support_manage; output = false
+# Define a new model, parameter, and variable
+m = InfiniteModel()
+@infinite_parameter(m, t in [0, 2])
+@infinite_variable(m, u(t))
+
+# Update the integral default keyword arguments for convenience 
+set_uni_integral_defaults(eval_method = GaussLegendre(), num_supports = 2)
+
+# Set the objective with our desired integral
+@objective(m, Min, integral(u^2, t))
+
+# Build the transcribed model 
+build_optimizer_model!(m)
+trans_m = optimizer_model(m);
+
+# output
+A JuMP Model
+Minimization problem with:
+Variables: 2
+Objective function type: GenericQuadExpr{Float64,VariableRef}
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
+
+```
+Then we get the supports are consistent for `u` and the integral:
+```jldoctest support_manage
+julia> supports(t) 
+2-element Array{Float64,1}:
+ 0.42264973081
+ 1.57735026919
+
+julia> transcription_variable(u)  
+2-element Array{VariableRef,1}:
+ u(support: 1)
+ u(support: 2)
+
+julia> objective_function(trans_m) 
+u(support: 1)² + u(support: 2)²
+```
+Therefore, using quadratures other than trapezoid requires careful analysis if 
+there are user-defined supports in the problem. 
+
 ## Expansion
 In a model, each measure records the integrand expression and an evaluation
 scheme that details the discretization scheme to approximate the integral.
@@ -337,7 +483,7 @@ integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``.
 We can set up and expand this measure as follows:
 ```jldoctest meas_basic
 julia> tdata = DiscreteMeasureData(t, [5, 5], [2.5, 7.5])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], UniqueMeasure{Val{Symbol("##818")}}, InfiniteOpt.default_weight, NaN, NaN, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], UniqueMeasure{Symbol("##831")}, InfiniteOpt.default_weight, NaN, NaN, false)
 
 julia> mref4 = measure(y^2, tdata)
 measure{t}[y(t)²]
@@ -436,6 +582,7 @@ FunctionalDiscreteMeasureData(::GeneralVariableRef,::Function,::Int,::Type{<:Abs
 FunctionalDiscreteMeasureData(::AbstractArray{GeneralVariableRef},::Function,::Int,::Type{<:AbstractSupportLabel})
 parameter_refs(::AbstractMeasureData)
 support_label(::AbstractMeasureData)
+generative_support_info(::AbstractMeasureData)
 JuMP.lower_bound(::AbstractMeasureData)
 JuMP.upper_bound(::AbstractMeasureData)
 supports(::AbstractMeasureData)
@@ -523,8 +670,8 @@ InfiniteOpt.MeasureToolbox.GaussLaguerre
 InfiniteOpt.MeasureToolbox.AbstractMultivariateMethod
 InfiniteOpt.MeasureToolbox.MultiMCSampling
 InfiniteOpt.MeasureToolbox.MultiIndepMCSampling
+InfiniteOpt.MeasureToolbox.InternalGaussLobatto
 ```
-
 
 ## MeasureToolbox Methods
 ```@index

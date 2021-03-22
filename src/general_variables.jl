@@ -323,7 +323,8 @@ function _set_core_variable_object end
 for op = (:_infinite_variable_dependencies, :_reduced_variable_dependencies,
           :_point_variable_dependencies, :_measure_dependencies,
           :_constraint_dependencies, :_derivative_dependencies, 
-          :_derivative_constraint_dependencies, :_parameter_function_dependencies)
+          :_derivative_constraint_dependencies, :_parameter_function_dependencies,
+          :_generative_measures)
     @eval begin
         # define the api template
         func = $op
@@ -460,8 +461,8 @@ end
 # Define 1 argument user method wrappers and their fallbacks
 for op = (:infinite_set, :num_supports, :significant_digits, :has_supports,
           :supports, :delete_supports, :fill_in_supports!, :parameter_value,
-          :derivative_method, :has_derivative_supports, :has_internal_supports,
-          :add_derivative_supports, :raw_function)
+          :derivative_method, :has_generative_supports, :has_internal_supports,
+          :add_generative_supports, :raw_function, :generative_support_info)
     @eval begin
         # define the fallback method
         func = $op
@@ -655,7 +656,7 @@ function set_derivative_method(pref::GeneralVariableRef,
 end
 
 # Define parameter status setters 
-for op = (:_set_has_derivative_supports, :_set_has_internal_supports,
+for op = (:_set_has_generative_supports, :_set_has_internal_supports,
           :_set_has_derivative_constraints)
     @eval begin
         # define the fallback method

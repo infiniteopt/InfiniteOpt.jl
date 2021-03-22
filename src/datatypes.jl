@@ -284,7 +284,64 @@ struct CollectionSet{T <: InfiniteScalarSet} <: InfiniteArraySet
 end
 
 ################################################################################
-#                         DERIVATIVE EVALUATION METHODS
+#                      GENERATIVE SUPPORT INFORMATION TYPES
+################################################################################
+"""
+    AbstractGenerativeInfo
+
+An abstract type for storing information about generating supports that are made 
+based on existing supports as required by certain measures and/or derivatives 
+that depend on a certain independent infinite parameter. Such as the case with 
+internal collocation supports.
+"""
+abstract type AbstractGenerativeInfo end 
+
+"""
+    NoGenerativeSupports <: AbstractGenerativeInfo
+
+A `DataType` to signify that no generative supports will be generated for the 
+measures and/or the derivatives. Has no fields.
+"""
+struct NoGenerativeSupports <: AbstractGenerativeInfo end
+
+"""
+    UniformGenerativeInfo <: AbstractGenerativeInfo
+
+A `DataType` for generative supports that will be generated in a uniform manner 
+over finite elements (i.e., in between the existing supports). These generative 
+supports are described by the `support_basis` which lie in a nominal domain [0, 1]. 
+The constructor is of the form:
+```
+    UniformGenerativeInfo(support_basis::Vector{<:Real}, label::DataType, 
+                          [lb::Real = 0, ub::Real = 1])
+```
+where the `support_basis` is defined over [`lb`, `ub`].
+
+**Fields**
+- `support_basis::Vector{Float64}`: The basis of generative supports defined in 
+   [0, 1] that will be transformed for each finite element.
+- `label::DataType`: The unique label to be given to each generative support.
+"""
+struct UniformGenerativeInfo <: AbstractGenerativeInfo
+    support_basis::Vector{Float64}
+    label::DataType
+    function UniformGenerativeInfo(basis::Vector{<:Real}, label::DataType, 
+                                   lb::Real = 0, ub::Real = 1)
+        if minimum(basis) < lb || maximum(basis) > ub
+            error("Support basis violate the given lower and upper bounds. " * 
+                  "Please specify the appropriate lower bound and upper bounds.")
+        end
+        return new((basis .- lb) ./ (ub - lb),  label)
+    end
+end
+
+# Extend Base.:(==)
+function Base.:(==)(info1::UniformGenerativeInfo, info2::UniformGenerativeInfo)::Bool 
+    return info1.support_basis == info2.support_basis && info1.label == info2.label
+end
+
+################################################################################
+#                       BASIC DERIVATIVE EVALUATION TYPES
 ################################################################################
 """
     AbstractDerivativeMethod
@@ -299,56 +356,10 @@ abstract type AbstractDerivativeMethod end
 
 An abstract type for derivative evaluation method types that will require support 
 generation when employed (e.g., internal node points associated with orthogonal 
-collocation). Such methods can be used with derivatives that on independent 
+collocation). Such methods can be used with derivatives that depend on independent 
 infinite parameters, but cannot be used for ones that depend on dependent parameters.
 """
 abstract type GenerativeDerivativeMethod <: AbstractDerivativeMethod end 
-
-"""
-    OCTechnique
-
-An abstract type for the method used to carry out orthogonal collocation.
-"""
-abstract type OCTechnique end
-
-"""
-    Lobatto <: OCTechnique
-
-A quadrature method label for orthogonal collocation method that generates
-internal nodes between public supports using Lobatto quadrature method.
-"""
-struct Lobatto <: OCTechnique end
-
-"""
-    OrthogonalCollocation <: GenerativeDerivativeMethod 
-
-A `DataType` for storing information about orthogonal collocation method
-for derivative evaluation. Note that the constructor for this method is of the
-form: 
-```julia 
-    OrthogonalCollocation(num_nodes::Int, [technique::Type{<:OCTechnique} = Labatto])
-```
-where `num_nodes` is total number of nodes for each collocation interval. In 
-practice, this corresponds to `num_nodes = num_internal_nodes + 2`. 
-
-**Fields**
-- `num_internal_nodes::Int`: The number of internal collocation points (nodes) 
-  between the each support pair.
-- `technique::Type{<:OCTechnique}`: The method used to produce the points.
-"""
-struct OrthogonalCollocation <: GenerativeDerivativeMethod 
-    num_internal_nodes::Int
-    technique::DataType
-    # make the constructor 
-    function OrthogonalCollocation(num_nodes::Int, 
-        technique::Type{<:OCTechnique} = Lobatto
-        )::OrthogonalCollocation
-        num_nodes >= 2 || error("Must specify at least 2 collocation points (i.e., " *
-                                "the bounds of each support interval with no internal " * 
-                                "support nodes).")
-        return new(num_nodes - 2, technique)
-    end
-end
 
 """
     NonGenerativeDerivativeMethod <: AbstractDerivativeMethod
@@ -393,12 +404,12 @@ difference approximation.
 struct Backward <: FDTechnique end
 
 """
-    FiniteDifference <: NonGenerativeDerivativeMethod
+    FiniteDifference{T <: FDTechnique} <: NonGenerativeDerivativeMethod
 
 A `DataType` for information about finite difference method applied to 
 a derivative evaluation. Note that the constructor is of the form:
 ```julia 
-    FiniteDifference([technique::Type{<:FDTechnique} = Backward],
+    FiniteDifference([technique::FDTechnique = Backward()],
                      [add_boundary_constr::Bool = true])
 ```
 where `technique` is the indicated finite difference method to be applied and 
@@ -411,34 +422,19 @@ with a forward method. Note that this argument is ignored for central finite
 difference which cannot include any boundary points.
 
 **Fields** 
-- `technique::Type{<:FDTechnique}`: Mathematical technqiue behind finite difference
+- `technique::T`: Mathematical technqiue behind finite difference
 - `add_boundary_constraint::Bool`: Indicate if the boundary constraint should be 
   included in the transcription (e.g., the terminal boundary backward equation for 
   backward difference)
 """
-struct FiniteDifference <: NonGenerativeDerivativeMethod 
-    technique::DataType
+struct FiniteDifference{T <: FDTechnique} <: NonGenerativeDerivativeMethod 
+    technique::T
     add_boundary_constraint::Bool
     # set the constructor 
-    function FiniteDifference(technique::Type{<:FDTechnique} = Backward, 
-                              add_boundary_constr::Bool = true)
-        return new(technique, add_boundary_constr)
+    function FiniteDifference(technique::T = Backward(), 
+        add_boundary_constr::Bool = true) where {T <: FDTechnique}
+        return new{T}(technique, add_boundary_constr)
     end
-end
-
-"""
-    support_label(method::GenerativeDerivativeMethod)
-
-Return the support label associated with `method` if there is one, errors otherwise. 
-This should be extended for any `GenerativeDerivativeMethod`.
-"""
-function support_label(method::AbstractDerivativeMethod)::DataType
-    error("`support_label` not defined for derivative methods of type `$(typeof(method))`.")
-end
-
-# Extend support_label for OrthogonalCollocation
-function support_label(method::OrthogonalCollocation)::DataType
-    return OrthogonalCollocationNode
 end
 
 ################################################################################
@@ -460,7 +456,8 @@ abstract type ScalarParameter <: InfOptParameter end
 
 """
     IndependentParameter{T <: InfiniteScalarSet,
-                         M <: AbstractDerivativeMethod} <: ScalarParameter
+                         M <: AbstractDerivativeMethod,
+                         I <: AbstractGenerativeInfo} <: ScalarParameter
 
 A `DataType` for storing independent scalar infinite parameters.
 
@@ -472,13 +469,17 @@ A `DataType` for storing independent scalar infinite parameters.
 - `sig_digits::Int`: The number of significant digits used to round the support values.
 - `derivative_method::M`: The derivative evaluation method used for derivatives that
    are conducted with respect to this parameter.
+- `gnerative_supp_info::I`: The info associated with any generative supports that will 
+   need to be generated for measures and/or derivatives based on existing supports. 
 """
 struct IndependentParameter{T <: InfiniteScalarSet, 
-                            M <: AbstractDerivativeMethod} <: ScalarParameter
+                            M <: AbstractDerivativeMethod,
+                            I <: AbstractGenerativeInfo} <: ScalarParameter
     set::T
     supports::DataStructures.SortedDict{Float64, Set{DataType}} # Support to label set
     sig_digits::Int
     derivative_method::M
+    generative_supp_info::I
 end
 
 """
@@ -548,8 +549,9 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
 - `in_objective::Bool`: Is this used in objective? This should be true only for finite parameters.
+- `generative_measures::Vector{MeasureIndex}`: Indices of measures that use `parameter.generative_supp_info`.
 - `has_internal_supports::Bool`: Does this parameter have internal supports?
-- `has_derivative_supports::Bool`: Have any derivative specfic supports been added?
+- `has_generative_supports::Bool`: Have any generative supports been added?
 - `has_deriv_constrs::Bool`: Have any derivative evaluation constraints been added 
                              to the infinite model associated with this parameter?
 """
@@ -564,8 +566,9 @@ mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     measure_indices::Vector{MeasureIndex}
     constraint_indices::Vector{ConstraintIndex}
     in_objective::Bool
+    generative_measures::Vector{MeasureIndex}
     has_internal_supports::Bool
-    has_derivative_supports::Bool
+    has_generative_supports::Bool
     has_deriv_constrs::Bool
 end
 
@@ -578,7 +581,8 @@ function ScalarParameterData(param::P,
     return ScalarParameterData{P}(param, object_num, parameter_num, name,
                                   ParameterFunctionIndex[], InfiniteVariableIndex[], 
                                   DerivativeIndex[], MeasureIndex[], 
-                                  ConstraintIndex[], false, false, false, false)
+                                  ConstraintIndex[], false, MeasureIndex[], 
+                                  false, false, false)
 end
 
 """
@@ -955,7 +959,8 @@ end
 """
     FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
                                   Vector{<:JuMP.AbstractVariableRef}},
-                                  B <: Union{Float64, Vector{Float64}}
+                                  B <: Union{Float64, Vector{Float64}},
+                                  I <: AbstractGenerativeInfo
                                   } <: AbstractMeasureData
 
 A DataType for mutable measure abstraction data where the
@@ -972,6 +977,11 @@ the measure will use all of the supports stored in the `parameter_refs` with the
 label `MCSample` and will ensure there are at least 100 are generated. This
 type can be used for both 1-dimensional and multi-dimensional measures.
 
+For 1-dimensional measures over independent infinite parameters, the 
+`generative_supp_info` specifies the info needed to make generative supports based 
+on those with that exist with `label`. Note that only 1 kind of generative 
+supports are allowed for each infinite parameter.
+
 **Fields**
 - `parameter_refs::P`: The infinite parameter(s) over which the integration occurs.
                      These can be comprised of multiple independent parameters,
@@ -984,6 +994,8 @@ type can be used for both 1-dimensional and multi-dimensional measures.
                        desired in association with `parameter_refs` and `label`.
 - `label::DataType`: Label for the support points ``\\tau_i`` which are/will be
                    stored in the infinite parameter(s), stemming from [`AbstractSupportLabel`](@ref).
+- `generative_supp_info::I`: Information needed to generate supports based on other 
+   existing ones.
 - `weight_function::Function`: Weighting function ``w`` must map an individual
                               support value to a `Real` scalar value.
 - `lower_bounds::B`: Lower bounds in accordance with ``T``, this denotes the
@@ -993,12 +1005,14 @@ type can be used for both 1-dimensional and multi-dimensional measures.
 """
 struct FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
                                      Vector{<:JuMP.AbstractVariableRef}},
-                                     B <: Union{Float64, Vector{Float64}}
+                                     B <: Union{Float64, Vector{Float64}},
+                                     I <: AbstractGenerativeInfo
                                      } <: AbstractMeasureData
     parameter_refs::P
-    coeff_function::Function # supports --> coefficient vector
+    coeff_function::Function # supports (excluding generative)--> coefficient vector (includes generative)
     min_num_supports::Int # minimum number of supports
     label::DataType # support label of included supports
+    generative_supp_info::I
     weight_function::Function # single support --> weight value
     lower_bounds::B
     upper_bounds::B
@@ -1006,13 +1020,15 @@ struct FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
     # scalar constructor
     function FunctionalDiscreteMeasureData(param_ref::V, coeff_func::Function,
                                            num_supps::Int, label::DataType,
+                                           gen_info::I,
                                            weight_func::Function,
                                            lower_bound::Real,
                                            upper_bound::Real,
                                            expect::Bool
-                                           ) where {V <: JuMP.AbstractVariableRef}
-        return new{V, Float64}(param_ref, coeff_func, num_supps, label, weight_func,
-                               lower_bound, upper_bound, expect)
+                                           ) where {V <: JuMP.AbstractVariableRef,
+                                                    I <: AbstractGenerativeInfo}
+        return new{V, Float64, I}(param_ref, coeff_func, num_supps, label, gen_info,
+                                  weight_func, lower_bound, upper_bound, expect)
     end
     # multi constructor
     function FunctionalDiscreteMeasureData(param_refs::Vector{V},
@@ -1023,10 +1039,27 @@ struct FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
                                            upper_bound::Vector{<:Real},
                                            expect::Bool
                                            ) where {V <: JuMP.AbstractVariableRef}
-        return new{Vector{V}, Vector{Float64}}(param_refs, coeff_func, num_supps,
-                                               label, weight_func, lower_bound,
+        return new{Vector{V}, Vector{Float64}, NoGenerativeSupports}(param_refs, 
+                                               coeff_func, num_supps,
+                                               label, NoGenerativeSupports(), 
+                                               weight_func, lower_bound,
                                                upper_bound, expect)
     end
+end
+
+# Convenient Dispatch constructor 
+function FunctionalDiscreteMeasureData(param_refs::Vector{V},
+                                           coeff_func::Function,
+                                           num_supps::Int, label::DataType,
+                                           info::NoGenerativeSupports,
+                                           weight_func::Function,
+                                           lower_bound::Vector{<:Real},
+                                           upper_bound::Vector{<:Real},
+                                           expect::Bool
+                                           ) where {V <: JuMP.AbstractVariableRef}
+    return FunctionalDiscreteMeasureData(param_refs, coeff_func, num_supps,
+                                         label, weight_func, lower_bound,
+                                         upper_bound, expect)
 end
 
 """

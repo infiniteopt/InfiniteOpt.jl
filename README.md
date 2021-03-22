@@ -79,7 +79,7 @@ If you use InfiniteOpt.jl in your research, we would greatly appreciate your cit
 ```latex
 @misc{pulsipher20,
   author       = {J. Pulsipher and W. Zhang and V. Zavala},
-  title        = {InfiniteOpt.jl -- A Julia package for modeling infinite-dimensional optimizataion problems},
+  title        = {InfiniteOpt.jl -- A Julia package for modeling infinite-dimensional optimization problems},
   year         = 2020,
   doi          = {10.5281/zenodo.4291106},
   url          = {https://doi.org/10.5281/zenodo.4291106}

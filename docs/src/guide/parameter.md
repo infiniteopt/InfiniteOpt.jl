@@ -138,7 +138,7 @@ julia> set = IntervalSet(0, 10)
 [0, 10]
 
 julia> t_param = build_parameter(error, set, supports = [0, 2, 5, 7, 10])
-IndependentParameter{IntervalSet,FiniteDifference}([0, 10], DataStructures.SortedDict(0.0=>Set([UserDefined]),2.0=>Set([UserDefined]),5.0=>Set([UserDefined]),7.0=>Set([UserDefined]),10.0=>Set([UserDefined])), 12, FiniteDifference(Backward, true))
+IndependentParameter{IntervalSet,FiniteDifference{Backward},NoGenerativeSupports}([0, 10], DataStructures.SortedDict(0.0=>Set([UserDefined]),2.0=>Set([UserDefined]),5.0=>Set([UserDefined]),7.0=>Set([UserDefined]),10.0=>Set([UserDefined])), 12, FiniteDifference{Backward}(Backward(), true), NoGenerativeSupports())
 ```  
 Now that we have a `InfOptParameter` that contains an `IntervalSet` and supports,
 let's now add `t_param` to our `InfiniteModel` using [`add_parameter`](@ref)
@@ -166,7 +166,7 @@ julia> set = UniDistributionSet(dist)
 Normal{Float64}(μ=0.0, σ=1.0)
 
 julia> x_param = build_parameter(error, set, supports = [-0.5, 0.5])
-IndependentParameter{UniDistributionSet{Normal{Float64}},FiniteDifference}(Normal{Float64}(μ=0.0, σ=1.0), DataStructures.SortedDict(-0.5=>Set([UserDefined]),0.5=>Set([UserDefined])), 12, FiniteDifference(Backward, true))
+IndependentParameter{UniDistributionSet{Normal{Float64}},FiniteDifference{Backward},NoGenerativeSupports}(Normal{Float64}(μ=0.0, σ=1.0), DataStructures.SortedDict(-0.5=>Set([UserDefined]),0.5=>Set([UserDefined])), 12, FiniteDifference{Backward}(Backward(), true), NoGenerativeSupports())
 ```
 Again, we use [`add_parameter`](@ref) to add `x_param` to the `InfiniteModel` and
 assign it the name `x`:
@@ -313,7 +313,7 @@ JuMP.Containers.SparseAxisArray{GeneralVariableRef,1,Tuple{Int64}} with 3 entrie
 ```
 
 More information on `JuMP` containers is located 
-[here](https://jump.dev/JuMP.jl/stable/variables/#Variable-containers-1).
+[here](https://jump.dev/JuMP.jl/stable/containers/).
 
 #### Specifying independence of infinite parameters
 The concrete data object that stores information of infinite parameters are
@@ -536,8 +536,7 @@ defining a time parameter ``t \in [0, 10]`` with 4 supports using
 julia> set = IntervalSet(0, 10)
 [0, 10]
 
-julia> t_param = build_parameter(error, set, num_supports = 4, sig_digits = 3)
-IndependentParameter{IntervalSet,FiniteDifference}([0, 10], DataStructures.SortedDict(0.0=>Set([UniformGrid]),3.33=>Set([UniformGrid]),6.67=>Set([UniformGrid]),10.0=>Set([UniformGrid])), 3, FiniteDifference(Backward, true))
+julia> t_param = build_parameter(error, set, num_supports = 4, sig_digits = 3);
 ```  
 Using macro definition we have
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
@@ -807,6 +806,48 @@ so. If users want to set lower bound and upper bound for a random infinite
 parameter, consider using `Distributions.Truncated`, which creates a truncated
 distribution from a univariate distribution.
 
+## Generative Supports 
+Generative supports denote supports that are generated based on existing supports 
+(treated as finite elements). These are important for enabling certain measure 
+and derivative evaluation schemes. Examples of such supports include internal 
+collocation nodes and quadrature supports generated for quadrature methods that 
+decompose the infinite domain such that existing supports are incorporated. Users 
+shouldn't modify these directly, but extension writers will need to utilize the 
+generative support API when developing measures and/or derivative evaluation 
+methods that need to generate supports based on existing ones (e.g., adding 
+a new orthogonal collocation method). More information about extension writing 
+for either case is given on the [Extensions](@ref) page. For enhanced context, we 
+outline the general API below.
+
+Information about producing generative supports are stored via concrete subtypes 
+of [`AbstractGenerativeInfo`](@ref). Each `IndependentParameter` stores one of 
+these objects (the default being [`NoGenerativeSupports`](@ref)). Hence, a 
+particular independent parameter can only be associated with 1 generative support 
+scheme. We currently provide 1 concrete generative subtype of 
+`AbstractGenerativeInfo` which is [`UniformGenerativeInfo`](@ref). 
+`UniformGenerativeInfo` stores the necessary information to make generative 
+supports that are uniformly applied to each finite element formed by the existing 
+supports. For example, let's say we want to use a generative support scheme that 
+adds 1 generative support exactly in the middle of each finite element with a 
+unique support label to we'll call `MyGenLabel`:
+```jldoctest; setup = :(using InfiniteOpt)
+julia> struct MyGenLabel <: InfiniteOpt.InternalLabel end;
+
+julia> UniformGenerativeInfo([0.5], MyGenLabel)
+UniformGenerativeInfo([0.5], MyGenLabel)
+```
+Users can make other generative support schemes as described on the [Extensions](@ref) 
+page. 
+
+These `AbstractGenerativeInfo` objects are added to parameters as needed via the 
+addition of measures and/or derivative methods that require generative supports. 
+We can always check what generative information is currently associated with a 
+particular parameter via [`generative_support_info`](@ref generative_support_info(::IndependentParameterRef)). 
+The generation of these supports is handled automatically at the appropriate 
+times via [`add_generative_supports`](@ref). We can always check if generative 
+supports have been created for a particular parameter with 
+[`has_generative_supports`](@ref).
+
 ## Datatypes
 ```@index
 Pages   = ["parameter.md"]
@@ -825,6 +866,9 @@ DependentParametersIndex
 DependentParameterIndex
 IndependentParameterRef
 DependentParameterRef
+AbstractGenerativeInfo
+NoGenerativeSupports
+UniformGenerativeInfo
 ```
 
 ## Methods/Macros
@@ -904,5 +948,9 @@ all_parameters
 JuMP.delete(::InfiniteModel, ::IndependentParameterRef)
 JuMP.delete(::InfiniteModel,::AbstractArray{<:DependentParameterRef})
 has_internal_supports(::Union{IndependentParameterRef, DependentParameterRef})
-has_derivative_supports(::IndependentParameterRef)
+has_generative_supports(::IndependentParameterRef)
+support_label(::AbstractGenerativeInfo)
+generative_support_info(::IndependentParameterRef)
+make_generative_supports
+add_generative_supports
 ```

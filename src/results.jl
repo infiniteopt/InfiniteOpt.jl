@@ -346,7 +346,7 @@ end
 
 """
     JuMP.reduced_cost(vref::GeneralVariableRef)
-Extending [`JuMP.reduced_cost`](@JuMP.reduced_cost(vref::GeneralVariableRef)). This returns
+Extending [`JuMP.reduced_cost`](@ref JuMP.reduced_cost(::JuMP.VariableRef)). This returns
 the reduced cost of some infinite variable. Returns a scalar value.
 
 **Example**

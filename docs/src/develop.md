@@ -1,5 +1,5 @@
 # Developers Guide
-`InfiniteOpt` is large project with a lot of opportunity for development. As
+`InfiniteOpt` is a large project with a lot of opportunity for development. As
 such we warmly welcome and encourage contributions. This page serves as the guide
 of how contributions can be made and how we prefer that they be carried out.
 
@@ -19,20 +19,20 @@ through step by step how this should be done.
      correcting/clarifying a documentation page or as involved as implementing a
      more efficient data management paradigm. With a task in mind, please start a new
      issue [here](https://github.com/pulsipher/InfiniteOpt.jl/issues) in the
-     `InfiniteOpt` repository. Also, this a good place find tasks to contribute to by
+     `InfiniteOpt` repository. Also, this is a good place to find tasks to contribute to by
      browsing what open issues are (especially ones with the tag `good first issue`).
      Note that if your proposed contribution corresponds to an existing issue please
      do not make a new issue. A guide to using issues in GitHub is located
      [here](https://guides.github.com/features/issues/).
-  3. Fork the `InfiniteOpt` repository to your GitHuB account. Only core
-     developers have permissions to modify `InfiniteOpt` directly, thus other need
+  3. Fork the `InfiniteOpt` repository to your GitHub account. Only core
+     developers have permissions to modify `InfiniteOpt` directly, thus others need
      to fork it which essentially amounts to creating their own linked copy. This is
      done by clicking the `Fork` button at the top left corner on the main repository
      page [here](https://github.com/pulsipher/InfiniteOpt.jl).
   4. Install Git on your computer. Git is an open source version control program
-     for repositories (it is why GitHub uses the word Git). This needed to manipulate
-     the repository (all the package files) locally on your computer. A simple google
-     search should indicate how his should be done for your computer. I personally
+     for repositories (it is why GitHub uses the word Git). This is needed to manipulate
+     the repository (all the package files) locally on your computer. A simple Google
+     search should indicate how this should be done for your computer. I personally
      prefer [Git for Windows](https://gitforwindows.org/) as a Windows user.
   5. Now you need to install your forked version of `InfiniteOpt` in Julia on your
      computer. This needs to be done via the `dev` command in the package manager
@@ -65,7 +65,7 @@ through step by step how this should be done.
   8. Create a pull request. Go [here](https://github.com/pulsipher/InfiniteOpt.jl)
      to `InfiniteOpt`'s main page and create a pull request drawing from your forked
      repository. A step by step explanation is provided
-     [here](https://docs.github.com/en/free-pro-team@latest/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork).
+     [here](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork).
   9. Make necessary changes if the tests fail and/or we ask you to make specific
      changes. The Codecov tests will ensure every new line of code is tested at least
      once with the new test functions and Travis CI will ensure that the tests pass

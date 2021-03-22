@@ -98,10 +98,12 @@ end
     end
     # test scalar FunctionalDiscreteMeasureData constructor
     @testset "FunctionalDiscreteMeasureData (scalar)" begin
-        @test isa(FunctionalDiscreteMeasureData(par, coeff_func, 10, UniqueMeasure{Val{:a}}), FunctionalDiscreteMeasureData)
-        @test_throws ErrorException FunctionalDiscreteMeasureData(pars[1], coeff_func, 10, UniqueMeasure{Val{:a}})
-        @test_throws ErrorException FunctionalDiscreteMeasureData(par, coeff_func, -1, UniqueMeasure{Val{:a}})
+        @test isa(FunctionalDiscreteMeasureData(par, coeff_func, 10, UniqueMeasure{:a}), FunctionalDiscreteMeasureData)
+        @test_throws ErrorException FunctionalDiscreteMeasureData(pars[1], coeff_func, 10, UniqueMeasure{:a})
+        @test_throws ErrorException FunctionalDiscreteMeasureData(par, coeff_func, -1, UniqueMeasure{:a})
         @test_throws ErrorException FunctionalDiscreteMeasureData(par, coeff_func, 10, MCSample, lower_bound = -1, upper_bound = 2)
+        @test isa(FunctionalDiscreteMeasureData(par, coeff_func, 10, UniqueMeasure{:a}, 
+                                                generative_support_info = TestGenInfo()), FunctionalDiscreteMeasureData)
     end
     # test _check_multidim_params
     @testset "_check_params" begin
@@ -215,10 +217,21 @@ end
     f(x) = [1]
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+    dpar = dispatch_variable_ref(par)
+    info = UniformGenerativeInfo([0.5], InternalGaussLobatto)
+    InfiniteOpt._set_generative_support_info(dpar, info)
     data = DiscreteMeasureData(par, [1], [1])
     data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
-    data3 = FunctionalDiscreteMeasureData(par, f, 10, MCSample)
+    data3 = FunctionalDiscreteMeasureData(par, f, 10, MCSample, 
+                                          generative_support_info = info)
     data4 = FunctionalDiscreteMeasureData(pars, f, 10, MCSample)
+    data5 = FunctionalDiscreteMeasureData(par, f, 10, All, lower_bound = 0, 
+                                          upper_bound = 1)
+    data6 = FunctionalDiscreteMeasureData(pars, f, 10, MCSample, lower_bounds = [0, 0], 
+                                          upper_bounds = [1, 1])
+    data7 = FunctionalDiscreteMeasureData(par, f, 10, All, lower_bound = 0, 
+                                          upper_bound = 0.8)
+    data8 = FunctionalDiscreteMeasureData(par, f, 10, All)
     # parameter_refs (DiscreteMeasureData)
     @testset "parameter_refs (Single)" begin
         @test parameter_refs(data) == par
@@ -246,18 +259,63 @@ end
         @test isnan(JuMP.upper_bound(data))
         @test isnan(JuMP.upper_bound(BadData()))
     end
+    # generative_support_info
+    @testset "generative_support_info" begin
+        @test generative_support_info(data) == NoGenerativeSupports()
+        @test generative_support_info(data3) == info
+    end
     # _is_expect
     @testset "_is_expect" begin
         @test !InfiniteOpt._is_expect(data)
         @test !InfiniteOpt._is_expect(BadData())
     end
-    # supports (DiscreteMeasureData)
+    # supports (1D DiscreteMeasureData)
     @testset "supports (Single)" begin
         @test supports(data) == Float64[1]
     end
-    # supports (MultiDiscreteMeasureData)
+    # supports (DiscreteMeasureData)
     @testset "supports (Multi)" begin
         @test supports(data2) == ones(Float64, 2, 1)
+    end
+    # test _get_supports 
+    @testset "_get_supports" begin 
+        # setup the supports 
+        add_supports(dpar, 0, label = MCSample)
+        add_supports(dpar, 1, label = InternalLabel)
+        add_generative_supports(dpar)
+        @test supports(dpar, label = All) == [0, 0.5, 1]
+        # test include generative and uses All
+        @test InfiniteOpt._get_supports(dpar, Val(true), info, All) == [0, 0.5, 1]
+        # test include generative and doesn't use All
+        @test InfiniteOpt._get_supports(dpar, Val(true), info, MCSample) == [0, 0.5]
+        # test exclude generative and uses All 
+        @test InfiniteOpt._get_supports(dpar, Val(false), info, All) == [0, 1]
+        # test exclude generative and doesn't use All 
+        @test InfiniteOpt._get_supports(dpar, Val(false), info, MCSample) == [0]
+        # delete the supports 
+        delete_supports(dpar, label = All)
+        @test !has_generative_supports(dpar)
+    end
+    # supports (1D FunctionalDiscreteMeasureData)
+    @testset "supports (Single Functional)" begin
+        # add supports 
+        add_supports(dpar, [0, 1], label = MCSample)
+        add_generative_supports(dpar)
+        # test with non generative
+        @test supports(data5) == [0, 0.5, 1]
+        @test supports(data7) == [0, 0.5]
+        @test supports(data8) == [0, 0.5, 1]
+        # test generative
+        @test supports(data3, include_generative = false) == [0, 1]
+        @test supports(data3) == [0, 0.5, 1]
+        # remove the supports 
+        delete_supports(dpar, label = All)
+        @test !has_generative_supports(dpar)
+    end
+    # supports (FunctionalDiscreteMeasureData)
+    @testset "supports (Multi Functional)" begin
+        @test supports(data4) == zeros(2, 0)
+        @test supports(data6) == zeros(2, 0)
     end
     # supports (Fallback)
     @testset "supports (Fallback)" begin
@@ -431,14 +489,35 @@ end
     @infinite_parameter(m, 0 <= pars2[1:2] <= 1)
     @infinite_variable(m, inf(par))
     @hold_variable(m, x)
+    dpar = dispatch_variable_ref(par)
+    dpars = dispatch_variable_ref.(pars)
+    info = UniformGenerativeInfo([0.5], InternalLabel)
     data1 = DiscreteMeasureData(par, [1], [1])
     data2 = DiscreteMeasureData(pars, [1], [[1, 1]])
     data3 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample)
     data4 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, MCSample)
     data5 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample, lower_bound = 0.3, upper_bound = 0.7)
-    data6 = FunctionalDiscreteMeasureData(pars[1], coeff_func, 10, MCSample, 
+    data6 = FunctionalDiscreteMeasureData(pars[1], coeff_func, 10, MCSample, NoGenerativeSupports(),
                                           default_weight, NaN, NaN, false)
 #    meas = Measure(par + 2inf - x, data, [1], [1], false)
+    # test _check_and_set_generative_info 
+    @testset "_check_and_set_generative_info" begin 
+        # test DependentParameterRef and NoGenerativeSupports
+        @test InfiniteOpt._check_and_set_generative_info(dpars[1], NoGenerativeSupports()) isa Nothing
+        # test DependentParameterRef and not NoGenerativeSupports
+        @test_throws ErrorException InfiniteOpt._check_and_set_generative_info(dpars[1], TestGenInfo())
+        # test IndependentParameterRef and NoGenerativeSupports
+        @test InfiniteOpt._check_and_set_generative_info(dpar, NoGenerativeSupports()) isa Nothing
+        # test IndependentParameterRef w/ NoGenerativeSupports
+        @test InfiniteOpt._check_and_set_generative_info(dpar, NoGenerativeSupports(), TestGenInfo()) isa Nothing
+        # test IndependentParameterRef w/ info already
+        @test_throws ErrorException InfiniteOpt._check_and_set_generative_info(dpar, TestGenInfo(), info)
+        @test InfiniteOpt._check_and_set_generative_info(dpar, info, info) isa Nothing
+        # test IndependentParameterRef and not NoGenerativeSupports
+        @test InfiniteOpt._check_and_set_generative_info(dpar, TestGenInfo()) isa Nothing
+        # undo changes 
+        @test InfiniteOpt._set_generative_support_info(dpar, NoGenerativeSupports()) isa Nothing
+    end
     # test _add_supports_to_multiple_parameters (independent)
     @testset "_add_supports_to_multiple_parameters (independent)" begin
         prefs = dispatch_variable_ref.([par, par])
@@ -508,6 +587,13 @@ end
     # test add_supports_to_parameters (fallbacks)
     @testset "add_supports_to_parameters (fallbacks)" begin
         @test_throws ErrorException add_supports_to_parameters(BadData())
+    end
+    # test _update_generative_measures
+    @testset "_update_generative_measures" begin
+        @test InfiniteOpt._update_generative_measures(dpars, NoGenerativeSupports(), MeasureIndex(1)) isa Nothing 
+        @test InfiniteOpt._update_generative_measures(dpar, info, MeasureIndex(1)) isa Nothing 
+        @test InfiniteOpt._generative_measures(dpar) == [MeasureIndex(1)]
+        empty!(InfiniteOpt._generative_measures(dpar))
     end
     # test add_measure
     @testset "add_measure" begin
@@ -780,10 +866,12 @@ end
     constr2 = @constraint(m, 2 * mref1 <= 10)
     obj = @objective(m, Min, mref1)
 
+
     m2 = InfiniteModel()
     @infinite_parameter(m2, 0 <= x <= 1)
     @hold_variable(m2, z >= 0)
-    data = DiscreteMeasureData(x, [1], [1])
+    data = FunctionalDiscreteMeasureData(x, ones, 0, All, 
+               generative_support_info = UniformGenerativeInfo([0.5], All))
     mref4 = @measure(3*x, data)
     obj2 = @objective(m2, Min, z + mref4)
 

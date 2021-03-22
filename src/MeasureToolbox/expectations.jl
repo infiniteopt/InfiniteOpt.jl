@@ -88,6 +88,7 @@ function expect(expr::JuMP.AbstractJuMPScalar,
     # make the data
     data = InfiniteOpt.FunctionalDiscreteMeasureData(ordered_prefs, _expect_coeffs,
                                                      min_num_supports, label,
+                                                     InfiniteOpt.NoGenerativeSupports(),
                                                      InfiniteOpt.default_weight,
                                                      bounds, bounds, is_expect)
     # make the measure

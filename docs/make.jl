@@ -34,10 +34,12 @@ makedocs(;
         # See https://github.com/JuliaDocs/Documenter.jl/issues/868
         prettyurls = get(ENV, "CI", nothing) == "true",
         analytics = "UA-178297470-1",
+        collapselevel = 1,
     )
 )
 
 deploydocs(;
     repo = "github.com/pulsipher/InfiniteOpt.jl",
+    push_preview = true
 )
 

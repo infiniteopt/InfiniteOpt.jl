@@ -5,7 +5,7 @@ import JuMP
 import MathOptInterface
 import Distributions
 import DataStructures
-import Polynomials
+import FastGaussQuadrature
 
 # Make useful aliases
 const MOI = MathOptInterface
@@ -39,7 +39,7 @@ GaussLobatto, GaussJacobi, GaussLaguerre, GaussChebyshev, FEGaussLobatto,
 MultiMCSampling, MultiIndepMCSampling, uni_integral_defaults,
 set_uni_integral_defaults, integral, multi_integral_defaults,
 set_multi_integral_defaults, expect, support_sum, @integral, @expect, @support_sum,
-generate_integral_data, 𝔼, ∫, @𝔼, @∫
+generate_integral_data, 𝔼, ∫, @𝔼, @∫, InternalGaussLobatto
 
 # Import more methods
 include("derivatives.jl")
@@ -82,7 +82,7 @@ FiniteVariableIndex, DerivativeIndex, ParameterFunctionIndex
 export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
 UniDistributionSet, MultiDistributionSet, CollectionSet, AbstractSupportLabel, 
 PublicLabel, InternalLabel, SampleLabel, UserDefined, MCSample, UniformGrid, 
-Mixture, All, WeightedSample, UniqueMeasure, OrthogonalCollocationNode
+Mixture, All, WeightedSample, UniqueMeasure
 
 # Export infinite set methods
 export collection_sets, supports_in_set, generate_support_values
@@ -91,10 +91,8 @@ export collection_sets, supports_in_set, generate_support_values
 export InfOptParameter, ScalarParameter, IndependentParameter, FiniteParameter,
 DependentParameters, ScalarParameterData, MultiParameterData,
 IndependentParameterRef, DependentParameterRef, FiniteParameterRef,
-ScalarParameterRef, InfiniteParameter, AbstractDerivativeMethod, 
-GenerativeDerivativeMethod, NonGenerativeDerivativeMethod, OrthogonalCollocation,
-FiniteDifference, OCTechnique, Lobatto, FDTechnique, Forward, Central, 
-Backward
+ScalarParameterRef, InfiniteParameter, AbstractGenerativeInfo, 
+NoGenerativeSupports, UniformGenerativeInfo
 
 # Export parameter methods
 export build_parameter, add_parameter, add_parameters,
@@ -104,7 +102,8 @@ set_supports, add_supports, delete_supports, supports, used_by_constraint,
 used_by_measure, used_by_infinite_variable, is_used, generate_and_add_supports!,
 significant_digits, parameter_value, used_by_derivative, derivative_method, 
 set_derivative_method, set_all_derivative_methods, has_internal_supports, 
-has_derivative_supports, has_derivative_constraints, used_by_parameter_function
+has_generative_supports, has_derivative_constraints, used_by_parameter_function,
+generative_support_info, make_generative_supports, add_generative_supports
 
 # Export the paramter function datatypes and methods 
 export InfiniteParameterFunction, ParameterFunctionData, ParameterFunctionRef,
@@ -127,7 +126,9 @@ intervals, dispatch_variable_ref, internal_reduced_variable, start_value_functio
 set_start_value_function, reset_start_value_function
 
 # Export derivative datatypes 
-export Derivative, DerivativeRef
+export Derivative, DerivativeRef, AbstractDerivativeMethod, 
+GenerativeDerivativeMethod, NonGenerativeDerivativeMethod, OrthogonalCollocation,
+FiniteDifference, FDTechnique, Forward, Central, Backward
 
 # Export derivative methods 
 export build_derivative, add_derivative, derivative_argument, operator_parameter,
@@ -151,7 +152,7 @@ export Automatic, UniTrapezoid, UniMCSampling, UniIndepMCSampling, Quadrature,
 GaussRadau, GaussHermite, GaussLegendre, GaussRadau, GaussLobatto, FEGaussLobatto, GaussJacobi, GaussChebyshev, GaussLaguerre, MultiMCSampling,
 MultiIndepMCSampling, uni_integral_defaults, set_uni_integral_defaults,
 integral, multi_integral_defaults, set_multi_integral_defaults, expect,
-support_sum, generate_integral_data, 𝔼, ∫
+support_sum, generate_integral_data, 𝔼, ∫, InternalGaussLobatto
 
 # Export objective methods
 export objective_has_measures
