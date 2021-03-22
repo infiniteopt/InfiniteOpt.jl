@@ -279,13 +279,14 @@ when evaluating an integral. All other methods will choose their own supports ba
 provided. This method will take in the user supports, and create generative supports along each interval 
 and match them with corresponding coefficients. An example of what this looks like can be seen below. 
 
-![Image](C:\Users\david\.julia\dev\InfiniteOpt\docs\src\assets\FEGaussLobatto.png)
+![Image](docs\src\assets\Test.png)
 
 ```jldoctest FEGaussLobatto
 julia> mref2 = integral(y^2 + u^2, t, num_nodes = 3, eval_method = FEGaussLobatto())
 ∫{t ∈ [0, 10]}[y(t)² + u(t)²]
 ```
-We pass the 3 to say we want three generative supports inbetween each of our user defined supports. 
+
+We pass set `num_nodes` to be equal to three, to give three generative supports inbetween each of the user defined supports. 
 
 
 

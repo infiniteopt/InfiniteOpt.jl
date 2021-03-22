@@ -79,7 +79,6 @@ This is not compatible with individual dependent parameters. Contains no fields.
 struct Quadrature <: AbstractUnivariateMethod end
 
 """
-<<<<<<< HEAD
 Integral evaluation method that allows for the user to specify supports to be included in
 quadrature evaluation. This method uses Gauss Lobatto quadrature to decompose the overall Integral
 into smaller integrals that span the user defined supports as follows:
@@ -90,23 +89,11 @@ where the integrals are evaluated using Gauss Lobatto quadrature:
 
 ``\\int f(x) dx \\approx \\sum_{i=1}^{n} \\alpha_i f(x_i)``
 
-=======
-    GaussHermite <: AbstractUnivariateMethod
-
-An integral evaulation method that uses Gauss-Hermite quadrature to
-evaluate integrals. This is valid for infinite integral domains. Note this will
-generate its own set of supports and will ignore other parameter supports.
-This is not compatible with individual dependent parameters. Contains no fields.
->>>>>>> f36e98edf94dd41f108f13ce112e07afc3151f70
 """
 struct FEGaussLobatto <: AbstractUnivariateMethod end
 
 """
-<<<<<<< HEAD
     GaussLegendre <: FiniteGaussQuad
-=======
-    GaussLegendre <: AbstractUnivariateMethod
->>>>>>> f36e98edf94dd41f108f13ce112e07afc3151f70
 
 An integral evaulation method that uses Gauss-Legendre quadrature to
 evaluate integrals. This is valid for finite integral domains. Note this will

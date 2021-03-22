@@ -26,6 +26,12 @@
     @testset "generate_integral_data (Gauss-Lobatoo)" begin
         @test generate_integral_data(t, 0, 1, GaussLobatto()) isa DiscreteMeasureData
     end
+
+    # test generate_integral_data (FEGaussLobatto)
+    @testset "generate_integral_data (FEGaussLobatto)" begin
+        @test generate_integral_data(t, 0, 1, FEGaussLobatto()) isa FunctionalDiscreteMeasureData
+    end
+
     # test generate_integral_data (Gauss-Radau)
     @testset "generate_integral_data (Gauss-Radau)" begin
         @test generate_integral_data(t, 0, 1, GaussRadau()) isa DiscreteMeasureData
