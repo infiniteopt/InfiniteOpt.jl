@@ -31,7 +31,11 @@
     end
     # test generate_integral_data (Gauss-Jacobi)
     @testset "generate_integral_data (Gauss-Jacobi)" begin
-        @test generate_integral_data(t, 0, 1, GaussJacobi(5, 4)) isa DiscreteMeasureData
+        @test generate_integral_data(t, 0, 1, GaussJacobi(5.0, 4.0)) isa DiscreteMeasureData
+    end
+     # test generate_integral_data (Gauss-Chebyshev)
+    @testset "generate_integral_data (Gauss-Chebyshev)" begin
+        @test generate_integral_data(t, 0, 1, GaussChebyshev(3)) isa DiscreteMeasureData
     end
     # test generate_integral_data (Gauss-Laguerre)
     @testset "generate_integral_data (Gauss-Laguerre)" begin
@@ -50,22 +54,26 @@
     end
     # test handling of inappropriate quadrature method use
     @testset "generate_integral_data (improper quadrature method usage)" begin
-        warn = "Gauss Legendre quadrature can only be applied on finite intervals, " *
+        warn = "The `GaussLegendre` method can only be applied on finite intervals, " *
                "switching to an appropriate method."
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, GaussLegendre())) isa DiscreteMeasureData
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, Inf, GaussLegendre())) isa DiscreteMeasureData
-        warn = "Gauss Lobatto quadrature can only be applied on finite intervals, " *
+        warn = "The `GaussLobatto` method can only be applied on finite intervals, " *
                "switching to an appropriate method."
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, GaussLobatto())) isa DiscreteMeasureData
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, Inf, GaussLobatto())) isa DiscreteMeasureData
-        warn = "Gauss Radau quadrature can only be applied on finite intervals, " *
+        warn = "The `GaussRadau` method can only be applied on finite intervals, " *
                "switching to an appropriate method."
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, GaussRadau())) isa DiscreteMeasureData
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, Inf, GaussRadau())) isa DiscreteMeasureData
-        warn = "Gauss Jacobi quadrature can only be applied on finite intervals, " *
+        warn = "The `GaussJacobi` method can only be applied on finite intervals, " *
                "switching to an appropriate method."
-        @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, GaussJacobi(5, 4))) isa DiscreteMeasureData
-        @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, Inf, GaussJacobi(5, 4))) isa DiscreteMeasureData
+        @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, GaussJacobi(5.0, 4.0))) isa DiscreteMeasureData
+        @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, Inf, GaussJacobi(5.0, 4.0))) isa DiscreteMeasureData
+        warn = "The `GaussChebyshev` method can only be applied on finite intervals, " *
+               "switching to an appropriate method."
+        @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, GaussChebyshev(3))) isa DiscreteMeasureData
+        @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, Inf, GaussChebyshev(3))) isa DiscreteMeasureData
         warn = "Gauss Laguerre quadrature can only be applied on semi-infinite intervals, " *
                "switching to an appropriate method."
         @test (@test_logs (:warn, warn) generate_integral_data(t, 0, 1, GaussLaguerre())) isa DiscreteMeasureData

@@ -35,7 +35,7 @@ include("measures.jl")
 include("MeasureToolbox/MeasureToolbox.jl")
 using .MeasureToolbox: Automatic, UniTrapezoid, UniMCSampling,
 UniIndepMCSampling, Quadrature, GaussHermite, GaussLegendre, GaussRadau, 
-GaussLobatto, GaussJacobi, GaussLaguerre,
+GaussLobatto, GaussJacobi, GaussLaguerre, GaussChebyshev, FEGaussLobatto,
 MultiMCSampling, MultiIndepMCSampling, uni_integral_defaults,
 set_uni_integral_defaults, integral, multi_integral_defaults,
 set_multi_integral_defaults, expect, support_sum, @integral, @expect, @support_sum,
@@ -148,7 +148,7 @@ delete_reduced_variable, expand, expand_all_measures!, expand_measure
 
 # Export the measure toolbox functions and datatypes
 export Automatic, UniTrapezoid, UniMCSampling, UniIndepMCSampling, Quadrature,
-GaussRadau, GaussHermite, GaussLegendre, GaussRadau, GaussLobatto, GaussJacobi, GaussLaguerre, MultiMCSampling,
+GaussRadau, GaussHermite, GaussLegendre, GaussRadau, GaussLobatto, FEGaussLobatto, GaussJacobi, GaussChebyshev, GaussLaguerre, MultiMCSampling,
 MultiIndepMCSampling, uni_integral_defaults, set_uni_integral_defaults,
 integral, multi_integral_defaults, set_multi_integral_defaults, expect,
 support_sum, generate_integral_data, 𝔼, ∫
