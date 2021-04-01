@@ -31,19 +31,19 @@
         @test InfiniteOpt.add_measure_variable(tm, var, key) == vref
         @test transcription_variable(vref) == c
     end
-    # test add_measure_variable for reduced variables
-    @testset "add_measure_variable (Reduced)" begin
-        var = ReducedVariable(y, Dict{Int, Float64}(1 => 0), [2, 3], [2])
-        vref = GeneralVariableRef(m, -1, ReducedVariableIndex)
+    # test add_measure_variable for semi_infinite variables
+    @testset "add_measure_variable (SemiInfinite)" begin
+        var = SemiInfiniteVariable(y, Dict{Int, Float64}(1 => 0), [2, 3], [2])
+        vref = GeneralVariableRef(m, -1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.add_measure_variable(tm, var, key) == vref
-        @test data.reduced_vars == [var]
+        @test data.semi_infinite_vars == [var]
         @test a in transcription_variable(vref)
         @test b in transcription_variable(vref)
         @test sort!(supports(vref)) == [([0., 0.], ), ([1., 1.], )]
     end
-    # test delete_reduced_variable extension
-    @testset "delete_reduced_variable" begin
-        vref = ReducedVariableRef(m, ReducedVariableIndex(-1))
-        @test InfiniteOpt.delete_reduced_variable(tm, vref, key) isa Nothing
+    # test delete_semi_infinite_variable extension
+    @testset "delete_semi_infinite_variable" begin
+        vref = SemiInfiniteVariableRef(m, SemiInfiniteVariableIndex(-1))
+        @test InfiniteOpt.delete_semi_infinite_variable(tm, vref, key) isa Nothing
     end
 end

@@ -478,9 +478,9 @@ because they are not defined in the model before the expand call. One can use
 the [`expand_all_measures!`](@ref) function to expand all measures in a model,
 which simply applies the [`expand`](@ref) to all measures stored in the model.
 
-## Reduced Infinite Variables
+## Semi-Infinite Variables
 Expanding measures that cover a subset of infinite parameter dependencies present 
-in an expression will introduce reduced infinite variables to the
+in an expression will introduce semi-infinite variables to the
 model. To see what this means, suppose we have an infinite variable that is
 parameterized by multiple infinite parameters defined as follows:
 ```jldoctest meas_basic
@@ -499,18 +499,18 @@ supports for `t`, but no supports for `x` because `T` is not evaluated over
 measure expansion.
 
 Instead of point variables, each new variable in the measure expansion will be
-represented using reduced infinite variables. Reduced infinite variables are
-"reduced" from their original infinite variables in that they are parameterized
+represented using semi-infinite variables. Semi-infinite variables are
+reduced from their original infinite variables in that they are parameterized
 by less infinite parameters. In the example above, in the expansion each
-reduced infinite variable for `T` should only be parameterized by `x` since
+semi-infinite variable for `T` should only be parameterized by `x` since
 the value of `t` is fixed. The expanded measure now looks like this:
 ```jldoctest meas_basic
 julia> expanded_measure = expand(mref5)
 5 T([x[1], x[2]], 2.5) + 5 T([x[1], x[2]], 7.5)
 ```
 where the expanded measure is a `JuMP.GenericAffExpr` that takes in its terms [`GeneralVariableRef`](@ref)s
-pointing to [`ReducedVariable`](@ref)s created on the fly. [`ReducedVariable`](@ref)
-refers to the information of the reduced infinite variable stored in its model. The reduced variable
+pointing to [`SemiInfiniteVariable`](@ref)s created on the fly. [`SemiInfiniteVariable`](@ref)
+refers to the information of the semi-infinite variable stored in its model. The semi-infinite variable
 records a reference for its original infinite variable, and the value of the
 fixed infinite parameter. One can query this information using
 [`infinite_variable_ref`](@ref) and [`eval_supports`](@ref) function as follows:
@@ -526,7 +526,7 @@ Dict{Int64,Float64} with 1 entry:
   3 => 2.5
 ```
 All the `JuMP` functions extended for infinite variables are also extended for
-reduced infinite variables, e.g. [`JuMP.lower_bound`](@ref JuMP.lower_bound(::ReducedVariableRef)).
+semi-infinite variables, e.g. [`JuMP.lower_bound`](@ref JuMP.lower_bound(::SemiInfiniteVariableRef)).
 
 ## Datatypes
 ```@index
@@ -542,9 +542,9 @@ Measure
 MeasureIndex
 MeasureData
 MeasureRef
-ReducedVariable
-ReducedVariableIndex
-ReducedVariableRef
+SemiInfiniteVariable
+SemiInfiniteVariableIndex
+SemiInfiniteVariableRef
 ```
 
 ## Methods
@@ -595,33 +595,33 @@ InfiniteOpt.expand_measure
 InfiniteOpt.analytic_expansion
 InfiniteOpt.expand_measures
 make_point_variable_ref
-make_reduced_variable_ref
+make_semi_infinite_variable_ref
 add_measure_variable(::JuMP.Model, ::Any, ::Any)
-delete_internal_reduced_variable
-delete_reduced_variable(::JuMP.Model, ::Any, ::Any)
-internal_reduced_variable
+delete_internal_semi_infinite_variable
+delete_semi_infinite_variable(::JuMP.Model, ::Any, ::Any)
+internal_semi_infinite_variable
 JuMP.build_variable(::Function, ::GeneralVariableRef,::Dict{Int, Float64})
-JuMP.add_variable(::InfiniteModel, ::ReducedVariable,::String)
-infinite_variable_ref(::ReducedVariableRef)
-eval_supports(::ReducedVariableRef)
-parameter_refs(::ReducedVariableRef)
-parameter_list(::ReducedVariableRef)
-raw_parameter_refs(::ReducedVariableRef)
-JuMP.set_name(::ReducedVariableRef,::String)
-JuMP.has_lower_bound(::ReducedVariableRef)
-JuMP.lower_bound(::ReducedVariableRef)
-JuMP.LowerBoundRef(::ReducedVariableRef)
-JuMP.has_upper_bound(::ReducedVariableRef)
-JuMP.upper_bound(::ReducedVariableRef)
-JuMP.UpperBoundRef(::ReducedVariableRef)
-JuMP.is_fixed(::ReducedVariableRef)
-JuMP.fix_value(::ReducedVariableRef)
-JuMP.FixRef(::ReducedVariableRef)
-start_value_function(::ReducedVariableRef)
-JuMP.is_binary(::ReducedVariableRef)
-JuMP.BinaryRef(::ReducedVariableRef)
-JuMP.is_integer(::ReducedVariableRef)
-JuMP.IntegerRef(::ReducedVariableRef)
+JuMP.add_variable(::InfiniteModel, ::SemiInfiniteVariable,::String)
+infinite_variable_ref(::SemiInfiniteVariableRef)
+eval_supports(::SemiInfiniteVariableRef)
+parameter_refs(::SemiInfiniteVariableRef)
+parameter_list(::SemiInfiniteVariableRef)
+raw_parameter_refs(::SemiInfiniteVariableRef)
+JuMP.set_name(::SemiInfiniteVariableRef,::String)
+JuMP.has_lower_bound(::SemiInfiniteVariableRef)
+JuMP.lower_bound(::SemiInfiniteVariableRef)
+JuMP.LowerBoundRef(::SemiInfiniteVariableRef)
+JuMP.has_upper_bound(::SemiInfiniteVariableRef)
+JuMP.upper_bound(::SemiInfiniteVariableRef)
+JuMP.UpperBoundRef(::SemiInfiniteVariableRef)
+JuMP.is_fixed(::SemiInfiniteVariableRef)
+JuMP.fix_value(::SemiInfiniteVariableRef)
+JuMP.FixRef(::SemiInfiniteVariableRef)
+start_value_function(::SemiInfiniteVariableRef)
+JuMP.is_binary(::SemiInfiniteVariableRef)
+JuMP.BinaryRef(::SemiInfiniteVariableRef)
+JuMP.is_integer(::SemiInfiniteVariableRef)
+JuMP.IntegerRef(::SemiInfiniteVariableRef)
 ```
 
 ## MeasureToolbox Datatypes

@@ -320,7 +320,7 @@ function _set_core_variable_object end
 #                               DEPENDENCY METHODS
 ################################################################################
 # Define wrappers for internal usage methods and their templates
-for op = (:_infinite_variable_dependencies, :_reduced_variable_dependencies,
+for op = (:_infinite_variable_dependencies, :_semi_infinite_variable_dependencies,
           :_point_variable_dependencies, :_measure_dependencies,
           :_constraint_dependencies, :_derivative_dependencies, 
           :_derivative_constraint_dependencies, :_parameter_function_dependencies,
@@ -354,7 +354,7 @@ end
 #                              USED BY METHODS
 ################################################################################
 # Define the usage method wrappers and their fallbacks
-for op = (:used_by_infinite_variable, :used_by_reduced_variable,
+for op = (:used_by_infinite_variable, :used_by_semi_infinite_variable,
           :used_by_point_variable, :used_by_measure, :used_by_constraint,
           :used_by_objective, :used_by_derivative, :is_used, :has_derivative_constraints,
           :used_by_parameter_function)

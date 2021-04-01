@@ -205,11 +205,11 @@ end
         @test isa(InfiniteOpt._check_param_in_data(pars[1], data), Nothing)
         @test_throws ErrorException InfiniteOpt._check_param_in_data(par, BadData())
     end
-    # test _update_reduced_variable
-    @testset "_update_reduced_variable" begin
+    # test _update_semi_infinite_variable
+    @testset "_update_semi_infinite_variable" begin
         # test removing single parameter that is not reduced
         _update_variable_param_refs(dinf4, IC.VectorTuple(par2, pars))
-        @test isa(InfiniteOpt._update_reduced_variable(drv, 1:1), Nothing)
+        @test isa(InfiniteOpt._update_semi_infinite_variable(drv, 1:1), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(1 => 0.5)
         @test string(drv) == "inf4(0.5, [pars[1], pars[2]])"
@@ -219,7 +219,7 @@ end
         # test removing single parameter that is reduced
         _update_variable_param_refs(dinf4, IC.VectorTuple(par, pars))
         @test eval_supports(drv) == Dict(2 => 0.5)
-        @test isa(InfiniteOpt._update_reduced_variable(drv, 2:2), Nothing)
+        @test isa(InfiniteOpt._update_semi_infinite_variable(drv, 2:2), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict{Int, Float64}()
         @test string(drv) == "inf4(par, [pars[1], pars[2]])"
@@ -229,7 +229,7 @@ end
         eval_supports(drv)[1] = 0.5
         eval_supports(drv)[2] = 0.5
         _update_variable_param_refs(dinf4, IC.VectorTuple(par, pars))
-        @test isa(InfiniteOpt._update_reduced_variable(drv, 2:2), Nothing)
+        @test isa(InfiniteOpt._update_semi_infinite_variable(drv, 2:2), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(1 => 0.5)
         @test string(drv) == "inf4(0.5, [pars[1], pars[2]])"
@@ -240,7 +240,7 @@ end
         eval_supports(drv)[3] = 0.2
         eval_supports(drv)[4] = 0.1
         _update_variable_param_refs(dinf4, IC.VectorTuple(par, par2))
-        @test isa(InfiniteOpt._update_reduced_variable(drv, 3:4), Nothing)
+        @test isa(InfiniteOpt._update_semi_infinite_variable(drv, 3:4), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(2 => 0.5)
         @test set_name(drv, "") isa Nothing
@@ -457,8 +457,8 @@ end
      end
   end
 
- # Test reduced variable deletion
- @testset "JuMP.delete (Reduced Variables)" begin
+ # Test semi_infinite variable deletion
+ @testset "JuMP.delete (SemiInfinite Variables)" begin
      # intialize the model
      m = InfiniteModel()
      @infinite_parameter(m, 0 <= par <= 1)
@@ -483,16 +483,16 @@ end
      @test InfiniteOpt._object_numbers(meas) == [2]
      @test jump_function(constraint_object(con)) == x + 0
      @test InfiniteOpt._object_numbers(con) == []
-     @test InfiniteOpt._reduced_variable_dependencies(inf) == [JuMP.index(rv2)]
-     @test !haskey(InfiniteOpt._data_dictionary(m, ReducedVariable), JuMP.index(rv))
+     @test InfiniteOpt._semi_infinite_variable_dependencies(inf) == [JuMP.index(rv2)]
+     @test !haskey(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable), JuMP.index(rv))
      # test deletion of special cases
      @test isa(delete(m, rv2), Nothing)
      @test measure_function(meas2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
      @test InfiniteOpt._object_numbers(meas2) == []
      @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
      @test InfiniteOpt._object_numbers(con2) == []
-     @test InfiniteOpt._reduced_variable_dependencies(inf) == []
-     @test !haskey(InfiniteOpt._data_dictionary(m, ReducedVariable), JuMP.index(rv2))
+     @test InfiniteOpt._semi_infinite_variable_dependencies(inf) == []
+     @test !haskey(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable), JuMP.index(rv2))
      # test error
      @test_throws AssertionError delete(m, rv)
      @test_throws AssertionError delete(m, rv2)

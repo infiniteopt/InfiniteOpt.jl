@@ -95,10 +95,10 @@
         @test InfiniteOpt._constraint_dependencies(vref) == ConstraintIndex[]
         @test InfiniteOpt._constraint_dependencies(gvref) == ConstraintIndex[]
     end
-    # _reduced_variable_dependencies
-    @testset "_reduced_variable_dependencies" begin
-        @test InfiniteOpt._reduced_variable_dependencies(vref) == ReducedVariableIndex[]
-        @test InfiniteOpt._reduced_variable_dependencies(gvref) == ReducedVariableIndex[]
+    # _semi_infinite_variable_dependencies
+    @testset "_semi_infinite_variable_dependencies" begin
+        @test InfiniteOpt._semi_infinite_variable_dependencies(vref) == SemiInfiniteVariableIndex[]
+        @test InfiniteOpt._semi_infinite_variable_dependencies(gvref) == SemiInfiniteVariableIndex[]
     end
     # _point_variable_dependencies
     @testset "_point_variable_dependencies" begin
@@ -795,14 +795,14 @@ end
     @dependent_parameters(m, x[1:2] in [-1, 1])
     @infinite_variable(m, y(t, x))
     vref = dispatch_variable_ref(y)
-    # test used_by_reduced_variable
-    @testset "used_by_reduced_variable" begin
-        @test !used_by_reduced_variable(vref)
-        push!(InfiniteOpt._reduced_variable_dependencies(vref),
-              ReducedVariableIndex(1))
-        @test used_by_reduced_variable(y)
-        @test used_by_reduced_variable(vref)
-        empty!(InfiniteOpt._reduced_variable_dependencies(vref))
+    # test used_by_semi_infinite_variable
+    @testset "used_by_semi_infinite_variable" begin
+        @test !used_by_semi_infinite_variable(vref)
+        push!(InfiniteOpt._semi_infinite_variable_dependencies(vref),
+              SemiInfiniteVariableIndex(1))
+        @test used_by_semi_infinite_variable(y)
+        @test used_by_semi_infinite_variable(vref)
+        empty!(InfiniteOpt._semi_infinite_variable_dependencies(vref))
     end
     # test used_by_point_variable
     @testset "used_by_point_variable" begin
@@ -862,18 +862,18 @@ end
         push!(InfiniteOpt._constraint_dependencies(pvref), ConstraintIndex(2))
         @test is_used(vref)
         empty!(InfiniteOpt._point_variable_dependencies(vref))
-        # test used by reduced variable
+        # test used by semi-infinite variable
         eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1)
-        var = ReducedVariable(y, eval_supps, [2], [2])
+        var = SemiInfiniteVariable(y, eval_supps, [2], [2])
         object = VariableData(var, "var")
-        idx = ReducedVariableIndex(1)
-        rvref = ReducedVariableRef(m, idx)
+        idx = SemiInfiniteVariableIndex(1)
+        rvref = SemiInfiniteVariableRef(m, idx)
         @test InfiniteOpt._add_data_object(m, object) == idx
-        push!(InfiniteOpt._reduced_variable_dependencies(vref), idx)
+        push!(InfiniteOpt._semi_infinite_variable_dependencies(vref), idx)
         @test !is_used(vref)
         push!(InfiniteOpt._constraint_dependencies(rvref), ConstraintIndex(2))
         @test is_used(vref)
-        empty!(InfiniteOpt._reduced_variable_dependencies(vref))
+        empty!(InfiniteOpt._semi_infinite_variable_dependencies(vref))
         # test used by derivative
         func = (x) -> NaN
         num = 0.

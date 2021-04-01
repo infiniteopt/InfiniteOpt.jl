@@ -26,9 +26,9 @@
     # InfiniteVariableIndex
     @test InfiniteVariableIndex <: ObjectIndex
     @test InfiniteVariableIndex(1).value == 1
-    # ReducedVariableIndex
-    @test ReducedVariableIndex <: ObjectIndex
-    @test ReducedVariableIndex(1).value == 1
+    # SemiInfiniteVariableIndex
+    @test SemiInfiniteVariableIndex <: ObjectIndex
+    @test SemiInfiniteVariableIndex(1).value == 1
     # PointVariableIndex
     @test PointVariableIndex <: ObjectIndex
     @test PointVariableIndex(1).value == 1
@@ -52,7 +52,7 @@
         @test MOIUC.index_to_key(FiniteParameterIndex, Int64(42)) == FiniteParameterIndex(42)
         @test MOIUC.index_to_key(ParameterFunctionIndex, Int64(42)) == ParameterFunctionIndex(42)
         @test MOIUC.index_to_key(InfiniteVariableIndex, Int64(42)) == InfiniteVariableIndex(42)
-        @test MOIUC.index_to_key(ReducedVariableIndex, Int64(42)) == ReducedVariableIndex(42)
+        @test MOIUC.index_to_key(SemiInfiniteVariableIndex, Int64(42)) == SemiInfiniteVariableIndex(42)
         @test MOIUC.index_to_key(PointVariableIndex, Int64(42)) == PointVariableIndex(42)
         @test MOIUC.index_to_key(HoldVariableIndex, Int64(42)) == HoldVariableIndex(42)
         @test MOIUC.index_to_key(DerivativeIndex, Int64(42)) == DerivativeIndex(42)
@@ -221,10 +221,10 @@ end
     @test InfiniteVariableRef <: DispatchVariableRef
     idx = InfiniteVariableIndex(1)
     @test InfiniteVariableRef(m, idx) isa InfiniteVariableRef
-    # ReducedVariableRef
-    @test ReducedVariableRef <: DispatchVariableRef
-    idx = ReducedVariableIndex(1)
-    @test ReducedVariableRef(m, idx) isa ReducedVariableRef
+    # SemiInfiniteVariableRef
+    @test SemiInfiniteVariableRef <: DispatchVariableRef
+    idx = SemiInfiniteVariableIndex(1)
+    @test SemiInfiniteVariableRef(m, idx) isa SemiInfiniteVariableRef
     # ParameterFunctionRef
     @test ParameterFunctionRef <: DispatchVariableRef
     idx = ParameterFunctionIndex(1)
@@ -392,9 +392,9 @@ end
     # Infinite variable
     @test InfiniteVariable <: InfOptVariable
     @test InfiniteVariable(inf_info, IC.VectorTuple(pref), [1], [1], true) isa InfiniteVariable
-    # Reduced variable
-    @test ReducedVariable <: InfOptVariable
-    @test ReducedVariable(vref, Dict(1 => Float64(2)), [1], [1]) isa ReducedVariable
+    # Semi-Infinite variable
+    @test SemiInfiniteVariable <: InfOptVariable
+    @test SemiInfiniteVariable(vref, Dict(1 => Float64(2)), [1], [1]) isa SemiInfiniteVariable
     # Point variable
     @test PointVariable <: InfOptVariable
     @test PointVariable(sample_info, vref, Float64[1]) isa PointVariable
@@ -421,8 +421,8 @@ end
     # derivative
     @test Derivative <: InfOptVariable
     @test Derivative(inf_info, true, vref, pref) isa Derivative
-    # Reduced derivative
-    @test ReducedVariable(dref, Dict(1 => Float64(2)), [1], [1]) isa ReducedVariable
+    # Semi-infinite derivative
+    @test SemiInfiniteVariable(dref, Dict(1 => Float64(2)), [1], [1]) isa SemiInfiniteVariable
     # Point derivative
     @test PointVariable(sample_info, dref, Float64[1]) isa PointVariable
     # VariableData

@@ -105,19 +105,19 @@
         @test supports(dx) == [(0,), (1,)]
         @test length(supports(dy)) == 4
     end
-    # test _set_reduced_variable_mapping
-    @testset "_set_reduced_variable_mapping" begin 
-        var = ReducedVariable(y, Dict{Int, Float64}(1 => 0), [1, 2], [1])
-        vref = GeneralVariableRef(m, -1, ReducedVariableIndex)
-        @test IOTO._set_reduced_variable_mapping(tm, var, vref, ReducedVariableIndex) isa Nothing 
+    # test _set_semi_infinite_variable_mapping
+    @testset "_set_semi_infinite_variable_mapping" begin 
+        var = SemiInfiniteVariable(y, Dict{Int, Float64}(1 => 0), [1, 2], [1])
+        vref = GeneralVariableRef(m, -1, SemiInfiniteVariableIndex)
+        @test IOTO._set_semi_infinite_variable_mapping(tm, var, vref, SemiInfiniteVariableIndex) isa Nothing 
         @test transcription_variable(vref) isa Vector{VariableRef}
         @test length(transcription_data(tm).infvar_mappings) == 5
         @test IOTO.lookup_by_support(tm, y, [0., 0, 0]) == IOTO.lookup_by_support(tm, vref, [0., 0])
-        @test IOTO._set_reduced_variable_mapping(tm, var, vref, ParameterFunctionIndex) isa Nothing 
+        @test IOTO._set_semi_infinite_variable_mapping(tm, var, vref, ParameterFunctionIndex) isa Nothing 
     end
-    # test transcribe_reduced_variables!
-    @testset "transcribe_reduced_variables!" begin 
-        @test IOTO.transcribe_reduced_variables!(tm, m) isa Nothing
+    # test transcribe_semi_infinite_variables!
+    @testset "transcribe_semi_infinite_variables!" begin 
+        @test IOTO.transcribe_semi_infinite_variables!(tm, m) isa Nothing
         @test transcription_variable(yrv) isa Vector{VariableRef}
         @test length(transcription_data(tm).infvar_mappings) == 6
         @test IOTO.lookup_by_support(tm, y, [1., 0., 0.]) == IOTO.lookup_by_support(tm, yrv, [1., 0])

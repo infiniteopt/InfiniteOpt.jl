@@ -234,9 +234,9 @@ function transcribe_derivative_variables!(trans_model::JuMP.Model,
     return
 end
 
-# Setup the mapping for a given reduced variable
-function _set_reduced_variable_mapping(trans_model::JuMP.Model,
-    var::InfiniteOpt.ReducedVariable,
+# Setup the mapping for a given semi_infinite variable
+function _set_semi_infinite_variable_mapping(trans_model::JuMP.Model,
+    var::InfiniteOpt.SemiInfiniteVariable,
     rvref::InfiniteOpt.GeneralVariableRef,
     index_type
     )::Nothing
@@ -279,8 +279,8 @@ function _set_reduced_variable_mapping(trans_model::JuMP.Model,
 end
 
 # Empty mapping dispatch for infinite parameter functions
-function _set_reduced_variable_mapping(trans_model::JuMP.Model,
-    var::InfiniteOpt.ReducedVariable,
+function _set_semi_infinite_variable_mapping(trans_model::JuMP.Model,
+    var::InfiniteOpt.SemiInfiniteVariable,
     rvref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.ParameterFunctionIndex}
     )::Nothing
@@ -288,10 +288,10 @@ function _set_reduced_variable_mapping(trans_model::JuMP.Model,
 end
 
 """
-    transcribe_reduced_variables!(trans_model::JuMP.Model,
+    transcribe_semi_infinite_variables!(trans_model::JuMP.Model,
                                   inf_model::InfiniteOpt.InfiniteModel)::Nothing
 
-Map each `ReducedVariable` in `inf_model` to transcription variables stored in
+Map each `SemiInfiniteVariable` in `inf_model` to transcription variables stored in
 `trans_model`. The variable mappings are also stored in
 `TranscriptionData.infvar_mappings` in accordance with
 `TranscriptionData.infvar_lookup` which enable [`transcription_variable`](@ref)
@@ -300,16 +300,16 @@ must be called first. Note that the supports will not be generated
 until `InfiniteOpt.variable_supports` is invoked via `InfiniteOpt.supports`. 
 Note that `TranscriptionData.infvar_support_labels` is also populated.
 """
-function transcribe_reduced_variables!(trans_model::JuMP.Model,
+function transcribe_semi_infinite_variables!(trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
-    for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.ReducedVariable)
+    for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.SemiInfiniteVariable)
         # get the basic variable information
         var = object.variable
         rvref = InfiniteOpt._make_variable_ref(inf_model, index)
         # setup the mappings
         ivref = InfiniteOpt.infinite_variable_ref(rvref)
-        _set_reduced_variable_mapping(trans_model, var, rvref, 
+        _set_semi_infinite_variable_mapping(trans_model, var, rvref, 
                                       InfiniteOpt._index_type(ivref))
     end
     return
@@ -418,10 +418,10 @@ function transcription_expression(trans_model::JuMP.Model,
     return lookup_by_support(trans_model, vref, index_type, support[param_nums])
 end
 
-# Reduced variables
+# Semi-Infinite variables
 function transcription_expression(trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
-    index_type::Type{InfiniteOpt.ReducedVariableIndex},
+    index_type::Type{InfiniteOpt.SemiInfiniteVariableIndex},
     support::Vector{Float64}
     )
     ivref = InfiniteOpt.infinite_variable_ref(vref)
@@ -789,7 +789,7 @@ end
 Given an empty `trans_model` build it using the information stored in `inf_model`.
 This is intended for a `TranscriptionModel` that serves as a internal optimizer model
 of `inf_model`. This detail is important to correctly enable internally generated
-reduced variables during the transcription process such that `inf_model` is not
+semi-infinite variables during the transcription process such that `inf_model` is not
 modified. Note that this will add supports to `inf_model` via
 [`InfiniteOpt.fill_in_supports!`](@ref) for infinite parameters that contain
 no supports. Also a warning is thrown when the transcription model contains
@@ -820,7 +820,7 @@ function build_transcription_model!(trans_model::JuMP.Model,
     transcribe_hold_variables!(trans_model, inf_model)
     transcribe_infinite_variables!(trans_model, inf_model)
     transcribe_derivative_variables!(trans_model, inf_model)
-    transcribe_reduced_variables!(trans_model, inf_model)
+    transcribe_semi_infinite_variables!(trans_model, inf_model)
     transcribe_point_variables!(trans_model, inf_model)
     transcribe_measures!(trans_model, inf_model)
     # define the objective
@@ -832,4 +832,4 @@ function build_transcription_model!(trans_model::JuMP.Model,
     return
 end
 
-# TODO make TranscriptionModel(::InfiniteModel) --> have to deal with accessing reduced vars
+# TODO make TranscriptionModel(::InfiniteModel) --> have to deal with accessing semi_infinite vars

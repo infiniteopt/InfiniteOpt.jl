@@ -82,10 +82,10 @@
         @test InfiniteOpt._constraint_dependencies(fref) == ConstraintIndex[]
         @test InfiniteOpt._constraint_dependencies(gvref) == ConstraintIndex[]
     end
-    # _reduced_variable_dependencies
-    @testset "_reduced_variable_dependencies" begin
-        @test InfiniteOpt._reduced_variable_dependencies(fref) == ReducedVariableIndex[]
-        @test InfiniteOpt._reduced_variable_dependencies(gvref) == ReducedVariableIndex[]
+    # _semi_infinite_variable_dependencies
+    @testset "_semi_infinite_variable_dependencies" begin
+        @test InfiniteOpt._semi_infinite_variable_dependencies(fref) == SemiInfiniteVariableIndex[]
+        @test InfiniteOpt._semi_infinite_variable_dependencies(gvref) == SemiInfiniteVariableIndex[]
     end
     # _derivative_dependencies
     @testset "_derivative_dependencies" begin
@@ -112,13 +112,13 @@
         @test raw_function(fref) == sin
         @test raw_function(gvref) == sin
     end
-    # test used_by_reduced_variable
-    @testset "used_by_reduced_variable" begin
-        @test !used_by_reduced_variable(fref)
-        push!(InfiniteOpt._reduced_variable_dependencies(fref),
-              ReducedVariableIndex(1))
-        @test used_by_reduced_variable(fref)
-        empty!(InfiniteOpt._reduced_variable_dependencies(fref))
+    # test used_by_semi_infinite_variable
+    @testset "used_by_semi_infinite_variable" begin
+        @test !used_by_semi_infinite_variable(fref)
+        push!(InfiniteOpt._semi_infinite_variable_dependencies(fref),
+              SemiInfiniteVariableIndex(1))
+        @test used_by_semi_infinite_variable(fref)
+        empty!(InfiniteOpt._semi_infinite_variable_dependencies(fref))
     end
     # test used_by_derivative
     @testset "used_by_derivative" begin
@@ -195,7 +195,7 @@
     # test making other objects 
     @testset "Other Objects" begin
         f = parameter_function((a,b) -> 2, (t, x))
-        # test making reduced variable
+        # test making semi_infinite variable
         d = Dict{Int, Float64}(1 => 0)
         @test add_variable(m, build_variable(error, f, d)) isa GeneralVariableRef
         # test making derivative 
@@ -310,8 +310,8 @@ end
         @test InfiniteOpt._object_numbers(par) == [1]
         @test InfiniteOpt._object_numbers(pars[1]) == [2]
     end
-    # test for reduced infinite variable reference
-    @testset "ReducedInfinite" begin
+    # test for semi-infinite variable reference
+    @testset "SemiInfiniteInfinite" begin
         @test InfiniteOpt._object_numbers(red) == [2]
     end
     # test for GenericAffExpr
@@ -361,8 +361,8 @@ end
         @test InfiniteOpt._parameter_numbers(par) == [1]
         @test InfiniteOpt._parameter_numbers(pars[2]) == [3]
     end
-    # test for reduced infinite variable reference
-    @testset "ReducedInfinite" begin
+    # test for semi-infinite variable reference
+    @testset "SemiInfiniteInfinite" begin
         @test InfiniteOpt._parameter_numbers(red) == [2, 3]
     end
     # test for GenericAffExpr

@@ -43,7 +43,7 @@
         @test InfiniteOpt.make_reduced_expr(q, t, 0.0, m) == pt 
         @test parameter_values(pt) == (0.0,)
         ridx = 3 # 2 were previously made and deleted by the measure call
-        rv = GeneralVariableRef(m, ridx, ReducedVariableIndex)
+        rv = GeneralVariableRef(m, ridx, SemiInfiniteVariableIndex)
         @test InfiniteOpt.make_reduced_expr(T, t, 0.0, m) == rv
         @test parameter_list(rv) == [x[1], x[2]]
         @test eval_supports(rv)[1] == 0
@@ -53,12 +53,12 @@
         pt = GeneralVariableRef(m, pidx + 3, PointVariableIndex)
         @test InfiniteOpt.make_reduced_expr(dq, t, 0.0, m) == pt 
         @test parameter_values(pt) == (0.0,)
-        rv = GeneralVariableRef(m, ridx + 1, ReducedVariableIndex)
+        rv = GeneralVariableRef(m, ridx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.make_reduced_expr(dT, x[2], 0.0, m) == rv
         @test parameter_list(rv) == [t, x[1]]
         @test eval_supports(rv)[3] == 0
-        # test ReducedVariableIndex
-        rv2 = GeneralVariableRef(m, ridx + 2, ReducedVariableIndex)
+        # test SemiInfiniteVariableIndex
+        rv2 = GeneralVariableRef(m, ridx + 2, SemiInfiniteVariableIndex)
         @test InfiniteOpt.make_reduced_expr(rv, x[1], 0.0, m) == rv2
         @test parameter_list(rv2) == [t]
         @test eval_supports(rv2)[3] == 0
@@ -101,10 +101,10 @@ end
     # test _make_difference_expr for Central
     @testset "_make_difference_expr (Central)" begin 
         supps = supports(t, label = All)
-        ridx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
-        rvs = [GeneralVariableRef(m, ridx, ReducedVariableIndex),
-               GeneralVariableRef(m, ridx + 1, ReducedVariableIndex),
-               GeneralVariableRef(m, ridx + 2, ReducedVariableIndex)]
+        ridx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
+        rvs = [GeneralVariableRef(m, ridx, SemiInfiniteVariableIndex),
+               GeneralVariableRef(m, ridx + 1, SemiInfiniteVariableIndex),
+               GeneralVariableRef(m, ridx + 2, SemiInfiniteVariableIndex)]
         @test InfiniteOpt._make_difference_expr(d2, q, t, 2, supps, m, Central()) == 10rvs[1] - rvs[2] + rvs[3]
         @test eval_supports(rvs[1])[1] == 5
         @test eval_supports(rvs[2])[1] == 10
@@ -113,10 +113,10 @@ end
     # test _make_difference_expr for FDBackward
     @testset "_make_difference_expr (Backward)" begin 
         supps = sort(supports(x[2], label = All))
-        ridx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
-        rvs = [GeneralVariableRef(m, ridx, ReducedVariableIndex),
-               GeneralVariableRef(m, ridx + 1, ReducedVariableIndex),
-               GeneralVariableRef(m, ridx + 2, ReducedVariableIndex)]
+        ridx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
+        rvs = [GeneralVariableRef(m, ridx, SemiInfiniteVariableIndex),
+               GeneralVariableRef(m, ridx + 1, SemiInfiniteVariableIndex),
+               GeneralVariableRef(m, ridx + 2, SemiInfiniteVariableIndex)]
         @test InfiniteOpt._make_difference_expr(d3, q, x[2], 2, supps, m, Backward()) == rvs[1] - rvs[2] + rvs[3]
         @test eval_supports(rvs[1])[3] == 1
         @test eval_supports(rvs[2])[3] == 1
@@ -138,14 +138,14 @@ end
         @test InfiniteOpt.evaluate_derivative(d1, method, m) == exprs 
         # test with dependent parameter 
         method = FiniteDifference(Forward()) 
-        ridx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
-        rvs = [GeneralVariableRef(m, ridx, ReducedVariableIndex),
-               GeneralVariableRef(m, ridx + 4, ReducedVariableIndex),
-               GeneralVariableRef(m, ridx + 5, ReducedVariableIndex),
-               GeneralVariableRef(m, ridx + 6, ReducedVariableIndex),
-               GeneralVariableRef(m, ridx + 10, ReducedVariableIndex),
-               GeneralVariableRef(m, ridx + 11, ReducedVariableIndex),
-               GeneralVariableRef(m, ridx + 12, ReducedVariableIndex)]
+        ridx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
+        rvs = [GeneralVariableRef(m, ridx, SemiInfiniteVariableIndex),
+               GeneralVariableRef(m, ridx + 4, SemiInfiniteVariableIndex),
+               GeneralVariableRef(m, ridx + 5, SemiInfiniteVariableIndex),
+               GeneralVariableRef(m, ridx + 6, SemiInfiniteVariableIndex),
+               GeneralVariableRef(m, ridx + 10, SemiInfiniteVariableIndex),
+               GeneralVariableRef(m, ridx + 11, SemiInfiniteVariableIndex),
+               GeneralVariableRef(m, ridx + 12, SemiInfiniteVariableIndex)]
         exprs = [rvs[1] - rvs[2] - rvs[3] - rvs[4] + rvs[5] + rvs[6] + rvs[7]] 
         @test InfiniteOpt.evaluate_derivative(d4, method, m) == exprs
         # test using Backward without boundary constraint
@@ -186,8 +186,8 @@ end
         set_derivative_method(t, method)
         Mt = [1. 5.; 1. 10]' \ [2.5 2.5^2; 5. 25.]'
         M = Mt'
-        ridx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 6
-        rvs = [GeneralVariableRef(m, ridx + i, ReducedVariableIndex) for i = 1:16]
+        ridx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 6
+        rvs = [GeneralVariableRef(m, ridx + i, SemiInfiniteVariableIndex) for i = 1:16]
         exprs = [@expression(m, M[1, 1] * rvs[1] + M[1, 2] * rvs[2] - rvs[3] + rvs[4]),
                  @expression(m, M[2, 1] * rvs[5] + M[2, 2] * rvs[6] - rvs[7] + rvs[8]),
                  @expression(m, M[1, 1] * rvs[9] + M[1, 2] * rvs[10] - rvs[11] + rvs[12]),
@@ -196,8 +196,8 @@ end
         @test supports(t) == [0, 5, 10]
         @test supports(t, label = All) == [0, 2.5, 5, 7.5, 10]
         # test resolve 
-        ridx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 6
-        rvs = [GeneralVariableRef(m, ridx + i, ReducedVariableIndex) for i = 1:16]
+        ridx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 6
+        rvs = [GeneralVariableRef(m, ridx + i, SemiInfiniteVariableIndex) for i = 1:16]
         exprs = [@expression(m, M[1, 1] * rvs[1] + M[1, 2] * rvs[2] - rvs[3] + rvs[4]),
                  @expression(m, M[2, 1] * rvs[5] + M[2, 2] * rvs[6] - rvs[7] + rvs[8]),
                  @expression(m, M[1, 1] * rvs[9] + M[1, 2] * rvs[10] - rvs[11] + rvs[12]),

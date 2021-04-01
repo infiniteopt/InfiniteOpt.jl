@@ -318,7 +318,7 @@ function JuMP.variable_by_name(model::InfiniteModel,
     if _var_name_dict(model) === nothing
         model.name_to_var = Dict{String, ObjectIndex}()
         _update_var_name_dict(model, model.infinite_vars)
-        _update_var_name_dict(model, model.reduced_vars)
+        _update_var_name_dict(model, model.semi_infinite_vars)
         _update_var_name_dict(model, model.point_vars)
         _update_var_name_dict(model, model.hold_vars)
     end
@@ -1053,12 +1053,12 @@ end
 
 Extend [`JuMP.num_variables`](@ref JuMP.num_variables(::JuMP.Model)) to return the
 number of `InfiniteOpt` variables assigned to `model`. By default, the total
-number of infinite, reduced, point, and hold variables is returned. The amount
+number of infinite, semi-infinite, point, and hold variables is returned. The amount
 of a particular type is obtained by specifying the concrete variable type
 of [`InfOptVariable`](@ref) via `type`. Type options include:
  - `InfOptVariable`: all variables
  - `InfiniteVariable`: all infinite variables
- - `ReducedVariable`: all reduced variables
+ - `SemiInfiniteVariable`: all semi-infinite variables
  - `PointVariable`: all point variables
  - `HoldVariable`: all hold variables
 
@@ -1075,7 +1075,7 @@ function JuMP.num_variables(model::InfiniteModel,
                             type::Type{InfOptVariable} = InfOptVariable
                             )::Int
     num_vars = JuMP.num_variables(model, InfiniteVariable)
-    num_vars += JuMP.num_variables(model, ReducedVariable)
+    num_vars += JuMP.num_variables(model, SemiInfiniteVariable)
     num_vars += JuMP.num_variables(model, PointVariable)
     num_vars += JuMP.num_variables(model, HoldVariable)
     return num_vars
@@ -1094,12 +1094,12 @@ end
 
 Extend [`JuMP.all_variables`](@ref JuMP.all_variables(::JuMP.Model)) to return a
 list of all the variable references associated with `model`. By default, all
-of the infinite, reduced, point, and hold variables is returned. Those
+of the infinite, semi-infinite, point, and hold variables is returned. Those
 of a particular type is obtained by specifying the concrete variable type
 of [`InfOptVariable`](@ref) via `type`. Type options include:
  - `InfOptVariable`: all variables
  - `InfiniteVariable`: all infinite variables
- - `ReducedVariable`: all reduced variables
+ - `SemiInfiniteVariable`: all semi-infinite variables
  - `PointVariable`: all point variables
  - `HoldVariable`: all hold variables
 
@@ -1121,7 +1121,7 @@ function JuMP.all_variables(model::InfiniteModel,
                             type::Type{InfOptVariable} = InfOptVariable
                             )::Vector{GeneralVariableRef}
     vrefs_list = JuMP.all_variables(model, InfiniteVariable)
-    append!(vrefs_list, JuMP.all_variables(model, ReducedVariable))
+    append!(vrefs_list, JuMP.all_variables(model, SemiInfiniteVariable))
     append!(vrefs_list, JuMP.all_variables(model, PointVariable))
     append!(vrefs_list, JuMP.all_variables(model, HoldVariable))
     return vrefs_list
@@ -1222,7 +1222,7 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
         else
             _remove_variable(func, gvref)
             # update the object numbers if vref is infinite
-            if vref isa Union{InfiniteVariableRef, ReducedVariableRef}
+            if vref isa Union{InfiniteVariableRef, SemiInfiniteVariableRef}
                 _data_object(cref).object_nums = sort(_object_numbers(func))
             end
         end

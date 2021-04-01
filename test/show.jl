@@ -388,10 +388,10 @@ using JuMP: REPLMode, IJuliaMode
         dvref = dispatch_variable_ref(@point_variable(m, d3([0, 0])))
         @test InfiniteOpt.variable_string(REPLMode, dvref) == "d3([0, 0])"
     end
-    # test variable_string (ReducedVariableRef)
-    @testset "variable_string (ReducedVariableRef)" begin
+    # test variable_string (SemiInfiniteVariableRef)
+    @testset "variable_string (SemiInfiniteVariableRef)" begin
         # test bad ref
-        bad_ref = ReducedVariableRef(m, ReducedVariableIndex(-1))
+        bad_ref = SemiInfiniteVariableRef(m, SemiInfiniteVariableIndex(-1))
         @test InfiniteOpt.variable_string(REPLMode, bad_ref) == "noname"
         @test InfiniteOpt.variable_string(IJuliaMode, bad_ref) == "noname"
         # test short one

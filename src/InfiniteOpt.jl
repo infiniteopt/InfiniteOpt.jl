@@ -24,7 +24,7 @@ include("scalar_parameters.jl")
 include("array_parameters.jl")
 include("variable_basics.jl")
 include("infinite_variables.jl")
-include("reduced_variables.jl")
+include("semi_infinite_variables.jl")
 include("point_variables.jl")
 include("hold_variables.jl")
 include("expressions.jl")
@@ -74,7 +74,7 @@ export InfOptVariableType, Infinite, Hold, Point, Deriv
 # Export index types
 export AbstractInfOptIndex, ObjectIndex, IndependentParameterIndex,
 DependentParametersIndex, DependentParameterIndex, FiniteParameterIndex,
-InfiniteVariableIndex, PointVariableIndex, ReducedVariableIndex,
+InfiniteVariableIndex, PointVariableIndex, SemiInfiniteVariableIndex,
 HoldVariableIndex, MeasureIndex, ConstraintIndex, InfiniteParameterIndex,
 FiniteVariableIndex, DerivativeIndex, ParameterFunctionIndex
 
@@ -110,19 +110,19 @@ export InfiniteParameterFunction, ParameterFunctionData, ParameterFunctionRef,
 build_parameter_function, add_parameter_function, raw_function, parameter_function
 
 # Export variable datatypes
-export InfOptVariable, InfiniteVariable, ReducedVariable,
+export InfOptVariable, InfiniteVariable, SemiInfiniteVariable,
 PointVariable, HoldVariable, ParameterBounds, VariableData, GeneralVariableRef,
-DispatchVariableRef, InfiniteVariableRef, ReducedVariableRef,
+DispatchVariableRef, InfiniteVariableRef, SemiInfiniteVariableRef,
 MeasureFiniteVariableRef, FiniteVariableRef, PointVariableRef, HoldVariableRef,
 DecisionVariableRef, UserDecisionVariableRef
 
 # Export variable methods
 export used_by_objective, infinite_variable_ref, parameter_refs,
 used_by_point_variable, parameter_values,
-eval_supports, used_by_reduced_variable, has_parameter_bounds, parameter_bounds,
+eval_supports, used_by_semi_infinite_variable, has_parameter_bounds, parameter_bounds,
 set_parameter_bounds, add_parameter_bounds, delete_parameter_bounds,
 parameter_list, raw_parameter_refs, raw_parameter_values,
-intervals, dispatch_variable_ref, internal_reduced_variable, start_value_function,
+intervals, dispatch_variable_ref, internal_semi_infinite_variable, start_value_function,
 set_start_value_function, reset_start_value_function
 
 # Export derivative datatypes 
@@ -144,8 +144,8 @@ export default_weight, support_label, coefficient_function, coefficients,
 weight_function, build_measure, min_num_supports, add_measure, measure_function,
 measure_data, is_analytic, measure, num_measures, all_measures,
 add_supports_to_parameters, measure_data_in_hold_bounds, make_point_variable_ref,
-make_reduced_variable_ref, add_measure_variable, delete_internal_reduced_variable,
-delete_reduced_variable, expand, expand_all_measures!, expand_measure
+make_semi_infinite_variable_ref, add_measure_variable, delete_internal_semi_infinite_variable,
+delete_semi_infinite_variable, expand, expand_all_measures!, expand_measure
 
 # Export the measure toolbox functions and datatypes
 export Automatic, UniTrapezoid, UniMCSampling, UniIndepMCSampling, Quadrature,

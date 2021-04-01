@@ -141,7 +141,7 @@ julia> d = build_derivative(error, info, y, ξ);
 julia> d isa Derivative
 true
 ```
-Here the argument variable can be an infinite variable, reduced variable, 
+Here the argument variable can be an infinite variable, semi-infinite variable, 
 derivative, or measure that depends on the infinite parameter provided. This will 
 error to the contrary or if such a derivative has already been to the model 
 associated with the infinite parameter. 
@@ -466,7 +466,7 @@ true
 julia> used_by_measure(dydt2)
 false
 
-julia> used_by_reduced_variable(d2)
+julia> used_by_semi_infinite_variable(d2)
 true
 ```
 

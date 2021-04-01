@@ -539,9 +539,9 @@ InfiniteOpt.TranscriptionOpt.has_internal_supports
 InfiniteOpt.TranscriptionOpt.transcription_model
 InfiniteOpt.TranscriptionOpt.transcription_variable(::JuMP.Model,::InfiniteOpt.GeneralVariableRef)
 InfiniteOpt.optimizer_model_variable(::InfiniteOpt.GeneralVariableRef,::Val{:TransData})
-InfiniteOpt.variable_supports(::JuMP.Model,::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef},::Val{:TransData})
+InfiniteOpt.variable_supports(::JuMP.Model,::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.SemiInfiniteVariableRef},::Val{:TransData})
 InfiniteOpt.TranscriptionOpt.lookup_by_support(::JuMP.Model,::InfiniteOpt.GeneralVariableRef,::Vector)
-InfiniteOpt.internal_reduced_variable(::InfiniteOpt.ReducedVariableRef,::Val{:TransData})
+InfiniteOpt.internal_semi_infinite_variable(::InfiniteOpt.SemiInfiniteVariableRef,::Val{:TransData})
 InfiniteOpt.TranscriptionOpt.transcription_expression(::JuMP.Model,::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr})
 InfiniteOpt.optimizer_model_expression(::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},::Val{:TransData})
 InfiniteOpt.expression_supports(::JuMP.Model,::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr}, ::Val{:TransData})
@@ -557,7 +557,7 @@ InfiniteOpt.TranscriptionOpt.set_parameter_supports
 InfiniteOpt.TranscriptionOpt.transcribe_hold_variables!
 InfiniteOpt.TranscriptionOpt.transcribe_infinite_variables!
 InfiniteOpt.TranscriptionOpt.transcribe_derivative_variables!
-InfiniteOpt.TranscriptionOpt.transcribe_reduced_variables!
+InfiniteOpt.TranscriptionOpt.transcribe_semi_infinite_variables!
 InfiniteOpt.TranscriptionOpt.transcribe_point_variables!
 InfiniteOpt.TranscriptionOpt.transcription_expression
 InfiniteOpt.TranscriptionOpt.transcribe_measures!
@@ -566,7 +566,7 @@ InfiniteOpt.TranscriptionOpt.transcribe_constraints!
 InfiniteOpt.TranscriptionOpt.transcribe_derivative_evaluations!
 InfiniteOpt.TranscriptionOpt.build_transcription_model!
 InfiniteOpt.add_measure_variable(::JuMP.Model,::InfiniteOpt.PointVariable,::Val{:TransData})
-InfiniteOpt.add_measure_variable(::JuMP.Model,::InfiniteOpt.ReducedVariable,::Val{:TransData})
-InfiniteOpt.delete_reduced_variable(::JuMP.Model,::InfiniteOpt.ReducedVariableRef,::Val{:TransData})
+InfiniteOpt.add_measure_variable(::JuMP.Model,::InfiniteOpt.SemiInfiniteVariable,::Val{:TransData})
+InfiniteOpt.delete_semi_infinite_variable(::JuMP.Model,::InfiniteOpt.SemiInfiniteVariableRef,::Val{:TransData})
 InfiniteOpt.build_optimizer_model!(::InfiniteOpt.InfiniteModel,::Val{:TransData})
 ```

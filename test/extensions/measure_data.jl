@@ -21,7 +21,7 @@ function InfiniteOpt.expand_measure(expr::JuMP.AbstractJuMPScalar,
                                     write_model::JuMP.AbstractModel
                                     )::JuMP.AbstractJuMPScalar
     # INSERT APPROPRIATE METHODS HERE
-    # USING make_point_variable_ref AND make_reduced_variable_ref MAY BE USEFUL
+    # USING make_point_variable_ref AND make_semi_infinite_variable_ref MAY BE USEFUL
     return expand_measure(expr, data.attr2, write_model) # REPLACE ACTUAL RESULT
 end
 

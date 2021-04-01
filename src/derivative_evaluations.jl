@@ -108,7 +108,7 @@ end
 
 Given the argument variable `vref` and the operator parameter `pref` from a 
 derivative, build and return the reduced expression in accordance to the support 
-`support` with respect to `pref`. New point/reduced variables will be written to 
+`support` with respect to `pref`. New point/semi-infinite variables will be written to 
 `write_model`. This is solely intended as a helper function for derivative 
 evaluation.
 """
@@ -124,7 +124,7 @@ function make_reduced_expr(mref, ::Type{MeasureIndex}, pref, support, write_mode
     return expand_measure(mref, data, write_model)
 end
 
-# TODO prevent the redundant generation of point and reduced variables for overlapping expressions
+# TODO prevent the redundant generation of point and semi-infinite variables for overlapping expressions
 # InfiniteVariableIndex/DerivativeIndex
 function make_reduced_expr(vref, 
     ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}, Type{ParameterFunctionIndex}}, 
@@ -136,15 +136,15 @@ function make_reduced_expr(vref,
     # only one parameter so we have to make a point variable (we know that this must be pref)
     if length(prefs) == 1
         return make_point_variable_ref(write_model, vref, [support])
-    # there are other parameters so make reduced variable
+    # there are other parameters so make semi-infinite variable
     else 
         pindex = findfirst(isequal(pref), prefs)
-        return make_reduced_variable_ref(write_model, vref, [pindex], [support])
+        return make_semi_infinite_variable_ref(write_model, vref, [pindex], [support])
     end
 end
 
-# ReducedVariableIndex
-function make_reduced_expr(vref, ::Type{ReducedVariableIndex}, pref, support, 
+# SemiInfiniteVariableIndex
+function make_reduced_expr(vref, ::Type{SemiInfiniteVariableIndex}, pref, support, 
                            write_model)::GeneralVariableRef
     # get the preliminary info
     dvref = dispatch_variable_ref(vref)
@@ -157,13 +157,13 @@ function make_reduced_expr(vref, ::Type{ReducedVariableIndex}, pref, support,
     if length(var_prefs) == 1
         processed_support = _make_point_support(orig_prefs, eval_supps, pindex, support)
         return make_point_variable_ref(write_model, ivref, processed_support)
-    # otherwise we need to make a futher reduced variable
+    # otherwise we need to make another semi-infinite variable
     else
         indices = collect(keys(eval_supps))
         vals = map(k -> eval_supps[k], indices)
         push!(indices, pindex)
         push!(vals, support)
-        return make_reduced_variable_ref(write_model, ivref, indices, vals)
+        return make_semi_infinite_variable_ref(write_model, ivref, indices, vals)
     end
 end
 

@@ -65,14 +65,14 @@ function InfiniteOpt.build_optimizer_model!(model::InfiniteModel,
     reform_model = clear_optimizer_model_build!(model)
 
     # IT MAY BE USEFUL TO CALL `expand_all_measures!` TO HANDLE MEASURES FIRST
-    # otherwise can extend `add_measure_variable` and `delete_reduced_variable` to
+    # otherwise can extend `add_measure_variable` and `delete_semi_infinite_variable` to
     # expand in place without modifying the infinite model
 
     # REPLACE LINES 73-89 WITH OPERATIONS TO BUILD A `NewReformModel` BASED ON `model`
     # these lines just generate artificial data, see `TranscriptionOpt` for a thorough example of implementation
     data = reform_data(reform_model)
     for vref in all_variables(model)
-        if index(vref) isa Union{InfiniteVariableIndex, ReducedVariableIndex}
+        if index(vref) isa Union{InfiniteVariableIndex, SemiInfiniteVariableIndex}
             data.infvar_mappings[vref] = [@variable(reform_model) for i = 1:2]
             data.infvar_to_supports[vref] = [(0.,), (1.,)]
         else
@@ -100,7 +100,7 @@ function InfiniteOpt.optimizer_model_variable(vref::GeneralVariableRef,
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE OPTIMIZER MODEL VARIABLE(S)
     model = optimizer_model(JuMP.owner_model(vref))
     vindex = index(vref)
-    if vindex isa Union{InfiniteVariableIndex, ReducedVariableIndex}
+    if vindex isa Union{InfiniteVariableIndex, SemiInfiniteVariableIndex}
         map_dict = reform_data(model).infvar_mappings
     elseif vindex isa MeasureIndex
         map_dict = reform_data(model).meas_mappings
@@ -133,7 +133,7 @@ end
 
 # If appropriate extend variable_supports (enables support queries of infinite variables)
 function InfiniteOpt.variable_supports(model::JuMP.Model,
-                                       vref::Union{InfiniteVariableRef, ReducedVariableRef},
+                                       vref::Union{InfiniteVariableRef, SemiInfiniteVariableRef},
                                        key::Val{OptKey};
                                        my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED)
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE INFINITE VARIABLE SUPPORT VALUES

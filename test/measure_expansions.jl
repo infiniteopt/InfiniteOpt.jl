@@ -43,72 +43,72 @@
         opt_m.ext[:my_key] = 42
         @test_throws ErrorException make_point_variable_ref(opt_m, inf1, Float64[0])
     end
-    # test make_reduced_variable_ref (InfiniteModel)
-    @testset "make_reduced_variable_ref (InfiniteModel)" begin
+    # test make_semi_infinite_variable_ref (InfiniteModel)
+    @testset "make_semi_infinite_variable_ref (InfiniteModel)" begin
         # test first addition
-        rvref1 = GeneralVariableRef(m, 1, ReducedVariableIndex)
-        @test make_reduced_variable_ref(m, inf2, [1], Float64[1]) == rvref1
+        rvref1 = GeneralVariableRef(m, 1, SemiInfiniteVariableIndex)
+        @test make_semi_infinite_variable_ref(m, inf2, [1], Float64[1]) == rvref1
         @test infinite_variable_ref(rvref1) == inf2
         @test eval_supports(rvref1) == Dict(1 => Float64(1))
         # test second addition
-        rvref2 = GeneralVariableRef(m, 2, ReducedVariableIndex)
-        @test make_reduced_variable_ref(m, inf2, [1], Float64[0]) == rvref2
+        rvref2 = GeneralVariableRef(m, 2, SemiInfiniteVariableIndex)
+        @test make_semi_infinite_variable_ref(m, inf2, [1], Float64[0]) == rvref2
         @test infinite_variable_ref(rvref2) == inf2
         @test eval_supports(rvref2) == Dict(1 => Float64(0))
         # test first addition with derivative
-        rvref1 = GeneralVariableRef(m, 3, ReducedVariableIndex)
-        @test make_reduced_variable_ref(m, d2, [1], Float64[1]) == rvref1
+        rvref1 = GeneralVariableRef(m, 3, SemiInfiniteVariableIndex)
+        @test make_semi_infinite_variable_ref(m, d2, [1], Float64[1]) == rvref1
         @test infinite_variable_ref(rvref1) == d2
         @test eval_supports(rvref1) == Dict(1 => Float64(1))
         # test second addition with derivative
-        rvref2 = GeneralVariableRef(m, 4, ReducedVariableIndex)
-        @test make_reduced_variable_ref(m, d2, [1], Float64[0]) == rvref2
+        rvref2 = GeneralVariableRef(m, 4, SemiInfiniteVariableIndex)
+        @test make_semi_infinite_variable_ref(m, d2, [1], Float64[0]) == rvref2
         @test infinite_variable_ref(rvref2) == d2
         @test eval_supports(rvref2) == Dict(1 => Float64(0))
     end
-    # test make_reduced_variable_ref (optimizer_model)
-    @testset "make_reduced_variable_ref (optimizer_model)" begin
+    # test make_semi_infinite_variable_ref (optimizer_model)
+    @testset "make_semi_infinite_variable_ref (optimizer_model)" begin
         opt_m = Model()
         opt_m.ext[:my_key] = 42
-        @test_throws ErrorException make_reduced_variable_ref(opt_m, inf2, [1], Float64[1])
+        @test_throws ErrorException make_semi_infinite_variable_ref(opt_m, inf2, [1], Float64[1])
     end
-    # test delete_internal_reduced_variable (InfiniteModel)
-    @testset "delete_internal_reduced_variable (InfiniteModel)" begin
-        rvref1 = ReducedVariableRef(m, ReducedVariableIndex(1))
-        rvref2 = ReducedVariableRef(m, ReducedVariableIndex(2))
-        rvref3 = ReducedVariableRef(m, ReducedVariableIndex(3))
-        rvref4 = ReducedVariableRef(m, ReducedVariableIndex(4))
+    # test delete_internal_semi_infinite_variable (InfiniteModel)
+    @testset "delete_internal_semi_infinite_variable (InfiniteModel)" begin
+        rvref1 = SemiInfiniteVariableRef(m, SemiInfiniteVariableIndex(1))
+        rvref2 = SemiInfiniteVariableRef(m, SemiInfiniteVariableIndex(2))
+        rvref3 = SemiInfiniteVariableRef(m, SemiInfiniteVariableIndex(3))
+        rvref4 = SemiInfiniteVariableRef(m, SemiInfiniteVariableIndex(4))
         # test cannot delete
         push!(InfiniteOpt._constraint_dependencies(rvref1), ConstraintIndex(1))
-        @test delete_internal_reduced_variable(m, rvref1) isa Nothing
+        @test delete_internal_semi_infinite_variable(m, rvref1) isa Nothing
         @test is_valid(m, rvref1)
         empty!(InfiniteOpt._constraint_dependencies(rvref1))
         # test can delete
-        @test delete_internal_reduced_variable(m, rvref1) isa Nothing
-        @test delete_internal_reduced_variable(m, rvref2) isa Nothing
-        @test delete_internal_reduced_variable(m, rvref3) isa Nothing
-        @test delete_internal_reduced_variable(m, rvref4) isa Nothing
+        @test delete_internal_semi_infinite_variable(m, rvref1) isa Nothing
+        @test delete_internal_semi_infinite_variable(m, rvref2) isa Nothing
+        @test delete_internal_semi_infinite_variable(m, rvref3) isa Nothing
+        @test delete_internal_semi_infinite_variable(m, rvref4) isa Nothing
         @test !is_valid(m, rvref1)
         @test !is_valid(m, rvref2)
         @test !is_valid(m, rvref3)
         @test !is_valid(m, rvref4)
     end
-    # test delete_reduced_variable
-    @testset "delete_reduced_variable" begin
-        rvref = ReducedVariableRef(m, ReducedVariableIndex(1))
-        warn = "'delete_reduced_variable' not extended for reduced variable type " *
-              "`ReducedVariableRef` and optimizer model with key `bad`."
-        @test_logs (:warn, warn) delete_reduced_variable(Model(), rvref, Val(:bad))
+    # test delete_semi_infinite_variable
+    @testset "delete_semi_infinite_variable" begin
+        rvref = SemiInfiniteVariableRef(m, SemiInfiniteVariableIndex(1))
+        warn = "'delete_semi_infinite_variable' not extended for semi-infinite variable type " *
+              "`SemiInfiniteVariableRef` and optimizer model with key `bad`."
+        @test_logs (:warn, warn) delete_semi_infinite_variable(Model(), rvref, Val(:bad))
     end
-    # test delete_internal_reduced_variable (optimizer_model)
-    @testset "delete_internal_reduced_variable (optimizer_model)" begin
-        rvref = ReducedVariableRef(m, ReducedVariableIndex(1))
+    # test delete_internal_semi_infinite_variable (optimizer_model)
+    @testset "delete_internal_semi_infinite_variable (optimizer_model)" begin
+        rvref = SemiInfiniteVariableRef(m, SemiInfiniteVariableIndex(1))
         @test !is_valid(m, rvref)
         opt_m = Model()
         opt_m.ext[:my_key] = 42
-        warn = "'delete_reduced_variable' not extended for reduced variable type " *
-              "`ReducedVariableRef` and optimizer model with key `my_key`."
-        @test_logs (:warn, warn) delete_internal_reduced_variable(opt_m, rvref)
+        warn = "'delete_semi_infinite_variable' not extended for semi-infinite variable type " *
+              "`SemiInfiniteVariableRef` and optimizer model with key `my_key`."
+        @test_logs (:warn, warn) delete_internal_semi_infinite_variable(opt_m, rvref)
     end
 end
 
@@ -170,14 +170,14 @@ end
         # test single param infinite var without measure param
         @test InfiniteOpt.expand_measure(inf1, data2, m) == 3inf1
         # test single param infinite var with measure param and others
-        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        idx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(inf2, data1, m) == 0.5 * (rv1 + rv2)
         @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2.)
         # test multi param infinite var with single element evaluation
-        rv1 = GeneralVariableRef(m, idx + 2, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 3, ReducedVariableIndex)
+        rv1 = GeneralVariableRef(m, idx + 2, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 3, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(inf7, data7, m) == 0.5 * (rv1 + rv2)
         @test eval_supports(rv2) == Dict{Int, Float64}(3 => 2.)
     end
@@ -192,14 +192,14 @@ end
         # test single param infinite var without measure param
         @test InfiniteOpt.expand_measure(d1, data2, m) == 3d1
         # test single param infinite var with measure param and others
-        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        idx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(d2, data1, m) == 0.5 * (rv1 + rv2)
         @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2.)
         # test multi param infinite var with single element evaluation
-        rv1 = GeneralVariableRef(m, idx + 2, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 3, ReducedVariableIndex)
+        rv1 = GeneralVariableRef(m, idx + 2, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 3, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(d7, data7, m) == 0.5 * (rv1 + rv2)
         @test eval_supports(rv2) == Dict{Int, Float64}(3 => 2.)
     end
@@ -210,14 +210,14 @@ end
         # test single param infinite var without measure param
         @test InfiniteOpt.expand_measure(f1, data2, m) == 3 * f1
         # test single param infinite var with measure param and others
-        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        idx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(f2, data1, m) == 0.5 * (rv1 + rv2)
         @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2.)
         # test multi param infinite var with single element evaluation
-        rv1 = GeneralVariableRef(m, idx + 2, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 3, ReducedVariableIndex)
+        rv1 = GeneralVariableRef(m, idx + 2, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 3, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(f7, data7, m) == 0.5 * (rv1 + rv2)
         @test eval_supports(rv2) == Dict{Int, Float64}(3 => 2.)
     end
@@ -232,9 +232,9 @@ end
         # test infinite var without measure param
         @test InfiniteOpt.expand_measure(inf4, data4, m) == 4inf4
         # test infinite var with measure param and others
-        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        idx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(inf5, data3, m) == rv1 + rv2
         @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2, 2 => 2)
         # test infinite var with measure param that is out of order
@@ -253,10 +253,10 @@ end
                GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         @test InfiniteOpt.expand_measure(inf8, data3, m) == pts[1] + pts[2]
         @test parameter_values(pts[2]) == (2.,)
-        # test making reduced vars with variable not containing all the measure prefs
-        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        # test making semi-infinite vars with variable not containing all the measure prefs
+        idx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(inf9, data3, m) == rv1 + rv2
         @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2)
     end
@@ -271,9 +271,9 @@ end
         # test infinite var without measure param
         @test InfiniteOpt.expand_measure(d4, data4, m) == 4d4
         # test infinite var with measure param and others
-        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        idx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(d5, data3, m) == rv1 + rv2
         @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2, 2 => 2)
         # test infinite var with measure param that is out of order
@@ -292,10 +292,10 @@ end
                GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         @test InfiniteOpt.expand_measure(d8, data3, m) == pts[1] + pts[2]
         @test parameter_values(pts[2]) == (2.,)
-        # test making reduced vars with variable not containing all the measure prefs
-        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        # test making semi-infinite vars with variable not containing all the measure prefs
+        idx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(d9, data3, m) == rv1 + rv2
         @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2)
     end
@@ -306,9 +306,9 @@ end
         # test infinite var without measure param
         @test InfiniteOpt.expand_measure(f4, data4, m) == 4 * f4
         # test infinite var with measure param and others
-        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        idx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(f5, data3, m) == rv1 + rv2
         @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2, 2 => 2)
         # test infinite var with measure param that is out of order
@@ -319,10 +319,10 @@ end
         @test InfiniteOpt.expand_measure(f9, data6, m) == 2 * f9
         # test infinite variable has subset of multi params
         @test InfiniteOpt.expand_measure(f8, data3, m) == cos(1) + cos(2)
-        # test making reduced vars with variable not containing all the measure prefs
-        idx = length(InfiniteOpt._data_dictionary(m, ReducedVariable)) + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        # test making semi-infinite vars with variable not containing all the measure prefs
+        idx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(f9, data3, m) == rv1 + rv2
         @test eval_supports(rv2) == Dict{Int, Float64}(1 => 2)
     end
@@ -332,31 +332,31 @@ end
         expected = Float64[23, 42]
         @test InfiniteOpt._make_point_support(orig_prefs, support_dict, 1, Float64(23)) == expected
     end
-    # test expand_measure (reduced infinite variable)
-    @testset "Reduced Variable (1D DiscreteMeasureData)" begin
-        # test single param reduced var without measure param
-        rv = make_reduced_variable_ref(m, inf2, [1], Float64[1])
+    # test expand_measure (Semi-infinite variable)
+    @testset "Semi-Infinite Variable (1D DiscreteMeasureData)" begin
+        # test single param semi-infinite var without measure param
+        rv = make_semi_infinite_variable_ref(m, inf2, [1], Float64[1])
         @test InfiniteOpt.expand_measure(rv, data1, m) == 0.5 * (rv + rv)
-        # test single param reduced var with measure param
+        # test single param semi-infinite var with measure param
         idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
         pts = [GeneralVariableRef(m, idx, PointVariableIndex),
                GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         @test InfiniteOpt.expand_measure(rv, data2, m) == 1.5 * (pts[1] + pts[2])
         @test parameter_values(pts[1]) == (1., 1.)
         @test !is_valid(m, rv)
-        # test single param reduced var with measure param and others
-        rv = make_reduced_variable_ref(m, inf7, [1], Float64[1])
+        # test single param semi-infinite var with measure param and others
+        rv = make_semi_infinite_variable_ref(m, inf7, [1], Float64[1])
         idx = index(rv).value + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(rv, data2, m) == 1.5 * (rv1 + rv2)
         @test eval_supports(rv2) == Dict{Int, Float64}(1 => 1, 2 => 1)
         @test !is_valid(m, rv)
-        # test single param reduced var partially from array element
-        rv = make_reduced_variable_ref(m, inf7, [1], Float64[1])
+        # test single param semi-infinite var partially from array element
+        rv = make_semi_infinite_variable_ref(m, inf7, [1], Float64[1])
         idx = index(rv).value + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(rv, data7, m) == 0.5 * (rv1 + rv2)
         @test eval_supports(rv2) == Dict{Int, Float64}(1 => 1, 3 => 2)
         @test !is_valid(m, rv)
@@ -368,28 +368,28 @@ end
         vals = Float64[3, 2]
         @test InfiniteOpt._make_point_support(orig_prefs, support_dict, [3, 4], vals) == expected
     end
-    # test expand_measure (reduced infinite variable)
-    @testset "Reduced Variable (Multi DiscreteMeasureData)" begin
-        # test array param reduced var without measure param
-        rv = make_reduced_variable_ref(m, inf5, [1, 2], Float64[1, 1])
+    # test expand_measure (semi-infinite variable)
+    @testset "Semi-Infinite Variable (Multi DiscreteMeasureData)" begin
+        # test array param semi-infinite var without measure param
+        rv = make_semi_infinite_variable_ref(m, inf5, [1, 2], Float64[1, 1])
         @test InfiniteOpt.expand_measure(rv, data3, m) == rv + rv
-        # test array param reduced var with measure param
+        # test array param semi-infinite var with measure param
         idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
         pts = [GeneralVariableRef(m, idx, PointVariableIndex),
                GeneralVariableRef(m, idx + 1, PointVariableIndex)]
         @test InfiniteOpt.expand_measure(rv, data4, m) == 2 * (pts[1] + pts[2])
         @test parameter_values(pts[2]) == (Float64[1, 1], Float64[1, 1])
         @test !is_valid(m, rv)
-        # test array param reduced var with measure param and others
-        rv = make_reduced_variable_ref(m, inf7, [1], Float64[1])
+        # test array param semi-infinite var with measure param and others
+        rv = make_semi_infinite_variable_ref(m, inf7, [1], Float64[1])
         idx = index(rv).value + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(rv, data3, m) == rv1 + rv2
         @test eval_supports(rv2) == Dict{Int, Float64}(1 => 1, 3 => 2, 4 => 2)
         @test !is_valid(m, rv)
         # test array param that is out of order and should make point variable
-        rv = make_reduced_variable_ref(m, inf5, [3, 4], Float64[1, 1])
+        rv = make_semi_infinite_variable_ref(m, inf5, [3, 4], Float64[1, 1])
         idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
         pts = [GeneralVariableRef(m, idx, PointVariableIndex),
                GeneralVariableRef(m, idx + 1, PointVariableIndex)]
@@ -397,16 +397,16 @@ end
         @test parameter_values(pts[1]) == (Float64[1.2, 1], Float64[1, 1])
         @test !is_valid(m, rv)
         # test array param that with no others that partially overlap
-        rv = make_reduced_variable_ref(m, inf5, [2, 3, 4], Float64[1, 1, 1])
+        rv = make_semi_infinite_variable_ref(m, inf5, [2, 3, 4], Float64[1, 1, 1])
         @test InfiniteOpt.expand_measure(rv, data6, m) == 2rv
         # test array param with others that partially overlap
-        rv = make_reduced_variable_ref(m, inf5, [2], Float64[1])
+        rv = make_semi_infinite_variable_ref(m, inf5, [2], Float64[1])
         @test InfiniteOpt.expand_measure(rv, data6, m) == 2rv
         # test partial overlap
-        rv = make_reduced_variable_ref(m, inf5, [2], Float64[1])
+        rv = make_semi_infinite_variable_ref(m, inf5, [2], Float64[1])
         idx = index(rv).value + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         @test InfiniteOpt.expand_measure(rv, data3, m) == rv1 + rv2
         @test eval_supports(rv2) == Dict{Int, Float64}(2 => 1, 1 => 2)
         @test !is_valid(m, rv)
@@ -496,9 +496,9 @@ end
         idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
         pts = [GeneralVariableRef(m, idx, PointVariableIndex),
                GeneralVariableRef(m, idx + 1, PointVariableIndex)]
-        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        idx = InfiniteOpt._data_dictionary(m, SemiInfiniteVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         expected = 0.5 * (2 * pts[1] * rv1 + - 2 * inf3 * inf4 + 2 * pts[2] *
                           rv2 + 2x + 4)
         @test InfiniteOpt.expand_measure(expr, data1, m) == expected
@@ -511,9 +511,9 @@ end
         @test InfiniteOpt.expand_measure(expr, data1, m) == expected
         # test single param QuadExpr with first variable integrated
         expr = 3 * inf2 * inf1 + pars1[1] + 1
-        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        idx = InfiniteOpt._data_dictionary(m, SemiInfiniteVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         expected = 1.5 * (3 * rv1 * inf1 + 3 * rv2 * inf1 + 2pars1[1] + 2)
         @test InfiniteOpt.expand_measure(expr, data2, m) == expected
         # test single parameter with first quadratic term becomes number
@@ -550,9 +550,9 @@ end
         idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
         pts = [GeneralVariableRef(m, idx, PointVariableIndex),
                GeneralVariableRef(m, idx + 1, PointVariableIndex)]
-               idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
-               rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-               rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+               idx = InfiniteOpt._data_dictionary(m, SemiInfiniteVariable).last_index + 1
+               rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+               rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         expected = 2 * pts[1] * rv1 - 2 * inf1 * inf2 + 2 * pts[2] * rv2 + 2x + 4
         @test InfiniteOpt.expand_measure(expr, data3, m) == expected
         # test array param QuadExpr with first variable not integrated
@@ -564,9 +564,9 @@ end
         @test InfiniteOpt.expand_measure(expr, data3, m) == expected
         # test array param QuadExpr with first variable integrated
         expr = 3 * inf5 * inf1 + pars1[1] + 1
-        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        idx = InfiniteOpt._data_dictionary(m, SemiInfiniteVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         expected = 2 * (3 * rv1 * inf1 + 3 * rv2 * inf1 + 2pars1[1] + 2)
         @test InfiniteOpt.expand_measure(expr, data4, m) == expected
         # test array parameter with first quadratic term becomes number
@@ -708,9 +708,9 @@ end
         idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
         pts = [GeneralVariableRef(m, idx, PointVariableIndex),
                GeneralVariableRef(m, idx + 1, PointVariableIndex)]
-        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        idx = InfiniteOpt._data_dictionary(m, SemiInfiniteVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         expected = 0.5 * (pts[1] + pts[2] + 6x - rv1 - rv2 + 2inf3 - 4)
         @test InfiniteOpt.expand_measures(meas1, m) == expected
         # test the second measure
@@ -743,9 +743,9 @@ end
         idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
         pts = [GeneralVariableRef(m, idx, PointVariableIndex),
                GeneralVariableRef(m, idx + 1, PointVariableIndex)]
-        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        idx = InfiniteOpt._data_dictionary(m, SemiInfiniteVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         expected = 2inf4 + 7x + pts[1] + pts[2] - rv1 - rv2 + 2inf3 - 4
         @test InfiniteOpt.expand_measures(expr, m) == expected
         # test returning QuadExpr
@@ -763,9 +763,9 @@ end
         idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
         pts = [GeneralVariableRef(m, idx, PointVariableIndex),
                GeneralVariableRef(m, idx + 1, PointVariableIndex)]
-        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        idx = InfiniteOpt._data_dictionary(m, SemiInfiniteVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         m1 = 0.5 * (pts[1] + pts[2] + 6x - rv1 - rv2 + 2inf3 - 4)
         # test with this thorough expression
         @test InfiniteOpt.expand_measures(expr, m) == 2 * m1 * x - x + 1
@@ -800,9 +800,9 @@ end
         idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
         pts = [GeneralVariableRef(m, idx, PointVariableIndex),
                GeneralVariableRef(m, idx + 1, PointVariableIndex)]
-        idx = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 1
-        rv1 = GeneralVariableRef(m, idx, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx + 1, ReducedVariableIndex)
+        idx = InfiniteOpt._data_dictionary(m, SemiInfiniteVariable).last_index + 1
+        rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx + 1, SemiInfiniteVariableIndex)
         expected = 0.5 * (pts[1] + pts[2] + 6x - rv1 - rv2 + 2inf3 - 4)
         @test expand(meas1) == expected
         @test parameter_values(pts[2]) == (2.,)
@@ -849,9 +849,9 @@ end
                GeneralVariableRef(m, idx + 7, PointVariableIndex)]
         c2_expected = 2x - (2 * pts[1] * x + 2 * pts[2] * x + pts[3] + pts[4] +
                       pts[5] + pts[6])
-        idx2 = InfiniteOpt._data_dictionary(m, ReducedVariable).last_index + 3
-        rv1 = GeneralVariableRef(m, idx2, ReducedVariableIndex)
-        rv2 = GeneralVariableRef(m, idx2 + 1, ReducedVariableIndex)
+        idx2 = InfiniteOpt._data_dictionary(m, SemiInfiniteVariable).last_index + 3
+        rv1 = GeneralVariableRef(m, idx2, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx2 + 1, SemiInfiniteVariableIndex)
         c3_expected = 0.5rv1 + 0.5rv2 + inf1
         pts = [GeneralVariableRef(m, idx + 8, PointVariableIndex),
                GeneralVariableRef(m, idx + 9, PointVariableIndex)]

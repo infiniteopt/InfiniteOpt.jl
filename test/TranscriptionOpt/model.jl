@@ -24,7 +24,7 @@ end
     end
     # test transcription_data
     @testset "transcription_data" begin
-        @test transcription_data(TranscriptionModel()).reduced_vars isa Vector
+        @test transcription_data(TranscriptionModel()).semi_infinite_vars isa Vector
         @test_throws ErrorException transcription_data(Model())
     end
     # test has_internal_supports
@@ -133,7 +133,7 @@ end
         data.finvar_mappings[x0] = b
         @test transcription_variable(tm, x0, ndarray = true, label = All) == b
     end
-    # test transcription_variable (Infinite, reduced, and derivative)
+    # test transcription_variable (Infinite, semi-infinite, and derivative)
     @testset "transcription_variable (Infinite)" begin
         # test error
         @test_throws ErrorException transcription_variable(tm, x)
@@ -203,7 +203,7 @@ end
                                 (0., [1., 1.]) (0.5, [1., 1.]) (1., [1., 1.])], (2, 1))
         @test InfiniteOpt.variable_supports(tm, dvref, ndarray = true) == expected[[1, 3], :]
         @test InfiniteOpt.variable_supports(tm, dvref, ndarray = true, label = All) == expected
-        # test with reduced variable
+        # test with semi-infinite variable
         lookups = Dict{Vector{Float64}, Int}([0, 1] => 1, [0.5, 1] => 2, [1, 1] => 3)
         data.infvar_lookup[xrv] = lookups
         dvref = dispatch_variable_ref(xrv)
@@ -256,15 +256,15 @@ end
         @test IOTO.lookup_by_support(tm, x0, [0., 0., 0.]) == b
         @test IOTO.lookup_by_support(tm, y, [0., 0., 1.]) == a
     end
-    # test internal_reduced_variable
-    @testset "internal_reduced_variable" begin
-        rv = ReducedVariableRef(m, ReducedVariableIndex(-1))
+    # test internal_semi_infinite_variable
+    @testset "internal_semi_infinite_variable" begin
+        rv = SemiInfiniteVariableRef(m, SemiInfiniteVariableIndex(-1))
         # test errors
-        @test_throws ErrorException InfiniteOpt.internal_reduced_variable(rv, Val(:TransData))
+        @test_throws ErrorException InfiniteOpt.internal_semi_infinite_variable(rv, Val(:TransData))
         # test normal
         var = build_variable(error, x, supps)
-        push!(transcription_data(tm).reduced_vars, var)
-        @test InfiniteOpt.internal_reduced_variable(rv, Val(:TransData)) == var
+        push!(transcription_data(tm).semi_infinite_vars, var)
+        @test InfiniteOpt.internal_semi_infinite_variable(rv, Val(:TransData)) == var
         eval_supports(rv) == supps
     end
 end
@@ -467,12 +467,12 @@ end
         @test IOTO.transcription_expression(tm, meas1, [0., 0., 1.]) == -2 * zero(AffExpr)
         @test IOTO.transcription_expression(tm, f, [0., 1., 0.]) == 1
     end
-    # test transcription expression for reduced variables with 3 args
-    @testset "transcription_expression (Reduced Variable)" begin
-        # reduced of parameter function 
+    # test transcription expression for semi_infinite variables with 3 args
+    @testset "transcription_expression (Semi-Infinite Variable)" begin
+        # semi_infinite of parameter function 
         rv = add_variable(m, build_variable(error, f, Dict(1=>1.)))
         @test IOTO.transcription_expression(tm, rv, [0., 1., 0.]) == 1
-        # reduced of infinite variable
+        # semi_infinite of infinite variable
         rv = add_variable(m, build_variable(error, x, Dict(1=>1.)))
         data.infvar_mappings[rv] = [b, c]
         lookups = Dict{Vector{Float64}, Int}([0, 0] => 1, [1, 0] => 2)

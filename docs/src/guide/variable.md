@@ -13,7 +13,7 @@ recourse variables). Point variables are infinite variables at a particular
 infinite parameter value (point). Finally, hold variables are decisions that
 are made irrespective of the infinite domain (e.g., first stage variables and
 design variables). Or in other words, they hold a particular value over the
-infinite domain or some sub-domain of it. We also employ reduced variables
+infinite domain or some sub-domain of it. We also employ semi-infinite variables
 which correspond to partially transcribed infinite variables which are artifacts
 of measure evaluation and thus are discussed on the [Measures](@ref measure_page) page.
 
@@ -833,7 +833,7 @@ used_by_measure(::DecisionVariableRef)
 used_by_objective(::DecisionVariableRef)
 is_used(::DecisionVariableRef)
 used_by_point_variable(::Union{InfiniteVariableRef, DerivativeRef})
-used_by_reduced_variable(::Union{InfiniteVariableRef, DerivativeRef})
+used_by_semi_infinite_variable(::Union{InfiniteVariableRef, DerivativeRef})
 is_used(::Union{InfiniteVariableRef, DerivativeRef})
 JuMP.delete(::InfiniteModel, ::DecisionVariableRef)
 JuMP.num_variables(::InfiniteModel, ::Type{InfOptVariable})

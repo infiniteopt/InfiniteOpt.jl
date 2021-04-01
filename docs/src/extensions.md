@@ -229,7 +229,7 @@ end
 
 ```
 We used [`InfiniteOpt.make_reduced_expr`](@ref) as a convenient helper function 
-to generate the reduced variables/expressions we need to generate at each support 
+to generate the semi-infinite variables/expressions we need to generate at each support 
 point. Also note that [`InfiniteOpt.add_generative_supports`](@ref) needs to be 
 included for `GenerativeDerivativeMethods`, but is not necessary in this example.
 
@@ -660,7 +660,7 @@ extended using the following steps:
     - [`InfiniteOpt.map_lp_rhs_perturbation_range`](@ref) (enables `JuMP.lp_rhs_perturbation_range`)
     - [`InfiniteOpt.map_lp_objective_perturbation_range`](@ref) (enables `JuMP.lp_objective_perturbation_range`)
 11. Extend [`InfiniteOpt.add_measure_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model
-12. Extend [`InfiniteOpt.delete_reduced_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model and delete unneeded reduced variables.
+12. Extend [`InfiniteOpt.delete_semi_infinite_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model and delete unneeded semi-infinite variables.
 
 For the sake of example, let's suppose we want to define a reformulation method
 for `InfiniteModel`s that are 2-stage stochastic programs (i.e., only

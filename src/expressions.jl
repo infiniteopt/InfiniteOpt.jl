@@ -244,11 +244,11 @@ function raw_function(fref::ParameterFunctionRef)::Function
     return _core_variable_object(fref).func
 end
 
-# Extend _reduced_variable_dependencies
-function _reduced_variable_dependencies(
+# Extend _semi_infinite_variable_dependencies
+function _semi_infinite_variable_dependencies(
     fref::ParameterFunctionRef
-     )::Vector{ReducedVariableIndex}
-    return _data_object(fref).reduced_var_indices
+     )::Vector{SemiInfiniteVariableIndex}
+    return _data_object(fref).semi_infinite_var_indices
 end
 
 # Extend _derivative_dependencies
@@ -269,18 +269,18 @@ function _constraint_dependencies(fref::ParameterFunctionRef)::Vector{Constraint
 end
 
 """
-    used_by_reduced_variable(fref::ParameterFunctionRef)::Bool
+    used_by_semi_infinite_variable(fref::ParameterFunctionRef)::Bool
 
-Return a `Bool` indicating if `fref` is used by a reduced infinite variable.
+Return a `Bool` indicating if `fref` is used by a semi-infinite infinite variable.
 
 **Example**
 ```julia-repl
-julia> used_by_reduced_variable(fref)
+julia> used_by_semi_infinite_variable(fref)
 false
 ```
 """
-function used_by_reduced_variable(fref::ParameterFunctionRef)::Bool
-    return !isempty(_reduced_variable_dependencies(fref))
+function used_by_semi_infinite_variable(fref::ParameterFunctionRef)::Bool
+    return !isempty(_semi_infinite_variable_dependencies(fref))
 end
 
 """
@@ -341,7 +341,7 @@ true
 """
 function is_used(fref::ParameterFunctionRef)::Bool
     return used_by_measure(fref) || used_by_constraint(fref) || 
-           used_by_reduced_variable(fref) || used_by_derivative(fref)
+           used_by_semi_infinite_variable(fref) || used_by_derivative(fref)
 end
 
 """
@@ -363,8 +363,8 @@ function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)::Nothing
         filter!(e -> e != JuMP.index(fref), _parameter_function_dependencies(pref))
     end
     gvref = _make_variable_ref(model, JuMP.index(fref))
-    # delete associated reduced variables and mapping
-    for index in _reduced_variable_dependencies(fref)
+    # delete associated semi-infinite variables and mapping
+    for index in _semi_infinite_variable_dependencies(fref)
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # delete associated derivative variables and mapping 

@@ -251,7 +251,7 @@ parameter_refs(::ParameterFunctionRef)
 raw_parameter_refs(::ParameterFunctionRef)
 parameter_list(::ParameterFunctionRef)
 raw_function
-used_by_reduced_variable(::ParameterFunctionRef)
+used_by_semi_infinite_variable(::ParameterFunctionRef)
 used_by_derivative(::ParameterFunctionRef)
 used_by_measure(::ParameterFunctionRef)
 used_by_constraint(::ParameterFunctionRef)
@@ -283,7 +283,7 @@ JuMP.is_valid(::InfiniteModel,::GeneralVariableRef)
 JuMP.is_valid(::InfiniteModel, ::DispatchVariableRef)
 used_by_infinite_variable(::GeneralVariableRef)
 used_by_point_variable(::GeneralVariableRef)
-used_by_reduced_variable(::GeneralVariableRef)
+used_by_semi_infinite_variable(::GeneralVariableRef)
 used_by_derivative(::GeneralVariableRef)
 used_by_measure(::GeneralVariableRef)
 used_by_objective(::GeneralVariableRef)
@@ -379,8 +379,8 @@ InfiniteOpt._core_variable_object(::GeneralVariableRef)
 InfiniteOpt._set_core_variable_object
 InfiniteOpt._infinite_variable_dependencies
 InfiniteOpt._infinite_variable_dependencies(::GeneralVariableRef)
-InfiniteOpt._reduced_variable_dependencies
-InfiniteOpt._reduced_variable_dependencies(::GeneralVariableRef)
+InfiniteOpt._semi_infinite_variable_dependencies
+InfiniteOpt._semi_infinite_variable_dependencies(::GeneralVariableRef)
 InfiniteOpt._point_variable_dependencies
 InfiniteOpt._point_variable_dependencies(::GeneralVariableRef)
 InfiniteOpt._derivative_dependencies

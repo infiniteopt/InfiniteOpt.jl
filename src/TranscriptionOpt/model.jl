@@ -21,8 +21,8 @@ constructor.
    Map the infinite variables to their support labels.
 - `finvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}`:
    Map finite variables to their transcription variables.
-- `reduced_vars::Vector{InfiniteOpt.ReducedVariable{InfiniteOpt.GeneralVariableRef}}`:
-   Store the core reduced variable objects of reduced variables formed on transcription.
+- `semi_infinite_vars::Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}`:
+   Store the core semi-infinite variable objects of semi-infinite variables formed on transcription.
 - `last_point_index::Int`: The last internal point variable index added.
 - `measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}`:
    A lookup table of measure transcriptions via support value.
@@ -51,7 +51,7 @@ mutable struct TranscriptionData
     finvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}
 
     # Internal variables (created via internal measure expansions)
-    reduced_vars::Vector{InfiniteOpt.ReducedVariable{InfiniteOpt.GeneralVariableRef}}
+    semi_infinite_vars::Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}
     last_point_index::Int
 
     # Measure information
@@ -82,7 +82,7 @@ mutable struct TranscriptionData
                    Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}(),
                    Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}(),
                    # internal variables
-                   Vector{InfiniteOpt.ReducedVariable{InfiniteOpt.GeneralVariableRef}}(),
+                   Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}(),
                    0,
                    # measure info
                    Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
@@ -229,7 +229,7 @@ end
 
 # define convenient aliases
 const InfVarIndex = Union{InfiniteOpt.InfiniteVariableIndex,
-                          InfiniteOpt.ReducedVariableIndex,
+                          InfiniteOpt.SemiInfiniteVariableIndex,
                           InfiniteOpt.DerivativeIndex}
 const FinVarIndex = Union{InfiniteOpt.HoldVariableIndex,
                           InfiniteOpt.PointVariableIndex}
@@ -348,7 +348,7 @@ Errors if `vref` does not have transcripted variables. See `transcription_variab
 for an explanation of `ndarray`.
 """
 function InfiniteOpt.variable_supports(model::JuMP.Model,
-    dvref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.ReducedVariableRef, 
+    dvref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.SemiInfiniteVariableRef, 
                  InfiniteOpt.DerivativeRef},
     key::Val{:TransData} = Val(:TransData);
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
@@ -466,27 +466,27 @@ function lookup_by_support(model::JuMP.Model,
 end
 
 """
-    InfiniteOpt.internal_reduced_variable(
-        vref::InfiniteOpt.ReducedVariableRef,
+    InfiniteOpt.internal_semi_infinite_variable(
+        vref::InfiniteOpt.SemiInfiniteVariableRef,
         ::Val{:TransData}
-        )::InfiniteOpt.ReducedVariable{InfiniteOpt.GeneralVariableRef}
+        )::InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}
 
-Return the internal reduced variable associated with `vref`, assuming it was
+Return the internal semi-infinite variable associated with `vref`, assuming it was
 added internally during measure expansion at the transcription step. This
-extends [`InfiniteOpt.internal_reduced_variable`](@ref) as described in its
+extends [`InfiniteOpt.internal_semi_infinite_variable`](@ref) as described in its
 docstring. Errors, if no such variable can be found.
 """
-function InfiniteOpt.internal_reduced_variable(
-    vref::InfiniteOpt.ReducedVariableRef,
+function InfiniteOpt.internal_semi_infinite_variable(
+    vref::InfiniteOpt.SemiInfiniteVariableRef,
     ::Val{:TransData}
-    )::InfiniteOpt.ReducedVariable{InfiniteOpt.GeneralVariableRef}
+    )::InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}
     trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(vref))
-    reduced_vars = transcription_data(trans_model).reduced_vars
+    semi_infinite_vars = transcription_data(trans_model).semi_infinite_vars
     idx = -1 * JuMP.index(vref).value
-    if idx in keys(reduced_vars)
-        return reduced_vars[idx]
+    if idx in keys(semi_infinite_vars)
+        return semi_infinite_vars[idx]
     else
-        error("Invalid reduced variable reference, this likely is attributed " *
+        error("Invalid semi-infinite variable reference, this likely is attributed " *
               "to its being deleted.")
     end
 end
@@ -943,7 +943,7 @@ function make_ndarray(model::JuMP.Model, ref, info::Vector, label::DataType)
     if length(info) != prod(dims)
         error("Unable to make `ndarray`. This is likely due to the object being " * 
               "over a portion of the infinite-domain (e.g., bounded constraints and " * 
-              "certain reduced infinite variables.")
+              "certain semi-infinite variables.")
     end
     # make and populate the array
     narray = Array{_get_array_type(info)}(undef, dims)
