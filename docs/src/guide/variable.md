@@ -32,7 +32,7 @@ macros: [`@infinite_variable`](@ref), [`@point_variable`](@ref), and
 except that they each employ additional syntax capabilities to employ their
 respective variable type.
 
-!!! warn
+!!! warning
     The "hold variable" nomenclature used by previous versions of `InfiniteOpt` has 
     been removed in favor of "finite variable". Hence, `@hold_variable` is now 
     deprecated in favor of `@finite_variable`.

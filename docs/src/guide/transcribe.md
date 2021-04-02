@@ -554,7 +554,7 @@ InfiniteOpt.TranscriptionOpt.index_to_support
 InfiniteOpt.TranscriptionOpt.index_to_labels
 InfiniteOpt.TranscriptionOpt.make_ndarray
 InfiniteOpt.TranscriptionOpt.set_parameter_supports
-InfiniteOpt.TranscriptionOpt.transcribe_hold_variables!
+InfiniteOpt.TranscriptionOpt.transcribe_finite_variables!
 InfiniteOpt.TranscriptionOpt.transcribe_infinite_variables!
 InfiniteOpt.TranscriptionOpt.transcribe_derivative_variables!
 InfiniteOpt.TranscriptionOpt.transcribe_semi_infinite_variables!
