@@ -4,7 +4,7 @@
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 1])
     @infinite_parameter(m, x[1:2] in [-1, 1])
-    func = InfiniteParameterFunction(sin, IC.VectorTuple(t), [1], [1])
+    func = ParameterFunction(sin, IC.VectorTuple(t), [1], [1])
     object = ParameterFunctionData(func, "test")
     idx = ParameterFunctionIndex(1)
     fref = ParameterFunctionRef(m, idx)
@@ -166,7 +166,7 @@
         @test_throws ErrorException build_parameter_function(error, sin, x[1])
         @test_throws ErrorException build_parameter_function(error, sin, (t, x))
         # test normal  
-        @test build_parameter_function(error, (a, b) -> 2, (t, x)) isa InfiniteParameterFunction 
+        @test build_parameter_function(error, (a, b) -> 2, (t, x)) isa ParameterFunction 
     end
     # test add_parameter_function
     @testset "add_parameter_function" begin 

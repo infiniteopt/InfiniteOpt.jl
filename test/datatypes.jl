@@ -363,16 +363,16 @@ end
     end
 end
 
-# Test Infinite parameter functions 
-@testset "Infinite Parameter Functions" begin 
+# Test parameter functions 
+@testset "Parameter Functions" begin 
     # useful data
     m = InfiniteModel()
     pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
     vt = IC.VectorTuple(pref)
-    # test InfiniteParameterFunction
-    @test InfiniteParameterFunction(sin, vt, [1], [1]) isa InfiniteParameterFunction
+    # test ParameterFunction
+    @test ParameterFunction(sin, vt, [1], [1]) isa ParameterFunction
     # test ParameterFunctionData
-    @test ParameterFunctionData(InfiniteParameterFunction(sin, vt, [1], [1])) isa ParameterFunctionData
+    @test ParameterFunctionData(ParameterFunction(sin, vt, [1], [1])) isa ParameterFunctionData
 end
 
 # Test variable datatypes

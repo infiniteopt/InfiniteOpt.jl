@@ -72,7 +72,7 @@ end
 """
     ParameterFunctionIndex <: ObjectIndex
 
-A `DataType` for storing the index of a [`InfiniteParameterFunction`](@ref).
+A `DataType` for storing the index of a [`ParameterFunction`](@ref).
 
 **Fields**
 - `value::Int64`: The index value.
@@ -656,12 +656,12 @@ struct ParameterBounds{P <: JuMP.AbstractVariableRef}
 end
 
 ################################################################################
-#                     INFINITE PARAMETER FUNCTION OBJECTS
+#                        PARAMETER FUNCTION OBJECTS
 ################################################################################
 """
-    InfiniteParameterFunction{P <: GeneralVariableRef}
+    ParameterFunction{P <: GeneralVariableRef}
 
-A `DataType` for storing infinite parameter functions. These equate to arbitrary 
+A `DataType` for storing known functions of infinite parameters. These equate to arbitrary 
 functions that take support instances of infinite parameters `parameter_refs` in 
 as input and compute a scalar value as output via `func`. These can then can 
 incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
@@ -675,7 +675,7 @@ incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
 """
-struct InfiniteParameterFunction{P <: JuMP.AbstractVariableRef}
+struct ParameterFunction{P <: JuMP.AbstractVariableRef}
     func::Function
     parameter_refs::VectorTuple{P}
     object_nums::Vector{Int}
@@ -683,26 +683,26 @@ struct InfiniteParameterFunction{P <: JuMP.AbstractVariableRef}
 end
 
 """
-    ParameterFunctionData{F <: InfiniteParameterFunction} <: AbstractDataObject
+    ParameterFunctionData{F <: ParameterFunction} <: AbstractDataObject
 
-A mutable `DataType` for storing `InfiniteParameterFunction`s and their data.
+A mutable `DataType` for storing `ParameterFunction`s and their data.
 
 **Fields**
-- `func::F`: The infinite parameter function.
+- `func::F`: The parameter function.
 - `name::String`: The name used for printing.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
 - `semi_infinite_var_indices::Vector{SemiInfiniteVariableIndex}`: Indices of dependent semi-infinite variables.
 - `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
 """
-mutable struct ParameterFunctionData{F <: InfiniteParameterFunction} <: AbstractDataObject
+mutable struct ParameterFunctionData{F <: ParameterFunction} <: AbstractDataObject
     func::F
     name::String
     measure_indices::Vector{MeasureIndex}
     constraint_indices::Vector{ConstraintIndex}
     semi_infinite_var_indices::Vector{SemiInfiniteVariableIndex}
     derivative_indices::Vector{DerivativeIndex}
-    function ParameterFunctionData(func::F, name::String = "") where {F <: InfiniteParameterFunction}
+    function ParameterFunctionData(func::F, name::String = "") where {F <: ParameterFunction}
         return new{F}(func, name, MeasureIndex[], ConstraintIndex[], 
                       SemiInfiniteVariableIndex[], DerivativeIndex[])
     end
@@ -1190,7 +1190,7 @@ model an optmization problem with an infinite-dimensional decision space.
 - `last_param_num::Int`: The last parameter number to be used.
 - `param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}`:
   The collection of parameter object indices in creation order.
-- `param_functions::MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{InfiniteParameterFunction}}`: 
+- `param_functions::MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{ParameterFunction}}`: 
   The infinite parameter functions and their mapping information.
 - `infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}`:
    The infinite variables and their mapping information.
@@ -1323,7 +1323,7 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
                          nothing, 0,
                          Union{IndependentParameterIndex, DependentParametersIndex}[],
-                         MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{InfiniteParameterFunction{GeneralVariableRef}}}(),
+                         MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{ParameterFunction{GeneralVariableRef}}}(),
                          # Variables
                          MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable{GeneralVariableRef}}}(),
                          MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),

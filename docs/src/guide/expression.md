@@ -11,11 +11,11 @@ types and methods principally pertaining to affine and quadratic mathematical
 expressions. A natively supported abstraction for general nonlinear expressions
 is planned for development since that of `JuMP` is not readily extendable.
 
-## Infinite Parameter Functions
+## Parameter Functions
 As described further below, InfiniteOpt.jl only supports affine and quadratic 
 expressions in its current rendition. However, there several use cases where we 
-might want to provide a more complex function of infinite parameter(s) (e.g., 
-nonlinear setpoint tracking). Thus, we provide infinite parameter function objects 
+might want to provide a more complex known function of infinite parameter(s) (e.g., 
+nonlinear setpoint tracking). Thus, we provide parameter function objects 
 that given a particular realization of infinite parameters will output a scalar 
 value. This is accomplished via [`parameter_function`](@ref) and is exemplified 
 by defining `sin(t)` below:
@@ -29,7 +29,7 @@ julia> @infinite_parameter(model, t in [0, 10]);
 julia> f = parameter_function(sin, t)
 sin(t)
 ```
-Here we created an infinite parameter function object, added it to `model`, and 
+Here we created an parameter function object, added it to `model`, and 
 then created a Julia variable `f` that serves as a `GeneralVariableRef` that points 
 to it. From here we can treat `f` as a normal infinite variable and use it with 
 measures, derivatives, and constraints. For example, we can do the following:
@@ -45,7 +45,7 @@ julia> meas = integral(y - f, t)
 julia> @constraint(model, y - f <= 0)
 y(t) - sin(t) ≤ 0.0, ∀ t ∈ [0, 10]
 ```
-We can also define infinite parameter functions that depend on multiple infinite 
+We can also define parameter functions that depend on multiple infinite 
 parameters:
 ```@jldoctest; param_func
 julia> @infinite_parameter(model, x[1:2] in [-1, 1]);
@@ -55,8 +55,8 @@ myname(t, x)
 ```
 
 Beyond this, there are number of query and modification methods that can be 
-employed for infinite parameter functions and these are detailed in the 
-[Infinite Parameter Function Methods](@ref) Section below.
+employed for parameter functions and these are detailed in the 
+[Parameter Function Methods](@ref) Section below.
 
 ## Variable Hierarchy
 Expressions employ variable reference types inherited from
@@ -235,11 +235,11 @@ DispatchVariableRef
 FiniteRef
 ParameterFunctionRef
 ParameterFunctionIndex
-InfiniteParameterFunction
+ParameterFunction
 ParameterFunctionData
 ```
 
-## Infinite Parameter Function Methods 
+## Parameter Function Methods 
 ```@docs
 parameter_function
 build_parameter_function

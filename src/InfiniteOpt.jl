@@ -109,7 +109,7 @@ has_generative_supports, has_derivative_constraints, used_by_parameter_function,
 generative_support_info, make_generative_supports, add_generative_supports
 
 # Export the paramter function datatypes and methods 
-export InfiniteParameterFunction, ParameterFunctionData, ParameterFunctionRef,
+export ParameterFunction, ParameterFunctionData, ParameterFunctionRef,
 build_parameter_function, add_parameter_function, raw_function, parameter_function
 
 # Export variable datatypes
