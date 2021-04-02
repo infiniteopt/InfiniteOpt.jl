@@ -339,7 +339,7 @@ t
 julia> @infinite_variable(m, x(t))
 x(t)
 
-julia> @hold_variable(m, z)
+julia> @finite_variable(m, z)
 z
 
 julia> deriv_expr = deriv(x^2 + z, t, t)
@@ -385,7 +385,7 @@ t
 julia> @infinite_variable(m, x(t))
 x(t)
 
-julia> @hold_variable(m, z)
+julia> @finite_variable(m, z)
 z
 
 julia> deriv_expr = @deriv(x^2 + z, t^2)

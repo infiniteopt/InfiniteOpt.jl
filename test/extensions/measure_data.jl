@@ -43,12 +43,12 @@ function InfiniteOpt.support_label(data::NewMeasureData)::Type{<:AbstractSupport
     return data.attr2.label # REPLACE WITH ACTUAL LOCATION
 end
 
-# Extend measure_data_in_hold_bounds to determine if NewMeasureData is in the
-# domain of hold variable bounds. (Enables hold variable error checking)
-function InfiniteOpt.measure_data_in_hold_bounds(data::NewMeasureData,
+# Extend measure_data_in_finite_var_bounds to determine if NewMeasureData is in the
+# domain of finite variable bounds. (Enables finite variable error checking)
+function InfiniteOpt.measure_data_in_finite_var_bounds(data::NewMeasureData,
                                                  bounds::ParameterBounds)::Bool
     # INSERT ACTUAL CHECK HERE
-    in_bounds = measure_data_in_hold_bounds(data.attr2, bounds) # REPLACE WITH ACTUAL RESULT
+    in_bounds = measure_data_in_finite_var_bounds(data.attr2, bounds) # REPLACE WITH ACTUAL RESULT
     return in_bounds
 end
 

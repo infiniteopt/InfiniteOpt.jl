@@ -23,7 +23,7 @@ julia> @infinite_parameter(model, t in [0, 10], num_supports = 10);
 
 julia> @infinite_variable(model, x(t) >= 0);
 
-julia> @hold_variable(model, z >= 0);
+julia> @finite_variable(model, z >= 0);
 
 julia> @objective(model, Min, 2z);
 
@@ -87,7 +87,7 @@ of `z`:
 julia> value(z)
 41.99999999125257
 ```
-We get a single value since `z` is a `HoldVariable` and therefore finite. Now
+We get a single value since `z` is a `FiniteVariable` and therefore finite. Now
 let's retrieve the "value" of `x(t)` which is infinite with respect to `t`:
 ```jldoctest results
 julia> value(x)

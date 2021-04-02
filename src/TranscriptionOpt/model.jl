@@ -231,7 +231,7 @@ end
 const InfVarIndex = Union{InfiniteOpt.InfiniteVariableIndex,
                           InfiniteOpt.SemiInfiniteVariableIndex,
                           InfiniteOpt.DerivativeIndex}
-const FinVarIndex = Union{InfiniteOpt.HoldVariableIndex,
+const FinVarIndex = Union{InfiniteOpt.FiniteVariableIndex,
                           InfiniteOpt.PointVariableIndex}
 
 ## Define the variable mapping functions
@@ -453,7 +453,7 @@ function lookup_by_support(model::JuMP.Model,
     return func(Tuple(support, prefs)...)
 end
 
-# FiniteVariableIndex
+# FiniteIndex
 function lookup_by_support(model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},

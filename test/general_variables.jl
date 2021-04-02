@@ -5,7 +5,7 @@
     gvref = GeneralVariableRef(m, 1, PointVariableIndex)
     gvref2 = GeneralVariableRef(m, 2, PointVariableIndex)
     ivref = InfiniteVariableRef(m, InfiniteVariableIndex(1))
-    hvref = HoldVariableRef(m, HoldVariableIndex(1))
+    hvref = FiniteVariableRef(m, FiniteVariableIndex(1))
     # test Base.copy
     @testset "Base.copy" begin
         @test copy(gvref) == gvref

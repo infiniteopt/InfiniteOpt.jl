@@ -40,7 +40,7 @@ t
 julia> @infinite_variable(inf_model, g(t) >= 0)
 g(t)
 
-julia> @hold_variable(inf_model, z, Bin)
+julia> @finite_variable(inf_model, z, Bin)
 z
 
 julia> @objective(inf_model, Min, 2z + support_sum(g, t))

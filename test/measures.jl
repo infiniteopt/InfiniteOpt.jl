@@ -379,7 +379,7 @@ end
     @infinite_variable(m, inf2(par, par2))
     @infinite_variable(m, inf3(par2))
     @infinite_variable(m, inf4(pars))
-    @hold_variable(m, x)
+    @finite_variable(m, x)
     coeff_func(x) = 1
 
     # prepare measure data
@@ -389,46 +389,46 @@ end
     data4 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample)
     data5 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, MCSample)
 
-    # test measure_data_in_hold_bounds (DiscreteMeasureData)
-    @testset "measure_data_in_hold_bounds (Discrete)" begin
+    # test measure_data_in_finite_var_bounds (DiscreteMeasureData)
+    @testset "measure_data_in_finite_var_bounds (Discrete)" begin
         # test empty bounds
-        @test measure_data_in_hold_bounds(data, ParameterBounds())
+        @test measure_data_in_finite_var_bounds(data, ParameterBounds())
         # test in domain
         @set_parameter_bounds(x, par == 1)
-        @test measure_data_in_hold_bounds(data, parameter_bounds(x))
+        @test measure_data_in_finite_var_bounds(data, parameter_bounds(x))
         # test outside domain
         @add_parameter_bounds(x, par == 0)
-        @test !measure_data_in_hold_bounds(data, parameter_bounds(x))
+        @test !measure_data_in_finite_var_bounds(data, parameter_bounds(x))
         set_parameter_bounds(x, ParameterBounds(), force = true)
         delete_supports(par)
     end
-    # test measure_data_in_hold_bounds (MultiDiscreteMeasureData)
-    @testset "measure_data_in_hold_bounds (Multi)" begin
+    # test measure_data_in_finite_var_bounds (MultiDiscreteMeasureData)
+    @testset "measure_data_in_finite_var_bounds (Multi)" begin
         # test empty bounds
-        @test measure_data_in_hold_bounds(data3, ParameterBounds())
+        @test measure_data_in_finite_var_bounds(data3, ParameterBounds())
         # test in domain
         @set_parameter_bounds(x, pars == 1)
-        @test measure_data_in_hold_bounds(data3, parameter_bounds(x))
+        @test measure_data_in_finite_var_bounds(data3, parameter_bounds(x))
         # test not in the domain
         @add_parameter_bounds(x, pars == 0) # TODO: this macro seems to have problems because of support deletion of single dependent parameter
-        @test !measure_data_in_hold_bounds(data3, parameter_bounds(x))
+        @test !measure_data_in_finite_var_bounds(data3, parameter_bounds(x))
         set_parameter_bounds(x, ParameterBounds(), force = true)
         delete_supports(pars)
     end
-    # test measure_data_in_hold_bounds (Fallback)
-    @testset "measure_data_in_hold_bounds (Fallback)" begin
-        warn = "Unable to check if hold variables bounds are valid in measure " *
+    # test measure_data_in_finite_var_bounds (Fallback)
+    @testset "measure_data_in_finite_var_bounds (Fallback)" begin
+        warn = "Unable to check if finite variables bounds are valid in measure " *
                "with measure data type `BadData`. This can be resolved by " *
-               "extending `measure_data_in_hold_bounds`."
-        @test_logs (:warn, warn) measure_data_in_hold_bounds(BadData(), ParameterBounds())
+               "extending `measure_data_in_finite_var_bounds`."
+        @test_logs (:warn, warn) measure_data_in_finite_var_bounds(BadData(), ParameterBounds())
     end
     # test _check_var_bounds (GeneralVariableRef)
     @testset "_check_var_bounds (General)" begin
         @test isa(InfiniteOpt._check_var_bounds(inf, data), Nothing)
     end
 
-    # test _check_var_bounds (HoldVariableRef with DiscreteMeasureData)
-    @testset "_check_var_bounds (Hold with Discrete)" begin
+    # test _check_var_bounds (FiniteVariableRef with DiscreteMeasureData)
+    @testset "_check_var_bounds (Finite with Discrete)" begin
         # test normal
         @set_parameter_bounds(x, par == 1)
         @test isa(InfiniteOpt._check_var_bounds(x, data), Nothing)
@@ -438,8 +438,8 @@ end
         set_parameter_bounds(x, ParameterBounds(), force = true)
         delete_supports(par)
     end
-    # test _check_var_bounds (HoldVariableRef with MultiDiscreteMeasureData)
-    @testset "_check_var_bounds (Hold with Multi)" begin
+    # test _check_var_bounds (FiniteVariableRef with MultiDiscreteMeasureData)
+    @testset "_check_var_bounds (Finite with Multi)" begin
         # test normal
         @set_parameter_bounds(x, pars == 1)
         @test isa(InfiniteOpt._check_var_bounds(x, data3), Nothing)
@@ -488,7 +488,7 @@ end
     @infinite_parameter(m, 0 <= par3 <= 1)
     @infinite_parameter(m, 0 <= pars2[1:2] <= 1)
     @infinite_variable(m, inf(par))
-    @hold_variable(m, x)
+    @finite_variable(m, x)
     dpar = dispatch_variable_ref(par)
     dpars = dispatch_variable_ref.(pars)
     info = UniformGenerativeInfo([0.5], InternalLabel)
@@ -614,7 +614,7 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     @infinite_variable(m, inf(par))
-    @hold_variable(m, x)
+    @finite_variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
     meas = Measure(par + 2inf - x, data, [1], [1], false)
     mref = add_measure(m, meas)
@@ -732,7 +732,7 @@ end
     @infinite_variable(m, inf3(par2))
     @infinite_variable(m, inf4(pars))
     @infinite_variable(m, inf5(pars2))
-    @hold_variable(m, x)
+    @finite_variable(m, x)
     coeff_func(x) = 1
     # prepare measure data
     data = DiscreteMeasureData(par, [1], [1], is_expect = true)
@@ -762,7 +762,7 @@ end
 #            @test name(mref4) == "c(inf4(pars) + x)"
         @test supports(pars[1]) == [1]
         @test supports(pars[2]) == [1]
-        # test with hold bounds
+        # test with finite variable bounds
         @set_parameter_bounds(x, par == 1)
         mref5 = MeasureRef(m, MeasureIndex(5))
         @test dispatch_variable_ref(measure(inf + x, data)) == mref5
@@ -800,7 +800,7 @@ end
     @infinite_variable(m, inf(par))
     @infinite_variable(m, inf2(pars))
     @infinite_variable(m, inf3(pars2))
-    @hold_variable(m, x)
+    @finite_variable(m, x)
     coeff_func(x) = 1
     # prepare measure data
     data = DiscreteMeasureData(par, [1], [1])
@@ -869,7 +869,7 @@ end
 
     m2 = InfiniteModel()
     @infinite_parameter(m2, 0 <= x <= 1)
-    @hold_variable(m2, z >= 0)
+    @finite_variable(m2, z >= 0)
     data = FunctionalDiscreteMeasureData(x, ones, 0, All, 
                generative_support_info = UniformGenerativeInfo([0.5], All))
     mref4 = @measure(3*x, data)

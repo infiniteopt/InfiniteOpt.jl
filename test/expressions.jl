@@ -210,9 +210,9 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
+    @finite_variable(m, finite)
     data = TestData(par, 0, 5)
-    meas = Measure(hold, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
@@ -228,22 +228,22 @@ end
     # test for GenericAffExpr
     @testset "AffExpr" begin
         # make expressions
-        aff1 = meas + 2par + hold - dinf
+        aff1 = meas + 2par + finite - dinf
         aff2 = zero(GenericAffExpr{Float64, GeneralVariableRef})
         # test expressions
         @test isempty(setdiff(InfiniteOpt._all_function_variables(aff1),
-                              [meas, par, hold, dinf]))
+                              [meas, par, finite, dinf]))
         @test InfiniteOpt._all_function_variables(aff2) == GeneralVariableRef[]
     end
     # test for GenericQuadExpr
     @testset "QuadExpr" begin
         # make expressions
-        quad1 = pt^2 + inf * pt - meas + 2par + hold - dinf
+        quad1 = pt^2 + inf * pt - meas + 2par + finite - dinf
         quad2 = pt^2 + inf * pt
         quad3 = zero(GenericQuadExpr{Float64, GeneralVariableRef})
         # test expressions
         @test isempty(setdiff(InfiniteOpt._all_function_variables(quad1),
-                      [meas, par, hold, dinf, pt, inf]))
+                      [meas, par, finite, dinf, pt, inf]))
         @test isempty(setdiff(InfiniteOpt._all_function_variables(quad2),
                               [pt, inf]))
         @test InfiniteOpt._all_function_variables(quad3) == GeneralVariableRef[]
@@ -264,13 +264,13 @@ end
     @infinite_variable(m, inf(par))
     @infinite_variable(m, inf2(par, par2))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
+    @finite_variable(m, finite)
     # test AffExpr comparison
     @testset "Base.:(==) AffExpr" begin
         @test par + par2 + inf - 2 == par + (par2 + inf) - 2
         @test 0.25par- inf == 0.25par - inf
         @test inf + 3 - inf != par + inf
-        @test inf + 3 - inf != inf + 3 - hold
+        @test inf + 3 - inf != inf + 3 - finite
     end
     # test QuadExpr comparison
     @testset "Base.:(==) QuadExpr" begin
@@ -293,13 +293,13 @@ end
     @infinite_variable(m, inf(par))
     @infinite_variable(m, inf2(par, pars))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
+    @finite_variable(m, finite)
     var = build_variable(error, inf2, Dict{Int, Float64}(1 => 0.5), check = false)
     red = add_variable(m, var)
     # test for finite variable reference
     @testset "FiniteVariable" begin
         @test InfiniteOpt._object_numbers(pt) == []
-        @test InfiniteOpt._object_numbers(hold) == []
+        @test InfiniteOpt._object_numbers(finite) == []
     end
     # test for infinite variable reference
     @testset "InfiniteVariable" begin
@@ -318,7 +318,7 @@ end
     @testset "AffExpr" begin
         # make expressions
         aff1 = inf + inf2 + pt - 3
-        aff2 = pt + hold - 2
+        aff2 = pt + finite - 2
         # test expressions
         @test sort!(InfiniteOpt._object_numbers(aff1)) == [1, 2]
         @test InfiniteOpt._object_numbers(aff2) == []
@@ -327,7 +327,7 @@ end
     @testset "QuadExpr" begin
         # make expressions
         quad1 = inf * inf2 + inf + inf2 + pt - 3 - par
-        quad2 = pt * pt + pt + hold - 2
+        quad2 = pt * pt + pt + finite - 2
         # test expressions
         @test sort!(InfiniteOpt._object_numbers(quad1)) == [1, 2]
         @test InfiniteOpt._object_numbers(quad2) == []
@@ -343,13 +343,13 @@ end
     @infinite_variable(m, inf(par))
     @infinite_variable(m, inf2(par, pars))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
+    @finite_variable(m, finite)
     var = build_variable(error, inf2, Dict{Int, Float64}(1 => 0.5), check = false)
     red = add_variable(m, var)
     # test for finite variable reference
     @testset "FiniteVariable" begin
         @test InfiniteOpt._parameter_numbers(pt) == []
-        @test InfiniteOpt._parameter_numbers(hold) == []
+        @test InfiniteOpt._parameter_numbers(finite) == []
     end
     # test for infinite variable reference
     @testset "InfiniteVariable" begin
@@ -369,7 +369,7 @@ end
     @testset "AffExpr" begin
         # make expressions
         aff1 = inf + inf2 + pt - 3
-        aff2 = pt + hold - 2
+        aff2 = pt + finite - 2
         # test expressions
         @test sort!(InfiniteOpt._parameter_numbers(aff1)) == [1, 2, 3]
         @test InfiniteOpt._parameter_numbers(aff2) == []
@@ -378,7 +378,7 @@ end
     @testset "QuadExpr" begin
         # make expressions
         quad1 = inf * inf2 + inf + inf2 + pt - 3 - par
-        quad2 = pt * pt + pt + hold - 2
+        quad2 = pt * pt + pt + finite - 2
         # test expressions
         @test sort!(InfiniteOpt._parameter_numbers(quad1)) == [1, 2, 3]
         @test InfiniteOpt._parameter_numbers(quad2) == []
@@ -389,7 +389,7 @@ end
 @testset "_model_from_expr" begin
     # initialize model and references
     m = InfiniteModel()
-    @hold_variable(m, hd)
+    @finite_variable(m, hd)
     # test for variable reference
     @testset "Variable" begin
         @test InfiniteOpt._model_from_expr(hd) === m
@@ -435,21 +435,21 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
+    @finite_variable(m, finite)
     # test for GenericAffExpr
     @testset "AffExpr" begin
         # make expressions
-        aff1 = pt + 2par + hold
+        aff1 = pt + 2par + finite
         aff2 = zero(GenericAffExpr{Float64, GeneralVariableRef})
         # test expressions
-        @test isa(InfiniteOpt._remove_variable(aff1, hold), Nothing)
-        @test !haskey(aff1.terms, hold)
+        @test isa(InfiniteOpt._remove_variable(aff1, finite), Nothing)
+        @test !haskey(aff1.terms, finite)
         @test isa(InfiniteOpt._remove_variable(aff2, inf), Nothing)
     end
     # test for GenericQuadExpr
     @testset "QuadExpr" begin
         # make expressions
-        quad1 = pt^2 + inf * pt + 2par + hold
+        quad1 = pt^2 + inf * pt + 2par + finite
         quad2 = zero(GenericQuadExpr{Float64, GeneralVariableRef})
         # test expressions
         quad = copy(quad1)
@@ -472,7 +472,7 @@ end
     @infinite_parameter(m, 0 <= par2 <= 1)
     @infinite_variable(m, x(par))
     @infinite_variable(m, y(par, par2))
-    @hold_variable(m, z)
+    @finite_variable(m, z)
     # test with GeneralVariableRef
     @testset "GeneralVariableRef" begin
         @test InfiniteOpt._set_variable_coefficient!(x, x, 2) == 2 * x
@@ -500,7 +500,7 @@ end
     @independent_parameter(m, t in [0, 1])
     @independent_parameter(m, y in [0, 1])
     @dependent_parameters(m, x[1:3] in [0, 1])
-    @hold_variable(m, z)
+    @finite_variable(m, z)
     @expression(m, c1, 2z)
     @expression(m, c2, z + t + x[1])
     # test _make_param_tuple_element (IndependentParameterIndex)

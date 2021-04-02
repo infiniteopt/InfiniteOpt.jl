@@ -175,7 +175,7 @@ Extend `JuMP.set_objective` to set the objective of infinite model
 it does not belong to the model.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP, MathOptInterface; model = InfiniteModel(), const MOI = MathOptInterface; @hold_variable(model, x))
+```julia-repl
 julia> set_objective(model, MOI.MIN_SENSE, 2x + 1)
 
 julia> objective_function(model)
@@ -206,10 +206,10 @@ Errors if the function type is unsupported.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
-julia> @hold_variable(model, x)
+julia> @variable(model, x)
 x
 
-julia> @hold_variable(model, y)
+julia> @variable(model, y)
 y
 
 julia> @objective(model, x + y)

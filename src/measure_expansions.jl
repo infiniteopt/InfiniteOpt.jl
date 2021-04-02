@@ -397,12 +397,12 @@ function expand_measure(rvref::GeneralVariableRef,
     return expr
 end
 
-# FiniteVariableRef (1D DiscreteMeasureData)
+# FiniteRef (1D DiscreteMeasureData)
 function expand_measure(vref::GeneralVariableRef,
                         index_type::Type{V},
                         data::DiscreteMeasureData{GeneralVariableRef, 1},
                         write_model::JuMP.AbstractModel
-                        )::JuMP.GenericAffExpr where {V <: FiniteVariableIndex}
+                        )::JuMP.GenericAffExpr where {V <: FiniteIndex}
     # pull in the needed information
     supps = supports(data)
     coeffs = coefficients(data)
@@ -412,12 +412,12 @@ function expand_measure(vref::GeneralVariableRef,
     return JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, vref => var_coef)
 end
 
-# FiniteVariableRef (Multi DiscreteMeasureData)
+# FiniteRef (Multi DiscreteMeasureData)
 function expand_measure(vref::GeneralVariableRef,
                         index_type::Type{V},
                         data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
                         write_model::JuMP.AbstractModel
-                        )::JuMP.GenericAffExpr where {V <: FiniteVariableIndex}
+                        )::JuMP.GenericAffExpr where {V <: FiniteIndex}
     # pull in the needed information
     supps = supports(data)
     coeffs = coefficients(data)
@@ -870,8 +870,8 @@ function expand_all_measures!(model::InfiniteModel)::Nothing
             else
                 new_constr = JuMP.ScalarConstraint(new_func, new_set)
             end
-            # update the bounds if there are bounded hold variables in the model
-            if model.has_hold_bounds
+            # update the bounds if there are bounded finite variables in the model
+            if model.has_finite_var_bounds
                 new_constr = _check_and_update_bounds(model, new_constr, vrefs)
             end
             # update the constraint data

@@ -46,7 +46,7 @@ end
     @infinite_variable(m, q(pars, par))
     @infinite_variable(m, w(par))
     @point_variable(m, x(0, [0, 0]), x0)
-    @hold_variable(m, y)
+    @finite_variable(m, y)
     add_supports(par, 0.5, label = InternalLabel)
     supps = Dict{Int, Float64}(2 => 1)
     xrv = add_variable(m, build_variable(error, x, supps))
@@ -95,7 +95,7 @@ end
     @dependent_parameters(m, pars[1:2] in [0, 1])
     @infinite_variable(m, x(par, pars))
     @point_variable(m, x(0, [0, 0]), x0)
-    @hold_variable(m, y)
+    @finite_variable(m, y)
     f1 = parameter_function(sin, par)
     f2 = parameter_function((a, b) -> 1, (par, pars))
     add_supports(par, 0.5, label = InternalLabel)
@@ -250,7 +250,7 @@ end
     # test lookup_by_support (finite vars)
     @testset "lookup_by_support (Finite)" begin
         # test errors
-        @hold_variable(m, z2)
+        @finite_variable(m, z2)
         @test_throws ErrorException IOTO.lookup_by_support(tm, z2, [0.])
         # test normal
         @test IOTO.lookup_by_support(tm, x0, [0., 0., 0.]) == b
@@ -277,7 +277,7 @@ end
     @dependent_parameters(m, pars[1:2] in [0, 1])
     @infinite_variable(m, x(par, pars))
     @point_variable(m, x(0, [0, 0]), x0)
-    @hold_variable(m, y)
+    @finite_variable(m, y)
     meas1 = support_sum(2par -2, par)
     meas2 = support_sum(x^2 - y, pars)
     tm = optimizer_model(m)
@@ -429,7 +429,7 @@ end
     @infinite_variable(m, x(par, pars))
     @finite_parameter(m, finpar, 42)
     @point_variable(m, x(0, [0, 0]), x0)
-    @hold_variable(m, y)
+    @finite_variable(m, y)
     f = parameter_function((a,b) -> 1, (par, pars))
     add_supports(par, 1, label = InternalLabel)
     meas1 = support_sum(2par -2, par)
@@ -562,7 +562,7 @@ end
     add_supports(par, 1, label = InternalLabel)
     @infinite_variable(m, x(par))
     @point_variable(m, x(0), x0)
-    @hold_variable(m, y)
+    @finite_variable(m, y)
     @constraint(m, c1, x + y - 2 <= 0)
     @constraint(m, c2, support_sum(x, par) == 0)
     @constraint(m, c3, x0 + y == 5)

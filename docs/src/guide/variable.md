@@ -7,10 +7,10 @@ above sections comprise the guide.
 Decision variables are at the very core of `InfiniteOpt` as its name alludes
 to mathematical programs that entail infinite decision spaces (i.e., contain
 infinite decision variables). Principally, three variable types are employed:
-infinite, point, and hold. Infinite variables encompass any decision variable
+infinite, point, and finite. Infinite variables encompass any decision variable
 that is parameterized by an infinite parameter (e.g., space-time variables and
 recourse variables). Point variables are infinite variables at a particular
-infinite parameter value (point). Finally, hold variables are decisions that
+infinite parameter value (point). Finally, finite variables are decisions that
 are made irrespective of the infinite domain (e.g., first stage variables and
 design variables). Or in other words, they hold a particular value over the
 infinite domain or some sub-domain of it. We also employ semi-infinite variables
@@ -18,19 +18,24 @@ which correspond to partially transcribed infinite variables which are artifacts
 of measure evaluation and thus are discussed on the [Measures](@ref measure_page) page.
 
 ## Basic Usage
-Infinite, point, and hold variables are summarized in the following table:
+Infinite, point, and finite variables are summarized in the following table:
 
 | Variable Type | Description                                    | Examples                               |
 |:-------------:|:----------------------------------------------:|:--------------------------------------:|
 | Infinite      | Functional variables with infinite co-domain   | ``y(t)``, ``y(\xi)``, ``y(t, x)``      |
 | Point         | Infinite variable evaluated at parameter point | ``y(0)``, ``y(t_0, x_0)``              |
-| Hold          | Held constant over infinite domain             | ``z`` (design and 1st stage variables) |
+| Finite          | Held constant over infinite domain             | ``z`` (design and 1st stage variables) |
 
-Infinite, point, and hold variables are typically defined via their respective
+Infinite, point, and finite variables are typically defined via their respective
 macros: [`@infinite_variable`](@ref), [`@point_variable`](@ref), and
-[`@hold_variable`](@ref). These macros generally emulate [`JuMP.@variable`](@ref)
+[`@finite_variable`](@ref). These macros generally emulate [`JuMP.@variable`](@ref)
 except that they each employ additional syntax capabilities to employ their
 respective variable type.
+
+!!! warn
+    The "hold variable" nomenclature used by previous versions of `InfiniteOpt` has 
+    been removed in favor of "finite variable". Hence, `@hold_variable` is now 
+    deprecated in favor of `@finite_variable`.
 
 Let's first setup a simple space-time model with infinite parameters time `t` and
 spatial position `x`:
@@ -99,34 +104,34 @@ case the lower bound inherited from `y(t)` is overwritten by instead fixing
     combination with [`@BDconstraint`](@ref) to define bounded constraints (
     e.g., initial conditions).
 
-### Hold Variables
-Finally, we can add hold variables to our model. These denote variables that
+### Finite Variables
+Finally, we can add finite variables to our model. These denote variables that
 hold a single value over the infinite domain or some portion of it (e.g.,
-design variables, first stage variables, etc.). Let's add a hold variable
+design variables, first stage variables, etc.). Let's add a finite variable
 ``0 \leq d \leq 42`` that is an integer variable and defined over all infinite
 domains (i.e., time and space):
 ```jldoctest var_basic
-julia> @hold_variable(model, 0 <= d <= 42, Int)
+julia> @finite_variable(model, 0 <= d <= 42, Int)
 d
 ```
-This creates a Julia variable `d` that points to the hold variable `d` which has
+This creates a Julia variable `d` that points to the finite variable `d` which has
 a lower bound of 0, an upper bound of 42, and is an integer variable. Thus,
-[`@hold_variable`](@ref) follows the same exact syntax as [`JuMP.@variable`](@ref)
-except that it also allows the user to specify a subdomain over which the hold
-variable is valid. For example, let's add a hold variable `z` that is only valid
+[`@finite_variable`](@ref) follows the same exact syntax as [`JuMP.@variable`](@ref)
+except that it also allows the user to specify a subdomain over which the finite
+variable is valid. For example, let's add a finite variable `z` that is only valid
 over the subdomain ``t \in [0, 5]`` via the `parameter_bounds` keyword argument:
 ```jldoctest var_basic
-julia> anon = @hold_variable(model, parameter_bounds = (t in [0, 5]),
+julia> anon = @finite_variable(model, parameter_bounds = (t in [0, 5]),
                              base_name = "z")
 z
 ```
 Here we make an anonymous variable for the sake of example whose reference is
-stored to the Julia variable `anon` and points to a hold variable `z` which is
+stored to the Julia variable `anon` and points to a finite variable `z` which is
 only valid for ``t \in [0, 5]``. Thus, this will be enforced in any constraints that
 involve `anon`, meaning they will automatically be bounded to such a subdomain.
 Any number of parameters bounds (bounds on the parameters of the infinite
 domain) can be added in a tuple like argument as explained in the documentation
-for [`@hold_variable`](@ref).
+for [`@finite_variable`](@ref).
 
 Now we have defined variables that we can use in the objective, measures, and
 constraints. Please note that the above tutorial only shows a small portion of
@@ -135,7 +140,7 @@ is provided in the documentation below.
 
 ## Variable Definition Methodology
 The [`@infinite_variable`](@ref), [`@point_variable`](@ref), and
-[`@hold_variable`](@ref) macros all follow a similar methodology behind the
+[`@finite_variable`](@ref) macros all follow a similar methodology behind the
 scenes and these commonalities are discussed in this section for conciseness.
 Defining/initializing a variable principally involves the following steps:
 1. Define the variable information pertaining to `JuMP.VariableInfo` (e.g., bounds, indicate if it is integer, etc.)
@@ -169,7 +174,7 @@ The variable objects (`InfOptVariable` subtypes) are defined via
 [`build_variable`](@ref JuMP.build_variable(::Function,::JuMP.VariableInfo,::Symbol))
 which requires that the user provide a
 `JuMP.VariableInfo` object, the variable type to be defined (`Infinite`,
-`Point`, or `Hold`), and any necessary keyword arguments required for that
+`Point`, or `Finite`), and any necessary keyword arguments required for that
 variable type (i.e., `parameter_refs`, `infinite_variable_ref`, and/or
 `parameter_values`). For example, let's build an infinite variable `y(t)` that
 has an lower bound of 0, an upper bound of 42, and is integer:
@@ -206,7 +211,7 @@ page.
 
 ## Macro Variable Definition
 The [`@infinite_variable`](@ref), [`@point_variable`](@ref), and
-[`@hold_variable`](@ref) macros automate the variable definition process
+[`@finite_variable`](@ref) macros automate the variable definition process
 discussed above in the [Variable Definition Methodology](@ref) section
 via a straightforward symbolic syntax. The only key difference
 is that non-anonymous macro calls will register variable names to ensure they
@@ -235,24 +240,24 @@ We will first consider anonymous variable macro calls which generally are less
 convenient than non-anonymous macro calls which offer a much more intuitive
 mathematical syntax. However, anonymous variables can be useful and provide a
 good foundation to understanding non-anonymous variables.
-Furthermore, we'll use hold variables as the motivating examples since they
+Furthermore, we'll use finite variables as the motivating examples since they
 best exemplify commonalities between the macros. First, let's consider single
-anonymous definition a hold variable:
+anonymous definition a finite variable:
 ```jldoctest var_macro
-julia> var_ref = @hold_variable(model)
+julia> var_ref = @finite_variable(model)
 noname
 ```
-Here we just added a nameless hold variable to `model` and defined `var_ref`
+Here we just added a nameless finite variable to `model` and defined `var_ref`
 as a `GeneralVariableRef` that points to it. We can add a name via the
 `base_name` keyword argument:
 ```jldoctest var_macro
-julia> var_ref1 = @hold_variable(model, base_name = "d")
+julia> var_ref1 = @finite_variable(model, base_name = "d")
 d
 
-julia> var_ref2 = @hold_variable(model, base_name = "d")
+julia> var_ref2 = @finite_variable(model, base_name = "d")
 d
 ```
-Now we've made 2 more hold variables both called `d`. Thus, the anonymous syntax
+Now we've made 2 more finite variables both called `d`. Thus, the anonymous syntax
 allows us to define variables with the same name. Moreover, any variable
 information can be specified via the appropriate keywords which include:
 - `lower_bound::Real`: specifies lower bound
@@ -267,9 +272,9 @@ information can be specified via the appropriate keywords which include:
 - `integer::Bool`: specifies if is integer variable.
 Anonymous variables must use these keyword arguments since symbolic definition
 is only permitted for non-anonymous macro calls. For example, let's define a
-hold variable ``0 \leq d \leq 5`` that is integer:
+finite variable ``0 \leq d \leq 5`` that is integer:
 ```jldoctest var_macro
-julia> var_ref = @hold_variable(model, base_name = "d", lower_bound = 0,
+julia> var_ref = @finite_variable(model, base_name = "d", lower_bound = 0,
                                 upper_bound = 5, integer = true)
 d
 ```
@@ -277,7 +282,7 @@ d
 We can also define arrays of variables using any indices of our choice. For
 example, let's define a 3-dimensional vector with indices `[1, 2, 3]`:
 ```jldoctest var_macro
-julia> var_refs = @hold_variable(model, [i = 1:3], start = [0, 2, 1][i],
+julia> var_refs = @finite_variable(model, [i = 1:3], start = [0, 2, 1][i],
                                  base_name = "d")
 3-element Array{GeneralVariableRef,1}:
  d[1]
@@ -295,12 +300,12 @@ julia> starts = [0, 2, 1];
 julia> var_refs = Vector{GeneralVariableRef}(undef, 3);
 
 julia> for i = eachindex(var_refs)
-          var_refs[i] = @hold_variable(model, base_name = "d", start = starts[i])
+          var_refs[i] = @finite_variable(model, base_name = "d", start = starts[i])
        end
 ```
 Other non-standard indices can also be used such as the following examples:
 ```jldoctest var_macro
-julia> var_refs2 = @hold_variable(model, [2:4], base_name = "d")
+julia> var_refs2 = @finite_variable(model, [2:4], base_name = "d")
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 2:4
 And data, a 3-element Array{GeneralVariableRef,1}:
@@ -308,7 +313,7 @@ And data, a 3-element Array{GeneralVariableRef,1}:
  d[3]
  d[4]
 
-julia> var_refs3 = @hold_variable(model, [[:A, :C, :Z]], base_name = "d")
+julia> var_refs3 = @finite_variable(model, [[:A, :C, :Z]], base_name = "d")
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, Symbol[:A, :C, :Z]
 And data, a 3-element Array{GeneralVariableRef,1}:
@@ -316,7 +321,7 @@ And data, a 3-element Array{GeneralVariableRef,1}:
  d[C]
  d[Z]
 
-julia> var_refs3 = @hold_variable(model, [i=1:2, j=i:2], base_name = "d")
+julia> var_refs3 = @finite_variable(model, [i=1:2, j=i:2], base_name = "d")
 JuMP.Containers.SparseAxisArray{GeneralVariableRef,2,Tuple{Int64,Int64}} with 3 entries:
   [1, 2]  =  d[1,2]
   [2, 2]  =  d[2,2]
@@ -335,7 +340,7 @@ be a regular `Array`:
 ```jldoctest var_macro
 julia> a = 1; b = 3;
 
-julia> var_refs1 = @hold_variable(model, [a:b], base_name = "d")
+julia> var_refs1 = @finite_variable(model, [a:b], base_name = "d")
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 1:3
 And data, a 3-element Array{GeneralVariableRef,1}:
@@ -343,7 +348,7 @@ And data, a 3-element Array{GeneralVariableRef,1}:
  d[2]
  d[3]
 
-julia> var_refs2 = @hold_variable(model, [a:b], base_name = "d", container = Array)
+julia> var_refs2 = @finite_variable(model, [a:b], base_name = "d", container = Array)
 3-element Array{GeneralVariableRef,1}:
  d[1]
  d[2]
@@ -390,14 +395,14 @@ form:
 The `integrality_arg` optionally is used to indicate if the variable(s) is/are
 integer or binary using `Int` or `Bin`, respectively.  
 
-For example, let's define a hold variable ``0 \leq d \leq 3`` that is integer:
+For example, let's define a finite variable ``0 \leq d \leq 3`` that is integer:
 ```jldoctest var_macro
-julia> @hold_variable(model, 0 <= d <= 3, Int)
+julia> @finite_variable(model, 0 <= d <= 3, Int)
 d
 ```
 Note this is equivalent to
 ```jldoctest var_macro
-julia> d = @hold_variable(model, base_name = "d", lower_bound = 0, upper_bound = 3,
+julia> d = @finite_variable(model, base_name = "d", lower_bound = 0, upper_bound = 3,
                           integer = true)
 d
 ```
@@ -405,7 +410,7 @@ with the exception that the non-anonymous definition registers `d` as variable
 name that cannot be duplicated. For one more example let's define a vector of
 variables ``a \in \mathbb{R}_+^3`` with starting values of 0:
 ```jldoctest var_macro
-julia> @hold_variable(model, a[1:3] >= 0, start = 0)
+julia> @finite_variable(model, a[1:3] >= 0, start = 0)
 3-element Array{GeneralVariableRef,1}:
  a[1]
  a[2]
@@ -509,38 +514,38 @@ julia> @point_variable(model, z[i](0), z0[i = 1:3] == 0)
  z0[3]
 ```
 
-### Hold Variables
-Hold variables denote decision variables that are constant (agnostic) over the
+### Finite Variables
+Finite variables denote decision variables that are constant (agnostic) over the
 infinite domain or some sub-domain of it. This is accomplished via the
-[`@hold_variable`](@ref) macro as demonstrated in the
+[`@finite_variable`](@ref) macro as demonstrated in the
 [General Usage](@ref var_macro_gen_usage) section. By default and as shown in
-the above examples, hold variables are valid over the entire infinite domain.
+the above examples, finite variables are valid over the entire infinite domain.
 However, this scope can be limited via the `parameter_bounds` keyword argument.
 
-For example, let's define a hold variable ``b \in \{0, 1\}`` that is valid over
+For example, let's define a finite variable ``b \in \{0, 1\}`` that is valid over
 the entire infinite domain (any infinite parameter value):
 ```jldoctest var_macro
-julia> @hold_variable(model, b, Bin)
+julia> @finite_variable(model, b, Bin)
 b
 ```
 Again, this follows the methodology outlined above. Now let's suppose we want to
-define a hold variable ``0 \leq c \leq 42`` that is only valid over the time
+define a finite variable ``0 \leq c \leq 42`` that is only valid over the time
 interval ``t \in [0, 5]`` which is a subset of the entire range being considered.
 This can be accomplished via `parameter_bounds`:
 ```jldoctest var_macro
-julia> @hold_variable(model, 0 <= c <= 42, parameter_bounds = (t in [0, 5]))
+julia> @finite_variable(model, 0 <= c <= 42, parameter_bounds = (t in [0, 5]))
 c
 ```
 Thus, we defined `c` and it can only be used in constraints and measures in
-accordance with this limited sub-domain. When such a limited hold variable is
+accordance with this limited sub-domain. When such a limited finite variable is
 used in a constraint, the constraint parameter bounds be overlapped with those of
 `c` if possible. Otherwise, an error will be thrown. This is further explained
 on the [Constraints](@ref constr_page) page.
 
-Any number of parameters can be specified in a hold variable's sub-domain. For
+Any number of parameters can be specified in a finite variable's sub-domain. For
 example, let's define `e` such over the domain ``t \in [0, 1]``, ``x = -1``:
 ```jldoctest var_macro
-julia> @hold_variable(model, e, parameter_bounds = (t in [0, 1], x == -1))
+julia> @finite_variable(model, e, parameter_bounds = (t in [0, 1], x == -1))
 e
 ```
 
@@ -691,10 +696,10 @@ julia> parameter_values(y0)
 (0.0, [-1.0, -1.0, -1.0])
 ```
 
-For hold variables,
-[`has_parameter_bounds`](@ref has_parameter_bounds(::HoldVariableRef)) returns
-if a hold variable has parameter bounds (i.e., a specified sub-domain) and
-[`parameter_bounds`](@ref parameter_bounds(::HoldVariableRef))
+For finite variables,
+[`has_parameter_bounds`](@ref has_parameter_bounds(::FiniteVariableRef)) returns
+if a finite variable has parameter bounds (i.e., a specified sub-domain) and
+[`parameter_bounds`](@ref parameter_bounds(::FiniteVariableRef))
 returns those bounds if there are any. For example, consider `c`:
 ```jldoctest var_macro
 julia> has_parameter_bounds(c)
@@ -719,7 +724,7 @@ is invoked any bound/type constraints associated with the variable will be remov
 and it will be removed from any other constraints, measures, and/or objectives.
 For example, if we delete `y(t, x)` it will be removed along with its bounds and
 the point variable `y0` will also be removed since it is a dependent:
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @hold_variable(model, y))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @finite_variable(model, y))
 julia> delete(model, y)
 ```
 
@@ -740,8 +745,8 @@ Other similar methods are
 [`unset_binary`](@ref JuMP.unset_binary(::UserDecisionVariableRef)), and
 [`unset_integer`](@ref JuMP.unset_integer(::UserDecisionVariableRef)).
 
-Finally, [`delete_parameter_bounds`](@ref delete_parameter_bounds(::HoldVariableRef))
-can be used on hold variables to delete all of their parameter bounds. For
+Finally, [`delete_parameter_bounds`](@ref delete_parameter_bounds(::FiniteVariableRef))
+can be used on finite variables to delete all of their parameter bounds. For
 example, let's delete all of the parameter bounds associated with `c`:
 ```jldoctest var_macro
 julia> parameter_bounds(c)
@@ -782,10 +787,10 @@ Other similar methods are
 Finally, we consider methods unique to `InfiniteOpt` that exist to modify
 specific variable types.
 
-For hold variables, the parameter bounds can be modified via
+For finite variables, the parameter bounds can be modified via
 [`@add_parameter_bounds`](@ref) and [`@set_parameter_bounds`](@ref) which
 facilitate an intuitive symbolic syntax to add and/or overwrite existing
-parameter bounds for a hold variable. For example, let's add the bounds
+parameter bounds for a finite variable. For example, let's add the bounds
 ``t \in [0, 5]`` and ``x = 0`` to `c`:
 ```jldoctest var_macro
 julia> @add_parameter_bounds(c, (t in [0, 5], x == 0))
@@ -805,14 +810,14 @@ InfOptVariable
 InfiniteVariable
 PointVariable
 ParameterBounds
-HoldVariable
+FiniteVariable
 VariableData
 InfiniteVariableIndex
 PointVariableIndex
-HoldVariableIndex
+FiniteVariableIndex
 InfiniteVariableRef
 PointVariableRef
-HoldVariableRef
+FiniteVariableRef
 InfiniteOpt.Collections.VectorTuple
 ```
 
@@ -825,7 +830,7 @@ Order   = [:macro, :function]
 ```@docs
 @infinite_variable
 @point_variable
-@hold_variable
+@finite_variable
 JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Type{<:InfOptVariableType})
 JuMP.add_variable(::InfiniteModel, ::InfOptVariable, ::String)
 used_by_constraint(::DecisionVariableRef)
@@ -874,11 +879,11 @@ parameter_list(::InfiniteVariableRef)
 raw_parameter_refs(::InfiniteVariableRef)
 @set_parameter_bounds
 @add_parameter_bounds
-has_parameter_bounds(::HoldVariableRef)
-parameter_bounds(::HoldVariableRef)
-set_parameter_bounds(::HoldVariableRef, ::ParameterBounds{GeneralVariableRef})
-add_parameter_bounds(::HoldVariableRef, ::ParameterBounds{GeneralVariableRef})
-delete_parameter_bounds(::HoldVariableRef)
+has_parameter_bounds(::FiniteVariableRef)
+parameter_bounds(::FiniteVariableRef)
+set_parameter_bounds(::FiniteVariableRef, ::ParameterBounds{GeneralVariableRef})
+add_parameter_bounds(::FiniteVariableRef, ::ParameterBounds{GeneralVariableRef})
+delete_parameter_bounds(::FiniteVariableRef)
 infinite_variable_ref(::PointVariableRef)
 parameter_values(::PointVariableRef)
 raw_parameter_values(::PointVariableRef)

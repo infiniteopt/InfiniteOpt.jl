@@ -142,7 +142,7 @@ julia> @infinite_parameter(model, t in [0, 10]);
 
 julia> @infinite_variable(model, g(t));
 
-julia> @hold_variable(model, x);
+julia> @finite_variable(model, x);
 
 julia> constr = build_constraint(error, g + x, MOI.EqualTo(42.0),
               parameter_bounds = ParameterBounds((t => IntervalSet(0, 1),)));
@@ -174,7 +174,7 @@ function _check_and_update_bounds(model::InfiniteModel,
                                   c::BoundedScalarConstraint,
                                   vrefs::Vector{GeneralVariableRef}
                                   )::JuMP.AbstractConstraint
-    # look for bounded hold variables and update bounds
+    # look for bounded finite variables and update bounds
     for vref in vrefs
         _update_var_bounds(vref, c.bounds)
     end
@@ -190,7 +190,7 @@ function _check_and_update_bounds(model::InfiniteModel,
                                   vrefs::Vector{GeneralVariableRef}
                                   )::JuMP.AbstractConstraint
     bounds = ParameterBounds()
-    # check for bounded hold variables and build the intersection of the bounds
+    # check for bounded finite variables and build the intersection of the bounds
     for vref in vrefs
         _update_var_bounds(vref, bounds)
     end
@@ -243,7 +243,7 @@ julia> @infinite_parameter(model, t in [0, 10]);
 
 julia> @infinite_variable(model, g(t));
 
-julia> @hold_variable(model, x);
+julia> @finite_variable(model, x);
 
 julia> constr = build_constraint(error, g + x, MOI.EqualTo(42));
 
@@ -262,8 +262,8 @@ function JuMP.add_constraint(model::InfiniteModel,
     for vref in vrefs
         JuMP.check_belongs_to_model(vref, model)
     end
-    # test parameter bounds and update with hold variable bounds
-    if model.has_hold_bounds
+    # test parameter bounds and update with finite variable bounds
+    if model.has_finite_var_bounds
         c = _check_and_update_bounds(model, c, vrefs)
     elseif c isa BoundedScalarConstraint
         _validate_bounds(model, parameter_bounds(c))
@@ -318,7 +318,7 @@ to return the constraint object associated with `cref`.
 ```jldoctest; setup = :(using JuMP, InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10]);
 
-julia> @hold_variable(model, x <= 1);
+julia> @finite_variable(model, x <= 1);
 
 julia> cref = UpperBoundRef(x);
 
@@ -551,7 +551,7 @@ with a partiuclar function type and set type.
 
 **Example**
 ```julia-repl
-julia> num_constraints(model, HoldVariableRef, MOI.LessThan)
+julia> num_constraints(model, FiniteVariableRef, MOI.LessThan)
 1
 ```
 """
@@ -577,7 +577,7 @@ to search by function types for all MOI
 sets and return the total number of constraints with a particular function type.
 
 ```julia-repl
-julia> num_constraints(model, HoldVariableRef)
+julia> num_constraints(model, FiniteVariableRef)
 3
 ```
 """
@@ -853,7 +853,7 @@ function set_parameter_bounds(cref::InfOptConstraintRef,
         # check that bounds are valid and add support(s) if necessary
         _check_bounds(bounds, _error = _error)
         _validate_bounds(JuMP.owner_model(cref), bounds, _error = _error)
-        # consider hold variables
+        # consider finite variables
         orig_bounds = copy(bounds)
         vrefs = _all_function_variables(JuMP.jump_function(JuMP.constraint_object(cref)))
         for vref in vrefs
@@ -906,7 +906,7 @@ end
     delete_parameter_bounds(cref::InfOptConstraintRef)::Nothing
 
 Delete all the parameter bounds of the constraint `cref`. Note any bounds that
-are needed for hold variables inside in `cref` will be unaffected.
+are needed for finite variables inside in `cref` will be unaffected.
 
 **Example**
 ```julia-repl
@@ -923,7 +923,7 @@ function delete_parameter_bounds(cref::InfOptConstraintRef)::Nothing
     # check if has bounds on pref from the constraint
     constr = JuMP.constraint_object(cref)
     if has_parameter_bounds(cref) && !isempty(original_parameter_bounds(constr))
-        # consider hold variables
+        # consider finite variables
         new_bounds = ParameterBounds()
         vrefs = _all_function_variables(JuMP.jump_function(constr))
         for vref in vrefs

@@ -26,7 +26,7 @@ include("variable_basics.jl")
 include("infinite_variables.jl")
 include("semi_infinite_variables.jl")
 include("point_variables.jl")
-include("hold_variables.jl")
+include("finite_variables.jl")
 include("expressions.jl")
 include("macro_utilities.jl")
 include("measures.jl")
@@ -61,22 +61,25 @@ using .TranscriptionOpt
 # Export core datatypes
 export AbstractDataObject, InfiniteModel
 
+# Export deprecated stuff
+export @hold_variable
+
 # Export macros
 export @independent_parameter, @dependent_parameters, @infinite_parameter,
-@finite_parameter, @infinite_variable, @point_variable, @hold_variable,
-@infinite_parameter, @BDconstraint, @set_parameter_bounds, @add_parameter_bounds,
+@finite_parameter, @infinite_variable, @point_variable, @finite_variable, 
+@infinite_parameter, @BDconstraint, @set_parameter_bounds, @add_parameter_bounds, 
 @measure, @integral, @expect, @support_sum, @deriv, @derivative_variable, @∂, @𝔼, 
 @∫
 
 # Export variable types 
-export InfOptVariableType, Infinite, Hold, Point, Deriv
+export InfOptVariableType, Infinite, Point, Finite, Deriv
 
 # Export index types
 export AbstractInfOptIndex, ObjectIndex, IndependentParameterIndex,
 DependentParametersIndex, DependentParameterIndex, FiniteParameterIndex,
 InfiniteVariableIndex, PointVariableIndex, SemiInfiniteVariableIndex,
-HoldVariableIndex, MeasureIndex, ConstraintIndex, InfiniteParameterIndex,
-FiniteVariableIndex, DerivativeIndex, ParameterFunctionIndex
+FiniteVariableIndex, MeasureIndex, ConstraintIndex, InfiniteParameterIndex,
+FiniteIndex, DerivativeIndex, ParameterFunctionIndex
 
 # Export infinite set types
 export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
@@ -111,10 +114,9 @@ build_parameter_function, add_parameter_function, raw_function, parameter_functi
 
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, SemiInfiniteVariable,
-PointVariable, HoldVariable, ParameterBounds, VariableData, GeneralVariableRef,
-DispatchVariableRef, InfiniteVariableRef, SemiInfiniteVariableRef,
-MeasureFiniteVariableRef, FiniteVariableRef, PointVariableRef, HoldVariableRef,
-DecisionVariableRef, UserDecisionVariableRef
+PointVariable, FiniteVariable, ParameterBounds, VariableData, GeneralVariableRef,
+DispatchVariableRef, InfiniteVariableRef, SemiInfiniteVariableRef, FiniteRef, 
+PointVariableRef, FiniteVariableRef, DecisionVariableRef, UserDecisionVariableRef
 
 # Export variable methods
 export used_by_objective, infinite_variable_ref, parameter_refs,
@@ -143,7 +145,7 @@ Measure, MeasureData, MeasureRef
 export default_weight, support_label, coefficient_function, coefficients,
 weight_function, build_measure, min_num_supports, add_measure, measure_function,
 measure_data, is_analytic, measure, num_measures, all_measures,
-add_supports_to_parameters, measure_data_in_hold_bounds, make_point_variable_ref,
+add_supports_to_parameters, measure_data_in_finite_var_bounds, make_point_variable_ref,
 make_semi_infinite_variable_ref, add_measure_variable, delete_internal_semi_infinite_variable,
 delete_semi_infinite_variable, expand, expand_all_measures!, expand_measure
 
@@ -158,8 +160,7 @@ support_sum, generate_integral_data, 𝔼, ∫, InternalGaussLobatto
 export objective_has_measures
 
 # Export constraint datatypes
-export BoundedScalarConstraint, ConstraintData, InfOptConstraintRef,
-InfiniteConstraintRef, FiniteConstraintRef
+export BoundedScalarConstraint, ConstraintData, InfOptConstraintRef
 
 # Export constraint methods
 export original_parameter_bounds

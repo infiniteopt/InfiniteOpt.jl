@@ -106,7 +106,7 @@ t
 julia> @infinite_variable(model, y(t))
 y(t)
 
-julia> @hold_variable(model, z)
+julia> @finite_variable(model, z)
 z
 
 julia> expr = 2y + z - 3t
@@ -203,7 +203,7 @@ Notice again that the ordered dictionary preserves the order.
     and nested quadratic/affine expressions. For instance, ``z^3 + 2`` can be
     expressed by introducing a dumby variable ``x = z^2``:
     ```jldoctest affine
-    julia> @hold_variable(model, x)
+    julia> @finite_variable(model, x)
     x
 
     julia> @constraint(model, x == z^2)
@@ -232,8 +232,7 @@ Order   = [:type]
 ```@docs
 GeneralVariableRef
 DispatchVariableRef
-MeasureFiniteVariableRef
-FiniteVariableRef
+FiniteRef
 ParameterFunctionRef
 ParameterFunctionIndex
 InfiniteParameterFunction

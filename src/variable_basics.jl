@@ -5,14 +5,14 @@
 abstract type InfOptVariableType end 
 struct Infinite <: InfOptVariableType end
 struct Point <: InfOptVariableType end
-struct Hold <: InfOptVariableType end
+struct Finite <: InfOptVariableType end
 struct Deriv <: InfOptVariableType end
 
 # Fallback _make_variable (the methods are defined in the variable files)
 function _make_variable(_error::Function, info::JuMP.VariableInfo, type;
                         extra_kw_args...)
     _error("Unrecognized variable type `$(typeof(type).parameters[1])`, " *
-           "should be Infinite, Point, or Hold.")
+           "should be Infinite, Point, or Finite.")
 end
 
 """
@@ -32,9 +32,9 @@ end
 Extend the `JuMP.build_variable` function to accomodate `InfiniteOpt`
 variable types. Returns the appropriate variable Datatype (i.e.,
 [`InfiniteVariable`](@ref), [`PointVariable`](@ref), and
-[`HoldVariable`](@ref)). Primarily, this method is to be used internally by the
+[`FiniteVariable`](@ref)). Primarily, this method is to be used internally by the
 appropriate constructor macros [`@infinite_variable`](@ref),
-[`@point_variable`](@ref), and [`@hold_variable`](@ref). However, it can be
+[`@point_variable`](@ref), and [`@finite_variable`](@ref). However, it can be
 called manually to build `InfiniteOpt` variables. Errors if an unneeded keyword
 argument is given or if the keywoard arguments are formatted incorrectly (e.g.,
 `parameter_refs` contains repeated parameter references when an infinite variable
@@ -57,8 +57,8 @@ julia> pt_var = build_variable(error, info, Point, infinite_variable_ref = ivref
                                parameter_values = 0.5)
 PointVariable{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Float64}(false, 0.0, false, 0.0, false, 0.0, true, 0.0, false, false), var_name(t), [0.5])
 
-julia> hd_var = build_variable(error, info, Hold)
-HoldVariable{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Float64}(false, 0.0, false, 0.0, false, 0.0, false, 0.0, false, false), Subdomain bounds (0): )
+julia> f_var = build_variable(error, info, Finite)
+FiniteVariable{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Float64}(false, 0.0, false, 0.0, false, 0.0, false, 0.0, false, false), Subdomain bounds (0): )
 ```
 """
 function JuMP.build_variable(_error::Function, info::JuMP.VariableInfo,
@@ -120,7 +120,7 @@ function to accomodate `InfiniteOpt` variable types. Adds a variable to an
 infinite model `model` and returns a [`GeneralVariableRef`](@ref).
 Primarily intended to be an internal function of the
 constructor macros [`@infinite_variable`](@ref), [`@point_variable`](@ref), and
-[`@hold_variable`](@ref). However, it can be used in combination with
+[`@finite_variable`](@ref). However, it can be used in combination with
 [`JuMP.build_variable`](@ref) to add variables to an infinite model object.
 Errors if invalid parameters reference(s) or an invalid infinite variable
 reference is included in `var`.
@@ -142,9 +142,9 @@ julia> pt_var = build_variable(error, info, Point, infinite_variable_ref = ivref
 julia> pvref = add_variable(m, pt_var, "var_alias")
 var_alias
 
-julia> hd_var = build_variable(error, info, Hold);
+julia> f_var = build_variable(error, info, Finite);
 
-julia> hvref = add_variable(m, hd_var, "var_name")
+julia> fvref = add_variable(m, f_var, "var_name")
 var_name
 ```
 """
@@ -286,7 +286,7 @@ function _update_var_name_dict(model::InfiniteModel, var_dict::MOIUC.CleverDict)
     for (index, data_object) in var_dict
         var_name = data_object.name
         if haskey(name_dict, var_name)
-            name_dict[var_name] = HoldVariableIndex(-1) # dumby value
+            name_dict[var_name] = FiniteVariableIndex(-1) # dumby value
         else
             name_dict[var_name] = index
         end
@@ -320,12 +320,12 @@ function JuMP.variable_by_name(model::InfiniteModel,
         _update_var_name_dict(model, model.infinite_vars)
         _update_var_name_dict(model, model.semi_infinite_vars)
         _update_var_name_dict(model, model.point_vars)
-        _update_var_name_dict(model, model.hold_vars)
+        _update_var_name_dict(model, model.finite_vars)
     end
     index = get(_var_name_dict(model), name, nothing)
     if index isa Nothing
         return nothing
-    elseif index == HoldVariableIndex(-1)
+    elseif index == FiniteVariableIndex(-1)
         error("Multiple variables have the name $name.")
     else
         return _make_variable_ref(model, index)
@@ -336,7 +336,7 @@ end
 #                              PARAMETER REFERENCES
 ################################################################################
 # Extend parameter_refs for variables (this serves as a fallback for finite types)
-function parameter_refs(vref::FiniteVariableRef)::Tuple
+function parameter_refs(vref::FiniteRef)::Tuple
     return ()
 end
 
@@ -609,7 +609,7 @@ Extend [`JuMP.delete_upper_bound`](@ref JuMP.delete_upper_bound(::JuMP.VariableR
 to delete the upper bound of `vref`. Errors if it doesn't have an upper bound.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 >= vref))
+```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @finite_variable(m, 0 >= vref))
 julia> delete_upper_bound(vref)
 
 julia> has_upper_bound(vref)
@@ -1053,14 +1053,14 @@ end
 
 Extend [`JuMP.num_variables`](@ref JuMP.num_variables(::JuMP.Model)) to return the
 number of `InfiniteOpt` variables assigned to `model`. By default, the total
-number of infinite, semi-infinite, point, and hold variables is returned. The amount
+number of infinite, semi-infinite, point, and finite variables is returned. The amount
 of a particular type is obtained by specifying the concrete variable type
 of [`InfOptVariable`](@ref) via `type`. Type options include:
  - `InfOptVariable`: all variables
  - `InfiniteVariable`: all infinite variables
  - `SemiInfiniteVariable`: all semi-infinite variables
  - `PointVariable`: all point variables
- - `HoldVariable`: all hold variables
+ - `FiniteVariable`: all finite variables
 
 **Example**
 ```julia-repl
@@ -1077,7 +1077,7 @@ function JuMP.num_variables(model::InfiniteModel,
     num_vars = JuMP.num_variables(model, InfiniteVariable)
     num_vars += JuMP.num_variables(model, SemiInfiniteVariable)
     num_vars += JuMP.num_variables(model, PointVariable)
-    num_vars += JuMP.num_variables(model, HoldVariable)
+    num_vars += JuMP.num_variables(model, FiniteVariable)
     return num_vars
 end
 
@@ -1094,14 +1094,14 @@ end
 
 Extend [`JuMP.all_variables`](@ref JuMP.all_variables(::JuMP.Model)) to return a
 list of all the variable references associated with `model`. By default, all
-of the infinite, semi-infinite, point, and hold variables is returned. Those
+of the infinite, semi-infinite, point, and finite variables is returned. Those
 of a particular type is obtained by specifying the concrete variable type
 of [`InfOptVariable`](@ref) via `type`. Type options include:
  - `InfOptVariable`: all variables
  - `InfiniteVariable`: all infinite variables
  - `SemiInfiniteVariable`: all semi-infinite variables
  - `PointVariable`: all point variables
- - `HoldVariable`: all hold variables
+ - `FiniteVariable`: all finite variables
 
 **Examples**
 ```julia-repl
@@ -1123,7 +1123,7 @@ function JuMP.all_variables(model::InfiniteModel,
     vrefs_list = JuMP.all_variables(model, InfiniteVariable)
     append!(vrefs_list, JuMP.all_variables(model, SemiInfiniteVariable))
     append!(vrefs_list, JuMP.all_variables(model, PointVariable))
-    append!(vrefs_list, JuMP.all_variables(model, HoldVariable))
+    append!(vrefs_list, JuMP.all_variables(model, FiniteVariable))
     return vrefs_list
 end
 

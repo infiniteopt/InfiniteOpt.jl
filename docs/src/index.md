@@ -14,7 +14,7 @@ include:
 - `JuMP`-like symbolic macro interface
 - Infinite set abstractions for parameterization of variables/constraints
 - Finite parameters support and use (similar to `ParameterJuMP`)
-- Direct support of infinite, point, and hold variables
+- Direct support of infinite, point, and finite variables
 - Straightforward measure operator definition (e.g., integrals, risk measures)
 - Infinite/finite constraint definition
 - Event constraint definition (e.g., chance constraints)

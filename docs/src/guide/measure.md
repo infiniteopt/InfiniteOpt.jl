@@ -479,6 +479,10 @@ the [`expand_all_measures!`](@ref) function to expand all measures in a model,
 which simply applies the [`expand`](@ref) to all measures stored in the model.
 
 ## Semi-Infinite Variables
+!!! note 
+    Previous versions of `InfiniteOpt` referred to semi-infinite variables as 
+    "reduced infinite variables". 
+     
 Expanding measures that cover a subset of infinite parameter dependencies present 
 in an expression will introduce semi-infinite variables to the
 model. To see what this means, suppose we have an infinite variable that is
@@ -571,7 +575,7 @@ coefficient_function(::AbstractMeasureData)
 coefficients(::AbstractMeasureData)
 weight_function(::AbstractMeasureData)
 build_measure
-InfiniteOpt.measure_data_in_hold_bounds(::AbstractMeasureData,::ParameterBounds)
+InfiniteOpt.measure_data_in_finite_var_bounds(::AbstractMeasureData,::ParameterBounds)
 add_measure
 InfiniteOpt.add_supports_to_parameters(::AbstractMeasureData)
 measure_function

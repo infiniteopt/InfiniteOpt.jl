@@ -129,7 +129,7 @@ end
     @infinite_variable(m, inf7(par1, par2, pars1))
     @infinite_variable(m, inf8(pars1[1]))
     @infinite_variable(m, inf9(pars1[1], par1))
-    @hold_variable(m, x)
+    @finite_variable(m, x)
     d1 = @deriv(inf1, par1)
     d2 = @deriv(inf2, par1)
     d3 = @deriv(inf3, par2)
@@ -647,7 +647,7 @@ end
     @infinite_parameter(m, 1 <= par2 <= 2)
     @infinite_parameter(m, 1 <= pars1[1:2] <= 2, num_supports = 2)
     @infinite_variable(m, inf3(par2))
-    @hold_variable(m, x)
+    @finite_variable(m, x)
     # test with 1D data
     @testset "1D Discrete Data" begin
         # test with bounds
@@ -696,7 +696,7 @@ end
     @infinite_variable(m, inf2(par1, par2))
     @infinite_variable(m, inf3(par2))
     @infinite_variable(m, inf4(pars1))
-    @hold_variable(m, x)
+    @finite_variable(m, x)
     # prepare measures
     data1 = DiscreteMeasureData(par1, [0.5, 0.5], [1, 2], is_expect = true)
     data2 = DiscreteMeasureData(pars1, [1, 1], [[1, 1], [2, 2]])
@@ -787,7 +787,7 @@ end
     @infinite_variable(m, inf2(par1, par2) >= 0)
     @infinite_variable(m, inf3(par2))
     @infinite_variable(m, inf4(pars1))
-    @hold_variable(m, x >= 0)
+    @finite_variable(m, x >= 0)
     # prepare measures
     data1 = DiscreteMeasureData(par1, [0.5, 0.5], [1, 2], lower_bound = 1, upper_bound = 2)
     data2 = DiscreteMeasureData(pars1, [1, 1], [[1, 1], [2, 2]])
@@ -829,7 +829,7 @@ end
     # test expand_all_measures!
     @testset "expand_all_measures!" begin
         # prepare the model for testing
-        @hold_variable(m, y, parameter_bounds = (par2 == 1))
+        @finite_variable(m, y, parameter_bounds = (par2 == 1))
         set_objective_function(m, x + measure(inf1 * par1 + 3, data1))
         @constraint(m, c1, inf1 + x >= 42.)
         @constraint(m, c2, 2x - measure(measure(inf1 * x + par1 + inf2, data1),

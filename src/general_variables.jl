@@ -61,9 +61,9 @@ Extend [`JuMP.index`](@ref JuMP.index(::JuMP.VariableRef)) to return the
 appropriate index of `vref`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, vref))
+```julia-repl
 julia> index(vref)
-HoldVariableIndex(1)
+FiniteVariableIndex(1)
 ```
 """
 function JuMP.index(vref::GeneralVariableRef)::AbstractInfOptIndex
@@ -93,7 +93,7 @@ Extend [`JuMP.owner_model`](@ref JuMP.owner_model(::JuMP.AbstractVariableRef)) t
 return the model where `vref` is stored.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; m = InfiniteModel(); @hold_variable(m, 0 <= vref <= 1))
+```julia-repl
 julia> owner_model(vref)
 An InfiniteOpt Model
 Feasibility problem with:
@@ -102,8 +102,8 @@ Infinite Parameters: 0
 Variable: 1
 Derivatives: 0
 Measures: 0
-`HoldVariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 1 constraint
-`HoldVariableRef`-in-`MathOptInterface.LessThan{Float64}`: 1 constraint
+`FiniteVariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 1 constraint
+`FiniteVariableRef`-in-`MathOptInterface.LessThan{Float64}`: 1 constraint
 Names registered in the model: vref
 Optimizer model backend information:
 Model mode: AUTOMATIC
@@ -275,7 +275,7 @@ Extend [`JuMP.is_valid`](@ref JuMP.is_valid(::JuMP.Model, ::JuMP.VariableRef)) t
 return `Bool` if `vref` is a valid reference.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @hold_variable(model, vref))
+```julia-repl
 julia> is_valid(model, vref)
 true
 ```
@@ -742,8 +742,8 @@ end
                          bounds::ParameterBounds{GeneralVariableRef};
                          [force::Bool = false])::Nothing
 
-Specify a new set of parameter bounds for a hold variable `vref`.
-An `ArgumentError` is thrown if `vref` is not a hold variable.
+Specify a new set of parameter bounds for a finite variable `vref`.
+An `ArgumentError` is thrown if `vref` is not a finite variable.
 """
 function set_parameter_bounds(vref::GeneralVariableRef,
                               bounds::ParameterBounds{GeneralVariableRef};
@@ -764,8 +764,8 @@ end
                          bounds::ParameterBounds{GeneralVariableRef}
                          )::Nothing
 
-Specify more parameter bounds for a hold variable `vref`.
-An `ArgumentError` is thrown if `vref` is not a hold variable.
+Specify more parameter bounds for a finite variable `vref`.
+An `ArgumentError` is thrown if `vref` is not a finite variable.
 """
 function add_parameter_bounds(vref::GeneralVariableRef,
                               bounds::ParameterBounds{GeneralVariableRef};

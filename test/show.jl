@@ -11,7 +11,7 @@ using JuMP: REPLMode, IJuliaMode
     @infinite_variable(m, x(par1))
     @infinite_variable(m, z(pars))
     @infinite_variable(m, inf(pars, par1, pars3))
-    @hold_variable(m, y)
+    @finite_variable(m, y)
     d1 = @deriv(x, par1)
     d2 = @deriv(inf, pars[1], par1)
     d3 = @deriv(z, pars[2])
@@ -289,13 +289,13 @@ using JuMP: REPLMode, IJuliaMode
     # test _get_base_name
     @testset "_get_base_name (REPL)" begin
         @test InfiniteOpt._get_base_name(REPLMode, pars[1]) == "pars[1]"
-        bad_ref = HoldVariableRef(m, HoldVariableIndex(-1))
+        bad_ref = FiniteVariableRef(m, FiniteVariableIndex(-1))
         @test InfiniteOpt._get_base_name(REPLMode, bad_ref) == "noname"
     end
     # test _get_base_name
     @testset "_get_base_name (IJulia)" begin
         @test InfiniteOpt._get_base_name(IJuliaMode, pars[1]) == "pars_{1}"
-        bad_ref = HoldVariableRef(m, HoldVariableIndex(-1))
+        bad_ref = FiniteVariableRef(m, FiniteVariableIndex(-1))
         @test InfiniteOpt._get_base_name(IJuliaMode, bad_ref) == "noname"
     end
     # test variable_string (InfiniteVariableRef)
@@ -621,7 +621,7 @@ end
     @infinite_parameter(m, pars[1:2] in MvNormal([1, 1], 1))
     @infinite_variable(m, x(par1))
     @infinite_variable(m, z(pars))
-    @hold_variable(m, y)
+    @finite_variable(m, y)
     @objective(m, Min, 2 + y)
     @constraint(m, c1, x + y -2 <= 0)
     bounds = ParameterBounds(Dict(par1 => IntervalSet(0.1, 1)))

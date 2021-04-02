@@ -81,18 +81,18 @@ end
 #                        VARIABLE INITIALIZATION METHODS
 ################################################################################
 """
-    transcribe_hold_variables!(trans_model::JuMP.Model,
+    transcribe_finite_variables!(trans_model::JuMP.Model,
                                inf_model::InfiniteOpt.InfiniteModel)::Nothing
 
-Create a transcription variable (i.e., a JuMP variable) for each `HoldVariable`
+Create a transcription variable (i.e., a JuMP variable) for each `FiniteVariable`
 stored in `inf_model` and add it to `trans_model`. The variable mapping is
 also stored in `TranscriptionData.finvar_mappings` which enables
 [`transcription_variable`](@ref) and [`lookup_by_support`](@ref).
 """
-function transcribe_hold_variables!(trans_model::JuMP.Model,
+function transcribe_finite_variables!(trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
-    for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.HoldVariable)
+    for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.FiniteVariable)
         hvref = InfiniteOpt._make_variable_ref(inf_model, index)
         vref = JuMP.add_variable(trans_model,
                                  JuMP.ScalarVariable(object.variable.info),
@@ -392,7 +392,7 @@ end
 Given the `expr` from an `InfiniteModel`, form its transcripted version in
 accordance with the variable mappings available in `trans_model` defined at
 `support`. This should only be used once all variables and measures have been
-transcribed (e.g., via [`transcribe_hold_variables!`](@ref)).
+transcribed (e.g., via [`transcribe_finite_variables!`](@ref)).
 """
 function transcription_expression(trans_model::JuMP.Model, expr, support)
     error("Unsupported expression type `$(typeof(expr))` for automated " *
@@ -436,7 +436,7 @@ function transcription_expression(trans_model::JuMP.Model,
     end
 end
 
-# Point variables and hold variables
+# Point variables and finite variables
 function transcription_expression(trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
@@ -817,7 +817,7 @@ function build_transcription_model!(trans_model::JuMP.Model,
               "This warning can be turned off via `check_support_dims = false`.")
     end
     # define the variables
-    transcribe_hold_variables!(trans_model, inf_model)
+    transcribe_finite_variables!(trans_model, inf_model)
     transcribe_infinite_variables!(trans_model, inf_model)
     transcribe_derivative_variables!(trans_model, inf_model)
     transcribe_semi_infinite_variables!(trans_model, inf_model)

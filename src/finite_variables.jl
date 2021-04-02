@@ -3,43 +3,43 @@
 ################################################################################
 # Extend dispatch_variable_ref
 function dispatch_variable_ref(model::InfiniteModel,
-                               index::HoldVariableIndex
-                               )::HoldVariableRef
-    return HoldVariableRef(model, index)
+                               index::FiniteVariableIndex
+                               )::FiniteVariableRef
+    return FiniteVariableRef(model, index)
 end
 
 # Extend _add_data_object
 function _add_data_object(model::InfiniteModel,
-                          object::VariableData{<:HoldVariable}
-                          )::HoldVariableIndex
-    return MOIUC.add_item(model.hold_vars, object)
+                          object::VariableData{<:FiniteVariable}
+                          )::FiniteVariableIndex
+    return MOIUC.add_item(model.finite_vars, object)
 end
 
 # Extend _data_dictionary (type based)
-function _data_dictionary(model::InfiniteModel, ::Type{HoldVariable}
-    )::MOIUC.CleverDict{HoldVariableIndex, VariableData{HoldVariable{GeneralVariableRef}}}
-    return model.hold_vars
+function _data_dictionary(model::InfiniteModel, ::Type{FiniteVariable}
+    )::MOIUC.CleverDict{FiniteVariableIndex, VariableData{FiniteVariable{GeneralVariableRef}}}
+    return model.finite_vars
 end
 
 # Extend _data_dictionary (reference based)
-function _data_dictionary(vref::HoldVariableRef
-    )::MOIUC.CleverDict{HoldVariableIndex, VariableData{HoldVariable{GeneralVariableRef}}}
-    return JuMP.owner_model(vref).hold_vars
+function _data_dictionary(vref::FiniteVariableRef
+    )::MOIUC.CleverDict{FiniteVariableIndex, VariableData{FiniteVariable{GeneralVariableRef}}}
+    return JuMP.owner_model(vref).finite_vars
 end
 
 # Extend _data_object
-function _data_object(vref::HoldVariableRef
-    )::VariableData{HoldVariable{GeneralVariableRef}}
+function _data_object(vref::FiniteVariableRef
+    )::VariableData{FiniteVariable{GeneralVariableRef}}
   object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
-  object === nothing && error("Invalid hold variable reference, cannot find " *
+  object === nothing && error("Invalid finite variable reference, cannot find " *
                         "corresponding variable in the model. This is likely " *
                         "caused by using the reference of a deleted variable.")
   return object
 end
 
 # Extend _core_variable_object
-function _core_variable_object(vref::HoldVariableRef
-    )::HoldVariable{GeneralVariableRef}
+function _core_variable_object(vref::FiniteVariableRef
+    )::FiniteVariable{GeneralVariableRef}
     return _data_object(vref).variable
 end
 
@@ -88,17 +88,17 @@ function _check_bounds(bounds::ParameterBounds{GeneralVariableRef};
 end
 
 # Define _make_variable (used by JuMP.build_variable)
-function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Type{Hold};
+function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Type{Finite};
     parameter_bounds::ParameterBounds{GeneralVariableRef} = ParameterBounds(),
-    extra_kw_args...)::HoldVariable{GeneralVariableRef}
+    extra_kw_args...)::FiniteVariable{GeneralVariableRef}
     # check for unneeded keywords
     for (kwarg, _) in extra_kw_args
-        _error("Keyword argument $kwarg is not for use with hold variables.")
+        _error("Keyword argument $kwarg is not for use with finite variables.")
     end
     # check that the bounds don't violate parameter domains
     _check_bounds(parameter_bounds)
     # make variable and return
-    return HoldVariable(_make_float_info(info), parameter_bounds)
+    return FiniteVariable(_make_float_info(info), parameter_bounds)
 end
 
 # Validate parameter bounds and add support(s) if needed
@@ -135,14 +135,14 @@ end
 
 # Define _check_and_make_variable_ref (used by JuMP.add_variable)
 function _check_and_make_variable_ref(model::InfiniteModel,
-                                      v::HoldVariable,
-                                      name::String)::HoldVariableRef
+                                      v::FiniteVariable,
+                                      name::String)::FiniteVariableRef
     _validate_bounds(model, v.parameter_bounds)
     data_object = VariableData(v, name)
     vindex = _add_data_object(model, data_object)
-    vref = HoldVariableRef(model, vindex)
+    vref = FiniteVariableRef(model, vindex)
     if !isempty(v.parameter_bounds)
-        model.has_hold_bounds = true
+        model.has_finite_var_bounds = true
     end
     return vref
 end
@@ -150,11 +150,11 @@ end
 ################################################################################
 #                           VARIABLE INFO METHODS
 ################################################################################
-# Set info for hold variables
-function _update_variable_info(vref::HoldVariableRef,
+# Set info for finite variables
+function _update_variable_info(vref::FiniteVariableRef,
                                info::JuMP.VariableInfo)::Nothing
     bounds = _core_variable_object(vref).parameter_bounds
-    _set_core_variable_object(vref, HoldVariable(info, bounds))
+    _set_core_variable_object(vref, FiniteVariable(info, bounds))
     return
 end
 
@@ -162,9 +162,9 @@ end
 #                           PARAMETER BOUND METHODS
 ################################################################################
 """
-    parameter_bounds(vref::HoldVariableRef)::ParameterBounds
+    parameter_bounds(vref::FiniteVariableRef)::ParameterBounds
 
-Return the [`ParameterBounds`](@ref) object associated with the hold variable
+Return the [`ParameterBounds`](@ref) object associated with the finite variable
 `vref`. It contains a dictionary where each key is a parameter reference
 which points to an `IntervalSet` that that defines a sub-domain for `vref`
 relative to that parameter reference.
@@ -174,20 +174,20 @@ relative to that parameter reference.
 julia> @infinite_parameter(model, t in [0, 10])
 t
 
-julia> @hold_variable(model, vref, parameter_bounds = (t in [0, 2]))
+julia> @finite_variable(model, vref, parameter_bounds = (t in [0, 2]))
 vref
 
 julia> parameter_bounds(vref)
 Subdomain bounds (1): t ∈ [0, 2]
 ```
 """
-function parameter_bounds(vref::HoldVariableRef
+function parameter_bounds(vref::FiniteVariableRef
     )::ParameterBounds{GeneralVariableRef}
     return _core_variable_object(vref).parameter_bounds
 end
 
 """
-    has_parameter_bounds(vref::HoldVariableRef)::Bool
+    has_parameter_bounds(vref::FiniteVariableRef)::Bool
 
 Return a `Bool` indicating if `vref` is limited to a sub-domain as defined
 by parameter bound.
@@ -197,14 +197,14 @@ by parameter bound.
 julia> @infinite_parameter(model, t in [0, 10])
 t
 
-julia> @hold_variable(model, vref, parameter_bounds = (t in [0, 2]))
+julia> @finite_variable(model, vref, parameter_bounds = (t in [0, 2]))
 vref
 
 julia> has_parameter_bounds(vref)
 true
 ```
 """
-function has_parameter_bounds(vref::HoldVariableRef)::Bool
+function has_parameter_bounds(vref::FiniteVariableRef)::Bool
     return !isempty(parameter_bounds(vref))
 end
 
@@ -213,13 +213,13 @@ function has_parameter_bounds(vref::DispatchVariableRef)::Bool
     return false
 end
 
-# Internal function used to change the parameter bounds of a hold variable
-function _update_variable_param_bounds(vref::HoldVariableRef,
+# Internal function used to change the parameter bounds of a finite variable
+function _update_variable_param_bounds(vref::FiniteVariableRef,
                                        bounds::ParameterBounds{GeneralVariableRef}
                                        )::Nothing
     info = _variable_info(vref)
-    _set_core_variable_object(vref, HoldVariable(info, bounds))
-    JuMP.owner_model(vref).has_hold_bounds = true
+    _set_core_variable_object(vref, FiniteVariable(info, bounds))
+    JuMP.owner_model(vref).has_finite_var_bounds = true
     if is_used(vref)
         set_optimizer_model_ready(JuMP.owner_model(vref), false)
     end
@@ -231,7 +231,7 @@ function _check_meas_bounds(bounds::ParameterBounds{GeneralVariableRef},
                             data::AbstractMeasureData;
                             _error::Function = error
                             )::Nothing
-    if !measure_data_in_hold_bounds(data, bounds)
+    if !measure_data_in_finite_var_bounds(data, bounds)
         _error("New bounds don't span existing dependent measure bounds.")
     end
     return
@@ -250,9 +250,9 @@ function _update_bounds(bounds1::ParameterBounds{GeneralVariableRef},
         # the previous set and the new one do not overlap
         elseif (JuMP.lower_bound(set) > JuMP.upper_bound(bounds1[pref])) ||
                (JuMP.upper_bound(set) < JuMP.lower_bound(bounds1[pref]))
-            _error("Sub-domains of constraint and/or hold variable(s) do not" *
+            _error("Sub-domains of constraint and/or finite variable(s) do not" *
                    " overlap. Consider changing the parameter bounds of the" *
-                   " constraint and/or hold variable(s).")
+                   " constraint and/or finite variable(s).")
         # we have an existing bound
         else
             # we have a new stricter lower bound to update with
@@ -278,8 +278,8 @@ function _update_var_bounds(vref::DispatchVariableRef,
     return
 end
 
-# HoldVariableRef
-function _update_var_bounds(vref::HoldVariableRef,
+# FiniteVariableRef
+function _update_var_bounds(vref::FiniteVariableRef,
                             constr_bounds::ParameterBounds{GeneralVariableRef}
                             )::Nothing
     if has_parameter_bounds(vref)
@@ -318,7 +318,7 @@ function _rebuild_constr_bounds(c::BoundedScalarConstraint,
     vrefs = _all_function_variables(func)
     orig_bounds = original_parameter_bounds(c)
     c_new = BoundedScalarConstraint(func, set, copy(orig_bounds), orig_bounds)
-    # look for bounded hold variables and update bounds
+    # look for bounded finite variables and update bounds
     for vref in vrefs
         _update_var_bounds(vref, parameter_bounds(c_new))
     end
@@ -340,11 +340,11 @@ function _rebuild_constr_bounds(c::JuMP.ScalarConstraint,
 end
 
 """
-    set_parameter_bounds(vref::HoldVariableRef,
+    set_parameter_bounds(vref::FiniteVariableRef,
                          bounds::ParameterBounds{GeneralVariableRef};
                          [force::Bool = false])::Nothing
 
-Specify a new dictionary of parameter bounds `bounds` for the hold variable `vref`.
+Specify a new dictionary of parameter bounds `bounds` for the finite variable `vref`.
 These are stored in a [`ParameterBounds`](@ref) object which contains a dictionary.
 Note the dictionary keys must be infinite parameter references and the values
 must be `IntervalSet`s that indicate a particular sub-domain for which `vref`
@@ -356,7 +356,7 @@ is defined. This is meant to be primarily used by
 julia> @infinite_parameter(model, t in [0, 10])
 t
 
-julia> @hold_variable(model, vref)
+julia> @finite_variable(model, vref)
 vref
 
 julia> set_parameter_bounds(vref, ParameterBounds(Dict(t => IntervalSet(0, 2))))
@@ -365,7 +365,7 @@ julia> parameter_bounds(vref)
 Subdomain bounds (1): t ∈ [0, 2]
 ```
 """
-function set_parameter_bounds(vref::HoldVariableRef,
+function set_parameter_bounds(vref::FiniteVariableRef,
                               bounds::ParameterBounds{GeneralVariableRef};
                               force::Bool = false, _error::Function = error
                               )::Nothing
@@ -425,7 +425,7 @@ function _update_constr_bounds(bounds::ParameterBounds{GeneralVariableRef},
 end
 
 """
-    add_parameter_bounds(vref::HoldVariableRef,
+    add_parameter_bounds(vref::FiniteVariableRef,
                          new_bounds::ParameterBounds{GeneralVariableRef}
                          )::Nothing
 
@@ -437,7 +437,7 @@ This is primarily meant to be used by [`@add_parameter_bounds`](@ref).
 julia> @infinite_parameter(model, t in [0, 10])
 t
 
-julia> @hold_variable(model, vref)
+julia> @finite_variable(model, vref)
 vref
 
 julia> add_parameter_bounds(vref, ParameterBounds(t => IntervalSet(0, 2)))
@@ -446,7 +446,7 @@ julia> parameter_bounds(vref)
 Subdomain bounds (1): t ∈ [0, 2]
 ```
 """
-function add_parameter_bounds(vref::HoldVariableRef,
+function add_parameter_bounds(vref::FiniteVariableRef,
                               new_bounds::ParameterBounds{GeneralVariableRef};
                               _error::Function = error
                               )::Nothing
@@ -479,7 +479,7 @@ function add_parameter_bounds(vref::HoldVariableRef,
     # add the bounds
     merge!(parameter_bounds(vref), new_bounds)
     # update status
-    JuMP.owner_model(vref).has_hold_bounds = true
+    JuMP.owner_model(vref).has_finite_var_bounds = true
     if is_used(vref)
         set_optimizer_model_ready(model, false)
     end
@@ -487,9 +487,9 @@ function add_parameter_bounds(vref::HoldVariableRef,
 end
 
 """
-    delete_parameter_bounds(vref::HoldVariableRef)::Nothing
+    delete_parameter_bounds(vref::FiniteVariableRef)::Nothing
 
-Delete all the parameter bounds of the hold variable `vref`. Any constraints
+Delete all the parameter bounds of the finite variable `vref`. Any constraints
 that employ `vref` will be updated accordingly.
 
 **Example**
@@ -499,7 +499,7 @@ julia> @infinite_parameter(model, x[1:2] in [0, 10])
  x[1]
  x[2]
 
-julia> @hold_variable(model, z, parameter_bounds = (x in [0, 1]))
+julia> @finite_variable(model, z, parameter_bounds = (x in [0, 1]))
 z
 
 julia> delete_parameter_bounds(z)
@@ -508,7 +508,7 @@ julia> parameter_bounds(z)
 Subdomain bounds (0):
 ```
 """
-function delete_parameter_bounds(vref::HoldVariableRef)::Nothing
+function delete_parameter_bounds(vref::FiniteVariableRef)::Nothing
     # get the current bounds
     bounds = parameter_bounds(vref)
     # check if there are bounds and act accordingly
@@ -543,7 +543,7 @@ end
 #                                 DELETION
 ################################################################################
 # Extend _delete_variable_dependencies (for use with JuMP.delete)
-function _delete_variable_dependencies(vref::HoldVariableRef)::Nothing
+function _delete_variable_dependencies(vref::FiniteVariableRef)::Nothing
     # remove variable info constraints associated with vref
     _delete_info_constraints(vref)
     # update dependent constraint bounds by deleting the variable bounds

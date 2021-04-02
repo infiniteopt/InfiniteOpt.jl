@@ -170,7 +170,7 @@ end
     # test JuMP.build_variable
     @testset "JuMP.build_variable" begin
         # test errors
-        dvref = InfiniteOpt._make_variable_ref(m, HoldVariableIndex(1))
+        dvref = InfiniteOpt._make_variable_ref(m, FiniteVariableIndex(1))
         @test_throws ErrorException build_variable(error, dvref, eval_supps)
         eval_supps[6] = 1
         @test_throws ErrorException build_variable(error, ivref, eval_supps)
@@ -423,7 +423,7 @@ end
     @dependent_parameters(m, c[1:2] in [0, 1])
     @infinite_variable(m, ivref(a, b, c))
     @point_variable(m, ivref(0, [0, 0], [0, 0]), pvref)
-    @hold_variable(m, hvref)
+    @finite_variable(m, hvref)
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1, 4 => 0, 5 => 0)
     var = build_variable(error, ivref, eval_supps, check = false)
     rvref = add_variable(m, var)
@@ -431,7 +431,7 @@ end
     @testset "JuMP.num_variables" begin
         @test num_variables(m, InfiniteVariable) == 1
         @test num_variables(m, PointVariable) == 1
-        @test num_variables(m, HoldVariable) == 1
+        @test num_variables(m, FiniteVariable) == 1
         @test num_variables(m, SemiInfiniteVariable) == 1
         @test num_variables(m) == 4
         @test num_variables(m, InfOptVariable) == 4
@@ -440,7 +440,7 @@ end
     @testset "JuMP.all_variables" begin
         @test all_variables(m, InfiniteVariable) == [ivref]
         @test all_variables(m, PointVariable) == [pvref]
-        @test all_variables(m, HoldVariable) == [hvref]
+        @test all_variables(m, FiniteVariable) == [hvref]
         @test all_variables(m, SemiInfiniteVariable) == [rvref]
         @test all_variables(m) == [ivref, rvref, pvref, hvref]
         @test all_variables(m, InfOptVariable) == [ivref, rvref, pvref, hvref]
