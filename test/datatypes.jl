@@ -26,15 +26,15 @@
     # InfiniteVariableIndex
     @test InfiniteVariableIndex <: ObjectIndex
     @test InfiniteVariableIndex(1).value == 1
-    # ReducedVariableIndex
-    @test ReducedVariableIndex <: ObjectIndex
-    @test ReducedVariableIndex(1).value == 1
+    # SemiInfiniteVariableIndex
+    @test SemiInfiniteVariableIndex <: ObjectIndex
+    @test SemiInfiniteVariableIndex(1).value == 1
     # PointVariableIndex
     @test PointVariableIndex <: ObjectIndex
     @test PointVariableIndex(1).value == 1
-    # HoldVariableIndex
-    @test HoldVariableIndex <: ObjectIndex
-    @test HoldVariableIndex(1).value == 1
+    # FiniteVariableIndex
+    @test FiniteVariableIndex <: ObjectIndex
+    @test FiniteVariableIndex(1).value == 1
     # DerivativeIndex
     @test DerivativeIndex <: ObjectIndex
     @test DerivativeIndex(1).value == 1
@@ -52,9 +52,9 @@
         @test MOIUC.index_to_key(FiniteParameterIndex, Int64(42)) == FiniteParameterIndex(42)
         @test MOIUC.index_to_key(ParameterFunctionIndex, Int64(42)) == ParameterFunctionIndex(42)
         @test MOIUC.index_to_key(InfiniteVariableIndex, Int64(42)) == InfiniteVariableIndex(42)
-        @test MOIUC.index_to_key(ReducedVariableIndex, Int64(42)) == ReducedVariableIndex(42)
+        @test MOIUC.index_to_key(SemiInfiniteVariableIndex, Int64(42)) == SemiInfiniteVariableIndex(42)
         @test MOIUC.index_to_key(PointVariableIndex, Int64(42)) == PointVariableIndex(42)
-        @test MOIUC.index_to_key(HoldVariableIndex, Int64(42)) == HoldVariableIndex(42)
+        @test MOIUC.index_to_key(FiniteVariableIndex, Int64(42)) == FiniteVariableIndex(42)
         @test MOIUC.index_to_key(DerivativeIndex, Int64(42)) == DerivativeIndex(42)
         @test MOIUC.index_to_key(MeasureIndex, Int64(42)) == MeasureIndex(42)
         @test MOIUC.index_to_key(ConstraintIndex, Int64(42)) == ConstraintIndex(42)
@@ -200,8 +200,7 @@ end
     m = InfiniteModel();
     # Abstract types
     @test DispatchVariableRef <: AbstractVariableRef
-    @test MeasureFiniteVariableRef <: DispatchVariableRef
-    @test FiniteVariableRef <: MeasureFiniteVariableRef
+    @test FiniteRef <: DispatchVariableRef
     # test GeneralVariableRef
     @test GeneralVariableRef <: AbstractVariableRef
     @test GeneralVariableRef(m, 1, MeasureIndex) isa GeneralVariableRef
@@ -214,35 +213,35 @@ end
     idx = DependentParameterIndex(DependentParametersIndex(1), 1)
     @test DependentParameterRef(m, idx) isa DependentParameterRef
     # test FiniteParameterRef
-    @test FiniteParameterRef <: FiniteVariableRef
+    @test FiniteParameterRef <: FiniteRef
     idx = FiniteParameterIndex(1)
     @test FiniteParameterRef(m, idx) isa FiniteParameterRef
     # InfiniteVariableRef
     @test InfiniteVariableRef <: DispatchVariableRef
     idx = InfiniteVariableIndex(1)
     @test InfiniteVariableRef(m, idx) isa InfiniteVariableRef
-    # ReducedVariableRef
-    @test ReducedVariableRef <: DispatchVariableRef
-    idx = ReducedVariableIndex(1)
-    @test ReducedVariableRef(m, idx) isa ReducedVariableRef
+    # SemiInfiniteVariableRef
+    @test SemiInfiniteVariableRef <: DispatchVariableRef
+    idx = SemiInfiniteVariableIndex(1)
+    @test SemiInfiniteVariableRef(m, idx) isa SemiInfiniteVariableRef
     # ParameterFunctionRef
     @test ParameterFunctionRef <: DispatchVariableRef
     idx = ParameterFunctionIndex(1)
     @test ParameterFunctionRef(m, idx) isa ParameterFunctionRef
     # PointVariableRef
-    @test PointVariableRef <: FiniteVariableRef
+    @test PointVariableRef <: FiniteRef
     idx = PointVariableIndex(1)
     @test PointVariableRef(m, idx) isa PointVariableRef
-    # HoldVariableRef
-    @test HoldVariableRef <: FiniteVariableRef
-    idx = HoldVariableIndex(1)
-    @test HoldVariableRef(m, idx) isa HoldVariableRef
+    # FiniteVariableRef
+    @test FiniteVariableRef <: FiniteRef
+    idx = FiniteVariableIndex(1)
+    @test FiniteVariableRef(m, idx) isa FiniteVariableRef
     # DerivativeRef
     @test DerivativeRef <: DispatchVariableRef
     idx = DerivativeIndex(1)
     @test DerivativeRef(m, idx) isa DerivativeRef
     # MeasureRef
-    @test MeasureRef <: MeasureFiniteVariableRef
+    @test MeasureRef <: DispatchVariableRef
     idx = MeasureIndex(1)
     @test MeasureRef(m, idx) isa MeasureRef
     # InfOptConstraintRef
@@ -364,16 +363,16 @@ end
     end
 end
 
-# Test Infinite parameter functions 
-@testset "Infinite Parameter Functions" begin 
+# Test parameter functions 
+@testset "Parameter Functions" begin 
     # useful data
     m = InfiniteModel()
     pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
     vt = IC.VectorTuple(pref)
-    # test InfiniteParameterFunction
-    @test InfiniteParameterFunction(sin, vt, [1], [1]) isa InfiniteParameterFunction
+    # test ParameterFunction
+    @test ParameterFunction(sin, vt, [1], [1]) isa ParameterFunction
     # test ParameterFunctionData
-    @test ParameterFunctionData(InfiniteParameterFunction(sin, vt, [1], [1])) isa ParameterFunctionData
+    @test ParameterFunctionData(ParameterFunction(sin, vt, [1], [1])) isa ParameterFunctionData
 end
 
 # Test variable datatypes
@@ -392,18 +391,18 @@ end
     # Infinite variable
     @test InfiniteVariable <: InfOptVariable
     @test InfiniteVariable(inf_info, IC.VectorTuple(pref), [1], [1], true) isa InfiniteVariable
-    # Reduced variable
-    @test ReducedVariable <: InfOptVariable
-    @test ReducedVariable(vref, Dict(1 => Float64(2)), [1], [1]) isa ReducedVariable
+    # Semi-Infinite variable
+    @test SemiInfiniteVariable <: InfOptVariable
+    @test SemiInfiniteVariable(vref, Dict(1 => Float64(2)), [1], [1]) isa SemiInfiniteVariable
     # Point variable
     @test PointVariable <: InfOptVariable
     @test PointVariable(sample_info, vref, Float64[1]) isa PointVariable
-    # Hold variable
-    @test HoldVariable <: InfOptVariable
-    @test HoldVariable(sample_info, ParameterBounds()) isa HoldVariable
+    # Finite variable
+    @test FiniteVariable <: InfOptVariable
+    @test FiniteVariable(sample_info, ParameterBounds()) isa FiniteVariable
     # VariableData
     @test VariableData <: AbstractDataObject
-    @test VariableData(HoldVariable(sample_info, ParameterBounds())) isa VariableData
+    @test VariableData(FiniteVariable(sample_info, ParameterBounds())) isa VariableData
 end
 
 # Test derivative datatypes
@@ -421,8 +420,8 @@ end
     # derivative
     @test Derivative <: InfOptVariable
     @test Derivative(inf_info, true, vref, pref) isa Derivative
-    # Reduced derivative
-    @test ReducedVariable(dref, Dict(1 => Float64(2)), [1], [1]) isa ReducedVariable
+    # Semi-infinite derivative
+    @test SemiInfiniteVariable(dref, Dict(1 => Float64(2)), [1], [1]) isa SemiInfiniteVariable
     # Point derivative
     @test PointVariable(sample_info, dref, Float64[1]) isa PointVariable
     # VariableData

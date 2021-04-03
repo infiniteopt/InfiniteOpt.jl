@@ -56,15 +56,15 @@ end
 
 Add a measure variable `var` to the optimizer model `model` (with `key`) and
 return the correct `InfiniteOpt` variable reference. This is an internal method
-used by [`make_point_variable_ref`](@ref) and [`make_reduced_variable_ref`](@ref)
-to make point variables and reduced variables when the `write_model` is an
+used by [`make_point_variable_ref`](@ref) and [`make_semi_infinite_variable_ref`](@ref)
+to make point variables and semi-infinite variables when the `write_model` is an
 optimizer model. This is useful for extensions that wish to expand measures, but
 without changing the original `InfiniteModel`. Thus, this should be extended for
-adding `PointVariable`s and `ReducedVariable`s for such extensions.
+adding `PointVariable`s and `SemiInfiniteVariable`s for such extensions.
 Otherwise, an error is thrown for unextended variable and/or optimizer model types.
-Note if this is extended, than [`internal_reduced_variable`](@ref) should also
-be extended in order to direct reduced variables references to the underlying
-[`ReducedVariable`](@ref).
+Note if this is extended, than [`internal_semi_infinite_variable`](@ref) should also
+be extended in order to direct semi-infinite variables references to the underlying
+[`SemiInfiniteVariable`](@ref).
 """
 function add_measure_variable(model::JuMP.Model, var, key)
     error("`add_measure_variable` not defined for variable of type `$(typeof(var))` " *
@@ -96,24 +96,24 @@ function make_point_variable_ref(write_model::JuMP.Model, ivref, support,
 end
 
 """
-    make_reduced_variable_ref(write_model::Union{InfiniteModel, JuMP.Model},
+    make_semi_infinite_variable_ref(write_model::Union{InfiniteModel, JuMP.Model},
                               ivref::GeneralVariableRef,
                               indices::Vector{Int},
                               values::Vector{Float64}
                               )::GeneralVariableRef
 
-Make a reduced variable for infinite variable/derivative/parameter function `ivref` at `support`, add it to
+Make a semi-infinite variable for infinite variable/derivative/parameter function `ivref` at `support`, add it to
 the `write_model`, and return the `GeneralVariableRef`. This is an internal method
-for reduced variables produced by expanding measures via [`expand_measure`](@ref).
+for semi-infinite variables produced by expanding measures via [`expand_measure`](@ref).
 This is also useful for those writing extension optimizer models and wish to
 expand measures without modifiying the `InfiniteModel`. In such cases, `write_model`
 should be the optimizer model and [`add_measure_variable`](@ref add_measure_variable(::JuMP.Model, ::Any, ::Any))
-should be extended appropriately for reduced variables. Errors if `write_model`
+should be extended appropriately for semi-infinite variables. Errors if `write_model`
 is an optimizer model and `add_measure_variable` is not properly extended.
 Note this is only intended for optimizer models that are currently stored in
 `InfiniteModel.optimizer_model`.
 """
-function make_reduced_variable_ref(write_model::InfiniteModel,
+function make_semi_infinite_variable_ref(write_model::InfiniteModel,
                                    ivref::GeneralVariableRef,
                                    indices::Vector{Int},
                                    values::Vector{Float64}
@@ -123,8 +123,8 @@ function make_reduced_variable_ref(write_model::InfiniteModel,
     return JuMP.add_variable(write_model, var)
 end
 
-# Add reduced infinite variables in the optimizer model without modifying the InfiniteModel
-function make_reduced_variable_ref(write_model::JuMP.Model,
+# Add semi-infinite infinite variables in the optimizer model without modifying the InfiniteModel
+function make_semi_infinite_variable_ref(write_model::JuMP.Model,
                                    ivref::GeneralVariableRef,
                                    indices::Vector{Int},
                                    values::Vector{Float64}
@@ -136,19 +136,19 @@ function make_reduced_variable_ref(write_model::JuMP.Model,
 end
 
 """
-    delete_internal_reduced_variable(write_model::Union{InfiniteModel, JuMP.Model},
-                                     rvref::ReducedVariableRef)::Nothing
+    delete_internal_semi_infinite_variable(write_model::Union{InfiniteModel, JuMP.Model},
+                                     rvref::SemiInfiniteVariableRef)::Nothing
 
 Delete the variable associated with `rvref` from `write_model` if it is purely
 an internal variable only used for measure expansion and is no longer needed.
 For `write_model`s that are an optimizer model,
-[`delete_reduced_variable`](@ref delete_reduced_variable(::JuMP.Model, ::Any,::Any))
+[`delete_semi_infinite_variable`](@ref delete_semi_infinite_variable(::JuMP.Model, ::Any,::Any))
 will need to be extended for this this to work. Otherwise, a warning will be thrown.
 Note that this is intended as an internal method to assist with extensions to
 [`expand_measure`](@ref).
 """
-function delete_internal_reduced_variable(write_model::InfiniteModel,
-                                          rvref::ReducedVariableRef)::Nothing
+function delete_internal_semi_infinite_variable(write_model::InfiniteModel,
+                                          rvref::SemiInfiniteVariableRef)::Nothing
     if !used_by_measure(rvref) && !used_by_constraint(rvref)
         JuMP.delete(write_model, rvref)
     end
@@ -156,25 +156,25 @@ function delete_internal_reduced_variable(write_model::InfiniteModel,
 end
 
 """
-    delete_reduced_variable(model::JuMP.Model, vref, key::Val{:ext_key_name})::Nothing
+    delete_semi_infinite_variable(model::JuMP.Model, vref, key::Val{:ext_key_name})::Nothing
 
-Delete the reduced variable associated with `vref` from the optimizer model
+Delete the semi-infinite variable associated with `vref` from the optimizer model
 `model` with associated extension key `:ext_key_name`. A warning is thrown if this
 is not properly extended. This is intended as a helper function for
-[`delete_internal_reduced_variable`](@ref) which is used by [`expand_measure`](@ref).
+[`delete_internal_semi_infinite_variable`](@ref) which is used by [`expand_measure`](@ref).
 """
-function delete_reduced_variable(write_model::JuMP.Model, vref, key)
-    @warn "'delete_reduced_variable' not extended for reduced variable type " *
+function delete_semi_infinite_variable(write_model::JuMP.Model, vref, key)
+    @warn "'delete_semi_infinite_variable' not extended for semi-infinite variable type " *
           "`$(typeof(vref))` and optimizer model with key `$(typeof(key).parameters[1])`."
     return
 end
 
-# Delete reduced infinite variable from optimizer model if it was not made by the InfiniteModel
-function delete_internal_reduced_variable(write_model::JuMP.Model,
-                                          rvref::ReducedVariableRef)::Nothing
+# Delete semi-infinite variable from optimizer model if it was not made by the InfiniteModel
+function delete_internal_semi_infinite_variable(write_model::JuMP.Model,
+                                          rvref::SemiInfiniteVariableRef)::Nothing
     if !JuMP.is_valid(JuMP.owner_model(rvref), rvref)
         key = optimizer_model_key(write_model)
-        delete_reduced_variable(write_model, rvref, Val(key))
+        delete_semi_infinite_variable(write_model, rvref, Val(key))
     end
     return
 end
@@ -190,9 +190,9 @@ Return the finite reformulation of a measure containing a variable/parameter
 expression `expr` with measure data `data`. Here `write_model` is the target
 model where this expanded expression will be used. Thus, any variables that need
 to be created will be added to `write_model`. The methods [`make_point_variable_ref`](@ref)
-and [`make_reduced_variable_ref`](@ref) should be used as appropriate to create
+and [`make_semi_infinite_variable_ref`](@ref) should be used as appropriate to create
 these variables. Developers might also choose to use
-[`delete_internal_reduced_variable`](@ref) in order to remove reduced variables
+[`delete_internal_semi_infinite_variable`](@ref) in order to remove semi-infinite variables
 once they are no longer needed. Note this is intended as an internal function,
 but will need to be extended for unsupported `expr` types and for user-defined
 measure data types. Principally, this is leveraged to enable the user methods
@@ -228,11 +228,11 @@ function expand_measure(ivref::GeneralVariableRef,
         return JuMP.@expression(write_model, sum(coeffs[i] * w(supps[i]) *
                     make_point_variable_ref(write_model, ivref, [supps[i]])
                     for i in eachindex(coeffs)))
-    # make reduced variables if the variable contains other parameters
+    # make semi-infinite variables if the variable contains other parameters
     else
         index = [findfirst(isequal(pref), var_prefs)]
         return JuMP.@expression(write_model, sum(coeffs[i] * w(supps[i]) *
-                    make_reduced_variable_ref(write_model, ivref, index, [supps[i]])
+                    make_semi_infinite_variable_ref(write_model, ivref, index, [supps[i]])
                     for i in eachindex(coeffs)))
     end
 end
@@ -264,7 +264,7 @@ function expand_measure(ivref::GeneralVariableRef,
         return JuMP.@expression(write_model, sum(coeffs[i] * w(supps[:, i]) *
                     make_point_variable_ref(write_model, ivref, new_supps[:, i])
                     for i in eachindex(coeffs)))
-    # make reduced variables if the variable contains other parameters
+    # make semi-infinite variables if the variable contains other parameters
     else
         # get indices of each pref to map properly
         indices = [findfirst(isequal(pref), var_prefs) for pref in prefs]
@@ -275,21 +275,21 @@ function expand_measure(ivref::GeneralVariableRef,
             supps = supps[.!empty, :]
         end
         return JuMP.@expression(write_model, sum(coeffs[i] * w(supps[:, i]) *
-                    make_reduced_variable_ref(write_model, ivref, indices, supps[:, i])
+                    make_semi_infinite_variable_ref(write_model, ivref, indices, supps[:, i])
                     for i in eachindex(coeffs)))
     end
 end
 
-# Write point support given reduced info and the support
+# Write point support given semi_infinite info and the support
 function _make_point_support(orig_prefs::Vector{GeneralVariableRef},
                              support_dict::Dict{Int, Float64},
                              index::Int, value::Float64)::Vector{Float64}
     return [i == index ? value : support_dict[i] for i in eachindex(orig_prefs)]
 end
 
-# ReducedVariableRef (1D DiscreteMeasureData)
+# SemiInfiniteVariableRef (1D DiscreteMeasureData)
 function expand_measure(rvref::GeneralVariableRef,
-                        index_type::Type{ReducedVariableIndex},
+                        index_type::Type{SemiInfiniteVariableIndex},
                         data::DiscreteMeasureData{GeneralVariableRef, 1},
                         write_model::JuMP.AbstractModel)
     # pull in the needed information
@@ -313,22 +313,22 @@ function expand_measure(rvref::GeneralVariableRef,
                     make_point_variable_ref(write_model, ivref,
                     _make_point_support(orig_prefs, eval_supps, index, supps[i]))
                     for i in eachindex(coeffs)))
-        delete_internal_reduced_variable(write_model, drvref) # TODO not sure this is helpful
-    # make reduced variables if the variable contains other parameters
+        delete_internal_semi_infinite_variable(write_model, drvref) # TODO not sure this is helpful
+    # make semi-infinite variables if the variable contains other parameters
     else
         index = findfirst(isequal(pref), orig_prefs)
         collected_indices = collect(keys(eval_supps))
         vals = map(k -> eval_supps[k], collected_indices) # a support will be appended on the fly
         indices = push!(collected_indices, index)
         expr = JuMP.@expression(write_model, sum(coeffs[i] * w(supps[i]) *
-                    make_reduced_variable_ref(write_model, ivref, indices, vcat(vals, supps[i]))
+                    make_semi_infinite_variable_ref(write_model, ivref, indices, vcat(vals, supps[i]))
                     for i in eachindex(coeffs)))
-        delete_internal_reduced_variable(write_model, drvref) # TODO not sure this is helpful
+        delete_internal_semi_infinite_variable(write_model, drvref) # TODO not sure this is helpful
     end
     return expr
 end
 
-# Write point support given reduced info and the support
+# Write point support given semi_infinite info and the support
 function _make_point_support(orig_prefs::Vector{GeneralVariableRef},
                              support_dict::Dict{Int, Float64},
                              new_indices::Vector{Int},
@@ -339,9 +339,9 @@ function _make_point_support(orig_prefs::Vector{GeneralVariableRef},
             for i in eachindex(orig_prefs)]
 end
 
-# ReducedVariableRef (Multi DiscreteMeasureData)
+# SemiInfiniteVariableRef (Multi DiscreteMeasureData)
 function expand_measure(rvref::GeneralVariableRef,
-                        index_type::Type{ReducedVariableIndex},
+                        index_type::Type{SemiInfiniteVariableIndex},
                         data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
                         write_model::JuMP.AbstractModel)
     # pull in the needed information
@@ -373,8 +373,8 @@ function expand_measure(rvref::GeneralVariableRef,
                     make_point_variable_ref(write_model, ivref,
                     _make_point_support(orig_prefs, eval_supps, indices, supps[:, i]))
                     for i in eachindex(coeffs)))
-        delete_internal_reduced_variable(write_model, drvref) # TODO not sure this is helpful
-    # make reduced variables if the variable contains other parameters
+        delete_internal_semi_infinite_variable(write_model, drvref) # TODO not sure this is helpful
+    # make semi-infinite variables if the variable contains other parameters
     else
         # get the indices of prefs in terms of the ivref
         new_indices = [findfirst(isequal(pref), orig_prefs) for pref in prefs]
@@ -384,25 +384,25 @@ function expand_measure(rvref::GeneralVariableRef,
             deleteat!(new_indices, bad_index)
             supps = supps[.!bad_index, :]
         end
-        # prepare the indices and values for reduced variable construction
+        # prepare the indices and values for semi-infinite variable construction
         collected_indices = collect(keys(eval_supps))
         vals = map(k -> eval_supps[k], collected_indices) # a support will be appended on the fly
         indices = append!(collected_indices, new_indices)
         # make the expression
         expr = JuMP.@expression(write_model, sum(coeffs[i] * w(supps[:, i]) *
-                    make_reduced_variable_ref(write_model, ivref, indices, vcat(vals, supps[:, i]))
+                    make_semi_infinite_variable_ref(write_model, ivref, indices, vcat(vals, supps[:, i]))
                     for i in eachindex(coeffs)))
-        delete_internal_reduced_variable(write_model, drvref) # TODO not sure this is helpful
+        delete_internal_semi_infinite_variable(write_model, drvref) # TODO not sure this is helpful
     end
     return expr
 end
 
-# FiniteVariableRef (1D DiscreteMeasureData)
+# FiniteRef (1D DiscreteMeasureData)
 function expand_measure(vref::GeneralVariableRef,
                         index_type::Type{V},
                         data::DiscreteMeasureData{GeneralVariableRef, 1},
                         write_model::JuMP.AbstractModel
-                        )::JuMP.GenericAffExpr where {V <: FiniteVariableIndex}
+                        )::JuMP.GenericAffExpr where {V <: FiniteIndex}
     # pull in the needed information
     supps = supports(data)
     coeffs = coefficients(data)
@@ -412,12 +412,12 @@ function expand_measure(vref::GeneralVariableRef,
     return JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, vref => var_coef)
 end
 
-# FiniteVariableRef (Multi DiscreteMeasureData)
+# FiniteRef (Multi DiscreteMeasureData)
 function expand_measure(vref::GeneralVariableRef,
                         index_type::Type{V},
                         data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
                         write_model::JuMP.AbstractModel
-                        )::JuMP.GenericAffExpr where {V <: FiniteVariableIndex}
+                        )::JuMP.GenericAffExpr where {V <: FiniteIndex}
     # pull in the needed information
     supps = supports(data)
     coeffs = coefficients(data)
@@ -707,7 +707,7 @@ end
 Return a JuMP scalar function containing the explicit expansion of the measure
 `mref`. This expansion is done according to the measure data. Note that
 variables are added to the model as necessary to accomodate the expansion (i.e.,
-point variables and reduced infinite variables are made as needed). Errors if
+point variables and semi-infinite variables are made as needed). Errors if
 expansion is undefined for the measure data and/or the measure expression. If
 desired this can be used in combination with [`measure`](@ref) to expand measures
 on the fly.
@@ -808,7 +808,7 @@ end
 Expand all of the measures used in the objective and/or constraints of `model`.
 The objective and constraints are updated accordingly. Note that
 variables are added to the model as necessary to accomodate the expansion (i.e.,
-point variables and reduced infinite variables are made as needed). Errors if
+point variables and semi-infinite variables are made as needed). Errors if
 expansion is undefined for the measure data and/or the measure expression.
 
 This is useful for extensions that employ a custom optimizer model since it
@@ -870,8 +870,8 @@ function expand_all_measures!(model::InfiniteModel)::Nothing
             else
                 new_constr = JuMP.ScalarConstraint(new_func, new_set)
             end
-            # update the bounds if there are bounded hold variables in the model
-            if model.has_hold_bounds
+            # update the bounds if there are bounded finite variables in the model
+            if model.has_finite_var_bounds
                 new_constr = _check_and_update_bounds(model, new_constr, vrefs)
             end
             # update the constraint data

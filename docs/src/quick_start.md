@@ -144,7 +144,7 @@ Notice that we specifying the initial guess for all of them via `start`. We also
 can symbolically define variable conditions like the lower bound on `y`.
 
 That does it for this example, but other problems might also employ the following:
-- [`@hold_variable`](@ref) to define variables that depend on finite domains 
+- [`@finite_variable`](@ref) to define variables that depend on finite domains 
 - [`@point_variable`](@ref) to define infinite variables at a certain point
 
 ### Objective & Constraints 

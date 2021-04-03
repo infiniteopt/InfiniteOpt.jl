@@ -582,7 +582,7 @@ julia> optimizer_model_variable(x) # infinite variable
  x(support: 1)
  x(support: 2)
 
-julia> optimizer_model_variable(z) # hold variable
+julia> optimizer_model_variable(z) # finite variable
 z
 ```
 """
@@ -600,7 +600,7 @@ Return the supports associated with the mappings of `vref` in `optimizer_model`.
 This dispatches off of `key` which permits optimizer model extensions. This
 should throw an error if `vref` is not associated with the variable mappings
 stored in `optimizer_model`. Keyword arguments can be added as needed. Note that
-no extension is necessary for point or hold variables. 
+no extension is necessary for point or finite variables. 
 """
 function variable_supports end
 
@@ -610,8 +610,8 @@ function variable_supports(optimizer_model::JuMP.Model, vref, key; kwargs...)
           "`$(typeof(key).parameters[1])` and/or variable type $(typeof(vref)).")
 end
 
-# FiniteVariableRef
-function variable_supports(optimizer_model::JuMP.Model, vref::FiniteVariableRef,
+# FiniteRef
+function variable_supports(optimizer_model::JuMP.Model, vref::FiniteRef,
                            key; kwargs...)
     return ()
 end

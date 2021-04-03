@@ -1097,17 +1097,17 @@ macro point_variable(model, args...)
 end
 
 """
-    @hold_variable(model::InfiniteModel, kw_args...)::GeneralVariableRef
+    @finite_variable(model::InfiniteModel, kw_args...)::GeneralVariableRef
 
-Add an *anonymous* hold variable to the model `model` described by the
+Add an *anonymous* finite variable to the model `model` described by the
 keyword arguments `kw_args` and returns the variable reference.
 
 ```julia
-@hold_variable(model::InfiniteModel, varexpr, args...,
+@finite_variable(model::InfiniteModel, varexpr, args...,
                kw_args...)::GeneralVariableRef
 ```
 
-Add a hold variable to `model` described by the expression `varexpr`, the
+Add a finite variable to `model` described by the expression `varexpr`, the
 positional arguments `args` and the keyword arguments `kw_args`. The expression
 `varexpr` can either be (note that in the following the symbol `<=` can be used
 instead of `≤` and the symbol `>=`can be used instead of `≥`) of the form:
@@ -1130,7 +1130,7 @@ The recognized positional arguments in `args` are the following:
 - `Bin`: Sets the variable to be binary, i.e. either 0 or 1.
 - `Int`: Sets the variable to be integer, i.e. one of ..., -2, -1, 0, 1, 2, ...
 
-Specifiying a hold variable which applies only to sub-domain of the model's
+Specifiying a finite variable which applies only to sub-domain of the model's
 infinite parameter(s) domain can be done via the `parameter_bounds` keyword
 argument. It is specified as a tuple of parameter bound expressions which can
 be of the form:
@@ -1167,30 +1167,30 @@ The other recognized keyword arguments in `kw_args` are the following:
 - `container`: Specify the container type.
 
 **Examples**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @infinite_parameter(model, t in [0, 10]))
-julia> @hold_variable(model, x)
+```julia-repl
+julia> @finite_variable(model, x)
 x
 
-julia> @hold_variable(model, 0 <= y <= 4, Bin)
+julia> @finite_variable(model, 0 <= y <= 4, Bin)
 y
 
-julia> y = @hold_variable(model, lower_bound = 0, upper_bound = 4,
+julia> y = @finite_variable(model, lower_bound = 0, upper_bound = 4,
                             binary = true, base_name = "y")
 y
 
-julia> @hold_variable(model, z[2:3] == 0)
+julia> @finite_variable(model, z[2:3] == 0)
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 2:3
 And data, a 2-element Array{GeneralVariableRef,1}:
  z[2]
  z[3]
 
-julia> @hold_variable(model, d, parameter_bounds = (t in [0, 5]))
+julia> @finite_variable(model, d, parameter_bounds = (t in [0, 5]))
 d
 ```
 """
-macro hold_variable(model, args...)
-    _error(str...) = _macro_error(:hold_variable, (model, args...),
+macro finite_variable(model, args...)
+    _error(str...) = _macro_error(:finite_variable, (model, args...),
                                   __source__, str...)
     # parse the arguments
     extra, kw_args, requestedcontainer = _extract_kw_args(args)
@@ -1201,7 +1201,7 @@ macro hold_variable(model, args...)
         code = quote
             @assert isa($model, InfiniteModel) "Model must be an " *
                                                "`InfiniteModel`."
-            JuMP.@variable($model, ($(args...)), variable_type = Hold,
+            JuMP.@variable($model, ($(args...)), variable_type = Finite,
                            macro_error = $_error)
         end
     else
@@ -1218,7 +1218,7 @@ macro hold_variable(model, args...)
         code = quote
             @assert isa($model, InfiniteModel) "Model must be an " *
                                                "`InfiniteModel`."
-            JuMP.@variable($model, ($(extra...)), variable_type = Hold,
+            JuMP.@variable($model, ($(extra...)), variable_type = Finite,
                            parameter_bounds = ($(bounds)), macro_error = $_error,
                            container = ($(requestedcontainer)),
                            ($(extra_kw_args...)))
@@ -1227,6 +1227,15 @@ macro hold_variable(model, args...)
     return esc(code)
 end
 
+# Deprecated @hold_variable --> TODO remove by v0.5.0
+macro hold_variable(model, args...)
+    code = quote 
+        @warn("`@hold_variable` in deprecated in favor of `@finite_variable` " * 
+              "and will be dropped from future verions and may now behave unexpectedly.")
+        @finite_variable($model, ($(args...)))
+    end
+    return esc(code)
+end
 
 ## Parse derivative numerators and denominators 
 # Normal 
@@ -1651,11 +1660,11 @@ end
 """
     @set_parameter_bounds(ref, bound_expr; [force::Bool = false])::Nothing
 
-Specify new parameter bounds for a constraint reference or hold variable
+Specify new parameter bounds for a constraint reference or finite variable
 reference `ref`. These bounds correspond to bounding a constraint in an
 equivalent way to using [`@BDconstraint`](@ref) or to limiting the scope of a
-hold variable in an equivalent way to using the `parameter_bounds` keyword
-argument in [`@hold_variable`](@ref). Here `(bound_expr)` can be of the form:
+finite variable in an equivalent way to using the `parameter_bounds` keyword
+argument in [`@finite_variable`](@ref). Here `(bound_expr)` can be of the form:
 
 - `(param in [lb, ub], ...)` enforcing `param` to be in a sub-domain from `lb`
                              to `ub` (note `∈` can be used in place of `in`)
@@ -1678,7 +1687,7 @@ an error will be thrown.
 Errors if the constraint or variable corresponding to `ref` already has bounds.
 However, using `force = true` can be used ignore the current bounds and
 overwrite them with new ones. Also, note that bounds on dependent constraints
-of hold variables will be updated to account for changes in hold variable bounds.
+of finite variables will be updated to account for changes in finite variable bounds.
 
 **Examples**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
@@ -1688,7 +1697,7 @@ t
 julia> @infinite_variable(model, x(t))
 x(t)
 
-julia> @hold_variable(model, y)
+julia> @finite_variable(model, y)
 y
 
 julia> @constraint(model, con, x + y == 0)
@@ -1735,11 +1744,11 @@ end
 """
     @add_parameter_bounds(ref, bound_expr)::Nothing
 
-Add new parameter bounds for a constraint reference or hold variable
+Add new parameter bounds for a constraint reference or finite variable
 reference `ref`. These bounds correspond to bounding a constraint in an
 equivalent way to using [`@BDconstraint`](@ref) or to limiting the scope of a
-hold variable in an equivalent way to using the `parameter_bounds` keyword
-argument in [`@hold_variable`](@ref). Here `(bound_expr)` can be of the form:
+finite variable in an equivalent way to using the `parameter_bounds` keyword
+argument in [`@finite_variable`](@ref). Here `(bound_expr)` can be of the form:
 
 - `(param in [lb, ub], ...)` enforcing `param` to be in a sub-domain from `lb`
                              to `ub` (note `∈` can be used in place of `in`)
@@ -1760,10 +1769,10 @@ a value must be provided for each parameter in the dependent container otherwise
 an error will be thrown.
 
 Errors if the new bounds cause irreconcilable differences with existing measures
-and constraints. For example, this occurs when adding hold variable bounds
-that are outside the domain of a bounded constraint that uses that hold variable.
-Also, note that bounds on dependent constraints of hold variables will be
-updated to account for changes in hold variable bounds.
+and constraints. For example, this occurs when adding finite variable bounds
+that are outside the domain of a bounded constraint that uses that finite variable.
+Also, note that bounds on dependent constraints of finite variables will be
+updated to account for changes in finite variable bounds.
 
 **Examples**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
@@ -1776,7 +1785,7 @@ q
 julia> @infinite_variable(model, x(t, q))
 x(t, q)
 
-julia> @hold_variable(model, y)
+julia> @finite_variable(model, y)
 y
 
 julia> @constraint(model, con, x + y == 0)

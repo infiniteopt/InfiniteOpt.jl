@@ -8,8 +8,8 @@
     @infinite_variable(m, y(par, pars) == 2, Bin, start = (p, ps) -> p + sum(ps))
     @point_variable(m, x(0), x0)
     @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
-    @hold_variable(m, 0 <= z <= 1, Bin)
-    @hold_variable(m, w == 1, Int, start = 1)
+    @finite_variable(m, 0 <= z <= 1, Bin)
+    @finite_variable(m, w == 1, Int, start = 1)
     dx = @deriv(x, par)
     dy = @deriv(y, par)
     set_lower_bound(dx, 0)
@@ -22,9 +22,9 @@
     @constraint(m, c3, x0 + y0 == 5)
     tm = optimizer_model(m)
     IOTO.set_parameter_supports(tm, m)
-    # test transcribe_hold_variables!
-    @testset "transcribe_hold_variables!" begin
-        @test isa(IOTO.transcribe_hold_variables!(tm, m), Nothing)
+    # test transcribe_finite_variables!
+    @testset "transcribe_finite_variables!" begin
+        @test isa(IOTO.transcribe_finite_variables!(tm, m), Nothing)
         @test length(transcription_data(tm).finvar_mappings) == 2
         @test transcription_variable(tm, z) isa VariableRef
         @test transcription_variable(tm, w) isa VariableRef
@@ -105,19 +105,19 @@
         @test supports(dx) == [(0,), (1,)]
         @test length(supports(dy)) == 4
     end
-    # test _set_reduced_variable_mapping
-    @testset "_set_reduced_variable_mapping" begin 
-        var = ReducedVariable(y, Dict{Int, Float64}(1 => 0), [1, 2], [1])
-        vref = GeneralVariableRef(m, -1, ReducedVariableIndex)
-        @test IOTO._set_reduced_variable_mapping(tm, var, vref, ReducedVariableIndex) isa Nothing 
+    # test _set_semi_infinite_variable_mapping
+    @testset "_set_semi_infinite_variable_mapping" begin 
+        var = SemiInfiniteVariable(y, Dict{Int, Float64}(1 => 0), [1, 2], [1])
+        vref = GeneralVariableRef(m, -1, SemiInfiniteVariableIndex)
+        @test IOTO._set_semi_infinite_variable_mapping(tm, var, vref, SemiInfiniteVariableIndex) isa Nothing 
         @test transcription_variable(vref) isa Vector{VariableRef}
         @test length(transcription_data(tm).infvar_mappings) == 5
         @test IOTO.lookup_by_support(tm, y, [0., 0, 0]) == IOTO.lookup_by_support(tm, vref, [0., 0])
-        @test IOTO._set_reduced_variable_mapping(tm, var, vref, ParameterFunctionIndex) isa Nothing 
+        @test IOTO._set_semi_infinite_variable_mapping(tm, var, vref, ParameterFunctionIndex) isa Nothing 
     end
-    # test transcribe_reduced_variables!
-    @testset "transcribe_reduced_variables!" begin 
-        @test IOTO.transcribe_reduced_variables!(tm, m) isa Nothing
+    # test transcribe_semi_infinite_variables!
+    @testset "transcribe_semi_infinite_variables!" begin 
+        @test IOTO.transcribe_semi_infinite_variables!(tm, m) isa Nothing
         @test transcription_variable(yrv) isa Vector{VariableRef}
         @test length(transcription_data(tm).infvar_mappings) == 6
         @test IOTO.lookup_by_support(tm, y, [1., 0., 0.]) == IOTO.lookup_by_support(tm, yrv, [1., 0])
@@ -185,15 +185,15 @@ end
     @infinite_parameter(m, par in [0, 1], supports = [0, 1])
     @infinite_variable(m, x(par) >= 0)
     @infinite_variable(m, y(par, pars) == 2, start = (p, ps) -> p + sum(ps))
-    @hold_variable(m, 0 <= z <= 1, Bin)
-    @hold_variable(m, w == 1, Int, start = 1)
+    @finite_variable(m, 0 <= z <= 1, Bin)
+    @finite_variable(m, w == 1, Int, start = 1)
     meas1 = support_sum(x + 2w, par)
     meas2 = integral(w, par)
     meas3 = integral(y^2, pars)
     meas4 = integral(pars[1], pars[1])
     tm = transcription_model(m)
     IOTO.set_parameter_supports(tm, m)
-    IOTO.transcribe_hold_variables!(tm, m)
+    IOTO.transcribe_finite_variables!(tm, m)
     IOTO.transcribe_infinite_variables!(tm, m)
     tx = transcription_variable(x)
     ty = transcription_variable(y)
@@ -229,7 +229,7 @@ end
     @infinite_variable(m, y(par) == 0)
     @point_variable(m, x(0, [0, 0]), x0 == 0, Bin)
     @point_variable(m, y(1), yf <= 2, Int)
-    @hold_variable(m, z, Bin)
+    @finite_variable(m, z, Bin)
     @constraint(m, c1, x^2 + 2y <= 42)
     @BDconstraint(m, c2(par == 0), y - z^2 == 0)
     @BDconstraint(m, c3(pars == 1, par == 1), 4x - 3 <= 2)
@@ -237,7 +237,7 @@ end
     @BDconstraint(m, c5(par == 1), 2z^2 == 0)
     tm = transcription_model(m)
     IOTO.set_parameter_supports(tm, m)
-    IOTO.transcribe_hold_variables!(tm, m)
+    IOTO.transcribe_finite_variables!(tm, m)
     IOTO.transcribe_infinite_variables!(tm, m)
     IOTO.transcribe_point_variables!(tm, m)
     xt = transcription_variable(x)
@@ -384,8 +384,8 @@ end
     @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
     @point_variable(m, x(0), x0)
     @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
-    @hold_variable(m, 0 <= z <= 1, Bin)
-    @hold_variable(m, w == 1, Int, start = 1)
+    @finite_variable(m, 0 <= z <= 1, Bin)
+    @finite_variable(m, w == 1, Int, start = 1)
     @finite_parameter(m, fin, 0)
     f = parameter_function(a -> 0, par)
     d1 = @deriv(y, par)
@@ -405,7 +405,7 @@ end
     tm = optimizer_model(m)
     @test IOTO.build_transcription_model!(tm, m, 
                                           check_support_dims = false) isa Nothing
-    # test hold variables
+    # test finite variables
     zt = transcription_variable(z)
     wt = transcription_variable(w)
     @test zt isa VariableRef

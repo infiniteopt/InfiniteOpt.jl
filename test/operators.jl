@@ -5,10 +5,10 @@
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
+    @finite_variable(m, finite)
     dinf = @deriv(inf, par)
     data = TestData(par, 0, 5)
-    meas = Measure(hold, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
@@ -20,9 +20,9 @@
         @test (inf + meas).constant == 0.0
         @test (inf + meas).terms[meas] == 1
         @test (inf + meas).terms[inf] == 1
-        # test point + hold
-        @test isa(pt + hold, GenericAffExpr{Float64, GeneralVariableRef})
-        @test (pt + hold).terms[hold] == 1
+        # test point + finite
+        @test isa(pt + finite, GenericAffExpr{Float64, GeneralVariableRef})
+        @test (pt + finite).terms[finite] == 1
         # test other combos
         @test isa(pt + meas, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(par + pt, GenericAffExpr{Float64, GeneralVariableRef})
@@ -41,14 +41,14 @@
     end
     # test subtraction
     @testset "Base.:-" begin
-        # test hold - measure
-        @test isa(hold - meas, GenericAffExpr{Float64, GeneralVariableRef})
-        @test (hold - meas).constant == 0.0
-        @test (hold - meas).terms[meas] == -1
-        @test (hold - meas).terms[hold] == 1
-        # test point - hold
-        @test isa(pt - hold, GenericAffExpr{Float64, GeneralVariableRef})
-        @test (pt - hold).terms[hold] == -1
+        # test finite - measure
+        @test isa(finite - meas, GenericAffExpr{Float64, GeneralVariableRef})
+        @test (finite - meas).constant == 0.0
+        @test (finite - meas).terms[meas] == -1
+        @test (finite - meas).terms[finite] == 1
+        # test point - finite
+        @test isa(pt - finite, GenericAffExpr{Float64, GeneralVariableRef})
+        @test (pt - finite).terms[finite] == -1
         # test other combos
         @test isa(pt - meas, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(par - pt, GenericAffExpr{Float64, GeneralVariableRef})
@@ -67,10 +67,10 @@
         @test (pt * meas).aff.constant == 0.0
         pair = UnorderedPair{GeneralVariableRef}(pt, meas)
         @test (pt * meas).terms[pair] == 1
-        # test point * hold
-        @test isa(pt * hold, GenericQuadExpr{Float64, GeneralVariableRef})
-        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
-        @test (pt * hold).terms[pair] == 1
+        # test point * finite
+        @test isa(pt * finite, GenericQuadExpr{Float64, GeneralVariableRef})
+        pair = UnorderedPair{GeneralVariableRef}(pt, finite)
+        @test (pt * finite).terms[pair] == 1
         # test other combos
         @test isa(pt * meas, GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(par * pt, GenericQuadExpr{Float64, GeneralVariableRef})
@@ -88,7 +88,7 @@
         # test some combos
         @test_throws ErrorException inf / par
         @test_throws ErrorException inf / inf
-        @test_throws ErrorException pt / hold
+        @test_throws ErrorException pt / finite
     end
 end
 
@@ -99,16 +99,16 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
+    @finite_variable(m, finite)
     data = TestData(par, 0, 5)
-    meas = Measure(hold, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
     meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
-    aff2 = hold - pt
-    aff3 = (hold - meas) + 1
+    aff2 = finite - pt
+    aff3 = (finite - meas) + 1
     # test addition
     @testset "Base.:+" begin
         # test infinite + aff1
@@ -118,9 +118,9 @@ end
         @test (inf + aff1).terms[inf] == 2
         # test meas + aff2
         @test isa(meas + aff2, GenericAffExpr{Float64, GeneralVariableRef})
-        @test (meas + aff2).terms[hold] == 1
+        @test (meas + aff2).terms[finite] == 1
         # test other combos
-        @test isa(hold + aff3, GenericAffExpr{Float64, GeneralVariableRef})
+        @test isa(finite + aff3, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(par + aff2, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(par + aff1, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(par + aff3, GenericAffExpr{Float64, GeneralVariableRef})
@@ -137,9 +137,9 @@ end
         @test (inf - aff1).terms[inf] == 0
         # test meas + aff2
         @test isa(meas - aff2, GenericAffExpr{Float64, GeneralVariableRef})
-        @test (meas - aff2).terms[hold] == -1
+        @test (meas - aff2).terms[finite] == -1
         # test other combos
-        @test isa(hold - aff3, GenericAffExpr{Float64, GeneralVariableRef})
+        @test isa(finite - aff3, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(par - aff2, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(par - aff1, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(par - aff3, GenericAffExpr{Float64, GeneralVariableRef})
@@ -159,11 +159,11 @@ end
         @test (inf * aff1).terms[pair] == 1
         # test meas * aff2
         @test isa(meas * aff2, GenericQuadExpr{Float64, GeneralVariableRef})
-        pair = UnorderedPair{GeneralVariableRef}(meas, hold)
+        pair = UnorderedPair{GeneralVariableRef}(meas, finite)
         @test (meas * aff2).terms[pair] == 1
         @test length((meas * aff2).aff.terms) == 0
         # test other combos
-        @test isa(hold * aff3, GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(finite * aff3, GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(par * aff2, GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(par * aff1, GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(par * aff3, GenericQuadExpr{Float64, GeneralVariableRef})
@@ -188,16 +188,16 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
+    @finite_variable(m, finite)
     data = TestData(par, 0, 5)
-    meas = Measure(hold, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
     meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
-    aff2 = hold - pt
-    aff3 = (hold - meas) + 1
+    aff2 = finite - pt
+    aff3 = (finite - meas) + 1
     # test addition
     @testset "Base.:+" begin
         # test aff1 + inf
@@ -207,9 +207,9 @@ end
         @test (copy(aff1) + inf).terms[inf] == 2
         # test aff2 + meas
         @test isa(copy(aff2) + meas, GenericAffExpr{Float64, GeneralVariableRef})
-        @test (copy(aff2) + meas).terms[hold] == 1
+        @test (copy(aff2) + meas).terms[finite] == 1
         # test other combos
-        @test isa(aff3 + hold, GenericAffExpr{Float64, GeneralVariableRef})
+        @test isa(aff3 + finite, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(aff2 + par, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(aff1 + par, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(aff3 + par, GenericAffExpr{Float64, GeneralVariableRef})
@@ -226,9 +226,9 @@ end
         @test (copy(aff1) - inf).terms[inf] == 0
         # test aff2 - meas
         @test isa(copy(aff2) - meas, GenericAffExpr{Float64, GeneralVariableRef})
-        @test (copy(aff2) - meas).terms[hold] == 1
+        @test (copy(aff2) - meas).terms[finite] == 1
         # test other combos
-        @test isa(aff3 - hold, GenericAffExpr{Float64, GeneralVariableRef})
+        @test isa(aff3 - finite, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(aff2 - par, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(aff1 - par, GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(aff3 - par, GenericAffExpr{Float64, GeneralVariableRef})
@@ -248,11 +248,11 @@ end
         @test (aff1 * inf).terms[pair] == 1
         # test aff2 * meas
         @test isa(aff2 * meas, GenericQuadExpr{Float64, GeneralVariableRef})
-        pair = UnorderedPair{GeneralVariableRef}(meas, hold)
+        pair = UnorderedPair{GeneralVariableRef}(meas, finite)
         @test (aff2 * meas).terms[pair] == 1
         @test length((aff2 * meas).aff.terms) == 0
         # test other combos
-        @test isa(aff3 * hold, GenericQuadExpr{Float64, GeneralVariableRef})
+        @test isa(aff3 * finite, GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(aff2 * par, GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(aff1 * par, GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(aff3 * par, GenericQuadExpr{Float64, GeneralVariableRef})
@@ -277,17 +277,17 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
-    @hold_variable(m, test[1:51])
+    @finite_variable(m, finite)
+    @finite_variable(m, test[1:51])
     data = TestData(par, 0, 5)
-    meas = Measure(hold, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
     meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
-    aff2 = hold - pt
-    aff3 = (hold - meas) + 1
+    aff2 = finite - pt
+    aff3 = (finite - meas) + 1
     aff4 = (inf + inf) + 3
     aff5 = 4pt - 42
     aff_big = sum(test[i] for i = 1:length(test))
@@ -311,14 +311,14 @@ end
         # test results of measurefinite combinations
         @test (aff2 + aff3).constant == 1
         @test (aff2 + aff3).terms[meas] == -1
-        @test (aff2 + aff3).terms[hold] == 2
+        @test (aff2 + aff3).terms[finite] == 2
         @test (copy(aff3) + aff5).constant == -41
         @test (copy(aff3) + aff5).terms[meas] == -1
         @test (copy(aff3) + aff5).terms[pt] == 4
         # test results of fininite combinations
         @test (copy(aff2) + aff5).constant == -42
         @test (copy(aff2) + aff5).terms[pt] == 3
-        @test (copy(aff2) + aff5).terms[hold] == 1
+        @test (copy(aff2) + aff5).terms[finite] == 1
         # test pure additions
         @test isa(copy(aff4) + aff4, GenericAffExpr{Float64, GeneralVariableRef})
         @test (copy(aff4) + aff4).constant == 6
@@ -344,14 +344,14 @@ end
         # test results of measurefinite combinations
         @test (aff2 - aff3).constant == -1
         @test (aff2 - aff3).terms[meas] == 1
-        @test (aff2 - aff3).terms[hold] == 0
+        @test (aff2 - aff3).terms[finite] == 0
         @test (copy(aff3) - aff5).constant == 43
         @test (copy(aff3) - aff5).terms[meas] == -1
         @test (copy(aff3) - aff5).terms[pt] == -4
         # test results of fininite combinations
         @test (copy(aff2) - aff5).constant == 42
         @test (copy(aff2) - aff5).terms[pt] == -5
-        @test (copy(aff2) - aff5).terms[hold] == 1
+        @test (copy(aff2) - aff5).terms[finite] == 1
         # test pure additions
         @test isa(copy(aff4) - aff4, GenericAffExpr{Float64, GeneralVariableRef})
         @test (copy(aff4) - aff4).constant == 0
@@ -369,8 +369,8 @@ end
         @test isa(aff4 * aff1, GenericQuadExpr{Float64, GeneralVariableRef})
         # test results of general combinations
         @test (aff1 * aff2).aff.constant == 0
-        @test (aff1 * aff2).aff.terms[hold] == -2
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        @test (aff1 * aff2).aff.terms[finite] == -2
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (aff1 * aff2).terms[pair] == 1
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test (aff1 * aff2).terms[pair] == -1
@@ -385,18 +385,18 @@ end
         @test (aff2 * aff3).aff.terms[pt] == -1
         pair = UnorderedPair{GeneralVariableRef}(pt, meas)
         @test (aff2 * aff3).terms[pair] == 1
-        pair = UnorderedPair{GeneralVariableRef}(hold, hold)
+        pair = UnorderedPair{GeneralVariableRef}(finite, finite)
         @test (aff2 * aff3).terms[pair] == 1
         @test (aff3 * aff5).aff.constant == -42
         @test (aff3 * aff5).aff.terms[meas] == 42
-        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
+        pair = UnorderedPair{GeneralVariableRef}(finite, pt)
         @test (aff3 * aff5).terms[pair] == 4
         pair = UnorderedPair{GeneralVariableRef}(meas, pt)
         @test (aff3 * aff5).terms[pair] == -4
         # test results of fininite combinations
         @test (aff2 * aff5).aff.constant == 0
-        @test (aff2 * aff5).aff.terms[hold] == -42
-        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
+        @test (aff2 * aff5).aff.terms[finite] == -42
+        pair = UnorderedPair{GeneralVariableRef}(finite, pt)
         @test (aff2 * aff5).terms[pair] == 4
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test (aff2 * aff5).terms[pair] == -4
@@ -429,21 +429,21 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
-    @hold_variable(m, test[1:51])
+    @finite_variable(m, finite)
+    @finite_variable(m, test[1:51])
     data = TestData(par, 0, 5)
-    meas = Measure(hold, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
     meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
-    aff2 = hold - pt
-    aff3 = (hold - meas) + 1
+    aff2 = finite - pt
+    aff3 = (finite - meas) + 1
     aff5 = 4pt - 42
-    quad1 = copy(aff1) * aff2 #(inf*hold - inf*pt + pt*hold - pt^2 - 2hold + 2pt)
-    quad2 = (pt * aff3) - 3   #(pt*hold - pt*meas + pt - 3)
-    quad3 = hold * aff2       #(hold^2 - hold*pt)
+    quad1 = copy(aff1) * aff2 #(inf*finite - inf*pt + pt*finite - pt^2 - 2finite + 2pt)
+    quad2 = (pt * aff3) - 3   #(pt*finite - pt*meas + pt - 3)
+    quad3 = finite * aff2       #(finite^2 - finite*pt)
     quad4 = pt * aff5         #(4pt^2 - 42pt)
     # test addition
     @testset "Base.:+" begin
@@ -456,7 +456,7 @@ end
         @test (copy(quad1) + inf).aff.constant == 0
         @test (copy(quad1) + inf).aff.terms[pt] == 2
         @test (copy(quad1) + inf).aff.terms[inf] == 1
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (copy(quad1) + inf).terms[pair] == 1
         @test (copy(quad4) + par).aff.constant == 0
         @test (copy(quad4) + par).aff.terms[pt] == -42
@@ -467,14 +467,14 @@ end
         @test (copy(quad2) + meas).aff.constant == -3
         @test (copy(quad2) + meas).aff.terms[pt] == 1
         @test (copy(quad2) + meas).aff.terms[meas] == 1
-        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
+        pair = UnorderedPair{GeneralVariableRef}(pt, finite)
         @test (copy(quad2) + meas).terms[pair] == 1
         @test (copy(quad2) + pt).aff.constant == -3
         @test (copy(quad2) + pt).aff.terms[pt] == 2
         # test finite combos
         @test (copy(quad3) + pt).aff.constant == 0
         @test (copy(quad3) + pt).aff.terms[pt] == 1
-        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
+        pair = UnorderedPair{GeneralVariableRef}(finite, pt)
         @test (copy(quad3) + pt).terms[pair] == -1
         # test same types
         @test isa(copy(quad4) + pt, GenericQuadExpr{Float64, GeneralVariableRef})
@@ -494,7 +494,7 @@ end
         @test (copy(quad1) - inf).aff.constant == 0
         @test (copy(quad1) - inf).aff.terms[pt] == 2
         @test (copy(quad1) - inf).aff.terms[inf] == -1
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (copy(quad1) - inf).terms[pair] == 1
         @test (copy(quad4) - par).aff.constant == 0
         @test (copy(quad4) - par).aff.terms[pt] == -42
@@ -505,14 +505,14 @@ end
         @test (copy(quad2) - meas).aff.constant == -3
         @test (copy(quad2) - meas).aff.terms[pt] == 1
         @test (copy(quad2) - meas).aff.terms[meas] == -1
-        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
+        pair = UnorderedPair{GeneralVariableRef}(pt, finite)
         @test (copy(quad2) - meas).terms[pair] == 1
         @test (copy(quad2) - pt).aff.constant == -3
         @test (copy(quad2) - pt).aff.terms[pt] == 0
         # test finite combos
         @test (copy(quad3) - pt).aff.constant == 0
         @test (copy(quad3) - pt).aff.terms[pt] == -1
-        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
+        pair = UnorderedPair{GeneralVariableRef}(finite, pt)
         @test (copy(quad3) - pt).terms[pair] == -1
         # test same types
         @test isa(copy(quad4) - pt, GenericQuadExpr{Float64, GeneralVariableRef})
@@ -546,21 +546,21 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
-    @hold_variable(m, test[1:51])
+    @finite_variable(m, finite)
+    @finite_variable(m, test[1:51])
     data = TestData(par, 0, 5)
-    meas = Measure(hold, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
     meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
-    aff2 = hold - pt
-    aff3 = (hold - meas) + 1
+    aff2 = finite - pt
+    aff3 = (finite - meas) + 1
     aff5 = 4pt - 42
-    quad1 = copy(aff1) * aff2 #(inf*hold - inf*pt + pt*hold - pt^2 - 2hold + 2pt)
-    quad2 = (pt * aff3) - 3   #(pt*hold - pt*meas + pt - 3)
-    quad3 = hold * aff2       #(hold^2 - hold*pt)
+    quad1 = copy(aff1) * aff2 #(inf*finite - inf*pt + pt*finite - pt^2 - 2finite + 2pt)
+    quad2 = (pt * aff3) - 3   #(pt*finite - pt*meas + pt - 3)
+    quad3 = finite * aff2       #(finite^2 - finite*pt)
     quad4 = pt * aff5         #(4pt^2 - 42pt)
     # test addition
     @testset "Base.:+" begin
@@ -573,7 +573,7 @@ end
         @test (inf + copy(quad1)).aff.constant == 0
         @test (inf + copy(quad1)).aff.terms[pt] == 2
         @test (inf + copy(quad1)).aff.terms[inf] == 1
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (inf + copy(quad1)).terms[pair] == 1
         @test (par + copy(quad4)).aff.constant == 0
         @test (par + copy(quad4)).aff.terms[pt] == -42
@@ -584,14 +584,14 @@ end
         @test (meas + copy(quad2)).aff.constant == -3
         @test (meas + copy(quad2)).aff.terms[pt] == 1
         @test (meas + copy(quad2)).aff.terms[meas] == 1
-        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
+        pair = UnorderedPair{GeneralVariableRef}(pt, finite)
         @test (meas + copy(quad2)).terms[pair] == 1
         @test (pt + copy(quad2)).aff.constant == -3
         @test (pt + copy(quad2)).aff.terms[pt] == 2
         # test finite combos
         @test (pt + copy(quad3)).aff.constant == 0
         @test (pt + copy(quad3)).aff.terms[pt] == 1
-        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
+        pair = UnorderedPair{GeneralVariableRef}(finite, pt)
         @test (pt + copy(quad3)).terms[pair] == -1
         # test same types
         @test isa(pt + copy(quad4), GenericQuadExpr{Float64, GeneralVariableRef})
@@ -611,7 +611,7 @@ end
         @test (inf - copy(quad1)).aff.constant == 0
         @test (inf - copy(quad1)).aff.terms[pt] == -2
         @test (inf - copy(quad1)).aff.terms[inf] == 1
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (inf - copy(quad1)).terms[pair] == -1
         @test (par - copy(quad4)).aff.constant == 0
         @test (par - copy(quad4)).aff.terms[pt] == 42
@@ -622,14 +622,14 @@ end
         @test (meas - copy(quad2)).aff.constant == 3
         @test (meas - copy(quad2)).aff.terms[pt] == -1
         @test (meas - copy(quad2)).aff.terms[meas] == 1
-        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
+        pair = UnorderedPair{GeneralVariableRef}(pt, finite)
         @test (meas - copy(quad2)).terms[pair] == -1
         @test (pt - copy(quad2)).aff.constant == 3
         @test (pt - copy(quad2)).aff.terms[pt] == 0
         # test finite combos
         @test (pt - copy(quad3)).aff.constant == 0
         @test (pt - copy(quad3)).aff.terms[pt] == 1
-        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
+        pair = UnorderedPair{GeneralVariableRef}(finite, pt)
         @test (pt - copy(quad3)).terms[pair] == 1
         # test same types
         @test isa(pt - copy(quad4), GenericQuadExpr{Float64, GeneralVariableRef})
@@ -663,21 +663,21 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
-    @hold_variable(m, test[1:51])
+    @finite_variable(m, finite)
+    @finite_variable(m, test[1:51])
     data = TestData(par, 0, 5)
-    meas = Measure(hold, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
     meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
-    aff2 = hold - pt
-    aff3 = (hold - meas) + 1
+    aff2 = finite - pt
+    aff3 = (finite - meas) + 1
     aff5 = 4pt - 42
-    quad1 = copy(aff1) * aff2 #(inf*hold - inf*pt + pt*hold - pt^2 - 2hold + 2pt)
-    quad2 = (pt * aff3) - 3   #(pt*hold - pt*meas + pt - 3)
-    quad3 = hold * aff2       #(hold^2 - hold*pt)
+    quad1 = copy(aff1) * aff2 #(inf*finite - inf*pt + pt*finite - pt^2 - 2finite + 2pt)
+    quad2 = (pt * aff3) - 3   #(pt*finite - pt*meas + pt - 3)
+    quad3 = finite * aff2       #(finite^2 - finite*pt)
     quad4 = pt * aff5         #(4pt^2 - 42pt)
     # test addition
     @testset "Base.:+" begin
@@ -690,20 +690,20 @@ end
         @test (copy(aff1) + quad1).aff.constant == -2
         @test (copy(aff1) + quad1).aff.terms[pt] == 3
         @test (copy(aff1) + quad1).aff.terms[inf] == 1
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (copy(aff1) + quad1).terms[pair] == 1
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test (copy(aff1) + quad1).terms[pair] == -1
         @test (copy(aff3) + quad1).aff.constant == 1
         @test (copy(aff3) + quad1).aff.terms[meas] == -1
-        @test (copy(aff3) + quad1).aff.terms[hold] == -1
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        @test (copy(aff3) + quad1).aff.terms[finite] == -1
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (copy(aff3) + quad1).terms[pair] == 1
         # test measurefinite combos
         @test (copy(aff3) + quad2).aff.constant == -2
         @test (copy(aff3) + quad2).aff.terms[pt] == 1
-        @test (copy(aff3) + quad2).aff.terms[hold] == 1
-        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
+        @test (copy(aff3) + quad2).aff.terms[finite] == 1
+        pair = UnorderedPair{GeneralVariableRef}(pt, finite)
         @test (copy(aff3) + quad2).terms[pair] == 1
         @test (copy(aff3) + quad4).aff.constant == 1
         @test (copy(aff3) + quad4).aff.terms[pt] == -42
@@ -713,8 +713,8 @@ end
         # test finite combos
         @test (copy(aff2) + quad3).aff.constant == 0
         @test (copy(aff2) + quad3).aff.terms[pt] == -1
-        @test (copy(aff2) + quad3).aff.terms[hold] == 1
-        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
+        @test (copy(aff2) + quad3).aff.terms[finite] == 1
+        pair = UnorderedPair{GeneralVariableRef}(finite, pt)
         @test (copy(aff2) + quad3).terms[pair] == -1
         # test same types
         @test isa(copy(aff5) + quad4, GenericQuadExpr{Float64, GeneralVariableRef})
@@ -734,20 +734,20 @@ end
         @test (copy(aff1) - quad1).aff.constant == -2
         @test (copy(aff1) - quad1).aff.terms[pt] == -1
         @test (copy(aff1) - quad1).aff.terms[inf] == 1
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (copy(aff1) - quad1).terms[pair] == -1
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test (copy(aff1) - quad1).terms[pair] == 1
         @test (copy(aff3) - quad1).aff.constant == 1
         @test (copy(aff3) - quad1).aff.terms[meas] == -1
-        @test (copy(aff3) - quad1).aff.terms[hold] == 3
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        @test (copy(aff3) - quad1).aff.terms[finite] == 3
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (copy(aff3) - quad1).terms[pair] == -1
         # test measurefinite combos
         @test (copy(aff3) - quad2).aff.constant == 4
         @test (copy(aff3) - quad2).aff.terms[pt] == -1
-        @test (copy(aff3) - quad2).aff.terms[hold] == 1
-        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
+        @test (copy(aff3) - quad2).aff.terms[finite] == 1
+        pair = UnorderedPair{GeneralVariableRef}(pt, finite)
         @test (copy(aff3) - quad2).terms[pair] == -1
         @test (copy(aff3) - quad4).aff.constant == 1
         @test (copy(aff3) - quad4).aff.terms[pt] == 42
@@ -757,8 +757,8 @@ end
         # test finite combos
         @test (copy(aff2) - quad3).aff.constant == 0
         @test (copy(aff2) - quad3).aff.terms[pt] == -1
-        @test (copy(aff2) - quad3).aff.terms[hold] == 1
-        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
+        @test (copy(aff2) - quad3).aff.terms[finite] == 1
+        pair = UnorderedPair{GeneralVariableRef}(finite, pt)
         @test (copy(aff2) - quad3).terms[pair] == 1
         # test same types
         @test isa(copy(aff5) - quad4, GenericQuadExpr{Float64, GeneralVariableRef})
@@ -792,21 +792,21 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
-    @hold_variable(m, test[1:51])
+    @finite_variable(m, finite)
+    @finite_variable(m, test[1:51])
     data = TestData(par, 0, 5)
-    meas = Measure(hold, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
     meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
-    aff2 = hold - pt
-    aff3 = (hold - meas) + 1
+    aff2 = finite - pt
+    aff3 = (finite - meas) + 1
     aff5 = 4pt - 42
-    quad1 = copy(aff1) * aff2 #(inf*hold - inf*pt + pt*hold - pt^2 - 2hold + 2pt)
-    quad2 = (pt * aff3) - 3   #(pt*hold - pt*meas + pt - 3)
-    quad3 = hold * aff2       #(hold^2 - hold*pt)
+    quad1 = copy(aff1) * aff2 #(inf*finite - inf*pt + pt*finite - pt^2 - 2finite + 2pt)
+    quad2 = (pt * aff3) - 3   #(pt*finite - pt*meas + pt - 3)
+    quad3 = finite * aff2       #(finite^2 - finite*pt)
     quad4 = pt * aff5         #(4pt^2 - 42pt)
     # test addition
     @testset "Base.:+" begin
@@ -819,20 +819,20 @@ end
         @test (copy(quad1)+ copy(aff1)).aff.constant == -2
         @test (copy(quad1) + copy(aff1)).aff.terms[pt] == 3
         @test (copy(quad1) + copy(aff1)).aff.terms[inf] == 1
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (copy(quad1) + copy(aff1)).terms[pair] == 1
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test (copy(quad1) + copy(aff3)).terms[pair] == -1
         @test (copy(quad1) + copy(aff3)).aff.constant == 1
         @test (copy(quad1) + copy(aff3)).aff.terms[meas] == -1
-        @test (copy(quad1) + copy(aff3)).aff.terms[hold] == -1
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        @test (copy(quad1) + copy(aff3)).aff.terms[finite] == -1
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (copy(quad1) + copy(aff3)).terms[pair] == 1
         # test measurefinite combos
         @test (copy(quad2) + copy(aff3)).aff.constant == -2
         @test (copy(quad2) + copy(aff3)).aff.terms[pt] == 1
-        @test (copy(quad2) + copy(aff3)).aff.terms[hold] == 1
-        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
+        @test (copy(quad2) + copy(aff3)).aff.terms[finite] == 1
+        pair = UnorderedPair{GeneralVariableRef}(pt, finite)
         @test (copy(quad2) + copy(aff3)).terms[pair] == 1
         @test (copy(quad4) + copy(aff3)).aff.constant == 1
         @test (copy(quad4) + copy(aff3)).aff.terms[pt] == -42
@@ -842,8 +842,8 @@ end
         # test finite combos
         @test (copy(quad3) + copy(aff2)).aff.constant == 0
         @test (copy(quad3) + copy(aff2)).aff.terms[pt] == -1
-        @test (copy(quad3) + copy(aff2)).aff.terms[hold] == 1
-        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
+        @test (copy(quad3) + copy(aff2)).aff.terms[finite] == 1
+        pair = UnorderedPair{GeneralVariableRef}(finite, pt)
         @test (copy(quad3) + copy(aff2)).terms[pair] == -1
         # test same types
         @test isa(copy(quad4) + copy(aff5), GenericQuadExpr{Float64, GeneralVariableRef})
@@ -863,20 +863,20 @@ end
         @test (copy(quad1) - copy(aff1)).aff.constant == 2
         @test (copy(quad1) - copy(aff1)).aff.terms[pt] == 1
         @test (copy(quad1) - copy(aff1)).aff.terms[inf] == -1
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (copy(quad1) - copy(aff1)).terms[pair] == 1
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test (copy(quad1) - copy(aff1)).terms[pair] == -1
         @test (copy(quad1) - copy(aff3)).aff.constant == -1
         @test (copy(quad1) - copy(aff3)).aff.terms[meas] == 1
-        @test (copy(quad1) - copy(aff3)).aff.terms[hold] == -3
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        @test (copy(quad1) - copy(aff3)).aff.terms[finite] == -3
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (copy(quad1) - copy(aff3)).terms[pair] == 1
         # test measurefinite combos
         @test (copy(quad2) - copy(aff3)).aff.constant == -4
         @test (copy(quad2) - copy(aff3)).aff.terms[pt] == 1
-        @test (copy(quad2) - copy(aff3)).aff.terms[hold] == -1
-        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
+        @test (copy(quad2) - copy(aff3)).aff.terms[finite] == -1
+        pair = UnorderedPair{GeneralVariableRef}(pt, finite)
         @test (copy(quad2) - copy(aff3)).terms[pair] == 1
         @test (copy(quad4) - copy(aff3)).aff.constant == -1
         @test (copy(quad4) - copy(aff3)).aff.terms[pt] == -42
@@ -886,8 +886,8 @@ end
         # test finite combos
         @test (copy(quad3) - copy(aff2)).aff.constant == 0
         @test (copy(quad3) - copy(aff2)).aff.terms[pt] == 1
-        @test (copy(quad3) - copy(aff2)).aff.terms[hold] == -1
-        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
+        @test (copy(quad3) - copy(aff2)).aff.terms[finite] == -1
+        pair = UnorderedPair{GeneralVariableRef}(finite, pt)
         @test (copy(quad3) - copy(aff2)).terms[pair] == -1
         # test same types
         @test isa(copy(quad4) - copy(aff5), GenericQuadExpr{Float64, GeneralVariableRef})
@@ -921,21 +921,21 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0), pt)
-    @hold_variable(m, hold)
-    @hold_variable(m, test[1:51])
+    @finite_variable(m, finite)
+    @finite_variable(m, test[1:51])
     data = TestData(par, 0, 5)
-    meas = Measure(hold, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
     meas = InfiniteOpt._make_variable_ref(m, mindex)
     aff1 = (inf + pt) - 2
-    aff2 = hold - pt
-    aff3 = (hold - meas) + 1
+    aff2 = finite - pt
+    aff3 = (finite - meas) + 1
     aff5 = 4pt - 42
-    quad1 = copy(aff1) * aff2 #(inf*hold - inf*pt + pt*hold - pt^2 - 2hold + 2pt)
-    quad2 = (pt * aff3) - 3   #(pt*hold - pt*meas + pt - 3)
-    quad3 = hold * aff2       #(hold^2 - hold*pt)
+    quad1 = copy(aff1) * aff2 #(inf*finite - inf*pt + pt*finite - pt^2 - 2finite + 2pt)
+    quad2 = (pt * aff3) - 3   #(pt*finite - pt*meas + pt - 3)
+    quad3 = finite * aff2       #(finite^2 - finite*pt)
     quad4 = pt * aff5         #(4pt^2 - 42pt)
     # test addition
     @testset "Base.:+" begin
@@ -947,25 +947,25 @@ end
         # test general combos
         @test (copy(quad1) + quad2).aff.constant == -3
         @test (copy(quad1) + quad2).aff.terms[pt] == 3
-        @test (copy(quad1) + quad2).aff.terms[hold] == -2
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        @test (copy(quad1) + quad2).aff.terms[finite] == -2
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (copy(quad1) + quad2).terms[pair] == 1
-        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
+        pair = UnorderedPair{GeneralVariableRef}(pt, finite)
         @test (copy(quad1) + quad2).terms[pair] == 2
         @test (copy(quad4) + quad1).aff.constant == 0
         @test (copy(quad4) + quad1).aff.terms[pt] == -40
-        @test (copy(quad4) + quad1).aff.terms[hold] == -2
+        @test (copy(quad4) + quad1).aff.terms[finite] == -2
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test (copy(quad4) + quad1).terms[pair] == 3
         # test measurefinite combos
         @test (copy(quad2) + quad4).aff.constant == -3
         @test (copy(quad2) + quad4).aff.terms[pt] == -41
-        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
+        pair = UnorderedPair{GeneralVariableRef}(pt, finite)
         @test (copy(quad2) + quad4).terms[pair] == 1
         # test finite combos
         @test (copy(quad3) + quad4).aff.constant == 0
         @test (copy(quad3) + quad4).aff.terms[pt] == -42
-        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
+        pair = UnorderedPair{GeneralVariableRef}(finite, pt)
         @test (copy(quad3) + quad4).terms[pair] == -1
         # test same types
         @test isa(copy(quad4) + quad4, GenericQuadExpr{Float64, GeneralVariableRef})
@@ -984,25 +984,25 @@ end
         # test general combos
         @test (copy(quad1) - quad2).aff.constant == 3
         @test (copy(quad1) - quad2).aff.terms[pt] == 1
-        @test (copy(quad1) - quad2).aff.terms[hold] == -2
-        pair = UnorderedPair{GeneralVariableRef}(inf, hold)
+        @test (copy(quad1) - quad2).aff.terms[finite] == -2
+        pair = UnorderedPair{GeneralVariableRef}(inf, finite)
         @test (copy(quad1) - quad2).terms[pair] == 1
-        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
+        pair = UnorderedPair{GeneralVariableRef}(pt, finite)
         @test (copy(quad1) - quad2).terms[pair] == 0
         @test (copy(quad4) - quad1).aff.constant == 0
         @test (copy(quad4) - quad1).aff.terms[pt] == -44
-        @test (copy(quad4) - quad1).aff.terms[hold] == 2
+        @test (copy(quad4) - quad1).aff.terms[finite] == 2
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test (copy(quad4) - quad1).terms[pair] == 5
         # test measurefinite combos
         @test (copy(quad2) - quad4).aff.constant == -3
         @test (copy(quad2) - quad4).aff.terms[pt] == 43
-        pair = UnorderedPair{GeneralVariableRef}(pt, hold)
+        pair = UnorderedPair{GeneralVariableRef}(pt, finite)
         @test (copy(quad2) - quad4).terms[pair] == 1
         # test finite combos
         @test (copy(quad3) - quad4).aff.constant == 0
         @test (copy(quad3) - quad4).aff.terms[pt] == 42
-        pair = UnorderedPair{GeneralVariableRef}(hold, pt)
+        pair = UnorderedPair{GeneralVariableRef}(finite, pt)
         @test (copy(quad3) - quad4).terms[pair] == -1
         # test same types
         @test isa(copy(quad4) - quad4, GenericQuadExpr{Float64, GeneralVariableRef})

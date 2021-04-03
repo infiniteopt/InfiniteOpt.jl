@@ -9,7 +9,7 @@ general and this is certainly the case with infinite dimensional ones. In
 `InfiniteOpt` objectives are defined in much the same way they are in `JuMP`.
 One key idea to keep in mind is that the objective must evaluate to a finite
 expression. Note this means that objectives can only explicitly contain
-hold variables and point variables. Infinite expressions must be evaluated in a
+finite variables and point variables. Infinite expressions must be evaluated in a
 measure to be included (e.g., evaluate the expectation of a random variable).
 
 ## [Basic Usage] (@id obj_basic)
@@ -23,7 +23,7 @@ julia> @infinite_parameter(model, ξ in Normal())
 julia> @infinite_variable(model, y(ξ))
 y(ξ)
 
-julia> @hold_variable(model, x[1:2])
+julia> @finite_variable(model, x[1:2])
 2-element Array{GeneralVariableRef,1}:
  x[1]
  x[2]
@@ -34,7 +34,7 @@ julia> @objective(model, Min, 0.5x[1] + 0.5x[2] + 𝔼(y^2 - y, ξ))
 Thus, we have defined an objective using `InfiniteOpt`'s straightforward syntax.
 Note that the second argument indicates the objective sense which can be
 expressed `Min` for minimization problems and `Max` for maximization problems.
-The objective function (expression) must be finite containing only hold variables,
+The objective function (expression) must be finite containing only finite variables,
 point variables, and/or measures. Also, any included measures must fully
 integrate over all the infinite parameters contained in its input function.
 For example, if we define had an infinite variable `z(ξ, t)` then the measure

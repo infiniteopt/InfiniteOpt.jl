@@ -5,7 +5,7 @@
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
-    @hold_variable(m, x)
+    @finite_variable(m, x)
     var = build_variable(error, inf, Dict{Int, Float64}(1 => 0.5), check = false)
     rv = add_variable(m, var)
     data = TestData(par, 0, 1)
@@ -36,8 +36,8 @@ end
     @infinite_variable(m, inf2(par) == 1, Int)
     @point_variable(m, inf1(0.5), pt1)
     @point_variable(m, inf2(0.5), pt2)
-    @hold_variable(m, 0 <= gb1 <= 1, Bin)
-    @hold_variable(m, gb2 == 1, Int)
+    @finite_variable(m, 0 <= gb1 <= 1, Bin)
+    @finite_variable(m, gb2 == 1, Int)
     @derivative_variable(m, d(inf1)/d(par), 0 <= d1 <= 1)
     @derivative_variable(m, d(inf2)/d(par), d2 == 1)
     # test delete_lower_bound
@@ -52,7 +52,7 @@ end
         @test isa(delete_lower_bound(pt1), Nothing)
         @test !has_lower_bound(pt1)
         @test_throws ErrorException delete_lower_bound(pt2)
-        # test with hold variable
+        # test with finite variable
         @test has_lower_bound(gb1)
         @test isa(delete_lower_bound(gb1), Nothing)
         @test !has_lower_bound(gb1)
@@ -75,7 +75,7 @@ end
         @test isa(delete_upper_bound(pt1), Nothing)
         @test !has_upper_bound(pt1)
         @test_throws ErrorException delete_upper_bound(pt2)
-        # test with hold variable
+        # test with finite variable
         @test has_upper_bound(gb1)
         @test isa(delete_upper_bound(gb1), Nothing)
         @test !has_upper_bound(gb1)
@@ -98,7 +98,7 @@ end
         @test isa(unfix(pt2), Nothing)
         @test !is_fixed(pt2)
         @test_throws ErrorException unfix(pt1)
-        # test with hold variable
+        # test with finite variable
         @test is_fixed(gb2)
         @test isa(unfix(gb2), Nothing)
         @test !is_fixed(gb2)
@@ -121,7 +121,7 @@ end
         @test isa(unset_binary(pt1), Nothing)
         @test !is_binary(pt1)
         @test_throws ErrorException unset_binary(pt2)
-        # test with hold variable
+        # test with finite variable
         @test is_binary(gb1)
         @test isa(unset_binary(gb1), Nothing)
         @test !is_binary(gb1)
@@ -139,7 +139,7 @@ end
         @test isa(unset_integer(pt2), Nothing)
         @test !is_integer(pt2)
         @test_throws ErrorException unset_integer(pt1)
-        # test with hold variable
+        # test with finite variable
         @test is_integer(gb2)
         @test isa(unset_integer(gb2), Nothing)
         @test !is_integer(gb2)
@@ -172,7 +172,7 @@ end
     @point_variable(m, inf(0.5), pt)
     pt2 = @point_variable(m, inf2(0.5, 0.5))
     @point_variable(m, inf3(0, [0, 0]), pt3)
-    @hold_variable(m, x)
+    @finite_variable(m, x)
     var = build_variable(error, inf4, Dict{Int, Float64}(2 => 0.5), check = false)
     rv = add_variable(m, var)
     dinf = dispatch_variable_ref(inf)
@@ -205,11 +205,11 @@ end
         @test isa(InfiniteOpt._check_param_in_data(pars[1], data), Nothing)
         @test_throws ErrorException InfiniteOpt._check_param_in_data(par, BadData())
     end
-    # test _update_reduced_variable
-    @testset "_update_reduced_variable" begin
+    # test _update_semi_infinite_variable
+    @testset "_update_semi_infinite_variable" begin
         # test removing single parameter that is not reduced
         _update_variable_param_refs(dinf4, IC.VectorTuple(par2, pars))
-        @test isa(InfiniteOpt._update_reduced_variable(drv, 1:1), Nothing)
+        @test isa(InfiniteOpt._update_semi_infinite_variable(drv, 1:1), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(1 => 0.5)
         @test string(drv) == "inf4(0.5, [pars[1], pars[2]])"
@@ -219,7 +219,7 @@ end
         # test removing single parameter that is reduced
         _update_variable_param_refs(dinf4, IC.VectorTuple(par, pars))
         @test eval_supports(drv) == Dict(2 => 0.5)
-        @test isa(InfiniteOpt._update_reduced_variable(drv, 2:2), Nothing)
+        @test isa(InfiniteOpt._update_semi_infinite_variable(drv, 2:2), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict{Int, Float64}()
         @test string(drv) == "inf4(par, [pars[1], pars[2]])"
@@ -229,7 +229,7 @@ end
         eval_supports(drv)[1] = 0.5
         eval_supports(drv)[2] = 0.5
         _update_variable_param_refs(dinf4, IC.VectorTuple(par, pars))
-        @test isa(InfiniteOpt._update_reduced_variable(drv, 2:2), Nothing)
+        @test isa(InfiniteOpt._update_semi_infinite_variable(drv, 2:2), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(1 => 0.5)
         @test string(drv) == "inf4(0.5, [pars[1], pars[2]])"
@@ -240,7 +240,7 @@ end
         eval_supports(drv)[3] = 0.2
         eval_supports(drv)[4] = 0.1
         _update_variable_param_refs(dinf4, IC.VectorTuple(par, par2))
-        @test isa(InfiniteOpt._update_reduced_variable(drv, 3:4), Nothing)
+        @test isa(InfiniteOpt._update_semi_infinite_variable(drv, 3:4), Nothing)
         @test infinite_variable_ref(drv) == inf4
         @test eval_supports(drv) == Dict(2 => 0.5)
         @test set_name(drv, "") isa Nothing
@@ -385,7 +385,7 @@ end
      @point_variable(m, inf(0.5), pt)
      pt2 = @point_variable(m, inf2(0.5, 0.5))
      @point_variable(m, inf3(0, [0, 0]), pt3)
-     @hold_variable(m, x)
+     @finite_variable(m, x)
      var = build_variable(error, inf4, Dict{Int, Float64}(2 => 0.5, 3 => 0, 4 => 4),
                           check = false)
      rv = add_variable(m, var)
@@ -457,15 +457,15 @@ end
      end
   end
 
- # Test reduced variable deletion
- @testset "JuMP.delete (Reduced Variables)" begin
+ # Test semi_infinite variable deletion
+ @testset "JuMP.delete (SemiInfinite Variables)" begin
      # intialize the model
      m = InfiniteModel()
      @infinite_parameter(m, 0 <= par <= 1)
      @infinite_parameter(m, 0 <= par2 <= 1)
      @infinite_variable(m, inf(par, par2))
      @point_variable(m, inf(0.5, 0.5), pt)
-     @hold_variable(m, x)
+     @finite_variable(m, x)
      var = build_variable(error, inf, Dict{Int, Float64}(2 => 0.5), check = false)
      rv = add_variable(m, var)
      rv2 = add_variable(m, var)
@@ -483,28 +483,28 @@ end
      @test InfiniteOpt._object_numbers(meas) == [2]
      @test jump_function(constraint_object(con)) == x + 0
      @test InfiniteOpt._object_numbers(con) == []
-     @test InfiniteOpt._reduced_variable_dependencies(inf) == [JuMP.index(rv2)]
-     @test !haskey(InfiniteOpt._data_dictionary(m, ReducedVariable), JuMP.index(rv))
+     @test InfiniteOpt._semi_infinite_variable_dependencies(inf) == [JuMP.index(rv2)]
+     @test !haskey(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable), JuMP.index(rv))
      # test deletion of special cases
      @test isa(delete(m, rv2), Nothing)
      @test measure_function(meas2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
      @test InfiniteOpt._object_numbers(meas2) == []
      @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
      @test InfiniteOpt._object_numbers(con2) == []
-     @test InfiniteOpt._reduced_variable_dependencies(inf) == []
-     @test !haskey(InfiniteOpt._data_dictionary(m, ReducedVariable), JuMP.index(rv2))
+     @test InfiniteOpt._semi_infinite_variable_dependencies(inf) == []
+     @test !haskey(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable), JuMP.index(rv2))
      # test error
      @test_throws AssertionError delete(m, rv)
      @test_throws AssertionError delete(m, rv2)
  end
 
  # Test variable deletion
- @testset "JuMP.delete (Hold Variables)" begin
+ @testset "JuMP.delete (Finite Variables)" begin
      # intialize the model
      m = InfiniteModel()
      @infinite_parameter(m, 0 <= par <= 1)
-     @hold_variable(m, 0 <= x <= 1, Bin, parameter_bounds = (par == 0))
-     @hold_variable(m, y == 1, Int)
+     @finite_variable(m, 0 <= x <= 1, Bin, parameter_bounds = (par == 0))
+     @finite_variable(m, y == 1, Int)
      data = TestData(par, 0, 0)
      meas1 = measure(x + y + par, data)
      meas2 = measure(y, data)
@@ -517,7 +517,7 @@ end
      @test measure_function(meas1) == y + par
      @test jump_function(constraint_object(con1)) == y + par
      @test objective_function(m) == y + 0
-     @test !haskey(InfiniteOpt._data_dictionary(m, HoldVariable), JuMP.index(x))
+     @test !haskey(InfiniteOpt._data_dictionary(m, FiniteVariable), JuMP.index(x))
      # test deletion of y
      set_objective_function(m, y)
      @test isa(delete(m, y), Nothing)
@@ -527,7 +527,7 @@ end
      @test jump_function(constraint_object(con1)) == par + 0
      @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
      @test objective_function(m) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-     @test !haskey(InfiniteOpt._data_dictionary(m, HoldVariable), JuMP.index(y))
+     @test !haskey(InfiniteOpt._data_dictionary(m, FiniteVariable), JuMP.index(y))
      # test errors
      @test_throws AssertionError delete(m, x)
      @test_throws AssertionError delete(m, y)

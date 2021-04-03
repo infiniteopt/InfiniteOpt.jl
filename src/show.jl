@@ -403,9 +403,9 @@ function variable_string(print_mode, vref::PointVariableRef)::String
     end
 end
 
-# Make a string for ReducedVariableRef
+# Make a string for SemiInfiniteVariableRef
 # TODO improve so numerator of derivative contains the parameter tuple
-function variable_string(print_mode, vref::ReducedVariableRef)::String
+function variable_string(print_mode, vref::SemiInfiniteVariableRef)::String
     if !haskey(_data_dictionary(vref), JuMP.index(vref)) || !isempty(JuMP.name(vref))
         return _get_base_name(print_mode, vref)
     else

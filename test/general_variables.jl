@@ -5,7 +5,7 @@
     gvref = GeneralVariableRef(m, 1, PointVariableIndex)
     gvref2 = GeneralVariableRef(m, 2, PointVariableIndex)
     ivref = InfiniteVariableRef(m, InfiniteVariableIndex(1))
-    hvref = HoldVariableRef(m, HoldVariableIndex(1))
+    hvref = FiniteVariableRef(m, FiniteVariableIndex(1))
     # test Base.copy
     @testset "Base.copy" begin
         @test copy(gvref) == gvref
@@ -179,7 +179,7 @@ end
     m = InfiniteModel();
     gvref = GeneralVariableRef(m, 1, TestIndex)
     # Loop over the various functions
-    for f in (:_infinite_variable_dependencies, :_reduced_variable_dependencies,
+    for f in (:_infinite_variable_dependencies, :_semi_infinite_variable_dependencies,
               :_point_variable_dependencies, :_measure_dependencies,
               :_constraint_dependencies, :_derivative_dependencies, 
               :_derivative_constraint_dependencies, 
@@ -195,7 +195,7 @@ end
     idx = TestIndex(1)
     dvref = TestVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, TestIndex)
-    for f in (:used_by_infinite_variable, :used_by_reduced_variable,
+    for f in (:used_by_infinite_variable, :used_by_semi_infinite_variable,
               :used_by_point_variable, :used_by_measure, :used_by_constraint,
               :used_by_objective, :used_by_derivative, :is_used, 
               :has_derivative_constraints, :used_by_parameter_function)

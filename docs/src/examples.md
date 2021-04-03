@@ -90,7 +90,7 @@ set_optimizer_attribute(model, "print_level", 0)
 @infinite_parameter(model, ξ[c in C] in Ξ[c], num_supports = num_scenarios)
 
 # Define the variables and bounds
-@hold_variable(model, 0 <= x[C] <= xbar)
+@finite_variable(model, 0 <= x[C] <= xbar)
 @infinite_variable(model, 0 <= y[C](ξ))
 @infinite_variable(model, 0 <= w[C](ξ))
 
@@ -148,7 +148,7 @@ where ``q(\xi)`` is introduced to handle the max operator. Let's update and
 resolve our `InfiniteOpt` model using ``\epsilon = 0.95``:
 ```jldoctest 2-stage; output = false
 # Define the additional variables
-@hold_variable(model, t)
+@finite_variable(model, t)
 @infinite_variable(model, q(ξ) >= 0)
 
 # Redefine the objective

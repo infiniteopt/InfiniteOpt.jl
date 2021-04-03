@@ -32,7 +32,7 @@ set_silent(m)
 @infinite_variable(m, 0 <= y(θ) <= 1)
 # @infinite_variable(m, y(θ), Bin)
 @infinite_variable(m, z[1:n_z](θ))
-@hold_variable(m, d[1:n_d] >= 0)
+@finite_variable(m, d[1:n_d] >= 0)
 
 # Set objective function
 @objective(m, Max, expect(1 - y, θ))

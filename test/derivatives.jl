@@ -98,10 +98,10 @@
         @test InfiniteOpt._constraint_dependencies(dref) == ConstraintIndex[]
         @test InfiniteOpt._constraint_dependencies(gvref) == ConstraintIndex[]
     end
-    # _reduced_variable_dependencies
-    @testset "_reduced_variable_dependencies" begin
-        @test InfiniteOpt._reduced_variable_dependencies(dref) == ReducedVariableIndex[]
-        @test InfiniteOpt._reduced_variable_dependencies(gvref) == ReducedVariableIndex[]
+    # _semi_infinite_variable_dependencies
+    @testset "_semi_infinite_variable_dependencies" begin
+        @test InfiniteOpt._semi_infinite_variable_dependencies(dref) == SemiInfiniteVariableIndex[]
+        @test InfiniteOpt._semi_infinite_variable_dependencies(gvref) == SemiInfiniteVariableIndex[]
     end
     # _point_variable_dependencies
     @testset "_point_variable_dependencies" begin
@@ -420,7 +420,7 @@ end
         @test @deriv(pref^2, pref^3) == 0
         @test @deriv(42, pref^1) == 0
         @test @deriv(x, pref^2, prefs[2]) isa GeneralVariableRef
-        # test with reduced variables 
+        # test with semi_infinite variables 
         rv = build_variable(error, gvref, Dict{Int, Float64}(1 => 0.))
         rvref = add_variable(m, rv)
         @test @deriv(rvref, prefs[1]) isa GeneralVariableRef    
@@ -654,14 +654,14 @@ end
     @infinite_variable(m, y(t, x))
     d = @deriv(y, t)
     vref = dispatch_variable_ref(d)
-    # test used_by_reduced_variable
-    @testset "used_by_reduced_variable" begin
-        @test !used_by_reduced_variable(vref)
-        push!(InfiniteOpt._reduced_variable_dependencies(vref),
-              ReducedVariableIndex(1))
-        @test used_by_reduced_variable(d)
-        @test used_by_reduced_variable(vref)
-        empty!(InfiniteOpt._reduced_variable_dependencies(vref))
+    # test used_by_semi_infinite_variable
+    @testset "used_by_semi_infinite_variable" begin
+        @test !used_by_semi_infinite_variable(vref)
+        push!(InfiniteOpt._semi_infinite_variable_dependencies(vref),
+              SemiInfiniteVariableIndex(1))
+        @test used_by_semi_infinite_variable(d)
+        @test used_by_semi_infinite_variable(vref)
+        empty!(InfiniteOpt._semi_infinite_variable_dependencies(vref))
     end
     # test used_by_point_variable
     @testset "used_by_point_variable" begin
@@ -721,18 +721,18 @@ end
         push!(InfiniteOpt._constraint_dependencies(pvref), ConstraintIndex(2))
         @test is_used(vref)
         empty!(InfiniteOpt._point_variable_dependencies(vref))
-        # test used by reduced variable
+        # test used by semi_infinite variable
         eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1)
-        var = ReducedVariable(d, eval_supps, [2], [2])
+        var = SemiInfiniteVariable(d, eval_supps, [2], [2])
         object = VariableData(var, "var")
-        idx = ReducedVariableIndex(1)
-        rvref = ReducedVariableRef(m, idx)
+        idx = SemiInfiniteVariableIndex(1)
+        rvref = SemiInfiniteVariableRef(m, idx)
         @test InfiniteOpt._add_data_object(m, object) == idx
-        push!(InfiniteOpt._reduced_variable_dependencies(vref), idx)
+        push!(InfiniteOpt._semi_infinite_variable_dependencies(vref), idx)
         @test !is_used(vref)
         push!(InfiniteOpt._constraint_dependencies(rvref), ConstraintIndex(2))
         @test is_used(vref)
-        empty!(InfiniteOpt._reduced_variable_dependencies(vref))
+        empty!(InfiniteOpt._semi_infinite_variable_dependencies(vref))
         # test used by derivative
         func = (x) -> NaN
         num = 0.
@@ -782,17 +782,17 @@ end
     end
 end
 
-# Test the definition of reduced and point derivatives 
-@testset "Reduced/Point Derivatives" begin 
+# Test the definition of semi-infinite and point derivatives 
+@testset "Semi-Infinite/Point Derivatives" begin 
     # setup 
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 1])
     @infinite_parameter(m, x[1:2] in [0, 1])
     @infinite_variable(m, y(t, x))
     d = @deriv(y, t)
-    # test reduced derivatives
-    @testset "Reduced Derivatives" begin 
-        dref = GeneralVariableRef(m, 1, ReducedVariableIndex)
+    # test semi-infinite derivatives
+    @testset "Semi-infinite Derivatives" begin 
+        dref = GeneralVariableRef(m, 1, SemiInfiniteVariableIndex)
         @test add_variable(m, build_variable(error, d, Dict{Int, Float64}(1 => 1))) == dref 
         @test parameter_refs(dref) == (x,)
         @test infinite_variable_ref(dref) == d

@@ -11,11 +11,11 @@ types and methods principally pertaining to affine and quadratic mathematical
 expressions. A natively supported abstraction for general nonlinear expressions
 is planned for development since that of `JuMP` is not readily extendable.
 
-## Infinite Parameter Functions
+## Parameter Functions
 As described further below, InfiniteOpt.jl only supports affine and quadratic 
 expressions in its current rendition. However, there several use cases where we 
-might want to provide a more complex function of infinite parameter(s) (e.g., 
-nonlinear setpoint tracking). Thus, we provide infinite parameter function objects 
+might want to provide a more complex known function of infinite parameter(s) (e.g., 
+nonlinear setpoint tracking). Thus, we provide parameter function objects 
 that given a particular realization of infinite parameters will output a scalar 
 value. This is accomplished via [`parameter_function`](@ref) and is exemplified 
 by defining `sin(t)` below:
@@ -29,7 +29,7 @@ julia> @infinite_parameter(model, t in [0, 10]);
 julia> f = parameter_function(sin, t)
 sin(t)
 ```
-Here we created an infinite parameter function object, added it to `model`, and 
+Here we created an parameter function object, added it to `model`, and 
 then created a Julia variable `f` that serves as a `GeneralVariableRef` that points 
 to it. From here we can treat `f` as a normal infinite variable and use it with 
 measures, derivatives, and constraints. For example, we can do the following:
@@ -45,7 +45,7 @@ julia> meas = integral(y - f, t)
 julia> @constraint(model, y - f <= 0)
 y(t) - sin(t) ≤ 0.0, ∀ t ∈ [0, 10]
 ```
-We can also define infinite parameter functions that depend on multiple infinite 
+We can also define parameter functions that depend on multiple infinite 
 parameters:
 ```@jldoctest; param_func
 julia> @infinite_parameter(model, x[1:2] in [-1, 1]);
@@ -55,8 +55,8 @@ myname(t, x)
 ```
 
 Beyond this, there are number of query and modification methods that can be 
-employed for infinite parameter functions and these are detailed in the 
-[Infinite Parameter Function Methods](@ref) Section below.
+employed for parameter functions and these are detailed in the 
+[Parameter Function Methods](@ref) Section below.
 
 ## Variable Hierarchy
 Expressions employ variable reference types inherited from
@@ -106,7 +106,7 @@ t
 julia> @infinite_variable(model, y(t))
 y(t)
 
-julia> @hold_variable(model, z)
+julia> @finite_variable(model, z)
 z
 
 julia> expr = 2y + z - 3t
@@ -203,7 +203,7 @@ Notice again that the ordered dictionary preserves the order.
     and nested quadratic/affine expressions. For instance, ``z^3 + 2`` can be
     expressed by introducing a dumby variable ``x = z^2``:
     ```jldoctest affine
-    julia> @hold_variable(model, x)
+    julia> @finite_variable(model, x)
     x
 
     julia> @constraint(model, x == z^2)
@@ -232,15 +232,14 @@ Order   = [:type]
 ```@docs
 GeneralVariableRef
 DispatchVariableRef
-MeasureFiniteVariableRef
-FiniteVariableRef
+FiniteRef
 ParameterFunctionRef
 ParameterFunctionIndex
-InfiniteParameterFunction
+ParameterFunction
 ParameterFunctionData
 ```
 
-## Infinite Parameter Function Methods 
+## Parameter Function Methods 
 ```@docs
 parameter_function
 build_parameter_function
@@ -251,7 +250,7 @@ parameter_refs(::ParameterFunctionRef)
 raw_parameter_refs(::ParameterFunctionRef)
 parameter_list(::ParameterFunctionRef)
 raw_function
-used_by_reduced_variable(::ParameterFunctionRef)
+used_by_semi_infinite_variable(::ParameterFunctionRef)
 used_by_derivative(::ParameterFunctionRef)
 used_by_measure(::ParameterFunctionRef)
 used_by_constraint(::ParameterFunctionRef)
@@ -283,7 +282,7 @@ JuMP.is_valid(::InfiniteModel,::GeneralVariableRef)
 JuMP.is_valid(::InfiniteModel, ::DispatchVariableRef)
 used_by_infinite_variable(::GeneralVariableRef)
 used_by_point_variable(::GeneralVariableRef)
-used_by_reduced_variable(::GeneralVariableRef)
+used_by_semi_infinite_variable(::GeneralVariableRef)
 used_by_derivative(::GeneralVariableRef)
 used_by_measure(::GeneralVariableRef)
 used_by_objective(::GeneralVariableRef)
@@ -379,8 +378,8 @@ InfiniteOpt._core_variable_object(::GeneralVariableRef)
 InfiniteOpt._set_core_variable_object
 InfiniteOpt._infinite_variable_dependencies
 InfiniteOpt._infinite_variable_dependencies(::GeneralVariableRef)
-InfiniteOpt._reduced_variable_dependencies
-InfiniteOpt._reduced_variable_dependencies(::GeneralVariableRef)
+InfiniteOpt._semi_infinite_variable_dependencies
+InfiniteOpt._semi_infinite_variable_dependencies(::GeneralVariableRef)
 InfiniteOpt._point_variable_dependencies
 InfiniteOpt._point_variable_dependencies(::GeneralVariableRef)
 InfiniteOpt._derivative_dependencies

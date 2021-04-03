@@ -17,15 +17,15 @@ end
 
 # Extend _data_dictionary (reference based)
 function _data_dictionary(fref::ParameterFunctionRef
-    )::MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{InfiniteParameterFunction{GeneralVariableRef}}}
+    )::MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{ParameterFunction{GeneralVariableRef}}}
     return JuMP.owner_model(fref).param_functions
 end
 
 # Extend _data_object
 function _data_object(fref::ParameterFunctionRef
-    )::ParameterFunctionData{InfiniteParameterFunction{GeneralVariableRef}}
+    )::ParameterFunctionData{ParameterFunction{GeneralVariableRef}}
   object = get(_data_dictionary(fref), JuMP.index(fref), nothing)
-  object === nothing && error("Invalid infinite parameter function reference, cannot find " *
+  object === nothing && error("Invalid parameter function reference, cannot find " *
                         "corresponding object in the model. This is likely " *
                         "caused by using the reference of a deleted function.")
   return object
@@ -33,7 +33,7 @@ end
 
 # Extend _core_variable_object
 function _core_variable_object(fref::ParameterFunctionRef
-    )::InfiniteParameterFunction{GeneralVariableRef}
+    )::ParameterFunction{GeneralVariableRef}
     return _data_object(fref).func
 end
 
@@ -50,9 +50,9 @@ end
 """
     build_parameter_function(_error::Function, func::Function, 
         parameter_refs::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}, Tuple}
-        )::InfiniteParameterFunction{GeneralVariableRef}
+        )::ParameterFunction{GeneralVariableRef}
 
-Build an [`InfiniteParameterFunction`](@ref) object that employs a infinite 
+Build an [`ParameterFunction`](@ref) object that employs a infinite 
 parameter function `func` that takes instances of the infinite parameter(s) as 
 input. This can ultimately by incorporated into expressions to enable nonlinear 
 infinite parameter behavior and/or incorporate data over infinite domains. Errors 
@@ -63,14 +63,14 @@ a support realization of the `parameter_refs` as input.
 **Example**
 ```julia-repl 
 julia> f = build_parameter_function(error, sin, t)
-InfiniteParameterFunction{GeneralVariableRef}(sin, (t,), [1], [1])
+ParameterFunction{GeneralVariableRef}(sin, (t,), [1], [1])
 ```
 """
 function build_parameter_function(
     _error::Function, 
     func::Function, 
     parameter_refs::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}, Tuple}
-    )::InfiniteParameterFunction{GeneralVariableRef}
+    )::ParameterFunction{GeneralVariableRef}
     # process the parameter reference inputs
     prefs = VectorTuple(parameter_refs)
     # check the arguments
@@ -84,7 +84,7 @@ function build_parameter_function(
     # get the parameter numbers 
     param_nums = [_parameter_number(pref) for pref in prefs]
     # make the variable and return
-    return InfiniteParameterFunction(func, prefs, object_nums, param_nums)
+    return ParameterFunction(func, prefs, object_nums, param_nums)
 end 
 
 # Used to update parameter-parameter function mappings
@@ -100,10 +100,10 @@ function _update_param_var_mapping(fref::ParameterFunctionRef,
 end
 
 """
-    add_parameter_function(model::InfiniteModel, pfunc::InfiniteParameterFunction, 
+    add_parameter_function(model::InfiniteModel, pfunc::ParameterFunction, 
                            [name::String = ""])::GeneralVariableRef
 
-Add an [`InfiniteParameterFunction`](@ref) `pfunc` to the `model` using `name` for 
+Add an [`ParameterFunction`](@ref) `pfunc` to the `model` using `name` for 
 printing and return a `GeneralVariableRef` such that it can be embedded in 
 expressions. Errors if the infinite parameters `pfunc` points to do not belong to 
 `model`.
@@ -118,7 +118,7 @@ sin(t)
 """
 function add_parameter_function(
     model::InfiniteModel, 
-    pfunc::InfiniteParameterFunction, 
+    pfunc::ParameterFunction, 
     name::String = ""
     )::GeneralVariableRef
     _check_parameters_valid(model, pfunc.parameter_refs)
@@ -244,11 +244,11 @@ function raw_function(fref::ParameterFunctionRef)::Function
     return _core_variable_object(fref).func
 end
 
-# Extend _reduced_variable_dependencies
-function _reduced_variable_dependencies(
+# Extend _semi_infinite_variable_dependencies
+function _semi_infinite_variable_dependencies(
     fref::ParameterFunctionRef
-     )::Vector{ReducedVariableIndex}
-    return _data_object(fref).reduced_var_indices
+     )::Vector{SemiInfiniteVariableIndex}
+    return _data_object(fref).semi_infinite_var_indices
 end
 
 # Extend _derivative_dependencies
@@ -269,18 +269,18 @@ function _constraint_dependencies(fref::ParameterFunctionRef)::Vector{Constraint
 end
 
 """
-    used_by_reduced_variable(fref::ParameterFunctionRef)::Bool
+    used_by_semi_infinite_variable(fref::ParameterFunctionRef)::Bool
 
-Return a `Bool` indicating if `fref` is used by a reduced infinite variable.
+Return a `Bool` indicating if `fref` is used by a semi-infinite infinite variable.
 
 **Example**
 ```julia-repl
-julia> used_by_reduced_variable(fref)
+julia> used_by_semi_infinite_variable(fref)
 false
 ```
 """
-function used_by_reduced_variable(fref::ParameterFunctionRef)::Bool
-    return !isempty(_reduced_variable_dependencies(fref))
+function used_by_semi_infinite_variable(fref::ParameterFunctionRef)::Bool
+    return !isempty(_semi_infinite_variable_dependencies(fref))
 end
 
 """
@@ -341,7 +341,7 @@ true
 """
 function is_used(fref::ParameterFunctionRef)::Bool
     return used_by_measure(fref) || used_by_constraint(fref) || 
-           used_by_reduced_variable(fref) || used_by_derivative(fref)
+           used_by_semi_infinite_variable(fref) || used_by_derivative(fref)
 end
 
 """
@@ -363,8 +363,8 @@ function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)::Nothing
         filter!(e -> e != JuMP.index(fref), _parameter_function_dependencies(pref))
     end
     gvref = _make_variable_ref(model, JuMP.index(fref))
-    # delete associated reduced variables and mapping
-    for index in _reduced_variable_dependencies(fref)
+    # delete associated semi-infinite variables and mapping
+    for index in _semi_infinite_variable_dependencies(fref)
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # delete associated derivative variables and mapping 
