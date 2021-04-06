@@ -1545,9 +1545,9 @@ function _check_param_in_data(pref::GeneralVariableRef,
     return
 end
 
-# Update a reduced variable associated with an infinite variable whose parameter
+# Update a semi-infinite variable associated with an infinite variable whose parameter
 # was removed
-function _update_reduced_variable(vref::ReducedVariableRef,
+function _update_semi_infinite_variable(vref::SemiInfiniteVariableRef,
                                   delete_indices::UnitRange{Int})::Nothing
     eval_supps = eval_supports(vref)
     new_supports = Dict{Int, Float64}()
@@ -1561,7 +1561,7 @@ function _update_reduced_variable(vref::ReducedVariableRef,
     end
     obj_nums = _object_numbers(vref)
     param_nums = _parameter_numbers(vref)
-    new_var = ReducedVariable(infinite_variable_ref(vref), new_supports,
+    new_var = SemiInfiniteVariable(infinite_variable_ref(vref), new_supports,
                               param_nums, obj_nums)
     _set_core_variable_object(vref, new_var)
     # TODO account for possibility that this becomes a point variable
@@ -1645,8 +1645,8 @@ function _update_model_numbers(model::InfiniteModel, obj_num::Int,
         _update_number_list([obj_num], _object_numbers(vref))
         _update_number_list(param_nums, _parameter_numbers(vref))
     end
-    # update the reduced variables
-    for vref in JuMP.all_variables(model, ReducedVariable)
+    # update the semi-infinite variables
+    for vref in JuMP.all_variables(model, SemiInfiniteVariable)
         _update_number_list([obj_num], _object_numbers(vref))
         _update_number_list(param_nums, _parameter_numbers(vref))
     end
@@ -1729,10 +1729,10 @@ function JuMP.delete(model::InfiniteModel, pref::IndependentParameterRef)::Nothi
             pvref = PointVariableRef(model, pindex)
             deleteat!(raw_parameter_values(pvref), delete_index)
         end
-        # update any reduced variables that depend on vref accordingly
-        for rindex in _reduced_variable_dependencies(vref)
-            rvref = ReducedVariableRef(model, rindex)
-            _update_reduced_variable(rvref, delete_index:delete_index)
+        # update any semi-infinite variables that depend on vref accordingly
+        for rindex in _semi_infinite_variable_dependencies(vref)
+            rvref = SemiInfiniteVariableRef(model, rindex)
+            _update_semi_infinite_variable(rvref, delete_index:delete_index)
         end
     end
     # delete any derivatives that use pref 

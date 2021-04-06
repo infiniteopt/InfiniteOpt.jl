@@ -211,11 +211,11 @@ end
 ################################################################################
 #                            VARIABLE DEPENDENCIES
 ################################################################################
-# Extend _reduced_variable_dependencies
-function _reduced_variable_dependencies(
+# Extend _semi_infinite_variable_dependencies
+function _semi_infinite_variable_dependencies(
     vref::Union{InfiniteVariableRef, DerivativeRef}
-     )::Vector{ReducedVariableIndex}
-    return _data_object(vref).reduced_var_indices
+     )::Vector{SemiInfiniteVariableIndex}
+    return _data_object(vref).semi_infinite_var_indices
 end
 
 # Extend _point_variable_dependencies
@@ -233,18 +233,18 @@ function _derivative_dependencies(
 end
 
 """
-    used_by_reduced_variable(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
+    used_by_semi_infinite_variable(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
 
-Return a `Bool` indicating if `vref` is used by a reduced infinite variable.
+Return a `Bool` indicating if `vref` is used by a semi-infinite variable.
 
 **Example**
 ```julia-repl
-julia> used_by_reduced_variable(vref)
+julia> used_by_semi_infinite_variable(vref)
 false
 ```
 """
-function used_by_reduced_variable(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
-    return !isempty(_reduced_variable_dependencies(vref))
+function used_by_semi_infinite_variable(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
+    return !isempty(_semi_infinite_variable_dependencies(vref))
 end
 
 """
@@ -297,8 +297,8 @@ function is_used(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
             return true
         end
     end
-    for vindex in _reduced_variable_dependencies(vref)
-        if is_used(ReducedVariableRef(JuMP.owner_model(vref), vindex))
+    for vindex in _semi_infinite_variable_dependencies(vref)
+        if is_used(SemiInfiniteVariableRef(JuMP.owner_model(vref), vindex))
             return true
         end
     end
@@ -491,8 +491,8 @@ function _delete_variable_dependencies(vref::InfiniteVariableRef)::Nothing
     for index in _point_variable_dependencies(vref)
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
-    # delete associated reduced variables and mapping
-    for index in _reduced_variable_dependencies(vref)
+    # delete associated semi-infinite variables and mapping
+    for index in _semi_infinite_variable_dependencies(vref)
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # delete associated derivative variables and mapping 

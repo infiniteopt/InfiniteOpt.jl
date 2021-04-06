@@ -2,9 +2,9 @@
 @testset "Lower Bound" begin
     # initialize model and 3 test variables
     m = InfiniteModel()
-    gvref1 = @hold_variable(m, var1)
-    gvref2 = @hold_variable(m, var2 >= 0)
-    gvref3 = @hold_variable(m, var3 == 0)
+    gvref1 = @finite_variable(m, var1)
+    gvref2 = @finite_variable(m, var2 >= 0)
+    gvref3 = @finite_variable(m, var3 == 0)
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
@@ -86,9 +86,9 @@ end
 @testset "Upper Bound" begin
     # initialize model and 3 test variables
     m = InfiniteModel()
-    gvref1 = @hold_variable(m, var1)
-    gvref2 = @hold_variable(m, var2 <= 0)
-    gvref3 = @hold_variable(m, var3 == 0)
+    gvref1 = @finite_variable(m, var1)
+    gvref2 = @finite_variable(m, var2 <= 0)
+    gvref3 = @finite_variable(m, var3 == 0)
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
@@ -164,10 +164,10 @@ end
 @testset "Fix" begin
     # initialize model and 4 test variables
     m = InfiniteModel()
-    gvref1 = @hold_variable(m, var1)
-    gvref2 = @hold_variable(m, var2 == 0)
-    gvref3 = @hold_variable(m, var3)
-    gvref4 = @hold_variable(m, var4)
+    gvref1 = @finite_variable(m, var1)
+    gvref2 = @finite_variable(m, var2 == 0)
+    gvref3 = @finite_variable(m, var3)
+    gvref4 = @finite_variable(m, var4)
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
@@ -257,9 +257,9 @@ end
 @testset "Start Value" begin
     # initialize model and 4 test variables
     m = InfiniteModel()
-    gvref = @hold_variable(m, var1, start = 0)
+    gvref = @finite_variable(m, var1, start = 0)
     vref = dispatch_variable_ref(gvref)
-    gvref2 = @hold_variable(m, var2)
+    gvref2 = @finite_variable(m, var2)
     vref2 = dispatch_variable_ref(gvref2)
     @infinite_parameter(m, t in [0, 1])
     @infinite_variable(m, inf(t), start = 0)
@@ -316,9 +316,9 @@ end
 @testset "Binary" begin
     # initialize model and 3 test variables
     m = InfiniteModel()
-    gvref1 = @hold_variable(m, var1)
-    gvref2 = @hold_variable(m, var2, Bin)
-    gvref3 = @hold_variable(m, var3, Int)
+    gvref1 = @finite_variable(m, var1)
+    gvref2 = @finite_variable(m, var2, Bin)
+    gvref3 = @finite_variable(m, var3, Int)
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
@@ -379,9 +379,9 @@ end
 @testset "Integer" begin
     # initialize model and 3 test variables
     m = InfiniteModel()
-    gvref1 = @hold_variable(m, var1)
-    gvref2 = @hold_variable(m, var2, Int)
-    gvref3 = @hold_variable(m, var3, Bin)
+    gvref1 = @finite_variable(m, var1)
+    gvref2 = @finite_variable(m, var2, Int)
+    gvref3 = @finite_variable(m, var3, Bin)
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
@@ -444,8 +444,8 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 1])
     @infinite_variable(m, y(t), Int)
-    @hold_variable(m, 0.25 <= x <= 1.25, Bin)
-    @hold_variable(m, z, Bin)
+    @finite_variable(m, 0.25 <= x <= 1.25, Bin)
+    @finite_variable(m, z, Bin)
     # test relaxing it 
     result_store = []
     @test push!(result_store, relax_integrality(m)) isa Vector

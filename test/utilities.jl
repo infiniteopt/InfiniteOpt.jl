@@ -70,14 +70,14 @@ function Base.:(==)(a::JuMPC.SparseAxisArray, b::JuMPC.SparseAxisArray)::Bool
     return a.data == b.data
 end
 
-## Make dumby measure data for the purpose of testing hold variables
+## Make dumby measure data for the purpose of testing finite variables
 struct TestData{P, A} <: AbstractMeasureData
     pref::P
     lb::A
     ub::A
 end
 InfiniteOpt.parameter_refs(d::TestData) = d.pref
-function InfiniteOpt.measure_data_in_hold_bounds(d::TestData,
+function InfiniteOpt.measure_data_in_finite_var_bounds(d::TestData,
     bounds::ParameterBounds{GeneralVariableRef}
     )::Bool
     pref = parameter_refs(d)

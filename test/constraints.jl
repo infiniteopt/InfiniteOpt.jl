@@ -160,7 +160,7 @@ end
     @infinite_variable(m, inf(par))
     @infinite_variable(m, inf2(par, pars))
     @point_variable(m, inf(0.5), pt)
-    @hold_variable(m, x, parameter_bounds = (par == 1))
+    @finite_variable(m, x, parameter_bounds = (par == 1))
     var = build_variable(error, inf2, Dict{Int, Float64}(1 => 0.5), check = false)
     rv = add_variable(m, var)
     data = TestData(par, 1, 1)
@@ -219,7 +219,7 @@ end
         @test InfiniteOpt._check_and_update_bounds(m, c,
                             [x, inf]).bounds[par] == IntervalSet(1, 1)
         set_parameter_bounds(x, ParameterBounds(), force = true)
-        m.has_hold_bounds = false
+        m.has_finite_var_bounds = false
         @test InfiniteOpt._check_and_update_bounds(m, c, [x, inf]) == c
     end
     # test _update_var_constr_mapping
@@ -265,7 +265,7 @@ end
         con = VectorConstraint([inf + pt], MOI.Zeros(1))
         @test_throws ErrorException add_constraint(m, con, "a")
         # test rejects bad variables
-        @hold_variable(InfiniteModel(), z)
+        @finite_variable(InfiniteModel(), z)
         con = ScalarConstraint(z, MOI.EqualTo(42.0))
         @test_throws VariableNotOwned{GeneralVariableRef} add_constraint(m, con, "a")
         # test bounded constraint
@@ -288,7 +288,7 @@ end
         @test !InfiniteOpt._is_info_constraint(cref)
         @test !optimizer_model_ready(m)
         @test used_by_constraint(pt)
-        # test with bounded hold variables
+        # test with bounded finite variables
         @set_parameter_bounds(x, par == 1)
         con = ScalarConstraint(inf + pt + x, MOI.EqualTo(42.0))
         idx = ConstraintIndex(4)
@@ -348,7 +348,7 @@ end
         @infinite_parameter(m, 0 <= pars[1:2] <= 10)
         @infinite_variable(m, inf(par))
         @point_variable(m, inf(0.5), pt)
-        @hold_variable(m, x)
+        @finite_variable(m, x)
         bounds1 = ParameterBounds(Dict(par => IntervalSet(0, 1)))
         m2 = Model()
         # test errors
@@ -427,7 +427,7 @@ end
         @test @BDconstraint(m, c5(pars in [0, 1]), inf + x == 2) == cref
         @test parameter_bounds(cref) == ParameterBounds((pars[1] => IntervalSet(0, 1),
                                                   pars[2] => IntervalSet(0, 1)))
-        # test with hold variable bounds
+        # test with finite variable bounds
         @set_parameter_bounds(x, pars[1] in [0, 2])
         idx = ConstraintIndex(15)
         cref = InfOptConstraintRef(m, idx)
@@ -444,7 +444,7 @@ end
     @independent_parameter(m, t in [0, 1])
     @independent_parameter(m, y in [0, 1])
     @dependent_parameters(m, x[1:3] in [0, 1])
-    @hold_variable(m, z)
+    @finite_variable(m, z)
     @constraint(m, c1, z >= 0)
     @constraint(m, c2, z + t + x[1] >= 0)
     # test parameter_refs
@@ -462,7 +462,7 @@ end
     @infinite_parameter(m, 0 <= pars[1:2] <= 10)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
-    @hold_variable(m, x >= 0, Int)
+    @finite_variable(m, x >= 0, Int)
     @BDconstraint(m, c1(par in [0, 1]), inf + x == 0)
     @constraint(m, c2, x * pt + x == 2)
     # test _update_constr_param_bounds
@@ -511,7 +511,7 @@ end
         @test isa(delete_parameter_bounds(c1), Nothing)
         expected = ParameterBounds(Dict(par => IntervalSet(0, 0)))
         @test parameter_bounds(c1) == expected
-        # test again without hold bounds
+        # test again without finite var bounds
         delete_parameter_bounds(x)
         @test isa(constraint_object(c1), ScalarConstraint)
         # test already gone
@@ -520,7 +520,7 @@ end
     end
     # test @set_parameter_bounds
     @testset "@set_parameter_bounds" begin
-        # Note errors were already checked with hold variables
+        # Note errors were already checked with finite variables
         # test force error
         @test_macro_throws ErrorException @set_parameter_bounds(c1, par == 1)
         # test with single
@@ -535,7 +535,7 @@ end
     end
     # test @add_parameter_bounds
     @testset "@add_parameter_bounds" begin
-        # Note errors were already checked with hold variables
+        # Note errors were already checked with finite variables
         # test bounds error
         @test_macro_throws ErrorException @add_parameter_bounds(c3, par in [-1, 1])
         # test with multiple
@@ -552,7 +552,7 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par))
     @point_variable(m, inf(0.5), pt)
-    @hold_variable(m, x >= 0, Int)
+    @finite_variable(m, x >= 0, Int)
     @BDconstraint(m, c1(par in [0, 1]), inf + x == 0)
     @constraint(m, c2, x * pt + x == 2)
     # test set_normalized_coefficient
@@ -617,7 +617,7 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par) >= 0)
     @point_variable(m, inf(0.5), pt)
-    @hold_variable(m, 0 <= x <= 1, Int)
+    @finite_variable(m, 0 <= x <= 1, Int)
     # test search function type and set type
     @testset "Function and Set" begin
         @test num_constraints(m, GeneralVariableRef, MOI.LessThan) == 1
@@ -645,7 +645,7 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par) >= 0)
     @point_variable(m, inf(0.5), pt)
-    @hold_variable(m, 0 <= x <= 1, Int)
+    @finite_variable(m, 0 <= x <= 1, Int)
     # test search function type and set type
     @testset "Function and Set" begin
         list = [InfOptConstraintRef(m, ConstraintIndex(4))]
@@ -691,7 +691,7 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_variable(m, inf(par) >= 0)
     @point_variable(m, inf(0.5), pt)
-    @hold_variable(m, 0 <= x <= 1, Int)
+    @finite_variable(m, 0 <= x <= 1, Int)
     expected = [(GeneralVariableRef, MOI.GreaterThan{Float64}),
                 (GeneralVariableRef, MOI.LessThan{Float64}),
                 (GeneralVariableRef, MOI.Integer)]

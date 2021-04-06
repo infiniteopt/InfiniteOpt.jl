@@ -6,12 +6,12 @@
     info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
     new_info = VariableInfo(true, 0., true, 0., true, 0., true, 0., true, false)
     bounds = ParameterBounds()
-    var = HoldVariable(info, bounds)
+    var = FiniteVariable(info, bounds)
     object = VariableData(var, "test")
-    idx = HoldVariableIndex(1)
-    vref = HoldVariableRef(m, idx)
-    gvref = GeneralVariableRef(m, 1, HoldVariableIndex)
-    bad_vref = HoldVariableRef(m, HoldVariableIndex(-1))
+    idx = FiniteVariableIndex(1)
+    vref = FiniteVariableRef(m, idx)
+    gvref = GeneralVariableRef(m, 1, FiniteVariableIndex)
+    bad_vref = FiniteVariableRef(m, FiniteVariableIndex(-1))
     # JuMP.owner_model
     @testset "JuMP.owner_model" begin
         @test owner_model(vref) === m
@@ -33,9 +33,9 @@
     end
     # _data_dictionary
     @testset "_data_dictionary" begin
-        @test InfiniteOpt._data_dictionary(m, HoldVariable) === m.hold_vars
-        @test InfiniteOpt._data_dictionary(vref) === m.hold_vars
-        @test InfiniteOpt._data_dictionary(gvref) === m.hold_vars
+        @test InfiniteOpt._data_dictionary(m, FiniteVariable) === m.finite_vars
+        @test InfiniteOpt._data_dictionary(vref) === m.finite_vars
+        @test InfiniteOpt._data_dictionary(gvref) === m.finite_vars
     end
     # JuMP.is_valid
     @testset "JuMP.is_valid" begin
@@ -106,9 +106,9 @@
         @test variable_by_name(m, "new2") == gvref
         @test variable_by_name(m, "bob") isa Nothing
         # prepare variable with same name
-        idx2 = HoldVariableIndex(2)
+        idx2 = FiniteVariableIndex(2)
         @test InfiniteOpt._add_data_object(m, object) == idx2
-        vref2 = HoldVariableRef(m, idx2)
+        vref2 = FiniteVariableRef(m, idx2)
         @test set_name(vref2, "new2") isa Nothing
         # test multiple name error
         @test_throws ErrorException variable_by_name(m, "new2")
@@ -159,38 +159,38 @@ end
     # _make_variable
     @testset "_make_variable" begin
         # test normal
-        @test InfiniteOpt._make_variable(error, info, Hold).info == info
+        @test InfiniteOpt._make_variable(error, info, Finite).info == info
         bounds = ParameterBounds((pars => IntervalSet(0, 0),))
-        @test InfiniteOpt._make_variable(error, info, Hold,
+        @test InfiniteOpt._make_variable(error, info, Finite,
                                          parameter_bounds = bounds).info == info
-        @test InfiniteOpt._make_variable(error, info, Hold,
+        @test InfiniteOpt._make_variable(error, info, Finite,
                             parameter_bounds = bounds).parameter_bounds == bounds
         # test errors
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                                Hold, parameter_values = 3)
+                                                Finite, parameter_values = 3)
         bounds = ParameterBounds((pars[1] => IntervalSet(0, 0),))
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                           Hold, parameter_bounds = bounds)
+                                           Finite, parameter_bounds = bounds)
         bounds = ParameterBounds((par => IntervalSet(-1, -1),))
         @test_throws ErrorException InfiniteOpt._make_variable(error, info,
-                                           Hold, parameter_bounds = bounds)
+                                           Finite, parameter_bounds = bounds)
     end
     # build_variable
     @testset "JuMP.build_variable" begin
         # test normal
-        @test build_variable(error, info, Hold).info == info
-        @test build_variable(error, info, Hold).parameter_bounds == ParameterBounds()
+        @test build_variable(error, info, Finite).info == info
+        @test build_variable(error, info, Finite).parameter_bounds == ParameterBounds()
         bounds = ParameterBounds((pars => IntervalSet(0, 5),))
-        @test build_variable(error, info, Hold,
+        @test build_variable(error, info, Finite,
                              parameter_bounds = bounds).info == info
-        @test build_variable(error, info, Hold,
+        @test build_variable(error, info, Finite,
                              parameter_bounds = bounds).parameter_bounds == bounds
         # test errors
         @test_throws ErrorException build_variable(error, info, Point,
                                                    parameter_bounds = bounds)
         bounds = ParameterBounds((par => IntervalSet(0, 0),
                                   pars => IntervalSet(-1, 1)))
-        @test_throws ErrorException build_variable(error, info, Hold,
+        @test_throws ErrorException build_variable(error, info, Finite,
                                                    parameter_bounds = bounds)
     end
     # _validate_bounds
@@ -214,42 +214,42 @@ end
     # _check_and_make_variable_ref
     @testset "_check_and_make_variable_ref" begin
         # test normal
-        v = build_variable(error, info, Hold)
-        idx = HoldVariableIndex(1)
-        vref = HoldVariableRef(m, idx)
+        v = build_variable(error, info, Finite)
+        idx = FiniteVariableIndex(1)
+        vref = FiniteVariableRef(m, idx)
         @test InfiniteOpt._check_and_make_variable_ref(m, v, "") == vref
         # test with bounds
         bounds = ParameterBounds((par => IntervalSet(0, 2),))
-        v = build_variable(error, info, Hold, parameter_bounds = bounds)
-        idx = HoldVariableIndex(2)
-        vref = HoldVariableRef(m, idx)
+        v = build_variable(error, info, Finite, parameter_bounds = bounds)
+        idx = FiniteVariableIndex(2)
+        vref = FiniteVariableRef(m, idx)
         @test InfiniteOpt._check_and_make_variable_ref(m, v, "") == vref
-        @test m.has_hold_bounds
-        m.has_hold_bounds = false
+        @test m.has_finite_var_bounds
+        m.has_finite_var_bounds = false
         # test bad bounds
         @infinite_parameter(InfiniteModel(), par2 in [0, 2])
-        v = build_variable(error, info, Hold,
+        v = build_variable(error, info, Finite,
             parameter_bounds = ParameterBounds((par2 => IntervalSet(0, 1),)))
         @test_throws VariableNotOwned{GeneralVariableRef} InfiniteOpt._check_and_make_variable_ref(m, v, "")
     end
     # add_variable
     @testset "JuMP.add_variable" begin
-        idx = HoldVariableIndex(3)
-        vref = HoldVariableRef(m, idx)
+        idx = FiniteVariableIndex(3)
+        vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        v = build_variable(error, info, Hold)
+        v = build_variable(error, info, Finite)
         @test add_variable(m, v, "name") == gvref
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
         @test name(vref) == "name"
         # prepare infinite variable with all the possible info additions
-        v = build_variable(error, info2, Hold)
+        v = build_variable(error, info2, Finite)
         # test info addition functions
-        idx = HoldVariableIndex(4)
-        vref = HoldVariableRef(m, idx)
+        idx = FiniteVariableIndex(4)
+        vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
         @test add_variable(m, v, "name") == gvref
         @test !optimizer_model_ready(m)
-        @test !m.has_hold_bounds
+        @test !m.has_finite_var_bounds
         # lower bound
         cindex = ConstraintIndex(1)
         cref = InfOptConstraintRef(m, cindex)
@@ -287,14 +287,14 @@ end
         # prepare infinite variable with integer info addition
         bounds = ParameterBounds((par => IntervalSet(0, 2),
                                   pars => IntervalSet(1, 1)))
-        v = build_variable(error, info3, Hold, parameter_bounds = bounds)
+        v = build_variable(error, info3, Finite, parameter_bounds = bounds)
         # test integer addition functions
-        idx = HoldVariableIndex(5)
-        vref = HoldVariableRef(m, idx)
+        idx = FiniteVariableIndex(5)
+        vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
         @test add_variable(m, v, "name") == gvref
         @test !optimizer_model_ready(m)
-        @test m.has_hold_bounds
+        @test m.has_finite_var_bounds
         @test supports(par) == [0]
         @test sortcols(supports(pars)) == [0 1; 0 1]
         cindex = ConstraintIndex(8)
@@ -309,39 +309,39 @@ end
     end
 end
 
-# Test the hold variable macro if no bounds are provided
+# Test the finite variable macro if no bounds are provided
 @testset "Macro" begin
     # initialize model
     m = InfiniteModel()
-    @testset "@hold_variable (Not Bounded)" begin
+    @testset "@finite_variable (Not Bounded)" begin
         # test regular
-        idx = HoldVariableIndex(1)
-        vref = HoldVariableRef(m, idx)
+        idx = FiniteVariableIndex(1)
+        vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test @hold_variable(m, x >= 1, Bin) == gvref
+        @test @finite_variable(m, x >= 1, Bin) == gvref
         @test name(vref) == "x"
         @test lower_bound(vref) == 1
         @test is_binary(vref)
         # test anan
-        idx = HoldVariableIndex(2)
-        vref = HoldVariableRef(m, idx)
+        idx = FiniteVariableIndex(2)
+        vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test @hold_variable(m, binary = true, lower_bound = 1,
+        @test @finite_variable(m, binary = true, lower_bound = 1,
                                base_name = "x") == gvref
         @test name(vref) == "x"
         @test lower_bound(vref) == 1
         @test is_binary(vref)
         # test array
-        idxs = [HoldVariableIndex(3), HoldVariableIndex(4)]
-        vrefs = [HoldVariableRef(m, idx) for idx in idxs]
+        idxs = [FiniteVariableIndex(3), FiniteVariableIndex(4)]
+        vrefs = [FiniteVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
-        @test @hold_variable(m, y[1:2] == 2, Int) == gvrefs
+        @test @finite_variable(m, y[1:2] == 2, Int) == gvrefs
         @test name(vrefs[1]) == "y[1]"
         @test fix_value(vrefs[2]) == 2
         @test is_integer(vrefs[1])
         # test errors
-        @test_throws AssertionError @hold_variable(Model(), z >= 1, Bin)
-        @test_macro_throws ErrorException @hold_variable(m, x >= 1, Bin)
+        @test_throws AssertionError @finite_variable(Model(), z >= 1, Bin)
+        @test_macro_throws ErrorException @finite_variable(m, x >= 1, Bin)
     end
     # test _make_interval_set
     @testset "_make_interval_set" begin
@@ -456,28 +456,28 @@ end
         @test InfiniteOpt._extract_bounds(error, args,
                                           Val(:comparison)) == (nothing, bounds)
     end
-    # test @hold_variable with bounds
-    @testset "@hold_variable (Bounded)" begin
+    # test @finite_variable with bounds
+    @testset "@finite_variable (Bounded)" begin
         # prepare parameters
         @infinite_parameter(m, 0 <= par <= 10)
         @infinite_parameter(m, 0 <= pars[1:2] <= 10)
         # test regular call
-        idx = HoldVariableIndex(5)
-        vref = HoldVariableRef(m, idx)
+        idx = FiniteVariableIndex(5)
+        vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test @hold_variable(m, xb >= 1, Bin,
+        @test @finite_variable(m, xb >= 1, Bin,
                              parameter_bounds = (par == 0)) == gvref
         @test name(vref) == "xb"
         @test lower_bound(vref) == 1
         @test is_binary(vref)
-        @test m.has_hold_bounds
+        @test m.has_finite_var_bounds
         @test parameter_bounds(vref) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
         @test supports(par) == [0]
         # test regular tuple
-        idx = HoldVariableIndex(6)
-        vref = HoldVariableRef(m, idx)
+        idx = FiniteVariableIndex(6)
+        vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test @hold_variable(m, yb, parameter_bounds = (pars == 0,
+        @test @finite_variable(m, yb, parameter_bounds = (pars == 0,
                                                        par in [0, 1])) == gvref
         @test name(vref) == "yb"
         dict = Dict(pars[1] => IntervalSet(0, 0), pars[2] => IntervalSet(0, 0),
@@ -485,26 +485,33 @@ end
         @test parameter_bounds(vref) == ParameterBounds(dict)
         @test supports(pars[1]) == [0]
         # test comparison
-        idx = HoldVariableIndex(7)
-        vref = HoldVariableRef(m, idx)
+        idx = FiniteVariableIndex(7)
+        vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test @hold_variable(m, zb, parameter_bounds = (0 <= par <= 1),
+        @test @finite_variable(m, zb, parameter_bounds = (0 <= par <= 1),
                              base_name = "bob") == gvref
         @test name(vref) == "bob"
         @test parameter_bounds(vref) == ParameterBounds(Dict(par => IntervalSet(0, 1)))
         # test unrecognized format
-        @test_macro_throws ErrorException @hold_variable(m, parameter_bounds = par)
+        @test_macro_throws ErrorException @finite_variable(m, parameter_bounds = par)
         # test container specification
-        idxs = [HoldVariableIndex(8), HoldVariableIndex(9)]
-        vrefs = [HoldVariableRef(m, idx) for idx in idxs]
+        idxs = [FiniteVariableIndex(8), FiniteVariableIndex(9)]
+        vrefs = [FiniteVariableRef(m, idx) for idx in idxs]
         vals = [0, 1]
-        @test @hold_variable(m, [i = 1:2], parameter_bounds = (pars == vals[i]),
+        @test @finite_variable(m, [i = 1:2], parameter_bounds = (pars == vals[i]),
                              container = SparseAxisArray) isa JuMPC.SparseAxisArray
         @test name(vrefs[1]) == ""
         @test parameter_bounds(vrefs[1]) == ParameterBounds((pars => IntervalSet(0, 0),))
         # test wrong model type
-        @test_macro_throws ErrorException @hold_variable(Model(),
+        @test_macro_throws ErrorException @finite_variable(Model(),
                                                   parameter_bounds = (par == 0))
+    end
+    # test deprecation 
+    @testset "@hold_variable" begin
+        m = InfiniteModel()
+        warn = ("`@hold_variable` in deprecated in favor of `@finite_variable` " * 
+                "and will be dropped from future verions and may now behave unexpectedly.")
+        @test_logs (:warn, warn) @hold_variable(m, z, binary = true)
     end
 end
 
@@ -512,7 +519,7 @@ end
 @testset "Usage" begin
     # initialize model and stuff
     m = InfiniteModel()
-    @hold_variable(m, y0)
+    @finite_variable(m, y0)
     vref = dispatch_variable_ref(y0)
     # test used_by_measure
     @testset "used_by_measure" begin
@@ -552,7 +559,7 @@ end
     end
 end
 
-# Test parameter bound queries for hold variables
+# Test parameter bound queries for finite variables
 @testset "Parameter Bounds" begin
     # initialize the model and other needed information
     m = InfiniteModel()
@@ -560,9 +567,9 @@ end
     @infinite_parameter(m, pars[1:2] in [0, 10])
     @infinite_variable(m, inf(par))
     dinf = dispatch_variable_ref(inf)
-    @hold_variable(m, x == 0)
+    @finite_variable(m, x == 0)
     dx = dispatch_variable_ref(x)
-    @hold_variable(m, y >= 0, parameter_bounds = par == 0)
+    @finite_variable(m, y >= 0, parameter_bounds = par == 0)
     dy = dispatch_variable_ref(y)
     data = TestData(par, 0, 5)
     meas = Measure(x + inf, data, Int[], Int[], true)
@@ -603,9 +610,9 @@ end
     end
     # test _check_meas_bounds (Fallback)
     @testset "_check_meas_bounds (Fallback)" begin
-        warn = "Unable to check if hold variables bounds are valid in measure " *
+        warn = "Unable to check if finite variables bounds are valid in measure " *
                "with measure data type `BadData`. This can be resolved by " *
-               "extending `measure_data_in_hold_bounds`."
+               "extending `measure_data_in_finite_var_bounds`."
         @test_logs (:warn, warn) InfiniteOpt._check_meas_bounds(ParameterBounds(),
                                                                 BadData())
     end
@@ -633,8 +640,8 @@ end
         @test isa(InfiniteOpt._update_var_bounds(dinf, ParameterBounds()),
                   Nothing)
     end
-    # test _update_var_bounds (HoldVariableRef)
-    @testset "_update_var_bounds (HoldVariableRef)" begin
+    # test _update_var_bounds (FiniteVariableRef)
+    @testset "_update_var_bounds (FiniteVariableRef)" begin
         bounds = ParameterBounds()
         @test InfiniteOpt._update_variable_param_bounds(dx,
                       ParameterBounds((par => IntervalSet(0, 6),))) isa Nothing
@@ -698,7 +705,7 @@ end
                                   pars[1] => IntervalSet(0.5, 2)))
         @test isa(set_parameter_bounds(dx, bounds), Nothing)
         @test parameter_bounds(x) == bounds
-        @test m.has_hold_bounds
+        @test m.has_finite_var_bounds
         @test !optimizer_model_ready(m)
         expected = ParameterBounds((par => IntervalSet(0, 5),
                                     pars[1] => IntervalSet(0.5, 1)))
@@ -781,8 +788,8 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 10])
     @infinite_parameter(m, pars[1:2] in [0, 10])
-    @hold_variable(m, x == 0)
-    @hold_variable(m, y, parameter_bounds = par == 0)
+    @finite_variable(m, x == 0)
+    @finite_variable(m, y, parameter_bounds = par == 0)
     data = TestData(par, 0, 5)
     meas = Measure(x + par, data, Int[], Int[], true)
     object = MeasureData(meas, "test")
@@ -844,7 +851,7 @@ end
         @test isa(@set_parameter_bounds(x, (par in [0, 5], pars[1] in [0.5, 2])),
                   Nothing)
         @test parameter_bounds(x) == bounds
-        @test m.has_hold_bounds
+        @test m.has_finite_var_bounds
         @test !optimizer_model_ready(m)
         expected = ParameterBounds((par => IntervalSet(0, 5),
                                     pars[1] => IntervalSet(0.5, 1)))

@@ -707,25 +707,25 @@ end
 #                            MEASURE CONSTRUCTION METHODS
 ################################################################################
 """
-    measure_data_in_hold_bounds(data::AbstractMeasureData,
+    measure_data_in_finite_var_bounds(data::AbstractMeasureData,
                                 bounds::ParameterBounds)::Bool
 
 Return a `Bool` whether the domain of `data` is valid in accordance with
-`bounds`. This is intended as an internal method and is used to check hold
+`bounds`. This is intended as an internal method and is used to check finite
 variables used in measures. User-defined measure data types will need to
 extend this function to enable this error checking, otherwise it is skipped and
 a warning is given.
 """
-function measure_data_in_hold_bounds(data::AbstractMeasureData,
-                                     bounds::ParameterBounds)::Bool
-    @warn "Unable to check if hold variables bounds are valid in measure " *
+function measure_data_in_finite_var_bounds(data::AbstractMeasureData,
+                                           bounds::ParameterBounds)::Bool
+    @warn "Unable to check if finite variables bounds are valid in measure " *
            "with measure data type `$(typeof(data))`. This can be resolved by " *
-           "extending `measure_data_in_hold_bounds`."
+           "extending `measure_data_in_finite_var_bounds`."
     return true
 end
 
 # Scalar DiscreteMeasureData and FunctionalDiscreteMeasureData
-function measure_data_in_hold_bounds(
+function measure_data_in_finite_var_bounds(
     data::Union{DiscreteMeasureData{P, 1}, FunctionalDiscreteMeasureData{P}},
     bounds::ParameterBounds{GeneralVariableRef}
     )::Bool where {P <: GeneralVariableRef}
@@ -738,7 +738,7 @@ function measure_data_in_hold_bounds(
 end
 
 # Multi-dimensional DiscreteMeasureData and FunctionalDiscreteMeasureData
-function measure_data_in_hold_bounds(
+function measure_data_in_finite_var_bounds(
     data::Union{DiscreteMeasureData{P, 2}, FunctionalDiscreteMeasureData{P}},
     bounds::ParameterBounds{GeneralVariableRef}
     )::Bool where {P <: Vector{GeneralVariableRef}}
@@ -758,10 +758,10 @@ end
 
 # Check that variables don't violate the parameter bounds
 function _check_var_bounds(vref::GeneralVariableRef, data::AbstractMeasureData)
-    if _index_type(vref) == HoldVariableIndex
+    if _index_type(vref) == FiniteVariableIndex
         bounds = parameter_bounds(vref)
-        if !measure_data_in_hold_bounds(data, bounds)
-            error("Measure bounds violate hold variable bounds.")
+        if !measure_data_in_finite_var_bounds(data, bounds)
+            error("Measure bounds violate finite variable parameter bounds.")
         end
     elseif _index_type(vref) == MeasureIndex
         vrefs = _all_function_variables(measure_function(vref))
@@ -779,14 +779,14 @@ end
 Build and return a [`Measure`](@ref) given the expression to be measured `expr`
 using measure data `data`. This principally serves as an internal method for
 measure definition. Errors if the supports associated with `data` violate
-an hold variable parameter bounds of hold variables that are included in the
+an finite variable parameter bounds of finite variables that are included in the
 measure.
 """
 function build_measure(expr::T, data::D;
     )::Measure{T, D} where {T <: JuMP.AbstractJuMPScalar, D <: AbstractMeasureData}
     vrefs = _all_function_variables(expr)
     model = _model_from_expr(vrefs)
-    if model.has_hold_bounds
+    if model.has_finite_var_bounds
         for vref in vrefs
             _check_var_bounds(vref, data)
         end

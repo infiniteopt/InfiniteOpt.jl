@@ -229,7 +229,7 @@ end
 
 ```
 We used [`InfiniteOpt.make_reduced_expr`](@ref) as a convenient helper function 
-to generate the reduced variables/expressions we need to generate at each support 
+to generate the semi-infinite variables/expressions we need to generate at each support 
 point. Also note that [`InfiniteOpt.add_generative_supports`](@ref) needs to be 
 included for `GenerativeDerivativeMethods`, but is not necessary in this example.
 
@@ -387,7 +387,7 @@ The extension steps employed are:
 3. Extend [`InfiniteOpt.expand_measure`](@ref) (required)
 4. Extend [`InfiniteOpt.supports`](@ref supports(::AbstractMeasureData)) (required if parameter supports are employed in any way)
 5. Extend [`InfiniteOpt.add_supports_to_parameters`](@ref) (required if parameter supports are employed in measure evaluation)
-5. Extend [`InfiniteOpt.measure_data_in_hold_bounds`](@ref) (enables hold variable bound checking with measures)
+5. Extend [`InfiniteOpt.measure_data_in_finite_var_bounds`](@ref) (enables finite variable bound checking with measures)
 6. Extend [`InfiniteOpt.coefficients`](@ref) (useful getter method if applicable)
 7. Extend [`InfiniteOpt.weight_function`](@ref) (useful getter method if applicable)
 8. Extend [`InfiniteOpt.support_label`](@ref) (needed to enable deletion if supports are added.)
@@ -396,7 +396,7 @@ The extension steps employed are:
 
 To illustrate how this process can be done, let's consider extending `InfiniteOpt`
 to include measure support for assessing the variance of random expressions. The
-variance of an expression ``f(x, \xi)`` where ``x \in \mathbb{R}^n`` are hold
+variance of an expression ``f(x, \xi)`` where ``x \in \mathbb{R}^n`` are finite
 variables and ``\xi \in \mathbb{R}^m`` are random infinite parameters is defined:
 ```math
 \mathbb{V}[f(x, \xi)] = \mathbb{E}\left[(f(x, \xi) - \mathbb{E}[f(x, \xi)])^2 \right].
@@ -482,7 +482,7 @@ allow us to define out the new variance measure via
 model = InfiniteModel()
 @infinite_parameter(model, xi in Normal(), num_supports = 2) # few for simplicity
 @infinite_variable(model, y(xi))
-@hold_variable(model, z)
+@finite_variable(model, z)
 
 # Define out new variance measure
 data = DiscreteVarianceData(xi, supports(xi))
@@ -660,12 +660,12 @@ extended using the following steps:
     - [`InfiniteOpt.map_lp_rhs_perturbation_range`](@ref) (enables `JuMP.lp_rhs_perturbation_range`)
     - [`InfiniteOpt.map_lp_objective_perturbation_range`](@ref) (enables `JuMP.lp_objective_perturbation_range`)
 11. Extend [`InfiniteOpt.add_measure_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model
-12. Extend [`InfiniteOpt.delete_reduced_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model and delete unneeded reduced variables.
+12. Extend [`InfiniteOpt.delete_semi_infinite_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model and delete unneeded semi-infinite variables.
 
 For the sake of example, let's suppose we want to define a reformulation method
 for `InfiniteModel`s that are 2-stage stochastic programs (i.e., only
 `DistributionSet`s are used, infinite variables are random 2nd stage variables,
-and hold variables are 1st stage variables). In particular, let's make a simple
+and finite variables are 1st stage variables). In particular, let's make a simple
 method that replaces the infinite parameters with their mean values, giving us
 the deterministic mean-valued problem.
 
@@ -740,7 +740,7 @@ build our `InfiniteModel` as normal, for example:
 ```jldoctest opt_model
 @infinite_parameter(model, ξ in Uniform())
 @infinite_variable(model, y[1:2](ξ) >= 0)
-@hold_variable(model, x)
+@finite_variable(model, x)
 @objective(model, Min, x + expect(y[1] + y[2], ξ))
 @constraint(model, 2y[1] - x <= 42)
 @constraint(model, y[2]^2 + ξ == 2)
@@ -784,7 +784,7 @@ function _make_expression(opt_model::Model, expr::GeneralVariableRef,
 end
 # DecisionVariableRef
 function _make_expression(opt_model::Model, expr::GeneralVariableRef, 
-                          ::Union{InfiniteVariableIndex, HoldVariableIndex})
+                          ::Union{InfiniteVariableIndex, FiniteVariableIndex})
     return deterministic_data(opt_model).infvar_to_detvar[expr]
 end
 # MeasureRef --> assume is expectation
@@ -883,7 +883,7 @@ Subject to
 ```
 Note that better variable naming could be used with the reformulated infinite
 variables. Moreover, in general extensions of [`build_optimizer_model!`](@ref)
-should account for the possibility that `InfiniteModel` contains `HoldVariable`s
+should account for the possibility that `InfiniteModel` contains `FiniteVariable`s
 and/or `ScalarConstraint`s that contain [`ParameterBounds`](@ref) as accessed via
 [`parameter_bounds`](@ref).
 

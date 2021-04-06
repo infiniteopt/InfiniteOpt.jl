@@ -32,9 +32,9 @@ julia> @infinite_variable(model, T(t, x));
 
 julia> @infinite_variable(model, g(t));
 
-julia> @hold_variable(model, z[1:2]);
+julia> @finite_variable(model, z[1:2]);
 
-julia> @hold_variable(model, w, parameter_bounds = (t in [0, 5]));
+julia> @finite_variable(model, w, parameter_bounds = (t in [0, 5]));
 ```
 
 ### Unbounded Constraints
@@ -89,7 +89,7 @@ variable `measure_constr` that contains a reference to that constraint.
 Bounded constraints denote constraints with a particular sub-domain of an infinite
 domain. Such constraints might pertain to point constraints evaluated at a
 particular infinite parameter values, constraints limited to a certain range of
-infinite parameter values, and/or entail bounded hold variables whose
+infinite parameter values, and/or entail bounded finite variables whose
 sub-domains are also taken into consideration. These types of constraints are
 defined using [`@BDconstraint`](@ref). For example, let's add the initial
 condition ``g(0) == 0``:
@@ -132,7 +132,7 @@ Similarly, bounded constraints are stored in [`BoundedScalarConstraint`](@ref)
 which has `bounds` and `orig_bounds` fields in addition to `func` and `set`.
 These additional fields store the current constraint bounds and the bounds
 originally given, respectively. This distinction is needed to facilitate
-deletion methods such as deleting a bounded hold variable.
+deletion methods such as deleting a bounded finite variable.
 
 These constraint objects are what store constraints in `InfiniteModel`s. And
 these are referred to by an [`InfOptConstraintRef`](@ref).
@@ -210,7 +210,7 @@ the `[scalar constr expr]` must be scalar.
 
 An interesting corollary is that `@constraint` in certain cases will produce
 bounded constraints even if the user doesn't specify any parameter bounds. This,
-occurs when a bounded hold variable is included. For example, if we want to
+occurs when a bounded finite variable is included. For example, if we want to
 make the constraint ``g(t) + 2.5w \leg 2`` it would only be valid over the sub-domain
 ``t \in [0, 5] \subsetneq [0, 10]`` due to the restrictions on `w`. Thus,
 `@constraint` automatically takes this into account and produces a bounded
@@ -433,7 +433,7 @@ Parameter bounds can be added to, modified, or removed from any constraint in
 `InfiniteOpt`. Principally, this is accomplished via [`@add_parameter_bounds`](@ref),
 [`@set_parameter_bounds`](@ref),
 and [`delete_parameter_bounds`](@ref delete_parameter_bounds(::InfOptConstraintRef))
-in like manner to hold variables.
+in like manner to finite variables.
 
 First, parameter bounds can be added to a constraint in an intuitive symbolic
 syntax via [`@add_parameter_bounds`](@ref) which follows form
@@ -472,14 +472,14 @@ constr : 2.5 g(t) - z[1] ≤ -1.0, ∀ t = 0
 ```
 
 !!! note
-    Constraint parameters bounds are intersected with those of any hold variables
+    Constraint parameters bounds are intersected with those of any finite variables
     that are part of the constraint. If no such intersection exists then an error is
     thrown.
 
 Finally, constraint bounds can be deleted via
 [`delete_parameter_bounds`](@ref delete_parameter_bounds(::InfOptConstraintRef))
 which deletes all parameter bounds. Again, note the parameter bounds associated
-with hold variables will be unaffected and can only be removed by deleting them
+with finite variables will be unaffected and can only be removed by deleting them
 from the variables directly. Now let's delete the parameter bounds associated
 with our example:
 ```jldoctest constrs

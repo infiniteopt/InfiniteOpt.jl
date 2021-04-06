@@ -72,7 +72,7 @@ end
 """
     ParameterFunctionIndex <: ObjectIndex
 
-A `DataType` for storing the index of a [`InfiniteParameterFunction`](@ref).
+A `DataType` for storing the index of a [`ParameterFunction`](@ref).
 
 **Fields**
 - `value::Int64`: The index value.
@@ -94,14 +94,14 @@ struct InfiniteVariableIndex <: ObjectIndex
 end
 
 """
-    ReducedVariableIndex <: ObjectIndex
+    SemiInfiniteVariableIndex <: ObjectIndex
 
-A `DataType` for storing the index of a [`ReducedVariable`](@ref).
+A `DataType` for storing the index of a [`SemiInfiniteVariable`](@ref).
 
 **Fields**
 - `value::Int64`: The index value.
 """
-struct ReducedVariableIndex <: ObjectIndex
+struct SemiInfiniteVariableIndex <: ObjectIndex
     value::Int64
 end
 
@@ -118,14 +118,14 @@ struct PointVariableIndex <: ObjectIndex
 end
 
 """
-    HoldVariableIndex <: ObjectIndex
+    FiniteVariableIndex <: ObjectIndex
 
-A `DataType` for storing the index of a [`HoldVariable`](@ref).
+A `DataType` for storing the index of a [`FiniteVariable`](@ref).
 
 **Fields**
 - `value::Int64`: The index value.
 """
-struct HoldVariableIndex <: ObjectIndex
+struct FiniteVariableIndex <: ObjectIndex
     value::Int64
 end
 
@@ -142,8 +142,8 @@ struct DerivativeIndex <: ObjectIndex
 end
 
 # Define convenient aliases
-const FiniteVariableIndex = Union{PointVariableIndex, HoldVariableIndex,
-                                  FiniteParameterIndex}
+const FiniteIndex = Union{PointVariableIndex, FiniteVariableIndex,
+                          FiniteParameterIndex}
 
 """
     MeasureIndex <: ObjectIndex
@@ -644,7 +644,7 @@ end
     ParameterBounds{P <: GeneralVariableRef}
 
 A `DataType` for storing intervaled bounds of parameters. This is used to define
-subdomains of [`HoldVariable`](@ref)s and [`BoundedScalarConstraint`](@ref)s.
+subdomains of [`FiniteVariable`](@ref)s and [`BoundedScalarConstraint`](@ref)s.
 Note that the GeneralVariableRef must pertain to infinite parameters.
 
 **Fields**
@@ -656,12 +656,12 @@ struct ParameterBounds{P <: JuMP.AbstractVariableRef}
 end
 
 ################################################################################
-#                     INFINITE PARAMETER FUNCTION OBJECTS
+#                        PARAMETER FUNCTION OBJECTS
 ################################################################################
 """
-    InfiniteParameterFunction{P <: GeneralVariableRef}
+    ParameterFunction{P <: GeneralVariableRef}
 
-A `DataType` for storing infinite parameter functions. These equate to arbitrary 
+A `DataType` for storing known functions of infinite parameters. These equate to arbitrary 
 functions that take support instances of infinite parameters `parameter_refs` in 
 as input and compute a scalar value as output via `func`. These can then can 
 incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
@@ -675,7 +675,7 @@ incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
 """
-struct InfiniteParameterFunction{P <: JuMP.AbstractVariableRef}
+struct ParameterFunction{P <: JuMP.AbstractVariableRef}
     func::Function
     parameter_refs::VectorTuple{P}
     object_nums::Vector{Int}
@@ -683,28 +683,28 @@ struct InfiniteParameterFunction{P <: JuMP.AbstractVariableRef}
 end
 
 """
-    ParameterFunctionData{F <: InfiniteParameterFunction} <: AbstractDataObject
+    ParameterFunctionData{F <: ParameterFunction} <: AbstractDataObject
 
-A mutable `DataType` for storing `InfiniteParameterFunction`s and their data.
+A mutable `DataType` for storing `ParameterFunction`s and their data.
 
 **Fields**
-- `func::F`: The infinite parameter function.
+- `func::F`: The parameter function.
 - `name::String`: The name used for printing.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
-- `reduced_var_indices::Vector{ReducedVariableIndex}`: Indices of dependent reduced variables.
+- `semi_infinite_var_indices::Vector{SemiInfiniteVariableIndex}`: Indices of dependent semi-infinite variables.
 - `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
 """
-mutable struct ParameterFunctionData{F <: InfiniteParameterFunction} <: AbstractDataObject
+mutable struct ParameterFunctionData{F <: ParameterFunction} <: AbstractDataObject
     func::F
     name::String
     measure_indices::Vector{MeasureIndex}
     constraint_indices::Vector{ConstraintIndex}
-    reduced_var_indices::Vector{ReducedVariableIndex}
+    semi_infinite_var_indices::Vector{SemiInfiniteVariableIndex}
     derivative_indices::Vector{DerivativeIndex}
-    function ParameterFunctionData(func::F, name::String = "") where {F <: InfiniteParameterFunction}
+    function ParameterFunctionData(func::F, name::String = "") where {F <: ParameterFunction}
         return new{F}(func, name, MeasureIndex[], ConstraintIndex[], 
-                      ReducedVariableIndex[], DerivativeIndex[])
+                      SemiInfiniteVariableIndex[], DerivativeIndex[])
     end
 end
 
@@ -714,7 +714,7 @@ end
 """
     InfOptVariable <: JuMP.AbstractVariable
 
-An abstract type for infinite, reduced, point, and hold variables.
+An abstract type for infinite, semi-infinite, point, and finite variables.
 """
 abstract type InfOptVariable <: JuMP.AbstractVariable end
 
@@ -747,21 +747,21 @@ struct InfiniteVariable{P <: JuMP.AbstractVariableRef} <: InfOptVariable
 end
 
 """
-    ReducedVariable{I <: GeneralVariableRef} <: InfOptVariable
+    SemiInfiniteVariable{I <: GeneralVariableRef} <: InfOptVariable
 
-A `DataType` for storing reduced infinite variables which partially support an
+A `DataType` for storing semi-infinite variables which partially support an
 infinite variable.
 
 **Fields**
 - `infinite_variable_ref::I`: The original infinite/derivvative variable.
 - `eval_supports::Dict{Int, Float64}`: The original parameter tuple linear indices
                                      to the evaluation supports.
-- `parameter_nums::Vector{Int}`: The parameter numbers associated with the reduced
+- `parameter_nums::Vector{Int}`: The parameter numbers associated with the evaluated
                                  `parameter_refs`.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with the
-                              reduced `parameter_refs`.
+                              evaluated `parameter_refs`.
 """
-struct ReducedVariable{I <: JuMP.AbstractVariableRef} <: InfOptVariable
+struct SemiInfiniteVariable{I <: JuMP.AbstractVariableRef} <: InfOptVariable
     infinite_variable_ref::I
     eval_supports::Dict{Int, Float64}
     parameter_nums::Vector{Int}
@@ -789,15 +789,15 @@ struct PointVariable{I <: JuMP.AbstractVariableRef} <: InfOptVariable
 end
 
 """
-    HoldVariable{P <: GeneralVariableRef} <: InfOptVariable
+    FiniteVariable{P <: GeneralVariableRef} <: InfOptVariable
 
-A `DataType` for storing hold variable information.
+A `DataType` for storing finite variable information.
 
 **Fields**
 - `info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}` JuMP variable information.
 - `parameter_bounds::ParameterBounds{P}` Valid parameter sub-domains
 """
-struct HoldVariable{P <: JuMP.AbstractVariableRef} <: InfOptVariable
+struct FiniteVariable{P <: JuMP.AbstractVariableRef} <: InfOptVariable
     info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
     parameter_bounds::ParameterBounds{P}
 end
@@ -819,7 +819,7 @@ A mutable `DataType` for storing `InfOptVariable`s and their data.
 - `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
 - `in_objective::Bool`: Is this used in objective?
 - `point_var_indices::Vector{PointVariableIndex}`: Indices of dependent point variables.
-- `reduced_var_indices::Vector{ReducedVariableIndex}`: Indices of dependent reduced variables.
+- `semi_infinite_var_indices::Vector{SemiInfiniteVariableIndex}`: Indices of dependent semi-infinite variables.
 - `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
 - `deriv_constr_indices::Vector{ConstraintIndex}`: Indices of dependent derivative evaluation constraints.
 """
@@ -835,13 +835,13 @@ mutable struct VariableData{V <: InfOptVariable} <: AbstractDataObject
     constraint_indices::Vector{ConstraintIndex}
     in_objective::Bool
     point_var_indices::Vector{PointVariableIndex} # InfiniteVariables only
-    reduced_var_indices::Vector{ReducedVariableIndex} # InfiniteVariables only
-    derivative_indices::Vector{DerivativeIndex} # infinite and reduced only
+    semi_infinite_var_indices::Vector{SemiInfiniteVariableIndex} # InfiniteVariables only
+    derivative_indices::Vector{DerivativeIndex} # infinite and semi-infinite only
     deriv_constr_indices::Vector{ConstraintIndex} # Derivatives only
     function VariableData(var::V, name::String = "") where {V <: InfOptVariable}
         return new{V}(var, name, nothing, nothing, nothing, nothing, nothing,
                    MeasureIndex[], ConstraintIndex[], false, PointVariableIndex[],
-                   ReducedVariableIndex[], DerivativeIndex[], ConstraintIndex[])
+                   SemiInfiniteVariableIndex[], DerivativeIndex[], ConstraintIndex[])
     end
 end
 
@@ -873,7 +873,7 @@ infinite variables and parameters.
 struct Derivative{V <: JuMP.AbstractVariableRef} <: InfOptVariable
     info::JuMP.VariableInfo{Float64, Float64, Float64, Function}
     is_vector_start::Bool
-    variable_ref::V # could be ref of infinite/reduced variable/derivative or measure (top of derivative)
+    variable_ref::V # could be ref of infinite/semi-infinite variable/derivative or measure (top of derivative)
     parameter_ref::V # a scalar infinite parameter ref (bottom of derivative)
 end
 
@@ -1136,7 +1136,7 @@ of infinite parameters.
 - `bounds::ParameterBounds{P}` Set of valid parameter
     sub-domains that further boundconstraint.
 - `orig_bounds::ParameterBounds{P}` Set of the constraint's
-    original parameter sub-domains (not considering hold variables)
+    original parameter sub-domains (not considering finite variables)
 """
 struct BoundedScalarConstraint{F <: JuMP.AbstractJuMPScalar,
                                S <: MOI.AbstractScalarSet,
@@ -1190,19 +1190,19 @@ model an optmization problem with an infinite-dimensional decision space.
 - `last_param_num::Int`: The last parameter number to be used.
 - `param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}`:
   The collection of parameter object indices in creation order.
-- `param_functions::MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{InfiniteParameterFunction}}`: 
+- `param_functions::MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{ParameterFunction}}`: 
   The infinite parameter functions and their mapping information.
 - `infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}`:
    The infinite variables and their mapping information.
-- `reduced_vars::MOIUC.CleverDict{ReducedVariableIndex, <:VariableData{<:ReducedVariable}}`:
-   The reduced infinite variables and their mapping information.
+- `semi_infinite_vars::MOIUC.CleverDict{SemiInfiniteVariableIndex, <:VariableData{<:SemiInfiniteVariable}}`:
+   The semi-infinite variables and their mapping information.
 - `point_vars::MOIUC.CleverDict{PointVariableIndex, <:VariableData{<:PointVariable}}`:
    The point variables and their mapping information.
-- `hold_vars::MOIUC.CleverDict{HoldVariableIndex, <:VariableData{<:HoldVariable}}`:
-   The hold variables and their mapping information.
+- `finite_vars::MOIUC.CleverDict{FiniteVariableIndex, <:VariableData{<:FiniteVariable}}`:
+   The finite variables and their mapping information.
 - `name_to_var::Union{Dict{String, AbstractInfOptIndex}, Nothing}`:
    Field to help find a variable given the name.
-- `has_hold_bounds::Bool`:
+- `has_finite_var_bounds::Bool`:
    Does any variable have parameter bounds?
 - `derivatives::MOIUC.CleverDict{DerivativeIndex, <:VariableData{<:Derivative}}`:
   The derivatives and their mapping information.
@@ -1237,11 +1237,11 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 
     # Variable Data
     infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}
-    reduced_vars::MOIUC.CleverDict{ReducedVariableIndex, <:VariableData{<:ReducedVariable}}
+    semi_infinite_vars::MOIUC.CleverDict{SemiInfiniteVariableIndex, <:VariableData{<:SemiInfiniteVariable}}
     point_vars::MOIUC.CleverDict{PointVariableIndex, <:VariableData{<:PointVariable}}
-    hold_vars::MOIUC.CleverDict{HoldVariableIndex, <:VariableData{<:HoldVariable}}
+    finite_vars::MOIUC.CleverDict{FiniteVariableIndex, <:VariableData{<:FiniteVariable}}
     name_to_var::Union{Dict{String, AbstractInfOptIndex}, Nothing}
-    has_hold_bounds::Bool
+    has_finite_var_bounds::Bool
 
     # Derivative Data 
     derivatives::MOIUC.CleverDict{DerivativeIndex, <:VariableData{<:Derivative}}
@@ -1323,12 +1323,12 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
                          nothing, 0,
                          Union{IndependentParameterIndex, DependentParametersIndex}[],
-                         MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{InfiniteParameterFunction{GeneralVariableRef}}}(),
+                         MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{ParameterFunction{GeneralVariableRef}}}(),
                          # Variables
                          MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable{GeneralVariableRef}}}(),
-                         MOIUC.CleverDict{ReducedVariableIndex, VariableData{ReducedVariable{GeneralVariableRef}}}(),
+                         MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),
                          MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
-                         MOIUC.CleverDict{HoldVariableIndex, VariableData{HoldVariable{GeneralVariableRef}}}(),
+                         MOIUC.CleverDict{FiniteVariableIndex, VariableData{FiniteVariable{GeneralVariableRef}}}(),
                          nothing, false,
                          # Derivatives
                          MOIUC.CleverDict{DerivativeIndex, VariableData{Derivative{GeneralVariableRef}}}(),
@@ -1484,19 +1484,19 @@ struct InfiniteVariableRef <: DispatchVariableRef
 end
 
 """
-    ReducedVariableRef <: DispatchVariableRef
+    SemiInfiniteVariableRef <: DispatchVariableRef
 
-A `DataTyp`e for partially transcripted infinite dimensional variable references.
+A `DataType` for partially transcripted infinite dimensional variable references.
 This is used to expand measures that contain infinite variables that are not
 fully transcripted by the measure.
 
 **Fields**
 - `model::InfiniteModel`: Infinite model.
-- `index::ReducedVariableIndex`: Index of the variable in model.
+- `index::SemiInfiniteVariableIndex`: Index of the variable in model.
 """
-struct ReducedVariableRef <: DispatchVariableRef
+struct SemiInfiniteVariableRef <: DispatchVariableRef
     model::InfiniteModel
-    index::ReducedVariableIndex
+    index::SemiInfiniteVariableIndex
 end
 
 """
@@ -1514,14 +1514,7 @@ struct DerivativeRef <: DispatchVariableRef
 end
 
 """
-    MeasureFiniteVariableRef <: DispatchVariableRef
-
-An abstract type to define finite variable and measure references.
-"""
-abstract type MeasureFiniteVariableRef <: DispatchVariableRef end
-
-"""
-    MeasureRef <: FiniteVariableRef
+    MeasureRef <: DispatchVariableRef
 
 A `DataType` for referring to measure abstractions.
 
@@ -1529,20 +1522,20 @@ A `DataType` for referring to measure abstractions.
 - `model::InfiniteModel`: Infinite model.
 - `index::MeasureIndex`: Index of the measure in model.
 """
-struct MeasureRef <: MeasureFiniteVariableRef
+struct MeasureRef <: DispatchVariableRef
     model::InfiniteModel
     index::MeasureIndex
 end
 
 """
-    FiniteVariableRef <: MeasureFiniteVariableRef
+    FiniteRef <: DispatchVariableRef
 
-An abstract type to define new finite variable references.
+An abstract type for variable references that are finite.
 """
-abstract type FiniteVariableRef <: MeasureFiniteVariableRef end
+abstract type FiniteRef <: DispatchVariableRef end
 
 """
-    PointVariableRef <: FiniteVariableRef
+    PointVariableRef <: FiniteRef
 
 A `DataType` for variables defined at a transcipted point (e.g., second stage
 variable at a particular scenario, dynamic variable at a discretized time point).
@@ -1551,28 +1544,28 @@ variable at a particular scenario, dynamic variable at a discretized time point)
 - `model::InfiniteModel`: Infinite model.
 - `index::PointVariableIndex`: Index of the variable in model.
 """
-struct PointVariableRef <: FiniteVariableRef
+struct PointVariableRef <: FiniteRef
     model::InfiniteModel
     index::PointVariableIndex
 end
 
 """
-    HoldVariableRef <: FiniteVariableRef
+    FiniteVariableRef <: FiniteRef
 
 A `DataType` for finite fixed variable references (e.g., first stage variables,
 steady-state variables).
 
 **Fields**
 - `model::InfiniteModel`: Infinite model.
-- `index::HoldVariableIndex`: Index of the variable in model.
+- `index::FiniteVariableIndex`: Index of the variable in model.
 """
-struct HoldVariableRef <: FiniteVariableRef
+struct FiniteVariableRef <: FiniteRef
     model::InfiniteModel
-    index::HoldVariableIndex
+    index::FiniteVariableIndex
 end
 
 """
-    FiniteParameterRef <: FiniteVariableRef
+    FiniteParameterRef <: FiniteRef
 
 A `DataType` for finite parameters references who are replaced with their values
 at the transcription step.
@@ -1581,18 +1574,18 @@ at the transcription step.
 - `model::InfiniteModel`: Infinite model.
 - `index::FiniteParameterIndex`: Index of the parameter in model.
 """
-struct FiniteParameterRef <: FiniteVariableRef
+struct FiniteParameterRef <: FiniteRef
     model::InfiniteModel
     index::FiniteParameterIndex
 end
 
 ## Define convenient aliases
-const DecisionVariableRef = Union{InfiniteVariableRef, ReducedVariableRef,
-                                  PointVariableRef, HoldVariableRef, 
+const DecisionVariableRef = Union{InfiniteVariableRef, SemiInfiniteVariableRef,
+                                  PointVariableRef, FiniteVariableRef, 
                                   DerivativeRef}
 
 const UserDecisionVariableRef = Union{InfiniteVariableRef, PointVariableRef,
-                                      HoldVariableRef, DerivativeRef}
+                                      FiniteVariableRef, DerivativeRef}
 
 const ScalarParameterRef = Union{IndependentParameterRef, FiniteParameterRef}
 

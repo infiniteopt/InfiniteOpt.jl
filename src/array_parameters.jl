@@ -1724,10 +1724,10 @@ function JuMP.delete(model::InfiniteModel,
             pvref = PointVariableRef(model, pindex)
             deleteat!(raw_parameter_values(pvref), delete_indices)
         end
-        # update any reduced variables that depend on vref accordingly
-        for rindex in _reduced_variable_dependencies(vref)
-            rvref = ReducedVariableRef(model, rindex)
-            _update_reduced_variable(rvref, delete_indices)
+        # update any semi-infinite variables that depend on vref accordingly
+        for rindex in _semi_infinite_variable_dependencies(vref)
+            rvref = SemiInfiniteVariableRef(model, rindex)
+            _update_semi_infinite_variable(rvref, delete_indices)
         end
     end
     # delete derivatives that depend on any of these parameters 

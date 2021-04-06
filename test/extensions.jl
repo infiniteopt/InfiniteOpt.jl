@@ -86,7 +86,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 10])
     @infinite_variable(m, x(t) >= 0)
-    @hold_variable(m, z, parameter_bounds = (t in [0, 5]))
+    @finite_variable(m, z, parameter_bounds = (t in [0, 5]))
     data1 = DiscreteMeasureData(t, [2.5, 2.5], [2., 4.], lower_bound = 0., upper_bound = 5.)
     data2 = DiscreteMeasureData(t, [1., 1.], [3., 6.], lower_bound = 1., upper_bound = 10.)
 
@@ -104,9 +104,9 @@ end
     @test coefficients(new_data2) == coefficients(data2)
     @test weight_function(new_data1) == weight_function(data1)
     @test weight_function(new_data2) == weight_function(data2)
-    @test measure_data_in_hold_bounds(data1, ParameterBounds())
-    @test measure_data_in_hold_bounds(data1, parameter_bounds(z))
-    @test !measure_data_in_hold_bounds(data2, parameter_bounds(z))
+    @test measure_data_in_finite_var_bounds(data1, ParameterBounds())
+    @test measure_data_in_finite_var_bounds(data1, parameter_bounds(z))
+    @test !measure_data_in_finite_var_bounds(data2, parameter_bounds(z))
 
     # test measure definition
     @test measure(x + z, new_data1) isa GeneralVariableRef
@@ -186,7 +186,7 @@ end
     @infinite_parameter(m, par in [0, 1])
     @infinite_variable(m, x(par))
     @point_variable(m, x(0), x0)
-    @hold_variable(m, y)
+    @finite_variable(m, y)
     meas = integral(x, par)
     @constraint(m, c1, x + y - 2 <= 0)
     @constraint(m, c2, meas == 0)

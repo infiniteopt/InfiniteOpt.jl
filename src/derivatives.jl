@@ -161,7 +161,7 @@ Constructs and returns a [`Derivative`](@ref) with a differential operator that
 depends on `parameter_ref` and operates on `argument_ref`. Variable `info` can also 
 be provided to associate this derivative with bounds and a starting value function 
 like that of infinite variables. Errors when `argument_ref` is not an 
-infinite/reduced variable or derivative that depends on `parameter_ref`. Also, 
+infinite/semi-infinite variable or derivative that depends on `parameter_ref`. Also, 
 errors if such a derivative was already added to the model.
 
 **Example**
@@ -339,7 +339,7 @@ t
 julia> @infinite_variable(m, x(t))
 x(t)
 
-julia> @hold_variable(m, z)
+julia> @finite_variable(m, z)
 z
 
 julia> deriv_expr = deriv(x^2 + z, t, t)
@@ -385,7 +385,7 @@ t
 julia> @infinite_variable(m, x(t))
 x(t)
 
-julia> @hold_variable(m, z)
+julia> @finite_variable(m, z)
 z
 
 julia> deriv_expr = @deriv(x^2 + z, t^2)
@@ -662,8 +662,8 @@ function _delete_variable_dependencies(dref::DerivativeRef)::Nothing
     for index in _point_variable_dependencies(dref)
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
-    # delete associated reduced variables and mapping
-    for index in _reduced_variable_dependencies(dref)
+    # delete associated semi-infinite variables and mapping
+    for index in _semi_infinite_variable_dependencies(dref)
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # delete associated derivative variables and mapping 

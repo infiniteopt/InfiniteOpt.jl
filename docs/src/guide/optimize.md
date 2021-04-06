@@ -29,7 +29,7 @@ julia> @infinite_parameter(model, t in [0, 10], num_supports = 10);
 
 julia> @infinite_variable(model, x(t) >= 0);
 
-julia> @hold_variable(model, z >= 0);
+julia> @finite_variable(model, z >= 0);
 
 julia> @objective(model, Min, 2z);
 
@@ -125,7 +125,7 @@ julia> optimizer_model_variable(x) # infinite variable
  x(support: 9)
  x(support: 10)
 
-julia> optimizer_model_variable(z) # hold variable
+julia> optimizer_model_variable(z) # finite variable
 z
 ```
 In like manner, we get the `JuMP` constraints corresponding to a particular
