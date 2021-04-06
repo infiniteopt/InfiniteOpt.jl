@@ -1,6 +1,6 @@
 @testset "Integral Data Generation (Univariate)" begin
     m = InfiniteModel();
-    @infinite_parameter(m, t in [-Inf, Inf])
+    @infinite_parameter(m, t in [-Inf, Inf], supports = [0, .5, 1])
     @infinite_parameter(m, x[1:2] in [-Inf, Inf])
 
     # test _trapezoid_coeff
@@ -25,13 +25,24 @@
     # test generate_integral_data (Gauss-Lobatto)
     @testset "generate_integral_data (Gauss-Lobatoo)" begin
         @test generate_integral_data(t, 0, 1, GaussLobatto()) isa DiscreteMeasureData
+        @test generate_integral_data(t, 0, 1, GaussLobatto()).coefficients == FastGaussQuadrature.gausslobatto(10)[2] * 1/2
     end
 
     # test generate_integral_data (FEGaussLobatto)
     @testset "generate_integral_data (FEGaussLobatto)" begin
         @test generate_integral_data(t, 0, 1, FEGaussLobatto()) isa FunctionalDiscreteMeasureData
+        @test generate_integral_data(t, 0, 1, FEGaussLobatto()).label == All
+        @test all(abs.(generate_integral_data(t, 0, 1, FEGaussLobatto()).coeff_function([0, 0.5, 1]) .- [0.08333333333333333,
+                                                                                0.3333333333333333,
+                                                                                0.16666666666666666,
+                                                                                0.3333333333333333,
+                                                                                0.08333333333333333]).<.00005) == true
+        @infinite_variable(m, flob(t))
+        integral(flob, t, 0, 1, eval_method = FEGaussLobatto(), num_nodes = 3)
+        add_generative_supports(t)
+        lobb_supps = supports(t, label = All)
+        @test all(abs.(lobb_supps .- [0, .25, .5, .75, 1] .< .000005)) == true
     end
-
     # test generate_integral_data (Gauss-Radau)
     @testset "generate_integral_data (Gauss-Radau)" begin
         @test generate_integral_data(t, 0, 1, GaussRadau()) isa DiscreteMeasureData
@@ -55,7 +66,7 @@
     end
     # test generate_integral_data (Quadrature)
     @testset "generate_integral_data (Quadrature)" begin
-        @test generate_integral_data(t, 0, 1, Quadrature()) isa DiscreteMeasureData
+        @test generate_integral_data(t, 0, 1, Quadrature()) isa FunctionalDiscreteMeasureData
         @test generate_integral_data(t, -Inf, 0, Quadrature()) isa DiscreteMeasureData
         @test generate_integral_data(t, -Inf, Inf, Quadrature()) isa DiscreteMeasureData
     end
@@ -91,7 +102,7 @@
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, Inf, GaussLaguerre())) isa DiscreteMeasureData
         warn = "Gauss Hermite quadrature can only be applied on infinite intervals, " *
                "switching to an appropriate method."
-        @test (@test_logs (:warn, warn) generate_integral_data(t, 0, 1, GaussHermite())) isa DiscreteMeasureData
+        @test (@test_logs (:warn, warn) generate_integral_data(t, 0, 1, GaussHermite())) isa FunctionalDiscreteMeasureData
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, GaussHermite())) isa DiscreteMeasureData
     end
     # test generate_integral_data (uniform Monte Carlo)
@@ -158,11 +169,12 @@ end
         @test uni_integral_defaults() == IOMT.UniIntegralDefaults
     end
     @testset "set_uni_integral_defaults" begin
-        @test set_uni_integral_defaults(num_supports = 5, new_kwarg = true) isa Nothing
-        @test uni_integral_defaults()[:num_supports] == 5
+        # @test set_uni_integral_defaults(num_supports = 5, new_kwarg = true) isa Nothing
+        # @test uni_integral_defaults()[:num_supports] == 5
+        @test set_uni_integral_defaults(num_nodes = 5, new_kwarg = true) isa Nothing
+        @test uni_integral_defaults()[:num_nodes] == 5
         @test uni_integral_defaults()[:new_kwarg]
-        delete!(uni_integral_defaults(), :new_kwarg)
-        set_uni_integral_defaults(num_supports = InfiniteOpt.DefaultNumSupports)
+        clear_uni_integral_defaults()
     end
     @testset "integral" begin
         @test InfiniteOpt._index_type(integral(inf1, t)) == MeasureIndex

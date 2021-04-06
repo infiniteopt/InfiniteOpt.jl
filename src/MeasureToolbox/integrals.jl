@@ -25,14 +25,11 @@ An abstract type for integral evaluation methods for 1-dimensional integrals.
 abstract type AbstractUnivariateMethod <: AbstractIntegralMethod end
 
 """
-<<<<<<< HEAD
 Abstract type for Finite 1-D integral evaluation using a variety of Gaussian Quadrature methods over the entire domain.
 """
 abstract type FiniteGaussQuad <: AbstractUnivariateMethod end
 
 """
-=======
->>>>>>> f36e98edf94dd41f108f13ce112e07afc3151f70
     UniTrapezoid <: AbstractUnivariateMethod
 
 An integral evalution method that uses the trapezoid rule to in combination
@@ -311,18 +308,21 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     is_depend = InfiniteOpt._index_type(pref) == DependentParameterIndex
     inf_bound_num = (lower_bound == -Inf) + (upper_bound == Inf)
     if inf_bound_num == 0 # finite interval
-        method = UniTrapezoid()
+        return generate_integral_data(pref, lower_bound, upper_bound, UniTrapezoid(),
+                                     num_supports = num_supports,
+                                     weight_func = weight_func)
     elseif inf_bound_num == 1 && !is_depend # semi-infinite interval
-        method = GaussLaguerre()
+        return generate_integral_data(pref, lower_bound, upper_bound, 
+                                     GaussLaguerre(), num_nodes = num_supports,
+                                     weight_func = weight_func)
     elseif inf_bound_num == 2 && !is_depend # infinite interval
-        method = GaussHermite()
+        return generate_integral_data(pref, lower_bound, upper_bound, GaussHermite(),
+                                  num_nodes = num_supports,
+                                  weight_func = weight_func)
     else
         error("Cannot generate measure data for individual dependent parameters " *
               "with infinite or semi-infinite domains.")
     end
-    return generate_integral_data(pref, lower_bound, upper_bound, method,
-                                  num_supports = num_supports,
-                                  weight_func = weight_func)
 end
 
 #Function for generating coefficients for FE Gauss Lobatto Quadrature
@@ -345,8 +345,8 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
         upper_bound::Real,
         method::FEGaussLobatto;
         num_nodes::Int = 3,
-        weight_func::Function = InfiniteOpt.default_weight,
-        kwargs...)
+        weight_func::Function = InfiniteOpt.default_weight
+        )
     if lower_bound == -Inf || upper_bound == Inf
         @warn("The Gauss Lobatto method can only be applied on finite intervals, " *
               "switching to an appropriate method.")
@@ -387,8 +387,8 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 upper_bound::Real,
                                 method::UniTrapezoid;
                                 num_supports::Int = InfiniteOpt.DefaultNumSupports,
-                                weight_func::Function = InfiniteOpt.default_weight,
-                                kwargs...)
+                                weight_func::Function = InfiniteOpt.default_weight
+                                )
     return InfiniteOpt.FunctionalDiscreteMeasureData(pref, _trapezoid_coeff, 0,
                                                      InfiniteOpt.All, 
                                                      InfiniteOpt.NoGenerativeSupports(), 
@@ -411,20 +411,20 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
                                 method::Quadrature;
-                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
-                                weight_func::Function = InfiniteOpt.default_weight,
-                                kwargs...)
+                                num_nodes::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight
+                                )
     _ensure_independent_param(pref, method)
     inf_bound_num = (lower_bound == -Inf) + (upper_bound == Inf)
     if inf_bound_num == 0 # finite interval
-        method = GaussLegendre()
+        method = FEGaussLobatto()
     elseif inf_bound_num == 1 # semi-infinite interval
         method = GaussLaguerre()
     else # infinite interval
         method = GaussHermite()
     end
     return generate_integral_data(pref, lower_bound, upper_bound, method,
-                                  num_supports = num_supports, weight_func = weight_func)
+                                  num_nodes = num_nodes, weight_func = weight_func)
 end
 
 #Single Pref Gauss-Legendre
@@ -457,19 +457,19 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
                                 method::FiniteGaussQuad;
-                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
-                                weight_func::Function = InfiniteOpt.default_weight,
-                                kwargs...)
+                                num_nodes::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight
+                                )
     _ensure_independent_param(pref, method)
     if lower_bound == -Inf || upper_bound == Inf
         @warn("The `$(typeof(method))` method can only be applied on finite intervals, " *
               "switching to an appropriate method.")
         return generate_integral_data(pref, lower_bound, upper_bound, Quadrature(),
-                                      num_supports = num_supports,
+                                      num_nodes = num_nodes,
                                       weight_func = weight_func)
     end
-    # (supports, coeffs) = FastGaussQuadrature.gausslegendre(num_supports)
-    (supports, coeffs) = _make_nodes_weights(method, num_supports)
+    # (supports, coeffs) = FastGaussQuadrature.gausslegendre(num_nodes)
+    (supports, coeffs) = _make_nodes_weights(method, num_nodes)
     supports = (upper_bound - lower_bound) / 2 * supports .+ (upper_bound + lower_bound) / 2
     coeffs = (upper_bound - lower_bound) / 2 * coeffs
     return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, 
@@ -484,30 +484,30 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
                                 method::GaussLaguerre;
-                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
-                                weight_func::Function = InfiniteOpt.default_weight,
-                                kwargs...)
+                                num_nodes::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight
+                                )
     _ensure_independent_param(pref, method)
     if upper_bound == Inf
         if lower_bound == -Inf
             @warn("Gauss Laguerre quadrature can only be applied on semi-infinite intervals, " *
                   "switching to an appropriate method.")
             return generate_integral_data(pref, lower_bound, upper_bound, GaussHermite(),
-                                          num_supports = num_supports,
+                                          num_nodes = num_nodes,
                                           weight_func = weight_func)
         end
-        (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_supports)
+        (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_nodes)
         coeffs = coeffs .* exp.(supports)
         supports = supports .+ lower_bound
     elseif lower_bound == -Inf
-        (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_supports)
+        (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_nodes)
         coeffs = coeffs .* exp.(supports)
         supports = -supports .+ upper_bound
     else
         @warn("Gauss Laguerre quadrature can only be applied on semi-infinite intervals, " *
               "switching to an appropriate method.")
         return generate_integral_data(pref, lower_bound, upper_bound, GaussLegendre(),
-                                      num_supports = num_supports,
+                                      num_nodes = num_nodes,
                                       weight_func = weight_func)
     end
 
@@ -522,18 +522,18 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
                                 method::GaussHermite;
-                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
-                                weight_func::Function = InfiniteOpt.default_weight,
-                                kwargs...)
+                                num_nodes::Int = InfiniteOpt.DefaultNumSupports,
+                                weight_func::Function = InfiniteOpt.default_weight
+                                )
     _ensure_independent_param(pref, method)
     if lower_bound != -Inf || upper_bound != Inf
         @warn("Gauss Hermite quadrature can only be applied on infinite intervals, " *
               "switching to an appropriate method.")
         return generate_integral_data(pref, lower_bound, upper_bound, Quadrature(),
-                                      num_supports = num_supports,
+                                      num_nodes = num_nodes,
                                       weight_func = weight_func)
     end
-    (supports, coeffs) = FastGaussQuadrature.gausshermite(num_supports)
+    (supports, coeffs) = FastGaussQuadrature.gausshermite(num_nodes)
     coeffs = coeffs .* exp.(supports.^2)
     return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, 
                                            InfiniteOpt.generate_unique_label(),
@@ -547,8 +547,8 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 upper_bound::Real,
                                 method::UniMCSampling;
                                 num_supports::Int = InfiniteOpt.DefaultNumSupports,
-                                weight_func::Function = InfiniteOpt.default_weight,
-                                kwargs...)
+                                weight_func::Function = InfiniteOpt.default_weight
+                                )
     # check and process the arguments
     if lower_bound == -Inf || upper_bound == Inf
         error("Univariate MC sampling is not supported for (semi-)infinite intervals.")
@@ -579,8 +579,8 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 upper_bound::Real,
                                 method::UniIndepMCSampling;
                                 num_supports::Int = InfiniteOpt.DefaultNumSupports,
-                                weight_func::Function = InfiniteOpt.default_weight,
-                                kwargs...)
+                                weight_func::Function = InfiniteOpt.default_weight
+                                )
     _ensure_independent_param(pref, method)
     if lower_bound == -Inf || upper_bound == Inf
         error("Univariate MC sampling is not applicable to (semi-)infinite intervals.")
@@ -603,8 +603,8 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
     upper_bounds::Vector{<:Real},
     method::Automatic;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
-    weight_func::Function = InfiniteOpt.default_weight,
-    kwargs...)::InfiniteOpt.AbstractMeasureData
+    weight_func::Function = InfiniteOpt.default_weight
+    )::InfiniteOpt.AbstractMeasureData
     return generate_integral_data(prefs, lower_bounds, upper_bounds,
                                   MultiMCSampling(), num_supports = num_supports,
                                   weight_func = weight_func)
@@ -616,8 +616,8 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
     upper_bounds::Vector{<:Real},
     method::MultiMCSampling;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
-    weight_func::Function = InfiniteOpt.default_weight,
-    kwargs...)::InfiniteOpt.AbstractMeasureData
+    weight_func::Function = InfiniteOpt.default_weight
+    )::InfiniteOpt.AbstractMeasureData
     # check bounds
     if any(lb == -Inf for lb in lower_bounds) || any(ub == Inf for ub in upper_bounds)
         error("MC Sampling is not applicable to (semi-)infinite intervals.")
@@ -655,8 +655,8 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
     upper_bounds::Vector{<:Real},
     method::MultiIndepMCSampling;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
-    weight_func::Function = InfiniteOpt.default_weight,
-    kwargs...)::InfiniteOpt.AbstractMeasureData
+    weight_func::Function = InfiniteOpt.default_weight
+    )::InfiniteOpt.AbstractMeasureData
     # check bounds
     if any(lb == -Inf for lb in lower_bounds) || any(ub == Inf for ub in upper_bounds)
         error("MC Sampling is not applicable to (semi-)infinite intervals.")
@@ -679,10 +679,7 @@ end
 #                           UNIVARIATE INTEGRALS
 ################################################################################
 # Define default keyword arguments for 1-D integrals
-const UniIntegralDefaults = Dict(:eval_method => Automatic(),
-                                 :num_supports => InfiniteOpt.DefaultNumSupports,
-                                 :num_nodes => 3,
-                                 :weight_func => InfiniteOpt.default_weight)
+const UniIntegralDefaults = Dict{Symbol, Any}(:eval_method => Automatic())
 
 """
     uni_integral_defaults()::Dict{Symbol, Any}
@@ -732,6 +729,11 @@ function set_uni_integral_defaults(; kwargs...)::Nothing
     return
 end
 
+function clear_uni_integral_defaults()::Nothing
+    empty!(UniIntegralDefaults)
+    UniIntegralDefaults[:eval_method] = Automatic()
+    return
+end
 """
     integral(expr::JuMP.AbstractJuMPScalar,
              pref::GeneralVariableRef,
@@ -839,9 +841,7 @@ end
 #                            MULTIVARIATE INTEGRALS
 ################################################################################
 # Define default keyword arguments for multi-D integrals
-const MultiIntegralDefaults = Dict(:eval_method => Automatic(),
-                                   :num_supports => InfiniteOpt.DefaultNumSupports,
-                                   :weight_func => InfiniteOpt.default_weight)
+const MultiIntegralDefaults = Dict{Symbol, Any}(:eval_method => Automatic())
 
 """
     multi_integral_defaults()::Dict{Symbol, Any}
@@ -887,6 +887,12 @@ Dict{Symbol,Any} with 4 entries:
 """
 function set_multi_integral_defaults(; kwargs...)::Nothing
     merge!(MultiIntegralDefaults, kwargs)
+    return
+end
+
+function clear_multi_integral_defaults(; kwargs...)::Nothing
+    empty!(MultiIntegralDefaults)
+    UniIntegralDefaults[:eval_method] = Automatic()
     return
 end
 

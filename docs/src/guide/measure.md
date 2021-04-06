@@ -274,16 +274,31 @@ Each method is limited on the dimension of parameter and/or the type of set
 that it can apply for. For the details of what each method type means, refer to the corresponding
 docstrings.
 
-The eval method `FEGaussLobatto` uses integral summation to take in specified supports as points
-when evaluating an integral. All other methods will choose their own supports based on the number of nodes
-provided. This method will take in the user supports, and create generative supports along each interval 
+The eval method `FEGaussLobatto` creates finite elements by decomposing over the supports that have been added to the integral parameter and then approximates the integral over each finite element via Lobatto quadrature using num_nodes. 
+All other Gauss quadrature methods do not incorporate any existing supports nor do they decompose the integral into finite elements, 
+but instead generate their quadrature node points over the entire integral domain. 
+See the A Note on Support Management Section for more information."
+This method will take in the user supports, and create generative supports along each interval 
 and match them with corresponding coefficients. An example of what this looks like can be seen below. 
 
-![Image](docs\src\assets\Test.png)
+![Image](C:\Users\david\.julia\dev\InfiniteOpt\docs\src\assets\FEGaussLobatto2.png)
 
-```jldoctest FEGaussLobatto
-julia> mref2 = integral(y^2 + u^2, t, num_nodes = 3, eval_method = FEGaussLobatto())
+``\int_{x_1}^{x_3} f(x) dx = \int_{x_1}^{x_2} f(x) dx + \int_{x_2}^{x_3} f(x) dx``
+
+``\approx \sum_{i=1}^{n} \alpha_{ia} f(\tau_{ia}) + \sum_{i=1}^{n} \alpha_{ib} f(\tau_{ib})``
+
+`` = \sum_{i=1}^{n} (\alpha_{ia} f(\tau_{ia}) + \alpha_{ib} f(\tau_{ib}))``
+
+where ``\tau_{ia}`` and ``\tau_{ib}`` are the discrete nodes for the two intervals 
+
+and ``\alpha_{ia}`` and ``\alpha_{ib}`` are the coefficients.
+
+```jldoctest meas_basic
+julia> mref_lob = integral(y^2 + u^2, t, num_nodes = 3, eval_method = FEGaussLobatto())
 ∫{t ∈ [0, 10]}[y(t)² + u(t)²]
+
+julia> expand(mref_lob)
+
 ```
 
 We pass set `num_nodes` to be equal to three, to give three generative supports inbetween each of the user defined supports. 
@@ -293,24 +308,24 @@ We pass set `num_nodes` to be equal to three, to give three generative supports 
 
 | Evaluation Method                                | Uni/Multi-Variate? | Weight Function              | Set Type                            |
 |:------------------------------------------------:|:------------------:|:----------------------------:|:-----------------------------------:|
-| [`Automatic()`](@ref)                            | Both               |       1                      | Any                                 |
-| [`UniTrapezoid()`](@ref)                         | Both               |       1                      | [`IntervalSet`](@ref)               |
-| [`UniMCSampling()`](@ref)                        | Univariate         |       1                      | Finite [`IntervalSet`](@ref)        |
-| [`UniIndepMCSampling()`](@ref)                   | Univariate         |       1                      | Finite [`IntervalSet`](@ref)        |
-| [`Quadrature()`](@ref)                           | Univariate         |       1                      | [`IntervalSet`](@ref)               |
-| [`GaussLegendre()`](@ref)                        | Univariate         |       1                      | Finite [`IntervalSet`](@ref)        |
-| [`GaussRadau()`](@ref)                           | Univariate         |       1                      | Finite [`IntervalSet`](@ref)        |
+| [`Automatic()`](@ref)                            | Both               |   ``1``                      | Any                                 |
+| [`UniTrapezoid()`](@ref)                         | Both               |   ``1``                      | [`IntervalSet`](@ref)               |
+| [`UniMCSampling()`](@ref)                        | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+| [`UniIndepMCSampling()`](@ref)                   | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+| [`Quadrature()`](@ref)                           | Univariate         |   ``1``                      | [`IntervalSet`](@ref)               |
+| [`GaussLegendre()`](@ref)                        | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+| [`GaussRadau()`](@ref)                           | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 | [`GaussJacobi()`](@ref)                          | Univariate         | `` (1-x)^\alpha (1+x)^\beta``| Finite [`IntervalSet`](@ref)        |
-| [`GaussLobatto()`](@ref)                         | Univariate         |       1                      | Finite [`IntervalSet`](@ref)        |
-| [`FEGaussLobatto()`](@ref)                       | Univariate         |       1                      | Finite [`IntervalSet`](@ref)        |
+| [`GaussLobatto()`](@ref)                         | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+| [`FEGaussLobatto()`](@ref)                       | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 | [`GaussChebyshev(1)`](@ref GaussChebyshev)       | Univariate         | ``\frac{1}{\sqrt{1-x^2}}  `` | Finite [`IntervalSet`](@ref)        |
 | [`GaussChebyshev(2)`](@ref GaussChebyshev)       | Univariate         | ``\sqrt{1-x^2}``             | Finite [`IntervalSet`](@ref)        |
 | [`GaussChebyshev(3)`](@ref GaussChebyshev)       | Univariate         | ``\sqrt{(1+x)/(1-x)}``       | Finite [`IntervalSet`](@ref)        |
 | [`GaussChebyshev(4)`](@ref GaussChebyshev)       | Univariate         | ``\sqrt{(1-x)/(1+x)}``       | Finite [`IntervalSet`](@ref)        |
 | [`GaussLaguerre()`](@ref)                        | Univariate         | ``e^{-x}``                   | Semi-infinite [`IntervalSet`](@ref) |
 | [`GaussHermite()`](@ref)                         | Univariate         | ``e^{-x^2}``                 | Infinite [`IntervalSet`](@ref)      |
-| [`MultiMCSampling()`](@ref)                      | Multivariate       |       1                      | Finite [`IntervalSet`](@ref)        |
-| [`MultiIndepMCSampling()`](@ref)                 | Multivariate       |       1                      | Finite [`IntervalSet`](@ref)        |
+| [`MultiMCSampling()`](@ref)                      | Multivariate       |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+| [`MultiIndepMCSampling()`](@ref)                 | Multivariate       |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 
 In summary, we natively support trapezoid rule, Gaussian quadrature methods for univariate parameters,
 and Monte Carlo sampling for both univariate and multivariate parameters.

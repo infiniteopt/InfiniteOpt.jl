@@ -37,7 +37,7 @@
     x = m[:x]
     
     # test measures
-    @test @integral(x^2 + par, par, num_supports = 2, eval_method = GaussLegendre()) isa GeneralVariableRef
+    @test @integral(x^2 + par, par, num_nodes = 2, eval_method = GaussLegendre()) isa GeneralVariableRef
 
     # test constraints
     @test @constraint(m, x + par <= 0) isa InfOptConstraintRef
@@ -145,12 +145,12 @@ end
     @infinite_parameter(m, xi in Normal(0., 1.))
     @infinite_variable(m, y(t) >= 0)
     @infinite_variable(m, f(x))
-    mref = integral(y^2 + t, t, 0, 4, num_supports = 5, eval_method = NewUniEvalMethod)
+    mref = integral(y^2 + t, t, 0, 4, num_supports = 5, eval_method = NewUniEvalMethod())
     @test supports(measure_data(mref)) == Array([0., 1., 2., 3., 4.])
     warn = "The method is implemented for independent multivariate parameters."
     @test_logs (:warn, warn) integral(f, p, num_supports = 3,
-                                      eval_method = NewMultiEvalMethod)
-    mref2 = integral(f, x, num_supports = 3, eval_method = NewMultiEvalMethod)
+                                      eval_method = NewMultiEvalMethod())
+    mref2 = integral(f, x, num_supports = 3, eval_method = NewMultiEvalMethod())
     @test supports(measure_data(mref2)) == Float64[0 0.5 1; 0 0.5 1]
 #     @test_throws ErrorException integral(xi^2, xi, eval_method = NewUniEvalMethod) # not sure what this checks...
 end
