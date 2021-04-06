@@ -315,54 +315,6 @@ function JuMP.value(vref::GeneralVariableRef; result::Int = 1, kwargs...)
     return _get_value(vref, _index_type(vref), result; kwargs...)
 end
 
-
-################################################################################
-#                                 REDUCED COST
-################################################################################
-
-"""
-    map_reduced_cost([ref], key::Val{ext_key_name}, result::Int; kwargs...)
-
-Map the reduced cost(s) of `ref` to its counterpart in the optimizer model type that is
-distininguished by its extension key `key` as type `Val{ext_key_name}`. Here `ref` needs refer 
-to methods for variable references.  This only needs to be defined for reformulation extensions that cannot
-readily extend `optimizer_model_variable`. Such as is the case with reformuations that do not
-have a direct mapping between variables in the original
-infinite form. Otherwise, `optimizer_model_variable`, is used to make
-these mappings by default where `kwargs` are passed on these functions. Here 
-`result` is the result index used in `value`.
-"""
-function map_reduced_cost end
-
-function map_reduced_cost(vref::GeneralVariableRef, key; kwargs...)
-    opt_vref = optimizer_model_variable(vref, key; kwargs...)
-    if opt_vref isa AbstractArray
-        return map(v -> JuMP.reduced_cost(v), opt_vref)
-    else
-        return JuMP.reduced_cost(opt_vref)
-    end
-end
-
-
-"""
-    JuMP.reduced_cost(vref::GeneralVariableRef)
-Extending [`JuMP.reduced_cost`](@ref JuMP.reduced_cost(::JuMP.VariableRef)). This returns
-the reduced cost of some infinite variable. Returns a scalar value.
-
-**Example**
-```
-julia> reduced_cost(x)
-12.81
-
-```
-"""
-function JuMP.reduced_cost(vref::GeneralVariableRef; kwargs...)
-    return map_reduced_cost(vref, Val(optimizer_model_key(JuMP.owner_model(vref))); kwargs...)
-end
-
-
-
-
 """
     JuMP.value(cref::InfOptConstraintRef; [result::Int = 1,
                label::Type{<:AbstractSupportLabel} = PublicLabel,
@@ -467,6 +419,52 @@ function JuMP.value(expr::Union{JuMP.GenericAffExpr{C, V}, JuMP.GenericQuadExpr{
         key = optimizer_model_key(model)
         return map_value(expr, Val(key), result; kwargs...)
     end
+end
+
+################################################################################
+#                                 REDUCED COST
+################################################################################
+"""
+    map_reduced_cost(vref::GeneralVariableRef, key::Val{ext_key_name}, 
+                      result::Int; kwargs...)
+
+Map the reduced cost(s) of `vref` to its counterpart in the optimizer model type that is
+distininguished by its extension key `key` as type `Val{ext_key_name}`.
+This only needs to be defined for reformulation extensions that cannot
+readily extend `optimizer_model_variable`. Such as is the case with reformulations 
+that do not have a direct mapping between variables in the original
+infinite form. Otherwise, `optimizer_model_variable`, is used to make
+these mappings by default where `kwargs` are passed on these functions. Here 
+`result` is the result index used in `value`.
+"""
+function map_reduced_cost end
+
+# Default definition for when optimizer_model_variable is defined
+function map_reduced_cost(vref::GeneralVariableRef, key; kwargs...)
+    opt_vref = optimizer_model_variable(vref, key; kwargs...)
+    if opt_vref isa AbstractArray
+        return map(v -> JuMP.reduced_cost(v), opt_vref)
+    else
+        return JuMP.reduced_cost(opt_vref)
+    end
+end
+
+"""
+    JuMP.reduced_cost(vref::GeneralVariableRef)
+
+Extending [`JuMP.reduced_cost`](@ref JuMP.reduced_cost(::JuMP.VariableRef)). This 
+returns the reduced cost(s) of a variable. This will be a vector of scalar values 
+for an infinite variable or will be a scalar value for finite variables. 
+
+**Example**
+```julia-repl
+julia> reduced_cost(x)
+12.81
+```
+"""
+function JuMP.reduced_cost(vref::GeneralVariableRef; kwargs...)
+    return map_reduced_cost(vref, Val(optimizer_model_key(JuMP.owner_model(vref))); 
+                            kwargs...)
 end
 
 ################################################################################
@@ -742,154 +740,78 @@ function JuMP.shadow_price(cref::InfOptConstraintRef; kwargs...)
 end
 
 ################################################################################
-#                               PERTURBATION QUERIES
+#                           LP SENSITIVITY ANALYSIS
 ################################################################################
 """
-    map_lp_rhs_perturbation_range(cref::InfOptConstraintRef,
-                                  key::Val{ext_key_name}, toler::Float64;
-                                  kwargs...)
+    InfOptSensitivityReport
 
-Map the RHS perturbation range of `cref` to its counterpart in the optimizer
-model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
-Here `cref` need refer to methods for both variable references and constraint
-references. This only needs to be defined for reformulation extensions that cannot
-readily extend `optimizer_model_constraint`.
-Such as is the case with reformuations that do not have a direct mapping between
-variables and/or constraints in the original infinite form. Otherwise,
-`optimizer_model_constraint` is used to make these mappings by default where `kwargs` 
-are passed on to. Here `toler` corresponds to the `feasibility_tolerance` used by 
-`lp_rhs_perturbation_range`.
-"""
-function map_lp_rhs_perturbation_range end
-
-# Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_lp_rhs_perturbation_range(cref::InfOptConstraintRef, key,
-                                       toler::Float64; kwargs...)
-    opt_cref = optimizer_model_constraint(cref, key; kwargs...)
-    if opt_cref isa AbstractArray
-        return map(c -> JuMP.lp_rhs_perturbation_range(c; feasibility_tolerance = toler),
-                   opt_cref)
-    else
-        return JuMP.lp_rhs_perturbation_range(opt_cref; feasibility_tolerance = toler)
-    end
-end
-
-"""
-    JuMP.lp_rhs_perturbation_range(cref::InfOptConstraintRef;
-                                   [feasibility_tolerance::Float64 = 1e-8,
-                                   label::Type{<:AbstractSupportLabel} = PublicLabel,
-                                   ndarray::Bool = false, kwargs...])
-
-Extend [`JuMP.lp_rhs_perturbation_range`](@ref JuMP.lp_rhs_perturbation_range(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
-to return the range(s) of the RHS of `cref` for which the shadow price(s) are valid
-in accordance with its reformulation constraint(s)
-stored in the optimizer model. 
-
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
-and `kwargs` denote extra ones that user extensions may employ.
-
-By default only the ranges associated with public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, the ranges of infinite 
-constraints are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the constraint has multiple 
-infinite parameter dependencies.
-
-It may also be helpful to
-query via [`optimizer_model_constraint`](@ref) to retrieve the constraint(s)
-that these ranges are based on. Calling `parameter_refs` and `supports` may also
-be insightful. Be sure to use the same keyword arguments for consistency.
-
-For extensions, this only
-works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
-[`map_lp_rhs_perturbation_range`](@ref) has been implemented. 
-
-**Example**
-```julia-repl
-julia> lp_rhs_perturbation_range(c1)
-4-element Array{Tuple{Float64,Float64},1}:
- (-42.0, Inf)
- (-Inf, 42.0)
- (-Inf, 42.0)
- (-Inf, 42.0)
+A wrapper `DataType` for [`JuMP.SensitivityReport`](@ref)s in `InfiniteOpt`. 
+These are generated based on the optimizer model and should be made via the use of 
+[`lp_sensitivity_report`](@ref JuMP.lp_sensitivity_report(::InfiniteModel)). Once 
+made these can be indexed to get the sensitivies with respect to variables and/or 
+constraints. The indexing syntax for these is: 
+```julia
+report[ref::[GeneralVariableRef/InfOptConstraintRef]; 
+       [label::Type{<:AbstractSupportLabel} = PublicLabel,
+       ndarray::Bool = false, kwargs...]]
 ```
+
+This is enabled in user-defined optimizer model extensions by appropriately 
+extending [`optimizer_model_variable`](@ref) and [`optimizer_model_constraint`](@ref).
+
+**Fields**
+- `opt_report::JuMP.SensitivityReport`: The LP sensitivity captured from the optimizer model.
 """
-function JuMP.lp_rhs_perturbation_range(cref::InfOptConstraintRef;
-    feasibility_tolerance::Float64 = 1e-8,
-    kwargs...
-    )
-    return map_lp_rhs_perturbation_range(cref, Val(optimizer_model_key(JuMP.owner_model(cref))),
-                                         feasibility_tolerance; kwargs...)
+struct InfOptSensitivityReport 
+    opt_report::JuMP.SensitivityReport
 end
 
-"""
-    map_lp_objective_perturbation_range(vref::DecisionVariableRef,
-                                        key::Val{ext_key_name}, toler::Float64;
-                                        kwargs...)
-
-Map the reduced cost range(s) of `vref` to its counterpart in the optimizer
-model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
-Here `vref` need refer to methods for both variable references and constraint
-references. This only needs to be defined for reformulation extensions that cannot
-readily extend `optimizer_model_variable`.
-Such as is the case with reformuations that do not have a direct mapping between
-variables and/or constraints in the original infinite form. Otherwise,
-`optimizer_model_variable` is used to make these mappings by default where `kwargs` 
-are passed on as well. Here `toler` corresponds to the `optimality_tolerance` used by
-`lp_objective_perturbation_range`.
-"""
-function map_lp_objective_perturbation_range end
-
-# Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_lp_objective_perturbation_range(vref::GeneralVariableRef, key,
-                                             toler::Float64; kwargs...)
-    opt_vref = optimizer_model_variable(vref, key; kwargs...)
+# Extend Base.getindex for variables on InfOptSensitivityReport
+function Base.getindex(s::InfOptSensitivityReport, v::GeneralVariableRef; kwargs...)
+    key = Val(optimizer_model_key(JuMP.owner_model(v)))
+    opt_vref = optimizer_model_variable(v, key; kwargs...)
     if opt_vref isa AbstractArray
-        return map(v -> JuMP.lp_objective_perturbation_range(v; optimality_tolerance = toler),
-                   opt_vref)
+        return map(v -> s.opt_report[v], opt_vref)
     else
-        return JuMP.lp_objective_perturbation_range(opt_vref; optimality_tolerance = toler)
+        return s.opt_report[opt_vref]
+    end
+end
+
+# Extend Base.getindex for constraints on InfOptSensitivityReport
+function Base.getindex(s::InfOptSensitivityReport, c::InfOptConstraintRef; kwargs...)
+    key = Val(optimizer_model_key(JuMP.owner_model(c)))
+    opt_cref = optimizer_model_constraint(c, key; kwargs...)
+    if opt_cref isa AbstractArray
+        return map(c -> s.opt_report[c], opt_cref)
+    else
+        return s.opt_report[opt_cref]
     end
 end
 
 """
-    JuMP.lp_objective_perturbation_range(vref::InfOptVariableRef;
-                                         [optimality_tolerance::Float64 = 1e-8,
-                                         label::Type{<:AbstractSupportLabel} = PublicLabel,
-                                         ndarray::Bool = false, kwargs...])
+    JuMP.lp_sensitivity_report(model::InfiniteModel; 
+                               [atol::Float64 = 1e-8])::InfOptSensitivityReport
 
-Extend [`JuMP.lp_objective_perturbation_range`](@ref JuMP.lp_objective_perturbation_range(::JuMP.VariableRef))
-to return the range(s) that the reduced cost(s) of `vref` remain valid
-in accordance with its reformulation variables(s)
-stored in the optimizer model. 
-
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
-and `kwargs` denote extra ones that user extensions may employ.
-
-By default only the ranges associated with public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, the ranges of infinite 
-variables are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the variable has multiple 
-infinite parameter dependencies.
-
-It may also be helpful to query via [`optimizer_model_variable`](@ref) to retrieve 
-the variable(s) that these ranges are based on. Calling `parameter_refs` and
-`supports` may also be insightful. Be sure to use the same keyword arguments for 
-conistency.
-
-For extensions, this only
-works if [`optimizer_model_variable`](@ref) has been extended correctly and/or
-if [`map_lp_objective_perturbation_range`](@ref) has been implemented.
+Extends [`JuMP.lp_sensitivity_report`](@ref JuMP.lp_sensitivity_report(::JuMP.Model))
+to generate and return an LP sensitivity report in accordance with the optimizer 
+model. See [`InfOptSensitivityReport`](@ref) for syntax details on how to query 
+it. `atol` denotes the optimality tolerance and should match that used by the 
+solver to compute the basis. Please refer to `JuMP`'s documentation for more 
+technical information on interpretting the output of the report.
 
 **Example**
-```julia-repl
-julia> lp_objective_perturbation_range(z)
-(-2.0, Inf)
+```julia-repl 
+julia> report = lp_sensitivity_report(model);
+
+julia> report[x]
+(0.0, 0.5)
 ```
 """
-function JuMP.lp_objective_perturbation_range(vref::GeneralVariableRef;
-    optimality_tolerance::Float64 = 1e-8,
-    kwargs...
-    )
-    return map_lp_objective_perturbation_range(vref, Val(optimizer_model_key(JuMP.owner_model(vref))),
-                                               optimality_tolerance; kwargs...)
+function JuMP.lp_sensitivity_report(
+    model::InfiniteModel; 
+    atol::Float64 = 1e-8
+    )::InfOptSensitivityReport
+    opt_model = optimizer_model(model)
+    opt_report = JuMP.lp_sensitivity_report(opt_model, atol = atol)
+    return InfOptSensitivityReport(opt_report)
 end
