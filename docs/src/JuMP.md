@@ -145,9 +145,10 @@ JuMP.dual(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON})
 JuMP.shadow_price(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON})
 JuMP.optimizer_index(::JuMP.VariableRef)
 JuMP.optimizer_index(::JuMP.ConstraintRef{JuMP.Model})
-JuMP.lp_rhs_perturbation_range(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON})
-JuMP.lp_objective_perturbation_range(::JuMP.VariableRef)
+JuMP.lp_sensitivity_report(::JuMP.Model)
+JuMP.SensitivityReport
 JuMP.reduced_cost(::JuMP.VariableRef)
+
 ```
 
 # JuMP Section References
