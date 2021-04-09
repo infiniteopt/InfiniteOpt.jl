@@ -34,10 +34,6 @@
         @test JuMP.isequal_canonical(gvref, gvref)
         @test JuMP.isequal_canonical(ivref, ivref)
     end
-    # test JuMP.variable_type
-    @testset "JuMP.variable_type" begin
-        @test JuMP.variable_type(m) == GeneralVariableRef
-    end
     # test _remove_name_index
     @testset "_remove_name_index" begin
         pref = @independent_parameter(m, test, set = IntervalSet(0, 1))

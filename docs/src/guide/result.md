@@ -413,17 +413,19 @@ appropriate version of [`map_shadow_price`](@ref InfiniteOpt.map_shadow_price).
 
 ## LP Sensitivity
 We also conduct sensitivity analysis for linear problems using
-[`lp_rhs_perturbation_range`](@ref JuMP.lp_rhs_perturbation_range(::InfOptConstraintRef))
-and [`lp_objective_perturbation_range`](@ref JuMP.lp_objective_perturbation_range(::GeneralVariableRef)). These methods will
-return the ranges indicating how much a constraint RHS constant or a objective
+[`lp_sensitivity_report`](@ref JuMP.lp_sensitivity_report(::InfiniteModel)). This 
+will generate a [`InfOptSensitivityReport`](@ref) which contains mapping to the 
+ranges indicating how much a constraint RHS constant or a objective
 coefficient can be changed without violating the feasibility of the solution.
 This is further explained in the JuMP documentation
 [here](https://jump.dev/JuMP.jl/stable/solutions/#Sensitivity-analysis-for-LP-1).
-Furthermore, these methods can only be employed for a solver that implements
+Furthermore, these analysis can only be employed for a solver that implements
 `MOI.ConstraintBasisStatus`. In our running example up above, `Ipopt.jl` does not
 support this A solver like `Gurobi.jl` does.
 ```julia-repl
-julia> lp_rhs_perturbation_range(c1)
+julia> report = lp_sensitivity_report(model);
+
+julia> report[c1]
 10-element Array{Tuple{Float64,Float64},1}:
  (-42.0, Inf)
  (-Inf, 42.0)
@@ -436,18 +438,33 @@ julia> lp_rhs_perturbation_range(c1)
  (-Inf, 42.0)
  (-Inf, 42.0)
 
-julia> lp_objective_perturbation_range(z)
+julia> report[z]
 (-2.0, Inf)
 ```
 Note that like other query methods, an array of ranges will be provided with
 testing the sensitivity of an infinite constraint RHS in accordance with the
-discretization scheme.
+discretization scheme. Also, keyword arguments (like `ndarray` and `label`) can 
+be invoked when indexing the report:
+```julia-repl
+julia> report[c1, label = All]
+10-element Array{Tuple{Float64,Float64},1}:
+ (-42.0, Inf)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+ (-Inf, 42.0)
+```
 
-## Methods
+## Methods/DataTypes
 ```@index
 Pages   = ["result.md"]
 Modules = [JuMP, InfiniteOpt, InfiniteOpt.TranscriptionOpt]
-Order   = [:function]
+Order   = [:function, :type]
 ```
 ```@docs
 JuMP.termination_status(::InfiniteModel)
@@ -472,13 +489,11 @@ JuMP.optimizer_index(::GeneralVariableRef)
 JuMP.optimizer_index(::InfOptConstraintRef)
 JuMP.dual(::InfOptConstraintRef)
 JuMP.shadow_price(::InfOptConstraintRef)
-JuMP.lp_rhs_perturbation_range(::InfOptConstraintRef)
-JuMP.lp_objective_perturbation_range(::GeneralVariableRef)
+JuMP.lp_sensitivity_report(::InfiniteModel)
+InfOptSensitivityReport 
 InfiniteOpt.map_value
 InfiniteOpt.map_optimizer_index
 InfiniteOpt.map_dual
 InfiniteOpt.map_shadow_price
 InfiniteOpt.map_reduced_cost
-InfiniteOpt.map_lp_rhs_perturbation_range
-InfiniteOpt.map_lp_objective_perturbation_range
 ```

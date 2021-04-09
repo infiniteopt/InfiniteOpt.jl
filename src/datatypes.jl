@@ -1375,9 +1375,61 @@ function InfiniteModel(optimizer_constructor;
     return model
 end
 
-# Define basic InfiniteModel extensions
+# Define basic InfiniteModel extension functions
 Base.broadcastable(model::InfiniteModel) = Ref(model)
+
+"""
+    JuMP.object_dictionary(model::InfiniteModel)::Dict{Symbol, Any}
+
+Return the dictionary that maps the symbol name of a macro defined object (e.g., 
+a parameter, variable, or constraint) to the corresponding object. Objects are 
+registered to a specific symbol in the macros. For example, 
+`@finite_variable(model, x[1:2, 1:2])` registers the array of variables
+`x` to the symbol `:x`.
+"""
 JuMP.object_dictionary(model::InfiniteModel)::Dict{Symbol, Any} = model.obj_dict
+
+"""
+    Base.empty!(model::InfiniteModel)::InfiniteModel
+
+Clear out `model` of everything except the optimizer information and return the 
+cleared model. 
+"""
+function Base.empty!(model::InfiniteModel)::InfiniteModel 
+    # Clear everything except the solver information
+    # parameters
+    empty!(model.independent_params)
+    empty!(model.dependent_params)
+    empty!(model.finite_params)
+    model.name_to_param = nothing
+    model.last_param_num = 0
+    empty!(model.param_object_indices)
+    empty!(model.param_functions)
+    # variables
+    empty!(model.infinite_vars)
+    empty!(model.semi_infinite_vars)
+    empty!(model.point_vars)
+    empty!(model.finite_vars)
+    model.name_to_var = nothing
+    model.has_finite_var_bounds = false
+    # derivatives and measures
+    empty!(model.derivatives)
+    empty!(model.deriv_lookup)
+    empty!(model.measures)
+    # constraints
+    empty!(model.constraints)
+    model.name_to_constr = nothing
+    # objective
+    model.objective_sense = MOI.FEASIBILITY_SENSE
+    model.objective_function = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    model.objective_has_measures = false
+    # other stuff
+    empty!(model.obj_dict)
+    empty!(model.optimizer_model)
+    model.ready_to_optimize = false
+    empty!(model.ext)
+    return model
+end
 
 # Define basic accessors
 _last_param_num(model::InfiniteModel)::Int = model.last_param_num

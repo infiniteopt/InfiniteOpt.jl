@@ -47,7 +47,6 @@ function Base.:(==)(v::InfOptConstraintRef, w::InfOptConstraintRef)::Bool
     return v.model === w.model && v.index == w.index
 end
 Base.broadcastable(cref::InfOptConstraintRef) = Ref(cref)
-JuMP.constraint_type(m::InfiniteModel) = InfOptConstraintRef
 
 ################################################################################
 #                             CORE OBJECT METHODS

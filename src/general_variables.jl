@@ -28,7 +28,6 @@ Base.length(v::DispatchVariableRef)::Int = 1
 # Extend JuMP functions
 JuMP.isequal_canonical(v::GeneralVariableRef, w::GeneralVariableRef)::Bool = v == w
 JuMP.isequal_canonical(v::DispatchVariableRef, w::DispatchVariableRef)::Bool = v == w
-JuMP.variable_type(model::InfiniteModel)::DataType = GeneralVariableRef
 
 # Extract the root name of a variable reference (removes the bracketed container indices)
 function _remove_name_index(vref::GeneralVariableRef)::String
