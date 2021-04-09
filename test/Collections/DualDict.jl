@@ -121,20 +121,23 @@
     @testset "Showing" begin
         dd1 = IC.DualDict{String, Int64, Symbol}()
         dd2 = IC.DualDict{String, Int64, Symbol}(Int64(3) => :w)
+        # Account for difference between 1.0-1.5 and 1.6+
+        name1 = "InfiniteOpt.Collections.DualDict{String,Int64,Symbol} with "
+        name2 = "InfiniteOpt.Collections.DualDict{String, Int64, Symbol} with "
         # test show_string
         @testset "show_string" begin
-            @test IC.show_string(dd1) == "InfiniteOpt.Collections.DualDict{String,Int64,Symbol} with 0 entries:"
-            @test IC.show_string(dd2) == "InfiniteOpt.Collections.DualDict{String,Int64,Symbol} with 1 entry:\n  3 => :w"
+            @test IC.show_string(dd1) in [name1 * "0 entries:", name2 * "0 entries:"]
+            @test IC.show_string(dd2) in [name1 * "1 entry:\n  3 => :w", name2 * "1 entry:\n  3 => :w"]
         end
         # test Base.show (REPL)
         @testset "Base.show (REPL)" begin
-            show_test(REPLMode, dd1, "InfiniteOpt.Collections.DualDict{String,Int64,Symbol} with 0 entries:")
-            show_test(REPLMode, dd2, "InfiniteOpt.Collections.DualDict{String,Int64,Symbol} with 1 entry:\n  3 => :w")
+            show_test(REPLMode, dd1, [name1 * "0 entries:", name2 * "0 entries:"])
+            show_test(REPLMode, dd2, [name1 * "1 entry:\n  3 => :w", name2 * "1 entry:\n  3 => :w"])
         end
         # test Base.show (IJulia)
         @testset "Base.show (IJulia)" begin
-            show_test(IJuliaMode, dd1, "InfiniteOpt.Collections.DualDict{String,Int64,Symbol} with 0 entries:")
-            show_test(IJuliaMode, dd2, "InfiniteOpt.Collections.DualDict{String,Int64,Symbol} with 1 entry:\n  3 => :w")
+            show_test(IJuliaMode, dd1, [name1 * "0 entries:", name2 * "0 entries:"])
+            show_test(IJuliaMode, dd2, [name1 * "1 entry:\n  3 => :w", name2 * "1 entry:\n  3 => :w"])
         end
     end
 end

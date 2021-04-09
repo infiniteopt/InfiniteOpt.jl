@@ -620,13 +620,13 @@ end
     # test expand_measure (FunctionalDiscreteMeasureData)
     @testset "FunctionalDiscreteMeasureData" begin
         # test without generative supports 
-        coef(a) = ones(length(a))
-        data = FunctionalDiscreteMeasureData(par1, coef, 2, All, is_expect = true)
+        coefa(a) = ones(length(a))
+        data = FunctionalDiscreteMeasureData(par1, coefa, 2, All, is_expect = true)
         @test InfiniteOpt.expand_measure(x, data, m) == 2x
         # test with generative supports 
-        coef2(a) = ones(length(a) + 1)
+        coefb(a) = ones(length(a) + 1)
         info = UniformGenerativeInfo([0.5], InternalLabel)
-        data = FunctionalDiscreteMeasureData(par1, coef2, 2, All, generative_support_info = info)
+        data = FunctionalDiscreteMeasureData(par1, coefb, 2, All, generative_support_info = info)
         InfiniteOpt._set_generative_support_info(dispatch_variable_ref(par1), info)
         @test InfiniteOpt.expand_measure(x, data, m) == 3x
     end
@@ -655,8 +655,8 @@ end
                                    upper_bound = 1.5)
         @test InfiniteOpt.analytic_expansion(2x + inf3, data, m) == 0.5 * (2x + inf3)
         # test as expectation
-        coef(a) = ones(length(a))
-        data = FunctionalDiscreteMeasureData(par2, coef, 0, WeightedSample,
+        coef1(a) = ones(length(a))
+        data = FunctionalDiscreteMeasureData(par2, coef1, 0, WeightedSample,
                                              is_expect = true)
         @test InfiniteOpt.analytic_expansion(inf3, data, m) == inf3
         # test other
@@ -666,16 +666,16 @@ end
     # test with multi dimensional data
     @testset "Multi Discrete Data" begin
         # test with bounds
-        coef(a) = ones(length(a))
-        data = FunctionalDiscreteMeasureData(pars1, coef, 0, All,
+        coef2(a) = ones(length(a))
+        data = FunctionalDiscreteMeasureData(pars1, coef2, 0, All,
                     lower_bounds = [1, 1], upper_bounds = [1.5, 2])
         @test InfiniteOpt.analytic_expansion(x, data, m) == 0.5x
         # test as expectation
         data = DiscreteMeasureData(pars1, [1], [[1, 1]], is_expect = true)
         @test InfiniteOpt.analytic_expansion(inf3, data, m) == inf3
         # test other
-        coef(a) = ones(size(a, 2))
-        data = FunctionalDiscreteMeasureData(pars1, coef, 2, All)
+        coef3(a) = ones(size(a, 2))
+        data = FunctionalDiscreteMeasureData(pars1, coef3, 2, All)
         @test InfiniteOpt.analytic_expansion(x, data, m) == 2x
     end
     # test with fallback

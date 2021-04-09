@@ -58,7 +58,7 @@ Comments, suggestions and improvements are welcome and appreciated.
 following in the package manager.
 
 ```julia
-(v1.5) pkg> add InfiniteOpt
+(v1.6) pkg> add InfiniteOpt
 ```
 
 ## Modeling Infinite-Dimensional Problems with InfiniteOpt.jl
@@ -87,7 +87,7 @@ If you use InfiniteOpt.jl in your research, we would greatly appreciate your cit
 ```
 
 ## Project Status
-The package is tested against Julia `1.0` and `1.5` on Linux and Windows.
+The package is tested against Julia `1.0` and `1.6` on Linux and Windows.
 
 ## Contributing
 `InfiniteOpt` is being actively developed and suggestions or other forms of contribution are encouraged.
