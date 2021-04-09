@@ -500,7 +500,7 @@ using JuMP: REPLMode, IJuliaMode
               " MvNormal(dim: (2)) " *
               InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) *
               " (pars_{1} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1])"
-        str = "pars " * InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) *
+        str2 = "pars " * InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) *
               " IsoNormal(dim: (2)) " *
               InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) *
               " (pars_{1} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1])"
