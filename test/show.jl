@@ -133,9 +133,11 @@ using JuMP: REPLMode, IJuliaMode
         # test mulivariate set
         set = MultiDistributionSet(MvNormal([1], 1))
         str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " MvNormal(dim: (1))"
-        @test in_set_string(REPLMode, set) == str
+        str2 = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " IsoNormal(dim: (1))"
+        @test in_set_string(REPLMode, set) in [str, str2]
         str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " MvNormal(dim: (1))"
-        @test in_set_string(IJuliaMode, set) == str
+        str2 = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " IsoNormal(dim: (1))"
+        @test in_set_string(IJuliaMode, set) in [str, str2]
         # test matrix set
         set = MultiDistributionSet(MatrixBeta(2, 2, 2))
         str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " MatrixBeta(dims: (2, 2))"
@@ -489,20 +491,32 @@ using JuMP: REPLMode, IJuliaMode
               " MvNormal(dim: (2)) " *
               InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) *
               " (pars[1] " * JuMP._math_symbol(REPLMode, :in) * " [0, 1])"
-        @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) == str
+        str2 = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
+              " IsoNormal(dim: (2)) " *
+              InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) *
+              " (pars[1] " * JuMP._math_symbol(REPLMode, :in) * " [0, 1])"
+        @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) in [str, str2]
         str = "pars " * InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) *
               " MvNormal(dim: (2)) " *
               InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) *
               " (pars_{1} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1])"
-        @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) == str
+        str2 = "pars " * InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) *
+              " IsoNormal(dim: (2)) " *
+              InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) *
+              " (pars_{1} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1])"
+        @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) in [str, str2]
         # other set without equalities and not included in bounds
         bounds = ParameterBounds((par1 => IntervalSet(0, 1),))
         str = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
               " MvNormal(dim: (2))"
-        @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) == str
+        str2 = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
+              " IsoNormal(dim: (2))"
+        @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) in [str, str2]
         str = "pars " * InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) *
               " MvNormal(dim: (2))"
-        @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) == str
+        str2 = "pars " * InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) *
+              " IsoNormal(dim: (2))"
+        @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) in [str, str2]
     end
     # test constraint_string (infinite constraint)
     @testset "JuMP.constraint_string (Infinite)" begin
@@ -594,23 +608,6 @@ using JuMP: REPLMode, IJuliaMode
         @test objective_function_string(REPLMode, m) == "y + 2"
         @test objective_function_string(IJuliaMode, m) == "y + 2"
     end
-end
-
-# Helper function to test IO methods work correctly
-function show_test(mode, obj, exp_str; repl=:both)
-    if mode == REPLMode
-        repl != :show  && @test sprint(print, obj) == exp_str
-        repl != :print && @test sprint(show,  obj) == exp_str
-    else
-        @test sprint(show, "text/latex", obj) == exp_str
-    end
-end
-
-# Make another helper function for other io methods
-io_test(f::Function, exp_str::String, args...) = begin
-    io = IOBuffer()
-    f(io, args...)
-    @test String(take!(io)) == exp_str
 end
 
 # test infinite model show
@@ -716,14 +713,17 @@ end
     # test show_objective_function_summary
     @testset "JuMP.show_objective_function_summary" begin
         str = "Objective function type: GenericAffExpr{Float64,GeneralVariableRef}\n"
-        io_test(show_objective_function_summary, str, m)
+        str2 = "Objective function type: GenericAffExpr{Float64, GeneralVariableRef}\n"
+        io_test(show_objective_function_summary, [str, str2], m)
     end
     # test show_constraints_summary
     @testset "JuMP.show_constraints_summary" begin
         # test the main function
         str = "`GenericAffExpr{Float64,GeneralVariableRef}`-in-`MathOptInter" *
               "face.LessThan{Float64}`: 2 constraints\n"
-        io_test(show_constraints_summary, str, m)
+        str2 = "`GenericAffExpr{Float64, GeneralVariableRef}`-in-`MathOptInter" *
+              "face.LessThan{Float64}`: 2 constraints\n"
+        io_test(show_constraints_summary, [str, str2], m)
     end
     # test show_objective_function_summary
     @testset "Base.show (InfiniteModel)" begin
@@ -738,7 +738,17 @@ end
               "pars, x, y, z\nOptimizer model backend information: \nModel " *
               "mode: AUTOMATIC\nCachingOptimizer state: EMPTY_OPTIMIZER\n" *
               "Solver name: Mock"
-        show_test(REPLMode, m, str, repl=:show)
+        str2 = "An InfiniteOpt Model\nMinimization problem with:\nFinite " *
+              "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
+              "\nDerivatives: 0\nMeasures: 0" *
+              "\nObjective function type: GenericAffExpr{Float64, General" *
+              "VariableRef}\n`GenericAffExpr{Float64, GeneralVariableRef}`-in-" *
+              "`MathOptInterface.LessThan{Float64}`: 2 constraints" *
+              "\nNames registered in the model: c1, c3, par1, " *
+              "pars, x, y, z\nOptimizer model backend information: \nModel " *
+              "mode: AUTOMATIC\nCachingOptimizer state: EMPTY_OPTIMIZER\n" *
+              "Solver name: Mock"
+        show_test(REPLMode, m, [str, str2], repl=:show)
         # test maximization
         set_objective_sense(m, MOI.MAX_SENSE)
         str = "An InfiniteOpt Model\nMaximization problem with:\nFinite " *
@@ -751,7 +761,17 @@ end
               "pars, x, y, z\nOptimizer model backend information: \nModel " *
               "mode: AUTOMATIC\nCachingOptimizer state: EMPTY_OPTIMIZER\n" *
               "Solver name: Mock"
-        show_test(REPLMode, m, str, repl=:show)
+        str2 = "An InfiniteOpt Model\nMaximization problem with:\nFinite " *
+              "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
+              "\nDerivatives: 0\nMeasures: 0" *
+              "\nObjective function type: GenericAffExpr{Float64, General" *
+              "VariableRef}\n`GenericAffExpr{Float64, GeneralVariableRef}`-in-" *
+              "`MathOptInterface.LessThan{Float64}`: 2 constraints" *
+              "\nNames registered in the model: c1, c3, par1, " *
+              "pars, x, y, z\nOptimizer model backend information: \nModel " *
+              "mode: AUTOMATIC\nCachingOptimizer state: EMPTY_OPTIMIZER\n" *
+              "Solver name: Mock"
+        show_test(REPLMode, m, [str, str2], repl=:show)
         # test feasibility
         set_objective_sense(m, MOI.FEASIBILITY_SENSE)
         str = "An InfiniteOpt Model\nFeasibility problem with:\nFinite " *
@@ -763,6 +783,15 @@ end
               "pars, x, y, z\nOptimizer model backend information: \nModel " *
               "mode: AUTOMATIC\nCachingOptimizer state: EMPTY_OPTIMIZER\n" *
               "Solver name: Mock"
-        show_test(REPLMode, m, str, repl=:show)
+        str2 = "An InfiniteOpt Model\nFeasibility problem with:\nFinite " *
+              "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
+              "\nDerivatives: 0\nMeasures: 0" *
+              "\n`GenericAffExpr{Float64, GeneralVariableRef}`-in-`MathOpt" *
+              "Interface.LessThan{Float64}`: 2 constraints" *
+              "\nNames registered in the model: c1, c3, par1, " *
+              "pars, x, y, z\nOptimizer model backend information: \nModel " *
+              "mode: AUTOMATIC\nCachingOptimizer state: EMPTY_OPTIMIZER\n" *
+              "Solver name: Mock"
+        show_test(REPLMode, m, [str, str2], repl=:show)
     end
 end
