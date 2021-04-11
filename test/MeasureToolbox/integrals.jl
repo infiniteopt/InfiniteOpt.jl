@@ -21,6 +21,7 @@
     # test generate_integral_data (Gauss-Legendre)
     @testset "generate_integral_data (Gauss-Legendre)" begin
         @test generate_integral_data(t, 0, 1, GaussLegendre()) isa DiscreteMeasureData
+        @test generate_integral_data(t, 0, 1, GaussLegendre()).coefficients == FastGaussQuadrature.gausslegendre(10)[2] * 1/2
     end
     # test generate_integral_data (Gauss-Lobatto)
     @testset "generate_integral_data (Gauss-Lobatoo)" begin
@@ -46,14 +47,17 @@
     # test generate_integral_data (Gauss-Radau)
     @testset "generate_integral_data (Gauss-Radau)" begin
         @test generate_integral_data(t, 0, 1, GaussRadau()) isa DiscreteMeasureData
+        @test generate_integral_data(t, 0, 1, GaussRadau()).coefficients == FastGaussQuadrature.gaussradau(10)[2] * 1/2
     end
     # test generate_integral_data (Gauss-Jacobi)
     @testset "generate_integral_data (Gauss-Jacobi)" begin
         @test generate_integral_data(t, 0, 1, GaussJacobi(5.0, 4.0)) isa DiscreteMeasureData
+        @test generate_integral_data(t, 0, 1, GaussJacobi(5.0, 4.0)).coefficients == FastGaussQuadrature.gaussjacobi(10, 5.0, 4.0)[2] * 1/2
     end
      # test generate_integral_data (Gauss-Chebyshev)
     @testset "generate_integral_data (Gauss-Chebyshev)" begin
         @test generate_integral_data(t, 0, 1, GaussChebyshev(3)) isa DiscreteMeasureData
+        @test generate_integral_data(t, 0, 1, GaussChebyshev(3)).coefficients == FastGaussQuadrature.gausschebyshev(10, 3)[2] * 1/2
     end
     # test generate_integral_data (Gauss-Laguerre)
     @testset "generate_integral_data (Gauss-Laguerre)" begin

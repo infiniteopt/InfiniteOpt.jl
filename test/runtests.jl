@@ -23,10 +23,10 @@ include("utilities.jl")
 println("----------------------------------------------------------------------------")
 println("---------------------------------UNIT TESTS---------------------------------")
 println("----------------------------------------------------------------------------")
-@time @testset "Collections" begin
-    include("Collections/VectorTuple.jl")
-    include("Collections/DualDict.jl")
-end
+# @time @testset "Collections" begin
+#     include("Collections/VectorTuple.jl")
+#     include("Collections/DualDict.jl")
+# end
 println("")
 @time @testset "Datatypes" begin include("datatypes.jl") end
 println("")

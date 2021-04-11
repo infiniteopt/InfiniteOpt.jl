@@ -336,7 +336,7 @@ function InfiniteOpt.MeasureToolbox.generate_integral_data(
     pref::InfiniteOpt.GeneralVariableRef,
     lower_bound::Real,
     upper_bound::Real,
-    method::Type{UnifGrid};
+    method::UnifGrid;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
     )::InfiniteOpt.AbstractMeasureData # REPLACE WITH ACTUAL ALIAS
@@ -364,7 +364,7 @@ independent in order to throw a warning when needed.
 
 We create measure for `f` and `g` using the `uniform_grid` method
 ```jldoctest measure_eval
-julia> f_int = integral(f, t, num_supports = 6, eval_method = UnifGrid)
+julia> f_int = integral(f, t, num_supports = 6, eval_method = UnifGrid())
 ∫{t ∈ [0, 5]}[f(t)]
 
 julia> expand(f_int)

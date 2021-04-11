@@ -20,7 +20,7 @@ First, we consider a dynamic optimization problem with the time parameter `t`
 from 0 to 10. We also consider a state variable `y(t)` and a control variable
 `u(t)` that are parameterized by `t`:
 ```jldoctest meas_basic; setup = :(using InfiniteOpt, JuMP, Random; Random.seed!(0); model = InfiniteModel())
-julia> @infinite_parameter(model, t in [0, 10])
+julia> @infinite_parameter(model, t in [0, 10], supports = [0, 5, 10])
 t
 
 julia> @infinite_variable(model, y(t))
@@ -281,23 +281,24 @@ See the A Note on Support Management Section for more information."
 This method will take in the user supports, and create generative supports along each interval 
 and match them with corresponding coefficients. An example of what this looks like can be seen below. 
 
-![Image](C:\Users\david\.julia\dev\InfiniteOpt\docs\src\assets\FEGaussLobatto2.png)
+![Image](C:\Users\david\.julia\dev\InfiniteOpt\docs\src\assets\FEGaussLobatto.png)
 
 ``\int_{x_1}^{x_3} f(x) dx = \int_{x_1}^{x_2} f(x) dx + \int_{x_2}^{x_3} f(x) dx``
 
-``\approx \sum_{i=1}^{n} \alpha_{ia} f(\tau_{ia}) + \sum_{i=1}^{n} \alpha_{ib} f(\tau_{ib})``
+``\approx \sum_{i=1}^{n} \alpha_{a,i} f(\tau_{a,i}) + \sum_{i=1}^{n} \alpha_{b,i} f(\tau_{b,i})``
 
-`` = \sum_{i=1}^{n} (\alpha_{ia} f(\tau_{ia}) + \alpha_{ib} f(\tau_{ib}))``
+`` = \sum_{i=1}^{n} (\alpha_{a,i} f(\tau_{a,i}) + \alpha_{b,i} f(\tau_{b,i}))``
 
-where ``\tau_{ia}`` and ``\tau_{ib}`` are the discrete nodes for the two intervals 
+where ``\tau_{a,i}`` and ``\tau_{b,i}`` are the discrete nodes for the two intervals 
 
-and ``\alpha_{ia}`` and ``\alpha_{ib}`` are the coefficients.
+and ``\alpha_{a,i}`` and ``\alpha_{b,i}`` are the coefficients.
 
 ```jldoctest meas_basic
 julia> mref_lob = integral(y^2 + u^2, t, num_nodes = 3, eval_method = FEGaussLobatto())
 ∫{t ∈ [0, 10]}[y(t)² + u(t)²]
 
 julia> expand(mref_lob)
+0.8333333333333333 y(0)² + 0.8333333333333333 u(0)² + 3.333333333333333 y(2.5)² + 3.333333333333333 u(2.5)² + 1.6666666666666665 y(5)² + 1.6666666666666665 u(5)² + 3.333333333333333 y(7.5)² + 3.333333333333333 u(7.5)² + 0.8333333333333333 y(10)² + 0.8333333333333333 u(10)²
 
 ```
 

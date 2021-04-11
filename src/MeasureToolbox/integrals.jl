@@ -25,6 +25,8 @@ An abstract type for integral evaluation methods for 1-dimensional integrals.
 abstract type AbstractUnivariateMethod <: AbstractIntegralMethod end
 
 """
+    FiniteGuassQuad <: AbstractUnivariateMethod
+
 Abstract type for Finite 1-D integral evaluation using a variety of Gaussian Quadrature methods over the entire domain.
 """
 abstract type FiniteGaussQuad <: AbstractUnivariateMethod end
@@ -76,11 +78,13 @@ This is not compatible with individual dependent parameters. Contains no fields.
 struct Quadrature <: AbstractUnivariateMethod end
 
 """
+    FEGaussLobatto <: AbstractUnivariateMethod
+
 Integral evaluation method that allows for the user to specify supports to be included in
 quadrature evaluation. This method uses Gauss Lobatto quadrature to decompose the overall Integral
 into smaller integrals that span the user defined supports as follows:
 
-``\\int_{x_1}^{x_3} f(x) dx = \\int_{x_1}^{x_2} f(x) + \\int_{x_2}^{x_3} f(x)``
+``\\int_{x_1}^{x_3} f(x) dx = \\int_{x_1}^{x_2} f(x) dx + \\int_{x_2}^{x_3} f(x) dx``
 
 where the integrals are evaluated using Gauss Lobatto quadrature:
 
@@ -147,7 +151,7 @@ struct GaussJacobi <: FiniteGaussQuad
     β::Float64
     function GaussJacobi(α::Float64, β::Float64)
         if α < -1 || β < -1
-            error("α and β must be greater than -1")
+            error("α and β must be greater than -1 for GaussJacobi")
         end
         return new(α, β)
     end
@@ -181,7 +185,7 @@ struct GaussChebyshev <: FiniteGaussQuad
     order::Int64
     function GaussChebyshev(order::Int64)
         if order < 1 || order > 4
-            error("Order must be between 1 and 4")
+            error("Order must be between 1 and 4 for GaussChebyshev")
         end
         return new(order)
     end
