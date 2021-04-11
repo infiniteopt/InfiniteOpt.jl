@@ -369,28 +369,14 @@ end
     MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c1t), MOI.NONBASIC)
     MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c2t[1]), MOI.NONBASIC)
     MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c2t[2]), MOI.NONBASIC)
-    # test map_lp_rhs_perturbation_range
-    @testset "map_lp_rhs_perturbation_range" begin
-        @test InfiniteOpt.map_lp_rhs_perturbation_range(c1, Val(:TransData), 1e-8) == (-Inf, Inf)
-        @test InfiniteOpt.map_lp_rhs_perturbation_range(c2, Val(:TransData), 1e-8) == [(-Inf, Inf),
-                                                                                       (-Inf, Inf)]
-    end
-    # test lp_rhs_perturbation_range
-    @testset "JuMP.lp_rhs_perturbation_range" begin
-        @test lp_rhs_perturbation_range(c1) == (-Inf, Inf)
-        @test lp_rhs_perturbation_range(c2, label = All) == [(-Inf, Inf), (-Inf, Inf)]
-        @test lp_rhs_perturbation_range(c2, ndarray = true) == [(-Inf, Inf), (-Inf, Inf)]
-    end
-    # test map_lp_objective_perturbation_range
-    @testset "map_lp_objective_perturbation_rangee" begin
-        @test InfiniteOpt.map_lp_objective_perturbation_range(g, Val(:TransData), 1e-8) == (-2.0, Inf)
-        @test InfiniteOpt.map_lp_objective_perturbation_range(inf, Val(:TransData), 1e-8) == [(-Inf, 0.0),
-                                                                                              (-Inf, 0.0)]
-    end
-    # test lp_objective_perturbation_range
-    @testset "JuMP.lp_objective_perturbation_range" begin
-        @test lp_objective_perturbation_range(g) == (-2.0, Inf)
-        @test lp_objective_perturbation_range(inf, label = UserDefined) == [(-Inf, 0.0), (-Inf, 0.0)]
-        @test lp_objective_perturbation_range(inf, ndarray = true) == [(-Inf, 0.0), (-Inf, 0.0)]
-    end
+    # test making the report 
+    @test lp_sensitivity_report(m, atol = 1e-6) isa InfOptSensitivityReport
+    # test constraint queries
+    @test lp_sensitivity_report(m)[c1] == (-Inf, Inf)
+    @test lp_sensitivity_report(m)[c2, label = All] == [(-Inf, Inf), (-Inf, Inf)]
+    @test lp_sensitivity_report(m)[c2, ndarray = true] == [(-Inf, Inf), (-Inf, Inf)]
+    # test variable queries
+    @test lp_sensitivity_report(m)[g] == (-2.0, Inf)
+    @test lp_sensitivity_report(m)[inf, label = UserDefined] == [(-Inf, 0.0), (-Inf, 0.0)]
+    @test lp_sensitivity_report(m)[inf, ndarray = true] == [(-Inf, 0.0), (-Inf, 0.0)]
 end

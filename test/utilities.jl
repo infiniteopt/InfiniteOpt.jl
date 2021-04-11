@@ -46,7 +46,7 @@ InfiniteOpt.support_label(::TestGenMethod) = InternalLabel
 function new_fn end
 
 # Helper function to test IO methods work correctly
-function show_test(mode, obj, exp_str; repl=:both)
+function show_test(mode, obj, exp_str::String; repl=:both)
     if mode == REPLMode
         repl != :show  && @test sprint(print, obj) == exp_str
         repl != :print && @test sprint(show,  obj) == exp_str
@@ -55,11 +55,28 @@ function show_test(mode, obj, exp_str; repl=:both)
     end
 end
 
+# Helper function for IO methods with different possibilities
+function show_test(mode, obj, exp_str::Vector{String}; repl=:both)
+    if mode == REPLMode
+        repl != :show  && @test sprint(print, obj) in exp_str
+        repl != :print && @test sprint(show,  obj) in exp_str
+    else
+        @test sprint(show, "text/latex", obj) in exp_str
+    end
+end
+
 # Make another helper function for other io methods
 io_test(f::Function, exp_str::String, args...) = begin
     io = IOBuffer()
     f(io, args...)
     @test String(take!(io)) == exp_str
+end
+
+# Make another helper function for other io methods with multiple options
+io_test(f::Function, exp_str::Vector{String}, args...) = begin
+    io = IOBuffer()
+    f(io, args...)
+    @test String(take!(io)) in exp_str
 end
 
 # Make method for sorting matrices

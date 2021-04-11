@@ -37,7 +37,7 @@ capabilities:
 `InfiniteOpt.jl` is a registered `Julia` package and can be added simply by inputting
 the following in the package manager:
 ```julia
-(v1.5) pkg> add InfiniteOpt
+(v1.6) pkg> add InfiniteOpt
 ```
 Please visit our [Installation Guide](@ref) for more details and information
 on how to get started.
@@ -46,7 +46,7 @@ Moreover, `InfiniteOpt` is under constant develop with new features being added 
 Thus, the latest pre-release experimental version can be obtained via the
 following command:
 ```julia
-(v1.5) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
+(v1.6) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
 ```
 
 ## How to Use the Documentation

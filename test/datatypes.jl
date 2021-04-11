@@ -193,6 +193,8 @@ end
     # test accessors
     @test InfiniteOpt._last_param_num(m) == 0
     @test InfiniteOpt._param_object_indices(m) isa Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
+    # test other methods 
+    @test empty!(InfiniteModel(mockoptimizer)).optimizer_constructor == mockoptimizer
 end
 
 # Test reference variable datatypes

@@ -300,7 +300,7 @@ create a measure using the measure data, as shown below:
 
 ```jldoctest measure_eval
 julia> tdata = uniform_grid(t, 0, 5, 6)
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], UniqueMeasure{Symbol("##937")}, InfiniteOpt.default_weight, 0.0, 5.0, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.833333, 0.833333, 0.833333, 0.833333, 0.833333, 0.833333], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0], UniqueMeasure{Symbol("##942")}, InfiniteOpt.default_weight, 0.0, 5.0, false)
 
 julia> f_meas = measure(f, tdata)
 measure{t ∈ [0, 5]}[f(t)]
@@ -657,8 +657,6 @@ extended using the following steps:
     - [`InfiniteOpt.map_optimizer_index`](@ref) (enables `JuMP.optimizer_index`)
     - [`InfiniteOpt.map_dual`](@ref) (enables `JuMP.dual`)
     - [`InfiniteOpt.map_shadow_price`](@ref) (enables `JuMP.shadow_price`)
-    - [`InfiniteOpt.map_lp_rhs_perturbation_range`](@ref) (enables `JuMP.lp_rhs_perturbation_range`)
-    - [`InfiniteOpt.map_lp_objective_perturbation_range`](@ref) (enables `JuMP.lp_objective_perturbation_range`)
 11. Extend [`InfiniteOpt.add_measure_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model
 12. Extend [`InfiniteOpt.delete_semi_infinite_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model and delete unneeded semi-infinite variables.
 

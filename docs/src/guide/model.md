@@ -118,7 +118,7 @@ Notice that the model mode of the optimizer model is now `MANUAL`.
 Moreover, alternative optimizer model types (i.e., not a `TranscriptionModel`) can be 
 specified via the `OptimizerModel` keyword argument when initializing the 
 `InfiniteModel`. Thus, to redundantly specify a `TranscriptionModel` we would call:
-```jldoctest
+```jldoctest model_fun
 julia> using InfiniteOpt
 
 julia> model = InfiniteModel(OptimizerModel = TranscriptionModel)
@@ -143,6 +143,31 @@ Extensions page.
 [solver documentation](https://jump.dev/JuMP.jl/stable/installation/#Installing-a-solver) 
 to learn what solvers are supported and how to install them.
 
+## Object Dictionaries
+Like `JuMP.Model`s, `InfiniteModel`s register the name symbols of macro defined 
+objects. This enables us to access such objects by indexing the `InfiniteModel` 
+with the appropriate symbol. This is particularly useful for function defined 
+models. For example:
+```jldoctest; setup = :(using InfiniteOpt, JuMP)
+julia> function make_model(num_supports)
+        model = InfiniteModel()
+        @infinite_parameter(model, t ∈ [0, 10], num_supports = num_supports)
+        @infinite_variable(model, y(t) >= 42)
+        @objective(model, Min, ∫(y, t))
+        return model
+       end
+make_model (generic function with 1 method)
+
+julia> model1 = make_model(2); model2 = make_model(4);
+
+julia> y1 = model1[:y]
+y(t)
+```
+Note that when macro defined objects are deleted from an `InfiniteModel` that the 
+corresponding symbols in the object dictionary are not removed by default. This 
+can be accomplished by use of [`JuMP.unregister`](@ref) (please click on its link 
+for usage information).
+
 ## Datatypes
 ```@docs
 InfiniteModel
@@ -154,5 +179,7 @@ ObjectIndex
 ## Methods
 ```@docs
 InfiniteModel()
+JuMP.object_dictionary(::InfiniteModel)
 has_internal_supports
+Base.empty!(::InfiniteModel)
 ```

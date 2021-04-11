@@ -181,6 +181,9 @@ set_optimizer_model_ready, build_optimizer_model!, optimizer_model_key,
 optimizer_model_variable, optimizer_model_constraint, constraint_parameter_refs,
 clear_optimizer_model_build!, optimizer_model_expression
 
+# Export results methods 
+export InfOptSensitivityReport
+
 # Export support generation and fill-in methods
 export fill_in_supports!, generate_supports
 

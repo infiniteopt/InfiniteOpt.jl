@@ -35,10 +35,6 @@
     @testset "Base.broadcastable Reference" begin
         @test isa(Base.broadcastable(cref1), Base.RefValue)
     end
-    # test constraint type
-    @testset "JuMP.constraint_type" begin
-        @test constraint_type(m) == InfOptConstraintRef
-    end
     # test shape
     @testset "JuMP.shape" begin
         @test JuMP.shape(con2) == ScalarShape()
