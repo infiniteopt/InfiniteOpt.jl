@@ -53,11 +53,13 @@
     @testset "generate_integral_data (Gauss-Jacobi)" begin
         @test generate_integral_data(t, 0, 1, GaussJacobi(5.0, 4.0)) isa DiscreteMeasureData
         @test generate_integral_data(t, 0, 1, GaussJacobi(5.0, 4.0)).coefficients == FastGaussQuadrature.gaussjacobi(10, 5.0, 4.0)[2] * 1/2
+        @test_throws ErrorException("α and β must be greater than -1 for GaussJacobi") generate_integral_data(t, 0, 1, GaussJacobi(-5.0, -5.0))
     end
      # test generate_integral_data (Gauss-Chebyshev)
     @testset "generate_integral_data (Gauss-Chebyshev)" begin
         @test generate_integral_data(t, 0, 1, GaussChebyshev(3)) isa DiscreteMeasureData
         @test generate_integral_data(t, 0, 1, GaussChebyshev(3)).coefficients == FastGaussQuadrature.gausschebyshev(10, 3)[2] * 1/2
+        @test_throws ErrorException("Order must be between 1 and 4 for GaussChebyshev") generate_integral_data(t, 0, 1, GaussChebyshev(5))
     end
     # test generate_integral_data (Gauss-Laguerre)
     @testset "generate_integral_data (Gauss-Laguerre)" begin
@@ -173,12 +175,12 @@ end
         @test uni_integral_defaults() == IOMT.UniIntegralDefaults
     end
     @testset "set_uni_integral_defaults" begin
-        # @test set_uni_integral_defaults(num_supports = 5, new_kwarg = true) isa Nothing
-        # @test uni_integral_defaults()[:num_supports] == 5
+        @test uni_integral_defaults() == Dict{Symbol, Any}(:eval_method => Automatic())
         @test set_uni_integral_defaults(num_nodes = 5, new_kwarg = true) isa Nothing
         @test uni_integral_defaults()[:num_nodes] == 5
         @test uni_integral_defaults()[:new_kwarg]
-        clear_uni_integral_defaults()
+        @test clear_uni_integral_defaults() isa Nothing
+        @test uni_integral_defaults() == Dict{Symbol, Any}(:eval_method => Automatic())
     end
     @testset "integral" begin
         @test InfiniteOpt._index_type(integral(inf1, t)) == MeasureIndex
@@ -208,11 +210,12 @@ end
         @test multi_integral_defaults() == IOMT.MultiIntegralDefaults
     end
     @testset "set_multi_integral_defaults" begin
+        @test multi_integral_defaults() == Dict{Symbol, Any}(:eval_method => Automatic())
         @test set_multi_integral_defaults(num_supports = 5, new_kwarg = true) isa Nothing
         @test multi_integral_defaults()[:num_supports] == 5
         @test multi_integral_defaults()[:new_kwarg]
-        delete!(multi_integral_defaults(), :new_kwarg)
-        set_multi_integral_defaults(num_supports = InfiniteOpt.DefaultNumSupports)
+        @test clear_multi_integral_defaults() isa Nothing
+        @test multi_integral_defaults() == Dict{Symbol, Any}(:eval_method => Automatic())
     end
     @testset "integral" begin
         @test InfiniteOpt._index_type(integral(inf1, x)) == MeasureIndex

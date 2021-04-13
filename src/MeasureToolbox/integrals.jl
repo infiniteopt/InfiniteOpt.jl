@@ -896,7 +896,7 @@ end
 
 function clear_multi_integral_defaults(; kwargs...)::Nothing
     empty!(MultiIntegralDefaults)
-    UniIntegralDefaults[:eval_method] = Automatic()
+    MultiIntegralDefaults[:eval_method] = Automatic()
     return
 end
 

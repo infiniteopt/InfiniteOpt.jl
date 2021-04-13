@@ -100,7 +100,7 @@ measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
 julia> measure_data(mref2)
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.333357, 0.747257, 1.09543, 1.34633, 1.47762, 1.47762, 1.34633, 1.09543, 0.747257, 0.333357], [0.130467, 0.674683, 1.60295, 2.83302, 4.25563, 5.74437, 7.16698, 8.39705, 9.32532, 9.86953], UniqueMeasure{Symbol("##814")}, InfiniteOpt.default_weight, 0.0, 10.0, false)
+FunctionalDiscreteMeasureData{GeneralVariableRef, Float64, UniformGenerativeInfo}(t, InfiniteOpt.MeasureToolbox.var"#coeff_func#4"{Int64}(10), 0, All, UniformGenerativeInfo([0.04023304591677057, 0.13061306744724743, 0.26103752509477773, 0.4173605211668065, 0.5826394788331936, 0.7389624749052223, 0.8693869325527526, 0.9597669540832294], InternalGaussLobatto), InfiniteOpt.default_weight, 0.0, 1.0, false)
 
 julia> measure_data(mref3)
 FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,NoGenerativeSupports}(t, InfiniteOpt.MeasureToolbox._trapezoid_coeff, 0, All, NoGenerativeSupports(), InfiniteOpt.default_weight, 0.0, 10.0, false)
@@ -123,16 +123,12 @@ of the measure. The default value of these keyword arguments can be queried usin
 [`uni_integral_defaults`](@ref) and [`multi_integral_defaults`](@ref) as follows:
 ```jldoctest meas_basic
 julia> uni_integral_defaults()
-Dict{Symbol,Any} with 3 entries:
-  :num_supports => 10
-  :eval_method  => Automatic()
-  :weight_func  => default_weight
+Dict{Symbol, Any} with 1 entry:
+  :eval_method => Automatic()
 
 julia> multi_integral_defaults()
-Dict{Symbol,Any} with 3 entries:
-  :num_supports => 10
-  :eval_method  => Automatic()
-  :weight_func  => default_weight
+Dict{Symbol, Any} with 1 entry:
+  :eval_method => Automatic()
 ```
 `Automatic` dictates that the integral is created using the default method depending
 on the type of integral, and `default_weight` is assigning weights of 1 for all points.
