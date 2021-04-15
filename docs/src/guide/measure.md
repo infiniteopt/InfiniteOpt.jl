@@ -20,7 +20,7 @@ First, we consider a dynamic optimization problem with the time parameter `t`
 from 0 to 10. We also consider a state variable `y(t)` and a control variable
 `u(t)` that are parameterized by `t`:
 ```jldoctest meas_basic; setup = :(using InfiniteOpt, JuMP, Random; Random.seed!(0); model = InfiniteModel())
-julia> @infinite_parameter(model, t in [0, 10])
+julia> @infinite_parameter(model, t in [0, 10], supports = [0, 5, 10])
 t
 
 julia> @infinite_variable(model, y(t))
@@ -100,7 +100,7 @@ measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
 julia> measure_data(mref2)
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [0.333357, 0.747257, 1.09543, 1.34633, 1.47762, 1.47762, 1.34633, 1.09543, 0.747257, 0.333357], [0.130467, 0.674683, 1.60295, 2.83302, 4.25563, 5.74437, 7.16698, 8.39705, 9.32532, 9.86953], UniqueMeasure{Symbol("##814")}, InfiniteOpt.default_weight, 0.0, 10.0, false)
+FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,UniformGenerativeInfo}(t, getfield(InfiniteOpt.MeasureToolbox, Symbol("#coeff_func#4")){Int64}(3), 0, All, UniformGenerativeInfo([0.5], InternalGaussLobatto), InfiniteOpt.default_weight, 0.0, 10.0, false)
 
 julia> measure_data(mref3)
 FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,NoGenerativeSupports}(t, InfiniteOpt.MeasureToolbox._trapezoid_coeff, 0, All, NoGenerativeSupports(), InfiniteOpt.default_weight, 0.0, 10.0, false)
@@ -123,16 +123,12 @@ of the measure. The default value of these keyword arguments can be queried usin
 [`uni_integral_defaults`](@ref) and [`multi_integral_defaults`](@ref) as follows:
 ```jldoctest meas_basic
 julia> uni_integral_defaults()
-Dict{Symbol,Any} with 3 entries:
-  :num_supports => 10
-  :eval_method  => Automatic()
-  :weight_func  => default_weight
+Dict{Symbol,Any} with 1 entry:
+  :eval_method => Automatic()
 
 julia> multi_integral_defaults()
-Dict{Symbol,Any} with 3 entries:
-  :num_supports => 10
-  :eval_method  => Automatic()
-  :weight_func  => default_weight
+Dict{Symbol,Any} with 1 entry:
+  :eval_method => Automatic()
 ```
 `Automatic` dictates that the integral is created using the default method depending
 on the type of integral, and `default_weight` is assigning weights of 1 for all points.
@@ -199,7 +195,7 @@ can construct the following measure data object to record this discretization
 scheme:
 ```jldoctest meas_basic
 julia> md_t = DiscreteMeasureData(t, ones(10), [i for i in 1:10])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], UniqueMeasure{Symbol("##818")}, InfiniteOpt.default_weight, NaN, NaN, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], UniqueMeasure{Symbol("##817")}, InfiniteOpt.default_weight, NaN, NaN, false)
 ```
 The arguments of [`DiscreteMeasureData`](@ref) are parameter, coefficients, and
 supports. The default weight function is ``w(\tau) = 1`` for
@@ -226,7 +222,7 @@ julia> @infinite_parameter(model, x[1:2] in [0, 1])
  x[2]
 
 julia> md_x = DiscreteMeasureData(x, 0.25 * ones(4), [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75]])
-DiscreteMeasureData{Array{GeneralVariableRef,1},2,Array{Float64,1}}(GeneralVariableRef[x[1], x[2]], [0.25, 0.25, 0.25, 0.25], [0.25 0.25 0.75 0.75; 0.25 0.75 0.25 0.75], UniqueMeasure{Symbol("##823")}, InfiniteOpt.default_weight, [NaN, NaN], [NaN, NaN], false)
+DiscreteMeasureData{Array{GeneralVariableRef,1},2,Array{Float64,1}}(GeneralVariableRef[x[1], x[2]], [0.25, 0.25, 0.25, 0.25], [0.25 0.25 0.75 0.75; 0.25 0.75 0.25 0.75], UniqueMeasure{Symbol("##822")}, InfiniteOpt.default_weight, [NaN, NaN], [NaN, NaN], false)
 ```
 where `md_x` cuts the domain into four 0.5-by-0.5 squares, and evaluates the
 integrand on the center of these squares. Note that for multivariate parameters, 
@@ -274,21 +270,59 @@ Each method is limited on the dimension of parameter and/or the type of set
 that it can apply for. For the details of what each method type means, refer to the corresponding
 docstrings.
 
-| Evaluation Method              | Uni/Multi-Variate? | Set Type                              |
-|:------------------------------:|:------------------:|:-------------------------------------:|
-| [`Automatic()`](@ref)            | Both               | Any                                 |
-| [`UniTrapezoid()`](@ref)         | Both               | [`IntervalSet`](@ref)               |
-| [`UniMCSampling()`](@ref)        | Univariate         | Finite [`IntervalSet`](@ref)        |
-| [`UniIndepMCSampling()`](@ref)   | Univariate         | Finite [`IntervalSet`](@ref)        |
-| [`Quadrature()`](@ref)           | Univariate         | [`IntervalSet`](@ref)               |
-| [`GaussLegendre()`](@ref)        | Univariate         | Finite [`IntervalSet`](@ref)        |
-| [`GaussRadau()`](@ref)           | Univariate         | Finite [`IntervalSet`](@ref)        |
-| [`GaussJacobi()`](@ref)          | Univariate         | Finite [`IntervalSet`](@ref)        |
-| [`GaussLobatto()`](@ref)         | Univariate         | Finite [`IntervalSet`](@ref)        |
-| [`GaussLaguerre()`](@ref)        | Univariate         | Semi-infinite [`IntervalSet`](@ref) |
-| [`GaussHermite()`](@ref)         | Univariate         | Infinite [`IntervalSet`](@ref)      |
-| [`MultiMCSampling()`](@ref)      | Multivariate       | Finite [`IntervalSet`](@ref)        |
-| [`MultiIndepMCSampling()`](@ref) | Multivariate       | Finite [`IntervalSet`](@ref)        |
+The eval method `FEGaussLobatto` creates finite elements by decomposing over the supports that have been added to the integral parameter and then approximates the integral over each finite element via Lobatto quadrature using num_nodes. 
+All other Gauss quadrature methods do not incorporate any existing supports nor do they decompose the integral into finite elements, 
+but instead generate their quadrature node points over the entire integral domain. 
+See the A Note on Support Management Section for more information."
+This method will take in the user supports, and create generative supports along each interval 
+and match them with corresponding coefficients. An example of what this looks like can be seen below. 
+
+![Image](C:\Users\david\.julia\dev\InfiniteOpt\docs\src\assets\FEGaussLobatto.png)
+
+``\int_{x_1}^{x_3} f(x) dx = \int_{x_1}^{x_2} f(x) dx + \int_{x_2}^{x_3} f(x) dx``
+
+``\approx \sum_{i=1}^{n} \alpha_{a,i} f(\tau_{a,i}) + \sum_{i=1}^{n} \alpha_{b,i} f(\tau_{b,i})``
+
+`` = \sum_{i=1}^{n} (\alpha_{a,i} f(\tau_{a,i}) + \alpha_{b,i} f(\tau_{b,i}))``
+
+where ``\tau_{a,i}`` and ``\tau_{b,i}`` are the discrete nodes for the two intervals 
+
+and ``\alpha_{a,i}`` and ``\alpha_{b,i}`` are the coefficients.
+
+```jldoctest meas_basic; setup = :(set_supports(t, [0, 5, 10], force = true))
+julia> mref_lob = integral(y^2 + u^2, t, num_nodes = 3, eval_method = FEGaussLobatto())
+∫{t ∈ [0, 10]}[y(t)² + u(t)²]
+
+julia> expand(mref_lob)
+0.8333333333333333 y(0)² + 0.8333333333333333 u(0)² + 3.333333333333333 y(2.5)² + 3.333333333333333 u(2.5)² + 1.6666666666666665 y(5)² + 1.6666666666666665 u(5)² + 3.333333333333333 y(7.5)² + 3.333333333333333 u(7.5)² + 0.8333333333333333 y(10)² + 0.8333333333333333 u(10)²
+
+```
+
+We pass set `num_nodes` to be equal to three, to give three generative supports inbetween each of the user defined supports. 
+
+
+
+
+| Evaluation Method                                | Uni/Multi-Variate? | Weight Function              | Set Type                            |
+|:------------------------------------------------:|:------------------:|:----------------------------:|:-----------------------------------:|
+| [`Automatic()`](@ref)                            | Both               |   ``1``                      | Any                                 |
+| [`UniTrapezoid()`](@ref)                         | Both               |   ``1``                      | [`IntervalSet`](@ref)               |
+| [`UniMCSampling()`](@ref)                        | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+| [`UniIndepMCSampling()`](@ref)                   | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+| [`Quadrature()`](@ref)                           | Univariate         |   ``1``                      | [`IntervalSet`](@ref)               |
+| [`GaussLegendre()`](@ref)                        | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+| [`GaussRadau()`](@ref)                           | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+| [`GaussJacobi()`](@ref)                          | Univariate         | `` (1-x)^\alpha (1+x)^\beta``| Finite [`IntervalSet`](@ref)        |
+| [`GaussLobatto()`](@ref)                         | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+| [`FEGaussLobatto()`](@ref)                       | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+| [`GaussChebyshev(1)`](@ref GaussChebyshev)       | Univariate         | ``\frac{1}{\sqrt{1-x^2}}  `` | Finite [`IntervalSet`](@ref)        |
+| [`GaussChebyshev(2)`](@ref GaussChebyshev)       | Univariate         | ``\sqrt{1-x^2}``             | Finite [`IntervalSet`](@ref)        |
+| [`GaussChebyshev(3)`](@ref GaussChebyshev)       | Univariate         | ``\sqrt{(1+x)/(1-x)}``       | Finite [`IntervalSet`](@ref)        |
+| [`GaussChebyshev(4)`](@ref GaussChebyshev)       | Univariate         | ``\sqrt{(1-x)/(1+x)}``       | Finite [`IntervalSet`](@ref)        |
+| [`GaussLaguerre()`](@ref)                        | Univariate         | ``e^{-x}``                   | Semi-infinite [`IntervalSet`](@ref) |
+| [`GaussHermite()`](@ref)                         | Univariate         | ``e^{-x^2}``                 | Infinite [`IntervalSet`](@ref)      |
+| [`MultiMCSampling()`](@ref)                      | Multivariate       |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+| [`MultiIndepMCSampling()`](@ref)                 | Multivariate       |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 
 In summary, we natively support trapezoid rule, Gaussian quadrature methods for univariate parameters,
 and Monte Carlo sampling for both univariate and multivariate parameters.
@@ -351,7 +385,7 @@ Then we readjust the model to use Gauss-Legendre quadrature via `GaussLegendre()
 that uses 2 quadrature nodes:
 ```jldoctest support_manage; output = false
 # Set the new objective and update the TranscriptionModel
-set_objective_function(m, integral(u^2, t, eval_method = GaussLegendre(), num_supports = 2))
+set_objective_function(m, integral(u^2, t, eval_method = GaussLegendre(), num_nodes = 2))
 build_optimizer_model!(m)
 trans_m = optimizer_model(m);
 
@@ -404,7 +438,7 @@ m = InfiniteModel()
 @infinite_variable(m, u(t))
 
 # Update the integral default keyword arguments for convenience 
-set_uni_integral_defaults(eval_method = GaussLegendre(), num_supports = 2)
+set_uni_integral_defaults(eval_method = GaussLegendre(), num_nodes = 2)
 
 # Set the objective with our desired integral
 @objective(m, Min, integral(u^2, t))
@@ -460,9 +494,9 @@ function, which takes a [`MeasureRef`](@ref) object and returns a `JuMP.Abstract
 based on the [`AbstractMeasureData`](@ref). For example, suppose we want to
 integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``.
 We can set up and expand this measure as follows:
-```jldoctest meas_basic
+```jldoctest meas_basic; setup = :(clear_uni_integral_defaults())
 julia> tdata = DiscreteMeasureData(t, [5, 5], [2.5, 7.5])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], UniqueMeasure{Symbol("##836")}, InfiniteOpt.default_weight, NaN, NaN, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], UniqueMeasure{Symbol("##835")}, InfiniteOpt.default_weight, NaN, NaN, false)
 
 julia> mref4 = measure(y^2, tdata)
 measure{t}[y(t)²]
@@ -647,6 +681,8 @@ InfiniteOpt.MeasureToolbox.GaussLegendre
 InfiniteOpt.MeasureToolbox.GaussRadau
 InfiniteOpt.MeasureToolbox.GaussLobatto
 InfiniteOpt.MeasureToolbox.GaussJacobi
+InfiniteOpt.MeasureToolbox.FEGaussLobatto
+InfiniteOpt.MeasureToolbox.GaussChebyshev
 InfiniteOpt.MeasureToolbox.GaussLaguerre
 InfiniteOpt.MeasureToolbox.AbstractMultivariateMethod
 InfiniteOpt.MeasureToolbox.MultiMCSampling

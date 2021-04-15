@@ -8,9 +8,9 @@ function InfiniteOpt.MeasureToolbox.generate_integral_data(
     pref::InfiniteOpt.GeneralVariableRef,
     lower_bound::Real,
     upper_bound::Real,
-    method::Type{NewUniEvalMethod};
+    method::NewUniEvalMethod;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
-    weight_func::Function
+    weight_func::Function = InfiniteOpt.default_weight
     )::InfiniteOpt.AbstractMeasureData # REPLACE WITH ACTUAL ALIAS
     # REPLACE WITH ACTUAL FUNCTIONALITY
     # ADD CHECKS IF NECESSARY
@@ -30,9 +30,9 @@ function InfiniteOpt.MeasureToolbox.generate_integral_data(
     prefs::Vector{InfiniteOpt.GeneralVariableRef},
     lower_bounds::Vector{<:Real},
     upper_bounds::Vector{<:Real},
-    method::Type{NewMultiEvalMethod};
+    method::NewMultiEvalMethod;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
-    weight_func::Function
+    weight_func::Function = InfiniteOpt.default_weight
     )::InfiniteOpt.AbstractMeasureData # REPLACE WITH ACTUAL ARGUMENTS
     # REPLACE WITH ACTUAL FUNCTIONALITY
     # ADD CHECKS IF NECESSARY
