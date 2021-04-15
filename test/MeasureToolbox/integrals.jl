@@ -43,6 +43,7 @@
         add_generative_supports(t)
         lobb_supps = supports(t, label = All)
         @test all(abs.(lobb_supps .- [0, .25, .5, .75, 1] .< .000005)) == true
+        @test_throws ErrorException("Num supports must be greater than 2") integral(flob, t, 0, 1, eval_method = FEGaussLobatto(), num_nodes = 1)
     end
     # test generate_integral_data (Gauss-Radau)
     @testset "generate_integral_data (Gauss-Radau)" begin
@@ -147,7 +148,7 @@ end
     @testset "generate_integral_data (MultiMCSampling)" begin
         @test generate_integral_data(x, [0, 0], [1, 1], MultiMCSampling()) isa FunctionalDiscreteMeasureData
         @test_throws ErrorException generate_integral_data(x, [0, 0], [Inf, 1], MultiMCSampling())
-        @test_throws ErrorException generate_integral_data(x, [0, -Inf], [1, 1], MultiMCSampling())
+        @test_throws ErrorException("MC Sampling is not applicable to (semi-)infinite intervals.") generate_integral_data(x, [0, -Inf], [1, 1], MultiMCSampling())
     end
     # test _make_multi_mc_supports
     @testset "_make_multi_mc_supports" begin
