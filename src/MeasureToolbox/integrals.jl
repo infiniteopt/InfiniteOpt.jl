@@ -307,8 +307,8 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     upper_bound::Real,
     method::Automatic;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
-    weight_func::Function = InfiniteOpt.default_weight,
-    kwargs...)::InfiniteOpt.AbstractMeasureData
+    weight_func::Function = InfiniteOpt.default_weight
+    )::InfiniteOpt.AbstractMeasureData
     is_depend = InfiniteOpt._index_type(pref) == DependentParameterIndex
     inf_bound_num = (lower_bound == -Inf) + (upper_bound == Inf)
     if inf_bound_num == 0 # finite interval
@@ -415,7 +415,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
                                 method::Quadrature;
-                                num_nodes::Int = InfiniteOpt.DefaultNumSupports,
+                                num_nodes::Int = 3,
                                 weight_func::Function = InfiniteOpt.default_weight
                                 )
     _ensure_independent_param(pref, method)
@@ -461,7 +461,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
                                 method::FiniteGaussQuad;
-                                num_nodes::Int = InfiniteOpt.DefaultNumSupports,
+                                num_nodes::Int = 3,
                                 weight_func::Function = InfiniteOpt.default_weight
                                 )
     _ensure_independent_param(pref, method)
@@ -488,7 +488,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
                                 method::GaussLaguerre;
-                                num_nodes::Int = InfiniteOpt.DefaultNumSupports,
+                                num_nodes::Int = 3,
                                 weight_func::Function = InfiniteOpt.default_weight
                                 )
     _ensure_independent_param(pref, method)
@@ -526,7 +526,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 lower_bound::Real,
                                 upper_bound::Real,
                                 method::GaussHermite;
-                                num_nodes::Int = InfiniteOpt.DefaultNumSupports,
+                                num_nodes::Int = 3,
                                 weight_func::Function = InfiniteOpt.default_weight
                                 )
     _ensure_independent_param(pref, method)

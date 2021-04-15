@@ -100,7 +100,7 @@ measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
 julia> measure_data(mref2)
-FunctionalDiscreteMeasureData{GeneralVariableRef, Float64, UniformGenerativeInfo}(t, InfiniteOpt.MeasureToolbox.var"#coeff_func#4"{Int64}(10), 0, All, UniformGenerativeInfo([0.04023304591677057, 0.13061306744724743, 0.26103752509477773, 0.4173605211668065, 0.5826394788331936, 0.7389624749052223, 0.8693869325527526, 0.9597669540832294], InternalGaussLobatto), InfiniteOpt.default_weight, 0.0, 1.0, false)
+FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,UniformGenerativeInfo}(t, getfield(InfiniteOpt.MeasureToolbox, Symbol("#coeff_func#4")){Int64}(10), 0, All, UniformGenerativeInfo([0.040233, 0.130613, 0.261038, 0.417361, 0.582639, 0.738962, 0.869387, 0.959767], InternalGaussLobatto), InfiniteOpt.default_weight, 0.0, 10.0, false)
 
 julia> measure_data(mref3)
 FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,NoGenerativeSupports}(t, InfiniteOpt.MeasureToolbox._trapezoid_coeff, 0, All, NoGenerativeSupports(), InfiniteOpt.default_weight, 0.0, 10.0, false)
@@ -123,11 +123,11 @@ of the measure. The default value of these keyword arguments can be queried usin
 [`uni_integral_defaults`](@ref) and [`multi_integral_defaults`](@ref) as follows:
 ```jldoctest meas_basic
 julia> uni_integral_defaults()
-Dict{Symbol, Any} with 1 entry:
+Dict{Symbol,Any} with 1 entry:
   :eval_method => Automatic()
 
 julia> multi_integral_defaults()
-Dict{Symbol, Any} with 1 entry:
+Dict{Symbol,Any} with 1 entry:
   :eval_method => Automatic()
 ```
 `Automatic` dictates that the integral is created using the default method depending
@@ -195,7 +195,7 @@ can construct the following measure data object to record this discretization
 scheme:
 ```jldoctest meas_basic
 julia> md_t = DiscreteMeasureData(t, ones(10), [i for i in 1:10])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], UniqueMeasure{Symbol("##818")}, InfiniteOpt.default_weight, NaN, NaN, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], UniqueMeasure{Symbol("##817")}, InfiniteOpt.default_weight, NaN, NaN, false)
 ```
 The arguments of [`DiscreteMeasureData`](@ref) are parameter, coefficients, and
 supports. The default weight function is ``w(\tau) = 1`` for
@@ -222,7 +222,7 @@ julia> @infinite_parameter(model, x[1:2] in [0, 1])
  x[2]
 
 julia> md_x = DiscreteMeasureData(x, 0.25 * ones(4), [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75]])
-DiscreteMeasureData{Array{GeneralVariableRef,1},2,Array{Float64,1}}(GeneralVariableRef[x[1], x[2]], [0.25, 0.25, 0.25, 0.25], [0.25 0.25 0.75 0.75; 0.25 0.75 0.25 0.75], UniqueMeasure{Symbol("##823")}, InfiniteOpt.default_weight, [NaN, NaN], [NaN, NaN], false)
+DiscreteMeasureData{Array{GeneralVariableRef,1},2,Array{Float64,1}}(GeneralVariableRef[x[1], x[2]], [0.25, 0.25, 0.25, 0.25], [0.25 0.25 0.75 0.75; 0.25 0.75 0.25 0.75], UniqueMeasure{Symbol("##822")}, InfiniteOpt.default_weight, [NaN, NaN], [NaN, NaN], false)
 ```
 where `md_x` cuts the domain into four 0.5-by-0.5 squares, and evaluates the
 integrand on the center of these squares. Note that for multivariate parameters, 
@@ -385,7 +385,7 @@ Then we readjust the model to use Gauss-Legendre quadrature via `GaussLegendre()
 that uses 2 quadrature nodes:
 ```jldoctest support_manage; output = false
 # Set the new objective and update the TranscriptionModel
-set_objective_function(m, integral(u^2, t, eval_method = GaussLegendre(), num_supports = 2))
+set_objective_function(m, integral(u^2, t, eval_method = GaussLegendre(), num_nodes = 2))
 build_optimizer_model!(m)
 trans_m = optimizer_model(m);
 
@@ -438,7 +438,7 @@ m = InfiniteModel()
 @infinite_variable(m, u(t))
 
 # Update the integral default keyword arguments for convenience 
-set_uni_integral_defaults(eval_method = GaussLegendre(), num_supports = 2)
+set_uni_integral_defaults(eval_method = GaussLegendre(), num_nodes = 2)
 
 # Set the objective with our desired integral
 @objective(m, Min, integral(u^2, t))
