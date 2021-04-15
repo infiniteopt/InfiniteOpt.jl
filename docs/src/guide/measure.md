@@ -100,7 +100,7 @@ measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
 julia> measure_data(mref2)
-FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,UniformGenerativeInfo}(t, getfield(InfiniteOpt.MeasureToolbox, Symbol("#coeff_func#4")){Int64}(10), 0, All, UniformGenerativeInfo([0.040233, 0.130613, 0.261038, 0.417361, 0.582639, 0.738962, 0.869387, 0.959767], InternalGaussLobatto), InfiniteOpt.default_weight, 0.0, 10.0, false)
+FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,UniformGenerativeInfo}(t, getfield(InfiniteOpt.MeasureToolbox, Symbol("#coeff_func#4")){Int64}(3), 0, All, UniformGenerativeInfo([0.5], InternalGaussLobatto), InfiniteOpt.default_weight, 0.0, 10.0, false)
 
 julia> measure_data(mref3)
 FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,NoGenerativeSupports}(t, InfiniteOpt.MeasureToolbox._trapezoid_coeff, 0, All, NoGenerativeSupports(), InfiniteOpt.default_weight, 0.0, 10.0, false)
@@ -289,7 +289,7 @@ where ``\tau_{a,i}`` and ``\tau_{b,i}`` are the discrete nodes for the two inter
 
 and ``\alpha_{a,i}`` and ``\alpha_{b,i}`` are the coefficients.
 
-```jldoctest meas_basic
+```jldoctest meas_basic; setup = :(set_supports(t, [0, 5, 10], force = true))
 julia> mref_lob = integral(y^2 + u^2, t, num_nodes = 3, eval_method = FEGaussLobatto())
 ∫{t ∈ [0, 10]}[y(t)² + u(t)²]
 
@@ -494,9 +494,9 @@ function, which takes a [`MeasureRef`](@ref) object and returns a `JuMP.Abstract
 based on the [`AbstractMeasureData`](@ref). For example, suppose we want to
 integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``.
 We can set up and expand this measure as follows:
-```jldoctest meas_basic
+```jldoctest meas_basic; setup = :(clear_uni_integral_defaults())
 julia> tdata = DiscreteMeasureData(t, [5, 5], [2.5, 7.5])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], UniqueMeasure{Symbol("##836")}, InfiniteOpt.default_weight, NaN, NaN, false)
+DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], UniqueMeasure{Symbol("##835")}, InfiniteOpt.default_weight, NaN, NaN, false)
 
 julia> mref4 = measure(y^2, tdata)
 measure{t}[y(t)²]
