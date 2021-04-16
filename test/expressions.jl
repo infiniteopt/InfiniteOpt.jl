@@ -303,7 +303,7 @@ end
         idx += 1
         ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
         @test @parameter_function(m, func = f5, parameter_refs = (t, x), 
-                                  fun_args = (1,), func_kwargs = (d = 1,)) == ref
+                                  func_args = (1,), func_kwargs = (d = 1,)) == ref
         @test name(ref) == ""
         @test raw_function(ref) != f5
         @test raw_function(ref)(1, [1, 1]) == 42
