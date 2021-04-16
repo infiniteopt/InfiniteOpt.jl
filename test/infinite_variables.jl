@@ -222,6 +222,8 @@ end
         @test_throws ErrorException InfiniteOpt._check_parameter_tuple(error, tuple)
         tuple = IC.VectorTuple(fin)
         @test_throws ErrorException InfiniteOpt._check_parameter_tuple(error, tuple)
+        tuple = IC.VectorTuple(2)
+        @test_throws ErrorException InfiniteOpt._check_parameter_tuple(error, tuple)
     end
     # _check_and_format_infinite_info (Real)
     @testset "_check_and_format_infinite_info (Real)" begin

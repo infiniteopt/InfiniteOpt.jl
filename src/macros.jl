@@ -1,6 +1,4 @@
-using Base.Meta
-using JuMP: _valid_model, _error_if_cannot_register, object_dictionary, variable_type
-using JuMP.Containers
+const Containers = JuMP.Containers
 
 # Parse raw input to define the upper bound for an interval set
 function _parse_one_operator_parameter(
@@ -185,7 +183,7 @@ macro independent_parameter(model, args...)
                            !InfiniteOpt._is_set_keyword(kw) && 
                            kw.args[1] != :error_func, kw_args)
     base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
-    infoexpr = InfiniteOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
+    infoexpr = InfiniteOpt._ParameterInfoExpr(; InfiniteOpt._keywordify.(info_kw_args)...)
 
     # There are five cases to consider:
     # x                                         | type of x | x.head
@@ -193,18 +191,18 @@ macro independent_parameter(model, args...)
     # param                                       | Symbol    | NA
     # param in [lb, ub]                           | Expr      | :call
     # lb <= param <= ub                           | Expr      | :comparison
-    explicit_comparison = InfiniteOpt.isexpr(x, :comparison) || InfiniteOpt.isexpr(x, :call)
+    explicit_comparison = isexpr(x, :comparison) || isexpr(x, :call)
     if explicit_comparison
         param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
     else
         param = x
     end
 
-    anonvar = InfiniteOpt.isexpr(param, :vect) || InfiniteOpt.isexpr(param, :vcat) || anon_singleton
+    anonvar = isexpr(param, :vect) || isexpr(param, :vcat) || anon_singleton
     anonvar && explicit_comparison && _error("Cannot use explicit bounds via " *
                                              ">=, <= with an anonymous parameter")
     parameter = gensym()
-    name = JuMPC._get_name(param)
+    name = _get_name(param)
     if isempty(base_name_kw_args)
         base_name = anonvar ? "" : string(name)
     else
@@ -221,7 +219,7 @@ macro independent_parameter(model, args...)
     if isa(param, Symbol)
         # Easy case - a single variable
         buildcall = :( build_parameter($_error, $set) )
-        JuMP._add_kw_args(buildcall, extra_kw_args)
+        _add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall, $base_name) )
         creationcode = :($parameter = $parametercall)
     else
@@ -230,7 +228,7 @@ macro independent_parameter(model, args...)
         # SparseAxisArray to contain them)
         idxvars, indices = JuMPC._build_ref_sets(_error, param)
         buildcall = :( build_parameter($_error, $set) )
-        JuMP._add_kw_args(buildcall, extra_kw_args)
+        _add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall,
                                          $(_name_call(base_name, idxvars))) )
         creationcode = JuMPC.container_code(idxvars, indices, parametercall,
@@ -244,10 +242,10 @@ macro independent_parameter(model, args...)
     else
         # We register the variable reference to its name and
         # we assign it to a variable in the local scope of this name
-        macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
-                                                   model_for_registering = esc_model)
+        macro_code = _macro_assign_and_return(creationcode, parameter, name,
+                                              model_for_registering = esc_model)
     end
-    return JuMP._finalize_macro(esc_model, macro_code, __source__)
+    return _finalize_macro(esc_model, macro_code, __source__)
 end
 
 """
@@ -324,7 +322,7 @@ macro finite_parameter(model, args...)
     anonvar = isexpr(param, :vect) || isexpr(param, :vcat) || anon_singleton
 
     parameter = gensym()
-    name = JuMPC._get_name(param)
+    name = _get_name(param)
     if isempty(base_name_kw_args)
         base_name = anonvar ? "" : string(name)
     else
@@ -339,13 +337,13 @@ macro finite_parameter(model, args...)
 
     if isa(param, Symbol)
         buildcall = :( build_parameter($_error, $value) )
-        JuMP._add_kw_args(buildcall, extra_kw_args)
+        _add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall, $base_name) )
         creationcode = :($parameter = $parametercall)
     else
         idxvars, indices = JuMPC._build_ref_sets(_error, param)
         buildcall = :( build_parameter($_error, $value) )
-        JuMP._add_kw_args(buildcall, extra_kw_args)
+        _add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall,
                                          $(_name_call(base_name, idxvars))) )
         creationcode = JuMPC.container_code(idxvars, indices, parametercall,
@@ -354,10 +352,10 @@ macro finite_parameter(model, args...)
     if anonvar
         macro_code = creationcode
     else
-        macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
-                                                   model_for_registering = esc_model)
+        macro_code = _macro_assign_and_return(creationcode, parameter, name,
+                                              model_for_registering = esc_model)
     end
-    return JuMP._finalize_macro(esc_model, macro_code, __source__)
+    return _finalize_macro(esc_model, macro_code, __source__)
 end
 
 """
@@ -492,7 +490,7 @@ macro dependent_parameters(model, args...)
                                         "with an anonymous parameter")
     # process the parameter name
     parameter = gensym()
-    name = JuMPC._get_name(param)
+    name = _get_name(param)
     if isempty(base_name_kw_args)
         base_name = anonparam ? "" : string(name)
     else
@@ -528,17 +526,17 @@ macro dependent_parameters(model, args...)
     param_container_call = JuMPC.container_code(idxvars, indices, parambuildcall,
                                                 requestedcontainer)
     buildcall = :( InfiniteOpt._build_parameters($_error, $param_container_call) )
-    JuMP._add_kw_args(buildcall, extra_kw_args)
+    _add_kw_args(buildcall, extra_kw_args)
     creationcode = :( add_parameters($esc_model, $(buildcall)...) )
 
     # make the final return code based on if it is anonymous or not
     if anonparam
         macro_code = creationcode
     else
-        macro_code = JuMP._macro_assign_and_return(creationcode, parameter, name,
-                                                   model_for_registering = esc_model)
+        macro_code = _macro_assign_and_return(creationcode, parameter, name,
+                                              model_for_registering = esc_model)
     end
-    return JuMP._finalize_macro(esc_model, macro_code, __source__)
+    return _finalize_macro(esc_model, macro_code, __source__)
 end
 
 """
@@ -889,7 +887,7 @@ macro infinite_variable(model, args...)
         end
 
         # check for double specification of parameters
-        if length(param_kw_args) != 0 && params != nothing
+        if length(param_kw_args) != 0 && params !== nothing
             _error("Cannot specify double specify the infinite parameter " *
                    "references.")
         end
@@ -928,6 +926,14 @@ macro infinite_variable(model, args...)
         end
     end
     return esc(code)
+end
+
+# Helper method for checking that function call is not from an operator
+function _ensure_not_operator(_error::Function, func)
+    if func in [:in, :<=, :>=, :(==), :≥, :≤, ∈]
+        _error("Invalid input syntax.")
+    end
+    return
 end
 
 """
@@ -1068,9 +1074,8 @@ macro point_variable(model, args...)
             if length(param_kw_args) != 0
                 _error("Cannot double specify the infinite variable reference " *
                        "and/or its parameter values.")
-            elseif x.args[1] in [:in, :<=, :>=, :(==), :≥, :≤, ∈]
-                _error("Invalid input syntax.")
             end
+            _ensure_not_operator(_error, x.args[1])
             rest_args = [args[i] for i = 2:length(args)]
             inf_var = x.args[1]
             param_vals = Expr(:tuple, x.args[2:end]...)
@@ -1235,6 +1240,253 @@ macro hold_variable(model, args...)
         @finite_variable($model, ($(args...)))
     end
     return esc(code)
+end
+
+# Helper method to process parameter function expressions 
+function _process_func_expr(_error::Function, raw_expr, pref_expr)
+    if isexpr(raw_expr, :call)
+        # we have symbolic arguments given 
+        _ensure_not_operator(_error, raw_expr.args[1])
+        func_expr = _esc_non_constant(raw_expr.args[1])
+        # restructure to expected in case keywords were given using ;
+        if length(raw_expr.args) > 1 && isexpr(raw_expr.args[2], :parameters)
+            append!(raw_expr.args, raw_expr.args[2].args)
+            deleteat!(raw_expr.args, 2)
+        end
+        # check that the prefs are given first and match the pref_expr
+        num_pref_args = length(pref_expr.args)
+        if length(raw_expr.args) <= num_pref_args || pref_expr.args != raw_expr.args[2:num_pref_args+1]
+            _error("Inconsistent infinite parameter reference dependencies.")
+        end 
+        # extract the extra arguments given symbolically
+        extra_func_args = raw_expr.args[num_pref_args+2:end]
+        raw_fargs = filter(e -> !isexpr(e, :kw), extra_func_args)
+        if isempty(raw_fargs) 
+            fargs = nothing
+        else
+            fargs = esc(Expr(:tuple, raw_fargs...))
+        end
+        # extract the keyword arguments given symbolically
+        raw_fkwargs = filter(e -> isexpr(e, :kw), extra_func_args)
+        if isempty(raw_fkwargs)
+            fkwargs = nothing
+        else
+            fkwargs = esc(Expr(:tuple, map(e -> Expr(:(=), e.args...), raw_fkwargs)...))
+        end
+    else 
+        # easy case where only the function name was given
+        func_expr = _esc_non_constant(raw_expr)
+        fargs = nothing
+        fkwargs = nothing
+    end
+    return func_expr, fargs, fkwargs
+end
+
+"""
+    @parameter_function(model::InfiniteModel, kw_args...)::GeneralVariableRef
+
+Add an *anonymous* parameter function to the model `model` described by the
+keyword arguments `kw_args` and returns the object reference. Note that the
+`func` and `parameter_refs` keywords are required in this
+case.
+
+```julia
+@parameter_function(model::InfiniteModel, varexpr, funcexpr, kw_args...)::GeneralVariableRef
+
+@parameter_function(model::InfiniteModel, varexpr == funcexpr, kw_args...)::GeneralVariableRef
+```
+
+Add a parameter function to `model` described by the expression `varexpr`, the
+function expression `funcexpr`, and the keyword arguments `kw_args`. The expression 
+`varexpr` is used to define the parameter function references and determine the 
+infinite parameters that are intended for this function. Here the accepted forms 
+are:
+- `varname(params...)` creating a scalar parameter function with alias name `varname` 
+  that depends on the parameter references `params...`
+- `varname[...](params...)` or `[...](params...)` creating a container of parameter 
+  functions with parameter references given in `paramexpr`.
+The expression `params` can match that of the `parameter_refs` keyword argument 
+(see the keyword argument description for info on accepted formats). 
+
+The expression `funcexpr` determines the concrete Julia function that defines the 
+behavior of parameter function and allows us to specify the `func`, `func_args`, 
+and/or `func_kwargs` keyword arguments. The accepted forms are:
+- `funcname`: Give the name of the concrete Julia function or give an anonymous function
+- `funcname(params..., func_args..., func_kwargs...)`: Provide the concrete Julia 
+  function name and provide the addtional positional/keyword arguments as needed.
+  Note the at the format of `params` must match that provided in `varexpr`. 
+
+The recognized keyword arguments in `kw_args` are the following:
+- `parameter_refs`: This is mandatory if not specified in `varexpr`. Can be a
+  single parameter reference, a single parameter array with parameters defined
+  in the same call of [`@infinite_parameter`](@ref),
+  or a tuple where each element is either of the first two options listed.
+- `func`: A concrete Julia function of the form 
+  `func(paramvals..., func_args...; func_kwargs...)::Float64` where the format of 
+  `param_vals` matches that of `parameter_refs` but accepts numeric supports. We could 
+  also instead give an anonymous function.
+- `func_args`: A `Tuple` of additional positional arguments for `func`
+- `func_kwargs`: A `NameTuple` of keyword arguments for `func`
+- `base_name`: Sets the name prefix used to generate object names. It
+  corresponds to the object name for scalar parameter function, otherwise, the
+  object names are set to `base_name[...]` for each index `...` of the axes
+  `axes`.
+- `container`: Specify the container type.
+
+**Examples**
+```julia-repl 
+julia> @parameter_function(model, func = sin, parameter_refs = t, base_name = "sin")
+sin(t)
+
+julia> @parameter_function(model, [i = 1:2], func = [sin, cos][i], parameter_refs = t)
+2-element Array{GeneralVariableRef,1}:
+ noname(t)
+ noname(t)
+
+julia> f(t_val, x_vals) = t_val + sum(x_vals)
+f (generic function with 1 method)
+
+julia> @parameter_function(model, pf(t, x) == f)
+pf(t, x)
+
+julia> g(t_val, a; b = 0) = t_val + a + b
+g (generic function with 1 method)
+
+julia> @parameter_function(model, pf2[i = 1:2](t) == g(t, i, b = 2 * i ))
+2-element Array{GeneralVariableRef,1}:
+ pf2[1](t)
+ pf2[2](t)
+
+julia> @parameter_function(model, pf2_alt[i = 1:2](t) == t -> g(t, i, b = 2 * i ))
+2-element Array{GeneralVariableRef,1}:
+ pf2_alt[1](t)
+ pf2_alt[2](t)
+```
+"""
+macro parameter_function(model, args...)
+    # prepare the model 
+    esc_model = esc(model)
+
+    # define error message function
+    _error(str...) = _macro_error(:parameter_function, (model, args...),
+                                  __source__, str...)
+
+    # parse the arguments
+    extra, kwargs, requestedcontainer = _extract_kw_args(args)
+    func_kwarg = filter(kw -> kw.args[1] == :func, kwargs)
+    prefs_kwarg = filter(kw -> kw.args[1] == :parameter_refs, kwargs)
+    fargs_kwarg = filter(kw -> kw.args[1] == :func_args, kwargs)
+    fkwargs_kwarg = filter(kw -> kw.args[1] == :func_kwargs, kwargs)
+    base_name_kwarg = filter(kw -> kw.args[1] == :base_name, kwargs)
+    filter!(kw -> kw.args[1] != :func && kw.args[1] != :parameter_refs &&
+            kw.args[1] != :base_name && kw.args[1] == :func_args &&
+            kw.args[1] == :func_kwargs, kwargs)
+
+    # if an equality syntax is given convert it into 2 separate arguments
+    if length(extra) == 1 && isexpr(extra[1], :call) && extra[1].args[1] == :(==)
+        extra = [extra[1].args[2], extra[1].args[3]]
+    end
+
+    # process and extract the symbolic inputs
+    fargs = nothing
+    fkwargs = nothing
+    anon_kwargs = !isempty(func_kwarg) && !isempty(prefs_kwarg)
+    if isempty(extra) && anon_kwargs
+        # single anonymous definition
+        var_expr = gensym()
+        func_expr = _esc_non_constant(func_kwarg[1].args[2])
+        pref_expr = _esc_non_constant(prefs_kwarg[1].args[2])
+        anon = true
+    elseif length(extra) == 1 && (isexpr(extra[1], :vect) || isexpr(extra[1], :vcat)) && anon_kwargs
+        # container definition of anonymous parameter functions
+        var_expr = extra[1]
+        func_expr = _esc_non_constant(func_kwarg[1].args[2])
+        pref_expr = _esc_non_constant(prefs_kwarg[1].args[2])
+        anon = true
+    elseif isempty(extra) || (length(extra) == 1 && (isexpr(extra[1], :vect) || isexpr(extra[1], :vcat)))
+        # we have one of the above situations, but not enough information
+        _error("Anonymous calls must specify both the `func` and " *
+               "`parameter_refs` keyword arguments.")
+    elseif !isempty(func_kwarg) || !isempty(prefs_kwarg)
+        # anonymous keyword args cannot be mixed with symbolic syntax
+        _error("Keyword arguments `func` and `parameter_refs` are only for " * 
+               "anonymous parameter function definitions.")
+    elseif length(extra) == 2 && isexpr(extra[1], :call)
+        # 2 argument symbolic definition which may or may not be anonymous
+        # anonymous if the first argument is of form [idx_expr](pref_expr)
+        # otherwise the first argument should be name[idx_expr](pref_expr) or name(pref_expr)
+        _ensure_not_operator(_error, extra[1].args[1])
+        var_expr = extra[1].args[1]
+        pref_expr = Expr(:tuple, extra[1].args[2:end]...)
+        func_expr, fargs, fkwargs = _process_func_expr(_error, extra[2], pref_expr)
+        pref_expr = esc(pref_expr)
+        anon = isexpr(var_expr, :vect) || isexpr(var_expr, :vcat)
+    elseif length(extra) == 2 
+        # some other 2 argument syntax
+        _error("Invalid explicit syntax, should be of form ",
+               "`@parameter_function(model, nameexpr(params...), funcexpr, kwargs...)")
+    elseif length(extra) > 2
+        # cannot have more than 2 positional arguments
+        _error("Too many positional arguments.")
+    else
+        # something else was given incorrectly with one positional argument
+        _error("Invalid syntax.")
+    end
+
+    # parse the base name appropriately
+    name = _get_name(var_expr)
+    if isempty(base_name_kwarg)
+        base_name = anon ? "" : string(name) # TODO perhaps change default behavior
+    else
+        base_name = esc(base_name_kwarg[1].args[2])
+    end
+    if !isa(name, Symbol) && !anon
+        _error("Expression $name should not be used as a parameter function name. Use " *
+               "the \"anonymous\" syntax $name = @parameter_function(model, " *
+               "...) instead.")
+    end
+
+    # update and check fargs
+    if !isempty(fargs_kwarg) && fargs === nothing 
+        fargs = _esc_non_constant(fargs_kwarg[1].args[2])
+    elseif !isempty(fargs_kwarg)
+        _error("Cannot double specify the `func_args` keyword argument.")
+    end
+
+    # update and check fkwargs
+    if !isempty(fkwargs_kwarg) && fkwargs === nothing 
+        fkwargs = _esc_non_constant(fkwargs_kwarg[1].args[2])
+    elseif !isempty(fkwargs_kwarg)
+        _error("Cannot double specify the `func_kwargs` keyword argument.")
+    end
+
+    # generate the needed code 
+    pfunc = gensym()
+    buildcall = :( build_parameter_function($_error, $func_expr, $pref_expr, 
+                                                func_args = $fargs, 
+                                                func_kwargs = $fkwargs) )
+    _add_kw_args(buildcall, kwargs)
+    if isa(var_expr, Symbol)
+        # create a single parameter function 
+        pfunctioncall = :( add_parameter_function($esc_model, $buildcall, $base_name) )
+        creationcode = :( $pfunc = $pfunctioncall )
+    else
+        # create code for a container 
+        idxvars, indices = JuMPC._build_ref_sets(_error, var_expr)
+        pfunctioncall = :( add_parameter_function($esc_model, $buildcall,
+                                         $(_name_call(base_name, idxvars))) )
+        creationcode = JuMPC.container_code(idxvars, indices, pfunctioncall,
+                                            requestedcontainer)
+    end
+    if anon
+        # anonymous creation
+        macro_code = creationcode
+    else
+        # want to register the object/container reference
+        macro_code = _macro_assign_and_return(creationcode, pfunc, name,
+                                              model_for_registering = esc_model)
+    end
+    return _finalize_macro(esc_model, macro_code, __source__)
 end
 
 ## Parse derivative numerators and denominators 

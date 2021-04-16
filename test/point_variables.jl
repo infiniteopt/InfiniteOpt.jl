@@ -506,6 +506,11 @@ end
     @infinite_parameter(m, x[1:2] in [-1, 1])
     @infinite_variable(m, 0 <= z(t, x) <= 1, Int, start = (a, x) -> a + sum(x))
     @infinite_variable(m, z2[1:2](t) == 3)
+    # test _ensure_not_operator
+    @testset "_ensure_not_operator" begin 
+        @test InfiniteOpt._ensure_not_operator(error, :f) isa Nothing 
+        @test_throws ErrorException InfiniteOpt._ensure_not_operator(error, :in)
+    end
     # test single variable definition
     @testset "Single" begin
         # test simple anon case

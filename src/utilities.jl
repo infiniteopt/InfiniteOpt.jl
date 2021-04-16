@@ -97,3 +97,12 @@ function _make_float_info(
     )::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
     return info
 end
+
+# Make a string of NamedTuple arguments 
+function _kwargs2string(nt::NamedTuple)::String
+    if length(nt) == 1
+        return string(nt)[2:end-2]
+    else
+        return string(nt)[2:end-1]
+    end
+end

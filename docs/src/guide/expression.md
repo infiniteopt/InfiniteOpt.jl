@@ -17,8 +17,10 @@ expressions in its current rendition. However, there several use cases where we
 might want to provide a more complex known function of infinite parameter(s) (e.g., 
 nonlinear setpoint tracking). Thus, we provide parameter function objects 
 that given a particular realization of infinite parameters will output a scalar 
-value. This is accomplished via [`parameter_function`](@ref) and is exemplified 
-by defining `sin(t)` below:
+value. Note that this is can be interpreted as an infinite variable that is 
+constrained to a particular known function. This is accomplished via 
+[`@parameter_function`](@ref) or [`parameter_function`](@ref) and is exemplified 
+by defining a parameter function `f(t)` that uses `sin(t)`:
 ```@jldoctest; param_func
 julia> using InfiniteOpt, JuMP;
 
@@ -26,8 +28,8 @@ julia> model = InfiniteModel();
 
 julia> @infinite_parameter(model, t in [0, 10]);
 
-julia> f = parameter_function(sin, t)
-sin(t)
+julia> @parameter_function(model, f(t) == sin(t))
+f(t)
 ```
 Here we created an parameter function object, added it to `model`, and 
 then created a Julia variable `f` that serves as a `GeneralVariableRef` that points 
@@ -37,22 +39,61 @@ measures, derivatives, and constraints. For example, we can do the following:
 julia> @infinite_variable(model, y(t));
 
 julia> df = deriv(f, t)
-∂/∂t[sin(t)]
+∂/∂t[f(t)]
 
 julia> meas = integral(y - f, t)
-∫{t ∈ [0, 10]}[y(t) - sin(t)]
+∫{t ∈ [0, 10]}[y(t) - f(t)]
 
 julia> @constraint(model, y - f <= 0)
-y(t) - sin(t) ≤ 0.0, ∀ t ∈ [0, 10]
+y(t) - f(t) ≤ 0.0, ∀ t ∈ [0, 10]
 ```
 We can also define parameter functions that depend on multiple infinite 
-parameters:
+parameters even use an anonymous function if prefer:
 ```@jldoctest; param_func
 julia> @infinite_parameter(model, x[1:2] in [-1, 1]);
 
-julia> f2 = parameter_function((a, b) -> a + sum(b), (t, x), name = "myname")
+julia> @parameter_function(model, myname(t, x), (a, b) -> a + sum(b))
 myname(t, x)
 ```
+In many applications, we may also desire to define an array of parameter functions 
+that each use a different realization of some parent function by varying some 
+additional positional/keyword arguments. We readily support this behavior since 
+parameter functions can be defined with additional known arguments:
+```@jldoctest; param_func
+julia> mysin(t_supp, a; b = 1) = a * sin(b * t_supp)
+mysin (generic function with 1 method)
+
+julia> as = collect(3:5);
+
+julia> @parameter_function(model, pfunc[i = 1:3](t) == mysin(t, as[i], b = 0))
+3-element Array{GeneralVariableRef,1}:
+ pfunc[1](t)
+ pfunc[2](t)
+ pfunc[3](t)
+```
+Equivalently, we could use an anonymous function instead:
+```@jldoctest; param_func
+julia> @parameter_function(model, pfunc_alt[i = 1:3](t) == t_supp -> mysin(t_supp, as[i], b = 0))
+3-element Array{GeneralVariableRef,1}:
+ pfunc_alt[1](t)
+ pfunc_alt[2](t)
+ pfunc_alt[3](t)
+```
+The main recommended use case for [`parameter_function`](@ref) is that it is 
+amendable to defining complex anonymous functions via a do-block which is useful 
+for applications like defining a time-varied setpoint:
+```@jldoctest; param_func
+julia> setpoint = parameter_function(t, name = "setpoint") do t_supp
+                    if t_supp <= 5
+                        return 2.0
+                    else 
+                        return 10.2
+                    end
+                 end
+setpoint(t)
+```
+Please consult the following links for more information about defining parameter 
+functions: [`@parameter_function`](@ref) and [`parameter_function`](@ref).
 
 Beyond this, there are number of query and modification methods that can be 
 employed for parameter functions and these are detailed in the 
@@ -241,6 +282,7 @@ ParameterFunctionData
 
 ## Parameter Function Methods 
 ```@docs
+@parameter_function
 parameter_function
 build_parameter_function
 add_parameter_function
