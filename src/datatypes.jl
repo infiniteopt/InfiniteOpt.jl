@@ -659,7 +659,7 @@ end
 #                        PARAMETER FUNCTION OBJECTS
 ################################################################################
 """
-    ParameterFunction{P <: GeneralVariableRef}
+    ParameterFunction{F <: Function, P <: GeneralVariableRef}
 
 A `DataType` for storing known functions of infinite parameters. These equate to arbitrary 
 functions that take support instances of infinite parameters `parameter_refs` in 
@@ -667,19 +667,22 @@ as input and compute a scalar value as output via `func`. These can then can
 incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
 
 **Fields**
--`func::Function`: The function the takes infinite parameters as input and provide 
-                   a scalar number as output.
--`parameter_refs::VectorTuple{P}`: The infinite parameter references that serve as 
+- `func::F`: The function the takes infinite parameters as input and provide a 
+            scalar number as output.
+- `parameter_refs::VectorTuple{P}`: The infinite parameter references that serve as 
                                    inputs to `func`. Their formatting is analagous 
                                    to those of infinite variables. 
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
+- `default_name::String`: A helper field for storing the default name of the parameter function 
+                          object.
 """
-struct ParameterFunction{P <: JuMP.AbstractVariableRef}
-    func::Function
+struct ParameterFunction{F <: Function, P <: JuMP.AbstractVariableRef}
+    func::F
     parameter_refs::VectorTuple{P}
     object_nums::Vector{Int}
     parameter_nums::Vector{Int}
+    default_name::String
 end
 
 """
@@ -1323,7 +1326,7 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
                          nothing, 0,
                          Union{IndependentParameterIndex, DependentParametersIndex}[],
-                         MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{ParameterFunction{GeneralVariableRef}}}(),
+                         MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{<:ParameterFunction}}(),
                          # Variables
                          MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable{GeneralVariableRef}}}(),
                          MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),

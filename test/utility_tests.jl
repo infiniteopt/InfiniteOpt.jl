@@ -107,3 +107,11 @@ end
     @test InfiniteOpt._make_float_info(info1) isa VariableInfo{Float64, Float64, Float64, Float64}
     @test InfiniteOpt._make_float_info(info2) == info2
 end
+
+# Test _kwargs2string
+@testset "_kwargs2string" begin
+    nt1 = (d = 1,)
+    nt2 = (d = 1, e = 2)
+    @test InfiniteOpt._kwargs2string(nt1) == "d = 1"
+    @test InfiniteOpt._kwargs2string(nt2) == "d = 1, e = 2"
+end

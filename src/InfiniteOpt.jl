@@ -69,7 +69,7 @@ export @independent_parameter, @dependent_parameters, @infinite_parameter,
 @finite_parameter, @infinite_variable, @point_variable, @finite_variable, 
 @infinite_parameter, @BDconstraint, @set_parameter_bounds, @add_parameter_bounds, 
 @measure, @integral, @expect, @support_sum, @deriv, @derivative_variable, @∂, @𝔼, 
-@∫
+@∫, @parameter_function
 
 # Export variable types 
 export InfOptVariableType, Infinite, Point, Finite, Deriv

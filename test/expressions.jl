@@ -1,10 +1,10 @@
-# Test infinite parameter function methods 
-@testset "Infinite Parameter Function Methods" begin 
+# Test parameter function methods 
+@testset "Parameter Function Methods" begin 
     # setup the needed info 
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 1])
     @infinite_parameter(m, x[1:2] in [-1, 1])
-    func = ParameterFunction(sin, IC.VectorTuple(t), [1], [1])
+    func = ParameterFunction(sin, IC.VectorTuple(t), [1], [1], "")
     object = ParameterFunctionData(func, "test")
     idx = ParameterFunctionIndex(1)
     fref = ParameterFunctionRef(m, idx)
@@ -154,19 +154,52 @@
         @test used_by_parameter_function(t)
         empty!(InfiniteOpt._parameter_function_dependencies(t))
     end
-    # _delete_data_object
+    # test _delete_data_object
     @testset "_delete_data_object" begin
         @test InfiniteOpt._delete_data_object(fref) isa Nothing
         @test length(InfiniteOpt._data_dictionary(fref)) == 0
         @test !is_valid(m, fref)
     end
+    # test _process_default_name
+    @testset "_process_default_name" begin
+        @test InfiniteOpt._process_default_name("bob", sin, (1,), (d= 1,)) == "bob"
+        @test InfiniteOpt._process_default_name(nothing, sin, nothing, nothing) == "sin"
+        @test InfiniteOpt._process_default_name(nothing, sin, (1,), (d= 1,)) == "sin"
+    end
+    # test _process_parameter_func
+    @testset "_process_parameter_func" begin
+        prefs = IC.VectorTuple(t)
+        f1(t_supp, a; b = 0) = t_supp + a + b
+        f2(t_supp; b = 0) = t_supp + b
+        # test correct
+        @test InfiniteOpt._process_parameter_func(error, sin, nothing, nothing, prefs) == sin 
+        @test InfiniteOpt._process_parameter_func(error, f1, (1,), (b = 1,), prefs)(1) == 3
+        @test InfiniteOpt._process_parameter_func(error, f2, nothing, (b = 1,), prefs)(1) == 2
+        @test InfiniteOpt._process_parameter_func(error, f1, (1,), nothing, prefs)(1) == 2
+        # test errors
+        @test_throws ErrorException InfiniteOpt._process_parameter_func(error, f1, nothing, nothing, prefs)
+        if Base.VERSION >= v"1.2.0"
+            @test_throws ErrorException InfiniteOpt._process_parameter_func(error, f1, (1,), (b = 1, z = 2), prefs)
+            @test_throws ErrorException InfiniteOpt._process_parameter_func(error, f1, (1, 2), (b = 1,), prefs)
+            @test_throws ErrorException InfiniteOpt._process_parameter_func(error, f2, nothing, (b = 1, z = 2), prefs)
+        end
+        @test_throws ErrorException InfiniteOpt._process_parameter_func(error, f2, (1,), nothing, prefs)
+    end
     # test build_parameter_function
     @testset "build_parameter_function" begin 
+        f3(ts, xs, a...; b...) = 42
         # test errors  
+        @test_throws ErrorException build_parameter_function(error, sin, t, bob = 1)
         @test_throws ErrorException build_parameter_function(error, sin, x[1])
         @test_throws ErrorException build_parameter_function(error, sin, (t, x))
+        @test_throws ErrorException build_parameter_function(error, sin, 2)
         # test normal  
         @test build_parameter_function(error, (a, b) -> 2, (t, x)) isa ParameterFunction 
+        @test build_parameter_function(error, f3, (t, x)) isa ParameterFunction 
+        @test build_parameter_function(error, f3, (t, x), func_args = (1,)) isa ParameterFunction 
+        @test build_parameter_function(error, f3, (t, x), func_kwargs = (d = 1,)) isa ParameterFunction 
+        @test build_parameter_function(error, sin, t) isa ParameterFunction 
+        @test build_parameter_function(error, sin, t, default_name = "bob") isa ParameterFunction 
     end
     # test add_parameter_function
     @testset "add_parameter_function" begin 
@@ -187,10 +220,25 @@
         @test add_parameter_function(m, func) == fref
         @test name(fref) == "cos"
     end
+    # test _select_name
+    @testset "_select_name" begin 
+        @test InfiniteOpt._select_name(nothing, "") == ""
+        @test InfiniteOpt._select_name("fish", "") == "fish"
+    end
     # test parameter_function
     @testset "parameter_function" begin 
+        f4(ts, xs, a...; b...) = 42
+        # test normal
         @test parameter_function(sin, t) isa GeneralVariableRef
         @test parameter_function(sin, t, name = "name") isa GeneralVariableRef
+        @test parameter_function(f4, (t, x), func_args = (1,)) isa GeneralVariableRef
+        @test parameter_function(f4, (t, x), func_kwargs = (d = 1,)) isa GeneralVariableRef
+        # test errors 
+        @test_throws ErrorException parameter_function(sin, (t, x))
+        if Base.VERSION >= v"1.2.0"
+            @test_throws ErrorException parameter_function(sin, t, func_kwargs = (d = 1,))
+        end
+        @test_throws ErrorException parameter_function(sin, t, func_args = ("v",))
     end
     # test making other objects 
     @testset "Other Objects" begin
@@ -200,6 +248,120 @@
         @test add_variable(m, build_variable(error, f, d)) isa GeneralVariableRef
         # test making derivative 
         @test deriv(f, t) isa GeneralVariableRef
+    end
+end
+
+# Test the parameter function methods for macro definition 
+@testset "Parameter Function Macro" begin
+    # setup 
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x[1:2] in [0, 1])
+    f5(t, x, a...; b...) = 42
+    # test _process_func_expr
+    @testset "_process_func_expr" begin
+        pref_expr = :((t, x))
+        # test normal
+        @test InfiniteOpt._process_func_expr(error, :sin, pref_expr) == (esc(:sin), nothing, nothing)
+        @test InfiniteOpt._process_func_expr(error, :(f(t, x)), pref_expr) == (esc(:f), nothing, nothing)
+        @test InfiniteOpt._process_func_expr(error, :(f(t, x, 1, d = 1)), pref_expr) == (esc(:f), esc(:((1,))), esc(:((d = 1,))))
+        @test InfiniteOpt._process_func_expr(error, :(f(t, x, 1; d = 1)), pref_expr) == (esc(:f), esc(:((1,))), esc(:((d = 1,))))
+        # test errors 
+        @test_throws ErrorException InfiniteOpt._process_func_expr(error, :(f(t)), pref_expr)
+        @test_throws ErrorException InfiniteOpt._process_func_expr(error, :(f(x, t)), pref_expr)
+        @test_throws ErrorException InfiniteOpt._process_func_expr(error, :(f >= 2), pref_expr)
+    end
+    # test @parameter_function
+    @testset "@parameter_function" begin
+        # test errors
+        @test_macro_throws ErrorException @parameter_function(m)
+        @test_macro_throws ErrorException @parameter_function(m, func = f5)
+        @test_macro_throws ErrorException @parameter_function(m, [1:2], func = f5)
+        @test_macro_throws ErrorException @parameter_function(m, y(t,x), f5, parameter_refs = (t, x))
+        @test_macro_throws ErrorException @parameter_function(m, y(t,x), f5(t))
+        @test_macro_throws ErrorException @parameter_function(m, y(t,x) >= 0, f5(t, x))
+        @test_macro_throws ErrorException @parameter_function(m, 2, f5)
+        @test_macro_throws ErrorException @parameter_function(m, (2, 1), f5(2, 1))
+        @test_macro_throws ErrorException @parameter_function(m, y(t, x), f5, Int)
+        @test_macro_throws ErrorException @parameter_function(m, a(2, 1), f5(2, 1))
+        @test_macro_throws ErrorException @parameter_function(m, f5(t, x))
+        @test_macro_throws ErrorException @parameter_function(m, "a$(1)"(t, x), f5(t, x))
+        @test_macro_throws ErrorException @parameter_function(m, y(t,x), f5(t, x, 1), func_args = (2,))
+        @test_macro_throws ErrorException @parameter_function(m, y(t,x), f5(t, x; d = 1), func_kwargs = (d = 2,))
+        @test_macro_throws ErrorException @parameter_function(m, y(t), f5)
+        @test_macro_throws ErrorException @parameter_function(m, y(x[1]), sin)
+        @test_macro_throws ErrorException @parameter_function(t, y(t), sin)
+        @test_macro_throws ErrorException @parameter_function(m, t(t), sin)
+        # test anonymous singular 
+        idx = 1
+        ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
+        @test @parameter_function(m, func = f5, parameter_refs = (t, x), 
+                                  base_name = "a") == ref
+        @test name(ref) == "a"
+        @test raw_function(ref) == f5 
+        @test parameter_refs(ref) == (t, x)
+        idx += 1
+        ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
+        @test @parameter_function(m, func = f5, parameter_refs = (t, x), 
+                                  fun_args = (1,), func_kwargs = (d = 1,)) == ref
+        @test name(ref) == ""
+        @test raw_function(ref) != f5
+        @test raw_function(ref)(1, [1, 1]) == 42
+        @test parameter_refs(ref) == (t, x)
+        idx += 1
+        # test anonymous single argument multi-dim 
+        refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in [0, 1]]
+        @test @parameter_function(m, [1:2], func = f5, parameter_refs = (t, x)) == refs
+        @test parameter_refs(refs[1]) == (t, x)
+        @test raw_function(refs[2]) == f5 
+        idx += 2
+        refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in [0, 1]]
+        @test @parameter_function(m, [i = 1:2; i >= 1], func = (sin, cos)[i], 
+                                  parameter_refs = t) isa JuMPC.SparseAxisArray
+        @test parameter_refs(refs[1]) == (t,)
+        @test raw_function(refs[2]) == cos
+        @test raw_function(refs[1]) == sin
+        idx += 2
+        # test anonymous double argument multi-dim (TODO maybe remove this behavior)
+        refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in [0, 1]]
+        @test @parameter_function(m, [1:2](t, x), f5) == refs
+        @test parameter_refs(refs[1]) == (t, x)
+        @test raw_function(refs[2]) == f5 
+        idx += 2
+        # test explicit single 
+        ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
+        @test @parameter_function(m, a(t, x), f5, base_name = "bob") == ref
+        @test name(ref) == "bob"
+        @test raw_function(ref) == f5 
+        @test parameter_refs(ref) == (t, x)
+        idx += 1
+        ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
+        @test @parameter_function(m, b(t, x), f5(t, x, 2, d = 1)) == ref
+        @test name(ref) == "b"
+        @test raw_function(ref) != f5 
+        @test raw_function(ref)(1, [1, 1]) == 42
+        @test parameter_refs(ref) == (t, x)
+        idx += 1
+        ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
+        @test @parameter_function(m, c(t, x) == (ts, xs) -> f5(ts, xs, 2, d = 1)) == ref
+        @test name(ref) == "c"
+        @test raw_function(ref) != f5 
+        @test raw_function(ref)(1, [1, 1]) == 42
+        @test parameter_refs(ref) == (t, x)
+        idx += 1
+        # test explicit multi-dim 
+        refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in [0, 1]]
+        @test @parameter_function(m, d[1:2](t, x), f5) == refs
+        @test parameter_refs(refs[1]) == (t, x)
+        @test raw_function(refs[2]) == f5 
+        @test name(refs[1]) == "d[1]"
+        idx += 2
+        refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in [0, 1]]
+        @test @parameter_function(m, e[1:2](t, x) == f5(t, x, 2; s = 1)) == refs
+        @test parameter_refs(refs[1]) == (t, x)
+        @test raw_function(refs[2]) != f5 
+        @test name(refs[2]) == "e[2]"
+        idx += 2
     end
 end
 
