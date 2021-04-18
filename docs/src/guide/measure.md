@@ -54,7 +54,7 @@ julia> mref2 = integral(y^2 + u^2, t, eval_method = Quadrature())
 
 The `integral` function also allows for specifying other keyword arguments that 
 correspond to the chosen evaluation method. For example, when using 
-[`FEGaussQuadrature`](@ref) as the evaluation method we can specify the number of 
+[`FEGaussLobatto`](@ref) as the evaluation method we can specify the number of 
 discretization points per finite element via `num_nodes`. 
 ```jldoctest meas_basic
 julia> mref3 = ∫(y^2 + u^2, t, eval_method = FEGaussLobatto(), num_nodes = 3)
@@ -101,10 +101,7 @@ measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
 julia> measure_data(mref2)
-FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,UniformGenerativeInfo}(t, getfield(InfiniteOpt.MeasureToolbox, Symbol("#coeff_func#4")){Int64}(3), 0, All, UniformGenerativeInfo([0.5], InternalGaussLobatto), InfiniteOpt.default_weight, 0.0, 10.0, false)
-
-julia> measure_data(mref3)
-FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,NoGenerativeSupports}(t, InfiniteOpt.MeasureToolbox._trapezoid_coeff, 0, All, NoGenerativeSupports(), InfiniteOpt.default_weight, 0.0, 10.0, false)
+FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,UniformGenerativeInfo}(t, getfield(InfiniteOpt.MeasureToolbox, Symbol("##5#6")){Int64}(3), 0, All, UniformGenerativeInfo([0.5], InternalGaussLobatto), InfiniteOpt.default_weight, 0.0, 10.0, false)
 ```
 Natively in `InfiniteOpt`, two types of measure data objects are used to store the measure
 data information depending on the nature of the measures created: `DiscreteMeasureData` and
@@ -292,7 +289,7 @@ will take in the user supports, and create generative supports along each interv
 and match them with corresponding coefficients. Here is a depiction of such what 
 `FEGaussLobatto` does. 
 
-![Image](C:\Users\david\.julia\dev\InfiniteOpt\docs\src\assets\FEGaussLobatto.png)
+![Image](..\assets\FEGaussLobatto.png)
 
 ``\int_{x_1}^{x_3} f(x) dx = \int_{x_1}^{x_2} f(x) dx + \int_{x_2}^{x_3} f(x) dx``
 
