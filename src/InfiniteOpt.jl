@@ -111,7 +111,8 @@ generative_support_info, make_generative_supports, add_generative_supports
 
 # Export the paramter function datatypes and methods 
 export ParameterFunction, ParameterFunctionData, ParameterFunctionRef,
-build_parameter_function, add_parameter_function, raw_function, parameter_function
+build_parameter_function, add_parameter_function, raw_function, parameter_function,
+call_function
 
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, SemiInfiniteVariable,

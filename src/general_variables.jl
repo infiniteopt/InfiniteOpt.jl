@@ -672,6 +672,22 @@ for op = (:_set_has_generative_supports, :_set_has_internal_supports,
     end
 end
 
+# Dispatch fallback
+function call_function(fref::DispatchVariableRef, support...)
+    throw(ArgumentError("`call_function` not defined for variable reference type(s) " *
+                        "`$(typeof(fref))`."))
+end
+
+"""
+    call_function(fref::GeneralVariableRef, support...)::Float64
+
+Call the parameter function of `fref` at `support`.
+An `ArgumentError` is thrown if `fref` is not a parameter function.
+"""
+function call_function(fref::GeneralVariableRef, support...)::Float64
+    return call_function(dispatch_variable_ref(fref), support...)
+end
+
 ################################################################################
 #                              VARIABLE METHODS
 ################################################################################

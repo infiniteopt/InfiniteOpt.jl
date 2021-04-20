@@ -394,6 +394,21 @@ function raw_function(fref::ParameterFunctionRef)::Function
     return _core_variable_object(fref).func
 end
 
+"""
+    call_function(fref::ParameterFunctionRef, support...)::Float64
+
+Safely evaluates the [`raw_function`](@ref) of `fref` at a particular support `support`
+point that matches the format of the infinite parameter tuple given when the `fref` 
+was defined. This is essentially equivalent to `raw_function(fref)(supps...)` 
+except it properly handles the "world" of internally generated functions to prevent 
+world age errors. 
+"""
+function call_function(fref::ParameterFunctionRef, supps...)::Float64
+    pfunc = _core_variable_object(fref)
+    func = pfunc.func 
+    return Base.invokelatest(func, supps...)
+end
+
 # Extend _semi_infinite_variable_dependencies
 function _semi_infinite_variable_dependencies(
     fref::ParameterFunctionRef
