@@ -52,11 +52,12 @@ julia> mref2 = integral(y^2 + u^2, t, eval_method = Quadrature())
 ∫{t ∈ [0, 10]}[y(t)² + u(t)²]
 ```
 
-The `integral` function also allows for specifying the number of points for the
-discretization scheme using the keyword argument `num_supports`. The default
-value of `num_supports` is 10.
+The `integral` function also allows for specifying other keyword arguments that 
+correspond to the chosen evaluation method. For example, when using 
+[`FEGaussLobatto`](@ref) as the evaluation method we can specify the number of 
+discretization points per finite element via `num_nodes`. 
 ```jldoctest meas_basic
-julia> mref3 = ∫(y^2 + u^2, t, num_supports = 20)
+julia> mref3 = ∫(y^2 + u^2, t, eval_method = FEGaussLobatto(), num_nodes = 3)
 ∫{t ∈ [0, 10]}[y(t)² + u(t)²]
 ```
 Notice here how we used [`∫`](@ref) in place of `integral` as a convenient wrapper.
@@ -100,10 +101,14 @@ measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
 julia> measure_data(mref2)
+<<<<<<< HEAD
 FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,UniformGenerativeInfo}(t, getfield(InfiniteOpt.MeasureToolbox, Symbol("#coeff_func#4")){Int64}(3), 0, All, UniformGenerativeInfo([0.5], InternalGaussLobatto), InfiniteOpt.default_weight, 0.0, 10.0, false)
 
 julia> measure_data(mref3)
 FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,NoGenerativeSupports}(t, InfiniteOpt.MeasureToolbox._trapezoid_coeff, 0, All, NoGenerativeSupports(), InfiniteOpt.default_weight, 0.0, 10.0, false)
+=======
+FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,UniformGenerativeInfo}(t, getfield(InfiniteOpt.MeasureToolbox, Symbol("##5#6")){Int64}(3), 0, All, UniformGenerativeInfo([0.5], InternalGaussLobatto), InfiniteOpt.default_weight, 0.0, 10.0, false)
+>>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 ```
 Natively in `InfiniteOpt`, two types of measure data objects are used to store the measure
 data information depending on the nature of the measures created: `DiscreteMeasureData` and
@@ -117,8 +122,9 @@ julia> measure_function(mref3)
 y(t)² + u(t)²
 ```
 
-In addition to `eval_method` and `num_supports` as shown above, `integral` function 
+In addition to `eval_method`, the `integral` function 
 also accepts `weight_func` as keyword argument, which dictates the weight function
+<<<<<<< HEAD
 of the measure. The default value of these keyword arguments can be queried using
 [`uni_integral_defaults`](@ref) and [`multi_integral_defaults`](@ref) as follows:
 ```jldoctest meas_basic
@@ -142,6 +148,19 @@ default values. To do that, we use the functions
 Adding new keyword arguments will be useful if users want to extend the measure 
 functions with their custom representation/evaluation schemes that need to take 
 additional arguments somehow. See [Extensions](@ref) for more details.
+=======
+of the measure. Now suppose we want to create multiple measures that share the 
+same keyword argument values that are different from the defaults. We don't have 
+to input the keyword argument values every time we construct a new measure. 
+Instead, we can modify the default values of measure keyword arguments, and 
+construct measures using the new default values. To do that, we use the functions
+[`set_uni_integral_defaults`](@ref) and [`set_multi_integral_defaults`](@ref). We 
+can in turn reset these via [`clear_uni_integral_defaults`](@ref) and 
+[`clear_multi_integral_defaults`](@ref). Adding new keyword arguments will be 
+useful if users want to extend the measure functions with their custom 
+representation/evaluation schemes that need to take additional arguments somehow. 
+See [Extensions](@ref) for more details.
+>>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 
 Now we can add integrals to the constraints and objective functions in our
 model using these measures. For more detailed information, please review the
@@ -194,8 +213,12 @@ evaluate a function at each integer time point between 0 and 10, we
 can construct the following measure data object to record this discretization
 scheme:
 ```jldoctest meas_basic
+<<<<<<< HEAD
 julia> md_t = DiscreteMeasureData(t, ones(10), [i for i in 1:10])
 DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], UniqueMeasure{Symbol("##817")}, InfiniteOpt.default_weight, NaN, NaN, false)
+=======
+julia> md_t = DiscreteMeasureData(t, ones(10), [i for i in 1:10]);
+>>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 ```
 The arguments of [`DiscreteMeasureData`](@ref) are parameter, coefficients, and
 supports. The default weight function is ``w(\tau) = 1`` for
@@ -221,8 +244,7 @@ julia> @infinite_parameter(model, x[1:2] in [0, 1])
  x[1]
  x[2]
 
-julia> md_x = DiscreteMeasureData(x, 0.25 * ones(4), [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75]])
-DiscreteMeasureData{Array{GeneralVariableRef,1},2,Array{Float64,1}}(GeneralVariableRef[x[1], x[2]], [0.25, 0.25, 0.25, 0.25], [0.25 0.25 0.75 0.75; 0.25 0.75 0.25 0.75], UniqueMeasure{Symbol("##822")}, InfiniteOpt.default_weight, [NaN, NaN], [NaN, NaN], false)
+julia> md_x = DiscreteMeasureData(x, 0.25 * ones(4), [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75]]);
 ```
 where `md_x` cuts the domain into four 0.5-by-0.5 squares, and evaluates the
 integrand on the center of these squares. Note that for multivariate parameters, 
@@ -245,8 +267,7 @@ signify the use of this method. A `FunctionalDiscreteMeasureData` can be created
 julia> coeff_f(supports) = [(10 - 0) / length(supports) for i in supports]
 coeff_f (generic function with 1 method)
 
-julia> fmd_t = FunctionalDiscreteMeasureData(t, coeff_f, 20, UniformGrid)
-FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,NoGenerativeSupports}(t, coeff_f, 20, UniformGrid, NoGenerativeSupports(), InfiniteOpt.default_weight, NaN, NaN, false)
+julia> fmd_t = FunctionalDiscreteMeasureData(t, coeff_f, 20, UniformGrid);
 ```
 For more details see [`FunctionalDiscreteMeasureData`](@ref). 
 
@@ -270,6 +291,7 @@ Each method is limited on the dimension of parameter and/or the type of set
 that it can apply for. For the details of what each method type means, refer to the corresponding
 docstrings.
 
+<<<<<<< HEAD
 The eval method `FEGaussLobatto` creates finite elements by decomposing over the supports that have been added to the integral parameter and then approximates the integral over each finite element via Lobatto quadrature using num_nodes. 
 All other Gauss quadrature methods do not incorporate any existing supports nor do they decompose the integral into finite elements, 
 but instead generate their quadrature node points over the entire integral domain. 
@@ -303,6 +325,8 @@ We pass set `num_nodes` to be equal to three, to give three generative supports 
 
 
 
+=======
+>>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 | Evaluation Method                                | Uni/Multi-Variate? | Weight Function              | Set Type                            |
 |:------------------------------------------------:|:------------------:|:----------------------------:|:-----------------------------------:|
 | [`Automatic()`](@ref)                            | Both               |   ``1``                      | Any                                 |
@@ -312,7 +336,11 @@ We pass set `num_nodes` to be equal to three, to give three generative supports 
 | [`Quadrature()`](@ref)                           | Univariate         |   ``1``                      | [`IntervalSet`](@ref)               |
 | [`GaussLegendre()`](@ref)                        | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 | [`GaussRadau()`](@ref)                           | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+<<<<<<< HEAD
 | [`GaussJacobi()`](@ref)                          | Univariate         | `` (1-x)^\alpha (1+x)^\beta``| Finite [`IntervalSet`](@ref)        |
+=======
+| [`GaussJacobi(α, β)`](@ref GaussJacobi)          | Univariate         | `` (1-x)^\alpha (1+x)^\beta``| Finite [`IntervalSet`](@ref)        |
+>>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 | [`GaussLobatto()`](@ref)                         | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 | [`FEGaussLobatto()`](@ref)                       | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 | [`GaussChebyshev(1)`](@ref GaussChebyshev)       | Univariate         | ``\frac{1}{\sqrt{1-x^2}}  `` | Finite [`IntervalSet`](@ref)        |
@@ -324,13 +352,58 @@ We pass set `num_nodes` to be equal to three, to give three generative supports 
 | [`MultiMCSampling()`](@ref)                      | Multivariate       |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 | [`MultiIndepMCSampling()`](@ref)                 | Multivariate       |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 
+<<<<<<< HEAD
 In summary, we natively support trapezoid rule, Gaussian quadrature methods for univariate parameters,
 and Monte Carlo sampling for both univariate and multivariate parameters.
 For extension purposes, users may define their own [`generate_integral_data`](@ref)
 to encode custom evaluation methods. See [Extensions](@ref) for more details.
+=======
+
+The eval method [`FEGaussLobatto`](@ref) creates finite elements by decomposing over the 
+supports that have been added to the integral parameter and then approximates the 
+integral over each finite element via Lobatto quadrature using num_nodes. 
+All other Gauss quadrature methods do not incorporate any existing supports nor 
+do they decompose the integral into finite elements, but instead generate their 
+quadrature node points over the entire integral domain. See the 
+[A Note on Support Management](@ref) Section for more information. This method 
+will take in the user supports, and create generative supports along each interval 
+and match them with corresponding coefficients. Here is a depiction of such what 
+`FEGaussLobatto` does. 
+
+![Image](..\assets\FEGaussLobatto.png)
+
+``\int_{x_1}^{x_3} f(x) dx = \int_{x_1}^{x_2} f(x) dx + \int_{x_2}^{x_3} f(x) dx``
+
+``\approx \sum_{i=1}^{n} \alpha_{a,i} f(\tau_{a,i}) + \sum_{i=1}^{n} \alpha_{b,i} f(\tau_{b,i})``
+
+`` = \sum_{i=1}^{n} (\alpha_{a,i} f(\tau_{a,i}) + \alpha_{b,i} f(\tau_{b,i}))``
+
+where ``\tau_{a,i}`` and ``\tau_{b,i}`` are the discrete nodes for the two intervals 
+
+and ``\alpha_{a,i}`` and ``\alpha_{b,i}`` are the coefficients.
+
+```jldoctest meas_basic; setup = :(set_supports(t, [0, 5, 10], force = true))
+julia> mref_lob = integral(y^2 + u^2, t, num_nodes = 3, eval_method = FEGaussLobatto())
+∫{t ∈ [0, 10]}[y(t)² + u(t)²]
+
+julia> expand(mref_lob)
+0.8333333333333333 y(0)² + 0.8333333333333333 u(0)² + 3.333333333333333 y(2.5)² + 3.333333333333333 u(2.5)² + 1.6666666666666665 y(5)² + 1.6666666666666665 u(5)² + 3.333333333333333 y(7.5)² + 3.333333333333333 u(7.5)² + 0.8333333333333333 y(10)² + 0.8333333333333333 u(10)²
+
+```
+We set `num_nodes = 3` to define the number of nodes (supports) that will be used 
+at each finite element for the integral approximation. Note that this is inclusive 
+of the finite element supports, so the number of generative (internal) supports 
+added to each finite element is `num_nodes - 2`.  
+
+In summary, we natively support trapezoid rule, Gaussian quadrature methods for 
+univariate parameters, and Monte Carlo sampling for both univariate and 
+multivariate infinite parameters. For extension purposes, users may define their 
+own [`generate_integral_data`](@ref) to encode custom evaluation methods. See 
+[Extensions](@ref) for more details.
+>>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 
 ### A Note on Support Management
-There is a difference in how supports are considered using `UniTrapezoid()` and 
+There is a difference in how supports are considered using `UniTrapezoid()`/`FEGaussLobatto()` vs.
 the other schemes. Namely, the other schemes will NOT incorporate other supports 
 specified elsewhere in the model. Consider the following example with 3 equidistant 
 supports and an integral objective function that uses `UniTrapezoid()` (the default):
@@ -472,8 +545,8 @@ julia> transcription_variable(u)
 julia> objective_function(trans_m) 
 u(support: 1)² + u(support: 2)²
 ```
-Therefore, using quadratures other than trapezoid requires careful analysis if 
-there are user-defined supports in the problem. 
+Therefore, using quadratures other than `UniTrapezoid()` or `FEGaussLobatto()` 
+requires careful analysis if there are user-defined supports in the problem. 
 
 ## Expansion
 In a model, each measure records the integrand expression and an evaluation
@@ -495,8 +568,12 @@ based on the [`AbstractMeasureData`](@ref). For example, suppose we want to
 integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``.
 We can set up and expand this measure as follows:
 ```jldoctest meas_basic; setup = :(clear_uni_integral_defaults())
+<<<<<<< HEAD
 julia> tdata = DiscreteMeasureData(t, [5, 5], [2.5, 7.5])
 DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], UniqueMeasure{Symbol("##835")}, InfiniteOpt.default_weight, NaN, NaN, false)
+=======
+julia> tdata = DiscreteMeasureData(t, [5, 5], [2.5, 7.5]);
+>>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 
 julia> mref4 = measure(y^2, tdata)
 measure{t}[y(t)²]
@@ -711,7 +788,9 @@ InfiniteOpt.MeasureToolbox.@support_sum
 InfiniteOpt.MeasureToolbox.support_sum
 InfiniteOpt.MeasureToolbox.uni_integral_defaults
 InfiniteOpt.MeasureToolbox.set_uni_integral_defaults
+InfiniteOpt.MeasureToolbox.clear_uni_integral_defaults
 InfiniteOpt.MeasureToolbox.multi_integral_defaults
 InfiniteOpt.MeasureToolbox.set_multi_integral_defaults
+InfiniteOpt.MeasureToolbox.clear_multi_integral_defaults
 InfiniteOpt.MeasureToolbox.generate_integral_data
 ```

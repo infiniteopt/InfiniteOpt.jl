@@ -2,10 +2,10 @@
     m = InfiniteModel();
     @infinite_parameter(m, t in [-Inf, Inf], supports = [0, .5, 1])
     @infinite_parameter(m, x[1:2] in [-Inf, Inf])
-
     # test _trapezoid_coeff
     @testset "_trapezoid_coeff" begin
         @test InfiniteOpt.MeasureToolbox._trapezoid_coeff([1,2,3]) == [0.5, 1., 0.5]
+        @test_throws ErrorException InfiniteOpt.MeasureToolbox._trapezoid_coeff([1])
     end
     # test generate_integral_data (trapezoid)
     @testset "generate_integral_data (trapezoid)" begin
@@ -24,26 +24,29 @@
         @test generate_integral_data(t, 0, 1, GaussLegendre()).coefficients == FastGaussQuadrature.gausslegendre(3)[2] * 1/2
     end
     # test generate_integral_data (Gauss-Lobatto)
-    @testset "generate_integral_data (Gauss-Lobatoo)" begin
+    @testset "generate_integral_data (Gauss-Lobato)" begin
         @test generate_integral_data(t, 0, 1, GaussLobatto()) isa DiscreteMeasureData
         @test generate_integral_data(t, 0, 1, GaussLobatto()).coefficients == FastGaussQuadrature.gausslobatto(3)[2] * 1/2
     end
-
+    # test _lobatto_coeff
+    @testset "_lobatto_coeff" begin
+        @test InfiniteOpt.MeasureToolbox._lobatto_coeff([1,2], 2) == [0.5, 0.5]
+        @test_throws ErrorException InfiniteOpt.MeasureToolbox._lobatto_coeff([1], 3)
+    end
     # test generate_integral_data (FEGaussLobatto)
     @testset "generate_integral_data (FEGaussLobatto)" begin
+        @test_throws ErrorException generate_integral_data(t, 0, Inf, FEGaussLobatto())
+        @test_throws ErrorException generate_integral_data(t, 0, 1, FEGaussLobatto(), num_nodes = 1)
         @test generate_integral_data(t, 0, 1, FEGaussLobatto()) isa FunctionalDiscreteMeasureData
         @test generate_integral_data(t, 0, 1, FEGaussLobatto()).label == All
-        @test all(abs.(generate_integral_data(t, 0, 1, FEGaussLobatto()).coeff_function([0, 0.5, 1]) .- [0.08333333333333333,
-                                                                                0.3333333333333333,
-                                                                                0.16666666666666666,
-                                                                                0.3333333333333333,
-                                                                                0.08333333333333333]).<.00005) == true
+        expected = [0.08333333333333333, 0.3333333333333333, 0.16666666666666666,
+                    0.3333333333333333, 0.08333333333333333]
+        @test all(abs.(generate_integral_data(t, 0, 1, FEGaussLobatto()).coeff_function([0, 0.5, 1]) .- expected) .< 0.00005)
         @infinite_variable(m, flob(t))
         integral(flob, t, 0, 1, eval_method = FEGaussLobatto(), num_nodes = 3)
         add_generative_supports(t)
         lobb_supps = supports(t, label = All)
-        @test all(abs.(lobb_supps .- [0, .25, .5, .75, 1] .< .000005)) == true
-        @test_throws ErrorException("Num supports must be greater than 2") integral(flob, t, 0, 1, eval_method = FEGaussLobatto(), num_nodes = 1)
+        @test all(abs.(lobb_supps .- [0, .25, .5, .75, 1] .< .000005))
     end
     # test generate_integral_data (Gauss-Radau)
     @testset "generate_integral_data (Gauss-Radau)" begin
@@ -54,13 +57,13 @@
     @testset "generate_integral_data (Gauss-Jacobi)" begin
         @test generate_integral_data(t, 0, 1, GaussJacobi(5.0, 4.0)) isa DiscreteMeasureData
         @test generate_integral_data(t, 0, 1, GaussJacobi(5.0, 4.0)).coefficients == FastGaussQuadrature.gaussjacobi(3, 5.0, 4.0)[2] * 1/2
-        @test_throws ErrorException("α and β must be greater than -1 for GaussJacobi") generate_integral_data(t, 0, 1, GaussJacobi(-5.0, -5.0))
+        @test_throws ErrorException GaussJacobi(-5, -5)
     end
      # test generate_integral_data (Gauss-Chebyshev)
     @testset "generate_integral_data (Gauss-Chebyshev)" begin
         @test generate_integral_data(t, 0, 1, GaussChebyshev(3)) isa DiscreteMeasureData
         @test generate_integral_data(t, 0, 1, GaussChebyshev(3)).coefficients == FastGaussQuadrature.gausschebyshev(3, 3)[2] * 1/2
-        @test_throws ErrorException("Order must be between 1 and 4 for GaussChebyshev") generate_integral_data(t, 0, 1, GaussChebyshev(5))
+        @test_throws ErrorException GaussChebyshev(5)
     end
     # test generate_integral_data (Gauss-Laguerre)
     @testset "generate_integral_data (Gauss-Laguerre)" begin
@@ -87,10 +90,6 @@
                "switching to an appropriate method."
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, GaussLobatto())) isa DiscreteMeasureData
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, Inf, GaussLobatto())) isa DiscreteMeasureData
-        warn = "The Gauss Lobatto method can only be applied on finite intervals, " *
-               "switching to an appropriate method."
-        @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, FEGaussLobatto())) isa FunctionalDiscreteMeasureData
-        @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, Inf, FEGaussLobatto())) isa FunctionalDiscreteMeasureData
         warn = "The `GaussRadau` method can only be applied on finite intervals, " *
                "switching to an appropriate method."
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, GaussRadau())) isa DiscreteMeasureData
@@ -103,11 +102,11 @@
                "switching to an appropriate method."
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, GaussChebyshev(3))) isa DiscreteMeasureData
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, Inf, GaussChebyshev(3))) isa DiscreteMeasureData
-        warn = "Gauss Laguerre quadrature can only be applied on semi-infinite intervals, " *
+        warn = "`GaussLaguerre` quadrature can only be applied on semi-infinite intervals, " *
                "switching to an appropriate method."
         @test (@test_logs (:warn, warn) generate_integral_data(t, 0, 1, GaussLaguerre())) isa DiscreteMeasureData
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, Inf, GaussLaguerre())) isa DiscreteMeasureData
-        warn = "Gauss Hermite quadrature can only be applied on infinite intervals, " *
+        warn = "`GaussHermite` quadrature can only be applied on infinite intervals, " *
                "switching to an appropriate method."
         @test (@test_logs (:warn, warn) generate_integral_data(t, 0, 1, GaussHermite())) isa FunctionalDiscreteMeasureData
         @test (@test_logs (:warn, warn) generate_integral_data(t, -Inf, 0, GaussHermite())) isa DiscreteMeasureData
@@ -116,8 +115,9 @@
     @testset "generate_integral_data (UniMCSampling())" begin
         @test generate_integral_data(t, 0, 1, UniMCSampling()) isa FunctionalDiscreteMeasureData
         @test_throws ErrorException generate_integral_data(t, -Inf, 0, UniMCSampling())
-        warn = "Cannot specify a nonzero minimum supports for an individual " *
-               "dependent parameter. Setting `num_supports = 0`."
+        warn = "Cannot specify a nonzero `num_supports` when making an " *
+               "integral with repsect to an individual dependent parameter. " *
+               "Setting `num_supports = 0`."
         @test_logs (:warn, warn) generate_integral_data(x[1], 0, 1, UniMCSampling(), num_supports = 1)
     end
     # test generate_integral_data (independent Monte Carlo)
@@ -151,11 +151,11 @@ end
         @test_throws ErrorException("MC Sampling is not applicable to (semi-)infinite intervals.") generate_integral_data(x, [0, -Inf], [1, 1], MultiMCSampling())
     end
     # test _make_multi_mc_supports
-    @testset "_make_multi_mc_supports" begin
-        dx = dispatch_variable_ref.(x)
-        @test IOMT._make_multi_mc_supports(dx, [0, 0], [1, 1], 5) isa Matrix{Float64}
-        @test size(IOMT._make_multi_mc_supports(dx, [0, 0], [1, 1], 5)) == (2, 5)
-    end
+    # @testset "_make_multi_mc_supports" begin
+    #     dx = dispatch_variable_ref.(x)
+    #     @test IOMT._make_multi_mc_supports(dx, [0, 0], [1, 1], 5) isa Matrix{Float64}
+    #     @test size(IOMT._make_multi_mc_supports(dx, [0, 0], [1, 1], 5)) == (2, 5)
+    # end
     # test generate_integral_data (MultiIndepMCSampling)
     @testset "generate_integral_data (MultiIndepMCSampling)" begin
         @test generate_integral_data(x, [0, 0], [1, 1], MultiIndepMCSampling()) isa DiscreteMeasureData
@@ -175,7 +175,7 @@ end
     @testset "uni_integral_defaults" begin
         @test uni_integral_defaults() == IOMT.UniIntegralDefaults
     end
-    @testset "set_uni_integral_defaults" begin
+    @testset "[set/clear]_uni_integral_defaults" begin
         @test uni_integral_defaults() == Dict{Symbol, Any}(:eval_method => Automatic())
         @test set_uni_integral_defaults(num_nodes = 5, new_kwarg = true) isa Nothing
         @test uni_integral_defaults()[:num_nodes] == 5
@@ -210,7 +210,7 @@ end
     @testset "multi_integral_defaults" begin
         @test multi_integral_defaults() == IOMT.MultiIntegralDefaults
     end
-    @testset "set_multi_integral_defaults" begin
+    @testset "[set/clear]_multi_integral_defaults" begin
         @test multi_integral_defaults() == Dict{Symbol, Any}(:eval_method => Automatic())
         @test set_multi_integral_defaults(num_supports = 5, new_kwarg = true) isa Nothing
         @test multi_integral_defaults()[:num_supports] == 5

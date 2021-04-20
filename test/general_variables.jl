@@ -397,6 +397,14 @@ end
     @testset "set_derivative_method (GeneralVariableRef)" begin
         @test_throws ArgumentError set_derivative_method(gvref, FiniteDifference())
     end
+    # test call_function (Fallback)
+    @testset "call_function (Fallback)" begin
+        @test_throws ArgumentError call_function(dvref, 1)
+    end
+    # test call_function (GeneralVariableRef)
+    @testset "call_function (GeneralVariableRef)" begin
+        @test_throws ArgumentError call_function(gvref, 1)
+    end
     # test parameter status setters
     for f in (:_set_has_generative_supports, :_set_has_internal_supports,
               :_set_has_derivative_constraints)

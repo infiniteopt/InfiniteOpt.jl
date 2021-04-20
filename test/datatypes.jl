@@ -372,9 +372,9 @@ end
     pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
     vt = IC.VectorTuple(pref)
     # test ParameterFunction
-    @test ParameterFunction(sin, vt, [1], [1]) isa ParameterFunction
+    @test ParameterFunction(sin, vt, [1], [1], "") isa ParameterFunction
     # test ParameterFunctionData
-    @test ParameterFunctionData(ParameterFunction(sin, vt, [1], [1])) isa ParameterFunctionData
+    @test ParameterFunctionData(ParameterFunction(sin, vt, [1], [1], "")) isa ParameterFunctionData
 end
 
 # Test variable datatypes

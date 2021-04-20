@@ -70,7 +70,7 @@ export @independent_parameter, @dependent_parameters, @infinite_parameter,
 @finite_parameter, @infinite_variable, @point_variable, @finite_variable, 
 @infinite_parameter, @BDconstraint, @set_parameter_bounds, @add_parameter_bounds, 
 @measure, @integral, @expect, @support_sum, @deriv, @derivative_variable, @∂, @𝔼, 
-@∫
+@∫, @parameter_function
 
 # Export variable types 
 export InfOptVariableType, Infinite, Point, Finite, Deriv
@@ -111,7 +111,8 @@ generative_support_info, make_generative_supports, add_generative_supports
 
 # Export the paramter function datatypes and methods 
 export ParameterFunction, ParameterFunctionData, ParameterFunctionRef,
-build_parameter_function, add_parameter_function, raw_function, parameter_function
+build_parameter_function, add_parameter_function, raw_function, parameter_function,
+call_function
 
 # Export variable datatypes
 export InfOptVariable, InfiniteVariable, SemiInfiniteVariable,

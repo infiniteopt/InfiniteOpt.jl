@@ -149,11 +149,11 @@ If α or β is < -1, an error will be returned.
 struct GaussJacobi <: FiniteGaussQuad
     α::Float64
     β::Float64
-    function GaussJacobi(α::Float64, β::Float64)
+    function GaussJacobi(α::Real, β::Real)
         if α < -1 || β < -1
             error("α and β must be greater than -1 for GaussJacobi")
         end
-        return new(α, β)
+        return new(Float64(α), Float64(β))
     end
 end
 
@@ -179,11 +179,11 @@ This will then generate its own set of supports and will ignore other parameter 
 This is not compatible with individual dependent parameters.
 
 **Fields**
-- `order::Int64`: Specifies the order of Gauss-Chebyshev Quadrature. Must be between 1 and 4.
+- `order::Int`: Specifies the order of Gauss-Chebyshev Quadrature. Must be between 1 and 4.
 """
 struct GaussChebyshev <: FiniteGaussQuad
-    order::Int64
-    function GaussChebyshev(order::Int64)
+    order::Int
+    function GaussChebyshev(order::Int)
         if order < 1 || order > 4
             error("Order must be between 1 and 4 for GaussChebyshev")
         end
@@ -324,64 +324,23 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                   num_nodes = num_supports,
                                   weight_func = weight_func)
     else
-        error("Cannot generate measure data for individual dependent parameters " *
+        error("Cannot generate measure data for individual dependent parameters ",
               "with infinite or semi-infinite domains.")
     end
-end
-
-#Function for generating coefficients for FE Gauss Lobatto Quadrature
-function _lobatto_coeff(points::Array{Float64}, num_nodes::Int = 10)
-    sort!(points)
-    (_, coeffs) = FastGaussQuadrature.gausslobatto(num_nodes)
-    coeff_vector = zeros((length(points) - 1)*(num_nodes - 1) + 1)
-    idx = 1:num_nodes
-    for i in 1:length(points)-1
-        coeffs_modified = ((points[i+1] - points[i]) / 2 * coeffs)
-        coeff_vector[idx] += coeffs_modified
-        idx = idx .+ (num_nodes - 1)
-    end
-    return coeff_vector
-end
-
-#Single Pref Finite Gauss Lobatto Quadrature
-function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
-        lower_bound::Real,
-        upper_bound::Real,
-        method::FEGaussLobatto;
-        num_nodes::Int = 3,
-        weight_func::Function = InfiniteOpt.default_weight
-        )
-    if lower_bound == -Inf || upper_bound == Inf
-        @warn("The Gauss Lobatto method can only be applied on finite intervals, " *
-              "switching to an appropriate method.")
-    end
-    if num_nodes < 2
-        error("Num supports must be greater than 2")
-    end
-    (nodes, _) = FastGaussQuadrature.gausslobatto(num_nodes)
-    info = UniformGenerativeInfo(nodes[2:end-1], InternalGaussLobatto, -1, 1)
-    coeff_func(supps) = _lobatto_coeff(supps, num_nodes)
-    return InfiniteOpt.FunctionalDiscreteMeasureData(pref, coeff_func, 0,
-                        InfiniteOpt.All, info, weight_func,
-                        lower_bound, upper_bound, false)
 end
 
 # Univariate trapezoid coefficient function
 function _trapezoid_coeff(supps::Vector{<:Real})::Vector{Float64}
     len = length(supps)
-    len >= 2 || error("Cannot invoke trapezoid rule on integral if there are " * 
-                      "less than 2 supports added to its infinite parameter. Ensure " * 
+    len >= 2 || error("Cannot invoke `UniTrapezoid` on integral if there are ",
+                      "less than 2 supports added to its infinite parameter. Ensure ",
                       "all infinite parameters have supports.")
     coeffs = Vector{Float64}(undef, len)
-    for i in eachindex(supps)
-        if i == 1
-            coeffs[i] = 1 / 2 * (supps[2] - supps[1])
-        elseif i == len
-            coeffs[i] = 1 / 2 * (supps[len] - supps[len-1])
-        else
-            coeffs[i] = 1 / 2 * (supps[i+1] - supps[i-1])
-        end
+    coeffs[1] = (supps[2] - supps[1]) / 2
+    for i in 2:len-1
+        @inbounds coeffs[i] = (supps[i + 1] - supps[i - 1]) / 2
     end
+    coeffs[end] = (supps[end] - supps[end - 1]) / 2
     return coeffs
 end
 
@@ -400,11 +359,50 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                                      upper_bound, false)
 end
 
+# Function for generating coefficients for FE Gauss Lobatto Quadrature
+function _lobatto_coeff(supps::Vector{<:Real}, num_nodes::Int)::Vector{Float64}
+    len = length(supps)
+    len >= 2 || error("Cannot invoke `FEGaussLobatto` on integral if there are ",
+                      "less than 2 supports added to its infinite parameter. Ensure ",
+                      "all infinite parameters have supports.")
+    sort!(supps)
+    (_, coeffs) = FastGaussQuadrature.gausslobatto(num_nodes)
+    coeff_vector = zeros((len - 1) * (num_nodes - 1) + 1)
+    idx = 1:num_nodes
+    for i in 1:len-1
+        @inbounds coeff_vector[idx] += ((supps[i+1] - supps[i]) / 2 * coeffs)
+        idx = idx .+ (num_nodes - 1)
+    end
+    return coeff_vector
+end
+
+# Single Pref Finite Gauss Lobatto Quadrature
+function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
+        lower_bound::Real,
+        upper_bound::Real,
+        method::FEGaussLobatto;
+        num_nodes::Int = 3,
+        weight_func::Function = InfiniteOpt.default_weight
+        )
+    if lower_bound == -Inf || upper_bound == Inf
+        error("The `FEGaussLobatto` can only be applied on finite intervals.")
+    elseif num_nodes < 2
+        error("For `FEGaussLobatto`, `num_nodes` must be at least 2.")
+    end
+    (nodes, _) = FastGaussQuadrature.gausslobatto(num_nodes)
+    info = UniformGenerativeInfo(nodes[2:end-1], InternalGaussLobatto, -1, 1)
+    coeff_func = (supps) -> _lobatto_coeff(supps, num_nodes)
+    return InfiniteOpt.FunctionalDiscreteMeasureData(pref, coeff_func, 0,
+                                                     InfiniteOpt.All, info, 
+                                                     weight_func, lower_bound, 
+                                                     upper_bound, false)
+end
+
 # Useful error function for dependent parameters
 function _ensure_independent_param(pref::InfiniteOpt.GeneralVariableRef,
                                    method)::Nothing
     if InfiniteOpt._index_type(pref) == InfiniteOpt.DependentParameterIndex
-        error("Cannot generate measure data for individual dependent parameters " *
+        error("Cannot generate measure data for individual dependent parameters ",
               "via `$(method)`. Try using `UniTrapezoid` for finite domains.")
     end
     return
@@ -431,27 +429,28 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                   num_nodes = num_nodes, weight_func = weight_func)
 end
 
-#Single Pref Gauss-Legendre
+## Helper methods for generating coefficients and nodes of Gauss quadrature methods
+# Gauss-Legendre
 function _make_nodes_weights(method::GaussLegendre, num_nodes::Int)
     return FastGaussQuadrature.gausslegendre(num_nodes)
 end
 
-#Single Pref Gauss-Lobatto
+# Gauss-Lobatto
 function _make_nodes_weights(method::GaussLobatto, num_nodes::Int)
     return FastGaussQuadrature.gausslobatto(num_nodes)
 end
 
-#Single Pref Gauss-Radau
+# Gauss-Radau
 function _make_nodes_weights(method::GaussRadau, num_nodes::Int)
     return FastGaussQuadrature.gaussradau(num_nodes)
 end
 
-#Single Pref Gauss-Chebyshev
+# Gauss-Chebyshev
 function _make_nodes_weights(method::GaussChebyshev, num_nodes::Int)
     return FastGaussQuadrature.gausschebyshev(num_nodes, method.order)
 end
 
-#Single Pref Gauss-Jacobi
+# Gauss-Jacobi
 function _make_nodes_weights(method::GaussJacobi, num_nodes::Int)
     return FastGaussQuadrature.gaussjacobi(num_nodes, method.α, method.β)
 end
@@ -472,7 +471,6 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                       num_nodes = num_nodes,
                                       weight_func = weight_func)
     end
-    # (supports, coeffs) = FastGaussQuadrature.gausslegendre(num_nodes)
     (supports, coeffs) = _make_nodes_weights(method, num_nodes)
     supports = (upper_bound - lower_bound) / 2 * supports .+ (upper_bound + lower_bound) / 2
     coeffs = (upper_bound - lower_bound) / 2 * coeffs
@@ -481,7 +479,6 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                            weight_func, lower_bound, upper_bound,
                                            false)
 end
-
 
 # Single pref Gauss-Laguerre
 function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
@@ -494,21 +491,19 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     _ensure_independent_param(pref, method)
     if upper_bound == Inf
         if lower_bound == -Inf
-            @warn("Gauss Laguerre quadrature can only be applied on semi-infinite intervals, " *
+            @warn("`GaussLaguerre` quadrature can only be applied on semi-infinite intervals, " *
                   "switching to an appropriate method.")
             return generate_integral_data(pref, lower_bound, upper_bound, GaussHermite(),
                                           num_nodes = num_nodes,
                                           weight_func = weight_func)
         end
         (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_nodes)
-        coeffs = coeffs .* exp.(supports)
-        supports = supports .+ lower_bound
+        supports .+= lower_bound
     elseif lower_bound == -Inf
         (supports, coeffs) = FastGaussQuadrature.gausslaguerre(num_nodes)
-        coeffs = coeffs .* exp.(supports)
         supports = -supports .+ upper_bound
     else
-        @warn("Gauss Laguerre quadrature can only be applied on semi-infinite intervals, " *
+        @warn("`GaussLaguerre` quadrature can only be applied on semi-infinite intervals, " *
               "switching to an appropriate method.")
         return generate_integral_data(pref, lower_bound, upper_bound, GaussLegendre(),
                                       num_nodes = num_nodes,
@@ -531,14 +526,13 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 )
     _ensure_independent_param(pref, method)
     if lower_bound != -Inf || upper_bound != Inf
-        @warn("Gauss Hermite quadrature can only be applied on infinite intervals, " *
+        @warn("`GaussHermite` quadrature can only be applied on infinite intervals, " *
               "switching to an appropriate method.")
         return generate_integral_data(pref, lower_bound, upper_bound, Quadrature(),
                                       num_nodes = num_nodes,
                                       weight_func = weight_func)
     end
     (supports, coeffs) = FastGaussQuadrature.gausshermite(num_nodes)
-    coeffs = coeffs .* exp.(supports.^2)
     return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports, 
                                            InfiniteOpt.generate_unique_label(),
                                            weight_func, lower_bound, upper_bound,
@@ -555,11 +549,12 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 )
     # check and process the arguments
     if lower_bound == -Inf || upper_bound == Inf
-        error("Univariate MC sampling is not supported for (semi-)infinite intervals.")
+        error("`UniMCSampling` is not supported for (semi-)infinite intervals.")
     elseif InfiniteOpt._index_type(pref) == InfiniteOpt.DependentParameterIndex
         if !(num_supports in [0, InfiniteOpt.DefaultNumSupports])
-            @warn("Cannot specify a nonzero minimum supports for an individual " *
-                  "dependent parameter. Setting `num_supports = 0`.")
+            @warn("Cannot specify a nonzero `num_supports` when making an " *
+                  "integral with repsect to an individual dependent parameter. " *
+                  "Setting `num_supports = 0`.")
         end
         num_supports = 0
     end
@@ -587,7 +582,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                 )
     _ensure_independent_param(pref, method)
     if lower_bound == -Inf || upper_bound == Inf
-        error("Univariate MC sampling is not applicable to (semi-)infinite intervals.")
+        error("`UniMCSampling` is not applicable to (semi-)infinite intervals.")
     end
     set = InfiniteOpt.IntervalSet(lower_bound, upper_bound)
     supports, _ = InfiniteOpt.generate_support_values(set, InfiniteOpt.MCSample,
@@ -624,7 +619,7 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
     )::InfiniteOpt.AbstractMeasureData
     # check bounds
     if any(lb == -Inf for lb in lower_bounds) || any(ub == Inf for ub in upper_bounds)
-        error("MC Sampling is not applicable to (semi-)infinite intervals.")
+        error("`MultiMCSampling` is not applicable to (semi-)infinite intervals.")
     end
     # make the coefficients function
     vol = prod(upper_bounds .- lower_bounds)
@@ -642,16 +637,16 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
 end
 
 ## Generate multivariate Monte Carlo samples in accordance with the parameter type
-# DependentParameterRefs
-function _make_multi_mc_supports(prefs::Vector{InfiniteOpt.DependentParameterRef},
-                                 lbs::Vector{<:Real}, ubs::Vector{<:Real},
-                                 num_supps::Int)::Matrix{Float64}
-    sets = [InfiniteOpt.IntervalSet(lbs[i], ubs[i]) for i in eachindex(lbs)]
-    set = InfiniteOpt.CollectionSet(sets)
-    supports, _ = InfiniteOpt.generate_support_values(set, InfiniteOpt.MCSample,
-                                                      num_supports = num_supps)
-    return supports
-end
+# DependentParameterRefs --> Is this needed or used?
+# function _make_multi_mc_supports(prefs::Vector{InfiniteOpt.DependentParameterRef},
+#                                  lbs::Vector{<:Real}, ubs::Vector{<:Real},
+#                                  num_supps::Int)::Matrix{Float64}
+#     sets = [InfiniteOpt.IntervalSet(lbs[i], ubs[i]) for i in eachindex(lbs)]
+#     set = InfiniteOpt.CollectionSet(sets)
+#     supports, _ = InfiniteOpt.generate_support_values(set, InfiniteOpt.MCSample,
+#                                                       num_supports = num_supps)
+#     return supports
+# end
 
 # Vector of prefs with independent Monte Carlo supports
 function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
@@ -663,7 +658,7 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
     )::InfiniteOpt.AbstractMeasureData
     # check bounds
     if any(lb == -Inf for lb in lower_bounds) || any(ub == Inf for ub in upper_bounds)
-        error("MC Sampling is not applicable to (semi-)infinite intervals.")
+        error("`MultiIndepMCSampling` is not applicable to (semi-)infinite intervals.")
     end
     # prepare the supports
     sets = [InfiniteOpt.IntervalSet(lower_bounds[i], upper_bounds[i])
@@ -692,10 +687,8 @@ Get the default keyword argument values for defining one-dimensional integrals.
 
 ```julia-repl
 julia> uni_integral_defaults()
-Dict{Symbol,Any} with 3 entries:
-  :num_supports          => 10
-  :eval_method           => Automatic()
-  :weight_func           => default_weight
+Dict{Symbol,Any} with 1 entry:
+  :eval_method => Automatic()
 ```
 """
 uni_integral_defaults()::Dict{Symbol, Any} = UniIntegralDefaults
@@ -712,20 +705,18 @@ with a single infinite parameter.
 **Example**
 ```julia-repl
 julia> uni_integral_defaults()
-Dict{Symbol,Any} with 3 entries:
-  :num_supports          => 10
-  :eval_method           => Automatic()
-  :weight_func           => default_weight
+Dict{Symbol,Any} with 1 entry:
+  :eval_method => Automatic()
+
 
 julia> set_uni_integral_defaults(num_supports = 5, eval_method = Quadrature(),
                                  new_kwarg = true)
 
 julia> uni_integral_defaults()
-Dict{Symbol,Any} with 4 entries:
+Dict{Symbol,Any} with 3 entries:
   :new_kwarg             => true
   :num_supports          => 5
   :eval_method           => Quadrature()
-  :weight_func           => default_weight
 ```
 """
 function set_uni_integral_defaults(; kwargs...)::Nothing
@@ -733,6 +724,32 @@ function set_uni_integral_defaults(; kwargs...)::Nothing
     return
 end
 
+function clear_uni_integral_defaults()::Nothing
+    empty!(UniIntegralDefaults)
+    UniIntegralDefaults[:eval_method] = Automatic()
+    return
+end
+"""
+    clear_uni_integral_defaults()::Nothing
+
+Clears and resets the keyword argument defaults for univariate integrals to their 
+default state. 
+
+**Example**
+```julia-repl
+julia> uni_integral_defaults()
+Dict{Symbol,Any} with 3 entries:
+  :new_kwarg             => true
+  :num_supports          => 5
+  :eval_method           => Quadrature()
+
+julia> clear_uni_integral_defaults()
+
+julia> uni_integral_defaults()
+Dict{Symbol,Any} with 1 entry:
+  :eval_method => Automatic()
+```
+"""
 function clear_uni_integral_defaults()::Nothing
     empty!(UniIntegralDefaults)
     UniIntegralDefaults[:eval_method] = Automatic()
@@ -758,19 +775,19 @@ in accordance with the keyword arugment `eval_method` that is then used with
 The keyword arguments are as follows:
 - `eval_method::AbstractUnivariateMethod`: Used to determine the
     numerical evaluation scheme. Possible choices include:
-    - [`Automatic`](@ref MeasureToolbox.Automatic)
-    - [`UniTrapezoid`](@ref MeasureToolbox.UniTrapezoid)
-    - [`UniMCSampling`](@ref MeasureToolbox.UniMCSampling)
-    - [`UniIndepMCSampling`](@ref MeasureToolbox.UniIndepMCSampling)
-    - [`Quadrature`](@ref MeasureToolbox.Quadrature)
-    - [`GaussHermite`](@ref MeasureToolbox.GaussHermite)
-    - [`GaussLegendre`](@ref MeasureToolbox.GaussLegendre)
-    - [`FEGaussLobatto`](@ref MeasureToolbox.FEGaussLobatto)
-    - [`GaussLageurre`](@ref MeasureToolbox.GaussLaguerre)
-    - [`GaussLobatto`](@ref MeasureToolbox.GaussLobatto)
-    - [`GaussChebyshev`](@ref MeasureToolbox.GaussChebyshev)
-    - [`GaussRadau`](@ref MeasureToolbox.GaussRadau)
-    - [`GaussJacobi`](@ref MeasureToolbox.GaussJacobi)
+    - [`Automatic()`](@ref MeasureToolbox.Automatic)
+    - [`UniTrapezoid()`](@ref MeasureToolbox.UniTrapezoid)
+    - [`UniMCSampling()`](@ref MeasureToolbox.UniMCSampling)
+    - [`UniIndepMCSampling()`](@ref MeasureToolbox.UniIndepMCSampling)
+    - [`Quadrature()`](@ref MeasureToolbox.Quadrature)
+    - [`GaussHermite()`](@ref MeasureToolbox.GaussHermite)
+    - [`GaussLegendre()`](@ref MeasureToolbox.GaussLegendre)
+    - [`FEGaussLobatto()`](@ref MeasureToolbox.FEGaussLobatto)
+    - [`GaussLageurre()`](@ref MeasureToolbox.GaussLaguerre)
+    - [`GaussLobatto()`](@ref MeasureToolbox.GaussLobatto)
+    - [`GaussChebyshev(order)`](@ref MeasureToolbox.GaussChebyshev)
+    - [`GaussRadau()`](@ref MeasureToolbox.GaussRadau)
+    - [`GaussJacobi(α, β)`](@ref MeasureToolbox.GaussJacobi)
 - `num_supports`: The minimum number of supports to be generated (if used by
     `eval_method`)
 - `weight_func`: ``w(p)`` above with parameter value inputs and scalar output
@@ -854,10 +871,8 @@ Get the default keyword argument values for defining multi-dimensional integrals
 
 ```julia-repl
 julia> multi_integral_defaults()
-Dict{Symbol,Any} with 3 entries:
-  :num_supports          => 10
-  :eval_method           => Automatic()
-  :weight_func           => default_weight
+Dict{Symbol,Any} with 1 entry:
+  :eval_method => Automatic()
 ```
 """
 multi_integral_defaults()::Dict{Symbol, Any} = MultiIntegralDefaults
@@ -874,19 +889,16 @@ with an array of infinite parameters.
 **Example**
 ```julia-repl
 julia> multi_integral_defaults()
-Dict{Symbol,Any} with 3 entries:
-  :num_supports          => 10
-  :eval_method           => Automatic()
-  :weight_func           => default_weight
+Dict{Symbol,Any} with 1 entry:
+  :eval_method => Automatic()
 
 julia> set_multi_integral_defaults(num_supports = 5, new_kwarg = true)
 
 julia> multi_integral_defaults()
-Dict{Symbol,Any} with 4 entries:
+Dict{Symbol,Any} with 3 entries:
   :new_kwarg             => true
   :num_supports          => 5
   :eval_method           => Automatic()
-  :weight_func           => default_weight
 ```
 """
 function set_multi_integral_defaults(; kwargs...)::Nothing
@@ -894,6 +906,27 @@ function set_multi_integral_defaults(; kwargs...)::Nothing
     return
 end
 
+"""
+    clear_multi_integral_defaults()::Nothing
+
+Clears and resets the keyword argument defaults for multivariate integrals to their 
+default state. 
+
+**Example**
+```julia-repl
+julia> multi_integral_defaults()
+Dict{Symbol,Any} with 3 entries:
+  :new_kwarg             => true
+  :num_supports          => 5
+  :eval_method           => Automatic()
+
+julia> clear_multi_integral_defaults()
+
+julia> multi_integral_defaults()
+Dict{Symbol,Any} with 1 entry:
+  :eval_method => Automatic()
+```
+"""
 function clear_multi_integral_defaults(; kwargs...)::Nothing
     empty!(MultiIntegralDefaults)
     MultiIntegralDefaults[:eval_method] = Automatic()
@@ -922,9 +955,9 @@ and dimensions do not match or the bounds are invalid.
 The keyword arguments are as follows:
 - `eval_method::AbstractMultivariateMethod`: Used to determine the
     numerical evaluation scheme. Possible choices include:
-    - [`Automatic`](@ref MeasureToolbox.Automatic)
-    - [`MultiMCSampling`](@ref MeasureToolbox.MultiMCSampling)
-    - [`MultiIndepMCSampling`](@ref MeasureToolbox.MultiIndepMCSampling)
+    - [`Automatic()`](@ref MeasureToolbox.Automatic)
+    - [`MultiMCSampling()`](@ref MeasureToolbox.MultiMCSampling)
+    - [`MultiIndepMCSampling()`](@ref MeasureToolbox.MultiIndepMCSampling)
 - `num_supports`: The minimum number of supports to be generated (if used by
     `eval_method`)
 - `weight_func`: ``w(p)`` above with parameter value inputs and scalar output

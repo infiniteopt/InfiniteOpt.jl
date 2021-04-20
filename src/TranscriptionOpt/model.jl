@@ -450,7 +450,7 @@ function lookup_by_support(model::JuMP.Model,
     )::Float64
     prefs = InfiniteOpt.raw_parameter_refs(fref)
     func = InfiniteOpt.raw_function(fref)
-    return func(Tuple(support, prefs)...)
+    return InfiniteOpt.call_function(fref, Tuple(support, prefs)...)
 end
 
 # FiniteIndex

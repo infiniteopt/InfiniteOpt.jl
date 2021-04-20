@@ -96,6 +96,10 @@ function _check_parameter_tuple(_error::Function,
     end
     return
 end
+function _check_parameter_tuple(_error::Function, raw_prefs::VectorTuple{T}) where {T}
+    _error("Expected tuple of infinite parameter references, but got a tuple with ",
+           "elements of type $T")
+end
 
 ## Check and format the variable info considering functional start values
 # Just a number given for the start value
@@ -115,7 +119,7 @@ end
 function _check_valid_function(_error::Function, func::Function, 
                                prefs::VectorTuple)::Nothing 
     input_format = typeof(Tuple(Vector{Float64}(undef, length(prefs)), prefs))
-    if isempty(methods(func, input_format))
+    if !hasmethod(func, input_format)
         _error("Specified function `$func` must be able to accept a `Float64` " * 
                "support realization of the infinite parameter tuple $(prefs).")
     end

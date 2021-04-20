@@ -190,3 +190,18 @@ end
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
     @test result_count(m) == 2
 end
+
+# Test that we avoid world age problems with generated parameter functions 
+@testset "Generated Parameter Function Build" begin 
+    function make_model()
+        m =InfiniteModel()
+        @infinite_parameter(m, t in [0, 1])
+        @infinite_variable(m, y(t))
+        myfunc(ts, a) = ts + a
+        @parameter_function(m, d[i = 1:3](t), myfunc(t, i))
+        @constraint(m, [i = 1:3], y >= d[i])
+        build_optimizer_model!(m)
+        return m
+    end
+    @test make_model() isa InfiniteModel
+end
