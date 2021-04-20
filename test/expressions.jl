@@ -112,6 +112,11 @@
         @test raw_function(fref) == sin
         @test raw_function(gvref) == sin
     end
+    # call_function
+    @testset "call_function" begin
+        @test call_function(fref, 0) == 0
+        @test call_function(gvref, 0) == 0
+    end
     # test used_by_semi_infinite_variable
     @testset "used_by_semi_infinite_variable" begin
         @test !used_by_semi_infinite_variable(fref)
