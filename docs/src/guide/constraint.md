@@ -368,11 +368,11 @@ julia> num_constraints(model) # total number of constraints
 julia> num_constraints(model, GenericQuadExpr{Float64,GeneralVariableRef})
 5
 
-julia> num_constraints(model, MathOptInterface.LessThan{Float64})
+julia> num_constraints(model, MOI.LessThan{Float64})
 6
 
 julia> num_constraints(model, GenericQuadExpr{Float64,GeneralVariableRef},
-                       MathOptInterface.LessThan{Float64})
+                       MOI.LessThan{Float64})
 4                   
 ```
 
