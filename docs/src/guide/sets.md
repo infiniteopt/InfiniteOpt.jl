@@ -112,7 +112,7 @@ similar to how one queries the bounds of a `JuMP` variable. Thus, the functions
 [`JuMP.has_lower_bound`](@ref), [`JuMP.has_upper_bound`](@ref), [`JuMP.lower_bound`](@ref), [`JuMP.upper_bound`](@ref) 
 are all applicable to infinite sets mentioned above. For example, for an `IntervalSet`
 `[-2, 2]` we can query the bound information as follows:
-```jldoctest; setup = :(using InfiniteOpt, JuMP)
+```jldoctest; setup = :(using InfiniteOpt)
 julia> set = IntervalSet(-2, 2);
 
 julia> has_lower_bound(set)
@@ -130,7 +130,7 @@ julia> upper_bound(set)
 In addition, we can also apply [`JuMP.set_lower_bound`](@ref) and [`JuMP.set_upper_bound`](@ref) 
 to `IntervalSet`s to generate a new set with updated bounds. Note that this will not modify the
 original set. For example, we can change the bounds of the set `[-2, 2]` as follows:
-```jldoctest; setup = :(using InfiniteOpt, JuMP; set = IntervalSet(-2, 2))
+```jldoctest; setup = :(using InfiniteOpt; set = IntervalSet(-2, 2))
 julia> set_lower_bound(set, -1)
 [-1, 2]
 

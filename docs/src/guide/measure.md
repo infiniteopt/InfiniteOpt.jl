@@ -19,7 +19,7 @@ we support the use of alternative measure operator paradigms.
 First, we consider a dynamic optimization problem with the time parameter `t`
 from 0 to 10. We also consider a state variable `y(t)` and a control variable
 `u(t)` that are parameterized by `t`:
-```jldoctest meas_basic; setup = :(using InfiniteOpt, JuMP, Random; Random.seed!(0); model = InfiniteModel())
+```jldoctest meas_basic; setup = :(using InfiniteOpt, Random; Random.seed!(0); model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10], supports = [0, 5, 10])
 t
 
@@ -67,7 +67,7 @@ and [`support_sum`](@ref) for summing an expression over the support points of
 selected infinite parameters. The syntax for these is analogous to that of `integral` 
 except that there are no lower/upper bounds. For example, we can define the following 
 expectation of a random expression:
-```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions)
+```jldoctest; setup = :(using InfiniteOpt, Distributions)
 julia> m = InfiniteModel();
 
 julia> @infinite_parameter(m, ξ in Normal(), num_supports = 100);
@@ -322,7 +322,7 @@ There is a difference in how supports are considered using `UniTrapezoid()`/`FEG
 the other schemes. Namely, the other schemes will NOT incorporate other supports 
 specified elsewhere in the model. Consider the following example with 3 equidistant 
 supports and an integral objective function that uses `UniTrapezoid()` (the default):
-```jldoctest support_manage; setup = :(using InfiniteOpt, JuMP), output = false
+```jldoctest support_manage; setup = :(using InfiniteOpt), output = false
 # Create a model, with one variable and an infinite parameter with a given number of supports
 m = InfiniteModel()
 @infinite_parameter(m, t in [0, 2], num_supports = 3)
