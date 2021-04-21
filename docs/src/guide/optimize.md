@@ -19,7 +19,7 @@ method required to optimize an `InfiniteModel`. This is exactly analogous
 to that of any `JuMP.Model` and is designed to provide a similar user experience.
 Let's first define an `InfiniteModel` with an appropriate optimizer:
 ```jldoctest optimize
-julia> using InfiniteOpt, JuMP, Ipopt;
+julia> using InfiniteOpt, Ipopt;
 
 julia> model = InfiniteModel(Ipopt.Optimizer);
 
@@ -57,7 +57,7 @@ solution is explained on the [Results](@ref) page.
 
 If no optimizer has been specified for the `InfiniteModel`, one can be provided
 via [`set_optimizer`](@ref):
-```jldoctest; setup = :(using InfiniteOpt, JuMP, Ipopt; model = InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt, Ipopt; model = InfiniteModel())
 julia> set_optimizer(model, Ipopt.Optimizer)
 ```
 

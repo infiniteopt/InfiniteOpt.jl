@@ -22,7 +22,7 @@ constrained to a particular known function. This is accomplished via
 [`@parameter_function`](@ref) or [`parameter_function`](@ref) and is exemplified 
 by defining a parameter function `f(t)` that uses `sin(t)`:
 ```jldoctest param_func
-julia> using InfiniteOpt, JuMP;
+julia> using InfiniteOpt;
 
 julia> model = InfiniteModel();
 
@@ -140,7 +140,7 @@ In `InfiniteOpt`, affine expressions can be defined directly
 using `Julia`'s arithmetic operators (i.e., `+`, `-`, `*`, etc.) or using
 [`@expression`](@ref).  For example, let's define the expression
 ``2y(t) + z - 3t`` noting that the following methods are equivalent:
-```jldoctest affine; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+```jldoctest affine; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10])
 t
 

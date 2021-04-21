@@ -13,7 +13,7 @@ partial derivatives. Derivatives can be used in defining measures and constraint
 Derivative operators can defined a few different ways in `InfiniteOpt`. To motivate 
 these, let's first define an `InfiniteModel` along with some parameters and variables:
 ```jldoctest deriv_basic
-julia> using InfiniteOpt, JuMP, Distributions;
+julia> using InfiniteOpt, Distributions;
 
 julia> model = InfiniteModel();
 

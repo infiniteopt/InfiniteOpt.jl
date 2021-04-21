@@ -21,7 +21,7 @@ typical finite and infinite constraints and `@BDconstraint` is used to specify
 bounded constraints (i.e., infinite constraints with a constrained sub-domain
 of its full infinite domain). First, let's setup an infinite model with
 variables that we can add constraints to:
-```jldoctest constrs; setup = :(using InfiniteOpt, JuMP, Distributions)
+```jldoctest constrs; setup = :(using InfiniteOpt, Distributions)
 julia> model = InfiniteModel();
 
 julia> @infinite_parameter(model, t in [0, 10]);
@@ -157,7 +157,7 @@ The constraint objects are specified via
 a `JuMP.AbstractJuMPScalar`, a `MOI.AbstractScalarSet`, and any keyword
 arguments such as `ParameterBound`. For example, let's build a scalar constraint
 for ``3T(t, x) - g^2(t) \leq 0``:
-```jldoctest constrs; setup = :(using MathOptInterface; const MOI = MathOptInterface)
+```jldoctest constrs
 julia> constr = build_constraint(error, 3T - g^2, MOI.LessThan(0.0))
 ScalarConstraint{GenericQuadExpr{Float64,GeneralVariableRef},MathOptInterface.LessThan{Float64}}(-g(t)² + 3 T(t, x), MathOptInterface.LessThan{Float64}(0.0))
 ```

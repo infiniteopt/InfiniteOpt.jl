@@ -54,7 +54,7 @@ The first thing we need to do is initialize our `InfiniteModel` and assign an
 appropriate optimizer that will be used to solve its transcripted variant. For our 
 little example let's choose to use Ipopt:
 ```jldoctest quick
-julia> using InfiniteOpt, JuMP, Distributions, Ipopt;
+julia> using InfiniteOpt, Distributions, Ipopt;
 
 julia> model = InfiniteModel(Ipopt.Optimizer)
 An InfiniteOpt Model
@@ -258,7 +258,7 @@ Please see the [Results](@ref) page for more information.
 ## Summary Script 
 The example used in the sections above is summarized in the script below:
 ```julia
-using InfiniteOpt, JuMP, Distributions, Ipopt
+using InfiniteOpt, Distributions, Ipopt
 
 # DEFINE THE PROBLEM CONSTANTS
 μ = 1; σ = 0.2

@@ -13,7 +13,7 @@ walk through the use of these result query functions.
 ## Basic Usage
 Let's revisit the example from the optimization page to get us started:
 ```jldoctest results
-julia> using InfiniteOpt, JuMP, Ipopt;
+julia> using InfiniteOpt, Ipopt;
 
 julia> model = InfiniteModel(Ipopt.Optimizer);
 

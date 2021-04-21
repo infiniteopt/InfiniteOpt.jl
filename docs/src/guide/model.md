@@ -14,7 +14,7 @@ model backend.
 ## Basic Usage
 Infinite models can be initialized with no arguments by default:
 ```jldoctest
-julia> using InfiniteOpt, JuMP
+julia> using InfiniteOpt
 
 julia> model = InfiniteModel()
 An InfiniteOpt Model
@@ -33,7 +33,7 @@ Solver name: No optimizer attached.
 The optimizer that will be used to solve the model can also be specified at
 model definition:
 ```jldoctest
-julia> using InfiniteOpt, JuMP, Ipopt
+julia> using InfiniteOpt, Ipopt
 
 julia> model = InfiniteModel(Ipopt.Optimizer)
 An InfiniteOpt Model
@@ -56,7 +56,7 @@ We can also specify optimizer attributes via
 [`optimizer_with_attributes`](@ref JuMP.optimizer_with_attributes(::Any, ::Pair))
 which allows us to append as many attributes as we like, for example:
 ```jldoctest
-julia> using InfiniteOpt, JuMP, Ipopt
+julia> using InfiniteOpt, Ipopt
 
 julia> model = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer,
                                                        "output_level" => 0))
@@ -95,9 +95,7 @@ model by including it in the `InfiniteModel` constructor. For example, we can
 specify the `caching_mode` keyword argument in the `InfiniteModel` call to use
 in the definition of the optimizer model:
 ```jldoctest
-julia> using InfiniteOpt, JuMP, Ipopt, MathOptInterface
-
-julia> const MOIU = MathOptInterface.Utilities;
+julia> using InfiniteOpt, Ipopt
 
 julia> model = InfiniteModel(Ipopt.Optimizer,
                              caching_mode = MOIU.MANUAL)
@@ -148,7 +146,7 @@ Like `JuMP.Model`s, `InfiniteModel`s register the name symbols of macro defined
 objects. This enables us to access such objects by indexing the `InfiniteModel` 
 with the appropriate symbol. This is particularly useful for function defined 
 models. For example:
-```jldoctest; setup = :(using InfiniteOpt, JuMP)
+```jldoctest; setup = :(using InfiniteOpt)
 julia> function make_model(num_supports)
         model = InfiniteModel()
         @infinite_parameter(model, t ∈ [0, 10], num_supports = num_supports)

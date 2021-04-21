@@ -30,7 +30,7 @@ accomplished via [`build_optimizer_model!`](@ref). To illustrate how this is don
 let's first define a basic infinite
 model with a simple support structure for the sake of example:
 ```jldoctest transcribe
-julia> using InfiniteOpt, JuMP
+julia> using InfiniteOpt
 
 julia> inf_model = InfiniteModel();
 

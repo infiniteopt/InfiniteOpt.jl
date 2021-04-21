@@ -3,7 +3,7 @@ Dynamic path planning problem of hovercraft trying to minimize thrust usage
 to hit all the waypoints at the alotted target times.
 """
 
-using InfiniteOpt, JuMP, Ipopt, PyPlot
+using InfiniteOpt, Ipopt, PyPlot
 
 # Waypoints
 xw = [1 4 6 1; 1 3 0 1] # positions
