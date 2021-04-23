@@ -37,7 +37,8 @@ abstract type FiniteGaussQuad <: AbstractUnivariateMethod end
 An integral evalution method that uses the trapezoid rule to in combination
 with all parameter supports available when the integral is expanded and/or when
 the infinite model is optimized, whichever comes first. Note this method will
-ignore the `num_supports` keyword argument. Note this is valid only for finite
+ignore the `num_supports` keyword argument. The upper and lower bounds of the integral 
+will automatically be added as supports. Note this is valid only for finite
 integral domains. Contains no fields.
 """
 struct UniTrapezoid <: AbstractUnivariateMethod end
@@ -81,7 +82,8 @@ struct Quadrature <: AbstractUnivariateMethod end
     FEGaussLobatto <: AbstractUnivariateMethod
 
 Integral evaluation method that allows for the user to specify supports to be included in
-quadrature evaluation. This method uses Gauss Lobatto quadrature to decompose the overall Integral
+quadrature evaluation. The upper and lower bounds of the integral will automatically 
+be added as supports. This method uses Gauss Lobatto quadrature to decompose the overall Integral
 into smaller integrals that span the user defined supports as follows:
 
 ``\\int_{x_1}^{x_3} f(x) dx = \\int_{x_1}^{x_2} f(x) dx + \\int_{x_2}^{x_3} f(x) dx``

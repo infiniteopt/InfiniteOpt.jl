@@ -398,7 +398,7 @@ supports. This is done by invoking [`generate_unique_label`](@ref).
 struct UniqueMeasure{S} <: PublicLabel end
 
 """
-    MeasureBound{S::Symbol} <: PublicLabel
+    MeasureBound <: PublicLabel
     
 A support label for supports that are generated using the upper and lower bounds
 for `FunctionalDiscreteMeasureData`.

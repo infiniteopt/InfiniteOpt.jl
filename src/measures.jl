@@ -983,20 +983,6 @@ function _generate_multiple_functional_supports(
     return
 end
 
-#Add measure bounds for dependent parameters for Multi-Dimensional FunctionalDiscreteMeasureData
-function _add_measure_bounds(prefs::Vector{DependentParameterRef}, lbs, ubs)::Nothing
-    add_supports(prefs, [lbs, ubs], label = MeasureBound, check = false)
-    return 
-end
-
-#Add measure bounds for independent parameters for Multi-Dimensional FunctionalDiscreteMeasureData
-function _add_measure_bounds(prefs::Vector{IndependentParameterRef}, lbs, ubs)::Nothing
-    for i in eachindex(prefs)
-        add_supports(prefs[i], [lbs[i], ubs[i]], label = MeasureBound, check = false)
-    end
-    return 
-end
-
 # multi-dimensional FunctionalDiscreteMeasureData
 function add_supports_to_parameters(
     data::FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}}
@@ -1006,7 +992,7 @@ function add_supports_to_parameters(
     lbs = JuMP.lower_bound(data)
     ubs = JuMP.upper_bound(data)
     if label == All && !any(isnan.(lbs)) && !any(isnan.(ubs)) && !any(isinf.(lbs)) && !any(isinf.(ubs))
-        _add_measure_bounds(prefs, lbs, ubs)
+        _add_supports_to_multiple_parameters(prefs, hcat(lbs, ubs), MeasureBound)
     end
     min_num_supps = min_num_supports(data)
     curr_num_supps = num_supports(data) # this will error check the support dims

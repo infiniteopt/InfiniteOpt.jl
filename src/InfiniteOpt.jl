@@ -86,7 +86,7 @@ FiniteIndex, DerivativeIndex, ParameterFunctionIndex
 export AbstractInfiniteSet, InfiniteScalarSet, InfiniteArraySet, IntervalSet,
 UniDistributionSet, MultiDistributionSet, CollectionSet, AbstractSupportLabel, 
 PublicLabel, InternalLabel, SampleLabel, UserDefined, MCSample, UniformGrid, 
-Mixture, All, WeightedSample, UniqueMeasure
+Mixture, All, WeightedSample, UniqueMeasure, MeasureBound
 
 # Export infinite set methods
 export collection_sets, supports_in_set, generate_support_values
