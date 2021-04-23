@@ -726,11 +726,6 @@ function set_uni_integral_defaults(; kwargs...)::Nothing
     return
 end
 
-function clear_uni_integral_defaults()::Nothing
-    empty!(UniIntegralDefaults)
-    UniIntegralDefaults[:eval_method] = Automatic()
-    return
-end
 """
     clear_uni_integral_defaults()::Nothing
 
