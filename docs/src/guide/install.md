@@ -46,7 +46,7 @@ For example, we can install Ipopt which is an open-source nonlinear solver:
 ```
 Now Ipopt can be used as the optimizer (solver) for an infinite model by running:
 ```julia-repl
-julia> using InfiniteOpt, JuMP, Ipopt
+julia> using InfiniteOpt, Ipopt
 
 julia> model = InfiniteModel(Ipopt.Optimizer)
 ```

@@ -24,7 +24,7 @@ As an example, let's create a univariate disjoint interval set as an infinite se
 This corresponds to the set ``[lb_1, ub_1] \cup [lb_2, ub_2]`` where
 ``ub_1 \leq lb_2``. First, we need to create the `DataType` with inheritance from [`InfiniteScalarSet`](@ref):
 ```jldoctest set_ext; output = false
-using InfiniteOpt, JuMP
+using InfiniteOpt
 
 struct DisjointSet <: InfiniteOpt.InfiniteScalarSet
     lb1::Float64
@@ -168,7 +168,7 @@ y(t_{n+1}) = y(t_n) + (t_{n+1} - t_{n})\frac{d y(t_n)}{dt}, \ \forall n = 0, 1, 
 
 Let's get started with step 1 and define our new method struct:
 ```jldoctest deriv_ext; output = false
-using InfiniteOpt, JuMP
+using InfiniteOpt
 
 struct ExplicitEuler <: NonGenerativeDerivativeMethod end
 
@@ -405,9 +405,7 @@ implement this example to illustrate the mechanics of extension.
 
 First, let's define our new `struct` inheriting from `AbstractMeasureData`:
 ```jldoctest measure_data; output = false
-using InfiniteOpt, JuMP, Distributions
-
-const JuMPC = JuMP.Containers
+using InfiniteOpt, Distributions
 
 struct DiscreteVarianceData <: AbstractMeasureData
     parameter_refs::Union{GeneralVariableRef, Vector{GeneralVariableRef}}
@@ -670,7 +668,7 @@ First, let's define the `mutable struct` that will be used to store our variable
 and constraint mappings. This case it is quite simple since our deterministic
 model will have a 1-to-1 mapping:
 ```jldoctest opt_model; output = false
-using InfiniteOpt, JuMP, Distributions
+using InfiniteOpt, Distributions
 
 mutable struct DeterministicData
     # variable and constraint mapping

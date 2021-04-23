@@ -19,7 +19,7 @@ variables.
 Once an `InfiniteModel` `model` has been defined we can add a finite parameter
 via [`@finite_parameter`](@ref). For example, let's define a maximum cost
 parameter called `max_cost` with an initial value of `42`:
-```jldoctest fpar; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+```jldoctest fpar; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @finite_parameter(model, max_cost, 42)
 max_cost
 ```

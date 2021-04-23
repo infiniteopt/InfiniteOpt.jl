@@ -19,7 +19,7 @@ First, we need to initialize and add infinite parameters to our `InfiniteModel`.
 This can be accomplished using [`@infinite_parameter`](@ref). For example, let's
 define a parameter for time in a time interval from 0 to 10:
 ```jldoctest basic
-julia> using InfiniteOpt, JuMP
+julia> using InfiniteOpt
 
 julia> model = InfiniteModel();
 
@@ -66,7 +66,7 @@ julia> supports(t)
 Here only 4 supports are specified for the sake of example. Alternatively, we
 could have initialized the parameter and added supports in just one step using
 the `supports` keyword argument:
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10], supports = [0., 2.5, 7.5, 10.])
 t
 ```
@@ -304,7 +304,7 @@ true. However, we can explicitly dictate the kind of containers we want to hold
 the defined parameters using the keyword `container`. For example, we use
 `SparseAxisArray` from the `JuMP` package for the space
 parameter `x`:
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model= InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt; model= InfiniteModel())
 julia> @infinite_parameter(model, x[1:3] in [0, 1], container = SparseAxisArray)
 JuMP.Containers.SparseAxisArray{GeneralVariableRef,1,Tuple{Int64}} with 3 entries:
   [3]  =  x[3]
@@ -339,7 +339,7 @@ consider the position parameter `x` in a 3D space. Say `x` is bounded in `[0, 1]
 in all three dimensions, and the user wants to generate grid points with interval
 `0.5` in all three dimensions.
 In this case, we can define `x` in the following way:
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model= InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt; model= InfiniteModel())
 julia> pts = collect(range(0, stop = 1, length = 3))
 3-element Array{Float64,1}:
  0.0
@@ -368,7 +368,7 @@ As mentioned above, we can define anonymous parameters using keyword arguments
 in the macro [`@infinite_parameter`](@ref). For instance, we can create an
 anonymous position parameter in a 3D space, referred to by a list of [`GeneralVariableRef`](@ref)
 called `x`:
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> x = @infinite_parameter(model, [1:3], lower_bound = 0, upper_bound = 1)
 3-element Array{GeneralVariableRef,1}:
  noname
@@ -426,7 +426,7 @@ As mentioned above, the users can choose to specify the set either in the
 second argument (nonanonymous parameter definition only), or in the keyword
 arguments. However, the users cannot do both at the same time. The macro will
 check this behavior and throw an error if this happens. For example,
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model,  y in [0, 1], lower_bound = 0, upper_bound = 1)
 ERROR: LoadError: At none:1: `@infinite_parameter(model, y in [0, 1], lower_bound = 0, upper_bound = 1)`: Cannot specify parameter lower_bound twice
 [...]
@@ -603,7 +603,7 @@ parameter is in an [`IntervalSet`](@ref), then we generate an array of supports
 that are uniformly distributed along the interval, including the two ends. For
 example, consider a 3D position parameter `x` distributed in the unit cube
 `[0, 1]`. We can generate supports for that point in the following way:
-```jldoctest supp_gen_defined; setup = :(using InfiniteOpt, JuMP, Distributions, Random; Random.seed!(0); model = InfiniteModel())
+```jldoctest supp_gen_defined; setup = :(using InfiniteOpt, Distributions, Random; Random.seed!(0); model = InfiniteModel())
 julia> @infinite_parameter(model, x[1:3] in [0, 1], independent = true);
 
 julia> fill_in_supports!.(x, num_supports = 3);
@@ -667,7 +667,7 @@ functions for accessing parameter information.
 Once a (possibly large-scale) `InfiniteModel` is built, the users might want to
 check if an infinite parameter is actually used in any way. This could be
 checked by [`is_used`](@ref) function as follows:
-```jldoctest param_queries; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+```jldoctest param_queries; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, x in [0, 1])
 x
 

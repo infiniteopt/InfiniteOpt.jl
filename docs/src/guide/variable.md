@@ -40,7 +40,7 @@ respective variable type.
 Let's first setup a simple space-time model with infinite parameters time `t` and
 spatial position `x`:
 ```jldoctest var_basic
-julia> using InfiniteOpt, JuMP
+julia> using InfiniteOpt
 
 julia> model = InfiniteModel();
 
@@ -163,7 +163,7 @@ The `JuMP.VariableInfo` data structure stores the following variable information
 - `binary`: Specifies `Bool` if it is binary
 - `integer`: Specifies `Bool` if it is integer.
 Thus, the user specifies this information to prepare such an object:
-```jldoctest genvar_define; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+```jldoctest genvar_define; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> info = VariableInfo(true, 0., true, 42., false, 0., false, 0., false, true)
 VariableInfo{Float64,Float64,Float64,Float64}(true, 0.0, true, 42.0, false, 0.0, false, 0.0, false, true)
 ```
@@ -225,7 +225,7 @@ these pertain to `JuMP`-like features). To illustrate this via example, let's
 setup a model with a variety of infinite parameters ``t \in [0,10]``,
 ``x \in [-1, 1]^3``, and ``\xi \in \mathcal{N}(0, 1)``:
 ```jldoctest var_macro
-julia> using InfiniteOpt, JuMP, Distributions
+julia> using InfiniteOpt, Distributions
 
 julia> model = InfiniteModel();
 
@@ -724,7 +724,7 @@ is invoked any bound/type constraints associated with the variable will be remov
 and it will be removed from any other constraints, measures, and/or objectives.
 For example, if we delete `y(t, x)` it will be removed along with its bounds and
 the point variable `y0` will also be removed since it is a dependent:
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @finite_variable(model, y))
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel(); @finite_variable(model, y))
 julia> delete(model, y)
 ```
 

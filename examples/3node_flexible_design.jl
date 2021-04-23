@@ -5,7 +5,7 @@ programming approach for the design of flexible systems. Computers & Chemical
 Engineering. 2019 Sep 2;128:69-76.
 """
 
-using InfiniteOpt, JuMP, Clp, Distributions
+using InfiniteOpt, Clp, Distributions
 
 # Set the covariance matrix for the uncertain parameters
 θ_nom = [0.; 60.; 10.]

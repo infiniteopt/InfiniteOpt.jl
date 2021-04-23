@@ -77,7 +77,7 @@ ybar3 = 0           # no upper bound on the other crops
 ```
 Great now we can formulate and solve the problem using `InfiniteOpt`:
 ```jldoctest 2-stage; output = false
-using InfiniteOpt, JuMP, Ipopt, Random
+using InfiniteOpt, Ipopt, Random
 
 # Seed for repeatability
 Random.seed!(0)
@@ -199,7 +199,7 @@ horizon.
 
 Let's implement this in `InfiniteOpt`:
 ```jldoctest hovercraft; output = false
-using InfiniteOpt, JuMP, Ipopt
+using InfiniteOpt, Ipopt
 
 # Waypoints
 xw = [1 4 6 1; 1 3 0 1] # positions
