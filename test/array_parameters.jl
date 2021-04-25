@@ -930,7 +930,7 @@ end
         new_gvrefs1 = convert(JuMPC.SparseAxisArray, gvrefs1)
         expected = convert.(JuMPC.SparseAxisArray, [zeros(2), ones(2)])
         @test sort!(supports(new_prefs1)) == expected
-        @test supports(new_gvrefs1) == expected
+        @test sort!(supports(new_gvrefs1)) == expected
         @test supports(prefs2) == []
         # test label
         @test supports(new_prefs1, label = MCSample) == []
