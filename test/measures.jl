@@ -487,6 +487,7 @@ end
     @infinite_parameter(m, 0 <= par2 <= 1)
     @infinite_parameter(m, 0 <= par3 <= 1)
     @infinite_parameter(m, 0 <= pars2[1:2] <= 1)
+    @infinite_parameter(m, 0 <= pars3[1:2] <= 1, independent = true)
     @infinite_variable(m, inf(par))
     @finite_variable(m, x)
     dpar = dispatch_variable_ref(par)
@@ -499,6 +500,11 @@ end
     data5 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample, lower_bound = 0.3, upper_bound = 0.7)
     data6 = FunctionalDiscreteMeasureData(pars[1], coeff_func, 10, MCSample, NoGenerativeSupports(),
                                           default_weight, NaN, NaN, false)
+    data7 = FunctionalDiscreteMeasureData(par, coeff_func, 0, All, lower_bound = 0.3, upper_bound = 0.7)
+    data8 = FunctionalDiscreteMeasureData(pars, coeff_func, 0, All, lower_bounds = [.25, 0], upper_bounds = [.5,1])
+    data9 = FunctionalDiscreteMeasureData(pars3, coeff_func, 0, All, lower_bounds = [.25, 0], upper_bounds = [.5,1])
+    data10 = FunctionalDiscreteMeasureData(pars, coeff_func, 0, All, lower_bounds = [0, 0], upper_bounds = [1,NaN])
+    data11 = FunctionalDiscreteMeasureData(pars3, coeff_func, 0, All, lower_bounds = [0, 0], upper_bounds = [1,NaN])
 #    meas = Measure(par + 2inf - x, data, [1], [1], false)
     # test _check_and_set_generative_info 
     @testset "_check_and_set_generative_info" begin 
@@ -561,6 +567,9 @@ end
         @test_throws ErrorException add_supports_to_parameters(data6)
         # clear supports
         delete_supports(par)
+        add_supports_to_parameters(data7)
+        @test supports(par, label = MeasureBound) == [0.3, 0.7]
+        delete_supports(par)
     end
     # test _generate_multiple_functional_supports (DependentParameterRefs)
     @testset "_generate_multiple_functional_supports (DependentParameterRefs)" begin
@@ -583,6 +592,18 @@ end
         @test num_supports(pars) == 5 # wrong with CollectionSet support generation
         # clear supports
         delete_supports(pars)
+        add_supports_to_parameters(data8)
+        @test supports(pars, label = MeasureBound) ==  [0.5 0.25; 1.0 0.0]
+        delete_supports(pars)
+        add_supports_to_parameters(data10)
+        @test supports(pars, label = MeasureBound) == zeros(2,0)
+        delete_supports(pars)
+        add_supports_to_parameters(data9)
+        @test supports(pars3, label = MeasureBound) == [[.25,0] [.5,0] [.25, 1] [.5, 1]]
+        delete_supports(pars3)
+        add_supports_to_parameters(data11)
+        @test supports(pars3, label = MeasureBound) == zeros(2,0)
+        delete_supports(pars3)
     end
     # test add_supports_to_parameters (fallbacks)
     @testset "add_supports_to_parameters (fallbacks)" begin
