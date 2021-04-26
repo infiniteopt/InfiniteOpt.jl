@@ -557,7 +557,7 @@ end
 """
     set_supports(
         prefs::Union{Vector{GeneralVariableRef}, AbstractArray{<:GeneralVariableRef}},
-        supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}};
+        supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
         [force::Bool = false]
         )::Nothing
 
@@ -566,7 +566,7 @@ parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
 dependent infinite parameters.
 """
 function set_supports(prefs::AbstractArray{<:GeneralVariableRef},
-                      supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}};
+                      supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
                       label::Type{<:AbstractSupportLabel} = UserDefined, 
                       force::Bool = false
                       )::Nothing
@@ -600,7 +600,7 @@ end
 """
     add_supports(
         prefs::Union{Vector{GeneralVariableRef}, AbstractArray{<:GeneralVariableRef}},
-        supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}}
+        supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}}
         )::Nothing
 
 Add the support points `supports` to the dependent infinite
@@ -608,7 +608,7 @@ parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
 dependent infinite parameters.
 """
 function add_supports(prefs::AbstractArray{<:GeneralVariableRef},
-                      supports::Union{Array{<:Real, 2}, AbstractArray{<:Vector{<:Real}}};
+                      supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
                       label::Type{<:AbstractSupportLabel} = UserDefined, 
                       check::Bool = true
                       )::Nothing

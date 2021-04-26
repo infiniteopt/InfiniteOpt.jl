@@ -1092,12 +1092,12 @@ end
 """
     supports(prefs::AbstractArray{<:DependentParameterRef};
              [label::Type{<:AbstractSupportLabel} = PublicLabel]
-             )::Union{AbstractArray{<:Vector{<:Float64}}, Array{Float64, 2}}
+             )::Union{Vector{<:AbstractArray{<:Real}}, Array{Float64, 2}}
 
 Return the support points associated with `prefs`. Errors if not all of the
 infinite dependent parameters are from the same object. This will return a
-matrix if `prefs` is `Vector`, otherwise an array of vectors is returned by
-calling `supports.(prefs)`. A subset of supports can be
+matrix if `prefs` is `Vector`, otherwise a vector of arrays is returned where each 
+array is a support point matching the format of `prefs`. A subset of supports can be
 returned via `label` to return just the supports associated with `label`. By 
 default only the public supports are given, but the full set is  obtained via 
 `label == All`.
@@ -1112,12 +1112,19 @@ julia> supports(x) # columns are supports
 """
 function supports(prefs::AbstractArray{<:DependentParameterRef};
                   label::Type{<:AbstractSupportLabel} = PublicLabel
-                  )::AbstractArray{<:Vector{<:Float64}}
+                  )::Vector{<:AbstractArray{<:Real}}
     _check_complete_param_array(prefs)
-    return supports.(prefs, label = label) # TODO make more efficient
+    inds = Collections._get_indices(prefs)
+    supp_dict = _parameter_supports(first(prefs))
+    if label == All || (!has_internal_supports(first(prefs)) && label == PublicLabel)
+        raw_supps = collect(keys(supp_dict))
+    else
+        raw_supps = findall(e -> any(v -> v <: label, e), supp_dict)
+    end
+    return map(s -> Collections._make_array(s, inds), raw_supps)
 end
 
-# More efficient dispatch for Vectors
+# Dispatch for Vectors to make predictable matrix outputs
 function supports(prefs::Vector{DependentParameterRef};
                   label::Type{<:AbstractSupportLabel} = PublicLabel
                   )::Array{Float64, 2}
@@ -1164,21 +1171,21 @@ end
 
 # Process an array of vectors into a support matrix
 function _make_support_matrix(prefs::AbstractArray{<:DependentParameterRef},
-                              supports::AbstractArray{<:Vector{<:Real}}
+                              supports::Vector{<:AbstractArray{<:Real}}
                               )::Array{<:Real, 2}
-    _keys(supports) == _keys(prefs) || error("Inconsistent support indices")
+    _keys(first(supports)) == _keys(prefs) || error("Inconsistent support indices")
     lens = [length(supp) for supp in supports]
     _allequal(lens) || error("Inconsistent support dimensions.")
-    trans_supps = Array{Float64}(undef, first(lens), length(prefs))
-    for k in eachindex(prefs)
-        trans_supps[:, _param_index(prefs[k])] = supports[k]
+    supps = Array{Float64}(undef, length(prefs), length(supports))
+    for i in eachindex(supports)
+        supps[:, i] = _make_ordered_vector(supports[i])
     end
-    return permutedims(trans_supps)
+    return supps
 end
 
 """
     set_supports(prefs::AbstractArray{<:DependentParameterRef},
-                 supports::AbstractArray{<:Vector{<:Real}};
+                 supports::Vector{<:AbstractArray{<:Real}};
                  [force::Bool = false,
                  label::Type{<:AbstractSupportLabel} = UserDefined])::Nothing
 
@@ -1213,7 +1220,7 @@ julia> supports(x)
 ```
 """
 function set_supports(prefs::AbstractArray{<:DependentParameterRef},
-                      supports::AbstractArray{<:Vector{<:Real}};
+                      supports::Vector{<:AbstractArray{<:Real}};
                       force::Bool = false,
                       label::Type{<:AbstractSupportLabel} = UserDefined
                       )::Nothing
@@ -1248,7 +1255,7 @@ end
 
 """
     add_supports(prefs::AbstractArray{<:DependentParameterRef},
-                 supports::AbstractArray{<:Vector{<:Real}};
+                 supports::Vector{<:AbstractArray{<:Real}};
                  [label::Type{<:AbstractSupportLabel} = UserDefined])::Nothing
 
 Add additional support points for `prefs`. Errors if the supports violate the domain
@@ -1284,7 +1291,7 @@ julia> supports(t)
 ```
 """
 function add_supports(prefs::AbstractArray{<:DependentParameterRef},
-                      supports::AbstractArray{<:Vector{<:Real}};
+                      supports::Vector{<:AbstractArray{<:Real}};
                       label::Type{<:AbstractSupportLabel} = UserDefined, # interal keyword args
                       check::Bool = true)::Nothing
     supps = _make_support_matrix(prefs, supports)
