@@ -101,14 +101,7 @@ measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
 julia> measure_data(mref2)
-<<<<<<< HEAD
-FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,UniformGenerativeInfo}(t, getfield(InfiniteOpt.MeasureToolbox, Symbol("#coeff_func#4")){Int64}(3), 0, All, UniformGenerativeInfo([0.5], InternalGaussLobatto), InfiniteOpt.default_weight, 0.0, 10.0, false)
-
-julia> measure_data(mref3)
-FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,NoGenerativeSupports}(t, InfiniteOpt.MeasureToolbox._trapezoid_coeff, 0, All, NoGenerativeSupports(), InfiniteOpt.default_weight, 0.0, 10.0, false)
-=======
 FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,UniformGenerativeInfo}(t, getfield(InfiniteOpt.MeasureToolbox, Symbol("##5#6")){Int64}(3), 0, All, UniformGenerativeInfo([0.5], InternalGaussLobatto), InfiniteOpt.default_weight, 0.0, 10.0, false)
->>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 ```
 Natively in `InfiniteOpt`, two types of measure data objects are used to store the measure
 data information depending on the nature of the measures created: `DiscreteMeasureData` and
@@ -124,31 +117,6 @@ y(t)² + u(t)²
 
 In addition to `eval_method`, the `integral` function 
 also accepts `weight_func` as keyword argument, which dictates the weight function
-<<<<<<< HEAD
-of the measure. The default value of these keyword arguments can be queried using
-[`uni_integral_defaults`](@ref) and [`multi_integral_defaults`](@ref) as follows:
-```jldoctest meas_basic
-julia> uni_integral_defaults()
-Dict{Symbol,Any} with 1 entry:
-  :eval_method => Automatic()
-
-julia> multi_integral_defaults()
-Dict{Symbol,Any} with 1 entry:
-  :eval_method => Automatic()
-```
-`Automatic` dictates that the integral is created using the default method depending
-on the type of integral, and `default_weight` is assigning weights of 1 for all points.
-
-Now suppose we want to create multiple measures that share the same keyword argument 
-values that are different from the defaults. We don't have to input the keyword argument
-values every time we construct a new measure. Instead, we can modify the
-default values of measure keyword arguments, and construct measures using the new 
-default values. To do that, we use the functions
-[`set_uni_integral_defaults`](@ref) and [`set_multi_integral_defaults`](@ref).
-Adding new keyword arguments will be useful if users want to extend the measure 
-functions with their custom representation/evaluation schemes that need to take 
-additional arguments somehow. See [Extensions](@ref) for more details.
-=======
 of the measure. Now suppose we want to create multiple measures that share the 
 same keyword argument values that are different from the defaults. We don't have 
 to input the keyword argument values every time we construct a new measure. 
@@ -160,7 +128,6 @@ can in turn reset these via [`clear_uni_integral_defaults`](@ref) and
 useful if users want to extend the measure functions with their custom 
 representation/evaluation schemes that need to take additional arguments somehow. 
 See [Extensions](@ref) for more details.
->>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 
 Now we can add integrals to the constraints and objective functions in our
 model using these measures. For more detailed information, please review the
@@ -213,12 +180,7 @@ evaluate a function at each integer time point between 0 and 10, we
 can construct the following measure data object to record this discretization
 scheme:
 ```jldoctest meas_basic
-<<<<<<< HEAD
-julia> md_t = DiscreteMeasureData(t, ones(10), [i for i in 1:10])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], UniqueMeasure{Symbol("##817")}, InfiniteOpt.default_weight, NaN, NaN, false)
-=======
 julia> md_t = DiscreteMeasureData(t, ones(10), [i for i in 1:10]);
->>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 ```
 The arguments of [`DiscreteMeasureData`](@ref) are parameter, coefficients, and
 supports. The default weight function is ``w(\tau) = 1`` for
@@ -291,42 +253,6 @@ Each method is limited on the dimension of parameter and/or the type of set
 that it can apply for. For the details of what each method type means, refer to the corresponding
 docstrings.
 
-<<<<<<< HEAD
-The eval method `FEGaussLobatto` creates finite elements by decomposing over the supports that have been added to the integral parameter and then approximates the integral over each finite element via Lobatto quadrature using num_nodes. 
-All other Gauss quadrature methods do not incorporate any existing supports nor do they decompose the integral into finite elements, 
-but instead generate their quadrature node points over the entire integral domain. 
-See the A Note on Support Management Section for more information."
-This method will take in the user supports, and create generative supports along each interval 
-and match them with corresponding coefficients. An example of what this looks like can be seen below. 
-
-![Image](C:\Users\david\.julia\dev\InfiniteOpt\docs\src\assets\FEGaussLobatto.png)
-
-``\int_{x_1}^{x_3} f(x) dx = \int_{x_1}^{x_2} f(x) dx + \int_{x_2}^{x_3} f(x) dx``
-
-``\approx \sum_{i=1}^{n} \alpha_{a,i} f(\tau_{a,i}) + \sum_{i=1}^{n} \alpha_{b,i} f(\tau_{b,i})``
-
-`` = \sum_{i=1}^{n} (\alpha_{a,i} f(\tau_{a,i}) + \alpha_{b,i} f(\tau_{b,i}))``
-
-where ``\tau_{a,i}`` and ``\tau_{b,i}`` are the discrete nodes for the two intervals 
-
-and ``\alpha_{a,i}`` and ``\alpha_{b,i}`` are the coefficients.
-
-```jldoctest meas_basic; setup = :(set_supports(t, [0, 5, 10], force = true))
-julia> mref_lob = integral(y^2 + u^2, t, num_nodes = 3, eval_method = FEGaussLobatto())
-∫{t ∈ [0, 10]}[y(t)² + u(t)²]
-
-julia> expand(mref_lob)
-0.8333333333333333 y(0)² + 0.8333333333333333 u(0)² + 3.333333333333333 y(2.5)² + 3.333333333333333 u(2.5)² + 1.6666666666666665 y(5)² + 1.6666666666666665 u(5)² + 3.333333333333333 y(7.5)² + 3.333333333333333 u(7.5)² + 0.8333333333333333 y(10)² + 0.8333333333333333 u(10)²
-
-```
-
-We pass set `num_nodes` to be equal to three, to give three generative supports inbetween each of the user defined supports. 
-
-
-
-
-=======
->>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 | Evaluation Method                                | Uni/Multi-Variate? | Weight Function              | Set Type                            |
 |:------------------------------------------------:|:------------------:|:----------------------------:|:-----------------------------------:|
 | [`Automatic()`](@ref)                            | Both               |   ``1``                      | Any                                 |
@@ -336,11 +262,7 @@ We pass set `num_nodes` to be equal to three, to give three generative supports 
 | [`Quadrature()`](@ref)                           | Univariate         |   ``1``                      | [`IntervalSet`](@ref)               |
 | [`GaussLegendre()`](@ref)                        | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 | [`GaussRadau()`](@ref)                           | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
-<<<<<<< HEAD
-| [`GaussJacobi()`](@ref)                          | Univariate         | `` (1-x)^\alpha (1+x)^\beta``| Finite [`IntervalSet`](@ref)        |
-=======
 | [`GaussJacobi(α, β)`](@ref GaussJacobi)          | Univariate         | `` (1-x)^\alpha (1+x)^\beta``| Finite [`IntervalSet`](@ref)        |
->>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 | [`GaussLobatto()`](@ref)                         | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 | [`FEGaussLobatto()`](@ref)                       | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 | [`GaussChebyshev(1)`](@ref GaussChebyshev)       | Univariate         | ``\frac{1}{\sqrt{1-x^2}}  `` | Finite [`IntervalSet`](@ref)        |
@@ -352,12 +274,6 @@ We pass set `num_nodes` to be equal to three, to give three generative supports 
 | [`MultiMCSampling()`](@ref)                      | Multivariate       |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 | [`MultiIndepMCSampling()`](@ref)                 | Multivariate       |   ``1``                      | Finite [`IntervalSet`](@ref)        |
 
-<<<<<<< HEAD
-In summary, we natively support trapezoid rule, Gaussian quadrature methods for univariate parameters,
-and Monte Carlo sampling for both univariate and multivariate parameters.
-For extension purposes, users may define their own [`generate_integral_data`](@ref)
-to encode custom evaluation methods. See [Extensions](@ref) for more details.
-=======
 
 The eval method [`FEGaussLobatto`](@ref) creates finite elements by decomposing over the 
 supports that have been added to the integral parameter and then approximates the 
@@ -400,7 +316,6 @@ univariate parameters, and Monte Carlo sampling for both univariate and
 multivariate infinite parameters. For extension purposes, users may define their 
 own [`generate_integral_data`](@ref) to encode custom evaluation methods. See 
 [Extensions](@ref) for more details.
->>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 
 ### A Note on Support Management
 There is a difference in how supports are considered using `UniTrapezoid()`/`FEGaussLobatto()` vs.
@@ -568,12 +483,7 @@ based on the [`AbstractMeasureData`](@ref). For example, suppose we want to
 integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``.
 We can set up and expand this measure as follows:
 ```jldoctest meas_basic; setup = :(clear_uni_integral_defaults())
-<<<<<<< HEAD
-julia> tdata = DiscreteMeasureData(t, [5, 5], [2.5, 7.5])
-DiscreteMeasureData{GeneralVariableRef,1,Float64}(t, [5.0, 5.0], [2.5, 7.5], UniqueMeasure{Symbol("##835")}, InfiniteOpt.default_weight, NaN, NaN, false)
-=======
 julia> tdata = DiscreteMeasureData(t, [5, 5], [2.5, 7.5]);
->>>>>>> 7b9f3adde62b03ba7cf1470f34f8512a2e9f2a6b
 
 julia> mref4 = measure(y^2, tdata)
 measure{t}[y(t)²]

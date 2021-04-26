@@ -212,6 +212,7 @@ MCSample
 WeightedSample
 Mixture
 UniqueMeasure
+MeasureBound
 InternalLabel
 ```
 
