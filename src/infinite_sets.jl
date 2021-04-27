@@ -398,6 +398,14 @@ supports. This is done by invoking [`generate_unique_label`](@ref).
 struct UniqueMeasure{S} <: PublicLabel end
 
 """
+    MeasureBound <: PublicLabel
+    
+A support label for supports that are generated using the upper and lower bounds
+for `FunctionalDiscreteMeasureData`.
+"""
+struct MeasureBound <: PublicLabel end
+
+"""
     InternalLabel <: AbstractSupportLabel
 
 An abstract type for support labels that are associated with supports that should 

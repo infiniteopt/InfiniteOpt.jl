@@ -928,15 +928,14 @@ end
         # test default
         new_prefs1 = convert(JuMPC.SparseAxisArray, prefs1)
         new_gvrefs1 = convert(JuMPC.SparseAxisArray, gvrefs1)
-        expected = convert(JuMPC.SparseAxisArray, [Float64[0, 1] for i = 1:2])
-        expected2 = convert(JuMPC.SparseAxisArray, [Float64[] for i = 1:2])
-        @test sort!.(supports(new_prefs1)) == expected
-        @test sort!.(supports(new_gvrefs1)) == expected
-        @test supports(prefs2) == [Float64[] for i in CartesianIndices(prefs2)]
+        expected = convert.(JuMPC.SparseAxisArray, [zeros(2), ones(2)])
+        @test sort!(supports(new_prefs1)) == expected
+        @test sort!(supports(new_gvrefs1)) == expected
+        @test supports(prefs2) == []
         # test label
-        @test supports(new_prefs1, label = MCSample) == expected2
-        @test sort!.(supports(new_prefs1, label = UniformGrid)) == expected
-        @test supports(new_gvrefs1, label = MCSample) == expected2
+        @test supports(new_prefs1, label = MCSample) == []
+        @test sort!(supports(new_prefs1, label = UniformGrid)) == expected
+        @test supports(new_gvrefs1, label = MCSample) == []
         @test supports(gvrefs4, label = All) == zeros(2, 1)
         @test supports(gvrefs4, label = AbstractSupportLabel) == zeros(2, 1)
     end
@@ -968,21 +967,21 @@ end
     # test _make_support_matrix
     @testset "_make_support_matrix" begin
         # test errors
-        supps = JuMPC.DenseAxisArray([[0] for i in CartesianIndices(prefs2)], 3:4, 1:2)
+        supps = [ones(3, 2)]
         @test_throws ErrorException InfiniteOpt._make_support_matrix(prefs2, supps)
-        supps = [i[1] != 1 ? [0] : [0, 1] for i in CartesianIndices(prefs2)]
+        supps = [ones(2, 2), ones(3, 2)]
         @test_throws ErrorException InfiniteOpt._make_support_matrix(prefs2, supps)
         # test normal
-        supps = [[1, 1, 1] for i in CartesianIndices(prefs2)]
-        @test InfiniteOpt._make_support_matrix(prefs2, supps) == ones(Float64, 4, 3)
+        supps = [zeros(2, 2), ones(2, 2)]
+        @test InfiniteOpt._make_support_matrix(prefs2, supps) == hcat(zeros(4), ones(4))
     end
     # test set_supports (Single)
     @testset "set_supports (Single)" begin
         @test_throws ErrorException set_supports(prefs1[1], [0, 1])
         @test_throws ErrorException set_supports(gvrefs1[1], [0, 1], label = Mixture)
     end
-    # test set_supports (Vector)
-    @testset "set_supports (Vector)" begin
+    # test set_supports (Array)
+    @testset "set_supports (Array)" begin
         # test errors
         @test_throws ErrorException set_supports(prefs2[:, 1], ones(2, 2))
         @test_throws ErrorException set_supports(prefs1, ones(2, 2))
@@ -1006,18 +1005,18 @@ end
                            label = UniformGrid) isa Nothing
         @test !has_internal_supports(prefs1[1])
     end
-    # test set_supports (AbstractArray)
-    @testset "set_supports (AbstractArray)" begin
+    # test set_supports (Vector of Supports)
+    @testset "set_supports (Vector of Supports)" begin
         # default
-        supps = [[1, 1, 1] for i in CartesianIndices(prefs2)]
+        supps = [ones(2, 2) for i in 1:3]
         @test set_supports(prefs2, supps) isa Nothing
-        @test supports(prefs2) == [ones(Float64, 1) for i in CartesianIndices(prefs2)]
+        @test supports(prefs2) == [ones(Float64, 2, 2)]
         @test collect(values(InfiniteOpt._parameter_supports(prefs2[1]))) == [Set([UserDefined])]
         # test keywords
-        supps = [Float64[] for i in CartesianIndices(prefs2)]
-        @test set_supports(gvrefs2, supps, force = true, label = Mixture) isa Nothing
-        @test supports(prefs2) == [ones(Float64, 0) for i in CartesianIndices(prefs2)]
-        @test isempty(InfiniteOpt._parameter_supports(prefs2[1]))
+        # supps = [Float64[] for i in CartesianIndices(prefs2)]
+        # @test set_supports(gvrefs2, supps, force = true, label = Mixture) isa Nothing
+        # @test supports(prefs2) == [ones(Float64, 0) for i in CartesianIndices(prefs2)]
+        empty!(InfiniteOpt._parameter_supports(prefs2[1]))
     end
     # test add_supports (Single)
     @testset "add_supports (Single)" begin
@@ -1049,14 +1048,14 @@ end
     # test add_supports (AbstractArray)
     @testset "add_supports (AbstractArray)" begin
         # default
-        supps = [[1, 1, 1] for i in CartesianIndices(prefs2)]
+        supps = [ones(2, 2) for i = 1:3]
         @test add_supports(prefs2, supps) isa Nothing
-        @test supports(prefs2) == [ones(Float64, 1) for i in CartesianIndices(prefs2)]
+        @test supports(prefs2) == [ones(Float64, 2, 2)]
         @test collect(values(InfiniteOpt._parameter_supports(prefs2[1]))) == [Set([UserDefined])]
         # test keywords
-        supps = [[0.5] for i in CartesianIndices(prefs2)]
+        supps = [ones(2, 2) * 0.5]
         @test add_supports(gvrefs2, supps, check = false, label = MCSample) isa Nothing
-        @test sort!.(supports(prefs2)) == [[0.5, 1] for i in CartesianIndices(prefs2)]
+        @test sort!(supports(prefs2), by = first) == [0.5 * ones(2, 2), ones(2, 2)]
         @test Set([MCSample]) in values(InfiniteOpt._parameter_supports(prefs2[1]))
     end
     # test delete_supports (Single)
@@ -1078,7 +1077,7 @@ end
         @test delete_supports(prefs1) isa Nothing
         @test supports(prefs1) == zeros(Float64, 2, 0)
         @test delete_supports(gvrefs2) isa Nothing
-        @test supports(prefs2) == [Float64[] for i in CartesianIndices(prefs2)]
+        @test supports(prefs2) == []
     end
 end
 

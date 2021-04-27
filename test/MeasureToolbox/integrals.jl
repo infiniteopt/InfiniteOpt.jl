@@ -148,7 +148,7 @@ end
     @testset "generate_integral_data (MultiMCSampling)" begin
         @test generate_integral_data(x, [0, 0], [1, 1], MultiMCSampling()) isa FunctionalDiscreteMeasureData
         @test_throws ErrorException generate_integral_data(x, [0, 0], [Inf, 1], MultiMCSampling())
-        @test_throws ErrorException generate_integral_data(x, [0, -Inf], [1, 1], MultiMCSampling())
+        @test_throws ErrorException("`MultiMCSampling` is not applicable to (semi-)infinite intervals.") generate_integral_data(x, [0, -Inf], [1, 1], MultiMCSampling())
     end
     # test _make_multi_mc_supports
     # @testset "_make_multi_mc_supports" begin
