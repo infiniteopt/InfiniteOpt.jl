@@ -286,7 +286,7 @@ will take in the user supports, and create generative supports along each interv
 and match them with corresponding coefficients. Here is a depiction of such what 
 `FEGaussLobatto` does. 
 
-![Image](..\assets\FEGaussLobatto.png)
+![lobatto](../assets/fe_lobatto.png)
 
 ``\int_{x_1}^{x_3} f(x) dx = \int_{x_1}^{x_2} f(x) dx + \int_{x_2}^{x_3} f(x) dx``
 
