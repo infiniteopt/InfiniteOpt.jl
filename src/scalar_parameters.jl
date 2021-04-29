@@ -228,7 +228,7 @@ function _check_supports_in_bounds(_error::Function,
                                    supports::Union{<:Real, Vector{<:Real}},
                                    domain::AbstractInfiniteDomain)::Nothing
     if !supports_in_domain(supports, domain)
-        _error("Supports violate the domain domain bounds.")
+        _error("Supports violate the domain bounds.")
     end
     return
 end

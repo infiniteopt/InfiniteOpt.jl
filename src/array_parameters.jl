@@ -206,7 +206,7 @@ function _build_parameters(_error::Function,
             trans_supps[:, i] = vector_params[i].supports
         end
         supps = permutedims(trans_supps)
-        supports_in_domain(supps, domain) || _error("Supports violate infinite domain domain.")
+        supports_in_domain(supps, domain) || _error("Supports violate infinite domain.")
         supps = round.(supps, sigdigits = sig_digits)
         label = UserDefined
         supp_dict = Dict{Vector{Float64}, Set{DataType}}(@views supps[:, i] =>
