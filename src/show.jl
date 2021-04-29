@@ -531,9 +531,9 @@ end
 # Return string of an infinite constraint
 function JuMP.constraint_string(print_mode, cref::InfOptConstraintRef;
                                 in_math_mode = false)::String
-    # get the function and domain strings
+    # get the function and set strings
     func_str = JuMP.function_string(print_mode, _core_constraint_object(cref))
-    in_domain_str = in_domain_string(print_mode, _core_constraint_object(cref))
+    in_set_str = JuMP.in_set_string(print_mode, _core_constraint_object(cref))
     # check if constraint if finite
     obj_nums = _object_numbers(cref)
     if isempty(obj_nums)
@@ -557,10 +557,10 @@ function JuMP.constraint_string(print_mode, cref::InfOptConstraintRef;
     # form the constraint string
     if print_mode == JuMP.REPLMode
         lines = split(func_str, '\n')
-        lines[1 + div(length(lines), 2)] *= " " * in_domain_str * bound_str
+        lines[1 + div(length(lines), 2)] *= " " * in_set_str * bound_str
         constr_str = join(lines, '\n')
     else
-        constr_str = string(func_str, " ", in_domain_str, bound_str)
+        constr_str = string(func_str, " ", in_set_str, bound_str)
     end
     # format for IJulia
     if print_mode == JuMP.IJuliaMode && !in_math_mode

@@ -108,7 +108,7 @@ end
 # Test macro methods
 @testset "Macro Helpers" begin
     @testset "Symbol Methods" begin
-        @test InfiniteOpt._is_set_keyword(:(lower_bound = 0))
+        @test InfiniteOpt._is_domain_keyword(:(lower_bound = 0))
     end
     # test ParameterInfoExpr datatype
     @testset "_ParameterInfoExpr" begin

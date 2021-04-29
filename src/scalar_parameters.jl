@@ -211,7 +211,7 @@ function _constructor_domain(_error::Function, info::_ParameterInfoExpr)
     elseif info.has_domain
         check1 = :(isa($(info.domain), InfiniteScalarDomain))
         check2 = :(isa($(info.domain), Distributions.UnivariateDistribution))
-        return :($(check1) ? $(info.domain) : ($(check2) ? UniDistributionDomain($(info.domain)) : error("Set must be a subtype of InfiniteScalarDomain.")))
+        return :($(check1) ? $(info.domain) : ($(check2) ? UniDistributionDomain($(info.domain)) : error("Domain must be a subtype of InfiniteScalarDomain.")))
     else
         _error("Must specify upper/lower bounds, a distribution, or a domain")
     end
