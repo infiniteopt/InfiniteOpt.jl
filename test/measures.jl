@@ -593,13 +593,13 @@ end
         # clear supports
         delete_supports(pars)
         add_supports_to_parameters(data8)
-        @test supports(pars, label = MeasureBound) ==  [0.5 0.25; 1.0 0.0]
+        @test sortcols(supports(pars, label = MeasureBound)) ==  [0.25 0.5; 0.0 1.0]
         delete_supports(pars)
         add_supports_to_parameters(data10)
         @test supports(pars, label = MeasureBound) == zeros(2,0)
         delete_supports(pars)
         add_supports_to_parameters(data9)
-        @test supports(pars3, label = MeasureBound) == [[.25,0] [.5,0] [.25, 1] [.5, 1]]
+        @test sortcols(supports(pars3, label = MeasureBound)) == [[.25,0] [.25, 1] [.5,0] [.5, 1]]
         delete_supports(pars3)
         add_supports_to_parameters(data11)
         @test supports(pars3, label = MeasureBound) == zeros(2,0)
