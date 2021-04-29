@@ -50,24 +50,24 @@ end
 function _check_bounds(bounds::ParameterBounds{GeneralVariableRef};
                        _error = error)::Nothing
     depend_counter = Dict{DependentParameterRef, Int}()
-    for (pref, set) in bounds
+    for (pref, domain) in bounds
         # check that pref is an infinite parameter
         if !(_index_type(pref) <: InfiniteParameterIndex)
             _error("Can only specify infinite parameters for parameter bounds.")
         end
         # check that respects lower bound
-        if JuMP.has_lower_bound(pref) && (JuMP.lower_bound(set) < JuMP.lower_bound(pref))
+        if JuMP.has_lower_bound(pref) && (JuMP.lower_bound(domain) < JuMP.lower_bound(pref))
                 _error("Specified parameter lower bound exceeds that defined " *
                        "for $pref.")
         end
         # check that respects upper bound
-        if JuMP.has_upper_bound(pref) && (JuMP.upper_bound(set) > JuMP.upper_bound(pref))
+        if JuMP.has_upper_bound(pref) && (JuMP.upper_bound(domain) > JuMP.upper_bound(pref))
                 _error("Specified parameter upper bound exceeds that defined " *
                        "for $pref.")
         end
         # keep track of dependent parameters with equality conditions to ensure completeness
         if (_index_type(pref) == DependentParameterIndex) &&
-           (JuMP.lower_bound(set) == JuMP.upper_bound(set))
+           (JuMP.lower_bound(domain) == JuMP.upper_bound(domain))
             index = DependentParameterIndex(DependentParametersIndex(_raw_index(pref)), 1)
             dumby_pref = dispatch_variable_ref(pref.model, index)
             if haskey(depend_counter, dumby_pref)
@@ -106,21 +106,21 @@ function _validate_bounds(model::InfiniteModel,
                           bounds::ParameterBounds{GeneralVariableRef};
                           _error = error)::Nothing
     depend_supps = Dict{DependentParametersIndex, Matrix{Float64}}()
-    for (pref, set) in bounds
+    for (pref, domain) in bounds
         # check validity
         JuMP.check_belongs_to_model(pref, model)
         # ensure has a support if a point constraint was given
-        if (JuMP.lower_bound(set) == JuMP.upper_bound(set))
+        if (JuMP.lower_bound(domain) == JuMP.upper_bound(domain))
             if _index_type(pref) == IndependentParameterIndex
                 # label will be UserDefined
-                add_supports(pref, JuMP.lower_bound(set), check = false)
+                add_supports(pref, JuMP.lower_bound(domain), check = false)
             else
                 index = DependentParametersIndex(_raw_index(pref))
                 if !haskey(depend_supps, index)
                     dumby_pref = dispatch_variable_ref(model, DependentParameterIndex(index, 1))
                     depend_supps[index] = Matrix{Float64}(undef, _num_parameters(dumby_pref), 1)
                 end
-                depend_supps[index][_param_index(pref)] = JuMP.lower_bound(set)
+                depend_supps[index][_param_index(pref)] = JuMP.lower_bound(domain)
             end
         end
     end
@@ -166,7 +166,7 @@ end
 
 Return the [`ParameterBounds`](@ref) object associated with the finite variable
 `vref`. It contains a dictionary where each key is a parameter reference
-which points to an `IntervalSet` that that defines a sub-domain for `vref`
+which points to an `IntervalDomain` that that defines a sub-domain for `vref`
 relative to that parameter reference.
 
 **Example**
@@ -243,27 +243,27 @@ function _update_bounds(bounds1::ParameterBounds{GeneralVariableRef},
                         _error::Function = error
                         )::Nothing
     # check each new bound
-    for (pref, set) in bounds2
+    for (pref, domain) in bounds2
         # we have a new bound
         if !haskey(bounds1, pref)
-            bounds1[pref] = set
-        # the previous set and the new one do not overlap
-        elseif (JuMP.lower_bound(set) > JuMP.upper_bound(bounds1[pref])) ||
-               (JuMP.upper_bound(set) < JuMP.lower_bound(bounds1[pref]))
+            bounds1[pref] = domain
+        # the previous domain and the new one do not overlap
+        elseif (JuMP.lower_bound(domain) > JuMP.upper_bound(bounds1[pref])) ||
+               (JuMP.upper_bound(domain) < JuMP.lower_bound(bounds1[pref]))
             _error("Sub-domains of constraint and/or finite variable(s) do not" *
                    " overlap. Consider changing the parameter bounds of the" *
                    " constraint and/or finite variable(s).")
         # we have an existing bound
         else
             # we have a new stricter lower bound to update with
-            if JuMP.lower_bound(set) > JuMP.lower_bound(bounds1[pref])
-                bounds1[pref] = IntervalSet(JuMP.lower_bound(set),
+            if JuMP.lower_bound(domain) > JuMP.lower_bound(bounds1[pref])
+                bounds1[pref] = IntervalDomain(JuMP.lower_bound(domain),
                                             JuMP.upper_bound(bounds1[pref]))
             end
             # we have a new stricter upper bound to update with
-            if JuMP.upper_bound(set) < JuMP.upper_bound(bounds1[pref])
-                bounds1[pref] = IntervalSet(JuMP.lower_bound(bounds1[pref]),
-                                            JuMP.upper_bound(set))
+            if JuMP.upper_bound(domain) < JuMP.upper_bound(bounds1[pref])
+                bounds1[pref] = IntervalDomain(JuMP.lower_bound(bounds1[pref]),
+                                            JuMP.upper_bound(domain))
             end
         end
     end
@@ -347,7 +347,7 @@ end
 Specify a new dictionary of parameter bounds `bounds` for the finite variable `vref`.
 These are stored in a [`ParameterBounds`](@ref) object which contains a dictionary.
 Note the dictionary keys must be infinite parameter references and the values
-must be `IntervalSet`s that indicate a particular sub-domain for which `vref`
+must be `IntervalDomain`s that indicate a particular sub-domain for which `vref`
 is defined. This is meant to be primarily used by
 [`@set_parameter_bounds`](@ref) which provides a more intuitive syntax.
 
@@ -359,7 +359,7 @@ t
 julia> @finite_variable(model, vref)
 vref
 
-julia> set_parameter_bounds(vref, ParameterBounds(Dict(t => IntervalSet(0, 2))))
+julia> set_parameter_bounds(vref, ParameterBounds(Dict(t => IntervalDomain(0, 2))))
 
 julia> parameter_bounds(vref)
 Subdomain bounds (1): t ∈ [0, 2]
@@ -440,7 +440,7 @@ t
 julia> @finite_variable(model, vref)
 vref
 
-julia> add_parameter_bounds(vref, ParameterBounds(t => IntervalSet(0, 2)))
+julia> add_parameter_bounds(vref, ParameterBounds(t => IntervalDomain(0, 2)))
 
 julia> parameter_bounds(vref)
 Subdomain bounds (1): t ∈ [0, 2]

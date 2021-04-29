@@ -4,11 +4,11 @@
     m = InfiniteModel()
     ind_idx = IndependentParameterIndex(1)
     fin_idx = FiniteParameterIndex(1)
-    set = IntervalSet(0, 1)
+    domain = IntervalDomain(0, 1)
     supps_dict = SortedDict{Float64, Set{DataType}}(0. => Set{DataType}([UserDefined]))
     method = InfiniteOpt.DefaultDerivativeMethod
     info = NoGenerativeSupports()
-    ind_param = IndependentParameter(set, supps_dict, 5, method, info)
+    ind_param = IndependentParameter(domain, supps_dict, 5, method, info)
     fin_param = FiniteParameter(42)
     ind_object = ScalarParameterData(ind_param, 1, 1, "ind")
     fin_object = ScalarParameterData(fin_param, -1, -1, "fin")
@@ -79,12 +79,12 @@
     # test _adaptive_data_update
     @testset "_adaptive_data_update" begin
         # test change of same type
-        p = IndependentParameter(IntervalSet(0, 2), supps_dict, 12, method, info)
+        p = IndependentParameter(IntervalDomain(0, 2), supps_dict, 12, method, info)
         data = InfiniteOpt._data_object(ind_pref)
         @test InfiniteOpt._adaptive_data_update(ind_pref, p, data) isa Nothing
         @test InfiniteOpt._core_variable_object(ind_pref) == p 
         # test change of different types 
-        p = IndependentParameter(IntervalSet(0, 2), supps_dict, 12, TestMethod(), info)
+        p = IndependentParameter(IntervalDomain(0, 2), supps_dict, 12, TestMethod(), info)
         data = InfiniteOpt._data_object(ind_pref)
         @test InfiniteOpt._adaptive_data_update(ind_pref, p, data) isa Nothing
         @test InfiniteOpt._core_variable_object(ind_pref) == p 
@@ -108,7 +108,7 @@ end
 # Test macro methods
 @testset "Macro Helpers" begin
     @testset "Symbol Methods" begin
-        @test InfiniteOpt._is_set_keyword(:(lower_bound = 0))
+        @test InfiniteOpt._is_domain_keyword(:(lower_bound = 0))
     end
     # test ParameterInfoExpr datatype
     @testset "_ParameterInfoExpr" begin
@@ -128,7 +128,7 @@ end
         info.has_lb = false; info.has_dist = true
         @test_throws ErrorException InfiniteOpt._set_lower_bound_or_error(error,
                                                                    info, 0)
-        info.has_dist = false; info.has_set = true
+        info.has_dist = false; info.has_domain = true
         @test_throws ErrorException InfiniteOpt._set_lower_bound_or_error(error,
                                                                    info, 0)
     end
@@ -144,7 +144,7 @@ end
         info.has_ub = false; info.has_dist = true
         @test_throws ErrorException InfiniteOpt._set_upper_bound_or_error(error,
                                                                    info, 0)
-        info.has_dist = false; info.has_set = true
+        info.has_dist = false; info.has_domain = true
         @test_throws ErrorException InfiniteOpt._set_upper_bound_or_error(error,
                                                                    info, 0)
     end
@@ -158,41 +158,41 @@ end
         @test_throws ErrorException InfiniteOpt._dist_or_error(error, info, 0)
         info.has_dist = false; info.has_lb = true
         @test_throws ErrorException InfiniteOpt._dist_or_error(error, info, 0)
-        info.has_lb = false; info.has_set = true
+        info.has_lb = false; info.has_domain = true
         @test_throws ErrorException InfiniteOpt._dist_or_error(error, info, 0)
     end
-    # _set_or_error
-    @testset "_set_or_error" begin
+    # _domain_or_error
+    @testset "_domain_or_error" begin
         info = InfiniteOpt._ParameterInfoExpr()
         # test normal operation
-        @test isa(InfiniteOpt._set_or_error(error, info, 0), Nothing)
-        @test info.has_set && info.set == 0
+        @test isa(InfiniteOpt._domain_or_error(error, info, 0), Nothing)
+        @test info.has_domain && info.domain == 0
         # test double/lack of input errors
-        @test_throws ErrorException InfiniteOpt._set_or_error(error, info, 0)
-        info.has_set = false; info.has_lb = true
-        @test_throws ErrorException InfiniteOpt._set_or_error(error, info, 0)
+        @test_throws ErrorException InfiniteOpt._domain_or_error(error, info, 0)
+        info.has_domain = false; info.has_lb = true
+        @test_throws ErrorException InfiniteOpt._domain_or_error(error, info, 0)
         info.has_lb = false; info.has_dist = true
-        @test_throws ErrorException InfiniteOpt._set_or_error(error, info, 0)
+        @test_throws ErrorException InfiniteOpt._domain_or_error(error, info, 0)
     end
-    # _constructor_set
-    @testset "InfiniteOpt._constructor_set" begin
+    # _constructor_domain
+    @testset "InfiniteOpt._constructor_domain" begin
         info = InfiniteOpt._ParameterInfoExpr()
-        @test_throws ErrorException InfiniteOpt._constructor_set(error, info)
+        @test_throws ErrorException InfiniteOpt._constructor_domain(error, info)
         info.has_lb = true; info.lower_bound = 0
-        @test_throws ErrorException InfiniteOpt._constructor_set(error, info)
+        @test_throws ErrorException InfiniteOpt._constructor_domain(error, info)
         info.has_ub = true; info.upper_bound = 1
         check = :(isa($(info.lower_bound), Real))
-        expected = :($(check) ? IntervalSet($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a number."))
-        @test InfiniteOpt._constructor_set(error, info) == expected
+        expected = :($(check) ? IntervalDomain($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a number."))
+        @test InfiniteOpt._constructor_domain(error, info) == expected
         info = InfiniteOpt._ParameterInfoExpr(distribution = Normal())
         check = :(isa($(info.distribution), Distributions.UnivariateDistribution))
-        expected = :($(check) ? UniDistributionSet($(info.distribution)) : error("Distribution must be a Distributions.UnivariateDistribution."))
-        @test InfiniteOpt._constructor_set(error, info) == expected
-        info = InfiniteOpt._ParameterInfoExpr(set = IntervalSet(0, 1))
-        check1 = :(isa($(info.set), InfiniteScalarSet))
-        check2 = :(isa($(info.set), Distributions.UnivariateDistribution))
-        expected = :($(check1) ? $(info.set) : ($(check2) ? UniDistributionSet($(info.set)) : error("Set must be a subtype of InfiniteScalarSet.")))
-        @test InfiniteOpt._constructor_set(error, info) == expected
+        expected = :($(check) ? UniDistributionDomain($(info.distribution)) : error("Distribution must be a Distributions.UnivariateDistribution."))
+        @test InfiniteOpt._constructor_domain(error, info) == expected
+        info = InfiniteOpt._ParameterInfoExpr(domain = IntervalDomain(0, 1))
+        check1 = :(isa($(info.domain), InfiniteScalarDomain))
+        check2 = :(isa($(info.domain), Distributions.UnivariateDistribution))
+        expected = :($(check1) ? $(info.domain) : ($(check2) ? UniDistributionDomain($(info.domain)) : error("Domain must be a subtype of InfiniteScalarDomain.")))
+        @test InfiniteOpt._constructor_domain(error, info) == expected
     end
 
     # _parse_one_operator_parameter
@@ -207,7 +207,7 @@ end
         info = InfiniteOpt._ParameterInfoExpr()
         @test isa(InfiniteOpt._parse_one_operator_parameter(error, info,
                                                           Val(:in), esc(0)), Nothing)
-        @test info.has_set && info.set == esc(0)
+        @test info.has_domain && info.domain == esc(0)
         info = InfiniteOpt._ParameterInfoExpr()
         @test isa(InfiniteOpt._parse_one_operator_parameter(error, info,
                                                           Val(:in), esc(:([0, 1]))), Nothing)
@@ -248,40 +248,40 @@ end
 @testset "Definition" begin
     # _check_supports_in_bounds
     @testset "_check_supports_in_bounds" begin
-        set = IntervalSet(0, 1)
-        @test isa(InfiniteOpt._check_supports_in_bounds(error, 0, set), Nothing)
+        domain = IntervalDomain(0, 1)
+        @test isa(InfiniteOpt._check_supports_in_bounds(error, 0, domain), Nothing)
         @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
-                                                                        -1, set)
+                                                                        -1, domain)
         @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
-                                                                         2, set)
-        set = UniDistributionSet(Uniform())
-        @test isa(InfiniteOpt._check_supports_in_bounds(error, 0, set), Nothing)
+                                                                         2, domain)
+        domain = UniDistributionDomain(Uniform())
+        @test isa(InfiniteOpt._check_supports_in_bounds(error, 0, domain), Nothing)
         @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
-                                                                        -1, set)
+                                                                        -1, domain)
         @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
-                                                                         2, set)
+                                                                         2, domain)
     end
     # build_independent_parameter
     @testset "build_parameter (IndependentParameter)" begin
-        set = IntervalSet(0, 1)
+        domain = IntervalDomain(0, 1)
         supps = 0.
         supps_dict = SortedDict{Float64, Set{DataType}}(0. => Set([UserDefined]))
         method = TestMethod()
         geninfo = NoGenerativeSupports()
-        @test build_parameter(error, set, supports = supps).set == set
-        @test build_parameter(error, set, supports = supps).supports == supps_dict
-        @test_throws ErrorException build_parameter(error, set, bob = 42)
+        @test build_parameter(error, domain, supports = supps).domain == domain
+        @test build_parameter(error, domain, supports = supps).supports == supps_dict
+        @test_throws ErrorException build_parameter(error, domain, bob = 42)
         warn = "Ignoring num_supports since supports is not empty."
-        @test_logs (:warn, warn) build_parameter(error, set,
+        @test_logs (:warn, warn) build_parameter(error, domain,
                                             supports = [0, 1], num_supports = 2)
         repeated_supps = [1, 1]
-        expected = IndependentParameter(set, SortedDict{Float64, Set{DataType}}(1. => Set{DataType}()), 5, method, geninfo)
+        expected = IndependentParameter(domain, SortedDict{Float64, Set{DataType}}(1. => Set{DataType}()), 5, method, geninfo)
         warn = "Support points are not unique, eliminating redundant points."
-        @test_logs (:warn, warn) build_parameter(error, set, supports = repeated_supps, 
+        @test_logs (:warn, warn) build_parameter(error, domain, supports = repeated_supps, 
                                                  derivative_method = method) == expected
-        set = UniDistributionSet(Normal())
-        @test length(build_parameter(error, set, num_supports = 5).supports) == 5
-        @test build_parameter(error, set, derivative_method = method).derivative_method == method
+        domain = UniDistributionDomain(Normal())
+        @test length(build_parameter(error, domain, num_supports = 5).supports) == 5
+        @test build_parameter(error, domain, derivative_method = method).derivative_method == method
     end
     # build_finite_parameter
     @testset "build_parameter (FiniteParameter)" begin
@@ -295,7 +295,7 @@ end
         m = InfiniteModel()
         method = InfiniteOpt.DefaultDerivativeMethod
         geninfo = NoGenerativeSupports()
-        param = IndependentParameter(IntervalSet(0, 1),
+        param = IndependentParameter(IntervalDomain(0, 1),
                                     SortedDict{Float64, Set{DataType}}(), 5, 
                                     method, geninfo)
         expected = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
@@ -312,7 +312,7 @@ end
 # Test Reference Queries
 @testset "Basic Reference Queries" begin
     m = InfiniteModel()
-    p = build_parameter(error, IntervalSet(0, 1), derivative_method = TestMethod())
+    p = build_parameter(error, IntervalDomain(0, 1), derivative_method = TestMethod())
     pref = add_parameter(m, p)
     dpref = dispatch_variable_ref(pref)
     # JuMP.index
@@ -378,7 +378,7 @@ end
 # Test name methods
 @testset "Name" begin
     m = InfiniteModel()
-    param = build_parameter(error, IntervalSet(0, 1))
+    param = build_parameter(error, IntervalDomain(0, 1))
     pref = add_parameter(m, param, "test")
     dpref = dispatch_variable_ref(pref)
     bad = TestVariableRef(m, TestIndex(-1))
@@ -431,25 +431,25 @@ end
     @testset "Single" begin
         pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
         @test @independent_parameter(m, 0 <= a <= 1) == pref
-        @test InfiniteOpt._core_variable_object(pref).set == IntervalSet(0, 1)
+        @test InfiniteOpt._core_variable_object(pref).domain == IntervalDomain(0, 1)
         @test name(pref) == "a"
         pref = GeneralVariableRef(m, 2, IndependentParameterIndex, -1)
         @test @independent_parameter(m, b in Normal(), supports = [1; 2]) == pref
-        @test InfiniteOpt._core_variable_object(pref).set == UniDistributionSet(Normal())
+        @test InfiniteOpt._core_variable_object(pref).domain == UniDistributionDomain(Normal())
         @test InfiniteOpt._core_variable_object(pref).supports == SortedDict(i => Set{DataType}([UserDefined]) for i in [1,2])
         pref = GeneralVariableRef(m, 3, IndependentParameterIndex, -1)
-        @test @independent_parameter(m, c in IntervalSet(0, 1)) == pref
-        @test InfiniteOpt._core_variable_object(pref).set == IntervalSet(0, 1)
+        @test @independent_parameter(m, c in IntervalDomain(0, 1)) == pref
+        @test InfiniteOpt._core_variable_object(pref).domain == IntervalDomain(0, 1)
         pref = GeneralVariableRef(m, 4, IndependentParameterIndex, -1)
-        @test @independent_parameter(m, set = IntervalSet(0, 1),
+        @test @independent_parameter(m, domain = IntervalDomain(0, 1),
                                   base_name = "d") == pref
         @test name(pref) == "d"
         pref = GeneralVariableRef(m, 5, IndependentParameterIndex, -1)
-        @test @independent_parameter(m, set = IntervalSet(0, 1)) == pref
+        @test @independent_parameter(m, domain = IntervalDomain(0, 1)) == pref
         @test name(pref) == ""
         pref = GeneralVariableRef(m, 6, IndependentParameterIndex, -1)
         @test @independent_parameter(m, z in [0, 1], derivative_method = TestMethod()) == pref
-        @test InfiniteOpt._core_variable_object(pref).set == IntervalSet(0, 1)
+        @test InfiniteOpt._core_variable_object(pref).domain == IntervalDomain(0, 1)
         @test name(pref) == "z"
         @test derivative_method(pref) isa TestMethod
         @test InfiniteOpt._param_object_indices(m)[InfiniteOpt._object_number(pref)] == index(pref)
@@ -459,36 +459,36 @@ end
         prefs = [GeneralVariableRef(m, 7, IndependentParameterIndex, -1),
                  GeneralVariableRef(m, 8, IndependentParameterIndex, -1)]
         @test @independent_parameter(m, 0 <= e[1:2] <= 1) == prefs
-        @test InfiniteOpt._core_variable_object(prefs[1]).set == IntervalSet(0, 1)
-        @test InfiniteOpt._core_variable_object(prefs[2]).set == IntervalSet(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[1]).domain == IntervalDomain(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[2]).domain == IntervalDomain(0, 1)
         prefs = [GeneralVariableRef(m, 9, IndependentParameterIndex, -1),
                  GeneralVariableRef(m, 10, IndependentParameterIndex, -1)]
-        @test @independent_parameter(m, [1:2], set = IntervalSet(0, 1)) == prefs
-        @test InfiniteOpt._core_variable_object(prefs[1]).set == IntervalSet(0, 1)
-        @test InfiniteOpt._core_variable_object(prefs[2]).set == IntervalSet(0, 1)
+        @test @independent_parameter(m, [1:2], domain = IntervalDomain(0, 1)) == prefs
+        @test InfiniteOpt._core_variable_object(prefs[1]).domain == IntervalDomain(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[2]).domain == IntervalDomain(0, 1)
         prefs = [GeneralVariableRef(m, 11, IndependentParameterIndex, -1),
                  GeneralVariableRef(m, 12, IndependentParameterIndex, -1)]
-        sets = [IntervalSet(0, 1), IntervalSet(-1, 2)]
-        @test @independent_parameter(m, f[i = 1:2], set = sets[i]) == prefs
-        @test InfiniteOpt._core_variable_object(prefs[1]).set == IntervalSet(0, 1)
-        @test InfiniteOpt._core_variable_object(prefs[2]).set == IntervalSet(-1, 2)
+        domains = [IntervalDomain(0, 1), IntervalDomain(-1, 2)]
+        @test @independent_parameter(m, f[i = 1:2], domain = domains[i]) == prefs
+        @test InfiniteOpt._core_variable_object(prefs[1]).domain == IntervalDomain(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[2]).domain == IntervalDomain(-1, 2)
         prefs = [GeneralVariableRef(m, 13, IndependentParameterIndex, -1),
                  GeneralVariableRef(m, 14, IndependentParameterIndex, -1)]
-        @test @independent_parameter(m, [i = 1:2], set = sets[i]) == prefs
-        @test InfiniteOpt._core_variable_object(prefs[1]).set == IntervalSet(0, 1)
-        @test InfiniteOpt._core_variable_object(prefs[2]).set == IntervalSet(-1, 2)
+        @test @independent_parameter(m, [i = 1:2], domain = domains[i]) == prefs
+        @test InfiniteOpt._core_variable_object(prefs[1]).domain == IntervalDomain(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[2]).domain == IntervalDomain(-1, 2)
         prefs = [GeneralVariableRef(m, 15, IndependentParameterIndex, -1),
                  GeneralVariableRef(m, 16, IndependentParameterIndex, -1)]
         @test @independent_parameter(m, [0, -1][i] <= g[i = 1:2] <= [1, 2][i]) == prefs
-        @test InfiniteOpt._core_variable_object(prefs[1]).set == IntervalSet(0, 1)
-        @test InfiniteOpt._core_variable_object(prefs[2]).set == IntervalSet(-1, 2)
+        @test InfiniteOpt._core_variable_object(prefs[1]).domain == IntervalDomain(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[2]).domain == IntervalDomain(-1, 2)
         prefs = [GeneralVariableRef(m, 17, IndependentParameterIndex, -1),
                  GeneralVariableRef(m, 18, IndependentParameterIndex, -1)]
         prefs = convert(JuMP.Containers.SparseAxisArray, prefs)
         @test @independent_parameter(m, 0 <= i[1:2] <= 1,
                                   container = SparseAxisArray) == prefs
-        @test InfiniteOpt._core_variable_object(prefs[1]).set == IntervalSet(0, 1)
-        @test InfiniteOpt._core_variable_object(prefs[2]).set == IntervalSet(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[1]).domain == IntervalDomain(0, 1)
+        @test InfiniteOpt._core_variable_object(prefs[2]).domain == IntervalDomain(0, 1)
         @test InfiniteOpt._param_object_indices(m)[InfiniteOpt._object_number(prefs[2])] == index(prefs[2])
     end
     # test for errors
@@ -678,7 +678,7 @@ end
     supps = SortedDict{Float64, Set{DataType}}(0 => Set([All]), 
                                                2.5 => Set([InternalLabel]), 
                                                5 => Set([All]))
-    new_param = IndependentParameter(IntervalSet(0, 5), supps, 6, method, info)
+    new_param = IndependentParameter(IntervalDomain(0, 5), supps, 6, method, info)
     InfiniteOpt._set_core_variable_object(dpref, new_param)
     push!(InfiniteOpt._measure_dependencies(dpref), MeasureIndex(-1))
     # test Base.copy 
@@ -804,43 +804,43 @@ end
     end
 end
 
-# Test parameter set methods
-@testset "Infinite Set" begin
+# Test parameter domain methods
+@testset "Infinite Domain" begin
     m = InfiniteModel()
     @independent_parameter(m, pref_gen in [0, 1])
     pref_disp = dispatch_variable_ref(pref_gen)
     bad = Bad()
     bad_pref = IndependentParameterRef(m, IndependentParameterIndex(-1))
-    # _parameter_set
-    @testset "_parameter_set" begin
-        @test InfiniteOpt._parameter_set(pref_disp) == IntervalSet(0, 1)
-        @test_throws ErrorException InfiniteOpt._parameter_set(bad_pref)
+    # _parameter_domain
+    @testset "_parameter_domain" begin
+        @test InfiniteOpt._parameter_domain(pref_disp) == IntervalDomain(0, 1)
+        @test_throws ErrorException InfiniteOpt._parameter_domain(bad_pref)
     end
-    # _update_parameter_set
-    @testset "_update_parameter_set " begin
+    # _update_parameter_domain
+    @testset "_update_parameter_domain " begin
         push!(InfiniteOpt._constraint_dependencies(pref_disp), ConstraintIndex(1))
-        @test isa(InfiniteOpt._update_parameter_set(pref_disp,
-                                                    IntervalSet(1, 2)), Nothing)
-        @test InfiniteOpt._parameter_set(pref_disp) == IntervalSet(1, 2)
+        @test isa(InfiniteOpt._update_parameter_domain(pref_disp,
+                                                    IntervalDomain(1, 2)), Nothing)
+        @test InfiniteOpt._parameter_domain(pref_disp) == IntervalDomain(1, 2)
     end
-    # infinite_set
-    @testset "infinite_set" begin
-        @test_throws ArgumentError infinite_set(bad)
-        @test infinite_set(pref_disp) == IntervalSet(1, 2)
-        @test infinite_set(pref_gen) == IntervalSet(1, 2)
-        @test_throws ErrorException infinite_set(bad_pref)
+    # infinite_domain
+    @testset "infinite_domain" begin
+        @test_throws ArgumentError infinite_domain(bad)
+        @test infinite_domain(pref_disp) == IntervalDomain(1, 2)
+        @test infinite_domain(pref_gen) == IntervalDomain(1, 2)
+        @test_throws ErrorException infinite_domain(bad_pref)
     end
-    # set_infinite_set
-    @testset "set_infinite_set" begin
-        @test_throws ArgumentError set_infinite_set(bad, IntervalSet(0, 1))
-        @test isa(set_infinite_set(pref_disp, IntervalSet(2, 3)), Nothing)
-        @test infinite_set(pref_disp) == IntervalSet(2, 3)
-        @test isa(set_infinite_set(pref_gen, IntervalSet(1, 3)), Nothing)
-        @test infinite_set(pref_gen) == IntervalSet(1, 3)
-        @test set_infinite_set(pref_gen, UniDistributionSet(Normal())) isa Nothing
-        @test infinite_set(pref_disp) isa UniDistributionSet 
+    # set_infinite_domain
+    @testset "set_infinite_domain" begin
+        @test_throws ArgumentError set_infinite_domain(bad, IntervalDomain(0, 1))
+        @test isa(set_infinite_domain(pref_disp, IntervalDomain(2, 3)), Nothing)
+        @test infinite_domain(pref_disp) == IntervalDomain(2, 3)
+        @test isa(set_infinite_domain(pref_gen, IntervalDomain(1, 3)), Nothing)
+        @test infinite_domain(pref_gen) == IntervalDomain(1, 3)
+        @test set_infinite_domain(pref_gen, UniDistributionDomain(Normal())) isa Nothing
+        @test infinite_domain(pref_disp) isa UniDistributionDomain 
         push!(InfiniteOpt._data_object(pref_gen).measure_indices, MeasureIndex(1))
-        @test_throws ErrorException set_infinite_set(pref_gen, IntervalSet(1, 3))
+        @test_throws ErrorException set_infinite_domain(pref_gen, IntervalDomain(1, 3))
     end
 end
 
@@ -987,7 +987,7 @@ end
     m = InfiniteModel()
     @independent_parameter(m, pref1 in [0, 1])
     @independent_parameter(m, pref2 in Normal())
-    @independent_parameter(m, pref3 in BadScalarSet())
+    @independent_parameter(m, pref3 in BadScalarDomain())
     bad = TestVariableRef(m, TestIndex(-1))
     # JuMP.has_lower_bound
     @testset "JuMP.has_lower_bound" begin
@@ -1025,7 +1025,7 @@ end
     m = InfiniteModel()
     @independent_parameter(m, pref1 in [0, 1])
     @independent_parameter(m, pref2 in Normal())
-    @independent_parameter(m, pref3 in BadScalarSet())
+    @independent_parameter(m, pref3 in BadScalarDomain())
     bad = TestVariableRef(m, TestIndex(-1))
     # JuMP.has_upper_bound
     @testset "JuMP.has_upper_bound" begin
@@ -1124,17 +1124,17 @@ end
 
 # Test support flll-in and geneartion functions
 @testset "Support Fill-in and Generation" begin
-    @testset "generate_and_add_supports! (AbstractInfiniteSet)" begin
+    @testset "generate_and_add_supports! (AbstractInfiniteDomain)" begin
         m = InfiniteModel()
         gvref1 = @independent_parameter(m, 0 <= a <= 1)
         pref1 = dispatch_variable_ref(gvref1)
-        set1 = infinite_set(pref1)
+        domain1 = infinite_domain(pref1)
         dist = Normal(0., 1.)
         gvref2 = @independent_parameter(m, c in dist)
         pref2 = dispatch_variable_ref(gvref2)
-        set2 = infinite_set(pref2)
-        @test generate_and_add_supports!(pref1, set1, num_supports = 4) isa Nothing
-        @test generate_and_add_supports!(pref2, set2, num_supports = 4) isa Nothing
+        domain2 = infinite_domain(pref2)
+        @test generate_and_add_supports!(pref1, domain1, num_supports = 4) isa Nothing
+        @test generate_and_add_supports!(pref2, domain2, num_supports = 4) isa Nothing
         @test length(supports(pref1)) == 4
         @test length(supports(pref2)) == 4
     end

@@ -32,7 +32,7 @@ println("")
 println("")
 @time @testset "Utilities" begin include("utility_tests.jl") end
 println("")
-@time @testset "Infinite Set Methods" begin include("infinite_sets.jl") end
+@time @testset "Infinite Domain Methods" begin include("infinite_domains.jl") end
 println("")
 @time @testset "General Variable Methods" begin
     include("general_variables.jl")

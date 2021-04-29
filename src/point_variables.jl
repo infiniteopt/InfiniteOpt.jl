@@ -66,7 +66,7 @@ function _check_element_support(_error::Function, prefs::Vector{IndependentParam
                                 param_values::Vector{Float64},
                                 counter::Int)::Int
     for pref in prefs
-        if !supports_in_set(param_values[counter], infinite_set(pref))
+        if !supports_in_domain(param_values[counter], infinite_domain(pref))
             _error("Parameter values violate parameter bounds.")
         end
         counter += 1
@@ -80,7 +80,7 @@ function _check_element_support(_error::Function, prefs::Vector{DependentParamet
                                 counter::Int)::Int
     len = length(prefs)
     supp = reshape(param_values[counter:counter+len-1], len, 1)
-    if !supports_in_set(supp, infinite_set(prefs))
+    if !supports_in_domain(supp, infinite_domain(prefs))
         _error("Parameter values violate parameter bounds.")
     end
     return counter += len

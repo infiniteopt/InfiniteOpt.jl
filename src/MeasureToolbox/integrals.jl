@@ -586,8 +586,8 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     if lower_bound == -Inf || upper_bound == Inf
         error("`UniMCSampling` is not applicable to (semi-)infinite intervals.")
     end
-    set = InfiniteOpt.IntervalSet(lower_bound, upper_bound)
-    supports, _ = InfiniteOpt.generate_support_values(set, InfiniteOpt.MCSample,
+    domain = InfiniteOpt.IntervalDomain(lower_bound, upper_bound)
+    supports, _ = InfiniteOpt.generate_support_values(domain, InfiniteOpt.MCSample,
                                                       num_supports = num_supports)
     coeffs = (upper_bound - lower_bound) * ones(num_supports) / num_supports
     return InfiniteOpt.DiscreteMeasureData(pref, coeffs, supports,
@@ -643,9 +643,9 @@ end
 # function _make_multi_mc_supports(prefs::Vector{InfiniteOpt.DependentParameterRef},
 #                                  lbs::Vector{<:Real}, ubs::Vector{<:Real},
 #                                  num_supps::Int)::Matrix{Float64}
-#     sets = [InfiniteOpt.IntervalSet(lbs[i], ubs[i]) for i in eachindex(lbs)]
-#     set = InfiniteOpt.CollectionSet(sets)
-#     supports, _ = InfiniteOpt.generate_support_values(set, InfiniteOpt.MCSample,
+#     domains = [InfiniteOpt.IntervalDomain(lbs[i], ubs[i]) for i in eachindex(lbs)]
+#     domain = InfiniteOpt.CollectionDomain(domains)
+#     supports, _ = InfiniteOpt.generate_support_values(domain, InfiniteOpt.MCSample,
 #                                                       num_supports = num_supps)
 #     return supports
 # end
@@ -663,10 +663,10 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
         error("`MultiIndepMCSampling` is not applicable to (semi-)infinite intervals.")
     end
     # prepare the supports
-    sets = [InfiniteOpt.IntervalSet(lower_bounds[i], upper_bounds[i])
+    domains = [InfiniteOpt.IntervalDomain(lower_bounds[i], upper_bounds[i])
             for i in eachindex(lower_bounds)]
-    set = InfiniteOpt.CollectionSet(sets)
-    supports, _ = InfiniteOpt.generate_support_values(set, InfiniteOpt.MCSample,
+    domain = InfiniteOpt.CollectionDomain(domains)
+    supports, _ = InfiniteOpt.generate_support_values(domain, InfiniteOpt.MCSample,
                                                       num_supports = num_supports)
     # prepare the coefficients
     coeffs = prod(upper_bounds .- lower_bounds) * ones(num_supports) / num_supports
@@ -815,17 +815,17 @@ function integral(expr::JuMP.AbstractJuMPScalar,
     # check parameter formatting
     InfiniteOpt._check_params(pref)
     # fill in bounds if needed
-    set = infinite_set(pref)
-    if isnan(lower_bound) && JuMP.has_lower_bound(set)
+    domain = infinite_domain(pref)
+    if isnan(lower_bound) && JuMP.has_lower_bound(domain)
         lower_bound = JuMP.lower_bound(pref)
     end
-    if isnan(upper_bound) && JuMP.has_upper_bound(set)
+    if isnan(upper_bound) && JuMP.has_upper_bound(domain)
         upper_bound = JuMP.upper_bound(pref)
     end
     # ensure valid bounds
     if lower_bound >= upper_bound
         error("Invalid integral bounds, ensure that lower_bound < upper_bound.")
-    elseif !InfiniteOpt.supports_in_set([lower_bound, upper_bound], set)
+    elseif !InfiniteOpt.supports_in_domain([lower_bound, upper_bound], domain)
         error("Integral bounds violate the infinite domain.")
     end
     # prepare the keyword arguments and make the measure data
@@ -1009,7 +1009,7 @@ function integral(expr::JuMP.AbstractJuMPScalar,
         error("Invalid integral bounds, ensure that lower_bounds < upper_bounds.")
     end
     dprefs = map(p -> dispatch_variable_ref(p), vector_prefs)
-    InfiniteOpt._check_bounds_in_set(dprefs, vector_lbs, vector_ubs)
+    InfiniteOpt._check_bounds_in_domain(dprefs, vector_lbs, vector_ubs)
     # prepare the keyword arguments and make the measure data
     processed_kwargs = merge(multi_integral_defaults(), kwargs)
     eval_method = pop!(processed_kwargs, :eval_method)
@@ -1104,7 +1104,7 @@ julia> (supps, coeffs) = infinite_transform(-Inf, Inf, 5, sub_method = gauss_leg
 ([-5.06704059565454, -0.7583532171678754, 0.0, 0.7583532171678754, 5.06704059565454], [13.490960583398396, 1.2245949721571516, 0.5688888888888889, 1.2245949721571516, 13.490960583398396])
 ```
 """
-function infinite_transform(set::InfiniteOpt.IntervalSet,
+function infinite_transform(domain::InfiniteOpt.IntervalDomain,
                             params::Union{InfiniteOpt.ParameterRef,
                             AbstractArray{<:InfiniteOpt.ParameterRef}},
                             num_supports::Int,
@@ -1120,7 +1120,7 @@ function infinite_transform(set::InfiniteOpt.IntervalSet,
         error("The range is not (semi-)infinite. Use evaluation methods for " *
               "bounded domains.")
     end
-    (t_supports, t_coeffs) = generate_integral_data(set, params, num_supports, t_lb, t_ub, sub_method)
+    (t_supports, t_coeffs) = generate_integral_data(domain, params, num_supports, t_lb, t_ub, sub_method)
     supports = transform_x.(t_supports, lb, ub)
     coeffs = t_coeffs .* transform_dx.(t_supports, lb, ub)
     return (supports, coeffs)

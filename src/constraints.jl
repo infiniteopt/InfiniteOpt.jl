@@ -144,7 +144,7 @@ julia> @infinite_variable(model, g(t));
 julia> @finite_variable(model, x);
 
 julia> constr = build_constraint(error, g + x, MOI.EqualTo(42.0),
-              parameter_bounds = ParameterBounds((t => IntervalSet(0, 1),)));
+              parameter_bounds = ParameterBounds((t => IntervalDomain(0, 1),)));
 
 julia> isa(constr, BoundedScalarConstraint)
 true
@@ -834,7 +834,7 @@ provides a more intuitive syntax.
 
 **Example**
 ```julia-repl
-julia> set_parameter_bounds(cref, ParameterBounds((t => IntervalSet(0, 2),)))
+julia> set_parameter_bounds(cref, ParameterBounds((t => IntervalDomain(0, 2),)))
 
 julia> parameter_bounds(cref)
 Subdomain bounds (1): t ∈ [0, 2]
@@ -876,7 +876,7 @@ sub-domain based on `pref` from `lower` to `upper`. This is primarily meant to b
 used by [`@add_parameter_bounds`](@ref).
 
 ```julia-repl
-julia> add_parameter_bounds(cref, ParameterBounds((t => IntervalSet(0, 2),))
+julia> add_parameter_bounds(cref, ParameterBounds((t => IntervalDomain(0, 2),))
 
 julia> parameter_bounds(cref)
 Subdomain bounds (1): t ∈ [0, 2]

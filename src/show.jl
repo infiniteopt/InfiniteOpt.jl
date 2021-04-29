@@ -45,52 +45,52 @@ end
 # Return "s" if n is greater than one
 _plural(n) = (isone(n) ? "" : "s")
 
-## Return the string of an infinite set
-# IntervalSet
-function set_string(print_mode, set::IntervalSet)::String
-    return string("[", JuMP._string_round(JuMP.lower_bound(set)), ", ",
-                  JuMP._string_round(JuMP.upper_bound(set)), "]")
+## Return the string of an infinite domain
+# IntervalDomain
+function domain_string(print_mode, domain::IntervalDomain)::String
+    return string("[", JuMP._string_round(JuMP.lower_bound(domain)), ", ",
+                  JuMP._string_round(JuMP.upper_bound(domain)), "]")
 end
 
-# DistributionSet
-function set_string(print_mode, set::DistributionSet)::String
-    return string(set.distribution)
+# DistributionDomain
+function domain_string(print_mode, domain::DistributionDomain)::String
+    return string(domain.distribution)
 end
 
-# CollectionSet
-function set_string(print_mode, set::CollectionSet)::String
-    sets = collection_sets(set)
-    num_sets = length(sets)
-    cs_string = string("CollectionSet with ", num_sets, " set",
-                       _plural(num_sets), ":")
-    for s in sets
-        cs_string *= string("\n ", set_string(print_mode, s))
+# CollectionDomain
+function domain_string(print_mode, domain::CollectionDomain)::String
+    domains = collection_domains(domain)
+    num_domains = length(domains)
+    cs_string = string("CollectionDomain with ", num_domains, " domain",
+                       _plural(num_domains), ":")
+    for s in domains
+        cs_string *= string("\n ", domain_string(print_mode, s))
     end
     return cs_string
 end
 
 # Fallback
-function set_string(print_mode, set::S) where {S <: AbstractInfiniteSet}
-    # hack fix because just calling `string(set)` --> StackOverflow Error
-    values = map(f -> getfield(set, f), fieldnames(S))
+function domain_string(print_mode, domain::S) where {S <: AbstractInfiniteDomain}
+    # hack fix because just calling `string(domain)` --> StackOverflow Error
+    values = map(f -> getfield(domain, f), fieldnames(S))
     return string(S, "(", join(values, ", "), ")")
 end
 
-## Return in set strings of infinite sets
-# Extend to return of in set string for interval sets
-function JuMP.in_set_string(print_mode, set::IntervalSet)::String
-    if JuMP.lower_bound(set) != JuMP.upper_bound(set)
+## Return in domain strings of infinite domains
+# Extend to return of in domain string for interval domains
+function in_domain_string(print_mode, domain::IntervalDomain)::String
+    if JuMP.lower_bound(domain) != JuMP.upper_bound(domain)
         return string(_infopt_math_symbol(print_mode, :in), " ",
-                      set_string(print_mode, set))
+                      domain_string(print_mode, domain))
     else
         return string(_infopt_math_symbol(print_mode, :eq), " ",
-                      JuMP._string_round(JuMP.lower_bound(set)))
+                      JuMP._string_round(JuMP.lower_bound(domain)))
     end
 end
 
-# Extend to return of in set string for distribution sets
-function JuMP.in_set_string(print_mode, set::DistributionSet)::String
-    dist = set.distribution
+# Extend to return of in domain string for distribution domains
+function in_domain_string(print_mode, domain::DistributionDomain)::String
+    dist = domain.distribution
     name = string(typeof(dist))
     bracket_index = findfirst(isequal('{'), name)
     if bracket_index !== nothing
@@ -103,42 +103,42 @@ function JuMP.in_set_string(print_mode, set::DistributionSet)::String
     return string(_infopt_math_symbol(print_mode, :prop), " ", name)
 end
 
-# Extend to return of in set string of other sets
-function JuMP.in_set_string(print_mode, set::AbstractInfiniteSet)::String
+# Extend to return of in domain string of other domains
+function in_domain_string(print_mode, domain::AbstractInfiniteDomain)::String
     return string(_infopt_math_symbol(print_mode, :in), " ",
-                  set_string(print_mode, set))
+                  domain_string(print_mode, domain))
 end
 
-## Extend in set string to consider parameter bounds
-# IntervalSet
-function JuMP.in_set_string(print_mode,
+## Extend in domain string to consider parameter bounds
+# IntervalDomain
+function in_domain_string(print_mode,
     pref::GeneralVariableRef,
-    set::IntervalSet,
+    domain::IntervalDomain,
     bounds::ParameterBounds{GeneralVariableRef})::String
     # determine if in bounds
     in_bounds = haskey(bounds, pref)
     # make the string
-    interval = in_bounds ? bounds[pref] : set
-    return JuMP.in_set_string(print_mode, interval)
+    interval = in_bounds ? bounds[pref] : domain
+    return in_domain_string(print_mode, interval)
 end
 
-# InfiniteScalarSet
-function JuMP.in_set_string(print_mode,
+# InfiniteScalarDomain
+function in_domain_string(print_mode,
     pref::GeneralVariableRef,
-    set::InfiniteScalarSet,
+    domain::InfiniteScalarDomain,
     bounds::ParameterBounds{GeneralVariableRef})::String
     # determine if in bounds
     if haskey(bounds, pref)
-        bound_set = bounds[pref]
-        if JuMP.lower_bound(bound_set) == JuMP.upper_bound(bound_set)
-            return JuMP.in_set_string(print_mode, bound_set)
+        bound_domain = bounds[pref]
+        if JuMP.lower_bound(bound_domain) == JuMP.upper_bound(bound_domain)
+            return in_domain_string(print_mode, bound_domain)
         else
-            return  string(JuMP.in_set_string(print_mode, set), " ",
+            return  string(in_domain_string(print_mode, domain), " ",
                            _infopt_math_symbol(print_mode, :intersect),
-                           " ", set_string(print_mode, bound_set))
+                           " ", domain_string(print_mode, bound_domain))
         end
     else
-        return JuMP.in_set_string(print_mode, set)
+        return in_domain_string(print_mode, domain)
     end
 end
 
@@ -158,9 +158,9 @@ function measure_data_string(print_mode,
     if nan_bound
         return JuMP.function_string(print_mode, pref)
     else
-        set = IntervalSet(lb, ub)
+        domain = IntervalDomain(lb, ub)
         return string(JuMP.function_string(print_mode, pref), " ",
-                      JuMP.in_set_string(print_mode, set))
+                      in_domain_string(print_mode, domain))
     end
 end
 
@@ -178,12 +178,12 @@ function measure_data_string(print_mode,
     homo_names = _allequal(names)
     num_prefs = length(prefs)
     if homo_names && homo_bounds
-        set = IntervalSet(first(lbs), first(ubs))
-        return string(first(names), " ", JuMP.in_set_string(print_mode, set),
+        domain = IntervalDomain(first(lbs), first(ubs))
+        return string(first(names), " ", in_domain_string(print_mode, domain),
                       "^", num_prefs)
     elseif has_bounds
         str_list = [JuMP.function_string(print_mode, prefs[i]) * " " *
-                    JuMP.in_set_string(print_mode, IntervalSet(lbs[i], ubs[i]))
+                    in_domain_string(print_mode, IntervalDomain(lbs[i], ubs[i]))
                     for i in eachindex(prefs)]
         return _make_str_value(str_list)[2:end-1]
     elseif homo_names
@@ -468,9 +468,9 @@ end
 function bound_string(print_mode, bounds::ParameterBounds{GeneralVariableRef}
                       )::String
     string_list = ""
-    for (pref, set) in bounds
+    for (pref, domain) in bounds
         string_list *= string(JuMP.function_string(print_mode, pref), " ",
-                              JuMP.in_set_string(print_mode, set), ", ")
+                              in_domain_string(print_mode, domain), ", ")
     end
     return string_list[1:end-2]
 end
@@ -482,10 +482,10 @@ function _param_domain_string(print_mode, model::InfiniteModel,
                               bounds::ParameterBounds{GeneralVariableRef}
                               )::String
     pref = dispatch_variable_ref(model, index)
-    set = infinite_set(pref)
+    domain = infinite_domain(pref)
     gvref = GeneralVariableRef(model, MOIUC.key_to_index(index), typeof(index))
     return string(JuMP.function_string(print_mode, pref), " ",
-                  JuMP.in_set_string(print_mode, gvref, set, bounds))
+                  in_domain_string(print_mode, gvref, domain, bounds))
 end
 
 # DependentParameters
@@ -493,19 +493,19 @@ function _param_domain_string(print_mode, model::InfiniteModel,
                               index::DependentParametersIndex,
                               bounds::ParameterBounds{GeneralVariableRef}
                               )::String
-    # parse the infinite set
+    # parse the infinite domain
     first_gvref = GeneralVariableRef(model, MOIUC.key_to_index(index),
                                      DependentParameterIndex, 1)
-    set = _parameter_set(dispatch_variable_ref(first_gvref))
-    # iterate over the individual scalar sets if is a collection set
-    if set isa CollectionSet
+    domain = _parameter_domain(dispatch_variable_ref(first_gvref))
+    # iterate over the individual scalar domains if is a collection domain
+    if domain isa CollectionDomain
         domain_str = ""
-        for i in eachindex(collection_sets(set))
-            sset = collection_sets(set)[i]
+        for i in eachindex(collection_domains(domain))
+            sdomain = collection_domains(domain)[i]
             gvref = GeneralVariableRef(model, MOIUC.key_to_index(index),
                                        DependentParameterIndex, i)
             domain_str *= string(JuMP.function_string(print_mode, gvref), " ",
-                        JuMP.in_set_string(print_mode, gvref, sset, bounds), ", ")
+                        in_domain_string(print_mode, gvref, sdomain, bounds), ", ")
         end
         domain_str = domain_str[1:end-2]
     else
@@ -518,7 +518,7 @@ function _param_domain_string(print_mode, model::InfiniteModel,
             domain_str = bound_string(print_mode, filtered_bounds)
         else
             domain_str = string(_remove_name_index(first_gvref), " ",
-                            JuMP.in_set_string(print_mode, set))
+                            in_domain_string(print_mode, domain))
             if !isempty(filtered_bounds)
                 domain_str *= string(" ", _infopt_math_symbol(print_mode, :intersect),
                                      " (", bound_string(print_mode, filtered_bounds), ")")
@@ -601,15 +601,15 @@ end
 ################################################################################
 #                           DATATYPE SHOWING METHODS
 ################################################################################
-# Show infinite sets in REPLMode
-function Base.show(io::IO, set::AbstractInfiniteSet)
-    print(io, set_string(JuMP.REPLMode, set))
+# Show infinite domains in REPLMode
+function Base.show(io::IO, domain::AbstractInfiniteDomain)
+    print(io, domain_string(JuMP.REPLMode, domain))
     return
 end
 
-# Show infinite sets in IJuliaMode
-function Base.show(io::IO, ::MIME"text/latex", set::AbstractInfiniteSet)
-    print(io, set_string(JuMP.IJuliaMode, set))
+# Show infinite domains in IJuliaMode
+function Base.show(io::IO, ::MIME"text/latex", domain::AbstractInfiniteDomain)
+    print(io, domain_string(JuMP.IJuliaMode, domain))
 end
 
 # TODO use ... when necessary --> Subdomain bounds: t in [0, 1], x[1] == 0, x[2] == 0, ... x[6] == 0, a in [2, 3]

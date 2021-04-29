@@ -44,8 +44,8 @@ If the lower and upper bounds are not specified, then the integration will
 be over the entire domain, which is ``[0, 10]`` in this case.
 
 The `integral` function uses trapezoid rule as the default discretization scheme
-for univariate parameters in finite `IntervalSet`s. In addition, the user can also 
-use quadrature methods for univariate parameters in all `IntervalSet`s by setting
+for univariate parameters in finite `IntervalDomain`s. In addition, the user can also 
+use quadrature methods for univariate parameters in all `IntervalDomain`s by setting
 the keyword argument `eval_method` as `Quadrature()`:
 ```jldoctest meas_basic
 julia> mref2 = integral(y^2 + u^2, t, eval_method = Quadrature())
@@ -249,30 +249,30 @@ the `method`, which takes a concrete subtype of `AbstractIntegralMethod`.
 Each dispatch of `generate_integral_data` implements the specified method and returns
 the resulting measure data, which will be used by [`@integral`](@ref) to create the measure.
 A table of available `method` options in our package is listed below.
-Each method is limited on the dimension of parameter and/or the type of set
+Each method is limited on the dimension of parameter and/or the type of domain
 that it can apply for. For the details of what each method type means, refer to the corresponding
 docstrings.
 
-| Evaluation Method                                | Uni/Multi-Variate? | Weight Function              | Set Type                            |
+| Evaluation Method                                | Uni/Multi-Variate? | Weight Function              | Domain Type                            |
 |:------------------------------------------------:|:------------------:|:----------------------------:|:-----------------------------------:|
 | [`Automatic()`](@ref)                            | Both               |   ``1``                      | Any                                 |
-| [`UniTrapezoid()`](@ref)                         | Both               |   ``1``                      | [`IntervalSet`](@ref)               |
-| [`UniMCSampling()`](@ref)                        | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
-| [`UniIndepMCSampling()`](@ref)                   | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
-| [`Quadrature()`](@ref)                           | Univariate         |   ``1``                      | [`IntervalSet`](@ref)               |
-| [`GaussLegendre()`](@ref)                        | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
-| [`GaussRadau()`](@ref)                           | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
-| [`GaussJacobi(α, β)`](@ref GaussJacobi)          | Univariate         | `` (1-x)^\alpha (1+x)^\beta``| Finite [`IntervalSet`](@ref)        |
-| [`GaussLobatto()`](@ref)                         | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
-| [`FEGaussLobatto()`](@ref)                       | Univariate         |   ``1``                      | Finite [`IntervalSet`](@ref)        |
-| [`GaussChebyshev(1)`](@ref GaussChebyshev)       | Univariate         | ``\frac{1}{\sqrt{1-x^2}}  `` | Finite [`IntervalSet`](@ref)        |
-| [`GaussChebyshev(2)`](@ref GaussChebyshev)       | Univariate         | ``\sqrt{1-x^2}``             | Finite [`IntervalSet`](@ref)        |
-| [`GaussChebyshev(3)`](@ref GaussChebyshev)       | Univariate         | ``\sqrt{(1+x)/(1-x)}``       | Finite [`IntervalSet`](@ref)        |
-| [`GaussChebyshev(4)`](@ref GaussChebyshev)       | Univariate         | ``\sqrt{(1-x)/(1+x)}``       | Finite [`IntervalSet`](@ref)        |
-| [`GaussLaguerre()`](@ref)                        | Univariate         | ``e^{-x}``                   | Semi-infinite [`IntervalSet`](@ref) |
-| [`GaussHermite()`](@ref)                         | Univariate         | ``e^{-x^2}``                 | Infinite [`IntervalSet`](@ref)      |
-| [`MultiMCSampling()`](@ref)                      | Multivariate       |   ``1``                      | Finite [`IntervalSet`](@ref)        |
-| [`MultiIndepMCSampling()`](@ref)                 | Multivariate       |   ``1``                      | Finite [`IntervalSet`](@ref)        |
+| [`UniTrapezoid()`](@ref)                         | Both               |   ``1``                      | [`IntervalDomain`](@ref)               |
+| [`UniMCSampling()`](@ref)                        | Univariate         |   ``1``                      | Finite [`IntervalDomain`](@ref)        |
+| [`UniIndepMCSampling()`](@ref)                   | Univariate         |   ``1``                      | Finite [`IntervalDomain`](@ref)        |
+| [`Quadrature()`](@ref)                           | Univariate         |   ``1``                      | [`IntervalDomain`](@ref)               |
+| [`GaussLegendre()`](@ref)                        | Univariate         |   ``1``                      | Finite [`IntervalDomain`](@ref)        |
+| [`GaussRadau()`](@ref)                           | Univariate         |   ``1``                      | Finite [`IntervalDomain`](@ref)        |
+| [`GaussJacobi(α, β)`](@ref GaussJacobi)          | Univariate         | `` (1-x)^\alpha (1+x)^\beta``| Finite [`IntervalDomain`](@ref)        |
+| [`GaussLobatto()`](@ref)                         | Univariate         |   ``1``                      | Finite [`IntervalDomain`](@ref)        |
+| [`FEGaussLobatto()`](@ref)                       | Univariate         |   ``1``                      | Finite [`IntervalDomain`](@ref)        |
+| [`GaussChebyshev(1)`](@ref GaussChebyshev)       | Univariate         | ``\frac{1}{\sqrt{1-x^2}}  `` | Finite [`IntervalDomain`](@ref)        |
+| [`GaussChebyshev(2)`](@ref GaussChebyshev)       | Univariate         | ``\sqrt{1-x^2}``             | Finite [`IntervalDomain`](@ref)        |
+| [`GaussChebyshev(3)`](@ref GaussChebyshev)       | Univariate         | ``\sqrt{(1+x)/(1-x)}``       | Finite [`IntervalDomain`](@ref)        |
+| [`GaussChebyshev(4)`](@ref GaussChebyshev)       | Univariate         | ``\sqrt{(1-x)/(1+x)}``       | Finite [`IntervalDomain`](@ref)        |
+| [`GaussLaguerre()`](@ref)                        | Univariate         | ``e^{-x}``                   | Semi-infinite [`IntervalDomain`](@ref) |
+| [`GaussHermite()`](@ref)                         | Univariate         | ``e^{-x^2}``                 | Infinite [`IntervalDomain`](@ref)      |
+| [`MultiMCSampling()`](@ref)                      | Multivariate       |   ``1``                      | Finite [`IntervalDomain`](@ref)        |
+| [`MultiIndepMCSampling()`](@ref)                 | Multivariate       |   ``1``                      | Finite [`IntervalDomain`](@ref)        |
 
 
 The eval method [`FEGaussLobatto`](@ref) creates finite elements by decomposing over the 

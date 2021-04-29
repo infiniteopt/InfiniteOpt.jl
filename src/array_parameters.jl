@@ -57,38 +57,38 @@ end
 #                             PARAMETER DEFINITION
 ################################################################################
 # Store partially processed individual dependent parameters
-struct _DependentParameter{S <: AbstractInfiniteSet, M <: AbstractDerivativeMethod}
-    set::S
+struct _DependentParameter{S <: AbstractInfiniteDomain, M <: AbstractDerivativeMethod}
+    domain::S
     supports::Vector{Float64}
     name::String
     deriv_method::M
-    function _DependentParameter(set::S,
+    function _DependentParameter(domain::S,
         supports::Union{Vector{<:Real}, Real},
         name::String,
         method::M
-        )::_DependentParameter{S, M} where {S <: AbstractInfiniteSet, M <: AbstractDerivativeMethod}
+        )::_DependentParameter{S, M} where {S <: AbstractInfiniteDomain, M <: AbstractDerivativeMethod}
         if supports isa Real
-            return new{S, M}(set, [supports], name, method)
+            return new{S, M}(domain, [supports], name, method)
         else
-            return new{S, M}(set, supports, name, method)
+            return new{S, M}(domain, supports, name, method)
         end
     end
 end
 
-## Use type dispatch to efficiently check the set(s)
-# All InfiniteScalarSets
-function _check_param_sets(_error::Function,
-    params::AbstractArray{<:_DependentParameter{<:InfiniteScalarSet}}
+## Use type dispatch to efficiently check the domain(s)
+# All InfiniteScalarDomains
+function _check_param_domains(_error::Function,
+    params::AbstractArray{<:_DependentParameter{<:InfiniteScalarDomain}}
     )::Nothing
     return
 end
 
-# All MultiDistributionSet with non SparseAxisArray
-function _check_param_sets(_error::Function,
-    params::AbstractArray{<:_DependentParameter{<:MultiDistributionSet}}
+# All MultiDistributionDomain with non SparseAxisArray
+function _check_param_domains(_error::Function,
+    params::AbstractArray{<:_DependentParameter{<:MultiDistributionDomain}}
     )::Nothing
-    dist = first(params).set.distribution
-    set_type = typeof(first(params).set)
+    dist = first(params).domain.distribution
+    domain_type = typeof(first(params).domain)
     if size(dist) != size(params)
         _error("The dimensions of the parameters and the multi-dimensional " *
                "distribution $dist.")
@@ -96,54 +96,54 @@ function _check_param_sets(_error::Function,
     return
 end
 
-# All MultiDistributionSet with SparseAxisArray
-function _check_param_sets(_error::Function,
-    params::JuMPC.SparseAxisArray{<:_DependentParameter{<:MultiDistributionSet}}
+# All MultiDistributionDomain with SparseAxisArray
+function _check_param_domains(_error::Function,
+    params::JuMPC.SparseAxisArray{<:_DependentParameter{<:MultiDistributionDomain}}
     )
-    _error("Cannot specify multiple-dimensional distribution set with a " *
+    _error("Cannot specify multiple-dimensional distribution domain with a " *
            "`SparseAxisArray` of dependent infinite parameters.")
 end
 
-# All CollectionSet
-function _check_param_sets(_error::Function,
-    params::AbstractArray{<:_DependentParameter{<:CollectionSet}}
+# All CollectionDomain
+function _check_param_domains(_error::Function,
+    params::AbstractArray{<:_DependentParameter{<:CollectionDomain}}
     )::Nothing
-    sets = collection_sets(first(params).set)
-    set_type = typeof(first(params).set)
-    if length(sets) != length(params)
-        _error("The dimensions of the parameters and the specified CollectionSet " *
+    domains = collection_domains(first(params).domain)
+    domain_type = typeof(first(params).domain)
+    if length(domains) != length(params)
+        _error("The dimensions of the parameters and the specified CollectionDomain " *
                "do not match.")
     elseif params isa JuMPC.SparseAxisArray
-        @warn("CollectionSet order may not match the given `SparseAxisArray` " *
+        @warn("CollectionDomain order may not match the given `SparseAxisArray` " *
               "of specified dependent infinite parameters, consider instead " *
-              "specifying the `InfiniteScalarSet` for each parameter using " *
-              "the `set` keyword and the appropriate indices.")
+              "specifying the `InfiniteScalarDomain` for each parameter using " *
+              "the `domain` keyword and the appropriate indices.")
     end
     return
 end
 
-# All some InfiniteArraySet (for extensions)
-function _check_param_sets(_error::Function,
-    params::AbstractArray{<:_DependentParameter{<:InfiniteArraySet}}
+# All some InfiniteArrayDomain (for extensions)
+function _check_param_domains(_error::Function,
+    params::AbstractArray{<:_DependentParameter{<:InfiniteArrayDomain}}
     )::Nothing
     return
 end
 
-# Mixed sets
-function _check_param_sets(_error::Function,
+# Mixed domains
+function _check_param_domains(_error::Function,
     params::AbstractArray{<:_DependentParameter}
     )::Nothing
-    set_type = typeof(first(params).set)
-    if !all(param.set isa InfiniteScalarSet for param in params)
-        _error("Cannot specify multiple `InfiniteScalarSets` for one container " *
+    domain_type = typeof(first(params).domain)
+    if !all(param.domain isa InfiniteScalarDomain for param in params)
+        _error("Cannot specify multiple `InfiniteScalarDomains` for one container " *
                "of infinite dependent parameters.")
     end
     return
 end
 
 # Fallback
-function _check_param_sets(_error::Function, params)
-    _error("Unrecognized input for infinite set.")
+function _check_param_domains(_error::Function, params)
+    _error("Unrecognized input for infinite domain.")
 end
 
 ## Define methods for checking the the derivative methods 
@@ -163,17 +163,17 @@ function _check_derivative_methods(_error::Function, params)
     _error("Unrecognized input for derivative method.")
 end
 
-## Use set type dispatch to make the proper InfiniteArraySet
-# InfiniteArraySet
-function _make_array_set(params::Vector{<:_DependentParameter{T}}
-                         )::T where {T <: InfiniteArraySet}
-    return first(params).set
+## Use domain type dispatch to make the proper InfiniteArrayDomain
+# InfiniteArrayDomain
+function _make_array_domain(params::Vector{<:_DependentParameter{T}}
+                         )::T where {T <: InfiniteArrayDomain}
+    return first(params).domain
 end
 
-# InfiniteScalarSets
-function _make_array_set(params::Vector{<:_DependentParameter{T}}
-                         )::CollectionSet{T} where {T <: InfiniteScalarSet}
-    return CollectionSet([p.set for p in params])
+# InfiniteScalarDomains
+function _make_array_domain(params::Vector{<:_DependentParameter{T}}
+                         )::CollectionDomain{T} where {T <: InfiniteScalarDomain}
+    return CollectionDomain([p.domain for p in params])
 end
 
 # Build a DependentParameters object given an array of _DependentParameters
@@ -187,14 +187,14 @@ function _build_parameters(_error::Function,
        _error("Unrecognized keyword argument $kwarg")
     end
     # check the formatting
-    _check_param_sets(_error, params)
+    _check_param_domains(_error, params)
     _check_derivative_methods(_error, params)
     # vectorize the parameter array
     indices = Collections._get_indices(params)
     ordered_params = Collections._make_ordered(params, indices)
     vector_params = _make_vector(ordered_params)
-    # make the set
-    set = _make_array_set(vector_params)
+    # make the domain
+    domain = _make_array_domain(vector_params)
     # make the supports and labels
     lens = map(p -> length(p.supports), vector_params)
     _allequal(lens) || _error("Inconsistent support dimensions.")
@@ -206,14 +206,14 @@ function _build_parameters(_error::Function,
             trans_supps[:, i] = vector_params[i].supports
         end
         supps = permutedims(trans_supps)
-        supports_in_set(supps, set) || _error("Supports violate infinite set domain.")
+        supports_in_domain(supps, domain) || _error("Supports violate infinite domain.")
         supps = round.(supps, sigdigits = sig_digits)
         label = UserDefined
         supp_dict = Dict{Vector{Float64}, Set{DataType}}(@views supps[:, i] =>
                                          Set([label]) for i in 1:size(supps, 2))
     # we want to generate supports
     elseif num_supports != 0
-        supps, label = generate_support_values(set, num_supports = num_supports,
+        supps, label = generate_support_values(domain, num_supports = num_supports,
                                                sig_digits = sig_digits)
         supp_dict = Dict{Vector{Float64}, Set{DataType}}(@views supps[:, i] =>
                                          Set([label]) for i in 1:size(supps, 2))
@@ -224,7 +224,7 @@ function _build_parameters(_error::Function,
     # make the parameter object
     names = map(p -> p.name, vector_params)
     methods = map(p -> p.deriv_method, vector_params)
-    return DependentParameters(set, supp_dict, sig_digits, methods), names, indices
+    return DependentParameters(domain, supp_dict, sig_digits, methods), names, indices
 end
 
 """
@@ -248,9 +248,9 @@ julia> using Distributions
 
 julia> dist = MvNormal(ones(3)); # 3 dimensional
 
-julia> set = MultiDistributionSet(dist); # 3 dimensional
+julia> domain = MultiDistributionDomain(dist); # 3 dimensional
 
-julia> params = DependentParameters(set, Dict{Vector{Float64}, Set{DatatType}}(), 10);
+julia> params = DependentParameters(domain, Dict{Vector{Float64}, Set{DatatType}}(), 10);
 
 julia> prefs = add_parameters(model, params, ["par1", "par2", "par3"])
 3-element Array{GeneralVariableRef,1}:
@@ -265,7 +265,7 @@ function add_parameters(model::InfiniteModel,
                         indices = nothing
                         )::AbstractArray{<:GeneralVariableRef}
     # get the number of parameters
-    num_params = length(params.set)
+    num_params = length(params.domain)
     # process the names
     if isempty(names)
         names = ["noname" for i in 1:num_params]
@@ -287,22 +287,22 @@ function add_parameters(model::InfiniteModel,
     return Collections._make_array(prefs, indices)
 end
 
-# Construct an expression to build an infinite set(s) (use with @dependent_parameters)
-function _construct_array_set(_error::Function, info::_ParameterInfoExpr)
+# Construct an expression to build an infinite domain(s) (use with @dependent_parameters)
+function _construct_array_domain(_error::Function, info::_ParameterInfoExpr)
     if (info.has_lb || info.has_ub) && !(info.has_lb && info.has_ub)
         _error("Must specify both an upper bound and a lower bound")
     elseif info.has_lb
         check = :(isa($(info.lower_bound), Real))
-        return :($(check) ? IntervalSet($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a real number."))
+        return :($(check) ? IntervalDomain($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a real number."))
     elseif info.has_dist
         check = :(isa($(info.distribution), Distributions.UnivariateDistribution))
-        return :($(check) ? UniDistributionSet($(info.distribution)) : MultiDistributionSet($(info.distribution)))
-    elseif info.has_set
-        check1 = :(isa($(info.set), AbstractInfiniteSet))
-        check2 = :(isa($(info.set), Distributions.UnivariateDistribution))
-        return :($(check1) ? $(info.set) : ($(check2) ? UniDistributionSet($(info.set)) : MultiDistributionSet($(info.set))))
+        return :($(check) ? UniDistributionDomain($(info.distribution)) : MultiDistributionDomain($(info.distribution)))
+    elseif info.has_domain
+        check1 = :(isa($(info.domain), AbstractInfiniteDomain))
+        check2 = :(isa($(info.domain), Distributions.UnivariateDistribution))
+        return :($(check1) ? $(info.domain) : ($(check2) ? UniDistributionDomain($(info.domain)) : MultiDistributionDomain($(info.domain))))
     else
-        _error("Must specify upper/lower bounds, a distribution, or a set")
+        _error("Must specify upper/lower bounds, a distribution, or a domain")
     end
 end
 
@@ -605,7 +605,7 @@ function _adaptive_method_update(pref,
     methods = p.derivative_methods
     new_methods = [i == _param_index(pref) ? method : m 
                    for (i, m) in enumerate(methods)]
-    new_params = DependentParameters(p.set, p.supports, p.sig_digits, new_methods)
+    new_params = DependentParameters(p.domain, p.supports, p.sig_digits, new_methods)
     _set_core_variable_object(pref, new_params)
     return
 end
@@ -663,43 +663,43 @@ function set_all_derivative_methods(model::InfiniteModel,
 end
 
 ################################################################################
-#                             INFINITE SET METHODS
+#                           INFINITE DOMAIN METHODS
 ################################################################################
-## Get the individual infinite set if possible
-# raw_set
-function _parameter_set(pref::DependentParameterRef)::InfiniteArraySet
-    return _core_variable_object(pref).set
+## Get the individual infinite domain if possible
+# raw_domain
+function _parameter_domain(pref::DependentParameterRef)::InfiniteArrayDomain
+    return _core_variable_object(pref).domain
 end
 
-# CollectionSet
-function _parameter_set(set::CollectionSet{S},
+# CollectionDomain
+function _parameter_domain(domain::CollectionDomain{S},
                         pref::DependentParameterRef
-                        )::S where {S <: InfiniteScalarSet}
-    return collection_sets(set)[_param_index(pref)]
+                        )::S where {S <: InfiniteScalarDomain}
+    return collection_domains(domain)[_param_index(pref)]
 end
 
-# InfiniteArraySet (Fallback)
-function _parameter_set(set::InfiniteArraySet, pref::DependentParameterRef)
-    error("An individual infinite set is not well-defined for $pref which " *
+# InfiniteArrayDomain (Fallback)
+function _parameter_domain(domain::InfiniteArrayDomain, pref::DependentParameterRef)
+    error("An individual infinite domain is not well-defined for $pref which " *
           "is part of a group of dependent infinite parameters that correspond " *
-          "to an multi-dimensional infinite set of type `$(typeof(set))`.")
+          "to an multi-dimensional infinite domain of type `$(typeof(domain))`.")
 end
 
 """
-    infinite_set(pref::DependentParameterRef)::InfiniteScalarSet
+    infinite_domain(pref::DependentParameterRef)::InfiniteScalarDomain
 
-Return the infinite set associated with the particular infinite dependent
+Return the infinite domain associated with the particular infinite dependent
 parameter `pref` if valid. Errors if the underlying [`DependentParameters`](@ref)
-object does not use a [`CollectionSet`](@ref).
+object does not use a [`CollectionDomain`](@ref).
 
 **Example**
 ```julia-repl
-julia> infinite_set(x[1])
+julia> infinite_domain(x[1])
 [-1, 1]
 ```
 """
-function infinite_set(pref::DependentParameterRef)::InfiniteScalarSet
-    return _parameter_set(_parameter_set(pref), pref)
+function infinite_domain(pref::DependentParameterRef)::InfiniteScalarDomain
+    return _parameter_domain(_parameter_domain(pref), pref)
 end
 
 # Check that prefs are complete
@@ -707,21 +707,21 @@ function _check_complete_param_array(
     prefs::AbstractArray{<:DependentParameterRef}
     )::Nothing
     if length(prefs) != _num_parameters(first(prefs))
-        error("Dimensions of parameter container and the infinite set do not " *
+        error("Dimensions of parameter container and the infinite domain do not " *
               "match, ensure all related dependent parameters are included.")
     end
     return
 end
 
 """
-    infinite_set(prefs::AbstractArray{<:DependentParameterRef})::InfiniteArraySet
+    infinite_domain(prefs::AbstractArray{<:DependentParameterRef})::InfiniteArrayDomain
 
-Return the infinite set associated with the container of infinite dependent
+Return the infinite domain associated with the container of infinite dependent
 parameters `prefs`. Errors if the container `prefs` is incomplete.
 
 **Example**
 ```julia-repl
-julia> infinite_set(x)
+julia> infinite_domain(x)
 ZeroMeanDiagNormal(
 dim: 2
 μ: [0.0, 0.0]
@@ -729,22 +729,22 @@ dim: 2
 )
 ```
 """
-function infinite_set(prefs::AbstractArray{<:DependentParameterRef}
-                      )::InfiniteArraySet
+function infinite_domain(prefs::AbstractArray{<:DependentParameterRef}
+                      )::InfiniteArrayDomain
     _check_complete_param_array(prefs)
-    return _parameter_set(first(prefs))
+    return _parameter_domain(first(prefs))
 end
 
-# Update the underlying set and delete the supports
-function _update_parameter_set(pref::DependentParameterRef,
-                               new_set::InfiniteArraySet)::Nothing
+# Update the underlying domain and delete the supports
+function _update_parameter_domain(pref::DependentParameterRef,
+                               new_domain::InfiniteArrayDomain)::Nothing
     old_params = _core_variable_object(pref)
     new_supports = Dict{Vector{Float64}, Set{DataType}}()
     sig_figs = significant_digits(pref)
     methods = _derivative_methods(pref)
-    new_params = DependentParameters(new_set, new_supports, sig_figs, methods)
+    new_params = DependentParameters(new_domain, new_supports, sig_figs, methods)
     _set_core_variable_object(pref, new_params)
-    for i in 1:length(new_set)
+    for i in 1:length(new_domain)
         idx = DependentParameterIndex(JuMP.index(pref).object_index, i)
         p = DependentParameterRef(JuMP.owner_model(pref), idx)
         _reset_derivative_constraints(p)
@@ -757,63 +757,63 @@ function _update_parameter_set(pref::DependentParameterRef,
 end
 
 """
-    set_infinite_set(pref::DependentParameterRef,
-                     set::InfiniteScalarSet)::Nothing
+    set_infinite_domain(pref::DependentParameterRef,
+                     domain::InfiniteScalarDomain)::Nothing
 
-Specify the scalar infinite set of the dependent infinite parameter `pref` to
-`set` if `pref` is part of a [`CollectionSet`](@ref), otherwise an error is
+Specify the scalar infinite domain of the dependent infinite parameter `pref` to
+`domain` if `pref` is part of a [`CollectionDomain`](@ref), otherwise an error is
 thrown. Note this will reset/delete all the supports contained in the
 underlying [`DependentParameters`](@ref) object. Also, errors if `pref` is used
 by a measure.
 
 **Example**
 ```julia-repl
-julia> set_infinite_set(x[1], IntervalSet(0, 2))
+julia> set_infinite_domain(x[1], IntervalDomain(0, 2))
 
-julia> infinite_set(x[1])
+julia> infinite_domain(x[1])
 [0, 2]
 ```
 """
-function set_infinite_set(pref::DependentParameterRef,
-                          set::InfiniteScalarSet)::Nothing
-    old_set = _parameter_set(pref)
-    if !(old_set isa CollectionSet)
-        error("Cannot set the individual infinite set of $pref if the " *
-              "underlying set is not a CollectionSet.")
+function set_infinite_domain(pref::DependentParameterRef,
+                          domain::InfiniteScalarDomain)::Nothing
+    old_domain = _parameter_domain(pref)
+    if !(old_domain isa CollectionDomain)
+        error("Cannot set the individual infinite domain of $pref if the " *
+              "underlying domain is not a CollectionDomain.")
     elseif used_by_measure(pref)
-        error("Cannot override the infinite set of $pref since it is used by " *
+        error("Cannot override the infinite domain of $pref since it is used by " *
               "a measure.")
     end
     param_idx = _param_index(pref)
-    new_set = CollectionSet([i != param_idx ? collection_sets(old_set)[i] : set
-                             for i in eachindex(collection_sets(old_set))])
-    _update_parameter_set(pref, new_set)
+    new_domain = CollectionDomain([i != param_idx ? collection_domains(old_domain)[i] : domain
+                             for i in eachindex(collection_domains(old_domain))])
+    _update_parameter_domain(pref, new_domain)
     return
 end
 
 """
-    set_infinite_set(prefs::AbstractArray{<:DependentParameterRef},
-                     set::InfiniteArraySet)::Nothing
+    set_infinite_domain(prefs::AbstractArray{<:DependentParameterRef},
+                     domain::InfiniteArrayDomain)::Nothing
 
-Specify the multi-dimensional infinite set of the dependent infinite parameters
-`prefs` to `set`. Note this will reset/delete all the supports contained in the
+Specify the multi-dimensional infinite domain of the dependent infinite parameters
+`prefs` to `domain`. Note this will reset/delete all the supports contained in the
 underlying [`DependentParameters`](@ref) object. This will error if the not all
 of the dependent infinite parameters are included, if any of them are used by
 measures.
 
 **Example**
 ```julia-repl
-julia> set_infinite_set(x, CollectionSet([IntervalSet(0, 1), IntervalSet(0, 2)]))
+julia> set_infinite_domain(x, CollectionDomain([IntervalDomain(0, 1), IntervalDomain(0, 2)]))
 ```
 """
-function set_infinite_set(prefs::AbstractArray{<:DependentParameterRef},
-                          set::InfiniteArraySet)::Nothing
+function set_infinite_domain(prefs::AbstractArray{<:DependentParameterRef},
+                          domain::InfiniteArrayDomain)::Nothing
     if any(used_by_measure(pref) for pref in prefs)
-        error("Cannot override the infinite set of $prefs since it is used by " *
+        error("Cannot override the infinite domain of $prefs since it is used by " *
               "a measure.")
     end
     _check_complete_param_array(prefs)
-    _update_parameter_set(first(prefs), set)
+    _update_parameter_domain(first(prefs), domain)
     return
 end
 
@@ -822,9 +822,9 @@ end
 
 Extend the `JuMP.has_lower_bound` function to accomodate a single dependent
 infinite parameter.
-Return true if the set associated with `pref` has a defined lower bound or if a
-lower bound can be found. Extensions with user-defined scalar infinite set types
-should extend `JuMP.has_lower_bound(set::NewType)`.
+Return true if the domain associated with `pref` has a defined lower bound or if a
+lower bound can be found. Extensions with user-defined scalar infinite domain types
+should extend `JuMP.has_lower_bound(domain::NewType)`.
 
 **Example**
 ```julia-repl
@@ -833,9 +833,9 @@ true
 ```
 """
 function JuMP.has_lower_bound(pref::DependentParameterRef)::Bool
-    set = _parameter_set(pref)
-    if set isa CollectionSet
-        return JuMP.has_lower_bound(collection_sets(set)[_param_index(pref)])
+    domain = _parameter_domain(pref)
+    if domain isa CollectionDomain
+        return JuMP.has_lower_bound(collection_domains(domain)[_param_index(pref)])
     else
         return false
     end
@@ -845,7 +845,7 @@ end
     JuMP.lower_bound(pref::DependentParameterRef)::Number
 
 Extend the `JuMP.lower_bound` function to accomodate a single dependent infinite
-parameter. Returns the lower bound associated with the infinite set. Errors if
+parameter. Returns the lower bound associated with the infinite domain. Errors if
 such a bound is not well-defined.
 
 **Example**
@@ -858,17 +858,17 @@ function JuMP.lower_bound(pref::DependentParameterRef)::Number
     if !JuMP.has_lower_bound(pref)
         error("Parameter $(pref) does not have a lower bound.")
     end
-    return JuMP.lower_bound(infinite_set(pref))
+    return JuMP.lower_bound(infinite_domain(pref))
 end
 
 """
     JuMP.set_lower_bound(pref::DependentParameterRef, lower::Real)::Nothing
 
 Extend the `JuMP.set_lower_bound` function to accomodate a single dependent
-infinite parameter. Updates the infinite set lower bound if such an operation
-is supported. Infinite scalar set extensions that seek to employ this should extend
-`JuMP.set_lower_bound(set::NewType, lower::Number)`. This will call
-[`set_infinite_set`](@ref) and will error if this is not well-defined. Note
+infinite parameter. Updates the infinite domain lower bound if such an operation
+is supported. Infinite scalar domain extensions that seek to employ this should extend
+`JuMP.set_lower_bound(domain::NewType, lower::Number)`. This will call
+[`set_infinite_domain`](@ref) and will error if this is not well-defined. Note
 that existing supports will be deleted.
 
 **Example**
@@ -880,9 +880,9 @@ julia> lower_bound(t)
 ```
 """
 function JuMP.set_lower_bound(pref::DependentParameterRef, lower::Real)::Nothing
-    set = infinite_set(pref)
-    new_set = JuMP.set_lower_bound(set, lower)
-    set_infinite_set(pref, new_set)
+    domain = infinite_domain(pref)
+    new_domain = JuMP.set_lower_bound(domain, lower)
+    set_infinite_domain(pref, new_domain)
     return
 end
 
@@ -891,9 +891,9 @@ end
 
 Extend the `JuMP.has_upper_bound` function to accomodate a single dependent
 infinite parameter.
-Return true if the set associated with `pref` has a defined upper bound or if a
-upper bound can be found. Extensions with user-defined scalar infinite set types
-should extend `JuMP.has_upper_bound(set::NewType)`.
+Return true if the domain associated with `pref` has a defined upper bound or if a
+upper bound can be found. Extensions with user-defined scalar infinite domain types
+should extend `JuMP.has_upper_bound(domain::NewType)`.
 
 **Example**
 ```julia-repl
@@ -902,9 +902,9 @@ true
 ```
 """
 function JuMP.has_upper_bound(pref::DependentParameterRef)::Bool
-    set = _core_variable_object(pref).set
-    if set isa CollectionSet
-        return JuMP.has_upper_bound(collection_sets(set)[_param_index(pref)])
+    domain = _core_variable_object(pref).domain
+    if domain isa CollectionDomain
+        return JuMP.has_upper_bound(collection_domains(domain)[_param_index(pref)])
     else
         return false
     end
@@ -914,7 +914,7 @@ end
     JuMP.upper_bound(pref::DependentParameterRef)::Number
 
 Extend the `JuMP.upper_bound` function to accomodate a single dependent infinite
-parameter. Returns the upper bound associated with the infinite set. Errors if
+parameter. Returns the upper bound associated with the infinite domain. Errors if
 such a bound is not well-defined.
 
 **Example**
@@ -927,17 +927,17 @@ function JuMP.upper_bound(pref::DependentParameterRef)::Number
     if !JuMP.has_upper_bound(pref)
         error("Parameter $(pref) does not have a upper bound.")
     end
-    return JuMP.upper_bound(infinite_set(pref))
+    return JuMP.upper_bound(infinite_domain(pref))
 end
 
 """
     JuMP.set_upper_bound(pref::DependentParameterRef, upper::Real)::Nothing
 
 Extend the `JuMP.set_upper_bound` function to accomodate a single dependent
-infinite parameter. Updates the infinite set upper bound if such an operation
-is supported. Infinite scalar set extensions that seek to employ this should extend
-`JuMP.set_upper_bound(set::NewType, upper::Number)`. This will call
-[`set_infinite_set`](@ref) and will error if this is not well-defined. Note
+infinite parameter. Updates the infinite domain upper bound if such an operation
+is supported. Infinite scalar domain extensions that seek to employ this should extend
+`JuMP.set_upper_bound(domain::NewType, upper::Number)`. This will call
+[`set_infinite_domain`](@ref) and will error if this is not well-defined. Note
 that existing supports will be deleted.
 
 **Example**
@@ -949,9 +949,9 @@ julia> upper_bound(t)
 ```
 """
 function JuMP.set_upper_bound(pref::DependentParameterRef, upper::Real)::Nothing
-    set = infinite_set(pref)
-    new_set = JuMP.set_upper_bound(set, upper)
-    set_infinite_set(pref, new_set)
+    domain = infinite_domain(pref)
+    new_domain = JuMP.set_upper_bound(domain, upper)
+    set_infinite_domain(pref, new_domain)
     return
 end
 
@@ -1152,12 +1152,12 @@ end
 function _update_parameter_supports(prefs::AbstractArray{<:DependentParameterRef},
                                     supports::Array{<:Real, 2},
                                     label::Type{<:AbstractSupportLabel})::Nothing
-    set = _parameter_set(first(prefs))
+    domain = _parameter_domain(first(prefs))
     new_supps = Dict{Vector{Float64}, Set{DataType}}(@views supports[:, i] =>
                                       Set([label]) for i in 1:size(supports, 2))
     sig_figs = significant_digits(first(prefs))
     methods = _derivative_methods(first(prefs))
-    new_params = DependentParameters(set, new_supps, sig_figs, methods)
+    new_params = DependentParameters(domain, new_supps, sig_figs, methods)
     _set_core_variable_object(first(prefs), new_params)
     _set_has_internal_supports(first(prefs), label <: InternalLabel)
     for pref in prefs 
@@ -1190,7 +1190,7 @@ end
                  label::Type{<:AbstractSupportLabel} = UserDefined])::Nothing
 
 Specify the support points for `prefs`. Errors if the supports violate the domain
-of the infinite set, if the dimensions don't match up properly,
+of the infinite domain, if the dimensions don't match up properly,
 if `prefs` and `supports` have different indices, not all of the `prefs` are
 from the same dependent infinite parameter container, there are existing
 supports and `force = false`. Note that it is strongly preferred to use
@@ -1235,13 +1235,13 @@ function set_supports(prefs::Vector{DependentParameterRef},
                       force::Bool = false,
                       label::Type{<:AbstractSupportLabel} = UserDefined
                       )::Nothing
-    set = infinite_set(prefs) # this does a check on prefs
+    domain = infinite_domain(prefs) # this does a check on prefs
     if has_supports(prefs) && !force
         error("Unable set supports for $prefs since they already have supports." *
-              " Consider using `add_supports` or use set `force = true` to " *
+              " Consider using `add_supports` or use `force = true` to " *
               "overwrite the existing supports.")
-    elseif !supports_in_set(supports, set)
-        error("Supports violate the domain of the infinite set.")
+    elseif !supports_in_domain(supports, domain)
+        error("Supports violate the domain of the infinite domain.")
     end
     supports = round.(supports, sigdigits = significant_digits(first(prefs)))
     _update_parameter_supports(prefs, supports, label)
@@ -1259,7 +1259,7 @@ end
                  [label::Type{<:AbstractSupportLabel} = UserDefined])::Nothing
 
 Add additional support points for `prefs`. Errors if the supports violate the domain
-of the infinite set, if the dimensions don't match up properly,
+of the infinite domain, if the dimensions don't match up properly,
 if `prefs` and `supports` have different indices, or not all of the `prefs` are
 from the same dependent infinite parameter container.
 
@@ -1304,9 +1304,9 @@ function add_supports(prefs::Vector{DependentParameterRef},
                       supports::Array{<:Real, 2};
                       label::Type{<:AbstractSupportLabel} = UserDefined, # internal keyword args
                       check::Bool = true)::Nothing
-    set = infinite_set(prefs) # this does a check on prefs
-    if check && !supports_in_set(supports, set)
-        error("Supports violate the domain of the infinite set.")
+    domain = infinite_domain(prefs) # this does a check on prefs
+    if check && !supports_in_domain(supports, domain)
+        error("Supports violate the domain of the infinite domain.")
     end
     supports = round.(supports, sigdigits = significant_digits(first(prefs)))
     current_supports = _parameter_supports(first(prefs))
@@ -1387,23 +1387,23 @@ end
 # TODO resolve case that there are existing UniformGrid supports
 """
     generate_and_add_supports!(prefs::AbstractArray{<:DependentParameterRef},
-                               set::InfiniteArraySet,
+                               domain::InfiniteArrayDomain,
                                [method::Type{<:AbstractSupportLabel}];
                                [num_supports::Int = DefaultNumSupports])::Nothing
 
 Generate supports for `prefs` via [`generate_support_values`](@ref) and add them
 to `pref`. This is intended as an extendable internal method for
 [`fill_in_supports!`](@ref fill_in_supports!(::AbstractArray{<:DependentParameterRef})).
-Most extensions that employ user-defined infinite sets can typically enable this
+Most extensions that employ user-defined infinite domains can typically enable this
 by extending [`generate_support_values`](@ref). However, in some cases it may be
 necessary to extend this when more complex operations need to take place then just
 adding supports to a set of infinite parameters. Errors if the
-infinite set type is not recognized.
+infinite domain type is not recognized.
 """
 function generate_and_add_supports!(prefs::AbstractArray{<:DependentParameterRef},
-                                    set::InfiniteArraySet;
+                                    domain::InfiniteArrayDomain;
                                     num_supports::Int = DefaultNumSupports)::Nothing
-    new_supps, label = generate_supports(set,
+    new_supps, label = generate_supports(domain,
                                          num_supports = num_supports,
                                     sig_digits = significant_digits(first(prefs)))
     add_supports(_make_vector(prefs), new_supps, check = false, label = label)
@@ -1412,10 +1412,10 @@ end
 
 # Method dispatch
 function generate_and_add_supports!(prefs::AbstractArray{<:DependentParameterRef},
-                                    set::InfiniteArraySet,
+                                    domain::InfiniteArrayDomain,
                                     method::Type{<:AbstractSupportLabel};
                                     num_supports::Int = DefaultNumSupports)::Nothing
-    new_supps, label = generate_supports(set, method,
+    new_supps, label = generate_supports(domain, method,
                                          num_supports = num_supports,
                                     sig_digits = significant_digits(first(prefs)))
     add_supports(_make_vector(prefs), new_supps, check = false, label = label)
@@ -1431,8 +1431,8 @@ Automatically generate support points for a container of dependent infinite
 parameters `prefs`. Generating up to `num_supports` for the parameters in accordance
 with `generate_and_add_supports!`. Will add nothing if there are supports and
 `modify = false`. Extensions that use user defined
-set types should extend [`generate_and_add_supports!`](@ref) and/or
-[`generate_support_values`](@ref) as needed. Errors if the infinite set type is
+domain types should extend [`generate_and_add_supports!`](@ref) and/or
+[`generate_support_values`](@ref) as needed. Errors if the infinite domain type is
 not recognized.
 
 **Example**
@@ -1448,10 +1448,10 @@ julia> supports(x)
 function fill_in_supports!(prefs::AbstractArray{<:DependentParameterRef};
                            num_supports::Int = DefaultNumSupports,
                            modify::Bool = true)::Nothing
-    set = infinite_set(prefs) # does check for bad container
+    domain = infinite_domain(prefs) # does check for bad container
     current_amount = InfiniteOpt.num_supports(first(prefs))
     if (modify || current_amount == 0) && (current_amount < num_supports)
-        generate_and_add_supports!(prefs, set,
+        generate_and_add_supports!(prefs, domain,
                                    num_supports = num_supports - current_amount)
     end
     return
@@ -1469,7 +1469,7 @@ end
 Automatically generate support points for all infinite parameters in model.
 This calls `fill_in_supports!` for each parameter in the model.
 See [`fill_in_supports!`](@ref)
-for more information. Errors if one of the infinite set types is unrecognized.
+for more information. Errors if one of the infinite domain types is unrecognized.
 Note that no supports will be added to a particular parameter if it already has
 some and `modify = false`.
 
@@ -1492,7 +1492,7 @@ function fill_in_supports!(model::InfiniteModel; num_supports::Int = DefaultNumS
         pref = dispatch_variable_ref(model, key)
         fill_in_supports!(pref, num_supports = num_supports, modify = modify)
     end
-    # fill in the supports of each dependent parameter set
+    # fill in the supports of each dependent parameter domain
     for (key, data_object) in model.dependent_params
         prefs = [dispatch_variable_ref(model, DependentParameterIndex(key, i))
                  for i in 1:length(data_object.names)]

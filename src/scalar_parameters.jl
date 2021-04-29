@@ -133,23 +133,23 @@ mutable struct _ParameterInfoExpr
     upper_bound::Any
     has_dist::Bool
     distribution::Any
-    has_set::Bool
-    set::Any
+    has_domain::Bool
+    domain::Any
 end
 
 # Default constructor
 function _ParameterInfoExpr(; lower_bound = NaN, upper_bound = NaN,
-                            distribution = NaN, set = NaN)
+                            distribution = NaN, domain = NaN)
     # isnan(::Expr) is not defined so we need to do !== NaN
     return _ParameterInfoExpr(lower_bound !== NaN, lower_bound,
                               upper_bound !== NaN, upper_bound,
                               distribution !== NaN, distribution,
-                              set !== NaN, set)
+                              domain !== NaN, domain)
 end
 
 # Internal function for use in processing valid key word arguments
-function _is_set_keyword(kw::Expr)
-    return kw.args[1] in [:set, :lower_bound, :upper_bound, :distribution]
+function _is_domain_keyword(kw::Expr)
+    return kw.args[1] in [:domain, :lower_bound, :upper_bound, :distribution]
 end
 
 # Extend to assist in building InfOptParameters
@@ -158,7 +158,7 @@ function _set_lower_bound_or_error(_error::Function,
     info.has_lb && _error("Cannot specify parameter lower_bound twice")
     info.has_dist && _error("Cannot specify parameter lower_bound and " *
                             "distribution")
-    info.has_set && _error("Cannot specify parameter lower_bound and set")
+    info.has_domain && _error("Cannot specify parameter lower_bound and domain")
     info.has_lb = true
     info.lower_bound = lower
     return
@@ -170,7 +170,7 @@ function _set_upper_bound_or_error(_error::Function,
     info.has_ub && _error("Cannot specify parameter upper_bound twice")
     info.has_dist && _error("Cannot specify parameter upper_bound and " *
                             "distribution")
-    info.has_set && _error("Cannot specify parameter upper_bound and set")
+    info.has_domain && _error("Cannot specify parameter upper_bound and domain")
     info.has_ub = true
     info.upper_bound = upper
     return
@@ -181,39 +181,39 @@ function _dist_or_error(_error::Function, info::_ParameterInfoExpr, dist)::Nothi
     info.has_dist && _error("Cannot specify parameter distribution twice")
     (info.has_lb || info.has_ub) && _error("Cannot specify parameter " *
                                            "distribution and upper/lower bounds")
-    info.has_set && _error("Cannot specify parameter distribution and set")
+    info.has_domain && _error("Cannot specify parameter distribution and domain")
     info.has_dist = true
     info.distribution = dist
     return
 end
 
 # Extend to assist in building InfOptParameters
-function _set_or_error(_error::Function, info::_ParameterInfoExpr, set)::Nothing
-    info.has_set && _error("Cannot specify variable fixed value twice")
-    (info.has_lb || info.has_ub) && _error("Cannot specify parameter set and " *
+function _domain_or_error(_error::Function, info::_ParameterInfoExpr, domain)::Nothing
+    info.has_domain && _error("Cannot specify variable fixed value twice")
+    (info.has_lb || info.has_ub) && _error("Cannot specify parameter domain and " *
                                            "upper/lower bounds")
-    info.has_dist && _error("Cannot specify parameter set and distribution")
-    info.has_set = true
-    info.set = set
+    info.has_dist && _error("Cannot specify parameter domain and distribution")
+    info.has_domain = true
+    info.domain = domain
     return
 end
 
-# Construct an expression to build an infinite set (use with @infinite_macro)
-function _constructor_set(_error::Function, info::_ParameterInfoExpr)
+# Construct an expression to build an infinite domain (use with @infinite_macro)
+function _constructor_domain(_error::Function, info::_ParameterInfoExpr)
     if (info.has_lb || info.has_ub) && !(info.has_lb && info.has_ub)
         _error("Must specify both an upper bound and a lower bound")
     elseif info.has_lb
         check = :(isa($(info.lower_bound), Real))
-        return :($(check) ? IntervalSet($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a number."))
+        return :($(check) ? IntervalDomain($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a number."))
     elseif info.has_dist
         check = :(isa($(info.distribution), Distributions.UnivariateDistribution))
-        return :($(check) ? UniDistributionSet($(info.distribution)) : error("Distribution must be a Distributions.UnivariateDistribution."))
-    elseif info.has_set
-        check1 = :(isa($(info.set), InfiniteScalarSet))
-        check2 = :(isa($(info.set), Distributions.UnivariateDistribution))
-        return :($(check1) ? $(info.set) : ($(check2) ? UniDistributionSet($(info.set)) : error("Set must be a subtype of InfiniteScalarSet.")))
+        return :($(check) ? UniDistributionDomain($(info.distribution)) : error("Distribution must be a Distributions.UnivariateDistribution."))
+    elseif info.has_domain
+        check1 = :(isa($(info.domain), InfiniteScalarDomain))
+        check2 = :(isa($(info.domain), Distributions.UnivariateDistribution))
+        return :($(check1) ? $(info.domain) : ($(check2) ? UniDistributionDomain($(info.domain)) : error("Domain must be a subtype of InfiniteScalarDomain.")))
     else
-        _error("Must specify upper/lower bounds, a distribution, or a set")
+        _error("Must specify upper/lower bounds, a distribution, or a domain")
     end
 end
 
@@ -223,18 +223,18 @@ end
 # Define the default derivative evaluation method 
 const DefaultDerivativeMethod = FiniteDifference()
 
-# Check that supports don't violate the set bounds
+# Check that supports don't violate the domain bounds
 function _check_supports_in_bounds(_error::Function,
                                    supports::Union{<:Real, Vector{<:Real}},
-                                   set::AbstractInfiniteSet)::Nothing
-    if !supports_in_set(supports, set)
-        _error("Supports violate the set domain bounds.")
+                                   domain::AbstractInfiniteDomain)::Nothing
+    if !supports_in_domain(supports, domain)
+        _error("Supports violate the domain bounds.")
     end
     return
 end
 
 """
-    build_parameter(_error::Function, set::InfiniteScalarSet;
+    build_parameter(_error::Function, domain::InfiniteScalarDomain;
                     [num_supports::Int = 0,
                     supports::Union{Real, Vector{<:Real}} = Real[],
                     sig_digits::Int = DefaultSigDigits,
@@ -243,19 +243,19 @@ end
 
 Returns a [`IndependentParameter`](@ref) given the appropriate information.
 This is analagous to `JuMP.build_variable`. Errors if supports violate the
-bounds associated with `set`. This is meant to primarily serve as a
+bounds associated with `domain`. This is meant to primarily serve as a
 helper method for [`@independent_parameter`](@ref). Here `derivative_method` 
 specifies the numerical evalution method that will be applied to derivatives that 
 are taken with respect to this infinite parameter.
 
 **Example**
 ```julia-repl
-julia> build_parameter(error, IntervalSet(0, 3), supports = Vector(0:3))
-IndependentParameter{IntervalSet,FiniteDifference{Backward},NoGenerativeSupports}([0, 3], DataStructures.SortedDict(0.0 => Set([UserDefined]),1.0 => Set([UserDefined]),2.0 => Set([UserDefined]),3.0 => Set([UserDefined])), 12, FiniteDifference{Backward}(Backward(), true), NoGenerativeSupports())
+julia> build_parameter(error, IntervalDomain(0, 3), supports = Vector(0:3))
+IndependentParameter{IntervalDomain,FiniteDifference{Backward},NoGenerativeSupports}([0, 3], DataStructures.SortedDict(0.0 => Set([UserDefined]),1.0 => Set([UserDefined]),2.0 => Set([UserDefined]),3.0 => Set([UserDefined])), 12, FiniteDifference{Backward}(Backward(), true), NoGenerativeSupports())
 ```
 """
 function build_parameter(_error::Function,
-    set::InfiniteScalarSet;
+    domain::InfiniteScalarDomain;
     num_supports::Int = 0,
     supports::Union{Real, Vector{<:Real}} = Real[],
     sig_digits::Int = DefaultSigDigits,
@@ -269,10 +269,10 @@ function build_parameter(_error::Function,
     length_supports = length(supports)
     if !isempty(supports)
         supports = round.(supports, sigdigits = sig_digits)
-        _check_supports_in_bounds(_error, supports, set)
+        _check_supports_in_bounds(_error, supports, domain)
         num_supports == 0 || @warn("Ignoring num_supports since supports is not empty.")
     elseif num_supports != 0
-        supports, label = generate_support_values(set, num_supports = num_supports,
+        supports, label = generate_support_values(domain, num_supports = num_supports,
                                                   sig_digits = sig_digits)
     end
     supports_dict = DataStructures.SortedDict{Float64, Set{DataType}}(
@@ -280,7 +280,7 @@ function build_parameter(_error::Function,
     if length_supports != 0 && (length(supports_dict) != length_supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
-    return IndependentParameter(set, supports_dict, sig_digits, derivative_method,
+    return IndependentParameter(domain, supports_dict, sig_digits, derivative_method,
                                 generative_support_info(derivative_method))
 end
 
@@ -318,7 +318,7 @@ construct `p`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> p = build_independent_parameter(error, IntervalSet(0, 3), supports = Vector(0:3));
+julia> p = build_independent_parameter(error, IntervalDomain(0, 3), supports = Vector(0:3));
 
 julia> param_ref = add_parameter(model, p, "name")
 name
@@ -709,9 +709,9 @@ function _set_generative_support_info(pref::IndependentParameterRef,
     info::AbstractGenerativeInfo)::Nothing
     sig_digits = significant_digits(pref)
     method = derivative_method(pref)
-    set = _parameter_set(pref)
+    domain = _parameter_domain(pref)
     supps = _parameter_supports(pref)
-    new_param = IndependentParameter(set, supps, sig_digits, method, info)
+    new_param = IndependentParameter(domain, supps, sig_digits, method, info)
     _reset_generative_supports(pref)
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
@@ -855,16 +855,16 @@ function set_derivative_method(pref::IndependentParameterRef,
     method::NonGenerativeDerivativeMethod
     )::Nothing
     old_param = _core_variable_object(pref)
-    set = _parameter_set(pref)
+    domain = _parameter_domain(pref)
     supps = _parameter_supports(pref)
     sig_figs = significant_digits(pref)
     if isempty(_generative_measures(pref))
         _reset_generative_supports(pref)
-        new_param = IndependentParameter(set, supps, sig_figs, method, 
+        new_param = IndependentParameter(domain, supps, sig_figs, method, 
                                          NoGenerativeSupports())
     else
         info = generative_support_info(pref)
-        new_param = IndependentParameter(set, supps, sig_figs, method, info)
+        new_param = IndependentParameter(domain, supps, sig_figs, method, info)
     end
     _reset_derivative_constraints(pref)
     _set_core_variable_object(pref, new_param)
@@ -885,10 +885,10 @@ function set_derivative_method(pref::IndependentParameterRef,
               "measures.")
     end
     old_param = _core_variable_object(pref)
-    set = _parameter_set(pref)
+    domain = _parameter_domain(pref)
     supps = _parameter_supports(pref)
     sig_figs = significant_digits(pref)
-    new_param = IndependentParameter(set, supps, sig_figs, method, new_info)
+    new_param = IndependentParameter(domain, supps, sig_figs, method, new_info)
     _reset_derivative_constraints(pref)
     _reset_generative_supports(pref)
     _set_core_variable_object(pref, new_param)
@@ -902,16 +902,16 @@ end
 #                               SET FUNCTIONS
 ################################################################################
 # Internal functions
-function _parameter_set(pref::IndependentParameterRef)::InfiniteScalarSet
-    return _core_variable_object(pref).set
+function _parameter_domain(pref::IndependentParameterRef)::InfiniteScalarDomain
+    return _core_variable_object(pref).domain
 end
-function _update_parameter_set(pref::IndependentParameterRef,
-                               set::AbstractInfiniteSet)::Nothing
+function _update_parameter_domain(pref::IndependentParameterRef,
+                               domain::AbstractInfiniteDomain)::Nothing
     # old supports will always be discarded
     sig_digits = significant_digits(pref)
     method = derivative_method(pref)
     info = generative_support_info(pref)
-    new_param = IndependentParameter(set, DataStructures.SortedDict{Float64, Set{DataType}}(),
+    new_param = IndependentParameter(domain, DataStructures.SortedDict{Float64, Set{DataType}}(),
                                      sig_digits, method, info)
     _set_core_variable_object(pref, new_param)
     _reset_derivative_constraints(pref)
@@ -924,42 +924,42 @@ function _update_parameter_set(pref::IndependentParameterRef,
 end
 
 """
-    infinite_set(pref::IndependentParameterRef)::InfiniteScalarSet
+    infinite_domain(pref::IndependentParameterRef)::InfiniteScalarDomain
 
-Return the infinite set associated with `pref`.
+Return the infinite domain associated with `pref`.
 
 **Example**
 ```julia-repl
-julia> infinite_set(t)
+julia> infinite_domain(t)
 [0, 1]
 ```
 """
-function infinite_set(pref::IndependentParameterRef)::InfiniteScalarSet
-    return _parameter_set(pref)
+function infinite_domain(pref::IndependentParameterRef)::InfiniteScalarDomain
+    return _parameter_domain(pref)
 end
 
 """
-    set_infinite_set(pref::IndependentParameterRef,
-                     set::InfiniteScalarSet)::Nothing
+    set_infinite_domain(pref::IndependentParameterRef,
+                     domain::InfiniteScalarDomain)::Nothing
 
-Reset the infinite set of `pref` with another `InfiniteScalarSet`. An error will 
+Reset the infinite domain of `pref` with another `InfiniteScalarDomain`. An error will 
 be thrown if `pref` is being used by some measure.
 
 **Example**
 ```julia-repl
-julia> set_infinite_set(t, IntervalSet(0, 2))
+julia> set_infinite_domain(t, IntervalDomain(0, 2))
 
-julia> infinite_set(t)
+julia> infinite_domain(t)
 [0, 2]
 ```
 """
-function set_infinite_set(pref::IndependentParameterRef,
-                          set::InfiniteScalarSet)::Nothing
+function set_infinite_domain(pref::IndependentParameterRef,
+                          domain::InfiniteScalarDomain)::Nothing
     if used_by_measure(pref)
         error("$pref is used by a measure so changing its " *
-              "infinite set is not allowed.")
+              "infinite domain is not allowed.")
     end
-    _update_parameter_set(pref, set)
+    _update_parameter_domain(pref, domain)
     return
 end
 
@@ -970,9 +970,9 @@ end
     JuMP.has_lower_bound(pref::IndependentParameterRef)::Bool
 
 Extend the `JuMP.has_lower_bound` function to accomodate infinite parameters.
-Return true if the set associated with `pref` has a defined lower bound or if a
-lower bound can be found. Extensions with user-defined infinite set types
-should extend `JuMP.has_lower_bound(set::NewType)`.
+Return true if the domain associated with `pref` has a defined lower bound or if a
+lower bound can be found. Extensions with user-defined infinite domain types
+should extend `JuMP.has_lower_bound(domain::NewType)`.
 
 **Example**
 ```julia-repl
@@ -981,15 +981,15 @@ true
 ```
 """
 function JuMP.has_lower_bound(pref::IndependentParameterRef)::Bool
-    set = _parameter_set(pref)
-    return JuMP.has_lower_bound(set)
+    domain = _parameter_domain(pref)
+    return JuMP.has_lower_bound(domain)
 end
 
 """
     JuMP.lower_bound(pref::IndependentParameterRef)::Real
 
 Extend the `JuMP.lower_bound` function to accomodate infinite parameters.
-Returns the lower bound associated with the infinite set. Errors if such a bound
+Returns the lower bound associated with the infinite domain. Errors if such a bound
 is not well-defined.
 
 **Example**
@@ -999,20 +999,20 @@ julia> lower_bound(t)
 ```
 """
 function JuMP.lower_bound(pref::IndependentParameterRef)::Real
-    set = _parameter_set(pref)
+    domain = _parameter_domain(pref)
     if !JuMP.has_lower_bound(pref)
         error("Parameter $(pref) does not have a lower bound.")
     end
-    return JuMP.lower_bound(set)
+    return JuMP.lower_bound(domain)
 end
 
 """
     JuMP.set_lower_bound(pref::IndependentParameterRef, lower::Real)::Nothing
 
 Extend the `JuMP.set_lower_bound` function to accomodate infinite parameters.
-Updates the infinite set lower bound if such an operation is supported. Set
+Updates the infinite domain lower bound if such an operation is supported. Set
 extensions that seek to employ this should extend
-`JuMP.set_lower_bound(set::NewType, lower::Number)`.
+`JuMP.set_lower_bound(domain::NewType, lower::Number)`.
 
 **Example**
 ```julia-repl
@@ -1023,9 +1023,9 @@ julia> lower_bound(t)
 ```
 """
 function JuMP.set_lower_bound(pref::IndependentParameterRef, lower::Real)::Nothing
-    set = _parameter_set(pref)
-    new_set = JuMP.set_lower_bound(set, lower)
-    _update_parameter_set(pref, new_set)
+    domain = _parameter_domain(pref)
+    new_domain = JuMP.set_lower_bound(domain, lower)
+    _update_parameter_domain(pref, new_domain)
     return
 end
 
@@ -1033,9 +1033,9 @@ end
     JuMP.has_upper_bound(pref::IndependentParameterRef)::Bool
 
 Extend the `JuMP.has_upper_bound` function to accomodate infinite parameters.
-Return true if the set associated with `pref` has a defined upper bound or if a
-upper bound can be found. Extensions with user-defined sets should extend
-`JuMP.has_upper_bound(set::NewType)`.
+Return true if the domain associated with `pref` has a defined upper bound or if a
+upper bound can be found. Extensions with user-defined domains should extend
+`JuMP.has_upper_bound(domain::NewType)`.
 
 **Example**
 ```julia-repl
@@ -1044,17 +1044,17 @@ true
 ```
 """
 function JuMP.has_upper_bound(pref::IndependentParameterRef)::Bool
-    set = _parameter_set(pref)
-    return JuMP.has_upper_bound(set)
+    domain = _parameter_domain(pref)
+    return JuMP.has_upper_bound(domain)
 end
 
 """
     JuMP.upper_bound(pref::IndependentParameterRef)::Real
 
 Extend the `JuMP.upper_bound` function to accomodate infinite parameters.
-Returns the upper bound associated with the infinite set. Errors if such a bound
-is not well-defined. Extensions with user-defined set types should extend
-`JuMP.has_upper_bound(set::NewType)` and `JuMP.upper_bound(set::NewType)` if
+Returns the upper bound associated with the infinite domain. Errors if such a bound
+is not well-defined. Extensions with user-defined domain types should extend
+`JuMP.has_upper_bound(domain::NewType)` and `JuMP.upper_bound(domain::NewType)` if
 appropriate.
 
 **Example**
@@ -1064,20 +1064,20 @@ julia> upper_bound(t)
 ```
 """
 function JuMP.upper_bound(pref::IndependentParameterRef)::Real
-    set = _parameter_set(pref)
+    domain = _parameter_domain(pref)
     if !JuMP.has_upper_bound(pref)
         error("Parameter $(pref) does not have a upper bound.")
     end
-    return JuMP.upper_bound(set)
+    return JuMP.upper_bound(domain)
 end
 
 """
     JuMP.set_upper_bound(pref::IndependentParameterRef, lower::Real)::Nothing
 
 Extend the `JuMP.set_upper_bound` function to accomodate infinite parameters.
-Updates the infinite set upper bound if and only if it is an IntervalSet. Errors
-otherwise. Extensions with user-defined infinite sets should extend
-`JuMP.set_upper_bound(set::NewType, upper::Number)` if appropriate.
+Updates the infinite domain upper bound if and only if it is an IntervalDomain. Errors
+otherwise. Extensions with user-defined infinite domains should extend
+`JuMP.set_upper_bound(domain::NewType, upper::Number)` if appropriate.
 
 **Example**
 ```julia-repl
@@ -1088,9 +1088,9 @@ julia> upper_bound(t)
 ```
 """
 function JuMP.set_upper_bound(pref::IndependentParameterRef, upper::Real)::Nothing
-    set = _parameter_set(pref)
-    new_set = JuMP.set_upper_bound(set, upper)
-    _update_parameter_set(pref, new_set)
+    domain = _parameter_domain(pref)
+    new_domain = JuMP.set_upper_bound(domain, upper)
+    _update_parameter_domain(pref, new_domain)
     return
 end
 
@@ -1106,11 +1106,11 @@ function _parameter_support_values(pref::IndependentParameterRef)::Vector{Float6
 end
 function _update_parameter_supports(pref::IndependentParameterRef,
     supports::DataStructures.SortedDict{Float64, Set{DataType}})::Nothing
-    set = _parameter_set(pref)
+    domain = _parameter_domain(pref)
     method = derivative_method(pref)
     sig_figs = significant_digits(pref)
     info = generative_support_info(pref)
-    new_param = IndependentParameter(set, supports, sig_figs, method, info)
+    new_param = IndependentParameter(domain, supports, sig_figs, method, info)
     _set_core_variable_object(pref, new_param)
     _reset_derivative_constraints(pref)
     _set_has_generative_supports(pref, false)
@@ -1260,7 +1260,7 @@ end
                  )::Nothing
 
 Specify the support points for `pref`. Errors if the supports violate the bounds
-associated with the infinite set. Warns if the points are not unique. If `force`
+associated with the infinite domain. Warns if the points are not unique. If `force`
 this will overwrite exisiting supports otherwise it will error if there are
 existing supports.
 
@@ -1280,12 +1280,12 @@ function set_supports(pref::IndependentParameterRef, supports::Vector{<:Real};
                       )::Nothing
     if has_supports(pref) && !force
         error("Unable set supports for $pref since it already has supports." *
-              " Consider using `add_supports` or use set `force = true` to " *
+              " Consider using `add_supports` or use `force = true` to " *
               "overwrite the existing supports.")
     end
-    set = _parameter_set(pref)
+    domain = _parameter_domain(pref)
     supports = round.(supports, sigdigits = significant_digits(pref))
-    _check_supports_in_bounds(error, supports, set)
+    _check_supports_in_bounds(error, supports, domain)
     supports_dict = DataStructures.SortedDict{Float64, Set{DataType}}(
                                             i => Set([label]) for i in supports)
     if length(supports_dict) != length(supports)
@@ -1327,9 +1327,9 @@ function add_supports(pref::IndependentParameterRef,
                       supports::Union{Real, Vector{<:Real}};
                       label::Type{<:AbstractSupportLabel} = UserDefined, 
                       check::Bool = true)::Nothing
-    set = infinite_set(pref)
+    domain = infinite_domain(pref)
     supports = round.(supports, sigdigits = significant_digits(pref))
-    check && _check_supports_in_bounds(error, supports, set)
+    check && _check_supports_in_bounds(error, supports, domain)
     supports_dict = _parameter_supports(pref)
     for s in supports
         if haskey(supports_dict, s)
@@ -1453,12 +1453,12 @@ end
 
 Automatically generate support points for a particular independent parameter `pref`.
 Generating `num_supports` for the parameter. The supports are generated uniformly
-if the underlying infinite set is an `IntervalSet` or they are generating randomly
-accordingly to the distribution if the set is a `UniDistributionSet`.
+if the underlying infinite domain is an `IntervalDomain` or they are generating randomly
+accordingly to the distribution if the domain is a `UniDistributionDomain`.
 Will add nothing if there are supports
-and `modify = false`. Extensions that use user defined set types should extend
+and `modify = false`. Extensions that use user defined domain types should extend
 [`generate_and_add_supports!`](@ref) and/or [`generate_support_values`](@ref)
-as needed. Errors if the infinite set type is not recognized.
+as needed. Errors if the infinite domain type is not recognized.
 
 **Example**
 ```julia-repl
@@ -1476,10 +1476,10 @@ julia> supports(x)
 function fill_in_supports!(pref::IndependentParameterRef;
                            num_supports::Int = DefaultNumSupports,
                            modify::Bool = true)::Nothing
-    set = infinite_set(pref)
+    domain = infinite_domain(pref)
     current_amount = length(_parameter_supports(pref))
     if (modify || current_amount == 0) && current_amount < num_supports
-        generate_and_add_supports!(pref, set,
+        generate_and_add_supports!(pref, domain,
                                    num_supports = num_supports - current_amount,
                                    adding_extra = (current_amount > 0))
     end
@@ -1488,28 +1488,28 @@ end
 
 """
     generate_and_add_supports!(pref::IndependentParameterRef,
-                               set::AbstractInfiniteSet,
+                               domain::AbstractInfiniteDomain,
                                [method::Type{<:AbstractSupportLabel}];
                                [num_supports::Int = DefaultNumSupports])::Nothing
 
 Generate supports for independent parameter `pref` via [`generate_support_values`](@ref)
 and add them to `pref`. This is intended as an extendable internal method for
 [`fill_in_supports!`](@ref fill_in_supports!(::IndependentParameterRef)).
-Most extensions that empoy user-defined infinite sets can typically enable this
-by extending [`generate_support_values`](@ref). Errors if the infinite set type
+Most extensions that empoy user-defined infinite domains can typically enable this
+by extending [`generate_support_values`](@ref). Errors if the infinite domain type
 is not recognized.
 """
 function generate_and_add_supports!(pref::IndependentParameterRef,
-                                    set::AbstractInfiniteSet;
+                                    domain::AbstractInfiniteDomain;
                                     num_supports::Int = DefaultNumSupports,
                                     adding_extra::Bool = false)::Nothing
     sig_digits = significant_digits(pref)
-    if isa(set, IntervalSet) && adding_extra
-        supports, label = generate_support_values(set, MCSample,
+    if isa(domain, IntervalDomain) && adding_extra
+        supports, label = generate_support_values(domain, MCSample,
                                                   num_supports = num_supports,
                                                   sig_digits = sig_digits)
     else
-        supports, label = generate_supports(set,
+        supports, label = generate_supports(domain,
                                             num_supports = num_supports,
                                             sig_digits = sig_digits)
     end
@@ -1519,12 +1519,12 @@ end
 
 # Dispatch with method 
 function generate_and_add_supports!(pref::IndependentParameterRef,
-                                    set::AbstractInfiniteSet,
+                                    domain::AbstractInfiniteDomain,
                                     method::Type{<:AbstractSupportLabel};
                                     num_supports::Int = DefaultNumSupports,
                                     adding_extra::Bool = false)::Nothing
     sig_digits = significant_digits(pref)
-    supports, label = generate_supports(set, method,
+    supports, label = generate_supports(domain, method,
                                         num_supports = num_supports,
                                         sig_digits = sig_digits)
     add_supports(pref, supports, label = label)

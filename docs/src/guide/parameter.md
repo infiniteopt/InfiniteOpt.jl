@@ -107,17 +107,17 @@ same way. This is described in more detail below.
 ## Parameter Definition
 Defining/initializing an infinite parameter principally involves the following
 steps:
-1. Define an [`AbstractInfiniteSet`](@ref)
-2. Define support points within the set to later discretize the parameter
+1. Define an [`AbstractInfiniteDomain`](@ref)
+2. Define support points within the domain to later discretize the parameter
 3. Construct an [`InfOptParameter`](@ref) to store this information
 4. Add the `InfOptParameter` object to an `InfiniteModel` and assign a name
 5. Create a [`GeneralVariableRef`](@ref) that points to the parameter object
 
 ### Manual Definition
-Infinite set definition is described above in the
-[Infinite Sets](@ref infinite_sets_normal) section. The
+Infinite domain definition is described above in the
+[Infinite Domains](@ref infinite_domains_normal) section. The
 supports should be a vector of finite numbers that are drawn from the domain of
-the infinite set. These supports will be used to transcribe the `InfiniteModel`
+the infinite domain. These supports will be used to transcribe the `InfiniteModel`
 in preparation for it to be optimized. If desired, the supports can be specified
 after the parameter is defined and the support container of the defined
 parameter will be temporarily empty.
@@ -134,13 +134,13 @@ Regardless of the specific concrete type, the [`build_parameter`](@ref) function
 is used to construct an `InfOptParameter`. For example, let's create a time
 parameter ``t \in [0, 10]`` with supports `[0, 2, 5, 7, 10]`:
 ```jldoctest time_define; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> set = IntervalSet(0, 10)
+julia> domain = IntervalDomain(0, 10)
 [0, 10]
 
-julia> t_param = build_parameter(error, set, supports = [0, 2, 5, 7, 10])
-IndependentParameter{IntervalSet,FiniteDifference{Backward},NoGenerativeSupports}([0, 10], DataStructures.SortedDict(0.0=>Set([UserDefined]),2.0=>Set([UserDefined]),5.0=>Set([UserDefined]),7.0=>Set([UserDefined]),10.0=>Set([UserDefined])), 12, FiniteDifference{Backward}(Backward(), true), NoGenerativeSupports())
+julia> t_param = build_parameter(error, domain, supports = [0, 2, 5, 7, 10])
+IndependentParameter{IntervalDomain,FiniteDifference{Backward},NoGenerativeSupports}([0, 10], DataStructures.SortedDict(0.0=>Set([UserDefined]),2.0=>Set([UserDefined]),5.0=>Set([UserDefined]),7.0=>Set([UserDefined]),10.0=>Set([UserDefined])), 12, FiniteDifference{Backward}(Backward(), true), NoGenerativeSupports())
 ```  
-Now that we have a `InfOptParameter` that contains an `IntervalSet` and supports,
+Now that we have a `InfOptParameter` that contains an `IntervalDomain` and supports,
 let's now add `t_param` to our `InfiniteModel` using [`add_parameter`](@ref)
 and assign it the name of `t`:
 ```jldoctest time_define
@@ -155,18 +155,18 @@ noname
 ```
 Now suppose we want to create an infinite parameter that is a random variable
 with a given distribution. We follow the same procedure as above, except we use
-distributions from `Distributions.jl` to define a [`UniDistributionSet`](@ref).
+distributions from `Distributions.jl` to define a [`UniDistributionDomain`](@ref).
 For example, let's consider a random variable ``x \in \mathcal{N}(0,1)`` with
 supports `[-0.5, 0.5]`:
 ```jldoctest rand_define; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
 julia> dist = Normal(0., 1.)
 Normal{Float64}(μ=0.0, σ=1.0)
 
-julia> set = UniDistributionSet(dist)
+julia> domain = UniDistributionDomain(dist)
 Normal{Float64}(μ=0.0, σ=1.0)
 
-julia> x_param = build_parameter(error, set, supports = [-0.5, 0.5])
-IndependentParameter{UniDistributionSet{Normal{Float64}},FiniteDifference{Backward},NoGenerativeSupports}(Normal{Float64}(μ=0.0, σ=1.0), DataStructures.SortedDict(-0.5=>Set([UserDefined]),0.5=>Set([UserDefined])), 12, FiniteDifference{Backward}(Backward(), true), NoGenerativeSupports())
+julia> x_param = build_parameter(error, domain, supports = [-0.5, 0.5])
+IndependentParameter{UniDistributionDomain{Normal{Float64}},FiniteDifference{Backward},NoGenerativeSupports}(Normal{Float64}(μ=0.0, σ=1.0), DataStructures.SortedDict(-0.5=>Set([UserDefined]),0.5=>Set([UserDefined])), 12, FiniteDifference{Backward}(Backward(), true), NoGenerativeSupports())
 ```
 Again, we use [`add_parameter`](@ref) to add `x_param` to the `InfiniteModel` and
 assign it the name `x`:
@@ -200,8 +200,8 @@ operators to set lower bounds and upper bounds for the infinite parameter:
 julia> @infinite_parameter(model, 0 <= t <= 10, supports = [0, 2, 5, 7, 10])
 t
 ```
-More generally, we use `in` (or `∈`) to define the set that an infinite parameter is
-subject to. The set could be an interval set, or a distribution set. For example,
+More generally, we use `in` (or `∈`) to define the domain that an infinite parameter is
+subject to. The domain could be an interval domain, or a distribution domain. For example,
 we can define the same parameter `t` as above in the following way:
 ```jldoctest time_macro_define_in; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10], supports = [0, 2, 5, 7, 10])
@@ -219,15 +219,15 @@ x
 ```
 Additional ways of defining infinite parameters are provided using keyword
 arguments. For example, we can use `lower_bound` and `upper_bound` to define an
-infinite parameter in an interval set:
+infinite parameter in an interval domain:
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t, lower_bound = 0, upper_bound = 10, supports = [0, 2, 5, 7, 10])
 t
 ```
-A bit more generally, we can also use `set` to directly input the
-`AbstractInfiniteSet` that the parameter is in. For example:
+A bit more generally, we can also use `domain` to directly input the
+`AbstractInfiniteDomain` that the parameter is in. For example:
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> @infinite_parameter(model, t, set = IntervalSet(0, 10), supports = [0, 2, 5, 7, 10])
+julia> @infinite_parameter(model, t, domain = IntervalDomain(0, 10), supports = [0, 2, 5, 7, 10])
 t
 ```
 The parameter definition methods using keyword arguments will be useful later
@@ -323,7 +323,7 @@ the abstract data type [`InfOptParameter`](@ref).
 independent from other infinite parameters. [`DependentParameters`](@ref)
 stores multiple infinite parameters that are dependent on each other,
 e.g. multi-dimensional random parameters. Each [`IndependentParameter`](@ref)
-or [`DependentParameters`](@ref) stores the [`AbstractInfiniteSet`](@ref) that
+or [`DependentParameters`](@ref) stores the [`AbstractInfiniteDomain`](@ref) that
 the parameters are in and supports that discretize the parameters.
 
 For examples up to now we did not specify the value for the keyword
@@ -417,12 +417,12 @@ recognizable keyword arguments. Specifically, the first argument must be the
 model, and the second argument, if exists, must be an expression that declares
 the parameter or simply specify the dimension of the parameter if users choose
 to define it anonymously. If the information in the keyword arguments is not
-sufficient to define the set the parameter is in, the users also need to specify
-the sets in the second argument using expressions like `a <= x <= b` or
-`x in set`.
+sufficient to define the domain the parameter is in, the users also need to specify
+the domains in the second argument using expressions like `a <= x <= b` or
+`x in domain`.
 
 The keyword arguments give users flexibility in how to define their parameters.
-As mentioned above, the users can choose to specify the set either in the
+As mentioned above, the users can choose to specify the domain either in the
 second argument (nonanonymous parameter definition only), or in the keyword
 arguments. However, the users cannot do both at the same time. The macro will
 check this behavior and throw an error if this happens. For example,
@@ -431,13 +431,13 @@ julia> @infinite_parameter(model,  y in [0, 1], lower_bound = 0, upper_bound = 1
 ERROR: LoadError: At none:1: `@infinite_parameter(model, y in [0, 1], lower_bound = 0, upper_bound = 1)`: Cannot specify parameter lower_bound twice
 [...]
 
-julia> @infinite_parameter(model,  y in [0, 1], set = IntervalSet(0, 1))
-ERROR: LoadError: At none:1: `@infinite_parameter(model, y in [0, 1], set = IntervalSet(0, 1))`: Cannot specify parameter lower_bound and set
+julia> @infinite_parameter(model,  y in [0, 1], domain = IntervalDomain(0, 1))
+ERROR: LoadError: At none:1: `@infinite_parameter(model, y in [0, 1], domain = IntervalDomain(0, 1))`: Cannot specify parameter lower_bound and domain
 [...]
 ```
 
 Once the check on arguments and keyword arguments is done, the macro will create
-the [`AbstractInfiniteSet`](@ref) based on given information, and create the
+the [`AbstractInfiniteDomain`](@ref) based on given information, and create the
 infinite parameter accordingly. If the users create a multi-dimensional
 parameter, the macro will create looped code to define individual infinite
 parameter for each dimension. The looped code will also incorporate different
@@ -528,15 +528,15 @@ manually add supports to an infinite parameter. For a quick automatic
 generation of support points, though, users do not have to input the support
 points. Instead, the number of support points generated is supplied.
 
-For an infinite parameter subject to an [`IntervalSet`](@ref), uniformly spaced
+For an infinite parameter subject to an [`IntervalDomain`](@ref), uniformly spaced
 supports including both ends are generated across the interval. For example,
 defining a time parameter ``t \in [0, 10]`` with 4 supports using
 [`build_parameter`](@ref) gives
 ```jldoctest; setup = :(using InfiniteOpt)
-julia> set = IntervalSet(0, 10)
+julia> domain = IntervalDomain(0, 10)
 [0, 10]
 
-julia> t_param = build_parameter(error, set, num_supports = 4, sig_digits = 3);
+julia> t_param = build_parameter(error, domain, num_supports = 4, sig_digits = 3);
 ```  
 Using macro definition we have
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
@@ -599,7 +599,7 @@ figures of generated supports desired. The default values are 10 and 12,
 respectively.
 
 The ways by which supports are automatically generated are as follows. If the
-parameter is in an [`IntervalSet`](@ref), then we generate an array of supports
+parameter is in an [`IntervalDomain`](@ref), then we generate an array of supports
 that are uniformly distributed along the interval, including the two ends. For
 example, consider a 3D position parameter `x` distributed in the unit cube
 `[0, 1]`. We can generate supports for that point in the following way:
@@ -629,8 +629,8 @@ julia> supports(x)
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     1.0  1.0  1.0  1.0  1.0  1.0  1.0
 ```
 
-If the parameter is in a [`UniDistributionSet`](@ref) or
-[`MultiDistributionSet`](@ref), [`fill_in_supports!`](@ref)
+If the parameter is in a [`UniDistributionDomain`](@ref) or
+[`MultiDistributionDomain`](@ref), [`fill_in_supports!`](@ref)
 samples `num_supports` supports from the distribution. Recall that support
 generation is not allowed for parameters under multivariate distribution during
 parameter definition. However, if the parameter is defined first without
@@ -699,20 +699,20 @@ false
 The second call of [`is_valid`](@ref) returns `false` because the model does
 not have parameter with index 2 yet.
 
-We can also access different information about the set that the infinite
-parameter is in. This is given by [`infinite_set`](@ref), which takes a
+We can also access different information about the domain that the infinite
+parameter is in. This is given by [`infinite_domain`](@ref), which takes a
 [`GeneralVariableRef`] as argument. For example, we have
 ```jldoctest param_queries
-julia> infinite_set(x)
+julia> infinite_domain(x)
 [0, 1]
 ```
-[`infinite_set`](@ref) might be more useful if the infinite parameter is in a
-[`UniDistributionSet`](@ref) or [`MultiDistributionSet`](@ref), by which users
+[`infinite_domain`](@ref) might be more useful if the infinite parameter is in a
+[`UniDistributionDomain`](@ref) or [`MultiDistributionDomain`](@ref), by which users
 can access information about the underlying distribution. On the other hand,
-if we already know that the parameter is in an interval set, we can use
+if we already know that the parameter is in an interval domain, we can use
 [`JuMP.has_lower_bound`](@ref), [`JuMP.lower_bound`](@ref),
 [`JuMP.has_upper_bound`](@ref), [`JuMP.upper_bound`](@ref) to retrieve information
-about the interval set in a more specific way:
+about the interval domain in a more specific way:
 ```jldoctest param_queries
 julia> has_lower_bound(x)
 true
@@ -777,19 +777,19 @@ julia> all_parameters(model)
  y[1]
  y[2]
 ```
-In a similar way, we can also change the infinite set that the parameter is in
-using the [`set_infinite_set`](@ref) function as follows:
+In a similar way, we can also change the infinite domain that the parameter is in
+using the [`set_infinite_domain`](@ref) function as follows:
 ```jldoctest param_queries
 julia> t = parameter_by_name(model, "t")
 t
 
-julia> set_infinite_set(t, IntervalSet(0, 5))
+julia> set_infinite_domain(t, IntervalDomain(0, 5))
 
-julia> infinite_set(t)
+julia> infinite_domain(t)
 [0, 5]
 ```
 
-For parameters in an [`IntervalSet`](@ref), we extend
+For parameters in an [`IntervalDomain`](@ref), we extend
 [`JuMP.set_lower_bound`](@ref) and [`JuMP.set_upper_bound`](@ref) functions
 for users to modify the lower bounds and upper bounds. For example,
 ```jldoctest param_queries
@@ -797,11 +797,11 @@ julia> JuMP.set_lower_bound(t, 1)
 
 julia> JuMP.set_upper_bound(t, 4)
 
-julia> infinite_set(t)
+julia> infinite_domain(t)
 [1, 4]
 ```
 We do not support setting lower bounds and upper bounds for random parameters
-in a [`UniDistributionSet`](@ref) and will throw an error if users attempt to do
+in a [`UniDistributionDomain`](@ref) and will throw an error if users attempt to do
 so. If users want to set lower bound and upper bound for a random infinite
 parameter, consider using `Distributions.Truncated`, which creates a truncated
 distribution from a univariate distribution.
@@ -881,7 +881,7 @@ Order   = [:macro, :function]
 @infinite_parameter
 @independent_parameter
 @dependent_parameters
-build_parameter(::Function, ::InfiniteScalarSet)
+build_parameter(::Function, ::InfiniteScalarDomain)
 build_parameter(::Function, ::Real)
 add_parameter(::InfiniteModel, ::IndependentParameter,::String)
 add_parameters
@@ -901,12 +901,12 @@ used_by_objective(::FiniteParameterRef)
 is_used(::ScalarParameterRef)
 is_used(::DependentParameterRef)
 parameter_by_name(::InfiniteModel,::String)
-infinite_set(::IndependentParameterRef)
-infinite_set(::DependentParameterRef)
-infinite_set(::AbstractArray{<:DependentParameterRef})
-set_infinite_set(::IndependentParameterRef,::InfiniteScalarSet)
-set_infinite_set(::DependentParameterRef,::InfiniteScalarSet)
-set_infinite_set(::AbstractArray{<:DependentParameterRef},::InfiniteArraySet)
+infinite_domain(::IndependentParameterRef)
+infinite_domain(::DependentParameterRef)
+infinite_domain(::AbstractArray{<:DependentParameterRef})
+set_infinite_domain(::IndependentParameterRef,::InfiniteScalarDomain)
+set_infinite_domain(::DependentParameterRef,::InfiniteScalarDomain)
+set_infinite_domain(::AbstractArray{<:DependentParameterRef},::InfiniteArrayDomain)
 JuMP.has_lower_bound(::IndependentParameterRef)
 JuMP.has_lower_bound(::DependentParameterRef)
 JuMP.lower_bound(::IndependentParameterRef)
@@ -936,8 +936,8 @@ add_supports(::IndependentParameterRef,::Union{Real, Vector{<:Real}})
 add_supports(::AbstractArray{<:DependentParameterRef},::Vector{<:AbstractArray{<:Real}})
 delete_supports(::IndependentParameterRef)
 delete_supports(::AbstractArray{<:DependentParameterRef})
-generate_and_add_supports!(::IndependentParameterRef,::AbstractInfiniteSet)
-generate_and_add_supports!(::AbstractArray{<:DependentParameterRef},::InfiniteArraySet)
+generate_and_add_supports!(::IndependentParameterRef,::AbstractInfiniteDomain)
+generate_and_add_supports!(::AbstractArray{<:DependentParameterRef},::InfiniteArrayDomain)
 fill_in_supports!(::IndependentParameterRef)
 fill_in_supports!(::AbstractArray{<:DependentParameterRef})
 fill_in_supports!(::InfiniteModel)

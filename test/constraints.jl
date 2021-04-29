@@ -5,7 +5,7 @@
     @infinite_parameter(m, t in [0, 10])
     con1 = ScalarConstraint(zero(AffExpr), MOI.EqualTo(0.0))
     con2 = BoundedScalarConstraint(zero(AffExpr), MOI.EqualTo(0.0),
-                                  ParameterBounds((t => IntervalSet(0, 1),)),
+                                  ParameterBounds((t => IntervalDomain(0, 1),)),
                                   ParameterBounds())
     object1 = ConstraintData(con1, Int[], "c1", MeasureIndex[], false)
     object2 = ConstraintData(con2, [1], "c2", MeasureIndex[], false)
@@ -49,7 +49,7 @@
     end
     # test parameter_bounds
     @testset "parameter_bounds" begin
-        @test parameter_bounds(con2) == ParameterBounds((t => IntervalSet(0, 1),))
+        @test parameter_bounds(con2) == ParameterBounds((t => IntervalDomain(0, 1),))
     end
     # test original_parameter_bounds
     @testset "original_parameter_bounds" begin
@@ -122,7 +122,7 @@
     # test parameter_bounds
     @testset "parameter_bounds" begin
         @test_throws ErrorException parameter_bounds(cref1)
-        @test parameter_bounds(cref2) == ParameterBounds((t => IntervalSet(0, 1),))
+        @test parameter_bounds(cref2) == ParameterBounds((t => IntervalDomain(0, 1),))
     end
     # _make_constraint_ref
     @testset "_make_constraint_ref" begin
@@ -165,7 +165,7 @@ end
     dinf = @deriv(inf, par)
     @testset "JuMP.build_constraint (Single)" begin
         # test bounded constraint
-        bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        bounds = ParameterBounds(Dict(par => IntervalDomain(0, 1)))
         @test jump_function(build_constraint(error, inf, MOI.EqualTo(42.0),
                                              parameter_bounds = bounds)) == inf
         @test moi_set(build_constraint(error, inf, MOI.EqualTo(42.0),
@@ -184,7 +184,7 @@ end
     # test build_constraint (expr)
     @testset "JuMP.build_constraint (Expr)" begin
         # test bounded constraint
-        bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        bounds = ParameterBounds(Dict(par => IntervalDomain(0, 1)))
         @test jump_function(build_constraint(error, inf + par, MOI.EqualTo(42.0),
                                              parameter_bounds = bounds)) == inf + par
         @test moi_set(build_constraint(error, inf + par, MOI.EqualTo(42.0),
@@ -205,7 +205,7 @@ end
         bounds = ParameterBounds()
         c = BoundedScalarConstraint(x + inf, MOI.EqualTo(0.0), bounds, copy(bounds))
         @test InfiniteOpt._check_and_update_bounds(m, c,
-                                      [x, inf]).bounds[par] == IntervalSet(1, 1)
+                                      [x, inf]).bounds[par] == IntervalDomain(1, 1)
         @test original_parameter_bounds(InfiniteOpt._check_and_update_bounds(m, c,
                                                  [x, inf])) == ParameterBounds()
     end
@@ -213,7 +213,7 @@ end
     @testset "_check_and_update_bounds (Scalar)" begin
         c = JuMP.ScalarConstraint(inf + x, MOI.EqualTo(0.0))
         @test InfiniteOpt._check_and_update_bounds(m, c,
-                            [x, inf]).bounds[par] == IntervalSet(1, 1)
+                            [x, inf]).bounds[par] == IntervalDomain(1, 1)
         set_parameter_bounds(x, ParameterBounds(), force = true)
         m.has_finite_var_bounds = false
         @test InfiniteOpt._check_and_update_bounds(m, c, [x, inf]) == c
@@ -265,7 +265,7 @@ end
         con = ScalarConstraint(z, MOI.EqualTo(42.0))
         @test_throws VariableNotOwned{GeneralVariableRef} add_constraint(m, con, "a")
         # test bounded constraint
-        bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        bounds = ParameterBounds(Dict(par => IntervalDomain(0, 1)))
         con = BoundedScalarConstraint(inf + pt, MOI.EqualTo(42.0), bounds, bounds)
         idx = ConstraintIndex(1)
         cref = InfOptConstraintRef(m, idx)
@@ -290,7 +290,7 @@ end
         idx = ConstraintIndex(4)
         cref = InfOptConstraintRef(m, idx)
         @test add_constraint(m, con, "b") == cref
-        @test parameter_bounds(cref)[par] == IntervalSet(1, 1)
+        @test parameter_bounds(cref)[par] == IntervalDomain(1, 1)
         @test InfiniteOpt._core_constraint_object(cref).orig_bounds == ParameterBounds()
         set_parameter_bounds(x, ParameterBounds(), force = true)
     end
@@ -302,7 +302,7 @@ end
         @test @constraint(m, e, x + pt -2 <= 2) == cref
         @test isa(InfiniteOpt._core_constraint_object(cref), ScalarConstraint)
         # test bounded scalar constraint
-        bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        bounds = ParameterBounds(Dict(par => IntervalDomain(0, 1)))
         idx = ConstraintIndex(6)
         cref = InfOptConstraintRef(m, idx)
         @test @constraint(m, f, inf + meas - dinf <= 2, parameter_bounds = bounds) == cref
@@ -325,9 +325,9 @@ end
     @testset "_extract_bounds (:call)" begin
         # test single anonymous bound
         args = [:in, :t, :([0, 1])]
-        set = :(IntervalSet(0, 1))
+        domain = :(IntervalDomain(0, 1))
         tp = :(t)
-        dict_arg = :($(tp) => $(set))
+        dict_arg = :($(tp) => $(domain))
         bounds = :(ParameterBounds(($(dict_arg),)))
         @test InfiniteOpt._extract_bounds(error, args,
                                           Val(:call)) == (nothing, bounds)
@@ -345,7 +345,7 @@ end
         @infinite_variable(m, inf(par))
         @point_variable(m, inf(0.5), pt)
         @finite_variable(m, x)
-        bounds1 = ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        bounds1 = ParameterBounds(Dict(par => IntervalDomain(0, 1)))
         m2 = Model()
         # test errors
         @test_macro_throws ErrorException @BDconstraint(m, par = 0, inf == 0,
@@ -372,25 +372,25 @@ end
         idx = ConstraintIndex(3)
         cref = InfOptConstraintRef(m, idx)
         @test @BDconstraint(m, par == 0, inf + x == 2) == cref
-        @test parameter_bounds(cref) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        @test parameter_bounds(cref) == ParameterBounds(Dict(par => IntervalDomain(0, 0)))
         # test anonymous multiple constraint
         idxs = [ConstraintIndex(4), ConstraintIndex(5)]
         crefs = [InfOptConstraintRef(m, idx) for idx in idxs]
         @test @BDconstraint(m, [1:2](par == 0), inf + x == 2) == crefs
-        @test parameter_bounds(crefs[1]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
-        @test parameter_bounds(crefs[2]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        @test parameter_bounds(crefs[1]) == ParameterBounds(Dict(par => IntervalDomain(0, 0)))
+        @test parameter_bounds(crefs[2]) == ParameterBounds(Dict(par => IntervalDomain(0, 0)))
         # test anonymous multiple bounds
         idx = ConstraintIndex(6)
         cref = InfOptConstraintRef(m, idx)
         @test @BDconstraint(m, (par == 0, pars[1] in [0, 1]), inf + x == 2) == cref
-        @test parameter_bounds(cref) == ParameterBounds((par => IntervalSet(0, 0),
-                                                  pars[1] => IntervalSet(0, 1)))
+        @test parameter_bounds(cref) == ParameterBounds((par => IntervalDomain(0, 0),
+                                                  pars[1] => IntervalDomain(0, 1)))
         # test anonymous multiple bounds with vector input
         idx = ConstraintIndex(7)
         cref = InfOptConstraintRef(m, idx)
         @test @BDconstraint(m, (par == 0, pars in [0, 1]), inf + x == 2) == cref
-        @test parameter_bounds(cref) == ParameterBounds((par => IntervalSet(0, 0),
-                    pars[1] => IntervalSet(0, 1), pars[2] => IntervalSet(0, 1)))
+        @test parameter_bounds(cref) == ParameterBounds((par => IntervalDomain(0, 0),
+                    pars[1] => IntervalDomain(0, 1), pars[2] => IntervalDomain(0, 1)))
         # test named constraint
         idx = ConstraintIndex(8)
         cref = InfOptConstraintRef(m, idx)
@@ -400,37 +400,37 @@ end
         idx = ConstraintIndex(9)
         cref = InfOptConstraintRef(m, idx)
         @test @BDconstraint(m, c2(par in [0, 1], 0 <= pars <= 1), inf + x == 2) == cref
-        @test parameter_bounds(cref) == ParameterBounds((par => IntervalSet(0, 1),
-                    pars[1] => IntervalSet(0, 1), pars[2] => IntervalSet(0, 1)))
+        @test parameter_bounds(cref) == ParameterBounds((par => IntervalDomain(0, 1),
+                    pars[1] => IntervalDomain(0, 1), pars[2] => IntervalDomain(0, 1)))
         # test named constraints
         idxs = [ConstraintIndex(10), ConstraintIndex(11)]
         crefs = [InfOptConstraintRef(m, idx) for idx in idxs]
         @test @BDconstraint(m, c3[1:2](par == 0), inf + x == 2) == crefs
-        @test parameter_bounds(crefs[1]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
-        @test parameter_bounds(crefs[2]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        @test parameter_bounds(crefs[1]) == ParameterBounds(Dict(par => IntervalDomain(0, 0)))
+        @test parameter_bounds(crefs[2]) == ParameterBounds(Dict(par => IntervalDomain(0, 0)))
         # test different container type
         idxs = [ConstraintIndex(12), ConstraintIndex(13)]
         crefs = [InfOptConstraintRef(m, idx) for idx in idxs]
         expected = convert(JuMPC.SparseAxisArray, crefs)
         @test @BDconstraint(m, c4[1:2](par == 0), inf + x == 2,
                             container = SparseAxisArray) == expected
-        @test parameter_bounds(crefs[1]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
-        @test parameter_bounds(crefs[2]) == ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        @test parameter_bounds(crefs[1]) == ParameterBounds(Dict(par => IntervalDomain(0, 0)))
+        @test parameter_bounds(crefs[2]) == ParameterBounds(Dict(par => IntervalDomain(0, 0)))
         # test with SparseAxisArray input
         idx = ConstraintIndex(14)
         cref = InfOptConstraintRef(m, idx)
         pars = convert(JuMPC.SparseAxisArray, pars)
         @test @BDconstraint(m, c5(pars in [0, 1]), inf + x == 2) == cref
-        @test parameter_bounds(cref) == ParameterBounds((pars[1] => IntervalSet(0, 1),
-                                                  pars[2] => IntervalSet(0, 1)))
+        @test parameter_bounds(cref) == ParameterBounds((pars[1] => IntervalDomain(0, 1),
+                                                  pars[2] => IntervalDomain(0, 1)))
         # test with finite variable bounds
         @set_parameter_bounds(x, pars[1] in [0, 2])
         idx = ConstraintIndex(15)
         cref = InfOptConstraintRef(m, idx)
         @test @BDconstraint(m, c10(par in [0, 1]), inf + x == 2) == cref
-        @test parameter_bounds(cref) == ParameterBounds(Dict(par => IntervalSet(0, 1),
-                                                  pars[1] => IntervalSet(0, 2)))
-        @test InfiniteOpt._core_constraint_object(cref).orig_bounds == ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        @test parameter_bounds(cref) == ParameterBounds(Dict(par => IntervalDomain(0, 1),
+                                                  pars[1] => IntervalDomain(0, 2)))
+        @test InfiniteOpt._core_constraint_object(cref).orig_bounds == ParameterBounds(Dict(par => IntervalDomain(0, 1)))
     end
 end
 
@@ -469,7 +469,7 @@ end
                   Nothing)
         @test isa(constraint_object(c1), ScalarConstraint)
         # test normalized_coefficient
-        bounds = ParameterBounds(Dict(par => IntervalSet(0, 5)))
+        bounds = ParameterBounds(Dict(par => IntervalDomain(0, 5)))
         @test isa(InfiniteOpt._update_constr_param_bounds(c1, bounds, bounds),
                   Nothing)
         @test parameter_bounds(c1) == bounds
@@ -477,20 +477,20 @@ end
     # test set_parameter_bounds
     @testset "set_parameter_bounds" begin
         # test force error
-        bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        bounds = ParameterBounds(Dict(par => IntervalDomain(0, 1)))
         @test_throws ErrorException set_parameter_bounds(c1, bounds)
         # test normal
         @test isa(set_parameter_bounds(c2, bounds), Nothing)
         @test parameter_bounds(c2) == bounds
         @test !optimizer_model_ready(m)
         # test test error with bounds
-        bounds = ParameterBounds(Dict(par => IntervalSet(-1, 1)))
+        bounds = ParameterBounds(Dict(par => IntervalDomain(-1, 1)))
         @test_throws ErrorException set_parameter_bounds(c1, bounds, force = true)
     end
     # test add_parameter_bound
     @testset "add_parameter_bounds" begin
         # test already has bounds
-        bounds = ParameterBounds(Dict(par => IntervalSet(0, 1)))
+        bounds = ParameterBounds(Dict(par => IntervalDomain(0, 1)))
         @test isa(add_parameter_bounds(c1, copy(bounds)), Nothing)
         @test parameter_bounds(c1) == bounds
         # test doesn't have bounds
@@ -501,11 +501,11 @@ end
     # test delete_parameter_bounds
     @testset "delete_parameter_bounds" begin
         # test partial deletion
-        bounds = ParameterBounds(Dict(pars[1] => IntervalSet(0, 1)))
+        bounds = ParameterBounds(Dict(pars[1] => IntervalDomain(0, 1)))
         @test isa(add_parameter_bounds(c1, bounds), Nothing)
         @add_parameter_bounds(x, par == 0)
         @test isa(delete_parameter_bounds(c1), Nothing)
-        expected = ParameterBounds(Dict(par => IntervalSet(0, 0)))
+        expected = ParameterBounds(Dict(par => IntervalDomain(0, 0)))
         @test parameter_bounds(c1) == expected
         # test again without finite var bounds
         delete_parameter_bounds(x)
@@ -522,12 +522,12 @@ end
         # test with single
         @set_parameter_bounds(x, pars == 0)
         @test isa(@set_parameter_bounds(c1, par == 1, force = true), Nothing)
-        @test parameter_bounds(c1) == ParameterBounds((par => IntervalSet(1, 1),
-                                                  pars => IntervalSet(0, 0)))
+        @test parameter_bounds(c1) == ParameterBounds((par => IntervalDomain(1, 1),
+                                                  pars => IntervalDomain(0, 0)))
         set_parameter_bounds(x, ParameterBounds(), force = true)
         # test multiple
         @test isa(@set_parameter_bounds(c1, pars == 0, force = true), Nothing)
-        @test parameter_bounds(c1)[pars[2]] == IntervalSet(0, 0)
+        @test parameter_bounds(c1)[pars[2]] == IntervalDomain(0, 0)
     end
     # test @add_parameter_bounds
     @testset "@add_parameter_bounds" begin
@@ -536,8 +536,8 @@ end
         @test_macro_throws ErrorException @add_parameter_bounds(c3, par in [-1, 1])
         # test with multiple
         @test isa(@add_parameter_bounds(c2, (pars == 0, par in [0, 1])), Nothing)
-        @test parameter_bounds(c2)[pars[2]] == IntervalSet(0, 0)
-        @test parameter_bounds(c2)[par] == IntervalSet(0, 1)
+        @test parameter_bounds(c2)[pars[2]] == IntervalDomain(0, 0)
+        @test parameter_bounds(c2)[par] == IntervalDomain(0, 1)
     end
 end
 
