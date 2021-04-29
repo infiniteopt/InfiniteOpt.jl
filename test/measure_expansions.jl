@@ -875,7 +875,7 @@ end
         @test isa(constraint_object(c2), ScalarConstraint)
         @test isa(constraint_object(c3), BoundedScalarConstraint)
         @test isa(constraint_object(c4), BoundedScalarConstraint)
-        @test constraint_object(c3).bounds.intervals == Dict(par2 => IntervalSet(1, 1.5))
-        @test constraint_object(c4).bounds.intervals == Dict(par2 => IntervalSet(1, 1))
+        @test constraint_object(c3).bounds.intervals == Dict(par2 => IntervalDomain(1, 1.5))
+        @test constraint_object(c4).bounds.intervals == Dict(par2 => IntervalDomain(1, 1))
     end
 end

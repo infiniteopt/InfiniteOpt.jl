@@ -458,7 +458,7 @@ function _object_number(pref::GeneralVariableRef)::Int
 end
 
 # Define 1 argument user method wrappers and their fallbacks
-for op = (:infinite_set, :num_supports, :significant_digits, :has_supports,
+for op = (:infinite_domain, :num_supports, :significant_digits, :has_supports,
           :supports, :delete_supports, :fill_in_supports!, :parameter_value,
           :derivative_method, :has_generative_supports, :has_internal_supports,
           :add_generative_supports, :raw_function, :generative_support_info)
@@ -487,38 +487,38 @@ for op = (:infinite_set, :num_supports, :significant_digits, :has_supports,
 end
 
 # Dispatch fallback
-function set_infinite_set(pref, set::AbstractInfiniteSet)
-    throw(ArgumentError("`set_infinite_set` not defined for variable reference type(s) " *
+function set_infinite_domain(pref, domain::AbstractInfiniteDomain)
+    throw(ArgumentError("`set_infinite_domain` not defined for variable reference type(s) " *
                         "`$(typeof(pref))`."))
 end
 
 """
-    set_infinite_set(pref::GeneralVariableRef, set::InfiniteScalarSet)::Nothing
+    set_infinite_domain(pref::GeneralVariableRef, domain::InfiniteScalarDomain)::Nothing
 
-Specify the scalar infinite set of the infinite parameter `pref` to `set`. Note
+Specify the scalar infinite domain of the infinite parameter `pref` to `domain`. Note
 this will reset/delete all the supports contained in the
 underlying parameter object. Also, errors if `pref` is used
 by a measure. An `ArgumentError` is thrown if `pref` is not an infinite parameter.
 """
-function set_infinite_set(pref::GeneralVariableRef,
-                          set::InfiniteScalarSet)::Nothing
-    return set_infinite_set(dispatch_variable_ref(pref), set)
+function set_infinite_domain(pref::GeneralVariableRef,
+                          domain::InfiniteScalarDomain)::Nothing
+    return set_infinite_domain(dispatch_variable_ref(pref), domain)
 end
 
 """
-    set_infinite_set(prefs::AbstractArray{<:GeneralVariableRef},
-                     set::InfiniteArraySet)::Nothing
+    set_infinite_domain(prefs::AbstractArray{<:GeneralVariableRef},
+                     domain::InfiniteArrayDomain)::Nothing
 
-Specify the multi-dimensional infinite set of the dependent infinite parameters
-`prefs` to `set`. Note this will reset/delete all the supports contained in the
+Specify the multi-dimensional infinite domain of the dependent infinite parameters
+`prefs` to `domain`. Note this will reset/delete all the supports contained in the
 underlying [`DependentParameters`](@ref) object. This will error if the not all
 of the dependent infinite parameters are included or if any of them are used by
 measures. An `ArgumentError` is thrown if `prefs` are not dependent infinite
 parameters.
 """
-function set_infinite_set(prefs::AbstractArray{<:GeneralVariableRef},
-                          set::InfiniteArraySet)::Nothing
-    return set_infinite_set(dispatch_variable_ref.(prefs), set)
+function set_infinite_domain(prefs::AbstractArray{<:GeneralVariableRef},
+                          domain::InfiniteArrayDomain)::Nothing
+    return set_infinite_domain(dispatch_variable_ref.(prefs), domain)
 end
 
 # Better fallbacks for supports

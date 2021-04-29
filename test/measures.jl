@@ -167,19 +167,19 @@ end
         @test_throws ErrorException DiscreteMeasureData(pars3, [1], [[1, 2]])
         @test_throws ErrorException DiscreteMeasureData(pars3, [1], [JuMPC.DenseAxisArray([1,2],2:3)], lower_bounds = [NaN, NaN])
     end
-    # test _check_bounds_in_set (IndependentParameter)
-    @testset "_check_bounds_in_set (independent parameters)" begin
+    # test _check_bounds_in_domain (IndependentParameter)
+    @testset "_check_bounds_in_domain (independent parameters)" begin
         disp_par = dispatch_variable_ref(par)
-        @test_throws ErrorException InfiniteOpt._check_bounds_in_set([disp_par, disp_par], [-1, -1], [1, 1])
-        @test_throws ErrorException InfiniteOpt._check_bounds_in_set([disp_par, disp_par], [0, 0], [2, 2])
-        @test InfiniteOpt._check_bounds_in_set([disp_par, disp_par], [0.3, 0.2], [0.7, 0.8]) isa Nothing
+        @test_throws ErrorException InfiniteOpt._check_bounds_in_domain([disp_par, disp_par], [-1, -1], [1, 1])
+        @test_throws ErrorException InfiniteOpt._check_bounds_in_domain([disp_par, disp_par], [0, 0], [2, 2])
+        @test InfiniteOpt._check_bounds_in_domain([disp_par, disp_par], [0.3, 0.2], [0.7, 0.8]) isa Nothing
     end
-    # test _check_bounds_in_set (DependentParameter)
-    @testset "_check_bounds_in_set (dependent parameters)" begin
+    # test _check_bounds_in_domain (DependentParameter)
+    @testset "_check_bounds_in_domain (dependent parameters)" begin
         disp_vars = dispatch_variable_ref.(pars)
-        @test_throws ErrorException InfiniteOpt._check_bounds_in_set(disp_vars, [-1, -1], [1, 1])
-        @test_throws ErrorException InfiniteOpt._check_bounds_in_set(disp_vars, [0, 0], [2, 2])
-        @test InfiniteOpt._check_bounds_in_set(disp_vars, [0.3, 0.2], [0.7, 0.8]) isa Nothing
+        @test_throws ErrorException InfiniteOpt._check_bounds_in_domain(disp_vars, [-1, -1], [1, 1])
+        @test_throws ErrorException InfiniteOpt._check_bounds_in_domain(disp_vars, [0, 0], [2, 2])
+        @test InfiniteOpt._check_bounds_in_domain(disp_vars, [0.3, 0.2], [0.7, 0.8]) isa Nothing
     end
     # test multidim FunctionalDiscreteMeasureData constructor
     @testset "FunctionalDiscreteMeasureData (multidim)" begin
@@ -589,7 +589,7 @@ end
     @testset "add_supports_to_parameters (multi FunctionalDiscreteMeasureData)" begin
         # test functionality
         @test isa(add_supports_to_parameters(data4), Nothing)
-        @test num_supports(pars) == 5 # wrong with CollectionSet support generation
+        @test num_supports(pars) == 5 # wrong with CollectionDomain support generation
         # clear supports
         delete_supports(pars)
         add_supports_to_parameters(data8)

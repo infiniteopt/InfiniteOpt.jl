@@ -1,22 +1,22 @@
-# test adding new infinite set
-@testset "Infinite Sets" begin
+# test adding new infinite domain
+@testset "Infinite Domains" begin
     # load in the extension
-    include("./extensions/infinite_set.jl")
+    include("./extensions/infinite_domain.jl")
 
     # initialize model
     m = InfiniteModel()
 
     # test definition
-    @test MyNewSet(0, 1) isa MyNewSet
-    set = MyNewSet(0, 1)
-    @test @infinite_parameter(m, set = set) isa GeneralVariableRef
-    @test infinite_set(first(all_parameters(m))) == set
-    @test @infinite_parameter(m, par in set, supports = [0, 1]) isa GeneralVariableRef
-    infinite_set(m[:par]) == set
+    @test MyNewDomain(0, 1) isa MyNewDomain
+    domain = MyNewDomain(0, 1)
+    @test @infinite_parameter(m, domain = domain) isa GeneralVariableRef
+    @test infinite_domain(first(all_parameters(m))) == domain
+    @test @infinite_parameter(m, par in domain, supports = [0, 1]) isa GeneralVariableRef
+    infinite_domain(m[:par]) == domain
     supports(m[:par]) == [0., 1.]
-    @test @infinite_parameter(m, par2 in set, num_supports = 3) isa GeneralVariableRef
+    @test @infinite_parameter(m, par2 in domain, num_supports = 3) isa GeneralVariableRef
     supports(m[:par2]) == [0., 0.5, 1.]
-    @test @infinite_parameter(m, [1:2], set = set, num_supports = 3) isa Vector
+    @test @infinite_parameter(m, [1:2], domain = domain, num_supports = 3) isa Vector
 
     # set support methods
     par = m[:par]

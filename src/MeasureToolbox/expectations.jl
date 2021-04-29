@@ -1,28 +1,28 @@
 ################################################################################
 #                             EXPECTATION METHODS
 ################################################################################
-## Determine if parameter(s) use a distrubution set
-# IndependentParameter and UniDistributionSet
-function _has_distribution_set(pref::InfiniteOpt.IndependentParameterRef,
-                               set::InfiniteOpt.UniDistributionSet)::Bool
+## Determine if parameter(s) use a distrubution domain
+# IndependentParameter and UniDistributionDomain
+function _has_distribution_domain(pref::InfiniteOpt.IndependentParameterRef,
+                               domain::InfiniteOpt.UniDistributionDomain)::Bool
     return true
 end
 
-# DependentParameter and MultiDistributionSet
-function _has_distribution_set(pref::InfiniteOpt.DependentParameterRef,
-                               set::InfiniteOpt.MultiDistributionSet)::Bool
+# DependentParameter and MultiDistributionDomain
+function _has_distribution_domain(pref::InfiniteOpt.DependentParameterRef,
+                               domain::InfiniteOpt.MultiDistributionDomain)::Bool
     return true
 end
 
-# DependentParameter and CollectionSet
-function _has_distribution_set(pref::InfiniteOpt.DependentParameterRef,
-                               set::InfiniteOpt.CollectionSet)::Bool
-    sets = InfiniteOpt.collection_sets(set)
-    return sets[InfiniteOpt._param_index(pref)] isa InfiniteOpt.UniDistributionSet
+# DependentParameter and CollectionDomain
+function _has_distribution_domain(pref::InfiniteOpt.DependentParameterRef,
+                               domain::InfiniteOpt.CollectionDomain)::Bool
+    domains = InfiniteOpt.collection_domains(domain)
+    return domains[InfiniteOpt._param_index(pref)] isa InfiniteOpt.UniDistributionDomain
 end
 
 # Fallback
-function _has_distribution_set(pref, set)::Bool
+function _has_distribution_domain(pref, domain)::Bool
     return false
 end
 
@@ -75,8 +75,8 @@ function expect(expr::JuMP.AbstractJuMPScalar,
         min_num_supports = 0
     end
     # prepare the label
-    set = InfiniteOpt._parameter_set(dpref)
-    if _has_distribution_set(dpref, set)
+    domain = InfiniteOpt._parameter_domain(dpref)
+    if _has_distribution_domain(dpref, domain)
         label = InfiniteOpt.WeightedSample
         is_expect = true
     else

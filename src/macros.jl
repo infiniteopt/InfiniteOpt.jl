@@ -1,31 +1,31 @@
 const Containers = JuMP.Containers
 
-# Parse raw input to define the upper bound for an interval set
+# Parse raw input to define the upper bound for an interval domain
 function _parse_one_operator_parameter(
     _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:<=}, Val{:≤}},
     upper)
     _set_upper_bound_or_error(_error, infoexpr, upper)
 end
 
-# Parse raw input to define the lower bound for an interval set
+# Parse raw input to define the lower bound for an interval domain
 function _parse_one_operator_parameter(
     _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:>=}, Val{:≥}},
     lower)
     _set_lower_bound_or_error(_error, infoexpr, lower)
 end
 
-# Parse raw input to define the distribution for a dist set
+# Parse raw input to define the distribution for a dist domain
 function _parse_one_operator_parameter(
     _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:in}, Val{:∈}},
     value)
-    # check if interval set
+    # check if interval domain
     if isexpr(value.args[1], :vect)
         _set_lower_bound_or_error(_error, infoexpr,
                                   _esc_non_constant(value.args[1].args[1]))
         _set_upper_bound_or_error(_error, infoexpr,
                                   _esc_non_constant(value.args[1].args[2]))
     else
-        _set_or_error(_error, infoexpr, value)
+        _domain_or_error(_error, infoexpr, value)
     end
 end
 
@@ -53,7 +53,7 @@ function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
     return var
 end
 
-# Parse raw input to define the upper and lower bounds for an interval set
+# Parse raw input to define the upper and lower bounds for an interval domain
 function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
                                   ::Union{Val{:<=}, Val{:≤}}, lower,
                                   ::Union{Val{:<=}, Val{:≤}}, upper)
@@ -61,7 +61,7 @@ function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr
     _set_upper_bound_or_error(_error, infoexpr, upper)
 end
 
-# Parse raw input to define the upper and lower bounds for an interval set
+# Parse raw input to define the upper and lower bounds for an interval domain
 function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
                                   ::Union{Val{:>=}, Val{:≥}}, upper,
                                   ::Union{Val{:>=}, Val{:≥}}, lower)
@@ -101,9 +101,9 @@ be used instead of `≥`, and the symbol `in` can be used instead of `∈`) The
 expression `expr` can be of the form:
 - `paramexpr` creating parameters described by `paramexpr`.
 - `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
-   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+   by a continuous interval domain with lower bound `lb` and upper bound `ub`.
 - `paramexpr ∈ [lb, ub]` creating parameters described by `paramexpr` characterized
-   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+   by a continuous interval domain with lower bound `lb` and upper bound `ub`.
 - `paramexpr ∈ dist` creating parameters described by `paramexpr` characterized
    by the `Distributions.jl` distribution object `dist`.
 
@@ -116,10 +116,10 @@ The recognized keyword arguments in `kw_args` are the following:
   corresponds to the parameter name for scalar parameter, otherwise, the
   parameter names are set to `base_name[...]` for each index `...` of the axes
   `axes`.
-- `lower_bound`: Sets the value of the parameter lower bound for an interval set.
-- `upper_bound`: Sets the value of the parameter upper bound for an interval set.
-- `set`: The `InfiniteSet` characterizing the parameters see [`IntervalSet`](@ref)
-   and [`UniDistributionSet`](@ref).
+- `lower_bound`: Sets the value of the parameter lower bound for an interval domain.
+- `upper_bound`: Sets the value of the parameter upper bound for an interval domain.
+- `domain`: The `InfiniteDomain` characterizing the parameters see [`IntervalDomain`](@ref)
+   and [`UniDistributionDomain`](@ref).
 - `distribution`: Sets the `Distributions.jl` distribution object that characterizes
   the parameters.
 - `supports`: Sets the support points for the parameters.
@@ -178,9 +178,9 @@ macro independent_parameter(model, args...)
         _error("Unrecognized argument $arg provided.")
     end
 
-    info_kw_args = filter(InfiniteOpt._is_set_keyword, kw_args)
+    info_kw_args = filter(InfiniteOpt._is_domain_keyword, kw_args)
     extra_kw_args = filter(kw -> kw.args[1] != :base_name && 
-                           !InfiniteOpt._is_set_keyword(kw) && 
+                           !InfiniteOpt._is_domain_keyword(kw) && 
                            kw.args[1] != :error_func, kw_args)
     base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
     infoexpr = InfiniteOpt._ParameterInfoExpr(; InfiniteOpt._keywordify.(info_kw_args)...)
@@ -215,10 +215,10 @@ macro independent_parameter(model, args...)
                "...) instead.")
     end
 
-    set = InfiniteOpt._constructor_set(_error, infoexpr)
+    domain = InfiniteOpt._constructor_domain(_error, infoexpr)
     if isa(param, Symbol)
         # Easy case - a single variable
-        buildcall = :( build_parameter($_error, $set) )
+        buildcall = :( build_parameter($_error, $domain) )
         _add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall, $base_name) )
         creationcode = :($parameter = $parametercall)
@@ -227,7 +227,7 @@ macro independent_parameter(model, args...)
         # We now build the code to generate the variables (and possibly the
         # SparseAxisArray to contain them)
         idxvars, indices = JuMPC._build_ref_sets(_error, param)
-        buildcall = :( build_parameter($_error, $set) )
+        buildcall = :( build_parameter($_error, $domain) )
         _add_kw_args(buildcall, extra_kw_args)
         parametercall = :( add_parameter($esc_model, $buildcall,
                                          $(_name_call(base_name, idxvars))) )
@@ -375,13 +375,13 @@ be used instead of `≥`, and the symbol `in` can be used instead of `∈`) The
 expression `expr` can be of the form:
 - `paramexpr` creating parameters described by `paramexpr`.
 - `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
-   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+   by a continuous interval domain with lower bound `lb` and upper bound `ub`.
 - `paramexpr ∈ [lb, ub]` creating parameters described by `paramexpr` characterized
-   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+   by a continuous interval domain with lower bound `lb` and upper bound `ub`.
 - `paramexpr ∈ dist` creating parameters described by `paramexpr` characterized
    by the `Distributions.jl` distribution object `dist`.
-- `paramexpr ∈ set` creating parameters described by `paramexpr` characterized
-   by the `AbstractInfiniteSet` object `set`.
+- `paramexpr ∈ domain` creating parameters described by `paramexpr` characterized
+   by the `AbstractInfiniteDomain` object `domain`.
 
 The expression `paramexpr` must be of the form:
 - `paramname[...]` or `[...]` creating a container of parameters
@@ -391,10 +391,10 @@ The recognized keyword arguments in `kw_args` are the following:
   corresponds to the parameter name for scalar parameter, otherwise, the
   parameter names are set to `base_name[...]` for each index `...` of the axes
   `axes`.
-- `lower_bound`: Sets the value of the parameter lower bound for an interval set.
-- `upper_bound`: Sets the value of the parameter upper bound for an interval set.
-- `set`: The `InfiniteSet` characterizing the parameters that are subtypes of
-         [`AbstractInfiniteSet`](@ref).
+- `lower_bound`: Sets the value of the parameter lower bound for an interval domain.
+- `upper_bound`: Sets the value of the parameter upper bound for an interval domain.
+- `domain`: The `InfiniteDomain` characterizing the parameters that are subtypes of
+         [`AbstractInfiniteDomain`](@ref).
 - `distribution`: Sets the `Distributions.jl` distribution object that characterizes
   the parameters.
 - `supports`: Sets the support points for the parameters.
@@ -454,11 +454,11 @@ macro dependent_parameters(model, args...)
     end
 
     # parse the keyword arguments
-    info_kw_args = filter(_is_set_keyword, kw_args)
+    info_kw_args = filter(_is_domain_keyword, kw_args)
     supports_kw_arg = filter(kw -> kw.args[1] == :supports, kw_args)
     method_kw_arg = filter(kw -> kw.args[1] == :derivative_method, kw_args)
     extra_kw_args = filter(kw -> kw.args[1] != :base_name &&
-                           !InfiniteOpt._is_set_keyword(kw) &&
+                           !InfiniteOpt._is_domain_keyword(kw) &&
                            kw.args[1] != :error_func &&
                            kw.args[1] != :supports &&
                            kw.args[1] != :derivative_method, kw_args)
@@ -472,11 +472,11 @@ macro dependent_parameters(model, args...)
     # [1:2]                                       | Expr      | :vect
     # param[1:2]                                  | Expr      | :ref
     # param[1:2] <= ub                            | Expr      | :call
-    # param[1:2] in [lb, ub] (other sets)         | Expr      | :call
+    # param[1:2] in [lb, ub] (other domains)         | Expr      | :call
     # lb <= param[1:2] <= ub                      | Expr      | :comparison
     # In the three last cases, we call parse_variable
-    symbolic_set = isexpr(x, :comparison) || isexpr(x, :call)
-    if symbolic_set
+    symbolic_domain = isexpr(x, :comparison) || isexpr(x, :call)
+    if symbolic_domain
         param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
     elseif isa(x, Symbol)
         _error("Must specify more than one dependent parameter.")
@@ -486,7 +486,7 @@ macro dependent_parameters(model, args...)
 
     # determine it is an anonymous call
     anonparam = isexpr(param, :vcat) || isexpr(param, :vect)
-    anonparam && symbolic_set && _error("Cannot use symbolic infinite defintion " *
+    anonparam && symbolic_domain && _error("Cannot use symbolic infinite defintion " *
                                         "with an anonymous parameter")
     # process the parameter name
     parameter = gensym()
@@ -516,13 +516,13 @@ macro dependent_parameters(model, args...)
         method = esc(method_kw_arg[1].args[2])
     end
 
-    # parse the infinite set(s)
-    set = InfiniteOpt._construct_array_set(_error, infoexpr)
+    # parse the infinite domain(s)
+    domain = InfiniteOpt._construct_array_domain(_error, infoexpr)
 
     # make code to build the DependentParameters object and the references
     idxvars, indices = JuMPC._build_ref_sets(_error, param)
     namecode = _name_call(base_name, idxvars)
-    parambuildcall = :( InfiniteOpt._DependentParameter($set, $supports, $namecode, $method) )
+    parambuildcall = :( InfiniteOpt._DependentParameter($domain, $supports, $namecode, $method) )
     param_container_call = JuMPC.container_code(idxvars, indices, parambuildcall,
                                                 requestedcontainer)
     buildcall = :( InfiniteOpt._build_parameters($_error, $param_container_call) )
@@ -558,13 +558,13 @@ be used instead of `≥`, and the symbol `in` can be used instead of `∈`) The
 expression `expr` can be of the form:
 - `paramexpr` creating parameters described by `paramexpr`.
 - `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
-   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+   by a continuous interval domain with lower bound `lb` and upper bound `ub`.
 - `paramexpr ∈ [lb, ub]` creating parameters described by `paramexpr` characterized
-   by a continuous interval set with lower bound `lb` and upper bound `ub`.
+   by a continuous interval domain with lower bound `lb` and upper bound `ub`.
 - `paramexpr ∈ dist` creating parameters described by `paramexpr` characterized
    by the `Distributions.jl` distribution object `dist`.
-- `paramexpr ∈ set` creating parameters described by `paramexpr` characterized
-  by the `AbstractInfiniteSet` object `set`.
+- `paramexpr ∈ domain` creating parameters described by `paramexpr` characterized
+  by the `AbstractInfiniteDomain` object `domain`.
 
 The expression `paramexpr` can be of the form:
 - `paramname` creating a scalar parameter of name `paramname`
@@ -575,10 +575,10 @@ The recognized keyword arguments in `kw_args` are the following:
   corresponds to the parameter name for scalar parameter, otherwise, the
   parameter names are set to `base_name[...]` for each index `...` of the axes
   `axes`.
-- `lower_bound`: Sets the value of the parameter lower bound for an interval set.
-- `upper_bound`: Sets the value of the parameter upper bound for an interval set.
-- `set`: The `InfiniteSet` characterizing the parameters see subtypes of
-         [`AbstractInfiniteSet`](@ref).
+- `lower_bound`: Sets the value of the parameter lower bound for an interval domain.
+- `upper_bound`: Sets the value of the parameter upper bound for an interval domain.
+- `domain`: The `InfiniteDomain` characterizing the parameters see subtypes of
+         [`AbstractInfiniteDomain`](@ref).
 - `distribution`: Sets the `Distributions.jl` distribution object that characterizes
   the parameters.
 - `supports`: Sets the support points for the parameters.
@@ -634,8 +634,8 @@ macro infinite_parameter(model, args...)
         # get the param expression and check it is an array --> TODO make more efficient
         x = first(extra)
         infoexpr = InfiniteOpt._ParameterInfoExpr()
-        symbolic_set = isexpr(x, :comparison) || isexpr(x, :call)
-        if symbolic_set
+        symbolic_domain = isexpr(x, :comparison) || isexpr(x, :call)
+        if symbolic_domain
             param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
         else
             param = x
@@ -1675,57 +1675,57 @@ function _parse_name_expression(_error::Function, expr)
     end
 end
 
-# Return IntervalSet call given a :vect expression or error
-function _make_interval_set(_error::Function, expr::Expr)
+# Return IntervalDomain call given a :vect expression or error
+function _make_interval_domain(_error::Function, expr::Expr)
     if isexpr(expr, :vect) && length(expr.args) == 2
-        return Expr(:call, :IntervalSet, expr.args...)
+        return Expr(:call, :IntervalDomain, expr.args...)
     else
         _error("Unrecognized input format for parameter bounds. Must be of form " *
         "par in [lb, ub], lb <= par <= ub,  or par == value.")
     end
 end
 
-## Return a bound pair of form param => IntervalSet(lb, ub) or error
+## Return a bound pair of form param => IntervalDomain(lb, ub) or error
 # Call expressions using :in
 function _make_bound_pair(_error::Function, expr::Expr,
                           ::Union{Val{:in}, Val{:∈}})
-    set = _make_interval_set(_error, expr.args[3])
+    domain = _make_interval_domain(_error, expr.args[3])
     param = expr.args[2]
-    return Expr(:call, :(=>), param, set)
+    return Expr(:call, :(=>), param, domain)
 end
 
 # Call expressions using :(==)
 function _make_bound_pair(_error::Function, expr::Expr, ::Val{:(==)})
-    set = _make_interval_set(_error, Expr(:vect, expr.args[3], expr.args[3]))
+    domain = _make_interval_domain(_error, Expr(:vect, expr.args[3], expr.args[3]))
     param = expr.args[2]
-    return Expr(:call, :(=>), param, set)
+    return Expr(:call, :(=>), param, domain)
 end
 
 # Comparison expressions using something else
 function _make_bound_pair(_error::Function, expr::Expr, first)
-    _error("Invalid set format operators. Must be of form par in [lb, ub], " *
+    _error("Invalid domain format operators. Must be of form par in [lb, ub], " *
            "lb <= par <= ub, or par == value.")
 end
 
 # Comparison expressions using :(<=)
 function _make_bound_pair(_error::Function, expr::Expr, ::Val{:(<=)},
                           ::Val{:(<=)})
-    set = _make_interval_set(_error, Expr(:vect, expr.args[1], expr.args[5]))
+    domain = _make_interval_domain(_error, Expr(:vect, expr.args[1], expr.args[5]))
     param = expr.args[3]
-    return Expr(:call, :(=>), param, set)
+    return Expr(:call, :(=>), param, domain)
 end
 
 # Comparison expressions using :(>=)
 function _make_bound_pair(_error::Function, expr::Expr, ::Val{:(>=)},
                           ::Val{:(>=)})
-    set = _make_interval_set(_error, Expr(:vect, expr.args[5], expr.args[1]))
+    domain = _make_interval_domain(_error, Expr(:vect, expr.args[5], expr.args[1]))
     param = expr.args[3]
-    return Expr(:call, :(=>), param, set)
+    return Expr(:call, :(=>), param, domain)
 end
 
 # Comparison expressions using something else
 function _make_bound_pair(_error::Function, expr::Expr, first, second)
-    _error("Invalid set format operators. Must be of form par in [lb, ub], " *
+    _error("Invalid domain format operators. Must be of form par in [lb, ub], " *
            "lb <= par <= ub, or par == value.")
 end
 
@@ -1773,7 +1773,7 @@ function _extract_bounds(_error::Function, args::Vector, ::Val{:tuple})
     return nothing, bounds
 end
 
-# (:comparison) In this case we have a single interval set and nothing else
+# (:comparison) In this case we have a single interval domain and nothing else
 function _extract_bounds(_error::Function, args::Vector, ::Val{:comparison})
     bounds = _parse_parameter_bounds(_error, Expr(:comparison, args...))
     return nothing, bounds

@@ -4,15 +4,15 @@
     @infinite_parameter(m, xi[1:2] in MvNormal(ones(2), [1. 0.; 0. 2.]))
     dx = dispatch_variable_ref(x)
     dxi = dispatch_variable_ref.(xi)
-    set1 = UniDistributionSet(Normal())
-    set2 = MultiDistributionSet(MvNormal(ones(2), [1. 0.; 0. 2.]))
-    set3 = CollectionSet([set1, set1])
-    # test _has_distribution_set
-    @testset "_has_distribution_set" begin
-        @test IOMT._has_distribution_set(dx, set1)
-        @test IOMT._has_distribution_set(dxi[1], set2)
-        @test IOMT._has_distribution_set(dxi[1], set3)
-        @test !IOMT._has_distribution_set(dx, BadSet())
+    domain1 = UniDistributionDomain(Normal())
+    domain2 = MultiDistributionDomain(MvNormal(ones(2), [1. 0.; 0. 2.]))
+    domain3 = CollectionDomain([domain1, domain1])
+    # test _has_distribution_domain
+    @testset "_has_distribution_domain" begin
+        @test IOMT._has_distribution_domain(dx, domain1)
+        @test IOMT._has_distribution_domain(dxi[1], domain2)
+        @test IOMT._has_distribution_domain(dxi[1], domain3)
+        @test !IOMT._has_distribution_domain(dx, BadDomain())
     end
     # test _expect_coeffs
     @testset "_expect_coeffs" begin

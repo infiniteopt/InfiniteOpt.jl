@@ -6,17 +6,17 @@ Pages   = ["guide/model.md"]
 Modules = [InfiniteOpt]
 ```
 
-## Infinite Sets
+## Infinite Domains
 ### Datatypes
 ```@index
-Pages   = ["guide/sets.md"]
+Pages   = ["guide/domains.md"]
 Modules = [InfiniteOpt]
 Order   = [:type]
 ```
 
 ### Methods
 ```@index
-Pages   = ["guide/sets.md"]
+Pages   = ["guide/domains.md"]
 Modules = [InfiniteOpt, JuMP]
 Order   = [:macro, :function]
 ```

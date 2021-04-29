@@ -9,30 +9,30 @@ a modular manner to readily accommodate user-defined functionality and/or to
 serve as useful base in writing a `JuMP` extension. Admittedly, this modularity
 is not perfect and comments/suggestions are welcomed to help us improve this.
 
-## Infinite Sets
-Infinite sets are used to characterize the behavior of infinite parameters and
+## Infinite Domains
+Infinite domains are used to characterize the behavior of infinite parameters and
 used to govern the behavior of supports in `InfiniteOpt`. Here we walk through
-how user-defined sets can be added to various degrees of functionality. A
-template is provided in [`./test/extensions/infinite_set.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/infinite_set.jl).
+how user-defined domains can be added to various degrees of functionality. A
+template is provided in [`./test/extensions/infinite_domain.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/infinite_domain.jl).
 The extension steps employed are:
-1. Define the new `struct` infinite set type (only thing required as bare minimum)
-2. Extend [`InfiniteOpt.supports_in_set`](@ref) (enables error checking of supports)
+1. Define the new `struct` infinite domain type (only thing required as bare minimum)
+2. Extend [`InfiniteOpt.supports_in_domain`](@ref) (enables error checking of supports)
 3. Extend [`InfiniteOpt.generate_support_values`](@ref) (enables support generation via `num_supports` keyword arguments)
 4. If a lower bound and upper bound can be reported, extend `JuMP` lower bound and upper bound methods (enables automatic bound detection in `integral`)
 
-As an example, let's create a univariate disjoint interval set as an infinite set type.
-This corresponds to the set ``[lb_1, ub_1] \cup [lb_2, ub_2]`` where
-``ub_1 \leq lb_2``. First, we need to create the `DataType` with inheritance from [`InfiniteScalarSet`](@ref):
-```jldoctest set_ext; output = false
+As an example, let's create a univariate disjoint interval domain as an infinite domain type.
+This corresponds to the domain ``[lb_1, ub_1] \cup [lb_2, ub_2]`` where
+``ub_1 \leq lb_2``. First, we need to create the `DataType` with inheritance from [`InfiniteScalarDomain`](@ref):
+```jldoctest domain_ext; output = false
 using InfiniteOpt
 
-struct DisjointSet <: InfiniteOpt.InfiniteScalarSet
+struct DisjointDomain <: InfiniteOpt.InfiniteScalarDomain
     lb1::Float64
     ub1::Float64
     lb2::Float64
     ub2::Float64
     # constructor
-    function DisjointSet(lb1::Number, ub1::Number, lb2::Number, ub2::Number)
+    function DisjointDomain(lb1::Number, ub1::Number, lb2::Number, ub2::Number)
         if lb1 > ub1 || lb2 > ub2 || ub1 > lb2
             error("Invalid bounds")
         end
@@ -47,24 +47,24 @@ end
 ```
 Notice that we also define the constructor function to error check and convert as
 needed (this is recommended, but not required). For basic functionality this is
-all we have to do to add a set in `InfiniteOpt`.
+all we have to do to add a domain in `InfiniteOpt`.
 
-We can now define infinite parameters using this set via
+We can now define infinite parameters using this domain via
 [`@infinite_parameter`](@ref) both anonymously and explicitly:
-```jldoctest set_ext
+```jldoctest domain_ext
 julia> model = InfiniteModel();
 
-julia> t = @infinite_parameter(model, set = DisjointSet(0, 1, 3, 4), base_name = "t")
+julia> t = @infinite_parameter(model, domain = DisjointDomain(0, 1, 3, 4), base_name = "t")
 t
 
-julia> @infinite_parameter(model, t in DisjointSet(0, 1, 3, 4))
+julia> @infinite_parameter(model, t in DisjointDomain(0, 1, 3, 4))
 t
 ```
 Once defined (without further extension), these parameters can be used as normal
 with the following limitations:
 - Supports must be specified manually (`num_supports` is not enabled)
-- Supports will not be checked if they are in the domain of the infinite set
-- Set bounds cannot be queried.
+- Supports will not be checked if they are in the domain of the infinite domain
+- Domain bounds cannot be queried.
 - The [`DiscreteMeasureData`](@ref) or [`FunctionalDiscreteMeasureData`](@ref) must be provided explicitly to evaluate measures
 However, all of these limitations except for the last one can be eliminated by 
 extending a few functions as outlined above. To address the last one, we need 
@@ -72,12 +72,12 @@ to extend [`generate_integral_data`](@ref). See [`Measure Evaluation Techniques`
 for details. 
 
 To enable support domain checking which is useful to avoid strange bugs, we will
-extend [`InfiniteOpt.supports_in_set`](@ref). This returns a `Bool` to indicate
-if a vector of supports are in the set's domain:
-```jldoctest set_ext; output = false
-function InfiniteOpt.supports_in_set(supports::Union{Number, Vector{<:Number}},
-                                     set::DisjointSet)::Bool
-    return all((set.lb1 .<= supports .<= set.ub1) .| (set.lb2 .<= supports .<= set.ub2))
+extend [`InfiniteOpt.supports_in_domain`](@ref). This returns a `Bool` to indicate
+if a vector of supports are in the domain:
+```jldoctest domain_ext; output = false
+function InfiniteOpt.supports_in_domain(supports::Union{Number, Vector{<:Number}},
+                                     domain::DisjointDomain)::Bool
+    return all((domain.lb1 .<= supports .<= domain.ub1) .| (domain.lb2 .<= supports .<= domain.ub2))
 end
 
 # output
@@ -85,26 +85,26 @@ end
 
 ```
 Now the checks are enabled, so the following would yield an error because the
-support is not in the set domain:
-```jldoctest set_ext
-julia> @infinite_parameter(model, set = DisjointSet(0, 1, 3, 4), supports = 2)
-ERROR: At none:1: `@infinite_parameter(model, set = DisjointSet(0, 1, 3, 4), supports = 2)`: Supports violate the set domain bounds.
+support is not in the domain domain:
+```jldoctest domain_ext
+julia> @infinite_parameter(model, domain = DisjointDomain(0, 1, 3, 4), supports = 2)
+ERROR: At none:1: `@infinite_parameter(model, domain = DisjointDomain(0, 1, 3, 4), supports = 2)`: Supports violate the domain bounds.
 ```
 
 To enable automatic support generation via the `num_supports` keyword and with
 functions such as [`fill_in_supports!`](@ref), we will extend
 [`InfiniteOpt.generate_support_values`](@ref):
-```jldoctest set_ext; output = false
+```jldoctest domain_ext; output = false
 struct DisjointGrid <: InfiniteOpt.PublicLabel end
 
-function InfiniteOpt.generate_support_values(set::DisjointSet;
+function InfiniteOpt.generate_support_values(domain::DisjointDomain;
                                              num_supports::Int = InfiniteOpt.DefaultNumSupports,
                                              sig_digits::Int = InfiniteOpt.DefaultSigDigits)::Tuple{Vector{<:Real}, DataType}
-    length_ratio = (set.ub1 - set.lb1) / (set.ub1 - set.lb1 + set.ub2 - set.lb2)
+    length_ratio = (domain.ub1 - domain.lb1) / (domain.ub1 - domain.lb1 + domain.ub2 - domain.lb2)
     num_supports1 = Int64(ceil(length_ratio * num_supports))
     num_supports2 = num_supports - num_supports1
-    supports1 = collect(range(set.lb1, stop = set.ub1, length = num_supports1))
-    supports2 = collect(range(set.lb2, stop = set.ub2, length = num_supports2))
+    supports1 = collect(range(domain.lb1, stop = domain.ub1, length = num_supports1))
+    supports2 = collect(range(domain.lb2, stop = domain.ub2, length = num_supports2))
     return round.([supports1; supports2], sigdigits = sig_digits), DisjointGrid
 end
 
@@ -113,8 +113,8 @@ end
 
 ```
 Now automatic support generation is enabled, for example:
-```jldoctest set_ext
-julia> par = @infinite_parameter(model, set = DisjointSet(0, 2, 3, 4), num_supports = 10)
+```jldoctest domain_ext
+julia> par = @infinite_parameter(model, domain = DisjointDomain(0, 2, 3, 4), num_supports = 10)
 noname
 
 julia> supports(par)
@@ -133,16 +133,16 @@ julia> supports(par)
 
 Finally, we can extend the appropriate `JuMP` upper and lower bound functions
 if desired which are:
-- [`JuMP.has_lower_bound`](@ref JuMP.has_lower_bound(::AbstractInfiniteSet))
-- [`JuMP.lower_bound`](@ref JuMP.lower_bound(::AbstractInfiniteSet))
-- [`JuMP.set_lower_bound`](@ref JuMP.set_lower_bound(::AbstractInfiniteSet, ::Union{Real, Vector{<:Real}}))
-- [`JuMP.has_upper_bound`](@ref JuMP.has_upper_bound(::AbstractInfiniteSet))
-- [`JuMP.upper_bound`](@ref JuMP.upper_bound(::AbstractInfiniteSet))
-- [`JuMP.set_upper_bound`](@ref JuMP.set_upper_bound(::AbstractInfiniteSet, ::Union{Real, Vector{<:Real}}))
+- [`JuMP.has_lower_bound`](@ref JuMP.has_lower_bound(::AbstractInfiniteDomain))
+- [`JuMP.lower_bound`](@ref JuMP.lower_bound(::AbstractInfiniteDomain))
+- [`JuMP.set_lower_bound`](@ref JuMP.set_lower_bound(::AbstractInfiniteDomain, ::Union{Real, Vector{<:Real}}))
+- [`JuMP.has_upper_bound`](@ref JuMP.has_upper_bound(::AbstractInfiniteDomain))
+- [`JuMP.upper_bound`](@ref JuMP.upper_bound(::AbstractInfiniteDomain))
+- [`JuMP.set_upper_bound`](@ref JuMP.set_upper_bound(::AbstractInfiniteDomain, ::Union{Real, Vector{<:Real}}))
 However, if we want `has_lower_bound = false` and `has_upper_bound = false` then
 no extension is needed. For our current example we won't do this since lower
 and upper bounds aren't exactly clear for a disjoint interval. Please refer to
-the template in `./InfiniteOpt/test/extensions/infinite_set.jl` to see how this
+the template in `./InfiniteOpt/test/extensions/infinite_domain.jl` to see how this
 is done.
 
 ## Derivative Evaluation Methods 
@@ -266,7 +266,7 @@ The basic way to do that is to write a function that creates [`DiscreteMeasureDa
 object, and pass the object to the [`measure`](@ref). For instance, let's
 consider defining a function that
 enables the definition of a uniform grid for a univariate or multivariate
-infinite parameter in [`IntervalSet`](@ref). The function, denoted `uniform_grid`,
+infinite parameter in [`IntervalDomain`](@ref). The function, denoted `uniform_grid`,
 generates uniform grid points as supports for univariate parameter and each component of
 independent multivariate parameter. The univariate version of this function
 can be defined as follows:
@@ -318,15 +318,15 @@ object. A template for how such an extension is accomplished is provided in
 In general, such an extension can be created as follows:
 1. Define a new empty `struct` (e.g. `my_new_fn`) that dispatches your function
 2. Extend [`InfiniteOpt.MeasureToolbox.generate_integral_data`](@ref),
-where `method` is of the type `my_new_fn`, and `set` needs to be a subtype
-of [`AbstractInfiniteSet`](@ref) that you wish to apply the new evaluation method
+where `method` is of the type `my_new_fn`, and `domain` needs to be a subtype
+of [`AbstractInfiniteDomain`](@ref) that you wish to apply the new evaluation method
 to.
 Note that this procedure can be used to generate new measure evaluation methods not only for existing
-infinite sets, but also for user-defined infinite sets. 
+infinite domains, but also for user-defined infinite domains. 
 
 For example, an extension of [`InfiniteOpt.MeasureToolbox.generate_integral_data`](@ref)
 that implements uniform grid for univariate and multivariate parameters in
-[`IntervalSet`](@ref) can be created as follows:
+[`IntervalDomain`](@ref) can be created as follows:
 
 ```jldoctest measure_eval; output = false
 const JuMPC = JuMP.Containers
@@ -370,7 +370,7 @@ julia> expand(f_int)
 0.8333333333333333 f(0) + 0.8333333333333333 f(1) + 0.8333333333333333 f(2) + 0.8333333333333333 f(3) + 0.8333333333333333 f(4) + 0.8333333333333333 f(5)
 ```
 Here we go! We can freely use `UnifGrid` for infinite parameters in
-[`IntervalSet`](@ref) now.
+[`IntervalDomain`](@ref) now.
 
 ## Measure Data
 Measures are used to evaluate over infinite domains. Users may wish to employ
@@ -533,7 +533,7 @@ function variance(expr::Union{JuMP.GenericAffExpr, GeneralVariableRef},
     if use_existing
         supps = supports.(params)
     else
-        supps = generate_support_values(infinite_set(first(params)),
+        supps = generate_support_values(infinite_domain(first(params)),
                                            num_supports = num_supports)
     end
     # make the data
@@ -659,7 +659,7 @@ extended using the following steps:
 
 For the sake of example, let's suppose we want to define a reformulation method
 for `InfiniteModel`s that are 2-stage stochastic programs (i.e., only
-`DistributionSet`s are used, infinite variables are random 2nd stage variables,
+`DistributionDomain`s are used, infinite variables are random 2nd stage variables,
 and finite variables are 1st stage variables). In particular, let's make a simple
 method that replaces the infinite parameters with their mean values, giving us
 the deterministic mean-valued problem.
@@ -765,7 +765,7 @@ end
 # IndependentParameterRef
 function _make_expression(opt_model::Model, expr::GeneralVariableRef, 
                           ::IndependentParameterIndex)
-    return mean(infinite_set(expr).distribution) # assuming univariate
+    return mean(infinite_domain(expr).distribution) # assuming univariate
 end
 # FiniteParameterRef
 function _make_expression(opt_model::Model, expr::GeneralVariableRef, 
@@ -775,7 +775,7 @@ end
 # DependentParameterRef
 function _make_expression(opt_model::Model, expr::GeneralVariableRef, 
                           ::DependentParameterIndex)
-    return mean(infinite_set(expr).distribution) # assuming valid dist.
+    return mean(infinite_domain(expr).distribution) # assuming valid dist.
 end
 # DecisionVariableRef
 function _make_expression(opt_model::Model, expr::GeneralVariableRef, 
@@ -803,7 +803,7 @@ end
 _make_expression (generic function with 8 methods)
 
 ```
-For simplicity in example, above we assume that only `DistributionSet`s are used,
+For simplicity in example, above we assume that only `DistributionDomain`s are used,
 there are not any `PointVariableRef`s, and all `MeasureRef`s correspond to expectations.
 Naturally, a full extension should include checks to enforce that such assumptions
 hold.

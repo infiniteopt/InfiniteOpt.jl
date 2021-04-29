@@ -625,28 +625,28 @@ end
 ## to return them in a convenient form for iteration
 # ScalarConstraint
 function _get_constr_bounds(constr::JuMP.ScalarConstraint
-    )::Tuple{Vector{Int}, Vector{InfiniteOpt.IntervalSet}}
-    return Int[], InfiniteOpt.IntervalSet[]
+    )::Tuple{Vector{Int}, Vector{InfiniteOpt.IntervalDomain}}
+    return Int[], InfiniteOpt.IntervalDomain[]
 end
 
 # BoundedScalarConstraint
 function _get_constr_bounds(constr::InfiniteOpt.BoundedScalarConstraint
-    )::Tuple{Vector{Int}, Vector{InfiniteOpt.IntervalSet}}
+    )::Tuple{Vector{Int}, Vector{InfiniteOpt.IntervalDomain}}
     bounds = InfiniteOpt.parameter_bounds(constr)
     prefs = collect(keys(bounds))
-    sets = map(p -> bounds[p], prefs)
+    domains = map(p -> bounds[p], prefs)
     indices = map(p -> InfiniteOpt._parameter_number(p), prefs)
-    return indices, sets
+    return indices, domains
 end
 
 ## Determine if a given raw support satisfies constraint parameter bounds
 function _support_in_bounds(support::Vector{Float64},
     indices::Vector{Int},
-    sets::Vector{InfiniteOpt.IntervalSet}
+    domains::Vector{InfiniteOpt.IntervalDomain}
     )::Bool
     for i in eachindex(indices)
         s = support[indices[i]]
-        if !isnan(s) && (s < JuMP.lower_bound(sets[i]) || s > JuMP.upper_bound(sets[i]))
+        if !isnan(s) && (s < JuMP.lower_bound(domains[i]) || s > JuMP.upper_bound(domains[i]))
             return false
         end
     end

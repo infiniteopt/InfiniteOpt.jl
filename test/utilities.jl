@@ -20,9 +20,9 @@ macro test_macro_throws(errortype, m)
 end
 
 # Define test data structures
-struct BadSet <: AbstractInfiniteSet end
-struct BadScalarSet <: InfiniteScalarSet end
-struct BadArraySet <: InfiniteArraySet end
+struct BadDomain <: AbstractInfiniteDomain end
+struct BadScalarDomain <: InfiniteScalarDomain end
+struct BadArrayDomain <: InfiniteArrayDomain end
 struct TestBridge{C} <: MOI.Bridges.AbstractBridge where {C} end
 struct TestMethod <: NonGenerativeDerivativeMethod end
 struct TestGenMethod <: GenerativeDerivativeMethod end
@@ -30,7 +30,7 @@ struct BadFiniteTech <: FDTechnique end
 struct TestGenInfo <: AbstractGenerativeInfo end
 struct BadData <: AbstractMeasureData end
 struct Bad end
-struct NotASetType end
+struct NotADomainType end
 struct TestIndex <: ObjectIndex
     value::Int
 end

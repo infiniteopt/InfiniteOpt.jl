@@ -192,21 +192,21 @@ Base.hash(v::ObjectIndex, h::UInt) = hash(v.value, h)
 #                            INFINITE SET TYPES
 ################################################################################
 """
-    AbstractInfiniteSet
+    AbstractInfiniteDomain
 
-An abstract type for sets that characterize infinite parameters.
+An abstract type for domains that characterize infinite parameters.
 """
-abstract type AbstractInfiniteSet end
-
-"""
-    InfiniteScalarSet <: AbstractInfiniteSet
-
-An abstract type for infinite sets that are one-dimensional.
-"""
-abstract type InfiniteScalarSet <: AbstractInfiniteSet end
+abstract type AbstractInfiniteDomain end
 
 """
-    IntervalSet <: InfiniteScalarSet
+    InfiniteScalarDomain <: AbstractInfiniteDomain
+
+An abstract type for infinite domains that are one-dimensional.
+"""
+abstract type InfiniteScalarDomain <: AbstractInfiniteDomain end
+
+"""
+    IntervalDomain <: InfiniteScalarDomain
 
 A `DataType` that stores the lower and upper interval bounds for infinite
 parameters that are continuous over a certain that interval. This is for use
@@ -216,12 +216,12 @@ with a [`IndependentParameter`](@ref).
 - `lower_bound::Float64` Lower bound of the infinite parameter.
 - `upper_bound::Float64` Upper bound of the infinite parameter.
 """
-struct IntervalSet <: InfiniteScalarSet
+struct IntervalDomain <: InfiniteScalarDomain
     lower_bound::Float64
     upper_bound::Float64
-    function IntervalSet(lower::Real, upper::Real)
+    function IntervalDomain(lower::Real, upper::Real)
         if lower > upper
-            error("Invalid interval set bounds, lower bound is greater than " *
+            error("Invalid interval domain bounds, lower bound is greater than " *
                   "upper bound.")
         end
         return new(lower, upper)
@@ -229,7 +229,7 @@ struct IntervalSet <: InfiniteScalarSet
 end
 
 """
-    UniDistributionSet{T <: Distributions.UnivariateDistribution} <: InfiniteScalarSet
+    UniDistributionDomain{T <: Distributions.UnivariateDistribution} <: InfiniteScalarDomain
 
 A `DataType` that stores the distribution characterizing an infinite parameter that
 is random. This is for use with a [`IndependentParameter`](@ref).
@@ -237,23 +237,23 @@ is random. This is for use with a [`IndependentParameter`](@ref).
 **Fields**
 - `distribution::T` Distribution of the random parameter.
 """
-struct UniDistributionSet{T <: Distributions.UnivariateDistribution} <: InfiniteScalarSet
+struct UniDistributionDomain{T <: Distributions.UnivariateDistribution} <: InfiniteScalarDomain
     distribution::T
 end
 
 """
-    InfiniteArraySet <: AbstractInfiniteSet
+    InfiniteArrayDomain <: AbstractInfiniteDomain
 
-An abstract type for multi-dimensional infinite sets.
+An abstract type for multi-dimensional infinite domains.
 """
-abstract type InfiniteArraySet <: AbstractInfiniteSet end
+abstract type InfiniteArrayDomain <: AbstractInfiniteDomain end
 
 # Make convenient Union for below
 const NonUnivariateDistribution = Union{Distributions.MultivariateDistribution,
                                         Distributions.MatrixDistribution}
 
 """
-    MultiDistributionSet{T <: NonUnivariateDistribution} <: InfiniteArraySet
+    MultiDistributionDomain{T <: NonUnivariateDistribution} <: InfiniteArrayDomain
 
 A `DataType` that stores the distribution characterizing a collection of
 infinite parameters that follows its form. This is for use with
@@ -262,25 +262,25 @@ infinite parameters that follows its form. This is for use with
 **Fields**
 - `distribution::T` Distribution of the random parameters.
 """
-struct MultiDistributionSet{T <: NonUnivariateDistribution} <: InfiniteArraySet
+struct MultiDistributionDomain{T <: NonUnivariateDistribution} <: InfiniteArrayDomain
     distribution::T
 end
 
-# make convenient alias for distribution sets
-const DistributionSet = Union{UniDistributionSet, MultiDistributionSet}
+# make convenient alias for distribution domains
+const DistributionDomain = Union{UniDistributionDomain, MultiDistributionDomain}
 
 """
-    CollectionSet{T <: InfiniteScalarSet} <: InfiniteArraySet
+    CollectionDomain{T <: InfiniteScalarDomain} <: InfiniteArrayDomain
 
-A `DataType` that stores a collection of `InfiniteScalarSet`s characterizing a
+A `DataType` that stores a collection of `InfiniteScalarDomain`s characterizing a
 collection of infinite parameters that follows its form. This is for use with
 [`DependentParameters`](@ref).
 
 **Fields**
-- `sets::Array{T}` The collection of scalar sets.
+- `domains::Array{T}` The collection of scalar domains.
 """
-struct CollectionSet{T <: InfiniteScalarSet} <: InfiniteArraySet
-    sets::Vector{T}
+struct CollectionDomain{T <: InfiniteScalarDomain} <: InfiniteArrayDomain
+    domains::Vector{T}
 end
 
 ################################################################################
@@ -455,14 +455,14 @@ An abstract type for scalar parameters used in InfiniteOpt.
 abstract type ScalarParameter <: InfOptParameter end
 
 """
-    IndependentParameter{T <: InfiniteScalarSet,
+    IndependentParameter{T <: InfiniteScalarDomain,
                          M <: AbstractDerivativeMethod,
                          I <: AbstractGenerativeInfo} <: ScalarParameter
 
 A `DataType` for storing independent scalar infinite parameters.
 
 **Fields**
-- `set::T`: The infinite set that characterizes the parameter.
+- `domain::T`: The infinite domain that characterizes the parameter.
 - `supports::DataStructures.SortedDict{Float64, Set{DataType}}`: The support points
    used to discretize the parameter and their associated type labels stored as
    `DataTypes`s which should be a subtype of [`AbstractSupportLabel`](@ref).
@@ -472,10 +472,10 @@ A `DataType` for storing independent scalar infinite parameters.
 - `gnerative_supp_info::I`: The info associated with any generative supports that will 
    need to be generated for measures and/or derivatives based on existing supports. 
 """
-struct IndependentParameter{T <: InfiniteScalarSet, 
+struct IndependentParameter{T <: InfiniteScalarDomain, 
                             M <: AbstractDerivativeMethod,
                             I <: AbstractGenerativeInfo} <: ScalarParameter
-    set::T
+    domain::T
     supports::DataStructures.SortedDict{Float64, Set{DataType}} # Support to label set
     sig_digits::Int
     derivative_method::M
@@ -496,22 +496,22 @@ struct FiniteParameter <: ScalarParameter
 end
 
 """
-    DependentParameters{T <: InfiniteArraySet, 
+    DependentParameters{T <: InfiniteArrayDomain, 
                         M <: NonGenerativeDerivativeMethod} <: InfOptParameter
 
 A `DataType` for storing a collection of dependent infinite parameters.
 
 **Fields**
-- `set::T`: The infinite set that characterizes the parameters.
+- `domain::T`: The infinite domain that characterizes the parameters.
 - `supports::Dict{Vector{Float64}, Set{DataType}}`: Support dictionary where keys
               are supports and the values are the set of labels for each support.
 - `sig_digits::Int`: The number of significant digits used to round the support values.
 - `derivative_methods::Vector{M}`: The derivative evaluation methods associated with 
   each parameter.
 """
-struct DependentParameters{T <: InfiniteArraySet, 
+struct DependentParameters{T <: InfiniteArrayDomain, 
                            M <: NonGenerativeDerivativeMethod} <: InfOptParameter
-    set::T
+    domain::T
     supports::Dict{Vector{Float64}, Set{DataType}} # Support to label set
     sig_digits::Int
     derivative_methods::Vector{M}
@@ -648,11 +648,11 @@ subdomains of [`FiniteVariable`](@ref)s and [`BoundedScalarConstraint`](@ref)s.
 Note that the GeneralVariableRef must pertain to infinite parameters.
 
 **Fields**
-- `intervals::Dict{GeneralVariableRef, IntervalSet}`: A dictionary
+- `intervals::Dict{GeneralVariableRef, IntervalDomain}`: A dictionary
   of interval bounds on infinite parameters.
 """
 struct ParameterBounds{P <: JuMP.AbstractVariableRef}
-    intervals::Dict{P, IntervalSet}
+    intervals::Dict{P, IntervalDomain}
 end
 
 ################################################################################
@@ -1668,17 +1668,17 @@ const _Model = _DumbyModel()
 ## Modify parameter dictionary to expand any multidimensional parameter keys
 # Case where dictionary is already in correct form
 function _expand_parameter_tuple(
-    param_bounds::NTuple{N, Pair{GeneralVariableRef, IntervalSet}}
-    )::Dict{GeneralVariableRef, IntervalSet} where {N}
+    param_bounds::NTuple{N, Pair{GeneralVariableRef, IntervalDomain}}
+    )::Dict{GeneralVariableRef, IntervalDomain} where {N}
     return Dict(param_bounds...)
 end
 
 # Case where dictionary contains vectors
 function _expand_parameter_dict(
-    param_bounds::NTuple{N, Pair{<:Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}, IntervalSet}}
-    )::Dict{GeneralVariableRef, IntervalSet} where {N}
+    param_bounds::NTuple{N, Pair{<:Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}, IntervalDomain}}
+    )::Dict{GeneralVariableRef, IntervalDomain} where {N}
     # Initialize new dictionary
-    new_dict = Dict{GeneralVariableRef, IntervalSet}()
+    new_dict = Dict{GeneralVariableRef, IntervalDomain}()
     # Find vector keys and expand
     for (key, set) in param_bounds
         # expand over the array of parameters if this is
@@ -1707,11 +1707,11 @@ end
 
 # Default method
 function ParameterBounds()::ParameterBounds{GeneralVariableRef}
-    return ParameterBounds(Dict{GeneralVariableRef, IntervalSet}())
+    return ParameterBounds(Dict{GeneralVariableRef, IntervalDomain}())
 end
 
 # Make dictionary accessor
-function intervals(pb::ParameterBounds{P})::Dict{P, IntervalSet} where {P}
+function intervals(pb::ParameterBounds{P})::Dict{P, IntervalDomain} where {P}
     return pb.intervals
 end
 
@@ -1734,8 +1734,8 @@ end
 Base.copy(bounds::ParameterBounds) = ParameterBounds(copy(intervals(bounds)))
 
 # Extend Base.setindex!
-function Base.setindex!(pb::ParameterBounds{P}, value::IntervalSet,
-                        index::P)::IntervalSet where {P}
+function Base.setindex!(pb::ParameterBounds{P}, value::IntervalDomain,
+                        index::P)::IntervalDomain where {P}
     return intervals(pb)[index] = value
 end
 

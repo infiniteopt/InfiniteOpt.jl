@@ -147,8 +147,8 @@ function DiscreteMeasureData(pref::GeneralVariableRef,
         error("The amount of coefficients must match the amount of " *
               "support points.")
     end
-    set = infinite_set(pref)
-    if !supports_in_set(supports, set)
+    domain = infinite_domain(pref)
+    if !supports_in_domain(supports, domain)
         error("Support points violate parameter domain.")
     end
     return DiscreteMeasureData(pref, coefficients, supports, label,
@@ -202,13 +202,13 @@ function _convert_param_refs_and_supports(
     return _convert_param_refs_and_supports(ordered_prefs, supps)
 end
 
-## Check if a matrix of supports repsect infinite set(s)
+## Check if a matrix of supports repsect infinite domain(s)
 # IndependentParameterRefs
 function _check_supports_in_bounds(prefs::Vector{IndependentParameterRef},
                                    supports::Matrix{<:Real})::Nothing
     for i in eachindex(prefs)
-        set = infinite_set(prefs[i])
-        if !supports_in_set(supports[i, :], set)
+        domain = infinite_domain(prefs[i])
+        if !supports_in_domain(supports[i, :], domain)
             error("Support points violate parameter domain.")
         end
     end
@@ -218,8 +218,8 @@ end
 # DependentParameterRefs
 function _check_supports_in_bounds(prefs::Vector{DependentParameterRef},
                                    supports::Matrix{<:Real})::Nothing
-    set = _parameter_set(first(prefs))
-    if !supports_in_set(supports, set)
+    domain = _parameter_domain(first(prefs))
+    if !supports_in_domain(supports, domain)
         error("Support points violate parameter domain.")
     end
     return
@@ -328,8 +328,8 @@ function FunctionalDiscreteMeasureData(
     end
     min_num_supports >= 0 || error("Number of supports must be nonnegative.")
     if !isnan(lower_bound) && !isnan(upper_bound)
-        if !supports_in_set([lower_bound, upper_bound], infinite_set(pref))
-            error("Bounds violate infinite set bounds.")
+        if !supports_in_domain([lower_bound, upper_bound], infinite_domain(pref))
+            error("Bounds violate infinite domain bounds.")
         end
     end
     return FunctionalDiscreteMeasureData(pref, coeff_func, min_num_supports,
@@ -338,12 +338,12 @@ function FunctionalDiscreteMeasureData(
                                          upper_bound, is_expect)
 end
 
-## Check if the integral bounds satisfy the parameter set(s)
+## Check if the integral bounds satisfy the parameter domain(s)
 # IndependentParameterRefs
-function _check_bounds_in_set(prefs::Vector{IndependentParameterRef}, lbs,
+function _check_bounds_in_domain(prefs::Vector{IndependentParameterRef}, lbs,
                               ubs)::Nothing
     for i in eachindex(prefs)
-        if !supports_in_set([lbs[i], ubs[i]], infinite_set(prefs[i]))
+        if !supports_in_domain([lbs[i], ubs[i]], infinite_domain(prefs[i]))
             error("Bounds violate the infinite domain.")
         end
     end
@@ -351,9 +351,9 @@ function _check_bounds_in_set(prefs::Vector{IndependentParameterRef}, lbs,
 end
 
 # DependentParameterRefs
-function _check_bounds_in_set(prefs::Vector{DependentParameterRef}, lbs,
+function _check_bounds_in_domain(prefs::Vector{DependentParameterRef}, lbs,
                               ubs)::Nothing
-    if !supports_in_set(hcat(lbs, ubs), infinite_set(prefs))
+    if !supports_in_domain(hcat(lbs, ubs), infinite_domain(prefs))
         error("Bounds violate the infinite domain.")
     end
     return
@@ -406,7 +406,7 @@ function FunctionalDiscreteMeasureData(
     vector_ubs = _make_ordered_vector(upper_bounds)
     if !isnan(first(vector_lbs)) && !isnan(first(vector_ubs))
         dprefs = map(p -> dispatch_variable_ref(p), vector_prefs)
-        _check_bounds_in_set(dprefs, vector_lbs, vector_ubs)
+        _check_bounds_in_domain(dprefs, vector_lbs, vector_ubs)
     end
     return FunctionalDiscreteMeasureData(vector_prefs, coeff_func, min_num_supports,
                                          label, weight_function, lower_bounds,
@@ -732,7 +732,7 @@ function measure_data_in_finite_var_bounds(
     pref = parameter_refs(data)
     supps = supports(data)
     if haskey(bounds, pref) && length(supps) != 0
-        return supports_in_set(supps, bounds[pref])
+        return supports_in_domain(supps, bounds[pref])
     end
     return true
 end
@@ -747,7 +747,7 @@ function measure_data_in_finite_var_bounds(
     if length(supps) != 0
         for i in eachindex(prefs)
             if haskey(bounds, prefs[i])
-                if !supports_in_set(supps[i, :], bounds[prefs[i]])
+                if !supports_in_domain(supps[i, :], bounds[prefs[i]])
                     return false
                 end
             end
@@ -927,14 +927,14 @@ function add_supports_to_parameters(
         if pref isa DependentParameterRef # This is just a last line of defense
             error("min_num_supports must be 0 for individual dependent parameters.")
         end
-        # prepare the generation set
+        # prepare the generation domain
         if isnan(lb) || isnan(ub)
-            set = infinite_set(pref)
+            domain = infinite_domain(pref)
         else
-            set = IntervalSet(lb, ub) # assumes lb and ub are in the set
+            domain = IntervalDomain(lb, ub) # assumes lb and ub are in the domain
         end
         # generate the needed supports
-        generate_and_add_supports!(pref, set, label,
+        generate_and_add_supports!(pref, domain, label,
                                    num_supports = num_supps - curr_num_supps)
     end
     return
@@ -948,16 +948,16 @@ function _generate_multiple_functional_supports(
     lower_bounds::Vector{<:Number},
     upper_bounds::Vector{<:Number}
     )::Nothing
-    # prepare the generation set
+    # prepare the generation domain
     if isnan(first(lower_bounds)) || isnan(first(upper_bounds))
-        set = infinite_set(prefs)
+        domain = infinite_domain(prefs)
     else
         # assumes we have valid bounds
-        set = CollectionSet([IntervalSet(lower_bounds[i], upper_bounds[i])
+        domain = CollectionDomain([IntervalDomain(lower_bounds[i], upper_bounds[i])
                              for i in eachindex(lower_bounds)])
     end
     # generate the supports
-    generate_and_add_supports!(prefs, set, label, num_supports = num_supps)
+    generate_and_add_supports!(prefs, domain, label, num_supports = num_supps)
     return
 end
 
@@ -970,15 +970,15 @@ function _generate_multiple_functional_supports(
     )::Nothing
     # we are gauranteed that each have the same number of supports
     for i in eachindex(prefs)
-        # prepare the generation set
+        # prepare the generation domain
         if isnan(lower_bounds[i]) || isnan(upper_bounds[i])
-            set = infinite_set(prefs[i])
+            domain = infinite_domain(prefs[i])
         else
-            # assumes lb and ub are in the set
-            set = IntervalSet(lower_bounds[i], upper_bounds[i])
+            # assumes lb and ub are in the domain
+            domain = IntervalDomain(lower_bounds[i], upper_bounds[i])
         end
         # generate the supports
-        generate_and_add_supports!(prefs[i], set, label, num_supports = num_supps)
+        generate_and_add_supports!(prefs[i], domain, label, num_supports = num_supps)
     end
     return
 end

@@ -80,27 +80,27 @@
     end
 end
 
-# Test Infinite Sets
-@testset "Infinite Sets" begin
+# Test Infinite Domains
+@testset "Infinite Domains" begin
     # Abstract types
-    @test AbstractInfiniteSet isa DataType
-    @test InfiniteScalarSet <: AbstractInfiniteSet
-    @test InfiniteArraySet <: AbstractInfiniteSet
-    # IntervalSet
-    @test IntervalSet <: InfiniteScalarSet
-    @test IntervalSet(0, 1) == IntervalSet(0.0, 1.0)
-    @test_throws ErrorException IntervalSet(1, 0)
-    # UniDistributionSet
-    @test UniDistributionSet <: InfiniteScalarSet
-    @test UniDistributionSet(Normal()) isa UniDistributionSet{<:Normal}
+    @test AbstractInfiniteDomain isa DataType
+    @test InfiniteScalarDomain <: AbstractInfiniteDomain
+    @test InfiniteArrayDomain <: AbstractInfiniteDomain
+    # IntervalDomain
+    @test IntervalDomain <: InfiniteScalarDomain
+    @test IntervalDomain(0, 1) == IntervalDomain(0.0, 1.0)
+    @test_throws ErrorException IntervalDomain(1, 0)
+    # UniDistributionDomain
+    @test UniDistributionDomain <: InfiniteScalarDomain
+    @test UniDistributionDomain(Normal()) isa UniDistributionDomain{<:Normal}
     # NonUnivariateDistribution
     @test InfiniteOpt.NonUnivariateDistribution <: Distribution
-    # MultiDistributionSet
-    @test MultiDistributionSet <: InfiniteArraySet
-    @test MultiDistributionSet(Dirichlet([0.5, 0.5])) isa MultiDistributionSet{<:Dirichlet}
-    # CollectionSet
-    @test CollectionSet <: InfiniteArraySet
-    @test CollectionSet([IntervalSet(0, 1), IntervalSet(2, 3)]) isa CollectionSet{IntervalSet}
+    # MultiDistributionDomain
+    @test MultiDistributionDomain <: InfiniteArrayDomain
+    @test MultiDistributionDomain(Dirichlet([0.5, 0.5])) isa MultiDistributionDomain{<:Dirichlet}
+    # CollectionDomain
+    @test CollectionDomain <: InfiniteArrayDomain
+    @test CollectionDomain([IntervalDomain(0, 1), IntervalDomain(2, 3)]) isa CollectionDomain{IntervalDomain}
 end
 
 # Test Generative Support Info 
@@ -154,20 +154,20 @@ end
     dict = SortedDict{Float64, Set{DataType}}(2 => Set([All]))
     method = FiniteDifference()
     info = NoGenerativeSupports()
-    @test IndependentParameter(IntervalSet(0, 1), dict, 6, method, info).set isa IntervalSet
+    @test IndependentParameter(IntervalDomain(0, 1), dict, 6, method, info).domain isa IntervalDomain
     # test FiniteParameter
     @test FiniteParameter <: ScalarParameter
     @test FiniteParameter(1) == FiniteParameter(1)
     # test DependentParameters
     @test DependentParameters <: InfOptParameter
-    @test DependentParameters(CollectionSet([IntervalSet(0, 1)]),
-                              Dict(zeros(1) => Set([All])), 6, [method]).set isa CollectionSet
+    @test DependentParameters(CollectionDomain([IntervalDomain(0, 1)]),
+                              Dict(zeros(1) => Set([All])), 6, [method]).domain isa CollectionDomain
     # test ScalarParameterData
     @test ScalarParameterData <: AbstractDataObject
     @test ScalarParameterData(FiniteParameter(42), 1, 1, "bob").name == "bob"
     # test MultiParameterData
     @test MultiParameterData <: AbstractDataObject
-    params = DependentParameters(CollectionSet([IntervalSet(0, 1)]),
+    params = DependentParameters(CollectionDomain([IntervalDomain(0, 1)]),
                                  Dict(zeros(1) => Set([All])), 6, [method])
     @test MultiParameterData(params, 1, 1:1, ["par[1]"]) isa MultiParameterData
 end
@@ -267,25 +267,25 @@ end
     # test datatype
     @testset "DataType" begin
         @test ParameterBounds isa UnionAll
-        d = Dict(par3 => IntervalSet(0, 1))
+        d = Dict(par3 => IntervalDomain(0, 1))
         @test ParameterBounds(d) isa ParameterBounds{GeneralVariableRef}
         @test ParameterBounds() isa ParameterBounds{GeneralVariableRef}
     end
     # test _expand_parameter_tuple
     @testset "_expand_parameter_tuple" begin
-        d = (par3 => IntervalSet(0, 1),)
+        d = (par3 => IntervalDomain(0, 1),)
         @test InfiniteOpt._expand_parameter_tuple(d) == Dict(d...)
     end
-    # test _expand_parameter_dict(Dict{ParameterRef,IntervalSet}))
+    # test _expand_parameter_dict(Dict{ParameterRef,IntervalDomain}))
     @testset "_expand_parameter_dict (acceptable Form)" begin
-        d = (par3 => IntervalSet(0, 1),)
+        d = (par3 => IntervalDomain(0, 1),)
         @test InfiniteOpt._expand_parameter_dict(d) == Dict(d...)
     end
-    # test _expand_parameter_dict(Dict{Any,IntervalSet}))
+    # test _expand_parameter_dict(Dict{Any,IntervalDomain}))
     @testset "_expand_parameter_dict (Array Form)" begin
-        d = (pars => IntervalSet(0, 1), par3 => IntervalSet(0, 1))
+        d = (pars => IntervalDomain(0, 1), par3 => IntervalDomain(0, 1))
         @test isa(InfiniteOpt._expand_parameter_dict(d),
-                  Dict{GeneralVariableRef, IntervalSet})
+                  Dict{GeneralVariableRef, IntervalDomain})
     end
     # test _expand_parameter_dict(Dict))
     @testset "_expand_parameter_dict (Fallback)" begin
@@ -294,12 +294,12 @@ end
     end
     # test expansion definition
     @testset "ParameterBounds Expansion" begin
-        d = (par3 => IntervalSet(0, 1),)
+        d = (par3 => IntervalDomain(0, 1),)
         @test ParameterBounds(d).intervals == Dict(d...)
-        d = (pars => IntervalSet(0, 1), par3 => IntervalSet(0, 1))
-        @test ParameterBounds(d).intervals isa Dict{GeneralVariableRef, IntervalSet}
+        d = (pars => IntervalDomain(0, 1), par3 => IntervalDomain(0, 1))
+        @test ParameterBounds(d).intervals isa Dict{GeneralVariableRef, IntervalDomain}
     end
-    pb = ParameterBounds((par3 => IntervalSet(0, 1),))
+    pb = ParameterBounds((par3 => IntervalDomain(0, 1),))
     # test intervals
     @testset "intervals" begin
         @test intervals(pb) == pb.intervals
@@ -315,7 +315,7 @@ end
     end
     # test Base.:(==)
     @testset "Base.:(==)" begin
-        @test pb == ParameterBounds((par3 => IntervalSet(0, 1),))
+        @test pb == ParameterBounds((par3 => IntervalDomain(0, 1),))
         @test pb != ParameterBounds()
     end
     # test Base.copy
@@ -324,11 +324,11 @@ end
     end
     # test Base.getindex
     @testset "Base.getindex" begin
-        @test pb[par3] == IntervalSet(0, 1)
+        @test pb[par3] == IntervalDomain(0, 1)
     end
     # test Base.setindex!
     @testset "Base.setindex!" begin
-        @test (pb[par3] = IntervalSet(0, 2)) == IntervalSet(0, 2)
+        @test (pb[par3] = IntervalDomain(0, 2)) == IntervalDomain(0, 2)
     end
     # test Base.haskey
     @testset "Base.haskey" begin
@@ -341,7 +341,7 @@ end
     end
     # test Base.iterate
     @testset "Base.iterate" begin
-        @test [p for p in pb] == [par3 => IntervalSet(0, 2)]
+        @test [p for p in pb] == [par3 => IntervalDomain(0, 2)]
     end
     # test Base.merge
     @testset "Base.merge" begin
@@ -443,7 +443,7 @@ end
     @test DiscreteMeasureData <: AbstractMeasureData
     @test DiscreteMeasureData(pref, ones(2), ones(2), All, w, NaN, NaN, false) isa DiscreteMeasureData
     @test DiscreteMeasureData([pref], ones(2), ones(1, 2), All, w, [NaN], [NaN], false) isa DiscreteMeasureData
-    # FunctionalDistributionSet
+    # FunctionalDistributionDomain
     @test FunctionalDiscreteMeasureData <: AbstractMeasureData
     @test FunctionalDiscreteMeasureData(pref, w, 2, All, info, w, NaN, NaN, false) isa FunctionalDiscreteMeasureData
     @test FunctionalDiscreteMeasureData([pref], w, 2, All, w, [NaN], [NaN], false) isa FunctionalDiscreteMeasureData
@@ -464,7 +464,7 @@ end
     # Setup
     m = InfiniteModel()
     pref = GeneralVariableRef(m, 2, IndependentParameterIndex, -1)
-    bounds = ParameterBounds(Dict(pref => IntervalSet(0, 1)))
+    bounds = ParameterBounds(Dict(pref => IntervalDomain(0, 1)))
     # Bounded constraints
     @test BoundedScalarConstraint <: JuMP.AbstractConstraint
     @test BoundedScalarConstraint(zero(AffExpr), MOI.Integer(),

@@ -36,9 +36,9 @@
     end
     # test _remove_name_index
     @testset "_remove_name_index" begin
-        pref = @independent_parameter(m, test, set = IntervalSet(0, 1))
-        pref2 = @independent_parameter(m, θ, set = IntervalSet(0, 1))
-        prefs = @independent_parameter(m, x[1:2], set = IntervalSet(0, 1))
+        pref = @independent_parameter(m, test, domain = IntervalDomain(0, 1))
+        pref2 = @independent_parameter(m, θ, domain = IntervalDomain(0, 1))
+        prefs = @independent_parameter(m, x[1:2], domain = IntervalDomain(0, 1))
         @test InfiniteOpt._remove_name_index(pref) == "test"
         @test InfiniteOpt._remove_name_index(prefs[1]) == "x"
         @test InfiniteOpt._remove_name_index(pref2) == "θ"
@@ -232,8 +232,8 @@ end
               GeneralVariableRef(m, 2, TestIndex)]
     sparse_gvrefs = convert(JuMPC.SparseAxisArray, gvrefs)
     dense_gvrefs = JuMPC.DenseAxisArray(gvrefs, 3:4)
-    sset = IntervalSet(0, 1)
-    aset = CollectionSet([sset, sset])
+    sdomain = IntervalDomain(0, 1)
+    adomain = CollectionDomain([sdomain, sdomain])
     # test _parameter_number
     @testset "_parameter_number" begin
         @test_throws MethodError InfiniteOpt._parameter_number(gvref)
@@ -249,33 +249,33 @@ end
         @test_throws ArgumentError eval(f)(dvref)
         @test_throws ArgumentError eval(f)(gvref)
     end
-    # test infinite_set (Fallback)
-    @testset "infinite_set (Fallback)" begin
-        @test_throws ArgumentError infinite_set(dvref)
+    # test infinite_domain (Fallback)
+    @testset "infinite_domain (Fallback)" begin
+        @test_throws ArgumentError infinite_domain(dvref)
     end
-    # test infinite_set (GeneralVariableRef)
-    @testset "infinite_set (GeneralVariableRef)" begin
-        @test_throws ArgumentError infinite_set(gvref)
+    # test infinite_domain (GeneralVariableRef)
+    @testset "infinite_domain (GeneralVariableRef)" begin
+        @test_throws ArgumentError infinite_domain(gvref)
     end
-    # test infinite_set (GeneralVariableRef Array)
-    @testset "infinite_set (GeneralVariableRef Array)" begin
-        @test_throws ArgumentError infinite_set(gvrefs)
-        @test_throws ArgumentError infinite_set(dense_gvrefs)
-        @test_throws ArgumentError infinite_set(sparse_gvrefs)
+    # test infinite_domain (GeneralVariableRef Array)
+    @testset "infinite_domain (GeneralVariableRef Array)" begin
+        @test_throws ArgumentError infinite_domain(gvrefs)
+        @test_throws ArgumentError infinite_domain(dense_gvrefs)
+        @test_throws ArgumentError infinite_domain(sparse_gvrefs)
     end
-    # test set_infinite_set (Fallback)
-    @testset "set_infinite_set (Fallback)" begin
-        @test_throws ArgumentError set_infinite_set(dvref, sset)
+    # test set_infinite_domain (Fallback)
+    @testset "set_infinite_domain (Fallback)" begin
+        @test_throws ArgumentError set_infinite_domain(dvref, sdomain)
     end
-    # test set_infinite_set (GeneralVariableRef)
-    @testset "set_infinite_set (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_infinite_set(gvref, sset)
+    # test set_infinite_domain (GeneralVariableRef)
+    @testset "set_infinite_domain (GeneralVariableRef)" begin
+        @test_throws ArgumentError set_infinite_domain(gvref, sdomain)
     end
-    # test set_infinite_set (GeneralVariableRef Array)
-    @testset "set_infinite_set (GeneralVariableRef Array)" begin
-        @test_throws ArgumentError set_infinite_set(gvrefs, aset)
-        @test_throws ArgumentError set_infinite_set(dense_gvrefs, aset)
-        @test_throws ArgumentError set_infinite_set(sparse_gvrefs, aset)
+    # test set_infinite_domain (GeneralVariableRef Array)
+    @testset "set_infinite_domain (GeneralVariableRef Array)" begin
+        @test_throws ArgumentError set_infinite_domain(gvrefs, adomain)
+        @test_throws ArgumentError set_infinite_domain(dense_gvrefs, adomain)
+        @test_throws ArgumentError set_infinite_domain(sparse_gvrefs, adomain)
     end
     # test num_supports (Fallback)
     @testset "num_supports (Fallback)" begin

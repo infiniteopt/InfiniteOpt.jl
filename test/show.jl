@@ -55,142 +55,142 @@ using JuMP: REPLMode, IJuliaMode
         @test InfiniteOpt._plural(1) == ""
         @test InfiniteOpt._plural(2) == "s"
     end
-    # test set_string (IntervalSet)
-    @testset "set_string (IntervalSet)" begin
+    # test domain_string (IntervalDomain)
+    @testset "domain_string (IntervalDomain)" begin
         # test simple case
-        set = IntervalSet(0, 1)
-        @test InfiniteOpt.set_string(REPLMode, set) == "[0, 1]"
-        @test InfiniteOpt.set_string(IJuliaMode, set) == "[0, 1]"
+        domain = IntervalDomain(0, 1)
+        @test InfiniteOpt.domain_string(REPLMode, domain) == "[0, 1]"
+        @test InfiniteOpt.domain_string(IJuliaMode, domain) == "[0, 1]"
         # test rounding case
-        set = IntervalSet(-0, 1)
-        @test InfiniteOpt.set_string(REPLMode, set) == "[0, 1]"
-        @test InfiniteOpt.set_string(IJuliaMode, set) == "[0, 1]"
+        domain = IntervalDomain(-0, 1)
+        @test InfiniteOpt.domain_string(REPLMode, domain) == "[0, 1]"
+        @test InfiniteOpt.domain_string(IJuliaMode, domain) == "[0, 1]"
         # test decimal case
-        set = IntervalSet(0.1, 1.3)
-        @test InfiniteOpt.set_string(REPLMode, set) == "[0.1, 1.3]"
-        @test InfiniteOpt.set_string(IJuliaMode, set) == "[0.1, 1.3]"
+        domain = IntervalDomain(0.1, 1.3)
+        @test InfiniteOpt.domain_string(REPLMode, domain) == "[0.1, 1.3]"
+        @test InfiniteOpt.domain_string(IJuliaMode, domain) == "[0.1, 1.3]"
     end
-    # test set_string (DistributionSet)
-    @testset "set_string (DistributionSet)" begin
-        # test univariate set
-        set = UniDistributionSet(Uniform())
-        @test InfiniteOpt.set_string(REPLMode, set) == "Uniform{Float64}(a=0.0, b=1.0)"
-        @test InfiniteOpt.set_string(IJuliaMode, set) == "Uniform{Float64}(a=0.0, b=1.0)"
-        # test mulivariate set
-        set = MultiDistributionSet(MvNormal([1], 1))
+    # test domain_string (DistributionDomain)
+    @testset "domain_string (DistributionDomain)" begin
+        # test univariate domain
+        domain = UniDistributionDomain(Uniform())
+        @test InfiniteOpt.domain_string(REPLMode, domain) == "Uniform{Float64}(a=0.0, b=1.0)"
+        @test InfiniteOpt.domain_string(IJuliaMode, domain) == "Uniform{Float64}(a=0.0, b=1.0)"
+        # test mulivariate domain
+        domain = MultiDistributionDomain(MvNormal([1], 1))
         str = "IsoNormal(\ndim: 1\nμ: [1.0]\nΣ: [1.0]\n)\n"
-        @test InfiniteOpt.set_string(REPLMode, set) == str
-        @test InfiniteOpt.set_string(IJuliaMode, set) == str
+        @test InfiniteOpt.domain_string(REPLMode, domain) == str
+        @test InfiniteOpt.domain_string(IJuliaMode, domain) == str
     end
-    # test set_string (CollectionSet)
-    @testset "set_string (CollectionSet)" begin
-        set = CollectionSet([IntervalSet(0, 1), IntervalSet(0, 0.1)])
-        str = "CollectionSet with 2 sets:\n [0, 1]\n [0, 0.1]"
-        @test InfiniteOpt.set_string(REPLMode, set) == str
-        @test InfiniteOpt.set_string(IJuliaMode, set) == str
+    # test domain_string (CollectionDomain)
+    @testset "domain_string (CollectionDomain)" begin
+        domain = CollectionDomain([IntervalDomain(0, 1), IntervalDomain(0, 0.1)])
+        str = "CollectionDomain with 2 domains:\n [0, 1]\n [0, 0.1]"
+        @test InfiniteOpt.domain_string(REPLMode, domain) == str
+        @test InfiniteOpt.domain_string(IJuliaMode, domain) == str
     end
-    # test set_string (Fallback)
-    @testset "set_string (Fallback)" begin
-        set = BadSet()
-        @test InfiniteOpt.set_string(REPLMode, set) == "BadSet()"
-        @test InfiniteOpt.set_string(IJuliaMode, set) == "BadSet()"
+    # test domain_string (Fallback)
+    @testset "domain_string (Fallback)" begin
+        domain = BadDomain()
+        @test InfiniteOpt.domain_string(REPLMode, domain) == "BadDomain()"
+        @test InfiniteOpt.domain_string(IJuliaMode, domain) == "BadDomain()"
     end
-    # test in_set_string (IntervalSet)
-    @testset "JuMP.in_set_string (Interval)" begin
+    # test in_domain_string (IntervalDomain)
+    @testset "in_domain_string (Interval)" begin
         # test simple case
-        set = IntervalSet(0, 1)
+        domain = IntervalDomain(0, 1)
         str = JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
-        @test in_set_string(REPLMode, set) == str
+        @test in_domain_string(REPLMode, domain) == str
         str = JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
-        @test in_set_string(IJuliaMode, set) == str
+        @test in_domain_string(IJuliaMode, domain) == str
         # test rounding case
-        set = IntervalSet(-0, 1)
+        domain = IntervalDomain(-0, 1)
         str = JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
-        @test in_set_string(REPLMode, set) == str
+        @test in_domain_string(REPLMode, domain) == str
         str = JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
-        @test in_set_string(IJuliaMode, set) == str
+        @test in_domain_string(IJuliaMode, domain) == str
         # test decimal case
-        set = IntervalSet(0.1, 1.3)
+        domain = IntervalDomain(0.1, 1.3)
         str = JuMP._math_symbol(REPLMode, :in) * " [0.1, 1.3]"
-        @test in_set_string(REPLMode, set) == str
+        @test in_domain_string(REPLMode, domain) == str
         str = JuMP._math_symbol(IJuliaMode, :in) * " [0.1, 1.3]"
-        @test in_set_string(IJuliaMode, set) == str
+        @test in_domain_string(IJuliaMode, domain) == str
         # test finite case
-        set = IntervalSet(0.1, 0.1)
+        domain = IntervalDomain(0.1, 0.1)
         str = JuMP._math_symbol(REPLMode, :eq) * " 0.1"
-        @test in_set_string(REPLMode, set) == str
+        @test in_domain_string(REPLMode, domain) == str
         str = JuMP._math_symbol(IJuliaMode, :eq) * " 0.1"
-        @test in_set_string(IJuliaMode, set) == str
+        @test in_domain_string(IJuliaMode, domain) == str
     end
-    # test in_set_string (Distribution)
-    @testset "JuMP.in_set_string (Distribution)" begin
-        # test univariate set
-        set = UniDistributionSet(Uniform())
+    # test in_domain_string (Distribution)
+    @testset "in_domain_string (Distribution)" begin
+        # test univariate domain
+        domain = UniDistributionDomain(Uniform())
         str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " Uniform"
-        @test in_set_string(REPLMode, set) == str
+        @test in_domain_string(REPLMode, domain) == str
         str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " Uniform"
-        @test in_set_string(IJuliaMode, set) == str
-        # test mulivariate set
-        set = MultiDistributionSet(MvNormal([1], 1))
+        @test in_domain_string(IJuliaMode, domain) == str
+        # test mulivariate domain
+        domain = MultiDistributionDomain(MvNormal([1], 1))
         str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " MvNormal(dim: (1))"
         str2 = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " IsoNormal(dim: (1))"
-        @test in_set_string(REPLMode, set) in [str, str2]
+        @test in_domain_string(REPLMode, domain) in [str, str2]
         str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " MvNormal(dim: (1))"
         str2 = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " IsoNormal(dim: (1))"
-        @test in_set_string(IJuliaMode, set) in [str, str2]
-        # test matrix set
-        set = MultiDistributionSet(MatrixBeta(2, 2, 2))
+        @test in_domain_string(IJuliaMode, domain) in [str, str2]
+        # test matrix domain
+        domain = MultiDistributionDomain(MatrixBeta(2, 2, 2))
         str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " MatrixBeta(dims: (2, 2))"
-        @test in_set_string(REPLMode, set) == str
+        @test in_domain_string(REPLMode, domain) == str
         str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " MatrixBeta(dims: (2, 2))"
-        @test in_set_string(IJuliaMode, set) == str
+        @test in_domain_string(IJuliaMode, domain) == str
     end
-    # test in_set_string (Fallback)
-    @testset "JuMP.in_set_string (Fallback)" begin
-        set = BadSet()
+    # test in_domain_string (Fallback)
+    @testset "in_domain_string (Fallback)" begin
+        domain = BadDomain()
         in1 = JuMP._math_symbol(REPLMode, :in)
         in2 = JuMP._math_symbol(IJuliaMode, :in)
-        @test in_set_string(REPLMode, set) == in1 * " BadSet()"
-        @test in_set_string(IJuliaMode, set) == in2 * " BadSet()"
+        @test in_domain_string(REPLMode, domain) == in1 * " BadDomain()"
+        @test in_domain_string(IJuliaMode, domain) == in2 * " BadDomain()"
     end
-    # test in_set_string (IntervalSet with Bounds)
-    @testset "JuMP.in_set_string (IntervalSet with Bounds)" begin
+    # test in_domain_string (IntervalDomain with Bounds)
+    @testset "in_domain_string (IntervalDomain with Bounds)" begin
         # test in bounds
-        bounds = ParameterBounds((par1 => IntervalSet(0, 0),))
-        set = IntervalSet(0, 1)
+        bounds = ParameterBounds((par1 => IntervalDomain(0, 0),))
+        domain = IntervalDomain(0, 1)
         str = JuMP._math_symbol(REPLMode, :eq) * " 0"
-        @test in_set_string(REPLMode, par1, set, bounds) == str
+        @test in_domain_string(REPLMode, par1, domain, bounds) == str
         str = JuMP._math_symbol(IJuliaMode, :eq) * " 0"
-        @test in_set_string(IJuliaMode, par1, set, bounds) == str
+        @test in_domain_string(IJuliaMode, par1, domain, bounds) == str
         # test not in bounds
         str = JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
-        @test in_set_string(REPLMode, pars[1], set, bounds) == str
+        @test in_domain_string(REPLMode, pars[1], domain, bounds) == str
         str = JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
-        @test in_set_string(IJuliaMode, pars[1], set, bounds) == str
+        @test in_domain_string(IJuliaMode, pars[1], domain, bounds) == str
     end
-    # test in_set_string (InfiniteScalarSet with Bounds)
-    @testset "JuMP.in_set_string (InfiniteScalarSet with Bounds)" begin
+    # test in_domain_string (InfiniteScalarDomain with Bounds)
+    @testset "in_domain_string (InfiniteScalarDomain with Bounds)" begin
         # test in bounds
-        bounds = ParameterBounds((par1 => IntervalSet(0, 0),))
-        set = UniDistributionSet(Uniform())
+        bounds = ParameterBounds((par1 => IntervalDomain(0, 0),))
+        domain = UniDistributionDomain(Uniform())
         str = JuMP._math_symbol(REPLMode, :eq) * " 0"
-        @test in_set_string(REPLMode, par1, set, bounds) == str
+        @test in_domain_string(REPLMode, par1, domain, bounds) == str
         str = JuMP._math_symbol(IJuliaMode, :eq) * " 0"
-        @test in_set_string(IJuliaMode, par1, set, bounds) == str
+        @test in_domain_string(IJuliaMode, par1, domain, bounds) == str
         # test in bounds and not equality
-        bounds = ParameterBounds((par1 => IntervalSet(0, 1),))
-        set = UniDistributionSet(Uniform())
+        bounds = ParameterBounds((par1 => IntervalDomain(0, 1),))
+        domain = UniDistributionDomain(Uniform())
         str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " Uniform " *
               InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) * " [0, 1]"
-        @test in_set_string(REPLMode, par1, set, bounds) == str
+        @test in_domain_string(REPLMode, par1, domain, bounds) == str
         str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " Uniform " *
               InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) * " [0, 1]"
-        @test in_set_string(IJuliaMode, par1, set, bounds) == str
+        @test in_domain_string(IJuliaMode, par1, domain, bounds) == str
         # test not in bounds
         str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " Uniform"
-        @test in_set_string(REPLMode, pars[1], set, bounds) == str
+        @test in_domain_string(REPLMode, pars[1], domain, bounds) == str
         str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " Uniform"
-        @test in_set_string(IJuliaMode, pars[1], set, bounds) == str
+        @test in_domain_string(IJuliaMode, pars[1], domain, bounds) == str
     end
     # test measure_data_string with 1-D DiscreteMeasureData/FunctionalDiscreteMeasureData
     @testset "measure_data_string (1-D)" begin
@@ -431,7 +431,7 @@ using JuMP: REPLMode, IJuliaMode
     # test bound_string
     @testset "bound_string" begin
         # test with single bound
-        bounds = ParameterBounds(Dict(par1 => IntervalSet(0.5, 0.7)))
+        bounds = ParameterBounds(Dict(par1 => IntervalDomain(0.5, 0.7)))
         str = "par1 " * JuMP._math_symbol(REPLMode, :in) * " [0.5, 0.7]"
         @test InfiniteOpt.bound_string(REPLMode, bounds) == str
         str = "par1 " *  JuMP._math_symbol(IJuliaMode, :in) * " [0.5, 0.7]"
@@ -457,7 +457,7 @@ using JuMP: REPLMode, IJuliaMode
     end
     # test _param_domain_string (IndependentParameter)
     @testset "_param_domain_string (IndependentParameter)" begin
-        bounds = ParameterBounds((par1 => IntervalSet(0, 0),))
+        bounds = ParameterBounds((par1 => IntervalDomain(0, 0),))
         idx = index(par1)
         str = "par1 " * JuMP._math_symbol(REPLMode, :eq) * " 0"
         @test InfiniteOpt._param_domain_string(REPLMode, m, idx, bounds) == str
@@ -467,7 +467,7 @@ using JuMP: REPLMode, IJuliaMode
     # test _param_domain_string (DependentParameters)
     @testset "_param_domain_string (DependentParameters)" begin
         # Collection set
-        bounds = ParameterBounds((pars2[1] => IntervalSet(0, 1),))
+        bounds = ParameterBounds((pars2[1] => IntervalDomain(0, 1),))
         idx = index(pars2[1]).object_index
         str = "pars2[1] " * JuMP._math_symbol(REPLMode, :in) * " [0, 1], " *
               "pars2[2] " * JuMP._math_symbol(REPLMode, :in) * " [0, 2]"
@@ -476,8 +476,8 @@ using JuMP: REPLMode, IJuliaMode
               "pars2_{2} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 2]"
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) == str
         # other set with equalities
-        bounds = ParameterBounds((pars[1] => IntervalSet(0, 0),
-                                  pars[2] => IntervalSet(1, 1)))
+        bounds = ParameterBounds((pars[1] => IntervalDomain(0, 0),
+                                  pars[2] => IntervalDomain(1, 1)))
         idx = index(pars[1]).object_index
         str = InfiniteOpt.bound_string(REPLMode, bounds)
         str2 = string(split(str, ", ")[2], ", ", split(str, ", ")[1])
@@ -486,7 +486,7 @@ using JuMP: REPLMode, IJuliaMode
         str2 = string(split(str, ", ")[2], ", ", split(str, ", ")[1])
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) in [str, str2]
         # other set without equalities and including in the bounds
-        bounds = ParameterBounds((pars[1] => IntervalSet(0, 1),))
+        bounds = ParameterBounds((pars[1] => IntervalDomain(0, 1),))
         str = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
               " MvNormal(dim: (2)) " *
               InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) *
@@ -506,7 +506,7 @@ using JuMP: REPLMode, IJuliaMode
               " (pars_{1} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1])"
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, bounds) in [str, str2]
         # other set without equalities and not included in bounds
-        bounds = ParameterBounds((par1 => IntervalSet(0, 1),))
+        bounds = ParameterBounds((par1 => IntervalDomain(0, 1),))
         str = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
               " MvNormal(dim: (2))"
         str2 = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
@@ -621,35 +621,35 @@ end
     @finite_variable(m, y)
     @objective(m, Min, 2 + y)
     @constraint(m, c1, x + y -2 <= 0)
-    bounds = ParameterBounds(Dict(par1 => IntervalSet(0.1, 1)))
+    bounds = ParameterBounds(Dict(par1 => IntervalDomain(0.1, 1)))
     @BDconstraint(m, c3(par1 in [0, 0.5]), x <= 5)
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                              eval_objective_value=false)
-    # test Base.show (IntervalSet in REPL)
-    @testset "Base.show (REPL IntervalSet)" begin
-        show_test(REPLMode, IntervalSet(0, 1), "[0, 1]")
+    # test Base.show (IntervalDomain in REPL)
+    @testset "Base.show (REPL IntervalDomain)" begin
+        show_test(REPLMode, IntervalDomain(0, 1), "[0, 1]")
     end
-    # test Base.show (IntervalSet in IJulia)
-    @testset "Base.show (IJulia IntervalSet)" begin
-        show_test(IJuliaMode, IntervalSet(0, 1), "[0, 1]")
+    # test Base.show (IntervalDomain in IJulia)
+    @testset "Base.show (IJulia IntervalDomain)" begin
+        show_test(IJuliaMode, IntervalDomain(0, 1), "[0, 1]")
     end
-    # test Base.show (DistributionSet in REPL)
-    @testset "Base.show (REPL DistributionSet)" begin
-        show_test(REPLMode, UniDistributionSet(Uniform()), string(Uniform()))
+    # test Base.show (DistributionDomain in REPL)
+    @testset "Base.show (REPL DistributionDomain)" begin
+        show_test(REPLMode, UniDistributionDomain(Uniform()), string(Uniform()))
     end
-    # test Base.show (DistributionSet in IJulia)
-    @testset "Base.show (IJulia DistributionSet)" begin
-        show_test(IJuliaMode, UniDistributionSet(Uniform()), string(Uniform()))
+    # test Base.show (DistributionDomain in IJulia)
+    @testset "Base.show (IJulia DistributionDomain)" begin
+        show_test(IJuliaMode, UniDistributionDomain(Uniform()), string(Uniform()))
     end
-    # test Base.show (CollectionSet in REPL)
-    @testset "Base.show (REPL CollectionSet)" begin
-        show_test(REPLMode, CollectionSet([IntervalSet(0, 0)]),
-                  "CollectionSet with 1 set:\n [0, 0]")
+    # test Base.show (CollectionDomain in REPL)
+    @testset "Base.show (REPL CollectionDomain)" begin
+        show_test(REPLMode, CollectionDomain([IntervalDomain(0, 0)]),
+                  "CollectionDomain with 1 domain:\n [0, 0]")
     end
-    # test Base.show (CollectionSet in IJulia)
-    @testset "Base.show (IJulia CollectionSet)" begin
-        show_test(IJuliaMode, CollectionSet([IntervalSet(0, 0), IntervalSet(0, 2)]),
-                  "CollectionSet with 2 sets:\n [0, 0]\n [0, 2]")
+    # test Base.show (CollectionDomain in IJulia)
+    @testset "Base.show (IJulia CollectionDomain)" begin
+        show_test(IJuliaMode, CollectionDomain([IntervalDomain(0, 0), IntervalDomain(0, 2)]),
+                  "CollectionDomain with 2 domains:\n [0, 0]\n [0, 2]")
     end
     # test Base.show (ParameterBounds in REPL)
     @testset "Base.show (REPL ParameterBounds)" begin

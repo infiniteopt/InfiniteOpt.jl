@@ -287,25 +287,25 @@ end
     @testset "_get_constr_bounds" begin 
         # ScalarConstraint
         con = InfiniteOpt._core_constraint_object(FixRef(y))
-        @test IOTO._get_constr_bounds(con) == (Int[], IntervalSet[])
+        @test IOTO._get_constr_bounds(con) == (Int[], IntervalDomain[])
         con = InfiniteOpt._core_constraint_object(c1)
-        @test IOTO._get_constr_bounds(con) == (Int[], IntervalSet[])
+        @test IOTO._get_constr_bounds(con) == (Int[], IntervalDomain[])
         # BoundedConstraint 
         con = InfiniteOpt._core_constraint_object(c2)
-        @test IOTO._get_constr_bounds(con) == ([3], [IntervalSet(0, 0)])
+        @test IOTO._get_constr_bounds(con) == ([3], [IntervalDomain(0, 0)])
         con = InfiniteOpt._core_constraint_object(c3)
         @test sort!(IOTO._get_constr_bounds(con)[1]) == [1, 2, 3]
-        @test IOTO._get_constr_bounds(con)[2] == [IntervalSet(1, 1), IntervalSet(1, 1), IntervalSet(1, 1)]
+        @test IOTO._get_constr_bounds(con)[2] == [IntervalDomain(1, 1), IntervalDomain(1, 1), IntervalDomain(1, 1)]
         con = InfiniteOpt._core_constraint_object(c4)
-        @test IOTO._get_constr_bounds(con) == ([3], [IntervalSet(0, 0.5)])
+        @test IOTO._get_constr_bounds(con) == ([3], [IntervalDomain(0, 0.5)])
     end
     # test _support_in_bounds 
     @testset "_support_in_bounds" begin 
-        @test IOTO._support_in_bounds([0., 0., 0.], [3], [IntervalSet(0, 0)])
-        @test IOTO._support_in_bounds([0., 0., 0.], Int[], IntervalSet[])
-        @test IOTO._support_in_bounds([NaN, 0., 0.], [1], [IntervalSet(0, 1)])
-        @test !IOTO._support_in_bounds([NaN, 0., 0.], [1, 2], [IntervalSet(1, 1), IntervalSet(1, 1)])
-        @test !IOTO._support_in_bounds([NaN, 0., 2.], [1, 3], [IntervalSet(1, 1), IntervalSet(1, 1)])
+        @test IOTO._support_in_bounds([0., 0., 0.], [3], [IntervalDomain(0, 0)])
+        @test IOTO._support_in_bounds([0., 0., 0.], Int[], IntervalDomain[])
+        @test IOTO._support_in_bounds([NaN, 0., 0.], [1], [IntervalDomain(0, 1)])
+        @test !IOTO._support_in_bounds([NaN, 0., 0.], [1, 2], [IntervalDomain(1, 1), IntervalDomain(1, 1)])
+        @test !IOTO._support_in_bounds([NaN, 0., 2.], [1, 3], [IntervalDomain(1, 1), IntervalDomain(1, 1)])
     end
     # test transcribe_constraints!
     @testset "transcribe_constraints!" begin 

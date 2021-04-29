@@ -100,7 +100,7 @@ function JuMP.build_variable(_error::Function, ivref::GeneralVariableRef,
     if check
         for (index, value) in eval_supports
             pref = prefs[index]
-            if JuMP.has_lower_bound(pref) && !supports_in_set(value, infinite_set(pref))
+            if JuMP.has_lower_bound(pref) && !supports_in_domain(value, infinite_domain(pref))
                 _error("Evaluation support violates infinite parameter domain(s).")
             end
         end
