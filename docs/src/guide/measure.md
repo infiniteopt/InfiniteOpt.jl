@@ -129,8 +129,11 @@ useful if users want to extend the measure functions with their custom
 representation/evaluation schemes that need to take additional arguments somehow. 
 See [Extensions](@ref) for more details.
 
-Now we can add integrals to the constraints and objective functions in our
-model using these measures. For more detailed information, please review the
+We can also use the `pdf` keyword argument for [`expect`] over interval domains 
+which allows us to specify the density function we would like to use. 
+
+Now we can add measures to the constraints and objective functions in our
+model. For more detailed information, please review the
 information below.
 
 ## Theoretical Abstraction
@@ -703,4 +706,5 @@ InfiniteOpt.MeasureToolbox.multi_integral_defaults
 InfiniteOpt.MeasureToolbox.set_multi_integral_defaults
 InfiniteOpt.MeasureToolbox.clear_multi_integral_defaults
 InfiniteOpt.MeasureToolbox.generate_integral_data
+InfiniteOpt.MeasureToolbox.generate_expect_data
 ```

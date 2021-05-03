@@ -1,4 +1,4 @@
-module MeasureToolbox # TODO make this an independent package
+module MeasureToolbox
 
 # Import the necessary packages.
 import FastGaussQuadrature
@@ -22,7 +22,7 @@ InternalGaussLobatto
 export uni_integral_defaults, set_uni_integral_defaults, 
 clear_uni_integral_defaults, integral, multi_integral_defaults, 
 set_multi_integral_defaults, clear_multi_integral_defaults, expect, support_sum,
-generate_integral_data, 𝔼, ∫
+generate_integral_data, 𝔼, ∫, generate_expect_data
 
 # Export macros
 export @expect, @𝔼, @support_sum, @integral, @∫

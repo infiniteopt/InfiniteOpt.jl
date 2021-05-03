@@ -4,8 +4,6 @@
     end
 end
 
-# TODO test support_sum with JuMP container of infinite parameters
-
 @testset "Support Sum" begin
     m = InfiniteModel()
     @infinite_parameter(m, x in [0, 1])
@@ -15,6 +13,7 @@ end
     @test InfiniteOpt._index_type(support_sum(inf, x)) == MeasureIndex
     @test InfiniteOpt._index_type(support_sum(inf, y)) == MeasureIndex
     @test name(support_sum(inf, x)) == "support_sum"
+    @test support_sum(inf, y, label = UserDefined) isa GeneralVariableRef
 end
 
 @testset "Macro" begin
@@ -25,4 +24,5 @@ end
 
     @test InfiniteOpt._index_type(@support_sum(inf, x)) == MeasureIndex
     @test InfiniteOpt._index_type(@support_sum(inf, y)) == MeasureIndex
+    @test_macro_throws ErrorException @support_sum(inf, y, 2)
 end
