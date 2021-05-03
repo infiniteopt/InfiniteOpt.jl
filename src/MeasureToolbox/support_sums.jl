@@ -6,12 +6,14 @@ _support_sum_coeffs(x::Array) = ones(size(x)[end])
 
 """
     support_sum(expr::JuMP.AbstractJuMPScalar,
-                params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}}
+                params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}};
+                label = All
                 )::GeneralVariableRef
 
 Creates a measure that represents the sum of the expression over a parameter(s)
-using all of its supports. Also, note that it is preferred to call
-[`@support_sum`](@ref) when `expr` is not just a single variable reference.
+using all of its supports corresponding to `label`. Also, note that it is 
+preferred to call [`@support_sum`](@ref) when `expr` is not just a 
+single variable reference.
 
 **Example**
 ```julia-repl
@@ -29,13 +31,14 @@ f(0.3) + f(0.7)
 ```
 """
 function support_sum(expr::JuMP.AbstractJuMPScalar,
-    prefs::Union{InfiniteOpt.GeneralVariableRef, AbstractArray{InfiniteOpt.GeneralVariableRef}}
+    prefs::Union{InfiniteOpt.GeneralVariableRef, AbstractArray{InfiniteOpt.GeneralVariableRef}};
+    label = InfiniteOpt.All
     )::InfiniteOpt.GeneralVariableRef
     # make the data
     ordered_prefs = InfiniteOpt._make_ordered_vector(prefs)
     length(prefs) == 1 ? bounds = NaN : bounds = map(e -> NaN, ordered_prefs)
     data = InfiniteOpt.FunctionalDiscreteMeasureData(ordered_prefs, _support_sum_coeffs,
-                                                     0, InfiniteOpt.All,
+                                                     0, label,
                                                      InfiniteOpt.NoGenerativeSupports(),
                                                      InfiniteOpt.default_weight,
                                                      bounds, bounds, false)
@@ -45,14 +48,22 @@ end
 
 """
     @support_sum(expr::JuMP.AbstractJuMPScalar,
-                 params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}}
+                 prefs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}};
+                 label = All
                  )::GeneralVariableRef
 
 An efficient wrapper for [`support_sum`](@ref) please see its doc string for
 more information.
 """
-macro support_sum(expr, params)
+macro support_sum(expr, prefs, args...)
+    _error(str...) = InfiniteOpt._macro_error(:support_sum, (expr, prefs, args...), 
+                                              str...)
+    extra, kw_args, requestedcontainer = InfiniteOpt._extract_kw_args(args)
+    if length(extra) > 0
+        _error("Unexpected positional arguments." *
+               "Must be of form @support_sum(expr, prefs, kwargs...).")
+    end
     expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
-    mref = :( support_sum($expression, $params) )
+    mref = :( support_sum($expression, $prefs; ($(kw_args...))) )
     return esc(mref)
 end

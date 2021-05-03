@@ -37,6 +37,7 @@
     @testset "generate_integral_data (FEGaussLobatto)" begin
         @test_throws ErrorException generate_integral_data(t, 0, Inf, FEGaussLobatto())
         @test_throws ErrorException generate_integral_data(t, 0, 1, FEGaussLobatto(), num_nodes = 1)
+        @test_throws ErrorException generate_integral_data(x[1], 0, 1, FEGaussLobatto(), num_nodes = 3)
         @test generate_integral_data(t, 0, 1, FEGaussLobatto()) isa FunctionalDiscreteMeasureData
         @test generate_integral_data(t, 0, 1, FEGaussLobatto()).label == All
         expected = [0.08333333333333333, 0.3333333333333333, 0.16666666666666666,

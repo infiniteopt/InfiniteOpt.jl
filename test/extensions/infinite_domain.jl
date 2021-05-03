@@ -60,3 +60,13 @@ end
 function JuMP.set_upper_bound(domain::MyNewDomain, upper::Real)::MyNewDomain
     return MyNewDomain(domain.attr1, upper) # REPLACE WITH ACTUAL CONSTRUCTOR
 end
+
+# Extend InfiniteOpt.MeasureToolbox.generate_expect_data if wanted
+function InfiniteOpt.MeasureToolbox.generate_expect_data(domain::MyNewDomain, 
+    pref::GeneralVariableRef, 
+    num_supports::Int; 
+    kwargs...
+    )
+    new_domain = IntervalDomain(domain.attr1, domain.attr2)
+    return generate_expect_data(new_domain, pref, num_supports; kwargs...) # REPLACE WITH ACTUAL
+end

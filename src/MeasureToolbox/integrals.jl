@@ -311,7 +311,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
     )::InfiniteOpt.AbstractMeasureData
-    is_depend = InfiniteOpt._index_type(pref) == DependentParameterIndex
+    is_depend = InfiniteOpt._index_type(pref) == InfiniteOpt.DependentParameterIndex
     inf_bound_num = (lower_bound == -Inf) + (upper_bound == Inf)
     if inf_bound_num == 0 # finite interval
         return generate_integral_data(pref, lower_bound, upper_bound, UniTrapezoid(),
@@ -380,16 +380,20 @@ end
 
 # Single Pref Finite Gauss Lobatto Quadrature
 function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
-        lower_bound::Real,
-        upper_bound::Real,
-        method::FEGaussLobatto;
-        num_nodes::Int = 3,
-        weight_func::Function = InfiniteOpt.default_weight
-        )
+    lower_bound::Real,
+    upper_bound::Real,
+    method::FEGaussLobatto;
+    num_nodes::Int = 3,
+    weight_func::Function = InfiniteOpt.default_weight
+    )
+    is_depend = InfiniteOpt._index_type(pref) == InfiniteOpt.DependentParameterIndex
     if lower_bound == -Inf || upper_bound == Inf
         error("The `FEGaussLobatto` can only be applied on finite intervals.")
     elseif num_nodes < 2
         error("For `FEGaussLobatto`, `num_nodes` must be at least 2.")
+    elseif num_nodes > 2 && is_depend 
+        error("Cannot use more than 2 nodes with `FEGaussLobatto` with respect ",
+              "to a dependent infinite parameter.")
     end
     (nodes, _) = FastGaussQuadrature.gausslobatto(num_nodes)
     info = UniformGenerativeInfo(nodes[2:end-1], InternalGaussLobatto, -1, 1)
@@ -637,18 +641,6 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
                                                      lower_bounds, upper_bounds,
                                                      false)
 end
-
-## Generate multivariate Monte Carlo samples in accordance with the parameter type
-# DependentParameterRefs --> Is this needed or used?
-# function _make_multi_mc_supports(prefs::Vector{InfiniteOpt.DependentParameterRef},
-#                                  lbs::Vector{<:Real}, ubs::Vector{<:Real},
-#                                  num_supps::Int)::Matrix{Float64}
-#     domains = [InfiniteOpt.IntervalDomain(lbs[i], ubs[i]) for i in eachindex(lbs)]
-#     domain = InfiniteOpt.CollectionDomain(domains)
-#     supports, _ = InfiniteOpt.generate_support_values(domain, InfiniteOpt.MCSample,
-#                                                       num_supports = num_supps)
-#     return supports
-# end
 
 # Vector of prefs with independent Monte Carlo supports
 function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},

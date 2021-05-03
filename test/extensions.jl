@@ -38,6 +38,7 @@
     
     # test measures
     @test @integral(x^2 + par, par, num_nodes = 2, eval_method = GaussLegendre()) isa GeneralVariableRef
+    @test expect(x, par) isa GeneralVariableRef
 
     # test constraints
     @test @constraint(m, x + par <= 0) isa InfOptConstraintRef

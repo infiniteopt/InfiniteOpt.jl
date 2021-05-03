@@ -274,9 +274,10 @@ using JuMP: REPLMode, IJuliaMode
         # test measure toolbox special cases for integrals and expectations
         @infinite_parameter(m, t in [0, 1])
         meas = dispatch_variable_ref(expect(y, t))
-        str = "\\mathbb{E}_{t}\\left[y\\right]"
+        str = "\\mathbb{E}_{t \\in [0, 1]}\\left[y\\right]"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
-        str = InfiniteOpt._infopt_math_symbol(REPLMode, :expect) * "{t}[y]"
+        str = InfiniteOpt._infopt_math_symbol(REPLMode, :expect) * "{t " * 
+              InfiniteOpt._infopt_math_symbol(REPLMode, :in) * " [0, 1]}[y]"
         @test InfiniteOpt.variable_string(REPLMode, meas) == str
         meas = dispatch_variable_ref(integral(y, t))
         str = "\\int_{t " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]}ydt"

@@ -19,6 +19,7 @@ The extension steps employed are:
 2. Extend [`InfiniteOpt.supports_in_domain`](@ref) (enables error checking of supports)
 3. Extend [`InfiniteOpt.generate_support_values`](@ref) (enables support generation via `num_supports` keyword arguments)
 4. If a lower bound and upper bound can be reported, extend `JuMP` lower bound and upper bound methods (enables automatic bound detection in `integral`)
+5. Extend [`InfiniteOpt.MeasureToolbox.generate_expect_data`](@ref) (enables the use of `expect`) 
 
 As an example, let's create a univariate disjoint interval domain as an infinite domain type.
 This corresponds to the domain ``[lb_1, ub_1] \cup [lb_2, ub_2]`` where
@@ -131,7 +132,7 @@ julia> supports(par)
  4.0
 ```
 
-Finally, we can extend the appropriate `JuMP` upper and lower bound functions
+We can extend the appropriate `JuMP` upper and lower bound functions
 if desired which are:
 - [`JuMP.has_lower_bound`](@ref JuMP.has_lower_bound(::AbstractInfiniteDomain))
 - [`JuMP.lower_bound`](@ref JuMP.lower_bound(::AbstractInfiniteDomain))
@@ -144,6 +145,37 @@ no extension is needed. For our current example we won't do this since lower
 and upper bounds aren't exactly clear for a disjoint interval. Please refer to
 the template in `./InfiniteOpt/test/extensions/infinite_domain.jl` to see how this
 is done.
+
+Finally, we can optionally enable the use of [`expect`](@ref) taken with respect 
+to infinite parameters with this new domain type by extending 
+[`InfiniteOpt.MeasureToolbox.generate_expect_data`](@ref):
+```jldoctest domain_ext; output = false
+function InfiniteOpt.MeasureToolbox.generate_expect_data(domain::DisjointDomain, 
+    pref::GeneralVariableRef, 
+    num_supports::Int; 
+    kwargs...
+    )
+    for (k, _) in kwargs
+        error("Keyword argument `$k` not supported for expectations over ",
+              "disjoint domains.")
+    end
+    coeff_func = (supps) -> ones(size(supps)[end]) ./ size(supps)[end] 
+    return InfiniteOpt.FunctionalDiscreteMeasureData(pref, coeff_func, 0, All)
+end
+
+# output
+
+
+```
+The above implementation simply sums over all the supports associated with `pref`
+and divides by the total number. Now we can use `expect`:
+```jldoctest domain_ext
+julia> @infinite_variable(model, y(t))
+y(t)
+
+julia> expect(y, t)
+𝔼{t}[y(t)]
+```
 
 ## Derivative Evaluation Methods 
 Derivative evaluation methods are used to dictate how we form the auxiliary 
