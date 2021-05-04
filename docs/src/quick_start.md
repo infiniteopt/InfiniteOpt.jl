@@ -275,7 +275,7 @@ model = InfiniteModel(Ipopt.Optimizer)
                     derivative_method = OrthogonalCollocation(2))
 @infinite_parameter(model, ξ in Normal(μ, σ^2), num_supports = 10)
 
-# INITIALIZE THE PARAMETERS
+# INITIALIZE THE VARIABLES
 @infinite_variable(model, x[I](t, ξ), start = 0)
 @infinite_variable(model, v[I](t, ξ), start = 0)
 @infinite_variable(model, u[I](t), start = 0)
