@@ -55,7 +55,7 @@ jobs:
         with:
           depwarn: error
         continue-on-error: ${{ matrix.version == 'nightly' }}
-      # - uses: julia-actions/julia-processcoverage@v1 # Add back once Travis is decommissioned 
-      # - uses: codecov/codecov-action@v1
-      #   with:
-      #     file: lcov.info
+      - uses: julia-actions/julia-processcoverage@v1
+      - uses: codecov/codecov-action@v1
+        with:
+          file: lcov.info
