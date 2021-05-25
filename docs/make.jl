@@ -29,7 +29,7 @@ makedocs(;
     authors = "Joshua Pulsipher and Weiqi Zhang",
     doctest = true,
     linkcheck = true,
-    strict = true,
+    strict = false,
     format = Documenter.HTML(
         # See https://github.com/JuliaDocs/Documenter.jl/issues/868
         prettyurls = get(ENV, "CI", nothing) == "true",
