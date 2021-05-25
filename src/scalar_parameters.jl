@@ -330,6 +330,7 @@ function add_parameter(model::InfiniteModel, p::IndependentParameter,
     param_num = model.last_param_num += 1
     data_object = ScalarParameterData(p, obj_num, param_num, name)
     obj_index = _add_data_object(model, data_object)
+    model.name_to_param = nothing
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
 end
 
@@ -338,6 +339,7 @@ function add_parameter(model::InfiniteModel, p::FiniteParameter,
                        name::String = "")::GeneralVariableRef
     data_object = ScalarParameterData(p, -1, -1, name)
     obj_index = _add_data_object(model, data_object)
+    model.name_to_param = nothing
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
 end
 
@@ -627,7 +629,7 @@ function parameter_by_name(model::InfiniteModel,
     if index isa Nothing
         return nothing
     elseif index == IndependentParameterIndex(-1)
-        error("Multiple variables have the name $name.")
+        error("Multiple parameters have the name $name.")
     else
         return _make_parameter_ref(model, index)
     end

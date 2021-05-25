@@ -95,6 +95,7 @@ function JuMP.add_variable(
     vindex = JuMP.index(dvref)
     gvref = _make_variable_ref(model, vindex)
     _set_info_constraints(var.info, gvref, dvref)
+    model.name_to_var = nothing
     return gvref
 end
 

@@ -309,6 +309,8 @@ function JuMP.add_constraint(
     # update the variable mappings and model status
     _update_var_constr_mapping(vrefs, cref)
     set_optimizer_model_ready(model, false)
+    # clear out the name dictionary 
+    model.name_to_constr = nothing
     # return the constraint reference
     return cref
 end

@@ -284,6 +284,8 @@ function add_parameters(model::InfiniteModel,
     obj_index = _add_data_object(model, data_object)
     prefs = [GeneralVariableRef(model, obj_index.value, DependentParameterIndex, i)
              for i in 1:num_params]
+    # reset the name dictionary 
+    model.name_to_param = nothing
     return Collections._make_array(prefs, indices)
 end
 

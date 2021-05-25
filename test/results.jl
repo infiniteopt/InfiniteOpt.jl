@@ -162,7 +162,7 @@ end
     # test _get_value 
     @testset "_get_value " begin
         @test InfiniteOpt._get_value(g, FiniteVariableIndex, 1) == 1.
-        @test InfiniteOpt._get_value(par, ScalarParameterIndex, 1, label = All) == [0., 0.5, 1.]
+        @test InfiniteOpt._get_value(par, IndependentParameterIndex, 1, label = All) == [0., 0.5, 1.]
         @test InfiniteOpt._get_value(fin, FiniteParameterIndex, 1) == 42
     end
     # test value
