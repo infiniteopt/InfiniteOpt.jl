@@ -96,7 +96,7 @@ function _get_value(pref, ::Type{<:InfiniteParameterIndex}, result; kwargs...)
 end
 
 # FiniteParameter 
-function _get_value(pref, ::Type{<:FiniteParameterIndex}, result; kwargs...)
+function _get_value(pref, ::Type{FiniteParameterIndex}, result; kwargs...)
     return parameter_value(pref)
 end
 

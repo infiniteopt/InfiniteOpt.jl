@@ -304,6 +304,15 @@ end
     end
 end
 
+# Test Deletion helpers 
+@testset "Deletion Helpers" begin 
+    m = InfiniteModel()
+    @variable(m, 1 <= z <= 2)
+    @test InfiniteOpt._delete_variable_dependencies(dispatch_variable_ref(z)) isa Nothing 
+    @test !has_lower_bound(z)
+    @test !has_upper_bound(z)
+end
+
 # test deprecations
 @testset "Parameter Bound Deprecations" begin 
     # setup 

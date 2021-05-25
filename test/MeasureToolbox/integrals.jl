@@ -160,8 +160,8 @@ end
     # test generate_integral_data (MultiIndepMCSampling)
     @testset "generate_integral_data (MultiIndepMCSampling)" begin
         @test generate_integral_data(x, [0, 0], [1, 1], MultiIndepMCSampling()) isa DiscreteMeasureData
-        @test_throws ErrorException generate_integral_data(x, [0, 0], [Inf, 1], MultiMCSampling())
-        @test_throws ErrorException generate_integral_data(x, [0, -Inf], [1, 1], MultiMCSampling())
+        @test_throws ErrorException generate_integral_data(x, [0, 0], [Inf, 1], MultiIndepMCSampling())
+        @test_throws ErrorException generate_integral_data(x, [0, -Inf], [1, 1], MultiIndepMCSampling())
     end
     # test generate_integral_data (Automatic)
     @testset "generate_integral_data (Automatic)" begin

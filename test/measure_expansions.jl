@@ -634,6 +634,11 @@ end
         InfiniteOpt._set_generative_support_info(dispatch_variable_ref(par1), info)
         @test InfiniteOpt.expand_measure(x, data, m) == 3x
     end
+    # test _prep_generative_supps
+    @testset "_prep_generative_supps" begin 
+        @test InfiniteOpt._prep_generative_supps(par1, NoGenerativeSupports) isa Nothing 
+        @test InfiniteOpt._prep_generative_supps(par1, UniformGenerativeInfo) isa Nothing 
+    end
     # test expand_measure (other)
     @testset "Other" begin
         # prepare test

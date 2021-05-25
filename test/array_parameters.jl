@@ -430,6 +430,8 @@ end
         @test parameter_by_name(m, "a[1]") == gvrefs[1]
         @test parameter_by_name(m, "a[2]") == gvrefs[2]
         @test isa(parameter_by_name(m, "a[3]"), Nothing)
+        @infinite_parameter(m, b[2:3] in [0, 1], base_name = "a")
+        @test_throws ErrorException parameter_by_name(m, "a[2]")
     end
     # test name
     @testset "JuMP.name" begin

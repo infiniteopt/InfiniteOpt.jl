@@ -159,6 +159,12 @@ end
         @test InfiniteOpt.map_value(g, Val(:TransData), 1) == 1.
         @test InfiniteOpt.map_value(rv, Val(:TransData), 1, label = All) == [-2., -1.]
     end
+    # test _get_value 
+    @testset "_get_value " begin
+        @test InfiniteOpt._get_value(g, FiniteVariableIndex, 1) == 1.
+        @test InfiniteOpt._get_value(par, ScalarParameterIndex, 1, label = All) == [0., 0.5, 1.]
+        @test InfiniteOpt._get_value(fin, FiniteParameterIndex, 1) == 42
+    end
     # test value
     @testset "JuMP.value" begin
         @test value(inf) == [2., 2.]

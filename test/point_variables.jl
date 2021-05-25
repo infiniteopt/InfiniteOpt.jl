@@ -273,6 +273,8 @@ end
         @test_throws ErrorException build_variable(error, info, Point(pref, 0))
         @test_throws ErrorException build_variable(error, info, Point(ivref))
         @test_throws ErrorException build_variable(error, info, Point(ivref, "d"))
+        @test_throws ErrorException build_variable(error, info, Point(ivref, 0.5, 0.5), 
+                                                   bad = 42)
         # test a variety of builds
         @test build_variable(error, info, Point(ivref, 0.5, 0.5)).infinite_variable_ref == ivref
         @test build_variable(error, info, Point(ivref, 0.5, 0.5)).parameter_values == [0.5, 0.5]
