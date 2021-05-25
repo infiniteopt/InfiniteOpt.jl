@@ -311,15 +311,13 @@ end
     @testset "has_domain_restrictions" begin
         @test has_domain_restrictions(c1)
         @test !has_domain_restrictions(c2)
-        warn = "`has_parameter_bounds` is deprecated, use `has_domain_restrictions` instead."
-        @test_logs (:warn, warn) has_parameter_bounds(c1)
+        @test_deprecated has_parameter_bounds(c1)
     end
     # test domain_restrictions
     @testset "domain_restrictions" begin
         @test domain_restrictions(c1) == DomainRestrictions(par => [0, 1])
         @test domain_restrictions(c2) == DomainRestrictions()
-        warn = "`parameter_bounds` is deprecated, use `domain_restrictions` instead."
-        @test_logs (:warn, warn) parameter_bounds(c1)
+        @test_deprecated parameter_bounds(c1)
     end
     # test set_domain_restrictions
     @testset "set_domain_restrictions" begin
@@ -335,8 +333,7 @@ end
         @test_throws ErrorException set_domain_restrictions(c1, rs2, force = true)
         # test deprecation
         empty!(domain_restrictions(c1).intervals)
-        warn = "`set_parameter_bounds` is deprecated, use `set_domain_restrictions` instead."
-        @test_logs (:warn, warn) set_parameter_bounds(c1, rs)
+        @test_deprecated set_parameter_bounds(c1, rs)
         @test_macro_throws ErrorException @set_parameter_bounds(c1, rs)
     end
     # test _update_restrictions
@@ -367,8 +364,7 @@ end
         @test add_domain_restrictions(c3, copy(rs)) isa Nothing
         @test domain_restrictions(c3) == rs
         # test deprecation 
-        warn = "`add_parameter_bounds` is deprecated, use `add_domain_restrictions` instead."
-        @test_logs (:warn, warn) add_parameter_bounds(c1, copy(rs))
+        @test_deprecated add_parameter_bounds(c1, copy(rs))
         @test_macro_throws ErrorException @add_parameter_bounds(c1, rs)
     end
     # test delete_domain_restrictions
@@ -382,8 +378,7 @@ end
         @test delete_domain_restrictions(c1) isa Nothing
         @test !has_domain_restrictions(c1)
         # test deprecation 
-        warn = "`delete_parameter_bounds` is deprecated, use `delete_domain_restrictions` instead."
-        @test_logs (:warn, warn) delete_parameter_bounds(c1)
+        @test_deprecated delete_parameter_bounds(c1)
     end
 end
 

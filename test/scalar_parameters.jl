@@ -829,8 +829,7 @@ end
         @test infinite_domain(pref_disp) == IntervalDomain(1, 2)
         @test infinite_domain(pref_gen) == IntervalDomain(1, 2)
         @test_throws ErrorException infinite_domain(bad_pref)
-        warn = "`infinite_set` is deprecated, use `infinite_domain` instead."
-        @test_logs (:warn, warn) infinite_set(pref_disp)
+        @test_deprecated infinite_set(pref_disp)
     end
     # set_infinite_domain
     @testset "set_infinite_domain" begin
@@ -839,8 +838,7 @@ end
         @test infinite_domain(pref_disp) == IntervalDomain(2, 3)
         @test isa(set_infinite_domain(pref_gen, IntervalDomain(1, 3)), Nothing)
         @test infinite_domain(pref_gen) == IntervalDomain(1, 3)
-        warn = "`set_infinite_set` is deprecated, use `set_infinite_domain` instead."
-        @test_logs (:warn, warn) set_infinite_set(pref_disp, IntervalDomain(1, 3))
+        @test_deprecated set_infinite_set(pref_disp, IntervalDomain(1, 3))
         @test set_infinite_domain(pref_gen, UniDistributionDomain(Normal())) isa Nothing
         @test infinite_domain(pref_disp) isa UniDistributionDomain 
         push!(InfiniteOpt._data_object(pref_gen).measure_indices, MeasureIndex(1))
@@ -923,8 +921,7 @@ end
         @test isa(set_supports(pref, [0, 1], force = true), Nothing)
         @test supports(pref) == [0., 1.]
         @test_throws ErrorException set_supports(pref, [2, 3])
-        warn = "Support points are not unique, eliminating redundant points."
-        @test_logs (:warn, warn) set_supports(pref, [1, 1], force = true)
+        @test_deprecated set_supports(pref, [1, 1], force = true)
         @test_throws ErrorException set_supports(pref, [0.5])
         @test !has_internal_supports(pref)
     end

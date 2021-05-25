@@ -90,25 +90,21 @@ end
     @test IntervalDomain <: InfiniteScalarDomain
     @test IntervalDomain(0, 1) == IntervalDomain(0.0, 1.0)
     @test_throws ErrorException IntervalDomain(1, 0)
-    warn = "`IntervalSet` is deprecated, use `IntervalDomain` instead."
-    @test_logs (:warn, warn) IntervalSet(0, 1)
+    @test_deprecated IntervalSet(0, 1)
     # UniDistributionDomain
     @test UniDistributionDomain <: InfiniteScalarDomain
     @test UniDistributionDomain(Normal()) isa UniDistributionDomain{<:Normal}
-    warn = "`UniDistributionSet` is deprecated, use `UniDistributionDomain` instead."
-    @test_logs (:warn, warn) UniDistributionSet(Normal())
+    @test_deprecated UniDistributionSet(Normal())
     # NonUnivariateDistribution
     @test InfiniteOpt.NonUnivariateDistribution <: Distribution
     # MultiDistributionDomain
     @test MultiDistributionDomain <: InfiniteArrayDomain
     @test MultiDistributionDomain(Dirichlet([0.5, 0.5])) isa MultiDistributionDomain{<:Dirichlet}
-    warn = "`MultiDistributionSet` is deprecated, use `MultiDistributionDomain` instead."
-    @test_logs (:warn, warn) MultiDistributionSet(Dirichlet([0.5, 0.5]))
+    @test_deprecated MultiDistributionSet(Dirichlet([0.5, 0.5]))
     # CollectionDomain
     @test CollectionDomain <: InfiniteArrayDomain
     @test CollectionDomain([IntervalDomain(0, 1), IntervalDomain(2, 3)]) isa CollectionDomain{IntervalDomain}
-    warn = "`CollectionSet` is deprecated, use `CollectionDomain` instead."
-    @test_logs (:warn, warn) CollectionSet([IntervalDomain(0, 1), IntervalDomain(2, 3)])
+    @test_deprecated CollectionSet([IntervalDomain(0, 1), IntervalDomain(2, 3)])
 end
 
 # Test Generative Support Info 
@@ -304,8 +300,7 @@ end
         d = (pars => IntervalDomain(0, 1), par3 => IntervalDomain(0, 1))
         @test DomainRestrictions(d).intervals isa Dict{GeneralVariableRef, IntervalDomain}
         @test DomainRestrictions(par3 => 0).intervals isa Dict
-        warn = "`ParameterBounds` is deprecated, use `DomainRestrictions` instead."
-        @test_logs (:warn, warn) ParameterBounds(par3 => 0)
+        @test_deprecated ParameterBounds(par3 => 0)
     end
     dr = DomainRestrictions(par3 => [0, 1])
     # test intervals
@@ -381,8 +376,7 @@ end
     vt = IC.VectorTuple(pref)
     # test ParameterFunction
     @test ParameterFunction(sin, vt, [1], [1], "") isa ParameterFunction
-    warn = "`InfiniteParameterFunction` is deprecated, use `ParameterFunction` instead."
-    @test_logs (:warn, warn) InfiniteParameterFunction(sin, vt, [1], [1], "")
+    @test_deprecated InfiniteParameterFunction(sin, vt, [1], [1], "")
     # test ParameterFunctionData
     @test ParameterFunctionData(ParameterFunction(sin, vt, [1], [1], "")) isa ParameterFunctionData
 end

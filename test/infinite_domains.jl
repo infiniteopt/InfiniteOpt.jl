@@ -5,8 +5,7 @@
     domain = CollectionDomain([domain1, domain2])
     @test_throws ErrorException collection_domains(domain1)
     @test collection_domains(domain) == [domain1, domain2]
-    warn = "`collection_sets` is deprecated, use `collection_domains` instead."
-    @test_logs (:warn, warn) collection_sets(domain)
+    @test_deprecated collection_sets(domain)
 end
 
 # Test length
@@ -60,8 +59,7 @@ end
     # supports_in_domain (Fallback)
     @testset "Fallback" begin
         @test supports_in_domain(0, BadDomain())
-        warn = "`supports_in_set` is deprecated, use `supports_in_domain` instead."
-        @test_logs (:warn, warn) supports_in_set(0, BadDomain())
+        @test_deprecated supports_in_set(0, BadDomain())
     end
 end
 
