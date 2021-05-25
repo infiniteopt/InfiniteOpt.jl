@@ -921,7 +921,8 @@ end
         @test isa(set_supports(pref, [0, 1], force = true), Nothing)
         @test supports(pref) == [0., 1.]
         @test_throws ErrorException set_supports(pref, [2, 3])
-        @test_deprecated set_supports(pref, [1, 1], force = true)
+        warn = "Support points are not unique, eliminating redundant points."
+        @test_logs (:warn, warn) set_supports(pref, [1, 1], force = true)
         @test_throws ErrorException set_supports(pref, [0.5])
         @test !has_internal_supports(pref)
     end
