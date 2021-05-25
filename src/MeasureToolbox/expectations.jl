@@ -168,7 +168,7 @@ just a single variable reference.
 julia> @infinite_parameter(model, x in Normal(), num_supports = 2)
 x
 
-julia> @infinite_variable(model, f(x))
+julia> @variable(model, f, Infinite(x))
 f(x)
 
 julia> meas = expect(f, x)

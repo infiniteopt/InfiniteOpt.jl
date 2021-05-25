@@ -40,16 +40,15 @@ end
 @testset "Query Formatters" begin 
     # initialize models
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
     @dependent_parameters(m, pars[1:2] in [0, 1])
-    @infinite_variable(m, x(par, pars))
-    @infinite_variable(m, q(pars, par))
-    @infinite_variable(m, w(par))
-    @point_variable(m, x(0, [0, 0]), x0)
-    @finite_variable(m, y)
+    @variable(m, x, Infinite(par, pars))
+    @variable(m, q, Infinite(pars, par))
+    @variable(m, w, Infinite(par))
+    @variable(m, x0, Point(x, 0, [0, 0]))
+    @variable(m, y)
     add_supports(par, 0.5, label = InternalLabel)
-    supps = Dict{Int, Float64}(2 => 1)
-    xrv = add_variable(m, build_variable(error, x, supps))
+    @variable(m, xrv, SemiInfinite(x, par, [1, pars[2]]))
     tm = optimizer_model(m)
     data = transcription_data(tm)
     data.has_internal_supports = true
@@ -91,11 +90,11 @@ end
 @testset "Variable Mapping Queries" begin
     # initialize models
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
     @dependent_parameters(m, pars[1:2] in [0, 1])
-    @infinite_variable(m, x(par, pars))
-    @point_variable(m, x(0, [0, 0]), x0)
-    @finite_variable(m, y)
+    @variable(m, x, Infinite(par, pars))
+    @variable(m, x0, Point(x, 0, [0, 0]))
+    @variable(m, y)
     f1 = parameter_function(sin, par)
     f2 = parameter_function((a, b) -> 1, (par, pars))
     add_supports(par, 0.5, label = InternalLabel)
@@ -231,7 +230,7 @@ end
     # test lookup_by_support (infinite vars)
     @testset "lookup_by_support (Infinite)" begin
         # test errors
-        @infinite_variable(m, x2(par))
+        @variable(m, x2, Infinite(par))
         @test_throws ErrorException IOTO.lookup_by_support(tm, x2, [0.])
         @test_throws ErrorException IOTO.lookup_by_support(tm, x, [0.9, 0., 0.])
         @test_throws ErrorException IOTO.lookup_by_support(tm, xrv, [0., 0., 0.])
@@ -250,7 +249,7 @@ end
     # test lookup_by_support (finite vars)
     @testset "lookup_by_support (Finite)" begin
         # test errors
-        @finite_variable(m, z2)
+        @variable(m, z2)
         @test_throws ErrorException IOTO.lookup_by_support(tm, z2, [0.])
         # test normal
         @test IOTO.lookup_by_support(tm, x0, [0., 0., 0.]) == b
@@ -273,11 +272,11 @@ end
 @testset "Measure Queries" begin
     # initialize tbe needed info
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
     @dependent_parameters(m, pars[1:2] in [0, 1])
-    @infinite_variable(m, x(par, pars))
-    @point_variable(m, x(0, [0, 0]), x0)
-    @finite_variable(m, y)
+    @variable(m, x, Infinite(par, pars))
+    @variable(m, x0, Point(x, 0, [0, 0]))
+    @variable(m, y)
     meas1 = support_sum(2par -2, par)
     meas2 = support_sum(x^2 - y, pars)
     tm = optimizer_model(m)
@@ -349,7 +348,7 @@ end
     @dependent_parameters(m, pars[1:2] in [0, 1], num_supports = 2)
     @infinite_parameter(m, par in [0, 1], supports = [0, 1], 
                         derivative_method = OrthogonalCollocation(3))
-    @infinite_variable(m, y(par))
+    @variable(m, y, Infinite(par))
     d1 = @deriv(y, par)
     tm = optimizer_model(m)
     # test _temp_parameter_ref
@@ -425,11 +424,11 @@ end
     # initialize tbe needed info
     m = InfiniteModel()
     @dependent_parameters(m, pars[1:2] in [0, 1])
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0])
-    @infinite_variable(m, x(par, pars))
+    @infinite_parameter(m, par in [0, 1], supports = [0])
+    @variable(m, x, Infinite(par, pars))
     @finite_parameter(m, finpar, 42)
-    @point_variable(m, x(0, [0, 0]), x0)
-    @finite_variable(m, y)
+    @variable(m, x0, Point(x, 0, [0, 0]))
+    @variable(m, y)
     f = parameter_function((a,b) -> 1, (par, pars))
     add_supports(par, 1, label = InternalLabel)
     meas1 = support_sum(2par -2, par)
@@ -560,9 +559,9 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 1], supports = [0])
     add_supports(par, 1, label = InternalLabel)
-    @infinite_variable(m, x(par))
-    @point_variable(m, x(0), x0)
-    @finite_variable(m, y)
+    @variable(m, x, Infinite(par))
+    @variable(m, x0, Point(x, 0))
+    @variable(m, y)
     @constraint(m, c1, x + y - 2 <= 0)
     @constraint(m, c2, support_sum(x, par) == 0)
     @constraint(m, c3, x0 + y == 5)

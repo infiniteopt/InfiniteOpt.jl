@@ -11,17 +11,21 @@ struct MyNewDomain <: InfiniteOpt.InfiniteScalarDomain
 end
 
 # Extend supports_in_domain
-function InfiniteOpt.supports_in_domain(supports::Union{Real, Vector{<:Real}},
-                                     domain::MyNewDomain)::Bool
+function InfiniteOpt.supports_in_domain(
+    supports::Union{Real, Vector{<:Real}},
+    domain::MyNewDomain
+    )::Bool
     # DETERMINE IF SUPPORTS ARE IN THE DOMAIN OF `domain`
     in_domain = all(domain.attr1 .<= supports .<= domain.attr2) # REPLACE WITH ACTUAL CHECK
     return in_domain
 end
 
 # Extend generate_support_values if possible
-function InfiniteOpt.generate_support_values(domain::MyNewDomain;
-                                             num_supports::Int = 10,
-                                             sig_digits::Int = 5)::Tuple{Vector{<:Real}, DataType}
+function InfiniteOpt.generate_support_values(
+    domain::MyNewDomain;
+    num_supports::Int = 10,
+    sig_digits::Int = 5
+    )::Tuple{Vector{Float64}, DataType}
     # REPLACE BELOW WITH METHODS TO GENERATE `num_samples` with `sig_fig` 
     supports = collect(range(domain.attr1, stop = domain.attr2, length = num_supports))
     return round.(supports, sigdigits = sig_digits), UniformGrid
@@ -62,7 +66,8 @@ function JuMP.set_upper_bound(domain::MyNewDomain, upper::Real)::MyNewDomain
 end
 
 # Extend InfiniteOpt.MeasureToolbox.generate_expect_data if wanted
-function InfiniteOpt.MeasureToolbox.generate_expect_data(domain::MyNewDomain, 
+function InfiniteOpt.MeasureToolbox.generate_expect_data(
+    domain::MyNewDomain, 
     pref::GeneralVariableRef, 
     num_supports::Int; 
     kwargs...

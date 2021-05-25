@@ -546,10 +546,10 @@ end
     end
     # _constraint_dependencies
     @testset "_constraint_dependencies" begin
-        @test InfiniteOpt._constraint_dependencies(pref1) == ConstraintIndex[]
-        @test InfiniteOpt._constraint_dependencies(dpref1) == ConstraintIndex[]
-        @test InfiniteOpt._constraint_dependencies(pref2) == ConstraintIndex[]
-        @test InfiniteOpt._constraint_dependencies(dpref2) == ConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(pref1) == InfOptConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(dpref1) == InfOptConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(pref2) == InfOptConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(dpref2) == InfOptConstraintIndex[]
         @test_throws ErrorException InfiniteOpt._constraint_dependencies(bad_pref)
     end
     # _generative_measures
@@ -566,8 +566,8 @@ end
         @test !used_by_constraint(pref2)
         @test !used_by_constraint(dpref1)
         @test !used_by_constraint(dpref2)
-        push!(InfiniteOpt._constraint_dependencies(dpref1), ConstraintIndex(1))
-        push!(InfiniteOpt._constraint_dependencies(dpref2), ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(dpref1), InfOptConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(dpref2), InfOptConstraintIndex(1))
         @test used_by_constraint(pref1)
         @test used_by_constraint(pref2)
         @test used_by_constraint(dpref1)
@@ -640,8 +640,8 @@ end
         @test !is_used(pref2)
         @test !is_used(dpref1)
         @test !is_used(dpref2)
-        push!(InfiniteOpt._constraint_dependencies(dpref1), ConstraintIndex(1))
-        push!(InfiniteOpt._constraint_dependencies(dpref2), ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(dpref1), InfOptConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(dpref2), InfOptConstraintIndex(1))
         @test is_used(pref1)
         @test is_used(pref2)
         @test is_used(dpref1)
@@ -785,7 +785,7 @@ end
     # test set_derivative_method
     @testset "set_derivative_method" begin 
         # test NonGenerativeDerivativeMethod with no generative measures
-        push!(InfiniteOpt._constraint_dependencies(dpref), ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(dpref), InfOptConstraintIndex(1))
         @test set_derivative_method(pref, TestMethod()) isa Nothing
         @test derivative_method(dpref) isa TestMethod
         # test NonGenerativeDerivativeMethod with generative measures
@@ -818,7 +818,7 @@ end
     end
     # _update_parameter_domain
     @testset "_update_parameter_domain " begin
-        push!(InfiniteOpt._constraint_dependencies(pref_disp), ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(pref_disp), InfOptConstraintIndex(1))
         @test isa(InfiniteOpt._update_parameter_domain(pref_disp,
                                                     IntervalDomain(1, 2)), Nothing)
         @test InfiniteOpt._parameter_domain(pref_disp) == IntervalDomain(1, 2)
@@ -829,6 +829,7 @@ end
         @test infinite_domain(pref_disp) == IntervalDomain(1, 2)
         @test infinite_domain(pref_gen) == IntervalDomain(1, 2)
         @test_throws ErrorException infinite_domain(bad_pref)
+        @test_deprecated infinite_set(pref_disp)
     end
     # set_infinite_domain
     @testset "set_infinite_domain" begin
@@ -837,6 +838,7 @@ end
         @test infinite_domain(pref_disp) == IntervalDomain(2, 3)
         @test isa(set_infinite_domain(pref_gen, IntervalDomain(1, 3)), Nothing)
         @test infinite_domain(pref_gen) == IntervalDomain(1, 3)
+        @test_deprecated set_infinite_set(pref_disp, IntervalDomain(1, 3))
         @test set_infinite_domain(pref_gen, UniDistributionDomain(Normal())) isa Nothing
         @test infinite_domain(pref_disp) isa UniDistributionDomain 
         push!(InfiniteOpt._data_object(pref_gen).measure_indices, MeasureIndex(1))
@@ -851,7 +853,7 @@ end
     @independent_parameter(m, pref2 in [0, 1])
     pref_disp = dispatch_variable_ref(pref)
     bad = Bad()
-    push!(InfiniteOpt._data_object(pref).constraint_indices, ConstraintIndex(1))
+    push!(InfiniteOpt._data_object(pref).constraint_indices, InfOptConstraintIndex(1))
     # _parameter_supports
     @testset "_parameter_supports" begin
         @test InfiniteOpt._parameter_supports(pref_disp) == SortedDict{Float64, Set{DataType}}()
@@ -1113,7 +1115,7 @@ end
     @testset "JuMP.set_value" begin
         pref = GeneralVariableRef(m, 1, FiniteParameterIndex)
         dpref = dispatch_variable_ref(pref)
-        push!(InfiniteOpt._constraint_dependencies(dpref), ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(dpref), InfOptConstraintIndex(1))
         @test_throws ArgumentError set_value(bad, 42)
         @test isa(set_value(dpref, 42), Nothing)
         @test parameter_value(pref) == 42

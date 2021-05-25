@@ -61,6 +61,31 @@ end
 ################################################################################
 #                          DEFINTION HELPER METHODS
 ################################################################################
+"""
+    Infinite{T} <: InfOptVariableType
+
+A `DataType` to assist in making infinite variables. This can be passed as an 
+extra argument to `@variable` to make an infinite variable: 
+```julia 
+@variable(model, var_expr, Infinite(parameter_refs...), args..., kwargs...)
+```
+Here `parameter_refs` can be a single parameter reference, a single parameter 
+array with parameters defined in the same macro call, or multiple arguments where 
+each argument is either of the first two options listed.
+
+**Fields**
+- `parameter_refs::VectorTuple{T}`: The infinite parameters the variable will 
+   depend on.
+"""
+struct Infinite{T} <: InfOptVariableType
+    parameter_refs::VectorTuple{T}
+    function Infinite(args...)
+        vt = VectorTuple(args)
+        T = param_type(vt)
+        return new{T}(vt)
+    end
+end
+
 ## Check that each parameter tuple element is formatted correctly
 # IndependentParameterRefs
 function _check_tuple_element(_error::Function,
@@ -97,8 +122,9 @@ function _check_parameter_tuple(_error::Function,
     return
 end
 function _check_parameter_tuple(_error::Function, raw_prefs::VectorTuple{T}) where {T}
-    _error("Expected tuple of infinite parameter references, but got a tuple with ",
-           "elements of type $T")
+    _error("Expected infinite parameter reference arguments, but got arguments ",
+           "of type $T. This may be because `Infinite()` was given (i.e., no ",
+           "infinite parameter references were specified as arguments).")
 end
 
 ## Check and format the variable info considering functional start values
@@ -147,23 +173,32 @@ function _check_and_format_infinite_info(_error::Function,
     _error("Unrecognized formatting for the variable information.")
 end
 
-# Define _make_variable (used by JuMP.build_variable)
-function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Type{Infinite};
-                        parameter_refs::Union{GeneralVariableRef,
-                                              AbstractArray{<:GeneralVariableRef},
-                                              Tuple, Nothing} = nothing,
-                        extra_kw_args...)::InfiniteVariable{GeneralVariableRef}
+"""
+    JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, 
+                        var_type::Infinite)::InfiniteVariable{GeneralVariableRef}
+
+Build and return an infinite variable based on `info` and `var_type`. Errors if 
+the infinite parameter references included in `var_type` are invalid. See 
+[`Infinite`](@ref) for more information.
+
+**Example**
+```julia-repl
+julia> info = VariableInfo(false, 0, false, 0, false, 0, true, 0, false, false);
+
+julia> inf_var = build_variable(error, info, Infinite(t));
+```
+"""
+function JuMP.build_variable(_error::Function, 
+    info::JuMP.VariableInfo, 
+    var_type::Infinite;
+    extra_kwargs...
+    )::InfiniteVariable{GeneralVariableRef}
     # check for unneeded keywords
-    for (kwarg, _) in extra_kw_args
+    for (kwarg, _) in extra_kwargs
         _error("Keyword argument $kwarg is not for use with infinite variables.")
     end
-    # check that we have been given parameter references
-    if parameter_refs === nothing
-        _error("Parameter references not specified, use the var(params...) " *
-               "syntax or the parameter_refs keyword argument.")
-    end
-    # format parameter_refs into a VectorTuple
-    prefs = VectorTuple(parameter_refs)
+    # get the parameter_refs
+    prefs = var_type.parameter_refs
     # check the VectorTuple for validity and format
     _check_parameter_tuple(_error, prefs)
     # check and format the info (accounting for start value functions)
@@ -247,7 +282,9 @@ julia> used_by_semi_infinite_variable(vref)
 false
 ```
 """
-function used_by_semi_infinite_variable(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
+function used_by_semi_infinite_variable(
+    vref::Union{InfiniteVariableRef, DerivativeRef}
+    )::Bool
     return !isempty(_semi_infinite_variable_dependencies(vref))
 end
 
@@ -262,7 +299,9 @@ julia> used_by_point_variable(vref)
 false
 ```
 """
-function used_by_point_variable(vref::Union{InfiniteVariableRef, DerivativeRef})::Bool
+function used_by_point_variable(
+    vref::Union{InfiniteVariableRef, DerivativeRef}
+    )::Bool
     return !isempty(_point_variable_dependencies(vref))
 end
 
@@ -325,7 +364,9 @@ depends on. This is primarily an internal method where
 [`parameter_refs`](@ref parameter_refs(vref::InfiniteVariableRef))
 is intended as the preferred user function.
 """
-function raw_parameter_refs(vref::InfiniteVariableRef)::VectorTuple{GeneralVariableRef}
+function raw_parameter_refs(
+    vref::InfiniteVariableRef
+    )::VectorTuple{GeneralVariableRef}
     return _core_variable_object(vref).parameter_refs
 end
 
@@ -338,7 +379,7 @@ to define `vref`.
 
 **Example**
 ```julia-repl
-julia> @infinite_variable(model, T(t))
+julia> @variable(model, T, Infinite(t))
 T(t)
 
 julia> parameter_refs(T)
@@ -370,8 +411,10 @@ end
 #                           VARIABLE INFO METHODS
 ################################################################################
 # Set info for infinite variables
-function _update_variable_info(vref::InfiniteVariableRef,
-                               info::JuMP.VariableInfo)::Nothing
+function _update_variable_info(
+    vref::InfiniteVariableRef,
+    info::JuMP.VariableInfo
+    )::Nothing
     new_info = JuMP.VariableInfo{Float64, Float64, Float64, Function}(
                                  info.has_lb, info.lower_bound, info.has_ub,
                                  info.upper_bound, info.has_fix, info.fixed_value,
@@ -392,7 +435,10 @@ function JuMP.start_value(vref::Union{InfiniteVariableRef, DerivativeRef})
 end
 
 # Specify set_start_value fallback for infinite variables
-function JuMP.set_start_value(vref::Union{InfiniteVariableRef, DerivativeRef}, value::Real)
+function JuMP.set_start_value(
+    vref::Union{InfiniteVariableRef, DerivativeRef}, 
+    value::Real
+    )
     error("`set_start_value` not defined for infinite variables, consider calling " *
           "`set_start_value_function` instead.")
 end
@@ -410,7 +456,9 @@ julia> start_value_function(vref)
 my_start_func
 ```
 """
-function start_value_function(vref::Union{InfiniteVariableRef, DerivativeRef})::Union{Nothing, Function}
+function start_value_function(
+    vref::Union{InfiniteVariableRef, DerivativeRef}
+    )::Union{Nothing, Function}
     if _variable_info(vref).has_start
         return _variable_info(vref).start
     else
@@ -435,8 +483,10 @@ julia> set_start_value_function(vref, 1) # all start values will be 1
 julia> set_start_value_function(vref, my_func) # each value will be made via my_func
 ```
 """
-function set_start_value_function(vref::InfiniteVariableRef,
-                                  start::Union{Real, Function})::Nothing
+function set_start_value_function(
+    vref::InfiniteVariableRef,
+    start::Union{Real, Function}
+    )::Nothing
     info = _variable_info(vref)
     set_optimizer_model_ready(JuMP.owner_model(vref), false)
     prefs = raw_parameter_refs(vref)

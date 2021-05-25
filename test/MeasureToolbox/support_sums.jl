@@ -8,7 +8,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, x in [0, 1])
     @infinite_parameter(m, y[1:2] in [0, 1])
-    @infinite_variable(m, inf(x, y))
+    @variable(m, inf, Infinite(x, y))
 
     @test InfiniteOpt._index_type(support_sum(inf, x)) == MeasureIndex
     @test InfiniteOpt._index_type(support_sum(inf, y)) == MeasureIndex
@@ -20,7 +20,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, x in [0, 1])
     @infinite_parameter(m, y[1:2] in [0, 1])
-    @infinite_variable(m, inf(x, y))
+    @variable(m, inf, Infinite(x, y))
 
     @test InfiniteOpt._index_type(@support_sum(inf, x)) == MeasureIndex
     @test InfiniteOpt._index_type(@support_sum(inf, y)) == MeasureIndex

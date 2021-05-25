@@ -138,6 +138,11 @@
             @test !IC.same_structure(vt4, vt5, use_indices = false)
             @test IC.same_structure(vt1, vt5, use_indices = false)
         end
+        # test param_type
+        @testset "param_type" begin
+            vt = IC.VectorTuple(1, [2, 3])
+            @test IC.param_type(vt) == Int
+        end
         # VectorTuple copying
         @testset "Base.Copy" begin
             vt1 = IC.VectorTuple(a, b, c2)

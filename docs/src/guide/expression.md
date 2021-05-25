@@ -1,6 +1,16 @@
+```@meta
+DocTestFilters = [r"≤|<=", r" == | = ", r" ∈ | in ", r"MathOptInterface|MOI",
+                  r" for all | ∀ ", r"d|∂", r"integral|∫"]
+```
+
 # [Expressions] (@id expr_page)
 A guide for the defining and understanding the variable expressions
 used in `InfiniteOpt`.
+
+!!! note 
+    Nonlinear objects as defined by `JuMP.@NL[macro_name]` are not currently 
+    supported by `InfiniteOpt`. See [Nonlinear Expressions](@ref) for more 
+    information and possible workarounds. 
 
 ## Overview
 Expressions in `InfiniteOpt` (also called functions) refer to mathematical
@@ -36,7 +46,7 @@ then created a Julia variable `f` that serves as a `GeneralVariableRef` that poi
 to it. From here we can treat `f` as a normal infinite variable and use it with 
 measures, derivatives, and constraints. For example, we can do the following:
 ```jldoctest param_func
-julia> @infinite_variable(model, y(t));
+julia> @variable(model, y, Infinite(t));
 
 julia> df = deriv(f, t)
 ∂/∂t[f(t)]
@@ -101,7 +111,7 @@ employed for parameter functions and these are detailed in the
 
 ## Variable Hierarchy
 Expressions employ variable reference types inherited from
-[`JuMP.AbstractVariableRef`](@ref) to form expression objects. `InfiniteOpt`
+`JuMP.AbstractVariableRef` to form expression objects. `InfiniteOpt`
 uses a hierarchy of such types to organize the complexities associated with
 modeling infinite dimensional programs. The figure below summarizes this
 hierarchy of variable reference types where the abstract types are depicted in
@@ -138,16 +148,16 @@ and/or objectives.
 
 In `InfiniteOpt`, affine expressions can be defined directly
 using `Julia`'s arithmetic operators (i.e., `+`, `-`, `*`, etc.) or using
-[`@expression`](@ref).  For example, let's define the expression
+`@expression`.  For example, let's define the expression
 ``2y(t) + z - 3t`` noting that the following methods are equivalent:
 ```jldoctest affine; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10])
 t
 
-julia> @infinite_variable(model, y(t))
+julia> @variable(model, y, Infinite(t))
 y(t)
 
-julia> @finite_variable(model, z)
+julia> @variable(model, z)
 z
 
 julia> expr = 2y + z - 3t
@@ -168,9 +178,10 @@ are stored in a container referred to as a `GenericAffExpr` which is a `JuMP`
 object for storing affine expressions.
 
 !!! note
-    Where possible, it is preferable to use [`@expression`](@ref) for defining
-    expressions as it is much more efficient than explicitly using the
-    standard operators.
+    Where possible, it is preferable to use 
+    [`@expression`](https://jump.dev/JuMP.jl/v0.21.8/reference/expressions/#JuMP.@expression) 
+    for defining expressions as it is much more efficient than explicitly using 
+    the standard operators.
 
 `GenericAffExpr` objects contain 2 fields which are:
 - `constant::CoefType` The constant value of the affine expression.
@@ -190,7 +201,7 @@ Notice that the ordered dictionary preserves the order in which the variables
 appear in the expression.
 
 More information can be found in the documentation for affine expressions in
-[`JuMP`](http://www.juliaopt.org/JuMP.jl/stable/expressions/#Affine-expressions-1).
+[`JuMP`](https://jump.dev/JuMP.jl/v0.21.8/reference/expressions/#Affine-expressions).
 
 ## Quadratic Expressions
 A quadratic function pertains to a mathematical function of the form:
@@ -201,7 +212,7 @@ where ``x \in \mathbb{R}^n`` are the variables,
 ``f_a(x): \mathbb{R}^n \mapsto \mathbb{R}`` is an affine function, and
 ``m = n(n+1)/2`` is the number of unique combinations of variables ``x``.
 Like affine expressions, quadratic expressions can be defined via `Julia`'s
-arithmetic operators or via [`@expression`](@ref). For example, let's define
+arithmetic operators or via `@expression`. For example, let's define
 ``2y^2(t) - zy(t) + 42t - 3`` using the following equivalent methods:
 ```jldoctest affine
 julia> expr = 2y^2 - z * y + 42t - 3
@@ -244,7 +255,7 @@ Notice again that the ordered dictionary preserves the order.
     and nested quadratic/affine expressions. For instance, ``z^3 + 2`` can be
     expressed by introducing a dumby variable ``x = z^2``:
     ```jldoctest affine
-    julia> @finite_variable(model, x)
+    julia> @variable(model, x)
     x
 
     julia> @constraint(model, x == z^2)
@@ -255,14 +266,55 @@ Notice again that the ordered dictionary preserves the order.
     ```
 
 More information can be found in the documentation for quadratic expressions in
-[`JuMP`](http://www.juliaopt.org/JuMP.jl/stable/expressions/#Quadratic-expressions-1).
+[`JuMP`](https://jump.dev/JuMP.jl/v0.21.8/reference/expressions/#Quadratic-expressions).
 
 ## Nonlinear Expressions
-General nonlinear expressions as generated via `@NLexpression` and similar
-methods in `JuMP` are not yet extended for `InfiniteOpt`. This is because
-`JuMP` does not readily support nonlinear extensions, but a native nonlinear
-implementation is planned for development and should be released in the
-relatively near future.
+General nonlinear expressions as generated via `JuMP.@NLexpression`, 
+`JuMP.@NLobjective`, and/or `JuMP.@NLconstraint` macros in `JuMP` are not 
+currently for `InfiniteOpt`. This is because `JuMP` does not readily support 
+nonlinear extensions. However, a fundamental overhaul is planned to resolve this 
+problem (check the status on 
+[GitHub](https://github.com/jump-dev/MathOptInterface.jl/issues/846)).
+
+### Workarounds
+In the meantime, this limitation can often be overcome by reformulating the 
+problem formulation. 
+
+One common case involves expressions that entail integer powers that are greater 
+than 2. This can readily be remedied by adding placeholder variables. For example, 
+consider the expression ``z^2x - 3z``. We can reformulate by introducing 
+``z' = z^2``:
+```jldoctest affine
+julia> @variable(model, z_squared)
+z_squared
+
+julia> @constraint(model, z_squared == z^2)
+-z² + z_squared = 0.0
+
+julia> @expression(model, z_squared * x - 3z)
+z_squared*x - 3 z
+```
+
+We can also reformulate for a variety of nonlinear function types:
+
+| Function     | Example                        | Reformulation Method                                                                                                               |
+|:------------:|:------------------------------:|:----------------------------------------------------------------------------------------------------------------------------------:|
+| Square Root  | ``\sqrt{z}``                   | Make a squared reformulation variable                                                                                              |
+| Indicator    | ``\mathbb{1}_{z \geq \alpha}`` | Use [`JuMP`'s indicator constraint syntax](https://jump.dev/JuMP.jl/v0.21.8/manual/constraints/#Indicator-constraints)             | 
+| Indicator    | ``\mathbb{1}_{z \geq \alpha}`` | Replace with big-M constraints ([reference](https://www.gurobi.com/documentation/9.1/refman/dealing_with_big_m_constra.html))      | 
+| Max/Min      | ``\max(z, a)``                 | Linear programming cuts or big-m constraints ([reference](https://or.stackexchange.com/questions/711/how-to-formulate-linearize-a-maximum-function-in-a-constraint/712#712)) |
+
+In other cases, it may be possible to use a formulation that uses vector 
+constraints. For example, it might be possible to model your problem using 
+semi-definite and/or conic constraints. 
+
+Also note that any nonlinearites that only involve infinite parameters (i.e., 
+no decision variables) are enabled via parameter functions. See 
+[Parameter Functions](@ref) for more information.
+
+For problems that cannot be readily reformulated, `JuMP` can be used directly. In 
+this case the user will need to first transform the formulation into a finite 
+representation (e.g., discretize it). 
 
 ## DataTypes
 ```@index
@@ -360,11 +412,6 @@ infinite_variable_ref(::GeneralVariableRef)
 eval_supports(::GeneralVariableRef)
 raw_parameter_values(::GeneralVariableRef)
 parameter_values(::GeneralVariableRef)
-parameter_bounds(::GeneralVariableRef)
-has_parameter_bounds(::GeneralVariableRef)
-set_parameter_bounds(::GeneralVariableRef,::ParameterBounds{GeneralVariableRef})
-add_parameter_bounds(::GeneralVariableRef,::ParameterBounds{GeneralVariableRef})
-delete_parameter_bounds(::GeneralVariableRef)
 significant_digits(::GeneralVariableRef)
 measure_function(::GeneralVariableRef)
 measure_data(::GeneralVariableRef)

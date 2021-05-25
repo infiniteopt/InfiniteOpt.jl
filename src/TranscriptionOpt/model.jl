@@ -5,7 +5,7 @@
     TranscriptionData
 
 A DataType for storing the data mapping an [`InfiniteOpt.InfiniteModel`](@ref)
-that has been transcribed to a regular [`JuMP.Model`](@ref) that contains the
+that has been transcribed to a regular `JuMP.Model` that contains the
 transcribed variables. This is stored in the `ext` field of a `JuMP.Model` to
 make what is called a `TranscriptionModel` via the [`TranscriptionModel`](@ref)
 constructor.
@@ -103,7 +103,7 @@ end
                        caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
                        bridge_constraints::Bool = true])::JuMP.Model
 
-Return a [`JuMP.Model`](@ref) with [`TranscriptionData`](@ref) included in the
+Return a `JuMP.Model` with [`TranscriptionData`](@ref) included in the
 `ext` data field. Accepts the same arguments as a typical JuMP `Model`.
 More detailed variable and constraint naming can be enabled via `verbose_naming`.
 
@@ -173,8 +173,13 @@ end
 #                              VARIABLE QUERIES
 ################################################################################
 # Define method for checking if the label needs to be accounted for 
-function _ignore_label(model::JuMP.Model, label::Type{<:InfiniteOpt.AbstractSupportLabel})::Bool
-    return label == InfiniteOpt.All || (!has_internal_supports(model) && label == InfiniteOpt.PublicLabel)
+function _ignore_label(
+    model::JuMP.Model, 
+    label::Type{<:InfiniteOpt.AbstractSupportLabel}
+    )::Bool
+    return label == InfiniteOpt.All || 
+           (!has_internal_supports(model) && 
+           label == InfiniteOpt.PublicLabel)
 end
 
 """
@@ -219,12 +224,14 @@ julia> transcription_variable(hdvar)
 hdvar
 ```
 """
-function transcription_variable(model::JuMP.Model,
+function transcription_variable(
+    model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef;
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
     )
-    return transcription_variable(model, vref, InfiniteOpt._index_type(vref), label, ndarray)
+    return transcription_variable(model, vref, InfiniteOpt._index_type(vref), 
+                                  label, ndarray)
 end
 
 # define convenient aliases
@@ -236,7 +243,8 @@ const FinVarIndex = Union{InfiniteOpt.FiniteVariableIndex,
 
 ## Define the variable mapping functions
 # FinVarIndex
-function transcription_variable(model::JuMP.Model,
+function transcription_variable(
+    model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     label::Type{<:InfiniteOpt.AbstractSupportLabel},
@@ -250,7 +258,8 @@ function transcription_variable(model::JuMP.Model,
 end
 
 # InfVarIndex
-function transcription_variable(model::JuMP.Model,
+function transcription_variable(
+    model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     label::Type{<:InfiniteOpt.AbstractSupportLabel},
@@ -272,7 +281,8 @@ function transcription_variable(model::JuMP.Model,
 end
 
 # ParameterFunctionIndex
-function transcription_variable(model::JuMP.Model,
+function transcription_variable(
+    model::JuMP.Model,
     fref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.ParameterFunctionIndex},
     label::Type{<:InfiniteOpt.AbstractSupportLabel},
@@ -305,13 +315,15 @@ function transcription_variable(model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type,
     label,
-    ndarray)
+    ndarray
+    )
     error("`transcription_variable` not defined for variables with indices of " *
           "type $(index_type) and/or is not defined for labels of type $(label).")
 end
 
 # Dispatch for internal models
-function transcription_variable(vref::InfiniteOpt.GeneralVariableRef; 
+function transcription_variable(
+    vref::InfiniteOpt.GeneralVariableRef; 
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel, 
     ndarray::Bool = false
     )
@@ -329,10 +341,12 @@ end
 Proper extension of [`InfiniteOpt.optimizer_model_variable`](@ref) for
 `TranscriptionModel`s. This simply dispatches to [`transcription_variable`](@ref).
 """
-function InfiniteOpt.optimizer_model_variable(vref::InfiniteOpt.GeneralVariableRef,
+function InfiniteOpt.optimizer_model_variable(
+    vref::InfiniteOpt.GeneralVariableRef,
     ::Val{:TransData};
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false)
+    ndarray::Bool = false
+    )
     return transcription_variable(vref, label = label, ndarray = ndarray)
 end
 
@@ -347,7 +361,8 @@ Return the support alias mapping associated with `vref` in the transcription mod
 Errors if `vref` does not have transcripted variables. See `transcription_variable` 
 for an explanation of `ndarray`.
 """
-function InfiniteOpt.variable_supports(model::JuMP.Model,
+function InfiniteOpt.variable_supports(
+    model::JuMP.Model,
     dvref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.SemiInfiniteVariableRef, 
                  InfiniteOpt.DerivativeRef},
     key::Val{:TransData} = Val(:TransData);
@@ -380,7 +395,8 @@ function InfiniteOpt.variable_supports(model::JuMP.Model,
 end
 
 # ParameterFunctionRef 
-function InfiniteOpt.variable_supports(model::JuMP.Model,
+function InfiniteOpt.variable_supports(
+    model::JuMP.Model,
     dvref::InfiniteOpt.ParameterFunctionRef,
     key::Val{:TransData} = Val(:TransData);
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
@@ -416,21 +432,26 @@ end
 Return the transcription expression of `vref` defined at its `support`. This is
 intended as a helper method for automated transcription.
 """
-function lookup_by_support(model::JuMP.Model,
+function lookup_by_support(
+    model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
-    support::Vector)
+    support::Vector
+    )
     return lookup_by_support(model, vref, InfiniteOpt._index_type(vref), support)
 end
 
 # define error function for not being able to find a variable by its support
-_supp_error() = error("Unable to locate transcription variable by support, consider " *
-                      "rebuilding the infinite model with less significant digits. " *
-                      "Note this might be due to partially evaluating dependent parameters " *
-                      "which is not supported by TranscriptionOpt. Such is the case with " * 
-                      "derivatives/measures that dependent on single dependent parameters.")
+_supp_error() = error("Unable to locate transcription variable by support, ", 
+                      "consider rebuilding the infinite model with less ", 
+                      "significant digits. Note this might be due to partially ",
+                      "evaluating dependent parameters which is not supported ", 
+                      "by TranscriptionOpt. Such is the case with " * 
+                      "derivatives/measures that dependent on single ", 
+                      "dependent parameters.")
 
 # InfiniteIndex
-function lookup_by_support(model::JuMP.Model,
+function lookup_by_support(
+    model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     support::Vector
@@ -443,7 +464,8 @@ function lookup_by_support(model::JuMP.Model,
 end
 
 # ParameterFunctionIndex
-function lookup_by_support(model::JuMP.Model,
+function lookup_by_support(
+    model::JuMP.Model,
     fref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.ParameterFunctionIndex},
     support::Vector
@@ -454,7 +476,8 @@ function lookup_by_support(model::JuMP.Model,
 end
 
 # FiniteIndex
-function lookup_by_support(model::JuMP.Model,
+function lookup_by_support(
+    model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     support::Vector
@@ -495,7 +518,8 @@ end
 #                              MEASURE QUERIES
 ################################################################################
 # MeasureIndex
-function transcription_variable(model::JuMP.Model,
+function transcription_variable(
+    model::JuMP.Model,
     mref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.MeasureIndex},
     label::Type{<:InfiniteOpt.AbstractSupportLabel},
@@ -519,7 +543,8 @@ function transcription_variable(model::JuMP.Model,
 end
 
 # Extend transcription_expression
-function lookup_by_support(model::JuMP.Model,
+function lookup_by_support(
+    model::JuMP.Model,
     mref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.MeasureIndex},
     support::Vector
@@ -532,7 +557,8 @@ function lookup_by_support(model::JuMP.Model,
 end
 
 # Extend variable_supports
-function InfiniteOpt.variable_supports(model::JuMP.Model,
+function InfiniteOpt.variable_supports(
+    model::JuMP.Model,
     dmref::InfiniteOpt.MeasureRef,
     key::Val{:TransData} = Val(:TransData);
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
@@ -570,7 +596,8 @@ end
 #                             EXPRESSION QUERIES
 ################################################################################
 """
-    transcription_expression(model::JuMP.Model,
+    transcription_expression(
+        model::JuMP.Model,
         expr::JuMP.AbstractJuMPScalar;
         [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
         ndarray::Bool = false])
@@ -601,7 +628,8 @@ julia> transcription_expression(my_expr)
 x(support: 1) - y
 ```
 """
-function transcription_expression(model::JuMP.Model,
+function transcription_expression(
+    model::JuMP.Model,
     expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr};
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
@@ -630,7 +658,8 @@ function transcription_expression(model::JuMP.Model,
 end
 
 # Define for variables
-function transcription_expression(model::JuMP.Model,
+function transcription_expression(
+    model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef; 
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false)
@@ -638,7 +667,8 @@ function transcription_expression(model::JuMP.Model,
 end
 
 # Dispatch for internal models
-function transcription_expression(expr::JuMP.AbstractJuMPScalar; 
+function transcription_expression(
+    expr::JuMP.AbstractJuMPScalar; 
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
     )
@@ -679,7 +709,8 @@ end
 Return the support alias mappings associated with `expr`. Errors if `expr` cannot
 be transcribed.
 """
-function InfiniteOpt.expression_supports(model::JuMP.Model,
+function InfiniteOpt.expression_supports(
+    model::JuMP.Model,
     expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
     key::Val{:TransData} = Val(:TransData);
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
@@ -743,7 +774,8 @@ julia> transcription_constraint(fin_con)
 fin_con : x(support: 1) - y <= 3.0
 ```
 """
-function transcription_constraint(model::JuMP.Model,
+function transcription_constraint(
+    model::JuMP.Model,
     cref::InfiniteOpt.InfOptConstraintRef;
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
@@ -766,7 +798,8 @@ function transcription_constraint(model::JuMP.Model,
 end
 
 # Dispatch for internal models
-function transcription_constraint(cref::InfiniteOpt.InfOptConstraintRef;
+function transcription_constraint(
+    cref::InfiniteOpt.InfOptConstraintRef;
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
     )
@@ -776,7 +809,8 @@ function transcription_constraint(cref::InfiniteOpt.InfOptConstraintRef;
 end
 
 """
-    InfiniteOpt.optimizer_model_constraint(cref::InfiniteOpt.InfOptConstraintRef,
+    InfiniteOpt.optimizer_model_constraint(
+        cref::InfiniteOpt.InfOptConstraintRef,
         ::Val{:TransData};
         [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
         ndarray::Bool = false])
@@ -803,7 +837,8 @@ end
 Return the support alias mappings associated with `cref`. Errors if `cref` is
 not transcribed.
 """
-function InfiniteOpt.constraint_supports(model::JuMP.Model,
+function InfiniteOpt.constraint_supports(
+    model::JuMP.Model,
     cref::InfiniteOpt.InfOptConstraintRef,
     key::Val{:TransData} = Val(:TransData);
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
@@ -857,8 +892,10 @@ function support_index_iterator(model::JuMP.Model)::CartesianIndices
 end
 
 # Generate for a subset of object numbers (use last index as placeholder --> support with NaNs)
-function support_index_iterator(model::JuMP.Model,
-                                obj_nums::Vector{Int})::CartesianIndices
+function support_index_iterator(
+    model::JuMP.Model,
+    obj_nums::Vector{Int}
+    )::CartesianIndices
     raw_supps = parameter_supports(model)
     lens = map(i -> length(i), raw_supps)
     # prepare the indices of each support combo
@@ -874,8 +911,10 @@ Given a particular support `index` generated via [`support_index_iterator`](@ref
 using `model`, return the corresponding support from `TranscriptionData.supports`
 using placeholder `NaN`s as appropriate for tuple elements that are unneeded.
 """
-function index_to_support(model::JuMP.Model,
-                          index::CartesianIndex)::Vector{Float64}
+function index_to_support(
+    model::JuMP.Model,
+    index::CartesianIndex
+    )::Vector{Float64}
     raw_supps = parameter_supports(model)
     return [j for i in eachindex(index.I) for j in raw_supps[i][index[i]]]
 end
@@ -886,8 +925,10 @@ end
 Given a particular support `index` generated via [`support_index_iterator`](@ref)
 using `model`, return the corresponding support label set from `TranscriptionData.support_labels`.
 """
-function index_to_labels(model::JuMP.Model,
-                         index::CartesianIndex)::Set{DataType}
+function index_to_labels(
+    model::JuMP.Model,
+    index::CartesianIndex
+    )::Set{DataType}
     raw_labels = transcription_data(model).support_labels
     labels = Set{DataType}()
     for (i, j) in enumerate(index.I)
@@ -911,7 +952,9 @@ function _get_object_numbers(ref)
 end 
 
 # Expressions
-function _get_object_numbers(expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr})
+function _get_object_numbers(
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr}
+    )
     return sort(InfiniteOpt._object_numbers(expr))
 end 
 

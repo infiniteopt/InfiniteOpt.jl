@@ -42,7 +42,7 @@ end
     @infinite_parameter(m, x in Normal())
     @infinite_parameter(m, xi[1:2] in MvNormal(ones(2), [1. 0.; 0. 2.]))
     @infinite_parameter(m, y in [0, 1])
-    @infinite_variable(m, inf(x, xi, y))
+    @variable(m, inf, Infinite(x, xi, y))
 
     # Test normal usage
     @test InfiniteOpt._index_type(expect(inf, x)) == MeasureIndex
@@ -63,7 +63,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, x in Normal())
     @infinite_parameter(m, xi[1:2] in MvNormal(ones(2), [1. 0.; 0. 2.]))
-    @infinite_variable(m, inf(x, xi))
+    @variable(m, inf, Infinite(x, xi))
 
     # Test normal usage
     @test InfiniteOpt._index_type(@expect(inf, x)) == MeasureIndex

@@ -41,9 +41,9 @@
     # MeasureIndex
     @test MeasureIndex <: ObjectIndex
     @test MeasureIndex(1).value == 1
-    # ConstraintIndex
-    @test ConstraintIndex <: ObjectIndex
-    @test ConstraintIndex(1).value == 1
+    # InfOptConstraintIndex
+    @test InfOptConstraintIndex <: ObjectIndex
+    @test InfOptConstraintIndex(1).value == 1
     # test CleverDict extensions
     @testset "CleverDict Extensions" begin
         # index_to_key
@@ -57,7 +57,7 @@
         @test MOIUC.index_to_key(FiniteVariableIndex, Int64(42)) == FiniteVariableIndex(42)
         @test MOIUC.index_to_key(DerivativeIndex, Int64(42)) == DerivativeIndex(42)
         @test MOIUC.index_to_key(MeasureIndex, Int64(42)) == MeasureIndex(42)
-        @test MOIUC.index_to_key(ConstraintIndex, Int64(42)) == ConstraintIndex(42)
+        @test MOIUC.index_to_key(InfOptConstraintIndex, Int64(42)) == InfOptConstraintIndex(42)
         # index_to_key
         @test MOIUC.key_to_index(MeasureIndex(42)) == 42
     end
@@ -90,17 +90,21 @@ end
     @test IntervalDomain <: InfiniteScalarDomain
     @test IntervalDomain(0, 1) == IntervalDomain(0.0, 1.0)
     @test_throws ErrorException IntervalDomain(1, 0)
+    @test_deprecated IntervalSet(0, 1)
     # UniDistributionDomain
     @test UniDistributionDomain <: InfiniteScalarDomain
     @test UniDistributionDomain(Normal()) isa UniDistributionDomain{<:Normal}
+    @test_deprecated UniDistributionSet(Normal())
     # NonUnivariateDistribution
     @test InfiniteOpt.NonUnivariateDistribution <: Distribution
     # MultiDistributionDomain
     @test MultiDistributionDomain <: InfiniteArrayDomain
     @test MultiDistributionDomain(Dirichlet([0.5, 0.5])) isa MultiDistributionDomain{<:Dirichlet}
+    @test_deprecated MultiDistributionSet(Dirichlet([0.5, 0.5]))
     # CollectionDomain
     @test CollectionDomain <: InfiniteArrayDomain
     @test CollectionDomain([IntervalDomain(0, 1), IntervalDomain(2, 3)]) isa CollectionDomain{IntervalDomain}
+    @test_deprecated CollectionSet([IntervalDomain(0, 1), IntervalDomain(2, 3)])
 end
 
 # Test Generative Support Info 
@@ -248,12 +252,12 @@ end
     @test MeasureRef(m, idx) isa MeasureRef
     # InfOptConstraintRef
     @test InfOptConstraintRef isa DataType
-    idx = ConstraintIndex(1)
+    idx = InfOptConstraintIndex(1)
     @test InfOptConstraintRef(m, idx) isa InfOptConstraintRef
 end
 
-# Test ParameterBounds
-@testset "Parameter Bounds" begin
+# Test DomainRestrictions
+@testset "Domain Restrictions" begin
     # prepare the data
     m = InfiniteModel()
     idx = DependentParametersIndex(1)
@@ -266,102 +270,101 @@ end
     pars = [par1, par2]
     # test datatype
     @testset "DataType" begin
-        @test ParameterBounds isa UnionAll
+        @test DomainRestrictions isa UnionAll
         d = Dict(par3 => IntervalDomain(0, 1))
-        @test ParameterBounds(d) isa ParameterBounds{GeneralVariableRef}
-        @test ParameterBounds() isa ParameterBounds{GeneralVariableRef}
+        @test DomainRestrictions(d) isa DomainRestrictions{GeneralVariableRef}
+        @test DomainRestrictions() isa DomainRestrictions{GeneralVariableRef}
     end
     # test _expand_parameter_tuple
     @testset "_expand_parameter_tuple" begin
+        # test good to go
         d = (par3 => IntervalDomain(0, 1),)
         @test InfiniteOpt._expand_parameter_tuple(d) == Dict(d...)
-    end
-    # test _expand_parameter_dict(Dict{ParameterRef,IntervalDomain}))
-    @testset "_expand_parameter_dict (acceptable Form)" begin
-        d = (par3 => IntervalDomain(0, 1),)
-        @test InfiniteOpt._expand_parameter_dict(d) == Dict(d...)
-    end
-    # test _expand_parameter_dict(Dict{Any,IntervalDomain}))
-    @testset "_expand_parameter_dict (Array Form)" begin
+        # test with array of parameters
         d = (pars => IntervalDomain(0, 1), par3 => IntervalDomain(0, 1))
-        @test isa(InfiniteOpt._expand_parameter_dict(d),
-                  Dict{GeneralVariableRef, IntervalDomain})
-    end
-    # test _expand_parameter_dict(Dict))
-    @testset "_expand_parameter_dict (Fallback)" begin
-        d = (pars => 1, par3 => 2)
-        @test_throws ErrorException InfiniteOpt._expand_parameter_dict(d)
+        @test InfiniteOpt._expand_parameter_tuple(d) isa Dict
+        # test symbolic domains 
+        d = (pars => [0, 1], par3 => 0)
+        @test InfiniteOpt._expand_parameter_tuple(d) isa Dict
+        # test bad vector domain
+        d = (pars => [0, 1, 3],)
+        @test_throws ErrorException InfiniteOpt._expand_parameter_tuple(d)
+        # test fallback 
+        d = (pars => :a,)
+        @test_throws ErrorException InfiniteOpt._expand_parameter_tuple(d)
     end
     # test expansion definition
-    @testset "ParameterBounds Expansion" begin
+    @testset "DomainRestrictions Expansion" begin
         d = (par3 => IntervalDomain(0, 1),)
-        @test ParameterBounds(d).intervals == Dict(d...)
+        @test DomainRestrictions(d).intervals == Dict(d...)
         d = (pars => IntervalDomain(0, 1), par3 => IntervalDomain(0, 1))
-        @test ParameterBounds(d).intervals isa Dict{GeneralVariableRef, IntervalDomain}
+        @test DomainRestrictions(d).intervals isa Dict{GeneralVariableRef, IntervalDomain}
+        @test DomainRestrictions(par3 => 0).intervals isa Dict
+        @test_deprecated ParameterBounds(par3 => 0)
     end
-    pb = ParameterBounds((par3 => IntervalDomain(0, 1),))
+    dr = DomainRestrictions(par3 => [0, 1])
     # test intervals
     @testset "intervals" begin
-        @test intervals(pb) == pb.intervals
+        @test intervals(dr) == dr.intervals
     end
     # test Base.length
     @testset "Base.length" begin
-        @test length(pb) == 1
+        @test length(dr) == 1
     end
     # test Base.isempty
     @testset "Base.isempty" begin
-        @test !isempty(pb)
-        @test isempty(ParameterBounds())
+        @test !isempty(dr)
+        @test isempty(DomainRestrictions())
     end
     # test Base.:(==)
     @testset "Base.:(==)" begin
-        @test pb == ParameterBounds((par3 => IntervalDomain(0, 1),))
-        @test pb != ParameterBounds()
+        @test dr == DomainRestrictions((par3 => IntervalDomain(0, 1),))
+        @test dr != DomainRestrictions()
     end
     # test Base.copy
     @testset "Base.copy" begin
-        @test copy(pb) == pb
+        @test copy(dr) == dr
     end
     # test Base.getindex
     @testset "Base.getindex" begin
-        @test pb[par3] == IntervalDomain(0, 1)
+        @test dr[par3] == IntervalDomain(0, 1)
     end
     # test Base.setindex!
     @testset "Base.setindex!" begin
-        @test (pb[par3] = IntervalDomain(0, 2)) == IntervalDomain(0, 2)
+        @test (dr[par3] = IntervalDomain(0, 2)) == IntervalDomain(0, 2)
     end
     # test Base.haskey
     @testset "Base.haskey" begin
-        @test haskey(pb, par3)
-        @test !haskey(pb, par2)
+        @test haskey(dr, par3)
+        @test !haskey(dr, par2)
     end
     # test Base.keys
     @testset "Base.keys" begin
-        @test keys(pb) == keys(intervals(pb))
+        @test keys(dr) == keys(intervals(dr))
     end
     # test Base.iterate
     @testset "Base.iterate" begin
-        @test [p for p in pb] == [par3 => IntervalDomain(0, 2)]
+        @test [r for r in dr] == [par3 => IntervalDomain(0, 2)]
     end
     # test Base.merge
     @testset "Base.merge" begin
-        new_pb = ParameterBounds()
-        @test merge(new_pb, pb) == pb
+        new_dr = DomainRestrictions()
+        @test merge(new_dr, dr) == dr
     end
     # test Base.merge!
     @testset "Base.merge!" begin
-        new_pb = ParameterBounds()
-        @test merge!(new_pb, pb) isa ParameterBounds
-        @test new_pb == pb
+        new_dr = DomainRestrictions()
+        @test merge!(new_dr, dr) isa DomainRestrictions
+        @test new_dr == dr
     end
     # test Base.filter
     @testset "Base.filter" begin
-        @test filter(e -> e[1] != par3, pb) == ParameterBounds()
+        @test filter(e -> e[1] != par3, dr) == DomainRestrictions()
     end
     # test Base.delete!
     @testset "Base.delete!" begin
-        @test delete!(pb, par3) isa ParameterBounds
-        @test length(pb) == 0
+        @test delete!(dr, par3) isa DomainRestrictions
+        @test length(dr) == 0
     end
 end
 
@@ -373,6 +376,7 @@ end
     vt = IC.VectorTuple(pref)
     # test ParameterFunction
     @test ParameterFunction(sin, vt, [1], [1], "") isa ParameterFunction
+    @test_deprecated InfiniteParameterFunction(sin, vt, [1], [1], "")
     # test ParameterFunctionData
     @test ParameterFunctionData(ParameterFunction(sin, vt, [1], [1], "")) isa ParameterFunctionData
 end
@@ -388,23 +392,18 @@ end
                  num, true, num, false, func, true, true)
     pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
     vref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
-    # Abstract variables
-    @test InfOptVariable <: AbstractVariable
     # Infinite variable
-    @test InfiniteVariable <: InfOptVariable
+    @test InfiniteVariable <: JuMP.AbstractVariable
     @test InfiniteVariable(inf_info, IC.VectorTuple(pref), [1], [1], true) isa InfiniteVariable
     # Semi-Infinite variable
-    @test SemiInfiniteVariable <: InfOptVariable
+    @test SemiInfiniteVariable <: JuMP.AbstractVariable
     @test SemiInfiniteVariable(vref, Dict(1 => Float64(2)), [1], [1]) isa SemiInfiniteVariable
     # Point variable
-    @test PointVariable <: InfOptVariable
+    @test PointVariable <: JuMP.AbstractVariable
     @test PointVariable(sample_info, vref, Float64[1]) isa PointVariable
-    # Finite variable
-    @test FiniteVariable <: InfOptVariable
-    @test FiniteVariable(sample_info, ParameterBounds()) isa FiniteVariable
     # VariableData
     @test VariableData <: AbstractDataObject
-    @test VariableData(FiniteVariable(sample_info, ParameterBounds())) isa VariableData
+    @test VariableData(ScalarVariable(sample_info)) isa VariableData
 end
 
 # Test derivative datatypes
@@ -420,7 +419,7 @@ end
     vref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
     dref = GeneralVariableRef(m, 1, DerivativeIndex)
     # derivative
-    @test Derivative <: InfOptVariable
+    @test Derivative <: JuMP.AbstractVariable
     @test Derivative(inf_info, true, vref, pref) isa Derivative
     # Semi-infinite derivative
     @test SemiInfiniteVariable(dref, Dict(1 => Float64(2)), [1], [1]) isa SemiInfiniteVariable
@@ -464,13 +463,12 @@ end
     # Setup
     m = InfiniteModel()
     pref = GeneralVariableRef(m, 2, IndependentParameterIndex, -1)
-    bounds = ParameterBounds(Dict(pref => IntervalDomain(0, 1)))
-    # Bounded constraints
-    @test BoundedScalarConstraint <: JuMP.AbstractConstraint
-    @test BoundedScalarConstraint(zero(AffExpr), MOI.Integer(),
-                bounds, bounds).bounds.intervals[pref].lower_bound == 0.0
+    rs = DomainRestrictions(pref => [0, 1])
+    con = ScalarConstraint(zero(AffExpr), MOI.Integer())
+    # DomainRestrictedConstraint
+    @test DomainRestrictedConstraint <: JuMP.AbstractConstraint
+    @test DomainRestrictedConstraint(con, rs).restrictions == rs
     # ConstraintData
     @test ConstraintData <: AbstractDataObject
-    @test ConstraintData(ScalarConstraint(zero(AffExpr), MOI.Integer()), [1], "",
-                         MeasureIndex[], false) isa ConstraintData
+    @test ConstraintData(con, [1], "", MeasureIndex[], false) isa ConstraintData
 end

@@ -4,12 +4,12 @@
     m = InfiniteModel()
     @infinite_parameter(m, pars[1:2] in [0, 1], supports = [0, 1])
     @infinite_parameter(m, par in [0, 1], supports = [0, 1])
-    @infinite_variable(m, x(par) >= 0, Int)
-    @infinite_variable(m, y(par, pars) == 2, Bin, start = (p, ps) -> p + sum(ps))
-    @point_variable(m, x(0), x0)
-    @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
-    @finite_variable(m, 0 <= z <= 1, Bin)
-    @finite_variable(m, w == 1, Int, start = 1)
+    @variable(m, x >= 0, Infinite(par), Int)
+    @variable(m, y == 2, Infinite(par, pars), Bin, start = (p, ps) -> p + sum(ps))
+    @variable(m, x0, Point(x, 0))
+    @variable(m, 0 <= y0 <= 1, Point(y, 0, [0, 0]), Int)
+    @variable(m, 0 <= z <= 1, Bin)
+    @variable(m, w == 1, Int, start = 1)
     dx = @deriv(x, par)
     dy = @deriv(y, par)
     set_lower_bound(dx, 0)
@@ -183,10 +183,10 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, pars[1:2] in [0, 1], supports = [0, 1])
     @infinite_parameter(m, par in [0, 1], supports = [0, 1])
-    @infinite_variable(m, x(par) >= 0)
-    @infinite_variable(m, y(par, pars) == 2, start = (p, ps) -> p + sum(ps))
-    @finite_variable(m, 0 <= z <= 1, Bin)
-    @finite_variable(m, w == 1, Int, start = 1)
+    @variable(m, x >= 0, Infinite(par))
+    @variable(m, y == 2, Infinite(par, pars), start = (p, ps) -> p + sum(ps))
+    @variable(m, 0 <= z <= 1, Bin)
+    @variable(m, w == 1, Int, start = 1)
     meas1 = support_sum(x + 2w, par)
     meas2 = integral(w, par)
     meas3 = integral(y^2, pars)
@@ -220,21 +220,22 @@ end
 end
 
 # Test Constraint Methods 
-@testset "Contraint Transcription" begin 
+@testset "Constraint Transcription" begin 
     # model setup 
     m = InfiniteModel()
     @infinite_parameter(m, pars[1:2] in [0, 1], supports = [0, 1])
     @infinite_parameter(m, par in [0, 1], supports = [0, 0.5, 1])
-    @infinite_variable(m, 0 <= x(par, pars) <= 2, Int)
-    @infinite_variable(m, y(par) == 0)
-    @point_variable(m, x(0, [0, 0]), x0 == 0, Bin)
-    @point_variable(m, y(1), yf <= 2, Int)
-    @finite_variable(m, z, Bin)
+    @variable(m, 0 <= x <= 2, Infinite(par, pars), Int)
+    @variable(m, y == 0, Infinite(par))
+    @variable(m, x0 == 0, Point(x, 0, [0, 0]), Bin)
+    @variable(m, yf <= 2, Point(y, 1), Int)
+    @variable(m, z, Bin)
     @constraint(m, c1, x^2 + 2y <= 42)
-    @BDconstraint(m, c2(par == 0), y - z^2 == 0)
-    @BDconstraint(m, c3(pars == 1, par == 1), 4x - 3 <= 2)
-    @BDconstraint(m, c4(par in [0, 0.5]), y + z == 0)
-    @BDconstraint(m, c5(par == 1), 2z^2 == 0)
+    @constraint(m, c2, y - z^2 == 0, DomainRestrictions(par => 0))
+    @constraint(m, c3, 4x - 3 <= 2, DomainRestrictions(pars => 1, par => 1))
+    @constraint(m, c4, y + z == 0, DomainRestrictions(par => [0, 0.5]))
+    @constraint(m, c5, 2z^2 == 0, DomainRestrictions(par => 1))
+    @constraint(m, c6, [z, x] in MOI.Zeros(2))
     tm = transcription_model(m)
     IOTO.set_parameter_supports(tm, m)
     IOTO.transcribe_finite_variables!(tm, m)
@@ -283,29 +284,35 @@ end
         expected = IntegerRef(yft)
         @test IOTO._get_info_constr_from_var(tm, yf, set, [1., 1., 1.]) == expected
     end
-    # test _get_constr_bounds
-    @testset "_get_constr_bounds" begin 
-        # ScalarConstraint
-        con = InfiniteOpt._core_constraint_object(FixRef(y))
-        @test IOTO._get_constr_bounds(con) == (Int[], IntervalDomain[])
-        con = InfiniteOpt._core_constraint_object(c1)
-        @test IOTO._get_constr_bounds(con) == (Int[], IntervalDomain[])
-        # BoundedConstraint 
-        con = InfiniteOpt._core_constraint_object(c2)
-        @test IOTO._get_constr_bounds(con) == ([3], [IntervalDomain(0, 0)])
-        con = InfiniteOpt._core_constraint_object(c3)
-        @test sort!(IOTO._get_constr_bounds(con)[1]) == [1, 2, 3]
-        @test IOTO._get_constr_bounds(con)[2] == [IntervalDomain(1, 1), IntervalDomain(1, 1), IntervalDomain(1, 1)]
-        con = InfiniteOpt._core_constraint_object(c4)
-        @test IOTO._get_constr_bounds(con) == ([3], [IntervalDomain(0, 0.5)])
+    # test _support_in_restrictions
+    @testset "_support_in_restrictions" begin 
+        @test IOTO._support_in_restrictions([0., 0., 0.], [3], [IntervalDomain(0, 0)])
+        @test IOTO._support_in_restrictions([0., 0., 0.], Int[], IntervalDomain[])
+        @test IOTO._support_in_restrictions([NaN, 0., 0.], [1], [IntervalDomain(0, 1)])
+        @test !IOTO._support_in_restrictions([NaN, 0., 0.], [1, 2], [IntervalDomain(1, 1), IntervalDomain(1, 1)])
+        @test !IOTO._support_in_restrictions([NaN, 0., 2.], [1, 3], [IntervalDomain(1, 1), IntervalDomain(1, 1)])
     end
-    # test _support_in_bounds 
-    @testset "_support_in_bounds" begin 
-        @test IOTO._support_in_bounds([0., 0., 0.], [3], [IntervalDomain(0, 0)])
-        @test IOTO._support_in_bounds([0., 0., 0.], Int[], IntervalDomain[])
-        @test IOTO._support_in_bounds([NaN, 0., 0.], [1], [IntervalDomain(0, 1)])
-        @test !IOTO._support_in_bounds([NaN, 0., 0.], [1, 2], [IntervalDomain(1, 1), IntervalDomain(1, 1)])
-        @test !IOTO._support_in_bounds([NaN, 0., 2.], [1, 3], [IntervalDomain(1, 1), IntervalDomain(1, 1)])
+    # test _process_constraint
+    @testset "_process_constraint" begin
+        # scalar constraint 
+        con = constraint_object(c1)
+        func = jump_function(con)
+        set = moi_set(con)
+        @test IOTO._process_constraint(tm, con, func, set, zeros(3), "test1") isa ConstraintRef 
+        @test num_constraints(tm, typeof(func), typeof(set)) == 1
+        cref = constraint_by_name(tm, "test1")
+        delete(tm, cref)
+        # vector constraint 
+        con = constraint_object(c6)
+        func = jump_function(con)
+        set = moi_set(con)
+        @test IOTO._process_constraint(tm, con, func, set, zeros(3), "test2") isa ConstraintRef 
+        @test num_constraints(tm, typeof(func), typeof(set)) == 1
+        cref = constraint_by_name(tm, "test2")
+        delete(tm, cref)
+        # fallback
+        @test_throws ErrorException IOTO._process_constraint(tm, :bad, func, set, 
+                                                             zeros(3), "bad")
     end
     # test transcribe_constraints!
     @testset "transcribe_constraints!" begin 
@@ -330,6 +337,8 @@ end
         expected = [yt[1] + zt, yt[2] + zt]
         @test jump_function.(constraint_object.(transcription_constraint(c4))) == expected
         @test constraint_object(transcription_constraint(c5)).func == 2zt^2 
+        @test length(transcription_constraint(c6)) == 6
+        @test moi_set(constraint_object(first(transcription_constraint(c6)))) == MOI.Zeros(2)
         # test the info constraint supports 
         expected = [([0., 0.], 0.5), ([0., 0.], 1.), ([1., 1.], 0.), ([1., 1.], 0.5), ([1., 1.], 1.)]
         @test sort(supports(LowerBoundRef(x))) == expected
@@ -345,6 +354,7 @@ end
         @test supports(c3) == ([1., 1.], 1.)
         @test supports(c4) == [(0.0,), (0.5,)]
         @test supports(c5) == ()
+        @test sort(supports(c6)) == expected
     end
 end
 
@@ -354,7 +364,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 1], num_supports = 4, 
                         derivative_method = OrthogonalCollocation(4))
-    @infinite_variable(m, y(t))
+    @variable(m, y, Infinite(t))
     d1 = @deriv(y, t)
     d2 = @deriv(y, t^2)
     tm = transcription_model(m)
@@ -378,14 +388,14 @@ end
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                              eval_objective_value=false)
     m = InfiniteModel(mockoptimizer)
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1])
-    @infinite_variable(m, 1 >= x(par) >= 0, Int)
-    @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
-    @point_variable(m, x(0), x0)
-    @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
-    @finite_variable(m, 0 <= z <= 1, Bin)
-    @finite_variable(m, w == 1, Int, start = 1)
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1], supports = [0, 1])
+    @variable(m, 1 >= x >= 0, Infinite(par), Int)
+    @variable(m, y == 2, Infinite(par, pars), Bin, start = 0)
+    @variable(m, x0, Point(x, 0))
+    @variable(m, 0 <= y0 <= 1, Point(y, 0, [0, 0]), Int)
+    @variable(m, 0 <= z <= 1, Bin)
+    @variable(m, w == 1, Int, start = 1)
     @finite_parameter(m, fin, 0)
     f = parameter_function(a -> 0, par)
     d1 = @deriv(y, par)
@@ -393,13 +403,15 @@ end
     set_upper_bound(d1, 2)
     meas1 = support_sum(x - w - d2, par)
     meas2 = support_sum(y, pars)
-    @set_parameter_bounds(z, (pars == 0, par == 0))
-    @constraint(m, c1, x + par - z + d1 + f == 0)
+    @constraint(m, c1, x + par - z + d1 + f == 0, 
+                DomainRestrictions(pars => 0, par => 0))
     @constraint(m, c2, z + x0 >= -3)
     @constraint(m, c3, meas1 + z == 0)
-    @BDconstraint(m, c4(par in [0.5, 1]), meas2 - 2y0 + x + fin <= 1)
+    @constraint(m, c4, meas2 - 2y0 + x + fin <= 1, 
+                DomainRestrictions(par => [0.5, 1]))
     @constraint(m, c5, meas2 == 0)
     @constraint(m, x + y == 83)
+    @constraint(m, c6, [z, w] in MOI.Zeros(2))
     @objective(m, Min, x0 + meas1)
     # test basic usage
     tm = optimizer_model(m)
@@ -460,6 +472,7 @@ end
     expected = transcription_variable(meas2)[2] - 2 * transcription_variable(y0) + xt[2]
     @test constraint_object(transcription_constraint(c4)).func == expected
     @test constraint_object(transcription_constraint(c3)).func == xt[1] - 2wt + xt[2] + zt - d2t[1] - d2t[2]
+    @test constraint_object(transcription_constraint(c6)).func == [zt, wt]
     @test transcription_constraint(c5) isa Vector{ConstraintRef}
     @test name(transcription_constraint(c2)) == "c2(support: 1)"
     @test name(transcription_constraint(c1)) == "c1(support: 1)"

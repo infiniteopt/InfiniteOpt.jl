@@ -1,18 +1,22 @@
+```@meta
+DocTestFilters = [r" ∈ | in "]
+```
+
 # [Infinite Parameters] (@id inf_par_page)
 A guide and manual to the definition and use of infinite parameters in
 `InfiniteOpt`. The Datatypes and Methods sections at the end comprise the manual,
 and the above sections comprise the guide.  
 
 ## Overview
-Infinite parameters are what parameterize the infinite decision spaces for
-infinite dimensional mathematical programs. In dynamic optimization this
+Infinite parameters are what live on the infinite domains of infinite dimensional 
+mathematical optimization problems. In dynamic optimization this
 corresponds to time and in stochastic optimization this to uncertain parameters
 that follow a certain underlying statistical distribution. `InfiniteOpt`
-considers principally two kinds of infinite parameters, ones defined over
+considers natively two kinds of infinite parameters, ones defined over
 continuous intervals and ones characterized by a distribution (others can be
 added by defining a user-defined type). These can be used to parameterize
-infinite variables, point variables, derivatives, measures, and can be used 
-directly inside constraints.
+infinite variables, semi-infinite variables, point variables, derivatives, 
+measures, and can be used directly inside constraints.
 
 ## Basic Usage
 First, we need to initialize and add infinite parameters to our `InfiniteModel`.
@@ -31,7 +35,7 @@ points to where the time parameter is stored in `model`. It can now be used with
 infinite variables, derivatives, measures, and constraints as described in their 
 respective user guide sections.
 
-When the model is optimized, `t` will be transcripted (discretized) over its domain
+When the model is optimized, `t` will be transcribed (discretized) over its domain
 following its support points. If none are specified by the user than the default 
 amount support points are generated according to the default support generation 
 scheme. In this case, equidistant supports over the interval would be added. Note
@@ -101,7 +105,7 @@ julia> @infinite_parameter(model, θ[1:2] in MvNormal([0, 0], [1, 1]))
 Now we have infinite parameters `t` and `ξ` that are ready to be used in
 defining infinite variables and constraints. We also mention
 here that the [`@infinite_parameter`](@ref) macro is designed to closely emulate
-[`JuMP.@variable`](@ref) and thus handles arrays and keyword arguments in the
+`JuMP.@variable` and thus handles arrays and keyword arguments in the
 same way. This is described in more detail below.
 
 ## Parameter Definition
@@ -137,8 +141,7 @@ parameter ``t \in [0, 10]`` with supports `[0, 2, 5, 7, 10]`:
 julia> domain = IntervalDomain(0, 10)
 [0, 10]
 
-julia> t_param = build_parameter(error, domain, supports = [0, 2, 5, 7, 10])
-IndependentParameter{IntervalDomain,FiniteDifference{Backward},NoGenerativeSupports}([0, 10], DataStructures.SortedDict(0.0=>Set([UserDefined]),2.0=>Set([UserDefined]),5.0=>Set([UserDefined]),7.0=>Set([UserDefined]),10.0=>Set([UserDefined])), 12, FiniteDifference{Backward}(Backward(), true), NoGenerativeSupports())
+julia> t_param = build_parameter(error, domain, supports = [0, 2, 5, 7, 10]);
 ```  
 Now that we have a `InfOptParameter` that contains an `IntervalDomain` and supports,
 let's now add `t_param` to our `InfiniteModel` using [`add_parameter`](@ref)
@@ -165,8 +168,7 @@ Normal{Float64}(μ=0.0, σ=1.0)
 julia> domain = UniDistributionDomain(dist)
 Normal{Float64}(μ=0.0, σ=1.0)
 
-julia> x_param = build_parameter(error, domain, supports = [-0.5, 0.5])
-IndependentParameter{UniDistributionDomain{Normal{Float64}},FiniteDifference{Backward},NoGenerativeSupports}(Normal{Float64}(μ=0.0, σ=1.0), DataStructures.SortedDict(-0.5=>Set([UserDefined]),0.5=>Set([UserDefined])), 12, FiniteDifference{Backward}(Backward(), true), NoGenerativeSupports())
+julia> x_param = build_parameter(error, domain, supports = [-0.5, 0.5]);
 ```
 Again, we use [`add_parameter`](@ref) to add `x_param` to the `InfiniteModel` and
 assign it the name `x`:
@@ -194,8 +196,10 @@ One user-friendly way of defining infinite parameters is by macro
 manual definition (steps listed in [Parameter Definition](@ref)), but allows
 the users to manipulate several features of the defined infinite parameters.
 Again, let's consider a time parameter ``t \in [0, 10]`` with supports
-`[0, 2, 5, 7, 10]`. Similar to [`JuMP.@variable`](@ref), we can use comparison
-operators to set lower bounds and upper bounds for the infinite parameter:
+`[0, 2, 5, 7, 10]`. Similar to 
+[`JuMP.@variable`](https://jump.dev/JuMP.jl/v0.21.8/reference/variables/#JuMP.@variable), 
+we can use comparison operators to set lower bounds and upper bounds for the 
+infinite parameter:
 ```jldoctest time_macro_define; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, 0 <= t <= 10, supports = [0, 2, 5, 7, 10])
 t
@@ -257,7 +261,9 @@ and then [`add_parameter`](@ref) to add the multi-dimensional parameters.
 If an array of supports is
 provided, the macro will assign that array of supports to all dimensions.
 Otherwise, the indexed syntax can be used to feed in different array of
-supports to each dimension, similar to [`JuMP.@variable`](@ref). For example:
+supports to each dimension, similar to 
+[`JuMP.@variable`](https://jump.dev/JuMP.jl/v0.21.8/reference/variables/#JuMP.@variable). 
+For example:
 ```jldoctest; setup = :(using InfiniteOpt; model= InfiniteModel())
 julia> points = [0.2 0.8; 0.3 0.7]
 2×2 Array{Float64,2}:
@@ -312,8 +318,9 @@ JuMP.Containers.SparseAxisArray{GeneralVariableRef,1,Tuple{Int64}} with 3 entrie
   [1]  =  x[1]
 ```
 
-More information on `JuMP` containers is located 
-[here](https://jump.dev/JuMP.jl/stable/containers/).
+See on 
+[`JuMP`'s documentation on containers](https://jump.dev/JuMP.jl/v0.21.8/manual/containers/) 
+for more information.
 
 #### Specifying independence of infinite parameters
 The concrete data object that stores information of infinite parameters are
@@ -423,7 +430,7 @@ the domains in the second argument using expressions like `a <= x <= b` or
 
 The keyword arguments give users flexibility in how to define their parameters.
 As mentioned above, the users can choose to specify the domain either in the
-second argument (nonanonymous parameter definition only), or in the keyword
+second argument (non-anonymous parameter definition only), or in the keyword
 arguments. However, the users cannot do both at the same time. The macro will
 check this behavior and throw an error if this happens. For example,
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())

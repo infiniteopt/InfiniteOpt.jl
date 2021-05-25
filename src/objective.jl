@@ -4,11 +4,11 @@
 """
     JuMP.objective_sense(model::InfiniteModel)::MOI.OptimizationSense
 
-Extend [`JuMP.objective_sense`](@ref JuMP.objective_sense(::JuMP.Model)) to
-return the objective sense of the infinite model `model`.
+Extend `JuMP.objective_sense` to return the objective sense of the infinite model 
+`model`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(), @objective(model, Min, 1))
+```julia-repl
 julia> objective_sense(model)
 MIN_SENSE::OptimizationSense = 0
 ```
@@ -20,11 +20,11 @@ end
 """
     JuMP.objective_function(model::InfiniteModel)::JuMP.AbstractJuMPScalar
 
-Extend [`JuMP.objective_function`](@ref JuMP.objective_function(::JuMP.Model))
-to return the objective of infinite model `model`.
+Extend `JuMP.objective_function` to return the objective of infinite model 
+`model`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(), @objective(model, Min, 1))
+```julia-repl
 julia> objective_function(model)
 1
 ```
@@ -46,11 +46,11 @@ end
 """
     JuMP.objective_function_type(model::InfiniteModel)::Type{<:JuMP.AbstractJuMPScalar}
 
-Extend [`JuMP.objective_function_type`](@ref JuMP.objective_function_type(::JuMP.Model))
-to return the objective function type of infinite model `model`.
+Extend `JuMP.objective_function_type` to return the objective function type of 
+infinite model `model`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(), @objective(model, Min, 1))
+```julia-repl
 julia> objective_function_type(model)
 GenericAffExpr{Float64,GeneralVariableRef}
 ```
@@ -76,7 +76,7 @@ end
     JuMP.set_objective_function(model::InfiniteModel,
                                 func::JuMP.AbstractJuMPScalar)::Nothing
 
-Extend [`JuMP.set_objective_function`](@ref) to set the objective expression of
+Extend `JuMP.set_objective_function` to set the objective expression of
 infinite model `model`. Errors if `func` contains infinite variables and/or
 parameters. Also errors if `func` contains invalid variables.
 
@@ -88,8 +88,10 @@ julia> objective_function(model)
 2 x + 1
 ```
 """
-function JuMP.set_objective_function(model::InfiniteModel,
-                                     func::JuMP.AbstractJuMPScalar)::Nothing
+function JuMP.set_objective_function(
+    model::InfiniteModel,
+    func::JuMP.AbstractJuMPScalar
+    )::Nothing
     # gather the unique list of variable references for testing and mapping
     new_vrefs = _all_function_variables(func)
     # test in the model
@@ -121,7 +123,7 @@ end
 """
     JuMP.set_objective_function(model::InfiniteModel, func::Real)::Nothing
 
-Extend [`JuMP.set_objective_function`](@ref) to set the objective expression of
+Extend `JuMP.set_objective_function` to set the objective expression of
 `model` with a number.
 
 **Example**
@@ -148,19 +150,21 @@ end
     JuMP.set_objective_sense(model::InfiniteModel,
                              sense::MOI.OptimizationSense)::Nothing
 
-Extend [`JuMP.set_objective_sense`](@ref JuMP.set_objective_sense(::JuMP.Model, ::MOI.OptimizationSense))
-to set the objective sense of infinite model `model`.
+Extend `JuMP.set_objective_sense` to set the objective sense of infinite model 
+`model`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP, MathOptInterface; model = InfiniteModel(), const MOI = MathOptInterface)
+```julia-repl
 julia> set_objective_sense(model, MOI.MIN_SENSE)
 
 julia> objective_sense(model)
 MIN_SENSE::OptimizationSense = 0
 ```
 """
-function JuMP.set_objective_sense(model::InfiniteModel,
-                                  sense::MOI.OptimizationSense)::Nothing
+function JuMP.set_objective_sense(
+    model::InfiniteModel,
+    sense::MOI.OptimizationSense
+    )::Nothing
     model.objective_sense = sense
     set_optimizer_model_ready(model, false)
     return
@@ -182,16 +186,22 @@ julia> objective_function(model)
 2 x + 1
 ```
 """
-function JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense,
-                            func::Union{JuMP.AbstractJuMPScalar, Real})::Nothing
+function JuMP.set_objective(
+    model::InfiniteModel, 
+    sense::MOI.OptimizationSense,
+    func::Union{JuMP.AbstractJuMPScalar, Real}
+    )::Nothing
     JuMP.set_objective_sense(model, sense)
     JuMP.set_objective_function(model, func)
     return
 end
 
 # Fallback
-function JuMP.set_objective(model::InfiniteModel, sense::MOI.OptimizationSense,
-                            func)
+function JuMP.set_objective(
+    model::InfiniteModel, 
+    sense::MOI.OptimizationSense,
+    func
+    )
     error("The objective function `$(func)` is not supported.")
 end
 
@@ -200,12 +210,12 @@ end
                                    variable::GeneralVariableRef,
                                    coefficient::Real)::Nothing
 
-Extend [`JuMP.set_objective_coefficient`](@ref JuMP.set_objective_coefficient(::JuMP.Model, ::JuMP.VariableRef, ::Real))
-Set the linear objective coefficient associated with `variable` to `coefficient`.
-Errors if the function type is unsupported.
+Extend `JuMP.set_objective_coefficient` Set the linear objective coefficient 
+associated with `variable` to `coefficient`. Errors if the function type is 
+unsupported.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
+```julia-repl
 julia> @variable(model, x)
 x
 
@@ -221,9 +231,11 @@ julia> objective_function(model)
 x + 2 y
 ```
 """
-function JuMP.set_objective_coefficient(model::InfiniteModel,
-                                        variable::GeneralVariableRef,
-                                        coeff::Real)::Nothing
+function JuMP.set_objective_coefficient(
+    model::InfiniteModel,
+    variable::GeneralVariableRef,
+    coeff::Real
+    )::Nothing
     new_expr = _set_variable_coefficient!(JuMP.objective_function(model),
                                           variable, coeff)
     JuMP.set_objective_function(model, new_expr)

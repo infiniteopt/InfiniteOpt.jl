@@ -94,15 +94,6 @@ struct TestData{P, A} <: AbstractMeasureData
     ub::A
 end
 InfiniteOpt.parameter_refs(d::TestData) = d.pref
-function InfiniteOpt.measure_data_in_finite_var_bounds(d::TestData,
-    bounds::ParameterBounds{GeneralVariableRef}
-    )::Bool
-    pref = parameter_refs(d)
-    if haskey(bounds, pref)
-        return d.lb >= lower_bound(bounds[pref]) && d.ub <= upper_bound(bounds[pref])
-    end
-    return true
-end
 function InfiniteOpt.add_supports_to_parameters(d::TestData)::Nothing
     return
 end

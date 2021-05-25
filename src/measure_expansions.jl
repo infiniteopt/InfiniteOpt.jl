@@ -797,9 +797,17 @@ function expand_measures(expr::JuMP.GenericQuadExpr{C, GeneralVariableRef},
                 expand_measures(expr.aff, write_model))
 end
 
+# AbstractArray of expressions 
+function expand_measures(arr::AbstractArray,
+                         write_model::JuMP.AbstractModel
+                         )
+    return map(e -> expand_measures(e, write_model), arr)
+end
+
 # Fallback
 function expand_measures(expr, write_model::JuMP.AbstractModel)
-    error("`expand_measures` not defined for expressions of type `$(typeof(expr))`.")
+    error("`expand_measures` not defined for expressions of type ",
+          "`$(typeof(expr))`.")
 end
 
 """
@@ -850,6 +858,7 @@ function expand_all_measures!(model::InfiniteModel)::Nothing
     for (cindex, object) in model.constraints
         if !isempty(object.measure_indices)
             old_constr = object.constraint
+            set = JuMP.moi_set(old_constr)
             # clear the old dependencies
             old_vrefs = _all_function_variables(JuMP.jump_function(old_constr))
             for vref in old_vrefs
@@ -857,25 +866,11 @@ function expand_all_measures!(model::InfiniteModel)::Nothing
             end
             # expand the expression
             new_func = expand_measures(JuMP.jump_function(old_constr), model)
-            offset = JuMP.constant(new_func)
-            JuMP.add_to_expression!(new_func, -offset)
-            new_set = MOIU.shift_constant(JuMP.moi_set(old_constr), -offset)
             vrefs = _all_function_variables(new_func)
             # make the new constraint object
-            if old_constr isa BoundedScalarConstraint
-                orig_bounds = original_parameter_bounds(old_constr)
-                new_constr = BoundedScalarConstraint(new_func, new_set,
-                                                     copy(orig_bounds),
-                                                     orig_bounds)
-            else
-                new_constr = JuMP.ScalarConstraint(new_func, new_set)
-            end
-            # update the bounds if there are bounded finite variables in the model
-            if model.has_finite_var_bounds
-                new_constr = _check_and_update_bounds(model, new_constr, vrefs)
-            end
+            new_constr = JuMP.build_constraint(error, new_func, set)
             # update the constraint data
-            cref = _temp_constraint_ref(model, cindex)
+            cref = _make_constraint_ref(model, cindex)
             _set_core_constraint_object(cref, new_constr)
             empty!(object.measure_indices)
             _update_var_constr_mapping(vrefs, cref)

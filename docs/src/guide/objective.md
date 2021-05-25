@@ -1,3 +1,7 @@
+```@meta
+DocTestFilters = [r"E|𝔼", r"integral|∫"]
+```
+
 # Objectives
 A guide and manual for specifying and modifying objective functions in
 `InfiniteOpt`. The Methods section at the end comprises the manual, and the
@@ -12,18 +16,24 @@ expression. Note this means that objectives can only explicitly contain
 finite variables and point variables. Infinite expressions must be evaluated in a
 measure to be included (e.g., evaluate the expectation of a random variable).
 
+!!! note 
+    Nonlinear objectives as defined by `JuMP.@NLobjective` are not currently 
+    supported by `InfiniteOpt`. See [Nonlinear Expressions](@ref) for more 
+    information and possible workarounds. 
+
 ## [Basic Usage] (@id obj_basic)
-Principally, the objective function is specified via [`@objective`](@ref) as is
-done in `JuMP`. For example, let's define the stochastic objective to minimize
-``0.5 x_1 + 0.5 x_2 + \mathbb{E}_\xi [y^2 - y]``:
+Principally, the objective function is specified via 
+[`@objective`](https://jump.dev/JuMP.jl/v0.21.8/reference/objectives/#JuMP.@objective) 
+as is done in `JuMP`. For example, let's define the stochastic objective to 
+minimize ``0.5 x_1 + 0.5 x_2 + \mathbb{E}_\xi [y^2 - y]``:
 ```jldoctest obj; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
 julia> @infinite_parameter(model, ξ in Normal())
 ξ
 
-julia> @infinite_variable(model, y(ξ))
+julia> @variable(model, y, Infinite(ξ))
 y(ξ)
 
-julia> @finite_variable(model, x[1:2])
+julia> @variable(model, x[1:2])
 2-element Array{GeneralVariableRef,1}:
  x[1]
  x[2]
@@ -52,7 +62,7 @@ follow syntax.
 
 Principally, these methods correspond to
 [`objective_sense`](@ref JuMP.objective_sense(::InfiniteModel)),
-[`objective_funcion`](@ref JuMP.objective_function(::InfiniteModel)), and
+[`objective_function`](@ref JuMP.objective_function(::InfiniteModel)), and
 [`objective_function_type`](@ref JuMP.objective_function_type(::InfiniteModel))
 which return the objective sense (a subtype of `MOI.OptimizationSense`), the
 objective function (expression), and the objective function type, respectively.
@@ -74,8 +84,9 @@ objective function.
 
 ## Modification
 This section will review the methods that can be used to modify the objective.
-First, we'll consider the useful [`set_objective_coefficient`](@ref JuMP.set_objective_coefficient(::InfiniteModel, ::GeneralVariableRef, ::Real))
-method and then we'll explain the methods that enable [`@objective`](@ref).
+First, we'll consider the useful 
+[`set_objective_coefficient`](@ref JuMP.set_objective_coefficient(::InfiniteModel, ::GeneralVariableRef, ::Real)) 
+method and then we'll explain the methods that enable `@objective`.
 
 The coefficient of a particular variable in an objective can be readily updated
 via [`set_objective_coefficient`](@ref JuMP.set_objective_coefficient(::InfiniteModel, ::GeneralVariableRef, ::Real)). This is useful repeatedly optimizing an infinite
@@ -89,10 +100,11 @@ julia> objective_function(model)
 0.25 x[1] + 0.5 x[2] + 𝔼{ξ}[y(ξ)² - y(ξ)]
 ```
 
-Now let's consider the modification methods that enable the [`@objective`](@ref)
-macro. The objective function is specified via [`set_objective_function`](@ref JuMP.set_objective_function(::InfiniteModel, ::JuMP.AbstractJuMPScalar)) which
-simply updates the expression stored in the objective. For example, let's update
-out objective to simply be ``0.5x_1 + 0.5x_2``:
+Now let's consider the modification methods that enable the `@objective`
+macro. The objective function is specified via 
+[`set_objective_function`](@ref JuMP.set_objective_function(::InfiniteModel, ::JuMP.AbstractJuMPScalar)) 
+which simply updates the expression stored in the objective. For example, 
+let's update out objective to simply be ``0.5x_1 + 0.5x_2``:
 ```jldoctest obj
 julia> set_objective_function(model, 0.5x[1] + 0.5x[2])
 
@@ -100,38 +112,42 @@ julia> objective_function(model)
 0.5 x[1] + 0.5 x[2]
 ```
 
-The objective sense is updated via [`set_objective_sense`](@ref JuMP.set_objective_sense(::InfiniteModel, ::MOI.OptimizationSense)) which can
-specify the sense as one of the `MOI.OptimizationSense` subtypes. For example,
-let's change the current objective to be maximization problem:
-``jldoctest obj
+The objective sense is updated via 
+[`set_objective_sense`](@ref JuMP.set_objective_sense(::InfiniteModel, ::MOI.OptimizationSense)) 
+which can specify the sense as one of the `MOI.OptimizationSense` subtypes. For 
+example, let's change the current objective to be maximization problem:
+```jldoctest obj
 julia> set_objective_sense(model, MOI.MAX_SENSE)
 
 julia> objective_sense(model)
 MAX_SENSE::OptimizationSense = 1
 ```
 
-The above 2 methods are both called via [`set_objective`](@ref JuMP.set_objective(::InfiniteModel, ::MOI.OptimizationSense, ::Union{JuMP.AbstractJuMPScalar, Real})). This is the
-function that enables [`@objective`](@ref) behind the scenes. Thus, the previous
-2 examples could have been implemented equivalently in the following ways:
-``jldoctest obj
+The above 2 methods are both called via 
+[`set_objective`](@ref JuMP.set_objective(::InfiniteModel, ::MOI.OptimizationSense, ::Union{JuMP.AbstractJuMPScalar, Real})). 
+This is the function that enables `@objective` behind the scenes. Thus, the 
+previous 2 examples could have been implemented equivalently in the following 
+ways:
+```jldoctest obj
 julia> set_objective(model, MOI.MAX_SENSE, 0.5x[1] + 0.5x[2])
 
 julia> @objective(model, Max, 0.5x[1] + 0.5x[2])
 0.5 x[1] + 0.5 x[2]
 ```
-Notice that [`@objective`](@ref) offers a more intuitive syntax and is also
+Notice that `@objective` offers a more intuitive syntax and is also
 more efficient at parsing expressions.
 
 !!! note
-    When possible, the [`@objective`](@ref) since it is more stable and efficient
-    than the `set_objective_[aspect]` methods due to its enhanced methodology for
-    parsing expressions.
+    When possible, the 
+    [`@objective`](https://jump.dev/JuMP.jl/v0.21.8/reference/objectives/#JuMP.@objective) 
+    since it is more stable and efficient than the `set_objective_[aspect]` 
+    methods due to its enhanced methodology for parsing expressions.
 
 ## Methods
 ```@index
 Pages   = ["objective.md"]
 Modules = [InfiniteOpt, JuMP]
-Order   = [:macro, :function]
+Order   = [:function]
 ```
 ```@docs
 JuMP.objective_sense(::InfiniteModel)

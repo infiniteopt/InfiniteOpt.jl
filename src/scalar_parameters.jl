@@ -330,6 +330,7 @@ function add_parameter(model::InfiniteModel, p::IndependentParameter,
     param_num = model.last_param_num += 1
     data_object = ScalarParameterData(p, obj_num, param_num, name)
     obj_index = _add_data_object(model, data_object)
+    model.name_to_param = nothing
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
 end
 
@@ -338,6 +339,7 @@ function add_parameter(model::InfiniteModel, p::FiniteParameter,
                        name::String = "")::GeneralVariableRef
     data_object = ScalarParameterData(p, -1, -1, name)
     obj_index = _add_data_object(model, data_object)
+    model.name_to_param = nothing
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
 end
 
@@ -370,7 +372,7 @@ end
 
 # Extend _constraint_dependencies
 function _constraint_dependencies(pref::ScalarParameterRef
-    )::Vector{ConstraintIndex}
+    )::Vector{InfOptConstraintIndex}
     return _data_object(pref).constraint_indices
 end
 
@@ -507,8 +509,8 @@ end
 """
     JuMP.name(pref::Union{IndependentParameterRef, FiniteParameterRef})::String
 
-Extend the [`JuMP.name`](@ref JuMP.name(::JuMP.VariableRef)) function to
-accomodate infinite parameters. Returns the name string associated with `pref`.
+Extend the `JuMP.name` function to accomodate infinite parameters. Returns the 
+name string associated with `pref`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1]))
@@ -524,9 +526,8 @@ end
 """
     JuMP.set_name(pref::ScalarParameterRef, name::String)
 
-Extend the [`JuMP.set_name`](@ref JuMP.set_name(::JuMP.VariableRef, ::String))
-function to accomodate infinite parameters. Set a new base name to be associated
-with `pref`.
+Extend the `JuMP.set_name` function to accomodate infinite parameters. Set a new 
+base name to be associated with `pref`.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1]))
@@ -628,7 +629,7 @@ function parameter_by_name(model::InfiniteModel,
     if index isa Nothing
         return nothing
     elseif index == IndependentParameterIndex(-1)
-        error("Multiple variables have the name $name.")
+        error("Multiple parameters have the name $name.")
     else
         return _make_parameter_ref(model, index)
     end
@@ -1591,7 +1592,7 @@ end
 function _update_constraints(model::InfiniteModel,
                              pref::GeneralVariableRef)::Nothing
     for cindex in _constraint_dependencies(pref)
-        cref = _temp_constraint_ref(model, cindex)
+        cref = _make_constraint_ref(model, cindex)
         func = JuMP.jump_function(JuMP.constraint_object(cref))
         if func isa GeneralVariableRef
             set = JuMP.moi_set(JuMP.constraint_object(cref))
@@ -1599,6 +1600,8 @@ function _update_constraints(model::InfiniteModel,
             new_constr = JuMP.ScalarConstraint(new_func, set)
             _set_core_constraint_object(cref, new_constr)
             empty!(_object_numbers(cref))
+        elseif func isa AbstractArray{GeneralVariableRef}
+            JuMP.delete(model, cref)
         else
             _remove_variable(func, pref)
         end
@@ -1668,7 +1671,7 @@ end
 """
     JuMP.delete(model::InfiniteModel, pref::ScalarParameterRef)::Nothing
 
-Extend [`JuMP.delete`](@ref JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)) to delete
+Extend `JuMP.delete` to delete
 scalar parameters and their dependencies. All variables, constraints, and
 measure functions that depend on `pref` are updated to exclude it. Errors if the
 parameter is contained in an `AbstractMeasureData` datatype that is employed by
@@ -1707,8 +1710,7 @@ function JuMP.delete(model::InfiniteModel, pref::IndependentParameterRef)::Nothi
     end
     # ensure pref is not used by a parameter function 
     if used_by_parameter_function(pref)
-        error("Cannot delete `$pref` since it is used by an infinite parameter " * 
-              "function.")
+        error("Cannot delete `$pref` since it is used by an parameter function.")
     end
     # update optimizer model status
     if is_used(pref)

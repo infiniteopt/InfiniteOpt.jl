@@ -2,13 +2,18 @@
 #                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
 ################################################################################
 # Extend dispatch_variable_ref
-function dispatch_variable_ref(model::InfiniteModel, index::DerivativeIndex)::DerivativeRef
+function dispatch_variable_ref(
+    model::InfiniteModel, 
+    index::DerivativeIndex
+    )::DerivativeRef
     return DerivativeRef(model, index)
 end
 
 # Extend _add_data_object
-function _add_data_object(model::InfiniteModel,
-                          object::VariableData{<:Derivative})::DerivativeIndex
+function _add_data_object(
+    model::InfiniteModel,
+    object::VariableData{<:Derivative}
+    )::DerivativeIndex
     return MOIUC.add_item(model.derivatives, object)
 end
 
@@ -23,7 +28,8 @@ function _data_dictionary(dref::DerivativeRef)
 end
 
 # Extend _data_object
-function _data_object(dref::DerivativeRef
+function _data_object(
+    dref::DerivativeRef
     )::VariableData{<:Derivative{<:GeneralVariableRef}}
     object = get(_data_dictionary(dref), JuMP.index(dref), nothing)
     object === nothing && error("Invalid derivative reference, cannot find " *
@@ -33,7 +39,8 @@ function _data_object(dref::DerivativeRef
 end
 
 # Extend _core_variable_object
-function _core_variable_object(dref::DerivativeRef
+function _core_variable_object(
+    dref::DerivativeRef
     )::Derivative{<:GeneralVariableRef}
     return _data_object(dref).variable
 end
@@ -114,7 +121,7 @@ end
 
 # Get access the derivative constraint indices 
 function _derivative_constraint_dependencies(dref::DerivativeRef
-    )::Vector{ConstraintIndex}
+    )::Vector{InfOptConstraintIndex}
     return _data_object(dref).deriv_constr_indices
 end
 
@@ -174,10 +181,12 @@ julia> build_derivative(error, info, x, t)
 Derivative{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Function}(false, 0.0, false, 0.0, false, 0.0, false, start_func, false, false), true, x(t), t)
 ````
 """
-function build_derivative(_error::Function, info::JuMP.VariableInfo, 
-                          argument_ref::GeneralVariableRef, 
-                          parameter_ref::GeneralVariableRef
-                          )::Derivative{GeneralVariableRef}
+function build_derivative(
+    _error::Function, 
+    info::JuMP.VariableInfo, 
+    argument_ref::GeneralVariableRef, 
+    parameter_ref::GeneralVariableRef
+    )::Derivative{GeneralVariableRef}
     # check the derivative numerator and denominator 
     if !(_index_type(parameter_ref) <: InfiniteParameterIndex)
         _error("Derivatives must be with respect to an infinite parameter, but " * 
@@ -199,21 +208,65 @@ function build_derivative(_error::Function, info::JuMP.VariableInfo,
     return Derivative(new_info, is_vect_func, argument_ref, parameter_ref)
 end
 
-# Extend _make_variable to enable JuMP.build_variable for macro definition 
-function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Type{Deriv};
-    argument::Union{GeneralVariableRef, Nothing} = nothing,
-    operator_parameter::Union{GeneralVariableRef, Nothing} = nothing,
+"""
+    Deriv{V, P} <: InfOptVariableType
+
+A `DataType` to assist in making derivative variables. This can be passed as an 
+extra argument to `@variable` to make such a variable: 
+```julia 
+@variable(model, var_expr, Deriv(inf_var, inf_par), kwargs...)
+```
+Here `inf_var` is the infinite variable that is being operated on and `inf_par` 
+is the infinite parameter that the derivative is defined with respect to.
+
+**Fields**
+- `argument::V`: The infinite variable being operated on.
+- `operator_parameter::P:` The infinite parameter that determines the derivative.
+"""
+struct Deriv{V, P} <: InfOptVariableType 
+    argument::V 
+    operator_parameter::P
+end
+
+"""
+    JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, 
+                        var_type::Deriv)::InfiniteVariable{GeneralVariableRef}
+
+Build and return a first order derivative based on `info` and `var_type`. Errors 
+if the information in `var_type` is invalid. See [`Deriv`](@ref) for more 
+information.
+
+**Example**
+```julia-repl
+julia> info = VariableInfo(false, 0, false, 0, false, 0, true, 0, false, false);
+
+julia> deriv_var = build_variable(error, info, Deriv(y, t));
+```
+"""
+function JuMP.build_variable(
+    _error::Function, 
+    info::JuMP.VariableInfo, 
+    var_type::Deriv;
     extra_kw_args...
     )::Derivative{GeneralVariableRef}
+    # Error extra keyword arguments
     for (kwarg, _) in extra_kw_args
         _error("Keyword argument $kwarg is not for use with derivatives.")
     end
-    # check that we have been given parameter references
-    if argument === nothing || operator_parameter === nothing
-        _error("Must specify the derivative argument variable and the operator " *
-               "infinite parameter that the derivative is with respect to.")
+    # check for valid inputs
+    ivref = var_type.argument
+    if !(ivref isa GeneralVariableRef)
+        _error("Expected an infinite variable reference dependency ",
+               "of type `GeneralVariableRef`, but got an argument of type ",
+               "$(typeof(ivref)).")
     end
-    return build_derivative(_error, info, argument, operator_parameter)
+    pref = var_type.operator_parameter
+    if !(pref isa GeneralVariableRef)
+        _error("Expected an infinite parameter reference dependency ",
+               "of type `GeneralVariableRef`, but got an argument of type ",
+               "$(typeof(pref)).")
+    end
+    return build_derivative(_error, info, ivref, pref)
 end
 
 """
@@ -227,7 +280,7 @@ errors.
 
 **Example**
 ```julia-repl 
-julia> @infinite_parameter(m, t in [0, 1]); @infinite_variable(m, x(t));
+julia> @infinite_parameter(m, t in [0, 1]); @variable(m, x, Infinite(t));
 
 julia> info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false);
 
@@ -237,8 +290,11 @@ julia> dref = add_derivative(m, d)
 ∂/∂t[x(t)]
 ```
 """
-function add_derivative(model::InfiniteModel, d::Derivative, 
-                        name::String = "")::GeneralVariableRef
+function add_derivative(
+    model::InfiniteModel, 
+    d::Derivative, 
+    name::String = ""
+    )::GeneralVariableRef
     # check the validity 
     vref = dispatch_variable_ref(d.variable_ref)
     pref = dispatch_variable_ref(d.parameter_ref)
@@ -260,14 +316,19 @@ function add_derivative(model::InfiniteModel, d::Derivative,
 end
 
 # Extend JuMP.add_variable to enable macro definition 
-function JuMP.add_variable(model::InfiniteModel, d::Derivative, 
-                           name::String = "")::GeneralVariableRef
+function JuMP.add_variable(
+    model::InfiniteModel, 
+    d::Derivative, 
+    name::String = ""
+    )::GeneralVariableRef
     return add_derivative(model, d, name)
 end
 
 ## Define function that build derivative expressions following rules of calculus
 # GeneralVariableRef
-function _build_deriv_expr(vref::GeneralVariableRef, pref
+function _build_deriv_expr(
+    vref::GeneralVariableRef, 
+    pref
     )::Union{GeneralVariableRef, Float64}
     if vref == pref 
         return 1.0
@@ -336,18 +397,20 @@ not infinite.
 julia> @infinite_parameter(m, t in [0, 1])
 t
 
-julia> @infinite_variable(m, x(t))
+julia> @variable(m, x, Infinite(t))
 x(t)
 
-julia> @finite_variable(m, z)
+julia> @variable(m, z)
 z
 
 julia> deriv_expr = deriv(x^2 + z, t, t)
 2 ∂/∂t[∂/∂t[x(t)]]*x(t) + 2 ∂/∂t[x(t)]²
 ```
 """
-function deriv(expr, prefs::GeneralVariableRef...
-               )::Union{JuMP.AbstractJuMPScalar, Float64}
+function deriv(
+    expr, 
+    prefs::GeneralVariableRef...
+    )::Union{JuMP.AbstractJuMPScalar, Float64}
     # Check inputs 
     if !all(_index_type(pref) <: InfiniteParameterIndex for pref in prefs)
         error("Can only take derivative with respect to infinite parameters.")
@@ -382,10 +445,10 @@ is given, or if any of the specified parameters are not infinite.
 julia> @infinite_parameter(m, t in [0, 1])
 t
 
-julia> @infinite_variable(m, x(t))
+julia> @variable(m, x, Infinite(t))
 x(t)
 
-julia> @finite_variable(m, z)
+julia> @variable(m, z)
 z
 
 julia> deriv_expr = @deriv(x^2 + z, t^2)
@@ -417,7 +480,10 @@ end
 This serves as a convenient unicode wrapper for [`deriv`](@ref). The `∂` is 
 produced via `\\partial`.
 """
-function ∂(expr, prefs::GeneralVariableRef...)::Union{JuMP.AbstractJuMPScalar, Float64}
+function ∂(
+    expr, 
+    prefs::GeneralVariableRef...
+    )::Union{JuMP.AbstractJuMPScalar, Float64}
     return deriv(expr, prefs...)
 end
 
@@ -478,8 +544,10 @@ end
 #                           VARIABLE INFO METHODS
 ################################################################################
 # Set info for infinite derivatives
-function _update_variable_info(dref::DerivativeRef,
-                               info::JuMP.VariableInfo)::Nothing
+function _update_variable_info(
+    dref::DerivativeRef,
+    info::JuMP.VariableInfo
+    )::Nothing
     new_info = JuMP.VariableInfo{Float64, Float64, Float64, Function}(
                                  info.has_lb, info.lower_bound, info.has_ub,
                                  info.upper_bound, info.has_fix, info.fixed_value,
@@ -509,8 +577,10 @@ julia> set_start_value_function(dref, 1) # all start values will be 1
 julia> set_start_value_function(dref, my_func) # each value will be made via my_func
 ```
 """
-function set_start_value_function(dref::DerivativeRef,
-                                  start::Union{Real, Function})::Nothing
+function set_start_value_function(
+    dref::DerivativeRef,
+    start::Union{Real, Function}
+    )::Nothing
     info = _variable_info(dref)
     set_optimizer_model_ready(JuMP.owner_model(dref), false)
     prefs = raw_parameter_refs(dref)
@@ -602,7 +672,7 @@ end
 #                      EVALUATION METHOD MODIFICATIONS/QUERIES
 ################################################################################
 # Fallback (needs to be done via the infinite parameter)
-function set_derivative_method(dref::DerivativeRef, method::AbstractDerivativeMethod)
+function set_derivative_method(::DerivativeRef, ::AbstractDerivativeMethod)
     error("Cannot specify the derivative method in terms of the derivative, must " * 
           " do so in terms of the operator parameter by calling `set_derivative_method` " * 
           " using the operator parameter.")
@@ -616,7 +686,7 @@ added directly to the `InfiniteModel` associated with `dref`. An empty vector is
 returned is there are no such constraints.
 """
 function derivative_constraints(dref::DerivativeRef)::Vector{InfOptConstraintRef}
-    return [InfOptConstraintRef(JuMP.owner_model(dref), idx) 
+    return [_make_constraint_ref(JuMP.owner_model(dref), idx) 
             for idx in _derivative_constraint_dependencies(dref)]
 end
 

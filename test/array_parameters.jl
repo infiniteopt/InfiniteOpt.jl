@@ -430,6 +430,8 @@ end
         @test parameter_by_name(m, "a[1]") == gvrefs[1]
         @test parameter_by_name(m, "a[2]") == gvrefs[2]
         @test isa(parameter_by_name(m, "a[3]"), Nothing)
+        @infinite_parameter(m, b[2:3] in [0, 1], base_name = "a")
+        @test_throws ErrorException parameter_by_name(m, "a[2]")
     end
     # test name
     @testset "JuMP.name" begin
@@ -555,7 +557,7 @@ end
         @test !used_by_constraint(prefs[2])
         @test !used_by_constraint(gvrefs[1])
         # test used
-        push!(data.constraint_indices[1], ConstraintIndex(1))
+        push!(data.constraint_indices[1], InfOptConstraintIndex(1))
         @test used_by_constraint(prefs[1])
         # undo changes
         empty!(data.constraint_indices[1])
@@ -642,7 +644,7 @@ end
     m = InfiniteModel();
     gvrefs = @dependent_parameters(m, a[1:2] in [0, 1], derivative_method = TestMethod())
     prefs = dispatch_variable_ref.(gvrefs)
-    push!(InfiniteOpt._constraint_dependencies(prefs[1]), ConstraintIndex(1))
+    push!(InfiniteOpt._constraint_dependencies(prefs[1]), InfOptConstraintIndex(1))
     # test has_generative_supports
     @testset "has_generative_supports" begin
         @test !has_generative_supports(prefs[1])
@@ -723,7 +725,7 @@ end
     prefs1 = dispatch_variable_ref.(gvrefs1)
     gvrefs2 = @dependent_parameters(m, b[1:2, 1:2] in MatrixBeta(2, 2, 2))
     prefs2 = dispatch_variable_ref.(gvrefs2)
-    push!(InfiniteOpt._constraint_dependencies(prefs1[1]), ConstraintIndex(1))
+    push!(InfiniteOpt._constraint_dependencies(prefs1[1]), InfOptConstraintIndex(1))
     # test _parameter_domain (raw domain)
     @testset "_parameter_domain (Raw Domain)" begin
         @test InfiniteOpt._parameter_domain(prefs1[1]) isa CollectionDomain
@@ -848,7 +850,7 @@ end
     prefs2 = dispatch_variable_ref.(gvrefs2)
     gvrefs3 = @dependent_parameters(m, c[1:2] in [0, 1])
     gvrefs4 = @dependent_parameters(m, d[1:2] in [0, 1], supports = 0)
-    push!(InfiniteOpt._constraint_dependencies(prefs1[1]), ConstraintIndex(1))
+    push!(InfiniteOpt._constraint_dependencies(prefs1[1]), InfOptConstraintIndex(1))
     # test has_internal_supports 
     @testset "has_internal_supports" begin
         @test !has_internal_supports(prefs1[1])

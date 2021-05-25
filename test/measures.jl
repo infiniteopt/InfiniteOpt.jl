@@ -54,8 +54,8 @@
     end
     # _constraint_dependencies
     @testset "_constraint_dependencies" begin
-        @test InfiniteOpt._constraint_dependencies(mref) == ConstraintIndex[]
-        @test InfiniteOpt._constraint_dependencies(gvref) == ConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(mref) == InfOptConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(gvref) == InfOptConstraintIndex[]
     end
     # _derivative_dependencies
     @testset "_derivative_dependencies" begin
@@ -375,94 +375,18 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= par2 <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
-    @infinite_variable(m, inf(par))
-    @infinite_variable(m, inf2(par, par2))
-    @infinite_variable(m, inf3(par2))
-    @infinite_variable(m, inf4(pars))
-    @finite_variable(m, x)
+    @variable(m, inf, Infinite(par))
+    @variable(m, inf2, Infinite(par, par2))
+    @variable(m, inf3, Infinite(par2))
+    @variable(m, inf4, Infinite(pars))
+    @variable(m, x)
     coeff_func(x) = 1
-
     # prepare measure data
     data = DiscreteMeasureData(par, [1], [1])
     data2 = DiscreteMeasureData(par2, [1], [1], lower_bound = 0, upper_bound = 1)
     data3 = DiscreteMeasureData(pars, [1], [[1, 1]])
     data4 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample)
     data5 = FunctionalDiscreteMeasureData(pars, coeff_func, 5, MCSample)
-
-    # test measure_data_in_finite_var_bounds (DiscreteMeasureData)
-    @testset "measure_data_in_finite_var_bounds (Discrete)" begin
-        # test empty bounds
-        @test measure_data_in_finite_var_bounds(data, ParameterBounds())
-        # test in domain
-        @set_parameter_bounds(x, par == 1)
-        @test measure_data_in_finite_var_bounds(data, parameter_bounds(x))
-        # test outside domain
-        @add_parameter_bounds(x, par == 0)
-        @test !measure_data_in_finite_var_bounds(data, parameter_bounds(x))
-        set_parameter_bounds(x, ParameterBounds(), force = true)
-        delete_supports(par)
-    end
-    # test measure_data_in_finite_var_bounds (MultiDiscreteMeasureData)
-    @testset "measure_data_in_finite_var_bounds (Multi)" begin
-        # test empty bounds
-        @test measure_data_in_finite_var_bounds(data3, ParameterBounds())
-        # test in domain
-        @set_parameter_bounds(x, pars == 1)
-        @test measure_data_in_finite_var_bounds(data3, parameter_bounds(x))
-        # test not in the domain
-        @add_parameter_bounds(x, pars == 0) # TODO: this macro seems to have problems because of support deletion of single dependent parameter
-        @test !measure_data_in_finite_var_bounds(data3, parameter_bounds(x))
-        set_parameter_bounds(x, ParameterBounds(), force = true)
-        delete_supports(pars)
-    end
-    # test measure_data_in_finite_var_bounds (Fallback)
-    @testset "measure_data_in_finite_var_bounds (Fallback)" begin
-        warn = "Unable to check if finite variables bounds are valid in measure " *
-               "with measure data type `BadData`. This can be resolved by " *
-               "extending `measure_data_in_finite_var_bounds`."
-        @test_logs (:warn, warn) measure_data_in_finite_var_bounds(BadData(), ParameterBounds())
-    end
-    # test _check_var_bounds (GeneralVariableRef)
-    @testset "_check_var_bounds (General)" begin
-        @test isa(InfiniteOpt._check_var_bounds(inf, data), Nothing)
-    end
-
-    # test _check_var_bounds (FiniteVariableRef with DiscreteMeasureData)
-    @testset "_check_var_bounds (Finite with Discrete)" begin
-        # test normal
-        @set_parameter_bounds(x, par == 1)
-        @test isa(InfiniteOpt._check_var_bounds(x, data), Nothing)
-        # test error
-        @add_parameter_bounds(x, par == 0)
-        @test_throws ErrorException InfiniteOpt._check_var_bounds(x, data)
-        set_parameter_bounds(x, ParameterBounds(), force = true)
-        delete_supports(par)
-    end
-    # test _check_var_bounds (FiniteVariableRef with MultiDiscreteMeasureData)
-    @testset "_check_var_bounds (Finite with Multi)" begin
-        # test normal
-        @set_parameter_bounds(x, pars == 1)
-        @test isa(InfiniteOpt._check_var_bounds(x, data3), Nothing)
-        # test error
-        @add_parameter_bounds(x, pars == 0)
-        @test_throws ErrorException InfiniteOpt._check_var_bounds(x, data3)
-        set_parameter_bounds(x, ParameterBounds(), force = true)
-        delete_supports(pars)
-    end
-    # test _check_var_bounds (MeasureRef)
-    # TODO: maybe push this after Measure is tested
-    @testset "_check_var_bounds (Measure)" begin
-        # make some measures
-        meas1 = Measure(par, data, [1], [1], false)
-        mref1 = add_measure(m, meas1)
-        meas2 = Measure(x - mref1, data, [1], [1], false)
-        mref2 = add_measure(m, meas2)
-        # test normal
-        @set_parameter_bounds(x, par == 1)
-        @test isa(InfiniteOpt._check_var_bounds(mref1, data), Nothing)
-        @test isa(InfiniteOpt._check_var_bounds(mref2, data), Nothing)
-        set_parameter_bounds(x, ParameterBounds(), force = true)
-    end
     # test build_measure
     @testset "build_measure" begin
         @test isa(build_measure(inf, data), Measure)
@@ -488,8 +412,8 @@ end
     @infinite_parameter(m, 0 <= par3 <= 1)
     @infinite_parameter(m, 0 <= pars2[1:2] <= 1)
     @infinite_parameter(m, 0 <= pars3[1:2] <= 1, independent = true)
-    @infinite_variable(m, inf(par))
-    @finite_variable(m, x)
+    @variable(m, inf, Infinite(par))
+    @variable(m, x)
     dpar = dispatch_variable_ref(par)
     dpars = dispatch_variable_ref.(pars)
     info = UniformGenerativeInfo([0.5], InternalLabel)
@@ -634,8 +558,8 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
-    @infinite_variable(m, inf(par))
-    @finite_variable(m, x)
+    @variable(m, inf, Infinite(par))
+    @variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
     meas = Measure(par + 2inf - x, data, [1], [1], false)
     mref = add_measure(m, meas)
@@ -676,7 +600,7 @@ end
         # test not used
         @test !used_by_constraint(mref)
         # prepare use case
-        push!(InfiniteOpt._constraint_dependencies(mref), ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(mref), InfOptConstraintIndex(1))
         # test used
         @test used_by_constraint(mref)
         # undo changes
@@ -720,11 +644,11 @@ end
         # test not used
         @test !is_used(mref)
         # prepare use case
-        push!(InfiniteOpt._data_object(mref).constraint_indices, ConstraintIndex(1))
+        push!(InfiniteOpt._data_object(mref).constraint_indices, InfOptConstraintIndex(1))
         # test used
         @test is_used(mref)
         # undo changes
-        InfiniteOpt._data_object(mref).constraint_indices = ConstraintIndex[]
+        InfiniteOpt._data_object(mref).constraint_indices = InfOptConstraintIndex[]
         # prepare use case
         push!(InfiniteOpt._data_object(mref).measure_indices, MeasureIndex(1))
         # test used
@@ -748,12 +672,12 @@ end
     @infinite_parameter(m, 0 <= par2 <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     @infinite_parameter(m, pars2[1:2] in MvNormal(ones(2), Float64[1 0; 0 1]))
-    @infinite_variable(m, inf(par))
-    @infinite_variable(m, inf2(par, par2))
-    @infinite_variable(m, inf3(par2))
-    @infinite_variable(m, inf4(pars))
-    @infinite_variable(m, inf5(pars2))
-    @finite_variable(m, x)
+    @variable(m, inf, Infinite(par))
+    @variable(m, inf2, Infinite(par, par2))
+    @variable(m, inf3, Infinite(par2))
+    @variable(m, inf4, Infinite(pars))
+    @variable(m, inf5, Infinite(pars2))
+    @variable(m, x)
     coeff_func(x) = 1
     # prepare measure data
     data = DiscreteMeasureData(par, [1], [1], is_expect = true)
@@ -783,18 +707,12 @@ end
 #            @test name(mref4) == "c(inf4(pars) + x)"
         @test supports(pars[1]) == [1]
         @test supports(pars[2]) == [1]
-        # test with finite variable bounds
-        @set_parameter_bounds(x, par == 1)
-        mref5 = MeasureRef(m, MeasureIndex(5))
-        @test dispatch_variable_ref(measure(inf + x, data)) == mref5
-#            @test name(mref) == "a(inf(par) + x)"
-        @test supports(par) == [1]
         # test scalar FunctionalDiscreteMeasureData
-        mref6 = MeasureRef(m, MeasureIndex(6))
+        mref6 = MeasureRef(m, MeasureIndex(5))
         @test dispatch_variable_ref(measure(inf, data4)) == mref6
         @test InfiniteOpt._core_variable_object(mref6).data.label == UniformGrid
         # test multidim FunctionalDiscreteMeasureData
-        mref7 = MeasureRef(m, MeasureIndex(7))
+        mref7 = MeasureRef(m, MeasureIndex(6))
         @test dispatch_variable_ref(measure(inf5, data5)) == mref7
         @test InfiniteOpt._core_variable_object(mref7).data.label == WeightedSample
         # test analytic evaluation
@@ -818,10 +736,10 @@ end
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
     @infinite_parameter(m, pars2[1:2] in MvNormal(ones(2), Float64[1 0; 0 1]))
-    @infinite_variable(m, inf(par))
-    @infinite_variable(m, inf2(pars))
-    @infinite_variable(m, inf3(pars2))
-    @finite_variable(m, x)
+    @variable(m, inf, Infinite(par))
+    @variable(m, inf2, Infinite(pars))
+    @variable(m, inf3, Infinite(pars2))
+    @variable(m, x)
     coeff_func(x) = 1
     # prepare measure data
     data = DiscreteMeasureData(par, [1], [1])
@@ -860,7 +778,7 @@ end
 @testset "General Queries" begin
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_variable(m, inf(par))
+    @variable(m, inf, Infinite(par))
     data = DiscreteMeasureData(par, [1], [1])
     mref1 = @measure(inf + par, data)
     mref2 = @measure(2 * inf, data)
@@ -877,7 +795,7 @@ end
 @testset "Measure Deletion" begin
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_variable(m, inf(par))
+    @variable(m, inf, Infinite(par))
     data = DiscreteMeasureData(par, [1], [1])
     mref1 = @measure(inf + par, data)
     mref2 = @measure(mref1, data)
@@ -890,7 +808,7 @@ end
 
     m2 = InfiniteModel()
     @infinite_parameter(m2, 0 <= x <= 1)
-    @finite_variable(m2, z >= 0)
+    @variable(m2, z >= 0)
     data = FunctionalDiscreteMeasureData(x, ones, 0, All, 
                generative_support_info = UniformGenerativeInfo([0.5], All))
     mref4 = @measure(3*x, data)

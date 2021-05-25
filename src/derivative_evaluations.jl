@@ -343,7 +343,7 @@ The resulting constraints can be accessed via `derivative_constraints`.
 
 **Example**
 ```julia-repl
-julia> m = InfiniteModel(); @infinite_parameter(m, t in [0,2]); @infinite_variable(m, T(t));
+julia> m = InfiniteModel(); @infinite_parameter(m, t in [0,2]); @variable(m, T, Infinite(t));
 
 julia> dref = @deriv(T,t)
 ∂/∂t[T(t)]
@@ -396,7 +396,7 @@ julia> @infinite_parameter(m, t in [0,2], supports = [0, 1, 2]);
 
 julia> @infinite_parameter(m, x in [0,1], supports = [0, 0.5, 1]);
 
-julia> @infinite_variable(m, T(x, t));
+julia> @variable(m, T, Infinite(x, t));
 
 julia> dref1 = @deriv(T, t); dref2 = @deriv(T, x^2);
 

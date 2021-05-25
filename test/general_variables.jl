@@ -424,30 +424,9 @@ end
     for f in (:raw_parameter_refs, :parameter_refs, :parameter_list,
               :start_value_function, :reset_start_value_function,
               :infinite_variable_ref, :eval_supports, :raw_parameter_values,
-              :parameter_values, :parameter_bounds, :delete_parameter_bounds)
+              :parameter_values)
         @test_throws ArgumentError eval(f)(dvref)
         @test_throws ArgumentError eval(f)(gvref)
-    end
-    # test has_parameter_vbounds (GeneralVariableRef)
-    @testset "has_parameter_bounds (GeneralVariableRef)" begin
-        @test !has_parameter_bounds(gvref)
-    end
-    # test set_parameter_bounds (Fallback)
-    @testset "set_parameter_bounds (Fallback)" begin
-        @test_throws ArgumentError set_parameter_bounds(dvref, ParameterBounds())
-    end
-    # test set_parameter_vbounds (GeneralVariableRef)
-    @testset "set_parameter_bounds (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_parameter_bounds(gvref, ParameterBounds(),
-                                                        force = true)
-    end
-    # test add_parameter_bounds (Fallback)
-    @testset "add_parameter_bounds (Fallback)" begin
-        @test_throws ArgumentError add_parameter_bounds(dvref, ParameterBounds())
-    end
-    # test add_parameter_vbounds (GeneralVariableRef)
-    @testset "add_parameter_bounds (GeneralVariableRef)" begin
-        @test_throws ArgumentError add_parameter_bounds(gvref, ParameterBounds())
     end
 end
 

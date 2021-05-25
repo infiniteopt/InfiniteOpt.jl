@@ -33,7 +33,7 @@
     @test upper_bound(m[:par2]) == 0
 
     # add variables
-    @test @infinite_variable(m, x(par) >= 0) isa GeneralVariableRef
+    @test @variable(m, x >= 0, Infinite(par)) isa GeneralVariableRef
     x = m[:x]
     
     # test measures
@@ -56,7 +56,7 @@ end
     # initialize model and objects
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 10], num_supports = 3)
-    @infinite_variable(m, x(t))
+    @variable(m, x, Infinite(t))
     d = deriv(x, t)
     method = MyDerivMethod(0.5)
 
@@ -86,8 +86,8 @@ end
     # setup the model
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 10])
-    @infinite_variable(m, x(t) >= 0)
-    @finite_variable(m, z, parameter_bounds = (t in [0, 5]))
+    @variable(m, x >= 0, Infinite(t))
+    @variable(m, z)
     data1 = DiscreteMeasureData(t, [2.5, 2.5], [2., 4.], lower_bound = 0., upper_bound = 5.)
     data2 = DiscreteMeasureData(t, [1., 1.], [3., 6.], lower_bound = 1., upper_bound = 10.)
 
@@ -105,18 +105,14 @@ end
     @test coefficients(new_data2) == coefficients(data2)
     @test weight_function(new_data1) == weight_function(data1)
     @test weight_function(new_data2) == weight_function(data2)
-    @test measure_data_in_finite_var_bounds(data1, ParameterBounds())
-    @test measure_data_in_finite_var_bounds(data1, parameter_bounds(z))
-    @test !measure_data_in_finite_var_bounds(data2, parameter_bounds(z))
 
     # test measure definition
     @test measure(x + z, new_data1) isa GeneralVariableRef
-    @test_throws ErrorException measure(x + z, new_data2)
     @test new_measure(x^2, t, 0, 4, num_supports = 4) isa GeneralVariableRef
     @test_throws ErrorException new_measure(x^2 + z, t, 6, 10)
 
     # test expansion
-    pvrefs = [GeneralVariableRef(m, 1, PointVariableIndex), GeneralVariableRef(m, 2, PointVariableIndex)]
+    pvrefs = [GeneralVariableRef(m, i, PointVariableIndex) for i in 1:2] 
     @test expand(measure(x + z, new_data1)) == 2.5 * (pvrefs[1] + pvrefs[2]) + 5z
 
     # test transcription
@@ -144,16 +140,16 @@ end
     @infinite_parameter(m, x[1:2] in [0, 1], independent = true)
     @infinite_parameter(m, p[1:2] in [0, 1])
     @infinite_parameter(m, xi in Normal(0., 1.))
-    @infinite_variable(m, y(t) >= 0)
-    @infinite_variable(m, f(x))
-    mref = integral(y^2 + t, t, 0, 4, num_supports = 5, eval_method = NewUniEvalMethod())
+    @variable(m, y >= 0, Infinite(t))
+    @variable(m, f, Infinite(x))
+    mref = integral(y^2 + t, t, 0, 4, num_supports = 5, 
+                    eval_method = NewUniEvalMethod())
     @test supports(measure_data(mref)) == Array([0., 1., 2., 3., 4.])
     warn = "The method is implemented for independent multivariate parameters."
     @test_logs (:warn, warn) integral(f, p, num_supports = 3,
                                       eval_method = NewMultiEvalMethod())
     mref2 = integral(f, x, num_supports = 3, eval_method = NewMultiEvalMethod())
     @test supports(measure_data(mref2)) == Float64[0 0.5 1; 0 0.5 1]
-#     @test_throws ErrorException integral(xi^2, xi, eval_method = NewUniEvalMethod) # not sure what this checks...
 end
 
 # Test extensions of generative support info
@@ -185,9 +181,9 @@ end
     # setup the infinite model
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 1])
-    @infinite_variable(m, x(par))
-    @point_variable(m, x(0), x0)
-    @finite_variable(m, y)
+    @variable(m, x, Infinite(par))
+    @variable(m, x0, Point(x, 0))
+    @variable(m, y)
     meas = integral(x, par)
     @constraint(m, c1, x + y - 2 <= 0)
     @constraint(m, c2, meas == 0)
@@ -286,7 +282,6 @@ end
             JuMP.optimizer_index(optimizer_model_constraint(c3)[1]), 0.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(),
             JuMP.optimizer_index(optimizer_model_constraint(c3)[2]), -1.0)
-
 
     # test result queries
     @test termination_status(m) == MOI.OPTIMAL

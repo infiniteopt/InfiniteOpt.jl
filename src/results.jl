@@ -1,209 +1,41 @@
 ################################################################################
-#                                  STATUS QUERIES
+#                                  MODEL QUERIES
 ################################################################################
-"""
-    JuMP.termination_status(model::InfiniteModel)
+# Simple model queries
+for op in (:termination_status, :raw_status, :solve_time, :simplex_iterations,
+           :barrier_iterations, :node_count, :objective_bound, :relative_gap)
+    @eval begin 
+        @doc """
+            JuMP.$($op)(model::InfiniteModel)
 
-Extend [`termination_status`](@ref JuMP.termination_status(::JuMP.Model)) to
-return the `MOI.TerminationStatus` in accordance with the optimizer model.
-
-**Example**
-```julia-repl
-julia> termination_status(model)
-LOCALLY_SOLVED::TerminationStatusCode = 4
-```
-"""
-function JuMP.termination_status(model::InfiniteModel)
-    return JuMP.termination_status(optimizer_model(model))
+        Extend [`JuMP.$($op)`](https://jump.dev/JuMP.jl/v0.21.8/reference/solutions/#JuMP.$($op)) 
+        for `InfiniteModel`s in accordance with that reported by its optimizer 
+        model. Errors if such a query is not supported or if the optimizer model 
+        hasn't be solved.
+        """
+        function JuMP.$op(model::InfiniteModel)
+            return JuMP.$op(optimizer_model(model))
+        end
+    end
 end
 
-"""
-    JuMP.raw_status(model::InfiniteModel)
+# Simple result dependent model queries
+for op in (:primal_status, :dual_status, :has_values, :has_duals, 
+           :objective_value, :dual_objective_value)
+    @eval begin 
+        @doc """
+            JuMP.$($op)(model::InfiniteModel; [result::Int = 1])
 
-Extend [`raw_status`](@ref JuMP.raw_status(::JuMP.Model)) to return the status
-reported by the solver in accordance with the optimizer model.
-
-**Example**
-```julia-repl
-julia> raw_status(model) # Ipopt
-"Solve_Succeeded"
-```
-"""
-function JuMP.raw_status(model::InfiniteModel)
-    return JuMP.raw_status(optimizer_model(model))
-end
-
-"""
-     JuMP.primal_status(model::InfiniteModel; [result::Int = 1])
-
-Extend [`primal_status`](@ref JuMP.primal_status(::JuMP.Model)) to return the
-`MOI.PrimalStatus` reported in accordance with the optimizer model and the
-result index `result` of the most recent solution obtained.
-
-**Example**
-```julia-repl
-julia> primal_status(model)
-FEASIBLE_POINT::ResultStatusCode = 1
-```
-"""
-function  JuMP.primal_status(model::InfiniteModel; result::Int = 1)
-    return JuMP.primal_status(optimizer_model(model); result = result)
-end
-
-"""
-    JuMP.dual_status(model::InfiniteModel; [result::Int = 1])
-
-Extend [`dual_status`](@ref JuMP.dual_status(::JuMP.Model)) to return the
-`MOI.DualStatus` reported in accordance with the optimizer model and the
-result index `result` of the most recent solution obtained.
-
-**Example**
-```julia-repl
-julia> dual_status(model)
-FEASIBLE_POINT::ResultStatusCode = 1
-```
-"""
-function JuMP.dual_status(model::InfiniteModel; result::Int = 1)
-    return JuMP.dual_status(optimizer_model(model); result = result)
-end
-
-"""
-    JuMP.solve_time(model::InfiniteModel)
-
-Extend [`solve_time`](@ref JuMP.solve_time(::JuMP.Model)) to return the
-time used by the solver to terminate reported in accordance with the optimizer
-model. This will error if not supported by the solver.
-
-**Example**
-```julia-repl
-julia> solve_time(model)
-0.004999876022338867
-```
-"""
-function JuMP.solve_time(model::InfiniteModel)
-    return JuMP.solve_time(optimizer_model(model))
-end
-
-"""
-    JuMP.has_values(model::InfiniteModel; [result::Int = 1])::Bool
-
-Extend [`has_values`](@ref JuMP.has_values(::JuMP.Model)) to return a `Bool`
-whether variable values are available in accordance with the optimizer model and
-the result index `result` of the most recent solution obtained.
-
-**Example**
-```julia-repl
-julia> has_values(model)
-true
-```
-"""
-function JuMP.has_values(model::InfiniteModel; result::Int = 1)::Bool
-    return JuMP.primal_status(model; result = result) != MOI.NO_SOLUTION
-end
-
-"""
-    JuMP.has_duals(model::InfiniteModel; [result::Int = 1])::Bool
-
-Extend [`has_duals`](@ref JuMP.has_duals(::JuMP.Model)) to return a `Bool`
-whether constraint duals are available in accordance with the optimizer model and
-the result index `result` of the most recent solution obtained.
-
-**Example**
-```julia-repl
-julia> has_duals(model)
-true
-```
-"""
-function JuMP.has_duals(model::InfiniteModel; result::Int = 1)::Bool
-    return JuMP.dual_status(model; result = result) != MOI.NO_SOLUTION
-end
-
-"""
-    simplex_iterations(model::InfiniteModel)
-
-Gets the cumulative number of simplex iterations during the most-recent optimization.
-
-Solvers must implement `MOI.SimplexIterations()` to use this function.
-"""
-function JuMP.simplex_iterations(model::InfiniteModel)
-    return JuMP.simplex_iterations(optimizer_model(model))
-end
-
-"""
-    barrier_iterations(model::InfiniteModel)
-
-Gets the cumulative number of barrier iterations during the most-recent optimization.
-
-Solvers must implement `MOI.BarrierIterations()` to use this function.
-"""
-function JuMP.barrier_iterations(model::InfiniteModel)
-    return JuMP.barrier_iterations(optimizer_model(model))
-end
-
-"""
-    node_count(model::InfiniteModel)
-
-Gets the total number of branch-and-bound nodes explored during the most recent
-optimization in a Mixed Integer Program.
-
-Solvers must implement `MOI.NodeCount()` to use this function.
-"""
-function JuMP.node_count(model::InfiniteModel)
-    return JuMP.node_count(optimizer_model(model))
-end
-
-################################################################################
-#                              OBJECTIVE QUERIES
-################################################################################
-"""
-    JuMP.objective_bound(model::InfiniteModel)::Float64
-
-Extend [`objective_bound`](@ref JuMP.objective_bound(::JuMP.Model)) to return
-the objective bound in accordance with the optimizer model.
-
-**Example**
-```julia-repl
-julia> objective_bound(model)
-42.0
-```
-"""
-function JuMP.objective_bound(model::InfiniteModel)::Float64
-    return JuMP.objective_bound(optimizer_model(model))
-end
-
-"""
-    JuMP.objective_value(model::InfiniteModel; [result::Int = 1])::Float64
-
-Extend [`objective_value`](@ref JuMP.objective_value(::JuMP.Model)) to return
-the objective value in accordance with the optimizer model and the
-result index `result` of the most recent solution obtained.
-
-**Example**
-```julia-repl
-julia> objective_value(model)
-42.0
-```
-"""
-function JuMP.objective_value(model::InfiniteModel; result::Int = 1)::Float64
-    return JuMP.objective_value(optimizer_model(model); result = result)
-end
-
-"""
-    JuMP.dual_objective_value(model::InfiniteModel; [result::Int = 1])::Float64
-
-Extend [`dual_objective_value`](@ref JuMP.dual_objective_value(::JuMP.Model)) to
-return the dual objective value in accordance with the optimizer model and the
-result index `result` of the most recent solution obtained. Errors
-if the solver does not support this.
-
-**Example**
-```julia-repl
-julia> dual_objective_value(model)
-42.0
-```
-"""
-function JuMP.dual_objective_value(model::InfiniteModel; result::Int = 1)::Float64
-    return JuMP.dual_objective_value(optimizer_model(model); result = result)
+        Extend [`JuMP.$($op)`](https://jump.dev/JuMP.jl/v0.21.8/reference/solutions/#JuMP.$($op)) 
+        for `InfiniteModel`s in accordance with that reported by its optimizer 
+        model and the result index `result` of the most recent solution obtained. 
+        Errors if such a query is not supported or if the optimizer model hasn't 
+        be solved.
+        """
+        function JuMP.$op(model::InfiniteModel; result::Int = 1)
+            return JuMP.$op(optimizer_model(model); result = result)
+        end
+    end
 end
 
 ################################################################################
@@ -264,7 +96,7 @@ function _get_value(pref, ::Type{<:InfiniteParameterIndex}, result; kwargs...)
 end
 
 # FiniteParameter 
-function _get_value(pref, ::Type{<:FiniteParameterIndex}, result; kwargs...)
+function _get_value(pref, ::Type{FiniteParameterIndex}, result; kwargs...)
     return parameter_value(pref)
 end
 
@@ -279,9 +111,9 @@ end
                label::Type{<:AbstractSupportLabel} = PublicLabel,
                ndarray::Bool = false, kwargs...])
 
-Extend [`JuMP.value`](@ref JuMP.value(::JuMP.VariableRef)) to return the value(s)
-of `vref` in accordance with its reformulation variable(s) stored in the optimizer
-model and the result index `result` of the most recent solution obtained. Use
+Extend `JuMP.value` to return the value(s) of `vref` in accordance with its 
+reformulation variable(s) stored in the optimizer model and the result index 
+`result` of the most recent solution obtained. Use
 [`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check
 if a result exists before asking for values. 
     
@@ -320,11 +152,11 @@ end
                label::Type{<:AbstractSupportLabel} = PublicLabel,
                ndarray::Bool = false, kwargs...])
 
-Extend [`JuMP.value`](@ref JuMP.value(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
-to return the value(s) of `cref` in accordance with its reformulation constraint(s)
-stored in the optimizer model and the result index `result` of the most recent
-solution obtained. Use [`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel))
-to check if a result exists before asking for values. 
+Extend `JuMP.value` to return the value(s) of `cref` in accordance with its 
+reformulation constraint(s) stored in the optimizer model and the result index 
+`result` of the most recent solution obtained. Use 
+[`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check if a result 
+exists before asking for values. 
     
 The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
 and `kwargs` denote extra ones that user extensions may employ.
@@ -452,9 +284,9 @@ end
 """
     JuMP.reduced_cost(vref::GeneralVariableRef)
 
-Extending [`JuMP.reduced_cost`](@ref JuMP.reduced_cost(::JuMP.VariableRef)). This 
-returns the reduced cost(s) of a variable. This will be a vector of scalar values 
-for an infinite variable or will be a scalar value for finite variables. 
+Extend `JuMP.reduced_cost`. This returns the reduced cost(s) of a variable. This 
+will be a vector of scalar values for an infinite variable or will be a scalar 
+value for finite variables. 
 
 **Example**
 ```julia-repl
@@ -510,9 +342,9 @@ end
                          [label::Type{<:AbstractSupportLabel} = PublicLabel,
                          ndarray::Bool = false, kwargs...])
 
-Extend [`JuMP.optimizer_index`](@ref JuMP.optimizer_index(::JuMP.VariableRef)) to
-return the `MathOptInterface` index(es) of `vref` in accordance with its
-reformulation variable(s) stored in the optimizer model.
+Extend `JuMP.optimizer_index` to return the `MathOptInterface` index(es) of 
+`vref` in accordance with its reformulation variable(s) stored in the optimizer 
+model.
 
 The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
 and `kwargs` denote extra ones that user extensions may employ.
@@ -551,9 +383,9 @@ end
                          [label::Type{<:AbstractSupportLabel} = PublicLabel,
                          ndarray::Bool = false, kwargs...])
 
-Extend [`JuMP.optimizer_index`](@ref JuMP.optimizer_index(::JuMP.ConstraintRef{JuMP.Model}))
-to return the `MathOptInterface` index(es) of `cref` in accordance with its
-reformulation constraints(s) stored in the optimizer model. 
+Extend `JuMP.optimizer_index` to return the `MathOptInterface` index(es) of 
+`cref` in accordance with its reformulation constraints(s) stored in the 
+optimizer model. 
 
 The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
 and `kwargs` denote extra ones that user extensions may employ.
@@ -622,11 +454,11 @@ end
               label::Type{<:AbstractSupportLabel} = PublicLabel,
               ndarray::Bool = false, kwargs...])
 
-Extend [`JuMP.dual`](@ref JuMP.dual(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
-to return the dual(s) of `cref` in accordance with its reformulation constraint(s)
-stored in the optimizer model and the result index `result` of the most recent
-solution obtained. Use [`JuMP.has_duals`](@ref JuMP.has_duals(::InfiniteModel))
-to check if a result exists before asking for duals. 
+Extend `JuMP.dual` to return the dual(s) of `cref` in accordance with its 
+reformulation constraint(s) stored in the optimizer model and the result index 
+`result` of the most recent solution obtained. Use 
+[`JuMP.has_duals`](@ref JuMP.has_duals(::InfiniteModel)) to check if a result 
+exists before asking for duals. 
 
 The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
 and `kwargs` denote extra ones that user extensions may employ.
@@ -700,10 +532,10 @@ end
                       [label::Type{<:AbstractSupportLabel} = PublicLabel,
                       ndarray::Bool = false, kwargs...])
 
-Extend [`JuMP.shadow_price`](@ref JuMP.shadow_price(::JuMP.ConstraintRef{JuMP.Model, <:JuMP._MOICON}))
-to return the shadow price(s) of `cref` in accordance with its reformulation constraint(s)
-stored in the optimizer model. Use [`JuMP.has_duals`](@ref JuMP.has_duals(::InfiniteModel))
-to check if a result exists before asking for duals. 
+Extend `JuMP.shadow_price` to return the shadow price(s) of `cref` in accordance 
+with its reformulation constraint(s) stored in the optimizer model. Use 
+[`JuMP.has_duals`](@ref JuMP.has_duals(::InfiniteModel)) to check if a result 
+exists before asking for duals. 
     
 The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
 and `kwargs` denote extra ones that user extensions may employ.
@@ -745,7 +577,7 @@ end
 """
     InfOptSensitivityReport
 
-A wrapper `DataType` for [`JuMP.SensitivityReport`](@ref)s in `InfiniteOpt`. 
+A wrapper `DataType` for `JuMP.SensitivityReport`s in `InfiniteOpt`. 
 These are generated based on the optimizer model and should be made via the use of 
 [`lp_sensitivity_report`](@ref JuMP.lp_sensitivity_report(::InfiniteModel)). Once 
 made these can be indexed to get the sensitivies with respect to variables and/or 
@@ -792,12 +624,12 @@ end
     JuMP.lp_sensitivity_report(model::InfiniteModel; 
                                [atol::Float64 = 1e-8])::InfOptSensitivityReport
 
-Extends [`JuMP.lp_sensitivity_report`](@ref JuMP.lp_sensitivity_report(::JuMP.Model))
-to generate and return an LP sensitivity report in accordance with the optimizer 
-model. See [`InfOptSensitivityReport`](@ref) for syntax details on how to query 
-it. `atol` denotes the optimality tolerance and should match that used by the 
-solver to compute the basis. Please refer to `JuMP`'s documentation for more 
-technical information on interpretting the output of the report.
+Extends `JuMP.lp_sensitivity_report` to generate and return an LP sensitivity 
+report in accordance with the optimizer model. See 
+[`InfOptSensitivityReport`](@ref) for syntax details on how to query it. `atol` 
+denotes the optimality tolerance and should match that used by the solver to 
+compute the basis. Please refer to `JuMP`'s documentation for more technical 
+information on interpretting the output of the report.
 
 **Example**
 ```julia-repl 

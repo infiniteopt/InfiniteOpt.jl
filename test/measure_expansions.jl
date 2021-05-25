@@ -4,8 +4,8 @@
     m = InfiniteModel()
     @infinite_parameter(m, par1 in [0, 2])
     @infinite_parameter(m, par2 in [0, 2])
-    @infinite_variable(m, inf1(par1))
-    @infinite_variable(m, inf2(par1, par2))
+    @variable(m, inf1, Infinite(par1))
+    @variable(m, inf2, Infinite(par1, par2))
     d1 = @deriv(inf1, par1)
     d2 = @deriv(inf2, par1)
     # test make_point_variable_ref (InfiniteModel)
@@ -79,7 +79,7 @@
         rvref3 = SemiInfiniteVariableRef(m, SemiInfiniteVariableIndex(3))
         rvref4 = SemiInfiniteVariableRef(m, SemiInfiniteVariableIndex(4))
         # test cannot delete
-        push!(InfiniteOpt._constraint_dependencies(rvref1), ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(rvref1), InfOptConstraintIndex(1))
         @test delete_internal_semi_infinite_variable(m, rvref1) isa Nothing
         @test is_valid(m, rvref1)
         empty!(InfiniteOpt._constraint_dependencies(rvref1))
@@ -116,20 +116,20 @@ end
 @testset "expand_measure" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 1 <= par1 <= 2)
-    @infinite_parameter(m, 1 <= par2 <= 2)
-    @infinite_parameter(m, 1 <= pars1[1:2] <= 2, independent = true)
-    @infinite_parameter(m, 1 <= pars2[1:2] <= 2)
-    @infinite_variable(m, inf1(par1))
-    @infinite_variable(m, inf2(par1, par2))
-    @infinite_variable(m, inf3(par2))
-    @infinite_variable(m, inf4(pars1))
-    @infinite_variable(m, inf5(pars1, pars2))
-    @infinite_variable(m, inf6(pars2))
-    @infinite_variable(m, inf7(par1, par2, pars1))
-    @infinite_variable(m, inf8(pars1[1]))
-    @infinite_variable(m, inf9(pars1[1], par1))
-    @finite_variable(m, x)
+    @infinite_parameter(m, par1 in [1, 2])
+    @infinite_parameter(m, par2 in [1, 2])
+    @infinite_parameter(m, pars1[1:2] in [1, 2], independent = true)
+    @infinite_parameter(m, pars2[1:2] in [1, 2])
+    @variable(m, inf1, Infinite(par1))
+    @variable(m, inf2, Infinite(par1, par2))
+    @variable(m, inf3, Infinite(par2))
+    @variable(m, inf4, Infinite(pars1))
+    @variable(m, inf5, Infinite(pars1, pars2))
+    @variable(m, inf6, Infinite(pars2))
+    @variable(m, inf7, Infinite(par1, par2, pars1))
+    @variable(m, inf8, Infinite(pars1[1]))
+    @variable(m, inf9, Infinite(pars1[1], par1))
+    @variable(m, x)
     d1 = @deriv(inf1, par1)
     d2 = @deriv(inf2, par1)
     d3 = @deriv(inf3, par2)
@@ -330,7 +330,8 @@ end
         orig_prefs = parameter_list(inf2)
         support_dict = Dict{Int, Float64}(2 => 42)
         expected = Float64[23, 42]
-        @test InfiniteOpt._make_point_support(orig_prefs, support_dict, 1, Float64(23)) == expected
+        @test InfiniteOpt._make_point_support(orig_prefs, support_dict, 1, 
+                                              Float64(23)) == expected
     end
     # test expand_measure (Semi-infinite variable)
     @testset "Semi-Infinite Variable (1D DiscreteMeasureData)" begin
@@ -366,7 +367,8 @@ end
         support_dict = Dict{Int, Float64}(1 => 23, 2 => 42)
         expected = Float64[23, 42, 3, 2]
         vals = Float64[3, 2]
-        @test InfiniteOpt._make_point_support(orig_prefs, support_dict, [3, 4], vals) == expected
+        @test InfiniteOpt._make_point_support(orig_prefs, support_dict, [3, 4], 
+                                              vals) == expected
     end
     # test expand_measure (semi-infinite variable)
     @testset "Semi-Infinite Variable (Multi DiscreteMeasureData)" begin
@@ -621,14 +623,21 @@ end
     @testset "FunctionalDiscreteMeasureData" begin
         # test without generative supports 
         coefa(a) = ones(length(a))
-        data = FunctionalDiscreteMeasureData(par1, coefa, 2, All, is_expect = true)
+        data = FunctionalDiscreteMeasureData(par1, coefa, 2, All, 
+                                             is_expect = true)
         @test InfiniteOpt.expand_measure(x, data, m) == 2x
         # test with generative supports 
         coefb(a) = ones(length(a) + 1)
         info = UniformGenerativeInfo([0.5], InternalLabel)
-        data = FunctionalDiscreteMeasureData(par1, coefb, 2, All, generative_support_info = info)
+        data = FunctionalDiscreteMeasureData(par1, coefb, 2, All, 
+                                             generative_support_info = info)
         InfiniteOpt._set_generative_support_info(dispatch_variable_ref(par1), info)
         @test InfiniteOpt.expand_measure(x, data, m) == 3x
+    end
+    # test _prep_generative_supps
+    @testset "_prep_generative_supps" begin 
+        @test InfiniteOpt._prep_generative_supps(par1, NoGenerativeSupports) isa Nothing 
+        @test InfiniteOpt._prep_generative_supps(par1, UniformGenerativeInfo) isa Nothing 
     end
     # test expand_measure (other)
     @testset "Other" begin
@@ -643,11 +652,11 @@ end
 @testset "analytic_expansion" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 1 <= par1 <= 2)
-    @infinite_parameter(m, 1 <= par2 <= 2)
-    @infinite_parameter(m, 1 <= pars1[1:2] <= 2, num_supports = 2)
-    @infinite_variable(m, inf3(par2))
-    @finite_variable(m, x)
+    @infinite_parameter(m, par1 in [1, 2])
+    @infinite_parameter(m, par2 in [1, 2])
+    @infinite_parameter(m, pars1[1:2] in [1, 2], num_supports = 2)
+    @variable(m, inf3, Infinite(par2))
+    @variable(m, x)
     # test with 1D data
     @testset "1D Discrete Data" begin
         # test with bounds
@@ -689,14 +698,14 @@ end
 @testset "expand_measures" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 1 <= par1 <= 2)
-    @infinite_parameter(m, 1 <= par2 <= 2)
-    @infinite_parameter(m, 1 <= pars1[1:2] <= 2)
-    @infinite_variable(m, inf1(par1) >= 1)
-    @infinite_variable(m, inf2(par1, par2))
-    @infinite_variable(m, inf3(par2))
-    @infinite_variable(m, inf4(pars1))
-    @finite_variable(m, x)
+    @infinite_parameter(m, par1 in [1, 2])
+    @infinite_parameter(m, par2 in [1, 2])
+    @infinite_parameter(m, pars1[1:2] in [1, 2])
+    @variable(m, inf1 >= 1, Infinite(par1))
+    @variable(m, inf2, Infinite(par1, par2))
+    @variable(m, inf3, Infinite(par2))
+    @variable(m, inf4, Infinite(pars1))
+    @variable(m, x)
     # prepare measures
     data1 = DiscreteMeasureData(par1, [0.5, 0.5], [1, 2], is_expect = true)
     data2 = DiscreteMeasureData(pars1, [1, 1], [[1, 1], [2, 2]])
@@ -770,6 +779,12 @@ end
         # test with this thorough expression
         @test InfiniteOpt.expand_measures(expr, m) == 2 * m1 * x - x + 1
     end
+    # test expand_measures (AbstractArray)
+    @testset "AbstractArray" begin
+        # prepare first measure expansion
+        expr = [2x + 1, x]
+        @test InfiniteOpt.expand_measures(expr, m) == expr
+    end
     # test expand_measures (Fallback)
     @testset "Fallback" begin
         @test_throws ErrorException InfiniteOpt.expand_measures(1, m)
@@ -780,16 +795,17 @@ end
 @testset "User Methods" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 1 <= par1 <= 2)
-    @infinite_parameter(m, 1 <= par2 <= 2)
-    @infinite_parameter(m, 1 <= pars1[1:2] <= 2)
-    @infinite_variable(m, inf1(par1) >= 1)
-    @infinite_variable(m, inf2(par1, par2) >= 0)
-    @infinite_variable(m, inf3(par2))
-    @infinite_variable(m, inf4(pars1))
-    @finite_variable(m, x >= 0)
+    @infinite_parameter(m, par1 in [1, 2])
+    @infinite_parameter(m, par2 in [1, 2])
+    @infinite_parameter(m, pars1[1:2] in [1, 2])
+    @variable(m, inf1 >= 1, Infinite(par1))
+    @variable(m, inf2 >= 0, Infinite(par1, par2))
+    @variable(m, inf3, Infinite(par2))
+    @variable(m, inf4, Infinite(pars1))
+    @variable(m, x >= 0)
     # prepare measures
-    data1 = DiscreteMeasureData(par1, [0.5, 0.5], [1, 2], lower_bound = 1, upper_bound = 2)
+    data1 = DiscreteMeasureData(par1, [0.5, 0.5], [1, 2], lower_bound = 1, 
+                                upper_bound = 2)
     data2 = DiscreteMeasureData(pars1, [1, 1], [[1, 1], [2, 2]])
     data3 = DiscreteMeasureData(par2, [2, 2], [1, 2])
     meas1 = measure(inf1 + 3x - inf2 + inf3 - 2, data1)
@@ -823,13 +839,16 @@ end
     # test expand_all_measures!
     @testset "expand_all_measures!" begin
         # prepare the model for testing
-        @finite_variable(m, y, parameter_bounds = (par2 == 1))
+        @variable(m, y)
         set_objective_function(m, x + measure(inf1 * par1 + 3, data1))
         @constraint(m, c1, inf1 + x >= 42.)
         @constraint(m, c2, 2x - measure(measure(inf1 * x + par1 + inf2, data1),
                                         data3) == 0.)
-        @BDconstraint(m, c3(par2 in [1, 1.5]), measure(inf2, data1) + inf1 >= 0.)
-        @constraint(m, c4, measure(inf4 + y, data2) <= 3.)
+        @constraint(m, c3, measure(inf2, data1) + inf1 >= 0., 
+                    DomainRestrictions(par2 => [1, 1.5]))
+        @constraint(m, c4, measure(inf4 + y, data2) <= 3., 
+                    DomainRestrictions(par2 => 1))
+        @constraint(m, c5, [measure(inf2, data1), x] in MOI.Zeros(2))
         # prepare comparison expressions
         idx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
         pts = [GeneralVariableRef(m, idx, PointVariableIndex),
@@ -850,32 +869,35 @@ end
         pts = [GeneralVariableRef(m, idx + 8, PointVariableIndex),
                GeneralVariableRef(m, idx + 9, PointVariableIndex)]
         c4_expected = pts[1] + pts[2] + 2y
+        rv1 = GeneralVariableRef(m, idx2 + 2, SemiInfiniteVariableIndex)
+        rv2 = GeneralVariableRef(m, idx2 + 3, SemiInfiniteVariableIndex)
+        c5_expected = AbstractJuMPScalar[0.5rv1 + 0.5rv2, x]
         # test the expansion
         @test isa(expand_all_measures!(m), Nothing)
         @test objective_function(m) == obj
         @test is_valid(m, c2)
         @test is_valid(m, c3)
         @test is_valid(m, c4)
+        @test is_valid(m, c5)
         @test name(c1) == "c1"
         @test name(c2) == "c2"
         @test name(c3) == "c3"
         @test name(c4) == "c4"
+        @test name(c5) == "c5"
         @test constraint_object(c1).func == inf1 + x
         @test constraint_object(c2).func == c2_expected
         @test constraint_object(c3).func == c3_expected
         @test constraint_object(c4).func == c4_expected
-        @test constraint_object(c2).func isa JuMP.GenericQuadExpr{Float64, GeneralVariableRef}
-        @test constraint_object(c3).func isa JuMP.GenericAffExpr{Float64, GeneralVariableRef}
-        @test constraint_object(c4).func isa JuMP.GenericAffExpr{Float64, GeneralVariableRef}
+        @test constraint_object(c5).func == c5_expected
         @test constraint_object(c1).set == MOI.GreaterThan(42.)
         @test constraint_object(c2).set == MOI.EqualTo(6.)
         @test constraint_object(c3).set == MOI.GreaterThan(0.)
         @test constraint_object(c4).set == MOI.LessThan(3.)
-        @test isa(constraint_object(c1), ScalarConstraint)
-        @test isa(constraint_object(c2), ScalarConstraint)
-        @test isa(constraint_object(c3), BoundedScalarConstraint)
-        @test isa(constraint_object(c4), BoundedScalarConstraint)
-        @test constraint_object(c3).bounds.intervals == Dict(par2 => IntervalDomain(1, 1.5))
-        @test constraint_object(c4).bounds.intervals == Dict(par2 => IntervalDomain(1, 1))
+        @test constraint_object(c5).set == MOI.Zeros(2)
+        @test domain_restrictions(c1) == DomainRestrictions()
+        @test domain_restrictions(c2) == DomainRestrictions()
+        @test domain_restrictions(c3) == DomainRestrictions(par2 => [1, 1.5])
+        @test domain_restrictions(c4) == DomainRestrictions(par2 => 1)
+        @test domain_restrictions(c5) == DomainRestrictions()
     end
 end

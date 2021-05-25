@@ -4,9 +4,9 @@
     optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                          eval_objective_value=false)
     m = InfiniteModel(optimizer)
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_variable(m, inf(par))
-    @finite_variable(m, g)
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
+    @variable(m, inf, Infinite(par))
+    @variable(m, g)
     @objective(m, Min, g^2)
     @constraint(m, c1, 2 * inf * g <= 1)
     tm = transcription_model(m)
@@ -22,6 +22,7 @@
     MOI.set(mockoptimizer, MOI.DualStatus(2), MOI.FEASIBLE_POINT)
     MOI.set(mockoptimizer, MOI.SimplexIterations(), 4)
     MOI.set(mockoptimizer, MOI.BarrierIterations(), 7)
+    MOI.set(mockoptimizer, MOI.RelativeGap(), 9)
     MOI.set(mockoptimizer, MOI.NodeCount(), 2)
     MOI.set(mockoptimizer, MOI.SolveTime(), 0.42)
     # test termination_status
@@ -58,6 +59,10 @@
     @testset "JuMP.node_count" begin
         @test node_count(m) == 2
     end
+    # test relative_gap
+    @testset "JuMP.relative_gap" begin
+        @test relative_gap(m) == 9
+    end
 end
 
 # Test objective queries
@@ -66,9 +71,9 @@ end
     optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                          eval_objective_value=false)
     m = InfiniteModel(optimizer)
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_variable(m, inf(par))
-    @finite_variable(m, g)
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
+    @variable(m, inf, Infinite(par))
+    @variable(m, g)
     @objective(m, Min, g^2)
     @constraint(m, c1, 2 * g <= 1)
     tm = transcription_model(m)
@@ -102,13 +107,13 @@ end
     optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                          eval_objective_value=false)
     m = InfiniteModel(optimizer)
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1], 
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1], 
                         derivative_method = OrthogonalCollocation(3))
-    @infinite_parameter(m, 0 <= par2 <= 2, supports = [0, 2])
-    @infinite_variable(m, inf(par))
-    @infinite_variable(m, inf2(par2, par))
+    @infinite_parameter(m, par2 in [0, 2], supports = [0, 2])
+    @variable(m, inf, Infinite(par))
+    @variable(m, inf2, Infinite(par2, par))
     @finite_parameter(m, fin, 42)
-    @finite_variable(m, g <=3)
+    @variable(m, g <=3)
     d1 = @deriv(inf, par)
     var = build_variable(error, inf2, Dict{Int, Float64}(2 => 0))
     rv = add_variable(m, var)
@@ -153,6 +158,12 @@ end
         @test InfiniteOpt.map_value(inf, Val(:TransData), 1, label = All) == [2., 1., 2.]
         @test InfiniteOpt.map_value(g, Val(:TransData), 1) == 1.
         @test InfiniteOpt.map_value(rv, Val(:TransData), 1, label = All) == [-2., -1.]
+    end
+    # test _get_value 
+    @testset "_get_value " begin
+        @test InfiniteOpt._get_value(g, FiniteVariableIndex, 1) == 1.
+        @test InfiniteOpt._get_value(par, IndependentParameterIndex, 1, label = All) == [0., 0.5, 1.]
+        @test InfiniteOpt._get_value(fin, FiniteParameterIndex, 1) == 42
     end
     # test value
     @testset "JuMP.value" begin
@@ -202,11 +213,11 @@ end
     optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                          eval_objective_value=false)
     m = InfiniteModel(optimizer)
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_parameter(m, 0 <= par2 <= 2, supports = [0, 2])
-    @infinite_variable(m, inf(par))
-    @infinite_variable(m, inf2(par2, par))
-    @finite_variable(m, g)
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
+    @infinite_parameter(m, par2 in [0, 2], supports = [0, 2])
+    @variable(m, inf, Infinite(par))
+    @variable(m, inf2, Infinite(par2, par))
+    @variable(m, g)
     meas1 = support_sum(2inf, par)
     meas2 = support_sum(inf2, par2)
     @objective(m, Min, g^2)
@@ -261,9 +272,9 @@ end
     optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                          eval_objective_value=false)
     m = InfiniteModel(optimizer)
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_variable(m, inf(par))
-    @finite_variable(m, g)
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
+    @variable(m, inf, Infinite(par))
+    @variable(m, g)
     @constraint(m, c1, g <= 0)
     @constraint(m, c2, inf >= 0)
     @objective(m, Min, g^2)
@@ -341,11 +352,13 @@ end
     optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                          eval_objective_value=false)
     m = InfiniteModel(optimizer)
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_variable(m, inf(par))
-    @finite_variable(m, g)
-    @constraint(m, c1, g <= 0)
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
+    @variable(m, inf, Infinite(par))
+    @variable(m, g)
+    @constraint(m, c1, g >= 0)
     @constraint(m, c2, inf >= 0)
+    @constraint(m, c3, g <= 1)
+    @constraint(m, c4, inf <= 1)
     @objective(m, Max, 2g)
     tm = transcription_model(m)
     optimize!(m)
@@ -353,6 +366,8 @@ end
     gt = transcription_variable(g)
     c1t = transcription_constraint(c1)
     c2t = transcription_constraint(c2)
+    c3t = transcription_constraint(c3)
+    c4t = transcription_constraint(c4)
     # setup the optimizer info
     mockoptimizer = JuMP.backend(tm).optimizer.model;
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
@@ -366,17 +381,23 @@ end
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c1t), -2.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c2t[1]), 0.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c2t[2]), 0.0)
-    MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c1t), MOI.NONBASIC)
-    MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c2t[1]), MOI.NONBASIC)
-    MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c2t[2]), MOI.NONBASIC)
+    MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c3t), 2.0)
+    MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c4t[1]), 1.0)
+    MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c4t[2]), 1.0)
+    MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c1t), MOI.BASIC)
+    MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c2t[1]), MOI.BASIC)
+    MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c2t[2]), MOI.BASIC)
+    MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c3t), MOI.BASIC)
+    MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c4t[1]), MOI.BASIC)
+    MOI.set(mockoptimizer, MOI.ConstraintBasisStatus(), JuMP.optimizer_index(c4t[2]), MOI.BASIC)
     # test making the report 
     @test lp_sensitivity_report(m, atol = 1e-6) isa InfOptSensitivityReport
     # test constraint queries
-    @test lp_sensitivity_report(m)[c1] == (-Inf, Inf)
-    @test lp_sensitivity_report(m)[c2, label = All] == [(-Inf, Inf), (-Inf, Inf)]
-    @test lp_sensitivity_report(m)[c2, ndarray = true] == [(-Inf, Inf), (-Inf, Inf)]
+    @test lp_sensitivity_report(m)[c1] == (-Inf, 0)
+    @test lp_sensitivity_report(m)[c2, label = All] == [(-Inf, 0), (-Inf, 0)]
+    @test lp_sensitivity_report(m)[c2, ndarray = true] == [(-Inf, 0), (-Inf, 0)]
     # test variable queries
-    @test lp_sensitivity_report(m)[g] == (-2.0, Inf)
-    @test lp_sensitivity_report(m)[inf, label = UserDefined] == [(-Inf, 0.0), (-Inf, 0.0)]
-    @test lp_sensitivity_report(m)[inf, ndarray = true] == [(-Inf, 0.0), (-Inf, 0.0)]
+    @test lp_sensitivity_report(m)[g] == (0, 0)
+    @test lp_sensitivity_report(m)[inf, label = UserDefined] == [(0, 0), (0, 0)]
+    @test lp_sensitivity_report(m)[inf, ndarray = true] == [(0, 0), (0, 0)]
 end

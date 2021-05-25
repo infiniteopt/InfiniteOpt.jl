@@ -15,7 +15,11 @@ function InfiniteOpt.support_label(info::MyGenInfo)::Type{MyGenLabel} # REPLACE 
 end
 
 # Extend make_generative_supports 
-function InfiniteOpt.make_generative_supports(info::MyGenInfo, pref, supps)::Vector{Float64} # REPLACE WITH ACTUAL INFO TYPE
+function InfiniteOpt.make_generative_supports(
+    info::MyGenInfo, 
+    pref, 
+    supps
+    )::Vector{Float64} # REPLACE WITH ACTUAL INFO TYPE
     # REPLACE BELOW WITH ACTUAL CODE TO CREATE THE GENERATIVE SUPPORTS BASED ON THE EXISTING
     num_existing = length(supps)
     num_existing <= 1 && error("`$pref` doesn't have enough supports.")

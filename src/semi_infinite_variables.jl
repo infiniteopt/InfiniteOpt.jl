@@ -2,33 +2,39 @@
 #                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
 ################################################################################
 # Extend dispatch_variable_ref
-function dispatch_variable_ref(model::InfiniteModel,
-                               index::SemiInfiniteVariableIndex
-                               )::SemiInfiniteVariableRef
+function dispatch_variable_ref(
+    model::InfiniteModel,
+    index::SemiInfiniteVariableIndex
+    )::SemiInfiniteVariableRef
     return SemiInfiniteVariableRef(model, index)
 end
 
 # Extend _add_data_object
-function _add_data_object(model::InfiniteModel,
-                          object::VariableData{<:SemiInfiniteVariable}
-                          )::SemiInfiniteVariableIndex
+function _add_data_object(
+    model::InfiniteModel,
+    object::VariableData{<:SemiInfiniteVariable}
+    )::SemiInfiniteVariableIndex
     return MOIUC.add_item(model.semi_infinite_vars, object)
 end
 
 # Extend _data_dictionary (type based)
-function _data_dictionary(model::InfiniteModel, ::Type{SemiInfiniteVariable}
+function _data_dictionary(
+    model::InfiniteModel, 
+    ::Type{SemiInfiniteVariable}
     )::MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}
     return model.semi_infinite_vars
 end
 
 # Extend _data_dictionary (reference based)
-function _data_dictionary(vref::SemiInfiniteVariableRef
+function _data_dictionary(
+    vref::SemiInfiniteVariableRef
     )::MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}
     return JuMP.owner_model(vref).semi_infinite_vars
 end
 
 # Extend _data_object
-function _data_object(vref::SemiInfiniteVariableRef
+function _data_object(
+    vref::SemiInfiniteVariableRef
     )::VariableData{SemiInfiniteVariable{GeneralVariableRef}}
   object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
   object === nothing && error("Invalid point variable reference, cannot find " *
@@ -49,7 +55,8 @@ with `expand_measure`.
 function internal_semi_infinite_variable end
 
 # Extend _core_variable_object
-function _core_variable_object(vref::SemiInfiniteVariableRef
+function _core_variable_object(
+    vref::SemiInfiniteVariableRef
     )::SemiInfiniteVariable{GeneralVariableRef}
     if !haskey(_data_dictionary(vref), JuMP.index(vref))
         model = JuMP.owner_model(vref)
@@ -72,22 +79,132 @@ end
 ################################################################################
 #                             DEFINITION METHODS
 ################################################################################
+## Process the value arguments to be formatted correctly 
+## (avoid AffExpr array promotions)
+# Not an AffExpr
+function _process_value(v)
+    return v
+end
+
+# An AffExpr
+function _process_value(v::JuMP.GenericAffExpr)
+    if isempty(v.terms)
+        return v.constant
+    elseif length(v.terms) == 1 && isone(collect(values(v.terms))[1]) && 
+           iszero(v.constant)
+        return first(keys(v.terms))
+    else
+        return v
+    end
+end
+
+"""
+    SemiInfinite{V, T} <: InfOptVariableType 
+
+A `DataType` to assist in making semi-infinite variables. This can be passed as an 
+extra argument to `@variable` to make such a variable: 
+```julia 
+@variable(model, var_expr, SemiInfinite(inf_var, parameter_values...), kwargs...)
+```
+Here `parameter_values` must match the format of the infinite parameter 
+references associated with the infinite variable `inf_var` and can be comprised 
+of both real valued supports and/or infinite parameters.
+
+**Fields**
+- `infinite_variable_ref::V`
+- `parameter_values::VectorTuple{T}`: The infinite parameters and/or infinite 
+   parameter support values the variable will depend on.
+"""
+struct SemiInfinite{V, T} <: InfOptVariableType 
+    infinite_variable_ref::V 
+    parameter_values::VectorTuple{T}
+    function SemiInfinite(ivref::V, vals...) where {V}
+        vt = VectorTuple(vals)
+        processed_vals = _process_value.(vt.values)
+        if processed_vals != vt.values
+            vt = VectorTuple(processed_vals, vt.ranges, vt.indices)
+        end
+        T = param_type(vt)
+        return new{V, T}(ivref, vt)
+    end
+end
+
+"""
+    JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, 
+                        var_type::SemiInfinite)::SemiInfiniteVariable{GeneralVariableRef}
+
+Build and return a semi-infinite variable based on `info` and `var_type`. Errors 
+if the information stored in `var_type` is invalid. See [`SemiInfinite`](@ref) 
+for more information.
+
+**Example**
+```julia-repl
+julia> y
+y(t, x)
+
+julia> info = VariableInfo(false, 0, false, 0, false, 0, true, 0, false, false);
+
+julia> semi_inf_var = build_variable(error, info, SemiInfinite(y, t, 0));
+```
+"""
+function JuMP.build_variable(
+    _error::Function, 
+    info::JuMP.VariableInfo, 
+    var_type::SemiInfinite; 
+    extra_kwargs...
+    )::SemiInfiniteVariable{GeneralVariableRef}
+    # check for unneeded keywords
+    for (kwarg, _) in extra_kwargs
+        _error("Keyword argument $kwarg is not for use with semi-infinite ",
+               "variables.")
+    end
+    # ensure that all the info was left alone (TODO relax this)
+    if info.has_lb || info.has_ub || info.has_fix || info.has_start || 
+       info.integer || info.binary
+        _error("Semi-infinite variables do not currently support the ",
+               "specification of variable information fields (e.g., lower ",
+               "bounds, upper bounds, start values, etc). These are simply ",
+               "inherited from the corresponding infinite variable.")
+    end
+    # check the infinite variable reference
+    ivref = var_type.infinite_variable_ref
+    if !(ivref isa GeneralVariableRef)
+        _error("Expected an infinite variable/derivative reference dependency ",
+               "of type `GeneralVariableRef`, but got an argument of type ",
+               "$(typeof(ivref)).")
+    end
+    # check that the values are the same format as the infinite variable 
+    raw_params = var_type.parameter_values
+    if !same_structure(raw_params, raw_parameter_refs(ivref))
+        _error("The parameter reference/value input format $(raw_params) does ",
+               "not match that of the infinite variable $(ivref).")
+    end
+    # make the evaluation support dictionary 
+    inds = findall(p -> p isa Real, raw_params)
+    eval_supports = Dict{Int, Float64}(i => raw_params[i] for i in inds)
+    # dispatch to the main builder 
+    return JuMP.build_variable(_error, ivref, eval_supports)
+end
+
 """
     JuMP.build_variable(_error::Function, ivref::GeneralVariableRef,
                         eval_supports::Dict{Int, Float64}; [check::Bool = true]
                         )::SemiInfiniteVariable{GeneralVariableRef}
 
 Extend the `JuMP.build_variable` function to build a semi-infinite variable
-based on the infinite variable/derivative/parameter function `ivref` with reduction support `eval_supports`.
-Will check that input is appropriate if `check = true`. Errors if `ivref` is
-not an infinite variable, `eval_supports` violate infinite parameter domains, or
-if the support dimensions don't match the infinite parameter dimensions of `ivref`.
-This is intended an internal method for use in evaluating measures.
+based on the infinite variable/derivative/parameter function `ivref` with 
+reduction support `eval_supports`. Will check that input is appropriate if 
+`check = true`. Errors if `ivref` is not an infinite variable, `eval_supports` 
+violate infinite parameter domains, or if the support dimensions don't match the 
+infinite parameter dimensions of `ivref`. This is intended an internal method for 
+use in evaluating measures.
 """
-function JuMP.build_variable(_error::Function, ivref::GeneralVariableRef,
-                             eval_supports::Dict{Int, Float64};
-                             check::Bool = true
-                             )::SemiInfiniteVariable{GeneralVariableRef}
+function JuMP.build_variable(
+    _error::Function, 
+    ivref::GeneralVariableRef,
+    eval_supports::Dict{Int, Float64};
+    check::Bool = true
+    )::SemiInfiniteVariable{GeneralVariableRef}
     # check the inputs
     dvref = dispatch_variable_ref(ivref)
     if check && !(dvref isa Union{InfiniteVariableRef, DerivativeRef, ParameterFunctionRef})
@@ -133,8 +250,11 @@ function to accomodate `InfiniteOpt` semi-infinite variable types. Adds `var` to
 infinite model `model` and returns a [`GeneralVariableRef`](@ref).
 Primarily intended to be an internal function used in evaluating measures.
 """
-function JuMP.add_variable(model::InfiniteModel, var::SemiInfiniteVariable,
-                           name::String = "")::GeneralVariableRef
+function JuMP.add_variable(
+    model::InfiniteModel, 
+    var::SemiInfiniteVariable,
+    name::String = ""
+    )::GeneralVariableRef
     ivref = dispatch_variable_ref(var.infinite_variable_ref)
     JuMP.check_belongs_to_model(ivref, model)
     data_object = VariableData(var, name)
@@ -188,8 +308,9 @@ depends on. This is primarily an internal method where
 [`parameter_refs`](@ref parameter_refs(vref::SemiInfiniteVariableRef))
 is intended as the preferred user function.
 """
-function raw_parameter_refs(vref::SemiInfiniteVariableRef
-                            )::VectorTuple{GeneralVariableRef}
+function raw_parameter_refs(
+    vref::SemiInfiniteVariableRef
+    )::VectorTuple{GeneralVariableRef}
     orig_prefs = raw_parameter_refs(infinite_variable_ref(vref))
     eval_supps = eval_supports(vref)
     delete_indices = [haskey(eval_supps, i) for i in eachindex(orig_prefs)]
@@ -231,8 +352,9 @@ end
 #                            VARIABLE DEPENDENCIES
 ################################################################################
 # Extend _derivative_dependencies
-function _derivative_dependencies(vref::SemiInfiniteVariableRef
-                                  )::Vector{DerivativeIndex}
+function _derivative_dependencies(
+    vref::SemiInfiniteVariableRef
+    )::Vector{DerivativeIndex}
     return _data_object(vref).derivative_indices
 end
 
@@ -280,7 +402,7 @@ end
 """
     JuMP.has_lower_bound(vref::SemiInfiniteVariableRef)::Bool
 
-Extend [`JuMP.has_lower_bound`](@ref) to return a `Bool` whether the original
+Extend `JuMP.has_lower_bound` to return a `Bool` whether the original
 infinite variable of `vref` has a lower bound.
 
 **Example**
@@ -296,7 +418,7 @@ end
 """
     JuMP.lower_bound(vref::SemiInfiniteVariableRef)::Float64
 
-Extend [`JuMP.lower_bound`](@ref) to return the lower bound of the original
+Extend `JuMP.lower_bound` to return the lower bound of the original
 infinite variable of `vref`. Errors if `vref` doesn't have a lower bound.
 
 **Example**
@@ -315,7 +437,9 @@ end
 
 # Extend to return the index of the lower bound constraint associated with the
 # original infinite variable of `vref`.
-function InfiniteOpt._lower_bound_index(vref::SemiInfiniteVariableRef)::ConstraintIndex
+function InfiniteOpt._lower_bound_index(
+    vref::SemiInfiniteVariableRef
+    )::InfOptConstraintIndex
     ivref = dispatch_variable_ref(infinite_variable_ref(vref))
     if !JuMP.has_lower_bound(ivref)
         error("Variable $(vref) does not have a lower bound.")
@@ -326,7 +450,7 @@ end
 """
     JuMP.LowerBoundRef(vref::SemiInfiniteVariableRef)::InfOptConstraintRef
 
-Extend [`JuMP.LowerBoundRef`](@ref) to extract a constraint reference for the
+Extend `JuMP.LowerBoundRef` to extract a constraint reference for the
 lower bound of the original infinite variable of `vref`.
 
 **Example**
@@ -335,14 +459,16 @@ julia> cref = LowerBoundRef(vref)
 var >= 0.0
 ```
 """
-function JuMP.LowerBoundRef(vref::SemiInfiniteVariableRef)::InfOptConstraintRef
+function JuMP.LowerBoundRef(
+    vref::SemiInfiniteVariableRef
+    )::InfOptConstraintRef
     return JuMP.LowerBoundRef(infinite_variable_ref(vref))
 end
 
 """
     JuMP.has_upper_bound(vref::SemiInfiniteVariableRef)::Bool
 
-Extend [`JuMP.has_upper_bound`](@ref) to return a `Bool` whether the original
+Extend `JuMP.has_upper_bound` to return a `Bool` whether the original
 infinite variable of `vref` has an upper bound.
 
 **Example**
@@ -358,7 +484,7 @@ end
 """
     JuMP.upper_bound(vref::SemiInfiniteVariableRef)::Float64
 
-Extend [`JuMP.upper_bound`](@ref) to return the upper bound of the original
+Extend `JuMP.upper_bound` to return the upper bound of the original
 infinite variable of `vref`. Errors if `vref` doesn't have a upper bound.
 
 **Example**
@@ -377,7 +503,9 @@ end
 
 # Extend to return the index of the upper bound constraint associated with the
 # original infinite variable of `vref`.
-function InfiniteOpt._upper_bound_index(vref::SemiInfiniteVariableRef)::ConstraintIndex
+function InfiniteOpt._upper_bound_index(
+    vref::SemiInfiniteVariableRef
+    )::InfOptConstraintIndex
     ivref = dispatch_variable_ref(infinite_variable_ref(vref))
     if !JuMP.has_upper_bound(ivref)
         error("Variable $(vref) does not have a upper bound.")
@@ -388,7 +516,7 @@ end
 """
     JuMP.UpperBoundRef(vref::SemiInfiniteVariableRef)::InfOptConstraintRef
 
-Extend [`JuMP.UpperBoundRef`](@ref) to extract a constraint reference for the
+Extend `JuMP.UpperBoundRef` to extract a constraint reference for the
 upper bound of the original infinite variable of `vref`.
 
 **Example**
@@ -397,14 +525,16 @@ julia> cref = UpperBoundRef(vref)
 var <= 1.0
 ```
 """
-function JuMP.UpperBoundRef(vref::SemiInfiniteVariableRef)::InfOptConstraintRef
+function JuMP.UpperBoundRef(
+    vref::SemiInfiniteVariableRef
+    )::InfOptConstraintRef
     return JuMP.UpperBoundRef(infinite_variable_ref(vref))
 end
 
 """
     JuMP.is_fixed(vref::SemiInfiniteVariableRef)::Bool
 
-Extend [`JuMP.is_fixed`](@ref) to return `Bool` whether the original infinite
+Extend `JuMP.is_fixed` to return `Bool` whether the original infinite
 variable of `vref` is fixed.
 
 **Example**
@@ -420,7 +550,7 @@ end
 """
     JuMP.fix_value(vref::SemiInfiniteVariableRef)::Float64
 
-Extend [`JuMP.fix_value`](@ref) to return the fix value of the original infinite
+Extend `JuMP.fix_value` to return the fix value of the original infinite
 variable of `vref`. Errors if variable is not fixed.
 
 **Example**
@@ -439,7 +569,9 @@ end
 
 # Extend to return the index of the fix constraint associated with the original
 # infinite variable of `vref`.
-function InfiniteOpt._fix_index(vref::SemiInfiniteVariableRef)::ConstraintIndex
+function InfiniteOpt._fix_index(
+    vref::SemiInfiniteVariableRef
+    )::InfOptConstraintIndex
     ivref = dispatch_variable_ref(infinite_variable_ref(vref))
     if !JuMP.is_fixed(ivref)
         error("Variable $(vref) is not fixed.")
@@ -450,7 +582,7 @@ end
 """
     JuMP.FixRef(vref::SemiInfiniteVariableRef)::InfOptConstraintRef
 
-Extend [`JuMP.FixRef`](@ref) to return the constraint reference of the fix
+Extend `JuMP.FixRef` to return the constraint reference of the fix
 constraint associated with the original infinite variable of `vref`. Errors
 `vref` is not fixed.
 
@@ -460,7 +592,9 @@ julia> cref = FixRef(vref)
 var == 1.0
 ```
 """
-function JuMP.FixRef(vref::SemiInfiniteVariableRef)::InfOptConstraintRef
+function JuMP.FixRef(
+    vref::SemiInfiniteVariableRef
+    )::InfOptConstraintRef
     return JuMP.FixRef(infinite_variable_ref(vref))
 end
 
@@ -482,14 +616,16 @@ julia> start_value_func(vref)
 my_func
 ```
 """
-function start_value_function(vref::SemiInfiniteVariableRef)::Union{Nothing, Function}
+function start_value_function(
+    vref::SemiInfiniteVariableRef
+    )::Union{Nothing, Function}
     return start_value_function(infinite_variable_ref(vref))
 end
 
 """
     JuMP.is_binary(vref::SemiInfiniteVariableRef)::Bool
 
-Extend [`JuMP.is_binary`](@ref) to return `Bool` whether the original infinite
+Extend `JuMP.is_binary` to return `Bool` whether the original infinite
 variable of `vref` is binary.
 
 **Example**
@@ -504,7 +640,9 @@ end
 
 # Extend to return the index of the binary constraint associated with the
 # original infinite variable of `vref`.
-function InfiniteOpt._binary_index(vref::SemiInfiniteVariableRef)::ConstraintIndex
+function InfiniteOpt._binary_index(
+    vref::SemiInfiniteVariableRef
+    )::InfOptConstraintIndex
     ivref = dispatch_variable_ref(infinite_variable_ref(vref))
     if !JuMP.is_binary(ivref)
         error("Variable $(vref) is not binary.")
@@ -515,7 +653,7 @@ end
 """
     JuMP.BinaryRef(vref::SemiInfiniteVariableRef)::InfOptConstraintRef
 
-Extend [`JuMP.BinaryRef`](@ref) to return a constraint reference to the
+Extend `JuMP.BinaryRef` to return a constraint reference to the
 constraint constrainting the original infinite variable of `vref` to be binary.
 Errors if one does not exist.
 
@@ -525,14 +663,16 @@ julia> cref = BinaryRef(vref)
 var binary
 ```
 """
-function JuMP.BinaryRef(vref::SemiInfiniteVariableRef)::InfOptConstraintRef
+function JuMP.BinaryRef(
+    vref::SemiInfiniteVariableRef
+    )::InfOptConstraintRef
     return JuMP.BinaryRef(infinite_variable_ref(vref))
 end
 
 """
     JuMP.is_integer(vref::SemiInfiniteVariableRef)::Bool
 
-Extend [`JuMP.is_integer`](@ref) to return `Bool` whether the original infinite
+Extend `JuMP.is_integer` to return `Bool` whether the original infinite
 variable of `vref` is integer.
 
 **Example**
@@ -547,7 +687,9 @@ end
 
 # Extend to return the index of the integer constraint associated with the
 # original infinite variable of `vref`.
-function InfiniteOpt._integer_index(vref::SemiInfiniteVariableRef)::ConstraintIndex
+function InfiniteOpt._integer_index(
+    vref::SemiInfiniteVariableRef
+    )::InfOptConstraintIndex
     ivref = dispatch_variable_ref(infinite_variable_ref(vref))
     if !JuMP.is_integer(ivref)
         error("Variable $(vref) is not an integer.")
@@ -558,7 +700,7 @@ end
 """
     JuMP.IntegerRef(vref::SemiInfiniteVariableRef)::InfOptConstraintRef
 
-Extend [`JuMP.IntegerRef`](@ref) to return a constraint reference to the
+Extend `JuMP.IntegerRef` to return a constraint reference to the
 constraint constrainting the original infinite variable of `vref` to be integer.
 Errors if one does not exist.
 
@@ -568,7 +710,9 @@ julia> cref = IntegerRef(vref)
 var integer
 ```
 """
-function JuMP.IntegerRef(vref::SemiInfiniteVariableRef)::InfOptConstraintRef
+function JuMP.IntegerRef(
+    vref::SemiInfiniteVariableRef
+    )::InfOptConstraintRef
     return JuMP.IntegerRef(infinite_variable_ref(vref))
 end
 

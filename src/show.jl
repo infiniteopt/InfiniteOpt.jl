@@ -109,16 +109,16 @@ function in_domain_string(print_mode, domain::AbstractInfiniteDomain)::String
                   domain_string(print_mode, domain))
 end
 
-## Extend in domain string to consider parameter bounds
+## Extend in domain string to consider domain restrictions
 # IntervalDomain
 function in_domain_string(print_mode,
     pref::GeneralVariableRef,
     domain::IntervalDomain,
-    bounds::ParameterBounds{GeneralVariableRef})::String
-    # determine if in bounds
-    in_bounds = haskey(bounds, pref)
+    restrictions::DomainRestrictions{GeneralVariableRef})::String
+    # determine if in restrictions
+    in_restrictions = haskey(restrictions, pref)
     # make the string
-    interval = in_bounds ? bounds[pref] : domain
+    interval = in_restrictions ? restrictions[pref] : domain
     return in_domain_string(print_mode, interval)
 end
 
@@ -126,10 +126,10 @@ end
 function in_domain_string(print_mode,
     pref::GeneralVariableRef,
     domain::InfiniteScalarDomain,
-    bounds::ParameterBounds{GeneralVariableRef})::String
-    # determine if in bounds
-    if haskey(bounds, pref)
-        bound_domain = bounds[pref]
+    restrictions::DomainRestrictions{GeneralVariableRef})::String
+    # determine if in restrictions
+    if haskey(restrictions, pref)
+        bound_domain = restrictions[pref]
         if JuMP.lower_bound(bound_domain) == JuMP.upper_bound(bound_domain)
             return in_domain_string(print_mode, bound_domain)
         else
@@ -464,11 +464,13 @@ end
 ################################################################################
 #                         CONSTRAINT STRING METHODS
 ################################################################################
-# Return parameter bound list as a string
-function bound_string(print_mode, bounds::ParameterBounds{GeneralVariableRef}
-                      )::String
+# Return domain restriction list as a string
+function restrict_string(
+    print_mode, 
+    restrictions::DomainRestrictions{GeneralVariableRef}
+    )::String
     string_list = ""
-    for (pref, domain) in bounds
+    for (pref, domain) in restrictions
         string_list *= string(JuMP.function_string(print_mode, pref), " ",
                               in_domain_string(print_mode, domain), ", ")
     end
@@ -479,19 +481,19 @@ end
 # IndependentParameter
 function _param_domain_string(print_mode, model::InfiniteModel,
                               index::IndependentParameterIndex,
-                              bounds::ParameterBounds{GeneralVariableRef}
+                              restrictions::DomainRestrictions{GeneralVariableRef}
                               )::String
     pref = dispatch_variable_ref(model, index)
     domain = infinite_domain(pref)
     gvref = GeneralVariableRef(model, MOIUC.key_to_index(index), typeof(index))
     return string(JuMP.function_string(print_mode, pref), " ",
-                  in_domain_string(print_mode, gvref, domain, bounds))
+                  in_domain_string(print_mode, gvref, domain, restrictions))
 end
 
 # DependentParameters
 function _param_domain_string(print_mode, model::InfiniteModel,
                               index::DependentParametersIndex,
-                              bounds::ParameterBounds{GeneralVariableRef}
+                              restrictions::DomainRestrictions{GeneralVariableRef}
                               )::String
     # parse the infinite domain
     first_gvref = GeneralVariableRef(model, MOIUC.key_to_index(index),
@@ -505,23 +507,23 @@ function _param_domain_string(print_mode, model::InfiniteModel,
             gvref = GeneralVariableRef(model, MOIUC.key_to_index(index),
                                        DependentParameterIndex, i)
             domain_str *= string(JuMP.function_string(print_mode, gvref), " ",
-                        in_domain_string(print_mode, gvref, sdomain, bounds), ", ")
+                        in_domain_string(print_mode, gvref, sdomain, restrictions), ", ")
         end
         domain_str = domain_str[1:end-2]
     else
-        # determine if bounds contain equalities and filter to the bounds of interest
-        is_eq = haskey(bounds, first_gvref) && JuMP.lower_bound(bounds[first_gvref]) == JuMP.upper_bound(bounds[first_gvref])
-        filtered_bounds = filter(e -> e[1].raw_index == MOIUC.key_to_index(index) &&
-                                 e[1].index_type == DependentParameterIndex, bounds)
+        # determine if restrictions contain equalities and filter to the restrictions of interest
+        is_eq = haskey(restrictions, first_gvref) && JuMP.lower_bound(restrictions[first_gvref]) == JuMP.upper_bound(restrictions[first_gvref])
+        filtered_restrictions = filter(e -> e[1].raw_index == MOIUC.key_to_index(index) &&
+                                 e[1].index_type == DependentParameterIndex, restrictions)
         # build the domain string
         if is_eq
-            domain_str = bound_string(print_mode, filtered_bounds)
+            domain_str = restrict_string(print_mode, filtered_restrictions)
         else
             domain_str = string(_remove_name_index(first_gvref), " ",
                             in_domain_string(print_mode, domain))
-            if !isempty(filtered_bounds)
+            if !isempty(filtered_restrictions)
                 domain_str *= string(" ", _infopt_math_symbol(print_mode, :intersect),
-                                     " (", bound_string(print_mode, filtered_bounds), ")")
+                                     " (", restrict_string(print_mode, filtered_restrictions), ")")
             end
         end
     end
@@ -529,8 +531,10 @@ function _param_domain_string(print_mode, model::InfiniteModel,
 end
 
 # Return string of an infinite constraint
-function JuMP.constraint_string(print_mode, cref::InfOptConstraintRef;
-                                in_math_mode = false)::String
+function JuMP.constraint_string(print_mode, 
+    cref::InfOptConstraintRef;
+    in_math_mode = false
+    )::String
     # get the function and set strings
     func_str = JuMP.function_string(print_mode, _core_constraint_object(cref))
     in_set_str = JuMP.in_set_string(print_mode, _core_constraint_object(cref))
@@ -539,17 +543,13 @@ function JuMP.constraint_string(print_mode, cref::InfOptConstraintRef;
     if isempty(obj_nums)
         bound_str = ""
     else
-        # get the parameter bounds if there are any
-        if has_parameter_bounds(cref)
-            bounds = parameter_bounds(cref)
-        else
-            bounds = ParameterBounds()
-        end
+        # get the parameter restrictions if there are any
+        restrictions = domain_restrictions(cref)
         # prepare the parameter domains
         model = JuMP.owner_model(cref)
         bound_str = string(", ", JuMP._math_symbol(print_mode, :for_all), " ")
         for index in _param_object_indices(model)[_object_numbers(cref)]
-            bound_str *= string(_param_domain_string(print_mode, model, index, bounds),
+            bound_str *= string(_param_domain_string(print_mode, model, index, restrictions),
                                 ", ")
         end
         bound_str = bound_str[1:end-2]
@@ -612,18 +612,18 @@ function Base.show(io::IO, ::MIME"text/latex", domain::AbstractInfiniteDomain)
     print(io, domain_string(JuMP.IJuliaMode, domain))
 end
 
-# TODO use ... when necessary --> Subdomain bounds: t in [0, 1], x[1] == 0, x[2] == 0, ... x[6] == 0, a in [2, 3]
-# Show ParameterBounds in REPLMode
-function Base.show(io::IO, bounds::ParameterBounds)
-    print(io, "Subdomain bounds (", length(bounds), "): ",
-          bound_string(JuMP.REPLMode, bounds))
+# TODO use ... when necessary --> Subdomain restrictions: t in [0, 1], x[1] == 0, x[2] == 0, ... x[6] == 0, a in [2, 3]
+# Show DomainRestrictions in REPLMode
+function Base.show(io::IO, restrictions::DomainRestrictions)
+    print(io, "Subdomain restrictions (", length(restrictions), "): ",
+          restrict_string(JuMP.REPLMode, restrictions))
     return
 end
 
-# Show ParameterBounds in IJuliaMode
-function Base.show(io::IO, ::MIME"text/latex", bounds::ParameterBounds)
-    print(io, "Subdomain bounds (", length(bounds), "): ",
-          bound_string(JuMP.IJuliaMode, bounds))
+# Show DomainRestrictions in IJuliaMode
+function Base.show(io::IO, ::MIME"text/latex", restrictions::DomainRestrictions)
+    print(io, "Subdomain restrictions (", length(restrictions), "): ",
+          restrict_string(JuMP.IJuliaMode, restrictions))
 end
 
 # Show constraint in REPLMode

@@ -79,8 +79,8 @@
     end
     # _constraint_dependencies
     @testset "_constraint_dependencies" begin
-        @test InfiniteOpt._constraint_dependencies(fref) == ConstraintIndex[]
-        @test InfiniteOpt._constraint_dependencies(gvref) == ConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(fref) == InfOptConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(gvref) == InfOptConstraintIndex[]
     end
     # _semi_infinite_variable_dependencies
     @testset "_semi_infinite_variable_dependencies" begin
@@ -142,14 +142,14 @@
     # test used_by_constraint
     @testset "used_by_constraint" begin
         @test !used_by_constraint(fref)
-        push!(InfiniteOpt._constraint_dependencies(fref), ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(fref), InfOptConstraintIndex(1))
         @test used_by_constraint(fref)
         empty!(InfiniteOpt._constraint_dependencies(fref))
     end
     # test is_used
     @testset "is_used" begin
         @test !is_used(fref)
-        push!(InfiniteOpt._constraint_dependencies(fref), ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(fref), InfOptConstraintIndex(1))
         @test is_used(fref)
         empty!(InfiniteOpt._constraint_dependencies(fref))
     end
@@ -375,9 +375,9 @@ end
     # initialize model and references
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_variable(m, inf(par))
-    @point_variable(m, inf(0), pt)
-    @finite_variable(m, finite)
+    @variable(m, inf, Infinite(par))
+    @variable(m, pt, Point(inf, 0))
+    @variable(m, finite)
     data = TestData(par, 0, 5)
     meas = Measure(finite, data, Int[], Int[], true)
     object = MeasureData(meas, "test")
@@ -415,6 +415,17 @@ end
                               [pt, inf]))
         @test InfiniteOpt._all_function_variables(quad3) == GeneralVariableRef[]
     end
+    # test for Array of expressions
+    @testset "AbstractArray" begin
+        # make expressions
+        ex1 = [inf, pt]
+        ex2 = [inf + pt, meas + pt]
+        # test expressions
+        @test isempty(setdiff(InfiniteOpt._all_function_variables(ex1),
+                      [pt, inf]))
+        @test isempty(setdiff(InfiniteOpt._all_function_variables(ex2),
+                              [pt, inf, meas]))
+    end
     # test backup
     @testset "Fallback" begin
         @variable(Model(), x)
@@ -428,10 +439,10 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= par2 <= 1)
-    @infinite_variable(m, inf(par))
-    @infinite_variable(m, inf2(par, par2))
-    @point_variable(m, inf(0), pt)
-    @finite_variable(m, finite)
+    @variable(m, inf, Infinite(par))
+    @variable(m, inf2, Infinite(par, par2))
+    @variable(m, pt, Point(inf, 0))
+    @variable(m, finite)
     # test AffExpr comparison
     @testset "Base.:(==) AffExpr" begin
         @test par + par2 + inf - 2 == par + (par2 + inf) - 2
@@ -457,10 +468,10 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
-    @infinite_variable(m, inf(par))
-    @infinite_variable(m, inf2(par, pars))
-    @point_variable(m, inf(0), pt)
-    @finite_variable(m, finite)
+    @variable(m, inf, Infinite(par))
+    @variable(m, inf2, Infinite(par, pars))
+    @variable(m, pt, Point(inf, 0))
+    @variable(m, finite)
     var = build_variable(error, inf2, Dict{Int, Float64}(1 => 0.5), check = false)
     red = add_variable(m, var)
     # test for finite variable reference
@@ -507,10 +518,10 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= pars[1:2] <= 1)
-    @infinite_variable(m, inf(par))
-    @infinite_variable(m, inf2(par, pars))
-    @point_variable(m, inf(0), pt)
-    @finite_variable(m, finite)
+    @variable(m, inf, Infinite(par))
+    @variable(m, inf2, Infinite(par, pars))
+    @variable(m, pt, Point(inf, 0))
+    @variable(m, finite)
     var = build_variable(error, inf2, Dict{Int, Float64}(1 => 0.5), check = false)
     red = add_variable(m, var)
     # test for finite variable reference
@@ -556,7 +567,7 @@ end
 @testset "_model_from_expr" begin
     # initialize model and references
     m = InfiniteModel()
-    @finite_variable(m, hd)
+    @variable(m, hd)
     # test for variable reference
     @testset "Variable" begin
         @test InfiniteOpt._model_from_expr(hd) === m
@@ -600,9 +611,9 @@ end
     # initialize model and references
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_variable(m, inf(par))
-    @point_variable(m, inf(0), pt)
-    @finite_variable(m, finite)
+    @variable(m, inf, Infinite(par))
+    @variable(m, pt, Point(inf, 0))
+    @variable(m, finite)
     # test for GenericAffExpr
     @testset "AffExpr" begin
         # make expressions
@@ -629,6 +640,14 @@ end
         @test !haskey(quad.terms, UnorderedPair{GeneralVariableRef}(pt, pt))
         @test isa(InfiniteOpt._remove_variable(quad2, inf), Nothing)
     end
+    # test for AbstractArray
+    @testset "AbstractArray" begin
+        # make expressions
+        ex = [pt + 2par + finite, 2inf + pt]
+        # test expressions
+        @test isa(InfiniteOpt._remove_variable(ex, finite), Nothing)
+        @test !haskey(ex[1].terms, finite)
+    end
 end
 
 # Test _set_variable_coefficient!
@@ -637,9 +656,9 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, 0 <= par <= 1)
     @infinite_parameter(m, 0 <= par2 <= 1)
-    @infinite_variable(m, x(par))
-    @infinite_variable(m, y(par, par2))
-    @finite_variable(m, z)
+    @variable(m, x, Infinite(par))
+    @variable(m, y, Infinite(par, par2))
+    @variable(m, z)
     # test with GeneralVariableRef
     @testset "GeneralVariableRef" begin
         @test InfiniteOpt._set_variable_coefficient!(x, x, 2) == 2 * x
@@ -667,7 +686,7 @@ end
     @independent_parameter(m, t in [0, 1])
     @independent_parameter(m, y in [0, 1])
     @dependent_parameters(m, x[1:3] in [0, 1])
-    @finite_variable(m, z)
+    @variable(m, z)
     @expression(m, c1, 2z)
     @expression(m, c2, z + t + x[1])
     # test _make_param_tuple_element (IndependentParameterIndex)
