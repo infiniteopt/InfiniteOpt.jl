@@ -169,6 +169,9 @@ function same_structure(vt1::VectorTuple, vt2::VectorTuple;
     return same_size && (!use_indices || (vt1.indices == vt2.indices))
 end
 
+# Get the element type
+param_type(vt::VectorTuple{T}) where {T} = T
+
 # Extend Base.copy
 function Base.copy(vt::VectorTuple{T})::VectorTuple{T} where {T}
     return VectorTuple(copy(vt.values), copy(vt.ranges), copy(vt.indices))

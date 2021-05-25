@@ -5,7 +5,7 @@
     @independent_parameter(m, a in [0, 1])
     @independent_parameter(m, b[1:2] in [0, 1])
     @dependent_parameters(m, c[1:2] in [0, 1])
-    @infinite_variable(m, ivref(a, b, c))
+    @variable(m, ivref, Infinite(a, b, c))
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1, 4 => 0, 5 => 0)
     var = SemiInfiniteVariable(ivref, eval_supps, [2], [2])
     object = VariableData(var, "var")
@@ -65,8 +65,8 @@
     end
     # _constraint_dependencies
     @testset "_constraint_dependencies" begin
-        @test InfiniteOpt._constraint_dependencies(vref) == ConstraintIndex[]
-        @test InfiniteOpt._constraint_dependencies(gvref) == ConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(vref) == InfOptConstraintIndex[]
+        @test InfiniteOpt._constraint_dependencies(gvref) == InfOptConstraintIndex[]
     end
     # _derivative_dependencies
     @testset "_derivative_dependencies" begin
@@ -165,8 +165,39 @@ end
     @independent_parameter(m, a in [0, 1])
     @independent_parameter(m, b[1:2] in [0, 1])
     @dependent_parameters(m, c[1:2] in [0, 1])
-    @infinite_variable(m, ivref(a, b, c))
+    @variable(m, ivref, Infinite(a, b, c))
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1, 4 => 0, 5 => 0)
+    info = VariableInfo(false, NaN, false, NaN, false, NaN, false, NaN, false, false)
+    info2 = VariableInfo(false, NaN, false, NaN, false, NaN, false, NaN, false, true)
+    # test _process_value 
+    @testset "_process_value" begin 
+        @test InfiniteOpt._process_value(0) == 0
+        @test InfiniteOpt._process_value(0a + 1) == 1
+        @test InfiniteOpt._process_value(1a) == a
+        @test InfiniteOpt._process_value(a + 2) == a + 2
+    end
+    # test SemiInfinite{V, T}
+    @testset "SemiInfinite{T, V}" begin 
+        @test SemiInfinite(ivref, 0, b, c).infinite_variable_ref == ivref 
+        @test SemiInfinite(ivref, 0, [b[1], 0], c).parameter_values isa IC.VectorTuple
+    end
+    # test JuMP.build_variable for macros
+    @testset "JuMP.build_variable macro wrapper" begin 
+        # test errors
+        @test_throws ErrorException build_variable(error, info, 
+                                                   SemiInfinite(ivref, 0, b, a), 
+                                                   bad = 42)
+        @test_throws ErrorException build_variable(error, info2, 
+                                                   SemiInfinite(ivref, 0, b, a))
+        @test_throws ErrorException build_variable(error, info, SemiInfinite(0))
+        @test_throws ErrorException build_variable(error, info, 
+                                                   SemiInfinite(ivref, 0, b))
+        # test normal 
+        @test build_variable(error, info, 
+                             SemiInfinite(ivref, 0, b, c)).infinite_variable_ref == ivref
+        @test build_variable(error, info, 
+                             SemiInfinite(ivref, 0, b, c)).eval_supports == Dict(1 => 0.0)
+    end
     # test JuMP.build_variable
     @testset "JuMP.build_variable" begin
         # test errors
@@ -213,6 +244,25 @@ end
         @test add_variable(m, var) == gvref
         @test InfiniteOpt._data_object(vref).name == ""
     end
+    # test macro definition
+    @testset "Macro Definition" begin 
+        # anonymous definition
+        vref = GeneralVariableRef(m, 4, SemiInfiniteVariableIndex)
+        @test @variable(m, variable_type = SemiInfinite(ivref, 0, [b[1], 0], c)) == vref 
+        @test parameter_refs(vref) == (b[1], c)
+        @test eval_supports(vref) == Dict(1 => 0.0, 3 => 0.0)
+        # explicit definition
+        vref = GeneralVariableRef(m, 5, SemiInfiniteVariableIndex)
+        @test @variable(m, test, SemiInfinite(ivref, 0, [b[1], 0], c)) == vref 
+        @test parameter_refs(vref) == (b[1], c)
+        @test eval_supports(vref) == Dict(1 => 0.0, 3 => 0.0)
+        @test name(vref) == "test"
+        # array definition
+        vrefs = [GeneralVariableRef(m, i, SemiInfiniteVariableIndex) for i in 6:7]
+        @test @variable(m, [i = 1:2], SemiInfinite(ivref, i - 1, b, c)) == vrefs
+        @test parameter_refs(vrefs[1]) == (b, c)
+        @test eval_supports.(vrefs) == [Dict(1 => 0.0), Dict(1 => 1.0)]
+    end
 end
 
 # Test the info methods
@@ -222,8 +272,8 @@ end
     @independent_parameter(m, a in [0, 1])
     @independent_parameter(m, b[1:2] in [0, 1])
     @dependent_parameters(m, c[1:2] in [0, 1])
-    @infinite_variable(m,  0 <= ivref1(a, b, c) <= 1, Int)
-    @infinite_variable(m,  ivref2(a, b, c) == 1, Bin, start = 0)
+    @variable(m, 0 <= ivref1 <= 1, Infinite(a, b, c), Int)
+    @variable(m, ivref2 == 1, Infinite(a, b, c), Bin, start = 0)
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1, 4 => 0, 5 => 0)
     var1 = build_variable(error, ivref1, eval_supps, check = false)
     gvref1 = add_variable(m, var1)
@@ -354,7 +404,7 @@ end
     m = InfiniteModel()
     @independent_parameter(m, t in [0, 1])
     @dependent_parameters(m, x[1:2] in [-1, 1])
-    @infinite_variable(m, y(t, x))
+    @variable(m, y, Infinite(t, x))
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1)
     var = build_variable(error, y, eval_supps, check = false)
     gvref = add_variable(m, var)
@@ -370,7 +420,7 @@ end
     # test used_by_constraint
     @testset "used_by_constraint" begin
         @test !used_by_constraint(vref)
-        push!(InfiniteOpt._constraint_dependencies(vref), ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(vref), InfOptConstraintIndex(1))
         @test used_by_constraint(gvref)
         @test used_by_constraint(vref)
         empty!(InfiniteOpt._constraint_dependencies(vref))
@@ -393,7 +443,7 @@ end
         # test not used
         @test !is_used(gvref)
         # test used by constraint and/or measure
-        push!(InfiniteOpt._constraint_dependencies(vref), ConstraintIndex(1))
+        push!(InfiniteOpt._constraint_dependencies(vref), InfOptConstraintIndex(1))
         @test is_used(y)
         empty!(InfiniteOpt._constraint_dependencies(vref))
         # test used by derivative
@@ -408,7 +458,7 @@ end
         @test InfiniteOpt._add_data_object(m, object) == idx
         push!(InfiniteOpt._derivative_dependencies(vref), idx)
         @test !is_used(vref)
-        push!(InfiniteOpt._constraint_dependencies(dref), ConstraintIndex(2))
+        push!(InfiniteOpt._constraint_dependencies(dref), InfOptConstraintIndex(2))
         @test is_used(vref)
         empty!(InfiniteOpt._derivative_dependencies(vref))
     end
@@ -421,9 +471,9 @@ end
     @independent_parameter(m, a in [0, 1])
     @independent_parameter(m, b[1:2] in [0, 1])
     @dependent_parameters(m, c[1:2] in [0, 1])
-    @infinite_variable(m, ivref(a, b, c))
-    @point_variable(m, ivref(0, [0, 0], [0, 0]), pvref)
-    @finite_variable(m, hvref)
+    @variable(m, ivref, Infinite(a, b, c))
+    @variable(m, pvref, Point(ivref, 0, [0, 0], [0, 0]))
+    @variable(m, hvref)
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1, 4 => 0, 5 => 0)
     var = build_variable(error, ivref, eval_supps, check = false)
     rvref = add_variable(m, var)
@@ -434,7 +484,6 @@ end
         @test num_variables(m, FiniteVariable) == 1
         @test num_variables(m, SemiInfiniteVariable) == 1
         @test num_variables(m) == 4
-        @test num_variables(m, InfOptVariable) == 4
     end
     # all_variables
     @testset "JuMP.all_variables" begin
@@ -443,6 +492,5 @@ end
         @test all_variables(m, FiniteVariable) == [hvref]
         @test all_variables(m, SemiInfiniteVariable) == [rvref]
         @test all_variables(m) == [ivref, rvref, pvref, hvref]
-        @test all_variables(m, InfOptVariable) == [ivref, rvref, pvref, hvref]
     end
 end

@@ -14,22 +14,23 @@ m = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0)
 
 # Set the parameters and variables
 @infinite_parameter(m, t in [0, 60], num_supports = 61)
-@infinite_variable(m, x[1:2](t), start = 1) # position
-@infinite_variable(m, v[1:2](t), start = 0) # velocity
-@infinite_variable(m, u[1:2](t), start = 0) # thruster input
+@variable(m, x[1:2], Infinite(t), start = 1) # position
+@variable(m, v[1:2], Infinite(t), start = 0) # velocity
+@variable(m, u[1:2], Infinite(t), start = 0) # thruster input
 
 # Specify the objective
 @objective(m, Min, integral(u[1]^2 + u[2]^2, t))
 
 # Set the initial conditions
-@BDconstraint(m, initial_velocity[i = 1:2](t == 0), v[i] == 0)
+@constraint(m, [i = 1:2], v[i] == 0, DomainRestrictions(t => 0))
 
 # Define the point physics
 @constraint(m, [i = 1:2], deriv(x[i], t) == v[i])
 @constraint(m, [i = 1:2], deriv(v[i], t) == u[i])
 
 # Hit all the waypoints
-@BDconstraint(m, [i = 1:2, j = eachindex(tw)](t == tw[j]), x[i] == xw[i, j])
+@constraint(m, [i = 1:2, j = eachindex(tw)], x[i] == xw[i, j], 
+            DomainRestrictions(t => tw[j]))
 
 # Optimize the model
 optimize!(m)

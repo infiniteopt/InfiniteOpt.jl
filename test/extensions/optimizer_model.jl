@@ -58,9 +58,11 @@ function reform_data(model::JuMP.Model)::NewReformData
 end
 
 # Extend build_optimizer_model! (enables build_optimizer_model! and optimize!)
-function InfiniteOpt.build_optimizer_model!(model::InfiniteModel,
-                                            key::Val{OptKey};
-                                            my_kwarg::Bool = true) # ADD KEYWORD ARGUMENTS AS NEEDED
+function InfiniteOpt.build_optimizer_model!(
+    model::InfiniteModel,
+    key::Val{OptKey};
+    my_kwarg::Bool = true # ADD KEYWORD ARGUMENTS AS NEEDED
+    )
     # clear the model for a build/rebuild
     reform_model = clear_optimizer_model_build!(model)
 
@@ -94,9 +96,11 @@ function InfiniteOpt.build_optimizer_model!(model::InfiniteModel,
 end
 
 # Extend optimizer_model_variable if appropriate to enable variable related queries
-function InfiniteOpt.optimizer_model_variable(vref::GeneralVariableRef,
-                                              key::Val{OptKey};
-                                              my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED
+function InfiniteOpt.optimizer_model_variable(
+    vref::GeneralVariableRef,
+    key::Val{OptKey};
+    my_kwarg::Bool = true # ADD KEY ARGS AS NEEDED
+    )
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE OPTIMIZER MODEL VARIABLE(S)
     model = optimizer_model(JuMP.owner_model(vref))
     vindex = index(vref)
@@ -112,18 +116,21 @@ function InfiniteOpt.optimizer_model_variable(vref::GeneralVariableRef,
 end
 
 # Extend optimizer_model_expression if appropriate to enable expression related queries
-function InfiniteOpt.optimizer_model_expression(expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
-                                                key::Val{OptKey};
-                                                my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED
+function InfiniteOpt.optimizer_model_expression(
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
+    key::Val{OptKey};
+    my_kwarg::Bool = true # ADD KEY ARGS AS NEEDED
+    )
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO REFORMULATED EXPRESSIONS
     reform_expr = zero(AffExpr)
     return reform_expr
 end
 
 # Extend optimizer_model_constraint if appropriate to enable constraint related queries
-function InfiniteOpt.optimizer_model_constraint(cref::InfOptConstraintRef,
-                                                key::Val{OptKey};
-                                                my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED
+function InfiniteOpt.optimizer_model_constraint(
+    cref::InfOptConstraintRef,
+    key::Val{OptKey}; # ADD KEY ARGS AS NEEDED
+    my_kwarg::Bool = true)
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE OPTIMIZER MODEL CONSTRAINT(S)
     model = optimizer_model(JuMP.owner_model(cref))
     map_dict = reform_data(model).constr_mappings
@@ -132,10 +139,12 @@ function InfiniteOpt.optimizer_model_constraint(cref::InfOptConstraintRef,
 end
 
 # If appropriate extend variable_supports (enables support queries of infinite variables)
-function InfiniteOpt.variable_supports(model::JuMP.Model,
-                                       vref::Union{InfiniteVariableRef, SemiInfiniteVariableRef},
-                                       key::Val{OptKey};
-                                       my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED)
+function InfiniteOpt.variable_supports(
+    model::JuMP.Model,
+    vref::Union{InfiniteVariableRef, SemiInfiniteVariableRef},
+    key::Val{OptKey};
+    my_kwarg::Bool = true # ADD KEY ARGS AS NEEDED
+    )
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE INFINITE VARIABLE SUPPORT VALUES
     map_dict = reform_data(model).infvar_to_supports
     gvref = InfiniteOpt._make_variable_ref(owner_model(vref), index(vref))
@@ -144,10 +153,12 @@ function InfiniteOpt.variable_supports(model::JuMP.Model,
 end
 
 # If appropriate extend variable_supports for measures (enables support queries of measures)
-function InfiniteOpt.variable_supports(model::JuMP.Model,
-                                       mref::MeasureRef,
-                                       key::Val{OptKey};
-                                       my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED)
+function InfiniteOpt.variable_supports(
+    model::JuMP.Model,
+    mref::MeasureRef,
+    key::Val{OptKey};
+    my_kwarg::Bool = true # ADD KEY ARGS AS NEEDED
+    )
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE INFINITE VARIABLE SUPPORT VALUES
     map_dict = reform_data(model).meas_to_supports
     gvref = InfiniteOpt._make_variable_ref(owner_model(mref), index(mref))
@@ -156,20 +167,23 @@ function InfiniteOpt.variable_supports(model::JuMP.Model,
 end
 
 # If appropriate extend expression_supports (enables support queries of expressions)
-function InfiniteOpt.expression_supports(model::JuMP.Model,
-                                         expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
-                                         key::Val{OptKey};
-                                         my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED)
+function InfiniteOpt.expression_supports(
+    model::JuMP.Model,
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
+    key::Val{OptKey};
+    my_kwarg::Bool = true # ADD KEY ARGS AS NEEDED
+    )
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO SUPPORT(S) OF THE EXPRESSION(S)
     supps = [(-42.,), (1.,)]
     return supps
 end
 
 # If appropriate extend constraint_supports (enables support queries of constraints)
-function InfiniteOpt.constraint_supports(model::JuMP.Model,
-                                         cref::InfOptConstraintRef,
-                                         key::Val{OptKey};
-                                         my_kwarg::Bool = true) # ADD KEY ARGS AS NEEDED)
+function InfiniteOpt.constraint_supports(
+    model::JuMP.Model,
+    cref::InfOptConstraintRef,
+    key::Val{OptKey}; # ADD KEY ARGS AS NEEDED
+    my_kwarg::Bool = true)
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE INFINITE VARIABLE SUPPORT VALUES
     map_dict = reform_data(model).constr_to_supports
     haskey(map_dict, cref) || error("Constraint $cref does not have supports in the optimizer model.")
@@ -183,5 +197,3 @@ end
 # - InfiniteOpt.map_optimizer_index to enable JuMP.optimizer_index
 # - InfiniteOpt.map_dual to enable JuMP.dual
 # - InfiniteOpt.map_shadow_price to enable JuMP.shadow_price
-# - InfiniteOpt.map_lp_rhs_perturbation_range to enable JuMP.lp_rhs_perturbation_range
-# - InfiniteOpt.map_lp_objective_perturbation_range to enable JuMP.lp_objective_perturbation_range

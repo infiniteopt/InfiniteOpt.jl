@@ -1,3 +1,8 @@
+```@meta
+DocTestFilters = [r"≤|<=", r"≥|>=", r" == | = ", r" ∈ | in ", r"MathOptInterface|MOI", 
+                  r" for all | ∀ ", r"d|∂"]
+```
+
 # [Model Transcription] (@id transcription_docs)
 A guide and manual for transcribing infinite models using `InfiniteOpt`.
 The Datatypes and Methods sections at the end comprise the manual, and the
@@ -37,31 +42,32 @@ julia> inf_model = InfiniteModel();
 julia> @infinite_parameter(inf_model, t in [0, 10], supports = [0, 5, 10])
 t
 
-julia> @infinite_variable(inf_model, g(t) >= 0)
-g(t)
+julia> @variable(inf_model, y >= 0, Infinite(t))
+y(t)
 
-julia> @finite_variable(inf_model, z, Bin)
+julia> @variable(inf_model, z, Bin)
 z
 
-julia> @objective(inf_model, Min, 2z + support_sum(g, t))
-2 z + support_sum{t}[g(t)]
+julia> @objective(inf_model, Min, 2z + support_sum(y, t))
+2 z + support_sum{t}[y(t)]
 
-julia> @BDconstraint(inf_model, initial(t == 0), g == 1)
-initial : g(t) = 1.0, ∀ t = 0
+julia> @constraint(inf_model, initial, y == 1, DomainRestrictions(t => 0))
+initial : y(t) = 1.0, ∀ t = 0
 
-julia> @constraint(inf_model, constr, g^2 - z <= 42)
-constr : g(t)² - z ≤ 42.0, ∀ t ∈ [0, 10]
+julia> @constraint(inf_model, constr, y^2 - z <= 42)
+constr : y(t)² - z ≤ 42.0, ∀ t ∈ [0, 10]
 
 julia> print(inf_model)
-Min 2 z + support_sum{t}[g(t)]
+Min 2 z + support_sum{t}[y(t)]
 Subject to
- g(t) ≥ 0.0, ∀ t ∈ [0, 10]
+ y(t) ≥ 0.0, ∀ t ∈ [0, 10]
  z binary
- initial : g(t) = 1.0, ∀ t = 0
- constr : g(t)² - z ≤ 42.0, ∀ t ∈ [0, 10]
+ initial : y(t) = 1.0, ∀ t = 0
+ constr : y(t)² - z ≤ 42.0, ∀ t ∈ [0, 10]
 ```
 Now we can make `JuMP` model containing the transcribed version of `inf_model`
-via [`build_optimizer_model!`](@ref) and then extract it via [`optimizer_model`](@ref):
+via [`build_optimizer_model!`](@ref) and then extract it via 
+[`optimizer_model`](@ref):
 ```jldoctest transcribe
 julia> build_optimizer_model!(inf_model)
 
@@ -79,15 +85,15 @@ CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
 
 julia> print(trans_model)
-Min 2 z + g(support: 1) + g(support: 2) + g(support: 3)
+Min 2 z + y(support: 1) + y(support: 2) + y(support: 3)
 Subject to
- initial(support: 1) : g(support: 1) = 1.0
- constr(support: 1) : g(support: 1)² - z ≤ 42.0
- constr(support: 2) : g(support: 2)² - z ≤ 42.0
- constr(support: 3) : g(support: 3)² - z ≤ 42.0
- g(support: 1) ≥ 0.0
- g(support: 2) ≥ 0.0
- g(support: 3) ≥ 0.0
+ initial(support: 1) : y(support: 1) = 1.0
+ constr(support: 1) : y(support: 1)² - z ≤ 42.0
+ constr(support: 2) : y(support: 2)² - z ≤ 42.0
+ constr(support: 3) : y(support: 3)² - z ≤ 42.0
+ y(support: 1) ≥ 0.0
+ y(support: 2) ≥ 0.0
+ y(support: 3) ≥ 0.0
  z binary
 ```
 !!! note 
@@ -101,11 +107,11 @@ Thus, we have a transcribed `JuMP` model. To be precise this is actually a
 `TranscriptionModel` which is a `JuMP.Model` with some extra data stored in the
 `ext` field that retains the mapping between the transcribed variables/constraints 
 and their infinite counterparts. Notice, that multiple finite variables
-have been introduced to discretize `g(t)` at supports 1, 2, and 3 which correspond
+have been introduced to discretize `y(t)` at supports 1, 2, and 3 which correspond
 to 0, 5, and 10 as can be queried by
 `supports`:
 ```jldoctest transcribe
-julia> supports(g)
+julia> supports(y)
 3-element Array{Tuple,1}:
  (0.0,)
  (5.0,)
@@ -116,11 +122,11 @@ except the initial condition which naturally is only invoked for the first suppo
 point. Furthermore, the transcription variable(s) of any variable associated with
 the infinite model can be determined via [`transcription_variable`](@ref):
 ```jldoctest transcribe
-julia> transcription_variable(g)
+julia> transcription_variable(y)
 3-element Array{VariableRef,1}:
- g(support: 1)
- g(support: 2)
- g(support: 3)
+ y(support: 1)
+ y(support: 2)
+ y(support: 3)
 
 julia> transcription_variable(trans_model, z)
 z
@@ -131,13 +137,13 @@ and infinite parameters can be found via
 `supports` and `parameter_refs`:
 ```jldoctest transcribe
 julia> transcription_constraint(initial)
-initial(support: 1) : g(support: 1) = 1.0
+initial(support: 1) : y(support: 1) = 1.0
 
 julia> transcription_constraint(constr)
 3-element Array{ConstraintRef,1}:
- constr(support: 1) : g(support: 1)² - z ≤ 42.0
- constr(support: 2) : g(support: 2)² - z ≤ 42.0
- constr(support: 3) : g(support: 3)² - z ≤ 42.0
+ constr(support: 1) : y(support: 1)² - z ≤ 42.0
+ constr(support: 2) : y(support: 2)² - z ≤ 42.0
+ constr(support: 3) : y(support: 3)² - z ≤ 42.0
 
 julia> supports(constr)
 3-element Array{Tuple,1}:
@@ -164,7 +170,7 @@ Now we have a transcribed `JuMP` model that can be optimized via traditional
 mentioned above.
 
 ## Transcription Theory
-A given infinite dimensional optimization problem is parameterized according to
+A given infinite-dimensional optimization problem is parameterized according to
 infinite parameters following our abstraction. In general, most solution strategies
 transcribe the problem according to certain finite parameter values (supports) and
 thus represent the problem in terms of these supports (e.g., using discrete time
@@ -174,12 +180,13 @@ following steps:
  2. add any additional support needed for derivative evaluation,
  3. expand any measures according to their underlying numerical representation
    using transcribed infinite variables as appropriate,
- 4. replace any remaining infinite variables/derivatives with transcribed variables supported
-   over each unique combination of the underlying parameter supports,
+ 4. replace any remaining infinite variables/derivatives with transcribed 
+    variables supported over each unique combination of the underlying parameter 
+    supports,
  5. replace any remaining infinite constraints with transcribed ones supported over
    all the unique support combinations stemming from the infinite parameters they
    depend on,
- 6. and add on the transcripted versions of the auxiliary derivative evaluation 
+ 6. and add on the transcribed versions of the auxiliary derivative evaluation 
    equations. 
 
 For example, let's consider a space-time optimization problem of the form:
@@ -241,11 +248,11 @@ of the time and position supports. Applying this transcription yields:
 \end{aligned}
 ```
 
-Now that the variables and constraints are are transcripted, all that remains is 
-to add relations to define the behavior of the transcripted partial derivatives. 
+Now that the variables and constraints are are transcribed, all that remains is 
+to add relations to define the behavior of the transcribed partial derivatives. 
 We can accomplish this via backward finite difference which will just add one 
 infinite equation in this case this we only have 2 supports in the time domain 
-is then transcripted over the spatial domain to yield:
+is then transcribed over the spatial domain to yield:
 ```math
 \begin{aligned}
 &&& g(10, [-1, -1]) = g(0, [-1, -1]) + 10\frac{\partial g(10, [-1, -1])}{\partial t} \\
@@ -255,7 +262,7 @@ is then transcripted over the spatial domain to yield:
 \end{aligned}
 ```
 
-Now the problem is fully transcripted (discretized) and can be solved as a
+Now the problem is fully transcribed (discretized) and can be solved as a
 standard optimization problem. Note that with realistic measure evaluation
 schemes more supports might be added to the support sets and these will need to
 be incorporated when transcribing variables and constraints.
@@ -275,16 +282,16 @@ inf_model = InfiniteModel()
 @infinite_parameter(inf_model, x[1:2] in [-1, 1], supports = [-1, 1], independent = true)
 
 # Define variables
-@infinite_variable(inf_model, y(t))
-@infinite_variable(inf_model, g(t, x))
+@variable(inf_model, y, Infinite(t))
+@variable(inf_model, g, Infinite(t, x))
 
 # Set the objective (using support_sum for the integral given our simple example)
 # Note: In real problems integral should be used
 @objective(inf_model, Min, support_sum(y^2, t))
 
 # Define the constraints
-@BDconstraint(inf_model, t == 0, y == 1)
-@BDconstraint(inf_model, t == 0, g == 0)
+@constraint(inf_model, y == 1, DomainRestrictions(t => 0))
+@constraint(inf_model, g == 0, DomainRestrictions(t => 0))
 @constraint(inf_model, support_sum(deriv(g, t), x) == 42) # support_sum for simplicity
 @constraint(inf_model, 3g + y^2 <= 2)
 
@@ -442,11 +449,11 @@ the basic usage section, this is done:
 ```jldoctest transcribe
 julia> build_optimizer_model!(inf_model); trans_model = optimizer_model(inf_model);
 
-julia> transcription_variable(trans_model, g)
+julia> transcription_variable(trans_model, y)
 3-element Array{VariableRef,1}:
- g(support: 1)
- g(support: 2)
- g(support: 3)
+ y(support: 1)
+ y(support: 2)
+ y(support: 3)
 
 julia> transcription_variable(trans_model, z)
 z
@@ -460,7 +467,7 @@ Similarly, the parameter supports corresponding to the transcription variables
 (in the case of transcribed infinite variables) can be queried via
 [`supports`](@ref):
 ```jldoctest transcribe
-julia> supports(g)
+julia> supports(y)
 3-element Array{Tuple,1}:
  (0.0,)
  (5.0,)
@@ -488,30 +495,30 @@ equivalents in the `JuMP` model and determine their supports.
 
 We can also do this with measures and expressions:
 ```jldoctest transcribe
-julia> meas = support_sum(g^2, t)
-support_sum{t}[g(t)²]
+julia> meas = support_sum(y^2, t)
+support_sum{t}[y(t)²]
 
 julia> build_optimizer_model!(inf_model)
 
 julia> transcription_variable(meas)
-g(support: 1)² + g(support: 2)² + g(support: 3)²
+y(support: 1)² + y(support: 2)² + y(support: 3)²
 
 julia> supports(meas)
 ()
 
-julia> transcription_expression(g^2 + z - 42)
+julia> transcription_expression(y^2 + z - 42)
 3-element Array{AbstractJuMPScalar,1}:
- g(support: 1)² + z - 42
- g(support: 2)² + z - 42
- g(support: 3)² + z - 42
+ y(support: 1)² + z - 42
+ y(support: 2)² + z - 42
+ y(support: 3)² + z - 42
 
-julia> supports(g^2 + z - 42)
+julia> supports(y^2 + z - 42)
 3-element Array{Tuple,1}:
  (0.0,)
  (5.0,)
  (10.0,)
 
-julia> parameter_refs(g^2 + z - 42)
+julia> parameter_refs(y^2 + z - 42)
 (t,)
 ```
 

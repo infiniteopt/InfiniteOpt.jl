@@ -1,3 +1,7 @@
+```@meta
+DocTestFilters = [r"\[.*\]", r"\$.*"]
+```
+
 # Examples
 Here we exemplify the use of `InfiniteOpt` via a few case studies:
 
@@ -90,9 +94,9 @@ set_optimizer_attribute(model, "print_level", 0)
 @infinite_parameter(model, ξ[c in C] in Ξ[c], num_supports = num_scenarios)
 
 # Define the variables and bounds
-@finite_variable(model, 0 <= x[C] <= xbar)
-@infinite_variable(model, 0 <= y[C](ξ))
-@infinite_variable(model, 0 <= w[C](ξ))
+@variable(model, 0 <= x[C] <= xbar)
+@variable(model, 0 <= y[C], Infinite(ξ))
+@variable(model, 0 <= w[C], Infinite(ξ))
 
 # Define the objective
 @objective(model, Min, sum(α[c] * x[c] for c in C) +
@@ -148,11 +152,11 @@ where ``q(\xi)`` is introduced to handle the max operator. Let's update and
 resolve our `InfiniteOpt` model using ``\epsilon = 0.95``:
 ```jldoctest 2-stage; output = false
 # Define the additional variables
-@finite_variable(model, t)
-@infinite_variable(model, q(ξ) >= 0)
+@variable(model, t)
+@variable(model, q >= 0, Infinite(ξ))
 
 # Redefine the objective
-@objective(model, Min, sum(α[c] * x[c] for c in C) + t + 1 \ (1 - 0.95) * 𝔼(q, ξ))
+@objective(model, Min, sum(α[c] * x[c] for c in C) + t + 1 / (1 - 0.95) * 𝔼(q, ξ))
 
 # Add the max constraint
 @constraint(model, max, q >= sum(β[c] * y[c] - λ[c] * w[c] for c in C) - t)
@@ -210,22 +214,22 @@ m = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0)
 
 # Set the parameters and variables
 @infinite_parameter(m, t in [0, 60], num_supports = 61)
-@infinite_variable(m, x[1:2](t), start = 1) # position
-@infinite_variable(m, v[1:2](t), start = 0) # velocity
-@infinite_variable(m, u[1:2](t), start = 0) # thruster input
+@variable(m, x[1:2], Infinite(t), start = 1) # position
+@variable(m, v[1:2], Infinite(t), start = 0) # velocity
+@variable(m, u[1:2], Infinite(t), start = 0) # thruster input
 
 # Specify the objective
 @objective(m, Min, ∫(u[1]^2 + u[2]^2, t))
 
 # Set the initial conditions
-@BDconstraint(m, initial_velocity[i = 1:2](t == 0), v[i] == 0)
+@constraint(m, initial_velocity[i = 1:2], v[i] == 0, DomainRestrictions(t => 0))
 
 # Define the point physics
 @constraint(m, [i = 1:2], ∂(x[i], t) == v[i])
 @constraint(m, [i = 1:2], ∂(v[i], t) == u[i])
 
 # Hit all the waypoints
-@BDconstraint(m, [i = 1:2, j = eachindex(tw)](t == tw[j]), x[i] == xw[i, j])
+@constraint(m, [i = 1:2, j = eachindex(tw)], x[i] == xw[i, j], DomainRestrictions(t => tw[j]))
 
 # Optimize the model
 optimize!(m)

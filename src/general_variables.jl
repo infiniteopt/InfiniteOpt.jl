@@ -1,14 +1,20 @@
 ################################################################################
 #                               BASE EXTENSIONS
 ################################################################################
-# Extend Base.copy for new variable types
-Base.copy(v::GeneralVariableRef) = v
-Base.copy(v::DispatchVariableRef) = v
+# Basic extensions
+for VarType in (:GeneralVariableRef, :DispatchVariableRef)
+    @eval begin 
+        Base.copy(v::$VarType) = v
+        Base.broadcastable(v::$VarType) = Ref(v)
+        Base.length(v::$VarType)::Int = 1
+        JuMP.isequal_canonical(v::$VarType, w::$VarType)::Bool = v == w
+    end
+end
 
 # Extend Base.:(==) for GeneralVariableRef
 function Base.:(==)(v::T, w::T)::Bool where {T <: GeneralVariableRef}
     return v.model === w.model && v.raw_index == w.raw_index &&
-           v.index_type == w.index_type && v.param_index == w.param_index
+        v.index_type == w.index_type && v.param_index == w.param_index
 end
 
 # Extend Base.:(==) for DispatchVariableRef
@@ -16,18 +22,6 @@ function Base.:(==)(v::T, w::U)::Bool where {T <: DispatchVariableRef,
                                              U <: DispatchVariableRef}
     return v.model === w.model && v.index == w.index
 end
-
-# Extend Base.broadcastable
-Base.broadcastable(v::GeneralVariableRef) = Ref(v)
-Base.broadcastable(v::DispatchVariableRef) = Ref(v)
-
-# Extend Base.length
-Base.length(v::GeneralVariableRef)::Int = 1
-Base.length(v::DispatchVariableRef)::Int = 1
-
-# Extend JuMP functions
-JuMP.isequal_canonical(v::GeneralVariableRef, w::GeneralVariableRef)::Bool = v == w
-JuMP.isequal_canonical(v::DispatchVariableRef, w::DispatchVariableRef)::Bool = v == w
 
 # Extract the root name of a variable reference (removes the bracketed container indices)
 function _remove_name_index(vref::GeneralVariableRef)::String
@@ -56,8 +50,7 @@ _param_index(vref::GeneralVariableRef)::Int = vref.param_index
 """
     JuMP.index(vref::GeneralVariableRef)::AbstractInfOptIndex
 
-Extend [`JuMP.index`](@ref JuMP.index(::JuMP.VariableRef)) to return the
-appropriate index of `vref`.
+Extend `JuMP.index` to return the appropriate index of `vref`.
 
 **Example**
 ```julia-repl
@@ -78,8 +71,7 @@ end
 """
     JuMP.index(vref::DispatchVariableRef)::AbstractInfOptIndex
 
-Extend [`JuMP.index`](@ref JuMP.index(::JuMP.VariableRef)) to return the
-appropriate index of `vref`.
+Extend `JuMP.index` to return the appropriate index of `vref`.
 """
 function JuMP.index(vref::DispatchVariableRef)::AbstractInfOptIndex
     return vref.index
@@ -88,8 +80,7 @@ end
 """
     JuMP.owner_model(vref::GeneralVariableRef)::InfiniteModel
 
-Extend [`JuMP.owner_model`](@ref JuMP.owner_model(::JuMP.AbstractVariableRef)) to
-return the model where `vref` is stored.
+Extend `JuMP.owner_model` to return the model where `vref` is stored.
 
 **Example**
 ```julia-repl
@@ -117,8 +108,7 @@ end
 """
     JuMP.owner_model(vref::DispatchVariableRef)::InfiniteModel
 
-Extend [`JuMP.owner_model`](@ref JuMP.owner_model(::JuMP.AbstractVariableRef)) to
-return the model where `vref` is stored.
+Extend `JuMP.owner_model` to return the model where `vref` is stored.
 """
 function JuMP.owner_model(vref::DispatchVariableRef)::InfiniteModel
     return vref.model
@@ -222,9 +212,9 @@ end
 """
     JuMP.name(vref::GeneralVariableRef)::String
 
-Extend [`JuMP.name`](@ref JuMP.name(::JuMP.VariableRef)) to
-return the name of `vref`. It relies on `JuMP.name` being defined
-for the underlying `DispatchVariableRef`, otherwise an `ArugmentError` is thrown.
+Extend `JuMP.name` to return the name of `vref`. It relies on `JuMP.name` being 
+defined for the underlying `DispatchVariableRef`, otherwise an `ArgumentError` 
+is thrown.
 """
 function JuMP.name(vref::GeneralVariableRef)::String
     return JuMP.name(dispatch_variable_ref(vref))
@@ -239,9 +229,9 @@ end
 """
     JuMP.set_name(vref::GeneralVariableRef, name::String)::Nothing
 
-Extend [`JuMP.set_name`](@ref JuMP.name(::JuMP.VariableRef, ::String)) to
-set the name of `vref`. It relies on `JuMP.set_name` being defined
-for the underlying `DispatchVariableRef`, otherwise an `ArugmentError` is thrown.
+Extend `JuMP.set_name` to set the name of `vref`. It relies on `JuMP.set_name` 
+being defined for the underlying `DispatchVariableRef`, otherwise an 
+`ArgumentError` is thrown.
 """
 function JuMP.set_name(vref::GeneralVariableRef, name::String)::Nothing
     return JuMP.set_name(dispatch_variable_ref(vref), name)
@@ -253,8 +243,7 @@ end
 """
     JuMP.is_valid(model::InfiniteModel, vref::DispatchVariableRef)::Bool
 
-Extend [`JuMP.is_valid`](@ref JuMP.is_valid(::JuMP.Model, ::JuMP.VariableRef)) to
-return `Bool` if `vref` is a valid reference.
+Extend `JuMP.is_valid` to return `Bool` if `vref` is a valid reference.
 """
 function JuMP.is_valid(model::InfiniteModel, vref::DispatchVariableRef)::Bool
     return model === JuMP.owner_model(vref) &&
@@ -270,8 +259,7 @@ end
 """
     JuMP.is_valid(model::InfiniteModel, vref::GeneralVariableRef)::Bool
 
-Extend [`JuMP.is_valid`](@ref JuMP.is_valid(::JuMP.Model, ::JuMP.VariableRef)) to
-return `Bool` if `vref` is a valid reference.
+Extend `JuMP.is_valid` to return `Bool` if `vref` is a valid reference.
 
 **Example**
 ```julia-repl
@@ -325,22 +313,21 @@ for op = (:_infinite_variable_dependencies, :_semi_infinite_variable_dependencie
           :_derivative_constraint_dependencies, :_parameter_function_dependencies,
           :_generative_measures)
     @eval begin
-        # define the api template
-        func = $op
-        """
-            $func(vref::DispatchVariableRef)::Vector{AbstractInfOptIndex}
+        @doc """
+            $($op)(vref::DispatchVariableRef)::Vector{AbstractInfOptIndex}
 
         Return the indices of these entities that depend on `vref`. This needs to
         be extended for type of `vref`. This should use `_data_object` to access the
         data object where the name is stored if appropriate.
         """
         function $(op) end
+
         # define the dispatch version
-        """
-            $func(vref::GeneralVariableRef)::Vector{AbstractInfOptIndex}
+        @doc """
+            $($op)(vref::GeneralVariableRef)::Vector{AbstractInfOptIndex}
 
         Return the indices of these entities that depend on `vref`. This is enabled
-        with appropriate definitions of `$func` for the
+        with appropriate definitions of `$($op)` for the
         underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
         """
         function $op(vref::GeneralVariableRef)
@@ -355,23 +342,23 @@ end
 # Define the usage method wrappers and their fallbacks
 for op = (:used_by_infinite_variable, :used_by_semi_infinite_variable,
           :used_by_point_variable, :used_by_measure, :used_by_constraint,
-          :used_by_objective, :used_by_derivative, :is_used, :has_derivative_constraints,
-          :used_by_parameter_function)
+          :used_by_objective, :used_by_derivative, :is_used, 
+          :has_derivative_constraints, :used_by_parameter_function)
     @eval begin
         # define the fallback method
-        func = $op
         function $op(vref::DispatchVariableRef)
-            str = string("`", func, "` not defined for variable reference type " *
+            str = string("`$($op)` not defined for variable reference type ",
                          "`$(typeof(vref))`.")
             throw(ArgumentError(str))
         end
-        # define the dispatch version
-        """
-            $func(vref::GeneralVariableRef)::Bool
 
-        Define `$func` for general variable references. It relies on `$func`
+        # define the dispatch version
+        @doc """
+            $($op)(vref::GeneralVariableRef)::Bool
+
+        Define `$($op)` for general variable references. It relies on `$($op)`
         being defined for the underlying `DispatchVariableRef`, otherwise an
-        `ArugmentError` is thrown. See the underlying docstrings for more
+        `ArgumentError` is thrown. See the underlying docstrings for more
         information.
         """
         function $op(vref::GeneralVariableRef)::Bool
@@ -392,10 +379,9 @@ end
 """
     JuMP.delete(model::InfiniteModel, vref::GeneralVariableRef)::Nothing
 
-Extend [`JuMP.delete`](@ref JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)) to
-delete `vref` and its dependencies. It relies on `JuMP.delete`
-being defined for the underlying `DispatchVariableRef`, otherwise an
-`ArugmentError` is thrown.
+Extend `JuMP.delete` to delete `vref` and its dependencies. It relies on 
+`JuMP.delete` being defined for the underlying `DispatchVariableRef`, otherwise 
+an `ArgumentError` is thrown.
 """
 function JuMP.delete(model::InfiniteModel, vref::GeneralVariableRef)::Nothing
     return JuMP.delete(model, dispatch_variable_ref(vref))
@@ -406,7 +392,7 @@ end
                 prefs::AbstractArray{<:GeneralVariableRef})::Nothing
 
 Extend `JuMP.delete` to delete a group of dependent infinite parameters and
-their dependencies. An `ArugmentError` is thrown if `prefs` are not dependent
+their dependencies. An `ArgumentError` is thrown if `prefs` are not dependent
 infinite parameters.
 """
 function JuMP.delete(model::InfiniteModel,
@@ -464,19 +450,19 @@ for op = (:infinite_domain, :num_supports, :significant_digits, :has_supports,
           :add_generative_supports, :raw_function, :generative_support_info)
     @eval begin
         # define the fallback method
-        func = $op
         function $op(pref; kwargs...)
-            str = string("`", func, "` not defined for variable reference type " *
+            str = string("`$($op)` not defined for variable reference type ",
                          "`$(typeof(pref))`.")
             throw(ArgumentError(str))
         end
-        # define the dispatch version
-        """
-            $func(prefs; [kwargs...])
 
-        Define `$func` for general variable references. It relies on `$func`
+        # define the dispatch version
+        @doc """
+            $($op)(prefs; [kwargs...])
+
+        Define `$($op)` for general variable references. It relies on `$($op)`
         being defined for the underlying `DispatchVariableRef`, otherwise an
-        `ArugmentError` is thrown. See the underlying docstrings for more
+        `ArgumentError` is thrown. See the underlying docstrings for more
         information. Note that this is a auto generated wrapper and the underlying
         method may or may not use `kwargs`.
         """
@@ -500,8 +486,10 @@ this will reset/delete all the supports contained in the
 underlying parameter object. Also, errors if `pref` is used
 by a measure. An `ArgumentError` is thrown if `pref` is not an infinite parameter.
 """
-function set_infinite_domain(pref::GeneralVariableRef,
-                          domain::InfiniteScalarDomain)::Nothing
+function set_infinite_domain(
+    pref::GeneralVariableRef,
+    domain::InfiniteScalarDomain
+    )::Nothing
     return set_infinite_domain(dispatch_variable_ref(pref), domain)
 end
 
@@ -516,8 +504,10 @@ of the dependent infinite parameters are included or if any of them are used by
 measures. An `ArgumentError` is thrown if `prefs` are not dependent infinite
 parameters.
 """
-function set_infinite_domain(prefs::AbstractArray{<:GeneralVariableRef},
-                          domain::InfiniteArrayDomain)::Nothing
+function set_infinite_domain(
+    prefs::AbstractArray{<:GeneralVariableRef},
+    domain::InfiniteArrayDomain
+    )::Nothing
     return set_infinite_domain(dispatch_variable_ref.(prefs), domain)
 end
 
@@ -545,11 +535,12 @@ Set the support points associated with a single infinite
 parameter `pref`. An `ArgumentError` is thrown if `pref` is not an independent
 infinite parameter.
 """
-function set_supports(pref::GeneralVariableRef,
-                      supports::Union{Real, Vector{<:Real}};
-                      force::Bool = false, 
-                      label::Type{<:AbstractSupportLabel} = UserDefined
-                      )::Nothing
+function set_supports(
+    pref::GeneralVariableRef,
+    supports::Union{Real, Vector{<:Real}};
+    force::Bool = false, 
+    label::Type{<:AbstractSupportLabel} = UserDefined
+    )::Nothing
     return set_supports(dispatch_variable_ref(pref), supports,
                         force = force, label = label)
 end
@@ -565,11 +556,12 @@ Set the support points associated with dependent infinite
 parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
 dependent infinite parameters.
 """
-function set_supports(prefs::AbstractArray{<:GeneralVariableRef},
-                      supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
-                      label::Type{<:AbstractSupportLabel} = UserDefined, 
-                      force::Bool = false
-                      )::Nothing
+function set_supports(
+    prefs::AbstractArray{<:GeneralVariableRef},
+    supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
+    label::Type{<:AbstractSupportLabel} = UserDefined, 
+    force::Bool = false
+    )::Nothing
     return set_supports(dispatch_variable_ref.(prefs), supports, label = label,
                         force = force)
 end
@@ -588,11 +580,12 @@ Add the support points `supports` to a single infinite
 parameter `pref`. An `ArgumentError` is thrown if `pref` is not an independent
 infinite parameter.
 """
-function add_supports(pref::GeneralVariableRef,
-                      supports::Union{Real, Vector{<:Real}};
-                      check::Bool = true, 
-                      label::Type{<:AbstractSupportLabel} = UserDefined
-                      )::Nothing
+function add_supports(
+    pref::GeneralVariableRef,
+    supports::Union{Real, Vector{<:Real}};
+    check::Bool = true, 
+    label::Type{<:AbstractSupportLabel} = UserDefined
+    )::Nothing
     return add_supports(dispatch_variable_ref(pref), supports,
                         check = check, label = label)
 end
@@ -607,11 +600,12 @@ Add the support points `supports` to the dependent infinite
 parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
 dependent infinite parameters.
 """
-function add_supports(prefs::AbstractArray{<:GeneralVariableRef},
-                      supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
-                      label::Type{<:AbstractSupportLabel} = UserDefined, 
-                      check::Bool = true
-                      )::Nothing
+function add_supports(
+    prefs::AbstractArray{<:GeneralVariableRef},
+    supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
+    label::Type{<:AbstractSupportLabel} = UserDefined, 
+    check::Bool = true
+    )::Nothing
     return add_supports(dispatch_variable_ref.(prefs), supports, label = label,
                         check = check)
 end
@@ -628,7 +622,7 @@ end
 Extend `JuMP.set_value` to
 set the value of `vref`. It relies on `JuMP.set_value`
 being defined for the underlying `DispatchVariableRef`, otherwise an
-`ArugmentError` is thrown.
+`ArgumentError` is thrown.
 """
 function JuMP.set_value(vref::GeneralVariableRef, value::Real)::Nothing
     return JuMP.set_value(dispatch_variable_ref(vref), value)
@@ -648,9 +642,10 @@ end
 Specify the numerical derivative evaluation technique associated with `pref`.
 An `ArgumentError` is thrown if `pref` is not an infinite parameter.
 """
-function set_derivative_method(pref::GeneralVariableRef,
-                               method::AbstractDerivativeMethod
-                               )::Nothing
+function set_derivative_method(
+    pref::GeneralVariableRef,
+    method::AbstractDerivativeMethod
+    )::Nothing
     return set_derivative_method(dispatch_variable_ref(pref), method)
 end
 
@@ -659,9 +654,8 @@ for op = (:_set_has_generative_supports, :_set_has_internal_supports,
           :_set_has_derivative_constraints)
     @eval begin
         # define the fallback method
-        func = $op
         function $op(vref::DispatchVariableRef, status)
-            str = string("`", func, "` not defined for variable reference type " *
+            str = string("`$($op)` not defined for variable reference type ",
                          "`$(typeof(vref))`.")
             throw(ArgumentError(str))
         end
@@ -695,22 +689,22 @@ end
 for op = (:raw_parameter_refs, :parameter_refs, :parameter_list,
           :start_value_function, :reset_start_value_function,
           :infinite_variable_ref, :eval_supports, :raw_parameter_values,
-          :parameter_values, :parameter_bounds, :delete_parameter_bounds)
+          :parameter_values)
     @eval begin
         # define the fallback method
-        func = $op
         function $op(vref::DispatchVariableRef)
-            str = string("`", func, "` not defined for variable reference type " *
+            str = string("`$($op)` not defined for variable reference type ",
                          "`$(typeof(vref))`.")
             throw(ArgumentError(str))
         end
-        # define the dispatch version
-        """
-            $func(vref::GeneralVariableRef)
 
-        Define `$func` for general variable references. It relies on `$func`
+        # define the dispatch version
+        @doc """
+            $($op)c(vref::GeneralVariableRef)
+
+        Define `$($op)` for general variable references. It relies on `$($op)`
         being defined for the underlying `DispatchVariableRef`, otherwise an
-        `ArugmentError` is thrown. See the underlying docstrings for more
+        `ArgumentError` is thrown. See the underlying docstrings for more
         information.
         """
         function $op(vref::GeneralVariableRef)
@@ -730,64 +724,10 @@ end
 
 Set the start value function of `vref`. It relies on `set_start_value_function`
 being defined for the underlying `DispatchVariableRef`, otherwise an
-`ArugmentError` is thrown.
+`ArgumentError` is thrown.
 """
 function set_start_value_function(vref::GeneralVariableRef, start)::Nothing
     return set_start_value_function(dispatch_variable_ref(vref), start)
-end
-
-"""
-    has_parameter_bounds(vref::GeneralVariableRef)::Bool
-
-Return a `Bool` indicating if `vref` is limited to a sub-domain as defined
-by parameter bound.
-"""
-function has_parameter_bounds(vref::GeneralVariableRef)::Bool
-    return has_parameter_bounds(dispatch_variable_ref(vref))
-end
-
-# Dispatch fallback
-function set_parameter_bounds(vref::DispatchVariableRef, bounds; kwargs...)
-    throw(ArgumentError("`set_parameter_bounds` not defined for variable reference type(s) " *
-                        "`$(typeof(vref))`."))
-end
-
-"""
-    set_parameter_bounds(vref::GeneralVariableRef,
-                         bounds::ParameterBounds{GeneralVariableRef};
-                         [force::Bool = false])::Nothing
-
-Specify a new set of parameter bounds for a finite variable `vref`.
-An `ArgumentError` is thrown if `vref` is not a finite variable.
-"""
-function set_parameter_bounds(vref::GeneralVariableRef,
-                              bounds::ParameterBounds{GeneralVariableRef};
-                              force::Bool = false, _error::Function = error
-                              )::Nothing
-    return set_parameter_bounds(dispatch_variable_ref(vref), bounds,
-                                force = force, _error = _error)
-end
-
-# Dispatch fallback
-function add_parameter_bounds(vref::DispatchVariableRef, bounds; kwargs...)
-    throw(ArgumentError("`add_parameter_bounds` not defined for variable reference type(s) " *
-                        "`$(typeof(vref))`."))
-end
-
-"""
-    add_parameter_bounds(vref::GeneralVariableRef,
-                         bounds::ParameterBounds{GeneralVariableRef}
-                         )::Nothing
-
-Specify more parameter bounds for a finite variable `vref`.
-An `ArgumentError` is thrown if `vref` is not a finite variable.
-"""
-function add_parameter_bounds(vref::GeneralVariableRef,
-                              bounds::ParameterBounds{GeneralVariableRef};
-                              _error::Function = error
-                              )::Nothing
-    return add_parameter_bounds(dispatch_variable_ref(vref), bounds,
-                                _error = _error)
 end
 
 ################################################################################
@@ -797,17 +737,17 @@ end
 for op = (:measure_function, :measure_data, :is_analytic, :expand)
     @eval begin
         # define the fallback method
-        func = $op
         function $op(mref::DispatchVariableRef)
-            str = string("`", func, "` not defined for variable reference type " *
+            str = string("`$($op)` not defined for variable reference type ",
                          "`$(typeof(mref))`.")
             throw(ArgumentError(str))
         end
-        # define the dispatch version
-        """
-            $func(mref::GeneralVariableRef)
 
-        Define `$func` for general variable references. Errors if `mref` does
+        # define the dispatch version
+        @doc """
+            $($op)(mref::GeneralVariableRef)
+
+        Define `$($op)` for general variable references. Errors if `mref` does
         not correspond to a `MeasureRef`. See the underlying docstrings for more
         information.
         """
@@ -825,17 +765,17 @@ for op = (:derivative_argument, :operator_parameter, :evaluate,
           :derivative_constraints, :delete_derivative_constraints)
     @eval begin
         # define the fallback method
-        func = $op
         function $op(dref::DispatchVariableRef)
-            str = string("`", func, "` not defined for variable reference type " *
+            str = string("`$($op)` not defined for variable reference type ",
                          "`$(typeof(dref))`.")
             throw(ArgumentError(str))
         end
-        # define the dispatch version
-        """
-            $func(dref::GeneralVariableRef)
 
-        Define `$func` for general variable references. Errors if `dref` does
+        # define the dispatch version
+        @doc """
+            $($op)(dref::GeneralVariableRef)
+
+        Define `$($op)` for general variable references. Errors if `dref` does
         not correspond to a `DerivativeRef`. See the underlying docstrings for more
         information.
         """
@@ -857,19 +797,19 @@ for op = (:has_lower_bound, :has_upper_bound, :is_fixed, :is_binary, :is_integer
           :unset_integer)
     @eval begin
         # define the fallback method
-        func = JuMP.$op
         function JuMP.$op(vref::DispatchVariableRef)
-            str = string("`JuMP.", func, "` not defined for variable reference type " *
+            str = string("`JuMP.$($op)` not defined for variable reference type ",
                          "`$(typeof(vref))`.")
             throw(ArgumentError(str))
         end
-        # define the dispatch version
-        """
-            JuMP.$func(vref::GeneralVariableRef)
 
-        Define `JuMP.$func` for general variable references. It relies on `JuMP.$func`
+        # define the dispatch version
+        @doc """
+            JuMP.$($op)(vref::GeneralVariableRef)
+
+        Define `JuMP.$($op)` for general variable references. It relies on `JuMP.$($op)`
         being defined for the underlying `DispatchVariableRef`, otherwise an
-        `ArugmentError` is thrown. See the underlying docstrings for more
+        `ArgumentError` is thrown. See the underlying docstrings for more
         information.
         """
         function JuMP.$op(vref::GeneralVariableRef)
@@ -882,19 +822,19 @@ end
 for op = (:set_lower_bound, :set_upper_bound, :set_start_value)
     @eval begin
         # define the fallback method
-        func = JuMP.$op
         function JuMP.$op(vref::DispatchVariableRef, value)
-            str = string("`JuMP.", func, "` not defined for variable reference type " *
+            str = string("`JuMP.$($op)` not defined for variable reference type ",
                          "`$(typeof(vref))`.")
             throw(ArgumentError(str))
         end
+        
         # define the dispatch version
-        """
-            JuMP.$func(vref::GeneralVariableRef, value::Real)::Nothing
+        @doc """
+            JuMP.$($op)(vref::GeneralVariableRef, value::Real)::Nothing
 
-        Define `JuMP.$func` for general variable references. It relies on `JuMP.$func`
+        Define `JuMP.$($op)` for general variable references. It relies on `JuMP.$($op)`
         being defined for the underlying `DispatchVariableRef`, otherwise an
-        `ArugmentError` is thrown. See the underlying docstrings for more
+        `ArgumentError` is thrown. See the underlying docstrings for more
         information.
         """
         function JuMP.$op(vref::GeneralVariableRef, value::Real)::Nothing
@@ -914,7 +854,7 @@ end
 
 Define `JuMP.fix` for general variable references. It relies on `JuMP.fix`
 being defined for the underlying `DispatchVariableRef`, otherwise an
-`ArugmentError` is thrown. See the underlying docstrings for more
+`ArgumentError` is thrown. See the underlying docstrings for more
 information.
 """
 function JuMP.fix(vref::GeneralVariableRef, value::Real;

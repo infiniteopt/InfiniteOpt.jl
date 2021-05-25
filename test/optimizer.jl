@@ -2,15 +2,15 @@
 @testset "build_optimizer_model!" begin
     # initialize model
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1], 
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1], 
                         derivative_method = OrthogonalCollocation(3))
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1])
-    @infinite_variable(m, 1 >= x(par) >= 0, Int)
-    @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
-    @point_variable(m, x(0), x0)
-    @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
-    @finite_variable(m, 0 <= z <= 1, Bin)
-    @finite_variable(m, w == 1, Int, start = 1)
+    @infinite_parameter(m, pars[1:2] in [0, 1], supports = [0, 1])
+    @variable(m, 1 >= x >= 0, Infinite(par), Int)
+    @variable(m, y == 2, Infinite(par, pars), Bin, start = 0)
+    @variable(m, x0, Point(x, 0))
+    @variable(m, 0 <= y0 <= 1, Point(y, 0, [0, 0]), Int)
+    @variable(m, 0 <= z <= 1, Bin)
+    @variable(m, w == 1, Int, start = 1)
     @deriv(x, par)
     data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
     meas1 = measure(x - w, data1)
@@ -18,7 +18,7 @@
     @constraint(m, c1, x + par - z == 0)
     @constraint(m, c2, z + x0 >= -3)
     @constraint(m, c3, meas1 + z == 0)
-    @BDconstraint(m, c4(par in [0.5, 1]), meas2 - 2y0 + x <= 1)
+    @constraint(m, c4, meas2 - 2y0 + x <= 1, DomainRestrictions(par => [0.5, 1]))
     @constraint(m, c5, meas2 == 0)
     @objective(m, Min, x0 + meas1)
     # test normal usage
@@ -35,11 +35,11 @@ end
 @testset "Optimizer Model Queries" begin
     # initialize model
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1], 
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1], 
                         derivative_method = OrthogonalCollocation(3))
-    @infinite_variable(m, x(par))
-    @point_variable(m, x(0), x0)
-    @finite_variable(m, z)
+    @variable(m, x, Infinite(par))
+    @variable(m, x0, Point(x, 0))
+    @variable(m, z)
     d1 = @deriv(x, par)
     data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
     meas1 = measure(x - z, data1)
@@ -153,21 +153,21 @@ end
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                              eval_objective_value=false)
     m = InfiniteModel(mockoptimizer)
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1])
-    @infinite_variable(m, 1 >= x(par) >= 0, Int)
-    @infinite_variable(m, y(par, pars) == 2, Bin, start = 0)
-    @point_variable(m, x(0), x0)
-    @point_variable(m, y(0, [0, 0]), 0 <= y0 <= 1, Int)
-    @finite_variable(m, 0 <= z <= 1, Bin)
-    @finite_variable(m, w == 1, Int, start = 1)
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1], supports = [0, 1])
+    @variable(m, 1 >= x >= 0, Infinite(par), Int)
+    @variable(m, y == 2, Infinite(par, pars), Bin, start = 0)
+    @variable(m, x0, Point(x, 0))
+    @variable(m, 0 <= y0 <= 1, Point(y, 0, [0, 0]), Int)
+    @variable(m, 0 <= z <= 1, Bin)
+    @variable(m, w == 1, Int, start = 1)
     data1 = DiscreteMeasureData(par, [1, 1], [0, 1])
     meas1 = measure(x - w, data1)
     meas2 = measure(y, data1)
     @constraint(m, c1, x + par - z == 0)
     @constraint(m, c2, z + x0 >= -3)
     @constraint(m, c3, meas1 + z == 0)
-    @BDconstraint(m, c4(par in [0.5, 1]), meas2 - 2y0 + x <= 1)
+    @constraint(m, c4, meas2 - 2y0 + x <= 1, DomainRestrictions(par => [0.5, 1]))
     @constraint(m, c5, meas2 == 0)
     @objective(m, Min, x0 + meas1)
     # test normal usage
@@ -196,7 +196,7 @@ end
     function make_model()
         m =InfiniteModel()
         @infinite_parameter(m, t in [0, 1])
-        @infinite_variable(m, y(t))
+        @variable(m, y, Infinite(t))
         myfunc(ts, a) = ts + a
         @parameter_function(m, d[i = 1:3](t), myfunc(t, i))
         @constraint(m, [i = 1:3], y >= d[i])

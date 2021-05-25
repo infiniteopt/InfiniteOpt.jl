@@ -789,7 +789,7 @@ values for all one-dimensional integral calls.
 julia> @infinite_parameter(model, x in [0, 1])
 x
 
-julia> @infinite_variable(model, f(x))
+julia> @variable(model, f, Infinite(x))
 f(x)
 
 julia> int = integral(f, x)
@@ -799,11 +799,13 @@ julia> expand(int)
 0.2 f(0.8236475079774124) + 0.2 f(0.9103565379264364) + 0.2 f(0.16456579813368521) + 0.2 f(0.17732884646626457) + 0.2 f(0.278880109331201)
 ```
 """
-function integral(expr::JuMP.AbstractJuMPScalar,
-                  pref::InfiniteOpt.GeneralVariableRef,
-                  lower_bound::Real = NaN,
-                  upper_bound::Real = NaN;
-                  kwargs...)::InfiniteOpt.GeneralVariableRef
+function integral(
+    expr::JuMP.AbstractJuMPScalar,
+    pref::InfiniteOpt.GeneralVariableRef,
+    lower_bound::Real = NaN,
+    upper_bound::Real = NaN;
+    kwargs...
+    )::InfiniteOpt.GeneralVariableRef
     # check parameter formatting
     InfiniteOpt._check_params(pref)
     # fill in bounds if needed
@@ -839,11 +841,13 @@ end
 A convenient wrapper for [`integral`](@ref). The `∫` unicode symbol is produced 
 via `\\int`.
 """
-function ∫(expr::JuMP.AbstractJuMPScalar,
-           pref::InfiniteOpt.GeneralVariableRef,
-           lower_bound::Real = NaN,
-           upper_bound::Real = NaN;
-           kwargs...)::InfiniteOpt.GeneralVariableRef
+function ∫(
+    expr::JuMP.AbstractJuMPScalar,
+    pref::InfiniteOpt.GeneralVariableRef,
+    lower_bound::Real = NaN,
+    upper_bound::Real = NaN;
+    kwargs...
+    )::InfiniteOpt.GeneralVariableRef
     return integral(expr, pref, lower_bound, upper_bound; kwargs...)
 end
 
@@ -958,17 +962,19 @@ values for all multi-dimensional integral calls.
 ```julia-repl
 julia> @infinite_parameter(model, x[1:2] in [0, 1], independent = true);
 
-julia> @infinite_variable(model, f(x));
+julia> @variable(model, f, Infinite(x));
 
 julia> int = integral(f, x)
 ∫{x ∈ [0, 1]^2}[f(x)]
 ```
 """
-function integral(expr::JuMP.AbstractJuMPScalar,
-                  prefs::AbstractArray{InfiniteOpt.GeneralVariableRef},
-                  lower_bounds::Union{Real, AbstractArray{<:Real}} = NaN,
-                  upper_bounds::Union{Real, AbstractArray{<:Real}} = NaN;
-                  kwargs...)::InfiniteOpt.GeneralVariableRef
+function integral(
+    expr::JuMP.AbstractJuMPScalar,
+    prefs::AbstractArray{InfiniteOpt.GeneralVariableRef},
+    lower_bounds::Union{Real, AbstractArray{<:Real}} = NaN,
+    upper_bounds::Union{Real, AbstractArray{<:Real}} = NaN;
+    kwargs...
+    )::InfiniteOpt.GeneralVariableRef
     # check parameter formatting
     InfiniteOpt._check_params(prefs)
     # fill in the lower bounds if needed

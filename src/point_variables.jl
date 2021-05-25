@@ -2,33 +2,39 @@
 #                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
 ################################################################################
 # Extend dispatch_variable_ref
-function dispatch_variable_ref(model::InfiniteModel,
-                               index::PointVariableIndex
-                               )::PointVariableRef
+function dispatch_variable_ref(
+    model::InfiniteModel,
+    index::PointVariableIndex
+    )::PointVariableRef
     return PointVariableRef(model, index)
 end
 
 # Extend _add_data_object
-function _add_data_object(model::InfiniteModel,
-                          object::VariableData{<:PointVariable}
-                          )::PointVariableIndex
+function _add_data_object(
+    model::InfiniteModel,
+    object::VariableData{<:PointVariable}
+    )::PointVariableIndex
     return MOIUC.add_item(model.point_vars, object)
 end
 
 # Extend _data_dictionary (type based)
-function _data_dictionary(model::InfiniteModel, ::Type{PointVariable}
+function _data_dictionary(
+    model::InfiniteModel, 
+    ::Type{PointVariable}
     )::MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}
     return model.point_vars
 end
 
 # Extend _data_dictionary (reference based)
-function _data_dictionary(vref::PointVariableRef
+function _data_dictionary(
+    vref::PointVariableRef
     )::MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}
     return JuMP.owner_model(vref).point_vars
 end
 
 # Extend _data_object
-function _data_object(vref::PointVariableRef
+function _data_object(
+    vref::PointVariableRef
     )::VariableData{PointVariable{GeneralVariableRef}}
     object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
     object === nothing && error("Invalid point variable reference, cannot find " *
@@ -46,15 +52,45 @@ end
 ################################################################################
 #                          DEFINTION HELPER METHODS
 ################################################################################
+"""
+    Point{V, T} <: InfOptVariableType 
+
+A `DataType` to assist in making point variables. This can be passed as an 
+extra argument to `@variable` to make such a variable: 
+```julia 
+@variable(model, var_expr, Point(inf_var, parameter_values...), args..., 
+          kwargs...)
+```
+Here `parameter_values` must match the format of the infinite parameter 
+references associated with the infinite variable `inf_var` and can be comprised 
+of both real valued supports.
+
+**Fields**
+- `infinite_variable_ref::V`
+- `parameter_values::VectorTuple{T}`: The infinite parameter support values the 
+   variable will depend on.
+"""
+struct Point{V, T} <: InfOptVariableType 
+    infinite_variable_ref::V 
+    parameter_values::VectorTuple{T}
+    function Point(ivref::V, vals...) where {V}
+        vt = VectorTuple(vals)
+        T = param_type(vt)
+        return new{V, T}(ivref, vt)
+    end
+end
+
 # Ensure parameter values match shape of parameter reference tuple stored in the
 # infinite variable reference
-function _check_tuple_shape(_error::Function,
-                            ivref::Union{InfiniteVariableRef, DerivativeRef},
-                            values::VectorTuple)::Nothing
+function _check_tuple_shape(
+    _error::Function,
+    ivref::Union{InfiniteVariableRef, DerivativeRef},
+    values::VectorTuple
+    )::Nothing
     prefs = raw_parameter_refs(ivref)
     if !same_structure(prefs, values)
-        _error("The dimensions and array formatting of the infinite parameter " *
-               "values must match those of the parameter references for the " *
+        _error("The dimensions and array formatting of the infinite parameter ",
+               "values must match those of the parameter references for the ",
                "infinite variable/derivative.")
     end
     return
@@ -62,9 +98,12 @@ end
 
 ## Dispatch methods for checking the supports of parameters in point variable
 # IndependentParameterRefs
-function _check_element_support(_error::Function, prefs::Vector{IndependentParameterRef},
-                                param_values::Vector{Float64},
-                                counter::Int)::Int
+function _check_element_support(
+    _error::Function, 
+    prefs::Vector{IndependentParameterRef},
+    param_values::Vector{Float64},
+    counter::Int
+    )::Int
     for pref in prefs
         if !supports_in_domain(param_values[counter], infinite_domain(pref))
             _error("Parameter values violate parameter bounds.")
@@ -75,9 +114,12 @@ function _check_element_support(_error::Function, prefs::Vector{IndependentParam
 end
 
 # DependentParameterRefs
-function _check_element_support(_error::Function, prefs::Vector{DependentParameterRef},
-                                param_values::Vector{Float64},
-                                counter::Int)::Int
+function _check_element_support(
+    _error::Function, 
+    prefs::Vector{DependentParameterRef},
+    param_values::Vector{Float64},
+    counter::Int
+    )::Int
     len = length(prefs)
     supp = reshape(param_values[counter:counter+len-1], len, 1)
     if !supports_in_domain(supp, infinite_domain(prefs))
@@ -87,9 +129,11 @@ function _check_element_support(_error::Function, prefs::Vector{DependentParamet
 end
 
 # Used to ensure values don't violate parameter bounds
-function _check_tuple_values(_error::Function, 
-                             ivref::Union{InfiniteVariableRef, DerivativeRef},
-                             param_values::Vector{Float64})::Nothing
+function _check_tuple_values(
+    _error::Function, 
+    ivref::Union{InfiniteVariableRef, DerivativeRef},
+    param_values::Vector{Float64}
+    )::Nothing
     raw_prefs = raw_parameter_refs(ivref)
     counter = 1
     for i in 1:size(raw_prefs, 1)
@@ -100,9 +144,11 @@ function _check_tuple_values(_error::Function,
 end
 
 # Update point variable info to consider the infinite variable
-function _update_point_info(info::JuMP.VariableInfo,
-                            ivref::Union{InfiniteVariableRef, DerivativeRef},
-                            point::Vector{Float64})::JuMP.VariableInfo
+function _update_point_info(
+    info::JuMP.VariableInfo,
+    ivref::Union{InfiniteVariableRef, DerivativeRef},
+    point::Vector{Float64}
+    )::JuMP.VariableInfo
     if JuMP.has_lower_bound(ivref) && !info.has_fix && !info.has_lb
         info = JuMP.VariableInfo(true, JuMP.lower_bound(ivref),
                                  info.has_ub, info.upper_bound,
@@ -154,48 +200,71 @@ function _update_point_info(info::JuMP.VariableInfo,
     return info
 end
 
-# Define _make_variable (used by JuMP.build_variable)
-function _make_variable(_error::Function, info::JuMP.VariableInfo, ::Type{Point};
-                        infinite_variable_ref::Union{GeneralVariableRef,
-                                                     Nothing} = nothing,
-                        parameter_values::Union{Real, AbstractArray{<:Real},
-                                                Tuple, Nothing} = nothing,
-                        extra_kw_args...)::PointVariable{GeneralVariableRef}
+"""
+    JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, 
+                        var_type::Point)::InfiniteVariable{GeneralVariableRef}
+
+Build and return a point variable based on `info` and `var_type`. Errors 
+if the information stored in `var_type` is invalid. See [`Point`](@ref) 
+for more information.
+
+**Example**
+```julia-repl
+julia> y
+y(t)
+
+julia> info = VariableInfo(false, 0, false, 0, false, 0, true, 0, false, false);
+
+julia> pt_var = build_variable(error, info, SemiInfinite(y, 0));
+```
+"""
+function JuMP.build_variable(
+    _error::Function, 
+    info::JuMP.VariableInfo, 
+    var_type::Point;
+    extra_kwargs...
+    )::PointVariable{GeneralVariableRef}
     # check for unneeded keywords
-    for (kwarg, _) in extra_kw_args
+    for (kwarg, _) in extra_kwargs
         _error("Keyword argument $kwarg is not for use with point variables.")
     end
-    # ensure the needed arguments are given
-    if parameter_values === nothing || infinite_variable_ref === nothing
-        _error("Must specify the infinite variable/derivative and the values of its " *
-               "infinite parameters")
+    # check the infinite variable reference
+    ivref = var_type.infinite_variable_ref
+    if !(ivref isa GeneralVariableRef)
+        _error("Expected an infinite variable/derivative reference dependency ",
+               "of type `GeneralVariableRef`, but got an argument of type ",
+               "$(typeof(ivref)).")
     end
-    # format tuple as VectorTuple
-    pvalues = VectorTuple{Float64}(parameter_values)
-    # check information and prepare format
-    dispatch_ivref = dispatch_variable_ref(infinite_variable_ref)
+    dispatch_ivref = dispatch_variable_ref(ivref)
     if !(dispatch_ivref isa Union{InfiniteVariableRef, DerivativeRef})
-     _error("Expected an infinite variable/derivative reference dependency, but got a " *
-            "variable reference of type $(typeof(dispatch_ivref)).")
+        _error("Expected an infinite variable/derivative reference dependency,", 
+               "but got a variable reference of type $(typeof(dispatch_ivref)).")
     end
-    _check_tuple_shape(_error, dispatch_ivref, pvalues)
-    _check_tuple_values(_error, dispatch_ivref, pvalues.values)
-    info = _update_point_info(info, dispatch_ivref, pvalues.values)
+    # check and format the values 
+    raw_vals = var_type.parameter_values
+    if !(param_type(raw_vals) <: Real)
+        _error("Expected parameter values consisting of real numbers.")
+    end
+    pvalues = Vector{Float64}(raw_vals.values)
+    _check_tuple_shape(_error, dispatch_ivref, raw_vals)
+    _check_tuple_values(_error, dispatch_ivref, pvalues)
+    info = _update_point_info(info, dispatch_ivref, pvalues)
     # enforce parameter significant digits on the values
     prefs = parameter_list(dispatch_ivref)
     for i in eachindex(pvalues)
         pvalues[i] = round(pvalues[i], sigdigits = significant_digits(prefs[i]))
     end
     # make variable and return
-    return PointVariable(_make_float_info(info), infinite_variable_ref,
-                         pvalues.values)
+    return PointVariable(_make_float_info(info), ivref, pvalues)
 end
 
 ## Dispatch methods for updating the supports of parameters in point variable
 # IndependentParameterRefs
-function _add_point_support(prefs::Vector{IndependentParameterRef},
-                            param_values::Vector{Float64},
-                            counter::Int)::Int
+function _add_point_support(
+    prefs::Vector{IndependentParameterRef},
+    param_values::Vector{Float64},
+    counter::Int
+    )::Int
     for pref in prefs
         add_supports(pref, param_values[counter], check = false,
                      label = UserDefined)
@@ -205,9 +274,11 @@ function _add_point_support(prefs::Vector{IndependentParameterRef},
 end
 
 # DependentParameterRefs
-function _add_point_support(prefs::Vector{DependentParameterRef},
-                            param_values::Vector{Float64},
-                            counter::Int)::Int
+function _add_point_support(
+    prefs::Vector{DependentParameterRef},
+    param_values::Vector{Float64},
+    counter::Int
+    )::Int
     len = length(prefs)
     supp = reshape(param_values[counter:counter+len-1], len, 1)
     add_supports(prefs, supp, check = false, label = UserDefined)
@@ -215,8 +286,10 @@ function _add_point_support(prefs::Vector{DependentParameterRef},
 end
 
 # Used to add point variable support to parameter supports if necessary
-function _update_param_supports(ivref::Union{InfiniteVariableRef, DerivativeRef},
-                                param_values::Vector{Float64})::Nothing
+function _update_param_supports(
+    ivref::Union{InfiniteVariableRef, DerivativeRef},
+    param_values::Vector{Float64}
+    )::Nothing
     raw_prefs = raw_parameter_refs(ivref)
     model = JuMP.owner_model(ivref)
     counter = 1
@@ -228,7 +301,8 @@ function _update_param_supports(ivref::Union{InfiniteVariableRef, DerivativeRef}
 end
 
 # Used to update mapping infinite_to_points
-function _update_infinite_point_mapping(pvref::PointVariableRef,
+function _update_infinite_point_mapping(
+    pvref::PointVariableRef,
     ivref::Union{InfiniteVariableRef, DerivativeRef}
     )::Nothing
     push!(_point_variable_dependencies(ivref), JuMP.index(pvref))
@@ -236,10 +310,12 @@ function _update_infinite_point_mapping(pvref::PointVariableRef,
 end
 
 # Define _check_and_make_variable_ref (used by JuMP.add_variable)
-function _check_and_make_variable_ref(model::InfiniteModel,
-                                      v::PointVariable,
-                                      name::String;
-                                      add_support = true)::PointVariableRef
+function _check_and_make_variable_ref(
+    model::InfiniteModel,
+    v::PointVariable,
+    name::String;
+    add_support = true
+    )::PointVariableRef
     ivref = dispatch_variable_ref(v.infinite_variable_ref)
     JuMP.check_belongs_to_model(ivref, model)
     data_object = VariableData(v, name)
@@ -263,13 +339,13 @@ Return the `InfiniteVariableRef` associated with the point variable `vref`.
 
 **Example**
 ```julia-repl
-julia> @infinite_variable(model, T(t))
+julia> @variable(model, T, Infinite(t))
 T(t)
 
-julia> vref = @point_variable(model, T(0))
-T(0)
+julia> @variable(model, T0, Point(T, 0))
+T0
 
-julia> infinite_variable_ref(vref)
+julia> infinite_variable_ref(T0)
 T(t)
 ```
 """
@@ -294,13 +370,13 @@ Return the support point associated with the point variable `vref`.
 
 **Example**
 ```julia-repl
-julia> @infinite_variable(model, T(t))
+julia> @variable(model, T, Infinite(t))
 T(t)
 
-julia> vref = @point_variable(model, T(0))
-T(0)
+julia> @variable(model, T0, Point(T, 0))
+T0
 
-julia> parameter_values(vref)
+julia> parameter_values(T0)
 (0,)
 ```
 """
@@ -311,8 +387,10 @@ function parameter_values(vref::PointVariableRef)::Tuple
 end
 
 # Internal function used to change the parameter value tuple of a point variable
-function _update_variable_param_values(vref::PointVariableRef,
-                                       pref_vals::Vector{<:Real})::Nothing
+function _update_variable_param_values(
+    vref::PointVariableRef,
+    pref_vals::Vector{<:Real}
+    )::Nothing
     info = _variable_info(vref)
     ivref = infinite_variable_ref(vref)
     new_var = PointVariable(info, ivref, pref_vals)
@@ -324,8 +402,10 @@ end
 #                           VARIABLE INFO METHODS
 ################################################################################
 # Set info for point variables
-function _update_variable_info(vref::PointVariableRef,
-                               info::JuMP.VariableInfo)::Nothing
+function _update_variable_info(
+    vref::PointVariableRef,
+    info::JuMP.VariableInfo
+    )::Nothing
     ivref = infinite_variable_ref(vref)
     param_values = raw_parameter_values(vref)
     new_var = PointVariable(info, ivref, param_values)

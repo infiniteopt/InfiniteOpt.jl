@@ -1,6 +1,5 @@
 # Load in the dependencies
-using InfiniteOpt, JuMP, MathOptInterface, Distributions, Random,
-FastGaussQuadrature, DataStructures
+using InfiniteOpt, Distributions, Random, FastGaussQuadrature, DataStructures
 
 # load the test module
 using Test
@@ -10,9 +9,7 @@ const IC = InfiniteOpt.Collections
 const MT = InfiniteOpt.MeasureToolbox
 const IOTO = InfiniteOpt.TranscriptionOpt
 const JuMPC = JuMP.Containers
-const MOI = MathOptInterface
-const MOIU = MathOptInterface.Utilities
-const MOIUC = MathOptInterface.Utilities.CleverDicts
+const MOIUC = MOIU.CleverDicts
 const FGQ = FastGaussQuadrature
 const IOMT = InfiniteOpt.MeasureToolbox
 
@@ -25,7 +22,6 @@ println("---------------------------------UNIT TESTS----------------------------
 println("----------------------------------------------------------------------------")
 @time @testset "Collections" begin
     include("Collections/VectorTuple.jl")
-    include("Collections/DualDict.jl")
 end
 println("")
 @time @testset "Datatypes" begin include("datatypes.jl") end

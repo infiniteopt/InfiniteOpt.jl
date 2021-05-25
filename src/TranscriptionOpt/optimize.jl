@@ -23,9 +23,11 @@ Ths clears the existing `TranscriptionModel` via
 [`InfiniteOpt.clear_optimizer_model_build!`](@ref) and then builds a new one
 using [`build_transcription_model!`](@ref).
 """
-function InfiniteOpt.build_optimizer_model!(model::InfiniteOpt.InfiniteModel,
-                                            key::Val{:TransData};
-                                            check_support_dims::Bool = true)::Nothing
+function InfiniteOpt.build_optimizer_model!(
+    model::InfiniteOpt.InfiniteModel,
+    key::Val{:TransData};
+    check_support_dims::Bool = true
+    )::Nothing
     # clear the optimzier model contents
     trans_model = InfiniteOpt.clear_optimizer_model_build!(model)
     # build the transcription model based on model

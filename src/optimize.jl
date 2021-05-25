@@ -22,8 +22,7 @@ optimizer_model(model::InfiniteModel)::JuMP.Model = model.optimizer_model
 """
     JuMP.bridge_constraints(model::InfiniteModel)::Bool
 
-Extend [`JuMP.bridge_constraints`](@ref JuMP.bridge_constraints(::JuMP.Model))
-to return if an infinite model `model`
+Extend `JuMP.bridge_constraints` to return if an infinite model `model`
 has an optimizer model where the optimizer is set and unsupported constraints
 are automatically bridged to equivalent supported constraints when an
 appropriate transformation is available.
@@ -42,8 +41,7 @@ end
     JuMP.add_bridge(model::InfiniteModel,
                     BridgeType::Type{<:MOI.Bridges.AbstractBridge})
 
-Extend [`JuMP.add_bridge`](@ref JuMP.add_bridge(::JuMP.Model, ::Type{<:MOI.Bridges.AbstractBridge}))
-to add `BridgeType` to the list of bridges that can
+Extend `JuMP.add_bridge` to add `BridgeType` to the list of bridges that can
 be used by the optimizer model to transform unsupported constraints into an
 equivalent formulation using only constraints supported by the optimizer.
 """
@@ -150,7 +148,8 @@ Return the extension key used in the optimizer model `model`. Errors if
 `model.ext` contains more than one key. This is intended for internal
 use and extensions. For extensions this is used to dispatch to the appropriate
 optmizer model functions such as extensions to [`build_optimizer_model!`](@ref).
-This is intended as an internal method. See [`optimizer_model_key`](@ref optimizer_model_key(::InfiniteModel))
+This is intended as an internal method. See 
+[`optimizer_model_key`](@ref optimizer_model_key(::InfiniteModel)) 
 for the public method
 """
 function optimizer_model_key(model::JuMP.Model)
@@ -215,8 +214,7 @@ end
 """
     JuMP.set_silent(model::InfiniteModel)
 
-Extend [`JuMP.set_silent`](@ref JuMP.set_silent(::JuMP.Model)) for infinite
-models to take precedence over any other
+Extend `JuMP.set_silent` for infinite models to take precedence over any other
 attribute controlling verbosity and requires the solver to produce no output.
 
 **Example**
@@ -232,8 +230,7 @@ end
 """
     JuMP.unset_silent(model::InfiniteModel)
 
-Extend [`JuMP.unset_silent`](@ref JuMP.unset_silent(::JuMP.Model)) for infinite
-models to neutralize the effect of the
+Extend `JuMP.unset_silent` for infinite models to neutralize the effect of the
 `set_silent` function and let the solver attributes control the verbosity.
 
 **Example**
@@ -249,8 +246,7 @@ end
 """
     JuMP.set_time_limit_sec(model::InfiniteModel, limit)
 
-Extend [`set_time_limit_sec`](@ref JuMP.set_time_limit_sec(::JuMP.Model, ::Any))
-to set the time limit (in seconds) of the solver.
+Extend `set_time_limit_sec` to set the time limit (in seconds) of the solver.
 Can be unset using `unset_time_limit_sec` or with `limit` set to `nothing`.
 
 **Example**
@@ -266,8 +262,8 @@ end
 """
     JuMP.unset_time_limit_sec(model::InfiniteModel)
 
-Extend [`unset_time_limit_sec`](@ref JuMP.unset_time_limit_sec(::JuMP.Model)) to
-unset the time limit of the solver. Can be set using `set_time_limit_sec`.
+Extend `unset_time_limit_sec` to unset the time limit of the solver. Can be set 
+using `set_time_limit_sec`.
 
 **Example**
 ```julia-repl
@@ -281,9 +277,8 @@ end
 """
     JuMP.time_limit_sec(model::InfiniteModel)
 
-Extend [`time_limit_sec`](@ref JuMP.time_limit_sec(::JuMP.Model) to get the time
-limit (in seconds) of the solve used by the optimizer model (`nothing` if unset).
-Can be set using `set_time_limit_sec`.
+Extend `time_limit_sec` to get the time limit (in seconds) of the solve used by 
+the optimizer model (`nothing` if unset). Can be set using `set_time_limit_sec`.
 
 **Example**
 ```julia-repl
@@ -298,8 +293,8 @@ end
 """
     JuMP.set_optimizer_attribute(model::InfiniteModel, name::String, value)
 
-Extend [`set_optimizer_attribute`](@ref JuMP.set_optimizer_attribute(::JuMP.Model, ::String, ::Any))
-to specify a solver-specific attribute identified by `name` to `value`.
+Extend `set_optimizer_attribute` to specify a solver-specific attribute 
+identified by `name` to `value`.
 
 **Example**
 ```julia-repl
@@ -316,8 +311,8 @@ end
                                  attr::MOI.AbstractOptimizerAttribute,
                                  value)
 
-Extend [`set_optimizer_attribute`](@ref JuMP.set_optimizer_attribute(::JuMP.Model, ::MOI.AbstractOptimizerAttribute, ::Any))
-to set the solver-specific attribute `attr` in `model` to `value`.
+Extend `set_optimizer_attribute` to set the solver-specific attribute `attr` in 
+`model` to `value`.
 
 **Example**
 ```julia-repl
@@ -334,9 +329,9 @@ end
 """
     JuMP.set_optimizer_attributes(model::InfiniteModel, pairs::Pair...)
 
-Extend [`set_optimizer_attributes`](@ref JuMP.set_optimizer_attributes(::JuMP.Model, ::Pair))
-to set multiple solver attributes given a list of `attribute => value` pairs.
-Calls `set_optimizer_attribute(model, attribute, value)` for each pair.
+Extend `set_optimizer_attributes` to set multiple solver attributes given a 
+list of `attribute => value` pairs. Calls 
+`set_optimizer_attribute(model, attribute, value)` for each pair.
 
 **Example**
 ```julia-repl
@@ -361,8 +356,8 @@ end
 """
     JuMP.get_optimizer_attribute(model::InfiniteModel, name::String)
 
-Extend [`get_optimizer_attribute`](@ref JuMP.get_optimizer_attribute(::JuMP.Model, ::String))
-to return the value associated with the solver-specific attribute named `name`.
+Extend `get_optimizer_attribute` to return the value associated with the 
+solver-specific attribute named `name`.
 
 **Example**
 ```julia-repl
@@ -378,8 +373,8 @@ end
     JuMP.get_optimizer_attribute(model::InfiniteModel,
                                  attr::MOI.AbstractOptimizerAttribute)
 
-Extend [`get_optimizer_attribute`](@ref JuMP.get_optimizer_attribute(::JuMP.Model, ::MOI.AbstractOptimizerAttribute))
-to return the value of the solver-specific attribute `attr` in `model`.
+Extend `get_optimizer_attribute` to return the value of the solver-specific 
+attribute `attr` in `model`.
 
 **Example**
 ```julia-repl
@@ -395,9 +390,8 @@ end
 """
     JuMP.solver_name(model::InfiniteModel)
 
-Extend [`solver_name`](@ref JuMP.solver_name(::JuMP.Model)) to return the name
-of the solver being used if there is an optimizer selected and it has a name
-attribute. Otherwise, an error is thrown.
+Extend `solver_name` to return the name of the solver being used if there is an 
+optimizer selected and it has a name attribute. Otherwise, an error is thrown.
 
 **Example**
 ```julia-repl
@@ -412,9 +406,9 @@ end
 """
     JuMP.backend(model::InfiniteModel)
 
-Extend [`backend`](@ref JuMP.backend(::JuMP.Model)) to return the
-`MathOptInterface` backend associated with the optimizer model. Note this will
-be empty if the optimizer model has not been build yet.
+Extend `backend` to return the `MathOptInterface` backend associated with the 
+optimizer model. Note this will be empty if the optimizer model has not been 
+build yet.
 
 **Example**
 ```julia-repl
@@ -428,8 +422,7 @@ end
 """
     JuMP.mode(model::InfiniteModel)
 
-Extend [`mode`](@ref JuMP.mode(::JuMP.Model)) to return the `MathOptInterface`
-mode the optimizer model is in.
+Extend `mode` to return the `MathOptInterface` mode the optimizer model is in.
 
 **Example**
 ```julia-repl
@@ -444,8 +437,8 @@ end
 """
     JuMP.result_count(model::InfiniteModel)
 
-Extend [`result_count`](@ref JuMP.result_count(::JuMP.Model)) to return the
-number of results available to query after a call to `optimize!`.
+Extend `result_count` to return the number of results available to query after a 
+call to `optimize!`.
 
 **Example**
 ```julia-repla
@@ -799,7 +792,11 @@ argument to `Val{ext_key_name}`. Keyword arguments can be added as needed.
 function optimizer_model_constraint end
 
 # Fallback for unextended keys
-function optimizer_model_constraint(cref::InfOptConstraintRef, key; kwargs...)
+function optimizer_model_constraint(
+    cref::InfOptConstraintRef,
+    key; 
+    kwargs...
+    )
     error("`optimizer_model_constraint` not implemented for optimizer model " *
           "key `$(typeof(key).parameters[1])`.")
 end
@@ -832,13 +829,17 @@ julia> optimizer_model_constraint(c1) # finite constraint
 c1 : x(support: 1) - y <= 3.0
 ```
 """
-function optimizer_model_constraint(cref::InfOptConstraintRef; kwargs...)
+function optimizer_model_constraint(
+    cref::InfOptConstraintRef; 
+    kwargs...
+    )
     key = optimizer_model_key(JuMP.owner_model(cref))
     return optimizer_model_constraint(cref, Val(key); kwargs...)
 end
 
 """
-    constraint_supports(optimizer_model::JuMP.Model, cref::InfOptConstraintRef,
+    constraint_supports(optimizer_model::JuMP.Model, 
+                        cref::InfOptConstraintRef,
                         key::Val{ext_key_name}; [kwargs...])
 
 Return the supports associated with the mappings of `cref` in `optimizer_model`.
@@ -900,8 +901,7 @@ JuMP.solve(model::InfiniteModel) = JuMP.solve(optimizer_model(model))
     JuMP.optimize!(model::InfiniteModel;
                    bridge_constraints::Bool=true, kwargs...])
 
-Extend [`JuMP.optimize!`](@ref JuMP.optimize!(::JuMP.Model, ::Any))
-to optimize infinite models using the internal
+Extend `JuMP.optimize!` to optimize infinite models using the internal
 optimizer model. Will call [`build_optimizer_model!`](@ref) if the optimizer
 model isn't up to date. The `kwargs` correspond to keyword arguments passed to
 [`build_optimizer_model!`](@ref) if any are defined.

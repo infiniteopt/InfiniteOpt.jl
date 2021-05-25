@@ -9,10 +9,11 @@ and return the `GeneralVariableRef`. This is an extension of
 [`add_measure_variable`](@ref InfiniteOpt.add_measure_variable(::JuMP.Model,::Any,::Any))
 for `TranscriptionOpt`.
 """
-function InfiniteOpt.add_measure_variable(model::JuMP.Model,
-                                          var::InfiniteOpt.PointVariable,
-                                          key::Val{:TransData}
-                                          )::InfiniteOpt.GeneralVariableRef
+function InfiniteOpt.add_measure_variable(
+    model::JuMP.Model,
+    var::InfiniteOpt.PointVariable,
+    key::Val{:TransData}
+    )::InfiniteOpt.GeneralVariableRef
     # make negative index to not conflict with the InfiniteModel
     raw_index = transcription_data(model).last_point_index -= 1
     # make the reference and map it to a transcription variable
@@ -36,10 +37,11 @@ and return the `GeneralVariableRef`. This is an extension of
 for `TranscriptionOpt`. Note that `internal_semi_infinite_variable` is also extended
 to be able to access the `var`.
 """
-function InfiniteOpt.add_measure_variable(model::JuMP.Model,
-                                          var::InfiniteOpt.SemiInfiniteVariable,
-                                          key::Val{:TransData}
-                                          )::InfiniteOpt.GeneralVariableRef
+function InfiniteOpt.add_measure_variable(
+    model::JuMP.Model,
+    var::InfiniteOpt.SemiInfiniteVariable,
+    key::Val{:TransData}
+    )::InfiniteOpt.GeneralVariableRef
     # make negative index to not conflict with the InfiniteModel
     semi_infinite_vars = transcription_data(model).semi_infinite_vars
     raw_index = -1 * (length(semi_infinite_vars) + 1)
@@ -63,8 +65,10 @@ for use in `TranscriptionOpt`. Here we do not delete semi-infinite variables onc
 have been used since there is no performance gain for this paradigm and the
 memory saving is small. Note this may change in the future.
 """
-function InfiniteOpt.delete_semi_infinite_variable(model::JuMP.Model,
-                                             rvref::InfiniteOpt.SemiInfiniteVariableRef,
-                                             key::Val{:TransData})::Nothing
+function InfiniteOpt.delete_semi_infinite_variable(
+    model::JuMP.Model,
+    rvref::InfiniteOpt.SemiInfiniteVariableRef,
+    key::Val{:TransData}
+    )::Nothing
     return
 end

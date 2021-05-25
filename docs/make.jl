@@ -23,7 +23,6 @@ makedocs(;
              "Extensions" => "extensions.md",
              "Development" => "develop.md",
              "Library" => "library.md",
-             hide("JuMP Docs" => "JuMP.md")
              ],
     repo = "https://github.com/pulsipher/InfiniteOpt.jl/blob/{commit}{path}#L{line}",
     sitename = "InfiniteOpt.jl",

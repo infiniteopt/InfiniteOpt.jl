@@ -3,17 +3,19 @@
 ################################################################################
 ## Form a placeholder parameter reference given the object index
 # IndependentParameterIndex
-function _temp_parameter_ref(model::InfiniteOpt.InfiniteModel,
-    index::InfiniteOpt.IndependentParameterIndex
+function _temp_parameter_ref(
+    model::InfiniteOpt.InfiniteModel,
+    idx::InfiniteOpt.IndependentParameterIndex
     )::InfiniteOpt.IndependentParameterRef
-    return InfiniteOpt.IndependentParameterRef(model, index)
+    return InfiniteOpt.IndependentParameterRef(model, idx)
 end
 
 # DependentParametersIndex
-function _temp_parameter_ref(model::InfiniteOpt.InfiniteModel,
-    index::InfiniteOpt.DependentParametersIndex
+function _temp_parameter_ref(
+    model::InfiniteOpt.InfiniteModel,
+    idx::InfiniteOpt.DependentParametersIndex
     )::InfiniteOpt.DependentParameterRef
-    idx = InfiniteOpt.DependentParameterIndex(index, 1)
+    idx = InfiniteOpt.DependentParameterIndex(idx, 1)
     return InfiniteOpt.DependentParameterRef(model, idx)
 end
 
@@ -54,7 +56,8 @@ comprised of `NaN`s for convenience in generating support indices via
 
 Before this is all done, `InfiniteOpt.add_generative_supports` is invoked as needed.
 """
-function set_parameter_supports(trans_model::JuMP.Model,
+function set_parameter_supports(
+    trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
     # gather the basic information
@@ -89,11 +92,12 @@ stored in `inf_model` and add it to `trans_model`. The variable mapping is
 also stored in `TranscriptionData.finvar_mappings` which enables
 [`transcription_variable`](@ref) and [`lookup_by_support`](@ref).
 """
-function transcribe_finite_variables!(trans_model::JuMP.Model,
+function transcribe_finite_variables!(
+    trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
-    for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.FiniteVariable)
-        hvref = InfiniteOpt._make_variable_ref(inf_model, index)
+    for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.FiniteVariable)
+        hvref = InfiniteOpt._make_variable_ref(inf_model, idx)
         vref = JuMP.add_variable(trans_model,
                                  JuMP.ScalarVariable(object.variable.info),
                                  object.name)
@@ -103,7 +107,8 @@ function transcribe_finite_variables!(trans_model::JuMP.Model,
 end
 
 # Return a proper scalar variable info object given on with a start value function
-function _format_infinite_info(var::InfiniteOpt.InfiniteVariable,
+function _format_infinite_info(
+    var::InfiniteOpt.InfiniteVariable,
     support::Vector{Float64}
     )::JuMP.VariableInfo
     # generate the start value
@@ -131,10 +136,11 @@ and [`lookup_by_support`](@ref). Note that the supports will not be generated
 until `InfiniteOpt.variable_supports` is invoked via `InfiniteOpt.supports`. 
 Note that `TranscriptionData.infvar_support_labels` is also populated.
 """
-function transcribe_infinite_variables!(trans_model::JuMP.Model,
+function transcribe_infinite_variables!(
+    trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
-    for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.InfiniteVariable)
+    for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.InfiniteVariable)
         # get the basic variable information
         var = object.variable
         base_name = object.name
@@ -157,7 +163,7 @@ function transcribe_infinite_variables!(trans_model::JuMP.Model,
             @inbounds labels[counter] = index_to_labels(trans_model, i)
         end
         # save the transcription information
-        ivref = InfiniteOpt._make_variable_ref(inf_model, index)
+        ivref = InfiniteOpt._make_variable_ref(inf_model, idx)
         data = transcription_data(trans_model)
         data.infvar_lookup[ivref] = lookup_dict
         data.infvar_mappings[ivref] = vrefs
@@ -198,12 +204,13 @@ futher derivative evaluation constraints are added when
 `transcribe_derivative_evaluations!` is invoked. Note that 
 `TranscriptionData.infvar_support_labels` is also populated.
 """
-function transcribe_derivative_variables!(trans_model::JuMP.Model,
+function transcribe_derivative_variables!(
+    trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
-    for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.Derivative)
+    for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.Derivative)
         # get the basic variable information
-        dref = InfiniteOpt._make_variable_ref(inf_model, index)
+        dref = InfiniteOpt._make_variable_ref(inf_model, idx)
         d = object.variable
         base_name = InfiniteOpt.variable_string(JuMP.REPLMode, dispatch_variable_ref(dref))
         param_nums = InfiniteOpt._parameter_numbers(d.variable_ref)
@@ -235,7 +242,8 @@ function transcribe_derivative_variables!(trans_model::JuMP.Model,
 end
 
 # Setup the mapping for a given semi_infinite variable
-function _set_semi_infinite_variable_mapping(trans_model::JuMP.Model,
+function _set_semi_infinite_variable_mapping(
+    trans_model::JuMP.Model,
     var::InfiniteOpt.SemiInfiniteVariable,
     rvref::InfiniteOpt.GeneralVariableRef,
     index_type
@@ -279,7 +287,8 @@ function _set_semi_infinite_variable_mapping(trans_model::JuMP.Model,
 end
 
 # Empty mapping dispatch for infinite parameter functions
-function _set_semi_infinite_variable_mapping(trans_model::JuMP.Model,
+function _set_semi_infinite_variable_mapping(
+    trans_model::JuMP.Model,
     var::InfiniteOpt.SemiInfiniteVariable,
     rvref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.ParameterFunctionIndex}
@@ -300,13 +309,14 @@ must be called first. Note that the supports will not be generated
 until `InfiniteOpt.variable_supports` is invoked via `InfiniteOpt.supports`. 
 Note that `TranscriptionData.infvar_support_labels` is also populated.
 """
-function transcribe_semi_infinite_variables!(trans_model::JuMP.Model,
+function transcribe_semi_infinite_variables!(
+    trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
-    for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.SemiInfiniteVariable)
+    for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.SemiInfiniteVariable)
         # get the basic variable information
         var = object.variable
-        rvref = InfiniteOpt._make_variable_ref(inf_model, index)
+        rvref = InfiniteOpt._make_variable_ref(inf_model, idx)
         # setup the mappings
         ivref = InfiniteOpt.infinite_variable_ref(rvref)
         _set_semi_infinite_variable_mapping(trans_model, var, rvref, 
@@ -316,7 +326,8 @@ function transcribe_semi_infinite_variables!(trans_model::JuMP.Model,
 end
 
 # Override the info of the jump variable with the point variable's if it is different
-function _update_point_info(gvref::InfiniteOpt.GeneralVariableRef,
+function _update_point_info(
+    gvref::InfiniteOpt.GeneralVariableRef,
     vref::JuMP.VariableRef
     )::Nothing
     pvref = InfiniteOpt.dispatch_variable_ref(gvref)
@@ -364,10 +375,11 @@ Map each `PointVariable` in `inf_model` to a transcription variable stored in
 info constraints associated with the transcription variable will be updated in
 accordance with the point variable.
 """
-function transcribe_point_variables!(trans_model::JuMP.Model,
+function transcribe_point_variables!(
+    trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
-    for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.PointVariable)
+    for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.PointVariable)
         # get the basic variable information
         var = object.variable
         ivref = var.infinite_variable_ref
@@ -375,7 +387,7 @@ function transcribe_point_variables!(trans_model::JuMP.Model,
         supp = var.parameter_values
         # find the corresponding variable record the mapping
         vref = lookup_by_support(trans_model, ivref, supp)
-        pvref = InfiniteOpt._make_variable_ref(inf_model, index)
+        pvref = InfiniteOpt._make_variable_ref(inf_model, idx)
         transcription_data(trans_model).finvar_mappings[pvref] = vref
         # update the info constraints as needed
         _update_point_info(pvref, vref)
@@ -400,7 +412,8 @@ function transcription_expression(trans_model::JuMP.Model, expr, support)
 end
 
 # GeneralVariableRef
-function transcription_expression(trans_model::JuMP.Model,
+function transcription_expression(
+    trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     support::Vector{Float64}
     )
@@ -409,7 +422,8 @@ function transcription_expression(trans_model::JuMP.Model,
 end
 
 # Infinite variables, infinite parameter functions, and measures
-function transcription_expression(trans_model::JuMP.Model,
+function transcription_expression(
+    trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     support::Vector{Float64}
@@ -419,7 +433,8 @@ function transcription_expression(trans_model::JuMP.Model,
 end
 
 # Semi-Infinite variables
-function transcription_expression(trans_model::JuMP.Model,
+function transcription_expression(
+    trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.SemiInfiniteVariableIndex},
     support::Vector{Float64}
@@ -437,7 +452,8 @@ function transcription_expression(trans_model::JuMP.Model,
 end
 
 # Point variables and finite variables
-function transcription_expression(trans_model::JuMP.Model,
+function transcription_expression(
+    trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     support::Vector{Float64}
@@ -446,7 +462,8 @@ function transcription_expression(trans_model::JuMP.Model,
 end
 
 # Infinite parameters
-function transcription_expression(trans_model::JuMP.Model,
+function transcription_expression(
+    trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     support::Vector{Float64}
@@ -456,7 +473,8 @@ function transcription_expression(trans_model::JuMP.Model,
 end
 
 # Finite parameters
-function transcription_expression(trans_model::JuMP.Model,
+function transcription_expression(
+    trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.FiniteParameterIndex},
     support::Vector{Float64}
@@ -465,7 +483,8 @@ function transcription_expression(trans_model::JuMP.Model,
 end
 
 # AffExpr
-function transcription_expression(trans_model::JuMP.Model,
+function transcription_expression(
+    trans_model::JuMP.Model,
     aff::JuMP.GenericAffExpr,
     support::Vector{Float64}
     )
@@ -475,7 +494,8 @@ function transcription_expression(trans_model::JuMP.Model,
 end
 
 # QuadExpr
-function transcription_expression(trans_model::JuMP.Model,
+function transcription_expression(
+    trans_model::JuMP.Model,
     quad::JuMP.GenericQuadExpr,
     support::Vector{Float64}
     )
@@ -487,7 +507,8 @@ function transcription_expression(trans_model::JuMP.Model,
 end
 
 # Real Number 
-function transcription_expression(trans_model::JuMP.Model,
+function transcription_expression(
+    trans_model::JuMP.Model,
     num::Real,
     support::Vector{Float64}
     )
@@ -510,10 +531,11 @@ and [`lookup_by_support`](@ref). Note that the supports will not be generated
 until `InfiniteOpt.variable_supports` is invoked via `InfiniteOpt.supports`. 
 Note that `TranscriptionData.measure_support_labels` is also populated.
 """
-function transcribe_measures!(trans_model::JuMP.Model,
+function transcribe_measures!(
+    trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
-    for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.Measure)
+    for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.Measure)
         # get the basic information
         meas = object.measure
         # expand the measure
@@ -537,7 +559,7 @@ function transcribe_measures!(trans_model::JuMP.Model,
             @inbounds labels[counter] = index_to_labels(trans_model, i)
         end
         # save the transcription information
-        mref = InfiniteOpt._make_variable_ref(inf_model, index)
+        mref = InfiniteOpt._make_variable_ref(inf_model, idx)
         data = transcription_data(trans_model)
         data.measure_lookup[mref] = lookup_dict
         data.measure_mappings[mref] = exprs
@@ -557,7 +579,8 @@ Form the transcripted version of the objective stored in `inf_model` and add it
 to `trans_model`. Note that all the variables and measures in `inf_model` must
 by transcripted first (e.g., via [`transcribe_infinite_variables!`](@ref)).
 """
-function transcribe_objective!(trans_model::JuMP.Model,
+function transcribe_objective!(
+    trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
     expr = JuMP.objective_function(inf_model)
@@ -572,7 +595,8 @@ end
 ################################################################################
 ## Given a variable and its set from an info constraint, get the transcribed version
 # Lower bound constraint
-function _get_info_constr_from_var(trans_model::JuMP.Model,
+function _get_info_constr_from_var(
+    trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     set::MOI.GreaterThan,
     support::Vector{Float64}
@@ -582,7 +606,8 @@ function _get_info_constr_from_var(trans_model::JuMP.Model,
 end
 
 # Upper bound constraint
-function _get_info_constr_from_var(trans_model::JuMP.Model,
+function _get_info_constr_from_var(
+    trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     set::MOI.LessThan,
     support::Vector{Float64}
@@ -592,7 +617,8 @@ function _get_info_constr_from_var(trans_model::JuMP.Model,
 end
 
 # Fix constraint
-function _get_info_constr_from_var(trans_model::JuMP.Model,
+function _get_info_constr_from_var(
+    trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     set::MOI.EqualTo,
     support::Vector{Float64}
@@ -602,7 +628,8 @@ function _get_info_constr_from_var(trans_model::JuMP.Model,
 end
 
 # Binary constraint
-function _get_info_constr_from_var(trans_model::JuMP.Model,
+function _get_info_constr_from_var(
+    trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     set::MOI.ZeroOne,
     support::Vector{Float64}
@@ -612,7 +639,8 @@ function _get_info_constr_from_var(trans_model::JuMP.Model,
 end
 
 # Integer constraint
-function _get_info_constr_from_var(trans_model::JuMP.Model,
+function _get_info_constr_from_var(
+    trans_model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
     set::MOI.Integer,
     support::Vector{Float64}
@@ -621,36 +649,66 @@ function _get_info_constr_from_var(trans_model::JuMP.Model,
     return JuMP.is_integer(trans_vref) ? JuMP.IntegerRef(trans_vref) : nothing
 end
 
-## Extract the parameter bounds from a constr if it has them and collect them
-## to return them in a convenient form for iteration
-# ScalarConstraint
-function _get_constr_bounds(constr::JuMP.ScalarConstraint
-    )::Tuple{Vector{Int}, Vector{InfiniteOpt.IntervalDomain}}
-    return Int[], InfiniteOpt.IntervalDomain[]
-end
-
-# BoundedScalarConstraint
-function _get_constr_bounds(constr::InfiniteOpt.BoundedScalarConstraint
-    )::Tuple{Vector{Int}, Vector{InfiniteOpt.IntervalDomain}}
-    bounds = InfiniteOpt.parameter_bounds(constr)
-    prefs = collect(keys(bounds))
-    domains = map(p -> bounds[p], prefs)
-    indices = map(p -> InfiniteOpt._parameter_number(p), prefs)
-    return indices, domains
-end
-
-## Determine if a given raw support satisfies constraint parameter bounds
-function _support_in_bounds(support::Vector{Float64},
+# Determine if a given raw support satisfies constraint domain restrictions
+function _support_in_restrictions(
+    support::Vector{Float64},
     indices::Vector{Int},
     domains::Vector{InfiniteOpt.IntervalDomain}
     )::Bool
     for i in eachindex(indices)
         s = support[indices[i]]
-        if !isnan(s) && (s < JuMP.lower_bound(domains[i]) || s > JuMP.upper_bound(domains[i]))
+        if !isnan(s) && (s < JuMP.lower_bound(domains[i]) || 
+            s > JuMP.upper_bound(domains[i]))
             return false
         end
     end
     return true
+end
+
+## Process constraint objects at a particular support value and make the new 
+## transcribed version
+# JuMP.ScalarConstraint
+function _process_constraint(
+    trans_model::JuMP.Model, 
+    constr::JuMP.ScalarConstraint, 
+    func::JuMP.AbstractJuMPScalar, 
+    set::MOI.AbstractScalarSet, 
+    raw_supp::Vector{Float64}, 
+    name::String
+    )
+    new_func = transcription_expression(trans_model, func, raw_supp)
+    trans_constr = JuMP.build_constraint(error, new_func, set)
+    return JuMP.add_constraint(trans_model, trans_constr, name)
+end
+
+# JuMP.VectorConstraint
+function _process_constraint(
+    trans_model::JuMP.Model, 
+    constr::JuMP.VectorConstraint, 
+    func::Vector{<:JuMP.AbstractJuMPScalar}, 
+    set::MOI.AbstractVectorSet, 
+    raw_supp::Vector{Float64}, 
+    name::String
+    )
+    new_func = map(f -> transcription_expression(trans_model, f, raw_supp), func)
+    shape = JuMP.shape(constr)
+    shaped_func = JuMP.reshape_vector(new_func, shape)
+    shaped_set = JuMP.reshape_set(set, shape)
+    trans_constr = JuMP.build_constraint(error, shaped_func, shaped_set)
+    return JuMP.add_constraint(trans_model, trans_constr, name)
+end
+
+# Fallback 
+function _process_constraint(
+    trans_model::JuMP.Model, 
+    constr, 
+    func, 
+    set, 
+    raw_supp, 
+    name
+    )
+    error("Transcribing constraints of type `$(typeof(constr))` is not ", 
+          "currently supported.")
 end
 
 """
@@ -667,16 +725,18 @@ the variables and measures must all first be transcripted (e.g., via
 [`transcribe_measures!`](@ref)). Note that 
 `TranscriptionData.constr_support_labels` is also populated.
 """
-function transcribe_constraints!(trans_model::JuMP.Model,
+function transcribe_constraints!(
+    trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
     param_supps = parameter_supports(trans_model)
-    for (index, object) in inf_model.constraints
+    for (idx, object) in inf_model.constraints
         # get the basic information
         constr = object.constraint
         func = JuMP.jump_function(constr)
         set = JuMP.moi_set(constr)
         obj_nums = object.object_nums
+        cref = InfiniteOpt._make_constraint_ref(inf_model, idx)
         # prepare the iteration helpers
         supp_indices = support_index_iterator(trans_model, obj_nums)
         crefs = Vector{JuMP.ConstraintRef}(undef, length(supp_indices))
@@ -701,17 +761,20 @@ function transcribe_constraints!(trans_model::JuMP.Model,
         # iterate over the supports for regular constraints
         else
             # get basic setup information
-            bound_info = _get_constr_bounds(constr)
+            restrictions = InfiniteOpt.domain_restrictions(cref)
+            prefs = collect(keys(restrictions))
+            restrict_indices = map(p -> InfiniteOpt._parameter_number(p), prefs)
+            restrict_domains = map(p -> restrictions[p], prefs)
             name = object.name
             for i in supp_indices
                 raw_supp = index_to_support(trans_model, i)
                 # ensure the support satisfies parameter bounds and then add it
-                if _support_in_bounds(raw_supp, bound_info[1], bound_info[2])
-                    new_func = transcription_expression(trans_model, func, raw_supp)
-                    trans_constr = JuMP.build_constraint(error, new_func, set)
+                if _support_in_restrictions(raw_supp, restrict_indices, 
+                                            restrict_domains)
                     new_name = isempty(name) ? "" : string(name, "(support: ", counter, ")")
-                    @inbounds crefs[counter] = JuMP.add_constraint(trans_model,
-                                                         trans_constr, new_name)
+                    new_cref = _process_constraint(trans_model, constr, func, 
+                                                   set, raw_supp, new_name) 
+                    @inbounds crefs[counter] = new_cref
                     @inbounds supps[counter] = Tuple(param_supps[j][i[j]]
                                                      for j in obj_nums)
                     @inbounds labels[counter] = index_to_labels(trans_model, i)
@@ -724,7 +787,6 @@ function transcribe_constraints!(trans_model::JuMP.Model,
         deleteat!(supps, counter:length(supps))
         deleteat!(labels, counter:length(supps))
         # add the constraint mappings to the trans model
-        cref = InfiniteOpt._make_constraint_ref(inf_model, index)
         data = transcription_data(trans_model)
         data.constr_mappings[cref] = crefs
         data.constr_supports[cref] = supps
@@ -747,12 +809,13 @@ won't have any constraints that correspond to these equations. Also Note that
 the variables and measures must all first be transcripted (e.g., via
 [`transcribe_derivative_variables!`](@ref)).
 """
-function transcribe_derivative_evaluations!(trans_model::JuMP.Model, 
+function transcribe_derivative_evaluations!(
+    trans_model::JuMP.Model, 
     inf_model::InfiniteOpt.InfiniteModel
     )::Nothing
-    for (index, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.Derivative)
+    for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.Derivative)
         # get the basic variable information
-        dref = InfiniteOpt._make_variable_ref(inf_model, index)
+        dref = InfiniteOpt._make_variable_ref(inf_model, idx)
         pref = dispatch_variable_ref(object.variable.parameter_ref)
         method = InfiniteOpt.derivative_method(pref)
         # generate the transcription constraints as needed
@@ -800,7 +863,8 @@ in 1,000,000 supports if all three are together in at least 1 constraint. This
 behavior can be overcome using dependent parameters. The warning can be turned off 
 via `check_support_dims = false`.
 """
-function build_transcription_model!(trans_model::JuMP.Model,
+function build_transcription_model!(
+    trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel; check_support_dims::Bool = true
     )::Nothing
     # ensure there are supports to add and add them to the trans model

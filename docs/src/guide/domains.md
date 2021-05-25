@@ -161,8 +161,8 @@ support generation method for `IntervalDomain`s. Another support generation meth
 is `MCSample`, which is to sample from a uniform distribution over the interval. To use this method, users
 need to specify a second positional argument, as shown in the following example:
 ```jldoctest; setup = :(using InfiniteOpt, Random; Random.seed!(0); domain = IntervalDomain(-2, 2))
-julia> generate_supports(domain, MCSample, num_supports = 5)
-([1.29459, 1.64143, -1.34174, -1.29068, -0.88448], MCSample)
+julia> generate_supports(domain, MCSample, num_supports = 5, sig_digits = 5)
+([1.2946, 1.6414, -1.3417, -1.2907, -0.88448], MCSample)
 ```
 In this case, the returned label is `MCSample`, instead of `UniformGrid`.
 

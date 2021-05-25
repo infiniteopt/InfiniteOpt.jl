@@ -1,3 +1,7 @@
+```@meta
+DocTestFilters = [r" ∈ | in ", r"E|𝔼", r"integral|∫"]
+```
+
 # [Measure Operators] (@id measure_page)
 A guide and manual for the definition and use of measures in `InfiniteOpt`.
 The Datatypes and Methods sections at the end comprise the manual, and the
@@ -23,10 +27,10 @@ from 0 to 10. We also consider a state variable `y(t)` and a control variable
 julia> @infinite_parameter(model, t in [0, 10], supports = [0, 5, 10])
 t
 
-julia> @infinite_variable(model, y(t))
+julia> @variable(model, y, Infinite(t))
 y(t)
 
-julia> @infinite_variable(model, u(t))
+julia> @variable(model, u, Infinite(t))
 u(t)
 ```
 
@@ -72,7 +76,7 @@ julia> m = InfiniteModel();
 
 julia> @infinite_parameter(m, ξ in Normal(), num_supports = 100);
 
-julia> @infinite_variable(m, x(ξ));
+julia> @variable(m, x, Infinite(ξ));
 
 julia> expect_x = expect(x^2, ξ)
 𝔼{ξ}[x(ξ)²]
@@ -100,8 +104,7 @@ Once a measure is created, the evaluation of that measure is stored in a
 measure data object. Users can query the measure data object using the
 [`measure_data`](@ref) function as follows
 ```jldoctest meas_basic
-julia> measure_data(mref2)
-FunctionalDiscreteMeasureData{GeneralVariableRef,Float64,UniformGenerativeInfo}(t, getfield(InfiniteOpt.MeasureToolbox, Symbol("##5#6")){Int64}(3), 0, All, UniformGenerativeInfo([0.5], InternalGaussLobatto), InfiniteOpt.default_weight, 0.0, 10.0, false)
+julia> meas_data = measure_data(mref2);
 ```
 Natively in `InfiniteOpt`, two types of measure data objects are used to store the measure
 data information depending on the nature of the measures created: `DiscreteMeasureData` and
@@ -329,7 +332,7 @@ supports and an integral objective function that uses `UniTrapezoid()` (the defa
 # Create a model, with one variable and an infinite parameter with a given number of supports
 m = InfiniteModel()
 @infinite_parameter(m, t in [0, 2], num_supports = 3)
-@infinite_variable(m, u(t))
+@variable(m, u, Infinite(t))
 
 # Create an objective function with the default trapezoid integration
 @objective(m, Min, integral(u^2, t))
@@ -426,7 +429,7 @@ not add supports elsewhere (for convenience we'll use `set_uni_integral_defaults
 # Define a new model, parameter, and variable
 m = InfiniteModel()
 @infinite_parameter(m, t in [0, 2])
-@infinite_variable(m, u(t))
+@variable(m, u, Infinite(t))
 
 # Update the integral default keyword arguments for convenience 
 set_uni_integral_defaults(eval_method = GaussLegendre(), num_nodes = 2)
@@ -502,60 +505,6 @@ because they are not defined in the model before the expand call. One can use
 the [`expand_all_measures!`](@ref) function to expand all measures in a model,
 which simply applies the [`expand`](@ref) to all measures stored in the model.
 
-## Semi-Infinite Variables
-!!! note 
-    Previous versions of `InfiniteOpt` referred to semi-infinite variables as 
-    "reduced infinite variables". 
-     
-Expanding measures that cover a subset of infinite parameter dependencies present 
-in an expression will introduce semi-infinite variables to the
-model. To see what this means, suppose we have an infinite variable that is
-parameterized by multiple infinite parameters defined as follows:
-```jldoctest meas_basic
-julia> @infinite_variable(model, T(x, t))
-T(x, t)
-```
-Now say we want to integrate `T` over `t`. We can define a measure for the
-integral similar to how we have defined other measures:
-```jldoctest meas_basic
-julia> mref5 = measure(T, tdata)
-measure{t}[T(x, t)]
-```
-Now if we expand this measure, the measure data object `tdata` records the
-supports for `t`, but no supports for `x` because `T` is not evaluated over
-`x` in this measure. Therefore, point variables cannot be defined in the
-measure expansion.
-
-Instead of point variables, each new variable in the measure expansion will be
-represented using semi-infinite variables. Semi-infinite variables are
-reduced from their original infinite variables in that they are parameterized
-by less infinite parameters. In the example above, in the expansion each
-semi-infinite variable for `T` should only be parameterized by `x` since
-the value of `t` is fixed. The expanded measure now looks like this:
-```jldoctest meas_basic
-julia> expanded_measure = expand(mref5)
-5 T([x[1], x[2]], 2.5) + 5 T([x[1], x[2]], 7.5)
-```
-where the expanded measure is a `JuMP.GenericAffExpr` that takes in its terms [`GeneralVariableRef`](@ref)s
-pointing to [`SemiInfiniteVariable`](@ref)s created on the fly. [`SemiInfiniteVariable`](@ref)
-refers to the information of the semi-infinite variable stored in its model. The semi-infinite variable
-records a reference for its original infinite variable, and the value of the
-fixed infinite parameter. One can query this information using
-[`infinite_variable_ref`](@ref) and [`eval_supports`](@ref) function as follows:
-```jldoctest meas_basic
-julia> T1 = first(keys(expanded_measure.terms))
-T([x[1], x[2]], 2.5)
-
-julia> infinite_variable_ref(T1)
-T(x, t)
-
-julia> eval_supports(T1)
-Dict{Int64,Float64} with 1 entry:
-  3 => 2.5
-```
-All the `JuMP` functions extended for infinite variables are also extended for
-semi-infinite variables, e.g. [`JuMP.lower_bound`](@ref JuMP.lower_bound(::SemiInfiniteVariableRef)).
-
 ## Datatypes
 ```@index
 Pages   = ["measure.md"]
@@ -570,9 +519,6 @@ Measure
 MeasureIndex
 MeasureData
 MeasureRef
-SemiInfiniteVariable
-SemiInfiniteVariableIndex
-SemiInfiniteVariableRef
 ```
 
 ## Methods
@@ -599,7 +545,6 @@ coefficient_function(::AbstractMeasureData)
 coefficients(::AbstractMeasureData)
 weight_function(::AbstractMeasureData)
 build_measure
-InfiniteOpt.measure_data_in_finite_var_bounds(::AbstractMeasureData,::ParameterBounds)
 add_measure
 InfiniteOpt.add_supports_to_parameters(::AbstractMeasureData)
 measure_function
@@ -628,28 +573,6 @@ add_measure_variable(::JuMP.Model, ::Any, ::Any)
 delete_internal_semi_infinite_variable
 delete_semi_infinite_variable(::JuMP.Model, ::Any, ::Any)
 internal_semi_infinite_variable
-JuMP.build_variable(::Function, ::GeneralVariableRef,::Dict{Int, Float64})
-JuMP.add_variable(::InfiniteModel, ::SemiInfiniteVariable,::String)
-infinite_variable_ref(::SemiInfiniteVariableRef)
-eval_supports(::SemiInfiniteVariableRef)
-parameter_refs(::SemiInfiniteVariableRef)
-parameter_list(::SemiInfiniteVariableRef)
-raw_parameter_refs(::SemiInfiniteVariableRef)
-JuMP.set_name(::SemiInfiniteVariableRef,::String)
-JuMP.has_lower_bound(::SemiInfiniteVariableRef)
-JuMP.lower_bound(::SemiInfiniteVariableRef)
-JuMP.LowerBoundRef(::SemiInfiniteVariableRef)
-JuMP.has_upper_bound(::SemiInfiniteVariableRef)
-JuMP.upper_bound(::SemiInfiniteVariableRef)
-JuMP.UpperBoundRef(::SemiInfiniteVariableRef)
-JuMP.is_fixed(::SemiInfiniteVariableRef)
-JuMP.fix_value(::SemiInfiniteVariableRef)
-JuMP.FixRef(::SemiInfiniteVariableRef)
-start_value_function(::SemiInfiniteVariableRef)
-JuMP.is_binary(::SemiInfiniteVariableRef)
-JuMP.BinaryRef(::SemiInfiniteVariableRef)
-JuMP.is_integer(::SemiInfiniteVariableRef)
-JuMP.IntegerRef(::SemiInfiniteVariableRef)
 ```
 
 ## MeasureToolbox Datatypes

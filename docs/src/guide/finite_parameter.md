@@ -11,9 +11,7 @@ ability is provided in `InfiniteOpt` via [`@finite_parameter`](@ref) which
 permits users to define finite parameters whose values can later be modified
 as needed. Furthermore, at the optimization step these parameters are replaced
 with their numeric values. Thus, not adding unnecessary decision variables as is
-typically done in `JuMP` models using
-[`JuMP.fix`](@ref JuMP.fix(::JuMP.VariableRef, ::Number)) on placeholder
-variables.  
+typically done in `JuMP` models using `JuMP.fix` on placeholder variables.  
 
 ## Basic Usage
 Once an `InfiniteModel` `model` has been defined we can add a finite parameter
@@ -43,7 +41,7 @@ and constraints just like infinite parameters.
 
 The value of a finite parameter can be checked using
 [`parameter_value`](@ref parameter_value(::FiniteParameterRef)) and can modified using
-[`JuMP.set_value`](@ref JuMP.set_value(::FiniteParameterRef, ::Real)). For example,
+[`set_value`](@ref JuMP.set_value(::FiniteParameterRef, ::Real)). For example,
 let's update the value of `max_cost` to be now be `10.2`:
 ```jldoctest fpar
 julia> parameter_value(max_cost)

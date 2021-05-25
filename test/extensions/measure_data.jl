@@ -43,15 +43,6 @@ function InfiniteOpt.support_label(data::NewMeasureData)::Type{<:AbstractSupport
     return data.attr2.label # REPLACE WITH ACTUAL LOCATION
 end
 
-# Extend measure_data_in_finite_var_bounds to determine if NewMeasureData is in the
-# domain of finite variable bounds. (Enables finite variable error checking)
-function InfiniteOpt.measure_data_in_finite_var_bounds(data::NewMeasureData,
-                                                 bounds::ParameterBounds)::Bool
-    # INSERT ACTUAL CHECK HERE
-    in_bounds = measure_data_in_finite_var_bounds(data.attr2, bounds) # REPLACE WITH ACTUAL RESULT
-    return in_bounds
-end
-
 # Extend coefficients to return the coefficients stored in NewMeasureData if appropriate
 # This is optional (returns empty vector otherwise)
 function InfiniteOpt.coefficients(data::NewMeasureData)::Vector{Float64}
@@ -66,9 +57,14 @@ end
 
 # Make a convenient measure constructor function for our new measure type
 # This should employ measure(expr, data)
-function new_measure(expr::JuMP.AbstractJuMPScalar, param::GeneralVariableRef,
-                     lb::Number, ub::Number; name::String = "NewMeas",
-                     num_supports::Int = 10)::GeneralVariableRef # REPLACE ARGS WITH ACTUAL DESIRED
+function new_measure(
+    expr::JuMP.AbstractJuMPScalar, 
+    param::GeneralVariableRef,
+    lb::Number, 
+    ub::Number; 
+    name::String = "NewMeas",
+    num_supports::Int = 10
+    )::GeneralVariableRef # REPLACE ARGS WITH ACTUAL DESIRED
     # INSERT RELAVENT CHECKS AND OPERATIONS HERE
     # REPLACE BELOW WITH ACTUAL CONSTRUCTION
     attr2 = DiscreteMeasureData(param, ones(num_supports), [lb + (ub - lb) / (num_supports - 1) * i for i in 1:num_supports]) # just an example

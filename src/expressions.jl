@@ -2,27 +2,31 @@
 #                          PARAMETER FUNCTION METHODS
 ################################################################################
 # Extend dispatch_variable_ref
-function dispatch_variable_ref(model::InfiniteModel,
-                               index::ParameterFunctionIndex
-                               )::ParameterFunctionRef
+function dispatch_variable_ref(
+    model::InfiniteModel,
+    index::ParameterFunctionIndex
+    )::ParameterFunctionRef
     return ParameterFunctionRef(model, index)
 end
 
 # Extend _add_data_object
-function _add_data_object(model::InfiniteModel,
-                          object::ParameterFunctionData
-                          )::ParameterFunctionIndex
+function _add_data_object(
+    model::InfiniteModel,
+    object::ParameterFunctionData
+    )::ParameterFunctionIndex
     return MOIUC.add_item(model.param_functions, object)
 end
 
 # Extend _data_dictionary (reference based)
-function _data_dictionary(fref::ParameterFunctionRef
+function _data_dictionary(
+    fref::ParameterFunctionRef
     )::MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{<:ParameterFunction}}
     return JuMP.owner_model(fref).param_functions
 end
 
 # Extend _data_object
-function _data_object(fref::ParameterFunctionRef
+function _data_object(
+    fref::ParameterFunctionRef
     )::ParameterFunctionData
   object = get(_data_dictionary(fref), JuMP.index(fref), nothing)
   object === nothing && error("Invalid parameter function reference, cannot find " *
@@ -32,7 +36,8 @@ function _data_object(fref::ParameterFunctionRef
 end
 
 # Extend _core_variable_object
-function _core_variable_object(fref::ParameterFunctionRef
+function _core_variable_object(
+    fref::ParameterFunctionRef
     )::ParameterFunction
     return _data_object(fref).func
 end
@@ -209,7 +214,7 @@ end
 
 Add an [`ParameterFunction`](@ref) `pfunc` to the `model` using `name` for 
 printing and return a `GeneralVariableRef` such that it can be embedded in 
-expressions. Errors if the infinite parameters `pfunc` points to do not belong to 
+expressions. Errors if the parameter function `pfunc` points to do not belong to 
 `model`. Note that `pfunc` should be created using [`build_parameter_function`](@ref).
 
 **Example**
@@ -236,8 +241,7 @@ end
 """
     JuMP.name(fref::ParameterFunctionRef)::String
 
-Extend [`JuMP.name`](@ref JuMP.name(::JuMP.VariableRef)) to return the base name of
-`fref`.
+Extend `JuMP.name` to return the base name of `fref`.
 
 **Example**
 ```julia-repl
@@ -253,8 +257,7 @@ end
 """
     JuMP.set_name(fref::ParameterFunctionRef, name::String)::Nothing
 
-Extend [`JuMP.set_name`](@ref JuMP.set_name(::JuMP.VariableRef, ::String)) to set
-names of infinite parameter functions.
+Extend `JuMP.set_name` to set the name of a parameter function.
 
 **Example**
 ```julia-repl
@@ -285,7 +288,7 @@ end
                        func_kwargs::Union{NameTuple, Nothing} = nothing]
                        )::GeneralVariableRef
 
-Make an infinite parameter function and return a `GeneralVariableRef` that can be 
+Make a parameter function and return a `GeneralVariableRef` that can be 
 embedded in InfiniteOpt expressions. This serves as a convenient wrapper for 
 [`build_parameter_function`](@ref) and [`add_parameter_function`](@ref). For an 
 even more convenient definition method see [`@parameter_function`](@ref).
@@ -352,7 +355,9 @@ depends on. This is primarily an internal method where
 [`parameter_refs`](@ref parameter_refs(::ParameterFunctionRef))
 is intended as the preferred user function.
 """
-function raw_parameter_refs(fref::ParameterFunctionRef)::VectorTuple{GeneralVariableRef}
+function raw_parameter_refs(
+    fref::ParameterFunctionRef
+    )::VectorTuple{GeneralVariableRef}
     return _core_variable_object(fref).parameter_refs 
 end
 
@@ -429,7 +434,9 @@ function _measure_dependencies(fref::ParameterFunctionRef)::Vector{MeasureIndex}
 end
 
 # Extend _constraint_dependencies
-function _constraint_dependencies(fref::ParameterFunctionRef)::Vector{ConstraintIndex}
+function _constraint_dependencies(
+    fref::ParameterFunctionRef
+    )::Vector{InfOptConstraintIndex}
     return _data_object(fref).constraint_indices
 end
 
@@ -512,12 +519,12 @@ end
 """
     JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)::Nothing
 
-Extend [`JuMP.delete`](@ref JuMP.delete(::JuMP.Model, ::JuMP.VariableRef)) to delete
-infinite parameter functions and their dependencies. Errors if `fref` is invalid,
-meaning it has already been deleted or it belongs to another model.
+Extend `JuMP.delete` to delete parameter functions and their dependencies. Errors 
+if `fref` is invalid, meaning it has already been deleted or it belongs to 
+another model.
 """
 function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)::Nothing 
-    @assert JuMP.is_valid(model, fref) "Infinite parameter function is invalid."
+    @assert JuMP.is_valid(model, fref) "Parameter function is invalid."
     # update the optimizer model status
     if is_used(fref)
         set_optimizer_model_ready(model, false)
@@ -552,7 +559,7 @@ function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)::Nothing
     end
     # remove from constraints if used
     for cindex in _constraint_dependencies(fref)
-        cref = _temp_constraint_ref(model, cindex)
+        cref = _make_constraint_ref(model, cindex)
         func = JuMP.jump_function(JuMP.constraint_object(cref))
         if func isa GeneralVariableRef
             set = JuMP.moi_set(JuMP.constraint_object(cref))
@@ -560,6 +567,8 @@ function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)::Nothing
             new_constr = JuMP.ScalarConstraint(new_func, set)
             _set_core_constraint_object(cref, new_constr)
             empty!(_object_numbers(cref))
+        elseif func isa AbstractArray{GeneralVariableRef}
+            JuMP.delete(model, cref)
         else
             _remove_variable(func, gvref)
             _data_object(cref).object_nums = sort(_object_numbers(func))
@@ -628,6 +637,18 @@ function _all_function_variables(
     end
     return collect(vref_set)
 end
+
+# Array of expressions 
+function _all_function_variables(
+    arr::AbstractArray
+    )::Vector{GeneralVariableRef}
+    vref_set = Set{GeneralVariableRef}()
+    for f in arr 
+        union!(vref_set, _all_function_variables(f))
+    end
+    return collect(vref_set)
+end
+
 
 # Fallback
 function _all_function_variables(f)
@@ -721,7 +742,9 @@ function _model_from_expr(expr::GeneralVariableRef)::InfiniteModel
 end
 
 # AffExpr
-function _model_from_expr(expr::JuMP.GenericAffExpr)::Union{InfiniteModel, Nothing}
+function _model_from_expr(
+    expr::JuMP.GenericAffExpr
+    )::Union{InfiniteModel, Nothing}
     if isempty(expr.terms)
         return
     else
@@ -730,7 +753,9 @@ function _model_from_expr(expr::JuMP.GenericAffExpr)::Union{InfiniteModel, Nothi
 end
 
 # QuadExpr
-function _model_from_expr(expr::JuMP.GenericQuadExpr)::Union{InfiniteModel, Nothing}
+function _model_from_expr(
+    expr::JuMP.GenericQuadExpr
+    )::Union{InfiniteModel, Nothing}
     result = _model_from_expr(expr.aff)
     if result !== nothing
         return result
@@ -742,7 +767,9 @@ function _model_from_expr(expr::JuMP.GenericQuadExpr)::Union{InfiniteModel, Noth
 end
 
 # Vector{GeneralVariableRef}
-function _model_from_expr(vrefs::Vector{GeneralVariableRef})::Union{InfiniteModel, Nothing}
+function _model_from_expr(
+    vrefs::Vector{GeneralVariableRef}
+    )::Union{InfiniteModel, Nothing}
     if isempty(vrefs)
         return
     else
@@ -760,8 +787,10 @@ end
 ################################################################################
 ## Delete variables from an expression
 # GenericAffExpr
-function _remove_variable(f::JuMP.GenericAffExpr,
-                          vref::GeneralVariableRef)::Nothing
+function _remove_variable(
+    f::JuMP.GenericAffExpr,
+    vref::GeneralVariableRef
+    )::Nothing
     if haskey(f.terms, vref)
         delete!(f.terms, vref)
     end
@@ -769,10 +798,12 @@ function _remove_variable(f::JuMP.GenericAffExpr,
 end
 
 # GenericQuadExpr
-function _remove_variable(f::JuMP.GenericQuadExpr,
-                          vref::GeneralVariableRef)::Nothing
+function _remove_variable(
+    f::JuMP.GenericQuadExpr,
+    vref::GeneralVariableRef
+    )::Nothing
     _remove_variable(f.aff, vref)
-    for (pair, coef) in f.terms # TODO should we preserve non-vref in pair? --> this would differ from JuMP
+    for (pair, coef) in f.terms
         if pair.a == vref || pair.b == vref
             delete!(f.terms, pair)
         end
@@ -780,8 +811,19 @@ function _remove_variable(f::JuMP.GenericQuadExpr,
     return
 end
 
+# AbstractArray 
+function _remove_variable(
+    arr::AbstractArray,
+    vref::GeneralVariableRef
+    )::Nothing
+    for f in arr
+        _remove_variable(f, vref)
+    end
+    return
+end
+
 ################################################################################
-#                         COEFFICIENT MODIFICATION METHODS
+#                             COEFFICIENT METHODS
 ################################################################################
 ## Modify linear coefficient of variable in expression
 # GeneralVariableRef
@@ -830,6 +872,36 @@ function _set_variable_coefficient!(expr, var::GeneralVariableRef, coeff::Real)
     error("Unsupported function type for coefficient modification.")
 end
 
+## Query the coefficient of a variable 
+# GeneralVariableRef 
+function _affine_coefficient(
+    func::GeneralVariableRef, 
+    var::GeneralVariableRef
+    )::Float64 
+    return func == var ? 1.0 : 0.0
+end
+
+# GenericAffExpr
+function _affine_coefficient(
+    func::GenericAffExpr, 
+    var::GeneralVariableRef
+    )::Float64 
+    return get(func.terms, var, 0.0)
+end
+
+# GenericQuadExpr
+function _affine_coefficient(
+    func::GenericQuadExpr, 
+    var::GeneralVariableRef
+    )::Float64 
+    return get(func.aff.terms, var, 0.0)
+end
+
+# Fallback 
+function _affine_coefficient(func, var::GeneralVariableRef)
+    error("Unsupported function type for coefficient queries.")
+end
+
 ################################################################################
 #                         PARAMETER REFERENCE METHODS
 ################################################################################
@@ -854,7 +926,7 @@ end
 """
     parameter_refs(expr)::Tuple
 
-Return the tuple of infinite parameter references that determine the infinite
+Return the tuple of parameter references that determine the infinite
 dependencies of `expr`.
 
 **Example**
@@ -863,7 +935,9 @@ julia> parameter_refs(my_expr)
 (t,)
 ```
 """
-function parameter_refs(expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr})::Tuple
+function parameter_refs(
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr}
+    )::Tuple
     model = _model_from_expr(expr)
     if model === nothing
         return ()

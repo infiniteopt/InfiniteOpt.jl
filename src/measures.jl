@@ -49,9 +49,36 @@ function _parameter_numbers(mref::MeasureRef)::Vector{Int}
     return _core_variable_object(mref).parameter_nums
 end
 
-# Extend _set_core_variable_object
-function _set_core_variable_object(mref::MeasureRef, object::Measure)::Nothing
-    _data_object(mref).measure = object
+## Set helper methods for adapting data_objects with parametric changes 
+# No change needed 
+function _adaptive_data_update(
+    mref::MeasureRef, 
+    m::M, 
+    data::MeasureData{M}
+    )::Nothing where {M <: Measure}
+    data.measure = m
+    return
+end
+
+# Reconstruction is necessary 
+function _adaptive_data_update(
+    mref::MeasureRef, 
+    m::M1, 
+    data::MeasureData{M2}
+    )::Nothing  where {M1, M2}
+    new_data = MeasureData(m, data.name, data.measure_indices, 
+                           data.constraint_indices, data.derivative_indices,
+                           data.in_objective)
+    _data_dictionary(mref)[JuMP.index(mref)] = new_data
+    return
+end
+
+# Update the core measure object
+function _set_core_variable_object(
+    mref::MeasureRef,
+    meas::Measure
+    )::Nothing
+    _adaptive_data_update(mref, meas, _data_object(mref))
     return
 end
 
@@ -61,7 +88,7 @@ function _measure_dependencies(mref::MeasureRef)::Vector{MeasureIndex}
 end
 
 # Extend _constraint_dependencies
-function _constraint_dependencies(mref::MeasureRef)::Vector{ConstraintIndex}
+function _constraint_dependencies(mref::MeasureRef)::Vector{InfOptConstraintIndex}
     return _data_object(mref).constraint_indices
 end
 
@@ -707,72 +734,6 @@ end
 #                            MEASURE CONSTRUCTION METHODS
 ################################################################################
 """
-    measure_data_in_finite_var_bounds(data::AbstractMeasureData,
-                                bounds::ParameterBounds)::Bool
-
-Return a `Bool` whether the domain of `data` is valid in accordance with
-`bounds`. This is intended as an internal method and is used to check finite
-variables used in measures. User-defined measure data types will need to
-extend this function to enable this error checking, otherwise it is skipped and
-a warning is given.
-"""
-function measure_data_in_finite_var_bounds(data::AbstractMeasureData,
-                                           bounds::ParameterBounds)::Bool
-    @warn "Unable to check if finite variables bounds are valid in measure " *
-           "with measure data type `$(typeof(data))`. This can be resolved by " *
-           "extending `measure_data_in_finite_var_bounds`."
-    return true
-end
-
-# Scalar DiscreteMeasureData and FunctionalDiscreteMeasureData
-function measure_data_in_finite_var_bounds(
-    data::Union{DiscreteMeasureData{P, 1}, FunctionalDiscreteMeasureData{P}},
-    bounds::ParameterBounds{GeneralVariableRef}
-    )::Bool where {P <: GeneralVariableRef}
-    pref = parameter_refs(data)
-    supps = supports(data)
-    if haskey(bounds, pref) && length(supps) != 0
-        return supports_in_domain(supps, bounds[pref])
-    end
-    return true
-end
-
-# Multi-dimensional DiscreteMeasureData and FunctionalDiscreteMeasureData
-function measure_data_in_finite_var_bounds(
-    data::Union{DiscreteMeasureData{P, 2}, FunctionalDiscreteMeasureData{P}},
-    bounds::ParameterBounds{GeneralVariableRef}
-    )::Bool where {P <: Vector{GeneralVariableRef}}
-    prefs = parameter_refs(data)
-    supps = supports(data)
-    if length(supps) != 0
-        for i in eachindex(prefs)
-            if haskey(bounds, prefs[i])
-                if !supports_in_domain(supps[i, :], bounds[prefs[i]])
-                    return false
-                end
-            end
-        end
-    end
-    return true
-end
-
-# Check that variables don't violate the parameter bounds
-function _check_var_bounds(vref::GeneralVariableRef, data::AbstractMeasureData)
-    if _index_type(vref) == FiniteVariableIndex
-        bounds = parameter_bounds(vref)
-        if !measure_data_in_finite_var_bounds(data, bounds)
-            error("Measure bounds violate finite variable parameter bounds.")
-        end
-    elseif _index_type(vref) == MeasureIndex
-        vrefs = _all_function_variables(measure_function(vref))
-        for vref in vrefs
-            _check_var_bounds(vref, data)
-        end
-    end
-    return
-end
-
-"""
     build_measure(expr::JuMP.AbstractJuMPScalar,
                   data::AbstractMeasureData)::Measure
 
@@ -786,11 +747,6 @@ function build_measure(expr::T, data::D;
     )::Measure{T, D} where {T <: JuMP.AbstractJuMPScalar, D <: AbstractMeasureData}
     vrefs = _all_function_variables(expr)
     model = _model_from_expr(vrefs)
-    if model.has_finite_var_bounds
-        for vref in vrefs
-            _check_var_bounds(vref, data)
-        end
-    end
     expr_obj_nums = _object_numbers(expr)
     expr_param_nums = _parameter_numbers(expr)
     prefs = parameter_refs(data)
@@ -1168,10 +1124,10 @@ Typically, the `DiscreteMeasureData` and the `FunctionalDiscreteMeasureData`
 constructors can be used to for `data`. The variable expression `expr` can contain
 `InfiniteOpt` variables, infinite parameters, other measure references (meaning
 measures can be nested), and constants. Typically, this is called inside of
-[`JuMP.@expression`](@ref), [`JuMP.@objective`](@ref), and
-[`JuMP.@constraint`](@ref) in a manner similar to `sum`. Note measures are not
-explicitly evaluated until [`build_optimizer_model!`](@ref) is called or unless
-they are expanded via [`expand`](@ref) or [`expand_all_measures!`](@ref).
+`JuMP.@expression`, `JuMP.@objective`, and `JuMP.@constraint` in a manner similar 
+to `sum`. Note measures are not explicitly evaluated until 
+[`build_optimizer_model!`](@ref) is called or unless they are expanded via 
+[`expand`](@ref) or [`expand_all_measures!`](@ref).
 
 **Example**
 ```julia-repl
@@ -1369,7 +1325,7 @@ end
 """
     JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
 
-Extend [`JuMP.delete`](@ref) to delete measures. Errors if measure is invalid,
+Extend `JuMP.delete` to delete measures. Errors if measure is invalid,
 meaning it does not belong to the model or it has already been deleted.
 
 **Example**
@@ -1416,7 +1372,7 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
     end
     # Remove from dependent constraints if there are any
     for cindex in _constraint_dependencies(mref)
-        cref = _temp_constraint_ref(model, cindex)
+        cref = _make_constraint_ref(model, cindex)
         func = JuMP.jump_function(JuMP.constraint_object(cref))
         if func isa GeneralVariableRef
             set = JuMP.moi_set(JuMP.constraint_object(cref))
@@ -1425,6 +1381,8 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
             _set_core_constraint_object(cref, new_constr)
             empty!(_object_numbers(cref))
             empty!(_measure_dependencies(cref))
+        elseif func isa AbstractArray{GeneralVariableRef}
+            JuMP.delete(model, cref)
         else
             _remove_variable(func, gvref)
             _data_object(cref).object_nums = sort(_object_numbers(func))

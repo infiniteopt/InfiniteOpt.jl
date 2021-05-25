@@ -120,7 +120,7 @@ end
 """
     FiniteVariableIndex <: ObjectIndex
 
-A `DataType` for storing the index of a [`FiniteVariable`](@ref).
+A `DataType` for storing the index of a `JuMP.ScalarVariable`.
 
 **Fields**
 - `value::Int64`: The index value.
@@ -158,14 +158,14 @@ struct MeasureIndex <: ObjectIndex
 end
 
 """
-    ConstraintIndex <: ObjectIndex
+InOptConstraintIndex <: ObjectIndex
 
-A `DataType` for storing the index of constraint objects.
+A `DataType` for storing the index of a constraint.
 
 **Fields**
 - `value::Int64`: The index value.
 """
-struct ConstraintIndex <: ObjectIndex
+struct InfOptConstraintIndex <: ObjectIndex
     value::Int64
 end
 
@@ -547,7 +547,7 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
    infinite variables.
 - `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
-- `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
+- `constraint_indices::Vector{InfOptConstraintIndex}`: Indices of dependent constraints.
 - `in_objective::Bool`: Is this used in objective? This should be true only for finite parameters.
 - `generative_measures::Vector{MeasureIndex}`: Indices of measures that use `parameter.generative_supp_info`.
 - `has_internal_supports::Bool`: Does this parameter have internal supports?
@@ -564,7 +564,7 @@ mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     infinite_var_indices::Vector{InfiniteVariableIndex}
     derivative_indices::Vector{DerivativeIndex}
     measure_indices::Vector{MeasureIndex}
-    constraint_indices::Vector{ConstraintIndex}
+    constraint_indices::Vector{InfOptConstraintIndex}
     in_objective::Bool
     generative_measures::Vector{MeasureIndex}
     has_internal_supports::Bool
@@ -581,7 +581,7 @@ function ScalarParameterData(param::P,
     return ScalarParameterData{P}(param, object_num, parameter_num, name,
                                   ParameterFunctionIndex[], InfiniteVariableIndex[], 
                                   DerivativeIndex[], MeasureIndex[], 
-                                  ConstraintIndex[], false, MeasureIndex[], 
+                                  InfOptConstraintIndex[], false, MeasureIndex[], 
                                   false, false, false)
 end
 
@@ -603,7 +603,7 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
    dependent infinite variables.
 - `derivative_indices::Vector{Vector{DerivativeIndex}} `: Indices of dependent derivatives.
 - `measure_indices::Vector{Vector{MeasureIndex}}`: Indices of dependent measures.
-- `constraint_indices::Vector{Vector{ConstraintIndex}}`: Indices of dependent
+- `constraint_indices::Vector{Vector{InfOptConstraintIndex}}`: Indices of dependent
   constraints.
 - `has_internal_supports::Bool`: Does this parameter have internal supports?
 - `has_deriv_constrs::Bool`: Have any derivative evaluation constraints been added 
@@ -618,7 +618,7 @@ mutable struct MultiParameterData{P <: DependentParameters} <: AbstractDataObjec
     infinite_var_indices::Vector{InfiniteVariableIndex}
     derivative_indices::Vector{Vector{DerivativeIndex}} 
     measure_indices::Vector{Vector{MeasureIndex}}
-    constraint_indices::Vector{Vector{ConstraintIndex}}
+    constraint_indices::Vector{Vector{InfOptConstraintIndex}}
     has_internal_supports::Bool
     has_deriv_constrs::Vector{Bool}
 end
@@ -633,25 +633,39 @@ function MultiParameterData(params::P,
                                  ParameterFunctionIndex[], InfiniteVariableIndex[],
                                  [DerivativeIndex[] for i in eachindex(names)],
                                  [MeasureIndex[] for i in eachindex(names)],
-                                 [ConstraintIndex[] for i in eachindex(names)],
+                                 [InfOptConstraintIndex[] for i in eachindex(names)],
                                  false, zeros(Bool, length(names)))
 end
 
 ################################################################################
-#                             PARAMETER BOUNDS
+#                             DOMAIN RESTRICTIONS
 ################################################################################
 """
-    ParameterBounds{P <: GeneralVariableRef}
+    DomainRestrictions{P <: GeneralVariableRef}
 
-A `DataType` for storing intervaled bounds of parameters. This is used to define
-subdomains of [`FiniteVariable`](@ref)s and [`BoundedScalarConstraint`](@ref)s.
+A `DataType` for storing interval domains that constrain particular infinite 
+parameters to a subdomain relative to their full domain. This is used to define
+subdomains of [`DomainRestrictedConstraint`](@ref)s.
 Note that the GeneralVariableRef must pertain to infinite parameters.
+
+The constructor syntax is
+```julia 
+DomainRestrictions(restrictions...)
+```
+where each argument of `restrictions` is one of the following forms:
+- `pref => value`
+- `pref => [lb, ub]`
+- `pref => IntervalDomain(lb, ub)`
+- `prefs => value`
+- `prefs => [lb, ub]`
+- `prefs => IntervalDomain(lb, ub)`.
+Note that `pref` and `prefs` must correspond to infinite parameters. 
 
 **Fields**
 - `intervals::Dict{GeneralVariableRef, IntervalDomain}`: A dictionary
   of interval bounds on infinite parameters.
 """
-struct ParameterBounds{P <: JuMP.AbstractVariableRef}
+struct DomainRestrictions{P <: JuMP.AbstractVariableRef}
     intervals::Dict{P, IntervalDomain}
 end
 
@@ -694,7 +708,7 @@ A mutable `DataType` for storing `ParameterFunction`s and their data.
 - `func::F`: The parameter function.
 - `name::String`: The name used for printing.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
-- `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
+- `constraint_indices::Vector{InfOptConstraintIndex}`: Indices of dependent constraints.
 - `semi_infinite_var_indices::Vector{SemiInfiniteVariableIndex}`: Indices of dependent semi-infinite variables.
 - `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
 """
@@ -702,11 +716,11 @@ mutable struct ParameterFunctionData{F <: ParameterFunction} <: AbstractDataObje
     func::F
     name::String
     measure_indices::Vector{MeasureIndex}
-    constraint_indices::Vector{ConstraintIndex}
+    constraint_indices::Vector{InfOptConstraintIndex}
     semi_infinite_var_indices::Vector{SemiInfiniteVariableIndex}
     derivative_indices::Vector{DerivativeIndex}
     function ParameterFunctionData(func::F, name::String = "") where {F <: ParameterFunction}
-        return new{F}(func, name, MeasureIndex[], ConstraintIndex[], 
+        return new{F}(func, name, MeasureIndex[], InfOptConstraintIndex[], 
                       SemiInfiniteVariableIndex[], DerivativeIndex[])
     end
 end
@@ -715,14 +729,7 @@ end
 #                               VARIABLE TYPES
 ################################################################################
 """
-    InfOptVariable <: JuMP.AbstractVariable
-
-An abstract type for infinite, semi-infinite, point, and finite variables.
-"""
-abstract type InfOptVariable <: JuMP.AbstractVariable end
-
-"""
-    InfiniteVariable{P <: GeneralVariableRef} <: InfOptVariable
+    InfiniteVariable{P <: GeneralVariableRef} <: JuMP.AbstractVariable
 
 A `DataType` for storing core infinite variable information. Note that indices
 that refer to the same dependent parameter group must be in the same tuple element.
@@ -741,7 +748,7 @@ infinite parameters.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
 - `is_vector_start::Bool`: Does the start function take support values formatted as vectors?
 """
-struct InfiniteVariable{P <: JuMP.AbstractVariableRef} <: InfOptVariable
+struct InfiniteVariable{P <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
     info::JuMP.VariableInfo{Float64, Float64, Float64, Function}
     parameter_refs::VectorTuple{P}
     parameter_nums::Vector{Int}
@@ -750,7 +757,7 @@ struct InfiniteVariable{P <: JuMP.AbstractVariableRef} <: InfOptVariable
 end
 
 """
-    SemiInfiniteVariable{I <: GeneralVariableRef} <: InfOptVariable
+    SemiInfiniteVariable{I <: GeneralVariableRef} <: JuMP.AbstractVariable
 
 A `DataType` for storing semi-infinite variables which partially support an
 infinite variable.
@@ -764,7 +771,7 @@ infinite variable.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with the
                               evaluated `parameter_refs`.
 """
-struct SemiInfiniteVariable{I <: JuMP.AbstractVariableRef} <: InfOptVariable
+struct SemiInfiniteVariable{I <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
     infinite_variable_ref::I
     eval_supports::Dict{Int, Float64}
     parameter_nums::Vector{Int}
@@ -772,79 +779,65 @@ struct SemiInfiniteVariable{I <: JuMP.AbstractVariableRef} <: InfOptVariable
 end
 
 """
-    PointVariable{I <: GeneralVariableRef} <: InfOptVariable
+    PointVariable{I <: GeneralVariableRef} <: JuMP.AbstractVariable
 
 A `DataType` for storing point variable information. Note that the elements
 `parameter_values` field must match the format of the parameter reference tuple
 defined in [`InfiniteVariable`](@ref)
 
 **Fields**
-- `info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}` JuMP Variable information.
-- `infinite_variable_ref::I` The infinite variable/derivative reference
+- `info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}`: JuMP Variable information.
+- `infinite_variable_ref::I`: The infinite variable/derivative reference
     associated with the point variable.
-- `parameter_values::Vector{Float64}` The infinite parameter values
+- `parameter_values::Vector{Float64}`: The infinite parameter values
     defining the point.
 """
-struct PointVariable{I <: JuMP.AbstractVariableRef} <: InfOptVariable
+struct PointVariable{I <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
     info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
     infinite_variable_ref::I
     parameter_values::Vector{Float64}
 end
 
 """
-    FiniteVariable{P <: GeneralVariableRef} <: InfOptVariable
+    VariableData{V <: JuMP.AbstractVariable} <: AbstractDataObject
 
-A `DataType` for storing finite variable information.
-
-**Fields**
-- `info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}` JuMP variable information.
-- `parameter_bounds::ParameterBounds{P}` Valid parameter sub-domains
-"""
-struct FiniteVariable{P <: JuMP.AbstractVariableRef} <: InfOptVariable
-    info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
-    parameter_bounds::ParameterBounds{P}
-end
-
-"""
-    VariableData{V <: InfOptVariable} <: AbstractDataObject
-
-A mutable `DataType` for storing `InfOptVariable`s and their data.
+A mutable `DataType` for storing variables and their data.
 
 **Fields**
 - `variable::V`: The scalar variable.
 - `name::String`: The name used for printing.
-- `lower_bound_index::Union{ConstraintIndex, Nothing}`: Index of lower bound constraint.
-- `upper_bound_index::Union{ConstraintIndex, Nothing}`: Index of upper bound constraint.
-- `fix_index::Union{ConstraintIndex, Nothing}`: Index on fixing constraint.
-- `zero_one_index::Union{ConstraintIndex, Nothing}`: Index of binary constraint.
-- `integrality_index::Union{ConstraintIndex, Nothing}`: Index of integer constraint.
+- `lower_bound_index::Union{InfOptConstraintIndex, Nothing}`: Index of lower bound constraint.
+- `upper_bound_index::Union{InfOptConstraintIndex, Nothing}`: Index of upper bound constraint.
+- `fix_index::Union{InfOptConstraintIndex, Nothing}`: Index on fixing constraint.
+- `zero_one_index::Union{InfOptConstraintIndex, Nothing}`: Index of binary constraint.
+- `integrality_index::Union{InfOptConstraintIndex, Nothing}`: Index of integer constraint.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
-- `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
+- `constraint_indices::Vector{InfOptConstraintIndex}`: Indices of dependent constraints.
 - `in_objective::Bool`: Is this used in objective?
 - `point_var_indices::Vector{PointVariableIndex}`: Indices of dependent point variables.
 - `semi_infinite_var_indices::Vector{SemiInfiniteVariableIndex}`: Indices of dependent semi-infinite variables.
 - `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
-- `deriv_constr_indices::Vector{ConstraintIndex}`: Indices of dependent derivative evaluation constraints.
+- `deriv_constr_indices::Vector{InfOptConstraintIndex}`: Indices of dependent derivative evaluation constraints.
 """
-mutable struct VariableData{V <: InfOptVariable} <: AbstractDataObject
+mutable struct VariableData{V <: JuMP.AbstractVariable} <: AbstractDataObject
     variable::V
     name::String
-    lower_bound_index::Union{ConstraintIndex, Nothing}
-    upper_bound_index::Union{ConstraintIndex, Nothing}
-    fix_index::Union{ConstraintIndex, Nothing}
-    zero_one_index::Union{ConstraintIndex, Nothing}
-    integrality_index::Union{ConstraintIndex, Nothing}
+    lower_bound_index::Union{InfOptConstraintIndex, Nothing}
+    upper_bound_index::Union{InfOptConstraintIndex, Nothing}
+    fix_index::Union{InfOptConstraintIndex, Nothing}
+    zero_one_index::Union{InfOptConstraintIndex, Nothing}
+    integrality_index::Union{InfOptConstraintIndex, Nothing}
     measure_indices::Vector{MeasureIndex}
-    constraint_indices::Vector{ConstraintIndex}
+    constraint_indices::Vector{InfOptConstraintIndex}
     in_objective::Bool
     point_var_indices::Vector{PointVariableIndex} # InfiniteVariables only
     semi_infinite_var_indices::Vector{SemiInfiniteVariableIndex} # InfiniteVariables only
     derivative_indices::Vector{DerivativeIndex} # infinite and semi-infinite only
-    deriv_constr_indices::Vector{ConstraintIndex} # Derivatives only
-    function VariableData(var::V, name::String = "") where {V <: InfOptVariable}
+    deriv_constr_indices::Vector{InfOptConstraintIndex} # Derivatives only
+    function VariableData(var::V, name::String = "") where {V <: JuMP.AbstractVariable}
         return new{V}(var, name, nothing, nothing, nothing, nothing, nothing,
-                   MeasureIndex[], ConstraintIndex[], false, PointVariableIndex[],
-                   SemiInfiniteVariableIndex[], DerivativeIndex[], ConstraintIndex[])
+                   MeasureIndex[], InfOptConstraintIndex[], false, PointVariableIndex[],
+                   SemiInfiniteVariableIndex[], DerivativeIndex[], InfOptConstraintIndex[])
     end
 end
 
@@ -852,7 +845,7 @@ end
 #                              DERIVATIVE TYPES
 ################################################################################
 """
-    Derivative{V <: GeneralVariableRef} <: InfOptVariable
+    Derivative{V <: GeneralVariableRef} <: JuMP.AbstractVariable
 
 A `DataType` for storing core infinite derivative information. This follows a 
 derivative of the form: ``\\frac{\\partial x(\\alpha, \\hdots)}{\\partial \\alpha}`` 
@@ -873,7 +866,7 @@ infinite variables and parameters.
 - `parameter_ref::V`: The variable reference of the infinite parameter the defines the
    differential operator.
 """
-struct Derivative{V <: JuMP.AbstractVariableRef} <: InfOptVariable
+struct Derivative{V <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
     info::JuMP.VariableInfo{Float64, Float64, Float64, Function}
     is_vector_start::Bool
     variable_ref::V # could be ref of infinite/semi-infinite variable/derivative or measure (top of derivative)
@@ -1096,76 +1089,71 @@ struct Measure{T <: JuMP.AbstractJuMPScalar, V <: AbstractMeasureData}
 end
 
 """
-    MeasureData <: AbstractDataObject
+    MeasureData{M <: Measure} <: AbstractDataObject
 
 A mutable `DataType` for storing [`Measure`](@ref)s and their data.
 
 **Fields**
-- `measure::Measure`: The measure structure.
+- `measure::M`: The measure structure.
 - `name::String`: The base name used for printing `name(meas_expr d(par))`.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
-- `constraint_indices::Vector{ConstraintIndex}`: Indices of dependent constraints.
+- `constraint_indices::Vector{InfOptConstraintIndex}`: Indices of dependent constraints.
 - `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
 - `in_objective::Bool`: Is this used in objective?
 """
-mutable struct MeasureData <: AbstractDataObject
-    measure::Measure
+mutable struct MeasureData{M <: Measure} <: AbstractDataObject
+    measure::M
     name::String
     measure_indices::Vector{MeasureIndex}
-    constraint_indices::Vector{ConstraintIndex}
+    constraint_indices::Vector{InfOptConstraintIndex}
     derivative_indices::Vector{DerivativeIndex}
     in_objective::Bool
-    function MeasureData(measure::Measure, name::String = "measure")
-        return new(measure, name, MeasureIndex[], ConstraintIndex[], 
-                   DerivativeIndex[], false)
-    end
+end
+
+function MeasureData(measure::M, name::String = "measure") where {M <: Measure}
+    return MeasureData{M}(measure, name, MeasureIndex[], InfOptConstraintIndex[], 
+                          DerivativeIndex[], false)
 end
 
 ################################################################################
 #                              CONSTRAINT TYPES
 ################################################################################
 """
-    BoundedScalarConstraint{F <: JuMP.AbstractJuMPScalar,
-                            S <: MOI.AbstractScalarSet,
-                            P <: GeneralVariableRef
-                            } <: JuMP.AbstractConstraint
+    DomainRestrictedConstraint{C <: JuMP.AbstractConstraint, 
+                               P <: GeneralVariableRef
+                               } <: JuMP.AbstractConstraint
 
-A `DataType` that stores scalar constraints that are defined over a sub-domain
-of infinite parameters.
+A `DataType` for creating a constraint with enforced `DomainRestrictions`. For 
+example this may pertain to a boundary condition.
 
 **Fields**
-- `func::F` The JuMP object.
-- `set::S` The MOI set.
-- `bounds::ParameterBounds{P}` Set of valid parameter
-    sub-domains that further boundconstraint.
-- `orig_bounds::ParameterBounds{P}` Set of the constraint's
-    original parameter sub-domains (not considering finite variables)
+- `constraint::C`: The optimization constraint.
+- `restrictions::DomainRestrictions{P}`: The restrictions that determine the 
+   sub-domain of the constraint.
 """
-struct BoundedScalarConstraint{F <: JuMP.AbstractJuMPScalar,
-                               S <: MOI.AbstractScalarSet,
-                               P <: JuMP.AbstractVariableRef
-                               } <: JuMP.AbstractConstraint
-    func::F
-    set::S
-    bounds::ParameterBounds{P}
-    orig_bounds::ParameterBounds{P}
+struct DomainRestrictedConstraint{C <: JuMP.AbstractConstraint, 
+                                  P <: JuMP.AbstractVariableRef
+                                  } <: JuMP.AbstractConstraint
+    constraint::C
+    restrictions::DomainRestrictions{P}
 end
 
 """
-    ConstraintData <: AbstractDataObject
+    ConstraintData{C <: JuMP.AbstractConstraint} <: AbstractDataObject
 
 A mutable `DataType` for storing constraints and their data.
 
 **Fields**
-- `constraint::JuMP.AbstractConstraint`: The scalar constraint.
+- `constraint::C`: The constraint.
 - `object_nums::Vector{Int}`: The object numbers of the parameter objects that the
                               constraint depends on.
 - `name::String`: The name used for printing.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
-- `is_info_constraint::Bool`: Is this is constraint based on variable info (e.g., lower bound)
+- `is_info_constraint::Bool`: Is this is constraint based on variable info 
+   (e.g., lower bound)
 """
-mutable struct ConstraintData <: AbstractDataObject
-    constraint::JuMP.AbstractConstraint
+mutable struct ConstraintData{C <: JuMP.AbstractConstraint} <: AbstractDataObject
+    constraint::C
     object_nums::Vector{Int}
     name::String
     measure_indices::Vector{MeasureIndex}
@@ -1201,23 +1189,23 @@ model an optmization problem with an infinite-dimensional decision space.
    The semi-infinite variables and their mapping information.
 - `point_vars::MOIUC.CleverDict{PointVariableIndex, <:VariableData{<:PointVariable}}`:
    The point variables and their mapping information.
-- `finite_vars::MOIUC.CleverDict{FiniteVariableIndex, <:VariableData{<:FiniteVariable}}`:
+- `finite_vars::MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}`:
    The finite variables and their mapping information.
 - `name_to_var::Union{Dict{String, AbstractInfOptIndex}, Nothing}`:
    Field to help find a variable given the name.
-- `has_finite_var_bounds::Bool`:
-   Does any variable have parameter bounds?
 - `derivatives::MOIUC.CleverDict{DerivativeIndex, <:VariableData{<:Derivative}}`:
   The derivatives and their mapping information.
 - `deriv_lookup::Dict{<:Tuple, DerivativeIndex}`: Map derivative variable-parameter 
   pairs to a derivative index to prevent duplicates.
-- `measures::MOIUC.CleverDict{MeasureIndex, MeasureData}`:
+- `measures::MOIUC.CleverDict{MeasureIndex, <:MeasureData}`:
    The measures and their mapping information.
 - `integral_defaults::Dict{Symbol}`:
    The default keyword arguments for [`integral`](@ref).
-- `constraints::MOIUC.CleverDict{ConstraintIndex, ConstraintData}`:
+- `constraints::MOIUC.CleverDict{InfOptConstraintIndex, <:ConstraintData}`:
    The constraints and their mapping information.
-- `name_to_constr::Union{Dict{String, ConstraintIndex}, Nothing}`:
+- `constraint_restrictions::Dict{InfOptConstraintIndex, <:DomainRestrictions}` Map constraints 
+  to their domain restrictions if they have any.
+- `name_to_constr::Union{Dict{String, InfOptConstraintIndex}, Nothing}`:
    Field to help find a constraint given the name.
 - `objective_sense::MOI.OptimizationSense`: Objective sense.
 - `objective_function::JuMP.AbstractJuMPScalar`: Finite scalar function.
@@ -1242,20 +1230,20 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}
     semi_infinite_vars::MOIUC.CleverDict{SemiInfiniteVariableIndex, <:VariableData{<:SemiInfiniteVariable}}
     point_vars::MOIUC.CleverDict{PointVariableIndex, <:VariableData{<:PointVariable}}
-    finite_vars::MOIUC.CleverDict{FiniteVariableIndex, <:VariableData{<:FiniteVariable}}
+    finite_vars::MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}
     name_to_var::Union{Dict{String, AbstractInfOptIndex}, Nothing}
-    has_finite_var_bounds::Bool
 
     # Derivative Data 
     derivatives::MOIUC.CleverDict{DerivativeIndex, <:VariableData{<:Derivative}}
     deriv_lookup::Dict{<:Tuple, DerivativeIndex}
 
     # Measure Data
-    measures::MOIUC.CleverDict{MeasureIndex, MeasureData}
+    measures::MOIUC.CleverDict{MeasureIndex, <:MeasureData}
 
     # Constraint Data
-    constraints::MOIUC.CleverDict{ConstraintIndex, ConstraintData}
-    name_to_constr::Union{Dict{String, ConstraintIndex}, Nothing}
+    constraints::MOIUC.CleverDict{InfOptConstraintIndex, <:ConstraintData}
+    constraint_restrictions::Dict{InfOptConstraintIndex, <:DomainRestrictions}
+    name_to_constr::Union{Dict{String, InfOptConstraintIndex}, Nothing}
 
     # Objective Data
     objective_sense::MOI.OptimizationSense
@@ -1318,8 +1306,10 @@ CachingOptimizer state: EMPTY_OPTIMIZER
 Solver name: Ipopt
 ```
 """
-function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
-                       kwargs...)::InfiniteModel
+function InfiniteModel(; 
+    OptimizerModel::Function = TranscriptionModel,
+    kwargs...
+    )::InfiniteModel
     return InfiniteModel(# Parameters
                          MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}(),
                          MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}(),
@@ -1331,15 +1321,16 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable{GeneralVariableRef}}}(),
                          MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),
                          MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
-                         MOIUC.CleverDict{FiniteVariableIndex, VariableData{FiniteVariable{GeneralVariableRef}}}(),
-                         nothing, false,
+                         MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}(),
+                         nothing,
                          # Derivatives
                          MOIUC.CleverDict{DerivativeIndex, VariableData{Derivative{GeneralVariableRef}}}(),
                          Dict{Tuple{GeneralVariableRef, GeneralVariableRef}, DerivativeIndex}(),
                          # Measures
-                         MOIUC.CleverDict{MeasureIndex, MeasureData}(),
+                         MOIUC.CleverDict{MeasureIndex, MeasureData{<:Measure}}(),
                          # Constraints
-                         MOIUC.CleverDict{ConstraintIndex, ConstraintData}(),
+                         MOIUC.CleverDict{InfOptConstraintIndex, ConstraintData{<:JuMP.AbstractConstraint}}(),
+                         Dict{InfOptConstraintIndex, DomainRestrictions{GeneralVariableRef}}(),
                          nothing,
                          # Objective
                          MOI.FEASIBILITY_SENSE,
@@ -1348,7 +1339,7 @@ function InfiniteModel(; OptimizerModel::Function = TranscriptionModel,
                          # Object dictionary
                          Dict{Symbol, Any}(),
                          # Optimize data
-                         nothing, OptimizerModel(;kwargs...), false,
+                         nothing, OptimizerModel(; kwargs...), false,
                          # Extensions
                          Dict{Symbol, Any}()
                          )
@@ -1356,8 +1347,10 @@ end
 
 ## Set the optimizer_constructor depending on what it is
 # MOI.OptimizerWithAttributes
-function _set_optimizer_constructor(model::InfiniteModel,
-                                    constructor::MOI.OptimizerWithAttributes)::Nothing
+function _set_optimizer_constructor(
+    model::InfiniteModel,
+    constructor::MOI.OptimizerWithAttributes
+    )::Nothing
     model.optimizer_constructor = constructor.optimizer_constructor
     return
 end
@@ -1369,9 +1362,11 @@ function _set_optimizer_constructor(model::InfiniteModel, constructor)::Nothing
 end
 
 # Dispatch for InfiniteModel call with optimizer constructor
-function InfiniteModel(optimizer_constructor;
-                       OptimizerModel::Function = TranscriptionModel,
-                       kwargs...)::InfiniteModel
+function InfiniteModel(
+    optimizer_constructor;
+    OptimizerModel::Function = TranscriptionModel,
+    kwargs...
+    )::InfiniteModel
     model = InfiniteModel()
     model.optimizer_model = OptimizerModel(optimizer_constructor; kwargs...)
     _set_optimizer_constructor(model, optimizer_constructor)
@@ -1387,7 +1382,7 @@ Base.broadcastable(model::InfiniteModel) = Ref(model)
 Return the dictionary that maps the symbol name of a macro defined object (e.g., 
 a parameter, variable, or constraint) to the corresponding object. Objects are 
 registered to a specific symbol in the macros. For example, 
-`@finite_variable(model, x[1:2, 1:2])` registers the array of variables
+`@variable(model, x[1:2, 1:2])` registers the array of variables
 `x` to the symbol `:x`.
 """
 JuMP.object_dictionary(model::InfiniteModel)::Dict{Symbol, Any} = model.obj_dict
@@ -1414,13 +1409,13 @@ function Base.empty!(model::InfiniteModel)::InfiniteModel
     empty!(model.point_vars)
     empty!(model.finite_vars)
     model.name_to_var = nothing
-    model.has_finite_var_bounds = false
     # derivatives and measures
     empty!(model.derivatives)
     empty!(model.deriv_lookup)
     empty!(model.measures)
     # constraints
     empty!(model.constraints)
+    empty!(model.constraint_restrictions)
     model.name_to_constr = nothing
     # objective
     model.objective_sense = MOI.FEASIBILITY_SENSE
@@ -1651,11 +1646,11 @@ A `DataType` for constraints that are in `InfiniteModel`s
 
 **Fields**
 - `model::InfiniteModel`: Infinite model.
-- `index::ConstraintIndex`: Index of the constraint in model.
+- `index::InfOptConstraintIndex`: Index of the constraint in model.
 """
 struct InfOptConstraintRef
     model::InfiniteModel
-    index::ConstraintIndex
+    index::InfOptConstraintIndex
 end
 
 # Make dumby model type for calling @expression 
@@ -1666,21 +1661,21 @@ const _Model = _DumbyModel()
 #                            PARAMETER BOUND METHODS
 ################################################################################
 ## Modify parameter dictionary to expand any multidimensional parameter keys
-# Case where dictionary is already in correct form
+# Case where tuple is already in correct form
 function _expand_parameter_tuple(
-    param_bounds::NTuple{N, Pair{GeneralVariableRef, IntervalDomain}}
+    param_restrictions::NTuple{N, Pair{GeneralVariableRef, IntervalDomain}}
     )::Dict{GeneralVariableRef, IntervalDomain} where {N}
-    return Dict(param_bounds...)
+    return Dict{GeneralVariableRef, IntervalDomain}(param_restrictions...)
 end
 
-# Case where dictionary contains vectors
-function _expand_parameter_dict(
-    param_bounds::NTuple{N, Pair{<:Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}, IntervalDomain}}
+# Case where tuple contains vectors
+function _expand_parameter_tuple(
+    param_restrictions::NTuple{N, Pair{<:Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}, IntervalDomain}}
     )::Dict{GeneralVariableRef, IntervalDomain} where {N}
     # Initialize new dictionary
     new_dict = Dict{GeneralVariableRef, IntervalDomain}()
     # Find vector keys and expand
-    for (key, set) in param_bounds
+    for (key, set) in param_restrictions
         # expand over the array of parameters if this is
         if isa(key, AbstractArray)
             for param in key
@@ -1694,74 +1689,122 @@ function _expand_parameter_dict(
     return new_dict
 end
 
-# Case where dictionary contains vectors
-function _expand_parameter_dict(param_bounds::Tuple)
-    error("Invalid parameter bound dictionary format.")
+# Handle symbolic domain input 
+_process_domain(d::Real) = IntervalDomain(d, d)
+function _process_domain(d::Vector{<:Real})
+    if length(d) != 2
+        error("Invalid domain restriction syntax. Expected restrictions of the ",
+              "format `DomainRestrictions(restrictions...)` where each ",
+              "argument in `restrictions` is one of the following forms:",
+              "\n- `pref => value`\n- `pref => [lb, ub]`\n- `prefs => value`",
+              "\n- `prefs => [lb, ub]`")
+    end
+    return IntervalDomain(d[1], d[2])
+end
+
+# Case where tuple has symbolic domains
+function _expand_parameter_tuple(
+    param_restrictions::NTuple{N, Pair{<:Any, <:Union{Real, Vector{<:Real}}}}
+    )::Dict{GeneralVariableRef, IntervalDomain} where {N}
+    new_tuple = Tuple(p[1] => _process_domain(p[2]) for p in param_restrictions)
+    return _expand_parameter_tuple(new_tuple)
+end
+
+# Case where tuple contains other stuff
+function _expand_parameter_tuple(param_restrictions)
+    error("Invalid domain restriction syntax. Expected restrictions of the ",
+          "format `DomainRestrictions(restrictions...)` where each ",
+          "argument in `restrictions` is one of the following forms:",
+          "\n- `pref => value`\n- `pref => [lb, ub]`\n- `prefs => value`",
+          "\n- `prefs => [lb, ub]`")
 end
 
 # Constructor for expanding array parameters
-function ParameterBounds(intervals::NTuple{N, Pair}
-    )::ParameterBounds{GeneralVariableRef} where {N}
-    return ParameterBounds(_expand_parameter_dict(intervals))
+function DomainRestrictions(
+    intervals::NTuple{N, Pair}
+    )::DomainRestrictions{GeneralVariableRef} where {N}
+    return DomainRestrictions(_expand_parameter_tuple(intervals))
+end
+
+# Convenient constructor
+function DomainRestrictions(args...)::DomainRestrictions{GeneralVariableRef}
+    return DomainRestrictions(args)
 end
 
 # Default method
-function ParameterBounds()::ParameterBounds{GeneralVariableRef}
-    return ParameterBounds(Dict{GeneralVariableRef, IntervalDomain}())
+function DomainRestrictions()::DomainRestrictions{GeneralVariableRef}
+    return DomainRestrictions(Dict{GeneralVariableRef, IntervalDomain}())
 end
 
 # Make dictionary accessor
-function intervals(pb::ParameterBounds{P})::Dict{P, IntervalDomain} where {P}
-    return pb.intervals
+function intervals(dr::DomainRestrictions{P})::Dict{P, IntervalDomain} where {P}
+    return dr.intervals
 end
 
 # Extend simple 1 argument Base dispatches
 for op = (:length, :isempty, :keys, :iterate)
-    @eval Base.$op(bounds::ParameterBounds) = $op(intervals(bounds))
+    @eval Base.$op(restrictions::DomainRestrictions) = $op(intervals(restrictions))
 end
 
 # Extend simple 2 argument Base dispatches where the second is arbitrary
 for op = (:getindex, :haskey, :iterate)
-    @eval Base.$op(bounds::ParameterBounds, arg) = $op(intervals(bounds), arg)
+    @eval Base.$op(restrictions::DomainRestrictions, arg) = $op(intervals(restrictions), arg)
 end
 
 # Extend Base.:(==)
-function Base.:(==)(bounds1::ParameterBounds, bounds2::ParameterBounds)::Bool
-    return intervals(bounds1) == intervals(bounds2)
+function Base.:(==)(
+    restrictions1::DomainRestrictions, 
+    restrictions2::DomainRestrictions
+    )::Bool
+    return intervals(restrictions1) == intervals(restrictions2)
 end
 
 # Extend Base.copy
-Base.copy(bounds::ParameterBounds) = ParameterBounds(copy(intervals(bounds)))
+function Base.copy(restrictions::DomainRestrictions) 
+    return DomainRestrictions(copy(intervals(restrictions)))
+end
 
 # Extend Base.setindex!
-function Base.setindex!(pb::ParameterBounds{P}, value::IntervalDomain,
-                        index::P)::IntervalDomain where {P}
-    return intervals(pb)[index] = value
+function Base.setindex!(
+    dr::DomainRestrictions{P}, 
+    value::IntervalDomain,
+    index::P
+    )::IntervalDomain where {P}
+    return intervals(dr)[index] = value
 end
 
 # Extend Base.delete!
-function Base.delete!(pb::ParameterBounds{P}, key::P)::ParameterBounds{P} where {P}
-    delete!(intervals(pb), key)
-    return pb
+function Base.delete!(
+    dr::DomainRestrictions{P}, 
+    key::P
+    )::DomainRestrictions{P} where {P}
+    delete!(intervals(dr), key)
+    return dr
 end
 
 # Extend Base.merge
-function Base.merge(pb1::ParameterBounds{P},
-                    pb2::ParameterBounds{P})::ParameterBounds{P} where {P}
-    new_dict = merge(intervals(pb1), intervals(pb2))
-    return ParameterBounds(new_dict)
+function Base.merge(
+    dr1::DomainRestrictions{P},
+    dr2::DomainRestrictions{P}
+    )::DomainRestrictions{P} where {P}
+    new_dict = merge(intervals(dr1), intervals(dr2))
+    return DomainRestrictions(new_dict)
 end
 
 # Extend Base.merge!
-function Base.merge!(pb1::ParameterBounds{P},
-                     pb2::ParameterBounds{P})::ParameterBounds{P} where {P}
-    merge!(intervals(pb1), intervals(pb2))
-    return pb1
+function Base.merge!(
+    dr1::DomainRestrictions{P},
+    dr2::DomainRestrictions{P}
+    )::DomainRestrictions{P} where {P}
+    merge!(intervals(dr1), intervals(dr2))
+    return dr1
 end
 
 # Extend Base.filter
-function Base.filter(f::Function,
-                     pb::ParameterBounds{P})::ParameterBounds{P} where {P}
-    new_dict = filter(f, intervals(pb))
-    return ParameterBounds(new_dict)
+function Base.filter(
+    f::Function,
+    dr::DomainRestrictions{P}
+    )::DomainRestrictions{P} where {P}
+    new_dict = filter(f, intervals(dr))
+    return DomainRestrictions(new_dict)
 end

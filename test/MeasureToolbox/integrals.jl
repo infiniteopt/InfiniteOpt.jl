@@ -43,7 +43,7 @@
         expected = [0.08333333333333333, 0.3333333333333333, 0.16666666666666666,
                     0.3333333333333333, 0.08333333333333333]
         @test all(abs.(generate_integral_data(t, 0, 1, FEGaussLobatto()).coeff_function([0, 0.5, 1]) .- expected) .< 0.00005)
-        @infinite_variable(m, flob(t))
+        @variable(m, flob, Infinite(t))
         integral(flob, t, 0, 1, eval_method = FEGaussLobatto(), num_nodes = 3)
         add_generative_supports(t)
         lobb_supps = supports(t, label = All)
@@ -172,7 +172,7 @@ end
 @testset "Univariate Integrals" begin
     m = InfiniteModel();
     @infinite_parameter(m, t in [0, 10])
-    @infinite_variable(m, inf1(t))
+    @variable(m, inf1, Infinite(t))
     @testset "uni_integral_defaults" begin
         @test uni_integral_defaults() == IOMT.UniIntegralDefaults
     end
@@ -205,9 +205,9 @@ end
     @infinite_parameter(m, x[1:2] in [0, 10])
     @infinite_parameter(m, xi[1:2] in [0, 5])
     @infinite_parameter(m, y[2:3] in [0, 1])
-    @infinite_variable(m, inf1(x))
-    @infinite_variable(m, inf2(xi))
-    @infinite_variable(m, inf3(y))
+    @variable(m, inf1, Infinite(x))
+    @variable(m, inf2, Infinite(xi))
+    @variable(m, inf3, Infinite(y))
     @testset "multi_integral_defaults" begin
         @test multi_integral_defaults() == IOMT.MultiIntegralDefaults
     end
@@ -247,8 +247,8 @@ end
     m = InfiniteModel();
     @infinite_parameter(m, t in [0, 10])
     @infinite_parameter(m, x[1:2] in [0, 10])
-    @infinite_variable(m, inf1(t))
-    @infinite_variable(m, inf2(x))
+    @variable(m, inf1, Infinite(t))
+    @variable(m, inf2, Infinite(x))
     @testset "@integral" begin
         @test InfiniteOpt._index_type(@integral(inf1, t)) == MeasureIndex
         @test InfiniteOpt._index_type(@integral(inf2, x)) == MeasureIndex

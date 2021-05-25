@@ -372,7 +372,7 @@ end
 
 # Extend _constraint_dependencies
 function _constraint_dependencies(pref::DependentParameterRef
-    )::Vector{ConstraintIndex}
+    )::Vector{InfOptConstraintIndex}
     return _data_object(pref).constraint_indices[_param_index(pref)]
 end
 

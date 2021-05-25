@@ -20,7 +20,7 @@ single variable reference.
 julia> @infinite_parameter(model, x in [0, 1], supports = [0.3, 0.7])
 x
 
-julia> @infinite_variable(model, f(x))
+julia> @variable(model, f, Infinite(x))
 f(x)
 
 julia> meas = support_sum(f, x)
@@ -30,7 +30,8 @@ julia> expand(meas)
 f(0.3) + f(0.7)
 ```
 """
-function support_sum(expr::JuMP.AbstractJuMPScalar,
+function support_sum(
+    expr::JuMP.AbstractJuMPScalar,
     prefs::Union{InfiniteOpt.GeneralVariableRef, AbstractArray{InfiniteOpt.GeneralVariableRef}};
     label = InfiniteOpt.All
     )::InfiniteOpt.GeneralVariableRef

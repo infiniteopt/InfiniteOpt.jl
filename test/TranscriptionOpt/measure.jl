@@ -2,11 +2,11 @@
 @testset "Expansion Extensions" begin
     # setup the model testing
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1, supports = [0, 1])
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1, supports = [0, 1])
-    @infinite_variable(m, x(par))
-    @infinite_variable(m, y(par, pars))
-    @point_variable(m, x(0), x0)
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1], supports = [0, 1])
+    @variable(m, x, Infinite(par))
+    @variable(m, y, Infinite(par, pars))
+    @variable(m, x0, Point(x, 0))
     tm = optimizer_model(m)
     @variable(tm, a)
     @variable(tm, b)

@@ -29,10 +29,10 @@ set_silent(m)
                     num_supports = num_samples)
 
 # Initialize the variables
-@infinite_variable(m, 0 <= y(θ) <= 1)
-# @infinite_variable(m, y(θ), Bin)
-@infinite_variable(m, z[1:n_z](θ))
-@finite_variable(m, d[1:n_d] >= 0)
+@variable(m, 0 <= y <= 1, Infinite(θ))
+# @variable(m, y, Infinite(θ), Bin)
+@variable(m, z[1:n_z], Infinite(θ))
+@variable(m, d[1:n_d] >= 0)
 
 # Set objective function
 @objective(m, Max, expect(1 - y, θ))

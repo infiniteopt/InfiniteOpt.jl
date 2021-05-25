@@ -1,10 +1,16 @@
+```@meta
+DocTestFilters = [r"≤|<=", r" == | = ", r" ∈ | in ", r" for all | ∀ ", r"d|∂", 
+                  r"E|𝔼", r"integral|∫"]
+```
+
 # Quick Start Guide
 Below we exemplify and briefly explain the very basics behind defining and solving 
 an infinite-dimensional optimization problem in `InfiniteOpt`. Please refer to the 
 Guide on our subsequent pages for more complete information. The Basic Usage sections 
 on the each guide page are good places to start from. Also, the syntax of `InfiniteOpt` 
 is inspired by `JuMP` thus we recommend new users that haven't used `JuMP`, first 
-consult their quick start guide [here](https://jump.dev/JuMP.jl/stable/quickstart/).
+consult their tutorials starting 
+[here](https://jump.dev/JuMP.jl/v0.21.8/tutorials/Getting%20started/getting_started_with_JuMP/).
 
 ## Preliminaries 
 ### Software Setup
@@ -106,32 +112,33 @@ derivative methods on our [Derivative Operators](@ref deriv_page) page.
 ### Variables 
 Now that we have an `InfiniteModel` and infinite parameters let's define our 
 decision variables. First, infinite variables (ones that depend on infinite 
-parameters) are defined via [`@infinite_variable`](@ref) which uses a syntax 
-similar to `JuMP.@variable` except that we also indicate the infinite parameter 
-dependencies:
+parameters) are defined via 
+[`@variable`](https://jump.dev/JuMP.jl/v0.21.8/reference/variables/#JuMP.@variable) 
+with the addition of the [`Infinite`](@ref) variable type argument to specify the 
+infinite parameters it depends on:
  ```jldoctest quick
-julia> @infinite_variable(model, x[I](t, ξ), start = 0)
+julia> @variable(model, x[I], Infinite(t, ξ), start = 0)
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Array{GeneralVariableRef,1}:
  x[1](t, ξ)
  x[2](t, ξ)
 
-julia> @infinite_variable(model, v[I](t, ξ), start = 0)
+julia> @variable(model, v[I], Infinite(t, ξ), start = 0)
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Array{GeneralVariableRef,1}:
  v[1](t, ξ)
  v[2](t, ξ)
 
-julia> @infinite_variable(model, u[I](t), start = 0)
+julia> @variable(model, u[I], Infinite(t), start = 0)
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Array{GeneralVariableRef,1}:
  u[1](t)
  u[2](t)
 
-julia> @infinite_variable(model, y[W](ξ) >= 0, start = 0)
+julia> @variable(model, y[W] >= 0, Infinite(ξ), start = 0)
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 1:4
 And data, a 4-element Array{GeneralVariableRef,1}:
@@ -144,12 +151,18 @@ Notice that we specifying the initial guess for all of them via `start`. We also
 can symbolically define variable conditions like the lower bound on `y`.
 
 That does it for this example, but other problems might also employ the following:
-- [`@finite_variable`](@ref) to define variables that depend on finite domains 
-- [`@point_variable`](@ref) to define infinite variables at a certain point
+- Finite variables: variables that do not depend on infinite parameters 
+  (defined using `@variable`)
+- Semi-infinite variables: infinite variables where 1 or more parameters are 
+  set a particular point (defined using `@variable` with the [`SemiInfinite`](@ref) 
+  variable type argument) 
+- Point variables: infinite variables at a particular point (defined using 
+  `@variable` with the [`Point`](@ref) variable type argument).
 
 ### Objective & Constraints 
 Now that the variables and parameters are ready to go, let's define our problem. 
-First, we can define the objective using [`@objective`](@ref):
+First, we can define the objective using 
+[`@objective`](https://jump.dev/JuMP.jl/v0.21.8/reference/objectives/#JuMP.@objective):
  ```jldoctest quick
 julia> @objective(model, Min, integral(sum(u[i]^2 for i in I), t))
 ∫{t ∈ [0, 60]}[u[1](t)² + u[2](t)²]
@@ -157,38 +170,41 @@ julia> @objective(model, Min, integral(sum(u[i]^2 for i in I), t))
 Notice that we also employ [`integral`](@ref) to define the integral. Note that 
 objectives must evaluate over all included infinite domains. 
 
-Now let's define the initial conditions using [`@BDconstraint`](@ref) which we use 
-to define constraints over portions and/or points of the infinite domain:
+Now let's define the initial conditions using 
+[`@constraint`](https://jump.dev/JuMP.jl/v0.21.8/reference/constraints/#JuMP.@constraint) 
+in combination with [`DomainRestrictions`](@ref) which will restrict the domain 
+of the constraints to only be enforced at the initial time:
  ```jldoctest quick
-julia> @BDconstraint(model, initial1[i in I](t == 0), x[i] == x0[i])
+julia> @constraint(model, [i in I], x[i] == x0[i], DomainRestrictions(t => 0))
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Array{InfOptConstraintRef,1}:
- initial1[1] : x[1](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
- initial1[2] : x[2](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
+ x[1](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
+ x[2](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
 
-julia> @BDconstraint(model, initial2[i in I](t == 0), v[i] == v0[i])
+julia> @constraint(model, [i in I], v[i] == v0[i], DomainRestrictions(t => 0))
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Array{InfOptConstraintRef,1}:
- initial2[1] : v[1](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
- initial2[2] : v[2](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
+ v[1](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
+ v[2](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
 ```
 Note it is important that we include appropriate boundary conditions when using 
 derivatives in our model. For more information please see 
 [Derivative Operators](@ref deriv_page).
 
 Next, we can add our model constraints that have derivatives using 
-[`@constraint`](@ref) and [`@deriv`](@ref):
+[`@constraint`](https://jump.dev/JuMP.jl/v0.21.8/reference/constraints/#JuMP.@constraint) 
+and [`deriv`](@ref):
  ```jldoctest quick
-julia> @constraint(model, c1[i in I], @deriv(x[i], t) == v[i])
+julia> @constraint(model, c1[i in I], deriv(x[i], t) == v[i])
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Array{InfOptConstraintRef,1}:
  c1[1] : ∂/∂t[x[1](t, ξ)] - v[1](t, ξ) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
  c1[2] : ∂/∂t[x[2](t, ξ)] - v[2](t, ξ) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
 
-julia> @constraint(model, c2[i in I], ξ * @deriv(v[i], t) == u[i])
+julia> @constraint(model, c2[i in I], ξ * deriv(v[i], t) == u[i])
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Array{InfOptConstraintRef,1}:
@@ -196,10 +212,9 @@ And data, a 2-element Array{InfOptConstraintRef,1}:
  c2[2] : ξ*∂/∂t[v[2](t, ξ)] - u[2](t) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
 ```
 
-Finally, we can define our last 2 constraints in the example using both 
-[`@BDconstraint`](@ref) and [`@constraint`](@ref):
+Finally, we can define our last 2 constraints:
  ```jldoctest quick
-julia> @BDconstraint(model, c3[w in W](t == tw[w]), y[w] == sum((x[i] - p[i, w])^2 for i in I))
+julia> @constraint(model, c3[w in W], y[w] == sum((x[i] - p[i, w])^2 for i in I), DomainRestrictions(t => tw[w]))
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:4
 And data, a 4-element Array{InfOptConstraintRef,1}:
@@ -276,22 +291,23 @@ model = InfiniteModel(Ipopt.Optimizer)
 @infinite_parameter(model, ξ in Normal(μ, σ^2), num_supports = 10)
 
 # INITIALIZE THE PARAMETERS
-@infinite_variable(model, x[I](t, ξ), start = 0)
-@infinite_variable(model, v[I](t, ξ), start = 0)
-@infinite_variable(model, u[I](t), start = 0)
-@infinite_variable(model, y[W](ξ) >= 0, start = 0)
+@variable(model, x[I], Infinite(t, ξ), start = 0)
+@variable(model, v[I], Infinite(t, ξ), start = 0)
+@variable(model, u[I], Infinite(t), start = 0)
+@variable(model, y[W] >= 0, Infinite(ξ), start = 0)
 
 # SET THE OBJECTIVE
 @objective(model, Min, integral(sum(u[i]^2 for i in I), t))
 
 # SET THE INITIAL CONDITIONS
-@BDconstraint(model, initial1[i in I](t == 0), x[i] == x0[i])
-@BDconstraint(model, initial2[i in I](t == 0), v[i] == v0[i])
+@constraint(model, [i in I], x[i] == x0[i], DomainRestrictions(t => 0))
+@constraint(model, [i in I](t == 0), v[i] == v0[i], DomainRestrictions(t => 0))
 
 # SET THE PROBLEM CONSTRAINTS
 @constraint(model, c1[i in I], @deriv(x[i], t) == v[i])
 @constraint(model, c2[i in I], ξ * @deriv(v[i], t) == u[i])
-@BDconstraint(model, c3[w in W](t == tw[w]), y[w] == sum((x[i] - p[i, w])^2 for i in I))
+@constraint(model, c3[w in W], y[w] == sum((x[i] - p[i, w])^2 for i in I), 
+            DomainRestrictions(t => tw[w]))
 @constraint(model, c4, expect(sum(y[w] for w in W), ξ) <= ϵ)
 
 # SOLVE THE MODEL

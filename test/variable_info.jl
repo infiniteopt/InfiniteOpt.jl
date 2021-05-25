@@ -2,17 +2,17 @@
 @testset "Lower Bound" begin
     # initialize model and 3 test variables
     m = InfiniteModel()
-    gvref1 = @finite_variable(m, var1)
-    gvref2 = @finite_variable(m, var2 >= 0)
-    gvref3 = @finite_variable(m, var3 == 0)
+    gvref1 = @variable(m, var1)
+    gvref2 = @variable(m, var2 >= 0)
+    gvref3 = @variable(m, var3 == 0)
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
-    # _temp_constraint_ref
+    # _make_constraint_ref
     @testset "_temp_constraint_ref" begin
-        cindex = ConstraintIndex(1)
+        cindex = InfOptConstraintIndex(1)
         expected = InfOptConstraintRef(m, cindex)
-        @test InfiniteOpt._temp_constraint_ref(m, cindex) == expected
+        @test InfiniteOpt._make_constraint_ref(m, cindex) == expected
     end
     # is_fixed
     @testset "JuMP.is_fixed" begin
@@ -33,30 +33,30 @@
     end
     # _lower_bound_index
     @testset "InfiniteOpt._lower_bound_index" begin
-        @test InfiniteOpt._lower_bound_index(vref2) == ConstraintIndex(1)
+        @test InfiniteOpt._lower_bound_index(vref2) == InfOptConstraintIndex(1)
         @test_throws ErrorException InfiniteOpt._lower_bound_index(vref1)
     end
     # _set_lower_bound_index
     @testset "_set_lower_bound_index" begin
         # test function
-        @test isa(InfiniteOpt._set_lower_bound_index(vref2, ConstraintIndex(2)),
+        @test isa(InfiniteOpt._set_lower_bound_index(vref2, InfOptConstraintIndex(2)),
                   Nothing)
-        @test InfiniteOpt._lower_bound_index(vref2) == ConstraintIndex(2)
+        @test InfiniteOpt._lower_bound_index(vref2) == InfOptConstraintIndex(2)
         # undo changes
-        @test isa(InfiniteOpt._set_lower_bound_index(vref2, ConstraintIndex(1)),
+        @test isa(InfiniteOpt._set_lower_bound_index(vref2, InfOptConstraintIndex(1)),
                   Nothing)
     end
     # LowerBoundRef
     @testset "JuMP.LowerBoundRef" begin
         # prepare constraint reference
-        expected = InfOptConstraintRef(m, ConstraintIndex(1))
+        expected = InfOptConstraintRef(m, InfOptConstraintIndex(1))
         # test for finite variable
         @test LowerBoundRef(vref2) == expected
         @test LowerBoundRef(gvref2) == expected
         # prepare infinite variable
         @infinite_parameter(m, t in [0, 1])
-        @infinite_variable(m, ivref(t) >= 0)
-        expected = InfOptConstraintRef(m, ConstraintIndex(3))
+        @variable(m, ivref >= 0, Infinite(t))
+        expected = InfOptConstraintRef(m, InfOptConstraintIndex(3))
         @test LowerBoundRef(ivref) == expected
     end
     # set_lower_bound
@@ -86,9 +86,9 @@ end
 @testset "Upper Bound" begin
     # initialize model and 3 test variables
     m = InfiniteModel()
-    gvref1 = @finite_variable(m, var1)
-    gvref2 = @finite_variable(m, var2 <= 0)
-    gvref3 = @finite_variable(m, var3 == 0)
+    gvref1 = @variable(m, var1)
+    gvref2 = @variable(m, var2 <= 0)
+    gvref3 = @variable(m, var3 == 0)
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
@@ -111,30 +111,30 @@ end
     end
     # _upper_bound_index
     @testset "InfiniteOpt._upper_bound_index" begin
-        @test InfiniteOpt._upper_bound_index(vref2) == ConstraintIndex(1)
+        @test InfiniteOpt._upper_bound_index(vref2) == InfOptConstraintIndex(1)
         @test_throws ErrorException InfiniteOpt._upper_bound_index(vref1)
     end
     # _set_upper_bound_index
     @testset "_set_upper_bound_index" begin
         # test function
-        @test isa(InfiniteOpt._set_upper_bound_index(vref2, ConstraintIndex(2)),
+        @test isa(InfiniteOpt._set_upper_bound_index(vref2, InfOptConstraintIndex(2)),
                   Nothing)
-        @test InfiniteOpt._upper_bound_index(vref2) == ConstraintIndex(2)
+        @test InfiniteOpt._upper_bound_index(vref2) == InfOptConstraintIndex(2)
         # undo changes
-        @test isa(InfiniteOpt._set_upper_bound_index(vref2, ConstraintIndex(1)),
+        @test isa(InfiniteOpt._set_upper_bound_index(vref2, InfOptConstraintIndex(1)),
                   Nothing)
     end
     # UpperBoundRef
     @testset "JuMP.UpperBoundRef" begin
         # prepare constraint reference
-        expected = InfOptConstraintRef(m, ConstraintIndex(1))
+        expected = InfOptConstraintRef(m, InfOptConstraintIndex(1))
         # test for finite variable
         @test UpperBoundRef(vref2) == expected
         @test UpperBoundRef(gvref2) == expected
         # prepare infinite variable
         @infinite_parameter(m, t in [0, 1])
-        @infinite_variable(m, ivref(t) <= 0)
-        expected = InfOptConstraintRef(m, ConstraintIndex(3))
+        @variable(m, ivref <= 0, Infinite(t))
+        expected = InfOptConstraintRef(m, InfOptConstraintIndex(3))
         @test UpperBoundRef(ivref) == expected
     end
     # set_upper_bound
@@ -164,10 +164,10 @@ end
 @testset "Fix" begin
     # initialize model and 4 test variables
     m = InfiniteModel()
-    gvref1 = @finite_variable(m, var1)
-    gvref2 = @finite_variable(m, var2 == 0)
-    gvref3 = @finite_variable(m, var3)
-    gvref4 = @finite_variable(m, var4)
+    gvref1 = @variable(m, var1)
+    gvref2 = @variable(m, var2 == 0)
+    gvref3 = @variable(m, var3)
+    gvref4 = @variable(m, var4)
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
@@ -186,27 +186,27 @@ end
     end
     # _fix_index
     @testset "InfiniteOpt._fix_index" begin
-        @test InfiniteOpt._fix_index(vref2) == ConstraintIndex(1)
+        @test InfiniteOpt._fix_index(vref2) == InfOptConstraintIndex(1)
         @test_throws ErrorException InfiniteOpt._fix_index(vref1)
     end
     # _set_fix_index
     @testset "_set_fix_index" begin
         # test function
-        @test isa(InfiniteOpt._set_fix_index(vref2, ConstraintIndex(2)), Nothing)
-        @test InfiniteOpt._fix_index(vref2) == ConstraintIndex(2)
+        @test isa(InfiniteOpt._set_fix_index(vref2, InfOptConstraintIndex(2)), Nothing)
+        @test InfiniteOpt._fix_index(vref2) == InfOptConstraintIndex(2)
         # undo changes
-        @test isa(InfiniteOpt._set_fix_index(vref2, ConstraintIndex(1)), Nothing)
+        @test isa(InfiniteOpt._set_fix_index(vref2, InfOptConstraintIndex(1)), Nothing)
     end
     # FixRef
     @testset "JuMP.FixRef" begin
         # prepare constraint reference
-        expected = InfOptConstraintRef(m, ConstraintIndex(1))
+        expected = InfOptConstraintRef(m, InfOptConstraintIndex(1))
         # test for finite variable
         @test FixRef(vref2) == expected
         # prepare infinite variable
         @infinite_parameter(m, t in [0, 1])
-        @infinite_variable(m, ivref(t) == 0)
-        expected = InfOptConstraintRef(m, ConstraintIndex(2))
+        @variable(m, ivref == 0, Infinite(t))
+        expected = InfOptConstraintRef(m, InfOptConstraintIndex(2))
         # test for infinite variable
         @test FixRef(ivref) == expected
     end
@@ -257,14 +257,14 @@ end
 @testset "Start Value" begin
     # initialize model and 4 test variables
     m = InfiniteModel()
-    gvref = @finite_variable(m, var1, start = 0)
+    gvref = @variable(m, var1, start = 0)
     vref = dispatch_variable_ref(gvref)
-    gvref2 = @finite_variable(m, var2)
+    gvref2 = @variable(m, var2)
     vref2 = dispatch_variable_ref(gvref2)
     @infinite_parameter(m, t in [0, 1])
-    @infinite_variable(m, inf(t), start = 0)
+    @variable(m, inf, start = 0, Infinite(t))
     dinf = dispatch_variable_ref(inf)
-    @infinite_variable(m, inf2(t))
+    @variable(m, inf2, Infinite(t))
     dinf2 = dispatch_variable_ref(inf2)
     # start_value
     @testset "JuMP.start_value" begin
@@ -316,9 +316,9 @@ end
 @testset "Binary" begin
     # initialize model and 3 test variables
     m = InfiniteModel()
-    gvref1 = @finite_variable(m, var1)
-    gvref2 = @finite_variable(m, var2, Bin)
-    gvref3 = @finite_variable(m, var3, Int)
+    gvref1 = @variable(m, var1)
+    gvref2 = @variable(m, var2, Bin)
+    gvref3 = @variable(m, var3, Int)
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
@@ -330,27 +330,27 @@ end
     end
     # _binary_index
     @testset "InfiniteOpt._binary_index" begin
-        @test InfiniteOpt._binary_index(vref2) == ConstraintIndex(1)
+        @test InfiniteOpt._binary_index(vref2) == InfOptConstraintIndex(1)
         @test_throws ErrorException InfiniteOpt._binary_index(vref1)
     end
     # _set_binary_index
     @testset "_set_binary_index" begin
         # test function
-        @test isa(InfiniteOpt._set_binary_index(vref2, ConstraintIndex(2)), Nothing)
-        @test InfiniteOpt._binary_index(vref2) == ConstraintIndex(2)
+        @test isa(InfiniteOpt._set_binary_index(vref2, InfOptConstraintIndex(2)), Nothing)
+        @test InfiniteOpt._binary_index(vref2) == InfOptConstraintIndex(2)
         # undo changes
-        @test isa(InfiniteOpt._set_binary_index(vref2, ConstraintIndex(1)), Nothing)
+        @test isa(InfiniteOpt._set_binary_index(vref2, InfOptConstraintIndex(1)), Nothing)
     end
     # BinaryRef
     @testset "BinaryRef" begin
         # prepare constraint reference
-        expected = InfOptConstraintRef(m, ConstraintIndex(1))
+        expected = InfOptConstraintRef(m, InfOptConstraintIndex(1))
         # test for finite variable
         @test BinaryRef(vref2) == expected
         # prepare infinite variable
         @infinite_parameter(m, t in [0, 1])
-        @infinite_variable(m, ivref(t), Bin)
-        expected = InfOptConstraintRef(m, ConstraintIndex(3))
+        @variable(m, ivref, Infinite(t), Bin)
+        expected = InfOptConstraintRef(m, InfOptConstraintIndex(3))
         # test for infinite variable
         @test BinaryRef(ivref) == expected
     end
@@ -379,9 +379,9 @@ end
 @testset "Integer" begin
     # initialize model and 3 test variables
     m = InfiniteModel()
-    gvref1 = @finite_variable(m, var1)
-    gvref2 = @finite_variable(m, var2, Int)
-    gvref3 = @finite_variable(m, var3, Bin)
+    gvref1 = @variable(m, var1)
+    gvref2 = @variable(m, var2, Int)
+    gvref3 = @variable(m, var3, Bin)
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
@@ -393,27 +393,27 @@ end
     end
     # _integer_index
     @testset "InfiniteOpt._integer_index" begin
-        @test InfiniteOpt._integer_index(vref2) == ConstraintIndex(1)
+        @test InfiniteOpt._integer_index(vref2) == InfOptConstraintIndex(1)
         @test_throws ErrorException InfiniteOpt._integer_index(vref1)
     end
     # _set_integer_index
     @testset "_set_integer_index" begin
         # test function
-        @test isa(InfiniteOpt._set_integer_index(vref2, ConstraintIndex(2)), Nothing)
-        @test InfiniteOpt._integer_index(vref2) == ConstraintIndex(2)
+        @test isa(InfiniteOpt._set_integer_index(vref2, InfOptConstraintIndex(2)), Nothing)
+        @test InfiniteOpt._integer_index(vref2) == InfOptConstraintIndex(2)
         # undo changes
-        @test isa(InfiniteOpt._set_integer_index(vref2, ConstraintIndex(1)), Nothing)
+        @test isa(InfiniteOpt._set_integer_index(vref2, InfOptConstraintIndex(1)), Nothing)
     end
     # IntegerRef
     @testset "IntegerRef" begin
         # prepare constraint reference
-        expected = InfOptConstraintRef(m, ConstraintIndex(1))
+        expected = InfOptConstraintRef(m, InfOptConstraintIndex(1))
         # test for finite variable
         @test IntegerRef(vref2) == expected
         # prepare infinite variable
         @infinite_parameter(m, t in [0, 1])
-        @infinite_variable(m, ivref(t), Int)
-        expected = InfOptConstraintRef(m, ConstraintIndex(3))
+        @variable(m, ivref, Infinite(t), Int)
+        expected = InfOptConstraintRef(m, InfOptConstraintIndex(3))
         # test for infinite variable
         @test IntegerRef(ivref) == expected
     end
@@ -443,9 +443,9 @@ end
     # setup the model 
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 1])
-    @infinite_variable(m, y(t), Int)
-    @finite_variable(m, 0.25 <= x <= 1.25, Bin)
-    @finite_variable(m, z, Bin)
+    @variable(m, y, Infinite(t), Int)
+    @variable(m, 0.25 <= x <= 1.25, Bin)
+    @variable(m, z, Bin)
     # test relaxing it 
     result_store = []
     @test push!(result_store, relax_integrality(m)) isa Vector

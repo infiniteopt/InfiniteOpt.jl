@@ -1,19 +1,26 @@
+```@meta
+DocTestFilters = [r"≤|<=", r"≥|>=", r" == | = ", r" ∈ | in ", 
+                  r"MathOptInterface|MOI", r" for all | ∀ ", r"d|∂", 
+                  r"E|𝔼", r"integral|∫"]
+```
+
 # Extensions
 Here we provide guidance to various ways `InfiniteOpt` can be extended.
 
 ## Overview
-Extendibility is one of the core ideas of `InfiniteOpt` so that it can serve as a
-convenient tool for those developing and implementing advanced techniques for
-infinite dimensional optimization problems. Thus, `InfiniteOpt` is developed in
-a modular manner to readily accommodate user-defined functionality and/or to
-serve as useful base in writing a `JuMP` extension. Admittedly, this modularity
+Extendibility is one of the core ideas of `InfiniteOpt` so that it can serve as a 
+convenient tool for those developing and implementing advanced techniques for 
+infinite dimensional optimization problems. Thus, `InfiniteOpt` is developed in 
+a modular manner to readily accommodate user-defined functionality and/or to 
+serve as useful base in writing a `JuMP` extension. Admittedly, this modularity 
 is not perfect and comments/suggestions are welcomed to help us improve this.
 
 ## Infinite Domains
-Infinite domains are used to characterize the behavior of infinite parameters and
-used to govern the behavior of supports in `InfiniteOpt`. Here we walk through
-how user-defined domains can be added to various degrees of functionality. A
-template is provided in [`./test/extensions/infinite_domain.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/infinite_domain.jl).
+Infinite domains are used to characterize the behavior of infinite parameters and 
+used to govern the behavior of supports in `InfiniteOpt`. Here we walk through 
+how user-defined domains can be added to various degrees of functionality. A 
+template is provided in 
+[`./test/extensions/infinite_domain.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/infinite_domain.jl). 
 The extension steps employed are:
 1. Define the new `struct` infinite domain type (only thing required as bare minimum)
 2. Extend [`InfiniteOpt.supports_in_domain`](@ref) (enables error checking of supports)
@@ -21,9 +28,10 @@ The extension steps employed are:
 4. If a lower bound and upper bound can be reported, extend `JuMP` lower bound and upper bound methods (enables automatic bound detection in `integral`)
 5. Extend [`InfiniteOpt.MeasureToolbox.generate_expect_data`](@ref) (enables the use of `expect`) 
 
-As an example, let's create a univariate disjoint interval domain as an infinite domain type.
-This corresponds to the domain ``[lb_1, ub_1] \cup [lb_2, ub_2]`` where
-``ub_1 \leq lb_2``. First, we need to create the `DataType` with inheritance from [`InfiniteScalarDomain`](@ref):
+As an example, let's create a univariate disjoint interval domain as an infinite 
+domain type. This corresponds to the domain ``[lb_1, ub_1] \cup [lb_2, ub_2]`` 
+where ``ub_1 \leq lb_2``. First, we need to create the `DataType` with 
+inheritance from [`InfiniteScalarDomain`](@ref):
 ```jldoctest domain_ext; output = false
 using InfiniteOpt
 
@@ -46,11 +54,11 @@ end
 
 
 ```
-Notice that we also define the constructor function to error check and convert as
-needed (this is recommended, but not required). For basic functionality this is
+Notice that we also define the constructor function to error check and convert as 
+needed (this is recommended, but not required). For basic functionality this is 
 all we have to do to add a domain in `InfiniteOpt`.
 
-We can now define infinite parameters using this domain via
+We can now define infinite parameters using this domain via 
 [`@infinite_parameter`](@ref) both anonymously and explicitly:
 ```jldoctest domain_ext
 julia> model = InfiniteModel();
@@ -61,23 +69,26 @@ t
 julia> @infinite_parameter(model, t in DisjointDomain(0, 1, 3, 4))
 t
 ```
-Once defined (without further extension), these parameters can be used as normal
+Once defined (without further extension), these parameters can be used as normal 
 with the following limitations:
 - Supports must be specified manually (`num_supports` is not enabled)
 - Supports will not be checked if they are in the domain of the infinite domain
 - Domain bounds cannot be queried.
-- The [`DiscreteMeasureData`](@ref) or [`FunctionalDiscreteMeasureData`](@ref) must be provided explicitly to evaluate measures
+- The [`DiscreteMeasureData`](@ref) or [`FunctionalDiscreteMeasureData`](@ref) 
+  must be provided explicitly to evaluate measures
 However, all of these limitations except for the last one can be eliminated by 
 extending a few functions as outlined above. To address the last one, we need 
-to extend [`generate_integral_data`](@ref). See [`Measure Evaluation Techniques`]
+to extend [`generate_integral_data`](@ref). See [`Measure Evaluation Techniques`] 
 for details. 
 
-To enable support domain checking which is useful to avoid strange bugs, we will
-extend [`InfiniteOpt.supports_in_domain`](@ref). This returns a `Bool` to indicate
-if a vector of supports are in the domain:
+To enable support domain checking which is useful to avoid strange bugs, we will 
+extend [`InfiniteOpt.supports_in_domain`](@ref). This returns a `Bool` to 
+indicate if a vector of supports are in the domain:
 ```jldoctest domain_ext; output = false
-function InfiniteOpt.supports_in_domain(supports::Union{Number, Vector{<:Number}},
-                                     domain::DisjointDomain)::Bool
+function InfiniteOpt.supports_in_domain(
+    supports::Union{Number, Vector{<:Number}},
+    domain::DisjointDomain
+    )::Bool
     return all((domain.lb1 .<= supports .<= domain.ub1) .| (domain.lb2 .<= supports .<= domain.ub2))
 end
 
@@ -85,22 +96,24 @@ end
 
 
 ```
-Now the checks are enabled, so the following would yield an error because the
+Now the checks are enabled, so the following would yield an error because the 
 support is not in the domain domain:
 ```jldoctest domain_ext
 julia> @infinite_parameter(model, domain = DisjointDomain(0, 1, 3, 4), supports = 2)
 ERROR: At none:1: `@infinite_parameter(model, domain = DisjointDomain(0, 1, 3, 4), supports = 2)`: Supports violate the domain bounds.
 ```
 
-To enable automatic support generation via the `num_supports` keyword and with
-functions such as [`fill_in_supports!`](@ref), we will extend
+To enable automatic support generation via the `num_supports` keyword and with 
+functions such as [`fill_in_supports!`](@ref), we will extend 
 [`InfiniteOpt.generate_support_values`](@ref):
 ```jldoctest domain_ext; output = false
 struct DisjointGrid <: InfiniteOpt.PublicLabel end
 
-function InfiniteOpt.generate_support_values(domain::DisjointDomain;
-                                             num_supports::Int = InfiniteOpt.DefaultNumSupports,
-                                             sig_digits::Int = InfiniteOpt.DefaultSigDigits)::Tuple{Vector{<:Real}, DataType}
+function InfiniteOpt.generate_support_values(
+    domain::DisjointDomain;
+    num_supports::Int = InfiniteOpt.DefaultNumSupports,
+    sig_digits::Int = InfiniteOpt.DefaultSigDigits
+    )::Tuple{Vector{Float64}, DataType}
     length_ratio = (domain.ub1 - domain.lb1) / (domain.ub1 - domain.lb1 + domain.ub2 - domain.lb2)
     num_supports1 = Int64(ceil(length_ratio * num_supports))
     num_supports2 = num_supports - num_supports1
@@ -132,7 +145,7 @@ julia> supports(par)
  4.0
 ```
 
-We can extend the appropriate `JuMP` upper and lower bound functions
+We can extend the appropriate `JuMP` upper and lower bound functions 
 if desired which are:
 - [`JuMP.has_lower_bound`](@ref JuMP.has_lower_bound(::AbstractInfiniteDomain))
 - [`JuMP.lower_bound`](@ref JuMP.lower_bound(::AbstractInfiniteDomain))
@@ -140,11 +153,11 @@ if desired which are:
 - [`JuMP.has_upper_bound`](@ref JuMP.has_upper_bound(::AbstractInfiniteDomain))
 - [`JuMP.upper_bound`](@ref JuMP.upper_bound(::AbstractInfiniteDomain))
 - [`JuMP.set_upper_bound`](@ref JuMP.set_upper_bound(::AbstractInfiniteDomain, ::Union{Real, Vector{<:Real}}))
-However, if we want `has_lower_bound = false` and `has_upper_bound = false` then
-no extension is needed. For our current example we won't do this since lower
-and upper bounds aren't exactly clear for a disjoint interval. Please refer to
-the template in `./InfiniteOpt/test/extensions/infinite_domain.jl` to see how this
-is done.
+However, if we want `has_lower_bound = false` and `has_upper_bound = false` then 
+no extension is needed. For our current example we won't do this since lower 
+and upper bounds aren't exactly clear for a disjoint interval. Please refer to 
+the template in `./InfiniteOpt/test/extensions/infinite_domain.jl` to see how 
+this is done.
 
 Finally, we can optionally enable the use of [`expect`](@ref) taken with respect 
 to infinite parameters with this new domain type by extending 
@@ -167,10 +180,10 @@ end
 
 
 ```
-The above implementation simply sums over all the supports associated with `pref`
+The above implementation simply sums over all the supports associated with `pref` 
 and divides by the total number. Now we can use `expect`:
 ```jldoctest domain_ext
-julia> @infinite_variable(model, y(t))
+julia> @variable(model, y, Infinite(t))
 y(t)
 
 julia> expect(y, t)
@@ -185,7 +198,8 @@ the finite difference and orthogonal collocation ones we natively provide. Thus,
 we provide an API to do just this. A complete template is provided in 
 [`./test/extensions/derivative_method.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/derivative_method.jl) 
 to help streamline this process. The extension steps are:
-1. Define the new method struct that inherits from the correct [`AbstractDerivativeMethod`](@ref) subtype
+1. Define the new method `struct` that inherits from the correct 
+   [`AbstractDerivativeMethod`](@ref) subtype
 2. Extend [`InfiniteOpt.generative_support_info`](@ref InfiniteOpt.generative_support_info(::AbstractDerivativeMethod)) 
    if the method is a [`GenerativeDerivativeMethod`](@ref)
 3. Extend [`InfiniteOpt.evaluate_derivative`](@ref).
@@ -208,21 +222,22 @@ struct ExplicitEuler <: NonGenerativeDerivativeMethod end
 
 
 ```
-Notice that our method `ExplicitEuler` inherits from [`NonGenerativeDerivativeMethod`](@ref) 
-since explicit Euler uses the existing support scheme without adding any additional 
-supports. If our desired method needed to add additional supports (e.g., 
-orthogonal collocation over finite elements) then we would need to have used 
-[`GenerativeDerivativeMethod`](@ref).
+Notice that our method `ExplicitEuler` inherits from 
+[`NonGenerativeDerivativeMethod`](@ref) since explicit Euler uses the existing 
+support scheme without adding any additional supports. If our desired method 
+needed to add additional supports (e.g., orthogonal collocation over finite 
+elements) then we would need to have used [`GenerativeDerivativeMethod`](@ref).
 
 Since, this is a `NonGenerativeDerivativeMethod` we skip step 2. This is 
 however exemplified in the extension template.
 
 Now we just need to do step 3 which is to extend 
-[`InfiniteOpt.evaluate_derivative`](@ref). This function generates all the expressions 
-necessary to build the derivative evaluation equations (derivative constraints). 
-We assume these relations to be of the form ``h = 0`` where ``h`` is a vector of 
-expressions and is what the output of `InfiniteOpt.evaluate_derivative` should be.
-Thus, mathematically ``h`` should be of the form:
+[`InfiniteOpt.evaluate_derivative`](@ref). This function generates all the 
+expressions necessary to build the derivative evaluation equations (derivative 
+constraints). We assume these relations to be of the form ``h = 0`` where ``h`` 
+is a vector of expressions and is what the output of 
+`InfiniteOpt.evaluate_derivative` should be. Thus, mathematically ``h`` should 
+be of the form:
 ```math
 \begin{aligned}
 &&& y(t_{1}) - y(0) - (t_{1} - t_{0})\frac{d y(0)}{dt} \\
@@ -261,9 +276,10 @@ end
 
 ```
 We used [`InfiniteOpt.make_reduced_expr`](@ref) as a convenient helper function 
-to generate the semi-infinite variables/expressions we need to generate at each support 
-point. Also note that [`InfiniteOpt.add_generative_supports`](@ref) needs to be 
-included for `GenerativeDerivativeMethods`, but is not necessary in this example.
+to generate the semi-infinite variables/expressions we need to generate at each 
+support point. Also note that [`InfiniteOpt.add_generative_supports`](@ref) needs 
+to be included for `GenerativeDerivativeMethods`, but is not necessary in this 
+example.
 
 Now that we have have completed all the necessary steps, let's try it out! 
 ```jldoctest deriv_ext
@@ -272,7 +288,7 @@ julia> model = InfiniteModel();
 julia> @infinite_parameter(model, t in [0, 10], num_supports = 3, 
                            derivative_method = ExplicitEuler());
 
-julia> @infinite_variable(model, y(t));
+julia> @variable(model, y, Infinite(t));
 
 julia> dy = deriv(y, t);
 
@@ -286,25 +302,30 @@ julia> derivative_constraints(dy)
 We implemented explicit Euler and it works! Now go and extend away!
 
 ## Measure Evaluation Techniques
-Measure evaluation methods are used to dictate how to evaluate measures. Users
-may wish to apply evaluation methods other than Monte Carlo sampling and/or
-Gaussian quadrature methods. To create multiple measures using the same new
-evaluation methods, users may want to embed the new evaluation method under the
-[`integral`](@ref) function that
-does not require explicit construction of [`AbstractMeasureData`](@ref).
+Measure evaluation methods are used to dictate how to evaluate measures. Users 
+may wish to apply evaluation methods other than Monte Carlo sampling and/or 
+Gaussian quadrature methods. To create multiple measures using the same new 
+evaluation methods, users may want to embed the new evaluation method under the 
+[`integral`](@ref) function that does not require explicit construction of 
+[`AbstractMeasureData`](@ref).
 
 ### Creating a DiscreteMeasureData Object
-The basic way to do that is to write a function that creates [`DiscreteMeasureData`](@ref)
-object, and pass the object to the [`measure`](@ref). For instance, let's
-consider defining a function that
-enables the definition of a uniform grid for a univariate or multivariate
-infinite parameter in [`IntervalDomain`](@ref). The function, denoted `uniform_grid`,
-generates uniform grid points as supports for univariate parameter and each component of
-independent multivariate parameter. The univariate version of this function
+The basic way to do that is to write a function that creates 
+[`DiscreteMeasureData`](@ref) object and pass the object to [`measure`](@ref). 
+For instance, let's consider defining a function that enables the definition of a 
+uniform grid for a univariate or multivariate infinite parameter in 
+[`IntervalDomain`](@ref). The function, denoted `uniform_grid`, generates uniform 
+grid points as supports for univariate parameter and each component of 
+independent multivariate parameter. The univariate version of this function 
 can be defined as follows:
 
-```jldoctest measure_eval; output = false, setup = :(using JuMP, InfiniteOpt)
-function uniform_grid(param::GeneralVariableRef, lb::Real, ub::Real, num_supports::Int)::DiscreteMeasureData
+```jldoctest measure_eval; output = false, setup = :(using InfiniteOpt)
+function uniform_grid(
+    param::GeneralVariableRef, 
+    lb::Real, 
+    ub::Real, 
+    num_supports::Int
+    )::DiscreteMeasureData
     increment = (ub - lb) / (num_supports - 1)
     supps = [lb + (i - 1) * increment for i in 1:num_supports]
     coeffs = ones(num_supports) / num_supports * (ub - lb)
@@ -315,54 +336,56 @@ end
 uniform_grid (generic function with 1 method)
 
 ```
-It is necessary to pass infinite parameter reference since the
-construction of measure data object needs parameter information. Now let's
-apply the new `uniform_grid` function to infinite parameters in
-intervals. We consider a time parameter `t` and 2D spatial parameter `x`, and
+It is necessary to pass the infinite parameter reference since the 
+construction of measure data object needs parameter information. Now let's 
+apply the new `uniform_grid` function to infinite parameters in 
+intervals. We consider a time parameter `t` and 2D spatial parameter `x`, and 
 two variables `f(t)` and `g(x)` parameterized by `t` and `x`, respectively:
 ```jldoctest measure_eval
 julia> m = InfiniteModel();
 
 julia> @infinite_parameter(m, t in [0, 5]);
 
-julia> @infinite_variable(m, f(t));
+julia> @variable(m, y, Infinite(t));
 ```
-Now we can use `uniform_grid` to construct a [`DiscreteMeasureData`](@ref) and
+Now we can use `uniform_grid` to construct a [`DiscreteMeasureData`](@ref) and 
 create a measure using the measure data, as shown below:
 
 ```jldoctest measure_eval
 julia> tdata = uniform_grid(t, 0, 5, 6);
 
-julia> f_meas = measure(f, tdata)
-measure{t ∈ [0, 5]}[f(t)]
+julia> y_meas = measure(y, tdata)
+measure{t ∈ [0, 5]}[y(t)]
 
-julia> expand(f_meas)
-0.8333333333333333 f(0) + 0.8333333333333333 f(1) + 0.8333333333333333 f(2) + 0.8333333333333333 f(3) + 0.8333333333333333 f(4) + 0.8333333333333333 f(5)
+julia> expand(y_meas)
+0.8333333333333333 y(0) + 0.8333333333333333 y(1) + 0.8333333333333333 y(2) + 0.8333333333333333 y(3) + 0.8333333333333333 y(4) + 0.8333333333333333 y(5)
 ```
 
 ### Integral Evaluation Methods
-For integrals, we can implement a new approximation method via the extension of
-[`InfiniteOpt.MeasureToolbox.generate_integral_data`](@ref). This will
-allow users to use their custom measure evaluation methods in the
-[`integral`](@ref) function that does not explicitly require a measure data
-object. A template for how such an extension is accomplished is provided in
+For integrals, we can implement a new approximation method via the extension of 
+[`InfiniteOpt.MeasureToolbox.generate_integral_data`](@ref). This will 
+allow users to use their custom measure evaluation methods in the 
+[`integral`](@ref) function that does not explicitly require a measure data 
+object. A template for how such an extension is accomplished is provided in 
 [`./test/extensions/measure_eval.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/measure_eval.jl).
-In general, such an extension can be created as follows:
+In general, such an extension can be created as follows: 
 1. Define a new empty `struct` (e.g. `my_new_fn`) that dispatches your function
-2. Extend [`InfiniteOpt.MeasureToolbox.generate_integral_data`](@ref),
-where `method` is of the type `my_new_fn`, and `domain` needs to be a subtype
-of [`AbstractInfiniteDomain`](@ref) that you wish to apply the new evaluation method
-to.
-Note that this procedure can be used to generate new measure evaluation methods not only for existing
-infinite domains, but also for user-defined infinite domains. 
+2. Extend [`InfiniteOpt.MeasureToolbox.generate_integral_data`](@ref), 
+   where `method` is of the type `my_new_fn`, and `domain` needs to be a subtype 
+   of [`AbstractInfiniteDomain`](@ref) that you wish to apply the new evaluation 
+   method to.
+Note that this procedure can be used to generate new measure evaluation methods 
+not only for existing infinite domains, but also for user-defined infinite 
+domains. 
 
-For example, an extension of [`InfiniteOpt.MeasureToolbox.generate_integral_data`](@ref)
-that implements uniform grid for univariate and multivariate parameters in
+For example, an extension of 
+[`InfiniteOpt.MeasureToolbox.generate_integral_data`](@ref) that implements 
+uniform grid for univariate and multivariate parameters in 
 [`IntervalDomain`](@ref) can be created as follows:
 
 ```jldoctest measure_eval; output = false
-const JuMPC = JuMP.Containers
 struct UnifGrid <: InfiniteOpt.MeasureToolbox.AbstractUnivariateMethod end
+
 function InfiniteOpt.MeasureToolbox.generate_integral_data(
     pref::InfiniteOpt.GeneralVariableRef,
     lower_bound::Real,
@@ -370,7 +393,7 @@ function InfiniteOpt.MeasureToolbox.generate_integral_data(
     method::UnifGrid;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
-    )::InfiniteOpt.AbstractMeasureData # REPLACE WITH ACTUAL ALIAS
+    )::InfiniteOpt.DiscreteMeasureData
     increment = (upper_bound - lower_bound) / (num_supports - 1)
     supports = [lower_bound + (i - 1) * increment for i in 1:num_supports]
     coeffs = ones(num_supports) / num_supports * (upper_bound - lower_bound)
@@ -386,53 +409,53 @@ end
 
 ```
 
-Also notice that users are free to pass keyword arguments for their new
-functions in addition to the required positional arguments. This might be needed
-in case if the new evaluation method requires additional information not
-captured in the default positional arguments. For example, the multivariate
-parameter version above needs to know if the multivariate parameter is
+Also notice that users are free to pass keyword arguments for their new 
+functions in addition to the required positional arguments. This might be needed 
+in case if the new evaluation method requires additional information not 
+captured in the default positional arguments. For example, the multivariate 
+parameter version above needs to know if the multivariate parameter is 
 independent in order to throw a warning when needed.
 
-We create measure for `f` and `g` using the `uniform_grid` method
+We create measure for `y` using the `uniform_grid` method:
 ```jldoctest measure_eval
-julia> f_int = integral(f, t, num_supports = 6, eval_method = UnifGrid())
-∫{t ∈ [0, 5]}[f(t)]
+julia> y_int = integral(y, t, num_supports = 6, eval_method = UnifGrid())
+∫{t ∈ [0, 5]}[y(t)]
 
-julia> expand(f_int)
-0.8333333333333333 f(0) + 0.8333333333333333 f(1) + 0.8333333333333333 f(2) + 0.8333333333333333 f(3) + 0.8333333333333333 f(4) + 0.8333333333333333 f(5)
+julia> expand(y_int)
+0.8333333333333333 y(0) + 0.8333333333333333 y(1) + 0.8333333333333333 y(2) + 0.8333333333333333 y(3) + 0.8333333333333333 y(4) + 0.8333333333333333 y(5)
 ```
-Here we go! We can freely use `UnifGrid` for infinite parameters in
-[`IntervalDomain`](@ref) now.
+Here we go! We can freely use `UnifGrid` for infinite parameters residing in 
+[`IntervalDomain`](@ref)s now.
 
 ## Measure Data
-Measures are used to evaluate over infinite domains. Users may wish to employ
-measure abstractions that cannot be readily represented with coefficients and
-discretized supports, and thus may wish to extend `InfiniteOpt`'s
-measure framework to accommodate other paradigms. This can be accomplished my
-implementing a user-defined measure data structure that inherits from
-[`AbstractMeasureData`](@ref). A template for how such an extension is
-accomplished is provided in [`./test/extensions/measure_data.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/measure_data.jl).
+Measures are used to evaluate over infinite domains. Users may wish to employ 
+measure abstractions that cannot be readily represented with coefficients and 
+discretized supports, and thus may wish to extend `InfiniteOpt`'s 
+measure framework to accommodate other paradigms. This can be accomplished by  
+implementing a user-defined measure data structure that inherits from 
+[`AbstractMeasureData`](@ref). A template for how such an extension is 
+accomplished is provided in 
+[`./test/extensions/measure_data.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/measure_data.jl). 
 The extension steps employed are:
 1. Define the new data struct inheriting from [`AbstractMeasureData`](@ref) (required)
 2. Extend [`InfiniteOpt.parameter_refs`](@ref parameter_refs(::AbstractMeasureData)) (required)
 3. Extend [`InfiniteOpt.expand_measure`](@ref) (required)
 4. Extend [`InfiniteOpt.supports`](@ref supports(::AbstractMeasureData)) (required if parameter supports are employed in any way)
 5. Extend [`InfiniteOpt.add_supports_to_parameters`](@ref) (required if parameter supports are employed in measure evaluation)
-5. Extend [`InfiniteOpt.measure_data_in_finite_var_bounds`](@ref) (enables finite variable bound checking with measures)
 6. Extend [`InfiniteOpt.coefficients`](@ref) (useful getter method if applicable)
 7. Extend [`InfiniteOpt.weight_function`](@ref) (useful getter method if applicable)
 8. Extend [`InfiniteOpt.support_label`](@ref) (needed to enable deletion if supports are added.)
 9. Extend [`InfiniteOpt.generative_support_info`](@ref) (Needed if the measure will cause the creation of generative supports)
 8. Make simple measure constructor wrapper of [`measure`](@ref) to ease definition.
 
-To illustrate how this process can be done, let's consider extending `InfiniteOpt`
-to include measure support for assessing the variance of random expressions. The
-variance of an expression ``f(x, \xi)`` where ``x \in \mathbb{R}^n`` are finite
+To illustrate how this process can be done, let's consider extending `InfiniteOpt` 
+to include measure support for assessing the variance of random expressions. The 
+variance of an expression ``f(x, \xi)`` where ``x \in \mathbb{R}^n`` are finite 
 variables and ``\xi \in \mathbb{R}^m`` are random infinite parameters is defined:
 ```math
 \mathbb{V}[f(x, \xi)] = \mathbb{E}\left[(f(x, \xi) - \mathbb{E}[f(x, \xi)])^2 \right].
 ```
-Note, we could just accomplish this by nested use of [`expect`](@ref), but we
+Note, we could just accomplish this by nested use of [`expect`](@ref), but we 
 implement this example to illustrate the mechanics of extension.
 
 First, let's define our new `struct` inheriting from `AbstractMeasureData`:
@@ -447,7 +470,8 @@ struct DiscreteVarianceData <: AbstractMeasureData
     function DiscreteVarianceData(
         parameter_refs::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}},
         supports::Vector,
-        label::DataType = InfiniteOpt.generate_unique_label())
+        label::DataType = InfiniteOpt.generate_unique_label()
+        )
         # convert input as necessary to proper array format
         if parameter_refs isa AbstractArray
             parameter_refs = convert(Vector, parameter_refs)
@@ -462,11 +486,11 @@ end
 
 ```
 
-We have defined our data type, so let's extend the measure data query
-methods to enable its definition. These include
-[`parameter_refs`](@ref parameter_refs(::AbstractMeasureData)), 
-[`supports`](@ref supports(::AbstractMeasureData)), and 
-[`support_label`](@ref support_label(::AbstractMeasureData)):
+We have defined our data type, so let's extend the measure data query 
+methods to enable its definition. These include:
+- [`parameter_refs`](@ref parameter_refs(::AbstractMeasureData))
+- [`supports`](@ref supports(::AbstractMeasureData))
+- [`support_label`](@ref support_label(::AbstractMeasureData))
 ```jldoctest measure_data; output = false
 function InfiniteOpt.parameter_refs(data::DiscreteVarianceData)
     return data.parameter_refs
@@ -485,7 +509,7 @@ end
 
 ```
 
-We also need to extend [`InfiniteOpt.add_supports_to_parameters`](@ref)
+We also need to extend [`InfiniteOpt.add_supports_to_parameters`](@ref) 
 since support points will be used for measure evaluation later:
 ```jldoctest measure_data; output = false
 function InfiniteOpt.add_supports_to_parameters(data::DiscreteVarianceData)::Nothing
@@ -500,18 +524,17 @@ end
 
 
 ```
-Note that extending `supports` is not needed for abstractions that don't involve
-discretization of the infinite parameter(s), such as the case for certain
-outer approximation techniques. 
-Our extension is now sufficiently constructed to
-allow us to define out the new variance measure via
-[`measure`](@ref). For example,
+Note that extending `supports` is not needed for abstractions that don't involve 
+discretization of the infinite parameter(s), such as the case for certain 
+outer approximation techniques. Our extension is now sufficiently constructed to 
+allow us to define out the new variance measure via [`measure`](@ref). For 
+example:
 ```jldoctest measure_data; setup = :(using Random; Random.seed!(42))
 # Setup the infinite model
 model = InfiniteModel()
 @infinite_parameter(model, xi in Normal(), num_supports = 2) # few for simplicity
-@infinite_variable(model, y(xi))
-@finite_variable(model, z)
+@variable(model, y, Infinite(xi))
+@variable(model, z)
 
 # Define out new variance measure
 data = DiscreteVarianceData(xi, supports(xi))
@@ -522,13 +545,14 @@ Var{xi}[2 y(xi) + z]
 ```
 Thus, we can define measure references that employ this our new data type.
 
-We can define variance measures now, but now let's extend
+We can define variance measures now, but now let's extend 
 [`expand_measure`](@ref) so that they can be expanded into finite expressions:
 ```jldoctest measure_data; output = false
-function InfiniteOpt.expand_measure(expr::JuMP.AbstractJuMPScalar,
-                                    data::DiscreteVarianceData,
-                                    write_model::JuMP.AbstractModel
-                                    )::JuMP.AbstractJuMPScalar
+function InfiniteOpt.expand_measure(
+    expr::JuMP.AbstractJuMPScalar,
+    data::DiscreteVarianceData,
+    write_model::JuMP.AbstractModel
+    )::JuMP.AbstractJuMPScalar
     # define the expectation data
     expect_data = DiscreteMeasureData(
                       data.parameter_refs,
@@ -544,29 +568,32 @@ end
 
 
 ```
-Notice that we reformulated our abstraction in terms of measures with
-[`DiscreteMeasureData`](@ref) so that we could leverage the existing
-[`expand_measure`](@ref) library. Now, new the measure type can be expanded and
-moreover infinite models using this new type can be optimized. Let's try
+Notice that we reformulated our abstraction in terms of measures with 
+[`DiscreteMeasureData`](@ref) so that we could leverage the existing 
+[`expand_measure`](@ref) library. Now, new the measure type can be expanded and 
+moreover infinite models using this new type can be optimized. Let's try 
 expanding the measure we already defined:
 ```jldoctest measure_data
 julia> expand(mref)
 2 y(-0.556026876146)² + 2 z*y(-0.556026876146) - 2 y(-0.556026876146)² - 2 y(-0.44438335711)*y(-0.556026876146) - 2 z*y(-0.556026876146) + 0 z² - y(-0.556026876146)*z - y(-0.44438335711)*z + 0.5 y(-0.556026876146)² + 0.5 y(-0.556026876146)*y(-0.44438335711) + 0.5 y(-0.556026876146)*z + 0.5 y(-0.44438335711)*y(-0.556026876146) + 0.5 y(-0.44438335711)² + 0.5 y(-0.44438335711)*z + 0.5 z*y(-0.556026876146) + 0.5 z*y(-0.44438335711) + 2 y(-0.44438335711)² + 2 z*y(-0.44438335711) - 2 y(-0.556026876146)*y(-0.44438335711) - 2 y(-0.44438335711)² - 2 z*y(-0.44438335711) - y(-0.556026876146)*z - y(-0.44438335711)*z + 0.5 y(-0.556026876146)² + 0.5 y(-0.556026876146)*y(-0.44438335711) + 0.5 y(-0.556026876146)*z + 0.5 y(-0.44438335711)*y(-0.556026876146) + 0.5 y(-0.44438335711)² + 0.5 y(-0.44438335711)*z + 0.5 z*y(-0.556026876146) + 0.5 z*y(-0.44438335711)
 ```
 
-Finally, as per recommendation let's make a wrapper method to make defining
+Finally, as per recommendation let's make a wrapper method to make defining 
 variance measures more convenient:
 ```jldoctest measure_data; output = false
-function variance(expr::Union{JuMP.GenericAffExpr, GeneralVariableRef},
-                  params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}};
-                  name::String = "Var", num_supports::Int = 10,
-                  use_existing::Bool = false)::GeneralVariableRef
+function variance(
+    expr::Union{JuMP.GenericAffExpr, GeneralVariableRef},
+    params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}};
+    name::String = "Var", 
+    num_supports::Int = 10,
+    use_existing::Bool = false
+    )::GeneralVariableRef
     # get the supports
     if use_existing
         supps = supports.(params)
     else
         supps = generate_support_values(infinite_domain(first(params)),
-                                           num_supports = num_supports)
+                                        num_supports = num_supports)
     end
     # make the data
     data = DiscreteVarianceData(params, supps)
@@ -578,9 +605,9 @@ end
 
 variance (generic function with 1 method)
 ```
-Notice in this case that we only permit linear expressions for `expr` since
-it will be squared by our new measure and we currently only support quadratic
-expressions. (This could be overcome by defining a place holder variable
+Notice in this case that we only permit linear expressions for `expr` since 
+it will be squared by our new measure and we currently only support quadratic 
+expressions. (This could be overcome by defining a place holder variable 
 for `expr`.
 
 Now let's use our constructor to repeat the above measure example:
@@ -601,7 +628,8 @@ collocation (note this includes scaling them as need to the size of each finite
 element). However, more complex generative support schemes can be enabled by 
 defining a new concrete [`AbstractGenerativeInfo`](@ref) subtype. This section will 
 detail how this can be accomplished in `InfiniteOpt`. A template for implementing 
-this is provided in [`./test/extensions/generative_info.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/generative_info.jl).
+this is provided in 
+[`./test/extensions/generative_info.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/generative_info.jl).
 
 A new generative support information type can be created via the following:
 1. Define a concrete subtype of [`AbstractGenerativeInfo`](@ref) (required)
@@ -609,7 +637,7 @@ A new generative support information type can be created via the following:
 3. Extend [`InfiniteOpt.support_label`](@ref) (required)
 4. Extend [`InfiniteOpt.make_generative_supports`](@ref) (required).
 
-For the sake of example, let's suppose we want to make a method that generates a
+For the sake of example, let's suppose we want to make a method that generates a 
 certain amount of random supports for each finite element. First, let's define 
 our struct `RandomGenerativeInfo`:
 ```jldoctest info_model; output = false
@@ -627,7 +655,7 @@ types of supports and extend `support_label`:
 ```jldoctest info_model; output = false
 struct RandomInternal <: InternalLabel end
 
-function InfiniteOpt.support_label(info::RandomGenerativeInfo)::TypeRandomInternal
+function InfiniteOpt.support_label(info::RandomGenerativeInfo)::Type{RandomInternal}
     return RandomInternal
 end
 
@@ -659,18 +687,19 @@ Our extension is done and now `RandomGenerativeInfo` can be incorporated by a
 choice like `FunctionalDiscreteMeasureData`. 
 
 ## [Optimizer Models] (@id extend_optimizer_model)
-`InfiniteOpt` provides a convenient interface and abstraction for modeling
-infinite-dimensional optimization problems. By default, `InfiniteModel`s are
-reformulated into a solvable `JuMP.Model` (referred to as an optimizer model)
-via `TranscriptionOpt` which discretizes the model in accordance with the
-infinite parameter supports. However, users may wish to employ some other
-reformulation method to produce the optimizer model. This section will explain
-how this can be done in `InfiniteOpt`. A template for implementing this
-extension is provided in [`./test/extensions/optimizer_model.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/optimizer_model.jl).
-Our default sub-module `InfiniteOpt.TranscriptionOpt` also serves as a good
+`InfiniteOpt` provides a convenient interface and abstraction for modeling 
+infinite-dimensional optimization problems. By default, `InfiniteModel`s are 
+reformulated into a solvable `JuMP.Model` (referred to as an optimizer model) 
+via `TranscriptionOpt` which discretizes the model in accordance with the 
+infinite parameter supports. However, users may wish to employ some other 
+reformulation method to produce the optimizer model. This section will explain 
+how this can be done in `InfiniteOpt`. A template for implementing this 
+extension is provided in 
+[`./test/extensions/optimizer_model.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/optimizer_model.jl). 
+Our default sub-module `InfiniteOpt.TranscriptionOpt` also serves as a good 
 example.
 
-A new reformulation method and its corresponding optimizer model can be
+A new reformulation method and its corresponding optimizer model can be 
 extended using the following steps:
 1. Define a `mutable struct` for variable/constraint mappings and other needed info (required)
 2. Define a `JuMP.Model` constructor that uses (1.) in `Model.ext[:my_ext_key]` (recommended)
@@ -686,18 +715,21 @@ extended using the following steps:
     - [`InfiniteOpt.map_optimizer_index`](@ref) (enables `JuMP.optimizer_index`)
     - [`InfiniteOpt.map_dual`](@ref) (enables `JuMP.dual`)
     - [`InfiniteOpt.map_shadow_price`](@ref) (enables `JuMP.shadow_price`)
-11. Extend [`InfiniteOpt.add_measure_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model
-12. Extend [`InfiniteOpt.delete_semi_infinite_variable`](@ref) to use [`expand_measure`](@ref) without modifying the infinite model and delete unneeded semi-infinite variables.
+11. Extend [`InfiniteOpt.add_measure_variable`](@ref) to use 
+    [`expand_measure`](@ref) without modifying the infinite model
+12. Extend [`InfiniteOpt.delete_semi_infinite_variable`](@ref) to use 
+    [`expand_measure`](@ref) without modifying the infinite model and delete 
+    unneeded semi-infinite variables.
 
-For the sake of example, let's suppose we want to define a reformulation method
-for `InfiniteModel`s that are 2-stage stochastic programs (i.e., only
-`DistributionDomain`s are used, infinite variables are random 2nd stage variables,
-and finite variables are 1st stage variables). In particular, let's make a simple
-method that replaces the infinite parameters with their mean values, giving us
+For the sake of example, let's suppose we want to define a reformulation method 
+for `InfiniteModel`s that are 2-stage stochastic programs (i.e., only 
+`DistributionDomain`s are used, infinite variables are random 2nd stage variables, 
+and finite variables are 1st stage variables). In particular, let's make a simple 
+method that replaces the infinite parameters with their mean values, giving us 
 the deterministic mean-valued problem.
 
-First, let's define the `mutable struct` that will be used to store our variable
-and constraint mappings. This case it is quite simple since our deterministic
+First, let's define the `mutable struct` that will be used to store our variable 
+and constraint mappings. This case it is quite simple since our deterministic 
 model will have a 1-to-1 mapping:
 ```jldoctest opt_model; output = false
 using InfiniteOpt, Distributions
@@ -717,7 +749,7 @@ end
 
 ```
 
-Now let's define a constructor for optimizer models that will use
+Now let's define a constructor for optimizer models that will use 
 `DeterministicData` and let's define a method to access that data:
 ```jldoctest opt_model; output = false
 const DetermKey = :DetermData
@@ -740,12 +772,12 @@ deterministic_data (generic function with 1 method)
 ```
 
 !!! note
-    The use of an extension key such as `DetermKey` is required since it used to
-    dispatch reformulation and querying methods making optimizer model
+    The use of an extension key such as `DetermKey` is required since it used to 
+    dispatch reformulation and querying methods making optimizer model 
     extensions possible.
 
-With the constructor we can now specify that a given `InfiniteModel` uses a
-`DeterministicModel` instead of a `TranscriptionModel` using the `OptimizerModel`
+With the constructor we can now specify that a given `InfiniteModel` uses a 
+`DeterministicModel` instead of a `TranscriptionModel` using the `OptimizerModel` 
 keyword argument or via [`set_optimizer_model`](@ref):
 ```jldoctest opt_model; output = false
 using Ipopt
@@ -766,27 +798,27 @@ Now `model` uses a `DeterministicModel` as its optimizer model! With that we can
 build our `InfiniteModel` as normal, for example:
 ```jldoctest opt_model
 @infinite_parameter(model, ξ in Uniform())
-@infinite_variable(model, y[1:2](ξ) >= 0)
-@finite_variable(model, x)
-@objective(model, Min, x + expect(y[1] + y[2], ξ))
-@constraint(model, 2y[1] - x <= 42)
+@variable(model, y[1:2] >= 0, Infinite(ξ))
+@variable(model, z)
+@objective(model, Min, z + expect(y[1] + y[2], ξ))
+@constraint(model, 2y[1] - z <= 42)
 @constraint(model, y[2]^2 + ξ == 2)
 print(model)
 
 # output
-Min x + 𝔼{ξ}[y[1](ξ) + y[2](ξ)]
+Min z + 𝔼{ξ}[y[1](ξ) + y[2](ξ)]
 Subject to
  y[1](ξ) ≥ 0.0, ∀ ξ ~ Uniform
  y[2](ξ) ≥ 0.0, ∀ ξ ~ Uniform
- 2 y[1](ξ) - x ≤ 42.0, ∀ ξ ~ Uniform
+ 2 y[1](ξ) - z ≤ 42.0, ∀ ξ ~ Uniform
  y[2](ξ)² + ξ = 2.0, ∀ ξ ~ Uniform
 ```
 
-We have defined our `InfiniteModel`, but now we need to specify how to
-reformulate it into a `DeterministicModel`. This is accomplished by extending
-[`build_optimizer_model!`](@ref). This will enable the use of `optimize!`. First,
-let's define an internal function `_make_expression` that will use dispatch to
-convert and `InfiniteOpt` expression into a `JuMP` expression using the mappings
+We have defined our `InfiniteModel`, but now we need to specify how to 
+reformulate it into a `DeterministicModel`. This is accomplished by extending 
+[`build_optimizer_model!`](@ref). This will enable the use of `optimize!`. First, 
+let's define an internal function `_make_expression` that will use dispatch to 
+convert and `InfiniteOpt` expression into a `JuMP` expression using the mappings 
 stored in `opt_model` in its `DeterministicData`:
 ```jldoctest opt_model; output = false
 ## Make dispatch methods for converting InfiniteOpt expressions
@@ -795,28 +827,43 @@ function _make_expression(opt_model::Model, expr::GeneralVariableRef)
     return _make_expression(opt_model, expr, index(expr))
 end
 # IndependentParameterRef
-function _make_expression(opt_model::Model, expr::GeneralVariableRef, 
-                          ::IndependentParameterIndex)
+function _make_expression(
+    opt_model::Model, 
+    expr::GeneralVariableRef, 
+    ::IndependentParameterIndex
+    )
     return mean(infinite_domain(expr).distribution) # assuming univariate
 end
 # FiniteParameterRef
-function _make_expression(opt_model::Model, expr::GeneralVariableRef, 
-                          ::FiniteParameterIndex)
+function _make_expression(
+    opt_model::Model, 
+    expr::GeneralVariableRef, 
+    ::FiniteParameterIndex
+    )
     return parameter_value(expr)
 end
 # DependentParameterRef
-function _make_expression(opt_model::Model, expr::GeneralVariableRef, 
-                          ::DependentParameterIndex)
+function _make_expression(
+    opt_model::Model, 
+    expr::GeneralVariableRef, 
+    ::DependentParameterIndex
+    )
     return mean(infinite_domain(expr).distribution) # assuming valid dist.
 end
 # DecisionVariableRef
-function _make_expression(opt_model::Model, expr::GeneralVariableRef, 
-                          ::Union{InfiniteVariableIndex, FiniteVariableIndex})
+function _make_expression(
+    opt_model::Model, 
+    expr::GeneralVariableRef, 
+    ::Union{InfiniteVariableIndex, FiniteVariableIndex}
+    )
     return deterministic_data(opt_model).infvar_to_detvar[expr]
 end
 # MeasureRef --> assume is expectation
-function _make_expression(opt_model::Model, expr::GeneralVariableRef,
-                          ::MeasureIndex)
+function _make_expression(
+    opt_model::Model, 
+    expr::GeneralVariableRef,
+    ::MeasureIndex
+    )
     return _make_expression(opt_model, measure_function(expr))
 end
 # AffExpr
@@ -835,24 +882,26 @@ end
 _make_expression (generic function with 8 methods)
 
 ```
-For simplicity in example, above we assume that only `DistributionDomain`s are used,
-there are not any `PointVariableRef`s, and all `MeasureRef`s correspond to expectations.
-Naturally, a full extension should include checks to enforce that such assumptions
-hold.
+For simplicity in example, above we assume that only `DistributionDomain`s are 
+used, there are not any `PointVariableRef`s, and all `MeasureRef`s correspond to 
+expectations. Naturally, a full extension should include checks to enforce that 
+such assumptions hold.
 
-Now let's extend [`build_optimizer_model!`](@ref) for `DeterministicModel`s.
-Such extensions should build an optimizer model in place and in general should
-employ the following:
+Now let's extend [`build_optimizer_model!`](@ref) for `DeterministicModel`s. 
+Such extensions should build an optimizer model in place and in general should 
+employ the following: 
 - [`clear_optimizer_model_build!`](@ref InfiniteOpt.clear_optimizer_model_build!(::InfiniteModel))
 - [`set_optimizer_model_ready`](@ref).
-In place builds without the use of `clear_optimizer_model_build!` are also
-possible, but will require some sort of active mapping scheme to update in
-accordance with the `InfiniteModel` in the case that the
-optimizer model is built more than once. Thus, for simplicity we extend
+In place builds without the use of `clear_optimizer_model_build!` are also 
+possible, but will require some sort of active mapping scheme to update in 
+accordance with the `InfiniteModel` in the case that the 
+optimizer model is built more than once. Thus, for simplicity we extend 
 `build_optimizer_model!` below using an initial clearing scheme:
 ```jldoctest opt_model; output = false
-function InfiniteOpt.build_optimizer_model!(model::InfiniteModel,
-                                            key::Val{DetermKey})
+function InfiniteOpt.build_optimizer_model!(
+    model::InfiniteModel,
+    key::Val{DetermKey}
+    )::Nothing
     # TODO check that `model` is a stochastic model
     # clear the model for a build/rebuild
     determ_model = InfiniteOpt.clear_optimizer_model_build!(model)
@@ -894,51 +943,56 @@ end
 # output
 
 ```
-Now we can build our optimizer model to obtain a `DeterministicModel` which can
+Now we can build our optimizer model to obtain a `DeterministicModel` which can 
 be leveraged to call `optimize!`
 ```jldoctest opt_model
 optimize!(model)
 print(optimizer_model(model))
 
 # output
-Min x + y[1] + y[2]
+Min z + y[1] + y[2]
 Subject to
- 2 y[1] - x ≤ 42.0
+ 2 y[1] - z ≤ 42.0
  y[2]² = 1.5
  y[1] ≥ 0.0
  y[2] ≥ 0.0
 ```
-Note that better variable naming could be used with the reformulated infinite
-variables. Moreover, in general extensions of [`build_optimizer_model!`](@ref)
-should account for the possibility that `InfiniteModel` contains `FiniteVariable`s
-and/or `ScalarConstraint`s that contain [`ParameterBounds`](@ref) as accessed via
-[`parameter_bounds`](@ref).
+Note that better variable naming could be used with the reformulated infinite 
+variables. Moreover, in general extensions of [`build_optimizer_model!`](@ref) 
+should account for the possibility that `InfiniteModel` contains constraints wiht 
+[`DomainRestrictions`](@ref) as accessed via [`domain_restrictions`](@ref).
 
-Now that we have optimized out `InfiniteModel` via the use the of a
-`DeterministicModel`, we probably will want to access the results. All queries
+Now that we have optimized out `InfiniteModel` via the use the of a 
+`DeterministicModel`, we probably will want to access the results. All queries 
 are enabled when we extend [`optimizer_model_variable`](@ref), 
 [`optimizer_model_expression`](@ref), and [`optimizer_model_constraint`](@ref) 
-to return the variable(s)/expression(s)/constraint(s) in the
-optimizer model corresponding to their `InfiniteModel` counterparts. These will
-use the `mutable struct` of mapping data and should error if no mapping can be
+to return the variable(s)/expression(s)/constraint(s) in the 
+optimizer model corresponding to their `InfiniteModel` counterparts. These will 
+use the `mutable struct` of mapping data and should error if no mapping can be 
 found, Let's continue our example using `DeterministicModel`s:
 ```jldoctest opt_model; output = false
-function InfiniteOpt.optimizer_model_variable(vref::GeneralVariableRef,
-                                              key::Val{DetermKey})
+function InfiniteOpt.optimizer_model_variable(
+    vref::GeneralVariableRef,
+    key::Val{DetermKey}
+    )
     model = optimizer_model(JuMP.owner_model(vref))
     map_dict = deterministic_data(model).infvar_to_detvar
     haskey(map_dict, vref) || error("Variable $vref not used in the optimizer model.")
     return map_dict[vref]
 end
 
-function InfiniteOpt.optimizer_model_expression(expr::JuMP.AbstractJuMPScalar,
-                                                key::Val{DetermKey})
+function InfiniteOpt.optimizer_model_expression(
+    expr::JuMP.AbstractJuMPScalar,
+    key::Val{DetermKey}
+    )
     model = optimizer_model(JuMP.owner_model(vref))
     return _make_expression(model, expr)
 end
 
-function InfiniteOpt.optimizer_model_constraint(cref::InfOptConstraintRef,
-                                                key::Val{DetermKey})
+function InfiniteOpt.optimizer_model_constraint(
+    cref::InfOptConstraintRef,
+    key::Val{DetermKey}
+    )
     model = optimizer_model(JuMP.owner_model(cref))
     map_dict = deterministic_data(model).infconstr_to_detconstr
     haskey(map_dict, cref) || error("Constraint $cref not used in the optimizer model.")
@@ -948,7 +1002,7 @@ end
 # output
 
 ```
-With these extensions we can now access all the result queries. For example,
+With these extensions we can now access all the result queries. For example:
 ```jldoctest opt_model
 julia> termination_status(model)
 LOCALLY_SOLVED::TerminationStatusCode = 4
@@ -961,17 +1015,17 @@ julia> value.(y)
  0.0
  1.224744871391589
 
-julia> optimizer_index(x)
+julia> optimizer_index(z)
 MathOptInterface.VariableIndex(3)
 ```
 
 !!! note
     If [`optimizer_model_variable`](@ref), [`optimizer_model_expression`](@ref), 
-    and/or [`optimizer_model_constraint`](@ref)
-    cannot be extended due to the nature of the reformulation then please refer
-    to step 10 of the extension steps listed at the beginning of this section.
+    and/or [`optimizer_model_constraint`](@ref) cannot be extended due to the 
+    nature of the reformulation then please refer to step 10 of the extension 
+    steps listed at the beginning of this section.
 
-Furthermore, if appropriate for the given reformulation the following should be
+Furthermore, if appropriate for the given reformulation the following should be 
 extended:
 - [`InfiniteOpt.variable_supports`](@ref) to enable `supports` on variables)
 - [`InfiniteOpt.expression_supports`](@ref) to enable `supports` on expressions)
@@ -980,11 +1034,11 @@ extended:
 That's it!
 
 ## Wrapper Packages
-`InfiniteOpt` provides a convenient modular interface for defining infinite
-dimensional optimization problems, implementing many tedious `JuMP` extensions
-such as facilitating mixed variable expressions. Thus, `InfiniteOpt` can serve
-as a base package for specific types of infinite dimensional problems and/or
-solution techniques. These extension packages can implement any of the extensions
-shown above and likely will want to introduce wrapper functions and macros to
-use package specific terminology (e.g., using random variables instead of
+`InfiniteOpt` provides a convenient modular interface for defining infinite 
+dimensional optimization problems, implementing many tedious `JuMP` extensions 
+such as facilitating mixed variable expressions. Thus, `InfiniteOpt` can serve 
+as a base package for specific types of infinite dimensional problems and/or 
+solution techniques. These extension packages can implement any of the extensions 
+shown above and likely will want to introduce wrapper functions and macros to 
+use package specific terminology (e.g., using random variables instead of 
 infinite variables).
