@@ -12,13 +12,13 @@ MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 
 [compat]
-julia = "1"
-JuMP = "0.21.8"
-FastGaussQuadrature = "^0.3.2, 0.4"
-Distributions = "0.19, 0.20, 0.21, 0.22, 0.23, 0.24"
-MathOptInterface = "0.9.20"
 DataStructures = "^0.14.2, 0.15, 0.16, 0.17, 0.18"
+Distributions = "0.19, 0.20, 0.21, 0.22, 0.23, 0.24, 0.25"
+FastGaussQuadrature = "^0.3.2, 0.4"
+JuMP = "0.21.8"
+MathOptInterface = "0.9.20"
 Reexport = "0.2, 1"
+julia = "1"
 
 [extras]
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
