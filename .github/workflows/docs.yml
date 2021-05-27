@@ -16,7 +16,7 @@ jobs:
       - name: Install dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Check curl
-        run: julia --project=docs/ -e 'println(success(`curl --version`)); println(Sys.which("curl"))'
+        run: julia --project=docs/ -e 'println(success(`curl --version`))'
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
