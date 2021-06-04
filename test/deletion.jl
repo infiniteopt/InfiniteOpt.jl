@@ -261,10 +261,6 @@ end
     end
     # test JuMP.delete for IndependentParameters
     @testset "JuMP.delete (IndependentParameterRef)" begin
-        # test parameter function dependency 
-        push!(InfiniteOpt._parameter_function_dependencies(par2), ParameterFunctionIndex(1))
-        @test_throws ErrorException delete(m, par2)
-        popfirst!(InfiniteOpt._parameter_function_dependencies(par2)) 
         # add parameter function for object number updating 
         pfunc = parameter_function(sin, par)
         # test used by infinite variable
@@ -272,6 +268,10 @@ end
         @test delete(m, inf2) isa Nothing
         @test !is_valid(m, inf2)
         @test !is_valid(m, pt2)
+        # test parameter function dependency 
+        push!(InfiniteOpt._parameter_function_dependencies(par2), ParameterFunctionIndex(1))
+        @test_throws ErrorException delete(m, par2)
+        popfirst!(InfiniteOpt._parameter_function_dependencies(par2)) 
         # test normal usage
         @test isa(delete(m, par2), Nothing)
         @test !is_valid(m, par2)

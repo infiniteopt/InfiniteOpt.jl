@@ -16,9 +16,9 @@
         @test IC.ContainerIndices(c) isa IC.ContainerIndices{2, Nothing}
         @test IC.ContainerIndices(c) == IC.ContainerIndices(CartesianIndices(c), nothing)
         # DenseAxisArrays 
-        @test IC.ContainerIndices(b2) isa IC.ContainerIndices{1, Tuple{UnitRange{Int64}}}
+        @test IC.ContainerIndices(b2) isa IC.ContainerIndices{1, Tuple{UnitRange{Int}}}
         @test IC.ContainerIndices(b2) == IC.ContainerIndices(CartesianIndices(b), (3:4,))
-        @test IC.ContainerIndices(c2) isa IC.ContainerIndices{2, Tuple{UnitRange{Int64}, Array{Symbol,1}}}
+        @test IC.ContainerIndices(c2) isa IC.ContainerIndices{2, Tuple{UnitRange{Int}, Array{Symbol,1}}}
         @test IC.ContainerIndices(c2) == IC.ContainerIndices(CartesianIndices(c), (3:4, [:q, :z]))
         # SparseAxisArrays
         @test IC.ContainerIndices(d) isa IC.ContainerIndices{1, Vector{Tuple{Int, Int}}}
@@ -62,6 +62,7 @@
         @test IC.vectorize(c2) == [6, 5, 7, 1]
         @test IC.vectorize(d) == [-2, 8, 9]
         @test IC.vectorize([]) == []
+        @test IC.vectorize(zeros(2, 0)) == []
         # 2 arguments 
         @test IC.vectorize(a, IC.indices(a)) == a
         @test IC.vectorize(b, IC.indices(b)) == b

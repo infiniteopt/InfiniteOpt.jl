@@ -200,7 +200,11 @@ end
         expected = FiniteParameter(1)
         @test build_parameter(error, 1) == expected
     end
-
+    # build_parameter fallbacks
+    @testset "build_parameter (Fallbacks)" begin
+        @test_throws ErrorException build_parameter(error, CollectionDomain([IntervalDomain(0, 1)]))
+        @test_throws ErrorException build_parameter(error, :bad)
+    end
     # add_parameter
     @testset "add_parameter" begin
         m = InfiniteModel()
