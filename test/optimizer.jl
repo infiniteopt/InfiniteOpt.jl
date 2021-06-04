@@ -198,7 +198,7 @@ end
         @infinite_parameter(m, t in [0, 1])
         @variable(m, y, Infinite(t))
         myfunc(ts, a) = ts + a
-        @parameter_function(m, d[i = 1:3](t), myfunc(t, i))
+        @parameter_function(m, d[i = 1:3] == (t) -> myfunc(t, i))
         @constraint(m, [i = 1:3], y >= d[i])
         build_optimizer_model!(m)
         return m

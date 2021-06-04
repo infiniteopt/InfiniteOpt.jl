@@ -2,7 +2,7 @@
 @testset "Variable--Variable" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)
@@ -96,7 +96,7 @@ end
 @testset "Variable--AffExpr" begin
     # initialize model and references and expressions
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)
@@ -185,7 +185,7 @@ end
 @testset "AffExpr--Variable" begin
     # initialize model and references and expressions
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)
@@ -274,7 +274,7 @@ end
 @testset "AffExpr--AffExpr" begin
     # initialize model and references and expressions
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)
@@ -426,7 +426,7 @@ end
 @testset "QuadExpr--Variable" begin
     # initialize model and references and expressions
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)
@@ -543,7 +543,7 @@ end
 @testset "Variable--QuadExpr" begin
     # initialize model and references and expressions
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)
@@ -660,7 +660,7 @@ end
 @testset "AffExpr--QuadExpr" begin
     # initialize model and references and expressions
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)
@@ -789,7 +789,7 @@ end
 @testset "QuadExpr--AffExpr" begin
     # initialize model and references and expressions
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)
@@ -918,7 +918,7 @@ end
 @testset "QuadExpr--QuadExpr" begin
     # initialize model and references and expressions
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)

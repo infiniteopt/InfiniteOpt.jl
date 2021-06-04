@@ -99,7 +99,7 @@ function _process_value(v::JuMP.GenericAffExpr)
 end
 
 """
-    SemiInfinite{V, T} <: InfOptVariableType 
+    SemiInfinite{V, VT <: VectorTuple} <: InfOptVariableType 
 
 A `DataType` to assist in making semi-infinite variables. This can be passed as an 
 extra argument to `@variable` to make such a variable: 
@@ -112,21 +112,20 @@ of both real valued supports and/or infinite parameters.
 
 **Fields**
 - `infinite_variable_ref::V`
-- `parameter_values::VectorTuple{T}`: The infinite parameters and/or infinite 
+- `parameter_values::VT`: The infinite parameters and/or infinite 
    parameter support values the variable will depend on.
 """
-struct SemiInfinite{V, T} <: InfOptVariableType 
+struct SemiInfinite{V, VT <: Collections.VectorTuple} <: InfOptVariableType 
     infinite_variable_ref::V 
-    parameter_values::VectorTuple{T}
-    function SemiInfinite(ivref::V, vals...) where {V}
-        vt = VectorTuple(vals)
-        processed_vals = _process_value.(vt.values)
-        if processed_vals != vt.values
-            vt = VectorTuple(processed_vals, vt.ranges, vt.indices)
-        end
-        T = param_type(vt)
-        return new{V, T}(ivref, vt)
+    parameter_values::VT
+end
+function SemiInfinite(ivref, vals...)
+    vt = Collections.VectorTuple(vals)
+    processed_vals = _process_value.(vt.values)
+    if processed_vals != vt.values
+        vt = Collections.VectorTuple(processed_vals, vt.ranges, vt.indices)
     end
+    return SemiInfinite(ivref, vt)
 end
 
 """
@@ -175,7 +174,7 @@ function JuMP.build_variable(
     end
     # check that the values are the same format as the infinite variable 
     raw_params = var_type.parameter_values
-    if !same_structure(raw_params, raw_parameter_refs(ivref))
+    if !Collections.same_structure(raw_params, raw_parameter_refs(ivref))
         _error("The parameter reference/value input format $(raw_params) does ",
                "not match that of the infinite variable $(ivref).")
     end
@@ -301,20 +300,18 @@ function eval_supports(vref::SemiInfiniteVariableRef)::Dict{Int, Float64}
 end
 
 """
-    raw_parameter_refs(vref::SemiInfiniteVariableRef)::VectorTuple{GeneralVariableRef}
+    raw_parameter_refs(vref::SemiInfiniteVariableRef)::VectorTuple
 
-Return the raw [`VectorTuple`](@ref) of the parameter references that `vref`
-depends on. This is primarily an internal method where
-[`parameter_refs`](@ref parameter_refs(vref::SemiInfiniteVariableRef))
+Return the raw [`VectorTuple`](@ref InfiniteOpt.Collections.VectorTuple) of the 
+parameter references that `vref` depends on. This is primarily an internal method 
+where [`parameter_refs`](@ref parameter_refs(vref::SemiInfiniteVariableRef)) 
 is intended as the preferred user function.
 """
-function raw_parameter_refs(
-    vref::SemiInfiniteVariableRef
-    )::VectorTuple{GeneralVariableRef}
+function raw_parameter_refs(vref::SemiInfiniteVariableRef)
     orig_prefs = raw_parameter_refs(infinite_variable_ref(vref))
     eval_supps = eval_supports(vref)
-    delete_indices = [haskey(eval_supps, i) for i in eachindex(orig_prefs)]
-    return deleteat!(copy(orig_prefs), delete_indices)
+    delete_indices = [!haskey(eval_supps, i) for i in eachindex(orig_prefs)]
+    return Collections.restricted_copy(orig_prefs, delete_indices)
 end
 
 """
@@ -331,7 +328,7 @@ julia> parameter_refs(vref)
 (t, [x[1], x[2]])
 ```
 """
-function parameter_refs(vref::SemiInfiniteVariableRef)::Tuple
+function parameter_refs(vref::SemiInfiniteVariableRef)
     return Tuple(raw_parameter_refs(vref))
 end
 
@@ -616,9 +613,7 @@ julia> start_value_func(vref)
 my_func
 ```
 """
-function start_value_function(
-    vref::SemiInfiniteVariableRef
-    )::Union{Nothing, Function}
+function start_value_function(vref::SemiInfiniteVariableRef)
     return start_value_function(infinite_variable_ref(vref))
 end
 

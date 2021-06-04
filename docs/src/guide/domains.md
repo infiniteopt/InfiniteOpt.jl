@@ -3,6 +3,10 @@ A guide and manual to the definition and use of infinite domains in
 `InfiniteOpt`. The Datatypes and Methods sections at the end comprise the manual,
 and the above sections comprise the guide.  
 
+!!! note 
+    Previous versions of `InfiniteOpt` referred to infinite domains as infinite 
+    sets. Hence, all of the methods and datatypes have been updated accordingly. 
+
 ## Basic Usage
 Interval domains are what characterize the behavior of infinite parameters in
 `InfiniteOpt`, since they comprise the domains of infinite parameters. However,

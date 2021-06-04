@@ -25,7 +25,7 @@ m = InfiniteModel(Clp.Optimizer)
 set_silent(m)
 
 # Set the uncertainty parameters
-@infinite_parameter(m, θ[i = 1:n_θ] in MvNormal(θ_nom, covar), 
+@infinite_parameter(m, θ[i = 1:n_θ] ~ MvNormal(θ_nom, covar), 
                     num_supports = num_samples)
 
 # Initialize the variables

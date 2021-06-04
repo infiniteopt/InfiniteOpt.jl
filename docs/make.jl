@@ -28,8 +28,10 @@ makedocs(;
     sitename = "InfiniteOpt.jl",
     authors = "Joshua Pulsipher and Weiqi Zhang",
     doctest = true,
+    checkdocs = :exports,
     linkcheck = true,
-    strict = false,
+    linkcheck_ignore = [r"https://www.youtube.com/.*"],
+    strict = true,
     format = Documenter.HTML(
         # See https://github.com/JuliaDocs/Documenter.jl/issues/868
         prettyurls = get(ENV, "CI", nothing) == "true",

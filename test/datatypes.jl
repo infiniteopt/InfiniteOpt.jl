@@ -98,9 +98,12 @@ end
     # NonUnivariateDistribution
     @test InfiniteOpt.NonUnivariateDistribution <: Distribution
     # MultiDistributionDomain
+    dist = Dirichlet([0.5, 0.5])
     @test MultiDistributionDomain <: InfiniteArrayDomain
-    @test MultiDistributionDomain(Dirichlet([0.5, 0.5])) isa MultiDistributionDomain{<:Dirichlet}
-    @test_deprecated MultiDistributionSet(Dirichlet([0.5, 0.5]))
+    @test MultiDistributionDomain(dist) isa MultiDistributionDomain{<:Dirichlet}
+    @test_deprecated MultiDistributionSet(dist)
+    @test MultiDistributionDomain(dist) == MultiDistributionDomain(dist)
+    @test MultiDistributionDomain(dist) != MultiDistributionDomain(MvNormal([1, 1], [1 0; 0 1]))
     # CollectionDomain
     @test CollectionDomain <: InfiniteArrayDomain
     @test CollectionDomain([IntervalDomain(0, 1), IntervalDomain(2, 3)]) isa CollectionDomain{IntervalDomain}
@@ -375,10 +378,10 @@ end
     pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
     vt = IC.VectorTuple(pref)
     # test ParameterFunction
-    @test ParameterFunction(sin, vt, [1], [1], "") isa ParameterFunction
-    @test_deprecated InfiniteParameterFunction(sin, vt, [1], [1], "")
+    @test ParameterFunction(sin, vt, [1], [1]) isa ParameterFunction
+    @test_deprecated InfiniteParameterFunction(sin, vt, [1], [1])
     # test ParameterFunctionData
-    @test ParameterFunctionData(ParameterFunction(sin, vt, [1], [1], "")) isa ParameterFunctionData
+    @test ParameterFunctionData(ParameterFunction(sin, vt, [1], [1])) isa ParameterFunctionData
 end
 
 # Test variable datatypes
@@ -388,8 +391,7 @@ end
     num = Float64(0)
     sample_info = VariableInfo(true, num, true, num, true, num, true, num, true, true)
     func = (x) -> NaN
-    inf_info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
-                 num, true, num, false, func, true, true)
+    inf_info = VariableInfo(true, num, true, num, true, num, false, func, true, true)
     pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
     vref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
     # Infinite variable
@@ -413,8 +415,7 @@ end
     num = Float64(0)
     sample_info = VariableInfo(true, num, true, num, true, num, true, num, true, true)
     func = (x) -> NaN
-    inf_info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
-                 num, true, num, false, func, true, true)
+    inf_info = VariableInfo(true, num, true, num, true, num, false, func, true, true)
     pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
     vref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
     dref = GeneralVariableRef(m, 1, DerivativeIndex)

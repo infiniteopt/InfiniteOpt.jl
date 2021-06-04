@@ -2,16 +2,16 @@
 @testset "Basics" begin
     # setup data
     m = InfiniteModel()
-    @independent_parameter(m, a in [0, 1], derivative_method = TestMethod())
+    @infinite_parameter(m, a in [0, 1], derivative_method = TestMethod())
     @variable(m, x, Infinite(a))
     idx = DerivativeIndex(1)
     num = Float64(0)
     func = (x) -> NaN
-    info = VariableInfo{Float64, Float64, Float64, Function}(false, num, false,
-                                     num, false, num, false, func, false, false)
-    new_info = VariableInfo{Float64, Float64, Float64, Function}(true, 0., true,
-                                          0., true, 0., true, func, false, false)
+    func2 = (a...) -> 1
+    info = VariableInfo(false, num, false, num, false, num, false, func, false, false)
+    new_info = VariableInfo(true, 0., true, 0., true, 0., true, func2, false, false)
     deriv = Derivative(info, true, x, a)
+    deriv2 = Derivative(new_info, true, x, a)
     object = VariableData(deriv, "var")
     dref = DerivativeRef(m, idx)
     gvref = GeneralVariableRef(m, 1, DerivativeIndex)
@@ -65,6 +65,8 @@
     end
     # _set_core_variable_object
     @testset "_set_core_variable_object" begin
+        @test InfiniteOpt._set_core_variable_object(dref, deriv) isa Nothing
+        @test InfiniteOpt._set_core_variable_object(dref, deriv2) isa Nothing
         @test InfiniteOpt._set_core_variable_object(dref, deriv) isa Nothing
     end
     # _object_numbers
@@ -202,10 +204,10 @@ end
 @testset "Definition" begin
     # initialize model and infinite variable info
     m = InfiniteModel()
-    @independent_parameter(m, pref in [0, 1])
-    @independent_parameter(m, pref2 in [0, 1])
-    @dependent_parameters(m, prefs[1:2] in [0, 1])
-    @finite_parameter(m, fin, 42)
+    @infinite_parameter(m, pref in [0, 1])
+    @infinite_parameter(m, pref2 in [0, 1])
+    @infinite_parameter(m, prefs[1:2] in [0, 1])
+    @finite_parameter(m, fin == 42)
     @variable(m, x, Infinite(pref, prefs))
     @variable(m, y, Infinite(pref2))
     num = Float64(0)
@@ -250,7 +252,7 @@ end
     @testset "add_derivative" begin
         # prepare secondary model and parameter and variable
         m2 = InfiniteModel()
-        @independent_parameter(m2, pref3 in [0, 1])
+        @infinite_parameter(m2, pref3 in [0, 1])
         @variable(m2, z, Infinite(pref3))
         d = build_derivative(error, info, z, pref3)
         # test for error of invalid variable
@@ -520,8 +522,8 @@ end
 @testset "Macro Definition" begin 
     # initialize model and stuff
     m = InfiniteModel()
-    @independent_parameter(m, t in [0, 1])
-    @dependent_parameters(m, x[1:2] in [-1, 1])
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x[1:2] in [-1, 1])
     @variable(m, y, Infinite(t, x))
     @variable(m, q[1:3], Infinite(t, x))
     # test single variable definition
@@ -600,8 +602,8 @@ end
 @testset "Usage" begin
     # initialize model and stuff
     m = InfiniteModel()
-    @independent_parameter(m, t in [0, 1])
-    @dependent_parameters(m, x[1:2] in [-1, 1])
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x[1:2] in [-1, 1])
     @variable(m, y, Infinite(t, x))
     d = @deriv(y, t)
     vref = dispatch_variable_ref(d)

@@ -62,6 +62,8 @@ through step by step how this should be done.
      username@ubuntu:~/repo_directory$ git commit -m "insert commit message here"
      username@ubuntu:~/repo_directory$ git push origin master
      ```
+     We recommend using [VsCode](https://www.julia-vscode.org/) as an editor and 
+     as a GUI for interfacing with Git.
   8. Create a pull request. Go [here](https://github.com/pulsipher/InfiniteOpt.jl)
      to `InfiniteOpt`'s main page and create a pull request drawing from your forked
      repository. A step by step explanation is provided

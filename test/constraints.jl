@@ -118,8 +118,8 @@ end
 @testset "Definition" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+    @infinite_parameter(m, par in [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, inf2, Infinite(par, pars))
     @variable(m, pt, Point(inf, 0.5))
@@ -129,7 +129,7 @@ end
     meas = @measure(inf + par - x, data, name = "test")
     mindex = MeasureIndex(1)
     dinf = @deriv(inf, par)
-    @finite_parameter(m, fin, 42)
+    @finite_parameter(m, fin == 42)
     # test _check_restrictions
     @testset "_check_restrictions" begin
         # test normal
@@ -167,7 +167,7 @@ end
         @test InfiniteOpt._validate_restrictions(m, rs) isa Nothing
         @test num_supports(par) == 1
         # test error
-        @infinite_parameter(InfiniteModel(), par2 in Normal())
+        @infinite_parameter(InfiniteModel(), par2 ~ Normal())
         rs = DomainRestrictions(par2 => [0, 1])
         err = VariableNotOwned{GeneralVariableRef} 
         @test_throws err InfiniteOpt._validate_restrictions(m, rs)
@@ -283,9 +283,9 @@ end
 # Test parameter reference methods
 @testset "Parameter References" begin
     m = InfiniteModel()
-    @independent_parameter(m, t in [0, 1])
-    @independent_parameter(m, y in [0, 1])
-    @dependent_parameters(m, x[1:3] in [0, 1])
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, y in [0, 1])
+    @infinite_parameter(m, x[1:3] in [0, 1])
     @variable(m, z)
     @constraint(m, c1, z >= 0)
     @constraint(m, c2, z + t + x[1] >= 0)
@@ -300,8 +300,8 @@ end
 @testset "Domain Restrictions" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 10)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 10)
+    @infinite_parameter(m, par in [0, 10])
+    @infinite_parameter(m, pars[1:2] in [0, 10])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0.5))
     @variable(m, x >= 0, Int)
@@ -386,7 +386,7 @@ end
 @testset "Coefficient Methods" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0.5))
     @variable(m, x >= 0., Int)
@@ -449,7 +449,7 @@ end
 @testset "JuMP.num_constraints Extensions" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf >= 0, Infinite(par))
     @variable(m, pt, Point(inf, 0.5))
     @variable(m, 0 <= x <= 1, Int)
@@ -477,7 +477,7 @@ end
 @testset "JuMP.all_constraints Extensions" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf >= 0, Infinite(par))
     @variable(m, pt, Point(inf, 0.5))
     @variable(m, 0 <= x <= 1, Int)
@@ -523,7 +523,7 @@ end
 @testset "JuMP.list_of_constraint_types" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf >= 0., Infinite(par))
     @variable(m, pt, Point(inf, 0.5))
     @variable(m, 0. <= x <= 1., Int)

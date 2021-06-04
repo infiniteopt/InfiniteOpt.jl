@@ -2,9 +2,9 @@
 @testset "Basics" begin
     # initialize model and semi_infinite variable
     m = InfiniteModel()
-    @independent_parameter(m, a in [0, 1])
-    @independent_parameter(m, b[1:2] in [0, 1])
-    @dependent_parameters(m, c[1:2] in [0, 1])
+    @infinite_parameter(m, a in [0, 1])
+    @infinite_parameter(m, b[1:2] in [0, 1], independent = true)
+    @infinite_parameter(m, c[1:2] in [0, 1])
     @variable(m, ivref, Infinite(a, b, c))
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1, 4 => 0, 5 => 0)
     var = SemiInfiniteVariable(ivref, eval_supps, [2], [2])
@@ -162,9 +162,9 @@ end
 @testset "Definition" begin
     # initialize model and semi_infinite variable
     m = InfiniteModel()
-    @independent_parameter(m, a in [0, 1])
-    @independent_parameter(m, b[1:2] in [0, 1])
-    @dependent_parameters(m, c[1:2] in [0, 1])
+    @infinite_parameter(m, a in [0, 1])
+    @infinite_parameter(m, b[1:2] in [0, 1], independent = true)
+    @infinite_parameter(m, c[1:2] in [0, 1])
     @variable(m, ivref, Infinite(a, b, c))
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1, 4 => 0, 5 => 0)
     info = VariableInfo(false, NaN, false, NaN, false, NaN, false, NaN, false, false)
@@ -269,9 +269,9 @@ end
 @testset "Info" begin
     # initialize model and semi_infinite variable
     m = InfiniteModel()
-    @independent_parameter(m, a in [0, 1])
-    @independent_parameter(m, b[1:2] in [0, 1])
-    @dependent_parameters(m, c[1:2] in [0, 1])
+    @infinite_parameter(m, a in [0, 1])
+    @infinite_parameter(m, b[1:2] in [0, 1], independent = true)
+    @infinite_parameter(m, c[1:2] in [0, 1])
     @variable(m, 0 <= ivref1 <= 1, Infinite(a, b, c), Int)
     @variable(m, ivref2 == 1, Infinite(a, b, c), Bin, start = 0)
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1, 4 => 0, 5 => 0)
@@ -402,8 +402,8 @@ end
 @testset "Usage" begin
     # initialize model and stuff
     m = InfiniteModel()
-    @independent_parameter(m, t in [0, 1])
-    @dependent_parameters(m, x[1:2] in [-1, 1])
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x[1:2] in [-1, 1])
     @variable(m, y, Infinite(t, x))
     eval_supps = Dict{Int, Float64}(1 => 0.5, 3 => 1)
     var = build_variable(error, y, eval_supps, check = false)
@@ -468,9 +468,9 @@ end
 @testset "Model Queries" begin
     # initialize model, parameter, and variables
     m = InfiniteModel()
-    @independent_parameter(m, a in [0, 1])
-    @independent_parameter(m, b[1:2] in [0, 1])
-    @dependent_parameters(m, c[1:2] in [0, 1])
+    @infinite_parameter(m, a in [0, 1])
+    @infinite_parameter(m, b[1:2] in [0, 1], independent = true)
+    @infinite_parameter(m, c[1:2] in [0, 1])
     @variable(m, ivref, Infinite(a, b, c))
     @variable(m, pvref, Point(ivref, 0, [0, 0], [0, 0]))
     @variable(m, hvref)

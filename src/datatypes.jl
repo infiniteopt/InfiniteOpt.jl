@@ -171,8 +171,10 @@ end
 
 ## Extend the CleverDicts key access methods
 # index_to_key
-function MOIUC.index_to_key(::Type{C},
-                            index::Int64) where {C <: ObjectIndex}
+function MOIUC.index_to_key(
+    ::Type{C},
+    index::Int64
+    ) where {C <: ObjectIndex}
     return C(index)
 end
 
@@ -264,6 +266,11 @@ infinite parameters that follows its form. This is for use with
 """
 struct MultiDistributionDomain{T <: NonUnivariateDistribution} <: InfiniteArrayDomain
     distribution::T
+end
+
+# Extend Base.:(==) for relevant cases
+function Base.:(==)(d1::D, d2::D)::Bool where {D <: MultiDistributionDomain}
+    return d1.distribution == d2.distribution
 end
 
 # make convenient alias for distribution domains
@@ -673,7 +680,7 @@ end
 #                        PARAMETER FUNCTION OBJECTS
 ################################################################################
 """
-    ParameterFunction{F <: Function, P <: GeneralVariableRef}
+    ParameterFunction{F <: Function, VT <: VectorTuple}
 
 A `DataType` for storing known functions of infinite parameters. These equate to arbitrary 
 functions that take support instances of infinite parameters `parameter_refs` in 
@@ -683,20 +690,17 @@ incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
 **Fields**
 - `func::F`: The function the takes infinite parameters as input and provide a 
             scalar number as output.
-- `parameter_refs::VectorTuple{P}`: The infinite parameter references that serve as 
+- `parameter_refs::VT`: The infinite parameter references that serve as 
                                    inputs to `func`. Their formatting is analagous 
                                    to those of infinite variables. 
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
-- `default_name::String`: A helper field for storing the default name of the parameter function 
-                          object.
 """
-struct ParameterFunction{F <: Function, P <: JuMP.AbstractVariableRef}
+struct ParameterFunction{F <: Function, VT <: Collections.VectorTuple}
     func::F
-    parameter_refs::VectorTuple{P}
+    parameter_refs::VT
     object_nums::Vector{Int}
     parameter_nums::Vector{Int}
-    default_name::String
 end
 
 """
@@ -729,7 +733,7 @@ end
 #                               VARIABLE TYPES
 ################################################################################
 """
-    InfiniteVariable{P <: GeneralVariableRef} <: JuMP.AbstractVariable
+    InfiniteVariable{F <: Function, VT <: VectorTuple} <: JuMP.AbstractVariable
 
 A `DataType` for storing core infinite variable information. Note that indices
 that refer to the same dependent parameter group must be in the same tuple element.
@@ -737,20 +741,20 @@ It is important to note that `info.start` should contain a start value function
 that generates the start value for a given infinite parameter support. This
 function should map a support to a start value using user-formatting if
 `is_vector_start = false`, otherwise it should do the mapping using a single
-support vector as input. Also, the variable reference type `P` must pertain to
-infinite parameters.
+support vector as input.
 
 **Fields**
-- `info::JuMP.VariableInfo{Float64, Float64, Float64, Function}`: JuMP variable information.
-- `parameter_refs::VectorTuple{P}`: The infinite parameter references that
-                                    parameterize the variable.
+- `info::JuMP.VariableInfo{Float64, Float64, Float64, F}`: JuMP variable information.
+  Here the start value is a function that maps the parameter values to a start value.
+- `parameter_refs::VT`: The infinite parameter references that parameterize the 
+  variable.
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
 - `is_vector_start::Bool`: Does the start function take support values formatted as vectors?
 """
-struct InfiniteVariable{P <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
-    info::JuMP.VariableInfo{Float64, Float64, Float64, Function}
-    parameter_refs::VectorTuple{P}
+struct InfiniteVariable{F <: Function, VT <: Collections.VectorTuple} <: JuMP.AbstractVariable
+    info::JuMP.VariableInfo{Float64, Float64, Float64, F}
+    parameter_refs::VT
     parameter_nums::Vector{Int}
     object_nums::Vector{Int}
     is_vector_start::Bool
@@ -834,18 +838,24 @@ mutable struct VariableData{V <: JuMP.AbstractVariable} <: AbstractDataObject
     semi_infinite_var_indices::Vector{SemiInfiniteVariableIndex} # InfiniteVariables only
     derivative_indices::Vector{DerivativeIndex} # infinite and semi-infinite only
     deriv_constr_indices::Vector{InfOptConstraintIndex} # Derivatives only
-    function VariableData(var::V, name::String = "") where {V <: JuMP.AbstractVariable}
-        return new{V}(var, name, nothing, nothing, nothing, nothing, nothing,
-                   MeasureIndex[], InfOptConstraintIndex[], false, PointVariableIndex[],
-                   SemiInfiniteVariableIndex[], DerivativeIndex[], InfOptConstraintIndex[])
-    end
+end
+
+# Define constructor
+function VariableData(
+    var::V, 
+    name::String = ""
+    )::VariableData{V} where {V <: JuMP.AbstractVariable}
+    return VariableData{V}(var, name, nothing, nothing, nothing, nothing, nothing,
+                           MeasureIndex[], InfOptConstraintIndex[], false, 
+                           PointVariableIndex[], SemiInfiniteVariableIndex[], 
+                           DerivativeIndex[], InfOptConstraintIndex[])
 end
 
 ################################################################################
 #                              DERIVATIVE TYPES
 ################################################################################
 """
-    Derivative{V <: GeneralVariableRef} <: JuMP.AbstractVariable
+    Derivative{F <: Function, V <: GeneralVariableRef} <: JuMP.AbstractVariable
 
 A `DataType` for storing core infinite derivative information. This follows a 
 derivative of the form: ``\\frac{\\partial x(\\alpha, \\hdots)}{\\partial \\alpha}`` 
@@ -860,14 +870,14 @@ support vector as input. Also, the variable reference type `V` must pertain to
 infinite variables and parameters.
 
 **Fields**
-- `info::JuMP.VariableInfo{Float64, Float64, Float64, Function}`: JuMP variable information.
+- `info::JuMP.VariableInfo{Float64, Float64, Float64, F}`: JuMP variable information.
 - `is_vector_start::Bool`: Does the start function take support values formatted as vectors?
 - `variable_ref::V`: The variable reference of the infinite variable argument.
 - `parameter_ref::V`: The variable reference of the infinite parameter the defines the
    differential operator.
 """
-struct Derivative{V <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
-    info::JuMP.VariableInfo{Float64, Float64, Float64, Function}
+struct Derivative{F <: Function, V <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
+    info::JuMP.VariableInfo{Float64, Float64, Float64, F}
     is_vector_start::Bool
     variable_ref::V # could be ref of infinite/semi-infinite variable/derivative or measure (top of derivative)
     parameter_ref::V # a scalar infinite parameter ref (bottom of derivative)
@@ -887,7 +897,8 @@ abstract type AbstractMeasureData end
 """
     DiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
                         Vector{<:JuMP.AbstractVariableRef}},
-                        N, B <: Union{Float64, Vector{Float64}}
+                        N, B <: Union{Float64, Vector{Float64}},
+                        F <: Function
                         } <: AbstractMeasureData
 
 A DataType for immutable measure abstraction data where the
@@ -908,7 +919,7 @@ type can be used for both 1-dimensional and multi-dimensional measures.
                                  a `Matrix` where the supports are stored column-wise.
 - `label::DataType`: Label for the support points ``\\tau_i`` when stored in the
                    infinite parameter(s), stemming from [`AbstractSupportLabel`](@ref).
-- `weight_function::Function`: Weighting function ``w`` must map an individual
+- `weight_function::F`: Weighting function ``w`` must map an individual
                                support value to a `Real` scalar value.
 - `lower_bounds::B`: Lower bound in accordance with ``T``, this denotes the
                     intended interval of the measure and should be `NaN` if ignored
@@ -917,38 +928,44 @@ type can be used for both 1-dimensional and multi-dimensional measures.
 """
 struct DiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
                            Vector{<:JuMP.AbstractVariableRef}},
-                           N, B <: Union{Float64, Vector{Float64}}
+                           N, B <: Union{Float64, Vector{Float64}},
+                           F <: Function
                            } <: AbstractMeasureData
     parameter_refs::P
     coefficients::Vector{Float64}
     supports::Array{Float64, N} # supports are stored column-wise
     label::DataType # label that will used when the supports are added to the model
-    weight_function::Function # single support --> weight value
+    weight_function::F # single support --> weight value
     lower_bounds::B
     upper_bounds::B
     is_expect::Bool
     # scalar constructor
-    function DiscreteMeasureData(param_ref::V, coeffs::Vector{<:Real},
-                                 supps::Vector{<:Real}, label::DataType,
-                                 weight_func::Function,
-                                 lower_bound::Real,
-                                 upper_bound::Real,
-                                 expect::Bool
-                                 ) where {V <: JuMP.AbstractVariableRef}
-        return new{V, 1, Float64}(param_ref, coeffs, supps, label, weight_func,
-                                  lower_bound, upper_bound, expect)
+    function DiscreteMeasureData(
+        param_ref::V, coeffs::Vector{<:Real},
+        supps::Vector{<:Real}, 
+        label::DataType,
+        weight_func::F,
+        lower_bound::Real,
+        upper_bound::Real,
+        expect::Bool
+        ) where {V <: JuMP.AbstractVariableRef, F <: Function}
+        return new{V, 1, Float64, F}(param_ref, coeffs, supps, label, weight_func,
+                                     lower_bound, upper_bound, expect)
     end
     # multi constructor
-    function DiscreteMeasureData(param_refs::Vector{V}, coeffs::Vector{<:Real},
-                                 supps::Matrix{<:Real}, label::DataType,
-                                 weight_func::Function,
-                                 lower_bound::Vector{<:Real},
-                                 upper_bound::Vector{<:Real},
-                                 expect::Bool
-                                 ) where {V <: JuMP.AbstractVariableRef}
-        return new{Vector{V}, 2, Vector{Float64}}(param_refs, coeffs, supps,
-                                                  label, weight_func, lower_bound,
-                                                  upper_bound, expect)
+    function DiscreteMeasureData(
+        param_refs::Vector{V}, 
+        coeffs::Vector{<:Real},
+        supps::Matrix{<:Real}, 
+        label::DataType,
+        weight_func::F,
+        lower_bound::Vector{<:Real},
+        upper_bound::Vector{<:Real},
+        expect::Bool
+        ) where {V <: JuMP.AbstractVariableRef, F <: Function}
+        return new{Vector{V}, 2, Vector{Float64}, F}(param_refs, coeffs, supps,
+                                                     label, weight_func, lower_bound,
+                                                     upper_bound, expect)
     end
 end
 
@@ -956,7 +973,9 @@ end
     FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
                                   Vector{<:JuMP.AbstractVariableRef}},
                                   B <: Union{Float64, Vector{Float64}},
-                                  I <: AbstractGenerativeInfo
+                                  I <: AbstractGenerativeInfo,
+                                  F1 <: Function,
+                                  F2 <: Function
                                   } <: AbstractMeasureData
 
 A DataType for mutable measure abstraction data where the
@@ -982,7 +1001,7 @@ supports are allowed for each infinite parameter.
 - `parameter_refs::P`: The infinite parameter(s) over which the integration occurs.
                      These can be comprised of multiple independent parameters,
                      but dependent parameters cannot be mixed with other types.
-- `coeff_function::Function`: Coefficient generation function making ``\\alpha_i``
+- `coeff_function::F1`: Coefficient generation function making ``\\alpha_i``
                               for the above measure abstraction. It should take
                               all the supports as input (formatted as an Array)
                               and return the corresponding vector of coefficients.
@@ -992,7 +1011,7 @@ supports are allowed for each infinite parameter.
                    stored in the infinite parameter(s), stemming from [`AbstractSupportLabel`](@ref).
 - `generative_supp_info::I`: Information needed to generate supports based on other 
    existing ones.
-- `weight_function::Function`: Weighting function ``w`` must map an individual
+- `weight_function::F2`: Weighting function ``w`` must map an individual
                               support value to a `Real` scalar value.
 - `lower_bounds::B`: Lower bounds in accordance with ``T``, this denotes the
                   intended interval of the measure and should be `NaN` if ignored
@@ -1002,57 +1021,65 @@ supports are allowed for each infinite parameter.
 struct FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
                                      Vector{<:JuMP.AbstractVariableRef}},
                                      B <: Union{Float64, Vector{Float64}},
-                                     I <: AbstractGenerativeInfo
+                                     I <: AbstractGenerativeInfo,
+                                     F1 <: Function,
+                                     F2 <: Function
                                      } <: AbstractMeasureData
     parameter_refs::P
-    coeff_function::Function # supports (excluding generative)--> coefficient vector (includes generative)
+    coeff_function::F1 # supports (excluding generative)--> coefficient vector (includes generative)
     min_num_supports::Int # minimum number of supports
     label::DataType # support label of included supports
     generative_supp_info::I
-    weight_function::Function # single support --> weight value
+    weight_function::F2 # single support --> weight value
     lower_bounds::B
     upper_bounds::B
     is_expect::Bool
     # scalar constructor
-    function FunctionalDiscreteMeasureData(param_ref::V, coeff_func::Function,
-                                           num_supps::Int, label::DataType,
-                                           gen_info::I,
-                                           weight_func::Function,
-                                           lower_bound::Real,
-                                           upper_bound::Real,
-                                           expect::Bool
-                                           ) where {V <: JuMP.AbstractVariableRef,
-                                                    I <: AbstractGenerativeInfo}
-        return new{V, Float64, I}(param_ref, coeff_func, num_supps, label, gen_info,
-                                  weight_func, lower_bound, upper_bound, expect)
+    function FunctionalDiscreteMeasureData(
+        param_ref::V, 
+        coeff_func::F1,
+        num_supps::Int, 
+        label::DataType,
+        gen_info::I,
+        weight_func::F2,
+        lower_bound::Real,
+        upper_bound::Real,
+        expect::Bool
+        ) where {V <: JuMP.AbstractVariableRef, I <: AbstractGenerativeInfo,
+                 F1 <: Function, F2 <: Function}
+        return new{V, Float64, I, F1, F2}(param_ref, coeff_func, num_supps, label, 
+                                          gen_info, weight_func, lower_bound, 
+                                          upper_bound, expect)
     end
     # multi constructor
-    function FunctionalDiscreteMeasureData(param_refs::Vector{V},
-                                           coeff_func::Function,
-                                           num_supps::Int, label::DataType,
-                                           weight_func::Function,
-                                           lower_bound::Vector{<:Real},
-                                           upper_bound::Vector{<:Real},
-                                           expect::Bool
-                                           ) where {V <: JuMP.AbstractVariableRef}
-        return new{Vector{V}, Vector{Float64}, NoGenerativeSupports}(param_refs, 
-                                               coeff_func, num_supps,
-                                               label, NoGenerativeSupports(), 
-                                               weight_func, lower_bound,
-                                               upper_bound, expect)
+    function FunctionalDiscreteMeasureData(
+        param_refs::Vector{V},
+        coeff_func::F1,
+        num_supps::Int, 
+        label::DataType,
+        weight_func::F2,
+        lower_bound::Vector{<:Real},
+        upper_bound::Vector{<:Real},
+        expect::Bool
+        ) where {V <: JuMP.AbstractVariableRef, F1 <: Function, F2 <: Function}
+        return new{Vector{V}, Vector{Float64}, NoGenerativeSupports, F1, F2}(
+            param_refs, coeff_func, num_supps, label, NoGenerativeSupports(), 
+            weight_func, lower_bound, upper_bound, expect)
     end
 end
 
 # Convenient Dispatch constructor 
-function FunctionalDiscreteMeasureData(param_refs::Vector{V},
-                                           coeff_func::Function,
-                                           num_supps::Int, label::DataType,
-                                           info::NoGenerativeSupports,
-                                           weight_func::Function,
-                                           lower_bound::Vector{<:Real},
-                                           upper_bound::Vector{<:Real},
-                                           expect::Bool
-                                           ) where {V <: JuMP.AbstractVariableRef}
+function FunctionalDiscreteMeasureData(
+    param_refs::Vector{V},
+    coeff_func::Function,
+    num_supps::Int, 
+    label::DataType,
+    info::NoGenerativeSupports,
+    weight_func::Function,
+    lower_bound::Vector{<:Real},
+    upper_bound::Vector{<:Real},
+    expect::Bool
+    ) where {V <: JuMP.AbstractVariableRef}
     return FunctionalDiscreteMeasureData(param_refs, coeff_func, num_supps,
                                          label, weight_func, lower_bound,
                                          upper_bound, expect)
@@ -1318,13 +1345,13 @@ function InfiniteModel(;
                          Union{IndependentParameterIndex, DependentParametersIndex}[],
                          MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{<:ParameterFunction}}(),
                          # Variables
-                         MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable{GeneralVariableRef}}}(),
+                         MOIUC.CleverDict{InfiniteVariableIndex, VariableData{<:InfiniteVariable}}(),
                          MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),
                          MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
                          MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}(),
                          nothing,
                          # Derivatives
-                         MOIUC.CleverDict{DerivativeIndex, VariableData{Derivative{GeneralVariableRef}}}(),
+                         MOIUC.CleverDict{DerivativeIndex, VariableData{<:Derivative}}(),
                          Dict{Tuple{GeneralVariableRef, GeneralVariableRef}, DerivativeIndex}(),
                          # Measures
                          MOIUC.CleverDict{MeasureIndex, MeasureData{<:Measure}}(),

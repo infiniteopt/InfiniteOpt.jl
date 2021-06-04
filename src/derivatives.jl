@@ -28,9 +28,7 @@ function _data_dictionary(dref::DerivativeRef)
 end
 
 # Extend _data_object
-function _data_object(
-    dref::DerivativeRef
-    )::VariableData{<:Derivative{<:GeneralVariableRef}}
+function _data_object(dref::DerivativeRef)
     object = get(_data_dictionary(dref), JuMP.index(dref), nothing)
     object === nothing && error("Invalid derivative reference, cannot find " *
     "corresponding derivative in the model. This is likely " *
@@ -39,9 +37,7 @@ function _data_object(
 end
 
 # Extend _core_variable_object
-function _core_variable_object(
-    dref::DerivativeRef
-    )::Derivative{<:GeneralVariableRef}
+function _core_variable_object(dref::DerivativeRef)
     return _data_object(dref).variable
 end
 
@@ -96,7 +92,7 @@ julia> derivative_method(dref)
 FiniteDifference(Backward, true)
 ```
 """
-function derivative_method(dref::DerivativeRef)::AbstractDerivativeMethod
+function derivative_method(dref::DerivativeRef)
     return derivative_method(operator_parameter(dref))
 end
 
@@ -120,7 +116,8 @@ function _existing_derivative_index(
 end
 
 # Get access the derivative constraint indices 
-function _derivative_constraint_dependencies(dref::DerivativeRef
+function _derivative_constraint_dependencies(
+    dref::DerivativeRef
     )::Vector{InfOptConstraintIndex}
     return _data_object(dref).deriv_constr_indices
 end
@@ -135,6 +132,43 @@ with normal usage (i.e., not using `evaluate`) this should always return `false`
 """
 function has_derivative_constraints(dref::DerivativeRef)::Bool
     return !isempty(_derivative_constraint_dependencies(dref))
+end
+
+## Set helper methods for adapting data_objects with parametric changes 
+# No change needed 
+function _adaptive_data_update(
+    dref::DerivativeRef, 
+    d::D, 
+    data::VariableData{D}
+    )::Nothing where {D <: Derivative}
+    data.variable = d
+    return
+end
+
+# Reconstruction is necessary 
+function _adaptive_data_update(
+    dref::DerivativeRef, 
+    d::D1, 
+    data::VariableData{D2}
+    )::Nothing  where {D1, D2}
+    new_data = VariableData(d, data.name, data.lower_bound_index,
+                            data.upper_bound_index, data.fix_index,
+                            data.zero_one_index, data.integrality_index,
+                            data.measure_indices, data.constraint_indices,
+                            data.in_objective, data.point_var_indices,
+                            data.semi_infinite_var_indices, 
+                            data.derivative_indices, data.deriv_constr_indices)
+    _data_dictionary(dref)[JuMP.index(dref)] = new_data
+    return
+end
+
+# Extend _set_core_variable_object for DerivativeRefs
+function _set_core_variable_object(
+    dref::DerivativeRef,
+    d::Derivative
+    )::Nothing
+    _adaptive_data_update(dref, d, _data_object(dref))
+    return
 end
 
 ################################################################################
@@ -186,7 +220,7 @@ function build_derivative(
     info::JuMP.VariableInfo, 
     argument_ref::GeneralVariableRef, 
     parameter_ref::GeneralVariableRef
-    )::Derivative{GeneralVariableRef}
+    )
     # check the derivative numerator and denominator 
     if !(_index_type(parameter_ref) <: InfiniteParameterIndex)
         _error("Derivatives must be with respect to an infinite parameter, but " * 
@@ -248,7 +282,7 @@ function JuMP.build_variable(
     info::JuMP.VariableInfo, 
     var_type::Deriv;
     extra_kw_args...
-    )::Derivative{GeneralVariableRef}
+    )
     # Error extra keyword arguments
     for (kwarg, _) in extra_kw_args
         _error("Keyword argument $kwarg is not for use with derivatives.")
@@ -410,7 +444,7 @@ julia> deriv_expr = deriv(x^2 + z, t, t)
 function deriv(
     expr, 
     prefs::GeneralVariableRef...
-    )::Union{JuMP.AbstractJuMPScalar, Float64}
+    )
     # Check inputs 
     if !all(_index_type(pref) <: InfiniteParameterIndex for pref in prefs)
         error("Can only take derivative with respect to infinite parameters.")
@@ -457,7 +491,7 @@ julia> deriv_expr = @deriv(x^2 + z, t^2)
 """
 macro deriv(expr, args...)
     # process the arugments
-    extra, kw_args, requestedcontainer = _extract_kw_args(args)
+    extra, kwargs, _, _ = _extract_kwargs(args)
     # expand the parameter references as needed wiwht powers
     pref_exprs = []
     for p in extra
@@ -469,7 +503,7 @@ macro deriv(expr, args...)
     end
     # prepare the code to call deriv
     expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
-    code = :( deriv($expression, $(pref_exprs...); ($(kw_args...))) ) # TODO throw error if has kw_args?
+    code = :( deriv($expression, $(pref_exprs...); ($(kwargs...))) ) # TODO throw error if has kw_args?
     return esc(code)
 end
 
@@ -501,14 +535,14 @@ end
 #                           PARAMETER REFERENCES
 ################################################################################
 """
-    raw_parameter_refs(dref::DerivativeRef)::VectorTuple{GeneralVariableRef}
+    raw_parameter_refs(dref::DerivativeRef)::VectorTuple
 
-Return the raw [`VectorTuple`](@ref) of the parameter references that `dref`
-depends on. This is primarily an internal method where
-[`parameter_refs`](@ref parameter_refs(::DerivativeRef))
+Return the raw [`VectorTuple`](@ref InfiniteOpt.Collections.VectorTuple) of the 
+parameter references that `dref` depends on. This is primarily an internal method 
+where [`parameter_refs`](@ref parameter_refs(::DerivativeRef)) 
 is intended as the preferred user function.
 """
-function raw_parameter_refs(dref::DerivativeRef)::VectorTuple{GeneralVariableRef}
+function raw_parameter_refs(dref::DerivativeRef)
     return raw_parameter_refs(derivative_argument(dref))
 end
 
@@ -525,7 +559,7 @@ julia> parameter_refs(deriv)
 (t,)
 ```
 """
-function parameter_refs(dref::DerivativeRef)::Tuple
+function parameter_refs(dref::DerivativeRef)
     return parameter_refs(derivative_argument(dref))
 end
 
@@ -548,10 +582,11 @@ function _update_variable_info(
     dref::DerivativeRef,
     info::JuMP.VariableInfo
     )::Nothing
-    new_info = JuMP.VariableInfo{Float64, Float64, Float64, Function}(
-                                 info.has_lb, info.lower_bound, info.has_ub,
-                                 info.upper_bound, info.has_fix, info.fixed_value,
-                                 info.has_start, info.start, info.binary, info.integer)
+    new_info = JuMP.VariableInfo(info.has_lb, convert(Float64, info.lower_bound), 
+                                 info.has_ub, convert(Float64, info.upper_bound), 
+                                 info.has_fix, convert(Float64, info.fixed_value),
+                                 info.has_start, info.start, info.binary, 
+                                 info.integer)
     vref = derivative_argument(dref)
     pref = operator_parameter(dref)
     is_vect_func = _is_vector_start(dref)
@@ -612,8 +647,7 @@ function reset_start_value_function(dref::DerivativeRef)::Nothing
     defaults = _derivative_defaults()
     start_func = defaults[:info].start 
     has_start = defaults[:info].has_start 
-    new_info = JuMP.VariableInfo{Float64, Float64, Float64, Function}(
-                                 info.has_lb, info.lower_bound, info.has_ub,
+    new_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
                                  info.upper_bound, info.has_fix, info.fixed_value,
                                  has_start, start_func, info.binary, info.integer)
     vref = derivative_argument(dref)

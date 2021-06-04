@@ -249,7 +249,7 @@ julia> @infinite_parameter(model, t in [0, 10]);
 
 julia> @infinite_parameter(model, x[1:3] in [-1, 1], independent = true);
 
-julia> @infinite_parameter(model, ξ in Normal());
+julia> @infinite_parameter(model, ξ ~ Normal());
 ```
 
 ### Variable Types

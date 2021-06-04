@@ -32,6 +32,7 @@ Currently, the following infinite and finite problem types are accepted:
     - Continuous and semi-continuous
     - Binary
     - Integer and semi-integer
+    - Semi-definite
 - Derivatives
     - Ordinary derivative operators (of any order)
     - Partial derivative operators (of any order)
@@ -47,6 +48,9 @@ Currently, the following infinite and finite problem types are accepted:
     - Linear
     - Quadratic (convex and non-convex)
     - Higher-order powers (via place holder variables)
+    - Conic
+    - Semi-definite
+    - Indicator
 
 Comments, suggestions and improvements are welcome and appreciated.
 
@@ -63,7 +67,7 @@ following in the package manager.
 
 ## Modeling Infinite-Dimensional Problems with InfiniteOpt.jl
 See our YouTube overview of infinite-dimensional programming and InfiniteOpt.jl's 
-capabilities:
+capabilities (Note the syntax in the video is now deprecated):
 [![youtube](docs/src/assets/youtube.PNG)](http://www.youtube.com/watch?v=q5ETFLZbxiU "Modeling Infinite-Dimensional Problems with InfiniteOpt.jl")
 
 ## Documentation

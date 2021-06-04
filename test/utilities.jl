@@ -19,6 +19,13 @@ macro test_macro_throws(errortype, m)
     :(@test_throws $errortype try @eval $m catch err; throw(err.error) end)
 end
 
+# Make macro for container construction testing 
+macro gen_container(expr, vals)
+    idxvars, inds = InfiniteOpt._build_ref_sets(error, expr)
+    code = JuMPC.container_code(idxvars, inds, esc(vals), :Auto)
+    return code
+end
+
 # Define test data structures
 struct BadDomain <: AbstractInfiniteDomain end
 struct BadScalarDomain <: InfiniteScalarDomain end

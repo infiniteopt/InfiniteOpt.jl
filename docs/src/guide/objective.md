@@ -27,7 +27,7 @@ Principally, the objective function is specified via
 as is done in `JuMP`. For example, let's define the stochastic objective to 
 minimize ``0.5 x_1 + 0.5 x_2 + \mathbb{E}_\xi [y^2 - y]``:
 ```jldoctest obj; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
-julia> @infinite_parameter(model, ξ in Normal())
+julia> @infinite_parameter(model, ξ ~ Normal())
 ξ
 
 julia> @variable(model, y, Infinite(ξ))

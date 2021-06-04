@@ -2,7 +2,7 @@
 #                            MATH SYMBOL METHODS
 ################################################################################
 # Support additional math symbols beyond what JuMP does
-function _infopt_math_symbol(::Type{JuMP.REPLMode}, name::Symbol)::String
+function _math_symbol(::Type{JuMP.REPLMode}, name::Symbol)::String
     if name == :intersect
         return Sys.iswindows() ? "and" : "∩"
     elseif name == :prop
@@ -13,13 +13,53 @@ function _infopt_math_symbol(::Type{JuMP.REPLMode}, name::Symbol)::String
         return Sys.iswindows() ? "E" : "𝔼"
     elseif name == :integral 
         return Sys.iswindows() ? "integral" : "∫"
+    elseif name == :leq
+        return Sys.iswindows() ? "<=" : "≤"
+    elseif name == :geq
+        return Sys.iswindows() ? ">=" : "≥"
+    elseif name == :eq
+        return Sys.iswindows() ? "==" : "="
+    elseif name == :times
+        return "*"
+    elseif name == :sq
+        return "²"
+    elseif name == :ind_open
+        return "["
+    elseif name == :ind_close
+        return "]"
+    elseif name == :for_all
+        return Sys.iswindows() ? "for all" : "∀"
+    elseif name == :in
+        return Sys.iswindows() ? "in" : "∈"
+    elseif name == :open_set
+        return "{"
+    elseif name == :dots
+        return Sys.iswindows() ? ".." : "…"
+    elseif name == :close_set
+        return "}"
+    elseif name == :union
+        return Sys.iswindows() ? "or" : "∪"
+    elseif name == :infty
+        return Sys.iswindows() ? "Inf" : "∞"
+    elseif name == :open_rng
+        return "["
+    elseif name == :close_rng
+        return "]"
+    elseif name == :integer
+        return "integer"
+    elseif name == :succeq0
+        return " is semidefinite"
+    elseif name == :Vert
+        return Sys.iswindows() ? "||" : "‖"
+    elseif name == :sub2
+        return Sys.iswindows() ? "_2" : "₂"
     else
-        return JuMP._math_symbol(JuMP.REPLMode, name)
+        error("Internal error: Unrecognized symbol $name.")
     end
 end
 
 # Support additional math symbols beyond what JuMP does
-function _infopt_math_symbol(::Type{JuMP.IJuliaMode}, name::Symbol)::String
+function _math_symbol(::Type{JuMP.IJuliaMode}, name::Symbol)::String
     if name == :intersect
         return "\\cap"
     elseif name == :prop
@@ -34,8 +74,44 @@ function _infopt_math_symbol(::Type{JuMP.IJuliaMode}, name::Symbol)::String
         return "\\mathbb{E}"
     elseif name == :integral 
         return "\\int"
+    elseif name == :leq
+        return "\\leq"
+    elseif name == :geq
+        return "\\geq"
+    elseif name == :eq
+        return "="
+    elseif name == :times
+        return "\\times "
+    elseif name == :sq
+        return "^2"
+    elseif name == :ind_open
+        return "_{"
+    elseif name == :ind_close
+        return "}"
+    elseif name == :for_all
+        return "\\quad\\forall"
+    elseif name == :in
+        return "\\in"
+    elseif name == :open_set
+        return "\\{"
+    elseif name == :dots
+        return "\\dots"
+    elseif name == :close_set
+        return "\\}"
+    elseif name == :union
+        return "\\cup"
+    elseif name == :infty
+        return "\\infty"
+    elseif name == :integer
+        return "\\in \\mathbb{Z}"
+    elseif name == :succeq0
+        return "\\succeq 0"
+    elseif name == :Vert
+        return "\\Vert"
+    elseif name == :sub2
+        return "_2"
     else
-        return JuMP._math_symbol(JuMP.IJuliaMode, name)
+        error("Internal error: Unrecognized symbol $name.")
     end
 end
 
@@ -43,13 +119,21 @@ end
 #                            INFINITE SET METHODS
 ################################################################################
 # Return "s" if n is greater than one
-_plural(n) = (isone(n) ? "" : "s")
+_plural(n)::String = (isone(n) ? "" : "s")
+
+# Round numbers in strings
+function _string_round(f::Float64)::String
+    iszero(f) && return "0" # strip sign off zero
+    str = string(f)
+    return length(str) >= 2 && str[end-1:end] == ".0" ? str[1:end-2] : str
+end
+_string_round(f)::String = string(f)
 
 ## Return the string of an infinite domain
 # IntervalDomain
 function domain_string(print_mode, domain::IntervalDomain)::String
-    return string("[", JuMP._string_round(JuMP.lower_bound(domain)), ", ",
-                  JuMP._string_round(JuMP.upper_bound(domain)), "]")
+    return string("[", _string_round(JuMP.lower_bound(domain)), ", ",
+                  _string_round(JuMP.upper_bound(domain)), "]")
 end
 
 # DistributionDomain
@@ -80,11 +164,11 @@ end
 # Extend to return of in domain string for interval domains
 function in_domain_string(print_mode, domain::IntervalDomain)::String
     if JuMP.lower_bound(domain) != JuMP.upper_bound(domain)
-        return string(_infopt_math_symbol(print_mode, :in), " ",
+        return string(_math_symbol(print_mode, :in), " ",
                       domain_string(print_mode, domain))
     else
-        return string(_infopt_math_symbol(print_mode, :eq), " ",
-                      JuMP._string_round(JuMP.lower_bound(domain)))
+        return string(_math_symbol(print_mode, :eq), " ",
+                      _string_round(JuMP.lower_bound(domain)))
     end
 end
 
@@ -100,12 +184,12 @@ function in_domain_string(print_mode, domain::DistributionDomain)::String
         dims = size(dist)
         name *= string("(dim", _plural(length(dims)), ": (", join(dims, ", "), "))")
     end
-    return string(_infopt_math_symbol(print_mode, :prop), " ", name)
+    return string(_math_symbol(print_mode, :prop), " ", name)
 end
 
 # Extend to return of in domain string of other domains
 function in_domain_string(print_mode, domain::AbstractInfiniteDomain)::String
-    return string(_infopt_math_symbol(print_mode, :in), " ",
+    return string(_math_symbol(print_mode, :in), " ",
                   domain_string(print_mode, domain))
 end
 
@@ -134,7 +218,7 @@ function in_domain_string(print_mode,
             return in_domain_string(print_mode, bound_domain)
         else
             return  string(in_domain_string(print_mode, domain), " ",
-                           _infopt_math_symbol(print_mode, :intersect),
+                           _math_symbol(print_mode, :intersect),
                            " ", domain_string(print_mode, bound_domain))
         end
     else
@@ -216,9 +300,9 @@ function variable_string(m::Type{JuMP.REPLMode}, mref::MeasureRef)::String
     func_str = JuMP.function_string(m, measure_function(mref))
     name = JuMP.name(mref)
     if name == "integral"
-        name = _infopt_math_symbol(m, :integral)
+        name = _math_symbol(m, :integral)
     elseif name == "expect"
-        name = _infopt_math_symbol(m, :expect)
+        name = _math_symbol(m, :expect)
     end
     return string(name, "{", data_str, "}[", func_str, "]")
 end
@@ -236,8 +320,8 @@ function variable_string(m::Type{JuMP.IJuliaMode}, mref::MeasureRef)::String
     else 
         name = name == "expect" ? "\\mathbb{E}" : string("\\text{", name, "}")
         return string(name, "_{", data_str, "}", 
-                  InfiniteOpt._infopt_math_symbol(m, :open_rng), func_str, 
-                  InfiniteOpt._infopt_math_symbol(m, :close_rng))
+                  InfiniteOpt._math_symbol(m, :open_rng), func_str, 
+                  InfiniteOpt._math_symbol(m, :close_rng))
     end
 end
 
@@ -267,7 +351,10 @@ function _get_base_name(::Type{JuMP.IJuliaMode}, vref)::String
 end
 
 # Helper method for infinite variable construction 
-function _add_on_parameter_refs(base_name::String, prefs::VectorTuple)::String 
+function _add_on_parameter_refs(
+    base_name::String, 
+    prefs::Collections.VectorTuple
+    )::String 
     param_name_tuple = "("
     for i in 1:size(prefs, 1)
         element_prefs = prefs[i, :]
@@ -319,14 +406,14 @@ end
 ## Make helper function for making derivative operators 
 # REPL 
 function _deriv_operator(m::Type{JuMP.REPLMode}, pref)::String
-    return string(_infopt_math_symbol(m, :partial), "/", 
-                  _infopt_math_symbol(m, :partial), variable_string(m, pref))
+    return string(_math_symbol(m, :partial), "/", 
+                  _math_symbol(m, :partial), variable_string(m, pref))
 end
 
 # IJulia 
 function _deriv_operator(m::Type{JuMP.IJuliaMode}, pref)::String
-    return string("\\frac{", _infopt_math_symbol(m, :partial), "}{", 
-                  _infopt_math_symbol(m, :partial), " ", 
+    return string("\\frac{", _math_symbol(m, :partial), "}{", 
+                  _math_symbol(m, :partial), " ", 
                   variable_string(m, pref), "}")
 end
 
@@ -344,16 +431,16 @@ function variable_string(print_mode, dref::DerivativeRef)::String
         vref = dispatch_variable_ref(derivative_argument(dref))
         pref = operator_parameter(dref)
         return string(_deriv_operator(print_mode, pref), 
-                      _infopt_math_symbol(print_mode, :open_rng), 
+                      _math_symbol(print_mode, :open_rng), 
                       variable_string(print_mode, vref), 
-                      _infopt_math_symbol(print_mode, :close_rng))
+                      _math_symbol(print_mode, :close_rng))
     end
 end
 
 ## Return the parameter value as an appropriate string
 # Number
 function _make_str_value(value)::String
-    return JuMP._string_round(value)
+    return _string_round(value)
 end
 
 # Array{<:Number}
@@ -365,15 +452,15 @@ function _make_str_value(values::Array)::String
         str_value = "["
         for i in eachindex(values)
             if i != length(values)
-                str_value *= JuMP._string_round(values[i]) * ", "
+                str_value *= _string_round(values[i]) * ", "
             else
-                str_value *= JuMP._string_round(values[i]) * "]"
+                str_value *= _string_round(values[i]) * "]"
             end
         end
         return str_value
     else
-        return string("[", JuMP._string_round(first(values)), ", ..., ",
-                      JuMP._string_round(last(values)), "]")
+        return string("[", _string_round(first(values)), ", ..., ",
+                      _string_round(last(values)), "]")
     end
 end
 
@@ -522,7 +609,7 @@ function _param_domain_string(print_mode, model::InfiniteModel,
             domain_str = string(_remove_name_index(first_gvref), " ",
                             in_domain_string(print_mode, domain))
             if !isempty(filtered_restrictions)
-                domain_str *= string(" ", _infopt_math_symbol(print_mode, :intersect),
+                domain_str *= string(" ", _math_symbol(print_mode, :intersect),
                                      " (", restrict_string(print_mode, filtered_restrictions), ")")
             end
         end
@@ -547,7 +634,7 @@ function JuMP.constraint_string(print_mode,
         restrictions = domain_restrictions(cref)
         # prepare the parameter domains
         model = JuMP.owner_model(cref)
-        bound_str = string(", ", JuMP._math_symbol(print_mode, :for_all), " ")
+        bound_str = string(", ", _math_symbol(print_mode, :for_all), " ")
         for index in _param_object_indices(model)[_object_numbers(cref)]
             bound_str *= string(_param_domain_string(print_mode, model, index, restrictions),
                                 ", ")
@@ -564,7 +651,7 @@ function JuMP.constraint_string(print_mode,
     end
     # format for IJulia
     if print_mode == JuMP.IJuliaMode && !in_math_mode
-        constr_str = JuMP._wrap_in_inline_math_mode(constr_str)
+        constr_str = string("\$ ", constr_str, " \$")
     end
     # add name if it has one
     name = JuMP.name(cref)
