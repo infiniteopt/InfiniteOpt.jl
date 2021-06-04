@@ -41,7 +41,7 @@ end
     # initialize models
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 1], supports = [0, 1])
-    @dependent_parameters(m, pars[1:2] in [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1])
     @variable(m, x, Infinite(par, pars))
     @variable(m, q, Infinite(pars, par))
     @variable(m, w, Infinite(par))
@@ -91,7 +91,7 @@ end
     # initialize models
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 1], supports = [0, 1])
-    @dependent_parameters(m, pars[1:2] in [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1])
     @variable(m, x, Infinite(par, pars))
     @variable(m, x0, Point(x, 0, [0, 0]))
     @variable(m, y)
@@ -273,7 +273,7 @@ end
     # initialize tbe needed info
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 1], supports = [0, 1])
-    @dependent_parameters(m, pars[1:2] in [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1])
     @variable(m, x, Infinite(par, pars))
     @variable(m, x0, Point(x, 0, [0, 0]))
     @variable(m, y)
@@ -345,7 +345,7 @@ end
 @testset "Support Iteration Methods" begin 
     # initialize the needed info 
     m = InfiniteModel()
-    @dependent_parameters(m, pars[1:2] in [0, 1], num_supports = 2)
+    @infinite_parameter(m, pars[1:2] in [0, 1], num_supports = 2)
     @infinite_parameter(m, par in [0, 1], supports = [0, 1], 
                         derivative_method = OrthogonalCollocation(3))
     @variable(m, y, Infinite(par))
@@ -423,10 +423,10 @@ end
 @testset "Expression Queries" begin
     # initialize tbe needed info
     m = InfiniteModel()
-    @dependent_parameters(m, pars[1:2] in [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1])
     @infinite_parameter(m, par in [0, 1], supports = [0])
     @variable(m, x, Infinite(par, pars))
-    @finite_parameter(m, finpar, 42)
+    @finite_parameter(m, finpar == 42)
     @variable(m, x0, Point(x, 0, [0, 0]))
     @variable(m, y)
     f = parameter_function((a,b) -> 1, (par, pars))

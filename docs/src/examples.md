@@ -91,7 +91,7 @@ model = InfiniteModel(Ipopt.Optimizer) # seed to test output
 set_optimizer_attribute(model, "print_level", 0)
 
 # Define the random parameters
-@infinite_parameter(model, ξ[c in C] in Ξ[c], num_supports = num_scenarios)
+@infinite_parameter(model, ξ[c in C] ~ Ξ[c], num_supports = num_scenarios)
 
 # Define the variables and bounds
 @variable(model, 0 <= x[C] <= xbar)

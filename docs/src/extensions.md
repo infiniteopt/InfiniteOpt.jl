@@ -532,7 +532,7 @@ example:
 ```jldoctest measure_data; setup = :(using Random; Random.seed!(42))
 # Setup the infinite model
 model = InfiniteModel()
-@infinite_parameter(model, xi in Normal(), num_supports = 2) # few for simplicity
+@infinite_parameter(model, xi ~ Normal(), num_supports = 2) # few for simplicity
 @variable(model, y, Infinite(xi))
 @variable(model, z)
 
@@ -797,7 +797,7 @@ set_optimizer(model, optimizer_with_attributes(Ipopt.Optimizer, "print_level" =>
 Now `model` uses a `DeterministicModel` as its optimizer model! With that we can
 build our `InfiniteModel` as normal, for example:
 ```jldoctest opt_model
-@infinite_parameter(model, ξ in Uniform())
+@infinite_parameter(model, ξ ~ Uniform())
 @variable(model, y[1:2] >= 0, Infinite(ξ))
 @variable(model, z)
 @objective(model, Min, z + expect(y[1] + y[2], ξ))

@@ -999,19 +999,20 @@ function integral(
         error("Array keys of infinite parameters and bounds do not match.")
     end
     # process the arrays
-    vector_prefs = InfiniteOpt._make_ordered_vector(prefs)
-    vector_lbs = InfiniteOpt._make_ordered_vector(lbs)
-    vector_ubs = InfiniteOpt._make_ordered_vector(ubs)
+    inds = InfiniteOpt.Collections.indices(prefs)
+    vect_prefs = InfiniteOpt.Collections.vectorize(prefs, inds)
+    vect_lbs = InfiniteOpt.Collections.vectorize(lbs, inds)
+    vect_ubs = InfiniteOpt.Collections.vectorize(ubs, inds)
     # ensure valid bounds
-    if any(vector_lbs[i] >= vector_ubs[i] for i in eachindex(vector_lbs))
+    if any(vect_lbs[i] >= vect_ubs[i] for i in eachindex(vect_lbs))
         error("Invalid integral bounds, ensure that lower_bounds < upper_bounds.")
     end
-    dprefs = map(p -> dispatch_variable_ref(p), vector_prefs)
-    InfiniteOpt._check_bounds_in_domain(dprefs, vector_lbs, vector_ubs)
+    dprefs = map(p -> dispatch_variable_ref(p), vect_prefs)
+    InfiniteOpt._check_bounds_in_domain(dprefs, vect_lbs, vect_ubs)
     # prepare the keyword arguments and make the measure data
     processed_kwargs = merge(multi_integral_defaults(), kwargs)
     eval_method = pop!(processed_kwargs, :eval_method)
-    data = generate_integral_data(vector_prefs, vector_lbs, vector_ubs,
+    data = generate_integral_data(vect_prefs, vect_lbs, vect_ubs,
                                   eval_method; processed_kwargs...)
     # make the measure
     return InfiniteOpt.measure(expr, data, name = "integral")
@@ -1049,13 +1050,13 @@ Please see the above doc strings for more information.
 macro integral(expr, prefs, args...)
     _error(str...) = InfiniteOpt._macro_error(:integral, (expr, prefs, args...), 
                                               str...)
-    extra, kw_args, requestedcontainer = InfiniteOpt._extract_kw_args(args)
+    extra, kwargs, _, _ = InfiniteOpt._extract_kwargs(args)
     if length(extra) != 0 && length(extra) != 2
         _error("Incorrect number of positional arguments for @integral. " *
                "Must provide both bounds or no bounds.")
     end
     expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
-    mref = :( integral($expression, $prefs, $(extra...); ($(kw_args...))) )
+    mref = :( integral($expression, $prefs, $(extra...); ($(kwargs...))) )
     return esc(mref)
 end
 
@@ -1070,77 +1071,13 @@ A convenient wrapper for [`@integral`](@ref). The unicode symbol `∫` is produc
 via `\\int`.
 """
 macro ∫(expr, prefs, args...)
-    return esc(:( @integral($expr, $prefs, $(args...)) ))
-end
-
-################################################################################
-#                               HELPER METHODS
-################################################################################
-#=
-"""
-    infinite_transform(lb::Number, ub::Number, num_supports::Int;
-                       [sub_method::Function = mc_sampling,
-                       transform_x::Function = _default_x,
-                       transform_dx::Function = _default_dx,
-                       t_lb::Number = -convert(Number, lb == -Inf && ub == Inf),
-                       t_ub::Number = 1., kwargs...])::Tuple
-
-Returns a tuple that contains supports and coefficients generated for a
-parameter in an infinite or semi-infinite interval. It works by transforming
-the original unbounded interval to a finite interval, on which a support
-generation method for finite intervals is applied. Then, the generated supports
-are transformed back to the original interval. The user is allowed to specify
-the support generation method for finite intevals to use, as well as the
-transform function. The default transform function is
-``t \\in [-\\infty, \\infty] \\rightarrow x \\in [-1, 1]: t(x) = \\frac{t}{1-t^2}``
-``t \\in [a, \\infty] \\rightarrow x \\in [0, 1]: t(x) = a + \\frac{t}{1-t}``
-``t \\in [-\\infty, a] \\rightarrow x \\in [0, 1]: t(x) = a - \\frac{1-t}{t}``
-
-**Example**
-```jldoctest; setup = :(using InfiniteOpt)
-julia> (supps, coeffs) = infinite_transform(-Inf, Inf, 5, sub_method = gauss_legendre())
-([-5.06704059565454, -0.7583532171678754, 0.0, 0.7583532171678754, 5.06704059565454], [13.490960583398396, 1.2245949721571516, 0.5688888888888889, 1.2245949721571516, 13.490960583398396])
-```
-"""
-function infinite_transform(domain::InfiniteOpt.IntervalDomain,
-                            params::Union{InfiniteOpt.ParameterRef,
-                            AbstractArray{<:InfiniteOpt.ParameterRef}},
-                            num_supports::Int,
-                            lb::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                            ub::Union{Number, JuMPC.SparseAxisArray, Nothing},
-                            sub_method::Val = Val(mc_sampling);
-                            transform_x::Function = _default_x,
-                            transform_dx::Function = _default_dx,
-                            t_lb::Number = -convert(Number, lb == -Inf && ub == Inf),
-                            t_ub::Number = 1.)::Tuple
-    # transform (semi-)infinite domain to finite domain
-    if lb != -Inf && ub != Inf
-        error("The range is not (semi-)infinite. Use evaluation methods for " *
-              "bounded domains.")
+    _error(str...) = InfiniteOpt._macro_error(:∫, (expr, prefs, args...), str...)
+    extra, kwargs, _, _ = InfiniteOpt._extract_kwargs(args)
+    if length(extra) != 0 && length(extra) != 2
+        _error("Incorrect number of positional arguments for @integral. " *
+               "Must provide both bounds or no bounds.")
     end
-    (t_supports, t_coeffs) = generate_integral_data(domain, params, num_supports, t_lb, t_ub, sub_method)
-    supports = transform_x.(t_supports, lb, ub)
-    coeffs = t_coeffs .* transform_dx.(t_supports, lb, ub)
-    return (supports, coeffs)
+    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
+    mref = :( integral($expression, $prefs, $(extra...); ($(kwargs...))) )
+    return esc(mref)
 end
-
-function _default_x(t::Number, lb::Number, ub::Number)::Number
-    if lb > -Inf
-        return lb + t / (1 - t)
-    elseif ub < Inf
-        return ub - (1 - t) / t
-    else
-        return t / (1 - t^2)
-    end
-end
-
-function _default_dx(t::Number, lb::Number, ub::Number)::Number
-    if lb > -Inf
-        return 1 / (1 - t)^2
-    elseif ub < Inf
-        return 1 / t^2
-    else
-        return (1 + t^2) / (1 - t^2)^2
-    end
-end
-=#

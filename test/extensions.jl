@@ -126,6 +126,7 @@ end
     for index in indices
         @test delete(m, MeasureRef(m, index)) isa Nothing
     end
+    @test delete(m, x) isa Nothing
     @test delete(m, t) isa Nothing
 end
 
@@ -139,7 +140,7 @@ end
     @infinite_parameter(m, t in [0, 5])
     @infinite_parameter(m, x[1:2] in [0, 1], independent = true)
     @infinite_parameter(m, p[1:2] in [0, 1])
-    @infinite_parameter(m, xi in Normal(0., 1.))
+    @infinite_parameter(m, xi ~ Normal(0., 1.))
     @variable(m, y >= 0, Infinite(t))
     @variable(m, f, Infinite(x))
     mref = integral(y^2 + t, t, 0, 4, num_supports = 5, 

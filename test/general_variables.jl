@@ -36,9 +36,9 @@
     end
     # test _remove_name_index
     @testset "_remove_name_index" begin
-        pref = @independent_parameter(m, test, domain = IntervalDomain(0, 1))
-        pref2 = @independent_parameter(m, θ, domain = IntervalDomain(0, 1))
-        prefs = @independent_parameter(m, x[1:2], domain = IntervalDomain(0, 1))
+        pref = @infinite_parameter(m, test, domain = IntervalDomain(0, 1))
+        pref2 = @infinite_parameter(m, θ, domain = IntervalDomain(0, 1))
+        prefs = @infinite_parameter(m, x[1:2], domain = IntervalDomain(0, 1))
         @test InfiniteOpt._remove_name_index(pref) == "test"
         @test InfiniteOpt._remove_name_index(prefs[1]) == "x"
         @test InfiniteOpt._remove_name_index(pref2) == "θ"

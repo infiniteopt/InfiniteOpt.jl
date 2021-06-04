@@ -165,7 +165,7 @@ just a single variable reference.
 
 **Example**
 ```julia-repl
-julia> @infinite_parameter(model, x in Normal(), num_supports = 2)
+julia> @infinite_parameter(model, x ~ Normal(), num_supports = 2)
 x
 
 julia> @variable(model, f, Infinite(x))
@@ -196,8 +196,8 @@ function expect(expr::JuMP.AbstractJuMPScalar,
     end
     # prepare the data
     domain = InfiniteOpt._parameter_domain(dpref)
-    ordered_prefs = InfiniteOpt._make_ordered_vector(prefs)
-    data = generate_expect_data(domain, ordered_prefs, num_supports; kwargs...)
+    vect_prefs = InfiniteOpt.Collections.vectorize(prefs)
+    data = generate_expect_data(domain, vect_prefs, num_supports; kwargs...)
     # make the measure
     return InfiniteOpt.measure(expr, data, name = "expect")
 end
@@ -215,13 +215,13 @@ information.
 macro expect(expr, prefs, args...)
     _error(str...) = InfiniteOpt._macro_error(:expect, (expr, prefs, args...), 
                                               str...)
-    extra, kw_args, requestedcontainer = InfiniteOpt._extract_kw_args(args)
+    extra, kwargs, _, _ = InfiniteOpt._extract_kwargs(args)
     if length(extra) > 0
         _error("Unexpected positional arguments." *
                "Must be of form @expect(expr, prefs, kwargs...).")
     end
     expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
-    mref = :( expect($expression, $prefs; ($(kw_args...))) )
+    mref = :( expect($expression, $prefs; ($(kwargs...))) )
     return esc(mref)
 end
 
@@ -254,12 +254,12 @@ A convenient wrapper for [`@expect`](@ref). The unicode symbol `𝔼` is produce
 macro 𝔼(expr, prefs, args...)
     _error(str...) = InfiniteOpt._macro_error(:𝔼, (expr, prefs, args...), 
                                               str...)
-    extra, kw_args, requestedcontainer = InfiniteOpt._extract_kw_args(args)
+    extra, kwargs, _, _ = InfiniteOpt._extract_kwargs(args)
     if length(extra) > 0
         _error("Unexpected positional arguments." *
                "Must be of form @𝔼(expr, prefs, kwargs...).")
     end
     expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
-    mref = :( expect($expression, $prefs; ($(kw_args...))) )
+    mref = :( expect($expression, $prefs; ($(kwargs...))) )
     return esc(mref)
 end

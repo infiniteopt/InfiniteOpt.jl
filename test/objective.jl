@@ -2,7 +2,7 @@
 @testset "Queries" begin
     # initialize the model, references, and other info
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0.5))
     @variable(m, x)
@@ -69,7 +69,7 @@ end
 @testset "Definition" begin
     # initialize the model, references, and other info
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0.5))
     @variable(m, x)
@@ -162,7 +162,7 @@ end
 @testset "Modification" begin
     # initialize the model, references, and other info
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0.5))
     @variable(m, x)

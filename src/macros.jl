@@ -1,603 +1,416 @@
-const Containers = JuMP.Containers
+using Base.Meta
 
-# Parse raw input to define the upper bound for an interval domain
-function _parse_one_operator_parameter(
-    _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:<=}, Val{:≤}},
-    upper)
-    _set_upper_bound_or_error(_error, infoexpr, upper)
+################################################################################
+#                                BASIC HELPERS
+################################################################################
+# Macro error function
+# inspired from https://github.com/jump-dev/JuMP.jl/blob/709d41b78e56efb4f2c54414266b30932010bd5a/src/macros.jl#L923-L928
+function _macro_error(macroname, args, source, str...)
+    error("At $(source.file):$(source.line): `@$macroname($(join(args, ", ")))`: ", 
+          str...)
 end
 
-# Parse raw input to define the lower bound for an interval domain
-function _parse_one_operator_parameter(
-    _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:>=}, Val{:≥}},
-    lower)
-    _set_lower_bound_or_error(_error, infoexpr, lower)
-end
+# Escape when needed
+# taken from https://github.com/jump-dev/JuMP.jl/blob/709d41b78e56efb4f2c54414266b30932010bd5a/src/macros.jl#L895-L897
+_esc_non_constant(x::Number) = x
+_esc_non_constant(x::Expr) = isexpr(x,:quote) ? x : esc(x)
+_esc_non_constant(x) = esc(x)
 
-# Parse raw input to define the distribution for a dist domain
-function _parse_one_operator_parameter(
-    _error::Function, infoexpr::_ParameterInfoExpr, ::Union{Val{:in}, Val{:∈}},
-    value)
-    # check if interval domain
-    if isexpr(value.args[1], :vect)
-        _set_lower_bound_or_error(_error, infoexpr,
-                                  _esc_non_constant(value.args[1].args[1]))
-        _set_upper_bound_or_error(_error, infoexpr,
-                                  _esc_non_constant(value.args[1].args[2]))
+# Extract the name from a macro expression 
+# Inspired from https://github.com/jump-dev/JuMP.jl/blob/45ce630b51fb1d72f1ff8fed35a887d84ef3edf7/src/Containers/macro.jl#L8-L17
+_get_name(c::Symbol) = c
+_get_name(c::Nothing) = ()
+_get_name(c::AbstractString) = c
+function _get_name(c::Expr)
+    if isexpr(c, :string)
+        return c
     else
-        _domain_or_error(_error, infoexpr, value)
+        return c.args[1]
     end
 end
 
-# Default function for unrecognized operators
-function _parse_one_operator_parameter(
-    _error::Function, infoexpr::_ParameterInfoExpr, ::Val{S}, value) where S
-    _error("Unknown sense $S.")
+# Given a base_name and idxvars, returns an expression that constructs the name
+# of the object.
+# Inspired from https://github.com/jump-dev/JuMP.jl/blob/709d41b78e56efb4f2c54414266b30932010bd5a/src/macros.jl#L930-L946
+function _name_call(base_name, idxvars)
+    if isempty(idxvars) || base_name == ""
+        return base_name
+    end
+    ex = Expr(:call, :string, base_name, "[")
+    for i in eachindex(idxvars)
+        # Converting the arguments to strings before concatenating is faster:
+        # https://github.com/JuliaLang/julia/issues/29550.
+        esc_idxvar = esc(idxvars[i])
+        push!(ex.args, :(string($esc_idxvar)))
+        i < length(idxvars) && push!(ex.args, ",")
+    end
+    push!(ex.args, "]")
+    return ex
 end
 
-# In that case we assume the variable is the lhs.
-function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
-                          sense::Symbol, var, value)
-    _parse_one_operator_parameter(_error, infoexpr, Val(sense),
-                                _esc_non_constant(value))
-    return var
+# Process macro arugments 
+function _extract_kwargs(args)
+    arg_list = collect(args)
+    if !isempty(args) && isexpr(args[1], :parameters)
+        p = popfirst!(arg_list)
+        append!(arg_list, p.args)
+    end
+    extra_kwargs = filter(x -> isexpr(x, :(=)) && x.args[1] != :container &&
+                          x.args[1] != :base_name, arg_list)
+    container_type = :Auto
+    base_name = nothing
+    for kw in arg_list
+        if isexpr(kw, :(=)) && kw.args[1] == :container
+            container_type = kw.args[2]
+        elseif isexpr(kw, :(=)) && kw.args[1] == :base_name
+            base_name = esc(kw.args[2])
+        end
+    end
+    pos_args = filter!(x -> !isexpr(x, :(=)), arg_list)
+    return pos_args, extra_kwargs, container_type, base_name
 end
 
-# If the lhs is a number and not the rhs, we can deduce that the rhs is
-# the variable.
-function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
-                          sense::Symbol, value::Number, var)
-    _parse_one_operator_parameter(_error, infoexpr,
-                                  JuMP.reverse_sense(Val(sense)),
-                                  _esc_non_constant(value))
-    return var
+# Add on keyword arguments to a function call expression and escape the expressions
+# Adapted from https://github.com/jump-dev/JuMP.jl/blob/d9cd5fb16c2d0a7e1c06aa9941923492fc9a28b5/src/macros.jl#L11-L36
+function _add_kwargs(call, kwargs)::Nothing
+    for kw in kwargs
+        push!(call.args, esc(Expr(:kw, kw.args...)))
+    end
+    return
 end
 
-# Parse raw input to define the upper and lower bounds for an interval domain
-function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
-                                  ::Union{Val{:<=}, Val{:≤}}, lower,
-                                  ::Union{Val{:<=}, Val{:≤}}, upper)
-    _set_lower_bound_or_error(_error, infoexpr, lower)
-    _set_upper_bound_or_error(_error, infoexpr, upper)
+# Determine if an expression contains any index variable symbols
+function _has_idxvars(expr, idxvars)::Bool
+    expr in idxvars && return true
+    if expr isa Expr
+        return any(_has_idxvars(a, idxvars) for a in expr.args)
+    end
+    return false
 end
 
-# Parse raw input to define the upper and lower bounds for an interval domain
-function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
-                                  ::Union{Val{:>=}, Val{:≥}}, upper,
-                                  ::Union{Val{:>=}, Val{:≥}}, lower)
-    _parse_ternary_parameter(_error, infoexpr, Val(:≤), lower, Val(:≤), upper)
+# Ensure a model argument is valid
+# Inspired from https://github.com/jump-dev/JuMP.jl/blob/d9cd5fb16c2d0a7e1c06aa9941923492fc9a28b5/src/macros.jl#L38-L44
+_valid_model(_error::Function, model::InfiniteModel, name) = nothing
+function _valid_model(_error::Function, model, name)
+    _error("Expected $name to be an `InfiniteModel`, but it has type ", 
+           typeof(model))
 end
 
-# Default for unrecognized operators
-function _parse_ternary_parameter(_error::Function, infoexpr::_ParameterInfoExpr,
-                                  ::Val, lvalue, ::Val, rvalue)
-    _error("Use the form lb <= ... <= ub.")
+# Check if a macro julia variable can be registered 
+# Adapted from https://github.com/jump-dev/JuMP.jl/blob/d9cd5fb16c2d0a7e1c06aa9941923492fc9a28b5/src/macros.jl#L66-L86
+function _error_if_cannot_register(
+    _error::Function, 
+    model::InfiniteModel, 
+    name::Symbol
+    )::Nothing
+    if haskey(JuMP.object_dictionary(model), name)
+        _error("An object of name $name is already attached to this model. If ",
+               "this is intended, consider using the anonymous construction ",
+               "syntax, e.g., `x = @macro_name(model, ...)` where the name ",
+               "of the object does not appear inside the macro. Alternatively, ",
+               "use `unregister(model, :$(name))` to first unregister the ",
+               "existing name from the model. Note that this will not delete ",
+               "the object; it will just remove the reference at ",
+               "`model[:$(name)]`")
+    end
+    return
+end
+function _error_if_cannot_register(_error::Function, model::InfiniteModel, name)
+    return _error("Invalid name $name.")
 end
 
-# Interpret a param_expr from macro input
-function _parse_parameter(_error::Function, infoexpr::_ParameterInfoExpr, lvalue,
-                          lsign::Symbol, var, rsign::Symbol, rvalue)
-    # lvalue lsign var rsign rvalue
-    _parse_ternary_parameter(_error, infoexpr, Val(lsign),
-                             _esc_non_constant(lvalue), Val(rsign),
-                             _esc_non_constant(rvalue))
-    return var
+# Update the creation code to register and assign the object to the name
+# Inspired from https://github.com/jump-dev/JuMP.jl/blob/d9cd5fb16c2d0a7e1c06aa9941923492fc9a28b5/src/macros.jl#L88-L120
+function _macro_assign_and_return(_error, code, name, model)
+    return quote
+        _error_if_cannot_register($_error, $model, $(quot(name)))
+        $(esc(name)) = $code
+        $model[$(quot(name))] = $(esc(name))
+    end
 end
+
+# Wrap the macro generated code for better stacttraces (assumes model is escaped)
+# Inspired from https://github.com/jump-dev/JuMP.jl/blob/d9cd5fb16c2d0a7e1c06aa9941923492fc9a28b5/src/macros.jl#L46-L64
+function _finalize_macro(_error, model, code, source::LineNumberNode)
+    return Expr(:block, source, 
+                :(_valid_model($_error, $model, $(quot(model.args[1])))), code)
+end
+
+################################################################################
+#                              CONTAINER HELPERS
+################################################################################
+# All the content in this section is inspired/taken from https://github.com/jump-dev/JuMP.jl/blob/9f02be85776644229a0f6898806e810e40fcc1f9/src/Containers/macro.jl#L39-L182
+
+# Grab the index set of a particular container expression arg
+function _parse_idxset(arg::Expr)
+    if isexpr(arg, :kw) || isexpr(arg, :(=))
+        # we have an index variable and a set of form var = set
+        return arg.args[1], esc(arg.args[2])
+    elseif isexpr(arg, :call) && (arg.args[1] === :in || arg.args[1] === :∈)
+        # we have an index variable and a set of form var in set
+        return arg.args[2], esc(arg.args[3])
+    else
+        # no index variable is given --> we only have a set
+        return gensym(), esc(arg)
+    end
+end
+_parse_idxset(arg) = gensym(), esc(arg)
+
+# When needed use `OneTo`
+function _explicit_oneto(idxset)
+    s = isexpr(idxset, :escape) ? idxset.args[1] : idxset
+    if isexpr(s, :call) &&
+       length(s.args) == 3 &&
+       s.args[1] === :(:) &&
+       s.args[2] == 1
+        return :(Base.OneTo($idxset))
+    else
+        return idxset
+    end
+end
+
+# Check if an expression contains any splats
+function _expr_is_splat(ex::Expr)::Bool
+    if isexpr(ex, :(...))
+        return true
+    elseif isexpr(ex, :escape)
+        return _expr_is_splat(ex.args[1])
+    end
+    return false
+end
+_expr_is_splat(::Any)::Bool = false
 
 """
-    @independent_parameter(model::InfiniteModel, kw_args...)::GeneralVariableRef
+    _parse_ref_sets(expr::Expr)
 
-Add an *anonymous* infinite parameter to the model `model` described by the
-keyword arguments `kw_args` and returns the parameter reference.
-
-```julia
-@independent_parameter(model::InfiniteModel, expr, kw_args...)::GeneralVariableRef
-```
-
-Add a parameter to the model `model` described by the expression `expr`
-and the keyword arguments `kw_args`. (note that in
-the following the symbol `<=` can be used instead of `≤`, the symbol `>=`can
-be used instead of `≥`, and the symbol `in` can be used instead of `∈`) The
-expression `expr` can be of the form:
-- `paramexpr` creating parameters described by `paramexpr`.
-- `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
-   by a continuous interval domain with lower bound `lb` and upper bound `ub`.
-- `paramexpr ∈ [lb, ub]` creating parameters described by `paramexpr` characterized
-   by a continuous interval domain with lower bound `lb` and upper bound `ub`.
-- `paramexpr ∈ dist` creating parameters described by `paramexpr` characterized
-   by the `Distributions.jl` distribution object `dist`.
-
-The expression `paramexpr` can be of the form:
-- `paramname` creating a scalar parameter of name `paramname`
-- `paramname[...]` or `[...]` creating a container of parameters
-
-The recognized keyword arguments in `kw_args` are the following:
-- `base_name`: Sets the name prefix used to generate parameter names. It
-  corresponds to the parameter name for scalar parameter, otherwise, the
-  parameter names are set to `base_name[...]` for each index `...` of the axes
-  `axes`.
-- `lower_bound`: Sets the value of the parameter lower bound for an interval domain.
-- `upper_bound`: Sets the value of the parameter upper bound for an interval domain.
-- `domain`: The `InfiniteDomain` characterizing the parameters see [`IntervalDomain`](@ref)
-   and [`UniDistributionDomain`](@ref).
-- `distribution`: Sets the `Distributions.jl` distribution object that characterizes
-  the parameters.
-- `supports`: Sets the support points for the parameters.
-- `num_supports`: Specifies the number of supports to be automatically generated.
-                  Note that `supports` takes precedence. Defaults to `DefaultNumSupports`.
-- `derivative_method`: Specifies the numerical method used to evaluate derivatives that 
-                       are taken with respect to the parameter.
-- `sig_digits`: Specifies the number of significant digits that should be used
-              in automatic support generation. Defaults to `DefaultSigDigits`.
-- `container`: Specify the container type. Defaults to `automatic`
-
-**Examples**
-```jldoctest; setup = :(using InfiniteOpt, JuMP, Distributions; m = InfiniteModel())
-julia> @independent_parameter(m, x in [0, 1])
-x
-
-julia> @independent_parameter(m, y[i = 1:2] in Normal(), num_supports = 10)
-2-element Array{GeneralVariableRef,1}:
- y[1]
- y[2]
-
-julia> z = @independent_parameter(m, [["a", "b"]], lower_bound = 0,
-                                  upper_bound = 1, supports = [0, 0.5, 1])
-1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
-   Dimension 1, ["a", "b"]
-And data, a 2-element Array{GeneralVariableRef,1}:
-noname[a]
-noname[b]
-```
+Helper function for macros to construct container objects. Takes an `Expr` that
+specifies the container, e.g. `:(x[i=1:3,[:red,:blue],k=S; i+k <= 6])`, and
+returns:
+    1. `idxvars`: Names for the index variables, e.g. `[:i, gensym(), :k]`
+    2. `idxsets`: Sets used for indexing, e.g. `[1:3, [:red,:blue], S]` (these are also escaped)
+    3. `condition`: Expr containing any conditional imposed on indexing, or `:()` if none is present
 """
-macro independent_parameter(model, args...)
-    esc_model = esc(model)
-
-    extra, kw_args, requestedcontainer = _extract_kw_args(args)
-
-    # check to see if error_args are provided define error function
-    error_kwargs = filter(kw -> kw.args[1] == :error_func, kw_args)
-    if isempty(error_kwargs)
-        _error(str...) = _macro_error(:independent_parameter, (model, args...), 
-                                      __source__, str...)
+function _parse_ref_sets(_error::Function, expr::Expr)
+    c = copy(expr)
+    idxvars = Any[]
+    idxsets = Any[]
+    # `:(t[i,j;k])` is a :ref, while `:(t[i;j])` is a :typed_vcat.
+    # In both cases `:t` is the first arg.
+    if isexpr(c, (:typed_vcat, :ref))
+        popfirst!(c.args)
+    end
+    condition = :()
+    if isexpr(c, (:vcat, :typed_vcat))
+        # Parameters appear as plain args at the end.
+        if length(c.args) > 2
+            _error("Unsupported syntax $c.")
+        elseif length(c.args) == 2
+            condition = pop!(c.args)
+        end # else no condition.
+    elseif isexpr(c, (:ref, :vect))
+        # Parameters appear at the front.
+        if isexpr(c.args[1], :parameters)
+            if length(c.args[1].args) != 1
+                _error("Invalid syntax: $c. Multiple semicolons are not ",
+                       "supported.")
+            end
+            condition = popfirst!(c.args).args[1]
+        end
     else
-        _error = error_kwargs[1].args[2]
+        _error("Unrecognized container format $c.")
     end
+    # process the index set arguement(s)
+    for s in c.args
+        idxvar, idxset = _parse_idxset(s) # this escapes the set
+        if idxvar in idxvars
+            _error("The index $(idxvar) appears more than once. The index " *
+                   "associated with each set must be unique.")
+        end
+        push!(idxvars, idxvar)
+        push!(idxsets, idxset)
+    end
+    return idxvars, idxsets, condition
+end
+_parse_ref_sets(_error::Function, expr) = (Any[], Any[], :())
 
-    # if there is only a single non-keyword argument, this is an anonymous
-    # variable spec and the one non-kwarg is the model
-    if length(extra) == 0
-        x = gensym()
-        anon_singleton = true
-    elseif length(extra) == 1
-        x = popfirst!(extra)
-        anon_singleton = false
+"""
+    _build_ref_sets(_error::Function, expr)
+
+Helper function for macros to construct container objects. Takes an `Expr` that
+specifies the container, e.g. `:(x[i=1:3,[:red,:blue],k=S; i+k <= 6])`, and
+returns:
+    1. `idxvars`: Names for the index variables, e.g. `[:i, gensym(), :k]`
+    2. `indices`: Iterators over the indices indexing, e.g.
+       `Constainers.NestedIterators((1:3, [:red,:blue], S), (i, ##..., k) -> i + k <= 6)`.
+These will all be escaped as appropriate.
+"""
+function _build_ref_sets(_error::Function, expr)
+    idxvars, idxsets, condition = _parse_ref_sets(_error, expr) # sets are already escaped
+    if any(_expr_is_splat.(idxsets))
+        _error("Cannot use splatting operator `...` in the definition of an ",
+               "index set.")
+    end
+    has_dependent = JuMPC.has_dependent_sets(idxvars, idxsets)
+    if has_dependent || condition != :()
+        esc_idxvars = esc.(idxvars)
+        idxfuns = [:(($(esc_idxvars[1:(i-1)]...),) -> $(idxsets[i])) 
+                   for i in 1:length(idxvars)]
+        if condition == :()
+            inds = :(JuMPC.nested($(idxfuns...)))
+        else
+            condition_fun = :(($(esc_idxvars...),) -> $(esc(condition)))
+            inds = :(JuMPC.nested($(idxfuns...); condition = $condition_fun))
+        end
     else
-        x = popfirst!(extra)
-        arg = popfirst!(extra)
-        _error("Unrecognized argument $arg provided.")
+        inds = :(JuMPC.vectorized_product($(_explicit_oneto.(idxsets)...)))
     end
-
-    info_kw_args = filter(InfiniteOpt._is_domain_keyword, kw_args)
-    extra_kw_args = filter(kw -> kw.args[1] != :base_name && 
-                           !InfiniteOpt._is_domain_keyword(kw) && 
-                           kw.args[1] != :error_func, kw_args)
-    base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
-    infoexpr = InfiniteOpt._ParameterInfoExpr(; InfiniteOpt._keywordify.(info_kw_args)...)
-
-    # There are five cases to consider:
-    # x                                         | type of x | x.head
-    # ------------------------------------------+-----------+------------
-    # param                                       | Symbol    | NA
-    # param in [lb, ub]                           | Expr      | :call
-    # lb <= param <= ub                           | Expr      | :comparison
-    explicit_comparison = isexpr(x, :comparison) || isexpr(x, :call)
-    if explicit_comparison
-        param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
-    else
-        param = x
-    end
-
-    anonvar = isexpr(param, :vect) || isexpr(param, :vcat) || anon_singleton
-    anonvar && explicit_comparison && _error("Cannot use explicit bounds via " *
-                                             ">=, <= with an anonymous parameter")
-    parameter = gensym()
-    name = _get_name(param)
-    if isempty(base_name_kw_args)
-        base_name = anonvar ? "" : string(name)
-    else
-        base_name = esc(base_name_kw_args[1].args[2])
-    end
-
-    if !isa(name, Symbol) && !anonvar
-        _error("Expression $name should not be used as a parameter name. Use " *
-               "the \"anonymous\" syntax $name = @independent_parameter(model, " *
-               "...) instead.")
-    end
-
-    domain = InfiniteOpt._constructor_domain(_error, infoexpr)
-    if isa(param, Symbol)
-        # Easy case - a single variable
-        buildcall = :( build_parameter($_error, $domain) )
-        _add_kw_args(buildcall, extra_kw_args)
-        parametercall = :( add_parameter($esc_model, $buildcall, $base_name) )
-        creationcode = :($parameter = $parametercall)
-    else
-        # isa(param, Expr) || _error("Expected $param to be a parameter name") --> not needed... I think
-        # We now build the code to generate the variables (and possibly the
-        # SparseAxisArray to contain them)
-        idxvars, indices = JuMPC._build_ref_sets(_error, param)
-        buildcall = :( build_parameter($_error, $domain) )
-        _add_kw_args(buildcall, extra_kw_args)
-        parametercall = :( add_parameter($esc_model, $buildcall,
-                                         $(_name_call(base_name, idxvars))) )
-        creationcode = JuMPC.container_code(idxvars, indices, parametercall,
-                                             requestedcontainer)
-    end
-    if anonvar
-        # Anonymous variable, no need to register it in the model-level
-        # dictionary nor to assign it to a variable in the user scope.
-        # We simply return the variable
-        macro_code = creationcode
-    else
-        # We register the variable reference to its name and
-        # we assign it to a variable in the local scope of this name
-        macro_code = _macro_assign_and_return(creationcode, parameter, name,
-                                              model_for_registering = esc_model)
-    end
-    return _finalize_macro(esc_model, macro_code, __source__)
+    return idxvars, inds
 end
 
-"""
-    @finite_parameter(model::InfiniteModel, value)::GeneralVariableRef
-
-Define and add an anonymous finite parameter to `model` and return its
-parameter reference. Its value is equal to `value`.
-
-```julia
-    @finite_parameter(model::InfiniteModel, param_expr,
-                      value_expr)::GeneralVariableRef
-```
-Define and add a finite parameter(s) to `model` and return appropriate parameter
-reference(s). The parameter(s) has/have value(s) indicated by the `value_expr`.
-The expression `param_expr` can be of the form:
-- `paramname` creating a scalar parameter of name `paramname`
-- `paramname[...]` or `[...]` creating a container of parameters
-
-The expression `value_expr` simply expresses the value of the parameter(s). This
-is typically a number but could be an array indexed using an index defined in
-`param_expr`.
-
-The recognized keyword arguments in `kw_args` are the following:
-- `base_name`: Sets the name prefix used to generate parameter names. It
-  corresponds to the parameter name for scalar parameter, otherwise, the
-  parameter names are set to `base_name[...]` for each index `...` of the axes
-  `axes`.
-- `container`: Specify the container type.
-
-**Examples**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel())
-julia> par = @finite_parameter(model, 2)
-noname
-
-julia> vals = [3, 2];
-
-julia> pars = @finite_parameter(model, [i = 1:2], vals[i], base_name = "par")
-2-element Array{ParameterRef,1}:
- par[1]
- par[2]
-
-julia> @finite_parameter(model, par2, 42)
-par2
-```
-"""
-macro finite_parameter(model, args...)
-    esc_model = esc(model)
-
-    extra, kw_args, requestedcontainer = _extract_kw_args(args)
-
-    macro_name = :finite_parameter
-    _error(str...) = _macro_error(macro_name, (model, args...), __source__, str...)
-
-    # if there is only a single non-keyword argument, this is an anonymous
-    # variable spec and the one non-kwarg is the model
-
-    if length(extra) == 1
-        param = gensym()
-        value = popfirst!(extra)
-        anon_singleton = true
-    elseif length(extra) == 2
-        param = popfirst!(extra)
-        value = popfirst!(extra)
-        anon_singleton = false
-    else
-        _error("Incorrect number of arguments. Must be of form " *
-               "@finite_parameter(model, name_expr, value).")
-    end
-    value = _esc_non_constant(value)
-
-    extra_kw_args = filter(kw -> kw.args[1] != :base_name, kw_args)
-    base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
-
-    anonvar = isexpr(param, :vect) || isexpr(param, :vcat) || anon_singleton
-
-    parameter = gensym()
-    name = _get_name(param)
-    if isempty(base_name_kw_args)
-        base_name = anonvar ? "" : string(name)
-    else
-        base_name = esc(base_name_kw_args[1].args[2])
-    end
-
-    if !isa(name, Symbol) && !anonvar
-        _error("Expression $name should not be used as a parameter name. Use " *
-               "the \"anonymous\" syntax $name = @finite_parameter(model, " *
-               "...) instead.")
-    end
-
-    if isa(param, Symbol)
-        buildcall = :( build_parameter($_error, $value) )
-        _add_kw_args(buildcall, extra_kw_args)
-        parametercall = :( add_parameter($esc_model, $buildcall, $base_name) )
-        creationcode = :($parameter = $parametercall)
-    else
-        idxvars, indices = JuMPC._build_ref_sets(_error, param)
-        buildcall = :( build_parameter($_error, $value) )
-        _add_kw_args(buildcall, extra_kw_args)
-        parametercall = :( add_parameter($esc_model, $buildcall,
-                                         $(_name_call(base_name, idxvars))) )
-        creationcode = JuMPC.container_code(idxvars, indices, parametercall,
-                                             requestedcontainer)
-    end
-    if anonvar
-        macro_code = creationcode
-    else
-        macro_code = _macro_assign_and_return(creationcode, parameter, name,
-                                              model_for_registering = esc_model)
-    end
-    return _finalize_macro(esc_model, macro_code, __source__)
+################################################################################
+#                          INFINITE PARAMETER MACRO
+################################################################################
+## Process a distribution input from a macro into a distribution domain
+# Univariate Distribution
+function _distribution_or_error(
+    _error::Function, 
+    dist::D
+    )::UniDistributionDomain{D} where {D <: Distributions.UnivariateDistribution}
+    return UniDistributionDomain(dist)
 end
 
-"""
-    @dependent_parameters(model::InfiniteModel, kw_args...)::GeneralVariableRef
-
-Add *anonymous* dependent infinite parameters to the model `model` described by
-the keyword arguments `kw_args` and returns the container of parameter references.
-
-```julia
-@dependent_parameters(model::InfiniteModel, expr, kw_args...)::GeneralVariableRef
-```
-
-Add a container of dependent infinite parameters to the model `model` described
-by the expression `expr`, and the keyword arguments `kw_args`. (note that in
-the following the symbol `<=` can be used instead of `≤`, the symbol `>=`can
-be used instead of `≥`, and the symbol `in` can be used instead of `∈`) The
-expression `expr` can be of the form:
-- `paramexpr` creating parameters described by `paramexpr`.
-- `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
-   by a continuous interval domain with lower bound `lb` and upper bound `ub`.
-- `paramexpr ∈ [lb, ub]` creating parameters described by `paramexpr` characterized
-   by a continuous interval domain with lower bound `lb` and upper bound `ub`.
-- `paramexpr ∈ dist` creating parameters described by `paramexpr` characterized
-   by the `Distributions.jl` distribution object `dist`.
-- `paramexpr ∈ domain` creating parameters described by `paramexpr` characterized
-   by the `AbstractInfiniteDomain` object `domain`.
-
-The expression `paramexpr` must be of the form:
-- `paramname[...]` or `[...]` creating a container of parameters
-
-The recognized keyword arguments in `kw_args` are the following:
-- `base_name`: Sets the name prefix used to generate parameter names. It
-  corresponds to the parameter name for scalar parameter, otherwise, the
-  parameter names are set to `base_name[...]` for each index `...` of the axes
-  `axes`.
-- `lower_bound`: Sets the value of the parameter lower bound for an interval domain.
-- `upper_bound`: Sets the value of the parameter upper bound for an interval domain.
-- `domain`: The `InfiniteDomain` characterizing the parameters that are subtypes of
-         [`AbstractInfiniteDomain`](@ref).
-- `distribution`: Sets the `Distributions.jl` distribution object that characterizes
-  the parameters.
-- `supports`: Sets the support points for the parameters.
-- `num_supports`: Specifies the number of supports to be automatically generated.
-                  Note that `supports` takes precedence. Defaults to `DefaultNumSupports`.
-- `derivative_method`: Specifies the numerical derivative method used to evaluate 
-                       derivatives that depend on a particular dependent parameter.
-- `sig_digits`: Specifies the number of significant digits that should be used
-              in automatic support generation. Defaults to `DefaultSigDigits`.
-- `container`: Specify the container type. Defaults to `automatic`.
-
-**Examples**
-```julia-repl
-julia> @dependent_parameters(m, x[1:2] in [0, 1])
-2-element Array{GeneralVariableRef,1}:
- x[1]
- x[2]
-
-julia> @dependent_parameters(m, y[i = 1:2] in MvNormal(ones(2)), num_supports = 10)
-2-element Array{GeneralVariableRef,1}:
- y[1]
- y[2]
-
-julia> z = @dependent_parameters(m, [i = ["a", "b"], j = 1:2],
-                                 distribution = MatrixBeta(2, 2, 2))
-2-dimensional DenseAxisArray{GeneralVariableRef,2,...} with index sets:
-    Dimension 1, ["a", "b"]
-    Dimension 2, Base.OneTo(2)
-And data, a 2×2 Array{GeneralVariableRef,2}:
- noname[a,1]  noname[a,2]
- noname[b,1]  noname[b,2]
-```
-"""
-macro dependent_parameters(model, args...)
-    # extract the raw arguments
-    esc_model = esc(model)
-    extra, kw_args, requestedcontainer = _extract_kw_args(args)
-
-    # check to see if error_args are provided define error function
-    error_kwargs = filter(kw -> kw.args[1] == :error_func, kw_args)
-    if isempty(error_kwargs)
-        _error(str...) = _macro_error(:dependent_parameters, (model, args...), 
-                                      __source__, str...)
-    else
-        _error = error_kwargs[1].args[2]
-    end
-
-    # there must be one extra positional argument to specify the dimensions
-    if length(extra) == 1
-        x = popfirst!(extra) 
-    elseif length(extra) == 0
-        _error("Must specify more than one dependent parameter.")
-    else
-        x = popfirst!(extra)
-        arg = popfirst!(extra)
-        _error("Unrecognized argument $arg provided.")
-    end
-
-    # parse the keyword arguments
-    info_kw_args = filter(_is_domain_keyword, kw_args)
-    supports_kw_arg = filter(kw -> kw.args[1] == :supports, kw_args)
-    method_kw_arg = filter(kw -> kw.args[1] == :derivative_method, kw_args)
-    extra_kw_args = filter(kw -> kw.args[1] != :base_name &&
-                           !InfiniteOpt._is_domain_keyword(kw) &&
-                           kw.args[1] != :error_func &&
-                           kw.args[1] != :supports &&
-                           kw.args[1] != :derivative_method, kw_args)
-    base_name_kw_args = filter(kw -> kw.args[1] == :base_name, kw_args)
-    infoexpr = InfiniteOpt._ParameterInfoExpr(; JuMP._keywordify.(info_kw_args)...)
-
-    # There are six cases to consider:
-    # x                                         | type of x | x.head
-    # ------------------------------------------+-----------+------------
-    # param                                       | Symbol    | NA
-    # [1:2]                                       | Expr      | :vect
-    # param[1:2]                                  | Expr      | :ref
-    # param[1:2] <= ub                            | Expr      | :call
-    # param[1:2] in [lb, ub] (other domains)         | Expr      | :call
-    # lb <= param[1:2] <= ub                      | Expr      | :comparison
-    # In the three last cases, we call parse_variable
-    symbolic_domain = isexpr(x, :comparison) || isexpr(x, :call)
-    if symbolic_domain
-        param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
-    elseif isa(x, Symbol)
-        _error("Must specify more than one dependent parameter.")
-    else
-        param = x
-    end
-
-    # determine it is an anonymous call
-    anonparam = isexpr(param, :vcat) || isexpr(param, :vect)
-    anonparam && symbolic_domain && _error("Cannot use symbolic infinite defintion " *
-                                        "with an anonymous parameter")
-    # process the parameter name
-    parameter = gensym()
-    name = _get_name(param)
-    if isempty(base_name_kw_args)
-        base_name = anonparam ? "" : string(name)
-    else
-        base_name = esc(base_name_kw_args[1].args[2])
-    end
-    if !isa(name, Symbol) && !anonparam
-        _error("Expression $name should not be used as a parameter name. Use " *
-               "the \"anonymous\" syntax $name = @dependent_parameters(model, " *
-               "...) instead.")
-    end
-
-    # process the supports
-    if isempty(supports_kw_arg)
-        supports = :(Float64[])
-    else
-        supports = esc(supports_kw_arg[1].args[2])
-    end
-
-    # process the derivative methods
-    if isempty(method_kw_arg)
-        method = :(InfiniteOpt.DefaultDerivativeMethod)
-    else
-        method = esc(method_kw_arg[1].args[2])
-    end
-
-    # parse the infinite domain(s)
-    domain = InfiniteOpt._construct_array_domain(_error, infoexpr)
-
-    # make code to build the DependentParameters object and the references
-    idxvars, indices = JuMPC._build_ref_sets(_error, param)
-    namecode = _name_call(base_name, idxvars)
-    parambuildcall = :( InfiniteOpt._DependentParameter($domain, $supports, $namecode, $method) )
-    param_container_call = JuMPC.container_code(idxvars, indices, parambuildcall,
-                                                requestedcontainer)
-    buildcall = :( InfiniteOpt._build_parameters($_error, $param_container_call) )
-    _add_kw_args(buildcall, extra_kw_args)
-    creationcode = :( add_parameters($esc_model, $(buildcall)...) )
-
-    # make the final return code based on if it is anonymous or not
-    if anonparam
-        macro_code = creationcode
-    else
-        macro_code = _macro_assign_and_return(creationcode, parameter, name,
-                                              model_for_registering = esc_model)
-    end
-    return _finalize_macro(esc_model, macro_code, __source__)
+# Multivariate Distribution
+function _distribution_or_error(
+    _error::Function, 
+    dist::D
+    )::MultiDistributionDomain{D} where {D <: NonUnivariateDistribution}
+    return MultiDistributionDomain(dist)
 end
 
+# Fallback
+function _distribution_or_error(_error::Function, dist)
+    _error("Expected distribution from `Distributions.jl`, but got input of ",
+           "type `$(typeof(dist))`.")
+end
+
+## Process an infinite domain macro input and make sure it is correct 
+# AbstractInfiniteDomain
+function _domain_or_error(
+    _error::Function, 
+    domain::D
+    )::D where {D <: AbstractInfiniteDomain}
+    return domain
+end
+
+# Vector{Real}
+function _domain_or_error(
+    _error::Function, 
+    vect::Vector{<:Real}
+    )::IntervalDomain
+    if length(vect) == 2
+        return IntervalDomain(vect...)
+    else
+        _error("Expected interval domain of format `[lb, ub]`, but got `$vect`.")
+    end
+end
+
+# Distribution 
+function _domain_or_error(_error::Function, dist::Distributions.Distribution)
+    _error("Distribution `$dist` was specified as a domain, but should " * 
+          "be given as a distribution via the syntax: `@infinite_parameter( " * 
+          "model, param_expr ~ distribution, kwargs...)`.")
+end
+
+# Fallback
+function _domain_or_error(_error::Function, domain)
+    _error("Expected an infinite domain, but got input of ",
+           "type `$(typeof(domain))`.")
+end
+
+# Process an expr as a distribution
+function _make_distribution_call(_error, expr)
+    return :( _distribution_or_error($_error, $(_esc_non_constant(expr))) )
+end
+
+# Process an expr as an infinite domain
+function _make_domain_call(_error, expr)
+    return :( _domain_or_error($_error, $(_esc_non_constant(expr))) )
+end
+
+# Parse a distribution input
+function _parse_parameter(_error::Function, ::Val{:~}, param, dist)
+    return param, _make_distribution_call(_error, dist)
+end
+
+# Parse a domain input
+function _parse_parameter(
+    _error::Function, 
+    ::Union{Val{:in}, Val{:∈}}, 
+    param,
+    domain
+    )
+    return param, _make_domain_call(_error, domain)
+end
+
+# Fallback
+function _parse_parameter(_error::Function, ::Val{S}, param, rhs) where S
+    _error("Unexpected operator $S.")
+end
+
+# Define the keyword arg types that can vary for individual dependent parameters
+const _ArrayKwargNames = (:supports, :derivative_method)
+
 """
-    @infinite_parameter(model::InfiniteModel, kw_args...)::GeneralVariableRef
+    @infinite_parameter(model::InfiniteModel, kwargs...)
 
 Add *anonymous* infinite parameter to the model `model` described by
 the keyword arguments `kw_args` and returns the parameter reference.
 
 ```julia
-@infinite_parameter(model::InfiniteModel, expr, kw_args...)::GeneralVariableRef
+@infinite_parameter(model::InfiniteModel, expr, kwargs...)
 ```
 
 Add an infinite parameter to the model `model` described by the expression `expr`,
-and the keyword arguments `kw_args`. This is just a wrapper macro that will make
-the appropriate call to either [`@independent_parameter`](@ref) or
-[`@dependent_parameters`](@ref). (Note that in
-the following the symbol `<=` can be used instead of `≤`, the symbol `>=`can
-be used instead of `≥`, and the symbol `in` can be used instead of `∈`) The
-expression `expr` can be of the form:
+and the keyword arguments `kw_args`. (Note that in the following the symbol `in` 
+can be used instead of `∈`) The expression `expr` can be of the form:
 - `paramexpr` creating parameters described by `paramexpr`.
-- `lb ≤ paramexpr ≤ ub` creating parameters described by `paramexpr` characterized
-   by a continuous interval domain with lower bound `lb` and upper bound `ub`.
 - `paramexpr ∈ [lb, ub]` creating parameters described by `paramexpr` characterized
    by a continuous interval domain with lower bound `lb` and upper bound `ub`.
-- `paramexpr ∈ dist` creating parameters described by `paramexpr` characterized
+- `paramexpr ~ dist` creating parameters described by `paramexpr` characterized
    by the `Distributions.jl` distribution object `dist`.
 - `paramexpr ∈ domain` creating parameters described by `paramexpr` characterized
-  by the `AbstractInfiniteDomain` object `domain`.
+   by the `AbstractInfiniteDomain` object `domain`.
 
 The expression `paramexpr` can be of the form:
 - `paramname` creating a scalar parameter of name `paramname`
 - `paramname[...]` or `[...]` creating a container of parameters
 
-The recognized keyword arguments in `kw_args` are the following:
+The recognized keyword arguments in `kwargs` are the following:
 - `base_name`: Sets the name prefix used to generate parameter names. It
   corresponds to the parameter name for scalar parameter, otherwise, the
   parameter names are set to `base_name[...]` for each index `...` of the axes
   `axes`.
-- `lower_bound`: Sets the value of the parameter lower bound for an interval domain.
-- `upper_bound`: Sets the value of the parameter upper bound for an interval domain.
 - `domain`: The `InfiniteDomain` characterizing the parameters see subtypes of
-         [`AbstractInfiniteDomain`](@ref).
-- `distribution`: Sets the `Distributions.jl` distribution object that characterizes
-  the parameters.
+            [`AbstractInfiniteDomain`](@ref).
+- `distribution`: Sets the `Distributions.jl` distribution object that 
+   characterizes the parameters (specified instead of a domain).
 - `supports`: Sets the support points for the parameters.
 - `num_supports`: Specifies the number of supports to be automatically generated.
-                  Note that `supports` takes precedence. Defaults to `DefaultNumSupports`.
-- `derivative_method`: Specify the numerical method to evaluate derivatives that are
-                       taken with respect to the parameter.
+                  Note that `supports` takes precedence. Defaults to 0.
+- `derivative_method`: Specify the numerical method to evaluate derivatives that 
+                       are taken with respect to the parameter.
 - `sig_digits`: Specifies the number of significant digits that should be used
-              in automatic support generation. Defaults to `DefaultSigDigits`.
+                in automatic support generation. Defaults to `DefaultSigDigits`.
 - `independent`: Specifies if the each parameter is independent from each other
   or not. Defaults to false.
-- `container`: Specify the container type. Defaults to `automatic`
+- `container`: Specify the container type. Defaults to `Auto`
 
 **Examples**
 ```julia-repl
 julia> @infinite_parameter(m, x in [0, 1])
 x
 
-julia> @infinite_parameter(m, y[i = 1:2] in MvNormal(ones(2)), num_supports = 10)
+julia> @infinite_parameter(m, y[i = 1:2] ~ MvNormal(ones(2)), num_supports = 10)
 2-element Array{GeneralVariableRef,1}:
  y[1]
  y[2]
@@ -616,178 +429,367 @@ macro infinite_parameter(model, args...)
     _error(str...) = _macro_error(:infinite_parameter, (model, args...),
                                   __source__, str...)
     # parse the arguments
-    extra, kw_args, requestedcontainer = _extract_kw_args(args)
-    indep_kwarg = filter(kw -> kw.args[1] == :independent, kw_args)
-    new_kwargs = filter(kw -> kw.args[1] != :independent, kw_args)
-    if isempty(indep_kwarg)
-        independent = false
+    pos_args, extra_kwargs, container_type, base_name = _extract_kwargs(args)
+
+    # process the keyword arguments
+    domain_kwarg = filter(kw -> kw.args[1] == :domain, extra_kwargs)
+    dist_kwarg = filter(kw -> kw.args[1] == :distribution, extra_kwargs)
+    indep_kwarg = filter(kw -> kw.args[1] == :independent, extra_kwargs)
+    filter!(kw -> !(kw.args[1] in (:domain, :independent, :distribution)), 
+            extra_kwargs)
+
+    # process the positional arguments
+    if isempty(pos_args)
+        p = gensym()
+        is_anon_single = true
+    elseif length(pos_args) == 1
+        p = first(pos_args)
+        is_anon_single = false
     else
-        independent = indep_kwarg[1].args[2]
+        _error("Too many positional arguments. See docs for correct syntax.")
     end
 
-    # determine if there is only one parameter
-    if length(extra) == 0
-        code = :( @independent_parameter($model, $(extra...), $(new_kwargs...),
-                                         container = $requestedcontainer,
-                                         error_func = $(_error)) )
-    else
-        # get the param expression and check it is an array --> TODO make more efficient
-        x = first(extra)
-        infoexpr = InfiniteOpt._ParameterInfoExpr()
-        symbolic_domain = isexpr(x, :comparison) || isexpr(x, :call)
-        if symbolic_domain
-            param = InfiniteOpt._parse_parameter(_error, infoexpr, x.args...)
-        else
-            param = x
+    # extract the domain if given symbolically 
+    # There are 9 cases to consider:
+    # p                                  | type of p | p.head
+    # -----------------------------------+-----------+------------
+    # name                               | Symbol    | NA
+    # name[1:2]                          | Expr      | :ref
+    # name[i = 1:2, j = 1:2; i + j >= 3] | Expr      | :typed_vcat
+    # [1:2]                              | Expr      | :vect
+    # [i = 1:2, j = 1:2; i + j >= 3]     | Expr      | :vcat
+    # name in domain                     | Expr      | :call
+    # name[...] in domain                | Expr      | :call
+    # name ~ dist                        | Expr      | :call
+    # name[...] ~ dist                   | Expr      | :call
+    # In the 4 last cases, we call _parse_parameter
+    if isexpr(p, :call)
+        param, domain = _parse_parameter(_error, Val(p.args[1]), p.args[2:end]...)
+        if !isempty(domain_kwarg) || !isempty(dist_kwarg)
+            _error("Cannot double specify the infinite domain and/or ",
+                   "distribution.")
         end
-        if param isa Symbol
-            code = :( @independent_parameter($model, $(extra...), $(new_kwargs...),
-                                             container = $requestedcontainer,
-                                             error_func = $(_error)) )
-        else
-            code = quote
-                if $independent
-                    @independent_parameter($model, $(extra...), $(new_kwargs...),
-                                           container = $requestedcontainer,
-                                           error_func = $(_error))
-                else
-                    @dependent_parameters($model, $(extra...), $(new_kwargs...),
-                                          container = $requestedcontainer,
-                                          error_func = $(_error))
-                end
+    elseif !isempty(domain_kwarg) && isempty(dist_kwarg)
+        param = p 
+        domain = _make_domain_call(_error, domain_kwarg[1].args[2])
+    elseif isempty(domain_kwarg) && !isempty(dist_kwarg)
+        param = p 
+        domain = _make_distribution_call(_error, dist_kwarg[1].args[2])
+    elseif !isempty(domain_kwarg) && !isempty(dist_kwarg)
+        _error("Cannot specify both a domain and a distribution.")
+    else
+        _error("Must specify the infinite domain and/or the given syntax is ",
+               "unrecognized. See docs for accepted forms.")
+    end
+
+    # determine if it is a single parameter
+    is_single = param isa Symbol 
+
+    # determine if independent 
+    is_independent = false
+    if is_single 
+        is_independent = true
+    elseif !isempty(indep_kwarg)
+        if !isa(indep_kwarg[1].args[2], Bool)
+            _error("Can only specify boolean literals (`false` or `true`) ", 
+                   "with keyword `independent`.")
+        end
+        is_independent = indep_kwarg[1].args[2] 
+    end
+
+    # determine if anonymous 
+    is_anon = isexpr(param, (:vect, :vcat)) || is_anon_single
+
+    # process the naming 
+    name = _get_name(param)
+    if !isa(name, Symbol) && !is_anon 
+        _error("Expression $name should not be used as a parameter name. Use ",
+               "the \"anonymous\" syntax ",
+               "`$name = @infinite_parameter(model, kwargs...)`` instead.")
+    end
+    if base_name === nothing
+        base_name = is_anon ? "" : string(name)
+    end
+
+    # prepare the name code if it is multi-dimensional
+    if !is_single
+        idxvars, inds = _build_ref_sets(_error, param)
+        name_code = _name_call(base_name, idxvars)
+        if model in idxvars
+            _error("Index $(model) is the same symbol as the model. Use a ",
+                   "different name for the index.")
+        end
+    end
+
+    # make the build call
+    if is_independent
+        # we only have a single parameter or an array of independent parameters
+        build_call = :( build_parameter($_error, $domain) )
+    else
+        # we have multi-dimensional dependent parameters
+        # let's first process the kwargs accordingly (array ones are made into 
+        # containers)
+        array_kwargs = filter(kw -> kw.args[1] in _ArrayKwargNames, extra_kwargs)
+        filter!(kw -> !(kw.args[1] in _ArrayKwargNames), extra_kwargs)
+        # check that the non array keywords do not contain index variables used 
+        # for building containers
+        for kw in extra_kwargs
+            if _has_idxvars(kw.args[2], idxvars)
+                _error("Cannot use index variables with `$(kw.args[1])` keyword.")
             end
         end
+        # now let's make the build call
+        inds_var = gensym() # used as a placeholder variable for the ContainerIndices used to vectorize
+        domain_var = gensym() # used as a placeholder for the domain container
+        vect_domain_call = :( Collections.vectorize($domain_var, $inds_var) )
+        build_call = :( _build_parameters($_error, $vect_domain_call, $inds_var) )
+        for kw in array_kwargs
+            code = JuMPC.container_code(idxvars, inds, 
+                                        _esc_non_constant(kw.args[2]), 
+                                        container_type)
+            vect_code = :( Collections.vectorize($code, $inds_var) )
+            push!(build_call.args, Expr(:kw, kw.args[1], vect_code))
+        end
     end
-    return esc(code)
+    _add_kwargs(build_call, extra_kwargs)
+
+    # make the creation code
+    esc_model = esc(model)
+    if is_single 
+        # only single independent parameter
+        creation_code = :( add_parameter($esc_model, $build_call, $base_name) )
+    elseif is_independent
+        # multi-dimensional independent parameters 
+        parameter_call = :( add_parameter($esc_model, $build_call, $name_code) )
+        creation_code = JuMPC.container_code(idxvars, inds, parameter_call,
+                                             container_type)
+    else
+        # multi-dimensional dependent parameters
+        domain_call = JuMPC.container_code(idxvars, inds, domain, container_type)
+        name_code = JuMPC.container_code(idxvars, inds, name_code, container_type)
+        name_code = :( Collections.vectorize($name_code, $inds_var) )
+        vect_add_call = :( add_parameters($esc_model, $build_call, $name_code) )
+        creation_code = quote 
+            $domain_var = $domain_call
+            $inds_var = Collections.indices($domain_var)
+            Collections.unvectorize($vect_add_call, $inds_var)
+        end
+    end
+
+    # finalize the code and register the parameter name if needed
+    if is_anon
+        macro_code = creation_code
+    else
+        macro_code = _macro_assign_and_return(_error, creation_code, name,
+                                              esc_model)
+    end
+    return _finalize_macro(_error, esc_model, macro_code, __source__)
 end
 
-# Helper method for checking that function call is not from an operator
-function _ensure_not_operator(_error::Function, func)
-    if func in [:in, :<=, :>=, :(==), :≥, :≤, ∈]
-        _error("Invalid input syntax.")
+################################################################################
+#                           FINITE PARAMETER MACRO
+################################################################################
+
+"""
+    @finite_parameter(model::InfiniteModel, value, kwargs...)
+
+Define and add an anonymous finite parameter to `model` and return its
+parameter reference. Its value is equal to `value`.
+
+```julia
+@finite_parameter(model::InfiniteModel, param_expr == value_expr, kwargs...)
+```
+Define and add a finite parameter(s) to `model` and return appropriate parameter
+reference(s). The parameter(s) has/have value(s) indicated by the `value_expr`.
+The expression `param_expr` can be of the form:
+- `paramname` creating a scalar parameter of name `paramname`
+- `paramname[...]` or `[...]` creating a container of parameters
+
+The expression `value_expr` simply expresses the value of the parameter(s). This
+is typically a number but could be an array indexed using an index defined in
+`param_expr`.
+
+The recognized keyword arguments in `kwargs` are the following:
+- `base_name`: Sets the name prefix used to generate parameter names. It
+  corresponds to the parameter name for scalar parameter, otherwise, the
+  parameter names are set to `base_name[...]` for each index `...` of the axes
+  `axes`.
+- `container`: Specify the container type, defaults to `Auto`.
+
+**Examples**
+```julia-repl
+julia> par = @finite_parameter(model, 2)
+noname
+
+julia> vals = [3, 2];
+
+julia> pars = @finite_parameter(model, [i = 1:2] == vals[i], base_name = "par")
+2-element Array{ParameterRef,1}:
+ par[1]
+ par[2]
+
+julia> @finite_parameter(model, par2 == 42)
+par2
+```
+"""
+macro finite_parameter(model, args...)
+    # process the inputs
+    esc_model = esc(model)
+    pos_args, kwargs, container_type, base_name = _extract_kwargs(args)
+
+    # make an error function
+    _error(str...) = _macro_error(:finite_parameter, (model, args...), 
+                                  __source__, str...)
+
+    # process the positional arguments
+    if length(pos_args) == 1
+        expr = popfirst!(pos_args)
+    else
+        _error("Incorrect number of arguments. Must be of form ",
+               "@finite_parameter(model, name_expr == value).")
     end
-    return
+    if isexpr(expr, :call)
+        if expr.args[1] !== :(==)
+            _error("Unrecognized operator. Must be of form ",
+                   "@finite_parameter(model, name_expr == value).")
+        end
+        param = expr.args[2]
+        value = _esc_non_constant(expr.args[3])
+        is_anon = isexpr(param, (:vect, :vcat))
+    else
+        param = gensym()
+        value = _esc_non_constant(expr)
+        is_anon = true
+    end
+
+    # process the name
+    name = _get_name(param)
+    if base_name === nothing
+        base_name = is_anon ? "" : string(name)
+    end
+    if !isa(name, Symbol) && !is_anon
+        _error("Expression $name should not be used as a parameter name. Use " *
+               "the \"anonymous\" syntax $name = @finite_parameter(model, " *
+               "...) instead.")
+    end
+
+    # make the build call 
+    build_call = :( build_parameter($_error, $value) )
+    _add_kwargs(build_call, kwargs)
+
+    # make the creation code
+    if isa(param, Symbol)
+        # easy case with single parameter
+        creation_code = :( add_parameter($esc_model, $build_call, $base_name) )
+    else
+        # we have a container of parameters
+        idxvars, inds = _build_ref_sets(_error, param)
+        if model in idxvars
+            _error("Index $(model) is the same symbol as the model. Use a ",
+                   "different name for the index.")
+        end
+        name_code = _name_call(base_name, idxvars)
+        parameter_call = :( add_parameter($esc_model, $build_call, $name_code) )
+        creation_code = JuMPC.container_code(idxvars, inds, parameter_call,
+                                             container_type)
+    end
+    
+    # finalize the macro
+    if is_anon
+        macro_code = creation_code
+    else
+        macro_code = _macro_assign_and_return(_error, creation_code, name,
+                                              esc_model)
+    end
+    return _finalize_macro(_error, esc_model, macro_code, __source__)
 end
+
+################################################################################
+#                         PARAMETER FUNCTION MACRO
+################################################################################
+const _BadOperators = (:in, :<=, :>=, :(==), :≥, :≤, ∈)
 
 # Helper method to process parameter function expressions 
-function _process_func_expr(_error::Function, raw_expr, pref_expr)
+function _process_func_expr(_error::Function, raw_expr)
     if isexpr(raw_expr, :call)
-        # we have symbolic arguments given 
-        _ensure_not_operator(_error, raw_expr.args[1])
+        # check that the call is not some operator
+        if raw_expr.args[1] in _BadOperators
+            _error("Invalid input syntax.")
+        end
         func_expr = _esc_non_constant(raw_expr.args[1])
-        # restructure to expected in case keywords were given using ;
-        if length(raw_expr.args) > 1 && isexpr(raw_expr.args[2], :parameters)
-            append!(raw_expr.args, raw_expr.args[2].args)
-            deleteat!(raw_expr.args, 2)
+        # check for keywords
+        if isexpr(raw_expr.args[2], :parameters) || 
+            any(isexpr(a, :kw) for a in raw_expr.args[2:end])
+            _error("Cannot specify keyword arguements directly, try using an ",
+                   "anonymous function.")
         end
-        # check that the prefs are given first and match the pref_expr
-        num_pref_args = length(pref_expr.args)
-        if length(raw_expr.args) <= num_pref_args || pref_expr.args != raw_expr.args[2:num_pref_args+1]
-            _error("Inconsistent infinite parameter reference dependencies.")
-        end 
-        # extract the extra arguments given symbolically
-        extra_func_args = raw_expr.args[num_pref_args+2:end]
-        raw_fargs = filter(e -> !isexpr(e, :kw), extra_func_args)
-        if isempty(raw_fargs) 
-            fargs = nothing
-        else
-            fargs = esc(Expr(:tuple, raw_fargs...))
-        end
-        # extract the keyword arguments given symbolically
-        raw_fkwargs = filter(e -> isexpr(e, :kw), extra_func_args)
-        if isempty(raw_fkwargs)
-            fkwargs = nothing
-        else
-            fkwargs = esc(Expr(:tuple, map(e -> Expr(:(=), e.args...), raw_fkwargs)...))
-        end
-    else 
-        # easy case where only the function name was given
+        # extract the parameter support inputs
+        pref_expr = esc(Expr(:tuple, raw_expr.args[2:end]...)) 
+    elseif isexpr(raw_expr, :(->))
+        pref_expr = _esc_non_constant(raw_expr.args[1])
         func_expr = _esc_non_constant(raw_expr)
-        fargs = nothing
-        fkwargs = nothing
+    else 
+        _error("Unrecognized syntax.")
     end
-    return func_expr, fargs, fkwargs
+    return func_expr, pref_expr
 end
 
 """
-    @parameter_function(model::InfiniteModel, kw_args...)::GeneralVariableRef
+    @parameter_function(model::InfiniteModel, func_expr, kwargs...)
 
 Add an *anonymous* parameter function to the model `model` described by the
-keyword arguments `kw_args` and returns the object reference. Note that the
-`func` and `parameter_refs` keywords are required in this
-case.
+keyword arguments `kw_args` and returns the object reference.
 
 ```julia
-@parameter_function(model::InfiniteModel, varexpr, funcexpr, kw_args...)::GeneralVariableRef
-
-@parameter_function(model::InfiniteModel, varexpr == funcexpr, kw_args...)::GeneralVariableRef
+@parameter_function(model::InfiniteModel, var_expr == func_expr, kwargs...)
 ```
 
-Add a parameter function to `model` described by the expression `varexpr`, the
-function expression `funcexpr`, and the keyword arguments `kw_args`. The expression 
-`varexpr` is used to define the parameter function references and determine the 
-infinite parameters that are intended for this function. Here the accepted forms 
-are:
-- `varname(params...)` creating a scalar parameter function with alias name `varname` 
-  that depends on the parameter references `params...`
-- `varname[...](params...)` or `[...](params...)` creating a container of parameter 
-  functions with parameter references given in `paramexpr`.
-The expression `params` can match that of the `parameter_refs` keyword argument 
-(see the keyword argument description for info on accepted formats). 
+Add a parameter function to `model` described by the expression `var_expr`, the
+function expression `func_expr`, and the keyword arguments `kwargs`. The 
+expression `var_expr` is used to define the parameter function references of the 
+form `varname[...]` where the indexing matches the container syntax of other 
+macros.
 
-The expression `funcexpr` determines the concrete Julia function that defines the 
-behavior of parameter function and allows us to specify the `func`, `func_args`, 
-and/or `func_kwargs` keyword arguments. The accepted forms are:
-- `funcname`: Give the name of the concrete Julia function or give an anonymous function
-- `funcname(params..., func_args..., func_kwargs...)`: Provide the concrete Julia 
-  function name and provide the addtional positional/keyword arguments as needed.
-  Note the at the format of `params` must match that provided in `varexpr`. 
+The expression `func_expr` determines the concrete Julia function that defines the 
+behavior of parameter function and also specifies the infinite parameters it 
+depends on. The accepted forms are:
+- `func(params...)`: where `func` is the function that takes supports of the 
+  infinite parameters `params` as input and outputs a scalar value.
+- `(params...) -> my_func_expr`: where `params` are the infinite parameters and 
+  `my_func_expr` is the source code of the anonymous function.
 
-The recognized keyword arguments in `kw_args` are the following:
-- `parameter_refs`: This is mandatory if not specified in `varexpr`. Can be a
-  single parameter reference, a single parameter array with parameters defined
-  in the same call of [`@infinite_parameter`](@ref),
-  or a tuple where each element is either of the first two options listed.
-- `func`: A concrete Julia function of the form 
-  `func(paramvals..., func_args...; func_kwargs...)::Float64` where the format of 
-  `param_vals` matches that of `parameter_refs` but accepts numeric supports. We could 
-  also instead give an anonymous function.
-- `func_args`: A `Tuple` of additional positional arguments for `func`
-- `func_kwargs`: A `NameTuple` of keyword arguments for `func`
+The recognized keyword arguments in `kwargs` are the following:
 - `base_name`: Sets the name prefix used to generate object names. It
   corresponds to the object name for scalar parameter function, otherwise, the
   object names are set to `base_name[...]` for each index `...` of the axes
   `axes`.
-- `container`: Specify the container type.
+- `container`: Specify the container type. Defaults to `:Auto`.
 
 **Examples**
 ```julia-repl 
-julia> @parameter_function(model, func = sin, parameter_refs = t, base_name = "sin")
+julia> @parameter_function(model, sin(t))
 sin(t)
 
-julia> @parameter_function(model, [i = 1:2], func = [sin, cos][i], parameter_refs = t)
+julia> func_vect = [sin, cos];
+
+julia> @parameter_function(model, [i = 1:2] == func_vect[i](t))
 2-element Array{GeneralVariableRef,1}:
- noname(t)
- noname(t)
+ sin(t)
+ cos(t)
 
 julia> f(t_val, x_vals) = t_val + sum(x_vals)
 f (generic function with 1 method)
 
-julia> @parameter_function(model, pf(t, x) == f)
+julia> @parameter_function(model, pf == f(t, x))
 pf(t, x)
 
 julia> g(t_val, a; b = 0) = t_val + a + b
 g (generic function with 1 method)
 
-julia> @parameter_function(model, pf2[i = 1:2](t) == g(t, i, b = 2 * i ))
+julia> @parameter_function(model, pf2[i = 1:2] == t -> g(t, i, b = 2 * i ))
 2-element Array{GeneralVariableRef,1}:
  pf2[1](t)
  pf2[2](t)
-
-julia> @parameter_function(model, pf2_alt[i = 1:2](t) == t -> g(t, i, b = 2 * i ))
-2-element Array{GeneralVariableRef,1}:
- pf2_alt[1](t)
- pf2_alt[2](t)
 ```
 """
 macro parameter_function(model, args...)
@@ -798,120 +800,71 @@ macro parameter_function(model, args...)
     _error(str...) = _macro_error(:parameter_function, (model, args...),
                                   __source__, str...)
 
-    # parse the arguments
-    extra, kwargs, requestedcontainer = _extract_kw_args(args)
-    func_kwarg = filter(kw -> kw.args[1] == :func, kwargs)
-    prefs_kwarg = filter(kw -> kw.args[1] == :parameter_refs, kwargs)
-    fargs_kwarg = filter(kw -> kw.args[1] == :func_args, kwargs)
-    fkwargs_kwarg = filter(kw -> kw.args[1] == :func_kwargs, kwargs)
-    base_name_kwarg = filter(kw -> kw.args[1] == :base_name, kwargs)
-    filter!(kw -> kw.args[1] != :func && kw.args[1] != :parameter_refs &&
-            kw.args[1] != :base_name && kw.args[1] == :func_args &&
-            kw.args[1] == :func_kwargs, kwargs)
+    # parse the arguments 
+    pos_args, kwargs, container_type, base_name = _extract_kwargs(args)
 
-    # if an equality syntax is given convert it into 2 separate arguments
-    if length(extra) == 1 && isexpr(extra[1], :call) && extra[1].args[1] == :(==)
-        extra = [extra[1].args[2], extra[1].args[3]]
-    end
-
-    # process and extract the symbolic inputs
-    fargs = nothing
-    fkwargs = nothing
-    anon_kwargs = !isempty(func_kwarg) && !isempty(prefs_kwarg)
-    if isempty(extra) && anon_kwargs
-        # single anonymous definition
-        var_expr = gensym()
-        func_expr = _esc_non_constant(func_kwarg[1].args[2])
-        pref_expr = _esc_non_constant(prefs_kwarg[1].args[2])
-        anon = true
-    elseif length(extra) == 1 && (isexpr(extra[1], :vect) || isexpr(extra[1], :vcat)) && anon_kwargs
-        # container definition of anonymous parameter functions
-        var_expr = extra[1]
-        func_expr = _esc_non_constant(func_kwarg[1].args[2])
-        pref_expr = _esc_non_constant(prefs_kwarg[1].args[2])
-        anon = true
-    elseif isempty(extra) || (length(extra) == 1 && (isexpr(extra[1], :vect) || isexpr(extra[1], :vcat)))
-        # we have one of the above situations, but not enough information
-        _error("Anonymous calls must specify both the `func` and " *
-               "`parameter_refs` keyword arguments.")
-    elseif !isempty(func_kwarg) || !isempty(prefs_kwarg)
-        # anonymous keyword args cannot be mixed with symbolic syntax
-        _error("Keyword arguments `func` and `parameter_refs` are only for " * 
-               "anonymous parameter function definitions.")
-    elseif length(extra) == 2 && isexpr(extra[1], :call)
-        # 2 argument symbolic definition which may or may not be anonymous
-        # anonymous if the first argument is of form [idx_expr](pref_expr)
-        # otherwise the first argument should be name[idx_expr](pref_expr) or name(pref_expr)
-        _ensure_not_operator(_error, extra[1].args[1])
-        var_expr = extra[1].args[1]
-        pref_expr = Expr(:tuple, extra[1].args[2:end]...)
-        func_expr, fargs, fkwargs = _process_func_expr(_error, extra[2], pref_expr)
-        pref_expr = esc(pref_expr)
-        anon = isexpr(var_expr, :vect) || isexpr(var_expr, :vcat)
-    elseif length(extra) == 2 
-        # some other 2 argument syntax
-        _error("Invalid explicit syntax, should be of form ",
-               "`@parameter_function(model, nameexpr(params...), funcexpr, kwargs...)")
-    elseif length(extra) > 2
-        # cannot have more than 2 positional arguments
-        _error("Too many positional arguments.")
+    # process the positional arguements 
+    if length(pos_args) == 1
+        expr = popfirst!(pos_args)
     else
-        # something else was given incorrectly with one positional argument
-        _error("Invalid syntax.")
+        _error("Incorrect amount of positional arguments given.")
+    end
+    if isexpr(expr, :call) && expr.args[1] === :(==)
+        var = expr.args[2]
+        func, prefs = _process_func_expr(_error, expr.args[3])
+        is_anon = isexpr(var, (:vect, :vcat))
+    elseif isexpr(expr, (:call, :(->)))
+        var = gensym()
+        func, prefs = _process_func_expr(_error, expr)
+        is_anon = true
+    else
+        _error("Unrecognized syntax.")
     end
 
-    # parse the base name appropriately
-    name = _get_name(var_expr)
-    if isempty(base_name_kwarg)
-        base_name = anon ? "" : string(name) # TODO perhaps change default behavior
-    else
-        base_name = esc(base_name_kwarg[1].args[2])
-    end
-    if !isa(name, Symbol) && !anon
+    # parse the name appropriately
+    name = _get_name(var)
+    if !isa(name, Symbol) && !is_anon
         _error("Expression $name should not be used as a parameter function name. Use " *
                "the \"anonymous\" syntax $name = @parameter_function(model, " *
                "...) instead.")
     end
-
-    # update and check fargs
-    if !isempty(fargs_kwarg) && fargs === nothing 
-        fargs = _esc_non_constant(fargs_kwarg[1].args[2])
-    elseif !isempty(fargs_kwarg)
-        _error("Cannot double specify the `func_args` keyword argument.")
+    idxvars, inds = _build_ref_sets(_error, var)
+    if model in idxvars
+        _error("Index $(model) is the same symbol as the model. Use a ",
+               "different name for the index.")
+    end
+    if base_name === nothing && is_anon 
+        name_code = :( string(nameof($func)) )
+    elseif base_name === nothing
+        name_code = _name_call(string(name), idxvars)
+    else
+        name_code = _name_call(base_name, idxvars)
     end
 
-    # update and check fkwargs
-    if !isempty(fkwargs_kwarg) && fkwargs === nothing 
-        fkwargs = _esc_non_constant(fkwargs_kwarg[1].args[2])
-    elseif !isempty(fkwargs_kwarg)
-        _error("Cannot double specify the `func_kwargs` keyword argument.")
-    end
+    # make the build call
+    build_call = :( build_parameter_function($_error, $func, $prefs) )
+    _add_kwargs(build_call, kwargs)
 
-    # generate the needed code 
-    pfunc = gensym()
-    buildcall = :( build_parameter_function($_error, $func_expr, $pref_expr, 
-                                                func_args = $fargs, 
-                                                func_kwargs = $fkwargs) )
-    _add_kw_args(buildcall, kwargs)
-    if isa(var_expr, Symbol)
+    # make the creation code
+    if isa(var, Symbol)
         # create a single parameter function 
-        pfunctioncall = :( add_parameter_function($esc_model, $buildcall, $base_name) )
-        creationcode = :( $pfunc = $pfunctioncall )
+        creation_code = :( add_parameter_function($esc_model, $build_call, $name_code) )
     else
         # create code for a container 
-        idxvars, indices = JuMPC._build_ref_sets(_error, var_expr)
-        pfunctioncall = :( add_parameter_function($esc_model, $buildcall,
-                                         $(_name_call(base_name, idxvars))) )
-        creationcode = JuMPC.container_code(idxvars, indices, pfunctioncall,
-                                            requestedcontainer)
+        pfunction_call = :( add_parameter_function($esc_model, $build_call,
+                                                   $name_code) )
+        creation_code = JuMPC.container_code(idxvars, inds, pfunction_call,
+                                             container_type)
     end
-    if anon
+
+    # finalize the macro
+    if is_anon
         # anonymous creation
-        macro_code = creationcode
+        macro_code = creation_code
     else
         # want to register the object/container reference
-        macro_code = _macro_assign_and_return(creationcode, pfunc, name,
-                                              model_for_registering = esc_model)
+        macro_code = _macro_assign_and_return(_error, creation_code, name,
+                                              esc_model)
     end
-    return _finalize_macro(esc_model, macro_code, __source__)
+    return _finalize_macro(_error, esc_model, macro_code, __source__)
 end

@@ -1,6 +1,6 @@
 ```@meta
 DocTestFilters = [r"≥|>=", r" == | = ", r" ∈ | in ", r" for all | ∀ ", r"d|∂", 
-                  r"integral|∫", r".*scalar_parameters.jl:827"]
+                  r"integral|∫", r".*scalar_parameters.jl:763"]
 ```
 
 # [Derivative Operators](@id deriv_page)
@@ -25,7 +25,7 @@ julia> model = InfiniteModel();
 julia> @infinite_parameter(model, t in [0, 10], 
                            derivative_method = OrthogonalCollocation(3));
 
-julia> @infinite_parameter(model, ξ in Uniform(-1, 1));
+julia> @infinite_parameter(model, ξ ~ Uniform(-1, 1));
 
 julia> @variable(model, y, Infinite(t, ξ));
 
@@ -443,7 +443,7 @@ julia> derivative_constraints(d1)
 
 julia> add_supports(t, 0.2)
 ┌ Warning: Support/method changes will invalidate existing derivative evaluation constraints that have been added to the InfiniteModel. Thus, these are being deleted.
-└ @ InfiniteOpt ~/build/pulsipher/InfiniteOpt.jl/src/scalar_parameters.jl:827
+└ @ InfiniteOpt ~/build/pulsipher/InfiniteOpt.jl/src/scalar_parameters.jl:763
 
 julia> has_derivative_constraints(d1)
 false
@@ -515,8 +515,7 @@ dydt2(t, ξ) ≥ 1.0, ∀ t ∈ [0, 10], ξ ~ Uniform
 julia> has_upper_bound(dydt2)
 false 
 
-julia> start_value_function(dydt2)
-#145 (generic function with 1 method)
+julia> func = start_value_function(dydt2);
 ```
 
 ### Model Queries 

@@ -2,19 +2,20 @@
 @testset "Basics" begin
     # setup data
     m = InfiniteModel()
-    @independent_parameter(m, a in [0, 1])
-    @independent_parameter(m, b[1:3] in [0, 1])
-    @dependent_parameters(m, c[1:2] in [0, 1])
-    @independent_parameter(m, d in [0, 1])
+    @infinite_parameter(m, a in [0, 1])
+    @infinite_parameter(m, b[1:3] in [0, 1], independent = true)
+    @infinite_parameter(m, c[1:2] in [0, 1])
+    @infinite_parameter(m, d in [0, 1])
     idx = InfiniteVariableIndex(1)
     num = Float64(0)
     func = (x) -> NaN
-    info = VariableInfo{Float64, Float64, Float64, Function}(false, num, false,
-                                     num, false, num, false, func, false, false)
-    new_info = VariableInfo{Float64, Float64, Float64, Function}(true, 0., true,
-                                          0., true, 0., true, func, true, false)
+    func2 = (x...) -> 1 
+    info = VariableInfo(false, num, false, num, false, num, false, func, false, false)
+    new_info = VariableInfo(true, 0., true, 0., true, 0., true, func2, true, false)
     var = InfiniteVariable(info, IC.VectorTuple(a, b[1:2], c, [b[3], d]),
                            [1:7...], [1:6...], true)
+    var2 = InfiniteVariable(new_info, IC.VectorTuple(a, b[1:2], c, [b[3], d]),
+                            [1:7...], [1:6...], true)
     object = VariableData(var, "var")
     vref = InfiniteVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
@@ -62,6 +63,8 @@
     end
     # _set_core_variable_object
     @testset "_set_core_variable_object" begin
+        @test InfiniteOpt._set_core_variable_object(vref, var) isa Nothing
+        @test InfiniteOpt._set_core_variable_object(vref, var2) isa Nothing
         @test InfiniteOpt._set_core_variable_object(vref, var) isa Nothing
     end
     # _object_numbers
@@ -183,18 +186,18 @@ end
 @testset "Definition" begin
     # initialize model and infinite variable info
     m = InfiniteModel()
-    @independent_parameter(m, pref in [0, 1])
-    @independent_parameter(m, pref2 in [0, 1])
-    @dependent_parameters(m, prefs[1:2] in [0, 1])
-    @finite_parameter(m, fin, 42)
+    @infinite_parameter(m, pref in [0, 1])
+    @infinite_parameter(m, pref2 in [0, 1])
+    @infinite_parameter(m, prefs[1:2] in [0, 1])
+    @finite_parameter(m, fin == 42)
     num = Float64(0)
     func1 = (a) -> 2
     info = VariableInfo(false, num, false, num, false, num, false, NaN, false, false)
     info2 = VariableInfo(true, num, true, num, true, num, true, func1, true, false)
     info3 = VariableInfo(true, num, true, num, true, num, true, 42, false, true)
     # test Infinite 
-    @testset "Infinite{T}" begin 
-        @test Infinite(pref, prefs).parameter_refs isa IC.VectorTuple{GeneralVariableRef}
+    @testset "Infinite{VT}" begin 
+        @test Infinite(pref, prefs).parameter_refs isa IC.VectorTuple
         @test Infinite(pref).parameter_refs.values == [pref]
         @test Infinite(pref, prefs, pref2).parameter_refs.values == [pref, prefs..., pref2] 
     end
@@ -277,7 +280,7 @@ end
         @test_throws ErrorException build_variable(error, info, Infinite(pref, fin))
         @test_throws ErrorException build_variable(error, info, Infinite(pref, pref))
         # test for expected output
-        @test build_variable(error, info, Infinite(pref)).info isa JuMP.VariableInfo{Float64, Float64, Float64, Function}
+        @test build_variable(error, info, Infinite(pref)).info isa JuMP.VariableInfo{Float64, Float64, Float64, <:Function}
         @test build_variable(error, info, Infinite(pref)).parameter_refs == IC.VectorTuple(pref)
         # test various types of param tuples
         tuple = IC.VectorTuple(pref, prefs)
@@ -290,7 +293,7 @@ end
     # _check_parameters_valid
     @testset "_check_parameters_valid" begin
         # prepare param tuple
-        @independent_parameter(InfiniteModel(), pref3 in [0, 1])
+        @infinite_parameter(InfiniteModel(), pref3 in [0, 1])
         tuple = IC.VectorTuple((pref, prefs, pref3))
         # test that catches error
         @test_throws VariableNotOwned{GeneralVariableRef} InfiniteOpt._check_parameters_valid(m, tuple)
@@ -318,7 +321,7 @@ end
     @testset "_check_and_make_variable_ref" begin
         # prepare secondary model and parameter and variable
         m2 = InfiniteModel()
-        @independent_parameter(m2, pref3 in [0, 1])
+        @infinite_parameter(m2, pref3 in [0, 1])
         v = build_variable(error, info, Infinite(pref3))
         # test for error of invalid variable
         @test_throws VariableNotOwned{GeneralVariableRef} InfiniteOpt._check_and_make_variable_ref(m, v, "")
@@ -334,7 +337,7 @@ end
     @testset "JuMP.add_variable" begin
         # prepare secondary model and parameter and variable
         m2 = InfiniteModel()
-        @independent_parameter(m2, pref3 in [0, 1])
+        @infinite_parameter(m2, pref3 in [0, 1])
         v = build_variable(error, info, Infinite(pref3))
         # test for error of invalid variable
         @test_throws VariableNotOwned{GeneralVariableRef} add_variable(m, v)
@@ -419,8 +422,8 @@ end
 @testset "Macro Definition" begin
     # initialize model and infinite parameters
     m = InfiniteModel()
-    @independent_parameter(m, t in [0, 1])
-    @dependent_parameters(m, x[1:2] in [-1, 1])
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x[1:2] in [-1, 1])
     # test single variable definition
     @testset "Single" begin
         # test basic defaults
@@ -566,8 +569,8 @@ end
 @testset "Creation Constraints" begin 
     # initialize model and stuff
     m = InfiniteModel()
-    @independent_parameter(m, t in [0, 1])
-    @dependent_parameters(m, x[1:2] in [-1, 1])
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x[1:2] in [-1, 1])
     info = VariableInfo(false, NaN, false, NaN, false, NaN, false, NaN, false, false)
     v1 = build_variable(error, info, Infinite(t))
     v2 = build_variable(error, info, Infinite(t, x))
@@ -595,8 +598,8 @@ end
 @testset "Usage" begin
     # initialize model and stuff
     m = InfiniteModel()
-    @independent_parameter(m, t in [0, 1])
-    @dependent_parameters(m, x[1:2] in [-1, 1])
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x[1:2] in [-1, 1])
     @variable(m, y, Infinite(t, x))
     vref = dispatch_variable_ref(y)
     # test used_by_semi_infinite_variable

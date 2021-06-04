@@ -13,12 +13,17 @@ as needed. Furthermore, at the optimization step these parameters are replaced
 with their numeric values. Thus, not adding unnecessary decision variables as is
 typically done in `JuMP` models using `JuMP.fix` on placeholder variables.  
 
+!!! note 
+    The syntax of [`@finite_parameter`](@ref) has changed with from previous 
+    versions for enhanced long term support. Please consult the documentation 
+    below for the updated syntax.
+
 ## Basic Usage
 Once an `InfiniteModel` `model` has been defined we can add a finite parameter
 via [`@finite_parameter`](@ref). For example, let's define a maximum cost
 parameter called `max_cost` with an initial value of `42`:
 ```jldoctest fpar; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> @finite_parameter(model, max_cost, 42)
+julia> @finite_parameter(model, max_cost == 42)
 max_cost
 ```
 Notice that a `Julia` variable called `max_cost` is returned that contains a
@@ -27,7 +32,7 @@ An array of parameters can also be defined following standard `JuMP` macro synta
 ```jldoctest fpar
 julia> values = [2, 3.2, 1];
 
-julia> @finite_parameter(model, params[i = 1:3], values[i])
+julia> @finite_parameter(model, params[i = 1:3] == values[i])
 3-element Array{GeneralVariableRef,1}:
  params[1]
  params[2]

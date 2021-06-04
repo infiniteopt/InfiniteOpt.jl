@@ -38,7 +38,7 @@ julia> model = InfiniteModel();
 
 julia> @infinite_parameter(model, t in [0, 10]);
 
-julia> @parameter_function(model, f(t) == sin(t))
+julia> @parameter_function(model, f == sin(t))
 f(t)
 ```
 Here we created an parameter function object, added it to `model`, and 
@@ -62,7 +62,7 @@ parameters even use an anonymous function if prefer:
 ```jldoctest param_func
 julia> @infinite_parameter(model, x[1:2] in [-1, 1]);
 
-julia> @parameter_function(model, myname(t, x), (a, b) -> a + sum(b))
+julia> @parameter_function(model, myname == (t, x) -> t + sum(x))
 myname(t, x)
 ```
 In many applications, we may also desire to define an array of parameter functions 
@@ -70,20 +70,7 @@ that each use a different realization of some parent function by varying some
 additional positional/keyword arguments. We readily support this behavior since 
 parameter functions can be defined with additional known arguments:
 ```jldoctest param_func
-julia> mysin(t_supp, a; b = 1) = a * sin(b * t_supp)
-mysin (generic function with 1 method)
-
-julia> as = collect(3:5);
-
-julia> @parameter_function(model, pfunc[i = 1:3](t) == mysin(t, as[i], b = 0))
-3-element Array{GeneralVariableRef,1}:
- pfunc[1](t)
- pfunc[2](t)
- pfunc[3](t)
-```
-Equivalently, we could use an anonymous function instead:
-```jldoctest param_func
-julia> @parameter_function(model, pfunc_alt[i = 1:3](t) == t_supp -> mysin(t_supp, as[i], b = 0))
+julia> @parameter_function(model, pfunc_alt[i = 1:3] == t -> mysin(t, as[i], b = 0))
 3-element Array{GeneralVariableRef,1}:
  pfunc_alt[1](t)
  pfunc_alt[2](t)

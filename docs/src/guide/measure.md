@@ -74,7 +74,7 @@ expectation of a random expression:
 ```jldoctest; setup = :(using InfiniteOpt, Distributions)
 julia> m = InfiniteModel();
 
-julia> @infinite_parameter(m, ξ in Normal(), num_supports = 100);
+julia> @infinite_parameter(m, ξ ~ Normal(), num_supports = 100);
 
 julia> @variable(m, x, Infinite(ξ));
 

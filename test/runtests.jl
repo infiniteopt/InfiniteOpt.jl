@@ -1,3 +1,5 @@
+using InfiniteOpt: _domain_or_error
+using Test: Error
 # Load in the dependencies
 using InfiniteOpt, Distributions, Random, FastGaussQuadrature, DataStructures
 
@@ -21,6 +23,7 @@ println("-----------------------------------------------------------------------
 println("---------------------------------UNIT TESTS---------------------------------")
 println("----------------------------------------------------------------------------")
 @time @testset "Collections" begin
+    include("Collections/vectorize.jl")
     include("Collections/VectorTuple.jl")
 end
 println("")

@@ -53,7 +53,7 @@ end
 #                          DEFINTION HELPER METHODS
 ################################################################################
 """
-    Point{V, T} <: InfOptVariableType 
+    Point{V, VT <: VectorTuple} <: InfOptVariableType 
 
 A `DataType` to assist in making point variables. This can be passed as an 
 extra argument to `@variable` to make such a variable: 
@@ -67,17 +67,15 @@ of both real valued supports.
 
 **Fields**
 - `infinite_variable_ref::V`
-- `parameter_values::VectorTuple{T}`: The infinite parameter support values the 
+- `parameter_values::VT`: The infinite parameter support values the 
    variable will depend on.
 """
-struct Point{V, T} <: InfOptVariableType 
+struct Point{V, VT <: Collections.VectorTuple} <: InfOptVariableType 
     infinite_variable_ref::V 
-    parameter_values::VectorTuple{T}
-    function Point(ivref::V, vals...) where {V}
-        vt = VectorTuple(vals)
-        T = param_type(vt)
-        return new{V, T}(ivref, vt)
-    end
+    parameter_values::VT
+end
+function Point(ivref, vals...)
+    return Point(ivref, Collections.VectorTuple(vals))
 end
 
 # Ensure parameter values match shape of parameter reference tuple stored in the
@@ -85,10 +83,10 @@ end
 function _check_tuple_shape(
     _error::Function,
     ivref::Union{InfiniteVariableRef, DerivativeRef},
-    values::VectorTuple
+    values::Collections.VectorTuple
     )::Nothing
     prefs = raw_parameter_refs(ivref)
-    if !same_structure(prefs, values)
+    if !Collections.same_structure(prefs, values)
         _error("The dimensions and array formatting of the infinite parameter ",
                "values must match those of the parameter references for the ",
                "infinite variable/derivative.")
@@ -242,7 +240,7 @@ function JuMP.build_variable(
     end
     # check and format the values 
     raw_vals = var_type.parameter_values
-    if !(param_type(raw_vals) <: Real)
+    if !(raw_vals.values isa Vector{<:Real})
         _error("Expected parameter values consisting of real numbers.")
     end
     pvalues = Vector{Float64}(raw_vals.values)
@@ -331,7 +329,6 @@ end
 ################################################################################
 #                         PARAMETER VALUE METHODS
 ################################################################################
-
 """
     infinite_variable_ref(vref::PointVariableRef)::GeneralVariableRef
 
@@ -380,10 +377,9 @@ julia> parameter_values(T0)
 (0,)
 ```
 """
-function parameter_values(vref::PointVariableRef)::Tuple
+function parameter_values(vref::PointVariableRef)
     prefs = raw_parameter_refs(infinite_variable_ref(vref))
-    return Tuple(VectorTuple(raw_parameter_values(vref), prefs.ranges,
-                             prefs.indices))
+    return Tuple(raw_parameter_values(vref), prefs)
 end
 
 # Internal function used to change the parameter value tuple of a point variable

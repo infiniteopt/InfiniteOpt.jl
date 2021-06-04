@@ -112,7 +112,7 @@ end
     @infinite_parameter(m, par2 in [0, 2], supports = [0, 2])
     @variable(m, inf, Infinite(par))
     @variable(m, inf2, Infinite(par2, par))
-    @finite_parameter(m, fin, 42)
+    @finite_parameter(m, fin == 42)
     @variable(m, g <=3)
     d1 = @deriv(inf, par)
     var = build_variable(error, inf2, Dict{Int, Float64}(2 => 0))

@@ -93,15 +93,21 @@ end
 
 ## Set helper methods for adapting data_objects with parametric changes 
 # No change needed 
-function _adaptive_data_update(pref::ScalarParameterRef, param::P, 
-                               data::ScalarParameterData{P})::Nothing where {P <: ScalarParameter}
+function _adaptive_data_update(
+    pref::ScalarParameterRef, 
+    param::P, 
+    data::ScalarParameterData{P}
+    )::Nothing where {P <: ScalarParameter}
     data.parameter = param
     return
 end
 
 # Reconstruction is necessary 
-function _adaptive_data_update(pref::ScalarParameterRef, param::P1, 
-                               data::ScalarParameterData{P2})::Nothing  where {P1, P2}
+function _adaptive_data_update(
+    pref::ScalarParameterRef, 
+    param::P1, 
+    data::ScalarParameterData{P2}
+    )::Nothing  where {P1, P2}
     new_data = ScalarParameterData(param, data.object_num, data.parameter_num, 
                                    data.name, data.parameter_func_indices,
                                    data.infinite_var_indices, 
@@ -123,101 +129,6 @@ function _set_core_variable_object(pref::ScalarParameterRef,
 end
 
 ################################################################################
-#                           MACRO DEFINITION HELPERS
-################################################################################
-# Internal structure for building InfOptParameters
-mutable struct _ParameterInfoExpr
-    has_lb::Bool
-    lower_bound::Any
-    has_ub::Bool
-    upper_bound::Any
-    has_dist::Bool
-    distribution::Any
-    has_domain::Bool
-    domain::Any
-end
-
-# Default constructor
-function _ParameterInfoExpr(; lower_bound = NaN, upper_bound = NaN,
-                            distribution = NaN, domain = NaN)
-    # isnan(::Expr) is not defined so we need to do !== NaN
-    return _ParameterInfoExpr(lower_bound !== NaN, lower_bound,
-                              upper_bound !== NaN, upper_bound,
-                              distribution !== NaN, distribution,
-                              domain !== NaN, domain)
-end
-
-# Internal function for use in processing valid key word arguments
-function _is_domain_keyword(kw::Expr)
-    return kw.args[1] in [:domain, :lower_bound, :upper_bound, :distribution]
-end
-
-# Extend to assist in building InfOptParameters
-function _set_lower_bound_or_error(_error::Function,
-                                   info::_ParameterInfoExpr, lower)::Nothing
-    info.has_lb && _error("Cannot specify parameter lower_bound twice")
-    info.has_dist && _error("Cannot specify parameter lower_bound and " *
-                            "distribution")
-    info.has_domain && _error("Cannot specify parameter lower_bound and domain")
-    info.has_lb = true
-    info.lower_bound = lower
-    return
-end
-
-# Extend to assist in building InfOptParameters
-function _set_upper_bound_or_error(_error::Function,
-                                    info::_ParameterInfoExpr, upper)::Nothing
-    info.has_ub && _error("Cannot specify parameter upper_bound twice")
-    info.has_dist && _error("Cannot specify parameter upper_bound and " *
-                            "distribution")
-    info.has_domain && _error("Cannot specify parameter upper_bound and domain")
-    info.has_ub = true
-    info.upper_bound = upper
-    return
-end
-
-# Extend to assist in building InfOptParameters
-function _dist_or_error(_error::Function, info::_ParameterInfoExpr, dist)::Nothing
-    info.has_dist && _error("Cannot specify parameter distribution twice")
-    (info.has_lb || info.has_ub) && _error("Cannot specify parameter " *
-                                           "distribution and upper/lower bounds")
-    info.has_domain && _error("Cannot specify parameter distribution and domain")
-    info.has_dist = true
-    info.distribution = dist
-    return
-end
-
-# Extend to assist in building InfOptParameters
-function _domain_or_error(_error::Function, info::_ParameterInfoExpr, domain)::Nothing
-    info.has_domain && _error("Cannot specify variable fixed value twice")
-    (info.has_lb || info.has_ub) && _error("Cannot specify parameter domain and " *
-                                           "upper/lower bounds")
-    info.has_dist && _error("Cannot specify parameter domain and distribution")
-    info.has_domain = true
-    info.domain = domain
-    return
-end
-
-# Construct an expression to build an infinite domain (use with @infinite_macro)
-function _constructor_domain(_error::Function, info::_ParameterInfoExpr)
-    if (info.has_lb || info.has_ub) && !(info.has_lb && info.has_ub)
-        _error("Must specify both an upper bound and a lower bound")
-    elseif info.has_lb
-        check = :(isa($(info.lower_bound), Real))
-        return :($(check) ? IntervalDomain($(info.lower_bound), $(info.upper_bound)) : error("Bounds must be a number."))
-    elseif info.has_dist
-        check = :(isa($(info.distribution), Distributions.UnivariateDistribution))
-        return :($(check) ? UniDistributionDomain($(info.distribution)) : error("Distribution must be a Distributions.UnivariateDistribution."))
-    elseif info.has_domain
-        check1 = :(isa($(info.domain), InfiniteScalarDomain))
-        check2 = :(isa($(info.domain), Distributions.UnivariateDistribution))
-        return :($(check1) ? $(info.domain) : ($(check2) ? UniDistributionDomain($(info.domain)) : error("Domain must be a subtype of InfiniteScalarDomain.")))
-    else
-        _error("Must specify upper/lower bounds, a distribution, or a domain")
-    end
-end
-
-################################################################################
 #                            PARAMETER DEFINITION
 ################################################################################
 # Define the default derivative evaluation method 
@@ -234,35 +145,36 @@ function _check_supports_in_bounds(_error::Function,
 end
 
 """
-    build_parameter(_error::Function, domain::InfiniteScalarDomain;
-                    [num_supports::Int = 0,
-                    supports::Union{Real, Vector{<:Real}} = Real[],
-                    sig_digits::Int = DefaultSigDigits,
-                    derivative_method::AbstractDerivativeMethod = DefaultDerivativeMethod]
-                    )::IndependentParameter
+    build_parameter(
+        _error::Function, domain::InfiniteScalarDomain;
+        [num_supports::Int = 0,
+        supports::Union{Real, Vector{<:Real}} = Float64[],
+        sig_digits::Int = DefaultSigDigits,
+        derivative_method::AbstractDerivativeMethod = DefaultDerivativeMethod]
+    )::IndependentParameter
 
 Returns a [`IndependentParameter`](@ref) given the appropriate information.
 This is analagous to `JuMP.build_variable`. Errors if supports violate the
 bounds associated with `domain`. This is meant to primarily serve as a
-helper method for [`@independent_parameter`](@ref). Here `derivative_method` 
+helper method for [`@infinite_parameter`](@ref). Here `derivative_method` 
 specifies the numerical evalution method that will be applied to derivatives that 
 are taken with respect to this infinite parameter.
 
 **Example**
 ```julia-repl
-julia> build_parameter(error, IntervalDomain(0, 3), supports = Vector(0:3))
-IndependentParameter{IntervalDomain,FiniteDifference{Backward},NoGenerativeSupports}([0, 3], DataStructures.SortedDict(0.0 => Set([UserDefined]),1.0 => Set([UserDefined]),2.0 => Set([UserDefined]),3.0 => Set([UserDefined])), 12, FiniteDifference{Backward}(Backward(), true), NoGenerativeSupports())
+julia> param = build_parameter(error, IntervalDomain(0, 3), supports = Vector(0:3));
 ```
 """
-function build_parameter(_error::Function,
+function build_parameter(
+    _error::Function,
     domain::InfiniteScalarDomain;
     num_supports::Int = 0,
-    supports::Union{Real, Vector{<:Real}} = Real[],
+    supports::Union{Real, Vector{<:Real}} = Float64[],
     sig_digits::Int = DefaultSigDigits,
     derivative_method::AbstractDerivativeMethod = DefaultDerivativeMethod,
-    extra_kw_args...
-    )::IndependentParameter
-    for (kwarg, _) in extra_kw_args
+    extra_kwargs...
+    )
+    for (kwarg, _) in extra_kwargs
         _error("Unrecognized keyword argument $kwarg")
     end
     label = UserDefined
@@ -284,6 +196,17 @@ function build_parameter(_error::Function,
                                 generative_support_info(derivative_method))
 end
 
+# Fallback for bad domain types 
+function build_parameter(
+    _error::Function, 
+    domain::AbstractInfiniteDomain,
+    kwargs...
+    )
+    _error("Expected scalar infinite domain for each independent parameter, ",
+           "but got a domain of type `$(domain)`. If you are trying to use an ",
+           "`InfiniteArrayDomain`, try setting `independent = false`.")
+end
+
 """
     build_parameter(_error::Function, value::Real)::FiniteParameter
 
@@ -297,12 +220,20 @@ julia> build_finite_parameter(error, 1)
 FiniteParameter(1.0)
 ```
 """
-function build_parameter(_error::Function, value::Real;
-                         extra_kw_args...)::FiniteParameter
-    for (kwarg, _) in extra_kw_args
+function build_parameter(
+    _error::Function, 
+    value::Real;
+    extra_kwargs...
+    )::FiniteParameter
+    for (kwarg, _) in extra_kwargs
         _error("Unrecognized keyword argument $kwarg")
     end
     return FiniteParameter(value)
+end
+
+# Generic fallback
+function build_parameter(_error::Function, arg, kwargs...)
+    _error("Unexpected input given for the value of the parameter.")
 end
 
 """
@@ -324,8 +255,11 @@ julia> param_ref = add_parameter(model, p, "name")
 name
 ```
 """
-function add_parameter(model::InfiniteModel, p::IndependentParameter,
-                       name::String = "")::GeneralVariableRef
+function add_parameter(
+    model::InfiniteModel, 
+    p::IndependentParameter,
+    name::String = ""
+    )::GeneralVariableRef
     obj_num = length(_param_object_indices(model)) + 1
     param_num = model.last_param_num += 1
     data_object = ScalarParameterData(p, obj_num, param_num, name)
@@ -335,8 +269,11 @@ function add_parameter(model::InfiniteModel, p::IndependentParameter,
 end
 
 # FiniteParameter
-function add_parameter(model::InfiniteModel, p::FiniteParameter,
-                       name::String = "")::GeneralVariableRef
+function add_parameter(
+    model::InfiniteModel, 
+    p::FiniteParameter,
+    name::String = ""
+    )::GeneralVariableRef
     data_object = ScalarParameterData(p, -1, -1, name)
     obj_index = _add_data_object(model, data_object)
     model.name_to_param = nothing
@@ -513,7 +450,7 @@ Extend the `JuMP.name` function to accomodate infinite parameters. Returns the
 name string associated with `pref`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1]))
+```julia-repl
 julia> name(t)
 "t"
 ```
@@ -530,7 +467,7 @@ Extend the `JuMP.set_name` function to accomodate infinite parameters. Set a new
 base name to be associated with `pref`.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1]))
+```julia-repl
 julia> set_name(t, "time")
 
 julia> name(t)
@@ -603,7 +540,6 @@ function _update_param_name_dict(model::InfiniteModel,
     return
 end
 
-# TODO: this is not changing the name registered in model
 """
     parameter_by_name(model::InfiniteModel,
                       name::String)::Union{GeneralVariableRef, Nothing}
@@ -612,7 +548,7 @@ Return the parameter reference assoociated with a parameter name. Errors if
 multiple parameters have the same name. Returns nothing if no such name exists.
 
 **Example**
-```jldoctest; setup = :(using InfiniteOpt, JuMP; model = InfiniteModel(); @independent_parameter(model, t in [0, 1], supports = [0, 1]))
+```julia-repl
 julia> parameter_by_name(model, "t")
 t
 ```
@@ -1546,30 +1482,6 @@ function _check_param_in_data(pref::GeneralVariableRef,
     return
 end
 
-# Update a semi-infinite variable associated with an infinite variable whose parameter
-# was removed
-function _update_semi_infinite_variable(vref::SemiInfiniteVariableRef,
-                                  delete_indices::UnitRange{Int})::Nothing
-    eval_supps = eval_supports(vref)
-    new_supports = Dict{Int, Float64}()
-    num_indices = length(delete_indices)
-    for (index, support) in eval_supps
-        if index < first(delete_indices)
-            new_supports[index] = support
-        elseif index > last(delete_indices)
-            new_supports[index - num_indices] = support
-        end
-    end
-    obj_nums = _object_numbers(vref)
-    param_nums = _parameter_numbers(vref)
-    new_var = SemiInfiniteVariable(infinite_variable_ref(vref), new_supports,
-                              param_nums, obj_nums)
-    _set_core_variable_object(vref, new_var)
-    # TODO account for possibility that this becomes a point variable
-    # TODO account for possibility that this becomes an infinite variable
-    return
-end
-
 # Update the dependent measures
 function _update_measures(model::InfiniteModel,
                           pref::GeneralVariableRef)::Nothing
@@ -1674,33 +1586,23 @@ end
 Extend `JuMP.delete` to delete
 scalar parameters and their dependencies. All variables, constraints, and
 measure functions that depend on `pref` are updated to exclude it. Errors if the
-parameter is contained in an `AbstractMeasureData` datatype that is employed by
+parameter is used by an infinite variable or if it is contained in an 
+`AbstractMeasureData` DataType that is employed by
 a measure since the measure becomes invalid otherwise. Thus, measures that
 contain this dependency must be deleted first. Note that
 [`parameter_refs`](@ref parameter_refs(::AbstractMeasureData)) needs to be
 extended to allow deletion of parameters when custom `AbstractMeasureData`
-datatypes are used. Note that any dependent infinite variables will have their
-start values reset via [`reset_start_value_function`](@ref).
+datatypes are used.
 
 **Example**
 ```julia-repl
-julia> print(model)
-Min measure(g(t, x)*t + x) + z
-Subject to
- z ≥ 0.0
- g(t, x) + z ≥ 42.0, ∀ t ∈ [0, 6], x ∈ [-1, 1]
- g(0.5, x) = 0, ∀ x ∈ [-1, 1]
-
 julia> delete(model, x)
-
-julia> print(model)
-Min measure(g(t)*t) + z
-Subject to
- g(t) + z ≥ 42.0, ∀ t ∈ [0, 6]
- g(0.5) = 0
 ```
 """
-function JuMP.delete(model::InfiniteModel, pref::IndependentParameterRef)::Nothing
+function JuMP.delete(
+    model::InfiniteModel, 
+    pref::IndependentParameterRef
+    )::Nothing
     @assert JuMP.is_valid(model, pref) "Parameter reference is invalid."
     gvref = _make_parameter_ref(JuMP.owner_model(pref), JuMP.index(pref))
     # ensure deletion is okay (pref isn't used by measure data)
@@ -1708,9 +1610,15 @@ function JuMP.delete(model::InfiniteModel, pref::IndependentParameterRef)::Nothi
         data = measure_data(dispatch_variable_ref(model, mindex))
         _check_param_in_data(gvref, data)
     end
+    # ensure pref is not used by an infinite variable
+    if used_by_infinite_variable(pref)
+        error("Cannot delete `$pref` since it is used by an infinite ",
+              "variable(s).")
+    end
     # ensure pref is not used by a parameter function 
     if used_by_parameter_function(pref)
-        error("Cannot delete `$pref` since it is used by an parameter function.")
+        error("Cannot delete `$pref` since it is used by an parameter ",
+              "function(s).")
     end
     # update optimizer model status
     if is_used(pref)
@@ -1718,25 +1626,6 @@ function JuMP.delete(model::InfiniteModel, pref::IndependentParameterRef)::Nothi
     end
     # delete dependence of measures on pref
     _update_measures(model, gvref)
-    # update infinite variables that depend on pref
-    for vindex in _infinite_variable_dependencies(pref)
-        # remove the parameter dependence
-        vref = InfiniteVariableRef(model, vindex)
-        prefs = raw_parameter_refs(vref)
-        delete_index = findfirst(isequal(gvref), prefs)
-        deleteat!(prefs, delete_index)
-        reset_start_value_function(vref)
-        # update any point variables that depend on vref accordingly
-        for pindex in _point_variable_dependencies(vref)
-            pvref = PointVariableRef(model, pindex)
-            deleteat!(raw_parameter_values(pvref), delete_index)
-        end
-        # update any semi-infinite variables that depend on vref accordingly
-        for rindex in _semi_infinite_variable_dependencies(vref)
-            rvref = SemiInfiniteVariableRef(model, rindex)
-            _update_semi_infinite_variable(rvref, delete_index:delete_index)
-        end
-    end
     # delete any derivatives that use pref 
     for index in _derivative_dependencies(pref)
         JuMP.delete(model, dispatch_variable_ref(model, index))

@@ -2,9 +2,9 @@
 @testset "Basics" begin
     # initialize model and point variable
     m = InfiniteModel()
-    @independent_parameter(m, a in [0, 1])
-    @independent_parameter(m, b[1:2] in [0, 1])
-    @dependent_parameters(m, c[1:2] in [0, 1])
+    @infinite_parameter(m, a in [0, 1])
+    @infinite_parameter(m, b[1:2] in [0, 1], independent = true)
+    @infinite_parameter(m, c[1:2] in [0, 1])
     @variable(m, ivref, Infinite(a, b, c))
     num = Float64(0)
     info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
@@ -159,9 +159,9 @@ end
 @testset "Definition" begin
     # initialize model and infinite variables
     m = InfiniteModel()
-    @independent_parameter(m, pref in [0, 1])
-    @independent_parameter(m, pref2 in [0, 1])
-    @dependent_parameters(m, prefs[1:2] in [0, 1])
+    @infinite_parameter(m, pref in [0, 1])
+    @infinite_parameter(m, pref2 in [0, 1])
+    @infinite_parameter(m, prefs[1:2] in [0, 1])
     num = Float64(0)
     info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
     info2 = VariableInfo(true, num, true, num, true, num, true, num, true, false)
@@ -178,20 +178,20 @@ end
     # _check_tuple_shape
     @testset "_check_tuple_shape" begin
         # test normal
-        @test isa(InfiniteOpt._check_tuple_shape(error, divref, IC.VectorTuple{Float64}(0.5, 0.5)),
+        @test isa(InfiniteOpt._check_tuple_shape(error, divref, IC.VectorTuple(0.5, 0.5)),
                   Nothing)
         # prepare param value tuple
-        tuple = IC.VectorTuple{Float64}(0.5, [0.5, 0.5])
+        tuple = IC.VectorTuple(0.5, [0.5, 0.5])
         # test normal with array
         @test isa(InfiniteOpt._check_tuple_shape(error, divref2, tuple), Nothing)
         # test for errors in shape
         @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, divref,
-                                                              IC.VectorTuple{Float64}(0.5,))
+                                                              IC.VectorTuple(0.5,))
         @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, divref,
-                                                        IC.VectorTuple{Float64}(0.5, [0.5]))
+                                                        IC.VectorTuple(0.5, [0.5]))
         @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, divref2,
-                                                          IC.VectorTuple{Float64}(0.5, 0.5))
-        tuple = IC.VectorTuple{Float64}(0.5, [0.5, 0.5, 0.5])
+                                                          IC.VectorTuple(0.5, 0.5))
+        tuple = IC.VectorTuple(0.5, [0.5, 0.5, 0.5])
         @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, divref2,
                                                                    tuple)
     end
@@ -318,7 +318,7 @@ end
         @test supports(pref) == [0.5]
         @test supports(pref2) == [1]
         # prepare array tuple
-        tuple = IC.VectorTuple{Float64}(0.5, [0, 1])
+        tuple = IC.VectorTuple(0.5, [0, 1])
         # test normal with array
         @test isa(InfiniteOpt._update_param_supports(divref2, Float64[0.5, 0, 1]),
                   Nothing)
@@ -349,7 +349,7 @@ end
     @testset "_check_and_make_variable_ref" begin
         # prepare secondary model and infinite variable
         m2 = InfiniteModel()
-        @independent_parameter(m2, pref3 in [0, 1])
+        @infinite_parameter(m2, pref3 in [0, 1])
         @variable(m2, ivref3, Infinite(pref3))
         v = build_variable(error, info, Point(ivref3, 0.5))
         # test for invalid variable error
@@ -366,7 +366,7 @@ end
     @testset "JuMP.add_variable" begin
         # prepare secondary model and infinite variable
         m2 = InfiniteModel()
-        @independent_parameter(m2, pref3 in [0, 1])
+        @infinite_parameter(m2, pref3 in [0, 1])
         @variable(m2, ivref3, Infinite(pref3))
         v = build_variable(error, info, Point(ivref3, 0.5))
         # test for invalid variable error
@@ -569,8 +569,8 @@ end
 @testset "Usage" begin
     # initialize model and stuff
     m = InfiniteModel()
-    @independent_parameter(m, t in [0, 1])
-    @dependent_parameters(m, x[1:2] in [-1, 1])
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x[1:2] in [-1, 1])
     @variable(m, y, Infinite(t, x))
     @variable(m, y0, Point(y, 0, [0, 0]))
     vref = dispatch_variable_ref(y0)

@@ -2,34 +2,38 @@
 #                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
 ################################################################################
 # Extend dispatch_variable_ref
-function dispatch_variable_ref(model::InfiniteModel,
-                               index::InfiniteVariableIndex
-                               )::InfiniteVariableRef
+function dispatch_variable_ref(
+    model::InfiniteModel,
+    index::InfiniteVariableIndex
+    )::InfiniteVariableRef
     return InfiniteVariableRef(model, index)
 end
 
 # Extend _add_data_object
-function _add_data_object(model::InfiniteModel,
-                          object::VariableData{<:InfiniteVariable}
-                          )::InfiniteVariableIndex
+function _add_data_object(
+    model::InfiniteModel,
+    object::VariableData{<:InfiniteVariable}
+    )::InfiniteVariableIndex
     return MOIUC.add_item(model.infinite_vars, object)
 end
 
 # Extend _data_dictionary (type based)
-function _data_dictionary(model::InfiniteModel, ::Type{InfiniteVariable}
-    )::MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable{GeneralVariableRef}}}
+function _data_dictionary(
+    model::InfiniteModel, 
+    ::Type{InfiniteVariable}
+    )::MOIUC.CleverDict{InfiniteVariableIndex, VariableData{<:InfiniteVariable}}
     return model.infinite_vars
 end
 
 # Extend _data_dictionary (reference based)
-function _data_dictionary(vref::InfiniteVariableRef
-    )::MOIUC.CleverDict{InfiniteVariableIndex, VariableData{InfiniteVariable{GeneralVariableRef}}}
+function _data_dictionary(
+    vref::InfiniteVariableRef
+    )::MOIUC.CleverDict{InfiniteVariableIndex, VariableData{<:InfiniteVariable}}
     return JuMP.owner_model(vref).infinite_vars
 end
 
 # Extend _data_object
-function _data_object(vref::InfiniteVariableRef
-    )::VariableData{InfiniteVariable{GeneralVariableRef}}
+function _data_object(vref::InfiniteVariableRef)
   object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
   object === nothing && error("Invalid infinite variable reference, cannot find " *
                         "corresponding variable in the model. This is likely " *
@@ -38,8 +42,7 @@ function _data_object(vref::InfiniteVariableRef
 end
 
 # Extend _core_variable_object
-function _core_variable_object(vref::InfiniteVariableRef
-    )::InfiniteVariable{GeneralVariableRef}
+function _core_variable_object(vref::InfiniteVariableRef)
     return _data_object(vref).variable
 end
 
@@ -58,11 +61,48 @@ function _is_vector_start(vref::InfiniteVariableRef)::Bool
     return _core_variable_object(vref).is_vector_start
 end
 
+## Set helper methods for adapting data_objects with parametric changes 
+# No change needed 
+function _adaptive_data_update(
+    vref::InfiniteVariableRef, 
+    var::V, 
+    data::VariableData{V}
+    )::Nothing where {V <: InfiniteVariable}
+    data.variable = var
+    return
+end
+
+# Reconstruction is necessary 
+function _adaptive_data_update(
+    vref::InfiniteVariableRef, 
+    var::V1, 
+    data::VariableData{V2}
+    )::Nothing  where {V1, V2}
+    new_data = VariableData(var, data.name, data.lower_bound_index,
+                            data.upper_bound_index, data.fix_index,
+                            data.zero_one_index, data.integrality_index,
+                            data.measure_indices, data.constraint_indices,
+                            data.in_objective, data.point_var_indices,
+                            data.semi_infinite_var_indices, 
+                            data.derivative_indices, data.deriv_constr_indices)
+    _data_dictionary(vref)[JuMP.index(vref)] = new_data
+    return
+end
+
+# Extend _set_core_variable_object for InfiniteVariableRefs
+function _set_core_variable_object(
+    vref::InfiniteVariableRef,
+    var::InfiniteVariable
+    )::Nothing
+    _adaptive_data_update(vref, var, _data_object(vref))
+    return
+end
+
 ################################################################################
 #                          DEFINTION HELPER METHODS
 ################################################################################
 """
-    Infinite{T} <: InfOptVariableType
+    Infinite{VT <: VectorTuple} <: InfOptVariableType
 
 A `DataType` to assist in making infinite variables. This can be passed as an 
 extra argument to `@variable` to make an infinite variable: 
@@ -74,46 +114,48 @@ array with parameters defined in the same macro call, or multiple arguments wher
 each argument is either of the first two options listed.
 
 **Fields**
-- `parameter_refs::VectorTuple{T}`: The infinite parameters the variable will 
-   depend on.
+- `parameter_refs::VT`: The infinite parameters the variable will depend on.
 """
-struct Infinite{T} <: InfOptVariableType
-    parameter_refs::VectorTuple{T}
-    function Infinite(args...)
-        vt = VectorTuple(args)
-        T = param_type(vt)
-        return new{T}(vt)
-    end
+struct Infinite{VT <: Collections.VectorTuple} <: InfOptVariableType
+    parameter_refs::VT
+end
+function Infinite(args...)
+    return Infinite(Collections.VectorTuple(args))
 end
 
 ## Check that each parameter tuple element is formatted correctly
 # IndependentParameterRefs
-function _check_tuple_element(_error::Function,
-                              prefs::Vector{IndependentParameterRef})::Nothing
+function _check_tuple_element(
+    _error::Function,
+    prefs::Vector{IndependentParameterRef}
+    )::Nothing
     return
 end
 
 # DependentParameterRefs
-function _check_tuple_element(_error::Function,
-                              prefs::Vector{DependentParameterRef})::Nothing
+function _check_tuple_element(
+    _error::Function,
+    prefs::Vector{DependentParameterRef}
+    )::Nothing
     if length(prefs) != _num_parameters(first(prefs))
-        _error("Infinite parameter tuple elements cannot depend on a subset of dependent " *
-               "parameters.")
+        _error("Infinite parameter tuple elements cannot depend on a subset ",
+               "of dependent parameters.")
     end
     return
 end
 
 # Fallback
 function _check_tuple_element(_error::Function, prefs)
-    _error("Cannot have mixed parameter types in a tuple element and can only " *
+    _error("Cannot have mixed parameter types in a tuple element and can only ",
            "specify infinite parameters.")
 end
 
 # Check parameter tuple, ensure all elements contain parameter references
-function _check_parameter_tuple(_error::Function,
-                                raw_prefs::VectorTuple{GeneralVariableRef}
-                                )::Nothing
-    allunique(raw_prefs) || _error("Cannot double specify infinite parameter " *
+function _check_parameter_tuple(
+    _error::Function,
+    raw_prefs::Collections.VectorTuple{GeneralVariableRef}
+    )::Nothing
+    allunique(raw_prefs) || _error("Cannot double specify infinite parameter ",
                                    "references.")
     for i in 1:size(raw_prefs, 1)
         prefs = dispatch_variable_ref.(raw_prefs[i, :])
@@ -121,7 +163,10 @@ function _check_parameter_tuple(_error::Function,
     end
     return
 end
-function _check_parameter_tuple(_error::Function, raw_prefs::VectorTuple{T}) where {T}
+function _check_parameter_tuple(
+    _error::Function, 
+    raw_prefs::Collections.VectorTuple{T}
+    ) where {T}
     _error("Expected infinite parameter reference arguments, but got arguments ",
            "of type $T. This may be because `Infinite()` was given (i.e., no ",
            "infinite parameter references were specified as arguments).")
@@ -129,21 +174,27 @@ end
 
 ## Check and format the variable info considering functional start values
 # Just a number given for the start value
-function _check_and_format_infinite_info(_error::Function,
+function _check_and_format_infinite_info(
+    _error::Function,
     info::JuMP.VariableInfo{<:Real, <:Real, <:Real, <:Real},
-    prefs::VectorTuple
-    )::Tuple{JuMP.VariableInfo{Float64, Float64, Float64, Function}, Bool}
+    prefs::Collections.VectorTuple
+    )
     # prepare the start value function and return the info
     start_func = (s::Vector{<:Real}) -> info.start
-    return JuMP.VariableInfo{Float64, Float64, Float64, Function}(
-        info.has_lb, info.lower_bound, info.has_ub, info.upper_bound,
-        info.has_fix, info.fixed_value, !isnan(info.start), start_func,
-        info.binary, info.integer), true
+    return JuMP.VariableInfo(info.has_lb, convert(Float64, info.lower_bound), 
+                             info.has_ub, convert(Float64, info.upper_bound),
+                             info.has_fix, convert(Float64, info.fixed_value), 
+                             !isnan(info.start), start_func, info.binary, 
+                             info.integer), 
+           true
 end
 
 # make function for checking start value function properties 
-function _check_valid_function(_error::Function, func::Function, 
-                               prefs::VectorTuple)::Nothing 
+function _check_valid_function(
+    _error::Function, 
+    func::Function, 
+    prefs::Collections.VectorTuple
+    )::Nothing 
     input_format = typeof(Tuple(Vector{Float64}(undef, length(prefs)), prefs))
     if !hasmethod(func, input_format)
         _error("Specified function `$func` must be able to accept a `Float64` " * 
@@ -153,23 +204,28 @@ function _check_valid_function(_error::Function, func::Function,
 end
 
 # A function is given for the start value generation
-function _check_and_format_infinite_info(_error::Function,
-    info::JuMP.VariableInfo{<:Real, <:Real, <:Real, <:Function},
-    prefs::VectorTuple
-    )::Tuple{JuMP.VariableInfo{Float64, Float64, Float64, Function}, Bool}
+function _check_and_format_infinite_info(
+    _error::Function,
+    info::JuMP.VariableInfo{<:Real, <:Real, <:Real, F},
+    prefs::Collections.VectorTuple
+    )::Tuple{JuMP.VariableInfo{Float64, Float64, Float64, F}, Bool} where {F <: Function}
     # check the function properties
     _check_valid_function(_error, info.start, prefs)
     # make the info and return
-    return JuMP.VariableInfo{Float64, Float64, Float64, Function}(
-        info.has_lb, info.lower_bound, info.has_ub, info.upper_bound,
-        info.has_fix, info.fixed_value, true, info.start,
-        info.binary, info.integer), false
+    return JuMP.VariableInfo(info.has_lb, convert(Float64, info.lower_bound), 
+                             info.has_ub, convert(Float64, info.upper_bound),
+                             info.has_fix, convert(Float64, info.fixed_value), 
+                             info.has_start, info.start, info.binary, 
+                             info.integer), 
+           false
 end
 
 # Fallback
-function _check_and_format_infinite_info(_error::Function,
+function _check_and_format_infinite_info(
+    _error::Function,
     info::JuMP.VariableInfo,
-    prefs::VectorTuple)
+    prefs::Collections.VectorTuple
+    )
     _error("Unrecognized formatting for the variable information.")
 end
 
@@ -188,11 +244,12 @@ julia> info = VariableInfo(false, 0, false, 0, false, 0, true, 0, false, false);
 julia> inf_var = build_variable(error, info, Infinite(t));
 ```
 """
-function JuMP.build_variable(_error::Function, 
+function JuMP.build_variable(
+    _error::Function, 
     info::JuMP.VariableInfo, 
     var_type::Infinite;
     extra_kwargs...
-    )::InfiniteVariable{GeneralVariableRef}
+    )
     # check for unneeded keywords
     for (kwarg, _) in extra_kwargs
         _error("Keyword argument $kwarg is not for use with infinite variables.")
@@ -215,8 +272,10 @@ function JuMP.build_variable(_error::Function,
 end
 
 # check the pref tuple contains only valid parameters
-function _check_parameters_valid(model::InfiniteModel,
-                                 prefs::VectorTuple)::Nothing
+function _check_parameters_valid(
+    model::InfiniteModel,
+    prefs::Collections.VectorTuple
+    )::Nothing
     for pref in prefs
         JuMP.check_belongs_to_model(pref, model)
     end
@@ -224,8 +283,10 @@ function _check_parameters_valid(model::InfiniteModel,
 end
 
 # Used to update parameter-infinite variable mappings
-function _update_param_var_mapping(vref::InfiniteVariableRef,
-                                   prefs::VectorTuple)::Nothing
+function _update_param_var_mapping(
+    vref::InfiniteVariableRef,
+    prefs::Collections.VectorTuple
+    )::Nothing
     for pref in prefs
         dependency_list = _infinite_variable_dependencies(pref)
         if !(JuMP.index(vref) in dependency_list)
@@ -236,9 +297,11 @@ function _update_param_var_mapping(vref::InfiniteVariableRef,
 end
 
 # Define _check_and_make_variable_ref (used by JuMP.add_variable)
-function _check_and_make_variable_ref(model::InfiniteModel,
-                                      v::InfiniteVariable,
-                                      name::String)::InfiniteVariableRef
+function _check_and_make_variable_ref(
+    model::InfiniteModel,
+    v::InfiniteVariable,
+    name::String
+    )::InfiniteVariableRef
     _check_parameters_valid(model, v.parameter_refs)
     data_object = VariableData(v, name)
     vindex = _add_data_object(model, data_object)
@@ -253,7 +316,7 @@ end
 # Extend _semi_infinite_variable_dependencies
 function _semi_infinite_variable_dependencies(
     vref::Union{InfiniteVariableRef, DerivativeRef}
-     )::Vector{SemiInfiniteVariableIndex}
+    )::Vector{SemiInfiniteVariableIndex}
     return _data_object(vref).semi_infinite_var_indices
 end
 
@@ -267,7 +330,7 @@ end
 # Extend _derivative_dependencies
 function _derivative_dependencies(
     vref::Union{InfiniteVariableRef, DerivativeRef}
-     )::Vector{DerivativeIndex}
+    )::Vector{DerivativeIndex}
     return _data_object(vref).derivative_indices
 end
 
@@ -357,16 +420,14 @@ end
 #                           PARAMETER REFERENCES
 ################################################################################
 """
-    raw_parameter_refs(vref::InfiniteVariableRef)::VectorTuple{GeneralVariableRef}
+    raw_parameter_refs(vref::InfiniteVariableRef)::VectorTuple
 
-Return the raw [`VectorTuple`](@ref) of the parameter references that `vref`
-depends on. This is primarily an internal method where
-[`parameter_refs`](@ref parameter_refs(vref::InfiniteVariableRef))
+Return the raw [`VectorTuple`](@ref InfiniteOpt.Collections.VectorTuple) of the 
+parameter references that `vref` depends on. This is primarily an internal method 
+where [`parameter_refs`](@ref parameter_refs(vref::InfiniteVariableRef)) 
 is intended as the preferred user function.
 """
-function raw_parameter_refs(
-    vref::InfiniteVariableRef
-    )::VectorTuple{GeneralVariableRef}
+function raw_parameter_refs(vref::InfiniteVariableRef)
     return _core_variable_object(vref).parameter_refs
 end
 
@@ -386,7 +447,7 @@ julia> parameter_refs(T)
 (t,)
 ```
 """
-function parameter_refs(vref::InfiniteVariableRef)::Tuple
+function parameter_refs(vref::InfiniteVariableRef)
     return Tuple(raw_parameter_refs(vref))
 end
 
@@ -402,8 +463,9 @@ function parameter_list(vref::InfiniteVariableRef)::Vector{GeneralVariableRef}
 end
 
 # get parameter list from raw VectorTuple
-function parameter_list(prefs::VectorTuple{GeneralVariableRef}
-                        )::Vector{GeneralVariableRef}
+function parameter_list(
+    prefs::Collections.VectorTuple{GeneralVariableRef}
+    )::Vector{GeneralVariableRef}
     return prefs.values
 end
 
@@ -415,10 +477,11 @@ function _update_variable_info(
     vref::InfiniteVariableRef,
     info::JuMP.VariableInfo
     )::Nothing
-    new_info = JuMP.VariableInfo{Float64, Float64, Float64, Function}(
-                                 info.has_lb, info.lower_bound, info.has_ub,
-                                 info.upper_bound, info.has_fix, info.fixed_value,
-                                 info.has_start, info.start, info.binary, info.integer)
+    new_info = JuMP.VariableInfo(info.has_lb, convert(Float64, info.lower_bound), 
+                                 info.has_ub, convert(Float64, info.upper_bound), 
+                                 info.has_fix, convert(Float64, info.fixed_value),
+                                 info.has_start, info.start, info.binary, 
+                                 info.integer)
     prefs = raw_parameter_refs(vref)
     param_nums = _parameter_numbers(vref)
     obj_nums = _object_numbers(vref)
@@ -491,8 +554,8 @@ function set_start_value_function(
     set_optimizer_model_ready(JuMP.owner_model(vref), false)
     prefs = raw_parameter_refs(vref)
     temp_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
-                                 info.upper_bound, info.has_fix, info.fixed_value,
-                                 true, start, info.binary, info.integer)
+                                  info.upper_bound, info.has_fix, info.fixed_value,
+                                  true, start, info.binary, info.integer)
     new_info, is_vect_func = _check_and_format_infinite_info(error, temp_info, prefs)
     obj_nums = _object_numbers(vref)
     param_nums = _parameter_numbers(vref)
@@ -516,8 +579,7 @@ function reset_start_value_function(vref::InfiniteVariableRef)::Nothing
     info = _variable_info(vref)
     set_optimizer_model_ready(JuMP.owner_model(vref), false)
     start_func = (s::Vector{<:Real}) -> NaN
-    new_info = JuMP.VariableInfo{Float64, Float64, Float64, Function}(
-                                 info.has_lb, info.lower_bound, info.has_ub,
+    new_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
                                  info.upper_bound, info.has_fix, info.fixed_value,
                                  false, start_func, info.binary, info.integer)
     prefs = raw_parameter_refs(vref)

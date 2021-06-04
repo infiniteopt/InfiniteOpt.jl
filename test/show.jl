@@ -1,11 +1,9 @@
-using JuMP: REPLMode, IJuliaMode
-
 # Test string creation
 @testset "String Creators" begin
     # initialize model and attributes
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par1 <= 1)
-    @infinite_parameter(m, pars[1:2] in MvNormal([1, 1], 1))
+    @infinite_parameter(m, par1 in [0, 1])
+    @infinite_parameter(m, pars[1:2] ~ MvNormal([1, 1], 1))
     @infinite_parameter(m, pars2[1:2] in [0, 2])
     @infinite_parameter(m, pars3[1:2] in [0, 1], independent = true)
     @variable(m, x, Infinite(par1))
@@ -23,37 +21,92 @@ using JuMP: REPLMode, IJuliaMode
     ac2 = @constraint(m, y^2 - 3 == 0)
     @constraint(m, c3, x == 5, DomainRestrictions(par1 => [0, 0.5]))
     ac3 = @constraint(m, x == 5, DomainRestrictions(par1 => [0, 0.5]))
-    # test _infopt_math_symbol (REPL)
-    @testset "_infopt_math_symbol (REPL)" begin
+    # test _math_symbol (REPL)
+    @testset "_math_symbol (REPL)" begin
         if Sys.iswindows()
-            @test InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) == "and"
-            @test InfiniteOpt._infopt_math_symbol(REPLMode, :partial) == "d"
-            @test InfiniteOpt._infopt_math_symbol(REPLMode, :integral) == "integral"
-            @test InfiniteOpt._infopt_math_symbol(REPLMode, :expect) == "E"
+            @test InfiniteOpt._math_symbol(REPLMode, :intersect) == "and"
+            @test InfiniteOpt._math_symbol(REPLMode, :partial) == "d"
+            @test InfiniteOpt._math_symbol(REPLMode, :integral) == "integral"
+            @test InfiniteOpt._math_symbol(REPLMode, :expect) == "E"
+            @test InfiniteOpt._math_symbol(REPLMode, :leq) == "<="
+            @test InfiniteOpt._math_symbol(REPLMode, :geq) == ">="
+            @test InfiniteOpt._math_symbol(REPLMode, :eq) == "=="
+            @test InfiniteOpt._math_symbol(REPLMode, :for_all) == "for all"
+            @test InfiniteOpt._math_symbol(REPLMode, :in) == "in"
+            @test InfiniteOpt._math_symbol(REPLMode, :dots) == ".."
+            @test InfiniteOpt._math_symbol(REPLMode, :union) == "or"
+            @test InfiniteOpt._math_symbol(REPLMode, :infty) == "Inf"
+            @test InfiniteOpt._math_symbol(REPLMode, :Vert) == "||"
+            @test InfiniteOpt._math_symbol(REPLMode, :sub2) == "_2"
         else
-            @test InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) == "∩"
-            @test InfiniteOpt._infopt_math_symbol(REPLMode, :partial) == "∂"
-            @test InfiniteOpt._infopt_math_symbol(REPLMode, :integral) == "∫"
-            @test InfiniteOpt._infopt_math_symbol(REPLMode, :expect) == "𝔼"
+            @test InfiniteOpt._math_symbol(REPLMode, :intersect) == "∩"
+            @test InfiniteOpt._math_symbol(REPLMode, :partial) == "∂"
+            @test InfiniteOpt._math_symbol(REPLMode, :integral) == "∫"
+            @test InfiniteOpt._math_symbol(REPLMode, :expect) == "𝔼"
+            @test InfiniteOpt._math_symbol(REPLMode, :leq) == "≤"
+            @test InfiniteOpt._math_symbol(REPLMode, :geq) == "≥"
+            @test InfiniteOpt._math_symbol(REPLMode, :eq) == "="
+            @test InfiniteOpt._math_symbol(REPLMode, :for_all) == "∀"
+            @test InfiniteOpt._math_symbol(REPLMode, :in) == "∈"
+            @test InfiniteOpt._math_symbol(REPLMode, :dots) == "…"
+            @test InfiniteOpt._math_symbol(REPLMode, :union) == "∪"
+            @test InfiniteOpt._math_symbol(REPLMode, :infty) == "∞"
+            @test InfiniteOpt._math_symbol(REPLMode, :Vert) == "‖"
+            @test InfiniteOpt._math_symbol(REPLMode, :sub2) == "₂"
         end
-        @test InfiniteOpt._infopt_math_symbol(REPLMode, :times) == "*"
-        @test InfiniteOpt._infopt_math_symbol(REPLMode, :prop) == "~"
+        @test InfiniteOpt._math_symbol(REPLMode, :times) == "*"
+        @test InfiniteOpt._math_symbol(REPLMode, :prop) == "~"
+        @test InfiniteOpt._math_symbol(REPLMode, :sq) == "²"
+        @test InfiniteOpt._math_symbol(REPLMode, :ind_open) == "["
+        @test InfiniteOpt._math_symbol(REPLMode, :ind_close) == "]"
+        @test InfiniteOpt._math_symbol(REPLMode, :open_set) == "{"
+        @test InfiniteOpt._math_symbol(REPLMode, :close_set) == "}"
+        @test InfiniteOpt._math_symbol(REPLMode, :open_rng) == "["
+        @test InfiniteOpt._math_symbol(REPLMode, :close_rng) == "]"
+        @test InfiniteOpt._math_symbol(REPLMode, :integer) == "integer"
+        @test InfiniteOpt._math_symbol(REPLMode, :succeq0) == " is semidefinite"
+        @test_throws ErrorException InfiniteOpt._math_symbol(REPLMode, :bad)
     end
-    # test _infopt_math_symbol (IJulia)
-    @testset "_infopt_math_symbol (IJulia)" begin
-        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) == "\\cap"
-        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :eq) == "="
-        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) == "\\sim"
-        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :partial) == "\\partial"
-        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :open_rng) == "\\left["
-        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :close_rng) == "\\right]"
-        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :integral) == "\\int"
-        @test InfiniteOpt._infopt_math_symbol(IJuliaMode, :expect) == "\\mathbb{E}"
+    # test _math_symbol (IJulia)
+    @testset "_math_symbol (IJulia)" begin
+        @test InfiniteOpt._math_symbol(IJuliaMode, :intersect) == "\\cap"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :prop) == "\\sim"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :partial) == "\\partial"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :open_rng) == "\\left["
+        @test InfiniteOpt._math_symbol(IJuliaMode, :close_rng) == "\\right]"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :integral) == "\\int"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :expect) == "\\mathbb{E}"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :leq) == "\\leq"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :geq) == "\\geq"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :eq) == "="
+        @test InfiniteOpt._math_symbol(IJuliaMode, :times) == "\\times "
+        @test InfiniteOpt._math_symbol(IJuliaMode, :sq) == "^2"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :ind_open) == "_{"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :ind_close) == "}"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :for_all) == "\\quad\\forall"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :in) == "\\in"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :open_set) == "\\{"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :close_set) == "\\}"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :dots) == "\\dots"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :union) == "\\cup"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :infty) == "\\infty"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :integer) == "\\in \\mathbb{Z}"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :succeq0) == "\\succeq 0"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :Vert) == "\\Vert"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :sub2) == "_2"
+        @test_throws ErrorException InfiniteOpt._math_symbol(IJuliaMode, :bad)
     end
     # test _plural
     @testset "_plural" begin
         @test InfiniteOpt._plural(1) == ""
         @test InfiniteOpt._plural(2) == "s"
+    end
+    # test _string_round
+    @testset "_string_round" begin
+        @test InfiniteOpt._string_round(1) == "1"
+        @test InfiniteOpt._string_round(1.0) == "1"
+        @test InfiniteOpt._string_round(0.0) == "0"
+        @test InfiniteOpt._string_round(0.5) == "0.5"
     end
     # test domain_string (IntervalDomain)
     @testset "domain_string (IntervalDomain)" begin
@@ -99,57 +152,57 @@ using JuMP: REPLMode, IJuliaMode
     @testset "in_domain_string (Interval)" begin
         # test simple case
         domain = IntervalDomain(0, 1)
-        str = JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
+        str = InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]"
         @test in_domain_string(REPLMode, domain) == str
-        str = JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
+        str = InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1]"
         @test in_domain_string(IJuliaMode, domain) == str
         # test rounding case
         domain = IntervalDomain(-0, 1)
-        str = JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
+        str = InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]"
         @test in_domain_string(REPLMode, domain) == str
-        str = JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
+        str = InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1]"
         @test in_domain_string(IJuliaMode, domain) == str
         # test decimal case
         domain = IntervalDomain(0.1, 1.3)
-        str = JuMP._math_symbol(REPLMode, :in) * " [0.1, 1.3]"
+        str = InfiniteOpt._math_symbol(REPLMode, :in) * " [0.1, 1.3]"
         @test in_domain_string(REPLMode, domain) == str
-        str = JuMP._math_symbol(IJuliaMode, :in) * " [0.1, 1.3]"
+        str = InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0.1, 1.3]"
         @test in_domain_string(IJuliaMode, domain) == str
         # test finite case
         domain = IntervalDomain(0.1, 0.1)
-        str = JuMP._math_symbol(REPLMode, :eq) * " 0.1"
+        str = InfiniteOpt._math_symbol(REPLMode, :eq) * " 0.1"
         @test in_domain_string(REPLMode, domain) == str
-        str = JuMP._math_symbol(IJuliaMode, :eq) * " 0.1"
+        str = InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 0.1"
         @test in_domain_string(IJuliaMode, domain) == str
     end
     # test in_domain_string (Distribution)
     @testset "in_domain_string (Distribution)" begin
         # test univariate domain
         domain = UniDistributionDomain(Uniform())
-        str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " Uniform"
+        str = InfiniteOpt._math_symbol(REPLMode, :prop) * " Uniform"
         @test in_domain_string(REPLMode, domain) == str
-        str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " Uniform"
+        str = InfiniteOpt._math_symbol(IJuliaMode, :prop) * " Uniform"
         @test in_domain_string(IJuliaMode, domain) == str
         # test mulivariate domain
         domain = MultiDistributionDomain(MvNormal([1], 1))
-        str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " MvNormal(dim: (1))"
-        str2 = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " IsoNormal(dim: (1))"
+        str = InfiniteOpt._math_symbol(REPLMode, :prop) * " MvNormal(dim: (1))"
+        str2 = InfiniteOpt._math_symbol(REPLMode, :prop) * " IsoNormal(dim: (1))"
         @test in_domain_string(REPLMode, domain) in [str, str2]
-        str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " MvNormal(dim: (1))"
-        str2 = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " IsoNormal(dim: (1))"
+        str = InfiniteOpt._math_symbol(IJuliaMode, :prop) * " MvNormal(dim: (1))"
+        str2 = InfiniteOpt._math_symbol(IJuliaMode, :prop) * " IsoNormal(dim: (1))"
         @test in_domain_string(IJuliaMode, domain) in [str, str2]
         # test matrix domain
         domain = MultiDistributionDomain(MatrixBeta(2, 2, 2))
-        str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " MatrixBeta(dims: (2, 2))"
+        str = InfiniteOpt._math_symbol(REPLMode, :prop) * " MatrixBeta(dims: (2, 2))"
         @test in_domain_string(REPLMode, domain) == str
-        str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " MatrixBeta(dims: (2, 2))"
+        str = InfiniteOpt._math_symbol(IJuliaMode, :prop) * " MatrixBeta(dims: (2, 2))"
         @test in_domain_string(IJuliaMode, domain) == str
     end
     # test in_domain_string (Fallback)
     @testset "in_domain_string (Fallback)" begin
         domain = BadDomain()
-        in1 = JuMP._math_symbol(REPLMode, :in)
-        in2 = JuMP._math_symbol(IJuliaMode, :in)
+        in1 = InfiniteOpt._math_symbol(REPLMode, :in)
+        in2 = InfiniteOpt._math_symbol(IJuliaMode, :in)
         @test in_domain_string(REPLMode, domain) == in1 * " BadDomain()"
         @test in_domain_string(IJuliaMode, domain) == in2 * " BadDomain()"
     end
@@ -158,14 +211,14 @@ using JuMP: REPLMode, IJuliaMode
         # test in restrictions
         rs = DomainRestrictions(par1 => 0)
         domain = IntervalDomain(0, 1)
-        str = JuMP._math_symbol(REPLMode, :eq) * " 0"
+        str = InfiniteOpt._math_symbol(REPLMode, :eq) * " 0"
         @test in_domain_string(REPLMode, par1, domain, rs) == str
-        str = JuMP._math_symbol(IJuliaMode, :eq) * " 0"
+        str = InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 0"
         @test in_domain_string(IJuliaMode, par1, domain, rs) == str
         # test not in restrictions
-        str = JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
+        str = InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]"
         @test in_domain_string(REPLMode, pars[1], domain, rs) == str
-        str = JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
+        str = InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1]"
         @test in_domain_string(IJuliaMode, pars[1], domain, rs) == str
     end
     # test in_domain_string (InfiniteScalarDomain with Restrictions)
@@ -173,23 +226,23 @@ using JuMP: REPLMode, IJuliaMode
         # test in restrictions
         rs = DomainRestrictions(par1 => 0)
         domain = UniDistributionDomain(Uniform())
-        str = JuMP._math_symbol(REPLMode, :eq) * " 0"
+        str = InfiniteOpt._math_symbol(REPLMode, :eq) * " 0"
         @test in_domain_string(REPLMode, par1, domain, rs) == str
-        str = JuMP._math_symbol(IJuliaMode, :eq) * " 0"
+        str = InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 0"
         @test in_domain_string(IJuliaMode, par1, domain, rs) == str
         # test in restrictions and not equality
         rs = DomainRestrictions(par1 => [0, 1])
         domain = UniDistributionDomain(Uniform())
-        str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " Uniform " *
-              InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) * " [0, 1]"
+        str = InfiniteOpt._math_symbol(REPLMode, :prop) * " Uniform " *
+              InfiniteOpt._math_symbol(REPLMode, :intersect) * " [0, 1]"
         @test in_domain_string(REPLMode, par1, domain, rs) == str
-        str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " Uniform " *
-              InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) * " [0, 1]"
+        str = InfiniteOpt._math_symbol(IJuliaMode, :prop) * " Uniform " *
+              InfiniteOpt._math_symbol(IJuliaMode, :intersect) * " [0, 1]"
         @test in_domain_string(IJuliaMode, par1, domain, rs) == str
         # test not in restrictions
-        str = InfiniteOpt._infopt_math_symbol(REPLMode, :prop) * " Uniform"
+        str = InfiniteOpt._math_symbol(REPLMode, :prop) * " Uniform"
         @test in_domain_string(REPLMode, pars[1], domain, rs) == str
-        str = InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) * " Uniform"
+        str = InfiniteOpt._math_symbol(IJuliaMode, :prop) * " Uniform"
         @test in_domain_string(IJuliaMode, pars[1], domain, rs) == str
     end
     # test measure_data_string with 1-D DiscreteMeasureData/FunctionalDiscreteMeasureData
@@ -197,9 +250,9 @@ using JuMP: REPLMode, IJuliaMode
         # test with bounds
         data = FunctionalDiscreteMeasureData(par1, ones, 0, All, NoGenerativeSupports(), 
                                              default_weight, 0, 1, false)
-        str = "par1 " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
+        str = "par1 " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]"
         @test InfiniteOpt.measure_data_string(REPLMode, data) == str
-        str = "par1 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
+        str = "par1 " * InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1]"
         @test InfiniteOpt.measure_data_string(IJuliaMode, data) == str
         # test without bounds
         data = FunctionalDiscreteMeasureData(par1, ones, 0, All, NoGenerativeSupports(), 
@@ -211,17 +264,17 @@ using JuMP: REPLMode, IJuliaMode
     @testset "measure_data_string (Multi-D)" begin
         # test with homogenous bounds
         data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [0, 0], [1, 1], false)
-        str = "pars2 " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]^2"
+        str = "pars2 " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]^2"
         @test InfiniteOpt.measure_data_string(REPLMode, data) == str
-        str = "pars2 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]^2"
+        str = "pars2 " * InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1]^2"
         @test InfiniteOpt.measure_data_string(IJuliaMode, data) == str
         # test heterogeneous bounds
         data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [0, 0], [0.5, 1], false)
-        str = "pars2[1] " * JuMP._math_symbol(REPLMode, :in) * " [0, 0.5], " *
-              "pars2[2] " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
+        str = "pars2[1] " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 0.5], " *
+              "pars2[2] " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]"
         @test InfiniteOpt.measure_data_string(REPLMode, data) == str
-        str = "pars2_{1} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 0.5], " *
-              "pars2_{2} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
+        str = "pars2_{1} " * InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 0.5], " *
+              "pars2_{2} " * InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1]"
         @test InfiniteOpt.measure_data_string(IJuliaMode, data) == str
         # test no bounds with homogenous names
         data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [NaN, NaN], [NaN, NaN], false)
@@ -267,26 +320,26 @@ using JuMP: REPLMode, IJuliaMode
         # test non measure toolbox measures
         data = FunctionalDiscreteMeasureData(pars2, ones, 0, All, default_weight, [0, 0], [1, 1], false)
         meas = dispatch_variable_ref(measure(y, data, name = "test"))
-        str = "test{pars2 " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]^2}[y]"
+        str = "test{pars2 " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]^2}[y]"
         @test InfiniteOpt.variable_string(REPLMode, meas) == str
-        str = "\\text{test}_{pars2 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]^2}\\left[y\\right]"
+        str = "\\text{test}_{pars2 " * InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1]^2}\\left[y\\right]"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
         # test measure toolbox special cases for integrals and expectations
         @infinite_parameter(m, t in [0, 1])
         meas = dispatch_variable_ref(expect(y, t))
         str = "\\mathbb{E}_{t \\in [0, 1]}\\left[y\\right]"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
-        str = InfiniteOpt._infopt_math_symbol(REPLMode, :expect) * "{t " * 
-              InfiniteOpt._infopt_math_symbol(REPLMode, :in) * " [0, 1]}[y]"
+        str = InfiniteOpt._math_symbol(REPLMode, :expect) * "{t " * 
+              InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]}[y]"
         @test InfiniteOpt.variable_string(REPLMode, meas) == str
         meas = dispatch_variable_ref(integral(y, t))
-        str = "\\int_{t " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]}ydt"
+        str = "\\int_{t " * InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1]}ydt"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
-        int = InfiniteOpt._infopt_math_symbol(REPLMode, :integral)
-        str = int * "{t " * JuMP._math_symbol(REPLMode, :in) * " [0, 1]}[y]"
+        int = InfiniteOpt._math_symbol(REPLMode, :integral)
+        str = int * "{t " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]}[y]"
         @test InfiniteOpt.variable_string(REPLMode, meas) == str
         meas = dispatch_variable_ref(integral(y, par1))
-        str = "\\int_{par1 " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]}yd(par1)"
+        str = "\\int_{par1 " * InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1]}yd(par1)"
         @test InfiniteOpt.variable_string(IJuliaMode, meas) == str
     end
     # test _get_base_name
@@ -336,7 +389,7 @@ using JuMP: REPLMode, IJuliaMode
         @test InfiniteOpt.variable_string(IJuliaMode, bad_ref) == "noname"
         # test normal one
         dref = dispatch_variable_ref(d1)
-        d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
+        d_re = InfiniteOpt._math_symbol(REPLMode, :partial)
         @test InfiniteOpt.variable_string(REPLMode, dref) == "$d_re/$(d_re)par1[x(par1)]"
         @test InfiniteOpt.variable_string(IJuliaMode, dref) == "\\frac{\\partial}{\\partial par1}\\left[x(par1)\\right]"
         # test nested one 
@@ -385,7 +438,7 @@ using JuMP: REPLMode, IJuliaMode
         @test InfiniteOpt.variable_string(IJuliaMode, dvref) == "z0"
         # test with derivative 
         dvref = dispatch_variable_ref(@variable(m, variable_type = Point(d1, 0)))
-        d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
+        d_re = InfiniteOpt._math_symbol(REPLMode, :partial)
         @test InfiniteOpt.variable_string(REPLMode, dvref) == "$(d_re)/$(d_re)par1[x(par1)](0)"
         # test named derivative 
         dvref = dispatch_variable_ref(@variable(m, variable_type = Point(d3, [0, 0])))
@@ -411,7 +464,7 @@ using JuMP: REPLMode, IJuliaMode
         var = build_variable(error, d1, eval_supps, check = false)
         rv = @variable(m, variable_type = SemiInfinite(d1, 0))
         dvref = dispatch_variable_ref(rv)
-        d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
+        d_re = InfiniteOpt._math_symbol(REPLMode, :partial)
         @test InfiniteOpt.variable_string(REPLMode, dvref) == "$(d_re)/$(d_re)par1[x(par1)](0)"
     end
     # test variable_string (Fallback)
@@ -425,43 +478,43 @@ using JuMP: REPLMode, IJuliaMode
         @test JuMP.function_string(IJuliaMode, dispatch_variable_ref(inf)) == "inf(pars, par1, pars3)"
         @test JuMP.function_string(REPLMode, y) == "y"
         @test JuMP.function_string(IJuliaMode, inf) == "inf(pars, par1, pars3)"
-        d_re = InfiniteOpt._infopt_math_symbol(REPLMode, :partial)
+        d_re = InfiniteOpt._math_symbol(REPLMode, :partial)
         @test JuMP.function_string(REPLMode, d1) == "$d_re/$(d_re)par1[x(par1)]"
     end
     # test restrict_string
     @testset "restrict_string" begin
         # test with single restriction
         rs = DomainRestrictions(par1 => [0.5, 0.7])
-        str = "par1 " * JuMP._math_symbol(REPLMode, :in) * " [0.5, 0.7]"
+        str = "par1 " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0.5, 0.7]"
         @test InfiniteOpt.restrict_string(REPLMode, rs) == str
-        str = "par1 " *  JuMP._math_symbol(IJuliaMode, :in) * " [0.5, 0.7]"
+        str = "par1 " *  InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0.5, 0.7]"
         @test InfiniteOpt.restrict_string(IJuliaMode, rs) == str
     end
     # test constraint_string (Finite constraint)
     @testset "JuMP.constraint_string (Finite)" begin
         # test named
-        str = "c2 : y² " * JuMP._math_symbol(REPLMode, :eq) * " 3.0"
+        str = "c2 : y² " * InfiniteOpt._math_symbol(REPLMode, :eq) * " 3.0"
         @test constraint_string(REPLMode, c2) == str
-        str =  "c2 : \$ y^2 " * JuMP._math_symbol(IJuliaMode, :eq) * " 3.0 \$"
+        str =  "c2 : \$ y^2 " * InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 3.0 \$"
         @test constraint_string(IJuliaMode, c2) == str
         # test unnamed
-        str = "y² " * JuMP._math_symbol(REPLMode, :eq) * " 3.0"
+        str = "y² " * InfiniteOpt._math_symbol(REPLMode, :eq) * " 3.0"
         @test constraint_string(REPLMode, ac2) == str
-        str =  "\$ y^2 " * JuMP._math_symbol(IJuliaMode, :eq) * " 3.0 \$"
+        str =  "\$ y^2 " * InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 3.0 \$"
         @test constraint_string(IJuliaMode, ac2) == str
         # test named in math mode
-        str = "c2 : y² " * JuMP._math_symbol(REPLMode, :eq) * " 3.0"
+        str = "c2 : y² " * InfiniteOpt._math_symbol(REPLMode, :eq) * " 3.0"
         @test constraint_string(REPLMode, c2, in_math_mode = true) == str
-        str =  "y^2 " * JuMP._math_symbol(IJuliaMode, :eq) * " 3.0"
+        str =  "y^2 " * InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 3.0"
         @test constraint_string(IJuliaMode, c2, in_math_mode = true) == str
     end
     # test _param_domain_string (IndependentParameter)
     @testset "_param_domain_string (IndependentParameter)" begin
         rs = DomainRestrictions(par1 => 0)
         idx = index(par1)
-        str = "par1 " * JuMP._math_symbol(REPLMode, :eq) * " 0"
+        str = "par1 " * InfiniteOpt._math_symbol(REPLMode, :eq) * " 0"
         @test InfiniteOpt._param_domain_string(REPLMode, m, idx, rs) == str
-        str = "par1 " * JuMP._math_symbol(IJuliaMode, :eq) * " 0"
+        str = "par1 " * InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 0"
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, rs) == str
     end
     # test _param_domain_string (DependentParameters)
@@ -469,11 +522,11 @@ using JuMP: REPLMode, IJuliaMode
         # Collection set
         rs = DomainRestrictions(pars2[1] => [0, 1])
         idx = index(pars2[1]).object_index
-        str = "pars2[1] " * JuMP._math_symbol(REPLMode, :in) * " [0, 1], " *
-              "pars2[2] " * JuMP._math_symbol(REPLMode, :in) * " [0, 2]"
+        str = "pars2[1] " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1], " *
+              "pars2[2] " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 2]"
         @test InfiniteOpt._param_domain_string(REPLMode, m, idx, rs) == str
-        str = "pars2_{1} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1], " *
-              "pars2_{2} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 2]"
+        str = "pars2_{1} " * InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1], " *
+              "pars2_{2} " * InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 2]"
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, rs) == str
         # other set with equalities
         rs = DomainRestrictions(pars[1] => 0, pars[2] => 1)
@@ -486,120 +539,120 @@ using JuMP: REPLMode, IJuliaMode
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, rs) in [str, str2]
         # other set without equalities and including in the restrictions
         rs = DomainRestrictions(pars[1] => [0, 1])
-        str = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
+        str = "pars " * InfiniteOpt._math_symbol(REPLMode, :prop) *
               " MvNormal(dim: (2)) " *
-              InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) *
-              " (pars[1] " * JuMP._math_symbol(REPLMode, :in) * " [0, 1])"
-        str2 = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
+              InfiniteOpt._math_symbol(REPLMode, :intersect) *
+              " (pars[1] " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1])"
+        str2 = "pars " * InfiniteOpt._math_symbol(REPLMode, :prop) *
               " IsoNormal(dim: (2)) " *
-              InfiniteOpt._infopt_math_symbol(REPLMode, :intersect) *
-              " (pars[1] " * JuMP._math_symbol(REPLMode, :in) * " [0, 1])"
+              InfiniteOpt._math_symbol(REPLMode, :intersect) *
+              " (pars[1] " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1])"
         @test InfiniteOpt._param_domain_string(REPLMode, m, idx, rs) in [str, str2]
-        str = "pars " * InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) *
+        str = "pars " * InfiniteOpt._math_symbol(IJuliaMode, :prop) *
               " MvNormal(dim: (2)) " *
-              InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) *
-              " (pars_{1} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1])"
-        str2 = "pars " * InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) *
+              InfiniteOpt._math_symbol(IJuliaMode, :intersect) *
+              " (pars_{1} " * InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1])"
+        str2 = "pars " * InfiniteOpt._math_symbol(IJuliaMode, :prop) *
               " IsoNormal(dim: (2)) " *
-              InfiniteOpt._infopt_math_symbol(IJuliaMode, :intersect) *
-              " (pars_{1} " * JuMP._math_symbol(IJuliaMode, :in) * " [0, 1])"
+              InfiniteOpt._math_symbol(IJuliaMode, :intersect) *
+              " (pars_{1} " * InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1])"
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, rs) in [str, str2]
         # other set without equalities and not included in restrictions
         rs = DomainRestrictions(par1 => [0, 1])
-        str = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
+        str = "pars " * InfiniteOpt._math_symbol(REPLMode, :prop) *
               " MvNormal(dim: (2))"
-        str2 = "pars " * InfiniteOpt._infopt_math_symbol(REPLMode, :prop) *
+        str2 = "pars " * InfiniteOpt._math_symbol(REPLMode, :prop) *
               " IsoNormal(dim: (2))"
         @test InfiniteOpt._param_domain_string(REPLMode, m, idx, rs) in [str, str2]
-        str = "pars " * InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) *
+        str = "pars " * InfiniteOpt._math_symbol(IJuliaMode, :prop) *
               " MvNormal(dim: (2))"
-        str2 = "pars " * InfiniteOpt._infopt_math_symbol(IJuliaMode, :prop) *
+        str2 = "pars " * InfiniteOpt._math_symbol(IJuliaMode, :prop) *
               " IsoNormal(dim: (2))"
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, rs) in [str, str2]
     end
     # test constraint_string (infinite constraint)
     @testset "JuMP.constraint_string (Infinite)" begin
         # test c1 with name
-        str = "c1 : x(par1) + y " * JuMP._math_symbol(REPLMode, :leq) * " 2.0, " *
-              JuMP._math_symbol(REPLMode, :for_all) * " par1 " *
-              JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
+        str = "c1 : x(par1) + y " * InfiniteOpt._math_symbol(REPLMode, :leq) * " 2.0, " *
+              InfiniteOpt._math_symbol(REPLMode, :for_all) * " par1 " *
+              InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]"
         @test constraint_string(REPLMode, c1) == str
-        str = "c1 : \$ x(par1) + y " * JuMP._math_symbol(IJuliaMode, :leq) * " 2.0, " *
-              JuMP._math_symbol(IJuliaMode, :for_all) * " par1 " *
-              JuMP._math_symbol(IJuliaMode, :in) * " [0, 1] \$"
+        str = "c1 : \$ x(par1) + y " * InfiniteOpt._math_symbol(IJuliaMode, :leq) * " 2.0, " *
+              InfiniteOpt._math_symbol(IJuliaMode, :for_all) * " par1 " *
+              InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1] \$"
         @test constraint_string(IJuliaMode, c1) == str
         # test c1 without name
-        str = "x(par1) + y " * JuMP._math_symbol(REPLMode, :leq) * " 2.0, " *
-              JuMP._math_symbol(REPLMode, :for_all) * " par1 " *
-              JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
+        str = "x(par1) + y " * InfiniteOpt._math_symbol(REPLMode, :leq) * " 2.0, " *
+              InfiniteOpt._math_symbol(REPLMode, :for_all) * " par1 " *
+              InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]"
         @test constraint_string(REPLMode, ac1) == str
-        str = "\$ x(par1) + y " * JuMP._math_symbol(IJuliaMode, :leq) * " 2.0, " *
-              JuMP._math_symbol(IJuliaMode, :for_all) * " par1 " *
-              JuMP._math_symbol(IJuliaMode, :in) * " [0, 1] \$"
+        str = "\$ x(par1) + y " * InfiniteOpt._math_symbol(IJuliaMode, :leq) * " 2.0, " *
+              InfiniteOpt._math_symbol(IJuliaMode, :for_all) * " par1 " *
+              InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1] \$"
         @test constraint_string(IJuliaMode, ac1) == str
         # test c1 with name and in_math_mode
-        str = "c1 : x(par1) + y " * JuMP._math_symbol(REPLMode, :leq) * " 2.0, " *
-              JuMP._math_symbol(REPLMode, :for_all) * " par1 " *
-              JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
+        str = "c1 : x(par1) + y " * InfiniteOpt._math_symbol(REPLMode, :leq) * " 2.0, " *
+              InfiniteOpt._math_symbol(REPLMode, :for_all) * " par1 " *
+              InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]"
         @test constraint_string(REPLMode, c1, in_math_mode = true) == str
-        str = "x(par1) + y " * JuMP._math_symbol(IJuliaMode, :leq) * " 2.0, " *
-              JuMP._math_symbol(IJuliaMode, :for_all) * " par1 " *
-              JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
+        str = "x(par1) + y " * InfiniteOpt._math_symbol(IJuliaMode, :leq) * " 2.0, " *
+              InfiniteOpt._math_symbol(IJuliaMode, :for_all) * " par1 " *
+              InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1]"
         @test constraint_string(IJuliaMode, c1, in_math_mode = true) == str
         # test c3 with name
-        str = "c3 : x(par1) " * JuMP._math_symbol(REPLMode, :eq) * " 5.0, " *
-              JuMP._math_symbol(REPLMode, :for_all) * " par1 " *
-              JuMP._math_symbol(REPLMode, :in) * " [0, 0.5]"
+        str = "c3 : x(par1) " * InfiniteOpt._math_symbol(REPLMode, :eq) * " 5.0, " *
+              InfiniteOpt._math_symbol(REPLMode, :for_all) * " par1 " *
+              InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 0.5]"
         @test constraint_string(REPLMode, c3) == str
-        str =  "c3 : \$ x(par1) " * JuMP._math_symbol(IJuliaMode, :eq) * " 5.0, " *
-               JuMP._math_symbol(IJuliaMode, :for_all) * " par1 " *
-               JuMP._math_symbol(IJuliaMode, :in) * " [0, 0.5] \$"
+        str =  "c3 : \$ x(par1) " * InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 5.0, " *
+               InfiniteOpt._math_symbol(IJuliaMode, :for_all) * " par1 " *
+               InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 0.5] \$"
         @test constraint_string(IJuliaMode, c3) == str
         # test c3 without name
-        str = "x(par1) " * JuMP._math_symbol(REPLMode, :eq) * " 5.0, " *
-              JuMP._math_symbol(REPLMode, :for_all) * " par1 " *
-              JuMP._math_symbol(REPLMode, :in) * " [0, 0.5]"
+        str = "x(par1) " * InfiniteOpt._math_symbol(REPLMode, :eq) * " 5.0, " *
+              InfiniteOpt._math_symbol(REPLMode, :for_all) * " par1 " *
+              InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 0.5]"
         @test constraint_string(REPLMode, ac3) == str
-        str =  "\$ x(par1) " * JuMP._math_symbol(IJuliaMode, :eq) * " 5.0, " *
-               JuMP._math_symbol(IJuliaMode, :for_all) * " par1 " *
-               JuMP._math_symbol(IJuliaMode, :in) * " [0, 0.5] \$"
+        str =  "\$ x(par1) " * InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 5.0, " *
+               InfiniteOpt._math_symbol(IJuliaMode, :for_all) * " par1 " *
+               InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 0.5] \$"
         @test constraint_string(IJuliaMode, ac3) == str
     end
     # test constraints_string
     @testset "JuMP.constraints_string" begin
         # test REPLMode
         strings = Vector{String}(undef, 6)
-        strings[1] = "c1 : x(par1) + y " * JuMP._math_symbol(REPLMode, :leq) *
-                     " 2.0, " * JuMP._math_symbol(REPLMode, :for_all) * " par1 " *
-                     JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
-        strings[2] = "x(par1) + y " * JuMP._math_symbol(REPLMode, :leq) *
-                     " 2.0, " * JuMP._math_symbol(REPLMode, :for_all) * " par1 " *
-                     JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
-        strings[3] = "c2 : y² " * JuMP._math_symbol(REPLMode, :eq) * " 3.0"
-        strings[4] = "y² " * JuMP._math_symbol(REPLMode, :eq) * " 3.0"
-        strings[5] = "c3 : x(par1) " * JuMP._math_symbol(REPLMode, :eq) * " 5.0, " *
-                     JuMP._math_symbol(REPLMode, :for_all) * " par1 " *
-                     JuMP._math_symbol(REPLMode, :in) * " [0, 0.5]"
-        strings[6] = "x(par1) " * JuMP._math_symbol(REPLMode, :eq) * " 5.0, " *
-                     JuMP._math_symbol(REPLMode, :for_all) * " par1 " *
-                     JuMP._math_symbol(REPLMode, :in) * " [0, 0.5]"
+        strings[1] = "c1 : x(par1) + y " * InfiniteOpt._math_symbol(REPLMode, :leq) *
+                     " 2.0, " * InfiniteOpt._math_symbol(REPLMode, :for_all) * " par1 " *
+                     InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]"
+        strings[2] = "x(par1) + y " * InfiniteOpt._math_symbol(REPLMode, :leq) *
+                     " 2.0, " * InfiniteOpt._math_symbol(REPLMode, :for_all) * " par1 " *
+                     InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]"
+        strings[3] = "c2 : y² " * InfiniteOpt._math_symbol(REPLMode, :eq) * " 3.0"
+        strings[4] = "y² " * InfiniteOpt._math_symbol(REPLMode, :eq) * " 3.0"
+        strings[5] = "c3 : x(par1) " * InfiniteOpt._math_symbol(REPLMode, :eq) * " 5.0, " *
+                     InfiniteOpt._math_symbol(REPLMode, :for_all) * " par1 " *
+                     InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 0.5]"
+        strings[6] = "x(par1) " * InfiniteOpt._math_symbol(REPLMode, :eq) * " 5.0, " *
+                     InfiniteOpt._math_symbol(REPLMode, :for_all) * " par1 " *
+                     InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 0.5]"
         @test constraints_string(REPLMode, m) == strings
         # test IJuliaMode
         strings = Vector{String}(undef, 6)
-        strings[1] = "x(par1) + y " * JuMP._math_symbol(IJuliaMode, :leq) *
-                     " 2.0, " * JuMP._math_symbol(IJuliaMode, :for_all) * " par1 " *
-                     JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
-        strings[2] = "x(par1) + y " * JuMP._math_symbol(IJuliaMode, :leq) *
-                     " 2.0, " * JuMP._math_symbol(IJuliaMode, :for_all) * " par1 " *
-                     JuMP._math_symbol(IJuliaMode, :in) * " [0, 1]"
-        strings[3] = "y^2 " * JuMP._math_symbol(IJuliaMode, :eq) * " 3.0"
-        strings[4] = "y^2 " * JuMP._math_symbol(IJuliaMode, :eq) * " 3.0"
-        strings[5] = "x(par1) " * JuMP._math_symbol(IJuliaMode, :eq) * " 5.0, " *
-                     JuMP._math_symbol(IJuliaMode, :for_all) * " par1 " *
-                     JuMP._math_symbol(IJuliaMode, :in) * " [0, 0.5]"
-        strings[6] = "x(par1) " * JuMP._math_symbol(IJuliaMode, :eq) * " 5.0, " *
-                     JuMP._math_symbol(IJuliaMode, :for_all) * " par1 " *
-                     JuMP._math_symbol(IJuliaMode, :in) * " [0, 0.5]"
+        strings[1] = "x(par1) + y " * InfiniteOpt._math_symbol(IJuliaMode, :leq) *
+                     " 2.0, " * InfiniteOpt._math_symbol(IJuliaMode, :for_all) * " par1 " *
+                     InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1]"
+        strings[2] = "x(par1) + y " * InfiniteOpt._math_symbol(IJuliaMode, :leq) *
+                     " 2.0, " * InfiniteOpt._math_symbol(IJuliaMode, :for_all) * " par1 " *
+                     InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1]"
+        strings[3] = "y^2 " * InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 3.0"
+        strings[4] = "y^2 " * InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 3.0"
+        strings[5] = "x(par1) " * InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 5.0, " *
+                     InfiniteOpt._math_symbol(IJuliaMode, :for_all) * " par1 " *
+                     InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 0.5]"
+        strings[6] = "x(par1) " * InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 5.0, " *
+                     InfiniteOpt._math_symbol(IJuliaMode, :for_all) * " par1 " *
+                     InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 0.5]"
         @test constraints_string(IJuliaMode, m) == strings
     end
     # test objective_function_string
@@ -613,8 +666,8 @@ end
 @testset "Show InfiniteModel" begin
     # initialize models
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par1 <= 1)
-    @infinite_parameter(m, pars[1:2] in MvNormal([1, 1], 1))
+    @infinite_parameter(m, par1 in [0, 1])
+    @infinite_parameter(m, pars[1:2] ~ MvNormal([1, 1], 1))
     @variable(m, x, Infinite(par1))
     @variable(m, z, Infinite(pars))
     @variable(m, y)
@@ -652,13 +705,13 @@ end
     end
     # test Base.show (DomainRestrictions in REPL)
     @testset "Base.show (REPL DomainRestrictions)" begin
-        str = "Subdomain restrictions (1): par1 " * JuMP._math_symbol(REPLMode, :in) *
+        str = "Subdomain restrictions (1): par1 " * InfiniteOpt._math_symbol(REPLMode, :in) *
               " [0.1, 1]"
         show_test(REPLMode, rs, str)
     end
     # test Base.show (DomainRestrictions in IJulia)
     @testset "Base.show (IJulia DomainRestrictions)" begin
-        str = "Subdomain restrictions (1): par1 " * JuMP._math_symbol(IJuliaMode, :in) *
+        str = "Subdomain restrictions (1): par1 " * InfiniteOpt._math_symbol(IJuliaMode, :in) *
               " [0.1, 1]"
         show_test(IJuliaMode, rs, str)
     end
@@ -673,27 +726,27 @@ end
     # test Base.show (constraint in REPL)
     @testset "Base.show (REPL Constraint)" begin
         # test normal
-        str = "c1 : x(par1) + y " * JuMP._math_symbol(REPLMode, :leq) *
-              " 2.0, " * JuMP._math_symbol(REPLMode, :for_all) * " par1 " *
-              JuMP._math_symbol(REPLMode, :in) * " [0, 1]"
+        str = "c1 : x(par1) + y " * InfiniteOpt._math_symbol(REPLMode, :leq) *
+              " 2.0, " * InfiniteOpt._math_symbol(REPLMode, :for_all) * " par1 " *
+              InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]"
         show_test(REPLMode, c1, str)
         # test restricted
-        str = "c3 : x(par1) " * JuMP._math_symbol(REPLMode, :leq) * " 5.0, " *
-              JuMP._math_symbol(REPLMode, :for_all) * " par1 " *
-              JuMP._math_symbol(REPLMode, :in) * " [0, 0.5]"
+        str = "c3 : x(par1) " * InfiniteOpt._math_symbol(REPLMode, :leq) * " 5.0, " *
+              InfiniteOpt._math_symbol(REPLMode, :for_all) * " par1 " *
+              InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 0.5]"
         show_test(REPLMode, c3, str)
     end
     # test Base.show (constraint in IJulia)
     @testset "Base.show (IJulia Constraint)" begin
         # test normal
-        str = "c1 : \$ x(par1) + y " * JuMP._math_symbol(IJuliaMode, :leq) *
-              " 2.0, " * JuMP._math_symbol(IJuliaMode, :for_all) * " par1 " *
-              JuMP._math_symbol(IJuliaMode, :in) * " [0, 1] \$"
+        str = "c1 : \$ x(par1) + y " * InfiniteOpt._math_symbol(IJuliaMode, :leq) *
+              " 2.0, " * InfiniteOpt._math_symbol(IJuliaMode, :for_all) * " par1 " *
+              InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1] \$"
         show_test(IJuliaMode, c1, str)
         # test restricted
-        str =  "c3 : \$ x(par1) " * JuMP._math_symbol(IJuliaMode, :leq) * " 5.0, " *
-               JuMP._math_symbol(IJuliaMode, :for_all) * " par1 " *
-               JuMP._math_symbol(IJuliaMode, :in) * " [0, 0.5] \$"
+        str =  "c3 : \$ x(par1) " * InfiniteOpt._math_symbol(IJuliaMode, :leq) * " 5.0, " *
+               InfiniteOpt._math_symbol(IJuliaMode, :for_all) * " par1 " *
+               InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 0.5] \$"
         show_test(IJuliaMode, c3, str)
     end
     # test show_backend_summary

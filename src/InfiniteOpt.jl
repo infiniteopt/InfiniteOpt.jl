@@ -16,9 +16,8 @@ const MOIUC = MOIU.CleverDicts
 
 # Import the Collections module
 include("Collections/Collections.jl")
-using .Collections: VectorTuple, same_structure, param_type
 
-# Import methods
+# Import core methods
 include("datatypes.jl")
 include("infinite_domains.jl")
 include("scalar_parameters.jl")
@@ -29,14 +28,13 @@ include("semi_infinite_variables.jl")
 include("point_variables.jl")
 include("finite_variables.jl")
 include("expressions.jl")
-include("macro_utilities.jl")
 include("measures.jl")
 
 # Import and export MeasureToolbox
 include("MeasureToolbox/MeasureToolbox.jl")
 Reexport.@reexport using .MeasureToolbox
 
-# Import more methods
+# import more core methods
 include("derivatives.jl")
 include("constraints.jl")
 include("macros.jl")
@@ -82,6 +80,20 @@ for op in (:has_parameter_bounds, :parameter_bounds, :set_parameter_bounds,
     end
 end
 
+macro independent_parameter(model, args...)
+    error("`@independent_parameter` has been deprecated in favor of ",
+          "`@infinite_parameter`. ", 
+          "\n\nOld Syntax: `@independent_parameter(model, par[...] in set, ",
+          "kwargs...)`\nNew Syntax: `@infinite_parameter(model, par[...] in ",
+          "set, independent = true, kwargs...)`.")
+end
+macro dependent_parameters(model, args...)
+    error("`@Dependent_parameters` has been deprecated in favor of ",
+          "`@infinite_parameter`. ", 
+          "\n\nOld Syntax: `@dependent_parameters(model, par[...] in set, ",
+          "kwargs...)`\nNew Syntax: `@infinite_parameter(model, par[...] in ",
+          "set, kwargs...)`.")
+end
 macro infinite_variable(model, args...)
     error("`@infinite_variable` has been deprecated in favor of `@variable`. ", 
           "\n\nOld Syntax: `@infinite_variable(model, var[idxs...](params...), ",

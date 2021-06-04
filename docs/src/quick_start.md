@@ -82,7 +82,7 @@ Before moving on, let's go ahead make a finite parameter via [`@finite_parameter
 for ``\epsilon`` since this likely a constant we'll want to update repeatedly 
 (e.g., to determine a tradeoff curve by varying it): 
 ```jldoctest quick
-julia> @finite_parameter(model, ϵ, 10)
+julia> @finite_parameter(model, ϵ == 10)
 ϵ
 ```
 Learn more about finite parameters on our [Finite Parameters](@ref finite_param_docs) 
@@ -98,7 +98,7 @@ julia> @infinite_parameter(model, t in [0, 60], num_supports = 61,
                            derivative_method = OrthogonalCollocation(2))
 t
 
-julia> @infinite_parameter(model, ξ in Normal(μ, σ^2), num_supports = 10)
+julia> @infinite_parameter(model, ξ ~ Normal(μ, σ^2), num_supports = 10)
 ξ
 ```
 Notice we specify the domain/distribution the parameter depends on via `in`.
@@ -285,10 +285,10 @@ I = 1:2; W = 1:4
 model = InfiniteModel(Ipopt.Optimizer)
 
 # INITIALIZE THE PARAMETERS
-@finite_parameter(model, ϵ, 10)
+@finite_parameter(model, ϵ == 10)
 @infinite_parameter(model, t in [0, 60], num_supports = 61, 
                     derivative_method = OrthogonalCollocation(2))
-@infinite_parameter(model, ξ in Normal(μ, σ^2), num_supports = 10)
+@infinite_parameter(model, ξ ~ Normal(μ, σ^2), num_supports = 10)
 
 # INITIALIZE THE VARIABLES
 @variable(model, x[I], Infinite(t, ξ), start = 0)

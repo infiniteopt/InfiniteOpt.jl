@@ -396,7 +396,7 @@ end
     @variable(m, 0 <= y0 <= 1, Point(y, 0, [0, 0]), Int)
     @variable(m, 0 <= z <= 1, Bin)
     @variable(m, w == 1, Int, start = 1)
-    @finite_parameter(m, fin, 0)
+    @finite_parameter(m, fin == 0)
     f = parameter_function(a -> 0, par)
     d1 = @deriv(y, par)
     d2 = @deriv(x, par^2)

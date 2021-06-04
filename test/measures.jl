@@ -79,7 +79,7 @@ end
     @infinite_parameter(m, pars2[1:2, 1:3] in [0, 1]) # Matrix
     @infinite_parameter(m, pars3[2:3] in [0, 1]) # DenseAxisArray
     @infinite_parameter(m, pars4[i = 1:2, j = 1:2; i <= j] in [0, 1]) # SparseAxisArray
-    @finite_parameter(m, fpar, 42)
+    @finite_parameter(m, fpar == 42)
     coeff_func(x) = 1
     # test default weight function
     @testset "default_weight" begin
@@ -113,31 +113,23 @@ end
         @test_throws ErrorException InfiniteOpt._check_params([pars4[1, 1], pars4[1, 2]])
         @test InfiniteOpt._check_params(pars) isa Nothing
     end
-    # test _convert_param_refs_and_supports (Vector)
-    @testset "_convert_param_refs_and_supports (Vector)" begin
+    # test _prepare_supports
+    @testset "_prepare_supports" begin
+        # vector
         supp = [[0, 0], [1, 1]]
-        expected = (pars, [0 1; 0 1])
-        @test InfiniteOpt._convert_param_refs_and_supports(pars, supp) == expected
-    end
-    # test _convert_param_refs_and_supports (Array)
-    @testset "_convert_param_refs_and_supports (Array)" begin
+        @test InfiniteOpt._prepare_supports(supp, IC.indices(pars)) == [0 1; 0 1]
+        # array
         supp = [zeros(2, 3), ones(2, 3)]
-        expected = ([pars2...], [zeros(6, 1) ones(6, 1)])
-        @test InfiniteOpt._convert_param_refs_and_supports(pars2, supp) == expected
-    end
-    # test _convert_param_refs_and_supports (DenseAxisArray)
-    @testset "_convert_param_refs_and_supports (DenseAxisArray)" begin
+        expected = [zeros(6, 1) ones(6, 1)]
+        @test InfiniteOpt._prepare_supports(supp, IC.indices(pars2)) == expected
+        # DenseAxisArray
         supp = [JuMPC.DenseAxisArray([0, 0], axes(pars3)),
                 JuMPC.DenseAxisArray([1, 1], axes(pars3))]
-        expected = ([pars3[2], pars3[3]], [0 1; 0 1])
-        @test InfiniteOpt._convert_param_refs_and_supports(pars3, supp) == expected
-    end
-    # test _convert_param_refs_and_supports (SparseAxisArray)
-    @testset "_convert_param_refs_and_supports (SparseAxisArray)" begin
+        @test InfiniteOpt._prepare_supports(supp, IC.indices(pars3)) == [0 1; 0 1]
+        # SparseAxisArrays
         supp = [JuMPC.SparseAxisArray(Dict(k => 0 for k in keys(pars4.data))),
                 JuMPC.SparseAxisArray(Dict(k => 1 for k in keys(pars4.data)))]
-        expected = ([pars4[1, 1], pars4[1, 2], pars4[2, 2]], [0 1; 0 1; 0 1])
-        @test isequal(InfiniteOpt._convert_param_refs_and_supports(pars4, supp), expected)
+        @test isequal(InfiniteOpt._prepare_supports(supp, IC.indices(pars4)), [0 1; 0 1; 0 1])
     end
     # test _check_supports_in_bounds (IndependentParameterRefs)
     @testset "_check_supports_in_bounds (IndependentParameterRefs)" begin
@@ -215,8 +207,8 @@ end
     # initialize model and references
     m = InfiniteModel()
     f(x) = [1]
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+    @infinite_parameter(m, par in [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1])
     dpar = dispatch_variable_ref(par)
     info = UniformGenerativeInfo([0.5], InternalGaussLobatto)
     InfiniteOpt._set_generative_support_info(dpar, info)
@@ -372,9 +364,9 @@ end
 @testset "Measure Construction" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= par2 <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+    @infinite_parameter(m, par in [0, 1])
+    @infinite_parameter(m, par2 in [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, inf2, Infinite(par, par2))
     @variable(m, inf3, Infinite(par2))
@@ -406,12 +398,12 @@ end
 @testset "Measure Addition" begin
     m = InfiniteModel()
     coeff_func(x) = 1
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
-    @infinite_parameter(m, 0 <= par2 <= 1)
-    @infinite_parameter(m, 0 <= par3 <= 1)
-    @infinite_parameter(m, 0 <= pars2[1:2] <= 1)
-    @infinite_parameter(m, 0 <= pars3[1:2] <= 1, independent = true)
+    @infinite_parameter(m, par in [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1])
+    @infinite_parameter(m, par2 in [0, 1])
+    @infinite_parameter(m, par3 in [0, 1])
+    @infinite_parameter(m, pars2[1:2] in [0, 1])
+    @infinite_parameter(m, pars3[1:2] in [0, 1], independent = true)
     @variable(m, inf, Infinite(par))
     @variable(m, x)
     dpar = dispatch_variable_ref(par)
@@ -556,8 +548,8 @@ end
 @testset "Queries and Used" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
+    @infinite_parameter(m, par in [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1])
     @variable(m, inf, Infinite(par))
     @variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
@@ -668,10 +660,10 @@ end
 @testset "User Definition" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= par2 <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
-    @infinite_parameter(m, pars2[1:2] in MvNormal(ones(2), Float64[1 0; 0 1]))
+    @infinite_parameter(m, par in [0, 1])
+    @infinite_parameter(m, par2 in [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1])
+    @infinite_parameter(m, pars2[1:2] ~ MvNormal(ones(2), Float64[1 0; 0 1]))
     @variable(m, inf, Infinite(par))
     @variable(m, inf2, Infinite(par, par2))
     @variable(m, inf3, Infinite(par2))
@@ -733,9 +725,9 @@ end
 @testset "Macros" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
-    @infinite_parameter(m, 0 <= pars[1:2] <= 1)
-    @infinite_parameter(m, pars2[1:2] in MvNormal(ones(2), Float64[1 0; 0 1]))
+    @infinite_parameter(m, par in [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1])
+    @infinite_parameter(m, pars2[1:2] ~ MvNormal(ones(2), Float64[1 0; 0 1]))
     @variable(m, inf, Infinite(par))
     @variable(m, inf2, Infinite(pars))
     @variable(m, inf3, Infinite(pars2))
@@ -761,7 +753,7 @@ end
 @testset "Naming methods" begin
     # initialize model and references
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     data = DiscreteMeasureData(par, [1], [1])
     mref = @measure(par, data, name = "test")
     # test name
@@ -777,7 +769,7 @@ end
 
 @testset "General Queries" begin
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     data = DiscreteMeasureData(par, [1], [1])
     mref1 = @measure(inf + par, data)
@@ -794,7 +786,7 @@ end
 
 @testset "Measure Deletion" begin
     m = InfiniteModel()
-    @infinite_parameter(m, 0 <= par <= 1)
+    @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
     data = DiscreteMeasureData(par, [1], [1])
     mref1 = @measure(inf + par, data)
@@ -807,7 +799,7 @@ end
 
 
     m2 = InfiniteModel()
-    @infinite_parameter(m2, 0 <= x <= 1)
+    @infinite_parameter(m2, x in [0, 1])
     @variable(m2, z >= 0)
     data = FunctionalDiscreteMeasureData(x, ones, 0, All, 
                generative_support_info = UniformGenerativeInfo([0.5], All))

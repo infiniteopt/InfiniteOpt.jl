@@ -1,26 +1,28 @@
-```@meta
-DocTestFilters = [r" ∈ | in "]
-```
-
 # [Infinite Parameters] (@id inf_par_page)
-A guide and manual to the definition and use of infinite parameters in
-`InfiniteOpt`. The Datatypes and Methods sections at the end comprise the manual,
+A guide and manual to the definition and use of infinite parameters in 
+`InfiniteOpt`. The Datatypes and Methods sections at the end comprise the manual, 
 and the above sections comprise the guide.  
 
 ## Overview
-Infinite parameters are what live on the infinite domains of infinite dimensional 
-mathematical optimization problems. In dynamic optimization this
-corresponds to time and in stochastic optimization this to uncertain parameters
-that follow a certain underlying statistical distribution. `InfiniteOpt`
-considers natively two kinds of infinite parameters, ones defined over
-continuous intervals and ones characterized by a distribution (others can be
-added by defining a user-defined type). These can be used to parameterize
-infinite variables, semi-infinite variables, point variables, derivatives, 
-measures, and can be used directly inside constraints.
+Infinite parameters are what live on the infinite domains of infinite dimensional  
+mathematical optimization problems. In dynamic optimization this 
+corresponds to time and in stochastic optimization this to uncertain parameters 
+that follow a certain underlying statistical distribution. `InfiniteOpt` 
+considers natively two kinds of infinite parameters, ones defined over 
+continuous intervals and ones characterized by a distribution (others can be 
+added by defining a user-defined type). These can be used to parameterize 
+infinite variables, semi-infinite variables, point variables, derivatives,  
+measures, and can be used directly inside constraints. 
+
+!!! note 
+    Previous versions of `InfiniteOpt` used the syntax 
+    `@infinite_parameter(model, ξ in distribution)` for defining random infinite 
+    parameters. This has been updated to 
+    `@infinite_parameter(model, ξ ~ distribution)`.
 
 ## Basic Usage
-First, we need to initialize and add infinite parameters to our `InfiniteModel`.
-This can be accomplished using [`@infinite_parameter`](@ref). For example, let's
+First, we need to initialize and add infinite parameters to our `InfiniteModel`. 
+This can be accomplished using [`@infinite_parameter`](@ref). For example, let's 
 define a parameter for time in a time interval from 0 to 10:
 ```jldoctest basic
 julia> using InfiniteOpt
@@ -30,32 +32,28 @@ julia> model = InfiniteModel();
 julia> @infinite_parameter(model, t in [0, 10])
 t
 ```
-Now `t` is a Julia variable that stores a [`GeneralVariableRef`](@ref) which
-points to where the time parameter is stored in `model`. It can now be used with
-infinite variables, derivatives, measures, and constraints as described in their 
+Now `t` is a Julia variable that stores a [`GeneralVariableRef`](@ref) which 
+points to where the time parameter is stored in `model`. It can now be used with 
+infinite variables, derivatives, measures, and constraints as described in their  
 respective user guide sections.
 
-When the model is optimized, `t` will be transcribed (discretized) over its domain
-following its support points. If none are specified by the user than the default 
-amount support points are generated according to the default support generation 
-scheme. In this case, equidistant supports over the interval would be added. Note
-that this default addition will not occur until `optimize!` is called. However,
-users may wish to employ their own support scheme. This can be done by using the
-`num_supports` or `supports` keyword arguments. For example, if we desire to
-have only 10 equi-distant supports then we could have instead defined `t`:
-```jldoctest; setup = :(using JuMP, InfiniteOpt; model = InfiniteModel())
+When the model is optimized, `t` will be transcribed (discretized) over its domain 
+following its support points. Users can specify support points via the  
+`num_supports` or `supports` keyword arguments. For example, if we desire to 
+have only 10 equi-distant supports then we could have instead defined `t`: 
+```jldoctest; setup = :(using JuMP, InfiniteOpt; model = InfiniteModel()) 
 julia> @infinite_parameter(model, t in [0, 10], num_supports = 10)
 t
 ```
 More complex support schemes can be specified via `supports` such as:
 ```jldoctest; setup = :(using JuMP, InfiniteOpt; model = InfiniteModel())
-julia> @infinite_parameter(model, t in [0, 10], supports = [0; 2; 7; 10])
+julia> @infinite_parameter(model, t in [0, 10], supports = [0, 2, 7, 10])
 t
 ```
 Where we specified `t` to use 4 supports: 0, 2, 7, and 10.
 
-We can also add supports after `t` has been initialized. This can be accomplished
-with [`add_supports`](@ref). For example, consider the initial case where `t` has
+We can also add supports after `t` has been initialized. This can be accomplished 
+with [`add_supports`](@ref). For example, consider the initial case where `t` has 
 no supports and we now wish to add 4 supports:
 ```jldoctest basic
 julia> add_supports(t, [0., 2.5, 7.5, 10.])
@@ -67,75 +65,75 @@ julia> supports(t)
   7.5
  10.0
 ```
-Here only 4 supports are specified for the sake of example. Alternatively, we
-could have initialized the parameter and added supports in just one step using
+Here only 4 supports are specified for the sake of example. Alternatively, we 
+could have initialized the parameter and added supports in just one step using 
 the `supports` keyword argument:
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10], supports = [0., 2.5, 7.5, 10.])
 t
 ```
 
-We could also define a random parameter described by a statistical
-distribution. This can be accomplished using [`@infinite_parameter`](@ref) in
-combination with a distribution from
-[`Distributions.jl`](https://github.com/JuliaStats/Distributions.jl). For
-example let's define a vector of independent random parameters described by a Normal
-distribution:
+We could also define a random parameter described by a distribution. This can be 
+accomplished using [`@infinite_parameter`](@ref) in combination with a 
+distribution from 
+[`Distributions.jl`](https://github.com/JuliaStats/Distributions.jl). For 
+example let's define a vector of independent random parameters described by a 
+Normal distribution:
 ```jldoctest basic
 julia> using Distributions
 
-julia> @infinite_parameter(model, ξ[i = 1:3] in Normal(), independent = true)
+julia> @infinite_parameter(model, ξ[i = 1:3] ~ Normal(), independent = true)
 3-element Array{GeneralVariableRef,1}:
  ξ[1]
  ξ[2]
  ξ[3]
 ```
-Note that we could have used `i` as an index to assign a different distribution
-to each parameter. Supports can also be specified for each parameter as shown
-above. Similarly, the `num_supports` keyword is used to generate random supports.
+Note that we use `~` instead of `in` when specifying distributions. We could have 
+used `i` as an index to assign a different distribution to each parameter. 
+Supports can also be specified for each parameter as shown above. Similarly, the 
+`num_supports` keyword is used to generate random supports.
 
 More interestingly, we can also define multi-variate random parameters, for example:
 ```jldoctest basic
-julia> @infinite_parameter(model, θ[1:2] in MvNormal([0, 0], [1, 1]))
+julia> @infinite_parameter(model, θ[1:2] ~ MvNormal([0, 0], [1, 1]))
 2-element Array{GeneralVariableRef,1}:
  θ[1]
  θ[2]
 ```
 
-Now we have infinite parameters `t` and `ξ` that are ready to be used in
-defining infinite variables and constraints. We also mention
-here that the [`@infinite_parameter`](@ref) macro is designed to closely emulate
-`JuMP.@variable` and thus handles arrays and keyword arguments in the
-same way. This is described in more detail below.
+Now we have infinite parameters `t` and `ξ` that are ready to be used in 
+defining infinite variables and constraints. We also mention here that the 
+[`@infinite_parameter`](@ref) macro is designed to closely emulate 
+`JuMP.@variable` and thus handles arrays and keyword arguments in the same way. 
+This is described in more detail below.
 
 ## Parameter Definition
-Defining/initializing an infinite parameter principally involves the following
-steps:
+Defining/initializing an infinite parameter principally involves the following 
+steps (these are typically automated by [`@infinite_parameter`](@ref)):
 1. Define an [`AbstractInfiniteDomain`](@ref)
 2. Define support points within the domain to later discretize the parameter
 3. Construct an [`InfOptParameter`](@ref) to store this information
 4. Add the `InfOptParameter` object to an `InfiniteModel` and assign a name
-5. Create a [`GeneralVariableRef`](@ref) that points to the parameter object
+5. Create a [`GeneralVariableRef`](@ref)(s) that points to the parameter object
 
-### Manual Definition
-Infinite domain definition is described above in the
-[Infinite Domains](@ref infinite_domains_normal) section. The
-supports should be a vector of finite numbers that are drawn from the domain of
-the infinite domain. These supports will be used to transcribe the `InfiniteModel`
-in preparation for it to be optimized. If desired, the supports can be specified
-after the parameter is defined and the support container of the defined
-parameter will be temporarily empty.
+Infinite domain definition is described above in the 
+[Infinite Domains](@ref infinite_domains_normal) section. The supports should be 
+a vector of finite numbers that are drawn from the domain of the infinite domain. 
+These supports will be used to transcribe the `InfiniteModel` in preparation for 
+it to be optimized. If desired, the supports can be specified after the parameter 
+is defined and the support container of the defined parameter will be temporarily 
+empty.
 
-[`InfOptParameter`](@ref) is an abstract data type that encompasses all concrete
-infinite parameter types. The concrete type for individual infinite parameters
-is [`IndependentParameter`](@ref), since these parameters are independent from
-other parameters. On the other hand, [`DependentParameters`](@ref) handle
-multivariate infinite parameters, within which each individual parameter is not
-independent. These are useful for characterizing, for example, parameters
+[`InfOptParameter`](@ref) is an abstract data type that encompasses all concrete 
+infinite parameter types. The concrete type for individual infinite parameters 
+is [`IndependentParameter`](@ref), since these parameters are independent from 
+other parameters. On the other hand, [`DependentParameters`](@ref) handle 
+multivariate infinite parameters, within which each individual parameter is not 
+independent. These are useful for characterizing, for example, parameters 
 subject to multivariate distribution.
 
-Regardless of the specific concrete type, the [`build_parameter`](@ref) function
-is used to construct an `InfOptParameter`. For example, let's create a time
+Regardless of the specific concrete type, the [`build_parameter`](@ref) function 
+is used to construct an `InfOptParameter`. For example, let's create a time 
 parameter ``t \in [0, 10]`` with supports `[0, 2, 5, 7, 10]`:
 ```jldoctest time_define; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> domain = IntervalDomain(0, 10)
@@ -143,23 +141,23 @@ julia> domain = IntervalDomain(0, 10)
 
 julia> t_param = build_parameter(error, domain, supports = [0, 2, 5, 7, 10]);
 ```  
-Now that we have a `InfOptParameter` that contains an `IntervalDomain` and supports,
-let's now add `t_param` to our `InfiniteModel` using [`add_parameter`](@ref)
-and assign it the name of `t`:
+Now that we have a `InfOptParameter` that contains an `IntervalDomain` and supports, 
+let's now add `t_param` to our `InfiniteModel` using [`add_parameter`](@ref) 
+and assign it the name of `t`: 
 ```jldoctest time_define
 julia> t_ref = add_parameter(model, t_param, "t")
 t
 ```  
-We can also create an anonymous infinite parameter by dropping the name from
+We can also create an anonymous infinite parameter by dropping the name from 
 the `add_parameter` function call. For example:
 ```jldoctest time_define
 julia> t_ref_noname = add_parameter(model, t_param)
 noname
 ```
-Now suppose we want to create an infinite parameter that is a random variable
-with a given distribution. We follow the same procedure as above, except we use
-distributions from `Distributions.jl` to define a [`UniDistributionDomain`](@ref).
-For example, let's consider a random variable ``x \in \mathcal{N}(0,1)`` with
+Now suppose we want to create an infinite parameter that is a random variable 
+with a given distribution. We follow the same procedure as above, except we use 
+distributions from `Distributions.jl` to define a [`UniDistributionDomain`](@ref). 
+For example, let's consider a random variable ``x \in \mathcal{N}(0,1)`` with 
 supports `[-0.5, 0.5]`:
 ```jldoctest rand_define; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
 julia> dist = Normal(0., 1.)
@@ -170,300 +168,164 @@ Normal{Float64}(μ=0.0, σ=1.0)
 
 julia> x_param = build_parameter(error, domain, supports = [-0.5, 0.5]);
 ```
-Again, we use [`add_parameter`](@ref) to add `x_param` to the `InfiniteModel` and
+Again, we use [`add_parameter`](@ref) to add `x_param` to the `InfiniteModel` and 
 assign it the name `x`:
 ```jldoctest rand_define
 julia> x_ref = add_parameter(model, x_param, "x")
 x
 ```
-Note that `add_parameter` does not register the name of the parameters into the
-model that it adds to. As shown in [Macro Definition](@ref param_macro), the
-macro definition does not allow for multiple parameters sharing the same name and
+Note that `add_parameter` does not register the name of the parameters into the 
+model that it adds to. As shown in [Macro Definition](@ref param_macro), the 
+macro definition does not allow for multiple parameters sharing the same name and 
 will throw an error if it happens.
 
-For dependent parameters, we do not provide a publicly available `build_parameter` 
-method due to inherent complexities. Thus, it is recommended to construct these 
-using [`@dependent_parameters`](@ref) or [`@infinite_parameter`](@ref). However, 
-these can be constructed manually via the basic constructor for 
-[`DependentParameters`](@ref) and then invoking [`add_parameters`](@ref). Note that 
-this should be done with caution since most error checking will be omitted in this 
-case.
+For dependent parameters, we do not provide a publicly available `build_parameter`  
+method due to inherent complexities. Thus, it is recommended to construct these  
+using [`@infinite_parameter`](@ref). However, these can be constructed manually 
+via the basic constructor for [`DependentParameters`](@ref) and then invoking 
+[`add_parameters`](@ref). Note that this should be done with caution since most 
+error checking will be omitted in this case.
 
-### [Macro Definition] (@id param_macro)
-#### One-Dimensional Parameters
-One user-friendly way of defining infinite parameters is by macro
-[`@infinite_parameter`](@ref). The macro executes the same process as the
-manual definition (steps listed in [Parameter Definition](@ref)), but allows
-the users to manipulate several features of the defined infinite parameters.
-Again, let's consider a time parameter ``t \in [0, 10]`` with supports
-`[0, 2, 5, 7, 10]`. Similar to 
-[`JuMP.@variable`](https://jump.dev/JuMP.jl/v0.21.8/reference/variables/#JuMP.@variable), 
-we can use comparison operators to set lower bounds and upper bounds for the 
-infinite parameter:
-```jldoctest time_macro_define; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> @infinite_parameter(model, 0 <= t <= 10, supports = [0, 2, 5, 7, 10])
-t
-```
-More generally, we use `in` (or `∈`) to define the domain that an infinite parameter is
-subject to. The domain could be an interval domain, or a distribution domain. For example,
-we can define the same parameter `t` as above in the following way:
-```jldoctest time_macro_define_in; setup = :(using InfiniteOpt; model = InfiniteModel())
+## [Macro Definition] (@id param_macro)
+### One-Dimensional Parameters
+One user-friendly way of defining infinite parameters is by macro 
+[`@infinite_parameter`](@ref). The macro executes the same process as the 
+manual definition (steps listed in [Parameter Definition](@ref)), but allows 
+the users to manipulate several features of the defined infinite parameters. 
+Again, let's consider a time parameter ``t \in [0, 10]`` with supports 
+`[0, 2, 5, 7, 10]`. We use `in` (or `∈`) to define the domain that an infinite 
+parameter is subject to (any [`InfiniteScalarDomain`](@ref) for single 
+parameters). For example, we can define ``t \in [0, 10]``:
+```jldoctest macro_define; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10], supports = [0, 2, 5, 7, 10])
 t
 ```
-In a similar way, we can define a random infinite parameter subject to some
-distribution. For example, a Gaussian infinite parameter with mean 0 and
-standard deviation 1 can be defined by
-```jldoctest rand_macro_define; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
+In a similar way, we can define a random infinite parameter subject to some 
+distribution using `~` as the operator. For example, a Gaussian infinite 
+parameter with mean 0 and standard deviation 1 can be defined:
+```jldoctest macro_define
+julia> using Distributions
+
 julia> dist = Normal(0., 1.)
 Normal{Float64}(μ=0.0, σ=1.0)
 
-julia> @infinite_parameter(model, x in dist, supports = [-0.5, 0.5])
-x
+julia> @infinite_parameter(model, ξ ~ dist, num_supports = 10)
+ξ
 ```
-Additional ways of defining infinite parameters are provided using keyword
-arguments. For example, we can use `lower_bound` and `upper_bound` to define an
-infinite parameter in an interval domain:
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> @infinite_parameter(model, t, lower_bound = 0, upper_bound = 10, supports = [0, 2, 5, 7, 10])
-t
-```
-A bit more generally, we can also use `domain` to directly input the
-`AbstractInfiniteDomain` that the parameter is in. For example:
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> @infinite_parameter(model, t, domain = IntervalDomain(0, 10), supports = [0, 2, 5, 7, 10])
-t
-```
-The parameter definition methods using keyword arguments will be useful later
-when we introduce how to define anonymous parameters. See the part for
-anonymous parameter definition for more details.
 
-All the definitions above return a [`GeneralVariableRef`](@ref) that refer to the
-defined parameter. Note that we can also ignore the `supports` keyword argument
-and the macro will define an empty array of supports for that parameter.
+For anonymous definition, we use either the `domain` or `distribution` keywords:
+```jldoctest macro_define
+julia> t = @infinite_parameter(model, domain = [0, 10], supports = [0, 2, 5, 7, 10], 
+                               base_name = "t")
+t
 
-#### Multi-Dimensional Parameter
-Using macro definition, we can also define multi-dimensional infinite parameters
-in a concise way. For example, consider a position parameter `x` in a
-3-dimensional space constrained in a unit cube (i.e. in the interval `[0, 1]`  
-for all dimensions). This parameter can be defined in one line as follows:
-```jldoctest 3d_macro; setup = :(using InfiniteOpt; model= InfiniteModel())
-julia> @infinite_parameter(model, x[1:3] in [0, 1], independent = true, supports = [0.3, 0.7])
+julia> ξ = @infinite_parameter(model, distribution = dist, num_supports = 10, 
+                               base_name = "ξ")
+ξ
+```
+
+All the definitions above return a [`GeneralVariableRef`](@ref) that refers to 
+the parameter object.
+
+### Multi-Dimensional Parameters
+We can also define multi-dimensional infinite parameters in a concise way. For 
+example, consider a position parameter ``x \in [0, 1]^3``:
+```jldoctest macro_define
+julia> @infinite_parameter(model, x[1:3] in [0, 1], independent = true, num_supports = 3)
 3-element Array{GeneralVariableRef,1}:
  x[1]
  x[2]
  x[3]
 ```
+Here we used `independent = true` to signify that each `x[i]` can be treated 
+independently. Hence, the overall infinite domain is the cartesian product of 
+their individual domains. In this example, we defined 3 supports for each `x[i]` 
+such that there will be ``3^3 = 27`` supports for the overall domain:
+```jldoctest macro_define
+julia> supports(x[1])
+3-element Array{Float64,1}:
+ 0.0
+ 0.5
+ 1.0
 
-For multi-dimensional parameters, the macro calls for an internal function that
-works similar to [`build_parameter`](@ref) for univariate infinite parameter
-and then [`add_parameter`](@ref) to add the multi-dimensional parameters.
-If an array of supports is
-provided, the macro will assign that array of supports to all dimensions.
-Otherwise, the indexed syntax can be used to feed in different array of
-supports to each dimension, similar to 
-[`JuMP.@variable`](https://jump.dev/JuMP.jl/v0.21.8/reference/variables/#JuMP.@variable). 
-For example:
-```jldoctest; setup = :(using InfiniteOpt; model= InfiniteModel())
-julia> points = [0.2 0.8; 0.3 0.7]
-2×2 Array{Float64,2}:
- 0.2  0.8
- 0.3  0.7
-
-julia> @infinite_parameter(model, a[i = 1:2] in [0, 1], supports = points[i, :])
-2-element Array{GeneralVariableRef,1}:
- a[1]
- a[2]
-
-julia> supports(a[1])
-2-element Array{Float64,1}:
- 0.2
- 0.8
-
-julia> supports(a[2])
-2-element Array{Float64,1}:
- 0.3
- 0.7
+julia> supports(x)
+3×27 Array{Float64,2}:
+ 0.0  0.5  1.0  0.0  0.5  1.0  0.0  0.5  …  1.0  0.0  0.5  1.0  0.0  0.5  1.0
+ 0.0  0.0  0.0  0.5  0.5  0.5  1.0  1.0     0.0  0.5  0.5  0.5  1.0  1.0  1.0
+ 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     1.0  1.0  1.0  1.0  1.0  1.0  1.0
 ```
 
-In a similar way we can define an infinite parameter subject to a multivariate
-distribution. For example, a 2-dimensional parameter `ξ` subject to a
-2D normal distribution can be created as follows:
-```jldoctest; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
-julia> dist = MvNormal([0., 0.], [1. 0.; 0. 2.])
+For multivariate random infinite parameters, we commonly wish their individual 
+domains to not be treated independently. Hence, we'll want `independent = false` 
+(the default value). For example, a 2-dimensional parameter 
+``\theta \sim \mathcal{N}(\mu, \Sigma)`` is defined:
+```jldoctest macro_define; setup = :(using Random; Random.seed!(0))
+julia> dist = MvNormal([0, 0], [1 0; 0 2])
 FullNormal(
 dim: 2
 μ: [0.0, 0.0]
 Σ: [1.0 0.0; 0.0 2.0]
 )
 
-julia> @infinite_parameter(model, ξ[1:2] in dist)
+julia> @infinite_parameter(model, θ[1:2] ~ dist, num_supports = 3)
 2-element Array{GeneralVariableRef,1}:
- ξ[1]
- ξ[2]
+ θ[1]
+ θ[2]
+```
+Here 3 supports are generated for all the parameters simultaneously according to 
+the distribution. 
+```jldoctest macro_define
+julia> supports(θ)
+2×3 Array{Float64,2}:
+ -0.353007  0.679107  0.586617
+ -0.190712  1.17155   0.420496
+```
+We refer to groups of parameters defined this way as dependent infinite 
+parameters. In principle, nonrandom infinite parameter types can be made 
+dependent as well when users wish to avoid the cartesian product of their 
+supports.
+
+Anonymous groups of parameters can be defined as follows:
+```jldoctest macro_define
+julia> x = @infinite_parameter(model, [1:3] in [0, 1], independent = true, 
+                               num_supports = 3, base_name = "x")
+3-element Array{GeneralVariableRef,1}:
+ x[1]
+ x[2]
+ x[3]
+
+julia> θ = @infinite_parameter(model, [1:2] ~ dist, num_supports = 3, base_name = "θ")
+2-element Array{GeneralVariableRef,1}:
+ θ[1]
+ θ[2]
 ```
 
-#### Containers for Multi-Dimensional Parameters
-Note that for all the cases of multi-dimensional parameter definition above, the
-macro always returns an `Array` of [`GeneralVariableRef`](@ref). For most cases this is
-true. However, we can explicitly dictate the kind of containers we want to hold
-the defined parameters using the keyword `container`. For example, we use
-`SparseAxisArray` from the `JuMP` package for the space
-parameter `x`:
+### Containers for Multi-Dimensional Parameters
+Because we build on JuMP, we can use any indices we like when making containers 
+(e.g., arrays) for multi-dimensional parameters. For example, we can define:
 ```jldoctest; setup = :(using InfiniteOpt; model= InfiniteModel())
-julia> @infinite_parameter(model, x[1:3] in [0, 1], container = SparseAxisArray)
-JuMP.Containers.SparseAxisArray{GeneralVariableRef,1,Tuple{Int64}} with 3 entries:
-  [3]  =  x[3]
-  [2]  =  x[2]
-  [1]  =  x[1]
+julia> @infinite_parameter(model, x[i = [:a, :b]] in [0, 1])
+1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
+    Dimension 1, Symbol[:a, :b]
+And data, a 2-element Array{GeneralVariableRef,1}:
+ x[a]
+ x[b]
 ```
 
-See on 
+See 
 [`JuMP`'s documentation on containers](https://jump.dev/JuMP.jl/v0.21.8/manual/containers/) 
 for more information.
 
-#### Specifying independence of infinite parameters
-The concrete data object that stores information of infinite parameters are
-[`IndependentParameter`](@ref) and [`DependentParameters`](@ref), both under
-the abstract data type [`InfOptParameter`](@ref).
-[`IndependentParameter`](@ref) stores scalar infinite parameters that are
-independent from other infinite parameters. [`DependentParameters`](@ref)
-stores multiple infinite parameters that are dependent on each other,
-e.g. multi-dimensional random parameters. Each [`IndependentParameter`](@ref)
-or [`DependentParameters`](@ref) stores the [`AbstractInfiniteDomain`](@ref) that
-the parameters are in and supports that discretize the parameters.
-
-For examples up to now we did not specify the value for the keyword
-`independent`, which is set as `false` by default. In the case of scalar
-infinite parameter, `independent` is ignored and an [`IndependentParameter`](@ref)
-is always created. The keyword `independent` applies to multi-dimensional infinite
-parameters and dictates whether the supports for different dimensions are
-independent. Setting `independent` as `true` would be useful if the users want
-to generate a grid of supports for a multi-dimensional parameter. In this case
-the macro call creates an array of [`IndependentParameter`](@ref). Otherwise,
-the macro call creates [`DependentParameters`](@ref). For example,
-consider the position parameter `x` in a 3D space. Say `x` is bounded in `[0, 1]`
-in all three dimensions, and the user wants to generate grid points with interval
-`0.5` in all three dimensions.
-In this case, we can define `x` in the following way:
-```jldoctest; setup = :(using InfiniteOpt; model= InfiniteModel())
-julia> pts = collect(range(0, stop = 1, length = 3))
-3-element Array{Float64,1}:
- 0.0
- 0.5
- 1.0
-
-julia> @infinite_parameter(model, x[1:3] in [0, 1], supports = pts, independent = true)
-3-element Array{GeneralVariableRef,1}:
- x[1]
- x[2]
- x[3]
-
-julia> typeof(dispatch_variable_ref(x[1]))
-IndependentParameterRef
-```
-If `independent` is set as `false`, the transcription step will generate
-JuMP variables for values of any variable parameterized by `x` at `[0.0, 0.0, 0.0]`,
-`[0.5, 0.5, 0.5]` and `[1.0, 1.0, 1.0]`, a total of 3 transcribed variables.
-Instead, if `independent` is set as `true`, the transcription step will obtain
-a unique permutation of these supports and each transcribe parameterized
-variable accordingly, leading to a total of 27 transcribed variables in this
-case.
-
-#### Anonymous Parameter Definition and `base_name`
-As mentioned above, we can define anonymous parameters using keyword arguments
-in the macro [`@infinite_parameter`](@ref). For instance, we can create an
-anonymous position parameter in a 3D space, referred to by a list of [`GeneralVariableRef`](@ref)
-called `x`:
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> x = @infinite_parameter(model, [1:3], lower_bound = 0, upper_bound = 1)
-3-element Array{GeneralVariableRef,1}:
- noname
- noname
- noname
-
-julia> typeof(x)
-Array{GeneralVariableRef,1}
-
-julia> name(x[1])
-""
-```
-This syntax creates a 1D parameter if the part `[1:3]` is neglected.
-
-Note that this macro definition automatically assigns an empty string to the
-`base_name`. We can also assign a nontrivial base name to an anonymous parameter
-using the keyword argument `base_name`. For example,
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> @infinite_parameter(model, [1:3], lower_bound = 0, upper_bound = 1, base_name = "x")
-3-element Array{GeneralVariableRef,1}:
- x[1]
- x[2]
- x[3]
-
-julia> @infinite_parameter(model, [1:3], lower_bound = -1, upper_bound = 0, base_name = "x")
-3-element Array{GeneralVariableRef,1}:
- x[1]
- x[2]
- x[3]
-```
-We can see that anonymous parameter definition allows for multiple parameters
-sharing the same base name. This is not permitted with non-anonymous parameter
-definition. In fact, in anonymous parameter definition, the macro does not
-register the name of the parameters in the model, so when the model checks for
-repeated names it will not detect the `x`. Refer to
-[Detailed Mechanism of Macro Definition](@ref) if more details are desired.
-
-#### Detailed Mechanism of Macro Definition
-This section is for people who wish to know more about how the macro
-[`@infinite_parameter`](@ref) works in the backend. Users who only want to learn
-about the setting up the model can skip over this part.
-
-In general, the macro [`@infinite_parameter`](@ref) follows the same steps as
-the manual definition. First, it parses the arguments and identifies any
-recognizable keyword arguments. Specifically, the first argument must be the
-model, and the second argument, if exists, must be an expression that declares
-the parameter or simply specify the dimension of the parameter if users choose
-to define it anonymously. If the information in the keyword arguments is not
-sufficient to define the domain the parameter is in, the users also need to specify
-the domains in the second argument using expressions like `a <= x <= b` or
-`x in domain`.
-
-The keyword arguments give users flexibility in how to define their parameters.
-As mentioned above, the users can choose to specify the domain either in the
-second argument (non-anonymous parameter definition only), or in the keyword
-arguments. However, the users cannot do both at the same time. The macro will
-check this behavior and throw an error if this happens. For example,
-```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> @infinite_parameter(model,  y in [0, 1], lower_bound = 0, upper_bound = 1)
-ERROR: LoadError: At none:1: `@infinite_parameter(model, y in [0, 1], lower_bound = 0, upper_bound = 1)`: Cannot specify parameter lower_bound twice
-[...]
-
-julia> @infinite_parameter(model,  y in [0, 1], domain = IntervalDomain(0, 1))
-ERROR: LoadError: At none:1: `@infinite_parameter(model, y in [0, 1], domain = IntervalDomain(0, 1))`: Cannot specify parameter lower_bound and domain
-[...]
-```
-
-Once the check on arguments and keyword arguments is done, the macro will create
-the [`AbstractInfiniteDomain`](@ref) based on given information, and create the
-infinite parameter accordingly. If the users create a multi-dimensional
-parameter, the macro will create looped code to define individual infinite
-parameter for each dimension. The looped code will also incorporate different
-supports for different dimensions.
-
-In the end, if the created parameter is not anonymous, the macro will register
-the name to the model. In this way, we prevent parameters created by
-[`@infinite_parameter`](@ref) non-anonymously to share the same name.
-
 ## Supports
-For an infinite parameter, its supports are a finite set of points that the
-parameter will take (or possibly take, if the parameter is random). During the
-transcription stage, the supports specified will become part of the grid points
+For an infinite parameter, its supports are a finite set of points that the 
+parameter will take (or possibly take, if the parameter is random). During the 
+transcription stage, the supports specified will become part of the grid points 
 that approximate all functions parameterized by the infinite parameter.
 
-Once an infinite parameter is defined, users can access the supports using
+Once an infinite parameter is defined, users can access the supports using 
 [`supports`](@ref) function:
 ```jldoctest supports; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> @infinite_parameter(model, 0 <= t <= 10, supports = [0, 2, 5, 7, 10])
+julia> @infinite_parameter(model, t in [0, 10], supports = [0, 2, 5, 7, 10])
 t
 
 julia> supports(t)
@@ -484,9 +346,9 @@ julia> supports(t)
     be obtained via `label = All`. We can also query more specific subsets of 
     support information with more specific labels such as `label = UniformGrid`.
 
-We also provide functions that access other related information about the
-supports. For example, [`has_supports`](@ref) checks whether a parameter has
-supports, while [`num_supports`](@ref) gives the number of supports associated
+We also provide functions that access other related information about the 
+supports. For example, [`has_supports`](@ref) checks whether a parameter has 
+supports, while [`num_supports`](@ref) gives the number of supports associated 
 with a parameter:
 ```jldoctest supports
 julia> has_supports(t)
@@ -495,8 +357,8 @@ true
 julia> num_supports(t)
 5
 ```
-Now suppose we want to add more supports to the `t`, which is already assigned
-with some supports. We can use [`add_supports`](@ref) function to achieve this
+Now suppose we want to add more supports to the `t`, which is already assigned 
+with some supports. We can use [`add_supports`](@ref) function to achieve this 
 goal:
 ```jldoctest supports
 julia> add_supports(t, [3, 8])
@@ -511,8 +373,8 @@ julia> supports(t)
   8.0
  10.0
 ```
-At times we might want to change the supports completely. In those cases, the
-function [`set_supports`](@ref) resets the supports for a certain parameter with
+At times we might want to change the supports completely. In those cases, the 
+function [`set_supports`](@ref) resets the supports for a certain parameter with 
 new supports provided:
 ```jldoctest supports
 julia> set_supports(t, [0,3,5,8,10], force = true)
@@ -525,19 +387,19 @@ julia> supports(t)
   8.0
  10.0
 ```
-Note that the keyword argument [`force`] must be set as [`true`] if the
-parameter has been assigned with supports. Users can also delete all the
+Note that the keyword argument [`force`] must be set as [`true`] if the 
+parameter has been assigned with supports. Users can also delete all the 
 supports of a parameter with [`delete_supports`](@ref).
 
 ### Automatic Support Generation During Parameter Definition
-For the examples in the [Parameter Definition](@ref), we have seen how to
-manually add supports to an infinite parameter. For a quick automatic
-generation of support points, though, users do not have to input the support
+For the examples in the [Parameter Definition](@ref), we have seen how to 
+manually add supports to an infinite parameter. For a quick automatic 
+generation of support points, though, users do not have to input the support 
 points. Instead, the number of support points generated is supplied.
 
-For an infinite parameter subject to an [`IntervalDomain`](@ref), uniformly spaced
-supports including both ends are generated across the interval. For example,
-defining a time parameter ``t \in [0, 10]`` with 4 supports using
+For an infinite parameter subject to an [`IntervalDomain`](@ref), uniformly spaced 
+supports including both ends are generated across the interval. For example, 
+defining a time parameter ``t \in [0, 10]`` with 4 supports using 
 [`build_parameter`](@ref) gives
 ```jldoctest; setup = :(using InfiniteOpt)
 julia> domain = IntervalDomain(0, 10)
@@ -547,7 +409,7 @@ julia> t_param = build_parameter(error, domain, num_supports = 4, sig_digits = 3
 ```  
 Using macro definition we have
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
-julia> @infinite_parameter(model, 0 <= t <= 10, num_supports = 4, sig_digits = 3)
+julia> @infinite_parameter(model, t in [0, 10], num_supports = 4, sig_digits = 3)
 t
 
 julia> supports(t)
@@ -558,15 +420,15 @@ julia> supports(t)
  10.0   
 
 ```
-Note that the user can use the keyword argument `sig_digits` to dictate the
+Note that the user can use the keyword argument `sig_digits` to dictate the 
 significant figures for the supports. The default value of `sig_digits` is 12.
 
-For an infinite parameter that follows a univariate distribution,
-supports are sampled from the underlying distribution. For example, we can
-define an infinite parameter subject to a normal distribution with mean 0 and
+For an infinite parameter that follows a univariate distribution, 
+supports are sampled from the underlying distribution. For example, we can 
+define an infinite parameter subject to a normal distribution with mean 0 and 
 variance 1:
-```jldoctest; setup = :(using InfiniteOpt, Distributions, Random; Random.seed!(0); model = InfiniteModel(); dist = Normal())
-julia> @infinite_parameter(model, x in dist, num_supports = 4)
+```jldoctest; setup = :(using InfiniteOpt, Distributions, Random; Random.seed!(0); model = InfiniteModel())
+julia> @infinite_parameter(model, x ~ Normal(), num_supports = 4)
 x
 
 julia> supports(x)
@@ -576,39 +438,40 @@ julia> supports(x)
   0.679107426036
   0.8284134829  
 ```
-For multivariate distributions, though, we require support points are provided
-in the definition. However, we can use [`fill_in_supports!`](@ref) to generate
-supports for parameters following multivariate distributions. See
+For multivariate distributions, though, we require support points are provided 
+in the definition. However, we can use [`fill_in_supports!`](@ref) to generate 
+supports for parameters following multivariate distributions. See 
 [Automatic Support Generation For Defined Parameters](@ref) for details.
 
 ### Automatic Support Generation For Defined Parameters
-So far, we have seen that in both definition methods it is allowed to initialize
-a parameter with no supports. This is done by not specifying `supports` and
-`num_supports`. However, infinite parameters would not be allowed at the
-transcription step since it needs information about how to discretize the
-infinite parameters. In previous examples, we have shown that users can add
-supports to a defined parameter using methods [`add_supports`](@ref) and
+So far, we have seen that in both definition methods it is allowed to initialize 
+a parameter with no supports. This is done by not specifying `supports` and 
+`num_supports`. However, infinite parameters would not be allowed at the 
+transcription step since it needs information about how to discretize the 
+infinite parameters. In previous examples, we have shown that users can add 
+supports to a defined parameter using methods [`add_supports`](@ref) and 
 [`set_supports`](@ref).
 
-In this section we introduce automatic support generation for defined
-parameters with no associated supports. This can be done using the
-[`fill_in_supports!`](@ref) functions. [`fill_in_supports!`](@ref) can take as
-argument a [`GeneralVariableRef`](@ref) or an `AbstractArray{<:GeneralVariableRef}`, in which case it will generate
-supports for the associated infinite parameter. Alternatively,
-[`fill_in_supports!`](@ref) can also take an [`InfiniteModel`](@ref) as an
-argument, in which case it will generate supports for all infinite parameters
+In this section we introduce automatic support generation for defined 
+parameters with no associated supports. This can be done using the 
+[`fill_in_supports!`](@ref) functions. [`fill_in_supports!`](@ref) can take as 
+argument a [`GeneralVariableRef`](@ref) or an 
+`AbstractArray{<:GeneralVariableRef}`, in which case it will generate 
+supports for the associated infinite parameter. Alternatively, 
+[`fill_in_supports!`](@ref) can also take an [`InfiniteModel`](@ref) as an 
+argument, in which case it will generate supports for all infinite parameters 
 of the [`InfiniteModel`](@ref) with no supports.
 
-The [`fill_in_supports!`](@ref) method allows users to specify integer keyword
-arguments `num_supports` and `sig_digits`. `num_supports` dictates the
-number of supports to be generated, and `sig_digits` dictates the significant
-figures of generated supports desired. The default values are 10 and 12,
+The [`fill_in_supports!`](@ref) method allows users to specify integer keyword 
+arguments `num_supports` and `sig_digits`. `num_supports` dictates the 
+number of supports to be generated, and `sig_digits` dictates the significant 
+figures of generated supports desired. The default values are 10 and 12, 
 respectively.
 
-The ways by which supports are automatically generated are as follows. If the
-parameter is in an [`IntervalDomain`](@ref), then we generate an array of supports
-that are uniformly distributed along the interval, including the two ends. For
-example, consider a 3D position parameter `x` distributed in the unit cube
+The ways by which supports are automatically generated are as follows. If the 
+parameter is in an [`IntervalDomain`](@ref), then we generate an array of supports 
+that are uniformly distributed along the interval, including the two ends. For 
+example, consider a 3D position parameter `x` distributed in the unit cube 
 `[0, 1]`. We can generate supports for that point in the following way:
 ```jldoctest supp_gen_defined; setup = :(using InfiniteOpt, Distributions, Random; Random.seed!(0); model = InfiniteModel())
 julia> @infinite_parameter(model, x[1:3] in [0, 1], independent = true);
@@ -621,12 +484,12 @@ julia> supports.(x)
  [0.0, 0.5, 1.0]
  [0.0, 0.5, 1.0]
 ```
-Note that the dot syntax because [`fill_in_supports!`](@ref) takes single
-[`GeneralVariableRef`](@ref) as argument. In each dimension, three equally spaced
-supports (`[0.0, 0.5, 1.0]`) are generated. Since the `independent` keyword is
-set as `true`, the transcription stage will create a three-dimensional grid for
-all variables parameterized by `x`, with each point separated by 0.5 units in
-each dimension. We can view this grid by simply invoking `supports` without the 
+Note that the dot syntax because [`fill_in_supports!`](@ref) takes single 
+[`GeneralVariableRef`](@ref) as argument. In each dimension, three equally spaced 
+supports (`[0.0, 0.5, 1.0]`) are generated. Since the `independent` keyword is 
+set as `true`, the transcription stage will create a three-dimensional grid for 
+all variables parameterized by `x`, with each point separated by 0.5 units in 
+each dimension. We can view this grid by simply invoking `supports` without the  
 vectorized syntax:
 ```jldoctest supp_gen_defined
 julia> supports(x)
@@ -636,13 +499,13 @@ julia> supports(x)
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     1.0  1.0  1.0  1.0  1.0  1.0  1.0
 ```
 
-If the parameter is in a [`UniDistributionDomain`](@ref) or
-[`MultiDistributionDomain`](@ref), [`fill_in_supports!`](@ref)
-samples `num_supports` supports from the distribution. Recall that support
-generation is not allowed for parameters under multivariate distribution during
-parameter definition. However, if the parameter is defined first without
-supports, [`fill_in_supports!`](@ref) allows for supports generation. For
-example, for a 2D random variable `ξ` under a multivariate Gaussian
+If the parameter is in a [`UniDistributionDomain`](@ref) or 
+[`MultiDistributionDomain`](@ref), [`fill_in_supports!`](@ref) 
+samples `num_supports` supports from the distribution. Recall that support 
+generation is not allowed for parameters under multivariate distribution during 
+parameter definition. However, if the parameter is defined first without 
+supports, [`fill_in_supports!`](@ref) allows for supports generation. For 
+example, for a 2D random variable `ξ` under a multivariate Gaussian 
 distribution, we can generate supports for it in the following way:
 ```jldoctest supp_gen_defined
 julia> dist = MvNormal([0., 0.], [1. 0.; 0. 2.])
@@ -653,7 +516,7 @@ dim: 2
 )
 
 
-julia> @infinite_parameter(model, ξ[1:2] in dist);
+julia> @infinite_parameter(model, ξ[1:2] ~ dist);
 
 julia> fill_in_supports!(ξ, num_supports = 3)
 
@@ -662,17 +525,17 @@ julia> supports(ξ)
  -0.353007  0.679107  0.586617
  -0.190712  1.17155   0.420496
 ```
-Note that [`fill_in_supports!`](@ref) only fill in supports for parameters with no
-associated supports. To modify the supports of parameters already associated
+Note that [`fill_in_supports!`](@ref) only fill in supports for parameters with no 
+associated supports. To modify the supports of parameters already associated 
 with some supports, refer to [Supports](@ref) for how to do that.
 
 ## Parameter Queries
-In addition to the modeling framework, this package provides many functions for
-users to access information about the model. This section will go over basic
+In addition to the modeling framework, this package provides many functions for 
+users to access information about the model. This section will go over basic 
 functions for accessing parameter information.
 
-Once a (possibly large-scale) `InfiniteModel` is built, the users might want to
-check if an infinite parameter is actually used in any way. This could be
+Once a (possibly large-scale) `InfiniteModel` is built, the users might want to 
+check if an infinite parameter is actually used in any way. This could be 
 checked by [`is_used`](@ref) function as follows:
 ```jldoctest param_queries; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, x in [0, 1])
@@ -682,15 +545,15 @@ julia> is_used(x)
 false
 
 ```
-This function checks if the parameter is used by any constraint, measure, or
-variable. In a similar way, functions [`used_by_constraint`](@ref),
-[`used_by_measure`](@ref) and [`used_by_infinite_variable`](@ref) can be applied to
+This function checks if the parameter is used by any constraint, measure, or 
+variable. In a similar way, functions [`used_by_constraint`](@ref), 
+[`used_by_measure`](@ref) and [`used_by_infinite_variable`](@ref) can be applied to 
 find out any dependency of specific types on the infinite parameter.
 
-In addition, sometimes we need to check if a certain [`GeneralVariableRef`](@ref)
-for an infinite parameter is valid with an `InfiniteModel` model, meaning that the
-parameter reference actually refers to some parameter associated with the model. We
-extend the [`JuMP.is_valid`](@ref) function from JuMP for that purpose. To see how
+In addition, sometimes we need to check if a certain [`GeneralVariableRef`](@ref) 
+for an infinite parameter is valid with an `InfiniteModel` model, meaning that the 
+parameter reference actually refers to some parameter associated with the model. We 
+extend the [`JuMP.is_valid`](@ref) function from JuMP for that purpose. To see how 
 to use this, for example,
 ```jldoctest param_queries
 julia> pref1 = GeneralVariableRef(model, 1, IndependentParameterIndex);
@@ -703,22 +566,22 @@ true
 julia> is_valid(model, pref2)
 false
 ```
-The second call of [`is_valid`](@ref) returns `false` because the model does
+The second call of [`is_valid`](@ref) returns `false` because the model does 
 not have parameter with index 2 yet.
 
-We can also access different information about the domain that the infinite
-parameter is in. This is given by [`infinite_domain`](@ref), which takes a
+We can also access different information about the domain that the infinite 
+parameter is in. This is given by [`infinite_domain`](@ref), which takes a 
 [`GeneralVariableRef`] as argument. For example, we have
 ```jldoctest param_queries
 julia> infinite_domain(x)
 [0, 1]
 ```
-[`infinite_domain`](@ref) might be more useful if the infinite parameter is in a
-[`UniDistributionDomain`](@ref) or [`MultiDistributionDomain`](@ref), by which users
-can access information about the underlying distribution. On the other hand,
-if we already know that the parameter is in an interval domain, we can use
-[`JuMP.has_lower_bound`](@ref), [`JuMP.lower_bound`](@ref),
-[`JuMP.has_upper_bound`](@ref), [`JuMP.upper_bound`](@ref) to retrieve information
+[`infinite_domain`](@ref) might be more useful if the infinite parameter is in a 
+[`UniDistributionDomain`](@ref) or [`MultiDistributionDomain`](@ref), by which users 
+can access information about the underlying distribution. On the other hand, 
+if we already know that the parameter is in an interval domain, we can use 
+[`JuMP.has_lower_bound`](@ref), [`JuMP.lower_bound`](@ref), 
+[`JuMP.has_upper_bound`](@ref), [`JuMP.upper_bound`](@ref) to retrieve information 
 about the interval domain in a more specific way:
 ```jldoctest param_queries
 julia> has_lower_bound(x)
@@ -734,23 +597,23 @@ julia> upper_bound(x)
 1.0
 ```
 
-A quick way for users to obtain a [`GeneralVariableRef`](@ref) for a parameter with
-a known name would be through [`parameter_by_name`](@ref) function. This
-function takes an [`InfiniteModel`](@ref) and the parameter name in string,
-and returns a [`GeneralVariableRef`](@ref) for that parameter. For example,
+A quick way for users to obtain a [`GeneralVariableRef`](@ref) for a parameter with 
+a known name would be through [`parameter_by_name`](@ref) function. This 
+function takes an [`InfiniteModel`](@ref) and the parameter name in string, 
+and returns a [`GeneralVariableRef`](@ref) for that parameter. For example, 
 ```jldoctest param_queries
 julia> pref = parameter_by_name(model, "x")
 x
 ```
-If there is no parameter associated with that name, the function would return
-nothing. Otherwise, if multiple parameters share the same name, the function
+If there is no parameter associated with that name, the function would return 
+nothing. Otherwise, if multiple parameters share the same name, the function 
 would throw an error.
 
-Now we introduce two additional functions that we can use to access parameter
-information for an  [`InfiniteModel`](@ref). The function
-[`num_parameters`](@ref) returns the number of infinite parameters associated
-with a model, while [`all_parameters`](@ref) returns the list of all infinite
-parameter references in the model. For a quick example:
+Now we introduce two additional functions that we can use to access parameter 
+information for an  [`InfiniteModel`](@ref). The function 
+[`num_parameters`](@ref) returns the number of infinite parameters associated 
+with a model, while [`all_parameters`](@ref) returns the list of all infinite 
+parameter references in the model. For a quick example: 
 ```jldoctest param_queries
 julia> @infinite_parameter(model, y[1:2] in [0, 5])
 2-element Array{GeneralVariableRef,1}:
@@ -768,12 +631,12 @@ julia> all_parameters(model)
 ```
 
 ## Parameter Modification
-In this section we introduce a few shortcuts for users to modify defined
+In this section we introduce a few shortcuts for users to modify defined 
 infinite parameters.
 
-First, once an infinite parameter is defined, we can change its name by calling
-the [`JuMP.set_name`] function, which takes the [`GeneralVariableRef`] of
-the parameter that needs a name change and the name string as arguments. For
+First, once an infinite parameter is defined, we can change its name by calling 
+the [`JuMP.set_name`] function, which takes the [`GeneralVariableRef`] of 
+the parameter that needs a name change and the name string as arguments. For 
 example, to change the parameter `x` to `t` we can do:
 ```jldoctest param_queries
 julia> JuMP.set_name(x, "t")
@@ -784,7 +647,7 @@ julia> all_parameters(model)
  y[1]
  y[2]
 ```
-In a similar way, we can also change the infinite domain that the parameter is in
+In a similar way, we can also change the infinite domain that the parameter is in 
 using the [`set_infinite_domain`](@ref) function as follows:
 ```jldoctest param_queries
 julia> t = parameter_by_name(model, "t")
@@ -796,8 +659,8 @@ julia> infinite_domain(t)
 [0, 5]
 ```
 
-For parameters in an [`IntervalDomain`](@ref), we extend
-[`JuMP.set_lower_bound`](@ref) and [`JuMP.set_upper_bound`](@ref) functions
+For parameters in an [`IntervalDomain`](@ref), we extend 
+[`JuMP.set_lower_bound`](@ref) and [`JuMP.set_upper_bound`](@ref) functions 
 for users to modify the lower bounds and upper bounds. For example,
 ```jldoctest param_queries
 julia> JuMP.set_lower_bound(t, 1)
@@ -807,16 +670,16 @@ julia> JuMP.set_upper_bound(t, 4)
 julia> infinite_domain(t)
 [1, 4]
 ```
-We do not support setting lower bounds and upper bounds for random parameters
-in a [`UniDistributionDomain`](@ref) and will throw an error if users attempt to do
-so. If users want to set lower bound and upper bound for a random infinite
-parameter, consider using `Distributions.Truncated`, which creates a truncated
+We do not support setting lower bounds and upper bounds for random parameters 
+in a [`UniDistributionDomain`](@ref) and will throw an error if users attempt to do 
+so. If users want to set lower bound and upper bound for a random infinite 
+parameter, consider using `Distributions.Truncated`, which creates a truncated 
 distribution from a univariate distribution.
 
 ## Generative Supports 
-Generative supports denote supports that are generated based on existing supports 
-(treated as finite elements). These are important for enabling certain measure 
-and derivative evaluation schemes. Examples of such supports include internal 
+Generative supports denote supports that are generated based on existing supports  
+(treated as finite elements). These are important for enabling certain measure  
+and derivative evaluation schemes. Examples of such supports include internal  
 collocation nodes and quadrature supports generated for quadrature methods that 
 decompose the infinite domain such that existing supports are incorporated. Users 
 shouldn't modify these directly, but extension writers will need to utilize the 
@@ -886,8 +749,6 @@ Order   = [:macro, :function]
 ```
 ```@docs
 @infinite_parameter
-@independent_parameter
-@dependent_parameters
 build_parameter(::Function, ::InfiniteScalarDomain)
 build_parameter(::Function, ::Real)
 add_parameter(::InfiniteModel, ::IndependentParameter,::String)
