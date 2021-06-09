@@ -1,7 +1,6 @@
-# [Infinite Parameters] (@id inf_par_page)
-A guide and manual to the definition and use of infinite parameters in 
-`InfiniteOpt`. The Datatypes and Methods sections at the end comprise the manual, 
-and the above sections comprise the guide.  
+# [Infinite Parameters](@id inf_par_docs)
+A guide for infinite parameters in `InfiniteOpt`. See the respective 
+[technical manual](@ref inf_par_manual) for more details.
 
 ## Overview
 Infinite parameters are what live on the infinite domains of infinite dimensional  
@@ -117,7 +116,7 @@ steps (these are typically automated by [`@infinite_parameter`](@ref)):
 5. Create a [`GeneralVariableRef`](@ref)(s) that points to the parameter object
 
 Infinite domain definition is described above in the 
-[Infinite Domains](@ref infinite_domains_normal) section. The supports should be 
+[Infinite Domains](@ref infinite_domains_docs) section. The supports should be 
 a vector of finite numbers that are drawn from the domain of the infinite domain. 
 These supports will be used to transcribe the `InfiniteModel` in preparation for 
 it to be optimized. If desired, the supports can be specified after the parameter 
@@ -676,7 +675,7 @@ so. If users want to set lower bound and upper bound for a random infinite
 parameter, consider using `Distributions.Truncated`, which creates a truncated 
 distribution from a univariate distribution.
 
-## Generative Supports 
+## [Generative Supports](@id gen_supp_docs)
 Generative supports denote supports that are generated based on existing supports  
 (treated as finite elements). These are important for enabling certain measure  
 and derivative evaluation schemes. Examples of such supports include internal  
@@ -717,108 +716,3 @@ The generation of these supports is handled automatically at the appropriate
 times via [`add_generative_supports`](@ref). We can always check if generative 
 supports have been created for a particular parameter with 
 [`has_generative_supports`](@ref).
-
-## Datatypes
-```@index
-Pages   = ["parameter.md"]
-Modules = [InfiniteOpt]
-Order   = [:type]
-```
-```@docs
-InfOptParameter
-ScalarParameter
-IndependentParameter
-DependentParameters
-ScalarParameterData
-MultiParameterData
-IndependentParameterIndex
-DependentParametersIndex
-DependentParameterIndex
-IndependentParameterRef
-DependentParameterRef
-AbstractGenerativeInfo
-NoGenerativeSupports
-UniformGenerativeInfo
-```
-
-## Methods/Macros
-```@index
-Pages   = ["parameter.md"]
-Modules = [InfiniteOpt, JuMP]
-Order   = [:macro, :function]
-```
-```@docs
-@infinite_parameter
-build_parameter(::Function, ::InfiniteScalarDomain)
-build_parameter(::Function, ::Real)
-add_parameter(::InfiniteModel, ::IndependentParameter,::String)
-add_parameters
-JuMP.name(::ScalarParameterRef)
-JuMP.name(::DependentParameterRef)
-JuMP.set_name(::ScalarParameterRef, ::String)
-JuMP.set_name(::DependentParameterRef, ::String)
-used_by_infinite_variable(::IndependentParameterRef)
-used_by_infinite_variable(::DependentParameterRef)
-used_by_parameter_function(::IndependentParameterRef)
-used_by_parameter_function(::DependentParameterRef)
-used_by_measure(::ScalarParameterRef)
-used_by_measure(::DependentParameterRef)
-used_by_constraint(::ScalarParameterRef)
-used_by_constraint(::DependentParameterRef)
-used_by_objective(::FiniteParameterRef)
-is_used(::ScalarParameterRef)
-is_used(::DependentParameterRef)
-parameter_by_name(::InfiniteModel,::String)
-infinite_domain(::IndependentParameterRef)
-infinite_domain(::DependentParameterRef)
-infinite_domain(::AbstractArray{<:DependentParameterRef})
-set_infinite_domain(::IndependentParameterRef,::InfiniteScalarDomain)
-set_infinite_domain(::DependentParameterRef,::InfiniteScalarDomain)
-set_infinite_domain(::AbstractArray{<:DependentParameterRef},::InfiniteArrayDomain)
-JuMP.has_lower_bound(::IndependentParameterRef)
-JuMP.has_lower_bound(::DependentParameterRef)
-JuMP.lower_bound(::IndependentParameterRef)
-JuMP.lower_bound(::DependentParameterRef)
-JuMP.set_lower_bound(::IndependentParameterRef, ::Real)
-JuMP.set_lower_bound(::DependentParameterRef,::Real)
-JuMP.has_upper_bound(::IndependentParameterRef)
-JuMP.has_upper_bound(::DependentParameterRef)
-JuMP.upper_bound(::IndependentParameterRef)
-JuMP.upper_bound(::DependentParameterRef)
-JuMP.set_upper_bound(::IndependentParameterRef,::Real)
-JuMP.set_upper_bound(::DependentParameterRef,::Real)
-significant_digits(::IndependentParameterRef)
-significant_digits(::DependentParameterRef)
-num_supports(::IndependentParameterRef)
-num_supports(::DependentParameterRef)
-num_supports(::AbstractArray{<:DependentParameterRef})
-has_supports(::IndependentParameterRef)
-has_supports(::DependentParameterRef)
-has_supports(::AbstractArray{<:DependentParameterRef})
-supports(::IndependentParameterRef)
-supports(::DependentParameterRef)
-supports(::AbstractArray{<:DependentParameterRef})
-set_supports(::IndependentParameterRef, ::Vector{<:Real})
-set_supports(::AbstractArray{<:DependentParameterRef},::Vector{<:AbstractArray{<:Real}})
-add_supports(::IndependentParameterRef,::Union{Real, Vector{<:Real}})
-add_supports(::AbstractArray{<:DependentParameterRef},::Vector{<:AbstractArray{<:Real}})
-delete_supports(::IndependentParameterRef)
-delete_supports(::AbstractArray{<:DependentParameterRef})
-generate_and_add_supports!(::IndependentParameterRef,::AbstractInfiniteDomain)
-generate_and_add_supports!(::AbstractArray{<:DependentParameterRef},::InfiniteArrayDomain)
-fill_in_supports!(::IndependentParameterRef)
-fill_in_supports!(::AbstractArray{<:DependentParameterRef})
-fill_in_supports!(::InfiniteModel)
-derivative_method(::IndependentParameterRef)
-derivative_method(::DependentParameterRef)
-num_parameters
-all_parameters
-JuMP.delete(::InfiniteModel, ::IndependentParameterRef)
-JuMP.delete(::InfiniteModel,::AbstractArray{<:DependentParameterRef})
-has_internal_supports(::Union{IndependentParameterRef, DependentParameterRef})
-has_generative_supports(::IndependentParameterRef)
-support_label(::AbstractGenerativeInfo)
-generative_support_info(::IndependentParameterRef)
-make_generative_supports
-add_generative_supports
-```

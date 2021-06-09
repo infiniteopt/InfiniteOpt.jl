@@ -1,12 +1,11 @@
 ```@meta
 DocTestFilters = [r"≥|>=", r" == | = ", r" ∈ | in ", r" for all | ∀ ", r"d|∂", 
-                  r"integral|∫", r".*scalar_parameters.jl:763"]
+                  r"integral|∫", r".*scalar_parameters.jl:781"]
 ```
 
-# [Derivative Operators](@id deriv_page)
-A guide and manual for the definition and use of derivatives in `InfiniteOpt`.
-The Datatypes and Methods sections at the end comprise the manual, and the
-above sections comprise the guide.  
+# [Derivative Operators](@id deriv_docs)
+A guide for derivatives in `InfiniteOpt`. See the respective 
+[technical manual](@ref deriv_manual) for more details.
 
 ## Overview
 Derivative operators commonly arise in many infinite-dimensional problems, 
@@ -443,7 +442,7 @@ julia> derivative_constraints(d1)
 
 julia> add_supports(t, 0.2)
 ┌ Warning: Support/method changes will invalidate existing derivative evaluation constraints that have been added to the InfiniteModel. Thus, these are being deleted.
-└ @ InfiniteOpt ~/build/pulsipher/InfiniteOpt.jl/src/scalar_parameters.jl:763
+└ @ InfiniteOpt ~/build/pulsipher/InfiniteOpt.jl/src/scalar_parameters.jl:781
 
 julia> has_derivative_constraints(d1)
 false
@@ -585,64 +584,4 @@ julia> delete(model, d2)
 
 julia> is_valid(model, d2)
 false
-```
-
-## Datatypes
-```@index
-Pages   = ["derivative.md"]
-Modules = [InfiniteOpt]
-Order   = [:type]
-```
-```@docs
-Deriv
-DerivativeIndex
-DerivativeRef
-Derivative
-AbstractDerivativeMethod
-GenerativeDerivativeMethod
-OrthogonalCollocation
-NonGenerativeDerivativeMethod
-FiniteDifference
-FDTechnique
-Forward
-Central
-Backward
-```
-
-## [Methods/Macros] (@id deriv_methods)
-```@index
-Pages   = ["derivative.md"]
-Modules = [InfiniteOpt, JuMP]
-Order   = [:macro, :function]
-```
-```@docs
-@deriv
-@∂
-deriv
-∂
-build_derivative
-JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Deriv)
-add_derivative
-derivative_argument(::DerivativeRef)
-operator_parameter(::DerivativeRef)
-derivative_method(::DerivativeRef)
-raw_parameter_refs(::DerivativeRef)
-parameter_refs(::DerivativeRef)
-parameter_list(::DerivativeRef)
-set_start_value_function(::DerivativeRef,::Union{Real, Function})
-reset_start_value_function(::DerivativeRef)
-num_derivatives
-all_derivatives
-set_derivative_method(::IndependentParameterRef, ::NonGenerativeDerivativeMethod)
-set_derivative_method(::DependentParameterRef, ::AbstractDerivativeMethod)
-set_all_derivative_methods
-evaluate(::DerivativeRef)
-evaluate_all_derivatives!
-has_derivative_constraints(::DerivativeRef)
-derivative_constraints(::DerivativeRef)
-delete_derivative_constraints(::DerivativeRef)
-evaluate_derivative
-generative_support_info(::AbstractDerivativeMethod)
-support_label(::AbstractDerivativeMethod)
-InfiniteOpt.make_reduced_expr
 ```

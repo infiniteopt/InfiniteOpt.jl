@@ -86,8 +86,9 @@ do the following:
 2. Make the desired changes
 3. Submit a pull request
 
-For other contributions, please visit our [Developers Guide](@ref) for step by 
-step instructions and to review our style guide.
+For other contributions, please visit our 
+[Developers Guide](@ref contribute_guide) for step by step instructions and to 
+review our style guide.
 
 ## Acknowledgements
 We acknowledge our support from the Department of Energy under grant 

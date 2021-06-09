@@ -1,7 +1,6 @@
-# [Finite Parameters] (@id finite_param_docs)
-A guide and manual to the definition and use of finite parameters in
-`InfiniteOpt`. The Datatypes and Methods sections at the end comprise the manual,
-and the above sections comprise the guide.  
+# [Finite Parameters](@id finite_param_docs)
+A guide for the definition and use of finite parameters in `InfiniteOpt`. See 
+the respective [technical manual](@ref finite_param_manual) for more details.
 
 ## Overview
 Often a mathematical model needs to be optimized several times in accordance
@@ -75,27 +74,3 @@ converted into the appropriate affine expression when transcripted.
     use `InfiniteOpt` to model non-infinite-dimensional problems, since the added 
     overhead will make it slower than just iteratively building `JuMP` models. For 
     this behavior, we recommend looking into using `ParameterJuMP`.
-
-## Datatypes
-```@index
-Pages   = ["finite_parameter.md"]
-Modules = [InfiniteOpt]
-Order   = [:type]
-```
-```@docs
-FiniteParameter
-FiniteParameterIndex
-FiniteParameterRef
-```
-
-## Methods/Macros
-```@index
-Pages   = ["finite_parameter.md"]
-Modules = [InfiniteOpt, JuMP]
-Order   = [:macro, :function]
-```
-```@docs
-@finite_parameter
-parameter_value(::FiniteParameterRef)
-JuMP.set_value(::FiniteParameterRef, ::Real)
-```

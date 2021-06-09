@@ -106,8 +106,8 @@ Here we also specify the number of finite supports we desire for each parameter
 that will ultimately be used to reformulate and solve the problem (i.e., discretize). 
 We also specify the derivative evaluation method associated with `t` that will be 
 used evaluate the derivatives numerically. See more information about parameters 
-on our [Infinite Parameters] (@ref inf_par_page) page. Also learn more about 
-derivative methods on our [Derivative Operators](@ref deriv_page) page.
+on our [Infinite Parameters] (@ref inf_par_docs) page. Also learn more about 
+derivative methods on our [Derivative Operators](@ref deriv_docs) page.
 
 ### Variables 
 Now that we have an `InfiniteModel` and infinite parameters let's define our 
@@ -191,7 +191,7 @@ And data, a 2-element Array{InfOptConstraintRef,1}:
 ```
 Note it is important that we include appropriate boundary conditions when using 
 derivatives in our model. For more information please see 
-[Derivative Operators](@ref deriv_page).
+[Derivative Operators](@ref deriv_docs).
 
 Next, we can add our model constraints that have derivatives using 
 [`@constraint`](https://jump.dev/JuMP.jl/v0.21.8/reference/constraints/#JuMP.@constraint) 
@@ -244,7 +244,7 @@ julia> termination_status(model)
 LOCALLY_SOLVED::TerminationStatusCode = 4
 ```
 Thus, our model was solved successfully! For more information please see our 
-[Optimization](@ref opt_page) and [Results](@ref) pages.
+[Optimization](@ref opt_docs) and [Results](@ref result_docs) pages.
 
 ### Query the Solution
 Finally, we can query a wide variety of information about our solution. Perhaps 
@@ -268,7 +268,7 @@ And data, a 2-element Array{Array{Tuple,1},1}:
  [(0.0,), (1.0,), (2.0,), (3.0,), (4.0,), (5.0,), (6.0,), (7.0,), (8.0,), (9.0,)  …  (51.0,), (52.0,), (53.0,), (54.0,), (55.0,), (56.0,), (57.0,), (58.0,), (59.0,), (60.0,)]
  [(0.0,), (1.0,), (2.0,), (3.0,), (4.0,), (5.0,), (6.0,), (7.0,), (8.0,), (9.0,)  …  (51.0,), (52.0,), (53.0,), (54.0,), (55.0,), (56.0,), (57.0,), (58.0,), (59.0,), (60.0,)]
 ```
-Please see the [Results](@ref) page for more information. 
+Please see the [Results](@ref result_docs) page for more information. 
 
 ## Summary Script 
 The example used in the sections above is summarized in the script below:

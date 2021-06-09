@@ -2,10 +2,9 @@
 DocTestFilters = [r"≤|<=", r" == | = ", r" ∈ | in ", r" for all | ∀ "]
 ```
 
-# Variables
-A guide and manual for the definition and use of variables in `InfiniteOpt`.
-The Datatypes and Methods sections at the end comprise the manual, and the
-above sections comprise the guide.  
+# [Variables](@id var_docs)
+A guide for variables in `InfiniteOpt`. See the respective 
+[technical manual](@ref var_manual) for more details.
 
 ## Overview
 Decision variables are at the very core of `InfiniteOpt` as its name alludes
@@ -218,7 +217,7 @@ variable information mentioned above and now have a `GeneralVariableRef`
 called `var_ref` that can be used in defining our infinite model.
 
 Note that the use of `GeneralVariableRef`s and the corresponding concrete subtypes
-of [`DispatchVariableRef`](@ref)s is discussed on the [Expressions](@ref expr_page)
+of [`DispatchVariableRef`](@ref)s is discussed on the [Expressions](@ref expr_docs)
 page.
 
 ## Macro Variable Definition
@@ -610,8 +609,7 @@ julia> @variables(model, begin
 variables. This suite is comprised of extensions to all current `JuMP` query
 methods and many more that are specific to `InfiniteOpt`. A number of the more
 commonly used ones are explained in this section, but all of the available methods
-are explained in the [Methods/Macros](@ref var_methods) section (i.e., the
-manual) below.
+are explained in the [technical manual](@ref var_manual).
 
 ### General Information
 Here we describe some methods used to query general variable information such as
@@ -773,8 +771,7 @@ julia> parameter_values(yp)
 `InfiniteOpt` employs a wide variety of methods to modify/delete variables.
 These are comprised of `JuMP` extensions and methods native only to `InfiniteOpt`.
 This section will highlight some of the more commonly used ones. All of the
-methods/macros are detailed in the [Methods/Macros](@ref var_methods) section
-(i.e., the manual) below.
+methods/macros are detailed in the [technical manual](@ref var_manual).
 
 ### Deletion
 Like `JuMP v0.19+`, `InfiniteOpt` fully supports deletion throughout its data
@@ -859,110 +856,3 @@ arguments that exactly match the format of the infinite parameters given in
 
 A number of other techniques exist for the various variable types can be found in 
 the manual below.
-
-## Datatypes
-```@index
-Pages   = ["variable.md"]
-Modules = [InfiniteOpt, InfiniteOpt.Collections]
-Order   = [:type]
-```
-```@docs
-InfOptVariableType
-Infinite
-SemiInfinite
-Point
-InfiniteVariable
-SemiInfiniteVariable
-PointVariable
-VariableData
-InfiniteVariableIndex
-SemiInfiniteVariableIndex
-PointVariableIndex
-FiniteVariableIndex
-InfiniteVariableRef
-SemiInfiniteVariableRef
-PointVariableRef
-FiniteVariableRef
-InfiniteOpt.Collections.VectorTuple
-```
-
-## [Methods/Macros] (@id var_methods)
-```@index
-Pages   = ["variable.md"]
-Modules = [InfiniteOpt, JuMP]
-Order   = [:function]
-```
-```@docs
-JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Infinite)
-JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::SemiInfinite)
-JuMP.build_variable(::Function, ::GeneralVariableRef, ::Dict{Int, Float64})
-JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Point)
-JuMP.add_variable(::InfiniteModel, ::JuMP.AbstractVariable, ::String)
-used_by_constraint(::DecisionVariableRef)
-used_by_measure(::DecisionVariableRef)
-used_by_objective(::DecisionVariableRef)
-is_used(::DecisionVariableRef)
-used_by_point_variable(::Union{InfiniteVariableRef, DerivativeRef})
-used_by_semi_infinite_variable(::Union{InfiniteVariableRef, DerivativeRef})
-is_used(::Union{InfiniteVariableRef, DerivativeRef})
-JuMP.delete(::InfiniteModel, ::DecisionVariableRef)
-JuMP.num_variables(::InfiniteModel)
-JuMP.all_variables(::InfiniteModel)
-JuMP.name(::DecisionVariableRef)
-JuMP.set_name(::DecisionVariableRef, ::String)
-JuMP.set_name(::SemiInfiniteVariableRef,::String)
-JuMP.variable_by_name(::InfiniteModel, ::String)
-JuMP.has_lower_bound(::UserDecisionVariableRef)
-JuMP.lower_bound(::UserDecisionVariableRef)
-JuMP.set_lower_bound(::UserDecisionVariableRef, ::Real)
-JuMP.LowerBoundRef(::UserDecisionVariableRef)
-JuMP.delete_lower_bound(::UserDecisionVariableRef)
-JuMP.has_upper_bound(::UserDecisionVariableRef)
-JuMP.upper_bound(::UserDecisionVariableRef)
-JuMP.set_upper_bound(::UserDecisionVariableRef, ::Real)
-JuMP.UpperBoundRef(::UserDecisionVariableRef)
-JuMP.delete_upper_bound(::UserDecisionVariableRef)
-JuMP.is_fixed(::UserDecisionVariableRef)
-JuMP.fix_value(::UserDecisionVariableRef)
-JuMP.fix(::UserDecisionVariableRef, ::Real; ::Bool)
-JuMP.FixRef(::UserDecisionVariableRef)
-JuMP.unfix(::UserDecisionVariableRef)
-JuMP.start_value(::UserDecisionVariableRef)
-JuMP.set_start_value(::UserDecisionVariableRef, ::Real)
-start_value_function(::Union{InfiniteVariableRef, DerivativeRef})
-set_start_value_function(::InfiniteVariableRef, ::Union{Real, Function})
-reset_start_value_function(::InfiniteVariableRef)
-JuMP.is_binary(::UserDecisionVariableRef)
-JuMP.set_binary(::UserDecisionVariableRef)
-JuMP.BinaryRef(::UserDecisionVariableRef)
-JuMP.unset_binary(::UserDecisionVariableRef)
-JuMP.is_integer(::UserDecisionVariableRef)
-JuMP.set_integer(::UserDecisionVariableRef)
-JuMP.IntegerRef(::UserDecisionVariableRef)
-JuMP.unset_integer(::UserDecisionVariableRef)
-JuMP.lower_bound(::SemiInfiniteVariableRef)
-JuMP.LowerBoundRef(::SemiInfiniteVariableRef)
-JuMP.has_upper_bound(::SemiInfiniteVariableRef)
-JuMP.upper_bound(::SemiInfiniteVariableRef)
-JuMP.UpperBoundRef(::SemiInfiniteVariableRef)
-JuMP.is_fixed(::SemiInfiniteVariableRef)
-JuMP.fix_value(::SemiInfiniteVariableRef)
-JuMP.FixRef(::SemiInfiniteVariableRef)
-start_value_function(::SemiInfiniteVariableRef)
-JuMP.is_binary(::SemiInfiniteVariableRef)
-JuMP.BinaryRef(::SemiInfiniteVariableRef)
-JuMP.is_integer(::SemiInfiniteVariableRef)
-JuMP.IntegerRef(::SemiInfiniteVariableRef)
-parameter_refs(::InfiniteVariableRef)
-parameter_refs(::SemiInfiniteVariableRef)
-parameter_list(::InfiniteVariableRef)
-parameter_list(::SemiInfiniteVariableRef)
-raw_parameter_refs(::InfiniteVariableRef)
-raw_parameter_refs(::SemiInfiniteVariableRef)
-infinite_variable_ref(::PointVariableRef)
-infinite_variable_ref(::SemiInfiniteVariableRef)
-parameter_values(::PointVariableRef)
-eval_supports(::SemiInfiniteVariableRef)
-raw_parameter_values(::PointVariableRef)
-JuMP.relax_integrality(::InfiniteModel)
-```

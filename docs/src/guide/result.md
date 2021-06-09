@@ -3,10 +3,9 @@ DocTestFilters = [r"≥|>=", r" == | = ", r" ∈ | in ", r"MathOptInterface|MOI"
                   r" for all | ∀ ", r"[0-9\.]+.*"]
 ```
 
-# Results
-A guide and manual to querying optimized `InfiniteOpt` models. The Methods 
-section at the bottom comprises the manual and the above sections form the 
-guide.
+# [Results](@id result_docs)
+A guide for querying optimized `InfiniteOpt` models. See the respective 
+[technical manual](@ref result_manual) for more details.
 
 ## Overview
 So far we have covered defining, transforming, and optimizing `InfiniteModel`s. 
@@ -476,43 +475,4 @@ julia> solution_summary(optimizer_model(model))
 
 * Work counters
   Solve time (sec)   : 0.01000
-```
-
-## Methods/DataTypes
-```@index
-Pages   = ["result.md"]
-Modules = [JuMP, InfiniteOpt]
-Order   = [:function, :type]
-```
-```@docs
-JuMP.termination_status(::InfiniteModel)
-JuMP.raw_status(::InfiniteModel)
-JuMP.primal_status(::InfiniteModel)
-JuMP.dual_status(::InfiniteModel)
-JuMP.solve_time(::InfiniteModel)
-JuMP.has_values(::InfiniteModel)
-JuMP.has_duals(::InfiniteModel)
-JuMP.simplex_iterations(::InfiniteModel)
-JuMP.barrier_iterations(::InfiniteModel)
-JuMP.node_count(::InfiniteModel)
-JuMP.objective_bound(::InfiniteModel)
-JuMP.objective_value(::InfiniteModel)
-JuMP.dual_objective_value(::InfiniteModel)
-JuMP.result_count(::InfiniteModel)
-JuMP.relative_gap(::InfiniteModel)
-JuMP.value(::GeneralVariableRef)
-JuMP.value(::InfOptConstraintRef)
-JuMP.value(::Union{JuMP.GenericAffExpr{<:Any, <:GeneralVariableRef}, JuMP.GenericQuadExpr{<:Any, <:GeneralVariableRef}})
-JuMP.reduced_cost(::GeneralVariableRef)
-JuMP.optimizer_index(::GeneralVariableRef)
-JuMP.optimizer_index(::InfOptConstraintRef)
-JuMP.dual(::InfOptConstraintRef)
-JuMP.shadow_price(::InfOptConstraintRef)
-JuMP.lp_sensitivity_report(::InfiniteModel)
-InfOptSensitivityReport 
-InfiniteOpt.map_value
-InfiniteOpt.map_optimizer_index
-InfiniteOpt.map_dual
-InfiniteOpt.map_shadow_price
-InfiniteOpt.map_reduced_cost
 ```

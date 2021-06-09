@@ -6,3 +6,4 @@
 /dev/
 /docs/build/
 /docs/site/
+/docs/src/examples/*/*.md

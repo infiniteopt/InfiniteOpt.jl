@@ -3,9 +3,10 @@ DocTestFilters = [r"≤|<=", r" == | = ", r" ∈ | in ", r"MathOptInterface|MOI"
                   r" for all | ∀ ", r"d|∂", r"integral|∫"]
 ```
 
-# [Expressions] (@id expr_page)
-A guide for the defining and understanding the variable expressions
-used in `InfiniteOpt`.
+# [Expressions](@id expr_docs)
+A guide for the defining and understanding the variable expressions 
+used in `InfiniteOpt`. See the [technical manual](@ref expr_manual) for more 
+details.
 
 !!! note 
     Nonlinear objects as defined by `JuMP.@NL[macro_name]` are not currently 
@@ -13,15 +14,15 @@ used in `InfiniteOpt`.
     information and possible workarounds. 
 
 ## Overview
-Expressions in `InfiniteOpt` (also called functions) refer to mathematical
-statements involving variables and numbers. Thus, these comprise the
-mathematical expressions used that are used in measures, objectives, and
-constraints. Programmatically, `InfiniteOpt` simply extends `JuMP` expression
-types and methods principally pertaining to affine and quadratic mathematical
-expressions. A natively supported abstraction for general nonlinear expressions
+Expressions in `InfiniteOpt` (also called functions) refer to mathematical 
+statements involving variables and numbers. Thus, these comprise the 
+mathematical expressions used that are used in measures, objectives, and 
+constraints. Programmatically, `InfiniteOpt` simply extends `JuMP` expression 
+types and methods principally pertaining to affine and quadratic mathematical 
+expressions. A natively supported abstraction for general nonlinear expressions 
 is planned for development since that of `JuMP` is not readily extendable.
 
-## Parameter Functions
+## [Parameter Functions](@id par_func_docs)
 As described further below, InfiniteOpt.jl only supports affine and quadratic 
 expressions in its current rendition. However, there several use cases where we 
 might want to provide a more complex known function of infinite parameter(s) (e.g., 
@@ -94,7 +95,7 @@ functions: [`@parameter_function`](@ref) and [`parameter_function`](@ref).
 
 Beyond this, there are number of query and modification methods that can be 
 employed for parameter functions and these are detailed in the 
-[Parameter Function Methods](@ref) Section below.
+[technical manual](@ref par_func_manual) Section below.
 
 ## Variable Hierarchy
 Expressions employ variable reference types inherited from
@@ -128,14 +129,14 @@ An affine expression pertains to a mathematical function of the form:
 ```math
 f_a(x) = a_1x_1 + ... + a_nx_n + b
 ```
-where ``x \in \mathbb{R}^n`` denote variables, ``a \in \mathbb{R}^n`` denote
-coefficients, and ``b \in \mathbb{R}`` denotes a constant value. Such
-expressions, are prevalent in any problem than involves linear constraints
+where ``x \in \mathbb{R}^n`` denote variables, ``a \in \mathbb{R}^n`` denote 
+coefficients, and ``b \in \mathbb{R}`` denotes a constant value. Such 
+expressions, are prevalent in any problem than involves linear constraints 
 and/or objectives.
 
-In `InfiniteOpt`, affine expressions can be defined directly
-using `Julia`'s arithmetic operators (i.e., `+`, `-`, `*`, etc.) or using
-`@expression`.  For example, let's define the expression
+In `InfiniteOpt`, affine expressions can be defined directly 
+using `Julia`'s arithmetic operators (i.e., `+`, `-`, `*`, etc.) or using 
+`@expression`.  For example, let's define the expression 
 ``2y(t) + z - 3t`` noting that the following methods are equivalent:
 ```jldoctest affine; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10])
@@ -159,9 +160,9 @@ julia> expr = @expression(model, 2y + z - 3t)
 julia> typeof(expr)
 GenericAffExpr{Float64,GeneralVariableRef}
 ```
-Notice that coefficients to variables can simply be put alongside variables
-without having to use the `*` operator. Also, note that all of these expressions
-are stored in a container referred to as a `GenericAffExpr` which is a `JuMP`
+Notice that coefficients to variables can simply be put alongside variables 
+without having to use the `*` operator. Also, note that all of these expressions 
+are stored in a container referred to as a `GenericAffExpr` which is a `JuMP` 
 object for storing affine expressions.
 
 !!! note
@@ -184,10 +185,10 @@ OrderedCollections.OrderedDict{GeneralVariableRef,Float64} with 3 entries:
 julia> expr.constant
 0.0
 ```
-Notice that the ordered dictionary preserves the order in which the variables
+Notice that the ordered dictionary preserves the order in which the variables 
 appear in the expression.
 
-More information can be found in the documentation for affine expressions in
+More information can be found in the documentation for affine expressions in 
 [`JuMP`](https://jump.dev/JuMP.jl/v0.21.8/reference/expressions/#Affine-expressions).
 
 ## Quadratic Expressions
@@ -211,8 +212,8 @@ julia> expr = @expression(model, 2y^2 - z * y + 42t - 3)
 julia> typeof(expr)
 GenericQuadExpr{Float64,GeneralVariableRef}
 ```
-Again, notice that coefficients need not employ `*`. Also, the object used to
-store the expression is a `GenericQuadExpr` which is a `JuMP` object used for
+Again, notice that coefficients need not employ `*`. Also, the object used to 
+store the expression is a `GenericQuadExpr` which is a `JuMP` object used for 
 storing quadratic expressions.
 
 `GenericQuadExpr` object contains 2 data fields which are:
@@ -221,7 +222,7 @@ storing quadratic expressions.
 Here the `UnorderedPair` type is unique to `JuMP` and contains the fields:
 - `a::AbstractVariableRef` One variable in a quadratic pair
 - `b::AbstractVariableRef` The other variable in a quadratic pair.
-Thus, this form can be used to store arbitrary quadratic expressions. For
+Thus, this form can be used to store arbitrary quadratic expressions. For 
 example, let's look at what these fields look like in the above example:
 ```jldoctest affine
 julia> expr.aff
@@ -238,8 +239,8 @@ OrderedCollections.OrderedDict{UnorderedPair{GeneralVariableRef},Float64} with 2
 Notice again that the ordered dictionary preserves the order.
 
 !!! tip
-    Polynomial expressions can be represented by introducing dumby variables
-    and nested quadratic/affine expressions. For instance, ``z^3 + 2`` can be
+    Polynomial expressions can be represented by introducing dumby variables 
+    and nested quadratic/affine expressions. For instance, ``z^3 + 2`` can be 
     expressed by introducing a dumby variable ``x = z^2``:
     ```jldoctest affine
     julia> @variable(model, x)
@@ -252,7 +253,7 @@ Notice again that the ordered dictionary preserves the order.
     z*x + 2
     ```
 
-More information can be found in the documentation for quadratic expressions in
+More information can be found in the documentation for quadratic expressions in 
 [`JuMP`](https://jump.dev/JuMP.jl/v0.21.8/reference/expressions/#Quadratic-expressions).
 
 ## Nonlinear Expressions
@@ -297,181 +298,8 @@ semi-definite and/or conic constraints.
 
 Also note that any nonlinearites that only involve infinite parameters (i.e., 
 no decision variables) are enabled via parameter functions. See 
-[Parameter Functions](@ref) for more information.
+[Parameter Functions](@ref par_func_docs) for more information.
 
 For problems that cannot be readily reformulated, `JuMP` can be used directly. In 
 this case the user will need to first transform the formulation into a finite 
 representation (e.g., discretize it). 
-
-## DataTypes
-```@index
-Pages   = ["expression.md"]
-Modules = [InfiniteOpt]
-Order   = [:type]
-```
-```@docs
-GeneralVariableRef
-DispatchVariableRef
-FiniteRef
-ParameterFunctionRef
-ParameterFunctionIndex
-ParameterFunction
-ParameterFunctionData
-```
-
-## Parameter Function Methods 
-```@docs
-@parameter_function
-parameter_function
-build_parameter_function
-add_parameter_function
-JuMP.name(::ParameterFunctionRef)
-JuMP.set_name(::ParameterFunctionRef, ::String)
-parameter_refs(::ParameterFunctionRef)
-raw_parameter_refs(::ParameterFunctionRef)
-parameter_list(::ParameterFunctionRef)
-raw_function(::ParameterFunctionRef)
-call_function
-used_by_semi_infinite_variable(::ParameterFunctionRef)
-used_by_derivative(::ParameterFunctionRef)
-used_by_measure(::ParameterFunctionRef)
-used_by_constraint(::ParameterFunctionRef)
-is_used(::ParameterFunctionRef)
-JuMP.delete(::InfiniteModel, ::ParameterFunctionRef)
-```
-
-## Expression Methods
-```@docs
-parameter_refs(::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr})
-```
-
-## GeneralVariableRef User Methods
-```@index
-Pages   = ["expression.md"]
-Modules = [InfiniteOpt, JuMP]
-Order   = [:macro, :function]
-```
-```@docs
-JuMP.owner_model(::GeneralVariableRef)
-JuMP.owner_model(::DispatchVariableRef)
-JuMP.index(::GeneralVariableRef)
-JuMP.index(::DispatchVariableRef)
-dispatch_variable_ref(::GeneralVariableRef)
-dispatch_variable_ref
-JuMP.name(::GeneralVariableRef)
-JuMP.set_name(::GeneralVariableRef, ::String)
-JuMP.is_valid(::InfiniteModel,::GeneralVariableRef)
-JuMP.is_valid(::InfiniteModel, ::DispatchVariableRef)
-used_by_infinite_variable(::GeneralVariableRef)
-used_by_point_variable(::GeneralVariableRef)
-used_by_semi_infinite_variable(::GeneralVariableRef)
-used_by_derivative(::GeneralVariableRef)
-used_by_measure(::GeneralVariableRef)
-used_by_objective(::GeneralVariableRef)
-used_by_constraint(::GeneralVariableRef)
-is_used(::GeneralVariableRef)
-has_derivative_constraints(::GeneralVariableRef)
-parameter_value(::GeneralVariableRef)
-JuMP.set_value(::GeneralVariableRef, ::Real)
-infinite_domain(::GeneralVariableRef)
-infinite_domain(::AbstractArray{<:GeneralVariableRef})
-set_infinite_domain(::GeneralVariableRef, ::InfiniteScalarDomain)
-set_infinite_domain(::AbstractArray{<:GeneralVariableRef}, ::InfiniteArrayDomain)
-num_supports(::GeneralVariableRef)
-num_supports(::AbstractArray{<:GeneralVariableRef})
-has_supports(::GeneralVariableRef)
-has_supports(::AbstractArray{<:GeneralVariableRef})
-supports(::GeneralVariableRef)
-supports(::AbstractArray{<:GeneralVariableRef})
-set_supports(::GeneralVariableRef,::Union{Real, Vector{<:Real}})
-set_supports(::AbstractArray{<:GeneralVariableRef},::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}})
-add_supports(::GeneralVariableRef,::Union{Real, Vector{<:Real}})
-add_supports(::AbstractArray{<:GeneralVariableRef},::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}})
-delete_supports(::GeneralVariableRef)
-delete_supports(::AbstractArray{<:GeneralVariableRef})
-fill_in_supports!(::GeneralVariableRef)
-fill_in_supports!(::AbstractArray{<:GeneralVariableRef})
-raw_parameter_refs(::GeneralVariableRef)
-parameter_refs(::GeneralVariableRef)
-parameter_list(::GeneralVariableRef)
-raw_function(::GeneralVariableRef)
-infinite_variable_ref(::GeneralVariableRef)
-eval_supports(::GeneralVariableRef)
-raw_parameter_values(::GeneralVariableRef)
-parameter_values(::GeneralVariableRef)
-significant_digits(::GeneralVariableRef)
-measure_function(::GeneralVariableRef)
-measure_data(::GeneralVariableRef)
-is_analytic(::GeneralVariableRef)
-derivative_argument(::GeneralVariableRef)
-operator_parameter(::GeneralVariableRef)
-derivative_method(::GeneralVariableRef)
-evaluate(::GeneralVariableRef)
-derivative_constraints(::GeneralVariableRef)
-delete_derivative_constraints(::GeneralVariableRef)
-InfiniteOpt.add_generative_supports(::GeneralVariableRef)
-set_derivative_method(::GeneralVariableRef, ::AbstractDerivativeMethod)
-has_generative_supports(::GeneralVariableRef)
-has_internal_supports(::GeneralVariableRef)
-JuMP.delete(::InfiniteModel, ::GeneralVariableRef)
-JuMP.delete(::InfiniteModel,::AbstractArray{<:GeneralVariableRef})
-JuMP.has_lower_bound(::GeneralVariableRef)
-JuMP.lower_bound(::GeneralVariableRef)
-JuMP.set_lower_bound(::GeneralVariableRef,::Real)
-JuMP.LowerBoundRef(::GeneralVariableRef)
-JuMP.delete_lower_bound(::GeneralVariableRef)
-JuMP.has_upper_bound(::GeneralVariableRef)
-JuMP.upper_bound(::GeneralVariableRef)
-JuMP.set_upper_bound(::GeneralVariableRef,::Real)
-JuMP.UpperBoundRef(::GeneralVariableRef)
-JuMP.delete_upper_bound(::GeneralVariableRef)
-JuMP.is_fixed(::GeneralVariableRef)
-JuMP.fix_value(::GeneralVariableRef)
-JuMP.fix(::GeneralVariableRef, ::Real)
-JuMP.FixRef(::GeneralVariableRef)
-JuMP.unfix(::GeneralVariableRef)
-JuMP.start_value(::GeneralVariableRef)
-JuMP.set_start_value(::GeneralVariableRef, ::Real)
-start_value_function(::GeneralVariableRef)
-set_start_value_function(::GeneralVariableRef, ::Any)
-reset_start_value_function(::GeneralVariableRef)
-JuMP.is_binary(::GeneralVariableRef)
-JuMP.set_binary(::GeneralVariableRef)
-JuMP.BinaryRef(::GeneralVariableRef)
-JuMP.unset_binary(::GeneralVariableRef)
-JuMP.is_integer(::GeneralVariableRef)
-JuMP.set_integer(::GeneralVariableRef)
-JuMP.IntegerRef(::GeneralVariableRef)
-JuMP.unset_integer(::GeneralVariableRef)
-```
-
-## Developer Internal Methods
-```@docs
-InfiniteOpt._add_data_object
-InfiniteOpt._data_dictionary
-InfiniteOpt._data_object
-InfiniteOpt._delete_data_object
-InfiniteOpt._core_variable_object
-InfiniteOpt._core_variable_object(::GeneralVariableRef)
-InfiniteOpt._set_core_variable_object
-InfiniteOpt._infinite_variable_dependencies
-InfiniteOpt._infinite_variable_dependencies(::GeneralVariableRef)
-InfiniteOpt._semi_infinite_variable_dependencies
-InfiniteOpt._semi_infinite_variable_dependencies(::GeneralVariableRef)
-InfiniteOpt._point_variable_dependencies
-InfiniteOpt._point_variable_dependencies(::GeneralVariableRef)
-InfiniteOpt._derivative_dependencies
-InfiniteOpt._derivative_dependencies(::GeneralVariableRef)
-InfiniteOpt._measure_dependencies
-InfiniteOpt._measure_dependencies(::GeneralVariableRef)
-InfiniteOpt._generative_measures
-InfiniteOpt._generative_measures(::GeneralVariableRef)
-InfiniteOpt._constraint_dependencies
-InfiniteOpt._constraint_dependencies(::GeneralVariableRef)
-InfiniteOpt._derivative_constraint_dependencies
-InfiniteOpt._derivative_constraint_dependencies(::GeneralVariableRef)
-InfiniteOpt._parameter_number
-InfiniteOpt._parameter_number(::GeneralVariableRef)
-InfiniteOpt._object_number
-InfiniteOpt._object_number(::GeneralVariableRef)
-```
