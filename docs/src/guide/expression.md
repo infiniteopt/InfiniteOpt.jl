@@ -72,7 +72,7 @@ additional positional/keyword arguments. We readily support this behavior since
 parameter functions can be defined with additional known arguments:
 ```jldoctest param_func
 julia> @parameter_function(model, pfunc_alt[i = 1:3] == t -> mysin(t, as[i], b = 0))
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  pfunc_alt[1](t)
  pfunc_alt[2](t)
  pfunc_alt[3](t)
@@ -158,7 +158,7 @@ julia> expr = @expression(model, 2y + z - 3t)
 2 y(t) + z - 3 t
 
 julia> typeof(expr)
-GenericAffExpr{Float64,GeneralVariableRef}
+GenericAffExpr{Float64, GeneralVariableRef}
 ```
 Notice that coefficients to variables can simply be put alongside variables 
 without having to use the `*` operator. Also, note that all of these expressions 
@@ -177,7 +177,7 @@ object for storing affine expressions.
 For example, let's see what these fields look like in the above example:
 ```jldoctest affine
 julia> expr.terms
-OrderedCollections.OrderedDict{GeneralVariableRef,Float64} with 3 entries:
+OrderedCollections.OrderedDict{GeneralVariableRef, Float64} with 3 entries:
   y(t) => 2.0
   z    => 1.0
   t    => -3.0
@@ -210,7 +210,7 @@ julia> expr = @expression(model, 2y^2 - z * y + 42t - 3)
 2 y(t)² - y(t)*z + 42 t - 3
 
 julia> typeof(expr)
-GenericQuadExpr{Float64,GeneralVariableRef}
+GenericQuadExpr{Float64, GeneralVariableRef}
 ```
 Again, notice that coefficients need not employ `*`. Also, the object used to 
 store the expression is a `GenericQuadExpr` which is a `JuMP` object used for 
@@ -229,10 +229,10 @@ julia> expr.aff
 42 t - 3
 
 julia> typeof(expr.aff)
-GenericAffExpr{Float64,GeneralVariableRef}
+GenericAffExpr{Float64, GeneralVariableRef}
 
 julia> expr.terms
-OrderedCollections.OrderedDict{UnorderedPair{GeneralVariableRef},Float64} with 2 entries:
+OrderedCollections.OrderedDict{UnorderedPair{GeneralVariableRef}, Float64} with 2 entries:
   UnorderedPair{GeneralVariableRef}(y(t), y(t)) => 2.0
   UnorderedPair{GeneralVariableRef}(y(t), z)    => -1.0
 ```

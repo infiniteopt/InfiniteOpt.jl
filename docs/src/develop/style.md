@@ -275,12 +275,12 @@ guide for markdown syntax is provided [here](https://www.markdownguide.org/).
 Also, note that `Documenter` enables unique functionality in addition to this 
 general guide.
 
-When a new Docstring is created as described above, it should be included on the 
-appropriate guide page in the `@docs` block at the bottom. Moreover, content 
-should be added in an appropriate section above (or perhaps in a new section) 
-that overviews how to implement the new capabilities in an example driven fashion. 
-These examples should use `jldoctest`s where possible as well to assess whether 
-the example code is functional.
+When a new Docstring is created as described above, it should be included in the 
+appropriate `@docs` block on its corresponding manual page. Moreover, content 
+should be added in an appropriate section (or perhaps in a new section) in the 
+guide that overviews how to implement the new capabilities in an example driven 
+fashion. These examples should use `jldoctest`s where possible as well to assess 
+whether the example code is functional.
 
 Documentation content should be concise and use examples and lists where possible 
 to provide a more visual guide. Also, we ask that passive voice be avoided.
@@ -293,3 +293,119 @@ for problems which may include:
  - unrecognized formats
  - missing package dependencies
  - etc.
+
+## Case Study Examples
+We use [`Literate.jl`](https://fredrikekre.github.io/Literate.jl/v2.8/) to run 
+the case studies in `./docs/src/examples/` and generate markdown files that are 
+incorporated into the documentation for the `Examples` sections. 
+
+A new case study example can be added to an appropriate sub-folder of 
+`./docs/src/examples/` (a new sub-folder can be made if needed). The example file 
+should be `.jl` file that uses comments in accordance with `Literate.jl`'s format. 
+This is exemplified below:
+```julia
+# # My Example Name
+# Text to introduce my example...
+
+# ## Background 
+# Text that describes the problem we are trying to solve. We can also include 
+# latex math like ``x^2`` and math blocks such as:
+# ```math 
+# x^2 + y = 1
+# ```
+
+# ## Formulation
+# Text to introduce as needed...
+using InfiniteOpt, Clp # import the needed packages
+
+## This comment type will be part of the code block
+model = InfiniteModel(Clp.Optimizer) # add side comments to code
+
+# This comment type will be Markdown again, thus breaking up the code block
+@infinite_parameter(model, t in [0, 1], num_supports = 42)
+@variable(model, y >= 0, Infinite(t))
+
+optimize!(model)
+
+## TODO add more code
+
+# ### Maintenance Tests
+# These are here to ensure this example stays up to date. 
+using Test
+@test termination_status(model) == MOI.OPTIMAL
+@test has_values(model)
+## Add more tests as appropriate
+```
+The above file will then be tested and incorporated into the documentation when 
+`./docs/make.jl` is called. Notice that we also have the "Maintenance Test" 
+section at the end that will be used to run checks to ensure the example script 
+is working as expected (this helps ensure the documentation is up to date).
+
+The above example would produce the following markdown file via `Literate.jl`:
+````markdown
+# My Example Name
+Text to introduce my example...
+
+## Background
+Text that describes the problem we are trying to solve. We can also include
+latex math like ``x^2`` and math blocks such as:
+```math
+x^2 + y = 1
+```
+
+## Formulation
+Text to introduce as needed...
+
+```julia
+using InfiniteOpt, Clp # import the needed packages
+
+# This comment type will be part of the code block
+model = InfiniteModel(Clp.Optimizer) # add side comments to code
+
+```
+
+```julia
+An InfiniteOpt Model
+Feasibility problem with:
+Finite Parameters: 0
+Infinite Parameters: 0
+Variables: 0
+Derivatives: 0
+Measures: 0
+Optimizer model backend information:
+Model mode: AUTOMATIC
+CachingOptimizer state: EMPTY_OPTIMIZER
+Solver name: Clp
+```
+
+This comment type will be Markdown again, thus breaking up the code block
+
+```julia
+@infinite_parameter(model, t in [0, 1], num_supports = 42)
+@variable(model, y >= 0, Infinite(t))
+
+optimize!(model)
+
+# TODO add more code
+```
+
+### Maintenance Tests
+These are here to ensure this example stays up to date.
+
+```julia
+using Test
+@test termination_status(model) == MOI.OPTIMAL
+@test has_values(model)
+# Add more tests as appropriate
+```
+
+```
+Test Passed
+```
+
+---
+
+*This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
+
+
+````

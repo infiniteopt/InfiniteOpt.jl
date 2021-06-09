@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@latest
         with:
-          version: '1.0' # Build documentation on Julia 1.0
+          version: '1.6' # Build documentation on Julia 1.6
       - name: Install curl 
         run: sudo apt-get install curl
       - name: Install dependencies

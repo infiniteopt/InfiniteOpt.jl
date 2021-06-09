@@ -132,7 +132,7 @@ julia> par = @infinite_parameter(model, domain = DisjointDomain(0, 2, 3, 4), num
 noname
 
 julia> supports(par)
-10-element Array{Float64,1}:
+10-element Vector{Float64}:
  0.0
  0.333333333333
  0.666666666667
@@ -295,7 +295,7 @@ julia> dy = deriv(y, t);
 julia> evaluate(dy)
 
 julia> derivative_constraints(dy)
-2-element Array{InfOptConstraintRef,1}:
+2-element Vector{InfOptConstraintRef}:
  y(5) - y(0) - 5 ∂/∂t[y(t)](0) = 0.0
  y(10) - y(5) - 5 ∂/∂t[y(t)](5) = 0.0
 ```
@@ -1011,7 +1011,7 @@ julia> result_count(model)
 1
 
 julia> value.(y)
-2-element Array{Float64,1}:
+2-element Vector{Float64}:
  0.0
  1.224744871391589
 

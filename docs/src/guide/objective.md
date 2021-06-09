@@ -33,7 +33,7 @@ julia> @variable(model, y, Infinite(ξ))
 y(ξ)
 
 julia> @variable(model, x[1:2])
-2-element Array{GeneralVariableRef,1}:
+2-element Vector{GeneralVariableRef}:
  x[1]
  x[2]
 
@@ -75,7 +75,7 @@ julia> objective_function(model)
 0.5 x[1] + 0.5 x[2] + 𝔼{ξ}[y(ξ)² - y(ξ)]
 
 julia> objective_function_type(model)
-GenericAffExpr{Float64,GeneralVariableRef}
+GenericAffExpr{Float64, GeneralVariableRef}
 ```
 The objective sense can be one of three possibilities: `MIN_SENSE`, `MAX_SENSE`, 
 or `FEASIBILITY_SENSE`. The later sense applies to models that contain no 

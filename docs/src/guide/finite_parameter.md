@@ -32,7 +32,7 @@ An array of parameters can also be defined following standard `JuMP` macro synta
 julia> values = [2, 3.2, 1];
 
 julia> @finite_parameter(model, params[i = 1:3] == values[i])
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  params[1]
  params[2]
  params[3]

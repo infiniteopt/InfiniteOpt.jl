@@ -408,7 +408,7 @@ julia> fill_in_supports!(t, num_supports = 3) # add supports first
 julia> evaluate(d1)
 
 julia> derivative_constraints(d1)
-2-element Array{InfOptConstraintRef,1}:
+2-element Vector{InfOptConstraintRef}:
  5 ∂/∂t[y(t, ξ)](5, ξ) - y(10, ξ) + y(5, ξ) = 0.0, ∀ ξ ~ Uniform
  5 ∂/∂t[y(t, ξ)](0, ξ) - y(5, ξ) + y(0, ξ) = 0.0, ∀ ξ ~ Uniform
 ```
@@ -425,7 +425,7 @@ julia> fill_in_supports!(ξ, num_supports = 4) # add supports first
 julia> evaluate_all_derivatives!(model)
 
 julia> derivative_constraints(dydt2)
-2-element Array{InfOptConstraintRef,1}:
+2-element Vector{InfOptConstraintRef}:
  5 dydt2(5, ξ) - ∂/∂t[y(t, ξ)](10, ξ) + ∂/∂t[y(t, ξ)](5, ξ) = 0.0, ∀ ξ ~ Uniform
  5 dydt2(0, ξ) - ∂/∂t[y(t, ξ)](5, ξ) + ∂/∂t[y(t, ξ)](0, ξ) = 0.0, ∀ ξ ~ Uniform
 ```
@@ -436,7 +436,7 @@ or derivative method will necessitate the deletion of these auxiliary constraint
 and a warning will be thrown to indicate such:
 ```jldoctest deriv_basic
 julia> derivative_constraints(d1)
-2-element Array{InfOptConstraintRef,1}:
+2-element Vector{InfOptConstraintRef}:
  5 ∂/∂t[y(t, ξ)](5, ξ) - y(10, ξ) + y(5, ξ) = 0.0, ∀ ξ ~ Uniform
  5 ∂/∂t[y(t, ξ)](0, ξ) - y(5, ξ) + y(0, ξ) = 0.0, ∀ ξ ~ Uniform
 
@@ -525,7 +525,7 @@ julia> num_derivatives(model)
 7
 
 julia> all_derivatives(model)
-7-element Array{GeneralVariableRef,1}:
+7-element Vector{GeneralVariableRef}:
  ∂/∂t[y(t, ξ)]
  ∂/∂ξ[∂/∂t[y(t, ξ)]]
  ∂/∂t[q(t)]

@@ -94,7 +94,7 @@ We get a single value since `z` is a `FiniteVariable` and therefore finite. Now
 let's retrieve the "value" of `y(t)` which is infinite with respect to `t`:
 ```jldoctest results
 julia> value(y)
-10-element Array{Float64,1}:
+10-element Vector{Float64}:
  42.0
  20.999999995620495
  20.999999995620495
@@ -111,7 +111,7 @@ transcribed finite (discretized) variables used to solve the problem. We obtain
 the corresponding support (discretized `t`) values via `supports`:
 ```jldoctest results
 julia> supports(y)
-10-element Array{Tuple,1}:
+10-element Vector{Tuple}:
  (0.0,)
  (1.11111111111,)
  (2.22222222222,)
@@ -144,7 +144,7 @@ julia> has_duals(model)
 true
 
 julia> dual(c1)
-10-element Array{Float64,1}:
+10-element Vector{Float64}:
  1.9999999988666093
  1.1930560126841273e-10
  1.1930560126841273e-10
@@ -164,7 +164,7 @@ julia> parameter_refs(c1)
 (t,)
 
 julia> supports(c1)
-10-element Array{Tuple,1}:
+10-element Vector{Tuple}:
  (0.0,)
  (1.11111111111,)
  (2.22222222222,)
@@ -279,7 +279,7 @@ julia> optimizer_index(z)
 MathOptInterface.VariableIndex(1)
 
 julia> optimizer_index(y)
-10-element Array{MathOptInterface.VariableIndex,1}:
+10-element Vector{MathOptInterface.VariableIndex}:
  MathOptInterface.VariableIndex(2)
  MathOptInterface.VariableIndex(3)
  MathOptInterface.VariableIndex(4)
@@ -323,7 +323,7 @@ julia> constraint_object(c1).func # show the function expression of c1
 z - y(t)
 
 julia> value(c1)
-10-element Array{Float64,1}:
+10-element Vector{Float64}:
  -8.747427671096375e-9
  20.999999995632077
  20.999999995632077
@@ -344,7 +344,7 @@ Next the optimizer index(es) of the transcribed constraints in the
 [`optimizer_index`](@ref JuMP.optimizer_index(::InfOptConstraintRef)).
 ```jldoctest results
 julia> optimizer_index(c1)
-10-element Array{MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}},1}:
+10-element Vector{MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64}, MathOptInterface.GreaterThan{Float64}}}:
  MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(1)
  MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(2)
  MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(3)
@@ -370,7 +370,7 @@ true
 Now we can query the duals via [`dual`](@ref JuMP.dual(::InfOptConstraintRef)).
 ```jldoctest results
 julia> dual(c1)
-10-element Array{Float64,1}:
+10-element Vector{Float64}:
  1.9999999988666093
  1.1930560126841273e-10
  1.1930560126841273e-10
@@ -391,7 +391,7 @@ the change in the objective value due to an infinitesimal relaxation of the
 constraint. For `c1` we get:
 ```jldoctest results
 julia> shadow_price(c1)
-10-element Array{Float64,1}:
+10-element Vector{Float64}:
  -1.9999999988666093
  -1.1930560126841273e-10
  -1.1930560126841273e-10
@@ -421,7 +421,7 @@ support this A solver like `Gurobi.jl` does.
 julia> report = lp_sensitivity_report(model);
 
 julia> report[c1]
-10-element Array{Tuple{Float64,Float64},1}:
+10-element Vector{Tuple{Float64, Float64}}:
  (-42.0, Inf)
  (-Inf, 42.0)
  (-Inf, 42.0)
@@ -442,7 +442,7 @@ discretization scheme. Also, keyword arguments (like `ndarray` and `label`) can
 be invoked when indexing the report:
 ```julia-repl
 julia> report[c1, label = All]
-10-element Array{Tuple{Float64,Float64},1}:
+10-element Vector{Tuple{Float64, Float64}}:
  (-42.0, Inf)
  (-Inf, 42.0)
  (-Inf, 42.0)

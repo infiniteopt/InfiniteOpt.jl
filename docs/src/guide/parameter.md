@@ -40,12 +40,12 @@ When the model is optimized, `t` will be transcribed (discretized) over its doma
 following its support points. Users can specify support points via the  
 `num_supports` or `supports` keyword arguments. For example, if we desire to 
 have only 10 equi-distant supports then we could have instead defined `t`: 
-```jldoctest; setup = :(using JuMP, InfiniteOpt; model = InfiniteModel()) 
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel()) 
 julia> @infinite_parameter(model, t in [0, 10], num_supports = 10)
 t
 ```
 More complex support schemes can be specified via `supports` such as:
-```jldoctest; setup = :(using JuMP, InfiniteOpt; model = InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10], supports = [0, 2, 7, 10])
 t
 ```
@@ -58,7 +58,7 @@ no supports and we now wish to add 4 supports:
 julia> add_supports(t, [0., 2.5, 7.5, 10.])
 
 julia> supports(t)
-4-element Array{Float64,1}:
+4-element Vector{Float64}:
   0.0
   2.5
   7.5
@@ -82,7 +82,7 @@ Normal distribution:
 julia> using Distributions
 
 julia> @infinite_parameter(model, ξ[i = 1:3] ~ Normal(), independent = true)
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  ξ[1]
  ξ[2]
  ξ[3]
@@ -95,7 +95,7 @@ Supports can also be specified for each parameter as shown above. Similarly, the
 More interestingly, we can also define multi-variate random parameters, for example:
 ```jldoctest basic
 julia> @infinite_parameter(model, θ[1:2] ~ MvNormal([0, 0], [1, 1]))
-2-element Array{GeneralVariableRef,1}:
+2-element Vector{GeneralVariableRef}:
  θ[1]
  θ[2]
 ```
@@ -231,7 +231,7 @@ We can also define multi-dimensional infinite parameters in a concise way. For
 example, consider a position parameter ``x \in [0, 1]^3``:
 ```jldoctest macro_define
 julia> @infinite_parameter(model, x[1:3] in [0, 1], independent = true, num_supports = 3)
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  x[1]
  x[2]
  x[3]
@@ -242,13 +242,13 @@ their individual domains. In this example, we defined 3 supports for each `x[i]`
 such that there will be ``3^3 = 27`` supports for the overall domain:
 ```jldoctest macro_define
 julia> supports(x[1])
-3-element Array{Float64,1}:
+3-element Vector{Float64}:
  0.0
  0.5
  1.0
 
 julia> supports(x)
-3×27 Array{Float64,2}:
+3×27 Matrix{Float64}:
  0.0  0.5  1.0  0.0  0.5  1.0  0.0  0.5  …  1.0  0.0  0.5  1.0  0.0  0.5  1.0
  0.0  0.0  0.0  0.5  0.5  0.5  1.0  1.0     0.0  0.5  0.5  0.5  1.0  1.0  1.0
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     1.0  1.0  1.0  1.0  1.0  1.0  1.0
@@ -267,7 +267,7 @@ dim: 2
 )
 
 julia> @infinite_parameter(model, θ[1:2] ~ dist, num_supports = 3)
-2-element Array{GeneralVariableRef,1}:
+2-element Vector{GeneralVariableRef}:
  θ[1]
  θ[2]
 ```
@@ -275,7 +275,7 @@ Here 3 supports are generated for all the parameters simultaneously according to
 the distribution. 
 ```jldoctest macro_define
 julia> supports(θ)
-2×3 Array{Float64,2}:
+2×3 Matrix{Float64}:
  -0.353007  0.679107  0.586617
  -0.190712  1.17155   0.420496
 ```
@@ -288,13 +288,13 @@ Anonymous groups of parameters can be defined as follows:
 ```jldoctest macro_define
 julia> x = @infinite_parameter(model, [1:3] in [0, 1], independent = true, 
                                num_supports = 3, base_name = "x")
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  x[1]
  x[2]
  x[3]
 
 julia> θ = @infinite_parameter(model, [1:2] ~ dist, num_supports = 3, base_name = "θ")
-2-element Array{GeneralVariableRef,1}:
+2-element Vector{GeneralVariableRef}:
  θ[1]
  θ[2]
 ```
@@ -305,8 +305,8 @@ Because we build on JuMP, we can use any indices we like when making containers
 ```jldoctest; setup = :(using InfiniteOpt; model= InfiniteModel())
 julia> @infinite_parameter(model, x[i = [:a, :b]] in [0, 1])
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
-    Dimension 1, Symbol[:a, :b]
-And data, a 2-element Array{GeneralVariableRef,1}:
+    Dimension 1, [:a, :b]
+And data, a 2-element Vector{GeneralVariableRef}:
  x[a]
  x[b]
 ```
@@ -328,7 +328,7 @@ julia> @infinite_parameter(model, t in [0, 10], supports = [0, 2, 5, 7, 10])
 t
 
 julia> supports(t)
-5-element Array{Float64,1}:
+5-element Vector{Float64}:
   0.0
   2.0
   5.0
@@ -363,7 +363,7 @@ goal:
 julia> add_supports(t, [3, 8])
 
 julia> supports(t)
-7-element Array{Float64,1}:
+7-element Vector{Float64}:
   0.0
   2.0
   3.0
@@ -379,7 +379,7 @@ new supports provided:
 julia> set_supports(t, [0,3,5,8,10], force = true)
 
 julia> supports(t)
-5-element Array{Float64,1}:
+5-element Vector{Float64}:
   0.0
   3.0
   5.0
@@ -412,7 +412,7 @@ julia> @infinite_parameter(model, t in [0, 10], num_supports = 4, sig_digits = 3
 t
 
 julia> supports(t)
-4-element Array{Float64,1}:
+4-element Vector{Float64}:
   0.0   
   3.33
   6.67
@@ -431,7 +431,7 @@ julia> @infinite_parameter(model, x ~ Normal(), num_supports = 4)
 x
 
 julia> supports(x)
-4-element Array{Float64,1}:
+4-element Vector{Float64}:
  -0.353007400301
  -0.134853871931
   0.679107426036
@@ -478,7 +478,7 @@ julia> @infinite_parameter(model, x[1:3] in [0, 1], independent = true);
 julia> fill_in_supports!.(x, num_supports = 3);
 
 julia> supports.(x)
-3-element Array{Array{Float64,1},1}:
+3-element Vector{Vector{Float64}}:
  [0.0, 0.5, 1.0]
  [0.0, 0.5, 1.0]
  [0.0, 0.5, 1.0]
@@ -492,7 +492,7 @@ each dimension. We can view this grid by simply invoking `supports` without the
 vectorized syntax:
 ```jldoctest supp_gen_defined
 julia> supports(x)
-3×27 Array{Float64,2}:
+3×27 Matrix{Float64}:
  0.0  0.5  1.0  0.0  0.5  1.0  0.0  0.5  …  1.0  0.0  0.5  1.0  0.0  0.5  1.0
  0.0  0.0  0.0  0.5  0.5  0.5  1.0  1.0     0.0  0.5  0.5  0.5  1.0  1.0  1.0
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     1.0  1.0  1.0  1.0  1.0  1.0  1.0
@@ -520,7 +520,7 @@ julia> @infinite_parameter(model, ξ[1:2] ~ dist);
 julia> fill_in_supports!(ξ, num_supports = 3)
 
 julia> supports(ξ)
-2×3 Array{Float64,2}:
+2×3 Matrix{Float64}:
  -0.353007  0.679107  0.586617
  -0.190712  1.17155   0.420496
 ```
@@ -615,7 +615,7 @@ with a model, while [`all_parameters`](@ref) returns the list of all infinite
 parameter references in the model. For a quick example: 
 ```jldoctest param_queries
 julia> @infinite_parameter(model, y[1:2] in [0, 5])
-2-element Array{GeneralVariableRef,1}:
+2-element Vector{GeneralVariableRef}:
  y[1]
  y[2]
 
@@ -623,7 +623,7 @@ julia> num_parameters(model)
 3
 
 julia> all_parameters(model)
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  x   
  y[1]
  y[2]
@@ -641,7 +641,7 @@ example, to change the parameter `x` to `t` we can do:
 julia> JuMP.set_name(x, "t")
 
 julia> all_parameters(model)
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  t   
  y[1]
  y[2]

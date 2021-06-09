@@ -73,9 +73,9 @@ julia> trans_model = optimizer_model(inf_model)
 A JuMP Model
 Minimization problem with:
 Variables: 4
-Objective function type: GenericAffExpr{Float64,VariableRef}
-`GenericAffExpr{Float64,VariableRef}`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
-`GenericQuadExpr{Float64,VariableRef}`-in-`MathOptInterface.LessThan{Float64}`: 3 constraints
+Objective function type: AffExpr
+`AffExpr`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
+`QuadExpr`-in-`MathOptInterface.LessThan{Float64}`: 3 constraints
 `VariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 3 constraints
 `VariableRef`-in-`MathOptInterface.ZeroOne`: 1 constraint
 Model mode: AUTOMATIC
@@ -109,7 +109,7 @@ have been introduced to discretize `y(t)` at supports 1, 2, and 3 which correspo
 to 0, 5, and 10 as can be queried by `supports`:
 ```jldoctest transcribe
 julia> supports(y)
-3-element Array{Tuple,1}:
+3-element Vector{Tuple}:
  (0.0,)
  (5.0,)
  (10.0,)
@@ -120,7 +120,7 @@ point. Furthermore, the transcription variable(s) of any variable associated wit
 the infinite model can be determined via [`transcription_variable`](@ref):
 ```jldoctest transcribe
 julia> transcription_variable(y)
-3-element Array{VariableRef,1}:
+3-element Vector{VariableRef}:
  y(support: 1)
  y(support: 2)
  y(support: 3)
@@ -136,13 +136,13 @@ julia> transcription_constraint(initial)
 initial(support: 1) : y(support: 1) = 1.0
 
 julia> transcription_constraint(constr)
-3-element Array{ConstraintRef,1}:
+3-element Vector{ConstraintRef}:
  constr(support: 1) : y(support: 1)² - z ≤ 42.0
  constr(support: 2) : y(support: 2)² - z ≤ 42.0
  constr(support: 3) : y(support: 3)² - z ≤ 42.0
 
 julia> supports(constr)
-3-element Array{Tuple,1}:
+3-element Vector{Tuple}:
  (0.0,)
  (5.0,)
  (10.0,)
@@ -268,7 +268,7 @@ but this is precisely what `InfiniteOpt` automates behind the scenes. Let's
 highlight this by repeating the same example using `InfiniteOpt` (again using 
 the incorrect simple representation for the integrals for conciseness).
 ```jldoctest trans_example
-using JuMP, InfiniteOpt
+using InfiniteOpt
 
 # Initialize model
 inf_model = InfiniteModel()
@@ -339,12 +339,12 @@ combinations are determined automatically and are represented visually as
 `support: #`. The precise support values can be looked up via `supports`:
 ```jldoctest trans_example
 julia> supports(y)
-2-element Array{Tuple,1}:
+2-element Vector{Tuple}:
  (0.0,)
  (10.0,)
 
 julia> supports(g)
-8-element Array{Tuple,1}:
+8-element Vector{Tuple}:
  (0.0, [-1.0, -1.0])
  (10.0, [-1.0, -1.0])
  (0.0, [1.0, -1.0])
@@ -355,7 +355,7 @@ julia> supports(g)
  (10.0, [1.0, 1.0])
 
 julia> supports(g, ndarray = true) # format it as an n-dimensional array (t by x[1] by x[2])
-2×2×2 Array{Tuple,3}:
+2×2×2 Array{Tuple, 3}:
 [:, :, 1] =
  (0.0, [-1.0, -1.0])   (0.0, [1.0, -1.0])
  (10.0, [-1.0, -1.0])  (10.0, [1.0, -1.0])
@@ -392,9 +392,9 @@ julia> model2 = optimizer_model(inf_model) # generate from an InfiniteModel
 A JuMP Model
 Minimization problem with:
 Variables: 4
-Objective function type: GenericAffExpr{Float64,VariableRef}
-`GenericAffExpr{Float64,VariableRef}`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
-`GenericQuadExpr{Float64,VariableRef}`-in-`MathOptInterface.LessThan{Float64}`: 3 constraints
+Objective function type: AffExpr
+`AffExpr`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
+`QuadExpr`-in-`MathOptInterface.LessThan{Float64}`: 3 constraints
 `VariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 3 constraints
 `VariableRef`-in-`MathOptInterface.ZeroOne`: 1 constraint
 Model mode: AUTOMATIC
@@ -447,7 +447,7 @@ the basic usage section, this is done:
 julia> build_optimizer_model!(inf_model); trans_model = optimizer_model(inf_model);
 
 julia> transcription_variable(trans_model, y)
-3-element Array{VariableRef,1}:
+3-element Vector{VariableRef}:
  y(support: 1)
  y(support: 2)
  y(support: 3)
@@ -465,7 +465,7 @@ Similarly, the parameter supports corresponding to the transcription variables
 [`supports`](@ref):
 ```jldoctest transcribe
 julia> supports(y)
-3-element Array{Tuple,1}:
+3-element Vector{Tuple}:
  (0.0,)
  (5.0,)
  (10.0,)
@@ -504,13 +504,13 @@ julia> supports(meas)
 ()
 
 julia> transcription_expression(y^2 + z - 42)
-3-element Array{AbstractJuMPScalar,1}:
+3-element Vector{AbstractJuMPScalar}:
  y(support: 1)² + z - 42
  y(support: 2)² + z - 42
  y(support: 3)² + z - 42
 
 julia> supports(y^2 + z - 42)
-3-element Array{Tuple,1}:
+3-element Vector{Tuple}:
  (0.0,)
  (5.0,)
  (10.0,)

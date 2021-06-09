@@ -101,9 +101,9 @@ julia> trans_model = optimizer_model(model)
 A JuMP Model
 Minimization problem with:
 Variables: 11
-Objective function type: GenericAffExpr{Float64,VariableRef}
-`GenericAffExpr{Float64,VariableRef}`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
-`GenericAffExpr{Float64,VariableRef}`-in-`MathOptInterface.GreaterThan{Float64}`: 10 constraints
+Objective function type: AffExpr
+`AffExpr`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
+`AffExpr`-in-`MathOptInterface.GreaterThan{Float64}`: 10 constraints
 `VariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 11 constraints
 Model mode: AUTOMATIC
 CachingOptimizer state: ATTACHED_OPTIMIZER
@@ -117,7 +117,7 @@ Using a `TranscriptionModel` this equivalent to calling
 [`transcription_variable`](@ref). Thus, using the going example we get:
 ```jldoctest optimize
 julia> optimizer_model_variable(y) # infinite variable
-10-element Array{VariableRef,1}:
+10-element Vector{VariableRef}:
  y(support: 1)
  y(support: 2)
  y(support: 3)
@@ -139,7 +139,7 @@ Using a `TranscriptionModel` this equivalent to calling
 [`transcription_constraint`](@ref). Thus, using going example we get: 
 ```jldoctest optimize
 julia> optimizer_model_constraint(c1) # infinite constraint
-10-element Array{ConstraintRef,1}:
+10-element Vector{ConstraintRef}:
  c1(support: 1) : z - y(support: 1) ≥ 0.0
  c1(support: 2) : z - y(support: 2) ≥ 0.0
  c1(support: 3) : z - y(support: 3) ≥ 0.0
@@ -155,7 +155,7 @@ We can also query the expressions via
 [`optimizer_model_expression`](@ref optimizer_model_expression(::JuMP.AbstractJuMPScalar)):
 ```jldoctest optimize
 julia> optimizer_model_expression(z - y^2 + 3) # infinite expression
-10-element Array{AbstractJuMPScalar,1}:
+10-element Vector{AbstractJuMPScalar}:
  -y(support: 1)² + z + 3
  -y(support: 2)² + z + 3
  -y(support: 3)² + z + 3

@@ -206,7 +206,7 @@ For example, we can define a discretization scheme for a 2D position parameter
 ``x \in [0, 1] \times [0, 1]`` as follows:
 ```jldoctest meas_basic
 julia> @infinite_parameter(model, x[1:2] in [0, 1])
-2-element Array{GeneralVariableRef,1}:
+2-element Vector{GeneralVariableRef}:
  x[1]
  x[2]
 
@@ -343,7 +343,7 @@ trans_m = optimizer_model(m);
 A JuMP Model
 Minimization problem with:
 Variables: 3
-Objective function type: GenericQuadExpr{Float64,VariableRef}
+Objective function type: QuadExpr
 Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
@@ -356,13 +356,13 @@ the same supports are used in both the objective function and the transcribed
 variable:
 ```jldoctest support_manage
 julia> supports(t) 
-3-element Array{Float64,1}:
+3-element Vector{Float64}:
  0.0
  1.0
  2.0
 
 julia> transcription_variable(u)  
-3-element Array{VariableRef,1}:
+3-element Vector{VariableRef}:
  u(support: 1)
  u(support: 2)
  u(support: 3)
@@ -385,7 +385,7 @@ trans_m = optimizer_model(m);
 A JuMP Model
 Minimization problem with:
 Variables: 5
-Objective function type: GenericQuadExpr{Float64,VariableRef}
+Objective function type: QuadExpr
 Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
@@ -395,7 +395,7 @@ Now let's look again at the number of supports, the transcription of `u`, and th
 new objective function:
 ```jldoctest support_manage
 julia> supports(t) 
-5-element Array{Float64,1}:
+5-element Vector{Float64}:
  0.0
  0.42264973081
  1.0
@@ -403,7 +403,7 @@ julia> supports(t)
  2.0
 
 julia> transcription_variable(u)  
-5-element Array{VariableRef,1}:
+5-element Vector{VariableRef}:
  u(support: 1)
  u(support: 2)
  u(support: 3)
@@ -443,7 +443,7 @@ trans_m = optimizer_model(m);
 A JuMP Model
 Minimization problem with:
 Variables: 2
-Objective function type: GenericQuadExpr{Float64,VariableRef}
+Objective function type: QuadExpr
 Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
@@ -452,12 +452,12 @@ Solver name: No optimizer attached.
 Then we get the supports are consistent for `u` and the integral:
 ```jldoctest support_manage
 julia> supports(t) 
-2-element Array{Float64,1}:
+2-element Vector{Float64}:
  0.42264973081
  1.57735026919
 
 julia> transcription_variable(u)  
-2-element Array{VariableRef,1}:
+2-element Vector{VariableRef}:
  u(support: 1)
  u(support: 2)
 
@@ -496,7 +496,7 @@ julia> expanded_measure = expand(mref4)
 5 y(2.5)² + 5 y(7.5)²
 
 julia> typeof(expanded_measure)
-GenericQuadExpr{Float64,GeneralVariableRef}
+GenericQuadExpr{Float64, GeneralVariableRef}
 ```
 In the expand call, two point variables, `y(2.5)` and `y(7.5)`, are created 
 because they are not defined in the model before the expand call. One can use 

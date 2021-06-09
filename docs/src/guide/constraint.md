@@ -74,7 +74,7 @@ an additional argument before the constraint expression. For example,
 let's define ``3z_i - 14 = 0, \ \forall i \in \{1,2\}``:
 ```jldoctest constrs
 julia> @constraint(model, c2[i = 1:2], 3z[i] - 14 == 0)
-2-element Array{InfOptConstraintRef,1}:
+2-element Vector{InfOptConstraintRef}:
  c2[1] : 3 z[1] = 14.0
  c2[2] : 3 z[2] = 14.0
 ```
@@ -88,12 +88,12 @@ Building upon `JuMP` we support a variety of multi-dimensional constraint types.
 For example, we can define the vector constraint:
 ```jldoctest constrs
 julia> A = [1 2; 3 4]
-2×2 Array{Int64,2}:
+2×2 Matrix{Int64}:
  1  2
  3  4
 
 julia> b = [5, 6]
-2-element Array{Int64,1}:
+2-element Vector{Int64}:
  5
  6
 
@@ -216,7 +216,7 @@ The indexing expression can be used to produce an array of constraints as shown
 below (notice this is equivalent to looping over individual `@constraint` calls):
 ```jldoctest constrs
 julia> crefs = @constraint(model, [i = 1:2], 2z[i] - yb == 0)
-2-element Array{InfOptConstraintRef,1}:
+2-element Vector{InfOptConstraintRef}:
  2 z[1] - yb(t) = 0.0, ∀ t ∈ [0, 10]
  2 z[2] - yb(t) = 0.0, ∀ t ∈ [0, 10]
 
@@ -227,7 +227,7 @@ julia> for i = 1:2
        end
 
 julia> crefs
-2-element Array{InfOptConstraintRef,1}:
+2-element Vector{InfOptConstraintRef}:
  2 z[1] - yb(t) = 0.0, ∀ t ∈ [0, 10]
  2 z[2] - yb(t) = 0.0, ∀ t ∈ [0, 10]
 ```
@@ -269,7 +269,7 @@ For example, we can define the constraint ``y_a^2(t, x) + z_i \leq 1`` and
 restrict the infinite domain of ``x_i`` to be ``[0, 1]``:
  ```jldoctest constrs
 julia> @constraint(model, [i = 1:2], ya^2 + z[i] <= 1, DomainRestrictions(x[i] => [0, 1]))
-2-element Array{InfOptConstraintRef,1}:
+2-element Vector{InfOptConstraintRef}:
  ya(t, x)² + z[1] ≤ 1.0, ∀ t ∈ [0, 10], x[1] ∈ [0, 1], x[2] ∈ [-2, 2]
  ya(t, x)² + z[2] ≤ 1.0, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [0, 1]
 ```
@@ -359,11 +359,11 @@ that constraints are stored in the form `func-in-set`). Thus, for our current
 model we obtain:
 ```julia-repl
 julia> list_of_constraint_types(model)
-4-element Array{Tuple{DataType,DataType},1}:
- (GenericQuadExpr{Float64,GeneralVariableRef}, MathOptInterface.LessThan{Float64})
- (GenericQuadExpr{Float64,GeneralVariableRef}, MathOptInterface.GreaterThan{Float64})
- (GenericAffExpr{Float64,GeneralVariableRef}, MathOptInterface.LessThan{Float64})
- (GenericAffExpr{Float64,GeneralVariableRef}, MathOptInterface.EqualTo{Float64})
+4-element Vector{Tuple{DataType,DataType}}:
+ (GenericQuadExpr{Float64, GeneralVariableRef}, MathOptInterface.LessThan{Float64})
+ (GenericQuadExpr{Float64, GeneralVariableRef}, MathOptInterface.GreaterThan{Float64})
+ (GenericAffExpr{Float64, GeneralVariableRef}, MathOptInterface.LessThan{Float64})
+ (GenericAffExpr{Float64, GeneralVariableRef}, MathOptInterface.EqualTo{Float64})
 ```
 This information is useful when used in combination with the 
 [`num_constraints`](@ref) and [`all_constraints`](@ref) methods which can take 
@@ -377,13 +377,13 @@ expression type. Let's illustrate this with `num_constraints`:
 julia> num_constraints(model) # total number of constraints
 15
 
-julia> num_constraints(model, GenericQuadExpr{Float64,GeneralVariableRef})
+julia> num_constraints(model, GenericQuadExpr{Float64, GeneralVariableRef})
 5
 
 julia> num_constraints(model, MOI.LessThan{Float64})
 5
 
-julia> num_constraints(model, GenericQuadExpr{Float64,GeneralVariableRef},
+julia> num_constraints(model, GenericQuadExpr{Float64, GeneralVariableRef},
                        MOI.LessThan{Float64})
 4                   
 ```

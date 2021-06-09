@@ -54,7 +54,7 @@ julia> @infinite_parameter(model, t in [0, 10])
 t
 
 julia> @infinite_parameter(model, x[1:2] in [-1, 1], independent = true)
-2-element Array{GeneralVariableRef,1}:
+2-element Vector{GeneralVariableRef}:
  x[1]
  x[2]
 ```
@@ -72,7 +72,7 @@ useful case is that of defining an array of variables `w` that depend on both
 position and time:
 ```jldoctest var_basic
 julia> @variable(model, w[i = 1:3], Infinite(t, x), start = [0, 2, 1][i])
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  w[1](t, x)
  w[2](t, x)
  w[3](t, x)
@@ -92,7 +92,7 @@ Now let's restrict the above infinite variables `w[i](t, x)` to a particular
 time via semi-infinite variables:
 ```jldoctest var_basic
 julia> @variable(model, w0[i = 1:3], SemiInfinite(w[i], 0, x))
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  w0[1]
  w0[2]
  w0[3]
@@ -473,7 +473,7 @@ a 3-dimensional vector of variables with indices `[1, 2, 3]`:
 julia> s = [0, 2, 1];
 
 julia> var_refs = @variable(model, [i = 1:3], start = s[i], base_name = "z")
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  z[1]
  z[2]
  z[3]
@@ -490,21 +490,21 @@ Moreover, here are a few illustrative examples:
 julia> @variable(model, z_dense[2:4])
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 2:4
-And data, a 3-element Array{GeneralVariableRef,1}:
+And data, a 3-element Vector{GeneralVariableRef}:
  z_dense[2]
  z_dense[3]
  z_dense[4]
 
 julia> @variable(model, z_named[[:A, :C, :Z]])
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
-    Dimension 1, Symbol[:A, :C, :Z]
-And data, a 3-element Array{GeneralVariableRef,1}:
+    Dimension 1, [:A, :C, :Z]
+And data, a 3-element Vector{GeneralVariableRef}:
  z_named[A]
  z_named[C]
  z_named[Z]
 
 julia> @variable(model, z_sparse[i = 1:2, j = 1:2; i + j <= 3])
-JuMP.Containers.SparseAxisArray{GeneralVariableRef,2,Tuple{Int64,Int64}} with 3 entries:
+JuMP.Containers.SparseAxisArray{GeneralVariableRef, 2, Tuple{Int64, Int64}} with 3 entries:
   [1, 2]  =  z_sparse[1,2]
   [1, 1]  =  z_sparse[1,1]
   [2, 1]  =  z_sparse[2,1]
@@ -521,13 +521,13 @@ julia> a = 1; b = 3;
 julia> var_refs1 = @variable(model, [a:b], base_name = "z")
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 1:3
-And data, a 3-element Array{GeneralVariableRef,1}:
+And data, a 3-element Vector{GeneralVariableRef}:
  z[1]
  z[2]
  z[3]
 
 julia> var_refs2 = @variable(model, [a:b], base_name = "z", container = Array)
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  z[1]
  z[2]
  z[3]
@@ -550,12 +550,12 @@ variables, and more.
 For example:
 ```jldoctest var_macro
 julia> @variable(model, z_psd[1:2, 1:2], PSD) # positive semi-definite variable matrix
-2×2 LinearAlgebra.Symmetric{GeneralVariableRef,Array{GeneralVariableRef,2}}:
+2×2 LinearAlgebra.Symmetric{GeneralVariableRef, Matrix{GeneralVariableRef}}:
  z_psd[1,1]  z_psd[1,2]
  z_psd[1,2]  z_psd[2,2]
 
 julia> @variable(model, z_cone[1:3] in SecondOrderCone()) # 2nd order cone variables
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  z_cone[1]
  z_cone[2]
  z_cone[3]
@@ -564,7 +564,7 @@ Typically, variable sets can be defined symbolically using the syntax
 `var in set`. For anonymous variables, the `set` keyword argument must be used:
 ```jldoctest var_macro
 julia> z_cone = @variable(model, [1:3], set = SecondOrderCone())
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  noname
  noname
  noname
@@ -716,7 +716,7 @@ For infinite and semi-infinite variables, the [`start_value_function`](@ref)
 should be used instead:
 ```jldoctest var_macro
 julia> start_value_function(y_sin)
-sin (generic function with 16 methods)
+sin (generic function with 17 methods)
 ```
 
 ### Variable Use
@@ -848,7 +848,7 @@ For infinite variables, this should be done using
 julia> set_start_value_function(myname, sin)
 
 julia> start_value_function(myname)
-sin (generic function with 16 methods)
+sin (generic function with 17 methods)
 ```
 Again note that such start functions must be able to accept parameter values as 
 arguments that exactly match the format of the infinite parameters given in 
