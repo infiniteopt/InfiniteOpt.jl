@@ -23,7 +23,7 @@ jobs:
              echo $sys_libcurl
              julia_lib="$(dirname "$(which julia)")/../lib/julia"
              echo $julia_lib
-             julia_libcurl="$(find $julia_lib -maxdepth 1 -type f -name "libcurl\.so\.[0-9]" | sort -n | tail -1)"
+             julia_libcurl="$(find $julia_lib -maxdepth 1 -name "libcurl\.so\.[0-9]" | sort -n | tail -1)"
              echo $julia_libcurl
              find $julia_lib -maxdepth 1 -type f -name "libcurl\.so\.." | sort -n | tail -1
              ls $julia_lib
