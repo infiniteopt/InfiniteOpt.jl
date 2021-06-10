@@ -22,21 +22,22 @@ jobs:
       #   run: |
       #        sudo apt-get remove curl
       #        sudo ln -s /usr/local/bin/curl /usr/bin/curl'
-      - name: Install plotting dependencies # (https://github.com/JuliaPlots/Plots.jl/issues/1649#issuecomment-682147970)
+      - name: Install plotting dependencies # For enabling GR.jl (used by Plots.jl)
         run: sudo apt-get install -y qt5-default
       - name: Install julia dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-      - name: Ubuntu TESTCMD
-        run: echo "TESTCMD=xvfb-run --auto-servernum julia" >> $GITHUB_ENV
-      - run: which curl
-      - run: julia --project=docs/ -e 'println(run(`curl --version`)); println(Sys.which("curl"))'
+      - name: Plot friendly RUNCMD # needed to enable Plots.jl correctly
+        run: echo "RUNCMD=xvfb-run --auto-servernum julia" >> $GITHUB_ENV
+      - run: ls -l /opt/hostedtoolcache/julia/1.6.1/x64/bin/../lib/julia/libcurl.so.4
+      - run: ls -l /usr/local/julia1.6.1/lib/julia/libcurl.so.4
+      - run: ls -l /usr/local/lib/libcurl.so.4
       - run: sudo rm /usr/local/julia1.6.1/lib/julia/libcurl.so.4
-      - run: sudo ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.6.0 /usr/local/julia1.6.1/lib/julia/libcurl.so.4
+      - run: sudo ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.6.0 /opt/hostedtoolcache/julia/1.6.1/x64/bin/../lib/julia/libcurl.so.4
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
-        run: $TESTCMD --project=docs/ --color=yes docs/make.jl
+        run: $RUNCMD --project=docs/ --color=yes docs/make.jl
   Skip:
     if: "contains(github.event.head_commit.message, '[skip docs]')"
     runs-on: ubuntu-latest
