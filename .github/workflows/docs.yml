@@ -8,6 +8,10 @@ on:
 jobs:
   build:
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    env:
+      GKS_ENCODING: "utf8"
+      GKSwstype: "100"
+      PLOTS_TEST: "true"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -22,14 +26,14 @@ jobs:
         run: sudo apt-get install -y qt5-default
       - name: Install julia dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-      - run: sudo apt-get install mlocate
-      - run: sudo updatedb
-      - run: locate libcurl.so.4
+      - name: Ubuntu TESTCMD
+        run: echo "TESTCMD=xvfb-run --auto-servernum julia" >> $GITHUB_ENV
+      - run: sudo ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.6.0 /usr/local/julia1.6.1/lib/julia/libcurl.so.4
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
-        run: xvfb-run julia --project=docs/ --color=yes docs/make.jl
+        run: $TESTCMD --project=docs/ --color=yes docs/make.jl
   Skip:
     if: "contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
