@@ -18,21 +18,17 @@ jobs:
       - uses: julia-actions/setup-julia@latest
         with:
           version: '1.6' # Build documentation on Julia 1.6
-      # - name: Fix curl setup # needed for Ubuntu (https://stackoverflow.com/questions/30017397/error-curl-usr-local-lib-libcurl-so-4-no-version-information-available-requ)
-      #   run: |
-      #        sudo apt-get remove curl
-      #        sudo ln -s /usr/local/bin/curl /usr/bin/curl'
       - name: Install plotting dependencies # For enabling GR.jl (used by Plots.jl)
         run: sudo apt-get install -y qt5-default
       - name: Install julia dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Plot friendly RUNCMD # needed to enable Plots.jl correctly
         run: echo "RUNCMD=xvfb-run --auto-servernum julia" >> $GITHUB_ENV
-      - run: ls -l /opt/hostedtoolcache/julia/1.6.1/x64/bin/../lib/julia/libcurl.so.4
-      - run: which julia 
-      - run: sudo rm /opt/hostedtoolcache/julia/1.6.1/x64/bin/../lib/julia/libcurl.so.4
-      - run: sudo ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.6.0 /opt/hostedtoolcache/julia/1.6.1/x64/bin/../lib/julia/libcurl.so.4
-      - run: ls -l /opt/hostedtoolcache/julia/1.6.1/x64/bin/../lib/julia/libcurl.so.4
+      - name: Fix curl mismatch # (https://stackoverflow.com/questions/30017397/error-curl-usr-local-lib-libcurl-so-4-no-version-information-available-requ)
+        run: |
+             julia_libcurl="$(dirname "$(which julia)")/../lib/julia/libcurl.so.4"
+             sudo rm $julia_libcurl
+             sudo ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.6.0 $julia_libcurl
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
