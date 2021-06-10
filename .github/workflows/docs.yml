@@ -18,6 +18,9 @@ jobs:
       - uses: julia-actions/setup-julia@latest
         with:
           version: '1.6' # Build documentation on Julia 1.6
+      - run: find /usr/lib/x86_64-linux-gnu -maxdepth 1 -type d -name "libcurl.so.*" | sort -n | tail -1
+      - run: find /usr/lib/x86_64-linux-gnu/ -maxdepth 1 -type d -name "libcurl.so.*" | sort -n | tail -1
+      - run: ls /usr/lib/x86_64-linux-gnu
       - name: Install plotting dependencies # For enabling GR.jl (used by Plots.jl)
         run: sudo apt-get install -y qt5-default
       - name: Install julia dependencies
