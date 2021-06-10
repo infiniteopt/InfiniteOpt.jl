@@ -7,7 +7,7 @@ on:
     types: [opened, synchronize, reopened]
 jobs:
   build:
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    if: "!contains(github.event.head_commit.message, '[skip docs]')"
     env:
       GKS_ENCODING: "utf8"
       GKSwstype: "100"
@@ -28,6 +28,9 @@ jobs:
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Ubuntu TESTCMD
         run: echo "TESTCMD=xvfb-run --auto-servernum julia" >> $GITHUB_ENV
+      - run: which curl
+      - run: julia --project=docs/ -e 'println(run(`curl --version`)); println(Sys.which("curl"))'
+      - run: sudo rm /usr/local/julia1.6.1/lib/julia/libcurl.so.4
       - run: sudo ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.6.0 /usr/local/julia1.6.1/lib/julia/libcurl.so.4
       - name: Build and deploy
         env:
@@ -35,8 +38,8 @@ jobs:
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
         run: $TESTCMD --project=docs/ --color=yes docs/make.jl
   Skip:
-    if: "contains(github.event.head_commit.message, '[skip ci]')"
+    if: "contains(github.event.head_commit.message, '[skip docs]')"
     runs-on: ubuntu-latest
     steps:
-      - name: Skip CI 🚫
-        run: echo skip ci
+      - name: Skip Docs🚫
+        run: echo skip doc build
