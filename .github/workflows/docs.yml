@@ -15,9 +15,9 @@ jobs:
         with:
           version: '1.6' # Build documentation on Julia 1.6
       # - name: Setup Dependencies
-      - run: apt-get remove curl # remove extra curl installation
+      - run: sudo apt-get remove curl # remove extra curl installation
       - run: sudo ln -s /usr/local/bin/curl /usr/bin/curl # redirect to other curl
-      - run: apt install -y qtbase5-dev-tools  qt5-default # fixes GR plotting
+      - run: sudo apt-get install -y qtbase5-dev-tools  qt5-default # fixes GR plotting
       - name: Install dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Build and deploy
