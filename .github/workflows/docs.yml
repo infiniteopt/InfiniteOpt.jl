@@ -14,17 +14,21 @@ jobs:
       - uses: julia-actions/setup-julia@latest
         with:
           version: '1.6' # Build documentation on Julia 1.6
-      # - name: Setup Dependencies
-      - run: sudo apt-get remove curl # remove extra curl installation
-      - run: sudo ln -s /usr/local/bin/curl /usr/bin/curl # redirect to other curl
-      - run: sudo apt-get install -y qtbase5-dev-tools  qt5-default # fixes GR plotting
-      - name: Install dependencies
+      # - name: Fix curl setup # needed for Ubuntu (https://stackoverflow.com/questions/30017397/error-curl-usr-local-lib-libcurl-so-4-no-version-information-available-requ)
+      #   run: |
+      #        sudo apt-get remove curl
+      #        sudo ln -s /usr/local/bin/curl /usr/bin/curl
+      - run: locate libcurl.so.4
+      - run: ls -l /usr/local/lib/libcurl.so.4
+      - name: Install plotting dependencies # (https://github.com/JuliaPlots/Plots.jl/issues/1649#issuecomment-682147970)
+        run: sudo apt-get install -y qt5-default
+      - name: Install julia dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
-        run: julia --project=docs/ --color=yes docs/make.jl
+        run: xvfb-run julia --project=docs/ --color=yes docs/make.jl
   Skip:
     if: "contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
