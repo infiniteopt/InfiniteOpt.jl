@@ -8,7 +8,6 @@ on:
     types: [opened, synchronize, reopened]
 jobs:
   test:
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -58,9 +57,3 @@ jobs:
       - uses: codecov/codecov-action@v1
         with:
           file: lcov.info
-  Skip:
-    if: "contains(github.event.head_commit.message, '[skip ci]')"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Skip CI 🚫
-        run: echo skip ci
