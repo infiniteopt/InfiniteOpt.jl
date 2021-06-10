@@ -30,9 +30,10 @@ jobs:
         run: echo "RUNCMD=xvfb-run --auto-servernum julia" >> $GITHUB_ENV
       - run: ls -l /opt/hostedtoolcache/julia/1.6.1/x64/bin/../lib/julia/libcurl.so.4
       - run: ls -l /usr/local/julia1.6.1/lib/julia/libcurl.so.4
-      - run: ls -l /usr/local/lib/libcurl.so.4
-      - run: sudo rm /usr/local/julia1.6.1/lib/julia/libcurl.so.4
+      - run: sudo rm /opt/hostedtoolcache/julia/1.6.1/x64/bin/../lib/julia/libcurl.so.4
       - run: sudo ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.6.0 /opt/hostedtoolcache/julia/1.6.1/x64/bin/../lib/julia/libcurl.so.4
+      - run: ls -l /opt/hostedtoolcache/julia/1.6.1/x64/bin/../lib/julia/libcurl.so.4
+      - run: ls -l /usr/local/julia1.6.1/lib/julia/libcurl.so.4
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
