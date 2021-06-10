@@ -7,14 +7,17 @@ on:
     types: [opened, synchronize, reopened]
 jobs:
   build:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@latest
         with:
           version: '1.6' # Build documentation on Julia 1.6
-      - name: Install curl 
-        run: sudo apt-get install curl
+      - name: Setup Dependencies
+        run: apt-get remove curl # remove extra curl installation
+        run: sudo ln -s /usr/local/bin/curl /usr/bin/curl # redirect to other curl
+        run: apt install -y qtbase5-dev-tools  qt5-default # fixes GR plotting
       - name: Install dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Build and deploy
@@ -22,3 +25,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
         run: julia --project=docs/ --color=yes docs/make.jl
+  Skip:
+    if: "contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip CI 🚫
+        run: echo skip ci
