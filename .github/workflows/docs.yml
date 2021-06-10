@@ -14,19 +14,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - run: echo $LD_LIBRARY_PATH
       - uses: julia-actions/setup-julia@latest
         with:
           version: '1.6' # Build documentation on Julia 1.6
+      - run: echo $LD_LIBRARY_PATH
       - name: Fix curl mismatch # (https://stackoverflow.com/questions/30017397/error-curl-usr-local-lib-libcurl-so-4-no-version-information-available-requ)
         run: |
-             sys_libcurl="$(find /usr/lib/x86_64-linux-gnu -maxdepth 1 -type f -name "libcurl\.so\.*" | sort -n | tail -1)"
-             echo $sys_libcurl
+             sys_libcurl="$(find /usr/lib/x86_64-linux-gnu -maxdepth 1 -name "libcurl\.so\.*" | sort -n | tail -1)"
              julia_lib="$(dirname "$(which julia)")/../lib/julia"
-             echo $julia_lib
              julia_libcurl="$(find $julia_lib -maxdepth 1 -name "libcurl\.so\.[0-9]" | sort -n | tail -1)"
-             echo $julia_libcurl
-             find $julia_lib -maxdepth 1 -type f -name "libcurl\.so\.." | sort -n | tail -1
-             ls $julia_lib
              sudo rm $julia_libcurl
              sudo ln -s $sys_libcurl $julia_libcurl
       - name: Install plotting dependencies # For enabling GR.jl (used by Plots.jl)
