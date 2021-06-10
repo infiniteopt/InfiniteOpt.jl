@@ -17,25 +17,24 @@ jobs:
       - uses: julia-actions/setup-julia@latest
         with:
           version: '1.6' # Build documentation on Julia 1.6
+      - name: Fix curl mismatch # (https://stackoverflow.com/questions/30017397/error-curl-usr-local-lib-libcurl-so-4-no-version-information-available-requ)
+        run: |
+             sys_libcurl="$(find /usr/lib/x86_64-linux-gnu -maxdepth 1 -type f -name "libcurl\.so\.*" | sort -n | tail -1)"
+             echo $sys_libcurl
+             julia_lib="$(dirname "$(which julia)")/../lib/julia"
+             echo $julia_lib
+             julia_libcurl="$(find $julia_lib -maxdepth 1 -type f -name "libcurl\.so\.[0-9]" | sort -n | tail -1)"
+             echo $julia_libcurl
+             find $julia_lib -maxdepth 1 -type f -name "libcurl\.so\.." | sort -n | tail -1
+             ls $julia_lib
+             sudo rm $julia_libcurl
+             sudo ln -s $sys_libcurl $julia_libcurl
       - name: Install plotting dependencies # For enabling GR.jl (used by Plots.jl)
         run: sudo apt-get install -y qt5-default
       - name: Install julia dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Plot friendly RUNCMD # needed to enable Plots.jl correctly
         run: echo "RUNCMD=xvfb-run --auto-servernum julia" >> $GITHUB_ENV
-      - name: Fix curl mismatch # (https://stackoverflow.com/questions/30017397/error-curl-usr-local-lib-libcurl-so-4-no-version-information-available-requ)
-        run: |
-             sys_libcurl="$(find /usr/lib/x86_64-linux-gnu -maxdepth 1 -type f -name "libcurl.so.*" | sort -n | tail -1)"
-             echo $sys_libcurl
-             julia_lib="$(dirname "$(which julia)")/../lib/julia"
-             echo $julia_lib
-             julia_libcurl="$(find $julia_lib -maxdepth 1 -type f -name "libcurl.so.[0-9]" | sort -n | tail -1)"
-             echo $julia_libcurl
-             find $julia_lib -maxdepth 1 -type f -name "libcurl.so.*" | sort -n | tail -1
-             find $julia_lib -maxdepth 1 -type f -name "libcurl.so.\d" | sort -n | tail -1
-             ls $julia_lib
-             sudo rm $julia_libcurl
-             sudo ln -s $sys_libcurl $julia_libcurl
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
