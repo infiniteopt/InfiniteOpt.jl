@@ -1,32 +1,10 @@
-![Logo](assets/full_logo.png)
+```@raw html
+<img class="display-light-only" src="assets/full_logo.png" alt="InfiniteOpt logo"/>
+<img class="display-dark-only" src="assets/full_logo-dark.png" alt="InfiniteOpt logo"/>
+```
 
 A `JuMP` extension for expressing and solving infinite-dimensional optimization 
 problems.
-
-## Overview
-`InfiniteOpt.jl` provides a mathematical interface to express and solve 
-optimization problems that entail an infinite-dimensional decision space. Such 
-problems stem from areas such as space-time programming and 
-stochastic programming. `InfiniteOpt` is meant to facilitate intuitive model 
-definition, automatic transcription into solvable models, permit a wide range 
-of user-defined extensions/behavior, and more. Currently, its capabilities 
-include:
-- `JuMP`-like symbolic macro interface
-- Infinite domain abstractions for parameterization of variables/constraints
-- Finite parameters support and use (similar to `ParameterJuMP`)
-- Direct support of infinite, semi-infinite, point, and finite variables
-- Straightforward measure operator definition (e.g., integrals, risk measures)
-- Infinite/finite constraint definition
-- Event constraint definition (e.g., chance constraints)
-- Compact ordinary/partial differential operator expression
-- Efficient automated model transcription/reformulation and solution
-- Compatible with all [JuMP-supported solvers](https://www.juliaopt.org/JuMP.jl/dev/installation/#Getting-Solvers-1)
-- Readily extendable to accommodate user defined abstractions and solution techniques.
-
-!!! note 
-    Nonlinear objects as defined by `JuMP.@NL[macro_name]` are not currently 
-    supported by `InfiniteOpt`. See [Nonlinear Expressions](@ref) for more 
-    information and possible workarounds. 
 
 !!! warning
     `InfiniteOpt v0.4.0` underwent a number of breaking syntax changes 
@@ -34,6 +12,65 @@ include:
     and to increase the capabilities of `InfiniteOpt`. Please review the guide 
     to see updated syntax. Deprecation warnings have been incorporated into this 
     version to help convert old scripts.
+
+## What is InfiniteOpt?
+`InfiniteOpt.jl` provides a general mathematical abstraction to express and solve 
+infinite-dimensional optimization problems (i.e., problems with decision 
+functions). Such problems stem from areas such as space-time programming and 
+stochastic programming. `InfiniteOpt` is meant to facilitate intuitive model 
+definition, automatic transcription into solvable models, permit a wide range 
+of user-defined extensions/behavior, and more. 
+
+It builds upon `JuMP` to add support for many complex modeling objects which 
+include:
+- Infinite parameters (e.g., time, space, uncertainty, etc.)
+- Finite parameters (similar to `ParameterJuMP`)
+- Infinite variables (e.g., ``y(t, x)``)
+- Derivatives (e.g., ``\frac{\partial y(t, x)}{\partial t}``)
+- Measures (e.g., ``\int_{t \in \mathcal{D}_t}y(t,x) dt``, ``\mathbb{E}[y(\xi)]``)
+- More
+
+Moreover, `InfiniteOpt` decouples the infinite-dimensional formulations from the 
+finite transformations typically used to solve them. This readily enables diverse 
+techniques be used to solve these types of problems. By default, we employ 
+direct transcription (i.e., discretization) transformations whose features 
+include:
+- Efficient implementations that scale **linearly**!
+- Diverse integral approximations (e.g., quadratures, sampling)
+- Diverse derivative approximations (e.g., finite difference, orthogonal 
+  collocation)
+- Sophisticated support point management system
+- Compatible with all [JuMP-supported solvers](https://jump.dev/JuMP.jl/v0.21.8/installation/#Supported-solvers)
+
+Accepted infinite/finite problem forms currently include:
+- Variables
+    - Continuous and semi-continuous
+    - Binary
+    - Integer and semi-integer
+    - Semi-definite
+- Derivatives
+    - Ordinary derivative operators (of any order)
+    - Partial derivative operators (of any order)
+- Measures
+    - Univariate and multivariate integrals 
+    - Univariate and multivariate expectations 
+    - Arbitrary measure operators (via general measure API)
+- Objectives
+    - Linear
+    - Quadratic (convex and non-convex)
+    - Higher-order powers (via place holder variables)
+- Constraints
+    - Linear
+    - Quadratic (convex and non-convex)
+    - Higher-order powers (via place holder variables)
+    - Conic
+    - Semi-definite
+    - Indicator
+
+!!! note 
+    Nonlinear objects as defined by `JuMP.@NL[macro_name]` are not currently 
+    supported by `InfiniteOpt`. See [Nonlinear Expressions](@ref) for more 
+    information and possible workarounds. 
 
 ### Modeling Infinite-Dimensional Problems with InfiniteOpt.jl
 See our YouTube overview of infinite-dimensional programming and InfiniteOpt.jl's 
@@ -49,12 +86,14 @@ inputting the following in the package manager:
 Please visit our [Installation Guide](@ref) for more details and information
 on how to get started.
 
-Moreover, `InfiniteOpt` is under constant develop with new features being added 
-often. Thus, the latest pre-release experimental version can be obtained via the 
-following command:
-```julia
-(v1.6) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
-```
+## First Steps 
+`InfiniteOpt` is extension of `JuMP`, thus new users should start by 
+familiarizing themselves with how to use `JuMP` first. See 
+[`JuMP`'s documentation](https://jump.dev/JuMP.jl/v0.21.8/) to learn more.
+
+Once you're familiar with `JuMP` check out our [Quick Start Guide](@ref) to get 
+started. From there we provide extension documentation to help you along, please 
+see [How to Use the Documentation](@ref) for more info.
 
 ## How to Use the Documentation
 `InfiniteOpt` is intended to serve both as a high-level interface for 
@@ -62,18 +101,19 @@ infinite-dimensional optimization and as a highly customizable/extendable
 platform for implementing advanced techniques. With this in mind, we provide the 
 `User Guide` sections to walk through the ins and outs of `InfiniteOpt`. Each 
 page in the `User Guide` typically contains the following:
-- An `Overview` section describing the purpose of the page (at the top)
-- A `Basic Usage` section to guide using `InfiniteOpt` at a high level 
-  (near the top)
-- `Methods` and/or `DataTypes` sections serving as a technical manual for all the 
-  public methods and datatypes (at the bottom)
-- Other sections offering more in-depth information/guidance beyond basic usage 
-  (in the middle)
+- An `Overview` section describing the purpose of the page.
+- A `Basic Usage` section to guide using `InfiniteOpt` at a high level.
+- Other sections offering more in-depth information/guidance beyond basic usage.
+
+We also provide a technical manual in the `API Manual` sections which are 
+comprised of the docstrings of all the public methods and types that comprise 
+`InfiniteOpt`. These detail the technical aspects of each function, method, macro, 
+and composite type.
 
 Details, instructions, templates, and tutorials on how to write user-defined 
 extensions in `InfiniteOpt` are provided on the [Extensions](@ref) page.
 
-Finally, case study examples are provided on the [Examples](@ref) page.
+Finally, case study examples are provided in the `Examples` sections.
 
 ## Contribution
 `InfiniteOpt` is a powerful tool with a broad scope lending to a large realm of 
@@ -86,8 +126,9 @@ do the following:
 2. Make the desired changes
 3. Submit a pull request
 
-For other contributions, please visit our [Developers Guide](@ref) for step by 
-step instructions and to review our style guide.
+For other contributions, please visit our 
+[Developers Guide](@ref contribute_guide) for step by step instructions and to 
+review our style guide.
 
 ## Acknowledgements
 We acknowledge our support from the Department of Energy under grant 

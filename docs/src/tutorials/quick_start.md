@@ -106,8 +106,8 @@ Here we also specify the number of finite supports we desire for each parameter
 that will ultimately be used to reformulate and solve the problem (i.e., discretize). 
 We also specify the derivative evaluation method associated with `t` that will be 
 used evaluate the derivatives numerically. See more information about parameters 
-on our [Infinite Parameters] (@ref inf_par_page) page. Also learn more about 
-derivative methods on our [Derivative Operators](@ref deriv_page) page.
+on our [Infinite Parameters] (@ref inf_par_docs) page. Also learn more about 
+derivative methods on our [Derivative Operators](@ref deriv_docs) page.
 
 ### Variables 
 Now that we have an `InfiniteModel` and infinite parameters let's define our 
@@ -120,28 +120,28 @@ infinite parameters it depends on:
 julia> @variable(model, x[I], Infinite(t, ξ), start = 0)
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 1:2
-And data, a 2-element Array{GeneralVariableRef,1}:
+And data, a 2-element Vector{GeneralVariableRef}:
  x[1](t, ξ)
  x[2](t, ξ)
 
 julia> @variable(model, v[I], Infinite(t, ξ), start = 0)
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 1:2
-And data, a 2-element Array{GeneralVariableRef,1}:
+And data, a 2-element Vector{GeneralVariableRef}:
  v[1](t, ξ)
  v[2](t, ξ)
 
 julia> @variable(model, u[I], Infinite(t), start = 0)
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 1:2
-And data, a 2-element Array{GeneralVariableRef,1}:
+And data, a 2-element Vector{GeneralVariableRef}:
  u[1](t)
  u[2](t)
 
 julia> @variable(model, y[W] >= 0, Infinite(ξ), start = 0)
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 1:4
-And data, a 4-element Array{GeneralVariableRef,1}:
+And data, a 4-element Vector{GeneralVariableRef}:
  y[1](ξ)
  y[2](ξ)
  y[3](ξ)
@@ -178,20 +178,20 @@ of the constraints to only be enforced at the initial time:
 julia> @constraint(model, [i in I], x[i] == x0[i], DomainRestrictions(t => 0))
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
-And data, a 2-element Array{InfOptConstraintRef,1}:
+And data, a 2-element Vector{InfOptConstraintRef}:
  x[1](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
  x[2](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
 
 julia> @constraint(model, [i in I], v[i] == v0[i], DomainRestrictions(t => 0))
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
-And data, a 2-element Array{InfOptConstraintRef,1}:
+And data, a 2-element Vector{InfOptConstraintRef}:
  v[1](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
  v[2](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
 ```
 Note it is important that we include appropriate boundary conditions when using 
 derivatives in our model. For more information please see 
-[Derivative Operators](@ref deriv_page).
+[Derivative Operators](@ref deriv_docs).
 
 Next, we can add our model constraints that have derivatives using 
 [`@constraint`](https://jump.dev/JuMP.jl/v0.21.8/reference/constraints/#JuMP.@constraint) 
@@ -200,14 +200,14 @@ and [`deriv`](@ref):
 julia> @constraint(model, c1[i in I], deriv(x[i], t) == v[i])
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
-And data, a 2-element Array{InfOptConstraintRef,1}:
+And data, a 2-element Vector{InfOptConstraintRef}:
  c1[1] : ∂/∂t[x[1](t, ξ)] - v[1](t, ξ) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
  c1[2] : ∂/∂t[x[2](t, ξ)] - v[2](t, ξ) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
 
 julia> @constraint(model, c2[i in I], ξ * deriv(v[i], t) == u[i])
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
-And data, a 2-element Array{InfOptConstraintRef,1}:
+And data, a 2-element Vector{InfOptConstraintRef}:
  c2[1] : ξ*∂/∂t[v[1](t, ξ)] - u[1](t) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
  c2[2] : ξ*∂/∂t[v[2](t, ξ)] - u[2](t) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
 ```
@@ -217,7 +217,7 @@ Finally, we can define our last 2 constraints:
 julia> @constraint(model, c3[w in W], y[w] == sum((x[i] - p[i, w])^2 for i in I), DomainRestrictions(t => tw[w]))
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:4
-And data, a 4-element Array{InfOptConstraintRef,1}:
+And data, a 4-element Vector{InfOptConstraintRef}:
  c3[1] : -x[1](t, ξ)² - x[2](t, ξ)² + y[1](ξ) + 2 x[1](t, ξ) + 2 x[2](t, ξ) = 2.0, ∀ t = 0, ξ ~ Normal
  c3[2] : -x[1](t, ξ)² - x[2](t, ξ)² + y[2](ξ) + 8 x[1](t, ξ) + 6 x[2](t, ξ) = 25.0, ∀ t = 25, ξ ~ Normal
  c3[3] : -x[1](t, ξ)² - x[2](t, ξ)² + y[3](ξ) + 12 x[1](t, ξ) = 36.0, ∀ t = 50, ξ ~ Normal
@@ -244,7 +244,7 @@ julia> termination_status(model)
 LOCALLY_SOLVED::TerminationStatusCode = 4
 ```
 Thus, our model was solved successfully! For more information please see our 
-[Optimization](@ref opt_page) and [Results](@ref) pages.
+[Optimization](@ref opt_docs) and [Results](@ref result_docs) pages.
 
 ### Query the Solution
 Finally, we can query a wide variety of information about our solution. Perhaps 
@@ -262,13 +262,13 @@ to transcribe `u(t)` along the domain of `t`. We can query those corresponding
 support values via `supports`:
 ```jldoctest quick
 julia> u_ts = supports.(u)
-1-dimensional DenseAxisArray{Array{Tuple,1},1,...} with index sets:
+1-dimensional DenseAxisArray{Vector{Tuple},1,...} with index sets:
     Dimension 1, 1:2
-And data, a 2-element Array{Array{Tuple,1},1}:
+And data, a 2-element Vector{Vector{Tuple}}:
  [(0.0,), (1.0,), (2.0,), (3.0,), (4.0,), (5.0,), (6.0,), (7.0,), (8.0,), (9.0,)  …  (51.0,), (52.0,), (53.0,), (54.0,), (55.0,), (56.0,), (57.0,), (58.0,), (59.0,), (60.0,)]
  [(0.0,), (1.0,), (2.0,), (3.0,), (4.0,), (5.0,), (6.0,), (7.0,), (8.0,), (9.0,)  …  (51.0,), (52.0,), (53.0,), (54.0,), (55.0,), (56.0,), (57.0,), (58.0,), (59.0,), (60.0,)]
 ```
-Please see the [Results](@ref) page for more information. 
+Please see the [Results](@ref result_docs) page for more information. 
 
 ## Summary Script 
 The example used in the sections above is summarized in the script below:

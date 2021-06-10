@@ -3,10 +3,9 @@ DocTestFilters = [r"≥|>=", r" == | = ", r" ∈ | in ", r"MathOptInterface|MOI"
                   r" for all | ∀ ", r"[0-9\.]+.*"]
 ```
 
-# Results
-A guide and manual to querying optimized `InfiniteOpt` models. The Methods 
-section at the bottom comprises the manual and the above sections form the 
-guide.
+# [Results](@id result_docs)
+A guide for querying optimized `InfiniteOpt` models. See the respective 
+[technical manual](@ref result_manual) for more details.
 
 ## Overview
 So far we have covered defining, transforming, and optimizing `InfiniteModel`s. 
@@ -95,7 +94,7 @@ We get a single value since `z` is a `FiniteVariable` and therefore finite. Now
 let's retrieve the "value" of `y(t)` which is infinite with respect to `t`:
 ```jldoctest results
 julia> value(y)
-10-element Array{Float64,1}:
+10-element Vector{Float64}:
  42.0
  20.999999995620495
  20.999999995620495
@@ -112,7 +111,7 @@ transcribed finite (discretized) variables used to solve the problem. We obtain
 the corresponding support (discretized `t`) values via `supports`:
 ```jldoctest results
 julia> supports(y)
-10-element Array{Tuple,1}:
+10-element Vector{Tuple}:
  (0.0,)
  (1.11111111111,)
  (2.22222222222,)
@@ -145,7 +144,7 @@ julia> has_duals(model)
 true
 
 julia> dual(c1)
-10-element Array{Float64,1}:
+10-element Vector{Float64}:
  1.9999999988666093
  1.1930560126841273e-10
  1.1930560126841273e-10
@@ -165,7 +164,7 @@ julia> parameter_refs(c1)
 (t,)
 
 julia> supports(c1)
-10-element Array{Tuple,1}:
+10-element Vector{Tuple}:
  (0.0,)
  (1.11111111111,)
  (2.22222222222,)
@@ -280,7 +279,7 @@ julia> optimizer_index(z)
 MathOptInterface.VariableIndex(1)
 
 julia> optimizer_index(y)
-10-element Array{MathOptInterface.VariableIndex,1}:
+10-element Vector{MathOptInterface.VariableIndex}:
  MathOptInterface.VariableIndex(2)
  MathOptInterface.VariableIndex(3)
  MathOptInterface.VariableIndex(4)
@@ -324,7 +323,7 @@ julia> constraint_object(c1).func # show the function expression of c1
 z - y(t)
 
 julia> value(c1)
-10-element Array{Float64,1}:
+10-element Vector{Float64}:
  -8.747427671096375e-9
  20.999999995632077
  20.999999995632077
@@ -345,7 +344,7 @@ Next the optimizer index(es) of the transcribed constraints in the
 [`optimizer_index`](@ref JuMP.optimizer_index(::InfOptConstraintRef)).
 ```jldoctest results
 julia> optimizer_index(c1)
-10-element Array{MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}},1}:
+10-element Vector{MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64}, MathOptInterface.GreaterThan{Float64}}}:
  MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(1)
  MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(2)
  MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(3)
@@ -371,7 +370,7 @@ true
 Now we can query the duals via [`dual`](@ref JuMP.dual(::InfOptConstraintRef)).
 ```jldoctest results
 julia> dual(c1)
-10-element Array{Float64,1}:
+10-element Vector{Float64}:
  1.9999999988666093
  1.1930560126841273e-10
  1.1930560126841273e-10
@@ -392,7 +391,7 @@ the change in the objective value due to an infinitesimal relaxation of the
 constraint. For `c1` we get:
 ```jldoctest results
 julia> shadow_price(c1)
-10-element Array{Float64,1}:
+10-element Vector{Float64}:
  -1.9999999988666093
  -1.1930560126841273e-10
  -1.1930560126841273e-10
@@ -422,7 +421,7 @@ support this A solver like `Gurobi.jl` does.
 julia> report = lp_sensitivity_report(model);
 
 julia> report[c1]
-10-element Array{Tuple{Float64,Float64},1}:
+10-element Vector{Tuple{Float64, Float64}}:
  (-42.0, Inf)
  (-Inf, 42.0)
  (-Inf, 42.0)
@@ -443,7 +442,7 @@ discretization scheme. Also, keyword arguments (like `ndarray` and `label`) can
 be invoked when indexing the report:
 ```julia-repl
 julia> report[c1, label = All]
-10-element Array{Tuple{Float64,Float64},1}:
+10-element Vector{Tuple{Float64, Float64}}:
  (-42.0, Inf)
  (-Inf, 42.0)
  (-Inf, 42.0)
@@ -476,43 +475,4 @@ julia> solution_summary(optimizer_model(model))
 
 * Work counters
   Solve time (sec)   : 0.01000
-```
-
-## Methods/DataTypes
-```@index
-Pages   = ["result.md"]
-Modules = [JuMP, InfiniteOpt]
-Order   = [:function, :type]
-```
-```@docs
-JuMP.termination_status(::InfiniteModel)
-JuMP.raw_status(::InfiniteModel)
-JuMP.primal_status(::InfiniteModel)
-JuMP.dual_status(::InfiniteModel)
-JuMP.solve_time(::InfiniteModel)
-JuMP.has_values(::InfiniteModel)
-JuMP.has_duals(::InfiniteModel)
-JuMP.simplex_iterations(::InfiniteModel)
-JuMP.barrier_iterations(::InfiniteModel)
-JuMP.node_count(::InfiniteModel)
-JuMP.objective_bound(::InfiniteModel)
-JuMP.objective_value(::InfiniteModel)
-JuMP.dual_objective_value(::InfiniteModel)
-JuMP.result_count(::InfiniteModel)
-JuMP.relative_gap(::InfiniteModel)
-JuMP.value(::GeneralVariableRef)
-JuMP.value(::InfOptConstraintRef)
-JuMP.value(::Union{JuMP.GenericAffExpr{<:Any, <:GeneralVariableRef}, JuMP.GenericQuadExpr{<:Any, <:GeneralVariableRef}})
-JuMP.reduced_cost(::GeneralVariableRef)
-JuMP.optimizer_index(::GeneralVariableRef)
-JuMP.optimizer_index(::InfOptConstraintRef)
-JuMP.dual(::InfOptConstraintRef)
-JuMP.shadow_price(::InfOptConstraintRef)
-JuMP.lp_sensitivity_report(::InfiniteModel)
-InfOptSensitivityReport 
-InfiniteOpt.map_value
-InfiniteOpt.map_optimizer_index
-InfiniteOpt.map_dual
-InfiniteOpt.map_shadow_price
-InfiniteOpt.map_reduced_cost
 ```

@@ -14,18 +14,23 @@ making it a powerful and convenient tool for advanced users.
 | [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable) | [![Build Status](https://api.travis-ci.com/pulsipher/InfiniteOpt.jl.svg?branch=v0.3.2)](https://travis-ci.com/pulsipher/InfiniteOpt.jl) [![Build Status2](https://ci.appveyor.com/api/projects/status/p3srfp3uuvchfg3j/branch/v0.3.2?svg=true)](https://ci.appveyor.com/project/pulsipher/InfiniteOpt-jl) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=release-0.3)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=release-0.3) | [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4291106.svg)](https://doi.org/10.5281/zenodo.4291106) |
 | [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/dev) | [![Build Status](https://github.com/pulsipher/InfiniteOpt.jl/workflows/CI/badge.svg?branch=master)](https://github.com/pulsipher/InfiniteOpt.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=master)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=master) | |
 
-Its capabilities include:
-- `JuMP`-like symbolic macro interface
-- Infinite domain abstractions for parameterization of variables/constraints
-- Finite parameters support and use (similar to `ParameterJuMP`)
-- Direct support of infinite, point, and hold variables
-- Straightforward measure operator definition (e.g., integrals, risk measures)
-- Infinite/finite constraint definition
-- Event constraint definition (e.g., chance constraints)
-- Compact ordinary/partial differential operator expression
-- Efficient automated model transcription/reformulation and solution
-- Compatible with all [JuMP-supported solvers](https://www.juliaopt.org/JuMP.jl/dev/installation/#Getting-Solvers-1)
-- Readily extendable to accommodate user defined abstractions and solution techniques.
+It builds upon `JuMP` to add support for many complex modeling objects which 
+include:
+- Infinite parameters (e.g., time, space, uncertainty, etc.)
+- Finite parameters (similar to `ParameterJuMP`)
+- Infinite variables (e.g., ``y(t, x)``)
+- Derivatives (e.g., ``\frac{\partial y(t, x)}{\partial t}``)
+- Measures (e.g., ``\int_{t \in \mathcal{D}_t}y(t,x) dt``, ``\mathbb{E}[y(\xi)]``)
+- More
+
+Moreover, `InfiniteOpt`'s default direct transcription (i.e., discretization) 
+features include:
+- Efficient implementations that scale **linearly**!
+- Diverse integral approximations (e.g., quadratures, sampling)
+- Diverse derivative approximations (e.g., finite difference, orthogonal 
+  collocation)
+- Sophisticated support point management system
+- Compatible with all [JuMP-supported solvers](https://jump.dev/JuMP.jl/v0.21.8/installation/#Supported-solvers)
 
 Currently, the following infinite and finite problem types are accepted:
 - Variables
@@ -73,13 +78,15 @@ capabilities (Note the syntax in the video is now deprecated):
 ## Documentation
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable)
 
-Please visit our [documentation pages](https://pulsipher.github.io/InfiniteOpt.jl/stable) to learn more. These pages are quite extensive and feature overviews, guides, manuals,
-tutorials, examples, and more!
+Please visit our [documentation pages](https://pulsipher.github.io/InfiniteOpt.jl/stable) 
+to learn more. These pages are quite extensive and feature overviews, guides,
+manuals, tutorials, examples, and more!
 
 ## Citing
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4291106.svg)](https://doi.org/10.5281/zenodo.4291106)
 
-If you use InfiniteOpt.jl in your research, we would greatly appreciate your citing it.
+If you use InfiniteOpt.jl in your research, we would greatly appreciate your 
+citing it.
 ```latex
 @misc{pulsipher20,
   author       = {J. Pulsipher and W. Zhang and V. Zavala},

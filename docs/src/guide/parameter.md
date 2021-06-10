@@ -1,7 +1,6 @@
-# [Infinite Parameters] (@id inf_par_page)
-A guide and manual to the definition and use of infinite parameters in 
-`InfiniteOpt`. The Datatypes and Methods sections at the end comprise the manual, 
-and the above sections comprise the guide.  
+# [Infinite Parameters](@id inf_par_docs)
+A guide for infinite parameters in `InfiniteOpt`. See the respective 
+[technical manual](@ref inf_par_manual) for more details.
 
 ## Overview
 Infinite parameters are what live on the infinite domains of infinite dimensional  
@@ -41,12 +40,12 @@ When the model is optimized, `t` will be transcribed (discretized) over its doma
 following its support points. Users can specify support points via the  
 `num_supports` or `supports` keyword arguments. For example, if we desire to 
 have only 10 equi-distant supports then we could have instead defined `t`: 
-```jldoctest; setup = :(using JuMP, InfiniteOpt; model = InfiniteModel()) 
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel()) 
 julia> @infinite_parameter(model, t in [0, 10], num_supports = 10)
 t
 ```
 More complex support schemes can be specified via `supports` such as:
-```jldoctest; setup = :(using JuMP, InfiniteOpt; model = InfiniteModel())
+```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10], supports = [0, 2, 7, 10])
 t
 ```
@@ -59,7 +58,7 @@ no supports and we now wish to add 4 supports:
 julia> add_supports(t, [0., 2.5, 7.5, 10.])
 
 julia> supports(t)
-4-element Array{Float64,1}:
+4-element Vector{Float64}:
   0.0
   2.5
   7.5
@@ -83,7 +82,7 @@ Normal distribution:
 julia> using Distributions
 
 julia> @infinite_parameter(model, ξ[i = 1:3] ~ Normal(), independent = true)
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  ξ[1]
  ξ[2]
  ξ[3]
@@ -96,7 +95,7 @@ Supports can also be specified for each parameter as shown above. Similarly, the
 More interestingly, we can also define multi-variate random parameters, for example:
 ```jldoctest basic
 julia> @infinite_parameter(model, θ[1:2] ~ MvNormal([0, 0], [1, 1]))
-2-element Array{GeneralVariableRef,1}:
+2-element Vector{GeneralVariableRef}:
  θ[1]
  θ[2]
 ```
@@ -117,7 +116,7 @@ steps (these are typically automated by [`@infinite_parameter`](@ref)):
 5. Create a [`GeneralVariableRef`](@ref)(s) that points to the parameter object
 
 Infinite domain definition is described above in the 
-[Infinite Domains](@ref infinite_domains_normal) section. The supports should be 
+[Infinite Domains](@ref infinite_domains_docs) section. The supports should be 
 a vector of finite numbers that are drawn from the domain of the infinite domain. 
 These supports will be used to transcribe the `InfiniteModel` in preparation for 
 it to be optimized. If desired, the supports can be specified after the parameter 
@@ -232,7 +231,7 @@ We can also define multi-dimensional infinite parameters in a concise way. For
 example, consider a position parameter ``x \in [0, 1]^3``:
 ```jldoctest macro_define
 julia> @infinite_parameter(model, x[1:3] in [0, 1], independent = true, num_supports = 3)
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  x[1]
  x[2]
  x[3]
@@ -243,13 +242,13 @@ their individual domains. In this example, we defined 3 supports for each `x[i]`
 such that there will be ``3^3 = 27`` supports for the overall domain:
 ```jldoctest macro_define
 julia> supports(x[1])
-3-element Array{Float64,1}:
+3-element Vector{Float64}:
  0.0
  0.5
  1.0
 
 julia> supports(x)
-3×27 Array{Float64,2}:
+3×27 Matrix{Float64}:
  0.0  0.5  1.0  0.0  0.5  1.0  0.0  0.5  …  1.0  0.0  0.5  1.0  0.0  0.5  1.0
  0.0  0.0  0.0  0.5  0.5  0.5  1.0  1.0     0.0  0.5  0.5  0.5  1.0  1.0  1.0
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     1.0  1.0  1.0  1.0  1.0  1.0  1.0
@@ -268,7 +267,7 @@ dim: 2
 )
 
 julia> @infinite_parameter(model, θ[1:2] ~ dist, num_supports = 3)
-2-element Array{GeneralVariableRef,1}:
+2-element Vector{GeneralVariableRef}:
  θ[1]
  θ[2]
 ```
@@ -276,7 +275,7 @@ Here 3 supports are generated for all the parameters simultaneously according to
 the distribution. 
 ```jldoctest macro_define
 julia> supports(θ)
-2×3 Array{Float64,2}:
+2×3 Matrix{Float64}:
  -0.353007  0.679107  0.586617
  -0.190712  1.17155   0.420496
 ```
@@ -289,13 +288,13 @@ Anonymous groups of parameters can be defined as follows:
 ```jldoctest macro_define
 julia> x = @infinite_parameter(model, [1:3] in [0, 1], independent = true, 
                                num_supports = 3, base_name = "x")
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  x[1]
  x[2]
  x[3]
 
 julia> θ = @infinite_parameter(model, [1:2] ~ dist, num_supports = 3, base_name = "θ")
-2-element Array{GeneralVariableRef,1}:
+2-element Vector{GeneralVariableRef}:
  θ[1]
  θ[2]
 ```
@@ -306,8 +305,8 @@ Because we build on JuMP, we can use any indices we like when making containers
 ```jldoctest; setup = :(using InfiniteOpt; model= InfiniteModel())
 julia> @infinite_parameter(model, x[i = [:a, :b]] in [0, 1])
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
-    Dimension 1, Symbol[:a, :b]
-And data, a 2-element Array{GeneralVariableRef,1}:
+    Dimension 1, [:a, :b]
+And data, a 2-element Vector{GeneralVariableRef}:
  x[a]
  x[b]
 ```
@@ -329,7 +328,7 @@ julia> @infinite_parameter(model, t in [0, 10], supports = [0, 2, 5, 7, 10])
 t
 
 julia> supports(t)
-5-element Array{Float64,1}:
+5-element Vector{Float64}:
   0.0
   2.0
   5.0
@@ -364,7 +363,7 @@ goal:
 julia> add_supports(t, [3, 8])
 
 julia> supports(t)
-7-element Array{Float64,1}:
+7-element Vector{Float64}:
   0.0
   2.0
   3.0
@@ -380,7 +379,7 @@ new supports provided:
 julia> set_supports(t, [0,3,5,8,10], force = true)
 
 julia> supports(t)
-5-element Array{Float64,1}:
+5-element Vector{Float64}:
   0.0
   3.0
   5.0
@@ -413,7 +412,7 @@ julia> @infinite_parameter(model, t in [0, 10], num_supports = 4, sig_digits = 3
 t
 
 julia> supports(t)
-4-element Array{Float64,1}:
+4-element Vector{Float64}:
   0.0   
   3.33
   6.67
@@ -432,7 +431,7 @@ julia> @infinite_parameter(model, x ~ Normal(), num_supports = 4)
 x
 
 julia> supports(x)
-4-element Array{Float64,1}:
+4-element Vector{Float64}:
  -0.353007400301
  -0.134853871931
   0.679107426036
@@ -479,7 +478,7 @@ julia> @infinite_parameter(model, x[1:3] in [0, 1], independent = true);
 julia> fill_in_supports!.(x, num_supports = 3);
 
 julia> supports.(x)
-3-element Array{Array{Float64,1},1}:
+3-element Vector{Vector{Float64}}:
  [0.0, 0.5, 1.0]
  [0.0, 0.5, 1.0]
  [0.0, 0.5, 1.0]
@@ -493,7 +492,7 @@ each dimension. We can view this grid by simply invoking `supports` without the
 vectorized syntax:
 ```jldoctest supp_gen_defined
 julia> supports(x)
-3×27 Array{Float64,2}:
+3×27 Matrix{Float64}:
  0.0  0.5  1.0  0.0  0.5  1.0  0.0  0.5  …  1.0  0.0  0.5  1.0  0.0  0.5  1.0
  0.0  0.0  0.0  0.5  0.5  0.5  1.0  1.0     0.0  0.5  0.5  0.5  1.0  1.0  1.0
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     1.0  1.0  1.0  1.0  1.0  1.0  1.0
@@ -521,7 +520,7 @@ julia> @infinite_parameter(model, ξ[1:2] ~ dist);
 julia> fill_in_supports!(ξ, num_supports = 3)
 
 julia> supports(ξ)
-2×3 Array{Float64,2}:
+2×3 Matrix{Float64}:
  -0.353007  0.679107  0.586617
  -0.190712  1.17155   0.420496
 ```
@@ -616,7 +615,7 @@ with a model, while [`all_parameters`](@ref) returns the list of all infinite
 parameter references in the model. For a quick example: 
 ```jldoctest param_queries
 julia> @infinite_parameter(model, y[1:2] in [0, 5])
-2-element Array{GeneralVariableRef,1}:
+2-element Vector{GeneralVariableRef}:
  y[1]
  y[2]
 
@@ -624,7 +623,7 @@ julia> num_parameters(model)
 3
 
 julia> all_parameters(model)
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  x   
  y[1]
  y[2]
@@ -642,7 +641,7 @@ example, to change the parameter `x` to `t` we can do:
 julia> JuMP.set_name(x, "t")
 
 julia> all_parameters(model)
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  t   
  y[1]
  y[2]
@@ -676,7 +675,7 @@ so. If users want to set lower bound and upper bound for a random infinite
 parameter, consider using `Distributions.Truncated`, which creates a truncated 
 distribution from a univariate distribution.
 
-## Generative Supports 
+## [Generative Supports](@id gen_supp_docs)
 Generative supports denote supports that are generated based on existing supports  
 (treated as finite elements). These are important for enabling certain measure  
 and derivative evaluation schemes. Examples of such supports include internal  
@@ -717,108 +716,3 @@ The generation of these supports is handled automatically at the appropriate
 times via [`add_generative_supports`](@ref). We can always check if generative 
 supports have been created for a particular parameter with 
 [`has_generative_supports`](@ref).
-
-## Datatypes
-```@index
-Pages   = ["parameter.md"]
-Modules = [InfiniteOpt]
-Order   = [:type]
-```
-```@docs
-InfOptParameter
-ScalarParameter
-IndependentParameter
-DependentParameters
-ScalarParameterData
-MultiParameterData
-IndependentParameterIndex
-DependentParametersIndex
-DependentParameterIndex
-IndependentParameterRef
-DependentParameterRef
-AbstractGenerativeInfo
-NoGenerativeSupports
-UniformGenerativeInfo
-```
-
-## Methods/Macros
-```@index
-Pages   = ["parameter.md"]
-Modules = [InfiniteOpt, JuMP]
-Order   = [:macro, :function]
-```
-```@docs
-@infinite_parameter
-build_parameter(::Function, ::InfiniteScalarDomain)
-build_parameter(::Function, ::Real)
-add_parameter(::InfiniteModel, ::IndependentParameter,::String)
-add_parameters
-JuMP.name(::ScalarParameterRef)
-JuMP.name(::DependentParameterRef)
-JuMP.set_name(::ScalarParameterRef, ::String)
-JuMP.set_name(::DependentParameterRef, ::String)
-used_by_infinite_variable(::IndependentParameterRef)
-used_by_infinite_variable(::DependentParameterRef)
-used_by_parameter_function(::IndependentParameterRef)
-used_by_parameter_function(::DependentParameterRef)
-used_by_measure(::ScalarParameterRef)
-used_by_measure(::DependentParameterRef)
-used_by_constraint(::ScalarParameterRef)
-used_by_constraint(::DependentParameterRef)
-used_by_objective(::FiniteParameterRef)
-is_used(::ScalarParameterRef)
-is_used(::DependentParameterRef)
-parameter_by_name(::InfiniteModel,::String)
-infinite_domain(::IndependentParameterRef)
-infinite_domain(::DependentParameterRef)
-infinite_domain(::AbstractArray{<:DependentParameterRef})
-set_infinite_domain(::IndependentParameterRef,::InfiniteScalarDomain)
-set_infinite_domain(::DependentParameterRef,::InfiniteScalarDomain)
-set_infinite_domain(::AbstractArray{<:DependentParameterRef},::InfiniteArrayDomain)
-JuMP.has_lower_bound(::IndependentParameterRef)
-JuMP.has_lower_bound(::DependentParameterRef)
-JuMP.lower_bound(::IndependentParameterRef)
-JuMP.lower_bound(::DependentParameterRef)
-JuMP.set_lower_bound(::IndependentParameterRef, ::Real)
-JuMP.set_lower_bound(::DependentParameterRef,::Real)
-JuMP.has_upper_bound(::IndependentParameterRef)
-JuMP.has_upper_bound(::DependentParameterRef)
-JuMP.upper_bound(::IndependentParameterRef)
-JuMP.upper_bound(::DependentParameterRef)
-JuMP.set_upper_bound(::IndependentParameterRef,::Real)
-JuMP.set_upper_bound(::DependentParameterRef,::Real)
-significant_digits(::IndependentParameterRef)
-significant_digits(::DependentParameterRef)
-num_supports(::IndependentParameterRef)
-num_supports(::DependentParameterRef)
-num_supports(::AbstractArray{<:DependentParameterRef})
-has_supports(::IndependentParameterRef)
-has_supports(::DependentParameterRef)
-has_supports(::AbstractArray{<:DependentParameterRef})
-supports(::IndependentParameterRef)
-supports(::DependentParameterRef)
-supports(::AbstractArray{<:DependentParameterRef})
-set_supports(::IndependentParameterRef, ::Vector{<:Real})
-set_supports(::AbstractArray{<:DependentParameterRef},::Vector{<:AbstractArray{<:Real}})
-add_supports(::IndependentParameterRef,::Union{Real, Vector{<:Real}})
-add_supports(::AbstractArray{<:DependentParameterRef},::Vector{<:AbstractArray{<:Real}})
-delete_supports(::IndependentParameterRef)
-delete_supports(::AbstractArray{<:DependentParameterRef})
-generate_and_add_supports!(::IndependentParameterRef,::AbstractInfiniteDomain)
-generate_and_add_supports!(::AbstractArray{<:DependentParameterRef},::InfiniteArrayDomain)
-fill_in_supports!(::IndependentParameterRef)
-fill_in_supports!(::AbstractArray{<:DependentParameterRef})
-fill_in_supports!(::InfiniteModel)
-derivative_method(::IndependentParameterRef)
-derivative_method(::DependentParameterRef)
-num_parameters
-all_parameters
-JuMP.delete(::InfiniteModel, ::IndependentParameterRef)
-JuMP.delete(::InfiniteModel,::AbstractArray{<:DependentParameterRef})
-has_internal_supports(::Union{IndependentParameterRef, DependentParameterRef})
-has_generative_supports(::IndependentParameterRef)
-support_label(::AbstractGenerativeInfo)
-generative_support_info(::IndependentParameterRef)
-make_generative_supports
-add_generative_supports
-```

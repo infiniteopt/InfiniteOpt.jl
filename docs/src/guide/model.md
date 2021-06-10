@@ -1,7 +1,6 @@
-# [Infinite Models] (@id infinite_model_docs)
-A guide and manual for initializing infinite models and understanding how
-they work. The Datatypes and Methods sections at the end comprise the manual,
-and the above sections comprise the guide.  
+# [Infinite Models](@id infinite_model_docs)
+A guide for creating infinite models and understanding how they work. See the 
+respective [technical manual](@ref infinite_model_manual) for more details.
 
 ## Overview
 Infinite models are expressed via the [`InfiniteModel`](@ref) datatype which is at the
@@ -167,19 +166,3 @@ corresponding symbols in the object dictionary are not removed by default. This
 can be accomplished by use of 
 [`JuMP.unregister`](https://jump.dev/JuMP.jl/v0.21.8/reference/models/#JuMP.unregister) 
 (please click on its link for usage information).
-
-## Datatypes
-```@docs
-InfiniteModel
-AbstractDataObject
-AbstractInfOptIndex
-ObjectIndex
-```
-
-## Methods
-```@docs
-InfiniteModel()
-JuMP.object_dictionary(::InfiniteModel)
-has_internal_supports
-Base.empty!(::InfiniteModel)
-```

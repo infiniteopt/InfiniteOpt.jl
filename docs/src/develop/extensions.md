@@ -132,7 +132,7 @@ julia> par = @infinite_parameter(model, domain = DisjointDomain(0, 2, 3, 4), num
 noname
 
 julia> supports(par)
-10-element Array{Float64,1}:
+10-element Vector{Float64}:
  0.0
  0.333333333333
  0.666666666667
@@ -295,7 +295,7 @@ julia> dy = deriv(y, t);
 julia> evaluate(dy)
 
 julia> derivative_constraints(dy)
-2-element Array{InfOptConstraintRef,1}:
+2-element Vector{InfOptConstraintRef}:
  y(5) - y(0) - 5 ∂/∂t[y(t)](0) = 0.0
  y(10) - y(5) - 5 ∂/∂t[y(t)](5) = 0.0
 ```
@@ -427,7 +427,7 @@ julia> expand(y_int)
 Here we go! We can freely use `UnifGrid` for infinite parameters residing in 
 [`IntervalDomain`](@ref)s now.
 
-## Measure Data
+## [Measure Data](@id meas_data_ext)
 Measures are used to evaluate over infinite domains. Users may wish to employ 
 measure abstractions that cannot be readily represented with coefficients and 
 discretized supports, and thus may wish to extend `InfiniteOpt`'s 
@@ -619,16 +619,16 @@ julia> expand(variance(2y + z, xi, use_existing = true))
 We have done it! Now go and extend away!
 
 ## Generative Support Information 
-As discussed in the [Generative Supports](@ref) section, generative supports help 
-enable measure and/or derivative evaluation techniques that require the creation 
-of generative supports (e.g., orthogonal collocation). Natively, we provide 
-[`UniformGenerativeInfo`](@ref) to help accomplish this which works for creating 
-generative supports uniformly over finite elements as is the case for orthogonal 
-collocation (note this includes scaling them as need to the size of each finite 
-element). However, more complex generative support schemes can be enabled by 
-defining a new concrete [`AbstractGenerativeInfo`](@ref) subtype. This section will 
-detail how this can be accomplished in `InfiniteOpt`. A template for implementing 
-this is provided in 
+As discussed in the [Generative Supports](@ref gen_supp_docs) section, generative 
+supports help enable measure and/or derivative evaluation techniques that require 
+the creation of generative supports (e.g., orthogonal collocation). Natively, we 
+provide [`UniformGenerativeInfo`](@ref) to help accomplish this which works for 
+creating generative supports uniformly over finite elements as is the case for 
+orthogonal collocation (note this includes scaling them as need to the size of 
+each finite element). However, more complex generative support schemes can be 
+enabled by defining a new concrete [`AbstractGenerativeInfo`](@ref) subtype. This 
+section will detail how this can be accomplished in `InfiniteOpt`. A template for 
+implementing this is provided in 
 [`./test/extensions/generative_info.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/generative_info.jl).
 
 A new generative support information type can be created via the following:
@@ -1011,7 +1011,7 @@ julia> result_count(model)
 1
 
 julia> value.(y)
-2-element Array{Float64,1}:
+2-element Vector{Float64}:
  0.0
  1.224744871391589
 

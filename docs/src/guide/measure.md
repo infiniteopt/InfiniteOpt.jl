@@ -2,26 +2,25 @@
 DocTestFilters = [r" ∈ | in ", r"E|𝔼", r"integral|∫"]
 ```
 
-# [Measure Operators] (@id measure_page)
-A guide and manual for the definition and use of measures in `InfiniteOpt`.
-The Datatypes and Methods sections at the end comprise the manual, and the
-above sections comprise the guide.  
+# [Measure Operators](@id measure_docs)
+A guide for measure operators in `InfiniteOpt`. See the respective 
+[technical manual](@ref measure_manual) for more details.
 
 ## Overview
-Measure operators are objects that capture the evaluation of an expression with respect
-to parameters, which is a distinct feature of optimization problems with
-infinite decision spaces. In dynamic optimization measures can represent integral
-terms such as the total cost over time, and in stochastic optimization measures
-can represent integrals over the uncertain parameters, such as expectations. In
-`InfiniteOpt`, measures are general operators that can be uni-variate or 
-multi-variate. Natively we employ measure abstractions that employ discretization 
-schemes, which evaluate the expression at a set of points over the parameter space and
+Measure operators are objects that capture the evaluation of an expression with respect 
+to parameters, which is a distinct feature of optimization problems with 
+infinite decision spaces. In dynamic optimization measures can represent integral 
+terms such as the total cost over time, and in stochastic optimization measures 
+can represent integrals over the uncertain parameters, such as expectations. In 
+`InfiniteOpt`, measures are general operators that can be uni-variate or  
+multi-variate. Natively we employ measure abstractions that employ discretization  
+schemes, which evaluate the expression at a set of points over the parameter space and 
 approximates the measures based on the expression values at these points. However, 
 we support the use of alternative measure operator paradigms.
 
 ## [Basic Usage] (@id measure_basic_usage)
-First, we consider a dynamic optimization problem with the time parameter `t`
-from 0 to 10. We also consider a state variable `y(t)` and a control variable
+First, we consider a dynamic optimization problem with the time parameter `t` 
+from 0 to 10. We also consider a state variable `y(t)` and a control variable 
 `u(t)` that are parameterized by `t`:
 ```jldoctest meas_basic; setup = :(using InfiniteOpt, Random; Random.seed!(0); model = InfiniteModel())
 julia> @infinite_parameter(model, t in [0, 10], supports = [0, 5, 10])
@@ -34,22 +33,22 @@ julia> @variable(model, u, Infinite(t))
 u(t)
 ```
 
-Now suppose we want to evaluate the integral ``\int_{2}^{8}y(t)^2 + u(t)^2 dt``.
-We can construct a measure to represent this integral using the
+Now suppose we want to evaluate the integral ``\int_{2}^{8}y(t)^2 + u(t)^2 dt``. 
+We can construct a measure to represent this integral using the 
 [`integral`](@ref) function
 ```jldoctest meas_basic
 julia> mref1 = integral(y^2 + u^2, t, 2, 8)
 ∫{t ∈ [2, 8]}[y(t)² + u(t)²]
 ```
-The four positional arguments of [`integral`](@ref) are the integrand expression, 
+The four positional arguments of [`integral`](@ref) are the integrand expression,  
 the parameter of integration, the lower bound, and the upper bound, respectively. 
-Specifying the integrand expression and the parameter of integration is required.
-If the lower and upper bounds are not specified, then the integration will
+Specifying the integrand expression and the parameter of integration is required. 
+If the lower and upper bounds are not specified, then the integration will 
 be over the entire domain, which is ``[0, 10]`` in this case.
 
-The `integral` function uses trapezoid rule as the default discretization scheme
+The `integral` function uses trapezoid rule as the default discretization scheme 
 for univariate parameters in finite `IntervalDomain`s. In addition, the user can also 
-use quadrature methods for univariate parameters in all `IntervalDomain`s by setting
+use quadrature methods for univariate parameters in all `IntervalDomain`s by setting 
 the keyword argument `eval_method` as `Quadrature()`:
 ```jldoctest meas_basic
 julia> mref2 = integral(y^2 + u^2, t, eval_method = Quadrature())
@@ -96,18 +95,18 @@ julia> expect_x = expect(x^2, ξ)
 Other measure paradigms can be implemented via [`measure`](@ref) as described in 
 the sections further below.
 
-Depending on the type of measures created, support points may be generated
-at the time of creating the measures. In these cases, the new support points
+Depending on the type of measures created, support points may be generated 
+at the time of creating the measures. In these cases, the new support points 
 will be added to the support list of the integrated parameter.
 
-Once a measure is created, the evaluation of that measure is stored in a
-measure data object. Users can query the measure data object using the
-[`measure_data`](@ref) function as follows
+Once a measure is created, the evaluation of that measure is stored in a 
+measure data object. Users can query the measure data object using the 
+[`measure_data`](@ref) function as follows 
 ```jldoctest meas_basic
 julia> meas_data = measure_data(mref2);
 ```
-Natively in `InfiniteOpt`, two types of measure data objects are used to store the measure
-data information depending on the nature of the measures created: `DiscreteMeasureData` and
+Natively in `InfiniteOpt`, two types of measure data objects are used to store the measure 
+data information depending on the nature of the measures created: `DiscreteMeasureData` and 
 `FunctionalDiscreteMeasureData`. For more details on the measure data object, 
 refer to [Measure Data Generation](@ref).
 
@@ -119,12 +118,12 @@ y(t)² + u(t)²
 ```
 
 In addition to `eval_method`, the `integral` function 
-also accepts `weight_func` as keyword argument, which dictates the weight function
-of the measure. Now suppose we want to create multiple measures that share the 
+also accepts `weight_func` as keyword argument, which dictates the weight function 
+of the measure. Now suppose we want to create multiple measures that share the  
 same keyword argument values that are different from the defaults. We don't have 
 to input the keyword argument values every time we construct a new measure. 
 Instead, we can modify the default values of measure keyword arguments, and 
-construct measures using the new default values. To do that, we use the functions
+construct measures using the new default values. To do that, we use the functions 
 [`set_uni_integral_defaults`](@ref) and [`set_multi_integral_defaults`](@ref). We 
 can in turn reset these via [`clear_uni_integral_defaults`](@ref) and 
 [`clear_multi_integral_defaults`](@ref). Adding new keyword arguments will be 
@@ -135,9 +134,8 @@ See [Extensions](@ref) for more details.
 We can also use the `pdf` keyword argument for [`expect`] over interval domains 
 which allows us to specify the density function we would like to use. 
 
-Now we can add measures to the constraints and objective functions in our
-model. For more detailed information, please review the
-information below.
+Now we can add measures to the constraints and objective functions in our 
+model. For more detailed information, please review the information below.
 
 ## Theoretical Abstraction
 In `InfiniteOpt`, measures denote operators ``M_\ell`` that operate on some infinite 
@@ -162,7 +160,7 @@ the integrals by taking a discretization scheme
 ```math
 \int_{\tau \in \mathcal{T}} f(\tau)w(\tau) d\tau \approx \sum_{i=1}^N \alpha_i f(\tau_i) w(\tau_i)
 ```
-where ``\tau_i`` are the grid points where the expression ``f(\tau)`` is
+where ``\tau_i`` are the grid points where the expression ``f(\tau)`` is 
 evaluated, and ``N`` is the total number of points taken.
 
 This is the abstraction behind both [`DiscreteMeasureData`](@ref) and 
@@ -173,62 +171,62 @@ lie out of the realm of the supported features behind `integral`, `expect`, and
 `support_sum`.
 
 More complex measure paradigms can also be implemented by creating concrete 
-subtype of [`AbstractMeasureData`](@ref) as detailed in [Measure Data](@ref) Section 
-on our extensions page.
+subtype of [`AbstractMeasureData`](@ref) as detailed in 
+[Measure Data](@ref meas_data_ext) Section on our extensions page.
 
 ## Measure Data Generation
-The general [`measure`](@ref) function takes two arguments: the argument expression and
-a measure data object that contains the details of the measure representation.
-Measure data objects can be constructed using [`DiscreteMeasureData`](@ref),
-where the parameter of integration, the coefficients ``\alpha_i``, and the
-support points need to be defined explicitly. For example, if we want to
-evaluate a function at each integer time point between 0 and 10, we
-can construct the following measure data object to record this discretization
+The general [`measure`](@ref) function takes two arguments: the argument expression and 
+a measure data object that contains the details of the measure representation. 
+Measure data objects can be constructed using [`DiscreteMeasureData`](@ref), 
+where the parameter of integration, the coefficients ``\alpha_i``, and the 
+support points need to be defined explicitly. For example, if we want to 
+evaluate a function at each integer time point between 0 and 10, we 
+can construct the following measure data object to record this discretization 
 scheme:
 ```jldoctest meas_basic
 julia> md_t = DiscreteMeasureData(t, ones(10), [i for i in 1:10]);
 ```
-The arguments of [`DiscreteMeasureData`](@ref) are parameter, coefficients, and
-supports. The default weight function is ``w(\tau) = 1`` for
-any ``\tau``, which can be overwritten by the keyword argument `weight_function`.
-The `weight_function` should take a function that returns a number for any
-value that is well defined for the integrated infinite parameter. The data type
-is [`DiscreteMeasureData`](@ref), which is a subtype of the abstract data type
+The arguments of [`DiscreteMeasureData`](@ref) are parameter, coefficients, and 
+supports. The default weight function is ``w(\tau) = 1`` for 
+any ``\tau``, which can be overwritten by the keyword argument `weight_function`. 
+The `weight_function` should take a function that returns a number for any 
+value that is well defined for the integrated infinite parameter. The data type 
+is [`DiscreteMeasureData`](@ref), which is a subtype of the abstract data type 
 [`AbstractMeasureData`](@ref).
 
-With [`DiscreteMeasureData`](@ref), a measure can be generated in a custom and
-quick manner. For example, using the measure data above, we can define a measure
+With [`DiscreteMeasureData`](@ref), a measure can be generated in a custom and 
+quick manner. For example, using the measure data above, we can define a measure 
 for ``y^2`` as follows:
 ```jldoctest meas_basic
 julia> mref = measure(y^2, md_t)
 measure{t}[y(t)²]
 ```
-In the same way, we can define measure data for multi-variate infinite parameters.
-For example, we can define a discretization scheme for a 2D position parameter
+In the same way, we can define measure data for multi-variate infinite parameters. 
+For example, we can define a discretization scheme for a 2D position parameter 
 ``x \in [0, 1] \times [0, 1]`` as follows:
 ```jldoctest meas_basic
 julia> @infinite_parameter(model, x[1:2] in [0, 1])
-2-element Array{GeneralVariableRef,1}:
+2-element Vector{GeneralVariableRef}:
  x[1]
  x[2]
 
 julia> md_x = DiscreteMeasureData(x, 0.25 * ones(4), [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75]]);
 ```
-where `md_x` cuts the domain into four 0.5-by-0.5 squares, and evaluates the
-integrand on the center of these squares. Note that for multivariate parameters, 
-each support point should be an `AbstractArray` that stores the value at each dimension.
+where `md_x` cuts the domain into four 0.5-by-0.5 squares, and evaluates the 
+integrand on the center of these squares. Note that for multivariate parameters,  
+each support point should be an `AbstractArray` that stores the value at each dimension. 
 
-In addition to the intuitive [`DiscreteMeasureData`], another type of measure data 
-object is [`FunctionalDiscreteMeasureData`](@ref). This type captures measure data
-where the support points are not known at the time of measure data creation. Instead of 
-storing the specific support and coefficient values, `FunctionalDiscreteMeasureData`
-stores the minimum number of supports required for the measure, and a coefficient function
-that maps supports to coefficients. When the measure is built on a `FunctionalDiscreteMeasureData` 
-is evaluated (expanded), supports will be generated based on the functions stored in 
-the data object. The method of support generation is recorded as a `label` in the
+In addition to the intuitive [`DiscreteMeasureData`], another type of measure data  
+object is [`FunctionalDiscreteMeasureData`](@ref). This type captures measure data 
+where the support points are not known at the time of measure data creation. Instead of  
+storing the specific support and coefficient values, `FunctionalDiscreteMeasureData` 
+stores the minimum number of supports required for the measure, and a coefficient function 
+that maps supports to coefficients. When the measure is built on a `FunctionalDiscreteMeasureData`  
+is evaluated (expanded), supports will be generated based on the functions stored in  
+the data object. The method of support generation is recorded as a `label` in the 
 measure object. 
 
-For example, suppose we want to uniformly generate at least 20 Monte Carlo samples 
+For example, suppose we want to uniformly generate at least 20 Monte Carlo samples  
 over the interval that `t` is in. A build-in label `UniformGrid` can be used to 
 signify the use of this method. A `FunctionalDiscreteMeasureData` can be created as follows:
 ```jldoctest meas_basic
@@ -244,19 +242,19 @@ explicit construction of the measure data object and instead serve as wrappers
 that construct the appropriate data object and then call [`measure`](@ref).
 
 ## Evaluation Methods
-The [`integral`](@ref) function calls [`generate_integral_data`](@ref) under the hood
-to construct the measure data object. [`generate_integral_data`](@ref) takes as
-positional arguments the integrated parameter, lower bound, upper bound, and method, and returns
+The [`integral`](@ref) function calls [`generate_integral_data`](@ref) under the hood 
+to construct the measure data object. [`generate_integral_data`](@ref) takes as 
+positional arguments the integrated parameter, lower bound, upper bound, and method, and returns 
 a measure data object of type [`AbstractMeasureData`](@ref).
 
-[`generate_integral_data`](@ref) applies multiple dispatch to encode different
+[`generate_integral_data`](@ref) applies multiple dispatch to encode different 
 support generation methods depending on the input `eval_method`. Each dispatch is distinguished by 
 the `method`, which takes a concrete subtype of `AbstractIntegralMethod`. 
-Each dispatch of `generate_integral_data` implements the specified method and returns
-the resulting measure data, which will be used by [`@integral`](@ref) to create the measure.
-A table of available `method` options in our package is listed below.
-Each method is limited on the dimension of parameter and/or the type of domain
-that it can apply for. For the details of what each method type means, refer to the corresponding
+Each dispatch of `generate_integral_data` implements the specified method and returns 
+the resulting measure data, which will be used by [`@integral`](@ref) to create the measure. 
+A table of available `method` options in our package is listed below. 
+Each method is limited on the dimension of parameter and/or the type of domain 
+that it can apply for. For the details of what each method type means, refer to the corresponding 
 docstrings.
 
 | Evaluation Method                                | Uni/Multi-Variate? | Weight Function              | Domain Type                            |
@@ -345,7 +343,7 @@ trans_m = optimizer_model(m);
 A JuMP Model
 Minimization problem with:
 Variables: 3
-Objective function type: GenericQuadExpr{Float64,VariableRef}
+Objective function type: QuadExpr
 Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
@@ -358,13 +356,13 @@ the same supports are used in both the objective function and the transcribed
 variable:
 ```jldoctest support_manage
 julia> supports(t) 
-3-element Array{Float64,1}:
+3-element Vector{Float64}:
  0.0
  1.0
  2.0
 
 julia> transcription_variable(u)  
-3-element Array{VariableRef,1}:
+3-element Vector{VariableRef}:
  u(support: 1)
  u(support: 2)
  u(support: 3)
@@ -387,7 +385,7 @@ trans_m = optimizer_model(m);
 A JuMP Model
 Minimization problem with:
 Variables: 5
-Objective function type: GenericQuadExpr{Float64,VariableRef}
+Objective function type: QuadExpr
 Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
@@ -397,7 +395,7 @@ Now let's look again at the number of supports, the transcription of `u`, and th
 new objective function:
 ```jldoctest support_manage
 julia> supports(t) 
-5-element Array{Float64,1}:
+5-element Vector{Float64}:
  0.0
  0.42264973081
  1.0
@@ -405,7 +403,7 @@ julia> supports(t)
  2.0
 
 julia> transcription_variable(u)  
-5-element Array{VariableRef,1}:
+5-element Vector{VariableRef}:
  u(support: 1)
  u(support: 2)
  u(support: 3)
@@ -418,7 +416,7 @@ u(support: 2)² + u(support: 4)²
 The supports used in the objective function are different from the supports used 
 in the transcription of `u`. The integral objective function has been transcribed 
 using the 2 quadrature supports, but does not include the other supports since 
-they cannot be incorporated into the Gaussian quadrature approximation. Whereas,
+they cannot be incorporated into the Gaussian quadrature approximation. Whereas, 
 `u` is defined over all the supports and thus certain realizations of `u` will 
 excluded from the objective function which will affect the behavior of the 
 optimization and lead to unexpected results.
@@ -445,7 +443,7 @@ trans_m = optimizer_model(m);
 A JuMP Model
 Minimization problem with:
 Variables: 2
-Objective function type: GenericQuadExpr{Float64,VariableRef}
+Objective function type: QuadExpr
 Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
@@ -454,12 +452,12 @@ Solver name: No optimizer attached.
 Then we get the supports are consistent for `u` and the integral:
 ```jldoctest support_manage
 julia> supports(t) 
-2-element Array{Float64,1}:
+2-element Vector{Float64}:
  0.42264973081
  1.57735026919
 
 julia> transcription_variable(u)  
-2-element Array{VariableRef,1}:
+2-element Vector{VariableRef}:
  u(support: 1)
  u(support: 2)
 
@@ -470,23 +468,23 @@ Therefore, using quadratures other than `UniTrapezoid()` or `FEGaussLobatto()`
 requires careful analysis if there are user-defined supports in the problem. 
 
 ## Expansion
-In a model, each measure records the integrand expression and an evaluation
-scheme that details the discretization scheme to approximate the integral.
-The model will not expand the measures until the transcription stage, at which
-a `JuMP.AbstractJuMPScalar` is created for each measure to represent how
-the measure is modeled in a transcription model based on the stored
-discretization scheme (see [Model Transcription](@ref transcription_docs) for
-details on transcription). Additional point variables will be created in the
-expansion process if the measure is evaluated at infinite parameter points that
+In a model, each measure records the integrand expression and an evaluation 
+scheme that details the discretization scheme to approximate the integral. 
+The model will not expand the measures until the transcription stage, at which 
+a `JuMP.AbstractJuMPScalar` is created for each measure to represent how 
+the measure is modeled in a transcription model based on the stored 
+discretization scheme (see [Model Transcription](@ref transcription_docs) for 
+details on transcription). Additional point variables will be created in the 
+expansion process if the measure is evaluated at infinite parameter points that 
 do not have corresponding point variables yet.
 
-Sometimes for extension purposes, one might want to expand a specific measure
-before reaching the transcription stage. Alternatively, one might want to use
-custom reformulation instead of the transcription encoded in this package, in
-which expanding measures will also be useful. This can be done using the [`expand`](@ref)
-function, which takes a [`MeasureRef`](@ref) object and returns a `JuMP.AbstractJuMPScalar`
-based on the [`AbstractMeasureData`](@ref). For example, suppose we want to
-integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``.
+Sometimes for extension purposes, one might want to expand a specific measure 
+before reaching the transcription stage. Alternatively, one might want to use 
+custom reformulation instead of the transcription encoded in this package, in 
+which expanding measures will also be useful. This can be done using the [`expand`](@ref) 
+function, which takes a [`MeasureRef`](@ref) object and returns a `JuMP.AbstractJuMPScalar` 
+based on the [`AbstractMeasureData`](@ref). For example, suppose we want to 
+integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``. 
 We can set up and expand this measure as follows:
 ```jldoctest meas_basic; setup = :(clear_uni_integral_defaults())
 julia> tdata = DiscreteMeasureData(t, [5, 5], [2.5, 7.5]);
@@ -498,136 +496,9 @@ julia> expanded_measure = expand(mref4)
 5 y(2.5)² + 5 y(7.5)²
 
 julia> typeof(expanded_measure)
-GenericQuadExpr{Float64,GeneralVariableRef}
+GenericQuadExpr{Float64, GeneralVariableRef}
 ```
-In the expand call, two point variables, `y(2.5)` and `y(7.5)`, are created
-because they are not defined in the model before the expand call. One can use
-the [`expand_all_measures!`](@ref) function to expand all measures in a model,
-which simply applies the [`expand`](@ref) to all measures stored in the model.
-
-## Datatypes
-```@index
-Pages   = ["measure.md"]
-Modules = [InfiniteOpt]
-Order   = [:type]
-```
-```@docs
-AbstractMeasureData
-DiscreteMeasureData
-FunctionalDiscreteMeasureData
-Measure
-MeasureIndex
-MeasureData
-MeasureRef
-```
-
-## Methods
-```@index
-Pages   = ["measure.md"]
-Modules = [InfiniteOpt, JuMP]
-Order   = [:macro, :function]
-```
-```@docs
-default_weight
-DiscreteMeasureData(::GeneralVariableRef, ::Vector{<:Real}, ::Vector{<:Real})
-DiscreteMeasureData(::AbstractArray{GeneralVariableRef}, ::Vector{<:Real}, ::Vector{<:AbstractArray{<:Real}})
-FunctionalDiscreteMeasureData(::GeneralVariableRef,::Function,::Int,::Type{<:AbstractSupportLabel})
-FunctionalDiscreteMeasureData(::AbstractArray{GeneralVariableRef},::Function,::Int,::Type{<:AbstractSupportLabel})
-parameter_refs(::AbstractMeasureData)
-support_label(::AbstractMeasureData)
-generative_support_info(::AbstractMeasureData)
-JuMP.lower_bound(::AbstractMeasureData)
-JuMP.upper_bound(::AbstractMeasureData)
-supports(::AbstractMeasureData)
-num_supports(::AbstractMeasureData)
-min_num_supports(::AbstractMeasureData)
-coefficient_function(::AbstractMeasureData)
-coefficients(::AbstractMeasureData)
-weight_function(::AbstractMeasureData)
-build_measure
-add_measure
-InfiniteOpt.add_supports_to_parameters(::AbstractMeasureData)
-measure_function
-measure_data
-is_analytic
-parameter_refs(::MeasureRef)
-measure
-@measure
-used_by_constraint(::MeasureRef)
-used_by_measure(::MeasureRef)
-used_by_objective(::MeasureRef)
-is_used(::MeasureRef)
-JuMP.name(::MeasureRef)
-JuMP.set_name(::MeasureRef, ::String)
-num_measures
-all_measures
-JuMP.delete(::InfiniteModel, ::MeasureRef)
-expand
-expand_all_measures!
-InfiniteOpt.expand_measure
-InfiniteOpt.analytic_expansion
-InfiniteOpt.expand_measures
-make_point_variable_ref
-make_semi_infinite_variable_ref
-add_measure_variable(::JuMP.Model, ::Any, ::Any)
-delete_internal_semi_infinite_variable
-delete_semi_infinite_variable(::JuMP.Model, ::Any, ::Any)
-internal_semi_infinite_variable
-```
-
-## MeasureToolbox Datatypes
-```@index
-Pages   = ["measure.md"]
-Modules = [InfiniteOpt.MeasureToolbox]
-Order   = [:type]
-```
-```@docs
-InfiniteOpt.MeasureToolbox.AbstractIntegralMethod
-InfiniteOpt.MeasureToolbox.Automatic
-InfiniteOpt.MeasureToolbox.AbstractUnivariateMethod
-InfiniteOpt.MeasureToolbox.UniTrapezoid
-InfiniteOpt.MeasureToolbox.UniMCSampling
-InfiniteOpt.MeasureToolbox.UniIndepMCSampling
-InfiniteOpt.MeasureToolbox.Quadrature
-InfiniteOpt.MeasureToolbox.GaussHermite
-InfiniteOpt.MeasureToolbox.GaussLegendre
-InfiniteOpt.MeasureToolbox.GaussRadau
-InfiniteOpt.MeasureToolbox.GaussLobatto
-InfiniteOpt.MeasureToolbox.GaussJacobi
-InfiniteOpt.MeasureToolbox.FEGaussLobatto
-InfiniteOpt.MeasureToolbox.GaussChebyshev
-InfiniteOpt.MeasureToolbox.GaussLaguerre
-InfiniteOpt.MeasureToolbox.AbstractMultivariateMethod
-InfiniteOpt.MeasureToolbox.MultiMCSampling
-InfiniteOpt.MeasureToolbox.MultiIndepMCSampling
-InfiniteOpt.MeasureToolbox.InternalGaussLobatto
-```
-
-## MeasureToolbox Methods
-```@index
-Pages   = ["measure.md"]
-Modules = [InfiniteOpt.MeasureToolbox]
-Order   = [:macro, :function]
-```
-```@docs
-InfiniteOpt.MeasureToolbox.@integral
-InfiniteOpt.MeasureToolbox.@∫
-InfiniteOpt.MeasureToolbox.integral(::JuMP.AbstractJuMPScalar,::InfiniteOpt.GeneralVariableRef,::Real,::Real)
-InfiniteOpt.MeasureToolbox.integral(::JuMP.AbstractJuMPScalar,::AbstractArray{InfiniteOpt.GeneralVariableRef},::Union{Real, AbstractArray{<:Real}},::Union{Real, AbstractArray{<:Real}})
-InfiniteOpt.MeasureToolbox.∫(::JuMP.AbstractJuMPScalar,::InfiniteOpt.GeneralVariableRef,::Real,::Real)
-InfiniteOpt.MeasureToolbox.∫(::JuMP.AbstractJuMPScalar,::AbstractArray{InfiniteOpt.GeneralVariableRef},::Union{Real, AbstractArray{<:Real}},::Union{Real, AbstractArray{<:Real}})
-InfiniteOpt.MeasureToolbox.@expect
-InfiniteOpt.MeasureToolbox.@𝔼
-InfiniteOpt.MeasureToolbox.expect
-InfiniteOpt.MeasureToolbox.𝔼
-InfiniteOpt.MeasureToolbox.@support_sum
-InfiniteOpt.MeasureToolbox.support_sum
-InfiniteOpt.MeasureToolbox.uni_integral_defaults
-InfiniteOpt.MeasureToolbox.set_uni_integral_defaults
-InfiniteOpt.MeasureToolbox.clear_uni_integral_defaults
-InfiniteOpt.MeasureToolbox.multi_integral_defaults
-InfiniteOpt.MeasureToolbox.set_multi_integral_defaults
-InfiniteOpt.MeasureToolbox.clear_multi_integral_defaults
-InfiniteOpt.MeasureToolbox.generate_integral_data
-InfiniteOpt.MeasureToolbox.generate_expect_data
-```
+In the expand call, two point variables, `y(2.5)` and `y(7.5)`, are created 
+because they are not defined in the model before the expand call. One can use 
+the [`expand_all_measures!`](@ref) function to expand all measures in a model, 
+which simply applies the [`expand`](@ref) to all measures stored in the model. 

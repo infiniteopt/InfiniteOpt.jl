@@ -1,12 +1,11 @@
 ```@meta
 DocTestFilters = [r"≥|>=", r" == | = ", r" ∈ | in ", r" for all | ∀ ", r"d|∂", 
-                  r"integral|∫", r".*scalar_parameters.jl:763"]
+                  r"integral|∫", r".*scalar_parameters.jl:781"]
 ```
 
-# [Derivative Operators](@id deriv_page)
-A guide and manual for the definition and use of derivatives in `InfiniteOpt`.
-The Datatypes and Methods sections at the end comprise the manual, and the
-above sections comprise the guide.  
+# [Derivative Operators](@id deriv_docs)
+A guide for derivatives in `InfiniteOpt`. See the respective 
+[technical manual](@ref deriv_manual) for more details.
 
 ## Overview
 Derivative operators commonly arise in many infinite-dimensional problems, 
@@ -409,7 +408,7 @@ julia> fill_in_supports!(t, num_supports = 3) # add supports first
 julia> evaluate(d1)
 
 julia> derivative_constraints(d1)
-2-element Array{InfOptConstraintRef,1}:
+2-element Vector{InfOptConstraintRef}:
  5 ∂/∂t[y(t, ξ)](5, ξ) - y(10, ξ) + y(5, ξ) = 0.0, ∀ ξ ~ Uniform
  5 ∂/∂t[y(t, ξ)](0, ξ) - y(5, ξ) + y(0, ξ) = 0.0, ∀ ξ ~ Uniform
 ```
@@ -426,7 +425,7 @@ julia> fill_in_supports!(ξ, num_supports = 4) # add supports first
 julia> evaluate_all_derivatives!(model)
 
 julia> derivative_constraints(dydt2)
-2-element Array{InfOptConstraintRef,1}:
+2-element Vector{InfOptConstraintRef}:
  5 dydt2(5, ξ) - ∂/∂t[y(t, ξ)](10, ξ) + ∂/∂t[y(t, ξ)](5, ξ) = 0.0, ∀ ξ ~ Uniform
  5 dydt2(0, ξ) - ∂/∂t[y(t, ξ)](5, ξ) + ∂/∂t[y(t, ξ)](0, ξ) = 0.0, ∀ ξ ~ Uniform
 ```
@@ -437,13 +436,13 @@ or derivative method will necessitate the deletion of these auxiliary constraint
 and a warning will be thrown to indicate such:
 ```jldoctest deriv_basic
 julia> derivative_constraints(d1)
-2-element Array{InfOptConstraintRef,1}:
+2-element Vector{InfOptConstraintRef}:
  5 ∂/∂t[y(t, ξ)](5, ξ) - y(10, ξ) + y(5, ξ) = 0.0, ∀ ξ ~ Uniform
  5 ∂/∂t[y(t, ξ)](0, ξ) - y(5, ξ) + y(0, ξ) = 0.0, ∀ ξ ~ Uniform
 
 julia> add_supports(t, 0.2)
 ┌ Warning: Support/method changes will invalidate existing derivative evaluation constraints that have been added to the InfiniteModel. Thus, these are being deleted.
-└ @ InfiniteOpt ~/build/pulsipher/InfiniteOpt.jl/src/scalar_parameters.jl:763
+└ @ InfiniteOpt ~/build/pulsipher/InfiniteOpt.jl/src/scalar_parameters.jl:781
 
 julia> has_derivative_constraints(d1)
 false
@@ -526,7 +525,7 @@ julia> num_derivatives(model)
 7
 
 julia> all_derivatives(model)
-7-element Array{GeneralVariableRef,1}:
+7-element Vector{GeneralVariableRef}:
  ∂/∂t[y(t, ξ)]
  ∂/∂ξ[∂/∂t[y(t, ξ)]]
  ∂/∂t[q(t)]
@@ -585,64 +584,4 @@ julia> delete(model, d2)
 
 julia> is_valid(model, d2)
 false
-```
-
-## Datatypes
-```@index
-Pages   = ["derivative.md"]
-Modules = [InfiniteOpt]
-Order   = [:type]
-```
-```@docs
-Deriv
-DerivativeIndex
-DerivativeRef
-Derivative
-AbstractDerivativeMethod
-GenerativeDerivativeMethod
-OrthogonalCollocation
-NonGenerativeDerivativeMethod
-FiniteDifference
-FDTechnique
-Forward
-Central
-Backward
-```
-
-## [Methods/Macros] (@id deriv_methods)
-```@index
-Pages   = ["derivative.md"]
-Modules = [InfiniteOpt, JuMP]
-Order   = [:macro, :function]
-```
-```@docs
-@deriv
-@∂
-deriv
-∂
-build_derivative
-JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Deriv)
-add_derivative
-derivative_argument(::DerivativeRef)
-operator_parameter(::DerivativeRef)
-derivative_method(::DerivativeRef)
-raw_parameter_refs(::DerivativeRef)
-parameter_refs(::DerivativeRef)
-parameter_list(::DerivativeRef)
-set_start_value_function(::DerivativeRef,::Union{Real, Function})
-reset_start_value_function(::DerivativeRef)
-num_derivatives
-all_derivatives
-set_derivative_method(::IndependentParameterRef, ::NonGenerativeDerivativeMethod)
-set_derivative_method(::DependentParameterRef, ::AbstractDerivativeMethod)
-set_all_derivative_methods
-evaluate(::DerivativeRef)
-evaluate_all_derivatives!
-has_derivative_constraints(::DerivativeRef)
-derivative_constraints(::DerivativeRef)
-delete_derivative_constraints(::DerivativeRef)
-evaluate_derivative
-generative_support_info(::AbstractDerivativeMethod)
-support_label(::AbstractDerivativeMethod)
-InfiniteOpt.make_reduced_expr
 ```

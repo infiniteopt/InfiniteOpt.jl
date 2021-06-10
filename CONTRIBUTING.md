@@ -22,7 +22,7 @@ on how to do this.) Moreover, the editor can be activated on the page of interes
 by clicking on the `Edit on GitHub` button at the top of the documentation page.
 
 If your change is larger, or touches multiple files, you will need to make the
-change locally and then use Git to submit a pull request. (See our [Development](https://pulsipher.github.io/InfiniteOpt.jl/dev/develop/)
+change locally and then use Git to submit a pull request. (See our [Development](https://pulsipher.github.io/InfiniteOpt.jl/dev/develop/start_guide)
 page for more information and for the step by step explanation.)
 
 Also, feel free to [ask a question](https://github.com/pulsipher/InfiniteOpt.jl/issues/new?assignees=&labels=question&template=i-have-a-question.md&title=%5BHelp+Wanted%5D+My+Question).
@@ -42,7 +42,7 @@ Finally, you can also contribute code to InfiniteOpt!
 
 If you do not have experience with Git, Github, and Julia development, the first
 steps can be a little daunting. However, there are lots of tutorials available
-online to help you get started. Please visit our [Contribution Roadmap](https://pulsipher.github.io/InfiniteOpt.jl/dev/develop/#Contribution-Roadmap-1)
+online to help you get started. Please visit our [developer docs](https://pulsipher.github.io/InfiniteOpt.jl/dev/develop/start_guide)
 to walk you through getting started.
 
 Once you are familiar with Git, the workflow for contributing code to InfiniteOpt
@@ -50,7 +50,7 @@ is along the lines of the following:
 1. Find an [open issue](https://github.com/pulsipher/InfiniteOpt.jl/issues) (or open a
     new one) for the problem you want to solve
 2. Make your changes locally. (Again our RoadMap explains this). Make sure you:
-    - Follow the [style guide](https://pulsipher.github.io/InfiniteOpt.jl/dev/develop/#Style-Guide-1)
+    - Follow the [style guide](https://pulsipher.github.io/InfiniteOpt.jl/dev/develop/style)
     - Add tests and documentation for any changes or new features
 3. Submit a pull request to Github
 4. Update your pull request, responding to any comments

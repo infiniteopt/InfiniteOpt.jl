@@ -1,20 +1,19 @@
-# [Infinite Domains] (@id infinite_domains_normal)
-A guide and manual to the definition and use of infinite domains in
-`InfiniteOpt`. The Datatypes and Methods sections at the end comprise the manual,
-and the above sections comprise the guide.  
+# [Infinite Domains](@id infinite_domains_docs)
+A guide for infinite domains in `InfiniteOpt`. See the respective 
+[technical manual](@ref infinite_domains_manual) for more details.
 
 !!! note 
     Previous versions of `InfiniteOpt` referred to infinite domains as infinite 
     sets. Hence, all of the methods and datatypes have been updated accordingly. 
 
 ## Basic Usage
-Interval domains are what characterize the behavior of infinite parameters in
-`InfiniteOpt`, since they comprise the domains of infinite parameters. However,
-most users will not need to work directly with infinite domains and can instead
-focus on the use of infinite parameters as defined via [`@infinite_parameter`](@ref)
-and as discussed on the [Infinite Parameters](@ref inf_par_page) page.
+Interval domains are what characterize the behavior of infinite parameters in 
+`InfiniteOpt`, since they comprise the domains of infinite parameters. However, 
+most users will not need to work directly with infinite domains and can instead 
+focus on the use of infinite parameters as defined via [`@infinite_parameter`](@ref) 
+and as discussed on the [Infinite Parameters](@ref inf_par_docs) page.
 
-However, for convenience below we summary the infinite domains associated with
+However, for convenience below we summary the infinite domains associated with 
 `InfiniteOpt`:
 
 | Domain Type                       | Domain                                     | Type                        |
@@ -26,7 +25,7 @@ However, for convenience below we summary the infinite domains associated with
 
 ## Infinite Domain Classes
 The domain of a given infinite parameter(s) is described by an infinite domain (domain) 
-inherited from [`AbstractInfiniteDomain`](@ref). `InfiniteOpt` natively supports
+inherited from [`AbstractInfiniteDomain`](@ref). `InfiniteOpt` natively supports 
 two domain sub-groups, namely [`InfiniteScalarDomain`](@ref)s and [`InfiniteArrayDomain`](@ref)s. 
 These correspond to a single independent infinite parameter and a dependent multi-dimensional 
 group of infinite parameters, respectively. We describe each group's natively 
@@ -143,37 +142,44 @@ julia> set_upper_bound(domain, 1)
 ```
 
 ## Support Generation for Infinite Domains
-`InfiniteOpt` provides a systematic interface to generate support points for infinite domains.
-This is crucial as support generation decides how each infinite-dimensional parameter, which is subject
-to certain infinite domain, is discretized later in the transcription stage. The interface will allow users
-to automatically generate support points using our default methods. Later we will also show that users can 
-also input support points manually for an infinite parameter. Please note that these 
-methods are called by the [`@infinite_parameter`](@ref) macro when the `num_supports` 
-keyword is used. Thus, users typically will not need to use this interface directly.
+`InfiniteOpt` provides a systematic interface to generate support points for 
+infinite domains. This is crucial as support generation decides how each 
+infinite-dimensional parameter, which is subject to certain infinite domain, is 
+discretized later in the transcription stage. The interface will allow users to 
+automatically generate support points using our default methods. Later we will 
+also show that users can  also input support points manually for an infinite 
+parameter. Please note that these methods are called by the 
+[`@infinite_parameter`](@ref) macro when the `num_supports` keyword is used. 
+Thus, users typically will not need to use this interface directly.
 
-In `InfiniteOpt` supports can be generated via [`generate_supports`](@ref) function. For example, let's 
-generate 5 equidistant support points for the `IntervalDomain` [-2, 2]:
+In `InfiniteOpt` supports can be generated via [`generate_supports`](@ref) 
+function. For example, let's generate 5 equidistant support points for the 
+`IntervalDomain` [-2, 2]:
 ```jldoctest; setup = :(using InfiniteOpt; domain = IntervalDomain(-2, 2))
 julia> supps, label = generate_supports(domain, num_supports = 5)
 ([-2.0, -1.0, 0.0, 1.0, 2.0], UniformGrid)
 ```
-Note that the number of supports generated is specified via
-`num_supports` keyword argument, which will take a default value of 10 if not specified. 
-The function `generate_supports` returns a vector of the supports generated, and a label that denotes
-the underlying method. In this case the label returned is `UniformGrid`, which is the default 
-support generation method for `IntervalDomain`s. Another support generation method implemented for `IntervalDomain`s
-is `MCSample`, which is to sample from a uniform distribution over the interval. To use this method, users
-need to specify a second positional argument, as shown in the following example:
+Note that the number of supports generated is specified via `num_supports` 
+keyword argument, which will take a default value of 10 if not specified. The 
+function `generate_supports` returns a vector of the supports generated, and a 
+label that denotes the underlying method. In this case the label returned is 
+`UniformGrid`, which is the default support generation method for 
+`IntervalDomain`s. Another support generation method implemented for 
+`IntervalDomain`s is `MCSample`, which is to sample from a uniform distribution 
+over the interval. To use this method, users need to specify a second positional 
+argument, as shown in the following example:
 ```jldoctest; setup = :(using InfiniteOpt, Random; Random.seed!(0); domain = IntervalDomain(-2, 2))
 julia> generate_supports(domain, MCSample, num_supports = 5, sig_digits = 5)
 ([1.2946, 1.6414, -1.3417, -1.2907, -0.88448], MCSample)
 ```
 In this case, the returned label is `MCSample`, instead of `UniformGrid`.
 
-`generate_supports` can also be applied to `DistributionDomains`. The default (and currently only) method
-implemented for `DistributionDomains` is `WeightedSample`, which generates Monte Carlo samples that are 
-weighted based on the underlying probability density function of the distribution. 
-For example, a domain of support points for a 2D normal distribution can be generated as follows:
+`generate_supports` can also be applied to `DistributionDomains`. The default 
+(and currently only) method implemented for `DistributionDomains` is 
+`WeightedSample`, which generates Monte Carlo samples that are weighted based on 
+the underlying probability density function of the distribution. For example, a 
+domain of support points for a 2D normal distribution can be generated as 
+follows:
 ```setup = :(using InfiniteOpt, Random; Random.seed!(0))
 julia> dist = MvNormal([0., 0.], [1. 0.;0. 2.]);
 
@@ -183,59 +189,13 @@ julia> supps, label = generate_supports(domain, num_supports = 3)
 ([0.679107426036 -0.353007400301 0.586617074633; 1.17155358277 -0.190712174623 0.420496392851], WeightedSample)
 ```
 
-For those who are interested in coding up their own support generation functions, [`generate_supports`](@ref) is
-an interface that calls the proper [`generate_support_values`](@ref) function based on the type of domain and value of method.
-Therefore, to use custom support generation methods, users can implement extensions for [`generate_support_values`](@ref) 
-with a different method label from the existing methods. See [Extensions](@ref) for full details.
+For those who are interested in coding up their own support generation functions, 
+[`generate_supports`](@ref) is an interface that calls the proper 
+[`generate_support_values`](@ref) function based on the type of domain and value 
+of method. Therefore, to use custom support generation methods, users can 
+implement extensions for [`generate_support_values`](@ref) with a different 
+method label from the existing methods. See [Extensions](@ref) for full details.
 
 ## User Defined Domains
-Furthermore, custom infinite domains that inherit `AbstractInfiniteDomain` can also
-be defined. See [Extensions](@ref) for more information.
-
-## Datatypes
-```@index
-Pages   = ["domains.md"]
-Modules = [InfiniteOpt]
-Order   = [:type]
-```
-```@docs
-AbstractInfiniteDomain
-InfiniteScalarDomain
-IntervalDomain
-UniDistributionDomain
-InfiniteArrayDomain
-MultiDistributionDomain
-CollectionDomain
-AbstractSupportLabel
-All
-PublicLabel
-UserDefined
-UniformGrid
-SampleLabel
-MCSample
-WeightedSample
-Mixture
-UniqueMeasure
-MeasureBound
-InternalLabel
-```
-
-## Methods
-```@index
-Pages   = ["domains.md"]
-Modules = [InfiniteOpt, JuMP]
-Order   = [:macro, :function]
-```
-```@docs
-collection_domains
-JuMP.has_lower_bound(::AbstractInfiniteDomain)
-JuMP.lower_bound(::AbstractInfiniteDomain)
-JuMP.set_lower_bound(::AbstractInfiniteDomain, ::Real)
-JuMP.has_upper_bound(::AbstractInfiniteDomain)
-JuMP.upper_bound(::AbstractInfiniteDomain)
-JuMP.set_upper_bound(::AbstractInfiniteDomain, ::Real)
-supports_in_domain
-generate_supports
-InfiniteOpt.generate_support_values
-InfiniteOpt.generate_unique_label
-```
+Furthermore, custom infinite domains that inherit `AbstractInfiniteDomain` can 
+also be defined. See [Extensions](@ref) for more information.

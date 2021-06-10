@@ -2,10 +2,9 @@
 DocTestFilters = [r"≤|<=", r" == | = ", r" ∈ | in ", r" for all | ∀ "]
 ```
 
-# Variables
-A guide and manual for the definition and use of variables in `InfiniteOpt`.
-The Datatypes and Methods sections at the end comprise the manual, and the
-above sections comprise the guide.  
+# [Variables](@id var_docs)
+A guide for variables in `InfiniteOpt`. See the respective 
+[technical manual](@ref var_manual) for more details.
 
 ## Overview
 Decision variables are at the very core of `InfiniteOpt` as its name alludes
@@ -55,7 +54,7 @@ julia> @infinite_parameter(model, t in [0, 10])
 t
 
 julia> @infinite_parameter(model, x[1:2] in [-1, 1], independent = true)
-2-element Array{GeneralVariableRef,1}:
+2-element Vector{GeneralVariableRef}:
  x[1]
  x[2]
 ```
@@ -73,7 +72,7 @@ useful case is that of defining an array of variables `w` that depend on both
 position and time:
 ```jldoctest var_basic
 julia> @variable(model, w[i = 1:3], Infinite(t, x), start = [0, 2, 1][i])
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  w[1](t, x)
  w[2](t, x)
  w[3](t, x)
@@ -93,7 +92,7 @@ Now let's restrict the above infinite variables `w[i](t, x)` to a particular
 time via semi-infinite variables:
 ```jldoctest var_basic
 julia> @variable(model, w0[i = 1:3], SemiInfinite(w[i], 0, x))
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  w0[1]
  w0[2]
  w0[3]
@@ -218,7 +217,7 @@ variable information mentioned above and now have a `GeneralVariableRef`
 called `var_ref` that can be used in defining our infinite model.
 
 Note that the use of `GeneralVariableRef`s and the corresponding concrete subtypes
-of [`DispatchVariableRef`](@ref)s is discussed on the [Expressions](@ref expr_page)
+of [`DispatchVariableRef`](@ref)s is discussed on the [Expressions](@ref expr_docs)
 page.
 
 ## Macro Variable Definition
@@ -474,7 +473,7 @@ a 3-dimensional vector of variables with indices `[1, 2, 3]`:
 julia> s = [0, 2, 1];
 
 julia> var_refs = @variable(model, [i = 1:3], start = s[i], base_name = "z")
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  z[1]
  z[2]
  z[3]
@@ -491,21 +490,21 @@ Moreover, here are a few illustrative examples:
 julia> @variable(model, z_dense[2:4])
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 2:4
-And data, a 3-element Array{GeneralVariableRef,1}:
+And data, a 3-element Vector{GeneralVariableRef}:
  z_dense[2]
  z_dense[3]
  z_dense[4]
 
 julia> @variable(model, z_named[[:A, :C, :Z]])
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
-    Dimension 1, Symbol[:A, :C, :Z]
-And data, a 3-element Array{GeneralVariableRef,1}:
+    Dimension 1, [:A, :C, :Z]
+And data, a 3-element Vector{GeneralVariableRef}:
  z_named[A]
  z_named[C]
  z_named[Z]
 
 julia> @variable(model, z_sparse[i = 1:2, j = 1:2; i + j <= 3])
-JuMP.Containers.SparseAxisArray{GeneralVariableRef,2,Tuple{Int64,Int64}} with 3 entries:
+JuMP.Containers.SparseAxisArray{GeneralVariableRef, 2, Tuple{Int64, Int64}} with 3 entries:
   [1, 2]  =  z_sparse[1,2]
   [1, 1]  =  z_sparse[1,1]
   [2, 1]  =  z_sparse[2,1]
@@ -522,13 +521,13 @@ julia> a = 1; b = 3;
 julia> var_refs1 = @variable(model, [a:b], base_name = "z")
 1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
     Dimension 1, 1:3
-And data, a 3-element Array{GeneralVariableRef,1}:
+And data, a 3-element Vector{GeneralVariableRef}:
  z[1]
  z[2]
  z[3]
 
 julia> var_refs2 = @variable(model, [a:b], base_name = "z", container = Array)
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  z[1]
  z[2]
  z[3]
@@ -551,12 +550,12 @@ variables, and more.
 For example:
 ```jldoctest var_macro
 julia> @variable(model, z_psd[1:2, 1:2], PSD) # positive semi-definite variable matrix
-2×2 LinearAlgebra.Symmetric{GeneralVariableRef,Array{GeneralVariableRef,2}}:
+2×2 LinearAlgebra.Symmetric{GeneralVariableRef, Matrix{GeneralVariableRef}}:
  z_psd[1,1]  z_psd[1,2]
  z_psd[1,2]  z_psd[2,2]
 
 julia> @variable(model, z_cone[1:3] in SecondOrderCone()) # 2nd order cone variables
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  z_cone[1]
  z_cone[2]
  z_cone[3]
@@ -565,7 +564,7 @@ Typically, variable sets can be defined symbolically using the syntax
 `var in set`. For anonymous variables, the `set` keyword argument must be used:
 ```jldoctest var_macro
 julia> z_cone = @variable(model, [1:3], set = SecondOrderCone())
-3-element Array{GeneralVariableRef,1}:
+3-element Vector{GeneralVariableRef}:
  noname
  noname
  noname
@@ -610,8 +609,7 @@ julia> @variables(model, begin
 variables. This suite is comprised of extensions to all current `JuMP` query
 methods and many more that are specific to `InfiniteOpt`. A number of the more
 commonly used ones are explained in this section, but all of the available methods
-are explained in the [Methods/Macros](@ref var_methods) section (i.e., the
-manual) below.
+are explained in the [technical manual](@ref var_manual).
 
 ### General Information
 Here we describe some methods used to query general variable information such as
@@ -718,7 +716,7 @@ For infinite and semi-infinite variables, the [`start_value_function`](@ref)
 should be used instead:
 ```jldoctest var_macro
 julia> start_value_function(y_sin)
-sin (generic function with 16 methods)
+sin (generic function with 17 methods)
 ```
 
 ### Variable Use
@@ -773,8 +771,7 @@ julia> parameter_values(yp)
 `InfiniteOpt` employs a wide variety of methods to modify/delete variables.
 These are comprised of `JuMP` extensions and methods native only to `InfiniteOpt`.
 This section will highlight some of the more commonly used ones. All of the
-methods/macros are detailed in the [Methods/Macros](@ref var_methods) section
-(i.e., the manual) below.
+methods/macros are detailed in the [technical manual](@ref var_manual).
 
 ### Deletion
 Like `JuMP v0.19+`, `InfiniteOpt` fully supports deletion throughout its data
@@ -851,7 +848,7 @@ For infinite variables, this should be done using
 julia> set_start_value_function(myname, sin)
 
 julia> start_value_function(myname)
-sin (generic function with 16 methods)
+sin (generic function with 17 methods)
 ```
 Again note that such start functions must be able to accept parameter values as 
 arguments that exactly match the format of the infinite parameters given in 
@@ -859,110 +856,3 @@ arguments that exactly match the format of the infinite parameters given in
 
 A number of other techniques exist for the various variable types can be found in 
 the manual below.
-
-## Datatypes
-```@index
-Pages   = ["variable.md"]
-Modules = [InfiniteOpt, InfiniteOpt.Collections]
-Order   = [:type]
-```
-```@docs
-InfOptVariableType
-Infinite
-SemiInfinite
-Point
-InfiniteVariable
-SemiInfiniteVariable
-PointVariable
-VariableData
-InfiniteVariableIndex
-SemiInfiniteVariableIndex
-PointVariableIndex
-FiniteVariableIndex
-InfiniteVariableRef
-SemiInfiniteVariableRef
-PointVariableRef
-FiniteVariableRef
-InfiniteOpt.Collections.VectorTuple
-```
-
-## [Methods/Macros] (@id var_methods)
-```@index
-Pages   = ["variable.md"]
-Modules = [InfiniteOpt, JuMP]
-Order   = [:function]
-```
-```@docs
-JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Infinite)
-JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::SemiInfinite)
-JuMP.build_variable(::Function, ::GeneralVariableRef, ::Dict{Int, Float64})
-JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Point)
-JuMP.add_variable(::InfiniteModel, ::JuMP.AbstractVariable, ::String)
-used_by_constraint(::DecisionVariableRef)
-used_by_measure(::DecisionVariableRef)
-used_by_objective(::DecisionVariableRef)
-is_used(::DecisionVariableRef)
-used_by_point_variable(::Union{InfiniteVariableRef, DerivativeRef})
-used_by_semi_infinite_variable(::Union{InfiniteVariableRef, DerivativeRef})
-is_used(::Union{InfiniteVariableRef, DerivativeRef})
-JuMP.delete(::InfiniteModel, ::DecisionVariableRef)
-JuMP.num_variables(::InfiniteModel)
-JuMP.all_variables(::InfiniteModel)
-JuMP.name(::DecisionVariableRef)
-JuMP.set_name(::DecisionVariableRef, ::String)
-JuMP.set_name(::SemiInfiniteVariableRef,::String)
-JuMP.variable_by_name(::InfiniteModel, ::String)
-JuMP.has_lower_bound(::UserDecisionVariableRef)
-JuMP.lower_bound(::UserDecisionVariableRef)
-JuMP.set_lower_bound(::UserDecisionVariableRef, ::Real)
-JuMP.LowerBoundRef(::UserDecisionVariableRef)
-JuMP.delete_lower_bound(::UserDecisionVariableRef)
-JuMP.has_upper_bound(::UserDecisionVariableRef)
-JuMP.upper_bound(::UserDecisionVariableRef)
-JuMP.set_upper_bound(::UserDecisionVariableRef, ::Real)
-JuMP.UpperBoundRef(::UserDecisionVariableRef)
-JuMP.delete_upper_bound(::UserDecisionVariableRef)
-JuMP.is_fixed(::UserDecisionVariableRef)
-JuMP.fix_value(::UserDecisionVariableRef)
-JuMP.fix(::UserDecisionVariableRef, ::Real; ::Bool)
-JuMP.FixRef(::UserDecisionVariableRef)
-JuMP.unfix(::UserDecisionVariableRef)
-JuMP.start_value(::UserDecisionVariableRef)
-JuMP.set_start_value(::UserDecisionVariableRef, ::Real)
-start_value_function(::Union{InfiniteVariableRef, DerivativeRef})
-set_start_value_function(::InfiniteVariableRef, ::Union{Real, Function})
-reset_start_value_function(::InfiniteVariableRef)
-JuMP.is_binary(::UserDecisionVariableRef)
-JuMP.set_binary(::UserDecisionVariableRef)
-JuMP.BinaryRef(::UserDecisionVariableRef)
-JuMP.unset_binary(::UserDecisionVariableRef)
-JuMP.is_integer(::UserDecisionVariableRef)
-JuMP.set_integer(::UserDecisionVariableRef)
-JuMP.IntegerRef(::UserDecisionVariableRef)
-JuMP.unset_integer(::UserDecisionVariableRef)
-JuMP.lower_bound(::SemiInfiniteVariableRef)
-JuMP.LowerBoundRef(::SemiInfiniteVariableRef)
-JuMP.has_upper_bound(::SemiInfiniteVariableRef)
-JuMP.upper_bound(::SemiInfiniteVariableRef)
-JuMP.UpperBoundRef(::SemiInfiniteVariableRef)
-JuMP.is_fixed(::SemiInfiniteVariableRef)
-JuMP.fix_value(::SemiInfiniteVariableRef)
-JuMP.FixRef(::SemiInfiniteVariableRef)
-start_value_function(::SemiInfiniteVariableRef)
-JuMP.is_binary(::SemiInfiniteVariableRef)
-JuMP.BinaryRef(::SemiInfiniteVariableRef)
-JuMP.is_integer(::SemiInfiniteVariableRef)
-JuMP.IntegerRef(::SemiInfiniteVariableRef)
-parameter_refs(::InfiniteVariableRef)
-parameter_refs(::SemiInfiniteVariableRef)
-parameter_list(::InfiniteVariableRef)
-parameter_list(::SemiInfiniteVariableRef)
-raw_parameter_refs(::InfiniteVariableRef)
-raw_parameter_refs(::SemiInfiniteVariableRef)
-infinite_variable_ref(::PointVariableRef)
-infinite_variable_ref(::SemiInfiniteVariableRef)
-parameter_values(::PointVariableRef)
-eval_supports(::SemiInfiniteVariableRef)
-raw_parameter_values(::PointVariableRef)
-JuMP.relax_integrality(::InfiniteModel)
-```
