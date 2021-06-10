@@ -8,3 +8,4 @@
 /docs/site/
 /docs/src/examples/*/*.md
 /docs/src/examples/*/*.png
+.vscode/
