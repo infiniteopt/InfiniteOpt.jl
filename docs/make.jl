@@ -101,7 +101,7 @@ makedocs(;
     checkdocs = :exports,
     linkcheck = true,
     linkcheck_ignore = [r"https://www.youtube.com/.*"],
-    strict = false,
+    strict = true,
     format = Documenter.HTML(
         # See https://github.com/JuliaDocs/Documenter.jl/issues/868
         prettyurls = get(ENV, "CI", nothing) == "true",

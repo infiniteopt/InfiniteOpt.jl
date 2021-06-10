@@ -28,7 +28,7 @@ jobs:
         run: |
              julia_libcurl="$(dirname "$(which julia)")/../lib/julia/libcurl.so.4"
              sudo rm $julia_libcurl
-             sudo ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.6.0 $julia_libcurl
+             sudo ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4 $julia_libcurl
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
