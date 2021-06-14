@@ -31,13 +31,13 @@
 using InfiniteOpt, Ipopt
 
 # We set the preference and constraint parameters:
-ρ = 0.025; # discount rate 
-k = 100.0; # utility bliss point 
-T = 10.0;  # Life horizon  
-r = 0.05;   # interest rate
-B0 = 100.0; # Endowment
+ρ = 0.025  # discount rate 
+k = 100.0  # utility bliss point 
+T = 10.0   # life horizon  
+r = 0.05   # interest rate
+B0 = 100.0 # endowment
 u(c; k=k) = -(c - k)^2       # utility function 
-discount(t; ρ=ρ) = exp(-ρ*t) # dicount function 
+discount(t; ρ=ρ) = exp(-ρ*t) # discount function 
 BC(B, c; r=r) = r*B - c      # budget constraint 
 
 # We set the hyperparameters:
@@ -109,5 +109,5 @@ plot!(ts[ix], BB, color = 4, linestyle=:dash, lab = "B: wealth balance, closed f
 using Test
 @test termination_status(m) == MOI.LOCALLY_SOLVED
 @test has_values(m)
-#@test B_opt isa Vector{<:Real}
-#@test c_opt isa Vector{<:Real}
+@test B_opt isa Vector{<:Real}
+@test c_opt isa Vector{<:Real}
