@@ -92,7 +92,7 @@ familiarizing themselves with how to use `JuMP` first. See
 [`JuMP`'s documentation](https://jump.dev/JuMP.jl/v0.21.8/) to learn more.
 
 Once you're familiar with `JuMP` check out our [Quick Start Guide](@ref) to get 
-started. From there we provide extension documentation to help you along, please 
+started. From there we provide extensive documentation to help you along, please 
 see [How to Use the Documentation](@ref) for more info.
 
 ## How to Use the Documentation
