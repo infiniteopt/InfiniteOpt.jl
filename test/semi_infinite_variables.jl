@@ -191,6 +191,8 @@ end
                                                    SemiInfinite(ivref, 0, b, a))
         @test_throws ErrorException build_variable(error, info, SemiInfinite(0))
         @test_throws ErrorException build_variable(error, info, 
+                                                   SemiInfinite(ivref, 0, b, true))
+        @test_throws ErrorException build_variable(error, info, 
                                                    SemiInfinite(ivref, 0, b))
         # test normal 
         @test build_variable(error, info, 
@@ -262,6 +264,22 @@ end
         @test @variable(m, [i = 1:2], SemiInfinite(ivref, i - 1, b, c)) == vrefs
         @test parameter_refs(vrefs[1]) == (b, c)
         @test eval_supports.(vrefs) == [Dict(1 => 0.0), Dict(1 => 1.0)]
+    end
+    # test restriciton definition 
+    @testset "Restriction" begin 
+        # test errors 
+        @test_throws ErrorException restrict(ivref, 0, b)
+        @test_throws ErrorException ivref(0, b)
+        # test normal wth restrict
+        vref = GeneralVariableRef(m, 8, SemiInfiniteVariableIndex)
+        @test restrict(ivref, 0.5, [b[1], 0], c) == vref 
+        @test parameter_refs(vref) == (b[1], c)
+        @test eval_supports(vref) == Dict(1 => 0.5, 3 => 0.0)
+        # test normal functionally
+        vref = GeneralVariableRef(m, 9, SemiInfiniteVariableIndex)
+        @test ivref(0.5, [b[1], 0], c) == vref 
+        @test parameter_refs(vref) == (b[1], c)
+        @test eval_supports(vref) == Dict(1 => 0.5, 3 => 0.0)
     end
 end
 

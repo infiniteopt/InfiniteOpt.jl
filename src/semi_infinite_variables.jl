@@ -118,13 +118,17 @@ of both real valued supports and/or infinite parameters.
 struct SemiInfinite{V, VT <: Collections.VectorTuple} <: InfOptVariableType 
     infinite_variable_ref::V 
     parameter_values::VT
+    function SemiInfinite(ivref::V, vt::VT) where {V, VT <: Collections.VectorTuple}
+        processed_vals = _process_value.(vt.values)
+        if processed_vals != vt.values
+            vt2 = Collections.VectorTuple(processed_vals, vt.ranges, vt.indices)
+            return new{V, typeof(vt2)}(ivref, vt2)
+        end
+        return new{V, VT}(ivref, vt)
+    end
 end
 function SemiInfinite(ivref, vals...)
     vt = Collections.VectorTuple(vals)
-    processed_vals = _process_value.(vt.values)
-    if processed_vals != vt.values
-        vt = Collections.VectorTuple(processed_vals, vt.ranges, vt.indices)
-    end
     return SemiInfinite(ivref, vt)
 end
 
@@ -174,7 +178,10 @@ function JuMP.build_variable(
     end
     # check that the values are the same format as the infinite variable 
     raw_params = var_type.parameter_values
-    if !Collections.same_structure(raw_params, raw_parameter_refs(ivref))
+    if !all(v isa Union{Real, GeneralVariableRef} for v in raw_params)
+        _error("Unexpected inputs given, expected them to be parameter references ",
+               "and real numbers.")
+    elseif !Collections.same_structure(raw_params, raw_parameter_refs(ivref))
         _error("The parameter reference/value input format $(raw_params) does ",
                "not match that of the infinite variable $(ivref).")
     end

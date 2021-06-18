@@ -118,6 +118,9 @@ each argument is either of the first two options listed.
 """
 struct Infinite{VT <: Collections.VectorTuple} <: InfOptVariableType
     parameter_refs::VT
+    function Infinite(vt::VT) where {VT <: Collections.VectorTuple}
+        return new{VT}(vt)
+    end
 end
 function Infinite(args...)
     return Infinite(Collections.VectorTuple(args))
@@ -308,6 +311,98 @@ function _check_and_make_variable_ref(
     vref = InfiniteVariableRef(model, vindex)
     _update_param_var_mapping(vref, v.parameter_refs)
     return vref
+end
+
+################################################################################
+#                              RESTRICTION METHODS
+################################################################################
+## Dispatch functions for functional syntax of making restricted variables
+# Point variable
+function _restrict_infinite_variable(
+    ivref::GeneralVariableRef, 
+    vt::Collections.VectorTuple{<:Real}
+    )::GeneralVariableRef
+    info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false, NaN, 
+                             false, false)
+    new_var = JuMP.build_variable(error, info, Point(ivref, vt))
+    return JuMP.add_variable(JuMP.owner_model(ivref), new_var)
+end
+
+# Infinite variable
+function _restrict_infinite_variable(
+    ivref::GeneralVariableRef, 
+    vt::Collections.VectorTuple{<:GeneralVariableRef}
+    )::GeneralVariableRef
+    if parameter_list(ivref) != vt.values
+        error("Unrecognized syntax for infinite variable restriction.")
+    end
+    @warn("Unnecessary use of functional infinite variable restriction syntax " *
+          "that will cause performance degredations. This was probably caused " *
+          "by using syntax like `y(t, x)` inside expressions. Instead just " *
+          "use the infinite variable reference (e.g. `y`).")
+    return ivref
+end
+
+# Semi-Infinite variable
+function _restrict_infinite_variable(
+    ivref::GeneralVariableRef, 
+    vt::Collections.VectorTuple
+    )::GeneralVariableRef
+    info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false, NaN, 
+                             false, false)
+    new_var = JuMP.build_variable(error, info, SemiInfinite(ivref, vt))
+    return JuMP.add_variable(JuMP.owner_model(ivref), new_var)
+end
+
+"""
+    restrict(ivref::GeneralVariableRef, supps...)::GeneralVariableRef
+
+Restrict the input domain of an infinite variable/derivative `ivref` in 
+accordance with the infinite parameters and/or values `supps`. Here `supps` must 
+match the formatting of `ivref`'s infinite parameters. Here the following 
+outputs are possible:
+- Equivalent to `@variable(model, variable_type = Point(ivref, supps...)` if 
+  `supps` are a complete support point
+- Equivalent to `@variable(model, variable_type = SemiInfinite(ivref, supps...)` 
+  if `supps` are a partial support point.
+
+Conveniently, we can also invoke this method by calling `ivref(supps...)`.
+
+Errors if ivref is not an infinite variable or derivative or the formatting of 
+`supps` is incorrect. Will warn if `supps` only contain infinite parameters and 
+will simply return `ivref`.
+
+**Example**
+```julia-repl
+julia> restrict(y, 0, x)
+y(0, [x[1], x[2]])
+
+julia> restrict(y, 0, [0, 0])
+y(0, [0, 0])
+
+julia> y(0, x)
+y(0, [x[1], x[2]])
+
+julia> y(0, [0, 0])
+y(0, [0, 0])
+```
+"""
+function restrict(ivref::GeneralVariableRef, supps...)::GeneralVariableRef
+    idx_type = _index_type(ivref)
+    if idx_type != InfiniteVariableIndex && idx_type != DerivativeIndex
+        error("The `vref(values..)` restriction syntax is only valid for ",
+              "infinite variable and derivative references.")
+    end
+    return _restrict_infinite_variable(ivref, Collections.VectorTuple(supps))
+end
+
+# This enables functional calls (e.g., `y(0, x)` => semi-infinite variable)
+function _functional_reference_call(
+    ivref::GeneralVariableRef, 
+    ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}}, 
+    supps...
+    )::GeneralVariableRef
+    return _restrict_infinite_variable(ivref, Collections.VectorTuple(supps))
 end
 
 ################################################################################
@@ -561,6 +656,7 @@ function set_start_value_function(
     param_nums = _parameter_numbers(vref)
     new_var = InfiniteVariable(new_info, prefs, param_nums, obj_nums, is_vect_func)
     _set_core_variable_object(vref, new_var)
+    # TODO update point variable start values as appropriate
     return
 end
 
@@ -587,6 +683,7 @@ function reset_start_value_function(vref::InfiniteVariableRef)::Nothing
     param_nums = _parameter_numbers(vref)
     new_var = InfiniteVariable(new_info, prefs, param_nums, obj_nums, true)
     _set_core_variable_object(vref, new_var)
+    # TODO update point variable start values as appropriate
     return
 end
 

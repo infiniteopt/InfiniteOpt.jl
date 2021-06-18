@@ -401,6 +401,25 @@ function JuMP.delete(model::InfiniteModel,
 end
 
 ################################################################################
+#                              FUNCTIONAL CALLS
+################################################################################
+# Dispatch fallback
+function _functional_reference_call(vref, idx_type, args...; kwargs...)
+    arg_str = join(args, ", ")
+    kwarg_str = join(Tuple(string(k, " = ", v) for (k, v) in kwargs), ", ")
+    kwarg_str = isempty(kwarg_str) ? "" : "; " * kwarg_str
+    error("Functional call `$(vref)($(arg_str)$(kwarg_str))` is unrecognized ",
+          "syntax.")
+end
+
+# Function calls made directly on variable references
+# Unfortunetly, this is not readily compatible with docstrings...
+function (vref::GeneralVariableRef)(args...; kwargs...)
+    return _functional_reference_call(vref, _index_type(vref), args...; 
+                                      kwargs...)
+end
+
+################################################################################
 #                              PARAMETER METHODS
 ################################################################################
 """

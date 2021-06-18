@@ -565,6 +565,27 @@ end
     end
 end
 
+# test restriciton definition 
+@testset "Restriction Definition" begin 
+    # setup the info 
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x[1:2] in [0, 1])
+    @variable(m, y, Infinite(t, x))
+    # test errors 
+    @test_throws ErrorException restrict(y, 0, [2, 2])
+    @test_throws ErrorException restrict(y, 0, 2)
+    @test_throws ErrorException y(0, 2)
+    # test normal wth restrict
+    vref = GeneralVariableRef(m, 1, PointVariableIndex)
+    @test restrict(y, 0, [0, 0]) == vref 
+    @test parameter_values(vref) == (0, [0, 0])
+    # test normal functionally
+    vref = GeneralVariableRef(m, 2, PointVariableIndex)
+    @test y(0.5, [0, 0]) == vref 
+    @test parameter_values(vref) == (0.5, [0, 0])
+end
+
 # test usage methods
 @testset "Usage" begin
     # initialize model and stuff

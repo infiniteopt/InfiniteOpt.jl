@@ -274,6 +274,12 @@ julia> @constraint(model, [i = 1:2], ya^2 + z[i] <= 1, DomainRestrictions(x[i] =
  ya(t, x)² + z[2] ≤ 1.0, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [0, 1]
 ```
 
+!!! tip
+    For more complex constraint restrictions that `DomainRestrictions` won't 
+    allow (e.g., manually defining derivative approximations), consider using  
+    [Restricted Variables](@ref) instead. However, where possible it will be 
+    more performant to use `DomainRestrictions` instead.
+
 ## Queries
 In this section, we describe a variety of methods to extract constraint
 information.

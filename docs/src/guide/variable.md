@@ -106,6 +106,9 @@ respective semi-infinite variables `w[i](0, x)` stored in `model`.
     combination with adding [`DomainRestrictions`](@ref) to constraints which 
     restrict the infinite domain as needed.
 
+See [Restricted Variables](@ref) to learn about symbolic inline definition of 
+semi-infinite variables.
+
 ### Point Variables
 Now let's add some point variables. These allow us to consider an infinite
 variable evaluated at a certain infinite parameter point. For example, let's
@@ -128,6 +131,9 @@ case the lower bound inherited from `y(t)` is overwritten by instead fixing
     `InfiniteOpt`, but typically can be avoided by using infinite variables in
     combination with adding [`DomainRestrictions`](@ref) to constraints which 
     restrict the infinite domain as needed.
+
+See [Restricted Variables](@ref) to learn about symbolic inline definition of 
+point variables.
 
 ### Finite Variables
 Finally, we can add finite variables to our model. These denote variables that
@@ -603,6 +609,46 @@ julia> @variables(model, begin
        end)
 
 ```
+
+## Restricted Variables
+To define point and semi-infinite variables, we can also use [`restrict`](@ref) 
+for convenient inline definitions. This can be convenient for certain complex 
+constraint definition schemes, but should be used cautiously. 
+
+For example, let's consider restricting the infinite variable `y(t, x)`:
+```jldoctest restrict_vars; setup = :(using InfiniteOpt)
+julia> model = InfiniteModel();
+
+julia> @infinite_parameter(model, t in [0, 1]);
+
+julia> @infinite_parameter(model, x[1:2] in [-1, 1]);
+
+julia> @variable(model, y, Infinite(t, x))
+y(t, x)
+
+julia> pt = restrict(y, 0, [-1, 1]) # make point variable y(0, [-1, 1])
+y(0, [-1, 1])
+
+julia> semi = restrict(y, 0, x) # make semi-infinite variable y(0, x)
+y(0, [x[1], x[2]])
+```
+
+We can also, even more conveniently, treat the infinite variable as a function 
+to accomplish this in a more intuitive syntax:
+```jldoctest restrict_vars
+julia> pt = y(0, [-1, 1]) # make point variable y(0, [-1, 1])
+y(0, [-1, 1])
+
+julia> semi = y(0, x) # make semi-infinite variable y(0, x)
+y(0, [x[1], x[2]])
+```
+These can be conviently embedded in constraints to enable more complex schemes 
+than what using [`DomainRestrictions`](@ref) can acheive. 
+
+!!! note 
+    Where possible [`DomainRestrictions`](@ref) should be used instead of 
+    defining restricted variables when creating constraints for better 
+    performance.
 
 ## Queries
 `InfiniteOpt` contains a large suite of methods to query information about
