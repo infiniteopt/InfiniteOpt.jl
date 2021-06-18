@@ -709,6 +709,35 @@ end
 ################################################################################
 const _BadOperators = (:in, :<=, :>=, :(==), :≥, :≤, ∈)
 
+## Make methods to find and replace a part of an expression
+# Expr
+function _expr_replace!(ex::Expr, old, new)
+    for (i, a) in enumerate(ex.args)
+        if a == old
+            ex.args[i] = new
+        elseif a isa Expr
+            _expr_replace!(a, old, new)
+        end
+    end
+    return ex
+end
+
+# Symbol
+function _expr_replace!(ex::Symbol, old, new)
+    return ex == old ? new : ex
+end
+
+## Safely extract the parameter references (copy as needed)
+# Symbol 
+function _extract_parameters(ex::Symbol)
+    return esc(ex)
+end
+
+# Expr 
+function _extract_parameters(ex::Expr) 
+    return esc(copy(ex))
+end
+
 # Helper method to process parameter function expressions 
 function _process_func_expr(_error::Function, raw_expr)
     if isexpr(raw_expr, :call)
@@ -716,22 +745,36 @@ function _process_func_expr(_error::Function, raw_expr)
         if raw_expr.args[1] in _BadOperators
             _error("Invalid input syntax.")
         end
-        func_expr = _esc_non_constant(raw_expr.args[1])
+        func_expr = esc(raw_expr.args[1])
+        is_anon = false
         # check for keywords
         if isexpr(raw_expr.args[2], :parameters) || 
             any(isexpr(a, :kw) for a in raw_expr.args[2:end])
             _error("Cannot specify keyword arguements directly, try using an ",
                    "anonymous function.")
         end
-        # extract the parameter support inputs
+        # extract the parameter inputs
         pref_expr = esc(Expr(:tuple, raw_expr.args[2:end]...)) 
     elseif isexpr(raw_expr, :(->))
-        pref_expr = _esc_non_constant(raw_expr.args[1])
-        func_expr = _esc_non_constant(raw_expr)
+        # extract the parameter inputs
+        pref_expr = _extract_parameters(raw_expr.args[1]) # this will create a copy if needed
+        # fix the function if the parameter arguments were given as references
+        if isexpr(raw_expr.args[1], :ref) 
+            raw_expr = _expr_replace!(raw_expr, raw_expr.args[1], gensym())
+        elseif isexpr(raw_expr.args[1], :tuple)
+            for a in raw_expr.args[1].args
+                if isexpr(a, :ref)
+                    raw_expr = _expr_replace!(raw_expr, a, gensym())
+                end
+            end
+        end
+        # extract the function expression
+        func_expr = esc(raw_expr)
+        is_anon = true
     else 
         _error("Unrecognized syntax.")
     end
-    return func_expr, pref_expr
+    return func_expr, pref_expr, is_anon
 end
 
 """
@@ -811,11 +854,11 @@ macro parameter_function(model, args...)
     end
     if isexpr(expr, :call) && expr.args[1] === :(==)
         var = expr.args[2]
-        func, prefs = _process_func_expr(_error, expr.args[3])
+        func, prefs, is_anon_func = _process_func_expr(_error, expr.args[3])
         is_anon = isexpr(var, (:vect, :vcat))
     elseif isexpr(expr, (:call, :(->)))
         var = gensym()
-        func, prefs = _process_func_expr(_error, expr)
+        func, prefs, is_anon_func = _process_func_expr(_error, expr)
         is_anon = true
     else
         _error("Unrecognized syntax.")
@@ -833,8 +876,10 @@ macro parameter_function(model, args...)
         _error("Index $(model) is the same symbol as the model. Use a ",
                "different name for the index.")
     end
-    if base_name === nothing && is_anon 
+    if base_name === nothing && is_anon && !is_anon_func
         name_code = :( string(nameof($func)) )
+    elseif base_name === nothing && is_anon
+        name_code = _name_call("", idxvars)
     elseif base_name === nothing
         name_code = _name_call(string(name), idxvars)
     else
