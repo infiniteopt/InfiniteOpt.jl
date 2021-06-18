@@ -10,5 +10,9 @@ Clp = "e2554f3b-3117-50c0-817c-e040a3ddf72d"
 
 [compat]
 julia = "1.6"
-Documenter = "0.26"
+Documenter = "0.27"
 Literate = "2.8"
+Clp = "0.8"
+Ipopt = "0.6"
+Distributions = "0.25"
+Plots = "1"
