@@ -73,6 +73,9 @@ of both real valued supports.
 struct Point{V, VT <: Collections.VectorTuple} <: InfOptVariableType 
     infinite_variable_ref::V 
     parameter_values::VT
+    function Point(vref::V, vt::VT) where {V, VT <: Collections.VectorTuple}
+        return new{V, VT}(vref, vt)
+    end
 end
 function Point(ivref, vals...)
     return Point(ivref, Collections.VectorTuple(vals))

@@ -759,4 +759,19 @@ end
         @test infinite_variable_ref(dref) == d
         @test parameter_values(dref) == (0, [0, 0])
     end
+    # test using restrict
+    @testset "Restriction Definition" begin 
+        # test semi-infinite
+        dref = GeneralVariableRef(m, 2, SemiInfiniteVariableIndex)
+        @test restrict(d, 0, x) == dref
+        @test parameter_refs(dref) == (x,)
+        @test infinite_variable_ref(dref) == d
+        @test eval_supports(dref)[1] == 0
+        # test point 
+        dref = GeneralVariableRef(m, 2, PointVariableIndex)
+        @test d(1, [0, 0]) == dref
+        @test parameter_refs(dref) == ()
+        @test infinite_variable_ref(dref) == d
+        @test parameter_values(dref) == (1, [0, 0])
+    end
 end

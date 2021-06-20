@@ -15,6 +15,7 @@ Infinite
 JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Infinite)
 InfiniteVariable
 JuMP.add_variable(::InfiniteModel, ::JuMP.AbstractVariable, ::String)
+restrict
 VariableData
 InfiniteVariableIndex
 InfiniteVariableRef

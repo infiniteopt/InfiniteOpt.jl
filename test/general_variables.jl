@@ -221,6 +221,21 @@ end
     end
 end
 
+# test calling the general variable reference as a function
+@testset "Functional Calls" begin
+    # Setup data
+    m = InfiniteModel();
+    gvref = GeneralVariableRef(m, 1, TestIndex2)
+    # test _functional_reference_call (Fallback)
+    @testset "_functional_reference_call (Fallback)" begin
+        @test_throws ErrorException InfiniteOpt._functional_reference_call(gvref, TestIndex2, 42)
+    end
+    # test GeneralVariableRef as a function
+    @testset "GeneralVariableRef(args...)" begin
+        @test_throws ErrorException gvref(42, a = 4)
+    end
+end
+
 # test Parameter Methods
 @testset "Parameter Methods" begin
     # Setup data

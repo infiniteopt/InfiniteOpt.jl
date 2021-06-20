@@ -565,6 +565,27 @@ end
     end
 end
 
+# test restriciton definition 
+@testset "Restriction Definition" begin 
+    # setup the info 
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x[1:2] in [0, 1])
+    @variable(m, y, Infinite(t, x))
+    # test errors 
+    @test_throws ErrorException restrict(y, t)
+    @test_throws ErrorException restrict(t, x)
+    @test_throws ErrorException y(t)
+    # test warning 
+    warn = "Unnecessary use of functional infinite variable restriction syntax " *
+           "that will cause performance degredations. This was probably caused " *
+           "by using syntax like `y(t, x)` inside expressions. Instead just " *
+           "use the infinite variable reference (e.g. `y`)."
+    @test_logs (:warn, warn) restrict(y, t, x)
+    @test_logs (:warn, warn) y(t, x)
+    # Note: the rest of the cases are tested with point variables and semi-infinite variables
+end
+
 # Test variable(s) constrained on creation 
 @testset "Creation Constraints" begin 
     # initialize model and stuff

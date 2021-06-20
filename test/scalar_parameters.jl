@@ -296,18 +296,15 @@ end
     param = build_parameter(error, IntervalDomain(0, 1))
     pref = add_parameter(m, param, "test")
     dpref = dispatch_variable_ref(pref)
-    bad = TestVariableRef(m, TestIndex(-1))
     bad_pref = FiniteParameterRef(m, FiniteParameterIndex(-1))
     # JuMP.name
     @testset "JuMP.name" begin
-        @test_throws ArgumentError name(bad)
         @test name(pref) == "test"
         @test name(dpref) == "test"
         @test name(bad_pref) == ""
     end
     # JuMP.set_name
     @testset "JuMP.set_name" begin
-        @test_throws ArgumentError set_name(bad, "test")
         @test isa(set_name(pref, "new"), Nothing)
         @test name(pref) == "new"
         @test isa(set_name(dpref, "test"), Nothing)
