@@ -28,7 +28,7 @@ let's define a simple optimal control model:
 	&&\underset{x_i(t, \xi), v_i(t, \xi), y_w(\xi), u_i(t)}{\text{min}} &&& \int_{t \in \mathcal{D}_t} \sum_{i \in I} u_i^2(t) dt \\
 	&&\text{s.t.} &&& x_i(0, \xi) = x0_i, && \forall i \in I, \xi \in \mathcal{D}_\xi\\
     &&&&& v_i(0, \xi) = v0_i, && \forall i \in I, \xi \in \mathcal{D}_\xi \\
-	&&&&& \frac{\partial x_i(t, \xi)}{\partial t} = v_i(t, \xi), && \forall i \in I, t \in \mathcal{D}_t\, \xi \in \mathcal{D}_\xi\\
+	&&&&& \frac{\partial x_i(t, \xi)}{\partial t} = v_i(t, \xi), && \forall i \in I, t \in \mathcal{D}_t, \xi \in \mathcal{D}_\xi\\
     &&&&& \xi\frac{\partial v_i(t, \xi)}{\partial t} = u_i(t), && \forall i \in I, t \in \mathcal{D}_t, \xi \in \mathcal{D}_\xi\\
     &&&&& y_{w}(\xi) = \sum_{i \in I}(x_i(t_w, \xi) - p_{iw})^2, && \forall w \in W, \xi \in \mathcal{D}_\xi \\
     &&&&& y_{w}(\xi) \geq 0, && \forall w \in W, \xi \in \mathcal{D}_\xi \\
