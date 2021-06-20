@@ -191,7 +191,8 @@ end
                                                    SemiInfinite(ivref, 0, b, a))
         @test_throws ErrorException build_variable(error, info, SemiInfinite(0))
         @test_throws ErrorException build_variable(error, info, 
-                                                   SemiInfinite(ivref, 0, b, true))
+                                                   SemiInfinite(ivref, 0, b, 
+                                                   dispatch_variable_ref.(c)))
         @test_throws ErrorException build_variable(error, info, 
                                                    SemiInfinite(ivref, 0, b))
         # test normal 
