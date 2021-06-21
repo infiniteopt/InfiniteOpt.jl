@@ -495,4 +495,13 @@ end
     @test transcription_constraint(FixRef(y)) isa Vector{ConstraintRef}
     @test transcription_constraint(BinaryRef(y)) isa Vector{ConstraintRef}
     @test transcription_constraint(UpperBoundRef(d1)) == UpperBoundRef.(d1t)
+
+    # test a finite model 
+    m = InfiniteModel()
+    @variable(m, y >= 0)
+    @objective(m, Min, y)
+    tm = transcription_model(m)
+    warn = "Finite models (i.e., `InfiniteModel`s with no infinite " * 
+           "parameters) should be modeled directly via a `Model` in JuMP.jl."
+    @test_logs (:warn, warn) IOTO.build_transcription_model!(tm, m)
 end
