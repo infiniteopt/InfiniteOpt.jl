@@ -501,7 +501,8 @@ end
     @variable(m, y >= 0)
     @objective(m, Min, y)
     tm = transcription_model(m)
-    warn = "Finite models (i.e., `InfiniteModel`s with no infinite " * 
-           "parameters) should be modeled directly via a `Model` in JuMP.jl."
-    @test_logs (:warn, warn) IOTO.build_transcription_model!(tm, m)
+    @test IOTO.build_transcription_model!(tm, m) isa Nothing 
+    @test transcription_variable(y) isa VariableRef 
+    @test lower_bound(transcription_variable(y)) == 0
+    @test objective_sense(tm) == MOI.MIN_SENSE
 end
