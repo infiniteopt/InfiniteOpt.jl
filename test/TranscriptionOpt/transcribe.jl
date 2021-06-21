@@ -495,4 +495,14 @@ end
     @test transcription_constraint(FixRef(y)) isa Vector{ConstraintRef}
     @test transcription_constraint(BinaryRef(y)) isa Vector{ConstraintRef}
     @test transcription_constraint(UpperBoundRef(d1)) == UpperBoundRef.(d1t)
+
+    # test a finite model 
+    m = InfiniteModel()
+    @variable(m, y >= 0)
+    @objective(m, Min, y)
+    tm = transcription_model(m)
+    @test IOTO.build_transcription_model!(tm, m) isa Nothing 
+    @test transcription_variable(y) isa VariableRef 
+    @test lower_bound(transcription_variable(y)) == 0
+    @test objective_sense(tm) == MOI.MIN_SENSE
 end

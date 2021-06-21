@@ -521,9 +521,13 @@ true
 ```
 """
 function build_optimizer_model!(model::InfiniteModel; kwargs...)
-  key = optimizer_model_key(model)
-  build_optimizer_model!(model, Val(key); kwargs...)
-  return
+    if num_parameters(model, InfiniteParameter) == 0
+        @warn("Finite models (i.e., `InfiniteModel`s with no infinite " * 
+              "parameters) should be modeled directly via a `Model` in JuMP.jl.")
+    end
+    key = optimizer_model_key(model)
+    build_optimizer_model!(model, Val(key); kwargs...)
+    return
 end
 
 ################################################################################

@@ -11,6 +11,12 @@ measures, objective, constraints, and all other data used in `InfiniteOpt`. This
 differs from `JuMP` models which store such information in a `MathOptInterface`
 model backend.
 
+!!! note 
+    `InfiniteOpt`'s `InfiniteModel`s are intended to be used for 
+    infinite-dimensional optimization problems. Finite problems (e.g., 
+    directly modeling a discrete time model) should instead be modeled using 
+    `Model`'s in [`JuMP`](https://jump.dev/JuMP.jl/stable/).
+
 ## Basic Usage
 Infinite models can be initialized with no arguments by default:
 ```jldoctest

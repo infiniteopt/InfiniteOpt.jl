@@ -29,6 +29,13 @@
     @test isa(build_optimizer_model!(m), Nothing)
     @test optimizer_model_ready(m)
     @test num_variables(optimizer_model(m)) == 14
+    # test finite model
+    m = InfiniteModel()
+    @variable(m, y >= 0)
+    @objective(m, Min, y)
+    warn = "Finite models (i.e., `InfiniteModel`s with no infinite " * 
+           "parameters) should be modeled directly via a `Model` in JuMP.jl."
+    @test_logs (:warn, warn) build_optimizer_model!(m)
 end
 
 # Test optimizer model querying methods

@@ -30,6 +30,11 @@ include:
 - Measures (e.g., ``\int_{t \in \mathcal{D}_t}y(t,x) dt``, ``\mathbb{E}[y(\xi)]``)
 - More
 
+!!! note 
+    `InfiniteOpt` is intended to be used for infinite-dimensional optimization 
+    problems. Finite problems (e.g., directly modeling a discrete time model) 
+    should instead be modeled using [`JuMP`](https://jump.dev/JuMP.jl/stable/).
+
 Moreover, `InfiniteOpt` decouples the infinite-dimensional formulations from the 
 finite transformations typically used to solve them. This readily enables diverse 
 techniques be used to solve these types of problems. By default, we employ 
