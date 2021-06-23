@@ -131,9 +131,9 @@
         @test InfiniteOpt.domain_string(IJuliaMode, domain) == "Uniform{Float64}(a=0.0, b=1.0)"
         # test mulivariate domain
         domain = MultiDistributionDomain(MvNormal([1], 1))
-        str = "IsoNormal(\ndim: 1\nμ: [1.0]\nΣ: [1.0]\n)\n"
-        @test InfiniteOpt.domain_string(REPLMode, domain) == str
-        @test InfiniteOpt.domain_string(IJuliaMode, domain) == str
+        str = "IsoNormal(\ndim: 1" # just test first part
+        @test InfiniteOpt.domain_string(REPLMode, domain)[1:length(str)] == str
+        @test InfiniteOpt.domain_string(IJuliaMode, domain)[1:length(str)]  == str
     end
     # test domain_string (CollectionDomain)
     @testset "domain_string (CollectionDomain)" begin
