@@ -174,24 +174,6 @@ end
 ################################################################################
 #                          DEFINTION METHODS
 ################################################################################
-# Set a dictionary to store the eval_method defaults
-const _DerivativeDefaults = Dict{Symbol, Any}(
-    :info => JuMP.VariableInfo{Float64, Float64, Float64, Function}(           
-                false, NaN, false, NaN, false, NaN, false, s -> NaN, false, false),
-    :is_vect_start => true
-    )
-
-# Get the derivative defaults
-function _derivative_defaults()::Dict{Symbol, Any}
-    return _DerivativeDefaults
-end
-
-# Specify the derivative defaults
-function _set_derivative_default(key::Symbol, value)::Nothing 
-    _derivative_defaults()[key] = value
-    return 
-end
-
 """
     build_derivative(_error::Function, info::JuMP.VariableInfo, 
                      argument_ref::GeneralVariableRef, 
@@ -202,8 +184,7 @@ Constructs and returns a [`Derivative`](@ref) with a differential operator that
 depends on `parameter_ref` and operates on `argument_ref`. Variable `info` can also 
 be provided to associate this derivative with bounds and a starting value function 
 like that of infinite variables. Errors when `argument_ref` is not an 
-infinite/semi-infinite variable or derivative that depends on `parameter_ref`. Also, 
-errors if such a derivative was already added to the model.
+infinite/semi-infinite variable or derivative that depends on `parameter_ref`.
 
 **Example**
 ```julia-repl 
@@ -231,9 +212,6 @@ function build_derivative(
                "$parameter_ref.")
     elseif argument_ref == parameter_ref
         _error("Cannot specify the operator parameter as the derivative argument.")
-    elseif _existing_derivative_index(argument_ref, parameter_ref) !== nothing
-        _error("Cannot double specify derivatives, a derivative operating on " * 
-               "$(argument_ref) with $parameter_ref was already added.")
     end
     # check and format the info correctly
     prefs = raw_parameter_refs(argument_ref)
@@ -334,18 +312,29 @@ function add_derivative(
     pref = dispatch_variable_ref(d.parameter_ref)
     JuMP.check_belongs_to_model(vref, model)
     JuMP.check_belongs_to_model(pref, model)
-    # add it to the model and make the reference
-    data_object = VariableData(d, name)
-    dindex = _add_data_object(model, data_object)
-    dref = DerivativeRef(model, dindex)
-    # update the mappings 
-    push!(_derivative_dependencies(vref), dindex)
-    push!(_derivative_dependencies(pref), dindex)
-    # update the derivative lookup dict (assumes that this is anew index) --> checked by build_derivative
-    model.deriv_lookup[(d.variable_ref, d.parameter_ref)] = dindex
-    # add the info constraints
-    gvref = _make_variable_ref(model, dindex)
-    _set_info_constraints(d.info, gvref, dref)
+    # check if we already have a derivative 
+    existing_index = _existing_derivative_index(d.variable_ref, d.parameter_ref)
+    if existing_index === nothing
+        # add it to the model and make the reference
+        data_object = VariableData(d, name)
+        dindex = _add_data_object(model, data_object)
+        dref = DerivativeRef(model, dindex)
+        # update the mappings 
+        push!(_derivative_dependencies(vref), dindex)
+        push!(_derivative_dependencies(pref), dindex)
+        # update the derivative lookup dict
+        model.deriv_lookup[(d.variable_ref, d.parameter_ref)] = dindex
+        # add the info constraints
+        gvref = _make_variable_ref(model, dindex)
+        _set_info_constraints(d.info, gvref, dref)
+    else
+        dref = DerivativeRef(model, existing_index)
+        gvref = _make_variable_ref(model, existing_index)
+        _update_info_constraints(d.info, gvref, dref)
+        if !isempty(name)
+            set_name(dref, name)
+        end
+    end
     return gvref
 end
 
@@ -370,8 +359,9 @@ function _build_deriv_expr(
         dindex = _existing_derivative_index(vref, pref)
         model = JuMP.owner_model(vref)
         if dindex === nothing
-            defaults = _derivative_defaults()
-            d = Derivative(defaults[:info], defaults[:is_vect_start], vref, pref)
+            info = VariableInfo(false, NaN, false, NaN, false, NaN, false, 
+                                s -> NaN, false, false)
+            d = Derivative(info, true, vref, pref)
             return add_derivative(model, d)
         else 
             return _make_variable_ref(model, dindex)
@@ -582,15 +572,10 @@ function _update_variable_info(
     dref::DerivativeRef,
     info::JuMP.VariableInfo
     )::Nothing
-    new_info = JuMP.VariableInfo(info.has_lb, convert(Float64, info.lower_bound), 
-                                 info.has_ub, convert(Float64, info.upper_bound), 
-                                 info.has_fix, convert(Float64, info.fixed_value),
-                                 info.has_start, info.start, info.binary, 
-                                 info.integer)
     vref = derivative_argument(dref)
     pref = operator_parameter(dref)
     is_vect_func = _is_vector_start(dref)
-    new_deriv = Derivative(new_info, is_vect_func, vref, pref)
+    new_deriv = Derivative(_format_infinite_info(info), is_vect_func, vref, pref)
     _set_core_variable_object(dref, new_deriv)
     return
 end
@@ -644,15 +629,12 @@ julia> reset_start_value_function(dref)
 function reset_start_value_function(dref::DerivativeRef)::Nothing
     info = _variable_info(dref)
     set_optimizer_model_ready(JuMP.owner_model(dref), false)
-    defaults = _derivative_defaults()
-    start_func = defaults[:info].start 
-    has_start = defaults[:info].has_start 
     new_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
                                  info.upper_bound, info.has_fix, info.fixed_value,
-                                 has_start, start_func, info.binary, info.integer)
+                                 false, s -> NaN, info.binary, info.integer)
     vref = derivative_argument(dref)
     pref = operator_parameter(dref)
-    new_deriv = Derivative(new_info, defaults[:is_vect_start], vref, pref)
+    new_deriv = Derivative(new_info, true, vref, pref)
     _set_core_variable_object(dref, new_deriv)
     return
 end

@@ -575,7 +575,7 @@ moreover infinite models using this new type can be optimized. Let's try
 expanding the measure we already defined:
 ```jldoctest measure_data
 julia> expand(mref)
-2 y(-0.556026876146)² + 2 z*y(-0.556026876146) - 2 y(-0.556026876146)² - 2 y(-0.44438335711)*y(-0.556026876146) - 2 z*y(-0.556026876146) + 0 z² - y(-0.556026876146)*z - y(-0.44438335711)*z + 0.5 y(-0.556026876146)² + 0.5 y(-0.556026876146)*y(-0.44438335711) + 0.5 y(-0.556026876146)*z + 0.5 y(-0.44438335711)*y(-0.556026876146) + 0.5 y(-0.44438335711)² + 0.5 y(-0.44438335711)*z + 0.5 z*y(-0.556026876146) + 0.5 z*y(-0.44438335711) + 2 y(-0.44438335711)² + 2 z*y(-0.44438335711) - 2 y(-0.556026876146)*y(-0.44438335711) - 2 y(-0.44438335711)² - 2 z*y(-0.44438335711) - y(-0.556026876146)*z - y(-0.44438335711)*z + 0.5 y(-0.556026876146)² + 0.5 y(-0.556026876146)*y(-0.44438335711) + 0.5 y(-0.556026876146)*z + 0.5 y(-0.44438335711)*y(-0.556026876146) + 0.5 y(-0.44438335711)² + 0.5 y(-0.44438335711)*z + 0.5 z*y(-0.556026876146) + 0.5 z*y(-0.44438335711)
+y(-0.556026876146)² + 0 z*y(-0.556026876146) - 2 y(-0.44438335711)*y(-0.556026876146) + 0 z² + 0 z*y(-0.44438335711) + y(-0.44438335711)²
 ```
 
 Finally, as per recommendation let's make a wrapper method to make defining 
@@ -613,7 +613,7 @@ for `expr`.
 Now let's use our constructor to repeat the above measure example:
 ```jldoctest measure_data
 julia> expand(variance(2y + z, xi, use_existing = true))
-2 y(-0.556026876146)² + 2 z*y(-0.556026876146) - 2 y(-0.556026876146)² - 2 y(-0.44438335711)*y(-0.556026876146) - 2 z*y(-0.556026876146) + 0 z² - y(-0.556026876146)*z - y(-0.44438335711)*z + 0.5 y(-0.556026876146)² + 0.5 y(-0.556026876146)*y(-0.44438335711) + 0.5 y(-0.556026876146)*z + 0.5 y(-0.44438335711)*y(-0.556026876146) + 0.5 y(-0.44438335711)² + 0.5 y(-0.44438335711)*z + 0.5 z*y(-0.556026876146) + 0.5 z*y(-0.44438335711) + 2 y(-0.44438335711)² + 2 z*y(-0.44438335711) - 2 y(-0.556026876146)*y(-0.44438335711) - 2 y(-0.44438335711)² - 2 z*y(-0.44438335711) - y(-0.556026876146)*z - y(-0.44438335711)*z + 0.5 y(-0.556026876146)² + 0.5 y(-0.556026876146)*y(-0.44438335711) + 0.5 y(-0.556026876146)*z + 0.5 y(-0.44438335711)*y(-0.556026876146) + 0.5 y(-0.44438335711)² + 0.5 y(-0.44438335711)*z + 0.5 z*y(-0.556026876146) + 0.5 z*y(-0.44438335711)
+y(-0.556026876146)² + 0 z*y(-0.556026876146) - 2 y(-0.44438335711)*y(-0.556026876146) + 0 z² + 0 z*y(-0.44438335711) + y(-0.44438335711)²
 ```
 
 We have done it! Now go and extend away!
@@ -715,11 +715,9 @@ extended using the following steps:
     - [`InfiniteOpt.map_optimizer_index`](@ref) (enables `JuMP.optimizer_index`)
     - [`InfiniteOpt.map_dual`](@ref) (enables `JuMP.dual`)
     - [`InfiniteOpt.map_shadow_price`](@ref) (enables `JuMP.shadow_price`)
-11. Extend [`InfiniteOpt.add_measure_variable`](@ref) to use 
-    [`expand_measure`](@ref) without modifying the infinite model
-12. Extend [`InfiniteOpt.delete_semi_infinite_variable`](@ref) to use 
-    [`expand_measure`](@ref) without modifying the infinite model and delete 
-    unneeded semi-infinite variables.
+11. Extend [`InfiniteOpt.add_point_variable`](@ref) and 
+    [`InfiniteOpt.add_semi_infinite_variable`](@ref) to use 
+    [`expand_measure`](@ref) without modifying the infinite model.
 
 For the sake of example, let's suppose we want to define a reformulation method 
 for `InfiniteModel`s that are 2-stage stochastic programs (i.e., only 

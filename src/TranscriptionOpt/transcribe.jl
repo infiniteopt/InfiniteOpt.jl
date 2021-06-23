@@ -320,7 +320,7 @@ function transcribe_semi_infinite_variables!(
         # setup the mappings
         ivref = InfiniteOpt.infinite_variable_ref(rvref)
         _set_semi_infinite_variable_mapping(trans_model, var, rvref, 
-                                      InfiniteOpt._index_type(ivref))
+                                            InfiniteOpt._index_type(ivref))
     end
     return
 end
@@ -383,7 +383,6 @@ function transcribe_point_variables!(
         # get the basic variable information
         var = object.variable
         ivref = var.infinite_variable_ref
-        param_nums = InfiniteOpt._parameter_numbers(ivref)
         supp = var.parameter_values
         # find the corresponding variable record the mapping
         vref = lookup_by_support(trans_model, ivref, supp)
@@ -872,7 +871,7 @@ function build_transcription_model!(
     set_parameter_supports(trans_model, inf_model)
     # check that there isn't a crazy amount of supports from taking the product
     supps = parameter_supports(trans_model)
-    num_supps = prod(length, supps)
+    num_supps = isempty(supps) ? 0 : prod(length, supps)
     if check_support_dims && length(supps) > 1 && num_supps > 15000 # NOTE this is an arbitrary cutoff
         @warn("Due to necessarily considering the combinatorics of independent " *
               "parameter supports, the model will be transcripted over up to $(num_supps) " *

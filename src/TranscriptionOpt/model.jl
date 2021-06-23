@@ -23,7 +23,11 @@ constructor.
    Map finite variables to their transcription variables.
 - `semi_infinite_vars::Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}`:
    Store the core semi-infinite variable objects of semi-infinite variables formed on transcription.
+- `semi_lookup::Dict{Tuple{InfiniteOpt.GeneralVariableRef, Dict{Int, Float64}}, InfiniteOpt.GeneralVariableRef}`: 
+  Lookup which semi-infinite variables have already been added.
 - `last_point_index::Int`: The last internal point variable index added.
+- `point_lookup::Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}`: 
+  Lookup which point variables have already been created internally.
 - `measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}`:
    A lookup table of measure transcriptions via support value.
 - `measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}`:
@@ -52,7 +56,9 @@ mutable struct TranscriptionData
 
     # Internal variables (created via internal measure expansions)
     semi_infinite_vars::Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}
+    semi_lookup::Dict{Tuple{InfiniteOpt.GeneralVariableRef, Dict{Int, Float64}}, InfiniteOpt.GeneralVariableRef}
     last_point_index::Int
+    point_lookup::Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}
 
     # Measure information
     measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}
@@ -66,7 +72,7 @@ mutable struct TranscriptionData
     constr_supports::Dict{InfiniteOpt.InfOptConstraintRef,
                           Vector{Tuple}}
     constr_support_labels::Dict{InfiniteOpt.InfOptConstraintRef,
-                               Vector{Set{DataType}}}
+                                Vector{Set{DataType}}}
 
     # Collected Supports
     supports::Tuple
@@ -83,7 +89,9 @@ mutable struct TranscriptionData
                    Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}(),
                    # internal variables
                    Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}(),
+                   Dict{Tuple{InfiniteOpt.GeneralVariableRef, Dict{Int, Float64}}, InfiniteOpt.GeneralVariableRef}(),
                    0,
+                   Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}(),
                    # measure info
                    Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
                    Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}(),

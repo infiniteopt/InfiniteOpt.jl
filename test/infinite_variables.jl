@@ -12,6 +12,7 @@
     func2 = (x...) -> 1 
     info = VariableInfo(false, num, false, num, false, num, false, func, false, false)
     new_info = VariableInfo(true, 0., true, 0., true, 0., true, func2, true, false)
+    new_info2 = VariableInfo(true, 0, true, 0, true, 0, true, func2, true, false)
     var = InfiniteVariable(info, IC.VectorTuple(a, b[1:2], c, [b[3], d]),
                            [1:7...], [1:6...], true)
     var2 = InfiniteVariable(new_info, IC.VectorTuple(a, b[1:2], c, [b[3], d]),
@@ -85,6 +86,8 @@
     end
     # _update_variable_info
     @testset "_update_variable_info" begin
+        @test isa(InfiniteOpt._update_variable_info(vref, new_info2), Nothing)
+        @test InfiniteOpt._variable_info(vref) == new_info2
         @test isa(InfiniteOpt._update_variable_info(vref, new_info), Nothing)
         @test InfiniteOpt._variable_info(vref) == new_info
     end
@@ -317,22 +320,6 @@ end
         empty!(InfiniteOpt._infinite_variable_dependencies(prefs[1]))
         empty!(InfiniteOpt._infinite_variable_dependencies(prefs[2]))
     end
-    # _check_and_make_variable_ref
-    @testset "_check_and_make_variable_ref" begin
-        # prepare secondary model and parameter and variable
-        m2 = InfiniteModel()
-        @infinite_parameter(m2, pref3 in [0, 1])
-        v = build_variable(error, info, Infinite(pref3))
-        # test for error of invalid variable
-        @test_throws VariableNotOwned{GeneralVariableRef} InfiniteOpt._check_and_make_variable_ref(m, v, "")
-        # test normal
-        idx = InfiniteVariableIndex(1)
-        vref = InfiniteVariableRef(m2, idx)
-        @test InfiniteOpt._check_and_make_variable_ref(m2, v, "") == vref
-        @test InfiniteOpt._infinite_variable_dependencies(pref3) == [idx]
-        # test with other variable object
-        @test_throws ArgumentError InfiniteOpt._check_and_make_variable_ref(m, :bad, "")
-    end
     # add_variable
     @testset "JuMP.add_variable" begin
         # prepare secondary model and parameter and variable
@@ -563,6 +550,27 @@ end
         @test_macro_throws ErrorException @variable(m, zz, Infinite(t), 
                                                     start = (a, b) -> 2)
     end
+end
+
+# test restriciton definition 
+@testset "Restriction Definition" begin 
+    # setup the info 
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x[1:2] in [0, 1])
+    @variable(m, y, Infinite(t, x))
+    # test errors 
+    @test_throws ErrorException restrict(y, t)
+    @test_throws ErrorException restrict(t, x)
+    @test_throws ErrorException y(t)
+    # test warning 
+    warn = "Unnecessary use of functional infinite variable restriction syntax " *
+           "that will cause performance degredations. This was probably caused " *
+           "by using syntax like `y(t, x)` inside expressions. Instead just " *
+           "use the infinite variable reference (e.g. `y`)."
+    @test_logs (:warn, warn) restrict(y, t, x)
+    @test_logs (:warn, warn) y(t, x)
+    # Note: the rest of the cases are tested with point variables and semi-infinite variables
 end
 
 # Test variable(s) constrained on creation 

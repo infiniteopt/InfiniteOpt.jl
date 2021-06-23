@@ -133,17 +133,9 @@ end
         # test normal
         @test build_variable(error, info).info == info
     end
-    # _check_and_make_variable_ref
-    @testset "_check_and_make_variable_ref" begin
-        # test normal
-        v = build_variable(error, info)
-        idx = FiniteVariableIndex(1)
-        vref = FiniteVariableRef(m, idx)
-        @test InfiniteOpt._check_and_make_variable_ref(m, v, "") == vref
-    end
     # add_variable
     @testset "JuMP.add_variable" begin
-        idx = FiniteVariableIndex(2)
+        idx = FiniteVariableIndex(1)
         vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
         v = build_variable(error, info)
@@ -153,7 +145,7 @@ end
         # prepare variable with all the possible info additions
         v = build_variable(error, info2)
         # test info addition functions
-        idx = FiniteVariableIndex(3)
+        idx = FiniteVariableIndex(2)
         vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
         @test add_variable(m, v, "name") == gvref

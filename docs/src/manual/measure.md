@@ -119,8 +119,7 @@ InfiniteOpt.analytic_expansion
 InfiniteOpt.expand_measures
 make_point_variable_ref
 make_semi_infinite_variable_ref
-add_measure_variable(::JuMP.Model, ::Any, ::Any)
-delete_internal_semi_infinite_variable
-delete_semi_infinite_variable(::JuMP.Model, ::Any, ::Any)
+add_point_variable(::JuMP.Model, ::Any, ::Any, ::Any)
+add_semi_infinite_variable(::JuMP.Model, ::Any, ::Any)
 internal_semi_infinite_variable
 ```

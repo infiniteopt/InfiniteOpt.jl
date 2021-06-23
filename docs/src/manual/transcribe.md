@@ -18,9 +18,8 @@ InfiniteOpt.TranscriptionOpt.transcribe_objective!
 InfiniteOpt.TranscriptionOpt.transcribe_constraints!
 InfiniteOpt.TranscriptionOpt.transcribe_derivative_evaluations!
 InfiniteOpt.TranscriptionOpt.build_transcription_model!
-InfiniteOpt.add_measure_variable(::JuMP.Model,::InfiniteOpt.PointVariable,::Val{:TransData})
-InfiniteOpt.add_measure_variable(::JuMP.Model,::InfiniteOpt.SemiInfiniteVariable,::Val{:TransData})
-InfiniteOpt.delete_semi_infinite_variable(::JuMP.Model,::InfiniteOpt.SemiInfiniteVariableRef,::Val{:TransData})
+InfiniteOpt.add_point_variable(::JuMP.Model,::InfiniteOpt.GeneralVariableRef,::Vector{Float64},::Val{:TransData})
+InfiniteOpt.add_semi_infinite_variable(::JuMP.Model,::InfiniteOpt.SemiInfiniteVariable,::Val{:TransData})
 InfiniteOpt.build_optimizer_model!(::InfiniteOpt.InfiniteModel,::Val{:TransData})
 ```
 

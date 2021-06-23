@@ -130,6 +130,15 @@ initial : yb(t) = 0.0, ∀ t = 0
 Thus, we have added a constraint to `model` defined over the sub-domain ``t = 0`` 
 in accordance with the initial condition.
 
+!!! tip 
+    Boundary conditions can often be more efficiently defined using 
+    [Restricted Variables](@ref). For example, the above initial condition 
+    can be expressed:
+    ```jldoctest constrs
+    julia> @constraint(model, yb(0) == 0)
+    yb(0) = 0.0
+    ```
+
 More complex sub-domains can be specified by simply adding more restrictions. To 
 illustrate this, let's define the constraint 
 ``2y_b^2(t, x) + z_1 \geq 3, \ \forall t = 0, \ x \in [-1, 1]^2``:
@@ -274,6 +283,10 @@ julia> @constraint(model, [i = 1:2], ya^2 + z[i] <= 1, DomainRestrictions(x[i] =
  ya(t, x)² + z[2] ≤ 1.0, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [0, 1]
 ```
 
+!!! tip
+    Where possible, using [Restricted Variables](@ref) will tend to be more 
+    performant than using `DomainRestrictions` instead.
+
 ## Queries
 In this section, we describe a variety of methods to extract constraint
 information.
@@ -375,7 +388,7 @@ provided for the cases in which one wants to query solely off of set or off
 expression type. Let's illustrate this with `num_constraints`:
 ```jldoctest constrs
 julia> num_constraints(model) # total number of constraints
-15
+16
 
 julia> num_constraints(model, GenericQuadExpr{Float64, GeneralVariableRef})
 5

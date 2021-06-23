@@ -98,13 +98,18 @@ julia> @variable(model, w0[i = 1:3], SemiInfinite(w[i], 0, x))
  w0[3]
 ```
 Thus we create a Julia array variable `w0` whose elements `w0[i]` point to their
-respective semi-infinite variables `w[i](0, x)` stored in `model`.
-
-!!! note
-    Semi-infinite variables are provided for enhancing the generality of
-    `InfiniteOpt`, but typically can be avoided by using infinite variables in
-    combination with adding [`DomainRestrictions`](@ref) to constraints which 
-    restrict the infinite domain as needed.
+respective semi-infinite variables `w[i](0, x)` stored in `model`. Alternatively, 
+we can make a semi-infinite variable via our restriction syntax:
+```jldoctest var_basic
+julia> [w[i](0, x) for i in 1:3]
+3-element Vector{GeneralVariableRef}:
+ w0[1]
+ w0[2]
+ w0[3]
+```
+These are often useful to define semi-infinite variables directly in constraint 
+expressions. See [Restricted Variables](@ref) to learn about symbolic inline 
+definition of semi-infinite variables.
 
 ### Point Variables
 Now let's add some point variables. These allow us to consider an infinite
@@ -123,11 +128,14 @@ these are overwritten with properties specified for the point variable. In this
 case the lower bound inherited from `y(t)` is overwritten by instead fixing
 `y(0)` to a value of 0.  
 
-!!! note
-    Point variables are provided for enhancing the generality of
-    `InfiniteOpt`, but typically can be avoided by using infinite variables in
-    combination with adding [`DomainRestrictions`](@ref) to constraints which 
-    restrict the infinite domain as needed.
+Alternatively, we can use the convenient restriction syntax:
+```jldoctest var_basic
+julia> y(0)
+y0
+```
+Again this is very useful when embedded directly in constraint expressions 
+(e.g., when defining boundary conditions). See [Restricted Variables](@ref) to 
+learn about symbolic inline definition of point variables.
 
 ### Finite Variables
 Finally, we can add finite variables to our model. These denote variables that
@@ -602,6 +610,38 @@ julia> @variables(model, begin
            z2, Bin
        end)
 
+```
+
+## Restricted Variables
+To define point and semi-infinite variables, we can also use [`restrict`](@ref) 
+for convenient inline definitions.
+
+For example, let's consider restricting the infinite variable `y(t, x)`:
+```jldoctest restrict_vars; setup = :(using InfiniteOpt)
+julia> model = InfiniteModel();
+
+julia> @infinite_parameter(model, t in [0, 1]);
+
+julia> @infinite_parameter(model, x[1:2] in [-1, 1]);
+
+julia> @variable(model, y, Infinite(t, x))
+y(t, x)
+
+julia> pt = restrict(y, 0, [-1, 1]) # make point variable y(0, [-1, 1])
+y(0, [-1, 1])
+
+julia> semi = restrict(y, 0, x) # make semi-infinite variable y(0, x)
+y(0, [x[1], x[2]])
+```
+
+We can also, even more conveniently, treat the infinite variable as a function 
+to accomplish this in a more intuitive syntax:
+```jldoctest restrict_vars
+julia> pt = y(0, [-1, 1]) # make point variable y(0, [-1, 1])
+y(0, [-1, 1])
+
+julia> semi = y(0, x) # make semi-infinite variable y(0, x)
+y(0, [x[1], x[2]])
 ```
 
 ## Queries

@@ -225,14 +225,33 @@ end
     # setup 
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 1])
-    @infinite_parameter(m, x[1:2] in [0, 1])
+    @infinite_parameter(m, x[1:2] in [0, 1], independent = true)
     f5(t, x, a...; b...) = 42
+    # test _expr_replace!
+    @testset "_expr_replace!" begin
+        @test InfiniteOpt._expr_replace!(:(t -> f(t, x)), :t, :y) == :(y -> f(y, x))
+        @test InfiniteOpt._expr_replace!(:((t, x[1]) -> f(t, x[1])), :(x[1]), :y) == :((t, y) -> f(t, y))
+        @test InfiniteOpt._expr_replace!(:t, :t, :y) == :y
+        @test InfiniteOpt._expr_replace!(:t, :f, :y) == :t
+    end
+    # test _extract_parameters
+    @testset "_extract_parameters" begin
+        @test InfiniteOpt._extract_parameters(:y) == esc(:y)
+        @test InfiniteOpt._extract_parameters(:(x[1])) == esc(:(x[1])) 
+        ex = :((t, x[1]))
+        @test InfiniteOpt._extract_parameters(ex).args[1] == ex
+        @test InfiniteOpt._extract_parameters(ex).args[1] !== ex
+    end
     # test _process_func_expr
     @testset "_process_func_expr" begin
         # test normal
-        @test InfiniteOpt._process_func_expr(error, :(f(t, x))) == (esc(:f), esc(:(t, x)))
+        @test InfiniteOpt._process_func_expr(error, :(f(t, x))) == (esc(:f), esc(:(t, x)), false)
         anon = :((t, x) -> f(t, x, 1, d = 1))
-        @test InfiniteOpt._process_func_expr(error, anon) == (esc(anon), esc(:(t,x)))
+        @test InfiniteOpt._process_func_expr(error, anon) == (esc(anon), esc(:(t,x)), true)
+        anon = :((t, x[1]) -> sin(t + x[1]))
+        @test eval(InfiniteOpt._process_func_expr(error, anon)[1].args[1])(0.5, 0.2) == sin(0.5 + 0.2)
+        anon = :(t[i] -> t[i] + 3)
+        @test eval(InfiniteOpt._process_func_expr(error, anon)[1].args[1])(2) == 5
         # test errors 
         @test_throws ErrorException InfiniteOpt._process_func_expr(error, :(f(t, d = 2)))
         @test_throws ErrorException InfiniteOpt._process_func_expr(error, :(f(x, t; d = 2)))
@@ -305,6 +324,13 @@ end
         @test parameter_refs(refs[1]) == (t, x)
         @test raw_function(refs[2]) != f5 
         @test name.(refs) == ["e[1]", "e[2]"]
+        idx += 2
+        # test infinite parameter with reference 
+        refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in 0:1]
+        @test @parameter_function(m, [i = 1:2] == (t, x[i]) -> sin(t + x[i])) == refs
+        @test parameter_refs.(refs) == [(t, x[1]), (t, x[2])]
+        @test call_function.(refs, 0.5, 0.2) == [sin(0.5 + 0.2), sin(0.5 + 0.2)] 
+        @test name.(refs) == ["", ""]
         idx += 2
     end
 end

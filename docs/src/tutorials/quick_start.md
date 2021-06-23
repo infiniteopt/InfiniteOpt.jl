@@ -28,7 +28,7 @@ let's define a simple optimal control model:
 	&&\underset{x_i(t, \xi), v_i(t, \xi), y_w(\xi), u_i(t)}{\text{min}} &&& \int_{t \in \mathcal{D}_t} \sum_{i \in I} u_i^2(t) dt \\
 	&&\text{s.t.} &&& x_i(0, \xi) = x0_i, && \forall i \in I, \xi \in \mathcal{D}_\xi\\
     &&&&& v_i(0, \xi) = v0_i, && \forall i \in I, \xi \in \mathcal{D}_\xi \\
-	&&&&& \frac{\partial x_i(t, \xi)}{\partial t} = v_i(t, \xi), && \forall i \in I, t \in \mathcal{D}_t\, \xi \in \mathcal{D}_\xi\\
+	&&&&& \frac{\partial x_i(t, \xi)}{\partial t} = v_i(t, \xi), && \forall i \in I, t \in \mathcal{D}_t, \xi \in \mathcal{D}_\xi\\
     &&&&& \xi\frac{\partial v_i(t, \xi)}{\partial t} = u_i(t), && \forall i \in I, t \in \mathcal{D}_t, \xi \in \mathcal{D}_\xi\\
     &&&&& y_{w}(\xi) = \sum_{i \in I}(x_i(t_w, \xi) - p_{iw})^2, && \forall w \in W, \xi \in \mathcal{D}_\xi \\
     &&&&& y_{w}(\xi) \geq 0, && \forall w \in W, \xi \in \mathcal{D}_\xi \\
@@ -172,22 +172,22 @@ objectives must evaluate over all included infinite domains.
 
 Now let's define the initial conditions using 
 [`@constraint`](https://jump.dev/JuMP.jl/v0.21.8/reference/constraints/#JuMP.@constraint) 
-in combination with [`DomainRestrictions`](@ref) which will restrict the domain 
-of the constraints to only be enforced at the initial time:
+in combination with [Restricted Variables](@ref) which will restrict the domain 
+of the variables to only be enforced at the initial time:
  ```jldoctest quick
-julia> @constraint(model, [i in I], x[i] == x0[i], DomainRestrictions(t => 0))
+julia> @constraint(model, [i in I], x[i](0, ξ) == x0[i])
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Vector{InfOptConstraintRef}:
- x[1](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
- x[2](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
+ x[1](0, ξ) = 0.0, ∀ ξ ~ Normal
+ x[2](0, ξ) = 0.0, ∀ ξ ~ Normal
 
-julia> @constraint(model, [i in I], v[i] == v0[i], DomainRestrictions(t => 0))
+julia> @constraint(model, [i in I], v[i](0, ξ) == v0[i])
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Vector{InfOptConstraintRef}:
- v[1](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
- v[2](t, ξ) = 0.0, ∀ t = 0, ξ ~ Normal
+ v[1](0, ξ) = 0.0, ∀ ξ ~ Normal
+ v[2](0, ξ) = 0.0, ∀ ξ ~ Normal
 ```
 Note it is important that we include appropriate boundary conditions when using 
 derivatives in our model. For more information please see 
@@ -214,14 +214,14 @@ And data, a 2-element Vector{InfOptConstraintRef}:
 
 Finally, we can define our last 2 constraints:
  ```jldoctest quick
-julia> @constraint(model, c3[w in W], y[w] == sum((x[i] - p[i, w])^2 for i in I), DomainRestrictions(t => tw[w]))
+julia> @constraint(model, c3[w in W], y[w] == sum((x[i](tw[w], ξ) - p[i, w])^2 for i in I))
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:4
 And data, a 4-element Vector{InfOptConstraintRef}:
- c3[1] : -x[1](t, ξ)² - x[2](t, ξ)² + y[1](ξ) + 2 x[1](t, ξ) + 2 x[2](t, ξ) = 2.0, ∀ t = 0, ξ ~ Normal
- c3[2] : -x[1](t, ξ)² - x[2](t, ξ)² + y[2](ξ) + 8 x[1](t, ξ) + 6 x[2](t, ξ) = 25.0, ∀ t = 25, ξ ~ Normal
- c3[3] : -x[1](t, ξ)² - x[2](t, ξ)² + y[3](ξ) + 12 x[1](t, ξ) = 36.0, ∀ t = 50, ξ ~ Normal
- c3[4] : -x[1](t, ξ)² - x[2](t, ξ)² + y[4](ξ) + 2 x[1](t, ξ) + 2 x[2](t, ξ) = 2.0, ∀ t = 60, ξ ~ Normal
+ c3[1] : -x[1](0, ξ)² - x[2](0, ξ)² + y[1](ξ) + 2 x[1](0, ξ) + 2 x[2](0, ξ) = 2.0, ∀ ξ ~ Normal
+ c3[2] : -x[1](25, ξ)² - x[2](25, ξ)² + y[2](ξ) + 8 x[1](25, ξ) + 6 x[2](25, ξ) = 25.0, ∀ ξ ~ Normal
+ c3[3] : -x[1](50, ξ)² - x[2](50, ξ)² + y[3](ξ) + 12 x[1](50, ξ) = 36.0, ∀ ξ ~ Normal
+ c3[4] : -x[1](60, ξ)² - x[2](60, ξ)² + y[4](ξ) + 2 x[1](60, ξ) + 2 x[2](60, ξ) = 2.0, ∀ ξ ~ Normal
 
 julia> @constraint(model, c4, expect(sum(y[w] for w in W), ξ) <= ϵ)
 c4 : 𝔼{ξ}[y[1](ξ) + y[2](ξ) + y[3](ξ) + y[4](ξ)] - ϵ ≤ 0.0
@@ -300,14 +300,13 @@ model = InfiniteModel(Ipopt.Optimizer)
 @objective(model, Min, integral(sum(u[i]^2 for i in I), t))
 
 # SET THE INITIAL CONDITIONS
-@constraint(model, [i in I], x[i] == x0[i], DomainRestrictions(t => 0))
-@constraint(model, [i in I](t == 0), v[i] == v0[i], DomainRestrictions(t => 0))
+@constraint(model, [i in I], x[i](0, ξ) == x0[i])
+@constraint(model, [i in I], v[i](0, ξ) == v0[i])
 
 # SET THE PROBLEM CONSTRAINTS
 @constraint(model, c1[i in I], @deriv(x[i], t) == v[i])
 @constraint(model, c2[i in I], ξ * @deriv(v[i], t) == u[i])
-@constraint(model, c3[w in W], y[w] == sum((x[i] - p[i, w])^2 for i in I), 
-            DomainRestrictions(t => tw[w]))
+@constraint(model, c3[w in W], y[w] == sum((x[i](tw[w], ξ) - p[i, w])^2 for i in I))
 @constraint(model, c4, expect(sum(y[w] for w in W), ξ) <= ϵ)
 
 # SOLVE THE MODEL

@@ -49,8 +49,8 @@ z
 julia> @objective(inf_model, Min, 2z + support_sum(y, t))
 2 z + support_sum{t}[y(t)]
 
-julia> @constraint(inf_model, initial, y == 1, DomainRestrictions(t => 0))
-initial : y(t) = 1.0, ∀ t = 0
+julia> @constraint(inf_model, initial, y(0) == 1)
+initial : y(0) = 1.0
 
 julia> @constraint(inf_model, constr, y^2 - z <= 42)
 constr : y(t)² - z ≤ 42.0, ∀ t ∈ [0, 10]
@@ -60,7 +60,8 @@ Min 2 z + support_sum{t}[y(t)]
 Subject to
  y(t) ≥ 0.0, ∀ t ∈ [0, 10]
  z binary
- initial : y(t) = 1.0, ∀ t = 0
+ y(0) ≥ 0.0
+ initial : y(0) = 1.0
  constr : y(t)² - z ≤ 42.0, ∀ t ∈ [0, 10]
 ```
 Now we can make `JuMP` model containing the transcribed version of `inf_model` 
@@ -286,8 +287,8 @@ inf_model = InfiniteModel()
 @objective(inf_model, Min, support_sum(y^2, t))
 
 # Define the constraints
-@constraint(inf_model, y == 1, DomainRestrictions(t => 0))
-@constraint(inf_model, g == 0, DomainRestrictions(t => 0))
+@constraint(inf_model, y(0) == 1)
+@constraint(inf_model, g(0, x) == 0)
 @constraint(inf_model, support_sum(deriv(g, t), x) == 42) # support_sum for simplicity
 @constraint(inf_model, 3g + y^2 <= 2)
 
@@ -297,8 +298,8 @@ print(inf_model)
 # output
 Min support_sum{t}[y(t)²]
 Subject to
- y(t) = 1.0, ∀ t = 0
- g(t, x) = 0.0, ∀ t = 0, x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
+ y(0) = 1.0
+ g(0, [x[1], x[2]]) = 0.0, ∀ x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
  support_sum{x}[∂/∂t[g(t, x)]] = 42.0, ∀ t ∈ [0, 10]
  y(t)² + 3 g(t, x) ≤ 2.0, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
 ```
