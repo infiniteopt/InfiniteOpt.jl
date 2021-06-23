@@ -136,11 +136,11 @@ end
             end
             return exs
         end
-        @test rm_zeros(nfiniteOpt.evaluate_derivative(d2, method, m)) == exprs
+        @test rm_zeros(evaluate_derivative(d2, method, m)) == exprs
         @test supports(t) == [0, 5, 10]
         @test supports(t, label = All) == [0, 2.5, 5, 7.5, 10]
         # test resolve 
-        @test rm_zeros(nfiniteOpt.evaluate_derivative(d2, method, m)) == exprs
+        @test rm_zeros(evaluate_derivative(d2, method, m)) == exprs
         @test supports(t) == [0, 5, 10]
         @test supports(t, label = All) == [0, 2.5, 5, 7.5, 10]
         @test has_generative_supports(t)
