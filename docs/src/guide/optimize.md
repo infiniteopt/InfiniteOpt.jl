@@ -39,7 +39,7 @@ julia> @objective(model, Min, 2z);
 
 julia> @constraint(model, c1, z >= y);
 
-julia> @constraint(model, c2, y == 42, DomainRestrictions(t => 0));
+julia> @constraint(model, c2, y(0) == 42);
 
 julia> print(model)
 Min 2 z
@@ -47,7 +47,8 @@ Subject to
  y(t) ≥ 0.0, ∀ t ∈ [0, 10]
  z ≥ 0.0
  c1 : z - y(t) ≥ 0.0, ∀ t ∈ [0, 10]
- c2 : y(t) = 42.0, ∀ t = 0
+ y(0) ≥ 0.0
+ c2 : y(0) = 42.0
 ```
 Now we optimize the model using `optimize!`:
 ```jldoctest optimize
