@@ -132,7 +132,11 @@ end
         delete_supports(t, label = UserDefined)
         function rm_zeros(exs)
             for e in exs 
-                filter!((v, c) -> abs(c) > 1e-15, e)
+                for (v, c) in e.terms
+                    if abs(c) < 1e-15
+                        delete!(e.terms, v)
+                    end
+                end
             end
             return exs
         end
