@@ -9,7 +9,7 @@ interface for these advanced problem types that can be used by those with little
 to no background in these areas. It also it contains a wealth of capabilities
 making it a powerful and convenient tool for advanced users.  
 
-:warning: **`v0.4.0` introduced breaking changes**: See the documentation for details.
+:warning: **`v0.4` introduced breaking changes**: See the documentation for details.
 
 | **Documentation**                                                               | **Build Status**                                                                                | **Citation** |
 |:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|:--------------------------------------:|
