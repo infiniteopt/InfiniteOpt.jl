@@ -32,40 +32,21 @@
     @testset "make_reduced_expr" begin 
         # test MeasureIndex based 
         meas = support_sum(T, x)
-        pidx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
-        pts = [GeneralVariableRef(m, pidx, PointVariableIndex),
-               GeneralVariableRef(m, pidx + 1, PointVariableIndex)]
-        @test InfiniteOpt.make_reduced_expr(meas, t, 0.0, m) in [pts[1] + pts[2], pts[2] + pts[1]] # order is unknown
-        @test parameter_values(pts[1]) in [(0., [0., 0.]), (0., [5., 5.])]
-        @test parameter_values(pts[2]) in [(0., [0., 0.]), (0., [5., 5.])]
+        expected = [T(0, [0, 0]) + T(0, [5, 5]), T(0, [5, 5]) + T(0, [0, 0])]
+        @test InfiniteOpt.make_reduced_expr(meas, t, 0.0, m) in expected # order is unknown
         # test InfiniteVariableIndex 
-        pt = GeneralVariableRef(m, pidx + 2, PointVariableIndex)
-        @test InfiniteOpt.make_reduced_expr(q, t, 0.0, m) == pt 
-        @test parameter_values(pt) == (0.0,)
-        ridx = 3 # 2 were previously made and deleted by the measure call
-        rv = GeneralVariableRef(m, ridx, SemiInfiniteVariableIndex)
-        @test InfiniteOpt.make_reduced_expr(T, t, 0.0, m) == rv
-        @test parameter_list(rv) == [x[1], x[2]]
-        @test eval_supports(rv)[1] == 0
+        @test InfiniteOpt.make_reduced_expr(q, t, 0.0, m) == q(0)
+        @test InfiniteOpt.make_reduced_expr(T, t, 0.0, m) == T(0, x)
         # test DerivativeIndex 
-        dT = @deriv(T, x[1])
-        dq = @deriv(q, t)
-        pt = GeneralVariableRef(m, pidx + 3, PointVariableIndex)
-        @test InfiniteOpt.make_reduced_expr(dq, t, 0.0, m) == pt 
-        @test parameter_values(pt) == (0.0,)
-        rv = GeneralVariableRef(m, ridx + 1, SemiInfiniteVariableIndex)
-        @test InfiniteOpt.make_reduced_expr(dT, x[2], 0.0, m) == rv
-        @test parameter_list(rv) == [t, x[1]]
-        @test eval_supports(rv)[3] == 0
+        dT = deriv(T, x[1])
+        dq = deriv(q, t)
+        @test InfiniteOpt.make_reduced_expr(dq, t, 0.0, m) == dq(0)
+        v = dT(t, [x[1], 0])
+        @test InfiniteOpt.make_reduced_expr(dT, x[2], 0.0, m) == v
         # test SemiInfiniteVariableIndex
-        rv2 = GeneralVariableRef(m, ridx + 2, SemiInfiniteVariableIndex)
-        @test InfiniteOpt.make_reduced_expr(rv, x[1], 0.0, m) == rv2
-        @test parameter_list(rv2) == [t]
-        @test eval_supports(rv2)[3] == 0
-        @test eval_supports(rv2)[2] == 0
-        pt = GeneralVariableRef(m, pidx + 4, PointVariableIndex)
-        @test InfiniteOpt.make_reduced_expr(rv2, t, 0.0, m) == pt 
-        @test parameter_values(pt) == (0.0, [0.0, 0.0])
+        v2 = dT(t, [0, 0])
+        @test InfiniteOpt.make_reduced_expr(v, x[1], 0.0, m) == v2
+        @test InfiniteOpt.make_reduced_expr(v2, t, 0.0, m) == dT(0, [0, 0])
     end
 end
 
@@ -78,10 +59,10 @@ end
     @variable(m, y, Infinite(t))
     @variable(m, q, Infinite(t, x))
     meas = support_sum(q, t)
-    d1 = @deriv(y, t)
-    d2 = @deriv(q, t)
-    d3 = @deriv(q, x[2])
-    d4 = @deriv(meas, x[1])
+    d1 = deriv(y, t)
+    d2 = deriv(q, t)
+    d3 = deriv(q, x[2])
+    d4 = deriv(meas, x[1])
     # test fallback 
     @testset "Fallback" begin 
         @test_throws ErrorException InfiniteOpt.evaluate_derivative(d1, TestMethod(), m)
@@ -89,38 +70,20 @@ end
     # test _make_difference_expr for Forward 
     @testset "_make_difference_expr (Forward)" begin 
         supps = supports(t, label = All)
-        pidx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
-        pts = [GeneralVariableRef(m, pidx, PointVariableIndex),
-               GeneralVariableRef(m, pidx + 1, PointVariableIndex),
-               GeneralVariableRef(m, pidx + 2, PointVariableIndex)]
-        @test InfiniteOpt._make_difference_expr(d1, y, t, 1, supps, m, Forward()) == 5pts[1] - pts[2] + pts[3]
-        @test parameter_values(pts[1]) == (0.,)
-        @test parameter_values(pts[2]) == (5.,)
-        @test parameter_values(pts[3]) == (0.,)
+        expected = 5d1(0) - y(5) + y(0)
+        @test InfiniteOpt._make_difference_expr(d1, y, t, 1, supps, m, Forward()) == expected
     end
     # test _make_difference_expr for Central
     @testset "_make_difference_expr (Central)" begin 
         supps = supports(t, label = All)
-        ridx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
-        rvs = [GeneralVariableRef(m, ridx, SemiInfiniteVariableIndex),
-               GeneralVariableRef(m, ridx + 1, SemiInfiniteVariableIndex),
-               GeneralVariableRef(m, ridx + 2, SemiInfiniteVariableIndex)]
-        @test InfiniteOpt._make_difference_expr(d2, q, t, 2, supps, m, Central()) == 10rvs[1] - rvs[2] + rvs[3]
-        @test eval_supports(rvs[1])[1] == 5
-        @test eval_supports(rvs[2])[1] == 10
-        @test eval_supports(rvs[3])[1] == 0
+        expected = 10d2(5, x) - q(10, x) + q(0, x)
+        @test InfiniteOpt._make_difference_expr(d2, q, t, 2, supps, m, Central()) == expected
     end
     # test _make_difference_expr for FDBackward
     @testset "_make_difference_expr (Backward)" begin 
         supps = sort(supports(x[2], label = All))
-        ridx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
-        rvs = [GeneralVariableRef(m, ridx, SemiInfiniteVariableIndex),
-               GeneralVariableRef(m, ridx + 1, SemiInfiniteVariableIndex),
-               GeneralVariableRef(m, ridx + 2, SemiInfiniteVariableIndex)]
-        @test InfiniteOpt._make_difference_expr(d3, q, x[2], 2, supps, m, Backward()) == rvs[1] - rvs[2] + rvs[3]
-        @test eval_supports(rvs[1])[3] == 1
-        @test eval_supports(rvs[2])[3] == 1
-        @test eval_supports(rvs[3])[3] == 0
+        expected = d3(t, [x[1], 1]) - q(t, [x[1], 1]) + q(t, [x[1], 0])
+        @test InfiniteOpt._make_difference_expr(d3, q, x[2], 2, supps, m, Backward()) == expected
     end
     # test _make_difference_expr fallback
     @testset "_make_difference_expr (Fallback)" begin 
@@ -130,43 +93,21 @@ end
     @testset "FiniteDifference" begin 
         # test with independent parameter 
         method = FiniteDifference(Central())
-        pidx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
-        pts = [GeneralVariableRef(m, pidx, PointVariableIndex),
-               GeneralVariableRef(m, pidx + 1, PointVariableIndex),
-               GeneralVariableRef(m, pidx + 2, PointVariableIndex)]
-        exprs = [10pts[1] - pts[2] + pts[3]]
+        exprs = [10d1(5) - y(10) + y(0)]
         @test InfiniteOpt.evaluate_derivative(d1, method, m) == exprs 
         # test with dependent parameter 
         method = FiniteDifference(Forward()) 
-        ridx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
-        rvs = [GeneralVariableRef(m, ridx, SemiInfiniteVariableIndex),
-               GeneralVariableRef(m, ridx + 4, SemiInfiniteVariableIndex),
-               GeneralVariableRef(m, ridx + 5, SemiInfiniteVariableIndex),
-               GeneralVariableRef(m, ridx + 6, SemiInfiniteVariableIndex),
-               GeneralVariableRef(m, ridx + 10, SemiInfiniteVariableIndex),
-               GeneralVariableRef(m, ridx + 11, SemiInfiniteVariableIndex),
-               GeneralVariableRef(m, ridx + 12, SemiInfiniteVariableIndex)]
-        exprs = [rvs[1] - rvs[2] - rvs[3] - rvs[4] + rvs[5] + rvs[6] + rvs[7]] 
+        exprs = [d4([0, x[2]]) - q(0, [1, x[2]]) - q(5, [1, x[2]]) - 
+                 q(10, [1, x[2]]) + q(0, [0, x[2]]) + q(5, [0, x[2]]) + 
+                 q(10, [0, x[2]])] 
         @test InfiniteOpt.evaluate_derivative(d4, method, m) == exprs
         # test using Backward without boundary constraint
         method = FiniteDifference(Backward(), false)
-        pidx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
-        pts = [GeneralVariableRef(m, pidx, PointVariableIndex),
-               GeneralVariableRef(m, pidx + 1, PointVariableIndex),
-               GeneralVariableRef(m, pidx + 2, PointVariableIndex)]
-        exprs = [5pts[1] - pts[2] + pts[3]]
+        exprs = [5d1(5) - y(5) + y(0)]
         @test InfiniteOpt.evaluate_derivative(d1, method, m) == exprs 
         # test Backward with boundary constraint 
         method = FiniteDifference(Backward(), true)
-        pidx = length(InfiniteOpt._data_dictionary(m, PointVariable)) + 1
-        pts = [GeneralVariableRef(m, pidx, PointVariableIndex),
-               GeneralVariableRef(m, pidx + 1, PointVariableIndex),
-               GeneralVariableRef(m, pidx + 2, PointVariableIndex),
-               GeneralVariableRef(m, pidx + 3, PointVariableIndex),
-               GeneralVariableRef(m, pidx + 4, PointVariableIndex),
-               GeneralVariableRef(m, pidx + 5, PointVariableIndex)]
-        exprs = [5pts[1] - pts[2] + pts[3],
-                 5pts[4] - pts[5] + pts[6]]
+        exprs = [5d1(5) - y(5) + y(0), 5d1(10) - y(10) + y(5)]
         @test InfiniteOpt.evaluate_derivative(d1, method, m) == exprs 
         # test without supports 
         delete_supports(x)
@@ -174,10 +115,8 @@ end
         # test parameter function 
         f = parameter_function(sin, t)
         df = deriv(f, t)
-        pts = [GeneralVariableRef(m, pidx + 6, PointVariableIndex),
-               GeneralVariableRef(m, pidx + 7, PointVariableIndex)]
-        @test InfiniteOpt.evaluate_derivative(df, method, m) == [5pts[1] - sin(5) + sin(0), 
-                                                                 5pts[2] - sin(10) + sin(5)]
+        exprs = [5df(5) - sin(5) + sin(0), 5df(10) - sin(10) + sin(5)]
+        @test InfiniteOpt.evaluate_derivative(df, method, m) == exprs
     end
     # test OrthogonalCollocation with evaluate_derivative
     @testset "OrthogonalCollocation" begin 
@@ -186,23 +125,26 @@ end
         set_derivative_method(t, method)
         Mt = [1. 5.; 1. 10]' \ [2.5 2.5^2; 5. 25.]'
         M = Mt'
-        ridx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 6
-        rvs = [GeneralVariableRef(m, ridx + i, SemiInfiniteVariableIndex) for i = 1:16]
-        exprs = [@expression(m, M[1, 1] * rvs[1] + M[1, 2] * rvs[2] - rvs[3] + rvs[4]),
-                 @expression(m, M[2, 1] * rvs[5] + M[2, 2] * rvs[6] - rvs[7] + rvs[8]),
-                 @expression(m, M[1, 1] * rvs[9] + M[1, 2] * rvs[10] - rvs[11] + rvs[12]),
-                 @expression(m, M[2, 1] * rvs[13] + M[2, 2] * rvs[14] - rvs[15] + rvs[16])]
-        @test InfiniteOpt.evaluate_derivative(d2, method, m) == exprs
+        exprs = [@expression(m, M[1, 1] * d2(2.5, x) + M[1, 2] * d2(5, x) - q(2.5, x) + q(0, x)),
+                 @expression(m, M[2, 1] * d2(2.5, x) + M[2, 2] * d2(2.5, x) - q(5, x) + q(0, x)),
+                 @expression(m, M[1, 1] * d2(7.5, x) + M[1, 2] * d2(10, x) - q(7.5, x) + q(5, x)),
+                 @expression(m, M[2, 1] * d2(7.5, x) + M[2, 2] * d2(7.5, x) - q(10, x) + q(5, x))]
+        delete_supports(t, label = UserDefined)
+        function rm_zeros(exs)
+            for e in exs 
+                for (v, c) in e.terms
+                    if abs(c) < 1e-15
+                        delete!(e.terms, v)
+                    end
+                end
+            end
+            return exs
+        end
+        @test rm_zeros(evaluate_derivative(d2, method, m)) == exprs
         @test supports(t) == [0, 5, 10]
         @test supports(t, label = All) == [0, 2.5, 5, 7.5, 10]
         # test resolve 
-        ridx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 6
-        rvs = [GeneralVariableRef(m, ridx + i, SemiInfiniteVariableIndex) for i = 1:16]
-        exprs = [@expression(m, M[1, 1] * rvs[1] + M[1, 2] * rvs[2] - rvs[3] + rvs[4]),
-                 @expression(m, M[2, 1] * rvs[5] + M[2, 2] * rvs[6] - rvs[7] + rvs[8]),
-                 @expression(m, M[1, 1] * rvs[9] + M[1, 2] * rvs[10] - rvs[11] + rvs[12]),
-                 @expression(m, M[2, 1] * rvs[13] + M[2, 2] * rvs[14] - rvs[15] + rvs[16])]
-        @test InfiniteOpt.evaluate_derivative(d2, method, m) == exprs
+        @test rm_zeros(evaluate_derivative(d2, method, m)) == exprs
         @test supports(t) == [0, 5, 10]
         @test supports(t, label = All) == [0, 2.5, 5, 7.5, 10]
         @test has_generative_supports(t)

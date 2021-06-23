@@ -29,7 +29,9 @@ struct OrthogonalCollocation{Q <: MeasureToolbox.AbstractUnivariateMethod
 end
 
 # Define Lobatto constructor
-function OrthogonalCollocation(num_nodes::Int, quad::Q
+function OrthogonalCollocation(
+    num_nodes::Int, 
+    quad::Q
     )::OrthogonalCollocation{Q} where {Q <: MeasureToolbox.GaussLobatto}
     num_nodes >= 2 || error("Must specify at least 2 collocation points (i.e., " *
                             "the bounds of each support interval with no internal " * 
@@ -38,7 +40,8 @@ function OrthogonalCollocation(num_nodes::Int, quad::Q
 end
 
 # Define default constructor
-function OrthogonalCollocation(num_nodes::Int
+function OrthogonalCollocation(
+    num_nodes::Int
     )::OrthogonalCollocation{MeasureToolbox.GaussLobatto}
     return OrthogonalCollocation(num_nodes, MeasureToolbox.GaussLobatto())
 end
@@ -112,21 +115,31 @@ derivative, build and return the reduced expression in accordance to the support
 `write_model`. This is solely intended as a helper function for derivative 
 evaluation.
 """
-function make_reduced_expr(vref::GeneralVariableRef, pref::GeneralVariableRef, 
-                           support::Float64, write_model::JuMP.AbstractModel)
+function make_reduced_expr(
+    vref::GeneralVariableRef, 
+    pref::GeneralVariableRef, 
+    support::Float64, 
+    write_model::JuMP.AbstractModel
+    )
     return make_reduced_expr(vref, _index_type(vref), pref, support, write_model)
 end
 
 # MeasureIndex
-function make_reduced_expr(mref, ::Type{MeasureIndex}, pref, support, write_model)
+function make_reduced_expr(
+    mref, 
+    ::Type{MeasureIndex}, 
+    pref, 
+    support, 
+    write_model
+    )
     data = DiscreteMeasureData(pref, [1], [support], InternalLabel, # NOTE the label will not be used
                                default_weight, NaN, NaN, false)
     return expand_measure(mref, data, write_model)
 end
 
-# TODO prevent the redundant generation of point and semi-infinite variables for overlapping expressions
 # InfiniteVariableIndex/DerivativeIndex
-function make_reduced_expr(vref, 
+function make_reduced_expr(
+    vref, 
     ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}, Type{ParameterFunctionIndex}}, 
     pref, 
     support, 
@@ -139,13 +152,19 @@ function make_reduced_expr(vref,
     # there are other parameters so make semi-infinite variable
     else 
         pindex = findfirst(isequal(pref), prefs)
-        return make_semi_infinite_variable_ref(write_model, vref, [pindex], [support])
+        return make_semi_infinite_variable_ref(write_model, vref, [pindex], 
+                                               [support])
     end
 end
 
 # SemiInfiniteVariableIndex
-function make_reduced_expr(vref, ::Type{SemiInfiniteVariableIndex}, pref, support, 
-                           write_model)::GeneralVariableRef
+function make_reduced_expr(
+    vref, 
+    ::Type{SemiInfiniteVariableIndex}, 
+    pref, 
+    support, 
+    write_model
+    )::GeneralVariableRef
     # get the preliminary info
     dvref = dispatch_variable_ref(vref)
     ivref = infinite_variable_ref(vref)
@@ -155,7 +174,8 @@ function make_reduced_expr(vref, ::Type{SemiInfiniteVariableIndex}, pref, suppor
     pindex = findfirst(isequal(pref), orig_prefs)
     # we only have 1 parameter so we need to make a point variable
     if length(var_prefs) == 1
-        processed_support = _make_point_support(orig_prefs, eval_supps, pindex, support)
+        processed_support = _make_point_support(orig_prefs, eval_supps, pindex, 
+                                                support)
         return make_point_variable_ref(write_model, ivref, processed_support)
     # otherwise we need to make another semi-infinite variable
     else
@@ -197,13 +217,15 @@ end
 
 ## Define helper methods for finite difference 
 # Forward
-function _make_difference_expr(dref::GeneralVariableRef,
-                               vref::GeneralVariableRef, 
-                               pref::GeneralVariableRef,
-                               index::Int, 
-                               ordered_supps::Vector{Float64},
-                               write_model::JuMP.AbstractModel, 
-                               type::Forward)::JuMP.AbstractJuMPScalar
+function _make_difference_expr(
+    dref::GeneralVariableRef,
+    vref::GeneralVariableRef, 
+    pref::GeneralVariableRef,
+    index::Int, 
+    ordered_supps::Vector{Float64},
+    write_model::JuMP.AbstractModel, 
+    type::Forward
+    )::JuMP.AbstractJuMPScalar
     curr_value = ordered_supps[index]
     next_value = ordered_supps[index+1]
     return JuMP.@expression(_Model, (next_value - curr_value) * 
@@ -213,13 +235,15 @@ function _make_difference_expr(dref::GeneralVariableRef,
 end
 
 # Central
-function _make_difference_expr(dref::GeneralVariableRef, 
-                               vref::GeneralVariableRef, 
-                               pref::GeneralVariableRef,
-                               index::Int, 
-                               ordered_supps::Vector{Float64}, 
-                               write_model::JuMP.AbstractModel, 
-                               type::Central)::JuMP.AbstractJuMPScalar
+function _make_difference_expr(
+    dref::GeneralVariableRef, 
+    vref::GeneralVariableRef, 
+    pref::GeneralVariableRef,
+    index::Int, 
+    ordered_supps::Vector{Float64}, 
+    write_model::JuMP.AbstractModel, 
+    type::Central
+    )::JuMP.AbstractJuMPScalar
     prev_value = ordered_supps[index-1]
     next_value = ordered_supps[index+1]
     curr_value = ordered_supps[index]
@@ -230,13 +254,15 @@ function _make_difference_expr(dref::GeneralVariableRef,
 end
 
 # Backward
-function _make_difference_expr(dref::GeneralVariableRef,
-                               vref::GeneralVariableRef, 
-                               pref::GeneralVariableRef,
-                               index::Int, 
-                               ordered_supps::Vector{Float64}, 
-                               write_model::JuMP.AbstractModel,
-                               type::Backward)::JuMP.AbstractJuMPScalar
+function _make_difference_expr(
+    dref::GeneralVariableRef,
+    vref::GeneralVariableRef, 
+    pref::GeneralVariableRef,
+    index::Int, 
+    ordered_supps::Vector{Float64}, 
+    write_model::JuMP.AbstractModel,
+    type::Backward
+    )::JuMP.AbstractJuMPScalar
     prev_value = ordered_supps[index-1]
     curr_value = ordered_supps[index]
     return JuMP.@expression(_Model, (curr_value - prev_value) *  

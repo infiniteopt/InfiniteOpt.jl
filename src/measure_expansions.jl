@@ -12,36 +12,50 @@ the `write_model`, and return the `GeneralVariableRef`. This is an internal meth
 for point variables produced by expanding measures via [`expand_measure`](@ref).
 This is also useful for those writing extension optimizer models and wish to
 expand measures without modifiying the `InfiniteModel`. In such cases, `write_model`
-should be the optimizer model and [`add_measure_variable`](@ref add_measure_variable(::JuMP.Model, ::Any, ::Any))
+should be the optimizer model and 
+[`add_point_variable`](@ref add_point_variable(::JuMP.Model, ::Any, ::Any, ::Any)) 
 should be extended appropriately for point variables. Errors if `write_model` is
-an optimizer model and `add_measure_variable` is not properly extended.
+an optimizer model and `add_point_variable` is not properly extended. 
 
 Note this is also accomodates infinite parameter functions, in which case the 
 infinite parameter function is called with the support as input. 
 """
-function make_point_variable_ref(write_model::InfiniteModel,
-                                 ivref::GeneralVariableRef,
-                                 support::Vector{Float64})
+function make_point_variable_ref(
+    write_model::InfiniteModel,
+    ivref::GeneralVariableRef,
+    support::Vector{Float64}
+    )
     return make_point_variable_ref(write_model, ivref, support, _index_type(ivref))
 end
 
 # Infinite variable index
-function make_point_variable_ref(write_model::InfiniteModel, ivref, support, 
+function make_point_variable_ref(
+    write_model::InfiniteModel, 
+    ivref, 
+    support, 
     ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}}
     )::GeneralVariableRef
     prefs = parameter_list(ivref)
     for i in eachindex(support)
         support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
     end
-    base_info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false,
-                                  NaN, false, false)
-    new_info = _update_point_info(base_info, dispatch_variable_ref(ivref), support)
-    var = PointVariable(_make_float_info(new_info), ivref, support)
-    return JuMP.add_variable(write_model, var; add_support = false)
+    pindex = get(write_model.point_lookup, (ivref, support), nothing)
+    if pindex === nothing
+        base_info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false,
+                                      NaN, false, false)
+        info = _update_point_info(base_info, dispatch_variable_ref(ivref), support)
+        var = PointVariable(_make_float_info(info), ivref, support)
+        return JuMP.add_variable(write_model, var; add_support = false)
+    else
+        return _make_variable_ref(write_model, pindex)
+    end
 end
 
 # Infinite parameter function index (this works for both optimizer and infinite models)
-function make_point_variable_ref(write_model, fref, support, 
+function make_point_variable_ref(
+    write_model, 
+    fref, 
+    support, 
     ::Type{ParameterFunctionIndex}
     )::Float64
     prefs = raw_parameter_refs(fref)
@@ -51,132 +65,115 @@ function make_point_variable_ref(write_model, fref, support,
 end
 
 """
-    add_measure_variable(model::JuMP.Model, var,
-                         key::Val{:ext_key_name})::GeneralVariableRef
+    add_point_variable(model::JuMP.Model, ivref::GeneralVariableRef, 
+                       support::Vector{Float64}, key::Val{:ext_key_name}
+                       )::GeneralVariableRef
 
-Add a measure variable `var` to the optimizer model `model` (with `key`) and
-return the correct `InfiniteOpt` variable reference. This is an internal method
-used by [`make_point_variable_ref`](@ref) and [`make_semi_infinite_variable_ref`](@ref)
-to make point variables and semi-infinite variables when the `write_model` is an
-optimizer model. This is useful for extensions that wish to expand measures, but
-without changing the original `InfiniteModel`. Thus, this should be extended for
-adding `PointVariable`s and `SemiInfiniteVariable`s for such extensions.
-Otherwise, an error is thrown for unextended variable and/or optimizer model types.
-Note if this is extended, than [`internal_semi_infinite_variable`](@ref) should also
-be extended in order to direct semi-infinite variables references to the underlying
-[`SemiInfiniteVariable`](@ref).
+Add a point variable (defined by restricting `ivref` to `support`) to the 
+optimizer model `model` (with `key`) and return the correct `InfiniteOpt` 
+variable reference. This is an internal method used by 
+[`make_point_variable_ref`](@ref) to make point variables when the `write_model` 
+is an optimizer model. This is useful for extensions that wish to expand 
+measures, but without changing the original `InfiniteModel`. An error is thrown 
+for unextended optimizer model types.
 """
-function add_measure_variable(model::JuMP.Model, var, key)
-    error("`add_measure_variable` not defined for variable of type `$(typeof(var))` " *
-          "and an optimizer model with key `$(typeof(key).parameters[1])`.")
+function add_point_variable(model::JuMP.Model, ivref, supp, key)
+    error("`add_point_variable` not defined for an optimizer model with key ",
+          "`$(typeof(key).parameters[1])`.")
 end
 
 # Store/add the variable to the optimizer model via add_measure_variable
 # This avoids changing the InfiniteModel unexpectedly
-function make_point_variable_ref(write_model::JuMP.Model, # this should be an optimizer model
-                                 ivref::GeneralVariableRef,
-                                 support::Vector{Float64})
+function make_point_variable_ref(
+    write_model::JuMP.Model, # this should be an optimizer model
+    ivref::GeneralVariableRef,
+    support::Vector{Float64}
+    )
     return make_point_variable_ref(write_model, ivref, support, _index_type(ivref))
 end
 
 # Infinite variable index
-function make_point_variable_ref(write_model::JuMP.Model, ivref, support, 
+function make_point_variable_ref(
+    write_model::JuMP.Model, 
+    ivref, 
+    support, 
     ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}}
     )::GeneralVariableRef
     prefs = parameter_list(ivref)
     for i in eachindex(support)
         support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
-    end
-    base_info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false,
-                                  NaN, false, false)
-    new_info = _update_point_info(base_info, dispatch_variable_ref(ivref), support)
-    var = PointVariable(_make_float_info(new_info), ivref, support)
+    end 
     opt_key = optimizer_model_key(write_model)
-    return add_measure_variable(write_model, var, Val(opt_key))
+    return add_point_variable(write_model, ivref, support, Val(opt_key))
 end
 
 """
     make_semi_infinite_variable_ref(write_model::Union{InfiniteModel, JuMP.Model},
-                              ivref::GeneralVariableRef,
-                              indices::Vector{Int},
-                              values::Vector{Float64}
-                              )::GeneralVariableRef
+                                    ivref::GeneralVariableRef,
+                                    indices::Vector{Int},
+                                    values::Vector{Float64}
+                                    )::GeneralVariableRef
 
-Make a semi-infinite variable for infinite variable/derivative/parameter function `ivref` at `support`, add it to
-the `write_model`, and return the `GeneralVariableRef`. This is an internal method
-for semi-infinite variables produced by expanding measures via [`expand_measure`](@ref).
-This is also useful for those writing extension optimizer models and wish to
-expand measures without modifiying the `InfiniteModel`. In such cases, `write_model`
-should be the optimizer model and [`add_measure_variable`](@ref add_measure_variable(::JuMP.Model, ::Any, ::Any))
-should be extended appropriately for semi-infinite variables. Errors if `write_model`
-is an optimizer model and `add_measure_variable` is not properly extended.
-Note this is only intended for optimizer models that are currently stored in
-`InfiniteModel.optimizer_model`.
+Make a semi-infinite variable for infinite variable/derivative/parameter 
+function `ivref` at `support`, add it to the `write_model`, and return the 
+`GeneralVariableRef`. This is an internal method for semi-infinite variables 
+produced by expanding measures via [`expand_measure`](@ref). This is also useful 
+for those writing extension optimizer models and wish to expand measures without 
+modifiying the `InfiniteModel`. In such cases, `write_model` should be the 
+optimizer model and 
+[`add_semi_infinite_variable`](@ref add_semi_infinite_variable(::JuMP.Model, ::Any, ::Any)) 
+should be extended appropriately for semi-infinite variables. Errors if 
+`write_model` is an optimizer model and `add_semi_infinite_variable` is not 
+properly extended. Note this is only intended for optimizer models that are 
+currently stored in `InfiniteModel.optimizer_model`.
 """
-function make_semi_infinite_variable_ref(write_model::InfiniteModel,
-                                   ivref::GeneralVariableRef,
-                                   indices::Vector{Int},
-                                   values::Vector{Float64}
-                                   )::GeneralVariableRef
+function make_semi_infinite_variable_ref(
+    write_model::InfiniteModel,
+    ivref::GeneralVariableRef,
+    indices::Vector{Int},
+    values::Vector{Float64}
+    )::GeneralVariableRef
     eval_supps = Dict(indices[i] => values[i] for i in eachindex(indices))
-    var = JuMP.build_variable(error, ivref, eval_supps, check = false)
-    return JuMP.add_variable(write_model, var)
+    existing_index = get(write_model.semi_lookup, (ivref, eval_supps), nothing)
+    if existing_index === nothing
+        var = JuMP.build_variable(error, ivref, eval_supps, check = false)
+        return JuMP.add_variable(write_model, var, add_support = false)
+    else 
+        return _make_variable_ref(write_model, existing_index)
+    end
 end
 
+"""
+    add_semi_infinite_variable(model::JuMP.Model, var::SemiInfiniteVariable, 
+                               key::Val{:ext_key_name})::GeneralVariableRef
+
+Add a semi-infinite variable `var` to the optimizer model `model` (with `key`) 
+and return the correct `InfiniteOpt` variable reference. This is an internal 
+method used by [`make_semi_infinite_variable_ref`](@ref) to make semi-infinite 
+variables when the `write_model` is an optimizer model. This is useful for 
+extensions that wish to expand measures, but without changing the original 
+`InfiniteModel`. An error is thrown for optimizer model types. Note if this is 
+extended, than [`internal_semi_infinite_variable`](@ref) should also be extended 
+in order to direct semi-infinite variables references to the underlying 
+[`SemiInfiniteVariable`](@ref).
+"""
+function add_semi_infinite_variable(model::JuMP.Model, var, key)
+    error("`add_semi_infinite_variable` not defined for an optimizer model ",
+          "with key `$(typeof(key).parameters[1])`.")
+end
+
+
 # Add semi-infinite infinite variables in the optimizer model without modifying the InfiniteModel
-function make_semi_infinite_variable_ref(write_model::JuMP.Model,
-                                   ivref::GeneralVariableRef,
-                                   indices::Vector{Int},
-                                   values::Vector{Float64}
-                                   )::GeneralVariableRef
+function make_semi_infinite_variable_ref(
+    write_model::JuMP.Model,
+    ivref::GeneralVariableRef,
+    indices::Vector{Int},
+    values::Vector{Float64}
+    )::GeneralVariableRef
     eval_supps = Dict(indices[i] => values[i] for i in eachindex(indices))
     var = JuMP.build_variable(error, ivref, eval_supps, check = false)
     key = optimizer_model_key(write_model)
-    return add_measure_variable(write_model, var, Val(key))
-end
-
-"""
-    delete_internal_semi_infinite_variable(write_model::Union{InfiniteModel, JuMP.Model},
-                                     rvref::SemiInfiniteVariableRef)::Nothing
-
-Delete the variable associated with `rvref` from `write_model` if it is purely
-an internal variable only used for measure expansion and is no longer needed.
-For `write_model`s that are an optimizer model,
-[`delete_semi_infinite_variable`](@ref delete_semi_infinite_variable(::JuMP.Model, ::Any,::Any))
-will need to be extended for this this to work. Otherwise, a warning will be thrown.
-Note that this is intended as an internal method to assist with extensions to
-[`expand_measure`](@ref).
-"""
-function delete_internal_semi_infinite_variable(write_model::InfiniteModel,
-                                          rvref::SemiInfiniteVariableRef)::Nothing
-    if !used_by_measure(rvref) && !used_by_constraint(rvref)
-        JuMP.delete(write_model, rvref)
-    end
-    return
-end
-
-"""
-    delete_semi_infinite_variable(model::JuMP.Model, vref, key::Val{:ext_key_name})::Nothing
-
-Delete the semi-infinite variable associated with `vref` from the optimizer model
-`model` with associated extension key `:ext_key_name`. A warning is thrown if this
-is not properly extended. This is intended as a helper function for
-[`delete_internal_semi_infinite_variable`](@ref) which is used by [`expand_measure`](@ref).
-"""
-function delete_semi_infinite_variable(write_model::JuMP.Model, vref, key)
-    @warn "'delete_semi_infinite_variable' not extended for semi-infinite variable type " *
-          "`$(typeof(vref))` and optimizer model with key `$(typeof(key).parameters[1])`."
-    return
-end
-
-# Delete semi-infinite variable from optimizer model if it was not made by the InfiniteModel
-function delete_internal_semi_infinite_variable(write_model::JuMP.Model,
-                                          rvref::SemiInfiniteVariableRef)::Nothing
-    if !JuMP.is_valid(JuMP.owner_model(rvref), rvref)
-        key = optimizer_model_key(write_model)
-        delete_semi_infinite_variable(write_model, rvref, Val(key))
-    end
-    return
+    return add_semi_infinite_variable(write_model, var, Val(key))
 end
 
 ################################################################################
@@ -191,9 +188,7 @@ expression `expr` with measure data `data`. Here `write_model` is the target
 model where this expanded expression will be used. Thus, any variables that need
 to be created will be added to `write_model`. The methods [`make_point_variable_ref`](@ref)
 and [`make_semi_infinite_variable_ref`](@ref) should be used as appropriate to create
-these variables. Developers might also choose to use
-[`delete_internal_semi_infinite_variable`](@ref) in order to remove semi-infinite variables
-once they are no longer needed. Note this is intended as an internal function,
+these variables. Note this is intended as an internal function,
 but will need to be extended for unsupported `expr` types and for user-defined
 measure data types. Principally, this is leveraged to enable the user methods
 [`expand`](@ref) and [`expand_all_measures!`](@ref).
@@ -281,10 +276,13 @@ function expand_measure(ivref::GeneralVariableRef,
 end
 
 # Write point support given semi_infinite info and the support
-function _make_point_support(orig_prefs::Vector{GeneralVariableRef},
-                             support_dict::Dict{Int, Float64},
-                             index::Int, value::Float64)::Vector{Float64}
-    return [i == index ? value : support_dict[i] for i in eachindex(orig_prefs)]
+function _make_point_support(
+    orig_prefs::Vector{GeneralVariableRef},
+    support_dict::Dict{Int, Float64},
+    idx::Int, 
+    value::Float64
+    )::Vector{Float64}
+    return [i == idx ? value : support_dict[i] for i in eachindex(orig_prefs)]
 end
 
 # SemiInfiniteVariableRef (1D DiscreteMeasureData)
@@ -313,7 +311,6 @@ function expand_measure(rvref::GeneralVariableRef,
                     make_point_variable_ref(write_model, ivref,
                     _make_point_support(orig_prefs, eval_supps, index, supps[i]))
                     for i in eachindex(coeffs)))
-        delete_internal_semi_infinite_variable(write_model, drvref) # TODO not sure this is helpful
     # make semi-infinite variables if the variable contains other parameters
     else
         index = findfirst(isequal(pref), orig_prefs)
@@ -323,7 +320,6 @@ function expand_measure(rvref::GeneralVariableRef,
         expr = JuMP.@expression(write_model, sum(coeffs[i] * w(supps[i]) *
                     make_semi_infinite_variable_ref(write_model, ivref, indices, vcat(vals, supps[i]))
                     for i in eachindex(coeffs)))
-        delete_internal_semi_infinite_variable(write_model, drvref) # TODO not sure this is helpful
     end
     return expr
 end
@@ -373,7 +369,6 @@ function expand_measure(rvref::GeneralVariableRef,
                     make_point_variable_ref(write_model, ivref,
                     _make_point_support(orig_prefs, eval_supps, indices, supps[:, i]))
                     for i in eachindex(coeffs)))
-        delete_internal_semi_infinite_variable(write_model, drvref) # TODO not sure this is helpful
     # make semi-infinite variables if the variable contains other parameters
     else
         # get the indices of prefs in terms of the ivref
@@ -392,7 +387,6 @@ function expand_measure(rvref::GeneralVariableRef,
         expr = JuMP.@expression(write_model, sum(coeffs[i] * w(supps[:, i]) *
                     make_semi_infinite_variable_ref(write_model, ivref, indices, vcat(vals, supps[:, i]))
                     for i in eachindex(coeffs)))
-        delete_internal_semi_infinite_variable(write_model, drvref) # TODO not sure this is helpful
     end
     return expr
 end
@@ -745,9 +739,9 @@ Expand all `MeasureRef`s in `expr` in-place via [`expand_measure`](@ref) and
 return the expanded expression. This is an internal method used by
 [`expand_all_measures!`](@ref) and `TranscriptionOpt` but can be useful for
 user-defined optimizer model extensions that add implement
-[`add_measure_variable`](@ref) in combination with `expand_measure`. `write_model`
-is the model that the measure variables are added to as described in
-[`expand_measure`](@ref).
+[`add_point_variable`](@ref)/[`add_semi_infinite_variable`](@ref) in combination 
+with `expand_measure`. `write_model` is the model that the measure variables are 
+added to as described in [`expand_measure`](@ref).
 """
 function expand_measures end
 

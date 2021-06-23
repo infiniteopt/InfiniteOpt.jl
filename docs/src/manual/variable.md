@@ -13,8 +13,8 @@ which originates from `JuMP.jl`.
 InfOptVariableType
 Infinite
 JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Infinite)
+JuMP.add_variable(::InfiniteModel, ::InfiniteVariable, ::String)
 InfiniteVariable
-JuMP.add_variable(::InfiniteModel, ::JuMP.AbstractVariable, ::String)
 restrict
 VariableData
 InfiniteVariableIndex
@@ -27,6 +27,7 @@ InfiniteOpt.Collections.VectorTuple
 SemiInfinite
 JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::SemiInfinite)
 JuMP.build_variable(::Function, ::GeneralVariableRef, ::Dict{Int, Float64})
+JuMP.add_variable(::InfiniteModel, ::SemiInfiniteVariable, ::String)
 SemiInfiniteVariable
 SemiInfiniteVariableIndex
 SemiInfiniteVariableRef
@@ -36,6 +37,7 @@ SemiInfiniteVariableRef
 ```@docs
 Point
 JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Point)
+JuMP.add_variable(::InfiniteModel, ::PointVariable, ::String)
 PointVariable
 PointVariableIndex
 PointVariableRef
@@ -47,6 +49,7 @@ Note that finite variables simply correspond to using
 which originates from `JuMP.jl` as well. In other words, these are defined via 
 `JuMP.@variable` without specifying any [`InfOptVariableType`](@ref).
 ```@docs
+JuMP.add_variable(::InfiniteModel, ::JuMP.ScalarVariable, ::String)
 FiniteVariableIndex
 FiniteVariableRef
 ```

@@ -299,18 +299,43 @@ function _update_param_var_mapping(
     return
 end
 
-# Define _check_and_make_variable_ref (used by JuMP.add_variable)
-function _check_and_make_variable_ref(
+"""
+    JuMP.add_variable(model::InfiniteModel, var::InfiniteVariable,
+                      [name::String = ""])::GeneralVariableRef
+
+Extend the `JuMP.add_variable` function to accomodate infinite variable 
+types. Adds a variable to an infinite model `model` and returns a 
+[`GeneralVariableRef`](@ref). Primarily intended to be an internal function of 
+the constructor macro `@variable`. However, it can be used in combination with
+`JuMP.build_variable` to add  infinite variables to an infinite model object.
+Errors if invalid parameter reference(s) are included in `var`.
+
+**Example**
+```julia-repl
+julia> @infinite_parameter(m, t in [0, 10]);
+
+julia> info = VariableInfo(false, 0, false, 0, false, 0, true, 0, false, false);
+
+julia> inf_var = build_variable(error, info, Infinite(t));
+
+julia> ivref = add_variable(m, inf_var, "var_name")
+var_name(t)
+```
+"""
+function JuMP.add_variable(
     model::InfiniteModel,
     v::InfiniteVariable,
-    name::String
-    )::InfiniteVariableRef
+    name::String = ""
+    )::GeneralVariableRef 
     _check_parameters_valid(model, v.parameter_refs)
     data_object = VariableData(v, name)
     vindex = _add_data_object(model, data_object)
     vref = InfiniteVariableRef(model, vindex)
     _update_param_var_mapping(vref, v.parameter_refs)
-    return vref
+    gvref = _make_variable_ref(model, vindex)
+    _set_info_constraints(v.info, gvref, vref)
+    model.name_to_var = nothing
+    return gvref
 end
 
 ################################################################################
@@ -325,7 +350,8 @@ function _restrict_infinite_variable(
     info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false, NaN, 
                              false, false)
     new_var = JuMP.build_variable(error, info, Point(ivref, vt))
-    return JuMP.add_variable(JuMP.owner_model(ivref), new_var)
+    return JuMP.add_variable(JuMP.owner_model(ivref), new_var, 
+                             update_info = false)
 end
 
 # Infinite variable
@@ -567,21 +593,36 @@ end
 ################################################################################
 #                           VARIABLE INFO METHODS
 ################################################################################
+## format infinite info 
+# Good to go
+function _format_infinite_info(
+    info::I
+    )::I where {I <: JuMP.VariableInfo{Float64, Float64, Float64, <:Function}}
+    return info
+end
+
+# Convert as needed 
+function _format_infinite_info(
+    info::JuMP.VariableInfo{V, W, T, F}
+    )::JuMP.VariableInfo{Float64, Float64, Float64, F} where {V, W, T, F <: Function}
+    return JuMP.VariableInfo(info.has_lb, convert(Float64, info.lower_bound), 
+                             info.has_ub, convert(Float64, info.upper_bound), 
+                             info.has_fix, convert(Float64, info.fixed_value),
+                             info.has_start, info.start, info.binary, 
+                             info.integer)
+end
+
 # Set info for infinite variables
 function _update_variable_info(
     vref::InfiniteVariableRef,
     info::JuMP.VariableInfo
     )::Nothing
-    new_info = JuMP.VariableInfo(info.has_lb, convert(Float64, info.lower_bound), 
-                                 info.has_ub, convert(Float64, info.upper_bound), 
-                                 info.has_fix, convert(Float64, info.fixed_value),
-                                 info.has_start, info.start, info.binary, 
-                                 info.integer)
     prefs = raw_parameter_refs(vref)
     param_nums = _parameter_numbers(vref)
     obj_nums = _object_numbers(vref)
     is_vect_func = _is_vector_start(vref)
-    new_var = InfiniteVariable(new_info, prefs, param_nums, obj_nums, is_vect_func)
+    new_var = InfiniteVariable(_format_infinite_info(info), prefs, param_nums, 
+                               obj_nums, is_vect_func)
     _set_core_variable_object(vref, new_var)
     return
 end

@@ -469,10 +469,12 @@ end
     # test transcription expression for semi_infinite variables with 3 args
     @testset "transcription_expression (Semi-Infinite Variable)" begin
         # semi_infinite of parameter function 
-        rv = add_variable(m, build_variable(error, f, Dict(1=>1.)))
+        rv = add_variable(m, build_variable(error, f, Dict(1=>1.)), 
+                          add_support = false)
         @test IOTO.transcription_expression(tm, rv, [0., 1., 0.]) == 1
         # semi_infinite of infinite variable
-        rv = add_variable(m, build_variable(error, x, Dict(1=>1.)))
+        rv = add_variable(m, build_variable(error, x, Dict(1=>1.)), 
+                          add_support = false)
         data.infvar_mappings[rv] = [b, c]
         lookups = Dict{Vector{Float64}, Int}([0, 0] => 1, [1, 0] => 2)
         data.infvar_lookup[rv] = lookups

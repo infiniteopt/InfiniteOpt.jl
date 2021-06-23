@@ -1214,8 +1214,10 @@ model an optmization problem with an infinite-dimensional decision space.
    The infinite variables and their mapping information.
 - `semi_infinite_vars::MOIUC.CleverDict{SemiInfiniteVariableIndex, <:VariableData{<:SemiInfiniteVariable}}`:
    The semi-infinite variables and their mapping information.
+- `semi_lookup::Dict{<:Tuple, SemiInfiniteVariableIndex}`: Look-up if a variable already already exists.
 - `point_vars::MOIUC.CleverDict{PointVariableIndex, <:VariableData{<:PointVariable}}`:
    The point variables and their mapping information.
+- `point_lookup::Dict{<:Tuple, PointVariableIndex}`: Look-up if a variable already exists.
 - `finite_vars::MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}`:
    The finite variables and their mapping information.
 - `name_to_var::Union{Dict{String, AbstractInfOptIndex}, Nothing}`:
@@ -1256,7 +1258,9 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     # Variable Data
     infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}
     semi_infinite_vars::MOIUC.CleverDict{SemiInfiniteVariableIndex, <:VariableData{<:SemiInfiniteVariable}}
+    semi_lookup::Dict{<:Tuple, SemiInfiniteVariableIndex}
     point_vars::MOIUC.CleverDict{PointVariableIndex, <:VariableData{<:PointVariable}}
+    point_lookup::Dict{<:Tuple, PointVariableIndex}
     finite_vars::MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}
     name_to_var::Union{Dict{String, AbstractInfOptIndex}, Nothing}
 
@@ -1347,7 +1351,9 @@ function InfiniteModel(;
                          # Variables
                          MOIUC.CleverDict{InfiniteVariableIndex, VariableData{<:InfiniteVariable}}(),
                          MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),
+                         Dict{Tuple{GeneralVariableRef, Dict{Int, Float64}}, SemiInfiniteVariableIndex}(),
                          MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
+                         Dict{Tuple{GeneralVariableRef, Vector{Float64}}, PointVariableIndex}(),
                          MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}(),
                          nothing,
                          # Derivatives
@@ -1433,7 +1439,9 @@ function Base.empty!(model::InfiniteModel)::InfiniteModel
     # variables
     empty!(model.infinite_vars)
     empty!(model.semi_infinite_vars)
+    empty!(model.semi_lookup)
     empty!(model.point_vars)
+    empty!(model.point_lookup)
     empty!(model.finite_vars)
     model.name_to_var = nothing
     # derivatives and measures

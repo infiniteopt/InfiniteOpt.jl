@@ -113,10 +113,10 @@ julia> set_all_derivative_methods(model, FiniteDifference(Forward()))
     `InfiniteOpt` does not ensure proper boundary conditions are provided by the 
     user. Thus, it is imperative that the user ensure these are provided appropriately 
     with the derivative evaluation method that is used. We recommend specifying 
-    such conditions via a constraint that uses [`DomainRestrictions`](@ref). For 
+    such conditions via a constraint that uses [Restricted Variables](@ref). For 
     example:
     ```julia
-    @constraint(model, initial_condition, y == 42, DomainRestrictions(t => 0))
+    @constraint(model, initial_condition, y(0) == 42)
     ```
 
 ## Advanced Definition 
@@ -152,8 +152,7 @@ true
 ```
 Here the argument variable can be an infinite variable, semi-infinite variable, 
 derivative, or measure that depends on the infinite parameter provided. This will 
-error to the contrary or if such a derivative has already been to the model 
-associated with the infinite parameter. 
+error to the contrary.
 
 Now we can add the derivative to the model via [`add_derivative`](@ref) which 
 will add the [`Derivative`](@ref) object and return `GeneralVariableRef` pointing 
@@ -193,12 +192,11 @@ This will also support anonymous definition and multi-dimensional definition.
 Please see [Macro Variable Definition](@ref) for more information.
 
 Second, for more convenient definition we use [`@deriv`](@ref) (or [`@∂`](@ref)) 
-as shown in the  Basic Usage section above. Unlike `@variable` this can handle any 
-`InfiniteOpt` expression as the argument input and will automatically take care of 
-any redundant derivative creation by using the existing derivatives as appropriate. 
-It also can build derivatives that depend on multiple infinite parameters and/or 
-are taken to higher orders. This is accomplished via recursive derivative 
-definition, handling the nesting as appropriate. For example, we can "define" 
+as shown in the Basic Usage section above. Unlike `@variable` this can handle any 
+`InfiniteOpt` expression as the argument input. It also can build derivatives 
+that depend on multiple infinite parameters and/or are taken to higher orders. 
+This is accomplished via recursive derivative definition, handling the nesting 
+as appropriate. For example, we can "define" 
 ``\frac{\partial^2 y(t, \xi)}{\partial t^2}`` again:
 ```jldoctest deriv_basic 
 julia> @deriv(d1, t)
@@ -207,18 +205,17 @@ dydt2(t, ξ)
 julia> @deriv(y, t^2)
 dydt2(t, ξ)
 ```
-Notice that no error is thrown (which would have occurred if we called 
-`@variable` again) and that the derivative references all point to the 
-same derivative object we defined up above with its alias name `dydt2`. This macro 
-can also tackle complex expressions using the appropriate calculus such as:
+Notice that the derivative references all point to the same derivative object we 
+defined up above with its alias name `dydt2`. This macro can also tackle complex 
+expressions using the appropriate calculus such as:
 ```jldoctest deriv_basic 
 julia> @deriv(∫(y, ξ) * q, t)
 ∂/∂t[∫{ξ ∈ [-1, 1]}[y(t, ξ)]]*q(t) + ∂/∂t[q(t)]*∫{ξ ∈ [-1, 1]}[y(t, ξ)]
 ```
 Thus, demonstrating the convenience of using `@deriv`.
 
-With all this in mind, we recommend using `@deriv` as the defacto method, but then 
-using `@variable` as a convenient way to specify information constraints 
+With all this in mind, we recommend using `@deriv` as the defacto method, but 
+then using `@variable` as a convenient way to specify information constraints 
 and an initial guess value/trajectory. 
 
 ## Derivative Evaluation

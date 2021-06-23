@@ -292,7 +292,6 @@ function _update_param_supports(
     param_values::Vector{Float64}
     )::Nothing
     raw_prefs = raw_parameter_refs(ivref)
-    model = JuMP.owner_model(ivref)
     counter = 1
     for i in 1:size(raw_prefs, 1)
         prefs = dispatch_variable_ref.(raw_prefs[i, :])
@@ -310,23 +309,149 @@ function _update_infinite_point_mapping(
     return
 end
 
-# Define _check_and_make_variable_ref (used by JuMP.add_variable)
-function _check_and_make_variable_ref(
+# Update the information constraints for a variable that was already created
+function _update_info_constraints(info::JuMP.VariableInfo, gvref, vref)::Nothing
+    # extract the preliminaries
+    old_info = _variable_info(vref)
+    old_info == info && return
+    model = JuMP.owner_model(vref)
+
+    # update the lower bound constraint as needed
+    if info.has_lb && (!old_info.has_lb || info.lower_bound != old_info.lower_bound)
+        constr = JuMP.ScalarConstraint(gvref, MOI.GreaterThan(info.lower_bound))
+        if old_info.has_lb
+            cindex = _lower_bound_index(vref)
+            cref = _make_constraint_ref(model, cindex)
+            _set_core_constraint_object(cref, constr)
+        else
+            cref = JuMP.add_constraint(model, constr, is_info_constr = true)
+            _set_lower_bound_index(vref, JuMP.index(cref))
+        end
+    elseif old_info.has_lb && !info.has_lb
+        JuMP.delete(model, JuMP.LowerBoundRef(vref))
+        _set_lower_bound_index(vref, nothing)
+    end
+
+    # update the upper bound constraint as needed
+    if info.has_ub && (!old_info.has_ub || info.upper_bound != old_info.upper_bound)
+        constr = JuMP.ScalarConstraint(gvref, MOI.LessThan(info.upper_bound))
+        if old_info.has_ub
+            cindex = _upper_bound_index(vref)
+            cref = _make_constraint_ref(model, cindex)
+            _set_core_constraint_object(cref, constr)
+        else
+            cref = JuMP.add_constraint(model, constr, is_info_constr = true)
+            _set_upper_bound_index(vref, JuMP.index(cref))
+        end
+    elseif old_info.has_ub && !info.has_ub
+        JuMP.delete(model, JuMP.UpperBoundRef(vref))
+        _set_upper_bound_index(vref, nothing)
+    end
+    
+    # update the fix constraint as needed
+    if info.has_fix && (!old_info.has_fix || info.fixed_value != old_info.fixed_value)
+        constr = JuMP.ScalarConstraint(gvref, MOI.EqualTo(info.fixed_value))
+        if old_info.has_fix
+            cindex = _fix_index(vref)
+            cref = _make_constraint_ref(model, cindex)
+            _set_core_constraint_object(cref, constr)
+        else
+            cref = JuMP.add_constraint(model, constr, is_info_constr = true)
+            _set_fix_index(vref, JuMP.index(cref))
+        end
+    elseif old_info.has_fix && !info.has_fix
+        JuMP.delete(model, JuMP.FixRef(vref))
+        _set_fix_index(vref, nothing)
+    end
+    
+    # update the binary constraint as needed
+    if info.binary && !old_info.binary
+        constr = JuMP.ScalarConstraint(gvref, MOI.ZeroOne())
+        cref = JuMP.add_constraint(model, constr, is_info_constr = true)
+        _set_binary_index(vref, JuMP.index(cref))
+    elseif old_info.binary && !info.binary
+        JuMP.delete(model, JuMP.BinaryRef(vref))
+        _set_binary_index(vref, nothing)
+    end
+
+    # update the integer constraint as needed
+    if info.integer && !old_info.integer
+        constr = JuMP.ScalarConstraint(gvref, MOI.Integer())
+        cref = JuMP.add_constraint(model, constr, is_info_constr = true)
+        _set_integer_index(vref, JuMP.index(cref))
+    elseif old_info.integer && !info.integer
+        JuMP.delete(model, JuMP.IntegerRef(vref))
+        _set_integer_index(vref, nothing)
+    end
+
+    # finalize the update
+    _update_variable_info(vref, info)
+    set_optimizer_model_ready(model, false)
+    return
+end
+
+"""
+    JuMP.add_variable(model::InfiniteModel, var::PointVariable,
+                      [name::String = ""])::GeneralVariableRef
+
+Extend the `JuMP.add_variable` function to accomodate `PointVariable` variable 
+types. Adds a variable to an infinite model `model` and returns a 
+[`GeneralVariableRef`](@ref). Primarily intended to be an internal function of 
+the constructor macro `@variable`. However, it can be used in combination with
+`JuMP.build_variable` to add variables to an infinite model object.
+Errors if an invalid infinite variable reference is included in `var`.
+
+**Example**
+```julia-repl
+julia> @infinite_parameter(m, t in [0, 10]);
+
+julia> info = VariableInfo(false, 0, false, 0, false, 0, true, 0, false, false);
+
+julia> inf_var = build_variable(error, info, Infinite(t));
+
+julia> ivref = add_variable(m, inf_var, "var_name")
+var_name(t)
+
+julia> pt_var = build_variable(error, info, Point(ivref, 0.5));
+
+julia> pvref = add_variable(m, pt_var, "var_alias")
+var_alias
+```
+"""
+function JuMP.add_variable(
     model::InfiniteModel,
     v::PointVariable,
-    name::String;
-    add_support = true
-    )::PointVariableRef
-    ivref = dispatch_variable_ref(v.infinite_variable_ref)
-    JuMP.check_belongs_to_model(ivref, model)
-    data_object = VariableData(v, name)
-    vindex = _add_data_object(model, data_object)
-    vref = PointVariableRef(model, vindex)
-    if add_support
-        _update_param_supports(ivref, v.parameter_values)
+    name::String = "";
+    add_support = true,
+    update_info = true
+    )::GeneralVariableRef
+    ivref = v.infinite_variable_ref
+    divref = dispatch_variable_ref(ivref)
+    JuMP.check_belongs_to_model(divref, model)
+    existing_index = get(model.point_lookup, (ivref, v.parameter_values), nothing)
+    if existing_index === nothing
+        data_object = VariableData(v, name)
+        vindex = _add_data_object(model, data_object)
+        vref = PointVariableRef(model, vindex)
+        if add_support
+            _update_param_supports(divref, v.parameter_values)
+        end
+        _update_infinite_point_mapping(vref, divref)
+        model.point_lookup[(ivref, v.parameter_values)] = vindex
+        gvref = _make_variable_ref(model, vindex)
+        _set_info_constraints(v.info, gvref, vref)
+    else
+        gvref = _make_variable_ref(model, existing_index)
+        if update_info
+            vref = PointVariableRef(model, existing_index)
+            _update_info_constraints(v.info, gvref, vref)
+        end
+        if !isempty(name)
+            JuMP.set_name(vref, name)
+        end
     end
-    _update_infinite_point_mapping(vref, ivref)
-    return vref
+    model.name_to_var = nothing
+    return gvref
 end
 
 ################################################################################
@@ -422,5 +547,7 @@ function _delete_variable_dependencies(vref::PointVariableRef)::Nothing
     # remove the infinite variable dependency
     ivref = infinite_variable_ref(vref)
     filter!(e -> e != JuMP.index(vref), _point_variable_dependencies(ivref))
+    # remove the lookup entry
+    delete!(JuMP.owner_model(vref).point_lookup, (ivref, raw_parameter_values(vref)))
     return
 end
