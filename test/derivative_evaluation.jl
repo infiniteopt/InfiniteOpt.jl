@@ -130,11 +130,17 @@ end
                  @expression(m, M[1, 1] * d2(7.5, x) + M[1, 2] * d2(10, x) - q(7.5, x) + q(5, x)),
                  @expression(m, M[2, 1] * d2(7.5, x) + M[2, 2] * d2(7.5, x) - q(10, x) + q(5, x))]
         delete_supports(t, label = UserDefined)
-        @test InfiniteOpt.evaluate_derivative(d2, method, m) == exprs
+        function rm_zeros(exs)
+            for e in exs 
+                filter!((v, c) -> abs(c) > 1e-15, e)
+            end
+            return exs
+        end
+        @test rm_zeros(nfiniteOpt.evaluate_derivative(d2, method, m)) == exprs
         @test supports(t) == [0, 5, 10]
         @test supports(t, label = All) == [0, 2.5, 5, 7.5, 10]
         # test resolve 
-        @test InfiniteOpt.evaluate_derivative(d2, method, m) == exprs
+        @test rm_zeros(nfiniteOpt.evaluate_derivative(d2, method, m)) == exprs
         @test supports(t) == [0, 5, 10]
         @test supports(t, label = All) == [0, 2.5, 5, 7.5, 10]
         @test has_generative_supports(t)
