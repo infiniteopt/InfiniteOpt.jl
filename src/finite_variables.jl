@@ -53,26 +53,52 @@ end
 ################################################################################
 #                             DEFINTION METHODS
 ################################################################################
-# Define _check_and_make_variable_ref (used by JuMP.add_variable)
-function _check_and_make_variable_ref(
-    model::InfiniteModel,
-    v::JuMP.ScalarVariable{Float64, Float64, Float64, Float64},
-    name::String
-    )::FiniteVariableRef
-    data_object = VariableData(v, name)
-    vindex = _add_data_object(model, data_object)
-    vref = FiniteVariableRef(model, vindex)
-    return vref
+## Process the variable to use the correct info 
+# All Floats 
+function _process_scalar_var(
+    v::V
+    )::V where {V <: JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}
+    return v
 end
 
-# Define for scalar variables without strictly Float64 info
-function _check_and_make_variable_ref(
-    model::InfiniteModel,
-    v::JuMP.ScalarVariable,
-    name::String
-    )::FiniteVariableRef
-    new_v = JuMP.ScalarVariable(_make_float_info(v.info))
-    return _check_and_make_variable_ref(model, new_v, name)
+# Other
+function _process_scalar_var(
+    v::JuMP.ScalarVariable
+    )::JuMP.ScalarVariable{Float64, Float64, Float64, Float64}
+    return JuMP.ScalarVariable(_make_float_info(v.info))
+end
+
+"""
+    JuMP.add_variable(model::InfiniteModel, var::JuMP.ScalarVariable,
+                      [name::String = ""])::GeneralVariableRef
+
+Extend the `JuMP.add_variable` function to accomodate finite (scalar) variable 
+types. Adds a variable to an infinite model `model` and returns a 
+[`GeneralVariableRef`](@ref). Primarily intended to be an internal function of 
+the constructor macro `@variable`. However, it can be used in combination with
+`JuMP.build_variable` to add finite variables to an infinite model object.
+
+**Examples**
+```julia-repl
+julia> f_var = build_variable(error, info);
+
+julia> fvref = add_variable(m, f_var, "var_name")
+var_name
+```
+"""
+function JuMP.add_variable(
+    model::InfiniteModel, 
+    var::JuMP.ScalarVariable,
+    name::String = ""
+    )::GeneralVariableRef
+    new_var = _process_scalar_var(var)
+    data_object = VariableData(new_var, name)
+    vindex = _add_data_object(model, data_object)
+    vref = FiniteVariableRef(model, vindex)
+    gvref = _make_variable_ref(model, vindex)
+    _set_info_constraints(new_var.info, gvref, vref)
+    model.name_to_var = nothing
+    return gvref
 end
 
 ################################################################################

@@ -427,6 +427,7 @@ end
     @variable(m, x)
     var = build_variable(error, inf, Dict{Int, Float64}(2 => 0.5), check = false)
     rv = add_variable(m, var)
+    var = build_variable(error, inf, Dict{Int, Float64}(2 => 0), check = false)
     rv2 = add_variable(m, var)
     data = TestData(par, 0, 1)
     meas = measure(inf + par - x + rv, data)
@@ -454,6 +455,7 @@ end
     @test InfiniteOpt._object_numbers(con2) == []
     @test InfiniteOpt._semi_infinite_variable_dependencies(inf) == []
     @test !haskey(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable), JuMP.index(rv2))
+    @test isempty(m.semi_lookup)
     # test error
     @test_throws AssertionError delete(m, rv)
     @test_throws AssertionError delete(m, rv2)
@@ -531,6 +533,7 @@ end
     @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     @test objective_function(m) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     @test !haskey(InfiniteOpt._data_dictionary(m, PointVariable), JuMP.index(y))
+    @test isempty(m.point_lookup)
     # test errors
     @test_throws AssertionError delete(m, x)
     @test_throws AssertionError delete(m, y)

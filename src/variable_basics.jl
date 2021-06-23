@@ -9,12 +9,7 @@ variables via `JuMP.@variable`.
 """
 abstract type InfOptVariableType end 
 
-# Fallback
-function _check_and_make_variable_ref(model::InfiniteModel, v::T, name) where {T}
-    throw(ArgumentError("Invalid variable object type `$T`."))
-end
-
-# helper function for setting the info constraints (#TODO add test)
+# helper function for setting the info constraints (TODO add test)
 function _set_info_constraints(
     info::JuMP.VariableInfo, 
     gvref::GeneralVariableRef, 
@@ -49,54 +44,6 @@ function _set_info_constraints(
         _set_integer_index(dvref, JuMP.index(cref))
     end
     return
-end
-
-"""
-    JuMP.add_variable(model::InfiniteModel, var::JuMP.AbstractVariable,
-                      [name::String = ""])::GeneralVariableRef
-
-Extend the `JuMP.add_variable` function to accomodate `InfiniteOpt` variable 
-types. Adds a variable to an infinite model `model` and returns a 
-[`GeneralVariableRef`](@ref). Primarily intended to be an internal function of 
-the constructor macro `@variable`. However, it can be used in combination with
-`JuMP.build_variable` to add variables to an infinite model object.
-Errors if invalid parameters reference(s) or an invalid infinite variable
-reference is included in `var`.
-
-**Examples**
-```julia-repl
-julia> @infinite_parameter(m, t in [0, 10]);
-
-julia> info = VariableInfo(false, 0, false, 0, false, 0, true, 0, false, false);
-
-julia> inf_var = build_variable(error, info, Infinite(t));
-
-julia> ivref = add_variable(m, inf_var, "var_name")
-var_name(t)
-
-julia> pt_var = build_variable(error, info, Point(ivref, 0.5));
-
-julia> pvref = add_variable(m, pt_var, "var_alias")
-var_alias
-
-julia> f_var = build_variable(error, info);
-
-julia> fvref = add_variable(m, f_var, "var_name")
-var_name
-```
-"""
-function JuMP.add_variable(
-    model::InfiniteModel, 
-    var::JuMP.AbstractVariable,
-    name::String = ""; 
-    kwargs...
-    )::GeneralVariableRef
-    dvref = _check_and_make_variable_ref(model, var, name; kwargs...)
-    vindex = JuMP.index(dvref)
-    gvref = _make_variable_ref(model, vindex)
-    _set_info_constraints(var.info, gvref, dvref)
-    model.name_to_var = nothing
-    return gvref
 end
 
 # Add VariableConstrainedOnCreation (TODO change paradigm to leverage MOI.add_constrained_variable)
@@ -408,9 +355,9 @@ function JuMP.set_lower_bound(
     lower::Real
     )::Nothing
     newset = MOI.GreaterThan(convert(Float64, lower))
-    gvref = _make_variable_ref(JuMP.owner_model(vref), JuMP.index(vref))
-    new_constr = JuMP.ScalarConstraint(gvref, newset)
     model = JuMP.owner_model(vref)
+    gvref = _make_variable_ref(model, JuMP.index(vref))
+    new_constr = JuMP.ScalarConstraint(gvref, newset)
     if JuMP.has_lower_bound(vref)
         cindex = _lower_bound_index(vref)
         cref = _make_constraint_ref(model, cindex)
@@ -544,9 +491,9 @@ function JuMP.set_upper_bound(
     upper::Real
     )::Nothing
     newset = MOI.LessThan(convert(Float64, upper))
-    gvref = _make_variable_ref(JuMP.owner_model(vref), JuMP.index(vref))
-    new_constr = JuMP.ScalarConstraint(gvref, newset)
     model = JuMP.owner_model(vref)
+    gvref = _make_variable_ref(model, JuMP.index(vref))
+    new_constr = JuMP.ScalarConstraint(gvref, newset)
     if JuMP.has_upper_bound(vref)
         cindex = _upper_bound_index(vref)
         cref = _make_constraint_ref(model, cindex)
@@ -687,7 +634,7 @@ function JuMP.fix(
     )::Nothing
     new_set = MOI.EqualTo(convert(Float64, value))
     model = JuMP.owner_model(vref)
-    gvref = _make_variable_ref(JuMP.owner_model(vref), JuMP.index(vref))
+    gvref = _make_variable_ref(model, JuMP.index(vref))
     new_constr = JuMP.ScalarConstraint(gvref, new_set)
     if JuMP.is_fixed(vref)  # Update existing fixing constraint.
         cindex = _fix_index(vref)

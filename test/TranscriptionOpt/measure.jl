@@ -7,6 +7,7 @@
     @variable(m, x, Infinite(par))
     @variable(m, y, Infinite(par, pars))
     @variable(m, x0, Point(x, 0))
+    @variable(m, y0, SemiInfinite(y, 0, pars))
     tm = optimizer_model(m)
     @variable(tm, a)
     @variable(tm, b)
@@ -20,30 +21,44 @@
     data.infvar_supports[y] = [(0., [0., 0.]), (0., [1., 1.]), (1., [0., 0.]), (1., [1., 1.])]
     data.infvar_lookup[y] = Dict{Vector{Float64}, Int}([0, 0, 0] => 1, [0, 1, 1] => 2, 
                                                        [1, 0, 0] => 3, [1, 1, 1] => 4)
+    data.infvar_mappings[y0] = [a, b]
+    data.infvar_supports[y0] = [(0., [0., 0.]), (0., [1., 1.])]
+    data.infvar_lookup[y0] = Dict{Vector{Float64}, Int}([0, 0, 0] => 1, [0, 1, 1] => 2)
     data.finvar_mappings[x0] = a
     key = Val(:TransData)
     IOTO.set_parameter_supports(tm, m)
-    # test add_measure_variable for point variables
-    @testset "add_measure_variable (Point)" begin
-        info = JuMP.VariableInfo(true, 0., true, 0., true, 0., true, 0., true, true)
-        var = PointVariable(info, x, [1.])
+    # test add_point_variable
+    @testset "add_point_variable" begin
+        # add one that was already added to the infinite model 
+        @test InfiniteOpt.add_point_variable(tm, x, Float64[0], key) == x0
+        @test transcription_variable(x0) == a
+        # add one that hasn't been added
         vref = GeneralVariableRef(m, -1, PointVariableIndex)
-        @test InfiniteOpt.add_measure_variable(tm, var, key) == vref
+        @test InfiniteOpt.add_point_variable(tm, x, Float64[1], key) == vref
+        @test transcription_variable(vref) == c
+        # add one that has been added internally
+        @test InfiniteOpt.add_point_variable(tm, x, Float64[1], key) == vref
         @test transcription_variable(vref) == c
     end
-    # test add_measure_variable for semi_infinite variables
-    @testset "add_measure_variable (SemiInfinite)" begin
+    # test add_semi_infinite_variable
+    @testset "add_semi_infinite_variable" begin
+        # add one that was already added to the infinite model
         var = SemiInfiniteVariable(y, Dict{Int, Float64}(1 => 0), [2, 3], [2])
+        @test InfiniteOpt.add_semi_infinite_variable(tm, var, key) == y0
+        @test transcription_variable(y0) == [a, b]
+        # add a new one
+        var = SemiInfiniteVariable(y, Dict{Int, Float64}(1 => 1), [2, 3], [2])
         vref = GeneralVariableRef(m, -1, SemiInfiniteVariableIndex)
-        @test InfiniteOpt.add_measure_variable(tm, var, key) == vref
+        @test InfiniteOpt.add_semi_infinite_variable(tm, var, key) == vref
         @test data.semi_infinite_vars == [var]
-        @test a in transcription_variable(vref)
-        @test b in transcription_variable(vref)
+        @test c in transcription_variable(vref)
+        @test d in transcription_variable(vref)
         @test sort!(supports(vref)) == [([0., 0.], ), ([1., 1.], )]
-    end
-    # test delete_semi_infinite_variable extension
-    @testset "delete_semi_infinite_variable" begin
-        vref = SemiInfiniteVariableRef(m, SemiInfiniteVariableIndex(-1))
-        @test InfiniteOpt.delete_semi_infinite_variable(tm, vref, key) isa Nothing
+        # add one that has already been added internally
+        @test InfiniteOpt.add_semi_infinite_variable(tm, var, key) == vref
+        @test data.semi_infinite_vars == [var]
+        @test c in transcription_variable(vref)
+        @test d in transcription_variable(vref)
+        @test sort!(supports(vref)) == [([0., 0.], ), ([1., 1.], )]
     end
 end

@@ -45,7 +45,7 @@ julia> print(model)
 Min 2 z
 Subject to
  y(t) ≥ 0.0, ∀ t ∈ [0, 10]
- z ≥ 0
+ z ≥ 0.0
  c1 : z - y(t) ≥ 0.0, ∀ t ∈ [0, 10]
  c2 : y(t) = 42.0, ∀ t = 0
 ```

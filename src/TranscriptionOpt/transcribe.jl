@@ -320,7 +320,7 @@ function transcribe_semi_infinite_variables!(
         # setup the mappings
         ivref = InfiniteOpt.infinite_variable_ref(rvref)
         _set_semi_infinite_variable_mapping(trans_model, var, rvref, 
-                                      InfiniteOpt._index_type(ivref))
+                                            InfiniteOpt._index_type(ivref))
     end
     return
 end
@@ -383,7 +383,6 @@ function transcribe_point_variables!(
         # get the basic variable information
         var = object.variable
         ivref = var.infinite_variable_ref
-        param_nums = InfiniteOpt._parameter_numbers(ivref)
         supp = var.parameter_values
         # find the corresponding variable record the mapping
         vref = lookup_by_support(trans_model, ivref, supp)

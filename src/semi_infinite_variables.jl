@@ -247,27 +247,96 @@ function JuMP.build_variable(
     return SemiInfiniteVariable(ivref, eval_supports, param_nums, object_nums)
 end
 
+## Make dispatch functions to add semi-infinite variable based supports
+# Independent parameters
+function _add_semi_infinite_support(
+    prefs::Vector{IndependentParameterRef}, 
+    eval_supps::Dict{Int, Float64}, 
+    counter::Int
+    )::Int
+    for pref in prefs
+        if haskey(eval_supps, counter)
+            add_supports(pref, eval_supps[counter], check = false, 
+                        label = UserDefined)
+        end
+        counter += 1
+    end
+    return counter
+end
+
+# Dependent parameters
+function _add_semi_infinite_support(
+    prefs::Vector{DependentParameterRef}, 
+    eval_supps::Dict{Int, Float64}, 
+    counter::Int
+    )::Int
+    len = length(prefs)
+    if all(haskey(eval_supps, i) for i in counter:counter+len-1)
+        supp = Matrix{Float64}(undef, len, 1)
+        for i in eachindex(supp)
+            supp[i] = eval_supps[counter + i - 1]
+        end
+        add_supports(prefs, supp, check = false, label = UserDefined)
+    end
+    return counter + len
+end
+
+# Update the parameter supports as needed
+function _update_param_supports(
+    ivref::Union{InfiniteVariableRef, DerivativeRef}, 
+    eval_supps::Dict{Int, Float64}
+    )::Nothing
+    raw_prefs = raw_parameter_refs(ivref)
+    counter = 1
+    for i in 1:size(raw_prefs, 1)
+        prefs = dispatch_variable_ref.(raw_prefs[i, :])
+        counter = _add_semi_infinite_support(prefs, eval_supps, counter)
+    end
+end
+
+# Update the parameter supports as needed
+function _update_param_supports(
+    ivref::ParameterFunctionRef, 
+    eval_supps::Dict{Int, Float64}
+    )::Nothing
+    return
+end
+
 """
     JuMP.add_variable(model::InfiniteModel, var::SemiInfiniteVariable,
                       [name::String = ""])::GeneralVariableRef
 
-Extend the [`JuMP.add_variable`](@ref JuMP.add_variable(::JuMP.Model, ::JuMP.ScalarVariable, ::String))
-function to accomodate `InfiniteOpt` semi-infinite variable types. Adds `var` to the
-infinite model `model` and returns a [`GeneralVariableRef`](@ref).
-Primarily intended to be an internal function used in evaluating measures.
+Extend the `JuMP.add_variable` function to accomodate `InfiniteOpt` 
+semi-infinite variable types. Adds `var` to the infinite model `model` and 
+returns a [`GeneralVariableRef`](@ref). Primarily intended to be an internal 
+function used in evaluating measures.
 """
 function JuMP.add_variable(
     model::InfiniteModel, 
     var::SemiInfiniteVariable,
-    name::String = ""
+    name::String = "";
+    add_support = true
     )::GeneralVariableRef
-    ivref = dispatch_variable_ref(var.infinite_variable_ref)
-    JuMP.check_belongs_to_model(ivref, model)
-    data_object = VariableData(var, name)
-    vindex = _add_data_object(model, data_object)
-    push!(_semi_infinite_variable_dependencies(ivref), vindex)
-    gvref = GeneralVariableRef(model, vindex.value, typeof(vindex))
-    return gvref
+    ivref = var.infinite_variable_ref
+    divref = dispatch_variable_ref(ivref)
+    eval_supps = var.eval_supports
+    JuMP.check_belongs_to_model(divref, model)
+    existing_index = get(model.semi_lookup, (ivref, eval_supps), nothing)
+    if existing_index === nothing
+        data_object = VariableData(var, name)
+        vindex = _add_data_object(model, data_object)
+        push!(_semi_infinite_variable_dependencies(divref), vindex)
+        if add_support 
+            _update_param_supports(divref, eval_supps)
+        end
+        model.semi_lookup[(ivref, eval_supps)] = vindex
+    else
+        vindex = existing_index
+        if !isempty(name)
+            model.semi_infinite_vars[vindex].name = name
+        end
+    end
+    return _make_variable_ref(model, vindex)
 end
 
 ################################################################################
@@ -724,12 +793,14 @@ end
 # Extend _delete_variable_dependencies (for use with JuMP.delete)
 function _delete_variable_dependencies(vref::SemiInfiniteVariableRef)::Nothing
     # remove mapping to infinite variable
-    ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+    ivref = infinite_variable_ref(vref)
     filter!(e -> e != JuMP.index(vref), _semi_infinite_variable_dependencies(ivref))
     # delete associated derivative variables and mapping 
     model = JuMP.owner_model(vref)
     for index in _derivative_dependencies(vref)
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
+    # remove the lookup entry
+    delete!(JuMP.owner_model(vref).semi_lookup, (ivref, eval_supports(vref)))
     return
 end
