@@ -135,6 +135,22 @@ For other contributions, please visit our
 [Developers Guide](@ref contribute_guide) for step by step instructions and to 
 review our style guide.
 
+## Citing
+[![DOI](https://img.shields.io/badge/math.OC-arXiv%3A2106.12689-B31B1B.svg)](https://arxiv.org/abs/2106.12689)
+
+If you use InfiniteOpt.jl in your research, we would greatly appreciate your 
+citing it.
+```latex
+@misc{pulsipher2021unifying,
+      title={A Unifying Modeling Abstraction for Infinite-Dimensional Optimization}, 
+      author={Joshua L. Pulsipher and Weiqi Zhang and Tyler J. Hongisto and Victor M. Zavala},
+      year={2021},
+      eprint={2106.12689},
+      archivePrefix={arXiv},
+      primaryClass={math.OC}
+}
+```
+
 ## Acknowledgements
 We acknowledge our support from the Department of Energy under grant 
 DE-SC0014114.
