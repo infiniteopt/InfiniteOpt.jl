@@ -45,7 +45,7 @@ include:
 - Diverse derivative approximations (e.g., finite difference, orthogonal 
   collocation)
 - Sophisticated support point management system
-- Compatible with all [JuMP-supported solvers](https://jump.dev/JuMP.jl/v0.21.8/installation/#Supported-solvers)
+- Compatible with all [JuMP-supported solvers](https://jump.dev/JuMP.jl/v0.21.9/installation/#Supported-solvers)
 
 Accepted infinite/finite problem forms currently include:
 - Variables
@@ -94,7 +94,7 @@ on how to get started.
 ## First Steps 
 `InfiniteOpt` is extension of `JuMP`, thus new users should start by 
 familiarizing themselves with how to use `JuMP` first. See 
-[`JuMP`'s documentation](https://jump.dev/JuMP.jl/v0.21.8/) to learn more.
+[`JuMP`'s documentation](https://jump.dev/JuMP.jl/v0.21.9/) to learn more.
 
 Once you're familiar with `JuMP` check out our [Quick Start Guide](@ref) to get 
 started. From there we provide extensive documentation to help you along, please 
