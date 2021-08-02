@@ -513,8 +513,8 @@ And data, a 3-element Vector{GeneralVariableRef}:
 
 julia> @variable(model, z_sparse[i = 1:2, j = 1:2; i + j <= 3])
 JuMP.Containers.SparseAxisArray{GeneralVariableRef, 2, Tuple{Int64, Int64}} with 3 entries:
-  [1, 2]  =  z_sparse[1,2]
   [1, 1]  =  z_sparse[1,1]
+  [1, 2]  =  z_sparse[1,2]
   [2, 1]  =  z_sparse[2,1]
 ```
 
