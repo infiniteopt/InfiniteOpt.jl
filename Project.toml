@@ -1,7 +1,7 @@
 name = "InfiniteOpt"
 uuid = "20393b10-9daf-11e9-18c9-8db751c92c57"
 authors = ["Joshua Pulsipher and Weiqi Zhang"]
-version = "0.4.1"
+version = "0.4.2-dev"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
@@ -15,7 +15,7 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 DataStructures = "^0.14.2, 0.15, 0.16, 0.17, 0.18"
 Distributions = "0.19, 0.20, 0.21, 0.22, 0.23, 0.24, 0.25"
 FastGaussQuadrature = "^0.3.2, 0.4"
-JuMP = "0.21.8"
+JuMP = "0.21.9"
 MathOptInterface = "0.9.20"
 Reexport = "0.2, 1"
 julia = "1"

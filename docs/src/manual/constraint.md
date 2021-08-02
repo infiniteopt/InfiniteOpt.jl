@@ -4,7 +4,7 @@ A technical manual for constraints in `InfiniteOpt`. See the respective
 
 ## Definition
 Note that constraints are defined principally with 
-[`JuMP.@constraint`](https://jump.dev/JuMP.jl/v0.21.8/reference/constraints/#JuMP.@constraint) 
+[`JuMP.@constraint`](https://jump.dev/JuMP.jl/v0.21.9/reference/constraints/#JuMP.@constraint) 
 which originates from `JuMP.jl`. Below we show build methods for 
 `DomainRestrictedConstraint`s, but any `JuMP.AbstractConstraint` can be used.
 ```@docs
