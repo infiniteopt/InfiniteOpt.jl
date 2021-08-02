@@ -7,7 +7,7 @@ A `JuMP` extension for expressing and solving infinite-dimensional optimization
 problems.
 
 !!! warning
-    `InfiniteOpt v0.4.0` underwent a number of breaking syntax changes 
+    `InfiniteOpt v0.4` underwent a number of breaking syntax changes 
     relative to previous versions. This is to promote long term code stability 
     and to increase the capabilities of `InfiniteOpt`. Please review the guide 
     to see updated syntax. Deprecation warnings have been incorporated into this 

@@ -546,15 +546,6 @@ Like `JuMP` variables, we can constrain variables on creation to lie in
 particular sets. This allows us to make semi-definite variables, cone constrained 
 variables, and more. 
 
-!!! warning
-    The set syntax is only supported with finite variables with `v0.21.8` of 
-    JuMP. This limitation will be removed with the next release of JuMP. In the 
-    meantime, other variable types can be constrained using `@constraint`.
-    ```julia
-    @variable(model, y_psd[1:2, 1:2], Infinite(t))
-    @constraint(model, y_psd in PSDCone())
-    ```
-
 For example:
 ```jldoctest var_macro
 julia> @variable(model, z_psd[1:2, 1:2], PSD) # positive semi-definite variable matrix

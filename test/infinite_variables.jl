@@ -536,6 +536,12 @@ end
                         start = starts[i]) == gvrefs
         @test start_value_function(vrefs[1])(0) == 2
         @test start_value_function(vrefs[2])([0]) == 5
+        # test with set 
+        idxs = [InfiniteVariableIndex(i) for i in 25:27]
+        vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
+        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        @test gvrefs == @variable(m, [1:3], Infinite(t), set = SecondOrderCone())
+        @test num_constraints(m, Vector{GeneralVariableRef}, MOI.SecondOrderCone) == 1
     end
     # test errors
     @testset "Errors" begin
