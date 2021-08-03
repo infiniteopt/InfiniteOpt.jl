@@ -2,7 +2,7 @@
 #                                 DATATYPES
 ################################################################################
 function Base.copy(node::LCRST.Node)
-    new_node = LCRST.Node(node.data) # we don't make copies of the data
+    new_node = LCRST.Node(node.data) # we don't make copies of the data (should we?)
     for child in node 
         LCRST.addchild(new_node, copy(child))
     end
@@ -11,6 +11,7 @@ end
 
 function LCRST.addchild(parent::LCRST.Node{T}, newc::LCRST.Node{T}) where T
     # copy the new node if it is not a root
+    # otherwise, we are just merging 2 graphs together
     if !LCRST.isroot(newc)
         newc = copy(newc)
     end
@@ -46,6 +47,7 @@ end
 Base.broadcastable(nlp::NLPExpr) = Ref(nlp)
 Base.copy(nlp::NLPExpr)::NLPExpr = NLPExpr(copy(nlp.expr))
 Base.zero(::Type{NLPExpr}) = NLPExpr(LCRST.Node(NodeData(0.0)))
+Base.one(::Type{NLPExpr}) = NLPExpr(LCRST.Node(NodeData(1.0)))
 
 # Convenient expression alias
 const AbstractInfOptExpr = Union{
@@ -230,6 +232,12 @@ end
 function Base.:+(nlp::NLPExpr)::NLPExpr
     return NLPExpr(_call_graph(:+, nlp))
 end
+
+################################################################################
+#                            NATIVE NLP FUNCTIONS
+################################################################################
+
+
 
 ################################################################################
 #                               LINEAR ALGEBRA
