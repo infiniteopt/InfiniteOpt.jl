@@ -2,8 +2,7 @@ module TranscriptionOpt
 
 # Import the necessary packages.
 import JuMP
-import MathOptInterface
-const MOI = MathOptInterface
+const MOI = JuMP.MOI
 const MOIU = MOI.Utilities
 using ..InfiniteOpt
 
