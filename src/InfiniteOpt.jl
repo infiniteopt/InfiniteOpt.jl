@@ -10,10 +10,13 @@ import Distributions
 import DataStructures
 import FastGaussQuadrature
 import AbstractTrees
+import LeftChildRightSiblingTrees
+import LinearAlgebra
 
 # Make useful aliases (note we get MOI and MOIU from JuMP)
 const JuMPC = JuMP.Containers
 const MOIUC = MOIU.CleverDicts
+const LCRST = LeftChildRightSiblingTrees
 
 # Import the Collections module
 include("Collections/Collections.jl")

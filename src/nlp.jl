@@ -1,68 +1,92 @@
 ################################################################################
 #                                 DATATYPES
 ################################################################################
+function Base.copy(node::LCRST.Node)
+    new_node = LCRST.Node(node.data) # we don't make copies of the data
+    for child in node 
+        LCRST.addchild(new_node, copy(child))
+    end
+    return new_node
+end
+
+function LCRST.addchild(parent::LCRST.Node{T}, newc::LCRST.Node{T}) where T
+    # copy the new node if it is not a root
+    if !LCRST.isroot(newc)
+        newc = copy(newc)
+    end
+    # add it on to the tree
+    newc.parent = parent
+    prevc = parent.child
+    if prevc == parent
+        parent.child = newc
+    else
+        prevc = LCRST.lastsibling(prevc)
+        prevc.sibling = newc
+    end
+    return newc
+end
+
 # This is ambiguous but faster than the concrete alternatives tested
-# Even better than using BinaryNode{Any}...
+# Even better than using Node{Any}...
+"""
+
+"""
 struct NodeData
     value
 end
 
+"""
+
+"""
 struct NLPExpr <: JuMP.AbstractJuMPScalar
-    expr::Collections.BinaryNode{NodeData}
+    expr::LCRST.Node{NodeData}
 end
 
+# Extend basic functions
 Base.broadcastable(nlp::NLPExpr) = Ref(nlp)
-
 Base.copy(nlp::NLPExpr)::NLPExpr = NLPExpr(copy(nlp.expr))
+Base.zero(::Type{NLPExpr}) = NLPExpr(LCRST.Node(NodeData(0.0)))
 
+# Convenient expression alias
 const AbstractInfOptExpr = Union{
-        NLPExpr, 
-        JuMP.GenericQuadExpr{Float64, GeneralVariableRef}, 
-        JuMP.GenericAffExpr{Float64, GeneralVariableRef},
-        GeneralVariableRef
-    }
+    NLPExpr, 
+    JuMP.GenericQuadExpr{Float64, GeneralVariableRef}, 
+    JuMP.GenericAffExpr{Float64, GeneralVariableRef},
+    GeneralVariableRef
+}
 
+## Make convenient dispatch methods for raw child input
+# NLPExpr
 function _process_child_input(nlp::NLPExpr)
-    # copy if the expression root has a parent 
-    # meaning it was already embedded in building an expression
-    # this helps only copy if necessary
-    if isdefined(nlp.expr, :parent)
-        return copy(nlp.expr)
-    else
-        return nlp.expr
-    end
+    return nlp.expr
 end
 
-function _process_child_input(v)
+# An InfiniteOpt expression (not general nonlinear)
+function _process_child_input(v::AbstractInfOptExpr)
     return NodeData(v)
 end
 
-function _series_graph(op::Symbol, v1, v2, vars...)::Collections.BinaryNode{NodeData}
-    root = Collections.BinaryNode(NodeData(op))
-    Collections.rightchild(_process_child_input(vars[end]), root)
-    left = Collections.leftchild(NodeData(op), root)
-    for v in Iterators.rest(Iterators.reverse(vars), 2)
-        Collections.rightchild(_process_child_input(v), left)
-        left = Collections.leftchild(NodeData(op), left)
+# Function symbol
+function _process_child_input(f::Symbol)
+    return NodeData(f)
+end
+
+# Real number 
+function _process_child_input(c::Real)
+    return NodeData(Float64(c))
+end
+
+# Fallback
+function _process_child_input(v)
+    error("Unrecognized algebraic expression input `$v`.")
+end
+
+# Generic graph builder
+function _call_graph(func::Symbol, args...)::LCRST.Node{NodeData}
+    root = LCRST.Node(NodeData(func))
+    for a in args 
+        LCRST.addchild(root, _process_child_input(a))
     end
-    Collections.rightchild(_process_child_input(v2), left)
-    Collections.leftchild(_process_child_input(v1), left)
-    return root
-end
-
-function _series_graph(op::Symbol, v1, v2, v3)::Collections.BinaryNode{NodeData}
-    root = Collections.BinaryNode(NodeData(op))
-    Collections.rightchild(_process_child_input(v3), root)
-    left = Collections.leftchild(NodeData(op), root)
-    Collections.rightchild(_process_child_input(v2), left)
-    Collections.leftchild(_process_child_input(v1), left)
-    return root
-end
-
-function _series_graph(op::Symbol, v1, v2)::Collections.BinaryNode{NodeData}
-    root = Collections.BinaryNode(NodeData(op))
-    Collections.leftchild(_process_child_input(v1), root)
-    Collections.rightchild(_process_child_input(v2), root)
     return root
 end
 
@@ -73,39 +97,39 @@ function Base.:*(
     quad::JuMP.GenericQuadExpr{Float64, GeneralVariableRef},
     expr::AbstractInfOptExpr
     )::NLPExpr
-    return NLPExpr(_series_graph(:*, quad, expr))
+    return NLPExpr(_call_graph(:*, quad, expr))
 end
 
 function Base.:*(
     expr::AbstractInfOptExpr,
     quad::JuMP.GenericQuadExpr{Float64, GeneralVariableRef}
     )::NLPExpr
-    return NLPExpr(_series_graph(:*, expr, quad))
+    return NLPExpr(_call_graph(:*, expr, quad))
 end
 
 function Base.:*(
     quad1::JuMP.GenericQuadExpr{Float64, GeneralVariableRef},
     quad2::JuMP.GenericQuadExpr{Float64, GeneralVariableRef}
     )::NLPExpr
-    return NLPExpr(_series_graph(:*, quad1, quad2))
+    return NLPExpr(_call_graph(:*, quad1, quad2))
 end
 
 function Base.:*(
     nlp::NLPExpr, 
     expr::Union{AbstractInfOptExpr, Real}
     )::NLPExpr
-    return NLPExpr(_series_graph(:*, nlp, expr))
+    return NLPExpr(_call_graph(:*, nlp, expr))
 end
 
 function Base.:*(
     expr::Union{AbstractInfOptExpr, Real}, 
     nlp::NLPExpr
     )::NLPExpr
-    return NLPExpr(_series_graph(:*, expr, nlp))
+    return NLPExpr(_call_graph(:*, expr, nlp))
 end
 
 function Base.:*(nlp1::NLPExpr, nlp2::NLPExpr)::NLPExpr
-    return NLPExpr(_series_graph(:*, nlp1, nlp2))
+    return NLPExpr(_call_graph(:*, nlp1, nlp2))
 end
 
 function Base.:*(
@@ -114,7 +138,11 @@ function Base.:*(
     expr3::AbstractInfOptExpr,
     exprs::Vararg{AbstractInfOptExpr}
     )::NLPExpr
-    return NLPExpr(_series_graph(:*, expr1, expr2, expr3, exprs...))
+    return NLPExpr(_call_graph(:*, expr1, expr2, expr3, exprs...))
+end
+
+function Base.:*(nlp::NLPExpr)::NLPExpr
+    return nlp
 end
 
 ################################################################################
@@ -124,11 +152,11 @@ function Base.:/(
     expr1::Union{AbstractInfOptExpr, Real}, 
     expr2::AbstractInfOptExpr
     )::NLPExpr
-    return NLPExpr(_series_graph(:/, expr1, expr2))
+    return NLPExpr(_call_graph(:/, expr1, expr2))
 end
 
 function Base.:/(nlp::NLPExpr, c::Real)::NLPExpr
-    return NLPExpr(_series_graph(:/, nlp, c))
+    return NLPExpr(_call_graph(:/, nlp, c))
 end
 
 ################################################################################
@@ -142,7 +170,7 @@ function Base.:^(expr::AbstractInfOptExpr, c::Integer)
     elseif c == 2 
         return expr * expr
     else 
-        return NLPExpr(_series_graph(:^, expr, c))
+        return NLPExpr(_call_graph(:^, expr, c))
     end
 end
 
@@ -154,7 +182,7 @@ function Base.:^(expr::AbstractInfOptExpr, c::Real)
     elseif c == 2 
         return expr * expr
     else 
-        return NLPExpr(_series_graph(:^, expr, c))
+        return NLPExpr(_call_graph(:^, expr, c))
     end
 end
 
@@ -162,38 +190,55 @@ function Base.:^(
     expr1::Union{AbstractInfOptExpr, Real}, 
     expr2::AbstractInfOptExpr
     )::NLPExpr
-    return NLPExpr(_series_graph(:^, expr1, expr2))
+    return NLPExpr(_call_graph(:^, expr1, expr2))
 end
 
 ################################################################################
 #                             SUBTRACTION OPERATORS
 ################################################################################
 function Base.:-(nlp::NLPExpr, expr::Union{AbstractInfOptExpr, Real})::NLPExpr
-    return NLPExpr(_series_graph(:-, nlp, expr))
+    return NLPExpr(_call_graph(:-, nlp, expr))
 end
 
 function Base.:-(expr::Union{AbstractInfOptExpr, Real}, nlp::NLPExpr)::NLPExpr
-    return NLPExpr(_series_graph(:-, expr, nlp))
+    return NLPExpr(_call_graph(:-, expr, nlp))
 end
 
 function Base.:-(nlp1::NLPExpr, nlp2::NLPExpr)::NLPExpr
-    return NLPExpr(_series_graph(:-, nlp1, nlp2))
+    return NLPExpr(_call_graph(:-, nlp1, nlp2))
+end
+
+function Base.:-(nlp::NLPExpr)::NLPExpr
+    return NLPExpr(_call_graph(:-, nlp))
 end
 
 ################################################################################
 #                              ADDITION OPERATORS
 ################################################################################
 function Base.:+(nlp::NLPExpr, expr::Union{AbstractInfOptExpr, Real})::NLPExpr
-    return NLPExpr(_series_graph(:+, nlp, expr))
+    return NLPExpr(_call_graph(:+, nlp, expr))
 end
 
 function Base.:+(expr::Union{AbstractInfOptExpr, Real}, nlp::NLPExpr)::NLPExpr
-    return NLPExpr(_series_graph(:+, expr, nlp))
+    return NLPExpr(_call_graph(:+, expr, nlp))
 end
 
 function Base.:+(nlp1::NLPExpr, nlp2::NLPExpr)::NLPExpr
-    return NLPExpr(_series_graph(:+, nlp1, nlp2))
+    return NLPExpr(_call_graph(:+, nlp1, nlp2))
 end
+
+function Base.:+(nlp::NLPExpr)::NLPExpr
+    return NLPExpr(_call_graph(:+, nlp))
+end
+
+################################################################################
+#                               LINEAR ALGEBRA
+################################################################################
+LinearAlgebra.dot(lhs::AbstractInfOptExpr, rhs::AbstractInfOptExpr) = lhs * rhs
+LinearAlgebra.dot(lhs::AbstractInfOptExpr, rhs::Real) = lhs * rhs
+LinearAlgebra.dot(lhs::Real, rhs::AbstractInfOptExpr) = lhs * rhs
+
+# TODO figure out what needs to be added to make this work (involves MutableArithmetics)
 
 ################################################################################
 #                                  PRINTING
@@ -205,41 +250,43 @@ end
 const _Operators = (:*, :-, :+, :^, :/)
 
 function _expr_string(
-    root::Collections.BinaryNode{NodeData}, 
+    node::LCRST.Node{NodeData}, 
     str::String = "";
     simple::Bool = false,
     prev_op::Bool = false
-    )
+    )::String
     # determine if the node is an operator 
-    is_op = !simple && root.data.value in _Operators
+    is_op = !simple && node.data.value in _Operators
     # make the node data into a string
-    data_str = string(root.data.value)
-    is_jump_expr = root.data.value isa Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr}
+    data_str = string(node.data.value)
+    is_jump_expr = node.data.value isa Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr}
     # make a string according to the node structure
-    if !Collections.has_children(root) && prev_op && is_jump_expr
+    if LCRST.isleaf(node) && prev_op && is_jump_expr
         # we have a leaf that is an affine/quadratic expr so we are done here
         return str * string("(", data_str, ")")
-    elseif !Collections.has_children(root)
+    elseif LCRST.isleaf(node)
         # we have a leaf that is a variable or number
         return str * data_str
-    elseif is_op && isdefined(root, :right)
+    elseif is_op && !LCRST.islastsibling(node.child)
         # we have a binary operator
-        return string("(", _expr_string(root.left, str, prev_op = true), " ", 
-                      data_str, " ", 
-                      _expr_string(root.right, str, prev_op = true), ")")
+        str *= "("
+        op_str = string(" ", data_str, " ")
+        for child in node
+            str = string(_expr_string(child, str, prev_op = true), op_str)
+        end
+        return str[1:end-length(op_str)] * ")"
     elseif is_op
         # we have a unary operator
         return string("(", data_str,
-                      _expr_string(root.left, str, prev_op = true), ")")
+                      _expr_string(node.child, str, prev_op = true), ")")
     else 
         # we have a function with 1 or 2 inputs
         str *= string(data_str, "(")
-        str = _expr_string(root.left, str, simple = simple)
-        if isdefined(root, :right)
+        for child in node
+            str = _expr_string(child, str, simple = simple)
             str *= ", "
-            str = _expr_string(root.right, str, simple = simple)
         end
-        return str * ")"
+        return str[1:end-2] * ")"
     end
 end
 
