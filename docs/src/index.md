@@ -7,7 +7,7 @@ A `JuMP` extension for expressing and solving infinite-dimensional optimization
 problems.
 
 !!! warning
-    `InfiniteOpt v0.4.0` underwent a number of breaking syntax changes 
+    `InfiniteOpt v0.4` underwent a number of breaking syntax changes 
     relative to previous versions. This is to promote long term code stability 
     and to increase the capabilities of `InfiniteOpt`. Please review the guide 
     to see updated syntax. Deprecation warnings have been incorporated into this 
@@ -45,7 +45,7 @@ include:
 - Diverse derivative approximations (e.g., finite difference, orthogonal 
   collocation)
 - Sophisticated support point management system
-- Compatible with all [JuMP-supported solvers](https://jump.dev/JuMP.jl/v0.21.8/installation/#Supported-solvers)
+- Compatible with all [JuMP-supported solvers](https://jump.dev/JuMP.jl/v0.21.9/installation/#Supported-solvers)
 
 Accepted infinite/finite problem forms currently include:
 - Variables
@@ -77,10 +77,10 @@ Accepted infinite/finite problem forms currently include:
     supported by `InfiniteOpt`. See [Nonlinear Expressions](@ref) for more 
     information and possible workarounds. 
 
-### Modeling Infinite-Dimensional Problems with InfiniteOpt.jl
+### Infinite-Dimensional Optimization with InfiniteOpt.jl
 See our YouTube overview of infinite-dimensional programming and InfiniteOpt.jl's 
-capabilities (Note the syntax in the video is now deprecated): 
-[![youtube](assets/youtube.PNG)](https://www.youtube.com/watch?v=q5ETFLZbxiU "Modeling Infinite-Dimensional Problems with InfiniteOpt.jl")
+capabilities from JuliaCon 2021: 
+[![youtube](assets/youtube.PNG)](https://www.youtube.com/watch?v=z03Fjvz90os&t=1s "Infinite-Dimensional Optimization with InfiniteOpt.jl")
 
 ## Installation
 `InfiniteOpt.jl` is a registered `Julia` package and can be added simply by 
@@ -94,7 +94,7 @@ on how to get started.
 ## First Steps 
 `InfiniteOpt` is extension of `JuMP`, thus new users should start by 
 familiarizing themselves with how to use `JuMP` first. See 
-[`JuMP`'s documentation](https://jump.dev/JuMP.jl/v0.21.8/) to learn more.
+[`JuMP`'s documentation](https://jump.dev/JuMP.jl/v0.21.9/) to learn more.
 
 Once you're familiar with `JuMP` check out our [Quick Start Guide](@ref) to get 
 started. From there we provide extensive documentation to help you along, please 
