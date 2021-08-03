@@ -2,9 +2,7 @@ module MeasureToolbox
 
 # Import the necessary packages.
 import FastGaussQuadrature
-import JuMP
 import Distributions
-const JuMPC = JuMP.Containers
 using ..InfiniteOpt
 
 # include jl files here

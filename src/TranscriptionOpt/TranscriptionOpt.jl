@@ -1,11 +1,8 @@
 module TranscriptionOpt
 
-# Import the necessary packages.
-import JuMP
-const MOI = JuMP.MOI
-const MOIU = MOI.Utilities
 using ..InfiniteOpt
 
+# Load in the module files
 include("model.jl")
 include("measures.jl")
 include("transcribe.jl")
