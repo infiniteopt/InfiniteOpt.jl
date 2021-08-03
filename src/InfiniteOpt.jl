@@ -5,7 +5,6 @@ import Reexport
 Reexport.@reexport using JuMP
 
 # Import the necessary packages.
-import MathOptInterface
 import Distributions
 import DataStructures
 import FastGaussQuadrature

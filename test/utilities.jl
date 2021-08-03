@@ -1,5 +1,3 @@
-using JuMP: REPLMode, IJuliaMode
-
 macro test_expression(expr)
     esc(quote
             @test JuMP.isequal_canonical(@expression(m, $expr), $expr)
