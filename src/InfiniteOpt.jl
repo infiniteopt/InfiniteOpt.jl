@@ -12,6 +12,10 @@ import FastGaussQuadrature
 import AbstractTrees
 import LeftChildRightSiblingTrees
 import LinearAlgebra
+using Base.Meta
+
+# Import and export SpecialFunctions for the NLP interface 
+Reexport.@reexport using SpecialFunctions
 
 # Make useful aliases (note we get MOI and MOIU from JuMP)
 const JuMPC = JuMP.Containers

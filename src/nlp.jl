@@ -234,9 +234,164 @@ function Base.:+(nlp::NLPExpr)::NLPExpr
 end
 
 ################################################################################
-#                            NATIVE NLP FUNCTIONS
+#                             NATIVE NLP FUNCTIONS
 ################################################################################
+"""
 
+"""
+const NativeNLPFunctions = Dict{Symbol, Function}()
+
+"""
+
+"""
+const Base1ArgFuncList = (
+    :sqrt => sqrt,
+    :cbrt => cbrt,
+    :abs => abs,
+    :abs2 => abs2,
+    :inv => inv,
+    :log => log,
+    :log10 => log10,
+    :log2 => log2,
+    :log1p => log1p,
+    :exp => exp,
+    :exp2 => exp2,
+    :expm1 => expm1,
+    :sin => sin,
+    :cos => cos,
+    :tan => tan, 
+    :sec => sec, 
+    :csc => csc,
+    :cot => cot,
+    :sind => sind,
+    :cosd => cosd,
+    :tand => tand, 
+    :secd => secd,
+    :cscd => cscd,
+    :cotd => cotd,
+    :asin => asin,
+    :acos => acos, 
+    :atan => atan, 
+    :asec => asec, 
+    :acsc => acsc, 
+    :acot => acot,
+    :asind => asind,
+    :acosd => acosd,
+    :atand => atand,
+    :asecd => asecd,
+    :acscd => acscd,
+    :acotd => acotd, 
+    :sinh => sinh,
+    :cosh => cosh, 
+    :tanh => tanh, 
+    :sech => sech,
+    :csch => csch,
+    :coth => coth,
+    :asinh => asinh, 
+    :acosh => acosh,
+    :atanh => atanh,
+    :asech => asech,
+    :acsch => acsch,
+    :acoth => acoth,
+    :deg2rad => deg2rad,
+    :rad2deg => rad2deg
+)
+
+# Setup the base 1 argument functions
+for (name, func) in Base1ArgFuncList
+    # add it to the main storage dict
+    NativeNLPFunctions[name] = func
+    # make an expression constructor
+    @eval begin 
+        function Base.$name(v::AbstractInfOptExpr)::NLPExpr
+            return NLPExpr(_call_graph($(quot(name)), v))
+        end
+    end
+end
+
+# Setup the Base functions with 2 arguments
+for (name, func) in (:min => min, :max => max)
+    # add it to the main storage dict
+    NativeNLPFunctions[name] = func
+    # make an expression constructor
+    @eval begin 
+        function Base.$name(
+            v1::Union{AbstractInfOptExpr, Real}, 
+            v2::Union{AbstractInfOptExpr, Real}
+            )::NLPExpr
+            return NLPExpr(_call_graph($(quot(name)), v1, v2))
+        end
+    end
+end
+
+# TODO figure out how to do the logical functions properly
+
+# Setup the ifelse function
+# NativeNLPFunctions[:ifelse] = Base.ifelse
+# function ifelse(
+#     cond::NLPExpr,
+#     v1::Union{AbstractInfOptExpr, Real}, 
+#     v2::Union{AbstractInfOptExpr, Real}
+#     )::NLPExpr
+#     return NLPExpr(_call_graph(:ifelse, cond, v1, v2))
+# end
+
+# Setup the Base comparison functions
+# for (name, func) in (:< => Base.:(<), :(==) => Base.:(==))
+#     # add it to the main storage dict
+#     NativeNLPFunctions[name] = func
+#     # make an expression constructor
+#     @eval begin 
+#         function Base.$name(
+#             v1::AbstractInfOptExpr, 
+#             v2::Union{AbstractInfOptExpr, Real}
+#             )::NLPExpr
+#             return NLPExpr(_call_graph($(quot(name)), v1, v2))
+#         end
+#     end
+# end
+
+"""
+
+"""
+const Special1ArgFuncList = (
+    :erf => SpecialFunctions.erf,
+    :erfinv => SpecialFunctions.erfinv,
+    :erfc => SpecialFunctions.erfc,
+    :erfcinv => SpecialFunctions.erfcinv,
+    :erfi => SpecialFunctions.erfi,
+    :gamma => SpecialFunctions.gamma,
+    :lgamma => SpecialFunctions.lgamma,
+    :digamma => SpecialFunctions.digamma,
+    :invdigamma => SpecialFunctions.invdigamma,
+    :trigamma => SpecialFunctions.trigamma,
+    :airyai => SpecialFunctions.airyai,
+    :airybi => SpecialFunctions.airybi,
+    :airyaiprime => SpecialFunctions.airyaiprime,
+    :airybiprime => SpecialFunctions.airybiprime,
+    :besselj0 => SpecialFunctions.besselj0,
+    :besselj1 => SpecialFunctions.besselj1,
+    :bessely0 => SpecialFunctions.bessely0,
+    :bessely1 => SpecialFunctions.bessely1,
+    :erfcx => SpecialFunctions.erfcx,
+    :dawson => SpecialFunctions.dawson
+)
+
+# Setup the SpecialFunctions 1 argument functions
+for (name, func) in Special1ArgFuncList
+    # add it to the main storage dict
+    NativeNLPFunctions[name] = func
+    # make an expression constructor
+    @eval begin 
+        function SpecialFunctions.$name(v::AbstractInfOptExpr)::NLPExpr
+            return NLPExpr(_call_graph($(quot(name)), v))
+        end
+    end
+end
+
+################################################################################
+#                               USER FUNCTIONS
+################################################################################
 
 
 ################################################################################
