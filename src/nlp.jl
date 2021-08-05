@@ -413,25 +413,70 @@ end
 const _Precedence = (; :^ => 4, Symbol("+u") => 3, Symbol("-u") => 3, :* => 2, 
                      :/ => 2, :+ => 1, :- => 1)
 
+## Make functions to determine the precedence of a leaf
+# AffExpr
+function _leaf_precedence(aff::JuMP.GenericAffExpr)::Int
+    has_const = !iszero(JuMP.constant(aff))
+    itr = JuMP.linear_terms(aff)
+    num_terms = length(itr) 
+    if iszero(num_terms)
+        # we have only a constant
+        return 10 # will always have precedence
+    elseif has_const || num_terms > 1
+        # we have an expr with multiple terms
+        return 1
+    elseif isone(first(itr)[1])
+        # we have a single variable
+        return 10 # will always have precedence
+    elseif first(itr)[1] == -1
+        # we have a single unary negative variable
+        return 3
+    else
+        # we have a single variable multiplied by some coefficient
+        return 2
+    end
+end
+
+# QuadExpr
+function _leaf_precedence(quad::JuMP.GenericQuadExpr)::Int
+    has_aff = !iszero(quad.aff)
+    itr = JuMP.quad_terms(quad)
+    num_terms = length(itr) 
+    if iszero(num_terms)
+        # we have an affine expression
+        return _leaf_precedence(quad.aff)
+    elseif has_aff || num_terms > 1
+        # we have a general quadratic expression
+        return 1
+    else
+        # we only have a single quadratic term
+        return 2
+    end
+end
+
+# Other
+function _leaf_precedence(v)::Int
+    return 10
+end
+
+# Recursively build an expression string, starting with a root node
 function _expr_string(
     node::LCRST.Node{NodeData}, 
     str::String = "";
     simple::Bool = false,
     prev_prec = 0
     )::String
-    # determine if the node is an operator 
+    # prepocess the raw value
     raw_value = node.data.value
     is_op = !simple && raw_value in keys(_Precedence)
-    # make the node data into a string
     data_str = string(raw_value)
-    is_jump_expr = raw_value isa Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr}
     # make a string according to the node structure
-    if LCRST.isleaf(node) && prev_prec != 0 && is_jump_expr
-        # we have a leaf that is an affine/quadratic expr so we are done here
-        return str * string("(", data_str, ")")
-    elseif LCRST.isleaf(node)
-        # we have a leaf that is a variable or number
+    if LCRST.isleaf(node) && _leaf_precedence(raw_value) > prev_prec
+        # we have a leaf that doesn't require parentheses
         return str * data_str
+    elseif LCRST.isleaf(node)
+        # we have a leaf that requires parentheses
+        return str * string("(", data_str, ")")
     elseif is_op && !LCRST.islastsibling(node.child)
         # we have a binary operator
         curr_prec = _Precedence[raw_value]
