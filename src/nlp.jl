@@ -410,21 +410,23 @@ function Base.show(io::IO, data::NodeData)
     return print(io, string(data.value))
 end
 
-const _Operators = (:*, :-, :+, :^, :/)
+const _Precedence = (; :^ => 4, Symbol("+u") => 3, Symbol("-u") => 3, :* => 2, 
+                     :/ => 2, :+ => 1, :- => 1)
 
 function _expr_string(
     node::LCRST.Node{NodeData}, 
     str::String = "";
     simple::Bool = false,
-    prev_op::Bool = false
+    prev_prec = 0
     )::String
     # determine if the node is an operator 
-    is_op = !simple && node.data.value in _Operators
+    raw_value = node.data.value
+    is_op = !simple && raw_value in keys(_Precedence)
     # make the node data into a string
-    data_str = string(node.data.value)
-    is_jump_expr = node.data.value isa Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr}
+    data_str = string(raw_value)
+    is_jump_expr = raw_value isa Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr}
     # make a string according to the node structure
-    if LCRST.isleaf(node) && prev_op && is_jump_expr
+    if LCRST.isleaf(node) && prev_prec != 0 && is_jump_expr
         # we have a leaf that is an affine/quadratic expr so we are done here
         return str * string("(", data_str, ")")
     elseif LCRST.isleaf(node)
@@ -432,16 +434,26 @@ function _expr_string(
         return str * data_str
     elseif is_op && !LCRST.islastsibling(node.child)
         # we have a binary operator
-        str *= "("
+        curr_prec = _Precedence[raw_value]
+        has_prec = curr_prec > prev_prec
+        if !has_prec
+            str *= "("
+        end
         op_str = string(" ", data_str, " ")
         for child in node
-            str = string(_expr_string(child, str, prev_op = true), op_str)
+            str = string(_expr_string(child, str, prev_prec = curr_prec), op_str)
         end
-        return str[1:end-length(op_str)] * ")"
+        str = str[1:end-length(op_str)]
+        return has_prec ? str : str * ")"
     elseif is_op
         # we have a unary operator
-        return string("(", data_str,
-                      _expr_string(node.child, str, prev_op = true), ")")
+        curr_prec = _Precedence[Symbol(raw_value, :u)]
+        has_prec = curr_prec > prev_prec
+        if !has_prec 
+            str *= "("
+        end
+        str *= string(data_str, _expr_string(node.child, str, prev_prec = curr_prec))
+        return has_prec ? str : str * ")"
     else 
         # we have a function with 1 or 2 inputs
         str *= string(data_str, "(")
