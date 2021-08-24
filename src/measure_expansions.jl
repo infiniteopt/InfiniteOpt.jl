@@ -176,6 +176,17 @@ function make_semi_infinite_variable_ref(
     return add_semi_infinite_variable(write_model, var, Val(key))
 end
 
+# Map a variable to a new one given a new one (TODO make more efficient)
+function _map_variable(vref, data, supp::Float64, write_model)
+    data.supports[1] = supp
+    return expand_measure(vref, data, write_model)
+end
+
+function _map_variable(vref, data, supp, write_model)
+    data.supports[:, 1] = supp
+    return expand_measure(vref, data, write_model)
+end
+
 ################################################################################
 #                          EXPAND_MEASURE DEFINITIONS
 ################################################################################
@@ -496,10 +507,11 @@ function expand_measure(expr::JuMP.GenericAffExpr{C, GeneralVariableRef},
 end
 
 # GenericQuadExpr (1D DiscreteMeasureData)
-function expand_measure(expr::JuMP.GenericQuadExpr{C, GeneralVariableRef},
-                        data::DiscreteMeasureData{GeneralVariableRef, 1},
-                        write_model::JuMP.AbstractModel
-                        )::Union{JuMP.AbstractJuMPScalar, Float64} where {C}
+function expand_measure(
+    expr::JuMP.GenericQuadExpr,
+    data::DiscreteMeasureData{GeneralVariableRef, 1},
+    write_model::JuMP.AbstractModel
+    )
     # get needed info
     pref = parameter_refs(data)
     supps = supports(data)
@@ -509,32 +521,22 @@ function expand_measure(expr::JuMP.GenericQuadExpr{C, GeneralVariableRef},
     lb = JuMP.lower_bound(data)
     ub = JuMP.upper_bound(data)
     is_expect = _is_expect(data)
-    # expand the affine expression
-    new_expr = expand_measure(expr.aff, data, write_model)
-    # make viable data objects so we can multiply the terms
-    coef_data = DiscreteMeasureData(pref, ones(1), ones(1), label, w, lb, ub,
-                                    is_expect)
+    # make the expression
     simple_data = DiscreteMeasureData(pref, ones(1), ones(1), label,
                                       default_weight, lb, ub, is_expect)
-    # expand the quadratic terms
-    for i in eachindex(coeffs)
-        # update the temp data
-        coefficients(coef_data)[1] = coeffs[i]
-        supports(coef_data)[1] = supps[i]
-        supports(simple_data)[1] = supps[i]
-        new_expr = JuMP.@expression(write_model, new_expr + sum(coef *
-                        expand_measure(pair.a, coef_data, write_model) *
-                        expand_measure(pair.b, simple_data, write_model)
-                        for (pair, coef) in expr.terms))
-    end
-    return new_expr
+    return _MA.@rewrite(sum(sum(coeffs[i] * w(supps[i]) * c *
+                        _map_variable(p.a, simple_data, supps[i], write_model) * 
+                        _map_variable(p.b, simple_data, supps[i], write_model) 
+                        for (p, c) in expr.terms) for i in eachindex(coeffs)) + 
+                        expand_measure(expr.aff, data, write_model))
 end
 
 # GenericQuadExpr(Multi DiscreteMeasureData)
-function expand_measure(expr::JuMP.GenericQuadExpr{C, GeneralVariableRef},
-                        data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
-                        write_model::JuMP.AbstractModel
-                        )::Union{JuMP.AbstractJuMPScalar, Float64} where {C}
+function expand_measure(
+    expr::JuMP.GenericQuadExpr,
+    data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
+    write_model::JuMP.AbstractModel
+    )
     # get needed info
     prefs = parameter_refs(data)
     supps = supports(data)
@@ -544,26 +546,62 @@ function expand_measure(expr::JuMP.GenericQuadExpr{C, GeneralVariableRef},
     lbs = JuMP.lower_bound(data)
     ubs = JuMP.upper_bound(data)
     is_expect = _is_expect(data)
-    # expand the affine expression
-    new_expr = expand_measure(expr.aff, data, write_model)
-    # make viable data objects so we can multiply the terms
-    coef_data = DiscreteMeasureData(prefs, ones(1), ones(length(prefs), 1),
-                                    label, w, lbs, ubs, is_expect)
+    # make the expression
     simple_data = DiscreteMeasureData(prefs, ones(1), ones(length(prefs), 1),
                                       label, default_weight, lbs, ubs, is_expect)
-    # expand the quadratic terms
-    for i in eachindex(coeffs)
-        # update the temp data
-        coefficients(coef_data)[1] = coeffs[i]
-        supports(coef_data)[:, 1] = @view(supps[:, i])
-        supports(simple_data)[:, 1] = @view(supps[:, i])
-        new_expr = JuMP.@expression(write_model, new_expr + sum(coef *
-                        expand_measure(pair.a, coef_data, write_model) *
-                        expand_measure(pair.b, simple_data, write_model)
-                        for (pair, coef) in expr.terms))
-    end
-    return new_expr
+    return _MA.@rewrite(sum(sum(coeffs[i] * w(@view(supps[:, i])) * c *
+                        _map_variable(p.a, simple_data, @view(supps[:, i]), write_model) * 
+                        _map_variable(p.b, simple_data, @view(supps[:, i]), write_model) 
+                        for (p, c) in expr.terms) for i in eachindex(coeffs)) + 
+                        expand_measure(expr.aff, data, write_model))
 end
+
+# NLPExpr (1D DiscreteMeasureData)
+function expand_measure(
+    expr::NLPExpr,
+    data::DiscreteMeasureData{GeneralVariableRef, 1},
+    write_model::JuMP.AbstractModel
+    )
+    # get needed info
+    pref = parameter_refs(data)
+    supps = supports(data)
+    coeffs = coefficients(data)
+    w = weight_function(data)
+    label = support_label(data)
+    lb = JuMP.lower_bound(data)
+    ub = JuMP.upper_bound(data)
+    is_expect = _is_expect(data)
+    # make the expression
+    simple_data = DiscreteMeasureData(pref, ones(1), ones(1), label,
+                                      default_weight, lb, ub, is_expect)
+    return _MA.@rewrite(nlsum(coeffs[i] * w(supps[i]) * 
+            map_expression(v -> _map_variable(v, simple_data, supps[i], write_model), expr) 
+            for i in eachindex(supps)))
+end
+
+# NLPExpr (Multi DiscreteMeasureData)
+function expand_measure(
+    expr::NLPExpr,
+    data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
+    write_model::JuMP.AbstractModel
+    )
+    # get needed info
+    prefs = parameter_refs(data)
+    supps = supports(data)
+    coeffs = coefficients(data)
+    w = weight_function(data)
+    label = support_label(data)
+    lbs = JuMP.lower_bound(data)
+    ubs = JuMP.upper_bound(data)
+    is_expect = _is_expect(data)
+    # make the expression
+    simple_data = DiscreteMeasureData(prefs, ones(1), ones(length(prefs), 1),
+                                      label, default_weight, lbs, ubs, is_expect)
+    return _MA.@rewrite(nlsum(coeffs[i] * w(@view(supps[:, i])) * 
+            map_expression(v -> _map_variable(v, simple_data, @view(supps[:, i]), write_model), expr) 
+            for i in eachindex(coeffs)))
+end
+
 
 # MeasureRef
 function expand_measure(mref::GeneralVariableRef,
@@ -590,10 +628,11 @@ function _prep_generative_supps(pref, info_type)::Nothing
 end
 
 # FunctionalDiscreteMeasureData
-function expand_measure(expr,
+function expand_measure(
+    expr,
     data::FunctionalDiscreteMeasureData{P, B, I},
     write_model::JuMP.AbstractModel
-    )::Union{JuMP.AbstractJuMPScalar, Float64} where {P, B, I}
+    ) where {P, B, I}
     # get the info
     prefs = parameter_refs(data)
     _prep_generative_supps(prefs, I)
@@ -611,8 +650,11 @@ function expand_measure(expr,
 end
 
 # Catch all method for undefined behavior
-function expand_measure(expr, data::AbstractMeasureData,
-                        write_model::JuMP.AbstractModel)
+function expand_measure(
+    expr, 
+    data::AbstractMeasureData,
+    ::JuMP.AbstractModel
+    )
     expr_type = typeof(expr)
     data_type = typeof(data)
     error("Undefined behavior to expand expression of type `$expr_type` with " *
@@ -638,11 +680,12 @@ when `is_analytic(mref) = true`.
 function analytic_expansion end
 
 # 1D DiscreteMeasureData/FunctionalDiscreteMeasureData
-function analytic_expansion(expr::JuMP.AbstractJuMPScalar,
-                            data::Union{DiscreteMeasureData{GeneralVariableRef, 1},
-                                        FunctionalDiscreteMeasureData{GeneralVariableRef}},
-                            write_model::JuMP.AbstractModel # needed for fallback
-                            )::JuMP.AbstractJuMPScalar
+function analytic_expansion(
+    expr::JuMP.AbstractJuMPScalar,
+    data::Union{DiscreteMeasureData{GeneralVariableRef, 1},
+                FunctionalDiscreteMeasureData{GeneralVariableRef}},
+    write_model::JuMP.AbstractModel # needed for fallback
+    )
     # get the bounds and expect
     lb = JuMP.lower_bound(data)
     ub = JuMP.upper_bound(data)
@@ -662,11 +705,12 @@ function analytic_expansion(expr::JuMP.AbstractJuMPScalar,
 end
 
 # Multi DiscreteMeasureData/FunctionalDiscreteMeasureData
-function analytic_expansion(expr::JuMP.AbstractJuMPScalar,
-                            data::Union{DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
-                                        FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}}},
-                            write_model::JuMP.AbstractModel # needed for fallback
-                            )::JuMP.AbstractJuMPScalar
+function analytic_expansion(
+    expr::JuMP.AbstractJuMPScalar,
+    data::Union{DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
+                FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}}},
+    write_model::JuMP.AbstractModel # needed for fallback
+    )
     # get the bounds and expect
     lbs = JuMP.lower_bound(data)
     ubs = JuMP.upper_bound(data)
@@ -686,9 +730,11 @@ function analytic_expansion(expr::JuMP.AbstractJuMPScalar,
 end
 
 # Fallback
-function analytic_expansion(expr, data::AbstractMeasureData,
-                            write_model::JuMP.AbstractModel
-                            )::JuMP.AbstractJuMPScalar
+function analytic_expansion(
+    expr, 
+    data::AbstractMeasureData,
+    write_model::JuMP.AbstractModel
+    )
     return expand_measure(expr, data, write_model)
 end
 
@@ -721,7 +767,7 @@ julia> expr = expand(measure(g + z + T - h - 2, tdata))
 0.5 g(0) + 0.5 g(1) + z + 0.5 T(0, x) + 0.5 T(1, x) - h(x) - 2
 ```
 """
-function expand(mref::MeasureRef)::Union{JuMP.AbstractJuMPScalar, Float64}
+function expand(mref::MeasureRef)
     if is_analytic(mref)
         return analytic_expansion(measure_function(mref), measure_data(mref),
                                   JuMP.owner_model(mref))
@@ -746,10 +792,11 @@ added to as described in [`expand_measure`](@ref).
 function expand_measures end
 
 # MeasureRef
-function expand_measures(mref::GeneralVariableRef,
-                         index_type::Type{MeasureIndex},
-                         write_model::JuMP.AbstractModel
-                         )::Union{JuMP.AbstractJuMPScalar, Float64}
+function expand_measures(
+    mref::GeneralVariableRef,
+    ::Type{MeasureIndex},
+    write_model::JuMP.AbstractModel
+    )
     if is_analytic(mref)
         return analytic_expansion(measure_function(mref), measure_data(mref),
                                   write_model)
@@ -760,35 +807,28 @@ function expand_measures(mref::GeneralVariableRef,
 end
 
 # NonMeasureRef
-function expand_measures(vref::GeneralVariableRef,
-                         index_type::Type{V},
-                         write_model::JuMP.AbstractModel
-                         )::GeneralVariableRef where {V <: AbstractInfOptIndex}
+function expand_measures(
+    vref::GeneralVariableRef,
+    ::Type{V},
+    ::JuMP.AbstractModel
+    ) where {V <: AbstractInfOptIndex}
     return vref
 end
 
 # GeneralVariableRef
-function expand_measures(vref::GeneralVariableRef,
-                         write_model::JuMP.AbstractModel
-                         )::Union{JuMP.AbstractJuMPScalar, Float64}
+function expand_measures(
+    vref::GeneralVariableRef,
+    write_model::JuMP.AbstractModel
+    )
     return expand_measures(vref, _index_type(vref), write_model)
 end
 
-# GenericAffExpr
-function expand_measures(expr::JuMP.GenericAffExpr{C, GeneralVariableRef},
-                         write_model::JuMP.AbstractModel
-                         )::JuMP.AbstractJuMPScalar where {C}
-    return JuMP.@expression(write_model, sum(coef * expand_measures(var, write_model)
-                            for (var, coef) in expr.terms) + expr.constant)
-end
-
-# GenericQuadExpr
-function expand_measures(expr::JuMP.GenericQuadExpr{C, GeneralVariableRef},
-                         write_model::JuMP.AbstractModel
-                         )::JuMP.AbstractJuMPScalar where {C}
-    return JuMP.@expression(write_model, sum(coef * expand_measures(pair.a, write_model) *
-                expand_measures(pair.b, write_model) for (pair, coef) in expr.terms) +
-                expand_measures(expr.aff, write_model))
+# Expressions
+function expand_measures(
+    expr::AbstractInfOptExpr,
+    write_model::JuMP.AbstractModel
+    )
+    return map_expression(v -> expand_measures(v, write_model), expr)
 end
 
 # AbstractArray of expressions 
@@ -799,7 +839,7 @@ function expand_measures(arr::AbstractArray,
 end
 
 # Fallback
-function expand_measures(expr, write_model::JuMP.AbstractModel)
+function expand_measures(expr, ::JuMP.AbstractModel)
     error("`expand_measures` not defined for expressions of type ",
           "`$(typeof(expr))`.")
 end
@@ -842,7 +882,7 @@ Subject to
  0.5 T(0, x) + 0.5 T(6, xi) ≥ 0.0, ∀ x ∈ [-1, 1]
 ```
 """
-function expand_all_measures!(model::InfiniteModel)::Nothing
+function expand_all_measures!(model::InfiniteModel)
     # expand the objective if it contains measures
     if objective_has_measures(model)
         new_obj = expand_measures(JuMP.objective_function(model), model)
