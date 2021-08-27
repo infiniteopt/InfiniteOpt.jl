@@ -547,7 +547,7 @@ end
 # NLPExpr
 function _interrogate_variables(interrogator::Function, nlp::NLPExpr)
     for n in AbstractTrees.Leaves(nlp.expr)
-        _interrogate_variables(interrogator, n.data.value)
+        _interrogate_variables(interrogator, _node_value(n.data))
     end
     return
 end
@@ -668,7 +668,7 @@ end
 # NLPExpr
 function _model_from_expr(expr::NLPExpr)
     for node in AbstractTrees.Leaves(expr.expr)
-        result = _model_from_expr(node.data.value)
+        result = _model_from_expr(_node_value(node.data))
         if result !== nothing
             return result 
         end
@@ -733,7 +733,7 @@ end
 # NLPExpr
 function _remove_variable(f::NLPExpr, vref::GeneralVariableRef)
     for node in AbstractTrees.Leaves(f.expr)
-        _remove_variable_from_node(node, node.data.value, vref)
+        _remove_variable_from_node(node, _node_value(node.data), vref)
     end
     return
 end
@@ -783,7 +783,7 @@ function _map_expr_node(transform, data)
 end
 
 function map_expression(transform::Function, nlp::NLPExpr)
-    return _map_tree(n -> _map_expr_node(transform, n.data.value), nlp.expr)
+    return _map_tree(n -> _map_expr_node(transform, _node_value(n.data)), nlp.expr)
 end
 
 ################################################################################
@@ -1016,7 +1016,7 @@ end
 #     out = iterate(state.leaf_itr, state.state)
 #     out === nothing && return
 #     state.state = out[2]
-#     raw = out[1].data.value
+#     raw = _node_value(out[1].data)
 #     return _process_itr(raw, state)
 # end
 
@@ -1027,7 +1027,7 @@ end
 #         new_out = iterate(state.leaf_itr, state.state)
 #         new_out === nothing && return
 #         state.state = new_out[2]
-#         raw = new_out[1].data.value
+#         raw = _node_value(new_out[1].data)
 #         return _process_itr(raw, state)
 #     else
 #         state.internal_itr = itr
@@ -1042,7 +1042,7 @@ end
 #     out = iterate(leaf_itr)
 #     out === nothing && return
 #     state = _NLPItrData(leaf_itr, out[2], false, nothing, nothing)
-#     raw = _process_itr(out[1].data.value, state)
+#     raw = _process_itr(_node_value(out[1].data), state)
 #     return raw === nothing ? raw : (raw, state)
 # end
 
@@ -1057,7 +1057,7 @@ end
 #     out = iterate(state.leaf_itr, state.state)
 #     out === nothing && return
 #     state.state = out[2]
-#     raw = _process_itr(out[1].data.value, state)
+#     raw = _process_itr(_node_value(out[1].data), state)
 #     return raw === nothing ? raw : (raw, state)
 # end
 

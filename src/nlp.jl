@@ -20,6 +20,15 @@ function _LCRST.addchild(parent::_LCRST.Node{T}, newc::_LCRST.Node{T}) where T
     return newc
 end
 
+# Extend addchild with convenient nothing dispatch for empty previous child
+function _LCRST.addchild(
+    parent::_LCRST.Node{T}, 
+    oldc::Nothing, 
+    newc::_LCRST.Node{T}
+    ) where T
+    return _LCRST.addchild(parent, newc)
+end
+
 # Extend addchild to efficiently add multiple children if the previous is known
 function _LCRST.addchild(
     parent::_LCRST.Node{T}, 
@@ -54,28 +63,33 @@ function _LCRST.addchild(
     return newc
 end
 
-
 # Map a LCRST tree based by operating each node with a function
 function _map_tree(map_func::Function, node::_LCRST.Node)
     new_node = map_func(node)
+    prev = nothing
     for child in node
-        _LCRST.addchild(new_node, _map_tree(map_func, child))
+        prev = _LCRST.addchild(new_node, prev, _map_tree(map_func, child))
     end
     return new_node
 end
 
 # Extend copying for graph nodes
 function Base.copy(node::_LCRST.Node)
-    return _map_tree(n -> _LCRST.Node(n.data), node) # we don't make copies of the data (should we?)
+    return _map_tree(n -> _LCRST.Node(n.data), node)
 end
 
-# This is ambiguous but faster than the concrete alternatives tested
+# This is ambiguous but faster than the concrete alternatives tested so far
 # Even better than using Node{Any}...
 """
 
 """
 struct NodeData
     value
+end
+
+# Getter function for the node value (so it is easy to change later on if needed)
+function _node_value(data::NodeData)
+    return data.value
 end
 
 """
@@ -135,7 +149,7 @@ function _process_child_input(v)
 end
 
 # Generic graph builder
-function _call_graph(func::Symbol, arg1, args...)::_LCRST.Node{NodeData}
+function _call_graph(func::Symbol, arg1, args...)
     root = _LCRST.Node(NodeData(func))
     prevc = _LCRST.addchild(root, _process_child_input(arg1))
     for a in args 
@@ -158,36 +172,87 @@ end
 ################################################################################
 #                               SUMS AND PRODUCTS
 ################################################################################
-"""
-
-"""
-function nlsum(itr) # TODO maybe hijack sum instead
-    isempty(itr) && return 0.0
-    itr1, new_itr = Iterators.peel(itr)
-    if itr1 isa NLPExpr
-        root = _LCRST.Node(NodeData(:+))
-        prevc = _LCRST.addchild(root, itr1.expr, itr1.expr)
-        for ex in new_itr
-            prevc = _LCRST.addchild(root, prevc, ex.expr)
-        end
-        return NLPExpr(root)
-    else
-        return _MA.@rewrite(itr1 + sum(new_itr))
-    end
-end
-
-"""
-
-"""
-function nlprod(itr)
-    isempty(itr) && return 0.0
-    itr1, new_itr = Iterators.peel(itr)
-    root = _LCRST.Node(NodeData(:*))
-    prevc = _LCRST.addchild(root, _process_child_input(itr1))
-    for ex in new_itr
-        prevc = _LCRST.addchild(root, prevc, _process_child_input(ex))
+## Define helper functions for sum reductions 
+# Container of NLPExprs
+function _reduce_by_first(::typeof(sum), first_itr::NLPExpr, itr)
+    root = _LCRST.Node(NodeData(:+))
+    prevc = _LCRST.addchild(root, first_itr.expr, first_itr.expr)
+    for ex in itr
+        prevc = _LCRST.addchild(root, prevc, ex.expr)
     end
     return NLPExpr(root)
+end
+
+# Container of InfiniteOpt exprs
+function _reduce_by_first(
+    ::typeof(sum), 
+    first_itr::JuMP.AbstractJuMPScalar, 
+    itr
+    )
+    result = first_itr
+    for i in itr 
+        result = _MA.operate!(_MA.add_mul, result, i)
+    end
+    return result
+end
+
+# Fallback
+function _reduce_by_first(::typeof(sum), first_itr, itr; kw...)
+    return first_itr + sum(identity, itr; kw...)
+end
+
+# Hyjack Base.sum for better efficiency on iterators --> this is type piracy...
+function Base.sum(itr::Base.Generator; kw...)
+    isempty(itr) && return sum(identity, itr; kw...)
+    itr1, new_itr = Iterators.peel(itr)
+    return _reduce_by_first(sum, itr1, new_itr; kw...)
+end
+
+# Extend Base.sum for container of NLPExprs
+function Base.sum(arr::AbstractArray{<:NLPExpr}; init = 0.0)
+    isempty(arr) && return init
+    itr1, new_itr = Iterators.peel(arr)
+    return _reduce_by_first(sum, itr1, new_itr; kw...)
+end
+
+# Extend Base.sum for container of InfiniteOpt exprs
+function Base.sum(arr::AbstractArray{<:AbstractInfOptExpr}; init = 0.0)
+    isempty(arr) && return init
+    result = _MA.Zero()
+    for i in arr 
+        result = _MA.operate!(_MA.add_mul, result, i)
+    end
+    return result
+end
+
+## Define helper functions for reducing products 
+# Container of InfiniteOpt exprs
+function _reduce_by_first(::typeof(prod), first_itr::AbstractInfOptExpr, itr)
+    root = _LCRST.Node(NodeData(:*))
+    prevc = _LCRST.addchild(root, first_itr.expr, first_itr.expr)
+    for ex in itr
+        prevc = _LCRST.addchild(root, prevc, ex.expr)
+    end
+    return NLPExpr(root)
+end
+
+# Fallback
+function _reduce_by_first(::typeof(prod), first_itr, itr; kw...)
+    return first_itr * prod(identity, itr; kw...)
+end
+
+# Hyjack Base.prod for better efficiency on iterators --> this is type piracy...
+function Base.prod(itr::Base.Generator; kw...)
+    isempty(itr) && return prod(identity, itr; kw...)
+    itr1, new_itr = Iterators.peel(itr)
+    return _reduce_by_first(prod, itr1, new_itr; kw...)
+end
+
+# Extend Base.prod for container of InfiniteOpt exprs
+function Base.prod(arr::AbstractArray{<:AbstractInfOptExpr}; init = 0.0)
+    isempty(arr) && return init
+    itr1, new_itr = Iterators.peel(arr)
+    return _reduce_by_first(prod, itr1, new_itr; kw...)
 end
 
 ################################################################################
@@ -196,53 +261,53 @@ end
 function Base.:*(
     quad::JuMP.GenericQuadExpr{Float64, GeneralVariableRef},
     expr::AbstractInfOptExpr
-    )::NLPExpr
+    )
     return NLPExpr(_call_graph(:*, quad, expr))
 end
 
 function Base.:*(
     expr::AbstractInfOptExpr,
     quad::JuMP.GenericQuadExpr{Float64, GeneralVariableRef}
-    )::NLPExpr
+    )
     return NLPExpr(_call_graph(:*, expr, quad))
 end
 
 function Base.:*(
     quad1::JuMP.GenericQuadExpr{Float64, GeneralVariableRef},
     quad2::JuMP.GenericQuadExpr{Float64, GeneralVariableRef}
-    )::NLPExpr
+    )
     return NLPExpr(_call_graph(:*, quad1, quad2))
 end
 
 function Base.:*(
     nlp::NLPExpr,
     quad::JuMP.GenericQuadExpr{Float64, GeneralVariableRef}
-    )::NLPExpr
+    )
     return NLPExpr(_call_graph(:*, nlp, quad))
 end
 
 function Base.:*(
     quad::JuMP.GenericQuadExpr{Float64, GeneralVariableRef}, 
     nlp::NLPExpr
-    )::NLPExpr
+    )
     return NLPExpr(_call_graph(:*, quad, nlp))
 end
 
 function Base.:*(
     nlp::NLPExpr, 
     expr::Union{AbstractInfOptExpr, Real}
-    )::NLPExpr
+    )
     return NLPExpr(_call_graph(:*, nlp, expr))
 end
 
 function Base.:*(
     expr::Union{AbstractInfOptExpr, Real}, 
     nlp::NLPExpr
-    )::NLPExpr
+    )
     return NLPExpr(_call_graph(:*, expr, nlp))
 end
 
-function Base.:*(nlp1::NLPExpr, nlp2::NLPExpr)::NLPExpr
+function Base.:*(nlp1::NLPExpr, nlp2::NLPExpr)
     return NLPExpr(_call_graph(:*, nlp1, nlp2))
 end
 
@@ -251,11 +316,11 @@ function Base.:*(
     expr2::AbstractInfOptExpr,
     expr3::AbstractInfOptExpr,
     exprs::Vararg{AbstractInfOptExpr}
-    )::NLPExpr
+    )
     return NLPExpr(_call_graph(:*, expr1, expr2, expr3, exprs...))
 end
 
-function Base.:*(nlp::NLPExpr)::NLPExpr
+function Base.:*(nlp::NLPExpr)
     return nlp
 end
 
@@ -265,11 +330,11 @@ end
 function Base.:/(
     expr1::Union{AbstractInfOptExpr, Real}, 
     expr2::AbstractInfOptExpr
-    )::NLPExpr
+    )
     return NLPExpr(_call_graph(:/, expr1, expr2))
 end
 
-function Base.:/(nlp::NLPExpr, c::Real)::NLPExpr
+function Base.:/(nlp::NLPExpr, c::Real)
     return NLPExpr(_call_graph(:/, nlp, c))
 end
 
@@ -303,45 +368,45 @@ end
 function Base.:^(
     expr1::Union{AbstractInfOptExpr, Real}, 
     expr2::AbstractInfOptExpr
-    )::NLPExpr
+    )
     return NLPExpr(_call_graph(:^, expr1, expr2))
 end
 
 ################################################################################
 #                             SUBTRACTION OPERATORS
 ################################################################################
-function Base.:-(nlp::NLPExpr, expr::Union{AbstractInfOptExpr, Real})::NLPExpr
+function Base.:-(nlp::NLPExpr, expr::Union{AbstractInfOptExpr, Real})
     return NLPExpr(_call_graph(:-, nlp, expr))
 end
 
-function Base.:-(expr::Union{AbstractInfOptExpr, Real}, nlp::NLPExpr)::NLPExpr
+function Base.:-(expr::Union{AbstractInfOptExpr, Real}, nlp::NLPExpr)
     return NLPExpr(_call_graph(:-, expr, nlp))
 end
 
-function Base.:-(nlp1::NLPExpr, nlp2::NLPExpr)::NLPExpr
+function Base.:-(nlp1::NLPExpr, nlp2::NLPExpr)
     return NLPExpr(_call_graph(:-, nlp1, nlp2))
 end
 
-function Base.:-(nlp::NLPExpr)::NLPExpr
+function Base.:-(nlp::NLPExpr)
     return NLPExpr(_call_graph(:-, nlp))
 end
 
 ################################################################################
 #                              ADDITION OPERATORS
 ################################################################################
-function Base.:+(nlp::NLPExpr, expr::Union{AbstractInfOptExpr, Real})::NLPExpr
+function Base.:+(nlp::NLPExpr, expr::Union{AbstractInfOptExpr, Real})
     return NLPExpr(_call_graph(:+, nlp, expr))
 end
 
-function Base.:+(expr::Union{AbstractInfOptExpr, Real}, nlp::NLPExpr)::NLPExpr
+function Base.:+(expr::Union{AbstractInfOptExpr, Real}, nlp::NLPExpr)
     return NLPExpr(_call_graph(:+, expr, nlp))
 end
 
-function Base.:+(nlp1::NLPExpr, nlp2::NLPExpr)::NLPExpr
+function Base.:+(nlp1::NLPExpr, nlp2::NLPExpr)
     return NLPExpr(_call_graph(:+, nlp1, nlp2))
 end
 
-function Base.:+(nlp::NLPExpr)::NLPExpr
+function Base.:+(nlp::NLPExpr)
     return NLPExpr(_call_graph(:+, nlp))
 end
 
@@ -415,7 +480,7 @@ for (name, func) in Base1ArgFuncList
     NativeNLPFunctions[name] = func
     # make an expression constructor
     @eval begin 
-        function Base.$name(v::AbstractInfOptExpr)::NLPExpr
+        function Base.$name(v::AbstractInfOptExpr)
             return NLPExpr(_call_graph($(quot(name)), v))
         end
     end
@@ -432,7 +497,7 @@ for (name, func) in (:min => min, :max => max)
         function Base.$name(
             v1::Union{AbstractInfOptExpr, Real}, 
             v2::Union{AbstractInfOptExpr, Real}
-            )::NLPExpr
+            )
             return NLPExpr(_call_graph($(quot(name)), v1, v2))
         end
     end
@@ -497,7 +562,7 @@ for (name, func) in Special1ArgFuncList
     NativeNLPFunctions[name] = func
     # make an expression constructor
     @eval begin 
-        function SpecialFunctions.$name(v::AbstractInfOptExpr)::NLPExpr
+        function SpecialFunctions.$name(v::AbstractInfOptExpr)
             return NLPExpr(_call_graph($(quot(name)), v))
         end
     end
@@ -522,7 +587,7 @@ LinearAlgebra.dot(lhs::Real, rhs::AbstractInfOptExpr) = lhs * rhs
 ################################################################################
 # Define better printing for NodeData
 function Base.show(io::IO, data::NodeData)
-    return print(io, string(data.value))
+    return print(io, string(_node_value(data)))
 end
 
 # Map operators to their respective precedence (largest is highest priority)
@@ -531,7 +596,7 @@ const _Precedence = (; :^ => 4, Symbol("+u") => 3, Symbol("-u") => 3, :* => 2,
 
 ## Make functions to determine the precedence of a leaf
 # AffExpr
-function _leaf_precedence(aff::JuMP.GenericAffExpr)::Int
+function _leaf_precedence(aff::JuMP.GenericAffExpr)
     has_const = !iszero(JuMP.constant(aff))
     itr = JuMP.linear_terms(aff)
     num_terms = length(itr) 
@@ -554,7 +619,7 @@ function _leaf_precedence(aff::JuMP.GenericAffExpr)::Int
 end
 
 # QuadExpr
-function _leaf_precedence(quad::JuMP.GenericQuadExpr)::Int
+function _leaf_precedence(quad::JuMP.GenericQuadExpr)
     has_aff = !iszero(quad.aff)
     itr = JuMP.quad_terms(quad)
     num_terms = length(itr) 
@@ -571,7 +636,7 @@ function _leaf_precedence(quad::JuMP.GenericQuadExpr)::Int
 end
 
 # Other
-function _leaf_precedence(v)::Int
+function _leaf_precedence(v)
     return 10
 end
 
@@ -582,9 +647,9 @@ function _expr_string(
     simple::Bool = false,
     prev_prec = 0,
     prev_comm = false
-    )::String
+    )
     # prepocess the raw value
-    raw_value = node.data.value
+    raw_value = _node_value(node.data)
     is_op = !simple && raw_value in keys(_Precedence)
     data_str = _string_round(raw_value)
     # make a string according to the node structure
@@ -631,6 +696,6 @@ function _expr_string(
 end
 
 # Extend JuMP.function_string for nonlinear expressions
-function JuMP.function_string(mode, nlp::NLPExpr)::String
+function JuMP.function_string(mode, nlp::NLPExpr)
     return _expr_string(nlp.expr)
 end
