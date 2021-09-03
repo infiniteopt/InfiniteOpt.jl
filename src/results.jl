@@ -88,6 +88,8 @@ function map_value(expr::JuMP.AbstractJuMPScalar, key, result::Int; kwargs...)
     end
 end
 
+# TODO add faster dispatch for NLPs (will need to be added in TranscriptionOpt)
+
 ## Define dispatch methods to collect value of parameters 
 # InfiniteParameter 
 function _get_value(pref, ::Type{<:InfiniteParameterIndex}, result; kwargs...)

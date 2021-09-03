@@ -96,7 +96,7 @@ end
 
 """
 struct NLPExpr <: JuMP.AbstractJuMPScalar
-    expr::_LCRST.Node{NodeData}
+    expr::_LCRST.Node{NodeData} # TODO rename `tree_root`
 end
 
 # Extend basic functions
@@ -113,7 +113,64 @@ const AbstractInfOptExpr = Union{
     GeneralVariableRef
 }
 
-# TODO create conversion function to AST 
+## Dispatch function for ast mapping 
+# Constant 
+function _ast_process_node(map_func::Function, c::Real)
+    return c
+end
+
+# Variable
+function _ast_process_node(map_func::Function, v::GeneralVariableRef)
+    return map_func(v)
+end
+
+# AffExpr
+function _ast_process_node(map_func::Function, aff::JuMP.GenericAffExpr)
+    ex = Expr(:call, :+)
+    if !iszero(aff.constant)
+        push!(ex.args, aff.constant)
+    end
+    for (v, c) in aff.terms
+        if isone(c)
+            push!(ex.args, map_func(v))
+        else
+            push!(ex.args, Expr(:call, :*, c, map_func(v)))
+        end
+    end
+    return ex
+end
+
+# QuadExpr
+function _ast_process_node(map_func::Function, quad::JuMP.GenericQuadExpr)
+    ex = Expr(:call, :+)
+    push!(ex.args, _ast_process_node(map_func, quad.aff))
+    for (xy, c) in quad.terms
+        if !isone(c)
+            push!(ex.args, Expr(:call, :*, map_func(xy.a), map_func(xy.b)))
+        else
+            push!(ex.args, Expr(:call, :*, c, map_func(xy.a), map_func(xy.b)))
+        end
+    end
+    return ex
+end
+
+# Map an expression tree to a Julia AST tree that is compatible with JuMP
+function _tree_map_to_ast(map_func::Function, node::_LCRST.Node)    
+    if _LCRST.isleaf(node)
+        return _ast_process_node(map_func, _node_value(node.data))
+    else
+        ex = Expr(:call, _node_value(node.data)) # will be function symbol name 
+        append!(ex.args, (_tree_map_to_ast(map_func, n) for n in node))
+        return ex
+    end
+end
+
+"""
+
+"""
+function map_nlp_to_ast(map_func::Function, nlp::NLPExpr)
+    return _tree_map_to_ast(map_func, nlp.expr)
+end
 
 # TODO make remove zeros function 
 

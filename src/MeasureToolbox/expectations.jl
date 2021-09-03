@@ -220,7 +220,7 @@ macro expect(expr, prefs, args...)
         _error("Unexpected positional arguments." *
                "Must be of form @expect(expr, prefs, kwargs...).")
     end
-    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
+    expression = InfiniteOpt._MA.rewrite_and_return(expr)
     mref = :( expect($expression, $prefs; ($(kwargs...))) )
     return esc(mref)
 end
@@ -259,7 +259,7 @@ macro 𝔼(expr, prefs, args...)
         _error("Unexpected positional arguments." *
                "Must be of form @𝔼(expr, prefs, kwargs...).")
     end
-    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
+    expression = InfiniteOpt._MA.rewrite_and_return(expr)
     mref = :( expect($expression, $prefs; ($(kwargs...))) )
     return esc(mref)
 end

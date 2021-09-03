@@ -373,16 +373,16 @@ end
 
 # AffExpr
 function _build_deriv_expr(aff::JuMP.GenericAffExpr, pref)
-    return JuMP.@expression(_Model, sum(c * _build_deriv_expr(v, pref) 
-                            for (c, v) in JuMP.linear_terms(aff)))
+    return _MA.@rewrite(sum(c * _build_deriv_expr(v, pref) 
+                        for (c, v) in JuMP.linear_terms(aff)))
 end
 
 # Quad Expr (implements product rule)
 function _build_deriv_expr(quad::JuMP.GenericQuadExpr, pref)
-    return JuMP.@expression(_Model, sum(c * (_build_deriv_expr(v1, pref) * v2 + 
-                                        v1 * _build_deriv_expr(v2, pref)) 
-                                        for (c, v1, v2) in JuMP.quad_terms(quad)) + 
-                                        _build_deriv_expr(quad.aff, pref))
+    return _MA.@rewrite(sum(c * (_build_deriv_expr(v1, pref) * v2 + 
+                        v1 * _build_deriv_expr(v2, pref)) 
+                        for (c, v1, v2) in JuMP.quad_terms(quad)) + 
+                        _build_deriv_expr(quad.aff, pref))
 end
 
 # Real number
@@ -431,10 +431,7 @@ julia> deriv_expr = deriv(x^2 + z, t, t)
 2 ∂/∂t[∂/∂t[x(t)]]*x(t) + 2 ∂/∂t[x(t)]²
 ```
 """
-function deriv(
-    expr, 
-    prefs::GeneralVariableRef...
-    )
+function deriv(expr, prefs::GeneralVariableRef...)
     # Check inputs 
     if !all(_index_type(pref) <: InfiniteParameterIndex for pref in prefs)
         error("Can only take derivative with respect to infinite parameters.")
@@ -492,7 +489,7 @@ macro deriv(expr, args...)
         end
     end
     # prepare the code to call deriv
-    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
+    expression = _MA.rewrite_and_return(expr)
     code = :( deriv($expression, $(pref_exprs...); ($(kwargs...))) ) # TODO throw error if has kw_args?
     return esc(code)
 end

@@ -481,28 +481,27 @@ function transcription_expression(
     return InfiniteOpt.parameter_value(vref)
 end
 
-# AffExpr
+# AffExpr and QuadExpr
 function transcription_expression(
     trans_model::JuMP.Model,
-    aff::JuMP.GenericAffExpr,
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
     support::Vector{Float64}
     )
-    return JuMP.@expression(trans_model,
-                 sum(coef * transcription_expression(trans_model, vref, support)
-                     for (coef, vref) in JuMP.linear_terms(aff)) + JuMP.constant(aff))
+    return InfiniteOpt.map_expression(
+        v -> transcription_expression(trans_model, v, support), 
+        expr)
 end
 
-# QuadExpr
+# NLPExpr
 function transcription_expression(
     trans_model::JuMP.Model,
-    quad::JuMP.GenericQuadExpr,
+    nlp::InfiniteOpt.NLPExpr,
     support::Vector{Float64}
     )
-    return JuMP.@expression(trans_model,
-                 sum(coef * transcription_expression(trans_model, v1, support) *
-                     transcription_expression(trans_model, v2, support)
-                     for (coef, v1, v2) in JuMP.quad_terms(quad)) +
-                 transcription_expression(trans_model, quad.aff, support))
+    ast = InfiniteOpt.map_nlp_to_ast(
+        v -> transcription_expression(trans_model, v, support), 
+        nlp)
+    return JuMP.add_NL_expression(trans_model, ast)
 end
 
 # Real Number 
@@ -570,6 +569,17 @@ end
 ################################################################################
 #                        OBJECTIVE TRANSCRIPTION METHODS
 ################################################################################
+## Dispatch functions for setting the objective
+# Normal Expr 
+function _set_objective(trans_model, sense, expr)
+    return JuMP.set_objective(trans_model, sense, expr)
+end
+
+# NonlinearExpression 
+function _set_objective(trans_model, sense, expr::JuMP.NonlinearExpression)
+    return JuMP.set_NL_objective(trans_model, sense, expr)
+end
+
 """
     transcribe_objective!(trans_model::JuMP.Model,
                           inf_model::InfiniteOpt.InfiniteModel)::Nothing
@@ -585,7 +595,7 @@ function transcribe_objective!(
     expr = JuMP.objective_function(inf_model)
     sense = JuMP.objective_sense(inf_model)
     trans_expr = transcription_expression(trans_model, expr, Float64[])
-    JuMP.set_objective(trans_model, sense, trans_expr)
+    _set_objective(trans_model, sense, trans_expr)
     return
 end
 
@@ -680,6 +690,46 @@ function _process_constraint(
     return JuMP.add_constraint(trans_model, trans_constr, name)
 end
 
+# MOI.LessThan expr 
+function _make_constr_ast(ref, set::MOI.LessThan)
+    return :($ref <= $(set.upper))
+end
+
+# MOI.LessGreat expr 
+function _make_constr_ast(ref, set::MOI.GreaterThan)
+    return :($ref >= $(set.lower))
+end
+
+# MOI.EqualTo expr 
+function _make_constr_ast(ref, set::MOI.EqualTo)
+    return :($ref == $(set.value))
+end
+
+# MOI.Interval expr 
+function _make_constr_ast(ref, set::MOI.Interval)
+    return :($(set.lower) <= $ref <= $(set.upper))
+end
+
+# MOI.Set fallback 
+function _make_constr_ast(ref, set)
+    error("TranscriptionOpt does not support constraint sets of type " * 
+          "`$(typeof(set))` for general nonlinear constraints because this " *
+          "is not yet supported by JuMP.")
+end
+
+# JuMP.ScalarConstraint with NLPExpr
+function _process_constraint(
+    trans_model::JuMP.Model, 
+    constr::JuMP.ScalarConstraint, 
+    func::InfiniteOpt.NLPExpr, 
+    set::MOI.AbstractScalarSet, 
+    raw_supp::Vector{Float64}, 
+    name::String
+    )
+    nlp_ref = transcription_expression(trans_model, func, raw_supp)
+    return JuMP.add_NL_constraint(trans_model, _make_constr_ast(nlp_ref, set))
+end
+
 # JuMP.VectorConstraint
 function _process_constraint(
     trans_model::JuMP.Model, 
@@ -690,6 +740,10 @@ function _process_constraint(
     name::String
     )
     new_func = map(f -> transcription_expression(trans_model, f, raw_supp), func)
+    if any(f -> f isa JuMP.NonlinearExpression, new_func)
+        error("TranscriptionOpt does not support vector constraints of general " * 
+              "nonlinear expressions because this is not yet supported by JuMP.")
+    end
     shape = JuMP.shape(constr)
     shaped_func = JuMP.reshape_vector(new_func, shape)
     shaped_set = JuMP.reshape_set(set, shape)

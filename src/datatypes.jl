@@ -1688,10 +1688,6 @@ struct InfOptConstraintRef
     index::InfOptConstraintIndex
 end
 
-# Make dumby model type for calling @expression 
-struct _DumbyModel <: JuMP.AbstractModel end
-const _Model = _DumbyModel()
-
 ################################################################################
 #                            PARAMETER BOUND METHODS
 ################################################################################

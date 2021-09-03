@@ -638,7 +638,7 @@ x(support: 1) - y
 """
 function transcription_expression(
     model::JuMP.Model,
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr};
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, InfiniteOpt.NLPExpr};
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
     )
@@ -700,7 +700,7 @@ Proper extension of [`InfiniteOpt.optimizer_model_expression`](@ref) for
 `TranscriptionModel`s. This simply dispatches to [`transcription_expression`](@ref).
 """
 function InfiniteOpt.optimizer_model_expression(
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, InfiniteOpt.NLPExpr},
     ::Val{:TransData};
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false)
@@ -719,7 +719,7 @@ be transcribed.
 """
 function InfiniteOpt.expression_supports(
     model::JuMP.Model,
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, InfiniteOpt.NLPExpr},
     key::Val{:TransData} = Val(:TransData);
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false

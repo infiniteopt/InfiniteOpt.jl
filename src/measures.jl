@@ -1207,7 +1207,7 @@ macro measure(expr, data, args...)
         _error("Invalid keyword arguments. Must be of form " *
                "@measure(expr, data, name = ...).")
     end
-    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
+    expression = _MA.rewrite_and_return(expr)
     mref = :( measure($expression, $data; ($(kwargs...))) )
     return esc(mref)
 end

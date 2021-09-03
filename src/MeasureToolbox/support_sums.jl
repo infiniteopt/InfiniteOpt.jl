@@ -64,7 +64,7 @@ macro support_sum(expr, prefs, args...)
         _error("Unexpected positional arguments." *
                "Must be of form @support_sum(expr, prefs, kwargs...).")
     end
-    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
+    expression = InfiniteOpt._MA.rewrite_and_return(expr)
     mref = :( support_sum($expression, $prefs; ($(kwargs...))) )
     return esc(mref)
 end
