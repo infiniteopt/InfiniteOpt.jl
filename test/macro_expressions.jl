@@ -50,7 +50,7 @@
         @test isa(@expression(m, par - meas), GenericAffExpr{Float64, GeneralVariableRef})
         # test same
         @test isa(@expression(m, meas - meas), GenericAffExpr{Float64, GeneralVariableRef})
-        @test @expression(m, meas - meas) == zero(GenericAffExpr{Float64, GeneralVariableRef})
+        @test isequal(@expression(m, meas - meas), zero(GenericAffExpr{Float64, GeneralVariableRef}))
         @test isa(@expression(m, inf - inf), GenericAffExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, pt - pt), GenericAffExpr{Float64, GeneralVariableRef})
     end
@@ -76,13 +76,6 @@
         @test @expression(m, meas * meas).terms[pair] == 1
         @test isa(@expression(m, inf * inf), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, pt * pt), GenericQuadExpr{Float64, GeneralVariableRef})
-    end
-    # test division
-    @testset "Divide" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, inf / par)
-        @test_throws ErrorException @expression(m, inf / inf)
-        @test_throws ErrorException @expression(m, pt / finite)
     end
 end
 
@@ -166,13 +159,6 @@ end
         pair = UnorderedPair{GeneralVariableRef}(meas, meas)
         @test @expression(m, meas * (meas + meas)).terms[pair] == 2
     end
-    # test division
-    @testset "Divide" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, inf / aff1)
-        @test_throws ErrorException @expression(m, inf / aff2)
-        @test_throws ErrorException @expression(m, pt / aff3)
-    end
 end
 
 # Test operations between GenericAffExpr and variable
@@ -254,13 +240,6 @@ end
         @test isa(@expression(m, (meas + meas * meas)), GenericQuadExpr{Float64, GeneralVariableRef})
         pair = UnorderedPair{GeneralVariableRef}(meas, meas)
         @test @expression(m, (meas + meas) * meas).terms[pair] == 2
-    end
-    # test division
-    @testset "Divide" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, aff1 / inf)
-        @test_throws ErrorException @expression(m, aff2 / inf)
-        @test_throws ErrorException @expression(m, aff3 / pt)
     end
 end
 
@@ -406,14 +385,6 @@ end
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, aff5 * aff5).terms[pair] == 16
     end
-    # test division
-    @testset "Divide" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, aff1 / aff2)
-        @test_throws ErrorException @expression(m, aff2 / aff4)
-        @test_throws ErrorException @expression(m, aff3 / aff5)
-        @test_throws ErrorException @expression(m, aff5 / aff5)
-    end
 end
 
 # Test operations for GenericQuadExpr--GeneralVariableRef
@@ -515,22 +486,6 @@ end
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, copy(quad4) - pt).terms[pair] == 4
     end
-    # test multiplication
-    @testset "Multiply" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, quad1 * inf)
-        @test_throws ErrorException @expression(m, quad2 * meas)
-        @test_throws ErrorException @expression(m, quad3 * par)
-        @test_throws ErrorException @expression(m, quad4 * pt)
-    end
-    # test division
-    @testset "Divide" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, quad1 / inf)
-        @test_throws ErrorException @expression(m, quad2 / meas)
-        @test_throws ErrorException @expression(m, quad3 / par)
-        @test_throws ErrorException @expression(m, quad4 / pt)
-    end
 end
 
 # Test operations for GeneralVariableRef--GenericQuadExpr
@@ -631,22 +586,6 @@ end
         @test @expression(m, pt - copy(quad4)).aff.terms[pt] == 43
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, pt - copy(quad4)).terms[pair] == -4
-    end
-    # test multiplication
-    @testset "Multiply" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, inf * quad1)
-        @test_throws ErrorException @expression(m, meas * quad2)
-        @test_throws ErrorException @expression(m, par * quad3)
-        @test_throws ErrorException @expression(m, pt * quad4)
-    end
-    # test division
-    @testset "Divide" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, inf / quad1)
-        @test_throws ErrorException @expression(m, meas / quad2)
-        @test_throws ErrorException @expression(m, par / quad3)
-        @test_throws ErrorException @expression(m, pt / quad4)
     end
 end
 
@@ -761,22 +700,6 @@ end
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, copy(aff5) - quad4).terms[pair] == -4
     end
-    # test multiplication
-    @testset "Multiply" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, aff1 * quad1)
-        @test_throws ErrorException @expression(m, aff2 * quad3)
-        @test_throws ErrorException @expression(m, aff3 * quad4)
-        @test_throws ErrorException @expression(m, aff5 * quad2)
-    end
-    # test division
-    @testset "Divide" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, aff1 / quad1)
-        @test_throws ErrorException @expression(m, aff2 / quad3)
-        @test_throws ErrorException @expression(m, aff3 / quad4)
-        @test_throws ErrorException @expression(m, aff5 / quad2)
-    end
 end
 
 # Test operators on GenericQuadExpr--GenericAffExpr
@@ -890,22 +813,6 @@ end
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, copy(quad4) - copy(aff5)).terms[pair] == 4
     end
-    # test multiplication
-    @testset "Multiply" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, quad1 * aff1)
-        @test_throws ErrorException @expression(m, quad3 * aff2)
-        @test_throws ErrorException @expression(m, quad4 * aff3)
-        @test_throws ErrorException @expression(m, quad2 * aff5)
-    end
-    # test division
-    @testset "Divide" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, quad1 / aff1)
-        @test_throws ErrorException @expression(m, quad3 / aff2)
-        @test_throws ErrorException @expression(m, quad4 / aff3)
-        @test_throws ErrorException @expression(m, quad2 / aff5)
-    end
 end
 
 # Test operators on GenericQuadExpr--GenericQuadExpr
@@ -1004,21 +911,5 @@ end
         @test @expression(m, copy(quad4) - quad4).aff.terms[pt] == 0
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, copy(quad4) - quad4).terms[pair] == 0
-    end
-    # test multiplication
-    @testset "Multiply" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, quad1 * quad2)
-        @test_throws ErrorException @expression(m, quad3 * quad1)
-        @test_throws ErrorException @expression(m, quad4 * quad4)
-        @test_throws ErrorException @expression(m, quad2 * quad3)
-    end
-    # test division
-    @testset "Divide" begin
-        # test some combos
-        @test_throws ErrorException @expression(m, quad1 / quad2)
-        @test_throws ErrorException @expression(m, quad3 / quad1)
-        @test_throws ErrorException @expression(m, quad4 / quad4)
-        @test_throws ErrorException @expression(m, quad2 / quad3)
     end
 end

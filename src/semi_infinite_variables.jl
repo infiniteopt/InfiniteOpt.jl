@@ -120,7 +120,7 @@ struct SemiInfinite{V, VT <: Collections.VectorTuple} <: InfOptVariableType
     parameter_values::VT
     function SemiInfinite(ivref::V, vt::VT) where {V, VT <: Collections.VectorTuple}
         processed_vals = _process_value.(vt.values)
-        if processed_vals != vt.values
+        if !isequal(processed_vals, vt.values)
             vt2 = Collections.VectorTuple(processed_vals, vt.ranges, vt.indices)
             return new{V, typeof(vt2)}(ivref, vt2)
         end

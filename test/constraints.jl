@@ -292,7 +292,7 @@ end
     # test parameter_refs
     @testset "parameter_refs" begin
         @test parameter_refs(c1) == ()
-        @test parameter_refs(c2) == (t, x)
+        @test isequal(parameter_refs(c2), (t, x))
     end
 end
 
@@ -396,9 +396,9 @@ end
     # test set_normalized_coefficient
     @testset "JuMP.set_normalized_coefficient" begin
         @test isa(set_normalized_coefficient(c1, x, 2), Nothing)
-        @test jump_function(constraint_object(c1)) == inf + 2x
+        @test isequal_canonical(jump_function(constraint_object(c1)), inf + 2x)
         @test isa(set_normalized_coefficient(c2, inf, 2), Nothing)
-        @test jump_function(constraint_object(c2)) == x * pt + x + 2inf
+        @test isequal_canonical(jump_function(constraint_object(c2)), x * pt + x + 2inf)
         @test_throws ErrorException set_normalized_coefficient(c3, x, 42)
     end
     # test normalized_coefficient

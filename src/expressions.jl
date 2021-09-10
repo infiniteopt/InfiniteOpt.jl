@@ -474,40 +474,52 @@ function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)::Nothing
 end
 
 ################################################################################
-#                              COMPARISON METHODS
+#                               BASIC EXTENSIONS
 ################################################################################
-## Extend for better comparisons than default
-# GenericAffExpr
-function Base.:(==)(aff1::JuMP.GenericAffExpr{C, V},
-    aff2::JuMP.GenericAffExpr{C, V}
-    )::Bool where {C, V <: GeneralVariableRef}
-    return aff1.constant == aff2.constant && aff1.terms == aff2.terms
+# Convert to NLPExpr
+function Base.convert(::Type{NLPExpr}, expr)
+    return NLPExpr(_process_child_input(expr))
+end
+function Base.convert(::Type{NLPExpr}, expr::NLPExpr)
+    return expr
 end
 
-# GenericQuadExpr
-function Base.:(==)(quad1::JuMP.GenericQuadExpr{C, V},
-    quad2::JuMP.GenericQuadExpr{C, V}
-    )::Bool where {C, V <: GeneralVariableRef}
-    pairs1 = collect(pairs(quad1.terms))
-    pairs2 = collect(pairs(quad2.terms))
-    if length(pairs1) != length(pairs2)
-        return false
-    end
-    for i in eachindex(pairs1)
-        if pairs1[i][1].a != pairs2[i][1].a || pairs1[i][1].b != pairs2[i][1].b ||
-           pairs1[i][2] != pairs2[i][2]
-            return false
-        end
-    end
-    return quad1.aff == quad2.aff
+# Redefine Base.isequal for UnorderedPair{GeneralVariableRef} 
+# This avoids symbolic conflicts with ==
+function Base.isequal(
+    p1::P, 
+    p2::P
+    ) where {P <: JuMP.UnorderedPair{GeneralVariableRef}}
+    return (isequal(p1.a, p2.a) && isequal(p1.b, p2.b)) || 
+           (isequal(p1.a, p2.b) && isequal(p1.b, p2.a))
+end
+
+# Define Base.isequal to avoid default to ==
+function Base.isequal(
+    v::Union{GeneralVariableRef, JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr}, 
+    w
+    )
+    return false
+end
+function Base.isequal(
+    w, 
+    v::Union{GeneralVariableRef, JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr}
+    )
+    return false
+end
+function Base.isequal(
+    w::Union{GeneralVariableRef, JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr}, 
+    v::Union{GeneralVariableRef, JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr}
+    )
+    return false # relies on underlying extension
 end
 
 ################################################################################
-#                             VARIABLE ITERATION
+#                              VARIABLE ITERATION
 ################################################################################
 ## Create helper methods to interrogate the variables of an expr w/ a function
-# Real
-function _interrogate_variables(interrogator::Function, c::Real)
+# Constant
+function _interrogate_variables(interrogator::Function, c)
     return
 end
 
@@ -635,7 +647,7 @@ end
 ################################################################################
 ## Get the model from an expression
 # Constant
-function _model_from_expr(::Real)
+function _model_from_expr(::Union{Number, Bool})
     return
 end
 
@@ -706,7 +718,7 @@ end
 function _remove_variable(f::JuMP.GenericQuadExpr, vref::GeneralVariableRef)
     _remove_variable(f.aff, vref)
     for (pair, _) in f.terms
-        if pair.a == vref || pair.b == vref
+        if isequal(pair.a, vref) || isequal(pair.b, vref)
             delete!(f.terms, pair)
         end
     end
@@ -714,11 +726,13 @@ function _remove_variable(f::JuMP.GenericQuadExpr, vref::GeneralVariableRef)
 end
 
 # Helper functions for NLP variable deletion
-function _remove_variable_from_node(node, ::Real, vref)
+function _remove_variable_from_node(node, c, vref)
     return
 end
-function _remove_variable_from_node(node, ::GeneralVariableRef, vref)
-    node.data = NodeData(0.0)
+function _remove_variable_from_node(node, n_vref::GeneralVariableRef, vref)
+    if isequal(n_vref, vref)
+        node.data = NodeData(0.0)
+    end
     return
 end
 function _remove_variable_from_node(
@@ -732,7 +746,7 @@ end
 
 # NLPExpr
 function _remove_variable(f::NLPExpr, vref::GeneralVariableRef)
-    for node in AbstractTrees.Leaves(f.expr)
+    for node in AbstractTrees.Leaves(f.tree_root)
         _remove_variable_from_node(node, _node_value(node.data), vref)
     end
     return
@@ -749,41 +763,49 @@ end
 ################################################################################
 #                                MAPPING METHODS
 ################################################################################
+"""
+    map_expression(transform::Function, 
+                   expr::JuMP.AbstractJuMPScalar)::JuMP.AbstractJuMPScalar
 
+Map and return a new expression of `expr` where each variable is transformed 
+via `transform`. This can be helpful for writing user extensions.
+"""
 function map_expression(transform::Function, v::JuMP.AbstractVariableRef)
     return transform(v)
 end
 
+# AffExpr
 function map_expression(transform::Function, aff::JuMP.GenericAffExpr)
     return _MA.@rewrite(sum(c * transform(v) 
                         for (c, v) in JuMP.linear_terms(aff)) + 
                         JuMP.constant(aff))
 end
 
+# QuadExpr
 function map_expression(transform::Function, quad::JuMP.GenericQuadExpr)
     return _MA.@rewrite(sum(c * transform(v1) * transform(v2) 
                         for (c, v1, v2) in JuMP.quad_terms(quad)) + 
                         map_expression(transform, quad.aff))
 end
 
-function _map_expr_node(transform, data::Union{Symbol, Real})
-    return _LCRST.Node(NodeData(data))
-end
-
+# Helper methods for mapping NLP trees 
 function _process_node(expr::NLPExpr)
-    return expr.expr
+    return expr.tree_root
 end
-
 function _process_node(expr)
     return _LCRST.Node(NodeData(expr))
 end
-
-function _map_expr_node(transform, data)
+function _map_expr_node(transform, data::JuMP.AbstractJuMPScalar)
     return _process_node(map_expression(transform, data))
 end
+function _map_expr_node(transform, data)
+    return _LCRST.Node(NodeData(data))
+end
 
+# NLPExpr
 function map_expression(transform::Function, nlp::NLPExpr)
-    return _map_tree(n -> _map_expr_node(transform, _node_value(n.data)), nlp.expr)
+    return _map_tree(n -> _map_expr_node(transform, _node_value(n.data)), 
+                     nlp.tree_root)
 end
 
 ################################################################################
@@ -796,7 +818,7 @@ function _set_variable_coefficient!(expr::GeneralVariableRef,
     coeff::Real
     )::JuMP.GenericAffExpr{Float64, GeneralVariableRef}
     # Determine if variable is that of the expression and change accordingly
-    if expr == var
+    if isequal(expr, var)
         return Float64(coeff) * var
     else
         return expr + Float64(coeff) * var
@@ -842,7 +864,7 @@ function _affine_coefficient(
     func::GeneralVariableRef, 
     var::GeneralVariableRef
     )::Float64 
-    return func == var ? 1.0 : 0.0
+    return isequal(func, var) ? 1.0 : 0.0
 end
 
 # GenericAffExpr
@@ -920,7 +942,7 @@ end
 # end
 
 # function Base.iterate(itr::Variables{<:JuMP.AbstractVariableRef})
-#     return itr.expr, nothing 
+#     return itr.tree_root, nothing 
 # end
 
 # function Base.iterate(itr::Variables{<:JuMP.AbstractVariableRef}, ::Nothing)
@@ -1038,7 +1060,7 @@ end
 # end
 
 # function Base.iterate(itr::Variables{NLPExpr})
-#     leaf_itr = AbstractTrees.Leaves(itr.expr.expr)
+#     leaf_itr = AbstractTrees.Leaves(itr.expr.tree_root)
 #     out = iterate(leaf_itr)
 #     out === nothing && return
 #     state = _NLPItrData(leaf_itr, out[2], false, nothing, nothing)

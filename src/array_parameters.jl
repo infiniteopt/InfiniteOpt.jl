@@ -1498,7 +1498,7 @@ function fill_in_supports!(
     modify::Bool = true
     )::Nothing
     # fill in the the supports of each independent parameter
-    for (key, data_object) in model.independent_params
+    for (key, _) in model.independent_params
         pref = dispatch_variable_ref(model, key)
         fill_in_supports!(pref, num_supports = num_supports, modify = modify)
     end

@@ -8,16 +8,16 @@
     hvref = FiniteVariableRef(m, FiniteVariableIndex(1))
     # test Base.copy
     @testset "Base.copy" begin
-        @test copy(gvref) == gvref
-        @test copy(ivref) == ivref
+        @test isequal(copy(gvref), gvref)
+        @test isequal(copy(ivref), ivref)
     end
-    # test Base.:(==)
-    @testset "Base.:(==)" begin
-        @test gvref == gvref
-        @test ivref == ivref
-        @test !(gvref == ivref)
-        @test !(hvref == ivref)
-        @test !(gvref == gvref2)
+    # test Base.isequal
+    @testset "Base.isequal" begin
+        @test isequal(gvref, gvref)
+        @test isequal(ivref, ivref)
+        @test !isequal(gvref, ivref)
+        @test !isequal(hvref, ivref)
+        @test !isequal(gvref, gvref2)
     end
     # test Base.broadcastable
     @testset "Base.broadcastable" begin
@@ -87,11 +87,11 @@ end
     gvref = GeneralVariableRef(m, 1, TestIndex)
     # test the test type
     @testset "TestVariableRef" begin
-        @test dispatch_variable_ref(m, idx) == dvref
+        @test isequal(dispatch_variable_ref(m, idx), dvref)
     end
     # test GeneralVariableRef input
     @testset "GeneralVariableRef" begin
-        @test dispatch_variable_ref(gvref) == dvref
+        @test isequal(dispatch_variable_ref(gvref), dvref)
     end
 end
 

@@ -1494,7 +1494,7 @@ end
 function _check_param_in_data(pref::GeneralVariableRef,
                               data::AbstractMeasureData)::Nothing
     prefs = parameter_refs(data)
-    if (pref == prefs || pref in prefs)
+    if isequal(pref, prefs) || any(isequal(pref), prefs)
         error("Unable to delete `$pref` since it is used to evaluate measures.")
     end
     return

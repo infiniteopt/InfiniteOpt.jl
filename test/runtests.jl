@@ -1,7 +1,8 @@
 using InfiniteOpt: _domain_or_error
 using Test: Error
 # Load in the dependencies
-using InfiniteOpt, Distributions, Random, FastGaussQuadrature, DataStructures
+using InfiniteOpt, Distributions, Random, FastGaussQuadrature, DataStructures, 
+LeftChildRightSiblingTrees, AbstractTrees
 
 # load the test module
 using Test

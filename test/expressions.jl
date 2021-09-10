@@ -22,8 +22,8 @@
     end
     # dispatch_variable_ref
     @testset "dispatch_variable_ref" begin
-        @test dispatch_variable_ref(m, idx) == fref
-        @test dispatch_variable_ref(gvref) == fref
+        @test isequal(dispatch_variable_ref(m, idx), fref)
+        @test isequal(dispatch_variable_ref(gvref), fref)
     end
     # _add_data_object
     @testset "_add_data_object" begin
@@ -94,18 +94,18 @@
     end
     # raw_parameter_refs
     @testset "raw_parameter_refs" begin
-        @test raw_parameter_refs(fref) == IC.VectorTuple(t)
-        @test raw_parameter_refs(gvref) == IC.VectorTuple(t)
+        @test isequal(raw_parameter_refs(fref), IC.VectorTuple(t))
+        @test isequal(raw_parameter_refs(gvref), IC.VectorTuple(t))
     end
     # parameter_refs
     @testset "parameter_refs" begin
-        @test parameter_refs(fref) == (t, )
-        @test parameter_refs(gvref) == (t, )
+        @test isequal(parameter_refs(fref), (t, ))
+        @test isequal(parameter_refs(gvref), (t, ))
     end
     # parameter_list
     @testset "parameter_list" begin
-        @test parameter_list(fref) == [t]
-        @test parameter_list(gvref) == [t]
+        @test isequal(parameter_list(fref), [t])
+        @test isequal(parameter_list(gvref), [t])
     end
     # raw_function
     @testset "raw_function" begin
@@ -189,14 +189,14 @@
         # test normal 
         func = build_parameter_function(error, (a, b) -> 2, (t, x))
         fref = GeneralVariableRef(m, 2, ParameterFunctionIndex)
-        @test add_parameter_function(m, func, "test") == fref
+        @test isequal(add_parameter_function(m, func, "test"), fref)
         @test name(fref) == "test"
-        @test parameter_refs(fref) == (t, x)
+        @test isequal(parameter_refs(fref), (t, x))
         @test used_by_parameter_function(t)
         # test default name 
         func = build_parameter_function(error, cos, t)
         fref = GeneralVariableRef(m, 3, ParameterFunctionIndex)
-        @test add_parameter_function(m, func) == fref
+        @test isequal(add_parameter_function(m, func), fref)
         @test name(fref) == "cos"
     end
     # test parameter_function
@@ -272,27 +272,27 @@ end
         # test anonymous singular 
         idx = 1
         ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
-        @test @parameter_function(m, f5(t, x), base_name = "a") == ref
+        @test isequal(@parameter_function(m, f5(t, x), base_name = "a"), ref)
         @test name(ref) == "a"
         @test raw_function(ref) == f5 
-        @test parameter_refs(ref) == (t, x)
+        @test isequal(parameter_refs(ref), (t, x))
         idx += 1
         ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
-        @test @parameter_function(m, f5(t, x)) == ref
+        @test isequal(@parameter_function(m, f5(t, x)), ref)
         @test name(ref) == "f5"
         @test raw_function(ref) == f5
-        @test parameter_refs(ref) == (t, x)
+        @test isequal(parameter_refs(ref), (t, x))
         idx += 1
         # test anonymous single argument multi-dim 
         refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in 0:1]
-        @test @parameter_function(m, [1:2] == f5(t, x)) == refs
-        @test parameter_refs(refs[1]) == (t, x)
+        @test isequal(@parameter_function(m, [1:2] == f5(t, x)), refs)
+        @test isequal(parameter_refs(refs[1]), (t, x))
         @test raw_function(refs[2]) == f5 
         @test name.(refs) == ["f5", "f5"]
         idx += 2
         refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in 0:1]
         @test @parameter_function(m, [i = 1:2; i >= 1] == (sin, cos)[i](t)) isa JuMPC.SparseAxisArray
-        @test parameter_refs(refs[1]) == (t,)
+        @test isequal(parameter_refs(refs[1]), (t,))
         @test raw_function(refs[2]) == cos
         @test raw_function(refs[1]) == sin
         @test name(refs[1]) == "sin"
@@ -300,35 +300,35 @@ end
         idx += 2
         # test explicit single 
         ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
-        @test @parameter_function(m, a == f5(t, x), base_name = "bob") == ref
+        @test isequal(@parameter_function(m, a == f5(t, x), base_name = "bob"), ref)
         @test name(ref) == "bob"
         @test raw_function(ref) == f5 
-        @test parameter_refs(ref) == (t, x)
+        @test isequal(parameter_refs(ref), (t, x))
         idx += 1
         ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
-        @test @parameter_function(m, c == (t, x) -> f5(t, x, 2, d = 1)) == ref
+        @test isequal(@parameter_function(m, c == (t, x) -> f5(t, x, 2, d = 1)), ref)
         @test name(ref) == "c"
         @test raw_function(ref) != f5 
         @test raw_function(ref)(1, [1, 1]) == 42
-        @test parameter_refs(ref) == (t, x)
+        @test isequal(parameter_refs(ref), (t, x))
         idx += 1
         # test explicit multi-dim 
         refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in 0:1]
-        @test @parameter_function(m, d[1:2] == f5(t, x)) == refs
-        @test parameter_refs(refs[1]) == (t, x)
+        @test isequal(@parameter_function(m, d[1:2] == f5(t, x)), refs)
+        @test isequal(parameter_refs(refs[1]), (t, x))
         @test raw_function(refs[2]) == f5 
         @test name.(refs) == ["d[1]", "d[2]"]
         idx += 2
         refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in 0:1]
-        @test @parameter_function(m, e[1:2] == (t, x) -> f5(t, x, 2; s = 1)) == refs
-        @test parameter_refs(refs[1]) == (t, x)
+        @test isequal(@parameter_function(m, e[1:2] == (t, x) -> f5(t, x, 2; s = 1)), refs)
+        @test isequal(parameter_refs(refs[1]), (t, x))
         @test raw_function(refs[2]) != f5 
         @test name.(refs) == ["e[1]", "e[2]"]
         idx += 2
         # test infinite parameter with reference 
         refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in 0:1]
-        @test @parameter_function(m, [i = 1:2] == (t, x[i]) -> sin(t + x[i])) == refs
-        @test parameter_refs.(refs) == [(t, x[1]), (t, x[2])]
+        @test isequal(@parameter_function(m, [i = 1:2] == (t, x[i]) -> sin(t + x[i])), refs)
+        @test isequal(parameter_refs.(refs), [(t, x[1]), (t, x[2])])
         @test call_function.(refs, 0.5, 0.2) == [sin(0.5 + 0.2), sin(0.5 + 0.2)] 
         @test name.(refs) == ["", ""]
         idx += 2
@@ -352,10 +352,10 @@ end
     dinf = @deriv(inf, par)
     # test for variable reference
     @testset "Variable" begin
-        @test InfiniteOpt._all_function_variables(par) == [par]
-        @test InfiniteOpt._all_function_variables(inf) == [inf]
-        @test InfiniteOpt._all_function_variables(meas) == [meas]
-        @test InfiniteOpt._all_function_variables(dinf) == [dinf]
+        @test isequal(InfiniteOpt._all_function_variables(par), [par])
+        @test isequal(InfiniteOpt._all_function_variables(inf), [inf])
+        @test isequal(InfiniteOpt._all_function_variables(meas), [meas])
+        @test isequal(InfiniteOpt._all_function_variables(dinf), [dinf])
     end
     # test for GenericAffExpr
     @testset "AffExpr" begin
@@ -395,35 +395,6 @@ end
     @testset "Fallback" begin
         @variable(Model(), x)
         @test_throws ErrorException InfiniteOpt._all_function_variables(x)
-    end
-end
-
-# Test comparisons
-@testset "Comparisons" begin
-    # initialize model and references
-    m = InfiniteModel()
-    @infinite_parameter(m, par in [0, 1])
-    @infinite_parameter(m, par2 in [0, 1])
-    @variable(m, inf, Infinite(par))
-    @variable(m, inf2, Infinite(par, par2))
-    @variable(m, pt, Point(inf, 0))
-    @variable(m, finite)
-    # test AffExpr comparison
-    @testset "Base.:(==) AffExpr" begin
-        @test par + par2 + inf - 2 == par + (par2 + inf) - 2
-        @test 0.25par- inf == 0.25par - inf
-        @test inf + 3 - inf != par + inf
-        @test inf + 3 - inf != inf + 3 - finite
-    end
-    # test QuadExpr comparison
-    @testset "Base.:(==) QuadExpr" begin
-        @test par * inf + par2 + inf - 2 == par * inf + (par2 + inf) - 2
-        @test inf * inf - inf == inf * inf - inf
-        @test inf * inf + 3 - inf != par * inf2 + inf
-        @test par * par2 + inf * inf2 == par * par2 + inf * inf2
-        @test par * par2 + inf * inf2 != par * par2
-        @test par * par2 + 2 * inf * inf2 !=  par * par2 + inf * inf2
-        @test par * inf + par2 + inf - 2 != par * inf + (par2 + inf) - 3
     end
 end
 
@@ -567,7 +538,7 @@ end
     end
     # test Fallback
     @testset "Fallback" begin
-        @test_throws ErrorException InfiniteOpt._model_from_expr(42)
+        @test_throws ErrorException InfiniteOpt._model_from_expr(:bad)
     end
 end
 
@@ -626,18 +597,18 @@ end
     @variable(m, z)
     # test with GeneralVariableRef
     @testset "GeneralVariableRef" begin
-        @test InfiniteOpt._set_variable_coefficient!(x, x, 2) == 2 * x
-        @test InfiniteOpt._set_variable_coefficient!(z, x, 2) == z + 2x
+        @test isequal_canonical(InfiniteOpt._set_variable_coefficient!(x, x, 2), 2 * x)
+        @test isequal_canonical(InfiniteOpt._set_variable_coefficient!(z, x, 2), z + 2x)
     end
     # test with GenericAffExpr
     @testset "AffExpr" begin
-        @test InfiniteOpt._set_variable_coefficient!(x + z, x, 2) == 2x + z
-        @test InfiniteOpt._set_variable_coefficient!(x + z, y, 2) == x + z + 2y
+        @test isequal_canonical(InfiniteOpt._set_variable_coefficient!(x + z, x, 2), 2x + z)
+        @test isequal_canonical(InfiniteOpt._set_variable_coefficient!(x + z, y, 2), x + z + 2y)
     end
     # test with GenericQuadExpr
     @testset "QuadExpr" begin
-        @test InfiniteOpt._set_variable_coefficient!(y ^2 + x, x, 2) == y^2 + 2x
-        @test InfiniteOpt._set_variable_coefficient!(y^2 + x, y, 2) == y^2 + x + 2y
+        @test isequal_canonical(InfiniteOpt._set_variable_coefficient!(y ^2 + x, x, 2), y^2 + 2x)
+        @test isequal_canonical(InfiniteOpt._set_variable_coefficient!(y^2 + x, y, 2), y^2 + x + 2y)
     end
     # test fallabck
     @testset "Fallback" begin
@@ -656,18 +627,18 @@ end
     @expression(m, c2, z + t + x[1])
     # test _make_param_tuple_element (IndependentParameterIndex)
     @testset "_make_param_tuple_element (Independent)" begin
-        @test InfiniteOpt._make_param_tuple_element(m, index(t)) == t
-        @test InfiniteOpt._make_param_tuple_element(m, index(y)) == y
+        @test isequal(InfiniteOpt._make_param_tuple_element(m, index(t)), t)
+        @test isequal(InfiniteOpt._make_param_tuple_element(m, index(y)), y)
     end
     # test _make_param_tuple_element (DependentParametersIndex)
     @testset "_make_param_tuple_element (Dependent)" begin
         obj_idx = index(first(x)).object_index
-        @test InfiniteOpt._make_param_tuple_element(m, obj_idx) == x
+        @test isequal(InfiniteOpt._make_param_tuple_element(m, obj_idx), x)
     end
     # test parameter_refs
     @testset "parameter_refs" begin
         @test parameter_refs(c1) == ()
-        @test parameter_refs(c2) == (t, x)
+        @test isequal(parameter_refs(c2), (t, x))
         @test parameter_refs(zero(AffExpr)) == ()
     end
 end

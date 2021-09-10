@@ -222,8 +222,8 @@ end
     # test _update_measures
     @testset "_update_measures" begin
         @test InfiniteOpt._update_measures(m, par2) isa Nothing
-        @test measure_function(dmref) == inf + par - x + rv + par3 + fin
-        @test measure_function(dmref2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+        @test isequal_canonical(measure_function(dmref), inf + par - x + rv + par3 + fin)
+        @test isequal(measure_function(dmref2), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
         @test InfiniteOpt._object_numbers(dmref) == [2, 3, 4]
         @test InfiniteOpt._object_numbers(dmref2) == []
         @test InfiniteOpt._parameter_numbers(dmref) == [2, 3, 4, 5]
@@ -237,8 +237,8 @@ end
     # test _update_constraints
     @testset "_update_constraints" begin
         @test InfiniteOpt._update_constraints(m, par2) isa Nothing
-        @test jump_function(constraint_object(con)) == inf2 + inf4 + par3 + fin
-        @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+        @test isequal_canonical(jump_function(constraint_object(con)), inf2 + inf4 + par3 + fin)
+        @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
         @test isempty(setdiff(InfiniteOpt._object_numbers(con), [1, 2, 3, 4]))
         @test InfiniteOpt._object_numbers(con2) == []
         @test !is_valid(m, con3)
@@ -276,12 +276,12 @@ end
         @test isa(delete(m, par2), Nothing)
         @test !is_valid(m, par2)
         @test !is_valid(m, d1)
-        @test measure_function(dmref) == inf + par - x + rv + par3 + fin
-        @test measure_function(dmref2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-        @test parameter_refs(inf4) == (par, pars)
-        @test parameter_refs(rv) == (pars,)
-        @test jump_function(constraint_object(con)) == inf4 + par3 + fin
-        @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+        @test isequal_canonical(measure_function(dmref), inf + par - x + rv + par3 + fin)
+        @test isequal_canonical(measure_function(dmref2), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
+        @test isequal(parameter_refs(inf4), (par, pars))
+        @test isequal(parameter_refs(rv), (pars,))
+        @test isequal_canonical(jump_function(constraint_object(con)), inf4 + par3 + fin)
+        @test isequal(jump_function(constraint_object(con2)),zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
         expected = [IndependentParameterIndex(1), DependentParametersIndex(1),
                     IndependentParameterIndex(3)]
         @test InfiniteOpt._param_object_indices(m) == expected
@@ -303,8 +303,8 @@ end
         # test special measure case with single parameter (possible through
         # multiple deletions) and with single parameter in constraint
         @test isa(delete(m, par3), Nothing)
-        @test measure_function(dmref) == inf + par - x + rv + fin
-        @test jump_function(constraint_object(con)) == inf4 + fin
+        @test isequal_canonical(measure_function(dmref), inf + par - x + rv + fin)
+        @test isequal_canonical(jump_function(constraint_object(con)), inf4 + fin)
         @test isempty(setdiff(InfiniteOpt._object_numbers(con), [1, 2]))
         expected = [IndependentParameterIndex(1), DependentParametersIndex(1)]
         @test InfiniteOpt._param_object_indices(m) == expected
@@ -321,16 +321,16 @@ end
     @testset "JuMP.delete (FiniteParameterRef)" begin
         # test first case
         @test delete(m, fin) isa Nothing
-        @test measure_function(dmref) == inf + par - x + rv
-        @test jump_function(constraint_object(con)) == inf4 + 0.
-        @test objective_function(m) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+        @test isequal_canonical(measure_function(dmref), inf + par - x + rv)
+        @test isequal_canonical(jump_function(constraint_object(con)), inf4 + 0.)
+        @test isequal(objective_function(m), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
         @test objective_sense(m) == MOI.FEASIBILITY_SENSE
         # test error
         @test_throws AssertionError delete(m, fin)
         # test different objective
         @objective(m, Min, fin2 + x + 1)
         @test delete(m, fin2) isa Nothing
-        @test objective_function(m) == x + 1
+        @test isequal_canonical(objective_function(m), x + 1)
         @test objective_sense(m) == MOI.MIN_SENSE
     end
 end
@@ -394,11 +394,11 @@ end
         # test regular
         @test delete(m, pars) isa Nothing
         @test !is_valid(m, d1)
-        @test parameter_refs(dinf) == (par,)
+        @test isequal(parameter_refs(dinf), (par,))
         @test string(dinf) == "inf(par)"
         @test parameter_values(dpt2) == (0.5, 0.5)
-        @test measure_function(dmref) == inf + par - x
-        @test jump_function(constraint_object(con)) == inf2 - par2
+        @test isequal_canonical(measure_function(dmref), inf + par - x)
+        @test isequal_canonical(jump_function(constraint_object(con)), inf2 - par2)
         expected = [IndependentParameterIndex(1), IndependentParameterIndex(2)]
         @test InfiniteOpt._param_object_indices(m) == expected
         @test InfiniteOpt._last_param_num(m) == 2
@@ -440,18 +440,18 @@ end
     # test normal deletion
     @test isa(delete(m, rv), Nothing)
     @test !is_valid(m, d1)
-    @test measure_function(meas) == inf + par - x
+    @test isequal_canonical(measure_function(meas), inf + par - x)
     @test InfiniteOpt._object_numbers(meas) == [2]
-    @test jump_function(constraint_object(con)) == x + 0
+    @test isequal_canonical(jump_function(constraint_object(con)), x + 0)
     @test InfiniteOpt._object_numbers(con) == []
     @test InfiniteOpt._semi_infinite_variable_dependencies(inf) == [JuMP.index(rv2)]
     @test !haskey(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable), JuMP.index(rv))
     @test !is_valid(m, rv)
     # test deletion of special cases
     @test isa(delete(m, rv2), Nothing)
-    @test measure_function(meas2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test isequal(measure_function(meas2), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test InfiniteOpt._object_numbers(meas2) == []
-    @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test InfiniteOpt._object_numbers(con2) == []
     @test InfiniteOpt._semi_infinite_variable_dependencies(inf) == []
     @test !haskey(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable), JuMP.index(rv2))
@@ -478,20 +478,20 @@ end
     # test deletion of x
     @test isa(delete(m, x), Nothing)
     @test num_constraints(m) == 4
-    @test measure_function(meas1) == y + par
-    @test jump_function(constraint_object(con1)) == y + par
-    @test objective_function(m) == y + 0
+    @test isequal_canonical(measure_function(meas1), y + par)
+    @test isequal_canonical(jump_function(constraint_object(con1)), y + par)
+    @test isequal_canonical(objective_function(m), y + 0)
     @test !is_valid(m, con3)
     @test !haskey(InfiniteOpt._data_dictionary(m, FiniteVariable), JuMP.index(x))
     # test deletion of y
     set_objective_function(m, y)
     @test isa(delete(m, y), Nothing)
     @test num_constraints(m) == 2
-    @test measure_function(meas1) == par + 0
-    @test measure_function(meas2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-    @test jump_function(constraint_object(con1)) == par + 0
-    @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-    @test objective_function(m) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test isequal_canonical(measure_function(meas1), par + 0)
+    @test isequal(measure_function(meas2), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
+    @test isequal_canonical(jump_function(constraint_object(con1)), par + 0)
+    @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
+    @test isequal(objective_function(m), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test !haskey(InfiniteOpt._data_dictionary(m, FiniteVariable), JuMP.index(y))
     # test errors
     @test_throws AssertionError delete(m, x)
@@ -516,22 +516,22 @@ end
     # test deletion of x
     @test isa(delete(m, x), Nothing)
     @test num_constraints(m) == 4
-    @test measure_function(meas1) == y + par
+    @test isequal_canonical(measure_function(meas1), y + par)
     @test InfiniteOpt._object_numbers(meas1) == []
-    @test jump_function(constraint_object(con1)) == y + par
+    @test isequal_canonical(jump_function(constraint_object(con1)), y + par)
     @test InfiniteOpt._object_numbers(con1) == [1]
-    @test objective_function(m) == y + 0
+    @test isequal_canonical(objective_function(m), y + 0)
     @test !haskey(InfiniteOpt._data_dictionary(m, PointVariable), JuMP.index(x))
     @test !is_valid(m, con3)
     # test deletion of y
     set_objective_function(m, y)
     @test isa(delete(m, y), Nothing)
     @test num_constraints(m) == 2
-    @test measure_function(meas1) == par + 0
-    @test measure_function(meas2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-    @test jump_function(constraint_object(con1)) == par + 0
-    @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-    @test objective_function(m) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test isequal_canonical(measure_function(meas1), par + 0)
+    @test isequal(measure_function(meas2), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
+    @test isequal_canonical(jump_function(constraint_object(con1)), par + 0)
+    @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
+    @test isequal(objective_function(m), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test !haskey(InfiniteOpt._data_dictionary(m, PointVariable), JuMP.index(y))
     @test isempty(m.point_lookup)
     # test errors
@@ -559,9 +559,9 @@ end
     # test deletion of x
     @test isa(delete(m, x), Nothing)
     @test num_constraints(m) == 4
-    @test measure_function(meas1) == y + par
+    @test isequal_canonical(measure_function(meas1), y + par)
     @test InfiniteOpt._object_numbers(meas1) == []
-    @test jump_function(constraint_object(con1)) == y + par
+    @test isequal_canonical(jump_function(constraint_object(con1)), y + par)
     @test InfiniteOpt._object_numbers(con1) == [1]
     @test InfiniteOpt._infinite_variable_dependencies(par) == [index(y)]
     @test !is_valid(m, rv)
@@ -572,11 +572,11 @@ end
     # test deletion of y
     @test isa(delete(m, y), Nothing)
     @test num_constraints(m) == 2
-    @test measure_function(meas1) == par + 0
-    @test measure_function(meas2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test isequal_canonical(measure_function(meas1), par + 0)
+    @test isequal(measure_function(meas2), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test InfiniteOpt._object_numbers(meas1) == []
-    @test jump_function(constraint_object(con1)) == par + 0
-    @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test isequal_canonical(jump_function(constraint_object(con1)), par + 0)
+    @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test InfiniteOpt._object_numbers(con1) == [1]
     @test InfiniteOpt._object_numbers(con2) == []
     @test InfiniteOpt._infinite_variable_dependencies(par) == []
@@ -611,9 +611,9 @@ end
     # test deletion of d1
     @test isa(delete(m, d1), Nothing)
     @test num_constraints(m) == 7
-    @test measure_function(meas1) == y + par
+    @test isequal_canonical(measure_function(meas1), y + par)
     @test InfiniteOpt._object_numbers(meas1) == []
-    @test jump_function(constraint_object(con1)) == d2 + par
+    @test isequal_canonical(jump_function(constraint_object(con1)), d2 + par)
     @test InfiniteOpt._object_numbers(con1) == [1]
     @test InfiniteOpt._derivative_dependencies(par) == [index(d2)]
     @test !is_valid(m, rv)
@@ -627,11 +627,11 @@ end
     # test deletion of d2
     @test isa(delete(m, d2), Nothing)
     @test num_constraints(m) == 7
-    @test measure_function(meas1) == y + par
-    @test measure_function(meas2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test isequal_canonical(measure_function(meas1), y + par)
+    @test isequal(measure_function(meas2), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test InfiniteOpt._object_numbers(meas1) == []
-    @test jump_function(constraint_object(con1)) == par + 0
-    @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test isequal_canonical(jump_function(constraint_object(con1)), par + 0)
+    @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test InfiniteOpt._object_numbers(con1) == [1]
     @test InfiniteOpt._object_numbers(con2) == []
     @test InfiniteOpt._derivative_dependencies(par) == []
@@ -660,10 +660,10 @@ end
     # test deletion of x
     @test isa(delete(m, f), Nothing)
     @test num_constraints(m) == 2
-    @test measure_function(meas1) == par + 0
-    @test measure_function(meas2) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-    @test jump_function(constraint_object(con1)) == par + 0
-    @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test isequal_canonical(measure_function(meas1), par + 0)
+    @test isequal(measure_function(meas2), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
+    @test isequal_canonical(jump_function(constraint_object(con1)), par + 0)
+    @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test !haskey(InfiniteOpt._data_dictionary(f), JuMP.index(f))
     @test !is_valid(m, f)
     @test !is_valid(m, d)
@@ -702,11 +702,11 @@ end
     @objective(m, Min, meas1 + x0)
     # test deletion of meas1
     @test isa(delete(m, meas1), Nothing)
-    @test measure_function(meas3) == x0 + 0
+    @test isequal_canonical(measure_function(meas3), x0 + 0)
     @test InfiniteOpt._object_numbers(meas3) == []
-    @test jump_function(constraint_object(con1)) == x0 + 0
+    @test isequal_canonical(jump_function(constraint_object(con1)), x0 + 0)
     @test InfiniteOpt._object_numbers(con1) == []
-    @test objective_function(m) == x0 + 0
+    @test isequal_canonical(objective_function(m), x0 + 0)
     @test InfiniteOpt._measure_dependencies(x) == [JuMP.index(meas), JuMP.index(meas2), JuMP.index(meas6)]
     @test InfiniteOpt._measure_dependencies(y) == [JuMP.index(meas6)]
     @test length(InfiniteOpt._measure_dependencies(par)) == 5
@@ -716,11 +716,11 @@ end
     # test deletion of meas2
     set_objective_function(m, meas2)
     @test isa(delete(m, meas2), Nothing)
-    @test measure_function(meas4) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test isequal(measure_function(meas4), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test InfiniteOpt._object_numbers(meas4) == []
-    @test jump_function(constraint_object(con2)) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test InfiniteOpt._object_numbers(con2) == []
-    @test objective_function(m) == zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    @test isequal(objective_function(m), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test InfiniteOpt._measure_dependencies(x) == [JuMP.index(meas), JuMP.index(meas6)]
     @test InfiniteOpt._measure_dependencies(y) == [JuMP.index(meas6)]
     @test length(InfiniteOpt._measure_dependencies(par)) == 4

@@ -3,6 +3,7 @@ module MeasureToolbox
 # Import the necessary packages.
 import FastGaussQuadrature
 import Distributions
+import MutableArithmetics
 using ..InfiniteOpt
 
 # include jl files here

@@ -23,8 +23,8 @@
     end
     # dispatch_variable_ref
     @testset "dispatch_variable_ref" begin
-        @test dispatch_variable_ref(m, idx) == vref
-        @test dispatch_variable_ref(gvref) == vref
+        @test isequal(dispatch_variable_ref(m, idx), vref)
+        @test isequal(dispatch_variable_ref(gvref), vref)
     end
     # _add_data_object
     @testset "_add_data_object" begin
@@ -85,7 +85,7 @@
     end
     # _make_variable_ref
     @testset "_make_variable_ref" begin
-        @test InfiniteOpt._make_variable_ref(m, idx) == gvref
+        @test isequal(InfiniteOpt._make_variable_ref(m, idx), gvref)
     end
     # _var_name_dict
     @testset "_var_name_dict" begin
@@ -102,7 +102,7 @@
     # parameter_by_name
     @testset "JuMP.variable_by_name" begin
         # test normal
-        @test variable_by_name(m, "new2") == gvref
+        @test isequal(variable_by_name(m, "new2"), gvref)
         @test variable_by_name(m, "bob") isa Nothing
         # prepare variable with same name
         idx2 = FiniteVariableIndex(2)
@@ -139,7 +139,7 @@ end
         vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
         v = build_variable(error, info)
-        @test add_variable(m, v, "name") == gvref
+        @test isequal(add_variable(m, v, "name"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
         @test name(vref) == "name"
         # prepare variable with all the possible info additions
@@ -148,7 +148,7 @@ end
         idx = FiniteVariableIndex(2)
         vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test add_variable(m, v, "name") == gvref
+        @test isequal(add_variable(m, v, "name"), gvref)
         @test !optimizer_model_ready(m)
         # lower bound
         cindex = InfOptConstraintIndex(1)
@@ -200,7 +200,7 @@ end
         idx = FiniteVariableIndex(1)
         vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test @variable(m, x >= 1, Bin) == gvref
+        @test isequal(@variable(m, x >= 1, Bin), gvref)
         @test name(vref) == "x"
         @test lower_bound(vref) == 1
         @test is_binary(vref)
@@ -208,8 +208,8 @@ end
         idx = FiniteVariableIndex(2)
         vref = FiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test @variable(m, binary = true, lower_bound = 1,
-                        base_name = "x") == gvref
+        @test isequal(@variable(m, binary = true, lower_bound = 1,
+                        base_name = "x"), gvref)
         @test name(vref) == "x"
         @test lower_bound(vref) == 1
         @test is_binary(vref)
@@ -217,7 +217,7 @@ end
         idxs = [FiniteVariableIndex(3), FiniteVariableIndex(4)]
         vrefs = [FiniteVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
-        @test @variable(m, y[1:2] == 2, Int) == gvrefs
+        @test isequal(@variable(m, y[1:2] == 2, Int), gvrefs)
         @test name(vrefs[1]) == "y[1]"
         @test fix_value(vrefs[2]) == 2
         @test is_integer(vrefs[1])
@@ -236,7 +236,7 @@ end
     @testset "Adding VariableConstrainedOnCreation" begin 
         v = VariableConstrainedOnCreation(v1, MOI.Integer())
         vref = GeneralVariableRef(m, 1, FiniteVariableIndex)
-        @test add_variable(m, v, "test") == vref
+        @test isequal(add_variable(m, v, "test"), vref)
         @test name(vref) == "test"
         @test num_constraints(m, MOI.Integer) == 1
     end
@@ -246,7 +246,7 @@ end
                                            VectorShape())
         vrefs = [GeneralVariableRef(m, i, FiniteVariableIndex) for i in 2:4]
         names = ["test[$i]" for i in 1:3]
-        @test add_variable(m, v, names) == vrefs
+        @test isequal(add_variable(m, v, names), vrefs)
         @test name.(vrefs) == names
         @test num_constraints(m, MOI.SecondOrderCone) == 1
     end

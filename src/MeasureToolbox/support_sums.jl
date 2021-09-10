@@ -64,7 +64,7 @@ macro support_sum(expr, prefs, args...)
         _error("Unexpected positional arguments." *
                "Must be of form @support_sum(expr, prefs, kwargs...).")
     end
-    expression = InfiniteOpt._MA.rewrite_and_return(expr)
-    mref = :( support_sum($expression, $prefs; ($(kwargs...))) )
-    return esc(mref)
+    expression = MutableArithmetics.rewrite_and_return(expr)
+    esc_kwargs = map(i -> esc(i), kwargs)
+    return :( support_sum($expression, $(esc(prefs)); ($(esc_kwargs...))) )
 end

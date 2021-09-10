@@ -30,33 +30,33 @@
     # test add_point_variable
     @testset "add_point_variable" begin
         # add one that was already added to the infinite model 
-        @test InfiniteOpt.add_point_variable(tm, x, Float64[0], key) == x0
+        @test isequal(InfiniteOpt.add_point_variable(tm, x, Float64[0], key), x0)
         @test transcription_variable(x0) == a
         # add one that hasn't been added
         vref = GeneralVariableRef(m, -1, PointVariableIndex)
-        @test InfiniteOpt.add_point_variable(tm, x, Float64[1], key) == vref
+        @test isequal(InfiniteOpt.add_point_variable(tm, x, Float64[1], key), vref)
         @test transcription_variable(vref) == c
         # add one that has been added internally
-        @test InfiniteOpt.add_point_variable(tm, x, Float64[1], key) == vref
+        @test isequal(InfiniteOpt.add_point_variable(tm, x, Float64[1], key), vref)
         @test transcription_variable(vref) == c
     end
     # test add_semi_infinite_variable
     @testset "add_semi_infinite_variable" begin
         # add one that was already added to the infinite model
         var = SemiInfiniteVariable(y, Dict{Int, Float64}(1 => 0), [2, 3], [2])
-        @test InfiniteOpt.add_semi_infinite_variable(tm, var, key) == y0
+        @test isequal(InfiniteOpt.add_semi_infinite_variable(tm, var, key), y0)
         @test transcription_variable(y0) == [a, b]
         # add a new one
         var = SemiInfiniteVariable(y, Dict{Int, Float64}(1 => 1), [2, 3], [2])
         vref = GeneralVariableRef(m, -1, SemiInfiniteVariableIndex)
-        @test InfiniteOpt.add_semi_infinite_variable(tm, var, key) == vref
-        @test data.semi_infinite_vars == [var]
+        @test isequal(InfiniteOpt.add_semi_infinite_variable(tm, var, key), vref)
+        @test isequal(data.semi_infinite_vars, [var])
         @test c in transcription_variable(vref)
         @test d in transcription_variable(vref)
         @test sort!(supports(vref)) == [([0., 0.], ), ([1., 1.], )]
         # add one that has already been added internally
-        @test InfiniteOpt.add_semi_infinite_variable(tm, var, key) == vref
-        @test data.semi_infinite_vars == [var]
+        @test isequal(InfiniteOpt.add_semi_infinite_variable(tm, var, key), vref)
+        @test isequal(data.semi_infinite_vars, [var])
         @test c in transcription_variable(vref)
         @test d in transcription_variable(vref)
         @test sort!(supports(vref)) == [([0., 0.], ), ([1., 1.], )]

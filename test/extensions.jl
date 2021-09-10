@@ -97,8 +97,8 @@ end
     new_data2 = NewMeasureData("test", data2)
 
     # test data queries
-    @test parameter_refs(new_data1) == t
-    @test parameter_refs(new_data2) == t
+    @test isequal(parameter_refs(new_data1), t)
+    @test isequal(parameter_refs(new_data2), t)
     @test supports(new_data1) == supports(data1)
     @test supports(new_data2) == supports(data2)
     @test coefficients(new_data1) == coefficients(data1)
@@ -113,7 +113,7 @@ end
 
     # test expansion
     pvrefs = [GeneralVariableRef(m, i, PointVariableIndex) for i in 1:2] 
-    @test expand(measure(x + z, new_data1)) == 2.5 * (pvrefs[1] + pvrefs[2]) + 5z
+    @test isequal_canonical(expand(measure(x + z, new_data1)), 2.5 * (pvrefs[1] + pvrefs[2]) + 5z)
 
     # test transcription
     @test @constraint(m, z == measure(x, new_data1)) isa InfOptConstraintRef

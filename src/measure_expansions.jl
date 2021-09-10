@@ -226,7 +226,7 @@ function expand_measure(ivref::GeneralVariableRef,
     coeffs = coefficients(data)
     w = weight_function(data)
     # treat variable as constant if doesn't have measure parameter
-    if !(pref in var_prefs)
+    if !(any(isequal(pref), var_prefs))
         var_coef = sum(coeffs[i] * w(supps[i]) for i in eachindex(coeffs))
         return JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, ivref => var_coef)
     # make point variables if var_prefs = pref (it is the only dependence)
@@ -255,16 +255,16 @@ function expand_measure(ivref::GeneralVariableRef,
     coeffs = coefficients(data)
     w = weight_function(data)
     # var_prefs == prefs so let's make a point variable
-    if var_prefs == prefs
+    if isequal(var_prefs, prefs)
         return _MA.@rewrite(sum(coeffs[i] * w(supps[:, i]) *
                     make_point_variable_ref(write_model, ivref, supps[:, i])
                     for i in eachindex(coeffs)))
     # treat variable as constant if doesn't have measure parameter
-    elseif !any(pref in var_prefs for pref in prefs)
+    elseif !any(any(isequal(pref), var_prefs) for pref in prefs)
         var_coef = sum(coeffs[i] * w(supps[:, i]) for i in eachindex(coeffs))
         return JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, ivref => var_coef)
     # make point variables if all var_prefs are contained in prefs
-    elseif all(pref in prefs for pref in var_prefs)
+    elseif all(any(isequal(pref), prefs) for pref in var_prefs)
         indices = [findfirst(isequal(pref), prefs) for pref in var_prefs]
         new_supps = supps[indices, :]
         return _MA.@rewrite(sum(coeffs[i] * w(supps[:, i]) *
@@ -312,7 +312,7 @@ function expand_measure(rvref::GeneralVariableRef,
     coeffs = coefficients(data)
     w = weight_function(data)
     # treat variable as constant if doesn't have measure parameter
-    if !(pref in var_prefs)
+    if !(any(isequal(pref), var_prefs))
         var_coef = sum(coeffs[i] * w(supps[i]) for i in eachindex(coeffs))
         expr = JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, rvref => var_coef)
     # make point variables if var_prefs = pref (it is the only dependence)
@@ -362,11 +362,11 @@ function expand_measure(rvref::GeneralVariableRef,
     coeffs = coefficients(data)
     w = weight_function(data)
     # treat variable as constant if doesn't have measure parameter
-    if !any(pref in var_prefs for pref in prefs)
+    if !any(any(isequal(pref), var_prefs) for pref in prefs)
         var_coef = sum(coeffs[i] * w(supps[:, i]) for i in eachindex(coeffs))
         expr = JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, rvref => var_coef)
     # make point variables if prefs includes all var_prefs
-    elseif all(pref in prefs for pref in var_prefs)
+    elseif all(any(isequal(pref), prefs) for pref in var_prefs)
         # get the indices of measure prefs to reorder/truncate as needed
         supp_indices = [findfirst(isequal(pref), prefs) for pref in var_prefs]
         # reorder/truncate if necesary
@@ -444,7 +444,7 @@ function expand_measure(pref::GeneralVariableRef,
     coeffs = coefficients(data)
     w = weight_function(data)
     # treat the parameter
-    if meas_pref != pref
+    if !isequal(meas_pref, pref)
         par_coef = sum(coeffs[i] * w(supps[i]) for i in eachindex(coeffs))
         return JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, pref => par_coef)
     # replace the parameter with its value

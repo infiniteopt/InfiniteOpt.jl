@@ -12,7 +12,7 @@
     gvref = GeneralVariableRef(m, 1, MeasureIndex)
     # test dispatch_variable_ref
     @testset "dispatch_variable_ref" begin
-        @test dispatch_variable_ref(gvref) == mref
+        @test isequal(dispatch_variable_ref(gvref), mref)
     end
     # test _add_data_object
     @testset "_add_data_object" begin
@@ -184,7 +184,7 @@ end
     @testset "Base.copy" begin
         data1 = DiscreteMeasureData(par, [1], [1])
         data2 = FunctionalDiscreteMeasureData(par, coeff_func, 5, MCSample)
-        @test data1.parameter_refs == copy(data1).parameter_refs
+        @test isequal(data1.parameter_refs, copy(data1).parameter_refs)
         @test data1.coefficients == copy(data1).coefficients
         @test data1.label == copy(data1).label
         @test data1.is_expect == copy(data1).is_expect
@@ -192,7 +192,7 @@ end
         @test data1.weight_function == copy(data1).weight_function
         @test isnan(copy(data1).lower_bounds)
         @test isnan(copy(data1).upper_bounds)
-        @test data2.parameter_refs == copy(data2).parameter_refs
+        @test isequal(data2.parameter_refs, copy(data2).parameter_refs)
         @test data2.coeff_function == copy(data2).coeff_function
         @test data2.label == copy(data2).label
         @test data2.is_expect == copy(data2).is_expect
@@ -226,11 +226,11 @@ end
     data8 = FunctionalDiscreteMeasureData(par, f, 10, All)
     # parameter_refs (DiscreteMeasureData)
     @testset "parameter_refs (Single)" begin
-        @test parameter_refs(data) == par
+        @test isequal(parameter_refs(data), par)
     end
     # parameter_refs (MultiDiscreteMeasureData)
     @testset "parameter_refs (Multi)" begin
-        @test parameter_refs(data2) == pars
+        @test isequal(parameter_refs(data2), pars)
     end
     # parameter_refs (Fallback)
     @testset "parameter_refs (Fallback)" begin
@@ -536,7 +536,7 @@ end
     @testset "add_measure" begin
         meas1 = Measure(par + 2inf - x, data1, [1], [1], false)
         mref1 = MeasureRef(m, MeasureIndex(1))
-        @test dispatch_variable_ref(add_measure(m, meas1, "measure1")) == mref1
+        @test isequal(dispatch_variable_ref(add_measure(m, meas1, "measure1")), mref1)
         @test supports(par) == [1.0]
         @test InfiniteOpt._measure_dependencies(par) == [MeasureIndex(1)]
         @test InfiniteOpt._data_object(mref1).name == "measure1"
@@ -557,7 +557,7 @@ end
     mref = add_measure(m, meas)
     # test measure_function
     @testset "measure_function" begin
-        @test measure_function(mref) == par + 2inf - x
+        @test isequal_canonical(measure_function(mref), par + 2inf - x)
     end
     # test measure_data
     @testset "measure_data" begin
@@ -569,24 +569,24 @@ end
     end
     # test _make_param_tuple_element (IndependentParameterIndex)
     @testset "_make_param_tuple_element (IndependentParameterIndex)" begin
-        @test InfiniteOpt._make_param_tuple_element(m, IndependentParameterIndex(1), [1]) == par
+        @test isequal(InfiniteOpt._make_param_tuple_element(m, IndependentParameterIndex(1), [1]), par)
     end
     # test _make_param_tuple_element (DependentParameterIndex)
     @testset "_make_param_tuple_element (DependentParameterIndex)" begin
-        @test InfiniteOpt._make_param_tuple_element(m, DependentParametersIndex(1), [2, 3]) == pars
-        @test InfiniteOpt._make_param_tuple_element(m, DependentParametersIndex(1), [2]) == pars[1]
+        @test isequal(InfiniteOpt._make_param_tuple_element(m, DependentParametersIndex(1), [2, 3]), pars)
+        @test isequal(InfiniteOpt._make_param_tuple_element(m, DependentParametersIndex(1), [2]), pars[1])
     end
     # test parameter_refs for measure
     @testset "parameter_refs (measure)" begin
-        @test parameter_refs(mref) == (par,)
+        @test isequal(parameter_refs(mref), (par,))
     end
     # test raw_parameter_refs for measure
     @testset "raw_parameter_refs (measure)" begin
-        @test raw_parameter_refs(mref) == InfiniteOpt.Collections.VectorTuple(par)
+        @test isequal(raw_parameter_refs(mref), InfiniteOpt.Collections.VectorTuple(par))
     end
     # test parameter_list for measure
     @testset "parameter_list (measure)" begin
-        @test parameter_list(mref) == [par]
+        @test isequal(parameter_list(mref), [par])
     end
     @testset "used_by_constraint" begin
         # test not used
@@ -681,38 +681,39 @@ end
     # test measure
     @testset "measure" begin
         # test scalar IndependentParameter
-        mref = MeasureRef(m, MeasureIndex(1))
-        @test dispatch_variable_ref(measure(inf + x, data)) == mref
-#            @test name(mref) == "a(inf(par) + x)"
+        mref = GeneralVariableRef(m, 1, MeasureIndex)
+        @test isequal(measure(inf + x, data), mref)
+        @test isequal_canonical(measure_function(mref), inf + x)
         @test supports(par) == [1]
         @test !used_by_objective(mref)
         # test nested use
-        mref2 = MeasureRef(m, MeasureIndex(2))
-        mref3 = MeasureRef(m, MeasureIndex(3))
-        @test dispatch_variable_ref(measure(inf + measure(inf2 + x, data2), data)) == mref3
-#            @test name(mref3) == "a(inf(par) + b(inf2(par, par2) + x))"
+        mref2 = GeneralVariableRef(m, 2, MeasureIndex)
+        mref3 = GeneralVariableRef(m, 3, MeasureIndex)
+        @test isequal(measure(inf + measure(inf2 + x, data2), data), mref3)
+        @test isequal_canonical(measure_function(mref3), inf + mref2)
+        @test isequal_canonical(measure_function(mref2), inf2 + x)
         @test supports(par) == [1]
         @test supports(par2) == [1]
         # test DependentParameters
-        mref4 = MeasureRef(m, MeasureIndex(4))
-        @test dispatch_variable_ref(measure(inf4 + x, data3)) == mref4
-#            @test name(mref4) == "c(inf4(pars) + x)"
+        mref4 = GeneralVariableRef(m, 4, MeasureIndex)
+        @test isequal(measure(inf4 + x, data3), mref4)
+        @test isequal_canonical(measure_function(mref4), inf4 + x)
         @test supports(pars[1]) == [1]
         @test supports(pars[2]) == [1]
         # test scalar FunctionalDiscreteMeasureData
-        mref6 = MeasureRef(m, MeasureIndex(5))
-        @test dispatch_variable_ref(measure(inf, data4)) == mref6
+        mref6 = GeneralVariableRef(m, 5, MeasureIndex)
+        @test isequal(measure(inf, data4), mref6)
         @test InfiniteOpt._core_variable_object(mref6).data.label == UniformGrid
         # test multidim FunctionalDiscreteMeasureData
-        mref7 = MeasureRef(m, MeasureIndex(6))
-        @test dispatch_variable_ref(measure(inf5, data5)) == mref7
+        mref7 = GeneralVariableRef(m, 6, MeasureIndex)
+        @test isequal(measure(inf5, data5), mref7)
         @test InfiniteOpt._core_variable_object(mref7).data.label == WeightedSample
         # test analytic evaluation
-        @test dispatch_variable_ref(measure(x, data)) isa MeasureRef
+        @test measure(x, data) isa GeneralVariableRef
         @test is_analytic(measure(x, data))
-        @test dispatch_variable_ref(measure(par2, data)) isa MeasureRef
+        @test measure(par2, data) isa GeneralVariableRef
         @test is_analytic(measure(par2, data))
-        @test dispatch_variable_ref(measure(inf4 + measure(inf + x, data3), data)) isa MeasureRef
+        @test measure(inf4 + measure(inf + x, data3), data) isa GeneralVariableRef
         @test !is_analytic(measure(inf4 + measure(inf + x, data3), data))
         @test is_analytic(measure(x, data6))
         @test is_analytic(measure(par2, data6))
@@ -742,11 +743,12 @@ end
     @testset "@measure" begin
         @test_macro_throws ErrorException @measure(par, data1, data2)
         @test_macro_throws ErrorException @measure(par, data1, bob = 53)
-        @test dispatch_variable_ref(@measure(par, data)) isa MeasureRef
-        @test dispatch_variable_ref(@measure(inf + par, data)) isa MeasureRef
-        @test dispatch_variable_ref(@measure(inf2, data2)) isa MeasureRef
-        @test dispatch_variable_ref(@measure(inf, data3)) isa MeasureRef
-        @test dispatch_variable_ref(@measure(inf3, data4)) isa MeasureRef
+        # TODO improve these
+        @test @measure(par, data) isa GeneralVariableRef
+        @test @measure(inf + par, data) isa GeneralVariableRef
+        @test @measure(inf2, data2) isa GeneralVariableRef
+        @test @measure(inf, data3) isa GeneralVariableRef
+        @test @measure(inf3, data4) isa GeneralVariableRef
     end
 end
 
@@ -780,7 +782,7 @@ end
     end
     #test all_measures
     @testset "all_measures" begin
-        @test all_measures(m) == [mref1, mref2]
+        @test isequal(all_measures(m), [mref1, mref2])
     end
 end
 
@@ -810,12 +812,12 @@ end
     @testset "JuMP.delete" begin
         @test_throws AssertionError delete(m2, mref1)
         @test delete(m, mref1) isa Nothing
-        @test measure_function(mref2) == AffExpr(0)
-        @test measure_function(mref3) == 1. * inf
-        @test constraint_object(constr1).func == zero(AffExpr)
-        @test constraint_object(constr2).func == zero(AffExpr)
-        @test objective_function(m) == zero(AffExpr)
+        @test isequal(measure_function(mref2), zero(GenericAffExpr{Float64, GeneralVariableRef}))
+        @test isequal(measure_function(mref3), 1. * inf)
+        @test isequal(constraint_object(constr1).func, zero(GenericAffExpr{Float64, GeneralVariableRef}))
+        @test isequal(constraint_object(constr2).func, zero(GenericAffExpr{Float64, GeneralVariableRef}))
+        @test isequal(objective_function(m), zero(GenericAffExpr{Float64, GeneralVariableRef}))
         @test delete(m2, mref4) isa Nothing
-        @test objective_function(m2) == 1. * z
+        @test isequal(objective_function(m2), 1. * z)
     end
 end

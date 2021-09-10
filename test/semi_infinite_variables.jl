@@ -25,8 +25,8 @@
     end
     # dispatch_variable_ref
     @testset "dispatch_variable_ref" begin
-        @test dispatch_variable_ref(m, idx) == vref
-        @test dispatch_variable_ref(gvref) == vref
+        @test isequal(dispatch_variable_ref(m, idx), vref)
+        @test isequal(dispatch_variable_ref(gvref), vref)
     end
     # _add_data_object
     @testset "_add_data_object" begin
@@ -83,8 +83,8 @@
     end
     # infinite_variable_ref
     @testset "infinite_variable_ref" begin
-        @test infinite_variable_ref(vref) == ivref
-        @test infinite_variable_ref(gvref) == ivref
+        @test isequal(infinite_variable_ref(vref), ivref)
+        @test isequal(infinite_variable_ref(gvref), ivref)
     end
     # eval_supports
     @testset "eval_supports" begin
@@ -93,18 +93,18 @@
     end
     # raw_parameter_refs
     @testset "raw_parameter_refs" begin
-        @test raw_parameter_refs(vref) == IC.VectorTuple(b[1])
-        @test raw_parameter_refs(gvref) == IC.VectorTuple(b[1])
+        @test isequal(raw_parameter_refs(vref), IC.VectorTuple(b[1]))
+        @test isequal(raw_parameter_refs(gvref), IC.VectorTuple(b[1]))
     end
     # parameter_refs
     @testset "parameter_refs" begin
-        @test parameter_refs(vref) == (b[1],)
-        @test parameter_refs(gvref) == (b[1],)
+        @test isequal(parameter_refs(vref), (b[1],))
+        @test isequal(parameter_refs(gvref), (b[1],))
     end
     # parameter_list
     @testset "parameter_list" begin
-        @test parameter_list(vref) == [b[1]]
-        @test parameter_list(gvref) == [b[1]]
+        @test isequal(parameter_list(vref), [b[1]])
+        @test isequal(parameter_list(gvref), [b[1]])
     end
     # JuMP.set_name
     @testset "JuMP.set_name" begin
@@ -123,7 +123,7 @@
     end
     # _make_variable_ref
     @testset "_make_variable_ref" begin
-        @test InfiniteOpt._make_variable_ref(m, idx) == gvref
+        @test isequal(InfiniteOpt._make_variable_ref(m, idx), gvref)
     end
     # _var_name_dict
     @testset "_var_name_dict" begin
@@ -140,7 +140,7 @@
     # parameter_by_name
     @testset "JuMP.variable_by_name" begin
         # test normal
-        @test variable_by_name(m, "a") == gvref
+        @test isequal(variable_by_name(m, "a"), gvref)
         @test variable_by_name(m, "test") isa Nothing
         # prepare variable with same name
         idx2 = SemiInfiniteVariableIndex(2)
@@ -171,14 +171,14 @@ end
     info2 = VariableInfo(false, NaN, false, NaN, false, NaN, false, NaN, false, true)
     # test _process_value 
     @testset "_process_value" begin 
-        @test InfiniteOpt._process_value(0) == 0
-        @test InfiniteOpt._process_value(0a + 1) == 1
-        @test InfiniteOpt._process_value(1a) == a
-        @test InfiniteOpt._process_value(a + 2) == a + 2
+        @test isequal(InfiniteOpt._process_value(0), 0)
+        @test isequal(InfiniteOpt._process_value(0a + 1), 1)
+        @test isequal(InfiniteOpt._process_value(1a), a)
+        @test isequal(InfiniteOpt._process_value(a + 2), a + 2)
     end
     # test SemiInfinite{V, T}
     @testset "SemiInfinite{T, V}" begin 
-        @test SemiInfinite(ivref, 0, b, c).infinite_variable_ref == ivref 
+        @test isequal(SemiInfinite(ivref, 0, b, c).infinite_variable_ref, ivref)
         @test SemiInfinite(ivref, 0, [b[1], 0], c).parameter_values isa IC.VectorTuple
     end
     # test JuMP.build_variable for macros
@@ -196,8 +196,8 @@ end
         @test_throws ErrorException build_variable(error, info, 
                                                    SemiInfinite(ivref, 0, b))
         # test normal 
-        @test build_variable(error, info, 
-                             SemiInfinite(ivref, 0, b, c)).infinite_variable_ref == ivref
+        @test isequal(build_variable(error, info, 
+                             SemiInfinite(ivref, 0, b, c)).infinite_variable_ref, ivref)
         @test build_variable(error, info, 
                              SemiInfinite(ivref, 0, b, c)).eval_supports == Dict(1 => 0.0)
     end
@@ -213,7 +213,7 @@ end
         @test_throws ErrorException build_variable(error, ivref, eval_supps)
         eval_supps[4] = 0
         # test normal
-        @test build_variable(error, ivref, eval_supps).infinite_variable_ref == ivref
+        @test isequal(build_variable(error, ivref, eval_supps).infinite_variable_ref, ivref)
         @test build_variable(error, ivref, eval_supps).eval_supports === eval_supps
         @test build_variable(error, ivref, eval_supps).object_nums == [2]
         @test build_variable(error, ivref, eval_supps, check = false).object_nums == [2]
@@ -229,7 +229,7 @@ end
         idx = SemiInfiniteVariableIndex(1)
         vref = SemiInfiniteVariableRef(m, idx)
         gvref = GeneralVariableRef(m, 1, SemiInfiniteVariableIndex)
-        @test add_variable(m, var) == gvref
+        @test isequal(add_variable(m, var), gvref)
         @test name(vref) == ""
         @test eval_supports(vref) === eval_supps
         @test supports(a) == [0.5]
@@ -239,7 +239,7 @@ end
         @test InfiniteOpt._object_numbers(vref) == [2]
         @test InfiniteOpt._semi_infinite_variable_dependencies(ivref) == [idx]
         # test with set name (redundant add)
-        @test add_variable(m, var, "cat") == gvref
+        @test isequal(add_variable(m, var, "cat"), gvref)
         @test name(vref) == "cat"
         # test with partial supports
         eval_supps2 = Dict{Int, Float64}(1 => 0.5, 3 => 0, 5 => 1)
@@ -247,7 +247,7 @@ end
         idx = SemiInfiniteVariableIndex(2)
         vref = SemiInfiniteVariableRef(m, idx)
         gvref = GeneralVariableRef(m, 2, SemiInfiniteVariableIndex)
-        @test add_variable(m, var) == gvref
+        @test isequal(add_variable(m, var), gvref)
         @test InfiniteOpt._data_object(vref).name == ""
         @test supports(a) == [0.5]
         @test supports(b[2]) == [0, 1]
@@ -258,22 +258,22 @@ end
     @testset "Macro Definition" begin 
         # anonymous definition
         vref = GeneralVariableRef(m, 3, SemiInfiniteVariableIndex)
-        @test @variable(m, variable_type = SemiInfinite(ivref, 0, [b[1], 0], c)) == vref 
-        @test parameter_refs(vref) == (b[1], c)
+        @test isequal(@variable(m, variable_type = SemiInfinite(ivref, 0, [b[1], 0], c)), vref)
+        @test isequal(parameter_refs(vref), (b[1], c))
         @test eval_supports(vref) == Dict(1 => 0.0, 3 => 0.0)
         @test supports(a) == [0, 0.5]
         @test supports(b[2]) == [0, 1]
         @test supports(b[1]) == []
         # explicit definition (redundant)
         vref = GeneralVariableRef(m, 3, SemiInfiniteVariableIndex)
-        @test @variable(m, test, SemiInfinite(ivref, 0, [b[1], 0], c)) == vref 
-        @test parameter_refs(vref) == (b[1], c)
+        @test isequal(@variable(m, test, SemiInfinite(ivref, 0, [b[1], 0], c)), vref)
+        @test isequal(parameter_refs(vref), (b[1], c))
         @test eval_supports(vref) == Dict(1 => 0.0, 3 => 0.0)
         @test name(vref) == "test"
         # array definition
         vrefs = [GeneralVariableRef(m, i, SemiInfiniteVariableIndex) for i in 4:5]
-        @test @variable(m, [i = 1:2], SemiInfinite(ivref, i - 1, b, c)) == vrefs
-        @test parameter_refs(vrefs[1]) == (b, c)
+        @test isequal(@variable(m, [i = 1:2], SemiInfinite(ivref, i - 1, b, c)), vrefs)
+        @test isequal(parameter_refs(vrefs[1]), (b, c))
         @test eval_supports.(vrefs) == [Dict(1 => 0.0), Dict(1 => 1.0)]
     end
     # test restriciton definition 
@@ -283,13 +283,13 @@ end
         @test_throws ErrorException ivref(0, b)
         # test normal wth restrict
         vref = GeneralVariableRef(m, 6, SemiInfiniteVariableIndex)
-        @test restrict(ivref, 0.5, [b[1], 0], c) == vref 
-        @test parameter_refs(vref) == (b[1], c)
+        @test isequal(restrict(ivref, 0.5, [b[1], 0], c), vref)
+        @test isequal(parameter_refs(vref), (b[1], c))
         @test eval_supports(vref) == Dict(1 => 0.5, 3 => 0.0)
         # test normal functionally
         vref = GeneralVariableRef(m, 6, SemiInfiniteVariableIndex)
-        @test ivref(0.5, [b[1], 0], c) == vref 
-        @test parameter_refs(vref) == (b[1], c)
+        @test isequal(ivref(0.5, [b[1], 0], c), vref)
+        @test isequal(parameter_refs(vref), (b[1], c))
         @test eval_supports(vref) == Dict(1 => 0.5, 3 => 0.0)
     end
 end

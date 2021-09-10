@@ -210,7 +210,7 @@ function build_derivative(
         _error("Derivative arguments must dependent on the infinite parameter " * 
                "it is with respect to. Here $argument_ref does not depend on " * 
                "$parameter_ref.")
-    elseif argument_ref == parameter_ref
+    elseif isequal(argument_ref, parameter_ref)
         _error("Cannot specify the operator parameter as the derivative argument.")
     end
     # check and format the info correctly
@@ -353,7 +353,7 @@ function _build_deriv_expr(
     vref::GeneralVariableRef, 
     pref
     )::Union{GeneralVariableRef, Float64}
-    if vref == pref 
+    if isequal(vref, pref)
         return 1.0
     elseif _parameter_number(pref) in _parameter_numbers(vref)
         dindex = _existing_derivative_index(vref, pref)
@@ -479,19 +479,21 @@ julia> deriv_expr = @deriv(x^2 + z, t^2)
 macro deriv(expr, args...)
     # process the arugments
     extra, kwargs, _, _ = _extract_kwargs(args)
-    # expand the parameter references as needed wiwht powers
+    # error if kwargs are given 
+    _error(str...) = _macro_error(:deriv, (expr, args...), __source__, str...)
+    isempty(kwargs) || _error("Invalid keyword argument given.")
+    # expand the parameter references as needed with powers
     pref_exprs = []
     for p in extra
         if isexpr(p, :call) && p.args[1] == :^
-            append!(pref_exprs, repeat([p.args[2]], p.args[3]))
+            append!(pref_exprs, repeat([esc(p.args[2])], p.args[3]))
         else
-            push!(pref_exprs, p)
+            push!(pref_exprs, esc(p))
         end
     end
     # prepare the code to call deriv
     expression = _MA.rewrite_and_return(expr)
-    code = :( deriv($expression, $(pref_exprs...); ($(kwargs...))) ) # TODO throw error if has kw_args?
-    return esc(code)
+    return :( deriv($expression, $(pref_exprs...)) )
 end
 
 """

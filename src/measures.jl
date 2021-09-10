@@ -1208,8 +1208,9 @@ macro measure(expr, data, args...)
                "@measure(expr, data, name = ...).")
     end
     expression = _MA.rewrite_and_return(expr)
-    mref = :( measure($expression, $data; ($(kwargs...))) )
-    return esc(mref)
+    esc_kwargs = map(i -> esc(i), kwargs)
+    mref = :( measure($expression, $(esc(data)); ($(esc_kwargs...))) )
+    return mref
 end
 
 ################################################################################
