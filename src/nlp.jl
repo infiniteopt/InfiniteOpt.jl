@@ -386,34 +386,26 @@ end
 # Define NLPExpr as a mutable type for MA
 _MA.mutability(::Type{NLPExpr}) = _MA.IsMutable()
 
-# Extend MA.promote_operation for bettered efficiency
-function _MA.promote_operation(
-    ::Union{typeof(+),typeof(-),typeof(*),typeof(/),typeof(^)},
-    ::Type{<:Real},
-    ::Type{NLPExpr}
-    )
-    return NLPExpr
-end
-function _MA.promote_operation(
-    ::Union{typeof(+),typeof(-),typeof(*),typeof(/),typeof(^)},
-    ::Type{NLPExpr},
-    ::Type{<:Real}
-    )
-    return NLPExpr
-end
-function _MA.promote_operation(
-    ::Union{typeof(+),typeof(-),typeof(*),typeof(/),typeof(^)},
-    ::Type{NLPExpr},
-    ::Type{<:AbstractInfOptExpr}
-    )
-    return NLPExpr
-end
-function _MA.promote_operation(
-    ::Union{typeof(+),typeof(-),typeof(*),typeof(/),typeof(^)},
-    ::Type{<:AbstractInfOptExpr},
-    ::Type{NLPExpr}
-    )
-    return NLPExpr
+# Extend MA.promote_operation for bettered efficiency (TODO fix ambiguousnous)
+for type in (:Real, :GeneralVariableRef,
+             :(JuMP.GenericAffExpr{Float64, GeneralVariableRef}), 
+             :(JuMP.GenericQuadExpr{Float64, GeneralVariableRef}))
+    @eval begin
+        function _MA.promote_operation(
+            ::Union{typeof(+),typeof(-),typeof(*),typeof(/),typeof(^)},
+            ::Type{<:$type},
+            ::Type{NLPExpr}
+            )
+            return NLPExpr
+        end
+        function _MA.promote_operation(
+            ::Union{typeof(+),typeof(-),typeof(*),typeof(/),typeof(^)},
+            ::Type{NLPExpr},
+            ::Type{<:$type}
+            )
+            return NLPExpr
+        end
+    end
 end
 function _MA.promote_operation(
     ::Union{typeof(+),typeof(-),typeof(*),typeof(/),typeof(^)},
@@ -422,24 +414,29 @@ function _MA.promote_operation(
     )
     return NLPExpr
 end
-function _MA.promote_operation(
-    ::Union{typeof(*),typeof(/),typeof(^)},
-    ::Type{<:JuMP.GenericQuadExpr},
-    ::Type{<:AbstractInfOptExpr}
-    )
-    return NLPExpr
+for type in (:GeneralVariableRef, 
+             :(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
+    @eval begin
+        function _MA.promote_operation(
+            ::Union{typeof(*),typeof(/),typeof(^)},
+            ::Type{<:$type},
+            ::Type{JuMP.GenericQuadExpr{Float64, GeneralVariableRef}}
+            )
+            return NLPExpr
+        end
+        function _MA.promote_operation(
+            ::Union{typeof(*),typeof(/),typeof(^)},
+            ::Type{JuMP.GenericQuadExpr{Float64, GeneralVariableRef}},
+            ::Type{<:$type}
+            )
+            return NLPExpr
+        end
+    end
 end
 function _MA.promote_operation(
     ::Union{typeof(*),typeof(/),typeof(^)},
-    ::Type{<:AbstractInfOptExpr},
-    ::Type{<:JuMP.GenericQuadExpr}
-    )
-    return NLPExpr
-end
-function _MA.promote_operation(
-    ::Union{typeof(*),typeof(/),typeof(^)},
-    ::Type{<:JuMP.GenericQuadExpr},
-    ::Type{<:JuMP.GenericQuadExpr}
+    ::Type{<:JuMP.GenericQuadExpr{Float64, GeneralVariableRef}},
+    ::Type{<:JuMP.GenericQuadExpr{Float64, GeneralVariableRef}}
     )
     return NLPExpr
 end

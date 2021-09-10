@@ -478,7 +478,7 @@ end
 ################################################################################
 # Convert to NLPExpr
 function Base.convert(::Type{NLPExpr}, expr)
-    return NLPExpr(_process_child_input(expr))
+    return NLPExpr(_LCRST.Node(_process_child_input(expr)))
 end
 function Base.convert(::Type{NLPExpr}, expr::NLPExpr)
     return expr
@@ -558,7 +558,7 @@ end
 
 # NLPExpr
 function _interrogate_variables(interrogator::Function, nlp::NLPExpr)
-    for n in AbstractTrees.Leaves(nlp.expr)
+    for n in AbstractTrees.Leaves(nlp.tree_root)
         _interrogate_variables(interrogator, _node_value(n.data))
     end
     return
@@ -679,7 +679,7 @@ end
 
 # NLPExpr
 function _model_from_expr(expr::NLPExpr)
-    for node in AbstractTrees.Leaves(expr.expr)
+    for node in AbstractTrees.Leaves(expr.tree_root)
         result = _model_from_expr(_node_value(node.data))
         if result !== nothing
             return result 
