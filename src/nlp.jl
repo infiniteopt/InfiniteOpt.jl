@@ -47,6 +47,8 @@ function _LCRST.addchild(
     prevc::_LCRST.Node{T}, 
     newc::_LCRST.Node{T}
     ) where T
+    # check if the prev is actually a child of the parent 
+    @assert prevc.parent === parent "Previous child doesn't belong to parent."
     # copy the new node if it is not a root
     # otherwise, we are just merging 2 graphs together
     if !_LCRST.isroot(newc)

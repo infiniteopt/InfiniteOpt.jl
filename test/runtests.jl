@@ -15,6 +15,7 @@ const JuMPC = JuMP.Containers
 const MOIUC = MOIU.CleverDicts
 const FGQ = FastGaussQuadrature
 const IOMT = InfiniteOpt.MeasureToolbox
+const LCRST = LeftChildRightSiblingTrees
 
 # Load in testing utilities
 include("utilities.jl")
@@ -56,6 +57,8 @@ println("")
 end
 println("")
 @time @testset "Derivative Methods" begin include("derivatives.jl") end
+println("")
+@time @testset "Nonlinear" begin include("nlp.jl") end
 println("")
 @time @testset "Operators" begin include("operators.jl") end
 println("")
