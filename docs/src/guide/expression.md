@@ -167,7 +167,7 @@ object for storing affine expressions.
 
 !!! note
     Where possible, it is preferable to use 
-    [`@expression`](https://jump.dev/JuMP.jl/v0.21.9/reference/expressions/#JuMP.@expression) 
+    [`@expression`](https://jump.dev/JuMP.jl/v0.21.10/reference/expressions/#JuMP.@expression) 
     for defining expressions as it is much more efficient than explicitly using 
     the standard operators.
 
@@ -189,7 +189,7 @@ Notice that the ordered dictionary preserves the order in which the variables
 appear in the expression.
 
 More information can be found in the documentation for affine expressions in 
-[`JuMP`](https://jump.dev/JuMP.jl/v0.21.9/reference/expressions/#Affine-expressions).
+[`JuMP`](https://jump.dev/JuMP.jl/v0.21.10/reference/expressions/#Affine-expressions).
 
 ## Quadratic Expressions
 A quadratic function pertains to a mathematical function of the form:
@@ -254,7 +254,7 @@ Notice again that the ordered dictionary preserves the order.
     ```
 
 More information can be found in the documentation for quadratic expressions in 
-[`JuMP`](https://jump.dev/JuMP.jl/v0.21.9/reference/expressions/#Quadratic-expressions).
+[`JuMP`](https://jump.dev/JuMP.jl/v0.21.10/reference/expressions/#Quadratic-expressions).
 
 ## Nonlinear Expressions
 General nonlinear expressions as generated via `JuMP.@NLexpression`, 
@@ -288,7 +288,7 @@ We can also reformulate for a variety of nonlinear function types:
 | Function     | Example                        | Reformulation Method                                                                                                               |
 |:------------:|:------------------------------:|:----------------------------------------------------------------------------------------------------------------------------------:|
 | Square Root  | ``\sqrt{z}``                   | Make a squared reformulation variable                                                                                              |
-| Indicator    | ``\mathbb{1}_{z \geq \alpha}`` | Use [`JuMP`'s indicator constraint syntax](https://jump.dev/JuMP.jl/v0.21.9/manual/constraints/#Indicator-constraints)             | 
+| Indicator    | ``\mathbb{1}_{z \geq \alpha}`` | Use [`JuMP`'s indicator constraint syntax](https://jump.dev/JuMP.jl/v0.21.10/manual/constraints/#Indicator-constraints)             | 
 | Indicator    | ``\mathbb{1}_{z \geq \alpha}`` | Replace with big-M constraints ([reference](https://www.gurobi.com/documentation/9.1/refman/dealing_with_big_m_constra.html))      | 
 | Max/Min      | ``\max(z, a)``                 | Linear programming cuts or big-m constraints ([reference](https://or.stackexchange.com/questions/711/how-to-formulate-linearize-a-maximum-function-in-a-constraint/712#712)) |
 
