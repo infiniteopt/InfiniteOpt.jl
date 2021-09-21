@@ -1307,22 +1307,26 @@ function add_supports(
     end
     supports = round.(supports, sigdigits = significant_digits(first(prefs)))
     current_supports = _parameter_supports(first(prefs))
+    added_new_support = false
     for i in 1:size(supports, 2)
         s = @view(supports[:, i])
         if haskey(current_supports, s)
             push!(current_supports[s], label)
         else
             current_supports[s] = Set([label])
+            added_new_support = true
         end
     end
     if label <: InternalLabel
         _set_has_internal_supports(first(prefs), true)
     end
-    for pref in prefs
-        _reset_derivative_constraints(pref)
-    end
-    if any(is_used(pref) for pref in prefs)
-        set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
+    if added_new_support
+        for pref in prefs
+            _reset_derivative_constraints(pref)
+        end
+        if any(is_used(pref) for pref in prefs)
+            set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
+        end
     end
     return
 end

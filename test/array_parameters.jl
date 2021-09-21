@@ -886,7 +886,7 @@ end
         warn = "Support/method changes will invalidate existing derivative evaluation " *
                "constraints that have been added to the InfiniteModel. Thus, " *
                "these are being deleted."
-        @test_logs (:warn, warn) add_supports(prefs1, 0.1 * ones(2, 2)) isa Nothing
+        @test_logs (:warn, warn) add_supports(prefs1, 0.2 * ones(2, 2)) isa Nothing
         InfiniteOpt._data_object(prefs1[1]).has_deriv_constrs[1] = false
     end
     # test add_supports (AbstractArray)
