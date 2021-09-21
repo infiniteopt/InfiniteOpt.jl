@@ -111,6 +111,7 @@ function _set_core_constraint_object(
     constr::JuMP.AbstractConstraint
     )::Nothing
     _adaptive_data_update(cref, constr, _data_object(cref))
+    set_optimizer_model_ready(JuMP.owner_model(cref), false)
     return
 end
 
