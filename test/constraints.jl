@@ -357,6 +357,7 @@ end
         new_rs = DomainRestrictions(par => -1)
         @test_throws ErrorException InfiniteOpt._update_restrictions(rs1, new_rs)
         new_rs = DomainRestrictions(par => 0, invert_logic = true)
+        @test_throws ErrorException InfiniteOpt._update_restrictions(rs1, new_rs)
     end
     # test add_parameter_restrictions
     @testset "add_domain_restrictions" begin
