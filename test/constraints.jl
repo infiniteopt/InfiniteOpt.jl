@@ -178,6 +178,10 @@ end
         rs = DomainRestrictions(pars => 0)
         @test InfiniteOpt._validate_restrictions(m, rs) isa Nothing
         @test supports(pars) == zeros(2, 1)
+        # test inverted conditions 
+        rs = DomainRestrictions(pars => 0.2, invert_logic = true)
+        @test InfiniteOpt._validate_restrictions(m, rs) isa Nothing
+        @test supports(pars) == zeros(2, 1)
     end
     # test _update_var_constr_mapping
     @testset "_update_var_constr_mapping" begin
@@ -352,6 +356,7 @@ end
         @test_throws ErrorException InfiniteOpt._update_restrictions(rs1, new_rs)
         new_rs = DomainRestrictions(par => -1)
         @test_throws ErrorException InfiniteOpt._update_restrictions(rs1, new_rs)
+        new_rs = DomainRestrictions(par => 0, invert_logic = true)
     end
     # test add_parameter_restrictions
     @testset "add_domain_restrictions" begin

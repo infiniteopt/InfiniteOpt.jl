@@ -275,7 +275,7 @@ end
     @testset "DataType" begin
         @test DomainRestrictions isa UnionAll
         d = Dict(par3 => IntervalDomain(0, 1))
-        @test DomainRestrictions(d) isa DomainRestrictions{GeneralVariableRef}
+        @test DomainRestrictions(d, true) isa DomainRestrictions{GeneralVariableRef}
         @test DomainRestrictions() isa DomainRestrictions{GeneralVariableRef}
     end
     # test _expand_parameter_tuple
@@ -303,6 +303,7 @@ end
         d = (pars => IntervalDomain(0, 1), par3 => IntervalDomain(0, 1))
         @test DomainRestrictions(d).intervals isa Dict{GeneralVariableRef, IntervalDomain}
         @test DomainRestrictions(par3 => 0).intervals isa Dict
+        @test DomainRestrictions(par3 => 0, invert_logic = true).invert
         @test_deprecated ParameterBounds(par3 => 0)
     end
     dr = DomainRestrictions(par3 => [0, 1])

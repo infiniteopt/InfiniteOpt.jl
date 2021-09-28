@@ -221,11 +221,12 @@ function _validate_restrictions(
     restrictions::DomainRestrictions
     )::Nothing
     depend_supps = Dict{DependentParametersIndex, Matrix{Float64}}()
+    is_inverted = restrictions.invert
     for (pref, domain) in restrictions
         # check validity
         JuMP.check_belongs_to_model(pref, model)
         # ensure has a support if a point constraint was given
-        if (JuMP.lower_bound(domain) == JuMP.upper_bound(domain))
+        if !is_inverted && (JuMP.lower_bound(domain) == JuMP.upper_bound(domain))
             if _index_type(pref) == IndependentParameterIndex
                 # label will be UserDefined
                 add_supports(pref, JuMP.lower_bound(domain), check = false)
@@ -856,6 +857,12 @@ function _update_restrictions(
     old::DomainRestrictions{GeneralVariableRef},
     new::DomainRestrictions{GeneralVariableRef}
     )::Nothing
+    # check if logic is compatible 
+    if old.invert != new.invert
+        error("The new domain restrictions are incompatible with the existing ",
+              "ones. The restriction logic doesn't match. Ensure `invert_logic` ",
+              "is the same for both.")
+    end
     # check each new restriction
     for (pref, domain) in new
         # we have a new restriction
