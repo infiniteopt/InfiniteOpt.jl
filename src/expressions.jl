@@ -804,8 +804,8 @@ end
 
 # NLPExpr
 function map_expression(transform::Function, nlp::NLPExpr)
-    return _map_tree(n -> _map_expr_node(transform, _node_value(n.data)), 
-                     nlp.tree_root)
+    return NLPExpr(_map_tree(n -> _map_expr_node(transform, _node_value(n.data)), 
+                   nlp.tree_root))
 end
 
 ################################################################################
