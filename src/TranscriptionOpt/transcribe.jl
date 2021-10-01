@@ -456,7 +456,7 @@ function transcription_expression(
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     support::Vector{Float64}
-    )::JuMP.VariableRef where {V <: FinVarIndex}
+    ) where {V <: FinVarIndex}
     return lookup_by_support(trans_model, vref, index_type, support)
 end
 
@@ -466,7 +466,7 @@ function transcription_expression(
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     support::Vector{Float64}
-    )::Float64 where {V <: InfiniteOpt.InfiniteParameterIndex}
+    ) where {V <: InfiniteOpt.InfiniteParameterIndex}
     param_num = InfiniteOpt._parameter_number(vref)
     return support[param_num]
 end
@@ -477,7 +477,7 @@ function transcription_expression(
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.FiniteParameterIndex},
     support::Vector{Float64}
-    )::Float64
+    )
     return InfiniteOpt.parameter_value(vref)
 end
 
@@ -532,7 +532,7 @@ Note that `TranscriptionData.measure_support_labels` is also populated.
 function transcribe_measures!(
     trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
-    )::Nothing
+    )
     for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.Measure)
         # get the basic information
         meas = object.measure
@@ -544,7 +544,7 @@ function transcribe_measures!(
         end
         # prepare to transcribe over the supports
         supp_indices = support_index_iterator(trans_model, meas.object_nums)
-        exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(supp_indices))
+        exprs = Vector{Any}(undef, length(supp_indices))
         labels = Vector{Set{DataType}}(undef, length(supp_indices))
         lookup_dict = Dict{Vector{Float64}, Int}()
         # map a variable for each support
