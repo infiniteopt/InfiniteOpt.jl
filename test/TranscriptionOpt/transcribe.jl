@@ -204,7 +204,7 @@ end
         @test IOTO.transcribe_measures!(tm, m) isa Nothing 
         @test transcription_variable(meas1) == tx[1] + 4tw + tx[2]
         @test transcription_variable(meas2) == tw + 0
-        @test transcription_variable(meas3) isa Vector{AbstractJuMPScalar}
+        @test transcription_variable(meas3) isa Vector
         @test transcription_variable(meas4) isa AffExpr
         @test supports(meas1) == ()
         @test supports(meas2) == ()
