@@ -62,7 +62,7 @@ mutable struct TranscriptionData
 
     # Measure information
     measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}
-    measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}
+    measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{Any}}
     measure_supports::Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}
     measure_support_labels::Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}
 
@@ -94,7 +94,7 @@ mutable struct TranscriptionData
                    Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}(),
                    # measure info
                    Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
-                   Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}(),
+                   Dict{InfiniteOpt.GeneralVariableRef, Vector{Any}}(),
                    Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}(),
                    Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}(),
                    # constraint info
