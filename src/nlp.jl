@@ -308,9 +308,9 @@ end
 # QuadExpr
 function _ast_process_node(map_func::Function, quad::JuMP.GenericQuadExpr)
     ex = Expr(:call, :+)
-    push!(ex.args, _ast_process_node(map_func, quad.aff))
+    append!(ex.args, _ast_process_node(map_func, quad.aff).args[2:end])
     for (xy, c) in quad.terms
-        if !isone(c)
+        if isone(c)
             push!(ex.args, Expr(:call, :*, map_func(xy.a), map_func(xy.b)))
         else
             push!(ex.args, Expr(:call, :*, c, map_func(xy.a), map_func(xy.b)))
