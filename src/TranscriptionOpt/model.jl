@@ -922,7 +922,7 @@ using placeholder `NaN`s as appropriate for tuple elements that are unneeded.
 function index_to_support(
     model::JuMP.Model,
     index::CartesianIndex
-    )
+    )::Vector{Float64}
     raw_supps = parameter_supports(model)
     return [j for i in eachindex(index.I) for j in raw_supps[i][index[i]]]
 end
