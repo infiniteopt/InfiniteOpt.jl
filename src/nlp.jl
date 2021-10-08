@@ -292,9 +292,6 @@ end
 # AffExpr
 function _ast_process_node(map_func::Function, aff::JuMP.GenericAffExpr)
     ex = Expr(:call, :+)
-    if !iszero(aff.constant)
-        push!(ex.args, aff.constant)
-    end
     for (v, c) in aff.terms
         if isone(c)
             push!(ex.args, map_func(v))
@@ -302,13 +299,15 @@ function _ast_process_node(map_func::Function, aff::JuMP.GenericAffExpr)
             push!(ex.args, Expr(:call, :*, c, map_func(v)))
         end
     end
+    if !iszero(aff.constant)
+        push!(ex.args, aff.constant)
+    end
     return ex
 end
 
 # QuadExpr
 function _ast_process_node(map_func::Function, quad::JuMP.GenericQuadExpr)
     ex = Expr(:call, :+)
-    append!(ex.args, _ast_process_node(map_func, quad.aff).args[2:end])
     for (xy, c) in quad.terms
         if isone(c)
             push!(ex.args, Expr(:call, :*, map_func(xy.a), map_func(xy.b)))
@@ -316,6 +315,7 @@ function _ast_process_node(map_func::Function, quad::JuMP.GenericQuadExpr)
             push!(ex.args, Expr(:call, :*, c, map_func(xy.a), map_func(xy.b)))
         end
     end
+    append!(ex.args, _ast_process_node(map_func, quad.aff).args[2:end])
     return ex
 end
 
@@ -381,122 +381,6 @@ function _call_graph(func::Symbol, arg1, args...)
     end
     return root
 end
-
-################################################################################
-#                               MUTABLE ARITHMETICS
-################################################################################
-# Define NLPExpr as a mutable type for MA
-_MA.mutability(::Type{NLPExpr}) = _MA.IsMutable()
-
-# Extend MA.promote_operation for bettered efficiency (TODO fix ambiguousnous)
-for type in (:Real, :GeneralVariableRef,
-             :(JuMP.GenericAffExpr{Float64, GeneralVariableRef}), 
-             :(JuMP.GenericQuadExpr{Float64, GeneralVariableRef}))
-    @eval begin
-        function _MA.promote_operation(
-            ::Union{typeof(+),typeof(-),typeof(*),typeof(/),typeof(^)},
-            ::Type{<:$type},
-            ::Type{NLPExpr}
-            )
-            return NLPExpr
-        end
-        function _MA.promote_operation(
-            ::Union{typeof(+),typeof(-),typeof(*),typeof(/),typeof(^)},
-            ::Type{NLPExpr},
-            ::Type{<:$type}
-            )
-            return NLPExpr
-        end
-    end
-end
-function _MA.promote_operation(
-    ::Union{typeof(+),typeof(-),typeof(*),typeof(/),typeof(^)},
-    ::Type{NLPExpr},
-    ::Type{NLPExpr}
-    )
-    return NLPExpr
-end
-for type in (:GeneralVariableRef, 
-             :(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
-    @eval begin
-        function _MA.promote_operation(
-            ::Union{typeof(*),typeof(/),typeof(^)},
-            ::Type{<:$type},
-            ::Type{JuMP.GenericQuadExpr{Float64, GeneralVariableRef}}
-            )
-            return NLPExpr
-        end
-        function _MA.promote_operation(
-            ::Union{typeof(*),typeof(/),typeof(^)},
-            ::Type{JuMP.GenericQuadExpr{Float64, GeneralVariableRef}},
-            ::Type{<:$type}
-            )
-            return NLPExpr
-        end
-    end
-end
-function _MA.promote_operation(
-    ::Union{typeof(*),typeof(/),typeof(^)},
-    ::Type{<:JuMP.GenericQuadExpr{Float64, GeneralVariableRef}},
-    ::Type{<:JuMP.GenericQuadExpr{Float64, GeneralVariableRef}}
-    )
-    return NLPExpr
-end
-function _MA.promote_operation(
-    ::Union{typeof(/),typeof(^)},
-    ::Type{Union{<:Real, <:AbstractInfOptExpr}},
-    ::Type{<:AbstractInfOptExpr}
-    )
-    return NLPExpr
-end
-
-# Extend MA.scaling in case an NLPExpr needs to be converted to a number
-function _MA.scaling(nlp::NLPExpr)
-    c = _node_value(expr.data)
-    if !(c isa Real) 
-        throw(InexactError("Cannot convert `$nlp` to `$Float64`."))
-    end
-    return _MA.scaling(c)
-end
-
-# Extend MA.mutable_Copy to avoid unnecessary copying
-function _MA.mutable_copy(nlp::NLPExpr) 
-    return nlp # we don't need to copy since we build from the leaves up
-end
-
-# Extend MA.mutable_operate! as required 
-function _MA.mutable_operate!(
-    op::Union{typeof(zero), typeof(one)}, 
-    ::NLPExpr
-    ) 
-    return op(NLPExpr) # not actually mutable for safety and efficiency
-end
-function _MA.mutable_operate!(
-    op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(/)}, 
-    nlp::NLPExpr,
-    v
-    ) 
-    return op(nlp, v)
-end
-function _MA.mutable_operate!(
-    op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(/)}, 
-    v,
-    nlp::NLPExpr
-    ) 
-    return op(v, nlp)
-end
-function _MA.mutable_operate!(
-    op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(/)}, 
-    nlp1::NLPExpr,
-    nlp2::NLPExpr
-    ) 
-    return op(nlp1, nlp2)
-end
-function _MA.mutable_operate!(op::_MA.AddSubMul, nlp::NLPExpr, args...) 
-    return _MA.add_sub_op(op)(nlp, *(args...))
-end
-
-# TODO maybe extend _MA.add_mul/_MA_.sub_mul as well
 
 ################################################################################
 #                               SUMS AND PRODUCTS
@@ -799,6 +683,122 @@ end
 function Base.:+(nlp::NLPExpr)
     return NLPExpr(_call_graph(:+, nlp))
 end
+
+################################################################################
+#                               MUTABLE ARITHMETICS
+################################################################################
+# Define NLPExpr as a mutable type for MA
+_MA.mutability(::Type{NLPExpr}) = _MA.IsMutable()
+
+# Extend MA.promote_operation for bettered efficiency (TODO fix ambiguousnous)
+for type in (:Real, :GeneralVariableRef,
+             :(JuMP.GenericAffExpr{Float64, GeneralVariableRef}), 
+             :(JuMP.GenericQuadExpr{Float64, GeneralVariableRef}))
+    @eval begin
+        function _MA.promote_operation(
+            ::Union{typeof(+),typeof(-),typeof(*),typeof(/),typeof(^)},
+            ::Type{<:$type},
+            ::Type{NLPExpr}
+            )
+            return NLPExpr
+        end
+        function _MA.promote_operation(
+            ::Union{typeof(+),typeof(-),typeof(*),typeof(/),typeof(^)},
+            ::Type{NLPExpr},
+            ::Type{<:$type}
+            )
+            return NLPExpr
+        end
+    end
+end
+function _MA.promote_operation(
+    ::Union{typeof(+),typeof(-),typeof(*),typeof(/),typeof(^)},
+    ::Type{NLPExpr},
+    ::Type{NLPExpr}
+    )
+    return NLPExpr
+end
+for type in (:GeneralVariableRef, 
+             :(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
+    @eval begin
+        function _MA.promote_operation(
+            ::Union{typeof(*),typeof(/),typeof(^)},
+            ::Type{<:$type},
+            ::Type{JuMP.GenericQuadExpr{Float64, GeneralVariableRef}}
+            )
+            return NLPExpr
+        end
+        function _MA.promote_operation(
+            ::Union{typeof(*),typeof(/),typeof(^)},
+            ::Type{JuMP.GenericQuadExpr{Float64, GeneralVariableRef}},
+            ::Type{<:$type}
+            )
+            return NLPExpr
+        end
+    end
+end
+function _MA.promote_operation(
+    ::Union{typeof(*),typeof(/),typeof(^)},
+    ::Type{<:JuMP.GenericQuadExpr{Float64, GeneralVariableRef}},
+    ::Type{<:JuMP.GenericQuadExpr{Float64, GeneralVariableRef}}
+    )
+    return NLPExpr
+end
+function _MA.promote_operation(
+    ::Union{typeof(/),typeof(^)},
+    ::Type{Union{<:Real, <:AbstractInfOptExpr}},
+    ::Type{<:AbstractInfOptExpr}
+    )
+    return NLPExpr
+end
+
+# Extend MA.scaling in case an NLPExpr needs to be converted to a number
+function _MA.scaling(nlp::NLPExpr)
+    c = _node_value(expr.data)
+    if !(c isa Real) 
+        throw(InexactError("Cannot convert `$nlp` to `$Float64`."))
+    end
+    return _MA.scaling(c)
+end
+
+# Extend MA.mutable_Copy to avoid unnecessary copying
+function _MA.mutable_copy(nlp::NLPExpr) 
+    return nlp # we don't need to copy since we build from the leaves up
+end
+
+# Extend MA.mutable_operate! as required 
+function _MA.mutable_operate!(
+    op::Union{typeof(zero), typeof(one)}, 
+    ::NLPExpr
+    ) 
+    return op(NLPExpr) # not actually mutable for safety and efficiency
+end
+function _MA.mutable_operate!(
+    op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(/)}, 
+    nlp::NLPExpr,
+    v
+    ) 
+    return op(nlp, v)
+end
+function _MA.mutable_operate!(
+    op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(/)}, 
+    v,
+    nlp::NLPExpr
+    ) 
+    return op(v, nlp)
+end
+function _MA.mutable_operate!(
+    op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(/)}, 
+    nlp1::NLPExpr,
+    nlp2::NLPExpr
+    ) 
+    return op(nlp1, nlp2)
+end
+function _MA.mutable_operate!(op::_MA.AddSubMul, nlp::NLPExpr, args...) 
+    return _MA.add_sub_op(op)(nlp, *(args...))
+end
+
+# TODO maybe extend _MA.add_mul/_MA_.sub_mul as well
 
 ################################################################################
 #                             NATIVE NLP FUNCTIONS
