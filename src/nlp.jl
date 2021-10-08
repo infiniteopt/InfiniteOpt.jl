@@ -422,14 +422,17 @@ function Base.sum(itr::Base.Generator; kw...)
 end
 
 # Extend Base.sum for container of NLPExprs
-function Base.sum(arr::AbstractArray{<:NLPExpr}; init = 0.0)
+function Base.sum(arr::AbstractArray{<:NLPExpr}; init = zero(NLPExpr))
     isempty(arr) && return init
     itr1, new_itr = Iterators.peel(arr)
     return _reduce_by_first(sum, itr1, new_itr)
 end
 
 # Extend Base.sum for container of InfiniteOpt exprs
-function Base.sum(arr::AbstractArray{<:AbstractInfOptExpr}; init = 0.0)
+function Base.sum(
+    arr::AbstractArray{<:AbstractInfOptExpr}; 
+    init = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+    )
     isempty(arr) && return init
     result = _MA.Zero()
     for i in arr 
@@ -442,7 +445,7 @@ end
 # Container of InfiniteOpt exprs
 function _reduce_by_first(::typeof(prod), first_itr::AbstractInfOptExpr, itr)
     root = _LCRST.Node(NodeData(:*))
-    prevc = _LCRST.addchild(root, first_itr.tree_root)
+    prevc = _LCRST.addchild(root, _process_child_input(first_itr))
     for ex in itr
         prevc = _LCRST.addchild(root, prevc, _process_child_input(ex))
     end
@@ -462,7 +465,7 @@ function Base.prod(itr::Base.Generator; kw...)
 end
 
 # Extend Base.prod for container of InfiniteOpt exprs
-function Base.prod(arr::AbstractArray{<:AbstractInfOptExpr}; init = 0.0)
+function Base.prod(arr::AbstractArray{<:AbstractInfOptExpr}; init = one(NLPExpr))
     isempty(arr) && return init
     itr1, new_itr = Iterators.peel(arr)
     return _reduce_by_first(prod, itr1, new_itr)
@@ -571,7 +574,7 @@ end
 # expr ^ Integer
 function Base.:^(expr::AbstractInfOptExpr, c::Integer)
     if iszero(c)
-        return 1.0
+        return one(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     elseif isone(c)
         return expr 
     elseif c == 2 
@@ -584,7 +587,7 @@ end
 # expr ^ Real
 function Base.:^(expr::AbstractInfOptExpr, c::Real)
     if iszero(c)
-        return 1.0
+        return one(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     elseif isone(c)
         return expr 
     elseif c == 2 
@@ -597,7 +600,7 @@ end
 # NLPExpr ^ Integer
 function Base.:^(expr::NLPExpr, c::Integer)
     if iszero(c)
-        return 1.0
+        return one(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     elseif isone(c)
         return expr 
     else 
@@ -608,7 +611,7 @@ end
 # NLPExpr ^ Real
 function Base.:^(expr::NLPExpr, c::Real)
     if iszero(c)
-        return 1.0
+        return one(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     elseif isone(c)
         return expr 
     else 
@@ -681,7 +684,7 @@ end
 
 # +NLPExpr
 function Base.:+(nlp::NLPExpr)
-    return NLPExpr(_call_graph(:+, nlp))
+    return nlp
 end
 
 ################################################################################
@@ -908,13 +911,20 @@ function ifelse(
     cond::NLPExpr,
     v1::Union{AbstractInfOptExpr, Real}, 
     v2::Union{AbstractInfOptExpr, Real}
-    )::NLPExpr
+    )
     return NLPExpr(_call_graph(:ifelse, cond, v1, v2))
+end
+function ifelse(
+    cond::Bool,
+    v1::Union{AbstractInfOptExpr, Real}, 
+    v2::Union{AbstractInfOptExpr, Real}
+    )
+    return cond ? v1 : v2
 end
 
 # Setup the Base comparison functions
 for (name, func) in (:< => Base.:(<), :(==) => Base.:(==), :> => Base.:(>),
-                     :<= => Base.:(<=), :>= => Base.:(<=))
+                     :<= => Base.:(<=), :>= => Base.:(>=))
     # add it to the main storage dict
     _NativeNLPFunctions[name] = func
     # make an expression constructor
@@ -953,41 +963,31 @@ _NativeNLPFunctions[:&&] = Base.:&
 _NativeNLPFunctions[:||] = Base.:|
 
 # Logical And
-function Base.:&(v::AbstractInfOptExpr, c::Bool)
-    if c
-        return v
-    else
-        return false
-    end
+function Base.:&(v::Union{GeneralVariableRef, NLPExpr}, c::Bool)
+    return c ? v : false
 end
-function Base.:&(c::Bool, v::AbstractInfOptExpr)
-    if c
-        return v
-    else
-        return false
-    end
+function Base.:&(c::Bool, v::Union{GeneralVariableRef, NLPExpr})
+    return c ? v : false
 end
-function Base.:&(v1::AbstractInfOptExpr, v2::AbstractInfOptExpr)
+function Base.:&(
+    v1::Union{GeneralVariableRef, NLPExpr}, 
+    v2::Union{GeneralVariableRef, NLPExpr}
+    )
     return NLPExpr(_call_graph(:&&, v1, v2))
 end
 
 # Logical Or
-function Base.:|(v::AbstractInfOptExpr, c::Bool)
-    if c
-        return true
-    else
-        return v
-    end
+function Base.:|(v::Union{GeneralVariableRef, NLPExpr}, c::Bool)
+    return c ? true : v
 end
-function Base.:|(c::Bool, v::AbstractInfOptExpr)
-    if c
-        return true
-    else
-        return v
-    end
+function Base.:|(c::Bool, v::Union{GeneralVariableRef, NLPExpr})
+    return c ? true : v
 end
-function Base.:|(v1::AbstractInfOptExpr, v2::AbstractInfOptExpr)
-    return NLPExpr(_call_graph(:||, v1, v2))
+function Base.:|(
+    v1::Union{GeneralVariableRef, NLPExpr}, 
+    v2::Union{GeneralVariableRef, NLPExpr})
+    return NLPExpr(_call_graph(:||, v1, v2)
+    )
 end
 
 const _Special1ArgFuncList = (

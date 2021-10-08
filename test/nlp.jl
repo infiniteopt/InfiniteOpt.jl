@@ -420,6 +420,9 @@ end
         io_test(print_expression_tree, expected, nlp)
         # test with other 
         io_test(print_expression_tree, "y(t)\n", y)
+        # test again 
+        test_output = @capture_out print_expression_tree(nlp)
+        @test test_output == expected
     end
     # test ast mapping 
     @testset "ast mapping" begin 
@@ -502,6 +505,227 @@ end
         addchild(p, NodeData(y^2))
         @test isequal(InfiniteOpt._call_graph(:^, nlp, y^2), p)
     end
+    # test the sum 
+    @testset "sum" begin 
+        # test empty sums
+        @test sum(i for i in Int[]) == 0
+        @test isequal(sum(NLPExpr[]), zero(NLPExpr))
+        @test isequal(sum(GeneralVariableRef[]), 
+                      zero(GenericAffExpr{Float64, GeneralVariableRef}))
+        # test NLP sums 
+        p = Node(NodeData(:sin))
+        addchild(p, NodeData(y))
+        nlp = NLPExpr(p)
+        new = NLPExpr(InfiniteOpt._call_graph(:+, nlp, nlp))
+        @test isequal(sum(i for i in [nlp, nlp]), new)
+        @test isequal(sum([nlp, nlp]), new)
+        # test other expressions 
+        @test isequal(sum(i for i in [y, t]), y + t)
+        @test isequal(sum([y, t]), y + t)
+        # normal sums 
+        @test sum(i for i in 1:3) == 6
+    end
+    # test the product
+    @testset "prod" begin 
+        # test empty sums
+        @test prod(i for i in Int[]) == 1
+        @test isequal(prod(NLPExpr[]), one(NLPExpr))
+        # test NLP sums 
+        p = Node(NodeData(:sin))
+        addchild(p, NodeData(y))
+        nlp = NLPExpr(p)
+        new = NLPExpr(InfiniteOpt._call_graph(:*, nlp, nlp))
+        @test isequal(prod(i for i in [nlp, nlp]), new)
+        @test isequal(prod([nlp, nlp]), new)
+        # test other expressions 
+        new = NLPExpr(InfiniteOpt._call_graph(:*, y, t, z))
+        @test isequal(prod(i for i in [y, t, z]), new)
+        @test isequal(prod([y, t, z]), new)
+        # test normal products 
+        @test prod(i for i in 1:3) == 6
+    end
+    # prepare the test grid 
+    aff = 2z - 2
+    quad = y^2 + y
+    p = Node(NodeData(:sin))
+    addchild(p, NodeData(y))
+    nlp = NLPExpr(p)
+    # test the multiplication operator
+    @testset "Multiplication Operator" begin
+        for (i, iorder) in [(42, 0), (y, 1), (aff, 1), (quad, 2), (nlp, 3)]
+            for (j, jorder) in [(42, 0), (y, 1), (aff, 1), (quad, 2), (nlp, 3)]
+                if iorder + jorder >= 3
+                    expected = NLPExpr(InfiniteOpt._call_graph(:*, i, j))
+                    @test isequal(i * j, expected)
+                end
+            end
+        end
+        expected = NLPExpr(InfiniteOpt._call_graph(:*, y, t, z,nlp))
+        @test isequal(y * t * z * nlp, expected)
+        @test isequal(*(nlp), nlp)
+    end
+    # test division operator 
+    @testset "Division Operator" begin
+        for i in [42, y, aff, quad, nlp]
+            for j in [y, aff, quad, nlp]
+                expected = NLPExpr(InfiniteOpt._call_graph(:/, i, j))
+                @test isequal(i / j, expected)
+            end
+        end
+        expected = NLPExpr(InfiniteOpt._call_graph(:/, nlp, 42))
+        @test isequal(nlp / 42, expected)
+        @test isequal(nlp / 1, nlp)
+        @test_throws ErrorException nlp / 0
+    end
+    # test the power operator 
+    @testset "Division Operator" begin
+        for i in [42, y, aff, quad, nlp]
+            for j in [y, aff, quad, nlp]
+                expected = NLPExpr(InfiniteOpt._call_graph(:^, i, j))
+                @test isequal(i ^ j, expected)
+            end
+        end
+        one_aff = one(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
+        for i in [y, aff, quad, nlp]
+            for f in [Float64, Int]
+                @test isequal(i^zero(f), one_aff)
+                @test isequal(i^one(f), i)
+                if i isa NLPExpr
+                    expected = NLPExpr(InfiniteOpt._call_graph(:^, i, f(2)))
+                    @test isequal(i ^ f(2), expected)
+                else
+                    @test isequal(i^f(2), i * i)
+                end
+                expected = NLPExpr(InfiniteOpt._call_graph(:^, i, f(3)))
+                @test isequal(i ^ f(3), expected)
+            end
+        end
+    end
+    # test the subtraction operator
+    @testset "Subtraction Operator" begin
+        for i in [42, y, aff, quad, nlp]
+            expected = NLPExpr(InfiniteOpt._call_graph(:-, nlp, i))
+            @test isequal(nlp - i, expected)
+            expected = NLPExpr(InfiniteOpt._call_graph(:-, i, nlp))
+            @test isequal(i - nlp, expected)
+        end
+        expected = NLPExpr(InfiniteOpt._call_graph(:-, nlp))
+        @test isequal(-nlp, expected)
+        @test isequal(y - y, zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})) 
+        @test (y - z).constant == 0 
+        @test (y - z).terms[y] == 1
+        @test (y - z).terms[z] == -1
+    end
+    # test the addition operator 
+    @testset "Addition Operator" begin
+        for i in [42, y, aff, quad, nlp]
+            expected = NLPExpr(InfiniteOpt._call_graph(:+, nlp, i))
+            @test isequal(nlp + i, expected)
+            expected = NLPExpr(InfiniteOpt._call_graph(:+, i, nlp))
+            @test isequal(i + nlp, expected)
+        end
+        @test isequal(+nlp, nlp)
+    end
+    # test the comparison operators 
+    @testset "Comparison Operators" begin 
+        for i in [42, y, aff, quad, nlp]
+            for j in [42, y, aff, quad, nlp]
+                for (n, f) in (:< => Base.:(<), :(==) => Base.:(==), 
+                               :> => Base.:(>), :<= => Base.:(<=), 
+                               :>= => Base.:(>=))
+                    if !(isequal(i, 42) && isequal(j, 42)) && !(isequal(i, y) && isequal(j, y))
+                        expected = NLPExpr(InfiniteOpt._call_graph(n, i, j))
+                        @test isequal(f(i, j), expected)
+                    end
+                end
+            end
+        end
+        for (n, f) in (:(==) => Base.:(==), :<= => Base.:(<=), :>= => Base.:(>=))
+            expected = NLPExpr(InfiniteOpt._call_graph(n, y, z))
+            @test isequal(f(y, z), expected)
+            @test f(y, y)
+        end
+        for (n, f) in (:< => Base.:(<), :> => Base.:(>))
+            expected = NLPExpr(InfiniteOpt._call_graph(n, y, z))
+            @test isequal(f(y, z), expected)
+            @test !f(y, y)
+        end
+    end
+    # test the logic operators 
+    @testset "Logic Operators" begin 
+        for i in [y, nlp]
+            for j in [y, nlp]
+                for (n, f) in (:&& => Base.:&, :|| => Base.:|)
+                    expected = NLPExpr(InfiniteOpt._call_graph(n, i, j))
+                    @test isequal(f(i, j), expected)
+                end
+            end
+        end
+        for i in [y, nlp]
+            @test !(i & false)
+            @test !(false & i)
+            @test isequal(i & true, i)
+            @test isequal(true & i, i)
+            @test (i | true)
+            @test (true | i)
+            @test isequal(i | false, i)
+            @test isequal(false | i, i)
+        end
+    end
+    # test ifelse 
+    @testset "ifelse" begin
+        for i in [42, y, aff, quad, nlp]
+            for j in [42, y, aff, quad, nlp]
+                expected = NLPExpr(InfiniteOpt._call_graph(:ifelse, nlp, i, j))
+                @test isequal(InfiniteOpt.ifelse(nlp, i, j), expected)
+            end
+        end
+        @test isequal(InfiniteOpt.ifelse(true, y, z), y)
+        @test isequal(InfiniteOpt.ifelse(false, y, z), z)
+    end
+    # test the default functions 
+    @testset "Default Registered Functions" begin 
+        for i in [y, aff, quad, nlp]
+            for (n, f) in InfiniteOpt._Base1ArgFuncList
+            expected = NLPExpr(InfiniteOpt._call_graph(n, i))
+            @test isequal(f(i), expected)
+            end
+        end
+        for i in [y, aff, quad, nlp]
+            for (n, f) in InfiniteOpt._Special1ArgFuncList
+            expected = NLPExpr(InfiniteOpt._call_graph(n, i))
+            @test isequal(f(i), expected)
+            end
+        end
+        for i in [42, y, aff, quad, nlp]
+            for j in [42, y, aff, quad, nlp]
+                for (n, f) in [(:max, max), (:min, min)]
+                    if !(isequal(i, 42) && isequal(j, 42))
+                        expected = NLPExpr(InfiniteOpt._call_graph(n, i, j))
+                        @test isequal(f(i, j), expected)
+                    end
+                end
+            end
+        end
+    end
 end
 
-# TODO carry on...
+# Test the MutableArithmetics stuff
+@testset "MutableArithmetics" begin 
+
+end
+
+# Test LinearAlgebra stuff 
+@testset "Linear Algebra" begin 
+
+end
+
+# Test registration utilities
+@testset "Registration Methods" begin
+    
+end 
+
+# Test string methods
+@testset "String Methods" begin
+    
+end 
