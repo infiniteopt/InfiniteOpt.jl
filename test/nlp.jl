@@ -716,17 +716,108 @@ end
 
 # Test the MutableArithmetics stuff
 @testset "MutableArithmetics" begin 
-
+    # setup model data 
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1])
+    @variable(m, y, Infinite(t))
+    @variable(m, z)
+    aff = 2z - 2
+    quad = y^2 + y
+    nlp = sin(y)
+    # test MA.mutability
+    @testset "MA.mutability" begin 
+        @test MA.mutability(NLPExpr) == MA.IsMutable()
+    end
+    # test MA.promote_operation
+    @testset "MA.promote_operation" begin 
+        for i in (2.0, 2, y, aff, quad, nlp)
+            for f in (+, -, *, /, ^)
+                @test MA.promote_operation(f, typeof(i), NLPExpr) == NLPExpr
+                @test MA.promote_operation(f, NLPExpr, typeof(i)) == NLPExpr
+            end
+        end
+        for i in (y, aff, quad)
+            for f in (*, /, ^)
+                @test MA.promote_operation(f, typeof(i), typeof(quad)) == NLPExpr
+                @test MA.promote_operation(f, typeof(quad), typeof(i)) == NLPExpr
+            end
+        end
+        for i in (2, 2.0, y, aff, quad, nlp)
+            for j in (y, aff, quad, nlp)
+                for f in (/, ^)
+                    @test MA.promote_operation(f, typeof(i), typeof(j)) == NLPExpr
+                end
+            end
+        end
+    end
+    # test MA.scaling 
+    @testset "MA.scaling" begin
+        @test_throws ErrorException MA.scaling(nlp)
+        @test MA.scaling(one(NLPExpr)) == 1
+    end
+    # test mutable_copy
+    @testset "MA.mutable_copy" begin
+        @test MA.mutable_copy(nlp) === nlp
+    end
+    # test mutable_operate!
+    @testset "MA.mutable_operate!" begin 
+        # test zero and one 
+        @test MA.mutable_operate!(zero, nlp) !== nlp
+        @test isequal(MA.mutable_operate!(zero, nlp), zero(NLPExpr))
+        @test MA.mutable_operate!(one, nlp) !== nlp
+        @test isequal(MA.mutable_operate!(one, nlp), one(NLPExpr))
+        # test operators 
+        for i in (2.0, 2, y, aff, quad, nlp)
+            for f in (+, -, *, /, ^)
+                @test isequal(MA.mutable_operate!(f, nlp, i), f(nlp, i))
+                @test isequal(MA.mutable_operate!(f, i, nlp), f(i, nlp))
+            end
+        end
+        # test AddSubMul
+        @test isequal(MA.mutable_operate!(MA.add_mul, nlp, y, 2), nlp + y * 2)
+        @test isequal(MA.mutable_operate!(MA.sub_mul, nlp, y, 2), nlp - y * 2)
+    end
 end
 
 # Test LinearAlgebra stuff 
 @testset "Linear Algebra" begin 
-
+    # setup the model data
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1])
+    @variable(m, y, Infinite(t))
+    @variable(m, z)
+    aff = 2z - 2
+    quad = y^2 + y
+    nlp = sin(y)
+    # test promotions 
+    @testset "Base.promote_rule" begin 
+        for i in (3, y, aff, quad)
+            @test [nlp, i] isa Vector{NLPExpr}
+        end
+    end
+    # test dot 
+    @testset "LinearAlgebra.dot" begin 
+        for i in (2, y, aff, quad, nlp)
+            for j in (2, y, aff, quad, nlp)
+                @test isequal(dot(i, j), i * j)
+            end
+        end
+    end
+    # test linear algebra operations 
 end
 
 # Test registration utilities
 @testset "Registration Methods" begin
-    
+    # setup model data 
+    m = InfiniteModel()
+    # test name_to_function
+    @testset "name_to_function" begin 
+        @test name_to_function(m, :tan) == tan
+    end
+    # test all_registered_functions
+    @testset "all_registered_functions" begin 
+        @test all_registered_functions(m) isa Vector{Function}
+    end
 end 
 
 # Test string methods

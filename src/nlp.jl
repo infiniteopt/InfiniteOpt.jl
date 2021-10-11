@@ -693,7 +693,7 @@ end
 # Define NLPExpr as a mutable type for MA
 _MA.mutability(::Type{NLPExpr}) = _MA.IsMutable()
 
-# Extend MA.promote_operation for bettered efficiency (TODO fix ambiguousnous)
+# Extend MA.promote_operation for bettered efficiency
 for type in (:Real, :GeneralVariableRef,
              :(JuMP.GenericAffExpr{Float64, GeneralVariableRef}), 
              :(JuMP.GenericQuadExpr{Float64, GeneralVariableRef}))
@@ -747,19 +747,49 @@ function _MA.promote_operation(
     )
     return NLPExpr
 end
-function _MA.promote_operation(
-    ::Union{typeof(/),typeof(^)},
-    ::Type{Union{<:Real, <:AbstractInfOptExpr}},
-    ::Type{<:AbstractInfOptExpr}
-    )
-    return NLPExpr
+for type in (:GeneralVariableRef,
+             :(JuMP.GenericAffExpr{Float64, GeneralVariableRef}), 
+             :(JuMP.GenericQuadExpr{Float64, GeneralVariableRef}))
+    @eval begin
+        function _MA.promote_operation(
+            ::Union{typeof(/),typeof(^)},
+            ::Type{<:Real},
+            ::Type{<:$type}
+            )
+            return NLPExpr
+        end
+    end
+end
+for type in (:GeneralVariableRef,
+             :(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
+    @eval begin
+        function _MA.promote_operation(
+            ::Union{typeof(/),typeof(^)},
+            ::Type{GeneralVariableRef},
+            ::Type{<:$type}
+            )
+            return NLPExpr
+        end
+    end
+end
+for type in (:GeneralVariableRef,
+             :(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
+    @eval begin
+        function _MA.promote_operation(
+            ::Union{typeof(/),typeof(^)},
+            ::Type{JuMP.GenericAffExpr{Float64, GeneralVariableRef}},
+            ::Type{<:$type}
+            )
+            return NLPExpr
+        end
+    end
 end
 
 # Extend MA.scaling in case an NLPExpr needs to be converted to a number
 function _MA.scaling(nlp::NLPExpr)
-    c = _node_value(expr.data)
+    c = _node_value(nlp.tree_root.data)
     if !(c isa Real) 
-        throw(InexactError("Cannot convert `$nlp` to `$Float64`."))
+        error("Cannot convert `$nlp` to `$Float64`.")
     end
     return _MA.scaling(c)
 end
@@ -777,21 +807,37 @@ function _MA.mutable_operate!(
     return op(NLPExpr) # not actually mutable for safety and efficiency
 end
 function _MA.mutable_operate!(
-    op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(/)}, 
+    op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(^)}, 
     nlp::NLPExpr,
     v
     ) 
     return op(nlp, v)
 end
 function _MA.mutable_operate!(
-    op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(/)}, 
+    op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(^)}, 
     v,
     nlp::NLPExpr
     ) 
     return op(v, nlp)
 end
 function _MA.mutable_operate!(
-    op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(/)}, 
+    op::typeof(+), 
+    v::Union{JuMP.GenericAffExpr{Float64, GeneralVariableRef}, 
+             JuMP.GenericQuadExpr{Float64, GeneralVariableRef}},
+    nlp::NLPExpr
+    ) 
+    return op(v, nlp)
+end
+function _MA.mutable_operate!(
+    op::typeof(-), 
+    v::Union{JuMP.GenericAffExpr{Float64, GeneralVariableRef}, 
+             JuMP.GenericQuadExpr{Float64, GeneralVariableRef}},
+    nlp::NLPExpr
+    ) 
+    return op(v, nlp)
+end
+function _MA.mutable_operate!(
+    op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(^)}, 
     nlp1::NLPExpr,
     nlp2::NLPExpr
     ) 
@@ -1031,8 +1077,8 @@ end
 """
     name_to_function(model::InfiniteModel, name::Symbol)::Function 
 
-Return the registered function that corresponds to `n`. Returns `nothing` if 
-`n` does not correspond to a registered function. This helps retrieve of the 
+Return the registered function that corresponds to `name`. Returns `nothing` if 
+`name` does not correspond to a registered function. This helps retrieve of the 
 functions of function names stored in `NLPExpr`s.
 """
 function name_to_function(model::InfiniteModel, name::Symbol) 
@@ -1067,10 +1113,10 @@ end
 function Base.promote_rule(::Type{NLPExpr}, ::Type{GeneralVariableRef})
     return NLPExpr
 end
-function Base.promote_rule(::Type{NLPExpr}, ::Type{JuMP.GenericAffExpr})
+function Base.promote_rule(::Type{NLPExpr}, ::Type{<:JuMP.GenericAffExpr})
     return NLPExpr
 end
-function Base.promote_rule(::Type{NLPExpr}, ::Type{JuMP.GenericQuadExpr})
+function Base.promote_rule(::Type{NLPExpr}, ::Type{<:JuMP.GenericQuadExpr})
     return NLPExpr
 end
 

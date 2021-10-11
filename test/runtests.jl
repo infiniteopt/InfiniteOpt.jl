@@ -2,7 +2,8 @@ using InfiniteOpt: _domain_or_error
 using Test: Error
 # Load in the dependencies
 using InfiniteOpt, Distributions, Random, FastGaussQuadrature, DataStructures, 
-LeftChildRightSiblingTrees, AbstractTrees, Suppressor
+LeftChildRightSiblingTrees, AbstractTrees, Suppressor, MutableArithmetics, 
+LinearAlgebra
 
 # load the test module
 using Test
@@ -16,6 +17,7 @@ const MOIUC = MOIU.CleverDicts
 const FGQ = FastGaussQuadrature
 const IOMT = InfiniteOpt.MeasureToolbox
 const LCRST = LeftChildRightSiblingTrees
+const MA = MutableArithmetics
 
 # Load in testing utilities
 include("utilities.jl")
