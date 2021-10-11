@@ -662,16 +662,16 @@ end
             @test !f(y, y)
         end
         # extra tests
-        @test y == 0 isa NLPExpr
-        @test y <= 0 isa NLPExpr
-        @test y >= 0 isa NLPExpr
-        @test y > 0 isa NLPExpr
-        @test y < 0 isa NLPExpr
-        @test 0 == y isa NLPExpr
-        @test 0 <= y isa NLPExpr
-        @test 0 >= y isa NLPExpr
-        @test 0 > y isa NLPExpr
-        @test 0 < y isa NLPExpr
+        @test (y == 0) isa NLPExpr
+        @test (y <= 0) isa NLPExpr
+        @test (y >= 0) isa NLPExpr
+        @test (y > 0) isa NLPExpr
+        @test (y < 0) isa NLPExpr
+        @test (0 == y) isa NLPExpr
+        @test (0 <= y) isa NLPExpr
+        @test (0 >= y) isa NLPExpr
+        @test (0 > y) isa NLPExpr
+        @test (0 < y) isa NLPExpr
     end
     # test the logic operators 
     @testset "Logic Operators" begin 
