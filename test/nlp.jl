@@ -582,7 +582,7 @@ end
         @test_throws ErrorException nlp / 0
     end
     # test the power operator 
-    @testset "Division Operator" begin
+    @testset "Power Operator" begin
         for i in [42, y, aff, quad, nlp]
             for j in [y, aff, quad, nlp]
                 expected = NLPExpr(InfiniteOpt._call_graph(:^, i, j))
@@ -604,6 +604,13 @@ end
                 @test isequal(i ^ f(3), expected)
             end
         end
+        # extra tests 
+        @test isequal(y^0, one_aff)
+        @test isequal(y^1, y)
+        @test isequal(y^2, y * y)
+        @test isequal(y^0.0, one_aff)
+        @test isequal(y^1.0, y)
+        @test isequal(y^2.0, y * y)
     end
     # test the subtraction operator
     @testset "Subtraction Operator" begin
@@ -654,6 +661,17 @@ end
             @test isequal(f(y, z), expected)
             @test !f(y, y)
         end
+        # extra tests
+        @test y == 0 isa NLPExpr
+        @test y <= 0 isa NLPExpr
+        @test y >= 0 isa NLPExpr
+        @test y > 0 isa NLPExpr
+        @test y < 0 isa NLPExpr
+        @test 0 == y isa NLPExpr
+        @test 0 <= y isa NLPExpr
+        @test 0 >= y isa NLPExpr
+        @test 0 > y isa NLPExpr
+        @test 0 < y isa NLPExpr
     end
     # test the logic operators 
     @testset "Logic Operators" begin 
@@ -794,6 +812,8 @@ end
         for i in (3, y, aff, quad)
             @test [nlp, i] isa Vector{NLPExpr}
         end
+        # extra tests 
+        @test promote_rule(NLPExpr, typeof(quad)) == NLPExpr
     end
     # test dot 
     @testset "LinearAlgebra.dot" begin 

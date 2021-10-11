@@ -77,6 +77,14 @@
         @test isa(@expression(m, inf * inf), GenericQuadExpr{Float64, GeneralVariableRef})
         @test isa(@expression(m, pt * pt), GenericQuadExpr{Float64, GeneralVariableRef})
     end
+    # test nonlinear operations
+    @testset "Nonlinear" begin
+        @test isequal(@expression(m, pt / inf), pt * (1 / inf))
+        @test isequal(@expression(m, pt ^ inf), pt ^ inf)
+        @test isequal(@expression(m, 2 ^ inf), 2 ^ inf)
+        @test isequal(@expression(m, max(inf, meas)), max(inf, meas))
+        @test isequal(@expression(m, abs(pt)), abs(pt))
+    end
 end
 
 # Test operations between variables and GenericAffExpr
@@ -159,6 +167,13 @@ end
         pair = UnorderedPair{GeneralVariableRef}(meas, meas)
         @test @expression(m, meas * (meas + meas)).terms[pair] == 2
     end
+    # test nonlinear operations
+    @testset "Nonlinear" begin
+        @test isequal(@expression(m, pt / aff1), pt * (1 / aff1))
+        @test isequal(@expression(m, pt ^ aff1), pt ^ aff1)
+        @test isequal(@expression(m, max(inf, aff1)), max(inf, aff1))
+        @test isequal(@expression(m, abs(aff1)), abs(aff1))
+    end
 end
 
 # Test operations between GenericAffExpr and variable
@@ -240,6 +255,12 @@ end
         @test isa(@expression(m, (meas + meas * meas)), GenericQuadExpr{Float64, GeneralVariableRef})
         pair = UnorderedPair{GeneralVariableRef}(meas, meas)
         @test @expression(m, (meas + meas) * meas).terms[pair] == 2
+    end
+    # test nonlinear operations
+    @testset "Nonlinear" begin
+        @test isequal(@expression(m, aff1 / pt), aff1 * (1 / pt))
+        @test isequal(@expression(m, aff1 ^ pt), aff1 ^ pt)
+        @test isequal(@expression(m, max(aff1, pt)), max(aff1, pt))
     end
 end
 
@@ -385,6 +406,12 @@ end
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, aff5 * aff5).terms[pair] == 16
     end
+    # test nonlinear operations
+    @testset "Nonlinear" begin
+        @test isequal(@expression(m, aff1 / aff1), aff1 * (1 / aff1))
+        @test isequal(@expression(m, aff1 ^ aff1), aff1 ^ aff1)
+        @test isequal(@expression(m, max(aff1, aff1)), max(aff1, aff1))
+    end
 end
 
 # Test operations for GenericQuadExpr--GeneralVariableRef
@@ -486,6 +513,14 @@ end
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, copy(quad4) - pt).terms[pair] == 4
     end
+    # test nonlinear operations
+    @testset "Nonlinear" begin
+        @test isequal(@expression(m, quad1 * pt), quad1 * pt)
+        @test isequal(@expression(m, quad1 / pt), quad1 * (1 / pt))
+        @test isequal(@expression(m, quad1 ^ pt), quad1 ^ pt)
+        @test isequal(@expression(m, max(quad1, pt)), max(quad1, pt))
+        @test isequal(@expression(m, abs(quad1)), abs(quad1))
+    end
 end
 
 # Test operations for GeneralVariableRef--GenericQuadExpr
@@ -586,6 +621,12 @@ end
         @test @expression(m, pt - copy(quad4)).aff.terms[pt] == 43
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, pt - copy(quad4)).terms[pair] == -4
+    end
+    @testset "Nonlinear" begin
+        @test isequal(@expression(m, pt * quad1),  pt * quad1)
+        @test isequal(@expression(m, pt / quad1), pt * (1 / quad1))
+        @test isequal(@expression(m, pt ^ quad1), pt ^ quad1)
+        @test isequal(@expression(m, max(pt, quad1)), max(pt, quad1))
     end
 end
 
@@ -700,6 +741,12 @@ end
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, copy(aff5) - quad4).terms[pair] == -4
     end
+    @testset "Nonlinear" begin
+        @test isequal(@expression(m, aff1 * quad1),  aff1 * quad1)
+        @test isequal(@expression(m, aff1 / quad1), aff1 * (1 / quad1))
+        @test isequal(@expression(m, aff1 ^ quad1), aff1 ^ quad1)
+        @test isequal(@expression(m, max(aff1, quad1)), max(aff1, quad1))
+    end
 end
 
 # Test operators on GenericQuadExpr--GenericAffExpr
@@ -813,6 +860,13 @@ end
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, copy(quad4) - copy(aff5)).terms[pair] == 4
     end
+    # test nonlinear operations
+    @testset "Nonlinear" begin
+        @test isequal(@expression(m, quad1 * aff1), quad1 * aff1)
+        @test isequal(@expression(m, quad1 / aff1), quad1 * (1 / aff1))
+        @test isequal(@expression(m, quad1 ^ aff1), quad1 ^ aff1)
+        @test isequal(@expression(m, max(quad1, aff1)), max(quad1, aff1))
+    end
 end
 
 # Test operators on GenericQuadExpr--GenericQuadExpr
@@ -911,5 +965,42 @@ end
         @test @expression(m, copy(quad4) - quad4).aff.terms[pt] == 0
         pair = UnorderedPair{GeneralVariableRef}(pt, pt)
         @test @expression(m, copy(quad4) - quad4).terms[pair] == 0
+    end
+    # test nonlinear operations
+    @testset "Nonlinear" begin
+        @test isequal(@expression(m, quad1 * quad1), quad1 * quad1)
+        @test isequal(@expression(m, quad1 / quad1), quad1 * (1 / quad1))
+        @test isequal(@expression(m, quad1 ^ quad1), quad1 ^ quad1)
+        @test isequal(@expression(m, max(quad1, quad1)), max(quad1, quad1))
+    end
+end
+
+# Test Nonlinear expression stuff
+@testset "Nonlinear Combos" begin
+    m = InfiniteModel()
+    @variable(m, z)
+    @variable(m, y)
+    nlp = sin(y)
+    aff = 2z + 42
+    quad = z^2 - y
+    # test operations 
+    @testset "Operators" begin
+        @test isequal(@expression(m, nlp * nlp), nlp * nlp)
+        @test isequal(@expression(m, nlp * aff), nlp * aff)
+        @test isequal(@expression(m, quad * nlp), quad * nlp)
+        @test isequal(@expression(m, z * nlp), z * nlp)
+        @test isequal(@expression(m, z - nlp), z - nlp)
+        @test isequal(@expression(m, 3 - nlp), 3 - nlp)
+        @test isequal(@expression(m, nlp - quad), nlp - quad)
+        @test isequal(@expression(m, nlp ^ quad), nlp ^ quad)
+        @test isequal(@expression(m, 2 ^ quad), 2 ^ quad)
+        @test isequal(@expression(m, 2 ^ nlp), 2 ^ nlp)
+        @test isequal(@expression(m, nlp / y), nlp * (1 / y))
+        @test isequal(@expression(m, nlp + aff), nlp + aff)
+    end
+    # test function calls
+    @testset "Functions" begin
+        @test isequal(@expression(m, sin(y) + nlp), sin(y) + nlp)
+        @test isequal(@expression(m, 2y - max(0, y^2)), 2y - max(0, y^2))
     end
 end
