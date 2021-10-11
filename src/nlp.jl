@@ -1120,6 +1120,8 @@ function Base.promote_rule(::Type{NLPExpr}, ::Type{<:JuMP.GenericQuadExpr})
     return NLPExpr
 end
 
+# TODO make proper MA extensions to enable efficient definition
+
 ################################################################################
 #                                  PRINTING
 ################################################################################
@@ -1183,13 +1185,12 @@ end
 function _expr_string(
     node::_LCRST.Node{NodeData}, 
     str::String = "";
-    simple::Bool = false,
     prev_prec = 0,
     prev_comm = false
     )
     # prepocess the raw value
     raw_value = _node_value(node.data)
-    is_op = !simple && raw_value isa Symbol && haskey(_Precedence, raw_value)
+    is_op = raw_value isa Symbol && haskey(_Precedence, raw_value)
     data_str = _string_round(raw_value)
     # make a string according to the node structure
     if _LCRST.isleaf(node) && _leaf_precedence(raw_value) > prev_prec
@@ -1227,7 +1228,7 @@ function _expr_string(
         # we have a function
         str *= string(data_str, "(")
         for child in node
-            str = _expr_string(child, str, simple = simple)
+            str = _expr_string(child, str)
             str *= ", "
         end
         return str[1:prevind(str, end, 2)] * ")"

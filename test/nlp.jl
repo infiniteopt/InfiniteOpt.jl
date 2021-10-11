@@ -804,6 +804,14 @@ end
         end
     end
     # test linear algebra operations 
+    @testset "Operations" begin
+        # make variables
+        @variable(m, A[1:2, 1:3])
+        @variable(m, x[1:2])
+        @variable(m, w[1:3])
+        # test expression
+        @test x' * A * w isa NLPExpr # TODO fix with improved MA extension
+    end
 end
 
 # Test registration utilities
@@ -822,5 +830,27 @@ end
 
 # Test string methods
 @testset "String Methods" begin
-    
-end 
+    # setup the model data
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1])
+    @variable(m, y, Infinite(t))
+    @variable(m, z)
+    # test making strings
+    @testset "String Creation" begin
+        # test some simple ones
+        @test string(sin(y) + 2) == "sin(y(t)) + 2"
+        @test string((z*z) ^ 4) == "(z²)^4"
+        @test string((cos(z) + sin(z)) / y) == "(cos(z) + sin(z)) / y(t)"
+        @test string(-cos(z + y) * z^2.3) == "-cos(z + y(t)) * z^2.3"
+        @test string((-max(0, z)) ^ 3) == "(-(max(0, z))^3"
+        # test AffExpr cases 
+        aff0 = zero(GenericAffExpr{Float64, GeneralVariableRef})
+        @test string(aff0^4 + (2z - 3y + 42) ^ (-1z)) == "0^4 + (2 z - 3 y(t) + 42)^(-z)"
+        @test string((1z) / (2.3 * y)) == "z / (2.3 y(t))"
+        # test QuadExpr cases 
+        quad0 = zero(GenericQuadExpr{Float64, GeneralVariableRef})
+        @test string(quad0 / (z^2 + y * z)) == "0 / (z² + y(t)*z)"
+        @test string((0z^2 + 42) * sin(y)) == "42 * sin(y(t))"
+        @test string((z^2) / y) == "(z²) / y(t)"
+    end
+end
