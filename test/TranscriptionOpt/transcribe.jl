@@ -323,8 +323,10 @@ end
         func = jump_function(con)
         set = moi_set(con)
         @test IOTO._process_constraint(tm, con, func, set, zeros(3), "test1") isa NonlinearConstraintRef 
-        @test nl_constraint_string(tm, REPLMode, tm.nlp_data.nlconstr[end]) == "subexpression[1] - 0.0 == 0"
-        @test nl_expr_string(tm, REPLMode, tm.nlp_data.nlexpr[end]) == "sin(z) ^ x(support: 2) - 0.0"
+        expected = Sys.iswindows() ? "subexpression[1] - 0.0 == 0" : "subexpression[1] - 0.0 = 0"
+        @test nl_constraint_string(tm, REPLMode, tm.nlp_data.nlconstr[end]) == expected
+        expected = ["sin(z) ^ x(support: 1) - 0.0", "sin(z) ^ x(support: 2) - 0.0"]
+        @test nl_expr_string(tm, REPLMode, tm.nlp_data.nlexpr[end]) in expected
         tm.nlp_data = nothing
         # vector constraint 
         con = constraint_object(c6)

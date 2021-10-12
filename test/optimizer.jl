@@ -104,7 +104,8 @@ end
         @test optimizer_model_expression(x^2 + z, ndarray = true) == [xt[1]^2 + zt, xt[3]^2 + zt]
         @test optimizer_model_expression(x^2 + z, label = All) == [xt[1]^2 + zt, xt[2]^2 + zt, xt[3]^2 + zt]
         @test optimizer_model_expression(2z - 3) == 2zt - 3
-        @test optimizer_model_expression(2 * f) == [zero(AffExpr), zero(AffExpr) + sin(1) * 2]
+        # @test optimizer_model_expression(2 * f) == [zero(AffExpr), zero(AffExpr) + sin(1) * 2]
+        @test optimizer_model_expression(2 * f) == [0.0, sin(1) * 2]
         # test fallback
         @test_throws ErrorException optimizer_model_expression(c1, Val(:Bad), my_key = true)
     end
