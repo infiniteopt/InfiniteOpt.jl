@@ -279,6 +279,7 @@ end
     @constraint(m, c1, g <= 0)
     @constraint(m, c2, inf >= 0)
     @constraint(m, c3, sin(g) == 0)
+    @constraint(m, c4, sin(inf) == 0)
     @objective(m, Min, g^2)
     tm = transcription_model(m)
     JuMP.optimize!(m)
@@ -298,6 +299,7 @@ end
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c1t), -1.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c2t[1]), 0.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c2t[2]), 1.0)
+    MOI.set(mockoptimizer, MOI.NLPBlockDual(1), [4.0, 2., 3.])
     # test map_value
     @testset "map_value" begin
         @test InfiniteOpt.map_value(c1, Val(:TransData), 1) == 1.
@@ -334,6 +336,8 @@ end
         @test dual(c1) == -1.
         @test dual(c2, label = UserDefined) == [0., 1.]
         @test dual(c2, label = UserDefined, ndarray = true) == [0., 1.]
+        @test dual(c3) == 4
+        @test dual(c4) == [2, 3]
     end
     # test map_shadow_price
     @testset "map_shadow_price" begin

@@ -444,8 +444,12 @@ function map_dual end
 # Default method that depends on optimizer_model_constraint --> making extensions easier
 function map_dual(cref::InfOptConstraintRef, key, result::Int; kwargs...)
     opt_cref = optimizer_model_constraint(cref, key; kwargs...)
-    if opt_cref isa AbstractArray
+    if opt_cref isa AbstractArray && first(opt_cref) isa JuMP.NonlinearConstraintRef
+        return map(c -> JuMP.dual(c), opt_cref)
+    elseif opt_cref isa AbstractArray
         return map(c -> JuMP.dual(c; result = result), opt_cref)
+    elseif opt_cref isa JuMP.NonlinearConstraintRef
+        return JuMP.dual(opt_cref)
     else
         return JuMP.dual(opt_cref; result = result)
     end

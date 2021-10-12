@@ -87,6 +87,12 @@
         opt_m.ext[:my_key] = 42
         @test_throws ErrorException make_semi_infinite_variable_ref(opt_m, inf2, [1], Float64[1])
     end
+    # test _process_aff_result
+    @testset "_process_aff_result" begin
+        @test InfiniteOpt._process_aff_result(42) == 42
+        @test isequal(InfiniteOpt._process_aff_result(1par1), par1)
+        @test isequal(InfiniteOpt._process_aff_result(2par1 + 3), 2par1 + 3)
+    end
 end
 
 # Test measure expansion methods
