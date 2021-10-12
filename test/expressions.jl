@@ -711,7 +711,34 @@ end
     end
 end
 
-# TODO test map_expression
+# Test map_expression
+@testset "map_expression" begin 
+    # setup model
+    m = InfiniteModel()
+    @variable(m, z)
+    @variable(m, y)
+    aff = 2z + 42
+    quad = z^2 + 2z
+    nlp = (sin(z) + aff) ^ 3.4
+    @variable(Model(), x)
+    # test variable 
+    @testset "Variable" begin
+        @test isequal(map_expression(v -> x, z), x)
+    end
+    # test AffExpr
+    @testset "AffExpr" begin
+        @test isequal(map_expression(v -> x, aff), 2x + 42)
+    end
+    # test QuadExpr 
+    @testset "QuadExpr" begin
+        @test isequal(map_expression(v -> x, quad), x^2 + 2x)
+    end
+    # test NLPExpr
+    @testset "NLPExpr" begin
+        @test isequal(map_expression(v -> z, nlp), (sin(z) + (2z + 42)) ^ 3.4)
+        @test isequal(map_expression(v -> v^3, sin(y)), sin(y^3))
+    end
+end
 
 # Test _set_variable_coefficient!
 @testset "_set_variable_coefficient!" begin

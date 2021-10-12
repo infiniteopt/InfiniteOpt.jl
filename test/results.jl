@@ -259,6 +259,7 @@ end
         @test value(inf^2 + g - 2) == [3., -1.]
         @test value(inf^2 + g - 2, ndarray = true) == [3., -1.]
         @test value(zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) - 42) == -42.
+        @test value(sin(g)) == sin(1)
     end
     # test dual
     @testset "JuMP.dual" begin
@@ -277,6 +278,7 @@ end
     @variable(m, g)
     @constraint(m, c1, g <= 0)
     @constraint(m, c2, inf >= 0)
+    @constraint(m, c3, sin(g) == 0)
     @objective(m, Min, g^2)
     tm = transcription_model(m)
     JuMP.optimize!(m)

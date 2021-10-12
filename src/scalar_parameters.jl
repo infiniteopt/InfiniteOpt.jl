@@ -1521,7 +1521,7 @@ end
 # Update the dependent constraints
 function _update_constraints(model::InfiniteModel,
                              pref::GeneralVariableRef)::Nothing
-    for cindex in _constraint_dependencies(pref)
+    for cindex in copy(_constraint_dependencies(pref))
         cref = _make_constraint_ref(model, cindex)
         func = JuMP.jump_function(JuMP.constraint_object(cref))
         if func isa GeneralVariableRef
@@ -1530,7 +1530,7 @@ function _update_constraints(model::InfiniteModel,
             new_constr = JuMP.ScalarConstraint(new_func, set)
             _set_core_constraint_object(cref, new_constr)
             empty!(_object_numbers(cref))
-        elseif func isa AbstractArray{GeneralVariableRef}
+        elseif func isa AbstractArray && any(isequal(pref), func)
             JuMP.delete(model, cref)
         else
             _remove_variable(func, pref)

@@ -155,6 +155,9 @@ function _drop_zeros!(node::_LCRST.Node{NodeData})
     elseif raw == :-
         if _is_zero(node.child)
             _LCRST.prunebranch!(node.child)
+        elseif _is_zero(node.child.sibling)
+            _LCRST.prunebranch!(node.child.sibling)
+            _merge_parent_and_child(node)
         end
     end
     for n in node 

@@ -176,15 +176,19 @@ function make_semi_infinite_variable_ref(
     return add_semi_infinite_variable(write_model, var, Val(key))
 end
 
+# Helper function for reducing singleton affine expressions
+_process_map_result(ex::JuMP.GenericAffExpr) = first(ex.terms)[1]
+_process_map_result(ex) = ex
+
 # Map a variable to a new one given a new one (TODO make more efficient)
 function _map_variable(vref, data, supp::Float64, write_model)
     data.supports[1] = supp
-    return expand_measure(vref, data, write_model)
+    return _process_map_result(expand_measure(vref, data, write_model))
 end
 
 function _map_variable(vref, data, supp, write_model)
     data.supports[:, 1] = supp
-    return expand_measure(vref, data, write_model)
+    return _process_map_result(expand_measure(vref, data, write_model))
 end
 
 ################################################################################

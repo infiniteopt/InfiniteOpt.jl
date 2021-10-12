@@ -308,6 +308,14 @@ end
         n3 = addchild(n1, NodeData(0))
         @test InfiniteOpt._drop_zeros!(p) == p
         @test isequal(p.child.data.value, y)
+        # test case with substraction of zero 
+        p = Node(NodeData(:-))
+        n1 = addchild(p, NodeData(:sin))
+        n2 = addchild(p, NodeData(0))
+        n3 = addchild(n1, NodeData(y))
+        @test InfiniteOpt._drop_zeros!(p) == p
+        @test p.data.value == :sin 
+        @test isequal(p.child.data.value, y)
         # test truncating leaf
         p = Node(NodeData(:^))
         n1 = addchild(p, NodeData(y))

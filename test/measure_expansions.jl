@@ -452,6 +452,24 @@ end
         expected = x + 2 * x + 4
         @test isequal_canonical(InfiniteOpt.expand_measure(expr, data3, m), expected)
     end
+    # test expand_measure (NLPExpr univariate)
+    @testset "NLPExpr (1D DiscreteMeasureData)" begin
+        # test simple
+        expr = sin(inf1)
+        expected = 0.5 * sin(inf1(1)) + 0.5 * sin(inf1(2))
+        @test isequal(expand_measure(expr, data1, m), expected)
+        # test with parameter 
+        expr = sin(inf1) + par1
+        expected = 0.5 * (sin(inf1(1)) + 1) + 0.5 * (sin(inf1(2)) + 2)
+        @test isequal(expand_measure(expr, data1, m), expected)
+    end
+    # test expand_measure (NLPExpr multivariate)
+    @testset "NLPExpr (Multi DiscreteMeasureData)" begin
+        # test simple
+        expr = sin(inf5)
+        expected = 1 * sin(inf5([1, 1], pars2)) + 1 * sin(inf5([2, 2], pars2))
+        @test isequal(expand_measure(expr, data3, m), expected)
+    end
     # test expand_measure (measure)
     @testset "Measure" begin
         # test single param measure
@@ -602,6 +620,15 @@ end
                     2inf3 - 4)
         # test with this thorough expression
         @test isequal_canonical(InfiniteOpt.expand_measures(expr, m), 2 * m1 * x - x + 1)
+    end
+     # test expand_measures (NLPExpr)
+     @testset "NLPExpr (General)" begin
+        # prepare first measure expansion
+        expr = sin(meas1)
+        m1 = 0.5 * (inf1(1) + inf1(2) + 6x - inf2(1, par2) - inf2(2, par2) + 
+                    2inf3 - 4)
+        # test with this thorough expression
+        @test isequal_canonical(InfiniteOpt.expand_measures(expr, m), sin(m1))
     end
     # test expand_measures (AbstractArray)
     @testset "AbstractArray" begin

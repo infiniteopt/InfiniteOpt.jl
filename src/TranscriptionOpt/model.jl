@@ -645,7 +645,7 @@ function transcription_expression(
     # get the object numbers of the expression and form the support iterator
     obj_nums = InfiniteOpt._object_numbers(expr)
     support_indices = support_index_iterator(model, obj_nums)
-    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(support_indices))
+    exprs = Vector{Any}(undef, length(support_indices))
     check_labels = length(exprs) > 1 && !_ignore_label(model, label)
     label_inds = ones(Bool, length(exprs))
     # iterate over the indices and compute the values

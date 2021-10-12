@@ -239,10 +239,10 @@ julia> value(my_infinite_expr)
  20.9
 ```
 """
-function JuMP.value(expr::Union{JuMP.GenericAffExpr{C, V}, JuMP.GenericQuadExpr{C, V}};
+function JuMP.value(expr::AbstractInfOptExpr;
     result::Int = 1,
     kwargs...
-    ) where {C, V <: GeneralVariableRef}
+    )
     # get the model
     model = _model_from_expr(expr)
     # if no model then the expression only contains a constant
