@@ -288,13 +288,131 @@ We discuss the ins and outs of this interface in the subsections below.
     GitHub if you encounter any unexpected behavior.
 
 ### Basic Usage 
+In `InfiniteOpt` we can define nonlinear expressions in similar manner to how 
+affine/quadratic expressions are made in `JuMP`. For instance, we can make an 
+expression using normal Julia code outside of a macro:
+```jldoctest affine; setup = :(model = InfiniteModel())
+julia> @infinite_parameter(model, t ∈ [0, 1]); @variable(model, y, Infinite(t));
 
+julia> expr = exp(y^2.3) * y - 42
+exp(y(t)^2.3) * y(t) - 42
+
+julia> typeof(expr)
+NLPExpr
+```
+Thus, the nonlinear expression `expr` of type `NLPExpr` is created can be readily 
+incorporated to other expressions, the objective, and/or constraints. For 
+macro-based definition, we simply use the `@expression`, `@objective`, and 
+`@constraint` macros (which in `JuMP` are only able to handle affine/quadratic 
+expressions):
+```jldoctest affine
+julia> @expression(model, expr, exp(y^2.3) * y - 42)
+exp(y(t)^2.3) * y(t) - 42
+
+julia> @objective(model, Min, ∫(0.3^cos(y^2), t))
+∫{t ∈ [0, 1]}[0.3^cos(y(t)²)]
+
+julia> @constraint(model, constr, y^y * sin(y) + sum(y^i for i in 3:4) == 3)
+constr : (y(t)^y(t) * sin(y(t)) + y(t)^3 + y(t)^4) - 3 = 0.0, ∀ t ∈ [0, 1]
+```
+
+!!! note
+    The `@NLexpression`, `@NLobjective`, and `@NLconstraint` macros used by `JuMP`
+    are not supported by `InfiniteOpt`. Instead we can more conveniently use the 
+    `@expression`, `@objective`, and `@constraint` macros directly.
+
+Natively, we support all the same nonlinear functions/operators that `JuMP` 
+does. Note however that there are 3 caveats to this:
+- Functions from [`SpecialFunctions.jl`](https://github.com/JuliaMath/SpecialFunctions.jl) 
+  can only be used if `using SpecialFunctions` is included first
+- The `ifelse` function must be specified `InfiniteOpt.ifelse` (because the native 
+  `ifelse` is a core function that cannot be extended for our purposes)
+- The logic operators `&` and `|` must be used instead of `&&` and `||` when 
+  defining a nonlinear expression.
+
+Let's exemplify the above caveats:
+```jldoctest affine
+julia> using SpecialFunctions
+
+julia> y^2.3 * gamma(y)
+y(t)^2.3 * gamma(y(t))
+
+julia> InfiniteOpt.ifelse(y == 0, y^2.3, exp(y))
+ifelse(y(t) == 0, y(t)^2.3, exp(y(t)))
+
+julia> InfiniteOpt.ifelse((y <= 0) | (y >= 3), y^2.3, exp(y))
+ifelse(y(t) <= 0 || y(t) >= 3, y(t)^2.3, exp(y(t)))
+```
+
+!!! warning
+    The logical comparison operator `==` will yield an `NLPExpr` instead of a 
+    `Bool` when one side is a variable reference or an expression. Thus, for 
+    creating Julia code that needs to determine if the Julia variables are equal 
+    then `isequal` should be used instead:
+    ```jldoctest affine
+    julia> isequal(y, y)
+    true
+
+    julia> y == t
+    y(t) == t
+    ```
+
+We can interrogate which nonlinear functions/operators our model currently 
+supports by invoking [`all_registered_functions`](@ref). Moreover, we can add 
+additional functions via registration (see [Function Registration](@ref) for 
+more details). 
+
+Finally, we highlight that nonlinear expressions in `InfiniteOpt` support the 
+same linear algebra operations as affine/quadratic expressions:
+```jldoctest affine
+julia> @variable(model, v[1:2]); @variable(model, Q[1:2, 1:2]);
+
+julia> @expression(model, v' * Q * v)
+0 + (Q[1,1]*v[1] + Q[2,1]*v[2]) * v[1] + (Q[1,2]*v[1] + Q[2,2]*v[2]) * v[2]
+```
 
 ### Function Tracing
+In similar manner to `Symbolics.jl`, we support function tracing. This means 
+that we can create nonlinear modeling expression using Julia functions that 
+satisfy certain criteria. For instance:
+```jldoctest affine
+julia> myfunc(x) = sin(x^3) / tan(2^x);
 
+julia> expr = myfunc(y)
+sin(y(t)^3) / tan(2^y(t))
+```
+However, there are certain limitations as to what internal code these functions 
+can contain. The following CANNOT be used:
+- loops
+- if-statements (see workaround below)
+- non-registered functions.
+
+We can readily workaround the if-statement limitation using `InfiniteOpt.ifelse`. 
+For example, the function:
+```julia
+function mylogicfunc(x)
+    if x >= 0
+        return x^3
+    else
+        return 0
+    end
+end
+```
+is not amendable for function tracing, but we can rewrite it as:
+```jldoctest affine
+julia> function mylogicfunc(x)
+          return InfiniteOpt.ifelse(x >= 0, x^3, 0)
+       end
+mylogicfunc (generic function with 1 method)
+
+julia> mylogicfunc(y)
+ifelse(y(t) >= 0, y(t)^3, 0)
+```
+which is amendable for function tracing.
 
 ### Linear Algebra
-
+As described above in the Basic Usage Section, we support linear algebra 
+operations with nonlinear expressions!  
 
 ### Function Registration
 
