@@ -252,6 +252,11 @@ Notice again that the ordered dictionary preserves the order.
     julia> expr = @expression(model, z * x + 2)
     z*x + 2
     ```
+    Alternatively, can we can just use our nonlinear modeling interface:
+    ```jldoctest affine
+    julia> expr = @expression(model, z^3 + 2)
+    z^3 + 2
+    ```
 
 More information can be found in the documentation for quadratic expressions in 
 [`JuMP`](https://jump.dev/JuMP.jl/v0.21.9/reference/expressions/#Quadratic-expressions).
@@ -259,47 +264,37 @@ More information can be found in the documentation for quadratic expressions in
 ## Nonlinear Expressions
 General nonlinear expressions as generated via `JuMP.@NLexpression`, 
 `JuMP.@NLobjective`, and/or `JuMP.@NLconstraint` macros in `JuMP` are not 
-currently for `InfiniteOpt`. This is because `JuMP` does not readily support 
-nonlinear extensions. However, a fundamental overhaul is planned to resolve this 
-problem (check the status on 
-[GitHub](https://github.com/jump-dev/MathOptInterface.jl/issues/846)).
+extendible for extension packages like `InfiniteOpt`. A fundamental 
+overhaul is planned to resolve this problem (check the status on 
+[GitHub](https://github.com/jump-dev/MathOptInterface.jl/issues/846)), but this 
+will likely require 1-3 years to resolve.
 
-### Workarounds
-In the meantime, this limitation can often be overcome by reformulating the 
-problem formulation. 
+Thus in the interim, we circumvent this problem in `InfiniteOpt` by implementing 
+our own general nonlinear expression API. However, we will see that our interface 
+treats nonlinear expressions as 1st class citizens and thus is generally more 
+convenient then using `JuMP`'s current legacy nonlinear modeling interface. 
+We discuss the ins and outs of this interface in the subsections below.
 
-One common case involves expressions that entail integer powers that are greater 
-than 2. This can readily be remedied by adding placeholder variables. For example, 
-consider the expression ``z^2x - 3z``. We can reformulate by introducing 
-``z' = z^2``:
-```jldoctest affine
-julia> @variable(model, z_squared)
-z_squared
+!!! note
+    Unlike affine/quadratic expressions, our nonlinear interface differs from 
+    that of `JuMP`. Thus, it is important to carefully review the sections 
+    below to familiarize yourself with our syntax. 
 
-julia> @constraint(model, z_squared == z^2)
--z² + z_squared = 0.0
+!!! warning
+    Our new general nonlinear modeling interface is experimental and thus is 
+    subject to change to address any unintented behavior. Please notify us on 
+    GitHub if you encounter any unexpected behavior.
 
-julia> @expression(model, z_squared * x - 3z)
-z_squared*x - 3 z
-```
+### Basic Usage 
 
-We can also reformulate for a variety of nonlinear function types:
 
-| Function     | Example                        | Reformulation Method                                                                                                               |
-|:------------:|:------------------------------:|:----------------------------------------------------------------------------------------------------------------------------------:|
-| Square Root  | ``\sqrt{z}``                   | Make a squared reformulation variable                                                                                              |
-| Indicator    | ``\mathbb{1}_{z \geq \alpha}`` | Use [`JuMP`'s indicator constraint syntax](https://jump.dev/JuMP.jl/v0.21.9/manual/constraints/#Indicator-constraints)             | 
-| Indicator    | ``\mathbb{1}_{z \geq \alpha}`` | Replace with big-M constraints ([reference](https://www.gurobi.com/documentation/9.1/refman/dealing_with_big_m_constra.html))      | 
-| Max/Min      | ``\max(z, a)``                 | Linear programming cuts or big-m constraints ([reference](https://or.stackexchange.com/questions/711/how-to-formulate-linearize-a-maximum-function-in-a-constraint/712#712)) |
+### Function Tracing
 
-In other cases, it may be possible to use a formulation that uses vector 
-constraints. For example, it might be possible to model your problem using 
-semi-definite and/or conic constraints. 
 
-Also note that any nonlinearites that only involve infinite parameters (i.e., 
-no decision variables) are enabled via parameter functions. See 
-[Parameter Functions](@ref par_func_docs) for more information.
+### Linear Algebra
 
-For problems that cannot be readily reformulated, `JuMP` can be used directly. In 
-this case the user will need to first transform the formulation into a finite 
-representation (e.g., discretize it). 
+
+### Function Registration
+
+
+### Expression Tree Abstraction
