@@ -253,7 +253,7 @@ Notice again that the ordered dictionary preserves the order.
     z*x + 2
     ```
     Alternatively, can we can just use our nonlinear modeling interface:
-    ```jldoctest affine
+    ```jldoctest affine; setup = :(z^3)
     julia> expr = @expression(model, z^3 + 2)
     z^3 + 2
     ```
