@@ -1286,20 +1286,24 @@ function add_supports(pref::IndependentParameterRef,
     supports = round.(supports, sigdigits = significant_digits(pref))
     check && _check_supports_in_bounds(error, supports, domain)
     supports_dict = _parameter_supports(pref)
+    added_new_support = false
     for s in supports
         if haskey(supports_dict, s)
             push!(supports_dict[s], label)
         else
             supports_dict[s] = Set([label])
+            added_new_support = true
         end
     end
-    _reset_derivative_constraints(pref)
-    _reset_generative_supports(pref)
     if label <: InternalLabel
         _set_has_internal_supports(pref, true)
     end
-    if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+    if added_new_support
+        _reset_derivative_constraints(pref)
+        _reset_generative_supports(pref)
+        if is_used(pref)
+            set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        end
     end
     return
 end

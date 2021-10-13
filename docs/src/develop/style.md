@@ -59,7 +59,7 @@ Here we detail the programmatic style used with `InfiniteOpt`. This is done in a
 effort to make this package intuitive for new-comers and to ease development. This 
 style closely follows that of `JuMP.jl` with similar deviations from typical Julia 
 styles. Please refer to the  
-[`JuMP` style guide](https://jump.dev/JuMP.jl/v0.21.9/developers/style/) as this 
+[`JuMP` style guide](https://jump.dev/JuMP.jl/v0.21.10/developers/style/) as this 
 is the style used by `InfiniteOpt`.
 
 In addition, we adopt the following practices: 
@@ -98,13 +98,9 @@ In addition, we adopt the following practices:
        A[i] = i
    end
    ```
- - All function arguments and `struct` elements should be typed. Also, function
-   outputs should be typed where possible.   
+ - All function arguments and `struct` elements should be typed.   
    This is bad:
    ```julia
-   function my_new_function(arg1, arg2)
-       return arg1 + arg2
-   end
    struct MyNewStruct
        thing1
        thing2
@@ -112,9 +108,6 @@ In addition, we adopt the following practices:
    ```
    This is good:
    ```julia
-   function my_new_function(arg1::Int, arg2::Int)::Int
-       return arg1 + arg2
-   end
    struct MyNewStruct
        thing1::Int
        thing2::String
@@ -123,7 +116,7 @@ In addition, we adopt the following practices:
  - Type dispatch should be used instead of conditional statements based on type:
    This is bad:
    ```julia
-   function my_new_function(arg::AbstractType)::ReturnType
+   function my_new_function(arg::AbstractType)
      if arg isa Type1
          temp = arg + 1
      elseif arg isa Type2
@@ -137,11 +130,11 @@ In addition, we adopt the following practices:
    ```julia
    ## Internal dispatch for my_new_function
    # Type1
-   function _my_internal_function(arg::Type1)::Int
+   function _my_internal_function(arg::Type1)
        return arg + 1
    end
    # Type2
-   function _my_internal_function(arg::Type1)::Int
+   function _my_internal_function(arg::Type2)
        return 0
    end
    # Fallback
@@ -149,7 +142,7 @@ In addition, we adopt the following practices:
        error("Unrecognized type...")
    end
    # Main method
-   function my_new_function(arg::AbstractType)::ReturnType
+   function my_new_function(arg::AbstractType)
      temp = _my_internal_function(arg)
      # do more stuff with temp
      return temp
@@ -184,7 +177,7 @@ julia> my_new_function(input...)
 expected_output
 ```
 """
-function my_new_function(arg1::Type, arg2::Type = 0; karg1::Type = 42)::Type
+function my_new_function(arg1::Type, arg2::Type = 0; karg1::Type = 42)
     return arg1 + arg2 + karg1
 end
 ````

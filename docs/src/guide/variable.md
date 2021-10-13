@@ -30,7 +30,7 @@ following table:
 | Finite        | NA                     | classical decision variables           | ``z``                  |
 
 Infinite, semi-infinite, point, and finite variables are defined via 
-[`@variable`](https://jump.dev/JuMP.jl/v0.21.9/reference/variables/#JuMP.@variable) 
+[`@variable`](https://jump.dev/JuMP.jl/v0.21.10/reference/variables/#JuMP.@variable) 
 (inherited from `JuMP`) with their respective variable type 
 object arguments: [`Infinite`](@ref), [`SemiInfinite`](@ref), and [`Point`](@ref) 
 (finite variables don't use a variable type object).
@@ -229,7 +229,7 @@ of [`DispatchVariableRef`](@ref)s is discussed on the [Expressions](@ref expr_do
 page.
 
 ## Macro Variable Definition
-The [`@variable`](https://jump.dev/JuMP.jl/v0.21.9/reference/variables/#JuMP.@variable) 
+The [`@variable`](https://jump.dev/JuMP.jl/v0.21.10/reference/variables/#JuMP.@variable) 
 macro automates the variable definition process discussed above in the 
 [Variable Definition Methodology](@ref) section via a straightforward symbolic 
 syntax. The only key difference is that non-anonymous macro calls will register 
@@ -238,12 +238,12 @@ step and exactly follow the process described above. This section will highlight
 the details of using this macro which is the recommended way to define variables.
 
 !!! tip
-    `JuMP`'s [documentation on variables](https://jump.dev/JuMP.jl/v0.21.9/manual/variables/) 
+    `JuMP`'s [documentation on variables](https://jump.dev/JuMP.jl/v0.21.10/manual/variables/) 
     is a good place to start since `InfiniteOpt` simply extends `JuMP` to 
     accommodate our additional variable types.
 
 We directly build upon 
-[`JuMP.@variable`](https://jump.dev/JuMP.jl/v0.21.9/reference/variables/#JuMP.@variable) 
+[`JuMP.@variable`](https://jump.dev/JuMP.jl/v0.21.10/reference/variables/#JuMP.@variable) 
 to create all of our decision variable types. To illustrate this via example, 
 let's setup a model with a variety of infinite parameters ``t \in [0,10]``, 
 ``x \in [-1, 1]^3``, and ``\xi \in \mathcal{N}(0, 1)``:
@@ -469,7 +469,7 @@ how to query/modify variable names.
 Optimization problems often involve multi-dimensional decision variables. Luckily, 
 `JuMP` provides a versatile syntax for specifying collections (i.e., containers) 
 of variables. See 
-[JuMP's container documentation](https://jump.dev/JuMP.jl/v0.21.9/manual/containers/) 
+[JuMP's container documentation](https://jump.dev/JuMP.jl/v0.21.10/manual/containers/) 
 for a thorough tutorial on the syntax. It uses `Array`s, `DenseAxisArray`s, and 
 `SparseAxisArray`s to contain the variable references created. Here 
 `DenseAxisArray`s and `SparseAxisArray`s allow the use of nontraditional indices 
@@ -570,8 +570,8 @@ julia> z_cone = @variable(model, [1:3], set = SecondOrderCone())
 ```
 
 For more a thorough tutorial please see 
-[JuMP's semi-definite documentation](https://jump.dev/JuMP.jl/v0.21.9/manual/variables/#Semidefinite-variables) 
-and/or [JuMP's variables constrained on creation documentation](https://jump.dev/JuMP.jl/v0.21.9/manual/variables/#Variables-constrained-on-creation).
+[JuMP's semi-definite documentation](https://jump.dev/JuMP.jl/v0.21.10/manual/variables/#Semidefinite-variables) 
+and/or [JuMP's variables constrained on creation documentation](https://jump.dev/JuMP.jl/v0.21.10/manual/variables/#Variables-constrained-on-creation).
 
 ### Anonymous Variables
 Above we talked showed the syntax for both explicit and anonymous variable 
@@ -588,11 +588,11 @@ via keyword arguments `kwargs...` as shown in the subsections above.
 ```
 
 For more information, see 
-[JuMP's anonymous variable documentation](https://jump.dev/JuMP.jl/v0.21.9/manual/variables/#Anonymous-JuMP-variables).
+[JuMP's anonymous variable documentation](https://jump.dev/JuMP.jl/v0.21.10/manual/variables/#Anonymous-JuMP-variables).
 
 ### The `@variables` Macro
 When using many `@variable` calls, we can instead use 
-[`@variables`](https://jump.dev/JuMP.jl/v0.21.9/manual/variables/#variables) to 
+[`@variables`](https://jump.dev/JuMP.jl/v0.21.10/manual/variables/#variables) to 
 enhance the readability:
 ```jldoctest var_macro
 julia> @variables(model, begin
