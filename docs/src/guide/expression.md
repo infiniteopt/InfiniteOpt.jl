@@ -253,8 +253,10 @@ Notice again that the ordered dictionary preserves the order.
     z*x + 2
     ```
     Alternatively, can we can just use our nonlinear modeling interface:
-    ```jldoctest affine; setup = :(z^3)
+    ```jldoctest affine
     julia> expr = @expression(model, z^3 + 2)
+    ┌ Warning: General nonlinear expression support is experimental. Please, notify us on GitHub if you run into unexpected behavior.
+    └ @ InfiniteOpt ~/work/InfiniteOpt.jl/InfiniteOpt.jl/src/nlp.jl:204
     z^3 + 2
     ```
 
