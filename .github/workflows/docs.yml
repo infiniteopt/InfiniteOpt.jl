@@ -18,7 +18,9 @@ jobs:
         with:
           version: '1.6' # Build documentation on Julia 1.6
       - name: Install plotting dependencies # For enabling GR.jl (used by Plots.jl)
-        run: sudo apt-get install -y qt5-default
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt5-default
       - name: Install julia dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Plot friendly RUNCMD # needed to enable Plots.jl correctly
