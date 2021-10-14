@@ -263,7 +263,7 @@ Notice again that the ordered dictionary preserves the order.
 More information can be found in the documentation for quadratic expressions in 
 [`JuMP`](https://jump.dev/JuMP.jl/v0.21.10/reference/expressions/#Quadratic-expressions).
 
-## Nonlinear Expressions
+## [Nonlinear Expressions](@id nlp_guide)
 General nonlinear expressions as generated via `JuMP.@NLexpression`, 
 `JuMP.@NLobjective`, and/or `JuMP.@NLconstraint` macros in `JuMP` are not 
 extendible for extension packages like `InfiniteOpt`. A fundamental 
@@ -291,7 +291,7 @@ We discuss the ins and outs of this interface in the subsections below.
 In `InfiniteOpt` we can define nonlinear expressions in similar manner to how 
 affine/quadratic expressions are made in `JuMP`. For instance, we can make an 
 expression using normal Julia code outside of a macro:
-```jldoctest affine; setup = :(model = InfiniteModel())
+```julia-repl
 julia> @infinite_parameter(model, t ∈ [0, 1]); @variable(model, y, Infinite(t));
 
 julia> expr = exp(y^2.3) * y - 42
@@ -300,12 +300,12 @@ exp(y(t)^2.3) * y(t) - 42
 julia> typeof(expr)
 NLPExpr
 ```
-Thus, the nonlinear expression `expr` of type `NLPExpr` is created can be readily 
-incorporated to other expressions, the objective, and/or constraints. For 
-macro-based definition, we simply use the `@expression`, `@objective`, and 
+Thus, the nonlinear expression `expr` of type [`NLPExpr`](@ref) is created can 
+be readily incorporated to other expressions, the objective, and/or constraints. 
+For macro-based definition, we simply use the `@expression`, `@objective`, and 
 `@constraint` macros (which in `JuMP` are only able to handle affine/quadratic 
 expressions):
-```jldoctest affine
+```julia-repl
 julia> @expression(model, expr, exp(y^2.3) * y - 42)
 exp(y(t)^2.3) * y(t) - 42
 
@@ -325,13 +325,13 @@ Natively, we support all the same nonlinear functions/operators that `JuMP`
 does. Note however that there are 3 caveats to this:
 - Functions from [`SpecialFunctions.jl`](https://github.com/JuliaMath/SpecialFunctions.jl) 
   can only be used if `using SpecialFunctions` is included first
-- The `ifelse` function must be specified `InfiniteOpt.ifelse` (because the native 
-  `ifelse` is a core function that cannot be extended for our purposes)
+- The `ifelse` function must be specified [`InfiniteOpt.ifelse`](@ref) (because 
+  the native `ifelse` is a core function that cannot be extended for our purposes)
 - The logic operators `&` and `|` must be used instead of `&&` and `||` when 
   defining a nonlinear expression.
 
 Let's exemplify the above caveats:
-```jldoctest affine
+```julia-repl
 julia> using SpecialFunctions
 
 julia> y^2.3 * gamma(y)
@@ -349,7 +349,7 @@ ifelse(y(t) <= 0 || y(t) >= 3, y(t)^2.3, exp(y(t)))
     `Bool` when one side is a variable reference or an expression. Thus, for 
     creating Julia code that needs to determine if the Julia variables are equal 
     then `isequal` should be used instead:
-    ```jldoctest affine
+    ```julia-repl
     julia> isequal(y, y)
     true
 
@@ -364,7 +364,7 @@ more details).
 
 Finally, we highlight that nonlinear expressions in `InfiniteOpt` support the 
 same linear algebra operations as affine/quadratic expressions:
-```jldoctest affine
+```julia-repl
 julia> @variable(model, v[1:2]); @variable(model, Q[1:2, 1:2]);
 
 julia> @expression(model, v' * Q * v)
@@ -375,7 +375,7 @@ julia> @expression(model, v' * Q * v)
 In similar manner to `Symbolics.jl`, we support function tracing. This means 
 that we can create nonlinear modeling expression using Julia functions that 
 satisfy certain criteria. For instance:
-```jldoctest affine
+```julia-repl
 julia> myfunc(x) = sin(x^3) / tan(2^x);
 
 julia> expr = myfunc(y)
@@ -387,8 +387,8 @@ can contain. The following CANNOT be used:
 - if-statements (see workaround below)
 - non-registered functions.
 
-We can readily workaround the if-statement limitation using `InfiniteOpt.ifelse`. 
-For example, the function:
+We can readily workaround the if-statement limitation using 
+[`InfiniteOpt.ifelse`](@ref). For example, the function:
 ```julia
 function mylogicfunc(x)
     if x >= 0
@@ -399,7 +399,7 @@ function mylogicfunc(x)
 end
 ```
 is not amendable for function tracing, but we can rewrite it as:
-```jldoctest affine
+```julia-repl
 julia> function mylogicfunc(x)
           return InfiniteOpt.ifelse(x >= 0, x^3, 0)
        end
@@ -412,9 +412,114 @@ which is amendable for function tracing.
 
 ### Linear Algebra
 As described above in the Basic Usage Section, we support linear algebra 
-operations with nonlinear expressions!  
+operations with nonlinear expressions! This relies on our basic extensions of 
+[`MutableArithmetics`](https://github.com/jump-dev/MutableArithmetics.jl), but 
+admittedly this implementation is not perfect in terms of efficiency. 
+
+!!! tip 
+    Using linear algebra operations with nonlinear expression provides user 
+    convenience, but is less efficient than using `sum`s. Thus, `sum` should be 
+    used instead when efficiency is critical.
+    ```julia-repl
+    julia> @variable(model, v[1:2]); @variable(model, Q[1:2, 1:2]);
+
+    julia> v' * Q * v # convenient linear algebra syntax
+    0 + (Q[1,1]*v[1] + Q[2,1]*v[2]) * v[1] + (Q[1,2]*v[1] + Q[2,2]*v[2]) * v[2]
+
+    julia> sum(v[i] * Q[i, j] * v[j] for i in 1:2, j in 1:2) # more efficient
+    v[1] * Q[1,1] * v[1] + v[2] * Q[2,1] * v[1] + v[1] * Q[1,2] * v[2] + v[2] * Q[2,2] * v[2]
+    ```
+
+We can also set vectorized constraints using the `.==`, `.<=`, and `.>=` 
+operators:
+```julia-repl
+julia> @variable(model, W[1:2, 1:2]);
+
+julia> @constraint(model, W * Q * v .== 0)
+2-element Vector{InfOptConstraintRef}:
+ (0 + (W[1,1]*Q[1,1] + W[1,2]*Q[2,1]) * v[1] + (W[1,1]*Q[1,2] + W[1,2]*Q[2,2]) * v[2]) - 0 == 0.0
+ (0 + (W[2,1]*Q[1,1] + W[2,2]*Q[2,1]) * v[1] + (W[2,1]*Q[1,2] + W[2,2]*Q[2,2]) * v[2]) - 0 == 0.0
+```
+
+However, it is important to note that although vector constraints can be 
+expressed in `InfiniteOpt`, they are not supported by `JuMP` and thus an error 
+is incurred if we try to solve an `InfiniteOpt` model using the 
+`TranscriptionOpt` backend:
+```julia-repl
+julia> @constraint(model, W * Q * v in MOI.Zeros(2)) # will cause solution error 
+[0 + (W[1,1]*Q[1,1] + W[1,2]*Q[2,1]) * v[1] + (W[1,1]*Q[1,2] + W[1,2]*Q[2,2]) * v[2], 0 + (W[2,1]*Q[1,1] + W[2,2]*Q[2,1]) * v[1] + (W[2,1]*Q[1,2] + W[2,2]*Q[2,2]) * v[2]] in MathOptInterface.Zeros(2)
+
+julia> optimize!(model)
+ERROR: TranscriptionOpt does not support vector constraints of general nonlinear expressions because this is not yet supported by JuMP.
+```
 
 ### Function Registration
-
+TODO add and document
 
 ### Expression Tree Abstraction
+The nonlinear interface in `InfiniteOpt` is enabled through the [`NLPExpr`](@ref) 
+type which uses an intelligent expression tree structure. In particular, we use 
+a memory efficient [Left-Child Right-Sibling Tree](https://en.wikipedia.org/wiki/Left-child_right-sibling_binary_tree) 
+whose leaves (nodes with no children) can be:
+- constants (i.e., `Int`, `Float64`, and/or `Bool`)
+- variables ([`GeneralVariableRef`](@ref)s)
+- affine expressions (`GenericAffExpr{Float64, GeneralVariableRef}`)
+- quadratic expressions (`GenericQuadExpr{Float64, GeneralVariableRef}`)
+Moreover, the internal tree nodes correspond to functions/operators which are 
+stored as `Symbol` names (which correspond to registered functions via 
+[`name_to_function`](@ref)). We accomplish this via 
+[`LeftChildRightSiblingTrees.jl`](https://github.com/JuliaCollections/LeftChildRightSiblingTrees.jl) 
+in combination with [`NodeData`](@ref) to store the content of each node. 
+
+We can view the tree structure of an [`NLPExpr`](@ref) using 
+[`print_expression_tree`](@ref):
+```julia-repl
+julia> expr = exp(y^2.3) * y - 42
+exp(y(t)^2.3) * y(t) - 42
+
+julia> print_expression_tree(expr)
+-
+├─ *
+│  ├─ exp
+│  │  └─ ^
+│  │     ├─ y(t)
+│  │     └─ 2.3
+│  └─ y(t)
+└─ 42
+```
+Here, we can see the algebraic expression is decomposed into an expression 
+tree were the leaves contain the variables/constants (and can contain 
+affine/quadratic expressions) and the intermediate nodes contain function 
+names. Note that the top most node is called the root node and that is what 
+[`NLPExpr`](@ref) stores in its `tree_root` field:
+```julia-repl
+julia> expr.tree_root
+Node(-)
+
+julia> typeof(expr.tree_root)
+LeftChildRightSiblingTrees.Node{NodeData}
+```
+The rest of the tree can then be interrogated by traversing the tree as enabled 
+by the API of 
+[`LeftChildRightSiblingTrees.jl`](https://github.com/JuliaCollections/LeftChildRightSiblingTrees.jl).
+
+In addition to the API of `LeftChildRightSiblingTrees.jl`, we provide some 
+mapping functions that are useful for extensions. First, with 
+[`map_expression`](@ref) we can create a new `NLPExpr` based on an exisiting 
+`NLPExpr` where a transformation is applied to each variable:
+```julia-repl
+julia> map_expression(v -> v^2, expr)
+exp((y(t)²)^2.3) * (y(t)²) - 42
+```
+We also provide `map_nlp_to_ast` which can be used to map an `NLPExpr` to a 
+Julia Abstract Syntax Tree (AST) where a transformation is applied to each 
+variable:
+```julia-repl
+julia> jump_model = Model(); @variable(jump_model, y_jump);
+
+julia> map_nlp_to_ast(v -> y_jump, expr)
+:(exp(y_jump ^ 2.3) * y_jump - 42)
+```
+This is useful for converting `NLPExpr`s into ASTs that can be used in `JuMP` 
+via its [`add_NL_expression`](https://jump.dev/JuMP.jl/v0.21.10/manual/nlp/#Raw-expression-input) 
+API.

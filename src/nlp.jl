@@ -93,7 +93,7 @@ end
 # This is ambiguous but faster than the concrete alternatives tested so far
 # Even better than using Node{Any}...
 """
-    NoteData
+    NodeData
 
 A `DataType` for storing values in an expression tree that is used in a 
 [`NLPExpr`](@ref). Acceptable value types include:
