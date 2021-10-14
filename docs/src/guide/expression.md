@@ -9,9 +9,8 @@ used in `InfiniteOpt`. See the [technical manual](@ref expr_manual) for more
 details.
 
 !!! note 
-    Nonlinear objects as defined by `JuMP.@NL[macro_name]` are not currently 
-    supported by `InfiniteOpt`. See [Nonlinear Expressions](@ref) for more 
-    information and possible workarounds. 
+    Nonlinear modeling is handled differently in `InfiniteOpt` vs `JuMP`. See 
+    [Nonlinear Expressions](@ref nlp_guide) for more information. 
 
 ## Overview
 Expressions in `InfiniteOpt` (also called functions) refer to mathematical 
