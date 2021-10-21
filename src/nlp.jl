@@ -1158,7 +1158,7 @@ function _register(
     elseif !hasmethod(funcs[1], NTuple{num_args, Real})
         _error("The function `$name` is not defined for arguments of type `Real`.")
     elseif length(unique!([m.module for m in methods(funcs[1])])) > 1 || 
-           first(methods(funcs[1])).module != Main
+           string(first(methods(funcs[1])).module) != "Main"
         _error("Cannot register function names that are used by packages. Try " * 
                "wrapping `$(funcs[1])` in a user-defined function.")
     end
