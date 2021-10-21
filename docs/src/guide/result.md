@@ -407,8 +407,7 @@ julia> shadow_price(c1)
  -1.1930560126841273e-10
  -1.1930560126841273e-10
 ```
-Similarly, the mapping to the transcription constraints is enabled via the 
-appropriate version of [`map_shadow_price`](@ref InfiniteOpt.map_shadow_price).
+This is computed via interrogating the duals and the objective sense.
 
 ## LP Sensitivity
 We also conduct sensitivity analysis for linear problems using 

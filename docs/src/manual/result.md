@@ -45,7 +45,6 @@ JuMP.optimizer_index(::InfOptConstraintRef)
 JuMP.dual(::InfOptConstraintRef)
 JuMP.shadow_price(::InfOptConstraintRef)
 InfiniteOpt.map_dual
-InfiniteOpt.map_shadow_price
 ```
 
 ## Expressions
