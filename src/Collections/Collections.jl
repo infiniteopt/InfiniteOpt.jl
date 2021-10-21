@@ -2,9 +2,8 @@ module Collections
 
 # Import the necessary packages.
 using ..InfiniteOpt
-import JuMP
-const JuMPC = JuMP.Containers
 
+# Load in the module files
 include("vectorize.jl")
 include("VectorTuple.jl")
 

@@ -5,7 +5,6 @@ import Reexport
 Reexport.@reexport using JuMP
 
 # Import the necessary packages.
-import MathOptInterface
 import Distributions
 import DataStructures
 import FastGaussQuadrature
@@ -13,6 +12,7 @@ import FastGaussQuadrature
 # Make useful aliases (note we get MOI and MOIU from JuMP)
 const JuMPC = JuMP.Containers
 const MOIUC = MOIU.CleverDicts
+export JuMPC, MOIUC # this makes these accessible to the submodules
 
 # Import the Collections module
 include("Collections/Collections.jl")
