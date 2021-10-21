@@ -873,6 +873,17 @@ end
         v[2] = 2
         return 
     end
+    # test creation helper errors 
+    @testset "Registration Helpers" begin 
+        @test_throws ErrorException RegisteredFunction(:a, 1, f, g)
+        @test_throws ErrorException RegisteredFunction(:a, 2, f, g)
+        @test_throws ErrorException RegisteredFunction(:a, 1, f, g, f)
+        @test_throws ErrorException RegisteredFunction(:a, 1, f, f, g)
+        @test_throws ErrorException InfiniteOpt._register(error, m, :f, 1, 1)
+        @test_throws ErrorException InfiniteOpt._register(error, m, :sin, 1, sin)
+        @test_throws ErrorException InfiniteOpt._register(error, m, :g, 1, g)
+        @test_throws ErrorException InfiniteOpt._register(error, m, :eta, 1, eta)
+    end
     # test @register
     @testset "@register" begin 
         # test errors 
