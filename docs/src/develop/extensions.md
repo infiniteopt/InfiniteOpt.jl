@@ -714,7 +714,6 @@ extended using the following steps:
     - [`InfiniteOpt.map_value`](@ref) (enables `JuMP.value`)
     - [`InfiniteOpt.map_optimizer_index`](@ref) (enables `JuMP.optimizer_index`)
     - [`InfiniteOpt.map_dual`](@ref) (enables `JuMP.dual`)
-    - [`InfiniteOpt.map_shadow_price`](@ref) (enables `JuMP.shadow_price`)
 11. Extend [`InfiniteOpt.add_point_variable`](@ref) and 
     [`InfiniteOpt.add_semi_infinite_variable`](@ref) to use 
     [`expand_measure`](@ref) without modifying the infinite model.
@@ -801,6 +800,7 @@ build our `InfiniteModel` as normal, for example:
 @objective(model, Min, z + expect(y[1] + y[2], ξ))
 @constraint(model, 2y[1] - z <= 42)
 @constraint(model, y[2]^2 + ξ == 2)
+@constraint(model, sin(z) >= -1)
 print(model)
 
 # output
@@ -810,6 +810,7 @@ Subject to
  y[2](ξ) ≥ 0.0, ∀ ξ ~ Uniform
  2 y[1](ξ) - z ≤ 42.0, ∀ ξ ~ Uniform
  y[2](ξ)² + ξ = 2.0, ∀ ξ ~ Uniform
+ sin(z) - -1 ≥ 0.0
 ```
 
 We have defined our `InfiniteModel`, but now we need to specify how to 
@@ -864,16 +865,13 @@ function _make_expression(
     )
     return _make_expression(opt_model, measure_function(expr))
 end
-# AffExpr
-function _make_expression(opt_model::Model, expr::GenericAffExpr)
-    return @expression(opt_model, sum(c * _make_expression(opt_model, v) 
-                       for (c, v) in linear_terms(expr)) + constant(expr))
+# AffExpr/QuadExpr
+function _make_expression(opt_model::Model, expr::Union{GenericAffExpr, GenericQuadExpr})
+    return map_expression(v -> _make_expression(opt_model, v), expr)
 end
-# QuadExpr
-function _make_expression(opt_model::Model, expr::GenericQuadExpr)
-    return @expression(opt_model, sum(c * _make_expression(opt_model, v1) * 
-                       _make_expression(opt_model, v2) for (c, v1, v2) in quad_terms(expr)) + 
-                       _make_expression(opt_model, expr.aff))
+# NLPExpr
+function _make_expression(opt_model::Model, expr::NLPExpr)
+    return add_NL_expression(opt_model, map_nlp_to_ast(v -> _make_expression(opt_model, v), expr))
 end
 
 # output
@@ -883,7 +881,8 @@ _make_expression (generic function with 8 methods)
 For simplicity in example, above we assume that only `DistributionDomain`s are 
 used, there are not any `PointVariableRef`s, and all `MeasureRef`s correspond to 
 expectations. Naturally, a full extension should include checks to enforce that 
-such assumptions hold.
+such assumptions hold. Notice that [`map_expression`](@ref) and 
+[`map_nlp_to_ast`](@ref) are useful for converting expressions.
 
 Now let's extend [`build_optimizer_model!`](@ref) for `DeterministicModel`s. 
 Such extensions should build an optimizer model in place and in general should 
@@ -904,6 +903,9 @@ function InfiniteOpt.build_optimizer_model!(
     # clear the model for a build/rebuild
     determ_model = InfiniteOpt.clear_optimizer_model_build!(model)
 
+    # add the registered functions if there are any
+    add_registered_to_jump(determ_model, model)
+
     # add variables
     for vref in all_variables(model)
         dvref = dispatch_variable_ref(vref)
@@ -919,16 +921,31 @@ function InfiniteOpt.build_optimizer_model!(
     end
 
     # add the objective
-    set_objective(determ_model, objective_sense(model),
-                   _make_expression(determ_model, objective_function(model)))
+    obj_func = _make_expression(determ_model, objective_function(model))
+    if obj_func isa NonlinearExpression
+        set_NL_objective(determ_model, objective_sense(model), obj_func)
+    else
+        set_objective(determ_model, objective_sense(model), obj_func)
+    end
 
     # add the constraints
     for cref in all_constraints(model)
         if !InfiniteOpt._is_info_constraint(cref)
             constr = constraint_object(cref)
-            new_constr = build_constraint(error, _make_expression(determ_model, constr.func),
-                                          constr.set)
-            new_cref = add_constraint(determ_model, new_constr, name(cref))
+            new_func = _make_expression(determ_model, constr.func)
+            if new_func isa NonlinearExpression
+                if constr.set isa MOI.LessThan
+                    ex = :($new_func <= $(constr.set.upper))
+                elseif constr.set isa MOI.GreaterThan
+                    ex = :($new_func >= $(constr.set.lower))
+                else # assume it is MOI.EqualTo
+                    ex = :($new_func == $(constr.set.value))
+                end
+                new_cref = add_NL_constraint(determ_model, ex)
+            else
+                new_constr = build_constraint(error, new_func, constr.set)
+                new_cref = add_constraint(determ_model, new_constr, name(cref))
+            end
             deterministic_data(determ_model).infconstr_to_detconstr[cref] = new_cref
         end
     end
@@ -954,6 +971,9 @@ Subject to
  y[2]² = 1.5
  y[1] ≥ 0.0
  y[2] ≥ 0.0
+ subexpression[1] - 0.0 ≥ 0
+With NL expressions
+ subexpression[1]: sin(z) - -1.0
 ```
 Note that better variable naming could be used with the reformulated infinite 
 variables. Moreover, in general extensions of [`build_optimizer_model!`](@ref) 
@@ -1040,3 +1060,6 @@ solution techniques. These extension packages can implement any of the extension
 shown above and likely will want to introduce wrapper functions and macros to 
 use package specific terminology (e.g., using random variables instead of 
 infinite variables).
+
+Please reach out to us on GitHub to discuss your plans before starting this on 
+your own.

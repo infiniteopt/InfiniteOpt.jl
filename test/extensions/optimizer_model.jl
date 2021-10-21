@@ -66,6 +66,9 @@ function InfiniteOpt.build_optimizer_model!(
     # clear the model for a build/rebuild
     reform_model = clear_optimizer_model_build!(model)
 
+    # load in registered NLP functions
+    add_registered_to_jump(reform_model, model)
+
     # IT MAY BE USEFUL TO CALL `expand_all_measures!` TO HANDLE MEASURES FIRST
     # otherwise can extend `add_measure_variable` and `delete_semi_infinite_variable` to
     # expand in place without modifying the infinite model
@@ -117,7 +120,7 @@ end
 
 # Extend optimizer_model_expression if appropriate to enable expression related queries
 function InfiniteOpt.optimizer_model_expression(
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr}, # POSSIBLY BREAK THESE UP INTO 3 SEPARATE FUNCTIONS
     key::Val{OptKey};
     my_kwarg::Bool = true # ADD KEY ARGS AS NEEDED
     )
@@ -169,7 +172,7 @@ end
 # If appropriate extend expression_supports (enables support queries of expressions)
 function InfiniteOpt.expression_supports(
     model::JuMP.Model,
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr},
     key::Val{OptKey};
     my_kwarg::Bool = true # ADD KEY ARGS AS NEEDED
     )
@@ -196,4 +199,3 @@ end
 # - InfiniteOpt.map_value to enable JuMP.value
 # - InfiniteOpt.map_optimizer_index to enable JuMP.optimizer_index
 # - InfiniteOpt.map_dual to enable JuMP.dual
-# - InfiniteOpt.map_shadow_price to enable JuMP.shadow_price

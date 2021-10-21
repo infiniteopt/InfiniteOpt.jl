@@ -281,7 +281,6 @@ end
     @constraint(m, c2, inf >= 0)
     @constraint(m, c3, sin(g) == 0)
     @constraint(m, c4, sin(inf) == 0)
-    @objective(m, Min, g^2)
     tm = transcription_model(m)
     JuMP.optimize!(m)
     inft = transcription_variable(inf)
@@ -324,6 +323,7 @@ end
         @test isa(optimizer_index(c1), MOI.ConstraintIndex)
         @test isa(optimizer_index(c2, label = All), Vector{<:MOI.ConstraintIndex})
         @test isa(optimizer_index(c2, label = All, ndarray = true), Vector{<:MOI.ConstraintIndex})
+        @test_throws ErrorException optimizer_index(c3)
     end
     # test has_values
     @testset "JuMP.has_duals" begin
@@ -342,16 +342,29 @@ end
         @test dual(c3) == 4
         @test dual(c4) == [2, 3]
     end
-    # test map_shadow_price
-    @testset "map_shadow_price" begin
-        @test InfiniteOpt.map_shadow_price(c1, Val(:TransData)) == -1.
-        @test InfiniteOpt.map_shadow_price(c2, Val(:TransData)) == [-0., -1.]
-    end
     # test shadow_price
     @testset "JuMP.shadow_price" begin
+        # test with FEASIBILITY_SENSE
+        @test_throws ErrorException shadow_price(c1)
+        @test_throws ErrorException shadow_price(c2)
+        @test_throws ErrorException shadow_price(c3)
+        # test with MIN_SENSE
+        set_objective_sense(m, MOI.MIN_SENSE)
         @test shadow_price(c1) == -1.
         @test shadow_price(c1, ndarray = true) == [-1.]
         @test shadow_price(c2, label = PublicLabel) == [-0., -1.]
+        @test shadow_price(c3) == -4
+        @test shadow_price(c4) == [-2, -3]
+        # test with MAX_SENSE
+        set_objective_sense(m, MOI.MAX_SENSE)
+        @test shadow_price(c1) == 1.
+        @test shadow_price(c1, ndarray = true) == [1.]
+        @test shadow_price(c2, label = PublicLabel) == [0., 1.]
+        @test shadow_price(c3) == 4
+        @test shadow_price(c4) == [2, 3]
+        # test no duals error
+        MOI.set(mockoptimizer, MOI.DualStatus(), MOI.NO_SOLUTION)
+        @test_throws ErrorException shadow_price(c1)
     end
 end
 

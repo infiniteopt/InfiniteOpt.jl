@@ -70,12 +70,8 @@ end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
 function map_value(cref::InfOptConstraintRef, key, result::Int; kwargs...)
-    opt_cref = optimizer_model_constraint(cref, key; kwargs...)
-    if opt_cref isa AbstractArray
-        return map(c -> JuMP.value(c; result = result), opt_cref)
-    else
-        return JuMP.value(opt_cref; result = result)
-    end
+    func = JuMP.jump_function(JuMP.constraint_object(cref))
+    return map_value(func, key, result; kwargs...)
 end
 
 # Default method that depends on optimizer_model_expression --> making extensions easier
@@ -191,13 +187,8 @@ julia> value(c1)
 """
 function JuMP.value(cref::InfOptConstraintRef; result::Int = 1, 
                     kwargs...)
-    func = JuMP.jump_function(JuMP.constraint_object(cref))
-    if func isa NLPExpr
-        return JuMP.value(func; result = result, kwargs...)
-    else
-        return map_value(cref, Val(optimizer_model_key(JuMP.owner_model(cref))), 
-                         result; kwargs...)
-    end
+    return map_value(cref, Val(optimizer_model_key(JuMP.owner_model(cref))), 
+                     result; kwargs...)
 end
 
 """
@@ -337,6 +328,9 @@ end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
 function map_optimizer_index(cref::InfOptConstraintRef, key; kwargs...)
+    if JuMP.jump_function(JuMP.constraint_object(cref)) isa NLPExpr
+        error("`optimizer_index` not defined for general nonlinear constraints.")
+    end
     opt_cref = optimizer_model_constraint(cref, key; kwargs...)
     if opt_cref isa AbstractArray
         return map(c -> JuMP.optimizer_index(c), opt_cref)
@@ -513,29 +507,41 @@ end
 ################################################################################
 #                              SHADOW PRICE QUERIES
 ################################################################################
-"""
-    map_shadow_price(cref::InfOptConstraintRef, key::Val{ext_key_name}; 
-                     kwargs...)
-
-Map the shadow price(s) of `cref` to its counterpart in the optimizer
-model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
-Here `ref` need refer to methods for both variable references and constraint
-references. This only needs to be defined for reformulation extensions that cannot
-readily extend `optimizer_model_variable` and `optimizer_model_constraint`.
-Such as is the case with reformuations that do not have a direct mapping between
-variables and/or constraints in the original infinite form. Otherwise,
-`optimizer_model_variable` and `optimizer_model_constraint` are used to make
-these mappings by default where `kwargs` are passed on to.
-"""
-function map_shadow_price end
-
-# Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_shadow_price(cref::InfOptConstraintRef, key; kwargs...)
-    opt_cref = optimizer_model_constraint(cref, key; kwargs...)
-    if opt_cref isa AbstractArray
-        return map(c -> JuMP.shadow_price(c), opt_cref)
+# Dispatch functions for computing the shadow price
+function _process_shadow_price(::MOI.LessThan, sense, duals)
+    if sense == MOI.MAX_SENSE
+        return -duals
+    elseif sense == MOI.MIN_SENSE
+        return duals
     else
-        return JuMP.shadow_price(opt_cref)
+        error(
+            "The shadow price is not available because the objective sense " *
+            "$sense is not minimization or maximization.",
+        )
+    end
+end
+function _process_shadow_price(::MOI.GreaterThan, sense, duals)
+    if sense == MOI.MAX_SENSE
+        return duals
+    elseif sense == MOI.MIN_SENSE
+        return -duals
+    else
+        error(
+            "The shadow price is not available because the objective sense " *
+            "$sense is not minimization or maximization.",
+        )
+    end
+end
+function _process_shadow_price(::MOI.EqualTo, sense, duals)
+    if sense == MOI.MAX_SENSE 
+        return map(d -> d > 0 ? d : -d, duals)
+    elseif sense == MOI.MIN_SENSE
+        return map(d -> d > 0 ? -d : d, duals)
+    else
+        error(
+            "The shadow price is not available because the objective sense " *
+            "$sense is not minimization or maximization.",
+        )
     end
 end
 
@@ -547,7 +553,7 @@ end
 Extend `JuMP.shadow_price` to return the shadow price(s) of `cref` in accordance 
 with its reformulation constraint(s) stored in the optimizer model. Use 
 [`JuMP.has_duals`](@ref JuMP.has_duals(::InfiniteModel)) to check if a result 
-exists before asking for duals. 
+exists before asking for the shadow price (it uses the duals). 
     
 The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
 and `kwargs` denote extra ones that user extensions may employ.
@@ -558,15 +564,13 @@ constraints are returned as a list. However, a n-dimensional array
 can be obtained via `ndarray = true` which is handy when the constraint has multiple 
 infinite parameter dependencies.
 
-It may also be
-helpful to query via [`optimizer_model_constraint`](@ref) to retrieve the
-constraint(s) that these shadow prices are based on. Calling `parameter_refs` and
-`supports` may also be insightful. Be sure to use the same keyword arguments for 
-consistency.
+It may also be helpful to query via [`optimizer_model_constraint`](@ref) to 
+retrieve the constraint(s) that these shadow prices are based on. Calling 
+`parameter_refs` and `supports` may also be insightful. Be sure to use the same 
+keyword arguments for consistency.
 
-For extensions, this only
-works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
-[`map_shadow_price`](@ref) has been extended for constraints. 
+For extensions, this only works if [`optimizer_model_constraint`](@ref) has been 
+extended correctly and/or [`map_dual`](@ref) has been extended for constraints. 
 
 **Example**
 ```julia-repl
@@ -578,9 +582,16 @@ julia> shadow_price(c1)
  -0.0
 ```
 """
-function JuMP.shadow_price(cref::InfOptConstraintRef; kwargs...) # TODO make work for NLP constraints
-    return map_shadow_price(cref, Val(optimizer_model_key(JuMP.owner_model(cref))); 
-                            kwargs...)
+function JuMP.shadow_price(cref::InfOptConstraintRef; kwargs...)
+    model = JuMP.owner_model(cref)
+    set = JuMP.moi_set(JuMP.constraint_object(cref))
+    sense = JuMP.objective_sense(model)
+    if !JuMP.has_duals(model)
+        error("The shadow price is not available because no dual result is " *
+              "available.")
+    end
+    duals = map_dual(cref, Val(optimizer_model_key(model)), 1; kwargs...)
+    return _process_shadow_price(set, sense, duals)
 end
 
 ################################################################################

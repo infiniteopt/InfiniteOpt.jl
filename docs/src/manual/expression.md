@@ -44,8 +44,9 @@ NLPExpr
 RegisteredFunction
 ```
 
-### Methods
+### Methods/Macros
 ```@docs
+@register
 all_registered_functions
 name_to_function
 user_registered_functions

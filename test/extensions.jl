@@ -309,7 +309,7 @@ end
     @test optimizer_index(c1) == optimizer_index.(optimizer_model_constraint(c1))
     @test optimizer_index(c2) == optimizer_index.(optimizer_model_constraint(c2))
     @test optimizer_index(c3) == optimizer_index.(optimizer_model_constraint(c3))
-    @test shadow_price(c1) == [1, 1]
-    @test shadow_price(c2) == [-0., 1.]
-    @test shadow_price(c3) == [-0., 1.]
+    @test shadow_price(c1) == [-1, -1]
+    @test shadow_price(c2) == [0., -1.]
+    @test shadow_price(c3) == [0., -1.]
 end

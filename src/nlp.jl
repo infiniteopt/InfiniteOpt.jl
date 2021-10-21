@@ -201,8 +201,6 @@ struct NLPExpr <: JuMP.AbstractJuMPScalar
 
     # Constructor
     function NLPExpr(tree_root::_LCRST.Node{NodeData})
-        @warn "General nonlinear expression support is experimental. Please, " *
-              "notify us on GitHub if you run into unexpected behavior." maxlog = 1
         return new(tree_root)
     end
 end
@@ -1340,7 +1338,7 @@ Retrieve all the functions that are currently registered to `model`.
 """
 function all_registered_functions(model::InfiniteModel) 
     return append!(collect(values(_NativeNLPFunctions)), 
-                   values(model.func_lookup), +, *)
+                   values(model.func_lookup), (+, *))
 end
 
 """
