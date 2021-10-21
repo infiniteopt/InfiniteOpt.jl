@@ -1144,6 +1144,7 @@ end
 # Helper function for @register
 function _register(
     _error::Function, 
+    call_mod::Module,
     model::InfiniteModel, 
     name::Symbol, 
     num_args::Int, 
@@ -1158,7 +1159,7 @@ function _register(
     elseif !hasmethod(funcs[1], NTuple{num_args, Real})
         _error("The function `$name` is not defined for arguments of type `Real`.")
     elseif length(unique!([m.module for m in methods(funcs[1])])) > 1 || 
-           string(first(methods(funcs[1])).module) != "Main"
+           first(methods(funcs[1])).module !== call_mod
         _error("Cannot register function names that are used by packages. Try " * 
                "wrapping `$(funcs[1])` in a user-defined function.")
     end
@@ -1289,9 +1290,10 @@ macro register(model, f, args...)
     push!(code.args, quote 
         $model isa InfiniteModel || $_error("Expected an `InfiniteModel`.")
     end)
+    calling_mod = __module__ # get the module the macro is being called from
     push!(code.args, quote 
-        InfiniteOpt._register($_error, $model, $(quot(f_name)), $num_args, 
-                              $(f_name), $(args...))
+        InfiniteOpt._register($_error, $calling_mod, $model, $(quot(f_name)), 
+                              $num_args, $(f_name), $(args...))
     end)
 
     # define the function overloads needed to create expressions

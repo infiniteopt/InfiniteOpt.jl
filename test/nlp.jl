@@ -879,10 +879,10 @@ end
         @test_throws ErrorException RegisteredFunction(:a, 2, f, g)
         @test_throws ErrorException RegisteredFunction(:a, 1, f, g, f)
         @test_throws ErrorException RegisteredFunction(:a, 1, f, f, g)
-        @test_throws ErrorException InfiniteOpt._register(error, m, :f, 1, 1)
-        @test_throws ErrorException InfiniteOpt._register(error, m, :sin, 1, sin)
-        @test_throws ErrorException InfiniteOpt._register(error, m, :g, 1, g)
-        @test_throws ErrorException InfiniteOpt._register(error, m, :eta, 1, eta)
+        @test_throws ErrorException InfiniteOpt._register(error, Main, m, :f, 1, 1)
+        @test_throws ErrorException InfiniteOpt._register(error, Main, m, :sin, 1, sin)
+        @test_throws ErrorException InfiniteOpt._register(error, Main, m, :g, 1, g)
+        @test_throws ErrorException InfiniteOpt._register(error, Main, m, :eta, 1, eta)
     end
     # test @register
     @testset "@register" begin 
