@@ -146,6 +146,12 @@ illustrate this, let's define the constraint
 julia> @constraint(model, 2ya^2 + z[1] >= 3, DomainRestrictions(t => 0, x => [-1, 1]))
 2 ya(t, x)² + z[1] ≥ 3.0, ∀ t = 0, x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
 ```
+We can also enforce the logical compliment of the restrictions using the 
+`invert_logic` keyword argument:
+```jldoctest constrs
+julia> @constraint(model, 2ya^2 + z[1] >= 3, DomainRestrictions(t => 0, invert_logic = true))
+2 ya(t, x)² + z[1] ≥ 3.0, ∀ t ≠ 0, x[1] ∈ [-2, 2], x[2] ∈ [-2, 2]
+```
 
 Now we have added constraints to our model and it is ready to be solved!
 
@@ -388,10 +394,10 @@ provided for the cases in which one wants to query solely off of set or off
 expression type. Let's illustrate this with `num_constraints`:
 ```jldoctest constrs
 julia> num_constraints(model) # total number of constraints
-16
+17
 
 julia> num_constraints(model, GenericQuadExpr{Float64, GeneralVariableRef})
-5
+6
 
 julia> num_constraints(model, MOI.LessThan{Float64})
 5

@@ -38,6 +38,8 @@
             @test InfiniteOpt._math_symbol(REPLMode, :infty) == "Inf"
             @test InfiniteOpt._math_symbol(REPLMode, :Vert) == "||"
             @test InfiniteOpt._math_symbol(REPLMode, :sub2) == "_2"
+            @test InfiniteOpt._math_symbol(REPLMode, :neq) == "!="
+            @test InfiniteOpt._math_symbol(REPLMode, :logic_not) == "!"
         else
             @test InfiniteOpt._math_symbol(REPLMode, :intersect) == "∩"
             @test InfiniteOpt._math_symbol(REPLMode, :partial) == "∂"
@@ -53,6 +55,8 @@
             @test InfiniteOpt._math_symbol(REPLMode, :infty) == "∞"
             @test InfiniteOpt._math_symbol(REPLMode, :Vert) == "‖"
             @test InfiniteOpt._math_symbol(REPLMode, :sub2) == "₂"
+            @test InfiniteOpt._math_symbol(REPLMode, :neq) == "≠"
+            @test InfiniteOpt._math_symbol(REPLMode, :logic_not) == "¬"
         end
         @test InfiniteOpt._math_symbol(REPLMode, :times) == "*"
         @test InfiniteOpt._math_symbol(REPLMode, :prop) == "~"
@@ -94,6 +98,8 @@
         @test InfiniteOpt._math_symbol(IJuliaMode, :succeq0) == "\\succeq 0"
         @test InfiniteOpt._math_symbol(IJuliaMode, :Vert) == "\\Vert"
         @test InfiniteOpt._math_symbol(IJuliaMode, :sub2) == "_2"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :neq) == "\\neq"
+        @test InfiniteOpt._math_symbol(IJuliaMode, :logic_not) == "\\neg"
         @test_throws ErrorException InfiniteOpt._math_symbol(IJuliaMode, :bad)
     end
     # test _plural
@@ -215,6 +221,22 @@
         @test in_domain_string(REPLMode, par1, domain, rs) == str
         str = InfiniteOpt._math_symbol(IJuliaMode, :eq) * " 0"
         @test in_domain_string(IJuliaMode, par1, domain, rs) == str
+        # test in restrictions and inverted with equality
+        rs = DomainRestrictions(par1 => 0, invert_logic = true)
+        domain = IntervalDomain(0, 1)
+        str = InfiniteOpt._math_symbol(REPLMode, :neq) * " 0"
+        @test in_domain_string(REPLMode, par1, domain, rs) == str
+        str = InfiniteOpt._math_symbol(IJuliaMode, :neq) * " 0"
+        @test in_domain_string(IJuliaMode, par1, domain, rs) == str
+        # test in restrictions and inverted without equality
+        rs = DomainRestrictions(par1 => [0.1, 0.4], invert_logic = true)
+        domain = IntervalDomain(0, 1)
+        str = InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 0.1) " * 
+              InfiniteOpt._math_symbol(REPLMode, :union) * " (0.4, 1]"
+        @test in_domain_string(REPLMode, par1, domain, rs) == str
+        str = InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 0.1) " * 
+              InfiniteOpt._math_symbol(IJuliaMode, :union) * " (0.4, 1]"
+        @test in_domain_string(IJuliaMode, par1, domain, rs) == str
         # test not in restrictions
         str = InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1]"
         @test in_domain_string(REPLMode, pars[1], domain, rs) == str
@@ -238,6 +260,26 @@
         @test in_domain_string(REPLMode, par1, domain, rs) == str
         str = InfiniteOpt._math_symbol(IJuliaMode, :prop) * " Uniform " *
               InfiniteOpt._math_symbol(IJuliaMode, :intersect) * " [0, 1]"
+        @test in_domain_string(IJuliaMode, par1, domain, rs) == str
+        # test in restrictions and inverted
+        rs = DomainRestrictions(par1 => 0, invert_logic = true)
+        domain = UniDistributionDomain(Uniform())
+        str = InfiniteOpt._math_symbol(REPLMode, :neq) * " 0"
+        @test in_domain_string(REPLMode, par1, domain, rs) == str
+        str = InfiniteOpt._math_symbol(IJuliaMode, :neq) * " 0"
+        @test in_domain_string(IJuliaMode, par1, domain, rs) == str
+        # test in restrictions and not equality and inverted
+        rs = DomainRestrictions(par1 => [0, 1], invert_logic = true)
+        domain = UniDistributionDomain(Uniform())
+        infy = InfiniteOpt._math_symbol(REPLMode, :infty)
+        str = InfiniteOpt._math_symbol(REPLMode, :prop) * " Uniform " *
+              InfiniteOpt._math_symbol(REPLMode, :intersect) * " ((-$infy, 0) " * 
+              InfiniteOpt._math_symbol(REPLMode, :union) * " (1, $infy))"
+        @test in_domain_string(REPLMode, par1, domain, rs) == str
+        infy = InfiniteOpt._math_symbol(IJuliaMode, :infty)
+        str = InfiniteOpt._math_symbol(IJuliaMode, :prop) * " Uniform " *
+              InfiniteOpt._math_symbol(IJuliaMode, :intersect) * " ((-$infy, 0) " *
+              InfiniteOpt._math_symbol(IJuliaMode, :union) * " (1, $infy))"
         @test in_domain_string(IJuliaMode, par1, domain, rs) == str
         # test not in restrictions
         str = InfiniteOpt._math_symbol(REPLMode, :prop) * " Uniform"
@@ -489,6 +531,14 @@
         @test InfiniteOpt.restrict_string(REPLMode, rs) == str
         str = "par1 " *  InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0.5, 0.7]"
         @test InfiniteOpt.restrict_string(IJuliaMode, rs) == str
+        # test inverted restriction
+        rs = DomainRestrictions(par1 => [0.5, 0.7], invert_logic = true)
+        str = "par1 " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0.5, 0.7]"
+        str = InfiniteOpt._math_symbol(REPLMode, :logic_not) * "($str)"
+        @test InfiniteOpt.restrict_string(REPLMode, rs) == str
+        str = "par1 " *  InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0.5, 0.7]"
+        str = InfiniteOpt._math_symbol(IJuliaMode, :logic_not) * "($str)"
+        @test InfiniteOpt.restrict_string(IJuliaMode, rs) == str
     end
     # test constraint_string (Finite constraint)
     @testset "JuMP.constraint_string (Finite)" begin
@@ -537,6 +587,17 @@
         str = InfiniteOpt.restrict_string(IJuliaMode, rs)
         str2 = string(split(str, ", ")[2], ", ", split(str, ", ")[1])
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, rs) in [str, str2]
+        # inverted restrictions 
+        rs = DomainRestrictions(pars[1] => [0, 1], invert_logic = true)
+        str = "pars " * InfiniteOpt._math_symbol(REPLMode, :prop) *
+              " IsoNormal(dim: (2)) " *
+              InfiniteOpt._math_symbol(REPLMode, :intersect) * " " *
+              restrict_string(REPLMode, rs)
+        str2 = "pars " * InfiniteOpt._math_symbol(REPLMode, :prop) *
+              " MvNormal(dim: (2)) " *
+              InfiniteOpt._math_symbol(REPLMode, :intersect) * " " *
+              restrict_string(REPLMode, rs)
+        @test InfiniteOpt._param_domain_string(REPLMode, m, idx, rs) in [str, str2]
         # other set without equalities and including in the restrictions
         rs = DomainRestrictions(pars[1] => [0, 1])
         str = "pars " * InfiniteOpt._math_symbol(REPLMode, :prop) *

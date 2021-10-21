@@ -652,12 +652,15 @@ end
 function _support_in_restrictions(
     support::Vector{Float64},
     indices::Vector{Int},
-    domains::Vector{InfiniteOpt.IntervalDomain}
-    )::Bool
+    domains::Vector{InfiniteOpt.IntervalDomain},
+    invert::Bool
+    )
     for i in eachindex(indices)
         s = support[indices[i]]
-        if !isnan(s) && (s < JuMP.lower_bound(domains[i]) || 
+        if !isnan(s) && !invert && (s < JuMP.lower_bound(domains[i]) || 
             s > JuMP.upper_bound(domains[i]))
+            return false
+        elseif !isnan(s) && invert && JuMP.lower_bound(domains[i]) <= s <= JuMP.upper_bound(domains[i])
             return false
         end
     end
@@ -769,7 +772,7 @@ function transcribe_constraints!(
                 raw_supp = index_to_support(trans_model, i)
                 # ensure the support satisfies parameter bounds and then add it
                 if _support_in_restrictions(raw_supp, restrict_indices, 
-                                            restrict_domains)
+                                            restrict_domains, restrictions.invert)
                     new_name = isempty(name) ? "" : string(name, "(support: ", counter, ")")
                     new_cref = _process_constraint(trans_model, constr, func, 
                                                    set, raw_supp, new_name) 

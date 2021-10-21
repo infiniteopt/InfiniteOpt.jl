@@ -53,6 +53,10 @@ function _math_symbol(::Type{JuMP.REPLMode}, name::Symbol)::String
         return Sys.iswindows() ? "||" : "‖"
     elseif name == :sub2
         return Sys.iswindows() ? "_2" : "₂"
+    elseif name == :neq
+        return Sys.iswindows() ? "!=" : "≠"
+    elseif name == :logic_not
+        return Sys.iswindows() ? "!" : "¬"
     else
         error("Internal error: Unrecognized symbol $name.")
     end
@@ -110,6 +114,10 @@ function _math_symbol(::Type{JuMP.IJuliaMode}, name::Symbol)::String
         return "\\Vert"
     elseif name == :sub2
         return "_2"
+    elseif name == :neq
+        return "\\neq"
+    elseif name == :logic_not
+        return "\\neg"
     else
         error("Internal error: Unrecognized symbol $name.")
     end
@@ -193,6 +201,18 @@ function in_domain_string(print_mode, domain::AbstractInfiniteDomain)::String
                   domain_string(print_mode, domain))
 end
 
+# Inverted interval domain
+function in_domain_string(print_mode, lb1, ub1, lb2, ub2)
+    if ub1 == lb2
+        return string(_math_symbol(print_mode, :neq), " ", _string_round(ub1))
+    else
+        return string(_math_symbol(print_mode, :in), " [", _string_round(lb1), 
+                      ", ", _string_round(ub1), ") ", 
+                      _math_symbol(print_mode, :union), " (", _string_round(lb2),
+                      ", ", _string_round(ub2), "]")
+    end
+end
+
 ## Extend in domain string to consider domain restrictions
 # IntervalDomain
 function in_domain_string(print_mode,
@@ -202,8 +222,16 @@ function in_domain_string(print_mode,
     # determine if in restrictions
     in_restrictions = haskey(restrictions, pref)
     # make the string
-    interval = in_restrictions ? restrictions[pref] : domain
-    return in_domain_string(print_mode, interval)
+    if in_restrictions && restrictions.invert
+        return in_domain_string(print_mode, domain.lower_bound, 
+                                restrictions[pref].lower_bound, 
+                                restrictions[pref].upper_bound, 
+                                domain.upper_bound)
+    elseif in_restrictions
+        return in_domain_string(print_mode, restrictions[pref])
+    else
+        return in_domain_string(print_mode, domain)
+    end
 end
 
 # InfiniteScalarDomain
@@ -212,7 +240,7 @@ function in_domain_string(print_mode,
     domain::InfiniteScalarDomain,
     restrictions::DomainRestrictions{GeneralVariableRef})::String
     # determine if in restrictions
-    if haskey(restrictions, pref)
+    if !restrictions.invert && haskey(restrictions, pref)
         bound_domain = restrictions[pref]
         if JuMP.lower_bound(bound_domain) == JuMP.upper_bound(bound_domain)
             return in_domain_string(print_mode, bound_domain)
@@ -220,6 +248,22 @@ function in_domain_string(print_mode,
             return  string(in_domain_string(print_mode, domain), " ",
                            _math_symbol(print_mode, :intersect),
                            " ", domain_string(print_mode, bound_domain))
+        end
+    elseif haskey(restrictions, pref)
+        bound_domain = restrictions[pref]
+        lb = bound_domain.lower_bound
+        ub = bound_domain.upper_bound
+        if JuMP.lower_bound(bound_domain) == JuMP.upper_bound(bound_domain)
+            return string(_math_symbol(print_mode, :neq), " ", 
+                          _string_round(bound_domain.lower_bound))
+        else
+            return  string(in_domain_string(print_mode, domain), " ",
+                           _math_symbol(print_mode, :intersect),
+                           " ((-", _math_symbol(print_mode, :infty), ", ", 
+                           _string_round(lb), ") ", 
+                           _math_symbol(print_mode, :union), " (", 
+                           _string_round(ub), ", ", 
+                           _math_symbol(print_mode, :infty), "))")
         end
     else
         return in_domain_string(print_mode, domain)
@@ -556,12 +600,14 @@ function restrict_string(
     print_mode, 
     restrictions::DomainRestrictions{GeneralVariableRef}
     )::String
+    is_inverted = restrictions.invert
     string_list = ""
     for (pref, domain) in restrictions
         string_list *= string(JuMP.function_string(print_mode, pref), " ",
                               in_domain_string(print_mode, domain), ", ")
     end
-    return string_list[1:end-2]
+    str = string_list[1:end-2]
+    return is_inverted ? string(_math_symbol(print_mode, :logic_not), "(", str, ")") : str
 end
 
 ## Return the parameter domain string given the object index
@@ -603,14 +649,17 @@ function _param_domain_string(print_mode, model::InfiniteModel,
         filtered_restrictions = filter(e -> e[1].raw_index == MOIUC.key_to_index(index) &&
                                  e[1].index_type == DependentParameterIndex, restrictions)
         # build the domain string
-        if is_eq
+        if is_eq && !restrictions.invert
             domain_str = restrict_string(print_mode, filtered_restrictions)
         else
             domain_str = string(_remove_name_index(first_gvref), " ",
                             in_domain_string(print_mode, domain))
-            if !isempty(filtered_restrictions)
+            if !isempty(filtered_restrictions) && !restrictions.invert
                 domain_str *= string(" ", _math_symbol(print_mode, :intersect),
                                      " (", restrict_string(print_mode, filtered_restrictions), ")")
+            elseif !isempty(filtered_restrictions)
+                domain_str *= string(" ", _math_symbol(print_mode, :intersect),
+                                     " ", restrict_string(print_mode, filtered_restrictions))
             end
         end
     end

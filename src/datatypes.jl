@@ -657,7 +657,7 @@ Note that the GeneralVariableRef must pertain to infinite parameters.
 
 The constructor syntax is
 ```julia 
-DomainRestrictions(restrictions...)
+DomainRestrictions(restrictions...; [invert_logic = false])
 ```
 where each argument of `restrictions` is one of the following forms:
 - `pref => value`
@@ -666,14 +666,18 @@ where each argument of `restrictions` is one of the following forms:
 - `prefs => value`
 - `prefs => [lb, ub]`
 - `prefs => IntervalDomain(lb, ub)`.
-Note that `pref` and `prefs` must correspond to infinite parameters. 
+Note that `pref` and `prefs` must correspond to infinite parameters. If we set 
+`invert_logic = true` then we specify the subdomain that inverts the logic of 
+the conditions given (i.e., the logical compliment).
 
 **Fields**
 - `intervals::Dict{GeneralVariableRef, IntervalDomain}`: A dictionary
   of interval bounds on infinite parameters.
+- `invert::Bool`: Specify the domain that is the logical compliment of intervals.
 """
 struct DomainRestrictions{P <: JuMP.AbstractVariableRef}
     intervals::Dict{P, IntervalDomain}
+    invert::Bool
 end
 
 ################################################################################
@@ -1756,19 +1760,23 @@ end
 
 # Constructor for expanding array parameters
 function DomainRestrictions(
-    intervals::NTuple{N, Pair}
+    intervals::NTuple{N, Pair};
+    invert_logic::Bool = false
     )::DomainRestrictions{GeneralVariableRef} where {N}
-    return DomainRestrictions(_expand_parameter_tuple(intervals))
+    return DomainRestrictions(_expand_parameter_tuple(intervals), invert_logic)
 end
 
 # Convenient constructor
-function DomainRestrictions(args...)::DomainRestrictions{GeneralVariableRef}
-    return DomainRestrictions(args)
+function DomainRestrictions(
+    args...; 
+    invert_logic::Bool = false
+    )::DomainRestrictions{GeneralVariableRef}
+    return DomainRestrictions(args; invert_logic = invert_logic)
 end
 
 # Default method
 function DomainRestrictions()::DomainRestrictions{GeneralVariableRef}
-    return DomainRestrictions(Dict{GeneralVariableRef, IntervalDomain}())
+    return DomainRestrictions(Dict{GeneralVariableRef, IntervalDomain}(), false)
 end
 
 # Make dictionary accessor
@@ -1796,7 +1804,7 @@ end
 
 # Extend Base.copy
 function Base.copy(restrictions::DomainRestrictions) 
-    return DomainRestrictions(copy(intervals(restrictions)))
+    return DomainRestrictions(copy(intervals(restrictions)), restrictions.invert)
 end
 
 # Extend Base.setindex!
@@ -1822,8 +1830,9 @@ function Base.merge(
     dr1::DomainRestrictions{P},
     dr2::DomainRestrictions{P}
     )::DomainRestrictions{P} where {P}
+    @assert dr1.invert == dr2.invert
     new_dict = merge(intervals(dr1), intervals(dr2))
-    return DomainRestrictions(new_dict)
+    return DomainRestrictions(new_dict, dr1.invert)
 end
 
 # Extend Base.merge!
@@ -1831,6 +1840,7 @@ function Base.merge!(
     dr1::DomainRestrictions{P},
     dr2::DomainRestrictions{P}
     )::DomainRestrictions{P} where {P}
+    @assert dr1.invert == dr2.invert
     merge!(intervals(dr1), intervals(dr2))
     return dr1
 end
@@ -1841,5 +1851,5 @@ function Base.filter(
     dr::DomainRestrictions{P}
     )::DomainRestrictions{P} where {P}
     new_dict = filter(f, intervals(dr))
-    return DomainRestrictions(new_dict)
+    return DomainRestrictions(new_dict, dr.invert)
 end

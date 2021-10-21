@@ -286,11 +286,13 @@ end
     end
     # test _support_in_restrictions
     @testset "_support_in_restrictions" begin 
-        @test IOTO._support_in_restrictions([0., 0., 0.], [3], [IntervalDomain(0, 0)])
-        @test IOTO._support_in_restrictions([0., 0., 0.], Int[], IntervalDomain[])
-        @test IOTO._support_in_restrictions([NaN, 0., 0.], [1], [IntervalDomain(0, 1)])
-        @test !IOTO._support_in_restrictions([NaN, 0., 0.], [1, 2], [IntervalDomain(1, 1), IntervalDomain(1, 1)])
-        @test !IOTO._support_in_restrictions([NaN, 0., 2.], [1, 3], [IntervalDomain(1, 1), IntervalDomain(1, 1)])
+        @test IOTO._support_in_restrictions([0., 0., 0.], [3], [IntervalDomain(0, 0)], false)
+        @test IOTO._support_in_restrictions([0., 0., 0.], Int[], IntervalDomain[], false)
+        @test IOTO._support_in_restrictions([NaN, 0., 0.], [1], [IntervalDomain(0, 1)], false)
+        @test !IOTO._support_in_restrictions([NaN, 0., 0.], [1, 2], [IntervalDomain(1, 1), IntervalDomain(1, 1)], false)
+        @test !IOTO._support_in_restrictions([NaN, 0., 2.], [1, 3], [IntervalDomain(1, 1), IntervalDomain(1, 1)], false)
+        @test !IOTO._support_in_restrictions([0., 0., 0.], [3], [IntervalDomain(0, 0)], true)
+        @test IOTO._support_in_restrictions([0., 0., 1.], [3], [IntervalDomain(0, 0)], true)
     end
     # test _process_constraint
     @testset "_process_constraint" begin
