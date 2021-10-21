@@ -13,7 +13,7 @@ end
     sdomain1 = IntervalDomain(0, 1)
     sdomain2 = UniDistributionDomain(Uniform())
     domain1 = CollectionDomain([sdomain1, sdomain2])
-    domain2 = MultiDistributionDomain(MvNormal(ones(4)))
+    domain2 = MultiDistributionDomain(MvNormal(Diagonal(map(abs2, ones(4)))))
     @test length(sdomain1) == 1
     @test length(sdomain2) == 1
     @test length(domain1) == 2
@@ -38,7 +38,7 @@ end
     end
     # supports_in_domain (MultivariateDistribution domain)
     @testset "Multivariate Distribution" begin
-        domain = MultiDistributionDomain(MvNormal(ones(2)))
+        domain = MultiDistributionDomain(MvNormal(Diagonal(map(abs2, ones(2)))))
         @test supports_in_domain(ones(2), domain)
         @test supports_in_domain(ones(2, 10), domain)
         bad_supports = [1 1; 2 2; 3 3];

@@ -3,7 +3,7 @@
     # initialize model and attributes
     m = InfiniteModel()
     @infinite_parameter(m, par1 in [0, 1])
-    @infinite_parameter(m, pars[1:2] ~ MvNormal([1, 1], 1))
+    @infinite_parameter(m, pars[1:2] ~ MvNormal([1, 1], [1 0; 0 1]))
     @infinite_parameter(m, pars2[1:2] in [0, 2])
     @infinite_parameter(m, pars3[1:2] in [0, 1], independent = true)
     @variable(m, x, Infinite(par1))
@@ -130,8 +130,8 @@
         @test InfiniteOpt.domain_string(REPLMode, domain) == "Uniform{Float64}(a=0.0, b=1.0)"
         @test InfiniteOpt.domain_string(IJuliaMode, domain) == "Uniform{Float64}(a=0.0, b=1.0)"
         # test mulivariate domain
-        domain = MultiDistributionDomain(MvNormal([1], 1))
-        str = "IsoNormal(\ndim: 1" # just test first part
+        domain = MultiDistributionDomain(MvNormal([1], ones(1, 1)))
+        str = "FullNormal(\ndim: 1" # just test first part
         @test InfiniteOpt.domain_string(REPLMode, domain)[1:length(str)] == str
         @test InfiniteOpt.domain_string(IJuliaMode, domain)[1:length(str)]  == str
     end
@@ -184,12 +184,12 @@
         str = InfiniteOpt._math_symbol(IJuliaMode, :prop) * " Uniform"
         @test in_domain_string(IJuliaMode, domain) == str
         # test mulivariate domain
-        domain = MultiDistributionDomain(MvNormal([1], 1))
+        domain = MultiDistributionDomain(MvNormal([1], ones(1, 1)))
         str = InfiniteOpt._math_symbol(REPLMode, :prop) * " MvNormal(dim: (1))"
-        str2 = InfiniteOpt._math_symbol(REPLMode, :prop) * " IsoNormal(dim: (1))"
+        str2 = InfiniteOpt._math_symbol(REPLMode, :prop) * " FullNormal(dim: (1))"
         @test in_domain_string(REPLMode, domain) in [str, str2]
         str = InfiniteOpt._math_symbol(IJuliaMode, :prop) * " MvNormal(dim: (1))"
-        str2 = InfiniteOpt._math_symbol(IJuliaMode, :prop) * " IsoNormal(dim: (1))"
+        str2 = InfiniteOpt._math_symbol(IJuliaMode, :prop) * " FullNormal(dim: (1))"
         @test in_domain_string(IJuliaMode, domain) in [str, str2]
         # test matrix domain
         domain = MultiDistributionDomain(MatrixBeta(2, 2, 2))
@@ -544,7 +544,7 @@
               InfiniteOpt._math_symbol(REPLMode, :intersect) *
               " (pars[1] " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1])"
         str2 = "pars " * InfiniteOpt._math_symbol(REPLMode, :prop) *
-              " IsoNormal(dim: (2)) " *
+              " FullNormal(dim: (2)) " *
               InfiniteOpt._math_symbol(REPLMode, :intersect) *
               " (pars[1] " * InfiniteOpt._math_symbol(REPLMode, :in) * " [0, 1])"
         @test InfiniteOpt._param_domain_string(REPLMode, m, idx, rs) in [str, str2]
@@ -553,7 +553,7 @@
               InfiniteOpt._math_symbol(IJuliaMode, :intersect) *
               " (pars_{1} " * InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1])"
         str2 = "pars " * InfiniteOpt._math_symbol(IJuliaMode, :prop) *
-              " IsoNormal(dim: (2)) " *
+              " FullNormal(dim: (2)) " *
               InfiniteOpt._math_symbol(IJuliaMode, :intersect) *
               " (pars_{1} " * InfiniteOpt._math_symbol(IJuliaMode, :in) * " [0, 1])"
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, rs) in [str, str2]
@@ -562,12 +562,12 @@
         str = "pars " * InfiniteOpt._math_symbol(REPLMode, :prop) *
               " MvNormal(dim: (2))"
         str2 = "pars " * InfiniteOpt._math_symbol(REPLMode, :prop) *
-              " IsoNormal(dim: (2))"
+              " FullNormal(dim: (2))"
         @test InfiniteOpt._param_domain_string(REPLMode, m, idx, rs) in [str, str2]
         str = "pars " * InfiniteOpt._math_symbol(IJuliaMode, :prop) *
               " MvNormal(dim: (2))"
         str2 = "pars " * InfiniteOpt._math_symbol(IJuliaMode, :prop) *
-              " IsoNormal(dim: (2))"
+              " FullNormal(dim: (2))"
         @test InfiniteOpt._param_domain_string(IJuliaMode, m, idx, rs) in [str, str2]
     end
     # test constraint_string (infinite constraint)
@@ -667,7 +667,7 @@ end
     # initialize models
     m = InfiniteModel()
     @infinite_parameter(m, par1 in [0, 1])
-    @infinite_parameter(m, pars[1:2] ~ MvNormal([1, 1], 1))
+    @infinite_parameter(m, pars[1:2] ~ MvNormal([1, 1], [1 0; 0 1]))
     @variable(m, x, Infinite(par1))
     @variable(m, z, Infinite(pars))
     @variable(m, y)
