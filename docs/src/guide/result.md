@@ -361,6 +361,9 @@ Here 10 indices are given in accordance with the transcription constraints.
 The mapping between these and the original infinite constraints is managed via 
 the appropriate extensions of [`map_optimizer_index`](@ref InfiniteOpt.map_optimizer_index).
 
+!!! note
+    `optimizer_index` does not work for constraints that contain `NLPExprs`.
+
 We can also query dual information from our constraints if it is available. 
 First, we should verify that dual information is available via 
 [`has_duals`](@ref):

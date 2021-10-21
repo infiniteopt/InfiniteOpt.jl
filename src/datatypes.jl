@@ -1239,6 +1239,8 @@ model an optmization problem with an infinite-dimensional decision space.
 - `objective_sense::MOI.OptimizationSense`: Objective sense.
 - `objective_function::JuMP.AbstractJuMPScalar`: Finite scalar function.
 - `objective_has_measures::Bool`: Does the objective contain measures?
+- `registrations::Vector{RegisteredFunction}`: The nonlinear registered functions.
+- `Dict{Tuple{Symbol, Int}, Function}`: Map a name and number of arguments to a registered function.
 - `obj_dict::Dict{Symbol, Any}`: Store Julia symbols used with `InfiniteModel`
 - `optimizer_constructor`: MOI optimizer constructor (e.g., Gurobi.Optimizer).
 - `optimizer_model::JuMP.Model`: Model used to solve `InfiniteModel`
@@ -1280,6 +1282,10 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     objective_sense::MOI.OptimizationSense
     objective_function::JuMP.AbstractJuMPScalar
     objective_has_measures::Bool
+
+    # Function Registration
+    registrations::Vector{Any}
+    func_lookup::Dict{Tuple{Symbol, Int}, Function}
 
     # Objects
     obj_dict::Dict{Symbol, Any}
@@ -1369,6 +1375,9 @@ function InfiniteModel(;
                          MOI.FEASIBILITY_SENSE,
                          zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}),
                          false,
+                         # registration
+                         RegisteredFunction[],
+                         Dict{Tuple{Symbol, Int}, Function}(),
                          # Object dictionary
                          Dict{Symbol, Any}(),
                          # Optimize data
@@ -1457,6 +1466,7 @@ function Base.empty!(model::InfiniteModel)::InfiniteModel
     model.objective_function = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     model.objective_has_measures = false
     # other stuff
+    empty!(model.registrations)
     empty!(model.obj_dict)
     empty!(model.optimizer_model)
     model.ready_to_optimize = false

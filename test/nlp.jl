@@ -846,13 +846,157 @@ end
 @testset "Registration Methods" begin
     # setup model data 
     m = InfiniteModel()
+    @variable(m, y)
     # test name_to_function
     @testset "name_to_function" begin 
-        @test name_to_function(m, :tan) == tan
+        @test name_to_function(m, :tan, 1) == tan
+        @test name_to_function(m, :+, 10) == +
+        @test name_to_function(m, :*, 2) == *
     end
     # test all_registered_functions
     @testset "all_registered_functions" begin 
         @test all_registered_functions(m) isa Vector{Function}
+    end
+    # test user_registered_functions
+    @testset "user_registered_functions" begin 
+        @test user_registered_functions(m) == RegisteredFunction[]
+    end
+    # define functions for tests 
+    f(a) = a^3
+    g(a::Int) = 42
+    h(a, b) = 42
+    f1(a) = 32
+    f2(a) = 10
+    h1(a, b) = 13
+    function hg(v, a, b)
+        v[1] = 1
+        v[2] = 2
+        return 
+    end
+    # test @register
+    @testset "@register" begin 
+        # test errors 
+        @test_macro_throws ErrorException @register(Model(), f(a))
+        @test_macro_throws ErrorException @register(m, f(a), bad = 42)
+        @test_macro_throws ErrorException @register(m, f(a), g, h, 3)
+        @test_macro_throws ErrorException @register(m, f[i](a))
+        @test_macro_throws ErrorException @register(m, f(a::Int))
+        @test_macro_throws ErrorException @register(m, f(a), 2)
+        @test_macro_throws ErrorException @register(m, g(a))
+        @test_macro_throws ErrorException @register(m, eta(a))
+        @test_macro_throws ErrorException @register(m, f(a), g)
+        @test_macro_throws ErrorException @register(m, f(a), g, g)
+        @test_macro_throws ErrorException @register(m, f(a), f, g)
+        @test_macro_throws ErrorException @register(m, h(a, b), h)
+        @test_macro_throws ErrorException @register(m, sin(a))
+        # test univariate function with no gradient or hessian
+        @test @register(m, f(a)) isa Function
+        @test f(y) isa NLPExpr
+        @test f(y).tree_root.data.value == :f
+        @test isequal(f(y).tree_root.child.data.value, y)
+        @test f(2) == 8
+        @test length(user_registered_functions(m)) == 1
+        @test user_registered_functions(m)[1].name == :f
+        @test user_registered_functions(m)[1].func == f
+        @test user_registered_functions(m)[1].num_args == 1
+        @test user_registered_functions(m)[1].gradient isa Nothing 
+        @test user_registered_functions(m)[1].hessian isa Nothing 
+        @test name_to_function(m, :f, 1) == f
+        # test univariate function with gradient
+        @test @register(m, f1(a), f) isa Function
+        @test f1(y) isa NLPExpr
+        @test f1(y).tree_root.data.value == :f1
+        @test isequal(f1(y).tree_root.child.data.value, y)
+        @test f1(2) == 32
+        @test length(user_registered_functions(m)) == 2
+        @test user_registered_functions(m)[2].name == :f1
+        @test user_registered_functions(m)[2].func == f1
+        @test user_registered_functions(m)[2].num_args == 1
+        @test user_registered_functions(m)[2].gradient == f
+        @test user_registered_functions(m)[2].hessian isa Nothing 
+        @test name_to_function(m, :f1, 1) == f1
+        # test univariate function with gradient and hessian
+        @test @register(m, f2(a), f, f1) isa Function
+        @test f2(y) isa NLPExpr
+        @test f2(y).tree_root.data.value == :f2
+        @test isequal(f2(y).tree_root.child.data.value, y)
+        @test f2(2) == 10
+        @test length(user_registered_functions(m)) == 3
+        @test user_registered_functions(m)[3].name == :f2
+        @test user_registered_functions(m)[3].func == f2
+        @test user_registered_functions(m)[3].num_args == 1
+        @test user_registered_functions(m)[3].gradient == f
+        @test user_registered_functions(m)[3].hessian == f1
+        @test name_to_function(m, :f2, 1) == f2
+        # test multivariate function with no gradient
+        @test @register(m, h(a, b)) isa Function
+        @test h(2, y) isa NLPExpr
+        @test h(2, y).tree_root.data.value == :h
+        @test isequal(h(2, y).tree_root.child.data.value, 2)
+        @test isequal(h(2, y).tree_root.child.sibling.data.value, y)
+        @test h(y, y) isa NLPExpr
+        @test h(y, 2) isa NLPExpr
+        @test h(2, 2) == 42
+        @test length(user_registered_functions(m)) == 4
+        @test user_registered_functions(m)[4].name == :h
+        @test user_registered_functions(m)[4].func == h
+        @test user_registered_functions(m)[4].num_args == 2
+        @test user_registered_functions(m)[4].gradient isa Nothing
+        @test user_registered_functions(m)[4].hessian isa Nothing
+        @test name_to_function(m, :h, 2) == h
+        # test multivariate function with gradient
+        @test @register(m, h1(a, b), hg) isa Function
+        @test h1(2, y) isa NLPExpr
+        @test h1(2, y).tree_root.data.value == :h1
+        @test isequal(h1(2, y).tree_root.child.data.value, 2)
+        @test isequal(h1(2, y).tree_root.child.sibling.data.value, y)
+        @test h1(y, y) isa NLPExpr
+        @test h1(y, 2) isa NLPExpr
+        @test h1(2, 2) == 13
+        @test length(user_registered_functions(m)) == 5
+        @test user_registered_functions(m)[5].name == :h1
+        @test user_registered_functions(m)[5].func == h1
+        @test user_registered_functions(m)[5].num_args == 2
+        @test user_registered_functions(m)[5].gradient == hg
+        @test user_registered_functions(m)[5].hessian isa Nothing
+        @test name_to_function(m, :h1, 2) == h1
+        # test wrong model error 
+        @test_throws ErrorException f(@variable(InfiniteModel()))
+        # test functional registration
+        function registration_test()
+            mt = InfiniteModel()
+            @variable(mt, x)
+            q(a) = 1
+            @test @register(mt, q(a)) isa Function 
+            @test q(x) isa NLPExpr
+            return 
+        end
+        @test registration_test() isa Nothing 
+        @test registration_test() isa Nothing 
+    end
+    # test add_registered_to_jump
+    @testset "add_registered_to_jump" begin 
+        # test normal 
+        m1 = Model()
+        @test add_registered_to_jump(m1, m) isa Nothing 
+        @test m1.nlp_data.largest_user_input_dimension == 2
+        r1 = m1.nlp_data.user_operators
+        @test length(keys(r1.univariate_operator_to_id)) == 3
+        @test r1.univariate_operator_f == [f, f1, f2]
+        @test r1.univariate_operator_fprime[2:end] == [f, f]
+        @test r1.univariate_operator_fprimeprime[3] == f1
+        @test length(r1.multivariate_operator_to_id) == 2
+        # test error 
+        m2 = Model()
+        h2(a, b) = 3
+        @test @register(m, h2(a, b), hg, f) isa Function
+        @test_throws ErrorException add_registered_to_jump(m2, m) isa Nothing 
+        r2 = m2.nlp_data.user_operators
+        @test length(keys(r2.univariate_operator_to_id)) == 3
+        @test r2.univariate_operator_f == [f, f1, f2]
+        @test r2.univariate_operator_fprime[2:end] == [f, f]
+        @test r2.univariate_operator_fprimeprime[3] == f1
+        @test length(r2.multivariate_operator_to_id) == 2
     end
 end 
 

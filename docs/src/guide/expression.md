@@ -382,9 +382,13 @@ sin(y(t)^3) / tan(2^y(t))
 ```
 However, there are certain limitations as to what internal code these functions 
 can contain. The following CANNOT be used:
-- loops
+- loops (unless it only uses very simple operations)
 - if-statements (see workaround below)
-- non-registered functions.
+- non-registered functions (if they cannot be traced).
+
+!!! tip
+    If a particular function is not amendable for tracing, try registering it 
+    instead. See [Function Registration](@ref) for details.
 
 We can readily workaround the if-statement limitation using 
 [`InfiniteOpt.ifelse`](@ref). For example, the function:
@@ -453,7 +457,122 @@ ERROR: TranscriptionOpt does not support vector constraints of general nonlinear
 ```
 
 ### Function Registration
-TODO add and document
+In a similar spirit to `JuMP` and `Symbolics`, we can register user-defined 
+functions such that they can be directly incorporated into nonlinear expressions. 
+This is done via the [`@register`](@ref) macro. We can register any function 
+that takes scalar arguments (which can accept inputs of type `Real`):
+```julia-repl
+julia> h(a, b) = a * b^2; # an overly simple example user-defined function
+
+julia> @register(model, h(a, b));
+
+julia> h(y, 42)
+h(y(t), 42)
+```
+
+!!! tip
+    Where possible it is preferred to use function tracing instead of function 
+    registration. This improves performance and can prevent unintential errors. 
+    See [Function Tracing](@ref) for more details.
+
+To highlight the differnce between function tracing and function 
+registration consider the following example:
+```julia-repl
+julia> f(a) = a^3;
+
+julia> f(y) # user-function gets traced
+y(t)^3
+
+julia> @register(model, f(a)) # register function
+f (generic function with 2 methods)
+
+julia> f(y) # function is no longer traced
+f(y(t))
+```
+Thus, registered functions are incorporated directly. This means that their 
+gradients and hessians will need to determined as well (typically occurs 
+behind the scenes via auto-differentiation with the selected optimizer model 
+backend). However, again please note that in this case tracing is preferred 
+since `f` can be traced. 
+
+Let's consider a more realistic example where the function is not amendable to 
+tracing:
+```julia-repl
+julia> function g(a)
+          v = 0
+          for i in 1:4
+              v *= v^a
+              if v >= 1
+                 return v
+              end
+          end
+          return a
+       end;
+
+julia> @register(model, g(a));
+
+julia> g(y)
+g(y(t))
+```
+Notice this example is a little contrived still, highlighting that in most cases 
+we can avoid registration. However, one exception to this trend, are functions 
+from other packages that we might want to use. For example, perhaps we would 
+like to use the `eta` function from `SpecialFunctions.jl` which is not natively 
+supported:
+```julia-repl
+julia> using SpecialFunctions
+
+julia> my_eta(a) = eta(a);
+
+julia> @register(model, my_eta(a));
+
+julia> my_eta(y(t))
+my_eta(y(t))
+```
+Notice that we cannot register `SpecialFunctions.eta` directly due to 
+scoping limitations that are inherit in generating constructor functions on the 
+fly (which necessarily occurs behind the scenes with [`@register`](@ref)).
+
+Now in some cases we might wish to specify the gradient and hessian of a 
+univariate function we register to avoid the need for auto-differentiation. We 
+can do this, simply by adding them as additional arguments when we register:
+```julia-repl
+julia> my_squared(a) = a^2; gradient(a) = 2 * a; hessian(a) = 2;
+
+julia> @register(model, my_squared(a), gradient, hessian);
+
+julia> my_squared(y)
+my_squared(y(t))
+```
+Note the specification of the hessian is optional (it can separately be 
+computed via auto-differentiation if need be).
+
+For multivariate functions, we can specify the gradient (the hessian is not 
+currently supported by `JuMP` optimizer models) following the same gradient 
+function structure that `JuMP` uses:
+```julia-repl
+julia> w(a, b) = a * b^2;
+
+julia> function wg(v, a, b)
+          v[1] = b^2
+          v[2] = 2 * a * b
+          return
+       end;
+
+julia> @register(model, w(a, b), wg) # register multi-argument function
+w (generic function with 4 methods)
+
+julia> w(42, x)
+w(42, x)
+```
+Note that the first argument of the gradient needs to accept an 
+`AbstractVector{Real}` that is then filled in place.
+
+!!! note
+    We do not currently support vector inputs or vector valued functions 
+    directly, since typically `JuMP` optimzier model backends don't support them. 
+    However, this limitation can readily removed if there is a use case for it 
+    (please reach out to us if such an addition is needed).
 
 ### Expression Tree Abstraction
 The nonlinear interface in `InfiniteOpt` is enabled through the [`NLPExpr`](@ref) 

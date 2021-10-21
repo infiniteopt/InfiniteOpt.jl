@@ -260,6 +260,7 @@ end
         @test value(inf^2 + g - 2, ndarray = true) == [3., -1.]
         @test value(zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) - 42) == -42.
         @test value(sin(g)) == sin(1)
+        @test_throws ErrorException value(zero(NLPExpr))
     end
     # test dual
     @testset "JuMP.dual" begin
@@ -310,6 +311,8 @@ end
         @test value(c1) == 1.
         @test value(c2, label = UserDefined) == [-1., 0.]
         @test value(c2, label = UserDefined, ndarray = true) == [-1., 0.]
+        @test value(c3) == sin(1)
+        @test value(c4) == [sin(-1), sin(0)]
     end
     # test map_optimizer_index
     @testset "map_optimizer_index" begin

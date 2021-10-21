@@ -448,6 +448,9 @@ end
     @constraint(m, c5, meas2 == 0)
     @constraint(m, x + y == 83)
     @constraint(m, c6, [z, w] in MOI.Zeros(2))
+    g(a) = 42
+    @register(m, g(a))
+    @constraint(m, c7, g(z) == 2)
     @objective(m, Min, x0 + meas1)
     # test basic usage
     tm = optimizer_model(m)
@@ -496,6 +499,10 @@ end
     @test length(d2t) == 2
     @test upper_bound(d1t[1]) == 2
     @test supports(d2) == [(0.,), (1.,)]
+    # test registration 
+    r = tm.nlp_data.user_operators
+    @test length(keys(r.univariate_operator_to_id)) == 1
+    @test r.univariate_operator_f == [g]
     # test objective
     xt = transcription_variable(tm, x)
     @test objective_function(tm) == 2xt[1] + xt[2] - 2wt - d2t[1] - d2t[2]
@@ -513,6 +520,7 @@ end
     @test name(transcription_constraint(c2)) == "c2(support: 1)"
     @test name(transcription_constraint(c1)) == "c1(support: 1)"
     @test supports(c1) == (0., [0., 0.])
+    @test transcription_constraint(c7) isa NonlinearConstraintRef
     # test info constraints
     @test transcription_constraint(LowerBoundRef(z)) == LowerBoundRef(zt)
     @test transcription_constraint(UpperBoundRef(z)) == UpperBoundRef(zt)

@@ -128,7 +128,7 @@ function _is_zero(node::_LCRST.Node{NodeData})
         return true
     elseif raw in (:/, :^) && _is_zero(node.child)
         return true
-    elseif all(_is_zero(n) for n in node) && iszero(get(_NativeNLPFunctions, raw, (i...) -> true)((0.0 for n in node)...))
+    elseif all(_is_zero(n) for n in node) && iszero(get(_NativeNLPFunctions, (raw, length(collect(node))), (i...) -> true)((0.0 for n in node)...))
         return true
     else
         return false
@@ -856,7 +856,11 @@ end
 #                             NATIVE NLP FUNCTIONS
 ################################################################################
 # Store all of the native registered functions
-const _NativeNLPFunctions = Dict{Symbol, Function}()
+const _NativeNLPFunctions = Dict{Tuple{Symbol, Int}, Function}(
+    (:-, 2) => -, 
+    (:/, 2) => /, 
+    (:^, 2) => ^
+)
 
 # List of 1 argument base functions to register
 const _Base1ArgFuncList = (
@@ -915,7 +919,7 @@ const _Base1ArgFuncList = (
 # Setup the base 1 argument functions
 for (name, func) in _Base1ArgFuncList
     # add it to the main storage dict
-    _NativeNLPFunctions[name] = func
+    _NativeNLPFunctions[(name, 1)] = func
     # make an expression constructor
     @eval begin 
         function Base.$name(v::AbstractInfOptExpr)
@@ -927,7 +931,7 @@ end
 # Setup the Base functions with 2 arguments
 for (name, func) in (:min => min, :max => max)
     # add it to the main storage dict
-    _NativeNLPFunctions[name] = func
+    _NativeNLPFunctions[(name, 2)] = func
     # make an expression constructor
     @eval begin 
         function Base.$name(
@@ -940,7 +944,7 @@ for (name, func) in (:min => min, :max => max)
 end
 
 # Setup the ifelse function
-_NativeNLPFunctions[:ifelse] = Core.ifelse
+_NativeNLPFunctions[(:ifelse, 3)] = Core.ifelse
 
 """
     InfiniteOpt.ifelse(cond::NLPExpr, v1::Union{AbstractInfOptExpr, Real}, 
@@ -975,7 +979,7 @@ end
 for (name, func) in (:< => Base.:(<), :(==) => Base.:(==), :> => Base.:(>),
                      :<= => Base.:(<=), :>= => Base.:(>=))
     # add it to the main storage dict
-    _NativeNLPFunctions[name] = func
+    _NativeNLPFunctions[(name, 2)] = func
     # make an expression constructor
     @eval begin 
         function Base.$name(v::AbstractInfOptExpr, c::Real)
@@ -1008,8 +1012,8 @@ for (name, func) in (:< => Base.:(<), :(==) => Base.:(==), :> => Base.:(>),
 end
 
 # Setup the Base logical functions (we cannot extend && and || directly)
-_NativeNLPFunctions[:&&] = Base.:&
-_NativeNLPFunctions[:||] = Base.:|
+_NativeNLPFunctions[(:&&, 2)] = Base.:&
+_NativeNLPFunctions[(:||, 2)] = Base.:|
 
 # Logical And
 function Base.:&(v::Union{GeneralVariableRef, NLPExpr}, c::Bool)
@@ -1065,7 +1069,7 @@ const _Special1ArgFuncList = (
 # Setup the SpecialFunctions 1 argument functions
 for (name, func) in _Special1ArgFuncList
     # add it to the main storage dict
-    _NativeNLPFunctions[name] = func
+    _NativeNLPFunctions[(name, 1)] = func
     # make an expression constructor
     @eval begin 
         function SpecialFunctions.$name(v::AbstractInfOptExpr)
@@ -1078,28 +1082,321 @@ end
 #                               USER FUNCTIONS
 ################################################################################
 """
-    name_to_function(model::InfiniteModel, name::Symbol)::Function 
+    RegisteredFunction{F <: Function, G <: Union{Function, Nothing}, 
+                       H <: Union{Function, Nothing}}
 
-Return the registered function that corresponds to `name`. Returns `nothing` if 
-`name` does not correspond to a registered function. This helps retrieve of the 
+A type for storing used defined registered functions and their information that 
+is needed by JuMP for build an `NLPEvaluator`. The constructor is of the form:
+```julia
+    RegisteredFunction(name::Symbol, num_args::Int, func::Function, 
+                       [gradient::Function, hessian::Function])
+```
+
+**Fields**
+- `name::Symbol`: The name of the function that is used in `NLPExpr`s.
+- `num_args::Int`: The number of function arguments.
+- `func::F`: The function itself.
+- `gradient::G`: The gradient function if one is given.
+- `hessian::H`: The hessian function if one is given.
+"""
+struct RegisteredFunction{F <: Function, G, H}
+    name::Symbol
+    num_args::Int
+    func::F
+    gradient::G
+    hessian::H
+
+    # Constructors
+    function RegisteredFunction(
+        name::Symbol, 
+        num_args::Int, 
+        func::F
+        ) where {F <: Function}
+        return new{F, Nothing, Nothing}(name, num_args, func, nothing, nothing)
+    end
+    function RegisteredFunction(
+        name::Symbol, 
+        num_args::Int, 
+        func::F,
+        gradient::G
+        ) where {F <: Function, G <: Function}
+        if isone(num_args) && !hasmethod(gradient, Tuple{Real})
+            error("Invalid gradient function form, see the docs for details.")
+        elseif !isone(num_args) && !hasmethod(gradient, Tuple{AbstractVector{Real}, ntuple(_->Real, num_args)...})
+            error("Invalid multi-variate gradient function form, see the docs for details.")
+        end
+        return new{F, G, Nothing}(name, num_args, func, gradient, nothing)
+    end
+    function RegisteredFunction(
+        name::Symbol, 
+        num_args::Int, 
+        func::F,
+        gradient::G,
+        hessian::H
+        ) where {F <: Function, G <: Function, H <: Function}
+        if isone(num_args) && !hasmethod(gradient, Tuple{Real})
+            error("Invalid gradient function form, see the docs for details.")
+        elseif isone(num_args) && !hasmethod(hessian, Tuple{Real})
+            error("Invalid hessian function form, see the docs for details.")
+        end 
+        return new{F, G, H}(name, num_args, func, gradient, hessian)
+    end
+end
+
+# Helper function for @register
+function _register(
+    _error::Function, 
+    model::InfiniteModel, 
+    name::Symbol, 
+    num_args::Int, 
+    funcs...
+    )
+    if !all(f -> f isa Function, funcs) 
+        _error("Gradient and/or hessian must be functions.")
+    elseif haskey(_NativeNLPFunctions, (name, num_args)) || 
+           haskey(model.func_lookup, (name, num_args))
+        _error("A function with name `$name` and $num_args arguments is already " *
+               "registered. Please use a function with a different name.")
+    elseif !hasmethod(funcs[1], NTuple{num_args, Real})
+        _error("The function `$name` is not defined for arguments of type `Real`.")
+    elseif length(unique!([m.module for m in methods(funcs[1])])) > 1 || 
+           first(methods(funcs[1])).module !== Main
+        _error("Cannot register function names that are used by packages. Try " * 
+               "wrapping `$(funcs[1])` in a user-defined function.")
+    end
+    push!(model.registrations, RegisteredFunction(name, num_args, funcs...))
+    model.func_lookup[name, num_args] = funcs[1]
+    return
+end
+
+# Helper function to check the inputs of created functions 
+function _check_function_args(model::InfiniteModel, f_name, args...)
+    for a in args 
+        m = _model_from_expr(a)
+        if m !== nothing && m !== model
+            error("`$f_name` is a registered function in a different model than " *
+                  "`$a` belongs to. Try registering `$f_name` to the current " * 
+                  "model.")
+        end
+    end
+    return
+end
+
+"""
+    @register(model::InfiniteModel, func_expr, [gradient::Function], [hessian::Function])
+
+Register a user-defined function in accordance with `func_expr` such that it can 
+be used in `NLPExpr`s that are used with `model` without being traced.
+
+**Argument Information**
+Here `func_expr` is of the form: `myfunc(a, b)` where `myfunc` is the function 
+name and the number of arguments are given symbolically. Note that the choice 
+of argument symbols is arbitrary. Each function argument must support anything 
+of type `Real` to specified.
+
+Here we can also specify a gradient function `gradient` which for 1 argument 
+functions must taken in the 1 argument and return its derivative. For 
+multi-argument functions the gradient function must be of the form:
+```julia
+function gradient(g::AbstractVector{T}, args::T...) where {T <: Real}
+    # fill g vector with the gradient of the function
+end
+```
+
+For 1 argument functions we can also specify a hessian function with takes that 
+argument and return the 2nd derivative. Hessians can ge specified for 
+multi-argument functions, but `JuMP` backends do not currently support this.
+
+If no gradient and/or hessian is given, the automatic differentation capabilities 
+of the backend (e.g., `JuMP`) will be used to determine them. Note that the 
+`JuMP` backend does not use Hessian's for user-defined multi-argument functions.
+
+**Notes**
+- When possible, tracing is preferred over registering a function (see 
+  [Function Tracing](@ref) for more info).
+- Only user-defined functions can be specified. If the function is used by a 
+  package then it can not be used directly. However, we can readily wrap it in a 
+  new function `newfunc(a) = pkgfunc(a)`.
+- We can only register functions in the same scope that they are defined in.
+- Registered functions can only be used in or below the scope in which they are 
+  registered. For instance, if we register some function inside of another 
+  function then we can only use it inside that function (not outside of it). 
+- A function with a given name and number of arguments can only be registered 
+  once in a particular model.
+
+**Examples**
+```julia-repl
+julia> @variable(model, x)
+x
+
+julia> f(a) = a^3;
+
+julia> f(x) # user-function gets traced
+x^3
+
+julia> @register(model, f(a)) # register function
+f (generic function with 2 methods)
+
+julia> f(x) # function is no longer traced and autodifferentiation will be used
+f(x)
+
+julia> f2(a) = a^2; g2(a) = 2 * a; h2(a) = 2;
+
+julia> @register(model, f2(a), g2, h2) # register with explicit gradient and hessian
+f2 (generic function with 2 methods)
+
+julia> f2(x)
+f2(x)
+
+julia> f3(a, b) = a * b^2;
+
+julia> function g3(v, a, b)
+          v[1] = b^2
+          v[2] = 2 * a * b
+          return
+       end;
+
+julia> @register(model, f3(a, b), g3) # register multi-argument function
+f3 (generic function with 4 methods)
+
+julia> f3(42, x)
+f3(42, x)
+```
+"""
+macro register(model, f, args...)
+     # define error message function
+     _error(str...) = _macro_error(:register, (f, args...), __source__, str...)
+
+    # parse the arguments and check
+    pos_args, extra_kwargs, _, _ = _extract_kwargs(args)
+    if !isempty(extra_kwargs)
+        _error("Keyword arguments were given, but none are accepted.")
+    elseif length(pos_args) > 2
+        _error("Too many position arguments given, should be of form " * 
+               "`@register(myfunc(a), [gradient], [hessian])` where " * 
+               "`gradient` and `hessian` are optional arguments.") 
+    end
+
+    # process the function input
+    if isexpr(f, :call) && all(a -> a isa Symbol, f.args)
+        f_name = f.args[1]
+        f_args = f.args[2:end]
+        num_args = length(f_args)
+    else
+        _error("Unexpected function format, should be of form `myfunc(a, b)`.")
+    end
+
+    # start creating the register code and register 
+    code = Expr(:block)
+    push!(code.args, quote 
+        $model isa InfiniteModel || $_error("Expected an `InfiniteModel`.")
+    end)
+    push!(code.args, quote 
+        InfiniteOpt._register($_error, $model, $(quot(f_name)), $num_args, 
+                              $(f_name), $(args...))
+    end)
+
+    # define the function overloads needed to create expressions
+    Ts = [Real, AbstractInfOptExpr]
+    type_combos = vec(collect(Iterators.product(ntuple(_->Ts, num_args)...)))
+    filter!(ts -> !all(T -> T == Real, ts), type_combos) # remove combo with only Reals
+    annotype(name, T) = :($name :: $T)
+    set_args(xs, vs) = (xs = map(annotype, xs, vs); xs)
+    for ts in type_combos
+        push!(code.args, quote
+            function $(f_name)($(set_args(f_args, ts)...))
+                InfiniteOpt._check_function_args($model, $(quot(f_name)), $(f_args...))
+                return NLPExpr(InfiniteOpt._call_graph($(quot(f_name)), $(f_args...)))
+            end
+        end)
+    end
+
+    # return the code 
+    return esc(code)
+end
+
+"""
+    name_to_function(model::InfiniteModel, name::Symbol, num_args::Int)::Union{Function, Nothing} 
+
+Return the registered function that corresponds to `name` with `num_args`. 
+Returns `nothing` if no such registered function exists. This helps retrieve the 
 functions of function names stored in `NLPExpr`s.
 """
-function name_to_function(model::InfiniteModel, name::Symbol) 
-    # TODO update to look for functions registered to the model as well
-    return get(_NativeNLPFunctions, name, nothing)
+function name_to_function(model::InfiniteModel, name::Symbol, num_args::Int)
+    if name == :+
+        return +
+    elseif name == :*
+        return *
+    else
+        return get(_NativeNLPFunctions, (name, num_args), 
+                   get(model.func_lookup, (name, num_args), nothing))
+    end
 end
 
 """
     all_registered_functions(model::InfiniteModel)::Vector{Function}
 
-Retrieve all the functions that are currently registered to 
+Retrieve all the functions that are currently registered to `model`.
 """
 function all_registered_functions(model::InfiniteModel) 
-    # TODO update to look for functions registered to the model as well
-    return collect(values(_NativeNLPFunctions))
+    return append!(collect(values(_NativeNLPFunctions)), 
+                   values(model.func_lookup), +, *)
 end
 
-# TODO add function registration 
+"""
+    user_registered_functions(model::InfiniteModel)::Vector{RegisteredFunction}
+
+Return all the functions (and their associated information) that the user has 
+registered to `model`. Each is stored as a [`RegisteredFunction`](@ref).
+"""
+function user_registered_functions(model::InfiniteModel)
+    return model.registrations
+end
+
+## Define helper function to add registered functions to JuMP
+# No gradient or hessian
+function _add_func_data_to_jump(
+    model::JuMP.Model, 
+    data::RegisteredFunction{F, Nothing, Nothing}
+    ) where {F <: Function}
+    JuMP.register(model, data.name, data.num_args, data.func, autodiff = true)
+    return
+end
+
+# Only gradient information
+function _add_func_data_to_jump(
+    model::JuMP.Model, 
+    data::RegisteredFunction{F, G, Nothing}
+    ) where {F <: Function, G <: Function}
+    JuMP.register(model, data.name, data.num_args, data.func, data.gradient, 
+                  autodiff = isone(data.num_args))
+    return
+end
+
+# Gradient and hessian information
+function _add_func_data_to_jump(model::JuMP.Model, data::RegisteredFunction)
+    if data.num_args > 1
+        error("JuMP does not support hessians for multi-argument registered " * 
+              "functions.")
+    end
+    JuMP.register(model, data.name, data.num_args, data.func, data.gradient, 
+                  data.hessian)
+    return
+end
+
+"""
+    add_registered_to_jump(opt_model::JuMP.Model, inf_model::InfiniteModel)::Nothing
+
+Add the user registered functions in `inf_model` to a `JuMP` model `opt_model`. 
+This is intended as an internal method, but it is provided for developers that 
+extend `InfiniteOpt` to use other optimizer models.
+"""
+function add_registered_to_jump(opt_model::JuMP.Model, inf_model::InfiniteModel)
+    for data in user_registered_functions(inf_model)
+        _add_func_data_to_jump(opt_model, data)
+    end
+    return
+end
 
 ################################################################################
 #                               LINEAR ALGEBRA

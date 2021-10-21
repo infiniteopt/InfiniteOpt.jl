@@ -88,8 +88,6 @@ function map_value(expr::JuMP.AbstractJuMPScalar, key, result::Int; kwargs...)
     end
 end
 
-# TODO add faster dispatch for NLPs (will need to be added in TranscriptionOpt)
-
 ## Define dispatch methods to collect value of parameters 
 # InfiniteParameter 
 function _get_value(pref, ::Type{<:InfiniteParameterIndex}, result; kwargs...)
@@ -193,8 +191,13 @@ julia> value(c1)
 """
 function JuMP.value(cref::InfOptConstraintRef; result::Int = 1, 
                     kwargs...)
-    return map_value(cref, Val(optimizer_model_key(JuMP.owner_model(cref))), 
-                     result; kwargs...)
+    func = JuMP.jump_function(JuMP.constraint_object(cref))
+    if func isa NLPExpr
+        return JuMP.value(func; result = result, kwargs...)
+    else
+        return map_value(cref, Val(optimizer_model_key(JuMP.owner_model(cref))), 
+                         result; kwargs...)
+    end
 end
 
 """
@@ -239,7 +242,8 @@ julia> value(my_infinite_expr)
  20.9
 ```
 """
-function JuMP.value(expr::AbstractInfOptExpr;
+function JuMP.value(
+    expr::AbstractInfOptExpr;
     result::Int = 1,
     kwargs...
     )
@@ -247,6 +251,8 @@ function JuMP.value(expr::AbstractInfOptExpr;
     model = _model_from_expr(expr)
     # if no model then the expression only contains a constant
     if model === nothing
+        expr isa NLPExpr && error("Cannot evaluate the value of `$expr`,",
+                                  "because it doesn't have variables.")
         return JuMP.constant(expr)
     # otherwise let's call map_value
     else
@@ -572,7 +578,7 @@ julia> shadow_price(c1)
  -0.0
 ```
 """
-function JuMP.shadow_price(cref::InfOptConstraintRef; kwargs...)
+function JuMP.shadow_price(cref::InfOptConstraintRef; kwargs...) # TODO make work for NLP constraints
     return map_shadow_price(cref, Val(optimizer_model_key(JuMP.owner_model(cref))); 
                             kwargs...)
 end

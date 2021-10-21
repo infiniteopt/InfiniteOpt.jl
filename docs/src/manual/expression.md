@@ -41,16 +41,19 @@ JuMP.delete(::InfiniteModel, ::ParameterFunctionRef)
 ```@docs
 NodeData
 NLPExpr
+RegisteredFunction
 ```
 
 ### Methods
 ```@docs
 all_registered_functions
 name_to_function
+user_registered_functions
 InfiniteOpt.ifelse
 print_expression_tree(::NLPExpr)
 JuMP.drop_zeros!(::NLPExpr)
 map_nlp_to_ast
+add_registered_to_jump
 ```
 
 ## Expression Methods
