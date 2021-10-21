@@ -120,6 +120,10 @@ extensions in `InfiniteOpt` are provided on the [Extensions](@ref) page.
 
 Finally, case study examples are provided in the `Examples` sections.
 
+## Questions
+For additional help please visit and post in our 
+[Discussion Forum](https://github.com/pulsipher/InfiniteOpt.jl/discussions).
+
 ## Contribution
 `InfiniteOpt` is a powerful tool with a broad scope lending to a large realm of 
 possible feature additions and enhancements. So, we are thrilled to support 
@@ -136,20 +140,25 @@ For other contributions, please visit our
 review our style guide.
 
 ## Citing
+[![DOI](https://img.shields.io/badge/Elsevier-CompChemEng%3A107567-yellow.svg)](https://doi.org/10.1016/j.compchemeng.2021.107567) 
 [![DOI](https://img.shields.io/badge/math.OC-arXiv%3A2106.12689-B31B1B.svg)](https://arxiv.org/abs/2106.12689)
 
 If you use InfiniteOpt.jl in your research, we would greatly appreciate your 
 citing it.
 ```latex
-@misc{pulsipher2021unifying,
-      title={A Unifying Modeling Abstraction for Infinite-Dimensional Optimization}, 
-      author={Joshua L. Pulsipher and Weiqi Zhang and Tyler J. Hongisto and Victor M. Zavala},
-      year={2021},
-      eprint={2106.12689},
-      archivePrefix={arXiv},
-      primaryClass={math.OC}
+@article{pulsipher2022unifying,
+      title = {A unifying modeling abstraction for infinite-dimensional optimization},
+      journal = {Computers & Chemical Engineering},
+      volume = {156},
+      pages = {107567},
+      year = {2022},
+      issn = {0098-1354},
+      doi = {https://doi.org/10.1016/j.compchemeng.2021.107567},
+      url = {https://www.sciencedirect.com/science/article/pii/S0098135421003458},
+      author = {Joshua L. Pulsipher and Weiqi Zhang and Tyler J. Hongisto and Victor M. Zavala},
 }
 ```
+A pre-print version is freely available though [ArXiv](https://arxiv.org/abs/2106.12689).
 
 ## Acknowledgements
 We acknowledge our support from the Department of Energy under grant 
