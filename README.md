@@ -13,7 +13,7 @@ making it a powerful and convenient tool for advanced users.
 
 | **Documentation**                                                               | **Build Status**                                                                                | **Citation** |
 |:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|:--------------------------------------:|
-| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable) | [![Build Status](https://github.com/pulsipher/InfiniteOpt.jl/workflows/CI/badge.svg?branch=release-0.4)](https://github.com/pulsipher/InfiniteOpt.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=release-0.4)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=release-0.4) | [![DOI](https://img.shields.io/badge/math.OC-arXiv%3A2106.12689-B31B1B.svg)](https://arxiv.org/abs/2106.12689) |
+| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable) | [![Build Status](https://github.com/pulsipher/InfiniteOpt.jl/workflows/CI/badge.svg?branch=release-0.4)](https://github.com/pulsipher/InfiniteOpt.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=release-0.4)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=release-0.4) | [![DOI](https://img.shields.io/badge/Elsevier-CompChemEng%3A107567-yellow.svg)](https://doi.org/10.1016/j.compchemeng.2021.107567) |
 | [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/dev) | [![Build Status](https://github.com/pulsipher/InfiniteOpt.jl/workflows/CI/badge.svg?branch=master)](https://github.com/pulsipher/InfiniteOpt.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=master)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=master) | |
 
 It builds upon `JuMP` to add support for many complex modeling objects which 
@@ -52,24 +52,33 @@ Please visit our [documentation pages](https://pulsipher.github.io/InfiniteOpt.j
 to learn more. These pages are quite extensive and feature overviews, guides,
 manuals, tutorials, examples, and more!
 
+## Questions
+For additional help please visit and post in our 
+[Discussion Forum](https://github.com/pulsipher/InfiniteOpt.jl/discussions).
+
 ## Citing
+[![DOI](https://img.shields.io/badge/Elsevier-CompChemEng%3A107567-yellow.svg)](https://doi.org/10.1016/j.compchemeng.2021.107567) 
 [![DOI](https://img.shields.io/badge/math.OC-arXiv%3A2106.12689-B31B1B.svg)](https://arxiv.org/abs/2106.12689)
 
 If you use InfiniteOpt.jl in your research, we would greatly appreciate your 
 citing it.
 ```latex
-@misc{pulsipher2021unifying,
-      title={A Unifying Modeling Abstraction for Infinite-Dimensional Optimization}, 
-      author={Joshua L. Pulsipher and Weiqi Zhang and Tyler J. Hongisto and Victor M. Zavala},
-      year={2021},
-      eprint={2106.12689},
-      archivePrefix={arXiv},
-      primaryClass={math.OC}
+@article{pulsipher2022unifying,
+      title = {A unifying modeling abstraction for infinite-dimensional optimization},
+      journal = {Computers & Chemical Engineering},
+      volume = {156},
+      pages = {107567},
+      year = {2022},
+      issn = {0098-1354},
+      doi = {https://doi.org/10.1016/j.compchemeng.2021.107567},
+      url = {https://www.sciencedirect.com/science/article/pii/S0098135421003458},
+      author = {Joshua L. Pulsipher and Weiqi Zhang and Tyler J. Hongisto and Victor M. Zavala},
 }
 ```
+A pre-print version is freely available though [ArXiv](https://arxiv.org/abs/2106.12689).
 
 ## Project Status
-The package is tested against Julia `1.0` and `1.6` on Linux and Windows.
+The package is tested against Julia `1.0` and `1.6` on Linux, Mac, and Windows.
 
 ## Contributing
 `InfiniteOpt` is being actively developed and suggestions or other forms of contribution are encouraged.
