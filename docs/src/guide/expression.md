@@ -422,8 +422,6 @@ admittedly this implementation is not perfect in terms of efficiency.
     convenience, but is less efficient than using `sum`s. Thus, `sum` should be 
     used instead when efficiency is critical.
     ```jldoctest nlp
-    julia> @variable(model, v[1:2]); @variable(model, Q[1:2, 1:2]);
-
     julia> v' * Q * v # convenient linear algebra syntax
     0 + (Q[1,1]*v[1] + Q[2,1]*v[2]) * v[1] + (Q[1,2]*v[1] + Q[2,2]*v[2]) * v[2]
 
@@ -560,8 +558,8 @@ julia> function wg(v, a, b)
 julia> @register(model, w(a, b), wg) # register multi-argument function
 w (generic function with 4 methods)
 
-julia> w(42, x)
-w(42, x)
+julia> w(42, y)
+w(42, y(t))
 ```
 Note that the first argument of the gradient needs to accept an 
 `AbstractVector{Real}` that is then filled in place.

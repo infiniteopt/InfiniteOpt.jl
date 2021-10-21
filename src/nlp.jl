@@ -1159,6 +1159,7 @@ function _register(
         _error("The function `$name` is not defined for arguments of type `Real`.")
     elseif length(unique!([m.module for m in methods(funcs[1])])) > 1 || 
            first(methods(funcs[1])).module !== Main
+        println(unique!([m.module for m in methods(funcs[1])]))
         _error("Cannot register function names that are used by packages. Try " * 
                "wrapping `$(funcs[1])` in a user-defined function.")
     end
@@ -1337,8 +1338,8 @@ end
 Retrieve all the functions that are currently registered to `model`.
 """
 function all_registered_functions(model::InfiniteModel) 
-    return append!(collect(values(_NativeNLPFunctions)), 
-                   values(model.func_lookup), (+, *))
+    funcs = append!(collect(values(_NativeNLPFunctions)), (+, *))
+    return append!(funcs, values(model.func_lookup))
 end
 
 """
