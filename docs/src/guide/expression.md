@@ -522,7 +522,7 @@ julia> my_eta(a) = eta(a);
 
 julia> @register(model, my_eta(a));
 
-julia> my_eta(y(t))
+julia> my_eta(y)
 my_eta(y(t))
 ```
 Notice that we cannot register `SpecialFunctions.eta` directly due to 
