@@ -1061,5 +1061,6 @@ shown above and likely will want to introduce wrapper functions and macros to
 use package specific terminology (e.g., using random variables instead of 
 infinite variables).
 
-Please reach out to us on GitHub to discuss your plans before starting this on 
-your own.
+Please reach out to us via the 
+[discussion forum](https://github.com/pulsipher/InfiniteOpt.jl/discussions) to 
+discuss your plans before starting this on your own.
