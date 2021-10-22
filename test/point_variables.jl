@@ -625,10 +625,6 @@ end
         # test redefinition catch
         @test_macro_throws ErrorException @variable(m, z0, Point(z, 0, [0, 0]))
     end
-    # test the deprecations 
-    @testset "@point_variable" begin 
-        @test_macro_throws ErrorException @point_variable(m, z2[1](0))
-    end
 end
 
 # test restriciton definition 

@@ -6,12 +6,10 @@
 A `JuMP` extension for expressing and solving infinite-dimensional optimization 
 problems.
 
-!!! warning
-    `InfiniteOpt v0.4` underwent a number of breaking syntax changes 
-    relative to previous versions. This is to promote long term code stability 
-    and to increase the capabilities of `InfiniteOpt`. Please review the guide 
-    to see updated syntax. Deprecation warnings have been incorporated into this 
-    version to help convert old scripts.
+!!! note
+    `InfiniteOpt v0.5` introduces general nonlinear modeling to `InfiniteOpt`! 
+    Thus, the possibilities for applications is vast. Please see 
+    [Nonlinear Expressions](@ref nlp_guide) for more information.
 
 ## What is InfiniteOpt?
 `InfiniteOpt.jl` provides a general mathematical abstraction to express and solve 
@@ -71,11 +69,6 @@ Accepted infinite/finite problem forms currently include:
     - Conic
     - Semi-definite
     - Indicator
-
-!!! note 
-    Nonlinear modeling is now supported in `InfiniteOpt`! See 
-    [Nonlinear Expressions](@ref nlp_guide) for more information on how on to 
-    use the syntax. 
 
 ### Infinite-Dimensional Optimization with InfiniteOpt.jl
 See our YouTube overview of infinite-dimensional programming and InfiniteOpt.jl's 

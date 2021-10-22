@@ -437,10 +437,6 @@ end
         @test_macro_throws ErrorException @infinite_parameter(m, z in [0, 1], bad = 2)
         @test_macro_throws ErrorException @infinite_parameter(m, z ~ MvNormal([0, 0], [1 0; 0 1]))
     end
-    # test @independent_parameter
-    @testset "@independent_parameter" begin 
-        @test_macro_throws ErrorException @independent_parameter(m, test in [0, 1])
-    end
 end
 
 # Test if used
@@ -768,7 +764,6 @@ end
         @test infinite_domain(pref_disp) == IntervalDomain(1, 2)
         @test infinite_domain(pref_gen) == IntervalDomain(1, 2)
         @test_throws ErrorException infinite_domain(bad_pref)
-        @test_deprecated infinite_set(pref_disp)
     end
     # set_infinite_domain
     @testset "set_infinite_domain" begin
@@ -777,7 +772,6 @@ end
         @test infinite_domain(pref_disp) == IntervalDomain(2, 3)
         @test isa(set_infinite_domain(pref_gen, IntervalDomain(1, 3)), Nothing)
         @test infinite_domain(pref_gen) == IntervalDomain(1, 3)
-        @test_deprecated set_infinite_set(pref_disp, IntervalDomain(1, 3))
         @test set_infinite_domain(pref_gen, UniDistributionDomain(Normal())) isa Nothing
         @test infinite_domain(pref_disp) isa UniDistributionDomain 
         push!(InfiniteOpt._data_object(pref_gen).measure_indices, MeasureIndex(1))

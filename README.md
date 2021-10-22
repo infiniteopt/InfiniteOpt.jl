@@ -9,11 +9,11 @@ interface for these advanced problem types that can be used by those with little
 to no background in these areas. It also it contains a wealth of capabilities
 making it a powerful and convenient tool for advanced users.  
 
-:warning: **`v0.4` introduced breaking changes**: See the documentation for details.
+:tada: **`v0.5` introduces general nonlinear modeling!**: See the documentation for details.
 
 | **Documentation**                                                               | **Build Status**                                                                                | **Citation** |
 |:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|:--------------------------------------:|
-| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable) | [![Build Status](https://github.com/pulsipher/InfiniteOpt.jl/workflows/CI/badge.svg?branch=release-0.4)](https://github.com/pulsipher/InfiniteOpt.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=release-0.4)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=release-0.4) | [![DOI](https://img.shields.io/badge/Elsevier-CompChemEng%3A107567-yellow.svg)](https://doi.org/10.1016/j.compchemeng.2021.107567) |
+| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable) | [![Build Status](https://github.com/pulsipher/InfiniteOpt.jl/workflows/CI/badge.svg?branch=release-0.5)](https://github.com/pulsipher/InfiniteOpt.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=release-0.5)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=release-0.5) | [![DOI](https://img.shields.io/badge/Elsevier-CompChemEng%3A107567-yellow.svg)](https://doi.org/10.1016/j.compchemeng.2021.107567) |
 | [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/dev) | [![Build Status](https://github.com/pulsipher/InfiniteOpt.jl/workflows/CI/badge.svg?branch=master)](https://github.com/pulsipher/InfiniteOpt.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=master)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=master) | |
 
 It builds upon `JuMP` to add support for many complex modeling objects which 

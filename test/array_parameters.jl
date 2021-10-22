@@ -239,10 +239,6 @@ end
                                   distribution = dist1, base_name = "zz"), prefs)
         @test name.(prefs) == ["zz[1]", "zz[2]"]
     end
-    # test @dependent_parameters
-    @testset "@dependent_parameters" begin 
-        @test_macro_throws ErrorException @dependent_parameters(m, test[1:2] in [0, 1])
-    end
 end
 
 # test naming stuff

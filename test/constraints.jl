@@ -274,10 +274,6 @@ end
         @test InfiniteOpt._core_constraint_object(cref) isa ScalarConstraint
         @test used_by_constraint(dinf)
     end
-    # test deprecation
-    @testset "@BDconstraint" begin 
-        @test_macro_throws ErrorException @BDconstraint(m, bd(par == 0), x == 0)
-    end
 end
 
 # Test parameter reference methods
@@ -311,13 +307,11 @@ end
     @testset "has_domain_restrictions" begin
         @test has_domain_restrictions(c1)
         @test !has_domain_restrictions(c2)
-        @test_deprecated has_parameter_bounds(c1)
     end
     # test domain_restrictions
     @testset "domain_restrictions" begin
         @test domain_restrictions(c1) == DomainRestrictions(par => [0, 1])
         @test domain_restrictions(c2) == DomainRestrictions()
-        @test_deprecated parameter_bounds(c1)
     end
     # test set_domain_restrictions
     @testset "set_domain_restrictions" begin
@@ -333,8 +327,6 @@ end
         @test_throws ErrorException set_domain_restrictions(c1, rs2, force = true)
         # test deprecation
         empty!(domain_restrictions(c1).intervals)
-        @test_deprecated set_parameter_bounds(c1, rs)
-        @test_macro_throws ErrorException @set_parameter_bounds(c1, rs)
     end
     # test _update_restrictions
     @testset "_update_restrictions" begin
@@ -363,9 +355,6 @@ end
         @constraint(m, c3, inf + pt == 0)
         @test add_domain_restrictions(c3, copy(rs)) isa Nothing
         @test domain_restrictions(c3) == rs
-        # test deprecation 
-        @test_deprecated add_parameter_bounds(c1, copy(rs))
-        @test_macro_throws ErrorException @add_parameter_bounds(c1, rs)
     end
     # test delete_domain_restrictions
     @testset "delete_domain_restrictions" begin
@@ -377,8 +366,6 @@ end
         # test already gone
         @test delete_domain_restrictions(c1) isa Nothing
         @test !has_domain_restrictions(c1)
-        # test deprecation 
-        @test_deprecated delete_parameter_bounds(c1)
     end
 end
 

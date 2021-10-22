@@ -191,10 +191,6 @@ end
 @testset "Macro" begin
     # initialize model
     m = InfiniteModel()
-    # test the deprecations 
-    @testset "@hold_variable" begin 
-        @test_macro_throws ErrorException @hold_variable(m, w)
-    end
     @testset "@variable" begin
         # test regular
         idx = FiniteVariableIndex(1)
@@ -303,18 +299,4 @@ end
     @test InfiniteOpt._delete_variable_dependencies(dispatch_variable_ref(z)) isa Nothing 
     @test !has_lower_bound(z)
     @test !has_upper_bound(z)
-end
-
-# test deprecations
-@testset "Parameter Bound Deprecations" begin 
-    # setup 
-    m = InfiniteModel()
-    @infinite_parameter(m, t in [0, 1])
-    @variable(m, z)
-    rs = DomainRestrictions(t => 0)
-    @test_throws ErrorException has_parameter_bounds(z)
-    @test_throws ErrorException parameter_bounds(z)
-    @test_throws ErrorException set_parameter_bounds(z, rs)
-    @test_throws ErrorException add_parameter_bounds(z, rs)
-    @test_throws ErrorException delete_parameter_bounds(z)
 end
