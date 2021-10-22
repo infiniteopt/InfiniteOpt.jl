@@ -5,10 +5,7 @@ A complete guide to installing all that is necessary to use `InfiniteOpt.jl`.
 `InfiniteOpt` is a [Julia](https://julialang.org/) package. Thus, we first need
 have an installation of Julia to get started. An appropriate download can be
 found [here](https://julialang.org/downloads/). We recommend using 
-[VSCode](https://www.julia-vscode.org/) to edit and run Julia scripts. 
-Alternatively, users with a limited programming background might find it easier 
-to install and use [JuliaPro](https://juliacomputing.com/products/juliapro/) 
-(however this may introduce performance degradations and compatibility issues).
+[VSCode](https://www.julia-vscode.org/) to edit and run Julia scripts.
 
 !!! note
     This version of `InfiniteOpt` requires that Julia 1.0 or newer be used.
@@ -110,5 +107,5 @@ This usually happens because the new package is not compatible with the latest
 version of `InfiniteOpt`. Therefore, the package manager downgrades `InfiniteOpt` 
 to an earlier version!
 
-Thus, please Pay careful attention to the output of the package manager when 
+Thus, please pay careful attention to the output of the package manager when 
 adding new packages, especially when you see a package being downgraded!
