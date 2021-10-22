@@ -1,13 +1,15 @@
 ---
 name: Bug Report
 about: Help us idenify bugs so we can InfiniteOpt better!
-title: "[BUG] My Issue Here"
+title: "My Issue Here"
 labels: bug
 assignees: ''
 
 ---
 
 PLEASE FIRST CHECK IF THERE IS A RELATED EXISTING ISSUE BEFORE OPENING A NEW ONE.
+
+IF YOU HAVE A QUESTION OR JUST NEED CLARIFICATION PLEASE POST IN OUR DISCUSSION FORUM.
 
 **Describe the bug**
 A clear and concise description of what the bug is. 
