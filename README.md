@@ -38,10 +38,12 @@ Comments, suggestions and improvements are welcome and appreciated.
 `InfiniteOpt` is licensed under the [MIT "Expat" license](./LICENSE).
 
 ## Installation
-`InfiniteOpt.jl` is a registered package and can be installed by entering the
-following in the package manager.
+`InfiniteOpt.jl` is a registered [Julia](https://julialang.org/) package and 
+can be installed by entering the following in the package manager.
 
 ```julia
+julia> ]
+
 (v1.6) pkg> add InfiniteOpt
 ```
 
@@ -54,7 +56,7 @@ manuals, tutorials, examples, and more!
 
 ## Questions
 For additional help please visit and post in our 
-[Discussion Forum](https://github.com/pulsipher/InfiniteOpt.jl/discussions).
+[discussion forum](https://github.com/pulsipher/InfiniteOpt.jl/discussions).
 
 ## Citing
 [![DOI](https://img.shields.io/badge/Elsevier-CompChemEng%3A107567-yellow.svg)](https://doi.org/10.1016/j.compchemeng.2021.107567) 
