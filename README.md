@@ -39,7 +39,7 @@ Comments, suggestions and improvements are welcome and appreciated.
 
 ## Installation
 `InfiniteOpt.jl` is a registered [Julia](https://julialang.org/) package and 
-can be installed by entering the following in the package manager.
+can be installed by entering the following in the REPL.
 
 ```julia
 julia> ]
