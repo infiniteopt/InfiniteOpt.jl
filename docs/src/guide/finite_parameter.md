@@ -17,6 +17,21 @@ typically done in `JuMP` models using `JuMP.fix` on placeholder variables.
     versions for enhanced long term support. Please consult the documentation 
     below for the updated syntax.
 
+!!! warning 
+    In some cases, using [`@finite_parameter`](@ref) can unexpectedly make 
+    the underlying `JuMP` model contain nonlinear constraints/objectives. This 
+    occurs when a quadratic expression is mutliplied by a finite parameter 
+    (making a `NLPExpr`):
+    ```julia-repl
+    julia> model = InfiniteModel(); @variable(model, z); @finite_parameter(model, p == 2);
+
+    julia> @objective(model, Min,  p * z^2) # becomes a nonlinear objective 
+    p * (z²)
+    ```
+    In these cases, a nonlinear solver like `Ipopt` should be used or the 
+    finite parameter syntax should be avoided if a quadratic solver like 
+    `Gurobi` is needed.
+
 ## Basic Usage
 Once an `InfiniteModel` `model` has been defined we can add a finite parameter
 via [`@finite_parameter`](@ref). For example, let's define a maximum cost

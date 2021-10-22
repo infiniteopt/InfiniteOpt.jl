@@ -361,6 +361,9 @@ Here 10 indices are given in accordance with the transcription constraints.
 The mapping between these and the original infinite constraints is managed via 
 the appropriate extensions of [`map_optimizer_index`](@ref InfiniteOpt.map_optimizer_index).
 
+!!! note
+    `optimizer_index` does not work for constraints that contain `NLPExprs`.
+
 We can also query dual information from our constraints if it is available. 
 First, we should verify that dual information is available via 
 [`has_duals`](@ref):
@@ -404,8 +407,7 @@ julia> shadow_price(c1)
  -1.1930560126841273e-10
  -1.1930560126841273e-10
 ```
-Similarly, the mapping to the transcription constraints is enabled via the 
-appropriate version of [`map_shadow_price`](@ref InfiniteOpt.map_shadow_price).
+This is computed via interrogating the duals and the objective sense.
 
 ## LP Sensitivity
 We also conduct sensitivity analysis for linear problems using 

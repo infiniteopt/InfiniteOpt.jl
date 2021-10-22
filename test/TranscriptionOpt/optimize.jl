@@ -31,6 +31,7 @@ end
     @constraint(m, c4, meas2 - 2y0 + x <= 1, DomainRestrictions(par => [0.5, 1]))
     @constraint(m, c5, meas2 == 0)
     @constraint(m, @deriv(x, par) == 0)
+    @constraint(m, sin(w) + integral(x^3, par) == 0)
     @objective(m, Min, x0 + meas1)
     set_silent(m)
     set_time_limit_sec(m, 42)

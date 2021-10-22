@@ -32,21 +32,21 @@
     @testset "make_reduced_expr" begin 
         # test MeasureIndex based 
         meas = support_sum(T, x)
-        expected = [T(0, [0, 0]) + T(0, [5, 5]), T(0, [5, 5]) + T(0, [0, 0])]
-        @test InfiniteOpt.make_reduced_expr(meas, t, 0.0, m) in expected # order is unknown
+        expected = T(0, [5, 5]) + T(0, [0, 0])
+        @test isequal_canonical(InfiniteOpt.make_reduced_expr(meas, t, 0.0, m), expected)
         # test InfiniteVariableIndex 
-        @test InfiniteOpt.make_reduced_expr(q, t, 0.0, m) == q(0)
-        @test InfiniteOpt.make_reduced_expr(T, t, 0.0, m) == T(0, x)
+        @test isequal(InfiniteOpt.make_reduced_expr(q, t, 0.0, m), q(0))
+        @test isequal(InfiniteOpt.make_reduced_expr(T, t, 0.0, m), T(0, x))
         # test DerivativeIndex 
         dT = deriv(T, x[1])
         dq = deriv(q, t)
-        @test InfiniteOpt.make_reduced_expr(dq, t, 0.0, m) == dq(0)
+        @test isequal(InfiniteOpt.make_reduced_expr(dq, t, 0.0, m), dq(0))
         v = dT(t, [x[1], 0])
-        @test InfiniteOpt.make_reduced_expr(dT, x[2], 0.0, m) == v
+        @test isequal(InfiniteOpt.make_reduced_expr(dT, x[2], 0.0, m), v)
         # test SemiInfiniteVariableIndex
         v2 = dT(t, [0, 0])
-        @test InfiniteOpt.make_reduced_expr(v, x[1], 0.0, m) == v2
-        @test InfiniteOpt.make_reduced_expr(v2, t, 0.0, m) == dT(0, [0, 0])
+        @test isequal(InfiniteOpt.make_reduced_expr(v, x[1], 0.0, m), v2)
+        @test isequal(InfiniteOpt.make_reduced_expr(v2, t, 0.0, m), dT(0, [0, 0]))
     end
 end
 
@@ -71,19 +71,19 @@ end
     @testset "_make_difference_expr (Forward)" begin 
         supps = supports(t, label = All)
         expected = 5d1(0) - y(5) + y(0)
-        @test InfiniteOpt._make_difference_expr(d1, y, t, 1, supps, m, Forward()) == expected
+        @test isequal_canonical(InfiniteOpt._make_difference_expr(d1, y, t, 1, supps, m, Forward()), expected)
     end
     # test _make_difference_expr for Central
     @testset "_make_difference_expr (Central)" begin 
         supps = supports(t, label = All)
         expected = 10d2(5, x) - q(10, x) + q(0, x)
-        @test InfiniteOpt._make_difference_expr(d2, q, t, 2, supps, m, Central()) == expected
+        @test isequal_canonical(InfiniteOpt._make_difference_expr(d2, q, t, 2, supps, m, Central()), expected)
     end
     # test _make_difference_expr for FDBackward
     @testset "_make_difference_expr (Backward)" begin 
         supps = sort(supports(x[2], label = All))
         expected = d3(t, [x[1], 1]) - q(t, [x[1], 1]) + q(t, [x[1], 0])
-        @test InfiniteOpt._make_difference_expr(d3, q, x[2], 2, supps, m, Backward()) == expected
+        @test isequal_canonical(InfiniteOpt._make_difference_expr(d3, q, x[2], 2, supps, m, Backward()), expected)
     end
     # test _make_difference_expr fallback
     @testset "_make_difference_expr (Fallback)" begin 
@@ -94,21 +94,21 @@ end
         # test with independent parameter 
         method = FiniteDifference(Central())
         exprs = [10d1(5) - y(10) + y(0)]
-        @test InfiniteOpt.evaluate_derivative(d1, method, m) == exprs 
+        @test isequal_canonical(InfiniteOpt.evaluate_derivative(d1, method, m), exprs )
         # test with dependent parameter 
         method = FiniteDifference(Forward()) 
         exprs = [d4([0, x[2]]) - q(0, [1, x[2]]) - q(5, [1, x[2]]) - 
                  q(10, [1, x[2]]) + q(0, [0, x[2]]) + q(5, [0, x[2]]) + 
                  q(10, [0, x[2]])] 
-        @test InfiniteOpt.evaluate_derivative(d4, method, m) == exprs
+        @test isequal_canonical(InfiniteOpt.evaluate_derivative(d4, method, m), exprs)
         # test using Backward without boundary constraint
         method = FiniteDifference(Backward(), false)
         exprs = [5d1(5) - y(5) + y(0)]
-        @test InfiniteOpt.evaluate_derivative(d1, method, m) == exprs 
+        @test isequal_canonical(InfiniteOpt.evaluate_derivative(d1, method, m), exprs)
         # test Backward with boundary constraint 
         method = FiniteDifference(Backward(), true)
         exprs = [5d1(5) - y(5) + y(0), 5d1(10) - y(10) + y(5)]
-        @test InfiniteOpt.evaluate_derivative(d1, method, m) == exprs 
+        @test isequal_canonical(InfiniteOpt.evaluate_derivative(d1, method, m), exprs)
         # test without supports 
         delete_supports(x)
         @test_throws ErrorException InfiniteOpt.evaluate_derivative(d3, method, m)
@@ -116,7 +116,7 @@ end
         f = parameter_function(sin, t)
         df = deriv(f, t)
         exprs = [5df(5) - sin(5) + sin(0), 5df(10) - sin(10) + sin(5)]
-        @test InfiniteOpt.evaluate_derivative(df, method, m) == exprs
+        @test isequal_canonical(InfiniteOpt.evaluate_derivative(df, method, m), exprs)
     end
     # test OrthogonalCollocation with evaluate_derivative
     @testset "OrthogonalCollocation" begin 
@@ -140,11 +140,11 @@ end
             end
             return exs
         end
-        @test rm_zeros(evaluate_derivative(d2, method, m)) == exprs
+        @test isequal_canonical(rm_zeros(evaluate_derivative(d2, method, m)), exprs)
         @test supports(t) == [0, 5, 10]
         @test supports(t, label = All) == [0, 2.5, 5, 7.5, 10]
         # test resolve 
-        @test rm_zeros(evaluate_derivative(d2, method, m)) == exprs
+        @test isequal_canonical(rm_zeros(evaluate_derivative(d2, method, m)), exprs)
         @test supports(t) == [0, 5, 10]
         @test supports(t, label = All) == [0, 2.5, 5, 7.5, 10]
         @test has_generative_supports(t)

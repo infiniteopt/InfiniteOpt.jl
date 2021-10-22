@@ -20,10 +20,10 @@ It builds upon `JuMP` to add support for many complex modeling objects which
 include:
 - Infinite parameters (e.g., time, space, uncertainty, etc.)
 - Finite parameters (similar to `ParameterJuMP`)
-- Infinite variables (e.g., `y(t, x)`)
+- Infinite variables (decision functions) (e.g., `y(t, x)`)
 - Derivatives (e.g., `∂y(t, x)/∂t`)
 - Measures (e.g., `∫y(t,x)dt`, `𝔼[y(ξ)]`)
-- More
+- **1st class nonlinear modeling**
 
 The unifying modeling abstraction behind `InfiniteOpt` captures a wide spectrum 
 of disciplines which include dynamic, PDE, stochastic, and semi-infinite 

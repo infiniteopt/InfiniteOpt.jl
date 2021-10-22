@@ -26,8 +26,8 @@
     end
     # dispatch_variable_ref
     @testset "dispatch_variable_ref" begin
-        @test dispatch_variable_ref(m, idx) == vref
-        @test dispatch_variable_ref(gvref) == vref
+        @test isequal(dispatch_variable_ref(m, idx), vref)
+        @test isequal(dispatch_variable_ref(gvref), vref)
     end
     # _add_data_object
     @testset "_add_data_object" begin
@@ -83,8 +83,8 @@
     end
     # infinite_variable_ref
     @testset "infinite_variable_ref" begin
-        @test infinite_variable_ref(vref) == ivref
-        @test infinite_variable_ref(gvref) == ivref
+        @test isequal(infinite_variable_ref(vref), ivref)
+        @test isequal(infinite_variable_ref(gvref), ivref)
     end
     # raw_parameter_values
     @testset "raw_parameter_values" begin
@@ -120,7 +120,7 @@
     end
     # _make_variable_ref
     @testset "_make_variable_ref" begin
-        @test InfiniteOpt._make_variable_ref(m, idx) == gvref
+        @test isequal(InfiniteOpt._make_variable_ref(m, idx), gvref)
     end
     # _var_name_dict
     @testset "_var_name_dict" begin
@@ -137,7 +137,7 @@
     # parameter_by_name
     @testset "JuMP.variable_by_name" begin
         # test normal
-        @test variable_by_name(m, "a") == gvref
+        @test isequal(variable_by_name(m, "a"), gvref)
         @test variable_by_name(m, "test") isa Nothing
         # prepare variable with same name
         idx2 = PointVariableIndex(2)
@@ -175,7 +175,7 @@ end
     divref2 = dispatch_variable_ref(ivref2)
     # test Point
     @testset "Point{V, T}" begin 
-        @test Point(ivref, [0, 0]).infinite_variable_ref == ivref
+        @test isequal(Point(ivref, [0, 0]).infinite_variable_ref, ivref)
         @test Point(ivref, [0, 0]).parameter_values.values == [0, 0]
     end
     # _check_tuple_shape
@@ -279,11 +279,11 @@ end
         @test_throws ErrorException build_variable(error, info, Point(ivref, 0.5, 0.5), 
                                                    bad = 42)
         # test a variety of builds
-        @test build_variable(error, info, Point(ivref, 0.5, 0.5)).infinite_variable_ref == ivref
+        @test isequal(build_variable(error, info, Point(ivref, 0.5, 0.5)).infinite_variable_ref, ivref)
         @test build_variable(error, info, Point(ivref, 0.5, 0.5)).parameter_values == [0.5, 0.5]
         @test build_variable(error, info, Point(ivref, 0.5, 0.5)).info == info
         @test_throws ErrorException build_variable(error, info, Point(ivref, 0.5, 2))
-        @test build_variable(error, info, Point(ivref2, 0.5, [0, 0])).infinite_variable_ref == ivref2
+        @test isequal(build_variable(error, info, Point(ivref2, 0.5, [0, 0])).infinite_variable_ref, ivref2)
         @test build_variable(error, info, Point(ivref2, 0.5, [0, 0])).parameter_values == [0.5, 0, 0]
         @test_throws ErrorException build_variable(error, info, Point(ivref2, 0.5, [0, 0, 0]))
     end
@@ -362,7 +362,7 @@ end
         idx = PointVariableIndex(1)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test add_variable(m, v, "name") == gvref
+        @test isequal(add_variable(m, v, "name"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
         @test supports(pref) == [0]
         @test supports(pref2) == [1]
@@ -374,7 +374,7 @@ end
         idx = PointVariableIndex(2)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test add_variable(m, v, "name") == gvref
+        @test isequal(add_variable(m, v, "name"), gvref)
         @test !optimizer_model_ready(m)
         # lower bound
         cindex = InfOptConstraintIndex(1)
@@ -418,7 +418,7 @@ end
         idx = PointVariableIndex(3)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test add_variable(m, v, "name") == gvref
+        @test isequal(add_variable(m, v, "name"), gvref)
         @test !optimizer_model_ready(m)
         cindex = InfOptConstraintIndex(8)
         cref = InfOptConstraintRef(m, cindex)
@@ -435,7 +435,7 @@ end
         idx = PointVariableIndex(1)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test add_variable(m, v, "name2") == gvref
+        @test isequal(add_variable(m, v, "name2"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
         @test supports(pref) == [0, 1]
         @test supports(pref2) == [0, 1]
@@ -446,7 +446,7 @@ end
         idx = PointVariableIndex(1)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test add_variable(m, v) == gvref
+        @test isequal(add_variable(m, v), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
         @test supports(pref) == [0, 1]
         @test supports(pref2) == [0, 1]
@@ -467,7 +467,7 @@ end
         idx = PointVariableIndex(1)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test add_variable(m, v, "name4") == gvref
+        @test isequal(add_variable(m, v, "name4"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
         @test supports(pref) == [0, 1]
         @test supports(pref2) == [0, 1]
@@ -488,7 +488,7 @@ end
         idx = PointVariableIndex(1)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test add_variable(m, v, "name5") == gvref
+        @test isequal(add_variable(m, v, "name5"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
         @test supports(pref) == [0, 1]
         @test supports(pref2) == [0, 1]
@@ -504,7 +504,7 @@ end
         idx = PointVariableIndex(4)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test add_variable(m, v, "name") == gvref
+        @test isequal(add_variable(m, v, "name"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
         @test supports(pref) == [0, 1]
         @test supports(prefs) == ones(2, 1)
@@ -526,8 +526,8 @@ end
         idx = PointVariableIndex(1)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test @variable(m, variable_type = Point(z, 0, [0, 0])) == gvref
-        @test infinite_variable_ref(vref) == z
+        @test isequal(@variable(m, variable_type = Point(z, 0, [0, 0])), gvref)
+        @test isequal(infinite_variable_ref(vref), z)
         @test parameter_values(vref) == (0, [0, 0])
         @test is_integer(vref)
         @test lower_bound(vref) == 0
@@ -536,9 +536,9 @@ end
         idx = PointVariableIndex(2)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test @variable(m, variable_type = Point(z, 0, [1, 1]), 
-                        lower_bound = -5, binary = true) == gvref
-        @test infinite_variable_ref(vref) == z
+        @test isequal(@variable(m, variable_type = Point(z, 0, [1, 1]), 
+                        lower_bound = -5, binary = true), gvref)
+        @test isequal(infinite_variable_ref(vref), z)
         @test parameter_values(vref) == (0, [1, 1])
         @test !is_integer(vref)
         @test is_binary(vref)
@@ -547,8 +547,8 @@ end
         idx = PointVariableIndex(1)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test @variable(m, z0, Point(z, 0, [0, 0]), Bin) == gvref
-        @test infinite_variable_ref(vref) == z
+        @test isequal(@variable(m, z0, Point(z, 0, [0, 0]), Bin), gvref)
+        @test isequal(infinite_variable_ref(vref), z)
         @test parameter_values(vref) == (0, [0, 0])
         @test is_binary(vref)
         @test lower_bound(vref) == 0
@@ -557,9 +557,9 @@ end
         idx = PointVariableIndex(1)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test @variable(m, variable_type = Point(z, 0, [0, 0]), base_name = "z0",
-                        binary = true) == gvref
-        @test infinite_variable_ref(vref) == z
+        @test isequal(@variable(m, variable_type = Point(z, 0, [0, 0]), base_name = "z0",
+                        binary = true), gvref)
+        @test isequal(infinite_variable_ref(vref), z)
         @test parameter_values(vref) == (0, [0, 0])
         @test is_binary(vref)
         @test lower_bound(vref) == 0
@@ -571,8 +571,8 @@ end
         idxs = [PointVariableIndex(1), PointVariableIndex(1)]
         vrefs = [PointVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
-        @test @variable(m, [1:2], Point(z, 0, [0, 0])) == gvrefs
-        @test infinite_variable_ref(vrefs[1]) == z
+        @test isequal(@variable(m, [1:2], Point(z, 0, [0, 0])), gvrefs)
+        @test isequal(infinite_variable_ref(vrefs[1]), z)
         @test parameter_values(vrefs[2]) == (0, [0, 0])
         @test is_integer(vrefs[1])
         @test lower_bound(vrefs[2]) == 0
@@ -580,9 +580,9 @@ end
         idxs = [PointVariableIndex(3), PointVariableIndex(4)]
         vrefs = [PointVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
-        @test @variable(m, [i = 1:2], Point(z2[i], 0)) == gvrefs
-        @test infinite_variable_ref(vrefs[1]) == z2[1]
-        @test infinite_variable_ref(vrefs[2]) == z2[2]
+        @test isequal(@variable(m, [i = 1:2], Point(z2[i], 0)), gvrefs)
+        @test isequal(infinite_variable_ref(vrefs[1]), z2[1])
+        @test isequal(infinite_variable_ref(vrefs[2]), z2[2])
         @test parameter_values(vrefs[2]) == (0,)
         @test fix_value(vrefs[2]) == 3
         @test name(vrefs[1]) == ""
@@ -590,8 +590,8 @@ end
         idxs = [PointVariableIndex(1), PointVariableIndex(5)]
         vrefs = [PointVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
-        @test @variable(m, a[i = 1:2], Point(z, -1 + i, [0, 0]), Bin) == gvrefs
-        @test infinite_variable_ref(vrefs[1]) == z
+        @test isequal(@variable(m, a[i = 1:2], Point(z, -1 + i, [0, 0]), Bin), gvrefs)
+        @test isequal(infinite_variable_ref(vrefs[1]), z)
         @test parameter_values(vrefs[2]) == (1, [0, 0])
         @test is_binary(vrefs[1])
         @test lower_bound(vrefs[2]) == 0
@@ -600,9 +600,9 @@ end
         idxs = [PointVariableIndex(3), PointVariableIndex(4)]
         vrefs = [PointVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
-        @test @variable(m, b[i = 1:2] >= -5, Point(z2[i], 0)) == gvrefs
-        @test infinite_variable_ref(vrefs[1]) == z2[1]
-        @test infinite_variable_ref(vrefs[2]) == z2[2]
+        @test isequal(@variable(m, b[i = 1:2] >= -5, Point(z2[i], 0)), gvrefs)
+        @test isequal(infinite_variable_ref(vrefs[1]), z2[1])
+        @test isequal(infinite_variable_ref(vrefs[2]), z2[2])
         @test parameter_values(vrefs[2]) == (0,)
         @test lower_bound(vrefs[2]) == -5
         @test name(vrefs[1]) == "b[1]"
@@ -610,9 +610,9 @@ end
         idxs = [PointVariableIndex(6), PointVariableIndex(7)]
         vrefs = [PointVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
-        @test @variable(m, [i = 1:2], Point(z2[i], 1), lower_bound = -5) == gvrefs
-        @test infinite_variable_ref(vrefs[1]) == z2[1]
-        @test infinite_variable_ref(vrefs[2]) == z2[2]
+        @test isequal(@variable(m, [i = 1:2], Point(z2[i], 1), lower_bound = -5), gvrefs)
+        @test isequal(infinite_variable_ref(vrefs[1]), z2[1])
+        @test isequal(infinite_variable_ref(vrefs[2]), z2[2])
         @test lower_bound(vrefs[2]) == -5
         @test name(vrefs[1]) == ""
         @test parameter_values.(vrefs) == [(1,), (1,)]
@@ -644,11 +644,11 @@ end
     @test_throws ErrorException y(0, 2)
     # test normal wth restrict
     vref = GeneralVariableRef(m, 1, PointVariableIndex)
-    @test restrict(y, 0, [0, 0]) == vref 
+    @test isequal(restrict(y, 0, [0, 0]), vref)
     @test parameter_values(vref) == (0, [0, 0])
     # test normal functionally
     vref = GeneralVariableRef(m, 2, PointVariableIndex)
-    @test y(0.5, [0, 0]) == vref 
+    @test isequal(y(0.5, [0, 0]), vref)
     @test parameter_values(vref) == (0.5, [0, 0])
 end
 

@@ -204,7 +204,7 @@ end
         @test IOTO.transcribe_measures!(tm, m) isa Nothing 
         @test transcription_variable(meas1) == tx[1] + 4tw + tx[2]
         @test transcription_variable(meas2) == tw + 0
-        @test transcription_variable(meas3) isa Vector{AbstractJuMPScalar}
+        @test transcription_variable(meas3) isa Vector
         @test transcription_variable(meas4) isa AffExpr
         @test supports(meas1) == ()
         @test supports(meas2) == ()
@@ -212,10 +212,17 @@ end
     end
     # test transcribe_objective!
     @testset "transcribe_objective!" begin 
+        # normal
         @objective(m, Min, 2z^2 - meas1)
         @test IOTO.transcribe_objective!(tm, m) isa Nothing 
         @test objective_sense(tm) == MOI.MIN_SENSE
         @test objective_function(tm) == 2tz^2 - tx[1] - 4tw - tx[2]
+        # nonlinear objective
+        @objective(m, Max, z^4)
+        @test IOTO.transcribe_objective!(tm, m) isa Nothing 
+        @test objective_sense(tm) == MOI.MAX_SENSE
+        @test objective_function_string(REPLMode, tm) == "subexpression[1] + 0.0"
+        @test nl_expr_string(tm, REPLMode, tm.nlp_data.nlexpr[end]) == "z ^ 4.0"
     end
 end
 
@@ -236,6 +243,7 @@ end
     @constraint(m, c4, y + z == 0, DomainRestrictions(par => [0, 0.5]))
     @constraint(m, c5, 2z^2 == 0, DomainRestrictions(par => 1))
     @constraint(m, c6, [z, x] in MOI.Zeros(2))
+    @constraint(m, c7, sin(z) ^ x == 0)
     tm = transcription_model(m)
     IOTO.set_parameter_supports(tm, m)
     IOTO.transcribe_finite_variables!(tm, m)
@@ -292,6 +300,14 @@ end
         @test !IOTO._support_in_restrictions([NaN, 0., 0.], [1, 2], [IntervalDomain(1, 1), IntervalDomain(1, 1)])
         @test !IOTO._support_in_restrictions([NaN, 0., 2.], [1, 3], [IntervalDomain(1, 1), IntervalDomain(1, 1)])
     end
+    # test _make_constr_ast
+    @testset "_make_constr_ast" begin 
+        @test IOTO._make_constr_ast(xt, MOI.LessThan(1.0)) == :($xt <= 1.0)
+        @test IOTO._make_constr_ast(xt, MOI.GreaterThan(1.0)) == :($xt >= 1.0)
+        @test IOTO._make_constr_ast(xt, MOI.EqualTo(1.0)) == :($xt == 1.0)
+        @test IOTO._make_constr_ast(xt, MOI.Interval(0.0, 1.0)) == :(0.0 <= $xt <= 1.0)
+        @test_throws ErrorException IOTO._make_constr_ast(xt, MOI.Integer())
+    end
     # test _process_constraint
     @testset "_process_constraint" begin
         # scalar constraint 
@@ -302,6 +318,16 @@ end
         @test num_constraints(tm, typeof(func), typeof(set)) == 1
         cref = constraint_by_name(tm, "test1")
         delete(tm, cref)
+        # nonlinear scalar constraint 
+        con = constraint_object(c7)
+        func = jump_function(con)
+        set = moi_set(con)
+        @test IOTO._process_constraint(tm, con, func, set, zeros(3), "test1") isa NonlinearConstraintRef 
+        expected = Sys.iswindows() ? "subexpression[1] - 0.0 == 0" : "subexpression[1] - 0.0 = 0"
+        @test nl_constraint_string(tm, REPLMode, tm.nlp_data.nlconstr[end]) == expected
+        expected = ["sin(z) ^ x(support: 1) - 0.0", "sin(z) ^ x(support: 2) - 0.0"]
+        @test nl_expr_string(tm, REPLMode, tm.nlp_data.nlexpr[end]) in expected
+        tm.nlp_data = nothing
         # vector constraint 
         con = constraint_object(c6)
         func = jump_function(con)
@@ -310,6 +336,12 @@ end
         @test num_constraints(tm, typeof(func), typeof(set)) == 1
         cref = constraint_by_name(tm, "test2")
         delete(tm, cref)
+        # test nonlinear vector constraint 
+        con = VectorConstraint([sin(z)], MOI.Zeros(1))
+        func = [sin(z)]
+        set = MOI.Zeros(1)
+        @test_throws ErrorException IOTO._process_constraint(tm, con, func, set, zeros(3), "test2")
+        tm.nlp_data = nothing
         # fallback
         @test_throws ErrorException IOTO._process_constraint(tm, :bad, func, set, 
                                                              zeros(3), "bad")
@@ -339,6 +371,9 @@ end
         @test constraint_object(transcription_constraint(c5)).func == 2zt^2 
         @test length(transcription_constraint(c6)) == 6
         @test moi_set(constraint_object(first(transcription_constraint(c6)))) == MOI.Zeros(2)
+        @test length(transcription_constraint(c7)) == 6
+        @test length(tm.nlp_data.nlconstr) == 6
+        @test length(tm.nlp_data.nlexpr) == 6
         # test the info constraint supports 
         expected = [([0., 0.], 0.5), ([0., 0.], 1.), ([1., 1.], 0.), ([1., 1.], 0.5), ([1., 1.], 1.)]
         @test sort(supports(LowerBoundRef(x))) == expected
@@ -355,6 +390,7 @@ end
         @test supports(c4) == [(0.0,), (0.5,)]
         @test supports(c5) == ()
         @test sort(supports(c6)) == expected
+        @test sort(supports(c7)) == expected
     end
 end
 
@@ -412,6 +448,9 @@ end
     @constraint(m, c5, meas2 == 0)
     @constraint(m, x + y == 83)
     @constraint(m, c6, [z, w] in MOI.Zeros(2))
+    g(a) = 42
+    @register(m, g(a))
+    @constraint(m, c7, g(z) == 2)
     @objective(m, Min, x0 + meas1)
     # test basic usage
     tm = optimizer_model(m)
@@ -460,6 +499,10 @@ end
     @test length(d2t) == 2
     @test upper_bound(d1t[1]) == 2
     @test supports(d2) == [(0.,), (1.,)]
+    # test registration 
+    r = tm.nlp_data.user_operators
+    @test length(keys(r.univariate_operator_to_id)) == 1
+    @test r.univariate_operator_f == [g]
     # test objective
     xt = transcription_variable(tm, x)
     @test objective_function(tm) == 2xt[1] + xt[2] - 2wt - d2t[1] - d2t[2]
@@ -477,6 +520,7 @@ end
     @test name(transcription_constraint(c2)) == "c2(support: 1)"
     @test name(transcription_constraint(c1)) == "c1(support: 1)"
     @test supports(c1) == (0., [0., 0.])
+    @test transcription_constraint(c7) isa NonlinearConstraintRef
     # test info constraints
     @test transcription_constraint(LowerBoundRef(z)) == LowerBoundRef(zt)
     @test transcription_constraint(UpperBoundRef(z)) == UpperBoundRef(zt)

@@ -36,9 +36,31 @@ JuMP.set_name(::ParameterFunctionRef, ::String)
 JuMP.delete(::InfiniteModel, ::ParameterFunctionRef)
 ```
 
+## [Nonlinear Expressions](@id nlp_manual)
+### DataTypes
+```@docs
+NodeData
+NLPExpr
+RegisteredFunction
+```
+
+### Methods/Macros
+```@docs
+@register
+all_registered_functions
+name_to_function
+user_registered_functions
+InfiniteOpt.ifelse
+print_expression_tree(::NLPExpr)
+JuMP.drop_zeros!(::NLPExpr)
+map_nlp_to_ast
+add_registered_to_jump
+```
+
 ## Expression Methods
 ```@docs
 parameter_refs(::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr})
+map_expression
 ```
 
 ## GeneralVariableRef User Methods

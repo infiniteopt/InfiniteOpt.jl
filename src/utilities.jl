@@ -27,7 +27,7 @@ _keys(a::AbstractArray) = keys(a)
     length(x) < 2 && return true
     e1 = first(x)
     for value in x
-        value == e1 || return false
+        isequal(value, e1) || return false
     end
     return true
 end

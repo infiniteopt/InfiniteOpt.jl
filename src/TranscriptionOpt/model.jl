@@ -62,7 +62,7 @@ mutable struct TranscriptionData
 
     # Measure information
     measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}
-    measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}
+    measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{Any}}
     measure_supports::Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}
     measure_support_labels::Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}
 
@@ -94,7 +94,7 @@ mutable struct TranscriptionData
                    Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}(),
                    # measure info
                    Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
-                   Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}(),
+                   Dict{InfiniteOpt.GeneralVariableRef, Vector{Any}}(),
                    Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}(),
                    Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}(),
                    # constraint info
@@ -126,14 +126,14 @@ CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
 ```
 """
-function TranscriptionModel(; kwargs...)::JuMP.Model
+function TranscriptionModel(; kwargs...)
     model = JuMP.Model(; kwargs...)
     model.ext[:TransData] = TranscriptionData()
     return model
 end
 # Accept optimizer constructors
 function TranscriptionModel(optimizer_constructor;
-                            kwargs...)::JuMP.Model
+                            kwargs...)
     model = JuMP.Model(optimizer_constructor; kwargs...)
     model.ext[:TransData] = TranscriptionData()
     return model
@@ -153,7 +153,7 @@ julia> is_transcription_model(model)
 true
 ```
 """
-function is_transcription_model(model::JuMP.Model)::Bool
+function is_transcription_model(model::JuMP.Model)
     return haskey(model.ext, :TransData)
 end
 
@@ -173,7 +173,7 @@ end
 
 Return a `Bool` whether `model` has any internal supports that were collected.
 """
-function has_internal_supports(model::JuMP.Model)::Bool
+function has_internal_supports(model::JuMP.Model)
     return transcription_data(model).has_internal_supports
 end
 
@@ -184,7 +184,7 @@ end
 function _ignore_label(
     model::JuMP.Model, 
     label::Type{<:InfiniteOpt.AbstractSupportLabel}
-    )::Bool
+    )
     return label == InfiniteOpt.All || 
            (!has_internal_supports(model) && 
            label == InfiniteOpt.PublicLabel)
@@ -257,7 +257,7 @@ function transcription_variable(
     index_type::Type{V},
     label::Type{<:InfiniteOpt.AbstractSupportLabel},
     ndarray::Bool
-    )::JuMP.VariableRef where {V <: FinVarIndex}
+    ) where {V <: FinVarIndex}
     var = get(transcription_data(model).finvar_mappings, vref, nothing)
     if var === nothing
         error("Variable reference $vref not used in transcription model.")
@@ -272,7 +272,7 @@ function transcription_variable(
     index_type::Type{V},
     label::Type{<:InfiniteOpt.AbstractSupportLabel},
     ndarray::Bool
-    )::Array{JuMP.VariableRef} where {V <: InfVarIndex}
+    ) where {V <: InfVarIndex}
     vars = get(transcription_data(model).infvar_mappings, vref, nothing)
     if vars === nothing
         error("Variable reference $vref not used in transcription model.")
@@ -376,7 +376,7 @@ function InfiniteOpt.variable_supports(
     key::Val{:TransData} = Val(:TransData);
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
-    )::Array
+    )
     vref = InfiniteOpt._make_variable_ref(JuMP.owner_model(dvref), JuMP.index(dvref))
     if !haskey(transcription_data(model).infvar_mappings, vref)
         error("Variable reference $vref not used in transcription model.")
@@ -409,7 +409,7 @@ function InfiniteOpt.variable_supports(
     key::Val{:TransData} = Val(:TransData);
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
-    )::Array
+    )
     # get the object numbers of the expression and form the support iterator
     obj_nums = sort(InfiniteOpt._object_numbers(dvref))
     support_indices = support_index_iterator(model, obj_nums)
@@ -463,7 +463,7 @@ function lookup_by_support(
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     support::Vector
-    )::JuMP.VariableRef where {V <: InfVarIndex}
+    ) where {V <: InfVarIndex}
     if !haskey(transcription_data(model).infvar_lookup, vref)
         error("Variable reference $vref not used in transcription model.")
     end
@@ -477,7 +477,7 @@ function lookup_by_support(
     fref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.ParameterFunctionIndex},
     support::Vector
-    )::Float64
+    )
     prefs = InfiniteOpt.raw_parameter_refs(fref)
     func = InfiniteOpt.raw_function(fref)
     return InfiniteOpt.call_function(fref, Tuple(support, prefs)...)
@@ -489,7 +489,7 @@ function lookup_by_support(
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     support::Vector
-    )::JuMP.VariableRef where {V <: FinVarIndex}
+    ) where {V <: FinVarIndex}
     if !haskey(transcription_data(model).finvar_mappings, vref)
         error("Variable reference $vref not used in transcription model.")
     end
@@ -510,7 +510,7 @@ docstring. Errors, if no such variable can be found.
 function InfiniteOpt.internal_semi_infinite_variable(
     vref::InfiniteOpt.SemiInfiniteVariableRef,
     ::Val{:TransData}
-    )::InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}
+    )
     trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(vref))
     semi_infinite_vars = transcription_data(trans_model).semi_infinite_vars
     idx = -1 * JuMP.index(vref).value
@@ -556,7 +556,7 @@ function lookup_by_support(
     mref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.MeasureIndex},
     support::Vector
-    )::JuMP.AbstractJuMPScalar
+    )
     if !haskey(transcription_data(model).measure_lookup, mref)
         error("Measure reference $mref not used in transcription model.")
     end
@@ -638,14 +638,14 @@ x(support: 1) - y
 """
 function transcription_expression(
     model::JuMP.Model,
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr};
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, InfiniteOpt.NLPExpr};
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
     )
     # get the object numbers of the expression and form the support iterator
     obj_nums = InfiniteOpt._object_numbers(expr)
     support_indices = support_index_iterator(model, obj_nums)
-    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(support_indices))
+    exprs = Vector{Any}(undef, length(support_indices))
     check_labels = length(exprs) > 1 && !_ignore_label(model, label)
     label_inds = ones(Bool, length(exprs))
     # iterate over the indices and compute the values
@@ -700,7 +700,7 @@ Proper extension of [`InfiniteOpt.optimizer_model_expression`](@ref) for
 `TranscriptionModel`s. This simply dispatches to [`transcription_expression`](@ref).
 """
 function InfiniteOpt.optimizer_model_expression(
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, InfiniteOpt.NLPExpr},
     ::Val{:TransData};
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false)
@@ -719,7 +719,7 @@ be transcribed.
 """
 function InfiniteOpt.expression_supports(
     model::JuMP.Model,
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, InfiniteOpt.NLPExpr},
     key::Val{:TransData} = Val(:TransData);
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
@@ -878,7 +878,7 @@ end
 Return the collected parameter support tuple that is stored in
 `TranscriptionData.supports`.
 """
-function parameter_supports(model::JuMP.Model)::Tuple
+function parameter_supports(model::JuMP.Model)
     return transcription_data(model).supports
 end
 
@@ -894,7 +894,7 @@ Note this method assumes that [`set_parameter_supports`](@ref) has already been
 called and that the last elements of each support vector contains a placeholder
 value.
 """
-function support_index_iterator(model::JuMP.Model)::CartesianIndices
+function support_index_iterator(model::JuMP.Model)
     raw_supps = parameter_supports(model)
     return CartesianIndices(ntuple(i -> 1:length(raw_supps[i])-1, length(raw_supps)))
 end
@@ -936,7 +936,7 @@ using `model`, return the corresponding support label set from `TranscriptionDat
 function index_to_labels(
     model::JuMP.Model,
     index::CartesianIndex
-    )::Set{DataType}
+    )
     raw_labels = transcription_data(model).support_labels
     labels = Set{DataType}()
     for (i, j) in enumerate(index.I)

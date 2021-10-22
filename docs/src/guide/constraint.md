@@ -18,11 +18,6 @@ are enforced over some specified sub-domain of its infinite parameter
 dependencies (e.g., boundary conditions). This page will highlight how to 
 implement these types of constraints in `InfiniteOpt`.
 
-!!! note 
-    Nonlinear constraints as defined by `JuMP.@NLconstraint` are not currently 
-    supported by `InfiniteOpt`. See [Nonlinear Expressions](@ref) for more 
-    information and possible workarounds. 
-
 ## Basic Usage
 Principally, the 
 [`@constraint`](https://jump.dev/JuMP.jl/v0.21.10/reference/constraints/#JuMP.@constraint) 
@@ -47,6 +42,11 @@ julia> @variable(model, z[1:2]);
     offered by `JuMP`, including vector and semi-definite constraints! Please 
     see [JuMP's constraint documentation](https://jump.dev/JuMP.jl/v0.21.10/manual/constraints/#Constraints) 
     for a thorough explanation of the supported types and syntax.
+
+!!! note 
+    Nonlinear constraints are defined simply by using  `@constraint` and not 
+    using `JuMP.@NLconstraint`. See [Nonlinear Expressions](@ref nlp_guide) for 
+    more information. 
 
 ### Scalar Constraints
 Scalar constraints use scalar functions of variables. For example, let's define 

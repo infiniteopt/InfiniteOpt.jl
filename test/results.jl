@@ -259,6 +259,8 @@ end
         @test value(inf^2 + g - 2) == [3., -1.]
         @test value(inf^2 + g - 2, ndarray = true) == [3., -1.]
         @test value(zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) - 42) == -42.
+        @test value(sin(g)) == sin(1)
+        @test_throws ErrorException value(zero(NLPExpr))
     end
     # test dual
     @testset "JuMP.dual" begin
@@ -277,7 +279,8 @@ end
     @variable(m, g)
     @constraint(m, c1, g <= 0)
     @constraint(m, c2, inf >= 0)
-    @objective(m, Min, g^2)
+    @constraint(m, c3, sin(g) == 0)
+    @constraint(m, c4, sin(inf) == 0)
     tm = transcription_model(m)
     JuMP.optimize!(m)
     inft = transcription_variable(inf)
@@ -296,6 +299,7 @@ end
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c1t), -1.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c2t[1]), 0.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c2t[2]), 1.0)
+    MOI.set(mockoptimizer, MOI.NLPBlockDual(1), [4.0, 2., 3.])
     # test map_value
     @testset "map_value" begin
         @test InfiniteOpt.map_value(c1, Val(:TransData), 1) == 1.
@@ -306,6 +310,8 @@ end
         @test value(c1) == 1.
         @test value(c2, label = UserDefined) == [-1., 0.]
         @test value(c2, label = UserDefined, ndarray = true) == [-1., 0.]
+        @test value(c3) == sin(1)
+        @test value(c4) == [sin(-1), sin(0)]
     end
     # test map_optimizer_index
     @testset "map_optimizer_index" begin
@@ -317,6 +323,7 @@ end
         @test isa(optimizer_index(c1), MOI.ConstraintIndex)
         @test isa(optimizer_index(c2, label = All), Vector{<:MOI.ConstraintIndex})
         @test isa(optimizer_index(c2, label = All, ndarray = true), Vector{<:MOI.ConstraintIndex})
+        @test_throws ErrorException optimizer_index(c3)
     end
     # test has_values
     @testset "JuMP.has_duals" begin
@@ -332,17 +339,32 @@ end
         @test dual(c1) == -1.
         @test dual(c2, label = UserDefined) == [0., 1.]
         @test dual(c2, label = UserDefined, ndarray = true) == [0., 1.]
-    end
-    # test map_shadow_price
-    @testset "map_shadow_price" begin
-        @test InfiniteOpt.map_shadow_price(c1, Val(:TransData)) == -1.
-        @test InfiniteOpt.map_shadow_price(c2, Val(:TransData)) == [-0., -1.]
+        @test dual(c3) == 4
+        @test dual(c4) == [2, 3]
     end
     # test shadow_price
     @testset "JuMP.shadow_price" begin
+        # test with FEASIBILITY_SENSE
+        @test_throws ErrorException shadow_price(c1)
+        @test_throws ErrorException shadow_price(c2)
+        @test_throws ErrorException shadow_price(c3)
+        # test with MIN_SENSE
+        set_objective_sense(m, MOI.MIN_SENSE)
         @test shadow_price(c1) == -1.
         @test shadow_price(c1, ndarray = true) == [-1.]
         @test shadow_price(c2, label = PublicLabel) == [-0., -1.]
+        @test shadow_price(c3) == -4
+        @test shadow_price(c4) == [-2, -3]
+        # test with MAX_SENSE
+        set_objective_sense(m, MOI.MAX_SENSE)
+        @test shadow_price(c1) == 1.
+        @test shadow_price(c1, ndarray = true) == [1.]
+        @test shadow_price(c2, label = PublicLabel) == [0., 1.]
+        @test shadow_price(c3) == 4
+        @test shadow_price(c4) == [2, 3]
+        # test no duals error
+        MOI.set(mockoptimizer, MOI.DualStatus(), MOI.NO_SOLUTION)
+        @test_throws ErrorException shadow_price(c1)
     end
 end
 

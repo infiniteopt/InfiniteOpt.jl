@@ -14,8 +14,8 @@
     bad_pref = DependentParameterRef(m, bad_idx)
     # test dispatch_variable_ref
     @testset "dispatch_variable_ref" begin
-        @test dispatch_variable_ref(m, idx) == pref
-        @test dispatch_variable_ref(gvref) == pref
+        @test isequal(dispatch_variable_ref(m, idx), pref)
+        @test isequal(dispatch_variable_ref(gvref), pref)
     end
     # test _add_data_object
     @testset "_add_data_object" begin
@@ -135,21 +135,21 @@ end
         # test default
         prefs = [GeneralVariableRef(m, 1, DependentParameterIndex, i) for i in 1:2]
         params = InfiniteOpt._build_parameters(error, [domain1, domain1], inds1)
-        @test add_parameters(m, params, ["", ""]) == prefs
+        @test isequal(add_parameters(m, params, ["", ""]), prefs)
         @test InfiniteOpt._param_object_indices(m) == [index(prefs[1]).object_index]
         @test InfiniteOpt._last_param_num(m) == 2
         @test name.(prefs) == ["", ""]
         # test vector build
         prefs = [GeneralVariableRef(m, 2, DependentParameterIndex, i) for i in 1:2]
         params = InfiniteOpt._build_parameters(error, [domain2, domain2], inds1)
-        @test add_parameters(m, params, ["p1", "p2"]) == prefs
+        @test isequal(add_parameters(m, params, ["p1", "p2"]), prefs)
         @test InfiniteOpt._param_object_indices(m)[2] == index(prefs[1]).object_index
         @test InfiniteOpt._last_param_num(m) == 4
         @test name.(prefs) == ["p1", "p2"]
         # test array build
         prefs = [GeneralVariableRef(m, 3, DependentParameterIndex, i) for i in 1:4]
         params = InfiniteOpt._build_parameters(error, [domain3 for i in 1:4], inds2)
-        @test add_parameters(m, params, ["p$i" for i in 1:4]) == prefs
+        @test isequal(add_parameters(m, params, ["p$i" for i in 1:4]), prefs)
         @test InfiniteOpt._param_object_indices(m)[3] == index(prefs[1]).object_index
         @test InfiniteOpt._last_param_num(m) == 8
         @test name.(prefs) == ["p$i" for i in 1:4]
@@ -198,7 +198,7 @@ end
         @test_macro_throws ErrorException @infinite_parameter(m, p[i = 1:2] in domain1, supports = [[1, 0], 1][i])
         # test simple explict build
         prefs = [GeneralVariableRef(m, 1, DependentParameterIndex, i) for i in 1:2]
-        @test @infinite_parameter(m, a[1:2] ~ dist1, num_supports = 10) == prefs
+        @test isequal(@infinite_parameter(m, a[1:2] ~ dist1, num_supports = 10), prefs)
         @test name.(prefs) == ["a[1]", "a[2]"]
         @test length(InfiniteOpt._core_variable_object(prefs[1]).supports) == 10
         @test WeightedSample in first(InfiniteOpt._core_variable_object(prefs[1]).supports)[2]
@@ -206,19 +206,19 @@ end
         # test another explicit build
         prefs = [GeneralVariableRef(m, 2, DependentParameterIndex, i) for i in 1:2]
         expected = JuMPC.DenseAxisArray(prefs, 3:4)
-        @test @infinite_parameter(m, b[3:4] in domain2, supports = 0) == expected
+        @test isequal(@infinite_parameter(m, b[3:4] in domain2, supports = 0), expected)
         @test name.(prefs) == ["b[3]", "b[4]"]
         @test InfiniteOpt._core_variable_object(prefs[1]).supports == Dict{Vector{Float64}, Set{DataType}}(zeros(2) => Set([UserDefined]))
         # test explicit build with some args
         prefs = [GeneralVariableRef(m, 3, DependentParameterIndex, i) for i in 1:2]
         expected = convert(JuMPC.SparseAxisArray, prefs)
-        @test @infinite_parameter(m, c[1:2] in sdomain1, supports = 0, 
+        @test all(isequal.(@infinite_parameter(m, c[1:2] in sdomain1, supports = 0, 
                                   base_name = "z", 
-                                  container = SparseAxisArray) == expected
+                                  container = SparseAxisArray), expected))
         @test name.(prefs) == ["z[1]", "z[2]"]
         # test explicit build again
         prefs = [GeneralVariableRef(m, 4, DependentParameterIndex, i) for i in 1:2]
-        @test @infinite_parameter(m, d[1:2] in [0, 1], num_supports = 10) == prefs
+        @test isequal(@infinite_parameter(m, d[1:2] in [0, 1], num_supports = 10), prefs)
         @test name.(prefs) == ["d[1]", "d[2]"]
         @test length(InfiniteOpt._core_variable_object(prefs[1]).supports) == 10
         @test UniformGrid in first(InfiniteOpt._core_variable_object(prefs[1]).supports)[2]
@@ -226,17 +226,17 @@ end
         # test test anonymous
         prefs = [GeneralVariableRef(m, 5, DependentParameterIndex, i) for i in 1:4]
         prefs = reshape(prefs, (2, 2))
-        @test @infinite_parameter(m, [1:2, 1:2], distribution = dist3) == prefs
+        @test isequal(@infinite_parameter(m, [1:2, 1:2], distribution = dist3), prefs)
         @test name.(prefs) == ["" ""; "" ""]
         @test isempty(InfiniteOpt._core_variable_object(prefs[1]).supports)
         # test anonymous with domain keyword
         prefs = [GeneralVariableRef(m, 6, DependentParameterIndex, i) for i in 1:2]
-        @test @infinite_parameter(m, [1:2], domain = sdomain2, 
-                                  derivative_method = TestMethod()) == prefs
+        @test isequal(@infinite_parameter(m, [1:2], domain = sdomain2, 
+                                  derivative_method = TestMethod()), prefs)
         # test anonymous with dist keyword and base_name
         prefs = [GeneralVariableRef(m, 7, DependentParameterIndex, i) for i in 1:2]
-        @test @infinite_parameter(m, [1:2],
-                                  distribution = dist1, base_name = "zz") == prefs
+        @test isequal(@infinite_parameter(m, [1:2],
+                                  distribution = dist1, base_name = "zz"), prefs)
         @test name.(prefs) == ["zz[1]", "zz[2]"]
     end
     # test @dependent_parameters
@@ -268,8 +268,8 @@ end
     end
     # parameter_by_name
     @testset "parameter_by_name" begin
-        @test parameter_by_name(m, "a[1]") == gvrefs[1]
-        @test parameter_by_name(m, "a[2]") == gvrefs[2]
+        @test isequal(parameter_by_name(m, "a[1]"), gvrefs[1])
+        @test isequal(parameter_by_name(m, "a[2]"), gvrefs[2])
         @test isa(parameter_by_name(m, "a[3]"), Nothing)
         @infinite_parameter(m, b[2:3] in [0, 1], base_name = "a")
         @test_throws ErrorException parameter_by_name(m, "a[2]")
@@ -1015,23 +1015,23 @@ end
     end
     # test all_parameters (Default)
     @testset "all_parameters (Default)" begin
-        @test all_parameters(m) == [pref; prefs1; [prefs2...]; fpref]
+        @test isequal(all_parameters(m), [pref; prefs1; [prefs2...]; fpref])
     end
     # test all_parameters (Specific Scalar)
     @testset "all_parameters (Specific Scalar)" begin
-        @test all_parameters(m, IndependentParameter) == [pref]
-        @test all_parameters(m, FiniteParameter) == [fpref]
+        @test isequal(all_parameters(m, IndependentParameter), [pref])
+        @test isequal(all_parameters(m, FiniteParameter), [fpref])
     end
     # test all_parameters (ScalarParameter)
     @testset "all_parameters (ScalarParameter)" begin
-        @test all_parameters(m, ScalarParameter) == [pref, fpref]
+        @test isequal(all_parameters(m, ScalarParameter), [pref, fpref])
     end
     # test all_parameters (DependentParameters)
     @testset "all_parameters (DependentParameters)" begin
-        @test all_parameters(m, DependentParameters) == [prefs1; [prefs2...]]
+        @test isequal(all_parameters(m, DependentParameters), [prefs1; [prefs2...]])
     end
     # test all_parameters (InfiniteParameter)
     @testset "all_parameters (InfiniteParameter)" begin
-        @test all_parameters(m, InfiniteParameter) == [prefs1; [prefs2...]; pref]
+        @test isequal(all_parameters(m, InfiniteParameter), [prefs1; [prefs2...]; pref])
     end
 end

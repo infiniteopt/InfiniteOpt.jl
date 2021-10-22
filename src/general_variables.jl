@@ -6,43 +6,38 @@ for VarType in (:GeneralVariableRef, :DispatchVariableRef)
     @eval begin 
         Base.copy(v::$VarType) = v
         Base.broadcastable(v::$VarType) = Ref(v)
-        Base.length(v::$VarType)::Int = 1
-        JuMP.isequal_canonical(v::$VarType, w::$VarType)::Bool = v == w
+        Base.length(v::$VarType) = 1
+        JuMP.isequal_canonical(v::$VarType, w::$VarType) = isequal(v, w)
     end
 end
 
-# Extend Base.:(==) for GeneralVariableRef
-function Base.:(==)(v::T, w::T)::Bool where {T <: GeneralVariableRef}
+# Extend Base.isequal for GeneralVariableRef (== is for nlp expressions)
+function Base.isequal(v::T, w::T) where {T <: GeneralVariableRef}
     return v.model === w.model && v.raw_index == w.raw_index &&
         v.index_type == w.index_type && v.param_index == w.param_index
 end
 
-# Extend Base.:(==) for DispatchVariableRef
-function Base.:(==)(v::T, w::U)::Bool where {T <: DispatchVariableRef,
-                                             U <: DispatchVariableRef}
+# Extend Base.isequal for DispatchVariableRef
+function Base.isequal(v::T, w::U) where {T <: DispatchVariableRef,
+                                         U <: DispatchVariableRef}
     return v.model === w.model && v.index == w.index
 end
 
 # Extract the root name of a variable reference (removes the bracketed container indices)
-function _remove_name_index(vref::GeneralVariableRef)::String
+function _remove_name_index(vref::GeneralVariableRef)
     name = JuMP.name(vref)
     first_bracket = findfirst(isequal('['), name)
     if first_bracket === nothing
         return name
     else
-        # Hacky fix to handle invalid Unicode
-        try
-            return name[1:first_bracket-1]
-        catch
-            return name[1:first_bracket-2]
-        end
+        return name[1:prevind(name, first_bracket, 1)] # can handle unicode 
     end
 end
 
 # Define basic attribute getters
-_index_type(vref::GeneralVariableRef)::DataType = vref.index_type
-_raw_index(vref::GeneralVariableRef)::Int = vref.raw_index
-_param_index(vref::GeneralVariableRef)::Int = vref.param_index
+_index_type(vref::GeneralVariableRef) = vref.index_type
+_raw_index(vref::GeneralVariableRef) = vref.raw_index
+_param_index(vref::GeneralVariableRef) = vref.param_index
 
 ################################################################################
 #                          BASIC REFERENCE ACCESSERS

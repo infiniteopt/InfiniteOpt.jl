@@ -228,10 +228,10 @@ function _make_difference_expr(
     )::JuMP.AbstractJuMPScalar
     curr_value = ordered_supps[index]
     next_value = ordered_supps[index+1]
-    return JuMP.@expression(_Model, (next_value - curr_value) * 
-                                    make_reduced_expr(dref, pref, curr_value, write_model) -
-                                    make_reduced_expr(vref, pref, next_value, write_model) +
-                                    make_reduced_expr(vref, pref, curr_value, write_model))
+    return _MA.@rewrite((next_value - curr_value) * 
+                        make_reduced_expr(dref, pref, curr_value, write_model) -
+                        make_reduced_expr(vref, pref, next_value, write_model) +
+                        make_reduced_expr(vref, pref, curr_value, write_model))
 end
 
 # Central
@@ -247,10 +247,10 @@ function _make_difference_expr(
     prev_value = ordered_supps[index-1]
     next_value = ordered_supps[index+1]
     curr_value = ordered_supps[index]
-    return JuMP.@expression(_Model, (next_value - prev_value) *  
-                                    make_reduced_expr(dref, pref, curr_value, write_model) - 
-                                    make_reduced_expr(vref, pref, next_value, write_model) +
-                                    make_reduced_expr(vref, pref, prev_value, write_model))
+    return _MA.@rewrite((next_value - prev_value) *  
+                        make_reduced_expr(dref, pref, curr_value, write_model) - 
+                        make_reduced_expr(vref, pref, next_value, write_model) +
+                        make_reduced_expr(vref, pref, prev_value, write_model))
 end
 
 # Backward
@@ -265,10 +265,10 @@ function _make_difference_expr(
     )::JuMP.AbstractJuMPScalar
     prev_value = ordered_supps[index-1]
     curr_value = ordered_supps[index]
-    return JuMP.@expression(_Model, (curr_value - prev_value) *  
-                                    make_reduced_expr(dref, pref, curr_value, write_model) - 
-                                    make_reduced_expr(vref, pref, curr_value, write_model) +
-                                    make_reduced_expr(vref, pref, prev_value, write_model))
+    return _MA.@rewrite((curr_value - prev_value) *  
+                        make_reduced_expr(dref, pref, curr_value, write_model) - 
+                        make_reduced_expr(vref, pref, curr_value, write_model) +
+                        make_reduced_expr(vref, pref, prev_value, write_model))
 end
 
 # Fallback
@@ -343,10 +343,10 @@ function evaluate_derivative(
         end
         Minvt = M1t \ M2t
         for j in eachindex(i_nodes)
-            exprs[counter] = JuMP.@expression(_Model, sum(Minvt[k, j] *  make_reduced_expr(dref, pref, i_nodes[k] + lb, write_model) 
-                                                          for k in eachindex(i_nodes)) - 
-                                                      make_reduced_expr(vref, pref, i_nodes[j] + lb, write_model) + 
-                                                      make_reduced_expr(vref, pref, lb, write_model))
+            exprs[counter] = _MA.@rewrite(sum(Minvt[k, j] *  make_reduced_expr(dref, pref, i_nodes[k] + lb, write_model) 
+                                                    for k in eachindex(i_nodes)) - 
+                                          make_reduced_expr(vref, pref, i_nodes[j] + lb, write_model) + 
+                                          make_reduced_expr(vref, pref, lb, write_model))
             counter += 1
         end
     end

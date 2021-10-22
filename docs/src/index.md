@@ -63,19 +63,19 @@ Accepted infinite/finite problem forms currently include:
 - Objectives
     - Linear
     - Quadratic (convex and non-convex)
-    - Higher-order powers (via place holder variables)
+    - General nonlinear
 - Constraints
     - Linear
     - Quadratic (convex and non-convex)
-    - Higher-order powers (via place holder variables)
+    - General nonlinear
     - Conic
     - Semi-definite
     - Indicator
 
 !!! note 
-    Nonlinear objects as defined by `JuMP.@NL[macro_name]` are not currently 
-    supported by `InfiniteOpt`. See [Nonlinear Expressions](@ref) for more 
-    information and possible workarounds. 
+    Nonlinear modeling is now supported in `InfiniteOpt`! See 
+    [Nonlinear Expressions](@ref nlp_guide) for more information on how on to 
+    use the syntax. 
 
 ### Infinite-Dimensional Optimization with InfiniteOpt.jl
 See our YouTube overview of infinite-dimensional programming and InfiniteOpt.jl's 

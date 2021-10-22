@@ -220,9 +220,9 @@ macro expect(expr, prefs, args...)
         _error("Unexpected positional arguments." *
                "Must be of form @expect(expr, prefs, kwargs...).")
     end
-    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
-    mref = :( expect($expression, $prefs; ($(kwargs...))) )
-    return esc(mref)
+    expression = MutableArithmetics.rewrite_and_return(expr)
+    esc_kwargs = map(i -> esc(i), kwargs)
+    return :( expect($expression, $(esc(prefs)); ($(esc_kwargs...))) )
 end
 
 """
@@ -259,7 +259,7 @@ macro 𝔼(expr, prefs, args...)
         _error("Unexpected positional arguments." *
                "Must be of form @𝔼(expr, prefs, kwargs...).")
     end
-    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
-    mref = :( expect($expression, $prefs; ($(kwargs...))) )
-    return esc(mref)
+    expression = MutableArithmetics.rewrite_and_return(expr)
+    esc_kwargs = map(i -> esc(i), kwargs)
+    return :( expect($expression, $(esc(prefs)); ($(esc_kwargs...))) )
 end

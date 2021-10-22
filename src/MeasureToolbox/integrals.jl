@@ -1055,9 +1055,10 @@ macro integral(expr, prefs, args...)
         _error("Incorrect number of positional arguments for @integral. " *
                "Must provide both bounds or no bounds.")
     end
-    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
-    mref = :( integral($expression, $prefs, $(extra...); ($(kwargs...))) )
-    return esc(mref)
+    expression = MutableArithmetics.rewrite_and_return(expr)
+    esc_kwargs = map(i -> esc(i), kwargs)
+    esc_extra = map(i -> esc(i), extra)
+    return :( integral($expression, $(esc(prefs)), $(esc_extra...); ($(esc_kwargs...))) )
 end
 
 """
@@ -1077,7 +1078,8 @@ macro ∫(expr, prefs, args...)
         _error("Incorrect number of positional arguments for @integral. " *
                "Must provide both bounds or no bounds.")
     end
-    expression = :( JuMP.@expression(InfiniteOpt._Model, $expr) )
-    mref = :( integral($expression, $prefs, $(extra...); ($(kwargs...))) )
-    return esc(mref)
+    expression = MutableArithmetics.rewrite_and_return(expr)
+    esc_kwargs = map(i -> esc(i), kwargs)
+    esc_extra = map(i -> esc(i), extra)
+    return :( integral($expression, $(esc(prefs)), $(esc_extra...); ($(esc_kwargs...))) )
 end

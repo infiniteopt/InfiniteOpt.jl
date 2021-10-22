@@ -95,9 +95,14 @@ function VectorTuple(items...)
     return VectorTuple(items)
 end
 
+# Extend Base.isequal
+function Base.isequal(vt1::VectorTuple, vt2::VectorTuple)::Bool
+    return all(isequal(getproperty(vt1, f), getproperty(vt2, f)) for f in fieldnames(VectorTuple))
+end
+
 # Extend Base.:(==)
 function Base.:(==)(vt1::VectorTuple, vt2::VectorTuple)::Bool
-    return all(getproperty(vt1, f) == getproperty(vt2, f) for f in fieldnames(VectorTuple))
+    return isequal(vt1, vt2)
 end
 
 # Extend Base.size

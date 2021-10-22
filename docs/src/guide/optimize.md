@@ -156,7 +156,7 @@ We can also query the expressions via
 [`optimizer_model_expression`](@ref optimizer_model_expression(::JuMP.AbstractJuMPScalar)):
 ```jldoctest optimize
 julia> optimizer_model_expression(z - y^2 + 3) # infinite expression
-10-element Vector{AbstractJuMPScalar}:
+10-element Vector{Any}:
  -y(support: 1)² + z + 3
  -y(support: 2)² + z + 3
  -y(support: 3)² + z + 3

@@ -1138,7 +1138,7 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
         _set_core_variable_object(mref, new_meas)
     end
     # remove from constraints if used
-    for cindex in _constraint_dependencies(vref)
+    for cindex in copy(_constraint_dependencies(vref)) # copy in case a constraint is deleted
         cref = _make_constraint_ref(model, cindex)
         func = JuMP.jump_function(JuMP.constraint_object(cref))
         if func isa GeneralVariableRef
@@ -1147,7 +1147,7 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
             new_constr = JuMP.ScalarConstraint(new_func, set)
             _set_core_constraint_object(cref, new_constr)
             empty!(_object_numbers(cref))
-        elseif func isa AbstractArray{GeneralVariableRef}
+        elseif func isa AbstractArray && any(isequal(gvref), func)
             JuMP.delete(model, cref)
         else
             _remove_variable(func, gvref)

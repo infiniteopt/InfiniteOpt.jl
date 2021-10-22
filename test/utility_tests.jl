@@ -28,7 +28,7 @@
     # Number -> AffExpr
     @testset "Number->AffExpr" begin
         expr = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + 42
-        @test convert(JuMP.AbstractJuMPScalar, 42) == expr
+        @test isequal(convert(JuMP.AbstractJuMPScalar, 42), expr)
     end
 end
 

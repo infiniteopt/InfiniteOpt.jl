@@ -15,11 +15,6 @@ expression. Note this means that objectives can only explicitly contain
 finite variables and point variables. Infinite expressions must be evaluated in a 
 measure to be included (e.g., evaluate the expectation of a random variable).
 
-!!! note 
-    Nonlinear objectives as defined by `JuMP.@NLobjective` are not currently 
-    supported by `InfiniteOpt`. See [Nonlinear Expressions](@ref) for more 
-    information and possible workarounds. 
-
 ## [Basic Usage] (@id obj_basic)
 Principally, the objective function is specified via 
 [`@objective`](https://jump.dev/JuMP.jl/v0.21.10/reference/objectives/#JuMP.@objective) 
@@ -50,6 +45,11 @@ For example, if we define had an infinite variable `z(ξ, t)` then the measure
 `𝔼(z, ξ)` could not be included since the resulting expression would still 
 be infinite with respect to `t`. However, adding a measure for `t` would result 
 in a valid object to add to an objective: `∫(𝔼(z, ξ), t)`.
+
+!!! note 
+    Nonlinear objectives are defined simply by using `@objective` and not 
+    using `JuMP.@NLobjective`. See [Nonlinear Expressions](@ref nlp_guide) for 
+    more information. 
 
 Now we can add objectives to our infinite models. For more detailed information, 
 please review the information below.  
