@@ -592,10 +592,6 @@ end
         # test same name error
         @test_macro_throws ErrorException @variable(m, y, Deriv(y, t))
     end
-    # test the deprecations 
-    @testset "@derivative_variable" begin 
-        @test_macro_throws ErrorException @derivative_variable(m, d(y)/d(t))
-    end
 end
 
 # test usage methods

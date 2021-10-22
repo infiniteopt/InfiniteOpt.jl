@@ -90,24 +90,20 @@ end
     @test IntervalDomain <: InfiniteScalarDomain
     @test IntervalDomain(0, 1) == IntervalDomain(0.0, 1.0)
     @test_throws ErrorException IntervalDomain(1, 0)
-    @test_deprecated IntervalSet(0, 1)
     # UniDistributionDomain
     @test UniDistributionDomain <: InfiniteScalarDomain
     @test UniDistributionDomain(Normal()) isa UniDistributionDomain{<:Normal}
-    @test_deprecated UniDistributionSet(Normal())
     # NonUnivariateDistribution
     @test InfiniteOpt.NonUnivariateDistribution <: Distribution
     # MultiDistributionDomain
     dist = Dirichlet([0.5, 0.5])
     @test MultiDistributionDomain <: InfiniteArrayDomain
     @test MultiDistributionDomain(dist) isa MultiDistributionDomain{<:Dirichlet}
-    @test_deprecated MultiDistributionSet(dist)
     @test MultiDistributionDomain(dist) == MultiDistributionDomain(dist)
     @test MultiDistributionDomain(dist) != MultiDistributionDomain(MvNormal([1, 1], [1 0; 0 1]))
     # CollectionDomain
     @test CollectionDomain <: InfiniteArrayDomain
     @test CollectionDomain([IntervalDomain(0, 1), IntervalDomain(2, 3)]) isa CollectionDomain{IntervalDomain}
-    @test_deprecated CollectionSet([IntervalDomain(0, 1), IntervalDomain(2, 3)])
 end
 
 # Test Generative Support Info 
@@ -303,7 +299,6 @@ end
         d = (pars => IntervalDomain(0, 1), par3 => IntervalDomain(0, 1))
         @test DomainRestrictions(d).intervals isa Dict{GeneralVariableRef, IntervalDomain}
         @test DomainRestrictions(par3 => 0).intervals isa Dict
-        @test_deprecated ParameterBounds(par3 => 0)
     end
     dr = DomainRestrictions(par3 => [0, 1])
     # test intervals
@@ -379,7 +374,6 @@ end
     vt = IC.VectorTuple(pref)
     # test ParameterFunction
     @test ParameterFunction(sin, vt, [1], [1]) isa ParameterFunction
-    @test_deprecated InfiniteParameterFunction(sin, vt, [1], [1])
     # test ParameterFunctionData
     @test ParameterFunctionData(ParameterFunction(sin, vt, [1], [1])) isa ParameterFunctionData
 end

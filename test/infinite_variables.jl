@@ -545,8 +545,6 @@ end
     end
     # test errors
     @testset "Errors" begin
-        # test deprecation 
-        @test_macro_throws ErrorException @infinite_variable(m, z(t))
         # test invalid keyword arguments
         @test_macro_throws ErrorException @variable(m, i, Infinite(t),
                                                     parameter_values = 1)
