@@ -143,7 +143,6 @@ citing it.
       title = {A unifying modeling abstraction for infinite-dimensional optimization},
       journal = {Computers & Chemical Engineering},
       volume = {156},
-      pages = {107567},
       year = {2022},
       issn = {0098-1354},
       doi = {https://doi.org/10.1016/j.compchemeng.2021.107567},
