@@ -5,7 +5,7 @@ respective [technical manual](@ref infinite_model_manual) for more details.
 ## Overview
 Infinite models are expressed via the [`InfiniteModel`](@ref) datatype which is at the
 core of `InfiniteOpt`. These model objects are designed to emulate the behavior
-of [`Model`](https://jump.dev/JuMP.jl/v0.21.10/reference/models/#JuMP.Model) 
+of [`Model`](https://jump.dev/JuMP.jl/v0.22/reference/models/#JuMP.Model) 
 objects in `JuMP`. These data objects store the parameters, variables,
 measures, objective, constraints, and all other data used in `InfiniteOpt`. This
 differs from `JuMP` models which store such information in a `MathOptInterface`
@@ -59,7 +59,7 @@ supported for use in `InfiniteOpt`. For completeness, the table of currently
 supported optimizers is provided below in [Supported Optimizers](@ref).
 
 We can also specify optimizer attributes via
-[`optimizer_with_attributes`](https://jump.dev/JuMP.jl/v0.21.10/reference/models/#JuMP.optimizer_with_attributes)
+[`optimizer_with_attributes`](https://jump.dev/JuMP.jl/v0.22/reference/models/#JuMP.optimizer_with_attributes)
 which allows us to append as many attributes as we like, for example:
 ```jldoctest
 julia> using InfiniteOpt, Ipopt
@@ -98,13 +98,13 @@ All the arguments used with the `InfiniteModel` constructor (e.g., the optimizer
 are simply passed on and stored in the optimizer model backend. Thus, any
 argument supported by `JuMP.Model` can be passed on to the optimizer
 model by including it in the `InfiniteModel` constructor. For example, we can
-specify the `caching_mode` keyword argument in the `InfiniteModel` call to use
+specify the `add_bridges` keyword argument in the `InfiniteModel` call to use
 in the definition of the optimizer model:
 ```jldoctest
 julia> using InfiniteOpt, Ipopt
 
 julia> model = InfiniteModel(Ipopt.Optimizer,
-                             caching_mode = MOIU.MANUAL)
+                             add_bridges = false)
 An InfiniteOpt Model
 Feasibility problem with:
 Finite Parameters: 0
@@ -113,11 +113,10 @@ Variables: 0
 Derivatives: 0
 Measures: 0
 Optimizer model backend information:
-Model mode: MANUAL
+Model mode: AUTOMATIC
 CachingOptimizer state: EMPTY_OPTIMIZER
 Solver name: Ipopt
 ```
-Notice that the model mode of the optimizer model is now `MANUAL`.
 
 Moreover, alternative optimizer model types (i.e., not a `TranscriptionModel`) can be 
 specified via the `OptimizerModel` keyword argument when initializing the 
@@ -144,7 +143,7 @@ Extensions page.
 ## Supported Optimizers
 `InfiniteOpt` can use any optimizer that is supported by `JuMP v0.19.0` or newer 
 (i.e., has a `MathOptInterface` implementation). Please refer to `JuMP`'s current
-[solver documentation](https://jump.dev/JuMP.jl/v0.21.10/installation/#Supported-solvers) 
+[solver documentation](https://jump.dev/JuMP.jl/v0.22/installation/#Supported-solvers) 
 to learn what solvers are supported and how to install them.
 
 ## Object Dictionaries
@@ -170,5 +169,5 @@ y(t)
 Note that when macro defined objects are deleted from an `InfiniteModel` that the 
 corresponding symbols in the object dictionary are not removed by default. This 
 can be accomplished by use of 
-[`JuMP.unregister`](https://jump.dev/JuMP.jl/v0.21.10/reference/models/#JuMP.unregister) 
+[`JuMP.unregister`](https://jump.dev/JuMP.jl/v0.22/reference/models/#JuMP.unregister) 
 (please click on its link for usage information).

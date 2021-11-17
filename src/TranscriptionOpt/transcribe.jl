@@ -551,7 +551,7 @@ function transcribe_measures!(
         end
         # prepare to transcribe over the supports
         supp_indices = support_index_iterator(trans_model, meas.object_nums)
-        exprs = Vector{Any}(undef, length(supp_indices))
+        exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(supp_indices))
         labels = Vector{Set{DataType}}(undef, length(supp_indices))
         lookup_dict = Dict{Vector{Float64}, Int}()
         # map a variable for each support

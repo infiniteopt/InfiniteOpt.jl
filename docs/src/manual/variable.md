@@ -5,7 +5,7 @@ A technical manual for variables in `InfiniteOpt`. See the respective
 
 ## Definition
 Note that the principle way for defining variables is by using 
-[`JuMP.@variable`](https://jump.dev/JuMP.jl/v0.21.10/reference/variables/#JuMP.@variable) 
+[`JuMP.@variable`](https://jump.dev/JuMP.jl/v0.22/reference/variables/#JuMP.@variable) 
 which originates from `JuMP.jl`.
 
 ### Infinite
@@ -45,7 +45,7 @@ PointVariableRef
 
 ### Finite 
 Note that finite variables simply correspond to using 
-[`JuMP.ScalarVariable`](https://jump.dev/JuMP.jl/v0.21.10/reference/extensions/#JuMP.ScalarVariable) 
+[`JuMP.ScalarVariable`](https://jump.dev/JuMP.jl/v0.22/reference/extensions/#JuMP.ScalarVariable) 
 which originates from `JuMP.jl` as well. In other words, these are defined via 
 `JuMP.@variable` without specifying any [`InfOptVariableType`](@ref).
 ```@docs

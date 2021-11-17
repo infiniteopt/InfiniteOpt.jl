@@ -405,7 +405,7 @@ function _reduce_by_first(
     )
     result = first_itr
     for i in itr 
-        result = _MA.operate!(_MA.add_mul, result, i)
+        result = _MA.operate!!(_MA.add_mul, result, i)
     end
     return result
 end
@@ -437,7 +437,7 @@ function Base.sum(
     isempty(arr) && return init
     result = _MA.Zero()
     for i in arr 
-        result = _MA.operate!(_MA.add_mul, result, i)
+        result = _MA.operate!!(_MA.add_mul, result, i)
     end
     return result
 end
@@ -795,33 +795,33 @@ function _MA.scaling(nlp::NLPExpr)
     return _MA.scaling(c)
 end
 
-# Extend MA.mutable_Copy to avoid unnecessary copying
+# Extend MA.mutable_copy to avoid unnecessary copying
 function _MA.mutable_copy(nlp::NLPExpr) 
     return nlp # we don't need to copy since we build from the leaves up
 end
 
-# Extend MA.mutable_operate! as required 
-function _MA.mutable_operate!(
+# Extend MA.operate! as required 
+function _MA.operate!(
     op::Union{typeof(zero), typeof(one)}, 
     ::NLPExpr
     ) 
     return op(NLPExpr) # not actually mutable for safety and efficiency
 end
-function _MA.mutable_operate!(
+function _MA.operate!(
     op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(^)}, 
     nlp::NLPExpr,
     v
     ) 
     return op(nlp, v)
 end
-function _MA.mutable_operate!(
+function _MA.operate!(
     op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(^)}, 
     v,
     nlp::NLPExpr
     ) 
     return op(v, nlp)
 end
-function _MA.mutable_operate!(
+function _MA.operate!(
     op::typeof(+), 
     v::Union{JuMP.GenericAffExpr{Float64, GeneralVariableRef}, 
              JuMP.GenericQuadExpr{Float64, GeneralVariableRef}},
@@ -829,7 +829,7 @@ function _MA.mutable_operate!(
     ) 
     return op(v, nlp)
 end
-function _MA.mutable_operate!(
+function _MA.operate!(
     op::typeof(-), 
     v::Union{JuMP.GenericAffExpr{Float64, GeneralVariableRef}, 
              JuMP.GenericQuadExpr{Float64, GeneralVariableRef}},
@@ -837,14 +837,14 @@ function _MA.mutable_operate!(
     ) 
     return op(v, nlp)
 end
-function _MA.mutable_operate!(
+function _MA.operate!(
     op::Union{typeof(+), typeof(-), typeof(*), typeof(/), typeof(^)}, 
     nlp1::NLPExpr,
     nlp2::NLPExpr
     ) 
     return op(nlp1, nlp2)
 end
-function _MA.mutable_operate!(op::_MA.AddSubMul, nlp::NLPExpr, args...) 
+function _MA.operate!(op::_MA.AddSubMul, nlp::NLPExpr, args...) 
     return _MA.add_sub_op(op)(nlp, *(args...))
 end
 

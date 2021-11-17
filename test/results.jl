@@ -22,7 +22,7 @@
     MOI.set(mockoptimizer, MOI.DualStatus(2), MOI.FEASIBLE_POINT)
     MOI.set(mockoptimizer, MOI.SimplexIterations(), 4)
     MOI.set(mockoptimizer, MOI.BarrierIterations(), 7)
-    MOI.set(mockoptimizer, MOI.RelativeGap(), 9)
+    MOI.set(mockoptimizer, MOI.RelativeGap(), 9.0)
     MOI.set(mockoptimizer, MOI.NodeCount(), 2)
     MOI.set(mockoptimizer, MOI.SolveTime(), 0.42)
     # test termination_status
@@ -400,6 +400,9 @@ end
     MOI.set(mockoptimizer, MOI.VariablePrimal(), JuMP.optimizer_index(gt), 0.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(), JuMP.optimizer_index(inft[1]), 0.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(), JuMP.optimizer_index(inft[2]), 0.0)
+    MOI.set(mockoptimizer, MOI.VariableBasisStatus(), JuMP.optimizer_index(gt), MOI.NONBASIC)
+    MOI.set(mockoptimizer, MOI.VariableBasisStatus(), JuMP.optimizer_index(inft[1]), MOI.NONBASIC)
+    MOI.set(mockoptimizer, MOI.VariableBasisStatus(), JuMP.optimizer_index(inft[2]), MOI.NONBASIC)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c1t), -2.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c2t[1]), 0.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c2t[2]), 0.0)

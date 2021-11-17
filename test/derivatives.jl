@@ -685,8 +685,7 @@ end
         # test used by derivative
         func = (x) -> NaN
         num = 0.
-        info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
-                                         num, true, num, false, func, true, true)
+        info = VariableInfo(true, num, true, num, true, num, false, func, true, true)
         d2 = @deriv(d, t)
         dref = DerivativeRef(m, index(d2))
         push!(InfiniteOpt._derivative_dependencies(vref), index(d2))

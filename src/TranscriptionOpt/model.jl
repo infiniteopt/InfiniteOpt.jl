@@ -62,7 +62,7 @@ mutable struct TranscriptionData
 
     # Measure information
     measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}
-    measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{Any}}
+    measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}
     measure_supports::Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}
     measure_support_labels::Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}
 
@@ -94,7 +94,7 @@ mutable struct TranscriptionData
                    Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}(),
                    # measure info
                    Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
-                   Dict{InfiniteOpt.GeneralVariableRef, Vector{Any}}(),
+                   Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}(),
                    Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}(),
                    Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}(),
                    # constraint info
@@ -645,7 +645,7 @@ function transcription_expression(
     # get the object numbers of the expression and form the support iterator
     obj_nums = InfiniteOpt._object_numbers(expr)
     support_indices = support_index_iterator(model, obj_nums)
-    exprs = Vector{Any}(undef, length(support_indices))
+    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(support_indices))
     check_labels = length(exprs) > 1 && !_ignore_label(model, label)
     label_inds = ones(Bool, length(exprs))
     # iterate over the indices and compute the values
