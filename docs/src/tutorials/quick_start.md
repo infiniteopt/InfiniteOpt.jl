@@ -10,7 +10,7 @@ Guide on our subsequent pages for more complete information. The Basic Usage sec
 on the each guide page are good places to start from. Also, the syntax of `InfiniteOpt` 
 is inspired by `JuMP` thus we recommend new users that haven't used `JuMP`, first 
 consult their tutorials starting 
-[here](https://jump.dev/JuMP.jl/v0.22/tutorials/Getting%20started/getting_started_with_JuMP/).
+[here](https://jump.dev/JuMP.jl/v0.22/tutorials/getting_started/getting_started_with_JuMP/).
 
 ## Preliminaries 
 ### Software Setup

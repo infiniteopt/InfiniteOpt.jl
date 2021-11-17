@@ -23,7 +23,7 @@ through step by step how this should be done.
      browsing what open issues are (especially ones with the tag `good first issue`). 
      Note that if your proposed contribution corresponds to an existing issue please 
      do not make a new issue. A guide to using issues in GitHub is located 
-     [here](https://guides.github.com/features/issues/).
+     [here](https://docs.github.com/issues/tracking-your-work-with-issues/about-issues).
   3. Fork the `InfiniteOpt` repository to your GitHub account. Only core 
      developers have permissions to modify `InfiniteOpt` directly, thus others need 
      to fork it which essentially amounts to creating their own linked copy. This is 
@@ -67,7 +67,7 @@ through step by step how this should be done.
   8. Create a pull request. Go [here](https://github.com/pulsipher/InfiniteOpt.jl) 
      to `InfiniteOpt`'s main page and create a pull request drawing from your forked 
      repository. A step by step explanation is provided 
-     [here](https://docs.github.com/en/github/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
+     [here](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
   9. Make necessary changes if the tests fail and/or we ask you to make specific 
      changes. The Codecov tests will ensure every new line of code is tested at least 
      once with the new test functions and the GitHub Actions CI will ensure that 
