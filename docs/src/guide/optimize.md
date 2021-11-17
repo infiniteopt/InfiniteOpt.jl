@@ -156,7 +156,7 @@ We can also query the expressions via
 [`optimizer_model_expression`](@ref optimizer_model_expression(::JuMP.AbstractJuMPScalar)):
 ```jldoctest optimize
 julia> optimizer_model_expression(z - y^2 + 3) # infinite expression
-10-element Vector{Any}:
+10-element Vector{AbstractJuMPScalar}:
  -y(support: 1)² + z + 3
  -y(support: 2)² + z + 3
  -y(support: 3)² + z + 3
@@ -198,10 +198,8 @@ optimizer verbose output. This is accomplished via
 exemplified below:
 ```jldoctest optimize
 julia> set_silent(model)
-true
 
 julia> unset_silent(model)
-false
 ```
 
 We can also adjust the time limit in a solver independent fashion via 
@@ -209,7 +207,6 @@ We can also adjust the time limit in a solver independent fashion via
 [`time_limit_sec`](@ref). These methods are illustrated below:
 ```jldoctest optimize
 julia> set_time_limit_sec(model, 100)
-100
 
 julia> time_limit_sec(model)
 100.0
@@ -222,7 +219,6 @@ Other optimizer specific settings can be set via
 for Ipopt:
 ```jldoctest optimize
 julia> set_optimizer_attribute(model, "max_cpu_time", 60.)
-60.0
 ```
 Multiple settings  can be specified via [`set_optimizer_attributes`](@ref). For 
 example, let's specify the tolerance and the maximum number of iterations:

@@ -505,7 +505,7 @@ julia> supports(meas)
 ()
 
 julia> transcription_expression(y^2 + z - 42)
-3-element Vector{Any}:
+3-element Vector{AbstractJuMPScalar}:
  y(support: 1)² + z - 42
  y(support: 2)² + z - 42
  y(support: 3)² + z - 42

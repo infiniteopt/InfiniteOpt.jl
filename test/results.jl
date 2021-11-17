@@ -15,16 +15,16 @@
     mockoptimizer = JuMP.backend(tm).optimizer.model
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
     MOI.set(mockoptimizer, MOI.RawStatusString(), "solver specific string")
-    MOI.set(mockoptimizer, MOI.ResultCount(), 2)
+    MOI.set(mockoptimizer, MOI.ResultCount(), Int64(2))
     MOI.set(mockoptimizer, MOI.PrimalStatus(1), MOI.FEASIBLE_POINT)
     MOI.set(mockoptimizer, MOI.DualStatus(1), MOI.FEASIBLE_POINT)
     MOI.set(mockoptimizer, MOI.PrimalStatus(2), MOI.FEASIBLE_POINT)
     MOI.set(mockoptimizer, MOI.DualStatus(2), MOI.FEASIBLE_POINT)
-    MOI.set(mockoptimizer, MOI.SimplexIterations(), 4)
-    MOI.set(mockoptimizer, MOI.BarrierIterations(), 7)
+    MOI.set(mockoptimizer, MOI.SimplexIterations(), Int64(4))
+    MOI.set(mockoptimizer, MOI.BarrierIterations(), Int64(7))
     MOI.set(mockoptimizer, MOI.RelativeGap(), 9.0)
-    MOI.set(mockoptimizer, MOI.NodeCount(), 2)
-    MOI.set(mockoptimizer, MOI.SolveTime(), 0.42)
+    MOI.set(mockoptimizer, MOI.NodeCount(), Int64(2))
+    MOI.set(mockoptimizer, MOI.SolveTimeSec(), 0.42)
     # test termination_status
     @testset "JuMP.termination_status" begin
         @test termination_status(m) == MOI.OPTIMAL
