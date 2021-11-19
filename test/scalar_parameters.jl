@@ -693,8 +693,7 @@ end
     dpref = dispatch_variable_ref(pref)
     func = (x) -> NaN
     num = 0.
-    info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
-                                        num, true, num, false, func, false, false)
+    info = VariableInfo(true, num, true, num, true, num, false, func, false, false)
     d = Derivative(info, true, pref, pref) # this is wrong but that is ok
     object = VariableData(d)
     idx = InfiniteOpt._add_data_object(m, object)
@@ -894,8 +893,7 @@ end
         # prepare to test derivative constraints 
         func = (x) -> NaN
         num = 0.
-        info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
-                                            num, true, num, false, func, false, false)
+        info = VariableInfo(true, num, true, num, true, num, false, func, false, false)
         deriv = Derivative(info, true, pref, pref)
         object = VariableData(deriv)
         idx = InfiniteOpt._add_data_object(m, object)

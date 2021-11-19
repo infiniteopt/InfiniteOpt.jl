@@ -5,7 +5,7 @@
                                              eval_objective_value=false)
     m = InfiniteModel(mockoptimizer)
     set_silent(m)
-    set_time_limit_sec(m, 42)
+    set_time_limit_sec(m, 42.)
     # test normal
     tm = Model()
     @test InfiniteOpt.add_infinite_model_optimizer(tm, m) isa Nothing
@@ -36,7 +36,7 @@ end
     # set_optimizer_model
     @testset "set_optimizer_model" begin
         # test with inheritance
-        set_time_limit_sec(optimizer_model(m), 42)
+        set_time_limit_sec(optimizer_model(m), 42.)
         @test isa(set_optimizer_model(m, Model()), Nothing)
         @test length(optimizer_model(m).ext) == 0
         @test time_limit_sec(optimizer_model(m)) == 42
@@ -65,7 +65,7 @@ end
     @testset "clear_optimizer_model_build! (Model)" begin
         # setup
         m = TranscriptionModel(mockoptimizer)
-        set_time_limit_sec(m, 42)
+        set_time_limit_sec(m, 42.)
         @variable(m, t)
         # test
         @test clear_optimizer_model_build!(m) isa Model
@@ -79,7 +79,7 @@ end
     @testset "clear_optimizer_model_build! (InfiniteModel)" begin
         # setup
         m = InfiniteModel(mockoptimizer)
-        set_time_limit_sec(optimizer_model(m), 42)
+        set_time_limit_sec(optimizer_model(m), 42.)
         @variable(optimizer_model(m), t)
         # test
         @test clear_optimizer_model_build!(m) isa Model
@@ -115,15 +115,16 @@ end
     end
     # set_silent
     @testset "JuMP.set_silent" begin
-        @test set_silent(m)
+        @test set_silent(m) isa Nothing
     end
     # unset_silent
     @testset "JuMP.unset_silent" begin
-        @test !unset_silent(m)
+        @test unset_silent(m) isa Nothing
     end
     # set_time_limit_sec
     @testset "JuMP.set_time_limit_sec" begin
-        @test set_time_limit_sec(m, 100) == 100
+        @test set_time_limit_sec(m, 100.) isa Nothing
+        @test time_limit_sec(m) == 100
     end
     # unset_time_limit_sec
     @testset "JuMP.unset_time_limit_sec" begin
@@ -131,21 +132,21 @@ end
     end
     # time_limit_sec
     @testset "JuMP.time_limit_sec" begin
-        @test time_limit_sec(m) == nothing
+        @test time_limit_sec(m) === nothing
     end
     # set_optimizer_attribute
     @testset "JuMP.set_optimizer_attribute (String)" begin
-        @test set_optimizer_attribute(m, "mine", 42) == 42
+        @test set_optimizer_attribute(m, "mine", 42.) isa Nothing
     end
     # set_optimizer_attribute
     @testset "JuMP.set_optimizer_attribute (MOI)" begin
-        @test set_optimizer_attribute(m, MOI.Silent(), true)
+        @test set_optimizer_attribute(m, MOI.Silent(), true) isa Nothing
     end
     # set_optimizer_attributes
     @testset "JuMP.set_optimizer_attributes" begin
         @test isa(set_optimizer_attributes(m, MOI.Silent() => false, "mine" => 1), Nothing)
         @test !MOI.get(optimizer_model(m), MOI.Silent())
-        @test MOI.get(optimizer_model(m), MOI.RawParameter("mine")) == 1
+        @test MOI.get(optimizer_model(m), MOI.RawOptimizerAttribute("mine")) == 1
     end
     # get_optimizer_attribute
     @testset "JuMP.get_optimizer_attribute (String)" begin

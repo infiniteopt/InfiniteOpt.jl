@@ -312,7 +312,7 @@ And data, a 2-element Vector{GeneralVariableRef}:
 ```
 
 See 
-[`JuMP`'s documentation on containers](https://jump.dev/JuMP.jl/v0.21.10/manual/containers/) 
+[`JuMP`'s documentation on containers](https://jump.dev/JuMP.jl/v0.22/manual/containers/) 
 for more information.
 
 ## Supports

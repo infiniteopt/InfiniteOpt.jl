@@ -17,7 +17,7 @@ measure to be included (e.g., evaluate the expectation of a random variable).
 
 ## [Basic Usage] (@id obj_basic)
 Principally, the objective function is specified via 
-[`@objective`](https://jump.dev/JuMP.jl/v0.21.10/reference/objectives/#JuMP.@objective) 
+[`@objective`](https://jump.dev/JuMP.jl/v0.22/reference/objectives/#JuMP.@objective) 
 as is done in `JuMP`. For example, let's define the stochastic objective to 
 minimize ``0.5 x_1 + 0.5 x_2 + \mathbb{E}_\xi [y^2 - y]``:
 ```jldoctest obj; setup = :(using InfiniteOpt, Distributions; model = InfiniteModel())
@@ -138,6 +138,6 @@ more efficient at parsing expressions.
 
 !!! note
     When possible, the 
-    [`@objective`](https://jump.dev/JuMP.jl/v0.21.10/reference/objectives/#JuMP.@objective) 
+    [`@objective`](https://jump.dev/JuMP.jl/v0.22/reference/objectives/#JuMP.@objective) 
     since it is more stable and efficient than the `set_objective_[aspect]` 
     methods due to its enhanced methodology for parsing expressions.

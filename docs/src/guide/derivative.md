@@ -169,7 +169,7 @@ process.
 
 ### Macro Definition 
 There are two macros we provide for defining derivatives: 
-[`@variable`](https://jump.dev/JuMP.jl/v0.21.10/reference/variables/#JuMP.@variable) 
+[`@variable`](https://jump.dev/JuMP.jl/v0.22/reference/variables/#JuMP.@variable) 
 that uses the [`Deriv`](@ref) variable type and [`@deriv`](@ref). 
 
 !!! warning

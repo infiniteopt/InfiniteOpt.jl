@@ -244,8 +244,8 @@ end
                                              eval_objective_value=false)
     @test set_optimizer_model_ready(m, false) isa Nothing
     @test set_optimizer(m, mockoptimizer) isa Nothing
-    @test set_silent(m)
-    @test set_time_limit_sec(m, 42) == 42
+    @test set_silent(m) isa Nothing
+    @test set_time_limit_sec(m, 42.) isa Nothing
     @test optimize!(m) isa Nothing
     @test get_optimizer_attribute(m, MOI.Silent())
 

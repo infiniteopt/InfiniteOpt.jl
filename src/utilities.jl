@@ -47,18 +47,17 @@ end
 
 ## Convert JuMP variable info to only use Float64
 # Change needed
-function _make_float_info(info::JuMP.VariableInfo
-    )::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
-    return JuMP.VariableInfo{Float64, Float64, Float64, Float64}(
-        info.has_lb, info.lower_bound, info.has_ub, info.upper_bound,
-        info.has_fix, info.fixed_value, info.has_start, info.start,
-        info.binary, info.integer)
+function _make_float_info(info::JuMP.VariableInfo)
+    return JuMP.VariableInfo(info.has_lb, Float64(info.lower_bound), info.has_ub, 
+                             Float64(info.upper_bound), info.has_fix, 
+                             Float64(info.fixed_value), info.has_start, 
+                             Float64(info.start), info.binary, info.integer)
 end
 
 # No change needed
 function _make_float_info(
     info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
-    )::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
+    )
     return info
 end
 

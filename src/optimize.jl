@@ -95,13 +95,11 @@ function add_infinite_model_optimizer(opt_model::JuMP.Model,
     if !isa(inf_model.optimizer_constructor, Nothing)
         bridge_constrs = JuMP.bridge_constraints(inf_model)
         JuMP.set_optimizer(opt_model, inf_model.optimizer_constructor,
-                           bridge_constraints = bridge_constrs)
+                           add_bridges =  bridge_constrs)
     end
-    # parse the attributes
-    for attr in MOI.get(JuMP.backend(inf_model).model_cache,
-                        MOI.ListOfOptimizerAttributesSet())
-        value = MOI.get(JuMP.backend(inf_model), attr)
-        MOI.set(opt_model, attr, value)
+    # parse the attributes (this is a hacky workaround)
+    for (attr, val) in JuMP.backend(inf_model).model_cache.optattr
+        MOI.set(opt_model, attr, val)
     end
     return
 end
@@ -131,8 +129,11 @@ CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
 ```
 """
-function set_optimizer_model(inf_model::InfiniteModel, opt_model::JuMP.Model;
-                             inherit_optimizer::Bool = true)
+function set_optimizer_model(
+    inf_model::InfiniteModel, 
+    opt_model::JuMP.Model;
+    inherit_optimizer::Bool = true
+    )
     if inherit_optimizer
         add_infinite_model_optimizer(opt_model, inf_model)
     end
@@ -184,7 +185,7 @@ end
 """
     JuMP.set_optimizer(model::InfiniteModel,
                        [optimizer_constructor;
-                       bridge_constraints::Bool = true])
+                       add_bridges::Bool = true])
 
 Extend `JuMP.set_optimizer` to set optimizer of infinite models.
 Specifically, the optimizer of the optimizer model is modified.
@@ -202,11 +203,13 @@ CachingOptimizer state: EMPTY_OPTIMIZER
 Solver name: SolverName() attribute not implemented by the optimizer.
 ```
 """
-function JuMP.set_optimizer(model::InfiniteModel,
-                            optimizer_constructor;
-                            bridge_constraints::Bool = true)
+function JuMP.set_optimizer(
+    model::InfiniteModel,
+    optimizer_constructor;
+    add_bridges::Bool = true
+    )
     JuMP.set_optimizer(optimizer_model(model), optimizer_constructor,
-                       bridge_constraints = bridge_constraints)
+                       add_bridges = add_bridges)
     _set_optimizer_constructor(model, optimizer_constructor)
     return
 end
@@ -320,9 +323,11 @@ julia> set_optimizer_attribute(model, MOI.Silent(), true)
 true
 ```
 """
-function JuMP.set_optimizer_attribute(model::InfiniteModel,
-                                      attr::MOI.AbstractOptimizerAttribute,
-                                      value)
+function JuMP.set_optimizer_attribute(
+    model::InfiniteModel,
+    attr::MOI.AbstractOptimizerAttribute,
+    value
+    )
     return MOI.set(optimizer_model(model), attr, value)
 end
 
@@ -382,8 +387,10 @@ julia> get_optimizer_attribute(model, MOI.Silent())
 true
 ````
 """
-function JuMP.get_optimizer_attribute(model::InfiniteModel,
-                                      attr::MOI.AbstractOptimizerAttribute)
+function JuMP.get_optimizer_attribute(
+    model::InfiniteModel,
+    attr::MOI.AbstractOptimizerAttribute
+    )
     return MOI.get(optimizer_model(model), attr)
 end
 
@@ -902,8 +909,7 @@ end
 JuMP.solve(model::InfiniteModel) = JuMP.solve(optimizer_model(model))
 
 """
-    JuMP.optimize!(model::InfiniteModel;
-                   bridge_constraints::Bool=true, kwargs...])
+    JuMP.optimize!(model::InfiniteModel; [kwargs...])
 
 Extend `JuMP.optimize!` to optimize infinite models using the internal
 optimizer model. Will call [`build_optimizer_model!`](@ref) if the optimizer
@@ -918,9 +924,7 @@ julia> has_values(model)
 true
 ```
 """
-function JuMP.optimize!(model::InfiniteModel;
-                        bridge_constraints::Bool = true,
-                        kwargs...)
+function JuMP.optimize!(model::InfiniteModel; kwargs...)
     if !optimizer_model_ready(model)
         build_optimizer_model!(model; kwargs...)
     end

@@ -785,23 +785,23 @@ end
     @testset "MA.mutable_copy" begin
         @test MA.mutable_copy(nlp) === nlp
     end
-    # test mutable_operate!
-    @testset "MA.mutable_operate!" begin 
+    # test operate!
+    @testset "MA.operate!" begin 
         # test zero and one 
-        @test MA.mutable_operate!(zero, nlp) !== nlp
-        @test isequal(MA.mutable_operate!(zero, nlp), zero(NLPExpr))
-        @test MA.mutable_operate!(one, nlp) !== nlp
-        @test isequal(MA.mutable_operate!(one, nlp), one(NLPExpr))
+        @test MA.operate!(zero, nlp) !== nlp
+        @test isequal(MA.operate!(zero, nlp), zero(NLPExpr))
+        @test MA.operate!(one, nlp) !== nlp
+        @test isequal(MA.operate!(one, nlp), one(NLPExpr))
         # test operators 
         for i in (2.0, 2, y, aff, quad, nlp)
             for f in (+, -, *, /, ^)
-                @test isequal(MA.mutable_operate!(f, nlp, i), f(nlp, i))
-                @test isequal(MA.mutable_operate!(f, i, nlp), f(i, nlp))
+                @test isequal(MA.operate!(f, nlp, i), f(nlp, i))
+                @test isequal(MA.operate!(f, i, nlp), f(i, nlp))
             end
         end
         # test AddSubMul
-        @test isequal(MA.mutable_operate!(MA.add_mul, nlp, y, 2), nlp + y * 2)
-        @test isequal(MA.mutable_operate!(MA.sub_mul, nlp, y, 2), nlp - y * 2)
+        @test isequal(MA.operate!(MA.add_mul, nlp, y, 2), nlp + y * 2)
+        @test isequal(MA.operate!(MA.sub_mul, nlp, y, 2), nlp - y * 2)
     end
 end
 

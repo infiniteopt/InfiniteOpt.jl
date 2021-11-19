@@ -34,7 +34,7 @@ end
     @constraint(m, sin(w) + integral(x^3, par) == 0)
     @objective(m, Min, x0 + meas1)
     set_silent(m)
-    set_time_limit_sec(m, 42)
+    set_time_limit_sec(m, 42.)
     # test normal usage
     @test isa(build_optimizer_model!(m, Val(:TransData)), Nothing)
     @test optimizer_model_ready(m)

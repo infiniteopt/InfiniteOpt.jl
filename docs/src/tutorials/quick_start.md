@@ -10,7 +10,7 @@ Guide on our subsequent pages for more complete information. The Basic Usage sec
 on the each guide page are good places to start from. Also, the syntax of `InfiniteOpt` 
 is inspired by `JuMP` thus we recommend new users that haven't used `JuMP`, first 
 consult their tutorials starting 
-[here](https://jump.dev/JuMP.jl/v0.21.10/tutorials/Getting%20started/getting_started_with_JuMP/).
+[here](https://jump.dev/JuMP.jl/v0.22/tutorials/getting_started/getting_started_with_JuMP/).
 
 ## Preliminaries 
 ### Software Setup
@@ -113,7 +113,7 @@ derivative methods on our [Derivative Operators](@ref deriv_docs) page.
 Now that we have an `InfiniteModel` and infinite parameters let's define our 
 decision variables. First, infinite variables (ones that depend on infinite 
 parameters) are defined via 
-[`@variable`](https://jump.dev/JuMP.jl/v0.21.10/reference/variables/#JuMP.@variable) 
+[`@variable`](https://jump.dev/JuMP.jl/v0.22/reference/variables/#JuMP.@variable) 
 with the addition of the [`Infinite`](@ref) variable type argument to specify the 
 infinite parameters it depends on:
  ```jldoctest quick
@@ -162,7 +162,7 @@ That does it for this example, but other problems might also employ the followin
 ### Objective & Constraints 
 Now that the variables and parameters are ready to go, let's define our problem. 
 First, we can define the objective using 
-[`@objective`](https://jump.dev/JuMP.jl/v0.21.10/reference/objectives/#JuMP.@objective):
+[`@objective`](https://jump.dev/JuMP.jl/v0.22/reference/objectives/#JuMP.@objective):
  ```jldoctest quick
 julia> @objective(model, Min, integral(sum(u[i]^2 for i in I), t))
 ∫{t ∈ [0, 60]}[u[1](t)² + u[2](t)²]
@@ -171,7 +171,7 @@ Notice that we also employ [`integral`](@ref) to define the integral. Note that
 objectives must evaluate over all included infinite domains. 
 
 Now let's define the initial conditions using 
-[`@constraint`](https://jump.dev/JuMP.jl/v0.21.10/reference/constraints/#JuMP.@constraint) 
+[`@constraint`](https://jump.dev/JuMP.jl/v0.22/reference/constraints/#JuMP.@constraint) 
 in combination with [Restricted Variables](@ref) which will restrict the domain 
 of the variables to only be enforced at the initial time:
  ```jldoctest quick
@@ -194,7 +194,7 @@ derivatives in our model. For more information please see
 [Derivative Operators](@ref deriv_docs).
 
 Next, we can add our model constraints that have derivatives using 
-[`@constraint`](https://jump.dev/JuMP.jl/v0.21.10/reference/constraints/#JuMP.@constraint) 
+[`@constraint`](https://jump.dev/JuMP.jl/v0.22/reference/constraints/#JuMP.@constraint) 
 and [`deriv`](@ref):
  ```jldoctest quick
 julia> @constraint(model, c1[i in I], deriv(x[i], t) == v[i])
