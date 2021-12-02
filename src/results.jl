@@ -241,7 +241,7 @@ function JuMP.value(
     # get the model
     model = _model_from_expr(expr)
     # if no model then the expression only contains a constant
-    if model === nothing
+    if isnothing(model)
         expr isa NLPExpr && error("Cannot evaluate the value of `$expr`,",
                                   "because it doesn't have variables.")
         return JuMP.constant(expr)

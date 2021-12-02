@@ -1,14 +1,14 @@
 # Documentation Builds
-InfiniteOpt.jl's documentation is written with [Documenter.jl](https://github.com/JuliaDocs/Documenter.jl). 
+`InfiniteOpt.jl`'s documentation is written with [Documenter.jl](https://github.com/JuliaDocs/Documenter.jl). 
 To install it, run the following command in a Julia session:
 
 ```julia
 julia> ] 
 
-(v1.6) pkg> add Documenter
+(v1.7) pkg> add Documenter
 ```
 
-You'll also need to make sure you have JuMP.jl, Distributions.jl, and Ipopt.jl 
+You'll also need to make sure you have `JuMP.jl`, `Distributions.jl`, and `Ipopt.jl`
 installed for use in the guide's examples.
 
 Once you have these packages installed you can build the documentation via:

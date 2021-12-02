@@ -374,7 +374,7 @@ macro infinite_parameter(model, args...)
                "the \"anonymous\" syntax ",
                "`$name = @infinite_parameter(model, kwargs...)`` instead.")
     end
-    if base_name === nothing
+    if isnothing(base_name)
         base_name = is_anon ? "" : string(name)
     end
 
@@ -531,7 +531,7 @@ macro finite_parameter(model, args...)
 
     # process the name
     name = _get_name(param)
-    if base_name === nothing
+    if isnothing(base_name)
         base_name = is_anon ? "" : string(name)
     end
     if !isa(name, Symbol) && !is_anon
@@ -743,11 +743,11 @@ macro parameter_function(model, args...)
         _error("Index $(model) is the same symbol as the model. Use a ",
                "different name for the index.")
     end
-    if base_name === nothing && is_anon && !is_anon_func
+    if isnothing(base_name) && is_anon && !is_anon_func
         name_code = :( string(nameof($func)) )
-    elseif base_name === nothing && is_anon
+    elseif isnothing(base_name) && is_anon
         name_code = _name_call("", idxvars)
-    elseif base_name === nothing
+    elseif isnothing(base_name)
         name_code = _name_call(string(name), idxvars)
     else
         name_code = _name_call(base_name, idxvars)

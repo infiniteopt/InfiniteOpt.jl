@@ -52,9 +52,11 @@ end
 # Extend _data_object
 function _data_object(pref::ScalarParameterRef)::AbstractDataObject
     object = get(_data_dictionary(pref), JuMP.index(pref), nothing)
-    object === nothing && error("Invalid scalar parameter reference, cannot find " *
-                           "corresponding parameter in the model. This is likely " *
-                           "caused by using the reference of a deleted parameter.")
+    if isnothing(object)
+        error("Invalid scalar parameter reference, cannot find ",
+              "corresponding parameter in the model. This is likely ",
+              "caused by using the reference of a deleted parameter.")
+    end
     return object
 end
 
@@ -475,7 +477,7 @@ julia> name(t)
 """
 function JuMP.name(pref::ScalarParameterRef)::String
     object = get(_data_dictionary(pref), JuMP.index(pref), nothing)
-    return object === nothing ? "" : object.name
+    return isnothing(object) ? "" : object.name
 end
 
 """
@@ -573,14 +575,14 @@ t
 """
 function parameter_by_name(model::InfiniteModel,
                            name::String)::Union{GeneralVariableRef, Nothing}
-    if _param_name_dict(model) === nothing
+    if isnothing(_param_name_dict(model))
         model.name_to_param = Dict{String, AbstractInfOptIndex}()
         _update_param_name_dict(model, model.independent_params)
         _update_param_name_dict(model, model.dependent_params)
         _update_param_name_dict(model, model.finite_params)
     end
     index = get(_param_name_dict(model), name, nothing)
-    if index isa Nothing
+    if isnothing(index)
         return nothing
     elseif index == IndependentParameterIndex(-1)
         error("Multiple parameters have the name $name.")
