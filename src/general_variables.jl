@@ -27,7 +27,7 @@ end
 function _remove_name_index(vref::GeneralVariableRef)
     name = JuMP.name(vref)
     first_bracket = findfirst(isequal('['), name)
-    if first_bracket === nothing
+    if isnothing(first_bracket)
         return name
     else
         return name[1:prevind(name, first_bracket, 1)] # can handle unicode 

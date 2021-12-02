@@ -26,11 +26,13 @@ end
 
 # Extend _data_object
 function _data_object(fref::ParameterFunctionRef)
-  object = get(_data_dictionary(fref), JuMP.index(fref), nothing)
-  object === nothing && error("Invalid parameter function reference, cannot find " *
-                              "corresponding object in the model. This is likely " *
-                              "caused by using the reference of a deleted function.")
-  return object
+    object = get(_data_dictionary(fref), JuMP.index(fref), nothing)
+    if isnothing(object) 
+        error("Invalid parameter function reference, cannot find ",
+              "corresponding object in the model. This is likely ",
+              "caused by using the reference of a deleted function.")
+    end
+    return object
 end
 
 # Extend _core_variable_object
@@ -171,7 +173,7 @@ julia> name(fref)
 """
 function JuMP.name(fref::ParameterFunctionRef)::String 
     object = get(_data_dictionary(fref), JuMP.index(fref), nothing)
-    return object === nothing ? "" : object.name
+    return isnothing(object) ? "" : object.name
 end
 
 """
@@ -668,7 +670,7 @@ end
 # QuadExpr
 function _model_from_expr(expr::JuMP.GenericQuadExpr)
     result = _model_from_expr(expr.aff)
-    if result !== nothing
+    if !isnothing(result)
         return result
     elseif isempty(expr.terms)
         return
@@ -681,7 +683,7 @@ end
 function _model_from_expr(expr::NLPExpr)
     for node in AbstractTrees.Leaves(expr.tree_root)
         result = _model_from_expr(_node_value(node.data))
-        if result !== nothing
+        if !isnothing(result)
             return result 
         end
     end
@@ -925,7 +927,7 @@ function parameter_refs(
     expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr}
     )::Tuple
     model = _model_from_expr(expr)
-    if model === nothing
+    if isnothing(model)
         return ()
     else
         obj_nums = sort!(_object_numbers(expr))

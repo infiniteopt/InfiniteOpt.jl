@@ -40,7 +40,7 @@ function make_point_variable_ref(
         support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
     end
     pindex = get(write_model.point_lookup, (ivref, support), nothing)
-    if pindex === nothing
+    if isnothing(pindex)
         base_info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false,
                                       NaN, false, false)
         info = _update_point_info(base_info, dispatch_variable_ref(ivref), support)
@@ -135,7 +135,7 @@ function make_semi_infinite_variable_ref(
     )::GeneralVariableRef
     eval_supps = Dict(indices[i] => values[i] for i in eachindex(indices))
     existing_index = get(write_model.semi_lookup, (ivref, eval_supps), nothing)
-    if existing_index === nothing
+    if isnothing(existing_index)
         var = JuMP.build_variable(error, ivref, eval_supps, check = false)
         return JuMP.add_variable(write_model, var, add_support = false)
     else 
@@ -285,7 +285,7 @@ function expand_measure(ivref::GeneralVariableRef,
         # get indices of each pref to map properly
         indices = [findfirst(isequal(pref), var_prefs) for pref in prefs]
         # check that if any of the indices are empty and truncate as needed
-        empty = map(i -> i === nothing, indices)
+        empty = map(isnothing, indices)
         if any(empty)
             indices = convert(Vector{Int}, deleteat!(indices, empty))
             supps = supps[.!empty, :]
@@ -395,7 +395,7 @@ function expand_measure(rvref::GeneralVariableRef,
         # get the indices of prefs in terms of the ivref
         new_indices = [findfirst(isequal(pref), orig_prefs) for pref in prefs]
         # check that if any of the indices are empty or already reduced and truncate as needed
-        bad_index = map(i -> i === nothing || i in keys(eval_supps), new_indices)
+        bad_index = map(i -> isnothing(i) || i in keys(eval_supps), new_indices)
         if any(bad_index)
             deleteat!(new_indices, bad_index)
             supps = supps[.!bad_index, :]
@@ -477,7 +477,7 @@ function expand_measure(pref::GeneralVariableRef,
     # find the position of pref if it is in the data
     index = findfirst(isequal(pref), prefs)
     # treat the parameter as a constant
-    if index === nothing
+    if isnothing(index)
         par_coef = sum(coeffs[i] * w(supps[:, i]) for i in eachindex(coeffs))
         return JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, pref => par_coef)
     # replace the parameter with its value

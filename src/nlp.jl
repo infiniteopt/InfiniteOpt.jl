@@ -1172,7 +1172,7 @@ end
 function _check_function_args(model::InfiniteModel, f_name, args...)
     for a in args 
         m = _model_from_expr(a)
-        if m !== nothing && m !== model
+        if !isnothing(m) && m !== model
             error("`$f_name` is a registered function in a different model than " *
                   "`$a` belongs to. Try registering `$f_name` to the current " * 
                   "model.")

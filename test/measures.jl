@@ -67,6 +67,7 @@
         @test is_valid(m, mref)
         @test InfiniteOpt._delete_data_object(mref) isa Nothing
         @test !is_valid(m, mref)
+        @test_throws ErrorException InfiniteOpt._data_object(mref)
     end
 end
 

@@ -177,7 +177,7 @@ function in_domain_string(print_mode, domain::DistributionDomain)::String
     dist = domain.distribution
     name = string(typeof(dist))
     bracket_index = findfirst(isequal('{'), name)
-    if bracket_index !== nothing
+    if !isnothing(bracket_index)
         name = name[1:bracket_index-1]
     end
     if !isempty(size(dist))

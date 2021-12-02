@@ -67,7 +67,7 @@ end
 # Extend _data_object
 function _data_object(cref::InfOptConstraintRef)::ConstraintData
     object = get(_data_dictionary(cref), JuMP.index(cref), nothing)
-    if object === nothing 
+    if isnothing(object)
         error("Invalid constraint reference, cannot find corresponding ", 
               "constraint in the model. This is likely caused by using the ",
               "reference of a deleted constraint.")
@@ -393,7 +393,7 @@ julia> name(cref)
 """
 function JuMP.name(cref::InfOptConstraintRef)::String
     object = get(_data_dictionary(cref), JuMP.index(cref), nothing)
-    return object === nothing ? "" : object.name
+    return isnothing(object) ? "" : object.name
 end
 
 """
@@ -575,7 +575,7 @@ function JuMP.constraint_by_name(
     model::InfiniteModel,
     name::String
     )::Union{InfOptConstraintRef, Nothing}
-    if model.name_to_constr === nothing
+    if isnothing(model.name_to_constr)
         # Inspired from MOI/src/Utilities/model.jl
         model.name_to_constr = Dict{String, Int}()
         for (index, data_object) in model.constraints
@@ -588,7 +588,7 @@ function JuMP.constraint_by_name(
         end
     end
     index = get(model.name_to_constr, name, nothing)
-    if index === nothing
+    if isnothing(index)
         return nothing
     elseif index == InfOptConstraintIndex(-1)
         error("Multiple constraints have the name $name.")

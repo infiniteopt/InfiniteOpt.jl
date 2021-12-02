@@ -36,11 +36,13 @@ end
 function _data_object(
     vref::SemiInfiniteVariableRef
     )::VariableData{SemiInfiniteVariable{GeneralVariableRef}}
-  object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
-  object === nothing && error("Invalid point variable reference, cannot find " *
-                        "corresponding variable in the model. This is likely " *
-                        "caused by using the reference of a deleted variable.")
-  return object
+    object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
+    if isnothing(object) 
+        error("Invalid point variable reference, cannot find ",
+              "corresponding variable in the model. This is likely ",
+              "caused by using the reference of a deleted variable.")
+    end
+    return object
 end
 
 """
@@ -322,7 +324,7 @@ function JuMP.add_variable(
     eval_supps = var.eval_supports
     JuMP.check_belongs_to_model(divref, model)
     existing_index = get(model.semi_lookup, (ivref, eval_supps), nothing)
-    if existing_index === nothing
+    if isnothing(existing_index)
         data_object = VariableData(var, name)
         vindex = _add_data_object(model, data_object)
         push!(_semi_infinite_variable_dependencies(divref), vindex)

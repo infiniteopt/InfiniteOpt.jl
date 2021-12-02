@@ -79,7 +79,7 @@ capabilities from JuliaCon 2021:
 `InfiniteOpt.jl` is a registered `Julia` package and can be added simply by 
 inputting the following in the package manager:
 ```julia
-(v1.6) pkg> add InfiniteOpt
+(v1.7) pkg> add InfiniteOpt
 ```
 Please visit our [Installation Guide](@ref) for more details and information
 on how to get started.

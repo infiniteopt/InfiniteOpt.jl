@@ -163,7 +163,7 @@ julia> name(vref)
 """
 function JuMP.name(vref::DecisionVariableRef)::String
     object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
-    return object === nothing ? "" : object.name
+    return isnothing(object) ? "" : object.name
 end
 
 """
@@ -239,7 +239,7 @@ function JuMP.variable_by_name(
     model::InfiniteModel,
     name::String
     )::Union{GeneralVariableRef, Nothing}
-    if _var_name_dict(model) === nothing
+    if isnothing(_var_name_dict(model))
         model.name_to_var = Dict{String, ObjectIndex}()
         _update_var_name_dict(model, model.infinite_vars)
         _update_var_name_dict(model, model.semi_infinite_vars)
@@ -247,7 +247,7 @@ function JuMP.variable_by_name(
         _update_var_name_dict(model, model.finite_vars)
     end
     index = get(_var_name_dict(model), name, nothing)
-    if index isa Nothing
+    if isnothing(index)
         return nothing
     elseif index == FiniteVariableIndex(-1)
         error("Multiple variables have the name $name.")

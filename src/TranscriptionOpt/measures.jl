@@ -18,13 +18,13 @@ function InfiniteOpt.add_point_variable(
     # check if an internal variable was already created
     data = transcription_data(model)
     internal_vref = get(data.point_lookup, (ivref, support), nothing)
-    if internal_vref !== nothing 
+    if !isnothing(internal_vref)
         return internal_vref
     end
     # check if whether the infinite model already has one, else create one
     inf_model = JuMP.owner_model(ivref)
     inf_model_index = get(inf_model.point_lookup, (ivref, support), nothing)
-    if inf_model_index !== nothing
+    if !isnothing(inf_model_index)
         return InfiniteOpt._make_variable_ref(inf_model, inf_model_index)
     else
         # make negative index to not conflict with the InfiniteModel
@@ -61,13 +61,13 @@ function InfiniteOpt.add_semi_infinite_variable(
     eval_supps = var.eval_supports
     data = transcription_data(model)
     internal_vref = get(data.semi_lookup, (ivref, eval_supps), nothing)
-    if internal_vref !== nothing 
+    if !isnothing(internal_vref)
         return internal_vref
     end
     # check if whether the infinite model already has one, else create one
     inf_model = JuMP.owner_model(ivref)
     inf_model_index = get(inf_model.semi_lookup, (ivref, eval_supps), nothing)
-    if inf_model_index !== nothing
+    if !isnothing(inf_model_index)
         return InfiniteOpt._make_variable_ref(inf_model, inf_model_index)
     else
         # make negative index to not conflict with the InfiniteModel

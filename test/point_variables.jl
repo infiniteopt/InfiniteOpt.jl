@@ -152,6 +152,7 @@
         @test InfiniteOpt._delete_data_object(vref) isa Nothing
         @test length(InfiniteOpt._data_dictionary(vref)) == 1
         @test !is_valid(m, vref)
+        @test_throws ErrorException InfiniteOpt._data_object(vref)
     end
 end
 

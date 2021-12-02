@@ -30,9 +30,11 @@ end
 # Extend _data_object
 function _data_object(dref::DerivativeRef)
     object = get(_data_dictionary(dref), JuMP.index(dref), nothing)
-    object === nothing && error("Invalid derivative reference, cannot find " *
-    "corresponding derivative in the model. This is likely " *
-    "caused by using the reference of a deleted derivative.")
+    if isnothing(object) 
+        error("Invalid derivative reference, cannot find ",
+              "corresponding derivative in the model. This is likely ",
+              "caused by using the reference of a deleted derivative.")
+    end
     return object
 end
 
@@ -314,7 +316,7 @@ function add_derivative(
     JuMP.check_belongs_to_model(pref, model)
     # check if we already have a derivative 
     existing_index = _existing_derivative_index(d.variable_ref, d.parameter_ref)
-    if existing_index === nothing
+    if isnothing(existing_index)
         # add it to the model and make the reference
         data_object = VariableData(d, name)
         dindex = _add_data_object(model, data_object)
@@ -358,7 +360,7 @@ function _build_deriv_expr(
     elseif _parameter_number(pref) in _parameter_numbers(vref)
         dindex = _existing_derivative_index(vref, pref)
         model = JuMP.owner_model(vref)
-        if dindex === nothing
+        if isnothing(dindex)
             info = VariableInfo(false, NaN, false, NaN, false, NaN, false, 
                                 s -> NaN, false, false)
             d = Derivative(info, true, vref, pref)

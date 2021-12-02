@@ -34,11 +34,13 @@ end
 
 # Extend _data_object
 function _data_object(mref::MeasureRef)
-  object = get(_data_dictionary(mref), JuMP.index(mref), nothing)
-  object === nothing && error("Invalid measure reference, cannot find " *
-                        "corresponding measure in the model. This is likely " *
-                        "caused by using the reference of a deleted measure.")
-  return object
+    object = get(_data_dictionary(mref), JuMP.index(mref), nothing)
+    if isnothing(object) 
+        error("Invalid measure reference, cannot find ",
+              "corresponding measure in the model. This is likely ",
+              "caused by using the reference of a deleted measure.")
+    end
+    return object
 end
 
 # Extend _core_variable_object
@@ -638,7 +640,7 @@ function supports(
     if isnan(first(lb)) && isnan(first(ub))
         return supps
     else
-        inds = [all(lb .<= @view(supps[:, i]) .<= ub) for i in 1:size(supps, 2)]
+        inds = [all(lb .<= s .<= ub) for s in eachcol(supps)]
         return supps[:, inds]
     end
 end
@@ -1181,7 +1183,7 @@ function measure(
     name::String = "measure"
     )::GeneralVariableRef
     model = _model_from_expr(expr)
-    if model === nothing
+    if isnothing(model)
         error("Expression contains no variables or parameters.")
     end
     meas = build_measure(expr, data)
@@ -1224,7 +1226,7 @@ reference.
 """
 function JuMP.name(mref::MeasureRef)::String
     object = get(_data_dictionary(mref), JuMP.index(mref), nothing)
-    return object === nothing ? "" : object.name
+    return isnothing(object) ? "" : object.name
 end
 
 """
