@@ -27,7 +27,7 @@ julia> ]
 !!! tip
     We recommend you create a Pkg _environment_ for each project you use `InfiniteOpt`
     for, instead of adding lots of packages to the global environment. The
-    [Pkg manager documentation](https://pkgdocs.julialang.org/v1/environments/)
+    [Pkg manager documentation](https://pkgdocs.julialang.org/v1.6/environments/)
     has more information on this topic.
 
 Use the `add` command in the package to manager to add the following packages:
