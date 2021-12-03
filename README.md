@@ -10,6 +10,7 @@ to no background in these areas. It also it contains a wealth of capabilities
 making it a powerful and convenient tool for advanced users.  
 
 :tada: **`v0.5` introduces general nonlinear modeling!**: See the documentation for details.
+:mega: **`v0.5.1` now requires Julia 1.6 or newer**
 
 | **Documentation**                                                               | **Build Status**                                                                                | **Citation** |
 |:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|:--------------------------------------:|
@@ -76,7 +77,7 @@ citing it.
       author = {Joshua L. Pulsipher and Weiqi Zhang and Tyler J. Hongisto and Victor M. Zavala},
 }
 ```
-A pre-print version is freely available though [ArXiv](https://arxiv.org/abs/2106.12689).
+A pre-print version is freely available though [arXiv](https://arxiv.org/abs/2106.12689).
 
 ## Project Status
 The package is tested against Julia `1.6` and `1.7` on Linux, Mac, and Windows.
