@@ -10,6 +10,7 @@ to no background in these areas. It also it contains a wealth of capabilities
 making it a powerful and convenient tool for advanced users.  
 
 :tada: **`v0.5` introduces general nonlinear modeling!**: See the documentation for details.
+
 :mega: **`v0.5.1` now requires Julia 1.6 or newer**
 
 | **Documentation**                                                               | **Build Status**                                                                                | **Citation** |
