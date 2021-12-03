@@ -8,7 +8,7 @@ for op in (:termination_status, :raw_status, :solve_time, :simplex_iterations,
         @doc """
             JuMP.$($op)(model::InfiniteModel)
 
-        Extend [`JuMP.$($op)`](https://jump.dev/JuMP.jl/v0.21.9/reference/solutions/#JuMP.$($op)) 
+        Extend [`JuMP.$($op)`](https://jump.dev/JuMP.jl/v0.22/reference/solutions/#JuMP.$($op)) 
         for `InfiniteModel`s in accordance with that reported by its optimizer 
         model. Errors if such a query is not supported or if the optimizer model 
         hasn't be solved.
@@ -26,7 +26,7 @@ for op in (:primal_status, :dual_status, :has_values, :has_duals,
         @doc """
             JuMP.$($op)(model::InfiniteModel; [result::Int = 1])
 
-        Extend [`JuMP.$($op)`](https://jump.dev/JuMP.jl/v0.21.9/reference/solutions/#JuMP.$($op)) 
+        Extend [`JuMP.$($op)`](https://jump.dev/JuMP.jl/v0.22/reference/solutions/#JuMP.$($op)) 
         for `InfiniteModel`s in accordance with that reported by its optimizer 
         model and the result index `result` of the most recent solution obtained. 
         Errors if such a query is not supported or if the optimizer model hasn't 
@@ -241,7 +241,7 @@ function JuMP.value(
     # get the model
     model = _model_from_expr(expr)
     # if no model then the expression only contains a constant
-    if model === nothing
+    if isnothing(model)
         expr isa NLPExpr && error("Cannot evaluate the value of `$expr`,",
                                   "because it doesn't have variables.")
         return JuMP.constant(expr)

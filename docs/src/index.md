@@ -43,7 +43,7 @@ include:
 - Diverse derivative approximations (e.g., finite difference, orthogonal 
   collocation)
 - Sophisticated support point management system
-- Compatible with all [JuMP-supported solvers](https://jump.dev/JuMP.jl/v0.21.10/installation/#Supported-solvers)
+- Compatible with all [JuMP-supported solvers](https://jump.dev/JuMP.jl/v0.22/installation/#Supported-solvers)
 
 Accepted infinite/finite problem forms currently include:
 - Variables
@@ -79,7 +79,7 @@ capabilities from JuliaCon 2021:
 `InfiniteOpt.jl` is a registered `Julia` package and can be added simply by 
 inputting the following in the package manager:
 ```julia
-(v1.6) pkg> add InfiniteOpt
+(v1.7) pkg> add InfiniteOpt
 ```
 Please visit our [Installation Guide](@ref) for more details and information
 on how to get started.
@@ -87,7 +87,7 @@ on how to get started.
 ## First Steps 
 `InfiniteOpt` is extension of `JuMP`, thus new users should start by 
 familiarizing themselves with how to use `JuMP` first. See 
-[`JuMP`'s documentation](https://jump.dev/JuMP.jl/v0.21.10/) to learn more.
+[`JuMP`'s documentation](https://jump.dev/JuMP.jl/v0.22/) to learn more.
 
 Once you're familiar with `JuMP` check out our [Quick Start Guide](@ref) to get 
 started. From there we provide extensive documentation to help you along, please 
@@ -143,7 +143,6 @@ citing it.
       title = {A unifying modeling abstraction for infinite-dimensional optimization},
       journal = {Computers & Chemical Engineering},
       volume = {156},
-      pages = {107567},
       year = {2022},
       issn = {0098-1354},
       doi = {https://doi.org/10.1016/j.compchemeng.2021.107567},

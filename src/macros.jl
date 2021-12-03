@@ -135,137 +135,6 @@ function _finalize_macro(_error, model, code, source::LineNumberNode)
 end
 
 ################################################################################
-#                              CONTAINER HELPERS
-################################################################################
-# All the content in this section is inspired/taken from https://github.com/jump-dev/JuMP.jl/blob/9f02be85776644229a0f6898806e810e40fcc1f9/src/Containers/macro.jl#L39-L182
-
-# Grab the index set of a particular container expression arg
-function _parse_idxset(arg::Expr)
-    if isexpr(arg, :kw) || isexpr(arg, :(=))
-        # we have an index variable and a set of form var = set
-        return arg.args[1], esc(arg.args[2])
-    elseif isexpr(arg, :call) && (arg.args[1] === :in || arg.args[1] === :∈)
-        # we have an index variable and a set of form var in set
-        return arg.args[2], esc(arg.args[3])
-    else
-        # no index variable is given --> we only have a set
-        return gensym(), esc(arg)
-    end
-end
-_parse_idxset(arg) = gensym(), esc(arg)
-
-# When needed use `OneTo`
-function _explicit_oneto(idxset)
-    s = isexpr(idxset, :escape) ? idxset.args[1] : idxset
-    if isexpr(s, :call) &&
-       length(s.args) == 3 &&
-       s.args[1] === :(:) &&
-       s.args[2] == 1
-        return :(Base.OneTo($idxset))
-    else
-        return idxset
-    end
-end
-
-# Check if an expression contains any splats
-function _expr_is_splat(ex::Expr)::Bool
-    if isexpr(ex, :(...))
-        return true
-    elseif isexpr(ex, :escape)
-        return _expr_is_splat(ex.args[1])
-    end
-    return false
-end
-_expr_is_splat(::Any)::Bool = false
-
-"""
-    _parse_ref_sets(expr::Expr)
-
-Helper function for macros to construct container objects. Takes an `Expr` that
-specifies the container, e.g. `:(x[i=1:3,[:red,:blue],k=S; i+k <= 6])`, and
-returns:
-    1. `idxvars`: Names for the index variables, e.g. `[:i, gensym(), :k]`
-    2. `idxsets`: Sets used for indexing, e.g. `[1:3, [:red,:blue], S]` (these are also escaped)
-    3. `condition`: Expr containing any conditional imposed on indexing, or `:()` if none is present
-"""
-function _parse_ref_sets(_error::Function, expr::Expr)
-    c = copy(expr)
-    idxvars = Any[]
-    idxsets = Any[]
-    # `:(t[i,j;k])` is a :ref, while `:(t[i;j])` is a :typed_vcat.
-    # In both cases `:t` is the first arg.
-    if isexpr(c, (:typed_vcat, :ref))
-        popfirst!(c.args)
-    end
-    condition = :()
-    if isexpr(c, (:vcat, :typed_vcat))
-        # Parameters appear as plain args at the end.
-        if length(c.args) > 2
-            _error("Unsupported syntax $c.")
-        elseif length(c.args) == 2
-            condition = pop!(c.args)
-        end # else no condition.
-    elseif isexpr(c, (:ref, :vect))
-        # Parameters appear at the front.
-        if isexpr(c.args[1], :parameters)
-            if length(c.args[1].args) != 1
-                _error("Invalid syntax: $c. Multiple semicolons are not ",
-                       "supported.")
-            end
-            condition = popfirst!(c.args).args[1]
-        end
-    else
-        _error("Unrecognized container format $c.")
-    end
-    # process the index set arguement(s)
-    for s in c.args
-        idxvar, idxset = _parse_idxset(s) # this escapes the set
-        if idxvar in idxvars
-            _error("The index $(idxvar) appears more than once. The index " *
-                   "associated with each set must be unique.")
-        end
-        push!(idxvars, idxvar)
-        push!(idxsets, idxset)
-    end
-    return idxvars, idxsets, condition
-end
-_parse_ref_sets(_error::Function, expr) = (Any[], Any[], :())
-
-"""
-    _build_ref_sets(_error::Function, expr)
-
-Helper function for macros to construct container objects. Takes an `Expr` that
-specifies the container, e.g. `:(x[i=1:3,[:red,:blue],k=S; i+k <= 6])`, and
-returns:
-    1. `idxvars`: Names for the index variables, e.g. `[:i, gensym(), :k]`
-    2. `indices`: Iterators over the indices indexing, e.g.
-       `Constainers.NestedIterators((1:3, [:red,:blue], S), (i, ##..., k) -> i + k <= 6)`.
-These will all be escaped as appropriate.
-"""
-function _build_ref_sets(_error::Function, expr)
-    idxvars, idxsets, condition = _parse_ref_sets(_error, expr) # sets are already escaped
-    if any(_expr_is_splat.(idxsets))
-        _error("Cannot use splatting operator `...` in the definition of an ",
-               "index set.")
-    end
-    has_dependent = JuMPC.has_dependent_sets(idxvars, idxsets)
-    if has_dependent || condition != :()
-        esc_idxvars = esc.(idxvars)
-        idxfuns = [:(($(esc_idxvars[1:(i-1)]...),) -> $(idxsets[i])) 
-                   for i in 1:length(idxvars)]
-        if condition == :()
-            inds = :(JuMPC.nested($(idxfuns...)))
-        else
-            condition_fun = :(($(esc_idxvars...),) -> $(esc(condition)))
-            inds = :(JuMPC.nested($(idxfuns...); condition = $condition_fun))
-        end
-    else
-        inds = :(JuMPC.vectorized_product($(_explicit_oneto.(idxsets)...)))
-    end
-    return idxvars, inds
-end
-
-################################################################################
 #                          INFINITE PARAMETER MACRO
 ################################################################################
 ## Process a distribution input from a macro into a distribution domain
@@ -505,13 +374,13 @@ macro infinite_parameter(model, args...)
                "the \"anonymous\" syntax ",
                "`$name = @infinite_parameter(model, kwargs...)`` instead.")
     end
-    if base_name === nothing
+    if isnothing(base_name)
         base_name = is_anon ? "" : string(name)
     end
 
     # prepare the name code if it is multi-dimensional
     if !is_single
-        idxvars, inds = _build_ref_sets(_error, param)
+        idxvars, inds = JuMPC.build_ref_sets(_error, param)
         name_code = _name_call(base_name, idxvars)
         if model in idxvars
             _error("Index $(model) is the same symbol as the model. Use a ",
@@ -662,7 +531,7 @@ macro finite_parameter(model, args...)
 
     # process the name
     name = _get_name(param)
-    if base_name === nothing
+    if isnothing(base_name)
         base_name = is_anon ? "" : string(name)
     end
     if !isa(name, Symbol) && !is_anon
@@ -681,7 +550,7 @@ macro finite_parameter(model, args...)
         creation_code = :( add_parameter($esc_model, $build_call, $base_name) )
     else
         # we have a container of parameters
-        idxvars, inds = _build_ref_sets(_error, param)
+        idxvars, inds = JuMPC.build_ref_sets(_error, param)
         if model in idxvars
             _error("Index $(model) is the same symbol as the model. Use a ",
                    "different name for the index.")
@@ -869,16 +738,16 @@ macro parameter_function(model, args...)
                "the \"anonymous\" syntax $name = @parameter_function(model, " *
                "...) instead.")
     end
-    idxvars, inds = _build_ref_sets(_error, var)
+    idxvars, inds = JuMPC.build_ref_sets(_error, var)
     if model in idxvars
         _error("Index $(model) is the same symbol as the model. Use a ",
                "different name for the index.")
     end
-    if base_name === nothing && is_anon && !is_anon_func
+    if isnothing(base_name) && is_anon && !is_anon_func
         name_code = :( string(nameof($func)) )
-    elseif base_name === nothing && is_anon
+    elseif isnothing(base_name) && is_anon
         name_code = _name_call("", idxvars)
-    elseif base_name === nothing
+    elseif isnothing(base_name)
         name_code = _name_call(string(name), idxvars)
     else
         name_code = _name_call(base_name, idxvars)

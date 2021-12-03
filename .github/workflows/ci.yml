@@ -16,7 +16,7 @@ jobs:
         # Since InfiniteOpt doesn't have binary dependencies, only test on a subset of
         # possible platforms.
         include:
-          - version: '1.0'
+          - version: '1.6'
             os: ubuntu-latest
             arch: x64
           - version: '1'

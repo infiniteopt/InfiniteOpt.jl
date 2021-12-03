@@ -478,8 +478,7 @@ end
         # test used by derivative
         func = (x) -> NaN
         num = 0.
-        info = VariableInfo{Float64, Float64, Float64, Function}(true, num, true,
-                                         num, true, num, false, func, true, true)
+        info = VariableInfo(true, num, true, num, true, num, false, func, true, true)
         deriv = Derivative(info, true, y, t)
         object = VariableData(deriv)
         idx = DerivativeIndex(1)

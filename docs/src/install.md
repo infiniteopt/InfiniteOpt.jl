@@ -3,15 +3,17 @@ A complete guide to installing all that is necessary to use `InfiniteOpt.jl`.
 
 ## Install Julia
 `InfiniteOpt` is a [Julia](https://julialang.org/) package. Thus, we first need
-have an installation of Julia to get started. An appropriate download can be
+to have an installation of Julia to get started. An appropriate download can be
 found [here](https://julialang.org/downloads/). We recommend using 
-[VSCode](https://www.julia-vscode.org/) to edit and run Julia scripts. 
-Alternatively, users with a limited programming background might find it easier 
-to install and use [JuliaPro](https://juliacomputing.com/products/juliapro/) 
-(however this may introduce performance degradations and compatibility issues).
+[VSCode](https://www.julia-vscode.org/) to edit and run Julia scripts.
 
 !!! note
-    This version of `InfiniteOpt` requires that Julia 1.0 or newer be used.
+    This version of `InfiniteOpt` requires that Julia 1.6 or newer be used.
+
+!!! tip
+    We recommend installing the latest version of Julia. However, for users that 
+    cannot update Julia frequently (e.g., industrial users with IT limitations), 
+    we recommend installing the long term support (LTS) version which is 1.6.
 
 ## Install Packages
 Now that Julia has been installed we can add the needed packages. Open up a
@@ -19,13 +21,13 @@ Julia terminal and enter the package manager:
 ```julia-repl
 julia> ]
 
-(v1.6) pkg>
+(v1.7) pkg>
 ```
 
 !!! tip
     We recommend you create a Pkg _environment_ for each project you use `InfiniteOpt`
     for, instead of adding lots of packages to the global environment. The
-    [Pkg manager documentation](https://pkgdocs.julialang.org/v1/environments/)
+    [Pkg manager documentation](https://pkgdocs.julialang.org/v1.6/environments/)
     has more information on this topic.
 
 Use the `add` command in the package to manager to add the following packages:
@@ -34,12 +36,12 @@ Use the `add` command in the package to manager to add the following packages:
 
 For example, to install `Distributions` we would enter:
 ```julia-repl
-(v1.6) pkg> add Distributions
+(v1.7) pkg> add Distributions
 ```
 
 Now let's install `InfiniteOpt`:
 ```julia-repl
-(v1.6) pkg> add InfiniteOpt
+(v1.7) pkg> add InfiniteOpt
 ```
 
 !!! info
@@ -49,7 +51,7 @@ Now let's install `InfiniteOpt`:
 Alternatively, we can install the current experimental version of 
 `InfiniteOpt` via:
 ```julia-repl
-(v1.6) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
+(v1.7) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
 ```
 
 ## Install Optimization Solvers
@@ -60,7 +62,7 @@ supported solvers and their corresponding Julia packages is provided in
 
 For example, we can install Ipopt which is an open-source nonlinear solver:
 ```julia-repl
-(v1.6) pkg> add Ipopt
+(v1.7) pkg> add Ipopt
 ```
 Now Ipopt can be used as the optimizer (solver) for an infinite model by running:
 ```julia-repl
@@ -84,7 +86,7 @@ form `vX.Y.Z`. You can check which versions you have installed with:
 ```julia-repl
 julia> ]
 
-(v1.6) pkg> status
+(v1.7) pkg> status
 ```
 This should almost always be the most-recent release. You can check the releases
 of a package by going to the relevant Github page, and navigating to the
@@ -110,5 +112,5 @@ This usually happens because the new package is not compatible with the latest
 version of `InfiniteOpt`. Therefore, the package manager downgrades `InfiniteOpt` 
 to an earlier version!
 
-Thus, please Pay careful attention to the output of the package manager when 
+Thus, please pay careful attention to the output of the package manager when 
 adding new packages, especially when you see a package being downgraded!

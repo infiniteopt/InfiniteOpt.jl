@@ -62,7 +62,7 @@ mutable struct TranscriptionData
 
     # Measure information
     measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}
-    measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{Any}}
+    measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}
     measure_supports::Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}
     measure_support_labels::Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}
 
@@ -94,7 +94,7 @@ mutable struct TranscriptionData
                    Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}(),
                    # measure info
                    Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
-                   Dict{InfiniteOpt.GeneralVariableRef, Vector{Any}}(),
+                   Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}(),
                    Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}(),
                    Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}(),
                    # constraint info
@@ -259,7 +259,7 @@ function transcription_variable(
     ndarray::Bool
     ) where {V <: FinVarIndex}
     var = get(transcription_data(model).finvar_mappings, vref, nothing)
-    if var === nothing
+    if isnothing(var)
         error("Variable reference $vref not used in transcription model.")
     end
     return var
@@ -274,7 +274,7 @@ function transcription_variable(
     ndarray::Bool
     ) where {V <: InfVarIndex}
     vars = get(transcription_data(model).infvar_mappings, vref, nothing)
-    if vars === nothing
+    if isnothing(vars)
         error("Variable reference $vref not used in transcription model.")
     end
     if ndarray 
@@ -534,7 +534,7 @@ function transcription_variable(
     ndarray::Bool = false
     )
     exprs = get(transcription_data(model).measure_mappings, mref, nothing)
-    if exprs === nothing
+    if isnothing(exprs)
         error("Measure reference $mref not used in transcription model.")
     end
     if ndarray 
@@ -645,7 +645,7 @@ function transcription_expression(
     # get the object numbers of the expression and form the support iterator
     obj_nums = InfiniteOpt._object_numbers(expr)
     support_indices = support_index_iterator(model, obj_nums)
-    exprs = Vector{Any}(undef, length(support_indices))
+    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(support_indices))
     check_labels = length(exprs) > 1 && !_ignore_label(model, label)
     label_inds = ones(Bool, length(exprs))
     # iterate over the indices and compute the values
@@ -681,7 +681,7 @@ function transcription_expression(
     ndarray::Bool = false
     )
     model = InfiniteOpt._model_from_expr(expr)
-    if model === nothing
+    if isnothing(model)
         return zero(JuMP.AffExpr) + JuMP.constant(expr)
     else
         trans_model = InfiniteOpt.optimizer_model(model)
@@ -789,8 +789,8 @@ function transcription_constraint(
     ndarray::Bool = false
     )
     constr = get(transcription_data(model).constr_mappings, cref, nothing)
-    if constr === nothing
-      error("Constraint reference $cref not used in transcription model.")
+    if isnothing(constr)
+        error("Constraint reference $cref not used in transcription model.")
     end
     if ndarray 
         return make_ndarray(model, cref, constr, label)
@@ -853,7 +853,7 @@ function InfiniteOpt.constraint_supports(
     ndarray::Bool = false
     )
     supps = get(transcription_data(model).constr_supports, cref, nothing)
-    if supps === nothing
+    if isnothing(supps)
         error("Constraint reference $cref not used in transcription model.")
     end
     if ndarray 

@@ -31,9 +31,11 @@ end
 # Extend _data_object
 function _data_object(pref::DependentParameterRef)::MultiParameterData
     object = get(_data_dictionary(pref), JuMP.index(pref).object_index, nothing)
-    object === nothing && error("Invalid dependent parameter reference, cannot find " *
-                           "corresponding parameter in the model. This is likely " *
-                           "caused by using the reference of a deleted parameter.")
+    if isnothing(object) 
+        error("Invalid dependent parameter reference, cannot find ",
+              "corresponding parameter in the model. This is likely ",
+              "caused by using the reference of a deleted parameter.")
+    end
     return object
 end
 
@@ -173,8 +175,8 @@ function _process_supports(
         _error("Supports violate the infinite domain.")
     end
     supps = round.(supps, sigdigits = sig_digits)
-    return Dict{Vector{Float64}, Set{DataType}}(@views supps[:, i] =>
-                                    Set([UserDefined]) for i in 1:size(supps, 2))
+    return Dict{Vector{Float64}, Set{DataType}}(s => Set([UserDefined]) 
+                                                for s in eachcol(supps))
 end
 
 ## Use dispatch to make the formatting of the derivative method vector 
@@ -225,8 +227,8 @@ function _build_parameters(
         supps, label = generate_support_values(domain, 
                                                num_supports = num_supports,
                                                sig_digits = sig_digits)
-        supp_dict = Dict{Vector{Float64}, Set{DataType}}(@views supps[:, i] =>
-                                          Set([label]) for i in 1:size(supps, 2))
+        supp_dict = Dict{Vector{Float64}, Set{DataType}}(s => Set([label]) 
+                                                         for s in eachcol(supps))
     # no supports are specified
     else
         supp_dict = Dict{Vector{Float64}, Set{DataType}}()
@@ -311,7 +313,7 @@ julia> name(pref)
 """
 function JuMP.name(pref::DependentParameterRef)::String
     object = get(_data_dictionary(pref), JuMP.index(pref).object_index, nothing)
-    return object === nothing ? "" : object.names[_param_index(pref)]
+    return isnothing(object) ? "" : object.names[_param_index(pref)]
 end
 
 """
@@ -1138,8 +1140,8 @@ function _update_parameter_supports(prefs::AbstractArray{<:DependentParameterRef
                                     supports::Array{<:Real, 2},
                                     label::Type{<:AbstractSupportLabel})::Nothing
     domain = _parameter_domain(first(prefs))
-    new_supps = Dict{Vector{Float64}, Set{DataType}}(@views supports[:, i] =>
-                                      Set([label]) for i in 1:size(supports, 2))
+    new_supps = Dict{Vector{Float64}, Set{DataType}}(s => Set([label]) 
+                                                     for s in eachcol(supports))
     sig_figs = significant_digits(first(prefs))
     methods = _derivative_methods(first(prefs))
     new_params = DependentParameters(domain, new_supps, sig_figs, methods)

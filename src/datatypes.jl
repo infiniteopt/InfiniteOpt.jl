@@ -1302,8 +1302,7 @@ end
 """
     InfiniteModel([optimizer_constructor];
                   [OptimizerModel::Function = TranscriptionModel,
-                  caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
-                  bridge_constraints::Bool = true, optimizer_model_kwargs...])
+                  add_bridges::Bool = true, optimizer_model_kwargs...])
 
 Return a new infinite model where an optimizer is specified if an
 `optimizer_constructor` is given. The optimizer

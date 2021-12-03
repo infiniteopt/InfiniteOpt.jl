@@ -23,11 +23,11 @@ through step by step how this should be done.
      browsing what open issues are (especially ones with the tag `good first issue`). 
      Note that if your proposed contribution corresponds to an existing issue please 
      do not make a new issue. A guide to using issues in GitHub is located 
-     [here](https://guides.github.com/features/issues/).
+     [here](https://docs.github.com/en/issues/tracking-your-work-with-issues/about-issues).
   3. Fork the `InfiniteOpt` repository to your GitHub account. Only core 
      developers have permissions to modify `InfiniteOpt` directly, thus others need 
      to fork it which essentially amounts to creating their own linked copy. This is 
-     done by clicking the `Fork` button at the top left corner on the main repository 
+     done by clicking the `Fork` button in the top left corner on the main repository 
      page [here](https://github.com/pulsipher/InfiniteOpt.jl).
   4. Install Git on your computer. Git is an open source version control program 
      for repositories (it is why GitHub uses the word Git). This is needed to manipulate 
@@ -38,7 +38,7 @@ through step by step how this should be done.
      computer. This needs to be done via the `dev` command in the package manager 
      so you can edit it. The syntax is as follows:
      ```julia
-     (v1.6) pkg> dev https://github.com/username-here/InfiniteOpt.jl
+     (v1.7) pkg> dev https://github.com/username-here/InfiniteOpt.jl
      ```
      We also recommend you install [`Revise.jl`](https://github.com/timholy/Revise.jl) 
      which is very useful when developing packages in Julia.
@@ -67,7 +67,7 @@ through step by step how this should be done.
   8. Create a pull request. Go [here](https://github.com/pulsipher/InfiniteOpt.jl) 
      to `InfiniteOpt`'s main page and create a pull request drawing from your forked 
      repository. A step by step explanation is provided 
-     [here](https://docs.github.com/en/github/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
+     [here](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
   9. Make necessary changes if the tests fail and/or we ask you to make specific 
      changes. The Codecov tests will ensure every new line of code is tested at least 
      once with the new test functions and the GitHub Actions CI will ensure that 

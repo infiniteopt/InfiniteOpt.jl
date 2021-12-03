@@ -37,9 +37,11 @@ function _data_object(
     vref::PointVariableRef
     )::VariableData{PointVariable{GeneralVariableRef}}
     object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
-    object === nothing && error("Invalid point variable reference, cannot find " *
-                        "corresponding variable in the model. This is likely " *
-                        "caused by using the reference of a deleted variable.")
+    if isnothing(object) 
+        error("Invalid point variable reference, cannot find ",
+        "corresponding variable in the model. This is likely ",
+        "caused by using the reference of a deleted variable.")
+    end
     return object
 end
 
@@ -171,7 +173,7 @@ function _update_point_info(
                                  info.has_start, info.start,
                                  info.binary, info.integer)
     end
-    if start_value_function(ivref) !== nothing && !info.has_start
+    if !isnothing(start_value_function(ivref)) && !info.has_start
         if _is_vector_start(ivref)
             start = start_value_function(ivref)(point)
         else
@@ -429,7 +431,7 @@ function JuMP.add_variable(
     divref = dispatch_variable_ref(ivref)
     JuMP.check_belongs_to_model(divref, model)
     existing_index = get(model.point_lookup, (ivref, v.parameter_values), nothing)
-    if existing_index === nothing
+    if isnothing(existing_index)
         data_object = VariableData(v, name)
         vindex = _add_data_object(model, data_object)
         vref = PointVariableRef(model, vindex)

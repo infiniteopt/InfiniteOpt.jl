@@ -38,11 +38,13 @@ Comments, suggestions and improvements are welcome and appreciated.
 `InfiniteOpt` is licensed under the [MIT "Expat" license](./LICENSE).
 
 ## Installation
-`InfiniteOpt.jl` is a registered package and can be installed by entering the
-following in the package manager.
+`InfiniteOpt.jl` is a registered [Julia](https://julialang.org/) package and 
+can be installed by entering the following in the REPL.
 
 ```julia
-(v1.6) pkg> add InfiniteOpt
+julia> ]
+
+(v1.7) pkg> add InfiniteOpt
 ```
 
 ## Documentation
@@ -54,7 +56,7 @@ manuals, tutorials, examples, and more!
 
 ## Questions
 For additional help please visit and post in our 
-[Discussion Forum](https://github.com/pulsipher/InfiniteOpt.jl/discussions).
+[discussion forum](https://github.com/pulsipher/InfiniteOpt.jl/discussions).
 
 ## Citing
 [![DOI](https://img.shields.io/badge/Elsevier-CompChemEng%3A107567-yellow.svg)](https://doi.org/10.1016/j.compchemeng.2021.107567) 
@@ -67,7 +69,6 @@ citing it.
       title = {A unifying modeling abstraction for infinite-dimensional optimization},
       journal = {Computers & Chemical Engineering},
       volume = {156},
-      pages = {107567},
       year = {2022},
       issn = {0098-1354},
       doi = {https://doi.org/10.1016/j.compchemeng.2021.107567},
@@ -78,7 +79,7 @@ citing it.
 A pre-print version is freely available though [ArXiv](https://arxiv.org/abs/2106.12689).
 
 ## Project Status
-The package is tested against Julia `1.0` and `1.6` on Linux, Mac, and Windows.
+The package is tested against Julia `1.6` and `1.7` on Linux, Mac, and Windows.
 
 ## Contributing
 `InfiniteOpt` is being actively developed and suggestions or other forms of contribution are encouraged.

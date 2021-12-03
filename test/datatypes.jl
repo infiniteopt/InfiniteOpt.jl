@@ -190,9 +190,8 @@ end
     m = InfiniteModel();
     @test isa(Base.broadcastable(m), Base.RefValue{InfiniteModel})
     @test length(JuMP.object_dictionary(m)) == 0
-    @test InfiniteModel(caching_mode = MOIU.MANUAL) isa JuMP.AbstractModel
-    @test InfiniteModel(mockoptimizer,
-                        caching_mode = MOIU.MANUAL) isa JuMP.AbstractModel
+    @test InfiniteModel() isa JuMP.AbstractModel
+    @test InfiniteModel(mockoptimizer, add_bridges = false) isa JuMP.AbstractModel
     # test accessors
     @test InfiniteOpt._last_param_num(m) == 0
     @test InfiniteOpt._param_object_indices(m) isa Vector{Union{IndependentParameterIndex, DependentParametersIndex}}

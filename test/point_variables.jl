@@ -152,6 +152,7 @@
         @test InfiniteOpt._delete_data_object(vref) isa Nothing
         @test length(InfiniteOpt._data_dictionary(vref)) == 1
         @test !is_valid(m, vref)
+        @test_throws ErrorException InfiniteOpt._data_object(vref)
     end
 end
 
@@ -240,16 +241,14 @@ end
         new_info = VariableInfo(true, 0., true, 0., false, 0., false, basic_func,
                                  true, false)
         InfiniteOpt._update_variable_info(divref, new_info)
-        expected = VariableInfo{Float64, Float64, Float64, Float64}(true, 0.,
-                                true, 0., false, 0., false, 0., true, false)
+        expected = VariableInfo(true, 0., true, 0., false, 0., false, 0., true, false)
         # test with current info
         @test InfiniteOpt._update_point_info(info, divref, Float64[0, 0]) == expected
         # prepare info for test
         new_info = VariableInfo(false, 0., false, 0., true, 0., true, basic_func,
                                 false, true)
         InfiniteOpt._update_variable_info(divref, new_info)
-        expected = VariableInfo{Float64, Float64, Float64, Float64}(false, 0.,
-                                false, 0., true, 0., true, 1, false, true)
+        expected = VariableInfo(false, 0., false, 0., true, 0., true, 1, false, true)
         # test with current info
         @test InfiniteOpt._update_point_info(info, divref, Float64[0, 0]) == expected
         # prepare info for test
@@ -264,8 +263,7 @@ end
         InfiniteOpt._update_variable_info(divref, old_info)
         # test with user defined start function
         @test set_start_value_function(divref, (a, b) -> a + b) isa Nothing
-        expected = VariableInfo{Float64, Float64, Float64, Float64}(false, 0.,
-                                false, 0., false, 0., true, 3, false, false)
+        expected = VariableInfo(false, 0., false, 0., false, 0., true, 3, false, false)
         @test InfiniteOpt._update_point_info(info, divref, Float64[1, 2]) == expected
         @test reset_start_value_function(divref) isa Nothing
     end
