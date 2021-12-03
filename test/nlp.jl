@@ -516,9 +516,7 @@ end
     # test the sum 
     @testset "sum" begin 
         # test empty sums
-        if Base.VERSION >= v"1.6"
-            @test sum(i for i in Int[]) == 0
-        end
+        @test sum(i for i in Int[]) == 0
         @test isequal(sum(NLPExpr[]), zero(NLPExpr))
         @test isequal(sum(GeneralVariableRef[]), 
                       zero(GenericAffExpr{Float64, GeneralVariableRef}))
@@ -538,9 +536,7 @@ end
     # test the product
     @testset "prod" begin 
         # test empty sums
-        if Base.VERSION >= v"1.6"
-            @test prod(i for i in Int[]) == 1
-        end
+        @test prod(i for i in Int[]) == 1
         @test isequal(prod(NLPExpr[]), one(NLPExpr))
         # test NLP sums 
         p = Node(NodeData(:sin))

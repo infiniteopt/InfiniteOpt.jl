@@ -8,7 +8,7 @@ found [here](https://julialang.org/downloads/). We recommend using
 [VSCode](https://www.julia-vscode.org/) to edit and run Julia scripts.
 
 !!! note
-    This version of `InfiniteOpt` requires that Julia 1.1 or newer be used.
+    This version of `InfiniteOpt` requires that Julia 1.6 or newer be used.
 
 !!! tip
     We recommend installing the latest version of Julia. However, for users that 
