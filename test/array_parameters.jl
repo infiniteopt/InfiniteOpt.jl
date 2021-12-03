@@ -58,7 +58,7 @@ end
     sdomain1 = IntervalDomain(0, 1)
     sdomain2 = UniDistributionDomain(Uniform())
     domain1 = CollectionDomain([sdomain1, sdomain1])
-    domain2 = MultiDistributionDomain(MvNormal(ones(2)))
+    domain2 = MultiDistributionDomain(MvNormal(Diagonal(map(abs2, ones(2)))))
     domain3 = MultiDistributionDomain(MatrixBeta(2, 2, 2))
     domain4 = CollectionDomain([sdomain1, sdomain2])
     inds1 = IC.indices(ones(2))
@@ -163,7 +163,7 @@ end
     # Setup data
     m = InfiniteModel();
     dist1 = Uniform()
-    dist2 = MvNormal(ones(2))
+    dist2 = MvNormal(Diagonal(map(abs2, ones(2))))
     dist3 = MatrixBeta(2, 2, 2)
     sdomain1 = IntervalDomain(0, 1)
     sdomain2 = UniDistributionDomain(dist1)
