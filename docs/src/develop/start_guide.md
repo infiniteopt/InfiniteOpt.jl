@@ -27,7 +27,7 @@ through step by step how this should be done.
   3. Fork the `InfiniteOpt` repository to your GitHub account. Only core 
      developers have permissions to modify `InfiniteOpt` directly, thus others need 
      to fork it which essentially amounts to creating their own linked copy. This is 
-     done by clicking the `Fork` button at the top left corner on the main repository 
+     done by clicking the `Fork` button in the top left corner on the main repository 
      page [here](https://github.com/pulsipher/InfiniteOpt.jl).
   4. Install Git on your computer. Git is an open source version control program 
      for repositories (it is why GitHub uses the word Git). This is needed to manipulate 
@@ -38,7 +38,7 @@ through step by step how this should be done.
      computer. This needs to be done via the `dev` command in the package manager 
      so you can edit it. The syntax is as follows:
      ```julia
-     (v1.6) pkg> dev https://github.com/username-here/InfiniteOpt.jl
+     (v1.7) pkg> dev https://github.com/username-here/InfiniteOpt.jl
      ```
      We also recommend you install [`Revise.jl`](https://github.com/timholy/Revise.jl) 
      which is very useful when developing packages in Julia.
