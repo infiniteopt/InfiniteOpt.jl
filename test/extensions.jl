@@ -256,7 +256,7 @@ end
     MOI.set(mockoptimizer, MOI.ResultCount(), 2)
     MOI.set(mockoptimizer, MOI.PrimalStatus(1), MOI.FEASIBLE_POINT)
     MOI.set(mockoptimizer, MOI.DualStatus(1), MOI.FEASIBLE_POINT)
-    MOI.set(mockoptimizer, MOI.SolveTime(), 0.42)
+    MOI.set(mockoptimizer, MOI.SolveTimeSec(), 0.42)
     MOI.set(mockoptimizer, MOI.ObjectiveValue(), -1.0)
     MOI.set(mockoptimizer, MOI.ObjectiveBound(), 2.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(),
