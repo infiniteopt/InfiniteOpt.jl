@@ -52,6 +52,10 @@ end
     @test !InfiniteOpt._is_expect(InfiniteOpt._core_variable_object(expect(inf, y)).data)
     @test 𝔼(inf, x) isa GeneralVariableRef
 
+    # test with new pdf 
+    @test expect(y, y, pdf = y -> 1) isa GeneralVariableRef
+    @test 𝔼(y, y, pdf = y -> 1) isa GeneralVariableRef
+
     # Test with JuMP container 
     @infinite_parameter(m, z[2:3] in [-1, 1])
     @test_throws ErrorException expect(z[2], z)

@@ -237,9 +237,10 @@ A convenient wrapper for [`expect`](@ref). The unicode symbol `𝔼` is produced
 """
 function 𝔼(expr::JuMP.AbstractJuMPScalar,
     prefs::Union{InfiniteOpt.GeneralVariableRef, AbstractArray{InfiniteOpt.GeneralVariableRef}};
-    num_supports::Int = InfiniteOpt.DefaultNumSupports
+    num_supports::Int = InfiniteOpt.DefaultNumSupports,
+    kwargs...
     )::InfiniteOpt.GeneralVariableRef
-    return expect(expr, prefs, num_supports = num_supports)
+    return expect(expr, prefs; num_supports = num_supports, kwargs...)
 end
 
 """
