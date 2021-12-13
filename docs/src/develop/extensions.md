@@ -1031,7 +1031,7 @@ julia> result_count(model)
 julia> value.(y)
 2-element Vector{Float64}:
  -9.164638781941642e-9
- 1.224744871391589
+  1.224744871391589
 
 julia> optimizer_index(z)
 MathOptInterface.VariableIndex(3)
