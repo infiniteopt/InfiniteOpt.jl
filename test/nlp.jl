@@ -282,9 +282,8 @@ end
         p.child.data = NodeData(0)
         @test InfiniteOpt._is_zero(p)
         # test function 
-        p = Node(NodeData(:max))
+        p = Node(NodeData(:abs))
         addchild(p, NodeData(0))
-        addchild(p, NodeData(0)) 
         @test InfiniteOpt._is_zero(p)
         p.child.data = NodeData(y)
         @test !InfiniteOpt._is_zero(p)
@@ -1011,7 +1010,7 @@ end
         @test string((z*z) ^ 4) == "(z²)^4"
         @test string((cos(z) + sin(z)) / y) == "(cos(z) + sin(z)) / y(t)"
         @test string(-cos(z + y) * z^2.3) == "-cos(z + y(t)) * z^2.3"
-        @test string((-max(0, z)) ^ 3) == "(-(max(0, z))^3"
+        @test string((-InfiniteOpt.ifelse(z, 0, z)) ^ 3) == "(-(ifelse(z, 0, z))^3"
         # test AffExpr cases 
         aff0 = zero(GenericAffExpr{Float64, GeneralVariableRef})
         @test string(aff0^4 + (2z - 3y + 42) ^ (-1z)) == "0^4 + (2 z - 3 y(t) + 42)^(-z)"
