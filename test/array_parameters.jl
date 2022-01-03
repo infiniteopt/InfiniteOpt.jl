@@ -459,7 +459,7 @@ end
         # test with same data 
         @test InfiniteOpt._adaptive_data_update(prefs[1], params, data) isa Nothing
         # test with different data 
-        domain = MultiDistributionDomain(MvNormal([0, 0], [1, 1]))
+        domain = MultiDistributionDomain(MvNormal([0, 0], LinearAlgebra.Diagonal(map(abs2, [1, 1]))))
         ps = DependentParameters(domain, Dict{Vector{Float64}, Set{DataType}}(), 10, methods)
         @test InfiniteOpt._adaptive_data_update(prefs[2], ps, data) isa Nothing
         @test InfiniteOpt._core_variable_object(prefs[2]) == ps

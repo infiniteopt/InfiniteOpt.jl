@@ -691,13 +691,13 @@ end
     @testset "NLPExpr" begin 
         # make expressions 
         nlp1 = sin(3pt)
-        nlp2 = pt^2.3 + max(inf, pt)
+        nlp2 = pt^2.3 + <=(inf, pt)
         nlp3 = cos(pt^2 + pt) / (2pt + 2inf)
         # test expressions 
         @test InfiniteOpt._remove_variable(nlp1, pt) isa Nothing 
         @test isequal(nlp1, sin(zero(zero(GenericAffExpr{Float64, GeneralVariableRef}))))
         @test InfiniteOpt._remove_variable(nlp2, pt) isa Nothing 
-        @test isequal(nlp2, zero(NLPExpr)^2.3 + max(inf, 0.0))
+        @test isequal(nlp2, zero(NLPExpr)^2.3 + <=(inf, 0.0))
         @test InfiniteOpt._remove_variable(nlp3, inf) isa Nothing 
         @test isequal(nlp3, cos(pt^2 + pt) / (2pt))
     end

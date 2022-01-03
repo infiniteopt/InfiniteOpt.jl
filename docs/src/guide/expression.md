@@ -41,7 +41,7 @@ julia> @infinite_parameter(model, t in [0, 10]);
 julia> @parameter_function(model, f == sin(t))
 f(t)
 ```
-Here we created an parameter function object, added it to `model`, and 
+Here we created a parameter function object, added it to `model`, and 
 then created a Julia variable `f` that serves as a `GeneralVariableRef` that points 
 to it. From here we can treat `f` as a normal infinite variable and use it with 
 measures, derivatives, and constraints. For example, we can do the following:
@@ -58,7 +58,7 @@ julia> @constraint(model, y - f <= 0)
 y(t) - f(t) ≤ 0.0, ∀ t ∈ [0, 10]
 ```
 We can also define parameter functions that depend on multiple infinite 
-parameters even use an anonymous function if prefer:
+parameters even use an anonymous function if preferred:
 ```jldoctest param_func
 julia> @infinite_parameter(model, x[1:2] in [-1, 1]);
 
@@ -77,7 +77,7 @@ julia> @parameter_function(model, pfunc_alt[i = 1:3] == t -> mysin(t, as[i], b =
  pfunc_alt[3](t)
 ```
 The main recommended use case for [`parameter_function`](@ref) is that it is 
-amendable to defining complex anonymous functions via a do-block which is useful 
+amenable to define complex anonymous functions via a do-block which is useful 
 for applications like defining a time-varied setpoint:
 ```jldoctest param_func
 julia> setpoint = parameter_function(t, name = "setpoint") do t_supp
@@ -92,7 +92,7 @@ setpoint(t)
 Please consult the following links for more information about defining parameter 
 functions: [`@parameter_function`](@ref) and [`parameter_function`](@ref).
 
-Beyond this, there are number of query and modification methods that can be 
+Beyond this, there are a number of query and modification methods that can be 
 employed for parameter functions and these are detailed in the 
 [technical manual](@ref par_func_manual) Section below.
 
@@ -263,12 +263,12 @@ More information can be found in the documentation for quadratic expressions in
 ## [Nonlinear Expressions](@id nlp_guide)
 General nonlinear expressions as generated via `JuMP.@NLexpression`, 
 `JuMP.@NLobjective`, and/or `JuMP.@NLconstraint` macros in `JuMP` are not 
-extendible for extension packages like `InfiniteOpt`. A fundamental 
+extendable for extension packages like `InfiniteOpt`. A fundamental 
 overhaul is planned to resolve this problem (check the status on 
 [GitHub](https://github.com/jump-dev/MathOptInterface.jl/issues/846)), but this 
 will likely require 1-3 years to resolve.
 
-Thus in the interim, we circumvent this problem in `InfiniteOpt` by implementing 
+Thus, in the interim, we circumvent this problem in `InfiniteOpt` by implementing 
 our own general nonlinear expression API. However, we will see that our interface 
 treats nonlinear expressions as 1st class citizens and thus is generally more 
 convenient then using `JuMP`'s current legacy nonlinear modeling interface. 
@@ -281,13 +281,13 @@ We discuss the ins and outs of this interface in the subsections below.
 
 !!! warning
     Our new general nonlinear modeling interface is experimental and thus is 
-    subject to change to address any unintented behavior. Please notify us on 
+    subject to change to address any unintended behavior. Please notify us on 
     GitHub if you encounter any unexpected behavior.
 
 ### Basic Usage 
 In `InfiniteOpt` we can define nonlinear expressions in similar manner to how 
 affine/quadratic expressions are made in `JuMP`. For instance, we can make an 
-expression using normal Julia code outside of a macro:
+expression using normal Julia code outside a macro:
 ```jldoctest nlp; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t ∈ [0, 1]); @variable(model, y, Infinite(t));
 
@@ -315,7 +315,7 @@ constr : (y(t)^y(t) * sin(y(t)) + y(t)^3 + y(t)^4) - 3 = 0.0, ∀ t ∈ [0, 1]
 
 !!! note
     The `@NLexpression`, `@NLobjective`, and `@NLconstraint` macros used by `JuMP`
-    are not supported by `InfiniteOpt`. Instead we can more conveniently use the 
+    are not supported by `InfiniteOpt`. Instead, we can more conveniently use the 
     `@expression`, `@objective`, and `@constraint` macros directly.
 
 Natively, we support all the same nonlinear functions/operators that `JuMP` 
@@ -468,10 +468,10 @@ h(y(t), 42)
 
 !!! tip
     Where possible it is preferred to use function tracing instead of function 
-    registration. This improves performance and can prevent unintential errors. 
+    registration. This improves performance and can prevent unintentional errors. 
     See [Function Tracing](@ref) for more details.
 
-To highlight the differnce between function tracing and function 
+To highlight the difference between function tracing and function 
 registration consider the following example:
 ```jldoctest nlp
 julia> f(a) = a^3;
@@ -491,7 +491,7 @@ behind the scenes via auto-differentiation with the selected optimizer model
 backend). However, again please note that in this case tracing is preferred 
 since `f` can be traced. 
 
-Let's consider a more realistic example where the function is not amendable to 
+Let's consider a more realistic example where the function is not amenable to 
 tracing:
 ```jldoctest nlp
 julia> function g(a)
@@ -526,7 +526,7 @@ julia> my_eta(y)
 my_eta(y(t))
 ```
 Notice that we cannot register `SpecialFunctions.eta` directly due to 
-scoping limitations that are inherit in generating constructor functions on the 
+scoping limitations that are inherited in generating constructor functions on the 
 fly (which necessarily occurs behind the scenes with [`@register`](@ref)).
 
 Now in some cases we might wish to specify the gradient and hessian of a 
@@ -619,7 +619,7 @@ by the API of
 
 In addition to the API of `LeftChildRightSiblingTrees.jl`, we provide some 
 mapping functions that are useful for extensions. First, with 
-[`map_expression`](@ref) we can create a new `NLPExpr` based on an exisiting 
+[`map_expression`](@ref) we can create a new `NLPExpr` based on an existing 
 `NLPExpr` where a transformation is applied to each variable:
 ```jldoctest nlp
 julia> map_expression(v -> v^2, expr)
