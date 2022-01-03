@@ -723,16 +723,6 @@ end
             @test isequal(f(i), expected)
             end
         end
-        for i in [42, y, aff, quad, nlp]
-            for j in [42, y, aff, quad, nlp]
-                for (n, f) in [(:max, max), (:min, min)]
-                    if !(isequal(i, 42) && isequal(j, 42))
-                        expected = NLPExpr(InfiniteOpt._call_graph(n, i, j))
-                        @test isequal(f(i, j), expected)
-                    end
-                end
-            end
-        end
     end
 end
 
