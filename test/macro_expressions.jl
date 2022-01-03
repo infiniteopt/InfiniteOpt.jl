@@ -82,7 +82,6 @@
         @test isequal(@expression(m, pt / inf), pt * (1 / inf))
         @test isequal(@expression(m, pt ^ inf), pt ^ inf)
         @test isequal(@expression(m, 2 ^ inf), 2 ^ inf)
-        @test isequal(@expression(m, max(inf, meas)), max(inf, meas))
         @test isequal(@expression(m, abs(pt)), abs(pt))
     end
 end
@@ -171,7 +170,6 @@ end
     @testset "Nonlinear" begin
         @test isequal(@expression(m, pt / aff1), pt * (1 / aff1))
         @test isequal(@expression(m, pt ^ aff1), pt ^ aff1)
-        @test isequal(@expression(m, max(inf, aff1)), max(inf, aff1))
         @test isequal(@expression(m, abs(aff1)), abs(aff1))
     end
 end
@@ -260,7 +258,6 @@ end
     @testset "Nonlinear" begin
         @test isequal(@expression(m, aff1 / pt), aff1 * (1 / pt))
         @test isequal(@expression(m, aff1 ^ pt), aff1 ^ pt)
-        @test isequal(@expression(m, max(aff1, pt)), max(aff1, pt))
     end
 end
 
@@ -410,7 +407,6 @@ end
     @testset "Nonlinear" begin
         @test isequal(@expression(m, aff1 / aff1), aff1 * (1 / aff1))
         @test isequal(@expression(m, aff1 ^ aff1), aff1 ^ aff1)
-        @test isequal(@expression(m, max(aff1, aff1)), max(aff1, aff1))
     end
 end
 
@@ -518,7 +514,6 @@ end
         @test isequal(@expression(m, quad1 * pt), quad1 * pt)
         @test isequal(@expression(m, quad1 / pt), quad1 * (1 / pt))
         @test isequal(@expression(m, quad1 ^ pt), quad1 ^ pt)
-        @test isequal(@expression(m, max(quad1, pt)), max(quad1, pt))
         @test isequal(@expression(m, abs(quad1)), abs(quad1))
     end
 end
@@ -626,7 +621,6 @@ end
         @test isequal(@expression(m, pt * quad1),  pt * quad1)
         @test isequal(@expression(m, pt / quad1), pt * (1 / quad1))
         @test isequal(@expression(m, pt ^ quad1), pt ^ quad1)
-        @test isequal(@expression(m, max(pt, quad1)), max(pt, quad1))
     end
 end
 
@@ -745,7 +739,6 @@ end
         @test isequal(@expression(m, aff1 * quad1),  aff1 * quad1)
         @test isequal(@expression(m, aff1 / quad1), aff1 * (1 / quad1))
         @test isequal(@expression(m, aff1 ^ quad1), aff1 ^ quad1)
-        @test isequal(@expression(m, max(aff1, quad1)), max(aff1, quad1))
     end
 end
 
@@ -865,7 +858,6 @@ end
         @test isequal(@expression(m, quad1 * aff1), quad1 * aff1)
         @test isequal(@expression(m, quad1 / aff1), quad1 * (1 / aff1))
         @test isequal(@expression(m, quad1 ^ aff1), quad1 ^ aff1)
-        @test isequal(@expression(m, max(quad1, aff1)), max(quad1, aff1))
     end
 end
 
@@ -971,7 +963,6 @@ end
         @test isequal(@expression(m, quad1 * quad1), quad1 * quad1)
         @test isequal(@expression(m, quad1 / quad1), quad1 * (1 / quad1))
         @test isequal(@expression(m, quad1 ^ quad1), quad1 ^ quad1)
-        @test isequal(@expression(m, max(quad1, quad1)), max(quad1, quad1))
     end
 end
 
@@ -1001,6 +992,5 @@ end
     # test function calls
     @testset "Functions" begin
         @test isequal(@expression(m, sin(y) + nlp), sin(y) + nlp)
-        @test isequal(@expression(m, 2y - max(0, y^2)), 2y - max(0, y^2))
     end
 end
