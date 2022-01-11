@@ -592,7 +592,7 @@ julia> @variables(model, begin
            y2[i=1:2] >= i, Infinite(t), (start = i, base_name = "Y_$i")
            z2, Bin
        end)
-
+(y1(t, x), GeneralVariableRef[Y_1[1](t), Y_2[2](t)], z2)
 ```
 
 ## Restricted Variables
