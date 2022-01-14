@@ -926,21 +926,6 @@ for (name, func) in _Base1ArgFuncList
     end
 end
 
-# Setup the Base functions with 2 arguments
-for (name, func) in (:min => min, :max => max)
-    # add it to the main storage dict
-    _NativeNLPFunctions[(name, 2)] = func
-    # make an expression constructor
-    @eval begin 
-        function Base.$name(
-            v1::Union{AbstractInfOptExpr, Real}, 
-            v2::Union{AbstractInfOptExpr, Real}
-            )
-            return NLPExpr(_call_graph($(quot(name)), v1, v2))
-        end
-    end
-end
-
 # Setup the ifelse function
 _NativeNLPFunctions[(:ifelse, 3)] = Core.ifelse
 

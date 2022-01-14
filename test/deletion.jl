@@ -474,7 +474,7 @@ end
     @constraint(m, con1, x + y + par <= 0)
     con2 = add_constraint(m, ScalarConstraint(y, MOI.LessThan(0.)))
     @constraint(m, con3, [x, y] in MOI.Zeros(2))
-    @constraint(m, con4, max(par, x) <= 0)
+    @constraint(m, con4, sin(x) <= 0)
     @objective(m, Min, x + y)
     # test deletion of x
     @test isa(delete(m, x), Nothing)
@@ -482,7 +482,7 @@ end
     @test isequal_canonical(measure_function(meas1), y + par)
     @test isequal_canonical(jump_function(constraint_object(con1)), y + par)
     @test isequal_canonical(objective_function(m), y + 0)
-    @test isequal_canonical(jump_function(constraint_object(con4)), max(par, 0))
+    @test isequal_canonical(jump_function(constraint_object(con4)), sin(zero(NLPExpr)))
     @test !is_valid(m, con3)
     @test !haskey(InfiniteOpt._data_dictionary(m, FiniteVariable), JuMP.index(x))
     # test deletion of y

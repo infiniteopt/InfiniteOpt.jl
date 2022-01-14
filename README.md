@@ -12,6 +12,10 @@ making it a powerful and convenient tool for advanced users.
 :tada: **`v0.5` introduces general nonlinear modeling!**: See the documentation for details.
 :mega: **`v0.5.1` now requires Julia 1.6 or newer**
 
+:mega: **`v0.5.1` now requires Julia 1.6 or newer**
+
+**Current Version:** [![](https://docs.juliahub.com/InfiniteOpt/version.svg)](https://juliahub.com/ui/Packages/InfiniteOpt/p3GvY) [![](https://docs.juliahub.com/InfiniteOpt/pkgeval.svg)](https://juliahub.com/ui/Packages/InfiniteOpt/p3GvY)
+
 | **Documentation**                                                               | **Build Status**                                                                                | **Citation** |
 |:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|:--------------------------------------:|
 | [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable) | [![Build Status](https://github.com/pulsipher/InfiniteOpt.jl/workflows/CI/badge.svg?branch=release-0.5)](https://github.com/pulsipher/InfiniteOpt.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=release-0.5)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=release-0.5) | [![DOI](https://img.shields.io/badge/Elsevier-CompChemEng%3A107567-yellow.svg)](https://doi.org/10.1016/j.compchemeng.2021.107567) |
