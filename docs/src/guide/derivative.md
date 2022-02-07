@@ -260,8 +260,8 @@ This can be formalized as:
 ```math 
 \begin{aligned}
 &&& f_j(y(\lambda), Dy(\lambda)) \leq 0, && \forall j \in J, \lambda \in \Lambda \\
-&&& h_i(y(\lambda), Dy(\lambda)) == 0, && \forall i \in I, \lambda \in \Lambda \\
-&&& g_k(y(\hat{\lambda}), Dy(\hat{\lambda})) == 0, && \forall k \in K, \hat{\lambda} \in \hat{\Lambda}
+&&& h_i(y(\lambda), Dy(\lambda)) = 0, && \forall i \in I, \lambda \in \Lambda \\
+&&& g_k(y(\hat{\lambda}), Dy(\hat{\lambda})) = 0, && \forall k \in K, \hat{\lambda} \in \hat{\Lambda}
 \end{aligned}
 ```
 where ``y(\lambda)`` and ``Dy(\lambda)`` denote all the variables and derivatives 
