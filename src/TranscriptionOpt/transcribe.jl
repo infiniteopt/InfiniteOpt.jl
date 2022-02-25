@@ -212,7 +212,7 @@ function transcribe_derivative_variables!(
         # get the basic variable information
         dref = InfiniteOpt._make_variable_ref(inf_model, idx)
         d = object.variable
-        base_name = InfiniteOpt.variable_string(JuMP.REPLMode, dispatch_variable_ref(dref))
+        base_name = InfiniteOpt.variable_string(MIME("text/plain"), dispatch_variable_ref(dref))
         param_nums = InfiniteOpt._parameter_numbers(d.variable_ref)
         obj_nums = InfiniteOpt._object_numbers(d.variable_ref)
         # prepare for iterating over its supports
