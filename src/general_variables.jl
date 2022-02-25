@@ -53,14 +53,22 @@ julia> index(vref)
 FiniteVariableIndex(1)
 ```
 """
-function JuMP.index(vref::GeneralVariableRef)::AbstractInfOptIndex
-    index_type = _index_type(vref)
-    if index_type == DependentParameterIndex
-        return index_type(DependentParametersIndex(_raw_index(vref)),
-                           _param_index(vref))
-    else
-        return index_type(_raw_index(vref))
+function JuMP.index(vref::GeneralVariableRef)
+    return JuMP.index(vref.index_type, vref)
+end
+
+# Implement dispatch functions
+for idx in (:IndependentParameterIndex, :FiniteParameterIndex, 
+            :InfiniteVariableIndex, :SemiInfiniteVariableIndex, 
+            :PointVariableIndex, :MeasureIndex, :DerivativeIndex, 
+            :FiniteVariableIndex)
+    @eval begin 
+        JuMP.index(::Type{$idx}, vref::GeneralVariableRef) = $idx(vref.raw_index)
     end
+end
+function JuMP.index(::Type{DependentParameterIndex}, vref::GeneralVariableRef)
+    return DependentParameterIndex(DependentParametersIndex(vref.raw_index), 
+                                                            vref.param_index)
 end
 
 """
