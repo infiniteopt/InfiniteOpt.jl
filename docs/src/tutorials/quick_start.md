@@ -17,7 +17,7 @@ consult their tutorials starting
 First, we need to make sure everything is installed. This will include:
 - installing Julia 
 - installing the `InfiniteOpt.jl`, `JuMP.jl`, and `Distributions.jl` packages
-- installing wanted optimizers e.g., `Ipopt.jl` and `Clp.jl`
+- installing wanted optimizers e.g., `Ipopt.jl` and `HiGHS.jl`
 See [Installation](@ref) for more information.
 
 ### Problem Formulation
