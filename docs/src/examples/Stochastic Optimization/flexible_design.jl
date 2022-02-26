@@ -7,7 +7,7 @@
 
 # ## Modeling and Solution
 
-using InfiniteOpt, Clp, Distributions
+using InfiniteOpt, HiGHS, Distributions
 
 ## Set the covariance matrix for the uncertain parameters
 θ_nom = [0.; 60.; 10.]
@@ -23,7 +23,7 @@ U = 10000
 num_samples = 100 # more should be used (kept small for doc generation)
 
 ## Initialize the model
-m = InfiniteModel(Clp.Optimizer)
+m = InfiniteModel(HiGHS.Optimizer)
 set_silent(m)
 
 ## Set the uncertainty parameters

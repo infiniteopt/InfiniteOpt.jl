@@ -168,8 +168,4 @@ end
     @testset "JuMP.mode" begin
         @test JuMP.mode(m) == JuMP.mode(optimizer_model(m))
     end
-    # solve
-    @testset "solve" begin
-        @test_throws ErrorException solve(m)
-    end
 end
