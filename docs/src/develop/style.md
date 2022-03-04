@@ -309,10 +309,10 @@ This is exemplified below:
 
 # ## Formulation
 # Text to introduce as needed...
-using InfiniteOpt, Clp # import the needed packages
+using InfiniteOpt, HiGHS # import the needed packages
 
 ## This comment type will be part of the code block
-model = InfiniteModel(Clp.Optimizer) # add side comments to code
+model = InfiniteModel(HiGHS.Optimizer) # add side comments to code
 
 # This comment type will be Markdown again, thus breaking up the code block
 @infinite_parameter(model, t in [0, 1], num_supports = 42)
@@ -350,10 +350,10 @@ x^2 + y = 1
 Text to introduce as needed...
 
 ```julia
-using InfiniteOpt, Clp # import the needed packages
+using InfiniteOpt, HiGHS # import the needed packages
 
 # This comment type will be part of the code block
-model = InfiniteModel(Clp.Optimizer) # add side comments to code
+model = InfiniteModel(HiGHS.Optimizer) # add side comments to code
 
 ```
 
@@ -368,7 +368,7 @@ Measures: 0
 Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Clp
+Solver name: HiGHS
 ```
 
 This comment type will be Markdown again, thus breaking up the code block

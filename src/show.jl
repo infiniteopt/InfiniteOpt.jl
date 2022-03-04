@@ -2,7 +2,7 @@
 #                            MATH SYMBOL METHODS
 ################################################################################
 # Support additional math symbols beyond what JuMP does
-function _math_symbol(::Type{JuMP.REPLMode}, name::Symbol)::String
+function _math_symbol(::MIME"text/plain", name::Symbol)::String
     if name == :intersect
         return Sys.iswindows() ? "and" : "∩"
     elseif name == :prop
@@ -59,7 +59,7 @@ function _math_symbol(::Type{JuMP.REPLMode}, name::Symbol)::String
 end
 
 # Support additional math symbols beyond what JuMP does
-function _math_symbol(::Type{JuMP.IJuliaMode}, name::Symbol)::String
+function _math_symbol(::MIME"text/latex", name::Symbol)::String
     if name == :intersect
         return "\\cap"
     elseif name == :prop
@@ -294,7 +294,7 @@ function measure_data_string(print_mode, data::AbstractMeasureData)::String
 end
 
 # Make strings to represent measures in REPLMode
-function variable_string(m::Type{JuMP.REPLMode}, mref::MeasureRef)::String
+function variable_string(m::MIME"text/plain", mref::MeasureRef)::String
     data = measure_data(mref)
     data_str = measure_data_string(m, data)
     func_str = JuMP.function_string(m, measure_function(mref))
@@ -308,7 +308,7 @@ function variable_string(m::Type{JuMP.REPLMode}, mref::MeasureRef)::String
 end
 
 # Make strings to represent measures in IJuliaMode
-function variable_string(m::Type{JuMP.IJuliaMode}, mref::MeasureRef)::String
+function variable_string(m::MIME"text/latex", mref::MeasureRef)::String
     data = measure_data(mref)
     data_str = measure_data_string(m, data)
     func_str = JuMP.function_string(m, measure_function(mref))
@@ -330,7 +330,7 @@ end
 ################################################################################
 ## helper function for getting the variable names
 # REPLMode
-function _get_base_name(::Type{JuMP.REPLMode}, vref)::String
+function _get_base_name(::MIME"text/plain", vref)::String
     var_name = JuMP.name(vref)
     if !isempty(var_name)
         return var_name
@@ -340,7 +340,7 @@ function _get_base_name(::Type{JuMP.REPLMode}, vref)::String
 end
 
 # IJuliaMode
-function _get_base_name(::Type{JuMP.IJuliaMode}, vref)::String
+function _get_base_name(::MIME"text/latex", vref)::String
     var_name = JuMP.name(vref)
     if !isempty(var_name)
         # TODO: This is wrong if variable name constains extra "]"
@@ -405,13 +405,13 @@ end
 
 ## Make helper function for making derivative operators 
 # REPL 
-function _deriv_operator(m::Type{JuMP.REPLMode}, pref)::String
+function _deriv_operator(m::MIME"text/plain", pref)::String
     return string(_math_symbol(m, :partial), "/", 
                   _math_symbol(m, :partial), variable_string(m, pref))
 end
 
 # IJulia 
-function _deriv_operator(m::Type{JuMP.IJuliaMode}, pref)::String
+function _deriv_operator(m::MIME"text/latex", pref)::String
     return string("\\frac{", _math_symbol(m, :partial), "}{", 
                   _math_symbol(m, :partial), " ", 
                   variable_string(m, pref), "}")
@@ -525,27 +525,27 @@ function variable_string(print_mode, vref::JuMP.AbstractVariableRef)::String
 end
 
 # Extend function string for DispatchVariableRefs (REPL)
-function JuMP.function_string(::Type{JuMP.REPLMode},
+function JuMP.function_string(::MIME"text/plain",
                               vref::DispatchVariableRef)::String
-    return variable_string(JuMP.REPLMode, vref)
+    return variable_string(MIME("text/plain"), vref)
 end
 
 # Extend function string for DispatchVariableRefs (IJulia)
-function JuMP.function_string(::Type{JuMP.IJuliaMode},
+function JuMP.function_string(::MIME"text/latex",
                               vref::DispatchVariableRef)::String
-    return variable_string(JuMP.IJuliaMode, vref)
+    return variable_string(MIME("text/latex"), vref)
 end
 
 # Extend function string for GeneralVariableRefs (REPL)
-function JuMP.function_string(::Type{JuMP.REPLMode},
+function JuMP.function_string(::MIME"text/plain",
                               vref::GeneralVariableRef)::String
-    return variable_string(JuMP.REPLMode, dispatch_variable_ref(vref))
+    return variable_string(MIME("text/plain"), dispatch_variable_ref(vref))
 end
 
 # Extend function string for GeneralVariableRefs (IJulia)
-function JuMP.function_string(::Type{JuMP.IJuliaMode},
+function JuMP.function_string(::MIME"text/latex",
                               vref::GeneralVariableRef)::String
-    return variable_string(JuMP.IJuliaMode, dispatch_variable_ref(vref))
+    return variable_string(MIME("text/latex"), dispatch_variable_ref(vref))
 end
 
 ################################################################################
@@ -642,7 +642,7 @@ function JuMP.constraint_string(print_mode,
         bound_str = bound_str[1:end-2]
     end
     # form the constraint string
-    if print_mode == JuMP.REPLMode
+    if print_mode == MIME("text/plain")
         lines = split(func_str, '\n')
         lines[1 + div(length(lines), 2)] *= " " * in_set_str * bound_str
         constr_str = join(lines, '\n')
@@ -650,12 +650,12 @@ function JuMP.constraint_string(print_mode,
         constr_str = string(func_str, " ", in_set_str, bound_str)
     end
     # format for IJulia
-    if print_mode == JuMP.IJuliaMode && !in_math_mode
+    if print_mode == MIME("text/latex") && !in_math_mode
         constr_str = string("\$ ", constr_str, " \$")
     end
     # add name if it has one
     name = JuMP.name(cref)
-    if isempty(name) || (print_mode == JuMP.IJuliaMode && in_math_mode)
+    if isempty(name) || (print_mode == MIME("text/latex") && in_math_mode)
         return constr_str
     else
         return string(name, " : ", constr_str)
@@ -690,38 +690,38 @@ end
 ################################################################################
 # Show infinite domains in REPLMode
 function Base.show(io::IO, domain::AbstractInfiniteDomain)
-    print(io, domain_string(JuMP.REPLMode, domain))
+    print(io, domain_string(MIME("text/plain"), domain))
     return
 end
 
 # Show infinite domains in IJuliaMode
 function Base.show(io::IO, ::MIME"text/latex", domain::AbstractInfiniteDomain)
-    print(io, domain_string(JuMP.IJuliaMode, domain))
+    print(io, domain_string(MIME("text/latex"), domain))
 end
 
 # TODO use ... when necessary --> Subdomain restrictions: t in [0, 1], x[1] == 0, x[2] == 0, ... x[6] == 0, a in [2, 3]
 # Show DomainRestrictions in REPLMode
 function Base.show(io::IO, restrictions::DomainRestrictions)
     print(io, "Subdomain restrictions (", length(restrictions), "): ",
-          restrict_string(JuMP.REPLMode, restrictions))
+          restrict_string(MIME("text/plain"), restrictions))
     return
 end
 
 # Show DomainRestrictions in IJuliaMode
 function Base.show(io::IO, ::MIME"text/latex", restrictions::DomainRestrictions)
     print(io, "Subdomain restrictions (", length(restrictions), "): ",
-          restrict_string(JuMP.IJuliaMode, restrictions))
+          restrict_string(MIME("text/latex"), restrictions))
 end
 
 # Show constraint in REPLMode
 function Base.show(io::IO, ref::InfOptConstraintRef)
-    print(io, JuMP.constraint_string(JuMP.REPLMode, ref))
+    print(io, JuMP.constraint_string(MIME("text/plain"), ref))
     return
 end
 
 # Show constraint in IJuliaMode
 function Base.show(io::IO, ::MIME"text/latex", ref::InfOptConstraintRef)
-    print(io, JuMP.constraint_string(JuMP.IJuliaMode, ref))
+    print(io, JuMP.constraint_string(MIME("text/latex"), ref))
 end
 
 # Show the backend information associated with the optimizer model

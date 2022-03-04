@@ -64,7 +64,7 @@ function new_fn end
 
 # Helper function to test IO methods work correctly
 function show_test(mode, obj, exp_str::String; repl=:both)
-    if mode == REPLMode
+    if mode == MIME("text/plain")
         repl != :show  && @test sprint(print, obj) == exp_str
         repl != :print && @test sprint(show,  obj) == exp_str
     else
@@ -74,7 +74,7 @@ end
 
 # Helper function for IO methods with different possibilities
 function show_test(mode, obj, exp_str::Vector{String}; repl=:both)
-    if mode == REPLMode
+    if mode == MIME("text/plain")
         repl != :show  && @test sprint(print, obj) in exp_str
         repl != :print && @test sprint(show,  obj) in exp_str
     else

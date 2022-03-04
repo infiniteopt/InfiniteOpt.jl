@@ -332,11 +332,11 @@
         end
         # test Base.show (REPL)
         @testset "Base.show (REPL)" begin
-            show_test(REPLMode, vt, "(42, [6, 5, 7, 1])")
+            show_test(MIME("text/plain"), vt, "(42, [6, 5, 7, 1])")
         end
         # test Base.show (IJulia)
         @testset "Base.show (IJulia)" begin
-            show_test(IJuliaMode, vt, "(42, [6, 5, 7, 1])")
+            show_test(MIME("text/latex"), vt, "(42, [6, 5, 7, 1])")
         end
     end
 end
