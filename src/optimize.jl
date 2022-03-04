@@ -62,25 +62,25 @@ julia> optimizer_model_ready(model)
 false
 ```
 """
-optimizer_model_ready(model::InfiniteModel)::Bool = model.ready_to_optimize
+backend_ready(model::InfiniteModel) = model.ready_to_optimize
 
 """
-    set_optimizer_model_ready(model::InfiniteModel, status::Bool)
+    set_backend_ready(model::InfiniteModel, status::Bool)
 
 Set the status of the optimizer model to whether it is up to date or not. Note
 is more intended as an internal function, but is useful for extensions.
 
 **Example**
 ```julia-repl
-julia> set_optimizer_model_ready(model, true)
+julia> set_backend_ready(model, true)
 
-julia> optimizer_model_ready(model)
+julia> backend_ready(model)
 true
 ```
 """
-function set_optimizer_model_ready(model::InfiniteModel, status::Bool)
-     model.ready_to_optimize = status
-     return
+function set_backend_ready(model::InfiniteModel, status::Bool)
+    model.backend_ready = status
+    return
 end
 
 """

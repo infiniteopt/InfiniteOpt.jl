@@ -553,7 +553,7 @@ function set_supports(
     pref::GeneralVariableRef,
     supports::Union{Real, Vector{<:Real}};
     force::Bool = false, 
-    label::Type{<:AbstractSupportLabel} = UserDefined
+    label::Type{<:All} = UserDefined
     )::Nothing
     return set_supports(dispatch_variable_ref(pref), supports,
                         force = force, label = label)
@@ -573,7 +573,7 @@ dependent infinite parameters.
 function set_supports(
     prefs::AbstractArray{<:GeneralVariableRef},
     supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
-    label::Type{<:AbstractSupportLabel} = UserDefined, 
+    label::Type{<:All} = UserDefined, 
     force::Bool = false
     )::Nothing
     return set_supports(dispatch_variable_ref.(prefs), supports, label = label,
@@ -598,7 +598,7 @@ function add_supports(
     pref::GeneralVariableRef,
     supports::Union{Real, Vector{<:Real}};
     check::Bool = true, 
-    label::Type{<:AbstractSupportLabel} = UserDefined
+    label::Type{<:All} = UserDefined
     )::Nothing
     return add_supports(dispatch_variable_ref(pref), supports,
                         check = check, label = label)
@@ -617,7 +617,7 @@ dependent infinite parameters.
 function add_supports(
     prefs::AbstractArray{<:GeneralVariableRef},
     supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
-    label::Type{<:AbstractSupportLabel} = UserDefined, 
+    label::Type{<:All} = UserDefined, 
     check::Bool = true
     )::Nothing
     return add_supports(dispatch_variable_ref.(prefs), supports, label = label,

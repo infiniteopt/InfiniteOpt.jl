@@ -7,7 +7,6 @@ Reexport.@reexport using JuMP
 # Import the necessary packages.
 import Distributions
 import DataStructures
-import FastGaussQuadrature
 import AbstractTrees
 import LeftChildRightSiblingTrees
 import LinearAlgebra
@@ -31,41 +30,41 @@ include("Collections/Collections.jl")
 include("datatypes.jl")
 include("infinite_domains.jl")
 include("scalar_parameters.jl")
-include("array_parameters.jl")
-include("variable_basics.jl")
-include("infinite_variables.jl")
-include("semi_infinite_variables.jl")
-include("point_variables.jl")
-include("finite_variables.jl")
+# include("array_parameters.jl")
+# include("variable_basics.jl")
+# include("infinite_variables.jl")
+# include("semi_infinite_variables.jl")
+# include("point_variables.jl")
+# include("finite_variables.jl")
 include("nlp.jl")
 include("expressions.jl")
-include("measures.jl")
+# include("measures.jl")
 
 # Import and export MeasureToolbox
-include("MeasureToolbox/MeasureToolbox.jl")
-Reexport.@reexport using .MeasureToolbox
+# include("MeasureToolbox/MeasureToolbox.jl")
+# Reexport.@reexport using .MeasureToolbox
 
 # import more core methods
-include("derivatives.jl")
-include("constraints.jl")
+# include("derivatives.jl")
+# include("constraints.jl")
 include("macros.jl")
 include("objective.jl")
-include("measure_expansions.jl")
-include("derivative_evaluations.jl")
+# include("measure_expansions.jl")
+# include("derivative_evaluations.jl")
 include("optimize.jl")
-include("results.jl")
+# include("results.jl")
 include("show.jl")
-include("utilities.jl")
+# include("utilities.jl")
 include("general_variables.jl")
 
 # Import and export TranscriptionOpt
-include("TranscriptionOpt/TranscriptionOpt.jl")
-Reexport.@reexport using .TranscriptionOpt
+# include("TranscriptionOpt/TranscriptionOpt.jl")
+# Reexport.@reexport using .TranscriptionOpt
 
 # Define additional stuff that should not be exported
 const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]
 
-# Following JuMP, export everything that doesn't start with a _ 
+# Following JuMP, export everything that doesn't start with a `_`
 for sym in names(@__MODULE__, all = true)
     sym_string = string(sym)
     if sym in _EXCLUDE_SYMBOLS || startswith(sym_string, "_") || startswith(sym_string, "@_")

@@ -13,7 +13,7 @@ julia> objective_sense(model)
 MIN_SENSE::OptimizationSense = 0
 ```
 """
-function JuMP.objective_sense(model::InfiniteModel)::MOI.OptimizationSense
+function JuMP.objective_sense(model::InfiniteModel)
     return model.objective_sense
 end
 
@@ -29,7 +29,7 @@ julia> objective_function(model)
 1
 ```
 """
-function JuMP.objective_function(model::InfiniteModel)::JuMP.AbstractJuMPScalar
+function JuMP.objective_function(model::InfiniteModel)
     return model.objective_function
 end
 
@@ -55,8 +55,7 @@ julia> objective_function_type(model)
 GenericAffExpr{Float64,GeneralVariableRef}
 ```
 """
-function JuMP.objective_function_type(model::InfiniteModel
-    )::Type{<:JuMP.AbstractJuMPScalar}
+function JuMP.objective_function_type(model::InfiniteModel)
     return typeof(JuMP.objective_function(model))
 end
 
@@ -65,7 +64,7 @@ end
 
 Return `Bool` whether the objective function contains any measures.
 """
-function objective_has_measures(model::InfiniteModel)::Bool
+function objective_has_measures(model::InfiniteModel)
     return model.objective_has_measures
 end
 
@@ -91,7 +90,7 @@ julia> objective_function(model)
 function JuMP.set_objective_function(
     model::InfiniteModel,
     func::JuMP.AbstractJuMPScalar
-    )::Nothing
+    )
     # gather the unique list of variable references for testing and mapping
     new_vrefs = _all_function_variables(func)
     # test in the model
@@ -134,7 +133,7 @@ julia> objective_function(model)
 3
 ```
 """
-function JuMP.set_objective_function(model::InfiniteModel, func::Real)::Nothing
+function JuMP.set_objective_function(model::InfiniteModel, func::Real)
     # delete old mappings
     old_vrefs = _all_function_variables(JuMP.objective_function(model))
     for vref in old_vrefs
@@ -164,7 +163,7 @@ MIN_SENSE::OptimizationSense = 0
 function JuMP.set_objective_sense(
     model::InfiniteModel,
     sense::MOI.OptimizationSense
-    )::Nothing
+    )
     model.objective_sense = sense
     set_optimizer_model_ready(model, false)
     return
@@ -190,7 +189,7 @@ function JuMP.set_objective(
     model::InfiniteModel, 
     sense::MOI.OptimizationSense,
     func::Union{JuMP.AbstractJuMPScalar, Real}
-    )::Nothing
+    )
     JuMP.set_objective_sense(model, sense)
     JuMP.set_objective_function(model, func)
     return
@@ -235,7 +234,7 @@ function JuMP.set_objective_coefficient(
     model::InfiniteModel,
     variable::GeneralVariableRef,
     coeff::Real
-    )::Nothing
+    )
     new_expr = _set_variable_coefficient!(JuMP.objective_function(model),
                                           variable, coeff)
     JuMP.set_objective_function(model, new_expr)
