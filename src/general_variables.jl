@@ -61,7 +61,7 @@ end
 for idx in (:IndependentParameterIndex, :FiniteParameterIndex, 
             :InfiniteVariableIndex, :SemiInfiniteVariableIndex, 
             :PointVariableIndex, :MeasureIndex, :DerivativeIndex, 
-            :FiniteVariableIndex)
+            :FiniteVariableIndex, :ParameterFunctionIndex)
     @eval begin 
         JuMP.index(::Type{$idx}, vref::GeneralVariableRef) = $idx(vref.raw_index)
     end
