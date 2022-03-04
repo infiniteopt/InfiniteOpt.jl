@@ -222,7 +222,7 @@ end
         @test IOTO.transcribe_objective!(tm, m) isa Nothing 
         @test objective_sense(tm) == MOI.MAX_SENSE
         @test objective_function_string(MIME("text/plain"), tm) == "subexpression[1] + 0.0"
-        @test nl_expr_string(tm, MIME("text/plain"), tm.nlp_data.nlexpr[end]) == "z ^ 4.0"
+        @test sprint(show, NonlinearExpression(tm, 1)) == "subexpression[1]: z ^ 4.0"
     end
 end
 
@@ -322,11 +322,10 @@ end
         con = constraint_object(c7)
         func = jump_function(con)
         set = moi_set(con)
-        @test IOTO._process_constraint(tm, con, func, set, zeros(3), "test1") isa NonlinearConstraintRef 
         expected = Sys.iswindows() ? "subexpression[1] - 0.0 == 0" : "subexpression[1] - 0.0 = 0"
-        @test nl_constraint_string(tm, MIME("text/plain"), tm.nlp_data.nlconstr[end]) == expected
+        @test sprint(show, IOTO._process_constraint(tm, con, func, set, zeros(3), "test1")) == expected
         expected = ["sin(z) ^ x(support: 1) - 0.0", "sin(z) ^ x(support: 2) - 0.0"]
-        @test nl_expr_string(tm, MIME("text/plain"), tm.nlp_data.nlexpr[end]) in expected
+        @test sprint(show, NonlinearExpression(tm, 1)) in expected
         tm.nlp_data = nothing
         # vector constraint 
         con = constraint_object(c6)
