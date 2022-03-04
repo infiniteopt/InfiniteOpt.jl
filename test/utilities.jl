@@ -44,6 +44,7 @@ struct TestVariableRef <: DispatchVariableRef
     index::TestIndex
 end
 InfiniteOpt.dispatch_variable_ref(m::InfiniteModel, i::TestIndex) = TestVariableRef(m, i)
+JuMP.index(::Type{TestIndex}, v::GeneralVariableRef) = TestIndex(v.raw_index)
 
 struct TestIndex2 <: ObjectIndex
     value::Int
@@ -53,6 +54,7 @@ struct TestVariableRef2 <: DispatchVariableRef
     index::TestIndex2
 end
 InfiniteOpt.dispatch_variable_ref(m::InfiniteModel, i::TestIndex2) = TestVariableRef2(m, i)
+JuMP.index(::Type{TestIndex2}, v::GeneralVariableRef) = TestIndex2(v.raw_index)
 JuMP.name(::TestVariableRef2) = "test"
 
 InfiniteOpt.support_label(::TestGenMethod) = InternalLabel
