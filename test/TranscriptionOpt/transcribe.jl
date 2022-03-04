@@ -324,7 +324,8 @@ end
         set = moi_set(con)
         expected = Sys.iswindows() ? "subexpression[1] - 0.0 == 0" : "subexpression[1] - 0.0 = 0"
         @test sprint(show, IOTO._process_constraint(tm, con, func, set, zeros(3), "test1")) == expected
-        expected = ["sin(z) ^ x(support: 1) - 0.0", "sin(z) ^ x(support: 2) - 0.0"]
+        expected = ["subexpression[1]: sin(z) ^ x(support: 1) - 0.0", 
+                    "subexpression[1]: sin(z) ^ x(support: 2) - 0.0"]
         @test sprint(show, NonlinearExpression(tm, 1)) in expected
         tm.nlp_data = nothing
         # vector constraint 
