@@ -979,12 +979,12 @@ A convenient container for storing all the transformation attributes stored in
 an `InfiniteModel` that can be used by the transformation backend.
 """
 struct TransformAttrCache
-    finite_params::Dict{Tuple{FiniteParameterIndex, FiniteParameterAttr}, Any}
-    indep_params::Dict{Tuple{IndependentParameterIndex, InfiniteParameterAttr}, Any}
-    depend_params::Dict{Tuple{DependentParametersIndex, InfiniteParameterAttr}, Any} # TODO fix this
-    infinite_vars::Dict{Tuple{InfiniteVariableIndex, VariableAttr}, Any}
-    semi_vars::Dict{Tuple{SemiInfiniteVariableIndex, VariableAttr}, Any}
-    point_vars::Dict{Tuple{PointVariableIndex, VariableAttr}, Any}
+    finite_parameters::Dict{Tuple{FiniteParameterIndex, FiniteParameterAttr}, Any}
+    independent_parameters::Dict{Tuple{IndependentParameterIndex, InfiniteParameterAttr}, Any}
+    dependent_params::Dict{Tuple{DependentParametersIndex, InfiniteParameterAttr}, Any} # TODO maybe allow for parameter-wsie attributes
+    infinite_variables::Dict{Tuple{InfiniteVariableIndex, VariableAttr}, Any}
+    semi_ifninite_variables::Dict{Tuple{SemiInfiniteVariableIndex, VariableAttr}, Any}
+    point_variables::Dict{Tuple{PointVariableIndex, VariableAttr}, Any}
     derivatives::Dict{Tuple{DerivativeIndex, DerivativeAttr}, Any}
     measures::Dict{Tuple{MeasureIndex, MeasureAttr}, Any}
     constraints::Dict{Tuple{InfOptConstraintIndex, ConstraintAttr}, Any}

@@ -141,10 +141,7 @@ end
 #                            PARAMETER DEFINITION
 ################################################################################
 """
-    build_parameter(
-        _error::Function, domain::InfiniteScalarDomain;
-        [kwargs...]
-    )::IndependentParameter
+    build_parameter(_error::Function, domain::InfiniteScalarDomain; [kwargs...])::IndependentParameter
 
 Returns a [`IndependentParameter`](@ref) given the appropriate information.
 This is analagous to `JuMP.build_variable`. This is meant to primarily serve as a
