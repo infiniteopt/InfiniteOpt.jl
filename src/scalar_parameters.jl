@@ -55,7 +55,7 @@ end
 
 # Extend _data_object
 function _data_object(pref::ScalarParameterRef)
-    object = get(_data_dictionary(pref), JuMP.index(pref), nothing)
+    object = Base.get(_data_dictionary(pref), JuMP.index(pref), nothing)
     if isnothing(object)
         error("Invalid scalar parameter reference, cannot find ",
               "corresponding parameter in the model. This is likely ",
@@ -135,7 +135,11 @@ end
 ################################################################################
 #                            TRANSFORM ATTRIBUTES
 ################################################################################
+# Enable Supports() value type checking for infinite parameters
+attribute_value_type(::Supports) = Union{Dict{Float64, DataType}, Dict{Vector{Float64}, DataType}}
+
 # TODO finish
+
 
 ################################################################################
 #                            PARAMETER DEFINITION
@@ -417,7 +421,7 @@ julia> name(t)
 ```
 """
 function JuMP.name(pref::ScalarParameterRef)::String
-    object = get(_data_dictionary(pref), JuMP.index(pref), nothing)
+    object = Base.get(_data_dictionary(pref), JuMP.index(pref), nothing)
     return isnothing(object) ? "" : object.name
 end
 
@@ -516,7 +520,7 @@ function parameter_by_name(model::InfiniteModel, name::String)
         _update_param_name_dict(model, model.dependent_params)
         _update_param_name_dict(model, model.finite_params)
     end
-    index = get(_param_name_dict(model), name, nothing)
+    index = Base.get(_param_name_dict(model), name, nothing)
     if isnothing(index)
         return nothing
     elseif index == IndependentParameterIndex(-1)

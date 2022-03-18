@@ -24,7 +24,7 @@ for (I, A, name) = ((:FiniteParameterIndex, :FiniteParameterAttr, :finite_parame
             return haskey(cache.$(name), key)
         end
         function Base.get(cache::TransformAttrCache, key::Tuple{$I, $A}, default)
-            return get(cache.$(name), key, default)
+            return Base.get(cache.$(name), key, default)
         end
     end
 end
@@ -40,7 +40,7 @@ function Base.haskey(cache::TransformAttrCache, attr::ModelAttr)
     return haskey(cache.model, attr)
 end
 function Base.get(cache::TransformAttrCache, attr::ModelAttr, default)
-    return get(cache.model, attr, default)
+    return Base.get(cache.model, attr, default)
 end
 
 ################################################################################
@@ -108,7 +108,7 @@ for (I, A) = ((:FiniteParameterIndex, :FiniteParameterAttr),
     @eval begin
         if !($I in (DependentParametersIndex, InfOptConstraintIndex))
             function get(model::InfiniteModel, idx::$I, attr::$A)
-                value = get(model.transform_attrs, (idx, attr), nothing)
+                value = Base.get(model.transform_attrs, (idx, attr), nothing)
                 if isnothing(value)
                     error("$(dispatch_variable_ref(model, idx)) does not have transform ",
                           "attribute `$attr`.")
@@ -134,7 +134,7 @@ function get(
     idx::InfOptConstraintIndex, 
     attr::ConstraintAttr
     )
-    value = get(model.transform_attrs, (idx, attr), nothing)
+    value = Base.get(model.transform_attrs, (idx, attr), nothing)
     if isnothing(value)
         error("$(InfOptConstraintRef(model, idx)) does not have transform ",
               "attribute `$attr`.")
@@ -146,7 +146,7 @@ function get(
     idx::DependentParametersIndex, 
     attr::InfiniteParameterAttr
     )
-    value = get(model.transform_attrs, (idx, attr), nothing)
+    value = Base.get(model.transform_attrs, (idx, attr), nothing)
     if isnothing(value)
         error("The dependent parameter group with index `$idx` does not ",
               "have transform attribute `$attr`.")
@@ -154,7 +154,7 @@ function get(
     return value
 end
 function get(model::InfiniteModel, attr::ModelAttr)
-    value = get(model.transform_attrs, attr, nothing)
+    value = Base.get(model.transform_attrs, attr, nothing)
     if isnothing(value)
         error("The model does not have transform attribute `$attr`.")
     end
@@ -171,8 +171,3 @@ function set(model::InfiniteModel, attr::ModelAttr, value)
     model.transform_attrs[attr] = value
     return
 end
-
-################################################################################
-#                          DEFAULT TRANSFORM ATTRIBUTES
-################################################################################
-attribute_value_type(::Supports) = Union{Dict{Float64, DataType}, Dict{Vector{Float64}, DataType}}

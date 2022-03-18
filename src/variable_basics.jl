@@ -162,7 +162,7 @@ julia> name(vref)
 ```
 """
 function JuMP.name(vref::DecisionVariableRef)::String
-    object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
+    object = Base.get(_data_dictionary(vref), JuMP.index(vref), nothing)
     return isnothing(object) ? "" : object.name
 end
 
@@ -246,7 +246,7 @@ function JuMP.variable_by_name(
         _update_var_name_dict(model, model.point_vars)
         _update_var_name_dict(model, model.finite_vars)
     end
-    index = get(_var_name_dict(model), name, nothing)
+    index = Base.get(_var_name_dict(model), name, nothing)
     if isnothing(index)
         return nothing
     elseif index == FiniteVariableIndex(-1)

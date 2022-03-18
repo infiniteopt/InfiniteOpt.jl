@@ -34,7 +34,7 @@ end
 
 # Extend _data_object
 function _data_object(mref::MeasureRef)
-    object = get(_data_dictionary(mref), JuMP.index(mref), nothing)
+    object = Base.get(_data_dictionary(mref), JuMP.index(mref), nothing)
     if isnothing(object) 
         error("Invalid measure reference, cannot find ",
               "corresponding measure in the model. This is likely ",
@@ -1225,7 +1225,7 @@ Extend `JuMP.name` to return the name associated with a measure
 reference.
 """
 function JuMP.name(mref::MeasureRef)::String
-    object = get(_data_dictionary(mref), JuMP.index(mref), nothing)
+    object = Base.get(_data_dictionary(mref), JuMP.index(mref), nothing)
     return isnothing(object) ? "" : object.name
 end
 

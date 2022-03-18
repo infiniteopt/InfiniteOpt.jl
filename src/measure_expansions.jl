@@ -39,7 +39,7 @@ function make_point_variable_ref(
     for i in eachindex(support)
         support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
     end
-    pindex = get(write_model.point_lookup, (ivref, support), nothing)
+    pindex = Base.get(write_model.point_lookup, (ivref, support), nothing)
     if isnothing(pindex)
         base_info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false,
                                       NaN, false, false)
@@ -134,7 +134,7 @@ function make_semi_infinite_variable_ref(
     values::Vector{Float64}
     )::GeneralVariableRef
     eval_supps = Dict(indices[i] => values[i] for i in eachindex(indices))
-    existing_index = get(write_model.semi_lookup, (ivref, eval_supps), nothing)
+    existing_index = Base.get(write_model.semi_lookup, (ivref, eval_supps), nothing)
     if isnothing(existing_index)
         var = JuMP.build_variable(error, ivref, eval_supps, check = false)
         return JuMP.add_variable(write_model, var, add_support = false)

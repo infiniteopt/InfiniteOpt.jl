@@ -391,7 +391,7 @@ function JuMP.get_optimizer_attribute(
     model::InfiniteModel,
     attr::MOI.AbstractOptimizerAttribute
     )
-    return MOI.get(optimizer_model(model), attr)
+    return MOI.Base.get(optimizer_model(model), attr)
 end
 
 """
@@ -454,7 +454,7 @@ julia> result_count(model)
 ```
 """
 function JuMP.result_count(model::InfiniteModel)::Int
-    return MOI.get(optimizer_model(model), MOI.ResultCount())
+    return MOI.Base.get(optimizer_model(model), MOI.ResultCount())
 end
 
 ################################################################################
