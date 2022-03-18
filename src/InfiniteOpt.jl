@@ -51,6 +51,7 @@ include("macros.jl")
 include("objective.jl")
 # include("measure_expansions.jl")
 # include("derivative_evaluations.jl")
+include("transform.jl")
 include("optimize.jl")
 # include("results.jl")
 include("show.jl")
@@ -62,7 +63,7 @@ include("general_variables.jl")
 # Reexport.@reexport using .TranscriptionOpt
 
 # Define additional stuff that should not be exported
-const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]
+const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include, :get, :set]
 
 # Following JuMP, export everything that doesn't start with a `_`
 for sym in names(@__MODULE__, all = true)
