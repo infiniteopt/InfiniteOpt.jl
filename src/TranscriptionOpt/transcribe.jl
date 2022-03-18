@@ -212,7 +212,7 @@ function transcribe_derivative_variables!(
         # get the basic variable information
         dref = InfiniteOpt._make_variable_ref(inf_model, idx)
         d = object.variable
-        base_name = InfiniteOpt.variable_string(JuMP.REPLMode, dispatch_variable_ref(dref))
+        base_name = InfiniteOpt.variable_string(MIME("text/plain"), dispatch_variable_ref(dref))
         param_nums = InfiniteOpt._parameter_numbers(d.variable_ref)
         obj_nums = InfiniteOpt._object_numbers(d.variable_ref)
         # prepare for iterating over its supports
@@ -508,7 +508,7 @@ function transcription_expression(
     ast = InfiniteOpt.map_nlp_to_ast(
         v -> transcription_expression(trans_model, v, support), 
         nlp)
-    return JuMP.add_NL_expression(trans_model, ast)
+    return JuMP.add_nonlinear_expression(trans_model, ast)
 end
 
 # Real Number 
@@ -584,7 +584,7 @@ end
 
 # NonlinearExpression 
 function _set_objective(trans_model, sense, expr::JuMP.NonlinearExpression)
-    return JuMP.set_NL_objective(trans_model, sense, expr)
+    return JuMP.set_nonlinear_objective(trans_model, sense, expr)
 end
 
 """
@@ -734,7 +734,7 @@ function _process_constraint(
     name::String
     )
     nlp_ref = transcription_expression(trans_model, func, raw_supp)
-    return JuMP.add_NL_constraint(trans_model, _make_constr_ast(nlp_ref, set))
+    return JuMP.add_nonlinear_constraint(trans_model, _make_constr_ast(nlp_ref, set))
 end
 
 # JuMP.VectorConstraint

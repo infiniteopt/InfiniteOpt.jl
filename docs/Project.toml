@@ -1,5 +1,5 @@
 [deps]
-Clp = "e2554f3b-3117-50c0-817c-e040a3ddf72d"
+HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 InfiniteOpt = "20393b10-9daf-11e9-18c9-8db751c92c57"
@@ -11,11 +11,12 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
-Clp = "0.9"
+HiGHS = "1"
 Distributions = "0.25"
 Documenter = "0.27"
 InfiniteOpt = "0.5"
-Ipopt = "0.9"
+Ipopt = "1"
 Literate = "2.9"
 Plots = "1"
 julia = "1.6"
+SpecialFunctions = "2"

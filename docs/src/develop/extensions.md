@@ -871,7 +871,7 @@ function _make_expression(opt_model::Model, expr::Union{GenericAffExpr, GenericQ
 end
 # NLPExpr
 function _make_expression(opt_model::Model, expr::NLPExpr)
-    return add_NL_expression(opt_model, map_nlp_to_ast(v -> _make_expression(opt_model, v), expr))
+    return add_nonlinear_expression(opt_model, map_nlp_to_ast(v -> _make_expression(opt_model, v), expr))
 end
 
 # output
@@ -923,7 +923,7 @@ function InfiniteOpt.build_optimizer_model!(
     # add the objective
     obj_func = _make_expression(determ_model, objective_function(model))
     if obj_func isa NonlinearExpression
-        set_NL_objective(determ_model, objective_sense(model), obj_func)
+        set_nonlinear_objective(determ_model, objective_sense(model), obj_func)
     else
         set_objective(determ_model, objective_sense(model), obj_func)
     end
@@ -941,7 +941,7 @@ function InfiniteOpt.build_optimizer_model!(
                 else # assume it is MOI.EqualTo
                     ex = :($new_func == $(constr.set.value))
                 end
-                new_cref = add_NL_constraint(determ_model, ex)
+                new_cref = add_nonlinear_constraint(determ_model, ex)
             else
                 new_constr = build_constraint(error, new_func, constr.set)
                 new_cref = add_constraint(determ_model, new_constr, name(cref))
