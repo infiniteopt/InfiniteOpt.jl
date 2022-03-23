@@ -221,7 +221,7 @@ function process_transform_value(_error::Function, attr, value, object)
     return value
 end
 
-# Helper function for checking the transformation keywords
+# Helper function for checking the transformation keywords in build functions
 function _process_transform_kwargs(_error, dict, kwargs, obj)
     for (k, v) in kwargs
         if !haskey(dict, k)
