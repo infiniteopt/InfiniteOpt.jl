@@ -118,7 +118,7 @@ for (I, A) = ((:FiniteParameterIndex, :FiniteParameterAttr),
         end
         function set(model::InfiniteModel, idx::$I, attr::$A, value)
             if !isa(value, attribute_value_type(attr))
-                error("Expected a value of type `$(attribute_value_type(attr))` for", 
+                error("Expected a value of type `$(attribute_value_type(attr))` for ", 
                       "the attribute `$(attr)`, but got `$(value)` of type ",
                       "`$(typeof(value))`.")
             end
@@ -164,10 +164,89 @@ end
 # Set for models 
 function set(model::InfiniteModel, attr::ModelAttr, value)
     if !isa(value, attribute_value_type(attr))
-        error("Expected a value of type `$(attribute_value_type(attr))` for", 
+        error("Expected a value of type `$(attribute_value_type(attr))` for ", 
               "the attribute `$(attr)`, but got `$(value)` of type ",
               "`$(typeof(value))`.")
     end
     model.transform_attrs[attr] = value
     return
+end
+
+################################################################################
+#                              KEYWORD INPUT API
+################################################################################
+"""
+    register_transform_keyword(kw::Symbol, attr::AbstractTransformAttr, 
+                               [type = attribute_value_type(attr)])::Nothing
+
+Register a new [`AbstractTransformAttr`](@ref) to be specified via keyword 
+argument to the appropriate creation macro (e.g., `@infinite_parameter` for 
+[`InfiniteParameterAttr`](@ref)s). Using `type` indicates what type of input 
+of input is accepted for `kw`. Note that `type` need not equal 
+`attribute_value_type(attr)` if [`process_transform_value`](@ref) is extended 
+for that value type. This is intended for advanced users who are implementing 
+their own transformation backend. Errors if `kw` is already in use.
+"""
+function register_transform_keyword end
+
+# Helper function for keyword registration
+function _add_transform_keyword(dict, kw, attr, type)
+    if haskey(dict, kw)
+        error("Cannot register $kw as a keyword argument, since it is already ",
+              "in use.")
+    end
+    if isnothing(type)
+        dict[kw] = (attr, attribute_value_type(attr))
+    else
+        dict[kw] = (attr, type)
+    end
+    return
+end
+
+"""
+    process_transform_value(_error::Function, attr, value, object)
+
+Process a transformation backend attribute `attr` with a raw `value` that will 
+be associated with `object` once it is added to the model. This is intended 
+to handle raw input `value`s collected via keyword arguments when `object` is 
+created (i.e., transformation keywords that have been registered via 
+[`register_transform_keyword`](@ref)). This provides extra flexibility allow 
+more convenient input for users. By default `value` is simply returned. This 
+should be extended for registered transformation attribute types that wish to 
+process input that doesn't readily match [`attribute_value_type`](@ref). Note 
+that this is intended as an advanced function for developers of transformation 
+backends.
+"""
+function process_transform_value(_error::Function, attr, value, object)
+    return value
+end
+
+# Helper function for checking the transformation keywords
+function _process_transform_kwargs(_error, dict, kwargs, obj)
+    for (k, v) in kwargs
+        if !haskey(dict, k)
+            _error("Unrecognized keyword argument `$k`.")
+        elseif !isa(v, dict[k][2])
+            _error("The `$k` keyword argument should be of type ",
+                   "`$(dict[k][2])` not of type `$(typeof(v))`.")
+        end
+    end
+    if isempty(kwargs)
+        return obj
+    else
+        processed_kwargs = Dict()
+        sizehint!(processed_kwargs, length(kwargs))
+        for (k, v) in kwargs
+            attr = dict[k][1]
+            if haskey(processed_kwargs, attr)
+                kw_inds = findall(kw -> dict[kw][1] == attr, keys(kwargs))
+                kws = keys(kwargs)[kw_inds]
+                _error("The following keyword arguments cannot be given ",
+                       "simultaneously: '", join(kws[1:end-1], "', "), "' and '",
+                       kws[end], "'.")
+            end
+            processed_kwargs[attr] = process_transform_value(_error, attr, v, obj)
+        end
+        return ObjectWithAttributes(obj, processed_kwargs)
+    end
 end

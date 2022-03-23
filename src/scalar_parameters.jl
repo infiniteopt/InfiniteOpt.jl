@@ -133,13 +133,31 @@ function _set_core_variable_object(
 end
 
 ################################################################################
-#                            TRANSFORM ATTRIBUTES
+#                       TRANSFORM ATTRIBUTE KEYWORD SUPPORT
 ################################################################################
-# Enable Supports() value type checking for infinite parameters
-attribute_value_type(::Supports) = Union{Dict{Float64, DataType}, Dict{Vector{Float64}, DataType}}
+# Store the keywords to be accepted by @infinite_parameter
+const _InfiniteParameterKeywords = Dict{Symbol, Any}()
 
-# TODO finish
+# Add registeration method for @infinite_parameter
+function register_transform_keyword(
+    kw::Symbol, 
+    attr::InfiniteParameterAttr, 
+    type = nothing
+    )
+    return _add_transform_keyword(_InfiniteParameterKeywords, kw, attr, type)
+end
 
+# Store the keywords to be accepted by @finite_parameter
+const _FiniteParameterKeywords = Dict{Symbol, Any}()
+
+# Add registeration method for @finite_parameter
+function register_transform_keyword(
+    kw::Symbol, 
+    attr::FiniteParameterAttr, 
+    type = nothing
+    )
+    return _add_transform_keyword(_FiniteParameterKeywords, kw, attr, type)
+end
 
 ################################################################################
 #                            PARAMETER DEFINITION
@@ -156,8 +174,9 @@ helper method for [`@infinite_parameter`](@ref).
 julia> param = build_parameter(error, IntervalDomain(0, 3));
 ```
 """
-function build_parameter(_error::Function, domain::InfiniteScalarDomain)
-    return IndependentParameter(domain)
+function build_parameter(_error::Function, domain::InfiniteScalarDomain; kwargs...)
+    return _process_transform_kwargs(_error, _InfiniteParameterKeywords, kwargs, 
+                                     IndependentParameter(domain))
 end
 
 # Fallback for bad domain types 
@@ -168,7 +187,7 @@ function build_parameter(_error::Function, domain::AbstractInfiniteDomain)
 end
 
 """
-    build_parameter(_error::Function, value::Real)::FiniteParameter
+    build_parameter(_error::Function, value::Real; [kwargs...])::FiniteParameter
 
 Returns a [`FiniteParameter`](@ref) given the appropriate information.
 This is analagous to `JuMP.build_variable`. This is meant to primarily serve as
@@ -180,8 +199,9 @@ julia> build_finite_parameter(error, 1)
 FiniteParameter(1.0)
 ```
 """
-function build_parameter(_error::Function, value::Real)
-    return FiniteParameter(value)
+function build_parameter(_error::Function, value::Real; kwargs...)
+    return _process_transform_kwargs(_error, _FiniteParameterKeywords, kwargs, 
+                                     FiniteParameter(value))
 end
 
 # Generic fallback
@@ -212,7 +232,7 @@ function add_parameter(
     model::InfiniteModel, 
     p::IndependentParameter,
     name::String = ""
-    ) # TODO add attribute kwargs
+    )
     obj_num = length(_param_object_indices(model)) + 1
     param_num = model.last_param_num += 1
     data_object = ScalarParameterData(p, obj_num, param_num, name)
@@ -244,12 +264,42 @@ function add_parameter(
     model::InfiniteModel, 
     p::FiniteParameter,
     name::String = ""
-    ) # TODO add attribute kwargs
+    )
     data_object = ScalarParameterData(p, -1, -1, name)
     obj_index = _add_data_object(model, data_object)
     model.name_to_param = nothing
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
 end
+
+"""
+    add_parameter(model::InfiniteModel, obj::ObjectWithAttributes{<:ScalarParameter},
+                  name::String = "")::GeneralVariableRef
+
+Add a parameter build with `build_parameter` that contains [`InfiniteParameterAttr`](@ref)s 
+that need to be added to `model` as well. 
+"""
+function add_parameter(
+    model::InfiniteModel, 
+    obj::ObjectWithAttributes{<:ScalarParameter},
+    name::String = ""
+    )
+    pref = add_parameter(model, obj.object, name)
+    idx = JuMP.index(pref)
+    for (a, v) in obj.attributes
+        InfiniteOpt.set(model, idx, a, v)
+    end
+    return pref
+end
+
+################################################################################
+#                              BASIC SUPPORT API
+################################################################################
+# Enable Supports() value type checking for infinite parameters
+attribute_value_type(::Supports) = Union{Dict{Float64, DataType}, Dict{Vector{Float64}, DataType}}
+
+# TODO Is this absolutely needed, is there a more modular way to update them incrementally?
+
+# TODO finish
 
 ################################################################################
 #                           PARAMETER DEPENDENCIES

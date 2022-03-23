@@ -1015,6 +1015,23 @@ An abstract type for transformation interfaces/models that act as a backend for
 """
 abstract type AbstractTransformBackend end
 
+
+"""
+    ObjectWithAttributes{O, D <: Dict}
+
+This serves as a wrapper type to store a modeling object (e.g., an infinite 
+parameter) and [`AbstractTransformAttr`](@ref)s that should be added when the 
+object is added to the model.
+
+**Fields**
+- `object:O`: The modeling object to be added.
+- `attributes::D`: The dictionary of attributes to be added (`attr` => `value`). 
+"""
+struct ObjectWithAttributes{O, D <: Dict}
+    object::O
+    attributes::D
+end
+
 # TODO maybe add more types if needed
 
 ################################################################################
