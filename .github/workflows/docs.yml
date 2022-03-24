@@ -7,7 +7,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
 jobs:
   build:
-    if: ! github.event.pull_request.draft
+    if: github.event.pull_request.draft == false
     env:
       GKS_ENCODING: "utf8"
       GKSwstype: "100"
