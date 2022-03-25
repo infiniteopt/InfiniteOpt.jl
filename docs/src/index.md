@@ -43,7 +43,7 @@ include:
 - Diverse derivative approximations (e.g., finite difference, orthogonal 
   collocation)
 - Sophisticated support point management system
-- Compatible with all [JuMP-supported solvers](https://jump.dev/JuMP.jl/v0.22/installation/#Supported-solvers)
+- Compatible with all [JuMP-supported solvers](https://jump.dev/JuMP.jl/v1/installation/#Supported-solvers)
 
 Accepted infinite/finite problem forms currently include:
 - Variables
@@ -72,7 +72,7 @@ Accepted infinite/finite problem forms currently include:
 
 ### Infinite-Dimensional Optimization with InfiniteOpt.jl
 See our YouTube overview of infinite-dimensional programming and InfiniteOpt.jl's 
-capabilities from JuliaCon 2021: 
+capabilities from JuliaCon 2021 (note that nonlinear support has since been added): 
 [![youtube](assets/youtube.PNG)](https://www.youtube.com/watch?v=z03Fjvz90os&t=1s "Infinite-Dimensional Optimization with InfiniteOpt.jl")
 
 ## Installation
@@ -87,7 +87,7 @@ on how to get started.
 ## First Steps 
 `InfiniteOpt` is extension of `JuMP`, thus new users should start by 
 familiarizing themselves with how to use `JuMP` first. See 
-[`JuMP`'s documentation](https://jump.dev/JuMP.jl/v0.22/) to learn more.
+[`JuMP`'s documentation](https://jump.dev/JuMP.jl/v1/) to learn more.
 
 Once you're familiar with `JuMP` check out our [Quick Start Guide](@ref) to get 
 started. From there we provide extensive documentation to help you along, please 
@@ -129,7 +129,7 @@ do the following:
 3. Submit a pull request
 
 For other contributions, please visit our 
-[Developers Guide](@ref contribute_guide) for step by step instructions and to 
+[Developers Guide](@ref contribute_guide) for step-by-step instructions and to 
 review our style guide.
 
 ## Citing
@@ -150,7 +150,7 @@ citing it.
       author = {Joshua L. Pulsipher and Weiqi Zhang and Tyler J. Hongisto and Victor M. Zavala},
 }
 ```
-A pre-print version is freely available though [ArXiv](https://arxiv.org/abs/2106.12689).
+A pre-print version is freely available though [arXiv](https://arxiv.org/abs/2106.12689).
 
 ## Acknowledgements
 We acknowledge our support from the Department of Energy under grant 

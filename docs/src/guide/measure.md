@@ -279,9 +279,9 @@ docstrings.
 | [`MultiIndepMCSampling()`](@ref)                 | Multivariate       |   ``1``                      | Finite [`IntervalDomain`](@ref)        |
 
 
-The eval method [`FEGaussLobatto`](@ref) creates finite elements by decomposing over the 
+The evaluation method [`FEGaussLobatto`](@ref) creates finite elements by decomposing over the 
 supports that have been added to the integral parameter and then approximates the 
-integral over each finite element via Lobatto quadrature using num_nodes. 
+integral over each finite element via Lobatto quadrature using `num_nodes`. 
 All other Gauss quadrature methods do not incorporate any existing supports nor 
 do they decompose the integral into finite elements, but instead generate their 
 quadrature node points over the entire integral domain. See the 
@@ -370,7 +370,7 @@ julia> transcription_variable(u)
 julia> objective_function(trans_m) 
 0.5 u(support: 1)² + u(support: 2)² + 0.5 u(support: 3)²
 ```
-Thus, the integral incorporates the 3 supports generated outside of the `integral` 
+Thus, the integral incorporates the 3 supports generated outside the `integral` 
 declaration.
 
 Then we readjust the model to use Gauss-Legendre quadrature via `GaussLegendre()` 
@@ -418,7 +418,7 @@ in the transcription of `u`. The integral objective function has been transcribe
 using the 2 quadrature supports, but does not include the other supports since 
 they cannot be incorporated into the Gaussian quadrature approximation. Whereas, 
 `u` is defined over all the supports and thus certain realizations of `u` will 
-excluded from the objective function which will affect the behavior of the 
+be excluded from the objective function which will affect the behavior of the 
 optimization and lead to unexpected results.
 
 However, this behavior is avoided if we let the integral add the supports and 

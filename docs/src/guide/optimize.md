@@ -12,7 +12,7 @@ we have defined and this is the very reason why `InfiniteOpt` was created. Thus,
 `InfiniteOpt` offers a general and intuitive platform to do just this. This 
 is made up of transforming the `InfiniteModel` into a standard optimization 
 problem stored as a `JuMP.Model` (referred to as the `optimizer_model`) that is 
-then optimized via a compatible optimizer. By default this is done via a 
+then optimized via a compatible optimizer. By default, this is done via a 
 `TranscriptionModel` as described on the previous page. However, user-defined 
 reformulation strategies can readily be implemented as described in the 
 [Optimizer Models](@ref extend_optimizer_model) section on the extensions page. 
@@ -77,7 +77,7 @@ contains a data object (that stores a mapping between the transformed model and
 the infinite model) in the `Model.ext` dictionary with an associated key. By 
 default a `JuMP.Model` using [`TranscriptionData`](@ref) stored under the key 
 `:TransData` is used and is referred to as a `TranscriptionModel`. The 
-optimizer model is then what is used to optimize the infinite model and it provides 
+optimizer model is then what is used to optimize the infinite model, and it provides 
 the information exacted by solution queries mapped back to the infinite 
 model using the mapping data structure.
 
