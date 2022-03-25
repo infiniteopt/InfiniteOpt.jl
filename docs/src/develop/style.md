@@ -59,7 +59,7 @@ Here we detail the programmatic style used with `InfiniteOpt`. This is done in a
 effort to make this package intuitive for new-comers and to ease development. This 
 style closely follows that of `JuMP.jl` with similar deviations from typical Julia 
 styles. Please refer to the  
-[`JuMP` style guide](https://jump.dev/JuMP.jl/v0.22/developers/style/) as this 
+[`JuMP` style guide](https://jump.dev/JuMP.jl/v1/developers/style/) as this 
 is the style used by `InfiniteOpt`.
 
 In addition, we adopt the following practices: 

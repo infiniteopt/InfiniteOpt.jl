@@ -88,7 +88,7 @@ end
 # InfiniteParameter 
 function _get_value(pref, ::Type{<:InfiniteParameterIndex}, result; kwargs...)
     label = Base.get(kwargs, :label, PublicLabel)
-    return supports(pref, label = label)
+    return supports(pref, label = label) # TODO generalize this once we decouple the supports
 end
 
 # FiniteParameter 
@@ -100,6 +100,11 @@ end
 function _get_value(vref, index_type, result; kwargs...)
     return map_value(vref, Val(optimizer_model_key(JuMP.owner_model(vref))), 
                      result; kwargs...)
+end
+
+# Extend JuMP.value to handle numbers as needed for parameter functions 
+function JuMP.value(val::Real; result = 1)
+    return val
 end
 
 """

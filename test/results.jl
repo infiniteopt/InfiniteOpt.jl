@@ -113,6 +113,7 @@ end
     @variable(m, inf, Infinite(par))
     @variable(m, inf2, Infinite(par2, par))
     @finite_parameter(m, fin == 42)
+    @parameter_function(m, a == sin(par))
     @variable(m, g <=3)
     d1 = @deriv(inf, par)
     var = build_variable(error, inf2, Dict{Int, Float64}(2 => 0))
@@ -178,6 +179,8 @@ end
         @test value(par, label = All) == [0., 0.5, 1.]
         @test value(fin) == 42
         @test value(fin, label = All) == 42
+        @test value(a) == [sin(0.), sin(1.)]
+        @test value(a, label = All) == [sin(0.), sin(0.5), sin(1.)]
     end
     #test Reduced Cost
     @testset "map_reduced_cost" begin
