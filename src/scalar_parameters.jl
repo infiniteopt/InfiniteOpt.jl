@@ -78,22 +78,22 @@ function _core_variable_object(pref::FiniteParameterRef)::FiniteParameter
 end
 
 # Extend _parameter_number
-function _parameter_number(pref::IndependentParameterRef)::Int
+function _parameter_number(pref::IndependentParameterRef)
     return _data_object(pref).parameter_num
 end
 
 # Extend _parameter_numbers
-function _parameter_numbers(pref::IndependentParameterRef)::Vector{Int}
+function _parameter_numbers(pref::IndependentParameterRef)
     return [_parameter_number(pref)]
 end
 
 # Extend _object_number
-function _object_number(pref::IndependentParameterRef)::Int
+function _object_number(pref::IndependentParameterRef)
     return _data_object(pref).object_num
 end
 
 # Extend _object_numbers
-function _object_numbers(pref::IndependentParameterRef)::Vector{Int}
+function _object_numbers(pref::IndependentParameterRef)
     return [_object_number(pref)]
 end
 
@@ -238,6 +238,7 @@ function add_parameter(
     data_object = ScalarParameterData(p, obj_num, param_num, name)
     obj_index = _add_data_object(model, data_object)
     model.name_to_param = nothing
+    _update_transform_attributes(model, p)
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
 end
 
@@ -268,6 +269,7 @@ function add_parameter(
     data_object = ScalarParameterData(p, -1, -1, name)
     obj_index = _add_data_object(model, data_object)
     model.name_to_param = nothing
+    _update_transform_attributes(model, p)
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
 end
 
@@ -290,16 +292,6 @@ function add_parameter(
     end
     return pref
 end
-
-################################################################################
-#                              BASIC SUPPORT API
-################################################################################
-# Enable Supports() value type checking for infinite parameters
-attribute_value_type(::Supports) = Union{Dict{Float64, DataType}, Dict{Vector{Float64}, DataType}}
-
-# TODO Is this absolutely needed, is there a more modular way to update them incrementally?
-
-# TODO finish
 
 ################################################################################
 #                           PARAMETER DEPENDENCIES
@@ -617,7 +609,7 @@ end
 
 """
     set_infinite_domain(pref::IndependentParameterRef,
-                     domain::InfiniteScalarDomain)::Nothing
+                        domain::InfiniteScalarDomain)::Nothing
 
 Reset the infinite domain of `pref` with another `InfiniteScalarDomain`. An error will 
 be thrown if `pref` is being used by some measure.

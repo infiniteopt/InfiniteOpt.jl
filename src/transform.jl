@@ -93,8 +93,6 @@ function set(model::InfiniteModel, attr, value)
           "attributes of type `$(typeof(attr))`.")
 end
 
-# TODO enable `set` to optionally update the transformation backend incrementally
-
 # Singular dispatch variables (and the dependent parameter & constraint getters)
 for (I, A) = ((:FiniteParameterIndex, :FiniteParameterAttr), 
               (:IndependentParameterIndex, :InfiniteParameterAttr),
@@ -249,4 +247,58 @@ function _process_transform_kwargs(_error, dict, kwargs, obj)
         end
         return ObjectWithAttributes(obj, processed_kwargs)
     end
+end
+
+################################################################################
+#                         DYNAMIC ATTRIBUTE UPDATE API
+################################################################################
+# Create storage container for transform attributes to be updated incrementally
+const _IncrementalAttributes = Set{AbstractTransformAttr}()
+
+"""
+    register_attribute_to_update(attr::AbstractTransformAttr)::Nothing
+
+Register a transformation backend attribute `attr` that can be updated 
+incrementally when modeling objects are added to `InfiniteModel`s. This 
+must be implemented in combination with [`update_attribute_on_creation`](@ref). 
+Only individuals writing transformation backends should use this function.
+"""
+function register_attribute_to_update(attr::AbstractTransformAttr)
+    push!(_IncrementalAttributes, attr)
+    return
+end
+
+"""
+    update_attribute_on_creation(model::InfiniteModel, attr::AbstractTransformAttr, obj)::Nothing
+
+Update a particular transformation backend attribute `attr` when an `InfiniteOpt` 
+modeling object `obj` is added to `model`. This enables transformation attributes 
+to be built-up incrementally as the `InfiniteModel` is created. This method is 
+only invoked for attributes that have been registered via 
+[`register_attribute_to_update`](@ref). By default, nothing is updated. Those 
+writing transformation backends should extend this based on particular 
+attribute-object combinations where an update should be made. For instance, we 
+could obtain the discrete supports with the point from a point variable when it 
+is created (this is what `TranscriptionOpt` does). 
+
+Note this should NOT be used to modify/create an attribute for `obj` itself, it 
+should only be used to modify attributes associated with other modeling objects. 
+Instead use [`register_transform_keyword`](@ref) if you what to create an attribute 
+for `obj` on creation. 
+"""
+function update_attribute_on_creation(
+    model::InfiniteModel, 
+    attr::AbstractTransformAttr, 
+    obj
+    )
+    return 
+end
+
+# Helper function for incrementally updating transform attributes when 
+# adding modeling objects to the model
+function _update_transform_attributes(model, obj)
+    for attr in _IncrementalAttributes
+        update_attribute_on_creation(model, attr, obj)
+    end
+    return
 end

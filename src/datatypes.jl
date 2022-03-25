@@ -913,14 +913,6 @@ information about infinite parameters to be specified by the user.
 abstract type InfiniteParameterAttr <: AbstractTransformAttr end
 
 """
-    Supports <: InfiniteParameterAttr
-
-An attribute for storing support (discretization) points that will be used 
-by infinite parameter to approximate the infinite domain of a problem.  
-"""
-struct Supports <: InfiniteParameterAttr end
-
-"""
     VariableAttr <: AbstractTransformAttr
 
 A variable attribute that is used by a transformation backend. This is 
@@ -955,13 +947,6 @@ intended to be used by transformation backends that require/allow additional
 information about constraints to be specified by the user.
 """
 abstract type ConstraintAttr <: AbstractTransformAttr end
-
-"""
-    BoundaryCondition <: ConstraintAttr
-
-An attribute to indicate whether a constraint is a boundary condition.
-"""
-struct BoundaryCondition <: ConstraintAttr end # TODO maybe do something else
 
 """
     ModelAttr <: AbstractTransformAttr
@@ -1008,15 +993,6 @@ struct TransformAttrCache
 end
 
 """
-    AbstractTransformBackend
-
-An abstract type for transformation interfaces/models that act as a backend for 
-`InfiniteModel`s.
-"""
-abstract type AbstractTransformBackend end
-
-
-"""
     ObjectWithAttributes{O, D <: Dict}
 
 This serves as a wrapper type to store a modeling object (e.g., an infinite 
@@ -1032,42 +1008,15 @@ struct ObjectWithAttributes{O, D <: Dict}
     attributes::D
 end
 
+"""
+    AbstractTransformBackend
+
+An abstract type for transformation interfaces/models that act as a backend for 
+`InfiniteModel`s.
+"""
+abstract type AbstractTransformBackend end
+
 # TODO maybe add more types if needed
-
-################################################################################
-#                             BASIC SUPPORT LABELS
-################################################################################
-"""
-    All
-
-This abstract support label is unique in that it isn't associated with a particular set of 
-supports, but rather is used used to indicate that all supports should be used.
-"""
-abstract type All end
-
-"""
-    PublicLabel <: All
-
-An abstract label used to denote that labels that should be given to the user by 
-default.
-"""
-abstract type PublicLabel <: All end 
-
-"""
-    UserDefined <: PublicLabel
-
-A support label for supports that are supplied by the user directly to an infinite 
-parameter. 
-"""
-struct UserDefined <: PublicLabel end 
-
-"""
-    InternalLabel <: All
-
-An abstract label for support labels that are associated with supports that should 
-not be reported to the user by default.
-"""
-abstract type InternalLabel <: All end 
 
 ################################################################################
 #                                INFINITE MODEL
