@@ -1,7 +1,7 @@
 ```@meta
 DocTestFilters = [r"≤|<=", r"≥|>=", r" == | = ", r" ∈ | in ", 
                   r"MathOptInterface|MOI", r" for all | ∀ ", r"d|∂", 
-                  r"E|𝔼", r"integral|∫"]
+                  r"E|𝔼", r"integral|∫", r"-?[0-9\.]+.*"]
 ```
 
 # Extensions
