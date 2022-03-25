@@ -4,7 +4,7 @@ A guide for infinite domains in `InfiniteOpt`. See the respective
 
 !!! note 
     Previous versions of `InfiniteOpt` referred to infinite domains as infinite 
-    sets. Hence, all of the methods and datatypes have been updated accordingly. 
+    sets. Hence, all the methods and datatypes have been updated accordingly. 
 
 ## Basic Usage
 Interval domains are what characterize the behavior of infinite parameters in 
@@ -13,7 +13,7 @@ most users will not need to work directly with infinite domains and can instead
 focus on the use of infinite parameters as defined via [`@infinite_parameter`](@ref) 
 and as discussed on the [Infinite Parameters](@ref inf_par_docs) page.
 
-However, for convenience below we summary the infinite domains associated with 
+However, for convenience below we summarize the infinite domains associated with 
 `InfiniteOpt`:
 
 | Domain Type                       | Domain                                     | Type                        |
@@ -147,7 +147,7 @@ infinite domains. This is crucial as support generation decides how each
 infinite-dimensional parameter, which is subject to certain infinite domain, is 
 discretized later in the transcription stage. The interface will allow users to 
 automatically generate support points using our default methods. Later we will 
-also show that users can  also input support points manually for an infinite 
+also show that users can also input support points manually for an infinite 
 parameter. Please note that these methods are called by the 
 [`@infinite_parameter`](@ref) macro when the `num_supports` keyword is used. 
 Thus, users typically will not need to use this interface directly.

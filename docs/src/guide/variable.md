@@ -30,12 +30,12 @@ following table:
 | Finite        | NA                     | classical decision variables           | ``z``                  |
 
 Infinite, semi-infinite, point, and finite variables are defined via 
-[`@variable`](https://jump.dev/JuMP.jl/v0.22/reference/variables/#JuMP.@variable) 
+[`@variable`](https://jump.dev/JuMP.jl/v1/reference/variables/#JuMP.@variable) 
 (inherited from `JuMP`) with their respective variable type 
 object arguments: [`Infinite`](@ref), [`SemiInfinite`](@ref), and [`Point`](@ref) 
 (finite variables don't use a variable type object).
 
-Let's first setup a simple space-time model with infinite parameters time `t` and
+Let's first set up a simple space-time model with infinite parameters time `t` and
 spatial position `x`:
 ```jldoctest var_basic
 julia> using InfiniteOpt
@@ -69,7 +69,7 @@ julia> @variable(model, w[i = 1:3], Infinite(t, x), start = [0, 2, 1][i])
  w[2](t, x)
  w[3](t, x)
 ```
-Thus we create a Julia array variable `w` whose elements `w[i]` point to their
+Thus, we create a Julia array variable `w` whose elements `w[i]` point to their
 respective infinite variables `w[i](t, x)` stored in `model`. Note that the `i`
 used in the array definition can be used to index attributes assigned to each
 variable in the array. In this case, we used `i` to assign different initial
@@ -221,7 +221,7 @@ of [`DispatchVariableRef`](@ref)s is discussed on the [Expressions](@ref expr_do
 page.
 
 ## Macro Variable Definition
-The [`@variable`](https://jump.dev/JuMP.jl/v0.22/reference/variables/#JuMP.@variable) 
+The [`@variable`](https://jump.dev/JuMP.jl/v1/reference/variables/#JuMP.@variable) 
 macro automates the variable definition process discussed above in the 
 [Variable Definition Methodology](@ref) section via a straightforward symbolic 
 syntax. The only key difference is that non-anonymous macro calls will register 
@@ -230,12 +230,12 @@ step and exactly follow the process described above. This section will highlight
 the details of using this macro which is the recommended way to define variables.
 
 !!! tip
-    `JuMP`'s [documentation on variables](https://jump.dev/JuMP.jl/v0.22/manual/variables/) 
+    `JuMP`'s [documentation on variables](https://jump.dev/JuMP.jl/v1/manual/variables/) 
     is a good place to start since `InfiniteOpt` simply extends `JuMP` to 
     accommodate our additional variable types.
 
 We directly build upon 
-[`JuMP.@variable`](https://jump.dev/JuMP.jl/v0.22/reference/variables/#JuMP.@variable) 
+[`JuMP.@variable`](https://jump.dev/JuMP.jl/v1/reference/variables/#JuMP.@variable) 
 to create all of our decision variable types. To illustrate this via example, 
 let's setup a model with a variety of infinite parameters ``t \in [0,10]``, 
 ``x \in [-1, 1]^3``, and ``\xi \in \mathcal{N}(0, 1)``:
@@ -360,7 +360,7 @@ julia> z_fix = @variable(model, lower_bound = 10, upper_bound = 10,
                          base_name = "z_fix") # ~add w/ fixed value 
 z_fix
 ```
-Note that there isn't a keyword for fixing variables. Instead 
+Note that there isn't a keyword for fixing variables. Instead, 
 [`fix`](@ref JuMP.fix(::UserDecisionVariableRef, ::Real)) should be used. 
 
 See the Queries and Modification sections further below for more information on 
@@ -461,7 +461,7 @@ how to query/modify variable names.
 Optimization problems often involve multi-dimensional decision variables. Luckily, 
 `JuMP` provides a versatile syntax for specifying collections (i.e., containers) 
 of variables. See 
-[JuMP's container documentation](https://jump.dev/JuMP.jl/v0.22/manual/containers/) 
+[JuMP's container documentation](https://jump.dev/JuMP.jl/v1/manual/containers/) 
 for a thorough tutorial on the syntax. It uses `Array`s, `DenseAxisArray`s, and 
 `SparseAxisArray`s to contain the variable references created. Here 
 `DenseAxisArray`s and `SparseAxisArray`s allow the use of nontraditional indices 
@@ -562,8 +562,8 @@ julia> z_cone = @variable(model, [1:3], set = SecondOrderCone())
 ```
 
 For a more thorough tutorial please see 
-[JuMP's semi-definite documentation](https://jump.dev/JuMP.jl/v0.22/manual/variables/#Semidefinite-variables) 
-and/or [JuMP's variables constrained on creation documentation](https://jump.dev/JuMP.jl/v0.22/manual/variables/#Variables-constrained-on-creation).
+[JuMP's semi-definite documentation](https://jump.dev/JuMP.jl/v1/manual/variables/#Semidefinite-variables) 
+and/or [JuMP's variables constrained on creation documentation](https://jump.dev/JuMP.jl/v1/manual/variables/#Variables-constrained-on-creation).
 
 ### Anonymous Variables
 Above we talked showed the syntax for both explicit and anonymous variable 
@@ -580,11 +580,11 @@ via keyword arguments `kwargs...` as shown in the subsections above.
 ```
 
 For more information, see 
-[JuMP's anonymous variable documentation](https://jump.dev/JuMP.jl/v0.22/manual/variables/#Anonymous-JuMP-variables).
+[JuMP's anonymous variable documentation](https://jump.dev/JuMP.jl/v1/manual/variables/#Anonymous-JuMP-variables).
 
 ### The `@variables` Macro
 When using many `@variable` calls, we can instead use 
-[`@variables`](https://jump.dev/JuMP.jl/v0.22/manual/variables/#variables) to 
+[`@variables`](https://jump.dev/JuMP.jl/v1/manual/variables/#variables) to 
 enhance the readability:
 ```jldoctest var_macro
 julia> @variables(model, begin
@@ -631,7 +631,7 @@ y(0, [x[1], x[2]])
 `InfiniteOpt` contains a large suite of methods to query information about
 variables. This suite comprises extensions to all current `JuMP` query
 methods and many more that are specific to `InfiniteOpt`. A number of the more
-commonly used ones are explained in this section, but all of the available methods
+commonly used ones are explained in this section, but all the available methods
 are explained in the [technical manual](@ref var_manual).
 
 ### General Information
@@ -686,8 +686,8 @@ with them like `JuMP` variables. These constraints include:
 - integer valued.
 Thus, a number of methods exist to query information about these constraints.
 
-First, the ```[has/is]_[variable constraint type]``` methods indicate whether or 
-not a variable has that particular constraint type. For example, to query if a 
+First, the ```[has/is]_[variable constraint type]``` methods indicate whether 
+a variable has that particular constraint type. For example, to query if a 
 variable `y_lb` has a lower bound we can use
 [`has_lower_bound`](@ref JuMP.has_lower_bound(::UserDecisionVariableRef)):
 ```jldoctest var_macro
@@ -739,7 +739,7 @@ For infinite and semi-infinite variables, the [`start_value_function`](@ref)
 should be used instead:
 ```jldoctest var_macro
 julia> start_value_function(y_sin)
-sin (generic function with 18 methods)
+sin (generic function with 19 methods)
 ```
 
 ### Variable Use
@@ -754,8 +754,7 @@ true
 ```
 Other methods include [`used_by_measure`](@ref used_by_measure(::DecisionVariableRef))
 and [`used_by_objective`](@ref used_by_objective(::DecisionVariableRef)).
-For infinite variables, [`used_by_point_variable`](@ref) can also be used in a
-similar manner.
+For infinite variables, [`used_by_point_variable`](@ref) can also be used similarly.
 
 Finally, in general [`is_used`](@ref is_used(::DecisionVariableRef)) can be used
 to determine if a variable is used at all in the infinite model or not. For 
@@ -793,7 +792,7 @@ julia> parameter_values(yp)
 ## Modification
 `InfiniteOpt` employs a wide variety of methods to modify/delete variables.
 These are comprised of `JuMP` extensions and methods native only to `InfiniteOpt`.
-This section will highlight some of the more commonly used ones. All of the
+This section will highlight some of the more commonly used ones. All the
 methods/macros are detailed in the [technical manual](@ref var_manual).
 
 ### Deletion
@@ -871,7 +870,7 @@ For infinite variables, this should be done using
 julia> set_start_value_function(myname, sin)
 
 julia> start_value_function(myname)
-sin (generic function with 18 methods)
+sin (generic function with 19 methods)
 ```
 Again note that such start functions must be able to accept parameter values as 
 arguments that exactly match the format of the infinite parameters given in 

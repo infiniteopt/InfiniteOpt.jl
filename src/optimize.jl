@@ -905,9 +905,6 @@ end
 ################################################################################
 #                             OPTIMIZATION METHODS
 ################################################################################
-# Extend the solve error function
-JuMP.solve(model::InfiniteModel) = JuMP.solve(optimizer_model(model))
-
 """
     JuMP.optimize!(model::InfiniteModel; [kwargs...])
 

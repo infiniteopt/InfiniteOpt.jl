@@ -14,7 +14,7 @@ powerful interface to model these objects for derivatives of any order, includin
 partial derivatives. Derivatives can be used in defining measures and constraints. 
 
 ## Basic Usage
-Derivative operators can defined a few different ways in `InfiniteOpt`. To motivate 
+Derivative operators can be defined a few different ways in `InfiniteOpt`. To motivate 
 these, let's first define an `InfiniteModel` along with some parameters and variables:
 ```jldoctest deriv_basic
 julia> using InfiniteOpt, Distributions;
@@ -169,7 +169,7 @@ process.
 
 ### Macro Definition 
 There are two macros we provide for defining derivatives: 
-[`@variable`](https://jump.dev/JuMP.jl/v0.22/reference/variables/#JuMP.@variable) 
+[`@variable`](https://jump.dev/JuMP.jl/v1/reference/variables/#JuMP.@variable) 
 that uses the [`Deriv`](@ref) variable type and [`@deriv`](@ref). 
 
 !!! warning
@@ -260,12 +260,12 @@ This can be formalized as:
 ```math 
 \begin{aligned}
 &&& f_j(y(\lambda), Dy(\lambda)) \leq 0, && \forall j \in J, \lambda \in \Lambda \\
-&&& h_i(y(\lambda), Dy(\lambda)) == 0, && \forall i \in I, \lambda \in \Lambda \\
-&&& g_k(y(\hat{\lambda}), Dy(\hat{\lambda})) == 0, && \forall k \in K, \hat{\lambda} \in \hat{\Lambda}
+&&& h_i(y(\lambda), Dy(\lambda)) = 0, && \forall i \in I, \lambda \in \Lambda \\
+&&& g_k(y(\hat{\lambda}), Dy(\hat{\lambda})) = 0, && \forall k \in K, \hat{\lambda} \in \hat{\Lambda}
 \end{aligned}
 ```
 where ``y(\lambda)`` and ``Dy(\lambda)`` denote all the variables and derivatives 
-in the problem and ``\lambda`` the denote all the problem's infinite parameters. 
+in the problem and ``\lambda`` denote all the problem's infinite parameters. 
 With this let the constraints ``f_j`` denote the problem constraints which can 
 contain any variables, parameters, derivatives, and/or measures associated with 
 the problem. The constraints ``h_i`` denote the auxiliary derivative equations 
@@ -328,7 +328,7 @@ order derivative ``\frac{d y(t)}{dt}`` via
 y(t_{n+1}) = y(t_n) + (t_{n+1} - t_{n})\frac{d y(t_n)}{dt}, \ \forall n = 0, 1, \dots, k-1
 ```
 Note that in this case, the boundary relation corresponds to ``n = 0`` and would 
-be included if we set `FiniteDifference(Forward(), true)` or would excluded if we 
+be included if we set `FiniteDifference(Forward(), true)` or would be excluded if we 
 let the second argument be `false`. We recommend, selecting `false` when an initial 
 condition is provided. Also, note that a terminal condition should be provided 
 when using this method since an auxiliary equation for the derivative at the 
@@ -346,7 +346,7 @@ where the second argument is omitted since it doesn't apply to this scheme. As a
 result both initial and terminal conditions should be specified otherwise the 
 derivatives at those points will be free variables.
 
-Backward finite difference (i.e., implicit euler) is our last (and default) 
+Backward finite difference (i.e., implicit Euler) is our last (and default) 
 finite difference method and is exemplified by approximating the first order 
 derivative ``\frac{d y(t)}{dt}`` via
 ```math
@@ -538,7 +538,7 @@ used on derivatives in `InfiniteOpt`.
 
 ### Variable Information 
 As discussed above, derivatives inherit the same variable methods as infinite 
-variables. Thus we can modify/delete bounds and starting values for derivatives 
+variables. Thus, we can modify/delete bounds and starting values for derivatives 
 using the same methods. For example:
 ```jldoctest deriv_basic
 julia> set_lower_bound(dydt2, 0)
@@ -563,7 +563,7 @@ julia> unfix(dydt2)
 ```
 
 ### Deletion
-Finally, the are 2 deletion methods we can employ apart from deleting variable 
+Finally, there are 2 deletion methods we can employ apart from deleting variable 
 information. First, we can employ [`delete_derivative_constraints`](@ref) to 
 delete any derivative evaluation constraints associated with a particular 
 derivative:

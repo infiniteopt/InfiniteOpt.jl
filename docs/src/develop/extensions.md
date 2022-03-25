@@ -1,7 +1,7 @@
 ```@meta
 DocTestFilters = [r"≤|<=", r"≥|>=", r" == | = ", r" ∈ | in ", 
                   r"MathOptInterface|MOI", r" for all | ∀ ", r"d|∂", 
-                  r"E|𝔼", r"integral|∫"]
+                  r"E|𝔼", r"integral|∫", r"-?[0-9\.]+.*"]
 ```
 
 # Extensions
@@ -97,7 +97,7 @@ end
 
 ```
 Now the checks are enabled, so the following would yield an error because the 
-support is not in the domain domain:
+support is not in the domain:
 ```jldoctest domain_ext
 julia> @infinite_parameter(model, domain = DisjointDomain(0, 1, 3, 4), supports = 2)
 ERROR: At none:1: `@infinite_parameter(model, domain = DisjointDomain(0, 1, 3, 4), supports = 2)`: Supports violate the domain bounds.
@@ -281,7 +281,7 @@ support point. Also note that [`InfiniteOpt.add_generative_supports`](@ref) need
 to be included for `GenerativeDerivativeMethods`, but is not necessary in this 
 example.
 
-Now that we have have completed all the necessary steps, let's try it out! 
+Now that we have completed all the necessary steps, let's try it out! 
 ```jldoctest deriv_ext
 julia> model = InfiniteModel();
 
@@ -699,6 +699,12 @@ extension is provided in
 Our default sub-module `InfiniteOpt.TranscriptionOpt` also serves as a good 
 example.
 
+!!! note
+    We are currently working on a fundamental overhaul of the optimizer model 
+    interface. The new interface will be much more modular, will permit non-JuMP 
+    backends, and should generally make extending more intuitive. Track the progress 
+    [here](https://github.com/pulsipher/InfiniteOpt.jl/issues/105).
+
 A new reformulation method and its corresponding optimizer model can be 
 extended using the following steps:
 1. Define a `mutable struct` for variable/constraint mappings and other needed info (required)
@@ -871,7 +877,7 @@ function _make_expression(opt_model::Model, expr::Union{GenericAffExpr, GenericQ
 end
 # NLPExpr
 function _make_expression(opt_model::Model, expr::NLPExpr)
-    return add_NL_expression(opt_model, map_nlp_to_ast(v -> _make_expression(opt_model, v), expr))
+    return add_nonlinear_expression(opt_model, map_nlp_to_ast(v -> _make_expression(opt_model, v), expr))
 end
 
 # output
@@ -923,7 +929,7 @@ function InfiniteOpt.build_optimizer_model!(
     # add the objective
     obj_func = _make_expression(determ_model, objective_function(model))
     if obj_func isa NonlinearExpression
-        set_NL_objective(determ_model, objective_sense(model), obj_func)
+        set_nonlinear_objective(determ_model, objective_sense(model), obj_func)
     else
         set_objective(determ_model, objective_sense(model), obj_func)
     end
@@ -941,7 +947,7 @@ function InfiniteOpt.build_optimizer_model!(
                 else # assume it is MOI.EqualTo
                     ex = :($new_func == $(constr.set.value))
                 end
-                new_cref = add_NL_constraint(determ_model, ex)
+                new_cref = add_nonlinear_constraint(determ_model, ex)
             else
                 new_constr = build_constraint(error, new_func, constr.set)
                 new_cref = add_constraint(determ_model, new_constr, name(cref))

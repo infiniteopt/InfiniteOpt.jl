@@ -39,7 +39,7 @@ respective user guide sections.
 When the model is optimized, `t` will be transcribed (discretized) over its domain 
 following its support points. Users can specify support points via the  
 `num_supports` or `supports` keyword arguments. For example, if we desire to 
-have only 10 equi-distant supports then we could have instead defined `t`: 
+have only 10 equidistant supports then we could have instead defined `t`: 
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel()) 
 julia> @infinite_parameter(model, t in [0, 10], num_supports = 10)
 t
@@ -125,7 +125,7 @@ empty.
 
 [`InfOptParameter`](@ref) is an abstract data type that encompasses all concrete 
 infinite parameter types. The concrete type for individual infinite parameters 
-is [`IndependentParameter`](@ref), since these parameters are independent from 
+is [`IndependentParameter`](@ref), since these parameters are independent of 
 other parameters. On the other hand, [`DependentParameters`](@ref) handle 
 multivariate infinite parameters, within which each individual parameter is not 
 independent. These are useful for characterizing, for example, parameters 
@@ -199,7 +199,7 @@ parameters). For example, we can define ``t \in [0, 10]``:
 julia> @infinite_parameter(model, t in [0, 10], supports = [0, 2, 5, 7, 10])
 t
 ```
-In a similar way, we can define a random infinite parameter subject to some 
+Similarly, we can define a random infinite parameter subject to some 
 distribution using `~` as the operator. For example, a Gaussian infinite 
 parameter with mean 0 and standard deviation 1 can be defined:
 ```jldoctest macro_define
@@ -281,7 +281,7 @@ julia> supports(θ)
 ```
 We refer to groups of parameters defined this way as dependent infinite 
 parameters. In principle, nonrandom infinite parameter types can be made 
-dependent as well when users wish to avoid the cartesian product of their 
+dependent as well when users wish to avoid the Cartesian product of their 
 supports.
 
 Anonymous groups of parameters can be defined as follows:
@@ -312,7 +312,7 @@ And data, a 2-element Vector{GeneralVariableRef}:
 ```
 
 See 
-[`JuMP`'s documentation on containers](https://jump.dev/JuMP.jl/v0.22/manual/containers/) 
+[`JuMP`'s documentation on containers](https://jump.dev/JuMP.jl/v1/manual/containers/) 
 for more information.
 
 ## Supports
@@ -338,7 +338,7 @@ julia> supports(t)
 
 !!! note
     Most support query functions have a keyword argument `label` that is used 
-    the specify the type of supports that will be involved in the query. By default, 
+    to specify the type of supports that will be involved in the query. By default, 
     this will be `PublicLabel` which will correspond to any supports that are 
     reported to the user by default, but will exclude any supports that have 
     `InternalLabel`s (e.g., internal collocation nodes). The full set can always 
@@ -372,7 +372,7 @@ julia> supports(t)
   8.0
  10.0
 ```
-At times we might want to change the supports completely. In those cases, the 
+At times, we might want to change the supports completely. In those cases, the 
 function [`set_supports`](@ref) resets the supports for a certain parameter with 
 new supports provided:
 ```jldoctest supports
@@ -552,7 +552,7 @@ find out any dependency of specific types on the infinite parameter.
 In addition, sometimes we need to check if a certain [`GeneralVariableRef`](@ref) 
 for an infinite parameter is valid with an `InfiniteModel` model, meaning that the 
 parameter reference actually refers to some parameter associated with the model. We 
-extend the [`JuMP.is_valid`](@ref) function from JuMP for that purpose. To see how 
+extend the [`JuMP.is_valid`](@ref) function from `JuMP` for that purpose. To see how 
 to use this, for example,
 ```jldoctest param_queries
 julia> pref1 = GeneralVariableRef(model, 1, IndependentParameterIndex);
@@ -609,7 +609,7 @@ nothing. Otherwise, if multiple parameters share the same name, the function
 would throw an error.
 
 Now we introduce two additional functions that we can use to access parameter 
-information for an  [`InfiniteModel`](@ref). The function 
+information for an [`InfiniteModel`](@ref). The function 
 [`num_parameters`](@ref) returns the number of infinite parameters associated 
 with a model, while [`all_parameters`](@ref) returns the list of all infinite 
 parameter references in the model. For a quick example: 
@@ -646,7 +646,7 @@ julia> all_parameters(model)
  y[1]
  y[2]
 ```
-In a similar way, we can also change the infinite domain that the parameter is in 
+Similarly, we can also change the infinite domain that the parameter is in 
 using the [`set_infinite_domain`](@ref) function as follows:
 ```jldoctest param_queries
 julia> t = parameter_by_name(model, "t")

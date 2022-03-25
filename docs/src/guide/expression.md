@@ -166,7 +166,7 @@ object for storing affine expressions.
 
 !!! note
     Where possible, it is preferable to use 
-    [`@expression`](https://jump.dev/JuMP.jl/v0.22/reference/expressions/#JuMP.@expression) 
+    [`@expression`](https://jump.dev/JuMP.jl/v1/reference/expressions/#JuMP.@expression) 
     for defining expressions as it is much more efficient than explicitly using 
     the standard operators.
 
@@ -188,7 +188,7 @@ Notice that the ordered dictionary preserves the order in which the variables
 appear in the expression.
 
 More information can be found in the documentation for affine expressions in 
-[`JuMP`](https://jump.dev/JuMP.jl/v0.22/reference/expressions/#Affine-expressions).
+[`JuMP`](https://jump.dev/JuMP.jl/v1/reference/expressions/#Affine-expressions).
 
 ## Quadratic Expressions
 A quadratic function pertains to a mathematical function of the form:
@@ -238,9 +238,9 @@ OrderedCollections.OrderedDict{UnorderedPair{GeneralVariableRef}, Float64} with 
 Notice again that the ordered dictionary preserves the order.
 
 !!! tip
-    Polynomial expressions can be represented by introducing dumby variables 
+    Polynomial expressions can be represented by introducing dummy variables 
     and nested quadratic/affine expressions. For instance, ``z^3 + 2`` can be 
-    expressed by introducing a dumby variable ``x = z^2``:
+    expressed by introducing a dummy variable ``x = z^2``:
     ```jldoctest affine
     julia> @variable(model, x)
     x
@@ -258,7 +258,7 @@ Notice again that the ordered dictionary preserves the order.
     ```
 
 More information can be found in the documentation for quadratic expressions in 
-[`JuMP`](https://jump.dev/JuMP.jl/v0.22/reference/expressions/#Quadratic-expressions).
+[`JuMP`](https://jump.dev/JuMP.jl/v1/reference/expressions/#Quadratic-expressions).
 
 ## [Nonlinear Expressions](@id nlp_guide)
 General nonlinear expressions as generated via `JuMP.@NLexpression`, 
@@ -268,10 +268,16 @@ overhaul is planned to resolve this problem (check the status on
 [GitHub](https://github.com/jump-dev/MathOptInterface.jl/issues/846)), but this 
 will likely require 1-3 years to resolve.
 
+!!! info
+    `JuMP-dev` has secured funding to overhaul their nonlinear interface and 
+    hence the timeline for resolving many of the limitations should be expedited. 
+    Check out their [announcement](https://jump.dev/announcements/2022/02/21/lanl/) 
+    for more information.
+
 Thus, in the interim, we circumvent this problem in `InfiniteOpt` by implementing 
 our own general nonlinear expression API. However, we will see that our interface 
 treats nonlinear expressions as 1st class citizens and thus is generally more 
-convenient then using `JuMP`'s current legacy nonlinear modeling interface. 
+convenient than using `JuMP`'s current legacy nonlinear modeling interface. 
 We discuss the ins and outs of this interface in the subsections below.
 
 !!! note
@@ -566,8 +572,8 @@ Note that the first argument of the gradient needs to accept an
 
 !!! note
     We do not currently support vector inputs or vector valued functions 
-    directly, since typically `JuMP` optimzier model backends don't support them. 
-    However, this limitation can readily removed if there is a use case for it 
+    directly, since typically `JuMP` optimizer model backends don't support them. 
+    However, this limitation can readily be removed if there is a use case for it 
     (please reach out to us if such an addition is needed).
 
 ### Expression Tree Abstraction
@@ -625,7 +631,7 @@ mapping functions that are useful for extensions. First, with
 julia> map_expression(v -> v^2, expr)
 exp((y(t)²)^2.3) * (y(t)²) - 42
 ```
-We also provide `map_nlp_to_ast` which can be used to map an `NLPExpr` to a 
+We also provide [`map_nlp_to_ast`](@ref) which can be used to map an `NLPExpr` to a 
 Julia Abstract Syntax Tree (AST) where a transformation is applied to each 
 variable:
 ```jldoctest nlp
@@ -635,5 +641,5 @@ julia> map_nlp_to_ast(v -> y_jump, expr)
 :(exp(y_jump ^ 2.3) * y_jump - 42)
 ```
 This is useful for converting `NLPExpr`s into ASTs that can be used in `JuMP` 
-via its [`add_NL_expression`](https://jump.dev/JuMP.jl/v0.22/manual/nlp/#Raw-expression-input) 
+via its [`add_nonlinear_expression`](https://jump.dev/JuMP.jl/v1/manual/nlp/#Raw-expression-input) 
 API.

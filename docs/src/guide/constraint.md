@@ -20,8 +20,8 @@ implement these types of constraints in `InfiniteOpt`.
 
 ## Basic Usage
 Principally, the 
-[`@constraint`](https://jump.dev/JuMP.jl/v0.22/reference/constraints/#JuMP.@constraint) 
-macro is used to define constraints. First, let's setup an infinite model with 
+[`@constraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.@constraint) 
+macro is used to define constraints. First, let's set up an infinite model with 
 variables that we can add constraints to:
 ```jldoctest constrs; setup = :(using InfiniteOpt)
 julia> model = InfiniteModel();
@@ -38,13 +38,13 @@ julia> @variable(model, z[1:2]);
 ```
 
 !!! note
-    Unlike previous versions, `InfiniteOpt` now supports all of the constraints 
+    Unlike previous versions, `InfiniteOpt` now supports all the constraints 
     offered by `JuMP`, including vector and semi-definite constraints! Please 
-    see [JuMP's constraint documentation](https://jump.dev/JuMP.jl/v0.22/manual/constraints/#Constraints) 
+    see [JuMP's constraint documentation](https://jump.dev/JuMP.jl/v1/manual/constraints/#Constraints) 
     for a thorough explanation of the supported types and syntax.
 
 !!! note 
-    Nonlinear constraints are defined simply by using  `@constraint` and not 
+    Nonlinear constraints are defined simply by using `@constraint` and not 
     using `JuMP.@NLconstraint`. See [Nonlinear Expressions](@ref nlp_guide) for 
     more information. 
 
@@ -67,7 +67,7 @@ the allowed constraint operators are `==`, `<=`, `≤`, `>=`, and `≥`.
     Linear algebra constraints can also be used when defining constraints 
     when `.` is added in front of the constraint operators (e.g., `.<=`). This 
     behavior is further explained in 
-    [`JuMP`'s constraint documentation](https://jump.dev/JuMP.jl/v0.22/manual/constraints/#Vectorized-constraints). 
+    [`JuMP`'s constraint documentation](https://jump.dev/JuMP.jl/v1/manual/constraints/#Vectorized-constraints). 
 
 Similarly, we can define an array of constraints with varied indexes by including 
 an additional argument before the constraint expression. For example, 
@@ -81,7 +81,7 @@ julia> @constraint(model, c2[i = 1:2], 3z[i] - 14 == 0)
 Thus, we added two constraints to `model` and stored a vector of the corresponding 
 constraint references to the `Julia` variable `c2`. To learn more about building 
 containers of constraints please see 
-[`JuMP`'s constraint container documentation](https://jump.dev/JuMP.jl/v0.22/manual/constraints/#Constraint-containers).
+[`JuMP`'s constraint container documentation](https://jump.dev/JuMP.jl/v1/manual/constraints/#Constraint-containers).
 
 ### Multi-Dimensional Constraints
 Building upon `JuMP` we support a variety of multi-dimensional constraint types. 
@@ -100,7 +100,7 @@ julia> b = [5, 6]
 julia> @constraint(model, A * z - b in MOI.Nonnegatives(2))
 [z[1] + 2 z[2] - 5, 3 z[1] + 4 z[2] - 6] ∈ MathOptInterface.Nonnegatives(2)
 ```
-See [`JuMP`'s constraint documentation](https://jump.dev/JuMP.jl/v0.22/manual/constraints/) 
+See [`JuMP`'s constraint documentation](https://jump.dev/JuMP.jl/v1/manual/constraints/) 
 for a thorough tutorial on the accepted syntax and constraint types.
 
 ### Restricted Constraints
@@ -135,7 +135,7 @@ julia> @constraint(model, 2ya^2 + z[1] >= 3, DomainRestrictions(t => 0, x => [-1
 2 ya(t, x)² + z[1] ≥ 3.0, ∀ t = 0, x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
 ```
 
-Now we have added constraints to our model and it is ready to be solved!
+Now we have added constraints to our model, and it is ready to be solved!
 
 ## Data Structure
 Here we detail the data structures used to store constraints in `InfiniteOpt`. 
@@ -150,8 +150,8 @@ set. This leads to the following data structures:
 | Matrix          | `Matrix{<:JuMP.AbstractJuMPScalar}` | `MOI.AbstractVectorSet` [via vectorization](https://jump.dev/MathOptInterface.jl/v0.9.22/reference/standard_form/#Matrix-sets)      |
 
 The above combos are then stored in 
-[`JuMP.ScalarConstraint`](https://jump.dev/JuMP.jl/v0.22/reference/constraints/#JuMP.ScalarConstraint)s 
-and [`JuMP.VectorConstraint](https://jump.dev/JuMP.jl/v0.22/reference/constraints/#JuMP.VectorConstraint)s. 
+[`JuMP.ScalarConstraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.ScalarConstraint)s 
+and [`JuMP.VectorConstraint](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.VectorConstraint)s. 
 
 Restricted constraints are built upon this data structure where the underlying 
 constraint is created in the same manner. Then the specified 
@@ -196,17 +196,17 @@ c3 : -yb(t)² + 3 ya(t, x) ≤ 0.0, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] �
 Thus, we have made our constraint and added it `model` and now have a constraint 
 reference `cref` that we can use to access it.
 
-The [`@constraint`](https://jump.dev/JuMP.jl/v0.22/reference/constraints/#JuMP.@constraint) 
+The [`@constraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.@constraint) 
 macro automate the above steps.
 
 ### Macro Definition
 As mentioned above in the Basic Usage section, the 
-[`@constraint`](https://jump.dev/JuMP.jl/v0.22/reference/constraints/#JuMP.@constraint) 
+[`@constraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.@constraint) 
 macro should be used to define constraints with the syntax: 
 `@constraint(model::InfiniteModel, [container/name_expr], constr_expr, [rs::DomainRestrictions])`.
 
 The second argument is optional and is used to assign a name and/or define 
-indexing variables to be used in the constraint expr. When a name is provided it 
+indexing variables to be used in the constraint expression. When a name is provided it 
 is registered and cannot be used again for another constraint or variable name. 
 The indexing expression can be used to produce an array of constraints as shown 
 below (notice this is equivalent to looping over individual `@constraint` calls):
@@ -228,7 +228,7 @@ julia> crefs
  2 z[2] - yb(t) = 0.0, ∀ t ∈ [0, 10]
 ```
 Please refer to 
-[`JuMP`'s constraint container documentation](https://jump.dev/JuMP.jl/v0.22/manual/constraints/#Constraint-containers) 
+[`JuMP`'s constraint container documentation](https://jump.dev/JuMP.jl/v1/manual/constraints/#Constraint-containers) 
 for a thorough tutorial on creating containers of constraints.
 
 Any constraint type supported by `JuMP` can be specified in the `constr_expr` 
@@ -245,7 +245,7 @@ julia> @constraint(model, [yb 2yb; 3yb 4yb] >= ones(2, 2), PSDCone())
 [yb(t) - 1    2 yb(t) - 1;
  3 yb(t) - 1  4 yb(t) - 1] ∈ PSDCone(), ∀ t ∈ [0, 10]
 ```
-See [`JuMP`'s constraint documentation](https://jump.dev/JuMP.jl/v0.22/manual/constraints/) 
+See [`JuMP`'s constraint documentation](https://jump.dev/JuMP.jl/v1/manual/constraints/) 
 for a thorough tutorial on the accepted syntax and constraint types.
 
 Finally, restrictions on the inherent infinite domain of a constraint can be 
@@ -330,12 +330,12 @@ Subdomain restrictions (1): t = 0
 ### General
 Constraints can be defined in a number of ways symbolically that differ from 
 how it is actually stored in the model. This principally occurs since like terms 
-and constants are combined together where possible with the variable terms on the 
-left hand side and the constant on the right hand side. For instance, the 
+and constants are combined where possible with the variable terms on the 
+left-hand side and the constant on the right-hand side. For instance, the 
 constraint ``2y_b(t) + 3y_b(t) - 2 \leq 1 + z_1`` would be normalized  
 ``5y_b(t) - z_1 \leq 3``. In accordance with this behavior,  
 [`normalized_rhs`](@ref) and [`normalized_coefficient`](@ref) 
-can be used to query the normalized right hand side and the coefficient of a 
+can be used to query the normalized right-hand side and the coefficient of a 
 particular variable reference, respectively. Let's employ the above example to 
 illustrate this:
 ```jldoctest constrs
@@ -367,7 +367,7 @@ julia> list_of_constraint_types(model)
 This information is useful when used in combination with the 
 [`num_constraints`](@ref) and [`all_constraints`](@ref) methods which can take 
 the expression type and/or the set type as inputs. Here `num_constraints` 
-provides the number of constraints that match a certain type  and `all_constraints` 
+provides the number of constraints that match a certain type, and `all_constraints` 
 returns a list of constraint references matching the criteria provided. These have 
 been extended beyond `JuMP` functionality such additional methods have been 
 provided for the cases in which one wants to query solely off of set or off 
@@ -444,7 +444,7 @@ and [`delete_domain_restrictions`](@ref).
 !!! note 
     Previous versions of `InfiniteOpt` used `@[set/add]_parameter_bounds` which 
     have been deprecated in favor of using [`DomainRestrictions`](@ref) with the 
-    the methods described used in this section.
+    methods described used in this section.
 
 First, domain restrictions can be added to a constraint via 
 [`add_domain_restrictions`](@ref). For example, let's add the bound 
