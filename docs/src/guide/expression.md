@@ -238,9 +238,9 @@ OrderedCollections.OrderedDict{UnorderedPair{GeneralVariableRef}, Float64} with 
 Notice again that the ordered dictionary preserves the order.
 
 !!! tip
-    Polynomial expressions can be represented by introducing dumby variables 
+    Polynomial expressions can be represented by introducing dummy variables 
     and nested quadratic/affine expressions. For instance, ``z^3 + 2`` can be 
-    expressed by introducing a dumby variable ``x = z^2``:
+    expressed by introducing a dummy variable ``x = z^2``:
     ```jldoctest affine
     julia> @variable(model, x)
     x
@@ -270,7 +270,7 @@ will likely require 1-3 years to resolve.
 
 !!! info
     `JuMP-dev` has secured funding to overhaul their nonlinear interface and 
-    hence the timeline resolving many of the limitations should be expedited. 
+    hence the timeline for resolving many of the limitations should be expedited. 
     Check out their [announcement](https://jump.dev/announcements/2022/02/21/lanl/) 
     for more information.
 
@@ -572,8 +572,8 @@ Note that the first argument of the gradient needs to accept an
 
 !!! note
     We do not currently support vector inputs or vector valued functions 
-    directly, since typically `JuMP` optimzier model backends don't support them. 
-    However, this limitation can readily removed if there is a use case for it 
+    directly, since typically `JuMP` optimizer model backends don't support them. 
+    However, this limitation can readily be removed if there is a use case for it 
     (please reach out to us if such an addition is needed).
 
 ### Expression Tree Abstraction
@@ -631,7 +631,7 @@ mapping functions that are useful for extensions. First, with
 julia> map_expression(v -> v^2, expr)
 exp((y(t)²)^2.3) * (y(t)²) - 42
 ```
-We also provide `map_nlp_to_ast` which can be used to map an `NLPExpr` to a 
+We also provide [`map_nlp_to_ast`](@ref) which can be used to map an `NLPExpr` to a 
 Julia Abstract Syntax Tree (AST) where a transformation is applied to each 
 variable:
 ```jldoctest nlp
@@ -641,5 +641,5 @@ julia> map_nlp_to_ast(v -> y_jump, expr)
 :(exp(y_jump ^ 2.3) * y_jump - 42)
 ```
 This is useful for converting `NLPExpr`s into ASTs that can be used in `JuMP` 
-via its [`add_NL_expression`](https://jump.dev/JuMP.jl/v1/manual/nlp/#Raw-expression-input) 
+via its [`add_nonlinear_expression`](https://jump.dev/JuMP.jl/v1/manual/nlp/#Raw-expression-input) 
 API.

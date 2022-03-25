@@ -97,7 +97,7 @@ end
 
 ```
 Now the checks are enabled, so the following would yield an error because the 
-support is not in the domain domain:
+support is not in the domain:
 ```jldoctest domain_ext
 julia> @infinite_parameter(model, domain = DisjointDomain(0, 1, 3, 4), supports = 2)
 ERROR: At none:1: `@infinite_parameter(model, domain = DisjointDomain(0, 1, 3, 4), supports = 2)`: Supports violate the domain bounds.
@@ -281,7 +281,7 @@ support point. Also note that [`InfiniteOpt.add_generative_supports`](@ref) need
 to be included for `GenerativeDerivativeMethods`, but is not necessary in this 
 example.
 
-Now that we have have completed all the necessary steps, let's try it out! 
+Now that we have completed all the necessary steps, let's try it out! 
 ```jldoctest deriv_ext
 julia> model = InfiniteModel();
 
@@ -698,6 +698,12 @@ extension is provided in
 [`./test/extensions/optimizer_model.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/optimizer_model.jl). 
 Our default sub-module `InfiniteOpt.TranscriptionOpt` also serves as a good 
 example.
+
+!!! note
+    We are currently working on a fundamental overhaul of the optimizer model 
+    interface. The new interface will be much more modular, will permit non-JuMP 
+    backends, and should generally make extending more intuitive. Track the progress 
+    [here](https://github.com/pulsipher/InfiniteOpt.jl/issues/105).
 
 A new reformulation method and its corresponding optimizer model can be 
 extended using the following steps:

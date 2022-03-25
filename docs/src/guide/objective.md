@@ -85,7 +85,7 @@ objective function.
 This section will review the methods that can be used to modify the objective. 
 First, we'll consider the useful 
 [`set_objective_coefficient`](@ref JuMP.set_objective_coefficient(::InfiniteModel, ::GeneralVariableRef, ::Real)) 
-method and then we'll explain the methods that enable `@objective`.
+method, and then we'll explain the methods that enable `@objective`.
 
 The coefficient of a particular variable in an objective can be readily updated 
 via [`set_objective_coefficient`](@ref JuMP.set_objective_coefficient(::InfiniteModel, ::GeneralVariableRef, ::Real)). 

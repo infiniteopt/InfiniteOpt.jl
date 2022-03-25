@@ -72,7 +72,7 @@ Accepted infinite/finite problem forms currently include:
 
 ### Infinite-Dimensional Optimization with InfiniteOpt.jl
 See our YouTube overview of infinite-dimensional programming and InfiniteOpt.jl's 
-capabilities from JuliaCon 2021: 
+capabilities from JuliaCon 2021 (note that nonlinear support has since been added): 
 [![youtube](assets/youtube.PNG)](https://www.youtube.com/watch?v=z03Fjvz90os&t=1s "Infinite-Dimensional Optimization with InfiniteOpt.jl")
 
 ## Installation
@@ -129,7 +129,7 @@ do the following:
 3. Submit a pull request
 
 For other contributions, please visit our 
-[Developers Guide](@ref contribute_guide) for step by step instructions and to 
+[Developers Guide](@ref contribute_guide) for step-by-step instructions and to 
 review our style guide.
 
 ## Citing
@@ -150,7 +150,7 @@ citing it.
       author = {Joshua L. Pulsipher and Weiqi Zhang and Tyler J. Hongisto and Victor M. Zavala},
 }
 ```
-A pre-print version is freely available though [ArXiv](https://arxiv.org/abs/2106.12689).
+A pre-print version is freely available though [arXiv](https://arxiv.org/abs/2106.12689).
 
 ## Acknowledgements
 We acknowledge our support from the Department of Energy under grant 

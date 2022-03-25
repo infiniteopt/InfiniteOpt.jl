@@ -415,9 +415,9 @@ We also conduct sensitivity analysis for linear problems using
 will generate a [`InfOptSensitivityReport`](@ref) which contains mapping to the 
 ranges indicating how much a constraint RHS constant or a objective 
 coefficient can be changed without violating the feasibility of the solution. 
-This is further explained in the JuMP documentation 
+This is further explained in the `JuMP` documentation 
 [here](https://jump.dev/JuMP.jl/v1/manual/solutions/#Sensitivity-analysis-for-LP). 
-Furthermore, these analysis can only be employed for a solver that implements 
+Furthermore, this analysis can only be employed for a solver that implements 
 `MOI.ConstraintBasisStatus`. In our running example up above, `Ipopt.jl` does not 
 support this A solver like `Gurobi.jl` does.
 ```julia-repl

@@ -78,7 +78,7 @@ mixed variable types using by using the `GeneralVariableRef` buffer. As such,
 finite parameters will be treated as variables until the model is transcribed. 
 For example, this means that the expression `max_cost * x` will be treated as a 
 quadratic expression when it is expressed in its `InfiniteOpt` form, however it is 
-converted into the appropriate affine expression when transcripted. 
+converted into the appropriate affine expression when transcribed. 
 
 !!! note 
     In previous versions finite parameters were just special cases of infinite 

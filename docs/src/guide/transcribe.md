@@ -245,7 +245,7 @@ of the time and position supports. Applying this transcription yields:
 \end{aligned}
 ```
 
-Now that the variables and constraints are are transcribed, all that remains is 
+Now that the variables and constraints are transcribed, all that remains is 
 to add relations to define the behavior of the transcribed partial derivatives. 
 We can accomplish this via backward finite difference which will just add one 
 infinite equation in this case this we only have 2 supports in the time domain 
@@ -403,9 +403,9 @@ CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
 ```
 Note that the all the normal `JuMP.Model` arguments can be used with both 
-constructor when making an empty model and they are simply inherited from those  
+constructor when making an empty model, and they are simply inherited from those  
 specified in the `InfiniteModel`. The call to `build_optimizer_model!` is the backbone 
-behind infinite model transcription and is what encapsulates all of the methods to 
+behind infinite model transcription and is what encapsulates all the methods to 
 transcribe measures, variables, derivatives, and constraints. This is also the 
 method that enables the use of [`optimize!`](@ref JuMP.optimize!(::InfiniteModel)).
 
@@ -479,7 +479,7 @@ julia> supports(y)
        supports. The full set (e.g., ones corresponding to internal collocation nodes) 
        is obtained via `label = All`. 
     2. These methods also employ the `ndarray::Bool` keyword argument that will cause the 
-       output to be formatted as a n-dimensional array where the dimensions 
+       output to be formatted as an n-dimensional array where the dimensions 
        correspond to the infinite parameter dependencies. For example, if we have an 
        infinite variable `y(t, ξ)` and we invoke a query method with `ndarray = true` 
        then we'll get a matrix whose dimensions correspond to the supports of `t` and 

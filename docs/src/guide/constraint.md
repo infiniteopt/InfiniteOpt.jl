@@ -21,7 +21,7 @@ implement these types of constraints in `InfiniteOpt`.
 ## Basic Usage
 Principally, the 
 [`@constraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.@constraint) 
-macro is used to define constraints. First, let's setup an infinite model with 
+macro is used to define constraints. First, let's set up an infinite model with 
 variables that we can add constraints to:
 ```jldoctest constrs; setup = :(using InfiniteOpt)
 julia> model = InfiniteModel();
@@ -38,13 +38,13 @@ julia> @variable(model, z[1:2]);
 ```
 
 !!! note
-    Unlike previous versions, `InfiniteOpt` now supports all of the constraints 
+    Unlike previous versions, `InfiniteOpt` now supports all the constraints 
     offered by `JuMP`, including vector and semi-definite constraints! Please 
     see [JuMP's constraint documentation](https://jump.dev/JuMP.jl/v1/manual/constraints/#Constraints) 
     for a thorough explanation of the supported types and syntax.
 
 !!! note 
-    Nonlinear constraints are defined simply by using  `@constraint` and not 
+    Nonlinear constraints are defined simply by using `@constraint` and not 
     using `JuMP.@NLconstraint`. See [Nonlinear Expressions](@ref nlp_guide) for 
     more information. 
 
@@ -135,7 +135,7 @@ julia> @constraint(model, 2ya^2 + z[1] >= 3, DomainRestrictions(t => 0, x => [-1
 2 ya(t, x)² + z[1] ≥ 3.0, ∀ t = 0, x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
 ```
 
-Now we have added constraints to our model and it is ready to be solved!
+Now we have added constraints to our model, and it is ready to be solved!
 
 ## Data Structure
 Here we detail the data structures used to store constraints in `InfiniteOpt`. 
@@ -206,7 +206,7 @@ macro should be used to define constraints with the syntax:
 `@constraint(model::InfiniteModel, [container/name_expr], constr_expr, [rs::DomainRestrictions])`.
 
 The second argument is optional and is used to assign a name and/or define 
-indexing variables to be used in the constraint expr. When a name is provided it 
+indexing variables to be used in the constraint expression. When a name is provided it 
 is registered and cannot be used again for another constraint or variable name. 
 The indexing expression can be used to produce an array of constraints as shown 
 below (notice this is equivalent to looping over individual `@constraint` calls):
@@ -330,12 +330,12 @@ Subdomain restrictions (1): t = 0
 ### General
 Constraints can be defined in a number of ways symbolically that differ from 
 how it is actually stored in the model. This principally occurs since like terms 
-and constants are combined together where possible with the variable terms on the 
-left hand side and the constant on the right hand side. For instance, the 
+and constants are combined where possible with the variable terms on the 
+left-hand side and the constant on the right-hand side. For instance, the 
 constraint ``2y_b(t) + 3y_b(t) - 2 \leq 1 + z_1`` would be normalized  
 ``5y_b(t) - z_1 \leq 3``. In accordance with this behavior,  
 [`normalized_rhs`](@ref) and [`normalized_coefficient`](@ref) 
-can be used to query the normalized right hand side and the coefficient of a 
+can be used to query the normalized right-hand side and the coefficient of a 
 particular variable reference, respectively. Let's employ the above example to 
 illustrate this:
 ```jldoctest constrs
@@ -367,7 +367,7 @@ julia> list_of_constraint_types(model)
 This information is useful when used in combination with the 
 [`num_constraints`](@ref) and [`all_constraints`](@ref) methods which can take 
 the expression type and/or the set type as inputs. Here `num_constraints` 
-provides the number of constraints that match a certain type  and `all_constraints` 
+provides the number of constraints that match a certain type, and `all_constraints` 
 returns a list of constraint references matching the criteria provided. These have 
 been extended beyond `JuMP` functionality such additional methods have been 
 provided for the cases in which one wants to query solely off of set or off 
@@ -444,7 +444,7 @@ and [`delete_domain_restrictions`](@ref).
 !!! note 
     Previous versions of `InfiniteOpt` used `@[set/add]_parameter_bounds` which 
     have been deprecated in favor of using [`DomainRestrictions`](@ref) with the 
-    the methods described used in this section.
+    methods described used in this section.
 
 First, domain restrictions can be added to a constraint via 
 [`add_domain_restrictions`](@ref). For example, let's add the bound 
