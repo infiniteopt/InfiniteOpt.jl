@@ -4,7 +4,7 @@
 A `JuMP` extension for expressing and solving infinite-dimensional optimization
 problems. Such areas include [stochastic programming](https://en.wikipedia.org/wiki/Stochastic_programming),
 [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming),
-space-time optimization, and more. `InfiniteOpt` serves as an easy to use modeling
+space-time optimization, and more. `InfiniteOpt` serves as an easy-to-use modeling
 interface for these advanced problem types that can be used by those with little
 to no background in these areas. It also it contains a wealth of capabilities
 making it a powerful and convenient tool for advanced users.  
