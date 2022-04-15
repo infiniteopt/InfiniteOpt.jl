@@ -15,16 +15,31 @@ for (I, A, name) = ((:FiniteParameterIndex, :FiniteParameterAttr, :finite_parame
         )
     @eval begin
         function Base.getindex(cache::TransformAttrCache, idx::$I, attr::$A)
-            return cache.$(name)[idx, attr]
+            return cache.$(name)[idx][attr]
         end
         function Base.setindex!(cache::TransformAttrCache, value, idx::$I, attr::$A)
-            return cache.$(name)[idx, attr] = value
+            if !haskey(cache.$(name), idx)
+                cache.$(name)[idx] = Dict{$A, Any}(attr => value)
+                return value
+            else
+                return cache.$(name)[idx][attr] = value
+            end
         end
-        function Base.haskey(cache::TransformAttrCache, key::Tuple{$I, $A})
-            return haskey(cache.$(name), key)
+        function Base.haskey(cache::TransformAttrCache, idx::$I, attr::$A)
+            return haskey(cache.$(name), idx) && haskey(cache.$(name)[idx], attr)
         end
-        function Base.get(cache::TransformAttrCache, key::Tuple{$I, $A}, default)
-            return Base.get(cache.$(name), key, default)
+        function Base.get(cache::TransformAttrCache, idx::$I, attr::$A, default)
+            return Base.get(Base.get(cache.$(name), idx, default), attr, default)
+        end
+        function Base.delete!(cache::TransformAttrCache, idx::$I)
+            delete!(cache.$(name), idx)
+            return
+        end
+        function Base.delete!(cache::TransformAttrCache, idx::$I, attr::$A)
+            if haskey(cache.$(name), idx)
+                delete!(cache.$(name)[idx], attr)
+            end
+            return
         end
     end
 end
@@ -106,7 +121,7 @@ for (I, A) = ((:FiniteParameterIndex, :FiniteParameterAttr),
     @eval begin
         if !($I in (DependentParametersIndex, InfOptConstraintIndex))
             function get(model::InfiniteModel, idx::$I, attr::$A)
-                value = Base.get(model.transform_attrs, (idx, attr), nothing)
+                value = Base.get(model.transform_attrs, idx, attr, nothing)
                 if isnothing(value)
                     error("$(dispatch_variable_ref(model, idx)) does not have transform ",
                           "attribute `$attr`.")
@@ -132,7 +147,7 @@ function get(
     idx::InfOptConstraintIndex, 
     attr::ConstraintAttr
     )
-    value = Base.get(model.transform_attrs, (idx, attr), nothing)
+    value = Base.get(model.transform_attrs, idx, attr, nothing)
     if isnothing(value)
         error("$(InfOptConstraintRef(model, idx)) does not have transform ",
               "attribute `$attr`.")
@@ -144,7 +159,7 @@ function get(
     idx::DependentParametersIndex, 
     attr::InfiniteParameterAttr
     )
-    value = Base.get(model.transform_attrs, (idx, attr), nothing)
+    value = Base.get(model.transform_attrs, idx, attr, nothing)
     if isnothing(value)
         error("The dependent parameter group with index `$idx` does not ",
               "have transform attribute `$attr`.")

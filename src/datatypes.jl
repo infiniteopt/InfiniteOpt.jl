@@ -964,29 +964,29 @@ A convenient container for storing all the transformation attributes stored in
 an `InfiniteModel` that can be used by the transformation backend.
 """
 struct TransformAttrCache
-    finite_parameters::Dict{Tuple{FiniteParameterIndex, FiniteParameterAttr}, Any}
-    independent_parameters::Dict{Tuple{IndependentParameterIndex, InfiniteParameterAttr}, Any}
-    dependent_params::Dict{Tuple{DependentParametersIndex, InfiniteParameterAttr}, Any} # TODO maybe allow for parameter-wsie attributes
-    infinite_variables::Dict{Tuple{InfiniteVariableIndex, VariableAttr}, Any}
-    semi_ifninite_variables::Dict{Tuple{SemiInfiniteVariableIndex, VariableAttr}, Any}
-    point_variables::Dict{Tuple{PointVariableIndex, VariableAttr}, Any}
-    derivatives::Dict{Tuple{DerivativeIndex, DerivativeAttr}, Any}
-    measures::Dict{Tuple{MeasureIndex, MeasureAttr}, Any}
-    constraints::Dict{Tuple{InfOptConstraintIndex, ConstraintAttr}, Any}
+    finite_parameters::Dict{FiniteParameterIndex, Dict{FiniteParameterAttr, Any}}
+    independent_parameters::Dict{IndependentParameterIndex, Dict{InfiniteParameterAttr, Any}}
+    dependent_params::Dict{DependentParametersIndex, Dict{InfiniteParameterAttr, Any}} # TODO maybe allow for parameter-wsie attributes
+    infinite_variables::Dict{InfiniteVariableIndex, Dict{VariableAttr, Any}}
+    semi_ifninite_variables::Dict{SemiInfiniteVariableIndex, Dict{VariableAttr, Any}}
+    point_variables::Dict{PointVariableIndex, Dict{VariableAttr, Any}}
+    derivatives::Dict{DerivativeIndex, Dict{DerivativeAttr, Any}}
+    measures::Dict{MeasureIndex, Dict{MeasureAttr, Any}}
+    constraints::Dict{InfOptConstraintIndex, Dict{ConstraintAttr, Any}}
     model::Dict{ModelAttr, Any}
 
     # Constructor 
     function TransformAttrCache()
         return new(
-            Dict{Tuple{FiniteParameterIndex, FiniteParameterAttr}, Any}(),
-            Dict{Tuple{IndependentParameterIndex, InfiniteParameterAttr}, Any}(),
-            Dict{Tuple{DependentParametersIndex, InfiniteParameterAttr}, Any}(),
-            Dict{Tuple{InfiniteVariableIndex, VariableAttr}, Any}(),
-            Dict{Tuple{SemiInfiniteVariableIndex, VariableAttr}, Any}(),
-            Dict{Tuple{PointVariableIndex, VariableAttr}, Any}(),
-            Dict{Tuple{DerivativeIndex, DerivativeAttr}, Any}(),
-            Dict{Tuple{MeasureIndex, MeasureAttr}, Any}(),
-            Dict{Tuple{InfOptConstraintIndex, ConstraintAttr}, Any}(),
+            Dict{FiniteParameterIndex, Dict{FiniteParameterAttr, Any}}(),
+            Dict{IndependentParameterIndex, Dict{InfiniteParameterAttr, Any}}(),
+            Dict{DependentParametersIndex, Dict{InfiniteParameterAttr, Any}}(),
+            Dict{InfiniteVariableIndex, Dict{VariableAttr, Any}}(),
+            Dict{SemiInfiniteVariableIndex, Dict{VariableAttr, Any}}(),
+            Dict{PointVariableIndex, Dict{VariableAttr, Any}}(),
+            Dict{DerivativeIndex, Dict{DerivativeAttr, Any}}(),
+            Dict{MeasureIndex, Dict{MeasureAttr, Any}}(),
+            Dict{InfOptConstraintIndex, Dict{ConstraintAttr, Any}}(),
             Dict{ModelAttr, Any}()
             )
     end

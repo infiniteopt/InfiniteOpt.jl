@@ -952,7 +952,7 @@ function JuMP.delete(
     end
     # ensure pref is not used by a parameter function 
     if used_by_parameter_function(pref)
-        error("Cannot delete `$pref` since it is used by an parameter ",
+        error("Cannot delete `$pref` since it is used by a parameter ",
               "function(s).")
     end
     # update backend status
@@ -973,6 +973,8 @@ function JuMP.delete(
     _delete_data_object(pref)
     # update the object numbers and parameter numbers
     _update_model_numbers(model, obj_num, param_nums)
+    # delete any backend information
+    delete!(model.transform_backend, JuMP.index(pref))
     return
 end
 
@@ -1001,5 +1003,7 @@ function JuMP.delete(model::InfiniteModel, pref::FiniteParameterRef)::Nothing
     end
     # delete parameter information stored in model
     _delete_data_object(pref)
+    # delete any backend information
+    delete!(model.transform_backend, JuMP.index(pref))
     return
 end
