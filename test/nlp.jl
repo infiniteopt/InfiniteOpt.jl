@@ -526,6 +526,8 @@ end
         new = NLPExpr(InfiniteOpt._call_graph(:+, nlp, nlp))
         @test isequal(sum(i for i in [nlp, nlp]), new)
         @test isequal(sum([nlp, nlp]), new)
+        @test_throws ErrorException sum(i for i in [nlp, nlp]; bad = 42)
+        @test_throws ErrorException sum(i for i in [y, p]; bad = 42)
         # test other expressions 
         @test isequal(sum(i for i in [y, t]), y + t)
         @test isequal(sum([y, t]), y + t)
@@ -544,6 +546,7 @@ end
         new = NLPExpr(InfiniteOpt._call_graph(:*, nlp, nlp))
         @test isequal(prod(i for i in [nlp, nlp]), new)
         @test isequal(prod([nlp, nlp]), new)
+        @test_throws ErrorException prod(i for i in [nlp, nlp]; bad = 42)
         # test other expressions 
         new = NLPExpr(InfiniteOpt._call_graph(:*, y, t, z))
         @test isequal(prod(i for i in [y, t, z]), new)

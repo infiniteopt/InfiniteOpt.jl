@@ -388,7 +388,10 @@ end
 ################################################################################
 ## Define helper functions for sum reductions 
 # Container of NLPExprs
-function _reduce_by_first(::typeof(sum), first_itr::NLPExpr, itr)
+function _reduce_by_first(::typeof(sum), first_itr::NLPExpr, itr, orig_itr; kws...)
+    for kw in kws
+        error("Unexpected keyword argument `$kw`.")
+    end
     root = _LCRST.Node(NodeData(:+))
     prevc = _LCRST.addchild(root, first_itr.tree_root)
     for ex in itr
@@ -401,8 +404,13 @@ end
 function _reduce_by_first(
     ::typeof(sum), 
     first_itr::JuMP.AbstractJuMPScalar, 
-    itr
+    itr,
+    orig_itr;
+    kws...
     )
+    for kw in kws
+        error("Unexpected keyword argument `$kw`.")
+    end
     result = first_itr
     for i in itr 
         result = _MA.operate!!(_MA.add_mul, result, i)
@@ -411,15 +419,15 @@ function _reduce_by_first(
 end
 
 # Fallback
-function _reduce_by_first(::typeof(sum), first_itr, itr; kw...)
-    return isempty(itr) ? first_itr : first_itr + sum(identity, itr; kw...)
+function _reduce_by_first(::typeof(sum), first_itr, itr, orig_itr; kws...)
+    return sum(identity, orig_itr; kws...)
 end
 
 # Hyjack Base.sum for better efficiency on iterators --> this is type piracy...
-function Base.sum(itr::Base.Generator; kw...)
-    isempty(itr) && return sum(identity, itr; kw...)
+function Base.sum(itr::Base.Generator; kws...)
+    isempty(itr) && return sum(identity, itr; kws...)
     itr1, new_itr = Iterators.peel(itr)
-    return _reduce_by_first(sum, itr1, new_itr; kw...)
+    return _reduce_by_first(sum, itr1, new_itr, itr; kws...)
 end
 
 # Extend Base.sum for container of NLPExprs
@@ -444,7 +452,10 @@ end
 
 ## Define helper functions for reducing products 
 # Container of InfiniteOpt exprs
-function _reduce_by_first(::typeof(prod), first_itr::AbstractInfOptExpr, itr)
+function _reduce_by_first(::typeof(prod), first_itr::AbstractInfOptExpr, itr, orig_itr; kws...)
+    for kw in kws
+        error("Unexpected keyword argument `$kw`.")
+    end
     root = _LCRST.Node(NodeData(:*))
     prevc = _LCRST.addchild(root, _process_child_input(first_itr))
     for ex in itr
@@ -454,15 +465,15 @@ function _reduce_by_first(::typeof(prod), first_itr::AbstractInfOptExpr, itr)
 end
 
 # Fallback
-function _reduce_by_first(::typeof(prod), first_itr, itr; kw...)
-    return first_itr * prod(identity, itr; kw...)
+function _reduce_by_first(::typeof(prod), first_itr, itr, orig_itr; kws...)
+    return prod(identity, orig_itr; kws...)
 end
 
 # Hyjack Base.prod for better efficiency on iterators --> this is type piracy...
-function Base.prod(itr::Base.Generator; kw...)
-    isempty(itr) && return prod(identity, itr; kw...)
+function Base.prod(itr::Base.Generator; kws...)
+    isempty(itr) && return prod(identity, itr; kws...)
     itr1, new_itr = Iterators.peel(itr)
-    return _reduce_by_first(prod, itr1, new_itr; kw...)
+    return _reduce_by_first(prod, itr1, new_itr, itr; kws...)
 end
 
 # Extend Base.prod for container of InfiniteOpt exprs
