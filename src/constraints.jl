@@ -25,7 +25,7 @@ CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
 ```
 """
-JuMP.owner_model(cref::InfOptConstraintRef)::InfiniteModel = cref.model
+JuMP.owner_model(cref::InfOptConstraintRef) = cref.model
 
 """
     JuMP.index(cref::InfOptConstraintRef)::InfOptConstraintIndex
@@ -38,10 +38,10 @@ julia> index(cref)
 InfOptConstraintIndex(2)
 ```
 """
-JuMP.index(cref::InfOptConstraintRef)::InfOptConstraintIndex = cref.index
+JuMP.index(cref::InfOptConstraintRef) = cref.index
 
 # Extend Base and JuMP functions
-function Base.:(==)(v::InfOptConstraintRef, w::InfOptConstraintRef)::Bool
+function Base.:(==)(v::InfOptConstraintRef, w::InfOptConstraintRef)
     return v.model === w.model && v.index == w.index
 end
 Base.broadcastable(cref::InfOptConstraintRef) = Ref(cref)
@@ -53,7 +53,7 @@ Base.broadcastable(cref::InfOptConstraintRef) = Ref(cref)
 function _add_data_object(
     model::InfiniteModel,
     object::ConstraintData
-    )::InfOptConstraintIndex
+    )
     return MOIUC.add_item(model.constraints, object)
 end
 
@@ -65,7 +65,7 @@ function _data_dictionary(
 end
 
 # Extend _data_object
-function _data_object(cref::InfOptConstraintRef)::ConstraintData
+function _data_object(cref::InfOptConstraintRef)
     object = Base.get(_data_dictionary(cref), JuMP.index(cref), nothing)
     if isnothing(object)
         error("Invalid constraint reference, cannot find corresponding ", 
@@ -78,7 +78,7 @@ end
 # Return the core constraint object
 function _core_constraint_object(
     cref::InfOptConstraintRef
-    )::JuMP.AbstractConstraint
+    )
     return _data_object(cref).constraint
 end
 
@@ -88,7 +88,7 @@ function _adaptive_data_update(
     cref::InfOptConstraintRef, 
     c::C, 
     data::ConstraintData{C}
-    )::Nothing where {C <: JuMP.AbstractConstraint}
+    ) where {C <: JuMP.AbstractConstraint}
     data.constraint = c
     return
 end
@@ -98,7 +98,7 @@ function _adaptive_data_update(
     cref::InfOptConstraintRef, 
     c::C1, 
     data::ConstraintData{C2}
-    )::Nothing  where {C1, C2}
+    )  where {C1, C2}
     new_data = ConstraintData(c, data.object_nums, data.name, 
                               data.measure_indices, data.is_info_constraint)
     _data_dictionary(cref)[JuMP.index(cref)] = new_data
@@ -109,31 +109,31 @@ end
 function _set_core_constraint_object(
     cref::InfOptConstraintRef,
     constr::JuMP.AbstractConstraint
-    )::Nothing
+    )
     _adaptive_data_update(cref, constr, _data_object(cref))
     set_optimizer_model_ready(JuMP.owner_model(cref), false)
     return
 end
 
 # Extend _object_numbers
-function _object_numbers(cref::InfOptConstraintRef)::Vector{Int}
+function _object_numbers(cref::InfOptConstraintRef)
     return _data_object(cref).object_nums
 end
 
 # Extend _measure_dependencies
 function _measure_dependencies(
     cref::InfOptConstraintRef
-    )::Vector{MeasureIndex}
+    )
     return _data_object(cref).measure_indices
 end
 
 # Return if this constraint is an info constraint
-function _is_info_constraint(cref::InfOptConstraintRef)::Bool
+function _is_info_constraint(cref::InfOptConstraintRef)
     return _data_object(cref).is_info_constraint
 end
 
 # Extend _delete_data_object
-function _delete_data_object(cref::InfOptConstraintRef)::Nothing
+function _delete_data_object(cref::InfOptConstraintRef)
     delete!(_data_dictionary(cref), JuMP.index(cref))
     return
 end
@@ -145,7 +145,7 @@ end
 function _check_restrictions(
     restrictions::DomainRestrictions{GeneralVariableRef};
     _error = error
-    )::Nothing
+    )
     depend_counter = Dict{DependentParameterRef, Int}()
     for (pref, domain) in restrictions
         # check that pref is an infinite parameter
@@ -208,7 +208,7 @@ function JuMP.build_constraint(
     func,
     set,
     restrictions::DomainRestrictions
-    )::DomainRestrictedConstraint
+    )
     # make the constraint and check the domain restrictions
     constr = JuMP.build_constraint(_error, func, set)
     _check_restrictions(restrictions, _error = _error)
@@ -219,7 +219,7 @@ end
 function _validate_restrictions(
     model::InfiniteModel,
     restrictions::DomainRestrictions
-    )::Nothing
+    )
     depend_supps = Dict{DependentParametersIndex, Matrix{Float64}}()
     for (pref, domain) in restrictions
         # check validity
@@ -252,7 +252,7 @@ end
 function _update_var_constr_mapping(
     vrefs::Vector{GeneralVariableRef},
     cref::InfOptConstraintRef
-    )::Nothing
+    )
     for vref in vrefs
         dvref = dispatch_variable_ref(vref)
         push!(_constraint_dependencies(dvref), JuMP.index(cref))
@@ -293,7 +293,7 @@ function JuMP.add_constraint(
     c::JuMP.AbstractConstraint,
     name::String = "";
     is_info_constr::Bool = false
-    )::InfOptConstraintRef
+    )
     # gather the unique list of variable references for testing and mapping
     vrefs = _all_function_variables(JuMP.jump_function(c))
     # test in the model
@@ -321,7 +321,7 @@ function JuMP.add_constraint(
     model::InfiniteModel,
     c::DomainRestrictedConstraint,
     name::String = ""
-    )::InfOptConstraintRef
+    )
     # test domain restrictions and add needed supports
     _validate_restrictions(model, c.restrictions)
     # add the underlying constraint 
@@ -350,7 +350,7 @@ true
 function JuMP.is_valid(
     model::InfiniteModel, 
     cref::InfOptConstraintRef
-    )::Bool
+    )
     return (model === JuMP.owner_model(cref) &&
             JuMP.index(cref) in keys(_data_dictionary(cref)))
 end
@@ -376,7 +376,7 @@ MathOptInterface.LessThan{Float64}(1.0))
 """
 function JuMP.constraint_object(
     cref::InfOptConstraintRef
-    )::JuMP.AbstractConstraint
+    )
     return _core_constraint_object(cref)
 end
 
@@ -391,7 +391,7 @@ julia> name(cref)
 "constr_name"
 ```
 """
-function JuMP.name(cref::InfOptConstraintRef)::String
+function JuMP.name(cref::InfOptConstraintRef)
     object = Base.get(_data_dictionary(cref), JuMP.index(cref), nothing)
     return isnothing(object) ? "" : object.name
 end
@@ -412,7 +412,7 @@ julia> name(cref)
 function JuMP.set_name(
     cref::InfOptConstraintRef, 
     name::String
-    )::Nothing
+    )
     _data_object(cref).name = name
     JuMP.owner_model(cref).name_to_constr = nothing
     return
@@ -429,7 +429,7 @@ end
 # Enforce that the MOI set is a traditional scalar one 
 function _enforce_rhs_set(
     set::Union{MOI.LessThan{T}, MOI.GreaterThan{T}, MOI.EqualTo{T}}
-    )::Nothing where {T}
+    ) where {T}
     return 
 end
 function _enforce_rhs_set(set)
@@ -459,7 +459,7 @@ con : 2 x ≤ 4.0
 function JuMP.set_normalized_rhs(
     cref::InfOptConstraintRef, 
     value::Real
-    )::Nothing
+    )
     old_constr = JuMP.constraint_object(cref)
     _enforce_rhs_set(JuMP.moi_set(old_constr))
     new_set = _set_set_value(JuMP.moi_set(old_constr), value)
@@ -474,7 +474,7 @@ end
 Return the right-hand side term of `cref` after JuMP has converted the
 constraint into its normalized form.
 """
-function JuMP.normalized_rhs(cref::InfOptConstraintRef)::Float64
+function JuMP.normalized_rhs(cref::InfOptConstraintRef)
     constr = JuMP.constraint_object(cref)
     set = JuMP.moi_set(constr)
     _enforce_rhs_set(set)
@@ -494,7 +494,7 @@ will be translated by `-value`. For example, given a constraint `2x <=
 function JuMP.add_to_function_constant(
     cref::InfOptConstraintRef,
     value::Real
-    )::Nothing
+    )
     current_value = JuMP.normalized_rhs(cref)
     JuMP.set_normalized_rhs(cref, current_value - value)
     return
@@ -524,7 +524,7 @@ function JuMP.set_normalized_coefficient(
     cref::InfOptConstraintRef,
     variable::GeneralVariableRef,
     value::Real
-    )::Nothing
+    )
     # update the constraint expression and update the constraint
     old_constr = JuMP.constraint_object(cref)
     new_func = _set_variable_coefficient!(JuMP.jump_function(old_constr),
@@ -544,7 +544,7 @@ normalized the constraint into its standard form.
 function JuMP.normalized_coefficient(
     cref::InfOptConstraintRef,
     variable::GeneralVariableRef
-    )::Float64
+    )
     constr = JuMP.constraint_object(cref)
     func = JuMP.jump_function(constr)
     return _affine_coefficient(func, variable) # checks valid
@@ -553,7 +553,7 @@ end
 # Return the appropriate constraint reference given the index and model
 function _make_constraint_ref(model::InfiniteModel,
     index::InfOptConstraintIndex
-    )::InfOptConstraintRef
+    )
     return InfOptConstraintRef(model, index)
 end
 
@@ -574,7 +574,7 @@ constr_name : x + pt = 3.0
 function JuMP.constraint_by_name(
     model::InfiniteModel,
     name::String
-    )::Union{InfOptConstraintRef, Nothing}
+    )
     if isnothing(model.name_to_constr)
         # Inspired from MOI/src/Utilities/model.jl
         model.name_to_constr = Dict{String, Int}()
@@ -622,7 +622,7 @@ function JuMP.num_constraints(
     model::InfiniteModel,
     function_type,
     set_type
-    )::Int
+    )
     counter = 0
     for (index, data_object) in model.constraints
         if isa(JuMP.jump_function(data_object.constraint), function_type) &&
@@ -637,7 +637,7 @@ end
 function JuMP.num_constraints(
     model::InfiniteModel,
     function_type
-    )::Int
+    )
     return JuMP.num_constraints(model, function_type, MOI.AbstractSet)
 end
 
@@ -645,12 +645,12 @@ end
 function JuMP.num_constraints(
     model::InfiniteModel,
     set_type::Type{<:MOI.AbstractSet}
-    )::Int
+    )
     return JuMP.num_constraints(model, Any, set_type)
 end
 
 # All the constraints
-function JuMP.num_constraints(model::InfiniteModel)::Int
+function JuMP.num_constraints(model::InfiniteModel)
     return length(model.constraints)
 end
 
@@ -691,7 +691,7 @@ function JuMP.all_constraints(
     model::InfiniteModel,
     function_type,
     set_type
-    )::Vector{InfOptConstraintRef}
+    )
     constr_list = Vector{InfOptConstraintRef}(undef,
                            JuMP.num_constraints(model, function_type, set_type))
     counter = 1
@@ -709,7 +709,7 @@ end
 function JuMP.all_constraints(
     model::InfiniteModel,
     function_type
-    )::Vector{InfOptConstraintRef}
+    )
     return JuMP.all_constraints(model, function_type, MOI.AbstractSet)
 end
 
@@ -717,14 +717,14 @@ end
 function JuMP.all_constraints(
     model::InfiniteModel,
     set_type::Type{<:MOI.AbstractSet}
-    )::Vector{InfOptConstraintRef}
+    )
     return JuMP.all_constraints(model, JuMP.AbstractJuMPScalar, set_type)
 end
 
 # All the constraints
 function JuMP.all_constraints(
     model::InfiniteModel
-    )::Vector{InfOptConstraintRef}
+    )
     return [_make_constraint_ref(model, idx) for (idx, _) in model.constraints]
 end
 
@@ -745,7 +745,7 @@ julia> all_constraints(model)
 """
 function JuMP.list_of_constraint_types(
     model::InfiniteModel
-    )::Vector{Tuple{DataType, DataType}}
+    )
     type_set = Set{Tuple{DataType, DataType}}()
     for (index, object) in model.constraints
         push!(type_set, (typeof(JuMP.jump_function(object.constraint)),
@@ -769,7 +769,7 @@ julia> parameter_refs(cref)
 (t,)
 ```
 """
-function parameter_refs(cref::InfOptConstraintRef)::Tuple
+function parameter_refs(cref::InfOptConstraintRef)
     model = JuMP.owner_model(cref)
     obj_indices = _param_object_indices(model)[_object_numbers(cref)]
     return Tuple(_make_param_tuple_element(model, idx) for idx in obj_indices)
@@ -790,7 +790,7 @@ julia> has_domain_restrictions(cref)
 true
 ```
 """
-function has_domain_restrictions(cref::InfOptConstraintRef)::Bool
+function has_domain_restrictions(cref::InfOptConstraintRef)
     return !isempty(domain_restrictions(cref))
 end
 
@@ -808,7 +808,7 @@ Subdomain restrictions (1): t ∈ [0, 2]
 """
 function domain_restrictions(
     cref::InfOptConstraintRef
-    )::DomainRestrictions{GeneralVariableRef}
+    )
     return Base.get(JuMP.owner_model(cref).constraint_restrictions, JuMP.index(cref), 
                DomainRestrictions())
 end
@@ -834,7 +834,7 @@ function set_domain_restrictions(
     cref::InfOptConstraintRef,
     restrictions::DomainRestrictions{GeneralVariableRef};
     force::Bool = false
-    )::Nothing
+    )
     if has_domain_restrictions(cref) && !force
         error("$cref already has domain restrictions. Consider adding more using " *
                "`add_domain_restrictions` or overwriting them by setting " *
@@ -855,7 +855,7 @@ end
 function _update_restrictions(
     old::DomainRestrictions{GeneralVariableRef},
     new::DomainRestrictions{GeneralVariableRef}
-    )::Nothing
+    )
     # check each new restriction
     for (pref, domain) in new
         # we have a new restriction
@@ -901,7 +901,7 @@ Subdomain restrictions (1): t ∈ [0, 2]
 function add_domain_restrictions(
     cref::InfOptConstraintRef,
     new_restrictions::DomainRestrictions{GeneralVariableRef}
-    )::Nothing
+    )
     # check the new restrictions
     _check_restrictions(new_restrictions)
     model = JuMP.owner_model(cref)
@@ -936,7 +936,7 @@ c1 : y(x) ≤ 42, ∀ x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
 """
 function delete_domain_restrictions(
     cref::InfOptConstraintRef
-    )::Nothing
+    )
     # delete the restrictions if there are any
     delete!(JuMP.owner_model(cref).constraint_restrictions, JuMP.index(cref))
     # update status
@@ -972,7 +972,7 @@ Subject to
 function JuMP.delete(
     model::InfiniteModel, 
     cref::InfOptConstraintRef
-    )::Nothing
+    )
     # check valid reference
     @assert JuMP.is_valid(model, cref) "Invalid constraint reference."
     # update variable dependencies
