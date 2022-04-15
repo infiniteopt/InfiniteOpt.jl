@@ -434,7 +434,7 @@ end
 function Base.sum(arr::AbstractArray{<:NLPExpr}; init = zero(NLPExpr))
     isempty(arr) && return init
     itr1, new_itr = Iterators.peel(arr)
-    return _reduce_by_first(sum, itr1, new_itr)
+    return _reduce_by_first(sum, itr1, new_itr, arr)
 end
 
 # Extend Base.sum for container of InfiniteOpt exprs
@@ -480,7 +480,7 @@ end
 function Base.prod(arr::AbstractArray{<:AbstractInfOptExpr}; init = one(NLPExpr))
     isempty(arr) && return init
     itr1, new_itr = Iterators.peel(arr)
-    return _reduce_by_first(prod, itr1, new_itr)
+    return _reduce_by_first(prod, itr1, new_itr, arr)
 end
 
 ################################################################################
