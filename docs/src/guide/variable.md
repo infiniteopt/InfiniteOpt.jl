@@ -739,7 +739,7 @@ For infinite and semi-infinite variables, the [`start_value_function`](@ref)
 should be used instead:
 ```jldoctest var_macro
 julia> start_value_function(y_sin)
-sin (generic function with 19 methods)
+sin (generic function with 18 methods)
 ```
 
 ### Variable Use
