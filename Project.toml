@@ -1,7 +1,7 @@
 name = "InfiniteOpt"
 uuid = "20393b10-9daf-11e9-18c9-8db751c92c57"
 authors = ["Joshua Pulsipher and Weiqi Zhang"]
-version = "0.5.3"
+version = "0.5.4"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
