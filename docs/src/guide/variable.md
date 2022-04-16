@@ -739,7 +739,7 @@ For infinite and semi-infinite variables, the [`start_value_function`](@ref)
 should be used instead:
 ```jldoctest var_macro
 julia> start_value_function(y_sin)
-sin (generic function with 19 methods)
+sin (generic function with 18 methods)
 ```
 
 ### Variable Use
@@ -870,7 +870,7 @@ For infinite variables, this should be done using
 julia> set_start_value_function(myname, sin)
 
 julia> start_value_function(myname)
-sin (generic function with 19 methods)
+sin (generic function with 18 methods)
 ```
 Again note that such start functions must be able to accept parameter values as 
 arguments that exactly match the format of the infinite parameters given in 
