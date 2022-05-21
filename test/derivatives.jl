@@ -206,7 +206,8 @@ end
     info = VariableInfo(false, num, false, num, false, num, false, NaN, false, false)
     info2 = VariableInfo(true, num, true, num, true, num, true, func1, false, false)
     info3 = VariableInfo(true, num, true, num, true, num, true, 42, false, true)
-    info4 = VariableInfo(true, num, false, num, false, num, false, s -> NaN, false, false)
+    info4 = VariableInfo(true, num, false, num, false, num, true, s -> NaN, false, false)
+    info5 = VariableInfo(false, num, false, num, false, num, false, s -> NaN, false, false)
     # build_derivative
     @testset "build_derivative" begin 
         # test errors 
@@ -302,12 +303,22 @@ end
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
-        d = Derivative(info4, true, x, pref)
+        d = Derivative(info4, false, x, pref)
         @test isequal(add_derivative(m, d, "name2"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(dref), idx)
         @test InfiniteOpt._core_variable_object(dref) == d
         @test name(dref) == "name2"
         @test lower_bound(dref) == 0
+        # test redundant build with warning 
+        idx = DerivativeIndex(1)
+        dref = DerivativeRef(m, idx)
+        d = Derivative(info5, true, x, pref)
+        warn = "Overwriting name2, any previous properties (e.g., lower bound " * 
+               "or start value) will be lost/changed."
+        @test_logs (:warn, warn) add_derivative(m, d, "name3")
+        @test haskey(InfiniteOpt._data_dictionary(dref), idx)
+        @test InfiniteOpt._core_variable_object(dref) == d
+        @test name(dref) == "name3"
     end
     # test JuMP.add_variable 
     @testset "JuMP.add_variable" begin 

@@ -191,6 +191,12 @@ dydt2(t, ξ)
 This will also support anonymous definition and multi-dimensional definition. 
 Please see [Macro Variable Definition](@ref) for more information.
 
+!!! warning
+    The same derivative should not be redefined with multiple `@variable` calls 
+    and using `@variable` to define derivatives should be avoided on derivatives 
+    that were already defined. This is because the latest `@variable` will 
+    overwrite any existing properties a derivative might already have. 
+
 Second, for more convenient definition we use [`@deriv`](@ref) (or [`@∂`](@ref)) 
 as shown in the Basic Usage section above. Unlike `@variable` this can handle any 
 `InfiniteOpt` expression as the argument input. It also can build derivatives 
