@@ -176,15 +176,15 @@ following steps:
  1. define supports for each infinite parameter if not already defined,
  2. add any additional support needed for derivative evaluation,
  3. expand any measures according to their underlying numerical representation 
-   using transcribed infinite variables as appropriate,
+    using transcribed infinite variables as appropriate,
  4. replace any remaining infinite variables/derivatives with transcribed 
     variables supported over each unique combination of the underlying parameter 
     supports,
  5. replace any remaining infinite constraints with transcribed ones supported over 
-   all the unique support combinations stemming from the infinite parameters they 
-   depend on,
+    all the unique support combinations stemming from the infinite parameters they 
+    depend on,
  6. and add on the transcribed versions of the auxiliary derivative evaluation 
-   equations. 
+    equations. 
 
 For example, let's consider a space-time optimization problem of the form:
 ```math
