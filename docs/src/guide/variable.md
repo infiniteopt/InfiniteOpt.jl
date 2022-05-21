@@ -1,5 +1,5 @@
 ```@meta
-DocTestFilters = [r"≤|<=", r" == | = ", r" ∈ | in ", r" for all | ∀ ", r"sin (*"]
+DocTestFilters = [r"≤|<=", r" == | = ", r" ∈ | in ", r" for all | ∀ ", r"sin \(.*"]
 ```
 
 # [Variables](@id var_docs)
