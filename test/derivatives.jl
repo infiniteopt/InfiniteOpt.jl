@@ -313,7 +313,7 @@ end
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)
         d = Derivative(info5, true, x, pref)
-        warn = "Overwriting name2, any previous properties (e.g., lower bound " * 
+        warn = "Overwriting name2(pref, prefs), any previous properties (e.g., lower bound " * 
                "or start value) will be lost/changed."
         @test_logs (:warn, warn) add_derivative(m, d, "name3")
         @test haskey(InfiniteOpt._data_dictionary(dref), idx)
