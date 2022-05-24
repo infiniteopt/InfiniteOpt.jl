@@ -922,10 +922,11 @@ function InfiniteOpt.build_optimizer_model!(
         lb = has_lower_bound(vref) ? lower_bound(vref) : NaN
         ub = has_upper_bound(vref) ? upper_bound(vref) : NaN
         if is_fixed(vref)
-            lb = ub = fix_value(vref)
+            lb = fix_value(vref)
         end
-        new_vref = @variable(determ_model, base_name = name(vref), lower_bound = lb, 
-                             upper_bound = ub, start = start)
+        info = VariableInfo(!isnan(lb), lb, !isnan(ub), ub, is_fixed(vref), lb, 
+                            !isnan(start), start, is_binary(vref), is_integer(vref))
+        new_vref = add_variable(determ_model, ScalarVariable(info), name(vref))
         deterministic_data(determ_model).infvar_to_detvar[vref] = new_vref
     end
 
