@@ -913,15 +913,20 @@ function InfiniteOpt.build_optimizer_model!(
 
     # add variables
     for vref in all_variables(model)
-        dvref = dispatch_variable_ref(vref)
-        if dvref isa InfiniteVariableRef # have to handle the infinite variable functional start value
-            inf_var = InfiniteOpt._core_variable_object(dvref)
-            info = InfiniteOpt.TranscriptionOpt._format_infinite_info(inf_var, zeros(length(raw_parameter_refs(dvref))))
+        if index(vref) isa InfiniteVariableIndex
+            start = NaN # easy hack
         else
-            info = InfiniteOpt._variable_info(dvref)
+            start = start_value(vref)
+            start = isnothing(start) ? NaN : start
         end
-        new_vref = add_variable(determ_model, ScalarVariable(info),
-                                name(dvref)) # TODO update infinite variable names
+        lb = has_lower_bound(vref) ? lower_bound(vref) : NaN
+        ub = has_upper_bound(vref) ? upper_bound(vref) : NaN
+        if is_fixed(vref)
+            lb = fix_value(vref)
+        end
+        info = VariableInfo(!isnan(lb), lb, !isnan(ub), ub, is_fixed(vref), lb, 
+                            !isnan(start), start, is_binary(vref), is_integer(vref))
+        new_vref = add_variable(determ_model, ScalarVariable(info), name(vref))
         deterministic_data(determ_model).infvar_to_detvar[vref] = new_vref
     end
 
@@ -934,25 +939,23 @@ function InfiniteOpt.build_optimizer_model!(
     end
 
     # add the constraints
-    for cref in all_constraints(model)
-        if !InfiniteOpt._is_info_constraint(cref)
-            constr = constraint_object(cref)
-            new_func = _make_expression(determ_model, constr.func)
-            if new_func isa NonlinearExpression
-                if constr.set isa MOI.LessThan
-                    ex = :($new_func <= $(constr.set.upper))
-                elseif constr.set isa MOI.GreaterThan
-                    ex = :($new_func >= $(constr.set.lower))
-                else # assume it is MOI.EqualTo
-                    ex = :($new_func == $(constr.set.value))
-                end
-                new_cref = add_nonlinear_constraint(determ_model, ex)
-            else
-                new_constr = build_constraint(error, new_func, constr.set)
-                new_cref = add_constraint(determ_model, new_constr, name(cref))
+    for cref in all_constraints(model, Union{GenericAffExpr, GenericQuadExpr, NLPExpr})
+        constr = constraint_object(cref)
+        new_func = _make_expression(determ_model, constr.func)
+        if new_func isa NonlinearExpression
+            if constr.set isa MOI.LessThan
+                ex = :($new_func <= $(constr.set.upper))
+            elseif constr.set isa MOI.GreaterThan
+                ex = :($new_func >= $(constr.set.lower))
+            else # assume it is MOI.EqualTo
+                ex = :($new_func == $(constr.set.value))
             end
-            deterministic_data(determ_model).infconstr_to_detconstr[cref] = new_cref
+            new_cref = add_nonlinear_constraint(determ_model, ex)
+        else
+            new_constr = build_constraint(error, new_func, constr.set)
+            new_cref = add_constraint(determ_model, new_constr, name(cref))
         end
+        deterministic_data(determ_model).infconstr_to_detconstr[cref] = new_cref
     end
 
     # update the status
@@ -1008,7 +1011,7 @@ function InfiniteOpt.optimizer_model_expression(
     expr::JuMP.AbstractJuMPScalar,
     key::Val{DetermKey}
     )
-    model = optimizer_model(JuMP.owner_model(vref))
+    model = optimizer_model(InfiniteOpt._model_from_expr(expr))
     return _make_expression(model, expr)
 end
 
