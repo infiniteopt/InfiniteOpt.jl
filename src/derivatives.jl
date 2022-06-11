@@ -332,7 +332,13 @@ function add_derivative(
     else
         dref = DerivativeRef(model, existing_index)
         gvref = _make_variable_ref(model, existing_index)
+        old_info = _variable_info(dref)
+        if old_info.has_lb || old_info.has_ub || old_info.has_fix || old_info.has_start
+            @warn "Overwriting $dref, any previous properties (e.g., lower bound " * 
+                  "or start value) will be lost/changed."
+        end
         _update_info_constraints(d.info, gvref, dref)
+        _set_core_variable_object(dref, d)
         if !isempty(name)
             set_name(dref, name)
         end

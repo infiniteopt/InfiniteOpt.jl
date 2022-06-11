@@ -67,6 +67,11 @@ wbar3 = 6000        # no upper bound on the other crops
 ybar3 = 0           # no upper bound on the other crops
 Ξ = [Uniform(0, 5), Uniform(0, 5), Uniform(10, 30)]; # the distributions
 
+# !!! note
+#     We only use 10 scenarios here to minimize the overhead in building the 
+#     documentation. In practice, many scenarios should be used (e.g., 1,000 
+#     or more).
+
 # ## Problem Definition
 
 # Let's start by setting up the infinite model that uses Ipopt as the optimizer 
@@ -76,6 +81,13 @@ set_optimizer_attribute(model, "print_level", 0);
 
 # Now let's define the infinite parameters using [`@infinite_parameter`](@ref):
 @infinite_parameter(model, ξ[c in C] ~ Ξ[c], num_supports = num_scenarios)
+
+# !!! note
+#     Behind the scenes, an amount of random samples equal to `num_scenarios` will 
+#     be generated. This means that each time the problem is solved different 
+#     samples may be drawn. To make reproducible behavior, invoke 
+#     [`Random.seed!`](https://docs.julialang.org/en/v1/stdlib/Random/#Random.seed!) 
+#     before creating the infinite parameter.
 
 # Now let's define all of the decision variables using `@variables`:
 @variables(model, begin 
@@ -111,7 +123,9 @@ profit = -objective_value(model)
 println("Land Allocations: ", [round(x_opt[k], digits = 2) for k in keys(x_opt)])
 println("Expected Profit: \$", round(profit, digits = 2))
 
-# We did it! 
+# We did it! Note, you will likely get a different answer by running the above 
+# code on your own since we only only used 10 scenarios and the random generation 
+# is not seeded as per the comments above.
 
 # ## CVaR Objective
 
@@ -162,7 +176,9 @@ profit = -sum(α[c] * x_opt[c] for c in C) - 1 / num_scenarios *
 println("Land Allocations: ", [round(x_opt[k], digits = 2) for k in keys(x_opt)])
 println("Expected Profit: \$", round(profit, digits = 2))
 
-# That's it!
+# That's it! Note, you will likely get a different answer by running the above 
+# code on your own since we only only used 10 scenarios and the random generation 
+# is not seeded as per the comments above.
 
 # ### Maintenance Tests
 # These are here to ensure this example stays up to date. 

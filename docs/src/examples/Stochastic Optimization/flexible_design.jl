@@ -7,7 +7,7 @@
 
 # ## Modeling and Solution
 
-using InfiniteOpt, HiGHS, Distributions
+using InfiniteOpt, HiGHS, Distributions, Random
 
 ## Set the covariance matrix for the uncertain parameters
 θ_nom = [0.; 60.; 10.]
@@ -21,6 +21,9 @@ c = ones(n_d) / sqrt(n_d)
 c_max = 5
 U = 10000
 num_samples = 100 # more should be used (kept small for doc generation)
+
+## Seed such that the results are reproducible
+Random.seed!(42)
 
 ## Initialize the model
 m = InfiniteModel(HiGHS.Optimizer)
