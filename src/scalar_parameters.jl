@@ -238,7 +238,7 @@ function add_parameter(
     data_object = ScalarParameterData(p, obj_num, param_num, name)
     obj_index = _add_data_object(model, data_object)
     model.name_to_param = nothing
-    _update_transform_attributes(model, p)
+    _update_transform_attributeson_creation(model, p)
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
 end
 
@@ -269,7 +269,7 @@ function add_parameter(
     data_object = ScalarParameterData(p, -1, -1, name)
     obj_index = _add_data_object(model, data_object)
     model.name_to_param = nothing
-    _update_transform_attributes(model, p)
+    _update_transform_attributes_on_creation(model, p)
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
 end
 

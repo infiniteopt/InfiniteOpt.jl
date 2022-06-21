@@ -966,7 +966,7 @@ an `InfiniteModel` that can be used by the transformation backend.
 struct TransformAttrCache
     finite_parameters::Dict{FiniteParameterIndex, Dict{FiniteParameterAttr, Any}}
     independent_parameters::Dict{IndependentParameterIndex, Dict{InfiniteParameterAttr, Any}}
-    dependent_params::Dict{DependentParametersIndex, Dict{InfiniteParameterAttr, Any}} # TODO maybe allow for parameter-wsie attributes
+    dependent_params::Dict{DependentParametersIndex, Dict{InfiniteParameterAttr, Any}} # TODO maybe allow for parameter-wise attributes
     infinite_variables::Dict{InfiniteVariableIndex, Dict{VariableAttr, Any}}
     semi_ifninite_variables::Dict{SemiInfiniteVariableIndex, Dict{VariableAttr, Any}}
     point_variables::Dict{PointVariableIndex, Dict{VariableAttr, Any}}

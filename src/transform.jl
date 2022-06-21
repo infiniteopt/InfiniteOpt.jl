@@ -192,7 +192,7 @@ end
     register_transform_keyword(kw::Symbol, attr::AbstractTransformAttr, 
                                [type = attribute_value_type(attr)])::Nothing
 
-Register a new [`AbstractTransformAttr`](@ref) to be specified via keyword 
+Register a new [`AbstractTransformAttr`](@ref) to be specified via a keyword 
 argument to the appropriate creation macro (e.g., `@infinite_parameter` for 
 [`InfiniteParameterAttr`](@ref)s). Using `type` indicates what type of input 
 of input is accepted for `kw`. Note that `type` need not equal 
@@ -223,7 +223,7 @@ Process a transformation backend attribute `attr` with a raw `value` that will
 be associated with `object` once it is added to the model. This is intended 
 to handle raw input `value`s collected via keyword arguments when `object` is 
 created (i.e., transformation keywords that have been registered via 
-[`register_transform_keyword`](@ref)). This provides extra flexibility allow 
+[`register_transform_keyword`](@ref)). This provides extra flexibility to allow 
 more convenient input for users. By default `value` is simply returned. This 
 should be extended for registered transformation attribute types that wish to 
 process input that doesn't readily match [`attribute_value_type`](@ref). Note 
@@ -293,13 +293,13 @@ only invoked for attributes that have been registered via
 [`register_attribute_to_update`](@ref). By default, nothing is updated. Those 
 writing transformation backends should extend this based on particular 
 attribute-object combinations where an update should be made. For instance, we 
-could obtain the discrete supports with the point from a point variable when it 
-is created (this is what `TranscriptionOpt` does). 
+could obtain the discrete support from a point variable when it is created (this 
+is what `TranscriptionOpt` does). 
 
 Note this should NOT be used to modify/create an attribute for `obj` itself, it 
 should only be used to modify attributes associated with other modeling objects. 
 Instead use [`register_transform_keyword`](@ref) if you what to create an attribute 
-for `obj` on creation. 
+for `obj` on creation.
 """
 function update_attribute_on_creation(
     model::InfiniteModel, 
@@ -311,7 +311,7 @@ end
 
 # Helper function for incrementally updating transform attributes when 
 # adding modeling objects to the model
-function _update_transform_attributes(model, obj)
+function _update_transform_attributes_on_creation(model, obj)
     for attr in _IncrementalAttributes
         update_attribute_on_creation(model, attr, obj)
     end
