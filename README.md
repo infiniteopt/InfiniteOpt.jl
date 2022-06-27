@@ -17,8 +17,8 @@ making it a powerful and convenient tool for advanced users.
 
 | **Documentation**                                                               | **Build Status**                                                                                | **Citation** |
 |:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|:--------------------------------------:|
-| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable) | [![Build Status](https://github.com/pulsipher/InfiniteOpt.jl/workflows/CI/badge.svg?branch=release-0.5)](https://github.com/pulsipher/InfiniteOpt.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=release-0.5)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=release-0.5) | [![DOI](https://img.shields.io/badge/Elsevier-CompChemEng%3A107567-yellow.svg)](https://doi.org/10.1016/j.compchemeng.2021.107567) |
-| [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/dev) | [![Build Status](https://github.com/pulsipher/InfiniteOpt.jl/workflows/CI/badge.svg?branch=master)](https://github.com/pulsipher/InfiniteOpt.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=master)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=master) | |
+| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://infiniteopt.github.io/InfiniteOpt.jl/stable) | [![Build Status](https://github.com/infiniteopt/InfiniteOpt.jl/workflows/CI/badge.svg?branch=release-0.5)](https://github.com/infiniteopt/InfiniteOpt.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/github/infiniteopt/InfiniteOpt.jl/coverage.svg?branch=release-0.5)](https://codecov.io/github/infiniteopt/InfiniteOpt.jl?branch=release-0.5) | [![DOI](https://img.shields.io/badge/Elsevier-CompChemEng%3A107567-yellow.svg)](https://doi.org/10.1016/j.compchemeng.2021.107567) |
+| [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://infiniteopt.github.io/InfiniteOpt.jl/dev) | [![Build Status](https://github.com/infiniteopt/InfiniteOpt.jl/workflows/CI/badge.svg?branch=master)](https://github.com/infiniteopt/InfiniteOpt.jl/actions?query=workflow%3ACI) [![codecov.io](https://codecov.io/github/pulsipher/InfiniteOpt.jl/coverage.svg?branch=master)](https://codecov.io/github/pulsipher/InfiniteOpt.jl?branch=master) | |
 
 It builds upon `JuMP` to add support for many complex modeling objects which 
 include:
@@ -52,15 +52,15 @@ julia> ]
 ```
 
 ## Documentation
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://pulsipher.github.io/InfiniteOpt.jl/stable)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://infiniteopt.github.io/InfiniteOpt.jl/stable)
 
-Please visit our [documentation pages](https://pulsipher.github.io/InfiniteOpt.jl/stable) 
+Please visit our [documentation pages](https://infiniteopt.github.io/InfiniteOpt.jl/stable) 
 to learn more. These pages are quite extensive and feature overviews, guides,
 manuals, tutorials, examples, and more!
 
 ## Questions
 For additional help please visit and post in our 
-[discussion forum](https://github.com/pulsipher/InfiniteOpt.jl/discussions).
+[discussion forum](https://github.com/infiniteopt/InfiniteOpt.jl/discussions).
 
 ## Citing
 [![DOI](https://img.shields.io/badge/Elsevier-CompChemEng%3A107567-yellow.svg)](https://doi.org/10.1016/j.compchemeng.2021.107567) 
@@ -88,4 +88,4 @@ The package is tested against Julia `1.6` and `1.7` on Linux, Mac, and Windows.
 ## Contributing
 `InfiniteOpt` is being actively developed and suggestions or other forms of contribution are encouraged.
 There are many ways to contribute to this package. For more information please
-visit [CONTRIBUTING](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/CONTRIBUTING.md).
+visit [CONTRIBUTING](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/CONTRIBUTING.md).
