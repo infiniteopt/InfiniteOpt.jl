@@ -3,7 +3,7 @@ Welcome! This document explains some of the ways you can contribute to InfiniteO
 
 ## Code of Conduct
 This project and everyone participating in it is governed by the
-[InfiniteOpt Code of Conduct](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/CODE_OF_CONDUCT.md).
+[InfiniteOpt Code of Conduct](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/CODE_OF_CONDUCT.md).
 By participating, you are expected to uphold this code.
 
 ## Improve the Documentation
@@ -13,7 +13,7 @@ Chances are if you have had to ask us questions, then our
 and moreover you're probably the best person to help since it was your question.
 
 The docs are written in Markdown and are built using [Documenter.jl](https://github.com/JuliaDocs/Documenter.jl).
-You can find the source code to of all the docs [here](https://github.com/pulsipher/InfiniteOpt.jl/tree/master/docs/src).
+You can find the source code to of all the docs [here](https://github.com/infiniteopt/InfiniteOpt.jl/tree/master/docs/src).
 
 If your change is small (like fixing typos, or one or two sentence corrections),
 the easiest way to do this is via Github's online editor. (Github has
@@ -25,16 +25,16 @@ If your change is larger, or touches multiple files, you will need to make the
 change locally and then use Git to submit a pull request. (See our [Development](https://pulsipher.github.io/InfiniteOpt.jl/dev/develop/start_guide)
 page for more information and for the step by step explanation.)
 
-Also, feel free to [ask a question](https://github.com/pulsipher/InfiniteOpt.jl/issues/new?assignees=&labels=question&template=i-have-a-question.md&title=%5BHelp+Wanted%5D+My+Question).
+Also, feel free to [ask a question](https://github.com/infiniteopt/InfiniteOpt.jl/issues/new?assignees=&labels=question&template=i-have-a-question.md&title=%5BHelp+Wanted%5D+My+Question).
 
 ## File a Bug Report
-Another way to contribute to InfiniteOpt is to file [bug reports](https://github.com/pulsipher/InfiniteOpt.jl/issues/new?assignees=&labels=bug&template=bug-report.md&title=%5BBUG%5D+My+Issue+Here).
+Another way to contribute to InfiniteOpt is to file [bug reports](https://github.com/infiniteopt/InfiniteOpt.jl/issues/new?assignees=&labels=bug&template=bug-report.md&title=%5BBUG%5D+My+Issue+Here).
 Make sure you read the info in the box where you write the body of the issue
 before posting.
 
 ## File a Feature Request
 Another way to contribute is to let us know of something you would like added
-and/or changed in InfiniteOpt. To do this please see [feature requests](https://github.com/pulsipher/InfiniteOpt.jl/issues/new?assignees=&labels=enhancement&template=feature-request.md&title=%5BFEATURE%5D+My+Desired+Feature+Here).
+and/or changed in InfiniteOpt. To do this please see [feature requests](https://github.com/infiniteopt/InfiniteOpt.jl/issues/new?assignees=&labels=enhancement&template=feature-request.md&title=%5BFEATURE%5D+My+Desired+Feature+Here).
 Please make sure you read the info and complete the template before posting.
 
 ## Contribute InfiniteOpt's Source-Code
@@ -47,7 +47,7 @@ to walk you through getting started.
 
 Once you are familiar with Git, the workflow for contributing code to InfiniteOpt
 is along the lines of the following:
-1. Find an [open issue](https://github.com/pulsipher/InfiniteOpt.jl/issues) (or open a
+1. Find an [open issue](https://github.com/infiniteopt/InfiniteOpt.jl/issues) (or open a
     new one) for the problem you want to solve
 2. Make your changes locally. (Again our RoadMap explains this). Make sure you:
     - Follow the [style guide](https://pulsipher.github.io/InfiniteOpt.jl/dev/develop/style)

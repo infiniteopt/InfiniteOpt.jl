@@ -115,7 +115,7 @@ Finally, case study examples are provided in the `Examples` sections.
 
 ## Questions
 For additional help please visit and post in our 
-[Discussion Forum](https://github.com/pulsipher/InfiniteOpt.jl/discussions).
+[Discussion Forum](https://github.com/infiniteopt/InfiniteOpt.jl/discussions).
 
 ## Contribution
 `InfiniteOpt` is a powerful tool with a broad scope lending to a large realm of 
