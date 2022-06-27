@@ -5,7 +5,7 @@
 function _LCRST.addchild(parent::_LCRST.Node{T}, newc::_LCRST.Node{T}) where T
     # copy the new node if it is not a root
     # otherwise, we are just merging 2 graphs together
-    if !_LCRST.isroot(newc)
+    if !AbstractTrees.isroot(newc)
         newc = copy(newc)
     end
     # add it on to the tree
@@ -51,7 +51,7 @@ function _LCRST.addchild(
     @assert prevc.parent === parent "Previous child doesn't belong to parent."
     # copy the new node if it is not a root
     # otherwise, we are just merging 2 graphs together
-    if !_LCRST.isroot(newc)
+    if !AbstractTrees.isroot(newc)
         newc = copy(newc)
     end
     # add it on to the tree
