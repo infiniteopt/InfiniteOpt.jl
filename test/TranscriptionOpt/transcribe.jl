@@ -221,7 +221,7 @@ end
         @objective(m, Max, z^4)
         @test IOTO.transcribe_objective!(tm, m) isa Nothing 
         @test objective_sense(tm) == MOI.MAX_SENSE
-        @test objective_function_string(MIME("text/plain"), tm) == "subexpression[1] + 0.0"
+        @test objective_function_string(MIME("text/plain"), tm) == "subexpression[1]"
         @test sprint(show, NonlinearExpression(tm, 1)) == "subexpression[1]: z ^ 4.0"
     end
 end
@@ -502,7 +502,7 @@ end
     # test registration 
     r = tm.nlp_model.operators
     @test length(r.registered_univariate_operators) == 1
-    @test r.univariate_operator_f[1].f == g
+    @test r.registered_univariate_operators[1].f == g
     # test objective
     xt = transcription_variable(tm, x)
     @test objective_function(tm) == 2xt[1] + xt[2] - 2wt - d2t[1] - d2t[2]

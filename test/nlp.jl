@@ -995,7 +995,7 @@ end
         @test [r2.registered_univariate_operators[i].f for i in 1:3] == [f, f1, f2]
         @test [r2.registered_univariate_operators[i].f′ for i in 2:3] == [f, f]
         @test r2.registered_univariate_operators[3].f′′ == f1
-        @test length(r1.registered_multivariate_operators) == 2
+        @test length(r2.registered_multivariate_operators) == 2
     end
 end 
 
