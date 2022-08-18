@@ -501,7 +501,7 @@ end
     @test supports(d2) == [(0.,), (1.,)]
     # test registration 
     r = tm.nlp_model.operators
-    @test length(keys(r.registered_univariate_operators)) == 1
+    @test length(r.registered_univariate_operators) == 1
     @test r.univariate_operator_f[1].f == g
     # test objective
     xt = transcription_variable(tm, x)
