@@ -483,15 +483,11 @@ effectively resets `model` except the optimizer, its attributes, and an an empti
 optimizer model data struct are maintained. This is intended as an internal
 method for use by [`build_optimizer_model!`](@ref).
 """
-function clear_optimizer_model_build!(model::JuMP.Model)::JuMP.Model
-    MOI.empty!(model.moi_backend)
-    empty!(model.shapes)
-    model.nlp_model = nothing
-    empty!(model.obj_dict)
+function clear_optimizer_model_build!(model::JuMP.Model)
     key = optimizer_model_key(model)
     data_type = typeof(model.ext[key])
     model.ext[key] = data_type() # assumes a constructor has been implemented.
-    model.is_model_dirty = false
+    empty!(model)
     model.operator_counter = 0
     return model
 end
