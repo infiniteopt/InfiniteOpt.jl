@@ -51,7 +51,7 @@ Now let's install `InfiniteOpt`:
 Alternatively, we can install the current experimental version of 
 `InfiniteOpt` via:
 ```julia-repl
-(v1.7) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
+(v1.7) pkg> add https://github.com/infiniteopt/InfiniteOpt.jl
 ```
 
 ## Install Optimization Solvers
@@ -91,7 +91,7 @@ julia> ]
 This should almost always be the most-recent release. You can check the releases
 of a package by going to the relevant GitHub page, and navigating to the
 "releases" page. For example, the list of `JuMP` releases is available at:
-[https://github.com/pulsipher/InfiniteOpt.jl/releases](https://github.com/pulsipher/InfiniteOpt.jl/releases).
+[https://github.com/infiniteopt/InfiniteOpt.jl/releases](https://github.com/infiniteopt/InfiniteOpt.jl/releases).
 
 If you need to ask question for help, please include the output of `status`!
 

@@ -30,8 +30,8 @@ A clear and concise description of what you expected to happen.
 
 **Desktop (please complete the following information):**
  - OS: [e.g., iOS]
- - Package Versions :[e.g., InfiniteOpt v0.1.0 and JuMP v0.21.1]
- - Julia Version: [e.g., 1.3.1]
+ - Package Versions :[e.g., InfiniteOpt v0.5.5 and JuMP v1.1.0]
+ - Julia Version: [e.g., 1.7.2]
 
 **Additional context**
 Add any other context about the problem here.

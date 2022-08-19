@@ -94,7 +94,7 @@ makedocs(;
             "Style Guide" => "develop/style.md"
             ],
         ],
-    repo = "https://github.com/pulsipher/InfiniteOpt.jl/blob/{commit}{path}#L{line}",
+    repo = "https://github.com/infiniteopt/InfiniteOpt.jl/blob/{commit}{path}#L{line}",
     sitename = "InfiniteOpt.jl",
     authors = "Joshua Pulsipher and Weiqi Zhang",
     doctest = true,
@@ -114,6 +114,6 @@ makedocs(;
 
 # Push the built HTML files to the correct GitHub branch if building via CI
 deploydocs(;
-    repo = "github.com/pulsipher/InfiniteOpt.jl",
+    repo = "github.com/infiniteopt/InfiniteOpt.jl",
     push_preview = true
 )
