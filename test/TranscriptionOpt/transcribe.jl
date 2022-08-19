@@ -221,7 +221,7 @@ end
         @objective(m, Max, z^4)
         @test IOTO.transcribe_objective!(tm, m) isa Nothing 
         @test objective_sense(tm) == MOI.MAX_SENSE
-        @test objective_function_string(MIME("text/plain"), tm) == "subexpression[1] + 0.0"
+        @test objective_function_string(MIME("text/plain"), tm) == "subexpression[1]"
         @test sprint(show, NonlinearExpression(tm, 1)) == "subexpression[1]: z ^ 4.0"
     end
 end
@@ -327,7 +327,7 @@ end
         expected = ["subexpression[1]: sin(z) ^ x(support: 1) - 0.0", 
                     "subexpression[1]: sin(z) ^ x(support: 2) - 0.0"]
         @test sprint(show, NonlinearExpression(tm, 1)) in expected
-        tm.nlp_data = nothing
+        tm.nlp_model = nothing
         # vector constraint 
         con = constraint_object(c6)
         func = jump_function(con)
@@ -341,7 +341,7 @@ end
         func = [sin(z)]
         set = MOI.Zeros(1)
         @test_throws ErrorException IOTO._process_constraint(tm, con, func, set, zeros(3), "test2")
-        tm.nlp_data = nothing
+        tm.nlp_model = nothing
         # fallback
         @test_throws ErrorException IOTO._process_constraint(tm, :bad, func, set, 
                                                              zeros(3), "bad")
@@ -372,8 +372,8 @@ end
         @test length(transcription_constraint(c6)) == 6
         @test moi_set(constraint_object(first(transcription_constraint(c6)))) == MOI.Zeros(2)
         @test length(transcription_constraint(c7)) == 6
-        @test length(tm.nlp_data.nlconstr) == 6
-        @test length(tm.nlp_data.nlexpr) == 6
+        @test length(keys(tm.nlp_model.constraints)) == 6
+        @test length(tm.nlp_model.expressions) == 6
         # test the info constraint supports 
         expected = [([0., 0.], 0.5), ([0., 0.], 1.), ([1., 1.], 0.), ([1., 1.], 0.5), ([1., 1.], 1.)]
         @test sort(supports(LowerBoundRef(x))) == expected
@@ -500,9 +500,9 @@ end
     @test upper_bound(d1t[1]) == 2
     @test supports(d2) == [(0.,), (1.,)]
     # test registration 
-    r = tm.nlp_data.user_operators
-    @test length(keys(r.univariate_operator_to_id)) == 1
-    @test r.univariate_operator_f == [g]
+    r = tm.nlp_model.operators
+    @test length(r.registered_univariate_operators) == 1
+    @test r.registered_univariate_operators[1].f == g
     # test objective
     xt = transcription_variable(tm, x)
     @test objective_function(tm) == 2xt[1] + xt[2] - 2wt - d2t[1] - d2t[2]
