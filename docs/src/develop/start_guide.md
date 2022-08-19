@@ -38,7 +38,7 @@ through step by step how this should be done.
      computer. This needs to be done via the `dev` command in the package manager 
      so you can edit it. The syntax is as follows:
      ```julia
-     (v1.7) pkg> dev https://github.com/username-here/InfiniteOpt.jl
+     (v1.8) pkg> dev https://github.com/username-here/InfiniteOpt.jl
      ```
      We also recommend you install [`Revise.jl`](https://github.com/timholy/Revise.jl) 
      which is very useful when developing packages in Julia.
