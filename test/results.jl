@@ -292,6 +292,8 @@ end
     c2t = transcription_constraint(c2)
     # setup optimizer info
     mockoptimizer = JuMP.backend(tm).optimizer.model
+    block = MOI.get(tm, MOI.NLPBlock())
+    MOI.initialize(block.evaluator, Symbol[])
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
     MOI.set(mockoptimizer, MOI.ResultCount(), 1)
     MOI.set(mockoptimizer, MOI.PrimalStatus(), MOI.FEASIBLE_POINT)
