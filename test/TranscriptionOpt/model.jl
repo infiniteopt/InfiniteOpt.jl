@@ -506,7 +506,7 @@ end
         @test IOTO.transcription_expression(tm, expr, [1., 1., 1.]) == expected
         # test becomes a nonlinear expression
         expr = meas2 * x0
-        expected = "subexpression[1]: +((+(-2.0 * a) + b * b + d * d) * b)"
+        expected = "subexpression[1]: +((-2.0 * a + b * b + d * d) * b)"
         @test sprint(show, IOTO.transcription_expression(tm, expr, [1., 1., 1.])) == expected
     end
     # test transcription expression for NLPExprs with 3 args
