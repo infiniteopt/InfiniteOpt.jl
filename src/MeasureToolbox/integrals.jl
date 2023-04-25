@@ -397,9 +397,9 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     elseif num_nodes == 2
         info = NoGenerativeSupports()
     else
+        (nodes, _) = FastGaussQuadrature.gausslobatto(num_nodes)
         info = UniformGenerativeInfo(nodes[2:end-1], InternalGaussLobatto, -1, 1)
     end
-    (nodes, _) = FastGaussQuadrature.gausslobatto(num_nodes)
     coeff_func = (supps) -> _lobatto_coeff(supps, num_nodes)
     return InfiniteOpt.FunctionalDiscreteMeasureData(pref, coeff_func, 0,
                                                      InfiniteOpt.All, info, 
