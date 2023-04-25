@@ -394,9 +394,12 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
     elseif num_nodes > 2 && is_depend 
         error("Cannot use more than 2 nodes with `FEGaussLobatto` with respect ",
               "to a dependent infinite parameter.")
+    elseif num_nodes == 2
+        info = NoGenerativeSupports()
+    else
+        info = UniformGenerativeInfo(nodes[2:end-1], InternalGaussLobatto, -1, 1)
     end
     (nodes, _) = FastGaussQuadrature.gausslobatto(num_nodes)
-    info = UniformGenerativeInfo(nodes[2:end-1], InternalGaussLobatto, -1, 1)
     coeff_func = (supps) -> _lobatto_coeff(supps, num_nodes)
     return InfiniteOpt.FunctionalDiscreteMeasureData(pref, coeff_func, 0,
                                                      InfiniteOpt.All, info, 
