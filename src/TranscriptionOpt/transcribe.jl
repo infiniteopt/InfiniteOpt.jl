@@ -481,34 +481,15 @@ function transcription_expression(
     return InfiniteOpt.parameter_value(vref)
 end
 
-# AffExpr and QuadExpr
+# AffExpr and QuadExpr and NonlinearExpr
 function transcription_expression(
     trans_model::JuMP.Model,
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.NonlinearExpr},
     support::Vector{Float64}
     )
-    # TODO fix this temporary hack (need to handle NLP expressions better)
-    try
-        return InfiniteOpt.map_expression(
-            v -> transcription_expression(trans_model, v, support), 
-            expr)
-    catch
-        return transcription_expression(trans_model, 
-            convert(InfiniteOpt.NLPExpr, expr), 
-            support)
-    end
-end
-
-# NLPExpr
-function transcription_expression(
-    trans_model::JuMP.Model,
-    nlp::InfiniteOpt.NLPExpr,
-    support::Vector{Float64}
-    )
-    ast = InfiniteOpt.map_nlp_to_ast(
+    return InfiniteOpt.map_expression(
         v -> transcription_expression(trans_model, v, support), 
-        nlp)
-    return JuMP.add_nonlinear_expression(trans_model, ast)
+        expr)
 end
 
 # Real Number 
@@ -695,46 +676,6 @@ function _process_constraint(
     new_func = transcription_expression(trans_model, func, raw_supp)
     trans_constr = JuMP.build_constraint(error, new_func, set)
     return JuMP.add_constraint(trans_model, trans_constr, name)
-end
-
-# MOI.LessThan expr 
-function _make_constr_ast(ref, set::MOI.LessThan)
-    return :($ref <= $(set.upper))
-end
-
-# MOI.LessGreat expr 
-function _make_constr_ast(ref, set::MOI.GreaterThan)
-    return :($ref >= $(set.lower))
-end
-
-# MOI.EqualTo expr 
-function _make_constr_ast(ref, set::MOI.EqualTo)
-    return :($ref == $(set.value))
-end
-
-# MOI.Interval expr 
-function _make_constr_ast(ref, set::MOI.Interval)
-    return :($(set.lower) <= $ref <= $(set.upper))
-end
-
-# MOI.Set fallback 
-function _make_constr_ast(ref, set)
-    error("TranscriptionOpt does not support constraint sets of type " * 
-          "`$(typeof(set))` for general nonlinear constraints because this " *
-          "is not yet supported by JuMP.")
-end
-
-# JuMP.ScalarConstraint with NLPExpr
-function _process_constraint(
-    trans_model::JuMP.Model, 
-    constr::JuMP.ScalarConstraint, 
-    func::InfiniteOpt.NLPExpr, 
-    set::MOI.AbstractScalarSet, 
-    raw_supp::Vector{Float64}, 
-    name::String
-    )
-    nlp_ref = transcription_expression(trans_model, func, raw_supp)
-    return JuMP.add_nonlinear_constraint(trans_model, _make_constr_ast(nlp_ref, set))
 end
 
 # JuMP.VectorConstraint

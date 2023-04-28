@@ -476,47 +476,6 @@ function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)::Nothing
 end
 
 ################################################################################
-#                               BASIC EXTENSIONS
-################################################################################
-# Convert to NLPExpr
-function Base.convert(::Type{NLPExpr}, expr)
-    return NLPExpr(_LCRST.Node(_process_child_input(expr)))
-end
-function Base.convert(::Type{NLPExpr}, expr::NLPExpr)
-    return expr
-end
-
-# Redefine Base.isequal for UnorderedPair{GeneralVariableRef} 
-# This avoids symbolic conflicts with ==
-function Base.isequal(
-    p1::P, 
-    p2::P
-    ) where {P <: JuMP.UnorderedPair{GeneralVariableRef}}
-    return (isequal(p1.a, p2.a) && isequal(p1.b, p2.b)) || 
-           (isequal(p1.a, p2.b) && isequal(p1.b, p2.a))
-end
-
-# Define Base.isequal to avoid default to ==
-function Base.isequal(
-    v::Union{GeneralVariableRef, JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr}, 
-    w
-    )
-    return false
-end
-function Base.isequal(
-    w, 
-    v::Union{GeneralVariableRef, JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr}
-    )
-    return false
-end
-function Base.isequal(
-    w::Union{GeneralVariableRef, JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr}, 
-    v::Union{GeneralVariableRef, JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr}
-    )
-    return false # relies on underlying extension
-end
-
-################################################################################
 #                              VARIABLE ITERATION
 ################################################################################
 ## Create helper methods to interrogate the variables of an expr w/ a function
@@ -558,10 +517,18 @@ function _interrogate_variables(
     return
 end
 
-# NLPExpr
-function _interrogate_variables(interrogator::Function, nlp::NLPExpr)
-    for n in AbstractTrees.Leaves(nlp.tree_root)
-        _interrogate_variables(interrogator, _node_value(n.data))
+# NonlinearExpr (avoid recursion to handle deeply nested expressions)
+function _interrogate_variables(interrogator::Function, nlp::JuMP.NonlinearExpr)
+    stack = Vector{Any}[nlp.args]
+    while !isempty(stack)
+        args = pop!(stack)
+        for arg in args
+            if arg isa JuMP.NonlinearExpr
+                push!(stack, arg.args)
+            else
+                _interrogate_variables(interrogator, arg)
+            end
+        end
     end
     return
 end
@@ -597,8 +564,8 @@ function _all_function_variables(f::JuMP.GenericQuadExpr)
     return collect(vref_set)
 end
 
-# NLPExpr or array of expressions
-function _all_function_variables(f::Union{NLPExpr, AbstractArray})
+# NonlinearExpr or array of expressions
+function _all_function_variables(f::Union{JuMP.NonlinearExpr, AbstractArray})
     vref_set = Set{GeneralVariableRef}()
     _interrogate_variables(v -> push!(vref_set, v), f)
     return collect(vref_set)
@@ -679,12 +646,18 @@ function _model_from_expr(expr::JuMP.GenericQuadExpr)
     end
 end
 
-# NLPExpr
-function _model_from_expr(expr::NLPExpr)
-    for node in AbstractTrees.Leaves(expr.tree_root)
-        result = _model_from_expr(_node_value(node.data))
-        if !isnothing(result)
-            return result 
+# NonlinearExpr (avoid recursion for deeply nested expressions)
+function _model_from_expr(expr::JuMP.NonlinearExpr)
+    stack = Vector{Any}[nlp.args]
+    while !isempty(stack)
+        args = pop!(stack)
+        for arg in args
+            if arg isa JuMP.NonlinearExpr
+                push!(stack, arg.args)
+            else
+                result = _model_from_expr(expr)
+                isnothing(result) || return result 
+            end
         end
     end
     return
@@ -727,29 +700,37 @@ function _remove_variable(f::JuMP.GenericQuadExpr, vref::GeneralVariableRef)
     return
 end
 
-# Helper functions for NLP variable deletion
-function _remove_variable_from_node(node, c, vref)
-    return
+# Helper functions for nonlinear variable deletion
+function _remove_variable_from_leaf(c, vref)
+    return c
 end
-function _remove_variable_from_node(node, n_vref::GeneralVariableRef, vref)
-    if isequal(n_vref, vref)
-        node.data = NodeData(0.0)
-    end
-    return
+function _remove_variable_from_leaf(n_vref::GeneralVariableRef, vref)
+    return isequal(n_vref, vref) ? 0.0 : n_vref
 end
-function _remove_variable_from_node(
-    node, 
+function _remove_variable_from_leaf(
     ex::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr}, 
     vref
-    )::Nothing
+    )
     _remove_variable(ex, vref)
-    return
+    return ex
 end
 
-# NLPExpr
-function _remove_variable(f::NLPExpr, vref::GeneralVariableRef)
-    for node in AbstractTrees.Leaves(f.tree_root)
-        _remove_variable_from_node(node, _node_value(node.data), vref)
+# Nonlinear (avoid recursion to handle deeply nested expressions)
+function _remove_variable(f::JuMP.NonlinearExpr, vref::GeneralVariableRef)
+    stack = Tuple{Vector{Any}, Int}[]
+    for i in eachindex(f.args) # should be reverse, but order doesn't matter
+        push!(stack, (f.args, i))
+    end
+    while !isempty(stack)
+        arr, idx = pop!(stack)
+        expr = arr[idx]
+        if expr isa JuMP.NonlinearExpr
+            for i in eachindex(expr.args) # should be reverse, but order doesn't matter
+                push!(stack, (expr.args, i))
+            end
+        else
+            arr[idx] = _remove_variable_from_leaf(expr, vref)
+        end
     end
     return
 end
@@ -776,6 +757,11 @@ function map_expression(transform::Function, v::JuMP.AbstractVariableRef)
     return transform(v)
 end
 
+# Constant
+function map_expression(transform::Function, c::Number)
+    return c
+end
+
 # AffExpr
 function map_expression(transform::Function, aff::JuMP.GenericAffExpr)
     return _MA.@rewrite(sum(c * transform(v) 
@@ -790,24 +776,25 @@ function map_expression(transform::Function, quad::JuMP.GenericQuadExpr)
                         map_expression(transform, quad.aff))
 end
 
-# Helper methods for mapping NLP trees 
-function _process_node(expr::NLPExpr)
-    return expr.tree_root
-end
-function _process_node(expr)
-    return _LCRST.Node(NodeData(expr))
-end
-function _map_expr_node(transform, data::JuMP.AbstractJuMPScalar)
-    return _process_node(map_expression(transform, data))
-end
-function _map_expr_node(transform, data)
-    return _LCRST.Node(NodeData(data))
-end
-
-# NLPExpr
-function map_expression(transform::Function, nlp::NLPExpr)
-    return NLPExpr(_map_tree(n -> _map_expr_node(transform, _node_value(n.data)), 
-                   nlp.tree_root))
+# NonlinearExpr (avoid recursion to handle deeply nested expressions)
+function map_expression(transform::Function, nlp::JuMP.NonlinearExpr)
+    stack = Tuple{Vector{Any}, Vector{Any}}[]
+    new_nlp = JuMP.NonlinearExpr(nlp.head, Any[])
+    push!(stack, (nlp.args, new_nlp.args))
+    while !isempty(stack)
+        args, cloned = pop!(stack)
+        for arg in args
+            if arg isa JuMP.NonlinearExpr
+                new_expr = JuMP.NonlinearExpr(arg.head, Any[])
+                push!(stack, (arg.args, new_expr.args))
+            else
+                new_expr = map_expression(transform, arg)
+            end
+            push!(cloned, new_expr)
+        end
+    end
+    return new_nlp
+    # return JuMP.NonlinearExpr(nlp.head, Any[map_expression(transform, arg) for arg in nlp.args]) # this recursion is still more efficient...
 end
 
 ################################################################################
@@ -818,7 +805,7 @@ end
 function _set_variable_coefficient!(expr::GeneralVariableRef,
     var::GeneralVariableRef,
     coeff::Real
-    )::JuMP.GenericAffExpr{Float64, GeneralVariableRef}
+    )
     # Determine if variable is that of the expression and change accordingly
     if isequal(expr, var)
         return Float64(coeff) * var
@@ -828,10 +815,10 @@ function _set_variable_coefficient!(expr::GeneralVariableRef,
 end
 
 # GenericAffExpr
-function _set_variable_coefficient!(expr::JuMP.GenericAffExpr{C, V},
-    var::V,
+function _set_variable_coefficient!(expr::JuMP.GenericAffExpr,
+    var::GeneralVariableRef,
     coeff::Real
-    )::JuMP.GenericAffExpr{C, V} where {C, V <: GeneralVariableRef}
+    )
     # Determine if variable is in the expression and change accordingly
     if haskey(expr.terms, var)
         expr.terms[var] = coeff
@@ -842,10 +829,10 @@ function _set_variable_coefficient!(expr::JuMP.GenericAffExpr{C, V},
 end
 
 # GenericQuadExpr
-function _set_variable_coefficient!(expr::JuMP.GenericQuadExpr{C, V},
-    var::V,
+function _set_variable_coefficient!(expr::JuMP.GenericQuadExpr,
+    var::GeneralVariableRef,
     coeff::Real
-    )::JuMP.GenericQuadExpr{C, V} where {C, V <: GeneralVariableRef}
+    )
     # Determine if variable is in the expression and change accordingly
     if haskey(expr.aff.terms, var)
         expr.aff.terms[var] = coeff
@@ -865,7 +852,7 @@ end
 function _affine_coefficient(
     func::GeneralVariableRef, 
     var::GeneralVariableRef
-    )::Float64 
+    )
     return isequal(func, var) ? 1.0 : 0.0
 end
 
@@ -873,7 +860,7 @@ end
 function _affine_coefficient(
     func::GenericAffExpr, 
     var::GeneralVariableRef
-    )::Float64 
+    )
     return get(func.terms, var, 0.0)
 end
 
@@ -881,7 +868,7 @@ end
 function _affine_coefficient(
     func::GenericQuadExpr, 
     var::GeneralVariableRef
-    )::Float64 
+    )
     return get(func.aff.terms, var, 0.0)
 end
 
@@ -924,8 +911,8 @@ julia> parameter_refs(my_expr)
 ```
 """
 function parameter_refs(
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr}
-    )::Tuple
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.NonlinearExpr}
+    )
     model = _model_from_expr(expr)
     if isnothing(model)
         return ()

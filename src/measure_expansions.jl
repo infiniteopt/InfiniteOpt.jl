@@ -566,9 +566,9 @@ function expand_measure(
                         expand_measure(expr.aff, data, write_model))
 end
 
-# NLPExpr (1D DiscreteMeasureData)
+# NonlinearExpr (1D DiscreteMeasureData)
 function expand_measure(
-    expr::NLPExpr,
+    expr::JuMP.NonlinearExpr,
     data::DiscreteMeasureData{GeneralVariableRef, 1},
     write_model::JuMP.AbstractModel
     )
@@ -589,9 +589,9 @@ function expand_measure(
             for i in eachindex(supps))
 end
 
-# NLPExpr (Multi DiscreteMeasureData)
+# NonlinearExpr (Multi DiscreteMeasureData)
 function expand_measure(
-    expr::NLPExpr,
+    expr::JuMP.NonlinearExpr,
     data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
     write_model::JuMP.AbstractModel
     )
@@ -835,7 +835,7 @@ end
 
 # Expressions
 function expand_measures(
-    expr::AbstractInfOptExpr,
+    expr::JuMP.AbstractJuMPScalar,
     write_model::JuMP.AbstractModel
     )
     return map_expression(v -> expand_measures(v, write_model), expr)

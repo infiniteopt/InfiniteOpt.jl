@@ -1240,7 +1240,7 @@ model an optmization problem with an infinite-dimensional decision space.
 - `objective_function::JuMP.AbstractJuMPScalar`: Finite scalar function.
 - `objective_has_measures::Bool`: Does the objective contain measures?
 - `registrations::Vector{RegisteredFunction}`: The nonlinear registered functions.
-- `Dict{Tuple{Symbol, Int}, Function}`: Map a name and number of arguments to a registered function.
+- `Dict{Symbol, Tuple{Function, Int}}`: Map a name to a registered function and its dimension.
 - `obj_dict::Dict{Symbol, Any}`: Store Julia symbols used with `InfiniteModel`
 - `optimizer_constructor`: MOI optimizer constructor (e.g., Gurobi.Optimizer).
 - `optimizer_model::JuMP.Model`: Model used to solve `InfiniteModel`
@@ -1285,7 +1285,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 
     # Function Registration
     registrations::Vector{Any}
-    func_lookup::Dict{Tuple{Symbol, Int}, Function}
+    func_lookup::Dict{Symbol, Tuple{Function, Int}}
 
     # Objects
     obj_dict::Dict{Symbol, Any}
@@ -1376,7 +1376,7 @@ function InfiniteModel(;
                          false,
                          # registration
                          RegisteredFunction[],
-                         Dict{Tuple{Symbol, Int}, Function}(),
+                         Dict{Symbol, Tuple{Function, Int}}(),
                          # Object dictionary
                          Dict{Symbol, Any}(),
                          # Optimize data

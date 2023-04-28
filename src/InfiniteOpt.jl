@@ -8,19 +8,13 @@ Reexport.@reexport using JuMP
 import Distributions
 import DataStructures
 import FastGaussQuadrature
-import AbstractTrees
-import LeftChildRightSiblingTrees
 import LinearAlgebra
 import MutableArithmetics
 using Base.Meta
 
-# Import and export SpecialFunctions for the NLP interface 
-Reexport.@reexport using SpecialFunctions
-
 # Make useful aliases (note we get MOI and MOIU from JuMP)
 const JuMPC = JuMP.Containers
 const MOIUC = MOIU.CleverDicts
-const _LCRST = LeftChildRightSiblingTrees
 const _MA = MutableArithmetics
 export JuMPC, MOIUC # this makes these accessible to the submodules
 
