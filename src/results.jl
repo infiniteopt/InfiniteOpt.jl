@@ -333,9 +333,6 @@ end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
 function map_optimizer_index(cref::InfOptConstraintRef, key; kwargs...)
-    if JuMP.jump_function(JuMP.constraint_object(cref)) isa JuMP.NonlinearExpr # TODO not sure if this is still true
-        error("`optimizer_index` not defined for general nonlinear constraints.")
-    end
     opt_cref = optimizer_model_constraint(cref, key; kwargs...)
     if opt_cref isa AbstractArray
         return map(c -> JuMP.optimizer_index(c), opt_cref)
