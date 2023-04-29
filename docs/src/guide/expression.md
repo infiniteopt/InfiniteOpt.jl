@@ -9,8 +9,9 @@ used in `InfiniteOpt`. See the [technical manual](@ref expr_manual) for more
 details.
 
 !!! note 
-    Nonlinear modeling is handled differently in `InfiniteOpt` vs `JuMP`. See 
-    [Nonlinear Expressions](@ref nlp_guide) for more information. 
+    Nonlinear modeling is now handled in `InfiniteOpt` via `JuMP`'s new 
+    nonlinear interface. See [Nonlinear Expressions](@ref nlp_guide) for 
+    more information. 
 
 ## Overview
 Expressions in `InfiniteOpt` (also called functions) refer to mathematical 
@@ -261,39 +262,20 @@ More information can be found in the documentation for quadratic expressions in
 [`JuMP`](https://jump.dev/JuMP.jl/v1/reference/expressions/#Quadratic-expressions).
 
 ## [Nonlinear Expressions](@id nlp_guide)
-General nonlinear expressions as generated via `JuMP.@NLexpression`, 
-`JuMP.@NLobjective`, and/or `JuMP.@NLconstraint` macros in `JuMP` are not 
-extendable for extension packages like `InfiniteOpt`. A fundamental 
-overhaul is planned to resolve this problem (check the status on 
-[GitHub](https://github.com/jump-dev/MathOptInterface.jl/issues/846)), but this 
-will likely require 1-3 years to resolve.
+In this section, we walk you through the ins and out of working with general 
+nonlinear (i.e., not affine or quadratic) expressions in `InfiniteOpt`.
 
 !!! info
-    `JuMP-dev` has secured funding to overhaul their nonlinear interface and 
-    hence the timeline for resolving many of the limitations should be expedited. 
-    Check out their [announcement](https://jump.dev/announcements/2022/02/21/lanl/) 
-    for more information.
+    Our previous `InfiniteOpt` specific nonlinear API as been deprecated in 
+    favor of `JuMP`'s new and improved nonlinear interface. Thus, `InfiniteOpt` 
+    now strictly uses the same expression structures as `JuMP`.
 
-Thus, in the interim, we circumvent this problem in `InfiniteOpt` by implementing 
-our own general nonlinear expression API. However, we will see that our interface 
-treats nonlinear expressions as 1st class citizens and thus is generally more 
-convenient than using `JuMP`'s current legacy nonlinear modeling interface. 
-We discuss the ins and outs of this interface in the subsections below.
-
-!!! note
-    Unlike affine/quadratic expressions, our nonlinear interface differs from 
-    that of `JuMP`. Thus, it is important to carefully review the sections 
-    below to familiarize yourself with our syntax. 
-
-!!! warning
-    Our new general nonlinear modeling interface is experimental and thus is 
-    subject to change to address any unintended behavior. Please notify us on 
-    GitHub if you encounter any unexpected behavior.
+<!-- TODO START REWRITE FROM HERE DOWN -->
 
 ### Basic Usage 
-In `InfiniteOpt` we can define nonlinear expressions in similar manner to how 
-affine/quadratic expressions are made in `JuMP`. For instance, we can make an 
-expression using normal Julia code outside a macro:
+We can define nonlinear expressions in similar manner to how affine/quadratic 
+expressions are made in `JuMP`. For instance, we can make an expression using 
+normal Julia code outside a macro:
 ```jldoctest nlp; setup = :(using InfiniteOpt; model = InfiniteModel())
 julia> @infinite_parameter(model, t ∈ [0, 1]); @variable(model, y, Infinite(t));
 

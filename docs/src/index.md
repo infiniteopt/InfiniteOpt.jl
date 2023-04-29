@@ -7,9 +7,8 @@ A `JuMP` extension for expressing and solving infinite-dimensional optimization
 problems.
 
 !!! note
-    `InfiniteOpt v0.5` introduces general nonlinear modeling to `InfiniteOpt`! 
-    Thus, the possibilities for applications is vast. Please see 
-    [Nonlinear Expressions](@ref nlp_guide) for more information.
+    `InfiniteOpt v0.6` introduces `JuMP`'s new general nonlinear modeling to `InfiniteOpt`! 
+    Please see [Nonlinear Expressions](@ref nlp_guide) for more information.
 
 ## What is InfiniteOpt?
 `InfiniteOpt.jl` provides a general mathematical abstraction to express and solve 
