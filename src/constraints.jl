@@ -113,6 +113,7 @@ end
 
 # Extend _object_numbers
 function _object_numbers(cref::InfOptConstraintRef)
+    return _data_object(cref).object_nums
 end
 
 # Extend _measure_dependencies
