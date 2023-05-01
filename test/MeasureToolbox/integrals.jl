@@ -43,11 +43,17 @@
         expected = [0.08333333333333333, 0.3333333333333333, 0.16666666666666666,
                     0.3333333333333333, 0.08333333333333333]
         @test all(abs.(generate_integral_data(t, 0, 1, FEGaussLobatto()).coeff_function([0, 0.5, 1]) .- expected) .< 0.00005)
+        @test generate_integral_data(t, 0, 1, FEGaussLobatto(), num_nodes = 2).generative_supp_info isa NoGenerativeSupports
         @variable(m, flob, Infinite(t))
-        integral(flob, t, 0, 1, eval_method = FEGaussLobatto(), num_nodes = 3)
+        @test integral(flob, t, 0, 1, eval_method = FEGaussLobatto(), num_nodes = 3) isa GeneralVariableRef
         add_generative_supports(t)
         lobb_supps = supports(t, label = All)
         @test all(abs.(lobb_supps .- [0, .25, .5, .75, 1] .< .000005))
+        # test case with no generative supports
+        @test integral(flob, t, 0, 1, eval_method = FEGaussLobatto(), num_nodes = 2) isa GeneralVariableRef
+        add_generative_supports(t)
+        lobb_supps = supports(t, label = All)
+        @test all(abs.(lobb_supps .- [0, .25, .5, .75, 1] .< .000005)) 
     end
     # test generate_integral_data (Gauss-Radau)
     @testset "generate_integral_data (Gauss-Radau)" begin
