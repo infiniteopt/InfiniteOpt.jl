@@ -1,4 +1,4 @@
-![Logo](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/full_logo.png)
+![Logo](https://raw.githubusercontent.com/infiniteopt/InfiniteOpt.jl/master/full_logo.png)
 
 A `JuMP` extension for expressing and solving infinite-dimensional optimization
 problems. Such areas include [stochastic programming](https://en.wikipedia.org/wiki/Stochastic_programming),
