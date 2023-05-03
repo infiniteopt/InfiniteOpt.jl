@@ -27,7 +27,7 @@ optimization. Moreover, we facilitate transferring techniques between these
 to synthesize new optimization paradigms!
 
 ## License
-`InfiniteOpt` is licensed under the [MIT "Expat" license](./LICENSE).
+`InfiniteOpt` is licensed under the [MIT "Expat" license](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/LICENSE).
 
 ## Installation
 `InfiniteOpt.jl` is a registered [Julia](https://julialang.org/) package and 
