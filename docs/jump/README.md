@@ -34,9 +34,7 @@ to synthesize new optimization paradigms!
 can be installed by entering the following in the REPL.
 
 ```julia
-julia> ]
-
-(v1.8) pkg> add InfiniteOpt
+julia> import Pkg; Pkg.add("InfiniteOpt")
 ```
 
 ## Documentation
