@@ -9,7 +9,7 @@ which originates from `JuMP.jl`. Below we show build methods for
 `DomainRestrictedConstraint`s, but any `JuMP.AbstractConstraint` can be used.
 ```@docs
 DomainRestrictions
-JuMP.build_constraint(::Function, ::Any, ::Any, ::DomainRestrictions)
+JuMP.build_constraint(::Function, ::Any, ::MOI.AbstractSet, ::DomainRestrictions)
 DomainRestrictedConstraint
 JuMP.add_constraint(::InfiniteModel, ::JuMP.AbstractConstraint, ::String)
 ConstraintData

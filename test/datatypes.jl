@@ -121,6 +121,7 @@ end
     @test UniformGenerativeInfo([0.0, 1.0], InternalLabel) == UniformGenerativeInfo([2, 6], InternalLabel, 2, 6)
     @test UniformGenerativeInfo([0.0, 1.0], InternalLabel) != UniformGenerativeInfo([2, 5], InternalLabel, 2, 6)
     @test_throws ErrorException UniformGenerativeInfo([2, 6], InternalLabel)
+    @test_throws ErrorException UniformGenerativeInfo(Float64[], InternalLabel)
 end
 
 # Test Derivative Evaluation Methods 

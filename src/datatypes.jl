@@ -334,7 +334,9 @@ struct UniformGenerativeInfo <: AbstractGenerativeInfo
     label::DataType
     function UniformGenerativeInfo(basis::Vector{<:Real}, label::DataType, 
                                    lb::Real = 0, ub::Real = 1)
-        if minimum(basis) < lb || maximum(basis) > ub
+        if isempty(basis)
+            error("Cannot create `UniformGenerativeInfo` with an empty basis.")
+        elseif minimum(basis) < lb || maximum(basis) > ub
             error("Support basis violate the given lower and upper bounds. " * 
                   "Please specify the appropriate lower bound and upper bounds.")
         end
