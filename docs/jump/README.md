@@ -1,6 +1,6 @@
 ![Logo](https://raw.githubusercontent.com/infiniteopt/InfiniteOpt.jl/master/full_logo.png)
 
-A `JuMP` extension for expressing and solving infinite-dimensional optimization
+[`InfiniteOpt.jl`](https://github.com/infiniteopt/InfiniteOpt.jl) is a `JuMP` extension for expressing and solving infinite-dimensional optimization
 problems. Such areas include [stochastic programming](https://en.wikipedia.org/wiki/Stochastic_programming),
 [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming),
 space-time optimization, and more. `InfiniteOpt` serves as an easy-to-use modeling
@@ -38,8 +38,6 @@ julia> import Pkg; Pkg.add("InfiniteOpt")
 ```
 
 ## Documentation
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://infiniteopt.github.io/InfiniteOpt.jl/stable)
-
 Please visit our [documentation pages](https://infiniteopt.github.io/InfiniteOpt.jl/stable) 
 to learn more. These pages are quite extensive and feature overviews, guides,
 manuals, tutorials, examples, and more.
