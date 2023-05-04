@@ -120,7 +120,7 @@ end
 
 # Extend optimizer_model_expression if appropriate to enable expression related queries
 function InfiniteOpt.optimizer_model_expression(
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr}, # POSSIBLY BREAK THESE UP INTO 3 SEPARATE FUNCTIONS
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.NonlinearExpr}, # POSSIBLY BREAK THESE UP INTO 3 SEPARATE FUNCTIONS
     key::Val{OptKey};
     my_kwarg::Bool = true # ADD KEY ARGS AS NEEDED
     )
@@ -172,7 +172,7 @@ end
 # If appropriate extend expression_supports (enables support queries of expressions)
 function InfiniteOpt.expression_supports(
     model::JuMP.Model,
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, NLPExpr},
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.NonlinearExpr},
     key::Val{OptKey};
     my_kwarg::Bool = true # ADD KEY ARGS AS NEEDED
     )

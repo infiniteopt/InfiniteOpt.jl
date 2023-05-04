@@ -1,5 +1,5 @@
-import Pkg
-Pkg.pkg"add JuMP#od/nlp-expr MathOptInterface#od/nlp-expr"
+# import Pkg
+# Pkg.pkg"add JuMP#od/nlp-expr MathOptInterface#od/nlp-expr"
 
 using InfiniteOpt: _domain_or_error
 using Test: Error
@@ -82,27 +82,27 @@ println("")
 println("")
 @time @testset "Constraint Methods" begin include("constraints.jl") end
 println("")
-# @time @testset "Printing Methods" begin include("show.jl") end
-# println("")
-# @time @testset "Deletion Methods" begin include("deletion.jl") end
-# println("")
-# @time @testset "Expansion Methods" begin include("measure_expansions.jl") end
-# println("")
-# @time @testset "Derivative Evaluation" begin include("derivative_evaluation.jl") end
-# println("")
-# @time @testset "TranscriptionOpt" begin
-#     @testset "Model" begin include("TranscriptionOpt/model.jl") end
-#     @testset "Measures" begin include("TranscriptionOpt/measure.jl") end
-#     @testset "Transcribe" begin include("TranscriptionOpt/transcribe.jl") end
-#     @testset "Optimize" begin include("TranscriptionOpt/optimize.jl") end
-# end
-# println("")
-# @time @testset "Solution Methods" begin include("optimizer.jl") end
-# println("")
-# @time @testset "Solution Queries" begin include("results.jl") end
-# println("")
-# @time @testset "Extensions" begin include("extensions.jl") end
-# println("")
+@time @testset "Printing Methods" begin include("show.jl") end
+println("")
+@time @testset "Deletion Methods" begin include("deletion.jl") end
+println("")
+@time @testset "Expansion Methods" begin include("measure_expansions.jl") end
+println("")
+@time @testset "Derivative Evaluation" begin include("derivative_evaluation.jl") end
+println("")
+@time @testset "TranscriptionOpt" begin
+    @testset "Model" begin include("TranscriptionOpt/model.jl") end
+    @testset "Measures" begin include("TranscriptionOpt/measure.jl") end
+    @testset "Transcribe" begin include("TranscriptionOpt/transcribe.jl") end
+    @testset "Optimize" begin include("TranscriptionOpt/optimize.jl") end
+end
+println("")
+@time @testset "Solution Methods" begin include("optimizer.jl") end
+println("")
+@time @testset "Solution Queries" begin include("results.jl") end
+println("")
+@time @testset "Extensions" begin include("extensions.jl") end
+println("")
 println("----------------------------------------------------------------------------")
 println("-----------------------------TESTING COMPLETE!------------------------------")
 println("----------------------------------------------------------------------------")

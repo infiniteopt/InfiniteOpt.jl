@@ -688,7 +688,7 @@ function _process_constraint(
     name::String
     )
     new_func = map(f -> transcription_expression(trans_model, f, raw_supp), func)
-    if any(f -> f isa JuMP.NonlinearExpression, new_func)
+    if any(f -> f isa JuMP.NonlinearExpr, new_func)
         error("TranscriptionOpt does not support vector constraints of general " * 
               "nonlinear expressions because this is not yet supported by JuMP.")
     end

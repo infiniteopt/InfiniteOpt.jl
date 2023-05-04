@@ -239,7 +239,7 @@ julia> value(my_infinite_expr)
 ```
 """
 function JuMP.value(
-    expr::JuMP.AbstractJuMPScalar;
+    expr::Union{JuMP.GenericAffExpr{Float64, GeneralVariableRef}, JuMP.GenericQuadExpr{Float64, GeneralVariableRef}}; # TODO fix
     result::Int = 1,
     kwargs...
     )
@@ -247,8 +247,8 @@ function JuMP.value(
     model = _model_from_expr(expr)
     # if no model then the expression only contains a constant
     if isnothing(model)
-        expr isa JuMP.NonlinearExpr && error("Cannot evaluate the value of `$expr`,",
-                                             "because it doesn't have variables.")
+        # expr isa JuMP.NonlinearExpr && error("Cannot evaluate the value of `$expr`,",
+        #                                      "because it doesn't have variables.")
         return JuMP.constant(expr)
     # otherwise let's call map_value
     else
