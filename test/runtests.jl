@@ -63,25 +63,25 @@ println("")
 @time @testset "Derivative Methods" begin include("derivatives.jl") end
 println("")
 @time @testset "Nonlinear" begin include("nlp.jl") end
-# println("")
-# @time @testset "Operators" begin include("operators.jl") end
-# println("")
-# @time @testset "Expression Methods" begin include("expressions.jl") end
-# println("")
-# @time @testset "Macro Expressions" begin include("macro_expressions.jl") end
-# println("")
-# @time @testset "Measure Methods" begin include("measures.jl") end
-# println("")
-# @time @testset "Measure Toolbox Methods" begin
-#     @testset "Integrals" begin include("MeasureToolbox/integrals.jl") end
-#     @testset "Expectations" begin include("MeasureToolbox/expectations.jl") end
-#     @testset "Support Sums" begin include("MeasureToolbox/support_sums.jl") end
-# end
-# println("")
-# @time @testset "Objective Methods" begin include("objective.jl") end
-# println("")
-# @time @testset "Constraint Methods" begin include("constraints.jl") end
-# println("")
+println("")
+@time @testset "Operators" begin include("operators.jl") end
+println("")
+@time @testset "Expression Methods" begin include("expressions.jl") end
+println("")
+@time @testset "Macro Expressions" begin include("macro_expressions.jl") end
+println("")
+@time @testset "Measure Methods" begin include("measures.jl") end
+println("")
+@time @testset "Measure Toolbox Methods" begin
+    @testset "Integrals" begin include("MeasureToolbox/integrals.jl") end
+    @testset "Expectations" begin include("MeasureToolbox/expectations.jl") end
+    @testset "Support Sums" begin include("MeasureToolbox/support_sums.jl") end
+end
+println("")
+@time @testset "Objective Methods" begin include("objective.jl") end
+println("")
+@time @testset "Constraint Methods" begin include("constraints.jl") end
+println("")
 # @time @testset "Printing Methods" begin include("show.jl") end
 # println("")
 # @time @testset "Deletion Methods" begin include("deletion.jl") end

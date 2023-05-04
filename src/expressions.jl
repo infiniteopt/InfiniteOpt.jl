@@ -648,14 +648,14 @@ end
 
 # NonlinearExpr (avoid recursion for deeply nested expressions)
 function _model_from_expr(expr::JuMP.NonlinearExpr)
-    stack = Vector{Any}[nlp.args]
+    stack = Vector{Any}[expr.args]
     while !isempty(stack)
         args = pop!(stack)
         for arg in args
             if arg isa JuMP.NonlinearExpr
                 push!(stack, arg.args)
             else
-                result = _model_from_expr(expr)
+                result = _model_from_expr(arg)
                 isnothing(result) || return result 
             end
         end
