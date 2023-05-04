@@ -14,17 +14,17 @@ making it a powerful and convenient tool for advanced users.
 
 `InfiniteOpt` builds upon `JuMP` to add support for many complex modeling objects which 
 include:
-- Infinite parameters (e.g., time, space, uncertainty, etc.)
+- Infinite parameters (for example, time, space, and/or uncertainty)
 - Finite parameters (similar to `ParameterJuMP`)
-- Infinite variables (decision functions) (e.g., `y(t, x)`)
-- Derivatives (e.g., `∂y(t, x)/∂t`)
-- Measures (e.g., `∫y(t,x)dt`, `𝔼[y(ξ)]`)
-- 1st class nonlinear modeling
+- Infinite variables (decision functions) (for example, ``y(t, x)``)
+- Derivatives (for example, ``\frac{\partial y(t, x)}{\partial t}``)
+- Measures (for example, ``\int_{t \in T}y(t, x)dt`` and ``\mathbb{E}[y(\xi)]``)
+- first class nonlinear modeling
 
 The unifying modeling abstraction behind `InfiniteOpt` captures a wide spectrum 
 of disciplines which include dynamic, PDE, stochastic, and semi-infinite 
 optimization. Moreover, we facilitate transferring techniques between these 
-to synthesize new optimization paradigms!
+to synthesize new optimization paradigms.
 
 ## License
 `InfiniteOpt` is licensed under the [MIT "Expat" license](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/LICENSE).
@@ -42,7 +42,7 @@ julia> import Pkg; Pkg.add("InfiniteOpt")
 
 Please visit our [documentation pages](https://infiniteopt.github.io/InfiniteOpt.jl/stable) 
 to learn more. These pages are quite extensive and feature overviews, guides,
-manuals, tutorials, examples, and more!
+manuals, tutorials, examples, and more.
 
 ## Questions
 For additional help please visit and post in our 
