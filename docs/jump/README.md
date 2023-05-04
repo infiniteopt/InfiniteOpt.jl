@@ -1,6 +1,6 @@
 ![Logo](https://raw.githubusercontent.com/infiniteopt/InfiniteOpt.jl/master/full_logo.png)
 
-A `JuMP` extension for expressing and solving infinite-dimensional optimization
+[`InfiniteOpt.jl`](https://github.com/infiniteopt/InfiniteOpt.jl) is a `JuMP` extension for expressing and solving infinite-dimensional optimization
 problems. Such areas include [stochastic programming](https://en.wikipedia.org/wiki/Stochastic_programming),
 [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming),
 space-time optimization, and more. `InfiniteOpt` serves as an easy-to-use modeling
@@ -14,17 +14,17 @@ making it a powerful and convenient tool for advanced users.
 
 `InfiniteOpt` builds upon `JuMP` to add support for many complex modeling objects which 
 include:
-- Infinite parameters (e.g., time, space, uncertainty, etc.)
+- Infinite parameters (for example, time, space, and/or uncertainty)
 - Finite parameters (similar to `ParameterJuMP`)
-- Infinite variables (decision functions) (e.g., `y(t, x)`)
-- Derivatives (e.g., `∂y(t, x)/∂t`)
-- Measures (e.g., `∫y(t,x)dt`, `𝔼[y(ξ)]`)
-- 1st class nonlinear modeling
+- Infinite variables (decision functions) (for example, ``y(t, x)``)
+- Derivatives (for example, ``\frac{\partial y(t, x)}{\partial t}``)
+- Measures (for example, ``\int_{t \in T}y(t, x)dt`` and ``\mathbb{E}[y(\xi)]``)
+- First class nonlinear modeling
 
 The unifying modeling abstraction behind `InfiniteOpt` captures a wide spectrum 
 of disciplines which include dynamic, PDE, stochastic, and semi-infinite 
 optimization. Moreover, we facilitate transferring techniques between these 
-to synthesize new optimization paradigms!
+to synthesize new optimization paradigms.
 
 ## License
 `InfiniteOpt` is licensed under the [MIT "Expat" license](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/LICENSE).
@@ -34,17 +34,13 @@ to synthesize new optimization paradigms!
 can be installed by entering the following in the REPL.
 
 ```julia
-julia> ]
-
-(v1.8) pkg> add InfiniteOpt
+julia> import Pkg; Pkg.add("InfiniteOpt")
 ```
 
 ## Documentation
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://infiniteopt.github.io/InfiniteOpt.jl/stable)
-
 Please visit our [documentation pages](https://infiniteopt.github.io/InfiniteOpt.jl/stable) 
 to learn more. These pages are quite extensive and feature overviews, guides,
-manuals, tutorials, examples, and more!
+manuals, tutorials, examples, and more.
 
 ## Questions
 For additional help please visit and post in our 
