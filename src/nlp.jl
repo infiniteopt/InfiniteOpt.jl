@@ -8,68 +8,6 @@ const _NativeNLPFunctions = append!(copy(MOI.Nonlinear.DEFAULT_UNIVARIATE_OPERAT
                                     MOI.Nonlinear.DEFAULT_MULTIVARIATE_OPERATORS)
 append!(_NativeNLPFunctions, (:&&, :||, :<=, :(==), :>=, :<, :>))
 
-"""
-    RegisteredFunction{F <: Function, G <: Union{Function, Nothing}, 
-                       H <: Union{Function, Nothing}}
-
-A type for storing used defined registered functions and their information that 
-is needed by JuMP for build an `NLPEvaluator`. The constructor is of the form:
-```julia
-    RegisteredFunction(op::Symbol, dim::Int, f::Function, 
-                       [∇f::Function, ∇²f::Function])
-```
-
-**Fields**
-- `op::Symbol`: The name of the function that is used in `NLPExpr`s.
-- `dim::Int`: The number of function arguments.
-- `f::F`: The function itself.
-- `∇f::G`: The gradient function if one is given.
-- `∇²f::H`: The hessian function if one is given.
-"""
-struct RegisteredFunction{F <: Function, G, H}
-    op::Symbol
-    dim::Int
-    f::F
-    ∇f::G
-    ∇²f::H
-
-    # Constructors
-    function RegisteredFunction(
-        op::Symbol, 
-        dim::Int, 
-        f::F
-        ) where {F <: Function}
-        return new{F, Nothing, Nothing}(op, dim, f, nothing, nothing)
-    end
-    function RegisteredFunction(
-        op::Symbol, 
-        dim::Int, 
-        f::F,
-        ∇f::G
-        ) where {F <: Function, G <: Function}
-        if isone(dim) && !hasmethod(∇f, Tuple{Real})
-            error("Invalid gradient function form, see the docs for details.")
-        elseif !isone(dim) && !hasmethod(∇f, Tuple{AbstractVector{Real}, ntuple(_->Real, dim)...})
-            error("Invalid multi-variate gradient function form, see the docs for details.")
-        end
-        return new{F, G, Nothing}(op, dim, f, ∇f, nothing)
-    end
-    function RegisteredFunction(
-        op::Symbol, 
-        dim::Int, 
-        f::F,
-        ∇f::G,
-        ∇²f::H
-        ) where {F <: Function, G <: Function, H <: Function}
-        if isone(dim) && !hasmethod(∇f, Tuple{Real})
-            error("Invalid gradient function form, see the docs for details.")
-        elseif isone(dim) && !hasmethod(∇²f, Tuple{Real})
-            error("Invalid hessian function form, see the docs for details.")
-        end 
-        return new{F, G, H}(op, dim, f, ∇f, ∇²f)
-    end
-end
-
 # TODO expand details in docstring
 """
     JuMP.add_user_defined_function(

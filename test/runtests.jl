@@ -19,7 +19,6 @@ const JuMPC = JuMP.Containers
 const MOIUC = MOIU.CleverDicts
 const FGQ = FastGaussQuadrature
 const IOMT = InfiniteOpt.MeasureToolbox
-const LCRST = LeftChildRightSiblingTrees
 const MA = MutableArithmetics
 
 # Load in testing utilities
@@ -34,7 +33,7 @@ println("-----------------------------------------------------------------------
     include("Collections/VectorTuple.jl")
 end
 println("")
-# @time @testset "Datatypes" begin include("datatypes.jl") end
+@time @testset "Datatypes" begin include("datatypes.jl") end
 println("")
 @time @testset "Utilities" begin include("utility_tests.jl") end
 println("")
