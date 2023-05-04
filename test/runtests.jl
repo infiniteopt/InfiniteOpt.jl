@@ -62,7 +62,7 @@ end
 println("")
 @time @testset "Derivative Methods" begin include("derivatives.jl") end
 println("")
-# @time @testset "Nonlinear" begin include("nlp.jl") end
+@time @testset "Nonlinear" begin include("nlp.jl") end
 # println("")
 # @time @testset "Operators" begin include("operators.jl") end
 # println("")

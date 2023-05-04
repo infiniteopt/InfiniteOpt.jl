@@ -34,21 +34,17 @@ function JuMP.add_user_defined_function(
     dim::Int,
     funcs...
     )
-    if !all(f -> f isa Function, funcs) 
+    if isempty(funcs)
+        error("Tried to register `$op`, but no evaluation function was given.")
+    elseif !all(f -> f isa Function, funcs) 
         error("The gradient and/or hessian must be functions, but got argument(s) " *
               "of type `" * join(Tuple(typeof(f) for f in funcs if !(f isa Function)), "`, `") *
               "`.")
-    elseif isempty(funcs)
-        error("Tried to register `$op`, but no evaluation function was given.")
     elseif op in _NativeNLPFunctions || op in keys(model.func_lookup)
         error("A function with name `$op` arguments is already " *
                "registered. Please use a function with a different name.")
     elseif !hasmethod(funcs[1], NTuple{dim, Real})
         error("The function `$op` is not defined for arguments of type `Real`.")
-    elseif length(unique!([m.module for m in methods(funcs[1])])) > 1 || 
-           first(methods(funcs[1])).module !== call_mod
-        error("Cannot register function names that are used by packages. Try " * 
-              "wrapping `$(funcs[1])` in a user-defined function.")
     end
     push!(model.registrations, RegisteredFunction(op, dim, funcs...))
     model.func_lookup[op] = (funcs[1], dim)
@@ -76,7 +72,7 @@ end
 Retrieve all the functions that are currently registered to `model`.
 """
 function all_registered_functions(model::InfiniteModel) 
-    return append!(copy(_NativeNLPFunctions), map(first, values(model.func_lookup)))
+    return append!(copy(_NativeNLPFunctions), map(v -> Symbol(first(v)), values(model.func_lookup)))
 end
 
 """
