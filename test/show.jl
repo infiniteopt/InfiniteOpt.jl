@@ -248,14 +248,14 @@
     # test measure_data_string with 1-D DiscreteMeasureData/FunctionalDiscreteMeasureData
     @testset "measure_data_string (1-D)" begin
         # test with bounds
-        data = FunctionalDiscreteMeasureData(par1, ones, 0, All, NoGenerativeSupports(), 
+        data = FunctionalDiscreteMeasureData(par1, ones, 0, All, NoGenerativeSupports(),
                                              default_weight, 0, 1, false)
         str = "par1 " * InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]"
         @test InfiniteOpt.measure_data_string(MIME("text/plain"), data) == str
         str = "par1 " * InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1]"
         @test InfiniteOpt.measure_data_string(MIME("text/latex"), data) == str
         # test without bounds
-        data = FunctionalDiscreteMeasureData(par1, ones, 0, All, NoGenerativeSupports(), 
+        data = FunctionalDiscreteMeasureData(par1, ones, 0, All, NoGenerativeSupports(),
                                              default_weight, NaN, NaN, false)
         @test InfiniteOpt.measure_data_string(MIME("text/plain"), data) == "par1"
         @test InfiniteOpt.measure_data_string(MIME("text/latex"), data) == "par1"
@@ -329,7 +329,7 @@
         meas = dispatch_variable_ref(expect(y, t))
         str = "\\mathbb{E}_{t \\in [0, 1]}\\left[y\\right]"
         @test InfiniteOpt.variable_string(MIME("text/latex"), meas) == str
-        str = InfiniteOpt._math_symbol(MIME("text/plain"), :expect) * "{t " * 
+        str = InfiniteOpt._math_symbol(MIME("text/plain"), :expect) * "{t " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]}[y]"
         @test InfiniteOpt.variable_string(MIME("text/plain"), meas) == str
         meas = dispatch_variable_ref(integral(y, t))
@@ -392,7 +392,7 @@
         d_re = InfiniteOpt._math_symbol(MIME("text/plain"), :partial)
         @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "$d_re/$(d_re)par1[x(par1)]"
         @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == "\\frac{\\partial}{\\partial par1}\\left[x(par1)\\right]"
-        # test nested one 
+        # test nested one
         dref = dispatch_variable_ref(d2)
         expected = "$d_re/$(d_re)par1[$d_re/$(d_re)pars[1][inf(pars, par1, pars3)]]"
         @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == expected
@@ -436,11 +436,11 @@
         dvref = dispatch_variable_ref(@variable(m, z0, Point(z, [0, 0])))
         @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "z0"
         @test InfiniteOpt.variable_string(MIME("text/latex"), dvref) == "z0"
-        # test with derivative 
+        # test with derivative
         dvref = dispatch_variable_ref(@variable(m, variable_type = Point(d1, 0)))
         d_re = InfiniteOpt._math_symbol(MIME("text/plain"), :partial)
         @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "$(d_re)/$(d_re)par1[x(par1)](0)"
-        # test named derivative 
+        # test named derivative
         dvref = dispatch_variable_ref(@variable(m, variable_type = Point(d3, [0, 0])))
         @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d3([0, 0])"
     end
@@ -455,7 +455,7 @@
         dvref = dispatch_variable_ref(rv)
         @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "inf([0, 0], par1, [0, pars3[2]])"
         @test InfiniteOpt.variable_string(MIME("text/latex"), dvref) == "inf([0, 0], par1, [0, pars3[2]])"
-        # test named derivative 
+        # test named derivative
         rv = @variable(m, variable_type = SemiInfinite(d3, [0, pars[2]]))
         dvref = dispatch_variable_ref(rv)
         @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d3([0, pars[2]])"
@@ -493,19 +493,19 @@
     # test constraint_string (Finite constraint)
     @testset "JuMP.constraint_string (Finite)" begin
         # test named
-        str = "c2 : y² " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 3.0"
+        str = "c2 : y² " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 3"
         @test constraint_string(MIME("text/plain"), c2) == str
-        str =  "c2 : \$ y^2 " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 3.0 \$"
+        str =  "c2 : \$ y^2 " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 3 \$"
         @test constraint_string(MIME("text/latex"), c2) == str
         # test unnamed
-        str = "y² " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 3.0"
+        str = "y² " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 3"
         @test constraint_string(MIME("text/plain"), ac2) == str
-        str =  "\$ y^2 " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 3.0 \$"
+        str =  "\$ y^2 " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 3 \$"
         @test constraint_string(MIME("text/latex"), ac2) == str
         # test named in math mode
-        str = "c2 : y² " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 3.0"
+        str = "c2 : y² " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 3"
         @test constraint_string(MIME("text/plain"), c2, in_math_mode = true) == str
-        str =  "y^2 " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 3.0"
+        str =  "y^2 " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 3"
         @test constraint_string(MIME("text/latex"), c2, in_math_mode = true) == str
     end
     # test _param_domain_string (IndependentParameter)
@@ -573,47 +573,47 @@
     # test constraint_string (infinite constraint)
     @testset "JuMP.constraint_string (Infinite)" begin
         # test c1 with name
-        str = "c1 : x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/plain"), :leq) * " 2.0, " *
+        str = "c1 : x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/plain"), :leq) * " 2, " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]"
         @test constraint_string(MIME("text/plain"), c1) == str
-        str = "c1 : \$ x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/latex"), :leq) * " 2.0, " *
+        str = "c1 : \$ x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/latex"), :leq) * " 2, " *
               InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
               InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1] \$"
         @test constraint_string(MIME("text/latex"), c1) == str
         # test c1 without name
-        str = "x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/plain"), :leq) * " 2.0, " *
+        str = "x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/plain"), :leq) * " 2, " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]"
         @test constraint_string(MIME("text/plain"), ac1) == str
-        str = "\$ x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/latex"), :leq) * " 2.0, " *
+        str = "\$ x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/latex"), :leq) * " 2, " *
               InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
               InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1] \$"
         @test constraint_string(MIME("text/latex"), ac1) == str
         # test c1 with name and in_math_mode
-        str = "c1 : x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/plain"), :leq) * " 2.0, " *
+        str = "c1 : x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/plain"), :leq) * " 2, " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]"
         @test constraint_string(MIME("text/plain"), c1, in_math_mode = true) == str
-        str = "x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/latex"), :leq) * " 2.0, " *
+        str = "x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/latex"), :leq) * " 2, " *
               InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
               InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1]"
         @test constraint_string(MIME("text/latex"), c1, in_math_mode = true) == str
         # test c3 with name
-        str = "c3 : x(par1) " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 5.0, " *
+        str = "c3 : x(par1) " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 5, " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 0.5]"
         @test constraint_string(MIME("text/plain"), c3) == str
-        str =  "c3 : \$ x(par1) " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 5.0, " *
+        str =  "c3 : \$ x(par1) " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 5, " *
                InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
                InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 0.5] \$"
         @test constraint_string(MIME("text/latex"), c3) == str
         # test c3 without name
-        str = "x(par1) " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 5.0, " *
+        str = "x(par1) " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 5, " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 0.5]"
         @test constraint_string(MIME("text/plain"), ac3) == str
-        str =  "\$ x(par1) " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 5.0, " *
+        str =  "\$ x(par1) " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 5, " *
                InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
                InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 0.5] \$"
         @test constraint_string(MIME("text/latex"), ac3) == str
@@ -623,34 +623,34 @@
         # test MIME("text/plain")
         strings = Vector{String}(undef, 6)
         strings[1] = "c1 : x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/plain"), :leq) *
-                     " 2.0, " * InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
+                     " 2, " * InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
                      InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]"
         strings[2] = "x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/plain"), :leq) *
-                     " 2.0, " * InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
+                     " 2, " * InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
                      InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]"
-        strings[3] = "c2 : y² " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 3.0"
-        strings[4] = "y² " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 3.0"
-        strings[5] = "c3 : x(par1) " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 5.0, " *
+        strings[3] = "c2 : y² " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 3"
+        strings[4] = "y² " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 3"
+        strings[5] = "c3 : x(par1) " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 5, " *
                      InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
                      InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 0.5]"
-        strings[6] = "x(par1) " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 5.0, " *
+        strings[6] = "x(par1) " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 5, " *
                      InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
                      InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 0.5]"
         @test constraints_string(MIME("text/plain"), m) == strings
         # test MIME("text/latex")
         strings = Vector{String}(undef, 6)
         strings[1] = "x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/latex"), :leq) *
-                     " 2.0, " * InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
+                     " 2, " * InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
                      InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1]"
         strings[2] = "x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/latex"), :leq) *
-                     " 2.0, " * InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
+                     " 2, " * InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
                      InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1]"
-        strings[3] = "y^2 " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 3.0"
-        strings[4] = "y^2 " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 3.0"
-        strings[5] = "x(par1) " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 5.0, " *
+        strings[3] = "y^2 " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 3"
+        strings[4] = "y^2 " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 3"
+        strings[5] = "x(par1) " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 5, " *
                      InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
                      InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 0.5]"
-        strings[6] = "x(par1) " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 5.0, " *
+        strings[6] = "x(par1) " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 5, " *
                      InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
                      InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 0.5]"
         @test constraints_string(MIME("text/latex"), m) == strings
@@ -727,11 +727,11 @@ end
     @testset "Base.show (REPL Constraint)" begin
         # test normal
         str = "c1 : x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/plain"), :leq) *
-              " 2.0, " * InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
+              " 2, " * InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]"
         show_test(MIME("text/plain"), c1, str)
         # test restricted
-        str = "c3 : x(par1) " * InfiniteOpt._math_symbol(MIME("text/plain"), :leq) * " 5.0, " *
+        str = "c3 : x(par1) " * InfiniteOpt._math_symbol(MIME("text/plain"), :leq) * " 5, " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 0.5]"
         show_test(MIME("text/plain"), c3, str)
@@ -740,11 +740,11 @@ end
     @testset "Base.show (IJulia Constraint)" begin
         # test normal
         str = "c1 : \$ x(par1) + y " * InfiniteOpt._math_symbol(MIME("text/latex"), :leq) *
-              " 2.0, " * InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
+              " 2, " * InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
               InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1] \$"
         show_test(MIME("text/latex"), c1, str)
         # test restricted
-        str =  "c3 : \$ x(par1) " * InfiniteOpt._math_symbol(MIME("text/latex"), :leq) * " 5.0, " *
+        str =  "c3 : \$ x(par1) " * InfiniteOpt._math_symbol(MIME("text/latex"), :leq) * " 5, " *
                InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
                InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 0.5] \$"
         show_test(MIME("text/latex"), c3, str)
