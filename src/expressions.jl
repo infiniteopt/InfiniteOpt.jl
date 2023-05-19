@@ -776,25 +776,26 @@ function map_expression(transform::Function, quad::JuMP.GenericQuadExpr)
                         map_expression(transform, quad.aff))
 end
 
-# NonlinearExpr (avoid recursion to handle deeply nested expressions)
+# NonlinearExpr 
 function map_expression(transform::Function, nlp::JuMP.NonlinearExpr)
-    stack = Tuple{Vector{Any}, Vector{Any}}[]
-    new_nlp = JuMP.NonlinearExpr(nlp.head, Any[])
-    push!(stack, (nlp.args, new_nlp.args))
-    while !isempty(stack)
-        args, cloned = pop!(stack)
-        for arg in args
-            if arg isa JuMP.NonlinearExpr
-                new_expr = JuMP.NonlinearExpr(arg.head, Any[])
-                push!(stack, (arg.args, new_expr.args))
-            else
-                new_expr = map_expression(transform, arg)
-            end
-            push!(cloned, new_expr)
-        end
-    end
-    return new_nlp
-    # return JuMP.NonlinearExpr(nlp.head, Any[map_expression(transform, arg) for arg in nlp.args]) # this recursion is still more efficient...
+    # TODO: Figure out how to make the recursionless code work 
+    # stack = Tuple{Vector{Any}, Vector{Any}}[]
+    # new_nlp = JuMP.NonlinearExpr{NewVrefType}(nlp.head, Any[]) # how to get `NewVrefType`?
+    # push!(stack, (nlp.args, new_nlp.args))
+    # while !isempty(stack)
+    #     args, cloned = pop!(stack)
+    #     for arg in args
+    #         if arg isa JuMP.NonlinearExpr
+    #             new_expr = JuMP.NonlinearExpr{NewVrefType}(arg.head, Any[])
+    #             push!(stack, (arg.args, new_expr.args))
+    #         else
+    #             new_expr = map_expression(transform, arg)
+    #         end
+    #         push!(cloned, new_expr)
+    #     end
+    # end
+    # return new_nlp
+    return JuMP.NonlinearExpr(nlp.head, Any[map_expression(transform, arg) for arg in nlp.args])
 end
 
 ################################################################################

@@ -599,7 +599,7 @@ end
     @testset "NonlinearExpr" begin
         # make expressions
         nlp1 = sin(hd)
-        nlp2 = NonlinearExpr(:sin, Any[0.0])
+        nlp2 = NonlinearExpr{GeneralVariableRef}(:sin, Any[0.0])
         nlp3 = 2 + sin(hd^2)
         # test expressions
         @test InfiniteOpt._model_from_expr(nlp1) === m
