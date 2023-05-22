@@ -780,7 +780,7 @@ end
 function map_expression(transform::Function, nlp::JuMP.NonlinearExpr)
     # TODO: Figure out how to make the recursionless code work 
     # stack = Tuple{Vector{Any}, Vector{Any}}[]
-    # new_nlp = JuMP.NonlinearExpr{NewVrefType}(nlp.head, Any[]) # how to get `NewVrefType`?
+    # new_nlp = JuMP.NonlinearExpr{NewVrefType}(nlp.head, Any[]) # Need to add `NewVrefType` arg throughout pkg
     # push!(stack, (nlp.args, new_nlp.args))
     # while !isempty(stack)
     #     args, cloned = pop!(stack)
