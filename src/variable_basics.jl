@@ -257,6 +257,21 @@ function JuMP.variable_by_name(
 end
 
 ################################################################################
+#                                 MODEL CHECKING
+################################################################################
+# TODO(odow): this is a work-around for a bug in Julia v1.9. I've no idea why it
+# is necessary.
+function JuMP.check_belongs_to_model(
+    x::DispatchVariableRef,
+    model::InfiniteModel
+    )
+    if JuMP.owner_model(x) !== model
+        throw(JuMP.VariableNotOwned(x))
+    end
+    return
+end
+
+################################################################################
 #                              PARAMETER REFERENCES
 ################################################################################
 # Extend parameter_refs for variables (this serves as a fallback for finite types)
