@@ -55,7 +55,7 @@ julia> meas = integral(y - f, t)
 ∫{t ∈ [0, 10]}[y(t) - f(t)]
 
 julia> @constraint(model, y - f <= 0)
-y(t) - f(t) ≤ 0.0, ∀ t ∈ [0, 10]
+y(t) - f(t) ≤ 0, ∀ t ∈ [0, 10]
 ```
 We can also define parameter functions that depend on multiple infinite 
 parameters even use an anonymous function if preferred:
@@ -316,7 +316,7 @@ julia> @objective(model, Min, ∫(0.3^cos(y^2), t))
 ∫{t ∈ [0, 1]}[0.3^cos(y(t)²)]
 
 julia> @constraint(model, constr, y^y * sin(y) + sum(y^i for i in 3:4) == 3)
-constr : (y(t)^y(t) * sin(y(t)) + y(t)^3 + y(t)^4) - 3 = 0.0, ∀ t ∈ [0, 1]
+constr : (y(t)^y(t) * sin(y(t)) + y(t)^3 + y(t)^4) - 3 = 0, ∀ t ∈ [0, 1]
 ```
 
 !!! note
@@ -442,8 +442,8 @@ julia> @variable(model, W[1:2, 1:2]);
 
 julia> @constraint(model, W * Q * v .== 0)
 2-element Vector{InfOptConstraintRef}:
- (0 + (W[1,1]*Q[1,1] + W[1,2]*Q[2,1]) * v[1] + (W[1,1]*Q[1,2] + W[1,2]*Q[2,2]) * v[2]) - 0 == 0.0
- (0 + (W[2,1]*Q[1,1] + W[2,2]*Q[2,1]) * v[1] + (W[2,1]*Q[1,2] + W[2,2]*Q[2,2]) * v[2]) - 0 == 0.0
+ (0 + (W[1,1]*Q[1,1] + W[1,2]*Q[2,1]) * v[1] + (W[1,1]*Q[1,2] + W[1,2]*Q[2,2]) * v[2]) - 0 = 0
+ (0 + (W[2,1]*Q[1,1] + W[2,2]*Q[2,1]) * v[1] + (W[2,1]*Q[1,2] + W[2,2]*Q[2,2]) * v[2]) - 0 = 0
 ```
 
 However, it is important to note that although vector constraints can be 

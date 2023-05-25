@@ -706,7 +706,7 @@ such constraint exists). For example, the upper bound constraint of `y_bd` can b
 obtained via [`UpperBoundRef`](@ref JuMP.UpperBoundRef(::UserDecisionVariableRef)):
 ```jldoctest var_macro
 julia> UpperBoundRef(y_bd)
-y_bd(t, x) ≤ 10.0, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] ∈ [-1, 1]
+y_bd(t, x) ≤ 10, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] ∈ [-1, 1]
 ```
 The other methods are [`LowerBoundRef`](@ref JuMP.LowerBoundRef(::UserDecisionVariableRef)),
 [`FixRef`](@ref JuMP.FixRef(::UserDecisionVariableRef)),
