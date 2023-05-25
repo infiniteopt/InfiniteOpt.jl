@@ -124,7 +124,7 @@ in accordance with the initial condition.
     can be expressed:
     ```jldoctest constrs
     julia> @constraint(model, yb(0) == 0)
-    yb(0) = 0.0
+    yb(0) = 0
     ```
 
 More complex sub-domains can be specified by simply adding more restrictions. To 

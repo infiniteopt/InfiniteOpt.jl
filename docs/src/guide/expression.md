@@ -246,7 +246,7 @@ Notice again that the ordered dictionary preserves the order.
     x
 
     julia> @constraint(model, x == z^2)
-    -z² + x = 0.0
+    -z² + x = 0
 
     julia> expr = @expression(model, z * x + 2)
     z*x + 2

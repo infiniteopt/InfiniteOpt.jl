@@ -134,7 +134,7 @@ can be queried via [`transcription_constraint`](@ref) and the associated support
 and infinite parameters can be found via `supports` and `parameter_refs`:
 ```jldoctest transcribe
 julia> transcription_constraint(initial)
-initial(support: 1) : y(support: 1) = 1.0
+initial(support: 1) : y(support: 1) = 1
 
 julia> transcription_constraint(constr)
 3-element Vector{ConstraintRef}:
