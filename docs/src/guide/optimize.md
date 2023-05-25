@@ -44,11 +44,11 @@ julia> @constraint(model, c2, y(0) == 42);
 julia> print(model)
 Min 2 z
 Subject to
- y(t) ≥ 0.0, ∀ t ∈ [0, 10]
- z ≥ 0.0
- c1 : z - y(t) ≥ 0.0, ∀ t ∈ [0, 10]
- y(0) ≥ 0.0
- c2 : y(0) = 42.0
+ y(t) ≥ 0, ∀ t ∈ [0, 10]
+ z ≥ 0
+ c1 : z - y(t) ≥ 0, ∀ t ∈ [0, 10]
+ y(0) ≥ 0
+ c2 : y(0) = 42
 ```
 Now we optimize the model using `optimize!`:
 ```jldoctest optimize
@@ -141,16 +141,16 @@ Using a `TranscriptionModel` this equivalent to calling
 ```jldoctest optimize
 julia> optimizer_model_constraint(c1) # infinite constraint
 10-element Vector{ConstraintRef}:
- c1(support: 1) : z - y(support: 1) ≥ 0.0
- c1(support: 2) : z - y(support: 2) ≥ 0.0
- c1(support: 3) : z - y(support: 3) ≥ 0.0
- c1(support: 4) : z - y(support: 4) ≥ 0.0
- c1(support: 5) : z - y(support: 5) ≥ 0.0
- c1(support: 6) : z - y(support: 6) ≥ 0.0
- c1(support: 7) : z - y(support: 7) ≥ 0.0
- c1(support: 8) : z - y(support: 8) ≥ 0.0
- c1(support: 9) : z - y(support: 9) ≥ 0.0
- c1(support: 10) : z - y(support: 10) ≥ 0.0
+ c1(support: 1) : z - y(support: 1) ≥ 0
+ c1(support: 2) : z - y(support: 2) ≥ 0
+ c1(support: 3) : z - y(support: 3) ≥ 0
+ c1(support: 4) : z - y(support: 4) ≥ 0
+ c1(support: 5) : z - y(support: 5) ≥ 0
+ c1(support: 6) : z - y(support: 6) ≥ 0
+ c1(support: 7) : z - y(support: 7) ≥ 0
+ c1(support: 8) : z - y(support: 8) ≥ 0
+ c1(support: 9) : z - y(support: 9) ≥ 0
+ c1(support: 10) : z - y(support: 10) ≥ 0
 ```
 We can also query the expressions via 
 [`optimizer_model_expression`](@ref optimizer_model_expression(::JuMP.AbstractJuMPScalar)):
