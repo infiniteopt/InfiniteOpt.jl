@@ -1,5 +1,5 @@
-# import Pkg
-# Pkg.pkg"add JuMP#od/nlp-expr MathOptInterface#od/nlp-expr"
+import Pkg
+Pkg.pkg"add JuMP#od/nlp-expr MathOptInterface@1.17"
 
 using InfiniteOpt: _domain_or_error
 using Test: Error
