@@ -50,19 +50,19 @@ julia> @objective(inf_model, Min, 2z + support_sum(y, t))
 2 z + support_sum{t}[y(t)]
 
 julia> @constraint(inf_model, initial, y(0) == 1)
-initial : y(0) = 1.0
+initial : y(0) = 1
 
 julia> @constraint(inf_model, constr, y^2 - z <= 42)
-constr : y(t)² - z ≤ 42.0, ∀ t ∈ [0, 10]
+constr : y(t)² - z ≤ 42, ∀ t ∈ [0, 10]
 
 julia> print(inf_model)
 Min 2 z + support_sum{t}[y(t)]
 Subject to
- y(t) ≥ 0.0, ∀ t ∈ [0, 10]
+ y(t) ≥ 0, ∀ t ∈ [0, 10]
  z binary
- y(0) ≥ 0.0
- initial : y(0) = 1.0
- constr : y(t)² - z ≤ 42.0, ∀ t ∈ [0, 10]
+ y(0) ≥ 0
+ initial : y(0) = 1
+ constr : y(t)² - z ≤ 42, ∀ t ∈ [0, 10]
 ```
 Now we can make `JuMP` model containing the transcribed version of `inf_model` 
 via [`build_optimizer_model!`](@ref) and then extract it via 
@@ -86,13 +86,13 @@ Solver name: No optimizer attached.
 julia> print(trans_model)
 Min 2 z + y(support: 1) + y(support: 2) + y(support: 3)
 Subject to
- initial(support: 1) : y(support: 1) = 1.0
- constr(support: 1) : y(support: 1)² - z ≤ 42.0
- constr(support: 2) : y(support: 2)² - z ≤ 42.0
- constr(support: 3) : y(support: 3)² - z ≤ 42.0
- y(support: 1) ≥ 0.0
- y(support: 2) ≥ 0.0
- y(support: 3) ≥ 0.0
+ initial(support: 1) : y(support: 1) = 1
+ constr(support: 1) : y(support: 1)² - z ≤ 42
+ constr(support: 2) : y(support: 2)² - z ≤ 42
+ constr(support: 3) : y(support: 3)² - z ≤ 42
+ y(support: 1) ≥ 0
+ y(support: 2) ≥ 0
+ y(support: 3) ≥ 0
  z binary
 ```
 !!! note 
@@ -134,13 +134,13 @@ can be queried via [`transcription_constraint`](@ref) and the associated support
 and infinite parameters can be found via `supports` and `parameter_refs`:
 ```jldoctest transcribe
 julia> transcription_constraint(initial)
-initial(support: 1) : y(support: 1) = 1.0
+initial(support: 1) : y(support: 1) = 1
 
 julia> transcription_constraint(constr)
 3-element Vector{ConstraintRef}:
- constr(support: 1) : y(support: 1)² - z ≤ 42.0
- constr(support: 2) : y(support: 2)² - z ≤ 42.0
- constr(support: 3) : y(support: 3)² - z ≤ 42.0
+ constr(support: 1) : y(support: 1)² - z ≤ 42
+ constr(support: 2) : y(support: 2)² - z ≤ 42
+ constr(support: 3) : y(support: 3)² - z ≤ 42
 
 julia> supports(constr)
 3-element Vector{Tuple}:
@@ -298,10 +298,10 @@ print(inf_model)
 # output
 Min support_sum{t}[y(t)²]
 Subject to
- y(0) = 1.0
- g(0, [x[1], x[2]]) = 0.0, ∀ x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
- support_sum{x}[∂/∂t[g(t, x)]] = 42.0, ∀ t ∈ [0, 10]
- y(t)² + 3 g(t, x) ≤ 2.0, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
+ y(0) = 1
+ g(0, [x[1], x[2]]) = 0, ∀ x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
+ support_sum{x}[∂/∂t[g(t, x)]] = 42, ∀ t ∈ [0, 10]
+ y(t)² + 3 g(t, x) ≤ 2, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
 ```
 Thus, we obtain the infinite problem in `InfiniteOpt`. As previously noted, 
 transcription would be handled automatically behind the scenes when the model is 
@@ -315,25 +315,25 @@ julia> trans_model = optimizer_model(inf_model);
 julia> print(trans_model)
 Min y(support: 1)² + y(support: 2)²
 Subject to
- y(support: 1) = 1.0
- g(support: 1) = 0.0
- g(support: 3) = 0.0
- g(support: 5) = 0.0
- g(support: 7) = 0.0
- ∂/∂t[g(t, x)](support: 1) + ∂/∂t[g(t, x)](support: 3) + ∂/∂t[g(t, x)](support: 5) + ∂/∂t[g(t, x)](support: 7) = 42.0
- ∂/∂t[g(t, x)](support: 2) + ∂/∂t[g(t, x)](support: 4) + ∂/∂t[g(t, x)](support: 6) + ∂/∂t[g(t, x)](support: 8) = 42.0
- g(support: 1) - g(support: 2) + 10 ∂/∂t[g(t, x)](support: 2) = 0.0
- g(support: 3) - g(support: 4) + 10 ∂/∂t[g(t, x)](support: 4) = 0.0
- g(support: 5) - g(support: 6) + 10 ∂/∂t[g(t, x)](support: 6) = 0.0
- g(support: 7) - g(support: 8) + 10 ∂/∂t[g(t, x)](support: 8) = 0.0
- y(support: 1)² + 3 g(support: 1) ≤ 2.0
- y(support: 2)² + 3 g(support: 2) ≤ 2.0
- y(support: 1)² + 3 g(support: 3) ≤ 2.0
- y(support: 2)² + 3 g(support: 4) ≤ 2.0
- y(support: 1)² + 3 g(support: 5) ≤ 2.0
- y(support: 2)² + 3 g(support: 6) ≤ 2.0
- y(support: 1)² + 3 g(support: 7) ≤ 2.0
- y(support: 2)² + 3 g(support: 8) ≤ 2.0
+ y(support: 1) = 1
+ g(support: 1) = 0
+ g(support: 3) = 0
+ g(support: 5) = 0
+ g(support: 7) = 0
+ ∂/∂t[g(t, x)](support: 1) + ∂/∂t[g(t, x)](support: 3) + ∂/∂t[g(t, x)](support: 5) + ∂/∂t[g(t, x)](support: 7) = 42
+ ∂/∂t[g(t, x)](support: 2) + ∂/∂t[g(t, x)](support: 4) + ∂/∂t[g(t, x)](support: 6) + ∂/∂t[g(t, x)](support: 8) = 42
+ g(support: 1) - g(support: 2) + 10 ∂/∂t[g(t, x)](support: 2) = 0
+ g(support: 3) - g(support: 4) + 10 ∂/∂t[g(t, x)](support: 4) = 0
+ g(support: 5) - g(support: 6) + 10 ∂/∂t[g(t, x)](support: 6) = 0
+ g(support: 7) - g(support: 8) + 10 ∂/∂t[g(t, x)](support: 8) = 0
+ y(support: 1)² + 3 g(support: 1) ≤ 2
+ y(support: 2)² + 3 g(support: 2) ≤ 2
+ y(support: 1)² + 3 g(support: 3) ≤ 2
+ y(support: 2)² + 3 g(support: 4) ≤ 2
+ y(support: 1)² + 3 g(support: 5) ≤ 2
+ y(support: 2)² + 3 g(support: 6) ≤ 2
+ y(support: 1)² + 3 g(support: 7) ≤ 2
+ y(support: 2)² + 3 g(support: 8) ≤ 2
 ```
 This precisely matches what we found analytically. Note that the unique support 
 combinations are determined automatically and are represented visually as 

@@ -101,6 +101,21 @@ function _set_core_variable_object(
 end
 
 ################################################################################
+#                                 MODEL CHECKING
+################################################################################
+# TODO(odow): this is a work-around for a bug in Julia v1.9. I've no idea why it
+# is necessary.
+function JuMP.check_belongs_to_model(
+    x::InfiniteVariableRef,
+    model::InfiniteModel
+    )
+    if JuMP.owner_model(x) !== model
+        throw(JuMP.VariableNotOwned(x))
+    end
+    return
+end
+
+################################################################################
 #                          DEFINTION HELPER METHODS
 ################################################################################
 """
