@@ -21,7 +21,7 @@ Julia terminal and enter the package manager:
 ```julia-repl
 julia> ]
 
-(v1.7) pkg>
+(v1.8) pkg>
 ```
 
 !!! tip
@@ -36,12 +36,12 @@ Use the `add` command in the package to manager to add the following packages:
 
 For example, to install `Distributions` we would enter:
 ```julia-repl
-(v1.7) pkg> add Distributions
+(v1.8) pkg> add Distributions
 ```
 
 Now let's install `InfiniteOpt`:
 ```julia-repl
-(v1.7) pkg> add InfiniteOpt
+(v1.8) pkg> add InfiniteOpt
 ```
 
 !!! info
@@ -51,7 +51,7 @@ Now let's install `InfiniteOpt`:
 Alternatively, we can install the current experimental version of 
 `InfiniteOpt` via:
 ```julia-repl
-(v1.7) pkg> add https://github.com/pulsipher/InfiniteOpt.jl
+(v1.8) pkg> add https://github.com/infiniteopt/InfiniteOpt.jl
 ```
 
 ## Install Optimization Solvers
@@ -62,7 +62,7 @@ supported solvers and their corresponding Julia packages is provided in
 
 For example, we can install Ipopt which is an open-source nonlinear solver:
 ```julia-repl
-(v1.7) pkg> add Ipopt
+(v1.8) pkg> add Ipopt
 ```
 Now Ipopt can be used as the optimizer (solver) for an infinite model by running:
 ```julia-repl
@@ -86,12 +86,12 @@ form `vX.Y.Z`. You can check which versions you have installed with:
 ```julia-repl
 julia> ]
 
-(v1.7) pkg> status
+(v1.8) pkg> status
 ```
 This should almost always be the most-recent release. You can check the releases
 of a package by going to the relevant GitHub page, and navigating to the
 "releases" page. For example, the list of `JuMP` releases is available at:
-[https://github.com/pulsipher/InfiniteOpt.jl/releases](https://github.com/pulsipher/InfiniteOpt.jl/releases).
+[https://github.com/infiniteopt/InfiniteOpt.jl/releases](https://github.com/infiniteopt/InfiniteOpt.jl/releases).
 
 If you need to ask question for help, please include the output of `status`!
 

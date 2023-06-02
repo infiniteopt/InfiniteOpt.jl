@@ -4,7 +4,7 @@ such we warmly welcome and encourage contributions. This page serves as the guid
 of how to start contributing.
 
 Before starting please review our 
-[Code of Conduct](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/CODE_OF_CONDUCT.md).
+[Code of Conduct](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/CODE_OF_CONDUCT.md).
 
 ## Step-by-Step
 This section will provide a birds-eye view on how to make a contribution to this 
@@ -18,7 +18,7 @@ through step by step how this should be done.
   2. Select a specific task to develop that is well-defined. This can as simple as 
      correcting/clarifying a documentation page or as involved as implementing a 
      more efficient data management paradigm. With a task in mind, please start a new 
-     issue [here](https://github.com/pulsipher/InfiniteOpt.jl/issues) in the 
+     issue [here](https://github.com/infiniteopt/InfiniteOpt.jl/issues) in the 
      `InfiniteOpt` repository. Also, this is a good place to find tasks to contribute to by 
      browsing what open issues are (especially ones with the tag `good first issue`). 
      Note that if your proposed contribution corresponds to an existing issue please 
@@ -28,7 +28,7 @@ through step by step how this should be done.
      developers have permissions to modify `InfiniteOpt` directly, thus others need 
      to fork it which essentially amounts to creating their own linked copy. This is 
      done by clicking the `Fork` button in the top left corner on the main repository 
-     page [here](https://github.com/pulsipher/InfiniteOpt.jl).
+     page [here](https://github.com/infiniteopt/InfiniteOpt.jl).
   4. Install Git on your computer. Git is an open source version control program 
      for repositories (it is why GitHub uses the word Git). This is needed to manipulate 
      the repository (all the package files) locally on your computer. A simple Google 
@@ -38,7 +38,7 @@ through step by step how this should be done.
      computer. This needs to be done via the `dev` command in the package manager 
      so you can edit it. The syntax is as follows:
      ```julia
-     (v1.7) pkg> dev https://github.com/username-here/InfiniteOpt.jl
+     (v1.8) pkg> dev https://github.com/username-here/InfiniteOpt.jl
      ```
      We also recommend you install [`Revise.jl`](https://github.com/timholy/Revise.jl) 
      which is very useful when developing packages in Julia.
@@ -64,7 +64,7 @@ through step by step how this should be done.
      ```
      We recommend using [VsCode](https://www.julia-vscode.org/) as an editor and 
      as a GUI for interfacing with Git.
-  8. Create a pull request. Go [here](https://github.com/pulsipher/InfiniteOpt.jl) 
+  8. Create a pull request. Go [here](https://github.com/infiniteopt/InfiniteOpt.jl) 
      to `InfiniteOpt`'s main page and create a pull request drawing from your forked 
      repository. A step by step explanation is provided 
      [here](https://jarv.is/notes/how-to-pull-request-fork-github/).

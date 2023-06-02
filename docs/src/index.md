@@ -79,7 +79,7 @@ capabilities from JuliaCon 2021 (note that nonlinear support has since been adde
 `InfiniteOpt.jl` is a registered `Julia` package and can be added simply by 
 inputting the following in the package manager:
 ```julia
-(v1.7) pkg> add InfiniteOpt
+(v1.8) pkg> add InfiniteOpt
 ```
 Please visit our [Installation Guide](@ref) for more details and information
 on how to get started.
@@ -115,7 +115,7 @@ Finally, case study examples are provided in the `Examples` sections.
 
 ## Questions
 For additional help please visit and post in our 
-[Discussion Forum](https://github.com/pulsipher/InfiniteOpt.jl/discussions).
+[Discussion Forum](https://github.com/infiniteopt/InfiniteOpt.jl/discussions).
 
 ## Contribution
 `InfiniteOpt` is a powerful tool with a broad scope lending to a large realm of 

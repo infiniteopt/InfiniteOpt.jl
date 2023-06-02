@@ -979,24 +979,23 @@ end
         # test normal 
         m1 = Model()
         @test add_registered_to_jump(m1, m) isa Nothing 
-        @test m1.nlp_data.largest_user_input_dimension == 2
-        r1 = m1.nlp_data.user_operators
-        @test length(keys(r1.univariate_operator_to_id)) == 3
-        @test r1.univariate_operator_f == [f, f1, f2]
-        @test r1.univariate_operator_fprime[2:end] == [f, f]
-        @test r1.univariate_operator_fprimeprime[3] == f1
-        @test length(r1.multivariate_operator_to_id) == 2
+        r1 = m1.nlp_model.operators
+        @test length(r1.registered_univariate_operators) == 3
+        @test [r1.registered_univariate_operators[i].f for i in 1:3] == [f, f1, f2]
+        @test [r1.registered_univariate_operators[i].f′ for i in 2:3] == [f, f]
+        @test r1.registered_univariate_operators[3].f′′ == f1
+        @test length(r1.registered_multivariate_operators) == 2
         # test error 
         m2 = Model()
         h2(a, b) = 3
         @test @register(m, h2(a, b), hg, f) isa Function
         @test_throws ErrorException add_registered_to_jump(m2, m) isa Nothing 
-        r2 = m2.nlp_data.user_operators
-        @test length(keys(r2.univariate_operator_to_id)) == 3
-        @test r2.univariate_operator_f == [f, f1, f2]
-        @test r2.univariate_operator_fprime[2:end] == [f, f]
-        @test r2.univariate_operator_fprimeprime[3] == f1
-        @test length(r2.multivariate_operator_to_id) == 2
+        r2 = m2.nlp_model.operators
+        @test length(r2.registered_univariate_operators) == 3
+        @test [r2.registered_univariate_operators[i].f for i in 1:3] == [f, f1, f2]
+        @test [r2.registered_univariate_operators[i].f′ for i in 2:3] == [f, f]
+        @test r2.registered_univariate_operators[3].f′′ == f1
+        @test length(r2.registered_multivariate_operators) == 2
     end
 end 
 

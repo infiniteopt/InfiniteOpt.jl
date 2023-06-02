@@ -412,8 +412,8 @@ julia> evaluate(d1)
 
 julia> derivative_constraints(d1)
 2-element Vector{InfOptConstraintRef}:
- 5 ∂/∂t[y(t, ξ)](5, ξ) - y(10, ξ) + y(5, ξ) = 0.0, ∀ ξ ~ Uniform
- 5 ∂/∂t[y(t, ξ)](0, ξ) - y(5, ξ) + y(0, ξ) = 0.0, ∀ ξ ~ Uniform
+ 5 ∂/∂t[y(t, ξ)](5, ξ) - y(10, ξ) + y(5, ξ) = 0, ∀ ξ ~ Uniform
+ 5 ∂/∂t[y(t, ξ)](0, ξ) - y(5, ξ) + y(0, ξ) = 0, ∀ ξ ~ Uniform
 ```
 Note that we made sure `t` had supports first over which we could carry out the 
 evaluation, otherwise an error would have been thrown. Moreover, once the 
@@ -429,8 +429,8 @@ julia> evaluate_all_derivatives!(model)
 
 julia> derivative_constraints(dydt2)
 2-element Vector{InfOptConstraintRef}:
- 5 dydt2(5, ξ) - ∂/∂t[y(t, ξ)](10, ξ) + ∂/∂t[y(t, ξ)](5, ξ) = 0.0, ∀ ξ ~ Uniform
- 5 dydt2(0, ξ) - ∂/∂t[y(t, ξ)](5, ξ) + ∂/∂t[y(t, ξ)](0, ξ) = 0.0, ∀ ξ ~ Uniform
+ 5 dydt2(5, ξ) - ∂/∂t[y(t, ξ)](10, ξ) + ∂/∂t[y(t, ξ)](5, ξ) = 0, ∀ ξ ~ Uniform
+ 5 dydt2(0, ξ) - ∂/∂t[y(t, ξ)](5, ξ) + ∂/∂t[y(t, ξ)](0, ξ) = 0, ∀ ξ ~ Uniform
 ```
 
 Finally, we note that once derivative constraints have been added to the 
@@ -440,12 +440,12 @@ and a warning will be thrown to indicate such:
 ```jldoctest deriv_basic
 julia> derivative_constraints(d1)
 2-element Vector{InfOptConstraintRef}:
- 5 ∂/∂t[y(t, ξ)](5, ξ) - y(10, ξ) + y(5, ξ) = 0.0, ∀ ξ ~ Uniform
- 5 ∂/∂t[y(t, ξ)](0, ξ) - y(5, ξ) + y(0, ξ) = 0.0, ∀ ξ ~ Uniform
+ 5 ∂/∂t[y(t, ξ)](5, ξ) - y(10, ξ) + y(5, ξ) = 0, ∀ ξ ~ Uniform
+ 5 ∂/∂t[y(t, ξ)](0, ξ) - y(5, ξ) + y(0, ξ) = 0, ∀ ξ ~ Uniform
 
 julia> add_supports(t, 0.2)
 ┌ Warning: Support/method changes will invalidate existing derivative evaluation constraints that have been added to the InfiniteModel. Thus, these are being deleted.
-└ @ InfiniteOpt ~/work/pulsipher/InfiniteOpt.jl/src/scalar_parameters.jl:783
+└ @ InfiniteOpt ~/work/infiniteopt/InfiniteOpt.jl/src/scalar_parameters.jl:783
 
 julia> has_derivative_constraints(d1)
 false
@@ -512,7 +512,7 @@ julia> lower_bound(dydt2)
 1.0
 
 julia> LowerBoundRef(dydt2)
-dydt2(t, ξ) ≥ 1.0, ∀ t ∈ [0, 10], ξ ~ Uniform
+dydt2(t, ξ) ≥ 1, ∀ t ∈ [0, 10], ξ ~ Uniform
 
 julia> has_upper_bound(dydt2)
 false 

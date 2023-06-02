@@ -21,7 +21,7 @@ jobs:
       - name: Install plotting dependencies # For enabling GR.jl (used by Plots.jl)
         run: |
           sudo apt-get update
-          sudo apt-get install -y qt5-default
+          sudo apt-get install -y qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools
       - name: Install julia dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Plot friendly RUNCMD # needed to enable Plots.jl correctly

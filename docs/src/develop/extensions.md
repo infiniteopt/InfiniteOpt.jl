@@ -20,7 +20,7 @@ Infinite domains are used to characterize the behavior of infinite parameters an
 used to govern the behavior of supports in `InfiniteOpt`. Here we walk through 
 how user-defined domains can be added to various degrees of functionality. A 
 template is provided in 
-[`./test/extensions/infinite_domain.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/infinite_domain.jl). 
+[`./test/extensions/infinite_domain.jl`](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/test/extensions/infinite_domain.jl). 
 The extension steps employed are:
 1. Define the new `struct` infinite domain type (only thing required as bare minimum)
 2. Extend [`InfiniteOpt.supports_in_domain`](@ref) (enables error checking of supports)
@@ -196,7 +196,7 @@ derivative evaluation equations (derivative constraints) when we evaluate
 derivatives in InfiniteOpt. Users may wish to implement their own methods beyond 
 the finite difference and orthogonal collocation ones we natively provide. Thus, 
 we provide an API to do just this. A complete template is provided in 
-[`./test/extensions/derivative_method.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/derivative_method.jl) 
+[`./test/extensions/derivative_method.jl`](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/test/extensions/derivative_method.jl) 
 to help streamline this process. The extension steps are:
 1. Define the new method `struct` that inherits from the correct 
    [`AbstractDerivativeMethod`](@ref) subtype
@@ -366,7 +366,7 @@ For integrals, we can implement a new approximation method via the extension of
 allow users to use their custom measure evaluation methods in the 
 [`integral`](@ref) function that does not explicitly require a measure data 
 object. A template for how such an extension is accomplished is provided in 
-[`./test/extensions/measure_eval.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/measure_eval.jl).
+[`./test/extensions/measure_eval.jl`](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/test/extensions/measure_eval.jl).
 In general, such an extension can be created as follows: 
 1. Define a new empty `struct` (e.g. `my_new_fn`) that dispatches your function
 2. Extend [`InfiniteOpt.MeasureToolbox.generate_integral_data`](@ref), 
@@ -434,7 +434,7 @@ measure framework to accommodate other paradigms. This can be accomplished by
 implementing a user-defined measure data structure that inherits from 
 [`AbstractMeasureData`](@ref). A template for how such an extension is 
 accomplished is provided in 
-[`./test/extensions/measure_data.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/measure_data.jl). 
+[`./test/extensions/measure_data.jl`](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/test/extensions/measure_data.jl). 
 The extension steps employed are:
 1. Define the new data struct inheriting from [`AbstractMeasureData`](@ref) (required)
 2. Extend [`InfiniteOpt.parameter_refs`](@ref parameter_refs(::AbstractMeasureData)) (required)
@@ -628,7 +628,7 @@ each finite element). However, more complex generative support schemes can be
 enabled by defining a new concrete [`AbstractGenerativeInfo`](@ref) subtype. This 
 section will detail how this can be accomplished in `InfiniteOpt`. A template for 
 implementing this is provided in 
-[`./test/extensions/generative_info.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/generative_info.jl).
+[`./test/extensions/generative_info.jl`](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/test/extensions/generative_info.jl).
 
 A new generative support information type can be created via the following:
 1. Define a concrete subtype of [`AbstractGenerativeInfo`](@ref) (required)
@@ -694,7 +694,7 @@ infinite parameter supports. However, users may wish to employ some other
 reformulation method to produce the optimizer model. This section will explain 
 how this can be done in `InfiniteOpt`. A template for implementing this 
 extension is provided in 
-[`./test/extensions/optimizer_model.jl`](https://github.com/pulsipher/InfiniteOpt.jl/blob/master/test/extensions/optimizer_model.jl). 
+[`./test/extensions/optimizer_model.jl`](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/test/extensions/optimizer_model.jl). 
 Our default sub-module `InfiniteOpt.TranscriptionOpt` also serves as a good 
 example.
 
@@ -702,7 +702,7 @@ example.
     We are currently working on a fundamental overhaul of the optimizer model 
     interface. The new interface will be much more modular, will permit non-JuMP 
     backends, and should generally make extending more intuitive. Track the progress 
-    [here](https://github.com/pulsipher/InfiniteOpt.jl/issues/105).
+    [here](https://github.com/infiniteopt/InfiniteOpt.jl/issues/105).
 
 A new reformulation method and its corresponding optimizer model can be 
 extended using the following steps:
@@ -1070,5 +1070,5 @@ use package specific terminology (e.g., using random variables instead of
 infinite variables).
 
 Please reach out to us via the 
-[discussion forum](https://github.com/pulsipher/InfiniteOpt.jl/discussions) to 
+[discussion forum](https://github.com/infiniteopt/InfiniteOpt.jl/discussions) to 
 discuss your plans before starting this on your own.

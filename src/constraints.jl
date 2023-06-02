@@ -58,9 +58,7 @@ function _add_data_object(
 end
 
 # Extend _data_dictionary
-function _data_dictionary(
-    cref::InfOptConstraintRef
-    )::MOIUC.CleverDict{InfOptConstraintIndex, <:ConstraintData}
+function _data_dictionary(cref::InfOptConstraintRef)
     return JuMP.owner_model(cref).constraints
 end
 
@@ -76,9 +74,7 @@ function _data_object(cref::InfOptConstraintRef)
 end
 
 # Return the core constraint object
-function _core_constraint_object(
-    cref::InfOptConstraintRef
-    )
+function _core_constraint_object(cref::InfOptConstraintRef)
     return _data_object(cref).constraint
 end
 
@@ -121,9 +117,7 @@ function _object_numbers(cref::InfOptConstraintRef)
 end
 
 # Extend _measure_dependencies
-function _measure_dependencies(
-    cref::InfOptConstraintRef
-    )
+function _measure_dependencies(cref::InfOptConstraintRef)
     return _data_object(cref).measure_indices
 end
 
@@ -206,7 +200,7 @@ julia> con = build_constraint(error, y + 2, MOI.LessThan(0.0), restrictions);
 function JuMP.build_constraint(
     _error::Function,
     func,
-    set,
+    set::MOI.AbstractSet,
     restrictions::DomainRestrictions
     )
     # make the constraint and check the domain restrictions
@@ -706,10 +700,7 @@ function JuMP.all_constraints(
 end
 
 # Function type only
-function JuMP.all_constraints(
-    model::InfiniteModel,
-    function_type
-    )
+function JuMP.all_constraints(model::InfiniteModel, function_type)
     return JuMP.all_constraints(model, function_type, MOI.AbstractSet)
 end
 
@@ -722,9 +713,7 @@ function JuMP.all_constraints(
 end
 
 # All the constraints
-function JuMP.all_constraints(
-    model::InfiniteModel
-    )
+function JuMP.all_constraints(model::InfiniteModel)
     return [_make_constraint_ref(model, idx) for (idx, _) in model.constraints]
 end
 
@@ -743,11 +732,9 @@ julia> all_constraints(model)
  (GeneralVariableRef, MathOptInterface.Integer)
 ```
 """
-function JuMP.list_of_constraint_types(
-    model::InfiniteModel
-    )
+function JuMP.list_of_constraint_types(model::InfiniteModel)
     type_set = Set{Tuple{DataType, DataType}}()
-    for (index, object) in model.constraints
+    for (_, object) in model.constraints
         push!(type_set, (typeof(JuMP.jump_function(object.constraint)),
                          typeof(JuMP.moi_set(object.constraint))))
     end
@@ -806,9 +793,7 @@ julia> domain_restrictions(cref)
 Subdomain restrictions (1): t ∈ [0, 2]
 ```
 """
-function domain_restrictions(
-    cref::InfOptConstraintRef
-    )
+function domain_restrictions(cref::InfOptConstraintRef)
     return Base.get(JuMP.owner_model(cref).constraint_restrictions, JuMP.index(cref), 
                DomainRestrictions())
 end
@@ -934,9 +919,7 @@ julia> c1
 c1 : y(x) ≤ 42, ∀ x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
 ```
 """
-function delete_domain_restrictions(
-    cref::InfOptConstraintRef
-    )
+function delete_domain_restrictions(cref::InfOptConstraintRef)
     # delete the restrictions if there are any
     delete!(JuMP.owner_model(cref).constraint_restrictions, JuMP.index(cref))
     # update status
@@ -969,10 +952,7 @@ Subject to
  z ≥ 0.0
 ```
 """
-function JuMP.delete(
-    model::InfiniteModel, 
-    cref::InfOptConstraintRef
-    )
+function JuMP.delete(model::InfiniteModel, cref::InfOptConstraintRef)
     # check valid reference
     @assert JuMP.is_valid(model, cref) "Invalid constraint reference."
     # update variable dependencies
