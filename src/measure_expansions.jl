@@ -243,13 +243,13 @@ function expand_measure(ivref::GeneralVariableRef,
     elseif length(var_prefs) == 1
         return _MA.@rewrite(sum(coeffs[i] * w(supps[i]) *
                     make_point_variable_ref(write_model, ivref, [supps[i]])
-                    for i in eachindex(coeffs)); move_factors_into_sums = false)
+                    for i in eachindex(coeffs)), move_factors_into_sums = false)
     # make semi-infinite variables if the variable contains other parameters
     else
         index = [findfirst(isequal(pref), var_prefs)]
         return _MA.@rewrite(sum(coeffs[i] * w(supps[i]) *
                     make_semi_infinite_variable_ref(write_model, ivref, index, [supps[i]])
-                    for i in eachindex(coeffs)); move_factors_into_sums = false)
+                    for i in eachindex(coeffs)), move_factors_into_sums = false)
     end
 end
 
@@ -268,7 +268,7 @@ function expand_measure(ivref::GeneralVariableRef,
     if isequal(var_prefs, prefs)
         return _MA.@rewrite(sum(coeffs[i] * w(supps[:, i]) *
                     make_point_variable_ref(write_model, ivref, supps[:, i])
-                    for i in eachindex(coeffs)); move_factors_into_sums = false)
+                    for i in eachindex(coeffs)), move_factors_into_sums = false)
     # treat variable as constant if doesn't have measure parameter
     elseif !any(any(isequal(pref), var_prefs) for pref in prefs)
         var_coef = sum(coeffs[i] * w(supps[:, i]) for i in eachindex(coeffs))
@@ -279,7 +279,7 @@ function expand_measure(ivref::GeneralVariableRef,
         new_supps = supps[indices, :]
         return _MA.@rewrite(sum(coeffs[i] * w(supps[:, i]) *
                     make_point_variable_ref(write_model, ivref, new_supps[:, i])
-                    for i in eachindex(coeffs)); move_factors_into_sums = false)
+                    for i in eachindex(coeffs)), move_factors_into_sums = false)
     # make semi-infinite variables if the variable contains other parameters
     else
         # get indices of each pref to map properly
@@ -292,7 +292,7 @@ function expand_measure(ivref::GeneralVariableRef,
         end
         return _MA.@rewrite(sum(coeffs[i] * w(supps[:, i]) *
                     make_semi_infinite_variable_ref(write_model, ivref, indices, supps[:, i])
-                    for i in eachindex(coeffs)); move_factors_into_sums = false)
+                    for i in eachindex(coeffs)), move_factors_into_sums = false)
     end
 end
 
@@ -331,7 +331,7 @@ function expand_measure(rvref::GeneralVariableRef,
         expr = _MA.@rewrite(sum(coeffs[i] * w(supps[i]) *
                     make_point_variable_ref(write_model, ivref,
                     _make_point_support(orig_prefs, eval_supps, index, supps[i]))
-                    for i in eachindex(coeffs)); move_factors_into_sums = false)
+                    for i in eachindex(coeffs)), move_factors_into_sums = false)
     # make semi-infinite variables if the variable contains other parameters
     else
         index = findfirst(isequal(pref), orig_prefs)
@@ -340,7 +340,7 @@ function expand_measure(rvref::GeneralVariableRef,
         indices = push!(collected_indices, index)
         expr = _MA.@rewrite(sum(coeffs[i] * w(supps[i]) *
                     make_semi_infinite_variable_ref(write_model, ivref, indices, vcat(vals, supps[i]))
-                    for i in eachindex(coeffs)); move_factors_into_sums = false)
+                    for i in eachindex(coeffs)), move_factors_into_sums = false)
     end
     return expr
 end
@@ -389,7 +389,7 @@ function expand_measure(rvref::GeneralVariableRef,
         expr = _MA.@rewrite(sum(coeffs[i] * w(supps[:, i]) *
                     make_point_variable_ref(write_model, ivref,
                     _make_point_support(orig_prefs, eval_supps, indices, supps[:, i]))
-                    for i in eachindex(coeffs)); move_factors_into_sums = false)
+                    for i in eachindex(coeffs)), move_factors_into_sums = false)
     # make semi-infinite variables if the variable contains other parameters
     else
         # get the indices of prefs in terms of the ivref
@@ -407,7 +407,7 @@ function expand_measure(rvref::GeneralVariableRef,
         # make the expression
         expr = _MA.@rewrite(sum(coeffs[i] * w(supps[:, i]) *
                     make_semi_infinite_variable_ref(write_model, ivref, indices, vcat(vals, supps[:, i]))
-                    for i in eachindex(coeffs)); move_factors_into_sums = false)
+                    for i in eachindex(coeffs)), move_factors_into_sums = false)
     end
     return expr
 end
@@ -498,7 +498,7 @@ function expand_measure(expr::JuMP.GenericAffExpr{C, GeneralVariableRef},
     # expand each variable independently and add all together
     constant_coef = sum(coeffs[i] * w(supps[i]) for i in eachindex(coeffs))
     new_ex = _MA.@rewrite(sum(coef * expand_measure(var, data, write_model)
-                for (var, coef) in expr.terms) + expr.constant * constant_coef; 
+                for (var, coef) in expr.terms) + expr.constant * constant_coef, 
                 move_factors_into_sums = false)
     return JuMP.flatten(new_ex) # just in case we have nested measures producing a NonlinearExpr
 end
@@ -515,7 +515,7 @@ function expand_measure(expr::JuMP.GenericAffExpr{C, GeneralVariableRef},
     # expand each variable independently and add all together
     constant_coef = sum(coeffs[i] * w(supps[:, i]) for i in eachindex(coeffs))
     new_ex = _MA.@rewrite(sum(coef * expand_measure(var, data, write_model)
-                for (var, coef) in expr.terms) + expr.constant * constant_coef; 
+                for (var, coef) in expr.terms) + expr.constant * constant_coef, 
                 move_factors_into_sums = false)
     return JuMP.flatten(new_ex) # just in case we have nested measures producing a NonlinearExpr
 end
@@ -542,7 +542,7 @@ function expand_measure(
                         _map_variable(p.a, simple_data, supps[i], write_model) * 
                         _map_variable(p.b, simple_data, supps[i], write_model) 
                         for (p, c) in expr.terms) for i in eachindex(coeffs)) + 
-                        expand_measure(expr.aff, data, write_model); 
+                        expand_measure(expr.aff, data, write_model), 
                         move_factors_into_sums = false)
     return JuMP.flatten(new_ex) # just in case we have nested measures producing a NonlinearExpr
 end
@@ -569,7 +569,7 @@ function expand_measure(
                         _map_variable(p.a, simple_data, @view(supps[:, i]), write_model) * 
                         _map_variable(p.b, simple_data, @view(supps[:, i]), write_model) 
                         for (p, c) in expr.terms) for i in eachindex(coeffs)) + 
-                        expand_measure(expr.aff, data, write_model); 
+                        expand_measure(expr.aff, data, write_model), 
                         move_factors_into_sums = false)
     return JuMP.flatten(new_ex) # just in case we have nested measures producing a NonlinearExpr
 end

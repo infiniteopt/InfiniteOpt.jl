@@ -767,7 +767,7 @@ function map_expression(transform::Function, aff::JuMP.GenericAffExpr)
     # flatten needed in case expression becomes nonlinear with transform
     return JuMP.flatten(_MA.@rewrite(sum(c * transform(v) 
                         for (c, v) in JuMP.linear_terms(aff)) + 
-                        JuMP.constant(aff); move_factors_into_sums = false))
+                        JuMP.constant(aff), move_factors_into_sums = false))
 end
 
 # QuadExpr
@@ -775,7 +775,7 @@ function map_expression(transform::Function, quad::JuMP.GenericQuadExpr)
     # flatten needed in case expression becomes nonlinear with transform
     return JuMP.flatten(_MA.@rewrite(sum(c * transform(v1) * transform(v2) 
                         for (c, v1, v2) in JuMP.quad_terms(quad)) + 
-                        map_expression(transform, quad.aff); 
+                        map_expression(transform, quad.aff), 
                         move_factors_into_sums = false))
 end
 
