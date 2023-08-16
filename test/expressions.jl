@@ -366,8 +366,8 @@ end
         @test InfiniteOpt._interrogate_variables(i -> push!(a, i), quad) isa Nothing
         @test isequal(a, [z, z, z])
     end
-    # test NonlinearExpr
-    @testset "NonlinearExpr" begin
+    # test GenericNonlinearExpr
+    @testset "GenericNonlinearExpr" begin
         a = []
         @test InfiniteOpt._interrogate_variables(i -> push!(a, i), nlp) isa Nothing
         @test isequal(a, [z, z])
@@ -437,7 +437,7 @@ end
                               [pt, inf, meas]))
     end
     # test for Array of expressions
-    @testset "NonlinearExpr" begin
+    @testset "GenericNonlinearExpr" begin
         # make expressions
         nlp = sin(pt) + inf / pt
         # test expressions
@@ -499,8 +499,8 @@ end
         @test sort!(InfiniteOpt._object_numbers(quad1)) == [1, 2]
         @test InfiniteOpt._object_numbers(quad2) == []
     end
-    # test for NonlinearExpr
-    @testset "NonlinearExpr" begin
+    # test for GenericNonlinearExpr
+    @testset "GenericNonlinearExpr" begin
         # make expressions
         nlp = sin(inf) / pt
         # test expressions
@@ -557,8 +557,8 @@ end
         @test sort!(InfiniteOpt._parameter_numbers(quad1)) == [1, 2, 3]
         @test InfiniteOpt._parameter_numbers(quad2) == []
     end
-    # test for NonlinearExpr
-    @testset "NonlinearExpr" begin
+    # test for GenericNonlinearExpr
+    @testset "GenericNonlinearExpr" begin
         # make expressions
         nlp = sin(inf2)
         # test expressions
@@ -595,11 +595,11 @@ end
         @test InfiniteOpt._model_from_expr(quad2) isa Nothing
         @test InfiniteOpt._model_from_expr(quad3) === m
     end
-    # test for NonlinearExpr
-    @testset "NonlinearExpr" begin
+    # test for GenericNonlinearExpr
+    @testset "GenericNonlinearExpr" begin
         # make expressions
         nlp1 = sin(hd)
-        nlp2 = NonlinearExpr{GeneralVariableRef}(:sin, Any[0.0])
+        nlp2 = GenericNonlinearExpr{GeneralVariableRef}(:sin, Any[0.0])
         nlp3 = 2 + sin(hd^2)
         # test expressions
         @test InfiniteOpt._model_from_expr(nlp1) === m
@@ -654,8 +654,8 @@ end
         @test !haskey(quad.terms, UnorderedPair{GeneralVariableRef}(pt, pt))
         @test isa(InfiniteOpt._remove_variable(quad2, inf), Nothing)
     end
-    # test for NonlinearExpr 
-    @testset "NonlinearExpr" begin 
+    # test for GenericNonlinearExpr 
+    @testset "GenericNonlinearExpr" begin 
         # make expressions 
         nlp1 = sin(3pt)
         nlp2 = pt^2.3 + ^(inf, pt)
@@ -701,8 +701,8 @@ end
     @testset "QuadExpr" begin
         @test isequal(map_expression(v -> x, quad), x^2 + 2x)
     end
-    # test NonlinearExpr
-    @testset "NonlinearExpr" begin
+    # test GenericNonlinearExpr
+    @testset "GenericNonlinearExpr" begin
         @test isequal(map_expression(v -> y, nlp), (sin(y) + (2y + 42))^3.4)
         @test isequal(map_expression(v -> v^3, sin(y)), sin(y^3))
     end

@@ -931,7 +931,7 @@ end
     # prepare the test grid 
     aff = 2z - 2
     quad = y^2 + y
-    nlp = NonlinearExpr(:sin, Any[y])
+    nlp = GenericNonlinearExpr{GeneralVariableRef}(:sin, Any[y])
     # test the multiplication operator
     @testset "Multiplication Operator" begin
         for (i, iorder) in [(42, 0), (y, 1), (aff, 1), (quad, 2), (nlp, 3)]
@@ -964,7 +964,7 @@ end
         # one_aff = one(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
         # for i in [y, aff, quad, nlp]
         #     for f in [Float64, Int]
-        #         if i isa NonlinearExpr
+        #         if i isa GenericNonlinearExpr
         #             @test isequal((i ^ f(2)).args, Any[i, f(2)])
         #         else
         #             @test isequal(i^f(2), i * i)

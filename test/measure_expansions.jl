@@ -459,7 +459,7 @@ end
         @test isequal_canonical(InfiniteOpt.expand_measure(expr, data3, m), expected)
     end
     # test expand_measure (NonlinearExpr univariate)
-    @testset "NonlinearExpr (1D DiscreteMeasureData)" begin
+    @testset "GenericNonlinearExpr (1D DiscreteMeasureData)" begin
         # test simple
         expr = sin(inf1)
         expected = 0.5 * sin(inf1(1)) + 0.5 * sin(inf1(2))
@@ -470,7 +470,7 @@ end
         @test isequal(expand_measure(expr, data1, m), expected)
     end
     # test expand_measure (NonlinearExpr multivariate)
-    @testset "NonlinearExpr (Multi DiscreteMeasureData)" begin
+    @testset "GenericNonlinearExpr (Multi DiscreteMeasureData)" begin
         # test simple
         expr = sin(inf5)
         expected = 1 * sin(inf5([1, 1], pars2)) + 1 * sin(inf5([2, 2], pars2))

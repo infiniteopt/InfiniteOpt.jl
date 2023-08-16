@@ -75,7 +75,7 @@
             @variable(mt, x)
             q(a) = 1
             @test @register(mt, q, 1, q) isa UserDefinedFunction
-            @test @expression(mt, q(x)) isa NonlinearExpr
+            @test @expression(mt, q(x)) isa GenericNonlinearExpr
             return 
         end
         @test registration_test() isa Nothing 

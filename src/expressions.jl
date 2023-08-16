@@ -518,12 +518,12 @@ function _interrogate_variables(
 end
 
 # NonlinearExpr (avoid recursion to handle deeply nested expressions)
-function _interrogate_variables(interrogator::Function, nlp::JuMP.NonlinearExpr)
+function _interrogate_variables(interrogator::Function, nlp::JuMP.GenericNonlinearExpr)
     stack = Vector{Any}[nlp.args]
     while !isempty(stack)
         args = pop!(stack)
         for arg in args
-            if arg isa JuMP.NonlinearExpr
+            if arg isa JuMP.GenericNonlinearExpr
                 push!(stack, arg.args)
             else
                 _interrogate_variables(interrogator, arg)
@@ -565,7 +565,7 @@ function _all_function_variables(f::JuMP.GenericQuadExpr)
 end
 
 # NonlinearExpr or array of expressions
-function _all_function_variables(f::Union{JuMP.NonlinearExpr, AbstractArray})
+function _all_function_variables(f::Union{JuMP.GenericNonlinearExpr, AbstractArray})
     vref_set = Set{GeneralVariableRef}()
     _interrogate_variables(v -> push!(vref_set, v), f)
     return collect(vref_set)
@@ -647,12 +647,12 @@ function _model_from_expr(expr::JuMP.GenericQuadExpr)
 end
 
 # NonlinearExpr (avoid recursion for deeply nested expressions)
-function _model_from_expr(expr::JuMP.NonlinearExpr)
+function _model_from_expr(expr::JuMP.GenericNonlinearExpr)
     stack = Vector{Any}[expr.args]
     while !isempty(stack)
         args = pop!(stack)
         for arg in args
-            if arg isa JuMP.NonlinearExpr
+            if arg isa JuMP.GenericNonlinearExpr
                 push!(stack, arg.args)
             else
                 result = _model_from_expr(arg)
@@ -716,7 +716,7 @@ function _remove_variable_from_leaf(
 end
 
 # Nonlinear (avoid recursion to handle deeply nested expressions)
-function _remove_variable(f::JuMP.NonlinearExpr, vref::GeneralVariableRef)
+function _remove_variable(f::JuMP.GenericNonlinearExpr, vref::GeneralVariableRef)
     stack = Tuple{Vector{Any}, Int}[]
     for i in eachindex(f.args) # should be reverse, but order doesn't matter
         push!(stack, (f.args, i))
@@ -724,7 +724,7 @@ function _remove_variable(f::JuMP.NonlinearExpr, vref::GeneralVariableRef)
     while !isempty(stack)
         arr, idx = pop!(stack)
         expr = arr[idx]
-        if expr isa JuMP.NonlinearExpr
+        if expr isa JuMP.GenericNonlinearExpr
             for i in eachindex(expr.args) # should be reverse, but order doesn't matter
                 push!(stack, (expr.args, i))
             end
@@ -780,16 +780,16 @@ function map_expression(transform::Function, quad::JuMP.GenericQuadExpr)
 end
 
 # NonlinearExpr 
-function map_expression(transform::Function, nlp::JuMP.NonlinearExpr)
+function map_expression(transform::Function, nlp::JuMP.GenericNonlinearExpr)
     # TODO: Figure out how to make the recursionless code work 
     # stack = Tuple{Vector{Any}, Vector{Any}}[]
-    # new_nlp = JuMP.NonlinearExpr{NewVrefType}(nlp.head, Any[]) # Need to add `NewVrefType` arg throughout pkg
+    # new_nlp = JuMP.GenericNonlinearExpr{NewVrefType}(nlp.head, Any[]) # Need to add `NewVrefType` arg throughout pkg
     # push!(stack, (nlp.args, new_nlp.args))
     # while !isempty(stack)
     #     args, cloned = pop!(stack)
     #     for arg in args
-    #         if arg isa JuMP.NonlinearExpr
-    #             new_expr = JuMP.NonlinearExpr{NewVrefType}(arg.head, Any[])
+    #         if arg isa JuMP.GenericNonlinearExpr
+    #             new_expr = JuMP.GenericNonlinearExpr{NewVrefType}(arg.head, Any[])
     #             push!(stack, (arg.args, new_expr.args))
     #         else
     #             new_expr = map_expression(transform, arg)
@@ -798,7 +798,7 @@ function map_expression(transform::Function, nlp::JuMP.NonlinearExpr)
     #     end
     # end
     # return new_nlp
-    return JuMP.NonlinearExpr(nlp.head, Any[map_expression(transform, arg) for arg in nlp.args])
+    return JuMP.GenericNonlinearExpr(nlp.head, Any[map_expression(transform, arg) for arg in nlp.args])
 end
 
 ################################################################################
@@ -915,7 +915,7 @@ julia> parameter_refs(my_expr)
 ```
 """
 function parameter_refs(
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.NonlinearExpr}
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.GenericNonlinearExpr}
     )
     model = _model_from_expr(expr)
     if isnothing(model)

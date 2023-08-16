@@ -263,7 +263,7 @@ end
         @test value(inf * inf + g - 2, ndarray = true) == [3., -1.]
         @test value(zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) - 42) == -42.
         @test value(sin(g)) == sin(1)
-        @test_throws ErrorException value(NonlinearExpr{GeneralVariableRef}(:sin, Any[0]))
+        @test value(GenericNonlinearExpr{GeneralVariableRef}(:sin, Any[0])) == 0
     end
     # test dual
     @testset "JuMP.dual" begin

@@ -482,7 +482,7 @@ end
     @test isequal_canonical(measure_function(meas1), y + par)
     @test isequal_canonical(jump_function(constraint_object(con1)), y + par)
     @test isequal_canonical(objective_function(m), y + 0)
-    @test isequal_canonical(jump_function(constraint_object(con4)), NonlinearExpr(:-, Any[NonlinearExpr(:sin, Any[0.0]), 0.0]))
+    @test isequal_canonical(jump_function(constraint_object(con4)), GenericNonlinearExpr{GeneralVariableRef}(:-, Any[GenericNonlinearExpr{GeneralVariableRef}(:sin, Any[0.0]), 0.0]))
     @test !is_valid(m, con3)
     @test !haskey(InfiniteOpt._data_dictionary(m, FiniteVariable), JuMP.index(x))
     # test deletion of y

@@ -329,7 +329,7 @@ end
         con = VectorConstraint([sin(z)], MOI.Zeros(1))
         func = [sin(z)]
         set = MOI.Zeros(1)
-        @test_throws ErrorException IOTO._process_constraint(tm, con, func, set, zeros(3), "test2")
+        @test IOTO._process_constraint(tm, con, func, set, zeros(3), "test2") isa ConstraintRef
         # fallback
         @test_throws ErrorException IOTO._process_constraint(tm, :bad, func, set, 
                                                              zeros(3), "bad")

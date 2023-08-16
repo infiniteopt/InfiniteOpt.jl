@@ -129,6 +129,6 @@ function _update_variable_param_refs(vref::InfiniteVariableRef,
     return
 end
 
-function Base.isequal(nlp1::NonlinearExpr, nlp2::NonlinearExpr)
+function Base.isequal(nlp1::GenericNonlinearExpr, nlp2::GenericNonlinearExpr)
     return nlp1.head == nlp2.head && isequal(nlp1.args, nlp2.args)
 end

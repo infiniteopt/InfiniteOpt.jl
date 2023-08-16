@@ -576,7 +576,7 @@ end
 
 # NonlinearExpr (1D DiscreteMeasureData)
 function expand_measure(
-    expr::JuMP.NonlinearExpr,
+    expr::JuMP.GenericNonlinearExpr,
     data::DiscreteMeasureData{GeneralVariableRef, 1},
     write_model::JuMP.AbstractModel
     )
@@ -600,7 +600,7 @@ end
 
 # NonlinearExpr (Multi DiscreteMeasureData)
 function expand_measure(
-    expr::JuMP.NonlinearExpr,
+    expr::JuMP.GenericNonlinearExpr,
     data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2},
     write_model::JuMP.AbstractModel
     )
