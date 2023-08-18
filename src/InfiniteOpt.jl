@@ -32,6 +32,7 @@ include("semi_infinite_variables.jl")
 include("point_variables.jl")
 include("finite_variables.jl")
 include("nlp.jl")
+include("macros.jl")
 include("expressions.jl")
 include("measures.jl")
 
@@ -42,7 +43,7 @@ Reexport.@reexport using .MeasureToolbox
 # import more core methods
 include("derivatives.jl")
 include("constraints.jl")
-include("macros.jl")
+# include("macros.jl")
 include("objective.jl")
 include("measure_expansions.jl")
 include("derivative_evaluations.jl")
