@@ -49,7 +49,7 @@ function JuMP.add_user_defined_function(
     push!(model.registrations, RegisteredFunction(op, dim, funcs...))
     model.func_lookup[op] = (funcs[1], dim)
     # TODO should we set the optimizer model to be out of date?
-    return JuMP.UserDefinedFunction(op)
+    return JuMP.UserDefinedFunction(op, funcs[1])
 end
 
 """
