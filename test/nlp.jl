@@ -74,7 +74,7 @@
             mt = InfiniteModel()
             @variable(mt, x)
             q(a) = 1
-            @test @register(mt, q, 1, q) isa UserDefinedFunction
+            @test @register(mt, my_q, 1, q) isa UserDefinedFunction # TODO update to use same name once JuMP is fixed
             @test @expression(mt, q(x)) isa GenericNonlinearExpr
             return 
         end
@@ -86,12 +86,13 @@
         # test normal 
         m1 = Model()
         @test add_registered_to_jump(m1, m) isa Nothing 
-        # TODO update checks below
-        # r1 = m1.nlp_model.operators
-        # @test length(r1.registered_univariate_operators) == 3
-        # @test [r1.registered_univariate_operators[i].f for i in 1:3] == [f, f1, f2]
-        # @test [r1.registered_univariate_operators[i].f′ for i in 2:3] == [f, f]
-        # @test r1.registered_univariate_operators[3].f′′ == f1
-        # @test length(r1.registered_multivariate_operators) == 2
+        attr_dict = backend(model).model_cache.modattr
+        @test length(attr_dict) == 6
+        @test attr_dict[MOI.UserDefinedFunction(:f1, 1)] == (f,)
+        @test attr_dict[MOI.UserDefinedFunction(:f2, 1)] == (f, f)
+        @test attr_dict[MOI.UserDefinedFunction(:f3, 1)] == (f, f, f)
+        @test attr_dict(MOI.UserDefinedFunction(:h1, 2)) == (h,)
+        @test attr_dict(MOI.UserDefinedFunction(:h2, 2)) == (h, hg)
+        @test attr_dict(MOI.UserDefinedFunction(:h3, 2)) == (h, hg, ∇²h)
     end
 end 
