@@ -1,5 +1,5 @@
 import Pkg
-Pkg.pkg"add JuMP#od/nlp-expr MathOptInterface#od/nlp-expr add Ipopt#od/nlp-expr"
+Pkg.pkg"add JuMP#od/nlp-expr"
 
 using Documenter, InfiniteOpt, Distributions, Literate, Random
 
