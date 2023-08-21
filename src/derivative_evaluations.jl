@@ -231,6 +231,7 @@ function _make_difference_expr(
     return JuMP.GenericAffExpr(0.0, make_reduced_expr(dref, pref, curr_value, write_model) => (next_value - curr_value),
                                 make_reduced_expr(vref, pref, next_value, write_model) => -1,
                                 make_reduced_expr(vref, pref, curr_value, write_model) => 1)
+end
 
 # Central
 function _make_difference_expr(
