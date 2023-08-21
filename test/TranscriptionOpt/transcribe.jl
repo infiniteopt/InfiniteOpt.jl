@@ -243,11 +243,13 @@ end
     @constraint(m, c5, 2z^2 == 0, DomainRestrictions(par => 1))
     @constraint(m, c6, [z, x] in MOI.Zeros(2))
     @constraint(m, c7, sin(z) ^ x == 0)
+    @constraint(m, c8, integral(sin(y), par) == 0)
     tm = transcription_model(m)
     IOTO.set_parameter_supports(tm, m)
     IOTO.transcribe_finite_variables!(tm, m)
     IOTO.transcribe_infinite_variables!(tm, m)
     IOTO.transcribe_point_variables!(tm, m)
+    IOTO.transcribe_measures!(tm, m)
     xt = transcription_variable(x)
     yt = transcription_variable(y)
     x0t = transcription_variable(x0)
@@ -360,6 +362,7 @@ end
         @test length(transcription_constraint(c6)) == 6
         @test moi_set(constraint_object(first(transcription_constraint(c6)))) == MOI.Zeros(2)
         @test length(transcription_constraint(c7)) == 6
+        @test transcription_constraint(c8) isa ConstraintRef
         # test the info constraint supports 
         expected = [([0., 0.], 0.5), ([0., 0.], 1.), ([1., 1.], 0.), ([1., 1.], 0.5), ([1., 1.], 1.)]
         @test sort(supports(LowerBoundRef(x))) == expected
@@ -377,6 +380,7 @@ end
         @test supports(c5) == ()
         @test sort(supports(c6)) == expected
         @test sort(supports(c7)) == expected
+        @test supports(c8) == ()
     end
 end
 

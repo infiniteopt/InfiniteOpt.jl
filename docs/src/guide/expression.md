@@ -167,7 +167,7 @@ object for storing affine expressions.
 
 !!! note
     Where possible, it is preferable to use 
-    [`@expression`](https://jump.dev/JuMP.jl/v1/reference/expressions/#JuMP.@expression) 
+    [`@expression`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@expression) 
     for defining expressions as it is much more efficient than explicitly using 
     the standard operators.
 
@@ -189,7 +189,7 @@ Notice that the ordered dictionary preserves the order in which the variables
 appear in the expression.
 
 More information can be found in the documentation for affine expressions in 
-[`JuMP`](https://jump.dev/JuMP.jl/v1/reference/expressions/#Affine-expressions).
+[`JuMP`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.GenericAffExpr).
 
 ## Quadratic Expressions
 A quadratic function pertains to a mathematical function of the form:
@@ -259,7 +259,7 @@ Notice again that the ordered dictionary preserves the order.
     ```
 
 More information can be found in the documentation for quadratic expressions in 
-[`JuMP`](https://jump.dev/JuMP.jl/v1/reference/expressions/#Quadratic-expressions).
+[`JuMP`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.GenericQuadExpr).
 
 ## [Nonlinear Expressions](@id nlp_guide)
 In this section, we walk you through the ins and out of working with general 
