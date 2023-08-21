@@ -74,7 +74,8 @@
             mt = InfiniteModel()
             @variable(mt, x)
             q(a) = 1
-            @test @register(mt, my_q, 1, q) isa UserDefinedFunction # TODO update to use same name once JuMP is fixed
+            @test @register(mt, my_q, 1, q) isa UserDefinedFunction
+            q(x::JuMP.AbstractJuMPScalar) = GenericNonlinearExpr(:my_q, x)
             @test @expression(mt, q(x)) isa GenericNonlinearExpr
             return 
         end
