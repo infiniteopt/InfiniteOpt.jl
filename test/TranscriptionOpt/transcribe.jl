@@ -324,11 +324,11 @@ end
         con = constraint_object(c7)
         func = jump_function(con)
         set = moi_set(con)
-        expected = Sys.iswindows() ? "subexpression[1] - 0.0 == 0" : "subexpression[1] - 0.0 = 0"
+        expected = Sys.iswindows() ? "subexpression[2] - 0.0 == 0" : "subexpression[2] - 0.0 = 0"
         @test sprint(show, IOTO._process_constraint(tm, con, func, set, zeros(3), "test1")) == expected
-        expected = ["subexpression[1]: sin(z) ^ x(support: 1) - 0.0", 
-                    "subexpression[1]: sin(z) ^ x(support: 2) - 0.0"]
-        @test sprint(show, NonlinearExpression(tm, 1)) in expected
+        expected = ["subexpression[2]: sin(z) ^ x(support: 1) - 0.0", 
+                    "subexpression[2]: sin(z) ^ x(support: 2) - 0.0"]
+        @test sprint(show, NonlinearExpression(tm, 2)) in expected
         tm.nlp_model = nothing
         # vector constraint 
         con = constraint_object(c6)
@@ -374,7 +374,7 @@ end
         @test length(transcription_constraint(c6)) == 6
         @test moi_set(constraint_object(first(transcription_constraint(c6)))) == MOI.Zeros(2)
         @test length(transcription_constraint(c7)) == 6
-        @test length(transcription_constraint(c8)) == 1
+        @test transcription_constraint(c8) isa NonlinearConstraintRef
         @test length(keys(tm.nlp_model.constraints)) == 7
         @test length(tm.nlp_model.expressions) == 7
         # test the info constraint supports 
