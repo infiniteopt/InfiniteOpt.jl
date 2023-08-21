@@ -20,7 +20,7 @@ implement these types of constraints in `InfiniteOpt`.
 
 ## Basic Usage
 Principally, the 
-[`@constraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.@constraint) 
+[`@constraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@constraint) 
 macro is used to define constraints. First, let's set up an infinite model with 
 variables that we can add constraints to:
 ```jldoctest constrs; setup = :(using InfiniteOpt)
@@ -145,13 +145,13 @@ set. This leads to the following data structures:
 
 | Constraint Type | Function Type                       | Set Type                                                                                                                            |
 |:---------------:|:-----------------------------------:|:-----------------------------------------------------------------------------------------------------------------------------------:|
-| Scalar          | `JuMP.AbstractJuMPScalar`           | [`MOI.AbstractScalarSet`](https://jump.dev/MathOptInterface.jl/v0.9.22/reference/standard_form/#MathOptInterface.AbstractScalarSet) |
-| Vector          | `Vector{<:JuMP.AbstractJuMPScalar}` | [`MOI.AbstractVectorSet`](https://jump.dev/MathOptInterface.jl/v0.9.22/reference/standard_form/#MathOptInterface.AbstractVectorSet) |
-| Matrix          | `Matrix{<:JuMP.AbstractJuMPScalar}` | `MOI.AbstractVectorSet` [via vectorization](https://jump.dev/MathOptInterface.jl/v0.9.22/reference/standard_form/#Matrix-sets)      |
+| Scalar          | `JuMP.AbstractJuMPScalar`           | [`MOI.AbstractScalarSet`](https://jump.dev/MathOptInterface.jl/v1/reference/standard_form/#MathOptInterface.AbstractScalarSet) |
+| Vector          | `Vector{<:JuMP.AbstractJuMPScalar}` | [`MOI.AbstractVectorSet`](https://jump.dev/MathOptInterface.jl/v1/reference/standard_form/#MathOptInterface.AbstractVectorSet) |
+| Matrix          | `Matrix{<:JuMP.AbstractJuMPScalar}` | `MOI.AbstractVectorSet` [via vectorization](https://jump.dev/MathOptInterface.jl/v1/reference/standard_form/#Matrix-sets)      |
 
 The above combos are then stored in 
-[`JuMP.ScalarConstraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.ScalarConstraint)s 
-and [`JuMP.VectorConstraint](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.VectorConstraint)s. 
+[`JuMP.ScalarConstraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.ScalarConstraint)s 
+and [`JuMP.VectorConstraint](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.VectorConstraint)s. 
 
 Restricted constraints are built upon this data structure where the underlying 
 constraint is created in the same manner. Then the specified 
@@ -196,12 +196,12 @@ c3 : -yb(t)² + 3 ya(t, x) ≤ 0, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ 
 Thus, we have made our constraint and added it `model` and now have a constraint 
 reference `cref` that we can use to access it.
 
-The [`@constraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.@constraint) 
+The [`@constraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@constraint) 
 macro automate the above steps.
 
 ### Macro Definition
 As mentioned above in the Basic Usage section, the 
-[`@constraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.@constraint) 
+[`@constraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@constraint) 
 macro should be used to define constraints with the syntax: 
 `@constraint(model::InfiniteModel, [container/name_expr], constr_expr, [rs::DomainRestrictions])`.
 

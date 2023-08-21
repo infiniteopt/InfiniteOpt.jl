@@ -51,7 +51,7 @@ Now that the model has been optimized, let's find out what happened. To determin
 why the optimizer stopped, we can use 
 [`termination_status`](@ref) to report the corresponding `MathOptInterface` 
 termination code (possible codes are explained 
-[here](https://jump.dev/JuMP.jl/v1/reference/solutions/#MathOptInterface.TerminationStatusCode).
+[here](https://jump.dev/JuMP.jl/v1/api/JuMP/#MathOptInterface.TerminationStatusCode).
 ```jldoctest results
 julia> termination_status(model)
 LOCALLY_SOLVED::TerminationStatusCode = 4
@@ -67,7 +67,7 @@ FEASIBLE_POINT::ResultStatusCode = 1
 julia> dual_status(model)
 FEASIBLE_POINT::ResultStatusCode = 1
 ```
-The possible statuses are detailed [here](https://jump.dev/JuMP.jl/v1/reference/solutions/#MathOptInterface.ResultStatusCode). 
+The possible statuses are detailed [here](https://jump.dev/JuMP.jl/v1/api/JuMP/#MathOptInterface.ResultStatusCode). 
 These results are useful in knowing if information can be drawn from the primal 
 and/or dual and what it means. We can also verify that we indeed have answers 
 via [`has_values`](@ref) which indicates if our model has optimized variable 

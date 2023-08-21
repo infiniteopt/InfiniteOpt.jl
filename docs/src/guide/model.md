@@ -5,7 +5,7 @@ respective [technical manual](@ref infinite_model_manual) for more details.
 ## Overview
 Infinite models are expressed via the [`InfiniteModel`](@ref) datatype which is at the
 core of `InfiniteOpt`. These model objects are designed to emulate the behavior
-of [`Model`](https://jump.dev/JuMP.jl/v1/reference/models/#JuMP.Model) 
+of [`Model`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.Model) 
 objects in `JuMP`. These data objects store the parameters, variables,
 measures, objective, constraints, and all other data used in `InfiniteOpt`. This
 differs from `JuMP` models which store such information in a `MathOptInterface`
@@ -59,7 +59,7 @@ supported for use in `InfiniteOpt`. For completeness, the table of currently
 supported optimizers is provided below in [Supported Optimizers](@ref).
 
 We can also specify optimizer attributes via
-[`optimizer_with_attributes`](https://jump.dev/JuMP.jl/v1/reference/models/#JuMP.optimizer_with_attributes)
+[`optimizer_with_attributes`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.optimizer_with_attributes)
 which allows us to append as many attributes as we like, for example:
 ```jldoctest
 julia> using InfiniteOpt, Ipopt
@@ -169,5 +169,5 @@ y(t)
 Note that when macro defined objects are deleted from an `InfiniteModel` that the 
 corresponding symbols in the object dictionary are not removed by default. This 
 can be accomplished by use of 
-[`JuMP.unregister`](https://jump.dev/JuMP.jl/v1/reference/models/#JuMP.unregister) 
+[`JuMP.unregister`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.unregister) 
 (please click on its link for usage information).
