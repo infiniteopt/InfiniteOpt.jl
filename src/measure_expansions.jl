@@ -499,7 +499,7 @@ function expand_measure(expr::JuMP.GenericAffExpr{C, GeneralVariableRef},
     constant_coef = sum(coeffs[i] * w(supps[i]) for i in eachindex(coeffs))
     new_ex = @_expr(sum(coef * expand_measure(var, data, write_model)
                 for (var, coef) in expr.terms) + expr.constant * constant_coef)
-    return JuMP.flatten(new_ex) # just in case we have nested measures producing a NonlinearExpr
+    return JuMP.flatten!(new_ex) # just in case we have nested measures producing a NonlinearExpr
 end
 
 # GenericAffExpr (Multi DiscreteMeasureData)
@@ -515,7 +515,7 @@ function expand_measure(expr::JuMP.GenericAffExpr{C, GeneralVariableRef},
     constant_coef = sum(coeffs[i] * w(supps[:, i]) for i in eachindex(coeffs))
     new_ex = @_expr(sum(coef * expand_measure(var, data, write_model)
                 for (var, coef) in expr.terms) + expr.constant * constant_coef)
-    return JuMP.flatten(new_ex) # just in case we have nested measures producing a NonlinearExpr
+    return JuMP.flatten!(new_ex) # just in case we have nested measures producing a NonlinearExpr
 end
 
 # GenericQuadExpr (1D DiscreteMeasureData)
@@ -541,7 +541,7 @@ function expand_measure(
                         _map_variable(p.b, simple_data, supps[i], write_model) 
                         for (p, c) in expr.terms) for i in eachindex(coeffs)) + 
                         expand_measure(expr.aff, data, write_model))
-    return JuMP.flatten(new_ex) # just in case we have nested measures producing a NonlinearExpr
+    return JuMP.flatten!(new_ex) # just in case we have nested measures producing a NonlinearExpr
 end
 
 # GenericQuadExpr(Multi DiscreteMeasureData)
@@ -567,7 +567,7 @@ function expand_measure(
                         _map_variable(p.b, simple_data, @view(supps[:, i]), write_model) 
                         for (p, c) in expr.terms) for i in eachindex(coeffs)) + 
                         expand_measure(expr.aff, data, write_model))
-    return JuMP.flatten(new_ex) # just in case we have nested measures producing a NonlinearExpr
+    return JuMP.flatten!(new_ex) # just in case we have nested measures producing a NonlinearExpr
 end
 
 # NonlinearExpr (1D DiscreteMeasureData)
@@ -591,7 +591,7 @@ function expand_measure(
     new_ex = sum(coeffs[i] * w(supps[i]) * 
             map_expression(v -> _map_variable(v, simple_data, supps[i], write_model), expr) 
             for i in eachindex(supps))
-    return JuMP.flatten(new_ex) # make expression flat over summation
+    return JuMP.flatten!(new_ex) # make expression flat over summation
 end
 
 # NonlinearExpr (Multi DiscreteMeasureData)
@@ -615,7 +615,7 @@ function expand_measure(
     new_ex = sum(coeffs[i] * w(@view(supps[:, i])) * 
             map_expression(v -> _map_variable(v, simple_data, @view(supps[:, i]), write_model), expr) 
             for i in eachindex(coeffs))
-    return JuMP.flatten(new_ex) # make expression flat over summation
+    return JuMP.flatten!(new_ex) # make expression flat over summation
 end
 
 
