@@ -6,11 +6,6 @@
 A `JuMP` extension for expressing and solving infinite-dimensional optimization 
 problems.
 
-!!! note
-    `InfiniteOpt v0.5` introduces general nonlinear modeling to `InfiniteOpt`! 
-    Thus, the possibilities for applications is vast. Please see 
-    [Nonlinear Expressions](@ref nlp_guide) for more information.
-
 ## What is InfiniteOpt?
 `InfiniteOpt.jl` provides a general mathematical abstraction to express and solve 
 infinite-dimensional optimization problems (i.e., problems with decision 
@@ -79,7 +74,7 @@ capabilities from JuliaCon 2021 (note that nonlinear support has since been adde
 `InfiniteOpt.jl` is a registered `Julia` package and can be added simply by 
 inputting the following in the package manager:
 ```julia
-(v1.8) pkg> add InfiniteOpt
+(v1.9) pkg> add InfiniteOpt
 ```
 Please visit our [Installation Guide](@ref) for more details and information
 on how to get started.
