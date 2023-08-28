@@ -20,7 +20,7 @@ implement these types of constraints in `InfiniteOpt`.
 
 ## Basic Usage
 Principally, the 
-[`@constraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.@constraint) 
+[`@constraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@constraint) 
 macro is used to define constraints. First, let's set up an infinite model with 
 variables that we can add constraints to:
 ```jldoctest constrs; setup = :(using InfiniteOpt)
@@ -55,7 +55,7 @@ the constraint
 using `@constraint`:
 ```jldoctest constrs
 julia> @constraint(model, c1, sum(z[i]^2 for i = 1:2) + 2ya <= 0)
-c1 : z[1]² + z[2]² + 2 ya(t, x) ≤ 0.0, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [-2, 2]
+c1 : z[1]² + z[2]² + 2 ya(t, x) ≤ 0, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [-2, 2]
 ```
 Thus, we added an infinite constraint (which infinite with respect to `t` and `x`) 
 to `model` and stored the corresponding constraint reference to `c1`. Note that  
@@ -75,8 +75,8 @@ let's define ``3z_i - 14 = 0, \ \forall i \in \{1,2\}``:
 ```jldoctest constrs
 julia> @constraint(model, c2[i = 1:2], 3z[i] - 14 == 0)
 2-element Vector{InfOptConstraintRef}:
- c2[1] : 3 z[1] = 14.0
- c2[2] : 3 z[2] = 14.0
+ c2[1] : 3 z[1] = 14
+ c2[2] : 3 z[2] = 14
 ```
 Thus, we added two constraints to `model` and stored a vector of the corresponding 
 constraint references to the `Julia` variable `c2`. To learn more about building 
@@ -113,7 +113,7 @@ These types of constraints are defined adding [`DomainRestrictions`](@ref). For
 example, let's add the initial condition ``y_b(0) = 0``:
 ```jldoctest constrs
 julia> @constraint(model, initial, yb == 0, DomainRestrictions(t => 0))
-initial : yb(t) = 0.0, ∀ t = 0
+initial : yb(t) = 0, ∀ t = 0
 ```
 Thus, we have added a constraint to `model` defined over the sub-domain ``t = 0`` 
 in accordance with the initial condition.
@@ -124,7 +124,7 @@ in accordance with the initial condition.
     can be expressed:
     ```jldoctest constrs
     julia> @constraint(model, yb(0) == 0)
-    yb(0) = 0.0
+    yb(0) = 0
     ```
 
 More complex sub-domains can be specified by simply adding more restrictions. To 
@@ -132,7 +132,7 @@ illustrate this, let's define the constraint
 ``2y_b^2(t, x) + z_1 \geq 3, \ \forall t = 0, \ x \in [-1, 1]^2``:
 ```jldoctest constrs
 julia> @constraint(model, 2ya^2 + z[1] >= 3, DomainRestrictions(t => 0, x => [-1, 1]))
-2 ya(t, x)² + z[1] ≥ 3.0, ∀ t = 0, x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
+2 ya(t, x)² + z[1] ≥ 3, ∀ t = 0, x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
 ```
 
 Now we have added constraints to our model, and it is ready to be solved!
@@ -145,13 +145,13 @@ set. This leads to the following data structures:
 
 | Constraint Type | Function Type                       | Set Type                                                                                                                            |
 |:---------------:|:-----------------------------------:|:-----------------------------------------------------------------------------------------------------------------------------------:|
-| Scalar          | `JuMP.AbstractJuMPScalar`           | [`MOI.AbstractScalarSet`](https://jump.dev/MathOptInterface.jl/v0.9.22/reference/standard_form/#MathOptInterface.AbstractScalarSet) |
-| Vector          | `Vector{<:JuMP.AbstractJuMPScalar}` | [`MOI.AbstractVectorSet`](https://jump.dev/MathOptInterface.jl/v0.9.22/reference/standard_form/#MathOptInterface.AbstractVectorSet) |
-| Matrix          | `Matrix{<:JuMP.AbstractJuMPScalar}` | `MOI.AbstractVectorSet` [via vectorization](https://jump.dev/MathOptInterface.jl/v0.9.22/reference/standard_form/#Matrix-sets)      |
+| Scalar          | `JuMP.AbstractJuMPScalar`           | [`MOI.AbstractScalarSet`](https://jump.dev/MathOptInterface.jl/v1/reference/standard_form/#MathOptInterface.AbstractScalarSet) |
+| Vector          | `Vector{<:JuMP.AbstractJuMPScalar}` | [`MOI.AbstractVectorSet`](https://jump.dev/MathOptInterface.jl/v1/reference/standard_form/#MathOptInterface.AbstractVectorSet) |
+| Matrix          | `Matrix{<:JuMP.AbstractJuMPScalar}` | `MOI.AbstractVectorSet` [via vectorization](https://jump.dev/MathOptInterface.jl/v1/reference/standard_form/#Matrix-sets)      |
 
 The above combos are then stored in 
-[`JuMP.ScalarConstraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.ScalarConstraint)s 
-and [`JuMP.VectorConstraint](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.VectorConstraint)s. 
+[`JuMP.ScalarConstraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.ScalarConstraint)s 
+and [`JuMP.VectorConstraint](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.VectorConstraint)s. 
 
 Restricted constraints are built upon this data structure where the underlying 
 constraint is created in the same manner. Then the specified 
@@ -190,18 +190,18 @@ Now the built constraint object can be added to the infinite model via
 `c3` (note that adding a name is optional):
 ```jldoctest constrs
 julia> cref = add_constraint(model, constr, "c3")
-c3 : -yb(t)² + 3 ya(t, x) ≤ 0.0, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [-2, 2]
+c3 : -yb(t)² + 3 ya(t, x) ≤ 0, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [-2, 2]
 ```
 
 Thus, we have made our constraint and added it `model` and now have a constraint 
 reference `cref` that we can use to access it.
 
-The [`@constraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.@constraint) 
+The [`@constraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@constraint) 
 macro automate the above steps.
 
 ### Macro Definition
 As mentioned above in the Basic Usage section, the 
-[`@constraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.@constraint) 
+[`@constraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@constraint) 
 macro should be used to define constraints with the syntax: 
 `@constraint(model::InfiniteModel, [container/name_expr], constr_expr, [rs::DomainRestrictions])`.
 
@@ -213,8 +213,8 @@ below (notice this is equivalent to looping over individual `@constraint` calls)
 ```jldoctest constrs
 julia> crefs = @constraint(model, [i = 1:2], 2z[i] - yb == 0)
 2-element Vector{InfOptConstraintRef}:
- 2 z[1] - yb(t) = 0.0, ∀ t ∈ [0, 10]
- 2 z[2] - yb(t) = 0.0, ∀ t ∈ [0, 10]
+ 2 z[1] - yb(t) = 0, ∀ t ∈ [0, 10]
+ 2 z[2] - yb(t) = 0, ∀ t ∈ [0, 10]
 
 julia> crefs = Vector{InfOptConstraintRef}(undef, 2);
 
@@ -224,8 +224,8 @@ julia> for i = 1:2
 
 julia> crefs
 2-element Vector{InfOptConstraintRef}:
- 2 z[1] - yb(t) = 0.0, ∀ t ∈ [0, 10]
- 2 z[2] - yb(t) = 0.0, ∀ t ∈ [0, 10]
+ 2 z[1] - yb(t) = 0, ∀ t ∈ [0, 10]
+ 2 z[2] - yb(t) = 0, ∀ t ∈ [0, 10]
 ```
 Please refer to 
 [`JuMP`'s constraint container documentation](https://jump.dev/JuMP.jl/v1/manual/constraints/#Constraint-containers) 
@@ -265,8 +265,8 @@ restrict the infinite domain of ``x_i`` to be ``[0, 1]``:
  ```jldoctest constrs
 julia> @constraint(model, [i = 1:2], ya^2 + z[i] <= 1, DomainRestrictions(x[i] => [0, 1]))
 2-element Vector{InfOptConstraintRef}:
- ya(t, x)² + z[1] ≤ 1.0, ∀ t ∈ [0, 10], x[1] ∈ [0, 1], x[2] ∈ [-2, 2]
- ya(t, x)² + z[2] ≤ 1.0, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [0, 1]
+ ya(t, x)² + z[1] ≤ 1, ∀ t ∈ [0, 10], x[1] ∈ [0, 1], x[2] ∈ [-2, 2]
+ ya(t, x)² + z[2] ≤ 1, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [0, 1]
 ```
 
 !!! tip
@@ -307,7 +307,7 @@ if only the name is known and its name is unique. For example, let's extract the
 reference for `"c1"`:
 ```jldoctest constrs
 julia> cref = constraint_by_name(model, "c1")
-c1 : z[1]² + z[2]² + 2 ya(t, x) ≤ 0.0, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [-2, 2]
+c1 : z[1]² + z[2]² + 2 ya(t, x) ≤ 0, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [-2, 2]
 ```
 
 ### Domain Restrictions
@@ -340,7 +340,7 @@ particular variable reference, respectively. Let's employ the above example to
 illustrate this:
 ```jldoctest constrs
 julia> @constraint(model, constr, 2yb + 3yb - 2 <= 1 + z[1])
-constr : 5 yb(t) - z[1] ≤ 3.0, ∀ t ∈ [0, 10]
+constr : 5 yb(t) - z[1] ≤ 3, ∀ t ∈ [0, 10]
 
 julia> normalized_rhs(constr)
 3.0
@@ -412,7 +412,7 @@ let's update the name of `initial` to `"init_cond"`:
 julia> set_name(initial, "init_cond")
 
 julia> initial
-init_cond : yb(t) = 0.0, ∀ t = 0
+init_cond : yb(t) = 0, ∀ t = 0
 ```
 
 We can also update the normalized right hand side constant value or normalized 
@@ -426,7 +426,7 @@ julia> set_normalized_rhs(constr, -1)
 julia> set_normalized_coefficient(constr, yb, 2.5)
 
 julia> constr
-constr : 2.5 yb(t) - z[1] ≤ -1.0, ∀ t ∈ [0, 10]
+constr : 2.5 yb(t) - z[1] ≤ -1, ∀ t ∈ [0, 10]
 ```
 
 !!! note
@@ -453,7 +453,7 @@ First, domain restrictions can be added to a constraint via
 julia> add_domain_restrictions(constr, DomainRestrictions(t => [0, 1]))
 
 julia> constr
-constr : 2.5 yb(t) - z[1] ≤ -1.0, ∀ t ∈ [0, 1]
+constr : 2.5 yb(t) - z[1] ≤ -1, ∀ t ∈ [0, 1]
 ```
 
 In similar manner, [`set_domain_restrictions`](@ref) can be employed to specify 
@@ -463,7 +463,7 @@ follows the same syntax, so let's use it to change the bounds on `t` to ``t = 0`
 julia> set_domain_restrictions(constr, DomainRestrictions(t => 0), force = true)
 
 julia> constr
-constr : 2.5 yb(t) - z[1] ≤ -1.0, ∀ t = 0
+constr : 2.5 yb(t) - z[1] ≤ -1, ∀ t = 0
 ```
 
 Finally, constraint restrictions can be deleted via 
@@ -473,5 +473,5 @@ associated with our example:
 julia> delete_domain_restrictions(constr)
 
 julia> constr
-constr : 2.5 yb(t) - z[1] ≤ -1.0, ∀ t ∈ [0, 10]
+constr : 2.5 yb(t) - z[1] ≤ -1, ∀ t ∈ [0, 10]
 ```

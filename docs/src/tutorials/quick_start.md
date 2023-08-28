@@ -113,7 +113,7 @@ derivative methods on our [Derivative Operators](@ref deriv_docs) page.
 Now that we have an `InfiniteModel` and infinite parameters let's define our 
 decision variables. First, infinite variables (ones that depend on infinite 
 parameters) are defined via 
-[`@variable`](https://jump.dev/JuMP.jl/v1/reference/variables/#JuMP.@variable) 
+[`@variable`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@variable) 
 with the addition of the [`Infinite`](@ref) variable type argument to specify the 
 infinite parameters it depends on:
  ```jldoctest quick
@@ -162,7 +162,7 @@ That does it for this example, but other problems might also employ the followin
 ### Objective & Constraints 
 Now that the variables and parameters are ready to go, let's define our problem. 
 First, we can define the objective using 
-[`@objective`](https://jump.dev/JuMP.jl/v1/reference/objectives/#JuMP.@objective):
+[`@objective`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@objective):
  ```jldoctest quick
 julia> @objective(model, Min, integral(sum(u[i]^2 for i in I), t))
 ∫{t ∈ [0, 60]}[u[1](t)² + u[2](t)²]
@@ -171,7 +171,7 @@ Notice that we also employ [`integral`](@ref) to define the integral. Note that
 objectives must evaluate over all included infinite domains. 
 
 Now let's define the initial conditions using 
-[`@constraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.@constraint) 
+[`@constraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@constraint) 
 in combination with [Restricted Variables](@ref) which will restrict the domain 
 of the variables to only be enforced at the initial time:
  ```jldoctest quick
@@ -179,37 +179,37 @@ julia> @constraint(model, [i in I], x[i](0, ξ) == x0[i])
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Vector{InfOptConstraintRef}:
- x[1](0, ξ) = 0.0, ∀ ξ ~ Normal
- x[2](0, ξ) = 0.0, ∀ ξ ~ Normal
+ x[1](0, ξ) = 0, ∀ ξ ~ Normal
+ x[2](0, ξ) = 0, ∀ ξ ~ Normal
 
 julia> @constraint(model, [i in I], v[i](0, ξ) == v0[i])
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Vector{InfOptConstraintRef}:
- v[1](0, ξ) = 0.0, ∀ ξ ~ Normal
- v[2](0, ξ) = 0.0, ∀ ξ ~ Normal
+ v[1](0, ξ) = 0, ∀ ξ ~ Normal
+ v[2](0, ξ) = 0, ∀ ξ ~ Normal
 ```
 Note it is important that we include appropriate boundary conditions when using 
 derivatives in our model. For more information please see 
 [Derivative Operators](@ref deriv_docs).
 
 Next, we can add our model constraints that have derivatives using 
-[`@constraint`](https://jump.dev/JuMP.jl/v1/reference/constraints/#JuMP.@constraint) 
+[`@constraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@constraint) 
 and [`deriv`](@ref):
  ```jldoctest quick
 julia> @constraint(model, c1[i in I], deriv(x[i], t) == v[i])
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Vector{InfOptConstraintRef}:
- c1[1] : ∂/∂t[x[1](t, ξ)] - v[1](t, ξ) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
- c1[2] : ∂/∂t[x[2](t, ξ)] - v[2](t, ξ) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
+ c1[1] : ∂/∂t[x[1](t, ξ)] - v[1](t, ξ) = 0, ∀ t ∈ [0, 60], ξ ~ Normal
+ c1[2] : ∂/∂t[x[2](t, ξ)] - v[2](t, ξ) = 0, ∀ t ∈ [0, 60], ξ ~ Normal
 
 julia> @constraint(model, c2[i in I], ξ * deriv(v[i], t) == u[i])
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Vector{InfOptConstraintRef}:
- c2[1] : ξ*∂/∂t[v[1](t, ξ)] - u[1](t) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
- c2[2] : ξ*∂/∂t[v[2](t, ξ)] - u[2](t) = 0.0, ∀ t ∈ [0, 60], ξ ~ Normal
+ c2[1] : ξ*∂/∂t[v[1](t, ξ)] - u[1](t) = 0, ∀ t ∈ [0, 60], ξ ~ Normal
+ c2[2] : ξ*∂/∂t[v[2](t, ξ)] - u[2](t) = 0, ∀ t ∈ [0, 60], ξ ~ Normal
 ```
 
 Finally, we can define our last 2 constraints:
@@ -218,13 +218,13 @@ julia> @constraint(model, c3[w in W], y[w] == sum((x[i](tw[w], ξ) - p[i, w])^2 
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
     Dimension 1, 1:4
 And data, a 4-element Vector{InfOptConstraintRef}:
- c3[1] : -x[1](0, ξ)² - x[2](0, ξ)² + y[1](ξ) + 2 x[1](0, ξ) + 2 x[2](0, ξ) = 2.0, ∀ ξ ~ Normal
- c3[2] : -x[1](25, ξ)² - x[2](25, ξ)² + y[2](ξ) + 8 x[1](25, ξ) + 6 x[2](25, ξ) = 25.0, ∀ ξ ~ Normal
- c3[3] : -x[1](50, ξ)² - x[2](50, ξ)² + y[3](ξ) + 12 x[1](50, ξ) = 36.0, ∀ ξ ~ Normal
- c3[4] : -x[1](60, ξ)² - x[2](60, ξ)² + y[4](ξ) + 2 x[1](60, ξ) + 2 x[2](60, ξ) = 2.0, ∀ ξ ~ Normal
+ c3[1] : -x[1](0, ξ)² - x[2](0, ξ)² + y[1](ξ) + 2 x[1](0, ξ) + 2 x[2](0, ξ) = 2, ∀ ξ ~ Normal
+ c3[2] : -x[1](25, ξ)² - x[2](25, ξ)² + y[2](ξ) + 8 x[1](25, ξ) + 6 x[2](25, ξ) = 25, ∀ ξ ~ Normal
+ c3[3] : -x[1](50, ξ)² - x[2](50, ξ)² + y[3](ξ) + 12 x[1](50, ξ) = 36, ∀ ξ ~ Normal
+ c3[4] : -x[1](60, ξ)² - x[2](60, ξ)² + y[4](ξ) + 2 x[1](60, ξ) + 2 x[2](60, ξ) = 2, ∀ ξ ~ Normal
 
 julia> @constraint(model, c4, expect(sum(y[w] for w in W), ξ) <= ϵ)
-c4 : 𝔼{ξ}[y[1](ξ) + y[2](ξ) + y[3](ξ) + y[4](ξ)] - ϵ ≤ 0.0
+c4 : 𝔼{ξ}[y[1](ξ) + y[2](ξ) + y[3](ξ) + y[4](ξ)] - ϵ ≤ 0
 ```
 Notice we are able to invoke an expectation simply by calling [`expect`](@ref).
 

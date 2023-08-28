@@ -681,22 +681,6 @@ function _support_in_restrictions(
     return true
 end
 
-## Process constraint objects at a particular support value and make the new 
-## transcribed version
-# JuMP.ScalarConstraint
-function _process_constraint(
-    trans_model::JuMP.Model, 
-    constr::JuMP.ScalarConstraint, 
-    func::JuMP.AbstractJuMPScalar, 
-    set::MOI.AbstractScalarSet, 
-    raw_supp::Vector{Float64}, 
-    name::String
-    )
-    new_func = transcription_expression(trans_model, func, raw_supp)
-    trans_constr = JuMP.build_constraint(error, new_func, set)
-    return JuMP.add_constraint(trans_model, trans_constr, name)
-end
-
 # MOI.LessThan expr 
 function _make_constr_ast(ref, set::MOI.LessThan)
     return :($ref <= $(set.upper))
@@ -724,6 +708,34 @@ function _make_constr_ast(ref, set)
           "is not yet supported by JuMP.")
 end
 
+## Helper for adding constrints correctly via dispatch
+# New function is NonlinearExpression
+function _add_constraint(model, func::JuMP.NonlinearExpression, set, name)
+    return JuMP.add_nonlinear_constraint(model, _make_constr_ast(func, set))
+end
+
+# New expression is not nonlinear
+function _add_constraint(model, func::JuMP.AbstractJuMPScalar, set, name)
+    trans_constr = JuMP.build_constraint(error, func, set)
+    return JuMP.add_constraint(model, trans_constr, name)
+end
+
+
+## Process constraint objects at a particular support value and make the new 
+## transcribed version
+# JuMP.ScalarConstraint
+function _process_constraint(
+    trans_model::JuMP.Model, 
+    constr::JuMP.ScalarConstraint, 
+    func::JuMP.AbstractJuMPScalar, 
+    set::MOI.AbstractScalarSet, 
+    raw_supp::Vector{Float64}, 
+    name::String
+    )
+    new_func = transcription_expression(trans_model, func, raw_supp)
+    return _add_constraint(trans_model, new_func, set, name)
+end
+
 # JuMP.ScalarConstraint with NLPExpr
 function _process_constraint(
     trans_model::JuMP.Model, 
@@ -734,7 +746,7 @@ function _process_constraint(
     name::String
     )
     nlp_ref = transcription_expression(trans_model, func, raw_supp)
-    return JuMP.add_nonlinear_constraint(trans_model, _make_constr_ast(nlp_ref, set))
+    return _add_constraint(trans_model, nlp_ref, set, name)
 end
 
 # JuMP.VectorConstraint

@@ -30,7 +30,7 @@ following table:
 | Finite        | NA                     | classical decision variables           | ``z``                  |
 
 Infinite, semi-infinite, point, and finite variables are defined via 
-[`@variable`](https://jump.dev/JuMP.jl/v1/reference/variables/#JuMP.@variable) 
+[`@variable`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@variable) 
 (inherited from `JuMP`) with their respective variable type 
 object arguments: [`Infinite`](@ref), [`SemiInfinite`](@ref), and [`Point`](@ref) 
 (finite variables don't use a variable type object).
@@ -221,7 +221,7 @@ of [`DispatchVariableRef`](@ref)s is discussed on the [Expressions](@ref expr_do
 page.
 
 ## Macro Variable Definition
-The [`@variable`](https://jump.dev/JuMP.jl/v1/reference/variables/#JuMP.@variable) 
+The [`@variable`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@variable) 
 macro automates the variable definition process discussed above in the 
 [Variable Definition Methodology](@ref) section via a straightforward symbolic 
 syntax. The only key difference is that non-anonymous macro calls will register 
@@ -235,7 +235,7 @@ the details of using this macro which is the recommended way to define variables
     accommodate our additional variable types.
 
 We directly build upon 
-[`JuMP.@variable`](https://jump.dev/JuMP.jl/v1/reference/variables/#JuMP.@variable) 
+[`JuMP.@variable`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@variable) 
 to create all of our decision variable types. To illustrate this via example, 
 let's setup a model with a variety of infinite parameters ``t \in [0,10]``, 
 ``x \in [-1, 1]^3``, and ``\xi \in \mathcal{N}(0, 1)``:
@@ -706,7 +706,7 @@ such constraint exists). For example, the upper bound constraint of `y_bd` can b
 obtained via [`UpperBoundRef`](@ref JuMP.UpperBoundRef(::UserDecisionVariableRef)):
 ```jldoctest var_macro
 julia> UpperBoundRef(y_bd)
-y_bd(t, x) ≤ 10.0, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] ∈ [-1, 1]
+y_bd(t, x) ≤ 10, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] ∈ [-1, 1]
 ```
 The other methods are [`LowerBoundRef`](@ref JuMP.LowerBoundRef(::UserDecisionVariableRef)),
 [`FixRef`](@ref JuMP.FixRef(::UserDecisionVariableRef)),

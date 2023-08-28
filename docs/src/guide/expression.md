@@ -55,7 +55,7 @@ julia> meas = integral(y - f, t)
 ∫{t ∈ [0, 10]}[y(t) - f(t)]
 
 julia> @constraint(model, y - f <= 0)
-y(t) - f(t) ≤ 0.0, ∀ t ∈ [0, 10]
+y(t) - f(t) ≤ 0, ∀ t ∈ [0, 10]
 ```
 We can also define parameter functions that depend on multiple infinite 
 parameters even use an anonymous function if preferred:
@@ -166,7 +166,7 @@ object for storing affine expressions.
 
 !!! note
     Where possible, it is preferable to use 
-    [`@expression`](https://jump.dev/JuMP.jl/v1/reference/expressions/#JuMP.@expression) 
+    [`@expression`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@expression) 
     for defining expressions as it is much more efficient than explicitly using 
     the standard operators.
 
@@ -188,7 +188,7 @@ Notice that the ordered dictionary preserves the order in which the variables
 appear in the expression.
 
 More information can be found in the documentation for affine expressions in 
-[`JuMP`](https://jump.dev/JuMP.jl/v1/reference/expressions/#Affine-expressions).
+[`JuMP`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.GenericAffExpr).
 
 ## Quadratic Expressions
 A quadratic function pertains to a mathematical function of the form:
@@ -246,7 +246,7 @@ Notice again that the ordered dictionary preserves the order.
     x
 
     julia> @constraint(model, x == z^2)
-    -z² + x = 0.0
+    -z² + x = 0
 
     julia> expr = @expression(model, z * x + 2)
     z*x + 2
@@ -258,7 +258,7 @@ Notice again that the ordered dictionary preserves the order.
     ```
 
 More information can be found in the documentation for quadratic expressions in 
-[`JuMP`](https://jump.dev/JuMP.jl/v1/reference/expressions/#Quadratic-expressions).
+[`JuMP`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.GenericQuadExpr).
 
 ## [Nonlinear Expressions](@id nlp_guide)
 General nonlinear expressions as generated via `JuMP.@NLexpression`, 
@@ -316,7 +316,7 @@ julia> @objective(model, Min, ∫(0.3^cos(y^2), t))
 ∫{t ∈ [0, 1]}[0.3^cos(y(t)²)]
 
 julia> @constraint(model, constr, y^y * sin(y) + sum(y^i for i in 3:4) == 3)
-constr : (y(t)^y(t) * sin(y(t)) + y(t)^3 + y(t)^4) - 3 = 0.0, ∀ t ∈ [0, 1]
+constr : (y(t)^y(t) * sin(y(t)) + y(t)^3 + y(t)^4) - 3 = 0, ∀ t ∈ [0, 1]
 ```
 
 !!! note
@@ -442,8 +442,8 @@ julia> @variable(model, W[1:2, 1:2]);
 
 julia> @constraint(model, W * Q * v .== 0)
 2-element Vector{InfOptConstraintRef}:
- (0 + (W[1,1]*Q[1,1] + W[1,2]*Q[2,1]) * v[1] + (W[1,1]*Q[1,2] + W[1,2]*Q[2,2]) * v[2]) - 0 == 0.0
- (0 + (W[2,1]*Q[1,1] + W[2,2]*Q[2,1]) * v[1] + (W[2,1]*Q[1,2] + W[2,2]*Q[2,2]) * v[2]) - 0 == 0.0
+ (0 + (W[1,1]*Q[1,1] + W[1,2]*Q[2,1]) * v[1] + (W[1,1]*Q[1,2] + W[1,2]*Q[2,2]) * v[2]) - 0 = 0
+ (0 + (W[2,1]*Q[1,1] + W[2,2]*Q[2,1]) * v[1] + (W[2,1]*Q[1,2] + W[2,2]*Q[2,2]) * v[2]) - 0 = 0
 ```
 
 However, it is important to note that although vector constraints can be 
