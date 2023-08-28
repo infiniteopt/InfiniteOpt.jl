@@ -39,14 +39,15 @@ JuMP.delete(::InfiniteModel, ::ParameterFunctionRef)
 ## [Nonlinear Expressions](@id nlp_manual)
 ### DataTypes
 ```@docs
-RegisteredFunction
+RegisteredOperator
 ```
 
 ### Methods/Macros
 ```@docs
-all_registered_functions
-name_to_function
-user_registered_functions
+JuMP.register_nonlinear_operator
+all_registered_operators
+name_to_operator
+user_registered_operator
 add_registered_to_jump
 ```
 

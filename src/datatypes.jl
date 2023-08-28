@@ -1535,7 +1535,7 @@ function Base.empty!(model::InfiniteModel)::InfiniteModel
     model.objective_has_measures = false
     # other stuff
     empty!(model.registrations)
-    empty!(model.func_lookup)
+    empty!(model.op_lookup)
     empty!(model.obj_dict)
     empty!(model.optimizer_model)
     model.ready_to_optimize = false
