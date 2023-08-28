@@ -24,8 +24,6 @@
     # test JuMP.register_nonlinear_operator
     @testset "JuMP.register_nonlinear_operator" begin
         # test errors
-        @test_throws ErrorException register_nonlinear_operator(m, 1)
-        @test_throws ErrorException register_nonlinear_operator(m, 1, f, 2)
         @test_throws ErrorException register_nonlinear_operator(m, 1, f, name = :max)
         m.op_lookup[:f] = (f, 1)
         @test_throws ErrorException register_nonlinear_operator(m, 1, f)

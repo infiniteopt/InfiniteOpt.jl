@@ -31,25 +31,20 @@ derivative. `∇²f` may be provided only if `∇f` is also provided.
 function JuMP.register_nonlinear_operator(
     model::InfiniteModel,
     dim::Int,
+    f::Function,
     funcs::Vararg{Function, N};
     name::Symbol = Symbol(f)
     ) where {N}
-    if isempty(funcs)
-        error("Tried to register `$name`, but no evaluation function was given.")
-    elseif !all(f -> f isa Function, funcs) 
-        error("The gradient and/or hessian must be functions, but got argument(s) " *
-              "of type `" * join(Tuple(typeof(f) for f in funcs if !(f isa Function)), "`, `") *
-              "`.")
-    elseif name in _NativeNLPOperators || name in keys(model.op_lookup)
-        error("An operator with name `$op` arguments is already " *
+    if name in _NativeNLPOperators || name in keys(model.op_lookup)
+        error("An operator with name `$name` arguments is already " *
                "registered. Please use a operator with a different name.")
-    elseif !hasmethod(funcs[1], NTuple{dim, Float64})
-        error("The operator `$op` is not defined for arguments of type `Float64`.")
+    elseif !hasmethod(f, NTuple{dim, Float64})
+        error("The operator evaluation function `$f` is not defined for arguments of type `Float64`.")
     end
-    push!(model.registrations, RegisteredOperator(name, dim, funcs...))
-    model.op_lookup[name] = (funcs[1], dim)
+    push!(model.registrations, RegisteredOperator(name, dim, f, funcs...))
+    model.op_lookup[name] = (f, dim)
     # TODO should we set the optimizer model to be out of date?
-    return JuMP.NonlinearOperator(name, funcs[1])
+    return JuMP.NonlinearOperator(name, f)
 end
 
 """
@@ -63,7 +58,7 @@ functions of user-defined nonlinear operators.
     Currently, this does not return functions for default operators.
 """
 function name_to_operator(model::InfiniteModel, name::Symbol)
-    haskey(model.op_lookup, name) && return model.op_lookup[op][1]
+    haskey(model.op_lookup, name) && return model.op_lookup[name][1]
     return
 end
 
