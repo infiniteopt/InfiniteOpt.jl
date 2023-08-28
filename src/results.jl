@@ -244,7 +244,7 @@ function JuMP.value(
     kwargs...
     )
     # get the model
-    model = _model_from_expr(expr)
+    model = JuMP.owner_model(expr)
     # if no model then the expression only contains a constant
     if isnothing(model)
         expr isa JuMP.GenericNonlinearExpr && return JuMP.value(identity, expr)

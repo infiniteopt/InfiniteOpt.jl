@@ -21,60 +21,60 @@
         H[2, 2] = 200.0
         return
     end
-    # test JuMP.add_user_defined_function
-    @testset "JuMP.add_user_defined_function" begin
+    # test JuMP.register_nonlinear_operator
+    @testset "JuMP.register_nonlinear_operator" begin
         # test errors
-        @test_throws ErrorException add_user_defined_function(m, :f, 1)
-        @test_throws ErrorException add_user_defined_function(m, :f, 1, f, 2)
-        @test_throws ErrorException add_user_defined_function(m, :max, 1, f)
-        m.func_lookup[:f] = (f, 1)
-        @test_throws ErrorException add_user_defined_function(m, :f, 1, f)
-        empty!(m.func_lookup)
-        @test_throws ErrorException add_user_defined_function(m, :f, 2, f)
+        @test_throws ErrorException register_nonlinear_operator(m, 1)
+        @test_throws ErrorException register_nonlinear_operator(m, 1, f, 2)
+        @test_throws ErrorException register_nonlinear_operator(m, 1, f, name = :max)
+        m.op_lookup[:f] = (f, 1)
+        @test_throws ErrorException register_nonlinear_operator(m, 1, f)
+        empty!(m.op_lookup)
+        @test_throws ErrorException register_nonlinear_operator(m, 2, f)
         # test normal 
-        @test add_user_defined_function(m, :f, 1, f).head == :f
-        @test m.func_lookup[:f] == (f, 1)
+        @test register_nonlinear_operator(m, 1, f).head == :f
+        @test m.op_lookup[:f] == (f, 1)
         @test last(m.registrations).f == f
         @test last(m.registrations).dim == 1
-        @test last(m.registrations).op == :f
-        @test add_user_defined_function(m, :h, 2, h, hg).head == :h 
-        @test m.func_lookup[:h] == (h, 2)
+        @test last(m.registrations).name == :f
+        @test register_nonlinear_operator(m, 2, h, hg).head == :h 
+        @test m.op_lookup[:h] == (h, 2)
         @test last(m.registrations).f == h
         @test last(m.registrations).dim == 2
-        @test last(m.registrations).op == :h
+        @test last(m.registrations).name == :h
         @test last(m.registrations).∇f == hg
     end 
-    # test name_to_function
-    @testset "name_to_function" begin 
-        @test name_to_function(m, :f) == f
-        @test name_to_function(m, :h) == h
-        @test name_to_function(m, :bad) isa Nothing
+    # test name_to_operator
+    @testset "name_to_operator" begin 
+        @test name_to_operator(m, :f) == f
+        @test name_to_operator(m, :h) == h
+        @test name_to_operator(m, :bad) isa Nothing
     end
-    # test all_registered_functions
-    @testset "all_registered_functions" begin 
-        @test all_registered_functions(m) isa Vector{Symbol}
+    # test all_registered_operators
+    @testset "all_registered_operators" begin 
+        @test all_registered_operators(m) isa Vector{Symbol}
     end
-    # test user_registered_functions
-    @testset "user_registered_functions" begin 
-        @test user_registered_functions(m) isa Vector{RegisteredFunction}
+    # test user_registered_operators
+    @testset "user_registered_operators" begin 
+        @test user_registered_operators(m) isa Vector{RegisteredOperator}
     end
     empty!(m.registrations)
-    empty!(m.func_lookup)
+    empty!(m.op_lookup)
     # test @register
     @testset "@register" begin 
         # test errors 
-        @test @register(m, f1, 1, f) isa UserDefinedFunction
-        @test @register(m, f2, 1, f, f) isa UserDefinedFunction
-        @test @register(m, f3, 1, f, f, f) isa UserDefinedFunction
-        @test @register(m, h1, 2, h) isa UserDefinedFunction
-        @test @register(m, h2, 2, h, hg) isa UserDefinedFunction
-        @test @register(m, h3, 2, h, hg, ∇²h) isa UserDefinedFunction
+        @test @register(m, f1, 1, f) isa NonlinearOperator
+        @test @register(m, f2, 1, f, f) isa NonlinearOperator
+        @test @register(m, f3, 1, f, f, f) isa NonlinearOperator
+        @test @register(m, h1, 2, h) isa NonlinearOperator
+        @test @register(m, h2, 2, h, hg) isa NonlinearOperator
+        @test @register(m, h3, 2, h, hg, ∇²h) isa NonlinearOperator
         # test functional registration
         function registration_test()
             mt = InfiniteModel()
             @variable(mt, x)
             q(a) = 1
-            @test @register(mt, my_q, 1, q) isa UserDefinedFunction
+            @test @register(mt, my_q, 1, q) isa NonlinearOperator
             q(x::GeneralVariableRef) = GenericNonlinearExpr{GeneralVariableRef}(:my_q, x)
             @test @expression(mt, q(x)) isa GenericNonlinearExpr
             return 

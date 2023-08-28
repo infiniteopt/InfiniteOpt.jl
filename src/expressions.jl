@@ -612,72 +612,6 @@ function _parameter_numbers(expr)
 end
 
 ################################################################################
-#                             MODEL EXTRACTION METHODS
-################################################################################
-## Get the model from an expression
-# Constant
-function _model_from_expr(::Union{Number, Bool})
-    return
-end
-
-# GeneralVariableRef
-function _model_from_expr(expr::GeneralVariableRef)
-    return JuMP.owner_model(expr)
-end
-
-# AffExpr
-function _model_from_expr(expr::JuMP.GenericAffExpr)
-    if isempty(expr.terms)
-        return
-    else
-        return JuMP.owner_model(first(keys(expr.terms)))
-    end
-end
-
-# QuadExpr
-function _model_from_expr(expr::JuMP.GenericQuadExpr)
-    result = _model_from_expr(expr.aff)
-    if !isnothing(result)
-        return result
-    elseif isempty(expr.terms)
-        return
-    else
-        return JuMP.owner_model(first(keys(expr.terms)).a)
-    end
-end
-
-# NonlinearExpr (avoid recursion for deeply nested expressions)
-function _model_from_expr(expr::JuMP.GenericNonlinearExpr)
-    stack = Vector{Any}[expr.args]
-    while !isempty(stack)
-        args = pop!(stack)
-        for arg in args
-            if arg isa JuMP.GenericNonlinearExpr
-                push!(stack, arg.args)
-            else
-                result = _model_from_expr(arg)
-                isnothing(result) || return result 
-            end
-        end
-    end
-    return
-end
-
-# Vector{GeneralVariableRef}
-function _model_from_expr(vrefs::Vector{GeneralVariableRef})
-    if isempty(vrefs)
-        return
-    else
-        return JuMP.owner_model(first(vrefs))
-    end
-end
-
-# Fallback
-function _model_from_expr(expr)
-    error("`_model_from_expr` not defined for expr of type $(typeof(expr)).")
-end
-
-################################################################################
 #                            VARIABLE REMOVAL BOUNDS
 ################################################################################
 ## Delete variables from an expression
@@ -916,7 +850,7 @@ julia> parameter_refs(my_expr)
 function parameter_refs(
     expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.GenericNonlinearExpr}
     )
-    model = _model_from_expr(expr)
+    model = JuMP.owner_model(expr)
     if isnothing(model)
         return ()
     else

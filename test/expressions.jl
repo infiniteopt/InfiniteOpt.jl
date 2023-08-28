@@ -566,60 +566,6 @@ end
     end
 end
 
-# Test _model_from_expr
-@testset "_model_from_expr" begin
-    # initialize model and references
-    m = InfiniteModel()
-    @variable(m, hd)
-    # test for variable reference
-    @testset "Variable" begin
-        @test InfiniteOpt._model_from_expr(hd) === m
-    end
-    # test for GenericAffExpr
-    @testset "AffExpr" begin
-        # make expressions
-        aff1 = hd + 2
-        aff2 = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-        # test expressions
-        @test InfiniteOpt._model_from_expr(aff1) === m
-        @test InfiniteOpt._model_from_expr(aff2) isa Nothing
-    end
-    # test for GenericQuadExpr
-    @testset "QuadExpr" begin
-        # make expressions
-        quad1 = hd * hd + hd + 1
-        quad2 = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
-        quad3 = hd * hd + 1
-        # test expressions
-        @test InfiniteOpt._model_from_expr(quad1) === m
-        @test InfiniteOpt._model_from_expr(quad2) isa Nothing
-        @test InfiniteOpt._model_from_expr(quad3) === m
-    end
-    # test for GenericNonlinearExpr
-    @testset "GenericNonlinearExpr" begin
-        # make expressions
-        nlp1 = sin(hd)
-        nlp2 = GenericNonlinearExpr{GeneralVariableRef}(:sin, Any[0.0])
-        nlp3 = 2 + sin(hd^2)
-        # test expressions
-        @test InfiniteOpt._model_from_expr(nlp1) === m
-        @test InfiniteOpt._model_from_expr(nlp2) isa Nothing
-        @test InfiniteOpt._model_from_expr(nlp3) === m
-    end
-    # test for Vector{GeneralVariableRef}
-    @testset "Vector{GeneralVariableRef}" begin
-        vrefs1 = GeneralVariableRef[]
-        vrefs2 = [hd]
-        # test expressions
-        @test InfiniteOpt._model_from_expr(vrefs1) isa Nothing
-        @test InfiniteOpt._model_from_expr(vrefs2) === m
-    end
-    # test Fallback
-    @testset "Fallback" begin
-        @test_throws ErrorException InfiniteOpt._model_from_expr(:bad)
-    end
-end
-
 # Test _remove_variable
 @testset "_remove_variable" begin
     # initialize model and references

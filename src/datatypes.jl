@@ -1190,43 +1190,43 @@ mutable struct ConstraintData{C <: JuMP.AbstractConstraint} <: AbstractDataObjec
 end
 
 ################################################################################
-#                            Function Registration
+#                            Operator Registration
 ################################################################################
 """
-    RegisteredFunction{F <: Function, G <: Union{Function, Nothing}, 
+    RegisteredOperator{F <: Function, G <: Union{Function, Nothing}, 
                        H <: Union{Function, Nothing}}
 
-A type for storing used defined registered functions and their information that 
-is needed by JuMP for build an `NLPEvaluator`. The constructor is of the form:
+A type for storing used defined registered nonlinear operators and their information 
+that is needed by JuMP for build an `NLPEvaluator`. The constructor is of the form:
 ```julia
-    RegisteredFunction(op::Symbol, dim::Int, f::Function, 
+    RegisteredOperator(name::Symbol, dim::Int, f::Function, 
                        [∇f::Function, ∇²f::Function])
 ```
 
 **Fields**
-- `op::Symbol`: The name of the function that is used in `NLPExpr`s.
+- `name::Symbol`: The name of the operator that is used.
 - `dim::Int`: The number of function arguments.
-- `f::F`: The function itself.
+- `f::F`: The function to evaluate the operator.
 - `∇f::G`: The gradient function if one is given.
 - `∇²f::H`: The hessian function if one is given.
 """
-struct RegisteredFunction{F <: Function, G, H}
-    op::Symbol
+struct RegisteredOperator{F <: Function, G, H}
+    name::Symbol
     dim::Int
     f::F
     ∇f::G
     ∇²f::H
 
     # Constructors
-    function RegisteredFunction(
-        op::Symbol, 
+    function RegisteredOperator(
+        name::Symbol, 
         dim::Int, 
         f::F
         ) where {F <: Function}
-        return new{F, Nothing, Nothing}(op, dim, f, nothing, nothing)
+        return new{F, Nothing, Nothing}(name, dim, f, nothing, nothing)
     end
-    function RegisteredFunction(
-        op::Symbol, 
+    function RegisteredOperator(
+        name::Symbol, 
         dim::Int, 
         f::F,
         ∇f::G
@@ -1236,10 +1236,10 @@ struct RegisteredFunction{F <: Function, G, H}
         elseif !isone(dim) && !hasmethod(∇f, Tuple{AbstractVector{Real}, ntuple(_->Real, dim)...})
             error("Invalid multi-variate gradient function form, see the docs for details.")
         end
-        return new{F, G, Nothing}(op, dim, f, ∇f, nothing)
+        return new{F, G, Nothing}(name, dim, f, ∇f, nothing)
     end
-    function RegisteredFunction(
-        op::Symbol, 
+    function RegisteredOperator(
+        name::Symbol, 
         dim::Int, 
         f::F,
         ∇f::G,
@@ -1252,7 +1252,7 @@ struct RegisteredFunction{F <: Function, G, H}
         elseif !isone(dim) && !hasmethod(∇²f, Tuple{AbstractMatrix{Real}, ntuple(_->Real, dim)...})
             error("Invalid multi-variate hessian function form, see the docs for details.")
         end 
-        return new{F, G, H}(op, dim, f, ∇f, ∇²f)
+        return new{F, G, H}(name, dim, f, ∇f, ∇²f)
     end
 end
 
@@ -1308,8 +1308,8 @@ model an optmization problem with an infinite-dimensional decision space.
 - `objective_sense::MOI.OptimizationSense`: Objective sense.
 - `objective_function::JuMP.AbstractJuMPScalar`: Finite scalar function.
 - `objective_has_measures::Bool`: Does the objective contain measures?
-- `registrations::Vector{RegisteredFunction}`: The nonlinear registered functions.
-- `Dict{Symbol, Tuple{Function, Int}}`: Map a name to a registered function and its dimension.
+- `registrations::Vector{RegisteredOperator}`: The registered nonlinear operators.
+- `op_lookup::Dict{Symbol, Tuple{Function, Int}}`: Map a name to a registered operator and its dimension.
 - `obj_dict::Dict{Symbol, Any}`: Store Julia symbols used with `InfiniteModel`
 - `optimizer_constructor`: MOI optimizer constructor (e.g., Gurobi.Optimizer).
 - `optimizer_model::JuMP.Model`: Model used to solve `InfiniteModel`
@@ -1352,9 +1352,9 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     objective_function::JuMP.AbstractJuMPScalar
     objective_has_measures::Bool
 
-    # Function Registration
-    registrations::Vector{RegisteredFunction}
-    func_lookup::Dict{Symbol, Tuple{Function, Int}}
+    # Operator Registration
+    registrations::Vector{RegisteredOperator}
+    op_lookup::Dict{Symbol, Tuple{Function, Int}}
 
     # Objects
     obj_dict::Dict{Symbol, Any}
@@ -1444,7 +1444,7 @@ function InfiniteModel(;
                          zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}),
                          false,
                          # registration
-                         RegisteredFunction[],
+                         RegisteredOperator[],
                          Dict{Symbol, Tuple{Function, Int}}(),
                          # Object dictionary
                          Dict{Symbol, Any}(),

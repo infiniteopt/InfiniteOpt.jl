@@ -468,8 +468,8 @@ end
     @test ConstraintData(con, [1], "", MeasureIndex[], false) isa ConstraintData
 end
 
-# Test the function registration constructor
-@testset "Registered Functions" begin
+# Test the operator registration constructor
+@testset "Registered Operators" begin
     # Setup
     f(a) = a^3
     g(a::Int) = 42
@@ -489,21 +489,21 @@ end
         return
     end
     # Test errors
-    @test_throws ErrorException RegisteredFunction(:a, 1, f, g)
-    @test_throws ErrorException RegisteredFunction(:a, 2, f, g)
-    @test_throws ErrorException RegisteredFunction(:a, 1, f, g, f)
-    @test_throws ErrorException RegisteredFunction(:a, 1, f, f, g)
-    @test_throws ErrorException RegisteredFunction(:a, 2, h, hg, hg)
+    @test_throws ErrorException RegisteredOperator(:a, 1, f, g)
+    @test_throws ErrorException RegisteredOperator(:a, 2, f, g)
+    @test_throws ErrorException RegisteredOperator(:a, 1, f, g, f)
+    @test_throws ErrorException RegisteredOperator(:a, 1, f, f, g)
+    @test_throws ErrorException RegisteredOperator(:a, 2, h, hg, hg)
     # Test regular builds
-    @test RegisteredFunction(:a, 1, f).op == :a
-    @test RegisteredFunction(:a, 1, f).dim == 1
-    @test RegisteredFunction(:a, 1, f).f == f
-    @test RegisteredFunction(:a, 1, f, f) isa RegisteredFunction{typeof(f), typeof(f), Nothing}
-    @test RegisteredFunction(:a, 1, f, f).∇f == f
-    @test RegisteredFunction(:a, 1, f, f, f) isa RegisteredFunction{typeof(f), typeof(f), typeof(f)}
-    @test RegisteredFunction(:a, 1, f, f, f).∇²f == f
-    @test RegisteredFunction(:a, 2, h, hg) isa RegisteredFunction{typeof(h), typeof(hg), Nothing}
-    @test RegisteredFunction(:a, 2, h, hg).∇f == hg
-    @test RegisteredFunction(:a, 2, h, hg, ∇²h) isa RegisteredFunction{typeof(h), typeof(hg), typeof(∇²h)}
-    @test RegisteredFunction(:a, 2, h, hg, ∇²h).∇²f == ∇²h
+    @test RegisteredOperator(:a, 1, f).name == :a
+    @test RegisteredOperator(:a, 1, f).dim == 1
+    @test RegisteredOperator(:a, 1, f).f == f
+    @test RegisteredOperator(:a, 1, f, f) isa RegisteredOperator{typeof(f), typeof(f), Nothing}
+    @test RegisteredOperator(:a, 1, f, f).∇f == f
+    @test RegisteredOperator(:a, 1, f, f, f) isa RegisteredOperator{typeof(f), typeof(f), typeof(f)}
+    @test RegisteredOperator(:a, 1, f, f, f).∇²f == f
+    @test RegisteredOperator(:a, 2, h, hg) isa RegisteredOperator{typeof(h), typeof(hg), Nothing}
+    @test RegisteredOperator(:a, 2, h, hg).∇f == hg
+    @test RegisteredOperator(:a, 2, h, hg, ∇²h) isa RegisteredOperator{typeof(h), typeof(hg), typeof(∇²h)}
+    @test RegisteredOperator(:a, 2, h, hg, ∇²h).∇²f == ∇²h
 end

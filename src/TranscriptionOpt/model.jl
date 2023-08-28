@@ -680,7 +680,7 @@ function transcription_expression(
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
     )
-    model = InfiniteOpt._model_from_expr(expr)
+    model = JuMP.owner_model(expr)
     if isnothing(model)
         return zero(JuMP.AffExpr) + JuMP.constant(expr)
     else
