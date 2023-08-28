@@ -756,8 +756,8 @@ an finite variable parameter bounds of finite variables that are included in the
 measure.
 """
 function build_measure(
-    expr::T, 
-    data::D;
+    expr::JuMP.AbstractJuMPScalar, 
+    data::AbstractMeasureData
     )
     vrefs = _all_function_variables(expr)
     expr_obj_nums = _object_numbers(expr)
