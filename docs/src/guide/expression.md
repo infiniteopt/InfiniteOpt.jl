@@ -319,7 +319,7 @@ can contain. The following CANNOT be used:
 
 !!! tip
     If a particular function is not amendable for tracing, try adding it 
-    as a new nonlinear operator instead. See [Add Nonlinear Operators](@ref) 
+    as a new nonlinear operator instead. See [Adding Nonlinear Operators](@ref) 
     for details.
 
 We can readily work around the if-statement limitation using `op_ifelse` which 
@@ -378,7 +378,7 @@ julia> @constraint(model, W * Q * v .== 0)
  ((+(0.0) + ((W[2,1]*Q[1,1] + W[2,2]*Q[2,1]) * v[1])) + ((W[2,1]*Q[1,2] + W[2,2]*Q[2,2]) * v[2])) - 0.0 = 0
 ```
 
-### Add Nonlinear Operators
+### Adding Nonlinear Operators
 In a similar spirit to `JuMP` and `Symbolics`, we can add nonlinear operators
 such that they can be directly incorporated into nonlinear expressions as atoms 
 (they will not be traced). This is done via the 
