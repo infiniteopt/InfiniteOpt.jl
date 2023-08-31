@@ -934,9 +934,8 @@ function InfiniteOpt.build_optimizer_model!(
     for cref in all_constraints(model, Union{GenericAffExpr, GenericQuadExpr, GenericNonlinearExpr})
         constr = constraint_object(cref)
         new_func = _make_expression(determ_model, constr.func)
-            new_constr = build_constraint(error, new_func, constr.set)
-            new_cref = add_constraint(determ_model, new_constr, name(cref))
-        end
+        new_constr = build_constraint(error, new_func, constr.set)
+        new_cref = add_constraint(determ_model, new_constr, name(cref))
         deterministic_data(determ_model).infconstr_to_detconstr[cref] = new_cref
     end
 

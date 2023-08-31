@@ -53,7 +53,7 @@ julia> d3 = @∂(q, t^2)
 ∂/∂t[∂/∂t[q(t)]]
 
 julia> d_expr = @deriv(y * q - 2t, t)
-∂/∂t[y(t, ξ)]*q(t) + ∂/∂t[q(t)]*y(t, ξ) - 2
+∂/∂t[y(t, ξ)]*q(t) + y(t, ξ)*∂/∂t[q(t)] - 2
 ```
 Thus, we can define derivatives in a variety of forms according to the problem at 
 hand. The last example even shows how the product rule is correctly applied. 
@@ -216,7 +216,7 @@ defined up above with its alias name `dydt2`. This macro can also tackle complex
 expressions using the appropriate calculus such as:
 ```jldoctest deriv_basic 
 julia> @deriv(∫(y, ξ) * q, t)
-∂/∂t[∫{ξ ∈ [-1, 1]}[y(t, ξ)]]*q(t) + ∂/∂t[q(t)]*∫{ξ ∈ [-1, 1]}[y(t, ξ)]
+∂/∂t[∫{ξ ∈ [-1, 1]}[y(t, ξ)]]*q(t) + ∫{ξ ∈ [-1, 1]}[y(t, ξ)]*∂/∂t[q(t)]
 ```
 Thus, demonstrating the convenience of using `@deriv`.
 

@@ -207,7 +207,7 @@ julia> expr = 2y^2 - z * y + 42t - 3
 2 y(t)² - z*y(t) + 42 t - 3
 
 julia> expr = @expression(model, 2y^2 - z * y + 42t - 3)
-2 y(t)² - y(t)*z + 42 t - 3
+2 y(t)² - z*y(t) + 42 t - 3
 
 julia> typeof(expr)
 GenericQuadExpr{Float64, GeneralVariableRef}
@@ -234,29 +234,9 @@ GenericAffExpr{Float64, GeneralVariableRef}
 julia> expr.terms
 OrderedCollections.OrderedDict{UnorderedPair{GeneralVariableRef}, Float64} with 2 entries:
   UnorderedPair{GeneralVariableRef}(y(t), y(t)) => 2.0
-  UnorderedPair{GeneralVariableRef}(y(t), z)    => -1.0
+  UnorderedPair{GeneralVariableRef}(z, y(t))    => -1.0
 ```
 Notice again that the ordered dictionary preserves the order.
-
-!!! tip
-    Polynomial expressions can be represented by introducing dummy variables 
-    and nested quadratic/affine expressions. For instance, ``z^3 + 2`` can be 
-    expressed by introducing a dummy variable ``x = z^2``:
-    ```jldoctest affine
-    julia> @variable(model, x)
-    x
-
-    julia> @constraint(model, x == z^2)
-    -z² + x = 0
-
-    julia> expr = @expression(model, z * x + 2)
-    z*x + 2
-    ```
-    Alternatively, can we can just use our nonlinear modeling interface:
-    ```jldoctest affine
-    julia> expr = @expression(model, z^3 + 2)
-    z^3 + 2
-    ```
 
 More information can be found in the documentation for quadratic expressions in 
 [`JuMP`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.GenericQuadExpr).
@@ -408,7 +388,7 @@ type `Real`):
 ```jldoctest nlp
 julia> h(a, b) = a * b^2; # an overly simple example operator
 
-julia> @operator(model, op_h2, 2, h, name = :h);
+julia> @operator(model, op_h, 2, h);
 
 julia> op_h(y, 42)
 op_h(y(t), 42)
