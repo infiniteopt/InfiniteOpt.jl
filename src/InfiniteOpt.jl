@@ -56,6 +56,12 @@ include("general_variables.jl")
 include("TranscriptionOpt/TranscriptionOpt.jl")
 Reexport.@reexport using .TranscriptionOpt
 
+# Add deprecation and old syntax methods 
+macro register(args...)
+    error("`@register` has now been replaced with `@operator`, see ",
+           "the nonlinear documenation page for details.")
+end
+
 # Define additional stuff that should not be exported
 const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]
 

@@ -866,8 +866,8 @@ function build_transcription_model!(
               "and thus naive solution of the discretized problem may be slow. " * 
               "This warning can be turned off via `check_support_dims = false`.")
     end
-    # register functions as needed 
-    InfiniteOpt.add_registered_to_jump(trans_model, inf_model)
+    # add nonlinear operators as needed 
+    InfiniteOpt.add_operators_to_jump(trans_model, inf_model)
     # define the variables
     transcribe_finite_variables!(trans_model, inf_model)
     transcribe_infinite_variables!(trans_model, inf_model)

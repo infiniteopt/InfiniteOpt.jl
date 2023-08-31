@@ -39,7 +39,7 @@ end
 const OptKey = :ReformData # REPLACE WITH A DESIRED UNIQUE KEY
 
 # Make a constructor for new optimizer model type (extension of JuMP.Model)
-function NewReformModel(args...; kwargs...)::JuMP.Model # ADD EXPLICT ARGS AS NEEDED
+function NewReformModel(args...; kwargs...) # ADD EXPLICT ARGS AS NEEDED
     # initialize the JuMP Model
     model = JuMP.Model(args...; kwargs...)
 
@@ -51,7 +51,7 @@ function NewReformModel(args...; kwargs...)::JuMP.Model # ADD EXPLICT ARGS AS NE
 end
 
 # Make function for extracting the data from the model (optional)
-function reform_data(model::JuMP.Model)::NewReformData
+function reform_data(model::JuMP.Model)
     # UPDATE THE NOMENCLATURE AS NEEDED
     haskey(model.ext, OptKey) || error("Model is not a NewReformModel.")
     return model.ext[OptKey]
@@ -66,8 +66,8 @@ function InfiniteOpt.build_optimizer_model!(
     # clear the model for a build/rebuild
     reform_model = clear_optimizer_model_build!(model)
 
-    # load in registered NLP functions
-    add_registered_to_jump(reform_model, model)
+    # load in nonlinear operators
+    add_operators_to_jump(reform_model, model)
 
     # IT MAY BE USEFUL TO CALL `expand_all_measures!` TO HANDLE MEASURES FIRST
     # otherwise can extend `add_measure_variable` and `delete_semi_infinite_variable` to

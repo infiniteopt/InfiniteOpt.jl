@@ -439,7 +439,7 @@ end
     @constraint(m, x + y == 83)
     @constraint(m, c6, [z, w] in MOI.Zeros(2))
     g(a) = 42
-    @register(m, gr, 1, g)
+    @operator(m, gr, 1, g)
     @constraint(m, c7, gr(z) == 2)
     @objective(m, Min, x0 + meas1)
     # test basic usage
@@ -489,10 +489,10 @@ end
     @test length(d2t) == 2
     @test upper_bound(d1t[1]) == 2
     @test supports(d2) == [(0.,), (1.,)]
-    # test registration (TODO how to test this with new system)
-    # r = tm.nlp_model.operators
-    # @test length(r.registered_univariate_operators) == 1
-    # @test r.registered_univariate_operators[1].f == g
+    # test operators
+    attr_dict = backend(tm).model_cache.modattr
+    @test length(attr_dict) == 1
+    @test attr_dict[MOI.UserDefinedFunction(:gr, 1)] == (g,)
     # test objective
     xt = transcription_variable(tm, x)
     @test objective_function(tm) == 2xt[1] + xt[2] - 2wt - d2t[1] - d2t[2]

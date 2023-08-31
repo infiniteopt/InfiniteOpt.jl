@@ -1,5 +1,5 @@
-# Test registration utilities
-@testset "Registration Methods" begin
+# Test operator utilities
+@testset "Operator Methods" begin
     # setup model data 
     m = InfiniteModel()
     @variable(m, y)
@@ -21,26 +21,26 @@
         H[2, 2] = 200.0
         return
     end
-    # test JuMP.register_nonlinear_operator
-    @testset "JuMP.register_nonlinear_operator" begin
+    # test JuMP.add_nonlinear_operator
+    @testset "JuMP.add_nonlinear_operator" begin
         # test errors
-        @test_throws ErrorException register_nonlinear_operator(m, 1, f, name = :max)
+        @test_throws ErrorException add_nonlinear_operator(m, 1, f, name = :max)
         m.op_lookup[:f] = (f, 1)
-        @test_throws ErrorException register_nonlinear_operator(m, 1, f)
+        @test_throws ErrorException add_nonlinear_operator(m, 1, f)
         empty!(m.op_lookup)
-        @test_throws ErrorException register_nonlinear_operator(m, 2, f)
+        @test_throws ErrorException add_nonlinear_operator(m, 2, f)
         # test normal 
-        @test register_nonlinear_operator(m, 1, f).head == :f
+        @test add_nonlinear_operator(m, 1, f).head == :f
         @test m.op_lookup[:f] == (f, 1)
-        @test last(m.registrations).f == f
-        @test last(m.registrations).dim == 1
-        @test last(m.registrations).name == :f
-        @test register_nonlinear_operator(m, 2, h, hg).head == :h 
+        @test last(m.operators).f == f
+        @test last(m.operators).dim == 1
+        @test last(m.operators).name == :f
+        @test add_nonlinear_operator(m, 2, h, hg).head == :h 
         @test m.op_lookup[:h] == (h, 2)
-        @test last(m.registrations).f == h
-        @test last(m.registrations).dim == 2
-        @test last(m.registrations).name == :h
-        @test last(m.registrations).∇f == hg
+        @test last(m.operators).f == h
+        @test last(m.operators).dim == 2
+        @test last(m.operators).name == :h
+        @test last(m.operators).∇f == hg
     end 
     # test name_to_operator
     @testset "name_to_operator" begin 
@@ -48,43 +48,47 @@
         @test name_to_operator(m, :h) == h
         @test name_to_operator(m, :bad) isa Nothing
     end
-    # test all_registered_operators
-    @testset "all_registered_operators" begin 
-        @test all_registered_operators(m) isa Vector{Symbol}
+    # test all_nonlinear_operators
+    @testset "all_nonlinear_operators" begin 
+        @test all_nonlinear_operators(m) isa Vector{Symbol}
     end
-    # test user_registered_operators
-    @testset "user_registered_operators" begin 
-        @test user_registered_operators(m) isa Vector{RegisteredOperator}
+    # test added_nonlinear_operators
+    @testset "added_nonlinear_operators" begin 
+        @test added_nonlinear_operators(m) isa Vector{NLPOperator}
     end
-    empty!(m.registrations)
+    empty!(m.operators)
     empty!(m.op_lookup)
-    # test @register
-    @testset "@register" begin 
+    # test @operator
+    @testset "@operator" begin 
         # test errors 
-        @test @register(m, f1, 1, f) isa NonlinearOperator
-        @test @register(m, f2, 1, f, f) isa NonlinearOperator
-        @test @register(m, f3, 1, f, f, f) isa NonlinearOperator
-        @test @register(m, h1, 2, h) isa NonlinearOperator
-        @test @register(m, h2, 2, h, hg) isa NonlinearOperator
-        @test @register(m, h3, 2, h, hg, ∇²h) isa NonlinearOperator
-        # test functional registration
-        function registration_test()
+        @test @operator(m, f1, 1, f) isa NonlinearOperator
+        @test @operator(m, f2, 1, f, f) isa NonlinearOperator
+        @test @operator(m, f3, 1, f, f, f) isa NonlinearOperator
+        @test @operator(m, h1, 2, h) isa NonlinearOperator
+        @test @operator(m, h2, 2, h, hg) isa NonlinearOperator
+        @test @operator(m, h3, 2, h, hg, ∇²h) isa NonlinearOperator
+        # test operator scoping
+        function scope_test()
             mt = InfiniteModel()
             @variable(mt, x)
             q(a) = 1
-            @test @register(mt, my_q, 1, q) isa NonlinearOperator
+            @test @operator(mt, my_q, 1, q) isa NonlinearOperator
             q(x::GeneralVariableRef) = GenericNonlinearExpr{GeneralVariableRef}(:my_q, x)
             @test @expression(mt, q(x)) isa GenericNonlinearExpr
             return 
         end
-        @test registration_test() isa Nothing 
-        @test registration_test() isa Nothing 
+        @test scope_test() isa Nothing 
+        @test scope_test() isa Nothing 
     end
-    # test add_registered_to_jump
-    @testset "add_registered_to_jump" begin 
+    # test @register
+    @testset "@register" begin
+        @test_macro_throws ErrorException @register(m, f(a))
+    end
+    # test add_operators_to_jump
+    @testset "add_operators_to_jump" begin 
         # test normal 
         m1 = Model()
-        @test add_registered_to_jump(m1, m) isa Nothing 
+        @test add_operators_to_jump(m1, m) isa Nothing 
         attr_dict = backend(m1).model_cache.modattr
         @test length(attr_dict) == 6
         @test attr_dict[MOI.UserDefinedFunction(:f1, 1)] == (f,)

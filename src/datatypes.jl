@@ -1190,16 +1190,16 @@ mutable struct ConstraintData{C <: JuMP.AbstractConstraint} <: AbstractDataObjec
 end
 
 ################################################################################
-#                            Operator Registration
+#                            NONLINEAR OPERATORS
 ################################################################################
 """
-    RegisteredOperator{F <: Function, G <: Union{Function, Nothing}, 
+    NLPOperator{F <: Function, G <: Union{Function, Nothing}, 
                        H <: Union{Function, Nothing}}
 
-A type for storing used defined registered nonlinear operators and their information 
-that is needed by JuMP for build an `NLPEvaluator`. The constructor is of the form:
+A type for storing new nonlinear operators and their information 
+that is ultimately for automatic differentiation. The constructor is of the form:
 ```julia
-    RegisteredOperator(name::Symbol, dim::Int, f::Function, 
+    NLPOperator(name::Symbol, dim::Int, f::Function, 
                        [∇f::Function, ∇²f::Function])
 ```
 
@@ -1210,7 +1210,7 @@ that is needed by JuMP for build an `NLPEvaluator`. The constructor is of the fo
 - `∇f::G`: The gradient function if one is given.
 - `∇²f::H`: The hessian function if one is given.
 """
-struct RegisteredOperator{F <: Function, G, H}
+struct NLPOperator{F <: Function, G, H}
     name::Symbol
     dim::Int
     f::F
@@ -1218,14 +1218,14 @@ struct RegisteredOperator{F <: Function, G, H}
     ∇²f::H
 
     # Constructors
-    function RegisteredOperator(
+    function NLPOperator(
         name::Symbol, 
         dim::Int, 
         f::F
         ) where {F <: Function}
         return new{F, Nothing, Nothing}(name, dim, f, nothing, nothing)
     end
-    function RegisteredOperator(
+    function NLPOperator(
         name::Symbol, 
         dim::Int, 
         f::F,
@@ -1238,7 +1238,7 @@ struct RegisteredOperator{F <: Function, G, H}
         end
         return new{F, G, Nothing}(name, dim, f, ∇f, nothing)
     end
-    function RegisteredOperator(
+    function NLPOperator(
         name::Symbol, 
         dim::Int, 
         f::F,
@@ -1264,57 +1264,6 @@ end
 
 A `DataType` for storing all of the mathematical modeling information needed to
 model an optmization problem with an infinite-dimensional decision space.
-
-**Fields**
-- `independent_params::MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{IndependentParameter}}`:
-   The independent parameters and their mapping information.
-- `dependent_params::MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}`:
-   The dependent parameters and their mapping information.
-- `finite_params::MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}`:
-   The finite parameters and their mapping information.
-- `name_to_param::Union{Dict{String, AbstractInfOptIndex}, Nothing}`:
-   Field to help find a parameter given the name.
-- `last_param_num::Int`: The last parameter number to be used.
-- `param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}`:
-  The collection of parameter object indices in creation order.
-- `param_functions::MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{ParameterFunction}}`: 
-  The infinite parameter functions and their mapping information.
-- `infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}`:
-   The infinite variables and their mapping information.
-- `semi_infinite_vars::MOIUC.CleverDict{SemiInfiniteVariableIndex, <:VariableData{<:SemiInfiniteVariable}}`:
-   The semi-infinite variables and their mapping information.
-- `semi_lookup::Dict{<:Tuple, SemiInfiniteVariableIndex}`: Look-up if a variable already already exists.
-- `point_vars::MOIUC.CleverDict{PointVariableIndex, <:VariableData{<:PointVariable}}`:
-   The point variables and their mapping information.
-- `point_lookup::Dict{<:Tuple, PointVariableIndex}`: Look-up if a variable already exists.
-- `finite_vars::MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}`:
-   The finite variables and their mapping information.
-- `name_to_var::Union{Dict{String, AbstractInfOptIndex}, Nothing}`:
-   Field to help find a variable given the name.
-- `derivatives::MOIUC.CleverDict{DerivativeIndex, <:VariableData{<:Derivative}}`:
-  The derivatives and their mapping information.
-- `deriv_lookup::Dict{<:Tuple, DerivativeIndex}`: Map derivative variable-parameter 
-  pairs to a derivative index to prevent duplicates.
-- `measures::MOIUC.CleverDict{MeasureIndex, <:MeasureData}`:
-   The measures and their mapping information.
-- `integral_defaults::Dict{Symbol}`:
-   The default keyword arguments for [`integral`](@ref).
-- `constraints::MOIUC.CleverDict{InfOptConstraintIndex, <:ConstraintData}`:
-   The constraints and their mapping information.
-- `constraint_restrictions::Dict{InfOptConstraintIndex, <:DomainRestrictions}` Map constraints 
-  to their domain restrictions if they have any.
-- `name_to_constr::Union{Dict{String, InfOptConstraintIndex}, Nothing}`:
-   Field to help find a constraint given the name.
-- `objective_sense::MOI.OptimizationSense`: Objective sense.
-- `objective_function::JuMP.AbstractJuMPScalar`: Finite scalar function.
-- `objective_has_measures::Bool`: Does the objective contain measures?
-- `registrations::Vector{RegisteredOperator}`: The registered nonlinear operators.
-- `op_lookup::Dict{Symbol, Tuple{Function, Int}}`: Map a name to a registered operator and its dimension.
-- `obj_dict::Dict{Symbol, Any}`: Store Julia symbols used with `InfiniteModel`
-- `optimizer_constructor`: MOI optimizer constructor (e.g., Gurobi.Optimizer).
-- `optimizer_model::JuMP.Model`: Model used to solve `InfiniteModel`
-- `ready_to_optimize::Bool`: Is the optimizer_model up to date.
-- `ext::Dict{Symbol, Any}`: Store arbitrary extension information.
 """
 mutable struct InfiniteModel <: JuMP.AbstractModel
     # Parameter Data
@@ -1353,7 +1302,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     objective_has_measures::Bool
 
     # Operator Registration
-    registrations::Vector{RegisteredOperator}
+    operators::Vector{NLPOperator}
     op_lookup::Dict{Symbol, Tuple{Function, Int}}
 
     # Objects
@@ -1444,7 +1393,7 @@ function InfiniteModel(;
                          zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}),
                          false,
                          # registration
-                         RegisteredOperator[],
+                         NLPOperator[],
                          Dict{Symbol, Tuple{Function, Int}}(),
                          # Object dictionary
                          Dict{Symbol, Any}(),
@@ -1534,7 +1483,7 @@ function Base.empty!(model::InfiniteModel)::InfiniteModel
     model.objective_function = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
     model.objective_has_measures = false
     # other stuff
-    empty!(model.registrations)
+    empty!(model.operators)
     empty!(model.op_lookup)
     empty!(model.obj_dict)
     empty!(model.optimizer_model)
