@@ -956,13 +956,11 @@ print(optimizer_model(model))
 # output
 Min z + y[1] + y[2]
 Subject to
- 2 y[1] - z ≤ 42.0
+ sin(z) - -1.0 ≥ 0
+ 2 y[1] - z ≤ 42
  y[2]² = 1.5
- y[1] ≥ 0.0
- y[2] ≥ 0.0
- subexpression[1] - 0.0 ≥ 0
-With NL expressions
- subexpression[1]: sin(z) - -1.0
+ y[1] ≥ 0
+ y[2] ≥ 0
 ```
 Note that better variable naming could be used with the reformulated infinite 
 variables. Moreover, in general extensions of [`build_optimizer_model!`](@ref) 
