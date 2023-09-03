@@ -291,162 +291,6 @@ struct CollectionDomain{T <: InfiniteScalarDomain} <: InfiniteArrayDomain
 end
 
 ################################################################################
-#                      GENERATIVE SUPPORT INFORMATION TYPES
-################################################################################
-"""
-    AbstractGenerativeInfo
-
-An abstract type for storing information about generating supports that are made 
-based on existing supports as required by certain measures and/or derivatives 
-that depend on a certain independent infinite parameter. Such as the case with 
-internal collocation supports.
-"""
-abstract type AbstractGenerativeInfo end 
-
-"""
-    NoGenerativeSupports <: AbstractGenerativeInfo
-
-A `DataType` to signify that no generative supports will be generated for the 
-measures and/or the derivatives. Has no fields.
-"""
-struct NoGenerativeSupports <: AbstractGenerativeInfo end
-
-"""
-    UniformGenerativeInfo <: AbstractGenerativeInfo
-
-A `DataType` for generative supports that will be generated in a uniform manner 
-over finite elements (i.e., in between the existing supports). These generative 
-supports are described by the `support_basis` which lie in a nominal domain [0, 1]. 
-The constructor is of the form:
-```
-    UniformGenerativeInfo(support_basis::Vector{<:Real}, label::DataType, 
-                          [lb::Real = 0, ub::Real = 1])
-```
-where the `support_basis` is defined over [`lb`, `ub`].
-
-**Fields**
-- `support_basis::Vector{Float64}`: The basis of generative supports defined in 
-   [0, 1] that will be transformed for each finite element.
-- `label::DataType`: The unique label to be given to each generative support.
-"""
-struct UniformGenerativeInfo <: AbstractGenerativeInfo
-    support_basis::Vector{Float64}
-    label::DataType
-    function UniformGenerativeInfo(basis::Vector{<:Real}, label::DataType, 
-                                   lb::Real = 0, ub::Real = 1)
-        if isempty(basis)
-            error("Cannot create `UniformGenerativeInfo` with an empty basis.")
-        elseif minimum(basis) < lb || maximum(basis) > ub
-            error("Support basis violate the given lower and upper bounds. " * 
-                  "Please specify the appropriate lower bound and upper bounds.")
-        end
-        return new((basis .- lb) ./ (ub - lb),  label)
-    end
-end
-
-# Extend Base.:(==)
-function Base.:(==)(info1::UniformGenerativeInfo, info2::UniformGenerativeInfo)::Bool 
-    return info1.support_basis == info2.support_basis && info1.label == info2.label
-end
-
-################################################################################
-#                       BASIC DERIVATIVE EVALUATION TYPES
-################################################################################
-"""
-    AbstractDerivativeMethod
-
-An abstract type for storing derivative evaluation data that is pertinent to its 
-reformation/transcription. 
-"""
-abstract type AbstractDerivativeMethod end 
-
-"""
-    GenerativeDerivativeMethod <: AbstractDerivativeMethod
-
-An abstract type for derivative evaluation method types that will require support 
-generation when employed (e.g., internal node points associated with orthogonal 
-collocation). Such methods can be used with derivatives that depend on independent 
-infinite parameters, but cannot be used for ones that depend on dependent parameters.
-"""
-abstract type GenerativeDerivativeMethod <: AbstractDerivativeMethod end 
-
-"""
-    NonGenerativeDerivativeMethod <: AbstractDerivativeMethod
-
-An abstract type for derivative evaluation method types that do not require the 
-definition of additional support points. Such methods are amendable to any 
-derivative in InfiniteOpt including those with dependent infinite parameter 
-dependencies.
-"""
-abstract type NonGenerativeDerivativeMethod <: AbstractDerivativeMethod end
-
-"""
-    FDTechnique
-
-An abstract data type for labels of specific techniques applied in the finite 
-difference method in derivative evaluation.
-"""
-abstract type FDTechnique end
-
-"""
-    Forward <: FDTechnique
-
-A technique label for finite difference method that implements a forward 
-difference approximation.
-"""
-struct Forward <: FDTechnique end
-
-"""
-    Central <: FDTechnique
-
-A technique label for finite difference method that implements a central 
-difference approximation.
-"""
-struct Central <: FDTechnique end
-
-"""
-    Backward <: FDTechnique
-
-A technique label for finite difference method that implements a backward 
-difference approximation.
-"""
-struct Backward <: FDTechnique end
-
-"""
-    FiniteDifference{T <: FDTechnique} <: NonGenerativeDerivativeMethod
-
-A `DataType` for information about finite difference method applied to 
-a derivative evaluation. Note that the constructor is of the form:
-```julia 
-    FiniteDifference([technique::FDTechnique = Backward()],
-                     [add_boundary_constr::Bool = true])
-```
-where `technique` is the indicated finite difference method to be applied and 
-`add_boundary_constr` indicates if the finite difference equation corresponding to 
-a boundary support should be included. Thus, for backward difference since
-corresponds to the terminal point and for forward difference this corresponds to 
-the initial point. We recommend using `add_boundary_constr = false` when an final 
-condition is given with a backward method or when an initial condition is given 
-with a forward method. Note that this argument is ignored for central finite 
-difference which cannot include any boundary points.
-
-**Fields** 
-- `technique::T`: Mathematical technqiue behind finite difference
-- `add_boundary_constraint::Bool`: Indicate if the boundary constraint should be 
-  included in the transcription (e.g., the terminal boundary backward equation for 
-  backward difference)
-"""
-struct FiniteDifference{T <: FDTechnique} <: NonGenerativeDerivativeMethod 
-    technique::T
-    add_boundary_constraint::Bool
-    # set the constructor 
-    function FiniteDifference(technique::T = Backward(), 
-        add_boundary_constr::Bool = true) where {T <: FDTechnique}
-        return new{T}(technique, add_boundary_constr)
-    end
-end
-
-################################################################################
 #                              PARAMETER TYPES
 ################################################################################
 """
@@ -464,31 +308,15 @@ An abstract type for scalar parameters used in InfiniteOpt.
 abstract type ScalarParameter <: InfOptParameter end
 
 """
-    IndependentParameter{T <: InfiniteScalarDomain,
-                         M <: AbstractDerivativeMethod,
-                         I <: AbstractGenerativeInfo} <: ScalarParameter
+    IndependentParameter{T <: InfiniteScalarDomain} <: ScalarParameter
 
 A `DataType` for storing independent scalar infinite parameters.
 
 **Fields**
 - `domain::T`: The infinite domain that characterizes the parameter.
-- `supports::DataStructures.SortedDict{Float64, Set{DataType}}`: The support points
-   used to discretize the parameter and their associated type labels stored as
-   `DataTypes`s which should be a subtype of [`AbstractSupportLabel`](@ref).
-- `sig_digits::Int`: The number of significant digits used to round the support values.
-- `derivative_method::M`: The derivative evaluation method used for derivatives that
-   are conducted with respect to this parameter.
-- `gnerative_supp_info::I`: The info associated with any generative supports that will 
-   need to be generated for measures and/or derivatives based on existing supports. 
 """
-struct IndependentParameter{T <: InfiniteScalarDomain, 
-                            M <: AbstractDerivativeMethod,
-                            I <: AbstractGenerativeInfo} <: ScalarParameter
+struct IndependentParameter{T <: InfiniteScalarDomain} <: ScalarParameter
     domain::T
-    supports::DataStructures.SortedDict{Float64, Set{DataType}} # Support to label set
-    sig_digits::Int
-    derivative_method::M
-    generative_supp_info::I
 end
 
 """
@@ -512,18 +340,9 @@ A `DataType` for storing a collection of dependent infinite parameters.
 
 **Fields**
 - `domain::T`: The infinite domain that characterizes the parameters.
-- `supports::Dict{Vector{Float64}, Set{DataType}}`: Support dictionary where keys
-              are supports and the values are the set of labels for each support.
-- `sig_digits::Int`: The number of significant digits used to round the support values.
-- `derivative_methods::Vector{M}`: The derivative evaluation methods associated with 
-  each parameter.
 """
-struct DependentParameters{T <: InfiniteArrayDomain, 
-                           M <: NonGenerativeDerivativeMethod} <: InfOptParameter
+struct DependentParameters{T <: InfiniteArrayDomain} <: InfOptParameter
     domain::T
-    supports::Dict{Vector{Float64}, Set{DataType}} # Support to label set
-    sig_digits::Int
-    derivative_methods::Vector{M}
 end
 
 # Define convenient alias for infinite types
@@ -558,9 +377,6 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `constraint_indices::Vector{InfOptConstraintIndex}`: Indices of dependent constraints.
 - `in_objective::Bool`: Is this used in objective? This should be true only for finite parameters.
-- `generative_measures::Vector{MeasureIndex}`: Indices of measures that use `parameter.generative_supp_info`.
-- `has_internal_supports::Bool`: Does this parameter have internal supports?
-- `has_generative_supports::Bool`: Have any generative supports been added?
 - `has_deriv_constrs::Bool`: Have any derivative evaluation constraints been added 
                              to the infinite model associated with this parameter?
 """
@@ -575,10 +391,7 @@ mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     measure_indices::Vector{MeasureIndex}
     constraint_indices::Vector{InfOptConstraintIndex}
     in_objective::Bool
-    generative_measures::Vector{MeasureIndex}
-    has_internal_supports::Bool
-    has_generative_supports::Bool
-    has_deriv_constrs::Bool
+    has_deriv_constrs::Bool # TODO maybe remove this?
 end
 
 # Convenient constructor
@@ -590,8 +403,7 @@ function ScalarParameterData(param::P,
     return ScalarParameterData{P}(param, object_num, parameter_num, name,
                                   ParameterFunctionIndex[], InfiniteVariableIndex[], 
                                   DerivativeIndex[], MeasureIndex[], 
-                                  InfOptConstraintIndex[], false, MeasureIndex[], 
-                                  false, false, false)
+                                  InfOptConstraintIndex[], false, false)
 end
 
 """
@@ -614,7 +426,6 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 - `measure_indices::Vector{Vector{MeasureIndex}}`: Indices of dependent measures.
 - `constraint_indices::Vector{Vector{InfOptConstraintIndex}}`: Indices of dependent
   constraints.
-- `has_internal_supports::Bool`: Does this parameter have internal supports?
 - `has_deriv_constrs::Bool`: Have any derivative evaluation constraints been added 
                              to the infinite model associated with this parameter?
 """
@@ -628,8 +439,7 @@ mutable struct MultiParameterData{P <: DependentParameters} <: AbstractDataObjec
     derivative_indices::Vector{Vector{DerivativeIndex}} 
     measure_indices::Vector{Vector{MeasureIndex}}
     constraint_indices::Vector{Vector{InfOptConstraintIndex}}
-    has_internal_supports::Bool
-    has_deriv_constrs::Vector{Bool}
+    has_deriv_constrs::Vector{Bool} # TODO maybe remove?
 end
 
 # Convenient constructor 
@@ -643,7 +453,7 @@ function MultiParameterData(params::P,
                                  [DerivativeIndex[] for i in eachindex(names)],
                                  [MeasureIndex[] for i in eachindex(names)],
                                  [InfOptConstraintIndex[] for i in eachindex(names)],
-                                 false, zeros(Bool, length(names)))
+                                 zeros(Bool, length(names)))
 end
 
 ################################################################################
@@ -856,6 +666,7 @@ end
 ################################################################################
 #                              DERIVATIVE TYPES
 ################################################################################
+# TODO modify to store derivatives of arbitrary order
 """
     Derivative{F <: Function, V <: GeneralVariableRef} <: JuMP.AbstractVariable
 
@@ -891,212 +702,97 @@ end
 """
     AbstractMeasureData
 
-An abstract type to define data for measures to define the behavior of
+An abstract type for measures to define the behavior of a
 [`Measure`](@ref).
 """
 abstract type AbstractMeasureData end
 
 """
-    DiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
-                        Vector{<:JuMP.AbstractVariableRef}},
-                        N, B <: Union{Float64, Vector{Float64}},
-                        F <: Function
-                        } <: AbstractMeasureData
+    IntegralData{P <: Union{JuMP.AbstractVariableRef, Vector{<:JuMP.AbstractVariableRef}},
+                 D <: AbstractInfiniteDomain,
+                 F <: Union{Nothing, Function}} <: AbstractMeasureData
 
-A DataType for immutable measure abstraction data where the
-abstraction is of the form:
-``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
-The supports and coefficients are immutable (i.e., they will not change
-even if supports are changed for the underlying infinite parameter.) This
-type can be used for both 1-dimensional and multi-dimensional measures.
+A `DataType` for defining integral measures and storing their needed canonical
+information; namely, the infinite parameter(s) that act as the independent 
+variable, the domain of the integral, and a weighting function (if there is 
+one).
 
 **Fields**
-- `parameter_refs::P`: The infinite parameter(s) over which the integration occurs.
-                       These can be comprised of multiple independent parameters,
-                       but dependent parameters cannot be mixed with other types.
-- `coefficients::Vector{Float64}`: Coefficients ``\\alpha_i`` for the above
-                                   measure abstraction.
-- `supports::Array{Float64, N}`: Supports points ``\\tau_i``. This is a `Vector`
-                                 if only one parameter is given, otherwise it is
-                                 a `Matrix` where the supports are stored column-wise.
-- `label::DataType`: Label for the support points ``\\tau_i`` when stored in the
-                   infinite parameter(s), stemming from [`AbstractSupportLabel`](@ref).
-- `weight_function::F`: Weighting function ``w`` must map an individual
-                               support value to a `Real` scalar value.
-- `lower_bounds::B`: Lower bound in accordance with ``T``, this denotes the
-                    intended interval of the measure and should be `NaN` if ignored
-- `upper_bounds::B`: Same as above but the upper bound.
-- `is_expect::Bool`: Is this data associated with an expectation call?
+- `parameter_refs::P`: The infinite parameter(s) that act as the independent 
+variable(s).
+- `domain::D`: The domain of the integral (must be a sub-domain of the parameter 
+domain).
+- `weight_func::F`: A function of the form `w(d)::Float64`, where `d` are the 
+infinite parameters, that is multiplied against the integrant function.   
 """
-struct DiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
-                           Vector{<:JuMP.AbstractVariableRef}},
-                           N, B <: Union{Float64, Vector{Float64}},
-                           F <: Function
-                           } <: AbstractMeasureData
+struct IntegralData{P <: Union{JuMP.AbstractVariableRef,
+                               Vector{<:JuMP.AbstractVariableRef}},
+                    D <: AbstractInfiniteDomain,
+                    F <: Union{Nothing, Function}} <: AbstractMeasureData
     parameter_refs::P
-    coefficients::Vector{Float64}
-    supports::Array{Float64, N} # supports are stored column-wise
-    label::DataType # label that will used when the supports are added to the model
-    weight_function::F # single support --> weight value
-    lower_bounds::B
-    upper_bounds::B
-    is_expect::Bool
-    # scalar constructor
-    function DiscreteMeasureData(
-        param_ref::V, coeffs::Vector{<:Real},
-        supps::Vector{<:Real}, 
-        label::DataType,
-        weight_func::F,
-        lower_bound::Real,
-        upper_bound::Real,
-        expect::Bool
-        ) where {V <: JuMP.AbstractVariableRef, F <: Function}
-        return new{V, 1, Float64, F}(param_ref, coeffs, supps, label, weight_func,
-                                     lower_bound, upper_bound, expect)
+    domain::D # needs to be a subset or equal to the parameter domain(s)
+    weight_func::F
+
+    # Univariate constructor
+    function IntegralData(
+        pref::P, 
+        domain::D, 
+        func::F = nothing
+        ) where {P <: JuMP.AbstractVariableRef, 
+                 D <: InfiniteScalarDomain, 
+                 F <: Union{Nothing, Function}}
+        return new{P, D, F}(pref, domain, func)
     end
-    # multi constructor
-    function DiscreteMeasureData(
-        param_refs::Vector{V}, 
-        coeffs::Vector{<:Real},
-        supps::Matrix{<:Real}, 
-        label::DataType,
-        weight_func::F,
-        lower_bound::Vector{<:Real},
-        upper_bound::Vector{<:Real},
-        expect::Bool
-        ) where {V <: JuMP.AbstractVariableRef, F <: Function}
-        return new{Vector{V}, 2, Vector{Float64}, F}(param_refs, coeffs, supps,
-                                                     label, weight_func, lower_bound,
-                                                     upper_bound, expect)
+
+    # Multivariate constructor
+    function IntegralData(
+        prefs::P, 
+        domain::D, 
+        func::F = nothing
+        ) where {P <: Vector{<:JuMP.AbstractVariableRef}, 
+                 D <: InfiniteArrayDomain, 
+                 F <: Union{Nothing, Function}}
+        return new{P, D, F}(prefs, domain, func)
     end
 end
 
 """
-    FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
+    ExpectationData{P <: Union{JuMP.AbstractVariableRef, Vector{<:JuMP.AbstractVariableRef}},
+                    F <: Union{Nothing, Function}} <: AbstractMeasureData 
+
+A `DataType` for storing expectation operators. Principally, this includes 
+the infinite parameter(s) the expectation is with respect to and the underlying 
+probability density function. 
+
+**Fields**
+- `parameter_refs::P`: The infinite parameter(s) the expectation is over.
+- `pdf::F`: The pdf function used by the expectation.
+"""
+struct ExpectationData{P <: Union{JuMP.AbstractVariableRef,
                                   Vector{<:JuMP.AbstractVariableRef}},
-                                  B <: Union{Float64, Vector{Float64}},
-                                  I <: AbstractGenerativeInfo,
-                                  F1 <: Function,
-                                  F2 <: Function
-                                  } <: AbstractMeasureData
+                       F <: Union{Nothing, Function}} <: AbstractMeasureData 
+    parameter_refs::P # these also define the domain implicitly
+    pdf::F
 
-A DataType for mutable measure abstraction data where the
-abstraction is of the form:
-``measure = \\int_{\\tau \\in T} f(\\tau) w(\\tau) d\\tau \\approx \\sum_{i = 1}^N \\alpha_i f(\\tau_i) w(\\tau_i)``.
-This abstraction is equivalent to that of [`DiscreteMeasureData`](@ref), but
-the difference is that the supports are not fully known at the time of measure
-creation. Thus, functions are stored that will be used to generate the
-concrete support points ``\\tau_i`` and their coefficients ``\\alpha_i`` when
-the measure is evaluated (expanded). These supports are identified/generated
-in accordance with the `label` with a gaurantee that at least `num_supports` are
-generated. For example, if `label = MCSample` and `num_supports = 100` then
-the measure will use all of the supports stored in the `parameter_refs` with the
-label `MCSample` and will ensure there are at least 100 are generated. This
-type can be used for both 1-dimensional and multi-dimensional measures.
-
-For 1-dimensional measures over independent infinite parameters, the 
-`generative_supp_info` specifies the info needed to make generative supports based 
-on those with that exist with `label`. Note that only 1 kind of generative 
-supports are allowed for each infinite parameter.
-
-**Fields**
-- `parameter_refs::P`: The infinite parameter(s) over which the integration occurs.
-                     These can be comprised of multiple independent parameters,
-                     but dependent parameters cannot be mixed with other types.
-- `coeff_function::F1`: Coefficient generation function making ``\\alpha_i``
-                              for the above measure abstraction. It should take
-                              all the supports as input (formatted as an Array)
-                              and return the corresponding vector of coefficients.
-- `min_num_supports::Int`: Specifies the minimum number of supports ``\\tau_i``
-                       desired in association with `parameter_refs` and `label`.
-- `label::DataType`: Label for the support points ``\\tau_i`` which are/will be
-                   stored in the infinite parameter(s), stemming from [`AbstractSupportLabel`](@ref).
-- `generative_supp_info::I`: Information needed to generate supports based on other 
-   existing ones.
-- `weight_function::F2`: Weighting function ``w`` must map an individual
-                              support value to a `Real` scalar value.
-- `lower_bounds::B`: Lower bounds in accordance with ``T``, this denotes the
-                  intended interval of the measure and should be `NaN` if ignored
-- `upper_bounds::B`: Same as above but the upper bounds.
-- `is_expect::Bool`: Is this data associated with an expectation call?
-"""
-struct FunctionalDiscreteMeasureData{P <: Union{JuMP.AbstractVariableRef,
-                                     Vector{<:JuMP.AbstractVariableRef}},
-                                     B <: Union{Float64, Vector{Float64}},
-                                     I <: AbstractGenerativeInfo,
-                                     F1 <: Function,
-                                     F2 <: Function
-                                     } <: AbstractMeasureData
-    parameter_refs::P
-    coeff_function::F1 # supports (excluding generative)--> coefficient vector (includes generative)
-    min_num_supports::Int # minimum number of supports
-    label::DataType # support label of included supports
-    generative_supp_info::I
-    weight_function::F2 # single support --> weight value
-    lower_bounds::B
-    upper_bounds::B
-    is_expect::Bool
-    # scalar constructor
-    function FunctionalDiscreteMeasureData(
-        param_ref::V, 
-        coeff_func::F1,
-        num_supps::Int, 
-        label::DataType,
-        gen_info::I,
-        weight_func::F2,
-        lower_bound::Real,
-        upper_bound::Real,
-        expect::Bool
-        ) where {V <: JuMP.AbstractVariableRef, I <: AbstractGenerativeInfo,
-                 F1 <: Function, F2 <: Function}
-        return new{V, Float64, I, F1, F2}(param_ref, coeff_func, num_supps, label, 
-                                          gen_info, weight_func, lower_bound, 
-                                          upper_bound, expect)
+    # Expectation constructor
+    function ExpectationData(
+        prefs::P,
+        func::F = nothing
+        ) where {P <: Union{JuMP.AbstractVariableRef, Vector{<:JuMP.AbstractVariableRef}}, 
+                 F <: Union{Nothing, Function}}
+        return new{P, F}(prefs, func)
     end
-    # multi constructor
-    function FunctionalDiscreteMeasureData(
-        param_refs::Vector{V},
-        coeff_func::F1,
-        num_supps::Int, 
-        label::DataType,
-        weight_func::F2,
-        lower_bound::Vector{<:Real},
-        upper_bound::Vector{<:Real},
-        expect::Bool
-        ) where {V <: JuMP.AbstractVariableRef, F1 <: Function, F2 <: Function}
-        return new{Vector{V}, Vector{Float64}, NoGenerativeSupports, F1, F2}(
-            param_refs, coeff_func, num_supps, label, NoGenerativeSupports(), 
-            weight_func, lower_bound, upper_bound, expect)
-    end
-end
-
-# Convenient Dispatch constructor 
-function FunctionalDiscreteMeasureData(
-    param_refs::Vector{V},
-    coeff_func::Function,
-    num_supps::Int, 
-    label::DataType,
-    info::NoGenerativeSupports,
-    weight_func::Function,
-    lower_bound::Vector{<:Real},
-    upper_bound::Vector{<:Real},
-    expect::Bool
-    ) where {V <: JuMP.AbstractVariableRef}
-    return FunctionalDiscreteMeasureData(param_refs, coeff_func, num_supps,
-                                         label, weight_func, lower_bound,
-                                         upper_bound, expect)
 end
 
 """
     Measure{T <: JuMP.AbstractJuMPScalar, V <: AbstractMeasureData}
 
-A `DataType` for measure abstractions. The abstraction is determined by `data`
-and is enacted on `func` when the measure is evaluated (expended).
+A `DataType` for measure objects. The type of measure is determined by `data`
+and is enacted on `func` when the measure is evaluated (expanded).
 
 **Fields**
 - `func::T` The `InfiniteOpt` expression to be measured.
-- `data::V` Data of the abstraction as described in a `AbstractMeasureData`
-            concrete subtype.
+- `data::V` Data needed to describe the measure.
 - `object_nums::Vector{Int}`: The parameter object numbers of the evaluated
                               measure expression (i.e., the object numbers of
                               `func` excluding those that belong to `data`).
@@ -1124,7 +820,6 @@ A mutable `DataType` for storing [`Measure`](@ref)s and their data.
 
 **Fields**
 - `measure::M`: The measure structure.
-- `name::String`: The base name used for printing `name(meas_expr d(par))`.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `constraint_indices::Vector{InfOptConstraintIndex}`: Indices of dependent constraints.
 - `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
@@ -1132,15 +827,14 @@ A mutable `DataType` for storing [`Measure`](@ref)s and their data.
 """
 mutable struct MeasureData{M <: Measure} <: AbstractDataObject
     measure::M
-    name::String
     measure_indices::Vector{MeasureIndex}
     constraint_indices::Vector{InfOptConstraintIndex}
     derivative_indices::Vector{DerivativeIndex}
     in_objective::Bool
 end
 
-function MeasureData(measure::M, name::String = "measure") where {M <: Measure}
-    return MeasureData{M}(measure, name, MeasureIndex[], InfOptConstraintIndex[], 
+function MeasureData(measure::M) where {M <: Measure}
+    return MeasureData{M}(measure, MeasureIndex[], InfOptConstraintIndex[], 
                           DerivativeIndex[], false)
 end
 
@@ -1190,64 +884,150 @@ mutable struct ConstraintData{C <: JuMP.AbstractConstraint} <: AbstractDataObjec
 end
 
 ################################################################################
+#                                TRANSFORM API
+################################################################################
+"""
+    AbstractTransformAttr
+
+An abstract type for attributes used by a transformation backend that are stored 
+in an `InfiniteModel`'s cache as the model is created. 
+"""
+abstract type AbstractTransformAttr end
+
+"""
+    FiniteParameterAttr <: AbstractTransformAttr
+
+A finite parameter attribute that is used by a transformation backend. This 
+is intended to be used by transformation backends that require/allow additional 
+information about finite parameters to be specified by the user.
+"""
+abstract type FiniteParameterAttr <: AbstractTransformAttr end
+
+"""
+    InfiniteParameterAttr <: AbstractTransformAttr
+
+An infinite parameter attribute that is used by a transformation backend. This 
+is intended to be used by transformation backends that require/allow additional 
+information about infinite parameters to be specified by the user.
+"""
+abstract type InfiniteParameterAttr <: AbstractTransformAttr end
+
+"""
+    VariableAttr <: AbstractTransformAttr
+
+A variable attribute that is used by a transformation backend. This is 
+intended to be used by transformation backends that require/allow additional 
+information about variables to be specified by the user.
+"""
+abstract type VariableAttr <: AbstractTransformAttr end
+
+"""
+    DerivativeAttr <: AbstractTransformAttr
+
+A derivative attribute that is used by a transformation backend. This is 
+intended to be used by transformation backends that require/allow additional 
+information about derivatives to be specified by the user.
+"""
+abstract type DerivativeAttr <: AbstractTransformAttr end
+
+"""
+    MeasureAttr <: AbstractTransformAttr
+
+A measure attribute that is used by a transformation backend. This is 
+intended to be used by transformation backends that require/allow additional 
+information about measure to be specified by the user.
+"""
+abstract type MeasureAttr <: AbstractTransformAttr end
+
+"""
+    ConstraintAttr <: AbstractTransformAttr
+
+A constraint attribute that is used by a transformation backend. This is 
+intended to be used by transformation backends that require/allow additional 
+information about constraints to be specified by the user.
+"""
+abstract type ConstraintAttr <: AbstractTransformAttr end
+
+"""
+    ModelAttr <: AbstractTransformAttr
+
+A model attribute that is used by a transformation backend. This is 
+intended to be used by transformation backends that require/allow additional 
+information about the model to be specified by the user.
+"""
+abstract type ModelAttr <: AbstractTransformAttr end
+
+"""
+    TransformAttrCache
+
+A convenient container for storing all the transformation attributes stored in 
+an `InfiniteModel` that can be used by the transformation backend.
+"""
+struct TransformAttrCache
+    finite_parameters::Dict{FiniteParameterIndex, Dict{FiniteParameterAttr, Any}}
+    independent_parameters::Dict{IndependentParameterIndex, Dict{InfiniteParameterAttr, Any}}
+    dependent_params::Dict{DependentParametersIndex, Dict{InfiniteParameterAttr, Any}} # TODO maybe allow for parameter-wise attributes
+    infinite_variables::Dict{InfiniteVariableIndex, Dict{VariableAttr, Any}}
+    semi_ifninite_variables::Dict{SemiInfiniteVariableIndex, Dict{VariableAttr, Any}}
+    point_variables::Dict{PointVariableIndex, Dict{VariableAttr, Any}}
+    derivatives::Dict{DerivativeIndex, Dict{DerivativeAttr, Any}}
+    measures::Dict{MeasureIndex, Dict{MeasureAttr, Any}}
+    constraints::Dict{InfOptConstraintIndex, Dict{ConstraintAttr, Any}}
+    model::Dict{ModelAttr, Any}
+
+    # Constructor 
+    function TransformAttrCache()
+        return new(
+            Dict{FiniteParameterIndex, Dict{FiniteParameterAttr, Any}}(),
+            Dict{IndependentParameterIndex, Dict{InfiniteParameterAttr, Any}}(),
+            Dict{DependentParametersIndex, Dict{InfiniteParameterAttr, Any}}(),
+            Dict{InfiniteVariableIndex, Dict{VariableAttr, Any}}(),
+            Dict{SemiInfiniteVariableIndex, Dict{VariableAttr, Any}}(),
+            Dict{PointVariableIndex, Dict{VariableAttr, Any}}(),
+            Dict{DerivativeIndex, Dict{DerivativeAttr, Any}}(),
+            Dict{MeasureIndex, Dict{MeasureAttr, Any}}(),
+            Dict{InfOptConstraintIndex, Dict{ConstraintAttr, Any}}(),
+            Dict{ModelAttr, Any}()
+            )
+    end
+end
+
+"""
+    ObjectWithAttributes{O, D <: Dict}
+
+This serves as a wrapper type to store a modeling object (e.g., an infinite 
+parameter) and [`AbstractTransformAttr`](@ref)s that should be added when the 
+object is added to the model.
+
+**Fields**
+- `object:O`: The modeling object to be added.
+- `attributes::D`: The dictionary of attributes to be added (`attr` => `value`). 
+"""
+struct ObjectWithAttributes{O, D <: Dict}
+    object::O
+    attributes::D
+end
+
+"""
+    AbstractTransformBackend
+
+An abstract type for transformation interfaces/models that act as a backend for 
+`InfiniteModel`s.
+"""
+abstract type AbstractTransformBackend end
+
+# TODO maybe add more types if needed
+
+################################################################################
 #                                INFINITE MODEL
 ################################################################################
+const DefaultSigDigits = 12
+
 """
     InfiniteModel <: JuMP.AbstractModel
 
 A `DataType` for storing all of the mathematical modeling information needed to
 model an optmization problem with an infinite-dimensional decision space.
-
-**Fields**
-- `independent_params::MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{IndependentParameter}}`:
-   The independent parameters and their mapping information.
-- `dependent_params::MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}`:
-   The dependent parameters and their mapping information.
-- `finite_params::MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}`:
-   The finite parameters and their mapping information.
-- `name_to_param::Union{Dict{String, AbstractInfOptIndex}, Nothing}`:
-   Field to help find a parameter given the name.
-- `last_param_num::Int`: The last parameter number to be used.
-- `param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}`:
-  The collection of parameter object indices in creation order.
-- `param_functions::MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{ParameterFunction}}`: 
-  The infinite parameter functions and their mapping information.
-- `infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}`:
-   The infinite variables and their mapping information.
-- `semi_infinite_vars::MOIUC.CleverDict{SemiInfiniteVariableIndex, <:VariableData{<:SemiInfiniteVariable}}`:
-   The semi-infinite variables and their mapping information.
-- `semi_lookup::Dict{<:Tuple, SemiInfiniteVariableIndex}`: Look-up if a variable already already exists.
-- `point_vars::MOIUC.CleverDict{PointVariableIndex, <:VariableData{<:PointVariable}}`:
-   The point variables and their mapping information.
-- `point_lookup::Dict{<:Tuple, PointVariableIndex}`: Look-up if a variable already exists.
-- `finite_vars::MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}`:
-   The finite variables and their mapping information.
-- `name_to_var::Union{Dict{String, AbstractInfOptIndex}, Nothing}`:
-   Field to help find a variable given the name.
-- `derivatives::MOIUC.CleverDict{DerivativeIndex, <:VariableData{<:Derivative}}`:
-  The derivatives and their mapping information.
-- `deriv_lookup::Dict{<:Tuple, DerivativeIndex}`: Map derivative variable-parameter 
-  pairs to a derivative index to prevent duplicates.
-- `measures::MOIUC.CleverDict{MeasureIndex, <:MeasureData}`:
-   The measures and their mapping information.
-- `integral_defaults::Dict{Symbol}`:
-   The default keyword arguments for [`integral`](@ref).
-- `constraints::MOIUC.CleverDict{InfOptConstraintIndex, <:ConstraintData}`:
-   The constraints and their mapping information.
-- `constraint_restrictions::Dict{InfOptConstraintIndex, <:DomainRestrictions}` Map constraints 
-  to their domain restrictions if they have any.
-- `name_to_constr::Union{Dict{String, InfOptConstraintIndex}, Nothing}`:
-   Field to help find a constraint given the name.
-- `objective_sense::MOI.OptimizationSense`: Objective sense.
-- `objective_function::JuMP.AbstractJuMPScalar`: Finite scalar function.
-- `objective_has_measures::Bool`: Does the objective contain measures?
-- `registrations::Vector{RegisteredFunction}`: The nonlinear registered functions.
-- `Dict{Tuple{Symbol, Int}, Function}`: Map a name and number of arguments to a registered function.
-- `obj_dict::Dict{Symbol, Any}`: Store Julia symbols used with `InfiniteModel`
-- `optimizer_constructor`: MOI optimizer constructor (e.g., Gurobi.Optimizer).
-- `optimizer_model::JuMP.Model`: Model used to solve `InfiniteModel`
-- `ready_to_optimize::Bool`: Is the optimizer_model up to date.
-- `ext::Dict{Symbol, Any}`: Store arbitrary extension information.
 """
 mutable struct InfiniteModel <: JuMP.AbstractModel
     # Parameter Data
@@ -1267,6 +1047,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     point_lookup::Dict{<:Tuple, PointVariableIndex}
     finite_vars::MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}
     name_to_var::Union{Dict{String, AbstractInfOptIndex}, Nothing}
+    significant_digits::Int
 
     # Derivative Data 
     derivatives::MOIUC.CleverDict{DerivativeIndex, <:VariableData{<:Derivative}}
@@ -1283,7 +1064,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     # Objective Data
     objective_sense::MOI.OptimizationSense
     objective_function::JuMP.AbstractJuMPScalar
-    objective_has_measures::Bool
+    objective_has_measures::Bool # TODO maybe remove this?
 
     # Function Registration
     registrations::Vector{Any}
@@ -1292,129 +1073,76 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     # Objects
     obj_dict::Dict{Symbol, Any}
 
-    # Optimize Data
-    optimizer_constructor::Any
-    optimizer_model::JuMP.Model
-    ready_to_optimize::Bool
+    # Transformation/Optimize Data
+    transform_attrs::TransformAttrCache
+    transform_backend::Union{AbstractTransformBackend, Nothing}
+    backend_ready::Bool
 
     # Extensions
     ext::Dict{Symbol, Any}
 end
 
 """
-    InfiniteModel([optimizer_constructor];
-                  [OptimizerModel::Function = TranscriptionModel,
-                  add_bridges::Bool = true, optimizer_model_kwargs...])
+    InfiniteModel([backend::AbstractTransformBackend]; [sig_digits::Int = DefaultSigDigits, kwargs..])
 
-Return a new infinite model where an optimizer is specified if an
-`optimizer_constructor` is given. The optimizer
-can also later be set with the [`JuMP.set_optimizer`](@ref) call. By default
-the `optimizer_model` data field is initialized with a
-[`TranscriptionModel`](@ref), but a different type of model can be assigned via
-[`set_optimizer_model`](@ref) as can be required by extensions.
+The core modeling object used to store infinite-dimensional optimization formulations. 
+Optionally, a transformation backend `backend` can be specified that will altimately 
+be used to transform and solve a model. Can specify the number of significant digits 
+that should be used to process supports (e.g., variable points). Certain backends 
+and/or extension packages might allow the specification of keyword arguments to 
+provide [`ModelAttr`](@ref)s. 
 
 **Example**
-```jldoctest
-julia> using InfiniteOpt, JuMP, Ipopt;
-
+```julia-repl
 julia> model = InfiniteModel()
-An InfiniteOpt Model
-Feasibility problem with:
-Finite Parameters: 0
-Infinite Parameters: 0
-Variables: 0
-Measures: 0
-Derivatives: 0
-Optimizer model backend information:
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
 
-julia> model = InfiniteModel(Ipopt.Optimizer)
-An InfiniteOpt Model
-Feasibility problem with:
-Finite Parameters: 0
-Infinite Parameters: 0
-Variables: 0
-Measures: 0
-Derivatives: 0
-Optimizer model backend information:
-Model mode: AUTOMATIC
-CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Ipopt
+TODO finish
 ```
 """
-function InfiniteModel(; 
-    OptimizerModel::Function = TranscriptionModel,
-    kwargs...
-    )::InfiniteModel
-    return InfiniteModel(# Parameters
-                         MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}(),
-                         MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}(),
-                         MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
-                         nothing, 0,
-                         Union{IndependentParameterIndex, DependentParametersIndex}[],
-                         MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{<:ParameterFunction}}(),
-                         # Variables
-                         MOIUC.CleverDict{InfiniteVariableIndex, VariableData{<:InfiniteVariable}}(),
-                         MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),
-                         Dict{Tuple{GeneralVariableRef, Dict{Int, Float64}}, SemiInfiniteVariableIndex}(),
-                         MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
-                         Dict{Tuple{GeneralVariableRef, Vector{Float64}}, PointVariableIndex}(),
-                         MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}(),
-                         nothing,
-                         # Derivatives
-                         MOIUC.CleverDict{DerivativeIndex, VariableData{<:Derivative}}(),
-                         Dict{Tuple{GeneralVariableRef, GeneralVariableRef}, DerivativeIndex}(),
-                         # Measures
-                         MOIUC.CleverDict{MeasureIndex, MeasureData{<:Measure}}(),
-                         # Constraints
-                         MOIUC.CleverDict{InfOptConstraintIndex, ConstraintData{<:JuMP.AbstractConstraint}}(),
-                         Dict{InfOptConstraintIndex, DomainRestrictions{GeneralVariableRef}}(),
-                         nothing,
-                         # Objective
-                         MOI.FEASIBILITY_SENSE,
-                         zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}),
-                         false,
-                         # registration
-                         RegisteredFunction[],
-                         Dict{Tuple{Symbol, Int}, Function}(),
-                         # Object dictionary
-                         Dict{Symbol, Any}(),
-                         # Optimize data
-                         nothing, OptimizerModel(; kwargs...), false,
-                         # Extensions
-                         Dict{Symbol, Any}()
-                         )
+function InfiniteModel(; sig_digits::Int = DefaultSigDigits)
+    return InfiniteModel(
+        # Parameters
+        MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}(),
+        MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}(),
+        MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
+        nothing, 0,
+        Union{IndependentParameterIndex, DependentParametersIndex}[],
+        MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{<:ParameterFunction}}(),
+        # Variables
+        MOIUC.CleverDict{InfiniteVariableIndex, VariableData{<:InfiniteVariable}}(),
+        MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),
+        Dict{Tuple{GeneralVariableRef, Dict{Int, Float64}}, SemiInfiniteVariableIndex}(),
+        MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
+        Dict{Tuple{GeneralVariableRef, Vector{Float64}}, PointVariableIndex}(),
+        MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}(),
+        nothing, sig_digits,
+        # Derivatives
+        MOIUC.CleverDict{DerivativeIndex, VariableData{<:Derivative}}(),
+        Dict{Tuple{GeneralVariableRef, GeneralVariableRef}, DerivativeIndex}(),
+        # Measures
+        MOIUC.CleverDict{MeasureIndex, MeasureData{<:Measure}}(),
+        # Constraints
+        MOIUC.CleverDict{InfOptConstraintIndex, ConstraintData{<:JuMP.AbstractConstraint}}(),
+        Dict{InfOptConstraintIndex, DomainRestrictions{GeneralVariableRef}}(),
+        nothing,
+        # Objective
+        MOI.FEASIBILITY_SENSE,
+        zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}),
+        false,
+        # registration
+        RegisteredFunction[],
+        Dict{Tuple{Symbol, Int}, Function}(),
+        # Object dictionary
+        Dict{Symbol, Any}(),
+        # Transform data
+        TransformAttrCache(), nothing, false,
+        # Extensions
+        Dict{Symbol, Any}()
+    )
 end
 
-## Set the optimizer_constructor depending on what it is
-# MOI.OptimizerWithAttributes
-function _set_optimizer_constructor(
-    model::InfiniteModel,
-    constructor::MOI.OptimizerWithAttributes
-    )::Nothing
-    model.optimizer_constructor = constructor.optimizer_constructor
-    return
-end
+# TODO make constructor with transform method
 
-# No attributes
-function _set_optimizer_constructor(model::InfiniteModel, constructor)::Nothing
-    model.optimizer_constructor = constructor
-    return
-end
-
-# Dispatch for InfiniteModel call with optimizer constructor
-function InfiniteModel(
-    optimizer_constructor;
-    OptimizerModel::Function = TranscriptionModel,
-    kwargs...
-    )::InfiniteModel
-    model = InfiniteModel()
-    model.optimizer_model = OptimizerModel(optimizer_constructor; kwargs...)
-    _set_optimizer_constructor(model, optimizer_constructor)
-    return model
-end
 
 # Define basic InfiniteModel extension functions
 Base.broadcastable(model::InfiniteModel) = Ref(model)
@@ -1428,16 +1156,14 @@ registered to a specific symbol in the macros. For example,
 `@variable(model, x[1:2, 1:2])` registers the array of variables
 `x` to the symbol `:x`.
 """
-JuMP.object_dictionary(model::InfiniteModel)::Dict{Symbol, Any} = model.obj_dict
+JuMP.object_dictionary(model::InfiniteModel) = model.obj_dict
 
 """
     Base.empty!(model::InfiniteModel)::InfiniteModel
 
-Clear out `model` of everything except the optimizer information and return the 
-cleared model. 
+Clear out `model` of everything. 
 """
-function Base.empty!(model::InfiniteModel)::InfiniteModel 
-    # Clear everything except the solver information
+function Base.empty!(model::InfiniteModel)
     # parameters
     empty!(model.independent_params)
     empty!(model.dependent_params)
@@ -1454,6 +1180,7 @@ function Base.empty!(model::InfiniteModel)::InfiniteModel
     empty!(model.point_lookup)
     empty!(model.finite_vars)
     model.name_to_var = nothing
+    model.significant_digits = DefaultSigDigits
     # derivatives and measures
     empty!(model.derivatives)
     empty!(model.deriv_lookup)
@@ -1469,14 +1196,16 @@ function Base.empty!(model::InfiniteModel)::InfiniteModel
     # other stuff
     empty!(model.registrations)
     empty!(model.obj_dict)
-    empty!(model.optimizer_model)
-    model.ready_to_optimize = false
+    empty!(model.func_lookup)
+    model.transform_attrs = TransformAttrCache()
+    model.transform_backend = nothing
+    model.backend_ready = false
     empty!(model.ext)
     return model
 end
 
 # Define basic accessors
-_last_param_num(model::InfiniteModel)::Int = model.last_param_num
+_last_param_num(model::InfiniteModel) = model.last_param_num
 _param_object_indices(model::InfiniteModel) = model.param_object_indices
 
 ################################################################################

@@ -64,7 +64,7 @@ end
 
 # Extend _data_object
 function _data_object(cref::InfOptConstraintRef)
-    object = get(_data_dictionary(cref), JuMP.index(cref), nothing)
+    object = Base.get(_data_dictionary(cref), JuMP.index(cref), nothing)
     if isnothing(object)
         error("Invalid constraint reference, cannot find corresponding ", 
               "constraint in the model. This is likely caused by using the ",
@@ -246,7 +246,7 @@ end
 function _update_var_constr_mapping(
     vrefs::Vector{GeneralVariableRef},
     cref::InfOptConstraintRef
-    )::Nothing
+    )
     for vref in vrefs
         dvref = dispatch_variable_ref(vref)
         push!(_constraint_dependencies(dvref), JuMP.index(cref))
@@ -386,7 +386,7 @@ julia> name(cref)
 ```
 """
 function JuMP.name(cref::InfOptConstraintRef)
-    object = get(_data_dictionary(cref), JuMP.index(cref), nothing)
+    object = Base.get(_data_dictionary(cref), JuMP.index(cref), nothing)
     return isnothing(object) ? "" : object.name
 end
 
@@ -581,7 +581,7 @@ function JuMP.constraint_by_name(
             end
         end
     end
-    index = get(model.name_to_constr, name, nothing)
+    index = Base.get(model.name_to_constr, name, nothing)
     if isnothing(index)
         return nothing
     elseif index == InfOptConstraintIndex(-1)
@@ -794,7 +794,7 @@ Subdomain restrictions (1): t ∈ [0, 2]
 ```
 """
 function domain_restrictions(cref::InfOptConstraintRef)
-    return get(JuMP.owner_model(cref).constraint_restrictions, JuMP.index(cref), 
+    return Base.get(JuMP.owner_model(cref).constraint_restrictions, JuMP.index(cref), 
                DomainRestrictions())
 end
 

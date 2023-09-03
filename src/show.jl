@@ -229,53 +229,7 @@ end
 ################################################################################
 #                           MEASURE STRING METHODS
 ################################################################################
-## Convert measure data into a useable string for measure printing
-# 1-D DiscreteMeasureData/FunctionalDiscreteMeasureData
-function measure_data_string(print_mode,
-    data::Union{DiscreteMeasureData{GeneralVariableRef},
-                FunctionalDiscreteMeasureData{GeneralVariableRef}}
-    )::String
-    pref = parameter_refs(data)
-    lb = JuMP.lower_bound(data)
-    ub = JuMP.upper_bound(data)
-    nan_bound = isnan(lb) || isnan(ub)
-    if nan_bound
-        return JuMP.function_string(print_mode, pref)
-    else
-        domain = IntervalDomain(lb, ub)
-        return string(JuMP.function_string(print_mode, pref), " ",
-                      in_domain_string(print_mode, domain))
-    end
-end
 
-# Multi-D DiscreteMeasureData/FunctionalDiscreteMeasureData
-function measure_data_string(print_mode,
-    data::Union{DiscreteMeasureData{Vector{GeneralVariableRef}},
-                FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}}}
-    )::String
-    prefs = parameter_refs(data)
-    lbs = JuMP.lower_bound(data)
-    ubs = JuMP.upper_bound(data)
-    has_bounds = !isnan(first(lbs)) && !isnan(first(ubs))
-    homo_bounds = has_bounds && _allequal(lbs) && _allequal(ubs)
-    names = map(p -> _remove_name_index(p), prefs)
-    homo_names = _allequal(names)
-    num_prefs = length(prefs)
-    if homo_names && homo_bounds
-        domain = IntervalDomain(first(lbs), first(ubs))
-        return string(first(names), " ", in_domain_string(print_mode, domain),
-                      "^", num_prefs)
-    elseif has_bounds
-        str_list = [JuMP.function_string(print_mode, prefs[i]) * " " *
-                    in_domain_string(print_mode, IntervalDomain(lbs[i], ubs[i]))
-                    for i in eachindex(prefs)]
-        return _make_str_value(str_list)[2:end-1]
-    elseif homo_names
-        return first(names)
-    else
-        return _make_str_value(prefs)
-    end
-end
 
 # extract the most compact parameter name possible
 function _get_root_parameter_name(data::AbstractMeasureData)::String 
@@ -288,23 +242,20 @@ function _get_root_parameter_name(data::AbstractMeasureData)::String
     end
 end 
 
-# Fallback for measure_data_string
-function measure_data_string(print_mode, data::AbstractMeasureData)::String
-    return _get_root_parameter_name(data)
-end
 
 # Make strings to represent measures in REPLMode
 function variable_string(m::MIME"text/plain", mref::MeasureRef)::String
-    data = measure_data(mref)
-    data_str = measure_data_string(m, data)
-    func_str = JuMP.function_string(m, measure_function(mref))
-    name = JuMP.name(mref)
-    if name == "integral"
-        name = _math_symbol(m, :integral)
-    elseif name == "expect"
-        name = _math_symbol(m, :expect)
-    end
-    return string(name, "{", data_str, "}[", func_str, "]")
+    # data = measure_data(mref)
+    # data_str = measure_data_string(m, data)
+    # func_str = JuMP.function_string(m, measure_function(mref))
+    # name = JuMP.name(mref)
+    # if name == "integral"
+    #     name = _math_symbol(m, :integral)
+    # elseif name == "expect"
+    #     name = _math_symbol(m, :expect)
+    # end
+    # return string(name, "{", data_str, "}[", func_str, "]")
+    return "TODO measure printing"
 end
 
 # Make strings to represent measures in IJuliaMode
@@ -726,8 +677,9 @@ end
 
 # Show the backend information associated with the optimizer model
 function JuMP.show_backend_summary(io::IO, model::InfiniteModel)
-    println(io, "Optimizer model backend information: ")
-    JuMP.show_backend_summary(io, optimizer_model(model))
+    println(io, "Transformation backend information: ")
+    println(io, "TODO implement transform printing")
+    # JuMP.show_backend_summary(io, optimizer_model(model))
     return
 end
 
@@ -763,28 +715,29 @@ function Base.show(io::IO, model::InfiniteModel)
     end
     println(io, " problem with:")
     # show finite parameter info
-    num_finite_params = num_parameters(model, FiniteParameter)
-    println(io, "Finite Parameter", _plural(num_finite_params), ": ",
-            num_finite_params)
-    # show infinite parameter info
-    num_infinite_params = num_parameters(model, InfiniteParameter)
-    println(io, "Infinite Parameter", _plural(num_infinite_params), ": ",
-            num_infinite_params)
-    # show variable info
-    num_vars = JuMP.num_variables(model)
-    println(io, "Variable", _plural(num_vars), ": ", num_vars)
-    # show the derivative info 
-    num_derivs = num_derivatives(model)
-    println(io, "Derivative", _plural(num_derivs), ": ", num_derivs)
-    # show measure info
-    num_meas = num_measures(model)
-    println(io, "Measure", _plural(num_meas), ": ", num_meas)
-    # show objective function info
-    if sense != MOI.FEASIBILITY_SENSE
-        JuMP.show_objective_function_summary(io, model)
-    end
-    # show constraint info
-    JuMP.show_constraints_summary(io, model)
+    # num_finite_params = num_parameters(model, FiniteParameter)
+    # println(io, "Finite Parameter", _plural(num_finite_params), ": ",
+    #         num_finite_params)
+    # # show infinite parameter info
+    # num_infinite_params = num_parameters(model, InfiniteParameter)
+    # println(io, "Infinite Parameter", _plural(num_infinite_params), ": ",
+    #         num_infinite_params)
+    # # show variable info
+    # num_vars = JuMP.num_variables(model)
+    # println(io, "Variable", _plural(num_vars), ": ", num_vars)
+    # # show the derivative info 
+    # num_derivs = num_derivatives(model)
+    # println(io, "Derivative", _plural(num_derivs), ": ", num_derivs)
+    # # show measure info
+    # num_meas = num_measures(model)
+    # println(io, "Measure", _plural(num_meas), ": ", num_meas)
+    # # show objective function info
+    # if sense != MOI.FEASIBILITY_SENSE
+    #     JuMP.show_objective_function_summary(io, model)
+    # end
+    # # show constraint info
+    # JuMP.show_constraints_summary(io, model)
+    println(io, "TODO update model details printing")
     # show other info
     names_in_scope = sort!(collect(keys(JuMP.object_dictionary(model))))
     if !isempty(names_in_scope)

@@ -26,7 +26,7 @@ end
 
 # Extend _data_object
 function _data_object(fref::ParameterFunctionRef)
-    object = get(_data_dictionary(fref), JuMP.index(fref), nothing)
+    object = Base.get(_data_dictionary(fref), JuMP.index(fref), nothing)
     if isnothing(object) 
         error("Invalid parameter function reference, cannot find ",
               "corresponding object in the model. This is likely ",
@@ -172,7 +172,7 @@ julia> name(fref)
 ```
 """
 function JuMP.name(fref::ParameterFunctionRef)::String 
-    object = get(_data_dictionary(fref), JuMP.index(fref), nothing)
+    object = Base.get(_data_dictionary(fref), JuMP.index(fref), nothing)
     return isnothing(object) ? "" : object.name
 end
 
@@ -874,7 +874,7 @@ function _affine_coefficient(
     func::GenericAffExpr, 
     var::GeneralVariableRef
     )::Float64 
-    return get(func.terms, var, 0.0)
+    return Base.get(func.terms, var, 0.0)
 end
 
 # GenericQuadExpr
@@ -882,7 +882,7 @@ function _affine_coefficient(
     func::GenericQuadExpr, 
     var::GeneralVariableRef
     )::Float64 
-    return get(func.aff.terms, var, 0.0)
+    return Base.get(func.aff.terms, var, 0.0)
 end
 
 # Fallback 

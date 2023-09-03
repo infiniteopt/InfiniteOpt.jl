@@ -36,7 +36,7 @@ end
 function _data_object(
     vref::PointVariableRef
     )::VariableData{PointVariable{GeneralVariableRef}}
-    object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
+    object = Base.get(_data_dictionary(vref), JuMP.index(vref), nothing)
     if isnothing(object) 
         error("Invalid point variable reference, cannot find ",
         "corresponding variable in the model. This is likely ",
@@ -430,7 +430,7 @@ function JuMP.add_variable(
     ivref = v.infinite_variable_ref
     divref = dispatch_variable_ref(ivref)
     JuMP.check_belongs_to_model(divref, model)
-    existing_index = get(model.point_lookup, (ivref, v.parameter_values), nothing)
+    existing_index = Base.get(model.point_lookup, (ivref, v.parameter_values), nothing)
     if isnothing(existing_index)
         data_object = VariableData(v, name)
         vindex = _add_data_object(model, data_object)

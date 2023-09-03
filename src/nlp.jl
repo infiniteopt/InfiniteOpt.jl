@@ -128,7 +128,7 @@ function _is_zero(node::_LCRST.Node{NodeData})
         return true
     elseif raw in (:/, :^) && _is_zero(node.child)
         return true
-    elseif all(_is_zero(n) for n in node) && iszero(get(_NativeNLPFunctions, (raw, length(collect(node))), (i...) -> true)((0.0 for n in node)...))
+    elseif all(_is_zero(n) for n in node) && iszero(Base.get(_NativeNLPFunctions, (raw, length(collect(node))), (i...) -> true)((0.0 for n in node)...))
         return true
     else
         return false
@@ -1324,8 +1324,8 @@ function name_to_function(model::InfiniteModel, name::Symbol, num_args::Int)
     elseif name == :*
         return *
     else
-        return get(_NativeNLPFunctions, (name, num_args), 
-                   get(model.func_lookup, (name, num_args), nothing))
+        return Base.get(_NativeNLPFunctions, (name, num_args), 
+                   Base.get(model.func_lookup, (name, num_args), nothing))
     end
 end
 

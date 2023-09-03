@@ -87,7 +87,7 @@ end
 ## Define dispatch methods to collect value of parameters 
 # InfiniteParameter 
 function _get_value(pref, ::Type{<:InfiniteParameterIndex}, result; kwargs...)
-    label = get(kwargs, :label, PublicLabel)
+    label = Base.get(kwargs, :label, PublicLabel)
     return supports(pref, label = label) # TODO generalize this once we decouple the supports
 end
 

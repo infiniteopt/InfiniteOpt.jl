@@ -458,10 +458,7 @@ function _object_number(pref::GeneralVariableRef)::Int
 end
 
 # Define 1 argument user method wrappers and their fallbacks
-for op = (:infinite_domain, :num_supports, :significant_digits, :has_supports,
-          :supports, :delete_supports, :fill_in_supports!, :parameter_value,
-          :derivative_method, :has_generative_supports, :has_internal_supports,
-          :add_generative_supports, :raw_function, :generative_support_info)
+for op = (:infinite_domain, :parameter_value, :raw_function)
     @eval begin
         # define the fallback method
         function $op(pref; kwargs...)
@@ -526,20 +523,20 @@ function set_infinite_domain(
 end
 
 # Better fallbacks for supports
-function supports(pref::DispatchVariableRef; kwargs...)
-    throw(ArgumentError("`supports` not defined for variable reference type(s) " *
-                        "`$(typeof(pref))`."))
-end
-function supports(prefs::AbstractArray; kwargs...)
-    throw(ArgumentError("`supports` not defined for variable reference type(s) " *
-                        "`$(typeof(prefs))`."))
-end
+# function supports(pref::DispatchVariableRef; kwargs...)
+#     throw(ArgumentError("`supports` not defined for variable reference type(s) " *
+#                         "`$(typeof(pref))`."))
+# end
+# function supports(prefs::AbstractArray; kwargs...)
+#     throw(ArgumentError("`supports` not defined for variable reference type(s) " *
+#                         "`$(typeof(prefs))`."))
+# end
 
 # Dispatch fallback
-function set_supports(pref, supports; kwargs...)
-    throw(ArgumentError("`set_supports` not defined for variable reference type(s) " *
-                        "`$(typeof(pref))`."))
-end
+# function set_supports(pref, supports; kwargs...)
+#     throw(ArgumentError("`set_supports` not defined for variable reference type(s) " *
+#                         "`$(typeof(pref))`."))
+# end
 
 """
     set_supports(pref::GeneralVariableRef, supports::Union{Real, Vector{<:Real}};
@@ -549,15 +546,15 @@ Set the support points associated with a single infinite
 parameter `pref`. An `ArgumentError` is thrown if `pref` is not an independent
 infinite parameter.
 """
-function set_supports(
-    pref::GeneralVariableRef,
-    supports::Union{Real, Vector{<:Real}};
-    force::Bool = false, 
-    label::Type{<:AbstractSupportLabel} = UserDefined
-    )::Nothing
-    return set_supports(dispatch_variable_ref(pref), supports,
-                        force = force, label = label)
-end
+# function set_supports(
+#     pref::GeneralVariableRef,
+#     supports::Union{Real, Vector{<:Real}};
+#     force::Bool = false, 
+#     label::Type{<:All} = UserDefined
+#     )::Nothing
+#     return set_supports(dispatch_variable_ref(pref), supports,
+#                         force = force, label = label)
+# end
 
 """
     set_supports(
@@ -570,21 +567,21 @@ Set the support points associated with dependent infinite
 parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
 dependent infinite parameters.
 """
-function set_supports(
-    prefs::AbstractArray{<:GeneralVariableRef},
-    supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
-    label::Type{<:AbstractSupportLabel} = UserDefined, 
-    force::Bool = false
-    )::Nothing
-    return set_supports(dispatch_variable_ref.(prefs), supports, label = label,
-                        force = force)
-end
+# function set_supports(
+#     prefs::AbstractArray{<:GeneralVariableRef},
+#     supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
+#     label::Type{<:All} = UserDefined, 
+#     force::Bool = false
+#     )::Nothing
+#     return set_supports(dispatch_variable_ref.(prefs), supports, label = label,
+#                         force = force)
+# end
 
 # Dispatch fallback
-function add_supports(pref, supports; kwargs...)
-    throw(ArgumentError("`add_supports` not defined for variable reference type(s) " *
-                        "`$(typeof(pref))`."))
-end
+# function add_supports(pref, supports; kwargs...)
+#     throw(ArgumentError("`add_supports` not defined for variable reference type(s) " *
+#                         "`$(typeof(pref))`."))
+# end
 
 """
     add_supports(pref::GeneralVariableRef,
@@ -594,15 +591,15 @@ Add the support points `supports` to a single infinite
 parameter `pref`. An `ArgumentError` is thrown if `pref` is not an independent
 infinite parameter.
 """
-function add_supports(
-    pref::GeneralVariableRef,
-    supports::Union{Real, Vector{<:Real}};
-    check::Bool = true, 
-    label::Type{<:AbstractSupportLabel} = UserDefined
-    )::Nothing
-    return add_supports(dispatch_variable_ref(pref), supports,
-                        check = check, label = label)
-end
+# function add_supports(
+#     pref::GeneralVariableRef,
+#     supports::Union{Real, Vector{<:Real}};
+#     check::Bool = true, 
+#     label::Type{<:All} = UserDefined
+#     )::Nothing
+#     return add_supports(dispatch_variable_ref(pref), supports,
+#                         check = check, label = label)
+# end
 
 """
     add_supports(
@@ -614,15 +611,15 @@ Add the support points `supports` to the dependent infinite
 parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
 dependent infinite parameters.
 """
-function add_supports(
-    prefs::AbstractArray{<:GeneralVariableRef},
-    supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
-    label::Type{<:AbstractSupportLabel} = UserDefined, 
-    check::Bool = true
-    )::Nothing
-    return add_supports(dispatch_variable_ref.(prefs), supports, label = label,
-                        check = check)
-end
+# function add_supports(
+#     prefs::AbstractArray{<:GeneralVariableRef},
+#     supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
+#     label::Type{<:All} = UserDefined, 
+#     check::Bool = true
+#     )::Nothing
+#     return add_supports(dispatch_variable_ref.(prefs), supports, label = label,
+#                         check = check)
+# end
 
 # Fallback
 function JuMP.set_value(vref::DispatchVariableRef, value::Real)
@@ -640,44 +637,6 @@ being defined for the underlying `DispatchVariableRef`, otherwise an
 """
 function JuMP.set_value(vref::GeneralVariableRef, value::Real)::Nothing
     return JuMP.set_value(dispatch_variable_ref(vref), value)
-end
-
-# Dispatch fallback
-function set_derivative_method(pref::DispatchVariableRef, method)
-    throw(ArgumentError("`set_derivative_method` not defined for variable reference type(s) " *
-                        "`$(typeof(pref))`."))
-end
-
-"""
-    set_derivative_method(pref::GeneralVariableRef,
-                          method::AbstractDerivativeMethod
-                          )::Nothing
-
-Specify the numerical derivative evaluation technique associated with `pref`.
-An `ArgumentError` is thrown if `pref` is not an infinite parameter.
-"""
-function set_derivative_method(
-    pref::GeneralVariableRef,
-    method::AbstractDerivativeMethod
-    )::Nothing
-    return set_derivative_method(dispatch_variable_ref(pref), method)
-end
-
-# Define parameter status setters 
-for op = (:_set_has_generative_supports, :_set_has_internal_supports,
-          :_set_has_derivative_constraints)
-    @eval begin
-        # define the fallback method
-        function $op(vref::DispatchVariableRef, status)
-            str = string("`$($op)` not defined for variable reference type ",
-                         "`$(typeof(vref))`.")
-            throw(ArgumentError(str))
-        end
-        # define the dispatch version
-        function $op(vref::GeneralVariableRef, status::Bool)::Nothing
-            return $op(dispatch_variable_ref(vref), status)
-        end
-    end
 end
 
 # Dispatch fallback

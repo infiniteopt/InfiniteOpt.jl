@@ -29,7 +29,7 @@ end
 
 # Extend _data_object
 function _data_object(dref::DerivativeRef)
-    object = get(_data_dictionary(dref), JuMP.index(dref), nothing)
+    object = Base.get(_data_dictionary(dref), JuMP.index(dref), nothing)
     if isnothing(object) 
         error("Invalid derivative reference, cannot find ",
               "corresponding derivative in the model. This is likely ",
@@ -114,7 +114,7 @@ function _existing_derivative_index(
     pref::GeneralVariableRef
     )::Union{DerivativeIndex, Nothing}
     model = JuMP.owner_model(vref)
-    return get(model.deriv_lookup, (vref, pref), nothing)
+    return Base.get(model.deriv_lookup, (vref, pref), nothing)
 end
 
 # Get access the derivative constraint indices 

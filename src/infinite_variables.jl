@@ -34,7 +34,7 @@ end
 
 # Extend _data_object
 function _data_object(vref::InfiniteVariableRef)
-    object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
+    object = Base.get(_data_dictionary(vref), JuMP.index(vref), nothing)
     if isnothing(object) 
         error("Invalid infinite variable reference, cannot find ",
               "corresponding variable in the model. This is likely ",

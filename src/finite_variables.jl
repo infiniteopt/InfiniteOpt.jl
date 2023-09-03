@@ -36,7 +36,7 @@ end
 function _data_object(
     vref::FiniteVariableRef
     )::VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}
-    object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
+    object = Base.get(_data_dictionary(vref), JuMP.index(vref), nothing)
     if isnothing(object) 
         error("Invalid finite variable reference, cannot find ",
               "corresponding variable in the model. This is likely ",
