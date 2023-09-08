@@ -2,7 +2,7 @@
 #                               USER OPERATORS
 ################################################################################
 # Keep track of the predefined functions in MOI
-const _NativeNLPOperators = append!(copy(MOI.Nonlinear.DEFAULT_UNIVARIATE_OPERATORS), 
+const _NativeNLPOperators = append!(copy(MOI.Nonlinear.DEFAULT_UNIVARIATE_OPERATORS),
                                     MOI.Nonlinear.DEFAULT_MULTIVARIATE_OPERATORS)
 append!(_NativeNLPOperators, (:&&, :||, :<=, :(==), :>=, :<, :>))
 
@@ -16,10 +16,10 @@ append!(_NativeNLPOperators, (:&&, :||, :<=, :(==), :>=, :<, :>))
         [name::Symbol = Symbol(f)]
     )
 
-Extend `add_nonlinear_operator` for `InfiniteModel`s. 
+Extend `add_nonlinear_operator` for `InfiniteModel`s.
 
 Add a new nonlinear operator with `dim` input arguments to `model` and associate
-it with the name `name`. Alternatively, [`@operator`](https://jump.dev/JuMP.jl/v1/api/JuMP/#@operator) 
+it with the name `name`. Alternatively, [`@operator`](https://jump.dev/JuMP.jl/v1/api/JuMP/#@operator)
 can be used for a more convenient syntax.
 
 The function `f` evaluates the operator. The optional function `∇f` evaluates
@@ -32,7 +32,7 @@ julia> @variable(model, y);
 julia> g(x) = x^2;
 
 julia> new_op = add_nonlinear_operator(model, 1, g)
-NonlinearOperator(:g, g)
+NonlinearOperator(g, :g)
 
 julia> @expression(model, new_op(y))
 g(y)
@@ -54,13 +54,13 @@ function JuMP.add_nonlinear_operator(
     push!(model.operators, NLPOperator(name, dim, f, funcs...))
     model.op_lookup[name] = (f, dim)
     # TODO should we set the optimizer model to be out of date?
-    return JuMP.NonlinearOperator(name, f)
+    return JuMP.NonlinearOperator(f, name)
 end
 
 """
-    name_to_operator(model::InfiniteModel, name::Symbol)::Union{Function, Nothing} 
+    name_to_operator(model::InfiniteModel, name::Symbol)::Union{Function, Nothing}
 
-Return the nonlinear operator that corresponds to `name`. 
+Return the nonlinear operator that corresponds to `name`.
 Returns `nothing` if no such operator exists.
 
 !!! warning
@@ -76,14 +76,14 @@ end
 
 Retrieve all the operators that are currently added to `model`.
 """
-function all_nonlinear_operators(model::InfiniteModel) 
+function all_nonlinear_operators(model::InfiniteModel)
     return append!(copy(_NativeNLPOperators), map(v -> Symbol(first(v)), values(model.op_lookup)))
 end
 
 """
     user_defined_operators(model::InfiniteModel)::Vector{NLPOperator}
 
-Return all the operators (and their associated information) that the user has 
+Return all the operators (and their associated information) that the user has
 added to `model`. Each is stored as a [`NLPOperator`](@ref).
 """
 function added_nonlinear_operators(model::InfiniteModel)
@@ -93,7 +93,7 @@ end
 ## Define helper function to add nonlinear operators to JuMP
 # No gradient or hessian
 function _add_op_data_to_jump(
-    model::JuMP.Model, 
+    model::JuMP.Model,
     data::NLPOperator{F, Nothing, Nothing}
     ) where {F <: Function}
     JuMP.add_nonlinear_operator(model, data.dim, data.f, name = data.name)
@@ -102,7 +102,7 @@ end
 
 # Only gradient information
 function _add_op_data_to_jump(
-    model::JuMP.Model, 
+    model::JuMP.Model,
     data::NLPOperator{F, G, Nothing}
     ) where {F <: Function, G <: Function}
     JuMP.add_nonlinear_operator(model, data.dim, data.f, data.∇f, name = data.name)
@@ -118,8 +118,8 @@ end
 """
     add_operators_to_jump(opt_model::JuMP.Model, inf_model::InfiniteModel)::Nothing
 
-Add the additional nonlinear operators in `inf_model` to a `JuMP` model `opt_model`. 
-This is intended as an internal method, but it is provided for developers that 
+Add the additional nonlinear operators in `inf_model` to a `JuMP` model `opt_model`.
+This is intended as an internal method, but it is provided for developers that
 extend `InfiniteOpt` to use other optimizer models.
 """
 function add_operators_to_jump(opt_model::JuMP.Model, inf_model::InfiniteModel)
