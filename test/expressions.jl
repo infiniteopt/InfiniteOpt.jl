@@ -690,7 +690,7 @@ end
     end
     # test deprecation 
     @testset "map_nlp_to_ast" begin
-        @test (@test_deprecated map_nlp_to_ast(vmap, nlp)) == :((sin(x) + (2.0 * x + w + 42.0)) ^ 3.4)
+        @test (@test_deprecated map_nlp_to_ast(vmap, nlp)) == :((sin($x) + (2.0 * $x + $w + 42.0)) ^ 3.4)
     end
 end
 
