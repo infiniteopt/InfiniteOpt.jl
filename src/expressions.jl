@@ -805,7 +805,7 @@ function map_expression_to_ast(
     expr::JuMP.GenericNonlinearExpr
     )
     ex = Expr(:call, op_mapper(expr.head))
-    append!(ex.args, (map_expression_to_ast(var_mapper, op_mapper, arg) for arg in expr.args))
+    append!(ex.args, map_expression_to_ast(var_mapper, op_mapper, arg) for arg in expr.args)
     return ex
 end
 
