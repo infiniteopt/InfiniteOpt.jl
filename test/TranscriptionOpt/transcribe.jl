@@ -346,7 +346,7 @@ end
         @test length(transcription_constraint(LowerBoundRef(x))) == 5
         @test transcription_constraint(FixRef(x0)) == FixRef(x0t)
         @test transcription_constraint(BinaryRef(x0)) == BinaryRef(x0t)
-        @test transcription_constraint(FixRef(y)) == FixRef.(yt)[1:2]
+        @test transcription_constraint(FixRef(y)) == [FixRef(yt[i]) for i in 1:2]
         @test transcription_constraint(UpperBoundRef(yf)) == UpperBoundRef(yft)
         @test transcription_constraint(BinaryRef(z)) == BinaryRef(zt)
         # test constraint transcriptions 
