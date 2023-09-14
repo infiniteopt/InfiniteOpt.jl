@@ -690,7 +690,7 @@ end
     end
     # test deprecation 
     @testset "map_nlp_to_ast" begin
-        @test_deprecated map_nlp_to_ast(vmap, nlp)
+        @test (@test_deprecated map_nlp_to_ast(vmap, nlp)) == :(test(test(test($x), (2 * $x + $w + 42)), 3.4))
     end
 end
 
