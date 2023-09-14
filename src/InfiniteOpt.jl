@@ -61,6 +61,7 @@ macro register(args...)
     error("`@register` has now been replaced with `@operator`, see ",
            "the nonlinear documenation page for details.")
 end
+Base.@deprecate map_nlp_to_ast(f, expr) map_expression_to_ast(f, expr)
 
 # Define additional stuff that should not be exported
 const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]

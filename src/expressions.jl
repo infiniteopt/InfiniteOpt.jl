@@ -734,6 +734,81 @@ function map_expression(transform::Function, nlp::JuMP.GenericNonlinearExpr)
     return JuMP.GenericNonlinearExpr(nlp.head, Any[map_expression(transform, arg) for arg in nlp.args])
 end
 
+"""
+    map_expression_to_ast(var_mapper::Function, [op_mapper::Function,] expr::JuMP.AbstractJuMPScalar)::Expr
+
+Map the expression `expr` to a Julia AST expression where each variable is mapped 
+via `var_mapper` and is directly interpolated into the AST expression. Any nonlinear 
+operators can be mapped if needed via `op_mapper` and will be inserted into the 
+AST expression. This is only intended for developers and advanced users.
+"""
+function map_expression_to_ast(var_mapper::Function, expr)
+    return map_expression_to_ast(var_mapper, identity, expr)
+end
+
+# Constant
+function map_expression_to_ast(::Function, ::Function, c)
+    return c
+end
+
+# GeneralVariableRef
+function map_expression_to_ast(
+    var_mapper::Function, 
+    ::Function, 
+    vref::GeneralVariableRef
+    )
+    return var_mapper(vref)
+end
+
+# GenericAffExpr
+function map_expression_to_ast(
+    var_mapper::Function, 
+    ::Function, 
+    aff::GenericAffExpr
+    )
+    ex = Expr(:call, :+)
+    for (c, v) in JuMP.linear_terms(aff)
+        if isone(c)
+            push!(ex.args, var_mapper(v))
+        else
+            push!(ex.args, Expr(:call, :*, c, var_mapper(v)))
+        end
+    end
+    if !iszero(aff.constant)
+        push!(ex.args, aff.constant)
+    end
+    return ex
+end
+
+# GenericQuadExpr
+function map_expression_to_ast(
+    var_mapper::Function, 
+    op_mapper::Function, 
+    quad::GenericQuadExpr
+    )
+    ex = Expr(:call, :+)
+    for (c, v1, v2) in JuMP.quad_terms(quad)
+        if isone(c)
+            push!(ex.args, Expr(:call, :*, var_mapper(v1), var_mapper(v2)))
+        else
+            push!(ex.args, Expr(:call, :*, c, var_mapper(v1), var_mapper(v2)))
+        end
+    end
+    append!(ex.args, map_expression_to_ast(var_mapper, op_mapper, quad.aff).args[2:end])
+    return ex
+end
+
+# GenericNonlinearExpr
+function map_expression_to_ast(
+    var_mapper::Function, 
+    op_mapper::Function, 
+    expr::JuMP.GenericNonlinearExpr
+    )
+    ex = Expr(:call, op_mapper(expr.head))
+    append!(ex.args, (map_expression_to_ast(var_mapper, op_mapper, arg) for arg in expr.args))
+    return ex
+end
+
 ################################################################################
 #                             COEFFICIENT METHODS
 ################################################################################

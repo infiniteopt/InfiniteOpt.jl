@@ -55,6 +55,7 @@ add_operators_to_jump
 ```@docs
 parameter_refs(::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.NonlinearExpr})
 map_expression
+map_expression_to_ast
 ```
 
 ## GeneralVariableRef User Methods

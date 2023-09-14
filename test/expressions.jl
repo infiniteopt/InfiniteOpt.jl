@@ -654,6 +654,46 @@ end
     end
 end
 
+# Test map_expression_to_ast
+@testset "map_expression_to_ast" begin 
+    # setup model
+    m = InfiniteModel()
+    @variable(m, z)
+    @variable(m, y)
+    aff = 2z + y + 42
+    quad = z^2 + 3 * z * y + 2z
+    nlp = (sin(z) + aff) ^ 3.4
+    jm = Model()
+    @variable(jm, x)
+    @variable(jm, w)
+    vmap(v) = v == z ? x : w
+    omap(op) = :test
+    # test constant
+    @testset "Constant" begin
+        @test map_expression_to_ast(vmap, 42) == :(42)
+    end
+    # test variable 
+    @testset "Variable" begin
+        @test map_expression_to_ast(vmap, z) == :($x)
+    end
+    # test AffExpr
+    @testset "AffExpr" begin
+        @test map_expression_to_ast(vmap, aff) == :(2 * $x + $w + 42)
+    end
+    # test QuadExpr 
+    @testset "QuadExpr" begin
+        @test map_expression_to_ast(vmap, quad) == :($x * $x + 3 * $x * $w + 2 * $x)
+    end
+    # test GenericNonlinearExpr
+    @testset "GenericNonlinearExpr" begin
+        @test map_expression_to_ast(vmap, omap, nlp) == :(test(test(test($x), (2 * $x + $w + 42)), 3.4))
+    end
+    # test deprecation 
+    @testset "map_nlp_to_ast" begin
+        @test_deprecated map_nlp_to_ast(vmap, nlp)
+    end
+end
+
 # Test _set_variable_coefficient!
 @testset "_set_variable_coefficient!" begin
     # initialize model and references
