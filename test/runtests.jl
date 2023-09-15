@@ -1,6 +1,3 @@
-import Pkg
-Pkg.pkg"add JuMP#master"
-
 using InfiniteOpt: _domain_or_error
 using Test: Error
 # Load in the dependencies

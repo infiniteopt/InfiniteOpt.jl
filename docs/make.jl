@@ -1,6 +1,3 @@
-import Pkg
-Pkg.pkg"add JuMP#master"
-
 using Documenter, InfiniteOpt, Distributions, Literate, Random
 
 if !@isdefined(EXAMPLE_DIR)
