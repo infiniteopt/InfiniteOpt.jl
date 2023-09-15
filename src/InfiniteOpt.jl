@@ -8,19 +8,13 @@ Reexport.@reexport using JuMP
 import Distributions
 import DataStructures
 import FastGaussQuadrature
-import AbstractTrees
-import LeftChildRightSiblingTrees
 import LinearAlgebra
 import MutableArithmetics
 using Base.Meta
 
-# Import and export SpecialFunctions for the NLP interface 
-Reexport.@reexport using SpecialFunctions
-
 # Make useful aliases (note we get MOI and MOIU from JuMP)
 const JuMPC = JuMP.Containers
 const MOIUC = MOIU.CleverDicts
-const _LCRST = LeftChildRightSiblingTrees
 const _MA = MutableArithmetics
 export JuMPC, MOIUC # this makes these accessible to the submodules
 
@@ -38,6 +32,7 @@ include("semi_infinite_variables.jl")
 include("point_variables.jl")
 include("finite_variables.jl")
 include("nlp.jl")
+include("macros.jl")
 include("expressions.jl")
 include("measures.jl")
 
@@ -48,7 +43,6 @@ Reexport.@reexport using .MeasureToolbox
 # import more core methods
 include("derivatives.jl")
 include("constraints.jl")
-include("macros.jl")
 include("objective.jl")
 include("measure_expansions.jl")
 include("derivative_evaluations.jl")
@@ -61,6 +55,13 @@ include("general_variables.jl")
 # Import and export TranscriptionOpt
 include("TranscriptionOpt/TranscriptionOpt.jl")
 Reexport.@reexport using .TranscriptionOpt
+
+# Add deprecation and old syntax methods 
+macro register(args...)
+    error("`@register` has now been replaced with `@operator`, see ",
+           "the nonlinear documenation page for details.")
+end
+Base.@deprecate map_nlp_to_ast(f, expr) map_expression_to_ast(f, expr)
 
 # Define additional stuff that should not be exported
 const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]

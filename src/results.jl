@@ -239,16 +239,15 @@ julia> value(my_infinite_expr)
 ```
 """
 function JuMP.value(
-    expr::AbstractInfOptExpr;
+    expr::Union{JuMP.GenericAffExpr{Float64, GeneralVariableRef}, JuMP.GenericQuadExpr{Float64, GeneralVariableRef}, JuMP.GenericNonlinearExpr{GeneralVariableRef}};
     result::Int = 1,
     kwargs...
     )
     # get the model
-    model = _model_from_expr(expr)
+    model = JuMP.owner_model(expr)
     # if no model then the expression only contains a constant
     if isnothing(model)
-        expr isa NLPExpr && error("Cannot evaluate the value of `$expr`,",
-                                  "because it doesn't have variables.")
+        expr isa JuMP.GenericNonlinearExpr && return JuMP.value(identity, expr)
         return JuMP.constant(expr)
     # otherwise let's call map_value
     else
@@ -333,9 +332,6 @@ end
 
 # Default method that depends on optimizer_model_constraint --> making extensions easier
 function map_optimizer_index(cref::InfOptConstraintRef, key; kwargs...)
-    if JuMP.jump_function(JuMP.constraint_object(cref)) isa NLPExpr
-        error("`optimizer_index` not defined for general nonlinear constraints.")
-    end
     opt_cref = optimizer_model_constraint(cref, key; kwargs...)
     if opt_cref isa AbstractArray
         return map(c -> JuMP.optimizer_index(c), opt_cref)

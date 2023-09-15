@@ -713,7 +713,7 @@ x(support: 1) - y
 ```
 """
 function optimizer_model_expression(expr::JuMP.AbstractJuMPScalar; kwargs...)
-    model = _model_from_expr(expr)
+    model = JuMP.owner_model(expr)
     if isnothing(model)
         return zero(JuMP.AffExpr) + JuMP.constant(expr)
     else
@@ -776,7 +776,7 @@ julia> supports(cref)
 ```
 """
 function supports(expr::JuMP.AbstractJuMPScalar; kwargs...)
-    model = _model_from_expr(expr)
+    model = JuMP.owner_model(expr)
     if isnothing(model)
         return ()
     else

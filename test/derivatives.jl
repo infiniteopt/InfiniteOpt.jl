@@ -363,7 +363,7 @@ end
         @test isequal(InfiniteOpt._build_deriv_expr(2x^2 + 42, pref2), @expression(m, 0*x))
         @test isequal(InfiniteOpt._build_deriv_expr(2pref2^2 -pref2 - 23, pref2), 4pref2 - 1)
         gvref = GeneralVariableRef(m, 1, DerivativeIndex)
-        @test isequal(InfiniteOpt._build_deriv_expr(-4x^2, pref), -8 * gvref * x)
+        @test isequal(InfiniteOpt._build_deriv_expr(-4x^2, pref).terms, (-8 * x * gvref).terms)
     end
     # test "_build_deriv_expr (Number)"
     @testset "_build_deriv_expr (Number)" begin

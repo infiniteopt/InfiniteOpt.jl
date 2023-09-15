@@ -2,7 +2,7 @@ using InfiniteOpt: _domain_or_error
 using Test: Error
 # Load in the dependencies
 using InfiniteOpt, Distributions, Random, FastGaussQuadrature, DataStructures, 
-LeftChildRightSiblingTrees, AbstractTrees, Suppressor, LinearAlgebra
+Suppressor, LinearAlgebra
 import MutableArithmetics
 
 # load the test module
@@ -16,7 +16,6 @@ const JuMPC = JuMP.Containers
 const MOIUC = MOIU.CleverDicts
 const FGQ = FastGaussQuadrature
 const IOMT = InfiniteOpt.MeasureToolbox
-const LCRST = LeftChildRightSiblingTrees
 const MA = MutableArithmetics
 
 # Load in testing utilities

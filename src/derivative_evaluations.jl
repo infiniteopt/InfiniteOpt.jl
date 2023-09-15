@@ -228,10 +228,9 @@ function _make_difference_expr(
     )::JuMP.AbstractJuMPScalar
     curr_value = ordered_supps[index]
     next_value = ordered_supps[index+1]
-    return _MA.@rewrite((next_value - curr_value) * 
-                        make_reduced_expr(dref, pref, curr_value, write_model) -
-                        make_reduced_expr(vref, pref, next_value, write_model) +
-                        make_reduced_expr(vref, pref, curr_value, write_model))
+    return @_expr(make_reduced_expr(dref, pref, curr_value, write_model) * (next_value - curr_value) - 
+                  make_reduced_expr(vref, pref, next_value, write_model) +
+                  make_reduced_expr(vref, pref, curr_value, write_model))
 end
 
 # Central
@@ -247,10 +246,9 @@ function _make_difference_expr(
     prev_value = ordered_supps[index-1]
     next_value = ordered_supps[index+1]
     curr_value = ordered_supps[index]
-    return _MA.@rewrite((next_value - prev_value) *  
-                        make_reduced_expr(dref, pref, curr_value, write_model) - 
-                        make_reduced_expr(vref, pref, next_value, write_model) +
-                        make_reduced_expr(vref, pref, prev_value, write_model))
+    return @_expr(make_reduced_expr(dref, pref, curr_value, write_model) * (next_value - prev_value) -
+                  make_reduced_expr(vref, pref, next_value, write_model) +
+                  make_reduced_expr(vref, pref, prev_value, write_model))
 end
 
 # Backward
@@ -265,10 +263,9 @@ function _make_difference_expr(
     )::JuMP.AbstractJuMPScalar
     prev_value = ordered_supps[index-1]
     curr_value = ordered_supps[index]
-    return _MA.@rewrite((curr_value - prev_value) *  
-                        make_reduced_expr(dref, pref, curr_value, write_model) - 
-                        make_reduced_expr(vref, pref, curr_value, write_model) +
-                        make_reduced_expr(vref, pref, prev_value, write_model))
+    return @_expr(make_reduced_expr(dref, pref, curr_value, write_model) * (curr_value - prev_value) -
+                  make_reduced_expr(vref, pref, curr_value, write_model) +
+                  make_reduced_expr(vref, pref, prev_value, write_model))
 end
 
 # Fallback

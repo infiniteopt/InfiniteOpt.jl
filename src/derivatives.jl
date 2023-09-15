@@ -381,13 +381,13 @@ end
 
 # AffExpr
 function _build_deriv_expr(aff::JuMP.GenericAffExpr, pref)
-    return _MA.@rewrite(sum(c * _build_deriv_expr(v, pref) 
+    return @_expr(sum(c * _build_deriv_expr(v, pref) 
                         for (c, v) in JuMP.linear_terms(aff)))
 end
 
 # Quad Expr (implements product rule)
 function _build_deriv_expr(quad::JuMP.GenericQuadExpr, pref)
-    return _MA.@rewrite(sum(c * (_build_deriv_expr(v1, pref) * v2 + 
+    return @_expr(sum(c * (_build_deriv_expr(v1, pref) * v2 + 
                         v1 * _build_deriv_expr(v2, pref)) 
                         for (c, v1, v2) in JuMP.quad_terms(quad)) + 
                         _build_deriv_expr(quad.aff, pref))

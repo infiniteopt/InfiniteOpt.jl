@@ -871,23 +871,19 @@ function _make_expression(
     return _make_expression(opt_model, measure_function(expr))
 end
 # AffExpr/QuadExpr
-function _make_expression(opt_model::Model, expr::Union{GenericAffExpr, GenericQuadExpr})
+function _make_expression(opt_model::Model, expr::Union{GenericAffExpr, GenericQuadExpr, GenericNonlinearExpr})
     return map_expression(v -> _make_expression(opt_model, v), expr)
-end
-# NLPExpr
-function _make_expression(opt_model::Model, expr::NLPExpr)
-    return add_nonlinear_expression(opt_model, map_nlp_to_ast(v -> _make_expression(opt_model, v), expr))
 end
 
 # output
-_make_expression (generic function with 8 methods)
+_make_expression (generic function with 7 methods)
 
 ```
 For simplicity in example, above we assume that only `DistributionDomain`s are 
 used, there are not any `PointVariableRef`s, and all `MeasureRef`s correspond to 
 expectations. Naturally, a full extension should include checks to enforce that 
-such assumptions hold. Notice that [`map_expression`](@ref) and 
-[`map_nlp_to_ast`](@ref) are useful for converting expressions.
+such assumptions hold. Notice that [`map_expression`](@ref) is useful for 
+converting expressions.
 
 Now let's extend [`build_optimizer_model!`](@ref) for `DeterministicModel`s. 
 Such extensions should build an optimizer model in place and in general should 
@@ -908,13 +904,13 @@ function InfiniteOpt.build_optimizer_model!(
     # clear the model for a build/rebuild
     determ_model = InfiniteOpt.clear_optimizer_model_build!(model)
 
-    # add the registered functions if there are any
-    add_registered_to_jump(determ_model, model)
+    # add user-defined nonlinear operators if there are any
+    add_operators_to_jump(determ_model, model)
 
     # add variables
     for vref in all_variables(model)
         if index(vref) isa InfiniteVariableIndex
-            start = NaN # easy hack
+            start = NaN # simple hack for sake of example
         else
             start = start_value(vref)
             start = isnothing(start) ? NaN : start
@@ -932,29 +928,14 @@ function InfiniteOpt.build_optimizer_model!(
 
     # add the objective
     obj_func = _make_expression(determ_model, objective_function(model))
-    if obj_func isa NonlinearExpression
-        set_nonlinear_objective(determ_model, objective_sense(model), obj_func)
-    else
-        set_objective(determ_model, objective_sense(model), obj_func)
-    end
+    set_objective(determ_model, objective_sense(model), obj_func)
 
     # add the constraints
-    for cref in all_constraints(model, Union{GenericAffExpr, GenericQuadExpr, NLPExpr})
+    for cref in all_constraints(model, Union{GenericAffExpr, GenericQuadExpr, GenericNonlinearExpr})
         constr = constraint_object(cref)
         new_func = _make_expression(determ_model, constr.func)
-        if new_func isa NonlinearExpression
-            if constr.set isa MOI.LessThan
-                ex = :($new_func <= $(constr.set.upper))
-            elseif constr.set isa MOI.GreaterThan
-                ex = :($new_func >= $(constr.set.lower))
-            else # assume it is MOI.EqualTo
-                ex = :($new_func == $(constr.set.value))
-            end
-            new_cref = add_nonlinear_constraint(determ_model, ex)
-        else
-            new_constr = build_constraint(error, new_func, constr.set)
-            new_cref = add_constraint(determ_model, new_constr, name(cref))
-        end
+        new_constr = build_constraint(error, new_func, constr.set)
+        new_cref = add_constraint(determ_model, new_constr, name(cref))
         deterministic_data(determ_model).infconstr_to_detconstr[cref] = new_cref
     end
 
@@ -975,13 +956,11 @@ print(optimizer_model(model))
 # output
 Min z + y[1] + y[2]
 Subject to
- 2 y[1] - z ≤ 42.0
+ sin(z) - -1.0 ≥ 0
+ 2 y[1] - z ≤ 42
  y[2]² = 1.5
- y[1] ≥ 0.0
- y[2] ≥ 0.0
- subexpression[1] - 0.0 ≥ 0
-With NL expressions
- subexpression[1]: sin(z) - -1.0
+ y[1] ≥ 0
+ y[2] ≥ 0
 ```
 Note that better variable naming could be used with the reformulated infinite 
 variables. Moreover, in general extensions of [`build_optimizer_model!`](@ref) 

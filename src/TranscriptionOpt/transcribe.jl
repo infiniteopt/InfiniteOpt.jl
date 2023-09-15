@@ -481,34 +481,15 @@ function transcription_expression(
     return InfiniteOpt.parameter_value(vref)
 end
 
-# AffExpr and QuadExpr
+# AffExpr and QuadExpr and NonlinearExpr
 function transcription_expression(
     trans_model::JuMP.Model,
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.GenericNonlinearExpr},
     support::Vector{Float64}
     )
-    # TODO fix this temporary hack (need to handle NLP expressions better)
-    try
-        return InfiniteOpt.map_expression(
-            v -> transcription_expression(trans_model, v, support), 
-            expr)
-    catch
-        return transcription_expression(trans_model, 
-            convert(InfiniteOpt.NLPExpr, expr), 
-            support)
-    end
-end
-
-# NLPExpr
-function transcription_expression(
-    trans_model::JuMP.Model,
-    nlp::InfiniteOpt.NLPExpr,
-    support::Vector{Float64}
-    )
-    ast = InfiniteOpt.map_nlp_to_ast(
+    return InfiniteOpt.map_expression(
         v -> transcription_expression(trans_model, v, support), 
-        nlp)
-    return JuMP.add_nonlinear_expression(trans_model, ast)
+        expr)
 end
 
 # Real Number 
@@ -576,17 +557,6 @@ end
 ################################################################################
 #                        OBJECTIVE TRANSCRIPTION METHODS
 ################################################################################
-## Dispatch functions for setting the objective
-# Normal Expr 
-function _set_objective(trans_model, sense, expr)
-    return JuMP.set_objective(trans_model, sense, expr)
-end
-
-# NonlinearExpression 
-function _set_objective(trans_model, sense, expr::JuMP.NonlinearExpression)
-    return JuMP.set_nonlinear_objective(trans_model, sense, expr)
-end
-
 """
     transcribe_objective!(trans_model::JuMP.Model,
                           inf_model::InfiniteOpt.InfiniteModel)::Nothing
@@ -598,11 +568,11 @@ by transcripted first (e.g., via [`transcribe_infinite_variables!`](@ref)).
 function transcribe_objective!(
     trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
-    )::Nothing
+    )
     expr = JuMP.objective_function(inf_model)
     sense = JuMP.objective_sense(inf_model)
     trans_expr = transcription_expression(trans_model, expr, Float64[])
-    _set_objective(trans_model, sense, trans_expr)
+    JuMP.set_objective(trans_model, sense, trans_expr)
     return
 end
 
@@ -616,7 +586,7 @@ function _get_info_constr_from_var(
     vref::InfiniteOpt.GeneralVariableRef,
     set::MOI.GreaterThan,
     support::Vector{Float64}
-    )::Union{JuMP.ConstraintRef, Nothing}
+    )
     trans_vref = transcription_expression(trans_model, vref, support)
     return JuMP.has_lower_bound(trans_vref) ? JuMP.LowerBoundRef(trans_vref) : nothing
 end
@@ -627,7 +597,7 @@ function _get_info_constr_from_var(
     vref::InfiniteOpt.GeneralVariableRef,
     set::MOI.LessThan,
     support::Vector{Float64}
-    )::Union{JuMP.ConstraintRef, Nothing}
+    )
     trans_vref = transcription_expression(trans_model, vref, support)
     return JuMP.has_upper_bound(trans_vref) ? JuMP.UpperBoundRef(trans_vref) : nothing
 end
@@ -638,7 +608,7 @@ function _get_info_constr_from_var(
     vref::InfiniteOpt.GeneralVariableRef,
     set::MOI.EqualTo,
     support::Vector{Float64}
-    )::Union{JuMP.ConstraintRef, Nothing}
+    )
     trans_vref = transcription_expression(trans_model, vref, support)
     return JuMP.is_fixed(trans_vref) ? JuMP.FixRef(trans_vref) : nothing
 end
@@ -649,7 +619,7 @@ function _get_info_constr_from_var(
     vref::InfiniteOpt.GeneralVariableRef,
     set::MOI.ZeroOne,
     support::Vector{Float64}
-    )::Union{JuMP.ConstraintRef, Nothing}
+    )
     trans_vref = transcription_expression(trans_model, vref, support)
     return JuMP.is_binary(trans_vref) ? JuMP.BinaryRef(trans_vref) : nothing
 end
@@ -660,7 +630,7 @@ function _get_info_constr_from_var(
     vref::InfiniteOpt.GeneralVariableRef,
     set::MOI.Integer,
     support::Vector{Float64}
-    )::Union{JuMP.ConstraintRef, Nothing}
+    )
     trans_vref = transcription_expression(trans_model, vref, support)
     return JuMP.is_integer(trans_vref) ? JuMP.IntegerRef(trans_vref) : nothing
 end
@@ -670,7 +640,7 @@ function _support_in_restrictions(
     support::Vector{Float64},
     indices::Vector{Int},
     domains::Vector{InfiniteOpt.IntervalDomain}
-    )::Bool
+    )
     for i in eachindex(indices)
         s = support[indices[i]]
         if !isnan(s) && (s < JuMP.lower_bound(domains[i]) || 
@@ -680,46 +650,6 @@ function _support_in_restrictions(
     end
     return true
 end
-
-# MOI.LessThan expr 
-function _make_constr_ast(ref, set::MOI.LessThan)
-    return :($ref <= $(set.upper))
-end
-
-# MOI.LessGreat expr 
-function _make_constr_ast(ref, set::MOI.GreaterThan)
-    return :($ref >= $(set.lower))
-end
-
-# MOI.EqualTo expr 
-function _make_constr_ast(ref, set::MOI.EqualTo)
-    return :($ref == $(set.value))
-end
-
-# MOI.Interval expr 
-function _make_constr_ast(ref, set::MOI.Interval)
-    return :($(set.lower) <= $ref <= $(set.upper))
-end
-
-# MOI.Set fallback 
-function _make_constr_ast(ref, set)
-    error("TranscriptionOpt does not support constraint sets of type " * 
-          "`$(typeof(set))` for general nonlinear constraints because this " *
-          "is not yet supported by JuMP.")
-end
-
-## Helper for adding constrints correctly via dispatch
-# New function is NonlinearExpression
-function _add_constraint(model, func::JuMP.NonlinearExpression, set, name)
-    return JuMP.add_nonlinear_constraint(model, _make_constr_ast(func, set))
-end
-
-# New expression is not nonlinear
-function _add_constraint(model, func::JuMP.AbstractJuMPScalar, set, name)
-    trans_constr = JuMP.build_constraint(error, func, set)
-    return JuMP.add_constraint(model, trans_constr, name)
-end
-
 
 ## Process constraint objects at a particular support value and make the new 
 ## transcribed version
@@ -733,20 +663,8 @@ function _process_constraint(
     name::String
     )
     new_func = transcription_expression(trans_model, func, raw_supp)
-    return _add_constraint(trans_model, new_func, set, name)
-end
-
-# JuMP.ScalarConstraint with NLPExpr
-function _process_constraint(
-    trans_model::JuMP.Model, 
-    constr::JuMP.ScalarConstraint, 
-    func::InfiniteOpt.NLPExpr, 
-    set::MOI.AbstractScalarSet, 
-    raw_supp::Vector{Float64}, 
-    name::String
-    )
-    nlp_ref = transcription_expression(trans_model, func, raw_supp)
-    return _add_constraint(trans_model, nlp_ref, set, name)
+    trans_constr = JuMP.build_constraint(error, new_func, set)
+    return JuMP.add_constraint(trans_model, trans_constr, name)
 end
 
 # JuMP.VectorConstraint
@@ -759,10 +677,6 @@ function _process_constraint(
     name::String
     )
     new_func = map(f -> transcription_expression(trans_model, f, raw_supp), func)
-    if any(f -> f isa JuMP.NonlinearExpression, new_func)
-        error("TranscriptionOpt does not support vector constraints of general " * 
-              "nonlinear expressions because this is not yet supported by JuMP.")
-    end
     shape = JuMP.shape(constr)
     shaped_func = JuMP.reshape_vector(new_func, shape)
     shaped_set = JuMP.reshape_set(set, shape)
@@ -800,7 +714,7 @@ the variables and measures must all first be transcripted (e.g., via
 function transcribe_constraints!(
     trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
-    )::Nothing
+    )
     param_supps = parameter_supports(trans_model)
     for (idx, object) in inf_model.constraints
         # get the basic information
@@ -884,7 +798,7 @@ the variables and measures must all first be transcripted (e.g., via
 function transcribe_derivative_evaluations!(
     trans_model::JuMP.Model, 
     inf_model::InfiniteOpt.InfiniteModel
-    )::Nothing
+    )
     for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.Derivative)
         # get the basic variable information
         dref = InfiniteOpt._make_variable_ref(inf_model, idx)
@@ -938,7 +852,7 @@ via `check_support_dims = false`.
 function build_transcription_model!(
     trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel; check_support_dims::Bool = true
-    )::Nothing
+    )
     # ensure there are supports to add and add them to the trans model
     InfiniteOpt.fill_in_supports!(inf_model, modify = false)
     set_parameter_supports(trans_model, inf_model)
@@ -952,8 +866,8 @@ function build_transcription_model!(
               "and thus naive solution of the discretized problem may be slow. " * 
               "This warning can be turned off via `check_support_dims = false`.")
     end
-    # register functions as needed 
-    InfiniteOpt.add_registered_to_jump(trans_model, inf_model)
+    # add nonlinear operators as needed 
+    InfiniteOpt.add_operators_to_jump(trans_model, inf_model)
     # define the variables
     transcribe_finite_variables!(trans_model, inf_model)
     transcribe_infinite_variables!(trans_model, inf_model)

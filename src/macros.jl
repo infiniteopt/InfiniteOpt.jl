@@ -780,3 +780,18 @@ macro parameter_function(model, args...)
     end
     return _finalize_macro(_error, esc_model, macro_code, __source__)
 end
+
+################################################################################
+#                         INTERNAL EXPRESSION BUILDER
+################################################################################
+# Basic internal MA-based expression builder
+# This avoids unnecssary elements of @expression (i.e., specifiing the model, traversing NLP trees, etc.)
+macro _expr(expr)
+    new_expr, parse_expr = _MA.rewrite(expr; move_factors_into_sums = false)
+    return quote
+        let
+            $parse_expr
+            $new_expr
+        end
+    end
+end

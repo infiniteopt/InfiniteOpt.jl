@@ -458,8 +458,8 @@ end
         expected = x + 2 * x + 4
         @test isequal_canonical(InfiniteOpt.expand_measure(expr, data3, m), expected)
     end
-    # test expand_measure (NLPExpr univariate)
-    @testset "NLPExpr (1D DiscreteMeasureData)" begin
+    # test expand_measure (NonlinearExpr univariate)
+    @testset "GenericNonlinearExpr (1D DiscreteMeasureData)" begin
         # test simple
         expr = sin(inf1)
         expected = 0.5 * sin(inf1(1)) + 0.5 * sin(inf1(2))
@@ -469,8 +469,8 @@ end
         expected = 0.5 * (sin(inf1(1)) + 1) + 0.5 * (sin(inf1(2)) + 2)
         @test isequal(expand_measure(expr, data1, m), expected)
     end
-    # test expand_measure (NLPExpr multivariate)
-    @testset "NLPExpr (Multi DiscreteMeasureData)" begin
+    # test expand_measure (NonlinearExpr multivariate)
+    @testset "GenericNonlinearExpr (Multi DiscreteMeasureData)" begin
         # test simple
         expr = sin(inf5)
         expected = 1 * sin(inf5([1, 1], pars2)) + 1 * sin(inf5([2, 2], pars2))

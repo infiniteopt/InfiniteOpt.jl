@@ -4,33 +4,28 @@ authors = ["Joshua Pulsipher and Weiqi Zhang"]
 version = "0.5.8"
 
 [deps]
-AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
-LeftChildRightSiblingTrees = "1d6d02ad-be62-4b6b-8a6d-2f90e265016e"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
-SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
-AbstractTrees = "0.4"
 DataStructures = "0.14.2 - 0.18"
 Distributions = "0.19 - 0.25"
 FastGaussQuadrature = "0.3.2 - 0.4, 0.5"
-JuMP = "1.2"
-LeftChildRightSiblingTrees = "0.2"
+JuMP = "1.5"
 MutableArithmetics = "1"
 Reexport = "0.2, 1"
-SpecialFunctions = "0.8 - 0.10, 1, 2"
 julia = "^1.6"
 
 [extras]
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
 [targets]
-test = ["Test", "Random", "Suppressor"]
+test = ["Test", "Random", "Suppressor", "Pkg"]

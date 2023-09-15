@@ -259,11 +259,11 @@ end
         @test value(meas1, label = All) == 4.
         @test value(meas2, label = UserDefined) == [0., -3.]
         @test value(3g - 1) == 2.
-        @test value(inf^2 + g - 2) == [3., -1.]
-        @test value(inf^2 + g - 2, ndarray = true) == [3., -1.]
+        @test value(inf * inf + g - 2) == [3., -1.]
+        @test value(inf * inf + g - 2, ndarray = true) == [3., -1.]
         @test value(zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) - 42) == -42.
         @test value(sin(g)) == sin(1)
-        @test_throws ErrorException value(zero(NLPExpr))
+        @test value(GenericNonlinearExpr{GeneralVariableRef}(:sin, Any[0])) == 0
     end
     # test dual
     @testset "JuMP.dual" begin
@@ -290,10 +290,12 @@ end
     gt = transcription_variable(g)
     c1t = transcription_constraint(c1)
     c2t = transcription_constraint(c2)
+    c3t = transcription_constraint(c3)
+    c4t = transcription_constraint(c4)
     # setup optimizer info
     mockoptimizer = JuMP.backend(tm).optimizer.model
-    block = MOI.get(tm, MOI.NLPBlock())
-    MOI.initialize(block.evaluator, Symbol[])
+    # block = MOI.get(tm, MOI.NLPBlock())
+    # MOI.initialize(block.evaluator, Symbol[])
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
     MOI.set(mockoptimizer, MOI.ResultCount(), 1)
     MOI.set(mockoptimizer, MOI.PrimalStatus(), MOI.FEASIBLE_POINT)
@@ -304,7 +306,10 @@ end
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c1t), -1.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c2t[1]), 0.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c2t[2]), 1.0)
-    MOI.set(mockoptimizer, MOI.NLPBlockDual(1), [4.0, 2., 3.])
+    MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c3t), 4.0)
+    MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c4t[1]), 2.0)
+    MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c4t[2]), 3.0)
+    # MOI.set(mockoptimizer, MOI.NLPBlockDual(1), [4.0, 2., 3.])
     # test map_value
     @testset "map_value" begin
         @test InfiniteOpt.map_value(c1, Val(:TransData), 1) == 1.
@@ -328,7 +333,8 @@ end
         @test isa(optimizer_index(c1), MOI.ConstraintIndex)
         @test isa(optimizer_index(c2, label = All), Vector{<:MOI.ConstraintIndex})
         @test isa(optimizer_index(c2, label = All, ndarray = true), Vector{<:MOI.ConstraintIndex})
-        @test_throws ErrorException optimizer_index(c3)
+        @test isa(optimizer_index(c3), MOI.ConstraintIndex)
+        @test isa(optimizer_index(c4, label = All), Vector{<:MOI.ConstraintIndex})
     end
     # test has_values
     @testset "JuMP.has_duals" begin

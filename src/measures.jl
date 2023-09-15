@@ -756,11 +756,10 @@ an finite variable parameter bounds of finite variables that are included in the
 measure.
 """
 function build_measure(
-    expr::T, 
-    data::D;
-    )::Measure{T, D} where {T <: JuMP.AbstractJuMPScalar, D <: AbstractMeasureData}
+    expr::JuMP.AbstractJuMPScalar, 
+    data::AbstractMeasureData
+    )
     vrefs = _all_function_variables(expr)
-    model = _model_from_expr(vrefs)
     expr_obj_nums = _object_numbers(expr)
     expr_param_nums = _parameter_numbers(expr)
     prefs = parameter_refs(data)
@@ -1182,7 +1181,7 @@ function measure(
     data::AbstractMeasureData;
     name::String = "measure"
     )::GeneralVariableRef
-    model = _model_from_expr(expr)
+    model = JuMP.owner_model(expr)
     if isnothing(model)
         error("Expression contains no variables or parameters.")
     end

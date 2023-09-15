@@ -335,39 +335,6 @@ end
     end
 end
 
-# Test the basic extensions 
-@testset "Base Extensions" begin
-    # setup model
-    m = InfiniteModel()
-    @variable(m, z)
-    @variable(m, y)
-    aff = 2z + 42
-    quad = z^2 + 2z
-    nlp = sin(z)
-    # test convert
-    @testset "Base.convert (NLPExpr)" begin 
-        @test isequal(convert(NLPExpr, 1), one(NLPExpr))
-        @test isequal(convert(NLPExpr, z), NLPExpr(Node(NodeData(z))))
-        @test isequal(convert(NLPExpr, aff), NLPExpr(Node(NodeData(aff))))
-        @test isequal(convert(NLPExpr, quad), NLPExpr(Node(NodeData(quad))))
-        @test convert(NLPExpr, nlp) === nlp
-    end
-    # test isequal for UnorderedPair
-    @testset "Base.isequal (JuMP.UnorderedPair)" begin
-        @test isequal(UnorderedPair(z, z), UnorderedPair(z, z))
-        @test isequal(UnorderedPair(z, y), UnorderedPair(y, z))
-        @test !isequal(UnorderedPair(z, y), UnorderedPair(z, z))
-    end
-    # test isequal for expressions 
-    @testset "Base.isequal (Expr Fallbacks)" begin
-        @test !isequal(z, 2)
-        @test !isequal(2, z)
-        @test !isequal(z, aff)
-        @test !isequal(z, quad)
-        @test !isequal(nlp, aff)
-    end
-end
-
 # Test _interrogate_variables
 @testset "_interrogate_variables" begin 
     # setup model
@@ -399,8 +366,8 @@ end
         @test InfiniteOpt._interrogate_variables(i -> push!(a, i), quad) isa Nothing
         @test isequal(a, [z, z, z])
     end
-    # test NLPExpr
-    @testset "NLPExpr" begin
+    # test GenericNonlinearExpr
+    @testset "GenericNonlinearExpr" begin
         a = []
         @test InfiniteOpt._interrogate_variables(i -> push!(a, i), nlp) isa Nothing
         @test isequal(a, [z, z])
@@ -470,7 +437,7 @@ end
                               [pt, inf, meas]))
     end
     # test for Array of expressions
-    @testset "NLPExpr" begin
+    @testset "GenericNonlinearExpr" begin
         # make expressions
         nlp = sin(pt) + inf / pt
         # test expressions
@@ -532,10 +499,10 @@ end
         @test sort!(InfiniteOpt._object_numbers(quad1)) == [1, 2]
         @test InfiniteOpt._object_numbers(quad2) == []
     end
-    # test for NLPExpr
-    @testset "NLPExpr" begin
+    # test for GenericNonlinearExpr
+    @testset "GenericNonlinearExpr" begin
         # make expressions
-        nlp = sin(inf)
+        nlp = sin(inf) / pt
         # test expressions
         @test InfiniteOpt._object_numbers(nlp) == [1]
     end
@@ -590,66 +557,12 @@ end
         @test sort!(InfiniteOpt._parameter_numbers(quad1)) == [1, 2, 3]
         @test InfiniteOpt._parameter_numbers(quad2) == []
     end
-    # test for NLPExpr
-    @testset "NLPExpr" begin
+    # test for GenericNonlinearExpr
+    @testset "GenericNonlinearExpr" begin
         # make expressions
         nlp = sin(inf2)
         # test expressions
         @test sort!(InfiniteOpt._parameter_numbers(nlp)) == [1, 2, 3]
-    end
-end
-
-# Test _model_from_expr
-@testset "_model_from_expr" begin
-    # initialize model and references
-    m = InfiniteModel()
-    @variable(m, hd)
-    # test for variable reference
-    @testset "Variable" begin
-        @test InfiniteOpt._model_from_expr(hd) === m
-    end
-    # test for GenericAffExpr
-    @testset "AffExpr" begin
-        # make expressions
-        aff1 = hd + 2
-        aff2 = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-        # test expressions
-        @test InfiniteOpt._model_from_expr(aff1) === m
-        @test InfiniteOpt._model_from_expr(aff2) isa Nothing
-    end
-    # test for GenericQuadExpr
-    @testset "QuadExpr" begin
-        # make expressions
-        quad1 = hd * hd + hd + 1
-        quad2 = zero(JuMP.GenericQuadExpr{Float64, GeneralVariableRef})
-        quad3 = hd * hd + 1
-        # test expressions
-        @test InfiniteOpt._model_from_expr(quad1) === m
-        @test InfiniteOpt._model_from_expr(quad2) isa Nothing
-        @test InfiniteOpt._model_from_expr(quad3) === m
-    end
-    # test for NLPExpr
-    @testset "NLPExpr" begin
-        # make expressions
-        nlp1 = sin(hd)
-        nlp2 = zero(NLPExpr)
-        nlp3 = 2 + sin(hd^2)
-        # test expressions
-        @test InfiniteOpt._model_from_expr(nlp1) === m
-        @test InfiniteOpt._model_from_expr(nlp2) isa Nothing
-        @test InfiniteOpt._model_from_expr(nlp3) === m
-    end
-    # test for Vector{GeneralVariableRef}
-    @testset "Vector{GeneralVariableRef}" begin
-        vrefs1 = GeneralVariableRef[]
-        vrefs2 = [hd]
-        # test expressions
-        @test InfiniteOpt._model_from_expr(vrefs1) isa Nothing
-        @test InfiniteOpt._model_from_expr(vrefs2) === m
-    end
-    # test Fallback
-    @testset "Fallback" begin
-        @test_throws ErrorException InfiniteOpt._model_from_expr(:bad)
     end
 end
 
@@ -687,19 +600,20 @@ end
         @test !haskey(quad.terms, UnorderedPair{GeneralVariableRef}(pt, pt))
         @test isa(InfiniteOpt._remove_variable(quad2, inf), Nothing)
     end
-    # test for NLPExpr 
-    @testset "NLPExpr" begin 
+    # test for GenericNonlinearExpr 
+    @testset "GenericNonlinearExpr" begin 
         # make expressions 
         nlp1 = sin(3pt)
-        nlp2 = pt^2.3 + <=(inf, pt)
+        nlp2 = pt^2.3 + ^(inf, pt)
         nlp3 = cos(pt^2 + pt) / (2pt + 2inf)
         # test expressions 
         @test InfiniteOpt._remove_variable(nlp1, pt) isa Nothing 
-        @test isequal(nlp1, sin(zero(zero(GenericAffExpr{Float64, GeneralVariableRef}))))
+        @test isequal(nlp1, sin(zero(GenericAffExpr{Float64, GeneralVariableRef})))
         @test InfiniteOpt._remove_variable(nlp2, pt) isa Nothing 
-        @test isequal(nlp2, zero(NLPExpr)^2.3 + <=(inf, 0.0))
+        @test nlp2.args[1].args == [0.0, 2.3]
+        @test nlp2.args[2].args == Any[inf, 0.0]
         @test InfiniteOpt._remove_variable(nlp3, inf) isa Nothing 
-        @test isequal(nlp3, cos(pt^2 + pt) / (2pt))
+        @test nlp3.args[2] == 2pt
     end
     # test for AbstractArray
     @testset "AbstractArray" begin
@@ -733,10 +647,50 @@ end
     @testset "QuadExpr" begin
         @test isequal(map_expression(v -> x, quad), x^2 + 2x)
     end
-    # test NLPExpr
-    @testset "NLPExpr" begin
-        @test isequal(map_expression(v -> z, nlp), (sin(z) + (2z + 42)) ^ 3.4)
+    # test GenericNonlinearExpr
+    @testset "GenericNonlinearExpr" begin
+        @test isequal(map_expression(v -> y, nlp), (sin(y) + (2y + 42))^3.4)
         @test isequal(map_expression(v -> v^3, sin(y)), sin(y^3))
+    end
+end
+
+# Test map_expression_to_ast
+@testset "map_expression_to_ast" begin 
+    # setup model
+    m = InfiniteModel()
+    @variable(m, z)
+    @variable(m, y)
+    aff = 2z + y + 42
+    quad = z^2 + 3 * z * y + 2z
+    nlp = (sin(z) + aff) ^ 3.4
+    jm = Model()
+    @variable(jm, x)
+    @variable(jm, w)
+    vmap(v) = v == z ? x : w
+    omap(op) = :test
+    # test constant
+    @testset "Constant" begin
+        @test map_expression_to_ast(vmap, 42) == :(42)
+    end
+    # test variable 
+    @testset "Variable" begin
+        @test map_expression_to_ast(vmap, z) == :($x)
+    end
+    # test AffExpr
+    @testset "AffExpr" begin
+        @test map_expression_to_ast(vmap, aff) == :(2 * $x + $w + 42)
+    end
+    # test QuadExpr 
+    @testset "QuadExpr" begin
+        @test map_expression_to_ast(vmap, quad) == :($x * $x + 3 * $x * $w + 2 * $x)
+    end
+    # test GenericNonlinearExpr
+    @testset "GenericNonlinearExpr" begin
+        @test map_expression_to_ast(vmap, omap, nlp) == :(test(test(test($x), (2 * $x + $w + 42)), 3.4))
+    end
+    # test deprecation 
+    @testset "map_nlp_to_ast" begin
+        @test (@test_deprecated map_nlp_to_ast(vmap, nlp)) == :((sin($x) + (2.0 * $x + $w + 42.0)) ^ 3.4)
     end
 end
 

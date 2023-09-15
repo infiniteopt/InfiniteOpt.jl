@@ -506,14 +506,12 @@ end
         @test IOTO.transcription_expression(tm, expr, [1., 1., 1.]) == expected
         # test becomes a nonlinear expression
         expr = meas2 * x0
-        expected = "subexpression[1]: +((-2.0 * a + b * b + d * d) * b)"
-        @test sprint(show, IOTO.transcription_expression(tm, expr, [1., 1., 1.])) == expected
+        expected = +((-2.0 * a + b * b + d * d) * b, 0.0)
+        @test isequal(IOTO.transcription_expression(tm, expr, [1., 1., 1.]), expected)
     end
-    # test transcription expression for NLPExprs with 3 args
-    @testset "transcription_expression (NLPExpr)" begin
-        expr = sin(y)
-        expected = "subexpression[2]: sin(a)"
-        @test sprint(show, IOTO.transcription_expression(tm, expr, [1., 1., 1.])) == expected
+    # test transcription expression for NonlinearExprs with 3 args
+    @testset "transcription_expression (NonlinearExpr)" begin
+        @test isequal(IOTO.transcription_expression(tm, sin(y), [1., 1., 1.]), sin(a))
     end
     # test transcription expression for numbers with 3 args
     @testset "transcription_expression (Real)" begin
@@ -535,9 +533,8 @@ end
         expected = 2b- a 
         @test IOTO.transcription_expression(tm, expr) == expected
         @test IOTO.transcription_expression(tm, expr, ndarray = true) == [expected]
-        # test NLPExpr 
-        expected = "subexpression[3]: sin(b)"
-        @test sprint(show, IOTO.transcription_expression(tm, sin(x0))) == expected
+        # test NonlinearExpr 
+        @test isequal(IOTO.transcription_expression(tm, sin(x0)), sin(b))
     end
     # test transcription expression for variables with 2 args
     @testset "transcription_expression (Variable 2 Args)" begin

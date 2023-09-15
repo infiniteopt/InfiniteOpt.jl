@@ -467,3 +467,43 @@ end
     @test ConstraintData <: AbstractDataObject
     @test ConstraintData(con, [1], "", MeasureIndex[], false) isa ConstraintData
 end
+
+# Test the operator constructor
+@testset "Nonlinear Operators" begin
+    # Setup
+    f(a) = a^3
+    g(a::Int) = 42
+    h(a, b) = 42
+    f1(a) = 32
+    f2(a) = 10
+    h1(a, b) = 13
+    function hg(v::AbstractVector, a, b)
+        v[1] = 1
+        v[2] = 2
+        return 
+    end
+    function ∇²h(H, x...)
+        H[1, 1] = 1200 * x[1]^2 - 400 * x[2] + 2
+        H[2, 1] = -400 * x[1]
+        H[2, 2] = 200.0
+        return
+    end
+    # Test errors
+    @test_throws ErrorException NLPOperator(:a, 1, f, g)
+    @test_throws ErrorException NLPOperator(:a, 2, f, g)
+    @test_throws ErrorException NLPOperator(:a, 1, f, g, f)
+    @test_throws ErrorException NLPOperator(:a, 1, f, f, g)
+    @test_throws ErrorException NLPOperator(:a, 2, h, hg, hg)
+    # Test regular builds
+    @test NLPOperator(:a, 1, f).name == :a
+    @test NLPOperator(:a, 1, f).dim == 1
+    @test NLPOperator(:a, 1, f).f == f
+    @test NLPOperator(:a, 1, f, f) isa NLPOperator{typeof(f), typeof(f), Nothing}
+    @test NLPOperator(:a, 1, f, f).∇f == f
+    @test NLPOperator(:a, 1, f, f, f) isa NLPOperator{typeof(f), typeof(f), typeof(f)}
+    @test NLPOperator(:a, 1, f, f, f).∇²f == f
+    @test NLPOperator(:a, 2, h, hg) isa NLPOperator{typeof(h), typeof(hg), Nothing}
+    @test NLPOperator(:a, 2, h, hg).∇f == hg
+    @test NLPOperator(:a, 2, h, hg, ∇²h) isa NLPOperator{typeof(h), typeof(hg), typeof(∇²h)}
+    @test NLPOperator(:a, 2, h, hg, ∇²h).∇²f == ∇²h
+end
