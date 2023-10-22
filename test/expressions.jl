@@ -687,7 +687,7 @@ end
     # test QuadExpr 
     @testset "QuadExpr" begin
         @test map_expression_to_ast(vmap, quad) == :($x * $x + 3 * $x * $w + 2 * $x)
-        @test map_expression_to_ast(vmap, quad2) == :(2 * $x * $x)
+        @test map_expression_to_ast(vmap, quad2) == :(+(2 * $x * $x))
         @test map_expression_to_ast(vmap, quad0) == :(+(0))
     end
     # test GenericNonlinearExpr

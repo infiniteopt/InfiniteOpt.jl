@@ -774,7 +774,7 @@ function map_expression_to_ast(
             push!(ex.args, Expr(:call, :*, c, var_mapper(v)))
         end
     end
-    if !iszero(aff.constant) || isempty(ex.args)
+    if !iszero(aff.constant) || isempty(ex.args[2:end])
         push!(ex.args, aff.constant)
     end
     return ex
@@ -795,7 +795,7 @@ function map_expression_to_ast(
         end
     end
     aff_ex = map_expression_to_ast(var_mapper, op_mapper, quad.aff)
-    if aff_ex.args != [:+, 0.0] || isempty(ex.args)
+    if aff_ex.args != [:+, 0.0] || isempty(ex.args[2:end])
         append!(ex.args, aff_ex.args[2:end])
     end
     return ex
