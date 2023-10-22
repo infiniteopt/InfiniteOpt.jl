@@ -663,6 +663,9 @@ end
     aff = 2z + y + 42
     quad = z^2 + 3 * z * y + 2z
     nlp = (sin(z) + aff) ^ 3.4
+    aff0 = zero(GenericAffExpr{Float64, GeneralVariableRef})
+    quad2 = 2 * z^2
+    quad0 = zero(GenericQuadExpr{Float64, GeneralVariableRef})
     jm = Model()
     @variable(jm, x)
     @variable(jm, w)
@@ -679,10 +682,13 @@ end
     # test AffExpr
     @testset "AffExpr" begin
         @test map_expression_to_ast(vmap, aff) == :(2 * $x + $w + 42)
+        @test map_expression_to_ast(vmap, aff0) == :(+(0))
     end
     # test QuadExpr 
     @testset "QuadExpr" begin
         @test map_expression_to_ast(vmap, quad) == :($x * $x + 3 * $x * $w + 2 * $x)
+        @test map_expression_to_ast(vmap, quad2) == :(2 * $x * $x)
+        @test map_expression_to_ast(vmap, quad0) == :(+(0))
     end
     # test GenericNonlinearExpr
     @testset "GenericNonlinearExpr" begin
