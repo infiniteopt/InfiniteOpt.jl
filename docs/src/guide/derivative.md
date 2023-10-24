@@ -46,10 +46,10 @@ as needed. For example, we can define the following:
 julia> d1 = deriv(y, t)
 ∂/∂t[y(t, ξ)]
 
-julia> d2 = deriv(y, t, ξ)
+julia> d2 = ∂(y, t, ξ)
 ∂/∂ξ[∂/∂t[y(t, ξ)]]
 
-julia> d3 = ∂(q, t^2)
+julia> d3 = @∂(q, t^2) # the macro version allows the `t^2` syntax
 ∂/∂t[∂/∂t[q(t)]]
 
 julia> d_expr = deriv(y * q - 2t, t)

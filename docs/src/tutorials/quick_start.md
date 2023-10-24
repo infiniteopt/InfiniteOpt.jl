@@ -241,13 +241,13 @@ That's it, now we have our problem defined in `InfiniteOpt`!
 ## Solution & Queries
 ### Optimize 
 Now that our model is defined, let's optimize it via [`optimize!`](@ref):
-```julia-repl
+```jldoctest quick; setup = :(set_optimizer_attribute(model, "print_level", 0))
 julia> optimize!(model)
 
 ```
 We can check the solution status via 
 [`termination_status`](@ref JuMP.termination_status(::InfiniteModel)):
-```jldoctest quick; setup = :(set_optimizer_attribute(model, "print_level", 0); optimize!(model))
+```jldoctest quick
 julia> termination_status(model)
 LOCALLY_SOLVED::TerminationStatusCode = 4
 ```
@@ -273,8 +273,8 @@ julia> u_ts = supports.(u)
 1-dimensional DenseAxisArray{Vector{Tuple},1,...} with index sets:
     Dimension 1, 1:2
 And data, a 2-element Vector{Vector{Tuple}}:
- [0.0, 0.01910808707516623, 0.018047000516923158, 0.016985913958680085, 0.015924827400437012, 0.014863740842193935, 0.013802654283950862, 0.012741567725707786, 0.011680481167464712, 0.01061939460922164  …  -0.015469961800111056, -0.013841544768520418, -0.012213127736929785, -0.01058471070533914, -0.008956293673748507, -0.007327876642157868, -0.005699459610567232, -0.0040710425789765945, -0.0024426255473859564, -0.0010856113543937583]
- [0.0, 0.012692356649505403, 0.011753972332627835, 0.010815588015750272, 0.009877203698872707, 0.008938819381995143, 0.008000435065117578, 0.007062050748240013, 0.006123666431362448, 0.005185282114484884  …  0.004098637887815126, 0.0036672023206766914, 0.0032357667535382576, 0.0028043311863998237, 0.0023728956192613894, 0.0019414600521229543, 0.0015100244849845202, 0.0010785889178460857, 0.0006471533507076515, 0.00028762371142562293]
+ [(0.0,), (1.0,), (2.0,), (3.0,), (4.0,), (5.0,), (6.0,), (7.0,), (8.0,), (9.0,)  …  (51.0,), (52.0,), (53.0,), (54.0,), (55.0,), (56.0,), (57.0,), (58.0,), (59.0,), (60.0,)]
+ [(0.0,), (1.0,), (2.0,), (3.0,), (4.0,), (5.0,), (6.0,), (7.0,), (8.0,), (9.0,)  …  (51.0,), (52.0,), (53.0,), (54.0,), (55.0,), (56.0,), (57.0,), (58.0,), (59.0,), (60.0,)]
 ```
 Please see the [Results](@ref result_docs) page for more information. 
 
