@@ -871,7 +871,23 @@ being defined for the underlying `DispatchVariableRef`, otherwise an
 `ArgumentError` is thrown. See the underlying docstrings for more
 information.
 """
-function JuMP.fix(vref::GeneralVariableRef, value::Real;
-                  force::Bool = false)::Nothing
+function JuMP.fix(vref::GeneralVariableRef, value::Real; force::Bool = false)
     return JuMP.fix(dispatch_variable_ref(vref), value, force = force)
+end
+
+
+# Dispatch fallback for constant_over_collocation
+function constant_over_collocation(vref::DispatchVariableRef, pref::GeneralVariableRef)
+    throw(ArgumentError("`constant_over_collocation` not defined for variable reference type " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    constant_over_collocation(vref::GeneralVariableRef, pref::GeneralVariableRef)::Nothing
+
+Define `constant_over_collocation` for general variable references. It wraps around the 
+method defined for `InfiniteVariableRef`s.
+"""
+function constant_over_collocation(vref::GeneralVariableRef, pref::GeneralVariableRef)
+    return constant_over_collocation(dispatch_variable_ref(vref), pref)
 end

@@ -384,7 +384,7 @@ end
     end
 end
 
-# Test transcribe_derivative_evaluations! (TODO SEE IF THIS CAN BE MADE TO WORK WITH DEPENDENDENT PARAMETER BASED DERIVATIVES)
+# Test transcribe_derivative_evaluations! (TODO SEE IF THIS CAN BE MADE TO WORK WITH DEPENDENT PARAMETER BASED DERIVATIVES)
 @testset "transcribe_derivative_evaluations!" begin 
     # setup 
     m = InfiniteModel()
@@ -406,6 +406,38 @@ end
     @test length(supports(d2, label = All)) == 10
     @test IOTO.has_internal_supports(tm)
     @test has_generative_supports(t)
+end
+
+@testset "transcribe_variable_collocation_restictions!" begin 
+    # setup 
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1], num_supports = 4, 
+                        derivative_method = OrthogonalCollocation(3))
+    @infinite_parameter(m, x in [0, 1], num_supports = 3, 
+                        derivative_method = OrthogonalCollocation(2))
+    @variable(m, y, Infinite(t, x))
+    constant_over_collocation(y, t)
+    constant_over_collocation(y, x)
+    tm = transcription_model(m)
+    IOTO.set_parameter_supports(tm, m)
+    IOTO.transcribe_infinite_variables!(tm, m)
+    # main test 
+    @test IOTO.transcribe_variable_collocation_restictions!(tm, m) isa Nothing
+    @test num_constraints(tm, count_variable_in_set_constraints = false) == 3 * 3
+    yt = transcription_variable(y, label = All, ndarray = true)
+    cons = all_constraints(tm, include_variable_in_set_constraints = false)
+    @test jump_function(constraint_object(first(cons))) == yt[7, 1] - yt[6, 1] 
+    # test assertion error
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1], supports = [0, 0.9], 
+                        derivative_method = OrthogonalCollocation(3))
+    @variable(m, y, Infinite(t))
+    add_supports(t, 1, label = InternalGaussLobatto)
+    constant_over_collocation(y, t)
+    tm = transcription_model(m)
+    IOTO.set_parameter_supports(tm, m)
+    IOTO.transcribe_infinite_variables!(tm, m)
+    @test_throws AssertionError IOTO.transcribe_variable_collocation_restictions!(tm, m)
 end
 
 # Test build_transcription_model!

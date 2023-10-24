@@ -17,6 +17,7 @@ InfiniteOpt.TranscriptionOpt.transcribe_measures!
 InfiniteOpt.TranscriptionOpt.transcribe_objective!
 InfiniteOpt.TranscriptionOpt.transcribe_constraints!
 InfiniteOpt.TranscriptionOpt.transcribe_derivative_evaluations!
+InfiniteOpt.TranscriptionOpt.transcribe_variable_collocation_restictions!
 InfiniteOpt.TranscriptionOpt.build_transcription_model!
 InfiniteOpt.add_point_variable(::JuMP.Model,::InfiniteOpt.GeneralVariableRef,::Vector{Float64},::Val{:TransData})
 InfiniteOpt.add_semi_infinite_variable(::JuMP.Model,::InfiniteOpt.SemiInfiniteVariable,::Val{:TransData})

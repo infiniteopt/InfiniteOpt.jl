@@ -782,7 +782,7 @@ function transcribe_constraints!(
 end
 
 ################################################################################
-#                      DERIVATIVE CONSTRAINT TRANSCRIPTION METHODS
+#                    DERIVATIVE CONSTRAINT TRANSCRIPTION METHODS
 ################################################################################
 """
     transcribe_derivative_evaluations!(trans_model::JuMP.Model, 
@@ -791,7 +791,7 @@ end
 Generate the auxiliary derivative evaluation equations and transcribe them 
 appropriately for all the derivatives in `inf_model`. These are in turn added to 
 `trans_model`. Note that no mapping information is recorded since the InfiniteModel 
-won't have any constraints that correspond to these equations. Also Note that
+won't have any constraints that correspond to these equations. Also note that
 the variables and measures must all first be transcripted (e.g., via
 [`transcribe_derivative_variables!`](@ref)).
 """
@@ -821,6 +821,52 @@ function transcribe_derivative_evaluations!(
                     trans_constr = JuMP.build_constraint(error, new_expr, set)
                     JuMP.add_constraint(trans_model, trans_constr) # TODO maybe add name?
                 end 
+            end
+        end
+    end
+    return
+end
+
+"""
+    transcribe_variable_collocation_restictions!(trans_model::JuMP.Model, 
+                                                 inf_model::InfiniteOpt.InfiniteModel)::Nothing
+
+Add constraints to `trans_model` that make infinite variables constant over collocation 
+points following the calls made to [`InfiniteOpt.constant_over_collocation`](@ref). Note that 
+[`set_parameter_supports`](@ref) and [`transcribe_infinite_variables!`](@ref) must be called first.
+"""
+function transcribe_variable_collocation_restictions!(
+    trans_model::JuMP.Model, 
+    inf_model::InfiniteOpt.InfiniteModel
+    )
+    data = transcription_data(trans_model)
+    set = MOI.EqualTo(0.0)
+    for (pidx, vidxs) in inf_model.piecewise_vars
+        pref = InfiniteOpt._make_variable_ref(inf_model, pidx)
+        if !InfiniteOpt.has_generative_supports(pref)
+            continue
+        end
+        obj_num = InfiniteOpt._object_number(pref)
+        supps = reverse!(data.supports[obj_num][1:end-1])
+        labels = reverse!(data.support_labels[obj_num][1:end-1])
+        @assert any(l -> l <: InfiniteOpt.PublicLabel, first(labels))
+        v_manip = GeneralVariableRef(inf_model, -1, IndependentParameterIndex) # placeholder
+        for vidx in vidxs
+            vref = InfiniteOpt._make_variable_ref(inf_model, vidx)
+            obj_nums = filter(!isequal(obj_num), InfiniteOpt._object_numbers(vref))
+            supp_indices = support_index_iterator(trans_model, obj_nums)
+            for (s, ls) in zip(supps, labels)
+                if any(l -> l <: InfiniteOpt.PublicLabel, ls)
+                    v_manip = InfiniteOpt.make_reduced_expr(vref, pref, s, trans_model)
+                else
+                    inf_expr = v_manip - InfiniteOpt.make_reduced_expr(vref, pref, s, trans_model)
+                    for i in supp_indices 
+                        raw_supp = index_to_support(trans_model, i)
+                        new_expr = transcription_expression(trans_model, inf_expr, raw_supp)
+                        trans_constr = JuMP.build_constraint(error, new_expr, set)
+                        JuMP.add_constraint(trans_model, trans_constr)
+                    end
+                end
             end
         end
     end
@@ -881,6 +927,8 @@ function build_transcription_model!(
     transcribe_constraints!(trans_model, inf_model)
     # define the derivative evaluation constraints
     transcribe_derivative_evaluations!(trans_model, inf_model)
+    # define constraints for variables that are constant over collocation points
+    transcribe_variable_collocation_restictions!(trans_model, inf_model)
     return
 end
 

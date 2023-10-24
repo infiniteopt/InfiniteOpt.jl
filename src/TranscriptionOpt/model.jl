@@ -907,7 +907,7 @@ function support_index_iterator(
     raw_supps = parameter_supports(model)
     lens = map(i -> length(i), raw_supps)
     # prepare the indices of each support combo
-    # note that the actual supports are afrom 1:length-1 and the placeholders are at the ends
+    # note that the actual supports are from 1:length-1 and the placeholders are at the ends
     return CartesianIndices(ntuple(i -> i in obj_nums ? (1:lens[i]-1) : (lens[i]:lens[i]),
                                    length(raw_supps)))
 end

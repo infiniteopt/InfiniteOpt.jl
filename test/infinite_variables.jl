@@ -577,6 +577,26 @@ end
     # Note: the rest of the cases are tested with point variables and semi-infinite variables
 end
 
+# test collocation restrictions
+@testset "constant_over_collocation" begin 
+    # setup the info 
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x[1:2] in [0, 1], independent = true)
+    @infinite_parameter(m, xi[1:2] in [0, 1])
+    @variable(m, y, Infinite(t, x, xi))
+    @variable(m, q, Infinite(t))
+    # test errors 
+    @test_throws ErrorException constant_over_collocation(y, xi[1])
+    @test_throws ErrorException constant_over_collocation(q, x[1])
+    # test normal 
+    @test constant_over_collocation(y, t) isa Nothing
+    @test constant_over_collocation(q, t) isa Nothing
+    @test m.piecewise_vars[index(t)] == Set([index(y), index(q)])
+    @test constant_over_collocation(y, x[2]) isa Nothing
+    @test m.piecewise_vars[index(x[2])] == Set(index(y))
+end
+
 # Test variable(s) constrained on creation 
 @testset "Creation Constraints" begin 
     # initialize model and stuff
