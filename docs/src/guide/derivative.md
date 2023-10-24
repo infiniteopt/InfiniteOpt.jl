@@ -116,7 +116,7 @@ julia> set_all_derivative_methods(model, FiniteDifference(Forward()))
     this, [`constant_over_collocation`](@ref) should be called on the appropriate variables. 
     For example:
     ```jldoctest collocation; setup = :(using InfiniteOpt; model = InfiniteModel()) 
-    @infinite_parameter(model, t in [0, 1], deriviative_method = OrthogonalCollocation(3))
+    @infinite_parameter(model, t in [0, 1], derivative_method = OrthogonalCollocation(3))
     @variable(model, y_state, Infinite(t))
     @variable(model, y_control, Infinite(t))
     @constraint(model, ∂(y_state, t) == y_state^2)
@@ -124,7 +124,7 @@ julia> set_all_derivative_methods(model, FiniteDifference(Forward()))
     constant_over_collocation(y_control, t)
 
     # output
-    
+
     ```
     where we use `constant_over_collocation` to hold `y_control` constant over each finite 
     element (i.e., constant for each internal collocation point). 
