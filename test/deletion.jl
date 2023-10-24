@@ -558,6 +558,8 @@ end
     @constraint(m, con1, x + y + par <= 0)
     con2 = add_constraint(m, ScalarConstraint(y, MOI.LessThan(0.)))
     @constraint(m, con3, [x, y] in MOI.Zeros(2))
+    constant_over_collocation(x, par)
+    constant_over_collocation(y, par)
     # test deletion of x
     @test isa(delete(m, x), Nothing)
     @test num_constraints(m) == 4
@@ -571,6 +573,7 @@ end
     @test !is_valid(m, d1)
     @test !haskey(InfiniteOpt._data_dictionary(m, InfiniteVariable), JuMP.index(x))
     @test !is_valid(m, con3)
+    @test m.piecewise_vars[index(par)] == Set(index(y))
     # test deletion of y
     @test isa(delete(m, y), Nothing)
     @test num_constraints(m) == 2
@@ -583,6 +586,7 @@ end
     @test InfiniteOpt._object_numbers(con2) == []
     @test InfiniteOpt._infinite_variable_dependencies(par) == []
     @test !haskey(InfiniteOpt._data_dictionary(m, InfiniteVariable), JuMP.index(y))
+    @test isempty(m.piecewise_vars)
     # test errors
     @test_throws AssertionError delete(m, x)
     @test_throws AssertionError delete(m, y)

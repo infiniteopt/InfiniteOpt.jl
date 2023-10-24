@@ -144,6 +144,7 @@ JuMP.delete(::InfiniteModel, ::DecisionVariableRef)
 ```@docs
 set_start_value_function(::InfiniteVariableRef, ::Union{Real, Function})
 reset_start_value_function(::InfiniteVariableRef)
+constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)
 ```
 
 ### Semi-Infinite

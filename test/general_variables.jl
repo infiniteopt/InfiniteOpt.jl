@@ -481,6 +481,7 @@ end
     idx = TestIndex(1)
     dvref = TestVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, TestIndex)
+    pref = GeneralVariableRef(m, -1, IndependentParameterIndex)
     # test 1 argument methods 
     for f in (:has_lower_bound, :has_upper_bound, :is_fixed, :is_binary, 
               :is_integer, :lower_bound, :upper_bound, :fix_value, :start_value,
@@ -502,6 +503,14 @@ end
     # test JuMP.fix (GeneralVariableRef)
     @testset "JuMP.fix (GeneralVariableRef)" begin
         @test_throws ArgumentError fix(gvref, 42, force = true)
+    end
+    # test constant_over_collocation (Fallback)
+    @testset "constant_over_collocation (Fallback)" begin
+        @test_throws ArgumentError constant_over_collocation(dvref, pref)
+    end
+    # test constant_over_collocation (GeneralVariableRef)
+    @testset "constant_over_collocation (GeneralVariableRef)" begin
+        @test_throws ArgumentError constant_over_collocation(gvref, pref)
     end
     # test set_start_value_function (Fallback)
     @testset "set_start_value_function (Fallback)" begin

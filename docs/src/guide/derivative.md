@@ -37,35 +37,35 @@ over finite elements using 3 nodes. We'll come back to this just a little furthe
 below to more fully describe the various methods we can use. 
 
 First, let's discuss how to define derivatives in `InfiniteOpt.jl`. Principally, 
-this is accomplished via [`@deriv`](@ref) which will operate on a particular 
+this is accomplished via [`deriv`](@ref) which will operate on a particular 
 `InfiniteOpt` expression (containing parameters, variables, and/or measures) with 
 respect to infinite parameters specified with their associated orders. Behind the 
 scenes all the appropriate calculus will be applied, creating derivative variables 
 as needed. For example, we can define the following:
 ```jldoctest deriv_basic 
-julia> d1 = @deriv(y, t)
+julia> d1 = deriv(y, t)
 ∂/∂t[y(t, ξ)]
 
-julia> d2 = @deriv(y, t, ξ)
+julia> d2 = ∂(y, t, ξ)
 ∂/∂ξ[∂/∂t[y(t, ξ)]]
 
-julia> d3 = @∂(q, t^2)
+julia> d3 = @∂(q, t^2) # the macro version allows the `t^2` syntax
 ∂/∂t[∂/∂t[q(t)]]
 
-julia> d_expr = @deriv(y * q - 2t, t)
+julia> d_expr = deriv(y * q - 2t, t)
 ∂/∂t[y(t, ξ)]*q(t) + y(t, ξ)*∂/∂t[q(t)] - 2
 ```
 Thus, we can define derivatives in a variety of forms according to the problem at 
 hand. The last example even shows how the product rule is correctly applied. 
 
 !!! note 
-    For convenience in making more compact code we provide [`∂`](@ref) and 
-    [`@∂`](@ref) as wrappers for [`deriv`](@ref) and [`@deriv`](@ref), respectively.
+    For convenience in making more compact code we provide [`∂`](@ref) 
+    as a wrapper for [`deriv`](@ref).
 
 Also, notice that the appropriate analytic calculus is applied to infinite 
 parameters. For example, we could also compute:
 ```jldoctest deriv_basic 
-julia> @deriv(3t^2 - 2t, t)
+julia> deriv(3t^2 - 2t, t)
 6 t - 2
 ```
 
@@ -108,6 +108,26 @@ to specify/modify the derivative method used. More conveniently, we can call
 julia> set_all_derivative_methods(model, FiniteDifference(Forward()))
 
 ```
+
+!!! note
+    When [`OrthogonalCollocation`](@ref) is used, additional degrees of freedom can be 
+    artificially introduced to infinite variables that share the same infinite parameter. 
+    For instance, this occurs with control variables in optimal control problems. To address 
+    this, [`constant_over_collocation`](@ref constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)) 
+    should be called on the appropriate variables. For example:
+    ```jldoctest collocation; setup = :(using InfiniteOpt; model = InfiniteModel()) 
+    @infinite_parameter(model, t in [0, 1], derivative_method = OrthogonalCollocation(3))
+    @variable(model, y_state, Infinite(t))
+    @variable(model, y_control, Infinite(t))
+    @constraint(model, ∂(y_state, t) == y_state^2)
+    @constraint(model, y_state(0) == 0)
+    constant_over_collocation(y_control, t)
+
+    # output
+
+    ```
+    where we use `constant_over_collocation` to hold `y_control` constant over each finite 
+    element (i.e., constant for each internal collocation point). 
 
 !!! warning
     `InfiniteOpt` does not ensure proper boundary conditions are provided by the 
@@ -387,6 +407,11 @@ the corresponding derivative will be free variable. For more information on
 orthogonal collocation over finite elements, this 
 [page](http://apmonitor.com/do/index.php/Main/OrthogonalCollocation) provides a 
 good reference.
+
+The addition of internal collocation supports by `OrthogonalCollocation` will increase 
+the degrees of freedom for infinite variables that are not used by derivatives (e.g., 
+control variables). To prevent this, we use [`constant_over_collocation`](@ref) on any 
+such infinite variables to hold them constant over internal collocation nodes. 
 
 Other methods can be employed via user-defined extensions. Please visit our 
 Extensions page for more information.

@@ -13,11 +13,10 @@
 # This model is formalized as:
 # ```math 
 # \begin{gathered}
-# \frac{ds(t)}{dt} = (u(t) - 1)\beta si(t) \\
-# \frac{de(t)}{dt} = (1 - u(t))\beta si(t) - \xi e(t) \\
+# \frac{ds(t)}{dt} = (u(t) - 1)\beta s(t)i(t) \\
+# \frac{de(t)}{dt} = (1 - u(t))\beta s(t)i(t) - \xi e(t) \\
 # \frac{di(t)}{dt} = \xi e(t) - \gamma i(t)\\
 # \frac{dr(t)}{dt} = \gamma i(t) \\
-# si(t) = s(t) i(t)
 # \end{gathered}
 # ```
 # where ``s(t)`` is the susceptible population, ``e(t)`` is the exposed population, 
@@ -36,11 +35,10 @@
 # ```math 
 # \begin{aligned}
 # &&\min_{} &&& \int_{t \in \mathcal{D}_{t}} u(t) dt \\
-# && \text{s.t.} &&& \frac{\partial s(t, \xi)}{\partial t} = (u(t) - 1)\beta si(t, \xi), && \forall t \in \mathcal{D}_{t}, \xi \in \mathcal{D}_{\xi} \\
-# &&&&& \frac{\partial e(t, \xi)}{\partial t} = (1 - u(t))\beta si(t, \xi) - \xi e(t, \xi), && \forall t \in \mathcal{D}_{t}, \xi \in \mathcal{D}_{\xi} \\
+# && \text{s.t.} &&& \frac{\partial s(t, \xi)}{\partial t} = (u(t) - 1)\beta s(t, \xi)i(t, \xi), && \forall t \in \mathcal{D}_{t}, \xi \in \mathcal{D}_{\xi} \\
+# &&&&& \frac{\partial e(t, \xi)}{\partial t} = (1 - u(t))\beta s(t, \xi)i(t, \xi) - \xi e(t, \xi), && \forall t \in \mathcal{D}_{t}, \xi \in \mathcal{D}_{\xi} \\
 # &&&&& \frac{\partial i(t, \xi)}{\partial t} = \xi e(t, \xi) - \gamma i(t, \xi), && \forall t \in \mathcal{D}_{t}, \xi \in \mathcal{D}_{\xi} \\
 # &&&&& \frac{\partial r(t, \xi)}{\partial t} = \gamma i(t, \xi), && \forall t \in \mathcal{D}_{t}, \xi \in \mathcal{D}_{\xi} \\
-# &&&&& si(t, \xi) = s(t, \xi) i(t, \xi), && \forall \forall t \in \mathcal{D}_{t}, \xi \in \mathcal{D}_{\xi} \\
 # &&&&& s(0, \xi) = s_0, e(0, \xi) = e_0, i(0, \xi) = i_0, r(0, \xi) = r_0, && \forall \xi \in \mathcal{D}_{\xi} \\
 # &&&&& i(t, \xi) \leq i_{max}, && \forall t \in \mathcal{D}_{t}, \xi \in \mathcal{D}_{\xi} \\
 # &&&&& u(t) \in [0, 0.8] \\
@@ -100,7 +98,7 @@ model = InfiniteModel(Ipopt.Optimizer);
 # - specify that the number of random scenarios should equal `num_samples`
 # - add `extra_ts` as extra time points
 @infinite_parameter(model, t ∈ [t0, tf], num_supports = 51, 
-                    derivative_method = OrthogonalCollocation(2))
+                    derivative_method = OrthogonalCollocation(3))
 @infinite_parameter(model, ξ ~ Uniform(ξ_min, ξ_max), num_supports = num_samples)
 add_supports(t, extra_ts)
 
@@ -110,13 +108,11 @@ add_supports(t, extra_ts)
 # - ``e(t, \xi) \geq 0``
 # - ``i(t, \xi) \geq 0``
 # - ``r(t, \xi) \geq 0``
-# - ``si(t, \xi)``
 # - ``0 \leq u(t) \leq 0.8``
 @variable(model, s ≥ 0, Infinite(t, ξ))
 @variable(model, e ≥ 0, Infinite(t, ξ))
 @variable(model, i ≥ 0, Infinite(t, ξ))
 @variable(model, r ≥ 0, Infinite(t, ξ))
-@variable(model, si, Infinite(t, ξ))
 @variable(model, 0 ≤ u ≤ 0.8, Infinite(t), start = 0.2)
 
 # ## Objective Definition
@@ -137,7 +133,6 @@ add_supports(t, extra_ts)
 # &&& \frac{\partial e(t, \xi)}{\partial t} = (1 - u(t))\beta si(t, \xi) - \xi e(t, \xi), && \forall t \in \mathcal{D}_{t}, \xi \in \mathcal{D}_{\xi} \\
 # &&& \frac{\partial i(t, \xi)}{\partial t} = \xi e(t, \xi) - \gamma i(t, \xi), && \forall t \in \mathcal{D}_{t}, \xi \in \mathcal{D}_{\xi} \\
 # &&& \frac{\partial r(t, \xi)}{\partial t} = \gamma i(t, \xi), && \forall t \in \mathcal{D}_{t}, \xi \in \mathcal{D}_{\xi} \\
-# &&& si(t, \xi) = s(t, \xi) i(t, \xi), && \forall \forall t \in \mathcal{D}_{t}, \xi \in \mathcal{D}_{\xi}, \\
 # \end{aligned}
 # ```
 # and the infection limit constraint:
@@ -151,14 +146,20 @@ add_supports(t, extra_ts)
 @constraint(model, r(0, ξ) == r0)
 
 ## Define the SEIR equations
-@constraint(model, s_constr, ∂(s, t) == -(1 - u) * β * si)
-@constraint(model, e_constr, ∂(e, t) == (1 - u) * β * si - ξ * e)
+@constraint(model, s_constr, ∂(s, t) == -(1 - u) * β * s * i)
+@constraint(model, e_constr, ∂(e, t) == (1 - u) * β * s * i - ξ * e)
 @constraint(model, i_constr, ∂(i, t) == ξ * e - γ * i)
 @constraint(model, r_constr, ∂(r, t) == γ * i)
-@constraint(model, si == s * i)
 
 ## Define the infection rate limit
 @constraint(model, imax_constr, i ≤ i_max)
+
+# ## Adjust Degrees of Freedom
+# Since we are using [`OrthogonalCollocation`](@ref), this introduces additional collocation points 
+# for `t`. These in turn, will artificially increase the degrees of freedom for `u`. Thus, 
+# we will treat `u` as a piecewise constant function that is held constant over the internal 
+# collocation nodes via [`constant_over_collocation`](@ref constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)):
+constant_over_collocation(u, t)
 
 # ## Display the Infinite Model
 # Let's display `model` now that it is fully defined:

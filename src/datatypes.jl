@@ -1274,6 +1274,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     last_param_num::Int
     param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
     param_functions::MOIUC.CleverDict{ParameterFunctionIndex, <:ParameterFunctionData}
+    piecewise_vars::Dict{IndependentParameterIndex, Set{InfiniteVariableIndex}}
 
     # Variable Data
     infinite_vars::MOIUC.CleverDict{InfiniteVariableIndex, <:VariableData{<:InfiniteVariable}}
@@ -1371,6 +1372,7 @@ function InfiniteModel(;
                          nothing, 0,
                          Union{IndependentParameterIndex, DependentParametersIndex}[],
                          MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{<:ParameterFunction}}(),
+                         Dict{IndependentParameterIndex, Set{InfiniteVariableIndex}}(),
                          # Variables
                          MOIUC.CleverDict{InfiniteVariableIndex, VariableData{<:InfiniteVariable}}(),
                          MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),
@@ -1452,7 +1454,7 @@ JuMP.object_dictionary(model::InfiniteModel)::Dict{Symbol, Any} = model.obj_dict
 Clear out `model` of everything except the optimizer information and return the 
 cleared model. 
 """
-function Base.empty!(model::InfiniteModel)::InfiniteModel 
+function Base.empty!(model::InfiniteModel)
     # Clear everything except the solver information
     # parameters
     empty!(model.independent_params)
@@ -1462,6 +1464,7 @@ function Base.empty!(model::InfiniteModel)::InfiniteModel
     model.last_param_num = 0
     empty!(model.param_object_indices)
     empty!(model.param_functions)
+    empty!(model.piecewise_vars)
     # variables
     empty!(model.infinite_vars)
     empty!(model.semi_infinite_vars)
@@ -1493,7 +1496,7 @@ function Base.empty!(model::InfiniteModel)::InfiniteModel
 end
 
 # Define basic accessors
-_last_param_num(model::InfiniteModel)::Int = model.last_param_num
+_last_param_num(model::InfiniteModel) = model.last_param_num
 _param_object_indices(model::InfiniteModel) = model.param_object_indices
 
 ################################################################################
@@ -1723,14 +1726,14 @@ end
 # Case where tuple is already in correct form
 function _expand_parameter_tuple(
     param_restrictions::NTuple{N, Pair{GeneralVariableRef, IntervalDomain}}
-    )::Dict{GeneralVariableRef, IntervalDomain} where {N}
+    ) where {N}
     return Dict{GeneralVariableRef, IntervalDomain}(param_restrictions...)
 end
 
 # Case where tuple contains vectors
 function _expand_parameter_tuple(
     param_restrictions::NTuple{N, Pair{<:Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}, IntervalDomain}}
-    )::Dict{GeneralVariableRef, IntervalDomain} where {N}
+    ) where {N}
     # Initialize new dictionary
     new_dict = Dict{GeneralVariableRef, IntervalDomain}()
     # Find vector keys and expand
@@ -1781,22 +1784,22 @@ end
 # Constructor for expanding array parameters
 function DomainRestrictions(
     intervals::NTuple{N, Pair}
-    )::DomainRestrictions{GeneralVariableRef} where {N}
+    ) where {N}
     return DomainRestrictions(_expand_parameter_tuple(intervals))
 end
 
 # Convenient constructor
-function DomainRestrictions(args...)::DomainRestrictions{GeneralVariableRef}
+function DomainRestrictions(args...)
     return DomainRestrictions(args)
 end
 
 # Default method
-function DomainRestrictions()::DomainRestrictions{GeneralVariableRef}
+function DomainRestrictions()
     return DomainRestrictions(Dict{GeneralVariableRef, IntervalDomain}())
 end
 
 # Make dictionary accessor
-function intervals(dr::DomainRestrictions{P})::Dict{P, IntervalDomain} where {P}
+function intervals(dr::DomainRestrictions)
     return dr.intervals
 end
 
@@ -1814,7 +1817,7 @@ end
 function Base.:(==)(
     restrictions1::DomainRestrictions, 
     restrictions2::DomainRestrictions
-    )::Bool
+    )
     return intervals(restrictions1) == intervals(restrictions2)
 end
 
@@ -1828,7 +1831,7 @@ function Base.setindex!(
     dr::DomainRestrictions{P}, 
     value::IntervalDomain,
     index::P
-    )::IntervalDomain where {P}
+    ) where {P}
     return intervals(dr)[index] = value
 end
 
@@ -1836,7 +1839,7 @@ end
 function Base.delete!(
     dr::DomainRestrictions{P}, 
     key::P
-    )::DomainRestrictions{P} where {P}
+    ) where {P}
     delete!(intervals(dr), key)
     return dr
 end
@@ -1845,7 +1848,7 @@ end
 function Base.merge(
     dr1::DomainRestrictions{P},
     dr2::DomainRestrictions{P}
-    )::DomainRestrictions{P} where {P}
+    ) where {P}
     new_dict = merge(intervals(dr1), intervals(dr2))
     return DomainRestrictions(new_dict)
 end
@@ -1854,7 +1857,7 @@ end
 function Base.merge!(
     dr1::DomainRestrictions{P},
     dr2::DomainRestrictions{P}
-    )::DomainRestrictions{P} where {P}
+    ) where {P}
     merge!(intervals(dr1), intervals(dr2))
     return dr1
 end
@@ -1862,8 +1865,8 @@ end
 # Extend Base.filter
 function Base.filter(
     f::Function,
-    dr::DomainRestrictions{P}
-    )::DomainRestrictions{P} where {P}
+    dr::DomainRestrictions
+    )
     new_dict = filter(f, intervals(dr))
     return DomainRestrictions(new_dict)
 end

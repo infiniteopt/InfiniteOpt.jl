@@ -95,7 +95,7 @@ this problem we have the time domain ``t \in \mathcal{D}_t`` and the random doma
 ``\xi \in \mathcal{D}_\xi`` where ``\xi \sim \mathcal{N}(\mu, \sigma^2)``:
 ```jldoctest quick
 julia> @infinite_parameter(model, t in [0, 60], num_supports = 61, 
-                           derivative_method = OrthogonalCollocation(2))
+                           derivative_method = OrthogonalCollocation(3))
 t
 
 julia> @infinite_parameter(model, ξ ~ Normal(μ, σ^2), num_supports = 10)
@@ -147,7 +147,7 @@ And data, a 4-element Vector{GeneralVariableRef}:
  y[3](ξ)
  y[4](ξ)
 ```
-Notice that we specifying the initial guess for all of them via `start`. We also 
+Notice that we specify the initial guess for all of them via `start`. We also 
 can symbolically define variable conditions like the lower bound on `y`.
 
 That does it for this example, but other problems might also employ the following:
@@ -212,7 +212,7 @@ And data, a 2-element Vector{InfOptConstraintRef}:
  c2[2] : ξ*∂/∂t[v[2](t, ξ)] - u[2](t) = 0, ∀ t ∈ [0, 60], ξ ~ Normal
 ```
 
-Finally, we can define our last 2 constraints:
+Next, we can define our last 2 constraints:
  ```jldoctest quick
 julia> @constraint(model, c3[w in W], y[w] == sum((x[i](tw[w], ξ) - p[i, w])^2 for i in I))
 1-dimensional DenseAxisArray{InfOptConstraintRef,1,...} with index sets:
@@ -228,18 +228,26 @@ c4 : 𝔼{ξ}[y[1](ξ) + y[2](ξ) + y[3](ξ) + y[4](ξ)] - ϵ ≤ 0
 ```
 Notice we are able to invoke an expectation simply by calling [`expect`](@ref).
 
+Finally, to address any unwanted degrees of freedom introduced by internal collocation 
+nodes with [`OrthogonalCollocation`](@ref). We should call [`constant_over_collocation`](@ref constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)) 
+on any control variables:
+```jldoctest quick
+julia> constant_over_collocation.(u, t);
+
+``` 
+
 That's it, now we have our problem defined in `InfiniteOpt`!
 
 ## Solution & Queries
 ### Optimize 
 Now that our model is defined, let's optimize it via [`optimize!`](@ref):
-```julia-repl
+```jldoctest quick; setup = :(set_optimizer_attribute(model, "print_level", 0))
 julia> optimize!(model)
 
 ```
 We can check the solution status via 
 [`termination_status`](@ref JuMP.termination_status(::InfiniteModel)):
-```jldoctest quick; setup = :(set_optimizer_attribute(model, "print_level", 0); optimize!(model))
+```jldoctest quick
 julia> termination_status(model)
 LOCALLY_SOLVED::TerminationStatusCode = 4
 ```
@@ -287,7 +295,7 @@ model = InfiniteModel(Ipopt.Optimizer)
 # INITIALIZE THE PARAMETERS
 @finite_parameter(model, ϵ == 10)
 @infinite_parameter(model, t in [0, 60], num_supports = 61, 
-                    derivative_method = OrthogonalCollocation(2))
+                    derivative_method = OrthogonalCollocation(3))
 @infinite_parameter(model, ξ ~ Normal(μ, σ^2), num_supports = 10)
 
 # INITIALIZE THE VARIABLES
@@ -308,6 +316,9 @@ model = InfiniteModel(Ipopt.Optimizer)
 @constraint(model, c2[i in I], ξ * @deriv(v[i], t) == u[i])
 @constraint(model, c3[w in W], y[w] == sum((x[i](tw[w], ξ) - p[i, w])^2 for i in I))
 @constraint(model, c4, expect(sum(y[w] for w in W), ξ) <= ϵ)
+
+# ADJUST DEGREES OF FREEDOM FOR CONTROL VARIABLES
+constant_over_collocation.(u, t)
 
 # SOLVE THE MODEL
 optimize!(model)

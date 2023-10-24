@@ -154,6 +154,7 @@ JuMP.is_integer(::GeneralVariableRef)
 JuMP.set_integer(::GeneralVariableRef)
 JuMP.IntegerRef(::GeneralVariableRef)
 JuMP.unset_integer(::GeneralVariableRef)
+constant_over_collocation(::GeneralVariableRef, ::GeneralVariableRef)
 ```
 
 ## Developer Internal Methods
