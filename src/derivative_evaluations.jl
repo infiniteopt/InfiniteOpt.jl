@@ -12,7 +12,8 @@ elements to approximate derivatives. The constructor is of the form:
                           [quad::AbstractUnivariateMethod = GaussLobatto])
 ```
 Note that if `num_nodes > 2` and the problem contains control variables, then 
-[`constant_over_collocation`](@ref) should probably be used on those variables.
+[`constant_over_collocation`](@ref constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)) 
+should probably be used on those variables.
 
 **Fields**
 - `num_nodes::Int`: The number of collocation points (nodes) per finite element.

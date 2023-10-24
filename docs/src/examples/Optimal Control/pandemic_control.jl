@@ -155,10 +155,10 @@ add_supports(t, extra_ts)
 @constraint(model, imax_constr, i ≤ i_max)
 
 # ## Adjust Degrees of Freedom
-# Since we are using `OrthogonalCollocation`, this introduces additional collocation points 
+# Since we are using [`OrthogonalCollocation`](@ref), this introduces additional collocation points 
 # for `t`. These in turn, will artificially increase the degrees of freedom for `u`. Thus, 
-# we will treat `u` as a piecewise constant function that held constant over the internal 
-# collocation nodes:
+# we will treat `u` as a piecewise constant function that is held constant over the internal 
+# collocation nodes via [`constant_over_collocation`](@ref constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)):
 constant_over_collocation(u, t)
 
 # ## Display the Infinite Model

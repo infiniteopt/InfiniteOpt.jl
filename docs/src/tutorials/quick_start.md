@@ -229,7 +229,7 @@ c4 : 𝔼{ξ}[y[1](ξ) + y[2](ξ) + y[3](ξ) + y[4](ξ)] - ϵ ≤ 0
 Notice we are able to invoke an expectation simply by calling [`expect`](@ref).
 
 Finally, to address any unwanted degrees of freedom introduced by internal collocation 
-nodes with [`OrthogonalCollocation`](@ref). We should call [`constant_over_collocation`](@ref) 
+nodes with [`OrthogonalCollocation`](@ref). We should call [`constant_over_collocation`](@ref constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)) 
 on any control variables:
 ```jldoctest quick
 julia> constant_over_collocation.(u, t);

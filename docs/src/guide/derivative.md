@@ -113,8 +113,8 @@ julia> set_all_derivative_methods(model, FiniteDifference(Forward()))
     When [`OrthogonalCollocation`](@ref) is used, additional degrees of freedom can be 
     artificially introduced to infinite variables that share the same infinite parameter. 
     For instance, this occurs with control variables in optimal control problems. To address 
-    this, [`constant_over_collocation`](@ref) should be called on the appropriate variables. 
-    For example:
+    this, [`constant_over_collocation`](@ref constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)) 
+    should be called on the appropriate variables. For example:
     ```jldoctest collocation; setup = :(using InfiniteOpt; model = InfiniteModel()) 
     @infinite_parameter(model, t in [0, 1], derivative_method = OrthogonalCollocation(3))
     @variable(model, y_state, Infinite(t))

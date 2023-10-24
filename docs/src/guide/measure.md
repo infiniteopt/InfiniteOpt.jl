@@ -190,7 +190,7 @@ The arguments of [`DiscreteMeasureData`](@ref) are parameter, coefficients, and
 supports. The default weight function is ``w(\tau) = 1`` for 
 any ``\tau``, which can be overwritten by the keyword argument `weight_function`. 
 The `weight_function` should take a function that returns a number for any 
-value that is well defined for the integrated infinite parameter. The data type 
+value that is well-defined for the integrated infinite parameter. The data type 
 is [`DiscreteMeasureData`](@ref), which is a subtype of the abstract data type 
 [`AbstractMeasureData`](@ref).
 
