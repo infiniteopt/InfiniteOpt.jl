@@ -122,6 +122,9 @@ julia> set_all_derivative_methods(model, FiniteDifference(Forward()))
     @constraint(model, ∂(y_state, t) == y_state^2)
     @constraint(model, y_state(0) == 0)
     constant_over_collocation(y_control, t)
+
+    # output
+    
     ```
     where we use `constant_over_collocation` to hold `y_control` constant over each finite 
     element (i.e., constant for each internal collocation point). 
