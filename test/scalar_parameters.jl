@@ -356,7 +356,7 @@ end
         @test InfiniteOpt._core_variable_object(pref).domain == IntervalDomain(0, 1)
 
         pref = GeneralVariableRef(m, 4, IndependentParameterIndex)
-        @test isequal(@infinite_parameter(m, domain = IntervalDomain(0, 1),
+        @test isequal(@infinite_parameter(m; domain = IntervalDomain(0, 1),
                       base_name = "d"), pref)
         @test name(pref) == "d"
 
@@ -380,7 +380,7 @@ end
         @test InfiniteOpt._core_variable_object(prefs[2]).domain == IntervalDomain(0, 1)
 
         prefs = [GeneralVariableRef(m, i, IndependentParameterIndex) for i in 9:10]
-        @test isequal(@infinite_parameter(m, [1:2], domain = IntervalDomain(0, 1), 
+        @test isequal(@infinite_parameter(m, [1:2]; domain = IntervalDomain(0, 1), 
                                   independent = true), prefs)
         @test InfiniteOpt._core_variable_object(prefs[1]).domain == IntervalDomain(0, 1)
         @test InfiniteOpt._core_variable_object(prefs[2]).domain == IntervalDomain(0, 1)
@@ -406,7 +406,7 @@ end
 
         prefs = [GeneralVariableRef(m, i, IndependentParameterIndex) for i in 17:18]
         prefs = convert(JuMP.Containers.SparseAxisArray, prefs)
-        @test all(isequal.(@infinite_parameter(m, i[1:2] ~ Normal(), independent = true,
+        @test all(isequal.(@infinite_parameter(m, i[1:2] ~ Normal(); independent = true,
                                   container = SparseAxisArray), prefs))
         @test InfiniteOpt._core_variable_object(prefs[1]).domain == UniDistributionDomain(Normal())
         @test InfiniteOpt._core_variable_object(prefs[2]).domain == UniDistributionDomain(Normal())
@@ -423,6 +423,7 @@ end
                                                          distribution = Normal(), 
                                                    domain = IntervalDomain(0, 1))
         @test_macro_throws ErrorException @infinite_parameter(m)
+        @test_macro_throws ErrorException @infinite_parameter()
         @test_macro_throws ErrorException @infinite_parameter(m, 0 <= z <= 1)
         @test_macro_throws ErrorException @infinite_parameter(m, [1:2] in [0, 1], 
                                                               independent = a)
@@ -1000,6 +1001,7 @@ end
     @testset "@finite_parameter" begin
         # test errors
         @test_macro_throws ErrorException @finite_parameter(m)
+        @test_macro_throws ErrorException @finite_parameter()
         @test_macro_throws ErrorException @finite_parameter(m, a, 2)
         @test_macro_throws ErrorException @finite_parameter(m, a ~ 42)
         @test_macro_throws ErrorException @finite_parameter(Model(), 2)
@@ -1015,7 +1017,7 @@ end
         @test name(pref) == ""
         # test vector anonymous definition
         prefs = [GeneralVariableRef(m, i, FiniteParameterIndex) for i in 2:3]
-        @test @finite_parameter(m, [1:2] == 42, base_name = "a") == prefs
+        @test @finite_parameter(m, [1:2] == 42; base_name = "a") == prefs
         @test InfiniteOpt._core_variable_object(prefs[1]).value == 42
         @test name.(prefs) == ["a[1]", "a[2]"]
         # test named definition

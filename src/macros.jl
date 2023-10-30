@@ -51,7 +51,7 @@ function _extract_kwargs(args)
     arg_list = collect(args)
     if !isempty(args) && isexpr(args[1], :parameters)
         p = popfirst!(arg_list)
-        append!(arg_list, p.args)
+        append!(arg_list, (Expr(:(=), a.args[1], a.args[2]) for a in p.args))
     end
     extra_kwargs = filter(x -> isexpr(x, :(=)) && x.args[1] != :container &&
                           x.args[1] != :base_name, arg_list)
@@ -291,9 +291,9 @@ And data, a 2-element Array{GeneralVariableRef,1}:
  noname[b]
 ```
 """
-macro infinite_parameter(model, args...)
+macro infinite_parameter(args...)
     # define error message function
-    _error(str...) = _macro_error(:infinite_parameter, (model, args...),
+    _error(str...) = _macro_error(:infinite_parameter, (args...,),
                                   __source__, str...)
     # parse the arguments
     pos_args, extra_kwargs, container_type, base_name = _extract_kwargs(args)
@@ -306,6 +306,8 @@ macro infinite_parameter(model, args...)
             extra_kwargs)
 
     # process the positional arguments
+    isempty(pos_args) && _error("No model was given.")
+    model = popfirst!(pos_args)
     if isempty(pos_args)
         p = gensym()
         is_anon_single = true
@@ -499,16 +501,18 @@ julia> @finite_parameter(model, par2 == 42)
 par2
 ```
 """
-macro finite_parameter(model, args...)
+macro finite_parameter(args...)
     # process the inputs
-    esc_model = esc(model)
     pos_args, kwargs, container_type, base_name = _extract_kwargs(args)
 
     # make an error function
-    _error(str...) = _macro_error(:finite_parameter, (model, args...), 
+    _error(str...) = _macro_error(:finite_parameter, (args...,), 
                                   __source__, str...)
 
     # process the positional arguments
+    isempty(pos_args) && _error("No model was given.")
+    model = popfirst!(pos_args)
+    esc_model = esc(model)
     if length(pos_args) == 1
         expr = popfirst!(pos_args)
     else
@@ -702,18 +706,18 @@ julia> @parameter_function(model, pf2[i = 1:2] == t -> g(t, i, b = 2 * i ))
  pf2[2](t)
 ```
 """
-macro parameter_function(model, args...)
-    # prepare the model 
-    esc_model = esc(model)
-
+macro parameter_function(args...)
     # define error message function
-    _error(str...) = _macro_error(:parameter_function, (model, args...),
+    _error(str...) = _macro_error(:parameter_function, (args...,),
                                   __source__, str...)
 
     # parse the arguments 
     pos_args, kwargs, container_type, base_name = _extract_kwargs(args)
 
     # process the positional arguements 
+    isempty(pos_args) && _error("No model was given.")
+    model = popfirst!(pos_args)
+    esc_model = esc(model)
     if length(pos_args) == 1
         expr = popfirst!(pos_args)
     else
