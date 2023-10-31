@@ -69,7 +69,10 @@
      # test generate_integral_data (Gauss-Chebyshev)
     @testset "generate_integral_data (Gauss-Chebyshev)" begin
         @test generate_integral_data(t, 0, 1, GaussChebyshev(3)) isa DiscreteMeasureData
-        @test generate_integral_data(t, 0, 1, GaussChebyshev(3)).coefficients == FastGaussQuadrature.gausschebyshev(3, 3)[2] * 1/2
+        @test generate_integral_data(t, 0, 1, GaussChebyshev(3)).coefficients == FastGaussQuadrature.gausschebyshevv(3)[2] * 1/2
+        @test generate_integral_data(t, 0, 1, GaussChebyshev(1)).coefficients == FastGaussQuadrature.gausschebyshevt(3)[2] * 1/2
+        @test generate_integral_data(t, 0, 1, GaussChebyshev(2)).coefficients == FastGaussQuadrature.gausschebyshevu(3)[2] * 1/2
+        @test generate_integral_data(t, 0, 1, GaussChebyshev(4)).coefficients == FastGaussQuadrature.gausschebyshevw(3)[2] * 1/2
         @test_throws ErrorException GaussChebyshev(5)
     end
     # test generate_integral_data (Gauss-Laguerre)
