@@ -456,7 +456,15 @@ end
 
 # Gauss-Chebyshev
 function _make_nodes_weights(method::GaussChebyshev, num_nodes::Int)
-    return FastGaussQuadrature.gausschebyshev(num_nodes, method.order)
+    if method.order == 1
+        return FastGaussQuadrature.gausschebyshevt(num_nodes)
+    elseif method.order == 2
+        return FastGaussQuadrature.gausschebyshevu(num_nodes)
+    elseif method.order == 3
+        return FastGaussQuadrature.gausschebyshevv(num_nodes)
+    else
+        return FastGaussQuadrature.gausschebyshevw(num_nodes)
+    end
 end
 
 # Gauss-Jacobi
