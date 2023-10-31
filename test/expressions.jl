@@ -261,6 +261,7 @@ end
     # test @parameter_function
     @testset "@parameter_function" begin
         # test errors
+        @test_macro_throws ErrorException @parameter_function()
         @test_macro_throws ErrorException @parameter_function(m)
         @test_macro_throws ErrorException @parameter_function(m, func = f5)
         @test_macro_throws ErrorException @parameter_function(m, y == sin(t), Int)
@@ -272,7 +273,7 @@ end
         # test anonymous singular 
         idx = 1
         ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
-        @test isequal(@parameter_function(m, f5(t, x), base_name = "a"), ref)
+        @test isequal(@parameter_function(m, f5(t, x); base_name = "a"), ref)
         @test name(ref) == "a"
         @test raw_function(ref) == f5 
         @test isequal(parameter_refs(ref), (t, x))
