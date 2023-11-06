@@ -21,6 +21,8 @@
     @constraint(m, c4, meas2 - 2y0 + x <= 1, DomainRestrictions(par => [0.5, 1]))
     @constraint(m, c5, meas2 == 0)
     @objective(m, Min, x0 + meas1)
+    # test extra keywords
+    @test_throws ErrorException build_optimizer_model!(m, bad = 42)
     # test normal usage
     @test isa(build_optimizer_model!(m), Nothing)
     @test optimizer_model_ready(m)
@@ -181,6 +183,25 @@ end
     @test isa(optimize!(m, check_support_dims = false), Nothing)
     @test optimizer_model_ready(m)
     @test num_variables(optimizer_model(m)) == 8
+    # test optimize hook
+    function myhook(model; n = "", ub = 2, kwargs...)
+        if !isempty(n)
+            var = variable_by_name(model, n)
+            set_upper_bound(var, ub)
+        end
+        optimize!(model; ignore_optimize_hook = true, kwargs...)
+        return
+    end
+    @test set_optimize_hook(m, myhook) isa Nothing
+    @test optimize!(m, n = "x", check_support_dims = false) isa Nothing
+    @test optimizer_model_ready(m)
+    @test num_variables(optimizer_model(m)) == 8
+    @test upper_bound(x) == 2
+    @test set_optimize_hook(m, nothing) isa Nothing
+    @test isnothing(m.optimize_hook)
+    @test_throws ErrorException optimize!(m, n = "x")
+    @test optimize!(m) isa Nothing
+    @test optimizer_model_ready(m)
 end
 
 # Test JuMP.result_count
