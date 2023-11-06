@@ -9,6 +9,7 @@ InfiniteModel()
 JuMP.object_dictionary(::InfiniteModel)
 has_internal_supports
 Base.empty!(::InfiniteModel)
+JuMP.set_optimize_hook(::InfiniteModel, ::Union{Function, Nothing})
 ```
 
 ## Abstract Dependencies

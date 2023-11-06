@@ -904,12 +904,41 @@ end
 #                             OPTIMIZATION METHODS
 ################################################################################
 """
+    JuMP.set_optimize_hook(
+        model::InfiniteModel, 
+        hook::Union{Function, Nothing}
+        )::Nothing
+
+Set the function `hook` as the optimize hook for `model` where `hook` should 
+have be of the form `hook(model::GenericModel; hook_specfic_kwargs..., kwargs...)`. 
+The `kwargs` are those passed to [`optimize!`](@ref). The `hook_specifc_kwargs` 
+are passed as additional keywords by the user when they call [`optimize!`](@ref).
+
+## Notes
+
+* The optimize hook should generally modify the model, or some external state
+in some way, and then call `optimize!(model; ignore_optimize_hook = true)` to
+optimize the problem, bypassing the hook.
+* Use `set_optimize_hook(model, nothing)` to unset an optimize hook.
+"""
+function JuMP.set_optimize_hook(
+    model::InfiniteModel, 
+    hook::Union{Function, Nothing}
+    )
+    model.optimize_hook = hook
+    set_optimizer_model_ready(model, false)
+    return
+end
+
+"""
     JuMP.optimize!(model::InfiniteModel; [kwargs...])
 
 Extend `JuMP.optimize!` to optimize infinite models using the internal
-optimizer model. Will call [`build_optimizer_model!`](@ref) if the optimizer
+optimizer model. Calls [`build_optimizer_model!`](@ref) if the optimizer
 model isn't up to date. The `kwargs` correspond to keyword arguments passed to
-[`build_optimizer_model!`](@ref) if any are defined.
+[`build_optimizer_model!`](@ref) if any are defined. The `kwargs` can also 
+include arguments that are passed to an optimize hook if one was set with 
+[`JuMP.set_optimize_hook`](@ref). 
 
 **Example**
 ```julia-repl
@@ -919,7 +948,13 @@ julia> has_values(model)
 true
 ```
 """
-function JuMP.optimize!(model::InfiniteModel; kwargs...)
+function JuMP.optimize!(
+    model::InfiniteModel; 
+    ignore_optimize_hook = isnothing(model.optimize_hook),
+    kwargs...)
+    if !ignore_optimize_hook
+        return model.optimize_hook(model; kwargs...)
+    end
     if !optimizer_model_ready(model)
         build_optimizer_model!(model; kwargs...)
     end

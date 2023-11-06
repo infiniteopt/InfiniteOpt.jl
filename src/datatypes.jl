@@ -1316,6 +1316,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 
     # Extensions
     ext::Dict{Symbol, Any}
+    optimize_hook::Any
 end
 
 """
@@ -1402,7 +1403,8 @@ function InfiniteModel(;
                          # Optimize data
                          nothing, OptimizerModel(; kwargs...), false,
                          # Extensions
-                         Dict{Symbol, Any}()
+                         Dict{Symbol, Any}(),
+                         nothing
                          )
 end
 
@@ -1411,13 +1413,13 @@ end
 function _set_optimizer_constructor(
     model::InfiniteModel,
     constructor::MOI.OptimizerWithAttributes
-    )::Nothing
+    )
     model.optimizer_constructor = constructor.optimizer_constructor
     return
 end
 
 # No attributes
-function _set_optimizer_constructor(model::InfiniteModel, constructor)::Nothing
+function _set_optimizer_constructor(model::InfiniteModel, constructor)
     model.optimizer_constructor = constructor
     return
 end
@@ -1427,7 +1429,7 @@ function InfiniteModel(
     optimizer_constructor;
     OptimizerModel::Function = TranscriptionModel,
     kwargs...
-    )::InfiniteModel
+    )
     model = InfiniteModel()
     model.optimizer_model = OptimizerModel(optimizer_constructor; kwargs...)
     _set_optimizer_constructor(model, optimizer_constructor)
@@ -1436,6 +1438,7 @@ end
 
 # Define basic InfiniteModel extension functions
 Base.broadcastable(model::InfiniteModel) = Ref(model)
+JuMP.variable_ref_type(::Type{InfiniteModel}) = GeneralVariableRef 
 
 """
     JuMP.object_dictionary(model::InfiniteModel)::Dict{Symbol, Any}
@@ -1446,7 +1449,7 @@ registered to a specific symbol in the macros. For example,
 `@variable(model, x[1:2, 1:2])` registers the array of variables
 `x` to the symbol `:x`.
 """
-JuMP.object_dictionary(model::InfiniteModel)::Dict{Symbol, Any} = model.obj_dict
+JuMP.object_dictionary(model::InfiniteModel) = model.obj_dict
 
 """
     Base.empty!(model::InfiniteModel)::InfiniteModel
@@ -1492,6 +1495,7 @@ function Base.empty!(model::InfiniteModel)
     empty!(model.optimizer_model)
     model.ready_to_optimize = false
     empty!(model.ext)
+    model.optimize_hook = nothing
     return model
 end
 

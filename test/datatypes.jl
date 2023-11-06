@@ -198,6 +198,8 @@ end
     @test InfiniteOpt._param_object_indices(m) isa Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
     # test other methods 
     @test empty!(InfiniteModel(mockoptimizer)).optimizer_constructor == mockoptimizer
+    @test variable_ref_type(InfiniteModel) == GeneralVariableRef
+    @test variable_ref_type(InfiniteModel()) == GeneralVariableRef
 end
 
 # Test reference variable datatypes

@@ -4,7 +4,7 @@
 Return the transcription model stored in `model` if that is what is stored in
 `model.optimizer_model`.
 """
-function transcription_model(model::InfiniteOpt.InfiniteModel)::JuMP.Model
+function transcription_model(model::InfiniteOpt.InfiniteModel)
     trans_model = InfiniteOpt.optimizer_model(model)
     if !is_transcription_model(trans_model)
         error("The model does not contain a transcription model.")
@@ -26,8 +26,13 @@ using [`build_transcription_model!`](@ref).
 function InfiniteOpt.build_optimizer_model!(
     model::InfiniteOpt.InfiniteModel,
     key::Val{:TransData};
-    check_support_dims::Bool = true
-    )::Nothing
+    check_support_dims::Bool = true,
+    extra_kwargs...
+    )
+    # throw error for extra keywords
+    for (kw, _) in extra_kwargs
+        error("Unrecognized keyword argument `$kw` for building transcription models.")
+    end
     # clear the optimzier model contents
     trans_model = InfiniteOpt.clear_optimizer_model_build!(model)
     # build the transcription model based on model
