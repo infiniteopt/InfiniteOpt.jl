@@ -7,22 +7,6 @@ _esc_non_constant(x::Number) = x
 _esc_non_constant(x::Expr) = isexpr(x,:quote) ? x : esc(x)
 _esc_non_constant(x) = esc(x)
 
-# Adapted from https://github.com/jump-dev/JuMP.jl/blob/246cccb0d3167d5ed3df72fba97b1569476d46cf/src/macros.jl#L397-L410
-function _base_name_with_indices(base_name, index_vars::Vector)
-    if isempty(index_vars) || base_name == ""
-        return base_name
-    end
-    expr = Expr(:call, :string, base_name, "[")
-    for index in index_vars
-        # Converting the arguments to strings before concatenating is faster:
-        # https://github.com/JuliaLang/julia/issues/29550.
-        push!(expr.args, :(string($(esc(index)))))
-        push!(expr.args, ",")
-    end
-    expr.args[end] = "]"
-    return expr
-end
-
 # Determine if an expression contains any index variable symbols
 function _has_idxvars(expr, idxvars)::Bool
     expr in idxvars && return true
@@ -325,11 +309,7 @@ macro infinite_parameter(args...)
         )
 
     # Prepare the name code and handle the base_name kwarg
-    base_name = pop!(kwargs, :base_name, string(something(name, "")))
-    if base_name isa Expr
-        base_name = esc(base_name)
-    end
-    name_expr = _base_name_with_indices(base_name, idxvars)
+    name_expr = JuMPC.name_with_index_expr(name, idxvars, kwargs)
 
     # make the build call
     if is_independent
@@ -361,7 +341,7 @@ macro infinite_parameter(args...)
             push!(build_call.args, Expr(:kw, k, vect_code))
         end
     end
-    JuMPC.add_additional_args(build_call, [], kwargs; kwarg_exclude = [:container])
+    JuMPC.add_additional_args(build_call, [], kwargs; kwarg_exclude = [:container, :base_name])
 
     # make the creation code
     if is_independent 
@@ -471,11 +451,7 @@ macro finite_parameter(args...)
     )
 
     # process the name
-    base_name = get(kwargs, :base_name, string(something(name, "")))
-    if base_name isa Expr
-        base_name = esc(base_name)
-    end
-    name_expr = _base_name_with_indices(base_name, idxvars)
+    name_expr = JuMPC.name_with_index_expr(name, idxvars, kwargs)
 
     # make the creation code
     build_call = :( build_parameter($error_fn, $value) )
@@ -656,11 +632,7 @@ macro parameter_function(args...)
     )
 
     # process the name
-    base_name = get(kwargs, :base_name, string(something(name, "")))
-    if base_name isa Expr
-        base_name = esc(base_name)
-    end
-    name_expr = _base_name_with_indices(base_name, idxvars)
+    name_expr = JuMPC.name_with_index_expr(name, idxvars, kwargs)
     if name_expr == "" && !is_anon_func
         name_expr = :( string(nameof($func)) )
     end
