@@ -261,7 +261,7 @@ end
     # test @parameter_function
     @testset "@parameter_function" begin
         # test errors
-        # @test_macro_throws ErrorException @parameter_function()
+        @test_macro_throws ErrorException @parameter_function()
         @test_macro_throws ErrorException @parameter_function(m)
         @test_macro_throws ErrorException @parameter_function(m, func = f5)
         @test_macro_throws ErrorException @parameter_function(m, y == sin(t), Int)

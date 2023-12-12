@@ -423,7 +423,7 @@ end
                                                          distribution = Normal(), 
                                                    domain = IntervalDomain(0, 1))
         @test_macro_throws ErrorException @infinite_parameter(m)
-        # @test_macro_throws ErrorException @infinite_parameter()
+        @test_macro_throws ErrorException @infinite_parameter()
         @test_macro_throws ErrorException @infinite_parameter(m, 0 <= z <= 1)
         @test_macro_throws ErrorException @infinite_parameter(m, [1:2] in [0, 1], 
                                                               independent = a)
@@ -1001,7 +1001,7 @@ end
     @testset "@finite_parameter" begin
         # test errors
         @test_macro_throws ErrorException @finite_parameter(m)
-        # @test_macro_throws ErrorException @finite_parameter()
+        @test_macro_throws ErrorException @finite_parameter()
         @test_macro_throws ErrorException @finite_parameter(m, a, 2)
         @test_macro_throws ErrorException @finite_parameter(m, a ~ 42)
         @test_macro_throws ErrorException @finite_parameter(Model(), 2)
