@@ -647,42 +647,10 @@ function MultiParameterData(params::P,
 end
 
 ################################################################################
-#                             DOMAIN RESTRICTIONS
-################################################################################
-"""
-    DomainRestrictions{P <: GeneralVariableRef}
-
-A `DataType` for storing interval domains that constrain particular infinite 
-parameters to a subdomain relative to their full domain. This is used to define
-subdomains of [`DomainRestrictedConstraint`](@ref)s.
-Note that the GeneralVariableRef must pertain to infinite parameters.
-
-The constructor syntax is
-```julia 
-DomainRestrictions(restrictions...)
-```
-where each argument of `restrictions` is one of the following forms:
-- `pref => value`
-- `pref => [lb, ub]`
-- `pref => IntervalDomain(lb, ub)`
-- `prefs => value`
-- `prefs => [lb, ub]`
-- `prefs => IntervalDomain(lb, ub)`.
-Note that `pref` and `prefs` must correspond to infinite parameters. 
-
-**Fields**
-- `intervals::Dict{GeneralVariableRef, IntervalDomain}`: A dictionary
-  of interval bounds on infinite parameters.
-"""
-struct DomainRestrictions{P <: JuMP.AbstractVariableRef}
-    intervals::Dict{P, IntervalDomain}
-end
-
-################################################################################
 #                        PARAMETER FUNCTION OBJECTS
 ################################################################################
 """
-    ParameterFunction{F <: Function, VT <: VectorTuple}
+    ParameterFunction{F <: Union{Function, Real}, VT <: VectorTuple}
 
 A `DataType` for storing known functions of infinite parameters. These equate to arbitrary 
 functions that take support instances of infinite parameters `parameter_refs` in 
@@ -698,7 +666,7 @@ incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
 """
-struct ParameterFunction{F <: Function, VT <: Collections.VectorTuple}
+struct ParameterFunction{F <: Union{Function, Real}, VT <: Collections.VectorTuple}
     func::F
     parameter_refs::VT
     object_nums::Vector{Int}
@@ -735,31 +703,45 @@ end
 #                               VARIABLE TYPES
 ################################################################################
 """
-    InfiniteVariable{F <: Function, VT <: VectorTuple} <: JuMP.AbstractVariable
+    InfiniteVariable{
+        LB <: Union{Function, Float64}, 
+        UB <: Union{Function, Float64}, 
+        FX <: Union{Function, Float64}, 
+        ST <: Union{Function, Float64}, 
+        VT <: VectorTuple
+        } <: JuMP.AbstractVariable
 
 A `DataType` for storing core infinite variable information. Note that indices
 that refer to the same dependent parameter group must be in the same tuple element.
-It is important to note that `info.start` should contain a start value function
-that generates the start value for a given infinite parameter support. This
-function should map a support to a start value using user-formatting if
-`is_vector_start = false`, otherwise it should do the mapping using a single
-support vector as input.
+It is important to note that the subfiels of `info` are comprised of [`ParameterFunction`](@ref)s 
+such that each evaluates to a `Float64` given a tuple of infinite parameters in the infinite 
+variable. 
 
 **Fields**
-- `info::JuMP.VariableInfo{Float64, Float64, Float64, F}`: JuMP variable information.
-  Here the start value is a function that maps the parameter values to a start value.
+- `info::JuMP.VariableInfo`: JuMP variable information.
+  Here each value should be a [`ParameterFunction`](@ref).
 - `parameter_refs::VT`: The infinite parameter references that parameterize the 
   variable.
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
 - `is_vector_start::Bool`: Does the start function take support values formatted as vectors?
 """
-struct InfiniteVariable{F <: Function, VT <: Collections.VectorTuple} <: JuMP.AbstractVariable
-    info::JuMP.VariableInfo{Float64, Float64, Float64, F}
+struct InfiniteVariable{
+    LB <: Union{Function, Float64}, 
+    UB <: Union{Function, Float64}, 
+    FX <: Union{Function, Float64}, 
+    ST <: Union{Function, Float64}, 
+    VT <: Collections.VectorTuple
+    } <: JuMP.AbstractVariable
+    info::JuMP.VariableInfo{
+        ParameterFunction{LB, VT}, 
+        ParameterFunction{UB, VT}, 
+        ParameterFunction{FX, VT},
+        ParameterFunction{ST, VT}
+        }
     parameter_refs::VT
     parameter_nums::Vector{Int}
     object_nums::Vector{Int}
-    is_vector_start::Bool
 end
 
 """
@@ -857,7 +839,14 @@ end
 #                              DERIVATIVE TYPES
 ################################################################################
 """
-    Derivative{F <: Function, V <: GeneralVariableRef} <: JuMP.AbstractVariable
+    Derivative{
+        LB <: Union{Function, Float64}, 
+        UB <: Union{Function, Float64}, 
+        FX <: Union{Function, Float64}, 
+        ST <: Union{Function, Float64}, 
+        VT <: VectorTuple,
+        V <: GeneralVariableRef
+        } <: JuMP.AbstractVariable
 
 A `DataType` for storing core infinite derivative information. This follows a 
 derivative of the form: ``\\frac{\\partial x(\\alpha, \\hdots)}{\\partial \\alpha}`` 
@@ -872,15 +861,26 @@ support vector as input. Also, the variable reference type `V` must pertain to
 infinite variables and parameters.
 
 **Fields**
-- `info::JuMP.VariableInfo{Float64, Float64, Float64, F}`: JuMP variable information.
-- `is_vector_start::Bool`: Does the start function take support values formatted as vectors?
+- `info::JuMP.VariableInfo`: JuMP variable information. Here each value should be 
+  a [`ParameterFunction`](@ref).
 - `variable_ref::V`: The variable reference of the infinite variable argument.
 - `parameter_ref::V`: The variable reference of the infinite parameter the defines the
    differential operator.
 """
-struct Derivative{F <: Function, V <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
-    info::JuMP.VariableInfo{Float64, Float64, Float64, F}
-    is_vector_start::Bool
+struct Derivative{
+    LB <: Union{Function, Float64}, 
+    UB <: Union{Function, Float64}, 
+    FX <: Union{Function, Float64}, 
+    ST <: Union{Function, Float64}, 
+    VT <: Collections.VectorTuple,
+    V <: JuMP.AbstractVariableRef
+    } <: JuMP.AbstractVariable
+    info::JuMP.VariableInfo{
+        ParameterFunction{LB, VT}, 
+        ParameterFunction{UB, VT}, 
+        ParameterFunction{FX, VT},
+        ParameterFunction{ST, VT}
+        }
     variable_ref::V # could be ref of infinite/semi-infinite variable/derivative or measure (top of derivative)
     parameter_ref::V # a scalar infinite parameter ref (bottom of derivative)
 end
@@ -1149,22 +1149,25 @@ end
 ################################################################################
 """
     DomainRestrictedConstraint{C <: JuMP.AbstractConstraint, 
-                               P <: GeneralVariableRef
+                               F <: Function,
+                               VT <: Collections.VectorTuple
                                } <: JuMP.AbstractConstraint
 
-A `DataType` for creating a constraint with enforced `DomainRestrictions`. For 
-example this may pertain to a boundary condition.
+A `DataType` for creating a constraint with enforced restrictions on its domain. 
+For example this may pertain to excluding a boundary condition.
 
 **Fields**
 - `constraint::C`: The optimization constraint.
-- `restrictions::DomainRestrictions{P}`: The restrictions that determine the 
-   sub-domain of the constraint.
+- `restrictions::ParameterFunction{F, VT}`: Returns `Bool` whether constraint 
+should be added at particular point in the infinite parameter domain.
 """
-struct DomainRestrictedConstraint{C <: JuMP.AbstractConstraint, 
-                                  P <: JuMP.AbstractVariableRef
-                                  } <: JuMP.AbstractConstraint
+struct DomainRestrictedConstraint{
+    C <: JuMP.AbstractConstraint, 
+    F <: Function,
+    VT <: Collections.VectorTuple
+    } <: JuMP.AbstractConstraint
     constraint::C
-    restrictions::DomainRestrictions{P}
+    restrictions::ParameterFunction{F, VT}
 end
 
 """
@@ -1194,7 +1197,7 @@ end
 ################################################################################
 """
     NLPOperator{F <: Function, G <: Union{Function, Nothing}, 
-                       H <: Union{Function, Nothing}}
+                H <: Union{Function, Nothing}}
 
 A type for storing new nonlinear operators and their information 
 that is ultimately for automatic differentiation. The constructor is of the form:
@@ -1294,7 +1297,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 
     # Constraint Data
     constraints::MOIUC.CleverDict{InfOptConstraintIndex, <:ConstraintData}
-    constraint_restrictions::Dict{InfOptConstraintIndex, <:DomainRestrictions}
+    constraint_restrictions::Dict{InfOptConstraintIndex, <:ParameterFunction}
     name_to_constr::Union{Dict{String, InfOptConstraintIndex}, Nothing}
 
     # Objective Data
@@ -1389,7 +1392,7 @@ function InfiniteModel(;
                          MOIUC.CleverDict{MeasureIndex, MeasureData{<:Measure}}(),
                          # Constraints
                          MOIUC.CleverDict{InfOptConstraintIndex, ConstraintData{<:JuMP.AbstractConstraint}}(),
-                         Dict{InfOptConstraintIndex, DomainRestrictions{GeneralVariableRef}}(),
+                         Dict{InfOptConstraintIndex, <:ParameterFunction}(),
                          nothing,
                          # Objective
                          MOI.FEASIBILITY_SENSE,
@@ -1721,156 +1724,4 @@ A `DataType` for constraints that are in `InfiniteModel`s
 struct InfOptConstraintRef
     model::InfiniteModel
     index::InfOptConstraintIndex
-end
-
-################################################################################
-#                            PARAMETER BOUND METHODS
-################################################################################
-## Modify parameter dictionary to expand any multidimensional parameter keys
-# Case where tuple is already in correct form
-function _expand_parameter_tuple(
-    param_restrictions::NTuple{N, Pair{GeneralVariableRef, IntervalDomain}}
-    ) where {N}
-    return Dict{GeneralVariableRef, IntervalDomain}(param_restrictions...)
-end
-
-# Case where tuple contains vectors
-function _expand_parameter_tuple(
-    param_restrictions::NTuple{N, Pair{<:Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}, IntervalDomain}}
-    ) where {N}
-    # Initialize new dictionary
-    new_dict = Dict{GeneralVariableRef, IntervalDomain}()
-    # Find vector keys and expand
-    for (key, set) in param_restrictions
-        # expand over the array of parameters if this is
-        if isa(key, AbstractArray)
-            for param in key
-                new_dict[param] = set
-            end
-        # otherwise we have parameter reference
-        else
-            new_dict[key] = set
-        end
-    end
-    return new_dict
-end
-
-# Handle symbolic domain input 
-_process_domain(d::Real) = IntervalDomain(d, d)
-function _process_domain(d::Vector{<:Real})
-    if length(d) != 2
-        error("Invalid domain restriction syntax. Expected restrictions of the ",
-              "format `DomainRestrictions(restrictions...)` where each ",
-              "argument in `restrictions` is one of the following forms:",
-              "\n- `pref => value`\n- `pref => [lb, ub]`\n- `prefs => value`",
-              "\n- `prefs => [lb, ub]`")
-    end
-    return IntervalDomain(d[1], d[2])
-end
-
-# Case where tuple has symbolic domains
-function _expand_parameter_tuple(
-    param_restrictions::NTuple{N, Pair{<:Any, <:Union{Real, Vector{<:Real}}}}
-    )::Dict{GeneralVariableRef, IntervalDomain} where {N}
-    new_tuple = Tuple(p[1] => _process_domain(p[2]) for p in param_restrictions)
-    return _expand_parameter_tuple(new_tuple)
-end
-
-# Case where tuple contains other stuff
-function _expand_parameter_tuple(param_restrictions)
-    error("Invalid domain restriction syntax. Expected restrictions of the ",
-          "format `DomainRestrictions(restrictions...)` where each ",
-          "argument in `restrictions` is one of the following forms:",
-          "\n- `pref => value`\n- `pref => [lb, ub]`\n- `prefs => value`",
-          "\n- `prefs => [lb, ub]`")
-end
-
-# Constructor for expanding array parameters
-function DomainRestrictions(
-    intervals::NTuple{N, Pair}
-    ) where {N}
-    return DomainRestrictions(_expand_parameter_tuple(intervals))
-end
-
-# Convenient constructor
-function DomainRestrictions(args...)
-    return DomainRestrictions(args)
-end
-
-# Default method
-function DomainRestrictions()
-    return DomainRestrictions(Dict{GeneralVariableRef, IntervalDomain}())
-end
-
-# Make dictionary accessor
-function intervals(dr::DomainRestrictions)
-    return dr.intervals
-end
-
-# Extend simple 1 argument Base dispatches
-for op = (:length, :isempty, :keys, :iterate)
-    @eval Base.$op(restrictions::DomainRestrictions) = $op(intervals(restrictions))
-end
-
-# Extend simple 2 argument Base dispatches where the second is arbitrary
-for op = (:getindex, :haskey, :iterate)
-    @eval Base.$op(restrictions::DomainRestrictions, arg) = $op(intervals(restrictions), arg)
-end
-
-# Extend Base.:(==)
-function Base.:(==)(
-    restrictions1::DomainRestrictions, 
-    restrictions2::DomainRestrictions
-    )
-    return intervals(restrictions1) == intervals(restrictions2)
-end
-
-# Extend Base.copy
-function Base.copy(restrictions::DomainRestrictions) 
-    return DomainRestrictions(copy(intervals(restrictions)))
-end
-
-# Extend Base.setindex!
-function Base.setindex!(
-    dr::DomainRestrictions{P}, 
-    value::IntervalDomain,
-    index::P
-    ) where {P}
-    return intervals(dr)[index] = value
-end
-
-# Extend Base.delete!
-function Base.delete!(
-    dr::DomainRestrictions{P}, 
-    key::P
-    ) where {P}
-    delete!(intervals(dr), key)
-    return dr
-end
-
-# Extend Base.merge
-function Base.merge(
-    dr1::DomainRestrictions{P},
-    dr2::DomainRestrictions{P}
-    ) where {P}
-    new_dict = merge(intervals(dr1), intervals(dr2))
-    return DomainRestrictions(new_dict)
-end
-
-# Extend Base.merge!
-function Base.merge!(
-    dr1::DomainRestrictions{P},
-    dr2::DomainRestrictions{P}
-    ) where {P}
-    merge!(intervals(dr1), intervals(dr2))
-    return dr1
-end
-
-# Extend Base.filter
-function Base.filter(
-    f::Function,
-    dr::DomainRestrictions
-    )
-    new_dict = filter(f, intervals(dr))
-    return DomainRestrictions(new_dict)
 end
