@@ -485,11 +485,16 @@ julia> deriv_expr = @deriv(x^2 + z, t^2)
 ```
 """
 macro deriv(expr, args...)
-    # process the arugments
-    extra, kwargs, _, _ = _extract_kwargs(args)
-    # error if kwargs are given 
-    _error(str...) = _macro_error(:deriv, (expr, args...), __source__, str...)
-    isempty(kwargs) || _error("Invalid keyword argument given.")
+    # make an error function
+    error_fn = JuMPC.build_error_fn(:deriv, (expr, args...), __source__)
+
+    # process the inputs
+    extra, _ = JuMPC.parse_macro_arguments(
+        error_fn, 
+        args, 
+        valid_kwargs = Symbol[]
+    )
+
     # expand the parameter references as needed with powers
     pref_exprs = []
     for p in extra

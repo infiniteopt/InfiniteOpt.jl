@@ -1,3 +1,6 @@
+import Pkg
+Pkg.add(url = "https://github.com/jump-dev/JuMP.jl", rev = "od/container-name")
+
 using Documenter, InfiniteOpt, Distributions, Literate, Random
 
 if !@isdefined(EXAMPLE_DIR)

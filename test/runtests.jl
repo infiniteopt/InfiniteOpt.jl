@@ -1,3 +1,6 @@
+import Pkg
+Pkg.add(url = "https://github.com/jump-dev/JuMP.jl", rev = "od/container-name")
+
 using InfiniteOpt: _domain_or_error
 using Test: Error
 # Load in the dependencies
