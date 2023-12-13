@@ -309,7 +309,7 @@ macro infinite_parameter(args...)
         )
 
     # Prepare the name code and handle the base_name kwarg
-    name_expr = JuMPC.name_with_index_expr(name, idxvars, kwargs)
+    name_expr = JuMPC.build_name_expr(name, idxvars, kwargs)
 
     # make the build call
     if is_independent
@@ -451,7 +451,7 @@ macro finite_parameter(args...)
     )
 
     # process the name
-    name_expr = JuMPC.name_with_index_expr(name, idxvars, kwargs)
+    name_expr = JuMPC.build_name_expr(name, idxvars, kwargs)
 
     # make the creation code
     build_call = :( build_parameter($_error, $value) )
@@ -632,7 +632,7 @@ macro parameter_function(args...)
     )
 
     # process the name
-    name_expr = JuMPC.name_with_index_expr(name, idxvars, kwargs)
+    name_expr = JuMPC.build_name_expr(name, idxvars, kwargs)
     if name_expr == "" && !is_anon_func
         name_expr = :( string(nameof($func)) )
     end
