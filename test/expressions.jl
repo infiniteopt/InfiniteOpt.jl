@@ -265,6 +265,7 @@ end
         @test_macro_throws ErrorException @parameter_function(m)
         @test_macro_throws ErrorException @parameter_function(m, func = f5)
         @test_macro_throws ErrorException @parameter_function(m, y == sin(t), Int)
+        @test_macro_throws ErrorException @parameter_function(m, 2 == sin(t))
         @test_macro_throws ErrorException @parameter_function(m, [1:2])
         @test_macro_throws ErrorException @parameter_function(m, "a$(1)" == f5(t, x))
         @test_macro_throws ErrorException @parameter_function(m, a[m = 1:2] == f5(t, x))

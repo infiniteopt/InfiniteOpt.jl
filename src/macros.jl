@@ -18,21 +18,21 @@ end
 
 # Ensure a model argument is valid
 # Inspired from https://github.com/jump-dev/JuMP.jl/blob/d9cd5fb16c2d0a7e1c06aa9941923492fc9a28b5/src/macros.jl#L38-L44
-_valid_model(error_fn::Function, model::InfiniteModel, name) = nothing
-function _valid_model(error_fn::Function, model, name)
-    error_fn("Expected $name to be an `InfiniteModel`, but it has type ", 
+_valid_model(_error::Function, model::InfiniteModel, name) = nothing
+function _valid_model(_error::Function, model, name)
+    _error("Expected $name to be an `InfiniteModel`, but it has type ", 
            typeof(model))
 end
 
 # Check if a macro julia variable can be registered 
 # Adapted from https://github.com/jump-dev/JuMP.jl/blob/d9cd5fb16c2d0a7e1c06aa9941923492fc9a28b5/src/macros.jl#L66-L86
 function _error_if_cannot_register(
-    error_fn::Function, 
+    _error::Function, 
     model::InfiniteModel, 
     name::Symbol
     )
     if haskey(JuMP.object_dictionary(model), name)
-        error_fn("An object of name $name is already attached to this model. If ",
+        _error("An object of name $name is already attached to this model. If ",
                "this is intended, consider using the anonymous construction ",
                "syntax, e.g., `x = @macro_name(model, ...)` where the name ",
                "of the object does not appear inside the macro. Alternatively, ",
@@ -43,8 +43,8 @@ function _error_if_cannot_register(
     end
     return
 end
-function _error_if_cannot_register(error_fn::Function, ::InfiniteModel, name)
-    return error_fn("Invalid name `$name`.")
+function _error_if_cannot_register(_error::Function, ::InfiniteModel, name)
+    return _error("Invalid name `$name`.")
 end
 
 # Inspired from https://github.com/jump-dev/JuMP.jl/blob/246cccb0d3167d5ed3df72fba97b1569476d46cf/src/macros.jl#L332-L377
@@ -80,7 +80,7 @@ end
 ## Process a distribution input from a macro into a distribution domain
 # Univariate Distribution
 function _distribution_or_error(
-    error_fn::Function, 
+    _error::Function, 
     dist::D
     )::UniDistributionDomain{D} where {D <: Distributions.UnivariateDistribution}
     return UniDistributionDomain(dist)
@@ -88,22 +88,22 @@ end
 
 # Multivariate Distribution
 function _distribution_or_error(
-    error_fn::Function, 
+    _error::Function, 
     dist::D
     )::MultiDistributionDomain{D} where {D <: NonUnivariateDistribution}
     return MultiDistributionDomain(dist)
 end
 
 # Fallback
-function _distribution_or_error(error_fn::Function, dist)
-    error_fn("Expected distribution from `Distributions.jl`, but got input of ",
+function _distribution_or_error(_error::Function, dist)
+    _error("Expected distribution from `Distributions.jl`, but got input of ",
            "type `$(typeof(dist))`.")
 end
 
 ## Process an infinite domain macro input and make sure it is correct 
 # AbstractInfiniteDomain
 function _domain_or_error(
-    error_fn::Function, 
+    _error::Function, 
     domain::D
     )::D where {D <: AbstractInfiniteDomain}
     return domain
@@ -111,57 +111,57 @@ end
 
 # Vector{Real}
 function _domain_or_error(
-    error_fn::Function, 
+    _error::Function, 
     vect::Vector{<:Real}
     )::IntervalDomain
     if length(vect) == 2
         return IntervalDomain(vect...)
     else
-        error_fn("Expected interval domain of format `[lb, ub]`, but got `$vect`.")
+        _error("Expected interval domain of format `[lb, ub]`, but got `$vect`.")
     end
 end
 
 # Distribution 
-function _domain_or_error(error_fn::Function, dist::Distributions.Distribution)
-    error_fn("Distribution `$dist` was specified as a domain, but should " * 
+function _domain_or_error(_error::Function, dist::Distributions.Distribution)
+    _error("Distribution `$dist` was specified as a domain, but should " * 
           "be given as a distribution via the syntax: `@infinite_parameter( " * 
           "model, param_expr ~ distribution, kwargs...)`.")
 end
 
 # Fallback
-function _domain_or_error(error_fn::Function, domain)
-    error_fn("Expected an infinite domain, but got input of ",
+function _domain_or_error(_error::Function, domain)
+    _error("Expected an infinite domain, but got input of ",
            "type `$(typeof(domain))`.")
 end
 
 # Process an expr as a distribution
-function _make_distribution_call(error_fn, expr)
-    return :( _distribution_or_error($error_fn, $(_esc_non_constant(expr))) )
+function _make_distribution_call(_error, expr)
+    return :( _distribution_or_error($_error, $(_esc_non_constant(expr))) )
 end
 
 # Process an expr as an infinite domain
-function _make_domain_call(error_fn, expr)
-    return :( _domain_or_error($error_fn, $(_esc_non_constant(expr))) )
+function _make_domain_call(_error, expr)
+    return :( _domain_or_error($_error, $(_esc_non_constant(expr))) )
 end
 
 # Parse a distribution input
-function _parse_parameter(error_fn::Function, ::Val{:~}, param, dist)
-    return param, _make_distribution_call(error_fn, dist)
+function _parse_parameter(_error::Function, ::Val{:~}, param, dist)
+    return param, _make_distribution_call(_error, dist)
 end
 
 # Parse a domain input
 function _parse_parameter(
-    error_fn::Function, 
+    _error::Function, 
     ::Union{Val{:in}, Val{:∈}}, 
     param,
     domain
     )
-    return param, _make_domain_call(error_fn, domain)
+    return param, _make_domain_call(_error, domain)
 end
 
 # Fallback
-function _parse_parameter(error_fn::Function, ::Val{S}, param, rhs) where S
-    error_fn("Unexpected operator $S.")
+function _parse_parameter(_error::Function, ::Val{S}, param, rhs) where S
+    _error("Unexpected operator $S.")
 end
 
 # Define the keyword arg types that can vary for individual dependent parameters
@@ -233,10 +233,10 @@ And data, a 2-element Array{GeneralVariableRef,1}:
 """
 macro infinite_parameter(args...)
     # define error message function
-    error_fn = JuMPC.build_error_fn(:infinite_parameter, args, __source__)
+    _error = JuMPC.build__error(:infinite_parameter, args, __source__)
 
     # parse the arguments
-    pos_args, kwargs = JuMPC.parse_macro_arguments(error_fn, args, num_positional_args = 1:2)
+    pos_args, kwargs = JuMPC.parse_macro_arguments(_error, args, num_positional_args = 1:2)
 
     # process the keyword arguments
     domain_kwarg = pop!(kwargs, :domain, nothing)
@@ -263,21 +263,21 @@ macro infinite_parameter(args...)
     # name[...] ~ dist                   | Expr      | :call
     # In the 4 last cases, we call _parse_parameter
     if isexpr(p, :call)
-        param, domain = _parse_parameter(error_fn, Val(p.args[1]), p.args[2:end]...)
+        param, domain = _parse_parameter(_error, Val(p.args[1]), p.args[2:end]...)
         if !isnothing(domain_kwarg) || !isnothing(dist_kwarg)
-            error_fn("Cannot double specify the infinite domain and/or ",
+            _error("Cannot double specify the infinite domain and/or ",
                    "distribution.")
         end
     elseif !isnothing(domain_kwarg) && isnothing(dist_kwarg)
         param = p 
-        domain = _make_domain_call(error_fn, domain_kwarg)
+        domain = _make_domain_call(_error, domain_kwarg)
     elseif isnothing(domain_kwarg) && !isnothing(dist_kwarg)
         param = p 
-        domain = _make_distribution_call(error_fn, dist_kwarg)
+        domain = _make_distribution_call(_error, dist_kwarg)
     elseif !isnothing(domain_kwarg) && !isnothing(dist_kwarg)
-        error_fn("Cannot specify both a domain and a distribution.")
+        _error("Cannot specify both a domain and a distribution.")
     else
-        error_fn("Must specify the infinite domain and/or the given syntax is ",
+        _error("Must specify the infinite domain and/or the given syntax is ",
                  "unrecognized. See docs for accepted forms.")
     end
 
@@ -286,7 +286,7 @@ macro infinite_parameter(args...)
 
     # make sure param is something reasonable
     if !(param isa Union{Nothing, Symbol, Expr})
-        error_fn("Expected `$param` to be a parameter name.")
+        _error("Expected `$param` to be a parameter name.")
     end
 
     # determine if independent 
@@ -295,7 +295,7 @@ macro infinite_parameter(args...)
         is_independent = true
     elseif !isnothing(indep_kwarg)
         if !isa(indep_kwarg, Bool)
-            error_fn("Can only specify boolean literals (`false` or `true`) ", 
+            _error("Can only specify boolean literals (`false` or `true`) ", 
                      "with keyword `independent`.")
         end
         is_independent = indep_kwarg
@@ -303,7 +303,7 @@ macro infinite_parameter(args...)
 
     # Process the reference sets 
     name, idxvars, inds = JuMPC.parse_ref_sets(
-        error_fn, 
+        _error, 
         param, 
         invalid_index_variables = [model_sym]
         )
@@ -314,7 +314,7 @@ macro infinite_parameter(args...)
     # make the build call
     if is_independent
         # we only have a single parameter or an array of independent parameters
-        build_call = :( build_parameter($error_fn, $domain) )
+        build_call = :( build_parameter($_error, $domain) )
     else
         # we have multi-dimensional dependent parameters
         # let's first process the kwargs accordingly (array ones are made into 
@@ -325,14 +325,14 @@ macro infinite_parameter(args...)
         # for building containers
         for (k, v) in kwargs
             if _has_idxvars(v, idxvars)
-                error_fn("Cannot use index variables with `$(k)` keyword.")
+                _error("Cannot use index variables with `$(k)` keyword.")
             end
         end
         # now let's make the build call
         inds_var = gensym() # used as a placeholder variable for the ContainerIndices used to vectorize
         domain_var = gensym() # used as a placeholder for the domain container
         vect_domain_call = :( Collections.vectorize($domain_var, $inds_var) )
-        build_call = :( _build_parameters($error_fn, $vect_domain_call, $inds_var) )
+        build_call = :( _build_parameters($_error, $vect_domain_call, $inds_var) )
         for (k, v) in array_kwargs
             code = JuMPC.container_code(idxvars, inds, 
                                         _esc_non_constant(v), 
@@ -362,7 +362,7 @@ macro infinite_parameter(args...)
     end
 
     # finalize the code and register the parameter name if needed
-    return _finalize_macro(error_fn, model, creation_code, __source__, name)
+    return _finalize_macro(_error, model, creation_code, __source__, name)
 end
 
 ################################################################################
@@ -412,11 +412,11 @@ par2
 """
 macro finite_parameter(args...)
     # make an error function
-    error_fn = JuMPC.build_error_fn(:finite_parameter, args, __source__)
+    _error = JuMPC.build__error(:finite_parameter, args, __source__)
 
     # process the inputs
     pos_args, kwargs = JuMPC.parse_macro_arguments(
-        error_fn, 
+        _error, 
         args, 
         num_positional_args = 2,
         valid_kwargs = [:container, :base_name]
@@ -428,7 +428,7 @@ macro finite_parameter(args...)
     expr = popfirst!(pos_args)
     if isexpr(expr, :call)
         if expr.args[1] !== :(==)
-            error_fn("Unrecognized operator. Must be of form ",
+            _error("Unrecognized operator. Must be of form ",
                    "@finite_parameter(model, name_expr == value).")
         end
         param = expr.args[2]
@@ -440,12 +440,12 @@ macro finite_parameter(args...)
 
     # make sure param is something reasonable
     if !(param isa Union{Nothing, Symbol, Expr})
-        error_fn("Expected `$param` to be a parameter name.")
+        _error("Expected `$param` to be a parameter name.")
     end
 
     # process the container input
     name, idxvars, inds = Containers.parse_ref_sets(
-        error_fn,
+        _error,
         param;
         invalid_index_variables = [model_sym],
     )
@@ -454,12 +454,12 @@ macro finite_parameter(args...)
     name_expr = JuMPC.name_with_index_expr(name, idxvars, kwargs)
 
     # make the creation code
-    build_call = :( build_parameter($error_fn, $value) )
+    build_call = :( build_parameter($_error, $value) )
     parameter_call = :( add_parameter($model, $build_call, $name_expr) )
     code = JuMPC.container_code(idxvars, inds, parameter_call, kwargs)
     
     # finalize the macro
-    return _finalize_macro(error_fn, model, code, __source__, name)
+    return _finalize_macro(_error, model, code, __source__, name)
 end
 
 ################################################################################
@@ -497,18 +497,18 @@ function _extract_parameters(ex::Expr)
 end
 
 # Helper method to process parameter function expressions 
-function _process_func_expr(error_fn::Function, raw_expr)
+function _process_func_expr(_error::Function, raw_expr)
     if isexpr(raw_expr, :call)
         # check that the call is not some operator
         if raw_expr.args[1] in _BadOperators
-            error_fn("Invalid input syntax.")
+            _error("Invalid input syntax.")
         end
         func_expr = esc(raw_expr.args[1])
         is_anon = false
         # check for keywords
         if isexpr(raw_expr.args[2], :parameters) || 
             any(isexpr(a, :kw) for a in raw_expr.args[2:end])
-            error_fn("Cannot specify keyword arguements directly, try using an ",
+            _error("Cannot specify keyword arguements directly, try using an ",
                    "anonymous function.")
         end
         # extract the parameter inputs
@@ -530,7 +530,7 @@ function _process_func_expr(error_fn::Function, raw_expr)
         func_expr = esc(raw_expr)
         is_anon = true
     else 
-        error_fn("Unrecognized syntax.")
+        _error("Unrecognized syntax.")
     end
     return func_expr, pref_expr, is_anon
 end
@@ -595,11 +595,11 @@ julia> @parameter_function(model, pf2[i = 1:2] == t -> g(t, i, b = 2 * i ))
 """
 macro parameter_function(args...)
     # make an error function
-    error_fn = JuMPC.build_error_fn(:parameter_function, args, __source__)
+    _error = JuMPC.build__error(:parameter_function, args, __source__)
 
     # process the inputs
     pos_args, kwargs = JuMPC.parse_macro_arguments(
-        error_fn, 
+        _error, 
         args, 
         num_positional_args = 2,
         valid_kwargs = [:container, :base_name]
@@ -611,22 +611,22 @@ macro parameter_function(args...)
     expr = popfirst!(pos_args)
     if isexpr(expr, :call) && expr.args[1] === :(==)
         var = expr.args[2]
-        func, prefs, is_anon_func = _process_func_expr(error_fn, expr.args[3])
+        func, prefs, is_anon_func = _process_func_expr(_error, expr.args[3])
     elseif isexpr(expr, (:call, :(->)))
         var = nothing
-        func, prefs, is_anon_func = _process_func_expr(error_fn, expr)
+        func, prefs, is_anon_func = _process_func_expr(_error, expr)
     else
-        error_fn("Unrecognized syntax.")
+        _error("Unrecognized syntax.")
     end
 
     # make sure var is something reasonable
     if !(var isa Union{Nothing, Symbol, Expr})
-        error_fn("Expected `$var` to be a parameter function name.")
+        _error("Expected `$var` to be a parameter function name.")
     end
 
     # process the container input
     name, idxvars, inds = Containers.parse_ref_sets(
-        error_fn,
+        _error,
         var;
         invalid_index_variables = [model_sym],
     )
@@ -638,12 +638,12 @@ macro parameter_function(args...)
     end
 
     # make the creation code
-    build_call = :( build_parameter_function($error_fn, $func, $prefs) )
+    build_call = :( build_parameter_function($_error, $func, $prefs) )
     pfunction_call = :( add_parameter_function($model, $build_call, $name_expr) )
     code = JuMPC.container_code(idxvars, inds, pfunction_call, kwargs)
 
     # finalize the macro
-    return _finalize_macro(error_fn, model, code, __source__, name)
+    return _finalize_macro(_error, model, code, __source__, name)
 end
 
 ################################################################################
