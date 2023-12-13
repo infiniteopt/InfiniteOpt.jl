@@ -49,7 +49,7 @@ end
 
 # Inspired from https://github.com/jump-dev/JuMP.jl/blob/246cccb0d3167d5ed3df72fba97b1569476d46cf/src/macros.jl#L332-L377
 function _finalize_macro(
-    fn_error::Function,
+    error_fn::Function,
     model::Expr,
     code::Any,
     source::LineNumberNode,
@@ -66,11 +66,11 @@ function _finalize_macro(
     if register_name !== nothing
         sym_name = Meta.quot(register_name)
         code = quote
-            _error_if_cannot_register($fn_error, $model, $sym_name)
+            _error_if_cannot_register($error_fn, $model, $sym_name)
             $(esc(register_name)) = $model[$sym_name] = $code
         end
     end
-    is_valid_code = :(_valid_model($fn_error, $model, $(Meta.quot(model.args[1]))))
+    is_valid_code = :(_valid_model($error_fn, $model, $(Meta.quot(model.args[1]))))
     return Expr(:block, source, is_valid_code, code)
 end
 
@@ -233,7 +233,7 @@ And data, a 2-element Array{GeneralVariableRef,1}:
 """
 macro infinite_parameter(args...)
     # define error message function
-    _error = JuMPC.build__error(:infinite_parameter, args, __source__)
+    _error = JuMPC.build_error_fn(:infinite_parameter, args, __source__)
 
     # parse the arguments
     pos_args, kwargs = JuMPC.parse_macro_arguments(_error, args, num_positional_args = 1:2)
@@ -412,7 +412,7 @@ par2
 """
 macro finite_parameter(args...)
     # make an error function
-    _error = JuMPC.build__error(:finite_parameter, args, __source__)
+    _error = JuMPC.build_error_fn(:finite_parameter, args, __source__)
 
     # process the inputs
     pos_args, kwargs = JuMPC.parse_macro_arguments(
@@ -595,7 +595,7 @@ julia> @parameter_function(model, pf2[i = 1:2] == t -> g(t, i, b = 2 * i ))
 """
 macro parameter_function(args...)
     # make an error function
-    _error = JuMPC.build__error(:parameter_function, args, __source__)
+    _error = JuMPC.build_error_fn(:parameter_function, args, __source__)
 
     # process the inputs
     pos_args, kwargs = JuMPC.parse_macro_arguments(
