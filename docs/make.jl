@@ -1,5 +1,5 @@
 import Pkg
-Pkg.add(url = "https://github.com/jump-dev/JuMP.jl", rev = "od/container-name")
+Pkg.add(url = "https://github.com/jump-dev/JuMP.jl", rev = "master")
 
 using Documenter, InfiniteOpt, Distributions, Literate, Random
 
