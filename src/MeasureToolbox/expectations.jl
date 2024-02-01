@@ -212,17 +212,18 @@ end
 An efficient wrapper for [`expect`](@ref). Please see its doc string more
 information.
 """
-macro expect(expr, prefs, args...)
-    _error(str...) = InfiniteOpt._macro_error(:expect, (expr, prefs, args...), 
-                                              str...)
-    extra, kwargs, _, _ = InfiniteOpt._extract_kwargs(args)
-    if length(extra) > 0
-        _error("Unexpected positional arguments." *
-               "Must be of form @expect(expr, prefs, kwargs...).")
-    end
+macro expect(args...)
+    error_fn = InfiniteOpt.JuMPC.build_error_fn(:expect, args, __source__)
+    pos_args, kwargs = InfiniteOpt.JuMPC.parse_macro_arguments(
+        error_fn, 
+        args, 
+        num_positional_args = 2
+    )
+    expr, prefs = pos_args
     expression = MutableArithmetics.rewrite_and_return(expr)
-    esc_kwargs = map(i -> esc(i), kwargs)
-    return :( expect($expression, $(esc(prefs)); ($(esc_kwargs...))) )
+    code = :( expect($expression, $(esc(prefs))) )
+    InfiniteOpt.JuMPC.add_additional_args(code, [], kwargs)
+    return code
 end
 
 """
@@ -252,15 +253,16 @@ end
 A convenient wrapper for [`@expect`](@ref). The unicode symbol `𝔼` is produced by 
 `\\bbE`.
 """
-macro 𝔼(expr, prefs, args...)
-    _error(str...) = InfiniteOpt._macro_error(:𝔼, (expr, prefs, args...), 
-                                              str...)
-    extra, kwargs, _, _ = InfiniteOpt._extract_kwargs(args)
-    if length(extra) > 0
-        _error("Unexpected positional arguments." *
-               "Must be of form @𝔼(expr, prefs, kwargs...).")
-    end
+macro 𝔼(args...)
+    error_fn = InfiniteOpt.JuMPC.build_error_fn(:𝔼, args, __source__)
+    pos_args, kwargs = InfiniteOpt.JuMPC.parse_macro_arguments(
+        error_fn, 
+        args, 
+        num_positional_args = 2
+    )
+    expr, prefs = pos_args
     expression = MutableArithmetics.rewrite_and_return(expr)
-    esc_kwargs = map(i -> esc(i), kwargs)
-    return :( expect($expression, $(esc(prefs)); ($(esc_kwargs...))) )
+    code = :( expect($expression, $(esc(prefs))) )
+    InfiniteOpt.JuMPC.add_additional_args(code, [], kwargs)
+    return code
 end

@@ -1025,6 +1025,7 @@ end
         @test @finite_parameter(m, b == 42) == pref
         @test InfiniteOpt._core_variable_object(pref).value == 42
         @test name(pref) == "b"
+        @test m[:b] == pref
         # test named vector definition
         prefs = [GeneralVariableRef(m, i, FiniteParameterIndex) for i in 5:6]
         prefs = convert(JuMPC.SparseAxisArray, prefs)

@@ -1058,18 +1058,20 @@ An efficient wrapper for [`integral`](@ref integral(::JuMP.AbstractJuMPScalar, :
 and [`integral`](@ref integral(::JuMP.AbstractJuMPScalar, ::AbstractArray{InfiniteOpt.GeneralVariableRef}, ::Union{Real, AbstractArray{<:Real}}, ::Union{Real, AbstractArray{<:Real}})).
 Please see the above doc strings for more information.
 """
-macro integral(expr, prefs, args...)
-    _error(str...) = InfiniteOpt._macro_error(:integral, (expr, prefs, args...), 
-                                              str...)
-    extra, kwargs, _, _ = InfiniteOpt._extract_kwargs(args)
-    if length(extra) != 0 && length(extra) != 2
-        _error("Incorrect number of positional arguments for @integral. " *
-               "Must provide both bounds or no bounds.")
-    end
+macro integral(args...)
+    error_fn = InfiniteOpt.JuMPC.build_error_fn(:expect, args, __source__)
+    pos_args, kwargs = InfiniteOpt.JuMPC.parse_macro_arguments(
+        error_fn, 
+        args, 
+        num_positional_args = 2:4
+    )
+    length(pos_args) == 3 && error_fn("Must specify both bounds.")
+    expr = popfirst!(pos_args)
+    prefs = popfirst!(pos_args)
     expression = MutableArithmetics.rewrite_and_return(expr)
-    esc_kwargs = map(i -> esc(i), kwargs)
-    esc_extra = map(i -> esc(i), extra)
-    return :( integral($expression, $(esc(prefs)), $(esc_extra...); ($(esc_kwargs...))) )
+    code = :( integral($expression, $(esc(prefs))) )
+    InfiniteOpt.JuMPC.add_additional_args(code, pos_args, kwargs)
+    return code
 end
 
 """
@@ -1082,15 +1084,18 @@ end
 A convenient wrapper for [`@integral`](@ref). The unicode symbol `∫` is produced 
 via `\\int`.
 """
-macro ∫(expr, prefs, args...)
-    _error(str...) = InfiniteOpt._macro_error(:∫, (expr, prefs, args...), str...)
-    extra, kwargs, _, _ = InfiniteOpt._extract_kwargs(args)
-    if length(extra) != 0 && length(extra) != 2
-        _error("Incorrect number of positional arguments for @integral. " *
-               "Must provide both bounds or no bounds.")
-    end
+macro ∫(args...)
+    error_fn = InfiniteOpt.JuMPC.build_error_fn(:∫, args, __source__)
+    pos_args, kwargs = InfiniteOpt.JuMPC.parse_macro_arguments(
+        error_fn, 
+        args, 
+        num_positional_args = 2:4
+    )
+    length(pos_args) == 3 && error_fn("Must specify both bounds.")
+    expr = popfirst!(pos_args)
+    prefs = popfirst!(pos_args)
     expression = MutableArithmetics.rewrite_and_return(expr)
-    esc_kwargs = map(i -> esc(i), kwargs)
-    esc_extra = map(i -> esc(i), extra)
-    return :( integral($expression, $(esc(prefs)), $(esc_extra...); ($(esc_kwargs...))) )
+    code = :( integral($expression, $(esc(prefs))) )
+    InfiniteOpt.JuMPC.add_additional_args(code, pos_args, kwargs)
+    return code
 end

@@ -1197,20 +1197,18 @@ end
 An efficient wrapper for [`measure`](@ref), please see its doc string for more
 information.
 """
-macro measure(expr, data, args...)
-    _error(str...) = _macro_error(:measure, (expr, args...), str...)
-    extra, kwargs, _, _ = _extract_kwargs(args)
-    if length(extra) != 0
-        _error("Incorrect number of arguments. Must be of form " *
-               "@measure(expr, data, name = ...).")
-    end
-    if !isempty(filter(kw -> kw.args[1] != :name, kwargs))
-        _error("Invalid keyword arguments. Must be of form " *
-               "@measure(expr, data, name = ...).")
-    end
+macro measure(args...)
+    error_fn = JuMPC.build_error_fn(:measure, args, __source__)
+    pos_args, kwargs = JuMPC.parse_macro_arguments(
+        error_fn, 
+        args, 
+        valid_kwargs = Symbol[:name],
+        num_positional_args = 2
+    )
+    expr, data = pos_args
     expression = _MA.rewrite_and_return(expr)
-    esc_kwargs = map(i -> esc(i), kwargs)
-    mref = :( measure($expression, $(esc(data)); ($(esc_kwargs...))) )
+    mref = :( measure($expression, $(esc(data))) )
+    JuMPC.add_additional_args(mref, [], kwargs)
     return mref
 end
 
