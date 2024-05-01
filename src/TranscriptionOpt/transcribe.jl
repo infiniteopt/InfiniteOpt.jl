@@ -491,15 +491,18 @@ function transcription_expression(
         new_expr = InfiniteOpt.map_expression(
             v -> transcription_expression(trans_model, v, support), 
             expr)
+        if new_expr isa JuMP.GenericNonlinearExpr
+            return transcription_expression(trans_model, 
+                convert(InfiniteOpt.NLPExpr, expr), 
+                support)
+        else
+            return new_expr
+        end
     catch
-        new_expr = nothing
-    end
-    if isnothing(new_expr) || new_expr isa JuMP.GenericNonlinearExpr
         return transcription_expression(trans_model, 
             convert(InfiniteOpt.NLPExpr, expr), 
             support)
     end
-    return new_expr
 end
 
 # NLPExpr
