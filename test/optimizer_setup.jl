@@ -44,7 +44,7 @@ end
         # test without inheritance
         @test isa(set_optimizer_model(m, Model(), inherit_optimizer = false), Nothing)
         @test length(optimizer_model(m).ext) == 0
-        @test_throws ErrorException time_limit_sec(optimizer_model(m))
+        @test_throws Union{ErrorException, MOI.GetAttributeNotAllowed{MOI.TimeLimitSec}} time_limit_sec(optimizer_model(m))
         @test_throws NoOptimizer optimize!(optimizer_model(m))
     end
     # optimizer_model_key (optimizer models)
