@@ -487,16 +487,19 @@ function transcription_expression(
     expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr},
     support::Vector{Float64}
     )
-    # TODO fix this temporary hack (need to handle NLP expressions better)
     try
-        return InfiniteOpt.map_expression(
+        new_expr = InfiniteOpt.map_expression(
             v -> transcription_expression(trans_model, v, support), 
             expr)
     catch
+        new_expr = nothing
+    end
+    if isnothing(new_expr) || new_expr isa JuMP.NonlinearExpr
         return transcription_expression(trans_model, 
             convert(InfiniteOpt.NLPExpr, expr), 
             support)
     end
+    return new_expr
 end
 
 # NLPExpr
