@@ -79,7 +79,7 @@
     end
     # test nonlinear operations
     @testset "Nonlinear" begin
-        @test isequal(@expression(m, pt / inf), pt * (1 / inf))
+        @test isequal(@expression(m, pt / inf), pt / inf)
         @test isequal(@expression(m, pt ^ inf), pt ^ inf)
         @test isequal(@expression(m, 2 ^ inf), 2 ^ inf)
         @test isequal(@expression(m, abs(pt)), abs(pt))
@@ -168,7 +168,7 @@ end
     end
     # test nonlinear operations
     @testset "Nonlinear" begin
-        @test isequal(@expression(m, pt / aff1), pt * (1 / aff1))
+        @test isequal(@expression(m, pt / aff1), pt / aff1)
         @test isequal(@expression(m, pt ^ aff1), pt ^ aff1)
         @test isequal(@expression(m, abs(aff1)), abs(aff1))
     end
@@ -256,7 +256,7 @@ end
     end
     # test nonlinear operations
     @testset "Nonlinear" begin
-        @test isequal(@expression(m, aff1 / pt), aff1 * (1 / pt))
+        @test isequal(@expression(m, aff1 / pt), aff1 / pt)
         @test isequal(@expression(m, aff1 ^ pt), aff1 ^ pt)
     end
 end
@@ -405,7 +405,7 @@ end
     end
     # test nonlinear operations
     @testset "Nonlinear" begin
-        @test isequal(@expression(m, aff1 / aff1), aff1 * (1 / aff1))
+        @test isequal(@expression(m, aff1 / aff1), aff1 / aff1)
         @test isequal(@expression(m, aff1 ^ aff1), aff1 ^ aff1)
     end
 end
@@ -512,7 +512,7 @@ end
     # test nonlinear operations
     @testset "Nonlinear" begin
         @test isequal(@expression(m, quad1 * pt), quad1 * pt)
-        @test isequal(@expression(m, quad1 / pt), quad1 * (1 / pt))
+        @test isequal(@expression(m, quad1 / pt), quad1 / pt)
         @test isequal(@expression(m, quad1 ^ pt), quad1 ^ pt)
         @test isequal(@expression(m, abs(quad1)), abs(quad1))
     end
@@ -619,7 +619,7 @@ end
     end
     @testset "Nonlinear" begin
         @test isequal(@expression(m, pt * quad1),  pt * quad1)
-        @test isequal(@expression(m, pt / quad1), pt * (1 / quad1))
+        @test isequal(@expression(m, pt / quad1), pt / quad1)
         @test isequal(@expression(m, pt ^ quad1), pt ^ quad1)
     end
 end
@@ -737,7 +737,7 @@ end
     end
     @testset "Nonlinear" begin
         @test isequal(@expression(m, aff1 * quad1),  aff1 * quad1)
-        @test isequal(@expression(m, aff1 / quad1), aff1 * (1 / quad1))
+        @test isequal(@expression(m, aff1 / quad1), aff1 / quad1)
         @test isequal(@expression(m, aff1 ^ quad1), aff1 ^ quad1)
     end
 end
@@ -856,7 +856,7 @@ end
     # test nonlinear operations
     @testset "Nonlinear" begin
         @test isequal(@expression(m, quad1 * aff1), quad1 * aff1)
-        @test isequal(@expression(m, quad1 / aff1), quad1 * (1 / aff1))
+        @test isequal(@expression(m, quad1 / aff1), quad1 / aff1)
         @test isequal(@expression(m, quad1 ^ aff1), quad1 ^ aff1)
     end
 end
@@ -961,7 +961,7 @@ end
     # test nonlinear operations
     @testset "Nonlinear" begin
         @test isequal(@expression(m, quad1 * quad1), quad1 * quad1)
-        @test isequal(@expression(m, quad1 / quad1), quad1 * (1 / quad1))
+        @test isequal(@expression(m, quad1 / quad1), quad1 / quad1)
         @test isequal(@expression(m, quad1 ^ quad1), quad1 ^ quad1)
     end
 end
@@ -986,7 +986,7 @@ end
         @test isequal(@expression(m, nlp ^ quad), nlp ^ quad)
         @test isequal(@expression(m, 2 ^ quad), 2 ^ quad)
         @test isequal(@expression(m, 2 ^ nlp), 2 ^ nlp)
-        @test isequal(@expression(m, nlp / y), nlp * (1 / y))
+        @test isequal(@expression(m, nlp / y), nlp / y)
         @test isequal(@expression(m, nlp + aff), nlp + aff)
     end
     # test function calls

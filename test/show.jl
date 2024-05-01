@@ -717,7 +717,7 @@ end
     end
     # test Base.show (GeneralVariableRef in IJulia)
     @testset "Base.show (IJulia GeneralVariableRef)" begin
-        show_test(MIME("text/latex"), y, "\$\$ y \$\$")
+        show_test(MIME("text/latex"), y, "\$ y \$")
     end
     # test Base.show (GeneralVariableRef in REPL)
     @testset "Base.show (REPL GeneralVariableRef)" begin
