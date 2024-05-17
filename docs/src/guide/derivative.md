@@ -304,9 +304,9 @@ Note that this general paradigm captures a wide breadth of problems and
 derivative evaluation techniques. Higher order derivatives are dealt with in one of 
 two ways:
 1. Auxiliary equations are derived directly if the selected derivative method 
-supports higher orders.
+   supports higher orders.
 2. They are reformulated into a system of 1st order derivatives and then auxiliary 
-equations are derived for each 1st order derivative. 
+   equations are derived for each 1st order derivative. 
 
 For example, consider the second-order partial derivative:
 ```math

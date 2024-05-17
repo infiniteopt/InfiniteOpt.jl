@@ -55,7 +55,7 @@ end
     allows_high_order_derivatives(method::AbstractDerivativeMethod)::Bool
 
 Returns a `Bool` on whether `method` supports derivatives with orders higher than 
-1. If `false` is returned, then higher order derivatives will be automatically 
+one. If `false` is returned, then higher order derivatives will be automatically 
 reformulated into a system of first order derivatives. This is intended as an 
 internal method and needs to be extended for any new `AbstractDerivativeMethod`.
 """
