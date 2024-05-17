@@ -199,10 +199,10 @@ Thus, we have an optimization problem whose decision space is infinite with
 respect to time ``t`` and position ``x``. Now let's transcript it following the 
 above steps. First, we need to specify the infinite parameter supports and for 
 simplicity let's choose the following sparse sets:
- - ``t \in \{0, 10\}``
+ - ``t \in \{0, 5, 10\}``
  - ``x \in \{[-1, -1]^T, [-1, 1]^T, [1, -1]^T, [1, 1]^T\}``.
  To handle the derivative ``\frac{\partial g(t, x)}{\partial t}``, we'll use  
- backward finite difference so no additional supports will need to be added.
+ backward finite difference, so no additional supports will need to be added.
 
 Now we expand the two integrals (measures) via a finite approximation using only 
 the above supports and term coefficients of 1 (note this is not numerically 
@@ -210,7 +210,7 @@ correct but is done for conciseness in example). Doing this, we obtain the
 form:
 ```math
 \begin{aligned}
-	&&\min_{y(t), g(t, x)} &&& y^2(0) + y^2(10) \\
+	&&\min_{y(t), g(t, x)} &&& y^2(0) + y^2(5) + y^2(10) \\
 	&&\text{s.t.} &&& y(0) = 1 \\
   &&&&& g(0, x) = 0 \\
 	&&&&& \frac{\partial g(t, [-1, -1])}{\partial t} + \frac{\partial g(t, [-1, 1])}{\partial t} + \frac{\partial g(t, [1, -1])}{\partial t} + \frac{\partial g(t, [1, 1])}{\partial t} = 42, && \forall t \in [0, 10] \\
@@ -218,7 +218,7 @@ form:
 \end{aligned}
 ```
 Notice that the infinite variable ``y(t)`` in the objective measure has been 
-replaced with finite transcribed variables ``y(0)`` and ``y(10)``. Also, the 
+replaced with finite transcribed variables ``y(0)``, ``y(5)``, ``y(10)``. Also, the 
 infinite derivative ``\frac{\partial g(t, x)}{\partial t}`` was replaced with  
 partially transcribed variables in the second constraint in accordance with the 
 measure over the positional domain ``x``.
@@ -230,13 +230,14 @@ and the third constraint needs to be transcribed for each unique combination
 of the time and position supports. Applying this transcription yields: 
 ```math
 \begin{aligned}
-	&&\min_{y(t), g(t, x)} &&& y^2(0) + y^2(10) \\
+	&&\min_{y(t), g(t, x)} &&& y^2(0) + y^2(5) + y^2(10) \\
 	&&\text{s.t.} &&& y(0) = 1 \\
   &&&&& g(0, [-1, -1]) = 0 \\
   &&&&& g(0, [-1, 1]) = 0 \\
   &&&&& g(0, [1, -1]) = 0 \\
   &&&&& g(0, [1, 1]) = 0 \\
 	&&&&& \frac{\partial g(0, [-1, -1])}{\partial t} + \frac{\partial g(0, [-1, 1])}{\partial t} + \frac{\partial g(0, [1, -1])}{\partial t} + \frac{\partial g(0, [1, 1])}{\partial t} = 42\\
+  &&&&& \frac{\partial g(5, [-1, -1])}{\partial t} + \frac{\partial g(5, [-1, 1])}{\partial t} + \frac{\partial g(5, [1, -1])}{\partial t} + \frac{\partial g(5, [1, 1])}{\partial t} = 42\\
   &&&&& \frac{\partial g(10, [-1, -1])}{\partial t} + \frac{\partial g(10, [-1, 1])}{\partial t} + \frac{\partial g(10, [1, -1])}{\partial t} + \frac{\partial g(10, [1, 1])}{\partial t} = 42\\
   &&&&& 3g(0, [-1, -1]) + 2y^2(0) \leq 2 \\
   &&&&& 3g(0, [-1, 1]) + 2y^2(0) \leq 2 \\
@@ -252,10 +253,14 @@ infinite equation in this case this we only have 2 supports in the time domain
 is then transcribed over the spatial domain to yield:
 ```math
 \begin{aligned}
-&&& g(10, [-1, -1]) = g(0, [-1, -1]) + 10\frac{\partial g(10, [-1, -1])}{\partial t} \\
-&&& g(10, [-1, 1]) = g(0, [-1, 1]) + 10\frac{\partial g(10, [-1, 1])}{\partial t} \\
-&&& g(10, [1, -1]) = g(0, [1, -1]) + 10\frac{\partial g(10, [1, -1])}{\partial t} \\
-&&& g(10, [1, 1]) = g(0, [1, 1]) + 10\frac{\partial g(10, [1, 1])}{\partial t}
+&&& g(5, [-1, -1]) = g(0, [-1, -1]) + 5\frac{\partial g(5, [-1, -1])}{\partial t} \\
+&&& g(5, [-1, 1]) = g(0, [-1, 1]) + 5\frac{\partial g(5, [-1, 1])}{\partial t} \\
+&&& g(5, [1, -1]) = g(0, [1, -1]) + 5\frac{\partial g(5, [1, -1])}{\partial t} \\
+&&& g(5, [1, 1]) = g(0, [1, 1]) + 5\frac{\partial g(5, [1, 1])}{\partial t} \\
+&&& g(10, [-1, -1]) = g(5, [-1, -1]) + 5\frac{\partial g(10, [-1, -1])}{\partial t} \\
+&&& g(10, [-1, 1]) = g(5, [-1, 1]) + 5\frac{\partial g(10, [-1, 1])}{\partial t} \\
+&&& g(10, [1, -1]) = g(5, [1, -1]) + 5\frac{\partial g(10, [1, -1])}{\partial t} \\
+&&& g(10, [1, 1]) = g(5, [1, 1]) + 5\frac{\partial g(10, [1, 1])}{\partial t}
 \end{aligned}
 ```
 
@@ -275,7 +280,7 @@ using InfiniteOpt
 inf_model = InfiniteModel()
 
 # Define parameters and supports
-@infinite_parameter(inf_model, t in [0, 10], supports = [0, 10])
+@infinite_parameter(inf_model, t in [0, 10], supports = [0, 5, 10])
 @infinite_parameter(inf_model, x[1:2] in [-1, 1], supports = [-1, 1], independent = true)
 
 # Define variables
@@ -313,56 +318,72 @@ julia> build_optimizer_model!(inf_model)
 julia> trans_model = optimizer_model(inf_model);
 
 julia> print(trans_model)
-Min y(support: 1)² + y(support: 2)²
+Min y(support: 1)² + y(support: 2)² + y(support: 3)²
 Subject to
  y(support: 1) = 1
  g(support: 1) = 0
- g(support: 3) = 0
- g(support: 5) = 0
+ g(support: 4) = 0
  g(support: 7) = 0
- ∂/∂t[g(t, x)](support: 1) + ∂/∂t[g(t, x)](support: 3) + ∂/∂t[g(t, x)](support: 5) + ∂/∂t[g(t, x)](support: 7) = 42
- ∂/∂t[g(t, x)](support: 2) + ∂/∂t[g(t, x)](support: 4) + ∂/∂t[g(t, x)](support: 6) + ∂/∂t[g(t, x)](support: 8) = 42
- g(support: 1) - g(support: 2) + 10 ∂/∂t[g(t, x)](support: 2) = 0
- g(support: 3) - g(support: 4) + 10 ∂/∂t[g(t, x)](support: 4) = 0
- g(support: 5) - g(support: 6) + 10 ∂/∂t[g(t, x)](support: 6) = 0
- g(support: 7) - g(support: 8) + 10 ∂/∂t[g(t, x)](support: 8) = 0
+ g(support: 10) = 0
+ ∂/∂t[g(t, x)](support: 1) + ∂/∂t[g(t, x)](support: 4) + ∂/∂t[g(t, x)](support: 7) + ∂/∂t[g(t, x)](support: 10) = 42
+ ∂/∂t[g(t, x)](support: 2) + ∂/∂t[g(t, x)](support: 5) + ∂/∂t[g(t, x)](support: 8) + ∂/∂t[g(t, x)](support: 11) = 42
+ ∂/∂t[g(t, x)](support: 3) + ∂/∂t[g(t, x)](support: 6) + ∂/∂t[g(t, x)](support: 9) + ∂/∂t[g(t, x)](support: 12) = 42
+ g(support: 1) - g(support: 2) + 5 ∂/∂t[g(t, x)](support: 2) = 0
+ g(support: 2) - g(support: 3) + 5 ∂/∂t[g(t, x)](support: 3) = 0
+ g(support: 4) - g(support: 5) + 5 ∂/∂t[g(t, x)](support: 5) = 0
+ g(support: 5) - g(support: 6) + 5 ∂/∂t[g(t, x)](support: 6) = 0
+ g(support: 7) - g(support: 8) + 5 ∂/∂t[g(t, x)](support: 8) = 0
+ g(support: 8) - g(support: 9) + 5 ∂/∂t[g(t, x)](support: 9) = 0
+ g(support: 10) - g(support: 11) + 5 ∂/∂t[g(t, x)](support: 11) = 0
+ g(support: 11) - g(support: 12) + 5 ∂/∂t[g(t, x)](support: 12) = 0
  y(support: 1)² + 3 g(support: 1) ≤ 2
  y(support: 2)² + 3 g(support: 2) ≤ 2
- y(support: 1)² + 3 g(support: 3) ≤ 2
- y(support: 2)² + 3 g(support: 4) ≤ 2
- y(support: 1)² + 3 g(support: 5) ≤ 2
- y(support: 2)² + 3 g(support: 6) ≤ 2
+ y(support: 3)² + 3 g(support: 3) ≤ 2
+ y(support: 1)² + 3 g(support: 4) ≤ 2
+ y(support: 2)² + 3 g(support: 5) ≤ 2
+ y(support: 3)² + 3 g(support: 6) ≤ 2
  y(support: 1)² + 3 g(support: 7) ≤ 2
  y(support: 2)² + 3 g(support: 8) ≤ 2
+ y(support: 3)² + 3 g(support: 9) ≤ 2
+ y(support: 1)² + 3 g(support: 10) ≤ 2
+ y(support: 2)² + 3 g(support: 11) ≤ 2
+ y(support: 3)² + 3 g(support: 12) ≤ 2
 ```
 This precisely matches what we found analytically. Note that the unique support 
 combinations are determined automatically and are represented visually as 
 `support: #`. The precise support values can be looked up via `supports`:
 ```jldoctest trans_example
 julia> supports(y)
-2-element Vector{Tuple}:
+3-element Vector{Tuple}:
  (0.0,)
+ (5.0,)
  (10.0,)
 
 julia> supports(g)
-8-element Vector{Tuple}:
+12-element Vector{Tuple}:
  (0.0, [-1.0, -1.0])
+ (5.0, [-1.0, -1.0])
  (10.0, [-1.0, -1.0])
  (0.0, [1.0, -1.0])
+ (5.0, [1.0, -1.0])
  (10.0, [1.0, -1.0])
  (0.0, [-1.0, 1.0])
+ (5.0, [-1.0, 1.0])
  (10.0, [-1.0, 1.0])
  (0.0, [1.0, 1.0])
+ (5.0, [1.0, 1.0])
  (10.0, [1.0, 1.0])
 
 julia> supports(g, ndarray = true) # format it as an n-dimensional array (t by x[1] by x[2])
-2×2×2 Array{Tuple, 3}:
+3×2×2 Array{Tuple, 3}:
 [:, :, 1] =
  (0.0, [-1.0, -1.0])   (0.0, [1.0, -1.0])
+ (5.0, [-1.0, -1.0])   (5.0, [1.0, -1.0])
  (10.0, [-1.0, -1.0])  (10.0, [1.0, -1.0])
 
 [:, :, 2] =
  (0.0, [-1.0, 1.0])   (0.0, [1.0, 1.0])
+ (5.0, [-1.0, 1.0])   (5.0, [1.0, 1.0])
  (10.0, [-1.0, 1.0])  (10.0, [1.0, 1.0])
 ```
 

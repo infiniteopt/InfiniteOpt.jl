@@ -15,7 +15,7 @@ end
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                              eval_objective_value=false)
     m = InfiniteModel(mockoptimizer)
-    @infinite_parameter(m, par in [0, 1], num_supports = 2)
+    @infinite_parameter(m, par in [0, 1], num_supports = 3)
     @infinite_parameter(m, pars[1:2] in [0, 1], supports = [0, 1])
     @variable(m, 1 >= x >= 0, Infinite(par), Int)
     @variable(m, y == 2, Infinite(par, pars), Bin, start = 0)
@@ -38,6 +38,6 @@ end
     # test normal usage
     @test isa(build_optimizer_model!(m, Val(:TransData)), Nothing)
     @test optimizer_model_ready(m)
-    @test num_variables(optimizer_model(m)) == 30
+    @test num_variables(optimizer_model(m)) == 44
     @test time_limit_sec(optimizer_model(m)) == 42
 end

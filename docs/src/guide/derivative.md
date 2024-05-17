@@ -344,7 +344,7 @@ These methods are specified via the `derivative_method` keyword argument in the
 julia> set_derivative_method(t, FiniteDifference(Forward()))
 
 ```
-In this example, we set `t`'s derivative evaluation method to use forward finite 
+In this example, we set `t`'s derivative evaluation method to use central finite 
 difference. This will also reset any changes that were made with the old method 
 (e.g., removing old collocation points). Now let's describe the ins and outs of 
 these methods.
@@ -458,14 +458,16 @@ For example, let's build evaluation equations for `d1`:
 julia> d1 
 ∂/∂t[y(t, ξ)]
 
-julia> fill_in_supports!(t, num_supports = 3) # add supports first
+julia> fill_in_supports!(t, num_supports = 5) # add supports first
 
 julia> evaluate(d1)
 
 julia> derivative_constraints(d1)
-2-element Vector{InfOptConstraintRef}:
- 5 ∂/∂t[y(t, ξ)](5, ξ) + y(5, ξ) - y(10, ξ) = 0, ∀ ξ ~ Uniform
- 5 ∂/∂t[y(t, ξ)](0, ξ) + y(0, ξ) - y(5, ξ) = 0, ∀ ξ ~ Uniform
+4-element Vector{InfOptConstraintRef}:
+ 2.5 ∂/∂t[y(t, ξ)](2.5, ξ) + y(2.5, ξ) - y(5, ξ) = 0, ∀ ξ ~ Uniform
+ 2.5 ∂/∂t[y(t, ξ)](5, ξ) + y(5, ξ) - y(7.5, ξ) = 0, ∀ ξ ~ Uniform
+ 2.5 ∂/∂t[y(t, ξ)](7.5, ξ) + y(7.5, ξ) - y(10, ξ) = 0, ∀ ξ ~ Uniform
+ 2.5 ∂/∂t[y(t, ξ)](0, ξ) + y(0, ξ) - y(2.5, ξ) = 0, ∀ ξ ~ Uniform
 ```
 Note that we made sure `t` had supports first over which we could carry out the 
 evaluation, otherwise an error would have been thrown. Moreover, once the 
@@ -480,8 +482,10 @@ julia> fill_in_supports!(ξ, num_supports = 4) # add supports first
 julia> evaluate_all_derivatives!(model)
 
 julia> derivative_constraints(dydt2)
-1-element Vector{InfOptConstraintRef}:
- 25 dydt2(0, ξ) - y(0, ξ) + 2 y(5, ξ) - y(10, ξ) = 0, ∀ ξ ~ Uniform
+3-element Vector{InfOptConstraintRef}:
+ 6.25 dydt2(2.5, ξ) - y(2.5, ξ) + 2 y(5, ξ) - y(7.5, ξ) = 0, ∀ ξ ~ Uniform
+ 6.25 dydt2(5, ξ) - y(5, ξ) + 2 y(7.5, ξ) - y(10, ξ) = 0, ∀ ξ ~ Uniform
+ 6.25 dydt2(0, ξ) - y(0, ξ) + 2 y(2.5, ξ) - y(5, ξ) = 0, ∀ ξ ~ Uniform
 ```
 
 Finally, we note that once derivative constraints have been added to the 
@@ -490,9 +494,11 @@ or derivative method will necessitate the deletion of these auxiliary constraint
 and a warning will be thrown to indicate such:
 ```jldoctest deriv_basic
 julia> derivative_constraints(d1)
-2-element Vector{InfOptConstraintRef}:
- 5 ∂/∂t[y(t, ξ)](5, ξ) + y(5, ξ) - y(10, ξ) = 0, ∀ ξ ~ Uniform
- 5 ∂/∂t[y(t, ξ)](0, ξ) + y(0, ξ) - y(5, ξ) = 0, ∀ ξ ~ Uniform
+4-element Vector{InfOptConstraintRef}:
+ 2.5 ∂/∂t[y(t, ξ)](2.5, ξ) + y(2.5, ξ) - y(5, ξ) = 0, ∀ ξ ~ Uniform
+ 2.5 ∂/∂t[y(t, ξ)](5, ξ) + y(5, ξ) - y(7.5, ξ) = 0, ∀ ξ ~ Uniform
+ 2.5 ∂/∂t[y(t, ξ)](7.5, ξ) + y(7.5, ξ) - y(10, ξ) = 0, ∀ ξ ~ Uniform
+ 2.5 ∂/∂t[y(t, ξ)](0, ξ) + y(0, ξ) - y(2.5, ξ) = 0, ∀ ξ ~ Uniform
 
 julia> add_supports(t, 0.2)
 ┌ Warning: Support/method changes will invalidate existing derivative evaluation constraints that have been added to the InfiniteModel. Thus, these are being deleted.
