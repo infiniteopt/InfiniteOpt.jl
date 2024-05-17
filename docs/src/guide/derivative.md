@@ -9,9 +9,10 @@ A guide for derivatives in `InfiniteOpt`. See the respective
 
 ## Overview
 Derivative operators commonly arise in many infinite-dimensional problems, 
-particularly in space-time optimization. `InfiniteOpt.jl` provides a simple yet 
-powerful interface to model these objects for derivatives of any order, including 
-partial derivatives. Derivatives can be used in defining measures and constraints. 
+particularly in dynamic and PDE-constrained optimization. `InfiniteOpt.jl` provides 
+a simple yet powerful interface to model these objects for derivatives of any order, 
+including partial derivatives. Derivatives can be used in defining measures and 
+constraints. 
 
 ## Basic Usage
 Derivative operators can be defined a few different ways in `InfiniteOpt`. To motivate 
@@ -50,19 +51,19 @@ julia> d2 = ∂(y, t, ξ)
 ∂/∂ξ[∂/∂t[y(t, ξ)]]
 
 julia> d3 = @∂(q, t^2) # the macro version allows the `t^2` syntax
-∂/∂t[∂/∂t[q(t)]]
+d²/dt²[q(t)]
 
 julia> d_expr = deriv(y * q - 2t, t)
-∂/∂t[y(t, ξ)]*q(t) + y(t, ξ)*∂/∂t[q(t)] - 2
+∂/∂t[y(t, ξ)]*q(t) + y(t, ξ)*d/dt[q(t)] - 2
 ```
 Thus, we can define derivatives in a variety of forms according to the problem at 
 hand. The last example even shows how the product rule is correctly applied. 
 
 !!! note 
     For convenience in making more compact code we provide [`∂`](@ref) 
-    as a wrapper for [`deriv`](@ref).
+    as an alias for [`deriv`](@ref).
 
-Also, notice that the appropriate analytic calculus is applied to infinite 
+Also, notice that the appropriate symbolic calculus is applied to infinite 
 parameters. For example, we could also compute:
 ```jldoctest deriv_basic 
 julia> deriv(3t^2 - 2t, t)
@@ -85,24 +86,27 @@ julia> set_start_value_function(d1, 0)
 ```
 
 Now let's return to our discussion on derivative evaluation methods. These are the 
-methods that can/will be invoked to transcript the derivatives when solving the 
-model. The methods native to `InfiniteOpt` are described in the table below:
+methods that can/will be invoked to transcript (i.e., discretize) the derivatives 
+when solving the model. The methods native to `InfiniteOpt` are described in the 
+table below:
 
-| Method                         | Type                    | Needed Boundary Conditions| Creates Supports |
-|:------------------------------:|:-----------------------:|:-------------------------:|:----------------:|
-|[`FiniteDifference`](@ref)      | [`Forward`](@ref)       | Final & optional Initial  | No               |
-|[`FiniteDifference`](@ref)      | [`Central`](@ref)       | Initial & Final           | No               |
-|[`FiniteDifference`](@ref)      | [`Backward`](@ref)      | Initial & optional Final  | No               |
-|[`OrthogonalCollocation`](@ref) | [`GaussLobatto`](@ref)  | Initial                   | Yes              |
+| Method                         | Type                    | Needed Boundary Conditions| Creates Supports | Derivative Orders |
+|:------------------------------:|:-----------------------:|:-------------------------:|:----------------:|:-----------------:|
+|[`FiniteDifference`](@ref)      | [`Forward`](@ref)       | Final & optional Initial  | No               | Any               |
+|[`FiniteDifference`](@ref)      | [`Central`](@ref)       | Initial & Final           | No               | 1, 2, 4, 6, ...   |
+|[`FiniteDifference`](@ref)      | [`Backward`](@ref)      | Initial & optional Final  | No               | Any               |
+|[`OrthogonalCollocation`](@ref) | [`GaussLobatto`](@ref)  | Initial                   | Yes              | 1                 |
 
-Here the default method is backward finite difference. These are enforced on an 
+Here, the default method is backward finite difference. These are enforced on an 
 infinite parameter basis (i.e., the parameter the differential operator is taken 
-with respect to). Thus, in the above examples any derivatives taken with respect to 
-`t` will use orthogonal collocation on finite elements since that is what we 
-specified as our derivative method. More information is provided in the 
-[Derivative Methods](@ref) Section below. However, we note here that 
-[`set_derivative_method`](@ref) can be invoked anytime after parameter definition 
-to specify/modify the derivative method used. More conveniently, we can call 
+with respect to). Unlike, `FiniteDifference` which directly handles derivatives of 
+any order, `OrthogonalCollocation` is limited to 1st order derivatives and higher 
+order derivatives will be reformulated, accordingly. In the above examples,
+any derivatives taken with respect to `t` will use orthogonal collocation on 
+finite elements since that is what we specified as our derivative method. More 
+information is provided in the [Derivative Methods](@ref) Section below. However, we 
+note here that [`set_derivative_method`](@ref) can be invoked anytime after parameter 
+definition to specify/modify the derivative method used. More conveniently, we can call 
 [`set_all_derivative_methods`](@ref):
 ```jldoctest deriv_basic 
 julia> set_all_derivative_methods(model, FiniteDifference(Forward()))
@@ -165,7 +169,7 @@ More detailed information on `JuMP.VariableInfo` is provided in the
 Now that we have our variable information we can make a derivative using 
 [`build_derivative`](@ref):
 ```jldoctest deriv_basic 
-julia> d = build_derivative(error, info, y, ξ);
+julia> d = build_derivative(error, info, y, ξ, 1);
 
 julia> d isa Derivative
 true
@@ -184,28 +188,25 @@ julia> dref = add_derivative(model, d)
 This will also create any appropriate information based constraints (e.g., lower 
 bounds).
 
-Finally, we note that higher order derivatives are made by simply nesting this 
-process.
+Finally, we note that higher order derivatives by changing the order argument:
+```jldoctest deriv_basic 
+julia> d = build_derivative(error, info, y, ξ, 3); # 3rd order derivative
+```
 
 ### Macro Definition 
 There are two macros we provide for defining derivatives: 
 [`@variable`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@variable) 
 that uses the [`Deriv`](@ref) variable type and [`@deriv`](@ref). 
 
-!!! warning
-    The `@derivative_variable` macro used by previous versions of `InfiniteOpt` 
-    is now discontinued in favor of using `@variable` with the [`Deriv`](@ref) 
-    variable type object.
-
 First, `@variable` simply automates the process described above in a manner 
 inspired the by the syntax of the variable macros. As such it will support all 
 the same keywords and constraint syntax used with the variable macros. For 
 example, we can define the derivative 
-``\frac{\partial^2 y(t, \xi)}{\partial t^2}`` using `d1` (defined in the 
-a Basic Usage section) enforcing a lower bound of 1 with an initial guess of 0 and 
-assign it to an alias `GeneralVariableRef` called `dydt2`:
+``\frac{\partial^2 y(t, \xi)}{\partial t^2}`` while enforcing a lower bound 
+of 1 with an initial guess of 0 and assign it to an alias 
+`GeneralVariableRef` called `dydt2`:
 ```jldoctest deriv_basic 
-julia> @variable(model, dydt2 >= 1, Deriv(d1, t), start = 0)
+julia> @variable(model, dydt2 >= 1, Deriv(y, t, 2), start = 0)
 dydt2(t, ξ)
 ```
 This will also support anonymous definition and multi-dimensional definition. 
@@ -214,18 +215,18 @@ Please see [Macro Variable Definition](@ref) for more information.
 !!! warning
     The same derivative should not be redefined with multiple `@variable` calls 
     and using `@variable` to define derivatives should be avoided on derivatives 
-    that were already defined. This is because the latest `@variable` will 
+    that were already defined. This is because the latest `@variable` call will 
     overwrite any existing properties a derivative might already have. 
 
 Second, for more convenient definition we use [`@deriv`](@ref) (or [`@∂`](@ref)) 
 as shown in the Basic Usage section above. Unlike `@variable` this can handle any 
-`InfiniteOpt` expression as the argument input. It also can build derivatives 
-that depend on multiple infinite parameters and/or are taken to higher orders. 
-This is accomplished via recursive derivative definition, handling the nesting 
-as appropriate. For example, we can "define" 
-``\frac{\partial^2 y(t, \xi)}{\partial t^2}`` again:
+`InfiniteOpt` expression as the argument input (except for general nonlinear 
+expressions). It also can build derivatives that depend on multiple infinite 
+parameters and/or are taken to higher orders. This is accomplished via recursive 
+derivative definition, handling the nesting as appropriate. For example, we can 
+"define" ``\frac{\partial^2 y(t, \xi)}{\partial t^2}`` again:
 ```jldoctest deriv_basic 
-julia> @deriv(d1, t)
+julia> @deriv(d1, t) # recall `d1 = deriv(y, t)`
 dydt2(t, ξ)
 
 julia> @deriv(y, t^2)
@@ -236,13 +237,13 @@ defined up above with its alias name `dydt2`. This macro can also tackle complex
 expressions using the appropriate calculus such as:
 ```jldoctest deriv_basic 
 julia> @deriv(∫(y, ξ) * q, t)
-∂/∂t[∫{ξ ∈ [-1, 1]}[y(t, ξ)]]*q(t) + ∫{ξ ∈ [-1, 1]}[y(t, ξ)]*∂/∂t[q(t)]
+∂/∂t[∫{ξ ∈ [-1, 1]}[y(t, ξ)]]*q(t) + ∫{ξ ∈ [-1, 1]}[y(t, ξ)]*d/dt[q(t)]
 ```
 Thus, demonstrating the convenience of using `@deriv`.
 
 With all this in mind, we recommend using `@deriv` as the defacto method, but 
-then using `@variable` as a convenient way to specify information constraints 
-and an initial guess value/trajectory. 
+then using `@variable` as a convenient way to specify bounds and an initial guess 
+value/trajectory. 
 
 ## Derivative Evaluation
 In this section, we detail how derivatives are evaluated in `InfiniteOpt` to then 
@@ -300,18 +301,30 @@ the derivative variables present in ``f_j``. Finally, the necessary boundary
 conditions are provided in the constraints ``g_k``.
 
 Note that this general paradigm captures a wide breadth of problems and 
-derivative evaluation techniques. Higher order derivatives are dealt with naturally 
-since such techniques can be applied to nested derivative operators recursively. 
+derivative evaluation techniques. Higher order derivatives are dealt with in one of 
+two ways:
+1. Auxiliary equations are derived directly if the selected derivative method 
+supports higher orders.
+2. They are reformulated into a system of 1st order derivatives and then auxiliary 
+equations are derived for each 1st order derivative. 
+
 For example, consider the second-order partial derivative:
 ```math
-\frac{\partial^2 y(t, \xi)}{\partial t^2} = \frac{\partial}{\partial t}\left(\frac{\partial y(t, \xi)}{\partial t}\right)
+\frac{\partial^2 y(t, x)}{\partial x^2}
 ```
-The 2 forms are equivalent thus when we apply the Euler method we obtain the 
-following auxiliary equations:
+We can directly derive auxiliary equations using 2nd order central finite difference:
+```math
+\frac{\partial^2 y(t, x_n)}{\partial x^2} = \frac{y(t, x_{n+1}) - 2y(t, x_n) + y(t, x_{n-1})}{(x_{n+1} - x_{n})(x_n - x_{n-1})}, \ \forall t \in \mathcal{D}_t, n = 1, \dots, k-1
+```
+Where possible, InfiniteOpt favors this approach. For derivative methods that do not support higher orders, we can reformulate the derivative into nested 1st derivatives:
+```math
+\frac{\partial^2 y(t, x)}{\partial x^2} = \frac{\partial }{\partial x}\left(\frac{\partial y(t, x)}{\partial x}\right)
+```
+Then we can obtain auxiliary equations for each derivative, let's use forward finite difference for the sake of variety:
 ```math
 \begin{aligned}
-&&& y(t_{n+1}, \xi) = y(t_n, \xi) + (t_{n+1} - t_n) \frac{\partial y(t_n, \xi)}{\partial t}, && \forall \xi \in \mathcal{D}_\xi, n = 0, \dots, k-1\\
-&&& \frac{\partial y(t_{n+1}, \xi)}{\partial t} = \frac{\partial y(t_n, \xi)}{\partial t} + (t_{n+1} - t_n) \frac{\partial^2 y(t_n, \xi)}{\partial t^2}, && \forall \xi \in \mathcal{D}_\xi, n = 0, \dots, k-1\\
+&&& y(t, x_{n+1}) = y(t, x_n) + (x_{n+1} - x_n) \frac{\partial y(t, x_n)}{\partial x}, && \forall x \in \mathcal{D}_x, n = 0, \dots, k-1\\
+&&& \frac{\partial y(t, x_{n+1})}{\partial x} = \frac{\partial y(t, x_n)}{\partial x} + (x_{n+1} - x_n) \frac{\partial^2 y(t, x_n)}{\partial x^2}, && \forall x \in \mathcal{D}_x, n = 0, \dots, k-1\\
 \end{aligned}
 ```
 
@@ -366,7 +379,7 @@ Central finite difference is exemplified by approximating the first order deriva
 ```math 
 y(t_{n+1}) = y(t_{n-1}) + (t_{n+1} - t_{n-1})\frac{d y(t_n)}{dt}, \ \forall n = 1, 2, \dots, k-1
 ```
-Note that this form cannot be invoked at ``n = 0`` or ``n = k`` and cannot 
+Note that this form cannot be invoked at ``n = 0`` or ``n = k`` and cannot have
 an equation at either boundary. With this in mind the syntax is `FiniteDifference(Central())` 
 where the second argument is omitted since it doesn't apply to this scheme. As a 
 result both initial and terminal conditions should be specified otherwise the 
@@ -383,6 +396,15 @@ Here the boundary case corresponds to ``n = k`` and would be included if we set
 argument to `false`. We recommend, selecting `false` when a terminal condition is 
 provided. Also, note that an initial condition should always be given otherwise 
 the derivative at the first point will be free.
+
+All the above explanations highlight using finite difference on 1st order 
+derivatives, but 
+[higher orders are also supported](https://en.wikipedia.org/wiki/Finite_difference#Higher-order_differences). 
+[`Forward`](@ref) and [`Backward`](@ref) approaches can directly handle derivatives 
+of arbitrary order. Whereas, [`Central`](@ref) 1st order derivatives and higher 
+**even** orders (i.e., odd orders greater than 1 are not supported). When using 
+higher order derivatives, it is important to include the necessary boundary 
+conditions which often involve lower order derivatives.
 
 Finally, we employ orthogonal collocation on finite elements via the 
 [`OrthogonalCollocation`](@ref) object (please refer to it in the manual for 
@@ -407,6 +429,11 @@ the corresponding derivative will be free variable. For more information on
 orthogonal collocation over finite elements, this 
 [page](http://apmonitor.com/do/index.php/Main/OrthogonalCollocation) provides a 
 good reference.
+
+!!! note 
+    `OrthogonalCollocation` only provides direct support for 1st order 
+    derivatives. Higher order derivatives are reformulated by nesting 1st order 
+    derivatives that are each reformulated using orthogonal collocation.
 
 The addition of internal collocation supports by `OrthogonalCollocation` will increase 
 the degrees of freedom for infinite variables that are not used by derivatives (e.g., 
@@ -482,14 +509,17 @@ in `InfiniteOpt`.
 
 ### Basic Queries 
 First, let's overview the basic object inquiries: [`derivative_argument`](@ref), 
-[`operator_parameter`](@ref), [`derivative_method`](@ref), and
-[`name`](@ref JuMP.name(::DecisionVariableRef)):
+[`operator_parameter`](@ref), [`derivative_order`](@ref), 
+[`derivative_method`](@ref), and [`name`](@ref JuMP.name(::DecisionVariableRef)):
 ```jldoctest deriv_basic
 julia> derivative_argument(dydt2) # get the variable the derivative operates on
 ∂/∂t[y(t, ξ)]
 
 julia> operator_parameter(dydt2) # get the parameter the operator is taken with respect to
 t
+
+julia> derivative_order(dydt2) # get the order of the derivative
+2
 
 julia> derivative_method(dydt2) # get the numerical derivative evaluation method
 FiniteDifference{Forward}(Forward(), true)
@@ -556,8 +586,8 @@ julia> all_derivatives(model)
 7-element Vector{GeneralVariableRef}:
  ∂/∂t[y(t, ξ)]
  ∂/∂ξ[∂/∂t[y(t, ξ)]]
- ∂/∂t[q(t)]
- ∂/∂t[∂/∂t[q(t)]]
+ d/dt[q(t)]
+ d²/dt²[q(t)]
  ∂/∂ξ[y(t, ξ)]
  dydt2(t, ξ)
  ∂/∂t[∫{ξ ∈ [-1, 1]}[y(t, ξ)]]

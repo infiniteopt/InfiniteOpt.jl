@@ -695,7 +695,7 @@ end
     func = (x) -> NaN
     num = 0.
     info = VariableInfo(true, num, true, num, true, num, false, func, false, false)
-    d = Derivative(info, true, pref, pref) # this is wrong but that is ok
+    d = Derivative(info, true, pref, pref, 1) # this is wrong but that is ok
     object = VariableData(d)
     idx = InfiniteOpt._add_data_object(m, object)
     push!(InfiniteOpt._derivative_dependencies(pref), idx)
@@ -895,7 +895,7 @@ end
         func = (x) -> NaN
         num = 0.
         info = VariableInfo(true, num, true, num, true, num, false, func, false, false)
-        deriv = Derivative(info, true, pref, pref)
+        deriv = Derivative(info, true, pref, pref, 1)
         object = VariableData(deriv)
         idx = InfiniteOpt._add_data_object(m, object)
         push!(InfiniteOpt._derivative_dependencies(pref), idx)

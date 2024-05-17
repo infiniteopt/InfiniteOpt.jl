@@ -8,6 +8,13 @@ struct MyDerivMethod <: GenerativeDerivativeMethod
     # ADD ANY MORE INFORMATION THAT IS NEEDED
 end
 
+# Extend `allows_high_order_derivatives`
+# Return a `Bool` on whether this method will explictly support derivatives 
+# with an order greater than 1 (e.g., 2nd derivatives)
+# If we return `false`, the InfiniteOpt will automatically reformulate higher order 
+# derivatives into 1st derivatives that the method can handle
+InfiniteOpt.allows_high_order_derivatives(method::MyDerivMethod) = false # TODO replace with desired output
+
 # Extend `generative_support_info` (only needed for generative methods)
 function InfiniteOpt.generative_support_info(method::MyDerivMethod)
     info = UniformGenerativeInfo([method.my_attr], InternalLabel)
@@ -19,12 +26,13 @@ end
 # It will likely also be convenient to use `make_reduced_expr`
 function InfiniteOpt.evaluate_derivative(
     dref::GeneralVariableRef, 
+    vref::GeneralVariableRef, # the derivative argument (see docstring for details)
     method::MyDerivMethod,
     write_model::JuMP.AbstractModel
-    )::Vector{JuMP.AbstractJuMPScalar}
+    )
     # get the basic derivative information 
-    vref = derivative_argument(dref)
     pref = operator_parameter(dref)
+    order = derivative_order(dref) # TODO account for derivative order as appropriate (i.e., if allows_high_order_derivatives returns true)
     # make sure generative supports are added to the model
     InfiniteOpt.add_generative_supports(pref)
     # generate the derivative expressions h_i corresponding to equations of 

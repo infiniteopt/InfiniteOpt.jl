@@ -600,7 +600,7 @@ end
     @variable(m, 0 <= x <= 1, Infinite(par), Bin)
     @variable(m, y == 1, Infinite(par), Int)
     d1 = @deriv(x, par)
-    d2 = @deriv(y, par)
+    d2 = @deriv(y, par^2)
     d3 = @deriv(d1, par)
     @variable(m, dx0, Point(d1, 0))
     var = build_variable(error, d1, Dict{Int, Float64}(1 => 0.5), check = false)
@@ -629,7 +629,7 @@ end
     @test !is_valid(m, con3)
     @test !haskey(InfiniteOpt._data_dictionary(m, Derivative), JuMP.index(d1))
     @test !has_derivative_constraints(par)
-    @test !haskey(m.deriv_lookup, (x, par))
+    @test !haskey(m.deriv_lookup, (x, par, 1))
     # test deletion of d2
     @test isa(delete(m, d2), Nothing)
     @test num_constraints(m) == 7
@@ -642,7 +642,7 @@ end
     @test InfiniteOpt._object_numbers(con2) == []
     @test InfiniteOpt._derivative_dependencies(par) == []
     @test !haskey(InfiniteOpt._data_dictionary(m, Derivative), JuMP.index(d2))
-    @test !haskey(m.deriv_lookup, (y, par))
+    @test !haskey(m.deriv_lookup, (y, par, 2))
     # test errors
     @test_throws AssertionError delete(m, d1)
     @test_throws AssertionError delete(m, d2)

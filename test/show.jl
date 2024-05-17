@@ -14,6 +14,8 @@
     d2 = @deriv(inf, pars[1], par1)
     d3 = @deriv(z, pars[2])
     set_name(d3, "d3")
+    d4 = @deriv(x, par1^2)
+    d5 = @deriv(x, par1^3)
     @objective(m, Min, 2 + y)
     @constraint(m, c1, x + y - 2 <= 0)
     ac1 = @constraint(m, x + y - 2 <= 0)
@@ -389,11 +391,11 @@
         @test InfiniteOpt.variable_string(MIME("text/latex"), bad_ref) == "noname"
         # test normal one
         dref = dispatch_variable_ref(d1)
-        d_re = InfiniteOpt._math_symbol(MIME("text/plain"), :partial)
-        @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "$d_re/$(d_re)par1[x(par1)]"
-        @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == "\\frac{\\partial}{\\partial par1}\\left[x(par1)\\right]"
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "d/dpar1[x(par1)]"
+        @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == "\\frac{d}{d par1}\\left[x(par1)\\right]"
         # test nested one
         dref = dispatch_variable_ref(d2)
+        d_re = InfiniteOpt._math_symbol(MIME("text/plain"), :partial)
         expected = "$d_re/$(d_re)par1[$d_re/$(d_re)pars[1][inf(pars, par1, pars3)]]"
         @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == expected
         expected = "\\frac{\\partial}{\\partial par1}\\left[\\frac{\\partial}{\\partial pars_{1}}\\left[inf(pars, par1, pars3)\\right]\\right]"
@@ -402,6 +404,14 @@
         dref = dispatch_variable_ref(d3)
         @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "d3(pars)"
         @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == "d3(pars)"
+        # test 2nd derivative
+        dref = dispatch_variable_ref(d4)
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "d²/dpar1²[x(par1)]"
+        @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == "\\frac{d^{2}}{d par1^{2}}\\left[x(par1)\\right]"
+        # test 3rd derivative
+        dref = dispatch_variable_ref(d5)
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "d^3/dpar1^3[x(par1)]"
+        @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == "\\frac{d^{3}}{d par1^{3}}\\left[x(par1)\\right]"
     end
     # _make_str_value (Number)
     @testset "_make_str_value (Number)" begin

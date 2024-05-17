@@ -405,22 +405,33 @@ end
 
 ## Make helper function for making derivative operators 
 # REPL 
-function _deriv_operator(m::MIME"text/plain", pref)::String
-    return string(_math_symbol(m, :partial), "/", 
-                  _math_symbol(m, :partial), variable_string(m, pref))
+function _deriv_operator(m::MIME"text/plain", op_char, pref, order)
+    if order == 1
+        order_str = ""
+    elseif order == 2
+        order_str = "²"
+    else
+        order_str = "^$order"
+    end
+    return string(op_char, order_str, "/", op_char, 
+                  variable_string(m, pref), order_str)
 end
 
 # IJulia 
-function _deriv_operator(m::MIME"text/latex", pref)::String
-    return string("\\frac{", _math_symbol(m, :partial), "}{", 
-                  _math_symbol(m, :partial), " ", 
-                  variable_string(m, pref), "}")
+function _deriv_operator(m::MIME"text/latex", op_char, pref, order)
+    if order == 1
+        order_str = ""
+    else
+        order_str = "^{$order}"
+    end
+    return string("\\frac{", op_char, order_str, "}{", 
+                  op_char, " ", variable_string(m, pref), 
+                  order_str, "}")
 end
 
-# TODO implement more intelligent naming for nested derivatives (i.e., use exponents)
 # TODO account for container naming when variable macro is used (maybe deal with this at the macro end)
 # Make a string for DerivativeRef 
-function variable_string(print_mode, dref::DerivativeRef)::String
+function variable_string(print_mode, dref::DerivativeRef)
     base_name = _get_base_name(print_mode, dref)
     if !haskey(_data_dictionary(dref), JuMP.index(dref))
         return base_name
@@ -430,7 +441,13 @@ function variable_string(print_mode, dref::DerivativeRef)::String
     else
         vref = dispatch_variable_ref(derivative_argument(dref))
         pref = operator_parameter(dref)
-        return string(_deriv_operator(print_mode, pref), 
+        order = derivative_order(dref)
+        if isone(length(parameter_list(vref)))
+            op_char = "d"
+        else
+            op_char = _math_symbol(print_mode, :partial)
+        end
+        return string(_deriv_operator(print_mode, op_char, pref, order), 
                       _math_symbol(print_mode, :open_rng), 
                       variable_string(print_mode, vref), 
                       _math_symbol(print_mode, :close_rng))

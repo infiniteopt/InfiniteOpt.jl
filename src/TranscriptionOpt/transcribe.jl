@@ -6,7 +6,7 @@
 function _temp_parameter_ref(
     model::InfiniteOpt.InfiniteModel,
     idx::InfiniteOpt.IndependentParameterIndex
-    )::InfiniteOpt.IndependentParameterRef
+    )
     return InfiniteOpt.IndependentParameterRef(model, idx)
 end
 
@@ -14,7 +14,7 @@ end
 function _temp_parameter_ref(
     model::InfiniteOpt.InfiniteModel,
     idx::InfiniteOpt.DependentParametersIndex
-    )::InfiniteOpt.DependentParameterRef
+    )
     idx = InfiniteOpt.DependentParameterIndex(idx, 1)
     return InfiniteOpt.DependentParameterRef(model, idx)
 end
@@ -22,7 +22,7 @@ end
 # Return the collected supports of an infinite parameter
 function _collected_supports(
     pref::Union{InfiniteOpt.IndependentParameterRef, InfiniteOpt.DependentParameterRef}
-    )::Vector
+    )
     supp_dict = InfiniteOpt._parameter_supports(pref)
     supp_list = collect(keys(supp_dict))
     # append a placeholder NaN support at the end to be used for efficient combinatorics
@@ -33,7 +33,7 @@ end
 function _collected_support_labels(
     pref::Union{InfiniteOpt.IndependentParameterRef, InfiniteOpt.DependentParameterRef},
     supports::Vector
-    )::Vector{Set{DataType}}
+    )
     supp_dict = InfiniteOpt._parameter_supports(pref)
     default = Set{DataType}()
     return map(k -> get(supp_dict, k, default), supports)
@@ -59,7 +59,7 @@ Before this is all done, `InfiniteOpt.add_generative_supports` is invoked as nee
 function set_parameter_supports(
     trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
-    )::Nothing
+    )
     # gather the basic information
     param_indices = InfiniteOpt._param_object_indices(inf_model)
     prefs = map(idx -> _temp_parameter_ref(inf_model, idx), param_indices)
@@ -95,7 +95,7 @@ also stored in `TranscriptionData.finvar_mappings` which enables
 function transcribe_finite_variables!(
     trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
-    )::Nothing
+    )
     for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.FiniteVariable)
         hvref = InfiniteOpt._make_variable_ref(inf_model, idx)
         vref = JuMP.add_variable(trans_model,
@@ -110,7 +110,7 @@ end
 function _format_infinite_info(
     var::InfiniteOpt.InfiniteVariable,
     support::Vector{Float64}
-    )::JuMP.VariableInfo
+    )
     # generate the start value
     info = var.info
     if var.is_vector_start
@@ -139,7 +139,7 @@ Note that `TranscriptionData.infvar_support_labels` is also populated.
 function transcribe_infinite_variables!(
     trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
-    )::Nothing
+    )
     for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.InfiniteVariable)
         # get the basic variable information
         var = object.variable
@@ -173,9 +173,7 @@ function transcribe_infinite_variables!(
 end
 
 # Return a proper scalar variable info object given on with a start value function
-function _format_derivative_info(d::InfiniteOpt.Derivative,
-    support::Vector{Float64}
-    )::JuMP.VariableInfo
+function _format_derivative_info(d::InfiniteOpt.Derivative, support::Vector{Float64})
     # generate the start value
     info = d.info
     if d.is_vector_start
@@ -188,6 +186,35 @@ function _format_derivative_info(d::InfiniteOpt.Derivative,
     return JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
                              info.upper_bound, info.has_fix, info.fixed_value,
                              info.has_start, start, info.binary, info.integer)
+end
+
+function _transcribe_derivative_variable(dref, d, trans_model)
+    base_name = InfiniteOpt.variable_string(MIME("text/plain"), dispatch_variable_ref(dref))
+    param_nums = InfiniteOpt._parameter_numbers(d.variable_ref)
+    obj_nums = InfiniteOpt._object_numbers(d.variable_ref)
+    # prepare for iterating over its supports
+    supp_indices = support_index_iterator(trans_model, obj_nums)
+    vrefs = Vector{JuMP.VariableRef}(undef, length(supp_indices))
+    labels = Vector{Set{DataType}}(undef, length(supp_indices))
+    lookup_dict = Dict{Vector{Float64}, Int}()
+    # create a variable for each support
+    for (counter, i) in enumerate(supp_indices)
+        raw_supp = index_to_support(trans_model, i)
+        supp = raw_supp[param_nums]
+        info = _format_derivative_info(d, supp)
+        deriv_name = string(base_name, "(support: ", counter, ")")
+        @inbounds vrefs[counter] = JuMP.add_variable(trans_model,
+                                                     JuMP.ScalarVariable(info),
+                                                     deriv_name)
+        lookup_dict[supp] = counter
+        @inbounds labels[counter] = index_to_labels(trans_model, i)
+    end
+    # save the transcription information
+    data = transcription_data(trans_model)
+    data.infvar_lookup[dref] = lookup_dict
+    data.infvar_mappings[dref] = vrefs
+    data.infvar_support_labels[dref] = labels
+    return
 end
 
 """
@@ -207,36 +234,26 @@ futher derivative evaluation constraints are added when
 function transcribe_derivative_variables!(
     trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
-    )::Nothing
+    )
     for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.Derivative)
-        # get the basic variable information
+        # get the basic derivative information
         dref = InfiniteOpt._make_variable_ref(inf_model, idx)
         d = object.variable
-        base_name = InfiniteOpt.variable_string(MIME("text/plain"), dispatch_variable_ref(dref))
-        param_nums = InfiniteOpt._parameter_numbers(d.variable_ref)
-        obj_nums = InfiniteOpt._object_numbers(d.variable_ref)
-        # prepare for iterating over its supports
-        supp_indices = support_index_iterator(trans_model, obj_nums)
-        vrefs = Vector{JuMP.VariableRef}(undef, length(supp_indices))
-        labels = Vector{Set{DataType}}(undef, length(supp_indices))
-        lookup_dict = Dict{Vector{Float64}, Int}()
-        # create a variable for each support
-        for (counter, i) in enumerate(supp_indices)
-            raw_supp = index_to_support(trans_model, i)
-            supp = raw_supp[param_nums]
-            info = _format_derivative_info(d, supp)
-            deriv_name = string(base_name, "(support: ", counter, ")")
-            @inbounds vrefs[counter] = JuMP.add_variable(trans_model,
-                                                         JuMP.ScalarVariable(info),
-                                                         deriv_name)
-            lookup_dict[supp] = counter
-            @inbounds labels[counter] = index_to_labels(trans_model, i)
+        method = InfiniteOpt.derivative_method(dref)
+        # if needed process lower order derivatives
+        if !InfiniteOpt.allows_high_order_derivatives(method) && d.order > 1
+            for o in d.order-1:-1:1
+                if !haskey(inf_model.deriv_lookup, (d.variable_ref, d.parameter_ref, o))
+                    info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false, 
+                                             s -> NaN, false, false)
+                    new_d = InfiniteOpt.Derivative(info, true, d.variable_ref, d.parameter_ref, o)
+                    new_dref = InfiniteOpt.add_derivative(inf_model, new_d)
+                    _transcribe_derivative_variable(new_dref, d, trans_model)
+                end
+            end
         end
-        # save the transcription information
-        data = transcription_data(trans_model)
-        data.infvar_lookup[dref] = lookup_dict
-        data.infvar_mappings[dref] = vrefs
-        data.infvar_support_labels[dref] = labels
+        # process the derivative
+        _transcribe_derivative_variable(dref, d, trans_model)
     end
     return
 end
@@ -247,7 +264,7 @@ function _set_semi_infinite_variable_mapping(
     var::InfiniteOpt.SemiInfiniteVariable,
     rvref::InfiniteOpt.GeneralVariableRef,
     index_type
-    )::Nothing
+    )
     param_nums = var.parameter_nums
     ivref = var.infinite_variable_ref
     ivref_param_nums = InfiniteOpt._parameter_numbers(ivref)
@@ -292,7 +309,7 @@ function _set_semi_infinite_variable_mapping(
     var::InfiniteOpt.SemiInfiniteVariable,
     rvref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{InfiniteOpt.ParameterFunctionIndex}
-    )::Nothing
+    )
     return
 end
 
@@ -312,7 +329,7 @@ Note that `TranscriptionData.infvar_support_labels` is also populated.
 function transcribe_semi_infinite_variables!(
     trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
-    )::Nothing
+    )
     for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.SemiInfiniteVariable)
         # get the basic variable information
         var = object.variable
@@ -329,7 +346,7 @@ end
 function _update_point_info(
     gvref::InfiniteOpt.GeneralVariableRef,
     vref::JuMP.VariableRef
-    )::Nothing
+    )
     pvref = InfiniteOpt.dispatch_variable_ref(gvref)
     if JuMP.has_lower_bound(pvref)
         if JuMP.is_fixed(vref)
@@ -378,7 +395,7 @@ accordance with the point variable.
 function transcribe_point_variables!(
     trans_model::JuMP.Model,
     inf_model::InfiniteOpt.InfiniteModel
-    )::Nothing
+    )
     for (idx, object) in InfiniteOpt._data_dictionary(inf_model, InfiniteOpt.PointVariable)
         # get the basic variable information
         var = object.variable
@@ -804,10 +821,16 @@ function transcribe_derivative_evaluations!(
         dref = InfiniteOpt._make_variable_ref(inf_model, idx)
         pref = dispatch_variable_ref(object.variable.parameter_ref)
         method = InfiniteOpt.derivative_method(pref)
+        order = object.variable.order
         # generate the transcription constraints as needed
         if !InfiniteOpt.has_derivative_constraints(dref)
             # generate the evaluation expressions
-            exprs = InfiniteOpt.evaluate_derivative(dref, method, trans_model)
+            vref = object.variable.variable_ref
+            if !InfiniteOpt.allows_high_order_derivatives(method) && order > 1
+                d_idx = inf_model.deriv_lookup[vref, object.variable.parameter_ref, order - 1]
+                vref = InfiniteOpt._make_variable_ref(inf_model, d_idx)
+            end
+            exprs = InfiniteOpt.evaluate_derivative(dref, vref, method, trans_model)
             # prepare the iteration helpers
             param_obj_num = InfiniteOpt._object_number(pref)
             obj_nums = filter(!isequal(param_obj_num), InfiniteOpt._object_numbers(dref))

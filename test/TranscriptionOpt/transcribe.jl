@@ -3,7 +3,7 @@
     # initialize models
     m = InfiniteModel()
     @infinite_parameter(m, pars[1:2] in [0, 1], supports = [0, 1])
-    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1], derivative_method = OrthogonalCollocation(2))
     @variable(m, x >= 0, Infinite(par), Int)
     @variable(m, y == 2, Infinite(par, pars), Bin, start = (p, ps) -> p + sum(ps))
     @variable(m, x0, Point(x, 0))
@@ -12,6 +12,7 @@
     @variable(m, w == 1, Int, start = 1)
     dx = @deriv(x, par)
     dy = @deriv(y, par)
+    dx3 = @deriv(x, par^3)
     set_lower_bound(dx, 0)
     set_start_value_function(dy, (p, ps) -> p + sum(ps))
     var = build_variable(error, y, Dict{Int, Float64}(2 => 0))
@@ -95,10 +96,14 @@
     # test transcribe_derivative_variables!
     @testset "transcribe_derivative_variables!" begin
         @test isa(IOTO.transcribe_derivative_variables!(tm, m), Nothing)
-        @test length(transcription_data(tm).infvar_mappings) == 4
+        @test length(transcription_data(tm).infvar_mappings) == 6
+        @test num_derivatives(m) == 4
         @test transcription_variable(tm, dx) isa Vector{VariableRef}
         @test transcription_variable(tm, dy) isa Vector{VariableRef}
-        @test name(transcription_variable(tm, dx)[1]) == (Sys.iswindows() ? "d/dpar[x(par)](support: 1)" : "∂/∂par[x(par)](support: 1)")
+        @test transcription_variable(tm, dx3) isa Vector{VariableRef}
+        @test name(transcription_variable(tm, dx)[1]) == "d/dpar[x(par)](support: 1)"
+        @test name(transcription_variable(tm, dx3)[1]) == "d^3/dpar^3[x(par)](support: 1)"
+        @test name(transcription_variable(tm, deriv(dx, par))[1]) == "d²/dpar²[x(par)](support: 1)"
         @test name(transcription_variable(tm, dy)[3]) == (Sys.iswindows() ? "d/dpar[y(par, pars)](support: 3)" : "∂/∂par[y(par, pars)](support: 3)")
         @test has_lower_bound(transcription_variable(tm, dx)[1])
         @test sort!(start_value.(transcription_variable(tm, dy))) == [0., 1, 2, 3]
@@ -111,7 +116,7 @@
         vref = GeneralVariableRef(m, -1, SemiInfiniteVariableIndex)
         @test IOTO._set_semi_infinite_variable_mapping(tm, var, vref, SemiInfiniteVariableIndex) isa Nothing 
         @test transcription_variable(vref) isa Vector{VariableRef}
-        @test length(transcription_data(tm).infvar_mappings) == 5
+        @test length(transcription_data(tm).infvar_mappings) == 7
         @test IOTO.lookup_by_support(tm, y, [0., 0, 0]) == IOTO.lookup_by_support(tm, vref, [0., 0])
         @test IOTO._set_semi_infinite_variable_mapping(tm, var, vref, ParameterFunctionIndex) isa Nothing 
     end
@@ -119,7 +124,7 @@
     @testset "transcribe_semi_infinite_variables!" begin 
         @test IOTO.transcribe_semi_infinite_variables!(tm, m) isa Nothing
         @test transcription_variable(yrv) isa Vector{VariableRef}
-        @test length(transcription_data(tm).infvar_mappings) == 6
+        @test length(transcription_data(tm).infvar_mappings) == 8
         @test IOTO.lookup_by_support(tm, y, [1., 0., 0.]) == IOTO.lookup_by_support(tm, yrv, [1., 0])
     end
     # test _update_point_info
@@ -446,7 +451,7 @@ end
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                              eval_objective_value=false)
     m = InfiniteModel(mockoptimizer)
-    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1], derivative_method = OrthogonalCollocation(2))
     @infinite_parameter(m, pars[1:2] in [0, 1], supports = [0, 1])
     @variable(m, 1 >= x >= 0, Infinite(par), Int)
     @variable(m, y == 2, Infinite(par, pars), Bin, start = 0)

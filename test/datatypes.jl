@@ -417,13 +417,13 @@ end
     dref = GeneralVariableRef(m, 1, DerivativeIndex)
     # derivative
     @test Derivative <: JuMP.AbstractVariable
-    @test Derivative(inf_info, true, vref, pref) isa Derivative
+    @test Derivative(inf_info, true, vref, pref, 1) isa Derivative
     # Semi-infinite derivative
     @test SemiInfiniteVariable(dref, Dict(1 => Float64(2)), [1], [1]) isa SemiInfiniteVariable
     # Point derivative
     @test PointVariable(sample_info, dref, Float64[1]) isa PointVariable
     # VariableData
-    @test VariableData(Derivative(inf_info, true, vref, pref)) isa VariableData
+    @test VariableData(Derivative(inf_info, true, vref, pref, 2)) isa VariableData
 end
 
 # Test the measure datatypes
