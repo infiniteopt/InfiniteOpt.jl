@@ -448,8 +448,7 @@
         @test InfiniteOpt.variable_string(MIME("text/latex"), dvref) == "z0"
         # test with derivative
         dvref = dispatch_variable_ref(@variable(m, variable_type = Point(d1, 0)))
-        d_re = InfiniteOpt._math_symbol(MIME("text/plain"), :partial)
-        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "$(d_re)/$(d_re)par1[x(par1)](0)"
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d/dpar1[x(par1)](0)"
         # test named derivative
         dvref = dispatch_variable_ref(@variable(m, variable_type = Point(d3, [0, 0])))
         @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d3([0, 0])"
@@ -474,8 +473,7 @@
         var = build_variable(error, d1, eval_supps, check = false)
         rv = @variable(m, variable_type = SemiInfinite(d1, 0))
         dvref = dispatch_variable_ref(rv)
-        d_re = InfiniteOpt._math_symbol(MIME("text/plain"), :partial)
-        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "$(d_re)/$(d_re)par1[x(par1)](0)"
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d/dpar1[x(par1)](0)"
     end
     # test variable_string (Fallback)
     @testset "variable_string (Fallback)" begin
@@ -488,8 +486,7 @@
         @test JuMP.function_string(MIME("text/latex"), dispatch_variable_ref(inf)) == "inf(pars, par1, pars3)"
         @test JuMP.function_string(MIME("text/plain"), y) == "y"
         @test JuMP.function_string(MIME("text/latex"), inf) == "inf(pars, par1, pars3)"
-        d_re = InfiniteOpt._math_symbol(MIME("text/plain"), :partial)
-        @test JuMP.function_string(MIME("text/plain"), d1) == "$d_re/$(d_re)par1[x(par1)]"
+        @test JuMP.function_string(MIME("text/plain"), d1) == "d/dpar1[x(par1)]"
     end
     # test restrict_string
     @testset "restrict_string" begin
