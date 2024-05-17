@@ -332,7 +332,7 @@ function evaluate_derivative(
     else
         n_exprs = n_supps - order - 1
     end
-    n_exprs < 0 && error("$(pref) does not have enough supports for derivative evaluation of $(dref).")
+    n_exprs < 1 && error("$(pref) does not have enough supports for derivative evaluation of $(dref).")
     # make the expressions
     exprs = Vector{JuMP.AbstractJuMPScalar}(undef, n_exprs)
     for i in eachindex(exprs)
