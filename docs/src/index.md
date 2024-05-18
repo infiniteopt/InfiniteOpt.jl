@@ -68,6 +68,7 @@ Accepted infinite/finite problem forms currently include:
     - Conic
     - Semi-definite
     - Indicator
+    - Anything else supported by JuMP
 
 ### Infinite-Dimensional Optimization with InfiniteOpt.jl
 See our YouTube overview of infinite-dimensional programming and InfiniteOpt.jl's 

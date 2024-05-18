@@ -1152,7 +1152,7 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
         else
             _remove_variable(func, gvref)
             # update the object numbers if vref is infinite
-            if vref isa Union{InfiniteVariableRef, SemiInfiniteVariableRef}
+            if vref isa Union{InfiniteVariableRef, SemiInfiniteVariableRef, DerivativeRef}
                 _data_object(cref).object_nums = sort(_object_numbers(func))
             end
         end

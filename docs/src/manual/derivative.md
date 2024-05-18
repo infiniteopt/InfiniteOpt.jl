@@ -21,6 +21,7 @@ DerivativeRef
 ```@docs
 derivative_argument(::DerivativeRef)
 operator_parameter(::DerivativeRef)
+derivative_order(::DerivativeRef)
 num_derivatives
 all_derivatives
 parameter_refs(::DerivativeRef)
@@ -55,6 +56,7 @@ has_derivative_constraints(::DerivativeRef)
 derivative_constraints(::DerivativeRef)
 delete_derivative_constraints(::DerivativeRef)
 evaluate_derivative
+allows_high_order_derivatives
 generative_support_info(::AbstractDerivativeMethod)
 support_label(::AbstractDerivativeMethod)
 InfiniteOpt.make_reduced_expr

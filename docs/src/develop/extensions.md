@@ -200,11 +200,12 @@ we provide an API to do just this. A complete template is provided in
 to help streamline this process. The extension steps are:
 1. Define the new method `struct` that inherits from the correct 
    [`AbstractDerivativeMethod`](@ref) subtype
-2. Extend [`InfiniteOpt.generative_support_info`](@ref InfiniteOpt.generative_support_info(::AbstractDerivativeMethod)) 
+2. Extend [`allows_high_order_derivatives`](@ref)
+3. Extend [`InfiniteOpt.generative_support_info`](@ref InfiniteOpt.generative_support_info(::AbstractDerivativeMethod)) 
    if the method is a [`GenerativeDerivativeMethod`](@ref)
-3. Extend [`InfiniteOpt.evaluate_derivative`](@ref).
+4. Extend [`InfiniteOpt.evaluate_derivative`](@ref).
 
-To exemplify this process let's implement explicit Euler which is already 
+To exemplify this process let's implement 1st order explicit Euler which is already 
 implemented via `FiniteDifference(Forward())`, but let's make our own anyway for 
 the sake of example. For a first order derivative ``\frac{d y(t)}{dt}`` explicit 
 Euler is expressed:
@@ -228,10 +229,23 @@ support scheme without adding any additional supports. If our desired method
 needed to add additional supports (e.g., orthogonal collocation over finite 
 elements) then we would need to have used [`GenerativeDerivativeMethod`](@ref).
 
-Since, this is a `NonGenerativeDerivativeMethod` we skip step 2. This is 
+Now we need to decide if this method will directly support higher order derivatives. 
+In this case, let's say it won't and define:
+```jldoctest deriv_ext; output = false
+InfiniteOpt.allows_high_order_derivatives(::ExplicitEuler) = false
+
+# output
+
+
+```
+Conversely, we could set the output to `true` if we wanted to directly support higher 
+order derivatives. In which case, we would need to query [`derivative_order`](@ref) 
+in [`InfiniteOpt.evaluate_derivative`](@ref) and account for the order as needed.
+
+Since, this is a `NonGenerativeDerivativeMethod` we skip step 3. This is 
 however exemplified in the extension template.
 
-Now we just need to do step 3 which is to extend 
+Now we just need to do step 4 which is to extend 
 [`InfiniteOpt.evaluate_derivative`](@ref). This function generates all the 
 expressions necessary to build the derivative evaluation equations (derivative 
 constraints). We assume these relations to be of the form ``h = 0`` where ``h`` 
@@ -251,11 +265,11 @@ With this in mind let's now extend `InfiniteOpt.evaluate_derivative`:
 ```jldoctest deriv_ext; output = false
 function InfiniteOpt.evaluate_derivative(
     dref::GeneralVariableRef, 
+    vref::GeneralVariableRef, # the variable that the derivative acts on
     method::ExplicitEuler,
     write_model::JuMP.AbstractModel
-    )::Vector{JuMP.AbstractJuMPScalar}
+    )
     # get the basic derivative information 
-    vref = derivative_argument(dref)
     pref = operator_parameter(dref)
     # generate the derivative expressions h_i corresponding to the equations of 
     # the form h_i = 0
@@ -279,7 +293,8 @@ We used [`InfiniteOpt.make_reduced_expr`](@ref) as a convenient helper function
 to generate the semi-infinite variables/expressions we need to generate at each 
 support point. Also note that [`InfiniteOpt.add_generative_supports`](@ref) needs 
 to be included for `GenerativeDerivativeMethods`, but is not necessary in this 
-example.
+example. We also would have needed to query [`derivative_order`](@ref) and take it 
+into account if we had selected this method to support higher order derivatives.
 
 Now that we have completed all the necessary steps, let's try it out! 
 ```jldoctest deriv_ext
@@ -296,8 +311,8 @@ julia> evaluate(dy)
 
 julia> derivative_constraints(dy)
 2-element Vector{InfOptConstraintRef}:
- y(5) - y(0) - 5 ∂/∂t[y(t)](0) = 0.0
- y(10) - y(5) - 5 ∂/∂t[y(t)](5) = 0.0
+ y(5) - y(0) - 5 d/dt[y(t)](0) = 0.0
+ y(10) - y(5) - 5 d/dt[y(t)](5) = 0.0
 ```
 We implemented explicit Euler and it works! Now go and extend away!
 

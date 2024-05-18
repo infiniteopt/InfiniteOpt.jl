@@ -468,7 +468,8 @@ end
     gvref = GeneralVariableRef(m, 1, TestIndex)
     # loop through methods 
     for f in (:derivative_argument, :operator_parameter, :evaluate, 
-              :derivative_constraints, :delete_derivative_constraints)
+              :derivative_constraints, :delete_derivative_constraints,
+              :derivative_order)
         @test_throws ArgumentError eval(f)(dvref)
         @test_throws ArgumentError eval(f)(gvref)
     end

@@ -479,7 +479,7 @@ end
         func = (x) -> NaN
         num = 0.
         info = VariableInfo(true, num, true, num, true, num, false, func, true, true)
-        deriv = Derivative(info, true, y, t)
+        deriv = Derivative(info, true, y, t, 1)
         object = VariableData(deriv)
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)

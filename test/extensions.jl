@@ -70,7 +70,7 @@ end
     @test support_label(method) == InternalLabel
 
     # test evaluation 
-    @test InfiniteOpt.evaluate_derivative(d, method, m) isa Vector 
+    @test InfiniteOpt.evaluate_derivative(d, x, method, m) isa Vector 
     @test has_generative_supports(t)
     @test num_supports(t, label = All) == 5
     @test evaluate(d) isa Nothing 

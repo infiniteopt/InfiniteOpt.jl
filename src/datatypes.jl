@@ -392,7 +392,8 @@ abstract type FDTechnique end
     Forward <: FDTechnique
 
 A technique label for finite difference method that implements a forward 
-difference approximation.
+difference approximation with first order truncation error. Supports any 
+derivative order (i.e., 1st derivatives, 2nd derivatives, etc.).
 """
 struct Forward <: FDTechnique end
 
@@ -400,7 +401,8 @@ struct Forward <: FDTechnique end
     Central <: FDTechnique
 
 A technique label for finite difference method that implements a central 
-difference approximation.
+difference approximation with first order truncation error. Supports 
+derivatives of order 1, 2, 4, 6, etc.
 """
 struct Central <: FDTechnique end
 
@@ -408,7 +410,8 @@ struct Central <: FDTechnique end
     Backward <: FDTechnique
 
 A technique label for finite difference method that implements a backward 
-difference approximation.
+difference approximation with first order truncation error. Supports any
+derivative order (i.e., 1st derivatives, 2nd derivatives, etc.).
 """
 struct Backward <: FDTechnique end
 
@@ -421,14 +424,22 @@ a derivative evaluation. Note that the constructor is of the form:
     FiniteDifference([technique::FDTechnique = Backward()],
                      [add_boundary_constr::Bool = true])
 ```
-where `technique` is the indicated finite difference method to be applied and 
-`add_boundary_constr` indicates if the finite difference equation corresponding to 
-a boundary support should be included. Thus, for backward difference since
-corresponds to the terminal point and for forward difference this corresponds to 
-the initial point. We recommend using `add_boundary_constr = false` when an final 
-condition is given with a backward method or when an initial condition is given 
-with a forward method. Note that this argument is ignored for central finite 
-difference which cannot include any boundary points.
+where `technique` is the indicated finite difference method to be applied and. 
+Supported techniques include:
+- [`Forward`](@ref)
+- [`Central`](@ref)
+- [`Backward`](@ref)
+These are all first order methods in terms of truncation error. Moreover, they 
+support derivatives of any order (except `Central` does not support odd orders 
+greater than 1).
+The `add_boundary_constr` argument indicates if the finite difference equation 
+corresponding to a boundary support should be included. Thus, for backward 
+difference this corresponds to the terminal point and for forward difference 
+this corresponds to the initial point. We recommend using 
+`add_boundary_constr = false` when an final condition is given with a backward 
+method or when an initial condition is given with a forward method. Note that 
+this argument is ignored for central finite difference which cannot include 
+any boundary points. 
 
 **Fields** 
 - `technique::T`: Mathematical technqiue behind finite difference
@@ -860,9 +871,10 @@ end
     Derivative{F <: Function, V <: GeneralVariableRef} <: JuMP.AbstractVariable
 
 A `DataType` for storing core infinite derivative information. This follows a 
-derivative of the form: ``\\frac{\\partial x(\\alpha, \\hdots)}{\\partial \\alpha}`` 
-where ``x(\\alpha, \\hdots)`` is an infinite variable and ``\\alpha`` is an infinite 
-parameter. Here, both ``x`` and ``\\alpha`` must be scalars. 
+derivative of the form: ``\\frac{\\partial y(\\alpha, \\hdots)}{\\partial \\alpha}`` 
+where ``y(\\alpha, \\hdots)`` is an infinite variable and ``\\alpha`` is an infinite 
+parameter. Here, both ``y`` and ``\\alpha`` must be scalars. Higher-order derivatives 
+are also supported: ``\\frac{\\partial^n y(\\alpha, \\hdots)}{\\partial \\alpha^n}``. 
 
 It is important to note that `info.start` should contain a start value function
 that generates the start value for a given infinite parameter support. This
@@ -875,14 +887,16 @@ infinite variables and parameters.
 - `info::JuMP.VariableInfo{Float64, Float64, Float64, F}`: JuMP variable information.
 - `is_vector_start::Bool`: Does the start function take support values formatted as vectors?
 - `variable_ref::V`: The variable reference of the infinite variable argument.
-- `parameter_ref::V`: The variable reference of the infinite parameter the defines the
+- `parameter_ref::V`: The variable reference of the infinite parameter that defines the
    differential operator.
+- `order::Int`: The order of the derivative.
 """
 struct Derivative{F <: Function, V <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
     info::JuMP.VariableInfo{Float64, Float64, Float64, F}
     is_vector_start::Bool
     variable_ref::V # could be ref of infinite/semi-infinite variable/derivative or measure (top of derivative)
-    parameter_ref::V # a scalar infinite parameter ref (bottom of derivative)
+    parameter_ref::V # a scalar infinite parameter (bottom of derivative)
+    order::Int
 end
 
 ################################################################################
@@ -1384,7 +1398,7 @@ function InfiniteModel(;
                          nothing,
                          # Derivatives
                          MOIUC.CleverDict{DerivativeIndex, VariableData{<:Derivative}}(),
-                         Dict{Tuple{GeneralVariableRef, GeneralVariableRef}, DerivativeIndex}(),
+                         Dict{Tuple{GeneralVariableRef, GeneralVariableRef, Int}, DerivativeIndex}(),
                          # Measures
                          MOIUC.CleverDict{MeasureIndex, MeasureData{<:Measure}}(),
                          # Constraints
