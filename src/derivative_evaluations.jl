@@ -128,11 +128,16 @@ end
     make_reduced_expr(vref::GeneralVariableRef, pref::GeneralVariableRef, 
                       support::Float64, write_model::Union{InfiniteModel, JuMP.Model})
 
+    make_reduced_expr(vref::GeneralVariableRef, pref::GeneralVariableRef, 
+                      supports::Vector{Float64}, idx::Int, write_model::Union{InfiniteModel, JuMP.Model})
+
 Given the argument variable `vref` and the operator parameter `pref` from a 
 derivative, build and return the reduced expression in accordance to the support 
 `support` with respect to `pref`. New point/semi-infinite variables will be written to 
 `write_model`. This is solely intended as a helper function for derivative 
-evaluation.
+evaluation. Instead of providing the support directly, one can also provide the 
+vector of supports `supports` and the `index` that retreives the support of interest; 
+this is useful an an extension point for backends that only want the index. 
 """
 function make_reduced_expr(
     vref::GeneralVariableRef, 
@@ -141,6 +146,17 @@ function make_reduced_expr(
     write_model::JuMP.AbstractModel
     )
     return make_reduced_expr(vref, _index_type(vref), pref, support, write_model)
+end
+
+# unindexed supports (fallback) --> useful for backends that just want the index of the support
+function make_reduced_expr(
+    vref::GeneralVariableRef,
+    pref::GeneralVariableRef,
+    supps::Vector{Float64},
+    idx::Int,
+    write_model::JuMP.AbstractModel
+    )
+    return make_reduced_expr(vref, pref, supps[idx], write_model)
 end
 
 # MeasureIndex
@@ -210,6 +226,158 @@ end
 #                        EVALUATE_DERIVIATIVE DEFINITIONS
 ################################################################################
 """
+
+"""
+function make_indexed_derivative_expr(
+    dref::GeneralVariableRef,
+    vref::GeneralVariableRef,
+    pref::GeneralVariableRef,
+    order::Int,
+    idx::Int,
+    supps::Vector{Float64},
+    write_model::JuMP.AbstractModel,
+    method::AbstractDerivativeMethod,
+    constants...
+    )
+    error("`make_indexed_derivative_expr` not defined for derivative method of type " * 
+          "`$(typeof(method))` with extra arguments `$(string(constants)[2:end-1])`.")
+end
+
+"""
+
+"""
+function derivative_expr_data(
+    dref::GeneralVariableRef, 
+    order::Int,
+    supps::Vector{Float64},
+    method::AbstractDerivativeMethod,
+    )
+    error("`derivative_expr_data` not defined for derivative method of type " * 
+          "`$(typeof(method))`.")
+end
+
+function make_indexed_derivative_expr(
+    dref::GeneralVariableRef,
+    vref::GeneralVariableRef,
+    pref::GeneralVariableRef,
+    order::Int,
+    idx::Int,
+    supps::Vector{Float64}, # ordered
+    write_model::JuMP.AbstractModel,
+    ::FiniteDifference{Forward},
+    supp_product
+    )
+    return @_expr(
+        make_reduced_expr(dref, pref, supps, idx, write_model) * supp_product - 
+        sum((-1)^(order-k) * binomial(order, k) * make_reduced_expr(vref, pref, supps, idx + k, write_model) for k in 0:order)
+        )
+end
+
+function derivative_expr_data(
+    dref::GeneralVariableRef, 
+    order::Int,
+    supps::Vector{Float64},
+    method::FiniteDifference{Forward},
+    )
+    # check the number of supports
+    n_supps = length(supps)
+    n_exprs = n_supps - order - 1
+    n_exprs < 1 && error("$(pref) does not have enough supports for derivative evaluation of $(dref).")
+    # determine the derivative support indices
+    idxs = method.add_boundary_constraint ? (1:n_exprs+1) : (2:n_exprs+1)
+    # determine the support products (e.g., Δt) used by the approximation
+    supp_products = (prod(supps[idx + k] - supps[idx + k - 1] for k in 1:order) for idx in idxs)
+    return idxs, supp_products
+end
+
+function make_indexed_derivative_expr(
+    dref::GeneralVariableRef,
+    vref::GeneralVariableRef,
+    pref::GeneralVariableRef,
+    order::Int,
+    idx::Int,
+    supps::Vector{Float64}, # ordered
+    write_model::JuMP.AbstractModel,
+    ::FiniteDifference{Central},
+    supp_product
+    )
+    if isone(order)
+        return @_expr(
+            make_reduced_expr(dref, pref, supps, idx, write_model) * supp_product -
+            make_reduced_expr(vref, pref, supps, idx+1, write_model) +
+            make_reduced_expr(vref, pref, supps, idx-1, write_model)
+            )
+    else
+        offset = order ÷ 2
+        return @_expr(
+            make_reduced_expr(dref, pref, supps, idx, write_model) * supp_product - 
+            sum((-1)^(k) * binomial(order, k) * make_reduced_expr(vref, pref, supps, idx - (k + offset), write_model) for k in 0:order)
+            )
+    end
+end
+
+function derivative_expr_data(
+    dref::GeneralVariableRef, 
+    order::Int,
+    supps::Vector{Float64},
+    ::FiniteDifference{Central},
+    )
+    # check the number of supports
+    n_supps = length(supps)
+    if iseven(order)
+        n_exprs = n_supps - order
+    else
+        n_exprs = n_supps - order - 1
+    end
+    n_exprs < 1 && error("$(pref) does not have enough supports for derivative evaluation of $(dref).")
+    # determine the derivative support indices and the support products
+    if isone(order)
+        idxs = 2:n_exprs+1
+        supp_products = (supps[idx+1] - supps[idx-1] for idx in idxs)
+    elseif iseven(order)
+        idxs = 1+(order÷2):n_exprs+(order÷2)
+        supp_products = (prod(supps[idx - k + 1 + offset] - supps[idx - k + offset] for k in 1:order) for idx in idxs)
+    else
+        error("Central difference with odd derivative orders other than 1 is not supported.")
+    end
+    return idxs, supp_products
+end
+
+function make_indexed_derivative_expr(
+    dref::GeneralVariableRef,
+    vref::GeneralVariableRef,
+    pref::GeneralVariableRef,
+    order::Int,
+    idx::Int,
+    supps::Vector{Float64}, # ordered
+    write_model::JuMP.AbstractModel,
+    ::FiniteDifference{Backward},
+    supp_product
+    )
+    return @_expr(
+        make_reduced_expr(dref, pref, supps, idx, write_model) * supp_product - 
+        sum((-1)^(k) * binomial(order, k) * make_reduced_expr(vref, pref, supps, idx - k, write_model) for k in 0:order)
+        )
+end
+
+function derivative_expr_data(
+    dref::GeneralVariableRef, 
+    order::Int,
+    supps::Vector{Float64},
+    method::FiniteDifference{Backward},
+    )
+    # check the number of supports
+    n_supps = length(supps)
+    n_exprs = n_supps - order - 1
+    n_exprs < 1 && error("$(pref) does not have enough supports for derivative evaluation of $(dref).")
+    # determine the derivative support indices
+    idxs = method.add_boundary_constraint ? (1+order:n_exprs+order+1) : (1+order:n_exprs+order)
+    # determine the support products (e.g., Δt) used by the approximation
+    supp_products = (prod(supps[idx - k + 1] - supps[idx - k] for k in 1:order) for idx in idxs)
+    return idxs, supp_products
+end
+
+"""
     evaluate_derivative(dref::GeneralVariableRef, 
                         vref::GeneralVariableRef,
                         method::AbstractDerivativeMethod,
@@ -234,119 +402,20 @@ function evaluate_derivative(
     dref::GeneralVariableRef,  
     vref::GeneralVariableRef,                      
     method::AbstractDerivativeMethod,                         
-    write_model::JuMP.AbstractModel)
-    error("`evaluate_derivative` not defined for derivative method of type " * 
-          "$(typeof(method)).")
-end
-
-## Define helper methods for finite difference 
-# Forward
-function _make_difference_expr(
-    dref::GeneralVariableRef,
-    vref::GeneralVariableRef, 
-    pref::GeneralVariableRef,
-    order::Int,
-    expr_idx::Int, 
-    supps::Vector{Float64}, # ordered
-    write_model::JuMP.AbstractModel, 
-    type::Forward
-    )
-    idx = expr_idx + 1 # support index of appropriate derivative variable
-    supp_product = prod(supps[idx + k] - supps[idx + k - 1] for k in 1:order)
-    return @_expr(
-        make_reduced_expr(dref, pref, supps[idx], write_model) * supp_product - 
-        sum((-1)^(order-k) * binomial(order, k) * make_reduced_expr(vref, pref, supps[idx + k], write_model) for k in 0:order)
-        )
-end
-
-# Central
-function _make_difference_expr(
-    dref::GeneralVariableRef, 
-    vref::GeneralVariableRef, 
-    pref::GeneralVariableRef,
-    order::Int,
-    expr_idx::Int, 
-    supps::Vector{Float64}, # ordered
-    write_model::JuMP.AbstractModel, 
-    type::Central
-    )
-    if order == 1
-        idx = expr_idx + 1 # support index of appropriate derivative variable
-        return @_expr(
-            make_reduced_expr(dref, pref, supps[idx], write_model) * (supps[idx+1] - supps[idx-1]) -
-            make_reduced_expr(vref, pref, supps[idx+1], write_model) +
-            make_reduced_expr(vref, pref, supps[idx-1], write_model)
-            )
-    elseif iseven(order)
-        offset = order ÷ 2
-        idx = expr_idx + offset # support index of appropriate derivative variable
-        supp_product = prod(supps[idx - k + 1 + offset] - supps[idx - k + offset] for k in 1:order)
-        return @_expr(
-            make_reduced_expr(dref, pref, supps[idx], write_model) * supp_product - 
-            sum((-1)^(k) * binomial(order, k) * make_reduced_expr(vref, pref, supps[idx - k + offset], write_model) for k in 0:order)
-            )
-    else
-        error("Central difference with odd derivative orders other than 1 is not supported.")
-    end
-end
-
-# Backward
-function _make_difference_expr(
-    dref::GeneralVariableRef,
-    vref::GeneralVariableRef, 
-    pref::GeneralVariableRef,
-    order::Int,
-    expr_idx::Int, 
-    supps::Vector{Float64}, # ordered
-    write_model::JuMP.AbstractModel,
-    type::Backward
-    )
-    idx = expr_idx + order # support index of appropriate derivative variable
-    supp_product = prod(supps[idx - k + 1] - supps[idx - k] for k in 1:order)
-    return @_expr(
-        make_reduced_expr(dref, pref, supps[idx], write_model) * supp_product - 
-        sum((-1)^(k) * binomial(order, k) * make_reduced_expr(vref, pref, supps[idx - k], write_model) for k in 0:order)
-        )
-end
-
-# Fallback
-function _make_difference_expr(dref, vref, pref, order, idx, supps, model, type)
-    error("Undefined `FiniteDifference` technique `$(typeof(type))`.")
-end
-
-# evaluate_derivative for FiniteDifference
-function evaluate_derivative(
-    dref::GeneralVariableRef, 
-    vref::GeneralVariableRef,
-    method::FiniteDifference, 
     write_model::JuMP.AbstractModel
     )
     # gather the arugment and parameter 
     pref = operator_parameter(dref)
     order = derivative_order(dref)
-    # get the supports and check validity
-    ordered_supps = sort!(supports(pref, label = All))
-    n_supps = length(ordered_supps)
-    if method.technique isa Central && iseven(order)
-        n_exprs = n_supps - order
-    else
-        n_exprs = n_supps - order - 1
+    # get and sort supports
+    if method isa GenerativeDerivativeMethod
+        add_generative_supports(pref)
     end
-    n_exprs < 1 && error("$(pref) does not have enough supports for derivative evaluation of $(dref).")
-    # make the expressions
-    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, n_exprs)
-    for i in eachindex(exprs)
-        exprs[i] = _make_difference_expr(dref, vref, pref, order, i, ordered_supps, 
-                                         write_model, method.technique)
-    end
-    if method.add_boundary_constraint && method.technique isa Forward
-        push!(exprs, _make_difference_expr(dref, vref, pref, order, 0, ordered_supps, 
-                                           write_model, Forward()))
-    elseif method.add_boundary_constraint && method.technique isa Backward
-        push!(exprs, _make_difference_expr(dref, vref, pref, order, n_supps - order, ordered_supps, 
-                                           write_model, Backward()))
-    end
-    return exprs
+    supps = sort!(supports(pref, label = All))
+    # get the necessary data  and make the expressions
+    idxs, arg_itrs... = derivative_expr_data(dref, order, supps, method)
+    return [make_indexed_derivative_expr(dref, vref, pref, order, idx, supps, write_model, method, args...) 
+            for (idx, args...) in zip(idxs, arg_itrs...)]
 end
 
 # Evaluate_derivative for OrthogonalCollocation with Labatto
@@ -388,7 +457,7 @@ function evaluate_derivative(
         Minvt = M1t \ M2t
         for j in eachindex(i_nodes)
             exprs[counter] = @_expr(
-                sum(Minvt[k, j] *  make_reduced_expr(dref, pref, i_nodes[k] + lb, write_model) for k in eachindex(i_nodes)) - 
+                sum(Minvt[k, j] * make_reduced_expr(dref, pref, i_nodes[k] + lb, write_model) for k in eachindex(i_nodes)) - 
                 make_reduced_expr(vref, pref, i_nodes[j] + lb, write_model) + 
                 make_reduced_expr(vref, pref, lb, write_model)
                 )
