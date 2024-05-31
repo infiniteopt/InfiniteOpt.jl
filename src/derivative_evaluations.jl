@@ -153,7 +153,7 @@ function make_reduced_expr(
     vref::GeneralVariableRef,
     pref::GeneralVariableRef,
     supps::Vector{Float64},
-    idx::Int,
+    idx,
     write_model::JuMP.AbstractModel
     )
     return make_reduced_expr(vref, pref, supps[idx], write_model)
@@ -226,14 +226,40 @@ end
 #                        EVALUATE_DERIVIATIVE DEFINITIONS
 ################################################################################
 """
+    make_indexed_derivative_expr(
+        dref::GeneralVariableRef,
+        vref::GeneralVariableRef,
+        pref::GeneralVariableRef,
+        order::Int,
+        idx,
+        supps::Vector{Float64},
+        write_model::JuMP.AbstractModel,
+        method::AbstractDerivativeMethod,
+        expr_params...
+        )
 
+Produce an expression that numerically approvides the derivative `dref` at a 
+particular support value (`supps[idx]`) where `supps` are the ordered support 
+values of the derivative parameter `pref`. This an extension point for 
+developers adding a new `method` type. It should be defined in connection with 
+an extension to [`make_indexed_derivative_expr`](@ref). [`evaluate_derivative`](@ref) 
+will then use these to generate derivative approximation equations. 
+
+This considers a a derivative of 
+order `order` on `vref` taken with respect to `pref`. The resulting expression 
+is intended for `write_model` and the method [`make_reduced_expr`](@ref) is 
+can be helpful for generating semi-infinite and point variables of `vref`.
+Additionally, parameter values needed for the approximation (e.g., Δt) can 
+be provided as extra arguments (note that these must be scalars). The 
+iteration data used to provide `idx` and `expr_params` is created using 
+[`derivative_expr_data`](@ref). 
 """
 function make_indexed_derivative_expr(
     dref::GeneralVariableRef,
     vref::GeneralVariableRef,
     pref::GeneralVariableRef,
     order::Int,
-    idx::Int,
+    idx,
     supps::Vector{Float64},
     write_model::JuMP.AbstractModel,
     method::AbstractDerivativeMethod,
@@ -253,15 +279,19 @@ function derivative_expr_data(
     method::AbstractDerivativeMethod,
     )
     error("`derivative_expr_data` not defined for derivative method of type " * 
-          "`$(typeof(method))`.")
+          "`$(typeof(method))`. It might be because the optimizer model doesn't " *
+          "support this particular derivative method. If you are extending InfiniteOpt" * 
+          "to have a new derivative method, please extend `derivative_expr_data` if " *
+          "possible. See the documentation for details.")
 end
 
+# Forward Difference
 function make_indexed_derivative_expr(
     dref::GeneralVariableRef,
     vref::GeneralVariableRef,
     pref::GeneralVariableRef,
     order::Int,
-    idx::Int,
+    idx,
     supps::Vector{Float64}, # ordered
     write_model::JuMP.AbstractModel,
     ::FiniteDifference{Forward},
@@ -272,7 +302,6 @@ function make_indexed_derivative_expr(
         sum((-1)^(order-k) * binomial(order, k) * make_reduced_expr(vref, pref, supps, idx + k, write_model) for k in 0:order)
         )
 end
-
 function derivative_expr_data(
     dref::GeneralVariableRef, 
     order::Int,
@@ -280,8 +309,7 @@ function derivative_expr_data(
     method::FiniteDifference{Forward},
     )
     # check the number of supports
-    n_supps = length(supps)
-    n_exprs = n_supps - order - 1
+    n_exprs = length(supps) - order - 1
     n_exprs < 1 && error("$(pref) does not have enough supports for derivative evaluation of $(dref).")
     # determine the derivative support indices
     idxs = method.add_boundary_constraint ? (1:n_exprs+1) : (2:n_exprs+1)
@@ -290,12 +318,13 @@ function derivative_expr_data(
     return idxs, supp_products
 end
 
+# Central Difference
 function make_indexed_derivative_expr(
     dref::GeneralVariableRef,
     vref::GeneralVariableRef,
     pref::GeneralVariableRef,
     order::Int,
-    idx::Int,
+    idx,
     supps::Vector{Float64}, # ordered
     write_model::JuMP.AbstractModel,
     ::FiniteDifference{Central},
@@ -315,7 +344,6 @@ function make_indexed_derivative_expr(
             )
     end
 end
-
 function derivative_expr_data(
     dref::GeneralVariableRef, 
     order::Int,
@@ -323,11 +351,10 @@ function derivative_expr_data(
     ::FiniteDifference{Central},
     )
     # check the number of supports
-    n_supps = length(supps)
     if iseven(order)
-        n_exprs = n_supps - order
+        n_exprs = length(supps) - order
     else
-        n_exprs = n_supps - order - 1
+        n_exprs = length(supps) - order - 1
     end
     n_exprs < 1 && error("$(pref) does not have enough supports for derivative evaluation of $(dref).")
     # determine the derivative support indices and the support products
@@ -343,12 +370,13 @@ function derivative_expr_data(
     return idxs, supp_products
 end
 
+# Backward Difference
 function make_indexed_derivative_expr(
     dref::GeneralVariableRef,
     vref::GeneralVariableRef,
     pref::GeneralVariableRef,
     order::Int,
-    idx::Int,
+    idx,
     supps::Vector{Float64}, # ordered
     write_model::JuMP.AbstractModel,
     ::FiniteDifference{Backward},
@@ -359,7 +387,6 @@ function make_indexed_derivative_expr(
         sum((-1)^(k) * binomial(order, k) * make_reduced_expr(vref, pref, supps, idx - k, write_model) for k in 0:order)
         )
 end
-
 function derivative_expr_data(
     dref::GeneralVariableRef, 
     order::Int,
@@ -367,14 +394,66 @@ function derivative_expr_data(
     method::FiniteDifference{Backward},
     )
     # check the number of supports
-    n_supps = length(supps)
-    n_exprs = n_supps - order - 1
+    n_exprs = length(supps) - order - 1
     n_exprs < 1 && error("$(pref) does not have enough supports for derivative evaluation of $(dref).")
     # determine the derivative support indices
     idxs = method.add_boundary_constraint ? (1+order:n_exprs+order+1) : (1+order:n_exprs+order)
     # determine the support products (e.g., Δt) used by the approximation
     supp_products = (prod(supps[idx - k + 1] - supps[idx - k] for k in 1:order) for idx in idxs)
     return idxs, supp_products
+end
+
+# OrthogonalCollocation (Lobatto)
+function make_indexed_derivative_expr(
+    dref::GeneralVariableRef,
+    vref::GeneralVariableRef,
+    pref::GeneralVariableRef,
+    order::Int,
+    idx,
+    supps::Vector{Float64}, # ordered
+    write_model::JuMP.AbstractModel,
+    method::OrthogonalCollocation{MeasureToolbox.GaussLobatto},
+    lb_idx,
+    coeffs...
+    )
+    n_coeffs = length(coeffs)
+    return @_expr(
+        sum(coeffs[k] * make_reduced_expr(dref, pref, supps, lb_idx + k, write_model) for k in 1:n_coeffs) - 
+        make_reduced_expr(vref, pref, supps, idx + 1, write_model) + 
+        make_reduced_expr(vref, pref, supps, lb_idx, write_model)
+        )
+end
+function derivative_expr_data(
+    dref::GeneralVariableRef, 
+    order::Int,
+    supps::Vector{Float64},
+    method::OrthogonalCollocation{MeasureToolbox.GaussLobatto},
+    )
+    # determine basic finite element info
+    n_coeffs = method.num_nodes - 1 # dimension of M matrix
+    # prepare the indices for expression generation
+    idxs = 1:length(supps)-1
+    lb_idxs = (((idx - 1) ÷ n_coeffs) * n_coeffs + 1 for idx in idxs)
+    # compute M matrix for each finite element and gather the coefficients for each equation
+    coeffs_list = sizehint!(SubArray{Float64, 1, Matrix{Float64}, Tuple{Base.Slice{Base.OneTo{Int64}}, Int64}, true}[], length(supps) - 1)
+    for i in 1:n_coeffs:length(supps)-1
+        # collect the supports
+        lb = supps[i]
+        i_nodes = @view(supps[i+1:i+n_coeffs])
+        # build the matrices in memory order (column-wise using the transpose form)
+        M1t = Matrix{Float64}(undef, n_coeffs, n_coeffs)
+        M2t = Matrix{Float64}(undef, n_coeffs, n_coeffs)
+        for j in eachindex(i_nodes) # support index
+            for k in eachindex(i_nodes) # polynomial index
+                @inbounds M1t[k, j] = k * (i_nodes[j] - lb)^(k-1)
+                @inbounds M2t[k, j] = (i_nodes[j] - lb)^k
+            end
+        end
+        Minvt = M1t \ M2t
+        append!(coeffs_list, eachcol(Minvt))
+    end
+    coeff_itrs = ((cs[j] for cs in coeffs_list) for j in 1:n_coeffs)
+    return idxs, lb_idxs, coeff_itrs...
 end
 
 """
@@ -400,7 +479,7 @@ it convenient to use `make_reduced_expr`.
 """
 function evaluate_derivative(
     dref::GeneralVariableRef,  
-    vref::GeneralVariableRef,                      
+    vref::GeneralVariableRef,                          
     method::AbstractDerivativeMethod,                         
     write_model::JuMP.AbstractModel
     )
@@ -408,63 +487,12 @@ function evaluate_derivative(
     pref = operator_parameter(dref)
     order = derivative_order(dref)
     # get and sort supports
-    if method isa GenerativeDerivativeMethod
-        add_generative_supports(pref)
-    end
+    add_generative_supports(pref)
     supps = sort!(supports(pref, label = All))
     # get the necessary data  and make the expressions
     idxs, arg_itrs... = derivative_expr_data(dref, order, supps, method)
     return [make_indexed_derivative_expr(dref, vref, pref, order, idx, supps, write_model, method, args...) 
             for (idx, args...) in zip(idxs, arg_itrs...)]
-end
-
-# Evaluate_derivative for OrthogonalCollocation with Labatto
-# This is based on the collocation scheme presented in "Nonlinear Modeling, 
-# Estimation and Predictive Control in APMonitor"
-function evaluate_derivative(
-    dref::GeneralVariableRef, 
-    vref::GeneralVariableRef,
-    method::OrthogonalCollocation{MeasureToolbox.GaussLobatto}, 
-    write_model::JuMP.AbstractModel
-    )
-    # gather the arugment and parameter 
-    pref = operator_parameter(dref)
-    # ensure that the internal supports are added in case they haven't already 
-    add_generative_supports(pref) # this checks for enough supports
-    # gather the supports and indices of the internal supports
-    all_supps = supports(pref, label = All) # sorted by virtue of SortedDict
-    bool_inds = map(s -> !(support_label(method) in s), 
-                    values(_parameter_supports(dispatch_variable_ref(pref))))
-    interval_inds = findall(bool_inds)
-    n_nodes = method.num_nodes - 2 # we want the # of internal nodes
-    # compute M matrix based on the node values and generate expressions using 
-    # the M matrix and `make_reduced_expr`
-    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(all_supps) - 1)
-    counter = 1
-    for i in Iterators.take(eachindex(interval_inds), length(interval_inds) - 1)
-        # collect the supports
-        lb = all_supps[interval_inds[i]]
-        i_nodes = all_supps[interval_inds[i]+1:interval_inds[i+1]] .- lb
-        # build the matrices in memory order (column-wise using the transpose form)
-        M1t = Matrix{Float64}(undef, n_nodes+1, n_nodes+1)
-        M2t = Matrix{Float64}(undef, n_nodes+1, n_nodes+1)
-        for j in eachindex(i_nodes) # support index
-            for k in eachindex(i_nodes) # polynomial index
-                M1t[k, j] = k * i_nodes[j]^(k-1)
-                M2t[k, j] = i_nodes[j]^k
-            end
-        end
-        Minvt = M1t \ M2t
-        for j in eachindex(i_nodes)
-            exprs[counter] = @_expr(
-                sum(Minvt[k, j] * make_reduced_expr(dref, pref, i_nodes[k] + lb, write_model) for k in eachindex(i_nodes)) - 
-                make_reduced_expr(vref, pref, i_nodes[j] + lb, write_model) + 
-                make_reduced_expr(vref, pref, lb, write_model)
-                )
-            counter += 1
-        end
-    end
-    return exprs
 end
 
 ################################################################################
