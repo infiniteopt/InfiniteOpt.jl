@@ -72,44 +72,45 @@ end
     d5 = deriv(y, t, t)
     d6 = deriv(y, t, t, t)
     d7 = @deriv(y, t^4)
+    ts = supports(t)
     # test fallback 
     @testset "Fallback" begin 
-        @test_throws ErrorException InfiniteOpt.evaluate_derivative(d1, y, TestMethod(), m)
+        @test_throws ErrorException InfiniteOpt.make_indexed_derivative_expr(d1, y, t, 1, 1, ts, m, TestMethod(), 42)
+        @test_throws ErrorException InfiniteOpt.derivative_expr_data(d1, 1, ts, TestMethod())
     end
-    # test _make_difference_expr for Forward 
-    @testset "_make_difference_expr (Forward)" begin 
-        supps = supports(t, label = All)
+    # test make_indexed_derivative_expr for Forward 
+    @testset "make_indexed_derivative_expr (Forward)" begin 
+        ts = supports(t, label = All)
+        method = FiniteDifference(Forward())
         # test 1st order
         expected = 2.5d1(0) - y(2.5) + y(0)
-        @test isequal_canonical(InfiniteOpt._make_difference_expr(d1, y, t, 1, 0, supps, m, Forward()), expected)
+        @test isequal_canonical(InfiniteOpt.make_indexed_derivative_expr(d1, y, t, 1, 1, ts, m, method, 2.5), expected)
         # test 2nd order
         expected = 6.25d5(0) - y(5) + 2y(2.5) - y(0)
-        @test isequal_canonical(InfiniteOpt._make_difference_expr(d5, y, t, 2, 0, supps, m, Forward()), expected)
+        @test isequal_canonical(InfiniteOpt.make_indexed_derivative_expr(d5, y, t, 2, 1, ts, m, method, 2.5^2), expected)
     end
-    # test _make_difference_expr for Central
-    @testset "_make_difference_expr (Central)" begin 
-        supps = supports(t, label = All)
+    # test make_indexed_derivative_expr for Central
+    @testset "make_indexed_derivative_expr (Central)" begin 
+        ts = supports(t, label = All)
+        method = FiniteDifference(Central())
         # test 1st order
         expected = 5d2(2.5, x) - q(5, x) + q(0, x)
-        @test isequal_canonical(InfiniteOpt._make_difference_expr(d2, q, t, 1, 1, supps, m, Central()), expected)
+        @test isequal_canonical(InfiniteOpt.make_indexed_derivative_expr(d2, q, t, 1, 2, ts, m, method, 5), expected)
         # test 2nd order
         expected = 6.25d5(2.5) - y(5) + 2y(2.5) - y(0)
-        @test isequal_canonical(InfiniteOpt._make_difference_expr(d5, y, t, 2, 1, supps, m, Central()), expected)
+        @test isequal_canonical(InfiniteOpt.make_indexed_derivative_expr(d5, y, t, 2, 2, ts, m, method, 2.5^2), expected)
     end
-    # test _make_difference_expr for Backward
-    @testset "_make_difference_expr (Backward)" begin 
-        supps = sort(supports(x[2], label = All))
+    # test make_indexed_derivative_expr for Backward
+    @testset "make_indexed_derivative_expr (Backward)" begin 
+        xs = sort(supports(x[2], label = All))
+        method = FiniteDifference(Backward())
         # test 1st order
         expected = 0.5d3(t, [x[1], 0.5]) - q(t, [x[1], 0.5]) + q(t, [x[1], 0])
-        @test isequal_canonical(InfiniteOpt._make_difference_expr(d3, q, x[2], 1, 1, supps, m, Backward()), expected)
+        @test isequal_canonical(InfiniteOpt.make_indexed_derivative_expr(d3, q, x[2], 1, 2, xs, m, method, 0.5), expected)
         # test 2nd order
-        supps = supports(t, label = All)
+        ts = supports(t, label = All)
         expected = 6.25d5(5) - y(5) + 2y(2.5) - y(0)
-        @test isequal_canonical(InfiniteOpt._make_difference_expr(d5, y, t, 2, 1, supps, m, Backward()), expected)
-    end
-    # test _make_difference_expr fallback
-    @testset "_make_difference_expr (Fallback)" begin 
-        @test_throws ErrorException InfiniteOpt._make_difference_expr(d3, q, x[2], 1, 2, [1], m, BadFiniteTech())
+        @test isequal_canonical(InfiniteOpt.make_indexed_derivative_expr(d5, y, t, 2, 3, ts, m, method, 2.5^2), expected)
     end
     # test FiniteDifference with evaluate_derivative
     @testset "FiniteDifference" begin 

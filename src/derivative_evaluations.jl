@@ -240,14 +240,14 @@ end
 
 Produce an expression that numerically approvides the derivative `dref` at a 
 particular support value (`supps[idx]`) where `supps` are the ordered support 
-values of the derivative parameter `pref`. This an extension point for 
+values of the derivative parameter `pref`. This is an extension point for 
 developers adding a new `method` type. It should be defined in connection with 
-an extension to [`make_indexed_derivative_expr`](@ref). [`evaluate_derivative`](@ref) 
+an extension to [`derivative_expr_data`](@ref). [`evaluate_derivative`](@ref) 
 will then use these to generate derivative approximation equations. 
 
-This considers a a derivative of 
+This considers a derivative of 
 order `order` on `vref` taken with respect to `pref`. The resulting expression 
-is intended for `write_model` and the method [`make_reduced_expr`](@ref) is 
+is intended for `write_model` and the method [`make_reduced_expr`](@ref) 
 can be helpful for generating semi-infinite and point variables of `vref`.
 Additionally, parameter values needed for the approximation (e.g., Δt) can 
 be provided as extra arguments (note that these must be scalars). The 
@@ -266,11 +266,43 @@ function make_indexed_derivative_expr(
     constants...
     )
     error("`make_indexed_derivative_expr` not defined for derivative method of type " * 
-          "`$(typeof(method))` with extra arguments `$(string(constants)[2:end-1])`.")
+          "`$(typeof(method))` with extra arguments `$(string(constants)[2:end-1])`." * 
+          "Developers that encounter this error should extend `make_indexed_derivative_expr` " *
+          "and `derivative_expr_data`.")
 end
 
 """
+    derivative_expr_data(
+        dref::GeneralVariableRef, 
+        order::Int,
+        supps::Vector{Float64},
+        method::AbstractDerivativeMethod,
+        )
 
+Produce the data needed to generated derivative approximation equations for 
+the derivative `dref` in accordance with [`make_indexed_derivative_expr`](@ref). 
+This is intended as an extension point when defining new derivative approximation 
+methods. It should return a tuple of interators needed to generate the constraint 
+expressions with `make_indexed_derivative_expr` and it is used within 
+[`evaluate_derivate`](@ref) (given `dref`, `vref`, `pref`, `order`, 
+`supps`, `write_model`, and `method`) to generate a constraint expression 
+`constr_expr` for each index of `idxs`:
+```julia
+idxs, extra_itrs... = derivative_expr_data(dref, order, supps, method)
+for (idx, extra_data...) in zip(idxs, extra_itrs...)
+    constr_expr = make_indexed_derivative_expr(
+        dref, 
+        vref, 
+        pref, 
+        order, 
+        idx, 
+        supps, 
+        write_model, 
+        method, 
+        extra_data...
+        )
+end
+```
 """
 function derivative_expr_data(
     dref::GeneralVariableRef, 
@@ -340,7 +372,7 @@ function make_indexed_derivative_expr(
         offset = order ÷ 2
         return @_expr(
             make_reduced_expr(dref, pref, supps, idx, write_model) * supp_product - 
-            sum((-1)^(k) * binomial(order, k) * make_reduced_expr(vref, pref, supps, idx - (k + offset), write_model) for k in 0:order)
+            sum((-1)^(k) * binomial(order, k) * make_reduced_expr(vref, pref, supps, idx + k - offset, write_model) for k in 0:order)
             )
     end
 end
@@ -412,7 +444,7 @@ function make_indexed_derivative_expr(
     idx,
     supps::Vector{Float64}, # ordered
     write_model::JuMP.AbstractModel,
-    method::OrthogonalCollocation{MeasureToolbox.GaussLobatto},
+    ::OrthogonalCollocation{MeasureToolbox.GaussLobatto},
     lb_idx,
     coeffs...
     )
@@ -457,25 +489,34 @@ function derivative_expr_data(
 end
 
 """
-    evaluate_derivative(dref::GeneralVariableRef, 
-                        vref::GeneralVariableRef,
-                        method::AbstractDerivativeMethod,
-                        write_model::JuMP.AbstractModel)::Vector{JuMP.AbstractJuMPScalar}
+    evaluate_derivative(
+        dref::GeneralVariableRef, 
+        vref::GeneralVariableRef,
+        method::AbstractDerivativeMethod,
+        write_model::JuMP.AbstractModel
+        )::Vector{JuMP.AbstractJuMPScalar}
 
-Build expressions for derivative `dref` evaluated in accordance with `method`. Here, 
-`vref` is normally the [`derivative_argument`](@ref), but for derivative methods that 
-do not support higher order derivatives, `vref` will be substituted with appropriate placeholder 
-variables such that `dref` can be reformulated as a first derivative.
-The expressions are of the form `lhs - rhs`, where `lhs` is a function of derivatives evaluated at some supports
-for certain infinite parameter, and `rhs` is a function of the derivative arguments
-evaluated at some supports for certain infinite parameter. For example, for finite difference
-methods at point `t = 1`, `lhs` is `Δt * ∂/∂t[T(1)]`, and `rhs` could be `T(1+Δt) - T(1)` in
-case of forward difference mode. This is intended as a helper function for `evaluate`, which 
-will take the the expressions generated by this method and generate constraints that approximate
-the derivative values by setting the expressions as 0. However, one can extend this function 
-to encode custom methods for approximating derivatives. This should invoke 
-`add_derivative_supports` if the method is generative and users will likely find 
-it convenient to use `make_reduced_expr`.
+Build expressions for derivative `dref` evaluated in accordance with 
+`method`. Here, `vref` is normally the [`derivative_argument`](@ref), but 
+for derivative methods that do not support higher order derivatives, `vref` 
+will be substituted with appropriate placeholder variables such that `dref` 
+can be reformulated as a first derivative. The expressions are of the form 
+`lhs - rhs`, where `lhs` is a function of derivatives evaluated at some 
+supports for certain infinite parameter, and `rhs` is a function of the 
+derivative argumentsevaluated at some supports for certain infinite parameter. 
+For example, for finite difference methods at point `t = 1`, `lhs` is 
+`Δt * ∂/∂t[T(1)]`, and `rhs` could be `T(1+Δt) - T(1)` in case of forward 
+difference mode. This is intended as a helper function for `evaluate`, which 
+will take the the expressions generated by this method and generate 
+constraints that approximate the derivative values by setting the expressions 
+as 0. 
+
+For developers defining a new type of derivative method, they should extend 
+[`derivative_expr_data`](@ref) and [`make_indexed_derivative_expr`](@ref) if at 
+all possible. However, if this is not possible, then one can extend 
+[`evaluate_derivative`](@ref) directly to encode custom methods for approximating 
+derivatives. This should invoke `add_derivative_supports` if the method is 
+generative and users will likely find it convenient to use `make_reduced_expr`.
 """
 function evaluate_derivative(
     dref::GeneralVariableRef,  
@@ -489,7 +530,7 @@ function evaluate_derivative(
     # get and sort supports
     add_generative_supports(pref)
     supps = sort!(supports(pref, label = All))
-    # get the necessary data  and make the expressions
+    # get the necessary data and make the expressions
     idxs, arg_itrs... = derivative_expr_data(dref, order, supps, method)
     return [make_indexed_derivative_expr(dref, vref, pref, order, idx, supps, write_model, method, args...) 
             for (idx, args...) in zip(idxs, arg_itrs...)]
