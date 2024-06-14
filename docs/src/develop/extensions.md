@@ -200,10 +200,11 @@ we provide an API to do just this. A complete template is provided in
 to help streamline this process. The extension steps are:
 1. Define the new method `struct` that inherits from the correct 
    [`AbstractDerivativeMethod`](@ref) subtype
-2. Extend [`allows_high_order_derivatives`](@ref)
+2. Extend [`InfiniteOpt.allows_high_order_derivatives`](@ref)
 3. Extend [`InfiniteOpt.generative_support_info`](@ref InfiniteOpt.generative_support_info(::AbstractDerivativeMethod)) 
    if the method is a [`GenerativeDerivativeMethod`](@ref)
-4. Extend [`InfiniteOpt.evaluate_derivative`](@ref).
+4. Extend [`InfiniteOpt.derivative_expr_data`](@ref)
+5. Extend [`make_indexed_derivative_expr`](@ref).
 
 To exemplify this process let's implement 1st order explicit Euler which is already 
 implemented via `FiniteDifference(Forward())`, but let's make our own anyway for 
@@ -239,50 +240,66 @@ InfiniteOpt.allows_high_order_derivatives(::ExplicitEuler) = false
 
 ```
 Conversely, we could set the output to `true` if we wanted to directly support higher 
-order derivatives. In which case, we would need to query [`derivative_order`](@ref) 
-in [`InfiniteOpt.evaluate_derivative`](@ref) and account for the order as needed.
+order derivatives. In which case, we would need to take the order into account in steps 4 and 5.
 
 Since, this is a `NonGenerativeDerivativeMethod` we skip step 3. This is 
 however exemplified in the extension template.
 
-Now we just need to do step 4 which is to extend 
-[`InfiniteOpt.evaluate_derivative`](@ref). This function generates all the 
+For step 4, we extend [`InfiniteOpt.derivative_expr_data`](@ref). 
+This function generates all the needed data to make the
 expressions necessary to build the derivative evaluation equations (derivative 
 constraints). We assume these relations to be of the form ``h = 0`` where ``h`` 
-is a vector of expressions and is what the output of 
-`InfiniteOpt.evaluate_derivative` should be. Thus, mathematically ``h`` should 
-be of the form:
+is a vector of expressions. Thus, mathematically ``h`` should be of the form:
 ```math
 \begin{aligned}
-&&& y(t_{1}) - y(0) - (t_{1} - t_{0})\frac{d y(0)}{dt} \\
+&&& y(t_{2}) - y(t_{1}) - (t_{2} - t_{1})\frac{d y(t_1)}{dt} \\
 &&& \vdots \\
 &&& y(t_{n+1}) - y(t_n) - (t_{n+1} - t_{n})\frac{d y(t_n)}{dt} \\
-&&& \vdots \\
-&&& y(t_{k}) - y(k-1) - (t_{k} - t_{k-1})\frac{d y(k-1)}{dt} \\
 \end{aligned}
 ```
-With this in mind let's now extend `InfiniteOpt.evaluate_derivative`:
+The required data must include the support indices used for each derivative 
+variable and then any other constants needed. In this case, we will need the
+indices ``\{1, \dots, n\}`` and no additional data (additional data is exemplified 
+in the extension template). With this in mind let's now extend 
+`InfiniteOpt.derivative_expr_data`:
 ```jldoctest deriv_ext; output = false
-function InfiniteOpt.evaluate_derivative(
+function InfiniteOpt.derivative_expr_data(
     dref::GeneralVariableRef, 
-    vref::GeneralVariableRef, # the variable that the derivative acts on
-    method::ExplicitEuler,
-    write_model::JuMP.AbstractModel
+    order::Int,
+    supps::Vector{Float64},
+    method::ExplicitEuler
     )
-    # get the basic derivative information 
-    pref = operator_parameter(dref)
-    # generate the derivative expressions h_i corresponding to the equations of 
-    # the form h_i = 0
-    supps = supports(pref, label = All)
-    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(supps) - 1)
-    for i in eachindex(exprs)
-        d = InfiniteOpt.make_reduced_expr(dref, pref, supps[i], write_model)
-        v1 = InfiniteOpt.make_reduced_expr(vref, pref, supps[i], write_model)
-        v2 = InfiniteOpt.make_reduced_expr(vref, pref, supps[i + 1], write_model)
-        change = supps[i + 1] - supps[i]
-        exprs[i] = JuMP.@expression(write_model, v2 - v1 - change * d)
-    end
-    return exprs
+    # generate the support indices to be used for each call of `make_indexed_derivative_expr`
+    idxs = 1:length(supps)-1
+    # return the indexes and the other iterators
+    return idxs
+end
+
+# output
+
+
+```
+
+Finally, we just need to extend [`make_indexed_derivative_expr`](@ref).
+This will be used to create derivative expressions for each index determined (and additional datum) produced by `derivative_expr_data`.
+```jldoctest deriv_ext; output = false
+function InfiniteOpt.make_indexed_derivative_expr(
+    dref::GeneralVariableRef,
+    vref::GeneralVariableRef,
+    pref::GeneralVariableRef,
+    order::Int,
+    idx,
+    supps::Vector{Float64}, # ordered
+    write_model::JuMP.AbstractModel,
+    ::ExplicitEuler,
+    # put extra data args here (none in this case)
+    )
+    # generate the derivative expression h corresponding to the equation of 
+    # the form h = 0
+    d = InfiniteOpt.make_reduced_expr(dref, pref, supps[idx], write_model)
+    v1 = InfiniteOpt.make_reduced_expr(vref, pref, supps[idx], write_model)
+    v2 = InfiniteOpt.make_reduced_expr(vref, pref, supps[idx + 1], write_model)
+    return JuMP.@expression(write_model, -(supps[idx+1] - supps[idx]) * d + v2 - v1)
 end
 
 # output
@@ -291,10 +308,14 @@ end
 ```
 We used [`InfiniteOpt.make_reduced_expr`](@ref) as a convenient helper function 
 to generate the semi-infinite variables/expressions we need to generate at each 
-support point. Also note that [`InfiniteOpt.add_generative_supports`](@ref) needs 
-to be included for `GenerativeDerivativeMethods`, but is not necessary in this 
-example. We also would have needed to query [`derivative_order`](@ref) and take it 
-into account if we had selected this method to support higher order derivatives.
+support point.
+
+!!! note
+    If your new derivative method is not compatible can not be broken 
+    up into the `derivative_expr_data`-`make_indexed_derivative_expr` 
+    workflow, then you can instead extend [`InfiniteOpt.evaluate_derivative`](@ref).
+    This is discouraged where possible since it may make your method incompatible 
+    with backends that depend on the preferred workflow.
 
 Now that we have completed all the necessary steps, let's try it out! 
 ```jldoctest deriv_ext

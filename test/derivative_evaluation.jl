@@ -123,7 +123,7 @@ end
         # test with dependent parameter 
         method = FiniteDifference(Forward()) 
         exprs = [0.5d4([s, x[2]]) - sum(q(i, [s+0.5, x[2]]) for i in supports(t)) + 
-                 sum(q(i, [s, x[2]]) for i in supports(t)) for s in (0.5, 0)]  
+                 sum(q(i, [s, x[2]]) for i in supports(t)) for s in (0, 0.5)]  
         @test isequal_canonical(InfiniteOpt.evaluate_derivative(d4, meas, method, m), exprs)
         # test using Backward without boundary constraint
         method = FiniteDifference(Backward(), false)
@@ -137,7 +137,9 @@ end
         @test_throws ErrorException evaluate_derivative(d6, y, FiniteDifference(Central()), m)
         # test without supports 
         delete_supports(x)
-        @test_throws ErrorException InfiniteOpt.evaluate_derivative(d3, q, method, m)
+        for method in (FiniteDifference(Forward()), FiniteDifference(Central()), FiniteDifference(Backward()))
+            @test_throws ErrorException InfiniteOpt.evaluate_derivative(d3, q, method, m)
+        end
         # test parameter function 
         f = parameter_function(sin, t)
         df = deriv(f, t)

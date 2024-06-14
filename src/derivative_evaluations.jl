@@ -342,7 +342,7 @@ function derivative_expr_data(
     )
     # check the number of supports
     n_exprs = length(supps) - order - 1
-    n_exprs < 1 && error("$(pref) does not have enough supports for derivative evaluation of $(dref).")
+    n_exprs < 1 && error("$(operator_parameter(dref)) does not have enough supports for derivative evaluation of $(dref).")
     # determine the derivative support indices
     idxs = method.add_boundary_constraint ? (1:n_exprs+1) : (2:n_exprs+1)
     # determine the support products (e.g., Δt) used by the approximation
@@ -372,7 +372,7 @@ function make_indexed_derivative_expr(
         offset = order ÷ 2
         return @_expr(
             make_reduced_expr(dref, pref, supps, idx, write_model) * supp_product - 
-            sum((-1)^(k) * binomial(order, k) * make_reduced_expr(vref, pref, supps, idx + k - offset, write_model) for k in 0:order)
+            sum((-1)^(k) * binomial(order, k) * make_reduced_expr(vref, pref, supps, idx - k + offset, write_model) for k in 0:order)
             )
     end
 end
@@ -388,13 +388,14 @@ function derivative_expr_data(
     else
         n_exprs = length(supps) - order - 1
     end
-    n_exprs < 1 && error("$(pref) does not have enough supports for derivative evaluation of $(dref).")
+    n_exprs < 1 && error("$(operator_parameter(dref)) does not have enough supports for derivative evaluation of $(dref).")
     # determine the derivative support indices and the support products
     if isone(order)
         idxs = 2:n_exprs+1
         supp_products = (supps[idx+1] - supps[idx-1] for idx in idxs)
     elseif iseven(order)
-        idxs = 1+(order÷2):n_exprs+(order÷2)
+        offset = order ÷ 2
+        idxs = 1+offset:n_exprs+offset
         supp_products = (prod(supps[idx - k + 1 + offset] - supps[idx - k + offset] for k in 1:order) for idx in idxs)
     else
         error("Central difference with odd derivative orders other than 1 is not supported.")
@@ -427,7 +428,7 @@ function derivative_expr_data(
     )
     # check the number of supports
     n_exprs = length(supps) - order - 1
-    n_exprs < 1 && error("$(pref) does not have enough supports for derivative evaluation of $(dref).")
+    n_exprs < 1 && error("$(operator_parameter(dref)) does not have enough supports for derivative evaluation of $(dref).")
     # determine the derivative support indices
     idxs = method.add_boundary_constraint ? (1+order:n_exprs+order+1) : (1+order:n_exprs+order)
     # determine the support products (e.g., Δt) used by the approximation
