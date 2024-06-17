@@ -1271,6 +1271,29 @@ struct NLPOperator{F <: Function, G, H}
 end
 
 ################################################################################
+#                            TRANSFORMATION BACKEND
+################################################################################
+"""
+
+"""
+abstract type AbstractTransformationBackend end
+
+"""
+
+"""
+abstract type AbstractJuMPTag end
+
+"""
+
+"""
+struct JuMPBackend{T <: AbstractJuMPTag, D, C} <: AbstractTransformationBackend 
+    model::JuMP.Model
+    tag::T
+    data::D
+    optimizer_constructor::C
+end
+
+################################################################################
 #                                INFINITE MODEL
 ################################################################################
 """
@@ -1323,9 +1346,8 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     # Objects
     obj_dict::Dict{Symbol, Any}
 
-    # Optimize Data
-    optimizer_constructor::Any
-    optimizer_model::JuMP.Model
+    # Backend Data
+    backend::AbstractTransformationBackend
     ready_to_optimize::Bool
 
     # Extensions
@@ -1333,6 +1355,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     optimize_hook::Any
 end
 
+# TODO UPDATE THE DOCSTRING ONCE THE SYNTAX IS FINALIZED
 """
     InfiniteModel([optimizer_constructor];
                   [OptimizerModel::Function = TranscriptionModel,
@@ -1376,79 +1399,78 @@ CachingOptimizer state: EMPTY_OPTIMIZER
 Solver name: Ipopt
 ```
 """
-function InfiniteModel(; 
-    OptimizerModel::Function = TranscriptionModel,
-    kwargs...
-    )::InfiniteModel
-    return InfiniteModel(# Parameters
-                         MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}(),
-                         MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}(),
-                         MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
-                         nothing, 0,
-                         Union{IndependentParameterIndex, DependentParametersIndex}[],
-                         MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{<:ParameterFunction}}(),
-                         Dict{IndependentParameterIndex, Set{InfiniteVariableIndex}}(),
-                         # Variables
-                         MOIUC.CleverDict{InfiniteVariableIndex, VariableData{<:InfiniteVariable}}(),
-                         MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),
-                         Dict{Tuple{GeneralVariableRef, Dict{Int, Float64}}, SemiInfiniteVariableIndex}(),
-                         MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
-                         Dict{Tuple{GeneralVariableRef, Vector{Float64}}, PointVariableIndex}(),
-                         MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}(),
-                         nothing,
-                         # Derivatives
-                         MOIUC.CleverDict{DerivativeIndex, VariableData{<:Derivative}}(),
-                         Dict{Tuple{GeneralVariableRef, GeneralVariableRef, Int}, DerivativeIndex}(),
-                         # Measures
-                         MOIUC.CleverDict{MeasureIndex, MeasureData{<:Measure}}(),
-                         # Constraints
-                         MOIUC.CleverDict{InfOptConstraintIndex, ConstraintData{<:JuMP.AbstractConstraint}}(),
-                         Dict{InfOptConstraintIndex, DomainRestrictions{GeneralVariableRef}}(),
-                         nothing,
-                         # Objective
-                         MOI.FEASIBILITY_SENSE,
-                         zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}),
-                         false,
-                         # registration
-                         NLPOperator[],
-                         Dict{Symbol, Tuple{Function, Int}}(),
-                         # Object dictionary
-                         Dict{Symbol, Any}(),
-                         # Optimize data
-                         nothing, OptimizerModel(; kwargs...), false,
-                         # Extensions
-                         Dict{Symbol, Any}(),
-                         nothing
-                         )
+function InfiniteModel(backend::AbstractTransformationBackend = TranscriptionModel())
+    return InfiniteModel(
+        # Parameters
+        MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}(),
+        MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}(),
+        MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
+        nothing, 0,
+        Union{IndependentParameterIndex, DependentParametersIndex}[],
+        MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{<:ParameterFunction}}(),
+        Dict{IndependentParameterIndex, Set{InfiniteVariableIndex}}(),
+        # Variables
+        MOIUC.CleverDict{InfiniteVariableIndex, VariableData{<:InfiniteVariable}}(),
+        MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),
+        Dict{Tuple{GeneralVariableRef, Dict{Int, Float64}}, SemiInfiniteVariableIndex}(),
+        MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
+        Dict{Tuple{GeneralVariableRef, Vector{Float64}}, PointVariableIndex}(),
+        MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}(),
+        nothing,
+        # Derivatives
+        MOIUC.CleverDict{DerivativeIndex, VariableData{<:Derivative}}(),
+        Dict{Tuple{GeneralVariableRef, GeneralVariableRef, Int}, DerivativeIndex}(),
+        # Measures
+        MOIUC.CleverDict{MeasureIndex, MeasureData{<:Measure}}(),
+        # Constraints
+        MOIUC.CleverDict{InfOptConstraintIndex, ConstraintData{<:JuMP.AbstractConstraint}}(),
+        Dict{InfOptConstraintIndex, DomainRestrictions{GeneralVariableRef}}(),
+        nothing,
+        # Objective
+        MOI.FEASIBILITY_SENSE,
+        zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}),
+        false,
+        # registration
+        NLPOperator[],
+        Dict{Symbol, Tuple{Function, Int}}(),
+        # Object dictionary
+        Dict{Symbol, Any}(),
+        # Backend data
+        backend, 
+        false,
+        # Extensions
+        Dict{Symbol, Any}(),
+        nothing
+    )
 end
 
 ## Set the optimizer_constructor depending on what it is
 # MOI.OptimizerWithAttributes
-function _set_optimizer_constructor(
-    model::InfiniteModel,
-    constructor::MOI.OptimizerWithAttributes
-    )
-    model.optimizer_constructor = constructor.optimizer_constructor
-    return
-end
+# function _set_optimizer_constructor(
+#     model::InfiniteModel,
+#     constructor::MOI.OptimizerWithAttributes
+#     )
+#     model.optimizer_constructor = constructor.optimizer_constructor
+#     return
+# end
 
 # No attributes
-function _set_optimizer_constructor(model::InfiniteModel, constructor)
-    model.optimizer_constructor = constructor
-    return
-end
+# function _set_optimizer_constructor(model::InfiniteModel, constructor)
+#     model.optimizer_constructor = constructor
+#     return
+# end
 
 # Dispatch for InfiniteModel call with optimizer constructor
-function InfiniteModel(
-    optimizer_constructor;
-    OptimizerModel::Function = TranscriptionModel,
-    kwargs...
-    )
-    model = InfiniteModel()
-    model.optimizer_model = OptimizerModel(optimizer_constructor; kwargs...)
-    _set_optimizer_constructor(model, optimizer_constructor)
-    return model
-end
+# function InfiniteModel(
+#     optimizer_constructor;
+#     OptimizerModel::Function = TranscriptionModel,
+#     kwargs...
+#     )
+#     model = InfiniteModel()
+#     model.optimizer_model = OptimizerModel(optimizer_constructor; kwargs...)
+#     _set_optimizer_constructor(model, optimizer_constructor)
+#     return model
+# end
 
 # Define basic InfiniteModel extension functions
 Base.broadcastable(model::InfiniteModel) = Ref(model)
