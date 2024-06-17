@@ -1093,4 +1093,12 @@ end
         @test fill_in_supports!(pref1, num_supports = 20) isa Nothing
         @test length(supports(pref1)) == 20
     end
+    # test sigfig changes on infinite domain
+    @testset "Sigfig support addition test" begin
+        m = InfiniteModel()
+        supps = [0.8236475079774124, 0.9103565379264364]
+        @infinite_parameter(m, p in [supps[1], supps[2]])
+        @test fill_in_supports!(p, num_supports = 8) isa Nothing
+        @test length(supports(p)) == 8
+    end
 end

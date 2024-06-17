@@ -10,11 +10,22 @@ struct MyNewDomain <: InfiniteOpt.InfiniteScalarDomain
     end
 end
 
+# Extend round_domain (only needed if rounding is appropriate for MyNewDomain)
+function InfiniteOpt.round_domain(
+    domain::MyNewDomain,
+    sig_digits::Int
+    )
+    # Recreate the domain with proper significant digits
+    attr1 = round(domain.attr1, sigdigits = sig_digits) # REPLACE WITH ROUNDING FOR YOUR DOMAIN
+    attr2 = round(domain.attr2, sigdigits = sig_digits) # REPLACE WITH ROUNDING FOR YOUR DOMAIN
+    return MyNewDomain(attr1, attr2)
+end
+
 # Extend supports_in_domain
 function InfiniteOpt.supports_in_domain(
     supports::Union{Real, Vector{<:Real}},
     domain::MyNewDomain
-    )::Bool
+    )
     # DETERMINE IF SUPPORTS ARE IN THE DOMAIN OF `domain`
     in_domain = all(domain.attr1 .<= supports .<= domain.attr2) # REPLACE WITH ACTUAL CHECK
     return in_domain
@@ -25,14 +36,14 @@ function InfiniteOpt.generate_support_values(
     domain::MyNewDomain;
     num_supports::Int = 10,
     sig_digits::Int = 5
-    )::Tuple{Vector{Float64}, DataType}
+    )
     # REPLACE BELOW WITH METHODS TO GENERATE `num_samples` with `sig_fig` 
     supports = collect(range(domain.attr1, stop = domain.attr2, length = num_supports))
     return round.(supports, sigdigits = sig_digits), UniformGrid
 end
 
 # Extend JuMP.has_lower_bound (optional if the answer is always false)
-function JuMP.has_lower_bound(domain::MyNewDomain)::Bool
+function JuMP.has_lower_bound(domain::MyNewDomain)
     # INSERT NECESSARY CHECKS IF NEEDED
     has_bound = true # REPLACE WITH ACTUAL RESULT
     return has_bound
@@ -44,12 +55,12 @@ function JuMP.lower_bound(domain::MyNewDomain)
 end
 
 # Extend JuMP.set_lower_bound if appropriate
-function JuMP.set_lower_bound(domain::MyNewDomain, lower::Real)::MyNewDomain
+function JuMP.set_lower_bound(domain::MyNewDomain, lower::Real)
     return MyNewDomain(lower, domain.attr2) # REPLACE WITH ACTUAL CONSTRUCTOR
 end
 
 # Extend JuMP.has_upper_bound (optional if the answer is always false)
-function JuMP.has_upper_bound(domain::MyNewDomain)::Bool
+function JuMP.has_upper_bound(domain::MyNewDomain)
     # INSERT NECESSARY CHECKS IF NEEDED
     has_bound = true # REPLACE WITH ACTUAL RESULT
     return has_bound
@@ -61,7 +72,7 @@ function JuMP.upper_bound(domain::MyNewDomain)
 end
 
 # Extend JuMP.set_upper_bound if appropriate
-function JuMP.set_upper_bound(domain::MyNewDomain, upper::Real)::MyNewDomain
+function JuMP.set_upper_bound(domain::MyNewDomain, upper::Real)
     return MyNewDomain(domain.attr1, upper) # REPLACE WITH ACTUAL CONSTRUCTOR
 end
 
