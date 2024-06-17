@@ -44,7 +44,7 @@ end
 
 # CollectionDomain
 function round_domain(domain::CollectionDomain, sig_digits::Int)
-    return CollectionDomain([_round_domain(d, sig_digits) for d in domain.domains])
+    return CollectionDomain([round_domain(d, sig_digits) for d in domain.domains])
 end
 
 ################################################################################
