@@ -25,20 +25,21 @@ Base.length(s::InfiniteScalarDomain) = 1
 ################################################################################
 #                          ENFORCE SIG FIGS ON DOMAINS
 ################################################################################
-## Round domains such that generated supports are always inside them
-# Interval domain
+"""
+    round_domain(domain::AbstractInfiniteDomain, sig_digits::Int)
+
+Return a rounded domain of `domain` where its bounds use a number of 
+significant digits equal to `sig_digs`. This is intended as an internal 
+method and should be extended by those adding a new kind of infinite domain 
+that has bounds. 
+"""
+round_domain(domain::AbstractInfiniteDomain, sig_digits::Int) = domain
+
+# IntervalDomain
 function _round_domain(domain::IntervalDomain, sig_digits::Int)
     lb = round(domain.lower_bound, sigdigits = sig_digits)
     ub = round(domain.upper_bound, sigdigits = sig_digits)
     return IntervalDomain(lb, ub)
-end
-
-# Distribution domain
-function _round_domain(
-    domain::Union{UniDistributionDomain, MultiDistributionDomain}, 
-    sig_digits::Int
-    )
-    return domain
 end
 
 # CollectionDomain

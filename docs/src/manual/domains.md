@@ -22,6 +22,7 @@ JuMP.set_lower_bound(::AbstractInfiniteDomain, ::Real)
 JuMP.has_upper_bound(::AbstractInfiniteDomain)
 JuMP.upper_bound(::AbstractInfiniteDomain)
 JuMP.set_upper_bound(::AbstractInfiniteDomain, ::Real)
+InfiniteOpt.round_domain
 ```
 
 ## Support Point Labels
