@@ -223,7 +223,7 @@ function _build_parameters(
     end
     # process the infinite domain
     domain = _make_array_domain(_error, domains, orig_inds)
-    domain = _round_domain(domain, sig_digits)
+    domain = round_domain(domain, sig_digits)
     # we have supports
     if !isempty(supports)
         supp_dict = _process_supports(_error, supports, domain, sig_digits)

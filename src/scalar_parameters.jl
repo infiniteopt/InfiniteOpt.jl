@@ -185,7 +185,7 @@ function build_parameter(
     for (kwarg, _) in extra_kwargs
         _error("Unrecognized keyword argument $kwarg")
     end
-    domain = _round_domain(domain, sig_digits)
+    domain = round_domain(domain, sig_digits)
     label = UserDefined
     length_supports = length(supports)
     if !isempty(supports)
