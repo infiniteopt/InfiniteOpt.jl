@@ -2,55 +2,57 @@
 #                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
 ################################################################################
 # Extend dispatch_variable_ref
-function dispatch_variable_ref(model::InfiniteModel,
-                               index::IndependentParameterIndex
-                               )::IndependentParameterRef
+function dispatch_variable_ref(
+    model::InfiniteModel,
+    index::IndependentParameterIndex
+    )
     return IndependentParameterRef(model, index)
 end
 
-function dispatch_variable_ref(model::InfiniteModel,
-                               index::FiniteParameterIndex
-                               )::FiniteParameterRef
+function dispatch_variable_ref(
+    model::InfiniteModel,
+    index::FiniteParameterIndex
+    )
     return FiniteParameterRef(model, index)
 end
 
 # Extend _add_data_object
-function _add_data_object(model::InfiniteModel,
-                          object::ScalarParameterData{<:IndependentParameter}
-                          )::IndependentParameterIndex
+function _add_data_object(
+    model::InfiniteModel,
+    object::ScalarParameterData{<:IndependentParameter}
+    )
     index =  MOIUC.add_item(model.independent_params, object)
     push!(model.param_object_indices, index)
     return index
 end
 
-function _add_data_object(model::InfiniteModel,
-                          object::ScalarParameterData{<:FiniteParameter}
-                          )::FiniteParameterIndex
+function _add_data_object(
+    model::InfiniteModel,
+    object::ScalarParameterData{<:FiniteParameter}
+    )
     return MOIUC.add_item(model.finite_params, object)
 end
 
 # Extend _data_dictionary (type based)
-function _data_dictionary(model::InfiniteModel,
-    ::Type{IndependentParameter})::MOIUC.CleverDict
+function _data_dictionary(model::InfiniteModel, ::Type{IndependentParameter})
     return model.independent_params
 end
 
-function _data_dictionary(model::InfiniteModel,
-    ::Type{FiniteParameter})::MOIUC.CleverDict
+function _data_dictionary(model::InfiniteModel, ::Type{FiniteParameter})
     return model.finite_params
 end
 
 # Extend _data_dictionary (ref based)
-function _data_dictionary(pref::IndependentParameterRef)::MOIUC.CleverDict
+function _data_dictionary(pref::IndependentParameterRef)
     return JuMP.owner_model(pref).independent_params
 end
 
-function _data_dictionary(pref::FiniteParameterRef)::MOIUC.CleverDict
+function _data_dictionary(pref::FiniteParameterRef)
     return JuMP.owner_model(pref).finite_params
 end
 
 # Extend _data_object
-function _data_object(pref::ScalarParameterRef)::AbstractDataObject
+function _data_object(pref::ScalarParameterRef)
     object = get(_data_dictionary(pref), JuMP.index(pref), nothing)
     if isnothing(object)
         error("Invalid scalar parameter reference, cannot find ",
@@ -64,32 +66,32 @@ end
 #                             CORE OBJECT METHODS
 ################################################################################
 # Extend _core_variable_object for IndependentParameterRefs
-function _core_variable_object(pref::IndependentParameterRef)::IndependentParameter
+function _core_variable_object(pref::IndependentParameterRef)
     return _data_object(pref).parameter
 end
 
 # Extend _core_variable_object for FiniteParameterRefs
-function _core_variable_object(pref::FiniteParameterRef)::FiniteParameter
+function _core_variable_object(pref::FiniteParameterRef)
     return _data_object(pref).parameter
 end
 
 # Extend _parameter_number
-function _parameter_number(pref::IndependentParameterRef)::Int
+function _parameter_number(pref::IndependentParameterRef)
     return _data_object(pref).parameter_num
 end
 
 # Extend _parameter_numbers
-function _parameter_numbers(pref::IndependentParameterRef)::Vector{Int}
+function _parameter_numbers(pref::IndependentParameterRef)
     return [_parameter_number(pref)]
 end
 
 # Extend _object_number
-function _object_number(pref::IndependentParameterRef)::Int
+function _object_number(pref::IndependentParameterRef)
     return _data_object(pref).object_num
 end
 
 # Extend _object_numbers
-function _object_numbers(pref::IndependentParameterRef)::Vector{Int}
+function _object_numbers(pref::IndependentParameterRef)
     return [_object_number(pref)]
 end
 
@@ -99,7 +101,7 @@ function _adaptive_data_update(
     pref::ScalarParameterRef, 
     param::P, 
     data::ScalarParameterData{P}
-    )::Nothing where {P <: ScalarParameter}
+    ) where {P <: ScalarParameter}
     data.parameter = param
     return
 end
@@ -109,7 +111,7 @@ function _adaptive_data_update(
     pref::ScalarParameterRef, 
     param::P1, 
     data::ScalarParameterData{P2}
-    )::Nothing  where {P1, P2}
+    )  where {P1, P2}
     new_data = ScalarParameterData(param, data.object_num, data.parameter_num, 
                                    data.name, data.parameter_func_indices,
                                    data.infinite_var_indices, 
@@ -124,8 +126,10 @@ function _adaptive_data_update(
 end
 
 # Extend _set_core_variable_object for ScalarParameterRefs
-function _set_core_variable_object(pref::ScalarParameterRef,
-                                   param::ScalarParameter)::Nothing
+function _set_core_variable_object(
+    pref::ScalarParameterRef, 
+    param::ScalarParameter
+    )
     _adaptive_data_update(pref, param, _data_object(pref))
     return
 end
@@ -137,9 +141,11 @@ end
 const DefaultDerivativeMethod = FiniteDifference()
 
 # Check that supports don't violate the domain bounds
-function _check_supports_in_bounds(_error::Function,
-                                   supports::Union{<:Real, Vector{<:Real}},
-                                   domain::AbstractInfiniteDomain)::Nothing
+function _check_supports_in_bounds(
+    _error::Function,
+    supports::Union{<:Real, Vector{<:Real}},
+    domain::AbstractInfiniteDomain
+    )
     if !supports_in_domain(supports, domain)
         _error("Supports violate the domain bounds.")
     end
@@ -179,6 +185,7 @@ function build_parameter(
     for (kwarg, _) in extra_kwargs
         _error("Unrecognized keyword argument $kwarg")
     end
+    domain = _round_domain(domain, sig_digits)
     label = UserDefined
     length_supports = length(supports)
     if !isempty(supports)
@@ -226,7 +233,7 @@ function build_parameter(
     _error::Function, 
     value::Real;
     extra_kwargs...
-    )::FiniteParameter
+    )
     for (kwarg, _) in extra_kwargs
         _error("Unrecognized keyword argument $kwarg")
     end
@@ -261,7 +268,7 @@ function add_parameter(
     model::InfiniteModel, 
     p::IndependentParameter,
     name::String = ""
-    )::GeneralVariableRef
+    )
     obj_num = length(_param_object_indices(model)) + 1
     param_num = model.last_param_num += 1
     data_object = ScalarParameterData(p, obj_num, param_num, name)
@@ -293,7 +300,7 @@ function add_parameter(
     model::InfiniteModel, 
     p::FiniteParameter,
     name::String = ""
-    )::GeneralVariableRef
+    )
     data_object = ScalarParameterData(p, -1, -1, name)
     obj_index = _add_data_object(model, data_object)
     model.name_to_param = nothing

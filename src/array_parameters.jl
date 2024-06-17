@@ -2,34 +2,38 @@
 #                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
 ################################################################################
 # Extend dispatch_variable_ref
-function dispatch_variable_ref(model::InfiniteModel,
-                               index::DependentParameterIndex
-                               )::DependentParameterRef
+function dispatch_variable_ref(
+    model::InfiniteModel,
+    index::DependentParameterIndex
+    )
     return DependentParameterRef(model, index)
 end
 
 # Extend _add_data_object
-function _add_data_object(model::InfiniteModel,
-                          object::MultiParameterData
-                          )::DependentParametersIndex
+function _add_data_object(
+    model::InfiniteModel,
+    object::MultiParameterData
+    )
     index = MOIUC.add_item(model.dependent_params, object)
     push!(model.param_object_indices, index)
     return index
 end
 
 # Extend _data_dictionary (type based)
-function _data_dictionary(model::InfiniteModel,
-    ::Type{DependentParameters})::MOIUC.CleverDict
+function _data_dictionary(
+    model::InfiniteModel,
+    ::Type{DependentParameters}
+    )
     return model.dependent_params
 end
 
 # Extend _data_dictionary (ref based)
-function _data_dictionary(pref::DependentParameterRef)::MOIUC.CleverDict
+function _data_dictionary(pref::DependentParameterRef)
     return JuMP.owner_model(pref).dependent_params
 end
 
 # Extend _data_object
-function _data_object(pref::DependentParameterRef)::MultiParameterData
+function _data_object(pref::DependentParameterRef)
     object = get(_data_dictionary(pref), JuMP.index(pref).object_index, nothing)
     if isnothing(object) 
         error("Invalid dependent parameter reference, cannot find ",
@@ -40,17 +44,17 @@ function _data_object(pref::DependentParameterRef)::MultiParameterData
 end
 
 # Extend _core_variable_object
-function _core_variable_object(pref::DependentParameterRef)::DependentParameters
+function _core_variable_object(pref::DependentParameterRef)
     return _data_object(pref).parameters
 end
 
 # Return the number of dependent parameters involved
-function _num_parameters(pref::DependentParameterRef)::Int
+function _num_parameters(pref::DependentParameterRef)
     return length(_data_object(pref).names)
 end
 
 # Extend _delete_data_object
-function _delete_data_object(vref::DependentParameterRef)::Nothing
+function _delete_data_object(vref::DependentParameterRef)
     delete!(_data_dictionary(vref), JuMP.index(vref).object_index)
     return
 end
@@ -59,7 +63,7 @@ end
 #                             PARAMETER DEFINITION
 ################################################################################
 # Check that multi-dimensional domains are all the same
-function _check_same_domain(_error::Function, domains)::Nothing 
+function _check_same_domain(_error::Function, domains)
     if !_allequal(domains)
         _error("Conflicting infinite domains. Only one multi-dimensional ",
                "can be specified. Otherwise, scalar domains can be used ",
@@ -74,7 +78,7 @@ function _make_array_domain(
     _error::Function,
     domains::Vector{T},
     inds::Collections.ContainerIndices
-    )::T where {T <: MultiDistributionDomain}
+    ) where {T <: MultiDistributionDomain}
     _check_same_domain(_error, domains)
     dist = first(domains).distribution
     if size(dist) != size(inds)
@@ -99,7 +103,7 @@ function _make_array_domain(
     _error::Function,
     domains::Vector{T},
     inds::Collections.ContainerIndices
-    )::T where {T <: CollectionDomain}
+    ) where {T <: CollectionDomain}
     _check_same_domain(_error, domains)
     if length(collection_domains(first(domains))) != length(inds)
         _error("The dimensions of the parameters and the specified ",
@@ -125,7 +129,7 @@ function _make_array_domain(
     _error::Function,
     domains::Vector{T},
     inds::Collections.ContainerIndices
-    )::T where {T <: InfiniteArrayDomain}
+    ) where {T <: InfiniteArrayDomain}
     _check_same_domain(_error, domains)
     return first(domains)
 end
@@ -135,7 +139,7 @@ function _make_array_domain(
     _error::Function,
     domains::Vector{T},
     inds::Collections.ContainerIndices
-    )::CollectionDomain{T} where {T <: InfiniteScalarDomain}
+    ) where {T <: InfiniteScalarDomain}
     return CollectionDomain(domains)
 end
 
@@ -151,7 +155,7 @@ function _process_supports(
     supps::Vector{<:Real},
     domain,
     sig_digits
-    )::Dict{Vector{Float64}, Set{DataType}}
+    )
     if !supports_in_domain(reshape(supps, length(supps), 1), domain) 
         _error("Support violates the infinite domain.")
     end
@@ -165,7 +169,7 @@ function _process_supports(
     vect_supps::Vector{<:Vector{<:Real}},
     domain,
     sig_digits
-    )::Dict{Vector{Float64}, Set{DataType}}
+    )
     len = length(first(vect_supps))
     if any(length(s) != len for s in vect_supps)
         _error("Inconsistent support dimensions.")
@@ -185,7 +189,7 @@ function _process_derivative_methods(
     _error::Function,
     methods::V,
     domains
-    )::V where {V <: Vector{<:NonGenerativeDerivativeMethod}}
+    ) where {V <: Vector{<:NonGenerativeDerivativeMethod}}
     return methods
 end
 
@@ -219,6 +223,7 @@ function _build_parameters(
     end
     # process the infinite domain
     domain = _make_array_domain(_error, domains, orig_inds)
+    domain = _round_domain(domain, sig_digits)
     # we have supports
     if !isempty(supports)
         supp_dict = _process_supports(_error, supports, domain, sig_digits)
@@ -272,7 +277,7 @@ function add_parameters(
     model::InfiniteModel,
     params::DependentParameters,
     names::Vector{String}
-    )::Vector{GeneralVariableRef}
+    )
     # get the number of parameters
     num_params = length(params.domain)
     # process the names
@@ -297,7 +302,7 @@ end
 #                                  NAMING
 ################################################################################
 # Get the parameter index in the DependentParameters object
-_param_index(pref::DependentParameterRef)::Int = JuMP.index(pref).param_index
+_param_index(pref::DependentParameterRef) = JuMP.index(pref).param_index
 
 """
     JuMP.name(pref::DependentParameterRef)::String
@@ -311,7 +316,7 @@ julia> name(pref)
 "par_name"
 ```
 """
-function JuMP.name(pref::DependentParameterRef)::String
+function JuMP.name(pref::DependentParameterRef)
     object = get(_data_dictionary(pref), JuMP.index(pref).object_index, nothing)
     return isnothing(object) ? "" : object.names[_param_index(pref)]
 end
@@ -330,7 +335,7 @@ julia> name(vref)
 "para_name"
 ```
 """
-function JuMP.set_name(pref::DependentParameterRef, name::String)::Nothing
+function JuMP.set_name(pref::DependentParameterRef, name::String)
     _data_object(pref).names[_param_index(pref)] = name
     JuMP.owner_model(pref).name_to_param = nothing
     return
