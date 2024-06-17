@@ -36,14 +36,14 @@ that has bounds.
 round_domain(domain::AbstractInfiniteDomain, sig_digits::Int) = domain
 
 # IntervalDomain
-function _round_domain(domain::IntervalDomain, sig_digits::Int)
+function round_domain(domain::IntervalDomain, sig_digits::Int)
     lb = round(domain.lower_bound, sigdigits = sig_digits)
     ub = round(domain.upper_bound, sigdigits = sig_digits)
     return IntervalDomain(lb, ub)
 end
 
 # CollectionDomain
-function _round_domain(domain::CollectionDomain, sig_digits::Int)
+function round_domain(domain::CollectionDomain, sig_digits::Int)
     return CollectionDomain([_round_domain(d, sig_digits) for d in domain.domains])
 end
 
