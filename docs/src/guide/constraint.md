@@ -242,7 +242,7 @@ argument. This includes a wealth of constraint types including:
 For example, we could define the following semi-definite constraint:
 ```jldoctest constrs
 julia> @constraint(model, [yb 2yb; 3yb 4yb] >= ones(2, 2), PSDCone())
-[yb(t) - 1    2 yb(t) - 1;
+[yb(t) - 1    2 yb(t) - 1
  3 yb(t) - 1  4 yb(t) - 1] ∈ PSDCone(), ∀ t ∈ [0, 10]
 ```
 See [`JuMP`'s constraint documentation](https://jump.dev/JuMP.jl/v1/manual/constraints/) 
