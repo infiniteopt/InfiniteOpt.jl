@@ -118,7 +118,7 @@ end
         @test_throws ErrorException InfiniteOpt._build_parameters(error, [domain1, domain1], inds1, supports = [[0, 0], [2]])
         @test_throws ErrorException InfiniteOpt._build_parameters(error, [domain1, domain1], inds1, derivative_method = [2, 2])
         # test vector 
-        @test InfiniteOpt._build_parameters(error, [domain1, domain1], inds1).domain == domain1 
+        @test InfiniteOpt._build_parameters(error, [domain1, domain1], inds1).domain isa CollectionDomain
         @test InfiniteOpt._build_parameters(error, [domain1, domain1], inds1).supports == Dict{Vector{Float64}, Set{DataType}}()
         @test InfiniteOpt._build_parameters(error, [domain1, domain1],  inds1, supports = [0, 0]).supports == Dict([0., 0.] => Set([UserDefined]))
         @test InfiniteOpt._build_parameters(error, [domain1, domain1], inds1).sig_digits isa Int 

@@ -23,10 +23,11 @@ template is provided in
 [`./test/extensions/infinite_domain.jl`](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/test/extensions/infinite_domain.jl). 
 The extension steps employed are:
 1. Define the new `struct` infinite domain type (only thing required as bare minimum)
-2. Extend [`InfiniteOpt.supports_in_domain`](@ref) (enables error checking of supports)
-3. Extend [`InfiniteOpt.generate_support_values`](@ref) (enables support generation via `num_supports` keyword arguments)
-4. If a lower bound and upper bound can be reported, extend `JuMP` lower bound and upper bound methods (enables automatic bound detection in `integral`)
-5. Extend [`InfiniteOpt.MeasureToolbox.generate_expect_data`](@ref) (enables the use of `expect`) 
+2. Extend[`InfiniteOpt.round_domain`](@ref) (enables safe use of significant digit rounding)
+3. Extend [`InfiniteOpt.supports_in_domain`](@ref) (enables error checking of supports)
+4. Extend [`InfiniteOpt.generate_support_values`](@ref) (enables support generation via `num_supports` keyword arguments)
+5. If a lower bound and upper bound can be reported, extend `JuMP` lower bound and upper bound methods (enables automatic bound detection in `integral`)
+6. Extend [`InfiniteOpt.MeasureToolbox.generate_expect_data`](@ref) (enables the use of `expect`) 
 
 As an example, let's create a univariate disjoint interval domain as an infinite 
 domain type. This corresponds to the domain ``[lb_1, ub_1] \cup [lb_2, ub_2]`` 
@@ -82,13 +83,25 @@ to extend [`generate_integral_data`](@ref). See [`Measure Evaluation Techniques`
 for details. 
 
 To enable support domain checking which is useful to avoid strange bugs, we will 
-extend [`InfiniteOpt.supports_in_domain`](@ref). This returns a `Bool` to 
-indicate if a vector of supports are in the domain:
+extend [`InfiniteOpt.round_domain`](@ref) which rounds the domain to use proper 
+significant digits and [`InfiniteOpt.supports_in_domain`](@ref) which returns a 
+`Bool` whether a vector of supports is in the domain:
 ```jldoctest domain_ext; output = false
+function InfiniteOpt.round_domain(
+    domain::DisjointDomain,
+    sig_digits::Int
+    )
+    lb1 = round(domain.lb1, sigdigits = sig_digits)
+    ub1 = round(domain.ub1, sigdigits = sig_digits)
+    lb2 = round(domain.lb2, sigdigits = sig_digits)
+    ub2 = round(domain.ub2, sigdigits = sig_digits)
+    return DisjointDomain(lb1, ub1, lb2, ub2)
+end
+
 function InfiniteOpt.supports_in_domain(
     supports::Union{Number, Vector{<:Number}},
     domain::DisjointDomain
-    )::Bool
+    )
     return all((domain.lb1 .<= supports .<= domain.ub1) .| (domain.lb2 .<= supports .<= domain.ub2))
 end
 
@@ -113,7 +126,7 @@ function InfiniteOpt.generate_support_values(
     domain::DisjointDomain;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     sig_digits::Int = InfiniteOpt.DefaultSigDigits
-    )::Tuple{Vector{Float64}, DataType}
+    )
     length_ratio = (domain.ub1 - domain.lb1) / (domain.ub1 - domain.lb1 + domain.ub2 - domain.lb2)
     num_supports1 = Int64(ceil(length_ratio * num_supports))
     num_supports2 = num_supports - num_supports1
