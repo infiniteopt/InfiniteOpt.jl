@@ -464,10 +464,10 @@ julia> evaluate(d1)
 
 julia> derivative_constraints(d1)
 4-element Vector{InfOptConstraintRef}:
+ 2.5 ∂/∂t[y(t, ξ)](0, ξ) + y(0, ξ) - y(2.5, ξ) = 0, ∀ ξ ~ Uniform
  2.5 ∂/∂t[y(t, ξ)](2.5, ξ) + y(2.5, ξ) - y(5, ξ) = 0, ∀ ξ ~ Uniform
  2.5 ∂/∂t[y(t, ξ)](5, ξ) + y(5, ξ) - y(7.5, ξ) = 0, ∀ ξ ~ Uniform
  2.5 ∂/∂t[y(t, ξ)](7.5, ξ) + y(7.5, ξ) - y(10, ξ) = 0, ∀ ξ ~ Uniform
- 2.5 ∂/∂t[y(t, ξ)](0, ξ) + y(0, ξ) - y(2.5, ξ) = 0, ∀ ξ ~ Uniform
 ```
 Note that we made sure `t` had supports first over which we could carry out the 
 evaluation, otherwise an error would have been thrown. Moreover, once the 
@@ -483,9 +483,9 @@ julia> evaluate_all_derivatives!(model)
 
 julia> derivative_constraints(dydt2)
 3-element Vector{InfOptConstraintRef}:
+ 6.25 dydt2(0, ξ) - y(0, ξ) + 2 y(2.5, ξ) - y(5, ξ) = 0, ∀ ξ ~ Uniform
  6.25 dydt2(2.5, ξ) - y(2.5, ξ) + 2 y(5, ξ) - y(7.5, ξ) = 0, ∀ ξ ~ Uniform
  6.25 dydt2(5, ξ) - y(5, ξ) + 2 y(7.5, ξ) - y(10, ξ) = 0, ∀ ξ ~ Uniform
- 6.25 dydt2(0, ξ) - y(0, ξ) + 2 y(2.5, ξ) - y(5, ξ) = 0, ∀ ξ ~ Uniform
 ```
 
 Finally, we note that once derivative constraints have been added to the 
@@ -495,10 +495,10 @@ and a warning will be thrown to indicate such:
 ```jldoctest deriv_basic
 julia> derivative_constraints(d1)
 4-element Vector{InfOptConstraintRef}:
+ 2.5 ∂/∂t[y(t, ξ)](0, ξ) + y(0, ξ) - y(2.5, ξ) = 0, ∀ ξ ~ Uniform
  2.5 ∂/∂t[y(t, ξ)](2.5, ξ) + y(2.5, ξ) - y(5, ξ) = 0, ∀ ξ ~ Uniform
  2.5 ∂/∂t[y(t, ξ)](5, ξ) + y(5, ξ) - y(7.5, ξ) = 0, ∀ ξ ~ Uniform
  2.5 ∂/∂t[y(t, ξ)](7.5, ξ) + y(7.5, ξ) - y(10, ξ) = 0, ∀ ξ ~ Uniform
- 2.5 ∂/∂t[y(t, ξ)](0, ξ) + y(0, ξ) - y(2.5, ξ) = 0, ∀ ξ ~ Uniform
 
 julia> add_supports(t, 0.2)
 ┌ Warning: Support/method changes will invalidate existing derivative evaluation constraints that have been added to the InfiniteModel. Thus, these are being deleted.

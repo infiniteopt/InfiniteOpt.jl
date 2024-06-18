@@ -64,7 +64,14 @@ end
 Base.@deprecate map_nlp_to_ast(f, expr) map_expression_to_ast(f, expr)
 
 # Define additional stuff that should not be exported
-const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]
+const _EXCLUDE_SYMBOLS = [
+    Symbol(@__MODULE__), 
+    :eval, 
+    :include,
+    :derivative_expr_data,
+    :make_indexed_derivative_expr,
+    :allows_high_order_derivatives
+    ]
 
 # Following JuMP, export everything that doesn't start with a _ 
 for sym in names(@__MODULE__, all = true)
