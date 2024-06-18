@@ -345,8 +345,8 @@ julia> evaluate(dy)
 
 julia> derivative_constraints(dy)
 2-element Vector{InfOptConstraintRef}:
-  -5 d/dt[y(t)](0) + y(5) - y(0) = 0
-  -5 d/dt[y(t)](5) + y(10) - y(5) = 0
+ -5 d/dt[y(t)](0) + y(5) - y(0) = 0
+ -5 d/dt[y(t)](5) + y(10) - y(5) = 0
 ```
 We implemented explicit Euler and it works! Now go and extend away!
 
