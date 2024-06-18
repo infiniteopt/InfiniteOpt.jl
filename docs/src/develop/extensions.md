@@ -285,7 +285,7 @@ function InfiniteOpt.derivative_expr_data(
     # generate the support indices to be used for each call of `make_indexed_derivative_expr`
     idxs = 1:length(supps)-1
     # return the indexes and the other iterators
-    return idxs
+    return (idxs, ) # output must be a tuple
 end
 
 # output

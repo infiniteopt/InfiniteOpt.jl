@@ -277,7 +277,7 @@ end
         order::Int,
         supps::Vector{Float64},
         method::AbstractDerivativeMethod,
-        )
+        )::Tuple
 
 Produce the data needed to generated derivative approximation equations for 
 the derivative `dref` in accordance with [`make_indexed_derivative_expr`](@ref). 
@@ -533,6 +533,8 @@ function evaluate_derivative(
     supps = sort!(supports(pref, label = All))
     # get the necessary data and make the expressions
     idxs, arg_itrs... = derivative_expr_data(dref, order, supps, method)
+    println(idxs)
+    println(arg_itrs)
     return [make_indexed_derivative_expr(dref, vref, pref, order, idx, supps, write_model, method, args...) 
             for (idx, args...) in zip(idxs, arg_itrs...)]
 end

@@ -50,9 +50,9 @@
     end
      # test allows_high_order_derivatives
      @testset "allows_high_order_derivatives" begin 
-        @test_throws ErrorException allows_high_order_derivatives(TestMethod())
-        @test !allows_high_order_derivatives(OrthogonalCollocation(2))
-        @test allows_high_order_derivatives(FiniteDifference(Central()))
+        @test_throws ErrorException InfiniteOpt.allows_high_order_derivatives(TestMethod())
+        @test !InfiniteOpt.allows_high_order_derivatives(OrthogonalCollocation(2))
+        @test InfiniteOpt.allows_high_order_derivatives(FiniteDifference(Central()))
     end
 end
 
