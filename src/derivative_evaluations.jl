@@ -468,7 +468,7 @@ function derivative_expr_data(
     idxs = 1:length(supps)-1
     lb_idxs = (((idx - 1) ÷ n_coeffs) * n_coeffs + 1 for idx in idxs)
     # compute M matrix for each finite element and gather the coefficients for each equation
-    coeffs_list = sizehint!(SubArray{Float64, 1, Matrix{Float64}, Tuple{Base.Slice{Base.OneTo{Int64}}, Int64}, true}[], length(supps) - 1)
+    coeffs_list = sizehint!(SubArray{Float64, 1, Matrix{Float64}, Tuple{Base.Slice{Base.OneTo{Int}}, Int}, true}[], length(supps) - 1)
     for i in 1:n_coeffs:length(supps)-1
         # collect the supports
         lb = supps[i]
@@ -533,8 +533,6 @@ function evaluate_derivative(
     supps = sort!(supports(pref, label = All))
     # get the necessary data and make the expressions
     idxs, arg_itrs... = derivative_expr_data(dref, order, supps, method)
-    println(idxs)
-    println(arg_itrs)
     return [make_indexed_derivative_expr(dref, vref, pref, order, idx, supps, write_model, method, args...) 
             for (idx, args...) in zip(idxs, arg_itrs...)]
 end
