@@ -284,7 +284,7 @@ the derivative `dref` in accordance with [`make_indexed_derivative_expr`](@ref).
 This is intended as an extension point when defining new derivative approximation 
 methods. It should return a tuple of interators needed to generate the constraint 
 expressions with `make_indexed_derivative_expr` and it is used within 
-[`evaluate_derivate`](@ref) (given `dref`, `vref`, `pref`, `order`, 
+[`evaluate_derivative`](@ref) (given `dref`, `vref`, `pref`, `order`, 
 `supps`, `write_model`, and `method`) to generate a constraint expression 
 `constr_expr` for each index of `idxs`:
 ```julia

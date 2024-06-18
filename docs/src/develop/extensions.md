@@ -217,7 +217,7 @@ to help streamline this process. The extension steps are:
 3. Extend [`InfiniteOpt.generative_support_info`](@ref InfiniteOpt.generative_support_info(::AbstractDerivativeMethod)) 
    if the method is a [`GenerativeDerivativeMethod`](@ref)
 4. Extend [`InfiniteOpt.derivative_expr_data`](@ref)
-5. Extend [`make_indexed_derivative_expr`](@ref).
+5. Extend [`InfiniteOpt.make_indexed_derivative_expr`](@ref).
 
 To exemplify this process let's implement 1st order explicit Euler which is already 
 implemented via `FiniteDifference(Forward())`, but let's make our own anyway for 
@@ -293,7 +293,7 @@ end
 
 ```
 
-Finally, we just need to extend [`make_indexed_derivative_expr`](@ref).
+Finally, we just need to extend [`InfiniteOpt.make_indexed_derivative_expr`](@ref).
 This will be used to create derivative expressions for each index determined (and additional datum) produced by `derivative_expr_data`.
 ```jldoctest deriv_ext; output = false
 function InfiniteOpt.make_indexed_derivative_expr(
