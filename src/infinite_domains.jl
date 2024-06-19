@@ -11,24 +11,50 @@ function collection_domains(domain::AbstractInfiniteDomain)
     type = typeof(domain)
     error("`collection_domains` not defined for infinite domain of type $type.")
 end
-function collection_domains(domain::CollectionDomain{S}
-                         )::Vector{S} where {S <: InfiniteScalarDomain}
+function collection_domains(domain::CollectionDomain)
     return domain.domains
 end
 
 ################################################################################
 #                               BASIC EXTENSIONS
 ################################################################################
-Base.length(s::CollectionDomain)::Int = length(collection_domains(s))
-Base.length(s::MultiDistributionDomain)::Int = length(s.distribution)
-Base.length(s::InfiniteScalarDomain)::Int = 1
+Base.length(s::CollectionDomain) = length(collection_domains(s))
+Base.length(s::MultiDistributionDomain) = length(s.distribution)
+Base.length(s::InfiniteScalarDomain) = 1
+
+################################################################################
+#                          ENFORCE SIG FIGS ON DOMAINS
+################################################################################
+"""
+    round_domain(domain::AbstractInfiniteDomain, sig_digits::Int)
+
+Return a rounded domain of `domain` where its bounds use a number of 
+significant digits equal to `sig_digs`. This is intended as an internal 
+method and should be extended by those adding a new kind of infinite domain 
+that has bounds. 
+"""
+round_domain(domain::AbstractInfiniteDomain, sig_digits::Int) = domain
+
+# IntervalDomain
+function round_domain(domain::IntervalDomain, sig_digits::Int)
+    lb = round(domain.lower_bound, sigdigits = sig_digits)
+    ub = round(domain.upper_bound, sigdigits = sig_digits)
+    return IntervalDomain(lb, ub)
+end
+
+# CollectionDomain
+function round_domain(domain::CollectionDomain, sig_digits::Int)
+    return CollectionDomain([round_domain(d, sig_digits) for d in domain.domains])
+end
 
 ################################################################################
 #                           SUPPORT VALIDITY METHODS
 ################################################################################
 """
-    supports_in_domain(supports::Union{Real, Vector{<:Real}, Array{<:Real, 2}},
-                    domain::AbstractInfiniteDomain)::Bool
+    supports_in_domain(
+        supports::Union{Real, Vector{<:Real}, Array{<:Real, 2}},
+        domain::AbstractInfiniteDomain
+        )::Bool
 
 Used to check if `supports` are in the domain of `domain`. Returns `true` if
 `supports` are in domain of `domain` and returns `false` otherwise.
@@ -40,8 +66,10 @@ that an error won't be thrown.
 function supports_in_domain end
 
 # IntervalDomain
-function supports_in_domain(supports::Union{Real, Vector{<:Real}},
-                         domain::IntervalDomain)::Bool
+function supports_in_domain(
+    supports::Union{Real, Vector{<:Real}},
+    domain::IntervalDomain
+    )
     min_support = minimum(supports)
     max_support = maximum(supports)
     if min_support < JuMP.lower_bound(domain) || max_support > JuMP.upper_bound(domain)
@@ -51,8 +79,10 @@ function supports_in_domain(supports::Union{Real, Vector{<:Real}},
 end
 
 # UnivariateDistribution domain
-function supports_in_domain(supports::Union{Real, Vector{<:Real}},
-                         domain::UniDistributionDomain)::Bool
+function supports_in_domain(
+    supports::Union{Real, Vector{<:Real}},
+    domain::UniDistributionDomain
+    )
     return all(Distributions.insupport(domain.distribution, supports))
 end
 
@@ -60,7 +90,7 @@ end
 function supports_in_domain(
     supports::Array{<:Real},
     domain::MultiDistributionDomain{<:Distributions.MultivariateDistribution{S}}
-    )::Bool where {S <: Distributions.ValueSupport}
+    ) where {S <: Distributions.ValueSupport}
     if length(domain.distribution) != size(supports, 1)
         error("Support dimensions does not match distribution dimensions.")
     end
@@ -68,7 +98,7 @@ function supports_in_domain(
 end
 
 # CollectionDomain
-function supports_in_domain(supports::Array{<:Real, 2}, domain::CollectionDomain)::Bool
+function supports_in_domain(supports::Array{<:Real, 2}, domain::CollectionDomain)
     domains = collection_domains(domain)
     if length(domains) != size(supports, 1)
         error("Support dimensions does not match CollectionDomain dimensions.")
@@ -82,7 +112,7 @@ function supports_in_domain(supports::Array{<:Real, 2}, domain::CollectionDomain
 end
 
 # Fallback
-function supports_in_domain(supports, domain::AbstractInfiniteDomain)::Bool
+function supports_in_domain(supports, domain::AbstractInfiniteDomain)
     return true
 end
 
@@ -104,18 +134,18 @@ julia> has_lower_bound(domain)
 true
 ```
 """
-function JuMP.has_lower_bound(domain::AbstractInfiniteDomain)::Bool # fallback
+function JuMP.has_lower_bound(domain::AbstractInfiniteDomain) # fallback
     return false
 end
 
 # IntervalDomain
-JuMP.has_lower_bound(domain::IntervalDomain)::Bool = true
+JuMP.has_lower_bound(domain::IntervalDomain) = true
 
 # DistributionDomain (Univariate)
-JuMP.has_lower_bound(domain::UniDistributionDomain)::Bool = true
+JuMP.has_lower_bound(domain::UniDistributionDomain) = true
 
 # CollectionDomain
-function JuMP.has_lower_bound(domain::CollectionDomain)::Bool
+function JuMP.has_lower_bound(domain::CollectionDomain)
     for s in collection_domains(domain)
         if !JuMP.has_lower_bound(s)
             return false
@@ -146,15 +176,15 @@ function JuMP.lower_bound(domain::AbstractInfiniteDomain) # fallback
 end
 
 # IntervalDomain
-JuMP.lower_bound(domain::IntervalDomain)::Float64 = domain.lower_bound
+JuMP.lower_bound(domain::IntervalDomain) = domain.lower_bound
 
 # DistributionDomain (Univariate)
-function JuMP.lower_bound(domain::UniDistributionDomain)::Real
+function JuMP.lower_bound(domain::UniDistributionDomain)
     return minimum(domain.distribution)
 end
 
 # CollectionDomain
-function JuMP.lower_bound(domain::CollectionDomain)::Vector{<:Real}
+function JuMP.lower_bound(domain::CollectionDomain)
     return [JuMP.lower_bound(i) for i in collection_domains(domain)]
 end
 
@@ -174,27 +204,30 @@ julia> set_lower_bound(domain, 0.5)
 [0.5, 1]
 ```
 """
-function JuMP.set_lower_bound(domain::AbstractInfiniteDomain,
-                              lower::Union{Real, Vector{<:Real}}) # fallback
+function JuMP.set_lower_bound(
+    domain::AbstractInfiniteDomain,
+    lower::Union{Real, Vector{<:Real}}
+    ) # fallback
     type = typeof(domain)
     error("`JuMP.set_lower_bound` not defined for infinite domain of type $type.")
 end
 
 # IntervalDomain
-function JuMP.set_lower_bound(domain::IntervalDomain, lower::Real)::IntervalDomain
+function JuMP.set_lower_bound(domain::IntervalDomain, lower::Real)
     return IntervalDomain(lower, domain.upper_bound)
 end
 
 # DistributionDomain
-function JuMP.set_lower_bound(domain::Union{UniDistributionDomain,
-                                         MultiDistributionDomain},
-                              lower::Union{Real, Vector{<:Real}})
+function JuMP.set_lower_bound(
+    domain::Union{UniDistributionDomain,MultiDistributionDomain},
+    lower::Union{Real, Vector{<:Real}}
+    )
     error("Cannot set the lower bound of a distribution, try using " *
           "`Distributions.Truncated` instead.")
 end
 
 # CollectionDomain
-function JuMP.set_lower_bound(domain::CollectionDomain, lower::Vector{<:Real})::CollectionDomain
+function JuMP.set_lower_bound(domain::CollectionDomain, lower::Vector{<:Real})
     domains = collection_domains(domain)
     new_domains = [JuMP.set_lower_bound(domains[i], lower[i]) for i in eachindex(domains)]
     return CollectionDomain(new_domains)
@@ -218,18 +251,18 @@ julia> has_upper_bound(domain)
 true
 ```
 """
-function JuMP.has_upper_bound(domain::AbstractInfiniteDomain)::Bool # fallback
+function JuMP.has_upper_bound(domain::AbstractInfiniteDomain) # fallback
     return false
 end
 
 # IntervalDomain
-JuMP.has_upper_bound(domain::IntervalDomain)::Bool = true
+JuMP.has_upper_bound(domain::IntervalDomain) = true
 
 # DistributionDomain (Univariate)
-JuMP.has_upper_bound(domain::UniDistributionDomain)::Bool = true
+JuMP.has_upper_bound(domain::UniDistributionDomain) = true
 
 # CollectionDomain
-function JuMP.has_upper_bound(domain::CollectionDomain)::Bool
+function JuMP.has_upper_bound(domain::CollectionDomain)
     for i in collection_domains(domain)
         if !JuMP.has_upper_bound(i)
             return false
@@ -260,15 +293,15 @@ function JuMP.upper_bound(domain::AbstractInfiniteDomain) # fallback
 end
 
 # IntervalDomain
-JuMP.upper_bound(domain::IntervalDomain)::Float64 = domain.upper_bound
+JuMP.upper_bound(domain::IntervalDomain) = domain.upper_bound
 
 # DistributionDomain (Univariate)
-function JuMP.upper_bound(domain::UniDistributionDomain)::Real
+function JuMP.upper_bound(domain::UniDistributionDomain)
     return maximum(domain.distribution)
 end
 
 # CollectionDomain
-function JuMP.upper_bound(domain::CollectionDomain)::Vector{<:Real}
+function JuMP.upper_bound(domain::CollectionDomain)
     return [JuMP.upper_bound(i) for i in collection_domains(domain)]
 end
 
@@ -295,19 +328,21 @@ function JuMP.set_upper_bound(domain::AbstractInfiniteDomain, upper::Real) # fal
 end
 
 # IntervalDomain
-function JuMP.set_upper_bound(domain::IntervalDomain, upper::Real)::IntervalDomain
+function JuMP.set_upper_bound(domain::IntervalDomain, upper::Real)
     return IntervalDomain(domain.lower_bound, upper)
 end
 
 # DistributionDomain
-function JuMP.set_upper_bound(domain::Union{UniDistributionDomain,
-                                         MultiDistributionDomain}, lower::Real)
+function JuMP.set_upper_bound(
+    domain::Union{UniDistributionDomain,MultiDistributionDomain}, 
+    lower::Real
+    )
     error("Cannot set the upper bound of a distribution, try using " *
           "`Distributions.Truncated` instead.")
 end
 
 # CollectionDomain
-function JuMP.set_upper_bound(domain::CollectionDomain, lower::Vector{<:Real})::CollectionDomain
+function JuMP.set_upper_bound(domain::CollectionDomain, lower::Vector{<:Real})
     domains = collection_domains(domain)
     new_domains = [JuMP.set_upper_bound(domains[i], lower[i]) for i in eachindex(domains)]
     return CollectionDomain(new_domains)
@@ -451,20 +486,22 @@ should extend [`generate_support_values`](@ref) to enable this. Errors if the
 `domain` type and /or methods are unrecognized. This is intended as an internal
 method to be used by methods such as [`generate_and_add_supports!`](@ref).
 """
-function generate_supports(domain::AbstractInfiniteDomain;
-                           num_supports::Int = DefaultNumSupports,
-                           sig_digits::Int = DefaultSigDigits
-                           )::Tuple
+function generate_supports(
+    domain::AbstractInfiniteDomain;
+    num_supports::Int = DefaultNumSupports,
+    sig_digits::Int = DefaultSigDigits
+    )
     return generate_support_values(domain, num_supports = num_supports,
                                    sig_digits = sig_digits)
 end
 
 # 2 arguments
-function generate_supports(domain::AbstractInfiniteDomain,
-                           method::Type{<:AbstractSupportLabel};
-                           num_supports::Int = DefaultNumSupports,
-                           sig_digits::Int = DefaultSigDigits
-                           )::Tuple
+function generate_supports(
+    domain::AbstractInfiniteDomain,
+    method::Type{<:AbstractSupportLabel};
+    num_supports::Int = DefaultNumSupports,
+    sig_digits::Int = DefaultSigDigits
+    )
     return generate_support_values(domain, method,
                                    num_supports = num_supports,
                                    sig_digits = sig_digits)
@@ -486,8 +523,7 @@ method dispatches for a given domain must ensure that `method` is positional
 argument without a default value (contrary to the definition above). Note that the 
 `method` must be a subtype of either [`PublicLabel`](@ref) or [`InternalLabel`](@ref).
 """
-function generate_support_values(domain::AbstractInfiniteDomain,
-                                 args...; kwargs...)
+function generate_support_values(domain::AbstractInfiniteDomain, args...; kwargs...)
     if isempty(args)
         error("`generate_support_values` has not been extended for infinite domains " * 
               "of type `$(typeof(domain))`. This automatic support generation is not " * 
@@ -500,11 +536,12 @@ function generate_support_values(domain::AbstractInfiniteDomain,
 end
 
 # IntervalDomain and UniformGrid
-function generate_support_values(domain::IntervalDomain,
-                                 method::Type{UniformGrid} = UniformGrid;
-                                 num_supports::Int = DefaultNumSupports,
-                                 sig_digits::Int = DefaultSigDigits,
-                                 )::Tuple{Vector{<:Real}, DataType}
+function generate_support_values(
+    domain::IntervalDomain,
+    method::Type{UniformGrid} = UniformGrid;
+    num_supports::Int = DefaultNumSupports,
+    sig_digits::Int = DefaultSigDigits,
+    )
     lb = JuMP.lower_bound(domain)
     ub = JuMP.upper_bound(domain)
     new_supports = round.(range(lb, stop = ub, length = num_supports),
@@ -513,11 +550,12 @@ function generate_support_values(domain::IntervalDomain,
 end
 
 # IntervalDomain and MCSample
-function generate_support_values(domain::IntervalDomain,
-                                 method::Type{MCSample};
-                                 num_supports::Int = DefaultNumSupports,
-                                 sig_digits::Int = DefaultSigDigits,
-                                 )::Tuple{Vector{<:Real}, DataType}
+function generate_support_values(
+    domain::IntervalDomain,
+    method::Type{MCSample};
+    num_supports::Int = DefaultNumSupports,
+    sig_digits::Int = DefaultSigDigits,
+    )
     lb = JuMP.lower_bound(domain)
     ub = JuMP.upper_bound(domain)
     dist = Distributions.Uniform(lb, ub)
@@ -532,7 +570,7 @@ function generate_support_values(
     method::Type{WeightedSample} = WeightedSample;
     num_supports::Int = DefaultNumSupports,
     sig_digits::Int = DefaultSigDigits
-    )::Tuple{Array{<:Real}, DataType}
+    )
     dist = domain.distribution
     new_supports = round.(Distributions.rand(dist, num_supports),
                           sigdigits = sig_digits)
@@ -545,7 +583,7 @@ function generate_support_values(
     method::Type{MCSample};
     num_supports::Int = DefaultNumSupports,
     sig_digits::Int = DefaultSigDigits
-    )::Tuple{Vector{Float64}, DataType}
+    )
     return generate_support_values(domain, WeightedSample; num_supports = num_supports, 
                                    sig_digits = sig_digits)[1], method # TODO use an unwieghted sample...
 end
@@ -556,7 +594,7 @@ function generate_support_values(
     method::Type{WeightedSample} = WeightedSample;
     num_supports::Int = DefaultNumSupports,
     sig_digits::Int = DefaultSigDigits
-    )::Tuple{Array{Float64, 2}, DataType}
+    )
     dist = domain.distribution
     raw_supports = Distributions.rand(dist, num_supports)
     new_supports = Array{Float64}(undef, length(dist), num_supports)
@@ -568,8 +606,10 @@ function generate_support_values(
 end
 
 # Generate the supports for a collection domain
-function _generate_collection_supports(domain::CollectionDomain, num_supports::Int,
-                                       sig_digits::Int)::Array{Float64, 2}
+function _generate_collection_supports(
+    domain::CollectionDomain, num_supports::Int,
+    sig_digits::Int
+    )
     domains = collection_domains(domain)
     # build the support array transpose to fill in column order (leverage locality)
     trans_supports = Array{Float64, 2}(undef, num_supports, length(domains))
@@ -581,10 +621,12 @@ function _generate_collection_supports(domain::CollectionDomain, num_supports::I
     return permutedims(trans_supports)
 end
 
-function _generate_collection_supports(domain::CollectionDomain,
-                                       method::Type{<:AbstractSupportLabel},
-                                       num_supports::Int,
-                                       sig_digits::Int)::Array{Float64, 2}
+function _generate_collection_supports(
+    domain::CollectionDomain,
+    method::Type{<:AbstractSupportLabel},
+    num_supports::Int,
+    sig_digits::Int
+    )
     domains = collection_domains(domain)
     # build the support array transpose to fill in column order (leverage locality)
     trans_supports = Array{Float64, 2}(undef, num_supports, length(domains))
@@ -598,59 +640,66 @@ function _generate_collection_supports(domain::CollectionDomain,
 end
 
 # CollectionDomain (IntervalDomains)
-function generate_support_values(domain::CollectionDomain{IntervalDomain},
-                                 method::Type{UniformGrid} = UniformGrid;
-                                 num_supports::Int = DefaultNumSupports,
-                                 sig_digits::Int = DefaultSigDigits
-                                 )::Tuple{Array{<:Real}, DataType}
+function generate_support_values(
+    domain::CollectionDomain{IntervalDomain},
+    method::Type{UniformGrid} = UniformGrid;
+    num_supports::Int = DefaultNumSupports,
+    sig_digits::Int = DefaultSigDigits
+    )
     new_supports = _generate_collection_supports(domain, num_supports, sig_digits)
     return new_supports, method
 end
 
-function generate_support_values(domain::CollectionDomain{IntervalDomain},
-                                 method::Type{MCSample};
-                                 num_supports::Int = DefaultNumSupports,
-                                 sig_digits::Int = DefaultSigDigits
-                                 )::Tuple{Array{<:Real}, DataType}
+function generate_support_values(
+    domain::CollectionDomain{IntervalDomain},
+    method::Type{MCSample};
+    num_supports::Int = DefaultNumSupports,
+    sig_digits::Int = DefaultSigDigits
+    )
     new_supports = _generate_collection_supports(domain, method, num_supports, sig_digits)
     return new_supports, method
 end
 
 # CollectionDomain (UniDistributionDomains)
-function generate_support_values(domain::CollectionDomain{<:UniDistributionDomain},
-                                 method::Type{WeightedSample} = WeightedSample;
-                                 num_supports::Int = DefaultNumSupports,
-                                 sig_digits::Int = DefaultSigDigits
-                                 )::Tuple{Array{<:Real}, DataType}
+function generate_support_values(
+    domain::CollectionDomain{<:UniDistributionDomain},
+    method::Type{WeightedSample} = WeightedSample;
+    num_supports::Int = DefaultNumSupports,
+    sig_digits::Int = DefaultSigDigits
+    )
     new_supports = _generate_collection_supports(domain, num_supports, sig_digits)
     return new_supports, method
 end
 
 # CollectionDomain (InfiniteScalarDomains)
-function generate_support_values(domain::CollectionDomain,
-                                 method::Type{Mixture} = Mixture;
-                                 num_supports::Int = DefaultNumSupports,
-                                 sig_digits::Int = DefaultSigDigits
-                                 )::Tuple{Array{<:Real}, DataType}
+function generate_support_values(
+    domain::CollectionDomain,
+    method::Type{Mixture} = Mixture;
+    num_supports::Int = DefaultNumSupports,
+    sig_digits::Int = DefaultSigDigits
+    )
     new_supports = _generate_collection_supports(domain, num_supports, sig_digits)
     return new_supports, method
 end
 
 # CollectionDomain (InfiniteScalarDomains) using purely MC sampling
 # this is useful for measure support generation
-function generate_support_values(domain::CollectionDomain,
-                                 method::Type{MCSample};
-                                 num_supports::Int = DefaultNumSupports,
-                                 sig_digits::Int = DefaultSigDigits
-                                 )::Tuple{Array{<:Real}, DataType}
+function generate_support_values(
+    domain::CollectionDomain,
+    method::Type{MCSample};
+    num_supports::Int = DefaultNumSupports,
+    sig_digits::Int = DefaultSigDigits
+    )
     new_supports = _generate_collection_supports(domain, method, num_supports, sig_digits)
     return new_supports, method
 end
 
 # For label All: dispatch to default methods
-function generate_support_values(domain::AbstractInfiniteDomain, ::Type{All};
-                                 num_supports::Int = DefaultNumSupports,
-                                 sig_digits::Int = DefaultSigDigits)
+function generate_support_values(
+    domain::AbstractInfiniteDomain, ::Type{All};
+    num_supports::Int = DefaultNumSupports,
+    sig_digits::Int = DefaultSigDigits
+    )
     return generate_support_values(domain, num_supports = num_supports,
                                    sig_digits = sig_digits)
 end
