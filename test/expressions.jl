@@ -702,6 +702,33 @@ end
     end
 end
 
+# Test restrictions
+@testset "restrict" begin 
+    # setup model
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x in [-1, 1])
+    @variable(m, y, Infinite(t, x))
+    @variable(m, q, Infinite(x, t))
+    @variable(m, w, Infinite(t))
+    @variable(m, z)
+    # test AffExpr
+    @testset "AffExpr" begin
+        @test (2z + y + 42)(0, -1) == 2z + y(0, -1) + 42
+        @test (2z + y + 42)(0, x) == 2z + y(0, x) + 42
+        @test_throws ErrorException (y + q)(0, 0)
+        @test_throws ErrorException (y + t)(0, x)
+    end
+    # test QuadExpr 
+    @testset "QuadExpr" begin
+        @test (z^2 + 3y - 2)(0, -1) == z^2 + 3y(0, -1) - 2
+        @test (w^2 - 2)(0) == w(0)^2 - 2
+    # test GenericNonlinearExpr
+    @testset "GenericNonlinearExpr" begin
+        @test isequal_canonical((sin(y) * z)(t, -1), sin(y(t, -1)) * z)
+    end
+end
+
 # Test _set_variable_coefficient!
 @testset "_set_variable_coefficient!" begin
     # initialize model and references

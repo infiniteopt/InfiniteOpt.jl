@@ -813,6 +813,70 @@ function map_expression_to_ast(
 end
 
 ################################################################################
+#                            EXPRESSION RESTICTIONS
+################################################################################
+"""
+    restrict(expr::JuMP.AbstractJuMPScalar, supps...)::JuMP.AbstractJuMPScalar
+
+Restrict an infinite expression `expr` to be enforced over infinite parameter 
+supports `supps`. This is limited to expressions only contain infinite variables 
+with the same kind of infinite parameter dependencies. Note that more conveniently 
+the expression can be treated as a function for the syntax `expr(supps...)`. 
+
+**Example**
+```julia-repl
+julia> ex = @expression(model, 3y - 2)
+3 y(t) - 2
+
+julia> restrict(ex, 0)
+3 y(0) - 2
+
+julia> ex(0)
+3 y(0) - 2
+```
+"""
+function restrict(expr::JuMP.AbstractJuMPScalar, supps...)
+    # check to make sure all variables depend on the same infinite parameters
+    pref_tuples = Set()
+    _interrogate_variables(expr) do v
+        if v.index_type <: InfiniteParameterIndex
+            error("Restrictions on expressions with infinite parameters are not supported.")
+        elseif !(v.index_type <: Union{FiniteVariableIndex, PointVariableIndex, FiniteParameterIndex})
+            push!(pref_tuples, raw_parameter_refs(v))
+        end
+    end
+    if length(pref_tuples) > 1
+        error("Unable to restrict expression `$expr` with supports `$supps`. " *
+              "Not all the variables use the same infinite parameters in the " *
+              "same format.")
+    end
+    # restrict the expression using supps and return
+    return map_expression(expr) do v
+        if isempty(_object_numbers(v))
+            return v
+        else
+            return restrict(v, supps...)
+        end
+    end
+end
+
+## Make expressions callable for restrictions
+# AffExprs
+function (aff::JuMP.GenericAffExpr{Float64, GeneralVariableRef})(supps...) 
+    return restrict(aff, supps...)
+end
+
+# QuadExprs
+function (quad::JuMP.GenericQuadExpr{Float64, GeneralVariableRef})(supps...) 
+    return restrict(quad, supps...)
+end
+
+# NonlinearExprs
+function (nl::JuMP.GenericNonlinearExpr{GeneralVariableRef})(supps...) 
+    return restrict(nl, supps...)
+end
+
+################################################################################
 #                             COEFFICIENT METHODS
 ################################################################################
 ## Modify linear coefficient of variable in expression
