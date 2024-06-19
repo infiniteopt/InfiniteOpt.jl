@@ -723,6 +723,7 @@ end
     @testset "QuadExpr" begin
         @test (z^2 + 3y - 2)(0, -1) == z^2 + 3y(0, -1) - 2
         @test (w^2 - 2)(0) == w(0)^2 - 2
+    end
     # test GenericNonlinearExpr
     @testset "GenericNonlinearExpr" begin
         @test isequal_canonical((sin(y) * z)(t, -1), sin(y(t, -1)) * z)
