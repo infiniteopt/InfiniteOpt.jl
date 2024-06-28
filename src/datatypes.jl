@@ -1274,23 +1274,47 @@ end
 #                            TRANSFORMATION BACKEND
 ################################################################################
 """
+    AbstractTransformationBackend
 
+Abstract type for transformation backends to `InfiniteModel`s. Any user-defined 
+backend type should inherit this type. 
 """
 abstract type AbstractTransformationBackend end
 
 """
+    AbstractJuMPTag
 
+Abstract type to enable dispatch between differnent transformation backends that 
+use the extension API provided by [`JuMPBackend`](@ref). 
 """
 abstract type AbstractJuMPTag end
 
 """
+    JuMPBackend{TAG <: AbstractJuMPTag, T, D} <: AbstractTransformationBackend 
 
+A transformation backend type for transformation backends that use JuMP `Model`s.
+This serves as the main extension point for defining new JuMP-based backends. In 
+which case a new [`AbstractJuMPTag`](@ref) should be made with which the 
+`JuMPBackend` is created:
+```julia
+backend = JuMPBackend{MyTag}(model::JuMP.GenericModel, data)
+```
+where `data` stores information used by the backend (typically mapping information 
+to the overlying `InfiniteModel`). 
+
+The JuMP `Model` can be accessed by [`transformation_model`](@ref) and the `data` 
+can be retrieved via [`transformation_data`](@ref).
 """
-struct JuMPBackend{T <: AbstractJuMPTag, D, C} <: AbstractTransformationBackend 
-    model::JuMP.Model
-    tag::T
+struct JuMPBackend{TAG <: AbstractJuMPTag, T, D} <: AbstractTransformationBackend
+    model::JuMP.GenericModel{T}
     data::D
-    optimizer_constructor::C
+    # constructor
+    function JuMPBackend{TYPE}(
+        model::JuMP.GenericModel{T},
+        data::D
+        ) where {TYPE <: AbstractJuMPTag, T, D}
+        return new{TYPE, T, D}(model, data)
+    end
 end
 
 ################################################################################
@@ -1355,18 +1379,23 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     optimize_hook::Any
 end
 
-# TODO UPDATE THE DOCSTRING ONCE THE SYNTAX IS FINALIZED
 """
-    InfiniteModel([optimizer_constructor];
-                  [OptimizerModel::Function = TranscriptionModel,
-                  add_bridges::Bool = true, optimizer_model_kwargs...])
+    InfiniteModel([backend::AbstractTransformationBackend = TranscriptionBackend()])
 
-Return a new infinite model where an optimizer is specified if an
-`optimizer_constructor` is given. The optimizer
-can also later be set with the [`JuMP.set_optimizer`](@ref) call. By default
-the `optimizer_model` data field is initialized with a
-[`TranscriptionModel`](@ref), but a different type of model can be assigned via
-[`set_optimizer_model`](@ref) as can be required by extensions.
+Return a new infinite model that uses `backend`. For the default case with 
+`TranscriptionBackend`, the `opimizer_constructor` and other arguments can be 
+given directly:
+```julia
+InfiniteModel(
+    optimizer_constructor;
+    [add_bridges::Bool = true]
+    )
+```
+where `optimizer_constructor` and `add_bridges` are passed on to the underying 
+JuMP `Model`. 
+
+A different transformation backend can be specified later on using
+[`set_transformation_backend`](@ref).
 
 **Example**
 ```jldoctest
@@ -1375,31 +1404,31 @@ julia> using InfiniteOpt, JuMP, Ipopt;
 julia> model = InfiniteModel()
 An InfiniteOpt Model
 Feasibility problem with:
-Finite Parameters: 0
-Infinite Parameters: 0
-Variables: 0
-Measures: 0
-Derivatives: 0
-Optimizer model backend information:
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+  Finite parameters: 0
+  Infinite parameters: 0
+  Variables: 0
+  Derivatives: 0
+  Measures: 0
+Transformation backend information:
+  Backend type: TranscriptionBackend
+  Solver name: No optimizer attached.
+  Transformation built and up-to-date: false
 
 julia> model = InfiniteModel(Ipopt.Optimizer)
 An InfiniteOpt Model
 Feasibility problem with:
-Finite Parameters: 0
-Infinite Parameters: 0
-Variables: 0
-Measures: 0
-Derivatives: 0
-Optimizer model backend information:
-Model mode: AUTOMATIC
-CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Ipopt
+  Finite parameters: 0
+  Infinite parameters: 0
+  Variables: 0
+  Derivatives: 0
+  Measures: 0
+Transformation backend information:
+  Backend type: TranscriptionBackend
+  Solver name: Ipopt
+  Transformation built and up-to-date: false
 ```
 """
-function InfiniteModel(backend::AbstractTransformationBackend = TranscriptionModel())
+function InfiniteModel(backend::AbstractTransformationBackend = TranscriptionBackend())
     return InfiniteModel(
         # Parameters
         MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}(),
@@ -1444,33 +1473,11 @@ function InfiniteModel(backend::AbstractTransformationBackend = TranscriptionMod
     )
 end
 
-## Set the optimizer_constructor depending on what it is
-# MOI.OptimizerWithAttributes
-# function _set_optimizer_constructor(
-#     model::InfiniteModel,
-#     constructor::MOI.OptimizerWithAttributes
-#     )
-#     model.optimizer_constructor = constructor.optimizer_constructor
-#     return
-# end
-
-# No attributes
-# function _set_optimizer_constructor(model::InfiniteModel, constructor)
-#     model.optimizer_constructor = constructor
-#     return
-# end
-
 # Dispatch for InfiniteModel call with optimizer constructor
-# function InfiniteModel(
-#     optimizer_constructor;
-#     OptimizerModel::Function = TranscriptionModel,
-#     kwargs...
-#     )
-#     model = InfiniteModel()
-#     model.optimizer_model = OptimizerModel(optimizer_constructor; kwargs...)
-#     _set_optimizer_constructor(model, optimizer_constructor)
-#     return model
-# end
+function InfiniteModel(optimizer_constructor; kwargs...)
+    backend = TranscriptionBackend(optimizer_constructor; kwargs...)
+    return InfiniteModel(backend)
+end
 
 # Define basic InfiniteModel extension functions
 Base.broadcastable(model::InfiniteModel) = Ref(model)
@@ -1528,7 +1535,7 @@ function Base.empty!(model::InfiniteModel)
     empty!(model.operators)
     empty!(model.op_lookup)
     empty!(model.obj_dict)
-    empty!(model.optimizer_model)
+    empty!(model.backend)
     model.ready_to_optimize = false
     empty!(model.ext)
     model.optimize_hook = nothing

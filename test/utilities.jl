@@ -36,6 +36,8 @@ struct TestGenInfo <: AbstractGenerativeInfo end
 struct BadData <: AbstractMeasureData end
 struct Bad end
 struct NotADomainType end
+struct TestJuMPTag <: AbstractJuMPTag end
+struct TestBackend <: AbstractTransformationBackend end
 struct TestIndex <: ObjectIndex
     value::Int
 end
@@ -92,6 +94,16 @@ io_test(f::Function, exp_str::Vector{String}, args...) = begin
     io = IOBuffer()
     f(io, args...)
     @test String(take!(io)) in exp_str
+end
+
+# Test the output of a function that prints to stdout
+function stdout_test(f::Function, exp_str, args...)
+    original_stdout = stdout
+    (read_pipe, write_pipe) = redirect_stdout()
+    @test f(args...) isa Nothing
+    redirect_stdout(original_stdout)
+    close(write_pipe)
+    @test read(read_pipe, String) == exp_str
 end
 
 # Make method for sorting matrices

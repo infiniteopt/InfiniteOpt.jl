@@ -242,7 +242,7 @@ end
     # test optimization with rebuild
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                              eval_objective_value=false)
-    @test set_optimizer_model_ready(m, false) isa Nothing
+    @test set_transformation_backend_ready(m, false) isa Nothing
     @test set_optimizer(m, mockoptimizer) isa Nothing
     @test set_silent(m) isa Nothing
     @test set_time_limit_sec(m, 42.) isa Nothing

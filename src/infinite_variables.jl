@@ -704,7 +704,7 @@ function set_start_value_function(
     start::Union{Real, Function}
     )
     info = _variable_info(vref)
-    set_optimizer_model_ready(JuMP.owner_model(vref), false)
+    set_transformation_backend_ready(JuMP.owner_model(vref), false)
     prefs = raw_parameter_refs(vref)
     temp_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
                                   info.upper_bound, info.has_fix, info.fixed_value,
@@ -731,7 +731,7 @@ julia> reset_start_value_function(vref)
 """
 function reset_start_value_function(vref::InfiniteVariableRef)
     info = _variable_info(vref)
-    set_optimizer_model_ready(JuMP.owner_model(vref), false)
+    set_transformation_backend_ready(JuMP.owner_model(vref), false)
     start_func = (s::Vector{<:Real}) -> NaN
     new_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
                                  info.upper_bound, info.has_fix, info.fixed_value,

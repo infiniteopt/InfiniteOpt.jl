@@ -46,23 +46,23 @@ function _data_object(
 end
 
 """
-    internal_semi_infinite_variable(vref::SemiInfiniteVariableRef,
-                                    key::Val{:my_ext_key})::SemiInfiniteVariable
+    internal_semi_infinite_variable(
+        vref::SemiInfiniteVariableRef,
+        backend::AbstractTransformationBackend
+        )::SemiInfiniteVariable
 
 Return the semi-infinite variable object of `vref` assuming it is an internal variable
-made during measure expansion within an optimizer model. This will apply to
-optimizer model extensions that utilize `add_measure_variable` in combination
+made during measure expansion within a transformation backend. This will apply to
+transformation backend extensions that utilize `add_measure_variable` in combination
 with `expand_measure`.
 """
 function internal_semi_infinite_variable end
 
 # Extend _core_variable_object
-function _core_variable_object(
-    vref::SemiInfiniteVariableRef
-    )::SemiInfiniteVariable{GeneralVariableRef}
+function _core_variable_object(vref::SemiInfiniteVariableRef)
     if !haskey(_data_dictionary(vref), JuMP.index(vref))
         model = JuMP.owner_model(vref)
-        return internal_semi_infinite_variable(vref, Val(optimizer_model_key(model)))
+        return internal_semi_infinite_variable(vref, model.backend)
     else
         return _data_object(vref).variable
     end

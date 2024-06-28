@@ -938,7 +938,7 @@ Now let's extend [`build_optimizer_model!`](@ref) for `DeterministicModel`s.
 Such extensions should build an optimizer model in place and in general should 
 employ the following: 
 - [`clear_optimizer_model_build!`](@ref InfiniteOpt.clear_optimizer_model_build!(::InfiniteModel))
-- [`set_optimizer_model_ready`](@ref).
+- [`set_transformation_backend_ready`](@ref).
 In place builds without the use of `clear_optimizer_model_build!` are also 
 possible, but will require some sort of active mapping scheme to update in 
 accordance with the `InfiniteModel` in the case that the 
@@ -989,7 +989,7 @@ function InfiniteOpt.build_optimizer_model!(
     end
 
     # update the status
-    set_optimizer_model_ready(model, true)
+    set_transformation_backend_ready(model, true)
     return
 end
 

@@ -39,17 +39,15 @@
     @testset "make_point_variable_ref (Parameter Function)" begin
         f = parameter_function(sin, par1)
         @test make_point_variable_ref(m, f, [0.]) == 0 
-        @test make_point_variable_ref(Model(), f, [0.]) == 0 
+        @test make_point_variable_ref(TestBackend(), f, [0.]) == 0 
     end
     # test add_point_variable
     @testset "add_point_variable" begin
-        @test_throws ErrorException add_point_variable(Model(), d1, [0.], Val(:some_key))
+        @test_throws ErrorException add_point_variable(TestBackend(), d1, [0.])
     end
-    # test make_point_variable_ref (optmizer_model)
-    @testset "make_point_variable_ref (optimizer_model)" begin
-        opt_m = Model()
-        opt_m.ext[:my_key] = 42
-        @test_throws ErrorException make_point_variable_ref(opt_m, inf1, Float64[0])
+    # test make_point_variable_ref (backend)
+    @testset "make_point_variable_ref (backend)" begin
+        @test_throws ErrorException make_point_variable_ref(TestBackend(), inf1, Float64[0])
     end
     # test make_semi_infinite_variable_ref (InfiniteModel)
     @testset "make_semi_infinite_variable_ref (InfiniteModel)" begin
@@ -79,13 +77,11 @@
     end
     # test add_semi_infinite_variable
     @testset "add_semi_infinite_variable" begin
-        @test_throws ErrorException add_semi_infinite_variable(Model(), Bad(), Val(:some_key))
+        @test_throws ErrorException add_semi_infinite_variable(TestBackend(), Bad())
     end
-    # test make_semi_infinite_variable_ref (optimizer_model)
-    @testset "make_semi_infinite_variable_ref (optimizer_model)" begin
-        opt_m = Model()
-        opt_m.ext[:my_key] = 42
-        @test_throws ErrorException make_semi_infinite_variable_ref(opt_m, inf2, [1], Float64[1])
+    # test make_semi_infinite_variable_ref (backend)
+    @testset "make_semi_infinite_variable_ref (backend)" begin
+        @test_throws ErrorException make_semi_infinite_variable_ref(TestBackend(), inf2, [1], Float64[1])
     end
     # test _process_aff_result
     @testset "_process_aff_result" begin

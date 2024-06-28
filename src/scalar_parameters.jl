@@ -679,7 +679,7 @@ function _set_generative_support_info(pref::IndependentParameterRef,
     _reset_generative_supports(pref)
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -833,7 +833,7 @@ function set_derivative_method(pref::IndependentParameterRef,
     _reset_derivative_constraints(pref)
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -857,7 +857,7 @@ function set_derivative_method(pref::IndependentParameterRef,
     _reset_generative_supports(pref)
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -882,7 +882,7 @@ function _update_parameter_domain(pref::IndependentParameterRef,
     _set_has_generative_supports(pref, false)
     _set_has_internal_supports(pref, false)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -1079,7 +1079,7 @@ function _update_parameter_supports(pref::IndependentParameterRef,
     _reset_derivative_constraints(pref)
     _set_has_generative_supports(pref, false)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -1311,7 +1311,7 @@ function add_supports(pref::IndependentParameterRef,
         _reset_derivative_constraints(pref)
         _reset_generative_supports(pref)
         if is_used(pref)
-            set_optimizer_model_ready(JuMP.owner_model(pref), false)
+            set_transformation_backend_ready(JuMP.owner_model(pref), false)
         end
     end
     return
@@ -1365,7 +1365,7 @@ function delete_supports(pref::IndependentParameterRef;
         end
     end
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -1410,7 +1410,7 @@ julia> value(cost)
 function JuMP.set_value(pref::FiniteParameterRef, value::Real)::Nothing
     _data_object(pref).parameter = FiniteParameter(value)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -1653,7 +1653,7 @@ function JuMP.delete(
     end
     # update optimizer model status
     if is_used(pref)
-        set_optimizer_model_ready(model, false)
+        set_transformation_backend_ready(model, false)
     end
     # delete dependence of measures on pref
     _update_measures(model, gvref)
@@ -1677,7 +1677,7 @@ function JuMP.delete(model::InfiniteModel, pref::FiniteParameterRef)::Nothing
     @assert JuMP.is_valid(model, pref) "Parameter reference is invalid."
     # update optimizer model status
     if is_used(pref)
-        set_optimizer_model_ready(model, false)
+        set_transformation_backend_ready(model, false)
     end
     gvref = _make_parameter_ref(model, JuMP.index(pref))
     # delete dependence of measures on pref

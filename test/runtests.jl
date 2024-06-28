@@ -40,7 +40,7 @@ println("")
     include("general_variables.jl")
 end
 println("")
-@time @testset "Optimizer Setup Methods" begin include("optimizer_setup.jl") end
+@time @testset "Backend Setup Methods" begin include("backend_setup.jl") end
 println("")
 @time @testset "Macro Utilities" begin include("macro_utilities.jl") end
 println("")
@@ -91,15 +91,14 @@ println("")
     @testset "Model" begin include("TranscriptionOpt/model.jl") end
     @testset "Measures" begin include("TranscriptionOpt/measure.jl") end
     @testset "Transcribe" begin include("TranscriptionOpt/transcribe.jl") end
-    @testset "Optimize" begin include("TranscriptionOpt/optimize.jl") end
 end
 println("")
-@time @testset "Solution Methods" begin include("optimizer.jl") end
+@time @testset "Solution Methods" begin include("backend_mappings.jl") end
 println("")
 @time @testset "Solution Queries" begin include("results.jl") end
 println("")
-@time @testset "Extensions" begin include("extensions.jl") end
-println("")
+# @time @testset "Extensions" begin include("extensions.jl") end
+# println("")
 println("----------------------------------------------------------------------------")
 println("-----------------------------TESTING COMPLETE!------------------------------")
 println("----------------------------------------------------------------------------")

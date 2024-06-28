@@ -626,7 +626,7 @@ function set_derivative_method(pref::DependentParameterRef,
     _adaptive_method_update(pref, _core_variable_object(pref), method)
     _reset_derivative_constraints(pref)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -743,7 +743,7 @@ function _update_parameter_domain(pref::DependentParameterRef,
     end
     _set_has_internal_supports(pref, false)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -1156,7 +1156,7 @@ function _update_parameter_supports(prefs::AbstractArray{<:DependentParameterRef
         _reset_derivative_constraints(pref)
     end
     if any(is_used(pref) for pref in prefs)
-        set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
+        set_transformation_backend_ready(JuMP.owner_model(first(prefs)), false)
     end
     return
 end
@@ -1332,7 +1332,7 @@ function add_supports(
             _reset_derivative_constraints(pref)
         end
         if any(is_used(pref) for pref in prefs)
-            set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
+            set_transformation_backend_ready(JuMP.owner_model(first(prefs)), false)
         end
     end
     return
@@ -1384,7 +1384,7 @@ function delete_supports(
         end
     end
     if any(is_used(pref) for pref in prefs)
-        set_optimizer_model_ready(JuMP.owner_model(first(prefs)), false)
+        set_transformation_backend_ready(JuMP.owner_model(first(prefs)), false)
     end
     return
 end
@@ -1750,7 +1750,7 @@ function JuMP.delete(
     end
     # update optimizer model status
     if any(is_used(pref) for pref in prefs)
-        set_optimizer_model_ready(model, false)
+        set_transformation_backend_ready(model, false)
     end
     # delete dependence of measures and constraints on prefs
     for pref in gvrefs

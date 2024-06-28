@@ -373,7 +373,7 @@ end
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
         @test isequal(add_variable(m, v, "name"), gvref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         # lower bound
         cindex = InfOptConstraintIndex(1)
         cref = InfOptConstraintRef(m, cindex)
@@ -417,7 +417,7 @@ end
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
         @test isequal(add_variable(m, v, "name"), gvref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         cindex = InfOptConstraintIndex(8)
         cref = InfOptConstraintRef(m, cindex)
         @test has_upper_bound(vref)

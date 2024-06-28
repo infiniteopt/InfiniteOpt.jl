@@ -116,7 +116,7 @@ function JuMP.set_objective_function(
             model.objective_has_measures = true
         end
     end
-    set_optimizer_model_ready(model, false)
+    set_transformation_backend_ready(model, false)
     return
 end
 
@@ -142,7 +142,7 @@ function JuMP.set_objective_function(model::InfiniteModel, func::Real)::Nothing
     end
     # update function
     model.objective_function = JuMP.GenericAffExpr{Float64, GeneralVariableRef}(func)
-    set_optimizer_model_ready(model, false)
+    set_transformation_backend_ready(model, false)
     return
 end
 
@@ -166,7 +166,7 @@ function JuMP.set_objective_sense(
     sense::MOI.OptimizationSense
     )::Nothing
     model.objective_sense = sense
-    set_optimizer_model_ready(model, false)
+    set_transformation_backend_ready(model, false)
     return
 end
 

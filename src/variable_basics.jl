@@ -362,7 +362,7 @@ function JuMP.set_lower_bound(
         cindex = _lower_bound_index(vref)
         cref = _make_constraint_ref(model, cindex)
         _set_core_constraint_object(cref, new_constr)
-        set_optimizer_model_ready(model, false)
+        set_transformation_backend_ready(model, false)
     else
         @assert !JuMP.is_fixed(vref) "$vref is fixed, cannot set lower bound."
         cref = JuMP.add_constraint(model, new_constr, is_info_constr = true)
@@ -498,7 +498,7 @@ function JuMP.set_upper_bound(
         cindex = _upper_bound_index(vref)
         cref = _make_constraint_ref(model, cindex)
         _set_core_constraint_object(cref, new_constr)
-        set_optimizer_model_ready(model, false)
+        set_transformation_backend_ready(model, false)
     else
         @assert !JuMP.is_fixed(vref) "$vref is fixed, cannot set upper bound."
         cref = JuMP.add_constraint(model, new_constr, is_info_constr = true)
@@ -640,7 +640,7 @@ function JuMP.fix(
         cindex = _fix_index(vref)
         cref = _make_constraint_ref(model, cindex)
         _set_core_constraint_object(cref, new_constr)
-        set_optimizer_model_ready(model, false)
+        set_transformation_backend_ready(model, false)
     else  # Add a new fixing constraint.
         if  JuMP.has_upper_bound(vref) ||  JuMP.has_lower_bound(vref)
             if !force
@@ -750,7 +750,7 @@ function JuMP.set_start_value(
     value::Real
     )::Nothing
     info = _variable_info(vref)
-    set_optimizer_model_ready(JuMP.owner_model(vref), false)
+    set_transformation_backend_ready(JuMP.owner_model(vref), false)
     _update_variable_info(vref,
                           JuMP.VariableInfo(info.has_lb, info.lower_bound,
                                             info.has_ub, info.upper_bound,
@@ -1118,7 +1118,7 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
     @assert JuMP.is_valid(model, vref) "Variable is invalid."
     # update the optimizer model status
     if is_used(vref)
-        set_optimizer_model_ready(model, false)
+        set_transformation_backend_ready(model, false)
     end
     # delete attributes specific to the variable type
     _delete_variable_dependencies(vref)

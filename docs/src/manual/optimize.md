@@ -54,6 +54,6 @@ InfiniteOpt.optimizer_model_constraint(::InfOptConstraintRef)
 optimizer_model_constraint
 supports(::InfOptConstraintRef)
 InfiniteOpt.constraint_supports
-optimizer_model_ready
-set_optimizer_model_ready
+transformation_backend_ready
+set_transformation_backend_ready
 ```

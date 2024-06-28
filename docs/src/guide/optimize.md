@@ -90,7 +90,7 @@ steps:
 Here `build_optimizer_model!` creates a reformulated finite version of the 
 `InfiniteModel`, stores it in `InfiniteModel.optimizer_model` via 
 [`set_optimizer_model`](@ref), and indicates that the optimizer model is ready 
-via [`set_optimizer_model_ready`](@ref). These steps are all automated when 
+via [`set_transformation_backend_ready`](@ref). These steps are all automated when 
 [`optimize!`](@ref JuMP.optimize!(::InfiniteModel)) is invoked on the 
 `InfiniteModel`.
 

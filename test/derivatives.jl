@@ -278,7 +278,7 @@ end
         dref = DerivativeRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
         @test isequal(add_derivative(m, d, "name"), gvref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         @test InfiniteOpt._derivative_dependencies(prefs[1]) == [idx]
         @test InfiniteOpt._derivative_dependencies(x) == [DerivativeIndex(i) for i = 1:2]
         @test !InfiniteOpt._is_vector_start(dref)
@@ -535,7 +535,7 @@ end
         @test set_start_value_function(d1, 1.5) isa Nothing
         @test start_value_function(d1)([0]) == 1.5
         @test InfiniteOpt._is_vector_start(dref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         func = (a) -> 1
         @test set_start_value_function(d1, func) isa Nothing
         @test start_value_function(d1)(0) == 1
@@ -546,7 +546,7 @@ end
         @test reset_start_value_function(d1) isa Nothing
         @test start_value_function(d1) isa Nothing
         @test InfiniteOpt._is_vector_start(dref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
     end
 end
 
