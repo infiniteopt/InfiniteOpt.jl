@@ -1011,8 +1011,6 @@ function InfiniteOpt.build_transformation_backend!(
         model, 
         check_support_dims = check_support_dims
         )
-    # update the transformation backend status
-    InfiniteOpt.set_transformation_backend_ready(model, true)
     return
 end
 

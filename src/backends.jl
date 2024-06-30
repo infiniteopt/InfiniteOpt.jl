@@ -50,6 +50,16 @@ end
     transformation_model(model::InfiniteModel)
 
 Return the underlying model used by the transformation backend.
+
+**Example**
+```julia-repl
+julia> trans_model = transformation_model(model)
+A JuMP Model
+Feasibility problem with:
+Variables: 0
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
 ```
 """
 transformation_model(model::InfiniteModel) = transformation_model(model.backend)
@@ -71,6 +81,11 @@ end
 
 Return the underlying data (typically mapping data) used by the 
 transformation backend. 
+
+**Example**
+```julia-repl
+julia> mapping_data = transformation_data(model);
+```
 """
 function transformation_data(model::InfiniteModel)
     return transformation_data(model.backend)
@@ -85,6 +100,29 @@ end
 Specify a new transformation backend `backend` for the `model`. Note
 that all data/settings/results associated with the previous backend 
 will be removed.
+
+**Example**
+```julia-repl
+julia> transformation_backend(model)
+A TranscriptionBackend that uses a
+A JuMP Model
+Feasibility problem with:
+Variables: 0
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
+
+julia> set_transformation_backend(model, TranscriptionBackend(Ipopt.Optimizer))
+
+julia> transformation_backend(model)
+A TranscriptionBackend that uses a
+A JuMP Model
+Feasibility problem with:
+Variables: 0
+Model mode: AUTOMATIC
+CachingOptimizer state: EMPTY_OPTIMIZER
+Solver name: Ipopt
+```
 """
 function set_transformation_backend(
     model::InfiniteModel, 
@@ -93,6 +131,29 @@ function set_transformation_backend(
     model.backend = backend
     set_transformation_backend_ready(model, false)
     return
+end
+
+"""
+    transformation_backend(
+        model::InfiniteModel
+        )::AbstractTransformationBackend
+
+Retrieve the transformation backend used by the `model`.
+
+**Example**
+```julia-repl
+julia> transformation_backend(model)
+A TranscriptionBackend that uses a
+A JuMP Model
+Feasibility problem with:
+Variables: 0
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
+```
+"""
+function transformation_backend(model::InfiniteModel)
+    return model.backend
 end
 
 """
@@ -116,9 +177,18 @@ end
 
 Retrieve an attribute `attr` from the transformation backend of 
 `model`. Typically, this corresponds to `MOI.AbstractOptimizerAttribute`s.
+
+**Example**
+```julia-repl
+julia> get_attribute(model, MOI.TimeLimitSec())
+60.0
+```
 """
 function JuMP.get_attribute(model::InfiniteModel, attr)
     return JuMP.get_attribute(model.backend, attr)
+end
+function JuMP.get_optimizer_attribute(model::InfiniteModel, attr)
+    return JuMP.get_attribute(model, attr)
 end
 
 """
@@ -143,9 +213,17 @@ end
 
 Specify an attribute `attr` to the transformation backend of 
 `model`. Typically, this corresponds to `MOI.AbstractOptimizerAttribute`s.
+
+**Example**
+```julia-repl
+julia> set_attribute(model, MOI.TimeLimitSec(), 42.0)
+```
 """
 function JuMP.set_attribute(model::InfiniteModel, attr, value)
     return JuMP.set_attribute(model.backend, attr, value)
+end
+function JuMP.set_optimizer_attribute(model::InfiniteModel, attr, value)
+    return JuMP.set_attribute(model, attr, value)
 end
 
 """
@@ -174,7 +252,8 @@ end
 Given `model`, transform it into the representation used by `backend`. 
 Once completed, `backend` should be ready to be solved. This serves as 
 an extension point for new types of backends. If needed, keyword arguments
-can be added.
+can be added. Typically, this should clear out the backend before reconstructing
+it.
 """
 function build_transformation_backend!(
     model::InfiniteModel, 
@@ -192,13 +271,13 @@ Build the model used by the underlying transformation backend stored in `model` 
 that it is ready to solve. Specifically, translate the InfiniteOpt formulation 
 stored in `model` into (typically an appoximate) formulation that is compatible 
 with the backend. This is called automatically by `optimize!`; however, it this 
-method can be used to build the transformation model without solving it.
+method can be used to build the transformation backend without solving it.
 
 **Example**
 ```julia-repl
 julia> build_transformation_backend!(model)
 
-julia> transformation_model_ready(model)
+julia> transformation_backend_ready(model)
 true
 ```
 """
@@ -240,12 +319,13 @@ function JuMP.set_optimize_hook(
 end
 
 """
-    JuMP.optimize!(backend::AbstractTransformationBackend)::Nothing
+    JuMP.optimize!(backend::AbstractTransformationBackend)
 
 Invoke the relevant routines to solve the underlying model used by 
 `backend`. Note that [`build_transformation_backend!`](@ref) will be 
 called before this method is. This needs to be extended for new 
 backend types, but no extension is needed for [`JuMPBackend`](@ref)s.
+Optionally, information can be returned if desired.
 """
 function JuMP.optimize!(backend::AbstractTransformationBackend)
     error("`JuMP.optimize!` not implemented for transformation backends " * 
@@ -254,14 +334,15 @@ end
 
 
 """
-    JuMP.optimize!(model::InfiniteModel; [kwargs...])::Nothing
+    JuMP.optimize!(model::InfiniteModel; [kwargs...])
 
 Extend `JuMP.optimize!` to optimize infinite models using the internal
 optimizer model. Calls [`build_transformation_backend!`](@ref) if the optimizer
 model isn't up-to-date. The `kwargs` correspond to keyword arguments passed to
 [`build_transformation_backend!`](@ref) if any are defined. The `kwargs` can also 
 include arguments that are passed to an optimize hook if one was set with 
-[`JuMP.set_optimize_hook`](@ref). 
+[`JuMP.set_optimize_hook`](@ref). Typically, this returns `nothing`, but 
+certain backends may return something.
 
 **Example**
 ```julia-repl
@@ -282,8 +363,7 @@ function JuMP.optimize!(
     if !transformation_backend_ready(model)
         build_transformation_backend!(model; kwargs...)
     end
-    JuMP.optimize!(model.backend)
-    return
+    return JuMP.optimize!(model.backend)
 end
 
 ################################################################################
@@ -532,7 +612,7 @@ end
 #                             VARIABLE MAPPING API
 ################################################################################
 """
-    transformation_model_variable(
+    transformation_variable(
         vref::GeneralVariableRef, 
         backend::AbstractTransformationBackend; 
         [kwargs...]
@@ -542,17 +622,17 @@ Return the variable(s) that map to `vref` used by `backend`. This serves as an
 extension point for new backend types. If needed, keywords arguments can be 
 added.
 """
-function transformation_model_variable(
+function transformation_variable(
     vref::GeneralVariableRef, 
     backend::AbstractTransformationBackend; 
     kwargs...
     )
-    error("`transformation_model_variable` not defined for backends of type " *
+    error("`transformation_variable` not defined for backends of type " *
           "`$(typeof(backend))`.")
 end
 
 """
-    transformation_model_variable(vref::GeneralVariableRef; [kwargs...])
+    transformation_variable(vref::GeneralVariableRef; [kwargs...])
 
 Returns the variable(s) used by the transformation backend to represent `vref`. 
 Certain backends may also allow the use of keyward arguments. 
@@ -568,18 +648,18 @@ infinite parameter dependencies.
 
 **Example**
 ```julia-repl
-julia> transformation_model_variable(x) # infinite variable
+julia> transformation_variable(x) # infinite variable
 2-element Array{VariableRef,1}:
  x(support: 1)
  x(support: 2)
 
-julia> transformation_model_variable(z) # finite variable
+julia> transformation_variable(z) # finite variable
 z
 ```
 """
-function transformation_model_variable(vref::GeneralVariableRef; kwargs...)
+function transformation_variable(vref::GeneralVariableRef; kwargs...)
     model = JuMP.owner_model(vref)
-    return transformation_model_variable(vref, model.backend; kwargs...)
+    return transformation_variable(vref, model.backend; kwargs...)
 end
 
 """
@@ -619,7 +699,7 @@ end
 
 Return the supports associated with `vref` in the transformation
 model. Errors if [`InfiniteOpt.variable_supports`](@ref) has not been extended for the
-transformation backend type or if `vref` is not reformulated in the transformation model.
+transformation backend type or if `vref` is not reformulated in the transformation backend.
 
 The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
 and `kwargs` denote extra ones that user extensions may employ in accordance with
@@ -652,48 +732,48 @@ end
 #                             EXPRESSION MAPPING API
 ################################################################################
 """
-    transformation_model_expression(expr, backend::AbstractTransformationBackend; [kwargs...])
+    transformation_expression(expr, backend::AbstractTransformationBackend; [kwargs...])
 
-Return the reformulation expression(s) stored in the transformation model that correspond
+Return the reformulation expression(s) stored in the transformation backend that correspond
 to `expr`. This needs to be defined for extensions that implement a new 
 [`AbstractTransformationBackend`](@ref). Keyword arguments can be added as needed.
 Note that if `expr` is a `GeneralVariableRef` this just dispatches to
-`transformation_model_variable`.
+`transformation_variable`.
 """
-function transformation_model_expression(
+function transformation_expression(
     expr, 
     backend::AbstractTransformationBackend; 
     kwargs...
     )
-    error("`transformation_model_expression` not defined for transformation backends " *
+    error("`transformation_expression` not defined for transformation backends " *
           "of type `$(typeof(backend))` and expression type `$(typeof(expr))`.")
 end
 
 # Define for variable reference expressions
-function transformation_model_expression(
+function transformation_expression(
     expr::GeneralVariableRef, 
     backend::AbstractTransformationBackend; 
     kwargs...
     )
-    return transformation_model_variable(expr, backend; kwargs...)
+    return transformation_variable(expr, backend; kwargs...)
 end
 
 """
-    transformation_model_expression(
+    transformation_expression(
         expr::JuMP.AbstractJuMPScalar; 
         [label::Type{<:AbstractSupportLabel} = PublicLabel,
         ndarray::Bool = false, 
         kwargs...]
         )
 
-Return the reformulation expression(s) stored in the transformation model that correspond
+Return the reformulation expression(s) stored in the transformation backend that correspond
 to `expr`. Also errors if no such expression can be found in
-the transformation model (meaning one or more of the underlying variables have not
+the transformation backend (meaning one or more of the underlying variables have not
 been transformed).
 
 The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
 and `kwargs` denote extra ones that user extensions may employ in accordance with
-their implementation of [`transformation_model_expression`](@ref). Errors if such an
+their implementation of [`transformation_expression`](@ref). Errors if such an
 extension has not been written. 
 
 By default only the expressions associated with public supports are returned, the 
@@ -705,16 +785,16 @@ infinite parameter dependencies. The corresponding supports are obtained via
 
 **Example**
 ```julia-repl
-julia> transformation_model_expression(my_expr) # finite expression
+julia> transformation_expression(my_expr) # finite expression
 x(support: 1) - y
 ```
 """
-function transformation_model_expression(expr::JuMP.AbstractJuMPScalar; kwargs...)
+function transformation_expression(expr::JuMP.AbstractJuMPScalar; kwargs...)
     model = JuMP.owner_model(expr)
     if isnothing(model)
         return zero(JuMP.AffExpr) + JuMP.constant(expr)
     else
-        return transformation_model_expression(expr, model.backend; kwargs...)
+        return transformation_expression(expr, model.backend; kwargs...)
     end
 end
 
@@ -731,7 +811,7 @@ stored in `backend`. Keyword arguments can be added as needed. Note that
 if `expr` is a `GeneralVariableRef` this just dispatches to `variable_supports`.
 """
 function expression_supports(expr, backend::AbstractTransformationBackend; kwargs...)
-  error("`expression_supports` not implemented for transformation model of type " *
+  error("`expression_supports` not implemented for transformation backend of type " *
         "`$(typeof(backend))` and/or expressions of type `$(typeof(expr))`.")
 end
 
@@ -753,7 +833,7 @@ end
         )
 
 Return the support associated with `expr`. Errors if `expr` is
-not associated with the constraint mappings stored in the transformation model.
+not associated with the constraint mappings stored in the transformation backend.
 
 The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
 and `kwargs` denote extra ones that user extensions may employ in accordance with
@@ -787,41 +867,41 @@ end
 #                             CONSTRAINT MAPPING API
 ################################################################################
 """
-    transformation_model_constraint(
+    transformation_constraint(
         cref::InfOptConstraintRef,
         backend::AbstractTransformationBackend; 
         [kwargs...]
         )
 
-Return the reformulation constraint(s) stored in the transformation model 
+Return the reformulation constraint(s) stored in the transformation backend 
 that correspond to `cref`. This needs to be defined for extensions that 
-implement a custom transformation model type. Keyword arguments can be 
+implement a custom transformation backend type. Keyword arguments can be 
 added as needed.
 """
-function transformation_model_constraint(
+function transformation_constraint(
     cref::InfOptConstraintRef,
     backend::AbstractTransformationBackend; 
     kwargs...
     )
-    error("`transformation_model_constraint` not implemented for " * 
-          "transformation model backends of type `$(typeof(backend))`.")
+    error("`transformation_constraint` not implemented for " * 
+          "transformation backends of type `$(typeof(backend))`.")
 end
 
 """
-    transformation_model_constraint(
+    transformation_constraint(
         cref::InfOptConstraintRef; 
         [label::Type{<:AbstractSupportLabel} = PublicLabel, 
         ndarray::Bool = false,
         kwargs...]
         )
 
-Return the reformulation constraint(s) stored in the transformation model that 
+Return the reformulation constraint(s) stored in the transformation backend that 
 correspond to `cref`. Errors if no such constraint can be found in
-the transformation model.
+the transformation backend.
 
 The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
 and `kwargs` denote extra ones that user extensions may employ in accordance with
-their implementation of [`transformation_model_constraint`](@ref). Errors if such an
+their implementation of [`transformation_constraint`](@ref). Errors if such an
 extension has not been written. 
 
 By default only the constraints associated with public supports are returned, the 
@@ -833,16 +913,16 @@ infinite parameter dependencies. The corresponding supports are obtained via
 
 **Example**
 ```julia-repl
-julia> transformation_model_constraint(c1) # finite constraint
+julia> transformation_constraint(c1) # finite constraint
 c1 : x(support: 1) - y <= 3.0
 ```
 """
-function transformation_model_constraint(
+function transformation_constraint(
     cref::InfOptConstraintRef; 
     kwargs...
     )
     backend = JuMP.owner_model(cref).backend
-    return transformation_model_constraint(cref, backend; kwargs...)
+    return transformation_constraint(cref, backend; kwargs...)
 end
 
 """
@@ -861,7 +941,7 @@ function constraint_supports(
     backend::AbstractTransformationBackend; 
     kwargs...
     )
-    error("`constraint_supports` not implemented for transformation model backends " *
+    error("`constraint_supports` not implemented for transformation backends " *
           "of type `$(typeof(backend))`.")
 end
 
@@ -872,7 +952,7 @@ end
              kwargs...])
 
 Return the support associated with `cref`. Errors if `cref` is
-not associated with the constraint mappings stored in the transformation model.
+not associated with the constraint mappings stored in the transformation backend.
 
 The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
 and `kwargs` denote extra ones that user extensions may employ in accordance with

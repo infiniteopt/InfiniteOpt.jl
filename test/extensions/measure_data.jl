@@ -11,15 +11,16 @@ struct NewMeasureData <: AbstractMeasureData
 end
 
 # Extend parameter_refs to return the parameter(s) being measured by a measure using NewMeasureData
-function InfiniteOpt.parameter_refs(data::NewMeasureData)::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}
+function InfiniteOpt.parameter_refs(data::NewMeasureData)
     return data.attr2.parameter_refs # REPLACE WITH ACTUAL PARAMETER LOCATION
 end
 
 # Extend expand_measure to return the finite reformulation of a measure using NewMeasureData
-function InfiniteOpt.expand_measure(expr::JuMP.AbstractJuMPScalar,
-                                    data::NewMeasureData,
-                                    write_model::JuMP.AbstractModel
-                                    )::JuMP.AbstractJuMPScalar
+function InfiniteOpt.expand_measure(
+    expr::JuMP.AbstractJuMPScalar,
+    data::NewMeasureData,
+    write_model::Union{InfiniteModel, AbstractTransformationBackend}
+    )
     # INSERT APPROPRIATE METHODS HERE
     # USING make_point_variable_ref AND make_semi_infinite_variable_ref MAY BE USEFUL
     return expand_measure(expr, data.attr2, write_model) # REPLACE ACTUAL RESULT
@@ -33,25 +34,25 @@ end
 
 # Extend supports to return any infinite parameter supports employed by NewMeasureData
 # This is only optional if the new abstraction doesn't use supports at all
-function InfiniteOpt.supports(data::NewMeasureData)::Vector
+function InfiniteOpt.supports(data::NewMeasureData)
     return data.attr2.supports # REPLACE WITH ACTUAL LOCATION
 end
 
 # Extend support_label to return the label of supports employed by NewMeasureData
 # This is only optional if the new abstraction doesn't use supports at all
-function InfiniteOpt.support_label(data::NewMeasureData)::Type{<:AbstractSupportLabel}
+function InfiniteOpt.support_label(data::NewMeasureData)
     return data.attr2.label # REPLACE WITH ACTUAL LOCATION
 end
 
 # Extend coefficients to return the coefficients stored in NewMeasureData if appropriate
 # This is optional (returns empty vector otherwise)
-function InfiniteOpt.coefficients(data::NewMeasureData)::Vector{Float64}
+function InfiniteOpt.coefficients(data::NewMeasureData)
     return data.attr2.coefficients # REPLACE WITH ACTUAL LOCATION
 end
 
 # Extend weight_function to return the weight function stored in NewMeasureData if appropriate
 # This is optional (returns default_weight otherwise)
-function InfiniteOpt.weight_function(data::NewMeasureData)::Function
+function InfiniteOpt.weight_function(data::NewMeasureData)
     return data.attr2.weight_function # REPLACE WITH ACTUAL LOCATION
 end
 
@@ -64,7 +65,7 @@ function new_measure(
     ub::Number; 
     name::String = "NewMeas",
     num_supports::Int = 10
-    )::GeneralVariableRef # REPLACE ARGS WITH ACTUAL DESIRED
+    ) # REPLACE ARGS WITH ACTUAL DESIRED
     # INSERT RELAVENT CHECKS AND OPERATIONS HERE
     # REPLACE BELOW WITH ACTUAL CONSTRUCTION
     attr2 = DiscreteMeasureData(param, ones(num_supports), [lb + (ub - lb) / (num_supports - 1) * i for i in 1:num_supports]) # just an example

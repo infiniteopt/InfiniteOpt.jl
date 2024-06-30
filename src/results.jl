@@ -5,7 +5,7 @@
 for func in (:termination_status, :raw_status, :solve_time, :simplex_iterations,
              :barrier_iterations, :node_count, :objective_bound, :relative_gap,
              :result_count)
-    @eval begin 
+    @eval begin
         @doc """
             JuMP.$($func)(backend::AbstractTransformationBackend)
 
@@ -85,9 +85,9 @@ end
 Map the value(s) of `ref` to its counterpart in the `backend`.
 Here `ref` need refer to methods for both variable references and constraint
 references. No extension is needed for [`JuMPBackend`](@ref)s that support
-`transformation_model_variable`, `transformation_model_expression`, and 
-`transformation_model_constraint`. In this case, `transformation_model_variable`, 
-`transformation_model_expression`, and `transformation_model_constraint` are 
+`transformation_variable`, `transformation_expression`, and 
+`transformation_constraint`. In this case, `transformation_variable`, 
+`transformation_expression`, and `transformation_constraint` are 
 used to make these mappings by default where `kwargs` are passed on these functions. 
 For mapping the values of infinite parameters, refer to 
 [`map_infinite_parameter_value`](@ref).
@@ -102,14 +102,14 @@ end
 _get_jump_value(v, result) = JuMP.value(v, result = result)
 _get_jump_value(v::Real, result) = v
 
-# Default method that depends on transformation_model_variable --> making extensions easier
+# Default method that depends on transformation_variable --> making extensions easier
 function map_value(
     vref::GeneralVariableRef,
     backend::JuMPBackend;
     result::Int = 1,
     kwargs...
     )
-    opt_vref = transformation_model_variable(vref, backend; kwargs...)
+    opt_vref = transformation_variable(vref, backend; kwargs...)
     if opt_vref isa AbstractArray
         return map(v -> _get_jump_value(v, result), opt_vref)
     else
@@ -117,14 +117,14 @@ function map_value(
     end
 end
 
-# Default method that depends on transformation_model_expression --> making extensions easier
+# Default method that depends on transformation_expression --> making extensions easier
 function map_value(
     expr::JuMP.AbstractJuMPScalar,
     backend::JuMPBackend;
     result::Int = 1,
     kwargs...
     )
-    opt_expr = transformation_model_expression(expr, backend; kwargs...)
+    opt_expr = transformation_expression(expr, backend; kwargs...)
     if opt_expr isa AbstractArray
         return map(v -> _get_jump_value(v, result), opt_expr)
     else
@@ -132,14 +132,14 @@ function map_value(
     end
 end
 
-# Default method that depends on transformation_model_constraint --> making extensions easier
+# Default method that depends on transformation_constraint --> making extensions easier
 function map_value(
     cref::InfOptConstraintRef,
     backend::JuMPBackend;
     result::Int = 1,
     kwargs...
     )
-    opt_cref = transformation_model_constraint(cref, backend; kwargs...)
+    opt_cref = transformation_constraint(cref, backend; kwargs...)
     if opt_cref isa AbstractArray
         return map(c -> _get_jump_value(c, result), opt_cref)
     else
@@ -209,12 +209,12 @@ infinite parameter dependencies.
 
 To provide context for the values, it may be helpful to also query the variable's 
 `parameter_refs` and `supports` which will have a one-to-one correspondence with 
-the value(s). It may also be helpful to query via [`transformation_model_variable`](@ref) 
+the value(s). It may also be helpful to query via [`transformation_variable`](@ref) 
 to retrieve the variables(s) that these values are based on. These functions should 
 all be called with the same keyword arguments for consistency.
 
 For extensions, this only works if 
-[`transformation_model_variable`](@ref) has been extended correctly and/or 
+[`transformation_variable`](@ref) has been extended correctly and/or 
 [`map_value`](@ref) has been extended for variables.
 
 **Example**
@@ -249,12 +249,12 @@ infinite parameter dependencies.
 
 To provide context for the values, it may be helpful to also query the expression's 
 `parameter_refs` and `supports` which will have a one-to-one correspondence with 
-the value(s). It may also be helpful to query via [`transformation_model_expression`](@ref) 
+the value(s). It may also be helpful to query via [`transformation_expression`](@ref) 
 to retrieve the expression(s) that these values are based on. These functions should 
 all be called with the same keyword arguments for consistency.
 
 For extensions, this only works if 
-[`transformation_model_expression`](@ref) has been extended correctly and/or 
+[`transformation_expression`](@ref) has been extended correctly and/or 
 [`map_value`](@ref) has been extended for expressions.
 
 **Example**
@@ -312,12 +312,12 @@ infinite parameter dependencies.
 
 To provide context for the values, it may be helpful to also query the constraint's 
 `parameter_refs` and `supports` which will have a one-to-one correspondence with 
-the value(s). It may also be helpful to query via [`transformation_model_constraint`](@ref) 
+the value(s). It may also be helpful to query via [`transformation_constraint`](@ref) 
 to retrieve the constraint(s) that these values are based on. These functions should 
 all be called with the same keyword arguments for consistency.
 
 For extensions, this only works if 
-[`transformation_model_constraint`](@ref) has been extended correctly and/or 
+[`transformation_constraint`](@ref) has been extended correctly and/or 
 [`map_value`](@ref) has been extended for constraints.
 
 **Example**
@@ -338,10 +338,10 @@ end
 #                            BOILERPLATE REF QUERIES
 ################################################################################
 for (Ref, func, mapper) in (
-    (:GeneralVariableRef, :reduced_cost, :transformation_model_variable), 
-    (:GeneralVariableRef, :optimizer_index, :transformation_model_variable),
-    (:InfOptConstraintRef, :optimizer_index, :transformation_model_constraint),
-    (:InfOptConstraintRef, :shadow_price, :transformation_model_constraint)
+    (:GeneralVariableRef, :reduced_cost, :transformation_variable), 
+    (:GeneralVariableRef, :optimizer_index, :transformation_variable),
+    (:InfOptConstraintRef, :optimizer_index, :transformation_constraint),
+    (:InfOptConstraintRef, :shadow_price, :transformation_constraint)
     )
     @eval begin 
         @doc """
@@ -422,7 +422,7 @@ end
 
 Map the dual(s) of `cref` to its counterpart in the `backend`.
 No extension is needed for [`JuMPBackend`](@ref)s that support
-`transformation_model_constraint`. In this case, `transformation_model_constraint` 
+`transformation_constraint`. In this case, `transformation_constraint` 
 are used to make these mappings by default where `kwargs` are passed on these 
 functions.
 """
@@ -443,7 +443,7 @@ function map_dual(
     result::Int = 1,
     kwargs...
     )
-    opt_cref = transformation_model_constraint(cref, backend; kwargs...)
+    opt_cref = transformation_constraint(cref, backend; kwargs...)
     if opt_cref isa AbstractArray
         return map(c -> JuMP.dual(c, result = result), opt_cref)
     else
@@ -473,12 +473,12 @@ infinite parameter dependencies.
 
 To provide context for the duals, it may be helpful to also query the constraint's 
 `parameter_refs` and `supports` which will have a one-to-one correspondence with 
-the value(s). It may also be helpful to query via [`transformation_model_constraint`](@ref) 
+the value(s). It may also be helpful to query via [`transformation_constraint`](@ref) 
 to retrieve the constraint(s) that these values are based on. These functions should 
 all be called with the same keyword arguments for consistency.
 
 For extensions, this only works if 
-[`transformation_model_constraint`](@ref) has been extended correctly and/or 
+[`transformation_constraint`](@ref) has been extended correctly and/or 
 [`map_dual`](@ref) has been extended for constraints.
 
 **Example**
@@ -518,8 +518,8 @@ report[ref::[GeneralVariableRef/InfOptConstraintRef];
 ```
 
 This is enabled for new transformation backends by appropriately 
-extending [`transformation_model_variable`](@ref) and 
-[`transformation_model_constraint`](@ref).
+extending [`transformation_variable`](@ref) and 
+[`transformation_constraint`](@ref).
 
 **Fields**
 - `opt_report::JuMP.SensitivityReport`: The LP sensitivity captured from the backend.
@@ -531,7 +531,7 @@ end
 # Extend Base.getindex for variables on InfOptSensitivityReport
 function Base.getindex(s::InfOptSensitivityReport, v::GeneralVariableRef; kwargs...)
     backend = JuMP.owner_model(v).backend
-    opt_vref = transformation_model_variable(v, backend; kwargs...)
+    opt_vref = transformation_variable(v, backend; kwargs...)
     if opt_vref isa AbstractArray
         return map(v -> s.opt_report[v], opt_vref)
     else
@@ -542,7 +542,7 @@ end
 # Extend Base.getindex for constraints on InfOptSensitivityReport
 function Base.getindex(s::InfOptSensitivityReport, c::InfOptConstraintRef; kwargs...)
     backend = JuMP.owner_model(c).backend
-    opt_cref = transformation_model_constraint(c, backend; kwargs...)
+    opt_cref = transformation_constraint(c, backend; kwargs...)
     if opt_cref isa AbstractArray
         return map(c -> s.opt_report[c], opt_cref)
     else

@@ -606,7 +606,7 @@ end
     set_silent(m)
     set_time_limit_sec(m, 42.)
     # test normal usage
-    @test isa(build_transformation_backend!(m, m.backend), Nothing)
+    @test isa(build_transformation_backend!(m), Nothing)
     @test transformation_backend_ready(m)
     @test num_variables(m.backend.model) == 44
     @test time_limit_sec(m.backend) == 42

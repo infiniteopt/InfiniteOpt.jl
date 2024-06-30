@@ -40,8 +40,8 @@
     @test_logs (:warn, warn) build_transformation_backend!(m)
 end
 
-# Test transformation model querying methods
-@testset "Optimizer Model Queries" begin
+# Test transformation backend querying methods
+@testset "Transformation Backend Queries" begin
     # initialize model
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 1], supports = [0, 1], 
@@ -59,17 +59,19 @@ end
     build_transformation_backend!(m)
     tb = m.backend
     tdata = IOTO.transcription_data(tb)
-    # Test transformation_model_variable
-    @testset "transformation_model_variable" begin
+    # Test transformation_variable
+    @testset "transformation_variable" begin
         # test normal usage
-        @test transformation_model_variable(x, label = All) == IOTO.transcription_variable(x, label = All)
-        @test transformation_model_variable(x, label = All, ndarray = true) == IOTO.transcription_variable(x, label = All, ndarray = true)
-        @test transformation_model_variable(x0) == IOTO.transcription_variable(x0)
-        @test transformation_model_variable(z) == IOTO.transcription_variable(z)
-        @test transformation_model_variable(d1, label = InternalLabel) == IOTO.transcription_variable(d1, label = InternalLabel)
-        @test transformation_model_variable(f) == [0, sin(1)]
+        @test transformation_variable(x, label = All) == IOTO.transcription_variable(x, label = All)
+        @test transformation_variable(x, label = All, ndarray = true) == IOTO.transcription_variable(x, label = All, ndarray = true)
+        @test transformation_variable(x0) == IOTO.transcription_variable(x0)
+        @test transformation_variable(z) == IOTO.transcription_variable(z)
+        @test transformation_variable(d1, label = InternalLabel) == IOTO.transcription_variable(d1, label = InternalLabel)
+        @test transformation_variable(f) == [0, sin(1)]
+        # test deprecation 
+        @test (@test_deprecated optimizer_model_variable(z)) == transformation_variable(z)
         # test fallback
-        @test_throws ErrorException transformation_model_variable(x, TestBackend(), my_key = true)
+        @test_throws ErrorException transformation_variable(x, TestBackend(), my_key = true)
     end
     # Test variable_supports
     @testset "variable_supports" begin
@@ -89,26 +91,28 @@ end
         @test supports(d1, label = InternalLabel) == [(0.5,)]
         @test supports(f, label = All) == [(0.,), (0.5,), (1.,)]
     end
-    # Test transformation_model_expression
-    @testset "transformation_model_expression" begin
+    # Test transformation_expression
+    @testset "transformation_expression" begin
         # test variable references
-        @test transformation_model_expression(x, label = All) == IOTO.transcription_variable(x, label = All)
-        @test transformation_model_expression(z) == IOTO.transcription_variable(z)
-        @test transformation_model_expression(x0) == IOTO.transcription_variable(x0)
-        @test transformation_model_expression(x0, ndarray = true) == IOTO.transcription_variable(x0)
+        @test transformation_expression(x, label = All) == IOTO.transcription_variable(x, label = All)
+        @test transformation_expression(z) == IOTO.transcription_variable(z)
+        @test transformation_expression(x0) == IOTO.transcription_variable(x0)
+        @test transformation_expression(x0, ndarray = true) == IOTO.transcription_variable(x0)
         # test expression without variables 
         expr = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + 42
-        @test transformation_model_expression(expr) == zero(AffExpr) + 42
+        @test transformation_expression(expr) == zero(AffExpr) + 42
         # test normal expressions 
         xt = IOTO.transcription_variable(x, label = All)
         zt = IOTO.transcription_variable(z)
-        @test transformation_model_expression(x^2 + z) == [xt[1]^2 + zt, xt[3]^2 + zt]
-        @test transformation_model_expression(x^2 + z, ndarray = true) == [xt[1]^2 + zt, xt[3]^2 + zt]
-        @test transformation_model_expression(x^2 + z, label = All) == [xt[1]^2 + zt, xt[2]^2 + zt, xt[3]^2 + zt]
-        @test transformation_model_expression(2z - 3) == 2zt - 3
-        @test transformation_model_expression(2 * f) == [zero(AffExpr), zero(AffExpr) + sin(1) * 2]
+        @test transformation_expression(x^2 + z) == [xt[1]^2 + zt, xt[3]^2 + zt]
+        @test transformation_expression(x^2 + z, ndarray = true) == [xt[1]^2 + zt, xt[3]^2 + zt]
+        @test transformation_expression(x^2 + z, label = All) == [xt[1]^2 + zt, xt[2]^2 + zt, xt[3]^2 + zt]
+        @test transformation_expression(2z - 3) == 2zt - 3
+        @test transformation_expression(2 * f) == [zero(AffExpr), zero(AffExpr) + sin(1) * 2]
+        # test deprecation
+        @test (@test_deprecated optimizer_model_expression(2z-4)) == 2zt - 4
         # test fallback
-        @test_throws ErrorException transformation_model_expression(c1, TestBackend(), my_key = true)
+        @test_throws ErrorException transformation_expression(c1, TestBackend(), my_key = true)
     end
     # Test expression_supports
     @testset "expression_supports" begin
@@ -128,15 +132,17 @@ end
         expr = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + 42
         @test supports(expr, label = All) == ()
     end
-    # Test transformation_model_constraint
-    @testset "transformation_model_constraint" begin
+    # Test transformation_constraint
+    @testset "transformation_constraint" begin
         # test normal usage
-        @test transformation_model_constraint(c1) == IOTO.transcription_constraint(c1)
-        @test transformation_model_constraint(c2, label = All) == IOTO.transcription_constraint(c2, label = All)
-        @test transformation_model_constraint(c2, label = All, ndarray = true) == IOTO.transcription_constraint(c2, label = All, ndarray = true)
-        @test transformation_model_constraint(c3) == IOTO.transcription_constraint(c3)
+        @test transformation_constraint(c1) == IOTO.transcription_constraint(c1)
+        @test transformation_constraint(c2, label = All) == IOTO.transcription_constraint(c2, label = All)
+        @test transformation_constraint(c2, label = All, ndarray = true) == IOTO.transcription_constraint(c2, label = All, ndarray = true)
+        @test transformation_constraint(c3) == IOTO.transcription_constraint(c3)
+        # test deprecation 
+        @test (@test_deprecated optimizer_model_constraint(c1)) == transformation_constraint(c1)
         # test fallback
-        @test_throws ErrorException transformation_model_constraint(c1, TestBackend(), my_key = true)
+        @test_throws ErrorException transformation_constraint(c1, TestBackend(), my_key = true)
     end
     # Test constraint_supports
     @testset "constraint_supports" begin

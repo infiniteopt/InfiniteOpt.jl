@@ -402,17 +402,17 @@ function transcription_variable(
 end
 
 """
-    InfiniteOpt.transformation_model_variable(
+    InfiniteOpt.transformation_variable(
         vref::InfiniteOpt.GeneralVariableRef,
         [backend::TranscriptionBackend];
         [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
         ndarray::Bool = false]
         )
 
-Proper extension of [`InfiniteOpt.transformation_model_variable`](@ref) for
+Proper extension of [`InfiniteOpt.transformation_variable`](@ref) for
 `TranscriptionBackend`s. This simply dispatches to [`transcription_variable`](@ref).
 """
-function InfiniteOpt.transformation_model_variable(
+function InfiniteOpt.transformation_variable(
     vref::InfiniteOpt.GeneralVariableRef,
     backend::TranscriptionBackend;
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
@@ -759,17 +759,17 @@ function transcription_expression(
 end
 
 """
-    InfiniteOpt.transformation_model_expression(
+    InfiniteOpt.transformation_expression(
         expr::JuMP.AbstractJuMPScalar,
         backend::TranscriptionBackend;
         [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
         ndarray::Bool = false]
         )
 
-Proper extension of [`InfiniteOpt.transformation_model_expression`](@ref) for
+Proper extension of [`InfiniteOpt.transformation_expression`](@ref) for
 `TranscriptionBackend`s. This simply dispatches to [`transcription_expression`](@ref).
 """
-function InfiniteOpt.transformation_model_expression(
+function InfiniteOpt.transformation_expression(
     expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.GenericNonlinearExpr},
     backend::TranscriptionBackend;
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
@@ -895,17 +895,17 @@ function transcription_constraint(
 end
 
 """
-    InfiniteOpt.transformation_model_constraint(
+    InfiniteOpt.transformation_constraint(
         cref::InfiniteOpt.InfOptConstraintRef,
         backend::TranscriptionBackend;
         [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
         ndarray::Bool = false]
         )
 
-Proper extension of [`InfiniteOpt.transformation_model_constraint`](@ref) for
+Proper extension of [`InfiniteOpt.transformation_constraint`](@ref) for
 `TranscriptionBackend`s. This simply dispatches to [`transcription_constraint`](@ref).
 """
-function InfiniteOpt.transformation_model_constraint(
+function InfiniteOpt.transformation_constraint(
     cref::InfiniteOpt.InfOptConstraintRef,
     backend::TranscriptionBackend;
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,

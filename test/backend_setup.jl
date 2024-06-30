@@ -21,12 +21,17 @@
         @test isa(transformation_model(m), Model)
         @test transformation_model(jump_backend) == bmodel
         @test_throws ErrorException transformation_model(TestBackend())
+        @test (@test_deprecated optimizer_model(m)) == transformation_model(m)
     end
     # transformation_data
     @testset "transformation_data" begin
         @test isa(transformation_data(m), IOTO.TranscriptionData)
         @test transformation_data(jump_backend) == 42
         @test_throws ErrorException transformation_data(TestBackend())
+    end
+    # transformation_backend
+    @testset "transformation_backend" begin
+        @test transformation_backend(m) isa TranscriptionBackend
     end
     # set_transformation_backend
     @testset "set_transformation_backend" begin
@@ -44,6 +49,8 @@
         @test get_attribute(jump_backend, MOI.TimeLimitSec()) == 10
         @test_throws ErrorException get_attribute(TestBackend(), MOI.TimeLimitSec())
         @test_throws ErrorException set_attribute(TestBackend(), MOI.TimeLimitSec(), 10.)
+        @test set_optimizer_attribute(m, MOI.TimeLimitSec(), 12.) isa Nothing
+        @test get_optimizer_attribute(m, MOI.TimeLimitSec()) == 12
     end
     # Base.empty!
     @testset "Base.empty!" begin

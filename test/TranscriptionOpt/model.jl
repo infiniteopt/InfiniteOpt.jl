@@ -184,12 +184,12 @@ end
         @test IOTO.transcription_variable(x0) == b
         @test IOTO.transcription_variable(f2, ndarray = true) == ones(2, 2)
     end
-    # test transformation_model_variable extension
-    @testset "transformation_model_variable" begin
-        @test transformation_model_variable(y, tb, label = All) == a
-        @test transformation_model_variable(x, tb, label = All) == [a, b, c, d, e, f]
-        @test transformation_model_variable(x, tb) == [a, b, c, d, e, f]
-        @test transformation_model_variable(x0, tb) == b
+    # test transformation_variable extension
+    @testset "transformation_variable" begin
+        @test transformation_variable(y, tb, label = All) == a
+        @test transformation_variable(x, tb, label = All) == [a, b, c, d, e, f]
+        @test transformation_variable(x, tb) == [a, b, c, d, e, f]
+        @test transformation_variable(x0, tb) == b
     end
     # test variable_supports for infinite variable with 2 inputs
     @testset "variable_supports (Backend, Infinite)" begin
@@ -559,11 +559,11 @@ end
         @test IOTO.transcription_expression(x0 - y) == b - a 
         @test IOTO.transcription_expression(zero(QuadExpr) + 2) == zero(AffExpr) + 2
     end
-    # test transformation_model_expression
-    @testset "transformation_model_expression" begin
-        @test transformation_model_expression(x0) == b 
-        @test transformation_model_expression(x0 - y) == b - a 
-        @test transformation_model_expression(zero(QuadExpr) + 2) == zero(AffExpr) + 2
+    # test transformation_expression
+    @testset "transformation_expression" begin
+        @test transformation_expression(x0) == b 
+        @test transformation_expression(x0 - y) == b - a 
+        @test transformation_expression(zero(QuadExpr) + 2) == zero(AffExpr) + 2
     end
     # test expression_supports
     @testset "expression_supports" begin 
@@ -634,11 +634,11 @@ end
         @test IOTO.transcription_constraint(c2) == tc3
         @test IOTO.transcription_constraint(c3, label = All) == tc4
     end
-    # test transformation_model_constraint extension
-    @testset "transformation_model_constraint" begin
-        @test transformation_model_constraint(c1, tb, label = All) == [tc1, tc2]
-        @test transformation_model_constraint(c2, tb) == tc3
-        @test transformation_model_constraint(c3, tb) == tc4
+    # test transformation_constraint extension
+    @testset "transformation_constraint" begin
+        @test transformation_constraint(c1, tb, label = All) == [tc1, tc2]
+        @test transformation_constraint(c2, tb) == tc3
+        @test transformation_constraint(c3, tb) == tc4
     end
     # test constraint_supports 
     @testset "constraint_supports" begin

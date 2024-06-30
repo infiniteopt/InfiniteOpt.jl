@@ -97,8 +97,8 @@ println("")
 println("")
 @time @testset "Solution Queries" begin include("results.jl") end
 println("")
-# @time @testset "Extensions" begin include("extensions.jl") end
-# println("")
+@time @testset "Extensions" begin include("extensions.jl") end
+println("")
 println("----------------------------------------------------------------------------")
 println("-----------------------------TESTING COMPLETE!------------------------------")
 println("----------------------------------------------------------------------------")

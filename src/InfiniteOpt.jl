@@ -62,6 +62,10 @@ macro register(args...)
            "the nonlinear documenation page for details.")
 end
 Base.@deprecate map_nlp_to_ast(f, expr) map_expression_to_ast(f, expr)
+Base.@deprecate optimizer_model_variable(v; kwargs...) transformation_variable(v; kwargs...)
+Base.@deprecate optimizer_model_expression(e; kwargs...) transformation_expression(e; kwargs...)
+Base.@deprecate optimizer_model_constraint(c; kwargs...) transformation_constraint(c; kwargs...)
+Base.@deprecate optimizer_model(m) transformation_model(m)
 
 # Define additional stuff that should not be exported
 const _EXCLUDE_SYMBOLS = [
