@@ -29,7 +29,7 @@ of disciplines which include dynamic, PDE, stochastic, and semi-infinite
 optimization. Moreover, we facilitate transferring techniques between these 
 to synthesize new optimization paradigms!
 
-![abstract](abstraction.gif)
+![abstract](abstraction.png)
 
 Comments, suggestions and improvements are welcome and appreciated.
 
