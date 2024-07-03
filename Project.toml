@@ -1,7 +1,7 @@
 name = "InfiniteOpt"
 uuid = "20393b10-9daf-11e9-18c9-8db751c92c57"
 authors = ["Joshua Pulsipher and Weiqi Zhang"]
-version = "0.5.8"
+version = "0.5.9"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"

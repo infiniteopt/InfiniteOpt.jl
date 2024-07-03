@@ -1160,7 +1160,7 @@ constructors can be used to for `data`. The variable expression `expr` can conta
 measures can be nested), and constants. Typically, this is called inside of
 `JuMP.@expression`, `JuMP.@objective`, and `JuMP.@constraint` in a manner similar 
 to `sum`. Note measures are not explicitly evaluated until 
-[`build_optimizer_model!`](@ref) is called or unless they are expanded via 
+[`build_transformation_backend!`](@ref) is called or unless they are expanded via 
 [`expand`](@ref) or [`expand_all_measures!`](@ref).
 
 **Example**
@@ -1180,7 +1180,7 @@ function measure(
     expr::JuMP.AbstractJuMPScalar,
     data::AbstractMeasureData;
     name::String = "measure"
-    )::GeneralVariableRef
+    )
     model = JuMP.owner_model(expr)
     if isnothing(model)
         error("Expression contains no variables or parameters.")
@@ -1221,7 +1221,7 @@ end
 Extend `JuMP.name` to return the name associated with a measure
 reference.
 """
-function JuMP.name(mref::MeasureRef)::String
+function JuMP.name(mref::MeasureRef)
     object = get(_data_dictionary(mref), JuMP.index(mref), nothing)
     return isnothing(object) ? "" : object.name
 end
@@ -1231,7 +1231,7 @@ end
 
 Extend `JuMP.set_name` to specify the name of a measure reference.
 """
-function JuMP.set_name(mref::MeasureRef, name::String)::Nothing
+function JuMP.set_name(mref::MeasureRef, name::String)
     _data_object(mref).name = name
     return
 end
@@ -1388,7 +1388,7 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
     @assert JuMP.is_valid(model, mref) "Invalid measure reference."
     # Reset the transcription status
     if is_used(mref)
-        set_optimizer_model_ready(model, false)
+        set_transformation_backend_ready(model, false)
     end
     gvref = _make_variable_ref(JuMP.owner_model(mref), JuMP.index(mref))
     # Remove from dependent measures if there are any

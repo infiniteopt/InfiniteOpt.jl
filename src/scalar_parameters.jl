@@ -225,7 +225,7 @@ a helper method for [`@finite_parameter`](@ref).
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt)
-julia> build_finite_parameter(error, 1)
+julia> build_parameter(error, 1)
 FiniteParameter(1.0)
 ```
 """
@@ -679,7 +679,7 @@ function _set_generative_support_info(pref::IndependentParameterRef,
     _reset_generative_supports(pref)
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -744,7 +744,7 @@ end
 Create generative supports for `pref` if needed in accordance with its 
 generative support info using [`make_generative_supports`](@ref) and add them to 
 `pref`. This is intended as an internal function, but can be useful user defined 
-optimizer model extensions that utlize our support system.
+transformation backend extensions that utlize our support system.
 """
 function add_generative_supports(pref::IndependentParameterRef)::Nothing
     info = generative_support_info(pref)
@@ -833,7 +833,7 @@ function set_derivative_method(pref::IndependentParameterRef,
     _reset_derivative_constraints(pref)
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -857,7 +857,7 @@ function set_derivative_method(pref::IndependentParameterRef,
     _reset_generative_supports(pref)
     _set_core_variable_object(pref, new_param)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -882,7 +882,7 @@ function _update_parameter_domain(pref::IndependentParameterRef,
     _set_has_generative_supports(pref, false)
     _set_has_internal_supports(pref, false)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -1079,7 +1079,7 @@ function _update_parameter_supports(pref::IndependentParameterRef,
     _reset_derivative_constraints(pref)
     _set_has_generative_supports(pref, false)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -1311,7 +1311,7 @@ function add_supports(pref::IndependentParameterRef,
         _reset_derivative_constraints(pref)
         _reset_generative_supports(pref)
         if is_used(pref)
-            set_optimizer_model_ready(JuMP.owner_model(pref), false)
+            set_transformation_backend_ready(JuMP.owner_model(pref), false)
         end
     end
     return
@@ -1365,7 +1365,7 @@ function delete_supports(pref::IndependentParameterRef;
         end
     end
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -1410,7 +1410,7 @@ julia> value(cost)
 function JuMP.set_value(pref::FiniteParameterRef, value::Real)::Nothing
     _data_object(pref).parameter = FiniteParameter(value)
     if is_used(pref)
-        set_optimizer_model_ready(JuMP.owner_model(pref), false)
+        set_transformation_backend_ready(JuMP.owner_model(pref), false)
     end
     return
 end
@@ -1651,9 +1651,9 @@ function JuMP.delete(
         error("Cannot delete `$pref` since it is used by an parameter ",
               "function(s).")
     end
-    # update optimizer model status
+    # update transformation backend status
     if is_used(pref)
-        set_optimizer_model_ready(model, false)
+        set_transformation_backend_ready(model, false)
     end
     # delete dependence of measures on pref
     _update_measures(model, gvref)
@@ -1675,9 +1675,9 @@ end
 # FiniteParameterRef
 function JuMP.delete(model::InfiniteModel, pref::FiniteParameterRef)::Nothing
     @assert JuMP.is_valid(model, pref) "Parameter reference is invalid."
-    # update optimizer model status
+    # update transformation backend status
     if is_used(pref)
-        set_optimizer_model_ready(model, false)
+        set_transformation_backend_ready(model, false)
     end
     gvref = _make_parameter_ref(model, JuMP.index(pref))
     # delete dependence of measures on pref

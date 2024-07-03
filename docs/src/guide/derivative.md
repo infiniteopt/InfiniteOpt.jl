@@ -101,7 +101,8 @@ Here, the default method is backward finite difference. These are enforced on an
 infinite parameter basis (i.e., the parameter the differential operator is taken 
 with respect to). Unlike, `FiniteDifference` which directly handles derivatives of 
 any order, `OrthogonalCollocation` is limited to 1st order derivatives and higher 
-order derivatives will be reformulated, accordingly. In the above examples,
+order derivatives are automatically reformulated into a system of 1st order derivatives.
+In the above examples,
 any derivatives taken with respect to `t` will use orthogonal collocation on 
 finite elements since that is what we specified as our derivative method. More 
 information is provided in the [Derivative Methods](@ref) Section below. However, we 
@@ -450,7 +451,7 @@ solutions can be done efficiently and seamlessly. This is also the recommended
 workflow. However, we do provide user accessible derivative evaluation methods 
 that generate the auxiliary derivative equations and add them to the `InfiniteModel`.
 This can be useful for visualizing how these techniques work and can be helpful for 
-user-defined reformulation extensions (i.e., optimizer model extensions).
+user-defined reformulation extensions (i.e., transformation backend extensions).
 
 We can build these relations for a particular derivative via [`evaluate`](@ref). 
 For example, let's build evaluation equations for `d1`:

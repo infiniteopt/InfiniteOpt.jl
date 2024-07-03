@@ -21,7 +21,7 @@ Julia terminal and enter the package manager:
 ```julia-repl
 julia> ]
 
-(v1.9) pkg>
+(v1.10) pkg>
 ```
 
 !!! tip
@@ -36,12 +36,12 @@ Use the `add` command in the package to manager to add the following packages:
 
 For example, to install `Distributions` we would enter:
 ```julia-repl
-(v1.9) pkg> add Distributions
+(v1.10) pkg> add Distributions
 ```
 
 Now let's install `InfiniteOpt`:
 ```julia-repl
-(v1.9) pkg> add InfiniteOpt
+(v1.10) pkg> add InfiniteOpt
 ```
 
 !!! info
@@ -51,26 +51,28 @@ Now let's install `InfiniteOpt`:
 Alternatively, we can install the current experimental version of 
 `InfiniteOpt` via:
 ```julia-repl
-(v1.9) pkg> add https://github.com/infiniteopt/InfiniteOpt.jl
+(v1.10) pkg> add https://github.com/infiniteopt/InfiniteOpt.jl
 ```
 
 ## Install Optimization Solvers
-`InfiniteOpt` relies on solvers to solve optimization problems. Many solvers are
+`InfiniteOpt` relies on [transformation backends](@ref opt_transform_backends) to 
+solve problems. These backends typically depend on optimization solvers which often are
 not native to Julia and might require commercial licenses. A list of currently
-supported solvers and their corresponding Julia packages is provided in
+supported solvers for [`JuMPBackend`](@ref)s (i.e., transformation backends 
+that use JuMP) and their corresponding Julia packages is provided in
 [Supported Optimizers](@ref).
 
 For example, we can install Ipopt which is an open-source nonlinear solver:
 ```julia-repl
-(v1.9) pkg> add Ipopt
+(v1.10) pkg> add Ipopt
 ```
 Now Ipopt can be used as the optimizer (solver) for an infinite model by running:
 ```julia-repl
 julia> using InfiniteOpt, Ipopt
 
-julia> model = InfiniteModel(Ipopt.Optimizer)
+julia> model = InfiniteModel(Ipopt.Optimizer) # uses TranscriptionBackend by default
 ```
-Most solver packages follow the `ModuleName.Optimizer` naming convention, but
+Most JuMP solver packages follow the `ModuleName.Optimizer` naming convention, but
 this may not always be the case. See [Infinite Models](@ref infinite_model_docs)
 for more information on defining infinite models and specifying solvers.
 
@@ -86,7 +88,7 @@ form `vX.Y.Z`. You can check which versions you have installed with:
 ```julia-repl
 julia> ]
 
-(v1.9) pkg> status
+(v1.10) pkg> status
 ```
 This should almost always be the most-recent release. You can check the releases
 of a package by going to the relevant GitHub page, and navigating to the

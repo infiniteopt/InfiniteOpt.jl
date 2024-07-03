@@ -107,7 +107,7 @@ function _set_core_constraint_object(
     constr::JuMP.AbstractConstraint
     )
     _adaptive_data_update(cref, constr, _data_object(cref))
-    set_optimizer_model_ready(JuMP.owner_model(cref), false)
+    set_transformation_backend_ready(JuMP.owner_model(cref), false)
     return
 end
 
@@ -303,7 +303,7 @@ function JuMP.add_constraint(
     cref = InfOptConstraintRef(model, cindex)
     # update the variable mappings and model status
     _update_var_constr_mapping(vrefs, cref)
-    set_optimizer_model_ready(model, false)
+    set_transformation_backend_ready(model, false)
     # clear out the name dictionary 
     model.name_to_constr = nothing
     # return the constraint reference
@@ -832,7 +832,7 @@ function set_domain_restrictions(
     # set the new restrictions
     model.constraint_restrictions[JuMP.index(cref)] = restrictions
     # update status
-    set_optimizer_model_ready(JuMP.owner_model(cref), false)
+    set_transformation_backend_ready(JuMP.owner_model(cref), false)
     return
 end
 
@@ -897,8 +897,8 @@ function add_domain_restrictions(
     else 
         model.constraint_restrictions[JuMP.index(cref)] = new_restrictions
     end
-    # update the optimizer model status
-    set_optimizer_model_ready(JuMP.owner_model(cref), false)
+    # update the backend status
+    set_transformation_backend_ready(JuMP.owner_model(cref), false)
     return
 end
 
@@ -923,7 +923,7 @@ function delete_domain_restrictions(cref::InfOptConstraintRef)
     # delete the restrictions if there are any
     delete!(JuMP.owner_model(cref).constraint_restrictions, JuMP.index(cref))
     # update status
-    set_optimizer_model_ready(JuMP.owner_model(cref), false)
+    set_transformation_backend_ready(JuMP.owner_model(cref), false)
     return
 end
 
@@ -965,7 +965,7 @@ function JuMP.delete(model::InfiniteModel, cref::InfOptConstraintRef)
     delete_domain_restrictions(cref)
     # delete constraint information
     _delete_data_object(cref)
-    # reset optimizer model status
-    set_optimizer_model_ready(model, false)
+    # reset transformation backend status
+    set_transformation_backend_ready(model, false)
     return
 end

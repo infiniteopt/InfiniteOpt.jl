@@ -602,7 +602,7 @@ end
         new_domain = CollectionDomain([IntervalDomain(0, 1), IntervalDomain(0, 2)])
         @test InfiniteOpt._update_parameter_domain(prefs1[1], new_domain) isa Nothing
         @test num_supports(prefs1) == 0
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         @test infinite_domain(prefs1) == new_domain
         @test InfiniteOpt._update_parameter_domain(prefs1[1], old_domain) isa Nothing
     end
@@ -799,7 +799,7 @@ end
         @test InfiniteOpt._update_parameter_supports(prefs1, ones(Int, 2, 3),
                                                      UserDefined) isa Nothing
         @test supports(prefs1) == ones(Float64, 2, 1)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         @test InfiniteOpt._update_parameter_supports(prefs1, old_supports,
                                                      UniformGrid) isa Nothing
     end

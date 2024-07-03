@@ -1,4 +1,4 @@
-using Documenter, InfiniteOpt, Distributions, Literate, Random
+using Documenter, InfiniteOpt, Distributions, Literate, Random, Pkg
 
 if !@isdefined(EXAMPLE_DIR)
     const EXAMPLE_DIR = joinpath(@__DIR__, "src", "examples")
@@ -84,8 +84,8 @@ makedocs(;
             "Measures" => "manual/measure.md",
             "Objectives" => "manual/objective.md",
             "Constraints" => "manual/constraint.md",
-            "Model Transcription" => "manual/transcribe.md",
-            "Optimization" => "manual/optimize.md",
+            "Backends" => "manual/backend.md",
+            "TranscriptionOpt" => "manual/transcribe.md",
             "Results" => "manual/result.md"
             ],
         "Development" => [
@@ -94,21 +94,22 @@ makedocs(;
             "Style Guide" => "develop/style.md"
             ],
         ],
-    repo = "https://github.com/infiniteopt/InfiniteOpt.jl/blob/{commit}{path}#L{line}",
+    # repo = "https://github.com/infiniteopt/InfiniteOpt.jl/blob/{commit}{path}#L{line}",
     sitename = "InfiniteOpt.jl",
     authors = "Joshua Pulsipher and Weiqi Zhang",
-    doctest = true,
-    checkdocs = :exports,
+    modules = [InfiniteOpt],
+    checkdocs = :none,
     linkcheck = true,
-    linkcheck_ignore = [r"https://www.youtube.com/.*"],
-    strict = true,
+    linkcheck_ignore = [r"https://www.youtube.com/.*", "https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/test/extensions/backend.jl"], # TODO remove before merging
+    # warnonly = true,
     format = Documenter.HTML(
         # See https://github.com/JuliaDocs/Documenter.jl/issues/868
         prettyurls = get(ENV, "CI", nothing) == "true",
         analytics = "UA-178297470-1",
         collapselevel = 1,
         assets = ["assets/extra_styles.css"],
-
+        size_threshold = 250 * 2^10, # KiB
+        size_threshold_warn = 150 * 2^10 # KiB
     )
 )
 

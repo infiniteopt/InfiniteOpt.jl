@@ -388,7 +388,7 @@ function _update_info_constraints(info::JuMP.VariableInfo, gvref, vref)::Nothing
 
     # finalize the update
     _update_variable_info(vref, info)
-    set_optimizer_model_ready(model, false)
+    set_transformation_backend_ready(model, false)
     return
 end
 

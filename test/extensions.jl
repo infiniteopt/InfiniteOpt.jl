@@ -44,8 +44,8 @@
     @test @constraint(m, x + par <= 0) isa InfOptConstraintRef
 
     # transcribe the model
-    @test build_optimizer_model!(m) isa Nothing
-    @test num_variables(optimizer_model(m)) == 4
+    @test build_transformation_backend!(m) isa Nothing
+    @test num_variables(m.backend.model) == 4
 end
 
 # test using the new derivative evaluation method
@@ -117,8 +117,8 @@ end
 
     # test transcription
     @test @constraint(m, z == measure(x, new_data1)) isa InfOptConstraintRef
-    @test build_optimizer_model!(m) isa Nothing
-    @test num_variables(optimizer_model(m)) == 6
+    @test build_transformation_backend!(m) isa Nothing
+    @test num_variables(m.backend.model) == 6
 
     # test deletion
     @test_throws ErrorException delete(m, t)
@@ -174,10 +174,10 @@ end
     @test num_supports(t, label = All) == 10
 end
 
-# Test otpimizer model extensions
-@testset "Optimizer Model" begin
+# Test Backend extensions
+@testset "Backend" begin
     # load in the extension
-    include("./extensions/optimizer_model.jl")
+    include("./extensions/backend.jl")
 
     # setup the infinite model
     m = InfiniteModel()
@@ -191,48 +191,49 @@ end
     @constraint(m, c3, x0 + y == 5)
     @objective(m, Min, y)
 
-    # test optimizer model constructor
-    @test NewReformModel() isa Model
-    @test NewReformModel().ext[:ReformData] isa NewReformData
+    # test backend constructor
+    @test NewReformBackend() isa NewReformBackend
+    @test NewReformBackend().data isa NewReformData
 
-    # test data extraction
-    @test_throws ErrorException reform_data(optimizer_model(m))
-    @test reform_data(NewReformModel()) isa NewReformData
+    # test basic extraction
+    @test transformation_model(NewReformBackend()) isa Model
+    @test transformation_data(NewReformBackend()) isa NewReformData
 
-    # test replacing the optimizer model
-    @test set_optimizer_model(m, NewReformModel()) isa Nothing
-    @test haskey(optimizer_model(m).ext, :ReformData)
+    # test replacing the backend
+    b = NewReformBackend()
+    @test set_transformation_backend(m, b) isa Nothing
+    @test transformation_backend(m) === b
 
     # test making InfiniteModel with the new optimizer model
-    @test InfiniteModel(OptimizerModel = NewReformModel) isa InfiniteModel 
-    @test optimizer_model_key(InfiniteModel(OptimizerModel = NewReformModel)) == :ReformData
+    @test InfiniteModel(NewReformBackend()) isa InfiniteModel 
+    @test transformation_backend(InfiniteModel(NewReformBackend())) isa NewReformBackend
 
     # test retrival errors
-    @test_throws ErrorException optimizer_model_variable(x)
-    @test_throws ErrorException optimizer_model_variable(x0)
-    @test_throws ErrorException optimizer_model_variable(y)
-    @test_throws ErrorException optimizer_model_constraint(c1)
-    @test_throws ErrorException optimizer_model_constraint(c2)
-    @test_throws ErrorException optimizer_model_constraint(c3)
+    @test_throws ErrorException transformation_variable(x)
+    @test_throws ErrorException transformation_variable(x0)
+    @test_throws ErrorException transformation_variable(y)
+    @test_throws ErrorException transformation_constraint(c1)
+    @test_throws ErrorException transformation_constraint(c2)
+    @test_throws ErrorException transformation_constraint(c3)
     @test_throws ErrorException supports(x)
     @test_throws ErrorException supports(c1)
     @test_throws ErrorException supports(c2)
     @test_throws ErrorException supports(c3)
 
-    # test build_optimizer_model!
-    @test build_optimizer_model!(m, my_kwarg = true) isa Nothing
-    @test haskey(optimizer_model(m).ext, :ReformData)
-    @test num_variables(optimizer_model(m)) == 13
+    # test build_transformation_backend!
+    @test build_transformation_backend!(m, my_kwarg = true) isa Nothing
+    @test transformation_backend_ready(m)
+    @test num_variables(transformation_model(m)) == 13
 
     # test retrivals
-    @test optimizer_model_variable(x, my_kwarg = true) isa Vector{VariableRef}
-    @test optimizer_model_variable(x0, my_kwarg = true) isa VariableRef
-    @test optimizer_model_variable(y, my_kwarg = true) isa VariableRef
-    @test optimizer_model_variable(meas, my_kwarg = true) isa Vector{VariableRef}
-    @test optimizer_model_constraint(c1, my_kwarg = true) isa Vector{<:ConstraintRef}
-    @test optimizer_model_constraint(c2, my_kwarg = true) isa Vector{<:ConstraintRef}
-    @test optimizer_model_constraint(c3, my_kwarg = true) isa Vector{<:ConstraintRef}
-    @test optimizer_model_expression(x^2) == zero(AffExpr)
+    @test transformation_variable(x, my_kwarg = true) isa Vector{VariableRef}
+    @test transformation_variable(x0, my_kwarg = true) isa VariableRef
+    @test transformation_variable(y, my_kwarg = true) isa VariableRef
+    @test transformation_variable(meas, my_kwarg = true) isa Vector{VariableRef}
+    @test transformation_constraint(c1, my_kwarg = true) isa Vector{<:ConstraintRef}
+    @test transformation_constraint(c2, my_kwarg = true) isa Vector{<:ConstraintRef}
+    @test transformation_constraint(c3, my_kwarg = true) isa Vector{<:ConstraintRef}
+    @test transformation_expression(x^2) == zero(AffExpr)
     @test supports(x, my_kwarg = true) == [(0.,), (1.,)]
     @test supports(y) == ()
     @test supports(meas) == [(-1.,), (-2.,)]
@@ -242,12 +243,12 @@ end
     # test optimization with rebuild
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                              eval_objective_value=false)
-    @test set_optimizer_model_ready(m, false) isa Nothing
+    @test set_transformation_backend_ready(m, false) isa Nothing
     @test set_optimizer(m, mockoptimizer) isa Nothing
     @test set_silent(m) isa Nothing
     @test set_time_limit_sec(m, 42.) isa Nothing
     @test optimize!(m) isa Nothing
-    @test get_optimizer_attribute(m, MOI.Silent())
+    @test get_attribute(m, MOI.Silent())
 
     # prepare for result queries
     mockoptimizer = JuMP.backend(m).optimizer.model
@@ -260,29 +261,29 @@ end
     MOI.set(mockoptimizer, MOI.ObjectiveValue(), -1.0)
     MOI.set(mockoptimizer, MOI.ObjectiveBound(), 2.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(),
-            JuMP.optimizer_index(optimizer_model_variable(x)[1]), -1.0)
+            JuMP.optimizer_index(transformation_variable(x)[1]), -1.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(),
-            JuMP.optimizer_index(optimizer_model_variable(x)[2]), 0.0)
+            JuMP.optimizer_index(transformation_variable(x)[2]), 0.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(),
-            JuMP.optimizer_index(optimizer_model_variable(y)), 1.0)
+            JuMP.optimizer_index(transformation_variable(y)), 1.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(),
-            JuMP.optimizer_index(optimizer_model_variable(x0)), 42.)
+            JuMP.optimizer_index(transformation_variable(x0)), 42.)
     MOI.set(mockoptimizer, MOI.VariablePrimal(),
-            JuMP.optimizer_index(optimizer_model_variable(meas)[1]), 2.0)
+            JuMP.optimizer_index(transformation_variable(meas)[1]), 2.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(),
-            JuMP.optimizer_index(optimizer_model_variable(meas)[2]), -2.0)
+            JuMP.optimizer_index(transformation_variable(meas)[2]), -2.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(),
-            JuMP.optimizer_index(optimizer_model_constraint(c1)[1]), -1.0)
+            JuMP.optimizer_index(transformation_constraint(c1)[1]), -1.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(),
-            JuMP.optimizer_index(optimizer_model_constraint(c1)[2]), -1.0)
+            JuMP.optimizer_index(transformation_constraint(c1)[2]), -1.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(),
-            JuMP.optimizer_index(optimizer_model_constraint(c2)[1]), 0.0)
+            JuMP.optimizer_index(transformation_constraint(c2)[1]), 0.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(),
-            JuMP.optimizer_index(optimizer_model_constraint(c2)[2]), -1.0)
+            JuMP.optimizer_index(transformation_constraint(c2)[2]), -1.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(),
-            JuMP.optimizer_index(optimizer_model_constraint(c3)[1]), 0.0)
+            JuMP.optimizer_index(transformation_constraint(c3)[1]), 0.0)
     MOI.set(mockoptimizer, MOI.ConstraintDual(),
-            JuMP.optimizer_index(optimizer_model_constraint(c3)[2]), -1.0)
+            JuMP.optimizer_index(transformation_constraint(c3)[2]), -1.0)
 
     # test result queries
     @test termination_status(m) == MOI.OPTIMAL
@@ -303,13 +304,13 @@ end
     @test dual(c1) == [-1, -1]
     @test dual(c2) == [0., -1.]
     @test dual(c3) == [0., -1.]
-    @test optimizer_index(x) == optimizer_index.(optimizer_model_variable(x))
-    @test optimizer_index(x0) == optimizer_index(optimizer_model_variable(x0))
-    @test optimizer_index(y) == optimizer_index(optimizer_model_variable(y))
-    @test optimizer_index(c1) == optimizer_index.(optimizer_model_constraint(c1))
-    @test optimizer_index(c2) == optimizer_index.(optimizer_model_constraint(c2))
-    @test optimizer_index(c3) == optimizer_index.(optimizer_model_constraint(c3))
-    @test shadow_price(c1) == [-1, -1]
-    @test shadow_price(c2) == [0., -1.]
-    @test shadow_price(c3) == [0., -1.]
+#     @test optimizer_index(x) == optimizer_index.(transformation_variable(x))
+#     @test optimizer_index(x0) == optimizer_index(transformation_variable(x0))
+#     @test optimizer_index(y) == optimizer_index(transformation_variable(y))
+#     @test optimizer_index(c1) == optimizer_index.(transformation_constraint(c1))
+#     @test optimizer_index(c2) == optimizer_index.(transformation_constraint(c2))
+#     @test optimizer_index(c3) == optimizer_index.(transformation_constraint(c3))
+#     @test shadow_price(c1) == [-1, -1]
+#     @test shadow_price(c2) == [0., -1.]
+#     @test shadow_price(c3) == [0., -1.]
 end

@@ -19,7 +19,6 @@ include:
 - Infinite variables (decision functions) (for example, ``y(t, x)``)
 - Derivatives (for example, ``\frac{\partial y(t, x)}{\partial t}``)
 - Measures (for example, ``\int_{t \in T}y(t, x)dt`` and ``\mathbb{E}[y(\xi)]``)
-- First class nonlinear modeling
 
 The unifying modeling abstraction behind `InfiniteOpt` captures a wide spectrum 
 of disciplines which include dynamic, PDE, stochastic, and semi-infinite 

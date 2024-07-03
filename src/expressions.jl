@@ -421,9 +421,9 @@ another model.
 """
 function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)::Nothing 
     @assert JuMP.is_valid(model, fref) "Parameter function is invalid."
-    # update the optimizer model status
+    # update the transformation backend status
     if is_used(fref)
-        set_optimizer_model_ready(model, false)
+        set_transformation_backend_ready(model, false)
     end
     # update parameter mapping
     all_prefs = parameter_list(fref)

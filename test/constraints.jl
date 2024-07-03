@@ -248,7 +248,7 @@ end
         @test add_constraint(m, con, "d") == cref
         @test name(cref) == "d"
         @test !InfiniteOpt._is_info_constraint(cref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         @test used_by_constraint(pt)
         # test vector constraint
         con = VectorConstraint([inf + pt, 2inf], MOI.Zeros(2))
@@ -321,7 +321,7 @@ end
         # test normal
         @test set_domain_restrictions(c2, rs) isa Nothing
         @test domain_restrictions(c2) == rs
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         # test test error with restrictions
         rs2 = DomainRestrictions(par => [-1, 1])
         @test_throws ErrorException set_domain_restrictions(c1, rs2, force = true)

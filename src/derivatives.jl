@@ -140,7 +140,7 @@ end
 
 Return a `Bool` whether `dref` has been evaluated within the `InfiniteModel` and 
 has derivative constraints that have been added to the `InfiniteModel`. Note this 
-does not indicate if such constraints have been added to the optimizer model. Thus, 
+does not indicate if such constraints have been added to the transformation backend. Thus, 
 with normal usage (i.e., not using `evaluate`) this should always return `false`.
 """
 function has_derivative_constraints(dref::DerivativeRef)
@@ -661,7 +661,7 @@ function set_start_value_function(
     start::Union{Real, Function}
     )::Nothing
     info = _variable_info(dref)
-    set_optimizer_model_ready(JuMP.owner_model(dref), false)
+    set_transformation_backend_ready(JuMP.owner_model(dref), false)
     prefs = raw_parameter_refs(dref)
     temp_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
                                  info.upper_bound, info.has_fix, info.fixed_value,
@@ -688,7 +688,7 @@ julia> reset_start_value_function(dref)
 """
 function reset_start_value_function(dref::DerivativeRef)::Nothing
     info = _variable_info(dref)
-    set_optimizer_model_ready(JuMP.owner_model(dref), false)
+    set_transformation_backend_ready(JuMP.owner_model(dref), false)
     new_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
                                  info.upper_bound, info.has_fix, info.fixed_value,
                                  false, s -> NaN, info.binary, info.integer)

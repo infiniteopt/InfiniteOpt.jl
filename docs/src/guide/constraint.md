@@ -38,7 +38,7 @@ julia> @variable(model, z[1:2]);
 ```
 
 !!! note
-    Unlike previous versions, `InfiniteOpt` now supports all the constraints 
+    `InfiniteOpt` supports all the constraints types
     offered by `JuMP`, including vector and semi-definite constraints! Please 
     see [JuMP's constraint documentation](https://jump.dev/JuMP.jl/v1/manual/constraints/#Constraints) 
     for a thorough explanation of the supported types and syntax.

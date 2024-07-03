@@ -176,6 +176,11 @@ end
     @test MultiParameterData(params, 1, 1:1, ["par[1]"]) isa MultiParameterData
 end
 
+# Test Backends
+@testset "Backends" begin
+    @test JuMPBackend{TestJuMPTag}(Model(), Dict()) isa JuMPBackend{TestJuMPTag, Float64, Dict{Any, Any}}
+end
+
 # Test the InfiniteModel datatype
 @testset "InfiniteModel" begin
     # test basic
@@ -184,20 +189,18 @@ end
     # prepare optimizer constructor
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                              eval_objective_value=false)
-    mockattributes = MOI.OptimizerWithAttributes(mockoptimizer, MOI.Silent() => true)
     # test optimizer constructors
-    @test InfiniteModel(mockoptimizer).optimizer_constructor == mockoptimizer
-    @test InfiniteModel(mockattributes).optimizer_constructor == mockoptimizer
+    @test solver_name(InfiniteModel(mockoptimizer).backend) == "Mock"
     m = InfiniteModel();
     @test isa(Base.broadcastable(m), Base.RefValue{InfiniteModel})
     @test length(JuMP.object_dictionary(m)) == 0
     @test InfiniteModel() isa JuMP.AbstractModel
-    @test InfiniteModel(mockoptimizer, add_bridges = false) isa JuMP.AbstractModel
+    @test InfiniteModel(mockoptimizer, add_bridges = false) isa InfiniteModel
     # test accessors
     @test InfiniteOpt._last_param_num(m) == 0
     @test InfiniteOpt._param_object_indices(m) isa Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
     # test other methods 
-    @test empty!(InfiniteModel(mockoptimizer)).optimizer_constructor == mockoptimizer
+    @test empty!(InfiniteModel(mockoptimizer)).backend isa TranscriptionBackend
     @test variable_ref_type(InfiniteModel) == GeneralVariableRef
     @test variable_ref_type(InfiniteModel()) == GeneralVariableRef
 end

@@ -346,7 +346,7 @@ end
         vref = InfiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
         @test isequal(add_variable(m, v, "name"), gvref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         @test !InfiniteOpt._is_vector_start(vref)
         @test InfiniteOpt._variable_info(vref).start == func1
         # lower bound
@@ -390,7 +390,7 @@ end
         vref = InfiniteVariableRef(m, idx)
         gvref = InfiniteOpt._make_variable_ref(m, idx)
         @test isequal(add_variable(m, v, "name"), gvref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         @test InfiniteOpt._is_vector_start(vref)
         @test InfiniteOpt._variable_info(vref).start isa Function
         cindex = InfOptConstraintIndex(8)

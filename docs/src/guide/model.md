@@ -25,38 +25,58 @@ julia> using InfiniteOpt
 julia> model = InfiniteModel()
 An InfiniteOpt Model
 Feasibility problem with:
-Finite Parameters: 0
-Infinite Parameters: 0
-Variables: 0
-Derivatives: 0
-Measures: 0
-Optimizer model backend information:
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+  Finite parameters: 0
+  Infinite parameters: 0
+  Variables: 0
+  Derivatives: 0
+  Measures: 0
+Transformation backend information:
+  Backend type: TranscriptionBackend
+  Solver name: No optimizer attached.
+  Transformation built and up-to-date: false
+```
+Ultimately, `model` will be solved via a transformation backend. By default, 
+we see that a [`TranscriptionBackend`](@ref) (a JuMP `Model` that will contain 
+a transcribed, i.e., a discretized model) is used. To specify, a backend 
+of our choice, we use the syntax:
+```jldoctest
+julia> using InfiniteOpt
+
+julia> model = InfiniteModel(TranscriptionBackend())
+An InfiniteOpt Model
+Feasibility problem with:
+  Finite parameters: 0
+  Infinite parameters: 0
+  Variables: 0
+  Derivatives: 0
+  Measures: 0
+Transformation backend information:
+  Backend type: TranscriptionBackend
+  Solver name: No optimizer attached.
+  Transformation built and up-to-date: false
 ```
 
-The optimizer that will be used to solve the model can also be specified at
-model definition:
+Since `TranscriptionBackend`s are a common choice, we can just pass a JuMP 
+compatible optimizer (i.e., solver) to the model and a `TranscriptionBackend` 
+that uses that optimizer will be initialized:
 ```jldoctest
 julia> using InfiniteOpt, Ipopt
 
 julia> model = InfiniteModel(Ipopt.Optimizer)
 An InfiniteOpt Model
 Feasibility problem with:
-Finite Parameters: 0
-Infinite Parameters: 0
-Variables: 0
-Derivatives: 0
-Measures: 0
-Optimizer model backend information:
-Model mode: AUTOMATIC
-CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Ipopt
+  Finite parameters: 0
+  Infinite parameters: 0
+  Variables: 0
+  Derivatives: 0
+  Measures: 0
+Transformation backend information:
+  Backend type: TranscriptionBackend
+  Solver name: Ipopt
+  Transformation built and up-to-date: false
 ```
-Note that any optimizer currently supported by `JuMP v0.19.0` or newer is
-supported for use in `InfiniteOpt`. For completeness, the table of currently
-supported optimizers is provided below in [Supported Optimizers](@ref).
+For completeness, the table of currently supported JuMP compatible optimizers 
+is provided below in [Supported Optimizers](@ref).
 
 We can also specify optimizer attributes via
 [`optimizer_with_attributes`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.optimizer_with_attributes)
@@ -64,85 +84,121 @@ which allows us to append as many attributes as we like, for example:
 ```jldoctest
 julia> using InfiniteOpt, Ipopt
 
-julia> model = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer,
-                                                       "output_level" => 0))
+julia> jump_opt = optimizer_with_attributes(Ipopt.Optimizer, "output_level" => 0);
+
+julia> model = InfiniteModel(jump_opt)
 An InfiniteOpt Model
 Feasibility problem with:
-Finite Parameters: 0
-Infinite Parameters: 0
-Variables: 0
-Derivatives: 0
-Measures: 0
-Optimizer model backend information:
-Model mode: AUTOMATIC
-CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Ipopt
+  Finite parameters: 0
+  Infinite parameters: 0
+  Variables: 0
+  Derivatives: 0
+  Measures: 0
+Transformation backend information:
+  Backend type: TranscriptionBackend
+  Solver name: Ipopt
+  Transformation built and up-to-date: false
 ```
 
 Now you have an initialized `InfiniteModel` that is ready for your mathematical
 model to be defined and optimized!
 
 ## Advanced Definition Information
-As you may have noticed in the above examples, `InfiniteModel`s contain an
-optimizer model backend which simply corresponds to a `JuMP.Model` that
-will be used to store and optimize the reformulation of the infinite mathematical
-model stored in `InfiniteModel`. It also will contain a mapping between its
-optimization model and that of the `InfiniteModel` (e.g., a mapping between the
-variables and constraints). By default, `InfiniteModel`s use a
-[`TranscriptionModel`](@ref) optimizer model backend which will store a
-transcribed (discretized) version of the infinite model. More information on
-the internal use of `TranscriptionModel`s is provided in
-[Model Transcription](@ref transcription_docs).
+As noted above, `InfiniteModel`s contain a transformation backend that will ultimately 
+be used to optimize the `InfiniteModel` via a transformed version of it. Such backends 
+typically have methods to transform an `InfiniteModel` into a transformed model that 
+can be optimized; moreover, they store necessary data to map back to the `InfiniteModel`. 
 
-All the arguments used with the `InfiniteModel` constructor (e.g., the optimizer)
-are simply passed on and stored in the optimizer model backend. Thus, any
-argument supported by `JuMP.Model` can be passed on to the optimizer
-model by including it in the `InfiniteModel` constructor. For example, we can
-specify the `add_bridges` keyword argument in the `InfiniteModel` call to use
-in the definition of the optimizer model:
+By default, `InfiniteModel`s use a [`TranscriptionBackend`](@ref) which will store a
+transcribed (i.e., discretized) version of the infinite model. More information on
+`TranscriptionBackends`s is provided in [Model Transcription](@ref transcription_docs).
+Notably, the main argument `TranscriptionBackend` is an appropriate JuMP compatible 
+optimizer:
 ```jldoctest
 julia> using InfiniteOpt, Ipopt
 
-julia> model = InfiniteModel(Ipopt.Optimizer,
-                             add_bridges = false)
-An InfiniteOpt Model
+julia> backend = TranscriptionBackend(Ipopt.Optimizer)
+A TranscriptionBackend that uses a
+A JuMP Model
 Feasibility problem with:
-Finite Parameters: 0
-Infinite Parameters: 0
 Variables: 0
-Derivatives: 0
-Measures: 0
-Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: EMPTY_OPTIMIZER
 Solver name: Ipopt
 ```
 
-Moreover, alternative optimizer model types (i.e., not a `TranscriptionModel`) can be 
-specified via the `OptimizerModel` keyword argument when initializing the 
-`InfiniteModel`. Thus, to redundantly specify a `TranscriptionModel` we would call:
-```jldoctest model_fun
-julia> using InfiniteOpt
+We query the underlying transformation backend, transformation model, and transformation
+data via [`transformation_backend`](@ref), 
+[`transformation_model`](@ref transformation_model(::InfiniteModel)), and
+[`transformation_data`](@ref transformation_data(::InfiniteModel)), respectively:
+```jldoctest
+julia> using InfiniteOpt; model = InfiniteModel();
 
-julia> model = InfiniteModel(OptimizerModel = TranscriptionModel)
-An InfiniteOpt Model
+julia> tbackend = transformation_backend(model)
+A TranscriptionBackend that uses a
+A JuMP Model
 Feasibility problem with:
-Finite Parameters: 0
-Infinite Parameters: 0
 Variables: 0
-Derivatives: 0
-Measures: 0
-Optimizer model backend information:
 Model mode: AUTOMATIC
 CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
+
+julia> tmodel = transformation_model(model)
+A JuMP Model
+Feasibility problem with:
+Variables: 0
+Model mode: AUTOMATIC
+CachingOptimizer state: NO_OPTIMIZER
+Solver name: No optimizer attached.
+
+julia> data = transformation_data(model);
 ```
-More information on implementing custom optimizer models is located on the 
+
+A new transformation backend is specified via [`set_transformation_backend`](@ref):
+```jldoctest
+julia> using InfiniteOpt, Ipopt; model = InfiniteModel();
+
+julia> set_transformation_backend(model, TranscriptionBackend(Ipopt.Optimizer))
+
+julia> tbackend = transformation_backend(model)
+A TranscriptionBackend that uses a
+A JuMP Model
+Feasibility problem with:
+Variables: 0
+Model mode: AUTOMATIC
+CachingOptimizer state: EMPTY_OPTIMIZER
+Solver name: Ipopt
+```
+Again, since `TranscriptionBackend` is the default, the following models are equivalent:
+```jldoctest
+julia> using InfiniteOpt, Ipopt; 
+
+julia> model1 = InfiniteModel();
+
+julia> set_transformation_backend(model1, TranscriptionBackend(Ipopt.Optimizer, add_bridges = false))
+
+julia> model2 = InfiniteModel(Ipopt.Optimizer, add_bridges = false)
+An InfiniteOpt Model
+Feasibility problem with:
+  Finite parameters: 0
+  Infinite parameters: 0
+  Variables: 0
+  Derivatives: 0
+  Measures: 0
+Transformation backend information:
+  Backend type: TranscriptionBackend
+  Solver name: Ipopt
+  Transformation built and up-to-date: false
+```
+
+More information on implementing custom transformation backends is located on the 
 Extensions page.
 
 ## Supported Optimizers
-`InfiniteOpt` can use any optimizer that is supported by `JuMP v0.19.0` or newer 
-(i.e., has a `MathOptInterface` implementation). Please refer to `JuMP`'s current
+Supported optimizers (e.g., solvers) depend on the transformation backend being 
+used. For [`JuMPBackend`](@ref)s such as [`TranscriptionBackend`](@ref), any 
+JuMP compatible optimizer (i.e., has a `MathOptInterface` implementation) can be 
+used. Please refer to `JuMP`'s current
 [solver documentation](https://jump.dev/JuMP.jl/v1/installation/#Supported-solvers) 
 to learn what solvers are supported and how to install them.
 

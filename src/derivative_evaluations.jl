@@ -125,11 +125,20 @@ function support_label(method::GenerativeDerivativeMethod)
 end
 
 """
-    make_reduced_expr(vref::GeneralVariableRef, pref::GeneralVariableRef, 
-                      support::Float64, write_model::Union{InfiniteModel, JuMP.Model})
+    make_reduced_expr(
+        vref::GeneralVariableRef, 
+        pref::GeneralVariableRef, 
+        support::Float64, 
+        write_model::Union{InfiniteModel, AbstractTransformationBackend}
+        )
 
-    make_reduced_expr(vref::GeneralVariableRef, pref::GeneralVariableRef, 
-                      supports::Vector{Float64}, idx::Int, write_model::Union{InfiniteModel, JuMP.Model})
+    make_reduced_expr(
+        vref::GeneralVariableRef, 
+        pref::GeneralVariableRef, 
+        supports::Vector{Float64}, 
+        idx::Int, 
+        write_model::Union{InfiniteModel, AbstractTransformationBackend}
+        )
 
 Given the argument variable `vref` and the operator parameter `pref` from a 
 derivative, build and return the reduced expression in accordance to the support 
@@ -143,7 +152,7 @@ function make_reduced_expr(
     vref::GeneralVariableRef, 
     pref::GeneralVariableRef, 
     support::Float64, 
-    write_model::JuMP.AbstractModel
+    write_model::Union{InfiniteModel, AbstractTransformationBackend}
     )
     return make_reduced_expr(vref, _index_type(vref), pref, support, write_model)
 end
@@ -154,7 +163,7 @@ function make_reduced_expr(
     pref::GeneralVariableRef,
     supps::Vector{Float64},
     idx,
-    write_model::JuMP.AbstractModel
+    write_model::Union{InfiniteModel, AbstractTransformationBackend}
     )
     return make_reduced_expr(vref, pref, supps[idx], write_model)
 end
@@ -233,7 +242,7 @@ end
         order::Int,
         idx,
         supps::Vector{Float64},
-        write_model::JuMP.AbstractModel,
+        write_model::Union{InfiniteModel, AbstractTransformationBackend},
         method::AbstractDerivativeMethod,
         expr_params...
         )
@@ -261,7 +270,7 @@ function make_indexed_derivative_expr(
     order::Int,
     idx,
     supps::Vector{Float64},
-    write_model::JuMP.AbstractModel,
+    write_model::Union{InfiniteModel, AbstractTransformationBackend},
     method::AbstractDerivativeMethod,
     constants...
     )
@@ -311,7 +320,7 @@ function derivative_expr_data(
     method::AbstractDerivativeMethod,
     )
     error("`derivative_expr_data` not defined for derivative method of type " * 
-          "`$(typeof(method))`. It might be because the optimizer model doesn't " *
+          "`$(typeof(method))`. It might be because the transformation backend doesn't " *
           "support this particular derivative method. If you are extending InfiniteOpt" * 
           "to have a new derivative method, please extend `derivative_expr_data` if " *
           "possible. See the documentation for details.")
@@ -325,7 +334,7 @@ function make_indexed_derivative_expr(
     order::Int,
     idx,
     supps::Vector{Float64}, # ordered
-    write_model::JuMP.AbstractModel,
+    write_model::Union{InfiniteModel, AbstractTransformationBackend},
     ::FiniteDifference{Forward},
     supp_product
     )
@@ -358,7 +367,7 @@ function make_indexed_derivative_expr(
     order::Int,
     idx,
     supps::Vector{Float64}, # ordered
-    write_model::JuMP.AbstractModel,
+    write_model::Union{InfiniteModel, AbstractTransformationBackend},
     ::FiniteDifference{Central},
     supp_product
     )
@@ -411,7 +420,7 @@ function make_indexed_derivative_expr(
     order::Int,
     idx,
     supps::Vector{Float64}, # ordered
-    write_model::JuMP.AbstractModel,
+    write_model::Union{InfiniteModel, AbstractTransformationBackend},
     ::FiniteDifference{Backward},
     supp_product
     )
@@ -444,7 +453,7 @@ function make_indexed_derivative_expr(
     order::Int,
     idx,
     supps::Vector{Float64}, # ordered
-    write_model::JuMP.AbstractModel,
+    write_model::Union{InfiniteModel, AbstractTransformationBackend},
     ::OrthogonalCollocation{MeasureToolbox.GaussLobatto},
     lb_idx,
     coeffs...
@@ -494,7 +503,7 @@ end
         dref::GeneralVariableRef, 
         vref::GeneralVariableRef,
         method::AbstractDerivativeMethod,
-        write_model::JuMP.AbstractModel
+        write_model::Union{InfiniteModel, AbstractTransformationBackend}
         )::Vector{JuMP.AbstractJuMPScalar}
 
 Build expressions for derivative `dref` evaluated in accordance with 
@@ -504,7 +513,7 @@ will be substituted with appropriate placeholder variables such that `dref`
 can be reformulated as a first derivative. The expressions are of the form 
 `lhs - rhs`, where `lhs` is a function of derivatives evaluated at some 
 supports for certain infinite parameter, and `rhs` is a function of the 
-derivative argumentsevaluated at some supports for certain infinite parameter. 
+derivative arguments evaluated at some supports for certain infinite parameter. 
 For example, for finite difference methods at point `t = 1`, `lhs` is 
 `Δt * ∂/∂t[T(1)]`, and `rhs` could be `T(1+Δt) - T(1)` in case of forward 
 difference mode. This is intended as a helper function for `evaluate`, which 
@@ -523,7 +532,7 @@ function evaluate_derivative(
     dref::GeneralVariableRef,  
     vref::GeneralVariableRef,                          
     method::AbstractDerivativeMethod,                         
-    write_model::JuMP.AbstractModel
+    write_model::Union{InfiniteModel, AbstractTransformationBackend}
     )
     # gather the arugment and parameter 
     pref = operator_parameter(dref)

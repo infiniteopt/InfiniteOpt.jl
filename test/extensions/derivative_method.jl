@@ -44,7 +44,7 @@ function InfiniteOpt.make_indexed_derivative_expr(
     order::Int,
     idx,
     supps::Vector{Float64}, # ordered
-    write_model::JuMP.AbstractModel,
+    write_model::Union{InfiniteModel, AbstractTransformationBackend},
     ::MyDerivMethod,
     supp_diff
     )
