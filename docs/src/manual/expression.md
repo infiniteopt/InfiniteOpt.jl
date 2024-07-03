@@ -54,6 +54,7 @@ add_operators_to_jump
 ## Expression Methods
 ```@docs
 parameter_refs(::Union{JuMP.GenericAffExpr, JuMP.GenericNonlinearExpr, JuMP.GenericQuadExpr})
+restrict(::JuMP.AbstractJuMPScalar)
 map_expression
 map_expression_to_ast
 ```
