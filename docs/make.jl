@@ -1,4 +1,4 @@
-using Documenter, InfiniteOpt, Distributions, Literate, Random, Pkg
+using Documenter, InfiniteOpt, Distributions, Literate, Random
 
 if !@isdefined(EXAMPLE_DIR)
     const EXAMPLE_DIR = joinpath(@__DIR__, "src", "examples")
@@ -94,13 +94,12 @@ makedocs(;
             "Style Guide" => "develop/style.md"
             ],
         ],
-    # repo = "https://github.com/infiniteopt/InfiniteOpt.jl/blob/{commit}{path}#L{line}",
     sitename = "InfiniteOpt.jl",
     authors = "Joshua Pulsipher and Weiqi Zhang",
     modules = [InfiniteOpt],
     checkdocs = :none,
     linkcheck = true,
-    linkcheck_ignore = [r"https://www.youtube.com/.*", "https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/test/extensions/backend.jl"], # TODO remove before merging
+    linkcheck_ignore = [r"https://www.youtube.com/.*"],
     # warnonly = true,
     format = Documenter.HTML(
         # See https://github.com/JuliaDocs/Documenter.jl/issues/868
