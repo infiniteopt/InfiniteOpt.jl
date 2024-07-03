@@ -210,6 +210,7 @@ end
     @test transformation_backend_ready(m)
     set_transformation_backend(m, TestBackend())
     @test_throws ErrorException optimize!(m)
+    @test_throws ErrorException optimize!(TestBackend())
 end
 
 # Test that we avoid world age problems with generated parameter functions 

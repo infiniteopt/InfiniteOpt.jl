@@ -225,7 +225,7 @@ a helper method for [`@finite_parameter`](@ref).
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt)
-julia> build_finite_parameter(error, 1)
+julia> build_parameter(error, 1)
 FiniteParameter(1.0)
 ```
 """

@@ -767,6 +767,9 @@ end
         str = "Transformation backend information: \n  Backend type: TranscriptionBackend\n  " *
               "Solver name: Mock\n  Transformation built and up-to-date: false\n"
         io_test(show_backend_summary, str, m)
+        # test fallback
+        str = "  Backend type: TestBackend\n"
+        io_test(show_backend_summary, str, InfiniteModel(), TestBackend())
     end
     # test show_objective_function_summary
     @testset "JuMP.show_objective_function_summary" begin

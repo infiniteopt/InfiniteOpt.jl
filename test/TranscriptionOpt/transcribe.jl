@@ -610,4 +610,6 @@ end
     @test transformation_backend_ready(m)
     @test num_variables(m.backend.model) == 44
     @test time_limit_sec(m.backend) == 42
+    # test bad keyword
+    @test_throws ErrorException build_transformation_backend!(m, bad = 42)
 end

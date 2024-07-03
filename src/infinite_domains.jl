@@ -128,7 +128,7 @@ for unrecognized domain types.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP)
-julia> domain = InfiniteDomain(0, 1);
+julia> domain = IntervalDomain(0, 1);
 
 julia> has_lower_bound(domain)
 true
@@ -164,7 +164,7 @@ returns `false`. Extensions are enabled by `JuMP.has_lower_bound(domain)` and
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP)
-julia> domain = InfiniteDomain(0, 1);
+julia> domain = IntervalDomain(0, 1);
 
 julia> lower_bound(domain)
 0.0
@@ -198,7 +198,7 @@ User-defined domain types should extend this if appropriate.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP)
-julia> domain = InfiniteDomain(0, 1);
+julia> domain = IntervalDomain(0, 1);
 
 julia> set_lower_bound(domain, 0.5)
 [0.5, 1]
@@ -245,7 +245,7 @@ for unrecognized domain types.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP)
-julia> domain = InfiniteDomain(0, 1);
+julia> domain = IntervalDomain(0, 1);
 
 julia> has_upper_bound(domain)
 true
@@ -281,7 +281,7 @@ returns `false`. Extensions are enabled by `JuMP.has_upper_bound(domain)` and
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP)
-julia> domain = InfiniteDomain(0, 1);
+julia> domain = IntervalDomain(0, 1);
 
 julia> upper_bound(domain)
 1.0
@@ -316,7 +316,7 @@ User-defined domain types should extend this if appropriate.
 
 **Example**
 ```jldoctest; setup = :(using InfiniteOpt, JuMP)
-julia> domain = InfiniteDomain(0, 1);
+julia> domain = IntervalDomain(0, 1);
 
 julia> set_upper_bound(domain, 0.5)
 [0, 0.5]
