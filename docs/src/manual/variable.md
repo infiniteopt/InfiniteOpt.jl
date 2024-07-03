@@ -10,7 +10,6 @@ which originates from `JuMP.jl`.
 
 ### Infinite
 ```@docs
-JuMP.@variable
 InfOptVariableType
 Infinite
 JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Infinite)

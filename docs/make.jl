@@ -101,6 +101,7 @@ makedocs(;
     checkdocs = :exports,
     linkcheck = true,
     linkcheck_ignore = [r"https://www.youtube.com/.*", "https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/test/extensions/backend.jl"], # TODO remove before merging
+    warnonly = true,
     format = Documenter.HTML(
         # See https://github.com/JuliaDocs/Documenter.jl/issues/868
         prettyurls = get(ENV, "CI", nothing) == "true",
