@@ -1116,7 +1116,7 @@ Subject to
 """
 function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
     @assert JuMP.is_valid(model, vref) "Variable is invalid."
-    # update the optimizer model status
+    # update the transformation backend status
     if is_used(vref)
         set_transformation_backend_ready(model, false)
     end

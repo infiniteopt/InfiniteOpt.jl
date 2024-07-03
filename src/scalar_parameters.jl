@@ -744,7 +744,7 @@ end
 Create generative supports for `pref` if needed in accordance with its 
 generative support info using [`make_generative_supports`](@ref) and add them to 
 `pref`. This is intended as an internal function, but can be useful user defined 
-optimizer model extensions that utlize our support system.
+transformation backend extensions that utlize our support system.
 """
 function add_generative_supports(pref::IndependentParameterRef)::Nothing
     info = generative_support_info(pref)
@@ -1651,7 +1651,7 @@ function JuMP.delete(
         error("Cannot delete `$pref` since it is used by an parameter ",
               "function(s).")
     end
-    # update optimizer model status
+    # update transformation backend status
     if is_used(pref)
         set_transformation_backend_ready(model, false)
     end
@@ -1675,7 +1675,7 @@ end
 # FiniteParameterRef
 function JuMP.delete(model::InfiniteModel, pref::FiniteParameterRef)::Nothing
     @assert JuMP.is_valid(model, pref) "Parameter reference is invalid."
-    # update optimizer model status
+    # update transformation backend status
     if is_used(pref)
         set_transformation_backend_ready(model, false)
     end

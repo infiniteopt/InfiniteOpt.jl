@@ -10,10 +10,9 @@ respective [technical manual](@ref obj_manual) for more details.
 Naturally, objective functions serve as a key aspect of optimization problems in 
 general and this is certainly the case with infinite dimensional ones. In 
 `InfiniteOpt` objectives are defined in much the same way they are in `JuMP`. 
-One key idea to keep in mind is that the objective must evaluate to a finite 
-expression. Note this means that objectives can only explicitly contain 
-finite variables and point variables. Infinite expressions must be evaluated in a 
-measure to be included (e.g., evaluate the expectation of a random variable).
+One key idea is that the objective must evaluate to a finite expression which means 
+it must only explicitly contain finite variables and point variables. Infinite 
+expressions must be summarized by a measure (e.g., taking the expectation of a random variable).
 
 ## [Basic Usage] (@id obj_basic)
 Principally, the objective function is specified via 
@@ -35,13 +34,12 @@ julia> @variable(model, x[1:2])
 julia> @objective(model, Min, 0.5x[1] + 0.5x[2] + 𝔼(y^2 - y, ξ))
 0.5 x[1] + 0.5 x[2] + 𝔼{ξ}[y(ξ)² - y(ξ)]
 ```
-Thus, we have defined an objective using `InfiniteOpt`'s straightforward syntax. 
 Note that the second argument indicates the objective sense which can be 
 expressed `Min` for minimization problems and `Max` for maximization problems. 
 The objective function (expression) must be finite containing only finite variables, 
-point variables, and/or measures. Also, any included measures must fully 
-integrate over all the infinite parameters contained in its input function. 
-For example, if we define had an infinite variable `z(ξ, t)` then the measure 
+point variables, and/or measures. Also, any included measures must fully summarize 
+all infinite parameters contained in the expression they summarize. 
+For example, if we define an infinite variable `z(ξ, t)`, then the measure 
 `𝔼(z, ξ)` could not be included since the resulting expression would still 
 be infinite with respect to `t`. However, adding a measure for `t` would result 
 in a valid object to add to an objective: `∫(𝔼(z, ξ), t)`.

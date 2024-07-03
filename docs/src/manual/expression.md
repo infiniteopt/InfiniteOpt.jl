@@ -53,7 +53,7 @@ add_operators_to_jump
 
 ## Expression Methods
 ```@docs
-parameter_refs(::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.NonlinearExpr})
+parameter_refs(::Union{JuMP.GenericAffExpr, JuMP.GenericNonlinearExpr, JuMP.GenericQuadExpr})
 map_expression
 map_expression_to_ast
 ```
@@ -76,6 +76,7 @@ JuMP.is_valid(::InfiniteModel, ::DispatchVariableRef)
 used_by_infinite_variable(::GeneralVariableRef)
 used_by_point_variable(::GeneralVariableRef)
 used_by_semi_infinite_variable(::GeneralVariableRef)
+used_by_parameter_function(::GeneralVariableRef)
 used_by_derivative(::GeneralVariableRef)
 used_by_measure(::GeneralVariableRef)
 used_by_objective(::GeneralVariableRef)

@@ -51,6 +51,8 @@
         @test_throws ErrorException set_attribute(TestBackend(), MOI.TimeLimitSec(), 10.)
         @test set_optimizer_attribute(m, MOI.TimeLimitSec(), 12.) isa Nothing
         @test get_optimizer_attribute(m, MOI.TimeLimitSec()) == 12
+        @test set_attributes(m, MOI.TimeLimitSec() => 10.) isa Nothing
+        @test get_attribute(m, MOI.TimeLimitSec()) == 10
     end
     # Base.empty!
     @testset "Base.empty!" begin

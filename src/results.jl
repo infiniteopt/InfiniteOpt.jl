@@ -581,7 +581,7 @@ end
         )::InfOptSensitivityReport
 
 Extends `JuMP.lp_sensitivity_report` to generate and return an LP sensitivity 
-report in accordance with the optimizer model. See 
+report in accordance with the transformation backend. See 
 [`InfOptSensitivityReport`](@ref) for syntax details on how to query it. `atol` 
 denotes the optimality tolerance and should match that used by the solver to 
 compute the basis. Please refer to `JuMP`'s documentation for more technical 

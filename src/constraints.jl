@@ -897,7 +897,7 @@ function add_domain_restrictions(
     else 
         model.constraint_restrictions[JuMP.index(cref)] = new_restrictions
     end
-    # update the optimizer model status
+    # update the backend status
     set_transformation_backend_ready(JuMP.owner_model(cref), false)
     return
 end
@@ -965,7 +965,7 @@ function JuMP.delete(model::InfiniteModel, cref::InfOptConstraintRef)
     delete_domain_restrictions(cref)
     # delete constraint information
     _delete_data_object(cref)
-    # reset optimizer model status
+    # reset transformation backend status
     set_transformation_backend_ready(model, false)
     return
 end

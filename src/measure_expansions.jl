@@ -85,7 +85,7 @@ function add_point_variable(backend::AbstractTransformationBackend, ivref, supp)
           "`$(typeof(backend))`.")
 end
 
-# Store/add the variable to the optimizer model via add_measure_variable
+# Store/add the variable to the transformation backend via add_measure_variable
 # This avoids changing the InfiniteModel unexpectedly
 function make_point_variable_ref(
     write_model::AbstractTransformationBackend,
@@ -157,7 +157,7 @@ and return the correct `InfiniteOpt` variable reference. This is an internal
 method used by [`make_semi_infinite_variable_ref`](@ref) to make semi-infinite 
 variables when the `write_model` is a transformation backend. This is useful for 
 extensions that wish to expand measures, but without changing the original 
-`InfiniteModel`. An error is thrown for optimizer model types. Note if this is 
+`InfiniteModel`. An error is thrown for new transformation backend types. Note if this is 
 extended, than [`internal_semi_infinite_variable`](@ref) should also be extended 
 in order to direct semi-infinite variables references to the underlying 
 [`SemiInfiniteVariable`](@ref).
@@ -168,7 +168,7 @@ function add_semi_infinite_variable(backend::AbstractTransformationBackend, var)
 end
 
 
-# Add semi-infinite infinite variables in the optimizer model without modifying the InfiniteModel
+# Add semi-infinite infinite variables in the transformation backend without modifying the InfiniteModel
 function make_semi_infinite_variable_ref(
     write_model::AbstractTransformationBackend,
     ivref::GeneralVariableRef,

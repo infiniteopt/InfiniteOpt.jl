@@ -1748,7 +1748,7 @@ function JuMP.delete(
         error("Cannot delete `$prefs` since they are used by an infinite " * 
               "parameter function(s).")
     end
-    # update optimizer model status
+    # update transformation backend status
     if any(is_used(pref) for pref in prefs)
         set_transformation_backend_ready(model, false)
     end

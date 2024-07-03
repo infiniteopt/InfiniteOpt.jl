@@ -227,6 +227,24 @@ function JuMP.set_optimizer_attribute(model::InfiniteModel, attr, value)
 end
 
 """
+    JuMP.set_attributes(model::InfiniteModel, pairs::Pair...)::Nothing
+
+Specify multiple optimizer transformation backend attributes as `Pair`s
+of the form `attr => value` which are used for `set_attribute(model, attr, value)`.
+
+**Example**
+```julia-repl
+julia> set_attributes(model, "tol" => 1e-4, "max_iter" => 100)
+```
+"""
+function JuMP.set_attributes(model::InfiniteModel, pairs::Pair...)
+    for (attr, value) in pairs
+        JuMP.set_attribute(model.backend, attr, value)
+    end
+    return
+end
+
+"""
     Base.empty!(backend::AbstractTransformationBackend)
 
 Empty `backend` of all its contents. For new backend types, this needs to 
@@ -337,7 +355,7 @@ end
     JuMP.optimize!(model::InfiniteModel; [kwargs...])
 
 Extend `JuMP.optimize!` to optimize infinite models using the internal
-optimizer model. Calls [`build_transformation_backend!`](@ref) if the optimizer
+transformation backend. Calls [`build_transformation_backend!`](@ref) if the optimizer
 model isn't up-to-date. The `kwargs` correspond to keyword arguments passed to
 [`build_transformation_backend!`](@ref) if any are defined. The `kwargs` can also 
 include arguments that are passed to an optimize hook if one was set with 
@@ -670,7 +688,7 @@ end
         )
 
 Return the supports associated with the mappings of `vref` in `backend`.
-This dispatches off of `backend` which permits optimizer model extensions. This
+This dispatches off of `backend` which permits transformation backend extensions. This
 should throw an error if `vref` is not associated with the variable mappings
 stored in `backend`. Keyword arguments can be added as needed. Note that
 no extension is necessary for point or finite variables. 

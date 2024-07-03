@@ -320,7 +320,7 @@ function derivative_expr_data(
     method::AbstractDerivativeMethod,
     )
     error("`derivative_expr_data` not defined for derivative method of type " * 
-          "`$(typeof(method))`. It might be because the optimizer model doesn't " *
+          "`$(typeof(method))`. It might be because the transformation backend doesn't " *
           "support this particular derivative method. If you are extending InfiniteOpt" * 
           "to have a new derivative method, please extend `derivative_expr_data` if " *
           "possible. See the documentation for details.")

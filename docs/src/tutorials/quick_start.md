@@ -7,7 +7,7 @@ DocTestFilters = [r"≤|<=", r" == | = ", r" ∈ | in ", r" for all | ∀ ", r"d
 Below we exemplify and briefly explain the very basics behind defining and solving 
 an infinite-dimensional optimization problem in `InfiniteOpt`. Please refer to the 
 Guide on our subsequent pages for more complete information. The Basic Usage sections 
-on the each guide page are good places to start from. Also, the syntax of `InfiniteOpt` 
+on each guide page are good places to start from. Also, the syntax of `InfiniteOpt` 
 is inspired by `JuMP` thus we recommend new users that haven't used `JuMP`, first 
 consult their tutorials starting 
 [here](https://jump.dev/JuMP.jl/v1/tutorials/getting_started/getting_started_with_JuMP/).
@@ -65,15 +65,15 @@ julia> using InfiniteOpt, Distributions, Ipopt;
 julia> model = InfiniteModel(Ipopt.Optimizer)
 An InfiniteOpt Model
 Feasibility problem with:
-Finite Parameters: 0
-Infinite Parameters: 0
-Variables: 0
-Derivatives: 0
-Measures: 0
-Optimizer model backend information:
-Model mode: AUTOMATIC
-CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Ipopt
+  Finite parameters: 0
+  Infinite parameters: 0
+  Variables: 0
+  Derivatives: 0
+  Measures: 0
+Transformation backend information:
+  Backend type: TranscriptionBackend
+  Solver name: Ipopt
+  Transformation built and up-to-date: false
 ```
 Learn more about `InfiniteModel`s and optimizers on our 
 [Infinite Models](@ref infinite_model_docs) page.
@@ -241,7 +241,7 @@ That's it, now we have our problem defined in `InfiniteOpt`!
 ## Solution & Queries
 ### Optimize 
 Now that our model is defined, let's optimize it via [`optimize!`](@ref):
-```jldoctest quick; setup = :(set_optimizer_attribute(model, "print_level", 0))
+```jldoctest quick; setup = :(set_attribute(model, "print_level", 0))
 julia> optimize!(model)
 
 ```

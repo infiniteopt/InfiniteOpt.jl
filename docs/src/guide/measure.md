@@ -8,9 +8,9 @@ A guide for measure operators in `InfiniteOpt`. See the respective
 
 ## Overview
 Measure operators are objects that capture the evaluation of an expression with respect 
-to parameters, which is a distinct feature of optimization problems with 
-infinite decision spaces. In dynamic optimization measures can represent integral 
-terms such as the total cost over time, and in stochastic optimization measures 
+to infinite parameters, which is a distinct feature of optimization problems with 
+infinite decision spaces. In dynamic optimization, measures typically are integral 
+terms such as the total cost over time, and in stochastic optimization, measures 
 can represent integrals over the uncertain parameters, such as expectations. In 
 `InfiniteOpt`, measures are general operators that can be uni-variate or  
 multi-variate. Natively we employ measure abstractions that employ discretization  
@@ -161,7 +161,8 @@ the integrals by taking a discretization scheme
 \int_{\tau \in \mathcal{T}} f(\tau)w(\tau) d\tau \approx \sum_{i=1}^N \alpha_i f(\tau_i) w(\tau_i)
 ```
 where ``\tau_i`` are the grid points where the expression ``f(\tau)`` is 
-evaluated, and ``N`` is the total number of points taken.
+evaluated, and ``N`` is the total number of points taken (assuming the transformation 
+backend depends on discretization).
 
 This is the abstraction behind both [`DiscreteMeasureData`](@ref) and 
 [`FunctionalDiscreteMeasureData`](@ref) which are the native measure data types 
@@ -328,16 +329,16 @@ specified elsewhere in the model. Consider the following example with 3 equidist
 supports and an integral objective function that uses `UniTrapezoid()` (the default):
 ```jldoctest support_manage; setup = :(using InfiniteOpt), output = false
 # Create a model, with one variable and an infinite parameter with a given number of supports
-m = InfiniteModel()
-@infinite_parameter(m, t in [0, 2], num_supports = 3)
-@variable(m, u, Infinite(t))
+model = InfiniteModel()
+@infinite_parameter(model, t in [0, 2], num_supports = 3)
+@variable(model, u, Infinite(t))
 
 # Create an objective function with the default trapezoid integration
-@objective(m, Min, integral(u^2, t))
+@objective(model, Min, integral(u^2, t))
 
 # Get the transcribed model to check how the supports are taken into account
-build_optimizer_model!(m)
-trans_m = optimizer_model(m);
+build_transformation_backend!(model)
+tmodel = transformation_model(model);
 
 # output
 A JuMP Model
@@ -361,25 +362,25 @@ julia> supports(t)
  1.0
  2.0
 
-julia> transcription_variable(u)  
+julia> transformation_variable(u)  
 3-element Vector{VariableRef}:
  u(support: 1)
  u(support: 2)
  u(support: 3)
 
-julia> objective_function(trans_m) 
+julia> objective_function(tmodel) 
 0.5 u(support: 1)² + u(support: 2)² + 0.5 u(support: 3)²
 ```
 Thus, the integral incorporates the 3 supports generated outside the `integral` 
 declaration.
 
-Then we readjust the model to use Gauss-Legendre quadrature via `GaussLegendre()` 
+Now let's readjust the model to use Gauss-Legendre quadrature via `GaussLegendre()` 
 that uses 2 quadrature nodes:
 ```jldoctest support_manage; output = false
 # Set the new objective and update the TranscriptionModel
-set_objective_function(m, integral(u^2, t, eval_method = GaussLegendre(), num_nodes = 2))
-build_optimizer_model!(m)
-trans_m = optimizer_model(m);
+set_objective_function(model, integral(u^2, t, eval_method = GaussLegendre(), num_nodes = 2))
+build_transformation_backend!(model)
+trans_m = transformation_model(model);
 
 # output
 A JuMP Model
@@ -402,7 +403,7 @@ julia> supports(t)
  1.57735026919
  2.0
 
-julia> transcription_variable(u)  
+julia> transformation_variable(u)  
 5-element Vector{VariableRef}:
  u(support: 1)
  u(support: 2)
@@ -410,7 +411,7 @@ julia> transcription_variable(u)
  u(support: 4)
  u(support: 5)
 
-julia> objective_function(trans_m) 
+julia> objective_function(tmodel) 
 u(support: 2)² + u(support: 4)²
 ```
 The supports used in the objective function are different from the supports used 
@@ -422,22 +423,22 @@ be excluded from the objective function which will affect the behavior of the
 optimization and lead to unexpected results.
 
 However, this behavior is avoided if we let the integral add the supports and 
-not add supports elsewhere (for convenience we'll use `set_uni_integral_defaults`):
+not add supports elsewhere (for convenience we'll use [`set_uni_integral_defaults`](@ref)):
 ```jldoctest support_manage; output = false
 # Define a new model, parameter, and variable
-m = InfiniteModel()
-@infinite_parameter(m, t in [0, 2])
-@variable(m, u, Infinite(t))
+model = InfiniteModel()
+@infinite_parameter(model, t in [0, 2])
+@variable(model, u, Infinite(t))
 
 # Update the integral default keyword arguments for convenience 
 set_uni_integral_defaults(eval_method = GaussLegendre(), num_nodes = 2)
 
 # Set the objective with our desired integral
-@objective(m, Min, integral(u^2, t))
+@objective(model, Min, integral(u^2, t))
 
 # Build the transcribed model 
-build_optimizer_model!(m)
-trans_m = optimizer_model(m);
+build_transformation_backend!(model)
+tmodel = transformation_model(model);
 
 # output
 A JuMP Model
@@ -456,12 +457,12 @@ julia> supports(t)
  0.42264973081
  1.57735026919
 
-julia> transcription_variable(u)  
+julia> transformation_variable(u)  
 2-element Vector{VariableRef}:
  u(support: 1)
  u(support: 2)
 
-julia> objective_function(trans_m) 
+julia> objective_function(tmodel) 
 u(support: 1)² + u(support: 2)²
 ```
 Therefore, using quadratures other than `UniTrapezoid()` or `FEGaussLobatto()` 
@@ -470,18 +471,18 @@ requires careful analysis if there are user-defined supports in the problem.
 ## Expansion
 In a model, each measure records the integrand expression and an evaluation 
 scheme that details the discretization scheme to approximate the integral. 
-The model will not expand the measures until the transcription stage, at which 
+The model will not expand the measures until the transformation stage, when 
 a `JuMP.AbstractJuMPScalar` is created for each measure to represent how 
-the measure is modeled in a transcription model based on the stored 
+the measure is modeled in a transformed model based on the stored 
 discretization scheme (see [Model Transcription](@ref transcription_docs) for 
 details on transcription). Additional point variables will be created in the 
 expansion process if the measure is evaluated at infinite parameter points that 
 do not have corresponding point variables yet.
 
 Sometimes for extension purposes, one might want to expand a specific measure 
-before reaching the transcription stage. Alternatively, one might want to use 
-custom reformulation instead of the transcription encoded in this package, in 
-which expanding measures will also be useful. This can be done using the [`expand`](@ref) 
+before reaching the transformation stage. Alternatively, one might want to use 
+custom reformulation instead of those natively provided by InfiniteOpt, in 
+which case, expanding measures will also be useful. This can be done using the [`expand`](@ref) 
 function, which takes a [`MeasureRef`](@ref) object and returns a `JuMP.AbstractJuMPScalar` 
 based on the [`AbstractMeasureData`](@ref). For example, suppose we want to 
 integrate ``y^2`` in ``t``, with two supports ``t = 2.5`` and ``t = 7.5``. 
