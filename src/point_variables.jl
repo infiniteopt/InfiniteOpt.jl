@@ -440,10 +440,10 @@ function JuMP.add_variable(
         end
         _update_infinite_point_mapping(vref, divref)
         model.point_lookup[(ivref, v.parameter_values)] = vindex
-        gvref = _make_variable_ref(model, vindex)
+        gvref = GeneralVariableRef(model, vindex)
         _set_info_constraints(v.info, gvref, vref)
     else
-        gvref = _make_variable_ref(model, existing_index)
+        gvref = GeneralVariableRef(model, existing_index)
         if update_info
             vref = PointVariableRef(model, existing_index)
             _update_info_constraints(v.info, gvref, vref)

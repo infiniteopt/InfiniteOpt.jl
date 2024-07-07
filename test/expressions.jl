@@ -50,9 +50,9 @@
         @test InfiniteOpt._core_variable_object(fref) === func
         @test InfiniteOpt._core_variable_object(gvref) === func
     end
-    # _object_numbers
-    @testset "_object_numbers" begin
-        @test InfiniteOpt._object_numbers(fref) == [1]
+    # parameter_group_int_indices
+    @testset "parameter_group_int_indices" begin
+        @test InfiniteOpt.parameter_group_int_indices(fref) == [1]
     end
     # _parameter_numbers
     @testset "_parameter_numbers" begin
@@ -395,7 +395,7 @@ end
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
+    meas = InfiniteOpt.GeneralVariableRef(m, mindex)
     dinf = @deriv(inf, par)
     # test for variable reference
     @testset "Variable" begin
@@ -453,8 +453,8 @@ end
     end
 end
 
-# Test _object_numbers
-@testset "_object_numbers" begin
+# Test parameter_group_int_indices
+@testset "parameter_group_int_indices" begin
     # initialize model and references
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 1])
@@ -467,21 +467,21 @@ end
     red = add_variable(m, var)
     # test for finite variable reference
     @testset "FiniteVariable" begin
-        @test InfiniteOpt._object_numbers(pt) == []
-        @test InfiniteOpt._object_numbers(finite) == []
+        @test InfiniteOpt.parameter_group_int_indices(pt) == []
+        @test InfiniteOpt.parameter_group_int_indices(finite) == []
     end
     # test for infinite variable reference
     @testset "InfiniteVariable" begin
-        @test InfiniteOpt._object_numbers(inf) == [1]
+        @test InfiniteOpt.parameter_group_int_indices(inf) == [1]
     end
     # test for parameter reference
     @testset "Parameter" begin
-        @test InfiniteOpt._object_numbers(par) == [1]
-        @test InfiniteOpt._object_numbers(pars[1]) == [2]
+        @test InfiniteOpt.parameter_group_int_indices(par) == [1]
+        @test InfiniteOpt.parameter_group_int_indices(pars[1]) == [2]
     end
     # test for semi-infinite variable reference
     @testset "SemiInfiniteInfinite" begin
-        @test InfiniteOpt._object_numbers(red) == [2]
+        @test InfiniteOpt.parameter_group_int_indices(red) == [2]
     end
     # test for GenericAffExpr
     @testset "AffExpr" begin
@@ -489,8 +489,8 @@ end
         aff1 = inf + inf2 + pt - 3
         aff2 = pt + finite - 2
         # test expressions
-        @test sort!(InfiniteOpt._object_numbers(aff1)) == [1, 2]
-        @test InfiniteOpt._object_numbers(aff2) == []
+        @test sort!(InfiniteOpt.parameter_group_int_indices(aff1)) == [1, 2]
+        @test InfiniteOpt.parameter_group_int_indices(aff2) == []
     end
     # test for GenericQuadExpr
     @testset "QuadExpr" begin
@@ -498,15 +498,15 @@ end
         quad1 = inf * inf2 + inf + inf2 + pt - 3 - par
         quad2 = pt * pt + pt + finite - 2
         # test expressions
-        @test sort!(InfiniteOpt._object_numbers(quad1)) == [1, 2]
-        @test InfiniteOpt._object_numbers(quad2) == []
+        @test sort!(InfiniteOpt.parameter_group_int_indices(quad1)) == [1, 2]
+        @test InfiniteOpt.parameter_group_int_indices(quad2) == []
     end
     # test for GenericNonlinearExpr
     @testset "GenericNonlinearExpr" begin
         # make expressions
         nlp = sin(inf) / pt
         # test expressions
-        @test InfiniteOpt._object_numbers(nlp) == [1]
+        @test InfiniteOpt.parameter_group_int_indices(nlp) == [1]
     end
 end
 

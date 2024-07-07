@@ -72,11 +72,11 @@ end
     @testset "_get_array_type" begin 
         @test IOTO._get_array_type(ones(Bool, 2)) == Bool
     end
-    # test _get_object_numbers
-    @testset "_get_object_numbers" begin 
-        @test IOTO._get_object_numbers(x) == [1, 2]
-        @test IOTO._get_object_numbers(y) == []
-        @test IOTO._get_object_numbers(y + x) == [1, 2]
+    # test _getparameter_group_int_indices
+    @testset "_getparameter_group_int_indices" begin 
+        @test IOTO._getparameter_group_int_indices(x) == [1, 2]
+        @test IOTO._getparameter_group_int_indices(y) == []
+        @test IOTO._getparameter_group_int_indices(y + x) == [1, 2]
     end
     # test make_ndarray
     @testset "make_ndarray" begin 

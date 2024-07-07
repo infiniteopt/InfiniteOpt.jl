@@ -56,9 +56,9 @@
         @test InfiniteOpt._set_core_constraint_object(cref, con) isa Nothing
         @test InfiniteOpt._core_constraint_object(cref) === con
     end
-    # _object_numbers
-    @testset "_object_numbers" begin
-        @test InfiniteOpt._object_numbers(cref) == []
+    # parameter_group_int_indices
+    @testset "parameter_group_int_indices" begin
+        @test InfiniteOpt.parameter_group_int_indices(cref) == []
     end
     # _measure_dependencies
     @testset "_measure_dependencies" begin
@@ -270,7 +270,7 @@ end
         idx = InfOptConstraintIndex(6)
         cref = InfOptConstraintRef(m, idx)
         @test @constraint(m, g, inf + meas - dinf <= 2, rs) == cref
-        @test InfiniteOpt._object_numbers(cref) == [1]
+        @test InfiniteOpt.parameter_group_int_indices(cref) == [1]
         @test InfiniteOpt._core_constraint_object(cref) isa ScalarConstraint
         @test used_by_constraint(dinf)
     end

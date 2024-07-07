@@ -98,7 +98,7 @@ function JuMP.set_objective_function(
     for vref in new_vrefs
         JuMP.check_belongs_to_model(vref, model)
     end
-    if !isempty(_object_numbers(new_vrefs))
+    if !isempty(parameter_group_int_indices(new_vrefs))
         error("Objective function cannot contain infinite parameters/variables.")
     end
     # delete old mappings

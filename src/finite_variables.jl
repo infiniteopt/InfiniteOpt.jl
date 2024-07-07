@@ -97,7 +97,7 @@ function JuMP.add_variable(
     data_object = VariableData(new_var, name)
     vindex = _add_data_object(model, data_object)
     vref = FiniteVariableRef(model, vindex)
-    gvref = _make_variable_ref(model, vindex)
+    gvref = GeneralVariableRef(model, vindex)
     _set_info_constraints(new_var.info, gvref, vref)
     model.name_to_var = nothing
     return gvref

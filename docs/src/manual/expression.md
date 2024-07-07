@@ -28,6 +28,7 @@ used_by_semi_infinite_variable(::ParameterFunctionRef)
 used_by_derivative(::ParameterFunctionRef)
 used_by_measure(::ParameterFunctionRef)
 used_by_constraint(::ParameterFunctionRef)
+parameter_group_int_indices(::ParameterFunctionRef)
 ```
 
 ### Modification
@@ -57,6 +58,7 @@ parameter_refs(::Union{JuMP.GenericAffExpr, JuMP.GenericNonlinearExpr, JuMP.Gene
 restrict(::JuMP.AbstractJuMPScalar)
 map_expression
 map_expression_to_ast
+parameter_group_int_indices(::Any)
 ```
 
 ## GeneralVariableRef User Methods
@@ -158,6 +160,9 @@ JuMP.set_integer(::GeneralVariableRef)
 JuMP.IntegerRef(::GeneralVariableRef)
 JuMP.unset_integer(::GeneralVariableRef)
 constant_over_collocation(::GeneralVariableRef, ::GeneralVariableRef)
+parameter_group_int_indices(::GeneralVariableRef)
+InfiniteOpt.parameter_group_int_index
+InfiniteOpt.parameter_group_int_index(::GeneralVariableRef)
 ```
 
 ## Developer Internal Methods
@@ -187,6 +192,4 @@ InfiniteOpt._derivative_constraint_dependencies
 InfiniteOpt._derivative_constraint_dependencies(::GeneralVariableRef)
 InfiniteOpt._parameter_number
 InfiniteOpt._parameter_number(::GeneralVariableRef)
-InfiniteOpt._object_number
-InfiniteOpt._object_number(::GeneralVariableRef)
 ```

@@ -438,23 +438,23 @@ function _parameter_number(pref::GeneralVariableRef)::Int
 end
 
 """
-    _object_number(pref::DispatchVariableRef)::Int
+    parameter_group_int_index(pref::DispatchVariableRef)::Int
 
-Return the object number for `pref` assuming it is an infinite
+Return the parameter group integer index for `pref` assuming it is an infinite
 parameter. This needs to be defined for the type of `pref`. This should use
 the `_data_object` to get the number.
 """
-function _object_number end
+function parameter_group_int_index end
 
 """
-    _object_number(pref::GeneralVariableRef)::Int
+    parameter_group_int_index(pref::GeneralVariableRef)::Int
 
-Return the object number for `pref` assuming it is an infinite
-parameter. It relies on `_object_number` being properly defined for the
+Return the group integer index for `pref` assuming it is an infinite
+parameter. It relies on `parameter_group_int_index` being properly defined for the
 underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
 """
-function _object_number(pref::GeneralVariableRef)::Int
-    return _object_number(dispatch_variable_ref(pref))
+function parameter_group_int_index(pref::GeneralVariableRef)::Int
+    return parameter_group_int_index(dispatch_variable_ref(pref))
 end
 
 # Define 1 argument user method wrappers and their fallbacks

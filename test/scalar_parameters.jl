@@ -66,15 +66,15 @@
         @test InfiniteOpt._parameter_numbers(ind_pref) == [1]
         @test InfiniteOpt._parameter_numbers(ind_gvref) == [1]
     end
-    # test _object_number
-    @testset "_object_number" begin
-        @test InfiniteOpt._object_number(ind_pref) == 1
-        @test InfiniteOpt._object_number(ind_gvref) == 1
+    # test parameter_group_int_index
+    @testset "parameter_group_int_index" begin
+        @test InfiniteOpt.parameter_group_int_index(ind_pref) == 1
+        @test InfiniteOpt.parameter_group_int_index(ind_gvref) == 1
     end
-    # test _object_numbers
-    @testset "_object_numbers" begin
-        @test InfiniteOpt._object_numbers(ind_pref) == [1]
-        @test InfiniteOpt._object_numbers(ind_gvref) == [1]
+    # test parameter_group_int_indices
+    @testset "parameter_group_int_indices" begin
+        @test InfiniteOpt.parameter_group_int_indices(ind_pref) == [1]
+        @test InfiniteOpt.parameter_group_int_indices(ind_gvref) == [1]
     end
     # test _adaptive_data_update
     @testset "_adaptive_data_update" begin
@@ -216,7 +216,7 @@ end
         expected = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
         @test isequal(add_parameter(m, param), expected)
         @test InfiniteOpt._core_variable_object(expected) == param
-        @test InfiniteOpt._param_object_indices(m)[InfiniteOpt._object_number(expected)] == index(expected)
+        @test InfiniteOpt._param_object_indices(m)[InfiniteOpt.parameter_group_int_index(expected)] == index(expected)
         param = FiniteParameter(1.5)
         expected = GeneralVariableRef(m, 1, FiniteParameterIndex, -1)
         @test isequal(add_parameter(m, param), expected)
@@ -370,7 +370,7 @@ end
         @test InfiniteOpt._core_variable_object(pref).domain == IntervalDomain(0, 1)
         @test name(pref) == "z"
         @test derivative_method(pref) isa TestMethod
-        @test InfiniteOpt._param_object_indices(m)[InfiniteOpt._object_number(pref)] == index(pref)
+        @test InfiniteOpt._param_object_indices(m)[InfiniteOpt.parameter_group_int_index(pref)] == index(pref)
     end
     # multiple parameters
     @testset "Array" begin
@@ -410,7 +410,7 @@ end
                                   container = SparseAxisArray), prefs))
         @test InfiniteOpt._core_variable_object(prefs[1]).domain == UniDistributionDomain(Normal())
         @test InfiniteOpt._core_variable_object(prefs[2]).domain == UniDistributionDomain(Normal())
-        @test InfiniteOpt._param_object_indices(m)[InfiniteOpt._object_number(prefs[2])] == index(prefs[2])
+        @test InfiniteOpt._param_object_indices(m)[InfiniteOpt.parameter_group_int_index(prefs[2])] == index(prefs[2])
     end
     # test for errors
     @testset "Errors" begin

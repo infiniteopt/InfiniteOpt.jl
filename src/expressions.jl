@@ -40,13 +40,17 @@ function _core_variable_object(fref::ParameterFunctionRef)
     return _data_object(fref).func
 end
 
-# Extend _object_numbers
-function _object_numbers(fref::ParameterFunctionRef)::Vector{Int}
-    return _core_variable_object(fref).object_nums
+"""
+    parameter_group_int_indices(fref::ParameterFunctionRef)::Vector{Int}
+
+Return the list of infinite parameter group integer indices used by `fref`.
+"""
+function parameter_group_int_indices(fref::ParameterFunctionRef)
+    return _core_variable_object(fref).group_int_idxs
 end
 
 # Extend _parameter_numbers
-function _parameter_numbers(fref::ParameterFunctionRef)::Vector{Int}
+function _parameter_numbers(fref::ParameterFunctionRef)
     return _core_variable_object(fref).parameter_nums
 end
 
@@ -99,10 +103,10 @@ function build_parameter_function(
                "arguments `" * join(Tuple(prefs), ", ") * "` are checked via a ",
                "numeric support (each parameter is a `Float64`) of the same format.")
     end  
-    # get the parameter object numbers
+    # get the parameter group integer indices
     object_nums = Int[]
     for pref in prefs 
-        union!(object_nums, _object_number(pref))
+        union!(object_nums, parameter_group_int_index(pref))
     end
     # get the parameter numbers 
     param_nums = [_parameter_number(pref) for pref in prefs]
@@ -157,7 +161,7 @@ function add_parameter_function(
     findex = _add_data_object(model, data_object)
     fref = ParameterFunctionRef(model, findex)
     _update_param_var_mapping(fref, pfunc.parameter_refs)
-    return _make_variable_ref(model, findex)
+    return GeneralVariableRef(model, findex)
 end
 
 """
@@ -430,7 +434,7 @@ function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)::Nothing
     for pref in all_prefs
         filter!(e -> e != JuMP.index(fref), _parameter_function_dependencies(pref))
     end
-    gvref = _make_variable_ref(model, JuMP.index(fref))
+    gvref = GeneralVariableRef(model, JuMP.index(fref))
     # delete associated semi-infinite variables and mapping
     for index in _semi_infinite_variable_dependencies(fref)
         JuMP.delete(model, dispatch_variable_ref(model, index))
@@ -462,12 +466,12 @@ function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)::Nothing
             new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
             new_constr = JuMP.ScalarConstraint(new_func, set)
             _set_core_constraint_object(cref, new_constr)
-            empty!(_object_numbers(cref))
+            empty!(parameter_group_int_indices(cref))
         elseif func isa AbstractArray && any(isequal(gvref), func)
             JuMP.delete(model, cref)
         else
             _remove_variable(func, gvref)
-            _data_object(cref).object_nums = sort(_object_numbers(func))
+            _data_object(cref).object_nums = sort(parameter_group_int_indices(func))
         end
     end
     # delete the data object
@@ -577,22 +581,30 @@ function _all_function_variables(f)
 end
 
 ################################################################################
-#                        OBJECT/PARAMETER NUMBER METHODS
+#                        GROUP/PARAMETER NUMBER METHODS
 ################################################################################
-## Return the unique set of object numbers in an expression
+## Return the unique set of parameter group integer indices in an expression
 # Dispatch fallback (--> should be defined for each non-empty variable type)
-_object_numbers(v::DispatchVariableRef) = Int[]
+parameter_group_int_indices(v::DispatchVariableRef) = Int[]
 
-# GeneralVariableRef
-function _object_numbers(v::GeneralVariableRef)
-    return _object_numbers(dispatch_variable_ref(v))
+"""
+    parameter_group_int_indices(vref::GeneralVariableRef)::Vector{Int}
+
+Return the list of infinite parameter group integer indices used by `vref`.
+"""
+function parameter_group_int_indices(v::GeneralVariableRef)
+    return parameter_group_int_indices(dispatch_variable_ref(v))
 end
 
-# Other
-function _object_numbers(expr)
-    obj_nums = Set{Int}()
-    _interrogate_variables(v -> union!(obj_nums, _object_numbers(v)), expr)
-    return collect(obj_nums)
+"""
+    parameter_group_int_indices(expr::JuMP.AbstractJuMPScalar)::Vector{Int}
+
+Return the list of infinite parameter group integer indices used by `expr`.
+"""
+function parameter_group_int_indices(expr)
+    group_int_idxs = Set{Int}()
+    _interrogate_variables(v -> union!(group_int_idxs, parameter_group_int_indices(v)), expr)
+    return collect(group_int_idxs)
 end
 
 ## Return the unique set of parameter numbers in an expression
@@ -852,7 +864,7 @@ function restrict(expr::JuMP.AbstractJuMPScalar, supps...)
     end
     # restrict the expression using supps and return
     return map_expression(expr) do v
-        if isempty(_object_numbers(v))
+        if isempty(parameter_group_int_indices(v))
             return v
         else
             return restrict(v, supps...)
@@ -996,8 +1008,8 @@ function parameter_refs(
     if isnothing(model)
         return ()
     else
-        obj_nums = sort!(_object_numbers(expr))
-        obj_indices = _param_object_indices(model)[obj_nums]
+        group_int_idxs = sort!(parameter_group_int_indices(expr))
+        obj_indices = _param_object_indices(model)[group_int_idxs]
         return Tuple(_make_param_tuple_element(model, idx) for idx in obj_indices)
     end
 end

@@ -48,13 +48,17 @@ function _core_variable_object(mref::MeasureRef)
     return _data_object(mref).measure
 end
 
-# Extend _object_numbers
-function _object_numbers(mref::MeasureRef)::Vector{Int}
-    return _core_variable_object(mref).object_nums
+"""
+    parameter_group_int_indices(mref::MeasureRef)::Vector{Int}
+
+Return the list of infinite parameter group integer indices used by `mref`.
+"""
+function parameter_group_int_indices(mref::MeasureRef)
+    return _core_variable_object(mref).group_int_idxs
 end
 
 # Extend _parameter_numbers
-function _parameter_numbers(mref::MeasureRef)::Vector{Int}
+function _parameter_numbers(mref::MeasureRef)
     return _core_variable_object(mref).parameter_nums
 end
 
@@ -760,13 +764,13 @@ function build_measure(
     data::AbstractMeasureData
     )
     vrefs = _all_function_variables(expr)
-    expr_obj_nums = _object_numbers(expr)
+    expr_group_int_idxs = parameter_group_int_indices(expr)
     expr_param_nums = _parameter_numbers(expr)
     prefs = parameter_refs(data)
-    data_obj_nums = _object_numbers(prefs)
+    data_group_int_idxs = parameter_group_int_indices(prefs)
     data_param_nums = [_parameter_number(pref) for pref in prefs]
     # NOTE setdiff! cannot be used here since it modifies object_nums of expr if expr is a single infinite variable
-    obj_nums = sort(setdiff(expr_obj_nums, data_obj_nums))
+    group_int_idxs = sort(setdiff(expr_group_int_idxs, data_group_int_idxs))
     param_nums = sort(setdiff(expr_param_nums, data_param_nums))
     # check if analytic method should be applied
     lb_nan = isnan(first(JuMP.lower_bound(data)))
@@ -774,7 +778,7 @@ function build_measure(
     # NOTE intersect! cannot be used here since it modifies parameter_nums of expr if expr is a single infinite variable
     constant_func = isempty(intersect(expr_param_nums, data_param_nums)) &&
                     ((!lb_nan && !ub_nan) || _is_expect(data))
-    return Measure(expr, data, obj_nums, param_nums, constant_func)
+    return Measure(expr, data, group_int_idxs, param_nums, constant_func)
 end
 
 ################################################################################
@@ -1036,7 +1040,7 @@ function add_measure(
     # add the measure to the model
     object = MeasureData(meas, name)
     mindex = _add_data_object(model, object)
-    mref = _make_variable_ref(model, mindex)
+    mref = GeneralVariableRef(model, mindex)
     # update mappings
     for vref in union!(vrefs, prefs)
         push!(_measure_dependencies(vref), mindex)
@@ -1131,7 +1135,7 @@ julia> parameter_refs(meas)
 """
 function parameter_refs(mref::MeasureRef)
     model = JuMP.owner_model(mref)
-    obj_indices = _param_object_indices(model)[_object_numbers(mref)]
+    obj_indices = _param_object_indices(model)[parameter_group_int_indices(mref)]
     param_nums = _parameter_numbers(mref)
     return Tuple(_make_param_tuple_element(model, idx, param_nums)
                  for idx in obj_indices)
@@ -1349,7 +1353,7 @@ julia> all_measures(model)
 function all_measures(model::InfiniteModel)::Vector{GeneralVariableRef}
     vrefs_list = Vector{GeneralVariableRef}(undef, num_measures(model))
     for (i, (index, _)) in enumerate(_data_dictionary(model, Measure))
-        vrefs_list[i] = _make_variable_ref(model, index)
+        vrefs_list[i] = GeneralVariableRef(model, index)
     end
     return vrefs_list
 end
@@ -1390,7 +1394,7 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
     if is_used(mref)
         set_transformation_backend_ready(model, false)
     end
-    gvref = _make_variable_ref(JuMP.owner_model(mref), JuMP.index(mref))
+    gvref = GeneralVariableRef(JuMP.owner_model(mref), JuMP.index(mref))
     # Remove from dependent measures if there are any
     for mindex in _measure_dependencies(mref)
         meas_ref = dispatch_variable_ref(model, mindex)
@@ -1414,13 +1418,13 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
             new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
             new_constr = JuMP.ScalarConstraint(new_func, set)
             _set_core_constraint_object(cref, new_constr)
-            empty!(_object_numbers(cref))
+            empty!(parameter_group_int_indices(cref))
             empty!(_measure_dependencies(cref))
         elseif func isa AbstractArray && any(isequal(gvref), func)
             JuMP.delete(model, cref)
         else
             _remove_variable(func, gvref)
-            _data_object(cref).object_nums = sort(_object_numbers(func))
+            _data_object(cref).object_nums = sort(parameter_group_int_indices(func))
             filter!(e -> e != JuMP.index(mref), _measure_dependencies(cref))
         end
     end

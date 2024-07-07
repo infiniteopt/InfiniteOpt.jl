@@ -91,6 +91,7 @@ is_used(::Union{InfiniteVariableRef, DerivativeRef})
 used_by_derivative(::Union{DerivativeRef, InfiniteVariableRef})
 used_by_point_variable(::Union{InfiniteVariableRef, DerivativeRef})
 used_by_semi_infinite_variable(::Union{InfiniteVariableRef, DerivativeRef})
+parameter_group_int_indices(::InfiniteVariableRef)
 ```
 
 ### Semi-Infinite
@@ -116,6 +117,7 @@ raw_parameter_refs(::SemiInfiniteVariableRef)
 eval_supports(::SemiInfiniteVariableRef)
 is_used(::SemiInfiniteVariableRef)
 used_by_derivative(::SemiInfiniteVariableRef)
+parameter_group_int_indices(::SemiInfiniteVariableRef)
 ```
 
 ### Point

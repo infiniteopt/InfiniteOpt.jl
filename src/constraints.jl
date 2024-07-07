@@ -111,9 +111,13 @@ function _set_core_constraint_object(
     return
 end
 
-# Extend _object_numbers
-function _object_numbers(cref::InfOptConstraintRef)
-    return _data_object(cref).object_nums
+"""
+    parameter_group_int_indices(cref::InfOptConstraintRef)::Vector{Int}
+
+Return the list of infinite parameter group integer indices used by `cref`.
+"""
+function parameter_group_int_indices(cref::InfOptConstraintRef)
+    return _data_object(cref).group_int_idxs
 end
 
 # Extend _measure_dependencies
@@ -294,8 +298,8 @@ function JuMP.add_constraint(
     for vref in vrefs
         JuMP.check_belongs_to_model(vref, model)
     end
-    # get the parameter object numbers
-    object_nums = sort!(_object_numbers(vrefs))
+    # get the parameter group integer indices
+    object_nums = sort!(parameter_group_int_indices(vrefs))
     # add the constaint to the model
     constr_object = ConstraintData(c, object_nums, name, MeasureIndex[],
                                    is_info_constr)
@@ -758,7 +762,7 @@ julia> parameter_refs(cref)
 """
 function parameter_refs(cref::InfOptConstraintRef)
     model = JuMP.owner_model(cref)
-    obj_indices = _param_object_indices(model)[_object_numbers(cref)]
+    obj_indices = _param_object_indices(model)[parameter_group_int_indices(cref)]
     return Tuple(_make_param_tuple_element(model, idx) for idx in obj_indices)
 end
 

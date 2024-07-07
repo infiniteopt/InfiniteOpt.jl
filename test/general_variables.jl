@@ -253,9 +253,9 @@ end
     @testset "_parameter_number" begin
         @test_throws MethodError InfiniteOpt._parameter_number(gvref)
     end
-    # test _object_number
-    @testset "_object_number" begin
-        @test_throws MethodError InfiniteOpt._object_number(gvref)
+    # test parameter_group_int_index
+    @testset "parameter_group_int_index" begin
+        @test_throws MethodError InfiniteOpt.parameter_group_int_index(gvref)
     end
     # test 1 argument methods and fallbacks 
     for f in (:significant_digits, :parameter_value, :derivative_method, 

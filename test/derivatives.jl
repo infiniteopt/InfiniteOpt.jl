@@ -69,9 +69,9 @@
         @test InfiniteOpt._set_core_variable_object(dref, deriv2) isa Nothing
         @test InfiniteOpt._set_core_variable_object(dref, deriv) isa Nothing
     end
-    # _object_numbers
-    @testset "_object_numbers" begin
-        @test InfiniteOpt._object_numbers(dref) == [1]
+    # parameter_group_int_indices
+    @testset "parameter_group_int_indices" begin
+        @test InfiniteOpt.parameter_group_int_indices(dref) == [1]
     end
     # _parameter_numbers
     @testset "_parameter_numbers" begin

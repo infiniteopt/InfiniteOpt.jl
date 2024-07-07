@@ -224,8 +224,8 @@ end
         @test InfiniteOpt._update_measures(m, par2) isa Nothing
         @test isequal_canonical(measure_function(dmref), inf + par - x + rv + par3 + fin)
         @test isequal(measure_function(dmref2), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
-        @test InfiniteOpt._object_numbers(dmref) == [2, 3, 4]
-        @test InfiniteOpt._object_numbers(dmref2) == []
+        @test InfiniteOpt.parameter_group_int_indices(dmref) == [2, 3, 4]
+        @test InfiniteOpt.parameter_group_int_indices(dmref2) == []
         @test InfiniteOpt._parameter_numbers(dmref) == [2, 3, 4, 5]
         @test InfiniteOpt._parameter_numbers(dmref2) == []
         # undo changes
@@ -239,8 +239,8 @@ end
         @test InfiniteOpt._update_constraints(m, par2) isa Nothing
         @test isequal_canonical(jump_function(constraint_object(con)), inf2 + inf4 + par3 + fin)
         @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
-        @test isempty(setdiff(InfiniteOpt._object_numbers(con), [1, 2, 3, 4]))
-        @test InfiniteOpt._object_numbers(con2) == []
+        @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(con), [1, 2, 3, 4]))
+        @test InfiniteOpt.parameter_group_int_indices(con2) == []
         @test !is_valid(m, con3)
         # undo changes
         constr = ScalarConstraint(inf2 + inf4 - par2 + par3 + fin, MOI.LessThan(0.))
@@ -286,26 +286,26 @@ end
                     IndependentParameterIndex(3)]
         @test InfiniteOpt._param_object_indices(m) == expected
         @test InfiniteOpt._last_param_num(m) == 4
-        @test InfiniteOpt._object_number(dpar) == 1
-        @test InfiniteOpt._object_number(dpars[1]) == 2
-        @test InfiniteOpt._object_number(dpar3) == 3
+        @test InfiniteOpt.parameter_group_int_index(dpar) == 1
+        @test InfiniteOpt.parameter_group_int_index(dpars[1]) == 2
+        @test InfiniteOpt.parameter_group_int_index(dpar3) == 3
         @test InfiniteOpt._parameter_number(dpar3) == 4
         @test InfiniteOpt._parameter_number(dpars[2]) == 3
         @test InfiniteOpt._parameter_numbers(dinf4) == [1, 2, 3]
-        @test isempty(setdiff(InfiniteOpt._object_numbers(inf3), [1, 2]))
+        @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(inf3), [1, 2]))
         @test InfiniteOpt._parameter_numbers(dinf) == [1]
-        @test isempty(setdiff(InfiniteOpt._object_numbers(drv), [1, 2]))
-        @test InfiniteOpt._object_numbers(dmref) == [3]
+        @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(drv), [1, 2]))
+        @test InfiniteOpt.parameter_group_int_indices(dmref) == [3]
         @test InfiniteOpt._parameter_numbers(dmref) == [4]
-        @test isempty(setdiff(InfiniteOpt._object_numbers(con), [1, 2, 3]))
-        @test isempty(InfiniteOpt._object_numbers(con2))
+        @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(con), [1, 2, 3]))
+        @test isempty(InfiniteOpt.parameter_group_int_indices(con2))
         @test !is_valid(m, con3)
         # test special measure case with single parameter (possible through
         # multiple deletions) and with single parameter in constraint
         @test isa(delete(m, par3), Nothing)
         @test isequal_canonical(measure_function(dmref), inf + par - x + rv + fin)
         @test isequal_canonical(jump_function(constraint_object(con)), inf4 + fin)
-        @test isempty(setdiff(InfiniteOpt._object_numbers(con), [1, 2]))
+        @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(con), [1, 2]))
         expected = [IndependentParameterIndex(1), DependentParametersIndex(1)]
         @test InfiniteOpt._param_object_indices(m) == expected
         @test InfiniteOpt._last_param_num(m) == 3
@@ -402,14 +402,14 @@ end
         expected = [IndependentParameterIndex(1), IndependentParameterIndex(2)]
         @test InfiniteOpt._param_object_indices(m) == expected
         @test InfiniteOpt._last_param_num(m) == 2
-        @test InfiniteOpt._object_number(dpar) == 1
-        @test InfiniteOpt._object_number(dpar2) == 2
+        @test InfiniteOpt.parameter_group_int_index(dpar) == 1
+        @test InfiniteOpt.parameter_group_int_index(dpar2) == 2
         @test InfiniteOpt._parameter_number(dpar2) == 2
-        @test isempty(setdiff(InfiniteOpt._object_numbers(dinf2), [1, 2]))
+        @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(dinf2), [1, 2]))
         @test InfiniteOpt._parameter_numbers(dinf) == [1]
-        @test InfiniteOpt._object_numbers(dmref) == []
+        @test InfiniteOpt.parameter_group_int_indices(dmref) == []
         @test InfiniteOpt._parameter_numbers(dmref) == []
-        @test isempty(setdiff(InfiniteOpt._object_numbers(con), [1, 2]))
+        @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(con), [1, 2]))
         @test !is_valid(m, con2)
         # test assertion error
         @test_throws AssertionError delete(m, pars)
@@ -441,18 +441,18 @@ end
     @test isa(delete(m, rv), Nothing)
     @test !is_valid(m, d1)
     @test isequal_canonical(measure_function(meas), inf + par - x)
-    @test InfiniteOpt._object_numbers(meas) == [2]
+    @test InfiniteOpt.parameter_group_int_indices(meas) == [2]
     @test isequal_canonical(jump_function(constraint_object(con)), x + 0)
-    @test InfiniteOpt._object_numbers(con) == []
+    @test InfiniteOpt.parameter_group_int_indices(con) == []
     @test InfiniteOpt._semi_infinite_variable_dependencies(inf) == [JuMP.index(rv2)]
     @test !haskey(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable), JuMP.index(rv))
     @test !is_valid(m, rv)
     # test deletion of special cases
     @test isa(delete(m, rv2), Nothing)
     @test isequal(measure_function(meas2), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
-    @test InfiniteOpt._object_numbers(meas2) == []
+    @test InfiniteOpt.parameter_group_int_indices(meas2) == []
     @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
-    @test InfiniteOpt._object_numbers(con2) == []
+    @test InfiniteOpt.parameter_group_int_indices(con2) == []
     @test InfiniteOpt._semi_infinite_variable_dependencies(inf) == []
     @test !haskey(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable), JuMP.index(rv2))
     @test isempty(m.semi_lookup)
@@ -519,9 +519,9 @@ end
     @test isa(delete(m, x), Nothing)
     @test num_constraints(m) == 4
     @test isequal_canonical(measure_function(meas1), y + par)
-    @test InfiniteOpt._object_numbers(meas1) == []
+    @test InfiniteOpt.parameter_group_int_indices(meas1) == []
     @test isequal_canonical(jump_function(constraint_object(con1)), y + par)
-    @test InfiniteOpt._object_numbers(con1) == [1]
+    @test InfiniteOpt.parameter_group_int_indices(con1) == [1]
     @test isequal_canonical(objective_function(m), y + 0)
     @test !haskey(InfiniteOpt._data_dictionary(m, PointVariable), JuMP.index(x))
     @test !is_valid(m, con3)
@@ -564,9 +564,9 @@ end
     @test isa(delete(m, x), Nothing)
     @test num_constraints(m) == 4
     @test isequal_canonical(measure_function(meas1), y + par)
-    @test InfiniteOpt._object_numbers(meas1) == []
+    @test InfiniteOpt.parameter_group_int_indices(meas1) == []
     @test isequal_canonical(jump_function(constraint_object(con1)), y + par)
-    @test InfiniteOpt._object_numbers(con1) == [1]
+    @test InfiniteOpt.parameter_group_int_indices(con1) == [1]
     @test InfiniteOpt._infinite_variable_dependencies(par) == [index(y)]
     @test !is_valid(m, rv)
     @test !is_valid(m, x0)
@@ -579,11 +579,11 @@ end
     @test num_constraints(m) == 2
     @test isequal_canonical(measure_function(meas1), par + 0)
     @test isequal(measure_function(meas2), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
-    @test InfiniteOpt._object_numbers(meas1) == []
+    @test InfiniteOpt.parameter_group_int_indices(meas1) == []
     @test isequal_canonical(jump_function(constraint_object(con1)), par + 0)
     @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
-    @test InfiniteOpt._object_numbers(con1) == [1]
-    @test InfiniteOpt._object_numbers(con2) == []
+    @test InfiniteOpt.parameter_group_int_indices(con1) == [1]
+    @test InfiniteOpt.parameter_group_int_indices(con2) == []
     @test InfiniteOpt._infinite_variable_dependencies(par) == []
     @test !haskey(InfiniteOpt._data_dictionary(m, InfiniteVariable), JuMP.index(y))
     @test isempty(m.piecewise_vars)
@@ -619,9 +619,9 @@ end
     @test isa(delete(m, d1), Nothing)
     @test num_constraints(m) == 7
     @test isequal_canonical(measure_function(meas1), y + par)
-    @test InfiniteOpt._object_numbers(meas1) == []
+    @test InfiniteOpt.parameter_group_int_indices(meas1) == []
     @test isequal_canonical(jump_function(constraint_object(con1)), d2 + par)
-    @test InfiniteOpt._object_numbers(con1) == [1]
+    @test InfiniteOpt.parameter_group_int_indices(con1) == [1]
     @test InfiniteOpt._derivative_dependencies(par) == [index(d2)]
     @test !is_valid(m, rv)
     @test !is_valid(m, dx0)
@@ -636,11 +636,11 @@ end
     @test num_constraints(m) == 7
     @test isequal_canonical(measure_function(meas1), y + par)
     @test isequal(measure_function(meas2), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
-    @test InfiniteOpt._object_numbers(meas1) == []
+    @test InfiniteOpt.parameter_group_int_indices(meas1) == []
     @test isequal_canonical(jump_function(constraint_object(con1)), par + 0)
     @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
-    @test InfiniteOpt._object_numbers(con1) == [1]
-    @test InfiniteOpt._object_numbers(con2) == []
+    @test InfiniteOpt.parameter_group_int_indices(con1) == [1]
+    @test InfiniteOpt.parameter_group_int_indices(con2) == []
     @test InfiniteOpt._derivative_dependencies(par) == []
     @test !haskey(InfiniteOpt._data_dictionary(m, Derivative), JuMP.index(d2))
     @test !haskey(m.deriv_lookup, (y, par, 2))
@@ -710,9 +710,9 @@ end
     # test deletion of meas1
     @test isa(delete(m, meas1), Nothing)
     @test isequal_canonical(measure_function(meas3), x0 + 0)
-    @test InfiniteOpt._object_numbers(meas3) == []
+    @test InfiniteOpt.parameter_group_int_indices(meas3) == []
     @test isequal_canonical(jump_function(constraint_object(con1)), x0 + 0)
-    @test InfiniteOpt._object_numbers(con1) == []
+    @test InfiniteOpt.parameter_group_int_indices(con1) == []
     @test isequal_canonical(objective_function(m), x0 + 0)
     @test InfiniteOpt._measure_dependencies(x) == [JuMP.index(meas), JuMP.index(meas2), JuMP.index(meas6)]
     @test InfiniteOpt._measure_dependencies(y) == [JuMP.index(meas6)]
@@ -724,9 +724,9 @@ end
     set_objective_function(m, meas2)
     @test isa(delete(m, meas2), Nothing)
     @test isequal(measure_function(meas4), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
-    @test InfiniteOpt._object_numbers(meas4) == []
+    @test InfiniteOpt.parameter_group_int_indices(meas4) == []
     @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
-    @test InfiniteOpt._object_numbers(con2) == []
+    @test InfiniteOpt.parameter_group_int_indices(con2) == []
     @test isequal(objective_function(m), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test InfiniteOpt._measure_dependencies(x) == [JuMP.index(meas), JuMP.index(meas6)]
     @test InfiniteOpt._measure_dependencies(y) == [JuMP.index(meas6)]

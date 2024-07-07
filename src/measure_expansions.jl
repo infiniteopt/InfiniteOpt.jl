@@ -48,7 +48,7 @@ function make_point_variable_ref(
         var = PointVariable(_make_float_info(info), ivref, support)
         return JuMP.add_variable(write_model, var; add_support = false)
     else
-        return _make_variable_ref(write_model, pindex)
+        return GeneralVariableRef(write_model, pindex)
     end
 end
 
@@ -142,7 +142,7 @@ function make_semi_infinite_variable_ref(
         var = JuMP.build_variable(error, ivref, eval_supps, check = false)
         return JuMP.add_variable(write_model, var, add_support = false)
     else 
-        return _make_variable_ref(write_model, existing_index)
+        return GeneralVariableRef(write_model, existing_index)
     end
 end
 

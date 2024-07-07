@@ -38,10 +38,10 @@
         @test InfiniteOpt._parameter_numbers(mref) == [1]
         @test InfiniteOpt._parameter_numbers(gvref) == [1]
     end
-    # test _object_numbers
-    @testset "_object_numbers" begin
-        @test InfiniteOpt._object_numbers(mref) == [1]
-        @test InfiniteOpt._object_numbers(gvref) == [1]
+    # test parameter_group_int_indices
+    @testset "parameter_group_int_indices" begin
+        @test InfiniteOpt.parameter_group_int_indices(mref) == [1]
+        @test InfiniteOpt.parameter_group_int_indices(gvref) == [1]
     end
     # test _set_core_variable_object
     @testset "_set_core_variable_object" begin

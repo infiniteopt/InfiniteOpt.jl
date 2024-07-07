@@ -85,14 +85,18 @@ function _parameter_numbers(pref::IndependentParameterRef)
     return [_parameter_number(pref)]
 end
 
-# Extend _object_number
-function _object_number(pref::IndependentParameterRef)
-    return _data_object(pref).object_num
+"""
+    `parameter_group_int_index(pref::IndependentParameterRef)::Int
+
+Return the infinite parameter group integer index corresponding to `pref`.
+"""
+function parameter_group_int_index(pref::IndependentParameterRef)
+    return _data_object(pref).group_int_idx
 end
 
-# Extend _object_numbers
-function _object_numbers(pref::IndependentParameterRef)
-    return [_object_number(pref)]
+# Extend parameter_group_int_indices
+function parameter_group_int_indices(pref::IndependentParameterRef)
+    return [parameter_group_int_index(pref)]
 end
 
 ## Set helper methods for adapting data_objects with parametric changes 
@@ -269,9 +273,9 @@ function add_parameter(
     p::IndependentParameter,
     name::String = ""
     )
-    obj_num = length(_param_object_indices(model)) + 1
+    group_int_idx = length(_param_object_indices(model)) + 1
     param_num = model.last_param_num += 1
-    data_object = ScalarParameterData(p, obj_num, param_num, name)
+    data_object = ScalarParameterData(p, group_int_idx, param_num, name)
     obj_index = _add_data_object(model, data_object)
     model.name_to_param = nothing
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
@@ -1542,7 +1546,7 @@ function _update_constraints(model::InfiniteModel,
             new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
             new_constr = JuMP.ScalarConstraint(new_func, set)
             _set_core_constraint_object(cref, new_constr)
-            empty!(_object_numbers(cref))
+            empty!(parameter_group_int_indices(cref))
         elseif func isa AbstractArray && any(isequal(pref), func)
             JuMP.delete(model, cref)
         else
@@ -1564,49 +1568,49 @@ function _update_number_list(nums::Vector{Int}, list::Vector{Int})::Nothing
     return
 end
 
-# Update the model with the removed parameter/object numbers
-function _update_model_numbers(model::InfiniteModel, obj_num::Int,
+# Update the model with the removed parameter number(s) and parameter group index
+function _update_model_numbers(model::InfiniteModel, group_int_idx::Int,
                                param_nums::Vector{Int})::Nothing
     # update the independent parameters
     for (_, object) in _data_dictionary(model, IndependentParameter)
-        if object.object_num > obj_num
+        if object.object_num > group_int_idx
             object.object_num -= 1
             object.parameter_num -= length(param_nums)
         end
     end
     # update the dependent parameters
     for (_, object) in _data_dictionary(model, DependentParameters)
-        if object.object_num > obj_num
+        if object.object_num > group_int_idx
             object.object_num -= 1
             object.parameter_nums = object.parameter_nums .- length(param_nums)
         end
     end
     # update the infinite parameter functions
     for (_, object) in model.param_functions
-        _update_number_list([obj_num], object.func.object_nums)
+        _update_number_list([group_int_idx], object.func.object_nums)
         _update_number_list(param_nums, object.func.parameter_nums)
     end
     # update the infinite variables
     for vref in JuMP.all_variables(model, InfiniteVariable)
-        _update_number_list([obj_num], _object_numbers(vref))
+        _update_number_list([group_int_idx], parameter_group_int_indices(vref))
         _update_number_list(param_nums, _parameter_numbers(vref))
     end
     # update the semi-infinite variables
     for vref in JuMP.all_variables(model, SemiInfiniteVariable)
-        _update_number_list([obj_num], _object_numbers(vref))
+        _update_number_list([group_int_idx], parameter_group_int_indices(vref))
         _update_number_list(param_nums, _parameter_numbers(vref))
     end
     # update the measures
     for mref in all_measures(model)
-        _update_number_list([obj_num], _object_numbers(mref))
+        _update_number_list([group_int_idx], parameter_group_int_indices(mref))
         _update_number_list(param_nums, _parameter_numbers(mref))
     end
     # update the constraints
     for (_, object) in model.constraints
-        _update_number_list([obj_num], object.object_nums)
+        _update_number_list([group_int_idx], object.object_nums)
     end
     # update the central info
-    deleteat!(_param_object_indices(model), obj_num)
+    deleteat!(_param_object_indices(model), group_int_idx)
     model.last_param_num -= length(param_nums)
     return
 end
@@ -1664,11 +1668,11 @@ function JuMP.delete(
     # update constraints in mapping to remove the parameter
     _update_constraints(model, gvref)
     # delete parameter information stored in model
-    obj_num = _object_number(pref)
+    group_int_idx = parameter_group_int_index(pref)
     param_nums = _parameter_numbers(pref)
     _delete_data_object(pref)
-    # update the object numbers and parameter numbers
-    _update_model_numbers(model, obj_num, param_nums)
+    # update the parameter group integer indices and parameter numbers
+    _update_model_numbers(model, group_int_idx, param_nums)
     return
 end
 

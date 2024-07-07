@@ -442,17 +442,17 @@ end
         @test InfiniteOpt._parameter_numbers(prefs[2]) == [2]
         @test InfiniteOpt._parameter_numbers(gvrefs[1]) == [1]
     end
-    # test _object_number
-    @testset "_object_number" begin
-        @test InfiniteOpt._object_number(prefs[1]) == 1
-        @test InfiniteOpt._object_number(prefs[2]) == 1
-        @test InfiniteOpt._object_number(gvrefs[1]) == 1
+    # test parameter_group_int_index
+    @testset "parameter_group_int_index" begin
+        @test InfiniteOpt.parameter_group_int_index(prefs[1]) == 1
+        @test InfiniteOpt.parameter_group_int_index(prefs[2]) == 1
+        @test InfiniteOpt.parameter_group_int_index(gvrefs[1]) == 1
     end
-    # test _object_numbers
-    @testset "_object_numbers" begin
-        @test InfiniteOpt._object_numbers(prefs[1]) == [1]
-        @test InfiniteOpt._object_numbers(prefs[2]) == [1]
-        @test InfiniteOpt._object_numbers(gvrefs[1]) == [1]
+    # test parameter_group_int_indices
+    @testset "parameter_group_int_indices" begin
+        @test InfiniteOpt.parameter_group_int_indices(prefs[1]) == [1]
+        @test InfiniteOpt.parameter_group_int_indices(prefs[2]) == [1]
+        @test InfiniteOpt.parameter_group_int_indices(gvrefs[1]) == [1]
     end
     # test _adaptive_data_update
     @testset "_adaptive_data_update" begin

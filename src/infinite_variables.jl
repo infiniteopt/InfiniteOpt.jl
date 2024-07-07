@@ -48,9 +48,13 @@ function _core_variable_object(vref::InfiniteVariableRef)
     return _data_object(vref).variable
 end
 
-# Extend _object_numbers
-function _object_numbers(vref::InfiniteVariableRef)
-    return _core_variable_object(vref).object_nums
+"""
+    parameter_group_int_indices(vref::InfiniteVariableRef)::Vector{Int}
+
+Return the list of infinite parameter group integer indices used by `vref`.
+"""
+function parameter_group_int_indices(vref::InfiniteVariableRef)
+    return _core_variable_object(vref).group_int_idxs
 end
 
 # Extend _parameter_numbers
@@ -280,10 +284,10 @@ function JuMP.build_variable(
     _check_parameter_tuple(_error, prefs)
     # check and format the info (accounting for start value functions)
     new_info, is_vect_func = _check_and_format_infinite_info(_error, info, prefs)
-    # get the parameter object numbers
+    # get the parameter group integer indices
     object_nums = Int[]
     for pref in prefs 
-        union!(object_nums, _object_number(pref))
+        union!(object_nums, parameter_group_int_index(pref))
     end
     # make the variable and return
     return InfiniteVariable(new_info, prefs,
@@ -349,7 +353,7 @@ function JuMP.add_variable(
     vindex = _add_data_object(model, data_object)
     vref = InfiniteVariableRef(model, vindex)
     _update_param_var_mapping(vref, v.parameter_refs)
-    gvref = _make_variable_ref(model, vindex)
+    gvref = GeneralVariableRef(model, vindex)
     _set_info_constraints(v.info, gvref, vref)
     model.name_to_var = nothing
     return gvref
@@ -636,10 +640,10 @@ function _update_variable_info(
     )
     prefs = raw_parameter_refs(vref)
     param_nums = _parameter_numbers(vref)
-    obj_nums = _object_numbers(vref)
+    group_int_idxs = parameter_group_int_indices(vref)
     is_vect_func = _is_vector_start(vref)
     new_var = InfiniteVariable(_format_infinite_info(info), prefs, param_nums, 
-                               obj_nums, is_vect_func)
+                               group_int_idxs, is_vect_func)
     _set_core_variable_object(vref, new_var)
     return
 end
@@ -710,9 +714,9 @@ function set_start_value_function(
                                   info.upper_bound, info.has_fix, info.fixed_value,
                                   true, start, info.binary, info.integer)
     new_info, is_vect_func = _check_and_format_infinite_info(error, temp_info, prefs)
-    obj_nums = _object_numbers(vref)
+    group_int_idxs = parameter_group_int_indices(vref)
     param_nums = _parameter_numbers(vref)
-    new_var = InfiniteVariable(new_info, prefs, param_nums, obj_nums, is_vect_func)
+    new_var = InfiniteVariable(new_info, prefs, param_nums, group_int_idxs, is_vect_func)
     _set_core_variable_object(vref, new_var)
     # TODO update point variable start values as appropriate
     return
@@ -737,9 +741,9 @@ function reset_start_value_function(vref::InfiniteVariableRef)
                                  info.upper_bound, info.has_fix, info.fixed_value,
                                  false, start_func, info.binary, info.integer)
     prefs = raw_parameter_refs(vref)
-    obj_nums = _object_numbers(vref)
+    group_int_idxs = parameter_group_int_indices(vref)
     param_nums = _parameter_numbers(vref)
-    new_var = InfiniteVariable(new_info, prefs, param_nums, obj_nums, true)
+    new_var = InfiniteVariable(new_info, prefs, param_nums, group_int_idxs, true)
     _set_core_variable_object(vref, new_var)
     # TODO update point variable start values as appropriate
     return

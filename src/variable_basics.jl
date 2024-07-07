@@ -185,14 +185,6 @@ function JuMP.set_name(vref::DecisionVariableRef, name::String)::Nothing
     return
 end
 
-# Make a variable reference
-function _make_variable_ref(
-    model::InfiniteModel, 
-    index::ObjectIndex
-    )::GeneralVariableRef
-    return GeneralVariableRef(model, index.value, typeof(index))
-end
-
 # Get the name_to_var Dictionary
 function _var_name_dict(
     model::InfiniteModel
@@ -252,7 +244,7 @@ function JuMP.variable_by_name(
     elseif index == FiniteVariableIndex(-1)
         error("Multiple variables have the name $name.")
     else
-        return _make_variable_ref(model, index)
+        return GeneralVariableRef(model, index)
     end
 end
 
@@ -356,7 +348,7 @@ function JuMP.set_lower_bound(
     )::Nothing
     newset = MOI.GreaterThan(convert(Float64, lower))
     model = JuMP.owner_model(vref)
-    gvref = _make_variable_ref(model, JuMP.index(vref))
+    gvref = GeneralVariableRef(model, JuMP.index(vref))
     new_constr = JuMP.ScalarConstraint(gvref, newset)
     if JuMP.has_lower_bound(vref)
         cindex = _lower_bound_index(vref)
@@ -492,7 +484,7 @@ function JuMP.set_upper_bound(
     )::Nothing
     newset = MOI.LessThan(convert(Float64, upper))
     model = JuMP.owner_model(vref)
-    gvref = _make_variable_ref(model, JuMP.index(vref))
+    gvref = GeneralVariableRef(model, JuMP.index(vref))
     new_constr = JuMP.ScalarConstraint(gvref, newset)
     if JuMP.has_upper_bound(vref)
         cindex = _upper_bound_index(vref)
@@ -634,7 +626,7 @@ function JuMP.fix(
     )::Nothing
     new_set = MOI.EqualTo(convert(Float64, value))
     model = JuMP.owner_model(vref)
-    gvref = _make_variable_ref(model, JuMP.index(vref))
+    gvref = GeneralVariableRef(model, JuMP.index(vref))
     new_constr = JuMP.ScalarConstraint(gvref, new_set)
     if JuMP.is_fixed(vref)  # Update existing fixing constraint.
         cindex = _fix_index(vref)
@@ -811,7 +803,7 @@ function JuMP.set_binary(vref::UserDecisionVariableRef)::Nothing
         error("Cannot set the variable_ref $(vref) to binary as it " *
               "is already integer.")
     end
-    gvref = _make_variable_ref(JuMP.owner_model(vref), JuMP.index(vref))
+    gvref = GeneralVariableRef(JuMP.owner_model(vref), JuMP.index(vref))
     cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                JuMP.ScalarConstraint(gvref, MOI.ZeroOne()),
                                is_info_constr = true)
@@ -922,7 +914,7 @@ function JuMP.set_integer(vref::UserDecisionVariableRef)::Nothing
         error("Cannot set the variable_ref $(vref) to integer as it " *
               "is already binary.")
     end
-    gvref = _make_variable_ref(JuMP.owner_model(vref), JuMP.index(vref))
+    gvref = GeneralVariableRef(JuMP.owner_model(vref), JuMP.index(vref))
     cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                JuMP.ScalarConstraint(gvref, MOI.Integer()),
                                is_info_constr = true)
@@ -1061,7 +1053,7 @@ function JuMP.all_variables(model::InfiniteModel,
                             )::Vector{GeneralVariableRef} where {C}
     vrefs_list = Vector{GeneralVariableRef}(undef, JuMP.num_variables(model, type))
     for (i, (index, _)) in enumerate(_data_dictionary(model, type))
-        vrefs_list[i] = _make_variable_ref(model, index)
+        vrefs_list[i] = GeneralVariableRef(model, index)
     end
     return vrefs_list
 end
@@ -1122,7 +1114,7 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
     end
     # delete attributes specific to the variable type
     _delete_variable_dependencies(vref)
-    gvref = _make_variable_ref(model, JuMP.index(vref))
+    gvref = GeneralVariableRef(model, JuMP.index(vref))
     # remove from measures if used
     for mindex in _measure_dependencies(vref)
         mref = dispatch_variable_ref(model, mindex)
@@ -1146,14 +1138,14 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)::Nothing
             new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
             new_constr = JuMP.ScalarConstraint(new_func, set)
             _set_core_constraint_object(cref, new_constr)
-            empty!(_object_numbers(cref))
+            empty!(parameter_group_int_indices(cref))
         elseif func isa AbstractArray && any(isequal(gvref), func)
             JuMP.delete(model, cref)
         else
             _remove_variable(func, gvref)
-            # update the object numbers if vref is infinite
+            # update the parameter group integer indices if vref is infinite
             if vref isa Union{InfiniteVariableRef, SemiInfiniteVariableRef, DerivativeRef}
-                _data_object(cref).object_nums = sort(_object_numbers(func))
+                _data_object(cref).object_nums = sort(parameter_group_int_indices(func))
             end
         end
     end

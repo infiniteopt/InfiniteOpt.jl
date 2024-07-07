@@ -231,7 +231,7 @@ function InfiniteOpt.variable_supports(
     )
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE INFINITE VARIABLE SUPPORT VALUES
     map_dict = backend.data.infvar_to_supports
-    gvref = InfiniteOpt._make_variable_ref(owner_model(vref), index(vref))
+    gvref = InfiniteOpt.GeneralVariableRef(owner_model(vref), index(vref))
     haskey(map_dict, gvref) || error("Variable $gvref not used in the backend.")
     return map_dict[gvref]
 end
@@ -244,7 +244,7 @@ function InfiniteOpt.variable_supports(
     )
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE INFINITE VARIABLE SUPPORT VALUES
     map_dict = backend.data.meas_to_supports
-    gvref = InfiniteOpt._make_variable_ref(owner_model(mref), index(mref))
+    gvref = InfiniteOpt.GeneralVariableRef(owner_model(mref), index(mref))
     haskey(map_dict, gvref) || error("Variable $gvref not used in the backend.")
     return map_dict[gvref]
 end

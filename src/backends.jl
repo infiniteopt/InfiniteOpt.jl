@@ -169,7 +169,7 @@ function JuMP.get_attribute(
     attr
     )
     error("`JuMP.get_attribute` not implemented for transformation backends " * 
-          "of type `$(typeof(backend))`.")
+          "of type `$(typeof(backend))` with attribute `$attr`.")
 end
 
 """
@@ -205,7 +205,7 @@ function JuMP.set_attribute(
     value
     )
     error("`JuMP.set_attribute` not implemented for transformation backends " * 
-          "of type `$(typeof(backend))`.")
+          "of type `$(typeof(backend))` with attribute `$attr`.")
 end
 
 """
@@ -387,22 +387,68 @@ end
 ################################################################################
 #                            JUMP-BASED OPTIMIZER API
 ################################################################################
+# AbstractTransformationBackend fallbacks (1 arg setters)
+for (func, OP, val) in ((:set_silent, :Silent, true),
+                        (:unset_silent, :Silent, false),
+                        (:unset_time_limit_sec, :TimeLimitSec, nothing))
+    @doc"""
+        JuMP.$($func)(backend::AbstractTransformationBackend)
+
+    Implement [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func))
+    for transformation backends. This defaults to 
+    `JuMP.set_attribute(backend, MOI.$($OP)(), $($val))`. No extension is 
+    needed for [`JuMPBackend`](@ref)s.
+    """
+    function JuMP.$func(backend::AbstractTransformationBackend)
+        return JuMP.set_attribute(backend, MOI.$OP(), $val)
+    end
+end
+
+# AbstractTransformationBackend fallbacks (1 arg getters)
+for (func, OP) in ((:time_limit_sec, :TimeLimitSec), (:solver_name, :SolverName))
+    @doc"""
+        JuMP.$($func)(backend::AbstractTransformationBackend)
+
+    Implement [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func))
+    for transformation backends. This defaults to 
+    `JuMP.get_attribute(backend, MOI.$($OP)())`. No extension is needed for
+    [`JuMPBackend`](@ref)s.
+    """
+    function JuMP.$func(backend::AbstractTransformationBackend)
+        return JuMP.get_attribute(backend, MOI.$OP())
+    end
+end
+
+"""
+    JuMP.set_time_limit_sec(backend::AbstractTransformationBackend, value)
+
+Implement [`JuMP.set_time_limit_sec`](https://jump.dev/JuMP.jl/v1/api/JuMP/#set_time_limit_sec)
+for transformation backends. This defaults to 
+`JuMP.set_attribute(backend, MOI.TimeLimitSec(), value)`. No extension is needed for
+[`JuMPBackend`](@ref)s.
+"""
+function JuMP.set_time_limit_sec(backend::AbstractTransformationBackend, value)
+    return JuMP.set_attribute(backend, MOI.TimeLimitSec(), value)
+end
+
 # Single argument methods
 for func in (:set_silent, :unset_silent, :bridge_constraints, 
              :unset_time_limit_sec, :time_limit_sec, :solver_name, :backend,
              :mode, :unsafe_backend, :compute_conflict!, :copy_conflict,
              :set_string_names_on_creation)
     @eval begin
-        @doc """
-            JuMP.$($func)(backend::AbstractTransformationBackend)
+        if !hasmethod(JuMP.$func, Tuple{AbstractTransformationBackend})
+            @doc """
+                JuMP.$($func)(backend::AbstractTransformationBackend)
 
-        Implment `JuMP.$($func)` for transformation backends. If applicable, this 
-        should be extended for new backend types. No extension is needed for 
-        [`JuMPBackend`](@ref)s.
-        """
-        function JuMP.$func(backend::AbstractTransformationBackend)
-            error("`JuMP.$($func)` not defined for backends of type " *
-                  "`$(typeof(backend))`.")
+            Implement [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func))
+            for transformation backends. If applicable, this should be extended for 
+            new backend types. No extension is needed for [`JuMPBackend`](@ref)s.
+            """
+            function JuMP.$func(backend::AbstractTransformationBackend)
+                error("`JuMP.$($func)` not defined for backends of type " *
+                    "`$(typeof(backend))`.")
+            end
         end
 
         # Define for JuMPBackend
@@ -426,16 +472,18 @@ end
 # Two argument setters 
 for func in (:set_time_limit_sec, :set_string_names_on_creation, :add_bridge)
     @eval begin
-        @doc """
-            JuMP.$($func)(backend::AbstractTransformationBackend, value)
+        if JuMP.$func != JuMP.set_time_limit_sec
+            @doc """
+                JuMP.$($func)(backend::AbstractTransformationBackend, value)
 
-        Implment `JuMP.$($func)` for transformation backends. If applicable, this 
-        should be extended for new backend types. No extension is needed for 
-        [`JuMPBackend`](@ref)s.
-        """
-        function JuMP.$func(backend::AbstractTransformationBackend, value)
-            error("`JuMP.$($func)` not defined for backends of type " *
-                  "`$(typeof(backend))`.")
+            Implement [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func))
+            for transformation backends. If applicable, this should be extended for 
+            new backend types. No extension is needed for [`JuMPBackend`](@ref)s.
+            """
+            function JuMP.$func(backend::AbstractTransformationBackend, value)
+                error("`JuMP.$($func)` not defined for backends of type " *
+                    "`$(typeof(backend))`.")
+            end
         end
 
         # Define for JuMPBackend

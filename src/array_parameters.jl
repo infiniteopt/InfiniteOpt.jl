@@ -285,11 +285,11 @@ function add_parameters(
         error("The amounts of names and dependent parameters do not match.")
     end
     # make the parameter model object
-    obj_num = length(_param_object_indices(model)) + 1
+    group_int_idx = length(_param_object_indices(model)) + 1
     first_param_num = model.last_param_num + 1
     last_param_num = model.last_param_num += num_params
     param_nums = first_param_num:last_param_num
-    data_object = MultiParameterData(params, obj_num, param_nums, names)
+    data_object = MultiParameterData(params, group_int_idx, param_nums, names)
     # add the data object to the model and make the references
     obj_index = _add_data_object(model, data_object)
     # reset the name dictionary 
@@ -386,7 +386,7 @@ julia> used_by_infinite_variable(pref)
 true
 ```
 """
-function used_by_infinite_variable(pref::DependentParameterRef)::Bool
+function used_by_infinite_variable(pref::DependentParameterRef)
     return !isempty(_infinite_variable_dependencies(pref))
 end
 
@@ -402,7 +402,7 @@ julia> used_by_parameter_function(pref)
 true
 ```
 """
-function used_by_parameter_function(pref::DependentParameterRef)::Bool
+function used_by_parameter_function(pref::DependentParameterRef)
     return !isempty(_parameter_function_dependencies(pref))
 end
 
@@ -418,7 +418,7 @@ julia> used_by_measure(pref)
 true
 ```
 """
-function used_by_measure(pref::DependentParameterRef)::Bool
+function used_by_measure(pref::DependentParameterRef)
     return !isempty(_measure_dependencies(pref))
 end
 
@@ -434,7 +434,7 @@ julia> used_by_constraint(pref)
 false
 ```
 """
-function used_by_constraint(pref::DependentParameterRef)::Bool
+function used_by_constraint(pref::DependentParameterRef)
     return !isempty(_constraint_dependencies(pref))
 end
 
@@ -450,12 +450,12 @@ julia> used_by_derivative(pref)
 false
 ```
 """
-function used_by_derivative(pref::DependentParameterRef)::Bool
+function used_by_derivative(pref::DependentParameterRef)
     return !isempty(_derivative_dependencies(pref))
 end
 
 # Extend used by objective
-used_by_objective(pref::DependentParameterRef)::Bool = false
+used_by_objective(pref::DependentParameterRef) = false
 
 """
     is_used(pref::DependentParameterRef)::Bool
@@ -469,7 +469,7 @@ julia> is_used(pref)
 true
 ```
 """
-function is_used(pref::DependentParameterRef)::Bool
+function is_used(pref::DependentParameterRef)
     return used_by_measure(pref) || used_by_constraint(pref) ||
            used_by_infinite_variable(pref) || used_by_derivative(pref) ||
            used_by_parameter_function(pref)
@@ -479,36 +479,40 @@ end
 #                          PARAMETER OBJECT METHODS
 ################################################################################
 # Extend _parameter_number
-function _parameter_number(pref::DependentParameterRef)::Int
+function _parameter_number(pref::DependentParameterRef)
     return _data_object(pref).parameter_nums[_param_index(pref)]
 end
 
 # Extend _parameter_numbers
-function _parameter_numbers(pref::DependentParameterRef)::Vector{Int}
+function _parameter_numbers(pref::DependentParameterRef)
     return [_parameter_number(pref)]
 end
 
-# Extend _object_number
-function _object_number(pref::DependentParameterRef)::Int
-    return _data_object(pref).object_num
+"""
+    parameter_group_int_index(pref::DependentParameterRef)::Int
+
+Return the infinite parameter group integer index that corresponds to `pref`.
+"""
+function parameter_group_int_index(pref::DependentParameterRef)
+    return _data_object(pref).group_int_idx
 end
 
-# Extend _object_numbers
-function _object_numbers(pref::DependentParameterRef)::Vector{Int}
-    return [_object_number(pref)]
+# Extend parameter_group_int_indices
+function parameter_group_int_indices(pref::DependentParameterRef)
+    return [parameter_group_int_index(pref)]
 end
 
 ## Set helper methods for adapting data_objects with parametric changes 
 # No change needed 
 function _adaptive_data_update(pref::DependentParameterRef, params::P, 
-    data::MultiParameterData{P})::Nothing where {P <: DependentParameters}
+    data::MultiParameterData{P}) where {P <: DependentParameters}
     data.parameters = params
     return
 end
 
 # Reconstruction is necessary 
 function _adaptive_data_update(pref::DependentParameterRef, params::P1, 
-    data::MultiParameterData{P2})::Nothing  where {P1, P2}
+    data::MultiParameterData{P2})  where {P1, P2}
     new_data = MultiParameterData(params, data.object_num, data.parameter_nums, 
                                   data.names, data.parameter_func_indices,
                                   data.infinite_var_indices, 
@@ -522,7 +526,7 @@ end
 
 # Extend _set_core_variable_object
 function _set_core_variable_object(pref::DependentParameterRef,
-                                   params::DependentParameters)::Nothing
+                                   params::DependentParameters)
     _adaptive_data_update(pref, params, _data_object(pref))
     return
 end
@@ -1758,7 +1762,7 @@ function JuMP.delete(
         _update_constraints(model, pref)
     end
     # get the object and parameter numbers
-    obj_num = _object_number(first(prefs))
+    group_int_idx = parameter_group_int_index(first(prefs))
     param_nums = collect(_data_object(first(prefs)).parameter_nums)
     # delete derivatives that depend on any of these parameters 
     for pref in gvrefs 
@@ -1768,7 +1772,7 @@ function JuMP.delete(
     end
     # delete parameter information stored in model
     _delete_data_object(first(prefs))
-    # update the object numbers and parameter numbers
-    _update_model_numbers(model, obj_num, param_nums)
+    # update the parameter group integer indices and parameter numbers
+    _update_model_numbers(model, group_int_idx, param_nums)
     return
 end

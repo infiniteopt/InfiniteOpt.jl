@@ -110,9 +110,13 @@ function derivative_method(dref::DerivativeRef)
     return derivative_method(operator_parameter(dref))
 end
 
-# Extend _object_numbers
-function _object_numbers(dref::DerivativeRef)
-    return _object_numbers(derivative_argument(dref))
+"""
+    parameter_group_int_indices(dref::DerivativeRef)::Vector{Int}
+
+Return the list of infinite parameter group integer indices used by `dref`.
+"""
+function parameter_group_int_indices(dref::DerivativeRef)
+    return parameter_group_int_indices(derivative_argument(dref))
 end
 
 # Extend _parameter_numbers
@@ -354,11 +358,11 @@ function add_derivative(model::InfiniteModel, d::Derivative, name::String = "")
         # update the derivative lookup dict
         model.deriv_lookup[(d.variable_ref, d.parameter_ref, d.order)] = dindex
         # add the info constraints
-        gvref = _make_variable_ref(model, dindex)
+        gvref = GeneralVariableRef(model, dindex)
         _set_info_constraints(d.info, gvref, dref)
     else
         dref = DerivativeRef(model, existing_index)
-        gvref = _make_variable_ref(model, existing_index)
+        gvref = GeneralVariableRef(model, existing_index)
         old_info = _variable_info(dref)
         if old_info.has_lb || old_info.has_ub || old_info.has_fix || old_info.has_start
             @warn "Overwriting $dref, any previous properties (e.g., lower bound " * 
@@ -389,7 +393,7 @@ function _build_add_derivative(vref, pref, order)
         d = Derivative(info, true, vref, pref, order)
         return add_derivative(model, d)
     else 
-        return _make_variable_ref(model, dindex)
+        return GeneralVariableRef(model, dindex)
     end
 end
 
@@ -740,7 +744,7 @@ julia> all_derivatives(model)
 function all_derivatives(model::InfiniteModel)::Vector{GeneralVariableRef}
     vrefs_list = Vector{GeneralVariableRef}(undef, num_derivatives(model))
     for (i, (index, _)) in enumerate(_data_dictionary(model, Derivative))
-        vrefs_list[i] = _make_variable_ref(model, index)
+        vrefs_list[i] = GeneralVariableRef(model, index)
     end
     return vrefs_list
 end

@@ -68,13 +68,17 @@ function _core_variable_object(vref::SemiInfiniteVariableRef)
     end
 end
 
-# Extend _object_numbers
-function _object_numbers(vref::SemiInfiniteVariableRef)::Vector{Int}
+"""
+    parameter_group_int_indices(vref::SemiInfiniteVariableRef)::Vector{Int}
+
+Return the list of infinite parameter group integer indices used by `vref`.
+"""
+function parameter_group_int_indices(vref::SemiInfiniteVariableRef)
     return _core_variable_object(vref).object_nums
 end
 
 # Extend _parameter_numbers
-function _parameter_numbers(vref::SemiInfiniteVariableRef)::Vector{Int}
+function _parameter_numbers(vref::SemiInfiniteVariableRef)
     return _core_variable_object(vref).parameter_nums
 end
 
@@ -230,11 +234,11 @@ function JuMP.build_variable(
             end
         end
     end
-    # get the parameter object numbers of the dependencies
+    # get the parameter group integer indices of the dependencies
     object_nums = Int[]
     for i in eachindex(prefs)
         if !haskey(eval_supports, i)
-            union!(object_nums, _object_number(prefs[i]))
+            union!(object_nums, parameter_group_int_index(prefs[i]))
         end
     end
     # get the parameter numbers
@@ -338,7 +342,7 @@ function JuMP.add_variable(
             model.semi_infinite_vars[vindex].name = name
         end
     end
-    return _make_variable_ref(model, vindex)
+    return GeneralVariableRef(model, vindex)
 end
 
 ################################################################################
